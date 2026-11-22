@@ -400,14 +400,14 @@ func TestSpecValues(t *testing.T) {
 		}
 	}
 	fails := tables["Code Failure Text Hint Meaning"].Rows
-	if len(fails) != len(action.TermErrors) {
-		t.Errorf("failures: %d rows, want %d", len(fails), len(action.TermErrors))
+	if len(fails) != len(action.ActionErrors) {
+		t.Errorf("failures: %d rows, want %d", len(fails), len(action.ActionErrors))
 	}
 	for i, r := range fails {
-		if i >= len(action.TermErrors) {
+		if i >= len(action.ActionErrors) {
 			break
 		}
-		e := action.TermErrors[i]
+		e := action.ActionErrors[i]
 		if r[0] != fmt.Sprint(i) || r[1] != e.Name || r[2] != e.Text || r[3] != e.Hint {
 			t.Errorf("failure %d: the specification has %q, the code has %+v", i, r[:4], e)
 		}

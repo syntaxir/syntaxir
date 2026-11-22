@@ -6,7 +6,7 @@
 ## Problem and Mechanism
 
 The closure backend and both bytecode VMs charged the budget at every expression (closure), every
-instruction (bytecode and iterative VM) and every term of an action. A parse under a limit paid a
+instruction (bytecode and iterative VM) and every action expression of an action. A parse under a limit paid a
 charge for nearly every step, 1.4 to 1.5 times the time of the same parse without a limit.
 
 The engine now charges as generated Go does: one step on each rule call, one on each iteration of a
@@ -23,7 +23,7 @@ The compiler no longer wraps every expression in a charging step. The closure bu
 repetition matchers (only in the metered graph, so the unmetered graph is unchanged). The VM
 dispatch loop charges at the iteration instruction and in the scan loop, and the iterative VM
 charges where the recursive one does: when a rule call starts and at each loop iteration of an
-Operators Rule. A skipped alternative of a guarded choice, and the terms of an action, charge
+Operators Rule. A skipped alternative of a guarded choice, and the action expressions of an action, charge
 nothing; the built-ins that loop over a list charge per element as before.
 
 ## Results

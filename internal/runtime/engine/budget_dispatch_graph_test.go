@@ -66,7 +66,7 @@ rule expr = #operators {
 	}
 }
 
-// Rule calls consume budget even when they match no input, and the zero-width terms of one rule
+// Rule calls consume budget even when they match no input, and the zero-width action expressions of one rule
 // consume none beyond the call: between two charges only the straight-line code of a rule body
 // runs, whose length the grammar bounds. Recognition discards CST construction so input and value
 // spend cannot mask a missing call charge on the controlled graph.
@@ -81,7 +81,7 @@ func TestBudgetClosureDispatchMetersZeroWidthExpressions(t *testing.T) {
 			t.Fatalf("zero-width calls bypassed budget: node=%v error=%v", n, err)
 		}
 		if _, err := straight.ParseWith("main", "", opts); err != nil {
-			t.Fatalf("straight-line zero-width terms were charged: %v", err)
+			t.Fatalf("straight-line zero-width action expressions were charged: %v", err)
 		}
 		opts.Limits = runtime.Limits{}
 		if _, err := prog.ParseWith("main", "", opts); err != nil {

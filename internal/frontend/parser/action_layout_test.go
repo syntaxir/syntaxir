@@ -33,7 +33,7 @@ func TestActionExpressionLayout(t *testing.T) {
 			want: prelude + "rule r = \"a\" => {\n    x := (1, 2)\n    x\n}\n",
 		},
 		{
-			name: "nested multiline terms in an action block",
+			name: "nested multiline action expressions in an action block",
 			in:   prelude + "rule r = \"a\" => {\n    x := f(\n        // lead\n        g(\n            // inner\n            1\n        )\n    )\n    x\n}\n",
 			want: prelude + "rule r = \"a\" => {\n    x := f(\n        // lead\n        g(\n            // inner\n            1,\n        ),\n    )\n    x\n}\n",
 		},

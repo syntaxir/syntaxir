@@ -366,17 +366,17 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		if !x.Frame {
 			panic(tsFlowUnsupported("a predicate that reads variables"))
 		}
-		// The term reads the current frame.
+		// The action expression reads the current frame.
 		if p.dry {
 			return "p.predicate(a)"
 		}
-		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Node.Term, common.FrameScope(x.Names)))
+		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Node.Action, common.FrameScope(x.Names)))
 	case flow.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
 			panic(tsFlowUnsupported("a bind that reads variables"))
 		}
-		b, ok := p.grammarTerm(x.Node).(*ast.Bind)
+		b, ok := p.grammarAction(x.Node).(*ast.Bind)
 		if !ok {
 			panic(tsFlowUnsupported("a bind without a grammar bind"))
 		}
@@ -385,7 +385,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		}
 		// The function is declared only if the rule keeps the printed text.
 		name := p.g.Name("a")
-		p.decl(name, p.g.actionFunc(name, x.Node.Term, common.FrameScope(x.Names), nil))
+		p.decl(name, p.g.actionFunc(name, x.Node.Action, common.FrameScope(x.Names), nil))
 		return fmt.Sprintf("p.bind(%d, %s)", p.g.Prog.Vars.Index(b.Name), name)
 	case flow.OpCallOutline:
 		return p.outline(c)

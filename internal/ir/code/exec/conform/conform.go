@@ -198,7 +198,7 @@ func provides(s Suite, m *code.Module, f *code.Func, visited map[string]bool) bo
 		switch {
 		case c.Callee == ValuesOp, c.Callee == ErrsOp, c.Callee == ErrOp, c.Callee == DatumOp, c.Callee == RuleOp,
 			c.Callee == ExpOp, c.Callee == PlaceholderOp, c.Callee == DocStatOp, isOprTestOp(c.Callee), c.Callee == BodyOp,
-			isTermStateTestOp(c.Callee):
+			isActionStateTestOp(c.Callee):
 		case m.Op(c.Callee) != nil:
 			ok = ok && slices.Contains(s.Ops, c.Callee)
 		case m.Func(c.Callee) != nil:
@@ -356,8 +356,8 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 		i := args[0].(int64)
 		return []any{p.wrap(ref.BodyRef{Index: i}, p.impl.(Bodies).Body(i))}
 	}
-	if isTermStateTestOp(o.Name) {
-		return []any{p.termStateHandle(o.Name, args)}
+	if isActionStateTestOp(o.Name) {
+		return []any{p.actionStateHandle(o.Name, args)}
 	}
 	if o.Name == DocStatOp {
 		i := args[0].(int64)
@@ -427,7 +427,7 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 			panic(mismatch(fmt.Sprintf("listing %d recovered errors visits %d lists, not fewer than %d", k, n, 2*k)))
 		}
 	}
-	p.compareTermState(o, want.res, got.res)
+	p.compareActionState(o, want.res, got.res)
 	p.writeRegisters(o, want.res)
 	if ob, ok := p.impl.(Observer); ok {
 		for _, c := range o.Writes {

@@ -75,7 +75,7 @@ func typeString(x core.Type) string {
 }
 
 // TestCoreBuildTypes checks that the module carries the checked types: named types, rule values,
-// capture slots of rules and of repetition elements, and every term.
+// capture slots of rules and of repetition elements, and every action expression.
 func TestCoreBuildTypes(t *testing.T) {
 	prog := coreProgram(t, `type P = { N int; S string }
 var k int = 2
@@ -123,20 +123,20 @@ rule pair P = n:[0-9]+ s:[a-z] => P{N: len($n), S: text($s)}
 	if got := slotTypes(element); got != "q pair" {
 		t.Errorf("element scope %s", got)
 	}
-	var terms []string
+	var actionExprs []string
 	core.WalkActionExpr(main.Finish.Action, func(x core.ActionExpr) {
-		terms = append(terms, core.ActionExprString(x)+" : "+typeString(core.TypeOf(x)))
+		actionExprs = append(actionExprs, core.ActionExprString(x)+" : "+typeString(core.TypeOf(x)))
 	})
-	if len(terms) == 0 || !strings.HasSuffix(terms[0], " : P") {
-		t.Errorf("action terms %v", terms)
+	if len(actionExprs) == 0 || !strings.HasSuffix(actionExprs[0], " : P") {
+		t.Errorf("action expressions %v", actionExprs)
 	}
-	for _, s := range terms {
+	for _, s := range actionExprs {
 		if strings.HasSuffix(s, " : <nil>") {
-			t.Errorf("untyped term %s", s)
+			t.Errorf("untyped action %s", s)
 		}
 	}
-	if !slices.Contains(terms, "var:k : int") && !slices.ContainsFunc(terms, func(s string) bool { return strings.HasSuffix(s, "k : int") }) {
-		t.Errorf("variable term not typed int: %v", terms)
+	if !slices.Contains(actionExprs, "var:k : int") && !slices.ContainsFunc(actionExprs, func(s string) bool { return strings.HasSuffix(s, "k : int") }) {
+		t.Errorf("variable action expression not typed int: %v", actionExprs)
 	}
 }
 

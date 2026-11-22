@@ -179,17 +179,17 @@ func init() {
 	rules[0].Body = e1
 	rules[0].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
-		tn2 := c.TermStruct("Program", 1)
+		tn2 := c.ActionStruct("Program", 1)
 		tfirst3 := true
 		c.P.Spend()
-		c.TermSetField(tn2, "Body", tf1)
-		tfirst3 = c.P.TermCover(tn2, tf1, tfirst3)
-		c.P.TermMade(c, tn2, tfirst3)
+		c.ActionSetField(tn2, "Body", tf1)
+		tfirst3 = c.P.ActionCover(tn2, tf1, tfirst3)
+		c.P.ActionMade(c, tn2, tfirst3)
 		return any(tn2), nil
 	}
 	rules[1].Body = e3
 	rules[1].Action = func(c *rt.ActCtx) (any, any) {
-		ti1, tf1 := c.P.TermItems("map", c.Cap(0))
+		ti1, tf1 := c.P.ActionItems("map", c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -199,12 +199,12 @@ func init() {
 	rules[2].Body = e6
 	rules[2].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
-		tn2 := c.TermStruct("Block", 1)
+		tn2 := c.ActionStruct("Block", 1)
 		tfirst3 := true
 		c.P.Spend()
-		c.TermSetField(tn2, "Body", tf1)
-		tfirst3 = c.P.TermCover(tn2, tf1, tfirst3)
-		c.P.TermMade(c, tn2, tfirst3)
+		c.ActionSetField(tn2, "Body", tf1)
+		tfirst3 = c.P.ActionCover(tn2, tf1, tfirst3)
+		c.P.ActionMade(c, tn2, tfirst3)
 		return any(tn2), nil
 	}
 	rules[3].Body = e8
@@ -215,30 +215,30 @@ func init() {
 	rules[4].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
-		tn3 := c.TermStruct("Let", 2)
+		tn3 := c.ActionStruct("Let", 2)
 		tfirst4 := true
 		c.P.Spend()
-		c.TermSetField(tn3, "Name", tf1)
-		tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+		c.ActionSetField(tn3, "Name", tf1)
+		tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 		c.P.Spend()
-		c.TermSetField(tn3, "Value", tf2)
-		tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-		c.P.TermMade(c, tn3, tfirst4)
+		c.ActionSetField(tn3, "Value", tf2)
+		tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+		c.P.ActionMade(c, tn3, tfirst4)
 		return any(tn3), nil
 	}
 	rules[5].Body = e11
 	rules[5].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
-		tn3 := c.TermStruct("Assign", 2)
+		tn3 := c.ActionStruct("Assign", 2)
 		tfirst4 := true
 		c.P.Spend()
-		c.TermSetField(tn3, "Target", tf1)
-		tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+		c.ActionSetField(tn3, "Target", tf1)
+		tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 		c.P.Spend()
-		c.TermSetField(tn3, "Value", tf2)
-		tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-		c.P.TermMade(c, tn3, tfirst4)
+		c.ActionSetField(tn3, "Value", tf2)
+		tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+		c.P.ActionMade(c, tn3, tfirst4)
 		return any(tn3), nil
 	}
 	rules[6].Body = e12
@@ -246,18 +246,18 @@ func init() {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
 		tf3 := c.Cap(2)
-		tn4 := c.TermStruct("If", 3)
+		tn4 := c.ActionStruct("If", 3)
 		tfirst5 := true
 		c.P.Spend()
-		c.TermSetField(tn4, "Cond", tf1)
-		tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+		c.ActionSetField(tn4, "Cond", tf1)
+		tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Then", tf2)
-		tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+		c.ActionSetField(tn4, "Then", tf2)
+		tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Else", tf3)
-		tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-		c.P.TermMade(c, tn4, tfirst5)
+		c.ActionSetField(tn4, "Else", tf3)
+		tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+		c.P.ActionMade(c, tn4, tfirst5)
 		return any(tn4), nil
 	}
 	rules[7].Body = e13
@@ -268,26 +268,26 @@ func init() {
 	rules[8].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
-		tn3 := c.TermStruct("While", 2)
+		tn3 := c.ActionStruct("While", 2)
 		tfirst4 := true
 		c.P.Spend()
-		c.TermSetField(tn3, "Cond", tf1)
-		tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+		c.ActionSetField(tn3, "Cond", tf1)
+		tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 		c.P.Spend()
-		c.TermSetField(tn3, "Body", tf2)
-		tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-		c.P.TermMade(c, tn3, tfirst4)
+		c.ActionSetField(tn3, "Body", tf2)
+		tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+		c.P.ActionMade(c, tn3, tfirst4)
 		return any(tn3), nil
 	}
 	rules[9].Body = e15
 	rules[9].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
-		tn2 := c.TermStruct("Return", 1)
+		tn2 := c.ActionStruct("Return", 1)
 		tfirst3 := true
 		c.P.Spend()
-		c.TermSetField(tn2, "Value", tf1)
-		tfirst3 = c.P.TermCover(tn2, tf1, tfirst3)
-		c.P.TermMade(c, tn2, tfirst3)
+		c.ActionSetField(tn2, "Value", tf1)
+		tfirst3 = c.P.ActionCover(tn2, tf1, tfirst3)
+		c.P.ActionMade(c, tn2, tfirst3)
 		return any(tn2), nil
 	}
 	rules[10].Body = e18
@@ -295,53 +295,53 @@ func init() {
 		tf1 := c.Cap(0)
 		tm2 := len(c.P.KidStack)
 		c.P.Spend()
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm2)
-		tn5 := c.P.TermHull(c, false, tk4)
+		tn5 := c.P.ActionHull(c, false, tk4)
 		tf6 := any(tn5)
 		tf7 := c.Cap(2)
-		tn8 := c.TermStruct("Func", 3)
+		tn8 := c.ActionStruct("Func", 3)
 		tfirst9 := true
 		c.P.Spend()
-		c.TermSetField(tn8, "Name", tf1)
-		tfirst9 = c.P.TermCover(tn8, tf1, tfirst9)
+		c.ActionSetField(tn8, "Name", tf1)
+		tfirst9 = c.P.ActionCover(tn8, tf1, tfirst9)
 		c.P.Spend()
-		c.TermSetField(tn8, "Params", tf6)
-		tfirst9 = c.P.TermCover(tn8, tf6, tfirst9)
+		c.ActionSetField(tn8, "Params", tf6)
+		tfirst9 = c.P.ActionCover(tn8, tf6, tfirst9)
 		c.P.Spend()
-		c.TermSetField(tn8, "Body", tf7)
-		tfirst9 = c.P.TermCover(tn8, tf7, tfirst9)
-		c.P.TermMade(c, tn8, tfirst9)
+		c.ActionSetField(tn8, "Body", tf7)
+		tfirst9 = c.P.ActionCover(tn8, tf7, tfirst9)
+		c.P.ActionMade(c, tn8, tfirst9)
 		return any(tn8), nil
 	}
 	rules[11].Body = e21
 	rules[11].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.Spend()
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHull(c, false, tk4)
+		tn5 := c.P.ActionHull(c, false, tk4)
 		return any(tn5), nil
 	}
 	rules[12].Body = e22
 	rules[12].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
-		tn2 := c.TermStruct("ExprStmt", 1)
+		tn2 := c.ActionStruct("ExprStmt", 1)
 		tfirst3 := true
 		c.P.Spend()
-		c.TermSetField(tn2, "X", tf1)
-		tfirst3 = c.P.TermCover(tn2, tf1, tfirst3)
-		c.P.TermMade(c, tn2, tfirst3)
+		c.ActionSetField(tn2, "X", tf1)
+		tfirst3 = c.P.ActionCover(tn2, tf1, tfirst3)
+		c.P.ActionMade(c, tn2, tfirst3)
 		return any(tn2), nil
 	}
 	rules[13].Body = e23
@@ -361,192 +361,192 @@ func init() {
 			&rt.OperatorsRuleLine{Scope: []string{"xs"}, M: e72, Action: func(c *rt.ActCtx) (any, any) {
 				tm1 := len(c.P.KidStack)
 				c.P.Spend()
-				tf2 := c.P.TermPushItems(c, "concat", c.Cap(0))
+				tf2 := c.P.ActionPushItems(c, "concat", c.Cap(0))
 				if tf2 != nil {
 					return nil, tf2
 				}
 				tk3 := c.P.ElemsAbove(tm1)
-				tn4 := c.P.TermHull(c, false, tk3)
+				tn4 := c.P.ActionHull(c, false, tk3)
 				tf5 := any(tn4)
-				tn6 := c.TermStruct("ArrayLit", 1)
+				tn6 := c.ActionStruct("ArrayLit", 1)
 				tfirst7 := true
 				c.P.Spend()
-				c.TermSetField(tn6, "Elems", tf5)
-				tfirst7 = c.P.TermCover(tn6, tf5, tfirst7)
-				c.P.TermMade(c, tn6, tfirst7)
+				c.ActionSetField(tn6, "Elems", tf5)
+				tfirst7 = c.P.ActionCover(tn6, tf5, tfirst7)
+				c.P.ActionMade(c, tn6, tfirst7)
 				return any(tn6), nil
 			}, Value: sh57},
 		},
 		Prefix: []*rt.OperatorsRuleOp{{Id: 6, Kind: "prefix", Assoc: "", Level: 7, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e95, Action: func(c *rt.ActCtx) (any, any) {
 			tf1 := rt.UnboxValue(c.Op)
 			tf2 := rt.UnboxValue(c.Rhs)
-			tn3 := c.TermStruct("Unary", 2)
+			tn3 := c.ActionStruct("Unary", 2)
 			tfirst4 := true
 			c.P.Spend()
-			c.TermSetField(tn3, "Op", tf1)
-			tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+			c.ActionSetField(tn3, "Op", tf1)
+			tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 			c.P.Spend()
-			c.TermSetField(tn3, "X", tf2)
-			tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-			c.P.TermMade(c, tn3, tfirst4)
+			c.ActionSetField(tn3, "X", tf2)
+			tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+			c.P.ActionMade(c, tn3, tfirst4)
 			return any(tn3), nil
 		}, Value: sh38}}},
 		Led: []*rt.OperatorsRuleOp{{Id: 0, Kind: "infix", Assoc: "right", Level: 1, Line: &rt.OperatorsRuleLine{Scope: []string{"t"}, M: e75, Action: func(c *rt.ActCtx) (any, any) {
 			tf1 := rt.UnboxValue(c.Lhs)
 			tf2 := c.Cap(0)
 			tf3 := rt.UnboxValue(c.Rhs)
-			tn4 := c.TermStruct("Cond", 3)
+			tn4 := c.ActionStruct("Cond", 3)
 			tfirst5 := true
 			c.P.Spend()
-			c.TermSetField(tn4, "Cond", tf1)
-			tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+			c.ActionSetField(tn4, "Cond", tf1)
+			tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 			c.P.Spend()
-			c.TermSetField(tn4, "Then", tf2)
-			tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+			c.ActionSetField(tn4, "Then", tf2)
+			tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 			c.P.Spend()
-			c.TermSetField(tn4, "Else", tf3)
-			tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-			c.P.TermMade(c, tn4, tfirst5)
+			c.ActionSetField(tn4, "Else", tf3)
+			tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+			c.P.ActionMade(c, tn4, tfirst5)
 			return any(tn4), nil
 		}, Value: sh57}},
 			{Id: 1, Kind: "infix", Assoc: "left", Level: 2, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e77, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh38}},
 			{Id: 2, Kind: "infix", Assoc: "left", Level: 3, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e79, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh38}},
 			{Id: 3, Kind: "infix", Assoc: "none", Level: 4, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e86, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh38}},
 			{Id: 4, Kind: "infix", Assoc: "left", Level: 5, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e89, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh38}},
 			{Id: 5, Kind: "infix", Assoc: "left", Level: 6, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e93, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh38}},
 			{Id: 7, Kind: "postfix", Assoc: "", Level: 8, Line: &rt.OperatorsRuleLine{Scope: []string{"xs"}, M: e96, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tm2 := len(c.P.KidStack)
 				c.P.Spend()
-				tf3 := c.P.TermPushItems(c, "concat", c.Cap(0))
+				tf3 := c.P.ActionPushItems(c, "concat", c.Cap(0))
 				if tf3 != nil {
 					return nil, tf3
 				}
 				tk4 := c.P.ElemsAbove(tm2)
-				tn5 := c.P.TermHull(c, false, tk4)
+				tn5 := c.P.ActionHull(c, false, tk4)
 				tf6 := any(tn5)
-				tn7 := c.TermStruct("Call", 2)
+				tn7 := c.ActionStruct("Call", 2)
 				tfirst8 := true
 				c.P.Spend()
-				c.TermSetField(tn7, "Fn", tf1)
-				tfirst8 = c.P.TermCover(tn7, tf1, tfirst8)
+				c.ActionSetField(tn7, "Fn", tf1)
+				tfirst8 = c.P.ActionCover(tn7, tf1, tfirst8)
 				c.P.Spend()
-				c.TermSetField(tn7, "Args", tf6)
-				tfirst8 = c.P.TermCover(tn7, tf6, tfirst8)
-				c.P.TermMade(c, tn7, tfirst8)
+				c.ActionSetField(tn7, "Args", tf6)
+				tfirst8 = c.P.ActionCover(tn7, tf6, tfirst8)
+				c.P.ActionMade(c, tn7, tfirst8)
 				return any(tn7), nil
 			}, Value: sh57}},
 			{Id: 8, Kind: "postfix", Assoc: "", Level: 8, Line: &rt.OperatorsRuleLine{Scope: []string{"i"}, M: e97, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := c.Cap(0)
-				tn3 := c.TermStruct("Index", 2)
+				tn3 := c.ActionStruct("Index", 2)
 				tfirst4 := true
 				c.P.Spend()
-				c.TermSetField(tn3, "X", tf1)
-				tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+				c.ActionSetField(tn3, "X", tf1)
+				tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 				c.P.Spend()
-				c.TermSetField(tn3, "Index", tf2)
-				tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-				c.P.TermMade(c, tn3, tfirst4)
+				c.ActionSetField(tn3, "Index", tf2)
+				tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+				c.P.ActionMade(c, tn3, tfirst4)
 				return any(tn3), nil
 			}, Value: sh57}},
 			{Id: 9, Kind: "postfix", Assoc: "", Level: 8, Line: &rt.OperatorsRuleLine{Scope: []string{"n"}, M: e98, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := c.Cap(0)
-				tn3 := c.TermStruct("Member", 2)
+				tn3 := c.ActionStruct("Member", 2)
 				tfirst4 := true
 				c.P.Spend()
-				c.TermSetField(tn3, "X", tf1)
-				tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+				c.ActionSetField(tn3, "X", tf1)
+				tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 				c.P.Spend()
-				c.TermSetField(tn3, "Name", tf2)
-				tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-				c.P.TermMade(c, tn3, tfirst4)
+				c.ActionSetField(tn3, "Name", tf2)
+				tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+				c.P.ActionMade(c, tn3, tfirst4)
 				return any(tn3), nil
 			}, Value: sh62}}},
 	}
@@ -555,16 +555,16 @@ func init() {
 	rules[15].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.Spend()
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHull(c, false, tk4)
+		tn5 := c.P.ActionHull(c, false, tk4)
 		return any(tn5), nil
 	}
 	rules[16].Body = e26
@@ -2995,4 +2995,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

@@ -1,7 +1,7 @@
 // Package actionlower lowers the action expressions of a checked program, the predicates and the
-// values of bindings to the term programs that the runtime evaluates (state.TermProgram): it lowers
-// a Core IR term to Exec IR (flowlower.Term) and translates the function into the instructions of the
-// register machine of terms. The closure backend and the bytecode compiler (vmlower) call it when
+// values of bindings to the action programs that the runtime evaluates (state.ActionProgram): it lowers
+// a Core IR action expression to Exec IR (flowlower.Action) and translates the function into the instructions of the
+// register machine of action expressions. The closure backend and the bytecode compiler (vmlower) call it when
 // they build a program; the runtime only runs the result.
 package actionlower
 
@@ -19,16 +19,16 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Env is what the leaves of a term resolve against when it is compiled.
+// Env is what the leaves of an action expression resolve against when it is compiled.
 type Env struct {
-	// Checker resolves the types of the program: the kinds of the values that terms make and the
+	// Checker resolves the types of the program: the kinds of the values that action expressions make and the
 	// types that casts check. Vars holds the program's declared variables (check.Model.Vars).
 	Checker *check.Checker
 	Vars    *check.VarTable
-	// Scope holds the capture slots of the frame the term reads.
+	// Scope holds the capture slots of the frame the action expression reads.
 	Scope *program.Scope
-	// Proj are the projected captures of the rule whose action the term is (flowlower.TermOptions.Proj),
-	// nil for every other term.
+	// Proj are the projected captures of the rule whose action the action expression is (flowlower.ActionOptions.Proj),
+	// nil for every other action expression.
 	Proj map[string]string
 }
 
@@ -40,36 +40,36 @@ const (
 	fileT        // Str
 )
 
-type termReg struct {
+type actionReg struct {
 	file int
 	r    int32
 }
 
-// Compile compiles the Core IR term t, which reads the frame of env.Scope: it lowers t to Exec IR
-// and translates the function into the instructions of a state.TermProgram. An error is an internal
-// error: a term that the front end does not build, or a lowering this translation does not know.
-func Compile(t ir.ActionExpr, env Env) (*state.TermProgram, error) {
-	l, err := flowlower.Term(t, flowlower.TermOptions{Proj: env.Proj})
+// Compile compiles the Core IR action expression t, which reads the frame of env.Scope: it lowers t to Exec IR
+// and translates the function into the instructions of a state.ActionProgram. An error is an internal
+// error: an action expression that the front end does not build, or a lowering this translation does not know.
+func Compile(t ir.ActionExpr, env Env) (*state.ActionProgram, error) {
+	l, err := flowlower.Action(t, flowlower.ActionOptions{Proj: env.Proj})
 	if err != nil {
 		return nil, err
 	}
-	c := &termCompiler{env: env, m: l.Module, locals: map[string]termReg{}, prog: &state.TermProgram{}}
+	c := &actionCompiler{env: env, m: l.Module, locals: map[string]actionReg{}, prog: &state.ActionProgram{}}
 	for _, p := range l.Func.Locals {
 		if _, err := c.declare(p.Name, p.Type); err != nil {
-			return nil, fmt.Errorf("core: term %s: %w", ir.ActionExprString(t), err)
+			return nil, fmt.Errorf("core: action %s: %w", ir.ActionExprString(t), err)
 		}
 	}
 	if err := c.block(l.Func.Body); err != nil {
-		return nil, fmt.Errorf("core: term %s: %w", ir.ActionExprString(t), err)
+		return nil, fmt.Errorf("core: action %s: %w", ir.ActionExprString(t), err)
 	}
 	return c.prog, nil
 }
 
-type termCompiler struct {
+type actionCompiler struct {
 	env    Env
 	m      *code.Module
-	prog   *state.TermProgram
-	locals map[string]termReg
+	prog   *state.ActionProgram
+	locals map[string]actionReg
 }
 
 func fileOf(t code.Type) (int, bool) {
@@ -89,7 +89,7 @@ func fileOf(t code.Type) (int, bool) {
 	return 0, false
 }
 
-func (c *termCompiler) reg(file int) termReg {
+func (c *actionCompiler) reg(file int) actionReg {
 	p := c.prog
 	var n *int32
 	switch file {
@@ -102,7 +102,7 @@ func (c *termCompiler) reg(file int) termReg {
 	default:
 		n = &p.NT
 	}
-	r := termReg{file, *n}
+	r := actionReg{file, *n}
 	*n++
 	return r
 }
@@ -110,14 +110,14 @@ func (c *termCompiler) reg(file int) termReg {
 // declare returns the register of the local name of type t, taking one in the file of t on first
 // use. A name declared again in another file is an error: an instruction would write one file and
 // its reader read the other.
-func (c *termCompiler) declare(name string, t code.Type) (termReg, error) {
+func (c *actionCompiler) declare(name string, t code.Type) (actionReg, error) {
 	f, ok := fileOf(t)
 	if !ok {
-		return termReg{}, fmt.Errorf("local %s of type %s", name, t)
+		return actionReg{}, fmt.Errorf("local %s of type %s", name, t)
 	}
 	if r, ok := c.locals[name]; ok {
 		if r.file != f {
-			return termReg{}, fmt.Errorf("local %s of type %s declared in another register file", name, t)
+			return actionReg{}, fmt.Errorf("local %s of type %s declared in another register file", name, t)
 		}
 		return r, nil
 	}
@@ -126,7 +126,7 @@ func (c *termCompiler) declare(name string, t code.Type) (termReg, error) {
 	return r, nil
 }
 
-func (c *termCompiler) emit(in state.TermInstr) int {
+func (c *actionCompiler) emit(in state.ActionInstr) int {
 	code := c.prog.Code
 	k := len(code)
 	switch {
@@ -134,12 +134,12 @@ func (c *termCompiler) emit(in state.TermInstr) int {
 		code[k-1].A == in.A && code[k-1].B == in.B:
 		// A field of a struct literal: its step, the field and the cover of its value, in one
 		// instruction. No jump goes to the field or the cover, which follow the step at once.
-		code[k-2] = state.TermInstr{Op: state.TField, Dst: in.Dst, A: in.A, B: in.B, C: code[k-1].C}
+		code[k-2] = state.ActionInstr{Op: state.TField, Dst: in.Dst, A: in.A, B: in.B, C: code[k-1].C}
 		c.prog.Code = code[:k-1]
 		return k - 2
 	case in.Op == state.TRet && k >= 1 && code[k-1].Op == state.TMoveA && code[k-1].Dst == in.A && !c.jumpsTo(int32(k)):
 		// The return of a register moved into another just before: return the source.
-		code[k-1] = state.TermInstr{Op: state.TRet, A: code[k-1].A}
+		code[k-1] = state.ActionInstr{Op: state.TRet, A: code[k-1].A}
 		return k - 1
 	}
 	c.prog.Code = append(code, in)
@@ -147,7 +147,7 @@ func (c *termCompiler) emit(in state.TermInstr) int {
 }
 
 // jumpsTo reports whether a jump of the code emitted so far goes to the instruction at pc.
-func (c *termCompiler) jumpsTo(pc int32) bool {
+func (c *actionCompiler) jumpsTo(pc int32) bool {
 	for _, in := range c.prog.Code {
 		if (in.Op == state.TJump || in.Op == state.TJumpF) && in.Dst == pc {
 			return true
@@ -157,7 +157,7 @@ func (c *termCompiler) jumpsTo(pc int32) bool {
 }
 
 // results returns the result types of the operation or function callee.
-func (c *termCompiler) results(callee string) []code.Type {
+func (c *actionCompiler) results(callee string) []code.Type {
 	if o := c.m.Op(callee); o != nil {
 		return o.Results
 	}
@@ -167,7 +167,7 @@ func (c *termCompiler) results(callee string) []code.Type {
 	return nil
 }
 
-func (c *termCompiler) block(b *code.Block) error {
+func (c *actionCompiler) block(b *code.Block) error {
 	for i := 0; i < len(b.Stmts); i++ {
 		next := func() code.Stmt {
 			if i+1 < len(b.Stmts) {
@@ -187,7 +187,7 @@ func (c *termCompiler) block(b *code.Block) error {
 						return fmt.Errorf("the failure %s of %s is not returned right after it", fail, call.Callee)
 					}
 					i++
-					var dst termReg
+					var dst actionReg
 					if len(s.Names) == 2 {
 						var err error
 						if dst, err = c.declare(s.Names[0], res[0]); err != nil {
@@ -241,12 +241,12 @@ func (c *termCompiler) block(b *code.Block) error {
 			if err != nil {
 				return err
 			}
-			jf := c.emit(state.TermInstr{Op: state.TJumpF, A: cond.r})
+			jf := c.emit(state.ActionInstr{Op: state.TJumpF, A: cond.r})
 			if err := c.block(s.Then); err != nil {
 				return err
 			}
 			if s.Else != nil {
-				j := c.emit(state.TermInstr{Op: state.TJump})
+				j := c.emit(state.ActionInstr{Op: state.TJump})
 				c.prog.Code[jf].Dst = int32(len(c.prog.Code))
 				if err := c.block(s.Else); err != nil {
 					return err
@@ -264,7 +264,7 @@ func (c *termCompiler) block(b *code.Block) error {
 			if err != nil {
 				return err
 			}
-			jf := c.emit(state.TermInstr{Op: state.TJumpF, A: cond.r})
+			jf := c.emit(state.ActionInstr{Op: state.TJumpF, A: cond.r})
 			if err := c.block(s.Body); err != nil {
 				return err
 			}
@@ -273,7 +273,7 @@ func (c *termCompiler) block(b *code.Block) error {
 					return err
 				}
 			}
-			c.emit(state.TermInstr{Op: state.TJump, Dst: top})
+			c.emit(state.ActionInstr{Op: state.TJump, Dst: top})
 			c.prog.Code[jf].Dst = int32(len(c.prog.Code))
 		case *code.Return:
 			if len(s.Values) != 2 {
@@ -284,7 +284,7 @@ func (c *termCompiler) block(b *code.Block) error {
 				if err != nil {
 					return err
 				}
-				c.emit(state.TermInstr{Op: state.TRet, A: v.r})
+				c.emit(state.ActionInstr{Op: state.TRet, A: v.r})
 				continue
 			}
 			if !isNull(s.Values[0]) {
@@ -294,7 +294,7 @@ func (c *termCompiler) block(b *code.Block) error {
 			if err != nil {
 				return err
 			}
-			c.emit(state.TermInstr{Op: state.TRetErr, A: f.r})
+			c.emit(state.ActionInstr{Op: state.TRetErr, A: f.r})
 		case *code.Comment:
 		default:
 			return fmt.Errorf("statement %T", s)
@@ -309,7 +309,7 @@ func isNull(e code.Expr) bool {
 }
 
 // raises reports whether s is the return of the failure in the local fail when it is not null, as
-// the lowering of terms follows a call that can fail.
+// the lowering of action expressions follows a call that can fail.
 func raises(s code.Stmt, fail string) bool {
 	f, ok := s.(*code.If)
 	if !ok || f.Init != nil || f.Else != nil || len(f.Then.Stmts) != 1 {
@@ -329,7 +329,7 @@ func isLocal(e code.Expr, name string) bool {
 }
 
 // typeOf returns the type of the expression e of one value.
-func (c *termCompiler) typeOf(e code.Expr) (code.Type, error) {
+func (c *actionCompiler) typeOf(e code.Expr) (code.Type, error) {
 	switch e := e.(type) {
 	case *code.Const:
 		return e.Type, nil
@@ -366,28 +366,28 @@ func (c *termCompiler) typeOf(e code.Expr) (code.Type, error) {
 }
 
 // expr translates e and returns the register that holds its value.
-func (c *termCompiler) expr(e code.Expr) (termReg, error) {
+func (c *actionCompiler) expr(e code.Expr) (actionReg, error) {
 	if l, ok := e.(*code.Local); ok {
 		r, ok := c.locals[l.Name]
 		if !ok {
-			return termReg{}, fmt.Errorf("undeclared local %s", l.Name)
+			return actionReg{}, fmt.Errorf("undeclared local %s", l.Name)
 		}
 		return r, nil
 	}
 	t, err := c.typeOf(e)
 	if err != nil {
-		return termReg{}, err
+		return actionReg{}, err
 	}
 	f, ok := fileOf(t)
 	if !ok {
-		return termReg{}, fmt.Errorf("value of type %s", t)
+		return actionReg{}, fmt.Errorf("value of type %s", t)
 	}
 	dst := c.reg(f)
 	return dst, c.exprInto(e, dst)
 }
 
 // exprInto translates e into the register dst.
-func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
+func (c *actionCompiler) exprInto(e code.Expr, dst actionReg) error {
 	switch e := e.(type) {
 	case *code.Const:
 		switch e.Type.Kind {
@@ -396,14 +396,14 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 			if e.Value.(bool) {
 				v = 1
 			}
-			c.emit(state.TermInstr{Op: state.TIntK, Dst: dst.r, A: v})
+			c.emit(state.ActionInstr{Op: state.TIntK, Dst: dst.r, A: v})
 		case code.KInt:
-			c.emit(state.TermInstr{Op: state.TIntK, Dst: dst.r, A: int32(e.Value.(int64))})
+			c.emit(state.ActionInstr{Op: state.TIntK, Dst: dst.r, A: int32(e.Value.(int64))})
 		case code.KHandle:
 			if e.Value != nil || dst.file != fileA {
 				return fmt.Errorf("constant of type %s", e.Type)
 			}
-			c.emit(state.TermInstr{Op: state.TConst, Dst: dst.r, A: c.constant(nil)})
+			c.emit(state.ActionInstr{Op: state.TConst, Dst: dst.r, A: c.constant(nil)})
 		default:
 			return fmt.Errorf("constant of type %s", e.Type)
 		}
@@ -419,8 +419,8 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 		if src == dst {
 			return nil
 		}
-		op := [...]state.TermOp{fileA: state.TMoveA, fileN: state.TMoveN, fileS: state.TMoveS, fileT: state.TMoveT}[src.file]
-		c.emit(state.TermInstr{Op: op, Dst: dst.r, A: src.r})
+		op := [...]state.ActionOp{fileA: state.TMoveA, fileN: state.TMoveN, fileS: state.TMoveS, fileT: state.TMoveT}[src.file]
+		c.emit(state.ActionInstr{Op: op, Dst: dst.r, A: src.r})
 		return nil
 	case *code.Unary:
 		if e.Op != "!" {
@@ -430,7 +430,7 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 		if err != nil {
 			return err
 		}
-		c.emit(state.TermInstr{Op: state.TNot, Dst: dst.r, A: x.r})
+		c.emit(state.ActionInstr{Op: state.TNot, Dst: dst.r, A: x.r})
 		return nil
 	case *code.Binary:
 		x, err := c.expr(e.X)
@@ -438,9 +438,9 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 			return err
 		}
 		if x.file == fileA && isNull(e.Y) && (e.Op == "==" || e.Op == "!=") {
-			c.emit(state.TermInstr{Op: state.TIsNil, Dst: dst.r, A: x.r})
+			c.emit(state.ActionInstr{Op: state.TIsNil, Dst: dst.r, A: x.r})
 			if e.Op == "!=" {
-				c.emit(state.TermInstr{Op: state.TNot, Dst: dst.r, A: dst.r})
+				c.emit(state.ActionInstr{Op: state.TNot, Dst: dst.r, A: dst.r})
 			}
 			return nil
 		}
@@ -453,13 +453,13 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 		}
 		switch e.Op {
 		case "<":
-			c.emit(state.TermInstr{Op: state.TLt, Dst: dst.r, A: x.r, B: y.r})
+			c.emit(state.ActionInstr{Op: state.TLt, Dst: dst.r, A: x.r, B: y.r})
 		case "+":
-			c.emit(state.TermInstr{Op: state.TAdd, Dst: dst.r, A: x.r, B: y.r})
+			c.emit(state.ActionInstr{Op: state.TAdd, Dst: dst.r, A: x.r, B: y.r})
 		case "==", "!=":
-			c.emit(state.TermInstr{Op: state.TEqN, Dst: dst.r, A: x.r, B: y.r})
+			c.emit(state.ActionInstr{Op: state.TEqN, Dst: dst.r, A: x.r, B: y.r})
 			if e.Op == "!=" {
-				c.emit(state.TermInstr{Op: state.TNot, Dst: dst.r, A: dst.r})
+				c.emit(state.ActionInstr{Op: state.TNot, Dst: dst.r, A: dst.r})
 			}
 		default:
 			return fmt.Errorf("binary %s", e.Op)
@@ -472,7 +472,7 @@ func (c *termCompiler) exprInto(e code.Expr, dst termReg) error {
 }
 
 // constant returns the index of v in the constant pool, adding it once.
-func (c *termCompiler) constant(v any) int32 {
+func (c *actionCompiler) constant(v any) int32 {
 	switch v.(type) {
 	case nil, int, string, bool:
 		for i, x := range c.prog.Consts {
@@ -485,7 +485,7 @@ func (c *termCompiler) constant(v any) int32 {
 	return int32(len(c.prog.Consts) - 1)
 }
 
-func (c *termCompiler) name(s string) int32 {
+func (c *actionCompiler) name(s string) int32 {
 	for i, n := range c.prog.Names {
 		if n == s {
 			return int32(i)
@@ -496,7 +496,7 @@ func (c *termCompiler) name(s string) int32 {
 }
 
 // args translates the arguments of the call e at the positions idx and returns their registers.
-func (c *termCompiler) args(e *code.Call, idx ...int) ([]int32, error) {
+func (c *actionCompiler) args(e *code.Call, idx ...int) ([]int32, error) {
 	rs := make([]int32, len(idx))
 	for i, j := range idx {
 		if j >= len(e.Args) {
@@ -542,19 +542,19 @@ func immArg(e *code.Call, i int, op string) (any, error) {
 
 // fallible translates the call e of a composition that returns its failure, with its value, if it
 // has one, into dst.
-func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
-	in := state.TermInstr{Dst: dst.r}
+func (c *actionCompiler) fallible(e *code.Call, dst actionReg) error {
+	in := state.ActionInstr{Dst: dst.r}
 	switch e.Callee {
 	case "member":
 		kind, err := intImm(e, 1)
 		if err != nil {
 			return err
 		}
-		name, err := immArg(e, 3, action.OpTermName)
+		name, err := immArg(e, 3, action.OpActionName)
 		if err != nil {
 			return err
 		}
-		field, err := immArg(e, 4, action.OpTermField)
+		field, err := immArg(e, 4, action.OpActionField)
 		if err != nil {
 			return err
 		}
@@ -562,7 +562,7 @@ func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
 		if err != nil {
 			return err
 		}
-		c.prog.Members = append(c.prog.Members, state.TermMember{Kind: int(kind), Name: name.(string), Field: field.(action.Field).Field})
+		c.prog.Members = append(c.prog.Members, state.ActionMember{Kind: int(kind), Name: name.(string), Field: field.(action.Field).Field})
 		in.Op, in.A, in.B = state.TMember, rs[0], int32(len(c.prog.Members)-1)
 	case "unary", "logic":
 		op, err := intImm(e, 0)
@@ -592,9 +592,9 @@ func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
 		if err != nil {
 			return err
 		}
-		in.Op, in.A = map[string]state.TermOp{"text": state.TText, "length": state.TLength, "filterKeep": state.TFilter}[e.Callee], rs[0]
+		in.Op, in.A = map[string]state.ActionOp{"text": state.TText, "length": state.TLength, "filterKeep": state.TFilter}[e.Callee], rs[0]
 	case "convert":
-		nt, err := immArg(e, 0, action.OpTermNodeType)
+		nt, err := immArg(e, 0, action.OpActionNodeType)
 		if err != nil {
 			return err
 		}
@@ -614,7 +614,7 @@ func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
 		if e.Callee == "items" {
 			at, nameAt = 1, 0
 		}
-		name, err := immArg(e, nameAt, action.OpTermName)
+		name, err := immArg(e, nameAt, action.OpActionName)
 		if err != nil {
 			return err
 		}
@@ -622,7 +622,7 @@ func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
 		if err != nil {
 			return err
 		}
-		in.Op, in.A, in.B = map[string]state.TermOp{"push": state.TPush, "pushItems": state.TPushAll, "items": state.TItems}[e.Callee], rs[0], c.name(name.(string))
+		in.Op, in.A, in.B = map[string]state.ActionOp{"push": state.TPush, "pushItems": state.TPushAll, "items": state.TItems}[e.Callee], rs[0], c.name(name.(string))
 	default:
 		return fmt.Errorf("composition %s", e.Callee)
 	}
@@ -631,28 +631,28 @@ func (c *termCompiler) fallible(e *code.Call, dst termReg) error {
 }
 
 // effect translates the call e, whose results are discarded.
-func (c *termCompiler) effect(e *code.Call) error {
+func (c *actionCompiler) effect(e *code.Call) error {
 	switch e.Callee {
 	case "seq.step":
-		c.emit(state.TermInstr{Op: state.TStep})
-	case action.OpTermKeep:
+		c.emit(state.ActionInstr{Op: state.TStep})
+	case action.OpActionKeep:
 		rs, err := c.args(e, 0, 1)
 		if err != nil {
 			return err
 		}
-		c.emit(state.TermInstr{Op: state.TKeep, A: rs[0], B: rs[1]})
-	case action.OpTermSetField:
+		c.emit(state.ActionInstr{Op: state.TKeep, A: rs[0], B: rs[1]})
+	case action.OpActionSetField:
 		rs, err := c.args(e, 0, 1)
 		if err != nil {
 			return err
 		}
-		c.emit(state.TermInstr{Op: state.TSetField, A: rs[0], B: rs[1], C: c.name(e.Imm.(string))})
+		c.emit(state.ActionInstr{Op: state.TSetField, A: rs[0], B: rs[1], C: c.name(e.Imm.(string))})
 	case "made":
 		rs, err := c.args(e, 1, 2)
 		if err != nil {
 			return err
 		}
-		c.emit(state.TermInstr{Op: state.TMade, A: rs[0], B: rs[1]})
+		c.emit(state.ActionInstr{Op: state.TMade, A: rs[0], B: rs[1]})
 	default:
 		return fmt.Errorf("operation %s for its effect", e.Callee)
 	}
@@ -660,12 +660,12 @@ func (c *termCompiler) effect(e *code.Call) error {
 }
 
 // call translates the call e of one result into dst.
-func (c *termCompiler) call(e *code.Call, dst termReg) error {
-	in := state.TermInstr{Dst: dst.r}
+func (c *actionCompiler) call(e *code.Call, dst actionReg) error {
+	in := state.ActionInstr{Dst: dst.r}
 	switch e.Callee {
-	case action.OpTermConst:
+	case action.OpActionConst:
 		in.Op, in.A = state.TConst, c.constant(e.Imm.(action.Const).Value)
-	case action.OpTermRead:
+	case action.OpActionRead:
 		switch x := e.Imm.(action.Read); x.Kind {
 		case action.ReadCapture:
 			slot, ok := c.env.Scope.Slots[x.Name]
@@ -696,23 +696,23 @@ func (c *termCompiler) call(e *code.Call, dst termReg) error {
 			return err
 		}
 		in.Op, in.A = state.TFromB, rs[0]
-	case action.OpTermFromStr:
+	case action.OpActionFromStr:
 		rs, err := c.args(e, 0)
 		if err != nil {
 			return err
 		}
 		in.Op, in.A = state.TFromT, rs[0]
-	case action.OpTermFromObj:
+	case action.OpActionFromObj:
 		// A struct, list or tuple is held as the value it is.
 		return c.exprInto(e.Args[0], dst)
-	case action.OpTermTextEqual:
+	case action.OpActionTextEqual:
 		rs, err := c.args(e, 0, 1)
 		if err != nil {
 			return err
 		}
 		in.Op, in.A, in.B = state.TTextEq, rs[0], rs[1]
 	case "conforms":
-		ct, err := immArg(e, 0, action.OpTermCastType)
+		ct, err := immArg(e, 0, action.OpActionCastType)
 		if err != nil {
 			return err
 		}
@@ -721,15 +721,15 @@ func (c *termCompiler) call(e *code.Call, dst termReg) error {
 			return err
 		}
 		in.Op, in.A, in.B = state.TConforms, rs[0], c.cast(ct.(action.Cast))
-	case action.OpTermCastError:
+	case action.OpActionCastError:
 		rs, err := c.args(e, 0)
 		if err != nil {
 			return err
 		}
 		in.Op, in.A, in.B = state.TCastErr, rs[0], c.cast(e.Imm.(action.Cast))
-	case "term.kids":
+	case "action.kids":
 		in.Op = state.TKids
-	case action.OpTermElemsAbove:
+	case action.OpActionElemsAbove:
 		rs, err := c.args(e, 0)
 		if err != nil {
 			return err
@@ -761,15 +761,15 @@ func (c *termCompiler) call(e *code.Call, dst termReg) error {
 			return err
 		}
 		in.Op, in.A = state.TSeqLen, rs[0]
-	case action.OpTermCopyList:
+	case action.OpActionCopyList:
 		rs, err := c.args(e, 0)
 		if err != nil {
 			return err
 		}
 		in.Op, in.A = state.TCopy, rs[0]
-	case action.OpTermStruct:
+	case action.OpActionStruct:
 		t := e.Imm.(action.New)
-		c.prog.Structs = append(c.prog.Structs, state.TermStruct{Kind: c.env.Checker.Kinds(nil).TypeKind(t.Type), Fields: t.Fields})
+		c.prog.Structs = append(c.prog.Structs, state.ActionStruct{Kind: c.env.Checker.Kinds(nil).TypeKind(t.Type), Fields: t.Fields})
 		in.Op, in.A = state.TStruct, int32(len(c.prog.Structs)-1)
 	case "cover":
 		rs, err := c.args(e, 0, 1, 2)
@@ -786,8 +786,8 @@ func (c *termCompiler) call(e *code.Call, dst termReg) error {
 
 // cast returns the index of the cast x in the cast pool, adding it once: the check and the failure
 // of one cast share an entry.
-func (c *termCompiler) cast(x action.Cast) int32 {
-	tc := state.TermCast{Type: c.env.Checker.CastType(x.Key.(*ast.Cast)), Line: x.Line, Col: x.Col}
+func (c *actionCompiler) cast(x action.Cast) int32 {
+	tc := state.ActionCast{Type: c.env.Checker.CastType(x.Key.(*ast.Cast)), Line: x.Line, Col: x.Col}
 	for i, y := range c.prog.Casts {
 		if y == tc {
 			return int32(i)

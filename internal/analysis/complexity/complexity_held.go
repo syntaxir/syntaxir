@@ -83,7 +83,7 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 	k.control.Poll()
 	r := k.byName[x.rule]
 	var out []sizeKey
-	tc := termCtx{rule: x.rule}
+	tc := actionCtx{rule: x.rule}
 	switch {
 	case r == nil:
 	case isOperators(r.Expr):
@@ -115,7 +115,7 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 
 // heldCalls returns the values of calls on a recursion with the rule of tc that the value of t,
 // measured in mode, holds.
-func (k *classifier) heldCalls(t ast.ActionExpr, tc termCtx, mode sizeMode) []sizeKey {
+func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []sizeKey {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
 		return k.heldCalls(t.Action, tc, mode)
@@ -140,7 +140,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc termCtx, mode sizeMode) []si
 		}
 		return out
 	case *ast.FieldAccess:
-		exprs, _, ok := k.termExprs(t, tc)
+		exprs, _, ok := k.actionExprs(t, tc)
 		if !ok {
 			return nil
 		}
@@ -185,7 +185,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc termCtx, mode sizeMode) []si
 // heldLambdaCtx returns the context of the body of the lambda lam of the fold call: the parameter
 // for the element of the list stands for the expressions whose values the elements are, and the
 // accumulator for nothing, since the fold holds its initial value and the values of the lambda.
-func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc termCtx) termCtx {
+func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc actionCtx) actionCtx {
 	params := map[string]param{}
 	for n, p := range tc.params {
 		params[n] = p
@@ -209,7 +209,7 @@ func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc termCtx) 
 // match of e, measured in mode, holds: a call passes its value on through choices, options and
 // groups, and an inline action holds what its action holds. The node of a sequence holds the text
 // of the input that it matches, which does not grow with the values of its calls.
-func (k *classifier) heldExprCalls(e ast.Expr, tc termCtx, mode sizeMode) []sizeKey {
+func (k *classifier) heldExprCalls(e ast.Expr, tc actionCtx, mode sizeMode) []sizeKey {
 	switch x := e.(type) {
 	case *ast.Group:
 		return k.heldExprCalls(x.Expr, tc, mode)
@@ -227,7 +227,7 @@ func (k *classifier) heldExprCalls(e ast.Expr, tc termCtx, mode sizeMode) []size
 		return out
 	case *ast.InlineAction:
 		if x.Action != nil && !x.DefaultAction {
-			return k.heldCalls(x.Action, termCtx{rule: tc.rule}, mode)
+			return k.heldCalls(x.Action, actionCtx{rule: tc.rule}, mode)
 		}
 	case *ast.Ref:
 		if k.byName[x.Name] != nil && k.onRecursion(tc.rule, x.Name) {

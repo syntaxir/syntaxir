@@ -293,16 +293,16 @@ func vmIndex(b Backend) int {
 // prepareVM returns the VM program of the VM backend b (Bytecode or BytecodeIterative) in the family
 // f, preparing it on first use.
 func (prog *Program) prepareVM(b Backend, f state.Family) (*vm.Program, error) {
-	m, terms, err := prog.moduleTerms()
+	m, actionExprs, err := prog.moduleActions()
 	if err != nil {
 		return nil, err
 	}
 	v := &prog.vms[vmIndex(b)][f]
 	v.once.Do(func() {
 		if b == BytecodeIterative {
-			v.vm = vm.NewIterative(m, terms, f)
+			v.vm = vm.NewIterative(m, actionExprs, f)
 		} else {
-			v.vm = vm.New(m, terms, f)
+			v.vm = vm.New(m, actionExprs, f)
 		}
 	})
 	return v.vm, nil

@@ -189,10 +189,10 @@ const (
 	// at the int Args[0], gathered on the stack from the int Args[1], which matched the int Args[2]
 	// characters (flow.scanKids).
 	FlowScanKids
-	// FlowPred sets Dst[0] to whether the predicate whose term is the immediate holds in the current
+	// FlowPred sets Dst[0] to whether the predicate whose action expression is the immediate holds in the current
 	// frame, as the match code's PRED evaluates it (flow.pred).
 	FlowPred
-	// FlowBind binds the variable of the immediate FlowBindOf to the value of its term, evaluated in
+	// FlowBind binds the variable of the immediate FlowBindOf to the value of its action expression, evaluated in
 	// the current frame as the match code's BIND evaluates it, and sets Dst[0] to whether the
 	// evaluation succeeded (flow.bind).
 	FlowBind
@@ -260,8 +260,8 @@ const (
 	// FlowImmScanSite is a scan site, numbered as the match code numbers it: an int from 1 to the
 	// largest scan site that the match code can name.
 	FlowImmScanSite
-	// FlowImmTerm is a term: an int index of Module.Terms.
-	FlowImmTerm
+	// FlowImmAction is an action expression: an int index of Module.Actions.
+	FlowImmAction
 	// FlowImmBind is a FlowBindOf.
 	FlowImmBind
 )
@@ -344,7 +344,7 @@ var FlowShapes = [...]FlowShape{
 	FlowScanReach:     {Name: "SCANREACH", Dst: 1, Args: 2, Imm: FlowImmScanSite},
 	FlowScanEnd:       {Name: "SCANEND", Args: 2, Imm: FlowImmScanSite},
 	FlowScanKids:      {Name: "SCANKIDS", Dst: 1, Args: 3, Imm: FlowImmScanSite},
-	FlowPred:          {Name: "PRED", Dst: 1, Imm: FlowImmTerm},
+	FlowPred:          {Name: "PRED", Dst: 1, Imm: FlowImmAction},
 	FlowBind:          {Name: "BIND", Dst: 1, Imm: FlowImmBind},
 	FlowCut:           {Name: "CUT", Dst: 1},
 	FlowSetCut:        {Name: "SETCUT", Args: 1},
@@ -437,10 +437,10 @@ type FlowRunWalkOf struct {
 	Build, KeyEnv bool
 }
 
-// FlowBindOf is the immediate of FlowBind: the variable, an index of Module.Vars, and its term, an
-// index of Module.Terms.
+// FlowBindOf is the immediate of FlowBind: the variable, an index of Module.Vars, and its action expression, an
+// index of Module.Actions.
 type FlowBindOf struct {
-	Var, Term int
+	Var, Action int
 }
 
 // FlowCallOf is the immediate of FlowCall: the rule's index and the binding level it is called at.

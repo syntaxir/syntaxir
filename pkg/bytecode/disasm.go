@@ -100,13 +100,13 @@ func (m *Module) Disassemble() string {
 	if len(m.Ints) > 0 {
 		fmt.Fprintf(&b, "ints: %v\n", m.Ints)
 	}
-	b.WriteString("terms:\n")
-	for i, t := range m.Terms {
+	b.WriteString("actions:\n")
+	for i, t := range m.Actions {
 		for _, l := range tlabels[i] {
 			fmt.Fprintf(&b, "%s\n", l)
 		}
-		fmt.Fprintf(&b, "  term %d regs=%v\n", i, t.Regs)
-		m.disassembleTerm(&b, &t, str)
+		fmt.Fprintf(&b, "  action %d regs=%v\n", i, t.Regs)
+		m.disassembleAction(&b, &t, str)
 	}
 	for _, k := range m.RunKeys {
 		fmt.Fprintf(&b, "runKey site=%d vars=%s bind=%s\n", k.Site, names(k.Vars), names(k.Bind))
@@ -168,8 +168,8 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 			parts = append(parts, fmt.Sprintf("slot=%d", x))
 		case s.Imm == FlowImmRunSite, s.Imm == FlowImmScanSite:
 			parts = append(parts, fmt.Sprintf("site=%d", x))
-		case s.Imm == FlowImmTerm:
-			parts = append(parts, fmt.Sprintf("term=%d", x))
+		case s.Imm == FlowImmAction:
+			parts = append(parts, fmt.Sprintf("action=%d", x))
 		case s.Imm == FlowImmScope && x >= 0 && x < len(m.Scopes):
 			ns := make([]string, len(m.Scopes[x]))
 			for i, id := range m.Scopes[x] {
@@ -187,7 +187,7 @@ func (m *Module) flowOperands(in *FlowInstr, str func(int) string) string {
 			parts = append(parts, "skip-run") // flow.skipBegin: the walk of a SKIPREPEAT's site
 		}
 	case FlowBindOf:
-		parts = append(parts, fmt.Sprintf("var=%d term=%d", x.Var, x.Term))
+		parts = append(parts, fmt.Sprintf("var=%d action=%d", x.Var, x.Action))
 	case FlowGuardOf:
 		g := fmt.Sprintf("class=%d", x.Class)
 		switch {
@@ -321,9 +321,9 @@ func (m *Module) operands(in Instr, str func(int) string, names func([]int) stri
 	case OpOperatorsRule:
 		return fmt.Sprintf("operatorsRule%d", a)
 	case OpPred:
-		return fmt.Sprintf("term=%d", a)
+		return fmt.Sprintf("action=%d", a)
 	case OpBind:
-		return fmt.Sprintf("%s term=%d", varName(m, a), bb)
+		return fmt.Sprintf("%s action=%d", varName(m, a), bb)
 	case OpLabel:
 		if bb == 1 {
 			return str(a) + " mode=diagnostic"
@@ -350,9 +350,9 @@ func envFreeNote(flags int) string {
 	return ""
 }
 
-// disassembleTerm renders the pools and the instructions of the term t. The opcodes of term code
+// disassembleAction renders the pools and the instructions of the action expression t. The opcodes of action code
 // belong to the engine, so instructions show their numbers.
-func (m *Module) disassembleTerm(b *strings.Builder, t *Term, str func(int) string) {
+func (m *Module) disassembleAction(b *strings.Builder, t *Action, str func(int) string) {
 	for i, c := range t.Consts {
 		v := "nil"
 		switch c.Kind {

@@ -140,7 +140,7 @@ func newGen(in *info, cfg *config) *gen {
 // exercised.
 func (g *gen) attempt() (string, []int, bool) {
 	g.out, g.forced, g.endAt, g.pending = g.out[:0], "", -1, nil
-	g.caps, g.vars, g.sib = nil, g.in.terms.initVars, nil
+	g.caps, g.vars, g.sib = nil, g.in.actionExprs.initVars, nil
 	clear(g.active)
 	g.rule = -1
 	g.depth, g.steps, g.matchWork = 0, 0, 0

@@ -15,7 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// TestGeneratedLoopCharge checks that every repetition of a list built-in is charged. The terms of an
+// TestGeneratedLoopCharge checks that every repetition of a list built-in is charged. The action expressions of an
 // action carry no charge, so the loops that the generated code prints for them are what bounds the budget an
 // action spends: map, filter, foldl and foldr charge one step per element (map and filter also charge the
 // elements of their result), and a lambda body, evaluated once per element (nested lambdas: once per element

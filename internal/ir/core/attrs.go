@@ -267,13 +267,13 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 	case *Pred:
 		null, ins = true, true
 		e.Set = EffFail
-		if Raises(n.Term) {
+		if Raises(n.Action) {
 			e.Set |= EffRaise
 		}
 	case *BindNode:
 		null, ins = true, true
 		e.Set = EffBind
-		if Raises(n.Term) {
+		if Raises(n.Action) {
 			e.Set |= EffRaise
 		}
 	case *Label:

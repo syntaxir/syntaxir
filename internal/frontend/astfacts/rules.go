@@ -6,7 +6,7 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The walks and syntactic questions about the expressions and terms of a rule that the compiler and
+// The walks and syntactic questions about the expressions and action expressions of a rule that the compiler and
 // the analyses share. The rule facts are not computed here: they are those of the Core IR module of
 // the rules.
 
@@ -35,28 +35,28 @@ func WalkExprControlled(e ast.Expr, f func(ast.Expr), control *cancel.Control) {
 	WalkExprWithPoll(e, f, control.Poll)
 }
 
-// WalkRuleTerms visits every term in a rule's action and predicates, including Operators Rule
+// WalkRuleActions visits every action expression in a rule's action and predicates, including Operators Rule
 // operand and operator actions.
-func WalkRuleTerms(r *ast.RuleDef, f func(ast.ActionExpr)) { WalkRuleTermsControlled(r, f, nil) }
+func WalkRuleActions(r *ast.RuleDef, f func(ast.ActionExpr)) { WalkRuleActionsControlled(r, f, nil) }
 
-// WalkRuleTermsControlled is WalkRuleTerms polling control for cancellation.
-func WalkRuleTermsControlled(r *ast.RuleDef, f func(ast.ActionExpr), control *cancel.Control) {
+// WalkRuleActionsControlled is WalkRuleActions polling control for cancellation.
+func WalkRuleActionsControlled(r *ast.RuleDef, f func(ast.ActionExpr), control *cancel.Control) {
 	control.Poll()
-	WalkTerm(r.Action, f)
+	WalkAction(r.Action, f)
 	WalkExprControlled(r.Expr, func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Predicate:
-			WalkTerm(e.Action, f)
+			WalkAction(e.Action, f)
 		case *ast.OperatorsRule:
 			for _, o := range e.Operands {
 				control.Poll()
-				WalkTerm(o.Action, f)
+				WalkAction(o.Action, f)
 			}
 			for _, l := range e.Levels {
 				control.Poll()
 				for _, op := range l.Operators {
 					control.Poll()
-					WalkTerm(op.Action, f)
+					WalkAction(op.Action, f)
 				}
 			}
 		}

@@ -90,7 +90,7 @@ const (
 	Errs = "Errs"
 	// Err is one recovered error.
 	Err = "Err"
-	// Datum is a value that a variable holds or a term produces.
+	// Datum is a value that a variable holds or an action expression produces.
 	Datum = "Datum"
 	// Scope is a variable environment.
 	Scope = "Scope"
@@ -100,7 +100,7 @@ const (
 
 // Parser returns the module of every operation of the Exec dialect, without functions: the state and
 // operations of a memoized rule call (memoizedCall) and those with which rules parse the input and report
-// on it (addParsing). The operations on values and the application of terms are those of the Action
+// on it (addParsing). The operations on values and the application of action expressions are those of the Action
 // dialect (internal/ir/code/action), which action.Declare adds to the module; the compositions of the
 // abstract machine are written over both.
 func Parser() *code.Module {
@@ -135,7 +135,7 @@ host's value equality.`)
 	values := m.AddHandle(Values, Env, "The values of a rule's variables, as a memo key.")
 	value := m.AddHandle(Value, Host, "The value of a rule's result: a node or a typed value.")
 	errs := m.AddHandle(Errs, Rec, "The errors recovered in a rule call, kept with its memo entry.")
-	datum := m.AddHandle(Datum, Host, "A value that a variable holds or a term produces, which only the host reads.")
+	datum := m.AddHandle(Datum, Host, "A value that a variable holds or an action expression produces, which only the host reads.")
 	scope := m.AddHandle(Scope, Env, "A variable environment, which bindings replace and never change.")
 	rule := m.AddHandle(Rule, Rules, "A rule's descriptor.")
 	result := []code.Param{code.P("silent", code.TBool), code.P("value", value), code.P("errs", errs)}

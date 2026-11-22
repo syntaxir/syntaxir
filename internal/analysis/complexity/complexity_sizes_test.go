@@ -3,7 +3,7 @@ package complexity
 import "testing"
 
 // TestDegOf pins the degree of a form outside a fold: the largest power of n, and unknownDeg as
-// soon as a term reads a quantity of an accumulator.
+// soon as an action expression reads a quantity of an accumulator.
 func TestDegOf(t *testing.T) {
 	for _, c := range []struct {
 		name string

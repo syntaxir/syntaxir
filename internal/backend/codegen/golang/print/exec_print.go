@@ -65,7 +65,7 @@ type Target struct {
 	Pure func(c *code.Call) bool
 	// Apply, if not nil, returns the Go expression that applies the callable handle fn, printed, to the
 	// printed arguments (an application, code.Call.Fn). Without it a handle is a Go function and the
-	// application is the call fn(args): a target whose handle is not callable in Go (the engine's term
+	// application is the call fn(args): a target whose handle is not callable in Go (the engine's action expression
 	// program) says how it is run, once, for every application.
 	Apply func(fn string, args []string) string
 	// Name, if not nil, returns the name that a Go constant has for the int constant v that a call of
@@ -786,12 +786,12 @@ func constant(c *code.Const) string {
 	panic("gogen: constant of an invalid type")
 }
 
-// TermExports are the Go names of the compositions of the operators of terms that the Go library
-// exports, by the name of the composition: generated parsers call them (lower.Term). The other
+// ActionExports are the Go names of the compositions of the operators of action expressions that the Go library
+// exports, by the name of the composition: generated parsers call them (lower.Action). The other
 // compositions keep the unexported names that the library printer gives them.
-var TermExports = map[string]string{
-	"binary": "TermBinary", "unary": "TermUnary", "logic": "TermLogic", "member": "TermMember",
-	"length": "TermLength", "text": "TermText", "convert": "TermConvert", "conforms": "TermConforms",
-	"push": "TermPush", "pushItems": "TermPushItems", "hull": "TermHull", "cover": "TermCover", "made": "TermMade",
-	"items": "TermItems", "itemAt": "TermItemAt", "filterKeep": "TermFilterKeep",
+var ActionExports = map[string]string{
+	"binary": "ActionBinary", "unary": "ActionUnary", "logic": "ActionLogic", "member": "ActionMember",
+	"length": "ActionLength", "text": "ActionText", "convert": "ActionConvert", "conforms": "ActionConforms",
+	"push": "ActionPush", "pushItems": "ActionPushItems", "hull": "ActionHull", "cover": "ActionCover", "made": "ActionMade",
+	"items": "ActionItems", "itemAt": "ActionItemAt", "filterKeep": "ActionFilterKeep",
 }

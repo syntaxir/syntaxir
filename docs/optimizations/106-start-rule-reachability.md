@@ -17,7 +17,7 @@ The generator registers an `Entry` only for the rules that a typed entry point
 runs (the start rules, which `ParseValue` and `ParseRuleValue` name). A first pass records
 which typed rules the entry points and the printed typed bodies call, and the second
 pass prints only those rules ([record 120](120-unreachable-rule-bodies.md)): a rule
-that no call names has no method, scope, class table or term, and the fixed
+that no call names has no method, scope, class table or action expression, and the fixed
 conversion helpers that no typed code names are left out. The Results below measure
 an earlier form of the mechanism that worked on the printed source: it dropped the
 registrations and then the unexported functions and package variables that nothing

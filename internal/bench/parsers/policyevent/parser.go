@@ -771,4 +771,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_cb8710b2035b698a
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

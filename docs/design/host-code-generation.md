@@ -92,7 +92,7 @@ parsers.
   the TypeScript library for each parser, and the library printer only prints the result.
   It is not an import edge, so the runtime side does not depend on the printer.
 - **Shared mechanisms.** The mechanisms that are not compositions (the record of recovered errors, the hash index of
-  the memo, the value primitives of terms and the charges of value work, among others) are Go source that the Go
+  the memo, the value primitives of action expressions and the charges of value work, among others) are Go source that the Go
   library and the shared engine state both compile. The library holds each such file, and `go:generate` copies it into
   the engine state with only its package clause changed; a freshness test fails when a copy differs. A shared file
   names only what both packages define alike: the other shared files, the state that both parser types embed, and the

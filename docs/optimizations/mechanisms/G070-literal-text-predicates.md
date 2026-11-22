@@ -8,7 +8,7 @@ every branch.
 
 The complete predicate must consist of comparisons of the same direct capture
 with string literals, joined by OR; a single comparison qualifies, and either
-operand order is accepted. The term lowering reads the text once and returns
+operand order is accepted. The action lowering reads the text once and returns
 whether it equals one of the literals, testing them in order. Mixed
 expressions, aliases, bindings and different captures remain general,
 preserving short-circuit order and side effects. Helper/literal-table sharing
@@ -43,8 +43,8 @@ Evidence records: [091](../091-specialize-pure-literal-text-disjunctions.md).
 Only predicates with two or more distinct literals become a switch: repeated literals collapse, and a single
 distinct literal stays the plain equality `ts == "x"`, which is shorter and says what it is.
 
-Source owners: the term lowering of the Exec IR, which recognizes the literal
-text dispatch, and the Go and TypeScript term targets, which print it as one
+Source owners: the action lowering of the Exec IR, which recognizes the literal
+text dispatch, and the Go and TypeScript action targets, which print it as one
 switch; [`route and unsafe-shape
 checks`](../../../internal/backend/codegen/common/gen_literal_text_dispatch_test.go).
 

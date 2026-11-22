@@ -1,10 +1,10 @@
 # Values: The Action Dialect
 
-The component `value` holds the operations on the values of terms: actions, predicates and the values of bindings.
+The component `value` holds the operations on the values of action expressions: actions, predicates and the values of bindings.
 They read and write no state of the parse. A value is a datum of the host, opaque to the rest of the abstract machine; these
 operations look inside it. Each acts on one kind of value and has none of the policy of an operator of the grammar:
 the compositions `binary`, `unary`, `equal`, `index`, `logic`, `member`, `push`, `pushItems`, `items`, `itemAt`, `filterKeep`, `length`, `text`, `convert`, `cover`, `made` and `hull` (see
-[Compositions](compositions.md#terms)) decide which operation applies, which operands are valid and which failure a term
+[Compositions](compositions.md#action-expressions)) decide which operation applies, which operands are valid and which failure an action expression
 reports. The tables of this chapter are shared by every target: a target numbers the operators, kinds and failures as
 they are numbered here, and prints the messages of the failures as they are written here, so that they read the same
 on all targets.
@@ -37,7 +37,7 @@ The names after the operators are the names by which targets name the codes.
 
 ## Member Kinds
 
-A member name of a term is the name of a field, a range or value member of a node (`Start`, `End`, `Value`), or a
+A member name of an action expression is the name of a field, a range or value member of a node (`Start`, `End`, `Value`), or a
 capture (`$` and the name of the capture). The composition `member` takes the kind of a member read as a code. A range or value member reads the
 node itself only if the value is a node; of a struct or a list it is the field of that name. A field read returns the
 value that the field holds, and a list, a tuple or a struct keeps the range it had where it was made.
@@ -52,9 +52,9 @@ value that the field holds, and a list, a tuple or a struct keeps the range it h
 
 Every target classifies a name by this table: the whole name for the members of a node, the prefix for a capture.
 
-## Failures of a Term
+## Failures of an Action Expression
 
-A failure of a term is reported to the code that evaluates the term, which decides what it does. In a Value Action it ends the parse with an error whose message is the text of the failure; in a Predicate Action it makes the predicate fail, and in a binding it makes the binding fail, and backtracking goes on as for any other failure. `val.fail` takes its code.
+A failure of an action expression is reported to the code that evaluates the action expression, which decides what it does. In a Value Action it ends the parse with an error whose message is the text of the failure; in a Predicate Action it makes the predicate fail, and in a binding it makes the binding fail, and backtracking goes on as for any other failure. `val.fail` takes its code.
 In a text, `{a}` and `{b}` are the type names of the first and second value; `{name}` is the second value as a string,
 a member name or the name of a built-in function; `{op}` is the name of the operator that the operator code indexes,
 in the binary operators for invalid operands, invalid comparison and not a list, in the unary operators for invalid unary
@@ -118,7 +118,7 @@ whose element type is top charges none, and a tuple of another length is refused
 | `op val.fromBool(b bool) Datum` | none | `0` | Returns the bool value b. |
 | `op val.fromInt(i int) Datum` | none | `0` | Returns the int value i. |
 | `op val.toBool(x Datum) bool` | none | `0` | Returns the bool that x is. Requires: x is a bool: val.kind(x) is the kind bool. |
-| `host op val.fail(code int, a Datum, b Datum, op int, n int) Fail noreturn` | none | `0 + 2*error_parts` | Returns the [failure](#failures-of-a-term) with the code code: {a} and {b} read as the names of the types of a and b, {op} as the name of the operator that op indexes (a binary operator for invalid operands and invalid comparison, a unary operator for invalid unary operand and a logical operator for invalid logical operand), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of a term: the caller returns it and the term evaluation reports it, each target in its own form of failure. A target that bounds the work assembles the text piece by piece, charging for each piece. Requires: code indexes TermErrors, and the arguments are those its message names. |
+| `host op val.fail(code int, a Datum, b Datum, op int, n int) Fail noreturn` | none | `0 + 2*error_parts` | Returns the [failure](#failures-of-an-action-expression) with the code code: {a} and {b} read as the names of the types of a and b, {op} as the name of the operator that op indexes (a binary operator for invalid operands and invalid comparison, a unary operator for invalid unary operand and a logical operator for invalid logical operand), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of an action expression: the caller returns it and the action expression evaluation reports it, each target in its own form of failure. A target that bounds the work assembles the text piece by piece, charging for each piece. Requires: code indexes ActionErrors, and the arguments are those its message names. |
 | `op int.add(l Datum, r Datum) Datum` | none | `0` | Returns l + r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
 | `op int.sub(l Datum, r Datum) Datum` | none | `0` | Returns l - r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
 | `op int.mul(l Datum, r Datum) Datum` | none | `0` | Returns l * r with 64-bit wraparound. Requires: l and r are ints. Law (equal results): equal arguments give equal results. |
@@ -142,8 +142,8 @@ whose element type is top charges none, and a tuple of another length is refused
 | `host op node.zero(c Act, n Obj, name Name) (Datum, bool) noreturn` | none | `0 + 2*zero_parts` | Returns the zero value of the declared type of the field name of the struct n, made in c, and true, or nil and false if the type of n declares no such field or the target holds every field of a struct (node.field then holds it). A target that bounds the work charges for the values it makes. Requires: node.isStruct(n). |
 | `op node.span(n Obj) (int, int)` | none | `0` | Returns the start and the end of the range of n, a node, a struct, a list value or a tuple value, as ints. |
 | `host op val.seq(c Act, tuple bool, kids Seq) Obj noreturn` | none | `1` | Returns a new tuple value if tuple and a new list value otherwise, made in c, whose elements are kids, which it takes over, and whose range is empty. A target that bounds the work charges for the value it makes. |
-| `op seq.span(c Act, items Seq, i int) (int, int, bool)` | none | `0` | Returns the start and the end of the range that element i of a list value or a tuple value being made in c adds to the range of the value, as ints, and true if it adds one, and false (and no meaningful range) if it adds none. An element that is a node, a list, a tuple or a struct adds its own range. An int, a string or a bool adds the range of the rule c evaluates the term of, which a target whose elements are nodes has given its box; nil adds none. Requires: items came from seq.items or is the element list of a value being made in c, and 0 <= i < seq.len(items). |
-| `op act.span(c Act) (int, int)` | none | `0` | Returns the start and the end of the range of the rule that c evaluates the term of, as ints. |
+| `op seq.span(c Act, items Seq, i int) (int, int, bool)` | none | `0` | Returns the start and the end of the range that element i of a list value or a tuple value being made in c adds to the range of the value, as ints, and true if it adds one, and false (and no meaningful range) if it adds none. An element that is a node, a list, a tuple or a struct adds its own range. An int, a string or a bool adds the range of the rule c evaluates the action expression of, which a target whose elements are nodes has given its box; nil adds none. Requires: items came from seq.items or is the element list of a value being made in c, and 0 <= i < seq.len(items). |
+| `op act.span(c Act) (int, int)` | none | `0` | Returns the start and the end of the range of the rule that c evaluates the action expression of, as ints. |
 | `op node.typeName(t NodeType) Name` | none | `0` | Returns the name of the named node type t, as the {name} of a failure reads it. |
 | `op node.hasBase(n Obj) bool` | none | `0` | Reports whether n is a string node, a tuple node or a list node, of a named node type or not, which a conversion converts: not an error, a box, a list value, a tuple value or a struct. |
 | `op node.convert(n Obj, t NodeType) Datum` | none | `0` | Returns n as a node of the named node type t: n itself if it has the type, and otherwise a new node with the range, the value and the captures of n, the type t and no rule name, which keeps what n holds now. Requires: node.hasBase(n). |
@@ -169,7 +169,7 @@ whose element type is top charges none, and a tuple of another length is refused
 | `host op seq.step() noreturn` | none | `1` | Charges the step of one element of a list or a tuple: an element that is examined against its type, walked by a built-in function or made by a constructor. A target that bounds the work charges one unit; a target that does not charges nothing. |
 | `host op units.add(n int) noreturn` | none | `0` | Counts n logical compute units of values that the plain evaluation builds and the lowering does not. |
 | `host op units.items(v Datum, k int) noreturn` | none | `0` | Counts k logical compute units for each element of the list or the tuple v. |
-| `host op units.since(mark int) noreturn` | none | `0` | Counts a logical compute unit for each element gathered since mark (term.kids). |
+| `host op units.since(mark int) noreturn` | none | `0` | Counts a logical compute unit for each element gathered since mark (action.kids). |
 | `op seq.len(items Seq) int` | none | `0` | Returns the number of elements. Requires: items came from seq.items. |
 | `op seq.at(items Seq, i int) Datum` | none | `0` | Returns element i as a value: the value a box holds, and nil for a missing element. Requires: items came from seq.items, and 0 <= i < seq.len(items). |
 
@@ -179,35 +179,35 @@ The component `host` holds these operations, which write the host and so are not
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
-| `op node.setSpan(n Obj, start int, end int) noreturn` | writes host | `0` | Sets the range of n to start and end. It is for a value that a term is making, which no one has read. |
+| `op node.setSpan(n Obj, start int, end int) noreturn` | writes host | `0` | Sets the range of n to start and end. It is for a value that an action expression is making, which no one has read. |
 
 ## Elements Gathered
 
-The operations of the component `gathered`: a stack of the elements of the lists and tuples that terms are making.
+The operations of the component `gathered`: a stack of the elements of the lists and tuples that action expressions are making.
 A list or a tuple takes its elements off the stack in one piece when it is made, which charges for copying each element
-and for taking it off in one reservation, and a term that the parser abandons leaves its elements, which the predicate and the binding
+and for taking it off in one reservation, and an action expression that the parser abandons leaves its elements, which the predicate and the binding
 drop. The stack is the parser's: grammar code that collects
 the elements of a repetition may use it too, above the elements it finds and taking off what it pushes, so that a
-term finds the stack as it left it.
+action expression finds the stack as it left it.
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
 | `op act.push(c Act, e Elem) noreturn` | writes gathered | `0` | Pushes e on the elements gathered, as the next element of the innermost list or tuple that c is making. |
 | `op act.pushAll(c Act, items Seq) noreturn` | writes gathered | `0 + 1*seq_len` | Pushes the elements of items in order, as act.push pushes each. A target that bounds the work charges one unit for each element it copies. Requires: items came from seq.items. |
-| `op term.kids() int` | reads gathered | `0` | Returns the number of the elements gathered, which term.dropKids takes as a mark. |
-| `op term.dropKids(mark int) noreturn` | writes gathered | `0 + 1*dropped` | Drops the elements gathered after the mark, and charges one unit for each. Requires: mark came from term.kids and is at most the number of the elements gathered. |
-| `op term.elemsAbove(mark int) Seq noreturn` | reads gathered; writes gathered | `0 + 2*dropped` | Takes the elements gathered after the mark off the elements gathered and returns them in order, for a list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as term.dropKids charges for dropping it, in one reservation before it moves any. Requires: mark came from term.kids and is at most the number of the elements gathered. |
-| `op term.keep(items Seq, i int) noreturn` | writes gathered | `0` | Pushes element i of items as it is (a box stays a box), as act.push pushes an element, as the next element of the list that filter makes. Requires: items came from seq.items, and i is at least 0 and less than the number of its elements. |
+| `op action.kids() int` | reads gathered | `0` | Returns the number of the elements gathered, which action.dropKids takes as a mark. |
+| `op action.dropKids(mark int) noreturn` | writes gathered | `0 + 1*dropped` | Drops the elements gathered after the mark, and charges one unit for each. Requires: mark came from action.kids and is at most the number of the elements gathered. |
+| `op action.elemsAbove(mark int) Seq noreturn` | reads gathered; writes gathered | `0 + 2*dropped` | Takes the elements gathered after the mark off the elements gathered and returns them in order, for a list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as action.dropKids charges for dropping it, in one reservation before it moves any. Requires: mark came from action.kids and is at most the number of the elements gathered. |
+| `op action.keep(items Seq, i int) noreturn` | writes gathered | `0` | Pushes element i of items as it is (a box stays a box), as act.push pushes an element, as the next element of the list that filter makes. Requires: items came from seq.items, and i is at least 0 and less than the number of its elements. |
 
 ## Values Made
 
-The operations of the component `made`: a list of the structs that terms and actions made. The context of a term or an
-action holds the length of the list when it is made (`term.ctx`). When an action returns a struct that it recorded, the
-struct takes the range of the rule; when a term or an action ends, what it recorded is forgotten, which the predicate
-and the binding do with `term.dropCreated`.
+The operations of the component `made`: a list of the structs that action expressions and actions made. The context of an action expression or an
+action holds the length of the list when it is made (`action.ctx`). When an action returns a struct that it recorded, the
+struct takes the range of the rule; when an action expression or an action ends, what it recorded is forgotten, which the predicate
+and the binding do with `action.dropCreated`.
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
 | `op act.made(c Act, n Obj) noreturn` | writes made | `0` | Records n after the values made, as a value that c made. Requires: n is a struct that c made, and no act.made recorded it. |
-| `op term.created() int` | reads made | `0` | Returns the number of the values made, which term.dropCreated takes as a mark. |
-| `op term.dropCreated(mark int) noreturn` | writes made | `0 + 1*dropped` | Forgets the values made after the mark, without changing them, and charges one unit for each. Requires: mark came from term.created and is at most the number of the values made. |
+| `op action.created() int` | reads made | `0` | Returns the number of the values made, which action.dropCreated takes as a mark. |
+| `op action.dropCreated(mark int) noreturn` | writes made | `0 + 1*dropped` | Forgets the values made after the mark, without changing them, and charges one unit for each. Requires: mark came from action.created and is at most the number of the values made. |

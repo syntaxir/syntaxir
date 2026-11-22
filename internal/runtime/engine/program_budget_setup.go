@@ -130,7 +130,7 @@ func (prog *Program) prepareControlledRule(b Backend, name string, f state.Famil
 		return r, err
 	}
 	c.Check()
-	if _, _, err := prog.moduleTerms(); err != nil {
+	if _, _, err := prog.moduleActions(); err != nil {
 		return nil, err
 	}
 	c.Check() // Also the checkpoint immediately before VM preparation.

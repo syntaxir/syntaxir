@@ -18,7 +18,7 @@ func everyNode() *Module {
 		&Call{Rule: 1}, &Nest{Rule: 1, Body: lit("e")},
 		&Text{Body: lit("f")}, &Drop{Body: lit("g")},
 		&Capture{Slot: 0, Name: "x", Body: lit("h")},
-		&Pred{Term: &Const{Value: true}}, &BindNode{Var: "v", Term: &Const{Value: 1}},
+		&Pred{Action: &Const{Value: true}}, &BindNode{Var: "v", Action: &Const{Value: 1}},
 		&Label{Body: lit("i")}, &Recover{Body: lit("j"), Skip: &Any{}},
 		&Missing{Lit: shared, Body: shared}, &Stream{Repeat: &Repeat{Max: -1, Body: lit("k")}},
 		&Scan{Max: -1}, &ClassRun{Classes: []*Class{{Ranges: []Range{{'a', 'b'}}}}},

@@ -212,12 +212,12 @@ func LoadProgram(data []byte) (*Program, string, error) {
 	if err := program.ValidateModule(m); err != nil {
 		return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
 	}
-	terms, err := vm.LoadTerms(m)
+	actionExprs, err := vm.LoadActions(m)
 	if err != nil {
 		return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
 	}
 	prog := moduleProgram(m)
-	prog.vmTermsOnce.Do(func() { prog.vmTerms = terms })
+	prog.vmActionsOnce.Do(func() { prog.vmActions = actionExprs })
 	prog.loaded, prog.mode = true, mode
 	if start != "" {
 		if err := prog.CheckStart(start); err != nil {

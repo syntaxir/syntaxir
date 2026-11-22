@@ -145,10 +145,10 @@ func BaseNode(n *sxirvalue.Node) *sxirvalue.Node {
 	return nodeOfData(&c)
 }
 
-// TermNodeType returns the named node type typ, the operand of TermConvert.
+// ActionNodeType returns the named node type typ, the operand of ActionConvert.
 //
-// TermNodeType is for generated parsers; not a stable API.
-func (p *Parser) TermNodeType(typ string) *nodeTypeKinds { return p.g.NodeTypes[typ] }
+// ActionNodeType is for generated parsers; not a stable API.
+func (p *Parser) ActionNodeType(typ string) *nodeTypeKinds { return p.g.NodeTypes[typ] }
 
 // RawField returns the value of the field or capture name, whether or not it is public.
 func RawField(n *sxirvalue.Node, name string) any {
@@ -159,7 +159,7 @@ func RawField(n *sxirvalue.Node, name string) any {
 	return v
 }
 
-// valueTypeName names the type of a value of the given shape in messages, in the terms of the
+// valueTypeName names the type of a value of the given shape in messages, in the action expressions of the
 // value model: node[string] for a string node, node[(_, _)] and node[[]_] for tuple and list
 // nodes (a tuple has elems elements), error for an error value, (_, _) and []_ for tuple and list
 // values, and name for a struct.
@@ -1342,7 +1342,7 @@ const (
 	ptrChunk  = 1024
 )
 
-// NewNode returns a copy of v allocated from the node slab, charging a unit for a value that a term
+// NewNode returns a copy of v allocated from the node slab, charging a unit for a value that an action expression
 // or a Document makes. A slab stays alive while any of its nodes is referenced.
 func (p *Parser) NewNode(v Data) *sxirvalue.Node {
 	p.Spend()
@@ -1466,7 +1466,7 @@ func (p *Parser) Kids(base int) []*sxirvalue.Node {
 	return ks
 }
 
-// ElemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term gathered
+// ElemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression gathered
 // above base as Kids does and, under budget controls, reserves two units for each element, one for
 // copying it and one for taking it off, in one reservation before it moves any.
 func (p *Parser) ElemsAbove(base int) []*sxirvalue.Node {
@@ -2660,7 +2660,7 @@ func (p *Parser) NewErrorNode(start int, e *sxirvalue.SyntaxError) *sxirvalue.No
 
 // --- Actions and predicates ---
 
-// evalError is the failure of a term, which the compositions return as a value. It fails the whole
+// evalError is the failure of an action expression, which the compositions return as a value. It fails the whole
 // parse in an action and makes a predicate fail.
 type evalError struct{ msg string }
 
@@ -2752,11 +2752,11 @@ func typeName(v any) string {
 	return fmt.Sprintf("%T", v)
 }
 
-// TermStruct returns a new struct of the type typ with no field set and an empty range, with room for
-// n fields: the operation term.struct of a term that makes a struct.
+// ActionStruct returns a new struct of the type typ with no field set and an empty range, with room for
+// n fields: the operation action.struct of an action expression that makes a struct.
 //
-// TermStruct is for generated parsers; not a stable API.
-func (c *ActCtx) TermStruct(typ string, n int) *sxirvalue.Node {
+// ActionStruct is for generated parsers; not a stable API.
+func (c *ActCtx) ActionStruct(typ string, n int) *sxirvalue.Node {
 	k := c.P.g.TypeKinds[typ]
 	if k == nil {
 		k = KindOf(typ, "")
@@ -2764,11 +2764,11 @@ func (c *ActCtx) TermStruct(typ string, n int) *sxirvalue.Node {
 	return c.P.NewNode(Data{Kind: k, Fields: c.P.fields(n)})
 }
 
-// TermSetField sets the field name of the struct n, which a term is making, to v: the operation
-// term.setField.
+// ActionSetField sets the field name of the struct n, which an action expression is making, to v: the operation
+// action.setField.
 //
-// TermSetField is for generated parsers; not a stable API.
-func (c *ActCtx) TermSetField(n *sxirvalue.Node, name string, v any) {
+// ActionSetField is for generated parsers; not a stable API.
+func (c *ActCtx) ActionSetField(n *sxirvalue.Node, name string, v any) {
 	c.P.setValueField(&D(n).Fields, name, v)
 }
 
@@ -2781,7 +2781,7 @@ func (c *ActCtx) NewList(items []*sxirvalue.Node) *sxirvalue.Node {
 // listNode returns a list value with the child list kids (which it takes over). Its range, which
 // the value model does not show, covers the elements that are nodes.
 func (c *ActCtx) listNode(kids []*sxirvalue.Node) *sxirvalue.Node {
-	return c.P.TermHull(c, false, kids)
+	return c.P.ActionHull(c, false, kids)
 }
 
 // TOperand is an operand of a comparison: a string field read without boxing it (Str, with
@@ -2833,17 +2833,17 @@ func (c *ActCtx) zeroValue(d string) (any, string) {
 			var e any
 			e, d = c.zeroValue(d)
 			c.P.Spend()
-			if f := c.P.TermPush(c, "tuple", e); f != nil {
+			if f := c.P.ActionPush(c, "tuple", e); f != nil {
 				panic("runtime: a zero value is not a tuple element") // zero values are never functions
 			}
 		}
-		return c.P.TermHull(c, true, c.P.ElemsAbove(base)), strings.TrimPrefix(d, ")")
+		return c.P.ActionHull(c, true, c.P.ElemsAbove(base)), strings.TrimPrefix(d, ")")
 	case '{':
 		// The zero value of a struct type is a struct with no field set, whose fields read as their own
 		// zero values, so that making it costs the same whatever the type holds.
 		name, rest, _ := strings.Cut(d[1:], "}")
-		n := c.TermStruct(name, 0)
-		c.P.TermMade(c, n, true)
+		n := c.ActionStruct(name, 0)
+		c.P.ActionMade(c, n, true)
 		return n, rest
 	}
 	return nil, d[1:]

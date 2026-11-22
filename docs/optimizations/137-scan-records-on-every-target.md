@@ -58,7 +58,7 @@ was noted before and after each run, and a run whose A/A rows spread by more tha
   TypeScript; a few Go parsers were also timed at n = 4000 and 16000 with the garbage collector off.
 - Time: test binaries of the `bench` package for the base, an identical copy of the base (A/A) and the candidate,
   run in rotated order for 20 rounds over `BenchmarkParse` (code points and generated AST), `BenchmarkRecognize`,
-  `BenchmarkTerms`, `BenchmarkIncremental` and `BenchmarkStream`, 99 rows at 200 ms each; medians of the per-round
+  `BenchmarkActions`, `BenchmarkIncremental` and `BenchmarkStream`, 99 rows at 200 ms each; medians of the per-round
   ratios to the base. Two such runs were made; the first also rotated in the variant described under Decision.
 - Memory: `bench/profilematrix -variant speed= -control -rounds 8`, run once with the base tree and once with the
   candidate tree.
@@ -93,12 +93,12 @@ Time against the base, 99 rows, two runs of 20 rounds:
 |:--|:--|:--|
 | Geometric mean | +0.12% (A/A −0.02%) | +0.02% (A/A −0.03%) |
 | Largest A/A row | ±0.99% | ±0.61% |
-| Rows beyond the A/A spread, slower | `Terms` TermsHeavy iterative +1.5% (its A/A row +1.0%), TermsHeavy closure +1.3%, TermsHeavy bytecode +1.1%; `Recognize` CSV closure +1.3%, Arith_OperatorsRule generated +1.2%, XML bytecode +1.1%, Arith_LeftRec bytecode +1.1% | 23 rows from +0.6% to +1.1%, the largest `Parse` Outline closure +1.1%, `Terms` TermsHeavy iterative +1.0%, `Recognize` XML bytecode +1.0%, CSV closure +1.0% |
-| Rows beyond the A/A spread, faster | 5, from −1.2% to −5.0% (`Terms` TermsHeavy generated recognizer) | 11, from −0.6% to −5.1% (the same row) |
+| Rows beyond the A/A spread, slower | `Actions` ActionsHeavy iterative +1.5% (its A/A row +1.0%), ActionsHeavy closure +1.3%, ActionsHeavy bytecode +1.1%; `Recognize` CSV closure +1.3%, Arith_OperatorsRule generated +1.2%, XML bytecode +1.1%, Arith_LeftRec bytecode +1.1% | 23 rows from +0.6% to +1.1%, the largest `Parse` Outline closure +1.1%, `Actions` ActionsHeavy iterative +1.0%, `Recognize` XML bytecode +1.0%, CSV closure +1.0% |
+| Rows beyond the A/A spread, faster | 5, from −1.2% to −5.0% (`Actions` ActionsHeavy generated recognizer) | 11, from −0.6% to −5.1% (the same row) |
 | Incremental and Stream | within the spread except `Incremental` generated fresh −1.6% | within the spread except `Incremental` generated fresh −1.6% and two document rows −0.7% |
 
 Five slower rows exceed the spread in both runs: CSV closure and XML bytecode recognition, Arith_OperatorsRule
-generated recognition, and TermsHeavy on the closure and iterative backends, all by at most 1.5%. JSON recognition in a generated parser, a parser
+generated recognition, and ActionsHeavy on the closure and iterative backends, all by at most 1.5%. JSON recognition in a generated parser, a parser
 whose scans are short, is +0.2% and +0.05%.
 
 Memory of the generated Go parsers of the ten language grammars (bytes per pass and live heap of the results):

@@ -37,7 +37,7 @@ whether the predicate succeeds; see [Predicate Actions](predicates.md#predicate-
 
 ## Whole-Rule Value Actions
 
-A single-term Value Action follows `=>` after the complete rule expression.
+A single-expression Value Action follows `=>` after the complete rule expression.
 When a grammar expression spans multiple lines, parenthesize that expression;
 a line break inside a braced action block is local to the block.
 
@@ -541,7 +541,7 @@ error.
 
 A rule value whose Type the checker does not know, such as an action result or
 a called rule's value of type `_`, is a compile-time error when the rule declares
-a Type it does not fit: `rule term produces _, which is not assignable to Expr: the type of the
+a Type it does not fit: `rule action expression produces _, which is not assignable to Expr: the type of the
 value is not known; convert it with a cast, as in value.(Expr)`. This applies to the value
 of a rule with or without an action, of each Operators Rule operand line and of each operator
 line with an action. The cast is the check that runs (see [Casts](#casts)); it

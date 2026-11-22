@@ -8,10 +8,10 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// NewIterative prepares a module for execution with the iterative model, in the family f; terms
-// are the programs of its terms (LoadTerms).
-func NewIterative(m *bytecode.Module, terms []*state.TermProgram, f state.Family) *Program {
-	return buildVMProgram(m, terms, f, iterateBody)
+// NewIterative prepares a module for execution with the iterative model, in the family f; action expressions
+// are the programs of its action expressions (LoadActions).
+func NewIterative(m *bytecode.Module, actionExprs []*state.ActionProgram, f state.Family) *Program {
+	return buildVMProgram(m, actionExprs, f, iterateBody)
 }
 
 // iterateBody runs a rule body with the iterative model: calls push frames instead of recursing.

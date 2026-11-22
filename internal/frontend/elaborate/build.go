@@ -606,13 +606,13 @@ func (b *coreBuilder) node(e ast.Expr, s *coreScope, build bool) (core.Node, err
 			if err != nil {
 				return nil, err
 			}
-			return b.set(&core.BindNode{Var: a.Name, Term: t}, e, build), nil
+			return b.set(&core.BindNode{Var: a.Name, Action: t}, e, build), nil
 		}
 		t, err := b.actionExpr(e.Action, s, nil)
 		if err != nil {
 			return nil, err
 		}
-		return b.set(&core.Pred{Term: t}, e, build), nil
+		return b.set(&core.Pred{Action: t}, e, build), nil
 	case *ast.Attributed:
 		return b.attributed(e, len(e.Attrs)-1, s, build)
 	}
@@ -919,7 +919,7 @@ func (b *coreBuilder) actionExprNode(t ast.ActionExpr, s *coreScope, env map[str
 			return nil, err
 		}
 		line, col := b.prog.CastPos(t)
-		// A cast to a type that every value fits has no check (Check nil); it stays a term, which a
+		// A cast to a type that every value fits has no check (Check nil); it stays an action expression, which a
 		// target may charge for.
 		var check any
 		if c := b.prog.ResolveCheck(t.Type); c != nil {

@@ -6,14 +6,14 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The walks of the grammar's expressions and terms that the checks of the compiler use. The rule
+// The walks of the grammar's expressions and action expressions that the checks of the compiler use. The rule
 // facts are not computed here: they are those of the Core IR module of the rules (RuleFacts).
 
-// WalkTerm is astfacts.WalkTerm. It stays for the tests and test support that call it through
+// WalkAction is astfacts.WalkAction. It stays for the tests and test support that call it through
 // compile; new code calls astfacts.
-func WalkTerm(t ast.ActionExpr, f func(ast.ActionExpr)) { astfacts.WalkTerm(t, f) }
+func WalkAction(t ast.ActionExpr, f func(ast.ActionExpr)) { astfacts.WalkAction(t, f) }
 
-// WalkExpr is astfacts.WalkExpr; see WalkTerm.
+// WalkExpr is astfacts.WalkExpr; see WalkAction.
 func WalkExpr(e ast.Expr, f func(ast.Expr)) { astfacts.WalkExpr(e, f) }
 
 // valueRecovery reports whether e has a #recover outside lookaheads and Operators Rule skips, and

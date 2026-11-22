@@ -1132,8 +1132,8 @@ func (t *TypedGen) transfers() map[*ast.FieldAccess]bool {
 			}
 		}
 	}
-	for _, term := range t.actionTerms() {
-		astfacts.WalkTerm(term, func(y ast.ActionExpr) {
+	for _, actionExpr := range t.actionExprs() {
+		astfacts.WalkAction(actionExpr, func(y ast.ActionExpr) {
 			n, ok := y.(*ast.Constructor)
 			if !ok {
 				return
@@ -1207,8 +1207,8 @@ func (t *TypedGen) fieldReadMembers() []*ast.FieldAccess {
 		}
 	}
 	var out []*ast.FieldAccess
-	for _, x := range t.actionTerms() {
-		astfacts.WalkTerm(x, func(y ast.ActionExpr) {
+	for _, x := range t.actionExprs() {
+		astfacts.WalkAction(x, func(y ast.ActionExpr) {
 			if m, ok := y.(*ast.FieldAccess); ok && fields[m.Name] && !t.nodeMember(m) {
 				out = append(out, m)
 			}
@@ -1217,31 +1217,31 @@ func (t *TypedGen) fieldReadMembers() []*ast.FieldAccess {
 	return out
 }
 
-// actionTerms returns the terms of the actions and predicates of the grammar.
-func (t *TypedGen) actionTerms() []ast.ActionExpr {
-	var terms []ast.ActionExpr
+// actionExprs returns the action expressions of the actions and predicates of the grammar.
+func (t *TypedGen) actionExprs() []ast.ActionExpr {
+	var actionExprs []ast.ActionExpr
 	var expr func(e ast.Expr)
 	expr = func(e ast.Expr) {
 		astfacts.WalkExpr(e, func(x ast.Expr) {
 			switch x := x.(type) {
 			case *ast.Predicate:
-				terms = append(terms, x.Action)
+				actionExprs = append(actionExprs, x.Action)
 			case *ast.InlineAction:
 				if x.Action != nil {
-					terms = append(terms, x.Action)
+					actionExprs = append(actionExprs, x.Action)
 				}
 			case *ast.OperatorsRule:
 				for _, o := range x.Operands {
 					expr(o.Expr)
 					if o.Action != nil {
-						terms = append(terms, o.Action)
+						actionExprs = append(actionExprs, o.Action)
 					}
 				}
 				for _, l := range x.Levels {
 					for _, op := range l.Operators {
 						expr(op.Expr)
 						if op.Action != nil {
-							terms = append(terms, op.Action)
+							actionExprs = append(actionExprs, op.Action)
 						}
 					}
 				}
@@ -1251,10 +1251,10 @@ func (t *TypedGen) actionTerms() []ast.ActionExpr {
 	for _, r := range t.G.Prog.RuleList {
 		expr(r.Def.Expr)
 		if r.Def.Action != nil {
-			terms = append(terms, r.Def.Action)
+			actionExprs = append(actionExprs, r.Def.Action)
 		}
 	}
-	return terms
+	return actionExprs
 }
 
 // representable reports whether the typed library can build values of type x and read them back

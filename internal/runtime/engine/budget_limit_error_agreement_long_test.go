@@ -12,7 +12,7 @@ import (
 // TestLimitErrorAgreementMutants checks that TestLimitErrorAgreement notices a backend that reports a
 // run of units as one reservation: generated Go whose Take reserves its units at once, and generated
 // TypeScript whose run of units is charged as one reservation; one that splits the reservation of the
-// take-off of a term's list: generated Go and TypeScript that reserve the copy and the take-off apart,
+// take-off of an action expression's list: generated Go and TypeScript that reserve the copy and the take-off apart,
 // and generated Go that reserves it chunk by chunk; and generated Go that charges for taking off the
 // list of a repetition, which charges nothing.
 func TestLimitErrorAgreementMutants(t *testing.T) {
@@ -61,7 +61,7 @@ func TestLimitErrorAgreementMutants(t *testing.T) {
 				}
 				return strings.Replace(src, kids, split, 1)
 			}, nil)
-			// A term's list; only the long list is longer than a chunk.
+			// An action expression's list; only the long list is longer than a chunk.
 			cs := []limitAgreementCase{cases["list"]}
 			if name == "list take-off by chunks" {
 				cs = []limitAgreementCase{cases["long list"]}

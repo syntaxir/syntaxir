@@ -17,16 +17,16 @@ var outputs = []struct {
 	print func() (string, error)
 }{
 	{libGoFile, printLibGo},
-	{goTermsFile, printGoTerms},
+	{goActionsFile, printGoActions},
 	{goOperatorsFile, printGoOperators},
 	{goStreamFile, printGoStream},
 	{engineFile, printEngine},
-	{engineTermsFile, printEngineTerms},
+	{engineActionsFile, printEngineActions},
 	{engineOperatorsFile, printEngineOperators},
 	{engineStreamFile, printEngineStream},
 	{engineDocumentFile, printEngineDocument},
-	{engineClosureTermFile, printEngineClosureTerms},
-	{engineVMTermFile, printEngineVMTerms},
+	{engineClosureActionFile, printEngineClosureActions},
+	{engineVMActionFile, printEngineVMActions},
 	{engineOprBindingsFile, printEngineOprBindings},
 	{engineCtxBindingsFile, printEngineCtxBindings},
 	{engineFrameBindingsFile, printEngineFrameBindings},
@@ -35,7 +35,7 @@ var outputs = []struct {
 	{engineRuleBindingsFile, printEngineRuleBindings},
 	{engineMissingBindingsFile, printEngineMissingBindings},
 	{engineCallBindingsFile, printEngineCallBindings},
-	{engineTermStateBindingsFile, printEngineTermStateBindings},
+	{engineActionStateBindingsFile, printEngineActionStateBindings},
 }
 
 // Write prints every file of outputs and writes it. Paths are relative to the directory of this

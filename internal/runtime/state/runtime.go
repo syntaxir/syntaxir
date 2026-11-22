@@ -222,16 +222,16 @@ type Parser struct {
 	MemUsed, MemKept uint64
 	// NodeChunks counts the node chunks allocated since the last splitChunks.
 	// A negative count tracks the exact-size prefix budget before #stream.
-	NodeChunks int
-	ectx       EvalCtx        // area for UseCtx
-	terms      termRegs       // registers of term programs (TermProgram.Eval)
-	item       [1]*value.Node // the element list of an action whose body is not a sequence (one)
-	oplocals   [3]Local       // $lhs, $rhs and $op of a OperatorsRule operator action
-	Saved      []*value.Node  // captures saved across a reset in longest
-	cutFailed  bool           // a candidate of the last longest match failed after a cut
-	afterEmpty bool           // the next expression is the right operand of an infix operator that consumed no input
-	nudBound   int            // the binding level above which no operator can follow the last start of an expression
-	kidRoom    int            // the room on KidStack that this parse has paid for (growKids), whatever its capacity
+	NodeChunks  int
+	ectx        EvalCtx        // area for UseCtx
+	actionExprs actionRegs     // registers of action programs (ActionProgram.Eval)
+	item        [1]*value.Node // the element list of an action whose body is not a sequence (one)
+	oplocals    [3]Local       // $lhs, $rhs and $op of a OperatorsRule operator action
+	Saved       []*value.Node  // captures saved across a reset in longest
+	cutFailed   bool           // a candidate of the last longest match failed after a cut
+	afterEmpty  bool           // the next expression is the right operand of an infix operator that consumed no input
+	nudBound    int            // the binding level above which no operator can follow the last start of an expression
+	kidRoom     int            // the room on KidStack that this parse has paid for (growKids), whatever its capacity
 }
 
 // BackendState is the state that a backend keeps beside the parser for the parse it runs, such

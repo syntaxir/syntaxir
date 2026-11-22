@@ -26,7 +26,7 @@ func sampleGrammar() *Grammar {
 				Name: "expr",
 				Type: &TypeRef{Name: "Node"},
 				Expr: &Seq{Items: []Expr{
-					&Capture{Name: "l", Expr: &Ref{Name: "term", Level: "add"}},
+					&Capture{Name: "l", Expr: &Ref{Name: "action", Level: "add"}},
 					&Repeat{Expr: &CharClass{Ranges: []CharRange{{Lo: 'a', Hi: 'z'}}, Negated: true}, Min: 1, Max: -1},
 					&Optional{Expr: &Choice{Alts: []Expr{&Literal{Value: "+"}, &Any{}, &Cut{}}}},
 					&Not{Expr: &And{Expr: &Atomic{Expr: &Discard{Expr: &Top{}}}}},
@@ -157,7 +157,7 @@ func TestDecodeJSONUnknownFieldsAtASTDepth(t *testing.T) {
 	}{
 		{"statement", `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":{"@type":"Literal","value":"x"},"nam":"typo"}]}}`, "$.file.decls[0].nam", `"nam"`},
 		{"expression", `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":{"@type":"Literal","value":"x","valu":"typo"}}]}}`, "$.file.decls[0].expr.valu", `"valu"`},
-		{"term", `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":{"@type":"Literal","value":"x"},"action":{"@type":"Call","func":"f","args":[],"extra":1}}]}}`, "$.file.decls[0].action.extra", `"extra"`},
+		{"action", `{"file":{"decls":[{"@type":"RuleDef","name":"r","expr":{"@type":"Literal","value":"x"},"action":{"@type":"Call","func":"f","args":[],"extra":1}}]}}`, "$.file.decls[0].action.extra", `"extra"`},
 		{"type", `{"file":{"decls":[{"@type":"TypeAlias","name":"T","type":{"@type":"TypeRef","name":"X","Name":"bad"}}]}}`, `$.file.decls[0].type.Name`, `"Name"`},
 		{"unusual key", `{"file":{"decls":[]},"bad-key":1}`, `$["bad-key"]`, `"bad-key"`},
 		{"unicode key", `{"file":{"decls":[]},"é":1}`, `$["é"]`, `"é"`},

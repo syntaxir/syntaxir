@@ -29,7 +29,7 @@ func predicatesReadCaptures(e ast.Expr, control *cancel.Control) bool {
 	found := false
 	walkExprControlled(e, func(x ast.Expr) {
 		if p, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkTerm(p.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if _, ok := t.(*ast.CaptureRef); ok {
 					found = true
@@ -159,7 +159,7 @@ func LookKeepsState(e ast.Expr) bool {
 		case *ast.Capture:
 			found = true
 		case *ast.Predicate:
-			astfacts.WalkTerm(x.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(x.Action, func(t ast.ActionExpr) {
 				if _, ok := t.(*ast.Bind); ok {
 					found = true
 				}

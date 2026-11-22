@@ -12,19 +12,19 @@ type FieldType struct {
 	Text string
 }
 
-// TermCastFailed returns the failure of a cast of v to t, a type that v does not fit. The failure names
+// ActionCastFailed returns the failure of a cast of v to t, a type that v does not fit. The failure names
 // the input position where the action started and, when line is positive, the grammar position of the
 // cast.
 //
-// TermCastFailed is for generated parsers; not a stable API.
-func (c *ActCtx) TermCastFailed(v any, t *FieldType, line, col int) any {
+// ActionCastFailed is for generated parsers; not a stable API.
+func (c *ActCtx) ActionCastFailed(v any, t *FieldType, line, col int) any {
 	return c.P.castFailure(typeName(v), t.Text, c.start, line, col)
 }
 
-// TermCastFailed is ActCtx.TermCastFailed for the values of the typed library.
+// ActionCastFailed is ActCtx.ActionCastFailed for the values of the typed library.
 //
-// TermCastFailed is for generated parsers; not a stable API.
-func (c *TActCtx) TermCastFailed(v any, t *FieldType, line, col int) any {
+// ActionCastFailed is for generated parsers; not a stable API.
+func (c *TActCtx) ActionCastFailed(v any, t *FieldType, line, col int) any {
 	return c.P.Parser.castFailure(ttypeName(v), t.Text, c.Start, line, col)
 }
 

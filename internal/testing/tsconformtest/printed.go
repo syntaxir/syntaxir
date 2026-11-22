@@ -18,7 +18,7 @@ var ObsOps = conform.ObsOps
 // them differently.
 func printedOps() map[string][]string {
 	var all []string
-	for _, ops := range [][]string{ExecOps, ExecBudgetOps, FrameOps, ExpOps, CtxOps, RuleOps, OprSuiteOps, TermOps, ObsOps} {
+	for _, ops := range [][]string{ExecOps, ExecBudgetOps, FrameOps, ExpOps, CtxOps, RuleOps, OprSuiteOps, ActionOps, ObsOps} {
 		for _, o := range ops {
 			if !strings.HasPrefix(o, "test.") && !slices.Contains(all, o) {
 				all = append(all, o)

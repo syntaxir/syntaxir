@@ -112,7 +112,7 @@ type Binding struct {
 
 // Action is the immediate of eval: the action of the function's rule.
 type Action struct {
-	Term core.ActionExpr
+	Action core.ActionExpr
 	Capture
 }
 
@@ -196,11 +196,11 @@ func ImmString(imm any) string {
 		}
 		return fmt.Sprintf("rule %d", x.Rule)
 	case Predicate:
-		return core.ActionExprString(x.Node.Term) + capture(x.Capture)
+		return core.ActionExprString(x.Node.Action) + capture(x.Capture)
 	case Binding:
-		return x.Node.Var + " = " + core.ActionExprString(x.Node.Term) + capture(x.Capture)
+		return x.Node.Var + " = " + core.ActionExprString(x.Node.Action) + capture(x.Capture)
 	case Action:
-		return core.ActionExprString(x.Term) + capture(x.Capture)
+		return core.ActionExprString(x.Action) + capture(x.Capture)
 	case *Names:
 		s := names(x)
 		if x.Declared {

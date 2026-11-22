@@ -27,8 +27,8 @@ var update = flag.Bool("update-facts", false, "rewrite the grammar facts golden 
 
 // Corpus lists the grammars whose facts are pinned, relative to the repository root.
 var Corpus = []string{
-	"bench/grammars/terms/heavy.sxir",
-	"bench/grammars/terms/pred.sxir",
+	"bench/grammars/actions/heavy.sxir",
+	"bench/grammars/actions/pred.sxir",
 	"examples/calculator/calc_lr.sxir",
 	"examples/calculator/calc.sxir",
 	"examples/minilang/minilang.sxir",

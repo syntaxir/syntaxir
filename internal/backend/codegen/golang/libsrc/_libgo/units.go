@@ -130,7 +130,7 @@ func (p *Parser) unitsSized(n int) {
 
 // valueUnits counts the n units of a sized event of a value (the bytes a string comparison or
 // concatenation covers) when the parse counts logical compute units, and reports whether it does: a
-// shared mechanism (value_spend.go, term_value.go) then neither charges the budget for the event nor
+// shared mechanism (value_spend.go, action_value.go) then neither charges the budget for the event nor
 // reads the bytes in chunks.
 func (p *Parser) valueUnits(n int) bool {
 	if !p.units.on {
@@ -468,18 +468,18 @@ func (p *TParser) skipTerminalAltL(t *TerminalProgram, pc, size int) bool {
 	return p.skipTerminalL(t, pc+4)
 }
 
-// TermHullLogical is TermHull that counts one unit for each element of the list or tuple it builds.
+// ActionHullLogical is ActionHull that counts one unit for each element of the list or tuple it builds.
 //
-// TermHullLogical is for generated parsers; not a stable API.
-func (p *Parser) TermHullLogical(c *ActCtx, tuple bool, kids []*sxirvalue.Node) *sxirvalue.Node {
+// ActionHullLogical is for generated parsers; not a stable API.
+func (p *Parser) ActionHullLogical(c *ActCtx, tuple bool, kids []*sxirvalue.Node) *sxirvalue.Node {
 	p.unitsSized(len(kids))
-	return p.TermHull(c, tuple, kids)
+	return p.ActionHull(c, tuple, kids)
 }
 
-// TermHullLogical is the typed TermHull that counts one unit for each element it builds.
-func (p *TParser) TermHullLogical(c *TActCtx, tuple bool, kids []any) TVal {
+// ActionHullLogical is the typed ActionHull that counts one unit for each element it builds.
+func (p *TParser) ActionHullLogical(c *TActCtx, tuple bool, kids []any) TVal {
 	p.unitsSized(len(kids))
-	return p.TermHull(c, tuple, kids)
+	return p.ActionHull(c, tuple, kids)
 }
 
 // TextEqualLogical is TextEqual that counts the length of the shorter string.

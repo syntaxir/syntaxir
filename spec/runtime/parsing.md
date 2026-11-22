@@ -1133,7 +1133,7 @@ bound.
 
 ### Conditions for Linear Cost
 
-The conditions below use these terms.
+The conditions below use these action expressions.
 
 - A **copying operation** is an operation of an action, predicate or binding
   whose cost the classifier counts in proportion to the size of the values it
@@ -1260,10 +1260,10 @@ The conditions below use these terms.
 - A **bounded scan** is a repetition without an upper bound whose iterations at
   any one position number a constant, however the units around it fail. It
   costs a constant times the input in all, wherever it is evaluated, so the
-  conditions do not check it: in the conditions and the terms below, and in the
+  conditions do not check it: in the conditions and the action expressions below, and in the
   classes of [Classification](#classification), a scanning source is one that
   is not a bounded scan, and the cost of a bounded scan is left out of what a
-  term says is bounded or repeated. A bounded scan needs two bounds, and neither
+  action expression says is bounded or repeated. A bounded scan needs two bounds, and neither
   implies the other.
 
   The **alphabet** of a repetition is the set of characters that an evaluation
@@ -2006,7 +2006,7 @@ bound by these conditions, and has to say so.
    before the binding, back to the first element that is not a predicate or
    to a binding of any variable, as in `{lo <= e && e <= hi} {v := e}`: they
    evaluate `e`, written alike, with the same variables and captures as the
-   binding, and every term of the action language is a function of those, so
+   binding, and every action expression of the action language is a function of those, so
    the binding binds only values on which the tests succeed. A predicate with
    attributes counts as a predicate when all of them are `@` attributes, such
    as `@error`, which do not change matching; a predicate under a pragma, such
@@ -2180,7 +2180,7 @@ bound by these conditions, and has to say so.
    at most a constant multiple of their sizes, unless the fold can double it.
    The classifier bounds one step of a fold by its **step matrix**: it bounds
    the size, the size of the largest element and the number of elements of
-   the value of the lambda each by a sum of terms, each a constant times one
+   the value of the lambda each by a sum of action expressions, each a constant times one
    of the same three quantities of the first parameter, or times none, and
    times powers of n and of the size of the element of the step, where a value
    read from outside the fold counts as n to its size degree. The size of a
@@ -2198,10 +2198,10 @@ bound by these conditions, and has to say so.
    do not read it holds its initial value and those values summed over the
    elements of its list. A part that multiplies two quantities of the first
    parameter, as the first parameter read inside a lambda over a list that
-   grows with it, and a term whose value the classifier does not follow, such
+   grows with it, and an action expression whose value the classifier does not follow, such
    as a block or a fold of another form, count as many copies of what they
    read. The fold can double its first parameter when, in the graph of the
-   three quantities with an edge for each term that reads one, a cycle has a
+   three quantities with an edge for each action expression that reads one, a cycle has a
    coefficient above 1 or a factor of a size, or two cycles share a quantity,
    as `acc + acc`, `list(acc[0] + acc[0])`, `map(acc, (e) => e + e)`,
    `map($c, (z) => acc)` and
@@ -2217,7 +2217,7 @@ bound by these conditions, and has to say so.
    value, by their size degrees; the steps are the elements of the list, and
    the sizes of their elements add up to the size of the list, by the size
    degrees of the three quantities of the list. The classifier bounds the
-   cost of one step by such terms as well, where a term may multiply
+   cost of one step by such action expressions as well, where an action expression may multiply
    quantities: a comparison of values
    that are not ints and `len` of a string examine their operands, and a fold
    inside the lambda copies its own first parameter on each of its steps. A
@@ -2805,7 +2805,7 @@ time, also where it charges several of them together; a failure there reports
 reservation, such as a chunk of the preparation of the input, the copy of a text
 or an operation on a list, is reserved at once, and a failure there reports the
 whole reservation in `Requested` and the units before it in `Used`. Taking the
-n elements of a list or a tuple that a term makes off the values gathered for it
+n elements of a list or a tuple that an action expression makes off the values gathered for it
 is one reservation of 2n units, one for copying each element and one for taking
 it off, made before any element moves, however long the list. The lists that
 the parse builds charge nothing ([Cost](#cost)).

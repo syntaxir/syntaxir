@@ -34,7 +34,7 @@ func TestFormatContextParityAndCancellation(t *testing.T) {
 	}{
 		{"grammar", func() string { return Format(g) }, func(ctx context.Context) (string, error) { return FormatContext(ctx, g) }},
 		{"expression", func() string { return FormatExpr(attrExpr) }, func(ctx context.Context) (string, error) { return FormatExprContext(ctx, attrExpr) }},
-		{"term", func() string { return FormatActionExpr(call) }, func(ctx context.Context) (string, error) { return FormatActionExprContext(ctx, call) }},
+		{"action", func() string { return FormatActionExpr(call) }, func(ctx context.Context) (string, error) { return FormatActionExprContext(ctx, call) }},
 		{"type", func() string { return FormatType(join) }, func(ctx context.Context) (string, error) { return FormatTypeContext(ctx, join) }},
 	}
 	before, _ := json.Marshal(g)
@@ -137,27 +137,27 @@ func TestFormatStringHelpersParity(t *testing.T) {
 func TestFormatContextPreservesForeignPanic(t *testing.T) {
 	marker := &struct{}{}
 	ctx := &formatPanicContext{Context: formatTestCancelAt(t, 0), marker: marker}
-	term := &ast.StringLit{Value: strings.Repeat("x", 1024)}
+	actionExpr := &ast.StringLit{Value: strings.Repeat("x", 1024)}
 	defer func() {
 		if got := recover(); got != marker {
 			t.Fatalf("foreign panic replaced: %v", got)
 		}
 	}()
-	FormatActionExprContext(ctx, term)
+	FormatActionExprContext(ctx, actionExpr)
 }
 
 func TestFormatDeepRecursionCancellation(t *testing.T) {
 	var expr ast.Expr = &ast.Literal{Value: "x"}
-	var term ast.ActionExpr = &ast.VarRef{Name: "x"}
+	var actionExpr ast.ActionExpr = &ast.VarRef{Name: "x"}
 	var typ ast.TypeExpr = &ast.TypeRef{Name: "T"}
 	for range 1024 {
 		expr = &ast.Optional{Expr: expr}
-		term = &ast.Unary{Op: "-", X: term}
+		actionExpr = &ast.Unary{Op: "-", X: actionExpr}
 		typ = &ast.ListType{Elem: typ}
 	}
 	cases := []func(context.Context) (string, error){
 		func(ctx context.Context) (string, error) { return FormatExprContext(ctx, expr) },
-		func(ctx context.Context) (string, error) { return FormatActionExprContext(ctx, term) },
+		func(ctx context.Context) (string, error) { return FormatActionExprContext(ctx, actionExpr) },
 		func(ctx context.Context) (string, error) { return FormatTypeContext(ctx, typ) },
 	}
 	for _, run := range cases {

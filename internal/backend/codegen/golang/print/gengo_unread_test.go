@@ -66,10 +66,10 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 	// Written in declaration order the fields are the arguments; out of order the temporaries, assigned
 	// before the call, keep the order written, without a function literal.
 	if strings.Contains(src, "func() any") {
-		t.Errorf("generated source contains a function literal around a term:\n%s", src)
+		t.Errorf("generated source contains a function literal around an action expression:\n%s", src)
 	}
-	// The term is printed from Exec IR: a field in declaration order is the result of its composition.
-	if m := regexp.MustCompile(`tmk_Leaf\(c, true, (tv\d+)\)`).FindStringSubmatch(src); m == nil || !regexp.MustCompile(m[1]+`, tf\d+ := c\.P\.TermLength\(`).MatchString(src) {
+	// The action expression is printed from Exec IR: a field in declaration order is the result of its composition.
+	if m := regexp.MustCompile(`tmk_Leaf\(c, true, (tv\d+)\)`).FindStringSubmatch(src); m == nil || !regexp.MustCompile(m[1]+`, tf\d+ := c\.P\.ActionLength\(`).MatchString(src) {
 		t.Errorf("fields in declaration order are not the arguments:\n%s", src)
 	}
 	m := regexp.MustCompile(`(tf\d+) := \w+\n\s*(tf\d+) := \w+\n\s*tv\d+ := tmk_Pair\(c, true, (tf\d+), (tf\d+)\)`).FindStringSubmatch(src)
@@ -119,17 +119,17 @@ rule main Result = x:"a"? y:"b"? => Result{A: list(1, 2)[len($x) + 3], C: list(1
 	}
 }
 
-// TestGeneratedTermStatementsEvaluationOrder checks the order of evaluation of the operands of a term when one
+// TestGeneratedActionStatementsEvaluationOrder checks the order of evaluation of the operands of an action expression when one
 // of them needs statements before its expression (the fused concat pushes its elements one by one). The
 // operands before it are assigned to temporaries first, so that their error still wins. The two operands
 // fail with different errors, so the generated parser can only agree with the engine if it evaluates them in
 // the order written.
-func TestGeneratedTermStatementsEvaluationOrder(t *testing.T) {
+func TestGeneratedActionStatementsEvaluationOrder(t *testing.T) {
 	t.Parallel()
-	codegentest.EachMode(t, testGeneratedTermStatementsEvaluationOrder)
+	codegentest.EachMode(t, testGeneratedActionStatementsEvaluationOrder)
 }
 
-func testGeneratedTermStatementsEvaluationOrder(t *testing.T) {
+func testGeneratedActionStatementsEvaluationOrder(t *testing.T) {
 	const a, b = `list(1)[len($x) + 3]`, `len(concat(list(1), list(list(1)[len($y) + 7])))`
 	rule := func(first, second string) string {
 		return "type Result = { N int }\nrule main Result = x:\"a\"? y:\"b\"? => Result{N: list(" + first + ", " + second + ")[0]}\n"

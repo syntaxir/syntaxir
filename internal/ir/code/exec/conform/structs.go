@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The struct table: structs that a term makes of field values of one fixture (the composition cover over
+// The struct table: structs that an action expression makes of field values of one fixture (the composition cover over
 // each field value and the composition made over the struct), and the range each takes and whether the
 // context records it. Each target builds the fixture and makes the structs through its printed
 // compositions; the tests that do are the ones the mutants of that code name.

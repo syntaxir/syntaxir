@@ -44,7 +44,7 @@ rule name Name = ([a-z]+) #atomic`, compile.Options{})
 
 // TestModuleVariableValidation checks that a module whose code names a variable that its table
 // does not declare is rejected, wherever the variable appears in the match code: an operand is a slot
-// of the table, and a rule lists names. Term code is checked when the engine loads it.
+// of the table, and a rule lists names. Action code is checked when the engine loads it.
 func TestModuleVariableValidation(t *testing.T) {
 	t.Parallel()
 	fresh := func() *bytecode.Module {

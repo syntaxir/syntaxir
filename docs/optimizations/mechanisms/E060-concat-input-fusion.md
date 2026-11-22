@@ -34,7 +34,7 @@ Evidence records: [037](../037-no-intermediate-lists-in-concat.md),
 [044](../044-changes-36-and-37-in-the-vms-instruction-set-2.md).
 
 Source owners: [`concat element evaluation`](../../../internal/runtime/state/eval.go),
-the term lowering of the Exec IR,
+the action lowering of the Exec IR,
 [`concat emission`](../../../internal/backend/codegen/golang/print/generator.go), [`concat
 emission`](../../../internal/backend/codegen/typescript/print/generator.go).
 

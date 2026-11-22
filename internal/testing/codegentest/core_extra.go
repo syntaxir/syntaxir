@@ -1,6 +1,6 @@
 package codegentest
 
-// CoreExtraGrammars are grammars with term forms that the typed rules of the corpus lack: text
+// CoreExtraGrammars are grammars with action expression forms that the typed rules of the corpus lack: text
 // comparisons of two captures and comparisons of fields.
 var CoreExtraGrammars = []Case{
 	{Name: "text equality", Src: `rule main = a:[a-z]+ "=" b:[a-z]+ => text($a) != text($b) || text($a) == text($b)

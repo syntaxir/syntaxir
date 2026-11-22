@@ -13,45 +13,45 @@ import (
 
 // unknownMutants each break one way in which the evaluation keeps Unknown out of known results.
 var unknownMutants = []struct{ name, file, old, new string }{
-	{"a member of Unknown is selected", "term.go", "V {\n\tneed(x)\n\tswitch x.Kind {\n\tcase KNode:", "V {\n\tswitch x.Kind {\n\tcase KNode:"},
-	{"an operator reads Unknown", "term.go", "\tneed(l, r)\n", ""},
-	{"a unary operator reads Unknown", "term.go", "need(x)\n\t\tv, msg := Unary", "v, msg := Unary"},
-	{"Unknown has elements", "term.go", "[]V {\n\tneed(v)\n", "[]V {\n"},
-	{"Unknown has a length", "term.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil, KError:", "switch x.Kind {\n\t\tcase KNil, KError:"},
-	{"Unknown has a text", "term.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")", "switch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")"},
-	{"filter keeps by Unknown", "term.go", "\t\t\tneed(keep)\n", ""},
-	{"a type admits or rejects Unknown", "term.go", "bool {\n\tneed(x)\n", "bool {\n"},
-	{"a logical operand is Unknown", "term.go", "need(lv)\n", ""},
+	{"a member of Unknown is selected", "action.go", "V {\n\tneed(x)\n\tswitch x.Kind {\n\tcase KNode:", "V {\n\tswitch x.Kind {\n\tcase KNode:"},
+	{"an operator reads Unknown", "action.go", "\tneed(l, r)\n", ""},
+	{"a unary operator reads Unknown", "action.go", "need(x)\n\t\tv, msg := Unary", "v, msg := Unary"},
+	{"Unknown has elements", "action.go", "[]V {\n\tneed(v)\n", "[]V {\n"},
+	{"Unknown has a length", "action.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil, KError:", "switch x.Kind {\n\t\tcase KNil, KError:"},
+	{"Unknown has a text", "action.go", "need(x)\n\t\tswitch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")", "switch x.Kind {\n\t\tcase KNil:\n\t\t\treturn Str(\"\")"},
+	{"filter keeps by Unknown", "action.go", "\t\t\tneed(keep)\n", ""},
+	{"a type admits or rejects Unknown", "action.go", "bool {\n\tneed(x)\n", "bool {\n"},
+	{"a logical operand is Unknown", "action.go", "need(lv)\n", ""},
 	{"false or a failure is false", "unknown.go", "\tcase oFalse:\n\t\treturn Bool(false)", "\tcase oFalse, oFalse | oFail:\n\t\treturn Bool(false)"},
 	{"a failing left operand is dropped", "unknown.go", "out := l & oFail\n", "out := outcome(0)\n"},
 	{"! keeps true", "unknown.go", "if in&oTrue != 0 {\n\t\t\tout |= oFalse", "if in&oTrue != 0 {\n\t\t\tout |= oTrue"},
 	{"an unknown predicate holds", "unknown.go", "if unknown {\n\t\treturn false, false\n\t}\n\treturn Holds", "if unknown {\n\t\treturn true, true\n\t}\n\treturn Holds"},
 	{"an unknown value is taken as known", "unknown.go", "return v, \"\", v.Kind == KUnknown", "return v, \"\", false"},
-	{"Eval turns Unknown into nil", "term.go", "v, err = Unknown, \"\"", "v, err = Nil, \"\""},
+	{"Eval turns Unknown into nil", "action.go", "v, err = Unknown, \"\"", "v, err = Nil, \"\""},
 	{"a partial node has a value", "value.go", "\tcase UnknownShape:\n\t\tneed(Unknown)\n", ""},
-	{"a partial node has no captures", "term.go", "if x.Shape == UnknownShape && x.Caps == nil {\n\t\t\t\tneed(Unknown)\n\t\t\t}\n", ""},
-	{"a partial node has no elements", "term.go", "\t\tcase UnknownShape:\n\t\t\tneed(Unknown)\n\t\t}\n\t}\n\tfail(\"%s: expected a list", "\t\t}\n\t}\n\tfail(\"%s: expected a list"},
-	{"a partial node has a length", "term.go", "if x.Shape == UnknownShape {\n\t\t\t\tneed(Unknown)\n\t\t\t}\n", ""},
-	{"a partial node has no type", "term.go", "if x.Kind == KNode && x.Shape == UnknownShape {\n\t\t\tneed(Unknown) // the type of the node is unknown\n\t\t}\n", ""},
-	{"a cast ignores aliases", "term.go", "if a, ok := e.Aliases[t.Name]; ok {\n\t\t\treturn e.admits(a, x)\n\t\t}\n", ""},
-	{"a constructor keeps the alias", "term.go", "x.Type = e.typeName(t.Type)", "x.Type = t.Type"},
+	{"a partial node has no captures", "action.go", "if x.Shape == UnknownShape && x.Caps == nil {\n\t\t\t\tneed(Unknown)\n\t\t\t}\n", ""},
+	{"a partial node has no elements", "action.go", "\t\tcase UnknownShape:\n\t\t\tneed(Unknown)\n\t\t}\n\t}\n\tfail(\"%s: expected a list", "\t\t}\n\t}\n\tfail(\"%s: expected a list"},
+	{"a partial node has a length", "action.go", "if x.Shape == UnknownShape {\n\t\t\t\tneed(Unknown)\n\t\t\t}\n", ""},
+	{"a partial node has no type", "action.go", "if x.Kind == KNode && x.Shape == UnknownShape {\n\t\t\tneed(Unknown) // the type of the node is unknown\n\t\t}\n", ""},
+	{"a cast ignores aliases", "action.go", "if a, ok := e.Aliases[t.Name]; ok {\n\t\t\treturn e.admits(a, x)\n\t\t}\n", ""},
+	{"a constructor keeps the alias", "action.go", "x.Type = e.typeName(t.Type)", "x.Type = t.Type"},
 }
 
 // errorMutants each break one way in which the casts, the members and the built-ins treat an error value.
 var errorMutants = []struct{ name, file, old, new string }{
-	{"error admits no value", "term.go", "return x.Kind == KError\n", "return false\n"},
-	{"error admits every node", "term.go", "return x.Kind == KError\n", "return x.Kind == KError || x.Kind == KNode\n"},
-	{"missing admits a skipped range", "term.go", "return x.Kind == KError && x.Missing\n", "return x.Kind == KError\n"},
-	{"missing admits no token", "term.go", "return x.Kind == KError && x.Missing\n", "return false\n"},
+	{"error admits no value", "action.go", "return x.Kind == KError\n", "return false\n"},
+	{"error admits every node", "action.go", "return x.Kind == KError\n", "return x.Kind == KError || x.Kind == KNode\n"},
+	{"missing admits a skipped range", "action.go", "return x.Kind == KError && x.Missing\n", "return x.Kind == KError\n"},
+	{"missing admits no token", "action.go", "return x.Kind == KError && x.Missing\n", "return false\n"},
 	{"a type name reads the node of the error", "value.go", "\tcase KError:\n\t\tif v.Missing {\n\t\t\treturn \"missing\"\n\t\t}\n\t\treturn \"error\"\n", "\tcase KError:\n\t\treturn \"error\"\n"},
-	{"an error value is not a list", "term.go", "case KNil, KError: // an error value counts as an empty list", "case KNil:"},
-	{"an error value has the length of its range", "term.go", "case KNil, KError: // a recovered value has no value and counts as nil\n\t\t\treturn Int(0)\n\t\tcase KStr:", "case KNil:\n\t\t\treturn Int(0)\n\t\tcase KError:\n\t\t\treturn Int(int64(x.End - x.Start))\n\t\tcase KStr:"},
-	{"an error value has no text", "term.go", "case KStr, KNode, KError: // the text of a recovered value is the input of its range", "case KError:\n\t\t\treturn Str(\"\")\n\t\tcase KStr, KNode:"},
-	{"an error value has its text as its value", "term.go", "\t\treturn Nil\n\t}\n\tfail(\"cannot select", "\t\treturn Str(x.S)\n\t}\n\tfail(\"cannot select"},
-	{"a missing token has no fields", "term.go", "return x.Fields[name] // the string fields of a missing token", "return Nil"},
-	{"expected reads the message", "term.go", "return x.Fields[name] // the string fields of a missing token", "return x.Fields[\"message\"]"},
-	{"a recovered value converts", "term.go", "if x.Kind != KNode {\n\t\t\t\tpanic(\"ref: conversion", "if x.Kind != KNode && x.Kind != KError {\n\t\t\t\tpanic(\"ref: conversion"},
-	{"an error value has no range", "term.go", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(int64(x.Start))", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(0)"},
+	{"an error value is not a list", "action.go", "case KNil, KError: // an error value counts as an empty list", "case KNil:"},
+	{"an error value has the length of its range", "action.go", "case KNil, KError: // a recovered value has no value and counts as nil\n\t\t\treturn Int(0)\n\t\tcase KStr:", "case KNil:\n\t\t\treturn Int(0)\n\t\tcase KError:\n\t\t\treturn Int(int64(x.End - x.Start))\n\t\tcase KStr:"},
+	{"an error value has no text", "action.go", "case KStr, KNode, KError: // the text of a recovered value is the input of its range", "case KError:\n\t\t\treturn Str(\"\")\n\t\tcase KStr, KNode:"},
+	{"an error value has its text as its value", "action.go", "\t\treturn Nil\n\t}\n\tfail(\"cannot select", "\t\treturn Str(x.S)\n\t}\n\tfail(\"cannot select"},
+	{"a missing token has no fields", "action.go", "return x.Fields[name] // the string fields of a missing token", "return Nil"},
+	{"expected reads the message", "action.go", "return x.Fields[name] // the string fields of a missing token", "return x.Fields[\"message\"]"},
+	{"a recovered value converts", "action.go", "if x.Kind != KNode {\n\t\t\t\tpanic(\"ref: conversion", "if x.Kind != KNode && x.Kind != KError {\n\t\t\t\tpanic(\"ref: conversion"},
+	{"an error value has no range", "action.go", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(int64(x.Start))", "\tcase KError:\n\t\t// A recovered value has a range and no value; a field or capture it does not declare reads as nil.\n\t\tswitch name {\n\t\tcase \"Start\":\n\t\t\treturn Int(0)"},
 }
 
 // TestUnknownMutants is the proof that TestUnknownNeverLeaks and TestUnknownResults, with
@@ -61,10 +61,10 @@ func TestUnknownMutants(t *testing.T) {
 	runMutants(t, unknownMutants, "^Test(Unknown|PartialNode)(NeverLeaks|Results)$", "--- FAIL: TestUnknown", "--- FAIL: TestPartialNode")
 }
 
-// TestErrorValueMutants is the proof that TestErrorValueCast and TestErrorValueTerms hold the types that
-// admit an error value and the terms that take one: each mutant fails one of them.
+// TestErrorValueMutants is the proof that TestErrorValueCast and TestErrorValueActions hold the types that
+// admit an error value and the action expressions that take one: each mutant fails one of them.
 func TestErrorValueMutants(t *testing.T) {
-	runMutants(t, errorMutants, "^TestErrorValue(Cast|Terms)$", "--- FAIL: TestErrorValue")
+	runMutants(t, errorMutants, "^TestErrorValue(Cast|Actions)$", "--- FAIL: TestErrorValue")
 }
 
 // runMutants builds each mutant over the package's sources with -overlay, runs the tests that match run, and

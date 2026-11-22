@@ -208,9 +208,9 @@ func (p *printer) node(n Node, d int) {
 			p.b.WriteString(" project=" + n.Project)
 		}
 	case *Pred:
-		p.line(d, "pred %s", ActionExprString(n.Term))
+		p.line(d, "pred %s", ActionExprString(n.Action))
 	case *BindNode:
-		p.line(d, "bind %s = %s", n.Var, ActionExprString(n.Term))
+		p.line(d, "bind %s = %s", n.Var, ActionExprString(n.Action))
 	case *Label:
 		if n.Diagnostic {
 			p.line(d, "diagnostic %q", p.exp(n.Exp))
@@ -401,9 +401,9 @@ func ActionExprString(t ActionExpr) string {
 	case *Convert:
 		return t.NodeType + "(" + ActionExprString(t.X) + ")"
 	case *Tuple:
-		return "(" + termList(t.Elems) + ")"
+		return "(" + actionList(t.Elems) + ")"
 	case *Builtin:
-		return t.Func + "(" + termList(t.Args) + ")"
+		return t.Func + "(" + actionList(t.Args) + ")"
 	case *Lambda:
 		return "fn(" + strings.Join(t.Params, ", ") + ") " + ActionExprString(t.Body)
 	case *Binary:
@@ -426,7 +426,7 @@ func localName(t *Local) string {
 	return ""
 }
 
-func termList(ts []ActionExpr) string {
+func actionList(ts []ActionExpr) string {
 	xs := make([]string, len(ts))
 	for i, t := range ts {
 		xs[i] = ActionExprString(t)

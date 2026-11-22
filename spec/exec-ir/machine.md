@@ -46,11 +46,11 @@ has the following components.
 | `window` | The window of a stream parse: the input read and kept, the callback that receives the elements of the #stream repetition, the recovered errors delivered so far, and the memory that the delivered elements held. |
 | `runs` | The repetition runs of a Document: for each repetition of the last parse that a parse may resume, the positions, the examined input, the value and the expectations of its elements. |
 | `suspended` | The calls whose rule body runs between the begin and the end of the split call protocol, each with the state that its begin saved for its end in a record that its caller holds. |
-| `gathered` | The elements gathered for the lists and tuples that terms make: a stack, on which `act.push` and `act.pushAll` push, from which a list or a tuple takes its elements when it is made, and from which `term.dropKids` drops the elements of a term that the parser abandons. |
-| `made` | The values that terms and actions made: a list of the structs that `act.made` recorded, which the context of a term or an action marks when it is made. The struct that an action returns takes the range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends. |
+| `gathered` | The elements gathered for the lists and tuples that action expressions make: a stack, on which `act.push` and `act.pushAll` push, from which a list or a tuple takes its elements when it is made, and from which `action.dropKids` drops the elements of an action expression that the parser abandons. |
+| `made` | The values that action expressions and actions made: a list of the structs that `act.made` recorded, which the context of an action expression or an action marks when it is made. The struct that an action returns takes the range of the rule if the action recorded it, and what an action expression or an action recorded is forgotten when it ends. |
 | `frames` | The capture frames: the frame that captures write to, the slots of each frame and the trail of the writes that a reset undoes. |
 | `operators` | The bookkeeping of the Operators Rule loop: whether a candidate of the last longest match failed after a cut. |
-| `value` | The operations on the values of terms. They read and write no state. |
+| `value` | The operations on the values of action expressions. They read and write no state. |
 
 ### Registers
 
@@ -74,7 +74,7 @@ handle type may be callable: its values are code that [an application](../code-i
 | `Values` | `env` | The values of a rule's variables, as a memo key. |
 | `Value` | `host` | The value of a rule's result: a node or a typed value. |
 | `Errs` | `recovered` | The errors recovered in a rule call, kept with its memo entry. |
-| `Datum` | `host` | A value that a variable holds or a term produces, which only the host reads. |
+| `Datum` | `host` | A value that a variable holds or an action expression produces, which only the host reads. |
 | `Scope` | `env` | A variable environment, which bindings replace and never change. |
 | `Rule` | `rules` | A rule's descriptor. |
 | `FType` | `value` | The type that a cast checks a value against. |
@@ -92,7 +92,7 @@ handle type may be callable: its values are code that [an application](../code-i
 | `Run` | `runs` | A repetition run in progress in a Document parse. |
 | `RunElem` | `runs` | An element of an old run that the parse reuses, or none. |
 | `RunSite` | `runs` | A repetition that a Document parse can resume. |
-| `Term` | `host` | A term of a predicate or a binding, in the form the target holds: code that is applied to an `Act`, and returns a `Datum` and a `Fail` ([Application](../code-ir/functions.md#application)). |
+| `Action` | `host` | An action expression of a predicate or a binding, in the form the target holds: code that is applied to an `Act`, and returns a `Datum` and a `Fail` ([Application](../code-ir/functions.md#application)). |
 | `CallState` | `suspended` | The record of a suspended call, which its caller holds. |
 | `Frame` | `frames` | A capture frame: the slots of the captures of a rule body or a line. |
 | `Mark` | `frames` | A backtracking point: the position, the variable environment, the recovered errors and the length of the trail when it was taken. |
@@ -104,12 +104,12 @@ handle type may be callable: its values are code that [an application](../code-i
 | `NudState` | `suspended` | The record of the suspended start of an expression. |
 | `ExprState` | `suspended` | The record of the suspended loop of an expression. |
 | `Seq` | `value` | The elements of a list or a tuple, as seq.items returns them. |
-| `Fail` | `value` | The failure of a term, as val.fail makes it: a value of the target that the caller reports. |
+| `Fail` | `value` | The failure of an action expression, as val.fail makes it: a value of the target that the caller reports. |
 | `Obj` | `value` | A value that has members: a node, a list, a tuple or a struct, as node.of returns it. |
 | `Name` | `value` | The name of a member: a string of the target. |
-| `Act` | `value` | The context of the term being evaluated, in which a value is made. |
+| `Act` | `value` | The context of the action expression being evaluated, in which a value is made. |
 | `Str` | `value` | A string of the target that is not a value, as text returns it. |
-| `Elem` | `value` | An element of a list or a tuple that a term makes, as a Seq holds it. |
+| `Elem` | `value` | An element of a list or a tuple that an action expression makes, as a Seq holds it. |
 
 ## Quantities
 
@@ -122,7 +122,7 @@ are the following.
 | `body` | The units that the evaluation of a rule's body that the call runs, and of the rule's action, charge, as the operations they call declare them. |
 | `covered` | The number of positions the memo covers from its floor: the slots that a target keeps per position pays for when it prunes them, moves the rest and drops the indexes of crowded positions. |
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
-| `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`term.dropKids`) or values made (`term.dropCreated`). |
+| `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`action.dropKids`) or values made (`action.dropCreated`). |
 | `env_path` | The number of nodes on the path to a slot of a persistent vector of the variables with 16 children for each node: the levels above the leaves, and the leaf. It is the same for every slot. |
 | `env_rebind` | `env_path` when the value of the call differs from the one the slot holds, and 0 when they are equal: the nodes that a rebind copies. |
 | `error_parts` | The number of fragments of the text of a failure: the fixed pieces and the values between them, which a target that bounds the work assembles piece by piece, charging each. |

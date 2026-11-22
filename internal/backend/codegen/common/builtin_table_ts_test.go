@@ -15,8 +15,8 @@ import (
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
-// builtinScript runs the calls of calls.json on the TypeScript library (the printed methods termLength,
-// termText, termItems and termConvert) and prints the canonical result of each (conform.MemberCanon), in order. The input of the parser is input.txt.
+// builtinScript runs the calls of calls.json on the TypeScript library (the printed methods actionLength,
+// actionText, actionItems and actionConvert) and prints the canonical result of each (conform.MemberCanon), in order. The input of the parser is input.txt.
 const builtinScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
@@ -50,9 +50,9 @@ const canon = (v: p.Value): string => {
 };
 const call = (fn: string, v: p.Value): p.Value => {
   switch (fn) {
-    case "len": return fxValue(P.termLength(v));
-    case "text": return fxValue(P.termText(v));
-    case "convert": return fxValue(P.termConvert("N", v));
+    case "len": return fxValue(P.actionLength(v));
+    case "text": return fxValue(P.actionText(v));
+    case "convert": return fxValue(P.actionConvert("N", v));
   }
   return c.listNode([...fxItems(c, "concat", v)]);
 };
@@ -140,12 +140,12 @@ func TestPrintedBuiltinMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"nil has length 1", "termLength(x: Value)", "return [0, null];", "return [1, null];"},
-		{"the length of a string node is that of its text", "termLength(x: Value)", "if (n.terminal) {", "if (false) {"},
-		{"concat takes any value", "termItems(fn: string", "return [items, this.termError(12, v, fn, 0, 0)];", "return [items, null];"},
-		{"the text of a string is empty", "termText(x: Value)", "return [(x as string), null];", "return [\"\", null];"},
-		{"a list value converts", "termConvert(t: string", "if ((nodeShape(n) <= shapeList)) {", "if (true) {"},
-		{"a value that does not convert is nil", "termConvert(t: string", "return [null, this.termError(15, x, t, 0, 0)];", "return [null, null];"},
+		{"nil has length 1", "actionLength(x: Value)", "return [0, null];", "return [1, null];"},
+		{"the length of a string node is that of its text", "actionLength(x: Value)", "if (n.terminal) {", "if (false) {"},
+		{"concat takes any value", "actionItems(fn: string", "return [items, this.actionError(12, v, fn, 0, 0)];", "return [items, null];"},
+		{"the text of a string is empty", "actionText(x: Value)", "return [(x as string), null];", "return [\"\", null];"},
+		{"a list value converts", "actionConvert(t: string", "if ((nodeShape(n) <= shapeList)) {", "if (true) {"},
+		{"a value that does not convert is nil", "actionConvert(t: string", "return [null, this.actionError(15, x, t, 0, 0)];", "return [null, null];"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

@@ -254,18 +254,18 @@ func init() {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
 		tf3 := c.Cap(2)
-		tn4 := c.TermStruct("Binary", 3)
+		tn4 := c.ActionStruct("Binary", 3)
 		tfirst5 := true
 		c.P.Spend()
-		c.TermSetField(tn4, "Left", tf1)
-		tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+		c.ActionSetField(tn4, "Left", tf1)
+		tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Op", tf2)
-		tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+		c.ActionSetField(tn4, "Op", tf2)
+		tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Right", tf3)
-		tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-		c.P.TermMade(c, tn4, tfirst5)
+		c.ActionSetField(tn4, "Right", tf3)
+		tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+		c.P.ActionMade(c, tn4, tfirst5)
 		return any(tn4), nil
 	}
 	rules[3].Body = e6
@@ -274,18 +274,18 @@ func init() {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
 		tf3 := c.Cap(2)
-		tn4 := c.TermStruct("Binary", 3)
+		tn4 := c.ActionStruct("Binary", 3)
 		tfirst5 := true
 		c.P.Spend()
-		c.TermSetField(tn4, "Left", tf1)
-		tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+		c.ActionSetField(tn4, "Left", tf1)
+		tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Op", tf2)
-		tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+		c.ActionSetField(tn4, "Op", tf2)
+		tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Right", tf3)
-		tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-		c.P.TermMade(c, tn4, tfirst5)
+		c.ActionSetField(tn4, "Right", tf3)
+		tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+		c.P.ActionMade(c, tn4, tfirst5)
 		return any(tn4), nil
 	}
 	rules[5].Body = e11
@@ -293,15 +293,15 @@ func init() {
 	rules[6].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
-		tn3 := c.TermStruct("Unary", 2)
+		tn3 := c.ActionStruct("Unary", 2)
 		tfirst4 := true
 		c.P.Spend()
-		c.TermSetField(tn3, "Op", tf1)
-		tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+		c.ActionSetField(tn3, "Op", tf1)
+		tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 		c.P.Spend()
-		c.TermSetField(tn3, "X", tf2)
-		tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-		c.P.TermMade(c, tn3, tfirst4)
+		c.ActionSetField(tn3, "X", tf2)
+		tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+		c.P.ActionMade(c, tn3, tfirst4)
 		return any(tn3), nil
 	}
 	rules[8].Body = e15
@@ -309,18 +309,18 @@ func init() {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
 		tf3 := c.Cap(2)
-		tn4 := c.TermStruct("Binary", 3)
+		tn4 := c.ActionStruct("Binary", 3)
 		tfirst5 := true
 		c.P.Spend()
-		c.TermSetField(tn4, "Left", tf1)
-		tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+		c.ActionSetField(tn4, "Left", tf1)
+		tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Op", tf2)
-		tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+		c.ActionSetField(tn4, "Op", tf2)
+		tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 		c.P.Spend()
-		c.TermSetField(tn4, "Right", tf3)
-		tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-		c.P.TermMade(c, tn4, tfirst5)
+		c.ActionSetField(tn4, "Right", tf3)
+		tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+		c.P.ActionMade(c, tn4, tfirst5)
 		return any(tn4), nil
 	}
 	rules[9].Body = e16
@@ -2274,4 +2274,4 @@ func s13(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_8542efa0ed0e2417
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

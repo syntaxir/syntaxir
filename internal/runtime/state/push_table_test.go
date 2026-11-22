@@ -13,7 +13,7 @@ import (
 )
 
 // TestEngineValuePushTable runs the push table (conform.PushCases) on the engine's compositions push and
-// pushItems (termPush and termPushItems, printed from Exec IR): through Push, which the backends call, and
+// pushItems (actionPush and actionPushItems, printed from Exec IR): through Push, which the backends call, and
 // pushItems itself, without the step that PushElems charges for each argument of concat.
 func TestEngineValuePushTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
@@ -46,7 +46,7 @@ func TestEngineValuePushTable(t *testing.T) {
 			if call == conform.CallPush {
 				err = c.Push(conform.PushFn(call), vals[v])
 			} else {
-				err = p.termPushItems(c, conform.PushFn(call), vals[v])
+				err = p.actionPushItems(c, conform.PushFn(call), vals[v])
 			}
 			units := 0
 			if controlled {

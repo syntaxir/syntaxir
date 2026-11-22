@@ -17,7 +17,7 @@ import (
 // recoveredMutants each give a recovered value a wrong field or a wrong range in a struct: the engine's fields
 // of a missing token, in MissingLiteral or MissingErrorScope of internal/runtime/state/missing_token.go and in
 // the literal that the closure builder passes to it, and the ranges of the reference model, in
-// internal/ir/code/exec/ref/term.go.
+// internal/ir/code/exec/ref/action.go.
 var recoveredMutants = []struct{ name, file, fn, old, new string }{
 	{"expected holds the message", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: p.RecoveryErrorText(e)}`},
 	{"expected is quoted", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: "\"" + expected + "\""}`},
@@ -26,12 +26,12 @@ var recoveredMutants = []struct{ name, file, fn, old, new string }{
 	{"message holds the literal", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: expected}`},
 	{"message has no position", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: e.Message()}`},
 	{"message ignores @error", "internal/runtime/state/missing_token.go", "MissingErrorScope", "if p.Expectations && p.Missing != nil && p.Missing.label == 0 {", "if false {"},
-	{"a recovered field does not cover", "internal/ir/code/exec/ref/term.go", "structRange", " && x.Kind != KError {", " {"},
-	{"a recovered element has the range of the rule", "internal/ir/code/exec/ref/term.go", "nodeRange", "case KNode, KError:", "case KNode:"},
-	{"a recovered value encodes no message", "internal/ir/code/exec/ref/term.go", "plain", `"error": v.Fields["message"].S}`, `"error": ""}`},
+	{"a recovered field does not cover", "internal/ir/code/exec/ref/action.go", "structRange", " && x.Kind != KError {", " {"},
+	{"a recovered element has the range of the rule", "internal/ir/code/exec/ref/action.go", "nodeRange", "case KNode, KError:", "case KNode:"},
+	{"a recovered value encodes no message", "internal/ir/code/exec/ref/action.go", "plain", `"error": v.Fields["message"].S}`, `"error": ""}`},
 }
 
-// TestRecoveredValueMutants is the proof that TestTermFixedReference holds the fields expected and message of a
+// TestRecoveredValueMutants is the proof that TestActionFixedReference holds the fields expected and message of a
 // missing token and the ranges of structs that hold a recovered value, in the engine and in the reference model:
 // with a source overlay of each mutant, it fails.
 func TestRecoveredValueMutants(t *testing.T) {
@@ -60,14 +60,14 @@ func TestRecoveredValueMutants(t *testing.T) {
 				t.Fatal(err)
 			}
 			// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
-			cmd := exec.Command("go", "test", "-count=1", "-vet=off", "-overlay", overlayFile, "-run", "^TestTermFixedReference$", "./internal/backend/codegen/common")
+			cmd := exec.Command("go", "test", "-count=1", "-vet=off", "-overlay", overlayFile, "-run", "^TestActionFixedReference$", "./internal/backend/codegen/common")
 			cmd.Dir = root
 			cmd.Env = append(os.Environ(), "GOFLAGS=")
 			out, err := cmd.CombinedOutput()
 			if err == nil {
-				t.Fatalf("TestTermFixedReference passes with the mutant %q:\n%s", m.name, out)
+				t.Fatalf("TestActionFixedReference passes with the mutant %q:\n%s", m.name, out)
 			}
-			if !strings.Contains(string(out), "--- FAIL: TestTermFixedReference") {
+			if !strings.Contains(string(out), "--- FAIL: TestActionFixedReference") {
 				t.Fatalf("the mutant %q fails no reference comparison:\n%s", m.name, out)
 			}
 		})

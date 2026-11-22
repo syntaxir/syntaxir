@@ -14,8 +14,8 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// The compositions of the operators of terms in the generated Go libraries (TermBinary, TermUnary and
-// TermLogic, printed from Exec IR) are the subjects of the value conformance, for node parsers and for
+// The compositions of the operators of action expressions in the generated Go libraries (ActionBinary, ActionUnary and
+// ActionLogic, printed from Exec IR) are the subjects of the value conformance, for node parsers and for
 // typed parsers. Each returns its failure as a value, whose text the binding returns.
 
 type goValues struct {
@@ -97,9 +97,9 @@ func (g goValues) Call(o *code.Op, args []any) (res []any) {
 }
 
 var (
-	nodeValues  = goValues{(&Parser{}).TermBinary, (&Parser{}).TermUnary, (&Parser{}).TermLogic, false}
+	nodeValues  = goValues{(&Parser{}).ActionBinary, (&Parser{}).ActionUnary, (&Parser{}).ActionLogic, false}
 	typedParser = &TParser{Parser: &Parser{}}
-	typedValues = goValues{typedParser.TermBinary, typedParser.TermUnary, typedParser.TermLogic, true}
+	typedValues = goValues{typedParser.ActionBinary, typedParser.ActionUnary, typedParser.ActionLogic, true}
 )
 
 // controlledValues binds the compositions of a parser that runs under budget controls, whose string
@@ -108,7 +108,7 @@ func controlledValues() (node, typed goValues) {
 	control := newBudgetControl(context.Background(), sxirruntime.Limits{Compute: 1 << 62})
 	p := &Parser{Control: control}
 	tp := &TParser{Parser: &Parser{Control: control}}
-	return goValues{p.TermBinary, p.TermUnary, p.TermLogic, false}, goValues{tp.TermBinary, tp.TermUnary, tp.TermLogic, true}
+	return goValues{p.ActionBinary, p.ActionUnary, p.ActionLogic, false}, goValues{tp.ActionBinary, tp.ActionUnary, tp.ActionLogic, true}
 }
 
 func TestValueConformance(t *testing.T) {
@@ -212,12 +212,12 @@ func TestValueBoxedOperands(t *testing.T) {
 		{OpEq, box(nil), nil, true},
 		{OpEq, box(1), nil, false},
 	} {
-		got, e := p.TermBinary(c.op, c.l, c.r)
+		got, e := p.ActionBinary(c.op, c.l, c.r)
 		if e != nil || got != c.want {
 			t.Errorf("%v op %d %v = %v, %v; want %v", c.l, c.op, c.r, got, e, c.want)
 		}
 	}
-	if _, e := p.TermBinary(OpAdd, box(1), 1); e == nil {
+	if _, e := p.ActionBinary(OpAdd, box(1), 1); e == nil {
 		t.Error("a box is an operand of +")
 	}
 }
@@ -267,11 +267,11 @@ func TestValueBoxedStringCharges(t *testing.T) {
 							br = box(r)
 						}
 						beforeBoxed, beforePlain := used(boxed), used(plain)
-						want, e := plain.TermBinary(op, l, r)
+						want, e := plain.ActionBinary(op, l, r)
 						if e != nil {
 							t.Fatalf("controlled=%v: %q op %d %q fails: %v", controlled, l, op, r, e)
 						}
-						got, e := boxed.TermBinary(op, bl, br)
+						got, e := boxed.ActionBinary(op, bl, br)
 						if e != nil || got != want {
 							t.Errorf("controlled=%v, box %s: %q op %d %q = %v, %v; want %v", controlled, s.name, l, op, r, got, e, want)
 						}
@@ -292,7 +292,7 @@ func TestValueBoxedStringCharges(t *testing.T) {
 }
 
 // TestValueCompareStrings holds the comparison of two unboxed strings of the typed library
-// (TActCtx.TermCompare, whose fast path decides in compareStrings) to the composition TermBinary on
+// (TActCtx.ActionCompare, whose fast path decides in compareStrings) to the composition ActionBinary on
 // every pair of strings of the pool, for each comparison operator: the same answer and, under a
 // budget control, the same units, which a fast path that skips the control would not charge.
 // compareStrings is written by hand, so the composition is its reference.
@@ -324,11 +324,11 @@ func TestValueCompareStrings(t *testing.T) {
 			for _, l := range strs {
 				for _, r := range strs {
 					beforeFast, beforeComposed := used(fast), used(composed)
-					want, e := composed.TermBinary(op, l, r)
+					want, e := composed.ActionBinary(op, l, r)
 					if e != nil {
 						t.Fatalf("controlled=%v: %q op %d %q fails: %v", controlled, l, op, r, e)
 					}
-					got, f := c.TermCompare(op, TOperand{Str: l, IsStr: true}, TOperand{Str: r, IsStr: true})
+					got, f := c.ActionCompare(op, TOperand{Str: l, IsStr: true}, TOperand{Str: r, IsStr: true})
 					if f != nil {
 						t.Fatalf("controlled=%v: %q op %d %q fails: %v", controlled, l, op, r, f)
 					}

@@ -26,7 +26,7 @@ func typeOf(s string) ast.TypeExpr {
 // and _ every value; no other type does, node[_] among them.
 func TestErrorValueCast(t *testing.T) {
 	skipped, missing := ErrorValue("b;", 1, 3, "1:2: syntax error"), MissingToken(3, ";", "1:4: syntax error")
-	env := &TermEnv{Captures: map[string]V{"s": skipped, "m": missing, "n": Node(StringNode, "ab", 0, 2, nil, nil)},
+	env := &ActionEnv{Captures: map[string]V{"s": skipped, "m": missing, "n": Node(StringNode, "ab", 0, 2, nil, nil)},
 		Aliases: map[string]ast.TypeExpr{"E": tref("error"), "M": &ast.TypeGroup{Type: tref("missing")}}}
 	for _, c := range []struct {
 		typ        string
@@ -53,16 +53,16 @@ func TestErrorValueCast(t *testing.T) {
 	}
 }
 
-// TestErrorValueTerms pins the other terms that the model gives an error value, a skipped range and a missing
+// TestErrorValueActions pins the other action expressions that the model gives an error value, a skipped range and a missing
 // token: it is not nil, it is a node with a range and no value, whose text is the input of its range and whose
 // length is that of nil, and the list built-ins take it as an empty list. A missing token has the string
 // fields expected and message; every other field reads nil.
-func TestErrorValueTerms(t *testing.T) {
-	env := &TermEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3, "1:2: syntax error"), "m": MissingToken(3, ";", `1:4: syntax error: expected ";"`)}}
+func TestErrorValueActions(t *testing.T) {
+	env := &ActionEnv{Captures: map[string]V{"e": ErrorValue("b;", 1, 3, "1:2: syntax error"), "m": MissingToken(3, ";", `1:4: syntax error: expected ";"`)}}
 	for _, c := range []struct {
-		name string
-		term ast.ActionExpr
-		want string
+		name       string
+		actionExpr ast.ActionExpr
+		want       string
 	}{
 		{"e != nil", bin("!=", capt("e"), &ast.NilLit{}), "true"},
 		{"e == nil", bin("==", capt("e"), &ast.NilLit{}), "false"},
@@ -88,7 +88,7 @@ func TestErrorValueTerms(t *testing.T) {
 		{"e.expected", mem(capt("e"), "expected"), "nil"},
 		{"e.message", mem(capt("e"), "message"), "nil"},
 	} {
-		if v, msg := env.Eval(c.term); msg != "" || v.String() != c.want {
+		if v, msg := env.Eval(c.actionExpr); msg != "" || v.String() != c.want {
 			t.Errorf("%s = %v, %q; want %s", c.name, v, msg, c.want)
 		}
 	}
@@ -101,7 +101,7 @@ func TestErrorValueTerms(t *testing.T) {
 		func() {
 			defer func() {
 				if s, _ := recover().(string); !strings.Contains(s, "which does not type-check") {
-					t.Errorf("N{%s}: panic %q, want a term that does not type-check", name, s)
+					t.Errorf("N{%s}: panic %q, want an action expression that does not type-check", name, s)
 				}
 			}()
 			env.Eval(&ast.Constructor{Type: "N", Args: []ast.ActionExpr{capt(name)}})

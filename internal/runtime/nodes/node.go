@@ -148,7 +148,7 @@ func KindOfShape(shape valueimpl.Shape) value.NodeKind {
 	return value.KindStruct
 }
 
-// ValueTypeName names the type of a value of the given shape in messages, in the terms of the
+// ValueTypeName names the type of a value of the given shape in messages, in the action expressions of the
 // value model: node[string] for a string node, node[(_, _)] and node[[]_] for tuple and list
 // nodes (a tuple has elems elements), error for an error value, (_, _) and []_ for tuple and list
 // values, and name for a struct.

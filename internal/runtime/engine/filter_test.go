@@ -88,21 +88,21 @@ func TestFilterCompiledInstructionSet(t *testing.T) {
 	if ordinary.Module().InstructionSetVersion() != bytecode.ISAVersion {
 		t.Fatal("filter support changed the ordinary instruction set")
 	}
-	// The term code of the filter is checked when a file is loaded: an operand out of range for its
+	// The action code of the filter is checked when a file is loaded: an operand out of range for its
 	// kind is rejected.
 	m := *mustCompile(t, codegentest.FilterIdentitySource).Module()
-	m.Terms = cloneTerms(m.Terms)
-	if _, err := vm.LoadTerms(&m); err != nil {
+	m.Actions = cloneActions(m.Actions)
+	if _, err := vm.LoadActions(&m); err != nil {
 		t.Fatal(err)
 	}
-	for i := range m.Terms {
-		if code := m.Terms[i].Code; len(code) > 0 {
+	for i := range m.Actions {
+		if code := m.Actions[i].Code; len(code) > 0 {
 			code[0].Dst = int32(1 << 20)
-			if _, err := vm.LoadTerms(&m); err == nil || !strings.Contains(err.Error(), "invalid operand") {
-				t.Fatalf("invalid filter term operand: %v", err)
+			if _, err := vm.LoadActions(&m); err == nil || !strings.Contains(err.Error(), "invalid operand") {
+				t.Fatalf("invalid filter action expression operand: %v", err)
 			}
 			return
 		}
 	}
-	t.Fatal("fixture emitted no term code")
+	t.Fatal("fixture emitted no action code")
 }

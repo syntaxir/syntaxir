@@ -29,7 +29,7 @@ const (
 	KUnknown
 )
 
-// V is a value of a term, tagged by its kind and held in the most naive form: an int is an int64, a
+// V is a value of an action expression, tagged by its kind and held in the most naive form: an int is an int64, a
 // list or a tuple holds its elements, a struct its fields by name. A field that was never set is
 // absent from Fields and reads as nil.
 type V struct {

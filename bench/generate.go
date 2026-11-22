@@ -20,8 +20,8 @@ package bench
 //go:generate go run ../cmd/sxir gen -g ../examples/calculator/calc_lr.sxir -module syntaxir.dev/sxir/internal/bench/parsers/calclr -lib import -recognize -types -limits -o ../internal/bench/parsers/calclr
 //go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilang -lib import -recognize -types -limits -o ../internal/bench/parsers/minilang
 //go:generate go run ../cmd/sxir gen -g ../examples/outline/outline.sxir -module syntaxir.dev/sxir/internal/bench/parsers/outline -lib import -recognize -types -limits -o ../internal/bench/parsers/outline
-//go:generate go run ../cmd/sxir gen -g grammars/terms/pred.sxir -module syntaxir.dev/sxir/internal/bench/parsers/termspred -lib import -recognize -types -limits -o ../internal/bench/parsers/termspred
-//go:generate go run ../cmd/sxir gen -g grammars/terms/heavy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/termsheavy -lib import -recognize -types -limits -o ../internal/bench/parsers/termsheavy
+//go:generate go run ../cmd/sxir gen -g grammars/actions/pred.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionspred -lib import -recognize -types -limits -o ../internal/bench/parsers/actionspred
+//go:generate go run ../cmd/sxir gen -g grammars/actions/heavy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/actionsheavy -lib import -recognize -types -limits -o ../internal/bench/parsers/actionsheavy
 //go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangdoc -lib import -limits -document -o ../internal/bench/parsers/minilangdoc
 //go:generate go run ../cmd/sxir gen -g ../examples/minilang/minilang.sxir -module syntaxir.dev/sxir/internal/bench/parsers/minilangtdoc -lib import -types -limits -document -o ../internal/bench/parsers/minilangtdoc
 //go:generate go run ../cmd/sxir gen -g ../testdata/grammars/csv/csv.sxir -module syntaxir.dev/sxir/internal/bench/parsers/csvdoc -lib import -limits -document -o ../internal/bench/parsers/csvdoc

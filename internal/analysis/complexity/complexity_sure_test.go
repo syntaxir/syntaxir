@@ -18,17 +18,17 @@ type sureGrammar struct {
 	rules []string
 }
 
-func (g *sureGrammar) term() string {
-	terms := []string{`"a"`, `"b"`, `"c"`, `"ab"`, `"aa"`, `"a"i`, `[ab]`, `[^a]`, `.`, `""`, `$$`}
+func (g *sureGrammar) actionExpr() string {
+	actionExprs := []string{`"a"`, `"b"`, `"c"`, `"ab"`, `"aa"`, `"a"i`, `[ab]`, `[^a]`, `.`, `""`, `$$`}
 	if g.r.IntN(3) == 0 {
 		return g.rules[g.r.IntN(len(g.rules))]
 	}
-	return terms[g.r.IntN(len(terms))]
+	return actionExprs[g.r.IntN(len(actionExprs))]
 }
 
 func (g *sureGrammar) expr(d int) string {
 	if d <= 0 {
-		return g.term()
+		return g.actionExpr()
 	}
 	sub := func() string { return g.expr(d - 1) }
 	switch g.r.IntN(15) {
@@ -57,7 +57,7 @@ func (g *sureGrammar) expr(d int) string {
 	case 13:
 		return "((" + sub() + ") #repeat(2,))"
 	}
-	return g.term()
+	return g.actionExpr()
 }
 
 func (g *sureGrammar) source() string {

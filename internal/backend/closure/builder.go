@@ -15,7 +15,7 @@ import (
 // node, and the bodies, values and actions of the rules.
 type Builder struct {
 	prog *program.Program
-	// checker resolves the types of the terms (actionlower.Env).
+	// checker resolves the types of the action expressions (actionlower.Env).
 	checker *check.Checker
 	m       *ir.Module
 	// plainDispatch leaves out the budget charge of the loop iterations; without it the builder
@@ -67,7 +67,7 @@ func (b *Builder) ruleBody(sr *program.Rule, cr *ir.Rule, m state.Matcher) error
 	}
 	r.Body = func(p *state.Parser, _ int) (*value.Node, bool) { return m(p) }
 	if cr.Finish.Kind == ir.FinishAction {
-		t, err := b.term(cr.Finish.Action, projections(cr.Body))
+		t, err := b.actionExpr(cr.Finish.Action, projections(cr.Body))
 		if err != nil {
 			return err
 		}
@@ -126,7 +126,7 @@ func (b *Builder) operatorsRule(sr *program.Rule, cr *ir.Rule, o *ir.OperatorsRu
 	if cr.Finish.Kind == ir.FinishAction {
 		// The whole-rule action runs once per call, after the fold (state.Parser.Finish).
 		b.scope = scopeOf(nil)
-		t, err := b.term(cr.Finish.Action, nil)
+		t, err := b.actionExpr(cr.Finish.Action, nil)
 		if err != nil {
 			return err
 		}
@@ -141,7 +141,7 @@ func (b *Builder) line(l *ir.OpLine) (*state.OperatorsRuleLine, error) {
 	pl := &state.OperatorsRuleLine{Scope: b.scope, M: b.node(l.Body), Key: l}
 	pl.Value, pl.Single, pl.Shape = scopeValueOf(l.Shape), check.SingleMode(l.Shape.Mode), shaper(l.Shape)
 	if l.Action != nil {
-		t, err := b.term(l.Action, nil)
+		t, err := b.actionExpr(l.Action, nil)
 		if err != nil {
 			return nil, err
 		}

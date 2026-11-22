@@ -14,7 +14,7 @@ import (
 // TestGeneratedRuleEntryCharge checks, on the checked-in parsers generated with limit controls, that every
 // matcher function of the Node and typed tables (rule bodies, framed bodies, flat-rule methods and the
 // lines and skips of Operators Rules) begins with its entry and has no other Spend before its first
-// loop (the steps that the code of a term charges, isTermStep, are not the rule's). The entry is one
+// loop (the steps that the code of an action expression charges, isActionStep, are not the rule's). The entry is one
 // Spend for the evaluation of the body, or two in a row for the flat method of a plain rule that a
 // call site calls directly: the unit of the call, then that of the body (spec/runtime/parsing.md#cost).
 // A typed wrapper u<N> or i<N> that only saves and restores state around a call of another matcher
@@ -65,7 +65,7 @@ func TestGeneratedRuleEntryCharge(t *testing.T) {
 				if _, loop := x.(*goast.ForStmt); loop {
 					return false
 				}
-				if isStepCall(x) && !isTermStep(x) {
+				if isStepCall(x) && !isActionStep(x) {
 					steps++
 				}
 				return true
@@ -89,10 +89,10 @@ func isStepCall(x goast.Node) bool {
 	return ok && s.Sel.Name == "Spend"
 }
 
-// isTermStep reports whether the step call x is c.P.Spend(): the step that the code of a term, printed
+// isActionStep reports whether the step call x is c.P.Spend(): the step that the code of an action expression, printed
 // inside the matcher function, charges for an element it makes or a field it sets, as the library's
-// constructors charge it. It bounds the work of the term, not the entry of the rule.
-func isTermStep(x goast.Node) bool {
+// constructors charge it. It bounds the work of the action expression, not the entry of the rule.
+func isActionStep(x goast.Node) bool {
 	s := x.(*goast.CallExpr).Fun.(*goast.SelectorExpr)
 	inner, ok := s.X.(*goast.SelectorExpr)
 	if !ok || inner.Sel.Name != "P" {
@@ -115,12 +115,12 @@ func startsWithStep(b *goast.BlockStmt) bool {
 	return false
 }
 
-// leadingSteps returns the number of rule steps (not those of a term) that b begins with, in a row.
+// leadingSteps returns the number of rule steps (not those of an action expression) that b begins with, in a row.
 func leadingSteps(b *goast.BlockStmt) int {
 	n := 0
 	for _, s := range b.List {
 		e, ok := s.(*goast.ExprStmt)
-		if !ok || !isStepCall(e.X) || isTermStep(e.X) {
+		if !ok || !isStepCall(e.X) || isActionStep(e.X) {
 			break
 		}
 		n++

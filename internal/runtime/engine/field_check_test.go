@@ -15,7 +15,7 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// fieldCheckValueName names a value of fieldCheckValues as messages do, in the terms of the value
+// fieldCheckValueName names a value of fieldCheckValues as messages do, in the action expressions of the value
 // model: lists built by actions are list values, whose elements messages do not examine.
 func fieldCheckValueName(value string) string {
 	switch {
@@ -137,16 +137,16 @@ func TestCompiledFieldChecksValidation(t *testing.T) {
 	}
 	for _, text := range []string{"Other", "[]", "*(Int)", "Int |", "(Int | Match", "Int  | Match", "[]Int)", "", "terminal", "Missing"} {
 		m.Strings = append(append([]string(nil), prog.Module().Strings...), text)
-		m.Terms = cloneTerms(prog.Module().Terms)
+		m.Actions = cloneActions(prog.Module().Actions)
 		casts := 0
-		for i := range m.Terms {
-			for k := range m.Terms[i].Casts {
-				m.Terms[i].Casts[k].Type = len(m.Strings) - 1
+		for i := range m.Actions {
+			for k := range m.Actions[i].Casts {
+				m.Actions[i].Casts[k].Type = len(m.Strings) - 1
 				casts++
 			}
 		}
 		if casts == 0 {
-			t.Fatal("no cast in the term code")
+			t.Fatal("no cast in the action code")
 		}
 		if err := compile.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), "invalid field type") {
 			t.Errorf("type text %q: %v", text, err)

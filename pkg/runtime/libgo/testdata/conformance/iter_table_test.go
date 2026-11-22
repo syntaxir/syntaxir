@@ -7,7 +7,7 @@ import (
 )
 
 // The iteration table (conform.IterCases) on the compositions itemAt and filterKeep of the node and the typed
-// library (TermItemAt and TermFilterKeep, printed from Exec IR), through the helpers of compose_test.go
+// library (ActionItemAt and ActionFilterKeep, printed from Exec IR), through the helpers of compose_test.go
 // for foldl, foldr, map and filter.
 
 // iterCall calls the built-in function of the iteration table's call on v through the helpers of compose_test.go:

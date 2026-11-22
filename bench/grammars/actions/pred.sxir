@@ -1,0 +1,13 @@
+// Lines of words, each guarded by four predicate action expressions: the benchmark of how much an action expression costs when
+// nothing is built from it.
+package actions
+
+type Line = { N int }
+type Doc = { Lines []Line }
+
+@start
+rule main Doc = ls:line* $$ => Doc{Lines: $ls.Value}
+
+rule line Line = ws:word+ {len($ws) > 0} {len($ws) < 100} {$ws.Start != $ws.End} {len(text($ws)) >= 0} ";" "\n" => Line{N: len($ws)}
+
+rule word = [a-z]+ " "

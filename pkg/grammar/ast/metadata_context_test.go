@@ -117,7 +117,7 @@ func TestMetadataTraversalStopsWithinCollection(t *testing.T) {
 	rules, types := &Grammar{}, &Grammar{}
 	comments := &Grammar{File: File{Pkg: Pkg{Break: &LineBreak{}}}}
 	attrs := &Attribute{KwArgs: map[string]any{}}
-	var term ActionExpr = &IntLit{}
+	var actionExpr ActionExpr = &IntLit{}
 	var typ TypeExpr = &TypeRef{Name: "A"}
 	var expr Expr = &Literal{}
 	for i := range 1024 {
@@ -127,7 +127,7 @@ func TestMetadataTraversalStopsWithinCollection(t *testing.T) {
 		comments.File.Pkg.Break.Comments = append(comments.File.Pkg.Break.Comments, &Comment{})
 		attrs.Args = append(attrs.Args, i)
 		attrs.KwArgs[fmt.Sprintf("key%04d", 1024-i)] = i
-		term = &ActionGroup{Action: term}
+		actionExpr = &ActionGroup{Action: actionExpr}
 		typ = &TypeGroup{Type: typ}
 		expr = &Group{Expr: expr}
 	}
@@ -145,7 +145,9 @@ func TestMetadataTraversalStopsWithinCollection(t *testing.T) {
 		{"comment-copy", func(c *metadataControl) { comments.allComments(c) }, 1},
 		{"scalar-arguments", func(c *metadataControl) { attrs.expressionArgs(c) }, 1},
 		{"keyword-sort", func(c *metadataControl) { (&Attribute{KwArgs: attrs.KwArgs}).expressionArgs(c) }, 5},
-		{"nested-terms", func(c *metadataControl) { (&Grammar{File: File{Decls: []Decl{&RuleDef{Action: term}}}}).allComments(c) }, 1},
+		{"nested-actions", func(c *metadataControl) {
+			(&Grammar{File: File{Decls: []Decl{&RuleDef{Action: actionExpr}}}}).allComments(c)
+		}, 1},
 		{"nested-types", func(c *metadataControl) { (&Grammar{File: File{Decls: []Decl{&RuleDef{Type: typ}}}}).allComments(c) }, 1},
 		{"nested-expressions", func(c *metadataControl) { (&Grammar{File: File{Decls: []Decl{&RuleDef{Expr: expr}}}}).allComments(c) }, 1},
 		{"shared-small-arguments", func(c *metadataControl) {

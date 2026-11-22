@@ -39,20 +39,20 @@ func TestConstructorJSONRoundTrip(t *testing.T) {
 }
 
 func TestConstructorValidationChildrenAndCycles(t *testing.T) {
-	listGrammar := func(term ActionExpr) *Grammar {
-		return termGrammar(term)
+	listGrammar := func(actionExpr ActionExpr) *Grammar {
+		return actionGrammar(actionExpr)
 	}
 	for _, tc := range []struct {
-		name string
-		term ActionExpr
-		path string
+		name       string
+		actionExpr ActionExpr
+		path       string
 	}{
 		{"missing list element type", &ListConstructor{Items: []ActionExpr{}}, "$.file.decls[0].action.elem"},
 		{"typed nil list item", &ListConstructor{Elem: &TypeRef{Name: "Foo"}, Items: []ActionExpr{(*StringLit)(nil)}}, "$.file.decls[0].action.items[0]"},
 		{"typed nil field value", &Constructor{Type: "Int", Fields: []*FieldInit{{Name: "Text", Value: (*StringLit)(nil)}}}, "$.file.decls[0].action.fields[0].value"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			g := listGrammar(tc.term)
+			g := listGrammar(tc.actionExpr)
 			assertValidationError(t, Validate(g), tc.path)
 			if _, err := MarshalJSON(g); err == nil && tc.name != "missing list element type" {
 				t.Fatal("MarshalJSON accepted an invalid constructor AST")

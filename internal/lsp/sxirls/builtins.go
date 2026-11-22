@@ -77,7 +77,7 @@ var statementKeywords = []string{"rule", "type", "var"}
 
 var operatorsRuleKeywords = []string{"skip", "operand", "level", "prefix", "postfix", "infix"}
 
-var termKeywords = []string{"true", "false", "nil"}
+var actionKeywords = []string{"true", "false", "nil"}
 
 func findBuiltin(list []builtin, name string) *builtin {
 	for i := range list {

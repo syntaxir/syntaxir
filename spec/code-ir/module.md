@@ -54,7 +54,7 @@ An operation is a transition of the abstract state. Its declaration has the foll
 | Requires | The precondition that its callers guarantee. Behavior outside it is unspecified: implementations may differ on states that no function reaches, and conformance never exercises them |
 | Cost | The bound on the units that one call charges the budget (below) |
 | Laws | Facts about the operation that passes may use. Each law has a kind that passes read: equal results (equal arguments give equal results), a stable read (two calls with no write of the component between them give the same result) or the merge of two charges. Each kind has a conformance property that tests the law, and a pass relies only on laws of a kind it names. A law states something about results only; it never permits removing a call, which depends on what the operation writes and charges |
-| Immediate operand | A static datum of a call that is not a value of Code IR, such as a literal, a character class, an expectation or a term of the grammar. The declaration gives its kind, the type that the datum has (see [Immediate Operands](#immediate-operands)). A call of an operation that declares one holds it, and passes keep it |
+| Immediate operand | A static datum of a call that is not a value of Code IR, such as a literal, a character class, an expectation or an action expression of the grammar. The declaration gives its kind, the type that the datum has (see [Immediate Operands](#immediate-operands)). A call of an operation that declares one holds it, and passes keep it |
 
 
 ## Operation Kinds
@@ -78,7 +78,7 @@ An operation is of one of four kinds.
 An operation never runs grammar code and never chooses between outcomes of the parse: reusing or recomputing a
 result, growing or stopping, which error or expectation survives. Those choices are made in functions, which read
 the results of operations. The exceptions are the transitional operations that invoke a rule's body or a line of an
-Operators Rule, which say so in their contracts. A term is not run by an operation: a function applies it
+Operators Rule, which say so in their contracts. An action expression is not run by an operation: a function applies it
 ([Application](functions.md#application)).
 
 ## Immediate Operands
@@ -93,7 +93,7 @@ repeats, and a call passes zero or more arguments of its type in its place.
 ## Dialects and Stages
 
 A **dialect** is a named set of operations, with their contracts, that a part of the compiler declares: the Flow
-dialect (see the [Flow Dialect Specification](../flow-ir/README.md)), the Action dialect (the operations on the values of terms, see
+dialect (see the [Flow Dialect Specification](../flow-ir/README.md)), the Action dialect (the operations on the values of action expressions, see
 [Values](../exec-ir/values.md)) and the Exec dialect (the operations of the abstract machine, see
 [Exec Dialect Specification](../exec-ir/README.md)). Every operation belongs to one dialect, except an operation that a module declares
 for itself, such as the helpers of a conformance case.
@@ -123,8 +123,8 @@ bound could exceed the limit.
 A charge that pays for one call, step, iteration or line is made by the function that runs it, with an operation that charges, such as `budget.charge` of the Exec dialect;
 an operation of constant work charges nothing, because the call or step around it has paid. An operation that runs a
 rule body bounds its charges by what the grammar code it runs charges (the quantity `body`), and its own work
-besides. The application of a term is not an operation and charges nothing itself: the operations of the code of the
-term charge.
+besides. The application of an action expression is not an operation and charges nothing itself: the operations of the code of the
+action expression charge.
 
 
 The bound of an operation is written in the text form as `cost <= c + k*q + ...`, where `c` is the constant and each

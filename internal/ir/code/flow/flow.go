@@ -8,7 +8,7 @@
 // continues after the block; a Loop repeats its body until a Break leaves it, and a Continue starts
 // its next iteration; an If branches. The calls are of the operations of the dialect (ops.go), which
 // mirror the runtime's helpers: reading and moving the position, matching terminals, recording
-// expectations, calling rules, building values, evaluating terms and spending budget.
+// expectations, calling rules, building values, evaluating action expressions and spending budget.
 //
 // A function is local or framed. The body of a local function, a whole rule, succeeds by running to
 // the end of the block labeled Attrs.Fail, with the rule's value in the Result variable, and fails by

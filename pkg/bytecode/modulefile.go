@@ -112,9 +112,9 @@ func (w *Encoder) WriteModule(m *Module) {
 	for _, x := range m.Ints {
 		w.Body.Write(binary.AppendVarint(nil, x))
 	}
-	w.Uint(len(m.Terms))
-	for i := range m.Terms {
-		w.term(&m.Terms[i])
+	w.Uint(len(m.Actions))
+	for i := range m.Actions {
+		w.actionExpr(&m.Actions[i])
 	}
 	w.Uint(len(m.RunKeys))
 	for _, k := range m.RunKeys {
@@ -244,8 +244,8 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 			bad()
 		}
 		w.Int(x.Var)
-		w.Int(x.Term)
-	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmTerm:
+		w.Int(x.Action)
+	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction:
 		x, ok := v.(int)
 		if !ok {
 			bad()
@@ -266,11 +266,11 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 	}
 }
 
-func (w *Encoder) term(t *Term) {
+func (w *Encoder) actionExpr(t *Action) {
 	for _, n := range t.Regs {
 		w.Uint(n)
 	}
-	// Most terms use few of their pools: a byte whose bits 0 to 5 mark the pools that are not empty
+	// Most action expressions use few of their pools: a byte whose bits 0 to 5 mark the pools that are not empty
 	// (constants, names, member reads, node types, casts and struct literals), then those pools.
 	lens := t.poolLens()
 	var mask byte
@@ -318,7 +318,7 @@ func (w *Encoder) term(t *Term) {
 	}
 	w.Uint(len(t.Code))
 	for _, in := range t.Code {
-		// Most operands of term code are zero or unused: an instruction writes its opcode, a byte
+		// Most operands of action code are zero or unused: an instruction writes its opcode, a byte
 		// whose bits 0 to 3 mark the operands D, A, B and C that are not zero, and those operands.
 		ops := [4]int32{in.Dst, in.A, in.B, in.C}
 		var mask byte
@@ -452,9 +452,9 @@ func (r *Decoder) ReadModule() *Module {
 		m.Ints = append(m.Ints, r.int64())
 	}
 	n = r.Count()
-	m.Terms = sized[Term](r, n, 6)
+	m.Actions = sized[Action](r, n, 6)
 	for i := 0; i < n && r.Err == nil; i++ {
-		m.Terms = append(m.Terms, r.term())
+		m.Actions = append(m.Actions, r.actionExpr())
 	}
 	n = r.Count()
 	m.RunKeys = sized[RunKeyInfo](r, n, 3)
@@ -546,8 +546,8 @@ func (r *Decoder) flowImm(k FlowImm) any {
 	case FlowImmRunWalk:
 		return FlowRunWalkOf{Site: int(r.int32()), Build: r.Bool(), KeyEnv: r.Bool()}
 	case FlowImmBind:
-		return FlowBindOf{Var: int(r.int32()), Term: int(r.int32())}
-	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmTerm:
+		return FlowBindOf{Var: int(r.int32()), Action: int(r.int32())}
+	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction:
 		return int(r.int32())
 	case FlowImmShape:
 		x := FlowShapeOf{Elems: r.Bool(), Shared: r.Bool(), Tuple: r.Bool()}
@@ -587,35 +587,35 @@ func sized[T any](r *Decoder, n, least int) []T {
 }
 
 // poolLens returns the lengths of the pools of t, in the order a module writes them.
-func (t *Term) poolLens() [6]int {
+func (t *Action) poolLens() [6]int {
 	return [6]int{len(t.Consts), len(t.Names), len(t.Members), len(t.NodeTypes), len(t.Casts), len(t.Structs)}
 }
 
-func (r *Decoder) term() Term {
-	var t Term
+func (r *Decoder) actionExpr() Action {
+	var t Action
 	for i := range t.Regs {
 		t.Regs[i] = r.Uint()
 	}
 	mask := r.Byte()
 	if r.Err == nil && mask > 0x3f {
-		r.Fail("invalid term pool mask %#x", mask)
+		r.Fail("invalid action pool mask %#x", mask)
 	}
 	// count reads the length of pool i: zero if the mask leaves it out, else not zero, so that each
-	// term has one encoding.
+	// action expression has one encoding.
 	count := func(i int) int {
 		if mask&(1<<i) == 0 || r.Err != nil {
 			return 0
 		}
 		n := r.Count()
 		if r.Err == nil && n == 0 {
-			r.Fail("term pool marked but empty")
+			r.Fail("action pool marked but empty")
 		}
 		return n
 	}
 	n := count(0)
-	t.Consts = sized[TermConst](r, n, 2)
+	t.Consts = sized[ActionConst](r, n, 2)
 	for i := 0; i < n && r.Err == nil; i++ {
-		t.Consts = append(t.Consts, TermConst{Kind: int(r.Byte()), Int: r.int64()})
+		t.Consts = append(t.Consts, ActionConst{Kind: int(r.Byte()), Int: r.int64()})
 	}
 	n = count(1)
 	t.Names = sized[int](r, n, 1)
@@ -623,9 +623,9 @@ func (r *Decoder) term() Term {
 		t.Names = append(t.Names, int(r.int32()))
 	}
 	n = count(2)
-	t.Members = sized[TermMember](r, n, 3)
+	t.Members = sized[ActionMember](r, n, 3)
 	for i := 0; i < n && r.Err == nil; i++ {
-		t.Members = append(t.Members, TermMember{Kind: int(r.int32()), Name: int(r.int32()), Field: int(r.int32())})
+		t.Members = append(t.Members, ActionMember{Kind: int(r.int32()), Name: int(r.int32()), Field: int(r.int32())})
 	}
 	n = count(3)
 	t.NodeTypes = sized[int](r, n, 1)
@@ -633,30 +633,30 @@ func (r *Decoder) term() Term {
 		t.NodeTypes = append(t.NodeTypes, int(r.int32()))
 	}
 	n = count(4)
-	t.Casts = sized[TermCast](r, n, 3)
+	t.Casts = sized[ActionCast](r, n, 3)
 	for i := 0; i < n && r.Err == nil; i++ {
-		t.Casts = append(t.Casts, TermCast{Type: int(r.int32()), Line: int(r.int32()), Col: int(r.int32())})
+		t.Casts = append(t.Casts, ActionCast{Type: int(r.int32()), Line: int(r.int32()), Col: int(r.int32())})
 	}
 	n = count(5)
-	t.Structs = sized[TermStruct](r, n, 2)
+	t.Structs = sized[ActionStruct](r, n, 2)
 	for i := 0; i < n && r.Err == nil; i++ {
-		t.Structs = append(t.Structs, TermStruct{Type: int(r.int32()), Fields: int(r.int32())})
+		t.Structs = append(t.Structs, ActionStruct{Type: int(r.int32()), Fields: int(r.int32())})
 	}
 	n = r.Count()
-	t.Code = sized[TermInstr](r, n, 2)
+	t.Code = sized[ActionInstr](r, n, 2)
 	for i := 0; i < n && r.Err == nil; i++ {
-		t.Code = append(t.Code, r.termInstr())
+		t.Code = append(t.Code, r.actionInstr())
 	}
 	return t
 }
 
-// termInstr reads an instruction of term code: its opcode, the mask of its operands that are not
+// actionInstr reads an instruction of action code: its opcode, the mask of its operands that are not
 // zero, and those operands. A mask with other bits, or a marked operand that is zero, is invalid,
 // so that each instruction has one encoding.
-func (r *Decoder) termInstr() TermInstr {
+func (r *Decoder) actionInstr() ActionInstr {
 	op, mask := r.Byte(), r.Byte()
 	if r.Err == nil && mask > 0xf {
-		r.Fail("invalid term operand mask %#x", mask)
+		r.Fail("invalid action expression operand mask %#x", mask)
 	}
 	var ops [4]int32
 	for i := range ops {
@@ -664,10 +664,10 @@ func (r *Decoder) termInstr() TermInstr {
 			continue
 		}
 		if ops[i] = r.int32(); r.Err == nil && ops[i] == 0 {
-			r.Fail("term operand marked but zero")
+			r.Fail("action expression operand marked but zero")
 		}
 	}
-	return TermInstr{Op: op, Dst: ops[0], A: ops[1], B: ops[2], C: ops[3]}
+	return ActionInstr{Op: op, Dst: ops[0], A: ops[1], B: ops[2], C: ops[3]}
 }
 
 // ValidateModule checks that every table and instruction reference in the module is in range,
@@ -767,7 +767,7 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 	line := func(l *LineInfo) {
 		in("entry", l.Entry, len(m.Code))
 		strs(l.Scope)
-		opt("action", l.Action, len(m.Terms))
+		opt("action", l.Action, len(m.Actions))
 	}
 	seenVars := map[string]bool{}
 	for _, v := range m.Vars {
@@ -800,7 +800,7 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		str(r.Name)
 		in("entry", r.Entry, len(m.Code))
 		strs(r.Scope)
-		opt("action", r.Action, len(m.Terms))
+		opt("action", r.Action, len(m.Actions))
 		opt("string", r.NodeType, len(m.Strings))
 		if err == nil && r.NodeType >= 0 && !nodeType(m.Strings[r.NodeType]) {
 			fail("type %q is not a named node type", m.Strings[r.NodeType])
@@ -982,10 +982,10 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		case OpOperatorsRule:
 			in("operatorsRule", int(x.A), len(m.OperatorsRules))
 		case OpPred:
-			in("term", int(x.A), len(m.Terms))
+			in("action", int(x.A), len(m.Actions))
 		case OpBind:
 			in("variable", int(x.A), len(m.Vars))
-			in("term", int(x.B), len(m.Terms))
+			in("action", int(x.B), len(m.Actions))
 			flag(x.C, 0)
 		case OpLabel:
 			str(int(x.A))
@@ -1013,8 +1013,8 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 			fail("invalid instruction %d at %d", x.Op, ip)
 		}
 	}
-	for i := range m.Terms {
-		t := &m.Terms[i]
+	for i := range m.Actions {
+		t := &m.Actions[i]
 		for _, c := range t.Consts {
 			switch c.Kind {
 			case ConstNil, ConstInt:
@@ -1022,10 +1022,10 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 				str(int(c.Int))
 			case ConstBool:
 				if c.Int != 0 && c.Int != 1 {
-					fail("invalid boolean constant %d in term %d", c.Int, i)
+					fail("invalid boolean constant %d in action %d", c.Int, i)
 				}
 			default:
-				fail("invalid constant kind %d in term %d", c.Kind, i)
+				fail("invalid constant kind %d in action %d", c.Kind, i)
 			}
 		}
 		strs(t.Names)
@@ -1036,27 +1036,27 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		for _, x := range t.NodeTypes {
 			str(x)
 			if err == nil && !nodeType(m.Strings[x]) {
-				fail("type %q of a conversion is not a named node type in term %d", m.Strings[x], i)
+				fail("type %q of a conversion is not a named node type in action %d", m.Strings[x], i)
 			}
 		}
 		for _, x := range t.Casts {
 			opt("string", x.Type, len(m.Strings))
 			if x.Type >= 0 {
 				if perr := typeErr(x.Type); perr != nil {
-					fail("%v in term %d", perr, i)
+					fail("%v in action %d", perr, i)
 				}
 			}
 			if x.Line < 0 || x.Col < 0 {
-				fail("invalid cast position %d:%d in term %d", x.Line, x.Col, i)
+				fail("invalid cast position %d:%d in action %d", x.Line, x.Col, i)
 			}
 		}
 		for _, x := range t.Structs {
 			str(x.Type)
 			if err == nil && !structType(m.Strings[x.Type]) {
-				fail("type %q of a struct literal is not a struct type in term %d", m.Strings[x.Type], i)
+				fail("type %q of a struct literal is not a struct type in action %d", m.Strings[x.Type], i)
 			}
 			if x.Fields < 0 {
-				fail("invalid field count %d in term %d", x.Fields, i)
+				fail("invalid field count %d in action %d", x.Fields, i)
 			}
 		}
 	}
@@ -1215,10 +1215,10 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		if x, ok = v.(int); ok && (x < 0 || x >= len(m.Scopes)) {
 			return fmt.Errorf("scope %d out of range", x)
 		}
-	case FlowImmTerm:
+	case FlowImmAction:
 		var x int
-		if x, ok = v.(int); ok && (x < 0 || x >= len(m.Terms)) {
-			return fmt.Errorf("term %d out of range", x)
+		if x, ok = v.(int); ok && (x < 0 || x >= len(m.Actions)) {
+			return fmt.Errorf("action %d out of range", x)
 		}
 	case FlowImmBind:
 		var x FlowBindOf
@@ -1228,8 +1228,8 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		if x.Var < 0 || x.Var >= len(m.Vars) {
 			return fmt.Errorf("variable %d out of range", x.Var)
 		}
-		if x.Term < 0 || x.Term >= len(m.Terms) {
-			return fmt.Errorf("term %d out of range", x.Term)
+		if x.Action < 0 || x.Action >= len(m.Actions) {
+			return fmt.Errorf("action %d out of range", x.Action)
 		}
 	case FlowImmRunSite:
 		var x int

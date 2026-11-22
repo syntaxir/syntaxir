@@ -910,7 +910,7 @@ func (p *TParser) DropTrail(base int) {
 
 // SetCapture stores v in the capture slot. v is a value of the grammar's value model, never a function
 // value: the library does not check it, because the code of a generated parser makes values only by
-// lowered terms, and a lowered term never yields a function. Like every exported symbol of this
+// lowered action expressions, and a lowered action expression never yields a function. Like every exported symbol of this
 // package it is not a stable API.
 func (p *TParser) SetCapture(slot int, v any) {
 	p.Trail = append(p.Trail, tundo{f: p.Frame, slot: slot, old: p.Frame.Vals[slot]})
@@ -976,7 +976,7 @@ func (p *TParser) Kids(base int) []any {
 	return ks
 }
 
-// ElemsAbove is Parser.ElemsAbove in a typed parse: term.elemsAbove, which charges two units for each
+// ElemsAbove is Parser.ElemsAbove in a typed parse: action.elemsAbove, which charges two units for each
 // element in one reservation before it moves any.
 func (p *TParser) ElemsAbove(base int) []any {
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
@@ -1883,11 +1883,11 @@ func (p *TParser) DropCreated(base int) {
 	p.Created = p.Created[:base]
 }
 
-// TermRaise ends the parse with the failure f of the action that the generated rule evaluates in
+// ActionRaise ends the parse with the failure f of the action that the generated rule evaluates in
 // place, as Result does for an action that fails.
 //
-// TermRaise is for generated parsers; not a stable API.
-func (c *TActCtx) TermRaise(f any) {
+// ActionRaise is for generated parsers; not a stable API.
+func (c *TActCtx) ActionRaise(f any) {
 	c.P.actionFailed(c.P.Where, f)
 }
 
@@ -1928,9 +1928,9 @@ func ttypeName(v any) string {
 func (c *TActCtx) MadeOf(n TVal, fields ...any) any {
 	first := true
 	for _, f := range fields {
-		first = c.P.TermCover(n, f, first)
+		first = c.P.ActionCover(n, f, first)
 	}
-	c.P.TermMade(c, n, first)
+	c.P.ActionMade(c, n, first)
 	return n
 }
 
@@ -1942,9 +1942,9 @@ func (c *TActCtx) NewList(items []any) any {
 
 // listNode returns a list value with the child list kids (which it takes over). Its range, which
 // the value model does not show, covers the elements that are nodes.
-func (c *TActCtx) listNode(kids []any) TVal { return c.P.TermHull(c, false, kids) }
+func (c *TActCtx) listNode(kids []any) TVal { return c.P.ActionHull(c, false, kids) }
 
-// newSeq is the operation val.seq, which charges one unit for the value that the term makes.
+// newSeq is the operation val.seq, which charges one unit for the value that the action expression makes.
 func (c *TActCtx) newSeq(tuple bool, kids []any) TVal {
 	c.P.Spend()
 	typ := TypeListValue
@@ -1964,11 +1964,11 @@ type tstrFields interface {
 	TStrField(name string) (string, bool)
 }
 
-// TermFieldOperand reads x.name as TermMember does, keeping a string field of a struct unboxed, and
+// ActionFieldOperand reads x.name as ActionMember does, keeping a string field of a struct unboxed, and
 // returns the failure of the read.
 //
-// TermFieldOperand is for generated parsers; not a stable API.
-func (c *TActCtx) TermFieldOperand(x any, name string) (TOperand, any) {
+// ActionFieldOperand is for generated parsers; not a stable API.
+func (c *TActCtx) ActionFieldOperand(x any, name string) (TOperand, any) {
 	// A string field of a struct costs no steps to read under budget controls either: see TFieldSpend.
 	if n, ok := x.(tstrFields); ok {
 		if s, ok := n.TStrField(name); ok {
@@ -1976,15 +1976,15 @@ func (c *TActCtx) TermFieldOperand(x any, name string) (TOperand, any) {
 		}
 	}
 	kind, field := memberKind(name)
-	v, e := c.P.TermMember(c, kind, x, name, field)
+	v, e := c.P.ActionMember(c, kind, x, name, field)
 	return TOperand{V: v}, e
 }
 
-// TermCompare applies a comparison operator as TermBinary does, comparing two strings directly, and
+// ActionCompare applies a comparison operator as ActionBinary does, comparing two strings directly, and
 // returns the failure of the comparison.
 //
-// TermCompare is for generated parsers; not a stable API.
-func (c *TActCtx) TermCompare(op int, l, r TOperand) (any, any) {
+// ActionCompare is for generated parsers; not a stable API.
+func (c *TActCtx) ActionCompare(op int, l, r TOperand) (any, any) {
 	if !l.IsStr {
 		l.Str, l.IsStr = l.V.(string)
 	}
@@ -1996,7 +1996,7 @@ func (c *TActCtx) TermCompare(op int, l, r TOperand) (any, any) {
 			return v, nil
 		}
 	}
-	return c.P.TermBinary(op, l.value(), r.value())
+	return c.P.ActionBinary(op, l.value(), r.value())
 }
 
 // memberZero is the operation node.zero: a typed struct holds every field of its type, and makes the zero

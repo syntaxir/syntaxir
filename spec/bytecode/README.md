@@ -10,7 +10,7 @@ A bytecode VM must produce the same results as the closure backend.
 | Term | Meaning |
 |:--|:--|
 | match code | The instruction sequence that matches input (rule bodies, Operators Rule parts) |
-| term code | The code of one term: an action, the term of a Predicate Action or the value of a binding ([Term Code](#term-code)) |
+| action code | The code of one action expression: an action, the action expression of a Predicate Action or the value of a binding ([Action Code](#action-code)) |
 | entry stack | The stack of backtrack entries pushed by match instructions ([Failure](#failure)) |
 | expectation | A string describing what was expected at a position, used in syntax errors |
 | farthest failure | The farthest position at which a failure was recorded, together with the set of expectations recorded at that position |
@@ -51,7 +51,7 @@ A module consists of the following tables and code sequences.
 | Operators Rule table | See [Operators Rule table](#operators-rule-table) |
 | Match code | A sequence of instructions |
 | Wide-integer table | Implementation-int values: the repetition bounds that do not fit an operand |
-| Term table | The term code of the module's terms ([Term Code](#term-code)) |
+| Action table | The action code of the module's action expressions ([Action Code](#action-code)) |
 | Run key table | The variables that key the records of each run site that is not free of the environment ([Run key table](#run-key-table)) |
 | Flow bodies | The rules that run a Flow body in place of their match code, each with its body ([Flow Bodies](#flow-bodies)) |
 
@@ -74,7 +74,7 @@ uses the existing -1 sentinel for both `REPEAT` and `SCAN` variants.
 | Name | Rule name |
 | Body | Start of the body in the match code. The body pushes the value of its scope (or none, if the body is value-free) and ends with `RETURN`: the single value of the body, or a tuple node of its values when the scope is a tuple. |
 | Scope | The capture names of the body, in slot order |
-| Action | The action's term (an index of the term table), or -1 if there is none |
+| Action | The action's action expression (an index of the action table), or -1 if there is none |
 | Node type | Name of the named node type a rule declared with one converts its value to (see Rule Completion), or -1 if there is none. For a rule with an Operators Rule and no action, it is the named node type every operator's value is converted to (see Operators Rule); with an action, it is the type the action's result is converted to |
 | Memoize, left-recursion leader, member, position-dependent | Results of static analysis. A member is a rule of a left-recursion cycle that is not its leader. |
 | Cycle | The number of the left-recursion cycle of a leader or member, from 1, the same for the rules of one cycle; 0 for any other rule |
@@ -98,7 +98,7 @@ uses the existing -1 sentinel for both `REPEAT` and `SCAN` variants.
 | operand | A list of lines |
 | Prefix operators / infix and postfix operators | Lists of operators (index, kind, associativity, level, line) |
 
-A *line* has the start of its code in the match code (the code pushes one value and ends with `END`), a scope, an action (an index of the term table, or -1), and whether its body is a sequence. An operand line pushes the value of its scope, as a rule body does. An operator line pushes the operator's value: when its body is a sequence, that value is the tuple node of the operator's values, and the line's captures are attached to it.
+A *line* has the start of its code in the match code (the code pushes one value and ends with `END`), a scope, an action (an index of the action table, or -1), and whether its body is a sequence. An operand line pushes the value of its scope, as a rule body does. An operator line pushes the operator's value: when its body is a sequence, that value is the tuple node of the operator's values, and the line's captures are attached to it.
 
 Operator kinds are encoded as 0 = prefix, 1 = postfix, 2 = infix. Associativity is encoded as 0 = left, 1 = right, 2 = none.
 
@@ -185,8 +185,8 @@ Popping an entry charges no step of its own. Restoring the state charges a unit 
 | 21 | `ENDLOOK` | A neg | The inner expression succeeded. Positive: remove the entry, restore `silent`, restore only `pos`, the value-stack height and the recovered errors, and continue. Negative: restore `silent`, restore the state, and fail. |
 | 22 | `CALL` | A rule, B level, C keep | Call rule A at level B ([Rule calls](#rule-calls)). On success, push the value if keep is 1. |
 | 23 | `OPERATORS_RULE` | A table | Parse Operators Rule table A at level `min` and push its value. `min` is the level of the `CALL` that invoked this body. |
-| 24 | `PRED` | A term | Evaluate term A. Fail if evaluation fails or produces `false`. |
-| 25 | `BIND` | A variable, B term, C 0 | Evaluate term B. Fail if evaluation fails; otherwise bind variable A (an index into the variable table) in the environment. The value is not checked: the compiler has proved it assignable to the declared type of variable A, so a module is trusted to bind values of that type, and a variable holds any value, so a module that does not cannot break memory safety. C is 0. |
+| 24 | `PRED` | An action expression | Evaluate action expression A. Fail if evaluation fails or produces `false`. |
+| 25 | `BIND` | A variable, B action expression, C 0 | Evaluate action expression B. Fail if evaluation fails; otherwise bind variable A (an index into the variable table) in the environment. The value is not checked: the compiler has proved it assignable to the declared type of variable A, so a module is trusted to bind values of that type, and a variable holds any value, so a module that does not cannot break memory safety. C is 0. |
 | 26 | `LABEL` | A message, B mode | Save the farthest failure, reset it to (current position, empty), and push a label entry. B=0 applies `@error`; B=1 applies `@diagnostic` and renames ordinary expected items from the wrapped failure. |
 | 27 | `ENDLABEL` | | Remove the entry, add the expectations recorded inside to the saved farthest failure, and make that the farthest failure again. |
 | 28 | `RECOVER` | A target | Save the state, save the farthest failure and reset it to (current position, empty), and push a recovery entry with target A (the skip code). |
@@ -243,7 +243,7 @@ The value of the rule is built from the body value v and the start position:
 - **With an action:** evaluate the action with the captures of the scope. For a rule with an Operators Rule, evaluate it with the Operators Rule local `$value`, the folded value v, as well; it is the only local, so `LOCAL` charges one step to find it. If the result is a node newly created by the action, its range becomes the range of the rule. An `int`, `string` or `bool` result becomes a value node with the range of the rule.
 - **Otherwise:** if the scope has captures, attach them. If v is fresh, give it the rule name if it has none, and clear its fresh mark.
 
-When the rule's node type is a named node type, the value built above is then converted to the named node type, whose underlying node type the type table gives, as `convert` converts it ([Term Code](#term-code)); a value that is not a string, tuple or list node fails the parse with `cannot convert <value type> to <type> in result of rule <name>`.
+When the rule's node type is a named node type, the value built above is then converted to the named node type, whose underlying node type the type table gives, as `convert` converts it ([Action Code](#action-code)); a value that is not a string, tuple or list node fails the parse with `cannot convert <value type> to <type> in result of rule <name>`.
 
 **Attaching captures:** if no capture is non-nil, do nothing. If v is nil, is not fresh, or is itself one of the captures, wrap v in a tuple node whose only child is v, whose range runs from the start position to the current position, and which is fresh. Then add each non-nil capture as a field under its name.
 
@@ -268,19 +268,19 @@ Both models perform the same instruction steps and the same stages of a rule cal
 The reference implementation also limits the nesting depth of recursive rule calls, the rules on a cycle of the call graph (`Rec` in the rule table; 100,000 by default, 10,000,000 for the iterative model; configurable with `runtime.Limits.Depth`; see [Limits](../runtime/parsing.md#limits)), and reports a parse error when the limit is exceeded. A call of a rule without `Rec` does not change the depth.
 Actions and predicates may be evaluated with host function calls in either model, because their nesting depth is fixed by the grammar and does not depend on the input.
 
-## Term Code
+## Action Code
 
-A term of the action language, an action, the term of a Predicate Action or the value of a binding, is evaluated by its
-term code: the instructions of the function that the [lowering of terms](../exec-ir/lowering.md#terms) makes of the term,
-which call the [compositions of terms](../exec-ir/compositions.md#terms) in the order the term evaluates its operands.
+An action expression of the action language, an action, the action expression of a Predicate Action or the value of a binding, is evaluated by its
+action code: the instructions of the function that the [lowering of action expressions](../exec-ir/lowering.md#action-expressions) makes of the action expression,
+which call the [compositions of action expressions](../exec-ir/compositions.md#action-expressions) in the order the action expression evaluates its operands.
 A failure of a composition ends the evaluation with that failure. A failure in an action is an error of the whole
 parse (`action in <rule name>: <message>`); in a predicate or a binding it is a failure.
 
 Each evaluation has registers of four files, by the type of what they hold: values (`a`), integers and booleans (`n`,
-a boolean as 0 or 1), sequences of elements (`s`) and strings (`t`). A term gives the size of each file; every register
+a boolean as 0 or 1), sequences of elements (`s`) and strings (`t`). An action expression gives the size of each file; every register
 starts as nil, 0, an empty sequence or the empty string. An instruction has an opcode, a destination D and operands
 A, B and C; the table names the file of each register operand (`a[A]` is register A of the values) and the pool of
-each pool operand. Lambdas are evaluated in place, so no value of a term is a function.
+each pool operand. Lambdas are evaluated in place, so no value of an action expression is a function.
 
 | Code | Instruction | Behavior |
 |--:|:--|:--|
@@ -302,15 +302,15 @@ each pool operand. Lambdas are evaluated in place, so no value of a term is a fu
 | 20 | `BINARY` | a[D] = `binary`(C, a[A], a[B]); C indexes the binary operators. |
 | 21 | `LOGIC` | n[D] = `logic`(B, a[A]); B indexes the logical operators. |
 | 22 | `TEXT` | t[D] = `text`(a[A]). |
-| 23 | `TEXTEQ` | n[D] = whether t[A] and t[B] are equal (`term.textEqual`). |
+| 23 | `TEXTEQ` | n[D] = whether t[A] and t[B] are equal (`action.textEqual`). |
 | 24 | `LENGTH` | a[D] = `length`(a[A]). |
 | 25 | `CONVERT` | a[D] = `convert`(node type B, a[A]). |
 | 26 | `CONFORMS` | n[D] = `conforms`(the type of cast B, a[A]). |
-| 27 | `CASTERR` | a[D] = the failure of cast B of a[A] (`term.castError`): `cannot cast <value type> to <type> at input position <N> (line <L>, column <C>)`, where N is the position where the evaluation started, followed by `; cast at grammar position <line>:<column>` when the cast's line is positive. |
-| 28 | `KIDS` | n[D] = the number of gathered elements (`term.kids`). |
+| 27 | `CASTERR` | a[D] = the failure of cast B of a[A] (`action.castError`): `cannot cast <value type> to <type> at input position <N> (line <L>, column <C>)`, where N is the position where the evaluation started, followed by `; cast at grammar position <line>:<column>` when the cast's line is positive. |
+| 28 | `KIDS` | n[D] = the number of gathered elements (`action.kids`). |
 | 29 | `PUSH` | `push`(name B, a[A]). |
 | 30 | `PUSHALL` | `pushItems`(name B, a[A]). |
-| 31 | `ABOVE` | s[D] = the elements gathered above n[A], taken off (`term.elemsAbove`). |
+| 31 | `ABOVE` | s[D] = the elements gathered above n[A], taken off (`action.elemsAbove`). |
 | 32 | `HULL` | a[D] = `hull`(B = 1, s[A]). |
 | 33 | `ITEMS` | s[D] = `items`(name B, a[A]). |
 | 34 | `ITEMAT` | a[D] = `itemAt`(s[A], n[B], C = 1). |
@@ -329,16 +329,16 @@ each pool operand. Lambdas are evaluated in place, so no value of a term is a fu
 | 47 | `RETERR` | End the evaluation with the failure a[A]. |
 | 48 | `FIELD` | Charge one step, set field name C of the struct a[A] to a[B], and n[D] = `cover`(a[A], a[B], n[D] ≠ 0): `STEP`, `SETFIELD` and `COVER` with D = C in one instruction. |
 
-The pools of a term hold its constants (nil, an int, a string or a bool), its names (the names of built-in functions,
+The pools of an action expression hold its constants (nil, an int, a string or a bool), its names (the names of built-in functions,
 Operators Rule locals and struct fields), its member reads (the [member kind](../exec-ir/values.md#member-kinds), the
-name the term reads and the field or capture it selects), the named node types of its conversions, its casts (the
+name the action expression reads and the field or capture it selects), the named node types of its conversions, its casts (the
 resolved type text, written as the type table writes an underlying node type, and the grammar position, or 0 and 0
 without source information) and its struct literals (the struct type and its number of fields). A cast to a type that
 every value fits has no instruction.
 
-A runtime checks the term code of a module when it loads it, and rejects the file if any check fails: the pools refer
+A runtime checks the action code of a module when it loads it, and rejects the file if any check fails: the pools refer
 to strings of the string table, a conversion to a named node type, a struct literal to a struct type, a cast to a type
-text of the form the load-time checks of casts accept, and a member read to a member kind; a term has code; every
+text of the form the load-time checks of casts accept, and a member read to a member kind; an action expression has code; every
 opcode is in the table; every operand is in range for its kind: a register within its file, a pool operand within its
 pool, a jump target within the code, a variable within the variable table, an operator within its operators, a flag 0
 or 1 and a capture slot not negative; and the code ends with `JUMP`, `RET` or `RETERR`, so that evaluation cannot run
@@ -438,8 +438,8 @@ registers (A); `JUMP` and `JUMPFALSE` also have a target.
 | 62 | `SCANREACH` | 1 | 2 | `flow.scanReach` of the scan site of the immediate for the walk that began at the integer first argument and matched the integer second characters. |
 | 63 | `SCANEND` | 0 | 2 | `flow.scanEnd` of the scan site of the immediate, as `SCANREACH`. |
 | 64 | `SCANKIDS` | 1 | 3 | `flow.scanKids` of the scan site of the immediate for the walk that began at the integer first argument, gathered its elements from the height of the integer second and matched the integer third characters. |
-| 65 | `PRED` | 1 | 0 | `flow.pred` of a framed body: whether the predicate whose term is the immediate holds, evaluated in the current frame as `PRED` of the match code evaluates it, with the same charges. |
-| 66 | `BIND` | 1 | 0 | `flow.bind` of a framed body: binds the variable of the immediate to the value of its term, evaluated in the current frame as `BIND` of the match code evaluates it, with the same charges, and the destination is whether the evaluation succeeded. The rule's entry restores the variables when the call ends, as for match code. |
+| 65 | `PRED` | 1 | 0 | `flow.pred` of a framed body: whether the predicate whose action expression is the immediate holds, evaluated in the current frame as `PRED` of the match code evaluates it, with the same charges. |
+| 66 | `BIND` | 1 | 0 | `flow.bind` of a framed body: binds the variable of the immediate to the value of its action expression, evaluated in the current frame as `BIND` of the match code evaluates it, with the same charges, and the destination is whether the evaluation succeeded. The rule's entry restores the variables when the call ends, as for match code. |
 | 67 | `CUT` | 1 | 0 | The destination is the cut flag of the rule call the body runs in (the register `flow.cut`), which `CUT` of the match code sets and the rule's entry clears on entry and restores when the call ends. |
 | 68 | `SETCUT` | 0 | 1 | The cut flag of the rule call the body runs in is the boolean argument. |
 | 69 | `KEEP` | 1 | 1 | `flow.keep`: the expectations of the argument, kept beyond the scope that recorded them, as the match code keeps those of a failed `RECOVER` body while its skip code runs. |
@@ -471,7 +471,7 @@ Expectation strings are those the compiler placed in the string table: literals 
 
 ## File Format
 
-A compiled grammar uses container version 8. It stores one execution-only compile result: the module of one mode and the start rule, with no grammar AST and no output schema (see [Compiled Grammars](../runtime/compiled-grammars.md)). The container version and the module's instruction-set version cover separate layers: the container version covers the outer frame, the header and the order of the parts below, and the instruction-set version covers the encoding of the module's contents, term code included. A change to the module layout therefore bumps only the instruction-set version. A loader accepts only container version 8. Integers are variable-length: unsigned integers use LEB128 and signed integers use zigzag-encoded LEB128. A boolean is one byte (0 or 1).
+A compiled grammar uses container version 8. It stores one execution-only compile result: the module of one mode and the start rule, with no grammar AST and no output schema (see [Compiled Grammars](../runtime/compiled-grammars.md)). The container version and the module's instruction-set version cover separate layers: the container version covers the outer frame, the header and the order of the parts below, and the instruction-set version covers the encoding of the module's contents, action code included. A change to the module layout therefore bumps only the instruction-set version. A loader accepts only container version 8. Integers are variable-length: unsigned integers use LEB128 and signed integers use zigzag-encoded LEB128. A boolean is one byte (0 or 1).
 
 | Part | Contents |
 |:--|:--|
@@ -490,7 +490,7 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 2. Source information, a boolean: whether the values a parse returns carry the rule names and capture names of the grammar. A loaded program keeps it.
 3. Default value, a boolean: whether the program was compiled with default values, which drop value actions and the declared types of rules (except for the rules that make values read by predicates) before compilation. A loaded program keeps it.
 4. Character class table: a list of (negated, expectation string, number of ranges (unsigned), followed by the lower and upper bound of each range).
-5. Type table: a list of (name, list of field names, list of the zero descriptors of the fields, underlying node type). A zero descriptor is a string index; it tells how a field that a constructor left unset reads (see `member` in [Term Code](#term-code)), and is written as in the type chapter of the language specification: `i`, `s` and `b` for 0, `""` and false, `n` for nil, `l` for the empty list, the descriptors of the elements in parentheses for a tuple, `{Name}` for the zero value of the struct type Name, and `-` for a type that has no zero value. The underlying node type is a string index, or -1 for a struct type.
+5. Type table: a list of (name, list of field names, list of the zero descriptors of the fields, underlying node type). A zero descriptor is a string index; it tells how a field that a constructor left unset reads (see `member` in [Action Code](#action-code)), and is written as in the type chapter of the language specification: `i`, `s` and `b` for 0, `""` and false, `n` for nil, `l` for the empty list, the descriptors of the elements in parentheses for a tuple, `{Name}` for the zero value of the struct type Name, and `-` for a type that has no zero value. The underlying node type is a string index, or -1 for a struct type.
 6. Scope table: a list of lists of string indices.
 7. Variable table: a list of (name, type, integer, string). The type is 0 for `int`, 1 for `string` and 2 for `bool`. The integer is the initial value of an `int` variable, and 0 or 1 for a `bool` variable. The string is the string table index of the initial value of a `string` variable, and -1 for the other types.
 8. Rule table: a list of (name, body, scope, action, node type, memoize, leader, member, cycle, position-dependent, Operators Rule, value-free twin, transient, recursive, where, splice, variables).
@@ -498,9 +498,9 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 10. Operators Rule table: a list of (skip, list of operand lines, list of prefix operators, list of infix and postfix operators). A line is (start, scope, action, body is a sequence); an operator is (index, kind, associativity, level, line).
 11. Match code: a list of instructions (opcode as 1 byte, then `A`, `B`, `C`).
 12. Wide-integer table: a list of signed integers.
-13. Term table: a list of terms. A term is the sizes of its four register files (unsigned: values, integers, sequences, strings); its constants, a list of (kind as 1 byte: 0 nil, 1 int, 2 string, 3 bool; signed integer: the int, the string index, or 0 or 1); its names, a list of string indices; its member reads, a list of (member kind, name, field); its node types, a list of string indices; its casts, a list of (type text, line, column), the type text -1 for a cast that checks nothing; its struct literals, a list of (type name, number of fields); and its code, a list of instructions. Between the register sizes and the constants, a byte whose bits 0 to 5 mark the pools that are not empty (constants, names, member reads, node types, casts, struct literals) precedes them; only those pools are written, and a marked pool is not empty. An instruction is its opcode (1 byte), a byte whose bits 0 to 3 mark the operands D, `A`, `B` and `C` that are not zero, and those operands; a marked operand is not zero.
+13. Action table: a list of action expressions. An action expression is the sizes of its four register files (unsigned: values, integers, sequences, strings); its constants, a list of (kind as 1 byte: 0 nil, 1 int, 2 string, 3 bool; signed integer: the int, the string index, or 0 or 1); its names, a list of string indices; its member reads, a list of (member kind, name, field); its node types, a list of string indices; its casts, a list of (type text, line, column), the type text -1 for a cast that checks nothing; its struct literals, a list of (type name, number of fields); and its code, a list of instructions. Between the register sizes and the constants, a byte whose bits 0 to 5 mark the pools that are not empty (constants, names, member reads, node types, casts, struct literals) precedes them; only those pools are written, and a marked pool is not empty. An instruction is its opcode (1 byte), a byte whose bits 0 to 3 mark the operands D, `A`, `B` and `C` that are not zero, and those operands; a marked operand is not zero.
 14. Run key table: a list of (run site, list of string indices of the key's variables, list of string indices of the variables it binds), by increasing run site. Each list is sorted by name.
-15. Flow bodies ([Flow Bodies](#flow-bodies)): a list of (rule table index, number of registers (unsigned), list of instructions), by increasing rule index. An instruction is its operation (1 byte: its code), then its destination registers, its argument registers, its target and its immediate, each only if the operation has it and in the numbers the operation fixes. An immediate is, by operation: for `CONST` a kind (1 byte: 0 nil, 1 int, 3 bool, as for term constants) and a signed integer (0 for nil, the int, or 0 or 1); for `GUARD` (literal (boolean), rune, case-folded (boolean), class index or -1 for a literal, depth); for `EXPECT` (expectation, message (boolean)), the expectation 0 to 4 one of the fixed expectations (any character, beginning of input, end of input, beginning of line, end of line) and 5 + i the string i of the string table; for `CALL` (rule table index, binding level); for `INCLASS` the class index; for `ATANCHOR` the anchor; for `MATCHLIT` (string index of the literal, for a case-insensitive literal its text with ASCII letters lowercased, expectation as for `EXPECT`, case-insensitive (boolean)); for `SILENT` (change of depth, site, matched (boolean)); for `NEWVALS` the count; for `LITERALTEXT` and `STR` the string index; for `SETCAPTURE` and `FRAMEVAL` the slot; for `NEWFRAME` and `ATTACHFRAME` the scope table index; for `RUNHOT`, `RUNWALKED`, `SCANREACH`, `SCANEND` and `SCANKIDS` the site, numbered as the match code numbers its run and scan sites; for `RUNBEGIN` (site, values (boolean), keyed by the variables (boolean)); for `PRED` the term table index; for `BIND` (variable table index, term table index); for `SHAPESINGLE`, `SHAPECAPTURE` and `SCOPEVALUE` the shape (elements (boolean), shared (boolean), tuple (boolean), number of valued elements, single mode: 0 no value, 1 the element, 2 the tuple node).
+15. Flow bodies ([Flow Bodies](#flow-bodies)): a list of (rule table index, number of registers (unsigned), list of instructions), by increasing rule index. An instruction is its operation (1 byte: its code), then its destination registers, its argument registers, its target and its immediate, each only if the operation has it and in the numbers the operation fixes. An immediate is, by operation: for `CONST` a kind (1 byte: 0 nil, 1 int, 3 bool, as for action expression constants) and a signed integer (0 for nil, the int, or 0 or 1); for `GUARD` (literal (boolean), rune, case-folded (boolean), class index or -1 for a literal, depth); for `EXPECT` (expectation, message (boolean)), the expectation 0 to 4 one of the fixed expectations (any character, beginning of input, end of input, beginning of line, end of line) and 5 + i the string i of the string table; for `CALL` (rule table index, binding level); for `INCLASS` the class index; for `ATANCHOR` the anchor; for `MATCHLIT` (string index of the literal, for a case-insensitive literal its text with ASCII letters lowercased, expectation as for `EXPECT`, case-insensitive (boolean)); for `SILENT` (change of depth, site, matched (boolean)); for `NEWVALS` the count; for `LITERALTEXT` and `STR` the string index; for `SETCAPTURE` and `FRAMEVAL` the slot; for `NEWFRAME` and `ATTACHFRAME` the scope table index; for `RUNHOT`, `RUNWALKED`, `SCANREACH`, `SCANEND` and `SCANKIDS` the site, numbered as the match code numbers its run and scan sites; for `RUNBEGIN` (site, values (boolean), keyed by the variables (boolean)); for `PRED` the action table index; for `BIND` (variable table index, action table index); for `SHAPESINGLE`, `SHAPECAPTURE` and `SCOPEVALUE` the shape (elements (boolean), shared (boolean), tuple (boolean), number of valued elements, single mode: 0 no value, 1 the element, 2 the tuple node).
 
 ### Load-Time Validation
 
@@ -508,17 +508,17 @@ On load, a runtime checks the following and rejects the file if any check fails:
 
 - The checksum, the version, the mode and the instruction-set version are valid, the start rule is empty or a start rule of the module, and no data remains after the module.
 - Each variable is named once, has a valid type, and has an initial value that matches its type.
-- Every reference in the tables and instructions (strings, character classes, scopes, rules, Operators Rule tables, terms, wide integers) is in range.
+- Every reference in the tables and instructions (strings, character classes, scopes, rules, Operators Rule tables, action expressions, wide integers) is in range.
 - There is at least one start rule. The start rules are in increasing order and have distinct names, and the default start rule is one of them.
 - Every opcode is known, and every flag operand is within its range.
 - Every run site that a `SKIPREPEAT` or `ITER` instruction keys by the variables (bit 1 of its flags clear), or a Flow `RUNBEGIN` that keys its walk by them, has an entry in the run key table. The entries are in increasing order of run site, every site is positive, every variable of an entry is declared, and the variables an entry binds are among its variables.
 - The node type of a rule names a named node type, or a declared type with a field `Text`. The node type of a rule with an Operators Rule names a named node type.
 - A named node type has no fields, and its underlying node type is a type text, parsed as the type of a cast is, of the form `node[T]`.
 - Wide bounds fit the runtime's implementation `int`, and satisfy minimum ≥ 0 and maximum = -1 or maximum ≥ minimum.
-- Term code satisfies the checks of [Term Code](#term-code).
+- Action code satisfies the checks of [Action Code](#action-code).
 - The line and column of a cast are not negative. The type text of a cast parses as a field type naming only declared types, `error`, `node[T]`, tuple types `(T, ...)`, `int`, `string`, `bool` and `nil`. These type texts are resolved types, which contain no `&` or `_|_`, and no `_` other than the argument of `node[_]`.
 - Every jump target of the match code is forward. Only `NEXT` jumps backward.
-- Every Flow body belongs to a rule of the rule table and ends with `JUMP` or `RETURN`. Each of its instructions has a known operation with the registers, target and immediate the operation fixes; every register is within the frame (a destination may be -1), every target is an instruction of the body, and the classes, expectations and rules of the immediates are in range (a guard of a literal names no class and a guard of a class is not case-folded), with depths and binding levels not negative; a literal is a string of the string table, an anchor is 0 to 3, a lookahead enters (1) or leaves (-1) with a site not below -1, and only on leaving says whether it matched, a scope is an entry of the scope table, and a capture slot is not negative and below the number of names of the rule's scope or of a scope of a `NEWFRAME` of the body, a run site or scan site is within the range that the match code checks for `SKIPREPEAT`, `ITER` and `SCANSITE`, and a term or a variable is an entry of the term or variable table.
+- Every Flow body belongs to a rule of the rule table and ends with `JUMP` or `RETURN`. Each of its instructions has a known operation with the registers, target and immediate the operation fixes; every register is within the frame (a destination may be -1), every target is an instruction of the body, and the classes, expectations and rules of the immediates are in range (a guard of a literal names no class and a guard of a class is not case-folded), with depths and binding levels not negative; a literal is a string of the string table, an anchor is 0 to 3, a lookahead enters (1) or leaves (-1) with a site not below -1, and only on leaving says whether it matched, a scope is an entry of the scope table, and a capture slot is not negative and below the number of names of the rule's scope or of a scope of a `NEWFRAME` of the body, a run site or scan site is within the range that the match code checks for `SKIPREPEAT`, `ITER` and `SCANSITE`, and an action expression or a variable is an entry of the action expression or variable table.
 - Every rule on a cycle of calls is marked recursive (`Rec`), so that every unbounded nesting of calls counts against the nesting limit. The cycles are those of a graph that over-approximates the calls a run can make: a rule leads to its entry and to the rules that the `CALL` instructions of its Flow body call; an instruction leads to the next one, unless it is `JUMP`, `COMMIT`, `FAIL`, `RETURN` or `END`, and to the target it may go to (that of a negative `LOOK` only); `CALL` also leads to its rule, and `OPERATORS_RULE` to the code of its operand and operator lines and its skip. A rule is on a cycle when the graph leads from the rule back to it. A rule may be marked without being on a cycle.
 - Every `RECOVER` body ends at an `ENDRECOVER` immediately before its skip target; that instruction jumps past an `ENDSKIP`. These recovery regions are nested and contain no stream-mode `NEXT` (mode 2) in either the protected body or skip. Element-local recovery ends before the enclosing streaming repetition's `NEXT`.
 

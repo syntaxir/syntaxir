@@ -29,7 +29,7 @@ const (
 	BuiltinText = "text"
 	// BuiltinPair is a list value of the ints 1 and 2.
 	BuiltinPair = "[1, 2]"
-	// BuiltinFunc is a function, which is not a value of a term.
+	// BuiltinFunc is a function, which is not a value of an action expression.
 	BuiltinFunc = "func"
 	// BuiltinTyped is BuiltinText converted to the named node type BuiltinOther, a node of a named node
 	// type that another conversion converts.

@@ -3,8 +3,8 @@ package ref
 import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Unknown stands for a value that the caller of an evaluation does not know yet, such as a part of the
-// input that a generator has not produced. It enters an evaluation only through TermEnv.Captures and
-// TermEnv.Vars, as a value or as a part of a node, list, tuple or struct. Every operation that reads it
+// input that a generator has not produced. It enters an evaluation only through ActionEnv.Captures and
+// ActionEnv.Vars, as a value or as a part of a node, list, tuple or struct. Every operation that reads it
 // makes its result unknown, except that && and || take the value that their known operands settle.
 // Neither the result nor the failure of an evaluation that does not read Unknown depends on it.
 var Unknown = V{Kind: KUnknown}
@@ -21,7 +21,7 @@ func need(vs ...V) {
 	}
 }
 
-// outcome is a set of the outcomes that a term may have as an operand of && , || or !: true, false or
+// outcome is a set of the outcomes that an action expression may have as an operand of && , || or !: true, false or
 // a failure, which includes a value that is not a bool.
 type outcome uint8
 
@@ -33,7 +33,7 @@ const (
 )
 
 // try evaluates t and reports whether its value, or the failure that stops it, is unknown.
-func (e *TermEnv) try(t ast.ActionExpr, p params) (v V, msg string, unknown bool) {
+func (e *ActionEnv) try(t ast.ActionExpr, p params) (v V, msg string, unknown bool) {
 	defer func() {
 		if x := recover(); x != nil {
 			if _, ok := x.(unknownSignal); ok {
@@ -54,7 +54,7 @@ func (e *TermEnv) try(t ast.ActionExpr, p params) (v V, msg string, unknown bool
 // logic applies && or ||. It evaluates as the language does unless an operand that it reads is
 // unknown; then the value is the one that every outcome the operands may have gives, and unknown if
 // they give more than one or may fail.
-func (e *TermEnv) logic(t *ast.Binary, p params) V {
+func (e *ActionEnv) logic(t *ast.Binary, p params) V {
 	var v V
 	unknown := func() (unknown bool) {
 		defer func() {
@@ -103,7 +103,7 @@ func logical(t ast.ActionExpr) ast.ActionExpr {
 }
 
 // outcomes returns the outcomes that t may have as an operand of op, which is &&, || or !.
-func (e *TermEnv) outcomes(t ast.ActionExpr, p params, op string) outcome {
+func (e *ActionEnv) outcomes(t ast.ActionExpr, p params, op string) outcome {
 	switch x := logical(t).(type) {
 	case *ast.Binary:
 		l := e.outcomes(x.L, p, x.Op)
@@ -155,7 +155,7 @@ func (e *TermEnv) outcomes(t ast.ActionExpr, p params, op string) outcome {
 // Decide decides the predicate t: holds is whether it holds, which it does on every value but false and
 // a failure, and known is false when holds depends on an unknown value. A failure is known when it
 // does not, since a predicate that fails does not hold.
-func (e *TermEnv) Decide(t ast.ActionExpr) (holds, known bool) {
+func (e *ActionEnv) Decide(t ast.ActionExpr) (holds, known bool) {
 	if logical(t) != nil {
 		switch o := e.outcomes(t, nil, ""); {
 		case o == oTrue:

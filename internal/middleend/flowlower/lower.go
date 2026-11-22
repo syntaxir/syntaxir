@@ -1,6 +1,6 @@
 // Package flowlower lowers a rule of Core IR (internal/ir/core) to a function of Code IR at the Flow
 // stage (internal/ir/code/flow), in a module of its own that the Flow verifier accepts. It also lowers
-// the action expressions of a grammar to functions of the Action dialect (Term).
+// the action expressions of a grammar to functions of the Action dialect (Action).
 //
 // Lower threads a failure label through each node: a node's statements leave the block of that
 // label when the node fails, and run to their end when it succeeds, leaving the node's value in a
@@ -702,11 +702,11 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		l.failIf(nil, code.Not(call(flow.OpAtAnchor, n.Kind)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchorExps[n.Kind]}, pos()))
 		return null()
 	case *core.Pred:
-		c, args := l.termCaps(n.Term, s)
+		c, args := l.actionCaps(n.Action, s)
 		l.failIf(nil, code.Not(call(flow.OpPred, prim.Predicate{Node: n, Capture: c}, args...)), fail)
 		return null()
 	case *core.BindNode:
-		c, args := l.termCaps(n.Term, s)
+		c, args := l.actionCaps(n.Action, s)
 		l.failIf(nil, code.Not(call(flow.OpBind, prim.Binding{Node: n, Capture: c}, args...)), fail)
 		return null()
 	case *core.Label:
@@ -1360,10 +1360,10 @@ func (l *lowerer) projectRepeat(n *core.Repeat, fail string) code.Expr {
 	return use(v)
 }
 
-// termCaps returns the captures of the scope s for a term of a predicate or a binding, with their
+// actionCaps returns the captures of the scope s for an action expression of a predicate or a binding, with their
 // arguments (capArgs), making the variables of the slots it refers to. In a framed function, and
-// where the scope has no slots, the term reads the current frame and has no arguments.
-func (l *lowerer) termCaps(t core.ActionExpr, s *scope) (prim.Capture, []code.Expr) {
+// where the scope has no slots, the action expression reads the current frame and has no arguments.
+func (l *lowerer) actionCaps(t core.ActionExpr, s *scope) (prim.Capture, []code.Expr) {
 	c := prim.Capture{Names: core.SlotNames(s.slots), Frame: true}
 	if l.frame {
 		return c, nil
@@ -1380,7 +1380,7 @@ func (l *lowerer) termCaps(t core.ActionExpr, s *scope) (prim.Capture, []code.Ex
 	return c, capArgs(t, s)
 }
 
-// capArgs returns the arguments of the captures of the scope s for the term t, one per slot: the
+// capArgs returns the arguments of the captures of the scope s for the action expression t, one per slot: the
 // variable of each slot that t reads, and the null value for the others.
 func capArgs(t core.ActionExpr, s *scope) []code.Expr {
 	read := map[int]bool{}
@@ -1449,7 +1449,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 		args := append([]code.Expr{use(f.Ctx)}, capArgs(r.Finish.Action, s)...)
 		l.set(f.Ctx, call(flow.OpUseCtx, nil, use(f.Start)))
 		l.emit(do(flow.OpSetWhere, prim.Chars(r.Where)))
-		l.set(f.Result, call(flow.OpEval, prim.Action{Term: r.Finish.Action, Capture: c}, args...))
+		l.set(f.Result, call(flow.OpEval, prim.Action{Action: r.Finish.Action, Capture: c}, args...))
 		switch r.Finish.Action.(type) {
 		case *core.New, *core.Convert:
 			// A struct made with the rule's range; structs made inside it are dropped.

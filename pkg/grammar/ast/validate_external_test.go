@@ -26,7 +26,7 @@ type wrappedTypeDecl struct {
 	*ast.TypeDef
 	Data []int
 }
-type wrappedTerm struct {
+type wrappedAction struct {
 	*ast.NilLit
 	Data []int
 }
@@ -38,7 +38,7 @@ func TestValidateUnsupportedEmbeddedNodes(t *testing.T) {
 		{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Type: wrappedType{}, Expr: &ast.Top{}}}}},
 		{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: wrappedExpr{}}}}},
 		{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: &wrappedExpr{}}}}},
-		{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: &ast.Top{}, Action: wrappedTerm{}}}}},
+		{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: &ast.Top{}, Action: wrappedAction{}}}}},
 	} {
 		var e *ast.ValidationError
 		if err := ast.Validate(g); !errors.As(err, &e) || !strings.Contains(e.Msg, "unsupported") {

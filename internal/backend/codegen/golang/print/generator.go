@@ -111,7 +111,7 @@ type Hooks struct {
 	FlowVarsMutantUses bool
 	// FlowTarget replaces the Go implementation of the primitive operations of grammar code at the Exec
 	// stage (flowPrinter.execTarget), given the printer's own and the address of the statements that the
-	// expression printed last needs before it (those of the term of an Eval), so that the conformance
+	// expression printed last needs before it (those of the action expression of an Eval), so that the conformance
 	// test of the Flow operations wraps each call in a probe of its own.
 	FlowTarget func(t *Target, pre *string) *Target
 }
@@ -574,13 +574,13 @@ type Generator struct {
 	tableErr            error                    // the rule table does not fit the form of the library's RuleSpec
 	hooks               Hooks                    // the zero value changes nothing
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
-	chunksInLib   bool
-	ruleTypesDone bool // the types of the rule table entries are written
-	FlowRules     int
-	FlowFrames    int
-	ExecFuncs     int            // the functions printed from Exec IR (execRoute)
-	ExecTables    map[string]int // ExecFuncs by table
-	LoweredTerms  int            // the terms printed from Exec IR (lowered)
+	chunksInLib    bool
+	ruleTypesDone  bool // the types of the rule table entries are written
+	FlowRules      int
+	FlowFrames     int
+	ExecFuncs      int            // the functions printed from Exec IR (execRoute)
+	ExecTables     map[string]int // ExecFuncs by table
+	LoweredActions int            // the action expressions printed from Exec IR (lowered)
 	// NodeScopes records the frame layouts of the printed Node table rows, which the typed rule
 	// metadata shares.
 	NodeScopes map[*common.Rule][]string

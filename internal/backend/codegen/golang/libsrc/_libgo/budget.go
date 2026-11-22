@@ -652,7 +652,7 @@ func (p *Parser) RejectBudgetClass(ch rune, c *BudgetClass) bool {
 }
 
 // compareStrings applies the comparison operator with the code op (OpEq ... OpGe) to two strings as the
-// composition TermBinary does, without the values boxed.
+// composition ActionBinary does, without the values boxed.
 func (p *Parser) compareStrings(op int, l, r string) (bool, bool) {
 	switch op {
 	case OpEq:
@@ -1288,8 +1288,8 @@ func (p *Parser) actionErrorText(parts ...string) string {
 	return out.String()
 }
 
-// evalErrorValue returns the failure of a term with the message that format makes of args, which a
-// composition returns (see termError).
+// evalErrorValue returns the failure of an action expression with the message that format makes of args, which a
+// composition returns (see actionError).
 func (p *Parser) evalErrorValue(format string, args ...any) evalError {
 	if p != nil && usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.evalErrorfControlled(format, args...)

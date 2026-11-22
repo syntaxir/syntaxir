@@ -1,4 +1,4 @@
-# bench/grammars/terms/heavy.sxir from main
+# bench/grammars/actions/heavy.sxir from main
 nullable: main
 succeeding: 
 main #0 *ast.Seq 9:17: null=1 an=1 succ=0 bounded=0 first=61-7a left=line
@@ -17,7 +17,7 @@ word #1 *ast.Capture 19:13: null=0 an=0 succ=0 bounded=0 first=61-7a left=
 word #2 *ast.Repeat 19:15: null=0 an=0 succ=0 bounded=0 first=61-7a left=
 word #3 *ast.CharClass 19:15: null=0 an=0 succ=0 bounded=1 first=61-7a left=
 word #4 *ast.Literal 19:22: null=0 an=0 succ=0 bounded=1 first=20 left=
-# bench/grammars/terms/pred.sxir from main
+# bench/grammars/actions/pred.sxir from main
 nullable: main
 succeeding: 
 main #0 *ast.Seq 9:17: null=1 an=1 succ=0 bounded=0 first=61-7a left=line

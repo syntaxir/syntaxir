@@ -64,14 +64,14 @@ type fieldTypeReader struct {
 
 func (r *fieldTypeReader) join() (*FieldType, error) {
 	start := r.pos
-	first, err := r.term()
+	first, err := r.actionExpr()
 	if err != nil || !strings.HasPrefix(r.text[r.pos:], " | ") {
 		return first, err
 	}
 	u := &FieldType{Kind: FtJoin, Alts: []*FieldType{first}}
 	for strings.HasPrefix(r.text[r.pos:], " | ") {
 		r.pos += 3
-		t, err := r.term()
+		t, err := r.actionExpr()
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +84,7 @@ func (r *fieldTypeReader) join() (*FieldType, error) {
 // maxDepth bounds the nesting of a field type that fieldTypeReader reads.
 const maxDepth = 10000
 
-func (r *fieldTypeReader) term() (*FieldType, error) {
+func (r *fieldTypeReader) actionExpr() (*FieldType, error) {
 	r.depth++
 	defer func() { r.depth-- }()
 	if r.depth > maxDepth {
@@ -101,7 +101,7 @@ func (r *fieldTypeReader) term() (*FieldType, error) {
 		} else {
 			r.pos += 2
 		}
-		e, err := r.term()
+		e, err := r.actionExpr()
 		if err != nil {
 			return nil, err
 		}

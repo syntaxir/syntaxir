@@ -77,12 +77,12 @@ import("context";"errors";"fmt";"reflect";"strings";"testing")
 const conversion = CONVERT
 func graphParser(limit uint64)*sxirrt.Parser{p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:limit})};p.X_setGrammar(sxirGrammar);return p}
 func graphFatal(f func())(err error){defer func(){if x:=recover();x!=nil{v,ok:=x.(sxirrt.X_fatal);if !ok{panic(x)};err=v.X_err}}();f();return nil}
-// The helpers below call the term compositions as lowered terms do: a field read through TermMember,
-// and a fold that reads the items and steps through them with TermItemAt.
-func nodeMember(p *sxirrt.Parser,x any,name string)any{v,f:=p.TermMember(&sxirrt.ActCtx{P:p},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
-func typedMember(tp *sxirrt.TParser,x any,name string)any{v,f:=tp.TermMember(&sxirrt.TActCtx{P:tp},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
-func nodeFold(p *sxirrt.Parser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=p.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{p.Spend();acc=step(acc,p.TermItemAt(items,i,right))};return acc}
-func typedFold(tp *sxirrt.TParser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=tp.TermItems(fn,list);if f!=nil{panic(f)};for i:=range items{tp.Spend();acc=step(acc,tp.TermItemAt(items,i,right))};return acc}
+// The helpers below call the action expression compositions as lowered action expressions do: a field read through ActionMember,
+// and a fold that reads the items and steps through them with ActionItemAt.
+func nodeMember(p *sxirrt.Parser,x any,name string)any{v,f:=p.ActionMember(&sxirrt.ActCtx{P:p},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
+func typedMember(tp *sxirrt.TParser,x any,name string)any{v,f:=tp.ActionMember(&sxirrt.TActCtx{P:tp},sxirrt.MemberField,x,name,name);if f!=nil{panic(f)};return v}
+func nodeFold(p *sxirrt.Parser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=p.ActionItems(fn,list);if f!=nil{panic(f)};for i:=range items{p.Spend();acc=step(acc,p.ActionItemAt(items,i,right))};return acc}
+func typedFold(tp *sxirrt.TParser,fn string,right bool,acc,list any,step func(acc,item any)any)any{items,f:=tp.ActionItems(fn,list);if f!=nil{panic(f)};for i:=range items{tp.Spend();acc=step(acc,tp.ActionItemAt(items,i,right))};return acc}
 func requireGraphLimit(t *testing.T,p *sxirrt.Parser,f func()){
  t.Helper();err:=graphFatal(f)
  if !errors.Is(err,ErrLimit){t.Fatal("operation escaped budget",err)}

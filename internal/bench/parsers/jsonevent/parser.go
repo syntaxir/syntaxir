@@ -317,82 +317,82 @@ func init() {
 	rules[2].Body = e5
 	rules[2].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
-		tf2 := c.P.TermPushItems(c, "concat", c.Cap(0))
+		tf2 := c.P.ActionPushItems(c, "concat", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
 		tk3 := c.P.ElemsAbove(tm1)
-		tn4 := c.P.TermHullLogical(c, false, tk3)
+		tn4 := c.P.ActionHullLogical(c, false, tk3)
 		tf5 := any(tn4)
-		tn6 := c.TermStruct("Object", 1)
+		tn6 := c.ActionStruct("Object", 1)
 		tfirst7 := true
-		c.TermSetField(tn6, "Members", tf5)
-		tfirst7 = c.P.TermCover(tn6, tf5, tfirst7)
-		c.P.TermMade(c, tn6, tfirst7)
+		c.ActionSetField(tn6, "Members", tf5)
+		tfirst7 = c.P.ActionCover(tn6, tf5, tfirst7)
+		c.P.ActionMade(c, tn6, tfirst7)
 		return any(tn6), nil
 	}
 	rules[3].Body = e8
 	rules[3].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.UnitsSized(1)
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
 		c.P.UnitsOfItems(c.Cap(1), 2)
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHullLogical(c, false, tk4)
+		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
 	rules[4].Body = e10
 	rules[4].Action = func(c *rt.ActCtx) (any, any) {
 		tf1 := c.Cap(0)
 		tf2 := c.Cap(1)
-		tn3 := c.TermStruct("Member", 2)
+		tn3 := c.ActionStruct("Member", 2)
 		tfirst4 := true
-		c.TermSetField(tn3, "Key", tf1)
-		tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
-		c.TermSetField(tn3, "Value", tf2)
-		tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-		c.P.TermMade(c, tn3, tfirst4)
+		c.ActionSetField(tn3, "Key", tf1)
+		tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
+		c.ActionSetField(tn3, "Value", tf2)
+		tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+		c.P.ActionMade(c, tn3, tfirst4)
 		return any(tn3), nil
 	}
 	rules[5].Body = e13
 	rules[5].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
-		tf2 := c.P.TermPushItems(c, "concat", c.Cap(0))
+		tf2 := c.P.ActionPushItems(c, "concat", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
 		tk3 := c.P.ElemsAbove(tm1)
-		tn4 := c.P.TermHullLogical(c, false, tk3)
+		tn4 := c.P.ActionHullLogical(c, false, tk3)
 		tf5 := any(tn4)
-		tn6 := c.TermStruct("Array", 1)
+		tn6 := c.ActionStruct("Array", 1)
 		tfirst7 := true
-		c.TermSetField(tn6, "Elements", tf5)
-		tfirst7 = c.P.TermCover(tn6, tf5, tfirst7)
-		c.P.TermMade(c, tn6, tfirst7)
+		c.ActionSetField(tn6, "Elements", tf5)
+		tfirst7 = c.P.ActionCover(tn6, tf5, tfirst7)
+		c.P.ActionMade(c, tn6, tfirst7)
 		return any(tn6), nil
 	}
 	rules[6].Body = e15
 	rules[6].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.UnitsSized(1)
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
 		c.P.UnitsOfItems(c.Cap(1), 2)
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHullLogical(c, false, tk4)
+		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		return any(tn5), nil
 	}
 	rules[7].Body = e17
@@ -1420,12 +1420,12 @@ L6:
 		var tr8 any
 		{
 			tm1 := len(c.P.KidStack)
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHullLogical(c, false, tk3)
+			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Object(c, true, any(tn4))
 			tr8 = tv5
 		}
@@ -1504,17 +1504,17 @@ func i3(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.UnitsSized(1)
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.UnitsOfItems(k4, 2)
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHullLogical(c, false, tk4)
+			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr9 = any(tn5)
 		}
 		v = tr9
@@ -1644,12 +1644,12 @@ L6:
 		var tr11 any
 		{
 			tm1 := len(c.P.KidStack)
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHullLogical(c, false, tk3)
+			tn4 := c.P.ActionHullLogical(c, false, tk3)
 			tv5 := tmk_Array(c, true, any(tn4))
 			tr11 = tv5
 		}
@@ -1728,17 +1728,17 @@ func i6(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.UnitsSized(1)
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.UnitsOfItems(k4, 2)
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHullLogical(c, false, tk4)
+			tn5 := c.P.ActionHullLogical(c, false, tk4)
 			tr12 = any(tn5)
 		}
 		v = tr12
@@ -2280,4 +2280,4 @@ fail:
 
 const _ = types.SXIRSchema_1937f45bcf60f14f
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

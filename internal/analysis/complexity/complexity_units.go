@@ -177,7 +177,7 @@ func (k *classifier) walkRule(r *ast.RuleDef) {
 	c := wctx{rule: r.Name, cont: &cont{end: endRule, rule: r.Name}, mayStart: true, mustStart: true}
 	k.walk(r.Expr, c)
 	if r.Action != nil {
-		k.walkTerm(r.Action, termCtx{rule: r.Name, c: c, action: true, value: true})
+		k.walkAction(r.Action, actionCtx{rule: r.Name, c: c, action: true, value: true})
 	}
 }
 
@@ -363,10 +363,10 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 	case *ast.InlineAction:
 		k.walk(e.Expr, c)
 		if e.Action != nil {
-			k.walkTerm(e.Action, termCtx{rule: c.rule, c: c, action: true, holder: e, value: k.ruleValue(c.rule, e)})
+			k.walkAction(e.Action, actionCtx{rule: c.rule, c: c, action: true, holder: e, value: k.ruleValue(c.rule, e)})
 		}
 	case *ast.Predicate:
-		k.walkTerm(e.Action, termCtx{rule: c.rule, c: c, pred: e})
+		k.walkAction(e.Action, actionCtx{rule: c.rule, c: c, pred: e})
 	case *ast.OperatorsRule:
 		k.walkOperators(e, c)
 	}
@@ -618,7 +618,7 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 			operandUnits = append(operandUnits, k.units[before-1])
 		}
 		if o.Action != nil {
-			k.walkTerm(o.Action, termCtx{rule: c.rule, c: inside, action: true, value: true})
+			k.walkAction(o.Action, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
 	type part struct {
@@ -704,7 +704,7 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 		}
 		k.walk(p.op.Expr, cc)
 		if p.op.Action != nil {
-			k.walkTerm(p.op.Action, termCtx{rule: c.rule, c: inside, action: true, value: true})
+			k.walkAction(p.op.Action, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
 }

@@ -108,7 +108,7 @@ func (v *verifier) decls() {
 // VerifyExtension checks what was added to the module m after its first ops operations and funcs
 // functions, given that m without them passes Verify: each added operation and function as Verify
 // checks it, and that no added name is declared before it among the callees. A module that is
-// extended many times, as each term extends the one module of terms, is then not checked whole
+// extended many times, as each action expression extends the one module of action expressions, is then not checked whole
 // again each time.
 func VerifyExtension(m *Module, ops, funcs int) error {
 	v := &verifier{m: m}

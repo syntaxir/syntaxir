@@ -815,7 +815,7 @@ code and not a stable API.`
 	addOperators(m)
 	addDocument(m)
 	addValue(m)
-	addTerms(m)
+	addActions(m)
 
 	if err := Verify(m); err != nil {
 		panic(err)
@@ -823,28 +823,28 @@ code and not a stable API.`
 	return m
 }
 
-// addTerms adds the compositions of a predicate and a binding: the application of a term and what
-// surrounds it. A term runs no rule body, so neither needs a split form. The term is the code of a
-// lowered term (a Term handle), whose value is never a function: the lowering accepts a lambda only as
+// addActions adds the compositions of a predicate and a binding: the application of an action expression and what
+// surrounds it. An action expression runs no rule body, so neither needs a split form. The action expression is the code of a
+// lowered action expression (an Action handle), whose value is never a function: the lowering accepts a lambda only as
 // the function argument of a built-in that it turns into a loop.
-func addTerms(m *Module) {
-	t := P("t", THandle(action.Term))
-	// evaluate applies t and leaves what it made behind: the gathered values of a term that failed,
+func addActions(m *Module) {
+	t := P("t", THandle(action.Action))
+	// evaluate applies t and leaves what it made behind: the gathered values of an action expression that failed,
 	// and the nodes it created in either outcome. An interruption unwinds past this cleanup, because
-	// it ends the parse and the next parse starts without them. A term that failed returns false; evaluate
+	// it ends the parse and the next parse starts without them. An action expression that failed returns false; evaluate
 	// returns the value of one that did not. The context is made after the marks, so that its base of created
 	// nodes is the mark.
 	evaluate := func(b *Builder) Expr {
-		b.Let("created", C("term.created"))
-		b.Let("kids", C("term.kids"))
-		ctx := b.Let("ctx", C("term.ctx"))
+		b.Let("created", C("action.created"))
+		b.Let("kids", C("action.kids"))
+		ctx := b.Let("ctx", C("action.ctx"))
 		r := b.LetN([]string{"v", "f"}, Ap(L("t"), ctx))
 		b.If(Bin("!=", r[1], Null(THandle(action.Fail))), func(b *Builder) {
-			b.Do("term.dropKids", L("kids"))
-			b.Do("term.dropCreated", L("created"))
+			b.Do("action.dropKids", L("kids"))
+			b.Do("action.dropCreated", L("created"))
 			b.Return(BoolC(false))
 		})
-		b.Do("term.dropCreated", L("created"))
+		b.Do("action.dropCreated", L("created"))
 		return r[0]
 	}
 	predicate := m.AddFunc("predicate", []Param{t}, []Type{TBool}, nil, func(b *Builder) {
@@ -852,14 +852,14 @@ func addTerms(m *Module) {
 		// Only the boolean false fails: a box of false is a value of another kind.
 		b.Return(Bin("||", Bin("!=", C("val.kind", v), Int(action.KindBool)), C("val.toBool", v)))
 	})
-	predicate.Doc = `predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean
-false and on a term that fails, and holds on every other value. The value of a term is never a function.`
+	predicate.Doc = `predicate applies the action expression of a predicate to the context that action.ctx makes. It fails on the boolean
+false and on an action expression that fails, and holds on every other value. The value of an action expression is never a function.`
 	bind := m.AddFunc("bind", []Param{P("slot", TInt), t}, []Type{TBool}, nil, func(b *Builder) {
 		v := evaluate(b)
 		b.Do("env.bind", L("slot"), v)
 		b.Return(BoolC(true))
 	})
-	bind.Doc = `bind binds the value of the term of a binding to the variable in slot. A term that fails fails the
-binding and binds nothing. The compiler has checked that the value fits the variable. The value of a term is never a
+	bind.Doc = `bind binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the
+binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a
 function.`
 }

@@ -29,7 +29,7 @@ const (
 	KindFlowPass
 	// KindExecPass is a pass over Exec IR.
 	KindExecPass
-	// KindPrinter is a choice of what the Go and TypeScript printers emit: the form of a term of an
+	// KindPrinter is a choice of what the Go and TypeScript printers emit: the form of an action expression of an
 	// action or a predicate, or whether equal generated bodies and tables share one helper.
 	KindPrinter
 	// KindRuntime is a control of the runtime structures that the printers emit.

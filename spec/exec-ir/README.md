@@ -9,7 +9,7 @@ for every runtime, the compositions; the others are the rules of a grammar, conv
 implementation of the operations.
 
 This specification defines the state and handle types of the abstract machine, every operation with its contract, the
-operations on the values of terms (the Action dialect), the compositions, the invariants that the verifier enforces
+operations on the values of action expressions (the Action dialect), the compositions, the invariants that the verifier enforces
 beyond those of Code IR, the passes, the conversion from the Flow stage, and the printing to Go and TypeScript. The
 module, its functions and their text form are the base of [Code IR](../code-ir/README.md). It does not define how a
 target represents the state of a parse or implements an operation: an operation states what happens, not how. The Exec
@@ -29,11 +29,11 @@ entry here, or when its entry declares a different signature, state, features or
 |--:|:--|:--|
 | 1 | [The Abstract Machine](machine.md) | Features, state components, registers, handle types and the quantities of cost bounds |
 | 2 | [Operations](operations.md) | The operations on the state of a parse, with their contracts |
-| 3 | [Values](values.md) | The Action dialect: the operations on the values of terms, with the tables that every target shares |
+| 3 | [Values](values.md) | The Action dialect: the operations on the values of action expressions, with the tables that every target shares |
 | 4 | [Compositions](compositions.md) | The functions written once for every runtime, and their specializations |
 | 5 | [Invariants](invariants.md) | What a well-formed module at the Exec stage guarantees beyond Code IR |
 | 6 | [Passes](passes.md) | The transformations of functions that keep their behavior |
-| 7 | [Lowering From the Flow Stage](lowering.md) | How a function at the Flow stage, and a term of the action language, becomes a function at the Exec stage |
+| 7 | [Lowering From the Flow Stage](lowering.md) | How a function at the Flow stage, and an action expression of the action language, becomes a function at the Exec stage |
 | 8 | [Printing](printing.md) | How a function becomes Go or TypeScript, the runtime protocol and the entries of the catalog tables |
 
 The module, the statements and expressions of functions, their invariants and the text form are in

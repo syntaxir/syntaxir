@@ -36,7 +36,7 @@ func predicateCaptures(e ast.Expr, control *cancel.Control) *PredicateCaptures {
 	p := &PredicateCaptures{Read: map[*ast.Capture]bool{}, Names: map[string]bool{}}
 	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		if pr, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkTerm(pr.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(pr.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if cr, ok := t.(*ast.CaptureRef); ok && !cr.Param {
 					p.Names[cr.Name] = true
@@ -101,7 +101,7 @@ func reachingCaptures(e ast.Expr, before captureSet, read map[*ast.Capture]bool,
 	case nil:
 		return before
 	case *ast.Predicate:
-		astfacts.WalkTerm(e.Action, func(t ast.ActionExpr) {
+		astfacts.WalkAction(e.Action, func(t ast.ActionExpr) {
 			control.Poll()
 			if cr, ok := t.(*ast.CaptureRef); ok && !cr.Param {
 				for _, c := range before[cr.Name] {

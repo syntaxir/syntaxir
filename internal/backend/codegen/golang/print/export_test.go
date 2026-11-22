@@ -54,5 +54,5 @@ func (l *LiveRules) MissingBodies(table string, printed map[RuleKey]bool) []Rule
 	return l.missingBodies(table, printed)
 }
 
-// LoweredTermNames returns the names of the library functions and methods that only lowered terms call.
-func LoweredTermNames() []string { return loweredTermNames() }
+// LoweredActionNames returns the names of the library functions and methods that only lowered action expressions call.
+func LoweredActionNames() []string { return loweredActionNames() }

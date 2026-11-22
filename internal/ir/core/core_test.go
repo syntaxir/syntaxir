@@ -104,7 +104,7 @@ func analyzed(t *testing.T, m *Module) *Module {
 
 func TestAnalyzeNullableAndEffects(t *testing.T) {
 	// a = x:b ("c" / #cut d)?;  b = [0-9]* ;  d = &"e" {v == 1}
-	pred := &Pred{Term: &Binary{Op: "==", L: &VarRef{Name: "v"}, R: &Const{Value: 1}}}
+	pred := &Pred{Action: &Binary{Op: "==", L: &VarRef{Name: "v"}, R: &Const{Value: 1}}}
 	cut := &Cut{}
 	opt := &Opt{Body: choice(lit("c"), seq(cut, &Call{Rule: 2}))}
 	capt := &Capture{Slot: 0, Name: "x", Body: &Call{Rule: 1}}
@@ -165,7 +165,7 @@ func TestAnalyzeFailureAfterCut(t *testing.T) {
 // TestAnalyzeScopedRepetition checks that a repetition element with captures of its own keeps
 // its captures and lets its bindings through: a rule invocation is the only variable scope.
 func TestAnalyzeScopedRepetition(t *testing.T) {
-	bind := &BindNode{Var: "v", Term: &Const{Value: 1}}
+	bind := &BindNode{Var: "v", Action: &Const{Value: 1}}
 	rep := &Repeat{Max: -1, Scope: slots("x"), Body: seq(&Capture{Slot: 0, Name: "x", Body: lit("a")}, bind)}
 	analyzed(t, module(rule(0, "a", rep)))
 	if e := rep.Attrs().Eff; e.Set&EffBind == 0 || e.Set&EffCapture != 0 || len(e.Slots) != 0 {
@@ -192,8 +192,8 @@ func TestAnalyzeScan(t *testing.T) {
 func TestAnalyzeRaises(t *testing.T) {
 	x := &SlotRef{Slot: 0, Name: "x"}
 	for _, c := range []struct {
-		term ActionExpr
-		want bool
+		actionExpr ActionExpr
+		want       bool
 	}{
 		{&Const{Value: 1}, false},
 		{x, false},
@@ -203,13 +203,13 @@ func TestAnalyzeRaises(t *testing.T) {
 		{&Member{X: x, Name: "F"}, true},
 	} {
 		r := rule(0, "a", &Capture{Slot: 0, Name: "x", Body: lit("a")}, "x")
-		r.Finish = Finish{Kind: FinishAction, Action: c.term}
+		r.Finish = Finish{Kind: FinishAction, Action: c.actionExpr}
 		analyzed(t, module(r))
-		if got := Raises(c.term); got != c.want {
-			t.Errorf("%s: raises %v, want %v", ActionExprString(c.term), got, c.want)
+		if got := Raises(c.actionExpr); got != c.want {
+			t.Errorf("%s: raises %v, want %v", ActionExprString(c.actionExpr), got, c.want)
 		}
 		if got := r.Body.Attrs().Eff.Set&EffRaise != 0; got {
-			t.Errorf("%s: the body raises", ActionExprString(c.term))
+			t.Errorf("%s: the body raises", ActionExprString(c.actionExpr))
 		}
 	}
 }
@@ -351,7 +351,7 @@ func TestVerifyRejects(t *testing.T) {
 		{"slot name", func() *Module {
 			return module(rule(0, "a", &Capture{Slot: 0, Name: "y", Body: lit("a")}, "x"))
 		}, "slot 0 y"},
-		{"term slot", func() *Module {
+		{"action expression slot", func() *Module {
 			r := rule(0, "a", lit("a"))
 			r.Finish = Finish{Kind: FinishAction, Action: &SlotRef{Slot: 0, Name: "x"}}
 			return module(r)
@@ -630,7 +630,7 @@ func TestVerifyRejects(t *testing.T) {
 		{"capture in drop", func() *Module {
 			return module(rule(0, "a", &Drop{Body: &Capture{Slot: 0, Name: "x", Body: lit("a")}}, "x"))
 		}, "inside drop"},
-		{"untyped term", func() *Module {
+		{"untyped action expression", func() *Module {
 			r := rule(0, "a", lit("a"))
 			r.Type = "T"
 			r.Finish = Finish{Kind: FinishAction, Action: &Const{Value: 1}}

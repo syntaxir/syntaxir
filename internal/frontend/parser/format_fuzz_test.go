@@ -122,7 +122,7 @@ func (g *listGen) list(open, close string, elems []string, tuple bool) string {
 	return b.String()
 }
 
-func (g *listGen) term(depth int) string {
+func (g *listGen) actionExpr(depth int) string {
 	if depth <= 0 || g.r.IntN(3) == 0 {
 		return []string{"1", "\"s\"", "x", "2 + 3"}[g.r.IntN(4)]
 	}
@@ -133,7 +133,7 @@ func (g *listGen) term(depth int) string {
 	}
 	elems := make([]string, n)
 	for i := range elems {
-		elems[i] = g.term(depth - 1)
+		elems[i] = g.actionExpr(depth - 1)
 	}
 	switch kind {
 	case 0:
@@ -188,7 +188,7 @@ func TestFormatRandomLists(t *testing.T) {
 			}()
 			for seed := uint64(0); seed < seeds && failures < 3; seed++ {
 				g := &listGen{r: rand.New(rand.NewPCG(seed, 7)), inline: seed%4 == 0}
-				src := w.wrap(g.term(3))
+				src := w.wrap(g.actionExpr(3))
 				tree, err := Parse(src)
 				if err != nil {
 					continue
@@ -204,7 +204,7 @@ func TestFormatRandomLists(t *testing.T) {
 }
 
 // TestFormatRandomTypes formats random types, and attributes, with comments in
-// the same places as the lists of terms: the result types of rules, the types of
+// the same places as the lists of action expressions: the result types of rules, the types of
 // fields and the arguments of attributes.
 func TestFormatRandomTypes(t *testing.T) {
 	wraps := []struct {

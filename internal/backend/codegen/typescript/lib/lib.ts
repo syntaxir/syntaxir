@@ -914,7 +914,7 @@ export type R = Node | null | undefined;
 
 export type Matcher = (p: Parser) => R;
 
-// Action evaluates a term: it returns the value and the failure that ends the evaluation, null if
+// Action evaluates an action expression: it returns the value and the failure that ends the evaluation, null if
 // there is none.
 export type Action = (c: Actx) => [Value, Value];
 
@@ -3392,7 +3392,7 @@ export class Parser {
     return ks;
   }
 
-  // elemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term gathered
+  // elemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression gathered
   // above base as kids does and, under budget controls, reserves two units for each element, one for
   // copying it and one for taking it off, in one reservation before it moves any.
   elemsAbove(base: number): (Node | null)[] {
@@ -5482,120 +5482,120 @@ export class Parser {
     return c;
   }
 
-  // predicate evaluates the term of a predicate.
+  // predicate evaluates the action expression of a predicate.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
   predicate(t: Action): boolean {
     throw new Error("the printed method replaces this one");
   }
 
-  // bind binds the value of the term of a binding to the variable in slot.
+  // bind binds the value of the action expression of a binding to the variable in slot.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
   bind(slot: number, t: Action): boolean {
     throw new Error("the printed method replaces this one");
   }
 
-  // termEqual applies == to l and r.
+  // actionEqual applies == to l and r.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termEqual(l: Value, r: Value): [boolean, boolean] {
+  actionEqual(l: Value, r: Value): [boolean, boolean] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termIndex indexes the list or tuple l by r.
+  // actionIndex indexes the list or tuple l by r.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termIndex(l: Value, r: Value): [Value, Value] {
+  actionIndex(l: Value, r: Value): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termBinary applies a binary operator; it returns the value and the failure, null if there is none.
+  // actionBinary applies a binary operator; it returns the value and the failure, null if there is none.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termBinary(op: number, l: Value, r: Value): [Value, Value] {
+  actionBinary(op: number, l: Value, r: Value): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termUnary applies a unary operator.
+  // actionUnary applies a unary operator.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termUnary(op: number, x: Value): [Value, Value] {
+  actionUnary(op: number, x: Value): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termLogic checks the operand of a logical operator.
+  // actionLogic checks the operand of a logical operator.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termLogic(op: number, x: Value): [boolean, Value] {
+  actionLogic(op: number, x: Value): [boolean, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termMember reads a member of a value; it returns the value and the failure, null if there is none.
+  // actionMember reads a member of a value; it returns the value and the failure, null if there is none.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termMember(c: Actx, kind: number, x: Value, name: string, field: string): [Value, Value] {
+  actionMember(c: Actx, kind: number, x: Value, name: string, field: string): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termPush pushes a value as the next element of the list or the tuple that fn makes; it returns the failure,
+  // actionPush pushes a value as the next element of the list or the tuple that fn makes; it returns the failure,
   // null if there is none.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termPush(c: Actx, fn: string, v: Value): Value {
+  actionPush(c: Actx, fn: string, v: Value): Value {
     throw new Error("the printed method replaces this one");
   }
 
-  // termPushItems pushes the elements of an argument of the built-in function fn that concatenates lists; it
+  // actionPushItems pushes the elements of an argument of the built-in function fn that concatenates lists; it
   // returns the failure, null if there is none.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termPushItems(c: Actx, fn: string, v: Value): Value {
+  actionPushItems(c: Actx, fn: string, v: Value): Value {
     throw new Error("the printed method replaces this one");
   }
 
-  // termItems returns the elements of an argument of the built-in function fn that takes a list, and the failure.
+  // actionItems returns the elements of an argument of the built-in function fn that takes a list, and the failure.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termItems(fn: string, v: Value): [readonly (Node | null)[], Value] {
+  actionItems(fn: string, v: Value): [readonly (Node | null)[], Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termItemAt returns the element that map, filter, foldl or foldr passes to its function at step i; the loop
+  // actionItemAt returns the element that map, filter, foldl or foldr passes to its function at step i; the loop
   // charges the step.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termItemAt(items: readonly (Node | null)[], i: number, right: boolean): Value {
+  actionItemAt(items: readonly (Node | null)[], i: number, right: boolean): Value {
     throw new Error("the printed method replaces this one");
   }
 
-  // termFilterKeep returns whether filter keeps an element for which its function returned v, and the failure.
+  // actionFilterKeep returns whether filter keeps an element for which its function returned v, and the failure.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termFilterKeep(v: Value): [boolean, Value] {
+  actionFilterKeep(v: Value): [boolean, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termLength is the built-in function len; it returns the length and the failure.
+  // actionLength is the built-in function len; it returns the length and the failure.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termLength(x: Value): [Value, Value] {
+  actionLength(x: Value): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termText is the built-in function text; it returns the text and the failure.
+  // actionText is the built-in function text; it returns the text and the failure.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termText(x: Value): [string, Value] {
+  actionText(x: Value): [string, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termConvert is the conversion T{x} to the named node type typ; it returns the node and the failure.
+  // actionConvert is the conversion T{x} to the named node type typ; it returns the node and the failure.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termConvert(typ: string, x: Value): [Value, Value] {
+  actionConvert(typ: string, x: Value): [Value, Value] {
     throw new Error("the printed method replaces this one");
   }
 
-  // termCover widens the range of the struct n to cover the field value v; it returns whether n still has
+  // actionCover widens the range of the struct n to cover the field value v; it returns whether n still has
   // no node among its field values. Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termCover(n: Node, v: Value, first: boolean): boolean {
+  actionCover(n: Node, v: Value, first: boolean): boolean {
     throw new Error("the printed method replaces this one");
   }
 
-  // termMade finishes the struct n that c made: n takes the range of the rule if no field value is a node,
+  // actionMade finishes the struct n that c made: n takes the range of the rule if no field value is a node,
   // and c records n. Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termMade(c: Actx, n: Node, first: boolean): void {
+  actionMade(c: Actx, n: Node, first: boolean): void {
     throw new Error("the printed method replaces this one");
   }
 
-  // termHull makes the tuple value, if tuple, or the list value of the elements kids, with the range that covers them. Its
+  // actionHull makes the tuple value, if tuple, or the list value of the elements kids, with the range that covers them. Its
   // text is printed from Exec IR (internal/ir/code/exec/compose).
-  termHull(c: Actx, tuple: boolean, kids: readonly (Node | null)[]): Node {
+  actionHull(c: Actx, tuple: boolean, kids: readonly (Node | null)[]): Node {
     throw new Error("the printed method replaces this one");
   }
 
@@ -5635,9 +5635,9 @@ export class Parser {
     throw new Error("the printed method replaces this one");
   }
 
-  // termError returns the text of a failure of a term.
+  // actionError returns the text of a failure of an action expression.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
-  termError(code: number, a: Value, b: Value, op: number, n: number): string {
+  actionError(code: number, a: Value, b: Value, op: number, n: number): string {
     throw new Error("the printed method replaces this one");
   }
 
@@ -6186,16 +6186,16 @@ export class Actx {
     return this.p.variable(slot);
   }
 
-  // termStruct returns a new struct of the type typ with no field set and an empty range: the
-  // operation term.struct of a term that makes a struct.
-  termStruct(typ: string): Node {
+  // actionStruct returns a new struct of the type typ with no field set and an empty range: the
+  // operation action.struct of an action expression that makes a struct.
+  actionStruct(typ: string): Node {
     this.p.alloc(nodeBytes);
     return new Node(typ, "", 0, 0, "", noNodes, noFields, false, false);
   }
 
-  // termSetField sets the field name of the struct n, which a term is making, to v: the operation
-  // term.setField.
-  termSetField(n: Node, name: string, v: Value): void {
+  // actionSetField sets the field name of the struct n, which an action expression is making, to v: the operation
+  // action.setField.
+  actionSetField(n: Node, name: string, v: Value): void {
     // The field record and its slot; the first field also makes the array.
     this.p.alloc((n.fields === noFields ? arrayBytes(0) + 16 : 0) + 8 + objectBytes(2));
     setField(n, name, v, this.p.control);
@@ -6208,7 +6208,7 @@ export class Actx {
   // listNode returns a list value with the child list kids (which it takes over). Its range, which
   // the value model does not show, covers the elements that are nodes.
   listNode(kids: (Node | null)[]): Node {
-    return this.p.termHull(this, false, kids);
+    return this.p.actionHull(this, false, kids);
   }
 
   // memberZero is the operation node.zero: the zero value of the declared type of the field name of the
@@ -6239,18 +6239,18 @@ export class Actx {
           let e: Value;
           [e, i] = this.zeroValue(d, i);
           this.spend();
-          if (this.p.termPush(this, "tuple", e) !== null) {
+          if (this.p.actionPush(this, "tuple", e) !== null) {
             throw new Error("runtime: a zero value is not a tuple element"); // zero values are never functions
           }
         }
-        return [this.p.termHull(this, true, this.p.elemsAbove(base)), i + 1];
+        return [this.p.actionHull(this, true, this.p.elemsAbove(base)), i + 1];
       }
       case "{": {
         // The zero value of a struct type is a struct with no field set, whose fields read as their own
         // zero values, so that making it costs the same whatever the type holds.
         const end = d.indexOf("}", i);
-        const n = this.termStruct(d.slice(i + 1, end));
-        this.p.termMade(this, n, true);
+        const n = this.actionStruct(d.slice(i + 1, end));
+        this.p.actionMade(this, n, true);
         return [n, end + 1];
       }
     }
@@ -6299,7 +6299,7 @@ export function typeName(v: unknown): string {
   return typeof v;
 }
 
-// valueTypeName names the type of a value of the given shape in messages, in the terms of the value
+// valueTypeName names the type of a value of the given shape in messages, in the action expressions of the value
 // model: node[string] for a string node, node[(_, _)] and node[[]_] for tuple and list nodes (a
 // tuple has elems elements), error for an error value, (_, _) and []_ for tuple and list values,
 // and name for a struct.
@@ -6346,7 +6346,7 @@ export function big(v: number | bigint): bigint {
   return typeof v === "bigint" ? v : BigInt(v);
 }
 
-// --- The value primitives of terms ---
+// --- The value primitives of action expressions ---
 
 // valKind is the operation val.kind: the kind of x.
 export function valKind(x: Value | undefined): number {

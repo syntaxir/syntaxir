@@ -133,18 +133,18 @@ func TestEngineCallBindingsCurrent(t *testing.T) {
 	}
 }
 
-// TestEngineTermStateBindingsCurrent checks that the engine's conformance bindings of the elements gathered
+// TestEngineActionStateBindingsCurrent checks that the engine's conformance bindings of the elements gathered
 // and the values made are those the engine's printer prints now.
-func TestEngineTermStateBindingsCurrent(t *testing.T) {
-	want, err := printEngineTermStateBindings()
+func TestEngineActionStateBindingsCurrent(t *testing.T) {
+	want, err := printEngineActionStateBindings()
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(engineTermStateBindingsFile)
+	got, err := os.ReadFile(engineActionStateBindingsFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineTermStateBindingsFile)
+		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", engineActionStateBindingsFile)
 	}
 }

@@ -18,7 +18,7 @@ as their first parameter) once, from Flow IR, in the form the options select:
   the general runtime helpers and class tests that consult the control. A parse that sets
   no limit and no cancelable context has no control and runs the same code: the inline charges
   (`Spend`, `Control.Take`) accept a nil control and do nothing, the class tests of large classes
-  take the compact path, and the helpers test the control themselves. The terms of an
+  take the compact path, and the helpers test the control themselves. The action expressions of an
   action carry no charge, and neither do the generated constructors of typed values: only
   repetition is charged, by the runtime's loops over the elements of a list (`map`, `filter`,
   `foldl`, `foldr`), one step per element.

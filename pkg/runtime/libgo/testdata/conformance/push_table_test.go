@@ -8,7 +8,7 @@ import (
 )
 
 // The push table (conform.PushCases) on the compositions push and pushItems of the node and the typed library
-// (TermPush and TermPushItems, printed from Exec IR), as a generated parser calls them for the
+// (ActionPush and ActionPushItems, printed from Exec IR), as a generated parser calls them for the
 // elements of list, map, a tuple literal and concat.
 
 func TestValuePushTable(t *testing.T) {

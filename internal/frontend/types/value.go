@@ -109,7 +109,7 @@ func (t NodeTy) Underlying() NodeTy {
 	return t
 }
 
-// String returns the name of a named node type, and the value-model term of another node type.
+// String returns the name of a named node type, and the value-model action expression of another node type.
 func (t NodeTy) String() string {
 	if t.Name != "" {
 		return t.Name

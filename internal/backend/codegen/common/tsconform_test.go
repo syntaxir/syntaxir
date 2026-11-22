@@ -243,7 +243,7 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 //
 // The printer never emits them in that class, which the targets in print/exec_lib.go show: tsTarget.Op
 // panics with "no TypeScript implementation" for each name, and tsObsTarget.Op with "the Document operation"
-// for the Document bookkeeping. term.elemsAbove and term.keep are emitted only by the term compiler of the
+// for the Document bookkeeping. action.elemsAbove and action.keep are emitted only by the action expression compiler of the
 // Go state engine (actionlower.go); rule.docMemo, rule.positional and the doc operations only by the
 // DocumentParser and ObservedParser targets, since the batch Parser reads no Document and tracks nothing;
 // obs.active, obs.enter and obs.exit have no printed form of their own (the printer emits the observation
@@ -259,7 +259,7 @@ func TestTypeScriptConformancePrintedOps(t *testing.T) {
 		name, reason string
 		want         []string
 	}{
-		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "term.elemsAbove", "term.keep"}, tsconformtest.DocOps...)},
+		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "action.elemsAbove", "action.keep"}, tsconformtest.DocOps...)},
 		{"PrintedDocumentParser", "", nil},
 		{"PrintedObservedParser", "the Document operation", []string{"doc.evaluated", "doc.low", "doc.reused", "doc.touchFrom"}},
 	}

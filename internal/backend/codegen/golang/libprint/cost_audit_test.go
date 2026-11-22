@@ -267,7 +267,7 @@ var siteCost = map[string][]string{
 	"Parser.streamDiscard": {exec.QStreamScan},
 	"Parser.streamLineCol": {exec.QStreamScan},
 
-	// The values of terms: the bytes of a string operation, and the fragments of the text of a failure.
+	// The values of action expressions: the bytes of a string operation, and the fragments of the text of a failure.
 	"Parser.strAdd":  {action.QValueBytes},
 	"Parser.unitLen": {action.QValueBytes},
 	// The text of a range of a stream, which node.text reads.
@@ -336,10 +336,10 @@ var runsGrammar = map[string]bool{"rule.invoke": true, "rule.invokePlain": true,
 	// The grammar code of an Operators Rule, and the actions that make the values of its lines.
 	"opr.skip": true, "opr.match": true, "opr.lineValue": true, "opr.build": true, "opr.buildTyped": true}
 
-// makesValues are the host operations that make a value of a term with the constructors that terms call
+// makesValues are the host operations that make a value of an action expression with the constructors that action expressions call
 // (List, Tuple, NewStruct). The static calls of a constructor reach the charges of all its uses, the field
 // writes and failures that the operation never makes among them, so the audit cannot attribute them;
-// the term charge goldens (TestTermChargesMember) hold what the operation charges.
+// the action expression charge goldens (TestActionChargesMember) hold what the operation charges.
 var makesValues = map[string]bool{"node.zero": true}
 
 // TestTransitionalAndHostCostsMatchCharges checks the cost declarations of the transitional and host

@@ -1,15 +1,15 @@
-# bench/grammars/terms/heavy.sxir as written
+# bench/grammars/actions/heavy.sxir as written
 class polynomial degree=2 witnessed=0 combinations=1
 memoized: 
 cause 15:65 in line: self-growing value polynomial degree=2: the cost can grow as n^2: a + e at 15:65 in rule line copies the fold accumulator a
-# bench/grammars/terms/heavy.sxir every rule a start
+# bench/grammars/actions/heavy.sxir every rule a start
 class polynomial degree=2 witnessed=0 combinations=1
 memoized: 
 cause 15:65 in line: self-growing value polynomial degree=2: the cost can grow as n^2: a + e at 15:65 in rule line copies the fold accumulator a
-# bench/grammars/terms/pred.sxir as written
+# bench/grammars/actions/pred.sxir as written
 class linear degree=0 witnessed=0 combinations=1
 memoized: 
-# bench/grammars/terms/pred.sxir every rule a start
+# bench/grammars/actions/pred.sxir every rule a start
 class linear degree=0 witnessed=0 combinations=1
 memoized: 
 # examples/calculator/calc_lr.sxir as written

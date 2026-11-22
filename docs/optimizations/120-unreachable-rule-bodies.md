@@ -32,7 +32,7 @@ generator then prints only the entered (rule, slot or wrapper) pairs:
   same as before, so every ID in the printed Node and recognizer code keeps its value: the expectation table is
   numbered from these two tables lowered with every rule before they are printed;
 - a typed rule that nothing enters has no `Body`, `Action`, `Entry`, method, capture layout, expectation, literal, class
-  table or term. The typed table has no rows of its own to keep (`NewTRules` builds it from the rule table), so the
+  table or action expression. The typed table has no rows of its own to keep (`NewTRules` builds it from the rule table), so the
   expectations and tables that only such rules would have used are not declared and the IDs of the rest are numbered
   without them. A typed rule has an `Entry` only if a typed entry point runs it;
 - the fixed conversion helpers (`astInt`, `astKid`, `astNew`, ...) and the package variables of a rule body (capture

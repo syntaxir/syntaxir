@@ -259,7 +259,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case flow.OpEval:
 		x := c.Imm.(prim.Action)
 		defer p.caps(x.Names, args[1:])()
-		stmts, res := g.loweredStmts(x.Term, check.NewScope(), nil)
+		stmts, res := g.loweredStmts(x.Action, check.NewScope(), nil)
 		p.pre += stmts
 		return res
 	case flow.OpCtxFinish:
@@ -359,25 +359,25 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 	case flow.OpPred:
 		x := c.Imm.(prim.Predicate)
 		if x.Frame {
-			// The term reads the current frame.
-			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.predicate(x.Node.Term, common.FrameScope(x.Names)))
+			// The action expression reads the current frame.
+			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.predicate(x.Node.Action, common.FrameScope(x.Names)))
 		}
 		defer p.caps(x.Names, args)()
-		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(x.Node.Term, check.NewScope()))
+		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(x.Node.Action, check.NewScope()))
 	case flow.OpBind:
 		x := c.Imm.(prim.Binding)
-		b := p.term(x.Node).(*ast.Bind)
+		b := p.actionExpr(x.Node).(*ast.Bind)
 		if x.Frame {
-			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.ctxType(), g.actionBody(x.Node.Term, common.FrameScope(x.Names), nil))
+			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.ctxType(), g.actionBody(x.Node.Action, common.FrameScope(x.Names), nil))
 		}
 		defer p.caps(x.Names, args)()
-		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.actionBody(x.Node.Term, check.NewScope(), nil))
+		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(b.Name), g.actionBody(x.Node.Action, check.NewScope(), nil))
 	}
 	return "!" + p.op(c, args)
 }
 
-// caps sets the capture variables of the generator's terms to the captures of the slots names, whose
-// printed arguments are args (nil for a slot the term does not read), and returns the function that
+// caps sets the capture variables of the generator's action expressions to the captures of the slots names, whose
+// printed arguments are args (nil for a slot the action expression does not read), and returns the function that
 // restores them.
 func (p *flowPrinter) caps(names, args []string) func() {
 	caps := map[string]string{}

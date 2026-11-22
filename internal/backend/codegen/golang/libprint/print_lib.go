@@ -1,10 +1,10 @@
 //go:build ignore
 
 // print_lib writes the printed compositions of the Go library to pkg/runtime/libgo/call_exec.go,
-// term_exec.go, operators_exec.go and stream_exec.go, and those of the engine to
-// internal/runtime/state/call_exec.go, term_exec.go, operators_exec.go, stream_exec.go and document_exec.go, and the
-// term compositions of the engine's backends to internal/backend/closure/term_exec.go and
-// internal/runtime/vm/term_exec.go, and the engine's conformance bindings to the *_bind_exec_test.go files of
+// action_exec.go, operators_exec.go and stream_exec.go, and those of the engine to
+// internal/runtime/state/call_exec.go, action_exec.go, operators_exec.go, stream_exec.go and document_exec.go, and the
+// action expression compositions of the engine's backends to internal/backend/closure/action_exec.go and
+// internal/runtime/vm/action_exec.go, and the engine's conformance bindings to the *_bind_exec_test.go files of
 // internal/runtime/state. It runs from go generate in the directory of package libprint.
 package main
 

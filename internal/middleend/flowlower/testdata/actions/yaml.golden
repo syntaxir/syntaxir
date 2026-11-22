@@ -1,0 +1,155 @@
+# digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
+l_yaml_stream action #1	46	448e12a3f6
+l_directive_document action #1	27	0d476c40ab
+l_explicit_document action #1	27	7ebbab510f
+l_bare_document action #1	23	d11d72056c
+bare_root action #1	5	2eb2617672
+bare_root binding n #1	9	1dac18fc06
+bare_root binding c #1	5	fa32f988ed
+document_end action #1	5	e8c736f607
+l_directive action #1	5	134a798576
+ns_yaml_directive action #1	24	984fba26ec
+ns_tag_directive action #1	29	6111c2e9a0
+ns_reserved_directive action #1	37	ea59777015
+c_ns_properties action #1	16	a0a72c7dbb
+s_l_block_node action #1	5	de75732e01
+s_l_flow_in_block action #1	5	9bbd4d499d
+s_l_flow_in_block binding n #1	10	2f0ba53dde
+flow_out_node action #1	5	087ba80dcb
+flow_out_node binding c #1	5	73e4781563
+plain_out_node action #1	19	bc10aba45a
+block_sequence_node action #1	16	8cd61f6698
+block_mapping_node action #1	16	3fdfd7f951
+block_collection_start action #1	5	7a1d622269
+block_sequence_start action #1	5	3850692963
+block_collection_properties action #1	5	922718e16f
+block_collection_properties binding n #1	10	d31adba837
+block_collection_property action #1	16	d985478b1c
+block_collection_property binding n #1	10	55eed96083
+seq_space action #1	5	b757aec948
+seq_space predicate #1	10	91cd0d82bf
+seq_space binding n #1	10	a04d1ed3f4
+seq_space predicate #2	10	0d58b87f83
+l_block_sequence action #1	26	cfcf076d07
+l_block_sequence predicate #1	14	12afdf33e7
+l_block_sequence binding n #1	9	b8419dfc03
+c_l_block_seq_entry action #1	5	d168bbe2d8
+c_l_block_seq_entry binding c #1	5	d8e881171d
+compact_collection action #1	5	05235b6f50
+compact_collection binding n #1	18	b36db326d7
+ns_l_compact_sequence action #1	38	328c709bfd
+l_block_mapping action #1	26	bc0bbd1756
+l_block_mapping predicate #1	14	022cd69efe
+l_block_mapping binding n #1	9	4d160799e6
+ns_l_compact_mapping action #1	38	863659a28f
+c_l_block_map_explicit_entry action #1	16	1be5c6c1ae
+c_l_block_map_explicit_key action #1	5	5d81ad62eb
+c_l_block_map_explicit_key binding c #1	5	5abc9b7af0
+l_block_map_explicit_value action #1	5	0373673792
+l_block_map_explicit_value binding c #1	5	6d909b62f0
+ns_l_block_map_implicit_entry action #1	16	0655facee7
+ns_s_block_map_implicit_key action #1	5	790953780c
+ns_s_block_map_implicit_key binding c #1	5	0f48d5d752
+plain_key_node action #1	19	ce9fef536e
+c_l_block_map_implicit_value action #1	5	740acd9f0e
+block_out_node action #1	5	ce0b06e78d
+block_out_node binding c #1	5	cd1c30e008
+s_l_block_scalar action #1	35	489fbfa6d1
+s_l_block_scalar binding n #1	10	b6bdc4b95e
+s_l_block_scalar binding n #2	10	f007b1e2c3
+s_l_block_scalar binding n #3	10	64d02ff07a
+s_l_block_scalar binding n #4	10	1b2922f784
+s_l_block_scalar binding n #5	10	74d6b1efd6
+s_l_block_scalar binding n #6	10	d7805f1f7e
+s_l_block_scalar binding n #7	10	b3f8bf8ff2
+s_l_block_scalar binding n #8	10	226ecd34bd
+s_l_block_scalar binding n #9	10	0d734d2ff3
+s_l_block_scalar predicate #1	14	c14dc2cca0
+s_l_block_scalar binding n #10	9	10c6d1ded1
+s_l_block_scalar predicate #2	14	f3da9217f2
+s_l_block_scalar predicate #3	14	bd2aaf8d62
+s_l_block_scalar binding n #11	10	b6bdc4b95e
+s_l_block_scalar predicate #4	14	b8f791d2d8
+s_l_block_scalar binding n #12	9	202344de37
+s_l_block_scalar predicate #5	21	4f27ff9fb6
+s_separate_n1 binding n #1	10	5ceb573af8
+block_scalar_properties action #1	5	477c4162ab
+block_scalar_properties binding n #1	10	548c804b74
+l_nb_literal_text predicate #1	14	752dd76e30
+l_nb_literal_text predicate #2	14	330fbd0e58
+l_empty_block predicate #1	14	5a577e06d8
+l_trail_comments predicate #1	14	189dfd2fc0
+ns_flow_node action #1	5	af209c1aa3
+properties_node action #1	12	e1975e375a
+properties_separate action #1	5	eb7097dc15
+e_node action #1	8	21bfcf40ee
+e_node_comments action #1	5	53f4a17268
+c_flow_sequence action #1	27	faac1dfb9b
+c_flow_sequence predicate #1	27	42a825fab2
+c_flow_sequence predicate #2	10	737d6d9538
+c_flow_sequence binding c #1	5	f7b8f24858
+c_flow_sequence binding c #2	5	309a666d46
+ns_s_flow_seq_entries action #1	31	dcdd2b3a9b
+c_flow_mapping action #1	27	f09b985776
+c_flow_mapping predicate #1	27	c32e0c5c51
+c_flow_mapping predicate #2	10	245e84f366
+c_flow_mapping binding c #1	5	e81ef11034
+c_flow_mapping binding c #2	5	3a88bc525e
+ns_s_flow_map_entries action #1	31	4d040e7bcd
+flow_map_explicit action #1	5	a913f2bb30
+empty_pair action #1	16	3811deea08
+ns_flow_map_yaml_key_entry action #1	16	196e50386d
+separate_value action #1	5	f0922a18ef
+c_ns_flow_map_empty_key_entry action #1	16	dbe3d6a410
+c_ns_flow_map_separate_value action #1	5	752e3e086d
+separated_flow_node action #1	5	002d05884b
+c_ns_flow_map_json_key_entry action #1	16	753e54250c
+adjacent_value action #1	5	82b636fe13
+c_ns_flow_map_adjacent_value action #1	5	7870be1529
+optionally_separated_flow_node action #1	5	5464e31d7c
+ns_flow_pair action #1	23	8dcce654f8
+ns_flow_pair_yaml_key_entry action #1	16	b0aafb486b
+flow_pair_yaml_key action #1	5	6ac8f59946
+flow_pair_yaml_key predicate #1	10	a9fa612737
+flow_pair_yaml_key binding c #1	5	595e011626
+c_ns_flow_pair_json_key_entry action #1	16	532a17ea29
+flow_pair_json_key action #1	5	23e62f50a1
+flow_pair_json_key predicate #1	10	d3dc8b7fa7
+flow_pair_json_key binding c #1	5	73fa59d6d4
+plain_node action #1	20	5dba696f16
+ns_plain predicate #1	10	9a9609408c
+ns_plain predicate #2	10	84fd4c8906
+ns_plain predicate #3	10	0ca272f4d1
+ns_plain predicate #4	10	8b0bce2067
+ns_plain_safe predicate #1	27	a22ad77c19
+ns_plain_safe predicate #2	27	612c129ea7
+c_double_quoted action #1	23	f55e523247
+double_quoted predicate #1	27	89625f54ad
+double_quoted predicate #2	27	b15429b6bd
+c_single_quoted action #1	23	666cbf8ade
+single_quoted predicate #1	27	aa64d78b5b
+single_quoted predicate #2	27	5dd5b06051
+l_empty_flow predicate #1	14	b108c9c5dd
+l_empty_flow predicate #2	14	08657009eb
+s_flow_line_prefix predicate #1	14	5d2847991c
+s_separate predicate #1	27	60dfb5460f
+s_separate predicate #2	27	da33bb0801
+s_indent predicate #1	14	85d9d360b0
+s_separate predicate #3	27	60dfb5460f
+s_separate predicate #4	27	da33bb0801
+s_indent predicate #2	14	85d9d360b0
+s_separate_n1 binding n #2	10	5ceb573af8
+l_trail_comments predicate #2	14	189dfd2fc0
+ns_plain_safe predicate #3	27	a22ad77c19
+ns_plain_safe predicate #4	27	612c129ea7
+ns_plain predicate #5	10	9a9609408c
+ns_plain predicate #6	10	84fd4c8906
+ns_plain predicate #7	10	0ca272f4d1
+ns_plain predicate #8	10	8b0bce2067
+double_quoted predicate #3	27	89625f54ad
+double_quoted predicate #4	27	b15429b6bd
+single_quoted predicate #3	27	aa64d78b5b
+single_quoted predicate #4	27	5dd5b06051
+s_flow_line_prefix predicate #2	14	5d2847991c
+l_empty_flow predicate #3	14	b108c9c5dd
+l_empty_flow predicate #4	15	fbb791b64e

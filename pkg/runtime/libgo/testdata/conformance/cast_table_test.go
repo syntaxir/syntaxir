@@ -10,7 +10,7 @@ import (
 )
 
 // The cast table (conform.CastCases) on the compositions conforms, valueConforms, elemsConform and
-// tupleConform of the node and the typed library (TermConforms and the functions it calls, printed from
+// tupleConform of the node and the typed library (ActionConforms and the functions it calls, printed from
 // Exec IR), through the check that Cast makes.
 
 // castFieldType returns the type of a cast of the table as the library declares it.
@@ -128,7 +128,7 @@ func TestValueCastTable(t *testing.T) {
 			if controlled {
 				before = p.Control.budgetUsed()
 			}
-			ok := p.TermConforms(castFieldType(typ), val)
+			ok := p.ActionConforms(castFieldType(typ), val)
 			if controlled {
 				return ok, int(p.Control.budgetUsed() - before)
 			}
@@ -143,7 +143,7 @@ func TestValueCastTable(t *testing.T) {
 			if controlled {
 				before = tp.Control.budgetUsed()
 			}
-			ok := tparser.TermConforms(castFieldType(typ), val)
+			ok := tparser.ActionConforms(castFieldType(typ), val)
 			if controlled {
 				return ok, int(tp.Control.budgetUsed() - before)
 			}

@@ -43,10 +43,10 @@ key:
     16  ENDLABEL   
     17  ATOMIC     build=1
     18  RETURN     
-terms:
+actions:
 main.action:
-  term 0 `
-	// The term code is the engine's translation of the action's Core IR, which the term tests pin.
+  action 0 `
+	// The action code is the engine's translation of the action's Core IR, which the action tests pin.
 	if !strings.HasPrefix(got, want) {
 		t.Errorf("got\n%s", got)
 	}

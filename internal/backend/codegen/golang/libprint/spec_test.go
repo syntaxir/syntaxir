@@ -17,7 +17,7 @@ func specializations() map[string]map[string][]string {
 	features := compose.Build().Features
 	out := map[string]map[string][]string{}
 	const nodes, typed, engine = "Generated Go, nodes", "Generated Go, typed values", "The engine"
-	for _, list := range [][]goSpec{goSpecs, goStreamSpecs, goOperatorSpecs, goTermSpecs} {
+	for _, list := range [][]goSpec{goSpecs, goStreamSpecs, goOperatorSpecs, goActionSpecs} {
 		for _, s := range list {
 			if s.typed {
 				spectest.AddSpecialization(out, features, typed, s.fn, s.on)
@@ -31,7 +31,7 @@ func specializations() map[string]map[string][]string {
 			spectest.AddSpecialization(out, features, engine, s.fn, s.on)
 		}
 	}
-	for _, f := range termFuncs {
+	for _, f := range actionFuncs {
 		spectest.AddSpecialization(out, features, engine, f.fn, nil)
 	}
 	for _, fn := range engineBackendFuncs {

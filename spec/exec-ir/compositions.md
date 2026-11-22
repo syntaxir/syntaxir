@@ -89,9 +89,9 @@ The application of the edits of a Document to a memo entry when a lookup finds i
 |:--|:--|
 | `func memoAdvance(e Entry, log EditLog) bool [document, budget]` | Applies to the memo entry e the edits of log it does not account for yet, and reports whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one that examined only input after it moves by the edit's change in length, unless it is pinned or holds recovered errors, and any other is invalid. An entry that lags behind more than 128 edits is invalid. A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse, when no edit is pending, and a lookup applies edits only to an entry of an earlier parse. |
 
-## Terms
+## Action Expressions
 
-The operators, member reads and built-in functions of terms over the operations of [Values](values.md), and the application of the terms of predicates and bindings.
+The operators, member reads and built-in functions of action expressions over the operations of [Values](values.md), and the application of the action expressions of predicates and bindings.
 
 | Declaration | Meaning |
 |:--|:--|
@@ -109,15 +109,15 @@ The operators, member reads and built-in functions of terms over the operations 
 | `func length(x Datum) (Datum, Fail)` | The built-in function len: the length of a string in the position unit, of the range of a string node, and the number of elements of a list, a tuple or another node; nil has length 0. Any other value fails. |
 | `func text(x Datum) (Str, Fail)` | The built-in function text: a string itself, the text that a string node or an error holds, the input of the range of any other node, and the empty string for nil. Any other value fails. |
 | `func convert(t NodeType, x Datum) (Datum, Fail)` | The conversion `T{x}` to the named node type t: a string, tuple or list node, of a named node type or not, becomes a node of t. Any other value fails. |
-| `func cover(n Obj, v Datum, first bool) bool` | Widens the range of the struct n, which a term is making, to cover the range of the field value v if v is a node, a list, a tuple or a struct, and returns whether n still has no node among its field values: first is whether it had none before, and the first node gives n its range. |
+| `func cover(n Obj, v Datum, first bool) bool` | Widens the range of the struct n, which an action expression is making, to cover the range of the field value v if v is a node, a list, a tuple or a struct, and returns whether n still has no node among its field values: first is whether it had none before, and the first node gives n its range. |
 | `func made(c Act, n Obj, first bool)` | Finishes the struct n that c made of field values that cover has gone over: n takes the range of the rule if no field value is a node, and c records n. |
 | `func hull(c Act, tuple bool, kids Seq) Obj` | Makes the tuple value, if tuple, or the list value of the elements kids in c, which it takes over, and gives it its range: the one that covers the ranges that the elements add (seq.span), and the empty range at the start of the rule if none adds one. It charges a step for each element. The value model does not show the range of a list or a tuple, but a struct that holds one covers it. |
 | `func conforms(t FType, v Datum) bool` | Returns whether v is of the type t of a cast (see [Cast Types](values.md#cast-types)), a box counting as the value it holds. A list type takes a list value and a tuple type a tuple value, not the node of a repetition or a sequence; a node of a type takes a node whose value is of its element type. It charges a step for each element of a list or a tuple that it examines. |
 | `func valueConforms(t FType, n Obj, shape int) bool` | Returns whether the value of the node n, whose shape is shape, is of the type t: a string node has a string, and a tuple node or a list node its elements as value. |
 | `func elemsConform(t FType, items Seq) bool` | Returns whether every element of items, the elements of a list, is of the element type t of the list, charging a step for each element it examines; the type top takes every element and charges nothing. |
 | `func tupleConform(t FType, items Seq) bool` | Returns whether the elements items of a tuple are of the element types of the tuple type t: as many, and each of its own type, charging a step for each element it examines. |
-| `func predicate(t Term) bool` | Applies the term of a predicate to the context that `term.ctx` makes. It fails on the boolean false and on a term that fails, and holds on every other value. The value of a term is never a function. |
-| `func bind(slot int, t Term) bool` | Binds the value of the term of a binding to the variable in slot. A term that fails fails the binding and binds nothing. The compiler has checked that the value fits the variable. The value of a term is never a function. |
+| `func predicate(t Action) bool` | Applies the action expression of a predicate to the context that `action.ctx` makes. It fails on the boolean false and on an action expression that fails, and holds on every other value. The value of an action expression is never a function. |
+| `func bind(slot int, t Action) bool` | Binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a function. |
 
 ## Specializations
 

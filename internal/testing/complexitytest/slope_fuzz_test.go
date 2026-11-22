@@ -47,7 +47,7 @@ type slopeGrammar struct {
 	rules []string
 }
 
-func (g *slopeGrammar) term() string {
+func (g *slopeGrammar) actionExpr() string {
 	switch g.r.IntN(15) {
 	case 0, 1, 2, 3, 4:
 		return slopeLiterals[g.r.IntN(len(slopeLiterals))]
@@ -61,7 +61,7 @@ func (g *slopeGrammar) term() string {
 
 func (g *slopeGrammar) expr(depth int) string {
 	if depth <= 0 {
-		return g.term()
+		return g.actionExpr()
 	}
 	sub := func() string { return g.expr(depth - 1) }
 	list := func(sep string) string {
@@ -73,7 +73,7 @@ func (g *slopeGrammar) expr(depth int) string {
 	}
 	switch n := g.r.IntN(30); {
 	case n < 4:
-		return g.term()
+		return g.actionExpr()
 	case n < 10:
 		return list(" ")
 	case n < 15:
@@ -89,7 +89,7 @@ func (g *slopeGrammar) expr(depth int) string {
 	case n < 25:
 		return "&(" + sub() + ")"
 	case n < 26:
-		return "(" + sub() + " #recover(skip=" + g.term() + "+))"
+		return "(" + sub() + " #recover(skip=" + g.actionExpr() + "+))"
 	case n < 27:
 		return "$$"
 	case n < 28:

@@ -140,7 +140,7 @@ func EachMode(t *testing.T, body func(t *testing.T)) {
 
 // OneMode is EachMode that runs one form per test in the long tier too: the form that the hash of the test name
 // picks, as in the default tier. It is for the negative controls, whose mutants are the same in either form and
-// whose cost is the builds of the mutated consumers, and for a test of the generated term corpus whose size makes a
+// whose cost is the builds of the mutated consumers, and for a test of the generated action expression corpus whose size makes a
 // second form most of its cost; the tests that check the unmutated behavior of a small input use EachMode.
 func OneMode(t *testing.T, body func(t *testing.T)) {
 	t.Helper()

@@ -13,7 +13,7 @@ compositions as they stand; this record keeps the decision, the measurements and
 > `internal/ir/code/exec` and its subpackages (`compose`, `conform`, `ref`). The passes are in
 > `internal/middleend/codepass`. Older names in this record (`ir/exec`, `ops`) mean those packages.
 >
-> The operations on the values of terms (the `term.*` and `act.*` leaves, `val.*`) belong to the Action dialect, which is
+> The operations on the values of terms (the `action.*` and `act.*` leaves, `val.*`) belong to the Action dialect, which is
 > legal at the Flow and the Exec stage ([Values](../../../spec/exec-ir/values.md)); their declarations are in
 > `internal/ir/code/action`. The grammar's name for a term is action expression ([Actions](../../../spec/language/actions.md)).
 
@@ -423,7 +423,7 @@ built-in function, constructor, conversion and cast, and its lambdas are loops; 
 shared by every target and run on fixed fixtures. Generated Go and TypeScript print the function as code; the engine
 holds it as a term program, its own form of the same function. Exec IR names that form with the callable handle type
 `Term` and applies it with an application ([Application](../../../spec/code-ir/functions.md#application)), which each
-target prints as the call of its form; `term.ctx` makes the context that the term is applied to, which the lowered function takes as its one parameter, and the lowering checks that the function has the signature of `Term`. What surrounds the
+target prints as the call of its form; `action.ctx` makes the context that the term is applied to, which the lowered function takes as its one parameter, and the lowering checks that the function has the signature of `Term`. What surrounds the
 application, the predicate and the binding, is one composition on every runtime. On either, a term that fails is an
 ordinary failure of the expression: what it gathered and created is dropped, and the parse goes on to its next
 alternative. A term never evaluates to a function: the lowering accepts a lambda only as the function argument of
@@ -431,15 +431,15 @@ alternative. A term never evaluates to a function: the lowering accepts a lambda
 a value of that kind or a test for one.
 
 **Elements gathered and values made.** Two stacks with marks hold what terms make. The component `gathered` is the
-stack of the elements of the lists and tuples being made: `act.push`, `act.pushAll` and `term.keep` (for `filter`)
-push on it, a list or a tuple takes its elements off it in one piece when it is made (`term.elemsAbove`), and
-`term.kids` and `term.dropKids` mark it and drop what a failed term left. Taking an element off charges a unit, as
+stack of the elements of the lists and tuples being made: `act.push`, `act.pushAll` and `action.keep` (for `filter`)
+push on it, a list or a tuple takes its elements off it in one piece when it is made (`action.elemsAbove`), and
+`action.kids` and `action.dropKids` mark it and drop what a failed term left. Taking an element off charges a unit, as
 dropping it does, besides the unit for copying it, so that making a list of n elements costs 2n for taking them
 off on every target, whether a term or grammar code (the list of a repetition) makes it. It is not
 a host operation's private state, since the engine's grammar code collects the elements of a repetition on the same
 stack, above the elements it finds, and the charge of a drop is observable. The component `made` is the list of the
-structs that terms and actions made: `act.made` records one, `term.created` and `term.dropCreated` mark the list and
-forget what a term made, and `term.ctx` gives a context the mark, from which an action's result that it recorded takes
+structs that terms and actions made: `act.made` records one, `action.created` and `action.dropCreated` mark the list and
+forget what a term made, and `action.ctx` gives a context the mark, from which an action's result that it recorded takes
 the rule's range. Both have reference models, with the entries of each, by identity, compared after every write, and handwritten and
 randomized conformance cases with a negative control of broken models; the cases run on the engine and on generated
 Go (node and typed) through bindings that each target's printer prints from the operations, the engine's from the

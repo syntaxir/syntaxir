@@ -104,9 +104,9 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			addLayout(e)
 		}
 	}
-	var term func(ActionExpr)
+	var actionExpr func(ActionExpr)
 	var typ func(TypeExpr)
-	term = func(t ActionExpr) {
+	actionExpr = func(t ActionExpr) {
 		control.poll()
 		if n, ok := t.(SourceNode); ok {
 			addLayout(n.Source().Layout)
@@ -116,13 +116,13 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			add(t.OpenBreak)
 			add(t.BodyBreak)
 			add(t.CloseBreak)
-			term(t.Action)
+			actionExpr(t.Action)
 		case *Block:
 			add(t.OpenBreak)
 			addAll(t.Breaks)
 			add(t.CloseBreak)
 			for _, stmt := range t.Statements {
-				term(stmt)
+				actionExpr(stmt)
 			}
 		case *Constructor:
 			add(t.OpenBreak)
@@ -135,17 +135,17 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 					cs = appendMetadata(cs, field.Layout.After, control)
 					cs = appendMetadata(cs, field.Layout.Trail, control)
 				}
-				term(field.Value)
+				actionExpr(field.Value)
 			}
 			for _, x := range t.Args {
-				term(x)
+				actionExpr(x)
 			}
 		case *TupleLit:
 			add(t.OpenBreak)
 			add(t.BodyBreak)
 			add(t.CloseBreak)
 			for _, x := range t.Elems {
-				term(x)
+				actionExpr(x)
 			}
 		case *ListConstructor:
 			add(t.OpenBreak)
@@ -153,33 +153,33 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			add(t.CloseBreak)
 			typ(t.Elem)
 			for _, item := range t.Items {
-				term(item)
+				actionExpr(item)
 			}
 		case *Call:
 			add(t.OpenBreak)
 			add(t.BodyBreak)
 			add(t.CloseBreak)
 			for _, arg := range t.Args {
-				term(arg)
+				actionExpr(arg)
 			}
 		case *Lambda:
 			addList(t.ParamsLayout)
-			term(t.Body)
+			actionExpr(t.Body)
 		case *Binary:
 			add(t.OpenBreak)
 			add(t.BodyBreak)
 			add(t.CloseBreak)
-			term(t.L)
-			term(t.R)
+			actionExpr(t.L)
+			actionExpr(t.R)
 		case *Unary:
-			term(t.X)
+			actionExpr(t.X)
 		case *Cast:
-			term(t.X)
+			actionExpr(t.X)
 			typ(t.Type)
 		case *Bind:
-			term(t.Value)
+			actionExpr(t.Value)
 		case *FieldAccess:
-			term(t.X)
+			actionExpr(t.X)
 		}
 	}
 	typ = func(t TypeExpr) {
@@ -261,14 +261,14 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			}
 		case *InlineAction:
 			expr(e.Expr)
-			term(e.Action)
+			actionExpr(e.Action)
 		case *Predicate:
 			if _, block := e.Action.(*Block); !block {
 				add(e.OpenBreak)
 				addAll(e.Breaks)
 				add(e.CloseBreak)
 			}
-			term(e.Action)
+			actionExpr(e.Action)
 		case *Repeat:
 			add(e.PragmaBreak)
 			if e.Spelling != nil {
@@ -306,7 +306,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 				control.poll()
 				add(o.Break)
 				expr(o.Expr)
-				term(o.Action)
+				actionExpr(o.Action)
 			}
 			for _, l := range e.Levels {
 				control.poll()
@@ -316,7 +316,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 					control.poll()
 					add(op.Break)
 					expr(op.Expr)
-					term(op.Action)
+					actionExpr(op.Action)
 				}
 			}
 		}
@@ -348,7 +348,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			if s.Type != nil {
 				typ(s.Type)
 			}
-			term(s.Value)
+			actionExpr(s.Value)
 		case *RuleDef:
 			for _, attr := range s.Attrs {
 				control.poll()
@@ -366,7 +366,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			add(s.ActionBreak)
 			add(s.CloseBreak)
 			expr(s.Expr)
-			term(s.Action)
+			actionExpr(s.Action)
 		}
 	}
 	add(g.File.EndBreak)

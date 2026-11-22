@@ -158,13 +158,13 @@ func TestStringAndMalformedTextBudget(t *testing.T){
  text:=strings.Repeat("a",300)+"é"
  p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:100000})}
  for op,want:=range map[int]any{sxirrt.OpEq:true,sxirrt.OpNe:false,sxirrt.OpLt:false,sxirrt.OpLe:true,sxirrt.OpGt:false,sxirrt.OpGe:true,sxirrt.OpAdd:text+text}{
-  got,f:=p.TermBinary(op,text,strings.Clone(text))
+  got,f:=p.ActionBinary(op,text,strings.Clone(text))
   if f!=nil || !reflect.DeepEqual(got,want){t.Fatalf("string op %d: %v (failure %v) want %v",op,got,f,want)}
  }
  if p.Control.X_budgetUsed()==0{t.Fatal("string spend not charged")}
  for _,invoke:=range []func(*sxirrt.Parser){
-  func(p *sxirrt.Parser){p.TermBinary(sxirrt.OpEq,text,strings.Clone(text))},
-  func(p *sxirrt.Parser){p.TermBinary(sxirrt.OpAdd,text,text)},
+  func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpEq,text,strings.Clone(text))},
+  func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpAdd,text,text)},
   func(p *sxirrt.Parser){p.X_unitLen(text)},
  }{
   p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:127})}

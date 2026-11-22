@@ -12,9 +12,9 @@ func nodeOf(t ast.TypeExpr) ast.TypeExpr {
 	return &ast.TypeApp{Name: "node", Args: []ast.TypeExpr{t}}
 }
 
-// partialTerms read the node p, whose value, type and captures the tests leave unknown (UnknownShape,
+// partialActions read the node p, whose value, type and captures the tests leave unknown (UnknownShape,
 // nil Caps), and the node q, whose captures are known.
-var partialTerms = map[string]ast.ActionExpr{
+var partialActions = map[string]ast.ActionExpr{
 	"p.Start":                mem(capt("p"), "Start"),
 	"p.End":                  mem(capt("p"), "End"),
 	"text(p)":                fn("text", capt("p")),
@@ -57,10 +57,10 @@ var partialCandidates = []V{
 	{Kind: KNode, Shape: ListNode, S: "ab", Start: 1, End: 3, Type: "N"},
 }
 
-func partialEnv(p V) *TermEnv {
+func partialEnv(p V) *ActionEnv {
 	q := p
 	q.Caps = map[string]V{"c": Int(7)}
-	return &TermEnv{
+	return &ActionEnv{
 		Captures: map[string]V{"p": p, "q": q, "s": Node(StringNode, "x", 0, 1, nil, nil)},
 		Aliases:  map[string]ast.TypeExpr{"A": &ast.TypeGroup{Type: tref("N")}, "B": nodeOf(tref("string"))},
 		End:      3,
@@ -71,13 +71,13 @@ func partialEnv(p V) *TermEnv {
 // failure or a verdict that they report as known is the one that every candidate gives. The text of an
 // error is not compared, since it names the type of the node.
 func TestPartialNodeNeverLeaks(t *testing.T) {
-	for name, term := range partialTerms {
+	for name, actionExpr := range partialActions {
 		u := partialEnv(partial)
-		v, msg := u.Eval(term)
-		holds, known := u.Decide(term)
+		v, msg := u.Eval(actionExpr)
+		holds, known := u.Decide(actionExpr)
 		for _, c := range partialCandidates {
 			ce := partialEnv(c)
-			cv, cmsg := ce.Eval(term)
+			cv, cmsg := ce.Eval(actionExpr)
 			if !hasUnknown(v) && (v.String() != cv.String() || (msg == "") != (cmsg == "")) {
 				t.Errorf("%s: with p partial it is %v, %q; with p = %v it is %v, %q", name, v, msg, c, cv, cmsg)
 			}
@@ -124,11 +124,11 @@ func TestPartialNodeResults(t *testing.T) {
 		{"p.Start == 1 && len(p)", "unknown", false, "unknown"},
 		{"p.Start == 0 && len(p)", "false", false, "false"},
 	} {
-		term, ok := partialTerms[c.name]
+		actionExpr, ok := partialActions[c.name]
 		if !ok {
-			t.Fatalf("no term %s", c.name)
+			t.Fatalf("no action %s", c.name)
 		}
-		v, msg := u.Eval(term)
+		v, msg := u.Eval(actionExpr)
 		got := v.String()
 		if hasUnknown(v) {
 			got = "unknown"
@@ -136,7 +136,7 @@ func TestPartialNodeResults(t *testing.T) {
 		if got != c.value || (msg != "") != c.failed {
 			t.Errorf("%s = %s, %q; want %s, failed %v", c.name, got, msg, c.value, c.failed)
 		}
-		h, known := u.Decide(term)
+		h, known := u.Decide(actionExpr)
 		gotHolds := "unknown"
 		if known {
 			gotHolds = map[bool]string{true: "true", false: "false"}[h]

@@ -6,7 +6,7 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Terms built by hand: the package cannot depend on a grammar parser.
+// Action expressions built by hand: the package cannot depend on a grammar parser.
 func capt(n string) ast.ActionExpr  { return &ast.CaptureRef{Name: n} }
 func param(n string) ast.ActionExpr { return &ast.CaptureRef{Name: n, Param: true} }
 func vr(n string) ast.ActionExpr    { return &ast.VarRef{Name: n} }
@@ -24,9 +24,9 @@ func lam(body ast.ActionExpr, params ...string) ast.ActionExpr {
 }
 func mem(x ast.ActionExpr, name string) ast.ActionExpr { return &ast.FieldAccess{X: x, Name: name} }
 
-// unknownTerms read the capture x, which the tests make unknown, the known capture xs (a list node
+// unknownActions read the capture x, which the tests make unknown, the known capture xs (a list node
 // holding x and an int) and the variables v (unknown) and n (known).
-var unknownTerms = map[string]ast.ActionExpr{
+var unknownActions = map[string]ast.ActionExpr{
 	"x.Start":           mem(capt("x"), "Start"),
 	"x.$c":              mem(capt("x"), "$c"),
 	"len(x)":            fn("len", capt("x")),
@@ -69,8 +69,8 @@ var unknownCandidates = []V{
 	Node(StringNode, "ab", 0, 2, nil, map[string]V{"c": Str("q")}), Node(ListNode, "", 0, 0, nil, nil),
 }
 
-func unknownEnv(x V) *TermEnv {
-	return &TermEnv{
+func unknownEnv(x V) *ActionEnv {
+	return &ActionEnv{
 		Captures: map[string]V{"x": x, "xs": Node(ListNode, "", 0, 3, []V{x, Int(2)}, nil)},
 		Vars:     map[string]V{"v": x, "n": Int(2)},
 		End:      3,
@@ -100,14 +100,14 @@ func hasUnknown(v V) bool {
 // report as known with x unknown is the one that every value of x gives. Without Unknown, Decide is
 // the predicate of the value that Eval returns.
 func TestUnknownNeverLeaks(t *testing.T) {
-	for name, term := range unknownTerms {
+	for name, actionExpr := range unknownActions {
 		u := unknownEnv(Unknown)
-		v, msg := u.Eval(term)
-		holds, known := u.Decide(term)
+		v, msg := u.Eval(actionExpr)
+		holds, known := u.Decide(actionExpr)
 		for _, c := range unknownCandidates {
 			ce := unknownEnv(c)
-			cv, cmsg := ce.Eval(term)
-			if ch, ck := ce.Decide(term); !ck || ch != Holds(cv, cmsg) {
+			cv, cmsg := ce.Eval(actionExpr)
+			if ch, ck := ce.Decide(actionExpr); !ck || ch != Holds(cv, cmsg) {
 				t.Errorf("%s with x = %v: Decide = %v, %v; the value %v, %q holds: %v", name, c, ch, ck, cv, cmsg, Holds(cv, cmsg))
 			}
 			if !hasUnknown(v) && (v.String() != cv.String() || msg != cmsg) {
@@ -165,11 +165,11 @@ func TestUnknownResults(t *testing.T) {
 		{"w", "nil", "undefined variable w", "false"},
 		{"len(xs) > 1", "true", "", "true"},
 	} {
-		term, ok := unknownTerms[c.name]
+		actionExpr, ok := unknownActions[c.name]
 		if !ok {
-			t.Fatalf("no term %s", c.name)
+			t.Fatalf("no action %s", c.name)
 		}
-		v, msg := u.Eval(term)
+		v, msg := u.Eval(actionExpr)
 		got := v.String()
 		switch {
 		case v.Kind == KUnknown:
@@ -180,7 +180,7 @@ func TestUnknownResults(t *testing.T) {
 		if got != c.value || msg != c.msg {
 			t.Errorf("%s = %s, %q; want %s, %q", c.name, got, msg, c.value, c.msg)
 		}
-		h, known := u.Decide(term)
+		h, known := u.Decide(actionExpr)
 		gotHolds := "unknown"
 		if known {
 			gotHolds = map[bool]string{true: "true", false: "false"}[h]

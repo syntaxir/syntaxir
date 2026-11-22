@@ -10,7 +10,7 @@ import (
 
 // Every comma-separated list keeps its comments with their owners and follows
 // the trailing comma: the lists of types, the arguments of attributes and the
-// parameters of lambdas as much as the lists of terms.
+// parameters of lambdas as much as the lists of action expressions.
 func TestFormatListComments(t *testing.T) {
 	for _, tc := range []struct{ name, in, want string }{
 		{"result type argument", "rule r node[int // c\n] = \"a\"\n", "rule r node[\n    int, // c\n] = \"a\"\n"},

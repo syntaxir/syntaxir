@@ -28,8 +28,8 @@ type trule struct {
 	runs                 int // the evaluations of the body
 }
 
-// term is a term of the model: what it evaluates to and what it leaves on the machine.
-type term struct {
+// action expression is an action expression of the model: what it evaluates to and what it leaves on the machine.
+type actionExpr struct {
 	value         any
 	fails         bool
 	kids, created int
@@ -54,7 +54,7 @@ type machine struct {
 	// exps holds the expectations of each entry (memo.setExpected).
 	exps                   map[*ref.Entry]record
 	spends, steps, memoHit int
-	// kids and created count what terms left (Apply of a term), binds the bindings they made (env.bind).
+	// kids and created count what action expressions left (Apply of an action expression), binds the bindings they made (env.bind).
 	kids, created, binds int
 	// ctx is what the context operations answer (exec.Growth): the context state of every call.
 	ctx ctxModel
@@ -174,13 +174,13 @@ func entryOf(x any) *ref.Entry {
 	return e
 }
 
-// Apply applies a term: it gathers and creates what the term says, and returns its value and its failure,
-// which is null (nil) when the term does not fail.
+// Apply applies an action expression: it gathers and creates what the action expression says, and returns its value and its failure,
+// which is null (nil) when the action expression does not fail.
 func (m *machine) Apply(h any, args []any) []any {
 	if args[0] != "ctx" {
-		panic("a term is applied to a context that term.ctx made")
+		panic("an action expression is applied to a context that action.ctx made")
 	}
-	tm := h.(*term)
+	tm := h.(*actionExpr)
 	m.kids += tm.kids
 	m.created += tm.created
 	if tm.fails {
@@ -194,18 +194,18 @@ func (m *machine) Call(o *code.Op, args []any) []any {
 	case "env.bind":
 		m.binds++
 		return nil
-	case "term.ctx":
+	case "action.ctx":
 		return []any{"ctx"}
-	case "term.created":
+	case "action.created":
 		return []any{int64(m.created)}
-	case "term.kids":
+	case "action.kids":
 		return []any{int64(m.kids)}
-	case "term.dropCreated":
+	case "action.dropCreated":
 		mark := int(args[0].(int64))
 		m.spends += m.created - mark
 		m.created = mark
 		return nil
-	case "term.dropKids":
+	case "action.dropKids":
 		mark := int(args[0].(int64))
 		m.spends += m.kids - mark
 		m.kids = mark
@@ -1268,27 +1268,27 @@ func TestEngineCallExamined(t *testing.T) {
 	}
 }
 
-// TestTerms runs predicate and bind over the outcomes of a term: what each answers, what it binds,
+// TestActions runs predicate and bind over the outcomes of an action expression: what each answers, what it binds,
 // what it leaves and what it charges for dropping the rest.
-func TestTerms(t *testing.T) {
+func TestActions(t *testing.T) {
 	cases := []struct {
 		name             string
-		t                term
+		t                actionExpr
 		predicate, bind  bool
 		binds            bool
 		kidsLeft, charge int
 	}{
-		{name: "true", t: term{value: true}, predicate: true, bind: true, binds: true},
-		{name: "false", t: term{value: false}, bind: true, binds: true},
-		{name: "nil holds", t: term{value: nil}, predicate: true, bind: true, binds: true},
-		{name: "a number holds", t: term{value: int64(0)}, predicate: true, bind: true, binds: true},
-		{name: "an empty string holds", t: term{value: ""}, predicate: true, bind: true, binds: true},
-		{name: "another value holds", t: term{value: struct{}{}}, predicate: true, bind: true, binds: true},
-		{name: "created nodes go", t: term{value: true, created: 3}, predicate: true, bind: true, binds: true, charge: 3},
-		// A successful term consumed its gathered values into a list; none stays above the mark.
-		{name: "kept kids stay", t: term{value: true, kids: 2}, predicate: true, bind: true, binds: true, kidsLeft: 2},
-		{name: "failure", t: term{fails: true}},
-		{name: "failure drops", t: term{value: true, fails: true, kids: 2, created: 3}, charge: 5},
+		{name: "true", t: actionExpr{value: true}, predicate: true, bind: true, binds: true},
+		{name: "false", t: actionExpr{value: false}, bind: true, binds: true},
+		{name: "nil holds", t: actionExpr{value: nil}, predicate: true, bind: true, binds: true},
+		{name: "a number holds", t: actionExpr{value: int64(0)}, predicate: true, bind: true, binds: true},
+		{name: "an empty string holds", t: actionExpr{value: ""}, predicate: true, bind: true, binds: true},
+		{name: "another value holds", t: actionExpr{value: struct{}{}}, predicate: true, bind: true, binds: true},
+		{name: "created nodes go", t: actionExpr{value: true, created: 3}, predicate: true, bind: true, binds: true, charge: 3},
+		// A successful action expression consumed its gathered values into a list; none stays above the mark.
+		{name: "kept kids stay", t: actionExpr{value: true, kids: 2}, predicate: true, bind: true, binds: true, kidsLeft: 2},
+		{name: "failure", t: actionExpr{fails: true}},
+		{name: "failure drops", t: actionExpr{value: true, fails: true, kids: 2, created: 3}, charge: 5},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

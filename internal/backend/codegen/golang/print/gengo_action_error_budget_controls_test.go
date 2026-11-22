@@ -103,18 +103,18 @@ func TestActionTextFragmentsAndFlatPrefix(t *testing.T){
  if e.Error()!=want || errors.Unwrap(e)!=nil || p.Control.X_budgetUsed()!=uint64(len(want)+8){t.Fatal("flat wrapper contract",e)}
  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+7)});_,e=catchActionText(func(){p.X_wrapEvalError(where,message)});if !errors.Is(e,ErrLimit){t.Fatal("one-short wrapper",e)}
 }
-func TestTermCompositionErrorText(t *testing.T){
+func TestActionCompositionErrorText(t *testing.T){
  long:=strings.Repeat("Kind",2048);n:=new(Node);sxirrt.D(n).Kind=sxirrt.KindOf(long,"");tn:=&sxirrt.TSeq{Typ:"tuple",Kids:make([]any,2048)}
  raise:=func(f any){if f!=nil{panic(f)}}
  for _,typed:=range []bool{false,true}{
   p:=&sxirrt.Parser{};tp:=&sxirrt.TParser{Parser:p}
   cases:=[]func(){
-   func(){if typed{_,f:=tp.TermUnary(sxirrt.OpNeg,tn);raise(f)}else{_,f:=p.TermUnary(sxirrt.OpNeg,n);raise(f)}},
-   func(){if typed{_,f:=tp.TermBinary(sxirrt.OpAdd,tn,1);raise(f)}else{_,f:=p.TermBinary(sxirrt.OpAdd,n,1);raise(f)}},
-   func(){if typed{_,f:=tp.TermLogic(sxirrt.OpAnd,tn);raise(f)}else{_,f:=p.TermLogic(sxirrt.OpAnd,n);raise(f)}},
-   func(){if typed{_,f:=tp.TermLogic(sxirrt.OpOr,tn);raise(f)}else{_,f:=p.TermLogic(sxirrt.OpOr,n);raise(f)}},
-   func(){if typed{_,f:=tp.TermItems(long,1);raise(f)}else{_,f:=p.TermItems(long,1);raise(f)}},
-   func(){fn:=func(...any)any{return nil};if typed{raise(tp.TermPush(&sxirrt.TActCtx{P:tp},long,fn))}else{raise(p.TermPush(&sxirrt.ActCtx{P:p},long,fn))}},
+   func(){if typed{_,f:=tp.ActionUnary(sxirrt.OpNeg,tn);raise(f)}else{_,f:=p.ActionUnary(sxirrt.OpNeg,n);raise(f)}},
+   func(){if typed{_,f:=tp.ActionBinary(sxirrt.OpAdd,tn,1);raise(f)}else{_,f:=p.ActionBinary(sxirrt.OpAdd,n,1);raise(f)}},
+   func(){if typed{_,f:=tp.ActionLogic(sxirrt.OpAnd,tn);raise(f)}else{_,f:=p.ActionLogic(sxirrt.OpAnd,n);raise(f)}},
+   func(){if typed{_,f:=tp.ActionLogic(sxirrt.OpOr,tn);raise(f)}else{_,f:=p.ActionLogic(sxirrt.OpOr,n);raise(f)}},
+   func(){if typed{_,f:=tp.ActionItems(long,1);raise(f)}else{_,f:=p.ActionItems(long,1);raise(f)}},
+   func(){fn:=func(...any)any{return nil};if typed{raise(tp.ActionPush(&sxirrt.TActCtx{P:tp},long,fn))}else{raise(p.ActionPush(&sxirrt.ActCtx{P:p},long,fn))}},
   }
   for _,run:=range cases{
    p.Control=nil;ordinary,e:=catchActionText(run);if e!=nil || ordinary==""{t.Fatal("ordinary helper error",e)}

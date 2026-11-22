@@ -47,7 +47,7 @@ type Answer struct {
 	// Regs are the registers after the call, for the registers of Entry.Regs.
 	Regs map[string]any `json:"regs,omitempty"`
 	// Gathered and Made are the identifiers of the elements gathered and of the values made after the
-	// call, 0 for a null element (the family has terms).
+	// call, 0 for a null element (the family has action expressions).
 	Gathered []int64 `json:"gathered,omitempty"`
 	Made     []int64 `json:"made,omitempty"`
 	// Items are, for each result that is a list of elements, their identifiers.

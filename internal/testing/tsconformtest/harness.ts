@@ -555,14 +555,14 @@ class RuleM extends Exec {
   }
 }
 
-// What terms make: the elements gathered on the parser's stack for a list or a tuple, and the values made.
+// What action expressions make: the elements gathered on the parser's stack for a list or a tuple, and the values made.
 // An element or a struct is an object with a conformance identifier.
 interface Ided {
   id: number;
 }
 const idOf = (x: Ided | null): number => (x === null ? 0 : x.id);
 
-class TermM extends Exec {
+class ActionM extends Exec {
   act: p.Actx | null = null;
 
   call(op: string, a: any[]): any[] {
@@ -579,9 +579,9 @@ class TermM extends Exec {
       // The printer prints neither of these two (it takes the elements of a list off with the parser's kids
       // method, and has no filter list): they run on the library's own stack, elemsAbove as the library's
       // method of the operation, which charges two units for each element.
-      case "term.elemsAbove":
+      case "action.elemsAbove":
         return [P.elemsAbove(a[0])];
-      case "term.keep":
+      case "action.keep":
         P.kidStack.push(a[0][a[1]]);
         return [];
     }
@@ -769,8 +769,8 @@ function make(family: string, cfg: Config, controlled: boolean, options: Record<
   switch (family) {
     case "exec":
       return new Exec(cfg, controlled, options);
-    case "term":
-      return new TermM(cfg, controlled, options);
+    case "action":
+      return new ActionM(cfg, controlled, options);
     case "opr":
       return new OprM(cfg, controlled, options);
     case "obs":

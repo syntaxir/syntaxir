@@ -323,11 +323,11 @@ func (v *verifier) node(n Node, scope []Slot) error {
 			return err
 		}
 	case *Pred:
-		if err := v.actionExpr(n.Term, scope); err != nil {
+		if err := v.actionExpr(n.Action, scope); err != nil {
 			return err
 		}
 	case *BindNode:
-		if err := v.actionExpr(n.Term, scope); err != nil {
+		if err := v.actionExpr(n.Action, scope); err != nil {
 			return err
 		}
 	case *Label:

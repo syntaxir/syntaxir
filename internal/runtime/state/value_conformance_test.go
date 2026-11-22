@@ -14,8 +14,8 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// engineValues binds the compositions of the operators to the engine's printed term_exec.go
-// (termBinary, termUnary and termLogic).
+// engineValues binds the compositions of the operators to the engine's printed action_exec.go
+// (actionBinary, actionUnary and actionLogic).
 type engineValues struct {
 	// p is the parser that runs the call; a limited parse has a budget control.
 	p *Parser

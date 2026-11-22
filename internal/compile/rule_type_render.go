@@ -26,7 +26,7 @@ func (p *Program) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 func renderRuleType(t types.Ty, poll func()) string {
 	poll()
 	finish := func(s string) string { poll(); return s }
-	term := func(t types.Ty) string {
+	actionExpr := func(t types.Ty) string {
 		s := renderRuleType(t, poll)
 		if _, ok := t.(types.JoinTy); ok {
 			return "(" + s + ")"
@@ -35,9 +35,9 @@ func renderRuleType(t types.Ty, poll func()) string {
 	}
 	switch t := t.(type) {
 	case types.ListTy:
-		return finish("[]" + term(t.Elem))
+		return finish("[]" + actionExpr(t.Elem))
 	case types.OptTy:
-		return finish("*" + term(t.Elem))
+		return finish("*" + actionExpr(t.Elem))
 	case types.JoinTy:
 		parts := make([]string, len(t.Alts))
 		for i, alt := range t.Alts {

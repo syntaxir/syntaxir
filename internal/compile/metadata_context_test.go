@@ -47,10 +47,10 @@ func TestCompileMetadataCollectionCancellation(t *testing.T) {
 
 func TestProjectionMetadataCancellation(t *testing.T) {
 	var expr ast.Expr = &ast.Literal{Value: "a"}
-	var term ast.ActionExpr = &ast.StringLit{Value: "a"}
+	var actionExpr ast.ActionExpr = &ast.StringLit{Value: "a"}
 	for range 1024 {
 		expr = &ast.Optional{Expr: expr}
-		term = &ast.FieldAccess{Name: "field", X: term}
+		actionExpr = &ast.FieldAccess{Name: "field", X: actionExpr}
 	}
 	for _, phase := range []struct {
 		name string

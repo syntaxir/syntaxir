@@ -74,7 +74,7 @@ func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) 
 		case *ast.Capture:
 			count[x.Name]++
 		case *ast.Predicate:
-			astfacts.WalkTerm(x.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(x.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if c, ok := t.(*ast.CaptureRef); ok {
 					delete(cands, c.Name)

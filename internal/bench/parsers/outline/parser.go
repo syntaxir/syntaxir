@@ -220,7 +220,7 @@ func init() {
 	}
 	rules[1].Body = e3
 	rules[1].Action = func(c *rt.ActCtx) (any, any) {
-		ti1, tf1 := c.P.TermItems("map", c.Cap(0))
+		ti1, tf1 := c.P.ActionItems("map", c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -232,22 +232,22 @@ func init() {
 		tf1 := c.Cap(1)
 		tm2 := len(c.P.KidStack)
 		c.P.Spend()
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(2))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(2))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm2)
-		tn5 := c.P.TermHull(c, false, tk4)
+		tn5 := c.P.ActionHull(c, false, tk4)
 		tf6 := any(tn5)
-		tn7 := c.TermStruct("Item", 2)
+		tn7 := c.ActionStruct("Item", 2)
 		tfirst8 := true
 		c.P.Spend()
-		c.TermSetField(tn7, "Text", tf1)
-		tfirst8 = c.P.TermCover(tn7, tf1, tfirst8)
+		c.ActionSetField(tn7, "Text", tf1)
+		tfirst8 = c.P.ActionCover(tn7, tf1, tfirst8)
 		c.P.Spend()
-		c.TermSetField(tn7, "Children", tf6)
-		tfirst8 = c.P.TermCover(tn7, tf6, tfirst8)
-		c.P.TermMade(c, tn7, tfirst8)
+		c.ActionSetField(tn7, "Children", tf6)
+		tfirst8 = c.P.ActionCover(tn7, tf6, tfirst8)
+		c.P.ActionMade(c, tn7, tfirst8)
 		return any(tn7), nil
 	}
 	rules[3].Body = e5
@@ -395,12 +395,12 @@ func e4(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	p.SetCapture(0, v2)
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpEq, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpEq, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -484,12 +484,12 @@ L2:
 	goto fail
 L3:
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpGt, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpGt, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -498,7 +498,7 @@ L3:
 		goto fail
 	}
 	if !p.Bind(0, func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -855,12 +855,12 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	p.SetCapture(0, v2)
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpEq, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpEq, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -940,12 +940,12 @@ L2:
 	goto fail
 L3:
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpGt, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpGt, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -954,7 +954,7 @@ L3:
 		goto fail
 	}
 	if !p.Bind(0, func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(c.Cap(0))
+		tv1, tf1 := c.P.ActionLength(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -1266,9 +1266,9 @@ func i1(p *rt.TParser) (any, bool) {
 	{
 		var tr14 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k1)
+			ti1, tf1 := c.P.ActionItems("map", k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tr14 = tv2
@@ -1307,12 +1307,12 @@ func i2(p *rt.TParser) (any, bool) {
 	}
 	k1 = v3
 	if !p.Predicate(func(c *rt.TActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(k1)
+		tv1, tf1 := c.P.ActionLength(k1)
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpEq, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpEq, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -1345,12 +1345,12 @@ L12:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k7)
+			tf2 := c.P.ActionPushItems(c, "concat", k7)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tv5 := tmk_Item(c, true, k4, any(tn4))
 			tr16 = tv5
 		}
@@ -1431,12 +1431,12 @@ L2:
 	goto fail
 L3:
 	if !p.Predicate(func(c *rt.TActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(k9)
+		tv1, tf1 := c.P.ActionLength(k9)
 		if tf1 != nil {
 			return nil, tf1
 		}
 		tv2 := c.Var(0)
-		tv3, tf3 := c.P.TermBinary(rt.OpGt, tv1, tv2)
+		tv3, tf3 := c.P.ActionBinary(rt.OpGt, tv1, tv2)
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -1445,7 +1445,7 @@ L3:
 		goto fail
 	}
 	if !p.Bind(0, func(c *rt.TActCtx) (any, any) {
-		tv1, tf1 := c.P.TermLength(k9)
+		tv1, tf1 := c.P.ActionLength(k9)
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -1661,4 +1661,4 @@ fail:
 
 const _ = types.SXIRSchema_18b1586b9cea6061
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

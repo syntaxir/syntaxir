@@ -91,7 +91,7 @@ func Method(m *code.Module, f *code.Func, t *Target) (string, error) {
 
 // Statements returns the statements of the body of the function f of the verified module m, without
 // the function's declaration, indented by two spaces for each level of depth, for a function without
-// locals or a labeled body that the caller wraps, such as a lowered term.
+// locals or a labeled body that the caller wraps, such as a lowered action expression.
 func Statements(m *code.Module, f *code.Func, t *Target, depth int) (string, error) {
 	if len(f.Locals) > 0 || f.Body.Label != "" {
 		return "", fmt.Errorf("tsgen: function %s: statements of a function with locals or a labeled body", f.Name)

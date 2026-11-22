@@ -29,7 +29,7 @@ rule main R = {s := s + "!"} g:grow "," h:grow "," t:test $$ => R{N: n + $g + $h
 rule grow int = {n := n + 1} "a" => n
 rule test bool = "y" {b == false} => b == false
 `, []string{"a,a,y", "a,a,x", "a,a,", "a,", "y", ""}},
-		{"a failed term leaves nothing it gathered", `@start
+		{"a failed action leaves nothing it gathered", `@start
 rule main = l:item+ $$ => $l
 rule item = a:"a" ({len(map(list(1, 2, 3), (x) => 10 / (2 - x))) > 0} "!" / "") => $a
 `, []string{"a", "aa", "aaa", ""}},

@@ -12,7 +12,7 @@ import (
 )
 
 // The built-in table (conform.BuiltinCases) on the compositions length, text, items and convert
-// of the node and the typed library (TermLength, TermText, TermItems and TermConvert,
+// of the node and the typed library (ActionLength, ActionText, ActionItems and ActionConvert,
 // printed from Exec IR), through the methods that a generated parser calls.
 
 // nodeBuiltinFixture returns the context of a node parser over conform.BuiltinInput, with a budget
@@ -83,11 +83,11 @@ func TestValueBuiltinTable(t *testing.T) {
 			return memberRead(func() any {
 				switch call {
 				case conform.CallLen:
-					return fxValue(c.P.TermLength(v))
+					return fxValue(c.P.ActionLength(v))
 				case conform.CallText:
-					return fxValue(c.P.TermText(v))
+					return fxValue(c.P.ActionText(v))
 				case conform.CallConvert:
-					return fxValue(c.P.TermConvert(c.P.g.NodeTypes[conform.BuiltinType], v))
+					return fxValue(c.P.ActionConvert(c.P.g.NodeTypes[conform.BuiltinType], v))
 				}
 				return c.listNode(c.fxItems(conform.BuiltinFn(call), v))
 			}, memberCanon)
@@ -100,11 +100,11 @@ func TestValueBuiltinTable(t *testing.T) {
 			return memberRead(func() any {
 				switch call {
 				case conform.CallLen:
-					return fxValue(tc.P.TermLength(v))
+					return fxValue(tc.P.ActionLength(v))
 				case conform.CallText:
-					return fxValue(tc.P.TermText(v))
+					return fxValue(tc.P.ActionText(v))
 				case conform.CallConvert:
-					return fxValue(tc.P.TermConvert(builtinTypeNt, v))
+					return fxValue(tc.P.ActionConvert(builtinTypeNt, v))
 				}
 				return &TSeq{Typ: TypeListValue, Kids: tc.fxItems(conform.BuiltinFn(call), v)}
 			}, tmemberCanon)

@@ -30,5 +30,5 @@ language adds typed values, actions, contextual recognition, and error recovery:
 A grammar file is written in the language that [Lexical Structure](lexical.md)
 and [Grammar Files](grammar-files.md) define; [Grammar Syntax](syntax.md)
 collects its grammar in one place and the [Glossary](../glossary.md) defines the
-terms. The portable [bytecode](../bytecode/README.md) that a grammar compiles to, and the
+action expressions. The portable [bytecode](../bytecode/README.md) that a grammar compiles to, and the
 virtual machine that runs it, are specified for those who port the runtime.

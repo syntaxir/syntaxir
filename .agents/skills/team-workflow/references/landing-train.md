@@ -34,7 +34,7 @@ Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each w
   `sxir gen` output of the affected grammars against main.
 - A change to evaluation charges, emitted code or generated output runs the golden and
   mutant tests that pin them, even if they sit in the long tier. Run them targeted:
-  `-tags sxir_long -run 'TermCharges|OutputManifest|Mutant|DetectsMutation|Charges'` in the
+  `-tags sxir_long -run 'ActionCharges|OutputManifest|Mutant|DetectsMutation|Charges'` in the
   affected packages. Updated goldens land in the commit that changed them, with the reason in
   its body.
 - A new or changed test that asserts charges, budgets or limits runs under

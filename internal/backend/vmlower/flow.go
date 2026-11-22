@@ -36,8 +36,8 @@ func CoreOf(p elaborate.Program) (*ir.Module, error) {
 // prog. m is the Core IR of the table and plan its plan: a body runs in the rule frame of the VM,
 // whose slots must be the capture layout that the plan gave the rule (plandata.Plan.CheckLayout).
 // A rule whose Flow function uses an operation that the bytecode Flow bodies do not yet have is an
-// error, and the module keeps no body of that rule and no term of its predicates. The term of a
-// predicate of a body is added to the module's term table, after the terms of the match code.
+// error, and the module keeps no body of that rule and no action expression of its predicates. The action expression of a
+// predicate of a body is added to the module's action table, after the action expressions of the match code.
 func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, flows map[int]*code.Module) error {
 	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}}
 	for i, s := range bc.Strings {
@@ -53,10 +53,10 @@ func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Pla
 		if err := plan.CheckLayout(rule, fn.Name, c.strNames(bc.Rules[rule].Scope)); err != nil {
 			return err
 		}
-		terms := len(bc.Terms)
+		actionExprs := len(bc.Actions)
 		f, err := c.flow(fn, rule)
 		if err != nil {
-			bc.Terms = bc.Terms[:terms] // the terms of the predicates of the body
+			bc.Actions = bc.Actions[:actionExprs] // the action expressions of the predicates of the body
 			return fmt.Errorf("rule %s: %w", fn.Name, err)
 		}
 		if bc.Flows == nil {
@@ -712,7 +712,7 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		if !x.Frame {
 			return fmt.Errorf("a predicate whose captures are arguments has no bytecode Flow form")
 		}
-		t, err := s.term(x.Node.Term, x.Names)
+		t, err := s.actionExpr(x.Node.Action, x.Names)
 		if err != nil {
 			return err
 		}
@@ -722,11 +722,11 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 		if !x.Frame {
 			return fmt.Errorf("a binding whose captures are arguments has no bytecode Flow form")
 		}
-		t, err := s.term(x.Node.Term, x.Names)
+		t, err := s.actionExpr(x.Node.Action, x.Names)
 		if err != nil {
 			return err
 		}
-		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Vars.Index(x.Node.Var), Term: t})
+		return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Vars.Index(x.Node.Var), Action: t})
 	case flowpkg.OpSkipBegin:
 		// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
 		// keyed by the variables unless the site is free of them. A skip-run site and a run site
@@ -776,20 +776,20 @@ func (s *flowSel) op(op bytecode.FlowOp, c *code.Call, dst []int, imm any) error
 	return nil
 }
 
-// term adds the term code of t to the module's term table, compiled for the frame whose slots are
-// names, as the match code compiles the term of a predicate for the scope it runs in, and returns its
+// action expression adds the action code of t to the module's action table, compiled for the frame whose slots are
+// names, as the match code compiles the action expression of a predicate for the scope it runs in, and returns its
 // index.
-func (s *flowSel) term(t ir.ActionExpr, names []string) (int, error) {
+func (s *flowSel) actionExpr(t ir.ActionExpr, names []string) (int, error) {
 	slots := make([]ir.Slot, len(names))
 	for i, n := range names {
 		slots[i] = ir.Slot{Name: n}
 	}
-	code, err := s.c.termCode(termSite{term: t, scope: slots})
+	code, err := s.c.actionCode(actionSite{actionExpr: t, scope: slots})
 	if err != nil {
 		return 0, err
 	}
-	s.c.m.Terms = append(s.c.m.Terms, code)
-	return len(s.c.m.Terms) - 1, nil
+	s.c.m.Actions = append(s.c.m.Actions, code)
+	return len(s.c.m.Actions) - 1, nil
 }
 
 // shapeOf returns the immediate of the shape sh.

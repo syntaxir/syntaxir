@@ -53,7 +53,7 @@ var (
 // degOf returns the degree in the size of the input of the form x of a value outside a fold: the
 // largest power of n in it, or unknownDeg when it depends on the quantities of an accumulator,
 // which no fold binds there. A power of Y counts for nothing: outside a fold there is no element
-// of a step, and the forms that read one bound what the element adds by the other terms.
+// of a step, and the forms that read one bound what the element adds by the other action expressions.
 func degOf(x lin) int {
 	d := 0
 	for m := range x {
@@ -77,14 +77,14 @@ func degShape(d [3]int) growthShape {
 }
 
 // valueShape bounds the value of t in the context tc, outside the steps of a fold.
-func (k *classifier) valueShape(t ast.ActionExpr, tc termCtx) growthShape {
+func (k *classifier) valueShape(t ast.ActionExpr, tc actionCtx) growthShape {
 	g, _ := k.growthOf(t, nil, tc)
 	return g
 }
 
-// outsideShape bounds the value of a capture or a lambda parameter t that a term reads from
+// outsideShape bounds the value of a capture or a lambda parameter t that an action expression reads from
 // outside the lambdas whose parameters growthOf follows.
-func (k *classifier) outsideShape(t *ast.CaptureRef, tc termCtx) growthShape {
+func (k *classifier) outsideShape(t *ast.CaptureRef, tc actionCtx) growthShape {
 	if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
 		if p.int {
 			return growthShape{}
@@ -163,7 +163,7 @@ func (k *classifier) exprShape(e ast.Expr, rule string) growthShape {
 			out = out.join(k.exprShape(y, rule))
 		case *ast.InlineAction:
 			if y.Action != nil && !y.DefaultAction {
-				out = out.join(k.valueShape(y.Action, termCtx{rule: rule}))
+				out = out.join(k.valueShape(y.Action, actionCtx{rule: rule}))
 			}
 		}
 	})
@@ -247,7 +247,7 @@ func (k *classifier) levelShape(r *ast.RuleDef) growthShape {
 		out := growthShape{S: lin{}, N: lin{}}
 		add := func(e ast.Expr, action ast.ActionExpr, def bool) {
 			if action != nil && !def {
-				out = out.join(k.valueShape(action, termCtx{rule: r.Name}))
+				out = out.join(k.valueShape(action, actionCtx{rule: r.Name}))
 			} else {
 				out = out.join(k.exprShape(e, r.Name))
 			}
@@ -263,7 +263,7 @@ func (k *classifier) levelShape(r *ast.RuleDef) growthShape {
 		return out
 	}
 	if r.Action != nil && !r.DefaultAction {
-		return k.valueShape(r.Action, termCtx{rule: r.Name})
+		return k.valueShape(r.Action, actionCtx{rule: r.Name})
 	}
 	return k.exprShape(r.Expr, r.Name)
 }
@@ -282,20 +282,20 @@ func (k *classifier) recOnce(rules []string) bool {
 				return false
 			}
 		}
-		var terms []ast.ActionExpr
+		var actionExprs []ast.ActionExpr
 		if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
 			for _, o := range ops.Operands {
-				terms = append(terms, o.Action)
+				actionExprs = append(actionExprs, o.Action)
 			}
 			for _, l := range ops.Levels {
 				for _, op := range l.Operators {
-					terms = append(terms, op.Action)
+					actionExprs = append(actionExprs, op.Action)
 				}
 			}
 		} else {
-			terms = append(terms, r.Action)
+			actionExprs = append(actionExprs, r.Action)
 		}
-		for _, t := range terms {
+		for _, t := range actionExprs {
 			if t != nil && !w.recUses(t, false) {
 				return false
 			}
@@ -340,7 +340,7 @@ func (w *ownWalk) recUses(t ast.ActionExpr, inLambda bool) bool {
 				visit(a, inLambda)
 			}
 		default:
-			for _, x := range termChildren(t) {
+			for _, x := range actionChildren(t) {
 				visit(x, inLambda)
 			}
 		}
@@ -378,13 +378,13 @@ func (k *classifier) ownRule(r *ast.RuleDef, own map[string]bool) bool {
 	k.control.Poll()
 	if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
 		for _, o := range ops.Operands {
-			if !k.ownExpr(o.Expr, r.Name, own) || o.Action != nil && !o.DefaultAction && !k.ownTerm(o.Action, r.Name, own) {
+			if !k.ownExpr(o.Expr, r.Name, own) || o.Action != nil && !o.DefaultAction && !k.ownAction(o.Action, r.Name, own) {
 				return false
 			}
 		}
 		for _, l := range ops.Levels {
 			for _, op := range l.Operators {
-				if !k.ownExpr(op.Expr, r.Name, own) || op.Action != nil && !op.DefaultAction && !k.ownTerm(op.Action, r.Name, own) {
+				if !k.ownExpr(op.Expr, r.Name, own) || op.Action != nil && !op.DefaultAction && !k.ownAction(op.Action, r.Name, own) {
 					return false
 				}
 			}
@@ -392,7 +392,7 @@ func (k *classifier) ownRule(r *ast.RuleDef, own map[string]bool) bool {
 		return true
 	}
 	if r.Action != nil && !r.DefaultAction {
-		return k.ownTerm(r.Action, r.Name, own)
+		return k.ownAction(r.Action, r.Name, own)
 	}
 	return k.ownExpr(r.Expr, r.Name, own)
 }
@@ -416,7 +416,7 @@ func (k *classifier) ownExpr(e ast.Expr, rule string, own map[string]bool) bool 
 					visit(x.Expr, true)
 				}
 			case *ast.InlineAction:
-				ok = x.Action == nil || x.DefaultAction || k.ownTerm(x.Action, rule, own)
+				ok = x.Action == nil || x.DefaultAction || k.ownAction(x.Action, rule, own)
 			case *ast.OperatorsRule:
 				ok = false
 			case *ast.Ref:
@@ -507,7 +507,7 @@ func (k *classifier) looks(rule string, mode sizeMode) bool {
 // ruleLooksIn reports whether the size of the value of r, measured in mode, can come from a
 // capture in a positive lookahead, when the sizes in k.sizes.looks can.
 func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
-	tc := termCtx{rule: r.Name}
+	tc := actionCtx{rule: r.Name}
 	switch {
 	case isOperators(r.Expr):
 		return k.ruleLooks(r)
@@ -524,13 +524,13 @@ func (k *classifier) ruleLooks(r *ast.RuleDef) bool {
 	k.control.Poll()
 	if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
 		for _, o := range ops.Operands {
-			if k.exprLooks(o.Expr, r.Name) || o.Action != nil && !o.DefaultAction && k.termLooks(o.Action, r.Name) {
+			if k.exprLooks(o.Expr, r.Name) || o.Action != nil && !o.DefaultAction && k.actionLooks(o.Action, r.Name) {
 				return true
 			}
 		}
 		for _, l := range ops.Levels {
 			for _, op := range l.Operators {
-				if k.exprLooks(op.Expr, r.Name) || op.Action != nil && !op.DefaultAction && k.termLooks(op.Action, r.Name) {
+				if k.exprLooks(op.Expr, r.Name) || op.Action != nil && !op.DefaultAction && k.actionLooks(op.Action, r.Name) {
 					return true
 				}
 			}
@@ -538,7 +538,7 @@ func (k *classifier) ruleLooks(r *ast.RuleDef) bool {
 		return false
 	}
 	if r.Action != nil && !r.DefaultAction {
-		return k.termLooks(r.Action, r.Name)
+		return k.actionLooks(r.Action, r.Name)
 	}
 	return k.exprLooks(r.Expr, r.Name)
 }
@@ -562,17 +562,17 @@ func (k *classifier) exprLooks(e ast.Expr, rule string) bool {
 		case *ast.Ref:
 			found = k.sizes.looked[x.Name]
 		case *ast.InlineAction:
-			found = x.Action != nil && !x.DefaultAction && k.termLooks(x.Action, rule)
+			found = x.Action != nil && !x.DefaultAction && k.actionLooks(x.Action, rule)
 		}
 	})
 	return found
 }
 
-// termLooks reports whether the value of the term t in rule can hold a capture in a positive
+// actionLooks reports whether the value of the action expression t in rule can hold a capture in a positive
 // lookahead: it reads one, a capture whose value can hold one, or the matched values by index.
-func (k *classifier) termLooks(t ast.ActionExpr, rule string) bool {
+func (k *classifier) actionLooks(t ast.ActionExpr, rule string) bool {
 	found := false
-	astfacts.WalkTerm(t, func(x ast.ActionExpr) {
+	astfacts.WalkAction(t, func(x ast.ActionExpr) {
 		if found {
 			return
 		}
@@ -599,7 +599,7 @@ func (k *classifier) termLooks(t ast.ActionExpr, rule string) bool {
 	return found
 }
 
-// ownWalk checks that a term builds an own value. Each part of an own value is at most a constant
+// ownWalk checks that an action expression builds an own value. Each part of an own value is at most a constant
 // times the input it consumes; a part that holds the value of a call on a recursion with the rule
 // may appear once, so that the parts do not double over the levels of the recursion, and a lambda
 // reads nothing unbounded from outside it, which it would hold once for each element.
@@ -611,7 +611,7 @@ type ownWalk struct {
 	ok   bool
 }
 
-// ownLam is the lambda around a term in the walk.
+// ownLam is the lambda around an action expression in the walk.
 type ownLam struct {
 	params []string // the parameters of the innermost lambda
 	outer  []string // the parameters of the lambdas around it
@@ -619,10 +619,10 @@ type ownLam struct {
 	uses   int      // the uses of acc
 }
 
-// ownTerm reports whether the term t in rule builds an own value when the rules in own are.
-func (k *classifier) ownTerm(t ast.ActionExpr, rule string, own map[string]bool) bool {
+// ownAction reports whether the action expression t in rule builds an own value when the rules in own are.
+func (k *classifier) ownAction(t ast.ActionExpr, rule string, own map[string]bool) bool {
 	w := &ownWalk{k: k, rule: rule, own: own, rec: map[string]int{}, ok: true}
-	w.term(t, nil)
+	w.actionExpr(t, nil)
 	for _, n := range w.rec {
 		if n > 1 {
 			return false
@@ -652,7 +652,7 @@ func (w *ownWalk) recCapture(name string) bool {
 // readsRec reports whether t reads a capture that can hold a call on a recursion with the rule.
 func (w *ownWalk) readsRec(t ast.ActionExpr) bool {
 	found := false
-	astfacts.WalkTerm(t, func(x ast.ActionExpr) {
+	astfacts.WalkAction(t, func(x ast.ActionExpr) {
 		switch x := x.(type) {
 		case *ast.CaptureRef:
 			if !x.Param && w.recCapture(x.Name) {
@@ -663,7 +663,7 @@ func (w *ownWalk) readsRec(t ast.ActionExpr) bool {
 	return found
 }
 
-func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
+func (w *ownWalk) actionExpr(t ast.ActionExpr, lam *ownLam) {
 	if !w.ok || t == nil {
 		return
 	}
@@ -713,34 +713,34 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 			w.rec["$"+t.Name]++
 		}
 	case *ast.ActionGroup:
-		w.term(t.Action, lam)
+		w.actionExpr(t.Action, lam)
 	case *ast.Cast:
-		w.term(t.X, lam)
+		w.actionExpr(t.X, lam)
 	case *ast.FieldAccess:
-		w.term(t.X, lam)
+		w.actionExpr(t.X, lam)
 	case *ast.Constructor:
 		for _, a := range t.Args {
-			w.term(a, lam)
+			w.actionExpr(a, lam)
 		}
 		for _, f := range t.Fields {
-			w.term(f.Value, lam)
+			w.actionExpr(f.Value, lam)
 		}
 	case *ast.TupleLit:
 		for _, x := range t.Elems {
-			w.term(x, lam)
+			w.actionExpr(x, lam)
 		}
 	case *ast.ListConstructor:
 		for _, x := range t.Items {
-			w.term(x, lam)
+			w.actionExpr(x, lam)
 		}
 	case *ast.Binary:
 		switch {
 		case t.Op == "+":
-			w.term(t.L, lam)
-			w.term(t.R, lam)
+			w.actionExpr(t.L, lam)
+			w.actionExpr(t.R, lam)
 		case t.Op == "[]":
 			// An element of a list, taken by an int.
-			w.term(t.L, lam)
+			w.actionExpr(t.L, lam)
 		default:
 			// An int or a Boolean.
 		}
@@ -749,12 +749,12 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 		case "len":
 		case "text", "list", "concat":
 			for _, a := range t.Args {
-				w.term(a, lam)
+				w.actionExpr(a, lam)
 			}
 		case "filter":
 			// The kept elements are elements of the list.
 			if len(t.Args) > 0 {
-				w.term(t.Args[0], lam)
+				w.actionExpr(t.Args[0], lam)
 			}
 		case "map", "foldl", "foldr":
 			fold := t.Func != "map"
@@ -762,7 +762,7 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 			if fold {
 				li, fi = 1, 2
 				if len(t.Args) > 0 {
-					w.term(t.Args[0], lam)
+					w.actionExpr(t.Args[0], lam)
 				}
 			}
 			f, isLam := lambdaArg(t, fi)
@@ -778,7 +778,7 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 				w.ok = false
 				return
 			}
-			w.term(t.Args[li], lam)
+			w.actionExpr(t.Args[li], lam)
 			inner := &ownLam{params: f.Params}
 			if lam != nil {
 				inner.outer = append(append(inner.outer, lam.outer...), lam.params...)
@@ -786,7 +786,7 @@ func (w *ownWalk) term(t ast.ActionExpr, lam *ownLam) {
 			if fold && len(f.Params) > 0 {
 				inner.acc = f.Params[0]
 			}
-			w.term(f.Body, inner)
+			w.actionExpr(f.Body, inner)
 		default:
 			w.ok = false
 		}
@@ -846,7 +846,7 @@ func paramsOnce(lam *ast.Lambda, fold bool) bool {
 				ok = ok && paramsOnce(inner, fi == 2)
 			}
 		}
-		for _, x := range termChildren(t) {
+		for _, x := range actionChildren(t) {
 			visit(x)
 		}
 	}
@@ -885,7 +885,7 @@ func containsName(names []string, n string) bool {
 
 // foldAccShape returns the shape of the accumulator of the lambda of a fold call, whose degrees
 // the step matrix gives from the initial value and the list.
-func (k *classifier) foldAccShape(call *ast.Call, lam *ast.Lambda, tc termCtx) growthShape {
+func (k *classifier) foldAccShape(call *ast.Call, lam *ast.Lambda, tc actionCtx) growthShape {
 	exp, deg, _, ok := k.foldDegrees(call, lam, tc)
 	if !ok {
 		return growthShape{}
@@ -896,8 +896,8 @@ func (k *classifier) foldAccShape(call *ast.Call, lam *ast.Lambda, tc termCtx) g
 	return degShape(deg)
 }
 
-// termChildren returns the terms directly inside t.
-func termChildren(t ast.ActionExpr) []ast.ActionExpr {
+// actionChildren returns the action expressions directly inside t.
+func actionChildren(t ast.ActionExpr) []ast.ActionExpr {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
 		return []ast.ActionExpr{t.Action}

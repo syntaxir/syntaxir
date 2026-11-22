@@ -18,10 +18,10 @@ import (
 
 // Compile compiles the program prog to a bytecode module: it builds the program's Core IR, runs
 // the bytecode pipeline on it (the choice guards and scans; the VMs have no instruction for class
-// runs or terminal regions) and emits the match code of the module's rules and the term code of
-// its terms from the result. The Core IR that it builds is handed to the passes, which change it in
+// runs or terminal regions) and emits the match code of the module's rules and the action code of
+// its action expressions from the result. The Core IR that it builds is handed to the passes, which change it in
 // place (corepass.Run), so no copy of it is made. A failure is an internal error: the program
-// compiled, so its Core IR and its terms build. A program that uses #missing has no bytecode form.
+// compiled, so its Core IR and its action expressions build. A program that uses #missing has no bytecode form.
 func Compile(in Input) (*bytecode.Module, error) {
 	if in.Elab.MissingTokens() {
 		return nil, program.MissingUnsupported("bytecode module construction")
@@ -41,26 +41,26 @@ func CompileCore(in Input, m *ir.Module) (*bytecode.Module, error) {
 	if c.err != nil {
 		return nil, c.err
 	}
-	// The term code comes after the match code, so the strings the terms add follow those of the
+	// The action code comes after the match code, so the strings the action expressions add follow those of the
 	// rules.
-	for i, s := range c.terms {
+	for i, s := range c.actionExprs {
 		var err error
-		if c.m.Terms[i], err = c.termCode(s); err != nil {
+		if c.m.Actions[i], err = c.actionCode(s); err != nil {
 			return nil, err
 		}
 	}
 	return c.m, nil
 }
 
-// termCode returns the term code of the term of s, adding the strings it uses to the module.
-func (c *compiler) termCode(s termSite) (bytecode.Term, error) {
-	tp, err := actionlower.Compile(s.term, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Vars, Scope: scopeOf(s.scope), Proj: s.proj})
+// actionCode returns the action code of the action expression of s, adding the strings it uses to the module.
+func (c *compiler) actionCode(s actionSite) (bytecode.Action, error) {
+	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Vars, Scope: scopeOf(s.scope), Proj: s.proj})
 	if err != nil {
-		return bytecode.Term{}, fmt.Errorf("internal error: %w", err)
+		return bytecode.Action{}, fmt.Errorf("internal error: %w", err)
 	}
 	t, err := tp.Export(func(s string) int { return int(c.str(s)) })
 	if err != nil {
-		return bytecode.Term{}, fmt.Errorf("internal error: %w", err)
+		return bytecode.Action{}, fmt.Errorf("internal error: %w", err)
 	}
 	return t, nil
 }
@@ -72,20 +72,20 @@ type compiler struct {
 	core *ir.Module
 	m    *bytecode.Module
 	strs map[string]int
-	// terms are the terms of the module, by index of Module.Terms, whose code CompileCore makes
+	// action expressions are the action expressions of the module, by index of Module.Actions, whose code CompileCore makes
 	// once the match code is emitted.
-	terms []termSite
+	actionExprs []actionSite
 	// scope holds the capture slots of the frame the code being emitted writes.
 	scope []ir.Slot
 	err   error
 }
 
-// termSite is a term of the module: the Core IR term, the slots of the frame it reads, and the
-// projected captures of the rule whose action it is (nil for every other term).
-type termSite struct {
-	term  ir.ActionExpr
-	scope []ir.Slot
-	proj  map[string]string
+// actionSite is an action expression of the module: the Core IR action expression, the slots of the frame it reads, and the
+// projected captures of the rule whose action it is (nil for every other action expression).
+type actionSite struct {
+	actionExpr ir.ActionExpr
+	scope      []ir.Slot
+	proj       map[string]string
 }
 
 // scopeOf returns the capture scope of the Core IR slots s.
@@ -262,7 +262,7 @@ func (c *compiler) compile() {
 			if _, ok := cr.Body.(*ir.OperatorsRule); !ok {
 				proj = projections(cr.Body)
 			}
-			ri.Action = c.term(cr.Finish.Action, proj)
+			ri.Action = c.actionExpr(cr.Finish.Action, proj)
 		}
 	}
 }
@@ -282,12 +282,12 @@ func projections(body ir.Node) map[string]string {
 	return proj
 }
 
-// term adds the term t, which reads the frame of the current scope, to the module and returns its
+// action expression adds the action expression t, which reads the frame of the current scope, to the module and returns its
 // index; proj are the projected captures of the rule whose action t is.
-func (c *compiler) term(t ir.ActionExpr, proj map[string]string) int {
-	c.terms = append(c.terms, termSite{term: t, scope: c.scope, proj: proj})
-	c.m.Terms = append(c.m.Terms, bytecode.Term{})
-	return len(c.m.Terms) - 1
+func (c *compiler) actionExpr(t ir.ActionExpr, proj map[string]string) int {
+	c.actionExprs = append(c.actionExprs, actionSite{actionExpr: t, scope: c.scope, proj: proj})
+	c.m.Actions = append(c.m.Actions, bytecode.Action{})
+	return len(c.m.Actions) - 1
 }
 
 // The value shapes: each pushes values as the closure backend builds them.
@@ -586,9 +586,9 @@ func (c *compiler) void(n ir.Node) {
 	case *ir.Anchor:
 		c.emit(bytecode.OpAssert, int32(n.Kind), 0, 0)
 	case *ir.Pred:
-		c.emit(bytecode.OpPred, int32(c.term(n.Term, nil)), 0, 0)
+		c.emit(bytecode.OpPred, int32(c.actionExpr(n.Action, nil)), 0, 0)
 	case *ir.BindNode:
-		c.emit(bytecode.OpBind, int32(c.in.Vars.Index(n.Var)), int32(c.term(n.Term, nil)), 0)
+		c.emit(bytecode.OpBind, int32(c.in.Vars.Index(n.Var)), int32(c.actionExpr(n.Action, nil)), 0)
 	case *ir.Label:
 		c.label(n)
 		c.void(n.Body)
@@ -775,7 +775,7 @@ func (c *compiler) line(l *ir.OpLine, operator bool) bytecode.LineInfo {
 	c.emit(bytecode.OpEnd, 0, 0, 0)
 	li.Scope = c.strList(ir.SlotNames(l.Scope))
 	if l.Action != nil {
-		li.Action = c.term(l.Action, nil)
+		li.Action = c.actionExpr(l.Action, nil)
 	}
 	return li
 }

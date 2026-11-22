@@ -229,69 +229,69 @@ func init() {
 		Prefix: []*rt.OperatorsRuleOp{{Id: 2, Kind: "prefix", Assoc: "", Level: 3, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e19, Action: func(c *rt.ActCtx) (any, any) {
 			tf1 := rt.UnboxValue(c.Op)
 			tf2 := rt.UnboxValue(c.Rhs)
-			tn3 := c.TermStruct("Unary", 2)
+			tn3 := c.ActionStruct("Unary", 2)
 			tfirst4 := true
 			c.P.Spend()
-			c.TermSetField(tn3, "Op", tf1)
-			tfirst4 = c.P.TermCover(tn3, tf1, tfirst4)
+			c.ActionSetField(tn3, "Op", tf1)
+			tfirst4 = c.P.ActionCover(tn3, tf1, tfirst4)
 			c.P.Spend()
-			c.TermSetField(tn3, "X", tf2)
-			tfirst4 = c.P.TermCover(tn3, tf2, tfirst4)
-			c.P.TermMade(c, tn3, tfirst4)
+			c.ActionSetField(tn3, "X", tf2)
+			tfirst4 = c.P.ActionCover(tn3, tf2, tfirst4)
+			c.P.ActionMade(c, tn3, tfirst4)
 			return any(tn3), nil
 		}, Value: sh5}}},
 		Led: []*rt.OperatorsRuleOp{{Id: 0, Kind: "infix", Assoc: "left", Level: 1, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e14, Action: func(c *rt.ActCtx) (any, any) {
 			tf1 := rt.UnboxValue(c.Lhs)
 			tf2 := rt.UnboxValue(c.Op)
 			tf3 := rt.UnboxValue(c.Rhs)
-			tn4 := c.TermStruct("Binary", 3)
+			tn4 := c.ActionStruct("Binary", 3)
 			tfirst5 := true
 			c.P.Spend()
-			c.TermSetField(tn4, "Left", tf1)
-			tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+			c.ActionSetField(tn4, "Left", tf1)
+			tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 			c.P.Spend()
-			c.TermSetField(tn4, "Op", tf2)
-			tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+			c.ActionSetField(tn4, "Op", tf2)
+			tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 			c.P.Spend()
-			c.TermSetField(tn4, "Right", tf3)
-			tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-			c.P.TermMade(c, tn4, tfirst5)
+			c.ActionSetField(tn4, "Right", tf3)
+			tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+			c.P.ActionMade(c, tn4, tfirst5)
 			return any(tn4), nil
 		}, Value: sh5}},
 			{Id: 1, Kind: "infix", Assoc: "left", Level: 2, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e18, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh5}},
 			{Id: 3, Kind: "infix", Assoc: "right", Level: 4, Line: &rt.OperatorsRuleLine{Scope: []string{}, M: e21, Action: func(c *rt.ActCtx) (any, any) {
 				tf1 := rt.UnboxValue(c.Lhs)
 				tf2 := rt.UnboxValue(c.Op)
 				tf3 := rt.UnboxValue(c.Rhs)
-				tn4 := c.TermStruct("Binary", 3)
+				tn4 := c.ActionStruct("Binary", 3)
 				tfirst5 := true
 				c.P.Spend()
-				c.TermSetField(tn4, "Left", tf1)
-				tfirst5 = c.P.TermCover(tn4, tf1, tfirst5)
+				c.ActionSetField(tn4, "Left", tf1)
+				tfirst5 = c.P.ActionCover(tn4, tf1, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Op", tf2)
-				tfirst5 = c.P.TermCover(tn4, tf2, tfirst5)
+				c.ActionSetField(tn4, "Op", tf2)
+				tfirst5 = c.P.ActionCover(tn4, tf2, tfirst5)
 				c.P.Spend()
-				c.TermSetField(tn4, "Right", tf3)
-				tfirst5 = c.P.TermCover(tn4, tf3, tfirst5)
-				c.P.TermMade(c, tn4, tfirst5)
+				c.ActionSetField(tn4, "Right", tf3)
+				tfirst5 = c.P.ActionCover(tn4, tf3, tfirst5)
+				c.P.ActionMade(c, tn4, tfirst5)
 				return any(tn4), nil
 			}, Value: sh5}}},
 	}
@@ -1555,4 +1555,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_8542efa0ed0e2417
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

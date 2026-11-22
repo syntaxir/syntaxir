@@ -101,7 +101,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 // the Name of the rule's body from its Expr member, and reports how many reads it changed.
 func ruleNameFromExpr(code string) (string, int) {
 	const from, to = `c.Cap(1), "Name", "Name")`, `c.Cap(1), "Expr", "Expr")`
-	made := strings.Index(code, `c.TermStruct("RuleDef", `)
+	made := strings.Index(code, `c.ActionStruct("RuleDef", `)
 	if made < 0 {
 		return code, 0
 	}

@@ -231,7 +231,7 @@ func goTarget(s goSpec) *print.Target {
 		exec.Ctx: "ctxCallState", exec.Res: "*ctxResult", exec.Grow: "growState",
 		exec.Frame: "*CaptureFrame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "operatorsRuleAttempt",
-		action.Term: "func(*ActCtx) (any, any)", exec.Datum: "any", action.Seq: "[]*sxirvalue.Node",
+		action.Action: "func(*ActCtx) (any, any)", exec.Datum: "any", action.Seq: "[]*sxirvalue.Node",
 		action.Obj: "*sxirvalue.Node", action.Name: "string", action.Str: "string", action.Act: "*ActCtx", action.Fail: "any", action.Elem: "*sxirvalue.Node",
 		action.NodeType: "*nodeTypeKinds", action.FType: "*FieldType",
 	}
@@ -242,11 +242,11 @@ func goTarget(s goSpec) *print.Target {
 	for _, s := range goOperatorSpecs {
 		names[s.fn] = s.name
 	}
-	libGoTermNames(names)
+	libGoActionNames(names)
 	entryType, valueField, alloc := "memoEntry", "node", "p.memo.alloc()"
 	// spender is the parser that the generic copies of values charge.
 	attemptType, spender := "operatorsRuleAttempt", "p"
-	// created is the field of the nodes that terms and actions create.
+	// created is the field of the nodes that action expressions and actions create.
 	created := "created"
 	rule := func(r string) string { return r }
 	// step passes the value of a growth step as the node or the typed value of growAdopt and growKeepStep.
@@ -257,7 +257,7 @@ func goTarget(s goSpec) *print.Target {
 		handles[exec.Body] = "func(*TParser) (any, bool)"
 		handles[exec.Frame], handles[exec.Operators], handles[exec.Operator] = "*TCaptureFrame", "[]*TOperatorsRuleOp", "*TOperatorsRuleOp"
 		handles[exec.Line], handles[exec.Attempt] = "*TOperatorsRuleLine", "toperatorsRuleAttempt"
-		handles[action.Term] = "func(*TActCtx) (any, any)"
+		handles[action.Action] = "func(*TActCtx) (any, any)"
 		handles[action.Seq], handles[action.Obj], handles[action.Act], handles[action.Elem] = "[]any", "TVal", "*TActCtx", "any"
 		handles[action.NodeType] = "uint16"
 		names = map[string]string{"call": "callBody", "firstCall": "firstCall", "typedDocument": "DocumentCall", "observed": "callObserved", "callMemo": "CallMemo", "grow": "grow", "keep": "Keep",
@@ -265,7 +265,7 @@ func goTarget(s goSpec) *print.Target {
 		for _, s := range goOperatorSpecs {
 			names[s.fn] = s.name
 		}
-		libGoTermNames(names)
+		libGoActionNames(names)
 		entryType, valueField, alloc = "tmemoEntry", "val", "p.memoSlab.one()"
 		attemptType, spender, created = "toperatorsRuleAttempt", "p.Parser", "Created"
 		rule = func(r string) string { return r + ".Rule" }
@@ -327,22 +327,22 @@ func goTarget(s goSpec) *print.Target {
 			return "p.Env = " + a[0]
 		case "env.bind":
 			return fmt.Sprintf("p.bind(%s, %s)", a[0], a[1])
-		case "term.ctx":
+		case "action.ctx":
 			if typed {
 				return "p.UseCtx(TActCtx{P: p, F: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})"
 			}
 			return "p.useCtx(ActCtx{P: p, f: p.Frame, start: p.Pos, end: p.Pos, cbase: len(p.created)})"
-		case "term.created":
+		case "action.created":
 			return "len(p." + created + ")"
-		case "term.dropCreated":
+		case "action.dropCreated":
 			return fmt.Sprintf("clearSpend(%s, p.%s[%s:])\np.%[2]s = p.%[2]s[:%[3]s]", spender, created, a[0])
-		case "term.kids":
+		case "action.kids":
 			return "len(p.KidStack)"
-		case "term.dropKids":
+		case "action.dropKids":
 			return fmt.Sprintf("clearSpend(%s, p.KidStack[%s:])\np.KidStack = p.KidStack[:%[2]s]", spender, a[0])
-		case "term.elemsAbove":
+		case "action.elemsAbove":
 			return "p.ElemsAbove(" + a[0] + ")"
-		case "term.keep":
+		case "action.keep":
 			return fmt.Sprintf("p.KidStack = append(p.KidStack, %s[%s])", a[0], a[1])
 		case "opr.led":
 			return a[0] + ".OperatorsRule.Led"

@@ -13,14 +13,14 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// builtinFunc is a function of the fixture of the built-in table, which is not a value of a term.
+// builtinFunc is a function of the fixture of the built-in table, which is not a value of an action expression.
 type builtinFunc struct{}
 
 func (builtinFunc) Arity() int                  { return 1 }
 func (builtinFunc) Apply(x, _ any) (any, error) { return x, nil }
 
 // TestEngineValueBuiltinTable runs the built-in table (conform.BuiltinCases) on the engine's compositions
-// length, text, items and convert (termLength, termText, termItems and termConvert,
+// length, text, items and convert (actionLength, actionText, actionItems and actionConvert,
 // printed from Exec IR), through the methods that the backends call.
 func TestEngineValueBuiltinTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
@@ -53,9 +53,9 @@ func TestEngineValueBuiltinTable(t *testing.T) {
 			var err error
 			switch call {
 			case conform.CallLen:
-				got, err = p.termLength(vals[v])
+				got, err = p.actionLength(vals[v])
 			case conform.CallText:
-				got, err = p.termText(vals[v])
+				got, err = p.actionText(vals[v])
 			case conform.CallConvert:
 				got, err = p.Convert(nt, vals[v])
 			default:

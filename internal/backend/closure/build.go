@@ -31,10 +31,10 @@ func Core(m *ir.Module) (*ir.Module, error) {
 
 // Build builds the closure backend's form of the run-time program prog from its Core IR m (Core),
 // and returns the rules of the family f that the parser runs, by ID; c resolves the types of the
-// terms (actionlower.Env). plainDispatch leaves out the
+// action expressions (actionlower.Env). plainDispatch leaves out the
 // budget charge of the loop iterations. Build only reads m, so the families of a program can be
 // built from the same module, at different times. A failure is an internal error: the program
-// compiled, so its terms build. The build runs when a parse first needs the family, outside the
+// compiled, so its action expressions build. The build runs when a parse first needs the family, outside the
 // compilation, so no control interrupts it.
 func Build(prog *program.Program, c *check.Checker, m *ir.Module, plainDispatch bool, f state.Family) ([]*state.Rule, error) {
 	b, err := newBuilder(prog, c, m, plainDispatch)
@@ -226,10 +226,10 @@ func (b *Builder) node(n ir.Node) state.Matcher {
 		}
 		return b.anchor(n.Kind, program.IDEndLine)
 	case *ir.Pred:
-		t := b.termSite(n.Term)
+		t := b.actionSite(n.Action)
 		return func(p *state.Parser) (*value.Node, bool) { return nil, predicate(p, t) }
 	case *ir.BindNode:
-		slot, t := b.prog.Vars.Index(n.Var), b.termSite(n.Term)
+		slot, t := b.prog.Vars.Index(n.Var), b.actionSite(n.Action)
 		return func(p *state.Parser) (*value.Node, bool) { return nil, bind(p, slot, t) }
 	case *ir.Label:
 		m := b.node(n.Body)
@@ -250,16 +250,16 @@ func (b *Builder) node(n ir.Node) state.Matcher {
 	return b.failf("Core IR node %T in a closure program", n)
 }
 
-// termSite makes the term program of a predicate or binding.
-func (b *Builder) termSite(t ir.ActionExpr) *termSite {
-	prog, err := b.term(t, nil)
+// actionSite makes the action program of a predicate or binding.
+func (b *Builder) actionSite(t ir.ActionExpr) *actionSite {
+	prog, err := b.actionExpr(t, nil)
 	if err != nil {
 		if b.err == nil {
 			b.err = err
 		}
-		return &termSite{}
+		return &actionSite{}
 	}
-	return &termSite{term: prog}
+	return &actionSite{actionExpr: prog}
 }
 
 // repeatNode builds the repetition n; stream reports that it delivers stream elements.

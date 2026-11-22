@@ -141,7 +141,7 @@ type factsGrammar struct {
 
 func (g *factsGrammar) pick(xs ...string) string { return xs[g.r.IntN(len(xs))] }
 
-func (g *factsGrammar) term() string {
+func (g *factsGrammar) actionExpr() string {
 	switch g.r.IntN(14) {
 	case 0, 1, 2:
 		return g.pick(`"a"`, `"b"`, `"ab"`, `""`, `"a"i`)
@@ -155,12 +155,12 @@ func (g *factsGrammar) term() string {
 
 func (g *factsGrammar) expr(depth int) string {
 	if depth <= 0 {
-		return g.term()
+		return g.actionExpr()
 	}
 	sub := func() string { return g.expr(depth - 1) }
 	switch n := g.r.IntN(30); {
 	case n < 5:
-		return g.term()
+		return g.actionExpr()
 	case n < 11:
 		return "(" + sub() + " " + sub() + ")"
 	case n < 16:
@@ -170,7 +170,7 @@ func (g *factsGrammar) expr(depth int) string {
 	case n < 20:
 		return g.pick("!", "&") + "(" + sub() + ")"
 	case n < 22:
-		return "(" + sub() + " #recover(skip=" + g.pick(`[ab]+`, `[ab]*`, `"b"`, g.term()) + "))"
+		return "(" + sub() + " #recover(skip=" + g.pick(`[ab]+`, `[ab]*`, `"b"`, g.actionExpr()) + "))"
 	case n < 24:
 		return "(" + sub() + " #cut " + sub() + " / " + sub() + ")"
 	case n < 25:

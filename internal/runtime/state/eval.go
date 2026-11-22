@@ -76,7 +76,7 @@ func (p *Parser) DropCreated(base int) {
 	p.Created = p.Created[:base]
 }
 
-// ValKind is the operation val.kind, for the term compositions that the engine's backends print into
+// ValKind is the operation val.kind, for the action expression compositions that the engine's backends print into
 // their own packages.
 func ValKind(x any) int { return valKind(x) }
 
@@ -105,10 +105,10 @@ func TypeName(v any) string {
 	return fmt.Sprintf("%T", v)
 }
 
-// Member reads x.name, as the composition member (term_exec.go) does.
+// Member reads x.name, as the composition member (action_exec.go) does.
 func (c *EvalCtx) Member(x any, name string) (any, error) {
 	kind, field := memberKind(name)
-	return c.P.termMember(c, kind, x, name, field)
+	return c.P.actionMember(c, kind, x, name, field)
 }
 
 // memberZero is the operation node.zero: the zero value of the declared type of the field name of the
@@ -186,9 +186,9 @@ func (c *EvalCtx) NewStruct(typ string, names []string, vals []any) (*value.Node
 		c.P.Spend()
 		v := vals[i]
 		c.P.SetValueField(&nodes.D(n).Fields, name, v)
-		first = c.P.termCover(n, v, first)
+		first = c.P.actionCover(n, v, first)
 	}
-	c.P.termMade(c, n, first)
+	c.P.actionMade(c, n, first)
 	return n, nil
 }
 
@@ -201,25 +201,25 @@ func (c *EvalCtx) NewList(items []*value.Node) *value.Node {
 // ListNode returns a list value with the child slice kids (which it takes over). Its range,
 // which the value model does not show, covers the elements that are nodes.
 func (c *EvalCtx) ListNode(kids []*value.Node) *value.Node {
-	return c.P.termHull(c, false, kids)
+	return c.P.actionHull(c, false, kids)
 }
 
 // TupleNode is ListNode for a tuple value.
 func (c *EvalCtx) TupleNode(kids []*value.Node) *value.Node {
-	return c.P.termHull(c, true, kids)
+	return c.P.actionHull(c, true, kids)
 }
 
 // ValueListItems returns the items of the list node v that the built-in fn reads: none for nil, and
 // an error for a value that is not a list.
 func (p *Parser) ValueListItems(fn string, v any) ([]*value.Node, error) {
-	return p.termItems(fn, v)
+	return p.actionItems(fn, v)
 }
 
 // Push pushes v onto KidStack as the next element of the list or the tuple that the built-in or literal
 // fn makes, as the composition push does. An int, string or bool travels boxed, with the range of the
 // action's input, as the result of an action does.
 func (c *EvalCtx) Push(fn string, v any) error {
-	return c.P.termPush(c, fn, v)
+	return c.P.actionPush(c, fn, v)
 }
 
 // Keep returns c, or a copy of c on the heap if it belongs to a lambda call (closure.apply),

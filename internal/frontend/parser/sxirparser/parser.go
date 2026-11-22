@@ -2690,7 +2690,7 @@ func init() {
 			return tv1, nil
 		}, Value: sh10}},
 			{Id: 3, Kind: "prefix", Assoc: "", Level: 3, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e464, Action: func(c *rt.TActCtx) (any, any) {
-				ts1, tf1 := c.P.TermText((c.Op))
+				ts1, tf1 := c.P.ActionText((c.Op))
 				if tf1 != nil {
 					return nil, tf1
 				}
@@ -2738,15 +2738,15 @@ func init() {
 				return tv1, nil
 			}, Value: sh9}},
 			{Id: 12, Kind: "postfix", Assoc: "", Level: 4, Line: &rt.TOperatorsRuleLine{Scope: []string{"bounds"}, M: e478, Action: func(c *rt.TActCtx) (any, any) {
-				tv1, tf1 := c.P.TermMember(c, rt.MemberField, c.Cap(0), "Min", "Min")
+				tv1, tf1 := c.P.ActionMember(c, rt.MemberField, c.Cap(0), "Min", "Min")
 				if tf1 != nil {
 					return nil, tf1
 				}
-				tv2, tf2 := c.P.TermMember(c, rt.MemberField, c.Cap(0), "Max", "Max")
+				tv2, tf2 := c.P.ActionMember(c, rt.MemberField, c.Cap(0), "Max", "Max")
 				if tf2 != nil {
 					return nil, tf2
 				}
-				tv3, tf3 := c.P.TermMember(c, rt.MemberField, c.Cap(0), "Range", "Range")
+				tv3, tf3 := c.P.ActionMember(c, rt.MemberField, c.Cap(0), "Range", "Range")
 				if tf3 != nil {
 					return nil, tf3
 				}
@@ -2780,7 +2780,7 @@ func init() {
 			&rt.TOperatorsRuleLine{Scope: []string{}, M: e484, Action: nil, Value: sh11},
 		},
 		Prefix: []*rt.TOperatorsRuleOp{{Id: 5, Kind: "prefix", Assoc: "", Level: 6, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e499, Action: func(c *rt.TActCtx) (any, any) {
-			ts1, tf1 := c.P.TermText((c.Op))
+			ts1, tf1 := c.P.ActionText((c.Op))
 			if tf1 != nil {
 				return nil, tf1
 			}
@@ -2788,7 +2788,7 @@ func init() {
 			return tv2, nil
 		}, Value: sh11}}},
 		Led: []*rt.TOperatorsRuleOp{{Id: 0, Kind: "infix", Assoc: "left", Level: 1, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e486, Action: func(c *rt.TActCtx) (any, any) {
-			ts1, tf1 := c.P.TermText((c.Op))
+			ts1, tf1 := c.P.ActionText((c.Op))
 			if tf1 != nil {
 				return nil, tf1
 			}
@@ -2796,7 +2796,7 @@ func init() {
 			return tv2, nil
 		}, Value: sh11}},
 			{Id: 1, Kind: "infix", Assoc: "left", Level: 2, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e488, Action: func(c *rt.TActCtx) (any, any) {
-				ts1, tf1 := c.P.TermText((c.Op))
+				ts1, tf1 := c.P.ActionText((c.Op))
 				if tf1 != nil {
 					return nil, tf1
 				}
@@ -2804,7 +2804,7 @@ func init() {
 				return tv2, nil
 			}, Value: sh11}},
 			{Id: 2, Kind: "infix", Assoc: "none", Level: 3, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e495, Action: func(c *rt.TActCtx) (any, any) {
-				ts1, tf1 := c.P.TermText((c.Op))
+				ts1, tf1 := c.P.ActionText((c.Op))
 				if tf1 != nil {
 					return nil, tf1
 				}
@@ -2812,7 +2812,7 @@ func init() {
 				return tv2, nil
 			}, Value: sh11}},
 			{Id: 3, Kind: "infix", Assoc: "left", Level: 4, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e496, Action: func(c *rt.TActCtx) (any, any) {
-				ts1, tf1 := c.P.TermText((c.Op))
+				ts1, tf1 := c.P.ActionText((c.Op))
 				if tf1 != nil {
 					return nil, tf1
 				}
@@ -2820,7 +2820,7 @@ func init() {
 				return tv2, nil
 			}, Value: sh11}},
 			{Id: 4, Kind: "infix", Assoc: "left", Level: 5, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e498, Action: func(c *rt.TActCtx) (any, any) {
-				ts1, tf1 := c.P.TermText((c.Op))
+				ts1, tf1 := c.P.ActionText((c.Op))
 				if tf1 != nil {
 					return nil, tf1
 				}
@@ -3891,25 +3891,25 @@ L9:
 	{
 		var tr30 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k20, "Pkg", "Pkg")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k20, "Pkg", "Pkg")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k20, "Decls", "Decls")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k20, "Decls", "Decls")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k20, "TrailingComments", "TrailingComments")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k20, "TrailingComments", "TrailingComments")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			ts4, tf4 := c.P.TermText(k16)
+			ts4, tf4 := c.P.ActionText(k16)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k20, "Head", "Head")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k20, "Head", "Head")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tv6 := tmk_File(c, true, tv1, tv2, k4, tv3, any(ts4), tv5, k10)
 			tr30 = tv6
@@ -4007,26 +4007,26 @@ L13:
 		var tr32 any
 		{
 			tm1 := len(c.P.KidStack)
-			ti2, tf2 := c.P.TermItems("map", k15)
+			ti2, tf2 := c.P.ActionItems("map", k15)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tj3 := 0
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Spend()
-				tp5 := c.P.TermItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.TermMember(c, rt.MemberCapture, (tp5), "$d", "$d"[1:])
+				tp5 := c.P.ActionItemAt(ti2, tj3, false)
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$d", "$d"[1:])
 				if tf7 != nil {
-					c.TermRaise(tf7)
+					c.ActionRaise(tf7)
 				}
 				tv6 := tv7
-				tf8 := c.P.TermPush(c, "map", tv6)
+				tf8 := c.P.ActionPush(c, "map", tv6)
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
 			}
 			tk9 := c.P.ElemsAbove(tm1)
-			tn10 := c.P.TermHull(c, false, tk9)
+			tn10 := c.P.ActionHull(c, false, tk9)
 			tv11 := tmk_File(c, true, k7, any(tn10), any(nil), k29, any(nil), k4, any(nil))
 			tr32 = tv11
 		}
@@ -4135,55 +4135,55 @@ L15:
 	{
 		var tr33 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k10, "Attrs", "Attrs")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k10, "Attrs", "Attrs")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k10, "Name", "Name")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k10, "Name", "Name")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k10, "AttrComments", "AttrComments")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k10, "AttrComments", "AttrComments")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k7)
+			tf5 := c.P.ActionPushItems(c, "concat", k7)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", tv3)
+			tf6 := c.P.ActionPushItems(c, "concat", tv3)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			c.P.Spend()
-			tf7 := c.P.TermPushItems(c, "concat", k19)
+			tf7 := c.P.ActionPushItems(c, "concat", k19)
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
 			tk8 := c.P.ElemsAbove(tm4)
-			tn9 := c.P.TermHull(c, false, tk8)
+			tn9 := c.P.ActionHull(c, false, tk8)
 			tf10 := k10
-			tv11, tf11 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tv11, tf11 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf11 != nil {
-				c.TermRaise(tf11)
+				c.ActionRaise(tf11)
 			}
 			tf12 := tv11
-			tv13, tf13 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv13, tf13 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf13 != nil {
-				c.TermRaise(tf13)
+				c.ActionRaise(tf13)
 			}
 			tf14 := tv13
-			tv15, tf15 := c.P.TermMember(c, rt.MemberField, k16, "Trailing", "Trailing")
+			tv15, tf15 := c.P.ActionMember(c, rt.MemberField, k16, "Trailing", "Trailing")
 			if tf15 != nil {
-				c.TermRaise(tf15)
+				c.ActionRaise(tf15)
 			}
 			tf16 := tv15
-			tv17, tf17 := c.P.TermMember(c, rt.MemberField, k16, "Next", "Next")
+			tv17, tf17 := c.P.ActionMember(c, rt.MemberField, k16, "Next", "Next")
 			if tf17 != nil {
-				c.TermRaise(tf17)
+				c.ActionRaise(tf17)
 			}
 			tf18 := tv17
 			tv19 := tmk_SourceMetadata(c, false, tf10, tf12, tf16, tf14, tf18)
@@ -4281,56 +4281,56 @@ L28:
 		var tr34 any
 		{
 			tm1 := len(c.P.KidStack)
-			ti2, tf2 := c.P.TermItems("map", k1)
+			ti2, tf2 := c.P.ActionItems("map", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tj3 := 0
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Spend()
-				tp5 := c.P.TermItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.TermMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
+				tp5 := c.P.ActionItemAt(ti2, tj3, false)
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
 				if tf7 != nil {
-					c.TermRaise(tf7)
+					c.ActionRaise(tf7)
 				}
 				tv6 := tv7
-				tf8 := c.P.TermPush(c, "map", tv6)
+				tf8 := c.P.ActionPush(c, "map", tv6)
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
 			}
 			tk9 := c.P.ElemsAbove(tm1)
-			tn10 := c.P.TermHull(c, false, tk9)
+			tn10 := c.P.ActionHull(c, false, tk9)
 			tm11 := len(c.P.KidStack)
 			tk12 := c.P.ElemsAbove(tm11)
-			tn13 := c.P.TermHull(c, false, tk12)
-			ti14, tf14 := c.P.TermItems("foldl", k1)
+			tn13 := c.P.ActionHull(c, false, tk12)
+			ti14, tf14 := c.P.ActionItems("foldl", k1)
 			if tf14 != nil {
-				c.TermRaise(tf14)
+				c.ActionRaise(tf14)
 			}
 			ta15 := any(tn13)
 			tj16 := 0
 			for ; tj16 < len(ti14); tj16++ {
 				c.P.Spend()
 				tp18 := ta15
-				tp19 := c.P.TermItemAt(ti14, tj16, false)
-				tv21, tf21 := c.P.TermMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
+				tp19 := c.P.ActionItemAt(ti14, tj16, false)
+				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
 				if tf21 != nil {
-					c.TermRaise(tf21)
+					c.ActionRaise(tf21)
 				}
 				tm22 := len(c.P.KidStack)
 				c.P.Spend()
-				tf23 := c.P.TermPushItems(c, "concat", (tp18))
+				tf23 := c.P.ActionPushItems(c, "concat", (tp18))
 				if tf23 != nil {
-					c.TermRaise(tf23)
+					c.ActionRaise(tf23)
 				}
 				c.P.Spend()
-				tf24 := c.P.TermPushItems(c, "concat", tv21)
+				tf24 := c.P.ActionPushItems(c, "concat", tv21)
 				if tf24 != nil {
-					c.TermRaise(tf24)
+					c.ActionRaise(tf24)
 				}
 				tk25 := c.P.ElemsAbove(tm22)
-				tn26 := c.P.TermHull(c, false, tk25)
+				tn26 := c.P.ActionHull(c, false, tk25)
 				tv20 := any(tn26)
 				ta15 = tv20
 			}
@@ -4507,17 +4507,17 @@ L9:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.Spend()
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr38 = any(tn5)
 		}
 		v = tr38
@@ -4642,17 +4642,17 @@ L10:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.Spend()
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr40 = any(tn5)
 		}
 		v = tr40
@@ -4707,17 +4707,17 @@ L10:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.Spend()
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr41 = any(tn5)
 		}
 		v = tr41
@@ -4872,12 +4872,12 @@ func i17(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tr42 = any(tn4)
 		}
 		v = tr42
@@ -4952,7 +4952,7 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tr43 = any(tn3)
 		}
 		v = tr43
@@ -5049,7 +5049,7 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tr44 = any(tn3)
 		}
 		v = tr44
@@ -5146,7 +5146,7 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tr45 = any(tn3)
 		}
 		v = tr45
@@ -5266,27 +5266,27 @@ L12:
 	{
 		var tr46 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k7, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k7, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k7, "Type", "Type")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k7, "Type", "Type")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k4)
+			tf4 := c.P.ActionPushItems(c, "concat", k4)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k16)
+			tf5 := c.P.ActionPushItems(c, "concat", k16)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_TypeAlias(c, true, tv1, tv2, any(tn7), k7, k13)
 			tr46 = tv8
 		}
@@ -5346,27 +5346,27 @@ L9:
 	{
 		var tr47 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Type", "Type")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Type", "Type")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k1)
+			tf4 := c.P.ActionPushItems(c, "concat", k1)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k13)
+			tf5 := c.P.ActionPushItems(c, "concat", k13)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_TypeDef(c, true, tv1, tv2, any(tn7), k4, k10)
 			tr47 = tv8
 		}
@@ -5745,12 +5745,12 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k7)
+			tf2 := c.P.ActionPush(c, "list", k7)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tv5 := tmk_TypeApp(c, true, k4, any(tn4))
 			tr51 = tv5
 		}
@@ -5848,27 +5848,27 @@ L9:
 	{
 		var tr52 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Type", "Type")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Type", "Type")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k1)
+			tf4 := c.P.ActionPushItems(c, "concat", k1)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k13)
+			tf5 := c.P.ActionPushItems(c, "concat", k13)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_Field(c, true, tv1, tv2, any(tn7), k4, k10)
 			tr52 = tv8
 		}
@@ -6189,9 +6189,9 @@ L25:
 	{
 		var tr55 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k7)
+			ti1, tf1 := c.P.ActionItems("map", k7)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tv3 := tmk_StructType(c, true, tv2, k18, k4)
@@ -6305,16 +6305,16 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr57 = any(tn5)
 		}
 		v = tr57
@@ -6543,59 +6543,59 @@ L18:
 	{
 		var tr61 any
 		{
-			ti2, tf2 := c.P.TermItems("map", k1)
+			ti2, tf2 := c.P.ActionItems("map", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := (c.NewList(ti2))
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPush(c, "list", k12)
+			tf5 := c.P.ActionPush(c, "list", k12)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm4)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tm8 := len(c.P.KidStack)
-			ti9, tf9 := c.P.TermItems("filter", any(tn7))
+			ti9, tf9 := c.P.ActionItems("filter", any(tn7))
 			if tf9 != nil {
-				c.TermRaise(tf9)
+				c.ActionRaise(tf9)
 			}
 			tj10 := 0
 			for ; tj10 < len(ti9); tj10++ {
 				c.P.Spend()
-				tp12 := c.P.TermItemAt(ti9, tj10, false)
-				tv14, tf14 := c.P.TermBinary(rt.OpNe, (tp12), any(nil))
+				tp12 := c.P.ActionItemAt(ti9, tj10, false)
+				tv14, tf14 := c.P.ActionBinary(rt.OpNe, (tp12), any(nil))
 				if tf14 != nil {
-					c.TermRaise(tf14)
+					c.ActionRaise(tf14)
 				}
 				tv13 := tv14
-				tb15, tf15 := c.P.TermFilterKeep(tv13)
+				tb15, tf15 := c.P.ActionFilterKeep(tv13)
 				if tf15 != nil {
-					c.TermRaise(tf15)
+					c.ActionRaise(tf15)
 				}
 				if tb15 {
 					c.P.KidStack = append(c.P.KidStack, ti9[tj10])
 				}
 			}
 			tk16 := c.P.ElemsAbove(tm8)
-			tn17 := c.P.TermHull(c, false, tk16)
+			tn17 := c.P.ActionHull(c, false, tk16)
 			tm18 := len(c.P.KidStack)
 			c.P.Spend()
-			tf19 := c.P.TermPushItems(c, "concat", tv3)
+			tf19 := c.P.ActionPushItems(c, "concat", tv3)
 			if tf19 != nil {
-				c.TermRaise(tf19)
+				c.ActionRaise(tf19)
 			}
 			c.P.Spend()
-			tf20 := c.P.TermPushItems(c, "concat", any(tn17))
+			tf20 := c.P.ActionPushItems(c, "concat", any(tn17))
 			if tf20 != nil {
-				c.TermRaise(tf20)
+				c.ActionRaise(tf20)
 			}
 			tk21 := c.P.ElemsAbove(tm18)
-			tn22 := c.P.TermHull(c, false, tk21)
+			tn22 := c.P.ActionHull(c, false, tk21)
 			tc1 := any(tn22)
-			if !c.P.TermConforms(fieldType1, tc1) {
-				c.TermRaise(c.TermCastFailed(tc1, fieldType1, 0, 0))
+			if !c.P.ActionConforms(fieldType1, tc1) {
+				c.ActionRaise(c.ActionCastFailed(tc1, fieldType1, 0, 0))
 			}
 			tv23 := tmk_TupleType(c, true, tc1)
 			tr61 = tv23
@@ -6664,31 +6664,31 @@ L9:
 	{
 		var tr62 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Type", "Type")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Type", "Type")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberValue, k4, "Value", "Value")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberValue, k4, "Value", "Value")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k1)
+			tf5 := c.P.ActionPushItems(c, "concat", k1)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", k13)
+			tf6 := c.P.ActionPushItems(c, "concat", k13)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tk7 := c.P.ElemsAbove(tm4)
-			tn8 := c.P.TermHull(c, false, tk7)
+			tn8 := c.P.ActionHull(c, false, tk7)
 			tv9 := tmk_VarDef(c, true, tv1, tv2, tv3, any(tn8), k4, k10)
 			tr62 = tv9
 		}
@@ -6940,48 +6940,48 @@ L9:
 	{
 		var tr66 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Attrs", "Attrs")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Attrs", "Attrs")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Type", "Type")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Type", "Type")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k4, "Action", "Action")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k4, "Action", "Action")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k4, "AttrComments", "AttrComments")
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k4, "AttrComments", "AttrComments")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tm7 := len(c.P.KidStack)
 			c.P.Spend()
-			tf8 := c.P.TermPushItems(c, "concat", k1)
+			tf8 := c.P.ActionPushItems(c, "concat", k1)
 			if tf8 != nil {
-				c.TermRaise(tf8)
+				c.ActionRaise(tf8)
 			}
 			c.P.Spend()
-			tf9 := c.P.TermPushItems(c, "concat", tv6)
+			tf9 := c.P.ActionPushItems(c, "concat", tv6)
 			if tf9 != nil {
-				c.TermRaise(tf9)
+				c.ActionRaise(tf9)
 			}
 			c.P.Spend()
-			tf10 := c.P.TermPushItems(c, "concat", k13)
+			tf10 := c.P.ActionPushItems(c, "concat", k13)
 			if tf10 != nil {
-				c.TermRaise(tf10)
+				c.ActionRaise(tf10)
 			}
 			tk11 := c.P.ElemsAbove(tm7)
-			tn12 := c.P.TermHull(c, false, tk11)
+			tn12 := c.P.ActionHull(c, false, tk11)
 			tv13 := tmk_RuleDef(c, true, tv1, tv2, tv3, tv4, tv5, any(tn12), k4, k10)
 			tr66 = tv13
 		}
@@ -7159,56 +7159,56 @@ L62:
 		var tr67 any
 		{
 			tm1 := len(c.P.KidStack)
-			ti2, tf2 := c.P.TermItems("map", k1)
+			ti2, tf2 := c.P.ActionItems("map", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tj3 := 0
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Spend()
-				tp5 := c.P.TermItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.TermMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
+				tp5 := c.P.ActionItemAt(ti2, tj3, false)
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
 				if tf7 != nil {
-					c.TermRaise(tf7)
+					c.ActionRaise(tf7)
 				}
 				tv6 := tv7
-				tf8 := c.P.TermPush(c, "map", tv6)
+				tf8 := c.P.ActionPush(c, "map", tv6)
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
 			}
 			tk9 := c.P.ElemsAbove(tm1)
-			tn10 := c.P.TermHull(c, false, tk9)
+			tn10 := c.P.ActionHull(c, false, tk9)
 			tm11 := len(c.P.KidStack)
 			tk12 := c.P.ElemsAbove(tm11)
-			tn13 := c.P.TermHull(c, false, tk12)
-			ti14, tf14 := c.P.TermItems("foldl", k1)
+			tn13 := c.P.ActionHull(c, false, tk12)
+			ti14, tf14 := c.P.ActionItems("foldl", k1)
 			if tf14 != nil {
-				c.TermRaise(tf14)
+				c.ActionRaise(tf14)
 			}
 			ta15 := any(tn13)
 			tj16 := 0
 			for ; tj16 < len(ti14); tj16++ {
 				c.P.Spend()
 				tp18 := ta15
-				tp19 := c.P.TermItemAt(ti14, tj16, false)
-				tv21, tf21 := c.P.TermMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
+				tp19 := c.P.ActionItemAt(ti14, tj16, false)
+				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
 				if tf21 != nil {
-					c.TermRaise(tf21)
+					c.ActionRaise(tf21)
 				}
 				tm22 := len(c.P.KidStack)
 				c.P.Spend()
-				tf23 := c.P.TermPushItems(c, "concat", (tp18))
+				tf23 := c.P.ActionPushItems(c, "concat", (tp18))
 				if tf23 != nil {
-					c.TermRaise(tf23)
+					c.ActionRaise(tf23)
 				}
 				c.P.Spend()
-				tf24 := c.P.TermPushItems(c, "concat", tv21)
+				tf24 := c.P.ActionPushItems(c, "concat", tv21)
 				if tf24 != nil {
-					c.TermRaise(tf24)
+					c.ActionRaise(tf24)
 				}
 				tk25 := c.P.ElemsAbove(tm22)
-				tn26 := c.P.TermHull(c, false, tk25)
+				tn26 := c.P.ActionHull(c, false, tk25)
 				tv20 := any(tn26)
 				ta15 = tv20
 			}
@@ -7356,17 +7356,17 @@ func i82(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.Spend()
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr69 = any(tn5)
 		}
 		v = tr69
@@ -7466,9 +7466,9 @@ func i83(p *rt.TParser) (any, bool) {
 	{
 		var tr70 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k5)
+			ti1, tf1 := c.P.ActionItems("map", k5)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tr70 = tv2
@@ -9265,13 +9265,13 @@ func i105(p *rt.TParser) (any, bool) {
 	{
 		var tr80 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Actions", "Actions")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Actions", "Actions")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Comments", "Comments")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Comments", "Comments")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := tmk_Predicate(c, true, tv1, tv2)
 			tr80 = tv3
@@ -9970,13 +9970,13 @@ L14:
 	{
 		var tr89 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k9, "Args", "Args")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k9, "Args", "Args")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k9, "KwArgs", "KwArgs")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k9, "KwArgs", "KwArgs")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := tmk_Attr(c, true, k1, tv1, tv2)
 			tr89 = tv3
@@ -10168,19 +10168,19 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPush(c, "list", k1)
+			tf5 := c.P.ActionPush(c, "list", k1)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
-			tf6 := c.P.TermPushItems(c, "concat", k4)
+			tf6 := c.P.ActionPushItems(c, "concat", k4)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tk7 := c.P.ElemsAbove(tm4)
-			tn8 := c.P.TermHull(c, false, tk7)
+			tn8 := c.P.ActionHull(c, false, tk7)
 			tv9 := tmk_AttrArgs(c, true, any(tn3), any(tn8))
 			tr92 = tv9
 		}
@@ -10281,42 +10281,42 @@ L28:
 		var tr93 any
 		{
 			tm1 := len(c.P.KidStack)
-			tv2, tf2 := c.P.TermMember(c, rt.MemberValue, k1, "Value", "Value")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberValue, k1, "Value", "Value")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv2)
+			tf3 := c.P.ActionPush(c, "list", tv2)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			ti4, tf4 := c.P.TermItems("map", k4)
+			ti4, tf4 := c.P.ActionItems("map", k4)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tj5 := 0
 			for ; tj5 < len(ti4); tj5++ {
 				c.P.Spend()
-				tp7 := c.P.TermItemAt(ti4, tj5, false)
-				tv9, tf9 := c.P.TermMember(c, rt.MemberCapture, (tp7), "$a", "$a"[1:])
+				tp7 := c.P.ActionItemAt(ti4, tj5, false)
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$a", "$a"[1:])
 				if tf9 != nil {
-					c.TermRaise(tf9)
+					c.ActionRaise(tf9)
 				}
-				tv10, tf10 := c.P.TermMember(c, rt.MemberValue, tv9, "Value", "Value")
+				tv10, tf10 := c.P.ActionMember(c, rt.MemberValue, tv9, "Value", "Value")
 				if tf10 != nil {
-					c.TermRaise(tf10)
+					c.ActionRaise(tf10)
 				}
 				tv8 := tv10
-				tf11 := c.P.TermPush(c, "map", tv8)
+				tf11 := c.P.ActionPush(c, "map", tv8)
 				if tf11 != nil {
-					c.TermRaise(tf11)
+					c.ActionRaise(tf11)
 				}
 			}
 			tk12 := c.P.ElemsAbove(tm1)
-			tn13 := c.P.TermHull(c, false, tk12)
-			tv14, tf14 := c.P.TermMember(c, rt.MemberField, k23, "KwArgs", "KwArgs")
+			tn13 := c.P.ActionHull(c, false, tk12)
+			tv14, tf14 := c.P.ActionMember(c, rt.MemberField, k23, "KwArgs", "KwArgs")
 			if tf14 != nil {
-				c.TermRaise(tf14)
+				c.ActionRaise(tf14)
 			}
 			tv15 := tmk_AttrArgs(c, true, any(tn13), tv14)
 			tr93 = tv15
@@ -10361,10 +10361,10 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			tk5 := c.P.ElemsAbove(tm4)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_AttrArgs(c, true, any(tn3), any(tn6))
 			tr94 = tv7
 		}
@@ -10409,10 +10409,10 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			tk5 := c.P.ElemsAbove(tm4)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_AttrArgs(c, true, any(tn3), any(tn6))
 			tr95 = tv7
 		}
@@ -10455,10 +10455,10 @@ L4:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			tk5 := c.P.ElemsAbove(tm4)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_AttrArgs(c, true, any(tn3), any(tn6))
 			tr96 = tv7
 		}
@@ -11135,26 +11135,26 @@ L35:
 		var tr102 any
 		{
 			tm1 := len(c.P.KidStack)
-			ti2, tf2 := c.P.TermItems("map", k13)
+			ti2, tf2 := c.P.ActionItems("map", k13)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tj3 := 0
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Spend()
-				tp5 := c.P.TermItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.TermMember(c, rt.MemberCapture, (tp5), "$i", "$i"[1:])
+				tp5 := c.P.ActionItemAt(ti2, tj3, false)
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$i", "$i"[1:])
 				if tf7 != nil {
-					c.TermRaise(tf7)
+					c.ActionRaise(tf7)
 				}
 				tv6 := tv7
-				tf8 := c.P.TermPush(c, "map", tv6)
+				tf8 := c.P.ActionPush(c, "map", tv6)
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
 			}
 			tk9 := c.P.ElemsAbove(tm1)
-			tn10 := c.P.TermHull(c, false, tk9)
+			tn10 := c.P.ActionHull(c, false, tk9)
 			tv11 := tmk_OperatorsRule(c, true, any(tn10), k28, k10)
 			tr102 = tv11
 		}
@@ -11249,23 +11249,23 @@ L9:
 	{
 		var tr103 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPushItems(c, "concat", k1)
+			tf3 := c.P.ActionPushItems(c, "concat", k1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k13)
+			tf4 := c.P.ActionPushItems(c, "concat", k13)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tk5 := c.P.ElemsAbove(tm2)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_OperatorsSkip(c, true, tv1, any(tn6), k4, k10)
 			tr103 = tv7
 		}
@@ -11381,27 +11381,27 @@ L9:
 	{
 		var tr105 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Action", "Action")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Action", "Action")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k1)
+			tf4 := c.P.ActionPushItems(c, "concat", k1)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k13)
+			tf5 := c.P.ActionPushItems(c, "concat", k13)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_OperatorsOperand(c, true, tv1, tv2, any(tn7), k4, k10)
 			tr105 = tv8
 		}
@@ -11530,39 +11530,39 @@ L9:
 	{
 		var tr107 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Operators", "Operators")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Operators", "Operators")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Comments", "Comments")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Comments", "Comments")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k1)
+			tf5 := c.P.ActionPushItems(c, "concat", k1)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", tv3)
+			tf6 := c.P.ActionPushItems(c, "concat", tv3)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			c.P.Spend()
-			tf7 := c.P.TermPushItems(c, "concat", k13)
+			tf7 := c.P.ActionPushItems(c, "concat", k13)
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
 			tk8 := c.P.ElemsAbove(tm4)
-			tn9 := c.P.TermHull(c, false, tk8)
-			tv10, tf10 := c.P.TermMember(c, rt.MemberField, k4, "Head", "Head")
+			tn9 := c.P.ActionHull(c, false, tk8)
+			tv10, tf10 := c.P.ActionMember(c, rt.MemberField, k4, "Head", "Head")
 			if tf10 != nil {
-				c.TermRaise(tf10)
+				c.ActionRaise(tf10)
 			}
 			tv11 := tmk_OperatorsLevel(c, true, tv1, tv2, any(tn9), tv10, k4, k10)
 			tr107 = tv11
@@ -11697,26 +11697,26 @@ L43:
 		var tr108 any
 		{
 			tm1 := len(c.P.KidStack)
-			ti2, tf2 := c.P.TermItems("map", k21)
+			ti2, tf2 := c.P.ActionItems("map", k21)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tj3 := 0
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Spend()
-				tp5 := c.P.TermItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.TermMember(c, rt.MemberCapture, (tp5), "$o", "$o"[1:])
+				tp5 := c.P.ActionItemAt(ti2, tj3, false)
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$o", "$o"[1:])
 				if tf7 != nil {
-					c.TermRaise(tf7)
+					c.ActionRaise(tf7)
 				}
 				tv6 := tv7
-				tf8 := c.P.TermPush(c, "map", tv6)
+				tf8 := c.P.ActionPush(c, "map", tv6)
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
 			}
 			tk9 := c.P.ElemsAbove(tm1)
-			tn10 := c.P.TermHull(c, false, tk9)
+			tn10 := c.P.ActionHull(c, false, tk9)
 			tv11 := tmk_OperatorsLevelBody(c, true, k1, any(tn10), k18, k36)
 			tr108 = tv11
 		}
@@ -11809,27 +11809,27 @@ L9:
 	{
 		var tr109 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Action", "Action")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Action", "Action")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k1)
+			tf4 := c.P.ActionPushItems(c, "concat", k1)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k13)
+			tf5 := c.P.ActionPushItems(c, "concat", k13)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_Prefix(c, true, tv1, tv2, any(tn7), k4, k10)
 			tr109 = tv8
 		}
@@ -11958,27 +11958,27 @@ L9:
 	{
 		var tr111 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Action", "Action")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Action", "Action")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tm3 := len(c.P.KidStack)
 			c.P.Spend()
-			tf4 := c.P.TermPushItems(c, "concat", k1)
+			tf4 := c.P.ActionPushItems(c, "concat", k1)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k13)
+			tf5 := c.P.ActionPushItems(c, "concat", k13)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm3)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_Postfix(c, true, tv1, tv2, any(tn7), k4, k10)
 			tr111 = tv8
 		}
@@ -12107,31 +12107,31 @@ L9:
 	{
 		var tr113 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Assoc", "Assoc")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Assoc", "Assoc")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Expr", "Expr")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Expr", "Expr")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Action", "Action")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Action", "Action")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", k1)
+			tf5 := c.P.ActionPushItems(c, "concat", k1)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", k13)
+			tf6 := c.P.ActionPushItems(c, "concat", k13)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tk7 := c.P.ElemsAbove(tm4)
-			tn8 := c.P.TermHull(c, false, tk7)
+			tn8 := c.P.ActionHull(c, false, tk7)
 			tv9 := tmk_Infix(c, true, tv1, tv2, tv3, any(tn8), k4, k10)
 			tr113 = tv9
 		}
@@ -12294,9 +12294,9 @@ L43:
 	{
 		var tr114 any
 		{
-			ts1, tf1 := c.P.TermText(k1)
+			ts1, tf1 := c.P.ActionText(k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := tmk_OperatorsOperatorBody(c, true, any(ts1), k29, k37)
 			tr114 = tv2
@@ -12486,9 +12486,9 @@ L19:
 	{
 		var tr116 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k1)
+			ti1, tf1 := c.P.ActionItems("map", k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tv3 := tmk_ActionBlock(c, true, tv2, k12)
@@ -13779,12 +13779,12 @@ L7:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k1)
+			tf2 := c.P.ActionPushItems(c, "concat", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tr125 = any(tn4)
 		}
 		v = tr125
@@ -13870,16 +13870,16 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr126 = any(tn5)
 		}
 		v = tr126
@@ -14150,7 +14150,7 @@ func s161(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tv4 := tmk_ActionTuple(c, true, any(tn3))
 			tr129 = tv4
 		}
@@ -14269,59 +14269,59 @@ L24:
 	{
 		var tr131 any
 		{
-			ti2, tf2 := c.P.TermItems("map", k1)
+			ti2, tf2 := c.P.ActionItems("map", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := (c.NewList(ti2))
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPush(c, "list", k12)
+			tf5 := c.P.ActionPush(c, "list", k12)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm4)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tm8 := len(c.P.KidStack)
-			ti9, tf9 := c.P.TermItems("filter", any(tn7))
+			ti9, tf9 := c.P.ActionItems("filter", any(tn7))
 			if tf9 != nil {
-				c.TermRaise(tf9)
+				c.ActionRaise(tf9)
 			}
 			tj10 := 0
 			for ; tj10 < len(ti9); tj10++ {
 				c.P.Spend()
-				tp12 := c.P.TermItemAt(ti9, tj10, false)
-				tv14, tf14 := c.P.TermBinary(rt.OpNe, (tp12), any(nil))
+				tp12 := c.P.ActionItemAt(ti9, tj10, false)
+				tv14, tf14 := c.P.ActionBinary(rt.OpNe, (tp12), any(nil))
 				if tf14 != nil {
-					c.TermRaise(tf14)
+					c.ActionRaise(tf14)
 				}
 				tv13 := tv14
-				tb15, tf15 := c.P.TermFilterKeep(tv13)
+				tb15, tf15 := c.P.ActionFilterKeep(tv13)
 				if tf15 != nil {
-					c.TermRaise(tf15)
+					c.ActionRaise(tf15)
 				}
 				if tb15 {
 					c.P.KidStack = append(c.P.KidStack, ti9[tj10])
 				}
 			}
 			tk16 := c.P.ElemsAbove(tm8)
-			tn17 := c.P.TermHull(c, false, tk16)
+			tn17 := c.P.ActionHull(c, false, tk16)
 			tm18 := len(c.P.KidStack)
 			c.P.Spend()
-			tf19 := c.P.TermPushItems(c, "concat", tv3)
+			tf19 := c.P.ActionPushItems(c, "concat", tv3)
 			if tf19 != nil {
-				c.TermRaise(tf19)
+				c.ActionRaise(tf19)
 			}
 			c.P.Spend()
-			tf20 := c.P.TermPushItems(c, "concat", any(tn17))
+			tf20 := c.P.ActionPushItems(c, "concat", any(tn17))
 			if tf20 != nil {
-				c.TermRaise(tf20)
+				c.ActionRaise(tf20)
 			}
 			tk21 := c.P.ElemsAbove(tm18)
-			tn22 := c.P.TermHull(c, false, tk21)
+			tn22 := c.P.ActionHull(c, false, tk21)
 			tc1 := any(tn22)
-			if !c.P.TermConforms(fieldType2, tc1) {
-				c.TermRaise(c.TermCastFailed(tc1, fieldType2, 0, 0))
+			if !c.P.ActionConforms(fieldType2, tc1) {
+				c.ActionRaise(c.ActionCastFailed(tc1, fieldType2, 0, 0))
 			}
 			tv23 := tmk_ActionTuple(c, true, tc1)
 			tr131 = tv23
@@ -14492,12 +14492,12 @@ L17:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k4)
+			tf2 := c.P.ActionPushItems(c, "concat", k4)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tv5 := tmk_Call(c, true, k1, any(tn4))
 			tr135 = tv5
 		}
@@ -14593,16 +14593,16 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr136 = any(tn5)
 		}
 		v = tr136
@@ -14715,12 +14715,12 @@ L25:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k9)
+			tf2 := c.P.ActionPushItems(c, "concat", k9)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tv5 := tmk_ListConstructor(c, true, k1, any(tn4), k18)
 			tr138 = tv5
 		}
@@ -14861,20 +14861,20 @@ L39:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPushItems(c, "concat", k12)
+			tf2 := c.P.ActionPushItems(c, "concat", k12)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tm5 := len(c.P.KidStack)
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", k14)
+			tf6 := c.P.ActionPushItems(c, "concat", k14)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tk7 := c.P.ElemsAbove(tm5)
-			tn8 := c.P.TermHull(c, false, tk7)
+			tn8 := c.P.ActionHull(c, false, tk7)
 			tv9 := tmk_Constructor(c, true, k1, any(tn4), any(tn8), k32, k7)
 			tr140 = tv9
 		}
@@ -14966,16 +14966,16 @@ L18:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr141 = any(tn5)
 		}
 		v = tr141
@@ -15038,13 +15038,13 @@ L9:
 	{
 		var tr142 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k4, "Name", "Name")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k4, "Name", "Name")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Val", "Val")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Val", "Val")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := tmk_InitField(c, true, tv1, tv2, k1, k4, k10)
 			tr142 = tv3
@@ -15764,9 +15764,9 @@ func i180(p *rt.TParser) (any, bool) {
 	{
 		var tr146 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k5)
+			ti1, tf1 := c.P.ActionItems("map", k5)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tr146 = tv2
@@ -15866,9 +15866,9 @@ func i181(p *rt.TParser) (any, bool) {
 	{
 		var tr147 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k5)
+			ti1, tf1 := c.P.ActionItems("map", k5)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tr147 = tv2
@@ -15954,9 +15954,9 @@ func i186(p *rt.TParser) (any, bool) {
 	{
 		var tr148 any
 		{
-			ti1, tf1 := c.P.TermItems("map", k5)
+			ti1, tf1 := c.P.ActionItems("map", k5)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := (c.NewList(ti1))
 			tr148 = tv2
@@ -16113,16 +16113,16 @@ func i193(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k4)
+			tf3 := c.P.ActionPushItems(c, "concat", k4)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tv6 := tmk_CommentGroup(c, true, any(tn5))
 			tr149 = tv6
 		}
@@ -16166,12 +16166,12 @@ func i194(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k1)
+			tf2 := c.P.ActionPush(c, "list", k1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tk3 := c.P.ElemsAbove(tm1)
-			tn4 := c.P.TermHull(c, false, tk3)
+			tn4 := c.P.ActionHull(c, false, tk3)
 			tv5 := tmk_CommentGroup(c, true, any(tn4))
 			tr150 = tv5
 		}
@@ -17281,13 +17281,13 @@ L33:
 	{
 		var tr154 any
 		{
-			tv1, tf1 := c.P.TermBinary(rt.OpNe, k1, any(nil))
+			tv1, tf1 := c.P.ActionBinary(rt.OpNe, k1, any(nil))
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberValue, k10, "Value", "Value")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberValue, k10, "Value", "Value")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			tv3 := tmk_CharClass(c, true, tv1, tv2)
 			tr154 = tv3
@@ -17482,17 +17482,17 @@ L6:
 	{
 		var tr156 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Leading", "Leading")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Leading", "Leading")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Detached", "Detached")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Detached", "Detached")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k1, "HasNext", "HasNext")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k1, "HasNext", "HasNext")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tv4 := tmk_SourceLead(c, true, tv1, tv2, tv3)
 			tr156 = tv4
@@ -17549,17 +17549,17 @@ L6:
 	{
 		var tr157 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Leading", "Leading")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Leading", "Leading")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Detached", "Detached")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Detached", "Detached")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k1, "HasNext", "HasNext")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k1, "HasNext", "HasNext")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tv4 := tmk_SourceLead(c, true, tv1, tv2, tv3)
 			tr157 = tv4
@@ -17585,10 +17585,10 @@ func s212(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			tk5 := c.P.ElemsAbove(tm4)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_SourceBoundary(c, true, any(tn3), any(""), any(tn6), any(false))
 			tr158 = tv7
 		}
@@ -17688,42 +17688,42 @@ func i214(p *rt.TParser) (any, bool) {
 	{
 		var tr159 any
 		{
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Trailing", "Trailing")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Trailing", "Trailing")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Trailing", "Trailing")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Trailing", "Trailing")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPushItems(c, "concat", tv2)
+			tf5 := c.P.ActionPushItems(c, "concat", tv2)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			c.P.Spend()
-			tf6 := c.P.TermPushItems(c, "concat", tv3)
+			tf6 := c.P.ActionPushItems(c, "concat", tv3)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tk7 := c.P.ElemsAbove(tm4)
-			tn8 := c.P.TermHull(c, false, tk7)
+			tn8 := c.P.ActionHull(c, false, tk7)
 			tc1 := any(tn8)
-			if !c.P.TermConforms(fieldType3, tc1) {
-				c.TermRaise(c.TermCastFailed(tc1, fieldType3, 0, 0))
+			if !c.P.ActionConforms(fieldType3, tc1) {
+				c.ActionRaise(c.ActionCastFailed(tc1, fieldType3, 0, 0))
 			}
-			tv9, tf9 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tv9, tf9 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf9 != nil {
-				c.TermRaise(tf9)
+				c.ActionRaise(tf9)
 			}
-			tv10, tf10 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv10, tf10 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf10 != nil {
-				c.TermRaise(tf10)
+				c.ActionRaise(tf10)
 			}
-			tv11, tf11 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv11, tf11 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf11 != nil {
-				c.TermRaise(tf11)
+				c.ActionRaise(tf11)
 			}
 			tv12 := tmk_SourceLead(c, false, tv9, tv10, tv11)
 			tv13 := tmk_SourceItem(c, true, tc1, tv12)
@@ -17771,21 +17771,21 @@ func i215(p *rt.TParser) (any, bool) {
 	{
 		var tr160 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tv5 := tmk_SourceLead(c, false, tv2, tv3, tv4)
 			tv6 := tmk_SourceItem(c, true, tv1, tv5)
@@ -17830,21 +17830,21 @@ func i216(p *rt.TParser) (any, bool) {
 	{
 		var tr161 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Leading", "Leading")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Leading", "Leading")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k1, "Detached", "Detached")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k1, "Detached", "Detached")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k1, "HasNext", "HasNext")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k1, "HasNext", "HasNext")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tv5 := tmk_SourceLead(c, false, tv2, tv3, tv4)
 			tv6 := tmk_SourceItem(c, true, tv1, tv5)
@@ -17872,10 +17872,10 @@ func s217(p *rt.TParser) (any, bool) {
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			tk5 := c.P.ElemsAbove(tm4)
-			tn6 := c.P.TermHull(c, false, tk5)
+			tn6 := c.P.ActionHull(c, false, tk5)
 			tv7 := tmk_SourceLead(c, false, any(""), any(tn6), any(false))
 			tv8 := tmk_SourceItem(c, true, any(tn3), tv7)
 			tr162 = tv8
@@ -17969,21 +17969,21 @@ func i221(p *rt.TParser) (any, bool) {
 	{
 		var tr163 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k1, "Leading", "Leading")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k1, "Leading", "Leading")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k1, "Detached", "Detached")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k1, "Detached", "Detached")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k1, "HasNext", "HasNext")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k1, "HasNext", "HasNext")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tv5 := tmk_SourceLead(c, false, tv2, tv3, tv4)
 			tv6 := tmk_SourceItem(c, true, tv1, tv5)
@@ -18033,21 +18033,21 @@ func i222(p *rt.TParser) (any, bool) {
 	{
 		var tr164 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tv2, tf2 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tv5 := tmk_SourceLead(c, false, tv2, tv3, tv4)
 			tv6 := tmk_SourceItem(c, true, tv1, tv5)
@@ -18170,29 +18170,29 @@ func i224(p *rt.TParser) (any, bool) {
 	{
 		var tr165 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv1)
+			tf3 := c.P.ActionPush(c, "list", tv1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tn5 := c.P.ActionHull(c, false, tk4)
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
-			tv7, tf7 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
-			tv8, tf8 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv8, tf8 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf8 != nil {
-				c.TermRaise(tf8)
+				c.ActionRaise(tf8)
 			}
 			tv9 := tmk_SourceBoundary(c, true, any(tn5), tv6, tv7, tv8)
 			tr165 = tv9
@@ -18303,58 +18303,58 @@ func i225(p *rt.TParser) (any, bool) {
 		var tr166 any
 		{
 			tm2 := len(c.P.KidStack)
-			ti3, tf3 := c.P.TermItems("map", k1)
+			ti3, tf3 := c.P.ActionItems("map", k1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tj4 := 0
 			for ; tj4 < len(ti3); tj4++ {
 				c.P.Spend()
-				tp6 := c.P.TermItemAt(ti3, tj4, false)
-				tv8, tf8 := c.P.TermMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
+				tp6 := c.P.ActionItemAt(ti3, tj4, false)
+				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
-				tv9, tf9 := c.P.TermMember(c, rt.MemberField, tv8, "Text", "Text")
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberField, tv8, "Text", "Text")
 				if tf9 != nil {
-					c.TermRaise(tf9)
+					c.ActionRaise(tf9)
 				}
 				tv7 := tv9
-				tf10 := c.P.TermPush(c, "map", tv7)
+				tf10 := c.P.ActionPush(c, "map", tv7)
 				if tf10 != nil {
-					c.TermRaise(tf10)
+					c.ActionRaise(tf10)
 				}
 			}
 			tk11 := c.P.ElemsAbove(tm2)
-			tn12 := c.P.TermHull(c, false, tk11)
+			tn12 := c.P.ActionHull(c, false, tk11)
 			tm13 := len(c.P.KidStack)
 			c.P.Spend()
-			tf14 := c.P.TermPushItems(c, "concat", any(tn12))
+			tf14 := c.P.ActionPushItems(c, "concat", any(tn12))
 			if tf14 != nil {
-				c.TermRaise(tf14)
+				c.ActionRaise(tf14)
 			}
 			c.P.Spend()
-			tf15 := c.P.TermPushItems(c, "concat", k19)
+			tf15 := c.P.ActionPushItems(c, "concat", k19)
 			if tf15 != nil {
-				c.TermRaise(tf15)
+				c.ActionRaise(tf15)
 			}
 			tk16 := c.P.ElemsAbove(tm13)
-			tn17 := c.P.TermHull(c, false, tk16)
+			tn17 := c.P.ActionHull(c, false, tk16)
 			tc1 := any(tn17)
-			if !c.P.TermConforms(fieldType4, tc1) {
-				c.TermRaise(c.TermCastFailed(tc1, fieldType4, 0, 0))
+			if !c.P.ActionConforms(fieldType4, tc1) {
+				c.ActionRaise(c.ActionCastFailed(tc1, fieldType4, 0, 0))
 			}
-			tv18, tf18 := c.P.TermMember(c, rt.MemberField, k22, "Leading", "Leading")
+			tv18, tf18 := c.P.ActionMember(c, rt.MemberField, k22, "Leading", "Leading")
 			if tf18 != nil {
-				c.TermRaise(tf18)
+				c.ActionRaise(tf18)
 			}
-			tv19, tf19 := c.P.TermMember(c, rt.MemberField, k22, "Detached", "Detached")
+			tv19, tf19 := c.P.ActionMember(c, rt.MemberField, k22, "Detached", "Detached")
 			if tf19 != nil {
-				c.TermRaise(tf19)
+				c.ActionRaise(tf19)
 			}
-			tv20, tf20 := c.P.TermMember(c, rt.MemberField, k22, "HasNext", "HasNext")
+			tv20, tf20 := c.P.ActionMember(c, rt.MemberField, k22, "HasNext", "HasNext")
 			if tf20 != nil {
-				c.TermRaise(tf20)
+				c.ActionRaise(tf20)
 			}
 			tv21 := tmk_SourceBoundary(c, true, tc1, tv18, tv19, tv20)
 			tr166 = tv21
@@ -18430,18 +18430,18 @@ func i227(p *rt.TParser) (any, bool) {
 	{
 		var tr167 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv1)
+			tf3 := c.P.ActionPush(c, "list", tv1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tr167 = any(tn5)
 		}
 		v = tr167
@@ -18498,7 +18498,7 @@ L3:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tr168 = any(tn3)
 		}
 		v = tr168
@@ -18585,29 +18585,29 @@ L6:
 	{
 		var tr169 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv1)
+			tf3 := c.P.ActionPush(c, "list", tv1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k13, "Leading", "Leading")
+			tn5 := c.P.ActionHull(c, false, tk4)
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k13, "Leading", "Leading")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
-			tv7, tf7 := c.P.TermMember(c, rt.MemberField, k13, "Detached", "Detached")
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberField, k13, "Detached", "Detached")
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
-			tv8, tf8 := c.P.TermMember(c, rt.MemberField, k13, "HasNext", "HasNext")
+			tv8, tf8 := c.P.ActionMember(c, rt.MemberField, k13, "HasNext", "HasNext")
 			if tf8 != nil {
-				c.TermRaise(tf8)
+				c.ActionRaise(tf8)
 			}
 			tv9 := tmk_SourceBoundary(c, true, any(tn5), tv6, tv7, tv8)
 			tr169 = tv9
@@ -18741,14 +18741,14 @@ L6:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tn3 := c.P.ActionHull(c, false, tk2)
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tm5 := len(c.P.KidStack)
 			tk6 := c.P.ElemsAbove(tm5)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_SourceBoundary(c, true, any(tn3), tv4, any(tn7), any(true))
 			tr170 = tv8
 		}
@@ -18906,15 +18906,15 @@ L6:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
+			tn3 := c.P.ActionHull(c, false, tk2)
 			tm4 := len(c.P.KidStack)
 			c.P.Spend()
-			tf5 := c.P.TermPush(c, "list", k1)
+			tf5 := c.P.ActionPush(c, "list", k1)
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tk6 := c.P.ElemsAbove(tm4)
-			tn7 := c.P.TermHull(c, false, tk6)
+			tn7 := c.P.ActionHull(c, false, tk6)
 			tv8 := tmk_SourceBoundary(c, true, any(tn3), any(""), any(tn7), any(true))
 			tr172 = tv8
 		}
@@ -18969,29 +18969,29 @@ func i236(p *rt.TParser) (any, bool) {
 	{
 		var tr173 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv1)
+			tf3 := c.P.ActionPush(c, "list", tv1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tn5 := c.P.ActionHull(c, false, tk4)
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
-			tv7, tf7 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
-			tv8, tf8 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv8, tf8 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf8 != nil {
-				c.TermRaise(tf8)
+				c.ActionRaise(tf8)
 			}
 			tv9 := tmk_SourceBoundary(c, true, any(tn5), tv6, tv7, tv8)
 			tr173 = tv9
@@ -19100,29 +19100,29 @@ func i238(p *rt.TParser) (any, bool) {
 	{
 		var tr174 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", tv1)
+			tf3 := c.P.ActionPush(c, "list", tv1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k4, "Leading", "Leading")
+			tn5 := c.P.ActionHull(c, false, tk4)
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k4, "Leading", "Leading")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
-			tv7, tf7 := c.P.TermMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
-			tv8, tf8 := c.P.TermMember(c, rt.MemberField, k4, "HasNext", "HasNext")
+			tv8, tf8 := c.P.ActionMember(c, rt.MemberField, k4, "HasNext", "HasNext")
 			if tf8 != nil {
-				c.TermRaise(tf8)
+				c.ActionRaise(tf8)
 			}
 			tv9 := tmk_SourceBoundary(c, true, any(tn5), tv6, tv7, tv8)
 			tr174 = tv9
@@ -19414,10 +19414,10 @@ L26:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
-			ti4, tf4 := c.P.TermItems("map", k7)
+			tn3 := c.P.ActionHull(c, false, tk2)
+			ti4, tf4 := c.P.ActionItems("map", k7)
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tv5 := (c.NewList(ti4))
 			tv6 := tmk_SourceBoundary(c, true, any(tn3), any(""), tv5, any(false))
@@ -19633,32 +19633,32 @@ L49:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k31, "Text", "Text")
+			tn3 := c.P.ActionHull(c, false, tk2)
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k31, "Text", "Text")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
 			tm5 := len(c.P.KidStack)
-			ti6, tf6 := c.P.TermItems("map", k7)
+			ti6, tf6 := c.P.ActionItems("map", k7)
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tj7 := 0
 			for ; tj7 < len(ti6); tj7++ {
 				c.P.Spend()
-				tp9 := c.P.TermItemAt(ti6, tj7, false)
-				tv11, tf11 := c.P.TermMember(c, rt.MemberCapture, (tp9), "$c", "$c"[1:])
+				tp9 := c.P.ActionItemAt(ti6, tj7, false)
+				tv11, tf11 := c.P.ActionMember(c, rt.MemberCapture, (tp9), "$c", "$c"[1:])
 				if tf11 != nil {
-					c.TermRaise(tf11)
+					c.ActionRaise(tf11)
 				}
 				tv10 := tv11
-				tf12 := c.P.TermPush(c, "map", tv10)
+				tf12 := c.P.ActionPush(c, "map", tv10)
 				if tf12 != nil {
-					c.TermRaise(tf12)
+					c.ActionRaise(tf12)
 				}
 			}
 			tk13 := c.P.ElemsAbove(tm5)
-			tn14 := c.P.TermHull(c, false, tk13)
+			tn14 := c.P.ActionHull(c, false, tk13)
 			tv15 := tmk_SourceBoundary(c, true, any(tn3), tv4, any(tn14), any(true))
 			tr177 = tv15
 		}
@@ -20030,31 +20030,31 @@ func i252(p *rt.TParser) (any, bool) {
 	{
 		var tr181 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			ti2, tf2 := c.P.TermItems("foldl", k4)
+			ti2, tf2 := c.P.ActionItems("foldl", k4)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			ta3 := tv1
 			tj4 := 0
 			for ; tj4 < len(ti2); tj4++ {
 				c.P.Spend()
 				tp6 := ta3
-				tp7 := c.P.TermItemAt(ti2, tj4, false)
-				tv9, tf9 := c.P.TermMember(c, rt.MemberCapture, (tp7), "$c", "$c"[1:])
+				tp7 := c.P.ActionItemAt(ti2, tj4, false)
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$c", "$c"[1:])
 				if tf9 != nil {
-					c.TermRaise(tf9)
+					c.ActionRaise(tf9)
 				}
-				tv10, tf10 := c.P.TermMember(c, rt.MemberField, tv9, "Text", "Text")
+				tv10, tf10 := c.P.ActionMember(c, rt.MemberField, tv9, "Text", "Text")
 				if tf10 != nil {
-					c.TermRaise(tf10)
+					c.ActionRaise(tf10)
 				}
-				tv11, tf11 := c.P.TermBinary(rt.OpAdd, (tp6), tv10)
+				tv11, tf11 := c.P.ActionBinary(rt.OpAdd, (tp6), tv10)
 				if tf11 != nil {
-					c.TermRaise(tf11)
+					c.ActionRaise(tf11)
 				}
 				tv8 := tv11
 				ta3 = tv8
@@ -20142,17 +20142,17 @@ L19:
 	{
 		var tr182 any
 		{
-			ts1, tf1 := c.P.TermText(k1)
+			ts1, tf1 := c.P.ActionText(k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			ts2, tf2 := c.P.TermText(k13)
+			ts2, tf2 := c.P.ActionText(k13)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermBinary(rt.OpAdd, any(ts1), any(ts2))
+			tv3, tf3 := c.P.ActionBinary(rt.OpAdd, any(ts1), any(ts2))
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tv4 := tmk_SourceComment(c, true, tv3)
 			tr182 = tv4
@@ -20271,43 +20271,43 @@ func i254(p *rt.TParser) (any, bool) {
 	{
 		var tr183 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			ti2, tf2 := c.P.TermItems("foldl", k4)
+			ti2, tf2 := c.P.ActionItems("foldl", k4)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
 			ta3 := tv1
 			tj4 := 0
 			for ; tj4 < len(ti2); tj4++ {
 				c.P.Spend()
 				tp6 := ta3
-				tp7 := c.P.TermItemAt(ti2, tj4, false)
-				tv9, tf9 := c.P.TermMember(c, rt.MemberCapture, (tp7), "$line", "$line"[1:])
+				tp7 := c.P.ActionItemAt(ti2, tj4, false)
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$line", "$line"[1:])
 				if tf9 != nil {
-					c.TermRaise(tf9)
+					c.ActionRaise(tf9)
 				}
-				ts10, tf10 := c.P.TermText(tv9)
+				ts10, tf10 := c.P.ActionText(tv9)
 				if tf10 != nil {
-					c.TermRaise(tf10)
+					c.ActionRaise(tf10)
 				}
-				tv11, tf11 := c.P.TermBinary(rt.OpAdd, (tp6), any(ts10))
+				tv11, tf11 := c.P.ActionBinary(rt.OpAdd, (tp6), any(ts10))
 				if tf11 != nil {
-					c.TermRaise(tf11)
+					c.ActionRaise(tf11)
 				}
-				tv12, tf12 := c.P.TermMember(c, rt.MemberCapture, (tp7), "$body", "$body"[1:])
+				tv12, tf12 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$body", "$body"[1:])
 				if tf12 != nil {
-					c.TermRaise(tf12)
+					c.ActionRaise(tf12)
 				}
-				tv13, tf13 := c.P.TermMember(c, rt.MemberField, tv12, "Text", "Text")
+				tv13, tf13 := c.P.ActionMember(c, rt.MemberField, tv12, "Text", "Text")
 				if tf13 != nil {
-					c.TermRaise(tf13)
+					c.ActionRaise(tf13)
 				}
-				tv14, tf14 := c.P.TermBinary(rt.OpAdd, tv11, tv13)
+				tv14, tf14 := c.P.ActionBinary(rt.OpAdd, tv11, tv13)
 				if tf14 != nil {
-					c.TermRaise(tf14)
+					c.ActionRaise(tf14)
 				}
 				tv8 := tv14
 				ta3 = tv8
@@ -20395,27 +20395,27 @@ func i256(p *rt.TParser) (any, bool) {
 	{
 		var tr184 any
 		{
-			ti1, tf1 := c.P.TermItems("foldl", k1)
+			ti1, tf1 := c.P.ActionItems("foldl", k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			ta2 := any("")
 			tj3 := 0
 			for ; tj3 < len(ti1); tj3++ {
 				c.P.Spend()
 				tp5 := ta2
-				tp6 := c.P.TermItemAt(ti1, tj3, false)
-				tv8, tf8 := c.P.TermMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
+				tp6 := c.P.ActionItemAt(ti1, tj3, false)
+				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
 				if tf8 != nil {
-					c.TermRaise(tf8)
+					c.ActionRaise(tf8)
 				}
-				tv9, tf9 := c.P.TermMember(c, rt.MemberField, tv8, "Text", "Text")
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberField, tv8, "Text", "Text")
 				if tf9 != nil {
-					c.TermRaise(tf9)
+					c.ActionRaise(tf9)
 				}
-				tv10, tf10 := c.P.TermBinary(rt.OpAdd, (tp5), tv9)
+				tv10, tf10 := c.P.ActionBinary(rt.OpAdd, (tp5), tv9)
 				if tf10 != nil {
-					c.TermRaise(tf10)
+					c.ActionRaise(tf10)
 				}
 				tv7 := tv10
 				ta2 = tv7
@@ -20506,17 +20506,17 @@ func i258(p *rt.TParser) (any, bool) {
 	{
 		var tr185 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k1, "Text", "Text")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k1, "Text", "Text")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermBinary(rt.OpAdd, any("/*"), tv1)
+			tv2, tf2 := c.P.ActionBinary(rt.OpAdd, any("/*"), tv1)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermBinary(rt.OpAdd, tv2, any("*/"))
+			tv3, tf3 := c.P.ActionBinary(rt.OpAdd, tv2, any("*/"))
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tv4 := tmk_SourceComment(c, true, tv3)
 			tr185 = tv4
@@ -20626,9 +20626,9 @@ L6:
 	{
 		var tr186 any
 		{
-			ts1, tf1 := c.P.TermText(k1)
+			ts1, tf1 := c.P.ActionText(k1)
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := tmk_SourceComment(c, true, any(ts1))
 			tr186 = tv2
@@ -20863,73 +20863,73 @@ L7:
 		{
 			tm2 := len(c.P.KidStack)
 			c.P.Spend()
-			tf3 := c.P.TermPush(c, "list", k1)
+			tf3 := c.P.ActionPush(c, "list", k1)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm2)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tm6 := len(c.P.KidStack)
-			ti7, tf7 := c.P.TermItems("filter", any(tn5))
+			ti7, tf7 := c.P.ActionItems("filter", any(tn5))
 			if tf7 != nil {
-				c.TermRaise(tf7)
+				c.ActionRaise(tf7)
 			}
 			tj8 := 0
 			for ; tj8 < len(ti7); tj8++ {
 				c.P.Spend()
-				tp10 := c.P.TermItemAt(ti7, tj8, false)
-				tv12, tf12 := c.P.TermBinary(rt.OpNe, (tp10), any(nil))
+				tp10 := c.P.ActionItemAt(ti7, tj8, false)
+				tv12, tf12 := c.P.ActionBinary(rt.OpNe, (tp10), any(nil))
 				if tf12 != nil {
-					c.TermRaise(tf12)
+					c.ActionRaise(tf12)
 				}
 				tv11 := tv12
-				tb13, tf13 := c.P.TermFilterKeep(tv11)
+				tb13, tf13 := c.P.ActionFilterKeep(tv11)
 				if tf13 != nil {
-					c.TermRaise(tf13)
+					c.ActionRaise(tf13)
 				}
 				if tb13 {
 					c.P.KidStack = append(c.P.KidStack, ti7[tj8])
 				}
 			}
 			tk14 := c.P.ElemsAbove(tm6)
-			tn15 := c.P.TermHull(c, false, tk14)
+			tn15 := c.P.ActionHull(c, false, tk14)
 			tm16 := len(c.P.KidStack)
-			ti17, tf17 := c.P.TermItems("map", k13)
+			ti17, tf17 := c.P.ActionItems("map", k13)
 			if tf17 != nil {
-				c.TermRaise(tf17)
+				c.ActionRaise(tf17)
 			}
 			tj18 := 0
 			for ; tj18 < len(ti17); tj18++ {
 				c.P.Spend()
-				tp20 := c.P.TermItemAt(ti17, tj18, false)
-				tv22, tf22 := c.P.TermMember(c, rt.MemberCapture, (tp20), "$g", "$g"[1:])
+				tp20 := c.P.ActionItemAt(ti17, tj18, false)
+				tv22, tf22 := c.P.ActionMember(c, rt.MemberCapture, (tp20), "$g", "$g"[1:])
 				if tf22 != nil {
-					c.TermRaise(tf22)
+					c.ActionRaise(tf22)
 				}
 				tv21 := tv22
-				tf23 := c.P.TermPush(c, "map", tv21)
+				tf23 := c.P.ActionPush(c, "map", tv21)
 				if tf23 != nil {
-					c.TermRaise(tf23)
+					c.ActionRaise(tf23)
 				}
 			}
 			tk24 := c.P.ElemsAbove(tm16)
-			tn25 := c.P.TermHull(c, false, tk24)
+			tn25 := c.P.ActionHull(c, false, tk24)
 			tm26 := len(c.P.KidStack)
 			c.P.Spend()
-			tf27 := c.P.TermPushItems(c, "concat", any(tn15))
+			tf27 := c.P.ActionPushItems(c, "concat", any(tn15))
 			if tf27 != nil {
-				c.TermRaise(tf27)
+				c.ActionRaise(tf27)
 			}
 			c.P.Spend()
-			tf28 := c.P.TermPushItems(c, "concat", any(tn25))
+			tf28 := c.P.ActionPushItems(c, "concat", any(tn25))
 			if tf28 != nil {
-				c.TermRaise(tf28)
+				c.ActionRaise(tf28)
 			}
 			tk29 := c.P.ElemsAbove(tm26)
-			tn30 := c.P.TermHull(c, false, tk29)
+			tn30 := c.P.ActionHull(c, false, tk29)
 			tc1 := any(tn30)
-			if !c.P.TermConforms(fieldType5, tc1) {
-				c.TermRaise(c.TermCastFailed(tc1, fieldType5, 0, 0))
+			if !c.P.ActionConforms(fieldType5, tc1) {
+				c.ActionRaise(c.ActionCastFailed(tc1, fieldType5, 0, 0))
 			}
 			tr187 = tc1
 		}
@@ -21017,18 +21017,18 @@ L6:
 		{
 			tm1 := len(c.P.KidStack)
 			tk2 := c.P.ElemsAbove(tm1)
-			tn3 := c.P.TermHull(c, false, tk2)
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k7, "Leading", "Leading")
+			tn3 := c.P.ActionHull(c, false, tk2)
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k7, "Leading", "Leading")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k7, "Detached", "Detached")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k7, "Detached", "Detached")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
-			tv6, tf6 := c.P.TermMember(c, rt.MemberField, k7, "HasNext", "HasNext")
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberField, k7, "HasNext", "HasNext")
 			if tf6 != nil {
-				c.TermRaise(tf6)
+				c.ActionRaise(tf6)
 			}
 			tv7 := tmk_CommentGap(c, true, any(tn3), any(false), tv4, tv5, tv6)
 			tr188 = tv7
@@ -21121,25 +21121,25 @@ L23:
 	{
 		var tr189 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k7, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k7, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermBinary(rt.OpNe, k17, any(nil))
+			tv2, tf2 := c.P.ActionBinary(rt.OpNe, k17, any(nil))
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k7, "Leading", "Leading")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k7, "Leading", "Leading")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k7, "Detached", "Detached")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k7, "Detached", "Detached")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k7, "HasNext", "HasNext")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k7, "HasNext", "HasNext")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tv6 := tmk_CommentGap(c, true, tv1, tv2, tv3, tv4, tv5)
 			tr189 = tv6
@@ -21232,25 +21232,25 @@ L23:
 	{
 		var tr190 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k7, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k7, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermBinary(rt.OpNe, k17, any(nil))
+			tv2, tf2 := c.P.ActionBinary(rt.OpNe, k17, any(nil))
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k7, "Leading", "Leading")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k7, "Leading", "Leading")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k7, "Detached", "Detached")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k7, "Detached", "Detached")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k7, "HasNext", "HasNext")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k7, "HasNext", "HasNext")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tv6 := tmk_CommentGap(c, true, tv1, tv2, tv3, tv4, tv5)
 			tr190 = tv6
@@ -21343,25 +21343,25 @@ L23:
 	{
 		var tr191 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberField, k7, "Trailing", "Trailing")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberField, k7, "Trailing", "Trailing")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
-			tv2, tf2 := c.P.TermBinary(rt.OpNe, k17, any(nil))
+			tv2, tf2 := c.P.ActionBinary(rt.OpNe, k17, any(nil))
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tv3, tf3 := c.P.TermMember(c, rt.MemberField, k7, "Leading", "Leading")
+			tv3, tf3 := c.P.ActionMember(c, rt.MemberField, k7, "Leading", "Leading")
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
-			tv4, tf4 := c.P.TermMember(c, rt.MemberField, k7, "Detached", "Detached")
+			tv4, tf4 := c.P.ActionMember(c, rt.MemberField, k7, "Detached", "Detached")
 			if tf4 != nil {
-				c.TermRaise(tf4)
+				c.ActionRaise(tf4)
 			}
-			tv5, tf5 := c.P.TermMember(c, rt.MemberField, k7, "HasNext", "HasNext")
+			tv5, tf5 := c.P.ActionMember(c, rt.MemberField, k7, "HasNext", "HasNext")
 			if tf5 != nil {
-				c.TermRaise(tf5)
+				c.ActionRaise(tf5)
 			}
 			tv6 := tmk_CommentGap(c, true, tv1, tv2, tv3, tv4, tv5)
 			tr191 = tv6
@@ -29661,4 +29661,4 @@ fail:
 
 const _ = types.SXIRSchema_dbc7c7db6f001573
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

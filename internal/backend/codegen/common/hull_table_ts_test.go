@@ -16,7 +16,7 @@ import (
 )
 
 // hullScript makes the tuples and lists of cases.json on the TypeScript library (fxTuple of tsCompose and
-// Actx.newList, over the printed method termHull), prints the range of each, and the units that the
+// Actx.newList, over the printed method actionHull), prints the range of each, and the units that the
 // composition charges over the elements again, in order. The input of the parser is input.txt.
 const hullScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
@@ -51,7 +51,7 @@ console.log(JSON.stringify(cases.map(([kind, elems]) => {
     const n = (kind === "tuple" ? fxTuple(c, ...vs) : c.newList(pushed(vs))) as p.Node;
     const rng = n.start + "-" + n.end;
     const before = used();
-    P.termHull(c, kind === "tuple", n.children);
+    P.actionHull(c, kind === "tuple", n.children);
     return rng + " " + (used() - before);
   } catch (x) {
     return x instanceof FxError ? "error: " + x.msg : "exception: " + String(x);
@@ -148,12 +148,12 @@ func TestPrintedHullMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"an element of a hull charges no step", "termHull(c: Actx", "this.spend();", ""},
-		{"an element that adds no range widens the range", "termHull(c: Actx", "if (has) {", "if (has || true) {"},
-		{"the start of a hull is the latest", "termHull(c: Actx", "es < lo", "es > lo"},
-		{"the end of a hull is the earliest", "termHull(c: Actx", "ee > hi", "ee < hi"},
-		{"a later element replaces the range of a hull", "termHull(c: Actx", "first || es < lo", "true"},
-		{"an empty hull is not at the start of the rule", "termHull(c: Actx", "let lo = rs;", "let lo = 0;"},
+		{"an element of a hull charges no step", "actionHull(c: Actx", "this.spend();", ""},
+		{"an element that adds no range widens the range", "actionHull(c: Actx", "if (has) {", "if (has || true) {"},
+		{"the start of a hull is the latest", "actionHull(c: Actx", "es < lo", "es > lo"},
+		{"the end of a hull is the earliest", "actionHull(c: Actx", "ee > hi", "ee < hi"},
+		{"a later element replaces the range of a hull", "actionHull(c: Actx", "first || es < lo", "true"},
+		{"an empty hull is not at the start of the rule", "actionHull(c: Actx", "let lo = rs;", "let lo = 0;"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

@@ -12,7 +12,7 @@ ordering. This lets structural emission omit unreachable captures while
 preserving the zero/nil slot values of the equivalent frame.
 
 Names are known eagerly, but Go locals are emitted only when matching,
-mark/reset, or term/attached-value access needs them. A predicate that refers
+mark/reset, or action expression/attached-value access needs them. A predicate that refers
 to a known capture omitted from dead syntax can still read a nil local. The
 locals do not allocate runtime capture frames. This change applies to ordinary
 typed direct rules and owned repetition scopes; framed LR, Operators Rule and recovery

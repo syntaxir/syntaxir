@@ -1,5 +1,5 @@
-bench/grammars/terms/heavy.sxir polynomial degree=2
-bench/grammars/terms/pred.sxir linear degree=0
+bench/grammars/actions/heavy.sxir polynomial degree=2
+bench/grammars/actions/pred.sxir linear degree=0
 examples/calculator/calc_lr.sxir linear degree=0
 examples/calculator/calc.sxir linear degree=0
 examples/minilang/minilang.sxir unknown witnessed=2

@@ -1,0 +1,161 @@
+# digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
+main_fast action #1	5	535d0052ac
+file action #1	124	aceefe8fba
+file predicate #1	13	e85ee412e1
+package_clause action #1	12	a349e37136
+package_clause predicate #1	81	615ca1ea33
+import_paren action #1	37	8a658af6ac
+import_single action #1	20	67b59982e1
+import_spec action #1	16	7512609b87
+import_name action #1	5	a235eb0272
+import_name predicate #1	125	c25a76ea9f
+import_path action #1	16	b5e10a8917
+decls action #1	26	bcd92289b9
+item_normal action #1	5	5a96065ba8
+item_tail action #1	5	3d8a2c9258
+embed_tail action #1	16	679881d19c
+comp_decl action #1	5	aae98b3202
+ellipsis_decl action #1	8	49c81da1f6
+let_decl action #1	16	8327528623
+let_decl predicate #1	37	87b324e353
+embed_plain action #1	12	1e51ec052b
+embed_bare action #1	12	6e831761eb
+field_plain action #1	28	932abdcb85
+field_alias action #1	28	48c941fe69
+nfield_plain action #1	28	88781eab36
+nfield_alias action #1	28	daafe5cdf6
+fv_label action #1	5	ee0d6da597
+let_skip action #1	5	fdb3df9177
+expr_nolet action #1	5	af85f2d07a
+nested action #1	20	1c0bcf9252
+alias_value action #1	16	f40a4b67c6
+alias_value predicate #1	37	5ee71177ad
+attrs action #1	26	7a817529e7
+postfix_alias_at action #1	5	ed0901ee98
+alias_dual action #1	16	6f1ee4e5ff
+alias_paren action #1	12	ca5dad9852
+alias_simple action #1	12	9195a5485f
+alias_label action #1	16	7969382912
+alias_label predicate #1	37	8e8d99f642
+alias_nlabel action #1	16	5cb3190458
+alias_nlabel predicate #1	37	45af418c24
+comp_single action #1	28	1876645ab5
+comp_multi action #1	46	b53b672dea
+fb_else action #1	5	6ad0c9e3b6
+fb_other action #1	5	dcca48ad05
+else_clause action #1	12	15178ddf60
+otherwise_clause action #1	12	b712f64dc8
+start_clause action #1	5	d2221bf87c
+for_kv action #1	20	005fa43e8d
+for_kv predicate #1	37	6c87aa3b83
+for_kv predicate #2	37	eed930a527
+for_v action #1	16	2363cc188a
+for_v predicate #1	37	c535fe9a2f
+if_clause action #1	12	1183e93d14
+try_assign action #1	16	e7adfee8b7
+try_plain action #1	8	b88b50ec5e
+struct_lit action #1	12	64fd35aafc
+list_lit action #1	51	765e9881d1
+elem_expr action #1	5	994315d370
+alias_elem action #1	16	fd679671a0
+alias_elem predicate #1	37	45e375a7a0
+list_dots action #1	12	edb06b7260
+dots_type action #1	5	8c3c727b3c
+paren_expr action #1	12	99ba4266d7
+atom_expr action #1	5	818bd6f2a4
+operand_word action #1	5	8e7767d7f4
+operand_digit action #1	5	20b1143a43
+ident_q action #1	16	dff8475c39
+full_expr line 2 #1	20	e599587e83
+full_expr line 3 #1	20	9afa1d2530
+full_expr line 4 #1	20	e64b2a9297
+full_expr line 5 #1	20	eedfec70ff
+full_expr line 6 #1	20	f2547d5b26
+full_expr line 7 #1	20	aa00fcaabd
+full_expr line 8 #1	20	5fab96fccd
+full_expr line 9 #1	16	50dacf1f31
+full_expr line 10 #1	27	4dd24c6ddb
+full_expr line 11 #1	16	a4ddb9cc43
+full_expr line 12 #1	31	cea224e749
+full_expr line 13 #1	20	20c8e2e838
+full_expr line 14 #1	20	a35e885e3a
+full_expr line 15 #1	37	1110d66ff9
+full_expr line 16 #1	16	62f2613667
+sel_string action #1	16	919616e7ec
+interp_expr action #1	5	344e9f1adf
+number action #1	5	03e70dc220
+strlit action #1	5	d800d8e85b
+dq_plain action #1	16	8c349280e8
+dq_open action #1	16	e9bc61f111
+dq_mid action #1	16	819a5db033
+dq_end action #1	16	d2ed56f59e
+dq_interp action #1	33	a4e3aab6ea
+dq_more action #1	31	7f9b0873ae
+dq_last action #1	18	280e999fee
+sq_plain action #1	16	22f95f0de5
+sq_open action #1	16	a617ca6777
+sq_mid action #1	16	d567ae99f6
+sq_end action #1	16	c973c674f5
+sq_interp action #1	33	ba5070fb7e
+sq_more action #1	31	9ddafa303f
+sq_last action #1	18	65e79b5bbd
+qc predicate #1	14	8faadf23e8
+qc predicate #2	14	63e9967342
+hq predicate #1	10	6612b2b99e
+hq predicate #2	10	d63baa3f28
+hq binding sv #1	10	9a164cc56c
+g_escbody predicate #1	14	7b5e41833e
+g_escbody predicate #2	14	9eddfbd51e
+gs_esc predicate #1	18	8032776ed0
+gs_esc predicate #2	18	343fa3b462
+g_interp_open predicate #1	18	bd6684b306
+ml_open_tail predicate #1	38	3f4c9d27c2
+gtriple action #1	16	a1213a047e
+gtriple binding sv #1	13	059d5d163f
+gtriple binding sv #2	17	78cea2385b
+gs_quote predicate #1	14	243c25cbc4
+gs_quote predicate #2	18	f00abcf123
+gs_quote predicate #3	14	a0f360b97a
+gs_quote predicate #4	18	f00abcf123
+gsl_plain action #1	16	dc16ba694c
+gsl_plain binding sv #1	13	40e6451d89
+gsl_plain binding sv #2	17	388e69b11b
+gsl_open action #1	16	044bae6328
+gsl_mid action #1	16	95854ad799
+gsl_end action #1	16	be7031f621
+gsl_interp action #1	33	87c99a97cf
+gsl_interp binding sv #1	13	8676df530a
+gsl_interp_s action #1	33	2f80beb5e3
+gsl_interp_s binding sv #1	17	6954a3d477
+gsl_more action #1	31	b80e47dd68
+gsl_last action #1	18	4a39dff6a9
+ml_close action #1	5	c3790e9f46
+gml_plain action #1	16	11c03b8376
+gml_plain binding sv #1	13	b92cf9ef8c
+gml_plain binding sv #2	17	34532f6726
+gml_plain predicate #1	126	21ce69019c
+gml_open action #1	16	c0df772d21
+gml_mid action #1	16	ddacd4e6cf
+gml_end action #1	16	9e1cb738d3
+gml_interp action #1	33	08ea9f5b93
+gml_interp binding sv #1	13	ebb7dbe10a
+gml_interp_s action #1	33	71ca755cd6
+gml_interp_s binding sv #1	17	9c8688ece2
+gml_more action #1	31	cbc2308acd
+gml_last action #1	18	2e52c9e7c4
+gstr_plain action #1	16	d9e7dda7af
+qc predicate #3	14	8faadf23e8
+qc predicate #4	14	63e9967342
+g_interp_open predicate #2	18	bd6684b306
+hq predicate #3	10	6612b2b99e
+hq predicate #4	10	d63baa3f28
+hq binding sv #2	10	9a164cc56c
+ml_open_tail predicate #2	38	3f4c9d27c2
+gs_quote predicate #5	14	243c25cbc4
+gs_quote predicate #6	18	f00abcf123
+gs_quote predicate #7	14	a0f360b97a
+gs_quote predicate #8	18	f00abcf123
+gs_esc predicate #3	18	8032776ed0
+gs_esc predicate #4	18	343fa3b462
+g_escbody predicate #3	14	7b5e41833e
+g_escbody predicate #4	15	9bcfafcd9c

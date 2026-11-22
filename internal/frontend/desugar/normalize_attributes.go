@@ -58,7 +58,7 @@ func (n *attributeNormalizer) decl(decl ast.Decl) ast.Decl {
 	case *ast.RuleDef:
 		expr := n.expr(rd.Expr)
 		typ := astfacts.UngroupTypeWithPoll(rd.Type, n.poll)
-		action := astfacts.UngroupTermWithPoll(rd.Action, n.poll)
+		action := astfacts.UngroupActionWithPoll(rd.Action, n.poll)
 		if !n.eager && expr == rd.Expr && typ == rd.Type && action == rd.Action {
 			return rd
 		}
@@ -252,24 +252,24 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 		return n.expr(e.Expr)
 	case *ast.InlineAction:
 		child := n.expr(e.Expr)
-		term := astfacts.UngroupTermWithPoll(e.Action, n.poll)
-		if !n.eager && child == e.Expr && term == e.Action {
+		actionExpr := astfacts.UngroupActionWithPoll(e.Action, n.poll)
+		if !n.eager && child == e.Expr && actionExpr == e.Action {
 			return e
 		}
 		copy := *e
-		copy.Expr, copy.Action = child, term
+		copy.Expr, copy.Action = child, actionExpr
 		return &copy
 	case *ast.Predicate:
-		term := e.Action
-		if block, ok := term.(*ast.Block); ok && len(block.Statements) > 0 {
+		actionExpr := e.Action
+		if block, ok := actionExpr.(*ast.Block); ok && len(block.Statements) > 0 {
 			return predicateBlock(e, block, n.control)
 		}
-		term = astfacts.UngroupTermWithPoll(term, n.poll)
-		if !n.eager && term == e.Action {
+		actionExpr = astfacts.UngroupActionWithPoll(actionExpr, n.poll)
+		if !n.eager && actionExpr == e.Action {
 			return e
 		}
 		copy := *e
-		copy.Action = term
+		copy.Action = actionExpr
 		return &copy
 	case *ast.Seq:
 		items, changed := normalizeItems(e.Items, n.eager, n.expr, n.control)
@@ -425,7 +425,7 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 }
 
 func (n *attributeNormalizer) operand(o *ast.OperatorsRuleOperand) *ast.OperatorsRuleOperand {
-	expr, action := n.expr(o.Expr), astfacts.UngroupTermWithPoll(o.Action, n.poll)
+	expr, action := n.expr(o.Expr), astfacts.UngroupActionWithPoll(o.Action, n.poll)
 	if !n.eager && expr == o.Expr && action == o.Action {
 		return o
 	}
@@ -445,7 +445,7 @@ func (n *attributeNormalizer) level(l *ast.OperatorsRuleLevel) *ast.OperatorsRul
 }
 
 func (n *attributeNormalizer) operator(o *ast.OperatorsRuleOperator) *ast.OperatorsRuleOperator {
-	expr, action := n.expr(o.Expr), astfacts.UngroupTermWithPoll(o.Action, n.poll)
+	expr, action := n.expr(o.Expr), astfacts.UngroupActionWithPoll(o.Action, n.poll)
 	if !n.eager && expr == o.Expr && action == o.Action {
 		return o
 	}

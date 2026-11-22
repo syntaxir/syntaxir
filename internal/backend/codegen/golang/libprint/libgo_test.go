@@ -21,20 +21,20 @@ func TestLibGoCurrent(t *testing.T) {
 	}
 }
 
-// TestGoTermsCurrent checks that the printed term compositions in the Go library are those the
+// TestGoActionsCurrent checks that the printed action expression compositions in the Go library are those the
 // compositions print now. The generated library's copy is held equal to this file by the library
 // copy test of the generator.
-func TestGoTermsCurrent(t *testing.T) {
-	want, err := printGoTerms()
+func TestGoActionsCurrent(t *testing.T) {
+	want, err := printGoActions()
 	if err != nil {
 		t.Fatal(err)
 	}
-	got, err := os.ReadFile(goTermsFile)
+	got, err := os.ReadFile(goActionsFile)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if string(got) != want {
-		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", goTermsFile)
+		t.Errorf("%s is stale; run go generate ./internal/backend/codegen/golang/libprint", goActionsFile)
 	}
 }
 
@@ -62,12 +62,12 @@ func TestEngineCurrent(t *testing.T) {
 		gen  func() (string, error)
 	}{
 		{engineFile, printEngine},
-		{engineTermsFile, printEngineTerms},
+		{engineActionsFile, printEngineActions},
 		{engineOperatorsFile, printEngineOperators},
 		{engineStreamFile, printEngineStream},
 		{engineDocumentFile, printEngineDocument},
-		{engineClosureTermFile, printEngineClosureTerms},
-		{engineVMTermFile, printEngineVMTerms},
+		{engineClosureActionFile, printEngineClosureActions},
+		{engineVMActionFile, printEngineVMActions},
 	} {
 		want, err := f.gen()
 		if err != nil {

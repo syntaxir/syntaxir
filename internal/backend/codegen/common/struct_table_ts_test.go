@@ -16,7 +16,7 @@ import (
 )
 
 // structScript makes the structs of cases.json on the TypeScript library (fxStruct of tsCompose, over the printed
-// methods termCover and termMade) and prints the range of each, and whether the context recorded it, in
+// methods actionCover and actionMade) and prints the range of each, and whether the context recorded it, in
 // order. The input of the parser is input.txt.
 const structScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
@@ -128,12 +128,12 @@ func TestPrintedStructMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"a node field value does not cover", "termCover(n: Node", "if (!ok) {", "if (true) {"},
-		{"the start of the range is the latest", "termCover(n: Node", "cs < ns", "cs > ns"},
-		{"the end of the range is the earliest", "termCover(n: Node", "ce > ne", "ce < ne"},
-		{"a later node replaces the range", "termCover(n: Node", "first || cs < ns", "true"},
-		{"a struct without a node keeps no range", "termMade(c: Actx", "if (first) {", "if (false) {"},
-		{"a struct is not recorded", "termMade(c: Actx", "this.created.push(n);", ""},
+		{"a node field value does not cover", "actionCover(n: Node", "if (!ok) {", "if (true) {"},
+		{"the start of the range is the latest", "actionCover(n: Node", "cs < ns", "cs > ns"},
+		{"the end of the range is the earliest", "actionCover(n: Node", "ce > ne", "ce < ne"},
+		{"a later node replaces the range", "actionCover(n: Node", "first || cs < ns", "true"},
+		{"a struct without a node keeps no range", "actionMade(c: Actx", "if (first) {", "if (false) {"},
+		{"a struct is not recorded", "actionMade(c: Actx", "this.created.push(n);", ""},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

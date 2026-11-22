@@ -89,7 +89,7 @@ func engineMemberFixture(t *testing.T, controlled bool) (*EvalCtx, map[string]an
 }
 
 // TestEngineValueMemberTable runs the member table (conform.MemberCases) on the engine's composition
-// member (termMember, printed from Exec IR), through Member, which the backends call.
+// member (actionMember, printed from Exec IR), through Member, which the backends call.
 func TestEngineValueMemberTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		c, vals := engineMemberFixture(t, controlled)

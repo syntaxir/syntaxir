@@ -96,7 +96,7 @@ func CheckStructural(g *ast.Grammar, opts compile.Options, flags []compile.RuleF
 
 // CheckDefault is CheckStructural with the default options and no rule flags, for an analysis of
 // the structure of g, such as the complexity classifier, which reads the structural module of g
-// also when the compiler rejects g. It returns the value types of the terms of g (nil if the
+// also when the compiler rejects g. It returns the value types of the action expressions of g (nil if the
 // compiler rejects g) in place of the program. The module is nil only with an error, and it is nil
 // when g declares a rule twice: the module holds the first declaration only, so it is not g.
 func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Structural, *check.ValueRecord, error) {

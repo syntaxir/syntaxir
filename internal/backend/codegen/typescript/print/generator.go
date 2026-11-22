@@ -360,8 +360,8 @@ type Generator struct {
 	startRepr int
 	// ExecFuncs counts the functions printed from Exec IR (execRoute).
 	ExecFuncs int
-	// LoweredTerms counts the terms printed from Exec IR (termStmts).
-	LoweredTerms int
+	// LoweredActions counts the action expressions printed from Exec IR (actionStmts).
+	LoweredActions int
 }
 
 // TsString returns s as a TypeScript string literal (JSON is valid TypeScript).
@@ -448,11 +448,11 @@ func (g *Generator) fn(x string) string {
 	return g.Method("", "  return "+x+";\n")
 }
 
-// tsActxUse matches a use of the evaluation context c in the text of a term.
+// tsActxUse matches a use of the evaluation context c in the text of an action expression.
 var tsActxUse = regexp.MustCompile(`\bc\b`)
 
-// tsActxParam returns the name of the evaluation context parameter of a function that returns the term
-// body: c, or _c if the term reads no context (a leading _ keeps it from being reported as unused).
+// tsActxParam returns the name of the evaluation context parameter of a function that returns the action expression
+// body: c, or _c if the action expression reads no context (a leading _ keeps it from being reported as unused).
 func tsActxParam(body string) string {
 	if tsActxUse.MatchString(body) {
 		return "c"
@@ -460,7 +460,7 @@ func tsActxParam(body string) string {
 	return "_c"
 }
 
-// action emits a function that evaluates the term ct of Core IR (an action or a predicate) and
+// action emits a function that evaluates the action expression ct of Core IR (an action or a predicate) and
 // returns its name.
 func (g *Generator) action(ct core.ActionExpr, s *check.Scope, locals map[string]string) string {
 	name := g.Name("a")

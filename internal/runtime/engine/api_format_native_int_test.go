@@ -15,9 +15,9 @@ func TestFormatNativeMinimumRoundTrip(t *testing.T) {
 	max := int(^uint(0) >> 1)
 	minimum := &ast.IntLit{Value: -max - 1}
 	for _, tc := range []struct {
-		name string
-		term ast.ActionExpr
-		want int
+		name       string
+		actionExpr ast.ActionExpr
+		want       int
 	}{
 		{"literal", minimum, minimum.Value},
 		{"negated", &ast.Unary{Op: "-", X: minimum}, minimum.Value},
@@ -31,7 +31,7 @@ func TestFormatNativeMinimumRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			g.Rules()[0].Action.(*ast.Constructor).Fields[0].Value = tc.term
+			g.Rules()[0].Action.(*ast.Constructor).Fields[0].Value = tc.actionExpr
 			data, err := ast.MarshalJSON(g)
 			if err != nil {
 				t.Fatal(err)

@@ -127,7 +127,7 @@ type HandleType struct {
 	Doc       string
 	// Callable, if not nil, makes the values of the type code that a Call with Fn applies: it states
 	// the types of the arguments and of the results of that application. The type is how a target holds
-	// code that Exec IR does not write as a function of the module (a term of a predicate or a binding).
+	// code that Exec IR does not write as a function of the module (an action expression of a predicate or a binding).
 	Callable *Signature
 }
 
@@ -179,7 +179,7 @@ type Op struct {
 	// stage (Module.Stage) declares only operations of the dialects legal at it.
 	Dialect string
 	// Imm describes the immediate operand of the operation, a static datum of the call that is not
-	// a value of Code IR (a literal, a character class, an expectation, a term of the grammar), or
+	// a value of Code IR (a literal, a character class, an expectation, an action expression of the grammar), or
 	// is empty when the operation takes none. A call of the operation holds it in Call.Imm, which
 	// backends read and passes keep.
 	Imm string

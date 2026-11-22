@@ -16,7 +16,7 @@ import (
 // TestRuntimeTablesMatchTheCompiler checks the values that the runtime side holds a copy of, because
 // it imports no package of the compiler side, against the compiler's own: the fixed expectations,
 // the spellings of the operator kinds and associativities of an Operators Rule, the edit lag of a
-// memo entry, the member kinds of terms and the ASCII folding of literals.
+// memo entry, the member kinds of action expressions and the ASCII folding of literals.
 func TestRuntimeTablesMatchTheCompiler(t *testing.T) {
 	if !slices.Equal(program.FixedDescs, ir.FixedDescs) || int(program.NumFixedDescs) != len(ir.FixedDescs) {
 		t.Errorf("fixed expectations: runtime %q, Core IR %q", program.FixedDescs, ir.FixedDescs)

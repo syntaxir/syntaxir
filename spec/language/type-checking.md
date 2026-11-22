@@ -82,7 +82,7 @@ it runs.
 
 Likewise, a rule value whose Type is unknown, from an action, a called rule or
 an Operators Rule line, is reported when the rule declares a Type it does not fit:
-`rule term produces _, which is not assignable to Expr: the type of the value is not
+`rule action expression produces _, which is not assignable to Expr: the type of the value is not
 known; convert it with a cast, as in value.(Expr)` (see [Types and
 Errors](actions.md#types-and-errors)). In an Operators Rule with a declared Type and no
 whole-rule action, the captures `lhs` and `rhs` have that Type; with a

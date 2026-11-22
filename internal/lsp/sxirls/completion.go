@@ -240,7 +240,7 @@ func (a *analysis) completeControlled(off int, control *renderControl) []protoco
 		}
 		items = append(items, builtinFuncItems()...)
 		items = append(items, a.typeItemsControlled(true, control)...)
-		items = append(items, keywordItems(termKeywords)...)
+		items = append(items, keywordItems(actionKeywords)...)
 		// A parameter hides a variable of the same name.
 		params := a.paramItems(prev, control)
 		hidden := map[string]bool{}
@@ -313,7 +313,7 @@ func (a *analysis) attributeArgumentsControlled(prev int, control *renderControl
 func (a *analysis) valueItemsControlled(control *renderControl) []protocol.CompletionItem {
 	control.poll()
 	items := append(builtinFuncItems(), a.typeItemsControlled(true, control)...)
-	items = append(items, keywordItems(termKeywords)...)
+	items = append(items, keywordItems(actionKeywords)...)
 	for _, v := range sortedKeysControlled(a.vars, control) {
 		control.poll()
 		items = append(items, protocol.CompletionItem{Label: v, Kind: protocol.CompletionKindVariable, Detail: "variable"})

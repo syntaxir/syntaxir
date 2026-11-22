@@ -221,7 +221,7 @@ type FlowState struct {
 	Rules []*Rule
 }
 
-// CoreAction returns the action of Core IR of the rule r, the term that its value is made of, or nil
+// CoreAction returns the action of Core IR of the rule r, the action expression that its value is made of, or nil
 // if it has none or the table has no Core IR.
 func (g *Generator) CoreAction(r *Rule) core.ActionExpr {
 	if g.Flow == nil || r.ID >= len(g.Flow.M.Rules) {

@@ -15,7 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
-// pushScript runs the calls of calls.json on the printed methods termPush and termPushItems of the TypeScript
+// pushScript runs the calls of calls.json on the printed methods actionPush and actionPushItems of the TypeScript
 // library and prints, in order, the canonical result of each (conform.MemberCanon), the number of elements it
 // pushed and the units it charged. The input of the parser is input.txt.
 const pushScript = `import { readFileSync } from "node:fs";
@@ -50,7 +50,7 @@ const calls: [string, string][] = JSON.parse(readFileSync("calls.json", "utf8"))
 console.log(JSON.stringify(calls.map(([fn, v]) => {
   const base = P.kidStack.length;
   const before = used();
-  const e = fn === "push" ? P.termPush(c, "list", values[v]!) : P.termPushItems(c, "concat", values[v]!);
+  const e = fn === "push" ? P.actionPush(c, "list", values[v]!) : P.actionPushItems(c, "concat", values[v]!);
   const units = used() - before;
   const pushed: (p.Node | null)[] = P.kidStack.slice(base);
   P.kidStack.length = base;
@@ -149,11 +149,11 @@ func TestPrintedPushMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"a bool is not an element", "termPush(c: Actx", "k === 1 || k === 2 || k === 3", "k === 1 || k === 2"},
-		{"a function is an element", "termPush(c: Actx", "return this.termError(11, v, fn, 0, 0);", "return null;"},
-		{"nil pushes no element", "termPush(c: Actx", "this.kidStack.push(null);", ""},
-		{"concat pushes no elements", "termPushItems(c: Actx", "c.pushAll(items);", ""},
-		{"concat takes a value that is not a list", "termPushItems(c: Actx", "if (ok) {", "if (true) {"},
+		{"a bool is not an element", "actionPush(c: Actx", "k === 1 || k === 2 || k === 3", "k === 1 || k === 2"},
+		{"a function is an element", "actionPush(c: Actx", "return this.actionError(11, v, fn, 0, 0);", "return null;"},
+		{"nil pushes no element", "actionPush(c: Actx", "this.kidStack.push(null);", ""},
+		{"concat pushes no elements", "actionPushItems(c: Actx", "c.pushAll(items);", ""},
+		{"concat takes a value that is not a list", "actionPushItems(c: Actx", "if (ok) {", "if (true) {"},
 		{"concat charges nothing for the elements it pushes", "pushAll(items:", "this.spend();", ""},
 	}
 	for _, m := range mutants {

@@ -21,7 +21,7 @@ func TestUnicodeScalarEscapes(t *testing.T) {
 		}
 		for _, source := range []string{`rule main = "x" => "` + escape + `"`, `rule main = _|_ @error(message="` + escape + `")`} {
 			if g, err := Parse(source); err == nil || g != nil {
-				t.Fatalf("accepted invalid escape in term: %v, %v", g, err)
+				t.Fatalf("accepted invalid escape in action expression: %v, %v", g, err)
 			}
 		}
 	}

@@ -72,7 +72,7 @@ Three kinds of tests hold implementations to this specification.
   judges an implementation.
 - The **printer tests** print small functions with each backend, run the printed code and compare what it does with
   what the reference interpreter does for the same functions.
-- The **value tables** state what the compositions of terms return on the values of fixed fixtures (see
+- The **value tables** state what the compositions of action expressions return on the values of fixed fixtures (see
   [Values](values.md)); each target runs them through its printed compositions.
 
 ## Catalog Entries

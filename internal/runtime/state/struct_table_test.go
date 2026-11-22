@@ -15,7 +15,7 @@ import (
 )
 
 // TestEngineValueStructTable runs the struct table (conform.StructCases) on the engine's compositions
-// cover and made (termCover and termMade, printed from Exec IR), through the method that the backends
+// cover and made (actionCover and actionMade, printed from Exec IR), through the method that the backends
 // call to make a struct.
 func TestEngineValueStructTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
@@ -60,30 +60,30 @@ func TestEngineValueStructTable(t *testing.T) {
 	}
 }
 
-// TestEngineValueStructTableTermCode runs the struct table on term code: the code the term compiler
+// TestEngineValueStructTableActionCode runs the struct table on action code: the code the action expression compiler
 // emits for a struct literal, with FIELD for each field, makes the struct the table wants, and FIELD
 // charges what STEP, SETFIELD and COVER, which it fuses, charge.
-func TestEngineValueStructTableTermCode(t *testing.T) {
+func TestEngineValueStructTableActionCode(t *testing.T) {
 	cp := compiletest.Program(t, "type S = { F0 int\n F1 int }\n@start\nrule main = \"a\"\n", compile.Options{})
 	for _, controlled := range []bool{false, true} {
 		prog := &SharedProgram{}
 		InitSharedProgram(prog, cp.Runtime())
-		// literal returns the term code of a struct literal of the fields, fused or not, whose values
+		// literal returns the action code of a struct literal of the fields, fused or not, whose values
 		// are the locals v<i>.
-		literal := func(fields []string, fused bool) *TermProgram {
-			tp := &TermProgram{NA: int32(len(fields)) + 1, NN: 1, Structs: []TermStruct{{Kind: cp.TypeKind("S"), Fields: 2}}}
-			tp.Code = append(tp.Code, TermInstr{Op: TStruct}, TermInstr{Op: TIntK, A: 1})
+		literal := func(fields []string, fused bool) *ActionProgram {
+			tp := &ActionProgram{NA: int32(len(fields)) + 1, NN: 1, Structs: []ActionStruct{{Kind: cp.TypeKind("S"), Fields: 2}}}
+			tp.Code = append(tp.Code, ActionInstr{Op: TStruct}, ActionInstr{Op: TIntK, A: 1})
 			for i := range fields {
 				tp.Names = append(tp.Names, fmt.Sprintf("v%d", i), fmt.Sprintf("F%d", i))
 				v, name := int32(i)+1, int32(2*i+1)
-				tp.Code = append(tp.Code, TermInstr{Op: TLocal, Dst: v, A: name - 1})
+				tp.Code = append(tp.Code, ActionInstr{Op: TLocal, Dst: v, A: name - 1})
 				if fused {
-					tp.Code = append(tp.Code, TermInstr{Op: TField, A: 0, B: v, C: name})
+					tp.Code = append(tp.Code, ActionInstr{Op: TField, A: 0, B: v, C: name})
 				} else {
-					tp.Code = append(tp.Code, TermInstr{Op: TStep}, TermInstr{Op: TSetField, A: 0, B: v, C: name}, TermInstr{Op: TCover, A: 0, B: v})
+					tp.Code = append(tp.Code, ActionInstr{Op: TStep}, ActionInstr{Op: TSetField, A: 0, B: v, C: name}, ActionInstr{Op: TCover, A: 0, B: v})
 				}
 			}
-			tp.Code = append(tp.Code, TermInstr{Op: TMade, B: 0}, TermInstr{Op: TRet})
+			tp.Code = append(tp.Code, ActionInstr{Op: TMade, B: 0}, ActionInstr{Op: TRet})
 			return tp
 		}
 		text := nodes.Ptr(nodes.Data{Kind: valueimpl.MatchKind, Terminal: true, Text: "xyz", Start: 2, End: 4})
@@ -95,7 +95,7 @@ func TestEngineValueStructTableTermCode(t *testing.T) {
 			conform.BuiltinNode:   nodes.Ptr(nodes.Data{Kind: valueimpl.SeqKind, Start: 2, End: 5, Children: []*value.Node{text, text}}),
 			conform.StructLate:    nodes.Ptr(nodes.Data{Kind: valueimpl.MatchKind, Terminal: true, Text: "q", Start: 7, End: 9}),
 		}
-		err := conform.RunStructs("engine term code", func(fields []string) string {
+		err := conform.RunStructs("engine action code", func(fields []string) string {
 			var got [2]string
 			var used [2]uint64
 			var fieldsOf [2]string // the same values in both, so the same pointers

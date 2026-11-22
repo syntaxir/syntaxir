@@ -42,12 +42,12 @@ func (g guard) passes(v string, y int) bool {
 //     tests the value that b binds: `{v := e} {lo <= v && v <= hi}`. Its comparisons of v with
 //     constants bound the value.
 //   - A test before the binding, after the last binding of any variable before it, evaluates e
-//     with the same variables and captures as b does, and every term of the action language is a
+//     with the same variables and captures as b does, and every action expression of the action language is a
 //     function of them: `{lo <= e && e <= hi} {v := e}`. Its comparisons of e, as written, with
 //     constants bound the value.
 //
 // A test of a conjunction bounds the value by each of its comparisons that has the form; a
-// single comparison bounds one side, which the range of e (see termRange) can bound on the other.
+// single comparison bounds one side, which the range of e (see actionRange) can bound on the other.
 func guardOf(b *binding) guard {
 	g := guard{bounds: fullRange}
 	v, e := b.b.Name, check.UngroupActionExpr(b.b.Value)
@@ -64,14 +64,14 @@ func guardOf(b *binding) guard {
 		}
 		if readsOnly(s, v, nil) {
 			g.tests = append(g.tests, s)
-			g.bounds = g.bounds.meet(termBounds(s, isVar))
+			g.bounds = g.bounds.meet(actionBounds(s, isVar))
 		}
 	}
 	for _, s := range before {
 		if _, ok := s.(*ast.Bind); ok {
 			break
 		}
-		g.bounds = g.bounds.meet(termBounds(s, isValue))
+		g.bounds = g.bounds.meet(actionBounds(s, isValue))
 	}
 	return g
 }
@@ -149,7 +149,7 @@ func labelsOnly(e *ast.Attributed) bool {
 	return true
 }
 
-// statements returns the statements of a predicate term: those of a block, or the term itself.
+// statements returns the statements of a predicate action expression: those of a block, or the action expression itself.
 func statements(t ast.ActionExpr) []ast.ActionExpr {
 	if blk, ok := t.(*ast.Block); ok {
 		return blk.Statements
@@ -191,16 +191,16 @@ func rangeOf(lo, hi int) valueRange {
 	return valueRange{lo, hi}
 }
 
-// termBounds returns the range that t bounds the subject to when t is true: t is a comparison
+// actionBounds returns the range that t bounds the subject to when t is true: t is a comparison
 // with <, <=, >, >= or == of the subject with a constant int (see constInt), on either side, or a
 // conjunction with && of such tests and others, which do not bound it.
-func termBounds(t ast.ActionExpr, subject func(ast.ActionExpr) bool) valueRange {
+func actionBounds(t ast.ActionExpr, subject func(ast.ActionExpr) bool) valueRange {
 	bin, ok := check.UngroupActionExpr(t).(*ast.Binary)
 	if !ok {
 		return fullRange
 	}
 	if bin.Op == "&&" {
-		return termBounds(bin.L, subject).meet(termBounds(bin.R, subject))
+		return actionBounds(bin.L, subject).meet(actionBounds(bin.R, subject))
 	}
 	op, c := bin.Op, 0
 	if n, isConst := constInt(bin.R); isConst && subject(bin.L) {
@@ -236,13 +236,13 @@ func constInt(t ast.ActionExpr) (int, bool) {
 	return n, res == evalOK && isInt
 }
 
-// termRange returns a range that holds every int that t can give when the variable v holds a
+// actionRange returns a range that holds every int that t can give when the variable v holds a
 // value of xs: a literal is its value, v ranges over xs, len gives at least 0, unary -, + and *
-// combine the ranges of their operands, and any other term has no bound.
-func termRange(t ast.ActionExpr, v string, xs valueSet) valueRange {
+// combine the ranges of their operands, and any other action expression has no bound.
+func actionRange(t ast.ActionExpr, v string, xs valueSet) valueRange {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return termRange(t.Action, v, xs)
+		return actionRange(t.Action, v, xs)
 	case *ast.IntLit:
 		if n, ok := constInt(t); ok {
 			return valueRange{n, n}
@@ -261,11 +261,11 @@ func termRange(t ast.ActionExpr, v string, xs valueSet) valueRange {
 		}
 	case *ast.Unary:
 		if t.Op == "-" {
-			r := termRange(t.X, v, xs)
+			r := actionRange(t.X, v, xs)
 			return valueRange{-r.hi, -r.lo}
 		}
 	case *ast.Binary:
-		l, r := termRange(t.L, v, xs), termRange(t.R, v, xs)
+		l, r := actionRange(t.L, v, xs), actionRange(t.R, v, xs)
 		switch t.Op {
 		case "+":
 			return addRanges(l, r)

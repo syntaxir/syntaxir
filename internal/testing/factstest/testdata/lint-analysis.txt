@@ -1,4 +1,4 @@
-# bench/grammars/terms/heavy.sxir
+# bench/grammars/actions/heavy.sxir
 nullable before end: 
 nullable at end: main
 can match: main line word
@@ -19,7 +19,7 @@ word 19:13 *ast.Capture #1: null=00 eng=0 match=1 succ=0 cut=0 prefix="" exact=0
 word 19:15 *ast.Repeat #1: null=00 eng=0 match=1 succ=0 cut=0 prefix="" exact=0 fold=0 left=
 word 19:15 *ast.CharClass #1: null=00 eng=0 match=1 succ=0 cut=0 prefix="" exact=0 fold=0 left=
 word 19:22 *ast.Literal #1: null=00 eng=0 match=1 succ=0 cut=0 prefix=" " exact=1 fold=0 left=
-# bench/grammars/terms/pred.sxir
+# bench/grammars/actions/pred.sxir
 nullable before end: 
 nullable at end: main
 can match: main line word

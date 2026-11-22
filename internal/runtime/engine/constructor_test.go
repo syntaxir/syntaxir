@@ -109,17 +109,17 @@ func TestNodeConstructorCompiledVersions(t *testing.T) {
 			t.Fatalf("wrong ISA accepted: %v", err)
 		}
 		module := *p.Module()
-		module.Terms = cloneTerms(module.Terms)
+		module.Actions = cloneActions(module.Actions)
 		mutated := false
-		for i := range module.Terms {
-			if x := module.Terms[i].Structs; len(x) > 0 {
+		for i := range module.Actions {
+			if x := module.Actions[i].Structs; len(x) > 0 {
 				x[0].Type = module.Rules[0].Name // a rule, not a struct type
 				mutated = true
 				break
 			}
 		}
 		if !mutated {
-			t.Fatal("no struct literal in the term code")
+			t.Fatal("no struct literal in the action code")
 		}
 		if err := compile.ValidateModule(&module); err == nil || !strings.Contains(err.Error(), "is not a struct type") {
 			t.Fatalf("invalid struct literal type accepted: %v", err)

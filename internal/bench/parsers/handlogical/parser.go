@@ -79,15 +79,15 @@ func init() {
 	sxirGrammar.SetRules(rules, 0)
 	rules[0].Body = e4
 	rules[0].Action = func(c *rt.ActCtx) (any, any) {
-		ts1, tf1 := c.P.TermText(c.Cap(0))
+		ts1, tf1 := c.P.ActionText(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
-		ts2, tf2 := c.P.TermText(c.Cap(1))
+		ts2, tf2 := c.P.ActionText(c.Cap(1))
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tv3, tf3 := c.P.TermBinary(rt.OpAdd, any(ts1), any(ts2))
+		tv3, tf3 := c.P.ActionBinary(rt.OpAdd, any(ts1), any(ts2))
 		if tf3 != nil {
 			return nil, tf3
 		}
@@ -97,36 +97,36 @@ func init() {
 	rules[2].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.UnitsSized(1)
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
 		c.P.UnitsOfItems(c.Cap(1), 2)
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHullLogical(c, false, tk4)
+		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tm6 := len(c.P.KidStack)
-		ti7, tf7 := c.P.TermItems("filter", any(tn5))
+		ti7, tf7 := c.P.ActionItems("filter", any(tn5))
 		if tf7 != nil {
 			return nil, tf7
 		}
 		tj8 := 0
 		for ; tj8 < len(ti7); tj8++ {
 			c.P.Units++
-			tp10 := c.P.TermItemAt(ti7, tj8, false)
-			ts12, tf12 := c.P.TermText(rt.UnboxValue(tp10))
+			tp10 := c.P.ActionItemAt(ti7, tj8, false)
+			ts12, tf12 := c.P.ActionText(rt.UnboxValue(tp10))
 			if tf12 != nil {
 				return nil, tf12
 			}
-			tv13, tf13 := c.P.TermBinary(rt.OpNe, any(ts12), any("0"))
+			tv13, tf13 := c.P.ActionBinary(rt.OpNe, any(ts12), any("0"))
 			if tf13 != nil {
 				return nil, tf13
 			}
 			tv11 := tv13
-			tb14, tf14 := c.P.TermFilterKeep(tv11)
+			tb14, tf14 := c.P.ActionFilterKeep(tv11)
 			if tf14 != nil {
 				return nil, tf14
 			}
@@ -135,7 +135,7 @@ func init() {
 			}
 		}
 		tk15 := c.P.ElemsAbove(tm6)
-		tn16 := c.P.TermHullLogical(c, false, tk15)
+		tn16 := c.P.ActionHullLogical(c, false, tk15)
 		return any(tn16), nil
 	}
 	sxirGrammar.Starts = []string{"tag", "nums"}
@@ -183,11 +183,11 @@ func e4(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
-		ts1, tf1 := c.P.TermText(c.Cap(0))
+		ts1, tf1 := c.P.ActionText(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
-		ts2, tf2 := c.P.TermText(c.Cap(2))
+		ts2, tf2 := c.P.ActionText(c.Cap(2))
 		if tf2 != nil {
 			return nil, tf2
 		}
@@ -378,4 +378,4 @@ func r3(p *rt.Parser) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

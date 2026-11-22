@@ -36,7 +36,7 @@ type limitAgreementCase struct {
 	// units is a limit of the window at which the failing reservation is a unit of a run that a backend
 	// may make at once: every backend must report the limit as used and one unit requested.
 	units uint64
-	// lists are the sizes of reservations that take the elements of a list that a term makes off, two
+	// lists are the sizes of reservations that take the elements of a list that an action expression makes off, two
 	// units for each, which every backend makes at once. The backends charge the work before them differently, so they
 	// make them after different numbers of units: each backend must report each size as the failing
 	// reservation over as many consecutive limits as it has units, which a backend that splits it

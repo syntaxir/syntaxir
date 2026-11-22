@@ -56,7 +56,7 @@ rule ops Int | O = #operators {
 	if n := strings.Count(d, "check="); n != 0 {
 		t.Fatalf("a result is checked when it runs:\n%s", d)
 	}
-	if casts := fmt.Sprint(termCasts(d)); casts != `["Int" at=7:32 "node[_]" at=8:33 "Int | O" at=10:25]` {
+	if casts := fmt.Sprint(actionCasts(d)); casts != `["Int" at=7:32 "node[_]" at=8:33 "Int | O" at=10:25]` {
 		t.Fatalf("disassembly has casts %s, want the three casts:\n%s", casts, d)
 	}
 	data, err := prog.MarshalBinary("main")
@@ -96,7 +96,7 @@ rule ops Int | O = #operators {
 	if n := strings.Count(string(code), "CheckResult("); n != 0 {
 		t.Fatalf("generated %d result checks", n)
 	}
-	if n := strings.Count(string(code), "c.P.TermConforms("); n != 3 {
+	if n := strings.Count(string(code), "c.P.ActionConforms("); n != 3 {
 		t.Fatalf("generated %d casts, want 3", n)
 	}
 }

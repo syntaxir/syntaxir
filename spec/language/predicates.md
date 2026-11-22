@@ -30,7 +30,7 @@ rule item = { count := 1 } { count == 1 } "a"
 ```
 
 The statements execute in source order. A binding updates the current
-invocation's variable environment, and a term fails the predicate if it
+invocation's variable environment, and an action expression fails the predicate if it
 evaluates to `false` or errors. Evaluation stops at the first failure, and an
 binding is visible to the later statements and rolled back like an adjacent
 Predicate Action. The block consumes no input and adds no variable, capture,
@@ -55,7 +55,7 @@ against a value from outside it.
 
 A variable is declared by a top-level `var` declaration, which may appear among
 the other top-level declarations in any order. A binding expression
-`name := value` makes up a single-term predicate. It succeeds unless evaluating
+`name := value` makes up a single-expression predicate. It succeeds unless evaluating
 `value` is an error, then binds the value for the current invocation. A block such as `{ name := value; test }` runs the binding
 and test in order; the test can read the binding, and backtracking rolls it
 back under the same rules as adjacent Predicate Actions.

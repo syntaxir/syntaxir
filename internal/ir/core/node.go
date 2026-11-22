@@ -294,14 +294,14 @@ type Capture struct {
 // Pred is a Predicate Action: it fails unless the action expression is true.
 type Pred struct {
 	base
-	Term ActionExpr
+	Action ActionExpr
 }
 
 // BindNode binds a variable to the value of an action expression.
 type BindNode struct {
 	base
-	Var  string
-	Term ActionExpr
+	Var    string
+	Action ActionExpr
 }
 
 // Label is @error or @diagnostic: on failure, the expectations recorded inside are replaced by

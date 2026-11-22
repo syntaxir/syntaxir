@@ -11,7 +11,7 @@ import (
 )
 
 func TestLintFormattingCancelsWithinDiagnostics(t *testing.T) {
-	term := &ast.StringLit{Value: strings.Repeat("😀", 4096)}
+	actionExpr := &ast.StringLit{Value: strings.Repeat("😀", 4096)}
 	expr := &ast.Literal{Value: strings.Repeat("😀", 4096)}
 	for _, name := range []string{"show", "predicate-comparison", "attribute-comparison"} {
 		t.Run(name, func(t *testing.T) {
@@ -27,7 +27,7 @@ func TestLintFormattingCancelsWithinDiagnostics(t *testing.T) {
 			case "show":
 				show(expr, c)
 			case "predicate-comparison":
-				same(&ast.Predicate{Action: term}, &ast.Predicate{Action: term}, false, c)
+				same(&ast.Predicate{Action: actionExpr}, &ast.Predicate{Action: actionExpr}, false, c)
 			case "attribute-comparison":
 				attr := &ast.Attribute{Name: "recover", Pragma: true, KwArgs: map[string]any{"skip": expr}}
 				e := &ast.Attributed{Expr: expr, Attrs: []*ast.Attribute{attr}}

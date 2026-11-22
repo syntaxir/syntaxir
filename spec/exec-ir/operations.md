@@ -1,7 +1,7 @@
 # Operations
 
 This chapter lists the operations on the state of a parse, by the state component they belong to; [Values](values.md)
-lists those on the values of terms. Each entry gives the declaration on one line, as the [text form](printing.md#catalog-entries)
+lists those on the values of action expressions. Each entry gives the declaration on one line, as the [text form](printing.md#catalog-entries)
 writes it, the components and registers the operation reads and writes, its cost bound (see
 [Costs](../code-ir/module.md#costs)) and its contract, with its precondition and its laws where it has them.
 
@@ -237,14 +237,14 @@ The operations of the component `rules`.
 ## Host
 
 The operations of the component `host`. The operation that writes the range of a node is specified with the values in
-[Operations That Write Host State](values.md#operations-that-write-host-state), and the elements that terms gather and
+[Operations That Write Host State](values.md#operations-that-write-host-state), and the elements that action expressions gather and
 the values they make in [Elements Gathered](values.md#elements-gathered) and [Values Made](values.md#values-made).
 
 | Declaration | State | Cost | Contract |
 |:--|:--|:--|:--|
-| `host op term.ctx() Act` | reads host, pos, made; writes host | `0` | Returns the context in which a term runs: the current capture frame, an empty span at the position, and the mark of the values made so far, as term.created returns it. |
+| `host op action.ctx() Act` | reads host, pos, made; writes host | `0` | Returns the context in which an action expression runs: the current capture frame, an empty span at the position, and the mark of the values made so far, as action.created returns it. |
 | `transitional op opr.lineValue(r Rule, l Line, f Frame, v Value, start int) Value noreturn` | reads frames; writes host | `0` | Returns the value of the operand line l of the rule r that matched from start to the position with the value v and the captures of f: the line's action, or its shaped value with its captures. Requires: l is an operand line of r, and f a frame of opr.scope(l) slots. |
-| `transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value noreturn` | reads operators, frames; writes host | `0` | Returns the value of the application of the operator of a to lhs (null for a prefix operator) and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it: the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match if the line has no value. When the operators of r have a named node type, the node of the tuple is of that type and carries no rule name, and the value of the action is converted to it as a term converts (the failure not convertible of the Exec IR values): one that is not a string, tuple or list node ends the parse with the error "cannot convert <type> to <type> in result of rule <name>". Requires: The operator of a is one of r, and the frame of a has the slots of its line. |
+| `transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value noreturn` | reads operators, frames; writes host | `0` | Returns the value of the application of the operator of a to lhs (null for a prefix operator) and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it: the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match if the line has no value. When the operators of r have a named node type, the node of the tuple is of that type and carries no rule name, and the value of the action is converted to it as an action expression converts (the failure not convertible of the Exec IR values): one that is not a string, tuple or list node ends the parse with the error "cannot convert <type> to <type> in result of rule <name>". Requires: The operator of a is one of r, and the frame of a has the slots of its line. |
 | `transitional op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Value) (Value, int) [typed] noreturn` | reads operators, frames; writes host | `0` | Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns where the value of the application starts. Requires: As for opr.build. |
 
 ## Capture Frames

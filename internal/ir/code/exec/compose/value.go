@@ -6,10 +6,10 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
-// addValue adds the compositions of the operators of terms: the policy of which operands an operator
+// addValue adds the compositions of the operators of action expressions: the policy of which operands an operator
 // accepts, over the primitives of the value component (the component values of exec.Parser), which act on one kind of value
 // each. A composition returns its value and, in place of an exception, the failure that val.fail
-// made (nil if there is none), which the caller reports as the failure of the term. Every target
+// made (nil if there is none), which the caller reports as the failure of the action expression. Every target
 // prints them, so the operators mean the same on all.
 //
 // The logical operators && and || are the composition logic and the sequencing of their caller: the
@@ -299,7 +299,7 @@ type or not, becomes a node of t. Any other value fails.`
 		b.Do("node.setSpan", L("n"), L("lo"), L("hi"))
 		b.Return(BoolC(false))
 	})
-	cover.Doc = `cover widens the range of the struct n, which a term is making, to cover the range of the field value v if
+	cover.Doc = `cover widens the range of the struct n, which an action expression is making, to cover the range of the field value v if
 v is a node, a list, a tuple or a struct, and returns whether n still has no node among its field values: first is
 whether it had none before, and the first node gives n its range.`
 

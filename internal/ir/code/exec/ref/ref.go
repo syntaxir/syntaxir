@@ -178,8 +178,8 @@ type Model struct {
 	// call: the traced call path
 	call callState
 
-	// what terms make: the elements gathered and the values made
-	terms termState
+	// what action expressions make: the elements gathered and the values made
+	actionExprs actionState
 }
 
 // Err is an Err handle of the model.
@@ -389,7 +389,7 @@ func (m *Model) Allows(o *code.Op, args []any) bool {
 	case "rec.truncate", "rec.since":
 		return args[0].(int64) >= 0 && args[0].(int64) <= int64(len(m.rec))
 	}
-	if allowed, ok := m.allowsTermState(o, args); ok {
+	if allowed, ok := m.allowsActionState(o, args); ok {
 		return allowed
 	}
 	if allowed, ok := m.allowsObs(o); ok {
@@ -413,7 +413,7 @@ func (m *Model) Quantity(name string, o *code.Op, args []any) int64 {
 	if q, ok := m.ctxQuantity(name, o, args); ok {
 		return q
 	}
-	if q, ok := m.termStateQuantity(name, o, args); ok {
+	if q, ok := m.actionStateQuantity(name, o, args); ok {
 		return q
 	}
 	switch name {
@@ -610,7 +610,7 @@ func (m *Model) Call(o *code.Op, args []any) []any {
 		m.rec = nil
 		return nil
 	}
-	if res, ok := m.callTermState(o, args); ok {
+	if res, ok := m.callActionState(o, args); ok {
 		return res
 	}
 	if res, ok := m.callExp(o, args); ok {

@@ -343,8 +343,8 @@ func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, contr
 		control.Poll()
 		unsupported = append(unsupported, &diagnostic.Error{Pos: comment.Pos, Msg: "comments are not allowed inside statement headers"})
 	}
-	checkBlocks := func(term ast.ActionExpr) {
-		astfacts.WalkTerm(term, func(t ast.ActionExpr) {
+	checkBlocks := func(actionExpr ast.ActionExpr) {
+		astfacts.WalkAction(actionExpr, func(t ast.ActionExpr) {
 			control.Poll()
 			if block, ok := t.(*ast.Block); ok {
 				unsupported = append(unsupported, &diagnostic.Error{Pos: block.Diagnostic(), Msg: "action statement blocks are not implemented"})

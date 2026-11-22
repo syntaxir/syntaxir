@@ -16,7 +16,7 @@ import (
 )
 
 // memberScript runs the reads of reads.json on the member reads of the TypeScript library (fxMember
-// of tsCompose, over the printed method termMember) and prints the canonical result of each (conform.MemberCanon), in
+// of tsCompose, over the printed method actionMember) and prints the canonical result of each (conform.MemberCanon), in
 // order. The fixture is that of the member table: its struct types come from structs.json.
 const memberScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
@@ -137,11 +137,11 @@ func TestPrintedMemberMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"Start reads the value", "termMember(c: Actx", "if (kind === 1) {", "if (kind === 0) {"},
-		{"an unset field of a struct is nil", "termMember(c: Actx", "if (!st) {", "if (true) {"},
-		{"a struct has captures", "termMember(c: Actx", "if (st) {", "if (false) {"},
-		{"a set field of a struct reads as its zero", "termMember(c: Actx", "if (set) {", "if (set && !st) {"},
-		{"a capture keeps its box", "termMember(c: Actx", "return [unboxValue(v), null];", "return [v, null];"},
+		{"Start reads the value", "actionMember(c: Actx", "if (kind === 1) {", "if (kind === 0) {"},
+		{"an unset field of a struct is nil", "actionMember(c: Actx", "if (!st) {", "if (true) {"},
+		{"a struct has captures", "actionMember(c: Actx", "if (st) {", "if (false) {"},
+		{"a set field of a struct reads as its zero", "actionMember(c: Actx", "if (set) {", "if (set && !st) {"},
+		{"a capture keeps its box", "actionMember(c: Actx", "return [unboxValue(v), null];", "return [v, null];"},
 		{"End is a field", "memberKind(name: string)", "return 2; // End", "return 0; // End"},
 		{"a capture is read by its whole name", "memberName(kind: number", "name.slice(1)", "name"},
 	}

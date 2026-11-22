@@ -181,7 +181,7 @@ func GrowingBindingsCheckedControlled(res *frontend.Result, start string, contro
 
 // classifierInput is what the classifier reads of a grammar that the front end checked: the
 // structural module of its canonical rules with the facts of the module, the value types of its
-// terms, and the hidden rules of its inline actions.
+// action expressions, and the hidden rules of its inline actions.
 type classifierInput struct {
 	structural *frontend.Structural
 	// types are nil if the grammar does not type check; only the operand of len, which may be a
@@ -191,7 +191,7 @@ type classifierInput struct {
 }
 
 // checkedInput checks g with the front end and returns what the classifier reads of it. A grammar
-// that the compiler rejects is classified without the types of its terms, if its structural module
+// that the compiler rejects is classified without the types of its action expressions, if its structural module
 // is built.
 func checkedInput(g *ast.Grammar, control *cancel.Control) (*classifierInput, error) {
 	names := desugar.InlineNames{}
@@ -327,7 +327,7 @@ type classifier struct {
 	start   string
 	an      *ruleAnalysis
 	facts   *ruleFacts         // the rule facts of the grammar, of which an is part
-	types   *check.ValueRecord // the value types of the terms, or nil if they are unknown
+	types   *check.ValueRecord // the value types of the action expressions, or nil if they are unknown
 	// combinations is the product of the sizes of the value sets of the variables with finite
 	// values, which checkValues computes.
 	combinations int
@@ -622,7 +622,7 @@ func exprPos(e ast.Expr) ast.Pos {
 	return ast.Pos{}
 }
 
-func termPosOf(t ast.ActionExpr) ast.Pos {
+func actionPosOf(t ast.ActionExpr) ast.Pos {
 	if s, ok := t.(interface{ Source() *ast.SourceInfo }); ok && s.Source() != nil {
 		return s.Source().Diagnostic()
 	}
@@ -644,7 +644,7 @@ func (k *classifier) show(e ast.Expr) string {
 	return abbreviate(syntaxfmt.FormatExpr(e))
 }
 
-func (k *classifier) showTerm(t ast.ActionExpr) string {
+func (k *classifier) showAction(t ast.ActionExpr) string {
 	return abbreviate(syntaxfmt.FormatActionExpr(t))
 }
 

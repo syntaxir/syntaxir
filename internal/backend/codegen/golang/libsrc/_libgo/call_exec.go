@@ -1166,8 +1166,8 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 	return true
 }
 
-// Predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean
-// false and on a term that fails, and holds on every other value. The value of a term is never a function.
+// Predicate applies the action expression of a predicate to the context that action.ctx makes. It fails on the boolean
+// false and on an action expression that fails, and holds on every other value. The value of an action expression is never a function.
 //
 // Printed from Exec IR function predicate of internal/ir/code/exec/compose.
 func (p *Parser) Predicate(t func(*ActCtx) (any, any)) bool {
@@ -1187,8 +1187,8 @@ func (p *Parser) Predicate(t func(*ActCtx) (any, any)) bool {
 	return valKind(v) != 3 || v.(bool)
 }
 
-// Bind binds the value of the term of a binding to the variable in slot. A term that fails fails the
-// binding and binds nothing. The compiler has checked that the value fits the variable. The value of a term is never a
+// Bind binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the
+// binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a
 // function.
 //
 // Printed from Exec IR function bind of internal/ir/code/exec/compose.
@@ -1210,8 +1210,8 @@ func (p *Parser) Bind(slot int, t func(*ActCtx) (any, any)) bool {
 	return true
 }
 
-// Predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean
-// false and on a term that fails, and holds on every other value. The value of a term is never a function.
+// Predicate applies the action expression of a predicate to the context that action.ctx makes. It fails on the boolean
+// false and on an action expression that fails, and holds on every other value. The value of an action expression is never a function.
 //
 // Printed from Exec IR function predicate of internal/ir/code/exec/compose.
 func (p *TParser) Predicate(t func(*TActCtx) (any, any)) bool {
@@ -1231,8 +1231,8 @@ func (p *TParser) Predicate(t func(*TActCtx) (any, any)) bool {
 	return valKind(v) != 3 || v.(bool)
 }
 
-// Bind binds the value of the term of a binding to the variable in slot. A term that fails fails the
-// binding and binds nothing. The compiler has checked that the value fits the variable. The value of a term is never a
+// Bind binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the
+// binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a
 // function.
 //
 // Printed from Exec IR function bind of internal/ir/code/exec/compose.

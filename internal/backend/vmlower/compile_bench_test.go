@@ -13,7 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
-// BenchmarkBytecodeLowering isolates the construction of the module, match code and term code, from
+// BenchmarkBytecodeLowering isolates the construction of the module, match code and action code, from
 // the Core IR of an already checked grammar after the bytecode pipeline; source parsing, checking,
 // the Core IR build and VM setup are out.
 func BenchmarkBytecodeLowering(b *testing.B) {

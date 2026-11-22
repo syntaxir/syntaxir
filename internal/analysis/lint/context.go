@@ -129,9 +129,9 @@ func (c *lintControl) formatExpr(e ast.Expr) string {
 
 func (c *lintControl) formatActionExpr(t ast.ActionExpr) string {
 	if c == nil {
-		return fmt.FormatActionExpr(astfacts.UngroupTerm(t))
+		return fmt.FormatActionExpr(astfacts.UngroupAction(t))
 	}
-	t = astfacts.UngroupTermWithPoll(t, c.poll)
+	t = astfacts.UngroupActionWithPoll(t, c.poll)
 	result, err := fmt.FormatActionExprContext(c.ctx, t)
 	if err != nil {
 		panic(lintCancellation{err})

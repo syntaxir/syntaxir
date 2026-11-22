@@ -370,7 +370,7 @@ func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems [
 var decisionAspects = map[string]string{"terminal": "terminal", "guard": "guard", "runs": "class runs", "scan": "scan", "scope": "scope"}
 
 // compareCoreDecisions compares the decisions of the Core IR of c with the golden's, and returns
-// the differences, each prefixed with its aspect (terminal, guard, class runs, scan, scope, term;
+// the differences, each prefixed with its aspect (terminal, guard, class runs, scan, scope;
 // verify for a pass after which Verify fails). It sets c.lines. With -update only the problems of the
 // encoding and of Verify are returned: the frozen-decisions tests write the golden from c.lines.
 func compareCoreDecisions(c *coreGenCase, n *coreDecisionCounts) []string {

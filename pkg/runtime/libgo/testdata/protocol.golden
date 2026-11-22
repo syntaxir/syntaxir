@@ -1,4 +1,4 @@
-protocol 26
+protocol 27
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -112,12 +112,12 @@ func WithTraceFilter(...string) ParseOption
 func WithTraceMaxDepth(int) ParseOption
 func WithUnit(syntaxir.dev/sxir/pkg/runtime/input.PositionUnit) ParseOption
 func WithUnitsReport(*uint64) ParseOption
+method (*ActCtx) ActionCastFailed(any, *FieldType, int, int) any
+method (*ActCtx) ActionSetField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
+method (*ActCtx) ActionStruct(string, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) Cap(int) any
 method (*ActCtx) NewList([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) NewListLogical([]*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
-method (*ActCtx) TermCastFailed(any, *FieldType, int, int) any
-method (*ActCtx) TermSetField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
-method (*ActCtx) TermStruct(string, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*ActCtx) Var(int) any
 method (*BudgetControl) Charge(uint64)
 method (*BudgetControl) ChargeDoc(uint64)
@@ -134,6 +134,24 @@ method (*Document) Parse(...ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.N
 method (*Document) ResolveParseOptions([]ParseOption) (parseOptions, error)
 method (*Document) Stats() syntaxir.dev/sxir/pkg/runtime.ParseStats
 method (*Document) Text() string
+method (*Parser) ActionBinary(int, any, any) (any, any)
+method (*Parser) ActionConforms(*FieldType, any) bool
+method (*Parser) ActionConvert(*nodeTypeKinds, any) (any, any)
+method (*Parser) ActionCover(*syntaxir.dev/sxir/pkg/runtime/value.Node, any, bool) bool
+method (*Parser) ActionFilterKeep(any) (bool, any)
+method (*Parser) ActionHull(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) ActionHullLogical(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
+method (*Parser) ActionItemAt([]*syntaxir.dev/sxir/pkg/runtime/value.Node, int, bool) any
+method (*Parser) ActionItems(string, any) ([]*syntaxir.dev/sxir/pkg/runtime/value.Node, any)
+method (*Parser) ActionLength(any) (any, any)
+method (*Parser) ActionLogic(int, any) (bool, any)
+method (*Parser) ActionMade(*ActCtx, *syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) ActionMember(*ActCtx, int, any, string, string) (any, any)
+method (*Parser) ActionNodeType(string) *nodeTypeKinds
+method (*Parser) ActionPush(*ActCtx, string, any) any
+method (*Parser) ActionPushItems(*ActCtx, string, any) any
+method (*Parser) ActionText(any) (string, any)
+method (*Parser) ActionUnary(int, any) (any, any)
 method (*Parser) Anchor(bool, ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) AtEnd() bool
 method (*Parser) AtEndBatch() bool
@@ -231,24 +249,6 @@ method (*Parser) Spend()
 method (*Parser) SpendRead(uint64)
 method (*Parser) StreamStart()
 method (*Parser) StreamsIn(int, bool) bool
-method (*Parser) TermBinary(int, any, any) (any, any)
-method (*Parser) TermConforms(*FieldType, any) bool
-method (*Parser) TermConvert(*nodeTypeKinds, any) (any, any)
-method (*Parser) TermCover(*syntaxir.dev/sxir/pkg/runtime/value.Node, any, bool) bool
-method (*Parser) TermFilterKeep(any) (bool, any)
-method (*Parser) TermHull(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
-method (*Parser) TermHullLogical(*ActCtx, bool, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
-method (*Parser) TermItemAt([]*syntaxir.dev/sxir/pkg/runtime/value.Node, int, bool) any
-method (*Parser) TermItems(string, any) ([]*syntaxir.dev/sxir/pkg/runtime/value.Node, any)
-method (*Parser) TermLength(any) (any, any)
-method (*Parser) TermLogic(int, any) (bool, any)
-method (*Parser) TermMade(*ActCtx, *syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
-method (*Parser) TermMember(*ActCtx, int, any, string, string) (any, any)
-method (*Parser) TermNodeType(string) *nodeTypeKinds
-method (*Parser) TermPush(*ActCtx, string, any) any
-method (*Parser) TermPushItems(*ActCtx, string, any) any
-method (*Parser) TermText(any) (string, any)
-method (*Parser) TermUnary(int, any) (any, any)
 method (*Parser) Text(int, int) string
 method (*Parser) TextEqual(string, string) bool
 method (*Parser) TextEqualLogical(string, string) bool
@@ -260,16 +260,16 @@ method (*Span) TSetSpan(int, int)
 method (*Span) TSpan() (int, int)
 method (*StreamPull) Close()
 method (*StreamPull) Next() (T, bool, error)
+method (*TActCtx) ActionCastFailed(any, *FieldType, int, int) any
+method (*TActCtx) ActionCompare(int, TOperand, TOperand) (any, any)
+method (*TActCtx) ActionFieldOperand(any, string) (TOperand, any)
+method (*TActCtx) ActionRaise(any)
 method (*TActCtx) Cap(int) any
 method (*TActCtx) Finish(any) any
 method (*TActCtx) MadeOf(TVal, ...any) any
 method (*TActCtx) NewList([]any) any
 method (*TActCtx) NewListLogical([]any) any
 method (*TActCtx) Result(func(*TActCtx) (any, any), string) any
-method (*TActCtx) TermCastFailed(any, *FieldType, int, int) any
-method (*TActCtx) TermCompare(int, TOperand, TOperand) (any, any)
-method (*TActCtx) TermFieldOperand(any, string) (TOperand, any)
-method (*TActCtx) TermRaise(any)
 method (*TActCtx) Var(int) any
 method (*TError) TField(string) (any, bool)
 method (*TError) TFresh() bool
@@ -285,6 +285,23 @@ method (*TMatch) TName() string
 method (*TMatch) TSetFresh(bool)
 method (*TMatch) TStruct() bool
 method (*TMatch) TText() (string, bool)
+method (*TParser) ActionBinary(int, any, any) (any, any)
+method (*TParser) ActionConforms(*FieldType, any) bool
+method (*TParser) ActionConvert(uint16, any) (any, any)
+method (*TParser) ActionCover(TVal, any, bool) bool
+method (*TParser) ActionFilterKeep(any) (bool, any)
+method (*TParser) ActionHull(*TActCtx, bool, []any) TVal
+method (*TParser) ActionHullLogical(*TActCtx, bool, []any) TVal
+method (*TParser) ActionItemAt([]any, int, bool) any
+method (*TParser) ActionItems(string, any) ([]any, any)
+method (*TParser) ActionLength(any) (any, any)
+method (*TParser) ActionLogic(int, any) (bool, any)
+method (*TParser) ActionMade(*TActCtx, TVal, bool)
+method (*TParser) ActionMember(*TActCtx, int, any, string, string) (any, any)
+method (*TParser) ActionPush(*TActCtx, string, any) any
+method (*TParser) ActionPushItems(*TActCtx, string, any) any
+method (*TParser) ActionText(any) (string, any)
+method (*TParser) ActionUnary(int, any) (any, any)
 method (*TParser) Anchor(bool, ExpID) (any, bool)
 method (*TParser) AttachCaptures(any, []string, []any, int, int) any
 method (*TParser) Bind(int, func(*TActCtx) (any, any)) bool
@@ -340,23 +357,6 @@ method (*TParser) SkipTerminalLogical(*TerminalProgram) bool
 method (*TParser) SkipValue(any)
 method (*TParser) TConvertResult(*TRule, any) any
 method (*TParser) TConvertResultOwned(*TRule, any, any) any
-method (*TParser) TermBinary(int, any, any) (any, any)
-method (*TParser) TermConforms(*FieldType, any) bool
-method (*TParser) TermConvert(uint16, any) (any, any)
-method (*TParser) TermCover(TVal, any, bool) bool
-method (*TParser) TermFilterKeep(any) (bool, any)
-method (*TParser) TermHull(*TActCtx, bool, []any) TVal
-method (*TParser) TermHullLogical(*TActCtx, bool, []any) TVal
-method (*TParser) TermItemAt([]any, int, bool) any
-method (*TParser) TermItems(string, any) ([]any, any)
-method (*TParser) TermLength(any) (any, any)
-method (*TParser) TermLogic(int, any) (bool, any)
-method (*TParser) TermMade(*TActCtx, TVal, bool)
-method (*TParser) TermMember(*TActCtx, int, any, string, string) (any, any)
-method (*TParser) TermPush(*TActCtx, string, any) any
-method (*TParser) TermPushItems(*TActCtx, string, any) any
-method (*TParser) TermText(any) (string, any)
-method (*TParser) TermUnary(int, any) (any, any)
 method (*TParser) UnitsOfItems(any, int)
 method (*TParser) UseCtx(TActCtx) *TActCtx
 method (*TSeq) TField(string) (any, bool)

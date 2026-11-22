@@ -115,40 +115,40 @@ func ungroupTypes(ts []ast.TypeExpr, poll func()) []ast.TypeExpr {
 	return children
 }
 
-// UngroupTerm removes source-only grouping without changing its input.
-func UngroupTerm(t ast.ActionExpr) ast.ActionExpr {
-	return ungroupTerm(t, nil)
+// UngroupAction removes source-only grouping without changing its input.
+func UngroupAction(t ast.ActionExpr) ast.ActionExpr {
+	return ungroupAction(t, nil)
 }
 
-// UngroupTermWithPoll is UngroupTerm with the same polling contract as
+// UngroupActionWithPoll is UngroupAction with the same polling contract as
 // UngroupTypeWithPoll, including nested type expressions and slice copies.
-func UngroupTermWithPoll(t ast.ActionExpr, poll func()) ast.ActionExpr {
-	return ungroupTerm(t, poll)
+func UngroupActionWithPoll(t ast.ActionExpr, poll func()) ast.ActionExpr {
+	return ungroupAction(t, poll)
 }
 
-func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
+func ungroupAction(t ast.ActionExpr, poll func()) ast.ActionExpr {
 	if poll != nil {
 		poll()
 	}
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return ungroupTerm(t.Action, poll)
+		return ungroupAction(t.Action, poll)
 	case *ast.FieldAccess:
-		child := ungroupTerm(t.X, poll)
+		child := ungroupAction(t.X, poll)
 		if child != t.X {
 			v := *t
 			v.X = child
 			return &v
 		}
 	case *ast.TupleLit:
-		elems := ungroupTerms(t.Elems, poll)
+		elems := ungroupActions(t.Elems, poll)
 		if elems != nil {
 			v := *t
 			v.Elems = elems
 			return &v
 		}
 	case *ast.ListConstructor:
-		elem, items := ungroupType(t.Elem, poll), ungroupTerms(t.Items, poll)
+		elem, items := ungroupType(t.Elem, poll), ungroupActions(t.Items, poll)
 		if elem != t.Elem || items != nil {
 			v := *t
 			v.Elem = elem
@@ -160,7 +160,7 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 	case *ast.Constructor:
 		var fields []*ast.FieldInit
 		for i, f := range t.Fields {
-			child := ungroupTerm(f.Value, poll)
+			child := ungroupAction(f.Value, poll)
 			if child != f.Value {
 				if fields == nil {
 					fields = cloneGroupItems(t.Fields, poll)
@@ -172,7 +172,7 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 		}
 		var args []ast.ActionExpr
 		for i, x := range t.Args {
-			child := ungroupTerm(x, poll)
+			child := ungroupAction(x, poll)
 			if child != x {
 				if args == nil {
 					args = cloneGroupItems(t.Args, poll)
@@ -191,49 +191,49 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 			return &v
 		}
 	case *ast.Call:
-		args := ungroupTerms(t.Args, poll)
+		args := ungroupActions(t.Args, poll)
 		if args != nil {
 			v := *t
 			v.Args = args
 			return &v
 		}
 	case *ast.Lambda:
-		child := ungroupTerm(t.Body, poll)
+		child := ungroupAction(t.Body, poll)
 		if child != t.Body {
 			v := *t
 			v.Body = child
 			return &v
 		}
 	case *ast.Binary:
-		l, r := ungroupTerm(t.L, poll), ungroupTerm(t.R, poll)
+		l, r := ungroupAction(t.L, poll), ungroupAction(t.R, poll)
 		if l != t.L || r != t.R {
 			v := *t
 			v.L, v.R = l, r
 			return &v
 		}
 	case *ast.Cast:
-		child, typ := ungroupTerm(t.X, poll), ungroupType(t.Type, poll)
+		child, typ := ungroupAction(t.X, poll), ungroupType(t.Type, poll)
 		if child != t.X || typ != t.Type {
 			v := *t
 			v.X, v.Type = child, typ
 			return &v
 		}
 	case *ast.Unary:
-		child := ungroupTerm(t.X, poll)
+		child := ungroupAction(t.X, poll)
 		if child != t.X {
 			v := *t
 			v.X = child
 			return &v
 		}
 	case *ast.Bind:
-		child := ungroupTerm(t.Value, poll)
+		child := ungroupAction(t.Value, poll)
 		if child != t.Value {
 			v := *t
 			v.Value = child
 			return &v
 		}
 	case *ast.Block:
-		children := ungroupTerms(t.Statements, poll)
+		children := ungroupActions(t.Statements, poll)
 		if children != nil {
 			v := *t
 			v.Statements = children
@@ -243,10 +243,10 @@ func ungroupTerm(t ast.ActionExpr, poll func()) ast.ActionExpr {
 	return t
 }
 
-func ungroupTerms(ts []ast.ActionExpr, poll func()) []ast.ActionExpr {
+func ungroupActions(ts []ast.ActionExpr, poll func()) []ast.ActionExpr {
 	var children []ast.ActionExpr
 	for i, x := range ts {
-		child := ungroupTerm(x, poll)
+		child := ungroupAction(x, poll)
 		if child != x {
 			if children == nil {
 				children = cloneGroupItems(ts, poll)

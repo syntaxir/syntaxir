@@ -57,7 +57,7 @@ func constantInput(e ast.Expr) bool {
 }
 
 // costly reports whether the expression x, without its parts, can cost more than a constant in a
-// skip expression: a call, which can examine any amount of the input, a predicate, whose terms can
+// skip expression: a call, which can examine any amount of the input, a predicate, whose action expressions can
 // build values of any size, a #recover or an Operators Rule.
 func costly(x ast.Expr) bool {
 	switch x := x.(type) {

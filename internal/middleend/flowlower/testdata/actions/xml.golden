@@ -1,0 +1,847 @@
+## main action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$d])
+  let tm2 = action.kids()
+  seq.step()
+  let tf3 = pushItems(c, action.name([concat]), action.read([$p1]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  seq.step()
+  let tf4 = pushItems(c, action.name([concat]), action.read([$p2]))
+  if (tf4 != null(Fail)) {
+    return null(Datum), tf4
+  }
+  let tk5 = action.elemsAbove(tm2)
+  let tn6 = hull(c, false, tk5)
+  let tf7 = action.fromObj(tn6)
+  let tf8 = action.read([$dt])
+  let tf9 = action.read([$r])
+  let tf10 = action.read([$e])
+  let tn11 = action.struct([Document])
+  let tfirst12 = true
+  seq.step()
+  action.setField([Decl], tn11, tf1)
+  tfirst12 = cover(tn11, tf1, tfirst12)
+  seq.step()
+  action.setField([Prolog], tn11, tf7)
+  tfirst12 = cover(tn11, tf7, tfirst12)
+  seq.step()
+  action.setField([Doctype], tn11, tf8)
+  tfirst12 = cover(tn11, tf8, tfirst12)
+  seq.step()
+  action.setField([Root], tn11, tf9)
+  tfirst12 = cover(tn11, tf9, tfirst12)
+  seq.step()
+  action.setField([Epilog], tn11, tf10)
+  tfirst12 = cover(tn11, tf10, tfirst12)
+  made(c, tn11, tfirst12)
+  return action.fromObj(tn11), null(Fail)
+}
+
+## misc_list action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  let ti2, tf2 = items(action.name([map]), action.read([$ms]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let tj3 = 0
+  loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
+    seq.step()
+    let tp5 = itemAt(ti2, tj3, false)
+    let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$m]), action.field([m of $m]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
+    }
+    let tv6 = tv7
+    let tf8 = push(c, action.name([map]), tv6)
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+  }
+  let tk9 = action.elemsAbove(tm1)
+  let tn10 = hull(c, false, tk9)
+  return action.fromObj(tn10), null(Fail)
+}
+
+## xml_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$v])
+  let tf2 = action.read([$e])
+  let tf3 = action.read([$sd])
+  let tn4 = action.struct([XMLDecl])
+  let tfirst5 = true
+  seq.step()
+  action.setField([Version], tn4, tf1)
+  tfirst5 = cover(tn4, tf1, tfirst5)
+  seq.step()
+  action.setField([Encoding], tn4, tf2)
+  tfirst5 = cover(tn4, tf2, tfirst5)
+  seq.step()
+  action.setField([Standalone], tn4, tf3)
+  tfirst5 = cover(tn4, tf3, tfirst5)
+  made(c, tn4, tfirst5)
+  return action.fromObj(tn4), null(Fail)
+}
+
+## version_info action
+func action(c Act) (Datum, Fail) {
+  return action.read([$v]), null(Fail)
+}
+
+## encoding_decl action
+func action(c Act) (Datum, Fail) {
+  return action.read([$e]), null(Fail)
+}
+
+## sd_decl action
+func action(c Act) (Datum, Fail) {
+  return action.read([$v]), null(Fail)
+}
+
+## comment action
+func action(c Act) (Datum, Fail) {
+  return action.read([$c]), null(Fail)
+}
+
+## pi action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$t])
+  let tf2 = action.read([$d])
+  let tn3 = action.struct([PI])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Target], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([Data], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## pi predicate
+func action(c Act) (Datum, Fail) {
+  let ts1, tf1 = text(action.read([$t]))
+  if (tf1 != null(Fail)) {
+    return null(Datum), tf1
+  }
+  let tv2, tf2 = binary(6, action.fromStr(ts1), action.const(["xml"]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let tb3, tf3 = logic(0, tv2)
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tv4 = val.fromBool(false)
+  if tb3 {
+    let ts5, tf5 = text(action.read([$t]))
+    if (tf5 != null(Fail)) {
+      return null(Datum), tf5
+    }
+    let tv6, tf6 = binary(6, action.fromStr(ts5), action.const(["xmL"]))
+    if (tf6 != null(Fail)) {
+      return null(Datum), tf6
+    }
+    let tb7, tf7 = logic(0, tv6)
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
+    }
+    tv4 = val.fromBool(tb7)
+  }
+  let tb8, tf8 = logic(0, tv4)
+  if (tf8 != null(Fail)) {
+    return null(Datum), tf8
+  }
+  let tv9 = val.fromBool(false)
+  if tb8 {
+    let ts10, tf10 = text(action.read([$t]))
+    if (tf10 != null(Fail)) {
+      return null(Datum), tf10
+    }
+    let tv11, tf11 = binary(6, action.fromStr(ts10), action.const(["xMl"]))
+    if (tf11 != null(Fail)) {
+      return null(Datum), tf11
+    }
+    let tb12, tf12 = logic(0, tv11)
+    if (tf12 != null(Fail)) {
+      return null(Datum), tf12
+    }
+    tv9 = val.fromBool(tb12)
+  }
+  let tb13, tf13 = logic(0, tv9)
+  if (tf13 != null(Fail)) {
+    return null(Datum), tf13
+  }
+  let tv14 = val.fromBool(false)
+  if tb13 {
+    let ts15, tf15 = text(action.read([$t]))
+    if (tf15 != null(Fail)) {
+      return null(Datum), tf15
+    }
+    let tv16, tf16 = binary(6, action.fromStr(ts15), action.const(["xML"]))
+    if (tf16 != null(Fail)) {
+      return null(Datum), tf16
+    }
+    let tb17, tf17 = logic(0, tv16)
+    if (tf17 != null(Fail)) {
+      return null(Datum), tf17
+    }
+    tv14 = val.fromBool(tb17)
+  }
+  let tb18, tf18 = logic(0, tv14)
+  if (tf18 != null(Fail)) {
+    return null(Datum), tf18
+  }
+  let tv19 = val.fromBool(false)
+  if tb18 {
+    let ts20, tf20 = text(action.read([$t]))
+    if (tf20 != null(Fail)) {
+      return null(Datum), tf20
+    }
+    let tv21, tf21 = binary(6, action.fromStr(ts20), action.const(["Xml"]))
+    if (tf21 != null(Fail)) {
+      return null(Datum), tf21
+    }
+    let tb22, tf22 = logic(0, tv21)
+    if (tf22 != null(Fail)) {
+      return null(Datum), tf22
+    }
+    tv19 = val.fromBool(tb22)
+  }
+  let tb23, tf23 = logic(0, tv19)
+  if (tf23 != null(Fail)) {
+    return null(Datum), tf23
+  }
+  let tv24 = val.fromBool(false)
+  if tb23 {
+    let ts25, tf25 = text(action.read([$t]))
+    if (tf25 != null(Fail)) {
+      return null(Datum), tf25
+    }
+    let tv26, tf26 = binary(6, action.fromStr(ts25), action.const(["XmL"]))
+    if (tf26 != null(Fail)) {
+      return null(Datum), tf26
+    }
+    let tb27, tf27 = logic(0, tv26)
+    if (tf27 != null(Fail)) {
+      return null(Datum), tf27
+    }
+    tv24 = val.fromBool(tb27)
+  }
+  let tb28, tf28 = logic(0, tv24)
+  if (tf28 != null(Fail)) {
+    return null(Datum), tf28
+  }
+  let tv29 = val.fromBool(false)
+  if tb28 {
+    let ts30, tf30 = text(action.read([$t]))
+    if (tf30 != null(Fail)) {
+      return null(Datum), tf30
+    }
+    let tv31, tf31 = binary(6, action.fromStr(ts30), action.const(["XMl"]))
+    if (tf31 != null(Fail)) {
+      return null(Datum), tf31
+    }
+    let tb32, tf32 = logic(0, tv31)
+    if (tf32 != null(Fail)) {
+      return null(Datum), tf32
+    }
+    tv29 = val.fromBool(tb32)
+  }
+  let tb33, tf33 = logic(0, tv29)
+  if (tf33 != null(Fail)) {
+    return null(Datum), tf33
+  }
+  let tv34 = val.fromBool(false)
+  if tb33 {
+    let ts35, tf35 = text(action.read([$t]))
+    if (tf35 != null(Fail)) {
+      return null(Datum), tf35
+    }
+    let tv36, tf36 = binary(6, action.fromStr(ts35), action.const(["XML"]))
+    if (tf36 != null(Fail)) {
+      return null(Datum), tf36
+    }
+    let tb37, tf37 = logic(0, tv36)
+    if (tf37 != null(Fail)) {
+      return null(Datum), tf37
+    }
+    tv34 = val.fromBool(tb37)
+  }
+  return tv34, null(Fail)
+}
+
+## doctype action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$x])
+  let tm3 = action.kids()
+  seq.step()
+  let tf4 = pushItems(c, action.name([concat]), action.read([$ds]))
+  if (tf4 != null(Fail)) {
+    return null(Datum), tf4
+  }
+  let tk5 = action.elemsAbove(tm3)
+  let tn6 = hull(c, false, tk5)
+  let tf7 = action.fromObj(tn6)
+  let tn8 = action.struct([Doctype])
+  let tfirst9 = true
+  seq.step()
+  action.setField([Name], tn8, tf1)
+  tfirst9 = cover(tn8, tf1, tfirst9)
+  seq.step()
+  action.setField([ExternalID], tn8, tf2)
+  tfirst9 = cover(tn8, tf2, tfirst9)
+  seq.step()
+  action.setField([Subset], tn8, tf7)
+  tfirst9 = cover(tn8, tf7, tfirst9)
+  made(c, tn8, tfirst9)
+  return action.fromObj(tn8), null(Fail)
+}
+
+## int_subset action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  let ti2, tf2 = items(action.name([map]), action.read([$ds]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let tj3 = 0
+  loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
+    seq.step()
+    let tp5 = itemAt(ti2, tj3, false)
+    let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$d]), action.field([d of $d]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
+    }
+    let tv6 = tv7
+    let tf8 = push(c, action.name([map]), tv6)
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+  }
+  let tk9 = action.elemsAbove(tm1)
+  let tn10 = hull(c, false, tk9)
+  return action.fromObj(tn10), null(Fail)
+}
+
+## system_id action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$l])
+  let tn2 = action.struct([ExternalID])
+  let tfirst3 = true
+  seq.step()
+  action.setField([System], tn2, tf1)
+  tfirst3 = cover(tn2, tf1, tfirst3)
+  made(c, tn2, tfirst3)
+  return action.fromObj(tn2), null(Fail)
+}
+
+## public_id action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$p])
+  let tf2 = action.read([$l])
+  let tn3 = action.struct([ExternalID])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Public], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([System], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## system_literal action
+func action(c Act) (Datum, Fail) {
+  return action.read([$l]), null(Fail)
+}
+
+## pubid_literal action
+func action(c Act) (Datum, Fail) {
+  return action.read([$l]), null(Fail)
+}
+
+## element_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$c])
+  let tn3 = action.struct([ElementDecl])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Name], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([Content], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## mixed action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  let ti2, tf2 = items(action.name([map]), action.read([$ns]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let tj3 = 0
+  loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
+    seq.step()
+    let tp5 = itemAt(ti2, tj3, false)
+    let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$n]), action.field([n of $n]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
+    }
+    let tv6 = tv7
+    let tf8 = push(c, action.name([map]), tv6)
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+  }
+  let tk9 = action.elemsAbove(tm1)
+  let tn10 = hull(c, false, tk9)
+  let tf11 = action.fromObj(tn10)
+  let tn12 = action.struct([Mixed])
+  let tfirst13 = true
+  seq.step()
+  action.setField([Names], tn12, tf11)
+  tfirst13 = cover(tn12, tf11, tfirst13)
+  made(c, tn12, tfirst13)
+  return action.fromObj(tn12), null(Fail)
+}
+
+## mixed predicate
+func action(c Act) (Datum, Fail) {
+  let tv1, tf1 = length(action.read([$ns]))
+  if (tf1 != null(Fail)) {
+    return null(Datum), tf1
+  }
+  let tv2, tf2 = binary(5, tv1, action.const([0]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  return tv2, null(Fail)
+}
+
+## choice action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  seq.step()
+  let tf2 = push(c, action.name([list]), action.read([$f]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let ti3, tf3 = items(action.name([map]), action.read([$rs]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$c]), action.field([c of $c]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm1)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tf13 = action.read([$o])
+  let tn14 = action.struct([Choice])
+  let tfirst15 = true
+  seq.step()
+  action.setField([Items], tn14, tf12)
+  tfirst15 = cover(tn14, tf12, tfirst15)
+  seq.step()
+  action.setField([Occur], tn14, tf13)
+  tfirst15 = cover(tn14, tf13, tfirst15)
+  made(c, tn14, tfirst15)
+  return action.fromObj(tn14), null(Fail)
+}
+
+## sequence action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  seq.step()
+  let tf2 = push(c, action.name([list]), action.read([$f]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let ti3, tf3 = items(action.name([map]), action.read([$rs]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$c]), action.field([c of $c]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm1)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tf13 = action.read([$o])
+  let tn14 = action.struct([Sequence])
+  let tfirst15 = true
+  seq.step()
+  action.setField([Items], tn14, tf12)
+  tfirst15 = cover(tn14, tf12, tfirst15)
+  seq.step()
+  action.setField([Occur], tn14, tf13)
+  tfirst15 = cover(tn14, tf13, tfirst15)
+  made(c, tn14, tfirst15)
+  return action.fromObj(tn14), null(Fail)
+}
+
+## name_particle action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$o])
+  let tn3 = action.struct([NameParticle])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Name], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([Occur], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## attlist_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tm2 = action.kids()
+  let ti3, tf3 = items(action.name([map]), action.read([$ds]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$d]), action.field([d of $d]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm2)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tn13 = action.struct([AttlistDecl])
+  let tfirst14 = true
+  seq.step()
+  action.setField([Name], tn13, tf1)
+  tfirst14 = cover(tn13, tf1, tfirst14)
+  seq.step()
+  action.setField([Defs], tn13, tf12)
+  tfirst14 = cover(tn13, tf12, tfirst14)
+  made(c, tn13, tfirst14)
+  return action.fromObj(tn13), null(Fail)
+}
+
+## att_def action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$t])
+  let tf3 = action.read([$k])
+  let tf4 = action.read([$v])
+  let tn5 = action.struct([AttDef])
+  let tfirst6 = true
+  seq.step()
+  action.setField([Name], tn5, tf1)
+  tfirst6 = cover(tn5, tf1, tfirst6)
+  seq.step()
+  action.setField([Type], tn5, tf2)
+  tfirst6 = cover(tn5, tf2, tfirst6)
+  seq.step()
+  action.setField([Default], tn5, tf3)
+  tfirst6 = cover(tn5, tf3, tfirst6)
+  seq.step()
+  action.setField([Value], tn5, tf4)
+  tfirst6 = cover(tn5, tf4, tfirst6)
+  made(c, tn5, tfirst6)
+  return action.fromObj(tn5), null(Fail)
+}
+
+## notation_type action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  seq.step()
+  let tf2 = push(c, action.name([list]), action.read([$f]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let ti3, tf3 = items(action.name([map]), action.read([$rs]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$n]), action.field([n of $n]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm1)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tn13 = action.struct([NotationType])
+  let tfirst14 = true
+  seq.step()
+  action.setField([Names], tn13, tf12)
+  tfirst14 = cover(tn13, tf12, tfirst14)
+  made(c, tn13, tfirst14)
+  return action.fromObj(tn13), null(Fail)
+}
+
+## enumeration action
+func action(c Act) (Datum, Fail) {
+  let tm1 = action.kids()
+  seq.step()
+  let tf2 = push(c, action.name([list]), action.read([$f]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  let ti3, tf3 = items(action.name([map]), action.read([$rs]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$n]), action.field([n of $n]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm1)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tn13 = action.struct([Enumeration])
+  let tfirst14 = true
+  seq.step()
+  action.setField([Values], tn13, tf12)
+  tfirst14 = cover(tn13, tf12, tfirst14)
+  made(c, tn13, tfirst14)
+  return action.fromObj(tn13), null(Fail)
+}
+
+## ge_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$v])
+  let tf3 = action.read([$x])
+  let tf4 = action.read([$nd])
+  let tn5 = action.struct([EntityDecl])
+  let tfirst6 = true
+  seq.step()
+  action.setField([Parameter], tn5, action.const([false]))
+  tfirst6 = cover(tn5, action.const([false]), tfirst6)
+  seq.step()
+  action.setField([Name], tn5, tf1)
+  tfirst6 = cover(tn5, tf1, tfirst6)
+  seq.step()
+  action.setField([Value], tn5, tf2)
+  tfirst6 = cover(tn5, tf2, tfirst6)
+  seq.step()
+  action.setField([ExternalID], tn5, tf3)
+  tfirst6 = cover(tn5, tf3, tfirst6)
+  seq.step()
+  action.setField([NData], tn5, tf4)
+  tfirst6 = cover(tn5, tf4, tfirst6)
+  made(c, tn5, tfirst6)
+  return action.fromObj(tn5), null(Fail)
+}
+
+## pe_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$v])
+  let tf3 = action.read([$x])
+  let tn4 = action.struct([EntityDecl])
+  let tfirst5 = true
+  seq.step()
+  action.setField([Parameter], tn4, action.const([true]))
+  tfirst5 = cover(tn4, action.const([true]), tfirst5)
+  seq.step()
+  action.setField([Name], tn4, tf1)
+  tfirst5 = cover(tn4, tf1, tfirst5)
+  seq.step()
+  action.setField([Value], tn4, tf2)
+  tfirst5 = cover(tn4, tf2, tfirst5)
+  seq.step()
+  action.setField([ExternalID], tn4, tf3)
+  tfirst5 = cover(tn4, tf3, tfirst5)
+  made(c, tn4, tfirst5)
+  return action.fromObj(tn4), null(Fail)
+}
+
+## entity_value action
+func action(c Act) (Datum, Fail) {
+  return action.read([$v]), null(Fail)
+}
+
+## notation_decl action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$x])
+  let tn3 = action.struct([NotationDecl])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Name], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([ExternalID], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## public_notation action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$p])
+  let tf2 = action.read([$l])
+  let tn3 = action.struct([ExternalID])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Public], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([System], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## element action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tm2 = action.kids()
+  let ti3, tf3 = items(action.name([map]), action.read([$as]))
+  if (tf3 != null(Fail)) {
+    return null(Datum), tf3
+  }
+  let tj4 = 0
+  loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
+    seq.step()
+    let tp6 = itemAt(ti3, tj4, false)
+    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$a]), action.field([a of $a]))
+    if (tf8 != null(Fail)) {
+      return null(Datum), tf8
+    }
+    let tv7 = tv8
+    let tf9 = push(c, action.name([map]), tv7)
+    if (tf9 != null(Fail)) {
+      return null(Datum), tf9
+    }
+  }
+  let tk10 = action.elemsAbove(tm2)
+  let tn11 = hull(c, false, tk10)
+  let tf12 = action.fromObj(tn11)
+  let tm13 = action.kids()
+  seq.step()
+  let tf14 = pushItems(c, action.name([concat]), action.read([$cs]))
+  if (tf14 != null(Fail)) {
+    return null(Datum), tf14
+  }
+  let tk15 = action.elemsAbove(tm13)
+  let tn16 = hull(c, false, tk15)
+  let tf17 = action.fromObj(tn16)
+  let tn18 = action.struct([Element])
+  let tfirst19 = true
+  seq.step()
+  action.setField([Name], tn18, tf1)
+  tfirst19 = cover(tn18, tf1, tfirst19)
+  seq.step()
+  action.setField([Attrs], tn18, tf12)
+  tfirst19 = cover(tn18, tf12, tfirst19)
+  seq.step()
+  action.setField([Content], tn18, tf17)
+  tfirst19 = cover(tn18, tf17, tfirst19)
+  made(c, tn18, tfirst19)
+  return action.fromObj(tn18), null(Fail)
+}
+
+## element predicate
+func action(c Act) (Datum, Fail) {
+  let ts1, tf1 = text(action.read([$e]))
+  if (tf1 != null(Fail)) {
+    return null(Datum), tf1
+  }
+  let ts2, tf2 = text(action.read([$n]))
+  if (tf2 != null(Fail)) {
+    return null(Datum), tf2
+  }
+  return val.fromBool(action.textEqual(ts1, ts2)), null(Fail)
+}
+
+## attribute action
+func action(c Act) (Datum, Fail) {
+  let tf1 = action.read([$n])
+  let tf2 = action.read([$v])
+  let tn3 = action.struct([Attribute])
+  let tfirst4 = true
+  seq.step()
+  action.setField([Name], tn3, tf1)
+  tfirst4 = cover(tn3, tf1, tfirst4)
+  seq.step()
+  action.setField([Value], tn3, tf2)
+  tfirst4 = cover(tn3, tf2, tfirst4)
+  made(c, tn3, tfirst4)
+  return action.fromObj(tn3), null(Fail)
+}
+
+## att_value action
+func action(c Act) (Datum, Fail) {
+  return action.read([$v]), null(Fail)
+}
+
+## markup action
+func action(c Act) (Datum, Fail) {
+  return action.read([$c]), null(Fail)
+}
+
+## cdsect action
+func action(c Act) (Datum, Fail) {
+  return action.read([$c]), null(Fail)
+}
+

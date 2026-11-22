@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The hull table: tuple values and list values that a term makes of elements of one fixture (the composition
+// The hull table: tuple values and list values that an action expression makes of elements of one fixture (the composition
 // hull over the elements), and the range each takes. Each target builds the fixture and makes the values
 // through its printed composition; the tests that do are the ones the mutants of that code name. The fixture
 // and the rule are those of the struct table (StructLate, StructRuleStart and StructRuleEnd).

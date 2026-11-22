@@ -211,7 +211,7 @@ func readsOrBindsVariable(n core.Node) bool {
 		return true
 	case *core.Pred:
 		found := false
-		core.WalkActionExpr(n.Term, func(t core.ActionExpr) {
+		core.WalkActionExpr(n.Action, func(t core.ActionExpr) {
 			if _, ok := t.(*core.VarRef); ok {
 				found = true
 			}
@@ -450,10 +450,10 @@ func (s *sites) runKey(e *core.Repeat) RunKey {
 	core.Walk(e.Body, func(x core.Node) {
 		switch x := x.(type) {
 		case *core.Pred:
-			readVars(x.Term)
+			readVars(x.Action)
 		case *core.BindNode:
 			vars[x.Var], bind[x.Var] = true, true
-			readVars(x.Term)
+			readVars(x.Action)
 		default:
 			if k, ok := calleeOf(x); ok && RunKeyMutation != RunKeyNoCallees {
 				for _, v := range s.rules[k].Vars {

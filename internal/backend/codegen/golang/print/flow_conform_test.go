@@ -308,7 +308,7 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 		case len(o.Results) == 0:
 			return fmt.Sprintf("rt.ConfPre(p, %d)\n%s\nrt.ConfPost()", k, s)
 		case len(o.Results) == 1 && len(*pre) > mark:
-			// The statements of the term run inside the call.
+			// The statements of the action expression run inside the call.
 			*pre = (*pre)[:mark] + fmt.Sprintf("rt.ConfPre(p, %d)\n", k) + (*pre)[mark:]
 			return fmt.Sprintf("rt.Conf1(nil, %s)", s)
 		case len(o.Results) == 1:
@@ -634,8 +634,8 @@ const flowUnbounded = 1 << 30
 //
 //   - lit, classes: of the immediate;
 //   - body: none for the rules and outlined nodes that a call runs, whose bodies are probed calls of
-//     their own, and for the term code of a predicate, binding or action, which the probes do not
-//     wrap, any (term_charges_test.go checks the charges of terms);
+//     their own, and for the action code of a predicate, binding or action, which the probes do not
+//     wrap, any (action_charges_test.go checks the charges of action expressions);
 //   - terminal: any, checked by the case of flow.skipTerminal;
 //   - merge: each expectation that the call records or is passed, at most once more for each entry
 //     recorded at the farthest failure that it compares;

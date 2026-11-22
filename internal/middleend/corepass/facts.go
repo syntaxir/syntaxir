@@ -544,7 +544,7 @@ func (c *computer) looseCut(n core.Node) bool {
 func (c *computer) positional() {
 	set := make([]bool, len(c.m.Rules))
 	for _, id := range c.order {
-		c.terms(c.m.Rules[id], func(t core.ActionExpr) {
+		c.actionExprs(c.m.Rules[id], func(t core.ActionExpr) {
 			if m, ok := t.(*core.Member); ok && (m.Name == "Start" || m.Name == "End") {
 				set[id] = true
 			}
@@ -556,17 +556,17 @@ func (c *computer) positional() {
 	}
 }
 
-// terms calls f for every term of the rule: its action, its predicates and bindings, and the actions
-// of its Operators Rule lines, with their subterms.
-func (c *computer) terms(r *core.Rule, f func(core.ActionExpr)) {
+// action expressions calls f for every action expression of the rule: its action, its predicates and bindings, and the actions
+// of its Operators Rule lines, with their subexpressions.
+func (c *computer) actionExprs(r *core.Rule, f func(core.ActionExpr)) {
 	core.WalkActionExpr(r.Finish.Action, f)
 	core.Walk(r.Body, func(n core.Node) {
 		c.control.Poll()
 		switch n := n.(type) {
 		case *core.Pred:
-			core.WalkActionExpr(n.Term, f)
+			core.WalkActionExpr(n.Action, f)
 		case *core.BindNode:
-			core.WalkActionExpr(n.Term, f)
+			core.WalkActionExpr(n.Action, f)
 		case *core.OperatorsRule:
 			for _, l := range n.Lines() {
 				core.WalkActionExpr(l.Action, f)
@@ -638,12 +638,12 @@ func (c *computer) recovering() {
 	}
 }
 
-// vars sets Vars: the variables that the terms of the rule or of a rule it calls read.
+// vars sets Vars: the variables that the action expressions of the rule or of a rule it calls read.
 func (c *computer) vars() {
 	direct := make([]map[string]bool, len(c.m.Rules))
 	some := false
 	for _, id := range c.order {
-		c.terms(c.m.Rules[id], func(t core.ActionExpr) {
+		c.actionExprs(c.m.Rules[id], func(t core.ActionExpr) {
 			if v, ok := t.(*core.VarRef); ok {
 				if direct[id] == nil {
 					direct[id] = map[string]bool{}

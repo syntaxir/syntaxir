@@ -6,8 +6,8 @@ those containers for every expression.
 
 ## Mechanism and Invariants
 
-The parser keeps an evaluation context, the register files of term programs,
-a one-element action buffer and operator locals. A term program takes its
+The parser keeps an evaluation context, the register files of action programs,
+a one-element action buffer and operator locals. An action program takes its
 registers above the current top of each file and gives them back, cleared,
 when it returns, so nested evaluations reuse the same storage. Built-ins and
 constructors cannot retain registers; published values receive separate
@@ -40,8 +40,8 @@ Evidence records: [014](../014-one-operand-stack-for-vm-expression-code.md),
 [027](../027-struct-and-call-operands-on-the-expression-stack-in-the-closure-backend.md),
 [028](../028-field-lists-and-list-built-ins-without-allocation-in-the-generated-parsers.md).
 
-Source owners: [`evalCtx`](../../../internal/runtime/state/eval.go), [`engine term programs`](../../../internal/runtime/state/),
-[`term registers and operator
+Source owners: [`evalCtx`](../../../internal/runtime/state/eval.go), [`engine action programs`](../../../internal/runtime/state/),
+[`action registers and operator
 locals`](../../../internal/runtime/state/runtime.go), [`generated
 ActCtx`](../../../pkg/runtime/libgo/lib.go), [`typed evaluation
 scratch`](../../../pkg/runtime/libgo/typed.go), [`Parser action

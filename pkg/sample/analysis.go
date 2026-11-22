@@ -70,9 +70,9 @@ type info struct {
 	compared map[*ast.Capture]bool
 	// alphabet holds the literal strings and sample characters of the grammar, for mutations.
 	alphabet []string
-	// terms holds what predicates read of the grammar, and the declared variables with their initial
+	// action expressions holds what predicates read of the grammar, and the declared variables with their initial
 	// values, from which every attempt starts.
-	terms *terms
+	actionExprs *actionExprs
 }
 
 func analyze(g *ast.Grammar, start string) *info {
@@ -102,9 +102,9 @@ func analyze(g *ast.Grammar, start string) *info {
 		in.targets = append(in.targets, target{kind: targetRule, rule: r.Name})
 	}
 	in.start = in.rules[start]
-	in.terms = newTerms(g)
+	in.actionExprs = newActions(g)
 	for _, ri := range in.order {
-		ri.makesNode = in.terms.makesNode(ri.def)
+		ri.makesNode = in.actionExprs.makesNode(ri.def)
 	}
 	// Targets inside rule bodies.
 	for _, ri := range in.order {
@@ -148,7 +148,7 @@ func analyze(g *ast.Grammar, start string) *info {
 		read := map[string]bool{}
 		walk(ri.def.Expr, func(e ast.Expr) {
 			if p, ok := e.(*ast.Predicate); ok {
-				walkTerm(p.Action, func(t ast.ActionExpr) {
+				walkAction(p.Action, func(t ast.ActionExpr) {
 					if c, ok := t.(*ast.CaptureRef); ok {
 						read[c.Name] = true
 					}
@@ -707,37 +707,37 @@ func (s bitset) anyNotIn(a, b bitset) bool {
 	return false
 }
 
-// walkTerm calls f for t and every term inside it.
-func walkTerm(t ast.ActionExpr, f func(ast.ActionExpr)) {
+// walkAction calls f for t and every action expression inside it.
+func walkAction(t ast.ActionExpr, f func(ast.ActionExpr)) {
 	if t == nil {
 		return
 	}
 	f(t)
 	switch t := t.(type) {
 	case *ast.FieldAccess:
-		walkTerm(t.X, f)
+		walkAction(t.X, f)
 	case *ast.Constructor:
 		for _, fi := range t.Fields {
-			walkTerm(fi.Value, f)
+			walkAction(fi.Value, f)
 		}
 	case *ast.TupleLit:
 		for _, x := range t.Elems {
-			walkTerm(x, f)
+			walkAction(x, f)
 		}
 	case *ast.Call:
 		for _, a := range t.Args {
-			walkTerm(a, f)
+			walkAction(a, f)
 		}
 	case *ast.Lambda:
-		walkTerm(t.Body, f)
+		walkAction(t.Body, f)
 	case *ast.Binary:
-		walkTerm(t.L, f)
-		walkTerm(t.R, f)
+		walkAction(t.L, f)
+		walkAction(t.R, f)
 	case *ast.Unary:
-		walkTerm(t.X, f)
+		walkAction(t.X, f)
 	case *ast.Cast:
-		walkTerm(t.X, f)
+		walkAction(t.X, f)
 	case *ast.Bind:
-		walkTerm(t.Value, f)
+		walkAction(t.Value, f)
 	}
 }

@@ -1491,7 +1491,7 @@ func binds(e ast.Expr) bool {
 	found := false
 	astfacts.WalkExpr(e, func(y ast.Expr) {
 		if p, ok := y.(*ast.Predicate); ok {
-			astfacts.WalkTerm(p.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
 				if _, ok := t.(*ast.Bind); ok {
 					found = true
 				}

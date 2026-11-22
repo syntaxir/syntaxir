@@ -54,24 +54,24 @@ var tsSpecs = []struct {
 	// Predicates and bindings.
 	{fn: "predicate", name: "predicate"},
 	{fn: "bind", name: "bind"},
-	// The operators of terms.
-	{fn: "equal", name: "termEqual"},
-	{fn: "index", name: "termIndex"},
-	{fn: "binary", name: "termBinary"},
-	{fn: "unary", name: "termUnary"},
-	{fn: "logic", name: "termLogic"},
-	{fn: "member", name: "termMember"},
-	{fn: "push", name: "termPush"},
-	{fn: "pushItems", name: "termPushItems"},
-	{fn: "items", name: "termItems"},
-	{fn: "itemAt", name: "termItemAt"},
-	{fn: "filterKeep", name: "termFilterKeep"},
-	{fn: "length", name: "termLength"},
-	{fn: "text", name: "termText"},
-	{fn: "convert", name: "termConvert"},
-	{fn: "cover", name: "termCover"},
-	{fn: "made", name: "termMade"},
-	{fn: "hull", name: "termHull"},
+	// The operators of action expressions.
+	{fn: "equal", name: "actionEqual"},
+	{fn: "index", name: "actionIndex"},
+	{fn: "binary", name: "actionBinary"},
+	{fn: "unary", name: "actionUnary"},
+	{fn: "logic", name: "actionLogic"},
+	{fn: "member", name: "actionMember"},
+	{fn: "push", name: "actionPush"},
+	{fn: "pushItems", name: "actionPushItems"},
+	{fn: "items", name: "actionItems"},
+	{fn: "itemAt", name: "actionItemAt"},
+	{fn: "filterKeep", name: "actionFilterKeep"},
+	{fn: "length", name: "actionLength"},
+	{fn: "text", name: "actionText"},
+	{fn: "convert", name: "actionConvert"},
+	{fn: "cover", name: "actionCover"},
+	{fn: "made", name: "actionMade"},
+	{fn: "hull", name: "actionHull"},
 	{fn: "conforms", name: "fieldConforms"},
 	{fn: "valueConforms", name: "valueConforms"},
 	{fn: "elemsConform", name: "elemsConform"},
@@ -141,7 +141,7 @@ func tsMethodsFor(fs common.FeatureSet) ([]tsMethod, error) {
 		out = append(out, tsMethod{Name: s.name, Text: src})
 	}
 	kind, name := tsMemberKind()
-	out = append(out, tsMethod{Name: "termError", Text: tsTermError()}, tsMethod{Name: "memberKind", Text: kind},
+	out = append(out, tsMethod{Name: "actionError", Text: tsActionError()}, tsMethod{Name: "memberKind", Text: kind},
 		tsMethod{Name: "memberName", Text: name})
 	return out, nil
 }
@@ -180,11 +180,11 @@ func tsMemberKind() (kind, name string) {
 		action.MemberCapture, len(k.Spelling))
 }
 
-// tsTermError returns the method that makes the text of a failure of a term from action.TermErrors.
-func tsTermError() string {
+// tsActionError returns the method that makes the text of a failure of an action expression from action.ActionErrors.
+func tsActionError() string {
 	var b strings.Builder
-	b.WriteString("  termError(code: number, a: Value, b: Value, op: number, n: number): string {\n    switch (code) {\n")
-	for code, e := range action.TermErrors {
+	b.WriteString("  actionError(code: number, a: Value, b: Value, op: number, n: number): string {\n    switch (code) {\n")
+	for code, e := range action.ActionErrors {
 		var t strings.Builder
 		for _, seg := range e.Segments() {
 			switch seg.Hole {
@@ -205,7 +205,7 @@ func tsTermError() string {
 		t.WriteString(e.Hint)
 		fmt.Fprintf(&b, "      case %d: // %s\n        return `%s`;\n", code, e.Name, t.String())
 	}
-	b.WriteString("    }\n    throw new Error(\"no term failure\");\n  }")
+	b.WriteString("    }\n    throw new Error(\"no action expression failure\");\n  }")
 	return b.String()
 }
 
@@ -235,7 +235,7 @@ var tsTarget = &Target{
 			exec.Ctx: "CtxCall", exec.Res: "CtxResult | null", exec.Grow: "GrowState",
 			exec.Frame: "Frame", exec.Scope: "Env | null", exec.Operators: "OperatorsRuleOp[]", exec.Operator: "OperatorsRuleOp",
 			exec.Line: "OperatorsRuleLine", exec.Attempt: "OperatorsRuleAttempt | null",
-			action.Term: "Action", exec.Datum: "Value", action.Seq: "readonly (Node | null)[]",
+			action.Action: "Action", exec.Datum: "Value", action.Seq: "readonly (Node | null)[]",
 			action.Obj: "Node", action.Name: "string", action.Str: "string", action.Act: "Actx", action.Fail: "Value", action.Elem: "Node | null",
 			action.NodeType: "string", action.FType: "FieldType",
 		}[name]
@@ -275,7 +275,7 @@ var tsTarget = &Target{
 		case "val.toBool":
 			return "(" + a[0] + " as boolean)"
 		case "val.fail":
-			return fmt.Sprintf("this.termError(%s, %s, %s, %s, %s)", a[0], a[1], a[2], a[3], a[4])
+			return fmt.Sprintf("this.actionError(%s, %s, %s, %s, %s)", a[0], a[1], a[2], a[3], a[4])
 		case "int.add", "int.sub", "int.mul", "int.quo", "int.rem", "int.cmp", "int.index":
 			return "int" + strings.ToUpper(c.Callee[4:5]) + c.Callee[5:] + "(" + strings.Join(a, ", ") + ")"
 		case "int.neg":
@@ -372,15 +372,15 @@ var tsTarget = &Target{
 			return "this.env = " + a[0]
 		case "env.bind":
 			return fmt.Sprintf("this.bindValue(%s, %s)", a[0], a[1])
-		case "term.ctx":
+		case "action.ctx":
 			return "this.useCtx(this.frame, this.pos, this.pos, null, null, null)"
-		case "term.created":
+		case "action.created":
 			return "this.created.length"
-		case "term.dropCreated":
+		case "action.dropCreated":
 			return "this.dropSpend(this.created, " + a[0] + ")"
-		case "term.kids":
+		case "action.kids":
 			return "this.kidStack.length"
-		case "term.dropKids":
+		case "action.dropKids":
 			return "this.dropSpend(this.kidStack, " + a[0] + ")"
 		case "opr.led", "opr.prefix":
 			return a[0] + ".operatorsRule!." + strings.TrimPrefix(c.Callee, "opr.")
@@ -731,12 +731,12 @@ var tsObsTarget = func() *Target {
 	return &t
 }()
 
-// TSTermMethod returns the name of the method of the TypeScript library's Parser class that the
+// TSActionMethod returns the name of the method of the TypeScript library's Parser class that the
 
-// tsTermMethod returns the name of the method of the TypeScript library's Parser class that the
+// tsActionMethod returns the name of the method of the TypeScript library's Parser class that the
 // composition fn is printed as, for printing calls of the compositions outside the library (lowered
-// terms).
-func tsTermMethod(fn string) string { return tsTarget.FuncName(fn) }
+// action expressions).
+func tsActionMethod(fn string) string { return tsTarget.FuncName(fn) }
 
 // tsHandle returns the TypeScript type of the handle type name in the TypeScript library.
 func tsHandle(name string) string { return tsTarget.Handle(name) }

@@ -14,7 +14,7 @@ import (
 //
 // Each field names its owner:
 //   - Model, the grammar, its types, variables and start rules: the semantic model (check.Model).
-//   - Checker, the types of the grammar's expressions and terms: the checker (check.Checker).
+//   - Checker, the types of the grammar's expressions and action expressions: the checker (check.Checker).
 //   - Typed, the types the checker found for the grammar: the checker's result (check.TypeInfo).
 //   - Run, the tables a parser runs (rules, expectations, sites, kinds): the run-time program
 //     (program.Program).
@@ -61,7 +61,7 @@ type Rule struct {
 	// Action is the rule's action, nil if it has none: that of Def, or of the hidden rule of an
 	// inline action.
 	Action ast.ActionExpr
-	// Captures is the scope of the rule's captures, in which the checker resolved its terms.
+	// Captures is the scope of the rule's captures, in which the checker resolved its action expressions.
 	Captures *check.Scope
 	// Lean reports that the body's value is unused (an action, which reads captures only), so the
 	// body runs value-free; captures still build values. Copied: only the checked program holds it.

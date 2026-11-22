@@ -69,17 +69,17 @@ component operators
   // failed after a cut.
 
 component value
-  // The operations on the values of terms. They read and write no state.
+  // The operations on the values of action expressions. They read and write no state.
 
 component made
-  // The values that terms and actions made: a list of the structs that act.made recorded,
-  // which the context of a term or an action marks when it is made. The struct that an action returns takes the
-  // range of the rule if the action recorded it, and what a term or an action recorded is forgotten when it ends.
+  // The values that action expressions and actions made: a list of the structs that act.made recorded,
+  // which the context of an action expression or an action marks when it is made. The struct that an action returns takes the
+  // range of the rule if the action recorded it, and what an action expression or an action recorded is forgotten when it ends.
 
 component gathered
-  // The elements gathered for the lists and tuples that terms make: a stack, on which
-  // act.push, act.pushAll and term.keep push, from which a list or a tuple takes its elements when it is made
-  // (term.elemsAbove), and from which term.dropKids drops the elements of a term that the parser abandons.
+  // The elements gathered for the lists and tuples that action expressions make: a stack, on which
+  // act.push, act.pushAll and action.keep push, from which a list or a tuple takes its elements when it is made
+  // (action.elemsAbove), and from which action.dropKids drops the elements of an action expression that the parser abandons.
 
 register pos int
   // The position of the parse in the input.
@@ -103,7 +103,7 @@ handle Errs of recovered
   // The errors recovered in a rule call, kept with its memo entry.
 
 handle Datum of host
-  // A value that a variable holds or a term produces, which only the host reads.
+  // A value that a variable holds or an action expression produces, which only the host reads.
 
 handle Scope of env
   // A variable environment, which bindings replace and never change.
@@ -189,7 +189,7 @@ handle Seq of value
   // The elements of a list or a tuple, as seq.items returns them.
 
 handle Fail of value
-  // The failure of a term, as val.fail makes it: a value of the target that the caller reports.
+  // The failure of an action expression, as val.fail makes it: a value of the target that the caller reports.
 
 handle Obj of value
   // A value that has members: a node, a list, a tuple or a struct, as node.of returns it.
@@ -198,13 +198,13 @@ handle Name of value
   // The name of a member: a string of the target.
 
 handle Act of value
-  // The context of the term being evaluated, in which a value is made.
+  // The context of the action expression being evaluated, in which a value is made.
 
 handle Str of value
   // A string of the target that is not a value, as text returns it.
 
 handle Elem of value
-  // An element of a list or a tuple that a term makes, as a Seq holds it.
+  // An element of a list or a tuple that an action expression makes, as a Seq holds it.
 
 handle NodeType of value
   // A named node type, to which a conversion converts a value.
@@ -212,8 +212,8 @@ handle NodeType of value
 handle FType of value
   // The type that a cast checks a value against.
 
-handle Term of host callable (Act) (Datum, Fail)
-  // A term of a predicate or a binding, in the form the target holds: code that is applied to a context.
+handle Action of host callable (Act) (Datum, Fail)
+  // An action expression of a predicate or a binding, in the form the target holds: code that is applied to a context.
 
 op memo.lookup(rule int, pos int, level int, key Values, docOnly bool) (Entry, bool)
   component memo
@@ -2085,7 +2085,7 @@ transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
     // the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the
     // value of its line, which takes the line's captures if it is the node of a tuple, or a node of its match
     // if the line has no value. When the operators of r have a named node type, the node of the tuple is of
-    // that type and carries no rule name, and the value of the action is converted to it as a term converts
+    // that type and carries no rule name, and the value of the action is converted to it as an action expression converts
     // (the failure not convertible of the Exec IR values): one that is not a string, tuple or list node ends
     // the parse with the error "cannot convert <type> to <type> in result of rule <name>".
   requires:
@@ -2602,13 +2602,13 @@ host op val.fail(code int, a Datum, b Datum, op int, n int) Fail
   noreturn
   cost <= 0 + 2*error_parts
   contract:
-    // Returns the failure with the message TermErrors[code]: {a} and {b} read as the names of the types of
+    // Returns the failure with the message ActionErrors[code]: {a} and {b} read as the names of the types of
     // a and b, {op} as the name of the operator that op indexes (BinaryOps for ErrOperands and ErrCompare, UnaryOps for ErrUnary,
-    // LogicalOps for ErrLogical), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of a term: the caller
-    // returns it and the term evaluation reports it, each target in its own form of failure. A target that bounds the work
+    // LogicalOps for ErrLogical), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of an action expression: the caller
+    // returns it and the action expression evaluation reports it, each target in its own form of failure. A target that bounds the work
     // assembles the text piece by piece, charging for each piece.
   requires:
-    // code indexes TermErrors, and the arguments are those its message names.
+    // code indexes ActionErrors, and the arguments are those its message names.
 
 op int.add(l Datum, r Datum) Datum
   component value
@@ -2907,13 +2907,13 @@ op node.setSpan(n Obj, start int, end int)
   noreturn
   cost <= 0
   contract:
-    // Sets the range of n to start and end. It is for a value that a term is making, which no one has read.
+    // Sets the range of n to start and end. It is for a value that an action expression is making, which no one has read.
 
 op act.span(c Act) (int, int)
   component value
   cost <= 0
   contract:
-    // Returns the start and the end of the range of the rule that c evaluates the term of, as ints.
+    // Returns the start and the end of the range of the rule that c evaluates the action expression of, as ints.
 
 op act.made(c Act, n Obj)
   component made
@@ -2925,14 +2925,14 @@ op act.made(c Act, n Obj)
   requires:
     // n is a struct that c made, and no act.made recorded it.
 
-op term.created() int
+op action.created() int
   component made
   reads made
   cost <= 0
   contract:
-    // Returns the number of the values made, which term.dropCreated takes as a mark.
+    // Returns the number of the values made, which action.dropCreated takes as a mark.
 
-op term.dropCreated(mark int)
+op action.dropCreated(mark int)
   component made
   writes made
   noreturn
@@ -2940,7 +2940,7 @@ op term.dropCreated(mark int)
   contract:
     // Forgets the values made after the mark, without changing them, and charges one unit for each.
   requires:
-    // mark came from term.created and is at most the number of the values made.
+    // mark came from action.created and is at most the number of the values made.
 
 op act.push(c Act, e Elem)
   component gathered
@@ -2962,14 +2962,14 @@ op act.pushAll(c Act, items Seq)
   requires:
     // items came from seq.items.
 
-op term.kids() int
+op action.kids() int
   component gathered
   reads gathered
   cost <= 0
   contract:
-    // Returns the number of the elements gathered, which term.dropKids takes as a mark.
+    // Returns the number of the elements gathered, which action.dropKids takes as a mark.
 
-op term.dropKids(mark int)
+op action.dropKids(mark int)
   component gathered
   writes gathered
   noreturn
@@ -2977,9 +2977,9 @@ op term.dropKids(mark int)
   contract:
     // Drops the elements gathered after the mark, and charges one unit for each.
   requires:
-    // mark came from term.kids and is at most the number of the elements gathered.
+    // mark came from action.kids and is at most the number of the elements gathered.
 
-op term.elemsAbove(mark int) Seq
+op action.elemsAbove(mark int) Seq
   component gathered
   reads gathered
   writes gathered
@@ -2988,11 +2988,11 @@ op term.elemsAbove(mark int) Seq
   contract:
     // Takes the elements gathered after the mark off the elements gathered and returns them in order, for a
     // list or a tuple to take over. It charges two units for each: one for copying it and one for taking it off, as
-    // term.dropKids charges for dropping it, in one reservation before it moves any.
+    // action.dropKids charges for dropping it, in one reservation before it moves any.
   requires:
-    // mark came from term.kids and is at most the number of the elements gathered.
+    // mark came from action.kids and is at most the number of the elements gathered.
 
-op term.keep(items Seq, i int)
+op action.keep(items Seq, i int)
   component gathered
   writes gathered
   noreturn
@@ -3018,7 +3018,7 @@ op seq.span(c Act, items Seq, i int) (int, int, bool)
     // Returns the start and the end of the range that element i of a list value or a tuple value being made in c
     // adds to the range of the value, as ints, and true if it adds one, and false (and no meaningful range) if it adds none.
     // An element that is a node, a list, a tuple or a struct adds its own range. An int, a string or a bool adds the range of
-    // the rule c evaluates the term of, which a target whose elements are nodes has given its box; nil adds none.
+    // the rule c evaluates the action expression of, which a target whose elements are nodes has given its box; nil adds none.
   requires:
     // items came from seq.items or is the element list of a value being made in c, and 0 <= i < seq.len(items).
 
@@ -3113,7 +3113,7 @@ host op units.since(mark int)
   noreturn
   cost <= 0
   contract:
-    // Counts a logical compute unit for each element gathered since mark (term.kids).
+    // Counts a logical compute unit for each element gathered since mark (action.kids).
 
 op seq.len(items Seq) int
   component value
@@ -3131,11 +3131,11 @@ op seq.at(items Seq, i int) Datum
   requires:
     // items came from seq.items, and 0 <= i < seq.len(items).
 
-host op term.ctx() Act
+host op action.ctx() Act
   component host
   reads host, pos, made
   writes host
   cost <= 0
   contract:
-    // Returns the context in which a term runs: the current capture frame, an empty span at the
-    // position, and the mark of the values made so far, as term.created returns it.
+    // Returns the context in which an action expression runs: the current capture frame, an empty span at the
+    // position, and the mark of the values made so far, as action.created returns it.

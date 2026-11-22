@@ -10,14 +10,14 @@ parsers) has nothing to charge steps to. Emitting the budget-controlled shape an
 the charges out of the text leaves residue in every action:
 
 - blank lines inside function bodies and `{ ; return ...` statements;
-- every term of an action wrapped in `func() any { c.P.Spend(); return E }()`, which
+- every action expression of an action wrapped in `func() any { c.P.Spend(); return E }()`, which
   becomes `func() any { ; return E }()` after the cut;
 - `New` of a typed struct as a closure that assigns the fields to temporaries and then
   calls the constructor, and constructors with a `Spend` per field;
 - variables that are assigned and never read, silenced with `_, _ = x5, x8`, and counters
   that are incremented and never read.
 
-A term is the expression itself in every form, with or without budget controls: the terms of an
+An action expression is the expression itself in every form, with or without budget controls: the action expressions of an
 action and the fields of a typed constructor carry no charge, and nothing wraps them in a function
 literal. The generator knows that it writes no budget controls (a flag of the shared generator state: no
 `LimitControls`) and emits no step charges at all: not the `Spend` and input-read charge statements of rules, constructors and list
@@ -73,12 +73,12 @@ cel +0.9% (control 0.0%); the differences to the control are inside the noise.
 ## Tests
 
 `TestGenerateStraightLineActions` pins the generated form (no blank lines inside
-functions, no `{ ;`, no step charges, no function literal around a term, the constructor call
+functions, no `{ ;`, no step charges, no function literal around an action expression, the constructor call
 for fields in declaration order and the temporaries before the call for fields out of order;
 budget-controlled output still charges steps). `TestGeneratedTypedConstructorEvaluationOrder` compares the
 generated parser with the engine for constructors with the fields in and out of
 declaration order, where the two fields fail with different errors, so a swapped
-evaluation order fails the test. `TestGeneratedTermStatementsEvaluationOrder` does the same for
+evaluation order fails the test. `TestGeneratedActionStatementsEvaluationOrder` does the same for
 an operand that needs statements (the fused `concat`) behind an operand that fails first.
 `TestGeneratedLoopCharge` checks that each call of a lambda is charged at least one step by the
 runtime's loops and that the loop built-ins and nested lambdas reach a budget limit on a large

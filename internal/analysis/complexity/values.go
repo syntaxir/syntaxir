@@ -33,9 +33,9 @@ func valueReaders(m *core.Module) *values {
 			var t core.ActionExpr
 			switch n := n.(type) {
 			case *core.Pred:
-				t = n.Term
+				t = n.Action
 			case *core.BindNode:
-				t = n.Term
+				t = n.Action
 			default:
 				return
 			}

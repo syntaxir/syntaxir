@@ -29,8 +29,8 @@ func TestFormatMinimumInteger(t *testing.T) {
 	minimum := &ast.IntLit{Value: -max - 1}
 	expr := "-" + strconv.Itoa(max) + " - 1"
 	for _, tc := range []struct {
-		term ast.ActionExpr
-		want string
+		actionExpr ast.ActionExpr
+		want       string
 	}{
 		{minimum, expr},
 		{&ast.Unary{Op: "-", X: minimum}, "-(" + expr + ")"},
@@ -38,7 +38,7 @@ func TestFormatMinimumInteger(t *testing.T) {
 		{&ast.Binary{Op: "-", L: &ast.IntLit{Value: 1}, R: minimum}, "1 - (" + expr + ")"},
 		{&ast.Binary{Op: "*", L: minimum, R: &ast.IntLit{Value: 2}}, "(" + expr + ") * 2"},
 	} {
-		if got := FormatActionExpr(tc.term); got != tc.want {
+		if got := FormatActionExpr(tc.actionExpr); got != tc.want {
 			t.Errorf("FormatActionExpr: got %q; want %q", got, tc.want)
 		}
 	}
@@ -71,9 +71,9 @@ func TestFormatMinusFragments(t *testing.T) {
 func TestFormatTrailingComma(t *testing.T) {
 	one, two := &ast.IntLit{Value: 1}, &ast.IntLit{Value: 2}
 	for _, tc := range []struct {
-		name string
-		term ast.ActionExpr
-		want string
+		name       string
+		actionExpr ast.ActionExpr
+		want       string
 	}{
 		{"call", &ast.Call{Func: "f", Args: []ast.ActionExpr{one, two}}, "f(1, 2)"},
 		{"call with a trailing comma", &ast.Call{Func: "f", Args: []ast.ActionExpr{one, two}, TrailingComma: true}, "f(\n    1,\n    2,\n)"},
@@ -87,7 +87,7 @@ func TestFormatTrailingComma(t *testing.T) {
 		{"tuple of one element with a trailing comma", &ast.TupleLit{Elems: []ast.ActionExpr{one}, TrailingComma: true}, "(1,)"},
 		{"nested", &ast.Call{Func: "f", Args: []ast.ActionExpr{&ast.TupleLit{Elems: []ast.ActionExpr{one, two}, TrailingComma: true}}}, "f(\n    (\n        1,\n        2,\n    ),\n)"},
 	} {
-		if got := FormatActionExpr(tc.term); got != tc.want {
+		if got := FormatActionExpr(tc.actionExpr); got != tc.want {
 			t.Errorf("%s: got %q, want %q", tc.name, got, tc.want)
 		}
 	}
@@ -111,15 +111,15 @@ func TestFormatTrailingComma(t *testing.T) {
 
 func TestTupleLitFormat(t *testing.T) {
 	for _, tc := range []struct {
-		term ast.ActionExpr
-		want string
+		actionExpr ast.ActionExpr
+		want       string
 	}{
 		{&ast.TupleLit{Elems: []ast.ActionExpr{}}, "()"},
 		{&ast.TupleLit{Elems: []ast.ActionExpr{&ast.IntLit{Value: 1}}}, "(1,)"},
 		{&ast.TupleLit{Elems: []ast.ActionExpr{&ast.IntLit{Value: 1}, &ast.VarRef{Name: "x"}}}, "(1, x)"},
 		{&ast.Binary{Op: "[]", L: &ast.TupleLit{Elems: []ast.ActionExpr{&ast.IntLit{Value: 1}, &ast.IntLit{Value: 2}}}, R: &ast.IntLit{Value: 0}}, "(1, 2)[0]"},
 	} {
-		if got := FormatActionExpr(tc.term); got != tc.want {
+		if got := FormatActionExpr(tc.actionExpr); got != tc.want {
 			t.Errorf("got %q, want %q", got, tc.want)
 		}
 	}

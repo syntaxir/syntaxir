@@ -83,14 +83,14 @@ func XMLInput(size int) string {
 	return b.String()
 }
 
-// ArithInput returns an arithmetic expression with terms terms, nested parentheses and unary minus.
+// ArithInput returns an arithmetic expression with action expressions action expressions, nested parentheses and unary minus.
 // It uses only operators that also form a valid Go expression.
-func ArithInput(terms int) string {
+func ArithInput(actionExprs int) string {
 	r := newRand()
 	ops := []string{"+", "-", "*", "/", "%"}
 	var b strings.Builder
 	depth := 0
-	for i := 0; i < terms; i++ {
+	for i := 0; i < actionExprs; i++ {
 		if i > 0 {
 			b.WriteString(" " + ops[r.IntN(len(ops))] + " ")
 		}
@@ -161,9 +161,9 @@ func OutlineInput(lines int) string {
 	return b.String()
 }
 
-// TermsInput returns lines lines of four to twelve lowercase words, each word followed by a space, and
-// each line ended by ` ;`: the input of the term benchmarks.
-func TermsInput(lines int) string {
+// ActionsInput returns lines lines of four to twelve lowercase words, each word followed by a space, and
+// each line ended by ` ;`: the input of the action benchmarks.
+func ActionsInput(lines int) string {
 	r := newRand()
 	var b strings.Builder
 	for i := 0; i < lines; i++ {

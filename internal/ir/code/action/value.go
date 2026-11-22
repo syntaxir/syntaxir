@@ -6,10 +6,10 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 )
 
-// Val is the component of the value primitives: the operations on the values of terms. A primitive
+// Val is the component of the value primitives: the operations on the values of action expressions. A primitive
 // acts on one kind of value and has none of the policy of an operator: the compositions binary,
 // unary, equal, index and logic (internal/ir/code/exec/compose) decide which primitive applies, which
-// operands are valid, and which failure a term reports.
+// operands are valid, and which failure an action expression reports.
 const Val = "value"
 
 // Binary operators of the composition binary, by the code a call passes. The last, the index of a
@@ -159,17 +159,17 @@ const (
 	ShapeStruct
 )
 
-// TermError is a failure that a term reports. Text is its message with the placeholders {a} and
+// ActionError is a failure that an action expression reports. Text is its message with the placeholders {a} and
 // {b}, the type names of the first and second value; {name}, the second value as a string, a member
 // name or the name of a built-in function; {op}, the name of the operator that op indexes in BinaryOps for ErrOperands, ErrCompare and ErrNotList, in UnaryOps for ErrUnary and in LogicalOps for ErrLogical; {i}, the first
 // value as an int; and {n}, a count. Hint ends the message of a failure that has one. Every target
 // prints these messages and puts the text of a failure together from them, so that they read the
 // same on all targets.
-type TermError struct {
+type ActionError struct {
 	Name, Text, Hint string
 }
 
-// The failures of a term, by the code val.fail takes: the index of TermErrors.
+// The failures of an action expression, by the code val.fail takes: the index of ActionErrors.
 const (
 	// ErrDivZero is a division or remainder by zero.
 	ErrDivZero = iota
@@ -191,7 +191,7 @@ const (
 	// ErrIndexRange is an index out of range (i is the index, n the length).
 	ErrIndexRange
 	// ErrMemberOf is a member read of a value that has no members (a is the value, name the member as
-	// the term spells it).
+	// the action expression spells it).
 	ErrMemberOf
 	// ErrNoCapture is the read of a capture of a struct, which has none (a is the struct, name the
 	// capture).
@@ -216,8 +216,8 @@ const (
 	ErrFilter
 )
 
-// TermErrors are the messages of the failures of a term.
-var TermErrors = []TermError{
+// ActionErrors are the messages of the failures of an action expression.
+var ActionErrors = []ActionError{
 	ErrDivZero:    {Name: "division by zero", Text: "division by zero"},
 	ErrOperands:   {Name: "invalid operands", Text: "invalid operands {a} and {b} for {op}"},
 	ErrCompare:    {Name: "invalid comparison", Text: "invalid operands {a} and {b} for {op}", Hint: ": nodes and other structured values cannot be compared; use text(x), or .Start and .End"},
@@ -237,12 +237,12 @@ var TermErrors = []TermError{
 	ErrFilter:     {Name: "filter result not a bool", Text: "filter: predicate must produce a bool, got {a}"},
 }
 
-// MessageSegment is a piece of the message of a TermError: fixed text, or the name of a hole.
+// MessageSegment is a piece of the message of a ActionError: fixed text, or the name of a hole.
 type MessageSegment struct{ Text, Hole string }
 
 // Segments cuts the message of e at its placeholders, so that a target can print the message with
 // its own formatting of the holes.
-func (e TermError) Segments() []MessageSegment {
+func (e ActionError) Segments() []MessageSegment {
 	var out []MessageSegment
 	for text := e.Text; text != ""; {
 		i := strings.IndexByte(text, '{')
@@ -260,7 +260,7 @@ func (e TermError) Segments() []MessageSegment {
 	return out
 }
 
-// Kinds of a member read, by the code the composition member takes. A member name of a term is the
+// Kinds of a member read, by the code the composition member takes. A member name of an action expression is the
 // name of a field, a range or value member of a node (Start, End, Value), or a capture ($ and the name
 // of the capture). A range or value member reads the node itself only if the value is a node; of a
 // struct or a list it is the field of that name.
@@ -291,7 +291,7 @@ var MemberKinds = []struct{ Name, Spelling string }{
 // Seq is the handle type of the elements of a list or a tuple.
 const Seq = "Seq"
 
-// Fail is the handle type of the failure of a term, as val.fail makes it: a value of the target that
+// Fail is the handle type of the failure of an action expression, as val.fail makes it: a value of the target that
 // the caller reports, and null where a composition does not fail.
 const Fail = "Fail"
 
@@ -302,10 +302,10 @@ const Obj = "Obj"
 // Name is the handle type of the name of a member, a string of the target.
 const Name = "Name"
 
-// Act is the handle type of the context of the term being evaluated, in which a value is made.
+// Act is the handle type of the context of the action expression being evaluated, in which a value is made.
 const Act = "Act"
 
-// Elem is the handle type of an element of a list or a tuple that a term makes, as Seq holds it: a node
+// Elem is the handle type of an element of a list or a tuple that an action expression makes, as Seq holds it: a node
 // or nil in a target whose elements are nodes, and any value in a target whose elements are any values.
 const Elem = "Elem"
 
@@ -346,10 +346,10 @@ const QErrParts = "error_parts"
 // primitive is pure unless its contract says it charges: the string primitives read their operands,
 // and val.fail makes a text, which a target that bounds the work does piece by piece.
 func addValue(m *code.Module) {
-	m.AddComponent(Val, `The operations on the values of terms. They read and write no state.`)
+	m.AddComponent(Val, `The operations on the values of action expressions. They read and write no state.`)
 	datum := code.THandle(Datum)
 	items := m.AddHandle(Seq, Val, "The elements of a list or a tuple, as seq.items returns them.")
-	m.AddHandle(Fail, Val, "The failure of a term, as val.fail makes it: a value of the target that the caller reports.")
+	m.AddHandle(Fail, Val, "The failure of an action expression, as val.fail makes it: a value of the target that the caller reports.")
 	pure := func(o *code.Op) {
 		o.Component = Val
 		m.AddOp(o)
@@ -373,12 +373,12 @@ for a bool and KindOther for every other value, a box that holds one of these in
 		code.P("op", code.TInt), code.P("n", code.TInt)},
 		Results: []code.Type{code.THandle(Fail)}, NoReturn: true, Kind: code.OpHost,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QErrParts}}},
-		Contract: `Returns the failure with the message TermErrors[code]: {a} and {b} read as the names of the types of
+		Contract: `Returns the failure with the message ActionErrors[code]: {a} and {b} read as the names of the types of
 a and b, {op} as the name of the operator that op indexes (BinaryOps for ErrOperands and ErrCompare, UnaryOps for ErrUnary,
-LogicalOps for ErrLogical), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of a term: the caller
-returns it and the term evaluation reports it, each target in its own form of failure. A target that bounds the work
+LogicalOps for ErrLogical), {i} as a, an int, and {n} as n. A failure is a Fail, not a value of an action expression: the caller
+returns it and the action expression evaluation reports it, each target in its own form of failure. A target that bounds the work
 assembles the text piece by piece, charging for each piece.`,
-		Requires: `code indexes TermErrors, and the arguments are those its message names.`})
+		Requires: `code indexes ActionErrors, and the arguments are those its message names.`})
 	pure(&code.Op{Name: "int.add", Params: []code.Param{l, r}, Results: []code.Type{datum},
 		Contract: `Returns l + r with 64-bit wraparound.`, Requires: `l and r are ints.`,
 		Laws: []string{"pure: equal arguments give equal results"}})
@@ -427,7 +427,7 @@ compares.`,
 		Laws:     []string{"pure: equal arguments give equal results"}})
 	obj := m.AddHandle(Obj, Val, "A value that has members: a node, a list, a tuple or a struct, as node.of returns it.")
 	name := m.AddHandle(Name, Val, "The name of a member: a string of the target.")
-	act := m.AddHandle(Act, Val, "The context of the term being evaluated, in which a value is made.")
+	act := m.AddHandle(Act, Val, "The context of the action expression being evaluated, in which a value is made.")
 	n, nm := code.P("n", obj), code.P("name", name)
 	pure(&code.Op{Name: "node.of", Params: []code.Param{x}, Results: []code.Type{code.THandle(Obj), code.TBool},
 		Contract: `Returns x and true if x is a value that has members (a node, a list, a tuple or a struct), and
@@ -458,7 +458,7 @@ true, or nil and false if the type of n declares no such field or the target hol
 	pure(&code.Op{Name: "val.name", Params: []code.Param{nm}, Results: []code.Type{datum},
 		Contract: `Returns name as a string value, as the {name} of a failure reads it.`})
 	m.AddHandle(Str, Val, "A string of the target that is not a value, as text returns it.")
-	m.AddHandle(Elem, Val, "An element of a list or a tuple that a term makes, as a Seq holds it.")
+	m.AddHandle(Elem, Val, "An element of a list or a tuple that an action expression makes, as a Seq holds it.")
 	pure(&code.Op{Name: "node.elem", Params: []code.Param{n}, Results: []code.Type{code.THandle(Elem)},
 		Contract: `Returns n as an element of a list or a tuple: n itself.`,
 		Laws:     []string{"pure: equal arguments give equal results"}})
@@ -505,9 +505,9 @@ the range, the value and the captures of n, the type t and no rule name, which k
 ints.`})
 	m.AddOp(&code.Op{Name: "node.setSpan", Component: Host, Params: []code.Param{n, code.P("start", code.TInt), code.P("end", code.TInt)},
 		Writes: []string{Host}, NoReturn: true,
-		Contract: `Sets the range of n to start and end. It is for a value that a term is making, which no one has read.`})
+		Contract: `Sets the range of n to start and end. It is for a value that an action expression is making, which no one has read.`})
 	pure(&code.Op{Name: "act.span", Params: []code.Param{code.P("c", act)}, Results: []code.Type{code.TInt, code.TInt},
-		Contract: `Returns the start and the end of the range of the rule that c evaluates the term of, as ints.`})
+		Contract: `Returns the start and the end of the range of the rule that c evaluates the action expression of, as ints.`})
 	addMade(m, act, n)
 	addGathered(m, act, items)
 	pure(&code.Op{Name: "val.seq", Params: []code.Param{code.P("c", act), code.P("tuple", code.TBool), code.P("kids", items)},
@@ -519,7 +519,7 @@ takes over, and whose range is empty. A target that bounds the work charges for 
 		Contract: `Returns the start and the end of the range that element i of a list value or a tuple value being made in c
 adds to the range of the value, as ints, and true if it adds one, and false (and no meaningful range) if it adds none.
 An element that is a node, a list, a tuple or a struct adds its own range. An int, a string or a bool adds the range of
-the rule c evaluates the term of, which a target whose elements are nodes has given its box; nil adds none.`,
+the rule c evaluates the action expression of, which a target whose elements are nodes has given its box; nil adds none.`,
 		Requires: `items came from seq.items or is the element list of a value being made in c, and 0 <= i < seq.len(items).`})
 	ft := code.P("t", m.AddHandle(FType, Val, "The type that a cast checks a value against."))
 	pure(&code.Op{Name: "ftype.kind", Params: []code.Param{ft}, Results: []code.Type{code.TInt},
@@ -557,7 +557,7 @@ that does not charges nothing.`})
 	pure(&code.Op{Name: "units.items", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("v", datum), code.P("k", code.TInt)},
 		Contract: `Counts k logical compute units for each element of the list or the tuple v.`})
 	pure(&code.Op{Name: "units.since", Kind: code.OpHost, NoReturn: true, Params: []code.Param{code.P("mark", code.TInt)},
-		Contract: `Counts a logical compute unit for each element gathered since mark (term.kids).`})
+		Contract: `Counts a logical compute unit for each element gathered since mark (action.kids).`})
 	pure(&code.Op{Name: "seq.len", Params: []code.Param{code.P("items", items)}, Results: []code.Type{code.TInt},
 		Contract: `Returns the number of elements.`, Requires: `items came from seq.items.`})
 	pure(&code.Op{Name: "seq.at", Params: []code.Param{code.P("items", items), code.P("i", code.TInt)}, Results: []code.Type{datum},

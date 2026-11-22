@@ -250,39 +250,39 @@ func init() {
 	sxirGrammar.SetRules(rules, 0)
 	rules[0].Body = e3
 	rules[0].Action = func(c *rt.ActCtx) (any, any) {
-		tv1, tf1 := c.P.TermMember(c, rt.MemberValue, c.Cap(0), "Value", "Value")
+		tv1, tf1 := c.P.ActionMember(c, rt.MemberValue, c.Cap(0), "Value", "Value")
 		if tf1 != nil {
 			return nil, tf1
 		}
-		tn2 := c.TermStruct("File", 1)
+		tn2 := c.ActionStruct("File", 1)
 		tfirst3 := true
 		c.P.Spend()
-		c.TermSetField(tn2, "Records", tv1)
-		tfirst3 = c.P.TermCover(tn2, tv1, tfirst3)
-		c.P.TermMade(c, tn2, tfirst3)
+		c.ActionSetField(tn2, "Records", tv1)
+		tfirst3 = c.P.ActionCover(tn2, tv1, tfirst3)
+		c.P.ActionMade(c, tn2, tfirst3)
 		return any(tn2), nil
 	}
 	rules[1].Body = e6
 	rules[1].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
 		c.P.Spend()
-		tf2 := c.P.TermPush(c, "list", c.Cap(0))
+		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
-		tf3 := c.P.TermPushItems(c, "concat", c.Cap(1))
+		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.TermHull(c, false, tk4)
+		tn5 := c.P.ActionHull(c, false, tk4)
 		tf6 := any(tn5)
-		tn7 := c.TermStruct("Record", 1)
+		tn7 := c.ActionStruct("Record", 1)
 		tfirst8 := true
 		c.P.Spend()
-		c.TermSetField(tn7, "Fields", tf6)
-		tfirst8 = c.P.TermCover(tn7, tf6, tfirst8)
-		c.P.TermMade(c, tn7, tfirst8)
+		c.ActionSetField(tn7, "Fields", tf6)
+		tfirst8 = c.P.ActionCover(tn7, tf6, tfirst8)
+		c.P.ActionMade(c, tn7, tfirst8)
 		return any(tn7), nil
 	}
 	sxirGrammar.DeclareStruct("File", "Records", "l")
@@ -1196,9 +1196,9 @@ L5:
 	{
 		var tr2 any
 		{
-			tv1, tf1 := c.P.TermMember(c, rt.MemberValue, k6, "Value", "Value")
+			tv1, tf1 := c.P.ActionMember(c, rt.MemberValue, k6, "Value", "Value")
 			if tf1 != nil {
-				c.TermRaise(tf1)
+				c.ActionRaise(tf1)
 			}
 			tv2 := tmk_File(c, true, tv1)
 			tr2 = tv2
@@ -1282,16 +1282,16 @@ L2:
 		{
 			tm1 := len(c.P.KidStack)
 			c.P.Spend()
-			tf2 := c.P.TermPush(c, "list", k3)
+			tf2 := c.P.ActionPush(c, "list", k3)
 			if tf2 != nil {
-				c.TermRaise(tf2)
+				c.ActionRaise(tf2)
 			}
-			tf3 := c.P.TermPushItems(c, "concat", k6)
+			tf3 := c.P.ActionPushItems(c, "concat", k6)
 			if tf3 != nil {
-				c.TermRaise(tf3)
+				c.ActionRaise(tf3)
 			}
 			tk4 := c.P.ElemsAbove(tm1)
-			tn5 := c.P.TermHull(c, false, tk4)
+			tn5 := c.P.ActionHull(c, false, tk4)
 			tv6 := tmk_Record(c, true, any(tn5))
 			tr3 = tv6
 		}
@@ -1607,4 +1607,4 @@ fail:
 
 const _ = types.SXIRSchema_eb8cdcb52c16a5c7
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

@@ -110,7 +110,7 @@ func (p *Parser) Kids(base int) []*value.Node {
 	return ks
 }
 
-// ElemsAbove is term.elemsAbove (spec/exec-ir/values.md): it returns the elements that a term
+// ElemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression
 // gathered above base as Kids does and, under budget controls, reserves two units for each element,
 // one for copying it and one for taking it off, in one reservation before it moves any.
 func (p *Parser) ElemsAbove(base int) []*value.Node {
@@ -120,7 +120,7 @@ func (p *Parser) ElemsAbove(base int) []*value.Node {
 	return p.Kids(base)
 }
 
-// DropKids discards p.KidStack[base:] and charges a unit for each element, as term.dropKids does
+// DropKids discards p.KidStack[base:] and charges a unit for each element, as action.dropKids does
 // (spec/exec-ir/values.md).
 func (p *Parser) DropKids(base int) {
 	clearSpend(p, p.KidStack[base:])

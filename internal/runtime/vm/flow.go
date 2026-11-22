@@ -331,7 +331,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowBind:
 			// As the match code's BIND, in the current frame.
 			x := in.Imm.(bytecode.FlowBindOf)
-			fr.set(in.Dst[0], vm.bind(p, x.Var, x.Term))
+			fr.set(in.Dst[0], vm.bind(p, x.Var, x.Action))
 		case bytecode.FlowKeep:
 			// As the match code keeps the expectations of a failed recovery body.
 			exps, _ := regs[in.Args[0]].([]state.ExpID)

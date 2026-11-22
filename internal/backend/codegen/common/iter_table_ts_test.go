@@ -16,7 +16,7 @@ import (
 )
 
 // iterScript runs the calls of calls.json on the TypeScript library (fxFold, fxMap and fxFilter of tsCompose, over
-// the printed methods termItemAt and termFilterKeep) and prints the canonical result of each
+// the printed methods actionItemAt and actionFilterKeep) and prints the canonical result of each
 // (conform.MemberCanon) and the units it charged, in order. The input of the parser is input.txt.
 const iterScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
@@ -147,11 +147,11 @@ func TestPrintedIterMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"foldr passes the elements from the first", "termItemAt(items:", "if (right) {", "if (false) {"},
-		{"the folds pass the elements in each other's order", "termItemAt(items:", "if (right) {", "if (!right) {"},
-		{"an iteration passes a box", "termItemAt(items:", "return unboxValue(items[i]!);", "return items[i]!;"},
-		{"filter takes a result that is not a bool", "termFilterKeep(v: Value)", "if (valKind(v) !== 3) {", "if (valKind(v) === 0) {"},
-		{"filter drops what it keeps", "termFilterKeep(v: Value)", "return [(v as boolean), null];", "return [!(v as boolean), null];"},
+		{"foldr passes the elements from the first", "actionItemAt(items:", "if (right) {", "if (false) {"},
+		{"the folds pass the elements in each other's order", "actionItemAt(items:", "if (right) {", "if (!right) {"},
+		{"an iteration passes a box", "actionItemAt(items:", "return unboxValue(items[i]!);", "return items[i]!;"},
+		{"filter takes a result that is not a bool", "actionFilterKeep(v: Value)", "if (valKind(v) !== 3) {", "if (valKind(v) === 0) {"},
+		{"filter drops what it keeps", "actionFilterKeep(v: Value)", "return [(v as boolean), null];", "return [!(v as boolean), null];"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

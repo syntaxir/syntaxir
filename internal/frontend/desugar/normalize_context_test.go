@@ -20,7 +20,7 @@ func TestNormalizationContextCancellation(t *testing.T) {
 	block := &ast.Block{Statements: make([]ast.ActionExpr, size)}
 	fields := make([]*ast.Field, size)
 	var groupedType ast.TypeExpr = &ast.TypeRef{Name: "Match"}
-	var groupedTerm ast.ActionExpr = &ast.IntLit{Value: 1}
+	var groupedAction ast.ActionExpr = &ast.IntLit{Value: 1}
 	for i := 0; i < size; i++ {
 		sequence.Items[i] = &ast.Literal{Value: "a"}
 		args[i] = i
@@ -28,7 +28,7 @@ func TestNormalizationContextCancellation(t *testing.T) {
 		block.Statements[i] = &ast.BoolLit{Value: true}
 		fields[i] = &ast.Field{Name: fmt.Sprintf("Field%d", i), Type: &ast.TypeGroup{Type: &ast.TypeRef{Name: "Match"}}}
 		groupedType = &ast.TypeGroup{Type: groupedType}
-		groupedTerm = &ast.ActionGroup{Action: groupedTerm}
+		groupedAction = &ast.ActionGroup{Action: groupedAction}
 	}
 	fixtures := map[string]*ast.Grammar{}
 	for name, expr := range map[string]ast.Expr{
@@ -40,7 +40,7 @@ func TestNormalizationContextCancellation(t *testing.T) {
 		fixtures[name] = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: expr}}}}
 	}
 	fixtures["type-groups"] = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Type: groupedType, Expr: &ast.Literal{Value: "a"}}}}}
-	fixtures["action-groups"] = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Literal{Value: "a"}, Action: groupedTerm}}}}
+	fixtures["action-groups"] = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Literal{Value: "a"}, Action: groupedAction}}}}
 	fixtures["struct-fields"] = &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.TypeDef{Name: "T", Type: &ast.StructType{Fields: fields}}}}}
 	union := &ast.JoinType{Types: make([]ast.TypeExpr, size)}
 	action := &ast.Call{Func: "list", Args: make([]ast.ActionExpr, size)}
@@ -89,18 +89,18 @@ func TestNormalizationCopiesObserveCancellation(t *testing.T) {
 	values := make([]int, size)
 	keywords := make(map[string]any, size)
 	attrs := make([]*ast.Attribute, size)
-	terms := make([]ast.ActionExpr, size)
+	actionExprs := make([]ast.ActionExpr, size)
 	expressions := make([]ast.Expr, size)
 	for i := range values {
 		values[i] = i
 		keywords[fmt.Sprint(i)] = i
 		attrs[i] = &ast.Attribute{Name: "custom"}
-		terms[i] = &ast.BoolLit{Value: true}
-		expressions[i] = &ast.Predicate{Action: terms[i]}
+		actionExprs[i] = &ast.BoolLit{Value: true}
+		expressions[i] = &ast.Predicate{Action: actionExprs[i]}
 	}
 	for _, phase := range []string{"slice", "keywords", "attribute-append", "predicate-flatten"} {
 		t.Run(phase, func(t *testing.T) {
-			before, err := json.Marshal([]any{values, keywords, attrs, terms, expressions})
+			before, err := json.Marshal([]any{values, keywords, attrs, actionExprs, expressions})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -112,7 +112,7 @@ func TestNormalizationCopiesObserveCancellation(t *testing.T) {
 				if !ok || !errors.Is(cancelled.Err, context.Canceled) || ctx.left != 0 {
 					t.Fatalf("copy did not cancel: %v", failure)
 				}
-				after, err := json.Marshal([]any{values, keywords, attrs, terms, expressions})
+				after, err := json.Marshal([]any{values, keywords, attrs, actionExprs, expressions})
 				if err != nil || string(after) != string(before) {
 					t.Fatal("interrupted copy changed source")
 				}
@@ -125,7 +125,7 @@ func TestNormalizationCopiesObserveCancellation(t *testing.T) {
 			case "attribute-append":
 				appendNormalizedAttribute(attrs, &ast.Attribute{Name: "other"}, control)
 			case "predicate-flatten":
-				source := []ast.Expr{&ast.Predicate{Action: &ast.Block{Statements: terms}}}
+				source := []ast.Expr{&ast.Predicate{Action: &ast.Block{Statements: actionExprs}}}
 				normalized := []ast.Expr{&ast.Seq{Items: expressions}}
 				expandPredicateBlocks(source, normalized, control)
 			}

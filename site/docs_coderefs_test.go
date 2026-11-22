@@ -56,7 +56,7 @@ type repoCode struct {
 	// name declares it: testing.F names the standard library, which no package of the repository
 	// declares, so it is not a reference to code of this repository.
 	internalExports map[string]map[string]bool
-	// execOps holds the names of the operations of Exec IR, such as term.dropKids: the
+	// execOps holds the names of the operations of Exec IR, such as action.dropKids: the
 	// specification and the design define them, so a page may name them, though a part of the
 	// name may match a Go identifier.
 	execOps map[string]bool
@@ -648,9 +648,9 @@ func TestCodeReferencesExecOps(t *testing.T) {
 		declared:    map[string]bool{"dropCreated": true},
 		unexported:  map[string]bool{"dropCreated": true},
 		internalPkg: map[string]bool{"state": true},
-		execOps:     map[string]bool{"term.dropCreated": true},
+		execOps:     map[string]bool{"action.dropCreated": true},
 	}
-	doc := "The drop `term.dropCreated`, applied as `term.dropCreated(mark)`, is not code.\n" +
+	doc := "The drop `action.dropCreated`, applied as `action.dropCreated(mark)`, is not code.\n" +
 		"The function `dropCreated` is, and so is `state.dropCreated` and `other.dropCreated`.\n"
 	var got []string
 	for _, r := range c.codeRefsIn("docs/design/x.md", []byte(doc), true) {
@@ -661,7 +661,7 @@ func TestCodeReferencesExecOps(t *testing.T) {
 		t.Errorf("references:\n got %q\nwant %q", got, want)
 	}
 	repo := loadRepoCode(t, "..")
-	for _, op := range []string{"term.dropCreated", "term.dropKids", "term.elemsAbove", "memo.lookup", "budget.charge"} {
+	for _, op := range []string{"action.dropCreated", "action.dropKids", "action.elemsAbove", "memo.lookup", "budget.charge"} {
 		if !repo.execOps[op] {
 			t.Errorf("the operations of Exec IR lack %s", op)
 		}

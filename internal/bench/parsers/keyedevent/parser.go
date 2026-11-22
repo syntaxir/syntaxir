@@ -454,7 +454,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.SetCapture(0, v6)
 	x2 = append(x2, v6)
 	if !p.Bind(0, func(c *rt.ActCtx) (any, any) {
-		ts1, tf1 := c.P.TermText(c.Cap(0))
+		ts1, tf1 := c.P.ActionText(c.Cap(0))
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -672,7 +672,7 @@ func e15(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x2 = append(x2, v5)
 	if !p.Predicate(func(c *rt.ActCtx) (any, any) {
 		tv1 := c.Var(0)
-		tv2, tf2 := c.P.TermBinary(rt.OpNe, tv1, any("stop"))
+		tv2, tf2 := c.P.ActionBinary(rt.OpNe, tv1, any("stop"))
 		if tf2 != nil {
 			return nil, tf2
 		}
@@ -915,7 +915,7 @@ func i1(p *rt.TParser) (any, bool) {
 	k5 = v7
 	x2 = append(x2, v7)
 	if !p.Bind(0, func(c *rt.TActCtx) (any, any) {
-		ts1, tf1 := c.P.TermText(k5)
+		ts1, tf1 := c.P.ActionText(k5)
 		if tf1 != nil {
 			return nil, tf1
 		}
@@ -1163,7 +1163,7 @@ func v4(p *rt.TParser) (any, bool) {
 	x2 = append(x2, v5)
 	if !p.Predicate(func(c *rt.TActCtx) (any, any) {
 		tv1 := c.Var(0)
-		tv2, tf2 := c.P.TermBinary(rt.OpNe, tv1, any("stop"))
+		tv2, tf2 := c.P.ActionBinary(rt.OpNe, tv1, any("stop"))
 		if tf2 != nil {
 			return nil, tf2
 		}
@@ -1273,4 +1273,4 @@ func s6(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_e1b1819193e5b76b
 
-const _ = rt.Protocol26
+const _ = rt.Protocol27

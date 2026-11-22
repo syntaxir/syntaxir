@@ -100,7 +100,7 @@ func OperatorsRefusedPartInput(n int) string {
 	return rep("n^", n) + "n^" + rep("-", n) + ";"
 }
 
-// regionGrammar is a grammar of nested terms whose blanks hold comments. The lookahead
+// regionGrammar is a grammar of nested action expressions whose blanks hold comments. The lookahead
 // !(ws ".") fails after ws has scanned a comment, and what follows evaluates ws again where it
 // started.
 const regionGrammar = "rule main = (p \";\" ws)* $$\n" +

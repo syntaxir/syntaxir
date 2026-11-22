@@ -219,7 +219,7 @@ type flowPrinter struct {
 	// names holds the package variables of the capture names of scopes, declared on first use
 	// unless a DeclareNames statement declares them.
 	names map[*prim.Names]string
-	// pre holds the statements the expression printed last needs before it: those of the term of an Eval.
+	// pre holds the statements the expression printed last needs before it: those of the action expression of an Eval.
 	pre string
 }
 
@@ -339,8 +339,8 @@ func (p *flowPrinter) shaper(sh core.Shape) string {
 	return p.g.shaperOf(fmt.Sprintf("Shaper{Elems: %v, K: %d, Mode: %d, Tuple: %v, Shared: %v}", sh.Elems, sh.K, sh.Mode, sh.Tuple, sh.Shared))
 }
 
-// term returns the term of the grammar predicate that the node n is built from.
-func (p *flowPrinter) term(n core.Node) ast.ActionExpr {
+// action expression returns the action expression of the grammar predicate that the node n is built from.
+func (p *flowPrinter) actionExpr(n core.Node) ast.ActionExpr {
 	e, ok := p.g.Flow.M.Origin.Of(n).(*ast.Predicate)
 	if !ok {
 		panic(fmt.Sprintf("flow printer: no grammar predicate for %T", n))

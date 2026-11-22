@@ -69,7 +69,7 @@ func TestNamedNodeTypeModuleValidation(t *testing.T) {
 		m := *base
 		m.Types = append([]bytecode.TypeInfo(nil), base.Types...)
 		m.Rules = append([]bytecode.RuleInfo(nil), base.Rules...)
-		m.Terms = cloneTerms(base.Terms)
+		m.Actions = cloneActions(base.Actions)
 		return &m
 	}
 	for name, tc := range map[string]struct {
@@ -106,9 +106,9 @@ func TestNamedNodeTypeModuleValidation(t *testing.T) {
 			}
 		}, "is not a named node type"},
 		"enode": {func(m *bytecode.Module) {
-			for i := range m.Terms {
-				for k := range m.Terms[i].NodeTypes {
-					m.Terms[i].NodeTypes[k] = str(m, "Out")
+			for i := range m.Actions {
+				for k := range m.Actions[i].NodeTypes {
+					m.Actions[i].NodeTypes[k] = str(m, "Out")
 				}
 			}
 		}, "of a conversion is not a named node type"},

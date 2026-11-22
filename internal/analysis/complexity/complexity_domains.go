@@ -84,22 +84,22 @@ func (k *classifier) finiteVars() finiteDomains {
 }
 
 // constantValues returns a bound on the number of values of the variable v when its initial value
-// and every binding of it are constants, and whether they are: each constant term gives one value,
-// or none when its evaluation is an error, so the distinct terms bound the values.
+// and every binding of it are constants, and whether they are: each constant action expression gives one value,
+// or none when its evaluation is an error, so the distinct action expressions bound the values.
 func constantValues(v *ast.VarDef, binds []*binding) (int, bool) {
-	terms := map[string]bool{}
+	actionExprs := map[string]bool{}
 	if v.Value == nil {
-		terms[""] = true
+		actionExprs[""] = true
 	} else {
-		terms[fmt.FormatActionExpr(check.UngroupActionExpr(v.Value))] = true
+		actionExprs[fmt.FormatActionExpr(check.UngroupActionExpr(v.Value))] = true
 	}
 	for _, b := range binds {
 		if !constant(b.b.Value) {
 			return 0, false
 		}
-		terms[fmt.FormatActionExpr(check.UngroupActionExpr(b.b.Value))] = true
+		actionExprs[fmt.FormatActionExpr(check.UngroupActionExpr(b.b.Value))] = true
 	}
-	return len(terms), true
+	return len(actionExprs), true
 }
 
 // finiteBool returns the number of values of the bool variable v: one when no binding of v can
@@ -209,7 +209,7 @@ func (k *classifier) finiteInt(v *ast.VarDef, binds []*binding) (int, bool) {
 
 // outputs returns the values that the binding b leaves bound when its variable holds a value of
 // xs before it: the values that it binds from them and that pass its guard. The values of a
-// binding that eval cannot evaluate are those in the range of its value (see termRange) within
+// binding that eval cannot evaluate are those in the range of its value (see actionRange) within
 // the bounds of the guard; past maxFiniteValues of them, or without a bound, the set is
 // unbounded.
 func (d *intDomain) outputs(b *binding, xs valueSet) valueSet {
@@ -237,7 +237,7 @@ func (d *intDomain) outputs(b *binding, xs valueSet) valueSet {
 		}
 		clear(out)
 	}
-	r := termRange(b.b.Value, d.v, xs).meet(g.bounds)
+	r := actionRange(b.b.Value, d.v, xs).meet(g.bounds)
 	if r.size() > maxFiniteValues {
 		d.over = true
 		return nil
@@ -332,17 +332,17 @@ func (d *intDomain) inputs(b *binding) valueSet {
 	f := frames[len(frames)-1]
 	stmts, found := blockBefore(f.seq.Items[f.index], b.b)
 	if !found {
-		// b lies deeper in the terms of a predicate than a statement of its block.
+		// b lies deeper in the action expressions of a predicate than a statement of its block.
 		return d.base
 	}
 	for _, s := range stmts {
-		x = d.afterTerm(s, x)
+		x = d.afterAction(s, x)
 	}
 	return x
 }
 
 // blockBefore returns the statements before the binding b in the block of the predicate in e that
-// holds it as a statement or as its term, and whether e has such a predicate.
+// holds it as a statement or as its action expression, and whether e has such a predicate.
 func blockBefore(e ast.Expr, b *ast.Bind) ([]ast.ActionExpr, bool) {
 	var out []ast.ActionExpr
 	found := false
@@ -372,7 +372,7 @@ func blockBefore(e ast.Expr, b *ast.Bind) ([]ast.ActionExpr, bool) {
 func (d *intDomain) after(e ast.Expr, x valueSet) valueSet {
 	switch e := e.(type) {
 	case *ast.Predicate:
-		return d.afterTerm(e.Action, x)
+		return d.afterAction(e.Action, x)
 	case *ast.Group:
 		return d.after(e.Expr, x)
 	case *ast.Capture:
@@ -415,7 +415,7 @@ func (d *intDomain) bindsVar(e ast.Expr) bool {
 	found := false
 	astfacts.WalkExpr(e, func(x ast.Expr) {
 		if p, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkTerm(p.Action, func(t ast.ActionExpr) {
+			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
 				if bd, ok := t.(*ast.Bind); ok && bd.Name == d.v {
 					found = true
 				}
@@ -425,12 +425,12 @@ func (d *intDomain) bindsVar(e ast.Expr) bool {
 	return found
 }
 
-// afterTerm returns the values that the variable can hold after the predicate term t succeeds.
-func (d *intDomain) afterTerm(t ast.ActionExpr, x valueSet) valueSet {
+// afterAction returns the values that the variable can hold after the predicate action expression t succeeds.
+func (d *intDomain) afterAction(t ast.ActionExpr, x valueSet) valueSet {
 	switch t := t.(type) {
 	case *ast.Block:
 		for _, s := range t.Statements {
-			x = d.afterTerm(s, x)
+			x = d.afterAction(s, x)
 		}
 		return x
 	case *ast.Bind:
@@ -515,7 +515,7 @@ func (k *classifier) valueLen(e ast.Expr, seen map[string]bool) (int, bool) {
 		seen[e.Name] = true
 		defer delete(seen, e.Name)
 		if r.Action != nil {
-			return k.termLen(r.Action, e.Name, seen)
+			return k.actionLen(r.Action, e.Name, seen)
 		}
 		if isOperators(r.Expr) {
 			return 0, false
@@ -581,11 +581,11 @@ func (k *classifier) spliceBody(name string) (ast.Expr, bool) {
 	return nil, false
 }
 
-// termLen bounds what len gives for the value of the action term t of rule.
-func (k *classifier) termLen(t ast.ActionExpr, rule string, seen map[string]bool) (int, bool) {
+// actionLen bounds what len gives for the value of the action expression t of rule.
+func (k *classifier) actionLen(t ast.ActionExpr, rule string, seen map[string]bool) (int, bool) {
 	switch t := t.(type) {
 	case *ast.ActionGroup:
-		return k.termLen(t.Action, rule, seen)
+		return k.actionLen(t.Action, rule, seen)
 	case *ast.StringLit:
 		return len(t.Value), true
 	case *ast.NilLit:
@@ -709,7 +709,7 @@ type evalResult uint8
 const (
 	evalOK      evalResult = iota
 	evalFailed             // an error of the action language, such as a division by zero
-	evalUnknown            // an int beyond what every backend computes alike, or a term eval does not know
+	evalUnknown            // an int beyond what every backend computes alike, or an action expression eval does not know
 )
 
 // maxExact bounds the ints that eval computes: every backend computes them alike.

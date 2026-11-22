@@ -19,7 +19,7 @@ const (
 
 // val describes the value that the parser will build for a generated expression, as far as the
 // generator can tell. Predicates read it through captures, in the form of the reference evaluator of
-// terms (see refValue).
+// action expressions (see refValue).
 type val struct {
 	kind       int
 	start, end int      // the range of the input it covers, in bytes
@@ -62,9 +62,9 @@ func zeroValue(t ast.TypeExpr) ref.V {
 	return ref.Unknown
 }
 
-// terms holds what the reference evaluator needs of the grammar besides the input: the zero values of
+// action expressions holds what the reference evaluator needs of the grammar besides the input: the zero values of
 // the fields of its struct types, its aliases, and the initial values of its variables.
-type terms struct {
+type actionExprs struct {
 	zeros   map[string]map[string]ref.V
 	aliases map[string]ast.TypeExpr
 	// nodeTypes are the named node types: the type definitions that are not struct types.
@@ -72,8 +72,8 @@ type terms struct {
 	initVars  *variable
 }
 
-func newTerms(g *ast.Grammar) *terms {
-	t := &terms{zeros: map[string]map[string]ref.V{}, aliases: map[string]ast.TypeExpr{}, nodeTypes: map[string]bool{}}
+func newActions(g *ast.Grammar) *actionExprs {
+	t := &actionExprs{zeros: map[string]map[string]ref.V{}, aliases: map[string]ast.TypeExpr{}, nodeTypes: map[string]bool{}}
 	for _, d := range g.Types() {
 		switch d := d.(type) {
 		case *ast.TypeDef:
@@ -95,7 +95,7 @@ func newTerms(g *ast.Grammar) *terms {
 		init := zeroValue(v.Type)
 		if v.Value != nil {
 			init = ref.Unknown
-			env := &ref.TermEnv{Zeros: t.zeros, Aliases: t.aliases, Vars: t.vars(t.initVars)}
+			env := &ref.ActionEnv{Zeros: t.zeros, Aliases: t.aliases, Vars: t.vars(t.initVars)}
 			if x, failed, known := evaluate(env, v.Value); known && !failed {
 				init = x
 			}
@@ -106,7 +106,7 @@ func newTerms(g *ast.Grammar) *terms {
 }
 
 // vars returns the values of the variables of the list vs.
-func (*terms) vars(vs *variable) map[string]ref.V {
+func (*actionExprs) vars(vs *variable) map[string]ref.V {
 	m := map[string]ref.V{}
 	for v := vs; v != nil; v = v.next {
 		if _, ok := m[v.name]; !ok {
@@ -116,9 +116,9 @@ func (*terms) vars(vs *variable) map[string]ref.V {
 	return m
 }
 
-// evaluate evaluates the term t with the reference evaluator. known is false when the value or the
+// evaluate evaluates the action expression t with the reference evaluator. known is false when the value or the
 // failure depends on what the generator does not know, or when the evaluator does not model t.
-func evaluate(env *ref.TermEnv, t ast.ActionExpr) (v ref.V, failed, known bool) {
+func evaluate(env *ref.ActionEnv, t ast.ActionExpr) (v ref.V, failed, known bool) {
 	defer func() {
 		if recover() != nil {
 			v, failed, known = ref.Unknown, false, false
@@ -128,8 +128,8 @@ func evaluate(env *ref.TermEnv, t ast.ActionExpr) (v ref.V, failed, known bool) 
 	return v, msg != "", v.Kind != ref.KUnknown
 }
 
-// decide decides the predicate term t with the reference evaluator (see evaluate for known).
-func decide(env *ref.TermEnv, t ast.ActionExpr) (holds, known bool) {
+// decide decides the predicate action expression t with the reference evaluator (see evaluate for known).
+func decide(env *ref.ActionEnv, t ast.ActionExpr) (holds, known bool) {
 	defer func() {
 		if recover() != nil {
 			holds, known = false, false
@@ -138,10 +138,10 @@ func decide(env *ref.TermEnv, t ast.ActionExpr) (holds, known bool) {
 	return env.Decide(t)
 }
 
-// env returns the environment of a term at the current point of the generation: the captures of the
+// env returns the environment of an action expression at the current point of the generation: the captures of the
 // scope, the variables and the grammar's types. Positions are in code points, the default unit of the
 // parser that checks the candidates.
-func (g *gen) env() *ref.TermEnv {
+func (g *gen) env() *ref.ActionEnv {
 	caps := map[string]ref.V{}
 	for c := g.caps; c != nil; c = c.next {
 		if _, ok := caps[c.name]; ok {
@@ -153,8 +153,8 @@ func (g *gen) env() *ref.TermEnv {
 		}
 		caps[c.name] = *c.ref
 	}
-	t := g.in.terms
-	return &ref.TermEnv{Captures: caps, Vars: t.vars(g.vars), Zeros: t.zeros, Aliases: t.aliases}
+	t := g.in.actionExprs
+	return &ref.ActionEnv{Captures: caps, Vars: t.vars(g.vars), Zeros: t.zeros, Aliases: t.aliases}
 }
 
 // refValue returns v in the form of the reference evaluator, as the value of a capture or else as an
@@ -222,7 +222,7 @@ func (g *gen) predicate(e *ast.Predicate) (ok bool, def *variable) {
 // makesNode reports whether the rule's declared type is exactly a named node type, also through
 // aliases, which converts the value of the rule to a node of that type. Any other declared type,
 // a join included, leaves the value of the body as it is.
-func (t *terms) makesNode(def *ast.RuleDef) bool {
+func (t *actionExprs) makesNode(def *ast.RuleDef) bool {
 	ty := def.Type
 	for range len(t.aliases) + 1 {
 		switch x := ty.(type) {

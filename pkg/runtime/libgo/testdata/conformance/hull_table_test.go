@@ -9,7 +9,7 @@ import (
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// The hull table (conform.HullCases) on the composition hull of the node and the typed library (termHull,
+// The hull table (conform.HullCases) on the composition hull of the node and the typed library (actionHull,
 // printed from Exec IR), through the methods that a generated parser calls to make a tuple and a list.
 
 func TestValueHullTable(t *testing.T) {
@@ -39,7 +39,7 @@ func TestValueHullTable(t *testing.T) {
 			if controlled {
 				before = c.P.Control.budgetUsed()
 			}
-			c.P.TermHull(c, kind == "tuple", D(n).Children)
+			c.P.ActionHull(c, kind == "tuple", D(n).Children)
 			if controlled {
 				return rng, int(c.P.Control.budgetUsed() - before)
 			}
@@ -66,7 +66,7 @@ func TestValueHullTable(t *testing.T) {
 			if controlled {
 				before = tc.P.Control.budgetUsed()
 			}
-			tc.P.TermHull(tc, kind == "tuple", n.Kids)
+			tc.P.ActionHull(tc, kind == "tuple", n.Kids)
 			if controlled {
 				return rng, int(tc.P.Control.budgetUsed() - before)
 			}

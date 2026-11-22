@@ -15,7 +15,7 @@ import (
 )
 
 // TestEngineValueHullTable runs the hull table (conform.HullCases) on the engine's composition hull
-// (termHull, printed from Exec IR), through the methods that the backends call to make a tuple and a list.
+// (actionHull, printed from Exec IR), through the methods that the backends call to make a tuple and a list.
 func TestEngineValueHullTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		prog := &SharedProgram{}
@@ -55,7 +55,7 @@ func TestEngineValueHullTable(t *testing.T) {
 			if controlled {
 				before = p.Control.Used
 			}
-			p.termHull(c, kind == "tuple", nodes.D(n).Children)
+			p.actionHull(c, kind == "tuple", nodes.D(n).Children)
 			if controlled {
 				return rng, int(p.Control.Used - before)
 			}

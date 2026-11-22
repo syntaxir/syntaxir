@@ -11,7 +11,7 @@ import (
 )
 
 // The member table (conform.MemberCases) on the composition member of the node and the typed library
-// (TermMember, printed from Exec IR), through Member, which a generated parser calls.
+// (ActionMember, printed from Exec IR), through Member, which a generated parser calls.
 
 // memberCanon returns the canonical form of a value of the node library (conform.MemberCanon).
 func memberCanon(x any) string {

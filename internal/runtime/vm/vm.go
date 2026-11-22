@@ -31,8 +31,8 @@ type Program struct {
 	scopeOf []*program.Scope
 	// runSites holds, at the index of each REPEAT that a Document can resume, how to resume it.
 	runSites []*vmRunSite
-	// terms holds the programs of the module's terms (Module.Terms).
-	terms []*state.TermProgram
+	// action expressions holds the programs of the module's action expressions (Module.Actions).
+	actionExprs []*state.ActionProgram
 	// nodeKinds holds the kinds of the module's named node types by the string index of their
 	// names, at every index of the name (nil when the module has none).
 	nodeKinds []*nodes.NodeTypeKinds
@@ -98,10 +98,10 @@ func (vm *Program) runSite(ip int) *vmRunSite {
 // call.
 type vmBodies func(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min int) (*value.Node, bool)
 
-// New prepares a module for execution with the recursive model, in the family f; terms are the
-// programs of its terms (LoadTerms).
-func New(m *bytecode.Module, terms []*state.TermProgram, f state.Family) *Program {
-	return buildVMProgram(m, terms, f, execBody)
+// New prepares a module for execution with the recursive model, in the family f; action expressions are the
+// programs of its action expressions (LoadActions).
+func New(m *bytecode.Module, actionExprs []*state.ActionProgram, f state.Family) *Program {
+	return buildVMProgram(m, actionExprs, f, execBody)
 }
 
 // Rule returns the rule called name, or nil when the module has none.
@@ -129,7 +129,7 @@ func execBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min i
 
 // buildVMProgram prepares a module for execution in the family f. bodies makes the rule bodies; a
 // rule with a Flow body (bytecode.Flow) runs it in place of its match code in both models.
-func buildVMProgram(m *bytecode.Module, terms []*state.TermProgram, f state.Family, bodies vmBodies) *Program {
+func buildVMProgram(m *bytecode.Module, actionExprs []*state.ActionProgram, f state.Family, bodies vmBodies) *Program {
 	vm := &Program{m: m, byName: map[string]*state.Rule{}, descs: append(append([]string(nil), program.FixedDescs...), m.Strings...)}
 	vm.literals = m.Strings
 	normalized := false
@@ -171,7 +171,7 @@ func buildVMProgram(m *bytecode.Module, terms []*state.TermProgram, f state.Fami
 	}
 	vtable := program.ModuleVarTable(m)
 	vm.vars = vtable
-	vm.terms = terms
+	vm.actionExprs = actionExprs
 	for i := range m.Rules {
 		ri := &m.Rules[i]
 		r := &state.Rule{
@@ -195,7 +195,7 @@ func buildVMProgram(m *bytecode.Module, terms []*state.TermProgram, f state.Fami
 		r.Kinds = valueimpl.NewRuleKinds(r.Name)
 		r.Value = func(_ *state.Parser, v *value.Node, _ int) *value.Node { return v } // the code pushes the value of the body's scope
 		if ri.Action >= 0 {
-			r.Act = vm.terms[ri.Action].Eval
+			r.Act = vm.actionExprs[ri.Action].Eval
 		}
 		vm.rules = append(vm.rules, r)
 		if _, twin := vm.byName[r.Name]; !twin { // value-free twins follow the original rules
@@ -278,7 +278,7 @@ func (vm *Program) line(l *bytecode.LineInfo, operator bool) *state.OperatorsRul
 		pl.Single, pl.Shape = program.SingleTuple, program.Shaper{Elems: true}
 	}
 	if l.Action >= 0 {
-		pl.Act = vm.terms[l.Action].Eval
+		pl.Act = vm.actionExprs[l.Action].Eval
 	}
 	return pl
 }
@@ -1171,22 +1171,22 @@ func (mc *Machine) single(size int, b bool) {
 	}
 }
 
-// --- Terms ---
+// --- Actions ---
 
 // The VM implements the backend state of package state.
 var _ state.BackendState = (*Machine)(nil)
 
-// LoadTerms makes the programs of the terms of the module m, checking each (state.LoadTerm). A
-// loader calls it to reject a module file whose term code is invalid.
-func LoadTerms(m *bytecode.Module) ([]*state.TermProgram, error) {
-	if len(m.Terms) == 0 {
+// LoadActions makes the programs of the action expressions of the module m, checking each (state.LoadAction). A
+// loader calls it to reject a module file whose action code is invalid.
+func LoadActions(m *bytecode.Module) ([]*state.ActionProgram, error) {
+	if len(m.Actions) == 0 {
 		return nil, nil
 	}
-	return state.LoadTerms(m.Terms, m.Strings, len(m.Vars), moduleTermTypes(m))
+	return state.LoadActions(m.Actions, m.Strings, len(m.Vars), moduleActionTypes(m))
 }
 
-// moduleTermTypes resolves the types that the term code of m names from its type table.
-func moduleTermTypes(m *bytecode.Module) state.TermTypes {
+// moduleActionTypes resolves the types that the action code of m names from its type table.
+func moduleActionTypes(m *bytecode.Module) state.ActionTypes {
 	nodeTypes := map[string]*nodes.NodeTypeKinds{}
 	structs := map[string]*valueimpl.Kind{}
 	for _, t := range m.Types {
@@ -1199,7 +1199,7 @@ func moduleTermTypes(m *bytecode.Module) state.TermTypes {
 	}
 	var typeNames map[string]bool
 	casts := map[string]*program.FieldType{}
-	return state.TermTypes{
+	return state.ActionTypes{
 		NodeType: func(name string) *nodes.NodeTypeKinds { return nodeTypes[name] },
 		Struct:   func(name string) *valueimpl.Kind { return structs[name] },
 		Cast: func(text string) (*program.FieldType, error) {

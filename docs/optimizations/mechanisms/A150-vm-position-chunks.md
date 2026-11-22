@@ -1,7 +1,7 @@
 # A150: VM Position Chunks
 
 Putting an integer position in a generic operand can allocate a boxed value.
-VM-owned chunks amortize the cells. Term code evaluates lambdas in place, so the
+VM-owned chunks amortize the cells. Action code evaluates lambdas in place, so the
 VMs make no lambda objects to allocate.
 
 ## Mechanism and Invariants

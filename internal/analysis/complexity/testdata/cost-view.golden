@@ -1,11 +1,11 @@
-== bench/grammars/terms/heavy.sxir matching=false
+== bench/grammars/actions/heavy.sxir matching=false
 applied:
-== bench/grammars/terms/heavy.sxir matching=true
+== bench/grammars/actions/heavy.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
-== bench/grammars/terms/pred.sxir matching=false
+== bench/grammars/actions/pred.sxir matching=false
 applied:
-== bench/grammars/terms/pred.sxir matching=true
+== bench/grammars/actions/pred.sxir matching=true
 applied:
 sha256 37ac7c37d0466d2dfdc3a010d654036e0e66b3171a34fe28bdf41b809a4c57ae
 == examples/calculator/calc.sxir matching=false

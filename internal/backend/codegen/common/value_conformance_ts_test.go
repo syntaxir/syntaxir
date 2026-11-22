@@ -18,8 +18,8 @@ import (
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
-// The operator compositions of generated TypeScript parsers are the printed methods termBinary, termUnary
-// and termLogic of the Parser class. Node runs them on every call of the value conformance at once, and
+// The operator compositions of generated TypeScript parsers are the printed methods actionBinary, actionUnary
+// and actionLogic of the Parser class. Node runs them on every call of the value conformance at once, and
 // the Go side compares the printed results with the model's: this is the seed of a conformance runner
 // for TypeScript targets.
 
@@ -58,15 +58,15 @@ const run = (c: Call) => {
   const a = c.args.map(dec);
   switch (c.op) {
     case "binary": {
-      const [v, e] = P.termBinary(c.code, a[0], a[1]);
+      const [v, e] = P.actionBinary(c.code, a[0], a[1]);
       return e === null ? { v: enc(v) } : { e };
     }
     case "unary": {
-      const [v, e] = P.termUnary(c.code, a[0]);
+      const [v, e] = P.actionUnary(c.code, a[0]);
       return e === null ? { v: enc(v) } : { e };
     }
   }
-  const [v, e] = P.termLogic(c.code, a[0]);
+  const [v, e] = P.actionLogic(c.code, a[0]);
   if (e === null && typeof v !== "boolean") return { e: "not a bool: " + String(v) };
   return e === null ? { v: { k: "bool", v } } : { e };
 };
@@ -82,7 +82,7 @@ console.log(JSON.stringify(out));
 // A box counts as the value it holds, which the pool of the calls cannot show: it has no box.
 const boxed = (op: number, l: p.Value, r: p.Value): string => {
   try {
-    return String(P.termBinary(op, l, r)[1] === null ? P.termBinary(op, l, r)[0] : "error");
+    return String(P.actionBinary(op, l, r)[1] === null ? P.actionBinary(op, l, r)[0] : "error");
   } catch (x) {
     return "exception";
   }
@@ -320,7 +320,7 @@ func mutateTSFunc(src, sig, old, new string, last bool) (string, bool) {
 }
 
 // TestPrintedOperatorMutantsTypeScript is the proof that the value conformance holds the printed code
-// of the operators of terms in the TypeScript library: with the source of each mutant, it fails.
+// of the operators of action expressions in the TypeScript library: with the source of each mutant, it fails.
 func TestPrintedOperatorMutantsTypeScript(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	if testing.Short() {
@@ -332,17 +332,17 @@ func TestPrintedOperatorMutantsTypeScript(t *testing.T) {
 		last                bool
 		controlled          bool
 	}{
-		{"swapped operands of -", "termBinary(op: number", "intSub(l, r)", "intSub(r, l)", false, false},
-		{"a node is equal to a node", "termEqual(l: Value", "return [false, false];", "return [true, true];", true, false},
-		{"an int equals a bool", "termEqual(l: Value", "return [false, false];", "return [false, true];", false, false},
+		{"swapped operands of -", "actionBinary(op: number", "intSub(l, r)", "intSub(r, l)", false, false},
+		{"a node is equal to a node", "actionEqual(l: Value", "return [false, false];", "return [true, true];", true, false},
+		{"an int equals a bool", "actionEqual(l: Value", "return [false, false];", "return [false, true];", false, false},
 		{"an index may be the length", "function intIndex(", "k >= n", "k > n", false, false},
 		{"the least index is 1", "function intIndex(", "k < 0", "k < 1", false, false},
-		{"a division by zero succeeds", "termBinary(op: number", "(r === 0)", "(false)", false, false},
-		{"< is <=", "termBinary(op: number", "intCmp(l, r) < 0", "intCmp(l, r) <= 0", false, false},
-		{"strings compare as ints", "termBinary(op: number", "this.strCmp(l, r) < 0", "this.strCmp(l, r) > 0", false, false},
-		{"! of a bool does not negate", "termUnary(op: number", "!(x as boolean)", "(x as boolean)", false, false},
-		{"a logical operand need not be a bool", "termLogic(op: number", "valKind(x) !== 3", "false", false, false},
-		{"a box is not opened", "termEqual(l: Value", "const a = unboxValue(l);", "const a = l;", false, false},
+		{"a division by zero succeeds", "actionBinary(op: number", "(r === 0)", "(false)", false, false},
+		{"< is <=", "actionBinary(op: number", "intCmp(l, r) < 0", "intCmp(l, r) <= 0", false, false},
+		{"strings compare as ints", "actionBinary(op: number", "this.strCmp(l, r) < 0", "this.strCmp(l, r) > 0", false, false},
+		{"! of a bool does not negate", "actionUnary(op: number", "!(x as boolean)", "(x as boolean)", false, false},
+		{"a logical operand need not be a bool", "actionLogic(op: number", "valKind(x) !== 3", "false", false, false},
+		{"a box is not opened", "actionEqual(l: Value", "const a = unboxValue(l);", "const a = l;", false, false},
 		{"the surrogate fix-up is dropped from the controlled comparison", "function compareStringsSpend(", "x = x >= 0xe000 ? x - 0x800 : x + 0x2000;", "", false, true},
 		{"the controlled comparison treats < as <=", "strCmp(l: Value", "compareStringsSpend(l as string, r as string, this.control)", "(compareStringsSpend(l as string, r as string, this.control) < 0 ? -1 : 1)", false, true},
 	}

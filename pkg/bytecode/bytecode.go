@@ -1,6 +1,6 @@
 // Package bytecode defines the module that a SyntaxIR grammar compiles to, which the bytecode VM
 // runs, and its compiled-file format: the instruction set of match code (Op, Instr), the tables of a
-// module (Module and the Info types), term code (Term), Flow bodies (Flow), the encoding of the
+// module (Module and the Info types), action code (Action), Flow bodies (Flow), the encoding of the
 // compiled-file format (Encoder, Decoder, WriteModule, ReadModule, FileMagic) and the load-time
 // validation of a module (ValidateModule). spec/bytecode/README.md specifies all of them; the
 // instruction set changes with its version, ISAVersion.
@@ -32,8 +32,8 @@ type Module struct {
 	// Ints holds the wide integers that REPEATW, SCANW and SKIPREPEAT refer to: repetition bounds
 	// beyond the range of an operand.
 	Ints []int64
-	// Terms holds the term code of the actions, predicates and bindings.
-	Terms []Term
+	// Actions holds the action code of the actions, predicates and bindings.
+	Actions []Action
 	// SourceInfo reports that the values record source information (compiler.WithSourceInfo).
 	SourceInfo bool
 	// DefaultValue reports that value actions were dropped for default values
@@ -129,7 +129,7 @@ type RuleInfo struct {
 	Name   int // string table index
 	Entry  int // start of the body code (for a rule with an Operators Rule, an OPERATORS_RULE instruction followed by RETURN)
 	Scope  []int
-	Action int // term of the action (index of Terms, -1 if none)
+	Action int // action expression of the action (index of Actions, -1 if none)
 	// NodeType is the named node type the rule's value is converted to (string table index, -1 if
 	// none).
 	NodeType int
@@ -178,7 +178,7 @@ type OperatorsRuleInfo struct {
 type LineInfo struct {
 	Entry  int
 	Scope  []int
-	Action int // term of the action (index of Terms, -1 if none)
+	Action int // action expression of the action (index of Actions, -1 if none)
 	IsSeq  bool
 }
 
@@ -276,9 +276,9 @@ const (
 	OpCall
 	// OPERATORS_RULE p: parse the expression of OperatorsRule table p and push the value (used in rule bodies).
 	OpOperatorsRule
-	// PRED t: evaluate term t and fail if it is false or an error.
+	// PRED t: evaluate action expression t and fail if it is false or an error.
 	OpPred
-	// BIND name, e: define the variable name with the value of term e.
+	// BIND name, e: define the variable name with the value of action expression e.
 	OpBind
 	// LABEL m, d: start @error (d=0) or @diagnostic (d=1).
 	OpLabel

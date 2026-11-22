@@ -27,7 +27,7 @@ func engineFieldType(t *conform.CastType) *program.FieldType {
 }
 
 // TestEngineValueCastTable runs the cast table (conform.CastCases) on the engine's compositions conforms,
-// valueConforms, elemsConform and tupleConform (termConforms and the functions it calls, printed from Exec
+// valueConforms, elemsConform and tupleConform (actionConforms and the functions it calls, printed from Exec
 // IR), through FieldConforms, which the backends call to check a cast.
 func TestEngineValueCastTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {

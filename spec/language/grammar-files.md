@@ -322,7 +322,7 @@ A trailing comma is not part of the normalized grammar: it is kept in the
 from JSON formats every list on one line.
 
 `grammar.Load` returns this source-preserving AST. Compilation removes
-source-only type and term groups from the executable grammar; consequently,
+source-only type and action expression groups from the executable grammar; consequently,
 `Parser.Grammar()` exposes the normalized executable form rather than those
 grouping nodes.
 

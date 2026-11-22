@@ -1,5 +1,5 @@
 // Package action declares the Action dialect of Code IR: the operations that evaluate the action
-// expressions of a grammar (actions, predicates and the values of bindings) on the values of terms.
+// expressions of a grammar (actions, predicates and the values of bindings) on the values of action expressions.
 // The dialect is legal at the Flow and the Exec stage.
 package action
 
@@ -16,7 +16,7 @@ const (
 	Host = "host"
 	// Pos is the register of the position.
 	Pos = "pos"
-	// Datum is the handle type of a value that a variable holds or a term produces.
+	// Datum is the handle type of a value that a variable holds or an action expression produces.
 	Datum = "Datum"
 )
 
@@ -25,7 +25,7 @@ const (
 func Declare(m *code.Module) {
 	n := len(m.Ops)
 	addValue(m)
-	addTermCode(m)
+	addActionCode(m)
 	for _, o := range m.Ops[n:] {
 		o.Dialect = Dialect
 	}

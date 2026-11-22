@@ -84,10 +84,10 @@ type Node ~ Op | Number
 type Pair = { Items []*Node; Name string }
 
 rule expr Node = (
-    l:term rest:(op:term_binary_op r:term)*
+    l:term rest:(op:action_binary_op r:term)*
 ) => foldl($l, $rest, (acc, i) => Op{Left: acc, Op: i.$op, Right: i.$r})
 
-rule term_binary_op OpType = t:(("+" / "-") #atomic) => OpType{Text: text($t)}
+rule action_binary_op OpType = t:(("+" / "-") #atomic) => OpType{Text: text($t)}
 rule group Node = "(" e:expr ")" => $e
 rule number Number = t:([0-9]+ #atomic) => Number{Text: text($t)}
 rule main = ^^ expr $$

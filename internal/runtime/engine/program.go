@@ -40,11 +40,11 @@ type Program struct {
 	recOnce sync.Once
 	rec     *Program // program that builds no tree (recognizer)
 	recErr  error
-	// vmTerms holds the programs of the module's terms, which both VMs run; a loaded program has
+	// vmActions holds the programs of the module's action expressions, which both VMs run; a loaded program has
 	// them from the checks of its file.
-	vmTermsOnce sync.Once
-	vmTerms     []*state.TermProgram
-	vmTermsErr  error
+	vmActionsOnce sync.Once
+	vmActions     []*state.ActionProgram
+	vmActionsErr  error
 	// vms holds the VM programs of the module, prepared on first use, by VM (vmIndex) and family
 	// (state.Family).
 	vms [2][2]familyVM
@@ -193,19 +193,19 @@ func (prog *Program) Module() *bytecode.Module {
 	return m
 }
 
-// moduleTerms returns the module m (Module) and the programs of its terms, loading them once for
+// moduleActions returns the module m (Module) and the programs of its action expressions, loading them once for
 // both VMs.
-func (prog *Program) moduleTerms() (*bytecode.Module, []*state.TermProgram, error) {
+func (prog *Program) moduleActions() (*bytecode.Module, []*state.ActionProgram, error) {
 	m := prog.Module()
-	prog.vmTermsOnce.Do(func() {
-		prog.vmTerms, prog.vmTermsErr = vm.LoadTerms(m)
-		if prog.vmTermsErr != nil {
-			// A loaded file's terms were checked when it was loaded; a compiled module's are the
+	prog.vmActionsOnce.Do(func() {
+		prog.vmActions, prog.vmActionsErr = vm.LoadActions(m)
+		if prog.vmActionsErr != nil {
+			// A loaded file's action expressions were checked when it was loaded; a compiled module's are the
 			// compiler's.
-			prog.vmTermsErr = fmt.Errorf("internal error: %w", prog.vmTermsErr)
+			prog.vmActionsErr = fmt.Errorf("internal error: %w", prog.vmActionsErr)
 		}
 	})
-	return m, prog.vmTerms, prog.vmTermsErr
+	return m, prog.vmActions, prog.vmActionsErr
 }
 
 // RuleType returns the type of the value of the rule name: its declared type, or the inferred

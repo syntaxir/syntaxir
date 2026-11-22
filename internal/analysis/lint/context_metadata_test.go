@@ -57,7 +57,7 @@ func TestLintMetadataPhaseCancellation(t *testing.T) {
 		operands[i] = &ast.OperatorsRuleOperand{Expr: leaf, Action: args[i]}
 	}
 	wide := &ast.Seq{Items: elems}
-	term := &ast.Call{Func: "list", Args: args}
+	actionExpr := &ast.Call{Func: "list", Args: args}
 	for _, phase := range []struct {
 		name string
 		run  func(*lintControl)
@@ -73,7 +73,7 @@ func TestLintMetadataPhaseCancellation(t *testing.T) {
 		{"predicate-search", func(c *lintControl) { hasPredicate(wide, c) }},
 		{"capture-search", func(c *lintControl) { hasCaptures(wide, c) }},
 		{"children", func(c *lintControl) { forChildren(wide, func(ast.Expr) {}, c) }},
-		{"position-terms", func(c *lintControl) { positionRead(&ast.RuleDef{Expr: leaf, Action: term}, c) }},
+		{"position-actions", func(c *lintControl) { positionRead(&ast.RuleDef{Expr: leaf, Action: actionExpr}, c) }},
 		{"position-operands", func(c *lintControl) {
 			positionRead(&ast.RuleDef{Expr: &ast.OperatorsRule{Operands: operands}}, c)
 		}},

@@ -9,7 +9,7 @@ import (
 )
 
 // The struct table (conform.StructCases) on the compositions cover and made of the node and the typed
-// library (termCover and termMade, printed from Exec IR), through the methods that a generated parser
+// library (actionCover and actionMade, printed from Exec IR), through the methods that a generated parser
 // calls to make a struct.
 
 func TestValueStructTable(t *testing.T) {

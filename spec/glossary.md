@@ -7,7 +7,7 @@ definition and the place where the term is defined.
 |:--|:--|
 | action | An umbrella term for a Predicate Action and a Value Action. See [Actions](language/actions.md). |
 | abstract machine | The machine that every runtime hosts: the state of a parse and the operations that change it. See [The Abstract Machine](exec-ir/machine.md). |
-| Action dialect | The operations of Code IR on the values of terms, legal at the Flow and the Exec stage. See [Values](exec-ir/values.md). |
+| Action dialect | The operations of Code IR on the values of action expressions, legal at the Flow and the Exec stage. See [Values](exec-ir/values.md). |
 | Action Expression | A value-level expression evaluated inside a Predicate Action or Value Action. See [Actions](language/actions.md). |
 | anchor | A Rule Expression that matches a position without consuming input and has no value: `^^`, `$$`, `^`, `$`. See [Anchors](language/parser-expressions.md#anchors). |
 | atomic | `a #atomic`: matches `a` and produces a single string node. See [Atomic](language/pragmas.md#atomic). |
