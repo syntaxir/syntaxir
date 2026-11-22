@@ -35,7 +35,8 @@ func runKeyInputs() [][]string {
 // TestRunSitesGeneratedKeyedByValues checks (R2) and (R3) of the linear-cost proof in generated Go
 // parsers: walks under equal values of the key share records and a key is looked up in constant
 // steps, so the spends grow linearly; keyed by the environment as an object, or looked up by
-// stepping through every record of the site, they grow at least quadratically.
+// stepping through every record of the site, they grow at least quadratically. The steps of the
+// lookups are no logical events, so the spends count them as units only here ("counted steps").
 func TestRunSitesGeneratedKeyedByValues(t *testing.T) {
 	t.Parallel()
 	goBin := skipRunsGoBin(t)
@@ -49,7 +50,7 @@ func TestRunSitesGeneratedKeyedByValues(t *testing.T) {
 		}
 		return lo, hi
 	}
-	spends, want := runSiteRuns(t, goBin, runKeySources, inputs, "", 1, true)
+	spends, want := runSiteRuns(t, goBin, runKeySources, inputs, "counted steps", 1, true)
 	for i, row := range spends {
 		if _, hi := slope(row); hi > 1.2 {
 			t.Errorf("%q: spends %v grow faster than linearly", runKeySources[i], row)

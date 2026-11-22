@@ -83,7 +83,7 @@ func testRunSitesGeneratedDocuments(t *testing.T) {
 // runSiteMutations are the changes of the embedded library for the negative controls: sites that
 // never turn hot, records found under any values of the variables, hits that keep the variables as
 // the walk left them, keys that hold the environment as an object, lookups that step through every
-// record,
+// record (with the steps of the bookkeeping counted, "counted steps"),
 // records of value-free walks reused by walks that build lists, and records stored when their
 // iteration ends that the end of the walk leaves as they are.
 var runSiteMutations = map[string][][2]string{
@@ -105,17 +105,24 @@ var runSiteMutations = map[string][][2]string{
 		"if p.skipMut(skipKeyEnvObject) {",
 		"if true {",
 	}},
-	// A lookup steps through every record of the site before it takes the one of its key.
+	// Each step of the bookkeeping of a walk counts a compute unit. It is no logical event, so the
+	// library counts nothing for it; counted, the spends measure the steps of the lookups of keys.
+	"counted steps": {countedSteps},
+	// A lookup steps through every record of the site before it takes the one of its key, with
+	// the steps counted.
 	"scan keys": {{
 		"if p != nil && p.skipMut(skipScanKeys) {",
 		"if p != nil {",
-	}},
+	}, countedSteps},
 	"any list": {{
 		"r.state != skipRecorded || w.build && !r.list && !p.skipMut(skipAnyList) {",
 		"r.state != skipRecorded {",
 	}},
 	"early store": skipRunMutations["early store"],
 }
+
+// countedSteps counts a compute unit for each step of the bookkeeping of a walk (skipStep).
+var countedSteps = [2]string{"func (p *Parser) skipStep() {}", "func (p *Parser) skipStep() { p.Units++ }"}
 
 // runSiteRuns builds the parsers of the sources with the embedded library changed by mutation (none
 // if "") and its sites turning hot at hotSpan (at its threshold if 0), parses the inputs of each
