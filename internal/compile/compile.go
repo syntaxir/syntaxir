@@ -68,120 +68,6 @@ type Program struct {
 	runtime     *program.Program
 }
 
-// Recognition is what a compiled program does with the input: build values or only check it.
-type Recognition uint8
-
-const (
-	// BuildValues builds the values of the grammar (a tree, or what the actions return).
-	BuildValues Recognition = iota
-	// Recognize only checks whether the input conforms to the grammar, without building a tree.
-	// Only the rules that predicates read, and the rules they call, build their values. It is the
-	// program of Program.Recognizer and the module of a compiled grammar in recognize mode, which
-	// serves Parse and ParsePrefix with the engine's WithRecognize option and no stream parse.
-	Recognize
-	// RecognizeWithStreamValues is Recognize that also keeps the values of the rules with a
-	// #stream repetition and of the rules they call, as a program that hands those elements to a
-	// caller needs them.
-	RecognizeWithStreamValues
-)
-
-// Options configures compilation.
-type Options struct {
-	// DisableMemo disables memoization (except for left-recursion leaders).
-	DisableMemo bool
-	// SourceInfo records source information in the values: the rule that produced each node and
-	// where its captures are.
-	SourceInfo bool
-	// DefaultValue makes every rule produce the default value of its expression: value actions
-	// (=>) and the declared types of rules are dropped before compilation, so the parser returns
-	// the default node tree even for grammars with actions. Predicates still run, because they
-	// decide the match, and the rules that make the values predicates read keep their actions and
-	// types (defaultValueGrammar).
-	DefaultValue bool
-	// Recognition selects whether the program builds values or only checks the input.
-	Recognition Recognition
-	// NoProjections compiles repetitions as written (project.go), for tests: with projections in
-	// every backend, only a program without them can check what they produce.
-	NoProjections bool
-	// EagerAttributeCopies disables copy-on-change normalization for measurements.
-	// It affects compilation only; parser execution has no corresponding branch.
-	EagerAttributeCopies bool
-	// LeftRecursionBindings accepts a binding that may run before a left call into a cycle that
-	// reads its variable (checkLeftRecursionBindings), for tests of the runtime's left-recursion
-	// guard, which such a binding reaches with another variable environment.
-	LeftRecursionBindings bool
-}
-
-// Rule is a rule of a compiled program: what the compiler found out about it. Every backend and
-// generator reads it; the engine's parser runs a rule
-// (internal/runtime/state/runtime.go) made from it.
-type Rule struct {
-	// Where names the rule in the message of a failed action, if not name (Rule.WhereName).
-	Where string
-	// Splice reports that the rule makes no node of its own: a hidden rule without an action, whose
-	// elements are those of the sequence that calls it.
-	Splice bool
-	ID     int
-	Name   string
-	Def    *ast.RuleDef
-	Scope  *check.Scope
-	Action ast.ActionExpr
-	// NodeType, if not "", is the named node type the rule's value is converted to
-	// (Program.ruleNodeType).
-	NodeType string
-	// OpNodeType, if not "", is the named node type every operator node of an Operators Rule is
-	// converted to (Program.operatorsNodeType).
-	OpNodeType string
-	Memo       bool
-	Missing    bool // this rule or a callee contains #missing
-	Leader     bool
-	// Member reports that the rule belongs to a left-recursion cycle and is not its leader: its
-	// results may read the growing seed of a leader at their own position.
-	Member bool
-	// Cycle numbers the left-recursion cycle of a leader or member from 1, the same for the rules of
-	// one cycle, and is 0 for any other rule: a result reads only the seeds of the growths of its own
-	// cycle.
-	Cycle int
-	// LeaderIndex numbers the leaders of each cycle from 0 (NumberLeaders): a leader's member in the
-	// sets of growths that a memoized result was evaluated with. LeaderBit is 1<<LeaderIndex for the
-	// first MaxLeaderBits leaders of a cycle, whose sets fit in a word, and 0 for any other rule.
-	LeaderIndex int
-	LeaderBit   uint64
-	// Stream reports that the top level of the rule body has a #stream repetition.
-	Stream bool
-	// Positional reports that the result may depend on position values (analysis.positional).
-	Positional bool
-	// Twin is the value-free twin used for calls from places where the value is discarded (#atomic, -, !,
-	// value-free bodies). It is created for rules that return a CST (no action) and are not part of a left-recursion cycle (twinOK), when such a call exists. It matches the
-	// same input in the same way, but keeps a separate memo (ids from len(RuleList) on).
-	Twin   *Rule
-	TwinOK bool
-	// Vars are the variables that the rule or the rules it calls read, sorted. The rule's result is
-	// memoized per combination of their values at the call (memoKey.env).
-	Vars []string
-	// Transient reports that the rule is not memoized in ordinary parses (it is memoized only by
-	// the incremental Document) (transientRules).
-	Transient bool
-	// Seen is the rule's index among the rules whose memoization is deferred to the second call at a
-	// position (rule.seen, the firstCall composition), or -1.
-	Seen int
-	// Plain reports that the rule is never memoized except by Document and has no captures, so
-	// call runs it with invokePlain (the inlined rules of the closure backend call InvokePlain directly).
-	Plain bool
-	// Rec reports that the rule is on a cycle of the call graph, or calls itself: only such rules
-	// can nest without bound, so only their entries count against the nesting limit.
-	Rec bool
-	// Novalue reports that this is a value-free twin (its value is always nil).
-	Novalue bool
-	// PredCaps tells, for value-free rules in a program that builds no tree, which captures
-	// record their values: those that predicates can read (other captures build no values). It
-	// is nil for ordinary rules.
-	PredCaps *PredicateCaptures
-	// Lean reports that the body's value is unused (an action, which reads captures only), so the
-	// body runs value-free. Captures still build values.
-	Lean bool
-}
-
 // Reserved type names.
 var builtinTypes = map[string]bool{
 	"int": true, "string": true, "bool": true, "node": true, "terminal": true,
@@ -226,16 +112,6 @@ func (c *Compiler) desc(s string) program.ExpID {
 
 func (c *Compiler) errorf(pos ast.Pos, format string, args ...any) {
 	c.errs = append(c.errs, &diagnostic.Error{Pos: pos, Msg: fmt.Sprintf(format, args...)})
-}
-
-// RuleFlags are rule properties determined by static analysis. They are saved in compiled
-// grammars so loading can skip the analysis.
-type RuleFlags struct {
-	Memo, Leader, Member, Positional bool
-	// Cycle is Rule.Cycle.
-	Cycle int
-	// Twin reports that the rule has a value-free twin (Rule.Twin).
-	Twin bool
 }
 
 // Flags returns the rule flags of the program's rules, with which a variant of the program (its
@@ -388,43 +264,6 @@ func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, contr
 		}
 	}
 	return &Canonical{Grammar: g, Source: source, Starts: starts, DefaultStart: defaultStart, StartErrors: startErrors}, nil
-}
-
-// RuleFacts are the facts of the rules of a canonical grammar that CheckCanonical reads. They are
-// the facts of the untyped Core IR module of the rules (internal/middleend/corepass), which the
-// caller computes (internal/frontend): the compiler takes every rule fact from them.
-type RuleFacts struct {
-	// Rules holds the facts of each rule of the grammar, the rules of UniqueRules in order.
-	Rules []RuleFact
-	// BindingErrors are the bindings of variables that a left-recursion cycle reads and that may
-	// run before a left call into the cycle, with or without token insertion, in the order of the
-	// rules. CheckCanonical reports them unless Options.LeftRecursionBindings.
-	BindingErrors diagnostic.ErrorList
-}
-
-// RuleFact holds the facts of one rule.
-type RuleFact struct {
-	// Cycle numbers the rule's left-recursion cycle from 1, or is 0 for a rule on none; Leader
-	// reports a leader of a cycle and Member a rule on a cycle that is not one.
-	Cycle          int
-	Leader, Member bool
-	// CycleIns, LeaderIns and MemberIns are Cycle, Leader and Member with token insertion enabled.
-	CycleIns             int
-	LeaderIns, MemberIns bool
-	// Positional reports that the rule or a rule it calls reads positions.
-	Positional bool
-	// Transient reports that ordinary parses do not memoize the rule.
-	Transient bool
-	// Rec reports that the rule is on a cycle of calls.
-	Rec bool
-	// Vars are the variables the rule or a rule it calls reads, sorted.
-	Vars []string
-	// Recovering names a rule whose #recover can put an error value in the rule's value: the rule
-	// itself or one it calls; it is "" for none.
-	Recovering string
-	// LeftOperands reports, for each operand of an Operators Rule, that the operand may call the
-	// rule before it consumes input, with or without token insertion.
-	LeftOperands []bool
 }
 
 // CheckCanonical checks the canonical grammar canon into its static program: the rules with their
@@ -598,11 +437,6 @@ func validateGrammar(g *ast.Grammar, control *cancel.Control) error {
 	return nil
 }
 
-// BodyExpr returns the expression the rule's body matches.
-func (r *Rule) BodyExpr() ast.Expr {
-	return r.Def.Expr
-}
-
 // leanBody reports whether the value of the rule body is unused. It is unused when there is an
 // action, which reads captures only, provided the rule has no #stream. Every backend and the
 // code generator use this test to compile the body value-free.
@@ -641,15 +475,6 @@ func NumberLeaders(rules []*Rule) {
 			r.LeaderIndex, r.LeaderBit = k, program.LeaderBitOf(k)
 		}
 	}
-}
-
-// EntryDepth returns the nesting levels that a call of the rule adds: one for a recursive rule, none
-// for any other.
-func (r *Rule) EntryDepth() int {
-	if r.Rec {
-		return 1
-	}
-	return 0
 }
 
 // defsByName returns the rule definitions of the program by name.
@@ -842,14 +667,6 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 		}
 	}, control)
 	return n > 0
-}
-
-// WhereName returns the text that names the rule in the message of a failed action.
-func (r *Rule) WhereName() string {
-	if r.Where != "" {
-		return r.Where
-	}
-	return r.Name
 }
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.

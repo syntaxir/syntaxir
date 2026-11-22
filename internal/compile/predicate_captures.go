@@ -8,23 +8,6 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// PredicateCaptures tells which captures of a rule body record their values in a program that
-// builds no tree.
-type PredicateCaptures struct {
-	// Read holds the captures that a predicate can read (predicateCaptures).
-	Read map[*ast.Capture]bool
-	// Names holds the capture names that predicates read. A capture of such a name that no
-	// predicate can read records nothing but keeps its slot, so that a predicate which reads the
-	// name where no capture of it can hold a value finds the slot unset, as in a parse.
-	Names map[string]bool
-}
-
-// Records reports whether the capture records its value.
-func (p *PredicateCaptures) Records(c *ast.Capture) bool { return p.Read[c] }
-
-// Slotted reports whether a capture that records nothing still has the slot of its name.
-func (p *PredicateCaptures) Slotted(c *ast.Capture) bool { return p.Names[c.Name] }
-
 // predicateCaptures returns the captures of the expression that a predicate can read, and the
 // names that predicates read. A predicate can read the captures of its scope of a name that it
 // reads which can hold the value of that name when the predicate runs; a lambda parameter of the
