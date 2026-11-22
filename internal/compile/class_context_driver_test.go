@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/starttest"
@@ -72,7 +73,7 @@ func TestClassConstructionContextFacts(t *testing.T) {
 			t.Run(fmt.Sprintf("%d/%t", i, neg), func(t *testing.T) {
 				cl := &ast.CharClass{Ranges: rs, Negated: neg}
 				c := &cancel.Control{Ctx: context.Background()}
-				if got := compile.CharClassStringControlled(cl, c); got != compile.CharClassString(cl) {
+				if got := compile.CharClassStringControlled(cl, c); got != core.CharClassString(cl) {
 					t.Fatalf("descriptor %s", got)
 				}
 				accept := closure.ClassAccept(cl)

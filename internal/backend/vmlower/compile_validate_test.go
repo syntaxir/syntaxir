@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -21,7 +22,7 @@ rule name Name = ([a-z]+) #atomic`, compile.Options{})
 		t.Fatal(err)
 	}
 	m := *mp
-	if err := compile.ValidateModule(&m); err != nil {
+	if err := program.ValidateModule(&m); err != nil {
 		t.Fatal(err)
 	}
 	m.Rules = append([]bytecode.RuleInfo(nil), m.Rules...)
@@ -36,7 +37,7 @@ rule name Name = ([a-z]+) #atomic`, compile.Options{})
 	if !found {
 		t.Fatal("no rule of a named node type")
 	}
-	if err := compile.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), "is not a named node type") {
+	if err := program.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), "is not a named node type") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -53,7 +54,7 @@ func TestModuleVariableValidation(t *testing.T) {
 		m.Rules = append([]bytecode.RuleInfo(nil), m.Rules...)
 		return &m
 	}
-	if err := compile.ValidateModule(fresh()); err != nil {
+	if err := program.ValidateModule(fresh()); err != nil {
 		t.Fatal(err)
 	}
 	undeclared := func(m *bytecode.Module) int {
@@ -89,7 +90,7 @@ func TestModuleVariableValidation(t *testing.T) {
 			if !tc.mutate(m) {
 				t.Fatal("nothing to mutate")
 			}
-			if err := compile.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
+			if err := program.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("got %v", err)
 			}
 		})
@@ -116,7 +117,7 @@ func TestModuleInitialValueMatchesType(t *testing.T) {
 			m := *compileModule(t, varModuleSource)
 			m.Vars = append([]bytecode.VarInfo(nil), m.Vars...)
 			tc.mutate(&m)
-			if err := compile.ValidateModule(&m); err == nil {
+			if err := program.ValidateModule(&m); err == nil {
 				t.Fatal("a module with a mistyped initial value was accepted")
 			}
 		})
@@ -134,7 +135,7 @@ func TestLoadedBindingNeedsNoCheck(t *testing.T) {
 			m.Code[i].C = 1
 		}
 	}
-	if err := compile.ValidateModule(m); err == nil {
+	if err := program.ValidateModule(m); err == nil {
 		t.Error("an ASSIGN with a check operand was accepted")
 	}
 }

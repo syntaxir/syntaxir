@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -35,7 +34,7 @@ func TestNullableAtAndBeforeEnd(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+		m, err := elaborate.Structural(elaborate.StructuralInput(g, g.Rules(), nil), false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -62,7 +61,7 @@ func TestFactsWithControl(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+	m, err := elaborate.Structural(elaborate.StructuralInput(g, g.Rules(), nil), false)
 	if err != nil {
 		t.Fatal(err)
 	}

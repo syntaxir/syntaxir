@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -503,7 +504,7 @@ func TestRunKeysValidated(t *testing.T) {
 	if len(m.RunKeys) == 0 {
 		t.Fatal("no run key")
 	}
-	if err := compile.ValidateModule(&m); err != nil {
+	if err := program.ValidateModule(&m); err != nil {
 		t.Fatal(err)
 	}
 	k := m.RunKeys[0]
@@ -520,7 +521,7 @@ func TestRunKeysValidated(t *testing.T) {
 		{"a binding it does not hold", []bytecode.RunKeyInfo{{Site: k.Site, Bind: k.Vars}}, "does not hold"},
 	} {
 		m.RunKeys = c.keys
-		if err := compile.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), c.want) {
+		if err := program.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v", c.name, err)
 		}
 	}

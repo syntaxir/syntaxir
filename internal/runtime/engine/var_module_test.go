@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	fcheck "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -65,7 +64,7 @@ func TestLoadedVariablesMatch(t *testing.T) {
 					t.Fatal(err)
 				}
 				loaded, _, err := LoadProgram(data)
-				if verr := compile.ValidateModule(m); verr != nil {
+				if verr := program.ValidateModule(m); verr != nil {
 					if err == nil {
 						t.Fatalf("a module that fails validation (%v) was loaded", verr)
 					}

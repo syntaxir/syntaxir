@@ -35,13 +35,13 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 		t.Fatal("the compilation's control outlives the compilation")
 	}
 	expr := prog.RuleList[0].Def.Expr
-	want := len(shapeElems(prog, expr))
+	want := len(check.ShapeElems(prog.Checker(), expr))
 	if want != items {
 		t.Fatalf("shape has %d elements, want %d", want, items)
 	}
 	ctx := compileTestContext(t, 1<<20)
 	prog.Checker().SetShapeControl(&cancel.Control{Ctx: ctx})
-	if got := len(shapeElems(prog, expr)); got != want {
+	if got := len(check.ShapeElems(prog.Checker(), expr)); got != want {
 		t.Fatalf("shape with a control has %d elements, want %d", got, want)
 	}
 	if got := checks(ctx); got < items/cancel.PollStride {
@@ -49,7 +49,7 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 	}
 	prog.Checker().SetShapeControl(nil)
 	ctx = compileTestContext(t, 1<<20)
-	shapeElems(prog, expr)
+	check.ShapeElems(prog.Checker(), expr)
 	if got := checks(ctx); got != 0 {
 		t.Errorf("without a control the shape analysis checked a context %d times", got)
 	}

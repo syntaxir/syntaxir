@@ -10,7 +10,7 @@ import (
 // RuleTypeWithPoll is RuleTypeWithPoll.
 func (p *Program) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 	if poll == nil {
-		return p.RuleType(name)
+		return p.Checker().RuleType(name)
 	}
 	poll()
 	if p.Typed == nil {

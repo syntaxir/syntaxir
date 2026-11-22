@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -121,7 +122,7 @@ func TestNodeConstructorCompiledVersions(t *testing.T) {
 		if !mutated {
 			t.Fatal("no struct literal in the action code")
 		}
-		if err := compile.ValidateModule(&module); err == nil || !strings.Contains(err.Error(), "is not a struct type") {
+		if err := program.ValidateModule(&module); err == nil || !strings.Contains(err.Error(), "is not a struct type") {
 			t.Fatalf("invalid struct literal type accepted: %v", err)
 		}
 	}

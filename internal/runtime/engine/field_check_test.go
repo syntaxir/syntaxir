@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -132,7 +133,7 @@ func TestCompiledFieldChecksValidation(t *testing.T) {
 		t.Fatalf("earlier instruction set: %v", err)
 	}
 	m := *prog.Module()
-	if err := compile.ValidateModule(&m); err != nil {
+	if err := program.ValidateModule(&m); err != nil {
 		t.Fatal(err)
 	}
 	for _, text := range []string{"Other", "[]", "*(Int)", "Int |", "(Int | Match", "Int  | Match", "[]Int)", "", "terminal", "Missing"} {
@@ -148,7 +149,7 @@ func TestCompiledFieldChecksValidation(t *testing.T) {
 		if casts == 0 {
 			t.Fatal("no cast in the action code")
 		}
-		if err := compile.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), "invalid field type") {
+		if err := program.ValidateModule(&m); err == nil || !strings.Contains(err.Error(), "invalid field type") {
 			t.Errorf("type text %q: %v", text, err)
 		}
 	}

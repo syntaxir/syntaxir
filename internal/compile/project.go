@@ -35,7 +35,7 @@ func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) 
 		control.Poll()
 		switch e := e.(type) {
 		case *ast.Capture:
-			if rp, ok := e.Expr.(*ast.Repeat); ok && hasCapturesControlled(rp.Expr, control) {
+			if rp, ok := e.Expr.(*ast.Repeat); ok && check.HasCapturesControlled(rp.Expr, control) {
 				cands[e.Name] = rp
 				return
 			}
@@ -53,11 +53,11 @@ func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) 
 		case *ast.Optional:
 			walk(e.Expr)
 		case *ast.Attributed:
-			if !IsStream(e) {
+			if !check.IsStream(e) {
 				walk(e.Expr)
 			}
 		case *ast.Repeat:
-			if !hasCapturesControlled(e.Expr, control) {
+			if !check.HasCapturesControlled(e.Expr, control) {
 				walk(e.Expr)
 			}
 		case *ast.And:
@@ -246,7 +246,7 @@ func nonNil(prog *Program, e ast.Expr, seen map[string]bool, control *cancel.Con
 			case *ast.Constructor, *ast.ListConstructor, *ast.TupleLit:
 				return true
 			case *ast.CaptureRef:
-				if t.Name != OperatorsRuleValue {
+				if t.Name != check.OperatorsRuleValue {
 					return false
 				}
 				// $value is the folded value, which the lines below make.

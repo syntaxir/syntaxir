@@ -6,7 +6,7 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// shownRuleTypes returns the type of each rule as Program.RuleType shows it: the declared type of
+// shownRuleTypes returns the type of each rule as Checker.RuleType shows it: the declared type of
 // a rule with one, and otherwise the rule's value type, in which a reference to a rule with a
 // declared type is that type. A reference to a rule without one keeps the rule's name, which
 // keeps recursive and large values short.

@@ -8,14 +8,14 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // hasRecovery reports a recovery in e, read from the expression itself.
 func hasRecovery(e ast.Expr) (found bool) {
-	compile.WalkExpr(e, func(e ast.Expr) {
+	astfacts.WalkExpr(e, func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Recovery:
 			found = true

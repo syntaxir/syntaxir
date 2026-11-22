@@ -7,9 +7,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
-// HasZero is Checker.HasZero.
-func (p *Program) HasZero(t types.Ty) bool { return p.Checker().HasZero(t) }
-
 // StructZero describes how the fields of a struct type read when a constructor left them unset: Names
 // holds the field names in declaration order and Zeros the zero descriptor of each (ZeroDesc).
 type StructZero struct {
@@ -30,7 +27,7 @@ func (p *Program) StructZeroOf(name string) *StructZero {
 	if z, ok := p.structZeros.Load(name); ok {
 		return z.(*StructZero)
 	}
-	_, st := p.StructType(name)
+	_, st := p.Checker().StructType(name)
 	if st == nil {
 		return nil
 	}
@@ -50,7 +47,7 @@ func (p *Program) StructZeroOf(name string) *StructZero {
 // Name with no field set (a runtime does not build the zero values of its fields, which a read of one of
 // them builds from the descriptor of the field); and NoZeroDesc for a type that has none (HasZero).
 func (p *Program) ZeroDesc(t types.Ty) string {
-	if !p.HasZero(t) {
+	if !p.Checker().HasZero(t) {
 		return NoZeroDesc
 	}
 	switch t := t.(type) {

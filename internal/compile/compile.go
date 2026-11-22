@@ -187,10 +187,6 @@ type Rule struct {
 	Lean bool
 }
 
-// ErrSchemaUnavailable reports that the checked grammar metadata an output schema is exported
-// from is unavailable.
-var ErrSchemaUnavailable = program.ErrSchemaUnavailable
-
 // Reserved type names.
 var builtinTypes = map[string]bool{
 	"int": true, "string": true, "bool": true, "node": true, "terminal": true,
@@ -210,24 +206,24 @@ type Compiler struct {
 	opts    Options
 	errs    diagnostic.ErrorList
 	rule    *Rule
-	descIDs map[string]ExpID
+	descIDs map[string]program.ExpID
 }
 
 // desc returns the index of an expectation string (adding it to Program.DescTable).
-func (c *Compiler) desc(s string) ExpID {
+func (c *Compiler) desc(s string) program.ExpID {
 	if id, ok := c.descIDs[s]; ok {
 		return id
 	}
 	if c.descIDs == nil {
-		c.descIDs = map[string]ExpID{}
-		for i, d := range FixedDescs {
-			c.descIDs[d] = ExpID(i)
+		c.descIDs = map[string]program.ExpID{}
+		for i, d := range core.FixedDescs {
+			c.descIDs[d] = program.ExpID(i)
 		}
 		if id, ok := c.descIDs[s]; ok {
 			return id
 		}
 	}
-	id := ExpID(len(c.Prog.DescTable))
+	id := program.ExpID(len(c.Prog.DescTable))
 	c.Prog.DescTable = append(c.Prog.DescTable, s)
 	c.descIDs[s] = id
 	return id
@@ -446,7 +442,7 @@ type RuleFact struct {
 func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Program, error) {
 	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
 	prog := &Program{Model: check.NewModel(g, source), ByName: map[string]*Rule{},
-		DescTable: append([]string(nil), FixedDescs...)}
+		DescTable: append([]string(nil), core.FixedDescs...)}
 	c := &Compiler{Control: control, Prog: prog, opts: opts}
 	if control != nil {
 		prog.Checker().SetShapeControl(control)
@@ -566,10 +562,10 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 		for _, r := range rs {
 			control.Poll()
 			r.Plain = !r.Leader && (!r.Memo || r.Transient) && len(r.Scope.Names) == 0
-			if n, ok := prog.ruleNodeType(r.Def); ok && !r.Novalue {
+			if n, ok := prog.Checker().RuleNodeType(r.Def); ok && !r.Novalue {
 				r.NodeType = n.Name
 			}
-			if n, ok := prog.operatorsNodeType(r.Def); ok && !r.Novalue {
+			if n, ok := prog.Checker().OperatorsNodeType(r.Def); ok && !r.Novalue {
 				r.OpNodeType = n.Name
 			}
 		}
@@ -637,10 +633,6 @@ func NumberSeen(lists ...[]*Rule) int {
 	}
 	return n
 }
-
-// MaxLeaderBits is the number of leaders of a cycle that have a bit (Rule.LeaderBit). The engine
-// keeps the last bit of a word to tell the identity of a larger set from a word of bits.
-const MaxLeaderBits = program.MaxLeaderBits
 
 // NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex), and gives
 // the first MaxLeaderBits of each a bit (Rule.LeaderBit).
@@ -727,7 +719,7 @@ func hasStream(e ast.Expr, control *cancel.Control) bool {
 	control.Poll()
 	found := false
 	astfacts.WalkExprControlled(e, func(x ast.Expr) {
-		if IsStream(x) {
+		if check.IsStream(x) {
 			found = true
 		}
 	}, control)
@@ -792,19 +784,6 @@ func (c *Compiler) noRecoveringCaptures(e ast.Expr) {
 	}, control)
 }
 
-// elementScopedControlled is check.ElementScopedControlled.
-func elementScopedControlled(e ast.Expr, control *cancel.Control) bool {
-	return check.ElementScopedControlled(e, control)
-}
-
-// hasCapturesControlled is check.HasCapturesControlled.
-func hasCapturesControlled(e ast.Expr, control *cancel.Control) bool {
-	return check.HasCapturesControlled(e, control)
-}
-
-// LiteralDesc is core.LiteralDesc.
-func LiteralDesc(e *ast.Literal) string { return core.LiteralDesc(e) }
-
 // FoldASCIIRune maps A-Z to a-z and leaves every other rune as it is: the folding of #ignorecase
 // and of the suffix i, which is ASCII only.
 func FoldASCIIRune(r rune) rune {
@@ -823,9 +802,6 @@ func FoldedRunes(rs []rune) []rune {
 	return out
 }
 
-// CharClassString is core.CharClassString.
-func CharClassString(e *ast.CharClass) string { return core.CharClassString(e) }
-
 // levelMin returns the minimum binding level of a call with a binding level.
 func (c *Compiler) levelMin(e *ast.Ref, r *Rule) int {
 	pr, ok := r.Def.Expr.(*ast.OperatorsRule)
@@ -842,18 +818,15 @@ func (c *Compiler) levelMin(e *ast.Ref, r *Rule) int {
 	return 0
 }
 
-// IsStream is check.IsStream.
-func IsStream(e ast.Expr) bool { return check.IsStream(e) }
-
 // checkStream checks that #stream appears only at the top level of a rule body (the body itself
 // or an element of a sequence) of a rule outside every left-recursion cycle and reports whether it
 // is present.
 func (c *Compiler) checkStream(body ast.Expr) bool {
 	control := c.Control
-	top := StreamTops(body)
+	top := check.StreamTops(body)
 	n := 0
 	astfacts.WalkExprControlled(body, func(e ast.Expr) {
-		if !IsStream(e) {
+		if !check.IsStream(e) {
 			return
 		}
 		n++
@@ -875,12 +848,6 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 	}, control)
 	return n > 0
 }
-
-// StreamTops is check.StreamTops.
-func StreamTops(body ast.Expr) map[ast.Expr]bool { return check.StreamTops(body) }
-
-// SeeThrough is check.SeeThrough.
-func SeeThrough(e ast.Expr) ast.Expr { return check.SeeThrough(e) }
 
 // WhereName returns the text that names the rule in the message of a failed action.
 func (r *Rule) WhereName() string {

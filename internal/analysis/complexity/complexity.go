@@ -206,7 +206,7 @@ func checkedInput(g *ast.Grammar, control *cancel.Control) (*classifierInput, er
 
 // resultInput returns what the classifier reads of the grammar whose front-end result is res.
 func resultInput(res *frontend.Result) *classifierInput {
-	return &classifierInput{structural: res.Structural, types: res.Program.ValueRecord(), names: res.InlineNames()}
+	return &classifierInput{structural: res.Structural, types: res.Program.Checker().ValueRecord(), names: res.InlineNames()}
 }
 
 func (in *classifierInput) classify(start string, control *cancel.Control) (*Complexity, error) {

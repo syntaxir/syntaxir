@@ -3,6 +3,7 @@ package compile
 import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -12,7 +13,7 @@ import (
 func (prog *Program) Resumable(e ast.Expr) bool { return prog.resumable(e, nil) }
 
 func (prog *Program) resumable(e ast.Expr, control *cancel.Control) bool {
-	ok := elementScopedControlled(e, control) || !anyCapture(e, control)
+	ok := check.ElementScopedControlled(e, control) || !anyCapture(e, control)
 	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.Predicate:

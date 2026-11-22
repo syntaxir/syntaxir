@@ -10,9 +10,9 @@ import (
 	"testing"
 	"testing/iotest"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -315,7 +315,7 @@ rule r = [ab]*`)
 	if scan == 0 || iter == 0 {
 		t.Fatalf("%d SCANSITE and %d scan ITER instructions, want both", scan, iter)
 	}
-	if err := compile.ValidateModule(m); err != nil {
+	if err := program.ValidateModule(m); err != nil {
 		t.Fatalf("the module of scan sites is rejected: %v", err)
 	}
 	for ip, in := range m.Code {
@@ -329,7 +329,7 @@ rule r = [ab]*`)
 		} else {
 			bad.Code[ip].B = 4 | 2
 		}
-		if err := compile.ValidateModule(&bad); err == nil {
+		if err := program.ValidateModule(&bad); err == nil {
 			t.Errorf("instruction %d (%v) with an invalid scan site is accepted", ip, bad.Code[ip].Op)
 		}
 	}

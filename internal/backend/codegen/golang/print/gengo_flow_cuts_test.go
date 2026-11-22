@@ -7,14 +7,14 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // hasCut reports a cut in e.
 func hasCut(e ast.Expr) (found bool) {
-	compile.WalkExpr(e, func(e ast.Expr) {
+	astfacts.WalkExpr(e, func(e ast.Expr) {
 		if _, ok := e.(*ast.Cut); ok {
 			found = true
 		}

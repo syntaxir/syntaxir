@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -53,7 +54,7 @@ func TestNamedNodeTypeModuleValidation(t *testing.T) {
 	t.Parallel()
 	prog := compileBare(t, codegentest.NodeTypeGrammar)
 	base := prog.Module()
-	if err := compile.ValidateModule(base); err != nil {
+	if err := program.ValidateModule(base); err != nil {
 		t.Fatal(err)
 	}
 	str := func(m *bytecode.Module, s string) int {
@@ -115,7 +116,7 @@ func TestNamedNodeTypeModuleValidation(t *testing.T) {
 	} {
 		m := clone()
 		tc.edit(m)
-		if err := compile.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if err := program.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%s: got %v, want %s", name, err, tc.want)
 		}
 	}

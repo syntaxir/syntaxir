@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -18,7 +18,7 @@ func TestModuleZeroDescriptorValidation(t *testing.T) {
 	t.Parallel()
 	prog := enginetest.CompileBare(t, "type In = { N int }\ntype Z = { I int; T (int, string); S In }\nrule z Z = \"z\" => Z{}\nrule main = x:z $$ => $x.I\n")
 	base := prog.Module()
-	if err := compile.ValidateModule(base); err != nil {
+	if err := program.ValidateModule(base); err != nil {
 		t.Fatal(err)
 	}
 	with := func(desc string) *bytecode.Module {
@@ -34,7 +34,7 @@ func TestModuleZeroDescriptorValidation(t *testing.T) {
 		return &m
 	}
 	for _, d := range []string{"i", "s", "b", "n", "l", "-", "()", "(i(sb))", "{In}", "({In}l)"} {
-		if err := compile.ValidateModule(with(d)); err != nil {
+		if err := program.ValidateModule(with(d)); err != nil {
 			t.Errorf("descriptor %q: %v", d, err)
 		}
 	}
@@ -50,7 +50,7 @@ func TestModuleZeroDescriptorValidation(t *testing.T) {
 		{"", "malformed"},
 		{"(-)", "malformed"}, // a type without a zero value has no zero value in a tuple either
 	} {
-		if err := compile.ValidateModule(with(tc.desc)); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if err := program.ValidateModule(with(tc.desc)); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("descriptor %q: got %v, want an error with %q", tc.desc, err, tc.want)
 		}
 	}

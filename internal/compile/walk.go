@@ -9,13 +9,6 @@ import (
 // The walks of the grammar's expressions and action expressions that the checks of the compiler use. The rule
 // facts are not computed here: they are those of the Core IR module of the rules (RuleFacts).
 
-// WalkAction is astfacts.WalkAction. It stays for the tests and test support that call it through
-// compile; new code calls astfacts.
-func WalkAction(t ast.ActionExpr, f func(ast.ActionExpr)) { astfacts.WalkAction(t, f) }
-
-// WalkExpr is astfacts.WalkExpr; see WalkAction.
-func WalkExpr(e ast.Expr, f func(ast.Expr)) { astfacts.WalkExpr(e, f) }
-
 // valueRecovery reports whether e has a #recover outside lookaheads and Operators Rule skips, and
 // returns the rules that it calls outside them (noRecoveringCaptures).
 func valueRecovery(e ast.Expr, control *cancel.Control) (bool, []string) {

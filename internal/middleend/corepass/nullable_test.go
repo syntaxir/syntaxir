@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -20,7 +19,7 @@ func TestNullableRepetitionFacts(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+		m, err := elaborate.Structural(elaborate.StructuralInput(g, g.Rules(), nil), false)
 		if err != nil {
 			t.Fatal(err)
 		}

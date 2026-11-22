@@ -17,8 +17,8 @@ func TestShapeSignatureShowsMovedDiscard(t *testing.T) {
 	// The type of main is int in both, but the group builds a pair in one and a single value in the other.
 	pair := compile("@start\nrule main = g:(\"a\" - &\"b\"* \"c\") => len($g.Value)\n")
 	single := compile("@start\nrule main = g:(\"a\" - \"c\") => len($g.Value)\n")
-	t1, _ := pair.RuleType("main")
-	t2, _ := single.RuleType("main")
+	t1, _ := pair.Checker().RuleType("main")
+	t2, _ := single.Checker().RuleType("main")
 	if t1 != t2 {
 		t.Fatalf("the test needs equal rule types, got %q and %q", t1, t2)
 	}

@@ -17,7 +17,7 @@ func TestRuleTypeWithPollParity(t *testing.T) {
 		types.NodeTy{Value: types.TupleTy{Elems: []types.Ty{types.OptTy{Elem: types.TyStringNode}, types.RuleTy{Name: "x"}}}, Caps: []types.CapIndex{{Name: "a", Paths: [][]int{{0}, {1, 0}}}, {Name: "b", Side: true}}}}
 	for _, typ := range cases {
 		p := shownProgram(map[string]types.Ty{"main": typ})
-		want, known := p.RuleType("main")
+		want, known := p.Checker().RuleType("main")
 		if !known {
 			t.Fatal("missing test rule")
 		}

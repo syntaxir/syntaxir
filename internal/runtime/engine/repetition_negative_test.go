@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -71,7 +72,7 @@ func TestNegativeRepetitionMaxima(t *testing.T) {
 							t.Errorf("negative maxima alone must not lower to %s", in.Op)
 						}
 					}
-					if err := compile.ValidateModule(p.Module()); err != nil {
+					if err := program.ValidateModule(p.Module()); err != nil {
 						t.Errorf("module: %v", err)
 					}
 					if tree := executableASTJSON(t, p.Static().Grammar); tree != savedAST {

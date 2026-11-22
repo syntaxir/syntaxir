@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -23,7 +22,7 @@ func structuralFacts(t *testing.T, src string, control *cancel.Control) (*core.M
 	if err != nil {
 		t.Fatal(err)
 	}
-	m, err := elaborate.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+	m, err := elaborate.Structural(elaborate.StructuralInput(g, g.Rules(), nil), false)
 	if err != nil {
 		t.Fatal(err)
 	}

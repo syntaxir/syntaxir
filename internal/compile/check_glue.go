@@ -22,7 +22,7 @@ func (c checkProgram) EachRule(f func(name string, r check.RuleInfo)) {
 }
 
 func (c checkProgram) ElementScoped(e ast.Expr, control *cancel.Control) bool {
-	return elementScopedControlled(e, control)
+	return check.ElementScopedControlled(e, control)
 }
 
 func (c checkProgram) MarkUnsupported(t ast.TypeExpr) bool {

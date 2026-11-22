@@ -182,7 +182,7 @@ func TestControlledFullWorkloads(t *testing.T) {
 			p := load(t, w.grammar)
 			check := func(n any, err error) string {
 				t.Helper()
-				if n == nil || reflect.ValueOf(n).Kind() == reflect.Ptr && reflect.ValueOf(n).IsNil() {
+				if n == nil || reflect.ValueOf(n).Kind() == reflect.Pointer && reflect.ValueOf(n).IsNil() {
 					t.Fatal("full workload did not return a tree")
 				}
 				if err != nil && !w.partial {
@@ -248,7 +248,7 @@ func TestControlledFullWorkloads(t *testing.T) {
 				av, aerr := g.ast(input, bytes, false)
 				bv, berr := g.ast(input, bytes, true)
 				for _, v := range []any{av, bv} {
-					if v == nil || reflect.ValueOf(v).Kind() == reflect.Ptr && reflect.ValueOf(v).IsNil() {
+					if v == nil || reflect.ValueOf(v).Kind() == reflect.Pointer && reflect.ValueOf(v).IsNil() {
 						t.Fatal("full typed workload did not return a value")
 					}
 				}

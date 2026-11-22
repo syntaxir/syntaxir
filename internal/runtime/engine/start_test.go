@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -217,7 +218,7 @@ func TestStartModuleValidation(t *testing.T) {
 		return &m
 	}
 	m := fresh()
-	if err := compile.ValidateModule(m); err != nil {
+	if err := program.ValidateModule(m); err != nil {
 		t.Fatal(err)
 	}
 	if len(m.Starts) != 2 || m.DefaultStart != m.Starts[0] {
@@ -245,7 +246,7 @@ func TestStartModuleValidation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			m := fresh()
 			tc.mutate(m)
-			if err := compile.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
+			if err := program.ValidateModule(m); err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("got %v, want %s", err, tc.want)
 			}
 		})

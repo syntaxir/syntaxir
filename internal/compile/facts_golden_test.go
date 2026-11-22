@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -76,9 +77,9 @@ func TestFactsGolden(t *testing.T) {
 func terminalFact(e ast.Expr, depth int) factstest.Terminal {
 	switch e := e.(type) {
 	case *ast.Literal:
-		return factstest.Terminal{Exp: LiteralDesc(e), Depth: depth}
+		return factstest.Terminal{Exp: core.LiteralDesc(e), Depth: depth}
 	case *ast.CharClass:
-		return factstest.Terminal{Exp: CharClassString(e), Depth: depth}
+		return factstest.Terminal{Exp: core.CharClassString(e), Depth: depth}
 	}
 	return factstest.Terminal{}
 }

@@ -183,8 +183,8 @@ func (s *Source) again(derive func(*compile.Options), flags []compile.RuleFlags)
 	return Check(s.Grammar(), o, flags, nil)
 }
 
-// RuleType is compile.Program.RuleType.
-func (s *Source) RuleType(name string) (string, bool) { return s.prog.RuleType(name) }
+// RuleType is check.Checker.RuleType.
+func (s *Source) RuleType(name string) (string, bool) { return s.prog.Checker().RuleType(name) }
 
 // RuleTypeWithPoll is compile.Program.RuleTypeWithPoll.
 func (s *Source) RuleTypeWithPoll(name string, poll func()) (string, bool) {
@@ -196,8 +196,8 @@ func (s *Source) ShapeSignature(name string, poll func()) (string, bool) {
 	return s.prog.ShapeSignature(name, poll)
 }
 
-// ValueType is compile.Program.ValueType.
-func (s *Source) ValueType(name string) (string, bool) { return s.prog.ValueType(name) }
+// ValueType is check.Checker.ValueType.
+func (s *Source) ValueType(name string) (string, bool) { return s.prog.Checker().ValueType(name) }
 
 // OutputSchema exports the output schema of the rule start, or of every rule and type with
 // allRules, from the checked grammar.

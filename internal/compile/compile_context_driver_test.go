@@ -120,7 +120,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				var diagnostics diagnostic.ErrorList
 				compile.CheckTypesControlled(entry.Checked(p), &diagnostics, control)
 			case "type-inference":
-				compile.ValueTypes(entry.Checked(p), control)
+				fcheck.ValueTypes(entry.Checked(p).Checker(), control)
 			case "list-constructor-type":
 				// The entry poll alone cannot cancel: cancellation must be
 				// observed inside the temporary checker resolving Elem.
@@ -213,7 +213,7 @@ func TestCompileContextOrdinaryParity(t *testing.T) {
 // takes the rule facts and the site numbers.
 func structuralModule(t *testing.T, g *ast.Grammar) *ir.Module {
 	t.Helper()
-	m, err := corebuild.Structural(compile.StructuralInput(g, g.Rules(), nil), false)
+	m, err := corebuild.Structural(corebuild.StructuralInput(g, g.Rules(), nil), false)
 	if err != nil {
 		t.Fatal(err)
 	}

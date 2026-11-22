@@ -4,7 +4,6 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -109,7 +108,3 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 		}
 	}
 }
-
-// MissingUnsupported returns the error of an operation that does not support missing-token
-// recovery.
-func MissingUnsupported(operation string) error { return program.MissingUnsupported(operation) }

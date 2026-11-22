@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
@@ -81,7 +82,7 @@ func TestValueTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if got := p.ValueTypes()[tc.rule].String(); got != tc.want {
+		if got := p.Checker().ValueTypes()[tc.rule].String(); got != tc.want {
 			t.Errorf("%q: rule %s\ngot  %s\nwant %s", tc.src, tc.rule, got, tc.want)
 		}
 	}
@@ -115,7 +116,7 @@ func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 		}
 		p.Checker().ValueErrors() // checks every action without failing
 		for _, rd := range g.Rules() {
-			if v, ok := p.ValueTypes()[rd.Name]; !ok || v == nil || v == types.TyBottom {
+			if v, ok := p.Checker().ValueTypes()[rd.Name]; !ok || v == nil || v == types.TyBottom {
 				t.Errorf("%s: rule %s has value type %v", path, rd.Name, v)
 			}
 		}
@@ -132,7 +133,7 @@ func TestValueTypesOptionalCaptures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	outer := p.ValueTypes()["a"].(types.NodeTy)
+	outer := p.Checker().ValueTypes()["a"].(types.NodeTy)
 	if len(outer.Caps) != 1 || outer.Caps[0].T.String() != "*b" {
 		t.Fatalf("outer captures %+v", outer.Caps)
 	}
@@ -154,7 +155,7 @@ func valueTypesOf(t *testing.T, src string) (map[string]types.Ty, diagnostic.Err
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	return ValueTypes(p, nil)
+	return check.ValueTypes(p.Checker(), nil)
 }
 
 // Actions are typed in the value model: captures have the types of their values, and nodes expose

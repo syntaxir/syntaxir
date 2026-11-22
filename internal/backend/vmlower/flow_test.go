@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -121,7 +122,7 @@ func TestSelectedFlowsSurviveTheFileForm(t *testing.T) {
 			_ = selectRule(prog, ft, bc, id) // a rule it fails for keeps no body
 		}
 		total += len(bc.Flows)
-		if err := compile.ValidateModule(bc); err != nil {
+		if err := program.ValidateModule(bc); err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
 		w := &bytecode.Encoder{Strs: map[string]int{}}

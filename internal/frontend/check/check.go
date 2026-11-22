@@ -78,7 +78,7 @@ func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *ca
 
 // TypeInfo holds the types found by the type checker, for code generation.
 type TypeInfo struct {
-	// Values holds the type of each rule's value in the value model (Program.ValueTypes).
+	// Values holds the type of each rule's value in the value model (Checker.ValueTypes).
 	Values     map[string]Ty
 	valueErrs  diagnostic.ErrorList // the errors of actions in the value model
 	shown      map[string]Ty        // the type of each rule as RuleType shows it (shownRuleTypes)

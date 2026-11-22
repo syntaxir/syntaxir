@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -12,7 +13,7 @@ import (
 // never cancels.
 func CharClassStringControlled(e *ast.CharClass, control *cancel.Control) string {
 	if control == nil {
-		return CharClassString(e)
+		return core.CharClassString(e)
 	}
 	var b strings.Builder
 	b.WriteString("[")

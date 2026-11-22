@@ -3,6 +3,7 @@ package compile
 import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -38,7 +39,7 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 	control := c.Control
 	switch e := e.(type) {
 	case *ast.Literal:
-		c.desc(LiteralDesc(e))
+		c.desc(core.LiteralDesc(e))
 
 	case *ast.CharClass:
 		c.desc(CharClassStringControlled(e, c.Control))
@@ -77,7 +78,7 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 	case *ast.And:
 		// Captures and variable definitions inside a positive lookahead remain valid after it.
 		c.noRecoveringCaptures(e.Expr)
-		c.Expr(e.Expr, s, build && hasCapturesControlled(e.Expr, control))
+		c.Expr(e.Expr, s, build && check.HasCapturesControlled(e.Expr, control))
 
 	case *ast.Not:
 		c.noCaptures(e.Expr)
@@ -131,7 +132,7 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 // repeat walks a repetition.
 func (c *walker) repeat(e *ast.Repeat, s *check.Scope, build bool) {
 	elemScope := s
-	if elementScopedControlled(e.Expr, c.Control) {
+	if check.ElementScopedControlled(e.Expr, c.Control) {
 		elemScope = check.NewElementScope(s)
 	}
 	c.Expr(e.Expr, elemScope, build)
@@ -259,28 +260,21 @@ func (c *walker) compileOperatorsRule(r *Rule, e *ast.OperatorsRule) {
 // at d: the name is reserved for the folded value, which the whole-rule action reads as $value.
 func (c *walker) checkValueCaptures(d ast.Pos, scope *check.Scope) {
 	for _, name := range scope.Names {
-		if name == OperatorsRuleValue {
+		if name == check.OperatorsRuleValue {
 			c.errorf(d, "capture name %s is reserved for the whole-rule action of an Operators Rule, which reads the folded value as $%s", name, name)
 		}
 	}
 }
 
-// OperatorsRuleValue is the local name of the final folded value of an Operators Rule in its
-// whole-rule action, and OperatorsRuleActionLocals the locals of that action.
-const OperatorsRuleValue = check.OperatorsRuleValue
-
-var OperatorsRuleActionLocals = []string{OperatorsRuleValue}
+var OperatorsRuleActionLocals = []string{check.OperatorsRuleValue}
 
 // operatorsRuleLine walks the line e of an Operators Rule and checks its action, whose locals are
 // locals, and returns the line's scope.
 func (c *walker) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, locals []string) *check.Scope {
 	s := check.NewScope()
-	c.Expr(e, s, !c.rule.Novalue && !LeanLine(action, locals))
+	c.Expr(e, s, !c.rule.Novalue && !check.LeanLine(action, locals))
 	if action != nil && !c.rule.Novalue {
 		c.CheckActionExpr(action, s, locals)
 	}
 	return s
 }
-
-// LeanLine is check.LeanLine.
-func LeanLine(action ast.ActionExpr, locals []string) bool { return check.LeanLine(action, locals) }

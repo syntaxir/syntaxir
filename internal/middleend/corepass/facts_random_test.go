@@ -55,7 +55,7 @@ func TestFactsRandom(t *testing.T) {
 			t.Fatal(err)
 		}
 		defs, _ := desugar.UniqueRules(canon.Grammar, nil)
-		sm, err := elaborate.Structural(compile.StructuralInput(canon.Grammar, defs, canon.Starts), true)
+		sm, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}

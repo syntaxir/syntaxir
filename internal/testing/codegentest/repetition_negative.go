@@ -3,7 +3,7 @@ package codegentest
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -16,7 +16,7 @@ func GrammarWithNegativeMaximum(t testing.TB, src string, maximum int) *ast.Gram
 		t.Fatal(err)
 	}
 	for _, r := range g.Rules() {
-		compile.WalkExpr(r.Expr, func(e ast.Expr) {
+		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
 			if rep, ok := e.(*ast.Repeat); ok {
 				rep.Max = maximum
 			}

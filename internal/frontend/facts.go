@@ -107,7 +107,7 @@ func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, c
 		}
 		return st, nil, err
 	}
-	return st, prog.ValueRecord(), nil
+	return st, prog.Checker().ValueRecord(), nil
 }
 
 // structuralOf builds the structural module of the rules of prog, a program that the compiler
