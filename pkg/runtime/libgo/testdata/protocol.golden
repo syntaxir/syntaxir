@@ -1,4 +1,4 @@
-protocol 30
+protocol 31
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -419,7 +419,6 @@ type Parser struct{Control *BudgetControl; Units uint64; UnitsCheck uint64; Obse
 type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
-type RunKey struct{Vars []int; Bind []int}
 type RunState struct{Min int; Max int; Shiftable bool; Done bool; Moved bool; Prefixed bool; Count int; EditStart int; EditEnd int; EditDelta int; K int; J int; T int; Seek int; Barred int; ElemStart int; OuterExamined int; OuterLow int; Mark ExpMark}
 type Shaper struct{Elems bool; K int; Mode singleMode; Tuple bool; Shared bool}
 type StreamPull[T any] struct{}
