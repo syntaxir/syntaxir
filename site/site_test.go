@@ -201,7 +201,8 @@ func TestBuild(t *testing.T) {
 		"index.html": {
 			"<title>SyntaxIR: One Grammar, Every Parser.</title>", `<span>One Grammar,</span> <span>Every Parser.</span>`,
 			`id="workbench" data-grammar="`, `id="live-input" class="wb-input" value="1 &#43; 2 * 3 ^ 2"`, `data-preset="1 &#43; 2 * 3 ^ 2"`,
-			`role="tablist"`, `class="lp-narrow"`, `id="live-fallback" hidden`,
+			`role="tablist"`, `class="lp-narrow"`, `id="live-fallback" hidden`, `<th scope="row">Language server (LSP)</th>`,
+			`<span class="c-rockets" role="img" aria-label="Speed: 3 of 5">`, `<span class="sr-only">Strength: </span>`, `id="compare-speed"`,
 			`assets/landing.css`, `assets/landing.js`, `href="docs/tutorial/getting-started/"`,
 		},
 		"reference/compiler/index.html": {
