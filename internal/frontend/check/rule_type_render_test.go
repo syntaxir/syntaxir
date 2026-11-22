@@ -124,5 +124,5 @@ func TestRuleTypeWithPollPreservesForeignPanic(t *testing.T) {
 
 // shownProgram returns a model that holds types that show the types shown.
 func shownProgram(shown map[string]types.Ty) *Model {
-	return &Model{Typed: NewShownInfo(shown)}
+	return &Model{Typed: &TypeInfo{shown: shown}}
 }

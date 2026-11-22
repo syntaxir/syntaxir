@@ -26,7 +26,7 @@ func TestCompileMetadataCollectionCancellation(t *testing.T) {
 		{"types", func(c *cancel.Control) { c.Types(g) }},
 		{"call-walk", func(c *cancel.Control) { astfacts.AllCallsControlled(expr, nil, c) }},
 		{"type-check-arguments", func(c *cancel.Control) {
-			PollPredicates(c, expr)
+			(&ValueInference{control: c}).predicates(expr, &valueEnv{})
 		}},
 		{"stream-walk", func(c *cancel.Control) { (&Compiler{Control: c}).checkStream(expr) }},
 	} {
@@ -86,5 +86,5 @@ func TestTypeCheckEmptyAttributeCancellation(t *testing.T) {
 			t.Fatalf("empty attribute rows did not stop: %v", failure)
 		}
 	}()
-	PollPredicates(control, &ast.Attributed{Expr: &ast.Literal{Value: "a"}, Attrs: attrs})
+	(&ValueInference{control: control}).predicates(&ast.Attributed{Expr: &ast.Literal{Value: "a"}, Attrs: attrs}, &valueEnv{})
 }
