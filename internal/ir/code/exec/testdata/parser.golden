@@ -1068,7 +1068,7 @@ op grow.begin(r Rule, min int) Grow
     // Starts the growth of the leader at the binding level min at the position from a failure,
     // charging one unit, and present for naming the present set of its context when it is in one: the growth
     // becomes the innermost, with a failed seed that ends at the position. Every failed seed has the same
-    // identity, and every seed that grow.adopt or grow.step adopts has a new one. The growth is in a context
+    // identity, and every seed that grow.adopt or grow.adoptStep adopts has a new one. The growth is in a context
     // when other leaders of its cycle grow at the position.
   requires:
     // r is a leader that does not grow at the position among the growths of its cycle there, and
@@ -1079,7 +1079,7 @@ op grow.ctx(g Grow) bool
   reads growth
   cost <= 0
   contract:
-    // Reports whether the growth g memoizes its steps in its context (grow.next and grow.step): when
+    // Reports whether the growth g memoizes its steps in its context (grow.memoStep and grow.keepStep): when
     // other leaders of its cycle grow at its position, unless the parse keeps no results in contexts. A
     // growth that does not takes its steps with grow.longer and grow.adopt.
   requires:
@@ -1109,33 +1109,79 @@ op grow.adopt(g Grow, value Value, errs Errs)
   requires:
     // g is the innermost growth, grow.ctx(g) is false and grow.longer(g, true) holds.
 
-op grow.next(g Grow) bool
+op grow.memoStep(g Grow) CtxResult
   component growth
-  reads growth
-  writes growth, pos, silent
+  reads growth, silent
+  writes growth, pos
   noreturn
   cost <= 0 + 1*steps + 1*table + 1*deps + 1*merge + 1*run
   contract:
-    // Reports whether the body must be evaluated for the next step of the growth g. It first takes the
-    // steps that the memoized steps and jumps of the context give, and starts recording what the step it
-    // reports depends on.
+    // Takes the steps of the growth g that the table of its context gives, following the jumps it
+    // records: while the table keeps a step from the current seed that holds in the current context, as
+    // ctx.lookup finds a result, and kept outside a lookahead unless the parse is in one, it passes the
+    // dependencies of the step to the enclosing evaluation, merges its expectations into the record and
+    // adopts every step that matched more than the seed, as grow.adoptStep does. It returns the first step
+    // that did not match more, which ends the growth, or the null result when the table keeps no step from
+    // the seed, whose evaluation grow.isolate then begins. A jump takes several of the steps at once with
+    // the same effects as taking them one at a time, so only the seed the steps reach and the step that
+    // ends them are observable.
   requires:
-    // grow.ctx(g) holds, g is the innermost growth, and the step that the last call reported has been received by grow.step.
+    // grow.ctx(g) holds, g is the innermost growth, no step of g is being evaluated, and no step that
+    // grow.keepStep returned is pending: each was adopted by grow.adoptStep or did not grow.
 
-op grow.step(g Grow, value Value, ok bool, errs Errs)
+op grow.isolate(g Grow)
   component growth
   reads growth
-  writes growth, pos, silent
-  noreturn
-  cost <= 66 + 1*merge + 1*segs + 2*deps + 1*table + 1*run
+  writes growth
+  cost <= 0
   contract:
-    // Receives the result of a step of the growth g with the errors errs that it recovered: keeps it in
-    // the context, adopts it as the seed, charging one unit, and returns to the start of the growth if the
-    // match grew, and otherwise ends the growth. It does not change the recovered errors: the caller lists
-    // the errors of the step with rec.since and drops the entries after the mark of the growth with
+    // Starts evaluating a step of the growth g: it records the dependencies of the step, as ctx.push
+    // does, and keeps its examined range and its expectations apart from those of the parse until
+    // grow.keepStep.
+  requires:
+    // As for grow.memoStep, and the last call of grow.memoStep(g) returned the null result.
+
+op grow.keepStep(g Grow, value Value, ok bool, errs Errs) CtxResult
+  component growth
+  reads growth, pos, silent
+  writes growth
+  noreturn
+  cost <= 65 + 1*merge + 1*segs + 2*deps + 1*table
+  contract:
+    // Ends the evaluation of the step of the growth g that grow.isolate started, with its value, its
+    // success ok and the errors errs that it recovered, and returns its result, which ends at the position or,
+    // for a failure, at the start of the growth: it keeps the result in the table of the context with the
+    // dependencies of the step, passes them to the enclosing evaluation, and merges the expectations of the
+    // step into the record. A result equal to an earlier step's of the growth's leader at the position has that
+    // step's identity as a seed, and otherwise a new one. It does not change the recovered errors: the caller
+    // lists the errors of the step with rec.since and drops the entries after the mark of the growth with
     // rec.truncate.
   requires:
-    // grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended. errs is the list that rec.since returns for the mark of the growth, after the entries of a step that failed were dropped.
+    // grow.isolate(g) started the evaluation of a step that has not ended, and the calls that the body
+    // made have ended. errs is the list that rec.since returns for the mark of the growth, after the entries of
+    // a step that failed were dropped.
+
+op grow.grew(g Grow, s CtxResult) bool
+  component growth
+  reads growth
+  cost <= 0
+  contract:
+    // Reports whether the step s of the growth g matched more than its seed: s succeeded, and the seed
+    // failed or ends before s.
+  requires:
+    // s is the step that grow.keepStep returned last for g.
+
+op grow.adoptStep(g Grow, s CtxResult)
+  component growth
+  reads growth
+  writes growth, pos
+  noreturn
+  cost <= 1 + 1*run
+  contract:
+    // Adopts the step s of the growth g as its seed, with the identity of s, charging one unit, and
+    // returns the position to the start of the growth.
+  requires:
+    // grow.grew(g, s) holds, and s is the step that grow.keepStep returned last for g.
 
 op grow.end(g Grow) CtxResult
   component growth
@@ -1147,11 +1193,11 @@ op grow.end(g Grow) CtxResult
     // Ends the growth g and returns its last seed: the position moves to its end. It does not change
     // the recovered errors: the caller drops the entries recorded since the growth began with rec.truncate and
     // records the errors of the seed, as rec.add does or, in the missing-token mode, as missing.replayResult
-    // does. The result is the last seed of the growth, in a context or not: the one that grow.adopt or grow.step
-    // adopted last, or the failed seed if none was; it may be that same result or a copy of it, which is not
+    // does. The result is the last seed of the growth, in a context or not: the one that grow.adopt or
+    // grow.adoptStep adopted last, or the failed seed if none was; it may be that same result or a copy of it, which is not
     // specified, as no operation changes a result.
   requires:
-    // g is the innermost growth, and no step that grow.next reported is pending.
+    // g is the innermost growth, and no step of g is being evaluated.
 
 op obs.memoHit()
   component observe

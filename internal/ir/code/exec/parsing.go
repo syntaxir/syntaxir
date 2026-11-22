@@ -335,13 +335,13 @@ ended, and the examined end of a Document parse.`,
 		Contract: `Starts the growth of the leader at the binding level min at the position from a failure,
 charging one unit, and present for naming the present set of its context when it is in one: the growth
 becomes the innermost, with a failed seed that ends at the position. Every failed seed has the same
-identity, and every seed that grow.adopt or grow.step adopts has a new one. The growth is in a context
+identity, and every seed that grow.adopt or grow.adoptStep adopts has a new one. The growth is in a context
 when other leaders of its cycle grow at the position.`,
 		Requires: `r is a leader that does not grow at the position among the growths of its cycle there, and
 no growth of another cycle at the position is the innermost.`})
 	m.AddOp(&code.Op{Name: "grow.ctx", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{code.TBool},
 		Reads: []string{Growth},
-		Contract: `Reports whether the growth g memoizes its steps in its context (grow.next and grow.step): when
+		Contract: `Reports whether the growth g memoizes its steps in its context (grow.memoStep and grow.keepStep): when
 other leaders of its cycle grow at its position, unless the parse keeps no results in contexts. A
 growth that does not takes its steps with grow.longer and grow.adopt.`,
 		Requires: `g is the innermost growth.`})
@@ -357,31 +357,62 @@ errors errs that it recovered, as the seed of g with a new identity, charging on
 the tokens that the step inserted. The seed it replaces is no longer a valid result. The position then
 returns to the start of the growth.`,
 		Requires: `g is the innermost growth, grow.ctx(g) is false and grow.longer(g, true) holds.`})
-	m.AddOp(&code.Op{Name: "grow.next", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{code.TBool},
-		Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true,
+	growArg := code.P("g", grow)
+	m.AddOp(&code.Op{Name: "grow.memoStep", Component: Growth, Params: []code.Param{growArg}, Results: []code.Type{res},
+		Reads: []string{Growth, Silent}, Writes: []string{Growth, Pos}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QSteps}, {Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QDeps}, {Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QRun}}},
-		Contract: `Reports whether the body must be evaluated for the next step of the growth g. It first takes the
-steps that the memoized steps and jumps of the context give, and starts recording what the step it
-reports depends on.`,
-		Requires: `grow.ctx(g) holds, g is the innermost growth, and the step that the last call reported has been received by grow.step.`})
-	m.AddOp(&code.Op{Name: "grow.step", Component: Growth, Params: []code.Param{code.P("g", grow), code.P("value", value),
-		code.P("ok", code.TBool), code.P("errs", errs)}, Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true,
-		Cost: code.Cost{Const: 66, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QSegs}, {Coef: 2, Quantity: QDeps}, {Coef: 1, Quantity: QTable}, {Coef: 1, Quantity: QRun}}},
-		Contract: `Receives the result of a step of the growth g with the errors errs that it recovered: keeps it in
-the context, adopts it as the seed, charging one unit, and returns to the start of the growth if the
-match grew, and otherwise ends the growth. It does not change the recovered errors: the caller lists
-the errors of the step with rec.since and drops the entries after the mark of the growth with
+		Contract: `Takes the steps of the growth g that the table of its context gives, following the jumps it
+records: while the table keeps a step from the current seed that holds in the current context, as
+ctx.lookup finds a result, and kept outside a lookahead unless the parse is in one, it passes the
+dependencies of the step to the enclosing evaluation, merges its expectations into the record and
+adopts every step that matched more than the seed, as grow.adoptStep does. It returns the first step
+that did not match more, which ends the growth, or the null result when the table keeps no step from
+the seed, whose evaluation grow.isolate then begins. A jump takes several of the steps at once with
+the same effects as taking them one at a time, so only the seed the steps reach and the step that
+ends them are observable.`,
+		Requires: `grow.ctx(g) holds, g is the innermost growth, no step of g is being evaluated, and no step that
+grow.keepStep returned is pending: each was adopted by grow.adoptStep or did not grow.`})
+	m.AddOp(&code.Op{Name: "grow.isolate", Component: Growth, Params: []code.Param{growArg},
+		Reads: []string{Growth}, Writes: []string{Growth},
+		Contract: `Starts evaluating a step of the growth g: it records the dependencies of the step, as ctx.push
+does, and keeps its examined range and its expectations apart from those of the parse until
+grow.keepStep.`,
+		Requires: `As for grow.memoStep, and the last call of grow.memoStep(g) returned the null result.`})
+	m.AddOp(&code.Op{Name: "grow.keepStep", Component: Growth, Params: []code.Param{growArg, code.P("value", value),
+		code.P("ok", code.TBool), code.P("errs", errs)}, Results: []code.Type{res}, Reads: []string{Growth, Pos, Silent},
+		Writes: []string{Growth}, NoReturn: true,
+		Cost: code.Cost{Const: 65, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QSegs}, {Coef: 2, Quantity: QDeps}, {Coef: 1, Quantity: QTable}}},
+		Contract: `Ends the evaluation of the step of the growth g that grow.isolate started, with its value, its
+success ok and the errors errs that it recovered, and returns its result, which ends at the position or,
+for a failure, at the start of the growth: it keeps the result in the table of the context with the
+dependencies of the step, passes them to the enclosing evaluation, and merges the expectations of the
+step into the record. A result equal to an earlier step's of the growth's leader at the position has that
+step's identity as a seed, and otherwise a new one. It does not change the recovered errors: the caller
+lists the errors of the step with rec.since and drops the entries after the mark of the growth with
 rec.truncate.`,
-		Requires: `grow.ctx(g) holds, and the last call of grow.next(g) returned true and its step has not been received yet; the calls that the body made have ended. errs is the list that rec.since returns for the mark of the growth, after the entries of a step that failed were dropped.`})
+		Requires: `grow.isolate(g) started the evaluation of a step that has not ended, and the calls that the body
+made have ended. errs is the list that rec.since returns for the mark of the growth, after the entries of
+a step that failed were dropped.`})
+	m.AddOp(&code.Op{Name: "grow.grew", Component: Growth, Params: []code.Param{growArg, code.P("s", res)},
+		Results: []code.Type{code.TBool}, Reads: []string{Growth},
+		Contract: `Reports whether the step s of the growth g matched more than its seed: s succeeded, and the seed
+failed or ends before s.`,
+		Requires: `s is the step that grow.keepStep returned last for g.`})
+	m.AddOp(&code.Op{Name: "grow.adoptStep", Component: Growth, Params: []code.Param{growArg, code.P("s", res)},
+		Reads: []string{Growth}, Writes: []string{Growth, Pos}, NoReturn: true,
+		Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}}},
+		Contract: `Adopts the step s of the growth g as its seed, with the identity of s, charging one unit, and
+returns the position to the start of the growth.`,
+		Requires: `grow.grew(g, s) holds, and s is the step that grow.keepStep returned last for g.`})
 	m.AddOp(&code.Op{Name: "grow.end", Component: Growth, Params: []code.Param{code.P("g", grow)}, Results: []code.Type{res},
 		Reads: []string{Growth}, Writes: append([]string{Growth}, regs...), NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRun}, {Coef: 1, Quantity: QErrs}}},
 		Contract: `Ends the growth g and returns its last seed: the position moves to its end. It does not change
 the recovered errors: the caller drops the entries recorded since the growth began with rec.truncate and
 records the errors of the seed, as rec.add does or, in the missing-token mode, as missing.replayResult
-does. The result is the last seed of the growth, in a context or not: the one that grow.adopt or grow.step
-adopted last, or the failed seed if none was; it may be that same result or a copy of it, which is not
+does. The result is the last seed of the growth, in a context or not: the one that grow.adopt or
+grow.adoptStep adopted last, or the failed seed if none was; it may be that same result or a copy of it, which is not
 specified, as no operation changes a result.`,
-		Requires: `g is the innermost growth, and no step that grow.next reported is pending.`})
+		Requires: `g is the innermost growth, and no step of g is being evaluated.`})
 
 	m.AddOp(&code.Op{Name: "obs.memoHit", Component: Obs, Writes: []string{Obs}, Features: []string{Observe},
 		Contract: `Counts a reuse of a memo entry in the observation, if the parse is observed.`})

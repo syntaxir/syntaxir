@@ -233,7 +233,8 @@ func GoOprBindings() (string, error) {
 var ctxBindingOps = []string{
 	"ctx.enter", "ctx.found", "ctx.ok", "ctx.value", "ctx.end", "ctx.errs", "ctx.far", "ctx.expected",
 	"ctx.allows", "ctx.active", "ctx.lookup", "ctx.push", "ctx.pop", "ctx.storeMemo", "ctx.storeCtx", "memo.setPresent",
-	"ctx.keep", "ctx.done", "grow.begin", "grow.ctx", "grow.longer", "grow.adopt", "grow.next", "grow.step", "grow.end",
+	"ctx.keep", "ctx.done", "grow.begin", "grow.ctx", "grow.longer", "grow.adopt",
+	"grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end",
 }
 
 // engineCtxBindingsFile is the file of the engine's conformance bindings of the dependency memo,

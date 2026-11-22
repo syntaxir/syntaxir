@@ -143,7 +143,7 @@ var engineObservationMutants = []engineObservationMutant{
 		old: "this.documentTouch(s.examined);", new: "void s;",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "examined ends of")}},
 	// Two records of the examined end in a growth, in both libraries, are left without a mutant, as no parse
-	// can observe them: the touch of a jump's examined end (growNext) and the maximum that recordJumps takes
+	// can observe them: the touch of a jump's examined end (growMemoStep) and the maximum that recordJumps takes
 	// for it. A jump
 	// stands for a run of steps that each grew the match, and every evaluation of the body at the growth's
 	// position follows the same path until it first reads the growing seed, so each of those steps read
@@ -169,7 +169,7 @@ var engineObservationMutants = []engineObservationMutant{
 		old: "\t\t\tp.Document.stats.Reused++\n\t\t}\n\t}\n\tp.recordJumps(g)", new: "\t\t}\n\t}\n\tp.recordJumps(g)",
 		runs: []engineObservationRun{expecting(agreementRun, "generated Document evaluated")}},
 	{name: "generated growth that evaluates reported as a memo hit", file: "pkg/runtime/libgo/context_memo.go",
-		old: "\t\tg.evaluated = true\n", new: "",
+		old: "\tg.evaluated = true\n", new: "",
 		runs: []engineObservationRun{expecting(agreementRun, "exit of b@0")}},
 	{name: "typescript growth from the context reports no memo hit", file: "internal/backend/codegen/typescript/lib/lib.ts",
 		old: "  contextReused(): void {\n    this.observation?.memoHit();\n  }", new: "  contextReused(): void {\n  }",
@@ -178,14 +178,13 @@ var engineObservationMutants = []engineObservationMutant{
 		old: "    super.contextReused();\n    this.reused++;", new: "    super.contextReused();",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "typescript Document evaluated")}},
 	{name: "typescript growth that evaluates reported as a memo hit", file: "internal/backend/codegen/typescript/lib/lib.ts",
-		old: "      g.evaluated = true;\n", new: "",
+		old: "    g.evaluated = true;\n", new: "",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "exit of b@0")}},
 	{name: "engine growth from the context not counted as a reuse", file: "internal/runtime/state/runtime.go",
 		old: "\t\tp.Stats.Reused++\n\t}\n\tp.recordJumps(g)", new: "\t}\n\tp.recordJumps(g)",
 		runs: []engineObservationRun{expecting(agreementRun, "engine Document evaluated")}},
 	{name: "engine growth that evaluates counted as a reuse", file: "internal/runtime/state/runtime.go",
-		old:  "\t\t// Evaluate the step, with its own frame, examined range and expectations.\n\t\tg.evaluated = true\n",
-		new:  "\t\t// Evaluate the step, with its own frame, examined range and expectations.\n",
+		old: "\tg.evaluated = true\n", new: "",
 		runs: []engineObservationRun{expecting(agreementRun, "engine Document evaluated")}},
 	{name: "typescript library control", file: "internal/backend/codegen/typescript/lib/trace.ts",
 		old: "  release(): void {\n", new: "  release(): void {\n    void 0;\n",

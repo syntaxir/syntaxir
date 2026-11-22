@@ -193,18 +193,41 @@ func (p *Parser) confGrowAdopt(g GrowState, value *sxirvalue.Node, errs RecEntry
 	return g
 }
 
-// confGrowNext runs grow.next for the conformance suite.
-// Printed from Exec IR function confGrowNext of internal/ir/code/exec/compose.
-func (p *Parser) confGrowNext(g GrowState) (bool, GrowState) {
-	var r bool
-	r = p.GrowNext(&g)
+// confGrowMemoStep runs grow.memoStep for the conformance suite.
+// Printed from Exec IR function confGrowMemoStep of internal/ir/code/exec/compose.
+func (p *Parser) confGrowMemoStep(g GrowState) (ctxHit, GrowState) {
+	var r ctxHit
+	r = p.growMemoStep(&g)
 	return r, g
 }
 
-// confGrowStep runs grow.step for the conformance suite.
-// Printed from Exec IR function confGrowStep of internal/ir/code/exec/compose.
-func (p *Parser) confGrowStep(g GrowState, value *sxirvalue.Node, ok bool, errs RecEntry) GrowState {
-	p.GrowStep(&g, value, ok, errs)
+// confGrowIsolate runs grow.isolate for the conformance suite.
+// Printed from Exec IR function confGrowIsolate of internal/ir/code/exec/compose.
+func (p *Parser) confGrowIsolate(g GrowState) GrowState {
+	p.growIsolate(&g)
+	return g
+}
+
+// confGrowKeepStep runs grow.keepStep for the conformance suite.
+// Printed from Exec IR function confGrowKeepStep of internal/ir/code/exec/compose.
+func (p *Parser) confGrowKeepStep(g GrowState, value *sxirvalue.Node, ok bool, errs RecEntry) (ctxHit, GrowState) {
+	var r ctxHit
+	r = p.growKeepStep(&g, value, ok, errs)
+	return r, g
+}
+
+// confGrowGrew runs grow.grew for the conformance suite.
+// Printed from Exec IR function confGrowGrew of internal/ir/code/exec/compose.
+func (p *Parser) confGrowGrew(g GrowState, s ctxHit) (bool, GrowState) {
+	var r bool
+	r = p.growGrew(&g, s)
+	return r, g
+}
+
+// confGrowAdoptStep runs grow.adoptStep for the conformance suite.
+// Printed from Exec IR function confGrowAdoptStep of internal/ir/code/exec/compose.
+func (p *Parser) confGrowAdoptStep(g GrowState, s ctxHit) GrowState {
+	p.growAdoptStep(&g, s)
 	return g
 }
 
@@ -233,7 +256,10 @@ func confCtxBindings(p *Parser) map[string]any {
 		"grow.ctx":        p.confGrowCtx,
 		"grow.longer":     p.confGrowLonger,
 		"grow.adopt":      p.confGrowAdopt,
-		"grow.next":       p.confGrowNext,
-		"grow.step":       p.confGrowStep,
+		"grow.memoStep":   p.confGrowMemoStep,
+		"grow.isolate":    p.confGrowIsolate,
+		"grow.keepStep":   p.confGrowKeepStep,
+		"grow.grew":       p.confGrowGrew,
+		"grow.adoptStep":  p.confGrowAdoptStep,
 	}
 }

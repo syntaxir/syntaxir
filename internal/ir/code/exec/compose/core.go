@@ -411,13 +411,17 @@ the rule is called at the position again, or its memoization is no longer deferr
 	growBody := func(b *Builder, reset func(b *Builder), replay bool) {
 		g := b.Let("g", C("grow.begin", r, L("min")))
 		b.IfElse(C("grow.ctx", g), func(b *Builder) {
+			// The steps that the context keeps are taken from it; a step it does not keep is evaluated.
 			b.Loop("l", func(b *Builder) {
-				b.If(Not(C("grow.next", g)), func(b *Builder) { b.Break("l") })
+				b.If(C("ctx.found", C("grow.memoStep", g)), func(b *Builder) { b.Break("l") })
+				b.Do("grow.isolate", g)
 				b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
 				// A step that failed holds no errors: the ones it recovered are dropped first.
 				b.If(Not(L("ok")), func(b *Builder) { b.Do("rec.truncate", L("rec")) })
-				b.Do("grow.step", g, L("v"), L("ok"), C("rec.since", L("rec")))
+				s := b.Let("s", C("grow.keepStep", g, L("v"), L("ok"), C("rec.since", L("rec"))))
 				b.Do("rec.truncate", L("rec"))
+				b.If(Not(C("grow.grew", g, s)), func(b *Builder) { b.Break("l") })
+				b.Do("grow.adoptStep", g, s)
 			})
 		}, func(b *Builder) { steps(b, g, reset) })
 		best := b.Let("best", C("grow.end", g))

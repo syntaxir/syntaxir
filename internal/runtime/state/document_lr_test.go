@@ -34,7 +34,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		var headCall state.CallState
 		p.CallBegin(head, 0, &headCall)
 		growth := p.GrowBegin(p.GrowKey(head, 0), head)
-		if !p.GrowNext(&growth) {
+		if !p.GrowNextVM(&growth) {
 			t.Fatal("the growth did not evaluate its first step")
 		}
 		var mCall state.CallState
@@ -50,7 +50,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 			t.Fatalf("a result that read the growing seed was stored in the memo table: %+v", e)
 		}
 		p.GrowStepVM(&growth, nil, false)
-		if p.GrowNext(&growth) {
+		if p.GrowNextVM(&growth) {
 			t.Fatal("a failed step continued the growth")
 		}
 		v, ok := p.GrowEndVM(head, &growth)
@@ -65,7 +65,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		var headCall state.CallState
 		p.CallBegin(head, 0, &headCall)
 		growth := p.GrowBegin(p.GrowKey(head, 0), head)
-		p.GrowNext(&growth)
+		p.GrowNextVM(&growth)
 		var mCall state.CallState
 		p.CallBegin(m, 0, &mCall)
 		p.CallEnd(m, &mCall, nil, false)
@@ -76,7 +76,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 			t.Fatal("the result was not reused while the leader grows")
 		}
 		p.GrowStepVM(&growth, nil, false)
-		p.GrowNext(&growth)
+		p.GrowNextVM(&growth)
 		v, ok := p.GrowEndVM(head, &growth)
 		p.CallEnd(head, &headCall, v, ok)
 	})
@@ -86,28 +86,28 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 		var outerCall state.CallState
 		p.CallBegin(outer, 0, &outerCall)
 		outerGrow := p.GrowBegin(p.GrowKey(outer, 0), outer)
-		p.GrowNext(&outerGrow)
+		p.GrowNextVM(&outerGrow)
 		var innerCall state.CallState
 		_, _, hit := p.CallBegin(inner, 0, &innerCall)
 		if hit {
 			t.Fatal("the inner leader was reused before it grew")
 		}
 		innerGrow := p.GrowBegin(p.GrowKey(inner, 0), inner)
-		if !p.GrowNext(&innerGrow) {
+		if !p.GrowNextVM(&innerGrow) {
 			t.Fatal("the inner growth did not evaluate its first step")
 		}
 		if _, _, hit := p.CallBegin(outer, 0, &state.CallState{}); !hit {
 			t.Fatal("outer seed was not read")
 		}
 		p.GrowStepVM(&innerGrow, nil, false)
-		p.GrowNext(&innerGrow)
+		p.GrowNextVM(&innerGrow)
 		v, ok := p.GrowEndVM(inner, &innerGrow)
 		p.CallEnd(inner, &innerCall, v, ok)
 		if _, found := p.Memo.Get(state.MemoKey{Rule: inner.ID}); found {
 			t.Fatal("the inner result, which read the outer seed, was stored in the memo table")
 		}
 		p.GrowStepVM(&outerGrow, nil, false)
-		p.GrowNext(&outerGrow)
+		p.GrowNextVM(&outerGrow)
 		v, ok = p.GrowEndVM(outer, &outerGrow)
 		p.CallEnd(outer, &outerCall, v, ok)
 		if e, found := p.Memo.Get(state.MemoKey{Rule: outer.ID}); !found || e.Present != 0 {
@@ -133,7 +133,7 @@ func memoStepSeedReads(t *testing.T, mutation int) (bodySteps, seedReads int) {
 	var outerCall state.CallState
 	p.CallBegin(outer, 0, &outerCall)
 	outerGrow := p.GrowBegin(p.GrowKey(outer, 0), outer)
-	p.GrowNext(&outerGrow)
+	p.GrowNextVM(&outerGrow)
 	grow := func(call bool) (steps int) {
 		p.Pos = 0
 		var innerCall state.CallState
@@ -141,7 +141,7 @@ func memoStepSeedReads(t *testing.T, mutation int) (bodySteps, seedReads int) {
 			p.CallBegin(inner, 0, &innerCall)
 		}
 		g := p.GrowBegin(p.GrowKey(inner, 0), inner)
-		for p.GrowNext(&g) {
+		for p.GrowNextVM(&g) {
 			steps++
 			p.CallBegin(inner, 0, &state.CallState{})
 			p.Pos = 0

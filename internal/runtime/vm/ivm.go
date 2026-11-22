@@ -421,7 +421,7 @@ func (f *callFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 		}
 		if r.Leader {
 			f.g = p.GrowBegin(p.GrowKey(r, f.min), r)
-			if !p.GrowNext(&f.g) {
+			if !p.GrowNextVM(&f.g) {
 				v, ok = p.GrowEndVM(r, &f.g)
 				if p.MemoAll {
 					v, ok = p.CallEndDoc(r, &f.st, v, ok)
@@ -443,7 +443,7 @@ func (f *callFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 		}
 		if r.Leader {
 			p.GrowStepVM(&f.g, v, ok)
-			if p.GrowNext(&f.g) {
+			if p.GrowNextVM(&f.g) {
 				return f.invoke(mc), iresult{}, false
 			}
 			v, ok = p.GrowEndVM(r, &f.g)

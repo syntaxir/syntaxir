@@ -267,7 +267,7 @@ func Cases() []Case {
 	return cs
 }
 
-// growthSteps records the errors of two steps of a left-recursion growth as grow.step and grow.end
+// growthSteps records the errors of two steps of a left-recursion growth as grow.keepStep and grow.end
 // state them: each step takes the errors it recovered after the growth's mark as one list and drops
 // them when it returns to the start, and the second step replays the seed of the first, the list of
 // two errors, before it recovers one more. The end records the last seed's list again. Without the

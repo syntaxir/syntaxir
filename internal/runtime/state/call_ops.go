@@ -145,8 +145,7 @@ const (
 // at the position, or a result kept in the table of the context, or the last result of a growth. e
 // is nil for none.
 type ctxHit struct {
-	e    *MemoEntry
-	seed bool
+	e *MemoEntry
 }
 
 // ctxEnter begins the memoized call of rule r, a rule of a left-recursive cycle, at binding level
@@ -162,7 +161,7 @@ func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) ctxHit {
 		// A leader that grows here reads its seed, whatever its variable values.
 		if i := p.gammaFind(gp, r.ID, min, p.Missing != nil && r.Missing && p.Silent > 0); i >= 0 {
 			p.noteSeedRead(i)
-			return ctxHit{e: p.Gamma[i].seed, seed: true}
+			return ctxHit{e: p.Gamma[i].seed}
 		}
 	}
 	c.ctx = true

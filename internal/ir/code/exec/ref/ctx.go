@@ -129,12 +129,16 @@ type GrowState struct {
 	serial uint64
 	// present is the present set of the context of a growth in one.
 	present uint64
-	// done is set when a step did not grow the seed, evaluating while a step is between grow.next and
-	// grow.step, with the number of frames after the step's frame began, and the isolation of its
-	// expectations.
-	done, evaluating bool
-	frame            int
-	exp              *ExpMark
+	// evaluating is set while a step is between grow.isolate and grow.keepStep, with the number of
+	// frames after the step's frame began and the isolation of its expectations; missed is set when the
+	// last grow.memoStep found no step.
+	evaluating, missed bool
+	frame              int
+	exp                *ExpMark
+	// pending is the step that grow.keepStep returned last, with its identity as a seed, until
+	// grow.adoptStep adopts it or grow.grew reports that it did not grow.
+	pending   *CtxResult
+	pendingID uint64
 }
 
 // failSeed is the identity of every failed seed of grow.begin. The identities of the seeds that
@@ -564,7 +568,7 @@ func (m *Model) allowsCtx(o *code.Op, args []any) bool {
 	case "ctx.done":
 		c := args[0].(*CtxState)
 		return c.popped >= 0 && !c.done
-	case "grow.next", "grow.step", "grow.end":
+	case "grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end":
 		allowed, _ := m.allowsGrow(o, args)
 		return allowed
 	case CtxGrowOp, "grow.begin":
@@ -624,7 +628,7 @@ func (m *Model) callCtx(o *code.Op, args []any) ([]any, bool) {
 			g.present = s.present(g.gp)
 		}
 		return []any{g}, true
-	case "grow.next", "grow.step", "grow.end":
+	case "grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end":
 		return m.callGrow(o, args)
 	case "grow.ctx":
 		g := args[0].(*GrowState)

@@ -110,7 +110,7 @@ func TestBudgetDiagnosticRecoveredLists(t *testing.T) {
 					pushRecords()
 					steps++ // the growth step
 					run = func() {
-						if p.GrowStepVM(&g, retained, true); !p.GrowNext(&g) {
+						if p.GrowStepVM(&g, retained, true); !p.GrowNextVM(&g) {
 							t.Fatal("LR seed did not grow")
 						}
 					}

@@ -18,8 +18,8 @@
 //     installs its state when a parse first needs it and finds it again through Parser.Backend.
 //
 // A backend may use the exported state and methods of Parser: it calls rules through Parser.Call
-// (or the steps CallBegin, GrowBegin, GrowStep, GrowEnd, InvokeBegin, InvokeEnd and CallEnd when
-// it keeps its own call stack, as the iterative VM does), records expectations (Parser.Expect,
+// (or the steps CallBegin, GrowBegin, GrowNextVM, GrowStepVM, GrowEndVM, InvokeBegin, InvokeEnd and
+// CallEnd when it keeps its own call stack, as the iterative VM does), records expectations (Parser.Expect,
 // Parser.Isolate, Parser.Unisolate), saves and restores the backtracking state (Parser.Mark,
 // Parser.Reset), allocates values and frames from the parser's chunks, and spends its budget on
 // the parser's BudgetControl. A backend does not change the memo table, the input or the

@@ -314,15 +314,20 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 		g := p.GrowBegin(p.GrowKey(r, min), r)
 		if g.ctx {
 			for {
-				if !p.GrowNext(&g) {
+				if p.growMemoStep(&g).e != nil {
 					break
 				}
+				p.growIsolate(&g)
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
 				}
-				p.GrowStep(&g, v, ok, p.recSince(rec))
+				s := p.growKeepStep(&g, v, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
+				if !p.growGrew(&g, s) {
+					break
+				}
+				p.growAdoptStep(&g, s)
 			}
 		} else {
 			for {

@@ -240,7 +240,7 @@ func goTarget(s goSpec) *print.Target {
 	// created is the field of the nodes that terms and actions create.
 	created := "created"
 	rule := func(r string) string { return r }
-	// step passes the value of a growth step as the node or the typed value of growStep.
+	// step passes the value of a growth step as the node or the typed value of growAdopt and growKeepStep.
 	step := func(v string) string { return v + ", nil" }
 	if typed {
 		t.Recv = "p *TParser"
@@ -612,10 +612,16 @@ func goTarget(s goSpec) *print.Target {
 			return fmt.Sprintf("p.growLonger(&%s, %s)", a[0], a[1])
 		case "grow.adopt":
 			return fmt.Sprintf("p.growAdopt(&%s, %s, %s)", a[0], step(a[1]), a[2])
-		case "grow.next":
-			return "p.growNext(&" + a[0] + ")"
-		case "grow.step":
-			return fmt.Sprintf("p.growStep(&%s, %s, %s, %s)", a[0], step(a[1]), a[2], a[3])
+		case "grow.memoStep":
+			return "p.growMemoStep(&" + a[0] + ")"
+		case "grow.isolate":
+			return "p.growIsolate(&" + a[0] + ")"
+		case "grow.keepStep":
+			return fmt.Sprintf("p.growKeepStep(&%s, %s, %s, %s)", a[0], step(a[1]), a[2], a[3])
+		case "grow.grew":
+			return fmt.Sprintf("p.growGrew(&%s, %s)", a[0], a[1])
+		case "grow.adoptStep":
+			return fmt.Sprintf("p.growAdoptStep(&%s, %s)", a[0], a[1])
 		case "grow.end":
 			return "p.growEnd(&" + a[0] + ")"
 		}

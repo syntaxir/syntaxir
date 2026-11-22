@@ -141,7 +141,7 @@ are the following.
 | `run_scan` | The number of old elements from the one the search finds to the end of the run. |
 | `run_search` | The number of bits of the count of old elements that the run has not passed: what a binary search for the next element inspects. |
 | `run` | For each step of the run of the growth that the call records as jumps (the steps since the last step that read another seed): one, one for each jump recorded before from its seed, and the expectations of its set when its farthest position is that of the steps after it. |
-| `segs` | The number of entries of the recovered-error list after the mark of the call, or for grow.step after the mark that the growth took when it began: errors that rec.push recorded and lists that rec.add recorded or rec.since put in their place. |
+| `segs` | The number of entries of the recovered-error list after the mark of the call, or for grow.adopt and grow.keepStep after the mark that the growth took when it began: errors that rec.push recorded and lists that rec.add recorded or rec.since put in their place. |
 | `seq_len` | The number of elements of the Seq argument of a primitive, which it copies. |
 | `set` | The number of expectations of the set that the call takes. |
 | `steps` | The number of memoized steps and jumps that the call takes. |

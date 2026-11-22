@@ -537,10 +537,16 @@ var tsTarget = &Target{
 			return fmt.Sprintf("this.growLonger(%s, %s)", a[0], a[1])
 		case "grow.adopt":
 			return fmt.Sprintf("this.growAdopt(%s, %s, %s)", a[0], a[1], a[2])
-		case "grow.next":
-			return "this.growNext(" + a[0] + ")"
-		case "grow.step":
-			return fmt.Sprintf("this.growStep(%s, %s, %s, %s)", a[0], a[1], a[2], a[3])
+		case "grow.memoStep":
+			return "this.growMemoStep(" + a[0] + ")"
+		case "grow.isolate":
+			return "this.growIsolate(" + a[0] + ")"
+		case "grow.keepStep":
+			return fmt.Sprintf("this.growKeepStep(%s, %s, %s, %s)", a[0], a[1], a[2], a[3])
+		case "grow.grew":
+			return fmt.Sprintf("this.growGrew(%s, %s)", a[0], a[1])
+		case "grow.adoptStep":
+			return fmt.Sprintf("this.growAdoptStep(%s, %s)", a[0], a[1])
 		case "grow.end":
 			return "this.growEnd(" + a[0] + ")"
 		}

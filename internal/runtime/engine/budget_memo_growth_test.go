@@ -73,12 +73,12 @@ rule expr = expr "a" / "a"`)
 	begin := 1<<10 - (p.Control.Limits.Compute - p.Control.Used)
 	p.Pos = 1
 	used := p.Control.Used
-	if p.GrowStepVM(&g, retained, true); !p.GrowNext(&g) {
+	if p.GrowStepVM(&g, retained, true); !p.GrowNextVM(&g) {
 		t.Fatal("the seed did not grow")
 	}
 	step := p.Control.Used - used
 	p.Pos, used = 1, p.Control.Used
-	if p.GrowStepVM(&g, retained, true); p.GrowNext(&g) || p.Control.Used != used {
+	if p.GrowStepVM(&g, retained, true); p.GrowNextVM(&g) || p.Control.Used != used {
 		t.Fatalf("a step that does not grow charged %d units, want 0: no evaluation follows it", p.Control.Used-used)
 	}
 	p.ReleaseScratch()

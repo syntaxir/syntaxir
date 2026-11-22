@@ -197,7 +197,6 @@ docs/design/records/062-backend-independent-optimization-ir.md	unexport	document
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	firstTerminal	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	growBegin	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	growEnd	1
-docs/design/records/062-backend-independent-optimization-ir.md	unexport	growStep	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	prepareControlledProgram	2
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	qualifyLib	2
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	terminalProgram	2
@@ -253,7 +252,6 @@ docs/design/records/065-exec-ir-parser-vm.md	unexport	editReuse	1
 docs/design/records/065-exec-ir-parser-vm.md	unexport	envValues	2
 docs/design/records/065-exec-ir-parser-vm.md	unexport	firstCall	2
 docs/design/records/065-exec-ir-parser-vm.md	unexport	frameScratch	1
-docs/design/records/065-exec-ir-parser-vm.md	unexport	growNext	1
 docs/design/records/065-exec-ir-parser-vm.md	unexport	markSeen	2
 docs/design/records/065-exec-ir-parser-vm.md	unexport	markSparseSeen	2
 docs/design/records/065-exec-ir-parser-vm.md	unexport	memoEntry	1

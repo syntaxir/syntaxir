@@ -268,7 +268,7 @@ func TestEngineCtxConformance(t *testing.T) {
 	}
 	for _, s := range ctxSuites() {
 		fails, ran := ctxConformanceFailures(s, seeds, 200)
-		// The controlled suite leaves out grow.next, grow.step and grow.end (the model declares no cost for them,
+		// The controlled suite leaves out the steps of a growth in a context and grow.end (the model declares no cost for them,
 		// TODO #310), so it skips the cases that use them: of the 318 cases that the uncontrolled suite runs
 		// with 300 seeds, 245 run. Three quarters of the seeds is the floor, just under that count: it keeps
 		// cases from being skipped by mistake; the uncontrolled suite runs them all.

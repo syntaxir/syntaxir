@@ -252,12 +252,11 @@ var siteCost = map[string][]string{
 	"Parser.growBegin":             {""},
 	"Parser.presentWide":           {exec.QPresent},
 	"Parser.intern":                {exec.QPresent},
-	"Parser.growStep":              {""},
 	"Parser.growAdopt":             {""},
+	"Parser.adoptGrownStep":        {exec.QSteps, ""},
 	"Parser.canonicalSeed":         {""},
 	"Parser.nodesEqual":            {""},
 	"Parser.valuesEqual":           {""},
-	"Parser.advance":               {exec.QSteps, ""},
 	// The moves of the values of memo entries after Document edits, and the box that val.box makes:
 	// one unit for each node made.
 	"Parser.NewNode":    {exec.QMoved, ""},

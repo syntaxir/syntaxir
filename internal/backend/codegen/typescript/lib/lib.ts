@@ -2667,9 +2667,10 @@ interface CtxTable {
 
 // GrowState is the state of the growth of a leader: its key, start and recovered errors, its index
 // in gamma and that of the first growth of its cycle at the position, whether it grows in a context
-// (whose steps are memoized with the present set present), whether it is done, the examined end and
-// the expectation mark of the step being evaluated in a context, and the steps since the last step
-// that read a seed other than the leader's own.
+// (whose steps are memoized with the present set present), the examined end and the expectation mark
+// of the step being evaluated in a context, the steps since the last step that read a seed other than
+// the leader's own, and the step that growKeepStep returned last, until growAdoptStep adopts it: its
+// identity as a seed and what it recorded.
 export interface GrowState {
   rule: number;
   min: number;
@@ -2678,12 +2679,13 @@ export interface GrowState {
   gp: number;
   ctx: boolean;
   present: number;
-  done: boolean;
-  // evaluated reports that a growth in a context evaluated the body for a step (growNext, growEnd).
+  // evaluated reports that a growth in a context evaluated the body for a step (growIsolate, growEnd).
   evaluated: boolean;
   savedExamined: number;
   exp: number;
   run: RunStep[];
+  pendID: number;
+  pendStep: RunStep | null;
 }
 
 // RunStep is a step of a run of a growth: the seed it started from and what it recorded.
@@ -4144,15 +4146,20 @@ export class Parser {
       const g = this.growBegin(r, min);
       if (g.ctx) {
         for (;;) {
-          if (!this.growNext(g)) {
+          if (this.growMemoStep(g) !== null) {
             break;
           }
+          this.growIsolate(g);
           const v = this.invoke(r, min);
           if (v === undefined) {
             this.recovered.length = rec;
           }
-          this.growStep(g, v, v !== undefined, this.recSince(rec));
+          const s = this.growKeepStep(g, v, v !== undefined, this.recSince(rec));
           this.recovered.length = rec;
+          if (!this.growGrew(g, s)) {
+            break;
+          }
+          this.growAdoptStep(g, s);
         }
       } else {
         for (;;) {
@@ -4751,14 +4758,14 @@ export class Parser {
   }
 
   // growBegin starts the growth of the leader r at level min at the current position from a failure.
-  // A growth in a context, where another leader of its cycle grows, memoizes its steps (growNext).
+  // A growth in a context, where another leader of its cycle grows, memoizes its steps (growMemoStep, growKeepStep).
   growBegin(r: Rule, min: number): GrowState {
     // One budget unit before each evaluation of the body, the seed's included.
     this.spend();
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
-    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, done: false, evaluated: false, savedExamined: 0, exp: 0, run: [] };
+    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, exp: 0, run: [], pendID: 0, pendStep: null };
     this.alloc(objectBytes(7) + objectBytes(8));
     this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
     if (gp < gi) {
@@ -4769,12 +4776,11 @@ export class Parser {
     return g;
   }
 
-  // growNext reports whether the body must be evaluated for the next step. In a context it first
-  // takes the steps it can from the jumps and the memoized steps.
-  growNext(g: GrowState): boolean {
-    if (g.done) {
-      return false;
-    }
+  // growMemoStep takes the steps of a growth in a context that its table gives, from the jumps and the
+  // memoized steps, replaying their dependencies and merging their expectations, and adopts each step
+  // that grew. It returns the first memoized step that did not grow, or null when the table keeps no step
+  // from the seed.
+  growMemoStep(g: GrowState): CtxResult | null {
     for (;;) {
       const id = this.gamma[g.gi]!.id;
       const j = this.findJump(g, id);
@@ -4789,29 +4795,33 @@ export class Parser {
         continue;
       }
       const s = this.ctxFind(g.start, g.gp, headKey(ctxStepKind, g.rule, g.min, g.present), g.present, null);
-      if (s !== null && this.reusable(s.silent)) {
-        this.replayDeps(g.start, g.gp, g.present, s.deps);
-        this.mergeKept(s.far, s.exp);
-        // A step taken from the context records what it examined, like every other reuse: the last
-        // step of a growth, which does not grow, can be taken from the context, and nothing else
-        // records how far it examined.
-        this.documentTouch(s.examined);
-        this.documentTouchFrom(g.start - 1); // conservative, like the replay of a kept result
-        if (!this.advance(g, s.e!, s.id, { seed: id, far: s.far, exp: s.exp, examined: s.examined, silent: s.silent, deps: s.deps })) {
-          return false;
-        }
-        continue;
+      if (s === null || !this.reusable(s.silent)) {
+        return null;
       }
-      // Evaluate the step, with its own frame, examined end and expectations.
-      g.evaluated = true;
-      this.pushFrame(g.start, g.gp);
-      if (this.track) {
-        g.savedExamined = this.docExamined;
-        this.docExamined = g.start;
+      this.replayDeps(g.start, g.gp, g.present, s.deps);
+      this.mergeKept(s.far, s.exp);
+      // A step taken from the context records what it examined, like every other reuse: the last step
+      // of a growth, which does not grow, can be taken from the context, and nothing else records how
+      // far it examined.
+      this.documentTouch(s.examined);
+      this.documentTouchFrom(g.start - 1); // conservative, like the replay of a kept result
+      if (!this.growGrew(g, s.e)) {
+        return s.e!;
       }
-      g.exp = this.isolate();
-      return true;
+      this.adoptGrownStep(g, s.e!, s.id, { seed: id, far: s.far, exp: s.exp, examined: s.examined, silent: s.silent, deps: s.deps });
     }
+  }
+
+  // growIsolate starts evaluating a step of a growth in a context, with its own frame, examined end and
+  // expectations.
+  growIsolate(g: GrowState): void {
+    g.evaluated = true;
+    this.pushFrame(g.start, g.gp);
+    if (this.track) {
+      g.savedExamined = this.docExamined;
+      this.docExamined = g.start;
+    }
+    g.exp = this.isolate();
   }
 
   // growLonger reports whether a step of a growth outside a context, with success ok and ending at the
@@ -4833,10 +4843,11 @@ export class Parser {
     this.pos = g.start;
   }
 
-  // growStep receives the result of a step of a growth in a context, with the errors errs that it recovered
-  // if it succeeded, and adopts it as the seed if the match grew. It does not change the recovered errors:
-  // the printed growth lists the errors of the step with recSince and drops them after the step.
-  growStep(g: GrowState, v: R, ok: boolean, errs: Errs): void {
+  // growKeepStep ends the evaluation of a step of a growth in a context that growIsolate began, with
+  // its value v, its success ok and the errors errs that it recovered if it succeeded, keeps the result
+  // in the table of the context and returns it. It does not change the recovered errors: the printed
+  // growth lists the errors of the step with recSince and drops them after the step.
+  growKeepStep(g: GrowState, v: R, ok: boolean, errs: Errs): CtxResult {
     const id = this.gamma[g.gi]!.id;
     const ds = this.popFrame().deps;
     const far = this.unisolate(g.exp);
@@ -4859,7 +4870,15 @@ export class Parser {
     slot.silent = this.silent > 0;
     this.ctxStore(g.start, g.gp, headKey(ctxStepKind, g.rule, g.min, g.present), sd, slot);
     this.mergeDeps(ds);
-    this.advance(g, res, c.id, { seed: id, far, exp, examined, silent: this.silent > 0, deps: sd });
+    g.pendID = c.id;
+    g.pendStep = { seed: id, far, exp, examined, silent: this.silent > 0, deps: sd };
+    return res;
+  }
+
+  // growGrew reports whether the step s of a growth in a context matched more than the seed.
+  growGrew(g: GrowState, s: CtxResult | null): boolean {
+    const best = this.gamma[g.gi]!.seed;
+    return s!.ok && (!best.ok || s!.end > best.end);
   }
 
   // nextSeedID returns a new seed identity.
@@ -4868,12 +4887,16 @@ export class Parser {
     return this.seedSeq + failSeed;
   }
 
-  // advance continues the growth in a context after a step from the current seed with result res: it
-  // extends or ends the run of steps that read no other seed, and adopts res if the match grew. It
-  // reports whether the growth continues.
-  advance(g: GrowState, res: CtxResult, rid: number, st: RunStep): boolean {
-    const best = this.gamma[g.gi]!.seed;
-    const grew = res.ok && (!best.ok || res.end > best.end);
+  // growAdoptStep adopts the step s of a growth in a context that grew, which growKeepStep returned
+  // last, as the seed.
+  growAdoptStep(g: GrowState, s: CtxResult | null): void {
+    this.adoptGrownStep(g, s!, g.pendID, g.pendStep!);
+  }
+
+  // adoptGrownStep adopts the step s of a growth in a context that grew, with identity id and what it
+  // recorded st, as the seed, and returns to the start of the growth. It extends the run of steps that
+  // read no other seed with the step, or ends it.
+  adoptGrownStep(g: GrowState, s: CtxResult, id: number, st: RunStep): void {
     let other = false;
     const obs: Sdep[] = [];
     for (const d of st.deps) {
@@ -4887,20 +4910,15 @@ export class Parser {
         obs.push(d);
       }
     }
-    if (grew && !other && res.errs === null) {
+    if (!other && s.errs === null) {
       st.deps = obs;
       g.run.push(st);
     } else {
       this.recordJumps(g);
     }
-    if (!grew) {
-      g.done = true;
-      return false;
-    }
     this.spend();
-    this.setSeed(g, res, rid);
+    this.setSeed(g, s, id);
     this.pos = g.start;
-    return true;
   }
 
   // setSeed makes e, with identity id, the seed of the growth in a context.

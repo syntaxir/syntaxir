@@ -22,12 +22,12 @@ var CtxOps = []string{
 	"ctx.enter", "ctx.found", "ctx.ok", "ctx.value", "ctx.end", "ctx.errs", "ctx.far", "ctx.expected",
 	"ctx.allows", "ctx.active", "ctx.lookup", "ctx.push", "ctx.pop", "ctx.storeMemo", "ctx.storeCtx", "memo.setPresent",
 	"ctx.keep", "ctx.done", "grow.begin", "grow.ctx", "grow.longer", "grow.adopt",
-	"grow.next", "grow.step", "grow.end",
+	"grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end",
 }
 
 // CtxGrowStepOps are the operations of the growth in a context: the model declares no cost for them yet,
 // so a suite that controls charges leaves them out.
-var CtxGrowStepOps = []string{"grow.next", "grow.step", "grow.end"}
+var CtxGrowStepOps = []string{"grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end"}
 
 // CtxTestOps are the conformance operations that install growths and lookaheads.
 var CtxTestOps = []string{ref.CtxGrowOp, ref.CtxReseedOp, ref.CtxUngrowOp, ref.CtxLookBeginOp, ref.CtxLookEndOp}
@@ -407,15 +407,35 @@ func CtxCases() []Case {
 		b.Do("grow.adopt", g, v, code.C("rec.since", rec))
 		b.Do("rec.truncate", rec)
 	}
+	// next takes the steps of the growth g in a context that its table gives, as the grow composition does,
+	// and returns whether the body is to be evaluated for the next step: the table gives none, and
+	// grow.isolate began its evaluation. It is false when a step from the table did not grow.
+	steps := 0
+	next := func(b *code.Builder, g code.Expr) code.Expr {
+		steps++
+		n := fmt.Sprintf("next%d", steps)
+		b.Var(n, code.TBool)
+		b.Set(n, code.BoolC(false))
+		b.If(code.Not(code.C("ctx.found", code.C("grow.memoStep", g))), func(b *code.Builder) {
+			b.Do("grow.isolate", g)
+			b.Set(n, code.BoolC(true))
+		})
+		return code.L(n)
+	}
 	// step receives the result v of a step of the growth g in a context as the grow composition does: with the
 	// errors recovered after the mark rec if it succeeded, and none if it failed, and dropping them from the
-	// record after.
-	step := func(b *code.Builder, g, v code.Expr, ok bool, rec code.Expr) {
+	// record after. It adopts the step if it grew, and returns whether it did.
+	step := func(b *code.Builder, g, v code.Expr, ok bool, rec code.Expr) code.Expr {
 		if !ok {
 			b.Do("rec.truncate", rec)
 		}
-		b.Do("grow.step", g, v, code.BoolC(ok), code.C("rec.since", rec))
+		steps++
+		n := fmt.Sprintf("step%d", steps)
+		s := b.Let(n+"s", code.C("grow.keepStep", g, v, code.BoolC(ok), code.C("rec.since", rec)))
 		b.Do("rec.truncate", rec)
+		grew := b.Let(n, code.C("grow.grew", g, s))
+		b.If(grew, func(b *code.Builder) { b.Do("grow.adoptStep", g, s) })
+		return grew
 	}
 	// finish ends the growth g in a context as the grow composition does: the errors of its last seed replace
 	// the entries after the mark rec. It returns the result.
@@ -533,7 +553,7 @@ func CtxCases() []Case {
 			rec := b.Let("rec", code.C("rec.mark"))
 			// body is a step that ends at end: it reads the seed of the growth, observes the seed of the outer growth in a lookahead, which gives
 			// the same outcome under every seed of this one, and expects end.
-			body := func(b *code.Builder, g code.Expr, name string, end int64, look bool) {
+			body := func(b *code.Builder, g code.Expr, name string, end int64, look bool) code.Expr {
 				// A step that reads its own seed holds for that seed only, so that each step is taken after the last.
 				readSeed(b, name+"own", ctxLeaderB)
 				if look {
@@ -547,17 +567,16 @@ func CtxCases() []Case {
 				if c.errors && look {
 					b.Do("rec.push", code.C(ErrOp, i(end)))
 				}
-				step(b, g, code.C(OprNodeOp), true, rec)
+				return step(b, g, code.C(OprNodeOp), true, rec)
 			}
 			g := b.Let("g", code.C("grow.begin", rule(ctxLeaderB), i(0)))
 			b.Assert(code.C("grow.ctx", g), "the growth is in the context of the outer one")
-			b.Assert(code.C("grow.next", g), "the first step is evaluated")
-			body(b, g, "s1", 2, true)
-			b.Assert(code.C("grow.next", g), "the second step is evaluated")
-			body(b, g, "s2", 3, true)
-			b.Assert(code.C("grow.next", g), "so is the step from the second seed")
-			body(b, g, "s3", 1, false)
-			b.Assert(code.Not(code.C("grow.next", g)), "the step that is not longer ends the growth")
+			b.Assert(next(b, g), "the first step is evaluated")
+			b.Assert(body(b, g, "s1", 2, true), "and grows the seed")
+			b.Assert(next(b, g), "the second step is evaluated")
+			b.Assert(body(b, g, "s2", 3, true), "and grows it")
+			b.Assert(next(b, g), "so is the step from the second seed")
+			b.Assert(code.Not(body(b, g, "s3", 1, false)), "the step that is not longer ends the growth")
 			res := finish(b, "res", g, rec)
 			b.Assert(eq(code.C("ctx.end", res), i(3)), "it ends at the second step")
 			// The second growth at the same position, inside a call.
@@ -567,7 +586,7 @@ func CtxCases() []Case {
 			mk := b.Let("mk", code.C("exp.isolate", i(0)))
 			rec2 := b.Let("rec2", code.C("rec.mark"))
 			g2 := b.Let("g2", code.C("grow.begin", rule(ctxLeaderB), i(0)))
-			b.Assert(code.Not(code.C("grow.next", g2)), "the table gives every step: none is evaluated")
+			b.Assert(code.Not(next(b, g2)), "the table gives every step: none is evaluated")
 			res2 := finish(b, "res2", g2, rec2)
 			b.Assert(eq(code.C("ctx.end", res2), i(3)), "the growth ends at the same position")
 			fs := b.LetN([]string{"far", "set"}, code.C("exp.unisolate", mk))
@@ -585,19 +604,18 @@ func CtxCases() []Case {
 		rec := b.Let("rec", code.C("rec.mark"))
 		gb := b.Let("gb", code.C("grow.begin", rule(ctxLeaderB), i(0)))
 		b.Assert(code.C("grow.ctx", gb), "the growth is in the context of the first")
-		body := func(b *code.Builder, g code.Expr, name string, end int64, ok bool, rec code.Expr) {
+		body := func(b *code.Builder, g code.Expr, name string, end int64, ok bool, rec code.Expr) code.Expr {
 			readSeed(b, name, ctxLeaderB)
 			b.Do("rec.push", code.C(ErrOp, i(end)))
 			b.SetReg(exec.Pos, i(end))
-			step(b, g, code.C(OprNodeOp), ok, rec)
+			return step(b, g, code.C(OprNodeOp), ok, rec)
 		}
-		b.Assert(code.C("grow.next", gb), "the first step is evaluated")
-		body(b, gb, "s1", 2, true, rec)
+		b.Assert(next(b, gb), "the first step is evaluated")
+		b.Assert(body(b, gb, "s1", 2, true, rec), "and grows the seed")
 		b.Assert(eq(code.R(exec.Pos), i(0)), "a step that matched more returns to the start")
 		b.Assert(eq(code.C("rec.mark"), rec), "the errors of the step are dropped from the record")
-		b.Assert(code.C("grow.next", gb), "the step from the new seed is evaluated")
-		body(b, gb, "s2", 2, true, rec)
-		b.Assert(code.Not(code.C("grow.next", gb)), "a step that is not longer ends the growth")
+		b.Assert(next(b, gb), "the step from the new seed is evaluated")
+		b.Assert(code.Not(body(b, gb, "s2", 2, true, rec)), "a step that is not longer ends the growth")
 		res := finish(b, "res", gb, rec)
 		b.Assert(code.C("ctx.ok", res), "the last seed matched")
 		b.Assert(eq(code.C("ctx.end", res), i(2)), "and ended where the first step did")
@@ -608,7 +626,7 @@ func CtxCases() []Case {
 		b.SetReg(exec.Pos, i(0))
 		rec2 := b.Let("rec2", code.C("rec.mark"))
 		gb2 := b.Let("gb2", code.C("grow.begin", rule(ctxLeaderB), i(0)))
-		b.Assert(code.Not(code.C("grow.next", gb2)), "a growth that the table gives its steps evaluates none")
+		b.Assert(code.Not(next(b, gb2)), "a growth that the table gives its steps evaluates none")
 		res2 := finish(b, "res2", gb2, rec2)
 		b.Assert(eq(code.C("ctx.end", res2), i(2)), "and ends at the same position")
 		// A step that failed holds no errors, and its errors are dropped from the record all the same.
@@ -616,10 +634,10 @@ func CtxCases() []Case {
 		rec3 := b.Let("rec3", code.C("rec.mark"))
 		b.Let("g3", code.C("grow.begin", rule(ctxLeaderA), i(0)))
 		gb3 := b.Let("gb3", code.C("grow.begin", rule(ctxLeaderB), i(0)))
-		b.Assert(code.C("grow.next", gb3), "a step is evaluated")
-		body(b, gb3, "s3", 1, false, rec3)
+		b.Assert(next(b, gb3), "a step is evaluated")
+		grew3 := body(b, gb3, "s3", 1, false, rec3)
 		b.Assert(eq(code.C("rec.mark"), rec3), "a step that failed leaves no errors in the record")
-		b.Assert(code.Not(code.C("grow.next", gb3)), "and ends the growth")
+		b.Assert(code.Not(grew3), "and ends the growth")
 		res3 := finish(b, "res3", gb3, rec3)
 		b.Assert(code.Not(code.C("ctx.ok", res3)), "which failed")
 		b.Assert(code.C("rec.none", code.C("ctx.errs", res3)), "without errors")
@@ -633,11 +651,11 @@ func CtxCases() []Case {
 		b.Assert(code.Not(code.C("ctx.found", cs)), "a leader that does not grow reads no seed")
 		b.Do("ctx.push", c)
 		gb := b.Let("gb", code.C("grow.begin", rule(ctxLeaderB), i(0)))
-		b.Assert(code.C("grow.next", gb), "the step is evaluated")
+		b.Assert(next(b, gb), "the step is evaluated")
 		readSeed(b, "in", ctxLeaderA)
 		b.SetReg(exec.Pos, i(2))
-		step(b, gb, code.C(OprNodeOp), true, rec)
-		b.Assert(code.Not(code.C("grow.next", gb)), "the step from the new seed is the memoized one, which is not longer")
+		b.Assert(step(b, gb, code.C(OprNodeOp), true, rec), "the step grows the seed")
+		b.Assert(code.Not(next(b, gb)), "the step from the new seed is the memoized one, which is not longer")
 		res := finish(b, "res", gb, rec)
 		b.Assert(eq(code.C("ctx.end", res), i(2)), "the growth ends at the first step")
 		far := b.Let("far", code.C("ctx.far", res))
@@ -654,11 +672,11 @@ func CtxCases() []Case {
 		v1, v2 := code.Null(code.THandle(exec.Value)), b.Let("v2", code.C(OprNodeOp))
 		take := func(b *code.Builder, name string, v code.Expr) code.Expr {
 			gb := b.Let("g"+name, code.C("grow.begin", rule(ctxLeaderB), i(0)))
-			b.Assert(code.C("grow.next", gb), "the step is evaluated")
+			b.Assert(next(b, gb), "the step is evaluated")
 			readSeed(b, name, ctxLeaderA)
 			b.SetReg(exec.Pos, i(3))
-			step(b, gb, v, true, rec)
-			b.Assert(code.Not(code.C("grow.next", gb)), "the step from the new seed is the memoized one, which is not longer")
+			b.Assert(step(b, gb, v, true, rec), "the step grows the seed")
+			b.Assert(code.Not(next(b, gb)), "the step from the new seed is the memoized one, which is not longer")
 			return finish(b, "res"+name, gb, rec)
 		}
 		take(b, "1", v1)
@@ -837,15 +855,36 @@ func RandomCtx(name string, rng *rand.Rand, n int) Case {
 		// growPos is the position of the innermost growth in progress, or -1: a growth begun there is in a
 		// context, which the steps of the growths in a context need.
 		growPos := int64(-1)
+		// adoptIfGrew adopts the step s of the growth g in a context if it grew, and reports whether it did.
+		adoptIfGrew := func(g any, gx code.Expr, s any, sx code.Expr) bool {
+			if res, _, _ := call("grow.grew", []any{g, s}, gx, sx); !res[0].(bool) {
+				return false
+			}
+			call("grow.adoptStep", []any{g, s}, gx, sx)
+			return true
+		}
+		// nextStep takes the steps of the growth g in a context that its table gives, as the composition does,
+		// and reports whether the body is evaluated for the next step: false when a step from the table did not
+		// grow, which ends the growth.
+		nextStep := func(g any, gx code.Expr) bool {
+			s, sx, _ := call("grow.memoStep", []any{g}, gx)
+			if res, _, _ := call("ctx.found", []any{s[0]}, sx[0]); res[0].(bool) {
+				return false
+			}
+			call("grow.isolate", []any{g}, gx)
+			return true
+		}
 		// takeStep receives a step of the growth g in a context as the composition does, with the errors it
-		// recovered after the mark of the growth if it succeeded, which the step then drops from the record.
-		takeStep := func(g any, gx code.Expr, v ctxEntry, ok bool, mark []any, markx []code.Expr) {
+		// recovered after the mark of the growth if it succeeded, which the step then drops from the record,
+		// and reports whether the step grew the seed.
+		takeStep := func(g any, gx code.Expr, v ctxEntry, ok bool, mark []any, markx []code.Expr) bool {
 			if !ok {
 				call("rec.truncate", []any{mark[0]}, markx[0])
 			}
 			es, ex, _ := call("rec.since", []any{mark[0]}, markx[0])
-			call("grow.step", []any{g, v.h, ok, es[0]}, gx, v.expr, code.BoolC(ok), ex[0])
+			s, sx, _ := call("grow.keepStep", []any{g, v.h, ok, es[0]}, gx, v.expr, code.BoolC(ok), ex[0])
 			call("rec.truncate", []any{mark[0]}, markx[0])
+			return adoptIfGrew(g, gx, s[0], sx[0])
 		}
 		items = func(depth int, inGrowth bool) {
 			for k := rng.IntN(4); k >= 0 && count < n; k-- {
@@ -885,8 +924,9 @@ func RandomCtx(name string, rng *rand.Rand, n int) Case {
 					if res, _, _ := call("grow.ctx", []any{gs[0]}, gx[0]); res[0].(bool) {
 						// The steps of a growth in a context: the body reads seeds and recovers errors, and the
 						// growth ends when a step is not longer or the table gives no more steps.
+						ended := false
 						for range 1 + rng.IntN(4) {
-							if res, _, _ := call("grow.next", []any{gs[0]}, gx[0]); !res[0].(bool) {
+							if ended = !nextStep(gs[0], gx[0]); ended {
 								break
 							}
 							items(depth+1, false)
@@ -897,18 +937,17 @@ func RandomCtx(name string, rng *rand.Rand, n int) Case {
 							setReg(exec.Pos, start+rng.Int64N(4))
 							ok := rng.IntN(4) > 0
 							v := pick(values)
-							takeStep(gs[0], gx[0], v, ok, mark, markx)
+							if ended = !takeStep(gs[0], gx[0], v, ok, mark, markx); ended {
+								break
+							}
 						}
 						// A growth that the loop left is ended after its steps are taken: finish it as the
 						// composition does, with the steps the table still gives.
-						for {
-							if res, _, _ := call("grow.next", []any{gs[0]}, gx[0]); !res[0].(bool) {
-								break
-							}
+						for !ended && nextStep(gs[0], gx[0]) {
 							items(depth+1, false)
 							setReg(exec.Pos, start+rng.Int64N(4))
 							v, ok := pick(values), rng.IntN(4) > 0
-							takeStep(gs[0], gx[0], v, ok, mark, markx)
+							ended = !takeStep(gs[0], gx[0], v, ok, mark, markx)
 						}
 						done, dx, _ := call("grow.end", []any{gs[0]}, gx[0])
 						call("rec.truncate", []any{mark[0]}, markx[0])

@@ -164,15 +164,20 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 		g := p.growBegin(r, min)
 		if g.ctx {
 			for {
-				if !p.growNext(&g) {
+				if p.growMemoStep(&g) != nil {
 					break
 				}
+				p.growIsolate(&g)
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
 				}
-				p.growStep(&g, v, nil, ok, p.recSince(rec))
+				s := p.growKeepStep(&g, v, nil, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
+				if !p.growGrew(&g, s) {
+					break
+				}
+				p.growAdoptStep(&g, s)
 			}
 		} else {
 			for {
@@ -566,15 +571,20 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 		g := p.growBegin(r.Rule, min)
 		if g.ctx {
 			for {
-				if !p.growNext(&g) {
+				if p.growMemoStep(&g) != nil {
 					break
 				}
+				p.growIsolate(&g)
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
 				}
-				p.growStep(&g, nil, v, ok, p.recSince(rec))
+				s := p.growKeepStep(&g, nil, v, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
+				if !p.growGrew(&g, s) {
+					break
+				}
+				p.growAdoptStep(&g, s)
 			}
 		} else {
 			for {

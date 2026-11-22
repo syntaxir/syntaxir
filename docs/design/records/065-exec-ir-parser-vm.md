@@ -69,7 +69,7 @@ covers 2026-10-07 to 2026-10-30: 1,263 commits.
 ### Four Copies of One Core
 
 The engine's closure backend and both VMs already share one core: they drive `CallBegin`, `CallEnd`, `GrowBegin`,
-`GrowStep` and `GrowEnd` in `internal/runtime/state/runtime.go`. The generated runtimes do not use it. The generated Go
+`GrowStepVM` and `GrowEnd` in `internal/runtime/state/runtime.go`. The generated runtimes do not use it. The generated Go
 runtime has one copy for node results and one for typed results, and the TypeScript runtime a fourth.
 [Appendix A](#appendix-a-inventory) lists every mechanism with its files, functions and sizes. In approximate lines:
 
@@ -301,20 +301,28 @@ context keeps is a composition, as the reuse of a memo entry is: accessors of th
 call bookkeeping, the expectations, the position and the recovered errors, so each part is held to its own
 component's model and charges what that part charges. An operation writes only its own component
 (the verifier allows no other kind to write another), so the growth operations leave the recovered errors to the composition that calls
-them: it takes the errors of a step with `rec.since` before `grow.step`, drops the entries after the mark of the growth with
+them: it takes the errors of a step with `rec.since` before `grow.keepStep`, drops the entries after the mark of the growth with
 `rec.truncate` after it, and at `grow.end` drops them again and records the errors of the seed, as `rec.add` does or, in the
 missing-token mode, as `missing.replayResult` does. The growth in a context (its steps,
-jumps and runs, and the canonical identities of equal seeds) has a model of its own on that state. The model
-takes the steps of a growth one at a time, as the table of the context gives them, and a target may take a run
-of error-free steps as one jump. The cases cover that the steps a second growth at the same position takes from
+jumps and runs, and the canonical identities of equal seeds) has a model of its own on that state. The
+composition joins the parts of a step: `grow.memoStep` takes the steps that the table of the context gives,
+adopting each that grew, and returns the first that did not, which ends the growth; otherwise `grow.isolate`
+and `grow.keepStep` evaluate the body for the step and keep it in the table, `grow.grew` tells whether it
+matched more than the seed, and `grow.adoptStep` adopts it. The steps the table gives are taken inside one
+operation because a target may take a run of error-free steps as one jump, which skips the steps between:
+the model takes them one at a time, and only the seed they reach and the step that ends them are
+observable. (Amended: the step was first to be split with `grow.memoStep` returning one step of the table at
+a time for the composition to adopt; a target that jumps then returns a later step than the model, as the
+conformance case `grow_jump` showed, so `grow.memoStep` consumes every step of the table, jumps included,
+in one operation.) The cases cover that the steps a second growth at the same position takes from
 the table, singly or as a jump, pass on what they read and expected to the call that holds the growth (its result
 goes to the context, and its expectations have theirs), and each of the four replays is held by a broken engine
 that omits it (and, on generated TypeScript, by a broken library). Argued by equivalence only: that a jump
 takes the same steps as the table would give one at a time, which the cases observe through the same results
 and not through the jump taken; the counts of reads of seeds, which only Document parses observe (a broken engine
 that does not count the read of a memoized step is noticed by neither these cases nor the Document tests); and the
-choice among several jumps recorded for one seed. The cost of the three operations is not modelled yet.
-`grow.next`, `grow.step` and `grow.end` are not transitional; keeping the result of a call in a context is modelled and passes the success of the
+choice among several jumps recorded for one seed. The cost of these operations is not modelled yet.
+The operations of the steps and `grow.end` are not transitional; keeping the result of a call in a context is modelled and passes the success of the
 result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model allows only after the end of its growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
 cases. One target charges for converting the dependencies that a frame ended into stored ones when the frame ends
 and the other when the result is kept, so both `ctx.pop` and `ctx.keep` declare that cost. *Shared*: what a result depends on and when it is reused, the seed identities, the present sets, the
@@ -397,7 +405,7 @@ replay costs a constant however many errors it brings back and listing k errors 
 recovered errors stops being valid where an edit would move it. The operations are under conformance, with the identity
 of each error and of each list compared after every write, on generated Go and the engine, and the cases also run on the TypeScript library. The operations of the missing-token mode, which only the engine has, have a reference model of the tokens
 a parse inserts and conformance cases that compare them after each write, on the engine; a rule that can insert a token
-is not memoized in that mode. The growth operations `grow.step` and `grow.end` do not write the recovered errors: the composition of the growth lists, drops and
+is not memoized in that mode. The growth operations `grow.keepStep` and `grow.end` do not write the recovered errors: the composition of the growth lists, drops and
 records them with `rec.since`, `rec.truncate`, `rec.add` and `missing.replayResult`. *Target*: the representation of entries and lists, the scratch a stream keeps, and
 where the sites that make an error record it: grammar code and the recovery of each engine write the push in their own
 language.
@@ -763,7 +771,7 @@ move to Exec IR at once while mechanisms move one at a time.
    record with `memo.setExpected`, not with `memo.splice`, and the random conformance cases generate entries with
    recovered errors. Mutating the runtime shows what the tests pin: dropping the shared-node path of a move fails
    the runtime tests of moved values, and so does dropping the line-start touch of a skip run (`SkipHit`). Dropping the touch of the unit before a result that a left-recursion context keeps (its reuse in the call
-   compositions, `growNext`) changes only the counts of reuse: a context lasts as long as the first growth of its leader, every
+   compositions and in `grow.memoStep`) changes only the counts of reuse: a context lasts as long as the first growth of its leader, every
    result in it was made inside that growth, and its frames already hold what the result read before its position, so
    the touch is conservative and stays. On generated Go, in interleaved
    runs, `BenchmarkIncremental/generated/document` takes 58% less time and `BenchmarkIncrementalLong/generated` 4%
@@ -1215,9 +1223,9 @@ in non-test sources, and include comments.
 | Memo table | Core | `MemoTable` `Get`, `Put`, `Alloc`, `Retire`, `Reset`, `Prune`, `Splice` (`memo.go`, ~410) | `memoTable` `get`, `put`, `alloc` (~120) | `memoGet`, `memoPut`, `…Controlled` (~110) | `memoGet`, `memoPut`, `newEntry` (~90) |
 | Deferred memoization | Core | `firstCall`, `MarkSeen`, `MarkSparseSeen`, seen pages (`memo.go`, `runtime.go` `FirstCall`, ~130) | `FirstCall`, `markSeen`, `markSparseSeen`, `seenPageArena` (~160) | shares the node code | `firstCall`, `markSeen`, `markSparseSeen` (~95) |
 | Call protocol | Core | `CallBegin`, `CallEnd`, `InvokePlain`, `InvokeBegin`, `InvokeEnd`, `Memoizes` (`runtime.go`, ~250) | `Call`, `callBody`, `callMemo`, `callUnmemoized`, `invoke`, `InvokePlain` (~300) | `Call`, `callBody`, `CallMemo`, `invoke`, `InvokePlain` (~190) | `call`, `callBody`, `invoke`, `invokePlain` (~200) |
-| Left-recursion growth | Core | `GrowBegin`, `GrowStep`, `GrowEnd` and the dependency memo (`context_memo.go`, ~730) | `grow` and the dependency memo (`context_memo.go`, ~1,200) | shares the node code | `grow` and the dependency memo (~970) |
+| Left-recursion growth | Core | `GrowBegin`, the growth steps, `GrowEnd` and the dependency memo (`context_memo.go`, ~730) | `grow` and the dependency memo (`context_memo.go`, ~1,200) | shares the node code | `grow` and the dependency memo (~970) |
 | Expected sets | Core | `Expect`, `Isolate`, `Unisolate`, `Keep`, `MergeExpected` (`runtime.go`, ~85) | `Expect`, `ExpectBudget`, `ExpectOrdinary`, `Isolate`, `Unisolate`, `Keep`, `MergeExpected`, `RenamedExpected` (~215) | `tracked`, `ErrorAttr`, `DiagnosticAttr` (~30) | `expect`, `keep`, `mergeExpected`, `isolate`, `unisolate`, `renameExpected`, `mergeKept` (~155) |
-| Recovery bookkeeping | Core | recovered lists in `CallEnd`, `GrowStep`, `applyRecovered`; `#missing` in `missing_token.go` (engine only, ~190) | `RecoverAttr`, `Restore`, `applyErrors` (~50) | `RecoverAttr`, `applyErrors` (~35) | recovery in `callBody`, `apply` (~20) |
+| Recovery bookkeeping | Core | recovered lists in `CallEnd`, `GrowStepVM`, `applyRecovered`; `#missing` in `missing_token.go` (engine only, ~190) | `RecoverAttr`, `Restore`, `applyErrors` (~50) | `RecoverAttr`, `applyErrors` (~35) | recovery in `callBody`, `apply` (~20) |
 | Variable environment | Core | `Env.Lookup`, `Bind`, `EnvValues`, `memoEnv`, `SeedVars` (~90) | `bind`, `envValues`, `memoEnv`, `SetVars` (~145) | `Bind`, `Lookup` (~40) | `envValues`, `bind`, `bindValue` (~85) |
 | Capture frames and trail | Core | `Mark`, `Reset`, `SetCapture`, `Finish`, `AttachCaptures` (~90) | `NewFrame`, `frameScratch`, `Mark`, `Reset`, `SetCapture…`, `Finish` (~135) | `NewFrame`, `FreeFrame`, `DropTrail`, `Mark`, `Reset`, `Finish` (~185) | `newFrame`, `reset`, `setCapture`, `finish` (~120) |
 | Operators Rule loop | Core | `operators_rule.go` (~340) | `longest`, `operatorsRuleExpr`, `operatorsRuleNud`, `operatorsRuleBuild` (~260) | same names (~255) | same names (~310) |
