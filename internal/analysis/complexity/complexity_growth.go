@@ -3,9 +3,7 @@ package complexity
 import (
 	"maps"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // The growth of a fold accumulator. One step of a fold maps its accumulator A to the value of its
@@ -289,30 +287,30 @@ type growthEnv map[string]growthShape
 
 // readsGrowing reports whether t reads a parameter of env whose shape depends on the accumulator
 // or on the current element, other than the parameters in shadow.
-func readsGrowing(t ast.ActionExpr, env growthEnv, shadow []string) bool {
+func readsGrowing(t core.ActionExpr, env growthEnv, shadow []string) bool {
 	return readsParam(t, env, shadow, growthShape.grows)
 }
 
 // readsElem reports whether t reads a parameter of env whose shape depends on the current element
 // of a lambda, other than the parameters in shadow. A lambda inside it has an element of its own,
 // so the forms cannot follow such a read there.
-func readsElem(t ast.ActionExpr, env growthEnv, shadow []string) bool {
+func readsElem(t core.ActionExpr, env growthEnv, shadow []string) bool {
 	return readsParam(t, env, shadow, growthShape.hasElem)
 }
 
-func readsParam(t ast.ActionExpr, env growthEnv, shadow []string, pred func(growthShape) bool) bool {
+func readsParam(t core.ActionExpr, env growthEnv, shadow []string, pred func(growthShape) bool) bool {
 	found := false
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
-		c, ok := x.(*ast.CaptureRef)
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
+		name, _, ok := capRef(x)
 		if !ok {
 			return
 		}
 		for _, n := range shadow {
-			if n == c.Name {
+			if n == name {
 				return
 			}
 		}
-		if p, ok := env[c.Name]; ok && pred(p) {
+		if p, ok := env[name]; ok && pred(p) {
 			found = true
 		}
 	})
@@ -323,11 +321,11 @@ func readsParam(t ast.ActionExpr, env growthEnv, shadow []string, pred func(grow
 // that its copying operations build, a string by its characters and a list by its elements, which
 // it shares. An action expression whose value it does not follow, such as a block or a call of an action function,
 // can be anything as large as many copies of what it reads, and cost as much.
-func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (growthShape, lin) {
+func (k *classifier) growthOf(t core.ActionExpr, env growthEnv, tc actionCtx) (growthShape, lin) {
 	var zero growthShape
 	// A list, a tuple or a struct has one element for each of ts, and a size of one more than
 	// their number plus their sizes.
-	build := func(ts []ast.ActionExpr) (growthShape, lin) {
+	build := func(ts []core.ActionExpr) (growthShape, lin) {
 		out := growthShape{S: constLin(len(ts) + 1), N: constLin(len(ts))}
 		cost := constLin(len(ts))
 		var el *growthShape
@@ -344,7 +342,7 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 		out.El = el
 		return out, cost
 	}
-	costOf := func(ts ...ast.ActionExpr) lin {
+	costOf := func(ts ...core.ActionExpr) lin {
 		cost := lin{}
 		for _, x := range ts {
 			_, c := k.growthOf(x, env, tc)
@@ -352,15 +350,8 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 		}
 		return cost
 	}
-	switch t := t.(type) {
-	case nil, *ast.IntLit, *ast.BoolLit, *ast.NilLit:
-		return zero, nil
-	case *ast.StringLit:
-		return sized(constLin(len(t.Value))), nil
-	case *ast.Unary:
-		return zero, costOf(t.X)
-	case *ast.CaptureRef:
-		if p, ok := env[t.Name]; ok {
+	if name, _, ok := capRef(t); ok {
+		if p, ok := env[name]; ok {
 			return p, nil
 		}
 		if k.isInt(t, tc) {
@@ -368,31 +359,40 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 		}
 		// A value bound outside the fold, of the size that the classifier knows for it.
 		return k.outsideShape(t, tc), nil
-	case *ast.VarRef:
+	}
+	switch t := t.(type) {
+	case nil:
+		return zero, nil
+	case *core.Const:
+		if v, ok := t.Value.(string); ok {
+			return sized(constLin(len(v))), nil
+		}
+		return zero, nil
+	case *core.Unary:
+		return zero, costOf(t.X)
+	case *core.VarRef:
 		if k.isInt(t, tc) {
 			return zero, nil
 		}
 		el := sized(outsideLin)
 		return growthShape{S: outsideLin, N: outsideLin, El: &el}, nil
-	case *ast.ActionGroup:
-		return k.growthOf(t.Action, env, tc)
-	case *ast.Cast:
+	case *core.Cast:
 		return k.growthOf(t.X, env, tc)
-	case *ast.FieldAccess:
+	case *core.Member:
 		// A field or a part of the value, at most the value.
 		g, c := k.growthOf(t.X, env, tc)
 		return sized(g.S), c
-	case *ast.TupleLit:
+	case *core.Tuple:
 		return build(t.Elems)
-	case *ast.ListConstructor:
-		return build(t.Items)
-	case *ast.Constructor:
-		ts := append([]ast.ActionExpr(nil), t.Args...)
+	case *core.Convert:
+		return build([]core.ActionExpr{t.X})
+	case *core.New:
+		ts := make([]core.ActionExpr, 0, len(t.Fields))
 		for _, f := range t.Fields {
 			ts = append(ts, f.Value)
 		}
 		return build(ts)
-	case *ast.Binary:
+	case *core.Binary:
 		switch {
 		case compareOps[t.Op] && !k.isInt(t.L, tc) && !k.isInt(t.R, tc):
 			// A comparison examines its operands.
@@ -411,7 +411,7 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 			l, lc := k.growthOf(t.L, env, tc)
 			return l.elem(), lc.plus(costOf(t.R))
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		switch t.Func {
 		case "len":
 			// len examines all of a string value.
@@ -427,8 +427,8 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 		case "text":
 			if len(t.Args) == 1 {
 				// The text of a capture of the rule is a range of the input, whatever its value.
-				if r, ok := t.Args[0].(*ast.CaptureRef); ok && !r.Param {
-					if _, inEnv := env[r.Name]; !inEnv {
+				if name, param, ok := capRef(t.Args[0]); ok && !param {
+					if _, inEnv := env[name]; !inEnv {
 						return sized(outsideLin), outsideLin
 					}
 				}
@@ -470,26 +470,30 @@ func (k *classifier) growthOf(t ast.ActionExpr, env growthEnv, tc actionCtx) (gr
 			}
 		}
 	}
+	return k.unfollowedGrowth(t, env, tc)
+}
+
+// unfollowedGrowth bounds the value of t in env, and the cost of evaluating it, without following
+// how t builds it: what t reads from outside the fold and from the element of the step bounds its
+// value. A nil t stands for an action expression that reads nothing.
+func (k *classifier) unfollowedGrowth(t core.ActionExpr, env growthEnv, tc actionCtx) (growthShape, lin) {
 	if readsGrowing(t, env, nil) {
 		return manyShape, manyLin
 	}
-	// What an action expression that the forms do not follow reads from outside the fold and from the element
-	// of the step bounds its value.
 	s := constLin(many).plus(k.readsOutside(t, env, tc).times(constLin(many))).plus(stepLin.times(constLin(many)))
 	return sized(s), s
 }
 
 // readsOutside returns the form of the largest size of a value that t reads from outside env: n
 // to the largest size degree of those values, and at least n.
-func (k *classifier) readsOutside(t ast.ActionExpr, env growthEnv, tc actionCtx) lin {
+func (k *classifier) readsOutside(t core.ActionExpr, env growthEnv, tc actionCtx) lin {
 	d := 1
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
-		switch x := x.(type) {
-		case *ast.CaptureRef:
-			_, inEnv := env[x.Name]
-			_, isParam := tc.params[x.Name]
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
+		if name, param, ok := capRef(x); ok {
+			_, inEnv := env[name]
+			_, isParam := tc.params[name]
 			// A parameter of a lambda inside t is bound to the elements of a list that t reads.
-			if !inEnv && (!x.Param || isParam) {
+			if !inEnv && (!param || isParam) {
 				d = max(d, degOf(k.outsideShape(x, tc).S))
 			}
 		}
@@ -498,7 +502,7 @@ func (k *classifier) readsOutside(t ast.ActionExpr, env growthEnv, tc actionCtx)
 }
 
 // lambdaEnv returns env with the parameters of lam bound to the elements of x.
-func lambdaEnv(env growthEnv, lam *ast.Lambda, x growthShape) growthEnv {
+func lambdaEnv(env growthEnv, lam *core.Lambda, x growthShape) growthEnv {
 	inner := maps.Clone(env)
 	if inner == nil {
 		inner = growthEnv{}
@@ -510,7 +514,7 @@ func lambdaEnv(env growthEnv, lam *ast.Lambda, x growthShape) growthEnv {
 }
 
 // filterGrowth bounds filter(list, lam): at most the list, since it can keep every element.
-func (k *classifier) filterGrowth(list ast.ActionExpr, lam *ast.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
+func (k *classifier) filterGrowth(list core.ActionExpr, lam *core.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
 	x, xc := k.growthOf(list, env, tc)
 	if readsElem(lam.Body, env, lam.Params) {
 		return manyShape, manyLin
@@ -521,7 +525,7 @@ func (k *classifier) filterGrowth(list ast.ActionExpr, lam *ast.Lambda, env grow
 
 // mapGrowth bounds map(list, lam): an element for each element of the list, each the value of
 // the lambda, so a size of one plus the sum over the elements of one more than that value.
-func (k *classifier) mapGrowth(list ast.ActionExpr, lam *ast.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
+func (k *classifier) mapGrowth(list core.ActionExpr, lam *core.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
 	x, xc := k.growthOf(list, env, tc)
 	if readsElem(lam.Body, env, lam.Params) {
 		// The lambda reads a value from outside it once for each element.
@@ -542,7 +546,7 @@ func (k *classifier) mapGrowth(list ast.ActionExpr, lam *ast.Lambda, env growthE
 // lambda joins its accumulator once with a value that does not read it. Any other use of its own
 // accumulator can double it. Its cost includes the copies of its own accumulator that its steps
 // make, once for each element of its list.
-func (k *classifier) foldGrowth(initAction, list ast.ActionExpr, lam *ast.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
+func (k *classifier) foldGrowth(initAction, list core.ActionExpr, lam *core.Lambda, env growthEnv, tc actionCtx) (growthShape, lin) {
 	init, ic := k.growthOf(initAction, env, tc)
 	x, xc := k.growthOf(list, env, tc)
 	cost := ic.plus(xc)
@@ -572,11 +576,11 @@ func (k *classifier) foldGrowth(initAction, list ast.ActionExpr, lam *ast.Lambda
 		}
 		any := func(growthShape) bool { return true }
 		if readsParam(initAction, env, nil, any) || readsParam(list, env, nil, any) || readsParam(lam.Body, env, lam.Params, any) {
-			return k.growthOf(&ast.Block{}, env, tc)
+			return k.unfollowedGrowth(nil, env, tc)
 		}
-		exp, deg, cd, ok := k.foldDegrees(&ast.Call{Func: "foldl", Args: []ast.ActionExpr{initAction, list, lam}}, lam, tc)
+		exp, deg, cd, ok := k.foldDegrees(&core.Builtin{Func: "foldl", Args: []core.ActionExpr{initAction, list, lam}}, lam, tc)
 		if !ok {
-			return k.growthOf(&ast.Block{}, env, tc)
+			return k.unfollowedGrowth(nil, env, tc)
 		}
 		if exp {
 			return unknownShape, lin{{o: unknownDeg}: many}
@@ -586,7 +590,7 @@ func (k *classifier) foldGrowth(initAction, list ast.ActionExpr, lam *ast.Lambda
 	var q growthShape
 	var qc lin
 	if isConcat {
-		q, qc = k.growthOf(&ast.Call{Func: "concat", Args: rest}, inner, tc)
+		q, qc = k.growthOf(&core.Builtin{Func: "concat", Args: rest}, inner, tc)
 	} else {
 		q = growthShape{S: lin{}}
 		qc = lin{}
@@ -624,15 +628,15 @@ func (k *classifier) foldGrowth(initAction, list ast.ActionExpr, lam *ast.Lambda
 // joinsOnce matches a lambda body that joins the accumulator s once with other values, which do
 // not read it: concat with s as one argument, or a join of strings with + with s as one operand. It
 // returns the other values and whether the join is concat.
-func (k *classifier) joinsOnce(body ast.ActionExpr, s string) (rest []ast.ActionExpr, isConcat, ok bool) {
-	var parts []ast.ActionExpr
-	switch b := check.UngroupActionExpr(body).(type) {
-	case *ast.Call:
+func (k *classifier) joinsOnce(body core.ActionExpr, s string) (rest []core.ActionExpr, isConcat, ok bool) {
+	var parts []core.ActionExpr
+	switch b := body.(type) {
+	case *core.Builtin:
 		if b.Func != "concat" {
 			return nil, false, false
 		}
 		parts, isConcat = b.Args, true
-	case *ast.Binary:
+	case *core.Binary:
 		if b.Op != "+" {
 			return nil, false, false
 		}
@@ -642,7 +646,7 @@ func (k *classifier) joinsOnce(body ast.ActionExpr, s string) (rest []ast.Action
 	}
 	found := false
 	for _, p := range parts {
-		if r, isRef := check.UngroupActionExpr(p).(*ast.CaptureRef); isRef && r.Name == s && !found {
+		if name, _, isRef := capRef(p); isRef && name == s && !found {
 			found = true
 			continue
 		}
@@ -655,10 +659,10 @@ func (k *classifier) joinsOnce(body ast.ActionExpr, s string) (rest []ast.Action
 }
 
 // readsName reports whether t reads the capture or parameter name.
-func readsName(t ast.ActionExpr, name string) bool {
+func readsName(t core.ActionExpr, name string) bool {
 	found := false
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
-		if c, ok := x.(*ast.CaptureRef); ok && c.Name == name {
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
+		if n, _, ok := capRef(x); ok && n == name {
 			found = true
 		}
 	})
@@ -666,11 +670,11 @@ func readsName(t ast.ActionExpr, name string) bool {
 }
 
 // lambdaArg returns argument i of call when it is a lambda.
-func lambdaArg(call *ast.Call, i int) (*ast.Lambda, bool) {
+func lambdaArg(call *core.Builtin, i int) (*core.Lambda, bool) {
 	if len(call.Args) <= i {
 		return nil, false
 	}
-	lam, ok := call.Args[i].(*ast.Lambda)
+	lam, ok := call.Args[i].(*core.Lambda)
 	return lam, ok
 }
 
@@ -678,7 +682,7 @@ func lambdaArg(call *ast.Call, i int) (*ast.Lambda, bool) {
 // size, the largest element and the number of elements of the value of the lambda, and the form
 // that bounds the cost of one step. ok is false when the accumulator is an int or the lambda has
 // no parameter.
-func (k *classifier) stepForms(call *ast.Call, lam *ast.Lambda, tc actionCtx) (rows [3]lin, cost lin, ok bool) {
+func (k *classifier) stepForms(call *core.Builtin, lam *core.Lambda, tc actionCtx) (rows [3]lin, cost lin, ok bool) {
 	if len(lam.Params) == 0 || len(call.Args) > 0 && k.isInt(call.Args[0], tc) {
 		return rows, nil, false
 	}
@@ -831,7 +835,7 @@ func stepsCost(cost lin, deg [3]int, l listDeg) int {
 // growthOrder decides it from the step matrix, the degrees of the list and those of the initial
 // value, and the degree of the cost of all its steps. ok is false when the accumulator is an int
 // or the lambda has no parameter.
-func (k *classifier) foldDegrees(call *ast.Call, lam *ast.Lambda, tc actionCtx) (exp bool, deg [3]int, cost int, ok bool) {
+func (k *classifier) foldDegrees(call *core.Builtin, lam *core.Lambda, tc actionCtx) (exp bool, deg [3]int, cost int, ok bool) {
 	rows, c, ok := k.stepForms(call, lam, tc)
 	if !ok || len(call.Args) < 2 {
 		return false, deg, 0, false
@@ -854,7 +858,7 @@ func (k *classifier) foldDegrees(call *ast.Call, lam *ast.Lambda, tc actionCtx) 
 
 // doubles reports whether the accumulator of the fold call with lambda lam can grow
 // exponentially with the number of steps.
-func (k *classifier) doubles(call *ast.Call, lam *ast.Lambda, tc actionCtx) bool {
+func (k *classifier) doubles(call *core.Builtin, lam *core.Lambda, tc actionCtx) bool {
 	rows, _, ok := k.stepForms(call, lam, tc)
 	if !ok {
 		return false
@@ -867,12 +871,12 @@ func (k *classifier) doubles(call *ast.Call, lam *ast.Lambda, tc actionCtx) bool
 // single copying operation copies it twice, as by duplicating the elements of a list and joining
 // them, and a fold over a list that is not bounded whose steps cost a polynomial of degree 3 or more
 // in all, times the evaluations of the lambdas around it.
-func (k *classifier) checkFoldGrowth(call *ast.Call, lam *ast.Lambda, tc actionCtx) {
+func (k *classifier) checkFoldGrowth(call *core.Builtin, lam *core.Lambda, tc actionCtx) {
 	exp, _, d, ok := k.foldDegrees(call, lam, tc)
 	if !ok {
 		return
 	}
-	pos := actionPosOf(call)
+	pos := k.actionPos(call)
 	if exp {
 		k.cause(CauseSelfGrowingValue, ClassExp, 0, tc.rule, pos, "%s: the value of the lambda of %s at %s can hold its accumulator %s more than once, which can double it on each step",
 			degreeText(ClassExp, 0), k.showAction(call), at(tc.rule, pos), lam.Params[0])

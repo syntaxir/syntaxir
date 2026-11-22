@@ -6,9 +6,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -49,7 +47,7 @@ type finiteDomains struct {
 func (k *classifier) finiteVars() finiteDomains {
 	byVar := map[string][]*binding{}
 	for _, b := range k.binds {
-		byVar[b.b.Name] = append(byVar[b.b.Name], b)
+		byVar[b.n.Var] = append(byVar[b.n.Var], b)
 	}
 	type sized struct {
 		name string
@@ -85,22 +83,55 @@ func (k *classifier) finiteVars() finiteDomains {
 }
 
 // constantValues returns a bound on the number of values of the variable v when its initial value
-// and every binding of it are constants, and whether they are: each constant action expression gives one value,
-// or none when its evaluation is an error, so the distinct action expressions bound the values.
+// and every binding of it are constants, and whether they are: each constant action expression
+// gives one value, or none when its evaluation is an error, so the distinct action expressions
+// bound the values. An initial value that is not written is distinct from every binding.
 func constantValues(v *ast.VarDef, binds []*binding) (int, bool) {
 	actionExprs := map[string]bool{}
-	if v.Value == nil {
+	switch init, ok := initExpr(v); {
+	case !ok:
+		return 0, false
+	case init == nil:
 		actionExprs[""] = true
-	} else {
-		actionExprs[fmt.FormatActionExpr(check.UngroupActionExpr(v.Value))] = true
+	default:
+		actionExprs[core.ActionExprString(init)] = true
 	}
 	for _, b := range binds {
-		if !constant(b.b.Value) {
+		if !constant(b.n.Action) {
 			return 0, false
 		}
-		actionExprs[fmt.FormatActionExpr(check.UngroupActionExpr(b.b.Value))] = true
+		actionExprs[core.ActionExprString(b.n.Action)] = true
 	}
 	return len(actionExprs), true
+}
+
+// initExpr returns the initial value of the variable v as an action expression of Core IR, nil
+// when it is not written, and false when it is not a literal that the language allows (an int, a
+// string or a bool, and a negated int), as in a grammar that the compiler rejects. The module that
+// the classifier reads holds the variables without their initial values, so the classifier builds
+// the expression from the declaration.
+func initExpr(v *ast.VarDef) (core.ActionExpr, bool) {
+	var build func(t ast.ActionExpr) (core.ActionExpr, bool)
+	build = func(t ast.ActionExpr) (core.ActionExpr, bool) {
+		switch t := t.(type) {
+		case nil:
+			return nil, true
+		case *ast.ActionGroup:
+			return build(t.Action)
+		case *ast.IntLit:
+			return &core.Const{Value: t.Value}, true
+		case *ast.StringLit:
+			return &core.Const{Value: t.Value}, true
+		case *ast.BoolLit:
+			return &core.Const{Value: t.Value}, true
+		case *ast.Unary:
+			if x, ok := build(t.X); ok && t.Op == "-" && x != nil {
+				return &core.Unary{Op: t.Op, X: x}, true
+			}
+		}
+		return nil, false
+	}
+	return build(v.Value)
 }
 
 // finiteBool returns the number of values of the bool variable v: one when no binding of v can
@@ -110,9 +141,12 @@ func constantValues(v *ast.VarDef, binds []*binding) (int, bool) {
 func finiteBool(v *ast.VarDef, binds []*binding) int {
 	set := map[bool]bool{}
 	init := any(false)
-	if v.Value != nil {
+	switch t, ok := initExpr(v); {
+	case !ok:
+		return 2
+	case t != nil:
 		var res evalResult
-		if init, res = eval(v.Value, domainEnv{}); res != evalOK {
+		if init, res = eval(t, domainEnv{}); res != evalOK {
 			return 2
 		}
 	}
@@ -122,7 +156,7 @@ func finiteBool(v *ast.VarDef, binds []*binding) int {
 	}
 	set[x] = true
 	for _, b := range binds {
-		r, res := eval(b.b.Value, domainEnv{})
+		r, res := eval(b.n.Action, domainEnv{})
 		y, isBool := r.(bool)
 		switch {
 		case res == evalFailed:
@@ -140,7 +174,7 @@ type valueSet map[int]bool
 
 // lenOperand is an operand len($c) of a binding, with the bound on the length of the value of c.
 type lenOperand struct {
-	call *ast.Call
+	call *core.Builtin
 	max  int
 }
 
@@ -154,7 +188,7 @@ type intDomain struct {
 	lens   map[*binding][]lenOperand
 	opaque map[*binding]bool // bindings that read what eval does not know (see lenOperands)
 	guards map[*binding]guard
-	binds  map[*ast.Bind]*binding
+	binds  map[*core.BindNode]*binding
 }
 
 // finiteInt reports whether the values of the int variable v form a set of at most
@@ -168,8 +202,11 @@ type intDomain struct {
 // leaves the set unbounded.
 func (k *classifier) finiteInt(v *ast.VarDef, binds []*binding) (int, bool) {
 	init := 0
-	if v.Value != nil {
-		r, res := eval(v.Value, domainEnv{v: v.Name})
+	switch t, ok := initExpr(v); {
+	case !ok:
+		return 0, false
+	case t != nil:
+		r, res := eval(t, domainEnv{v: v.Name})
 		x, isInt := r.(int)
 		if res != evalOK || !isInt {
 			return 0, false
@@ -177,12 +214,12 @@ func (k *classifier) finiteInt(v *ast.VarDef, binds []*binding) (int, bool) {
 		init = x
 	}
 	d := &intDomain{k: k, v: v.Name, set: valueSet{init: true}, lens: map[*binding][]lenOperand{},
-		opaque: map[*binding]bool{}, guards: map[*binding]guard{}, binds: map[*ast.Bind]*binding{}}
+		opaque: map[*binding]bool{}, guards: map[*binding]guard{}, binds: map[*core.BindNode]*binding{}}
 	for _, b := range binds {
 		ops, ok := k.lenOperands(b)
 		d.lens[b], d.opaque[b] = ops, !ok
 		d.guards[b] = k.guardOf(b)
-		d.binds[b.b] = b
+		d.binds[b.n] = b
 	}
 	// Each pass evaluates the bindings only from the values that the previous pass added: what
 	// reaches a binding from a set is the union of what reaches it from each value of the set, so
@@ -238,7 +275,7 @@ func (d *intDomain) outputs(b *binding, xs valueSet) valueSet {
 		}
 		clear(out)
 	}
-	r := actionRange(b.b.Value, d.v, xs).meet(g.bounds)
+	r := actionRange(b.n.Action, d.v, xs).meet(g.bounds)
 	if r.size() > maxFiniteValues {
 		d.over = true
 		return nil
@@ -258,11 +295,11 @@ func (d *intDomain) apply(b *binding, x int) ([]int, bool) {
 	lens := make([]int, len(ops))
 	var out []int
 	for {
-		env := domainEnv{v: d.v, x: x, lens: map[*ast.Call]int{}}
+		env := domainEnv{v: d.v, x: x, lens: map[*core.Builtin]int{}}
 		for i, op := range ops {
 			env.lens[op.call] = lens[i]
 		}
-		r, res := eval(b.b.Value, env)
+		r, res := eval(b.n.Action, env)
 		y, isInt := r.(int)
 		switch {
 		case res == evalFailed:
@@ -288,12 +325,12 @@ func (d *intDomain) apply(b *binding, x int) ([]int, bool) {
 func (k *classifier) lenOperands(b *binding) ([]lenOperand, bool) {
 	var ops []lenOperand
 	combos := 1
-	ok := readsOnly(b.b.Value, b.b.Name, func(c *ast.Call) bool {
-		r, isRef := check.UngroupActionExpr(c.Args[0]).(*ast.CaptureRef)
-		if !isRef || r.Param {
+	ok := readsOnly(b.n.Action, b.n.Var, func(c *core.Builtin) bool {
+		name, param, isRef := capRef(c.Args[0])
+		if !isRef || param {
 			return false
 		}
-		exprs := k.captured(b.rule, r.Name)
+		exprs := k.captured(b.rule, name)
 		if len(exprs) == 0 {
 			return false
 		}
@@ -317,58 +354,16 @@ func (k *classifier) lenOperands(b *binding) ([]lenOperand, bool) {
 
 // inputs returns the values that can reach the binding b: the values of the set, after the
 // earlier elements of the sequences around b from the outermost one that b is in through groups,
-// options, choices, captures, discards and atomic expressions only, and after the earlier
-// statements of the block that holds b.
+// options, choices, captures, discards and atomic expressions only. The statements of a predicate
+// block are such elements: the module splices them into the sequence that holds the block.
 func (d *intDomain) inputs(b *binding) valueSet {
 	x := d.base
-	frames := b.c.seqs[b.c.strictFrom:]
-	var items []core.Node
-	for _, f := range frames {
-		items = f.seq.Items
-		for _, it := range items[:f.index] {
+	for _, f := range b.c.seqs[b.c.strictFrom:] {
+		for _, it := range f.seq.Items[:f.index] {
 			x = d.after(it, x)
 		}
 	}
-	if len(frames) == 0 {
-		return x
-	}
-	stmts, found := d.blockBefore(items[frames[len(frames)-1].index], b.b)
-	if !found {
-		// b lies deeper in the action expressions of a predicate than a statement of its block.
-		return d.base
-	}
-	for _, s := range stmts {
-		x = d.afterAction(s, x)
-	}
 	return x
-}
-
-// blockBefore returns the statements before the binding b in the block of the predicate in n that
-// holds it as a statement or as its action expression, and whether n has such a predicate.
-func (d *intDomain) blockBefore(n core.Node, b *ast.Bind) ([]ast.ActionExpr, bool) {
-	var out []ast.ActionExpr
-	found := false
-	walkNodes(n, func(x core.Node) {
-		if found {
-			return
-		}
-		switch x.(type) {
-		case *core.Pred, *core.BindNode:
-		default:
-			return
-		}
-		t := d.k.predicateAction(x)
-		if t == ast.ActionExpr(b) {
-			found = true
-			return
-		}
-		if blk, ok := t.(*ast.Block); ok {
-			if i := slices.Index(blk.Statements, ast.ActionExpr(b)); i >= 0 {
-				out, found = blk.Statements[:i], true
-			}
-		}
-	})
-	return out, found
 }
 
 // after returns the values that the variable can hold after n matches when it holds a value of x
@@ -378,8 +373,10 @@ func (d *intDomain) blockBefore(n core.Node, b *ast.Bind) ([]ast.ActionExpr, boo
 // the set.
 func (d *intDomain) after(n core.Node, x valueSet) valueSet {
 	switch n := n.(type) {
-	case *core.Pred, *core.BindNode:
-		return d.afterAction(d.k.predicateAction(n), x)
+	case *core.Pred:
+		return d.afterTest(n.Action, x)
+	case *core.BindNode:
+		return d.afterBind(n, x)
 	case *core.Capture:
 		return d.after(n.Body, x)
 	case *core.Drop:
@@ -419,36 +416,29 @@ func (d *intDomain) after(n core.Node, x valueSet) valueSet {
 func (d *intDomain) bindsVar(n core.Node) bool {
 	found := false
 	walkNodes(n, func(x core.Node) {
-		switch x.(type) {
-		case *core.Pred, *core.BindNode:
-			astfacts.WalkAction(d.k.predicateAction(x), func(t ast.ActionExpr) {
-				if bd, ok := t.(*ast.Bind); ok && bd.Name == d.v {
-					found = true
-				}
-			})
+		if b, ok := x.(*core.BindNode); ok && b.Var == d.v {
+			found = true
 		}
 	})
 	return found
 }
 
-// afterAction returns the values that the variable can hold after the predicate action expression t succeeds.
-func (d *intDomain) afterAction(t ast.ActionExpr, x valueSet) valueSet {
-	switch t := t.(type) {
-	case *ast.Block:
-		for _, s := range t.Statements {
-			x = d.afterAction(s, x)
-		}
+// afterBind returns the values that the variable can hold after the binding n when it holds a
+// value of x before.
+func (d *intDomain) afterBind(n *core.BindNode, x valueSet) valueSet {
+	if n.Var != d.v {
 		return x
-	case *ast.Bind:
-		if t.Name != d.v {
-			return x
-		}
-		b := d.binds[t]
-		if b == nil {
-			return d.base
-		}
-		return d.outputs(b, x)
 	}
+	b := d.binds[n]
+	if b == nil {
+		return d.base
+	}
+	return d.outputs(b, x)
+}
+
+// afterTest returns the values that the variable can hold after the test t of a predicate
+// succeeds when it holds a value of x before.
+func (d *intDomain) afterTest(t core.ActionExpr, x valueSet) valueSet {
 	if !readsOnly(t, d.v, nil) {
 		return x
 	}
@@ -522,8 +512,8 @@ func (k *classifier) valueLen(n core.Node, seen map[string]bool) (int, bool) {
 		}
 		seen[name] = true
 		defer delete(seen, name)
-		if r.Action != nil {
-			return k.actionLen(r.Action, name, seen)
+		if a := k.ruleAction(name); a != nil {
+			return k.actionLen(a, name, seen)
 		}
 		if isOperators(r.Expr) {
 			return 0, false
@@ -616,17 +606,10 @@ func (k *classifier) spliceBody(name string) (core.Node, bool) {
 }
 
 // actionLen bounds what len gives for the value of the action expression t of rule.
-func (k *classifier) actionLen(t ast.ActionExpr, rule string, seen map[string]bool) (int, bool) {
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return k.actionLen(t.Action, rule, seen)
-	case *ast.StringLit:
-		return len(t.Value), true
-	case *ast.NilLit:
-		return 0, true
-	case *ast.CaptureRef:
-		exprs := k.captured(rule, t.Name)
-		if t.Param || len(exprs) == 0 {
+func (k *classifier) actionLen(t core.ActionExpr, rule string, seen map[string]bool) (int, bool) {
+	if name, param, ok := capRef(t); ok {
+		exprs := k.captured(rule, name)
+		if param || len(exprs) == 0 {
 			return 0, false
 		}
 		m := 0
@@ -638,7 +621,16 @@ func (k *classifier) actionLen(t ast.ActionExpr, rule string, seen map[string]bo
 			m = max(m, n)
 		}
 		return m, true
-	case *ast.Call:
+	}
+	switch t := t.(type) {
+	case *core.Const:
+		switch v := t.Value.(type) {
+		case string:
+			return len(v), true
+		case nil:
+			return 0, true
+		}
+	case *core.Builtin:
 		if t.Func == "list" {
 			return len(t.Args), true
 		}
@@ -708,19 +700,20 @@ func textLen(n core.Node, k *classifier, seen map[string]bool) (int, bool) {
 
 // readsOnly reports whether t is built from the variable v, int and bool literals, the operators
 // that eval knows, and the calls of len that operand accepts (none when operand is nil).
-func readsOnly(t ast.ActionExpr, v string, operand func(*ast.Call) bool) bool {
+func readsOnly(t core.ActionExpr, v string, operand func(*core.Builtin) bool) bool {
 	switch t := t.(type) {
-	case *ast.IntLit, *ast.BoolLit:
-		return true
-	case *ast.VarRef:
+	case *core.Const:
+		switch t.Value.(type) {
+		case int, bool:
+			return true
+		}
+	case *core.VarRef:
 		return t.Name == v
-	case *ast.ActionGroup:
-		return readsOnly(t.Action, v, operand)
-	case *ast.Unary:
+	case *core.Unary:
 		return (t.Op == "-" || t.Op == "!") && readsOnly(t.X, v, operand)
-	case *ast.Binary:
+	case *core.Binary:
 		return intOps[t.Op] && readsOnly(t.L, v, operand) && readsOnly(t.R, v, operand)
-	case *ast.Call:
+	case *core.Builtin:
 		return operand != nil && t.Func == "len" && len(t.Args) == 1 && operand(t)
 	}
 	return false
@@ -733,7 +726,7 @@ var intOps = map[string]bool{"+": true, "-": true, "*": true, "/": true, "%": tr
 type domainEnv struct {
 	v    string
 	x    int
-	lens map[*ast.Call]int
+	lens map[*core.Builtin]int
 }
 
 // evalResult is the outcome of eval.
@@ -751,23 +744,24 @@ const maxExact = 1 << 53
 // eval evaluates t, which readsOnly accepts, in env, by the rules of the action
 // language: division truncates toward zero, the remainder has the sign of the dividend, and
 // dividing by zero is an error.
-func eval(t ast.ActionExpr, env domainEnv) (any, evalResult) {
+func eval(t core.ActionExpr, env domainEnv) (any, evalResult) {
 	switch t := t.(type) {
-	case *ast.IntLit:
-		return exact(t.Value)
-	case *ast.BoolLit:
-		return t.Value, evalOK
-	case *ast.VarRef:
+	case *core.Const:
+		switch v := t.Value.(type) {
+		case int:
+			return exact(v)
+		case bool:
+			return v, evalOK
+		}
+	case *core.VarRef:
 		if t.Name == env.v {
 			return env.x, evalOK
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		if n, ok := env.lens[t]; ok {
 			return n, evalOK
 		}
-	case *ast.ActionGroup:
-		return eval(t.Action, env)
-	case *ast.Unary:
+	case *core.Unary:
 		r, res := eval(t.X, env)
 		if res != evalOK {
 			return nil, res
@@ -782,7 +776,7 @@ func eval(t ast.ActionExpr, env domainEnv) (any, evalResult) {
 				return !r, evalOK
 			}
 		}
-	case *ast.Binary:
+	case *core.Binary:
 		l, res := eval(t.L, env)
 		if res != evalOK {
 			return nil, res

@@ -2,12 +2,8 @@ package complexity
 
 import (
 	"math"
-	"slices"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/syntax/fmt"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // guard is what the predicates next to a binding of an int variable test of the value that it
@@ -15,7 +11,7 @@ import (
 // binding, so a value that the guard rejects reaches no call and no later binding.
 type guard struct {
 	// tests are the tests after the binding that read only its variable and literals.
-	tests []ast.ActionExpr
+	tests []core.ActionExpr
 	// bounds holds every value that passes the tests after the binding and the tests before it.
 	bounds valueRange
 }
@@ -37,88 +33,77 @@ func (g guard) passes(v string, y int) bool {
 
 // guardOf returns the guard of the binding b of an int variable v := e. Between the binding and
 // the tests after it, and between the tests before it and the binding, only predicates run (see
-// adjacentStatements), so nothing reads the input or calls a rule there.
+// adjacentPredicates), so nothing reads the input or calls a rule there.
 //
 //   - A test after the binding, up to the next binding of v, that reads only v and literals
 //     tests the value that b binds: `{v := e} {lo <= v && v <= hi}`. Its comparisons of v with
 //     constants bound the value.
 //   - A test before the binding, after the last binding of any variable before it, evaluates e
-//     with the same variables and captures as b does, and every action expression of the action language is a
-//     function of them: `{lo <= e && e <= hi} {v := e}`. Its comparisons of e, as written, with
-//     constants bound the value.
+//     with the same variables and captures as b does, and every action expression of the action
+//     language is a function of them: `{lo <= e && e <= hi} {v := e}`. Its comparisons of e
+//     with constants bound the value.
 //
 // A test of a conjunction bounds the value by each of its comparisons that has the form; a
 // single comparison bounds one side, which the range of e (see actionRange) can bound on the other.
 func (k *classifier) guardOf(b *binding) guard {
 	g := guard{bounds: fullRange}
-	v, e := b.b.Name, check.UngroupActionExpr(b.b.Value)
-	isVar := func(t ast.ActionExpr) bool {
-		r, ok := check.UngroupActionExpr(t).(*ast.VarRef)
+	v, e := b.n.Var, b.n.Action
+	isVar := func(t core.ActionExpr) bool {
+		r, ok := t.(*core.VarRef)
 		return ok && r.Name == v
 	}
-	text := fmt.FormatActionExpr(e)
-	isValue := func(t ast.ActionExpr) bool { return fmt.FormatActionExpr(check.UngroupActionExpr(t)) == text }
-	after, before := k.adjacentStatements(b)
-	for _, s := range after {
-		if bd, ok := s.(*ast.Bind); ok && bd.Name == v {
-			break
+	text := core.ActionExprString(e)
+	isValue := func(t core.ActionExpr) bool { return core.ActionExprString(t) == text }
+	after, before := k.adjacentPredicates(b)
+	for _, p := range after {
+		if bd, ok := p.(*core.BindNode); ok {
+			if bd.Var == v {
+				break
+			}
+			continue
 		}
-		if readsOnly(s, v, nil) {
+		if s := p.(*core.Pred).Action; readsOnly(s, v, nil) {
 			g.tests = append(g.tests, s)
 			g.bounds = g.bounds.meet(actionBounds(s, isVar))
 		}
 	}
-	for _, s := range before {
-		if _, ok := s.(*ast.Bind); ok {
+	for _, p := range before {
+		pred, ok := p.(*core.Pred)
+		if !ok {
 			break
 		}
-		g.bounds = g.bounds.meet(actionBounds(s, isValue))
+		g.bounds = g.bounds.meet(actionBounds(pred.Action, isValue))
 	}
 	return g
 }
 
-// adjacentStatements returns the statements of the predicates that run right after the binding b
-// and right before it, each list in the order of evaluation away from b: the other statements of
-// its block, then those of the predicates next to the predicate of b in the sequence that holds
-// it, up to the first element on either side that is not a predicate. A predicate under labels
+// adjacentPredicates returns the predicates and bindings that run right after the binding b and
+// right before it, each list in the order of evaluation away from b: those next to b in the
+// sequence that holds it, up to the first element on either side that is not one. The module
+// splices the statements of a predicate block into that sequence. A predicate under labels
 // counts, since labels do not change matching.
-func (k *classifier) adjacentStatements(b *binding) (after, before []ast.ActionExpr) {
-	if b.p == nil {
-		return nil, nil
-	}
-	own := statements(k.predicateAction(b.p))
-	i := slices.Index(own, ast.ActionExpr(b.b))
-	if i < 0 {
-		return nil, nil
-	}
-	after = slices.Clone(own[i+1:])
-	for j := i - 1; j >= 0; j-- {
-		before = append(before, own[j])
-	}
+func (k *classifier) adjacentPredicates(b *binding) (after, before []core.Node) {
 	if len(b.c.seqs) == 0 {
-		return after, before
+		return nil, nil
 	}
 	f := b.c.seqs[len(b.c.seqs)-1]
 	items := f.seq.Items
-	if predicateOf(items[f.index]) != b.p {
-		return after, before
+	if predicateOf(items[f.index]) != core.Node(b.n) {
+		return nil, nil
 	}
 	for _, it := range items[f.index+1:] {
 		q := predicateOf(it)
 		if q == nil {
 			break
 		}
-		after = append(after, statements(k.predicateAction(q))...)
+		after = append(after, q)
 	}
 	for j := f.index - 1; j >= 0; j-- {
 		q := predicateOf(items[j])
 		if q == nil {
 			break
 		}
-		s := statements(k.predicateAction(q))
-		for m := len(s) - 1; m >= 0; m-- {
-			before = append(before, s[m])
-		}
+		before = append(before, q)
 	}
 	return after, before
 }
@@ -137,14 +122,6 @@ func predicateOf(n core.Node) core.Node {
 			return nil
 		}
 	}
-}
-
-// statements returns the statements of a predicate action expression: those of a block, or the action expression itself.
-func statements(t ast.ActionExpr) []ast.ActionExpr {
-	if blk, ok := t.(*ast.Block); ok {
-		return blk.Statements
-	}
-	return []ast.ActionExpr{t}
 }
 
 // valueRange is an inclusive range of ints. A bound beyond maxExact in magnitude stands for no
@@ -184,8 +161,8 @@ func rangeOf(lo, hi int) valueRange {
 // actionBounds returns the range that t bounds the subject to when t is true: t is a comparison
 // with <, <=, >, >= or == of the subject with a constant int (see constInt), on either side, or a
 // conjunction with && of such tests and others, which do not bound it.
-func actionBounds(t ast.ActionExpr, subject func(ast.ActionExpr) bool) valueRange {
-	bin, ok := check.UngroupActionExpr(t).(*ast.Binary)
+func actionBounds(t core.ActionExpr, subject func(core.ActionExpr) bool) valueRange {
+	bin, ok := t.(*core.Binary)
 	if !ok {
 		return fullRange
 	}
@@ -217,7 +194,7 @@ func actionBounds(t ast.ActionExpr, subject func(ast.ActionExpr) bool) valueRang
 }
 
 // constInt returns the value of t when t is a constant int expression that eval knows.
-func constInt(t ast.ActionExpr) (int, bool) {
+func constInt(t core.ActionExpr) (int, bool) {
 	if !constant(t) {
 		return 0, false
 	}
@@ -229,15 +206,13 @@ func constInt(t ast.ActionExpr) (int, bool) {
 // actionRange returns a range that holds every int that t can give when the variable v holds a
 // value of xs: a literal is its value, v ranges over xs, len gives at least 0, unary -, + and *
 // combine the ranges of their operands, and any other action expression has no bound.
-func actionRange(t ast.ActionExpr, v string, xs valueSet) valueRange {
+func actionRange(t core.ActionExpr, v string, xs valueSet) valueRange {
 	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return actionRange(t.Action, v, xs)
-	case *ast.IntLit:
+	case *core.Const:
 		if n, ok := constInt(t); ok {
 			return valueRange{n, n}
 		}
-	case *ast.VarRef:
+	case *core.VarRef:
 		if t.Name == v && len(xs) > 0 {
 			lo, hi := math.MaxInt, math.MinInt
 			for x := range xs {
@@ -245,16 +220,16 @@ func actionRange(t ast.ActionExpr, v string, xs valueSet) valueRange {
 			}
 			return valueRange{lo, hi}
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		if t.Func == "len" && len(t.Args) == 1 {
 			return valueRange{0, fullRange.hi}
 		}
-	case *ast.Unary:
+	case *core.Unary:
 		if t.Op == "-" {
 			r := actionRange(t.X, v, xs)
 			return valueRange{-r.hi, -r.lo}
 		}
-	case *ast.Binary:
+	case *core.Binary:
 		l, r := actionRange(t.L, v, xs), actionRange(t.R, v, xs)
 		switch t.Op {
 		case "+":

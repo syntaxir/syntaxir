@@ -2,7 +2,6 @@ package complexity
 
 import (
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Values that hold one another. The size of a value that copies the value of a call on a
@@ -62,25 +61,13 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 	switch {
 	case r == nil:
 	case isOperators(r.Expr):
-		ops := r.Expr.(*ast.OperatorsRule)
-		var actions []ast.ActionExpr
-		for _, o := range ops.Operands {
-			if o.Action != nil && !o.DefaultAction {
-				actions = append(actions, o.Action)
+		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+			if l.Action != nil {
+				out = append(out, k.heldCalls(l.Action, tc, x.mode)...)
 			}
 		}
-		for _, l := range ops.Levels {
-			for _, op := range l.Operators {
-				if op.Action != nil && !op.DefaultAction {
-					actions = append(actions, op.Action)
-				}
-			}
-		}
-		for _, a := range actions {
-			out = append(out, k.heldCalls(a, tc, x.mode)...)
-		}
-	case r.Action != nil && !r.DefaultAction:
-		out = k.heldCalls(r.Action, tc, x.mode)
+	case k.ruleAction(x.rule) != nil:
+		out = k.heldCalls(k.ruleAction(x.rule), tc, x.mode)
 	default:
 		out = k.heldExprCalls(k.ruleBody(x.rule), tc, x.mode)
 	}
@@ -90,21 +77,16 @@ func (k *classifier) heldBy(x sizeKey) []sizeKey {
 
 // heldCalls returns the values of calls on a recursion with the rule of tc that the value of t,
 // measured in mode, holds.
-func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []sizeKey {
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return k.heldCalls(t.Action, tc, mode)
-	case *ast.Cast:
-		return k.heldCalls(t.X, tc, mode)
-	case *ast.CaptureRef:
-		if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
+func (k *classifier) heldCalls(t core.ActionExpr, tc actionCtx, mode sizeMode) []sizeKey {
+	if name, param, ok := capRef(t); ok {
+		if p, ok := tc.params[name]; ok && (param || tc.lambda) {
 			var out []sizeKey
 			for _, e := range p.elems {
 				out = append(out, k.heldExprCalls(e, tc, mode)...)
 			}
 			return out
 		}
-		exprs := k.captured(tc.rule, t.Name)
+		exprs := k.captured(tc.rule, name)
 		if len(exprs) == 0 && isOperators(k.byName[tc.rule].Expr) {
 			// An operand of an Operators Rule is a value of the rule itself.
 			return []sizeKey{{tc.rule, mode}}
@@ -114,7 +96,11 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 			out = append(out, k.heldExprCalls(e, tc, mode)...)
 		}
 		return out
-	case *ast.FieldAccess:
+	}
+	switch t := t.(type) {
+	case *core.Cast:
+		return k.heldCalls(t.X, tc, mode)
+	case *core.Member:
 		exprs, _, ok := k.actionExprs(t, tc)
 		if !ok {
 			return nil
@@ -124,11 +110,11 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 			out = append(out, k.heldExprCalls(e, tc, mode)...)
 		}
 		return out
-	case *ast.Binary:
+	case *core.Binary:
 		if t.Op == "+" && !k.isInt(t.L, tc) && !k.isInt(t.R, tc) {
 			return append(k.heldCalls(t.L, tc, textSize), k.heldCalls(t.R, tc, textSize)...)
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		var out []sizeKey
 		switch t.Func {
 		case "text":
@@ -160,7 +146,7 @@ func (k *classifier) heldCalls(t ast.ActionExpr, tc actionCtx, mode sizeMode) []
 // heldLambdaCtx returns the context of the body of the lambda lam of the fold call: the parameter
 // for the element of the list stands for the expressions whose values the elements are, and the
 // accumulator for nothing, since the fold holds its initial value and the values of the lambda.
-func (k *classifier) heldLambdaCtx(call *ast.Call, lam *ast.Lambda, tc actionCtx) actionCtx {
+func (k *classifier) heldLambdaCtx(call *core.Builtin, lam *core.Lambda, tc actionCtx) actionCtx {
 	params := map[string]param{}
 	for n, p := range tc.params {
 		params[n] = p

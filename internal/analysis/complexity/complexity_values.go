@@ -7,8 +7,6 @@ import (
 	"sort"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -19,7 +17,7 @@ import (
 type actionCtx struct {
 	rule   string
 	c      wctx
-	pred   *ast.Predicate // the predicate that holds the action expression, or nil for an action
+	pred   core.Node // the node of the predicate or binding that holds the action expression, or nil for an action
 	action bool
 	// value reports an action expression whose value the value of the rule holds: an action of the rule, and
 	// the parts of such an action expression that its value holds.
@@ -57,19 +55,11 @@ type param struct {
 	look bool
 }
 
-// binding is a binding of a variable in a predicate.
+// binding is a binding of a variable in a predicate: its node, in the context of the walk.
 type binding struct {
 	rule string
-	b    *ast.Bind
+	n    *core.BindNode
 	c    wctx
-	p    core.Node // the node of the predicate that holds the binding: a core.Pred or core.BindNode
-}
-
-// predicateAction returns the action expression of the predicate node n, a core.Pred or core.BindNode:
-// that of the predicate that n is written from, a *ast.Bind for a binding. The classifier reads
-// the action expressions as the grammar writes them.
-func (k *classifier) predicateAction(n core.Node) ast.ActionExpr {
-	return k.exprOf(n).(*ast.Predicate).Action
 }
 
 // captured returns the nodes of the expressions that rule captures as name.
@@ -208,49 +198,43 @@ var scalarOps = map[string]bool{"==": true, "!=": true, "<": true, "<=": true, "
 // is a range of the input, which costs a constant, though its size counts where it is copied.
 var copyFuncs = map[string]bool{"concat": true, "map": true, "filter": true, "len": true}
 
-func (k *classifier) walkAction(t ast.ActionExpr, tc actionCtx) {
+// walkPredicate walks the predicate or binding n, recording a binding.
+func (k *classifier) walkPredicate(n core.Node, c wctx) {
+	tc := actionCtx{rule: c.rule, c: c, pred: n}
+	switch n := n.(type) {
+	case *core.Pred:
+		k.walkAction(n.Action, tc)
+	case *core.BindNode:
+		k.binds = append(k.binds, &binding{rule: c.rule, n: n, c: c})
+		k.walkAction(n.Action, tc)
+	}
+}
+
+func (k *classifier) walkAction(t core.ActionExpr, tc actionCtx) {
 	if t == nil {
 		return
 	}
 	k.control.Poll()
 	switch t := t.(type) {
-	case *ast.ActionGroup:
-		k.walkAction(t.Action, tc)
-	case *ast.Block:
-		for _, s := range t.Statements {
-			k.walkAction(s, tc.part(false))
-		}
-	case *ast.Bind:
-		b := &binding{rule: tc.rule, b: t, c: tc.c}
-		if tc.pred != nil {
-			b.p = k.nodeOf(tc.pred)
-		}
-		k.binds = append(k.binds, b)
-		k.walkAction(t.Value, tc.part(false))
-	case *ast.FieldAccess:
+	case *core.Member:
 		k.walkAction(t.X, tc.part(false))
-	case *ast.Cast:
+	case *core.Cast:
 		k.walkAction(t.X, tc)
-	case *ast.Unary:
+	case *core.Convert:
+		k.walkAction(t.X, tc)
+	case *core.Unary:
 		k.walkAction(t.X, tc.part(false))
-	case *ast.Constructor:
+	case *core.New:
 		for _, f := range t.Fields {
 			k.walkAction(f.Value, tc)
 		}
-		for _, a := range t.Args {
-			k.walkAction(a, tc)
-		}
-	case *ast.TupleLit:
+	case *core.Tuple:
 		for _, x := range t.Elems {
 			k.walkAction(x, tc)
 		}
-	case *ast.ListConstructor:
-		for _, x := range t.Items {
-			k.walkAction(x, tc)
-		}
-	case *ast.Binary:
+	case *core.Binary:
 		if t.Op == "+" && !k.isInt(t.L, tc) && !k.isInt(t.R, tc) {
-			k.copyOp(t, actionPosOf(t), tc)
+			k.copyOp(t, k.actionPos(t), tc)
 			// The joined operands are one operation; walk the action expressions below them.
 			for _, x := range k.joined(t, nil) {
 				k.walkAction(x, tc)
@@ -268,15 +252,15 @@ func (k *classifier) walkAction(t ast.ActionExpr, tc actionCtx) {
 				if r.lighter(l) {
 					l = r
 				}
-				k.copied(t, actionPosOf(t), tc, l)
+				k.copied(t, k.actionPos(t), tc, l)
 			}
 		}
 		k.walkAction(t.L, tc)
 		k.walkAction(t.R, tc)
-	case *ast.Call:
+	case *core.Builtin:
 		for i, a := range t.Args {
 			held := tc.value && heldArg(t.Func, i)
-			if lam, ok := a.(*ast.Lambda); ok {
+			if lam, ok := a.(*core.Lambda); ok {
 				k.walkAction(lam.Body, k.lambdaCtx(t, i, lam, tc).part(held))
 				continue
 			}
@@ -295,11 +279,11 @@ func (k *classifier) walkAction(t ast.ActionExpr, tc actionCtx) {
 				}
 			}
 			// The length is an int, which holds none of what it examines.
-			k.copied(t, actionPosOf(t), tc.part(false), size)
+			k.copied(t, k.actionPos(t), tc.part(false), size)
 		case copyFuncs[t.Func]:
-			k.copyOp(t, actionPosOf(t), tc)
+			k.copyOp(t, k.actionPos(t), tc)
 		}
-	case *ast.Lambda:
+	case *core.Lambda:
 		k.walkAction(t.Body, tc)
 	}
 }
@@ -331,11 +315,11 @@ func heldArg(fn string, i int) bool {
 
 // mayBeString reports whether the value of t may be a string value rather than a node, a list or
 // a tuple. Without the type of t it may.
-func (k *classifier) mayBeString(t ast.ActionExpr) bool {
+func (k *classifier) mayBeString(t core.ActionExpr) bool {
 	if k.types == nil {
 		return true
 	}
-	ty, ok := k.types.ActionExprs[t]
+	ty, ok := k.types.ActionExprs[k.actionOrigin(t)]
 	return !ok || k.stringIn(ty, map[string]bool{})
 }
 
@@ -374,7 +358,7 @@ func (k *classifier) stringIn(t types.Ty, seen map[string]bool) bool {
 // lambda: it does not repeat, a copy from outside it is not reported for each element, and the
 // accumulator of a fold holds what the initial value and the body can hold, at most a constant
 // multiple of their sizes.
-func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc actionCtx) actionCtx {
+func (k *classifier) lambdaCtx(call *core.Builtin, i int, lam *core.Lambda, tc actionCtx) actionCtx {
 	params := map[string]param{}
 	for n, p := range tc.params {
 		params[n] = p
@@ -384,7 +368,7 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc action
 	if fold {
 		list = 1
 	}
-	var listArg ast.ActionExpr
+	var listArg core.ActionExpr
 	if len(call.Args) > list {
 		listArg = call.Args[list]
 	}
@@ -399,7 +383,7 @@ func (k *classifier) lambdaCtx(call *ast.Call, i int, lam *ast.Lambda, tc action
 	var elems []core.Node
 	if listArg != nil {
 		if bounded {
-			elem = k.sizeOf(&ast.FieldAccess{X: listArg}, tc, textSize)
+			elem = k.sizeOf(&core.Member{X: listArg}, tc, textSize)
 		} else {
 			elem = k.elemSize(listArg, tc)
 		}
@@ -495,18 +479,16 @@ func (k *classifier) ownExprs(exprs []core.Node, rule string) bool {
 // list in the context tc: the degree of the number of elements of the list of each lambda around
 // it over a list that is not bounded, but without the innermost of them when list reads only its
 // elements and they are own, since their sizes add up to at most the input over its evaluations.
-func (k *classifier) foldRuns(list ast.ActionExpr, tc actionCtx) int {
+func (k *classifier) foldRuns(list core.ActionExpr, tc actionCtx) int {
 	if tc.runs == 0 || list == nil {
 		return tc.runs
 	}
 	own := len(tc.elems) > 0
-	astfacts.WalkAction(list, func(x ast.ActionExpr) {
-		switch x := x.(type) {
-		case *ast.CaptureRef:
-			if !slices.Contains(tc.elems, x.Name) {
-				own = false
-			}
-		case *ast.VarRef:
+	core.WalkActionExpr(list, func(x core.ActionExpr) {
+		if name, _, ok := capRef(x); ok && !slices.Contains(tc.elems, name) {
+			own = false
+		}
+		if _, ok := x.(*core.VarRef); ok {
 			own = false
 		}
 	})
@@ -519,55 +501,55 @@ func (k *classifier) foldRuns(list ast.ActionExpr, tc actionCtx) int {
 
 // elemSize describes what the size of an element of the list t can depend on: anything that the
 // captures and variables that t reads can hold.
-func (k *classifier) elemSize(t ast.ActionExpr, tc actionCtx) content {
+func (k *classifier) elemSize(t core.ActionExpr, tc actionCtx) content {
 	saved, savedRepeat := tc.lambda, tc.repeat
 	tc.lambda, tc.repeat = false, false
-	c := k.sizeOf(&ast.FieldAccess{X: t}, tc, textSize)
+	c := k.sizeOf(&core.Member{X: t}, tc, textSize)
 	tc.lambda, tc.repeat = saved, savedRepeat
 	c.outer = false
 	return c
 }
 
 // joined flattens a join of strings with + into its operands.
-func (k *classifier) joined(t ast.ActionExpr, acc []ast.ActionExpr) []ast.ActionExpr {
-	switch x := t.(type) {
-	case *ast.ActionGroup:
-		return k.joined(x.Action, acc)
-	case *ast.Binary:
-		if x.Op == "+" {
-			return k.joined(x.R, k.joined(x.L, acc))
-		}
+func (k *classifier) joined(t core.ActionExpr, acc []core.ActionExpr) []core.ActionExpr {
+	if x, ok := t.(*core.Binary); ok && x.Op == "+" {
+		return k.joined(x.R, k.joined(x.L, acc))
 	}
 	return append(acc, t)
 }
 
 // isInt reports whether t is known to be an int.
-func (k *classifier) isInt(t ast.ActionExpr, tc actionCtx) bool {
+func (k *classifier) isInt(t core.ActionExpr, tc actionCtx) bool {
+	if name, param, ok := capRef(t); ok {
+		if p, ok := tc.params[name]; ok && param {
+			return p.int
+		}
+		return false
+	}
 	switch t := t.(type) {
-	case *ast.IntLit:
-		return true
-	case *ast.ActionGroup:
-		return k.isInt(t.Action, tc)
-	case *ast.Unary:
+	case *core.Const:
+		_, ok := t.Value.(int)
+		return ok
+	case *core.Unary:
 		return t.Op == "-"
-	case *ast.Binary:
+	case *core.Binary:
 		switch t.Op {
 		case "-", "*", "/", "%":
 			return true
 		case "+":
 			return k.isInt(t.L, tc) || k.isInt(t.R, tc)
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		return t.Func == "len"
-	case *ast.VarRef:
+	case *core.VarRef:
 		return k.varType[t.Name] == "int"
-	case *ast.CaptureRef:
-		if p, ok := tc.params[t.Name]; ok && t.Param {
-			return p.int
-		}
-	case *ast.Cast:
-		if r, ok := t.Type.(*ast.TypeRef); ok {
-			return r.Name == "int"
+	case *core.Cast:
+		// The checked type of a cast is not in the module that the classifier reads, which is
+		// untyped, so the classifier reads the type that the grammar writes.
+		if c, ok := k.actionOrigin(t).(*ast.Cast); ok {
+			if r, ok := c.Type.(*ast.TypeRef); ok {
+				return r.Name == "int"
+			}
 		}
 	}
 	return false
@@ -583,46 +565,45 @@ const (
 )
 
 // sizeOf describes what the size of the value of t, measured in mode, can depend on.
-func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) content {
+func (k *classifier) sizeOf(t core.ActionExpr, tc actionCtx, mode sizeMode) content {
 	var c content
-	switch t := t.(type) {
-	case nil, *ast.IntLit, *ast.BoolLit, *ast.NilLit, *ast.StringLit, *ast.Unary, *ast.Lambda,
-		*ast.Constructor, *ast.TupleLit, *ast.ListConstructor:
-		// Numbers, Booleans and structs are not strings or lists; a list literal has as many
-		// elements as it has items.
-	case *ast.ActionGroup:
-		return k.sizeOf(t.Action, tc, mode)
-	case *ast.Cast:
-		return k.sizeOf(t.X, tc, mode)
-	case *ast.VarRef:
-		c = k.varSize(t.Name, tc, mode)
-	case *ast.CaptureRef:
-		if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
+	if name, param, ok := capRef(t); ok {
+		if p, ok := tc.params[name]; ok && (param || tc.lambda) {
 			if p.acc {
-				c.acc = map[string]int{t.Name: 1}
+				c.acc = map[string]int{name: 1}
 			}
 			c.add(p.elem)
 			c.sum = max(c.sum, p.sum)
 			c.unbounded = true
 			return c
 		}
-		if d, ok := k.operandValue(tc.rule, t.Name, mode); ok {
+		if d, ok := k.operandValue(tc.rule, name, mode); ok {
 			c.add(d)
 			c.outer = tc.repeat
 			return c
 		}
-		exprs := k.captured(tc.rule, t.Name)
+		exprs := k.captured(tc.rule, name)
 		if len(exprs) == 0 {
 			c.unbounded = true
 		}
 		for _, e := range exprs {
-			c.add(k.exprSize(e, tc, mode, "$"+t.Name))
+			c.add(k.exprSize(e, tc, mode, "$"+name))
 		}
 		// A capture in a lookahead whose size is not bounded holds input that the match does not
 		// consume.
-		c.look = c.look || k.lookCaptures(tc.rule)[t.Name] && c.unbounded
+		c.look = c.look || k.lookCaptures(tc.rule)[name] && c.unbounded
 		c.outer = tc.repeat && c.unbounded
-	case *ast.FieldAccess:
+		return c
+	}
+	switch t := t.(type) {
+	case nil, *core.Const, *core.Unary, *core.Lambda, *core.New, *core.Convert, *core.Tuple:
+		// Numbers, Booleans and structs are not strings or lists; a list literal has as many
+		// elements as it has items.
+	case *core.Cast:
+		return k.sizeOf(t.X, tc, mode)
+	case *core.VarRef:
+		c = k.varSize(t.Name, tc, mode)
+	case *core.Member:
 		exprs, param, ok := k.actionExprs(t, tc)
 		if !ok {
 			return k.sizeOfAny(t, tc)
@@ -638,7 +619,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) conte
 		// a value captured in one.
 		c.look = c.look || k.inLook(t, tc) && c.unbounded
 		c.outer = tc.repeat && !param && c.unbounded
-	case *ast.Binary:
+	case *core.Binary:
 		switch {
 		case t.Op == "+":
 			if !k.isInt(t.L, tc) && !k.isInt(t.R, tc) {
@@ -651,7 +632,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) conte
 			// An element of a list, as x[i], can hold anything that the list can.
 			return k.sizeOfAny(t, tc)
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		switch t.Func {
 		case "len", "list":
 			// An int, and a list with one element for each argument.
@@ -672,7 +653,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) conte
 				c.add(k.sizeOf(t.Args[0], tc, mode))
 			}
 			for i, a := range t.Args {
-				if lam, ok := a.(*ast.Lambda); ok {
+				if lam, ok := a.(*core.Lambda); ok {
 					c.add(k.sizeOf(lam.Body, k.lambdaCtx(t, i, lam, tc), mode))
 				}
 			}
@@ -688,7 +669,7 @@ func (k *classifier) sizeOf(t ast.ActionExpr, tc actionCtx, mode sizeMode) conte
 // varBind is a binding of a variable in the rule that holds it.
 type varBind struct {
 	rule string
-	b    *ast.Bind
+	n    *core.BindNode
 }
 
 // varBinds returns the bindings of the variable v in all the rules.
@@ -696,9 +677,9 @@ func (k *classifier) varBinds(v string) []varBind {
 	if k.varBinding == nil {
 		k.varBinding = map[string][]varBind{}
 		for _, r := range k.rules {
-			astfacts.WalkRuleActions(r, func(t ast.ActionExpr) {
-				if b, ok := t.(*ast.Bind); ok {
-					k.varBinding[b.Name] = append(k.varBinding[b.Name], varBind{r.Name, b})
+			walkNodes(k.ruleBody(r.Name), func(n core.Node) {
+				if b, ok := n.(*core.BindNode); ok {
+					k.varBinding[b.Var] = append(k.varBinding[b.Var], varBind{r.Name, b})
 				}
 			})
 		}
@@ -733,7 +714,7 @@ func (k *classifier) varSize(v string, tc actionCtx, mode sizeMode) content {
 		if from, to := k.holder(b.rule), k.holder(tc.rule); from != to && !k.reachable(from)[to] && !k.reachable(b.rule)[tc.rule] {
 			continue
 		}
-		c.add(k.sizeOf(b.b.Value, actionCtx{rule: b.rule}, mode))
+		c.add(k.sizeOf(b.n.Action, actionCtx{rule: b.rule}, mode))
 	}
 	return c
 }
@@ -749,40 +730,43 @@ func (k *classifier) holder(rule string) string {
 
 // sizeOfAny describes the size of the value of t without looking at how it is built: anything
 // that the captures and variables it reads can hold.
-func (k *classifier) sizeOfAny(t ast.ActionExpr, tc actionCtx) content {
+func (k *classifier) sizeOfAny(t core.ActionExpr, tc actionCtx) content {
 	var c content
 	outer := false
 	{
-		astfacts.WalkAction(t, func(x ast.ActionExpr) {
-			switch x := x.(type) {
-			case *ast.CaptureRef:
-				if p, ok := tc.params[x.Name]; ok && (x.Param || tc.lambda) {
-					if p.acc {
-						c.add(content{acc: map[string]int{x.Name: 1}})
-					}
-					c.add(p.elem)
-					c.sum = max(c.sum, p.sum)
-					return
-				}
-				if d, ok := k.operandValue(tc.rule, x.Name, textSize); ok {
-					outer = true
-					c.add(d)
-					return
-				}
-				// A value from outside the lambda counts as outer only when it is not bounded.
-				exprs := k.captured(tc.rule, x.Name)
-				if len(exprs) == 0 {
-					outer = true
-					c.look = c.look || k.lookCaptures(tc.rule)[x.Name]
-				}
-				for _, e := range exprs {
-					d := k.deepSize(e, tc, "$"+x.Name)
-					outer = outer || !d.bounded()
-					c.look = c.look || k.lookCaptures(tc.rule)[x.Name] && d.unbounded
-					c.add(d)
-				}
-			case *ast.VarRef:
+		core.WalkActionExpr(t, func(x core.ActionExpr) {
+			if x, ok := x.(*core.VarRef); ok {
 				c.add(k.varSize(x.Name, tc, textSize))
+				return
+			}
+			name, param, ok := capRef(x)
+			if !ok {
+				return
+			}
+			if p, ok := tc.params[name]; ok && (param || tc.lambda) {
+				if p.acc {
+					c.add(content{acc: map[string]int{name: 1}})
+				}
+				c.add(p.elem)
+				c.sum = max(c.sum, p.sum)
+				return
+			}
+			if d, ok := k.operandValue(tc.rule, name, textSize); ok {
+				outer = true
+				c.add(d)
+				return
+			}
+			// A value from outside the lambda counts as outer only when it is not bounded.
+			exprs := k.captured(tc.rule, name)
+			if len(exprs) == 0 {
+				outer = true
+				c.look = c.look || k.lookCaptures(tc.rule)[name]
+			}
+			for _, e := range exprs {
+				d := k.deepSize(e, tc, "$"+name)
+				outer = outer || !d.bounded()
+				c.look = c.look || k.lookCaptures(tc.rule)[name] && d.unbounded
+				c.add(d)
 			}
 		})
 		c.unbounded = true
@@ -794,42 +778,38 @@ func (k *classifier) sizeOfAny(t ast.ActionExpr, tc actionCtx) content {
 // actionExprs returns the captured nodes whose values t can be: a capture, a member $y of such a
 // value, which is the value of a capture y inside it, or an element of a list whose elements are
 // known. param reports a value that comes from a lambda parameter.
-func (k *classifier) actionExprs(t ast.ActionExpr, tc actionCtx) (exprs []core.Node, param, ok bool) {
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return k.actionExprs(t.Action, tc)
-	case *ast.CaptureRef:
-		if p, isParam := tc.params[t.Name]; isParam && (t.Param || tc.lambda) {
+func (k *classifier) actionExprs(t core.ActionExpr, tc actionCtx) (exprs []core.Node, param, ok bool) {
+	if name, isParamRef, isRef := capRef(t); isRef {
+		if p, isParam := tc.params[name]; isParam && (isParamRef || tc.lambda) {
 			return p.elems, true, p.elems != nil && !p.acc
 		}
-		exprs := k.captured(tc.rule, t.Name)
+		exprs := k.captured(tc.rule, name)
 		return exprs, false, len(exprs) > 0
-	case *ast.FieldAccess:
-		if !strings.HasPrefix(t.Name, "$") {
-			return nil, false, false
-		}
-		inner, param, ok := k.actionExprs(t.X, tc)
-		if !ok {
-			return nil, false, false
-		}
-		name := strings.TrimPrefix(t.Name, "$")
-		for _, e := range inner {
-			found := false
-			walkNodes(k.capturesOf(e), func(x core.Node) {
-				if cp, isCap := x.(*core.Capture); isCap && cp.Name == name {
-					exprs = append(exprs, cp.Body)
-					found = true
-				}
-			})
-			if !found {
-				// The value can be one that the node does not build itself, such as the value
-				// of a rule that it calls.
-				return nil, false, false
-			}
-		}
-		return exprs, param, true
 	}
-	return nil, false, false
+	m, isMember := t.(*core.Member)
+	if !isMember || !strings.HasPrefix(m.Name, "$") {
+		return nil, false, false
+	}
+	inner, param, ok := k.actionExprs(m.X, tc)
+	if !ok {
+		return nil, false, false
+	}
+	name := strings.TrimPrefix(m.Name, "$")
+	for _, e := range inner {
+		found := false
+		walkNodes(k.capturesOf(e), func(x core.Node) {
+			if cp, isCap := x.(*core.Capture); isCap && cp.Name == name {
+				exprs = append(exprs, cp.Body)
+				found = true
+			}
+		})
+		if !found {
+			// The value can be one that the node does not build itself, such as the value
+			// of a rule that it calls.
+			return nil, false, false
+		}
+	}
+	return exprs, param, true
 }
 
 // capturesOf returns the node whose captures the value of the captured node n holds: the body of
@@ -847,24 +827,22 @@ func (k *classifier) capturesOf(n core.Node) core.Node {
 // inLook reports whether the value of t can be captured in a positive lookahead, or be a part of
 // a value captured in one, so that it holds input that the match does not consume. A capture that
 // a rule returns is the size of that rule, which sizeOf follows.
-func (k *classifier) inLook(t ast.ActionExpr, tc actionCtx) bool {
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return k.inLook(t.Action, tc)
-	case *ast.CaptureRef:
-		if p, isParam := tc.params[t.Name]; isParam && (t.Param || tc.lambda) {
+func (k *classifier) inLook(t core.ActionExpr, tc actionCtx) bool {
+	if name, param, ok := capRef(t); ok {
+		if p, isParam := tc.params[name]; isParam && (param || tc.lambda) {
 			return p.look
 		}
-		return k.lookCaptures(tc.rule)[t.Name]
-	case *ast.FieldAccess:
-		if k.inLook(t.X, tc) {
+		return k.lookCaptures(tc.rule)[name]
+	}
+	if m, ok := t.(*core.Member); ok {
+		if k.inLook(m.X, tc) {
 			return true
 		}
-		inner, _, ok := k.actionExprs(t.X, tc)
+		inner, _, ok := k.actionExprs(m.X, tc)
 		if !ok {
-			return k.sizeOfAny(t, tc).look
+			return k.sizeOfAny(m, tc).look
 		}
-		name := strings.TrimPrefix(t.Name, "$")
+		name := strings.TrimPrefix(m.Name, "$")
 		found := false
 		for _, e := range inner {
 			walkNodes(k.capturesOf(e), func(x core.Node) {
@@ -884,7 +862,7 @@ func (k *classifier) inLook(t ast.ActionExpr, tc actionCtx) bool {
 
 // elemExprs returns the nodes whose values are the elements of the list t, or nil when they are
 // not known: t is the value of repetitions.
-func (k *classifier) elemExprs(t ast.ActionExpr, tc actionCtx) []core.Node {
+func (k *classifier) elemExprs(t core.ActionExpr, tc actionCtx) []core.Node {
 	exprs, _, ok := k.actionExprs(t, tc)
 	if !ok {
 		return nil
@@ -1014,8 +992,8 @@ func (k *classifier) includes(rule string, mode sizeMode) bool {
 	tc := actionCtx{rule: rule}
 	switch {
 	case isOperators(r.Expr):
-	case r.Action != nil:
-		v = len(k.sizeOf(r.Action, tc, mode).rec) > 0
+	case k.ruleAction(rule) != nil:
+		v = len(k.sizeOf(k.ruleAction(rule), tc, mode).rec) > 0
 	default:
 		// The value of a rule without an action is the value of its expression.
 		v = len(k.exprSize(k.ruleBody(rule), tc, mode, rule).rec) > 0
@@ -1048,7 +1026,7 @@ func (k *classifier) operandValue(rule, name string, mode sizeMode) (c content, 
 	}
 	n := "$" + name
 	if name == "value" {
-		return k.foldedValue(r.Expr.(*ast.OperatorsRule), rule, mode, n), true
+		return k.foldedValue(k.nodeOf(r.Expr).(*core.OperatorsRule), rule, mode, n), true
 	}
 	return content{unbounded: true, rec: map[string]int{n: 1}, held: map[string]int{n: 1}}, true
 }
@@ -1057,24 +1035,21 @@ func (k *classifier) operandValue(rule, name string, mode sizeMode) (c content, 
 // of rule, the value of one of its parts: it holds a call on a recursion with the rule, once, when
 // the value of a part holds one other than through $lhs and $rhs, and that call holds the value of
 // the rule in turn when it does in the value of a part. name names the value in witnesses.
-func (k *classifier) foldedValue(ops *ast.OperatorsRule, rule string, mode sizeMode, name string) content {
+func (k *classifier) foldedValue(ops *core.OperatorsRule, rule string, mode sizeMode, name string) content {
 	tc := actionCtx{rule: rule}
 	var parts content
 	for _, o := range ops.Operands {
-		if o.Action != nil && !o.DefaultAction {
+		if o.Action != nil {
 			parts.add(k.sizeOf(o.Action, tc, mode))
 		} else {
-			parts.add(k.exprSize(k.nodeOf(o.Expr), tc, mode, name))
+			parts.add(k.exprSize(o.Body, tc, mode, name))
 		}
 	}
-	for _, l := range ops.Levels {
-		for _, op := range l.Operators {
-			if op.Action != nil && !op.DefaultAction {
-				parts.add(k.sizeOf(op.Action, tc, mode))
-			}
-			// The default action of an operator part builds a node, which is not a string or a
-			// list.
+	for _, op := range ops.Ops {
+		if op.Line.Action != nil {
+			parts.add(k.sizeOf(op.Line.Action, tc, mode))
 		}
+		// The default action of an operator part builds a node, which is not a string or a list.
 	}
 	// $lhs and $rhs in the action of a part stand for the values of parts, which the other
 	// values of parts already describe: they hold earlier applications in the same call, not
@@ -1111,12 +1086,12 @@ type sizeKey struct {
 
 // copyOp checks a copying operation (condition 4) and records it as a scanning source when an
 // operand can be larger than a constant of the grammar.
-func (k *classifier) copyOp(t ast.ActionExpr, pos ast.Pos, tc actionCtx) {
+func (k *classifier) copyOp(t core.ActionExpr, pos ast.Pos, tc actionCtx) {
 	k.copied(t, pos, tc, k.sizeOf(t, tc, textSize))
 }
 
 // copied checks the copying operation t, which copies a value of the size all.
-func (k *classifier) copied(t ast.ActionExpr, pos ast.Pos, tc actionCtx, all content) {
+func (k *classifier) copied(t core.ActionExpr, pos ast.Pos, tc actionCtx, all content) {
 	text := k.showAction(t)
 	worst := func(m map[string]int) (string, int) {
 		names := make([]string, 0, len(m))
@@ -1188,11 +1163,11 @@ func (k *classifier) copied(t ast.ActionExpr, pos ast.Pos, tc actionCtx, all con
 	if all.unbounded || len(all.rec) > 0 || len(all.acc) > 0 {
 		s := &source{rule: tc.rule, pos: pos, what: "the copying operation " + text}
 		k.addSource(tc.c, pos, CauseOther, s.what)
-		if tc.pred != nil && k.predicateSource[tc.pred] == nil {
-			k.predicateSource[tc.pred] = s
+		if tc.pred != nil && k.predicateSource[k.predicateOf(tc.pred)] == nil {
+			k.predicateSource[k.predicateOf(tc.pred)] = s
 		}
 		if tc.pred != nil {
-			k.srcExprs[tc.pred] = true
+			k.srcExprs[k.exprOf(tc.pred)] = true
 		}
 		if tc.pred == nil {
 			k.actionSource[tc.rule] = true
@@ -1211,7 +1186,7 @@ func times(n int) string {
 
 // actionVars returns the variables that the value of t can depend on: those it reads, and those
 // that the rules called in the captures it reads read.
-func (k *classifier) actionVars(t ast.ActionExpr, rule string) map[string]bool {
+func (k *classifier) actionVars(t core.ActionExpr, rule string) map[string]bool {
 	out := map[string]bool{}
 	ruleVars := func(n core.Node) {
 		walkNodes(n, func(x core.Node) {
@@ -1222,15 +1197,13 @@ func (k *classifier) actionVars(t ast.ActionExpr, rule string) map[string]bool {
 			}
 		})
 	}
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
-		switch x := x.(type) {
-		case *ast.VarRef:
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
+		if x, ok := x.(*core.VarRef); ok {
 			out[x.Name] = true
-		case *ast.CaptureRef:
-			if !x.Param {
-				for _, e := range k.captured(rule, x.Name) {
-					ruleVars(e)
-				}
+		}
+		if name, param, ok := capRef(x); ok && !param {
+			for _, e := range k.captured(rule, name) {
+				ruleVars(e)
 			}
 		}
 	})
@@ -1238,11 +1211,11 @@ func (k *classifier) actionVars(t ast.ActionExpr, rule string) map[string]bool {
 }
 
 // constant reports whether t reads nothing that the input can change.
-func constant(t ast.ActionExpr) bool {
+func constant(t core.ActionExpr) bool {
 	ok := true
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
 		switch x.(type) {
-		case *ast.VarRef, *ast.CaptureRef, *ast.FieldAccess:
+		case *core.VarRef, *core.SlotRef, *core.Local, *core.Member:
 			ok = false
 		}
 	})
@@ -1255,7 +1228,7 @@ func (k *classifier) selfDependent(b *binding, deps map[string]map[string]bool) 
 	seen := map[string]bool{}
 	var visit func(v string) bool
 	visit = func(v string) bool {
-		if v == b.b.Name {
+		if v == b.n.Var {
 			return true
 		}
 		if seen[v] {
@@ -1269,7 +1242,7 @@ func (k *classifier) selfDependent(b *binding, deps map[string]map[string]bool) 
 		}
 		return false
 	}
-	for v := range k.actionVars(b.b.Value, b.rule) {
+	for v := range k.actionVars(b.n.Action, b.rule) {
 		if visit(v) {
 			return true
 		}
@@ -1362,11 +1335,11 @@ func (k *classifier) reachingCall(n core.Node, rule string, strict bool) core.No
 func (k *classifier) checkValues() {
 	deps := map[string]map[string]bool{}
 	for _, b := range k.binds {
-		if deps[b.b.Name] == nil {
-			deps[b.b.Name] = map[string]bool{}
+		if deps[b.n.Var] == nil {
+			deps[b.n.Var] = map[string]bool{}
 		}
-		for v := range k.actionVars(b.b.Value, b.rule) {
-			deps[b.b.Name][v] = true
+		for v := range k.actionVars(b.n.Action, b.rule) {
+			deps[b.n.Var][v] = true
 		}
 	}
 	// A variable whose values lie in a set bounded by a constant adds at most that many
@@ -1374,16 +1347,16 @@ func (k *classifier) checkValues() {
 	d := k.finiteVars()
 	k.combinations = d.product
 	for _, b := range k.binds {
-		if d.finite[b.b.Name] {
+		if d.finite[b.n.Var] {
 			continue
 		}
-		pos := actionPosOf(b.b)
-		text := k.showAction(b.b)
-		switch n, capped := d.capped[b.b.Name]; {
+		pos := actionPosOf(k.bindOf(b.n))
+		text := abbreviate(syntaxfmt.FormatActionExpr(k.bindOf(b.n)))
+		switch n, capped := d.capped[b.n.Var]; {
 		case capped:
 			k.envCause(b.rule, pos, "the binding %s at %s binds one of %d values of %s, which with the values of the other variables make more than %d combinations",
-				text, at(b.rule, pos), n, b.b.Name, maxCombinations)
-		case !constant(b.b.Value):
+				text, at(b.rule, pos), n, b.n.Var, maxCombinations)
+		case !constant(b.n.Action):
 			k.envCause(b.rule, pos, "the binding %s at %s binds a value that the input determines", text, at(b.rule, pos))
 		}
 		if !k.selfDependent(b, deps) {
@@ -1395,7 +1368,7 @@ func (k *classifier) checkValues() {
 				kind = CauseSelfGrowingValue // the value grows, whatever the memo shares
 			}
 			k.cause(kind, ClassExp, 0, b.rule, pos, "%s: the binding %s at %s reads the earlier value of %s, and %s evaluates the binding again with the value it binds",
-				degreeText(ClassExp, 0), text, at(b.rule, pos), b.b.Name, via)
+				degreeText(ClassExp, 0), text, at(b.rule, pos), b.n.Var, via)
 		}
 	}
 }
@@ -1412,7 +1385,7 @@ func (k *classifier) growingBindings() []GrowingBinding {
 		if _, ok := k.reaches(b, true); !ok || !k.canHoldNonEmpty(b) {
 			continue
 		}
-		out = append(out, GrowingBinding{Rule: b.rule, Pos: actionPosOf(b.b), Var: b.b.Name, Text: syntaxfmt.FormatActionExpr(b.b)})
+		out = append(out, GrowingBinding{Rule: b.rule, Pos: actionPosOf(k.bindOf(b.n)), Var: b.n.Var, Text: syntaxfmt.FormatActionExpr(k.bindOf(b.n))})
 	}
 	return out
 }
@@ -1420,13 +1393,13 @@ func (k *classifier) growingBindings() []GrowingBinding {
 // bindingDoubles reports whether b binds a string variable to a value that joins the variable's
 // own value at least twice, which can double its size at each evaluation.
 func (k *classifier) bindingDoubles(b *binding) bool {
-	v := b.b.Name
+	v := b.n.Var
 	if k.varType[v] != "string" {
 		return false
 	}
 	n := 0
-	for _, x := range k.joined(b.b.Value, nil) {
-		if r, ok := check.UngroupActionExpr(x).(*ast.VarRef); ok && r.Name == v {
+	for _, x := range k.joined(b.n.Action, nil) {
+		if r, ok := x.(*core.VarRef); ok && r.Name == v {
 			n++
 		}
 	}
@@ -1437,7 +1410,7 @@ func (k *classifier) bindingDoubles(b *binding) bool {
 // its initial value is not empty, or a binding of a value that can be non-empty precedes it in
 // its rule body, or in a rule that calls its rule, directly or indirectly, before the call.
 func (k *classifier) canHoldNonEmpty(b *binding) bool {
-	v := b.b.Name
+	v := b.n.Var
 	for _, d := range k.g.Vars() {
 		if d.Name == v {
 			if s, ok := d.Value.(*ast.StringLit); ok && s.Value != "" {
@@ -1470,27 +1443,22 @@ func (k *classifier) canHoldNonEmpty(b *binding) bool {
 func (k *classifier) bindsNonEmpty(n core.Node, v string) bool {
 	found := false
 	walkNodes(n, func(x core.Node) {
-		switch x.(type) {
-		case *core.Pred, *core.BindNode:
-			astfacts.WalkAction(k.predicateAction(x), func(t ast.ActionExpr) {
-				if bd, ok := t.(*ast.Bind); ok && bd.Name == v && k.canBeNonEmpty(bd.Value, v) {
-					found = true
-				}
-			})
+		if bd, ok := x.(*core.BindNode); ok && bd.Var == v && k.canBeNonEmpty(bd.Action, v) {
+			found = true
 		}
 	})
 	return found
 }
 
 // canBeNonEmpty reports whether t can be a non-empty string when v is empty.
-func (k *classifier) canBeNonEmpty(t ast.ActionExpr, v string) bool {
+func (k *classifier) canBeNonEmpty(t core.ActionExpr, v string) bool {
 	for _, x := range k.joined(t, nil) {
-		switch x := check.UngroupActionExpr(x).(type) {
-		case *ast.StringLit:
-			if x.Value != "" {
+		switch x := x.(type) {
+		case *core.Const:
+			if s, ok := x.Value.(string); !ok || s != "" {
 				return true
 			}
-		case *ast.VarRef:
+		case *core.VarRef:
 			if x.Name != v {
 				return true
 			}

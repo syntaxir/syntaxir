@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -78,21 +77,22 @@ func degShape(d [3]int) growthShape {
 }
 
 // valueShape bounds the value of t in the context tc, outside the steps of a fold.
-func (k *classifier) valueShape(t ast.ActionExpr, tc actionCtx) growthShape {
+func (k *classifier) valueShape(t core.ActionExpr, tc actionCtx) growthShape {
 	g, _ := k.growthOf(t, nil, tc)
 	return g
 }
 
 // outsideShape bounds the value of a capture or a lambda parameter t that an action expression reads from
 // outside the lambdas whose parameters growthOf follows.
-func (k *classifier) outsideShape(t *ast.CaptureRef, tc actionCtx) growthShape {
-	if p, ok := tc.params[t.Name]; ok && (t.Param || tc.lambda) {
+func (k *classifier) outsideShape(t core.ActionExpr, tc actionCtx) growthShape {
+	name, param, _ := capRef(t)
+	if p, ok := tc.params[name]; ok && (param || tc.lambda) {
 		if p.int {
 			return growthShape{}
 		}
 		return p.shape
 	}
-	return k.captureShape(tc.rule, t.Name)
+	return k.captureShape(tc.rule, name)
 }
 
 // captureShape bounds the value of the capture name in rule. The operand values that an Operators
@@ -243,27 +243,19 @@ func (k *classifier) ruleShape(name string) growthShape {
 // levelShape bounds the value of a call of r, with the values of the calls of the rules whose
 // shapes are being computed left out.
 func (k *classifier) levelShape(r *ast.RuleDef) growthShape {
-	if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
+	if isOperators(r.Expr) {
 		out := growthShape{S: lin{}, N: lin{}}
-		add := func(e ast.Expr, action ast.ActionExpr, def bool) {
-			if action != nil && !def {
-				out = out.join(k.valueShape(action, actionCtx{rule: r.Name}))
+		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+			if l.Action != nil {
+				out = out.join(k.valueShape(l.Action, actionCtx{rule: r.Name}))
 			} else {
-				out = out.join(k.exprShape(k.nodeOf(e), r.Name))
-			}
-		}
-		for _, o := range ops.Operands {
-			add(o.Expr, o.Action, o.DefaultAction)
-		}
-		for _, l := range ops.Levels {
-			for _, op := range l.Operators {
-				add(op.Expr, op.Action, op.DefaultAction)
+				out = out.join(k.exprShape(l.Body, r.Name))
 			}
 		}
 		return out
 	}
-	if r.Action != nil && !r.DefaultAction {
-		return k.valueShape(r.Action, actionCtx{rule: r.Name})
+	if a := k.ruleAction(r.Name); a != nil {
+		return k.valueShape(a, actionCtx{rule: r.Name})
 	}
 	return k.exprShape(k.ruleBody(r.Name), r.Name)
 }
@@ -282,18 +274,13 @@ func (k *classifier) recOnce(rules []string) bool {
 				return false
 			}
 		}
-		var actionExprs []ast.ActionExpr
-		if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
-			for _, o := range ops.Operands {
-				actionExprs = append(actionExprs, o.Action)
-			}
-			for _, l := range ops.Levels {
-				for _, op := range l.Operators {
-					actionExprs = append(actionExprs, op.Action)
-				}
+		var actionExprs []core.ActionExpr
+		if isOperators(r.Expr) {
+			for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+				actionExprs = append(actionExprs, l.Action)
 			}
 		} else {
-			actionExprs = append(actionExprs, r.Action)
+			actionExprs = append(actionExprs, k.ruleAction(name))
 		}
 		for _, t := range actionExprs {
 			if t != nil && !w.recUses(t, false) {
@@ -312,24 +299,26 @@ func (k *classifier) recOnce(rules []string) bool {
 // recUses counts in w.rec the reads of captures that can hold a call on a recursion with the rule
 // in t, and reports false for such a read inside a lambda or in the list of a lambda, unless the
 // list is a capture of a repetition and the lambdas hold each element at most once.
-func (w *ownWalk) recUses(t ast.ActionExpr, inLambda bool) bool {
+func (w *ownWalk) recUses(t core.ActionExpr, inLambda bool) bool {
 	ok := true
-	var visit func(t ast.ActionExpr, inLambda bool)
-	visit = func(t ast.ActionExpr, inLambda bool) {
+	var visit func(t core.ActionExpr, inLambda bool)
+	visit = func(t core.ActionExpr, inLambda bool) {
+		if name, param, isRef := capRef(t); isRef {
+			if !param && w.recCapture(name) {
+				ok = ok && !inLambda
+				w.rec["$"+name]++
+			}
+			return
+		}
 		switch t := t.(type) {
 		case nil:
-		case *ast.CaptureRef:
-			if !t.Param && w.recCapture(t.Name) {
-				ok = ok && !inLambda
-				w.rec["$"+t.Name]++
-			}
-		case *ast.Call:
+		case *core.Builtin:
 			fi := 1
 			if t.Func == "foldl" || t.Func == "foldr" {
 				fi = 2
 			}
 			for i, a := range t.Args {
-				if lam, isLam := a.(*ast.Lambda); isLam {
+				if lam, isLam := a.(*core.Lambda); isLam {
 					visit(lam.Body, true)
 					continue
 				}
@@ -340,7 +329,7 @@ func (w *ownWalk) recUses(t ast.ActionExpr, inLambda bool) bool {
 				visit(a, inLambda)
 			}
 		default:
-			for _, x := range actionChildren(t) {
+			for _, x := range core.ActionExprChildren(t) {
 				visit(x, inLambda)
 			}
 		}
@@ -376,23 +365,16 @@ func (k *classifier) ownRules() map[string]bool {
 // ownRule reports whether the value of r is own when the rules in own are.
 func (k *classifier) ownRule(r *ast.RuleDef, own map[string]bool) bool {
 	k.control.Poll()
-	if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
-		for _, o := range ops.Operands {
-			if !k.ownExpr(k.nodeOf(o.Expr), r.Name, own) || o.Action != nil && !o.DefaultAction && !k.ownAction(o.Action, r.Name, own) {
+	if isOperators(r.Expr) {
+		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+			if !k.ownExpr(l.Body, r.Name, own) || l.Action != nil && !k.ownAction(l.Action, r.Name, own) {
 				return false
-			}
-		}
-		for _, l := range ops.Levels {
-			for _, op := range l.Operators {
-				if !k.ownExpr(k.nodeOf(op.Expr), r.Name, own) || op.Action != nil && !op.DefaultAction && !k.ownAction(op.Action, r.Name, own) {
-					return false
-				}
 			}
 		}
 		return true
 	}
-	if r.Action != nil && !r.DefaultAction {
-		return k.ownAction(r.Action, r.Name, own)
+	if a := k.ruleAction(r.Name); a != nil {
+		return k.ownAction(a, r.Name, own)
 	}
 	return k.ownExpr(k.ruleBody(r.Name), r.Name, own)
 }
@@ -511,8 +493,8 @@ func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
 	switch {
 	case isOperators(r.Expr):
 		return k.ruleLooks(r)
-	case r.Action != nil:
-		return k.sizeOf(r.Action, tc, mode).look
+	case k.ruleAction(r.Name) != nil:
+		return k.sizeOf(k.ruleAction(r.Name), tc, mode).look
 	default:
 		return k.exprSize(k.ruleBody(r.Name), tc, mode, r.Name).look
 	}
@@ -522,23 +504,16 @@ func (k *classifier) ruleLooksIn(r *ast.RuleDef, mode sizeMode) bool {
 // rules in lookedRules can.
 func (k *classifier) ruleLooks(r *ast.RuleDef) bool {
 	k.control.Poll()
-	if ops, ok := r.Expr.(*ast.OperatorsRule); ok {
-		for _, o := range ops.Operands {
-			if k.exprLooks(k.nodeOf(o.Expr), r.Name) || o.Action != nil && !o.DefaultAction && k.actionLooks(o.Action, r.Name) {
+	if isOperators(r.Expr) {
+		for _, l := range valueLines(k.nodeOf(r.Expr).(*core.OperatorsRule)) {
+			if k.exprLooks(l.Body, r.Name) || l.Action != nil && k.actionLooks(l.Action, r.Name) {
 				return true
-			}
-		}
-		for _, l := range ops.Levels {
-			for _, op := range l.Operators {
-				if k.exprLooks(k.nodeOf(op.Expr), r.Name) || op.Action != nil && !op.DefaultAction && k.actionLooks(op.Action, r.Name) {
-					return true
-				}
 			}
 		}
 		return false
 	}
-	if r.Action != nil && !r.DefaultAction {
-		return k.actionLooks(r.Action, r.Name)
+	if a := k.ruleAction(r.Name); a != nil {
+		return k.actionLooks(a, r.Name)
 	}
 	return k.exprLooks(k.ruleBody(r.Name), r.Name)
 }
@@ -569,30 +544,28 @@ func (k *classifier) exprLooks(n core.Node, rule string) bool {
 
 // actionLooks reports whether the value of the action expression t in rule can hold a capture in a positive
 // lookahead: it reads one, a capture whose value can hold one, or the matched values by index.
-func (k *classifier) actionLooks(t ast.ActionExpr, rule string) bool {
+func (k *classifier) actionLooks(t core.ActionExpr, rule string) bool {
 	found := false
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
 		if found {
 			return
 		}
-		switch x := x.(type) {
-		case *ast.CaptureRef:
-			if x.Param {
+		name, param, ok := capRef(x)
+		if !ok || param {
+			return
+		}
+		exprs := k.captured(rule, name)
+		if k.lookCaptures(rule)[name] {
+			for _, e := range exprs {
+				found = found || !k.boundedOf(e)
+			}
+			if len(exprs) == 0 || found {
+				found = true
 				return
 			}
-			exprs := k.captured(rule, x.Name)
-			if k.lookCaptures(rule)[x.Name] {
-				for _, e := range exprs {
-					found = found || !k.boundedOf(e)
-				}
-				if len(exprs) == 0 || found {
-					found = true
-					return
-				}
-			}
-			for _, e := range exprs {
-				found = found || k.exprLooks(e, rule)
-			}
+		}
+		for _, e := range exprs {
+			found = found || k.exprLooks(e, rule)
 		}
 	})
 	return found
@@ -619,7 +592,7 @@ type ownLam struct {
 }
 
 // ownAction reports whether the action expression t in rule builds an own value when the rules in own are.
-func (k *classifier) ownAction(t ast.ActionExpr, rule string, own map[string]bool) bool {
+func (k *classifier) ownAction(t core.ActionExpr, rule string, own map[string]bool) bool {
 	w := &ownWalk{k: k, rule: rule, own: own, rec: map[string]int{}, ok: true}
 	w.actionExpr(t, nil)
 	for _, n := range w.rec {
@@ -649,90 +622,44 @@ func (w *ownWalk) recCapture(name string) bool {
 }
 
 // readsRec reports whether t reads a capture that can hold a call on a recursion with the rule.
-func (w *ownWalk) readsRec(t ast.ActionExpr) bool {
+func (w *ownWalk) readsRec(t core.ActionExpr) bool {
 	found := false
-	astfacts.WalkAction(t, func(x ast.ActionExpr) {
-		switch x := x.(type) {
-		case *ast.CaptureRef:
-			if !x.Param && w.recCapture(x.Name) {
-				found = true
-			}
+	core.WalkActionExpr(t, func(x core.ActionExpr) {
+		if name, param, ok := capRef(x); ok && !param && w.recCapture(name) {
+			found = true
 		}
 	})
 	return found
 }
 
-func (w *ownWalk) actionExpr(t ast.ActionExpr, lam *ownLam) {
+func (w *ownWalk) actionExpr(t core.ActionExpr, lam *ownLam) {
 	if !w.ok || t == nil {
 		return
 	}
-	k := w.k
+	if name, param, ok := capRef(t); ok {
+		w.captureRef(name, param, lam)
+		return
+	}
 	switch t := t.(type) {
-	case *ast.IntLit, *ast.BoolLit, *ast.NilLit, *ast.StringLit, *ast.Unary:
-	case *ast.VarRef:
+	case *core.Const, *core.Unary:
+	case *core.VarRef:
 		// The value of a variable is not part of the input the match consumes.
 		w.ok = false
-	case *ast.CaptureRef:
-		if lam != nil && t.Param {
-			switch {
-			case t.Name == lam.acc:
-				lam.uses++
-				w.ok = lam.uses <= 1
-			case containsName(lam.params, t.Name):
-			default:
-				// A parameter of a lambda around the innermost one, read once for each element.
-				w.ok = false
-			}
-			return
-		}
-		exprs := k.captured(w.rule, t.Name)
-		if lam != nil {
-			// A value from outside the lambda is held once for each element.
-			for _, e := range exprs {
-				w.ok = w.ok && k.boundedOf(e)
-			}
-			if len(exprs) == 0 {
-				w.ok = false
-			}
-		}
-		if k.lookCaptures(w.rule)[t.Name] {
-			w.ok = false
-		}
-		for _, e := range exprs {
-			w.ok = w.ok && k.ownExpr(e, w.rule, w.own)
-		}
-		if len(exprs) == 0 {
-			if r := k.byName[w.rule]; r == nil || !isOperators(r.Expr) {
-				w.ok = false
-				return
-			}
-			w.ok = w.ok && w.own[w.rule]
-		}
-		if w.recCapture(t.Name) {
-			w.rec["$"+t.Name]++
-		}
-	case *ast.ActionGroup:
-		w.actionExpr(t.Action, lam)
-	case *ast.Cast:
+	case *core.Cast:
 		w.actionExpr(t.X, lam)
-	case *ast.FieldAccess:
+	case *core.Member:
 		w.actionExpr(t.X, lam)
-	case *ast.Constructor:
-		for _, a := range t.Args {
-			w.actionExpr(a, lam)
-		}
+	case *core.Convert:
+		w.actionExpr(t.X, lam)
+	case *core.New:
 		for _, f := range t.Fields {
 			w.actionExpr(f.Value, lam)
 		}
-	case *ast.TupleLit:
+	case *core.Tuple:
 		for _, x := range t.Elems {
 			w.actionExpr(x, lam)
 		}
-	case *ast.ListConstructor:
-		for _, x := range t.Items {
-			w.actionExpr(x, lam)
-		}
-	case *ast.Binary:
+	case *core.Binary:
 		switch {
 		case t.Op == "+":
 			w.actionExpr(t.L, lam)
@@ -743,7 +670,7 @@ func (w *ownWalk) actionExpr(t ast.ActionExpr, lam *ownLam) {
 		default:
 			// An int or a Boolean.
 		}
-	case *ast.Call:
+	case *core.Builtin:
 		switch t.Func {
 		case "len":
 		case "text", "list", "concat":
@@ -794,14 +721,57 @@ func (w *ownWalk) actionExpr(t ast.ActionExpr, lam *ownLam) {
 	}
 }
 
+// captureRef checks a read of the capture or lambda parameter name inside the lambda lam, if any.
+func (w *ownWalk) captureRef(name string, param bool, lam *ownLam) {
+	k := w.k
+	if lam != nil && param {
+		switch {
+		case name == lam.acc:
+			lam.uses++
+			w.ok = lam.uses <= 1
+		case containsName(lam.params, name):
+		default:
+			// A parameter of a lambda around the innermost one, read once for each element.
+			w.ok = false
+		}
+		return
+	}
+	exprs := k.captured(w.rule, name)
+	if lam != nil {
+		// A value from outside the lambda is held once for each element.
+		for _, e := range exprs {
+			w.ok = w.ok && k.boundedOf(e)
+		}
+		if len(exprs) == 0 {
+			w.ok = false
+		}
+	}
+	if k.lookCaptures(w.rule)[name] {
+		w.ok = false
+	}
+	for _, e := range exprs {
+		w.ok = w.ok && k.ownExpr(e, w.rule, w.own)
+	}
+	if len(exprs) == 0 {
+		if r := k.byName[w.rule]; r == nil || !isOperators(r.Expr) {
+			w.ok = false
+			return
+		}
+		w.ok = w.ok && w.own[w.rule]
+	}
+	if w.recCapture(name) {
+		w.rec["$"+name]++
+	}
+}
+
 // repCapture reports whether t is a capture of the rule of repetitions only, whose elements are
 // distinct matches.
-func (w *ownWalk) repCapture(t ast.ActionExpr) bool {
-	r, ok := t.(*ast.CaptureRef)
-	if !ok || r.Param {
+func (w *ownWalk) repCapture(t core.ActionExpr) bool {
+	name, param, ok := capRef(t)
+	if !ok || param {
 		return false
 	}
-	exprs := w.k.captured(w.rule, r.Name)
+	exprs := w.k.captured(w.rule, name)
 	for _, e := range exprs {
 		if _, ok := e.(*core.Repeat); !ok {
 			return false
@@ -814,7 +784,7 @@ func (w *ownWalk) repCapture(t ast.ActionExpr) bool {
 // parameters other than the accumulator of a fold at most once: no member path of a parameter,
 // such as x or x.$a, is read twice or read with a path inside it. Distinct members of an element
 // of a repetition are disjoint parts of its match. fold says whether lam is the lambda of a fold.
-func paramsOnce(lam *ast.Lambda, fold bool) bool {
+func paramsOnce(lam *core.Lambda, fold bool) bool {
 	var params []string
 	for i, n := range lam.Params {
 		if i > 0 || !fold {
@@ -823,13 +793,13 @@ func paramsOnce(lam *ast.Lambda, fold bool) bool {
 	}
 	var paths []string
 	ok := true
-	var visit func(t ast.ActionExpr)
-	visit = func(t ast.ActionExpr) {
+	var visit func(t core.ActionExpr)
+	visit = func(t core.ActionExpr) {
 		if p, isPath := paramPath(t, params); isPath {
 			paths = append(paths, p)
 			return
 		}
-		if c, isCall := t.(*ast.Call); isCall {
+		if c, isCall := t.(*core.Builtin); isCall {
 			fi := 1
 			if c.Func == "foldl" || c.Func == "foldr" {
 				fi = 2
@@ -838,7 +808,7 @@ func paramsOnce(lam *ast.Lambda, fold bool) bool {
 				ok = ok && paramsOnce(inner, fi == 2)
 			}
 		}
-		for _, x := range actionChildren(t) {
+		for _, x := range core.ActionExprChildren(t) {
 			visit(x)
 		}
 	}
@@ -855,11 +825,11 @@ func paramsOnce(lam *ast.Lambda, fold bool) bool {
 
 // paramPath returns the member path of t, such as x.$a, when t is one of the parameters names or
 // a member of one.
-func paramPath(t ast.ActionExpr, names []string) (string, bool) {
-	switch t := t.(type) {
-	case *ast.CaptureRef:
-		return t.Name, t.Param && containsName(names, t.Name)
-	case *ast.FieldAccess:
+func paramPath(t core.ActionExpr, names []string) (string, bool) {
+	if name, param, ok := capRef(t); ok {
+		return name, param && containsName(names, name)
+	}
+	if t, ok := t.(*core.Member); ok {
 		p, ok := paramPath(t.X, names)
 		return p + "." + t.Name, ok
 	}
@@ -877,7 +847,7 @@ func containsName(names []string, n string) bool {
 
 // foldAccShape returns the shape of the accumulator of the lambda of a fold call, whose degrees
 // the step matrix gives from the initial value and the list.
-func (k *classifier) foldAccShape(call *ast.Call, lam *ast.Lambda, tc actionCtx) growthShape {
+func (k *classifier) foldAccShape(call *core.Builtin, lam *core.Lambda, tc actionCtx) growthShape {
 	exp, deg, _, ok := k.foldDegrees(call, lam, tc)
 	if !ok {
 		return growthShape{}
@@ -886,41 +856,6 @@ func (k *classifier) foldAccShape(call *ast.Call, lam *ast.Lambda, tc actionCtx)
 		return unknownShape
 	}
 	return degShape(deg)
-}
-
-// actionChildren returns the action expressions directly inside t.
-func actionChildren(t ast.ActionExpr) []ast.ActionExpr {
-	switch t := t.(type) {
-	case *ast.ActionGroup:
-		return []ast.ActionExpr{t.Action}
-	case *ast.Block:
-		return t.Statements
-	case *ast.FieldAccess:
-		return []ast.ActionExpr{t.X}
-	case *ast.Constructor:
-		out := append([]ast.ActionExpr(nil), t.Args...)
-		for _, f := range t.Fields {
-			out = append(out, f.Value)
-		}
-		return out
-	case *ast.TupleLit:
-		return t.Elems
-	case *ast.ListConstructor:
-		return t.Items
-	case *ast.Call:
-		return t.Args
-	case *ast.Lambda:
-		return []ast.ActionExpr{t.Body}
-	case *ast.Binary:
-		return []ast.ActionExpr{t.L, t.R}
-	case *ast.Unary:
-		return []ast.ActionExpr{t.X}
-	case *ast.Cast:
-		return []ast.ActionExpr{t.X}
-	case *ast.Bind:
-		return []ast.ActionExpr{t.Value}
-	}
-	return nil
 }
 
 // maxDeg returns the largest of the degrees d.

@@ -178,8 +178,8 @@ func (k *classifier) againOf(n *core.Repeat) *core.Repeat {
 func (k *classifier) walkRule(r *ast.RuleDef) {
 	c := wctx{rule: r.Name, cont: &cont{end: endRule, rule: r.Name}, mayStart: true, mustStart: true}
 	k.walk(k.ruleBody(r.Name), c)
-	if r.Action != nil {
-		k.walkAction(r.Action, actionCtx{rule: r.Name, c: c, action: true, value: true})
+	if a := k.ruleAction(r.Name); a != nil {
+		k.walkAction(a, actionCtx{rule: r.Name, c: c, action: true, value: true})
 	}
 }
 
@@ -357,8 +357,7 @@ func (k *classifier) walk(n core.Node, c wctx) {
 	case *core.Text:
 		k.walk(n.Body, c)
 	case *core.Pred, *core.BindNode:
-		pred := k.predicateOf(n)
-		k.walkAction(pred.Action, actionCtx{rule: c.rule, c: c, pred: pred})
+		k.walkPredicate(n, c)
 	case *core.OperatorsRule:
 		k.walkOperators(n, c)
 	}
@@ -610,7 +609,7 @@ func (k *classifier) walkOperators(pr *core.OperatorsRule, c wctx) {
 		if i < len(pr.Operands)-1 {
 			operandUnits = append(operandUnits, k.units[before-1])
 		}
-		if a := k.operandAction(pr, i); a != nil {
+		if a := o.Action; a != nil {
 			k.walkAction(a, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
@@ -688,30 +687,10 @@ func (k *classifier) walkOperators(pr *core.OperatorsRule, c wctx) {
 			cc.cont = end.then(rhs)
 		}
 		k.walk(p.Line.Body, cc)
-		if a := k.operatorAction(pr, p); a != nil {
+		if a := p.Line.Action; a != nil {
 			k.walkAction(a, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
-}
-
-// operandAction returns the action of operand i of the Operators Rule pr, or nil: the action as
-// the grammar writes it, which the walk of action expressions reads (walkAction).
-func (k *classifier) operandAction(pr *core.OperatorsRule, i int) ast.ActionExpr {
-	return k.exprOf(pr).(*ast.OperatorsRule).Operands[i].Action
-}
-
-// operatorAction returns the action of the operator part op of the Operators Rule pr, or nil: the
-// action as the grammar writes it, which the walk of action expressions reads (walkAction). The module numbers
-// the operator parts by ID in the order the grammar writes them, level by level.
-func (k *classifier) operatorAction(pr *core.OperatorsRule, op *core.Operator) ast.ActionExpr {
-	id := op.ID
-	for _, l := range k.exprOf(pr).(*ast.OperatorsRule).Levels {
-		if id < len(l.Operators) {
-			return l.Operators[id].Action
-		}
-		id -= len(l.Operators)
-	}
-	panic(fmt.Sprintf("complexity: no operator part %d in the Operators Rule", op.ID))
 }
 
 // containsSourceSyntactic reports whether n has a repetition without an upper bound, a #recover

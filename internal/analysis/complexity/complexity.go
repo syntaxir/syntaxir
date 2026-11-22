@@ -671,10 +671,6 @@ func (k *classifier) show(e ast.Expr) string {
 	return abbreviate(syntaxfmt.FormatExpr(e))
 }
 
-func (k *classifier) showAction(t ast.ActionExpr) string {
-	return abbreviate(syntaxfmt.FormatActionExpr(t))
-}
-
 // abbreviate collapses the white space of the source text s and shortens it to at most 40 bytes,
 // cutting at a character boundary.
 func abbreviate(s string) string {
