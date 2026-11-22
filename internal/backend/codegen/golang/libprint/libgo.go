@@ -574,8 +574,7 @@ func goTarget(s goSpec) *print.Target {
 		case "ctx.end", "ctx.errs", "ctx.far", "ctx.expected", "ctx.examined":
 			return a[0] + "." + strings.TrimPrefix(c.Callee, "ctx.")
 		case "ctx.before":
-			// The library does not record where the input that a kept result examined starts.
-			return "true"
+			return a[0] + ".from < " + a[1]
 		case "ctx.allows":
 			return fmt.Sprintf("%s.memoAllows(%s.present)", a[0], a[1])
 		case "ctx.active":
@@ -593,7 +592,7 @@ func goTarget(s goSpec) *print.Target {
 		case "memo.setPresent":
 			return fmt.Sprintf("%s.present |= %s.present", a[0], a[1])
 		case "ctx.keep":
-			return fmt.Sprintf("p.ctxKeep(&%s, %s.Id, %s, %s, %s, &ctxResult{%s: %s, ok: %s, end: %s, examined: p.examinedNow(), silent: %s, errs: %s, far: %s, expected: %s})",
+			return fmt.Sprintf("p.ctxKeep(&%s, %s.Id, %s, %s, %s, &ctxResult{%s: %s, ok: %s, end: %s, examined: p.examinedNow(), from: p.fromNow(), silent: %s, errs: %s, far: %s, expected: %s})",
 				a[0], a[1], a[2], a[3], a[4], valueField, a[8], a[5], a[6], a[7], a[9], a[10], a[11])
 		case "ctx.done":
 			return "p.ctxDone(&" + a[0] + ")"

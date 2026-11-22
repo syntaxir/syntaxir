@@ -511,7 +511,7 @@ var tsTarget = &Target{
 		case "ctx.examined":
 			return a[0] + "!.examined"
 		case "ctx.before":
-			return "true"
+			return a[0] + "!.from < " + a[1]
 		case "ctx.allows":
 			return fmt.Sprintf("memoAllows(%s, %s.present)", a[0], a[1])
 		case "ctx.active":
@@ -527,7 +527,7 @@ var tsTarget = &Target{
 		case "memo.setPresent":
 			return fmt.Sprintf("%s.present |= %s.present", a[0], a[1])
 		case "ctx.keep":
-			return fmt.Sprintf("this.ctxKeep(%s, %s.id, %s, %s, %s, newCtxResult(%s, %s, %s, %s, %s, %s, %s, this.examinedNow()))",
+			return fmt.Sprintf("this.ctxKeep(%s, %s.id, %s, %s, %s, newCtxResult(%s, %s, %s, %s, %s, %s, %s, this.examinedNow(), this.fromNow()))",
 				a[0], a[1], a[2], a[3], a[4], a[8], a[5], a[6], a[7], a[9], a[10], a[11])
 		case "grow.begin":
 			return fmt.Sprintf("this.growBegin(%s, %s)", a[0], a[1])

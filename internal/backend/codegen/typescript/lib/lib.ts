@@ -2554,9 +2554,8 @@ export const storeMemo = 1;
 export const storeCtx = 2;
 
 // CtxResult is a result that a context keeps: a seed, the result of a growth step, or the result of
-// a call that read a seed. examined is the examined end of a parse that tracks it (Parser.track),
-// and 0 in any other parse. A Document parse that reuses it counts the unit before the position as
-// examined, since the result does not record whether it examined it.
+// a call that read a seed. [from, examined) is the input it examined in a parse that tracks it
+// (Parser.track), as a memo entry records it, and both are 0 in any other parse.
 export interface CtxResult {
   node: R;
   errs: Errs;
@@ -2564,12 +2563,13 @@ export interface CtxResult {
   end: number;
   far: number;
   examined: number;
+  from: number;
   ok: boolean;
   silent: boolean;
 }
 
-export function newCtxResult(node: R, ok: boolean, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number): CtxResult {
-  return { node, errs, expected, end, far, examined, ok, silent };
+export function newCtxResult(node: R, ok: boolean, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number, from: number): CtxResult {
+  return { node, errs, expected, end, far, examined, from, ok, silent };
 }
 
 // CtxCall is the context of a memoized call of a rule of a cycle (Parser.ctxEnter): the index in
@@ -2660,6 +2660,7 @@ interface CtxSlot {
   far: number;
   exp: number[];
   examined: number;
+  from: number;
   silent: boolean;
   env: Value[] | null;
   deps: Sdep[];
@@ -2667,7 +2668,7 @@ interface CtxSlot {
 }
 
 function newSlot(e: CtxResult | null, id: number, env: Value[] | null): CtxSlot {
-  return { e, id, far: 0, exp: noExp, examined: 0, silent: false, env, deps: noSdeps, next: null };
+  return { e, id, far: 0, exp: noExp, examined: 0, from: 0, silent: false, env, deps: noSdeps, next: null };
 }
 
 // JumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
@@ -2678,6 +2679,7 @@ interface JumpRec {
   far: number;
   exp: number[];
   examined: number;
+  from: number;
   silent: boolean;
   deps: Sdep[];
 }
@@ -2699,7 +2701,7 @@ interface CtxTable {
 
 // GrowState is the state of the growth of a leader: its key, start and recovered errors, its index
 // in gamma and that of the first growth of its cycle at the position, whether it grows in a context
-// (whose steps are memoized with the present set present), the examined end and the expectation mark
+// (whose steps are memoized with the present set present), the examined range and the expectation mark
 // of the step being evaluated in a context, the steps since the last step that read a seed other than
 // the leader's own, and the step that growKeepStep returned last, until growAdoptStep adopts it: its
 // identity as a seed and what it recorded.
@@ -2714,6 +2716,7 @@ export interface GrowState {
   // evaluated reports that a growth in a context evaluated the body for a step (growIsolate, growEnd).
   evaluated: boolean;
   savedExamined: number;
+  savedFrom: number;
   exp: number;
   run: RunStep[];
   pendID: number;
@@ -2726,6 +2729,7 @@ interface RunStep {
   far: number;
   exp: number[];
   examined: number;
+  from: number;
   silent: boolean;
   deps: Sdep[];
 }
@@ -2801,7 +2805,7 @@ export class Parser {
   // The dependency memo of left recursion (see CtxCall): the growths in progress, the frames that
   // record dependencies and their dependencies, the dependencies a call ended (ctxPop), the tables
   // of the contexts, the lookaheads in progress (their sites, -1 for one that records nothing, and the
-  // examined ends from before them), the lookahead sites whose outcomes are being looked up
+  // examined ranges from before them), the lookahead sites whose outcomes are being looked up
   // (obsValue), and the last seed identity.
   gamma: GrowRec[] = [];
   depFrames: DepFrame[] = [];
@@ -2810,6 +2814,7 @@ export class Parser {
   ctxs: CtxTable[] = [];
   looks: number[] = [];
   lookExamined: number[] = [];
+  lookFrom: number[] = [];
   foundSet: CtxSet | null = null; // the set of the result that ctxFind last returned
   obsGuard: number[] = [];
   seedSeq = 0;
@@ -2876,7 +2881,7 @@ export class Parser {
   heldBytes(): number {
     const slots = this.kidStack.length + this.saved.length + this.trail.length + this.exp.length + this.isoStack.length +
       this.recovered.length + this.gamma.length + this.depFrames.length + this.deps.length + this.popped.length +
-      this.ctxs.length + this.looks.length + this.lookExamined.length + this.obsGuard.length + this.skipHeld() + this.scanCold.length + this.runCold.length;
+      this.ctxs.length + this.looks.length + this.lookExamined.length + this.lookFrom.length + this.obsGuard.length + this.skipHeld() + this.scanCold.length + this.runCold.length;
     return 8 * slots;
   }
   // retyped is the operation node.convert: retypeNode, counting the copy it makes.
@@ -4298,13 +4303,14 @@ export class Parser {
   }
 
   // intern returns a positive number for key that no other key has while a growth is in progress.
-  // The numbers identify present sets too large for a word; they appear only in the context tables
+  // The numbers identify present sets and lookahead outcomes too large for a word; they appear only in the context tables
   // and dependencies of growths in progress, and the parser forgets them when the last growth ends
-  // (growEnd).
-  intern(key: string): number {
+  // (growEnd). A new number costs a budget unit if charged, as in the Go runtime; numbers that only
+  // this runtime needs (obsOutcome) are not charged.
+  intern(key: string, charged = true): number {
     let v = this.interned.get(key);
     if (v === undefined) {
-      this.spend();
+      if (charged) this.spend();
       v = ++this.internSeq;
       this.interned.set(key, v);
     }
@@ -4377,7 +4383,7 @@ export class Parser {
   // env in the table of the context c, with the dependencies that ctxPop ended.
   ctxKeep(c: CtxCall, rule: number, start: number, min: number, env: Value[] | null, res: CtxResult): void {
     const sd = this.stored(this.popped);
-    this.alloc(objectBytes(9));
+    this.alloc(objectBytes(10));
     this.ctxStore(start, c.gp, headKey(ctxCallKind, rule, min, c.present), sd, newSlot(res, 0, env));
   }
 
@@ -4719,12 +4725,27 @@ export class Parser {
     return this.track ? this.docExamined : 0;
   }
 
+  // fromNow returns the start of the input that the current evaluation examined in a parse that
+  // tracks it, and 0 in any other parse.
+  fromNow(): number {
+    return this.track ? this.docLow : 0;
+  }
+
   // obsOutcome encodes the outcome of a lookahead at pos whose expression matched if ok and whose
-  // examined end is examined (pos in a parse that does not track it): equal values are equal outcomes
-  // with equal examined ends. A lookahead examines from its position on (lookBegin), so examined is not
-  // before pos and the outcome is not negative.
-  obsOutcome(ok: boolean, pos: number, examined: number): number {
-    return (examined - pos) * 2 + (ok ? 1 : 0);
+  // examined range is [from, examined) (pos in a parse that does not track it): equal values are
+  // equal outcomes with equal examined ranges. An outcome whose range reaches 2^30 units or more from
+  // pos, or that does not hold pos, gets an interned number, as in the Go runtime; so does one that
+  // reaches 2^22 units or more before pos, whose encoding would not fit in a safe integer, without
+  // the budget unit of intern. Interned outcomes are negative and below obsNone.
+  obsOutcome(ok: boolean, pos: number, examined: number, from: number): number {
+    const hi = examined - pos;
+    const lo = pos - from;
+    const wide = hi < 0 || lo < 0 || hi >= 2 ** 30 || lo >= 2 ** 30;
+    if (wide || lo >= 2 ** 22) {
+      const key = "o" + (ok ? 1 : 0) + "," + hi + "," + lo;
+      return obsNone - this.intern(key, wide);
+    }
+    return lo * 2 ** 31 + hi * 2 + (ok ? 1 : 0);
   }
 
   // lookBegin starts a lookahead of the given site. In a context at the current position, the
@@ -4741,9 +4762,11 @@ export class Parser {
     if (f.pos === this.pos && f.gp < g && this.gamma[g - 1]!.pos === this.pos && this.gamma[g - 1]!.cycle === this.gamma[f.gp]!.cycle) {
       this.looks.push(site);
       if (this.track) {
-        // The examined end of the lookahead is part of its observation.
+        // The examined range of the lookahead is part of its observation.
         this.lookExamined.push(this.docExamined);
+        this.lookFrom.push(this.docLow);
         this.docExamined = this.pos;
+        this.docLow = this.pos;
       }
       this.pushFrame(this.pos, f.gp);
       return;
@@ -4762,9 +4785,12 @@ export class Parser {
     }
     const { f, deps: ds } = this.popFrame();
     let examined = f.pos;
+    let from = f.pos;
     if (this.track) {
       examined = this.docExamined;
+      from = this.docLow;
       this.docExamined = Math.max(this.lookExamined.pop()!, this.docExamined);
+      this.docLow = Math.min(this.lookFrom.pop()!, this.docLow);
     }
     let read = false;
     for (const d of ds) {
@@ -4777,10 +4803,10 @@ export class Parser {
       this.mergeDeps(ds);
       return;
     }
-    const val = this.obsOutcome(ok, f.pos, examined);
+    const val = this.obsOutcome(ok, f.pos, examined, from);
     const present = this.presentOf(f.gp);
     const sd = this.stored(ds);
-    this.alloc(objectBytes(9));
+    this.alloc(objectBytes(10));
     this.ctxStore(f.pos, f.gp, headKey(ctxLookKind, site, 0, present), sd, newSlot(null, val, null));
     const out: Dep[] = [{ kind: depObs, idx: site, d: f.depth, val }];
     for (const d of ds) {
@@ -4797,9 +4823,9 @@ export class Parser {
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
-    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, exp: 0, run: [], pendID: 0, pendStep: null };
+    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, savedFrom: 0, exp: 0, run: [], pendID: 0, pendStep: null };
     this.alloc(objectBytes(7) + objectBytes(8));
-    this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow()), id: failSeed });
+    this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow(), start), id: failSeed });
     if (gp < gi) {
       // The present set of the steps includes the leader's own growth.
       g.present = this.presentOf(gp);
@@ -4819,10 +4845,10 @@ export class Parser {
       if (j !== null) {
         this.replayDeps(g.start, g.gp, g.present, j.deps);
         this.mergeKept(j.far, j.exp);
-        // The step after the jump reads the seed it lands on, whose examined end is the jump's
+        // The step after the jump reads the seed it lands on, whose examined range is the jump's
         // (recordJumps), so this touch only keeps the jump a complete replay of its steps.
         this.documentTouch(j.examined);
-        this.documentTouchFrom(g.start - 1); // conservative, like the replay of a kept result
+        this.documentTouchFrom(j.from);
         this.setSeed(g, j.end, j.id);
         continue;
       }
@@ -4836,22 +4862,24 @@ export class Parser {
       // of a growth, which does not grow, can be taken from the context, and nothing else records how
       // far it examined.
       this.documentTouch(s.examined);
-      this.documentTouchFrom(g.start - 1); // conservative, like the replay of a kept result
+      this.documentTouchFrom(s.from);
       if (!this.growGrew(g, s.e)) {
         return s.e!;
       }
-      this.adoptGrownStep(g, s.e!, s.id, { seed: id, far: s.far, exp: s.exp, examined: s.examined, silent: s.silent, deps: s.deps });
+      this.adoptGrownStep(g, s.e!, s.id, { seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps });
     }
   }
 
-  // growIsolate starts evaluating a step of a growth in a context, with its own frame, examined end and
+  // growIsolate starts evaluating a step of a growth in a context, with its own frame, examined range and
   // expectations.
   growIsolate(g: GrowState): void {
     g.evaluated = true;
     this.pushFrame(g.start, g.gp);
     if (this.track) {
       g.savedExamined = this.docExamined;
+      g.savedFrom = this.docLow;
       this.docExamined = g.start;
+      this.docLow = g.start;
     }
     g.exp = this.isolate();
   }
@@ -4869,8 +4897,8 @@ export class Parser {
   growAdopt(g: GrowState, v: R, errs: Errs): void {
     const rec = this.gamma[g.gi]!;
     this.spend();
-    this.alloc(objectBytes(8));
-    rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow());
+    this.alloc(objectBytes(9));
+    rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow(), this.fromNow());
     rec.id = this.nextSeedID();
     this.pos = g.start;
   }
@@ -4885,25 +4913,28 @@ export class Parser {
     const far = this.unisolate(g.exp);
     const exp = this.isoIds;
     const examined = this.examinedNow();
+    const from = this.fromNow();
     this.mergeKept(far, exp);
     if (this.track) {
       this.docExamined = Math.max(g.savedExamined, this.docExamined);
+      this.docLow = Math.min(g.savedFrom, this.docLow);
     }
-    this.alloc(objectBytes(8));
-    let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? errs : noErrs, 0, noExp, examined);
+    this.alloc(objectBytes(9));
+    let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? errs : noErrs, 0, noExp, examined, from);
     const c = this.canonicalSeed(g, res);
     res = c.e;
     const sd = this.stored(ds);
-    this.alloc(objectBytes(9));
+    this.alloc(objectBytes(10));
     const slot = newSlot(res, c.id, null);
     slot.far = far;
     slot.exp = exp;
     slot.examined = examined;
+    slot.from = from;
     slot.silent = this.silent > 0;
     this.ctxStore(g.start, g.gp, headKey(ctxStepKind, g.rule, g.min, g.present), sd, slot);
     this.mergeDeps(ds);
     g.pendID = c.id;
-    g.pendStep = { seed: id, far, exp, examined, silent: this.silent > 0, deps: sd };
+    g.pendStep = { seed: id, far, exp, examined, from, silent: this.silent > 0, deps: sd };
     return res;
   }
 
@@ -4997,8 +5028,8 @@ export class Parser {
       t.jumps = new Map();
     }
     const cur = this.gamma[g.gi]!;
-    this.alloc(objectBytes(7));
-    let acc: JumpRec = { end: cur.seed, id: cur.id, far: -1, exp: noExp, examined: g.start, silent: false, deps: noSdeps };
+    this.alloc(objectBytes(8));
+    let acc: JumpRec = { end: cur.seed, id: cur.id, far: -1, exp: noExp, examined: g.start, from: g.start, silent: false, deps: noSdeps };
     for (let i = g.run.length - 1; i >= 0; i--) {
       const s = g.run[i]!;
       this.spend();
@@ -5010,6 +5041,7 @@ export class Parser {
         acc.exp = this.unionExpected(acc.exp, s.exp);
       }
       acc.examined = Math.max(acc.examined, s.examined);
+      acc.from = Math.min(acc.from, s.from);
       acc.silent = acc.silent || s.silent;
       acc.deps = mergeSdeps(acc.deps, s.deps);
       const k = jumpKey(g, s.seed);
@@ -5110,7 +5142,7 @@ export class Parser {
     const c = t.canon.get(ck);
     if (c !== undefined) {
       const budget = { n: 64 };
-      if (c.e.examined === e.examined && c.e.errs === null && this.nodesEqual(c.e.node ?? null, e.node ?? null, budget)) {
+      if (c.e.examined === e.examined && c.e.from === e.from && c.e.errs === null && this.nodesEqual(c.e.node ?? null, e.node ?? null, budget)) {
         return c;
       }
     }

@@ -281,8 +281,7 @@ none.`})
 		Contract: `Returns the examined end that the parse recorded with the result s, or 0 if it recorded none.`})
 	m.AddOp(&code.Op{Name: "ctx.before", Component: Growth, Params: append(resArg, code.P("pos", code.TInt)),
 		Results: []code.Type{code.TBool}, Reads: []string{Growth}, Features: []string{Document},
-		Contract: `Reports whether the input that the result s, kept for a call at pos, examined starts before pos;
-true if the parse did not record where it starts.`})
+		Contract: `Reports whether the input that the result s, kept for a call at pos, examined starts before pos.`})
 	m.AddOp(&code.Op{Name: "ctx.allows", Component: Growth, Params: append([]code.Param{ctxArg}, entryArg...),
 		Results: []code.Type{code.TBool}, Reads: []string{Growth, Memo},
 		Contract: `Reports whether the call with the context state c may reuse the memo entry e: always outside a

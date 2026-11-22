@@ -41,8 +41,8 @@ import (
 // seed of such a run, the seed at its end, with the observations, the expectations and the
 // examined input of the steps from there.
 //
-// The examined input of a result is the Document examined end (Parser.docExamined); outside a Document
-// parse it is not tracked and is 0.
+// The examined input of a result is the Document examined range [from, examined) (Parser.docLow,
+// Parser.docExamined); outside a Document parse it is not tracked and is 0.
 
 // failSeed is the identity of the failure that every growth starts from.
 const failSeed uint64 = 1
@@ -66,14 +66,10 @@ const (
 // ctxResult is a result that a context keeps: a seed, the result of a growth step, or the result of
 // a call that read a seed. It holds a node (Parser) or a typed value (TParser).
 //
-// A result does not record whether it examined the unit before its position, so in a Document parse
-// a call that reuses it counts that unit as examined. The touch is conservative: no result differs
-// from a parse from scratch without it (a Document that omits it, here and in growMemoStep, differs in
-// its counts of reuse only). A context lasts as long as the first growth of its leader, and every
-// result in it was made inside that growth, in frames that are the leader's own or inside it, whose
-// examined input then holds whatever the result read before its position. The calls that reuse a
-// result read a seed of the context, so their results stay in the context too; the memo entry of the
-// leader is the only one that such a reuse can reach, and it was made by those frames.
+// A result records the range of input it examined, as a memo entry does, and a call that reuses it
+// in a Document parse extends its own examined range by it: the memo entry of a leader that grew
+// from context steps examined what those steps examined, and no more, so an edit next to the leader
+// leaves it as it leaves the engine's.
 type ctxResult struct {
 	node     *sxirvalue.Node
 	val      any
@@ -82,6 +78,7 @@ type ctxResult struct {
 	end      int
 	far      int
 	examined int // the examined end of a Document parse (Parser.docExamined)
+	from     int // the examined start of a Document parse (Parser.docLow)
 	ok       bool
 	silent   bool
 }
@@ -210,15 +207,15 @@ func (s *ctxSet) setFirst(k valsKey, rest []byte, x *ctxSlot) uint64 {
 // ctxSlot is a result in a context table: the result, and for a growth step the identity of its
 // result and what the step itself recorded (its result is a seed shared by equal results).
 type ctxSlot struct {
-	e        *ctxResult
-	id       uint64 // the identity of a step result; the outcome of a lookahead (obsOutcome)
-	far      int
-	exp      []ExpID
-	examined int
-	silent   bool
-	env      []any
-	deps     []sdep
-	next     *ctxSlot
+	e              *ctxResult
+	id             uint64 // the identity of a step result; the outcome of a lookahead (obsOutcome)
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	env            []any
+	deps           []sdep
+	next           *ctxSlot
 }
 
 type jumpKey struct {
@@ -230,13 +227,13 @@ type jumpKey struct {
 // jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
 // seed, with what those steps recorded.
 type jumpRec struct {
-	end      *ctxResult
-	id       uint64
-	far      int
-	exp      []ExpID
-	examined int
-	silent   bool
-	deps     []sdep
+	end            *ctxResult
+	id             uint64
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	deps           []sdep
 }
 
 type canonKey struct {
@@ -264,10 +261,10 @@ type ctxTable struct {
 }
 
 // lookRec is a lookahead in progress: its site (-1 for one that records nothing) and the Document
-// examined end from before it.
+// examined range from before it.
 type lookRec struct {
-	site     int32
-	examined int
+	site           int32
+	examined, from int
 }
 
 // The values of an observation other than outcomes (obsOutcome).
@@ -311,6 +308,15 @@ func (p *Parser) seedAt(i int) *ctxResult {
 func (p *Parser) examinedNow() int {
 	if p.track {
 		return p.docExamined
+	}
+	return 0
+}
+
+// fromNow returns the start of the input that the current evaluation examined, or 0 in a parse that
+// does not track it.
+func (p *Parser) fromNow() int {
+	if p.track {
+		return p.docLow
 	}
 	return 0
 }
@@ -646,21 +652,22 @@ func (p *Parser) dropTable(i int) {
 }
 
 // obsOutcome encodes the outcome of a lookahead at pos whose expression matched if ok and whose
-// Document examined end is examined (pos outside a Document parse): equal values are equal outcomes
-// with equal examined ends. An outcome whose examined end is 2^62 units or more from pos, or before it,
-// gets an interned number (obsWide).
-func (p *Parser) obsOutcome(ok bool, pos, examined int) uint64 {
-	hi := examined - pos
-	if hi < 0 || hi >= 1<<62 {
-		key := make([]byte, 2, 10)
+// Document examined range is [from, examined) (pos outside a Document parse): equal values are equal
+// outcomes with equal examined ranges. An outcome whose range reaches 2^30 units or more from pos, or
+// that does not hold pos, gets an interned number (obsWide).
+func (p *Parser) obsOutcome(ok bool, pos, examined, from int) uint64 {
+	hi, lo := examined-pos, pos-from
+	if hi < 0 || lo < 0 || hi >= 1<<30 || lo >= 1<<30 {
+		key := make([]byte, 2, 18)
 		key[0] = internOutcome
 		if ok {
 			key[1] = 1
 		}
 		key = binary.LittleEndian.AppendUint64(key, uint64(hi))
+		key = binary.LittleEndian.AppendUint64(key, uint64(lo))
 		return obsWide | p.intern(key)
 	}
-	v := uint64(hi) << 1
+	v := uint64(hi)<<1 | uint64(lo)<<31
 	if ok {
 		v |= 1
 	}
@@ -888,10 +895,10 @@ func (p *Parser) lookBegin(site int) {
 	{
 		f := &p.frames[len(p.frames)-1]
 		if g := len(p.gamma); f.pos == p.Pos && f.gp < g && p.gamma[g-1].pos == p.Pos && p.gamma[g-1].cycle == p.gamma[f.gp].cycle {
-			// The examined end of the lookahead is part of its observation.
-			p.looks = append(p.looks, lookRec{site: int32(site), examined: p.docExamined})
+			// The examined range of the lookahead is part of its observation.
+			p.looks = append(p.looks, lookRec{site: int32(site), examined: p.docExamined, from: p.docLow})
 			if p.track {
-				p.docExamined = p.Pos
+				p.docExamined, p.docLow = p.Pos, p.Pos
 			}
 			p.pushFrame(p.Pos, f.gp)
 			return
@@ -908,10 +915,10 @@ func (p *Parser) lookEnd(ok bool) {
 		return
 	}
 	f, ds := p.popFrame()
-	examined := f.pos
+	examined, from := f.pos, f.pos
 	if p.track {
-		examined = p.docExamined
-		p.docExamined = max(l.examined, p.docExamined)
+		examined, from = p.docExamined, p.docLow
+		p.docExamined, p.docLow = max(l.examined, p.docExamined), min(l.from, p.docLow)
 	}
 	read := false
 	for _, d := range ds {
@@ -924,7 +931,7 @@ func (p *Parser) lookEnd(ok bool) {
 		p.mergeDeps(ds)
 		return
 	}
-	val := p.obsOutcome(ok, f.pos, examined)
+	val := p.obsOutcome(ok, f.pos, examined, from)
 	present := p.present(f.gp)
 	sd, _ := p.stored(ds)
 	p.ctxStore(f.pos, f.gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, sd, &ctxSlot{id: val})
@@ -955,10 +962,10 @@ type growState struct {
 	// took every step from the context memo evaluated nothing, and its call reuses that memo (growEnd). A
 	// growth outside a context evaluates every step and does not set it.
 	evaluated bool
-	// The step being evaluated in a context: the Document examined end and the expectation record it is
-	// kept apart from.
-	savedExamined int
-	exp           ExpMark
+	// The step being evaluated in a context: the Document examined range and the expectation record it
+	// is kept apart from.
+	savedExamined, savedFrom int
+	exp                      ExpMark
 	// run holds the steps since the last step that read a seed other than the leader's own.
 	run []runStep
 	// The step that growKeepStep returned last, until growAdoptStep adopts it: its identity as a seed and
@@ -969,12 +976,12 @@ type growState struct {
 
 // runStep is a step of a run of a growth: the seed it started from and what it recorded.
 type runStep struct {
-	seed     uint64
-	far      int
-	exp      []ExpID
-	examined int
-	silent   bool
-	deps     []sdep
+	seed           uint64
+	far            int
+	exp            []ExpID
+	examined, from int
+	silent         bool
+	deps           []sdep
 }
 
 func (g *growState) growKey() growKey { return growKey{g.rule, g.min} }
@@ -999,12 +1006,12 @@ func (p *Parser) growBegin(r *Rule, min int) growState {
 	rec.rule, rec.min, rec.pos, rec.cycle, rec.idx, rec.id = g.rule, g.min, g.start, r.Cycle, r.leaderIndex, failSeed
 	if g.gp < g.gi {
 		// The seeds of a growth in a context can be shared by equal results (canonicalSeed).
-		rec.seed = &ctxResult{end: g.start, examined: p.examinedNow()}
+		rec.seed = &ctxResult{end: g.start, examined: p.examinedNow(), from: g.start}
 		rec.inl = ctxResult{}
 	} else {
 		// A growth in no context allocates nothing.
 		rec.seed = nil
-		rec.inl = ctxResult{end: g.start, examined: p.examinedNow()}
+		rec.inl = ctxResult{end: g.start, examined: p.examinedNow(), from: g.start}
 	}
 	if g.gp < g.gi {
 		// The present set of the steps includes the leader's own growth.
@@ -1023,10 +1030,10 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 		if j := p.findJump(g, id); j != nil {
 			p.replayDeps(g.start, g.gp, g.present, j.deps)
 			p.MergeExpected(j.far, j.exp)
-			// The step after the jump reads the seed it lands on, whose examined end is the jump's
+			// The step after the jump reads the seed it lands on, whose examined range is the jump's
 			// (recordJumps), so this touch only keeps the jump a complete replay of its steps.
 			p.documentTouch(j.examined)
-			p.documentTouchFrom(g.start - 1) // conservative, like the reuse of a ctxResult
+			p.documentTouchFrom(j.from)
 			p.setSeed(g, j.end, j.id)
 			continue
 		}
@@ -1041,11 +1048,11 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 		// of a growth, which does not grow, can be taken from the context, and nothing else records how
 		// far it examined.
 		p.documentTouch(s.examined)
-		p.documentTouchFrom(g.start - 1) // conservative, like the reuse of a ctxResult
+		p.documentTouchFrom(s.from)
 		if !p.growGrew(g, s.e) {
 			return s.e
 		}
-		p.adoptGrownStep(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, silent: s.silent, deps: s.deps})
+		p.adoptGrownStep(g, s.e, s.id, runStep{seed: id, far: s.far, exp: s.exp, examined: s.examined, from: s.from, silent: s.silent, deps: s.deps})
 	}
 }
 
@@ -1055,8 +1062,8 @@ func (p *Parser) growIsolate(g *growState) {
 	g.evaluated = true
 	p.pushFrame(g.start, g.gp)
 	if p.track {
-		g.savedExamined = p.docExamined
-		p.docExamined = g.start
+		g.savedExamined, g.savedFrom = p.docExamined, p.docLow
+		p.docExamined, p.docLow = g.start, g.start
 	}
 	g.exp = p.Isolate(g.start)
 }
@@ -1073,7 +1080,7 @@ func (p *Parser) growLonger(g *growState, ok bool) bool {
 // caller drops the errors after the growth's mark.
 func (p *Parser) growAdopt(g *growState, node *sxirvalue.Node, val any, errs recEntry) {
 	p.Spend()
-	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), errs: errs}
+	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), errs: errs}
 	p.gamma[g.gi].id = p.nextSeedID()
 	p.Pos = g.start
 }
@@ -1087,12 +1094,12 @@ func (p *Parser) growKeepStep(g *growState, node *sxirvalue.Node, val any, ok bo
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
 	exp := p.Keep(inner)
-	examined := p.examinedNow()
+	examined, from := p.examinedNow(), p.fromNow()
 	p.MergeExpected(far, inner)
 	if p.track {
-		p.docExamined = max(g.savedExamined, p.docExamined)
+		p.docExamined, p.docLow = max(g.savedExamined, p.docExamined), min(g.savedFrom, p.docLow)
 	}
-	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: examined, silent: p.Silent > 0}
+	res := &ctxResult{node: node, val: val, ok: ok, end: p.Pos, examined: examined, from: from, silent: p.Silent > 0}
 	if ok {
 		res.errs = errs
 	} else {
@@ -1101,10 +1108,10 @@ func (p *Parser) growKeepStep(g *growState, node *sxirvalue.Node, val any, ok bo
 	res, rid := p.canonicalSeed(g, res)
 	sd, _ := p.stored(ds)
 	h := ctxHeadKey{kind: ctxStep, id: g.rule, min: g.min, present: g.present}
-	p.ctxStore(g.start, g.gp, h, sd, &ctxSlot{e: res, id: rid, far: far, exp: exp, examined: examined, silent: p.Silent > 0})
+	p.ctxStore(g.start, g.gp, h, sd, &ctxSlot{e: res, id: rid, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0})
 	p.mergeDeps(ds)
 	g.pendID = rid
-	g.pendStep = runStep{seed: id, far: far, exp: exp, examined: examined, silent: p.Silent > 0, deps: sd}
+	g.pendStep = runStep{seed: id, far: far, exp: exp, examined: examined, from: from, silent: p.Silent > 0, deps: sd}
 	return res
 }
 
@@ -1199,7 +1206,7 @@ func (p *Parser) recordJumps(g *growState) {
 		t.jumps = map[jumpKey][]jumpRec{}
 	}
 	cur := &p.gamma[g.gi]
-	acc := jumpRec{end: cur.seed, id: cur.id, far: -1, examined: g.start}
+	acc := jumpRec{end: cur.seed, id: cur.id, far: -1, examined: g.start, from: g.start}
 	for i := len(g.run) - 1; i >= 0; i-- {
 		s := &g.run[i]
 		p.Spend()
@@ -1209,7 +1216,7 @@ func (p *Parser) recordJumps(g *growState) {
 		case s.far == acc.far:
 			acc.exp = p.unionExpected(acc.exp, s.exp)
 		}
-		acc.examined = max(acc.examined, s.examined)
+		acc.examined, acc.from = max(acc.examined, s.examined), min(acc.from, s.from)
 		acc.silent = acc.silent || s.silent
 		acc.deps = mergeSdeps(acc.deps, s.deps)
 		k := jumpKey{g: g.growKey(), present: g.present, seed: s.seed}
@@ -1342,7 +1349,7 @@ func (p *Parser) canonicalSeed(g *growState, e *ctxResult) (*ctxResult, uint64) 
 	p.Spend()
 	if c, ok := t.canon[ck]; ok {
 		budget := 64
-		if c.e.examined == e.examined && c.e.errs.none() && p.nodesEqual(c.e.node, e.node, &budget) && p.valuesEqual(reflect.ValueOf(c.e.val), reflect.ValueOf(e.val), &budget) {
+		if c.e.examined == e.examined && c.e.from == e.from && c.e.errs.none() && p.nodesEqual(c.e.node, e.node, &budget) && p.valuesEqual(reflect.ValueOf(c.e.val), reflect.ValueOf(e.val), &budget) {
 			return c.e, c.id
 		}
 	}

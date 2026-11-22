@@ -972,8 +972,7 @@ op ctx.before(s CtxResult, pos int) bool
   features document
   cost <= 0
   contract:
-    // Reports whether the input that the result s, kept for a call at pos, examined starts before pos;
-    // true if the parse did not record where it starts.
+    // Reports whether the input that the result s, kept for a call at pos, examined starts before pos.
 
 op ctx.allows(c Ctx, e Entry) bool
   component growth

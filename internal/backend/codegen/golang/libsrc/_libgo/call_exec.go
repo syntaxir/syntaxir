@@ -105,7 +105,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			entry.far, entry.expected = far, kept
 		}
 	} else if store == storeCtx {
-		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
+		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
 	p.MergeExpected(far, inner)
@@ -454,7 +454,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			}
 		}
 	} else if store == storeCtx {
-		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
+		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
 	p.MergeExpected(far, inner)
@@ -554,7 +554,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
-		p.ctxKeep(&c, r.Id, start, 0, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
+		p.ctxKeep(&c, r.Id, start, 0, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
 	p.MergeExpected(far, inner)
@@ -746,7 +746,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 		if p.track {
 			p.documentTouch(seed.examined)
 			if p.Document != nil {
-				if true {
+				if seed.from < start {
 					p.documentTouchFrom(start + -1)
 				}
 				p.Document.stats.Reused++
@@ -802,7 +802,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			if p.track {
 				p.documentTouch(held.examined)
 				if p.Document != nil {
-					if true {
+					if held.from < start {
 						p.documentTouchFrom(start + -1)
 					}
 					p.Document.stats.Reused++
@@ -863,7 +863,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 	} else if store == storeCtx {
-		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
+		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
 	p.MergeExpected(far, inner)
@@ -961,7 +961,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	if seed != nil {
 		p.Observation.memoHit()
 		p.documentTouch(seed.examined)
-		if true {
+		if seed.from < start {
 			p.documentTouchFrom(start + -1)
 		}
 		p.Document.stats.Reused++
@@ -1009,7 +1009,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		if held != nil {
 			p.Observation.memoHit()
 			p.documentTouch(held.examined)
-			if true {
+			if held.from < start {
 				p.documentTouchFrom(start + -1)
 			}
 			p.Document.stats.Reused++
@@ -1067,7 +1067,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
-		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
+		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
 	p.MergeExpected(far, inner)
