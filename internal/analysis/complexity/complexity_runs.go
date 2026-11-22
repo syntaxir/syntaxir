@@ -17,7 +17,7 @@ var runSitesOn = false
 // runSite reports whether the repetition e is a run site: the records of its walks can be keyed by
 // position, and its element costs a constant outside the calls it makes.
 func (k *classifier) runSite(e *ast.Repeat) bool {
-	if !runSitesOn || e.Max >= 0 || astfacts.HasLooseCut(e.Expr) {
+	if !runSitesOn || e.Max >= 0 {
 		return false
 	}
 	if v, ok := k.runMemo[e]; ok {
@@ -42,6 +42,9 @@ func (k *classifier) runSite(e *ast.Repeat) bool {
 		}
 		k.runMemo[e] = k.baseRepeats[e] && k.baseRuns.runSite(e)
 		return k.runMemo[e]
+	}
+	if k.looseCut(e.Expr) {
+		return false
 	}
 	k.badRules()
 	if k.runRestart == nil {

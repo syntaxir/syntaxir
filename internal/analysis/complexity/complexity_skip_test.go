@@ -4,7 +4,11 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -60,7 +64,22 @@ func TestReusedSkipSites(t *testing.T) {
 		`&([a]+ "z") [a]+`, `[a]+ {1 > 0}`, `[a] {1 > 0} [a]+`,
 	} {
 		t.Run(skip, func(t *testing.T) {
-			prog := compiletest.Program(t, "rule main = \"b\" #recover(skip="+skip+")\nrule s = \"a\"\n", compile.Options{})
+			g, err := compiletest.Parse("rule main = \"b\" #recover(skip=" + skip + ")\nrule s = \"a\"\n")
+			if err != nil {
+				t.Fatal(err)
+			}
+			prog, st, err := frontend.CheckStructural(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			nodes := originNodes(st.Module)
+			looseCut := func(e ast.Expr) bool {
+				n, ok := nodes[e]
+				if !ok {
+					t.Fatalf("no Core IR node for %s", fmt.FormatExpr(e))
+				}
+				return corepass.LooseCut(n)
+			}
 			var marked []*ast.Repeat
 			var skipExpr ast.Expr
 			for _, r := range prog.RuleList {
@@ -76,7 +95,7 @@ func TestReusedSkipSites(t *testing.T) {
 			if skipExpr == nil {
 				t.Fatal("no skip expression")
 			}
-			sites, ok := reusedSkip(skipExpr)
+			sites, ok := reusedSkip(skipExpr, looseCut)
 			if !ok {
 				return
 			}

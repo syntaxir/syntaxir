@@ -368,11 +368,6 @@ func (k *classifier) sureOf(e ast.Expr) charset {
 	return s
 }
 
-// looseCut reports whether e has a cut that commits the choice, option or repetition around it.
-func (k *classifier) looseCut(e ast.Expr) bool {
-	return astfacts.HasLooseCutWithPoll(e, k.control.Poll)
-}
-
 // sure returns characters on which e surely consumes: an evaluation of e where the next character
 // is in the set succeeds and consumes it or more, whatever else the input holds. It
 // under-approximates. A failure of a part reaches further than the part in two ways, and both end

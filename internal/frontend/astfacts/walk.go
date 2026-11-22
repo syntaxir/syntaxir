@@ -1,3 +1,7 @@
+// Package astfacts provides the walks of grammar expressions and of a rule's calls, terms and
+// attributes, and the syntactic queries on them, shared by the front end and the analyses. Facts
+// about matching, such as success, nullability and cuts, are computed on Core IR
+// (internal/middleend/corepass).
 package astfacts
 
 import "syntaxir.dev/sxir/pkg/grammar/ast"

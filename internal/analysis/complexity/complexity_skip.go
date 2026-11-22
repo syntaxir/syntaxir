@@ -21,7 +21,7 @@ import (
 // nor the rest of the skip calls a rule, has a predicate, a #recover or an Operators Rule, or, in
 // an element, an unbounded repetition. Without calls and predicates the other conditions of a
 // skip-run site hold.
-func reusedSkip(skip ast.Expr) ([]*ast.Repeat, bool) {
+func reusedSkip(skip ast.Expr, looseCut func(ast.Expr) bool) ([]*ast.Repeat, bool) {
 	var sites []*ast.Repeat
 	ok, inside := true, map[ast.Expr]bool{}
 	astfacts.WalkExpr(skip, func(x ast.Expr) {
@@ -32,7 +32,7 @@ func reusedSkip(skip ast.Expr) ([]*ast.Repeat, bool) {
 		case *ast.Repeat:
 			if x.Max < 0 {
 				sites = append(sites, x)
-				ok = ok && constantInput(x.Expr) && !astfacts.HasLooseCut(x.Expr)
+				ok = ok && constantInput(x.Expr) && !looseCut(x.Expr)
 				astfacts.WalkExpr(x.Expr, func(y ast.Expr) { inside[y] = true })
 			}
 		default:
@@ -70,7 +70,7 @@ func costly(x ast.Expr) bool {
 }
 
 // reused reports whether skip is a reused skip.
-func reused(skip ast.Expr) bool {
-	_, ok := reusedSkip(skip)
+func (k *classifier) reused(skip ast.Expr) bool {
+	_, ok := reusedSkip(skip, k.looseCut)
 	return ok
 }

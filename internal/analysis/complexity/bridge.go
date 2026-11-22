@@ -101,3 +101,9 @@ func (k *classifier) literalRest(rest []rune, ignoreCase bool) *ast.Literal {
 	text := string(rest)
 	return built(k, &ast.Literal{Value: text, IgnoreCase: ignoreCase}, core.Node(&core.Lit{Text: text, Fold: ignoreCase}))
 }
+
+// looseCut reports whether e has a cut that commits the choice, option or repetition around it
+// (corepass.Facts.LooseCut).
+func (k *classifier) looseCut(e ast.Expr) bool {
+	return k.facts.source.Facts.LooseCut(k.nodeOf(e))
+}

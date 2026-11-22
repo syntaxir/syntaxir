@@ -16,7 +16,7 @@ This document describes the repository layout and architecture, how to run tests
 | `pkg/runtime/vm/` | The parser on the bytecode VM that `compiler.Compile` returns and `LoadParser` loads from a compiled grammar (`.sxirc`), with its Document (versions, edit batches, snapshots, change reports) and prefix parses |
 | `internal/driver/generate/` | Generation of Go and TypeScript parsers from grammar syntax trees, with the sources of the libraries of generated parsers (`pkg/runtime/libgo/`, `internal/backend/codegen/typescript/lib/`) that the generators copy into them; `pkg/compiler` wraps it for grammar sources |
 | `pkg/grammar/ast/` | Grammar AST, structural validation (`Validate`), JSON conversion (`MarshalJSON`, `UnmarshalJSON`, strict `DecodeJSON`) and formatting as SyntaxIR source (`Format`, which preserves comments). Public package. |
-| `internal/frontend/astfacts/` | Conservative success and cut proofs, and the walks of a rule's calls, terms and attributes, shared by the compiler and the analyses |
+| `internal/frontend/astfacts/` | The walks of grammar expressions and of a rule's calls, terms and attributes, and syntactic queries on them, shared by the front end and the analyses |
 | `pkg/lint/` | Public entry of the grammar linter (`lint.Config`) behind `sxir lint`: it re-exports the types of `internal/analysis/lint/`. |
 | `internal/analysis/lint/` | Implementation of the grammar linter, shared by `pkg/lint/` and the language server: shared static analysis (`analysis.go`) and checks (`checks.go`) |
 | `internal/lsp/` | Language Server Protocol server for `.sxir` files (`sxir lsp`): JSON-RPC over standard input and output, document sync, diagnostics, formatting, navigation, hover, rename, completion, semantic tokens |

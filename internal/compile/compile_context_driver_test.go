@@ -11,7 +11,6 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	fcheck "syntaxir.dev/sxir/internal/frontend/check"
 	corebuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -97,22 +96,24 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 			case "static-analysis":
 				corepass.Compute(structuralModule(t, g), control)
 			case "success-proof", "failure-proof", "cut-proof":
-				items := make([]ast.Expr, 1024)
+				items := make([]ir.Node, 1024)
+				alts := make([]*ir.Alt, len(items))
 				for i := range items {
-					items[i] = &ast.Top{}
+					items[i] = &ir.Succeed{}
 					if phase == "failure-proof" {
-						items[i] = &ast.Bottom{}
+						items[i] = &ir.FailNode{}
 					}
+					alts[i] = &ir.Alt{Body: items[i]}
 				}
-				var expr ast.Expr = &ast.Seq{Items: items}
+				var node ir.Node = &ir.Seq{Items: items}
 				if phase == "failure-proof" {
-					expr = &ast.Not{Expr: &ast.Choice{Alts: items}}
+					node = &ir.Look{Neg: true, Body: &ir.Choice{Alts: alts}}
 				} else if phase == "cut-proof" {
-					expr = &ast.Optional{Expr: expr}
+					node = &ir.Opt{Body: node}
 				}
 				// Only the shared proof traversal can reach the first context
 				// checkpoint; no outer analysis loop contributes polling here.
-				astfacts.AlwaysSucceedsWithPoll(expr, nil, control.Poll)
+				corepass.Compute(&ir.Module{}, nil).WithControl(control).Succeeds(node)
 			case "site-numbering":
 				corepass.ComputeSites(structuralModule(t, g), make([]corepass.SiteRule, len(g.Rules())), control)
 			case "type-checking":

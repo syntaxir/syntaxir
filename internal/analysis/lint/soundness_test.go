@@ -54,10 +54,11 @@ func TestSoundness(t *testing.T) {
 		for _, in := range inputs {
 			want = append(want, result(prog, in))
 		}
+		a := newAnalysis(g)
 		for _, f := range runUnchecked(g, "main", options{}) {
 			for _, fix := range []bool{false, true} {
 				g2, _ := parser.Parse(src)
-				if !applyFinding(g2, f, fix) {
+				if !applyFinding(g2, a, f, fix) {
 					continue
 				}
 				if fix {
@@ -210,8 +211,9 @@ func fail(e ast.Expr) ast.Expr {
 	return &ast.Seq{Items: []ast.Expr{e, &ast.Bottom{}}}
 }
 
-// applyFinding changes g as described for TestSoundness, and reports whether it did.
-func applyFinding(g *ast.Grammar, f Finding, fix bool) bool {
+// applyFinding changes g as described for TestSoundness, and reports whether it did. a is the
+// analysis of the grammar g was parsed from, which answers the facts of its expressions.
+func applyFinding(g *ast.Grammar, a *analysis, f Finding, fix bool) bool {
 	done := false
 	noBase := f.Check == CheckNeverMatches && strings.Contains(f.Message, "no base case")
 	for _, r := range g.Rules() {
@@ -242,7 +244,7 @@ func applyFinding(g *ast.Grammar, f Finding, fix bool) bool {
 						done = true
 						return e
 					}
-					if strings.Contains(f.Fix, "left-recursive") || !never && astfacts.HasLooseCut(e.Alts[j]) {
+					if strings.Contains(f.Fix, "left-recursive") || !never && altLooseCut(a, f.Pos) {
 						return e
 					}
 					// A choice of one alternative is kept: a choice has a value even when its
@@ -291,6 +293,28 @@ func applyFinding(g *ast.Grammar, f Finding, fix bool) bool {
 }
 
 // rewrite replaces the subexpressions of e bottom-up with f.
+// altLooseCut reports whether the alternative at pos of a choice in the grammar of a has a cut
+// that commits the choice, by the analysis's Core IR node of the alternative.
+func altLooseCut(a *analysis, pos ast.Pos) bool {
+	for _, r := range a.order {
+		var alt ast.Expr
+		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
+			if c, ok := e.(*ast.Choice); ok && alt == nil {
+				for _, x := range c.Alts[1:] {
+					if posOf(x) == pos {
+						alt = x
+						break
+					}
+				}
+			}
+		})
+		if alt != nil {
+			return a.hasLooseCut(alt)
+		}
+	}
+	panic(fmt.Sprintf("no alternative of a choice at %d:%d", pos.Line, pos.Col))
+}
+
 func rewrite(e ast.Expr, f func(ast.Expr) ast.Expr) ast.Expr {
 	switch x := e.(type) {
 	case *ast.Group:

@@ -221,7 +221,7 @@ func TestScanRuns(t *testing.T) {
 
 // TestLooseCutInSkip checks that a cut in the skip of a recovery commits the choice around it.
 func TestLooseCutInSkip(t *testing.T) {
-	g, err := parser.Parse("rule main = \"x\"\n")
+	g, err := parser.Parse("rule main = (\"a\" #recover(skip=(\"b\" #cut))) / \"x\"\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,18 @@ func TestLooseCutInSkip(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !k.looseCut(&ast.Recovery{Expr: &ast.Literal{Value: "a"}, Skip: &ast.Cut{}}) {
+	var recovery ast.Expr
+	for _, r := range k.rules {
+		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
+			if skipOf(e) != nil {
+				recovery = e
+			}
+		})
+	}
+	if recovery == nil {
+		t.Fatal("no recovery")
+	}
+	if !k.looseCut(recovery) {
 		t.Error("a cut in the skip does not commit the choice around the recovery")
 	}
 }

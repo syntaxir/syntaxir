@@ -186,7 +186,7 @@ func (a *analysis) succeeds(e ast.Expr) bool {
 // lookahead of its own (which stop it), or in another rule (cuts do not cross rules).
 func (a *analysis) hasLooseCut(e ast.Expr) bool {
 	a.control.poll()
-	return corepass.LooseCut(a.node(e))
+	return a.facts.LooseCut(a.node(e))
 }
 
 // mayMatchLeniently reports whether e may succeed, given the rules in set that may, with _|_ and !
