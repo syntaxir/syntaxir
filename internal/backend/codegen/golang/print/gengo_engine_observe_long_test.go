@@ -88,13 +88,15 @@ var engineObservationMutants = []engineObservationMutant{
 	{name: "generated keeps the last profile", file: "pkg/runtime/libgo/trace.go",
 		old: "x.more = append(slices.Clip(x.more), p)", new: "x.more, ob.profile = slices.Clip(x.more), p",
 		runs: []engineObservationRun{expecting(agreementRun, "generated: the second profile"), expecting(libOptionsRun, "profiles recorded")}},
-	{name: "generated Document parses share added profiles", file: "pkg/runtime/libgo/trace.go",
-		old: "x.more = append(slices.Clip(x.more), p)", new: "_ = slices.Clip[[]int]\n\t\t\tx.more = append(x.more, p)",
+	// A generated Document copies its defaults for each parse as the engine's does, and the options of
+	// package runtime keep the copies apart; the library's tests reach those options through the overlay.
+	{name: "generated Document parses share added profiles", file: "pkg/runtime/options.go",
+		old: "o.Profiles = append(slices.Clip(o.Profiles), prof)", new: "o.Profiles = append(o.Profiles, prof)",
 		runs: []engineObservationRun{expecting(libOptionsRun, "was replaced")}},
 	{name: "generated Document parses change the default filter", file: "pkg/runtime/options.go",
 		old:  "s := new(instrument.TraceSelection)\n\tif o.TraceSelection != nil {\n\t\t*s = *o.TraceSelection\n\t}\n\to.TraceSelection = s\n\treturn s",
 		new:  "if o.TraceSelection == nil {\n\t\to.TraceSelection = new(instrument.TraceSelection)\n\t}\n\treturn o.TraceSelection",
-		runs: []engineObservationRun{expecting(generatedDocumentRun, "Parse 3 selected")}},
+		runs: []engineObservationRun{expecting(libOptionsRun, "trace filter changed the defaults")}},
 	{name: "typescript trace filter ignored", file: "internal/backend/codegen/typescript/lib/trace.ts",
 		old: "return this.rules === null || this.rules.has(rule) ||", new: "return true || this.rules.has(rule) ||",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "typescript: the trace filter"), expecting(tsOptionsRun, "FAIL the trace filter leaves profiles whole")}},
@@ -136,7 +138,7 @@ var engineObservationMutants = []engineObservationMutant{
 	// A lookahead outcome taken for one of a different examined end skips the calls the lookahead makes;
 	// the expected difference is that of the case made for it (examinedExtras), on its first input.
 	{name: "typescript lookahead outcomes identified without their examined ends", file: "internal/backend/codegen/typescript/lib/lib.ts",
-		old: "return (examined - pos) * 2 + (ok ? 1 : 0);", new: "return ok ? 1 : 0;",
+		old: "return lo * 2 ** 31 + hi * 2 + (ok ? 1 : 0);", new: "return ok ? 1 : 0;",
 		runs: []engineObservationRun{expecting(tsAgreementRun, lookaheadOutcomeKill)}},
 	// examinedExtras reaches the last step of a growth taken from the context.
 	{name: "typescript growth step taken from the context records nothing", file: "internal/backend/codegen/typescript/lib/lib.ts",
@@ -156,8 +158,8 @@ var engineObservationMutants = []engineObservationMutant{
 		old: "c.e.examined === e.examined && ", new: "",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "examined end of")}},
 	// As for TypeScript, the outcome taken skips the calls of the lookahead.
-	{name: "generated lookahead outcomes identified without their examined ends", file: "pkg/runtime/libgo/context_memo.go",
-		old: "\tv := uint64(hi) << 1\n", new: "\tv := uint64(0)\n",
+	{name: "generated lookahead outcomes identified without their examined ends", file: "pkg/runtime/libgo/context_table.go",
+		old: "\tv = uint64(hi)<<1 | uint64(lo)<<31\n", new: "\tv = 0\n",
 		runs: []engineObservationRun{expecting(agreementRun, lookaheadOutcomeKill)}},
 	// A growth in a context that takes every step from the context memo reuses memoized results: its call
 	// reports a memo hit and its Document counts the reuse (examinedExtras has a growth that does so in a
@@ -168,7 +170,7 @@ var engineObservationMutants = []engineObservationMutant{
 	{name: "generated growth from the context not counted as a reuse", file: "pkg/runtime/libgo/context_memo.go",
 		old: "\t\t\tp.Document.stats.Reused++\n\t\t}\n\t}\n\tp.recordJumps(g)", new: "\t\t}\n\t}\n\tp.recordJumps(g)",
 		runs: []engineObservationRun{expecting(agreementRun, "generated Document evaluated")}},
-	{name: "generated growth that evaluates reported as a memo hit", file: "pkg/runtime/libgo/context_memo.go",
+	{name: "generated growth that evaluates reported as a memo hit", file: "pkg/runtime/libgo/context_grow.go",
 		old: "\tg.evaluated = true\n", new: "",
 		runs: []engineObservationRun{expecting(agreementRun, "exit of b@0")}},
 	{name: "typescript growth from the context reports no memo hit", file: "internal/backend/codegen/typescript/lib/lib.ts",
@@ -183,7 +185,7 @@ var engineObservationMutants = []engineObservationMutant{
 	{name: "engine growth from the context not counted as a reuse", file: "internal/runtime/state/runtime.go",
 		old: "\t\tp.Stats.Reused++\n\t}\n\tp.recordJumps(g)", new: "\t}\n\tp.recordJumps(g)",
 		runs: []engineObservationRun{expecting(agreementRun, "engine Document evaluated")}},
-	{name: "engine growth that evaluates counted as a reuse", file: "internal/runtime/state/runtime.go",
+	{name: "engine growth that evaluates counted as a reuse", file: "internal/runtime/state/context_grow.go",
 		old: "\tg.evaluated = true\n", new: "",
 		runs: []engineObservationRun{expecting(agreementRun, "engine Document evaluated")}},
 	{name: "typescript library control", file: "internal/backend/codegen/typescript/lib/trace.ts",

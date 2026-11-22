@@ -103,25 +103,36 @@ func TestTraceOptionComposition(t *testing.T) {
 		t.Errorf("profiles recorded %d and %d parses, %d and %d calls", sa.Parses, sb.Parses, sa.Entered, sb.Entered)
 	}
 
-	// The defaults of a Document are copied for each parse, which may add profiles.
+	// The defaults of a Document are copied for each parse, which may add profiles and replace the
+	// trace filter. Three default profiles leave the shared list room for one more, so a parse that
+	// appended to it in place would write where another parse writes too.
 	var defaults parseOptions
-	var p1, p2, p3, p4, pc sxirinstrument.Profile
-	for _, pr := range []*sxirinstrument.Profile{&p1, &p2, &p3, &p4} {
+	var p1, p2, p3, pc sxirinstrument.Profile
+	for _, pr := range []*sxirinstrument.Profile{&p1, &p2, &p3} {
 		if err := defaults.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(pr)}); err != nil {
 			t.Fatal(err)
 		}
 	}
+	if err := defaults.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithTraceFilter("main")}); err != nil {
+		t.Fatal(err)
+	}
 	first, second := defaults, defaults
-	if err := first.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(&pb)}); err != nil {
+	if err := first.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(&pb), sxirruntime.WithTraceFilter("word")}); err != nil {
 		t.Fatal(err)
 	}
 	if err := second.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(&pc)}); err != nil {
 		t.Fatal(err)
 	}
-	if len(defaults.observe.extras.more) != 3 || len(first.observe.extras.more) != 4 || len(second.observe.extras.more) != 4 {
+	if len(defaults.observe.extras.more) != 2 || len(first.observe.extras.more) != 3 || len(second.observe.extras.more) != 3 {
 		t.Fatal("profiles added to a copy of the defaults")
 	}
-	if first.observe.extras.more[3] != &pb || second.observe.extras.more[3] != &pc {
+	// The options of each parse keep the profile it added, also once the other parse added its own.
+	if first.observe.extras.more[2] != &pb || second.observe.extras.more[2] != &pc ||
+		first.user.Profiles[3] != &pb || second.user.Profiles[3] != &pc {
 		t.Error("a parse's profile was replaced by one that another parse added to the defaults")
+	}
+	if !slices.Equal(defaults.observe.extras.rules, []string{"main"}) || !slices.Equal(second.observe.extras.rules, []string{"main"}) ||
+		!slices.Equal(defaults.user.TraceSelection.Rules, []string{"main"}) {
+		t.Error("a parse's trace filter changed the defaults")
 	}
 }
