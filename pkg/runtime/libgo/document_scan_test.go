@@ -102,7 +102,7 @@ func TestPrivateDocumentScanRecordHitExaminedEnd(t *testing.T) {
 		if err := d.edit(run+1, run+2, "x"); err != nil {
 			t.Fatal(err)
 		}
-		if e := d.memo.get(last.Id, 0, 0, nil); e != nil {
+		if e := liveEntry(d, last.Id, 0); e != nil {
 			t.Fatalf("unit %d: entry survived an edit inside its examined range", unit)
 		}
 		got, gotErr := d.parse(o)

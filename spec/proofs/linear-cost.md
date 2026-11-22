@@ -13379,8 +13379,8 @@ has a constant number of keys.
 The corollary does not cover the work that follows the outcome in the same
 Control: the capture and sharing of `SnapshotWith`, the comparison of change
 notifications, and the publication of diagnostics. Nor does it cover the
-generated Document runtimes: they apply each edit to every entry at once, and
-they move a copy of a reused value, so a node is not moved once for a parse.
+generated Document runtimes: they move a copy of a reused value, so a node is not
+moved once for a parse.
 
 ## Lemma 14 (Shared Recovered Errors)
 

@@ -290,36 +290,40 @@ var chargedElsewhere = map[string]string{
 	"stream.dropRecords": "the engine charges one unit for each slot of inactive capacity it clears",
 }
 
-// engineOnly are the host operations that the generated Go library has no form of. Runs and the edits
-// that a memo applies when it finds an entry exist in the engine alone, whose tests measure the charges
-// of each: TestRunOperationsChargeTheirDeclaredWork, TestMemoLookupChargesItsPendingEdits and the
-// conformance suites of the engine's Document memo. Those that declare no cost are read in printed code,
-// where TestEngineEditFormsCallNothing holds them to their fields.
-var engineOnly = map[string]bool{"memo.seed": true, "memo.from": true, "memo.pinned": true, "memo.shifted": true, "memo.applied": true,
-	"memo.advance": true, "edit.count": true, "edit.start": true, "edit.end": true, "edit.delta": true,
-	"run.start": true, "run.prefix": true, "run.resync": true, "run.tail": true, "run.begin": true, "run.end": true, "run.finish": true}
+// engineOnly are the host operations that the generated Go library has no form of: the runs of a
+// Document exist in the engine alone, whose tests measure the charges of each
+// (TestRunOperationsChargeTheirDeclaredWork).
+var engineOnly = map[string]bool{"run.start": true, "run.prefix": true, "run.resync": true, "run.tail": true, "run.begin": true,
+	"run.end": true, "run.finish": true}
 
-// TestEngineEditFormsCallNothing holds the forms of the operations that the engine reads while it
-// applies an edit to an entry to fields and conversions: they declare no cost, and memoAdvance charges
-// for the edit.
-func TestEngineEditFormsCallNothing(t *testing.T) {
-	tg := engineTarget()
-	for name := range engineOnly {
-		if strings.HasPrefix(name, "run.") {
-			continue
-		}
-		op := compose.Build().Op(name)
-		if op.Cost.Const != 0 || len(op.Cost.Terms) != 0 {
-			t.Errorf("%s declares cost %s", name, op.Cost)
-		}
-		args := make([]string, len(op.Params))
-		for i := range args {
-			args[i] = fmt.Sprintf("a%d", i)
-		}
-		form := tg.Op(&code.Call{Callee: name}, args)
-		for _, m := range goCallee.FindAllStringSubmatch(form, -1) {
-			if m[1] != "" || m[2] != "int" && m[2] != "int32" && m[2] != "uint32" && m[2] != "len" {
-				t.Errorf("%s calls %s: %s", name, m[0], form)
+// editForms are the operations that the engine and the node library read and write while they apply an
+// edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: memoAdvance charges for
+// the edit, as TestMemoLookupChargesItsPendingEdits and the conformance suites of the Document memo
+// measure.
+var editForms = []string{"memo.seed", "memo.from", "memo.pinned", "memo.shifted", "memo.applied", "memo.advance",
+	"edit.count", "edit.start", "edit.end", "edit.delta"}
+
+// TestEditFormsCallNothing holds the forms of the operations that a lookup reads and writes while it
+// applies an edit to an entry to fields and conversions, in the engine and in the node library.
+func TestEditFormsCallNothing(t *testing.T) {
+	for _, tg := range []struct {
+		name string
+		op   func(c *code.Call, a []string) string
+	}{{"engine", engineTarget().Op}, {"library", goTarget(goSpec{fn: "memoAdvance", name: "advanceEntry"}).Op}} {
+		for _, name := range editForms {
+			op := compose.Build().Op(name)
+			if op.Cost.Const != 0 || len(op.Cost.Terms) != 0 {
+				t.Errorf("%s declares cost %s", name, op.Cost)
+			}
+			args := make([]string, len(op.Params))
+			for i := range args {
+				args[i] = fmt.Sprintf("a%d", i)
+			}
+			form := tg.op(&code.Call{Callee: name}, args)
+			for _, m := range goCallee.FindAllStringSubmatch(form, -1) {
+				if m[1] != "" || m[2] != "int" && m[2] != "int32" && m[2] != "uint32" && m[2] != "len" {
+					t.Errorf("%s: %s calls %s: %s", tg.name, name, m[0], form)
+				}
 			}
 		}
 	}

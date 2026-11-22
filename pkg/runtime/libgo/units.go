@@ -568,13 +568,19 @@ func (t *memoTable) isSeen(pos, s int) bool {
 }
 
 // memoLines returns the lines of the report of WithMemoReport for the entries of the memo of a
-// Node parse: per position, its chain in order.
+// Node parse: per position, its chain in order, with the number of Document edits each entry
+// accounts for.
 func (p *Parser) memoLines() []string {
 	var out []string
-	for pos, e := range p.memo.slots {
+	t := &p.memo
+	for i, e := range t.slots {
+		pos := i
+		if i >= t.gap {
+			pos -= t.gapLen
+		}
 		for ; e != nil; e = e.next {
-			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d seen %d present %d\n",
-				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.seen, e.present))
+			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d vgen %d present %d\n",
+				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.vgen, e.present))
 		}
 	}
 	return out

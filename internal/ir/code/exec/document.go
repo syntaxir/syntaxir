@@ -66,9 +66,10 @@ another result moved, once for each generation.`})
 }
 
 // documentEdits adds to m the host operations of the edits that a target applies to a memo entry when
-// it finds the entry. They exist only on such a target, as what its implementation of memo.splice
-// reads and writes, and have no reference model: a lazy edit changes no result that a composition
-// could observe, so conformance checks them through memo.splice and memo.lookup.
+// it finds the entry: the engine and the generated Go library apply an edit at once only to the entries
+// at its positions. They are what such an implementation of memo.splice reads and writes, and have no
+// reference model: a lazy edit changes no result that a composition could observe, so conformance
+// checks them through memo.splice and memo.lookup.
 func documentEdits(m *code.Module) {
 	entry := code.THandle(Entry)
 	log := m.AddHandle(EditLog, Memo, "The edits of a Document, in order.")

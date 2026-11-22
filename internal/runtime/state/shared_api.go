@@ -123,3 +123,6 @@ func (t *MemoTable) FirstCallRecord() (pairs, directories int, eager []bool) {
 	}
 	return pairs, len(f.pages), eager
 }
+
+// Gap returns the gap of the slots of t (memoGap): the slots [gap, gap+gapLen) hold no position.
+func (t *MemoTable) Gap() (gap, gapLen int) { return t.gap, t.gapLen }

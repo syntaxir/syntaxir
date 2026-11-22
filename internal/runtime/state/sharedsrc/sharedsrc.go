@@ -22,6 +22,7 @@ var Files = []string{
 	"core.go",
 	"expected.go",
 	"memo_first.go",
+	"memo_gap.go",
 	"memo_index.go",
 	"recovered.go",
 	"term_value.go",

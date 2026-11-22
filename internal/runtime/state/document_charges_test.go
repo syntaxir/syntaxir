@@ -345,10 +345,7 @@ func TestMemoChargesMatchTheModel(t *testing.T) {
 		// chain returns the entries of a position in the order a lookup passes them.
 		chain := func(pos int) (es []*MemoEntry) {
 			table := p.Memo
-			i := pos - table.Base
-			if i >= table.Gap {
-				i += table.GapLen
-			}
+			i := table.slot(pos - table.Base)
 			if i < 0 || i >= len(table.Slots) {
 				return nil
 			}

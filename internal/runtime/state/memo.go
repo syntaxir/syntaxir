@@ -8,7 +8,7 @@ import "slices"
 // the cost of hashing entries and growing the table, and it can be pruned in position order.
 type MemoTable struct {
 	Base  int
-	Slots []*MemoEntry // list of entries at position base+i (base+i-GapLen from the gap on)
+	Slots []*MemoEntry // list of entries at position base+i (memoGap.slot)
 	slab  []MemoEntry  // area for allocating entries in bulk
 	// Chunks are the areas slab came from, kept by reset for later parses; used counts those in use.
 	Chunks [][]MemoEntry
@@ -16,9 +16,9 @@ type MemoTable struct {
 	// Free links retired entries through next. Retiring clears their result
 	// references; reuse bounds slab growth in streams and edited Documents.
 	Free *MemoEntry
-	// Document edits splice positions in and out at the gap, slots[gap:gap+GapLen] (in Document
-	// tables, where base is 0): moving it costs only the distance to the next edit.
-	Gap, GapLen int
+	// Document edits splice positions in and out at the gap (in Document tables, where base is 0):
+	// moving it costs only the distance to the next edit.
+	memoGap
 	// firstCalls records the calls whose memoization a whole-input parse defers (seen.first).
 	firstCalls
 	// MemBytes counts the bytes of the slots the table has taken into use (budget_memory.go,
@@ -39,10 +39,7 @@ func NewMemoTable() *MemoTable { return &MemoTable{} }
 
 // Get returns the entry for key k.
 func (t *MemoTable) Get(k MemoKey) (*MemoEntry, bool) {
-	i := k.Pos - t.Base
-	if i >= t.Gap {
-		i += t.GapLen
-	}
+	i := t.slot(k.Pos - t.Base)
 	if i < 0 || i >= len(t.Slots) {
 		return nil, false
 	}
@@ -95,9 +92,7 @@ func (t *MemoTable) put(k MemoKey, e *MemoEntry, p *Parser) *MemoEntry {
 	if i < 0 {
 		return e // discarded position
 	}
-	if i >= t.Gap {
-		i += t.GapLen
-	}
+	i = t.slot(i)
 	if i >= len(t.Slots) {
 		// The slot array is charged by its length, not its capacity, so the count does not
 		// depend on the capacity an earlier parse left.
@@ -274,10 +269,7 @@ func (t *MemoTable) Splice(start, end, delta int, advance func(e *MemoEntry) boo
 	// Detach the entries at [start, end] and keep the valid ones.
 	var stay *MemoEntry
 	for pos := start; pos <= end; pos++ {
-		i := pos
-		if i >= t.Gap {
-			i += t.GapLen
-		}
+		i := t.slot(pos)
 		if i >= len(t.Slots) {
 			break
 		}
@@ -292,39 +284,12 @@ func (t *MemoTable) Splice(start, end, delta int, advance func(e *MemoEntry) boo
 		}
 		t.Slots[i] = nil
 	}
-	// Move the gap to start, take [start, end) into it, and give the new positions from it.
-	if end+t.GapLen >= len(t.Slots) { // room for position end, where an entry kept at start may go
-		t.MemBytes += uint64(end+t.GapLen+1-len(t.Slots)) * memoSlotBytes
-		t.Slots = append(t.Slots, make([]*MemoEntry, end+t.GapLen+1-len(t.Slots))...)
-	}
-	switch {
-	case t.Gap > start:
-		copy(t.Slots[start+t.GapLen:t.Gap+t.GapLen], t.Slots[start:t.Gap])
-		clear(t.Slots[start:min(t.Gap, start+t.GapLen)])
-	case t.Gap < start:
-		copy(t.Slots[t.Gap:start], t.Slots[t.Gap+t.GapLen:start+t.GapLen])
-		clear(t.Slots[max(start, t.Gap+t.GapLen) : start+t.GapLen])
-	}
-	t.Gap = start
-	t.GapLen += end - start
-	n := end - start + delta
-	if n > t.GapLen {
-		// Widen the gap, with room for later insertions.
-		more := n - t.GapLen + max(1024, len(t.Slots)/16)
-		t.MemBytes += uint64(more) * memoSlotBytes
-		grown := make([]*MemoEntry, len(t.Slots)+more)
-		copy(grown, t.Slots[:t.Gap])
-		copy(grown[t.Gap+t.GapLen+more:], t.Slots[t.Gap+t.GapLen:])
-		t.Slots, t.GapLen = grown, t.GapLen+more
-	}
-	t.Gap += n
-	t.GapLen -= n
+	var added int
+	t.Slots, added = moveGap(&t.memoGap, t.Slots, start, end, delta)
+	t.MemBytes += uint64(added) * memoSlotBytes
 	for e := stay; e != nil; {
 		next := e.Next
-		i := e.Pos
-		if i >= t.Gap {
-			i += t.GapLen
-		}
+		i := t.slot(e.Pos)
 		e.Next = t.Slots[i]
 		t.Slots[i] = e
 		e = next

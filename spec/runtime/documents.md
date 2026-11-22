@@ -218,23 +218,17 @@ recovered errors are completed outcomes and keep their reusable caches.
 Reuse is a performance property, not a result property. An implementation MAY
 retain, shift, drop or recompute any intermediate result, provided that every
 parse returns what a parse of the current text from scratch returns. Reuse is
-observable only through the statistics. In the engine, a lookup that finds a memo entry
+observable only through the statistics. A lookup that finds a memo entry
 applies the edits since the entry was stored or last found, and counts one unit of Compute
 for each edit it applies, against an explicit `Compute` limit only
 ([Default Limits](parsing.md#default-limits)). An entry that lags behind by more than 128
 edits is treated as absent and the call evaluates again, so a lookup applies at most 128 edits and the
 [linear cost proof](../proofs/linear-cost.md#setting) bounds their work by that
-constant. Generated runtimes apply each edit to every entry at once, and a lookup there applies none.
-Each edit costs them time in proportion to the memo, and after more than 128 edits since the last
-parse they drop the memo instead, so that further edits cost no more than the edit itself and the next
-parse evaluates every rule, as a parse from scratch does. The memo holds at most one entry for each
-call of the parse before, so the edits between two parses cost at most 128 times the work of the parse
-before, whatever their number, and a sequence of an edit, a parse, an edit and a parse costs per round
-what its parse costs plus that bound. The number 128 is where reuse stops paying when the edits are
-spread over the whole text; it is one constant shared by every backend. The two forms differ in the statistics alone: the engine
-counts the lag of each entry from the parse that stored it or last found it, and a generated parser
-counts the edits since the last parse for the whole memo, so either may reuse entries that the other
-treats as absent (`Reused` differs), and the results are the same.
+constant. An edit applies itself at once only to the entries at the positions it replaced
+([Reuse Model](#reuse-model)), so it costs time in proportion to them and to its distance from the
+previous edit, not to the memo. The number 128 is where reuse stops paying when the edits are
+spread over the whole text; it is one constant shared by every backend, and every backend counts
+the lag of each entry from the parse that stored it or last found it.
 
 A result that read the growing result of a left recursion in progress when it
 started depends on that growth, not only on the text. A parse keeps it only
@@ -294,9 +288,8 @@ parser drops one whose value holds a host value other than a node or a basic
 value, which it cannot move.
 
 Edits are applied to an entry in order, either all at once or when the entry is
-next looked up. The engine applies them to an entry when a lookup finds it, and
-at once to the entries at the positions a to b, both included; the
-generated runtimes apply each edit to every entry at once. An entry found to be
+next looked up. Every backend applies them to an entry when a lookup finds it, and
+at once to the entries at the positions a to b, both included. An entry found to be
 dropped may stay where it is, where no lookup returns it, until a store under
 its key replaces it, a later edit whose positions include its position drops
 it, a walk of its chain finds that it lags behind by more than 128 edits
@@ -353,8 +346,8 @@ characters of its text. This
 section bounds the units of Compute that each of these operations charges, as an
 explicit `Compute` limit counts them; the default limit leaves most of them out
 ([Default Limits](parsing.md#default-limits)). Each bound is an upper bound: an
-operation may charge less. The generated runtimes apply each edit to every
-entry at once and keep no runs ([Reuse](#reuse)), and are not covered here.
+operation may charge less. The generated runtimes keep no runs and move a copy
+of a reused value; they are not covered here.
 
 The charges are those of a function of the logical state, as for every parse
 ([Reservations and Interruptions](parsing.md#reservations-and-interruptions),

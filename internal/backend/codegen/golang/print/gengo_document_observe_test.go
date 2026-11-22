@@ -252,14 +252,20 @@ func observedLib(t *testing.T) string {
 				"p.Observation = newObservation(&o.observe, &p.Silent)\n\tif ProbeHook != nil {\n\t\tProbeHook(p.Observation)\n\t}\n\tdefer p.releaseObservation()", 1)
 		case "call_exec.go":
 			// The printed calls name the stored entry entry and the reused entry e.
-			stores := []string{"entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(p.docLow < start), false\n",
+			// The node store records the examined input in a Document and in an observed parse from
+			// scratch alike; the hook keeps the Document's.
+			stores := []string{"if p.Document != nil {\n\t\t\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n",
 				"p.TypedDocument.meta[entry] = typedDocumentMeta{examined: p.docExamined, recorded: true, before: p.docLow < start}"}
 			// The node runtime's hit is the one that moves the entry in a Document (documentMove); the typed
 			// runtime's batch call touches the same way outside Documents.
 			hits := map[string]string{"e.examined": "p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "p.TypedDocument.meta[e].examined": ""}
 			keep := "ExaminedHook(r.Name, start, min, p.docExamined, false); "
 			for _, old := range stores {
-				src = replace(src, old, keep+old, 1)
+				at := strings.Index(old, "entry.")
+				if strings.HasPrefix(old, "p.TypedDocument") {
+					at = 0
+				}
+				src = replace(src, old, old[:at]+keep+old[at:], 1)
 			}
 			for examined, before := range hits {
 				old := before + "p.documentTouch(" + examined + ")\n"

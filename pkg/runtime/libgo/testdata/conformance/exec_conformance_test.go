@@ -3,6 +3,7 @@ package libgo
 import (
 	"errors"
 	"fmt"
+	"math"
 	"math/rand/v2"
 	"slices"
 	"strings"
@@ -246,11 +247,19 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 	case "memo.lookup":
 		rule, pos, level, env := key()
 		e := p.memoGet(rule, pos, level, env, false)
-		return []any{e, e != nil}
+		found := e != nil
+		if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+			found = false
+		}
+		return []any{e, found}
 	case "memo.store":
 		rule, pos, level, env := key()
 		e := p.memo.alloc()
-		*e = memoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8])}
+		// Every entry the call protocol stores has a record of the input it examined. An entry here
+		// stands for one without a record until memo.examine: it examined everything (unrecorded), so
+		// every edit drops it.
+		*e = memoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8]), vgen: p.gen}
+		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(rule, pos, level, env, false, e)}
 	case "memo.ok":
 		return []any{args[0].(*memoEntry).ok}
@@ -259,19 +268,29 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 	case "memo.silent":
 		return []any{args[0].(*memoEntry).silent}
 	case "memo.examine":
+		// The call records the low end of its examined input (memo.examine in the library): its position,
+		// or the unit before it.
 		e := args[0].(*memoEntry)
-		e.from, e.examined, e.pinned = examinedFromOf(args[1].(bool)), i(2), false
+		e.from, e.examined, e.pinned = m.posOf(e), i(2), false
+		if args[1].(bool) {
+			e.from--
+		}
 		return nil
 	case "memo.examined":
-		return []any{int64(args[0].(*memoEntry).examined)}
+		e := args[0].(*memoEntry)
+		if isUnrecorded(e) {
+			return []any{int64(0)}
+		}
+		return []any{int64(e.examined)}
 	case "memo.before":
-		return []any{args[0].(*memoEntry).from == fromBefore}
+		e := args[0].(*memoEntry)
+		return []any{!isUnrecorded(e) && e.from < m.posOf(e)}
 	case "memo.pin":
 		args[0].(*memoEntry).pinned = true
 		return nil
 	case "memo.splice":
 		// A Document edit: the Document's memo is the table of its next parse.
-		p.memo.splice(documentEdit{i(0), i(1), i(2)})
+		confEdit(p, documentEdit{i(0), i(1), i(2)})
 		return nil
 	case "memo.prune":
 		p.pruneStreamMemo(i(0))
@@ -287,6 +306,37 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		return []any{p.Control.budgetUsed()}
 	}
 	panic("library binding: no operation " + o.Name)
+}
+
+// unrecorded returns the examined input of an entry without a record of memo.examine: all of it, so
+// that every edit drops the entry, as the reference does.
+func unrecorded() (from, examined int) { return -1, math.MaxInt }
+
+// isUnrecorded reports whether e has no record of memo.examine (unrecorded).
+func isUnrecorded(e *memoEntry) bool { return e.examined == math.MaxInt }
+
+// posOf returns the position of the entry e in the memo: the position of the slot that holds it.
+func (m *rtMachine) posOf(e *memoEntry) int {
+	t := &m.p.memo
+	for i, head := range t.slots {
+		for x := head; x != nil; x = x.next {
+			if x == e {
+				if i >= t.gap {
+					i -= t.gapLen
+				}
+				return i
+			}
+		}
+	}
+	panic("library binding: entry not in the memo")
+}
+
+// confEdit applies a Document edit to the memo of p as an edit of a Document does (documentState.editReuse):
+// it logs the edit and splices it in, and the parse that follows reads the log.
+func confEdit(p *Parser, ed documentEdit) {
+	p.edits = append(p.edits, ed)
+	p.memo.splice(p.edits)
+	p.gen = uint32(len(p.edits))
 }
 
 var (
@@ -330,12 +380,14 @@ func rtSuites() []conform.Suite {
 					Name: fmt.Sprintf("generated Go library (controlled=%v, sparse seen=%v, %s)", controlled, sparse, mode),
 					Ops:  ops,
 					New:  func(c ref.Config) conform.Impl { return newRTMachine(c, controlled, sparse, mode == "stream") },
+					// The library applies an edit to most entries when a lookup finds them (advanceEntry).
+					LazyEdits: mode == "document",
 				})
 			}
 		}
 	}
 	suites = append(suites,
-		conform.Suite{Name: "generated Go library (document edits)", Ops: rtDocEditOps,
+		conform.Suite{Name: "generated Go library (document edits)", Ops: rtDocEditOps, LazyEdits: true,
 			New: func(c ref.Config) conform.Impl { return newRTMachine(c, false, false, false) }},
 		conform.Suite{Name: "generated Go typed library (document edits)", Ops: rtDocEditOps,
 			New: func(c ref.Config) conform.Impl { return newTypedMachine(c, false) }})
@@ -724,35 +776,35 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 			*e = memoEntry{ok: args[4].(bool), end: int(args[5].(int64)), silent: args[6].(bool)}
 			return []any{m.p.memoPut(rule, max(pos, m.p.Stream.memoBase), level, env, false, e)}
 		}},
-		// A splice that reads an examined end of 0 as no record: it drops an entry at position 0 that
-		// examined no input.
-		"splice drops an entry that examined nothing at position 0": {op: "memo.splice", document: true, call: func(m *rtMachine, args []any) []any {
+		// A splice that reads an empty examined input as no record: it drops an entry that examined no
+		// input.
+		"splice drops an entry that examined nothing": {op: "memo.splice", document: true, call: func(m *rtMachine, args []any) []any {
 			for _, head := range m.p.memo.slots {
 				for e := head; e != nil; e = e.next {
-					if e.examined == 0 {
-						e.from = noRecord
+					if pos := m.posOf(e); e.vgen == m.p.gen && e.from == pos && e.examined == pos {
+						e.from, e.examined = unrecorded()
 					}
 				}
 			}
-			m.p.memo.splice(documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
+			confEdit(m.p, documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
 			return nil
 		}},
 		// A splice that keeps the entries whose examined end is the edit's start plus one.
 		"splice keeps an entry that examined the edited unit": {op: "memo.splice", call: func(m *rtMachine, args []any) []any {
 			start, end := int(args[0].(int64))+1, int(args[1].(int64))
-			m.p.memo.splice(documentEdit{start, max(start, end), int(args[2].(int64))})
+			confEdit(m.p, documentEdit{start, max(start, end), int(args[2].(int64))})
 			return nil
 		}},
 		// A splice that moves the entries that examined the unit before them at the edit's end.
 		"splice moves an entry that examined the unit before the edit's end": {op: "memo.splice", call: func(m *rtMachine, args []any) []any {
 			for _, head := range m.p.memo.slots {
 				for e := head; e != nil; e = e.next {
-					if e.from == fromBefore {
-						e.from = fromPos
+					if e.vgen == m.p.gen && !isUnrecorded(e) {
+						e.from = max(e.from, m.posOf(e))
 					}
 				}
 			}
-			m.p.memo.splice(documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
+			confEdit(m.p, documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
 			return nil
 		}},
 		// A splice that moves the entries with recovered errors.
@@ -762,7 +814,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 					e.errs = recEntry{}
 				}
 			}
-			m.p.memo.splice(documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
+			confEdit(m.p, documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
 			return nil
 		}},
 		// A splice that moves pinned entries.
@@ -772,19 +824,34 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 					e.pinned = false
 				}
 			}
-			m.p.memo.splice(documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
+			confEdit(m.p, documentEdit{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))})
+			return nil
+		}},
+		// A lookup that does not apply the pending edits finds an entry where the edit moved it or
+		// after the edit invalidated it.
+		"lookup skips the edits": {op: "memo.lookup", document: true, call: func(m *rtMachine, args []any) []any {
+			e := m.p.memoGet(int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64)), m.vals[args[3].(int64)], false)
+			return []any{e, e != nil}
+		}},
+		// An edit that forgets its log moves the slots, and no entry learns how far.
+		"splice keeps no log": {op: "memo.splice", document: true, call: func(m *rtMachine, args []any) []any {
+			m.p.memo.splice([]documentEdit{{int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64))}})
 			return nil
 		}},
 		// A lookup that charges each entry it passes twice: within the results, beyond the bound.
 		"lookup charges twice": {op: "memo.lookup", controlled: true, call: func(m *rtMachine, args []any) []any {
-			if pos := int(args[1].(int64)); pos < len(m.p.memo.slots) {
-				for e := m.p.memo.slots[pos]; e != nil; e = e.next {
+			if i := m.p.memo.slot(int(args[1].(int64))); i < len(m.p.memo.slots) {
+				for e := m.p.memo.slots[i]; e != nil; e = e.next {
 					m.p.Spend()
 					m.p.Spend()
 				}
 			}
 			e := m.p.memoGet(int(args[0].(int64)), int(args[1].(int64)), int(args[2].(int64)), m.vals[args[3].(int64)], false)
-			return []any{e, e != nil}
+			found := e != nil
+			if found && e.vgen != m.p.gen && !m.p.advanceEntry(e, m.p.edits) {
+				found = false
+			}
+			return []any{e, found}
 		}},
 	}
 	for name, b := range variants {
@@ -805,7 +872,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 					ops = append(slices.Clone(ops), rtBudgetOps...)
 				}
 			}
-			s := conform.Suite{Name: "broken: " + name, Ops: ops, Exact: b.exact, New: func(c ref.Config) conform.Impl {
+			s := conform.Suite{Name: "broken: " + name, Ops: ops, Exact: b.exact, LazyEdits: slices.Contains(ops, "memo.splice"), New: func(c ref.Config) conform.Impl {
 				if b.controlled {
 					return meteredBrokenRT{brokenRT{newRTMachine(c, true, false, b.stream).(meteredRT).rtMachine, b.op, b.call}}
 				}

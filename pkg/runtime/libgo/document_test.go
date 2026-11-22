@@ -93,12 +93,22 @@ func TestPrivateDocumentExaminedSuffixAndEOF(t *testing.T) {
 	if err := d.edit(1, 2, ""); err != nil {
 		t.Fatal(err)
 	}
-	if e := d.memo.get(item.Id, 0, 0, nil); e != nil {
+	if e := liveEntry(d, item.Id, 0); e != nil {
 		t.Fatal("lookahead-dependent memo survived edit")
 	}
 	if _, err := d.parse(o); err == nil {
 		t.Fatal("EOF made the lookahead fail; parse must not reuse the old result")
 	}
+}
+
+// liveEntry returns the node entry of rule at pos that a lookup of the next parse would find: an
+// edit leaves an entry in its slot, and the lookup applies the edits it does not account for yet.
+func liveEntry(d *documentState, rule, pos int) *memoEntry {
+	e := d.memo.get(rule, pos, 0, nil)
+	if e == nil || !advanceEntry(e, d.edits) {
+		return nil
+	}
+	return e
 }
 
 func TestPrivateDocumentEditBoundariesAndUnit(t *testing.T) {
@@ -370,8 +380,7 @@ func TestDocumentMoveMarksDoNotCarryAcrossParses(t *testing.T) {
 	for i, n := range []*sxirvalue.Node{first, second} {
 		// Each parse starts its moves anew in a Parser of its own.
 		p := &Parser{Document: d}
-		e := &memoEntry{node: n}
-		p.memo.shifts = map[*memoEntry]int{e: 1}
+		e := &memoEntry{node: n, shift: 1}
 		if p.documentMove(e) {
 			t.Fatalf("parse %d: moved a value that holds a host value", i)
 		}
@@ -430,8 +439,7 @@ func TestDocumentMoveChargesTheCheckAndTheCopy(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			p := &Parser{Document: &documentState{}, Control: newBudgetControl(nil, sxirruntime.Limits{Compute: sxirruntime.Unlimited})}
-			e := &memoEntry{node: build(c.box)}
-			p.memo.shifts = map[*memoEntry]int{e: 1}
+			e := &memoEntry{node: build(c.box), shift: 1}
 			before := p.Control.budgetUsed()
 			moved := p.documentMove(e)
 			if moved != (c.box == nil) {

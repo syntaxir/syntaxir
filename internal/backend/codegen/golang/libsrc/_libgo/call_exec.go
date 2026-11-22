@@ -4,10 +4,10 @@ package libgo
 
 import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 
-// pendingEditLimit is the number of edits after which a Document drops its memo until the next parse
-// (exec.PendingEditLimit): the engine treats a memo entry that lags behind by more edits as absent, and
-// a generated parser applies each edit to the memo when it is made, which a memo that many edits old
-// no longer pays for.
+// pendingEditLimit is the number of edits that a memo entry of a Document may lag behind
+// (exec.PendingEditLimit): a lookup treats an entry that lags behind by more edits as absent, as the
+// engine does, and the typed memo drops an entry once more edits have passed since a parse stored it or
+// found it.
 const pendingEditLimit = 128
 
 // Call calls rule r at binding level min: unmemoized while its memoization is deferred, and
@@ -58,6 +58,9 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
 	found := e != nil
+	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+		found = false
+	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -95,7 +98,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec)}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
@@ -758,12 +761,15 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
 	found := e != nil
+	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+		found = false
+	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && (!(p.Document != nil) || p.documentMove(e)) {
 		p.Observation.memoHit()
 		if p.track {
 			p.documentTouch(e.examined)
 			if p.Document != nil {
-				if e.from == fromBefore {
+				if e.from < start {
 					p.documentTouchFrom(start + -1)
 				}
 				p.Document.stats.Reused++
@@ -834,19 +840,19 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec)}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
 			if p.track {
 				if p.Document != nil {
-					entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(p.docLow < start), false
+					entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 					if r.Positional {
 						entry.pinned = true
 					}
 				} else {
-					entry.examined, entry.from, entry.pinned = p.docExamined, examinedFromOf(false), false
+					entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 				}
 			}
 		}
@@ -1063,6 +1069,101 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		p.Control.FreeEnd(fm)
 	}
 	return v, ok
+}
+
+// advanceEntry applies to the memo entry e the edits of log it does not account for yet, and reports
+// whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one
+// that examined only input after it moves by the edit's change in length, unless it is pinned or holds
+// recovered errors, and any other is invalid. An entry that lags behind more than PendingEditLimit edits is invalid.
+// A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse
+// from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid
+// stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The
+// first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
+// when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
+//
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
+	var fm uint64
+	var i int
+	if false {
+		return false
+	}
+	if len(log)-int(e.vgen) > 128 {
+		return false
+	}
+	fm = p.Control.FreeBegin(true)
+	from := e.from
+	examined := e.examined
+	shift := 0
+	shifted := (e.shift != 0)
+	for i = int(e.vgen); i < len(log); i++ {
+		p.Spend()
+		if examined <= log[i].start {
+			continue
+		}
+		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+			p.Control.FreeEnd(fm)
+			return false
+		}
+		delta := log[i].delta
+		from = from + delta
+		examined = examined + delta
+		shift = shift + delta
+		shifted = shifted || delta != 0
+	}
+	e.end += shift
+	e.from, e.examined = from, examined
+	e.far += shift
+	e.shift += int32(shift)
+	e.vgen = uint32(len(log))
+	p.Control.FreeEnd(fm)
+	return true
+}
+
+// advanceEntry applies to the memo entry e the edits of log it does not account for yet, and reports
+// whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one
+// that examined only input after it moves by the edit's change in length, unless it is pinned or holds
+// recovered errors, and any other is invalid. An entry that lags behind more than PendingEditLimit edits is invalid.
+// A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse
+// from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid
+// stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The
+// first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
+// when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
+//
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document.
+func advanceEntry(e *memoEntry, log []documentEdit) bool {
+	var fm uint64
+	_ = fm
+	var i int
+	if false {
+		return false
+	}
+	if len(log)-int(e.vgen) > 128 {
+		return false
+	}
+	from := e.from
+	examined := e.examined
+	shift := 0
+	shifted := (e.shift != 0)
+	for i = int(e.vgen); i < len(log); i++ {
+		if examined <= log[i].start {
+			continue
+		}
+		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+			return false
+		}
+		delta := log[i].delta
+		from = from + delta
+		examined = examined + delta
+		shift = shift + delta
+		shifted = shifted || delta != 0
+	}
+	e.end += shift
+	e.from, e.examined = from, examined
+	e.far += shift
+	e.shift += int32(shift)
+	e.vgen = uint32(len(log))
+	return true
 }
 
 // Predicate applies the term of a predicate to the context that term.ctx makes. It fails on the boolean

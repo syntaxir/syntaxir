@@ -56,11 +56,12 @@ func TestDocumentEditKeepsMemo(t *testing.T) {
 			// Entries are brought up to date when they are looked up: do it for every entry.
 			got := map[*state.MemoEntry]int{}
 			m := doc.Memo()
+			gap, gapLen := m.Gap()
 			for idx, head := range m.Slots {
 				at := idx
-				if idx >= m.Gap+m.GapLen {
-					at -= m.GapLen
-				} else if idx >= m.Gap && head != nil {
+				if idx >= gap+gapLen {
+					at -= gapLen
+				} else if idx >= gap && head != nil {
 					t.Fatalf("edit %d: entry in the gap", i)
 				}
 				for e := head; e != nil; e = e.Next {

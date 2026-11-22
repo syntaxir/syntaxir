@@ -84,6 +84,11 @@ parsers and not a stable API.`},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
 	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "DocumentCall", docMeta: true},
+	// The edits of a Document that a lookup applies to the memo entry it finds, in the node library: the
+	// form a parse runs, which charges the edits it applies, and the form an edit runs, which has no
+	// parse to charge.
+	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
+	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", plain: true},
 	// The predicates and bindings of both libraries.
 	{fn: "predicate", name: "Predicate"},
 	{fn: "bind", name: "Bind"},
@@ -152,10 +157,10 @@ func printLibGo() (string, error) {
 	}
 	// The limit on pending edits is defined once, in the operations, and printed for the library.
 	limit := fmt.Sprintf(`
-// pendingEditLimit is the number of edits after which a Document drops its memo until the next parse
-// (exec.PendingEditLimit): the engine treats a memo entry that lags behind by more edits as absent, and
-// a generated parser applies each edit to the memo when it is made, which a memo that many edits old
-// no longer pays for.
+// pendingEditLimit is the number of edits that a memo entry of a Document may lag behind
+// (exec.PendingEditLimit): a lookup treats an entry that lags behind by more edits as absent, as the
+// engine does, and the typed memo drops an entry once more edits have passed since a parse stored it or
+// found it.
 const pendingEditLimit = %d
 `, exec.PendingEditLimit)
 	return libFileHeader(body, nil) + limit + body, nil
@@ -179,8 +184,12 @@ func goBody(specs []goSpec) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		t := goTarget(s)
+		if s.plain {
+			t.Recv = ""
+		}
 		for _, f := range fs {
-			src, err := print.Func(m, f, goTarget(s))
+			src, err := print.Func(m, f, t)
 			if err != nil {
 				return "", err
 			}
@@ -218,7 +227,7 @@ func goTarget(s goSpec) *print.Target {
 	t := &print.Target{Recv: "p *Parser", Source: "internal/ir/code/exec/compose"}
 	handles := map[string]string{
 		exec.Rule: "*Rule", exec.Value: "*sxirvalue.Node", exec.Entry: "*memoEntry", exec.Values: "[]any", exec.Errs: "recEntry",
-		exec.ExpID: "ExpID", exec.Mark: "ExpMark", exec.Set: "[]ExpID", exec.Kept: "[]ExpID",
+		exec.ExpID: "ExpID", exec.Mark: "ExpMark", exec.Set: "[]ExpID", exec.Kept: "[]ExpID", exec.EditLog: "[]documentEdit",
 		exec.Ctx: "ctxCallState", exec.Res: "*ctxResult", exec.Grow: "growState",
 		exec.Frame: "*CaptureFrame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "operatorsRuleAttempt",
@@ -508,12 +517,39 @@ func goTarget(s goSpec) *print.Target {
 			if typed {
 				return "p.TypedDocument.meta[" + a[0] + "].before"
 			}
-			return a[0] + ".from == fromBefore"
+			// The entry's position is the call's (reuse): a lookup applied the edits to the entry.
+			return a[0] + ".from < start"
 		case "memo.pin":
 			if typed {
 				return "p.TypedDocument.pin(" + a[0] + ")"
 			}
 			return a[0] + ".pinned = true"
+		// The edits that a lookup applies to an entry (memoAdvance), in the node library.
+		case "memo.seed":
+			// The library keeps no seed of a growth in the memo.
+			return "false"
+		case "memo.from":
+			return a[0] + ".from"
+		case "memo.pinned":
+			return a[0] + ".pinned"
+		case "memo.shifted":
+			// The library moves a copy of the value by the entry's shift (documentMove), so the value has
+			// to move exactly when the shift is not zero.
+			return "(" + a[0] + ".shift != 0)"
+		case "memo.applied":
+			return "int(" + a[0] + ".vgen)"
+		case "memo.advance":
+			// The shifted flag is the shift's (memo.shifted): the library does not record it.
+			return fmt.Sprintf("%[1]s.end += %[4]s\n%[1]s.from, %[1]s.examined = %[2]s, %[3]s\n%[1]s.far += %[4]s\n%[1]s.shift += int32(%[4]s)\n%[1]s.vgen = uint32(%[5]s)",
+				a[0], a[1], a[2], a[3], a[5])
+		case "edit.count":
+			return "len(" + a[0] + ")"
+		case "edit.start":
+			return a[0] + "[" + a[1] + "].start"
+		case "edit.end":
+			return a[0] + "[" + a[1] + "].end"
+		case "edit.delta":
+			return a[0] + "[" + a[1] + "].delta"
 		case "obs.active":
 			return "p.Observation != nil"
 		case "doc.active":
@@ -545,7 +581,10 @@ func goTarget(s goSpec) *print.Target {
 				// start).
 				return "p.examine(" + a[0] + ", " + a[2] + ")"
 			}
-			return fmt.Sprintf("%s.examined, %s.from, %s.pinned = %s, examinedFromOf(%s), false", a[0], a[0], a[0], a[2], a[1])
+			// The library records the start of the examined input, the low end that before compares with
+			// the position: a call examines at most the unit before its position, so the start is the
+			// position or the unit before it, as in the engine.
+			return fmt.Sprintf("%s.examined, %[1]s.from, %[1]s.pinned = %s, p.docLow, false", a[0], a[2])
 		case "ctx.found":
 			return a[0] + " != nil"
 		case "ctx.ok":
@@ -637,6 +676,8 @@ func goTarget(s goSpec) *print.Target {
 			return a[0] + `.Kind != "infix"`, true
 		case "rec.none":
 			return "!" + a[0] + ".none()", true
+		case "memo.pinned":
+			return "!" + a[0] + ".pinned", true
 		}
 		return "", false
 	}
@@ -653,6 +694,10 @@ func goTarget(s goSpec) *print.Target {
 			s := dst[0] + op + "p.memoGet(" + key() + ", " + a[4] + ")"
 			if dst[1] != "_" {
 				s += "\n" + dst[1] + op + dst[0] + " != nil"
+				if !typed {
+					// A Document applies its edits to an entry when the entry is found (advanceEntry).
+					s += fmt.Sprintf("\nif %[2]s && %[1]s.vgen != p.gen && !p.advanceEntry(%[1]s, p.edits) {\n%[2]s = false\n}", dst[0], dst[1])
+				}
 			}
 			return s, true
 		case "ctx.enter":
@@ -679,6 +724,9 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 		case "memo.store":
 			e := dst[0]
 			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s, errs: %s", valueField, a[7], a[4], a[5], a[6], a[8])
+			if !typed {
+				fields += ", vgen: p.gen"
+			}
 			return fmt.Sprintf("%s%s%s\n*%s = %s{%s}\n%[4]s = p.memoPut(%[7]s, %[8]s, %[4]s)", e, op, alloc, e, entryType, fields, key(), a[9]), true
 		}
 		return "", false

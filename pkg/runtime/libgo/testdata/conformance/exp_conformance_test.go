@@ -153,9 +153,10 @@ func expSuites() []conform.Suite {
 			ops = append(ops, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name: fmt.Sprintf("node library expectations (controlled=%v)", controlled),
-			Ops:  ops,
-			New:  func(c ref.Config) conform.Impl { return newExpMachine(c, controlled) },
+			Name:      fmt.Sprintf("node library expectations (controlled=%v)", controlled),
+			Ops:       ops,
+			LazyEdits: true,
+			New:       func(c ref.Config) conform.Impl { return newExpMachine(c, controlled) },
 		}, conform.Suite{
 			Name: fmt.Sprintf("typed library expectations (controlled=%v)", controlled),
 			Ops:  ops,
@@ -295,7 +296,7 @@ func TestExecConformanceExpDetectsBrokenLib(t *testing.T) {
 	for name, v := range variants {
 		t.Run(name, func(t *testing.T) {
 			op := strings.Fields(name)[0]
-			s := conform.Suite{Name: name, Ops: conform.ExpOps, New: func(c ref.Config) conform.Impl {
+			s := conform.Suite{Name: name, Ops: conform.ExpOps, LazyEdits: true, New: func(c ref.Config) conform.Impl {
 				return brokenExp{newExpMachine(c, false).(*expMachine), op, v}
 			}}
 			if fails, _ := expConformanceFailures(s, 100, 150); len(fails) == 0 {

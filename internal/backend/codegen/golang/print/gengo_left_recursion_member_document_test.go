@@ -198,7 +198,7 @@ func TestGeneratedDocumentLeftRecursionMemberReparseControl(t *testing.T) {
 			"\t\t\t\tp.memoPut(rule, start, " + minExpr + ", env, false, e)\n" + meta +
 			"\t\t\t})\n\t\t}\n\t\t"
 	}
-	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: fromPos, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memo.alloc()", "")
+	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memo.alloc()", "")
 	typedKeep := func(minExpr string) string {
 		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memoSlab.one()", "\t\t\t\tp.TypedDocument.meta[e] = typedDocumentMeta{examined: examined, recorded: true}\n")
 	}

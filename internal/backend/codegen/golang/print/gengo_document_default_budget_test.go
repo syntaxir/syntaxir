@@ -242,13 +242,13 @@ func minimalFresh(t *testing.T, text string) uint64 {
 
 // The units of a Document parse after any number of pending edits are within a factor of those of a
 // parse from scratch, all counted (an explicit limit), and the edits themselves, which are not
-// charged, cost no more than the edits up to the limit on pending edits: a generated Document drops
-// its memo past that limit instead of applying each edit to it.
+// charged, allocate what the edit of the text does whatever their number: an edit applies itself
+// at once only to the entries at its positions, and a lookup applies the rest.
 func TestWorkWithinFactorOfFresh(t *testing.T) {
   const factor = 6
-  // Up to the limit each edit splices the memo into a new table, allocating in proportion to the memo;
-  // past the limit an edit allocates what the edit of the text does. The allocations of an edit are the
-  // measure of its work: unlike its time, they do not depend on the load of the machine.
+  // The allocations of an edit are the measure of its work that does not depend on the load of the
+  // machine: an edit that copied or walked the memo into a new table would allocate in proportion to
+  // it. The text of each edit is a new string; the log of the edits grows by doubling.
   perEdit := func(edits int) (*Document, uint64, uint64) {
     d, err := NewDocument(strings.Repeat("ab cd\n", 20000))
     if err != nil { t.Fatal(err) }
@@ -257,14 +257,11 @@ func TestWorkWithinFactorOfFresh(t *testing.T) {
     t.Logf("%d edits allocated %d objects and %d bytes", edits, objects, bytes)
     return d, objects / uint64(edits), bytes / uint64(edits)
   }
-  var baseObjects, baseBytes uint64
   for _, edits := range []int{128, 6000, 65536} {
     d, objects, bytes := perEdit(edits)
-    if edits == 128 {
-      baseObjects, baseBytes = objects, bytes
-    } else if objects > baseObjects/4 || bytes > baseBytes/4 {
-      t.Fatalf("%d edits allocated %d objects and %d bytes each, more than a quarter of the %d and %d of the first 128: the memo is not dropped past the limit",
-        edits, objects, bytes, baseObjects, baseBytes)
+    if text := uint64(len(d.Text())); objects > 2 || bytes > text+text/8 {
+      t.Fatalf("%d edits allocated %d objects and %d bytes each, more than the edit of a text of %d bytes: an edit works through the memo",
+        edits, objects, bytes, text)
     }
     fresh := minimalFresh(t, d.Text())
     if _, err := d.Parse(WithLimits(Limits{Compute: factor * fresh})); err != nil {

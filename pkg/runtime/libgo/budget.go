@@ -931,13 +931,6 @@ func keysEqual(l, r []any) bool {
 	return true
 }
 
-// current reports whether an entry with the stamp seen was stored, or answered a lookup, in this parse:
-// in a Document, an entry that an earlier parse stored and this one has not touched is not. A parse from
-// scratch has no other entry.
-func (p *Parser) current(seen uint32) bool {
-	return p.Document == nil || seen == p.Document.epoch
-}
-
 // stamp marks an entry as current in this parse.
 func (p *Parser) stamp() uint32 {
 	if p.Document == nil {
@@ -1004,11 +997,7 @@ func (p *Parser) memoGet(rule, pos, min int, key []any, docOnly bool) *memoEntry
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.memoGetControlled(rule, pos, min, key, docOnly)
 	}
-	e := p.memo.get(rule, pos, min, key)
-	if e != nil {
-		e.seen = p.stamp()
-	}
-	return e
+	return p.memo.get(rule, pos, min, key)
 }
 
 // memoGetControlled is memoGet under budget controls. The lookup charges nothing: the call paid for
@@ -1017,31 +1006,64 @@ func (p *Parser) memoGet(rule, pos, min int, key []any, docOnly bool) *memoEntry
 func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *memoEntry {
 	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
 	// walks docOnlyScan entries (see there).
-	if pos >= len(p.memo.slots) {
+	t := &p.memo
+	i := t.slot(pos)
+	if i >= len(t.slots) {
 		return nil
 	}
 	scan := memoScan
 	if ident {
 		scan = docOnlyScan
 	}
-	e, n := p.memo.slots[pos], 0
-	for ; e != nil && n < scan; e, n = e.next, n+1 {
+	link := p.unlinkLagged(i, &t.slots[i], scan)
+	for e := t.slots[i]; e != nil && e != *link; e = e.next {
 		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident) {
-			e.seen = p.stamp()
 			return e
 		}
 	}
-	if e == nil || ident {
+	if *link == nil || ident {
 		return nil
 	}
-	ix := indexAt(&p.memo.index, &p.memo.indexBytes, pos, p.memo.slots[pos], func(e *memoEntry) *memoEntry { return e.next }, entryHash)
+	p.unlinkLagged(i, link, -1)
+	if *link == nil {
+		return nil
+	}
+	ix := indexAt(&t.index, &t.indexBytes, i, t.slots[i], func(e *memoEntry) *memoEntry { return e.next }, entryHash)
 	_, x := ix.probe(keyHash(int32(rule), int32(min), key), func(x *memoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
 	})
-	if x != nil {
-		x.seen = p.stamp()
-	}
 	return x
+}
+
+// lagged reports whether a lookup treats e as a miss because it lags behind more than pendingEditLimit
+// edits (advanceEntry).
+func (p *Parser) lagged(e *memoEntry) bool {
+	return p.gen-e.vgen > pendingEditLimit
+}
+
+// unlinkLagged removes from the chain at the slot i, starting at the link, the entries that lag behind
+// (lagged) among the next limit entries that do not, or among all of them if limit is negative, and
+// reports where the walk ends: the link before the first entry it did not visit. Removing an entry
+// charges nothing, as the walk does not (memo.lookup): each entry is removed once, after the counted call
+// that stored it. The index of the slot, if there is one, no longer matches the chain and is dropped. A
+// Document drops such entries where a walk meets them, so the entries of earlier texts that it retains,
+// and the work of a walk that compares them, stay bounded by that many edits.
+func (p *Parser) unlinkLagged(i int, link **memoEntry, limit int) **memoEntry {
+	t := &p.memo
+	for kept := 0; *link != nil && kept != limit; {
+		e := *link
+		if !p.lagged(e) {
+			link, kept = &e.next, kept+1
+			continue
+		}
+		*link = e.next
+		if ix := t.index[i]; ix != nil {
+			t.indexBytes -= min(t.indexBytes, indexBytes(ix))
+			delete(t.index, i)
+		}
+		t.retire(e)
+	}
+	return link
 }
 
 // keyHash hashes a memo key for the index of a long chain, without charges: the call paid for the
@@ -1102,9 +1124,7 @@ func (p *Parser) memoPut(rule, pos, min int, key []any, docOnly bool, e *memoEnt
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.memoPutControlled(rule, pos, min, key, docOnly, e)
 	}
-	k := p.memo.put(rule, pos, min, key, e, p.joinStored)
-	k.seen = p.stamp()
-	return k
+	return p.memo.put(rule, pos, min, key, e, p.joinStored)
 }
 
 // joinStored returns the entry that a store of e keeps under the key of x, the entry stored there:
@@ -1114,10 +1134,10 @@ func (p *Parser) memoPut(rule, pos, min int, key []any, docOnly bool, e *memoEnt
 // its present set, to which the caller adds that of e's context. Both read no growing result, so
 // each is the result of the call outside every context: neither calls a leader of either present
 // set at the position, and the result holds in every context whose leaders are in their union.
-// Every entry in the table answers a lookup: an edit removes those it does not keep
-// (memoTable.splice).
+// An entry that a lookup would not return, one that lags behind an edit it cannot be advanced past
+// (advanceEntry), is not current: e replaces it as before.
 func (p *Parser) joinStored(x, e *memoEntry) *memoEntry {
-	if x == e {
+	if x == e || x.vgen != p.gen && !advanceEntry(x, p.edits) {
 		return e
 	}
 	if !x.silent && e.silent {
@@ -1130,20 +1150,22 @@ func (p *Parser) joinStored(x, e *memoEntry) *memoEntry {
 // memoPutControlled is memoPut under budget controls. The store charges nothing: it follows the
 // evaluation of a body that counted, and its walk costs what memoGetControlled's does.
 func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *memoEntry) *memoEntry {
-	slots := p.memo.slots
-	if pos >= len(slots) {
+	t := &p.memo
+	i := t.slot(pos)
+	slots := t.slots
+	if i >= len(slots) {
 		// Growing the slot array charges no unit (it grows to positions of counted calls, by
 		// doubling). Its memory is charged by its length, not its capacity, which a pooled parser keeps.
-		p.memo.memBytes += uint64(pos+1-len(slots)) * ptrBytes
-		if pos < cap(slots) {
-			slots = slots[:pos+1]
+		t.memBytes += uint64(i+1-len(slots)) * ptrBytes
+		if i < cap(slots) {
+			slots = slots[:i+1]
 		} else {
-			grown := make([]*memoEntry, pos+1, max(2*cap(slots), pos+1, 64))
+			grown := make([]*memoEntry, i+1, max(2*cap(slots), i+1, 64))
 			copy(grown, slots)
 			slots = grown
 		}
 	}
-	link := &slots[pos]
+	link := &slots[i]
 	var replaced *memoEntry
 	same := func(x *memoEntry) bool {
 		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident)
@@ -1152,8 +1174,9 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	if ident {
 		scan = docOnlyScan
 	}
-	for n := 0; *link != nil && n < scan; link, n = &(*link).next, n+1 {
-		if x := *link; same(x) {
+	end := p.unlinkLagged(i, link, scan)
+	for x := *link; x != nil && link != end; link, x = &x.next, x.next {
+		if same(x) {
 			replaced = x
 			break
 		}
@@ -1162,17 +1185,20 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	var ixSlot uint64
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
-		ix = indexAt(&p.memo.index, &p.memo.indexBytes, pos, slots[pos], func(e *memoEntry) *memoEntry { return e.next }, entryHash)
+		p.unlinkLagged(i, link, -1)
+	}
+	if replaced == nil && *link != nil && !ident {
+		ix = indexAt(&t.index, &t.indexBytes, i, slots[i], func(e *memoEntry) *memoEntry { return e.next }, entryHash)
 		ixSlot, replaced = ix.probe(keyHash(int32(rule), int32(min), key), same)
 		if replaced != nil {
-			link = &slots[pos]
+			link = &slots[i]
 			for *link != replaced {
 				link = &(*link).next
 			}
 		}
 	} else if replaced != nil {
 		// The entry replaced among the first of a long chain is indexed too.
-		if ix = p.memo.index[pos]; ix != nil {
+		if ix = t.index[i]; ix != nil {
 			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.env), func(y *memoEntry) bool { return y == replaced })
 		}
 	}
@@ -1181,20 +1207,20 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	}
 	// Commit the completed key/slot array and link together, with no further
 	// checkpoint between mutations. A resident self-entry retains its successor.
-	p.memo.slots = slots
-	e.rule, e.min, e.env, e.seen = int32(rule), int32(min), key, p.stamp()
+	t.slots = slots
+	e.rule, e.min, e.env = int32(rule), int32(min), key
 	if ix != nil {
 		n := len(ix)
 		ix[ixSlot] = e
-		p.memo.indexBytes += uint64(len(ix)-n) * memoIndexEntryBytes
+		t.indexBytes += uint64(len(ix)-n) * memoIndexEntryBytes
 	}
 	if replaced != nil {
 		e.next = replaced.next
 		*link = e
 		return e
 	}
-	e.next = slots[pos]
-	slots[pos] = e
+	e.next = slots[i]
+	slots[i] = e
 	return e
 }
 

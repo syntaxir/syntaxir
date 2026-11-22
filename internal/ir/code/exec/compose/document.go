@@ -5,10 +5,10 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 )
 
-// addDocument adds the composition of the edits that the engine applies to a memo entry when a lookup
-// finds it, which is its implementation of memo.splice. The contract of memo.splice decides which entries stay,
-// move and go; a target that applies an edit to every entry at once needs no composition for that, since the
-// decision is one condition of its loop over the table.
+// addDocument adds the composition of the edits that a target applies to a memo entry when a lookup finds
+// it, which with the edit of the entries at the edited positions is its implementation of memo.splice: the
+// engine's and the generated Go library's. The contract of memo.splice decides which entries stay, move and
+// go.
 func addDocument(m *Module) {
 	e, log := L("e"), L("log")
 	entry, edits := THandle(exec.Entry), THandle(exec.EditLog)

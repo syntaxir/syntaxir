@@ -874,6 +874,11 @@ type Parser struct {
 	deferMemo bool
 	// Document is set only by the private incremental runner.
 	Document *documentState
+	// edits are the edits of the Document since its memo was last dropped, and gen is their number:
+	// a lookup applies to the entry it finds those that the entry does not account for (advanceEntry).
+	// A parse from scratch has none.
+	edits []documentEdit
+	gen   uint32
 	// docExamined is the exact end of the input that the active rule call of a parse that tracks it
 	// examined: one past the last unit that can influence its result, with the end of the input
 	// counting as the unit at its length (docLow).
@@ -1004,13 +1009,14 @@ type documentState struct {
 	// a parse: the nodes that the memo keeps carry the number of the last move that visited them from
 	// one parse to the next, so a number is not used twice while the memo holds entries (parse).
 	moves uint32
-	// pending is the number of edits since the memo was last used by a parse (pendingEditLimit).
+	// edits is the log of the edits since the memo was last dropped: an edit applies itself at once
+	// only to the entries at its positions, and a lookup applies it to an entry it finds
+	// (advanceEntry).
+	edits []documentEdit
+	// pending is the number of edits since the memo was last used by a parse, and epoch the number of
+	// edits of the Document: the typed memo drops entries by them (typedDocumentState.splice).
 	pending int
-	// epoch counts the edits of the Document (memoEntry.seen): an entry is current in a parse if it
-	// carries the epoch of that parse, which no edit changes, and an entry that more than
-	// pendingEditLimit edits have passed since it was last stored or found to answer a lookup is
-	// dropped by the edit that makes it so (memoTable.splice).
-	epoch uint32
+	epoch   uint32
 }
 
 type documentStats struct {
@@ -1088,12 +1094,8 @@ type memoTable struct {
 	firstCalls
 	// free links entries retired by stream memo pruning through next.
 	free *memoEntry
-	// shifts holds, for each entry that an edit of a Document moved (splice), how far the positions in
-	// its value must move (documentMove).
-	shifts map[*memoEntry]int
-	// epoch is the edit count of the Document that owns the table (documentState.epoch) as of the edit
-	// being spliced in; splice drops the entries that more than pendingEditLimit edits behind it.
-	epoch uint32
+	// memoGap is the gap of the slots of a Document's memo (splice); a parse from scratch has none.
+	memoGap
 	// index holds the hash index of each position whose chain is longer than a lookup walks
 	// (memoScan), by position.
 	index map[int]memoIndex[memoEntry]
@@ -1114,7 +1116,10 @@ type memoEntry struct {
 	next     *memoEntry // next entry at the same position
 	env      []any      // values of the rule's variables at the call (memo key)
 	end      int
-	examined int // exclusive upper bound examined by a Document call
+	// from and examined are the input [from, examined) that a Document call examined (memo.examine):
+	// from is the entry's position, or the unit before it when the call examined that unit.
+	from     int
+	examined int
 	far      int
 	rule     int32
 	min      int32
@@ -1122,25 +1127,23 @@ type memoEntry struct {
 	// silent means the result was computed inside a lookahead without recording expectations;
 	// outside lookaheads it is computed again.
 	silent bool
-	// from and examined are the input that a Document call examined (memo.examine): from the
-	// entry's position, or from the unit before it, to examined; from is noRecord for an entry
-	// without a record. pinned keeps the entry from moving with an edit (memo.pin).
-	from   examinedFrom
+	// pinned keeps the entry from moving with an edit (memo.pin).
 	pinned bool
 	// present is the set of leaders (Rule.leaderBit) that grew at the position when a result of a
 	// rule of their cycle was evaluated; it is reused only where every leader that grows there is in
 	// the set (ctxCallState.memoAllows).
 	present uint32
-	// seen is the epoch of the Document (documentState.epoch) when a parse last stored the entry or
-	// found it to answer a lookup; a parse from scratch leaves it zero.
-	seen uint32
-	// _ pads the entry to 128 bytes, two cache lines of the slab that holds it: at 120 bytes,
-	// entries straddle lines and node parses ran about 2% slower.
-	_ [4]byte
+	// vgen is the number of edits of the Document that the positions of the entry (end, examined,
+	// from, far, and its position in the table) and shift account for (advanceEntry); a parse from
+	// scratch leaves it zero. shift is how far those edits moved the entry since its value was last
+	// made valid at its position (documentMove).
+	vgen  uint32
+	shift int32
 }
 
 // get returns the entry for the rule, position, level and variable values.
 func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
+	pos = t.slot(pos)
 	if pos >= len(t.slots) {
 		return nil
 	}
@@ -1160,7 +1163,8 @@ func (t *memoTable) get(rule, pos, min int, env []any) *memoEntry {
 	return x
 }
 
-// indexAt returns the hash index of the chain at pos, building it on first use.
+// indexAt returns the hash index of the chain at the slot pos, building it on first use. The indexes
+// are by slot, which no edit changes without dropping them all (splice).
 func (t *memoTable) indexAt(pos int) memoIndex[memoEntry] {
 	return indexAt(&t.index, &t.indexBytes, pos, t.slots[pos], func(e *memoEntry) *memoEntry { return e.next },
 		func(e *memoEntry) uint64 { h, _ := memoKeyHash(e.rule, e.min, false, e.env); return h })
@@ -1179,6 +1183,7 @@ func (t *memoTable) reindex(pos int, x, e *memoEntry) {
 // put stores e under the key, replacing an entry with the same key unless join, if not nil, keeps
 // that entry (Parser.joinStored), and returns the entry it keeps.
 func (t *memoTable) put(rule, pos, min int, env []any, e *memoEntry, join func(x, e *memoEntry) *memoEntry) *memoEntry {
+	pos = t.slot(pos)
 	if pos >= len(t.slots) {
 		t.memBytes += uint64(pos+1-len(t.slots)) * ptrBytes
 		if pos < cap(t.slots) {

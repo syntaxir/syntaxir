@@ -1,27 +1,41 @@
 package libgo
 
-import "testing"
+import (
+	"testing"
 
-// An edit drops the entries that more than pendingEditLimit edits have passed since a parse stored them
-// or found them to answer a lookup (seen, against the edit count of the Document, memoTable.epoch): a lookup treats such an
-// entry as a miss, and the entries of earlier texts that a Document retains stay bounded by that many edits.
-func TestSpliceDropsEntriesBeyondTheEditLimit(t *testing.T) {
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+)
+
+// A lookup treats an entry that lags behind more than pendingEditLimit edits as a miss (advanceEntry), and
+// a walk of its chain drops it (unlinkLagged): the entries of earlier texts that a Document retains stay
+// bounded by that many edits. The typed memo drops such entries when an edit passes them (splice).
+func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 	const epoch = 200
 	seen := []uint32{epoch - pendingEditLimit - 1, epoch - pendingEditLimit, epoch}
 	want := []bool{false, true, true}
 
-	var tbl memoTable
-	for i, s := range seen {
-		e := tbl.alloc()
-		e.from, e.examined, e.seen = fromPos, 0, s
-		tbl.put(i, 3, 0, nil, e, nil)
+	log := make([]documentEdit, epoch)
+	for i := range log {
+		log[i] = documentEdit{start: 50, end: 50}
 	}
-	tbl.epoch = epoch
-	tbl.splice(documentEdit{start: 50, end: 50})
+	p := &Parser{edits: log, gen: epoch, Control: newBudgetControl(nil, sxirruntime.Limits{Compute: sxirruntime.Unlimited})}
+	for i, s := range seen {
+		e := p.memo.alloc()
+		e.from, e.examined, e.vgen = 3, 3, s
+		p.memo.put(i, 3, 0, nil, e, nil)
+	}
 	for i, w := range want {
-		if got := tbl.get(i, 3, 0, nil) != nil; got != w {
-			t.Errorf("entry seen at %d of %d edits: kept %v, want %v", seen[i], epoch, got, w)
+		e := p.memoGetControlled(i, 3, 0, nil, false)
+		if got := e != nil && (e.vgen == p.gen || p.advanceEntry(e, p.edits)); got != w {
+			t.Errorf("entry at %d of %d edits: found %v, want %v", seen[i], epoch, got, w)
 		}
+	}
+	n := 0
+	for e := p.memo.slots[p.memo.slot(3)]; e != nil; e = e.next {
+		n++
+	}
+	if n != 2 {
+		t.Errorf("%d entries left in the chain, want 2", n)
 	}
 
 	d := &typedDocumentState{owner: &documentState{epoch: epoch}, meta: map[*tmemoEntry]typedDocumentMeta{}}

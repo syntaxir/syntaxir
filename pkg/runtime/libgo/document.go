@@ -205,86 +205,72 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 	}
 	d.pending++
 	d.epoch++
-	if d.pending > pendingEditLimit {
-		// The edits that the memo would keep up with cost more than parsing again: the next parse
-		// starts without the memo, as a parse from scratch does.
-		d.memo = memoTable{}
+	if len(d.edits) == maxDocumentEdits {
+		// The log is full: the next parse starts without the memo, as a parse from scratch does.
+		d.memo, d.edits = memoTable{}, nil
 	} else {
-		d.memo.epoch = d.epoch
-		d.memo.splice(ed)
+		d.edits = append(d.edits, ed)
+		d.memo.splice(d.edits)
 	}
 	return ed, nil
 }
 
-// examinedFrom is where the input that a Document call examined starts (memoEntry.from), or
-// noRecord for an entry without a record of memo.examine. An entry that examined no input records
-// the empty range at its position, which an entry at position 0 tells from no record by from.
-type examinedFrom uint8
+// maxDocumentEdits bounds the edit log of a Document (documentState.edits): the edit that finds it
+// full drops the memo and empties the log instead of adding to it.
+var maxDocumentEdits = 1 << 16
 
-const (
-	noRecord examinedFrom = iota
-	fromPos
-	fromBefore
-)
-
-// examinedFromOf returns the start of a record of memo.examine that starts before the position of
-// its entry if before.
-func examinedFromOf(before bool) examinedFrom {
-	if before {
-		return fromBefore
+// splice applies the last edit of log to the memo (memo.splice): the entries at the positions it
+// replaced, from its start to its end, both included, are applied the edits they do not account for
+// at once (advanceEntry) and stay, move by its delta or go; the slots of the positions after it follow
+// them through the gap (moveGap), and every other entry is applied the edit when a lookup finds it.
+// The hash indexes of the chains are dropped, since slots move.
+func (t *memoTable) splice(log []documentEdit) {
+	ed := log[len(log)-1]
+	t.index, t.indexBytes = nil, 0
+	type kept struct {
+		e   *memoEntry
+		pos int
 	}
-	return fromPos
+	var stay []kept
+	for pos := ed.start; pos <= ed.end; pos++ {
+		i := t.slot(pos)
+		if i >= len(t.slots) {
+			break
+		}
+		for e := t.slots[i]; e != nil; {
+			next := e.next
+			// The entry accounts for the edits before this one first, at its slot; this one then keeps
+			// it at its position or moves it by the delta.
+			if advanceEntry(e, log[:len(log)-1]) {
+				to := pos
+				if e.examined > ed.start {
+					to += ed.delta
+				}
+				if advanceEntry(e, log) {
+					stay = append(stay, kept{e, to})
+					e = next
+					continue
+				}
+			}
+			t.retire(e)
+			e = next
+		}
+		t.slots[i] = nil
+	}
+	var added int
+	t.slots, added = moveGap(&t.memoGap, t.slots, ed.start, ed.end, ed.delta)
+	t.memBytes += uint64(added) * ptrBytes
+	for _, k := range stay {
+		i := t.slot(k.pos)
+		k.e.next = t.slots[i]
+		t.slots[i] = k.e
+	}
 }
 
-// splice applies an edit to the memo (memo.splice), copying the entries it keeps into a new table:
-// those that examined only input before the edit stay; those that examined only input after it,
-// with no recovered errors and not pinned, move by its delta, with what their values must move
-// recorded in shifts (documentMove); the others are removed, with those that more than pendingEditLimit
-// edits have passed since a parse stored them or found them to answer a lookup (memoTable.epoch against
-// memoEntry.seen).
-func (t *memoTable) splice(ed documentEdit) {
-	epoch := t.epoch
-	var kept memoTable
-	for pos := range t.slots {
-		for e := t.slots[pos]; e != nil; e = e.next {
-			to, from := pos, pos
-			if e.from == fromBefore {
-				from--
-			}
-			switch {
-			case e.from == noRecord:
-				continue
-			case epoch-e.seen > pendingEditLimit:
-				// More edits behind than a lookup applies to an entry: it is a miss from now on, and
-				// the entries of earlier texts that a Document retains stay bounded by that many edits.
-				continue
-			case e.examined <= ed.start:
-			case from >= ed.end && !e.pinned && e.errs.none():
-				to = pos + ed.delta
-			default:
-				continue
-			}
-			c := kept.alloc()
-			*c = *e
-			c.next = nil
-			shift := t.shifts[e]
-			if to != pos {
-				c.end += ed.delta
-				c.examined += ed.delta
-				c.far += ed.delta
-				shift += ed.delta
-			}
-			// A result without a node holds no positions.
-			if shift != 0 && c.node != nil {
-				if kept.shifts == nil {
-					kept.shifts = map[*memoEntry]int{}
-				}
-				kept.shifts[c] = shift
-			}
-			kept.put(int(e.rule), to, int(e.min), e.env, c, nil)
-		}
-	}
-	*t = kept
+// retire returns e to the free list of the table, dropping what it refers to.
+func (t *memoTable) retire(e *memoEntry) {
+	*e = memoEntry{next: t.free}
+	t.free = e
 }
 
 // moveMarkLimit is the number of moves after which a parse starts without the memo of the Document,
@@ -292,19 +278,21 @@ func (t *memoTable) splice(ed documentEdit) {
 // far fewer moves than the numbers that remain.
 const moveMarkLimit = 1 << 31
 
-// documentMove moves the nodes of the value of e by the shift that edits gave e (memo.splice), in
+// documentMove moves the nodes of the value of e by the shift that edits gave e (advanceEntry), in
 // copies, since the value may be part of a result already returned, and reports whether it could:
 // a value that holds a host value other than a node or a basic value is not moved. The check and the
 // copy each cost, for every distinct node of the value, a unit and one more for each of its children
 // and fields.
 func (p *Parser) documentMove(e *memoEntry) bool {
-	if len(p.memo.shifts) == 0 {
+	if e.shift == 0 {
 		return true
 	}
-	shift, ok := p.memo.shifts[e]
-	if !ok {
+	if e.node == nil {
+		// A result without a node holds no positions.
+		e.shift = 0
 		return true
 	}
+	shift := e.shift
 	// The check marks the nodes it visits with the number of the move, which no earlier move of the
 	// Document had, so that a mark that an earlier move left, in this parse or an earlier one, whether
 	// that move went on or refused, never reads as a visit of this one. A node that the check finds
@@ -327,7 +315,7 @@ func (p *Parser) documentMove(e *memoEntry) bool {
 	} else {
 		e.node = p.moveNode(e.node, int32(shift))
 	}
-	delete(p.memo.shifts, e)
+	e.shift = 0
 	return true
 }
 
@@ -505,7 +493,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	o = prepareText(o, d.text).forDocument()
 	if o.control != nil && o.control.limits.Memory != 0 && d.memo.chargedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
-		d.memo = memoTable{}
+		d.memo, d.edits = memoTable{}, nil
 	}
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
@@ -519,9 +507,10 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}
 	if d.moves > moveMarkLimit {
 		// The marks that the nodes of the memo carry would soon repeat: start without it.
-		d.memo, d.moves = memoTable{}, 0
+		d.memo, d.edits, d.moves = memoTable{}, nil, 0
 	}
 	p.Document, p.memo = d, d.memo
+	p.edits, p.gen = d.edits, uint32(len(d.edits))
 	p.setTracking()
 	p.setDeferMemo()
 	d.pending = 0
@@ -529,7 +518,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	d.stats = documentStats{}
 	defer func() {
 		if x := recover(); x != nil {
-			d.memo = memoTable{}
+			d.memo, d.edits = memoTable{}, nil
 			panic(x)
 		}
 		d.memo = p.memo

@@ -142,10 +142,7 @@ func (p *Parser) MemoGet(k MemoKey) (*MemoEntry, bool) {
 		defer p.FreeEnd(p.FreeBegin(true))
 	}
 	t := p.Memo
-	i := k.Pos - t.Base
-	if i >= t.Gap {
-		i += t.GapLen
-	}
+	i := t.slot(k.Pos - t.Base)
 	if i < 0 || i >= len(t.Slots) {
 		return nil, false
 	}
@@ -212,9 +209,7 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	if i < 0 {
 		return e
 	}
-	if i >= t.Gap {
-		i += t.GapLen
-	}
+	i = t.slot(i)
 	slots := t.Slots
 	if i >= len(slots) {
 		// Growing the slot array charges no unit (it grows to positions of counted calls, by
