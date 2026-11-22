@@ -611,8 +611,8 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	fmt.Fprintf(&b, "%s.operatorsRule = {\n", g.ruleVar(r))
 	// The lines of the rule's Core IR, in the order of e, if the printer prints them from Flow IR.
 	var co *core.OperatorsRule
-	if g.Flow != nil {
-		co, _ = g.Flow.M.Rules[r.ID].Body.(*core.OperatorsRule)
+	if g.Exec != nil {
+		co, _ = g.Core().Rules[r.ID].Body.(*core.OperatorsRule)
 	}
 	if e.Skip != nil {
 		var skip *core.OpLine

@@ -85,7 +85,7 @@ func (p *flowPrinter) skippedCalls(x prim.SkippedCalls) string {
 	g := p.g
 	memo := false
 	for _, k := range x.Rules {
-		pol := g.Flow.M.Rules[k].Policy
+		pol := g.Core().Rules[k].Policy
 		memo = memo || pol.Memo && !pol.Transient
 	}
 	if !memo {
@@ -99,7 +99,7 @@ func (p *flowPrinter) skippedCalls(x prim.SkippedCalls) string {
 	}
 	rules := make([]string, len(x.Rules))
 	for i, k := range x.Rules {
-		rules[i] = fmt.Sprintf("%s[%d]", table, g.Flow.Rules[k].ID)
+		rules[i] = fmt.Sprintf("%s[%d]", table, g.RuleOf(k).ID)
 	}
 	if len(rules) == 1 {
 		return fmt.Sprintf("p.SkipCall(%s, %s)", rules[0], p.exp(x.Exp))

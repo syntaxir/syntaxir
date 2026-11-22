@@ -33,7 +33,7 @@ type tsFlowUnsupported string
 // among the tables of the compilation. It reports whether the table was lowered; if not, the
 // generation fails with the error it records.
 func (g *Generator) startTSFlow() bool {
-	g.Flow, g.table = nil, nil
+	g.Exec, g.table = nil, nil
 	t := g.tables.Table(g.IRTable())
 	if t == nil {
 		if g.FlowErr == nil {
@@ -41,7 +41,7 @@ func (g *Generator) startTSFlow() bool {
 		}
 		return false
 	}
-	g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
+	g.Exec = t
 	g.table = t
 	return true
 }
@@ -59,7 +59,7 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 	if !ok {
 		return "", false
 	}
-	return g.flowFunc(l, g.Flow.M.Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
+	return g.flowFunc(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
 }
 
 // flowFunc prints the lowered function l, whose capture scope has the slots if it is framed, as a
@@ -234,7 +234,7 @@ func (p *tsFlowPrinter) exp(id core.ExpID) string {
 	return strconv.Itoa(int(p.desc(id)))
 }
 
-func (p *tsFlowPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Flow.M.Exps[id]) }
+func (p *tsFlowPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
 
 // classIn returns the condition that the code point in ch is in the class c (false at the end of the
 // input is the caller's check).
@@ -334,7 +334,7 @@ func (p *tsFlowPrinter) scopeNames(n *prim.Names) string {
 // grammarAction returns the action expression of the grammar predicate that the node n is built from, for the name
 // of the variable that a binding sets.
 func (p *tsFlowPrinter) grammarAction(n core.Node) ast.ActionExpr {
-	e, ok := p.g.Flow.M.Origin.Of(n).(*ast.Predicate)
+	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
 	if !ok {
 		panic(tsFlowUnsupported(fmt.Sprintf("no grammar predicate for %T", n)))
 	}

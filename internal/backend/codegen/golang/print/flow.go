@@ -10,7 +10,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
@@ -33,15 +32,6 @@ import (
 // reads is not declared and its assignments are left out (flowVars); one that must stay is assigned to the
 // blank identifier on the first line.
 
-// FlowOptions returns the options of lowering the typed rules of the Core IR m, while the typed
-// table is generated.
-func (g *Generator) FlowOptions(m *core.Module) lowerdata.Options {
-	// Node is false: the options of the Node and recognizer tables (flowplan.TableOf) are
-	// built apart, and a function lowered with one set of options is never printed for the other
-	// runtime.
-	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
-}
-
 // flowTypedRule prints the rule r from Flow IR as a flat rule, the flat function of the typed table's
 // plan (flowplan.PlanTyped), or returns nil if the plan has none for r.
 func (g *Generator) flowTypedRule(r *common.Rule) *flatRule {
@@ -55,9 +45,7 @@ func (g *Generator) flowTypedRule(r *common.Rule) *flatRule {
 	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
-	p := newFlowPrinter(g, false)
-	p.document = prim.AttrsOf(l.Func).Document
-	return g.execFlatRule(p, l)
+	return g.execFlatRule(newFlowPrinter(g, false, l), l)
 }
 
 // flowFrameBody prints the body of the typed rule r from Flow IR as the matcher of its frame body, the
@@ -71,10 +59,10 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 	if !ok || spec.Form != lowerdata.Frame {
 		return ""
 	}
-	if g.Flow.Opts.Node {
+	l := g.planned(spec.Key)
+	if prim.AttrsOf(l.Func).Node {
 		panic("internal error: a typed rule is lowered with the options of the Node tables")
 	}
-	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
 	return g.flowFramed(l, spec.Slots, scope, r.Name+" ("+typedFrameComment(r)+")", true)
@@ -88,10 +76,10 @@ func (g *Generator) flowFrameBody(r *common.Rule, scope *check.Scope) string {
 // iteration of a repetition, plus the input spend of each Peek; the limits of a parse hold at these
 // charges.
 func (g *Generator) flowNodeFrameBody(r *common.Rule, spec *plandata.FuncSpec, scope *check.Scope) string {
-	if !g.Flow.Opts.Node {
+	l := g.planned(spec.Key)
+	if !prim.AttrsOf(l.Func).Node {
 		panic("internal error: a Node rule is lowered with the options of the typed table")
 	}
-	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
 	return g.flowFramed(l, spec.Slots, scope, r.Name+" (Node body inlined)", true)
@@ -144,14 +132,14 @@ func (g *Generator) flowOperatorsRuleBody(k plandata.Key, scope *check.Scope, bu
 	return g.flowFramed(l, spec.Slots, scope, g.Cur.Name+comment, false)
 }
 
-// flowOperatorsRule returns the Core IR of the Operators Rule r, or nil if its lines are not
-// printed from Flow IR: the typed table prints them all from it, the Node and recognizer tables
-// when their Flow route is on (flowOperatorsRuleBody decides each line).
+// flowOperatorsRule returns the Core IR of the Operators Rule r, or nil if no table is being printed
+// (common.Generator.Exec): every table prints the lines of an Operators Rule from its functions
+// (flowOperatorsRuleBody decides each line).
 func (g *Generator) flowOperatorsRule(r *common.Rule) *core.OperatorsRule {
-	if g.Flow == nil || g.Table != "trules" && !g.Flow.Opts.Node {
+	if g.Exec == nil {
 		return nil
 	}
-	o, _ := g.Flow.M.Rules[r.ID].Body.(*core.OperatorsRule)
+	o, _ := g.Core().Rules[r.ID].Body.(*core.OperatorsRule)
 	return o
 }
 
@@ -159,9 +147,7 @@ func (g *Generator) flowOperatorsRule(r *common.Rule) *core.OperatorsRule {
 // with the comment, as finishFrameBody does, and sets scope to its capture scope. A rule body (ruleBody)
 // has the signature of the Body field of the rule table (see bodyMethod).
 func (g *Generator) flowFramed(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
-	p := newFlowPrinter(g, true)
-	p.document = prim.AttrsOf(l.Func).Document
-	return g.execFramed(p, l, slots, scope, comment, ruleBody)
+	return g.execFramed(newFlowPrinter(g, true, l), l, slots, scope, comment, ruleBody)
 }
 
 // planned returns the function of the use k in the module of the table, which the compilation lowered: the
@@ -204,7 +190,10 @@ type flowPrinter struct {
 	// document reports that the function is lowered for Documents (prim.Attrs.Document): its in-place reads
 	// are guarded by p.Document == nil, so that a Document parse reads through the recording primitives.
 	document bool
-	b        strings.Builder
+	// budget reports that the function is lowered with budget controls (prim.Attrs.Budget), so its
+	// in-place reads charge the budget.
+	budget bool
+	b      strings.Builder
 	// names holds the package variables of the capture names of scopes, declared on first use
 	// unless a DeclareNames statement declares them.
 	names map[*prim.Names]string
@@ -212,8 +201,11 @@ type flowPrinter struct {
 	pre string
 }
 
-func newFlowPrinter(g *Generator, frame bool) *flowPrinter {
-	return &flowPrinter{g: g, frame: frame, names: map[*prim.Names]string{}}
+// newFlowPrinter returns a printer of the lowered function l, a matcher of a frame if frame, with the
+// lowering options of l, which its attributes hold.
+func newFlowPrinter(g *Generator, frame bool, l *execdata.Lowered) *flowPrinter {
+	a := prim.AttrsOf(l.Func)
+	return &flowPrinter{g: g, frame: frame, document: a.Document, budget: a.Budget, names: map[*prim.Names]string{}}
 }
 
 // scopeNames returns the package variable of the capture names n, naming it on first use.
@@ -284,7 +276,7 @@ func (p *flowPrinter) peekText(ch, size, ok string) string {
 	if p.document {
 		spend = "p.SpendRead(1)\n"
 	}
-	if !p.g.Flow.Opts.Budget {
+	if !p.budget {
 		spend = ""
 	}
 	return fmt.Sprintf("if %s {\n%s%s, %s, %s = p.In[p.Pos], 1, true\n} else {\n%[3]s, %[4]s, %[5]s = p.Peek()\n}\n", guard, spend, ch, size, ok)
@@ -303,7 +295,7 @@ func (p *flowPrinter) exp(id core.ExpID) string {
 }
 
 // desc returns the ID in the parser's table of the expectation id of the module.
-func (p *flowPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Flow.M.Exps[id]) }
+func (p *flowPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
 
 // grammarClass returns the character class expression of the class c.
 func grammarClass(c *core.Class) *ast.CharClass {
@@ -330,7 +322,7 @@ func (p *flowPrinter) shaper(sh core.Shape) string {
 
 // action expression returns the action expression of the grammar predicate that the node n is built from.
 func (p *flowPrinter) actionExpr(n core.Node) ast.ActionExpr {
-	e, ok := p.g.Flow.M.Origin.Of(n).(*ast.Predicate)
+	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
 	if !ok {
 		panic(fmt.Sprintf("flow printer: no grammar predicate for %T", n))
 	}

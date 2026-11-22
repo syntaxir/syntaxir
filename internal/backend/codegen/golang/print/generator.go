@@ -137,7 +137,7 @@ func printTables(d *Decision, settings pass.Settings, t *execdata.Tables, h Hook
 		return nil, nil, err
 	}
 	genGo.rules()
-	genGo.Flow = nil
+	genGo.Exec = nil
 	if genGo.streamErr != nil {
 		return nil, nil, genGo.streamErr
 	}
@@ -153,7 +153,7 @@ func printTables(d *Decision, settings pass.Settings, t *execdata.Tables, h Hook
 			return nil, nil, err
 		}
 		genGo.rules()
-		genGo.Flow = nil
+		genGo.Exec = nil
 		genGo.Prog, genGo.Table = prog, "rules"
 		if genGo.tableErr != nil {
 			return nil, nil, genGo.tableErr
@@ -559,7 +559,7 @@ func (g *Generator) useTable() error {
 	if t == nil {
 		return fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
 	}
-	g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
+	g.Exec = t
 	return nil
 }
 
@@ -571,7 +571,7 @@ func (g *Generator) rules() {
 	flats := map[*common.Rule]*flatRule{}
 	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
 	g.plan, g.table = nil, nil
-	if g.Flow != nil {
+	if g.Exec != nil {
 		// The functions of every table, and the frame layout of each rule, were planned in the middle
 		// end and lowered as one module; the bodies follow the plan.
 		t := g.tables.Table(g.IRTable())
@@ -1063,7 +1063,7 @@ func (g *Generator) tracedTables(prog, rec *common.Program) (string, error) {
 	defer func() { g.Traced, g.Observability, g.Ordinary = false, false, ordinary }()
 	pass := func(p *common.Program, table string, start func() error) error {
 		g.Prog, g.Table, g.plainCalled = p, table, nil
-		defer func() { g.Prog, g.Table, g.Flow = prog, "rules", nil }()
+		defer func() { g.Prog, g.Table, g.Exec = prog, "rules", nil }()
 		if err := start(); err != nil {
 			return err
 		}

@@ -123,7 +123,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return ""
 	case prim.OpObserveSkip:
 		// The alternative's expression begins with the call it skips, if any.
-		return strings.TrimSuffix(strings.TrimPrefix(g.traceSkip(g.Flow.M.Origin.Of(c.Imm.(core.Node))), "\n"), "\n")
+		return strings.TrimSuffix(strings.TrimPrefix(g.traceSkip(g.Core().Origin.Of(c.Imm.(core.Node))), "\n"), "\n")
 	case prim.OpSkippedCalls:
 		return p.skippedCalls(c.Imm.(prim.SkippedCalls))
 	case prim.OpSetEnv:
@@ -187,7 +187,7 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("!p.%s(%d, %t) && %s", g.helper("HasChar"), guard.Rune, guard.Fold, depthLimit(guard.Depth))
 	case prim.OpCallRule:
 		x := c.Imm.(prim.RuleCall)
-		return g.ruleCall(g.Flow.Rules[x.Rule], x.Level)
+		return g.ruleCall(g.RuleOf(x.Rule), x.Level)
 	case prim.OpIsolate:
 		return "p.Isolate(p.Pos)"
 	case prim.OpUnisolate:
@@ -312,14 +312,14 @@ func (p *flowPrinter) hasLit(lit *core.Lit) string {
 		}
 		return "p.Document == nil && (" + cond + ") && p.Control.Take(" + strconv.Itoa(len(rs)) + ")"
 	}
-	if p.untyped() && !g.Flow.Opts.Budget {
+	if p.untyped() && !p.budget {
 		// The Node library's generated code of a parser without budget controls has no such check.
 		return cond
 	}
 	if g.Ordinary {
 		return cond
 	}
-	if g.Flow.Opts.Budget {
+	if p.budget {
 		// The literal is charged one unit per code point, as MatchLiteral does when every one matches.
 		return "(" + cond + ") && p.Control.Take(" + strconv.Itoa(len(rs)) + ")"
 	}
@@ -351,7 +351,7 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 	case prim.OpInClass:
 		return p.reject(c.Imm.(*core.Class), args[0])
 	case prim.OpSkipTerminal:
-		table, ok := g.terminalTable(g.Flow.M.Origin.Of(c.Imm.(*core.Terminal).Body))
+		table, ok := g.terminalTable(g.Core().Origin.Of(c.Imm.(*core.Terminal).Body))
 		if !ok {
 			panic("flow printer: terminal region without a terminal program")
 		}

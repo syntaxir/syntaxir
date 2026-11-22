@@ -227,7 +227,7 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		if p.dead || p.dry {
 			return
 		}
-		trace := p.g.traceSkipped(p.g.Flow.M.Origin.Of(c.Imm.(core.Node)))
+		trace := p.g.traceSkipped(p.g.Core().Origin.Of(c.Imm.(core.Node)))
 		p.b.WriteString(strings.TrimLeft(trace, " "))
 	default:
 		panic(tsFlowUnsupported("operation " + c.Callee))
@@ -319,7 +319,7 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		}
 	case prim.OpCallRule:
 		x := c.Imm.(prim.RuleCall)
-		return p.call(g.Flow.Rules[x.Rule], x.Level)
+		return p.call(g.RuleOf(x.Rule), x.Level)
 	case prim.OpIsolate:
 		return "p.isolate()"
 	case prim.OpKeep:

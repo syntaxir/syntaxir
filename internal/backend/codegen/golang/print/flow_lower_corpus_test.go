@@ -3,11 +3,13 @@ package print_test
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 )
 
 // TestFlowVerifiesCorpus lowers every typed rule of the corpus that Flow IR covers, from the Core
@@ -34,7 +36,7 @@ func TestFlowVerifiesCorpus(t *testing.T) {
 				// The options of the generator, which lowers while it generates the typed table.
 				table := g.Table
 				g.Table = "trules"
-				opts := g.FlowOptions(m)
+				opts := typedOptions(g, m)
 				g.Table = table
 				if opts.Observe != g.Observability {
 					t.Fatalf("%s: lowering options do not follow the observability of the mode", gen.name)
@@ -90,4 +92,10 @@ func observeSkips(b *code.Block) int {
 		}
 	})
 	return n
+}
+
+// typedOptions returns the options of lowering the typed rules of the Core IR m with the generator g,
+// as the typed table of its parser has them.
+func typedOptions(g *print.Generator, m *core.Module) lowerdata.Options {
+	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
 }

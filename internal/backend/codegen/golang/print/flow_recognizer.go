@@ -21,9 +21,7 @@ func (g *Generator) flowRecRule(r *common.Rule, spec *plandata.FuncSpec) *flatRu
 	l := g.planned(spec.Key)
 	g.Cur, g.Proj = r, g.Projections(r)
 	defer func() { g.Proj = nil }()
-	p := newFlowPrinter(g, false)
-	p.document = prim.AttrsOf(l.Func).Document
-	return g.execRecRule(p, l)
+	return g.execRecRule(newFlowPrinter(g, false, l), l)
 }
 
 // untypedGoType returns the Go type of a variable of a Flow IR function printed for the Node

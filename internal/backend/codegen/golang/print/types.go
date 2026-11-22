@@ -343,7 +343,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 		if g.FlowErr != nil {
 			return typedOutput{}, g.FlowErr
 		}
-		g.Flow = nil
+		g.Exec = nil
 		g.Table, g.typedTable = "rules", true
 		t.typedLib(&b)
 	}

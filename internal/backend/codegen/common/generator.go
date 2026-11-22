@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
@@ -55,10 +56,9 @@ type Generator struct {
 	// Settings are the optimizations of the compilation whose tables the generator prints, which
 	// the passes that lowered them ran with (Opt).
 	Settings pass.Settings
-	// Flow holds the Core IR of the typed rules while they are printed from Flow IR, or nil;
-	// flowRules counts the rules printed from Flow IR as flat rules and flowFrames the bodies
-	// and lines printed as matchers of runtime-owned frames.
-	Flow  *FlowState
+	// Exec is the table being printed, at the Exec stage, or nil: its plan, its module and the Core
+	// IR it was lowered from, which holds the rules, the expectations and the origin map (Core).
+	Exec  *plandata.Table[code.Exec]
 	Prog  *Program
 	Table string // the rule table being generated: rules, or recRules for Recognize
 	Cur   *Rule  // the rule being generated
@@ -195,21 +195,24 @@ func (g *Generator) Projections(r *Rule) map[string]string {
 	return r.Projections
 }
 
-// FlowState holds the Core IR of the table being printed from Flow IR, with the options its functions
-// are lowered with (plandata.TableIR), and the rules of its program.
-type FlowState struct {
-	*plandata.TableIR
-	// Rules holds the rules of the program by ID, value-free twins included.
-	Rules []*Rule
+// Core returns the Core IR that the table being printed (Exec) was lowered from.
+func (g *Generator) Core() *core.Module { return g.Exec.IR.M }
+
+// RuleOf returns the rule of the program with the ID id, value-free twins included.
+func (g *Generator) RuleOf(id int) *Rule {
+	if id < len(g.Prog.RuleList) {
+		return g.Prog.RuleList[id]
+	}
+	return g.Prog.Twins[id-len(g.Prog.RuleList)]
 }
 
 // CoreAction returns the action of Core IR of the rule r, the action expression that its value is made of, or nil
 // if it has none or the table has no Core IR.
 func (g *Generator) CoreAction(r *Rule) core.ActionExpr {
-	if g.Flow == nil || r.ID >= len(g.Flow.M.Rules) {
+	if g.Exec == nil || r.ID >= len(g.Core().Rules) {
 		return nil
 	}
-	cr := g.Flow.M.Rules[r.ID]
+	cr := g.Core().Rules[r.ID]
 	if cr == nil || cr.Finish.Kind != core.FinishAction {
 		return nil
 	}
