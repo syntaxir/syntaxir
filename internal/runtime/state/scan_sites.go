@@ -62,7 +62,7 @@ func (p *Parser) ScanLookup(site, start int) (skipRecord, bool) {
 	}
 	p.Spend()
 	if p.tune.SkipMut != 0 {
-		rec = p.mutateSkipRecord(rec, start)
+		p.mutateSkipRecord(&rec, start)
 	}
 	return rec, true
 }
@@ -107,7 +107,7 @@ func (p *Parser) ScanStore(site, start, examined, count int, kids []*value.Node)
 		}
 	}
 	if kids != nil {
-		rec.vals = valSuffix{buf: &valBuf{a: kids}}
+		rec.vals = valSuffix[*value.Node]{buf: &valBuf[*value.Node]{a: kids}}
 	}
 	s.put(start, nil, rec)
 }

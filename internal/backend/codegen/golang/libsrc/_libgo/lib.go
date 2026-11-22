@@ -354,7 +354,7 @@ type grammar struct {
 	envDepth int
 	// runKeys holds, by site, the key of a run site that is not free of the environment (SetRunKey),
 	// nil for the other sites.
-	runKeys []*RunKey
+	runKeys []*runKeySlots
 }
 
 // SetRunKey sets the slots of the variables that key the records of the run site, which is not
@@ -365,11 +365,11 @@ func (g *grammar) SetRunKey(site int, vars, bind []int) {
 	for len(g.runKeys) <= site {
 		g.runKeys = append(g.runKeys, nil)
 	}
-	g.runKeys[site] = &RunKey{Vars: vars, Bind: bind}
+	g.runKeys[site] = &runKeySlots{vars: vars, bind: bind}
 }
 
 // runKey returns the key of the run site, which is not free of the environment.
-func (g *grammar) runKey(site int) *RunKey {
+func (g *grammar) runKey(site int) *runKeySlots {
 	if site < len(g.runKeys) && g.runKeys[site] != nil {
 		return g.runKeys[site]
 	}

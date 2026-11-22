@@ -92,26 +92,26 @@ var runSiteMutations = map[string][][2]string{
 		"		c.hot = false\n",
 	}},
 	"ignore env": {{
-		"	if k == nil {\n		return walkKey{}\n",
-		"	if true {\n		return walkKey{}\n",
+		"if k == nil || p.skipMut(skipIgnoreEnv) {",
+		"if true {",
 	}},
 	"keep env": {{
-		"	if w.key != nil {\n		for i, slot := range w.key.Bind {\n",
-		"	if false {\n		for i, slot := range w.key.Bind {\n",
+		"if w.key != nil && !p.skipMut(skipKeepEnv) {",
+		"if false {",
 	}},
 	// The key holds the environment as an object besides the values: walks under equal values
 	// built apart share no record.
 	"key by object": {{
-		"	return walkKey{vals, p.hashMemoKey(0, 0, vals)}\n",
-		"	return walkKey{append(vals, p.Env), p.hashMemoKey(0, 0, vals)}\n",
+		"if p.skipMut(skipKeyEnvObject) {",
+		"if true {",
 	}},
 	// A lookup steps through every record of the site before it takes the one of its key.
 	"scan keys": {{
-		"	sk := skipKey{pos, k.h}\n	if r, ok := s.recs[sk]; ok {\n",
-		"	sk := skipKey{pos, k.h}\n	for range s.recs {\n		p.Spend()\n	}\n	if r, ok := s.recs[sk]; ok {\n",
+		"if p != nil && p.skipMut(skipScanKeys) {",
+		"if p != nil {",
 	}},
 	"any list": {{
-		"r.state != skipRecorded || w.build && !r.list {",
+		"r.state != skipRecorded || w.build && !r.list && !p.skipMut(skipAnyList) {",
 		"r.state != skipRecorded {",
 	}},
 	"early store": skipRunMutations["early store"],
@@ -149,17 +149,25 @@ func runSiteRuns(t *testing.T, goBin string, sources []string, inputs [][]string
 		if err != nil {
 			t.Fatalf("%s: %v", src, err)
 		}
+		// Each patch goes to the library file that holds its text: the walk core and the records are
+		// in different shared files.
+		applied := make([]bool, len(patches))
 		for _, f := range files {
 			content := string(f.Content)
-			if strings.HasSuffix(f.Path, "libgo/skip_runs.go") {
-				for _, r := range patches {
-					if !strings.Contains(content, r[0]) {
-						t.Fatalf("mutation %s: %q not in the library", mutation, r[0])
+			if strings.Contains(f.Path, "libgo/skip_") {
+				for k, r := range patches {
+					if !applied[k] && strings.Contains(content, r[0]) {
+						content = strings.Replace(content, r[0], r[1], 1)
+						applied[k] = true
 					}
-					content = strings.Replace(content, r[0], r[1], 1)
 				}
 			}
 			write(pkg+"/"+f.Path, []byte(content))
+		}
+		for k, r := range patches {
+			if !applied[k] {
+				t.Fatalf("mutation %s: %q not in the library", mutation, r[0])
+			}
 		}
 		fmt.Fprintf(&imports, "\t%q\n", "runlin/"+pkg)
 		limits := "nil"

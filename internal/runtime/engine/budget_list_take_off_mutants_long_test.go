@@ -24,11 +24,13 @@ func TestRepetitionListTakeOffMutants(t *testing.T) {
 	})
 	t.Run("run site", func(t *testing.T) {
 		const tests = "TestRunSiteListChargesNothing"
-		runPrintedMutants(t, "internal/runtime/state/skip_runs.go", []printedMutant{
+		runPrintedMutants(t, "internal/runtime/state/skip_runs_engine.go", []printedMutant{
 			{"a run site charges the take-off of its list",
-				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.spendValue(2 * len(p.walk().vals))\n"}}, tests, []string{"."}},
+				[]printedEdit{{"func (p *Parser) SkipKids() []*value.Node {\n\tp.skipEnd()\n", "func (p *Parser) SkipKids() []*value.Node {\n\tp.spendValue(2 * len(p.walk().vals.vals))\n\tp.skipEnd()\n"}}, tests, []string{"."}},
+		})
+		runPrintedMutants(t, "internal/runtime/state/skip_vals.go", []printedMutant{
 			{"a run site charges placing its values in its records",
-				[]printedEdit{{"place := func(dst []*value.Node) { copy(dst, vals) }", "place := func(dst []*value.Node) { copySpend(p, dst, vals) }"}}, tests, []string{"."}},
+				[]printedEdit{{"place := func(dst []T) { copy(dst, vals) }", "place := func(dst []T) { copySpend(p, dst, vals) }"}}, tests, []string{"."}},
 		})
 	})
 }

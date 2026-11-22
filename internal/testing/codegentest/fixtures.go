@@ -224,12 +224,12 @@ func LibRunHotSpan(t testing.TB, span int) string {
 // expects.
 func RunHotSpanPatch(t testing.TB, span int) func(name, src string) string {
 	return func(name, src string) string {
-		if name != "skip_runs.go" {
+		if name != "skip_runs_lib.go" {
 			return src
 		}
 		const decl = "const RunHotSpan = 64\n"
 		if !strings.Contains(src, decl) {
-			t.Fatalf("libgo/skip_runs.go declares no %q", decl)
+			t.Fatalf("libgo/skip_runs_lib.go declares no %q", decl)
 		}
 		return strings.Replace(src, decl, fmt.Sprintf("const RunHotSpan = %d\n", span), 1)
 	}

@@ -9,6 +9,7 @@ type feature uint32
 // The features that the shared files use.
 const (
 	featureRecovery feature = 1 << iota
+	featureSkipRuns
 )
 
 // use records that the parse uses the feature f. It is the library's feature witness, and does

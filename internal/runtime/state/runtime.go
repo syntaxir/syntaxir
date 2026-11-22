@@ -28,11 +28,6 @@ type SharedProgram struct {
 	runKeys []*runKeySlots
 }
 
-// runKeySlots are the slots of the variables of a program.RunKey.
-type runKeySlots struct {
-	vars, bind []int
-}
-
 // runKeySlots returns the slots of the key of the run site, which is not free of the environment.
 func (s *SharedProgram) runKeySlots(site int) *runKeySlots {
 	if site < len(s.runKeys) && s.runKeys[site] != nil {

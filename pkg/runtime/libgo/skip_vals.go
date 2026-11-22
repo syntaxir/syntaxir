@@ -1,0 +1,90 @@
+package libgo
+
+// The elements that the walks of skip-run sites collect, and the buffers that their records share.
+// The elements are generic in their type: the parser keeps the elements of a walk in the type its
+// values have (skip_runs_lib.go, skip_runs_engine.go hold the fields of the walks and records).
+
+// valBuf holds the elements that walks collected. A record holds a suffix of a buffer, which is never
+// written once a record refers to it, except below lo: a walk that reaches a record whose suffix
+// starts at lo puts its own elements before it, and shares the rest.
+type valBuf[T any] struct {
+	a  []T
+	lo int
+}
+
+// valSuffix is the elements buf.a[i:], none if buf is nil.
+type valSuffix[T any] struct {
+	buf *valBuf[T]
+	i   int
+}
+
+// slice returns the elements of the suffix, none if buf is nil. They are shared with the buffer.
+func (s valSuffix[T]) slice() []T {
+	if s.buf == nil {
+		return nil
+	}
+	return s.buf.a[s.i:len(s.buf.a):len(s.buf.a)]
+}
+
+// walkVals are the elements that a walk collected (vals), whose list the end of the walk makes. placed
+// reports that the list is placed in buf from lo on, so that the records share it.
+type walkVals[T any] struct {
+	vals   []T
+	placed bool
+	buf    *valBuf[T]
+	lo     int
+}
+
+// placeVals returns a buffer and an index in it from which vals, then the elements of tail (if the
+// walk took a record, hit), are laid out. It writes vals in place before the tail where the buffer
+// has room there that no record refers to, and otherwise copies the tail with room to spare, so
+// that a walk that goes on to reach a record again finds it. Placing vals charges nothing (SkipKids);
+// copying the tail charges a unit for each element: the cost of the grammar does not bound these
+// suffix copies (spec/runtime/parsing.md#run-sites).
+func placeVals[T any](p *Parser, vals []T, tail valSuffix[T], hit bool) (*valBuf[T], int) {
+	place := func(dst []T) { copy(dst, vals) }
+	if !hit {
+		tail = valSuffix[T]{}
+	}
+	n := len(vals)
+	if n == 0 && tail.buf != nil {
+		return tail.buf, tail.i
+	}
+	tl := 0
+	if tail.buf != nil {
+		tl = len(tail.buf.a) - tail.i
+		if tail.i == tail.buf.lo && tail.i >= n {
+			b := tail.buf
+			place(b.a[tail.i-n : tail.i])
+			b.lo = tail.i - n
+			return b, b.lo
+		}
+	}
+	slack := 0
+	if tl > 0 {
+		slack = n + tl
+	}
+	a := make([]T, slack+n+tl)
+	p.skipBytes += uint64(len(a)) * ptrBytes
+	place(a[slack:])
+	if tl > 0 {
+		p.suffixCopied(tl)
+		copySpend(p, a[slack+n:], tail.buf.a[tail.i:])
+	}
+	return &valBuf[T]{a: a, lo: slack}, slack
+}
+
+// endVals returns the list of the values of a walk that ended: the placed list, or a copy of vals in
+// storage that alloc makes; it then drops vals.
+func endVals[T any](p *Parser, wv *walkVals[T], alloc func(int) []T) []T {
+	var kids []T
+	if wv.placed {
+		kids = wv.buf.a[wv.lo:len(wv.buf.a):len(wv.buf.a)]
+	} else {
+		kids = alloc(len(wv.vals))
+		copy(kids, wv.vals)
+	}
+	clear(wv.vals)
+	wv.vals, wv.buf = wv.vals[:0], nil
+	return kids
+}

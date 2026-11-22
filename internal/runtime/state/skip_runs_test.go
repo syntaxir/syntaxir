@@ -113,18 +113,18 @@ func TestSkipRunsShareElements(t *testing.T) {
 		}
 		return ns
 	}
-	b0, lo0 := p.placeVals(el("abc"), valSuffix{})
-	whole, mid := valSuffix{b0, lo0}, valSuffix{b0, lo0 + 1}
+	b0, lo0 := placeVals(p, el("abc"), valSuffix[*value.Node]{}, true)
+	whole, mid := valSuffix[*value.Node]{b0, lo0}, valSuffix[*value.Node]{b0, lo0 + 1}
 	if got := texts(whole.slice()); got != "abc" {
 		t.Fatalf("a walk without a record holds %q", got)
 	}
 	// Elements before a suffix in the middle of a buffer are copied: the buffer holds the rest of
 	// another walk.
-	b1, lo1 := p.placeVals(el("x"), mid)
+	b1, lo1 := placeVals(p, el("x"), mid, true)
 	if b1 == b0 {
 		t.Fatalf("elements are written before a suffix that is not at the front of its buffer")
 	}
-	if got := texts(valSuffix{b1, lo1}.slice()); got != "xbc" {
+	if got := texts(valSuffix[*value.Node]{b1, lo1}.slice()); got != "xbc" {
 		t.Fatalf("the copy holds %q, want xbc", got)
 	}
 	if got := texts(whole.slice()) + texts(mid.slice()); got != "abc"+"bc" {
@@ -132,20 +132,20 @@ func TestSkipRunsShareElements(t *testing.T) {
 	}
 	// The copy has room before its front, which a walk that reaches the front fills in place
 	// once; a second walk to the same suffix copies.
-	front := valSuffix{b1, lo1}
-	b2, lo2 := p.placeVals(el("y"), front)
-	if b2 != b1 || texts(valSuffix{b2, lo2}.slice()) != "yxbc" {
-		t.Fatalf("a walk reaching the front of a buffer does not use its room: %q", texts(valSuffix{b2, lo2}.slice()))
+	front := valSuffix[*value.Node]{b1, lo1}
+	b2, lo2 := placeVals(p, el("y"), front, true)
+	if b2 != b1 || texts(valSuffix[*value.Node]{b2, lo2}.slice()) != "yxbc" {
+		t.Fatalf("a walk reaching the front of a buffer does not use its room: %q", texts(valSuffix[*value.Node]{b2, lo2}.slice()))
 	}
-	b3, lo3 := p.placeVals(el("z"), front)
-	if b3 == b1 || texts(valSuffix{b3, lo3}.slice()) != "zxbc" {
-		t.Fatalf("a second walk to the same suffix shares the room: %q", texts(valSuffix{b3, lo3}.slice()))
+	b3, lo3 := placeVals(p, el("z"), front, true)
+	if b3 == b1 || texts(valSuffix[*value.Node]{b3, lo3}.slice()) != "zxbc" {
+		t.Fatalf("a second walk to the same suffix shares the room: %q", texts(valSuffix[*value.Node]{b3, lo3}.slice()))
 	}
-	if got := texts(front.slice()) + texts(valSuffix{b2, lo2}.slice()); got != "xbc"+"yxbc" {
+	if got := texts(front.slice()) + texts(valSuffix[*value.Node]{b2, lo2}.slice()); got != "xbc"+"yxbc" {
 		t.Fatalf("placing elements changed an earlier suffix: %q", got)
 	}
 	// No elements of its own: the walk takes the suffix as it is.
-	if b, lo := p.placeVals(nil, mid); b != b0 || lo != lo0+1 {
+	if b, lo := placeVals(p, nil, mid, true); b != b0 || lo != lo0+1 {
 		t.Fatalf("a walk without elements of its own copies its tail")
 	}
 }

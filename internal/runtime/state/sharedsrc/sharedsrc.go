@@ -29,6 +29,8 @@ var Files = []string{
 	"memo_index.go",
 	"recovered.go",
 	"action_value.go",
+	"skip_records.go",
+	"skip_vals.go",
 	"trace_record.go",
 	"value_spend.go",
 }

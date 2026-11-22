@@ -209,15 +209,15 @@ func main() {
 // they are.
 var skipRunMutations = map[string][][2]string{
 	"never record": {{
-		"if !w.recording && w.slots.marked(p.Pos) {",
+		"if !w.recording && w.slots.marked(p.Pos) && !p.skipMut(skipNeverRecord) {",
 		"if false {",
 	}},
 	"early store": {{
-		"	v.from, v.examined = p.docLow, p.docExamined\n",
-		"	v.from, v.examined = p.docLow, p.docExamined\n\tp.putSkip(p.skipTable(), v.pos, v.key, skipRecord{end: p.Pos, far: v.far, exp: v.exp, from: v.from, examined: v.examined, state: skipRecorded, bind: p.walkBind()})\n",
+		"if p.skipMut(skipEarlyStore) {\n\t\tp.putSkip(",
+		"if true {\n\t\tp.putSkip(",
 	}, {
-		"	p.skipClose()\n\tvs := w.visits\n",
-		"	p.skipClose()\n\tw.visits = w.visits[:0]\n\tif true {\n\t\treturn\n\t}\n\tvs := w.visits\n",
+		"if p.skipMut(skipEarlyStore) {\n\t\tw.visits = w.visits[:0]",
+		"if true {\n\t\tw.visits = w.visits[:0]",
 	}},
 }
 
