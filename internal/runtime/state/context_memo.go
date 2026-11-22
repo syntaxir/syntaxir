@@ -74,9 +74,8 @@ type growRec struct {
 	key   MemoKey
 	seed  *MemoEntry
 	id    uint64
-	bit   uint64 // Rule.LeaderBit
-	idx   int32  // Rule.LeaderIndex
-	cycle int32  // Rule.Cycle
+	idx   int32 // Rule.LeaderIndex
+	cycle int32 // Rule.Cycle
 }
 
 // keptSeedResult is a result that read a seed, kept for CtxKeepSeedResults.
@@ -156,16 +155,13 @@ func (g *growRec) gkey() growKey {
 // at returns the position of the growth.
 func (g *growRec) at() int { return g.key.Pos }
 
-// leaderBit returns the bit of the growth's leader in present sets, or 0 if it has none
-// (Rule.LeaderBit).
-func (g *growRec) leaderBit() presentSet { return g.bit }
-
-// maxLeaderBits is the number of leaders of a cycle that have a bit in present sets (Rule.LeaderBit).
+// maxLeaderBits is the number of leaders of a cycle that have a bit in present sets
+// (program.MaxLeaderBits).
 const maxLeaderBits = program.MaxLeaderBits
 
-// presentSet is a present set: the bits of the leaders of a context (Rule.LeaderBit), or presentWide
-// and an identity. The engine holds it in a word of 64 bits, as Rule.LeaderBit and MemoEntry.Present
-// do; the values are those of the Go library's sets of 32 bits.
+// presentSet is a present set: the bits of the leaders of a context (growRec.leaderBit), or
+// presentWide and an identity. The engine holds it in a word of 64 bits, as MemoEntry.Present does;
+// the values are those of the Go library's sets of 32 bits.
 type presentSet = uint64
 
 // missingBit is the missing-silent bit of a key (MemoKey.MissingSilent): the key of a seed of a

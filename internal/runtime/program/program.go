@@ -96,10 +96,9 @@ type Rule struct {
 	// Cycle numbers the left-recursion cycle of a leader or member from 1, and is 0 for any other
 	// rule.
 	Cycle int
-	// LeaderIndex numbers the leaders of each cycle from 0 (NumberLeaders); LeaderBit is
-	// 1<<LeaderIndex for the first MaxLeaderBits leaders of a cycle and 0 for any other rule.
+	// LeaderIndex numbers the leaders of each cycle from 0 (NumberLeaders); the first
+	// MaxLeaderBits leaders of a cycle have the bit 1<<LeaderIndex in present sets.
 	LeaderIndex int
-	LeaderBit   uint64
 	// Stream reports that the top level of the rule body has a #stream repetition.
 	Stream bool
 	// Positional reports that the result may depend on position values.
@@ -157,30 +156,20 @@ func NumberSeen(lists ...[]*Rule) int {
 	return n
 }
 
-// MaxLeaderBits is the number of leaders of a cycle that have a bit (Rule.LeaderBit): the width of
+// MaxLeaderBits is the number of leaders of a cycle that have a bit (Rule.LeaderIndex): the width of
 // present sets, the same on every backend, so that every backend memoizes the same results and
 // charges the same units. It fits the 32-bit operations of JavaScript with the sign bit left
 // clear, and the bit above the set's bits tags the identity of a set with more leaders.
 const MaxLeaderBits = 31
 
-// LeaderBitOf returns the bit of the leader numbered k in its cycle, 0 past MaxLeaderBits.
-func LeaderBitOf(k int) uint64 {
-	if k < MaxLeaderBits {
-		return 1 << k
-	}
-	return 0
-}
-
-// NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex), and gives
-// the first MaxLeaderBits of each a bit (Rule.LeaderBit).
+// NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex).
 func NumberLeaders(rules []*Rule) {
 	n := map[int]int{}
 	for _, r := range rules {
-		r.LeaderIndex, r.LeaderBit = 0, 0
+		r.LeaderIndex = 0
 		if r.Leader {
-			k := n[r.Cycle]
+			r.LeaderIndex = n[r.Cycle]
 			n[r.Cycle]++
-			r.LeaderIndex, r.LeaderBit = k, LeaderBitOf(k)
 		}
 	}
 }

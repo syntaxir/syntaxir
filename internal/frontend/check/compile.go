@@ -283,16 +283,14 @@ func NumberSeen(lists ...[]*Rule) int {
 	return n
 }
 
-// NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex), and gives
-// the first MaxLeaderBits of each a bit (Rule.LeaderBit).
+// NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex).
 func NumberLeaders(rules []*Rule) {
 	n := map[int]int{}
 	for _, r := range rules {
-		r.LeaderIndex, r.LeaderBit = 0, 0
+		r.LeaderIndex = 0
 		if r.Leader {
-			k := n[r.Cycle]
+			r.LeaderIndex = n[r.Cycle]
 			n[r.Cycle]++
-			r.LeaderIndex, r.LeaderBit = k, program.LeaderBitOf(k)
 		}
 	}
 }

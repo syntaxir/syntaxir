@@ -12,7 +12,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -53,10 +52,9 @@ func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 		r := &Rule{}
 		r.ID, r.Cycle, r.Leader = i, int(cr.Cycle), cr.Leader
 		if cr.Leader && cr.Cycle != 0 {
-			// The leaders have the bits that the compiler gives them, so that the model, whose
-			// leaders from ref.CtxLeaderBits on have none, checks that width too.
-			k := leaders[cr.Cycle]
-			r.LeaderIndex, r.LeaderBit = k, program.LeaderBitOf(k)
+			// The leaders have their bits from their numbers (growRec.leaderBit), so that the model,
+			// whose leaders from ref.CtxLeaderBits on have none, checks that width too.
+			r.LeaderIndex = leaders[cr.Cycle]
 			leaders[cr.Cycle]++
 		}
 		m.ctxRules = append(m.ctxRules, r)
@@ -139,7 +137,7 @@ func (m *ctxMachine) testOp(name string, args []any) {
 	case ref.CtxGrowOp:
 		r := args[0].(*Rule)
 		p.gamma = append(p.gamma, growRec{key: MemoKey{Rule: r.ID, Pos: p.Pos, Min: int(args[1].(int64))},
-			seed: seed(args[2].(bool), args[3].(int64)), id: uint64(args[4].(int64)), bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(r.Cycle)})
+			seed: seed(args[2].(bool), args[3].(int64)), id: uint64(args[4].(int64)), idx: int32(r.LeaderIndex), cycle: int32(r.Cycle)})
 	case ref.CtxReseedOp:
 		g := &p.gamma[len(p.gamma)-1]
 		pos := p.Pos

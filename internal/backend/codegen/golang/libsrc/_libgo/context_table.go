@@ -289,6 +289,16 @@ func (p *Parser) gammaFind(gp int, k growKey) int {
 // answers a call there.
 const presentWide presentSet = 1 << maxLeaderBits
 
+// leaderBit returns the bit of the growth's leader in present sets, or 0 if it has none: the bit
+// 1<<idx of the first maxLeaderBits leaders of its cycle (Rule.leaderIndex in the library,
+// Rule.LeaderIndex in the engine). This is the one place that derives a leader's bit.
+func (g *growRec) leaderBit() presentSet {
+	if g.idx >= maxLeaderBits {
+		return 0
+	}
+	return 1 << g.idx
+}
+
 // present returns the present set of the context gamma[gp:]: the bits of its leaders, or the
 // identity of the set if a leader has no bit (presentWide).
 func (p *Parser) present(gp int) presentSet {

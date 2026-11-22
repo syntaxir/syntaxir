@@ -1165,7 +1165,7 @@ type memoEntry struct {
 	silent bool
 	// pinned keeps the entry from moving with an edit (memo.pin).
 	pinned bool
-	// present is the set of leaders (Rule.leaderBit) that grew at the position when a result of a
+	// present is the set of leaders (growRec.leaderBit) that grew at the position when a result of a
 	// rule of their cycle was evaluated; it is reused only where every leader that grows there is in
 	// the set (ctxCallState.memoAllows).
 	present uint32

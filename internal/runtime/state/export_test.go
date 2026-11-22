@@ -20,7 +20,7 @@ const (
 func NamePresent(leaders []*program.Rule) (sets, mem [2]uint64) {
 	p := &Parser{}
 	for _, r := range leaders {
-		p.gamma = append(p.gamma, growRec{key: MemoKey{Rule: r.ID}, bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(r.Cycle)})
+		p.gamma = append(p.gamma, growRec{key: MemoKey{Rule: r.ID}, idx: int32(r.LeaderIndex), cycle: int32(r.Cycle)})
 	}
 	for i := range sets {
 		sets[i], mem[i] = p.present(0), p.MemUsed

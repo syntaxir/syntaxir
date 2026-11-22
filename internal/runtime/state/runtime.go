@@ -309,7 +309,7 @@ type MemoEntry struct {
 	missingSilent bool // insertion-disabled lookahead seed key
 	// Growing reports that this is a seed of a left recursion that grows (Parser.gamma).
 	Growing bool
-	// Present is the set of leaders (Rule.LeaderBit) that grew at the position when a result of a
+	// Present is the set of leaders (growRec.leaderBit) that grew at the position when a result of a
 	// rule of a left-recursion cycle was evaluated without reading their seeds: the result is
 	// reused where the leaders that grow are among them (CallBegin).
 	Present uint64
@@ -593,7 +593,7 @@ func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 	if p.Missing != nil {
 		p.RecordMissingSeed(g.Best, g.missing)
 	}
-	p.gamma = append(p.gamma, growRec{key: key, seed: g.Best, id: failSeed, bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(cycle)})
+	p.gamma = append(p.gamma, growRec{key: key, seed: g.Best, id: failSeed, idx: int32(r.LeaderIndex), cycle: int32(cycle)})
 	if gp < g.gi && !p.strictCtx() && !p.inserts(r) {
 		g.present = p.present(gp)
 		g.ctx = p.recordsIn(g.present)

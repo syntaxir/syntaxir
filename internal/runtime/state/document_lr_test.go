@@ -18,9 +18,9 @@ import (
 // reads none is stored with the leaders that grew (MemoEntry.Present).
 func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 	t.Parallel()
-	leader := func(id int, bit uint64) *state.Rule {
+	leader := func(id, idx int) *state.Rule {
 		r := &state.Rule{}
-		r.ID, r.Leader, r.LeaderBit, r.Cycle = id, true, bit, 1
+		r.ID, r.Leader, r.LeaderIndex, r.Cycle = id, true, idx, 1
 		return r
 	}
 	member := func(id int) *state.Rule {
@@ -30,7 +30,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 	}
 	t.Run("a member that reads the seed", func(t *testing.T) {
 		p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
-		head, m := leader(1, 1), member(2)
+		head, m := leader(1, 0), member(2)
 		var headCall state.CallState
 		p.CallBegin(head, 0, &headCall)
 		growth := p.GrowBegin(p.GrowKey(head, 0), head)
@@ -61,7 +61,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 	})
 	t.Run("a member that reads no seed", func(t *testing.T) {
 		p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
-		head, m := leader(1, 1), member(2)
+		head, m := leader(1, 0), member(2)
 		var headCall state.CallState
 		p.CallBegin(head, 0, &headCall)
 		growth := p.GrowBegin(p.GrowKey(head, 0), head)
@@ -82,7 +82,7 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 	})
 	t.Run("a nested leader that reads the outer seed", func(t *testing.T) {
 		p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
-		outer, inner := leader(1, 1), leader(2, 2)
+		outer, inner := leader(1, 0), leader(2, 1)
 		var outerCall state.CallState
 		p.CallBegin(outer, 0, &outerCall)
 		outerGrow := p.GrowBegin(p.GrowKey(outer, 0), outer)
@@ -122,14 +122,14 @@ func TestDocumentSeedDependentResultsNotInMemo(t *testing.T) {
 // from the table and a jump over them, and evaluates no body.
 func memoStepSeedReads(t *testing.T, mutation int) (bodySteps, seedReads int) {
 	t.Helper()
-	leader := func(id int, bit uint64) *state.Rule {
+	leader := func(id, idx int) *state.Rule {
 		r := &state.Rule{}
-		r.ID, r.Leader, r.LeaderBit, r.Cycle = id, true, bit, 1
+		r.ID, r.Leader, r.LeaderIndex, r.Cycle = id, true, idx, 1
 		return r
 	}
 	p := &state.Parser{Memo: state.NewMemoTable(), MemoAll: true}
 	p.SetTuning(state.Tuning{MemoMut: mutation})
-	outer, inner := leader(1, 1), leader(2, 2)
+	outer, inner := leader(1, 0), leader(2, 1)
 	var outerCall state.CallState
 	p.CallBegin(outer, 0, &outerCall)
 	outerGrow := p.GrowBegin(p.GrowKey(outer, 0), outer)

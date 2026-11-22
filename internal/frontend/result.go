@@ -195,7 +195,7 @@ func runtimeRule(r *check.Rule) *program.Rule {
 		Where: r.Where, Splice: r.Splice, ID: r.ID, Name: r.Name, Scope: runtimeScope(r.Scope),
 		NodeType: r.NodeType, OpNodeType: r.OpNodeType, Memo: r.Memo, Missing: r.Missing,
 		Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, LeaderIndex: r.LeaderIndex,
-		LeaderBit: r.LeaderBit, Stream: r.Stream, Positional: r.Positional, Vars: r.Vars,
+		Stream: r.Stream, Positional: r.Positional, Vars: r.Vars,
 		Transient: r.Transient, Seen: r.Seen, Plain: r.Plain, Rec: r.Rec, Novalue: r.Novalue,
 	}
 }

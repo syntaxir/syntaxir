@@ -50,7 +50,7 @@ import (
 const maxLeaderBits = 31
 
 // presentSet is a present set: the bits of the leaders of a context, or presentWide and an
-// identity. The engine holds the same sets in words of 64 bits (Rule.LeaderBit).
+// identity. The engine holds the same sets in words of 64 bits.
 type presentSet = uint32
 
 // missingBit is the missing-silent bit of a key in the engine's parses with missing-token insertion
@@ -199,15 +199,6 @@ func (g *growRec) gkey() growKey { return growKey{rule: g.rule, min: g.min} }
 
 // at returns the position of the growth.
 func (g *growRec) at() int { return g.pos }
-
-// leaderBit returns the bit of the growth's leader in present sets, or 0 if it has none: the leaders
-// from maxLeaderBits on have none.
-func (g *growRec) leaderBit() presentSet {
-	if g.idx >= maxLeaderBits {
-		return 0
-	}
-	return 1 << g.idx
-}
 
 // ctxEnter computes the context of a memoized call of r, a rule of a cycle, at the current position
 // and level min. When r is a leader that grows there, it returns the seed, which the call reads

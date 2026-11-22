@@ -55,8 +55,8 @@ func TestObsOutcomeWideControl(t *testing.T) {
 func lookaheadStoredAt(p *Parser, pos, examined, from int) bool {
 	p.Pos = pos
 	p.gamma = []growRec{
-		{key: MemoKey{Rule: 1, Pos: pos}, id: failSeed, bit: 1, cycle: 1},
-		{key: MemoKey{Rule: 2, Pos: pos}, id: failSeed + 1, bit: 2, cycle: 1},
+		{key: MemoKey{Rule: 1, Pos: pos}, id: failSeed, idx: 0, cycle: 1},
+		{key: MemoKey{Rule: 2, Pos: pos}, id: failSeed + 1, idx: 1, cycle: 1},
 	}
 	p.pushFrame(pos, 0)
 	const site = 7

@@ -35,10 +35,9 @@ type Rule struct {
 	// cycle.
 	Cycle int
 	// LeaderIndex numbers the leaders of each cycle from 0 (NumberLeaders): a leader's member in the
-	// sets of growths that a memoized result was evaluated with. LeaderBit is 1<<LeaderIndex for the
-	// first MaxLeaderBits leaders of a cycle, whose sets fit in a word, and 0 for any other rule.
+	// sets of growths that a memoized result was evaluated with; the first program.MaxLeaderBits
+	// leaders of a cycle have the bit 1<<LeaderIndex in present sets.
 	LeaderIndex int
-	LeaderBit   uint64
 	// Stream reports that the top level of the rule body has a #stream repetition.
 	Stream bool
 	// Positional reports that the result may depend on position values (analysis.positional).
