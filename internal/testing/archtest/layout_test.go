@@ -107,6 +107,7 @@ var layout = []place{
 	{pkg: "internal/backend/codegen/typescript/lib", target: "internal/backend/codegen/typescript/lib"},
 	{pkg: "internal/backend/codegen/typescript", target: "internal/backend/codegen/typescript"},
 	{pkg: "internal/backend/codegen/typescript/print", target: "internal/backend/codegen/typescript/print"},
+	{pkg: "internal/backend/codegen/typescript/tsprim", target: "internal/backend/codegen/typescript/tsprim"},
 	{pkg: "internal/backend/codegen/golang/pass", target: "internal/backend/codegen/golang/pass"},
 	{pkg: "internal/backend/codegen/typescript/pass", target: "internal/backend/codegen/typescript/pass"},
 	{pkg: "internal/backend/closure", target: "internal/backend/closure"},

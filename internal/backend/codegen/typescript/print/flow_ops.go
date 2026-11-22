@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/tsprim"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
@@ -497,7 +497,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		}
 		return call + end
 	}
-	if len(s.Dst) == 2 && tspass.TwoResults(name) {
+	if len(s.Dst) == 2 && tsprim.TwoResults(name) {
 		// A call with two results: the value and whether it matched.
 		p.read(c)
 		x := expr(c)

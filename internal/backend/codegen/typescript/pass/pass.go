@@ -1,10 +1,11 @@
 // Package pass holds the TypeScript backend's Exec passes: the forms of a lowered function that the
 // TypeScript printer prints more compactly than the operations they replace. Each pass makes
-// operations of this target (Spend, MergeRecord, Failed) that the printer prints, and the printer
+// operations of this target (package tsprim) that the printer prints, and the printer
 // prints the operations they replace as well, so that each pass can be turned off by its flag.
 package pass
 
 import (
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/tsprim"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -19,20 +20,6 @@ const (
 	PassMergedRecords = "ts-merged-records"
 	PassTestedInits   = "ts-tested-inits"
 )
-
-// The primitive operations of the TypeScript target that the passes make.
-const (
-	SpendOp  = "ts.spend"
-	MergeOp  = "ts.unisolateMerge"
-	FailedOp = "ts.failed"
-)
-
-// SpendRun is the immediate operand of a call of SpendOp: the number of charges in a row.
-type SpendRun struct{ N int }
-
-// Failed is the immediate operand of a call of FailedOp: the variable of the bool that the Init of
-// the If sets.
-type Failed struct{ Flag string }
 
 // Passes are the TypeScript Exec passes, in the order they run on a lowered function with its module;
 // they change the function only.
@@ -112,9 +99,9 @@ func rewrite(l *execdata.Lowered, f func([]code.Stmt) []code.Stmt) {
 	l.Func.Body.Stmts = block(l.Func.Body.Stmts)
 }
 
-// spendRuns replaces each run of charges with one call of SpendOp.
+// spendRuns replaces each run of charges with one call of tsprim.SpendOp.
 func spendRuns(l *execdata.Lowered) {
-	addOp(l, &code.Op{Name: SpendOp, Writes: []string{prim.Component}, NoReturn: true,
+	addOp(l, &code.Op{Name: tsprim.SpendOp, Writes: []string{prim.Component}, NoReturn: true,
 		Imm: "the number of charges", Contract: "Charges a step as many times as Imm says."})
 	rewrite(l, func(ss []code.Stmt) []code.Stmt {
 		var out []code.Stmt
@@ -124,7 +111,7 @@ func spendRuns(l *execdata.Lowered) {
 				for i+n < len(ss) && step(ss[i+n]) {
 					n++
 				}
-				out = append(out, &code.Do{Call: &code.Call{Callee: SpendOp, Imm: SpendRun{n}}})
+				out = append(out, &code.Do{Call: &code.Call{Callee: tsprim.SpendOp, Imm: tsprim.SpendRun{N: n}}})
 				i += n - 1
 				continue
 			}
@@ -135,9 +122,9 @@ func spendRuns(l *execdata.Lowered) {
 }
 
 // mergedRecords replaces each end of an expectation record that a merge of its expectations follows
-// with one call of MergeOp.
+// with one call of tsprim.MergeOp.
 func mergedRecords(l *execdata.Lowered) {
-	addOp(l, &code.Op{Name: MergeOp, Params: []code.Param{code.P("m", code.THandle(prim.TExpMark))},
+	addOp(l, &code.Op{Name: tsprim.MergeOp, Params: []code.Param{code.P("m", code.THandle(prim.TExpMark))},
 		Reads: []string{prim.Component}, Writes: []string{prim.Component}, NoReturn: true,
 		Contract: "Ends the expectation record m and merges its expectations into the enclosing record."})
 	rewrite(l, func(ss []code.Stmt) []code.Stmt {
@@ -145,7 +132,7 @@ func mergedRecords(l *execdata.Lowered) {
 		for i := 0; i < len(ss); i++ {
 			if i+1 < len(ss) {
 				if end, ok := mergedRecord(ss[i], ss[i+1]); ok {
-					out = append(out, &code.Do{Call: &code.Call{Callee: MergeOp, Args: end.Args}})
+					out = append(out, &code.Do{Call: &code.Call{Callee: tsprim.MergeOp, Args: end.Args}})
 					i++
 					continue
 				}
@@ -157,15 +144,15 @@ func mergedRecords(l *execdata.Lowered) {
 }
 
 // testedInits replaces the condition of each If that tests the call of its Init with a call of
-// FailedOp, so that nothing else reads the bool the Init sets.
+// tsprim.FailedOp, so that nothing else reads the bool the Init sets.
 func testedInits(l *execdata.Lowered) {
-	addOp(l, &code.Op{Name: FailedOp, Results: []code.Type{code.TBool}, Reads: []string{prim.Component},
+	addOp(l, &code.Op{Name: tsprim.FailedOp, Results: []code.Type{code.TBool}, Reads: []string{prim.Component},
 		Imm: "the bool the Init sets", Contract: "Reports that the call of the Init of the If failed: that the bool it sets is false."})
 	rewrite(l, func(ss []code.Stmt) []code.Stmt {
 		for _, s := range ss {
 			if s, ok := s.(*code.If); ok {
 				if flag, ok := testedFlag(s); ok {
-					s.Cond = &code.Call{Callee: FailedOp, Imm: Failed{flag}}
+					s.Cond = &code.Call{Callee: tsprim.FailedOp, Imm: tsprim.Failed{Flag: flag}}
 				}
 			}
 		}
@@ -180,7 +167,7 @@ func testedFlag(s *code.If) (string, bool) {
 		return "", false
 	}
 	c, ok := s.Init.Values[0].(*code.Call)
-	if !ok || !TwoResults(c.Callee) {
+	if !ok || !tsprim.TwoResults(c.Callee) {
 		return "", false
 	}
 	flag := s.Init.Dst[1]
@@ -222,14 +209,4 @@ func mergedRecord(a, b code.Stmt) (*code.Call, bool) {
 		return nil, false
 	}
 	return c, true
-}
-
-// TwoResults reports whether a call of the primitive name has two results, the value and whether it
-// matched, which an assignment tests.
-func TwoResults(name string) bool {
-	switch name {
-	case prim.OpMatchLit, prim.OpCallRule, prim.OpCallOutline, prim.OpResumeNext:
-		return true
-	}
-	return false
 }

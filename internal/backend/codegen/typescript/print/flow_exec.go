@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/tsprim"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
@@ -151,9 +151,9 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 		},
 		Do: func(c *code.Call, args func() []string, dead bool) string {
 			switch c.Callee {
-			case tspass.SpendOp:
-				return at(dead, func() { p.write(tsSpend(c.Imm.(tspass.SpendRun).N)) })
-			case tspass.MergeOp:
+			case tsprim.SpendOp:
+				return at(dead, func() { p.write(tsSpend(c.Imm.(tsprim.SpendRun).N)) })
+			case tsprim.MergeOp:
 				return at(dead, func() {
 					p.read(c.Args...)
 					p.write(fmt.Sprintf("p.unisolateMerge(%s);\n", args()[0]))
@@ -199,7 +199,7 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 				return "", false
 			}
 			cond, ok := s.Cond.(*code.Call)
-			if !ok || cond.Callee != tspass.FailedOp {
+			if !ok || cond.Callee != tsprim.FailedOp {
 				return "", false
 			}
 			v := ""

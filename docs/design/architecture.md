@@ -286,6 +286,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/codegen/typescript` | The TypeScript backend: the tables of a TypeScript parser, what they are planned from, and the step `print-ts` |
 | `internal/backend/codegen/typescript/pass` | The TypeScript passes on the Exec stage |
 | `internal/backend/codegen/typescript/print` | The printer of TypeScript parsers, which prints a parser from its tables at the Exec stage and runs no step |
+| `internal/backend/codegen/typescript/tsprim` | The primitives of the TypeScript target that its passes make and its printer prints, as data |
 | `internal/backend/codegen/typescript/lib` | The TypeScript runtime library |
 | `internal/runtime/program` | The runtime program (what a compiled file holds) |
 | `internal/runtime/state` | The parser state that every backend shares |
