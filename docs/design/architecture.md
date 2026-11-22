@@ -381,8 +381,9 @@ These mechanisms change how a parse treats input and results, so they cut across
   engine, and tests compare them; both are printed from the same compositions. The names that generated code calls are
   internal to the generated code, not an API for users.
 - **One home for each fact.** Facts such as nullability, first sets and rule policies have one implementation, on Core
-  IR, which the optimization passes, the linter, the complexity classifier and the generators share through the analysis
-  manager.
+  IR, computed by the analyses of the Core passes. The optimization passes, the linter and the complexity classifier
+  read them through the analysis manager, the front end reads them through `internal/middleend/checkfacts`, and the
+  generators receive them in the compiled form; none of these recomputes a fact.
 - **The runtime does not link the compiler.** The rules of the import-graph test hold for every package of the runtime
   side and for generated parsers.
 - **Positions and units.** Input is measured in one chosen unit (code points or bytes) everywhere a position,
