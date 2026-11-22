@@ -96,7 +96,7 @@ func (l *linter) find(pos ast.Pos, match func(ast.Expr) bool) ast.Expr {
 	var found ast.Expr
 	for _, r := range l.an.order {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			if n, ok := e.(ast.SourceNode); ok && found == nil && n.Source().Diagnostic() == pos && match(e) {
 				found = e
@@ -225,7 +225,7 @@ func (l *linter) seqItem(pos ast.Pos, e ast.Expr) bool {
 // sequences, choices, options and repetitions.
 func pureMatcher(e ast.Expr, control *lintControl) bool {
 	pure := true
-	walkExprControlled(e, func(x ast.Expr) {
+	walkExpr(e, func(x ast.Expr) {
 		control.poll()
 		switch x.(type) {
 		case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Group, *ast.Seq,

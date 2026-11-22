@@ -115,7 +115,7 @@ func analysisAnswers(t *testing.T, name, src string) string {
 				key, rank[key], bits(a.nullableAt(e, false), a.nullableAt(e, true)), bits(a.isEngineNullable(e)),
 				bits(a.mayMatch(e)), bits(a.succeeds(e)), bits(a.hasLooseCut(e)),
 				p.s, bits(p.exact), bits(p.fold), strings.Join(a.leftCalls(e, nil), ","))
-		})
+		}, nil)
 	}
 	return b.String()
 }

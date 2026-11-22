@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -804,7 +805,7 @@ func sameList(xs, ys []ast.Expr, caps bool, control *lintControl) bool {
 // hasPredicate reports whether e contains a predicate (in the rule, not in the rules it calls).
 func hasPredicate(e ast.Expr, control *lintControl) bool {
 	found := false
-	walkExprControlled(e, func(x ast.Expr) {
+	walkExpr(e, func(x ast.Expr) {
 		control.poll()
 		if _, ok := x.(*ast.Predicate); ok {
 			found = true
@@ -816,67 +817,13 @@ func hasPredicate(e ast.Expr, control *lintControl) bool {
 // --- Walking ---
 
 // walkExpr visits the expression and its subexpressions in preorder, including attribute
-// arguments and the parts of Operators Rule expressions.
-func walkExprControlled(e ast.Expr, f func(ast.Expr), control *lintControl) {
-	if control == nil {
-		walkExpr(e, f)
-		return
-	}
-	control.poll()
-	if e == nil {
-		return
-	}
-	f(e)
-	switch e := e.(type) {
-	case *ast.Group:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Seq:
-		for _, it := range e.Items {
-			walkExprControlled(it, f, control)
-		}
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			walkExprControlled(alt, f, control)
-		}
-	case *ast.Repeat:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Optional:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.And:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Not:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Atomic:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Stream:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Recovery:
-		walkExprControlled(e.Expr, f, control)
-		walkExprControlled(e.Skip, f, control)
-	case *ast.Discard:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Capture:
-		walkExprControlled(e.Expr, f, control)
-	case *ast.Attributed:
-		walkExprControlled(e.Expr, f, control)
-		for _, at := range e.Attrs {
-			control.poll()
-			for _, arg := range control.expressionArgs(at) {
-				walkExprControlled(arg, f, control)
-			}
-		}
-	case *ast.OperatorsRule:
-		walkExprControlled(e.Skip, f, control)
-		for _, o := range e.Operands {
-			walkExprControlled(o.Expr, f, control)
-		}
-		for _, l := range e.Levels {
-			control.poll()
-			for _, op := range l.Operators {
-				walkExprControlled(op.Expr, f, control)
-			}
-		}
-	}
+// arguments and the parts of Operators Rule expressions, polling control, which may be nil
+// (astfacts.WalkExprWithPoll). The checks walk only the rules of the grammar that the front end
+// checked (frontend.Result), which is canonical: its inline actions are lowered to hidden rules,
+// so an expression of it holds no inline action and each inline action is a rule the checks read
+// on its own.
+func walkExpr(e ast.Expr, f func(ast.Expr), control *lintControl) {
+	astfacts.WalkExprWithPoll(e, f, control.pollFunc())
 }
 
 // calls returns the rules that e calls, in order of appearance.
@@ -888,15 +835,10 @@ func callsControlled(e ast.Expr, control *lintControl) []string {
 	control.poll()
 
 	var out []string
-	walkExprControlled(e, func(x ast.Expr) {
+	walkExpr(e, func(x ast.Expr) {
 		control.poll()
-		switch x := x.(type) {
-		case *ast.Ref:
-			out = append(out, x.Name)
-		case *ast.InlineAction:
-			// An inline action calls a hidden rule whose body is its expression, so the rules
-			// that expression calls are called from here. The walkers do not enter it.
-			out = append(out, callsControlled(x.Expr, control)...)
+		if r, ok := x.(*ast.Ref); ok {
+			out = append(out, r.Name)
 		}
 	}, control)
 	return out
@@ -995,59 +937,4 @@ func analysisExpr(e ast.Expr, control *lintControl) ast.Expr {
 		return &ast.Attributed{Expr: x.Expr, Attrs: []*ast.Attribute{{Pos: x.Diagnostic(), Name: "recover", Pragma: true, KwArgs: map[string]any{"skip": x.Skip}}}}
 	}
 	return e
-}
-
-func walkExpr(e ast.Expr, f func(ast.Expr)) {
-	if e == nil {
-		return
-	}
-	f(e)
-	switch e := e.(type) {
-	case *ast.Group:
-		walkExpr(e.Expr, f)
-	case *ast.Seq:
-		for _, it := range e.Items {
-			walkExpr(it, f)
-		}
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			walkExpr(alt, f)
-		}
-	case *ast.Repeat:
-		walkExpr(e.Expr, f)
-	case *ast.Optional:
-		walkExpr(e.Expr, f)
-	case *ast.And:
-		walkExpr(e.Expr, f)
-	case *ast.Not:
-		walkExpr(e.Expr, f)
-	case *ast.Atomic:
-		walkExpr(e.Expr, f)
-	case *ast.Stream:
-		walkExpr(e.Expr, f)
-	case *ast.Recovery:
-		walkExpr(e.Expr, f)
-		walkExpr(e.Skip, f)
-	case *ast.Discard:
-		walkExpr(e.Expr, f)
-	case *ast.Capture:
-		walkExpr(e.Expr, f)
-	case *ast.Attributed:
-		walkExpr(e.Expr, f)
-		for _, at := range e.Attrs {
-			for _, arg := range at.ExpressionArgs() {
-				walkExpr(arg, f)
-			}
-		}
-	case *ast.OperatorsRule:
-		walkExpr(e.Skip, f)
-		for _, o := range e.Operands {
-			walkExpr(o.Expr, f)
-		}
-		for _, l := range e.Levels {
-			for _, op := range l.Operators {
-				walkExpr(op.Expr, f)
-			}
-		}
-	}
 }

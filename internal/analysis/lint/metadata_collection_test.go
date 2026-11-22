@@ -28,7 +28,7 @@ func TestLintMetadataCollectionCancellation(t *testing.T) {
 		{"rules", func(c *lintControl) { c.rules(g) }, 2},
 		{"types", func(c *lintControl) { c.types(g) }, 2},
 		{"comments", func(c *lintControl) { c.comments(g) }, 2},
-		{"arguments", func(c *lintControl) { c.expressionArgs(a) }, 2},
+		{"arguments", func(c *lintControl) { walkExpr(expr, func(ast.Expr) {}, c) }, 2},
 		{"call-walk", func(c *lintControl) { callsControlled(expr, c) }, 2},
 		{"unused-capture-rules", func(c *lintControl) { (&linter{control: c, an: &analysis{g: g, order: rules}}).unusedCaptures() }, 2},
 		// With no statements, two Err calls finish rule enumeration; the next

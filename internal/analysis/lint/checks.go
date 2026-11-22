@@ -100,7 +100,7 @@ func (l *linter) shadowed() {
 	calledWithLevel := map[string]bool{}
 	for _, r := range l.an.order {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			if ref, ok := e.(*ast.Ref); ok && ref.Level != "" {
 				calledWithLevel[ref.Name] = true
@@ -109,7 +109,7 @@ func (l *linter) shadowed() {
 	}
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			switch e := analysisExpr(e, control).(type) {
 			case *ast.Choice:
@@ -292,7 +292,7 @@ func (l *linter) neverMatches() {
 	a := l.an
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			s, ok := e.(*ast.Seq)
 			if !ok {
@@ -504,7 +504,7 @@ func (l *linter) lookaheads() {
 	a := l.an
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			switch e := analysisExpr(e, control).(type) {
 			case *ast.And:
@@ -545,7 +545,7 @@ func visible(e ast.Expr, control *lintControl) bool {
 
 func hasCaptures(e ast.Expr, control *lintControl) bool {
 	found := false
-	walkExprControlled(e, func(x ast.Expr) {
+	walkExpr(e, func(x ast.Expr) {
 		control.poll()
 		if _, ok := x.(*ast.Capture); ok {
 			found = true
@@ -563,7 +563,7 @@ func (l *linter) nullableRepetitions() {
 	a := l.an
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			rp, ok := e.(*ast.Repeat)
 			if !ok || rp.Max == 0 || !a.isNullable(rp.Expr) {
@@ -592,7 +592,7 @@ func (l *linter) redundantOptionals() {
 	a := l.an
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			// x? has a value (nil) even where x has none, so only an x with a value is the same.
 			if o, ok := e.(*ast.Optional); ok && visible(o.Expr, control) && a.succeeds(o.Expr) {
@@ -887,7 +887,7 @@ func (l *linter) charClasses() {
 
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			if c, ok := e.(*ast.CharClass); ok {
 				l.charClass(c)
@@ -1055,7 +1055,7 @@ func (l *linter) positions(start string) {
 	}
 	for _, r := range a.order {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			if rp, ok := e.(*ast.Repeat); ok && rp.Max != 0 && rp.Max != 1 {
 				for _, c := range callsControlled(rp.Expr, control) {
@@ -1131,7 +1131,7 @@ func positionRead(r *ast.RuleDef, control *lintControl) (ast.Pos, bool) {
 	if r.Action != nil {
 		exprs = append(exprs, r.Action)
 	}
-	walkExprControlled(r.Expr, func(e ast.Expr) {
+	walkExpr(r.Expr, func(e ast.Expr) {
 		control.poll()
 		switch e := analysisExpr(e, control).(type) {
 		case *ast.Predicate:
@@ -1178,7 +1178,7 @@ func (l *linter) longLookaheads() {
 
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			var inner ast.Expr
 			var pos ast.Pos
@@ -1205,7 +1205,7 @@ func (l *linter) longLookaheads() {
 // whitespace, which end soon.
 func anyRepeat(e ast.Expr, control *lintControl) ast.Expr {
 	var found ast.Expr
-	walkExprControlled(e, func(x ast.Expr) {
+	walkExpr(e, func(x ast.Expr) {
 		control.poll()
 		if rp, ok := x.(*ast.Repeat); ok && found == nil && rp.Max < 0 && consumesAny(rp.Expr, control) {
 			found = rp
@@ -1250,7 +1250,7 @@ func (l *linter) caseInsensitiveLiterals() {
 
 	l.eachRule(func(r *ast.RuleDef) {
 		control.poll()
-		walkExprControlled(r.Expr, func(e ast.Expr) {
+		walkExpr(r.Expr, func(e ast.Expr) {
 			control.poll()
 			seq, ok := analysisExpr(e, control).(*ast.Seq)
 			if !ok {

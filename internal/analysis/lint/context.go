@@ -76,6 +76,15 @@ func (c *lintControl) poll() {
 	}
 }
 
+// pollFunc returns poll as a function for the shared walks, or nil without a control, so that
+// they poll nothing.
+func (c *lintControl) pollFunc() func() {
+	if c == nil {
+		return nil
+	}
+	return c.poll
+}
+
 func (c *lintControl) rules(g *ast.Grammar) []*ast.RuleDef {
 	if c == nil {
 		return g.Rules()
@@ -107,13 +116,6 @@ func (c *lintControl) comments(g *ast.Grammar) []*ast.Comment {
 		panic(lintCancellation{err})
 	}
 	return result
-}
-
-func (c *lintControl) expressionArgs(a *ast.Attribute) []ast.Expr {
-	if c == nil {
-		return a.ExpressionArgs()
-	}
-	return astfacts.ExpressionArgsWithPoll(a, c.poll)
 }
 
 func (c *lintControl) formatExpr(e ast.Expr) string {
