@@ -728,11 +728,14 @@ which every backend keeps.
   repetition and a recovery go back only to a position where one of their
   subexpressions started, never to one before the body began.
 - **A growth is kept for each binding level.** A growth is told apart by its
-  leader, its position and its binding level: a call without a level, and
-  each level of a call with a level restriction `level(e, name)`, which is a
-  call of `e`. A call reads the current result only of the growth of its own
-  leader and level at its position; a left call of the same leader at another
-  level starts a growth of its own there. The values of variables do not tell
+  leader, its position and its minimum binding level: 0 for a call without a
+  level, and for a call with a level restriction `level(e, name)`, which is a
+  call of `e`, the number of levels looser than the named one. A restriction to
+  the loosest level applies every level, as a call without one does
+  ([Level-Restricted Calls](../language/operators-rule.md#level-restricted-calls)),
+  so the two are the same call and share a growth. A call reads the current
+  result only of the growth of its own leader and level at its position; a left
+  call of the same leader at another level starts a growth of its own there. The values of variables do not tell
   growths apart (see [Left Recursion](../language/parser-expressions.md#left-recursion)).
 - **A leader grows at every call.** A leader is memoized in every case (see
   [Evaluations of Rules](#evaluations-of-rules)), whatever the number of

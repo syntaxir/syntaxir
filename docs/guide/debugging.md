@@ -181,8 +181,8 @@ Other marks on a result:
   ```
 
 - `(level n)` after a rule name: a level-restricted call of an Operators Rule (`level(e, name)`), where n, the
-  minimum binding level, is the number of the named level, counted from 1 in declaration order, minus 1;
-  `[lookahead]`: a call inside `&` or `!`.
+  minimum binding level, is the number of levels looser than the named one. A call restricted to the loosest level
+  applies every level, so it is the same call as `e` and shows no mark; `[lookahead]`: a call inside `&` or `!`.
 
 Traces grow quickly, so narrow them down:
 

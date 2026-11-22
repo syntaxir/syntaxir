@@ -80,6 +80,10 @@ input and parsing continues.
 rule stmt = s:(let / assign / call) #recover(skip=[^;]+ ";") => $s
 ```
 
+A recovery is not a choice, so a [cut](parser-expressions.md#cut) passed in
+the annotated expression or in `e` commits the innermost choice around the
+recovery, whether or not the recovery succeeds.
+
 The skip expression cannot contain captures and must consume input. Recovered
 errors are returned with the resulting node. Backtracking that undoes a
 recovery also removes its error, and so does the end of a

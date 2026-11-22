@@ -89,7 +89,7 @@ A `TraceEvent` has the following fields.
 |:--|:--|
 | `Kind` | `TraceEnter`, reported when a rule is called before the memo is consulted, or `TraceExit`, reported when the call returns |
 | `Rule` | The name of the rule that is called |
-| `Level` | The minimum binding level of a [level-restricted call](../language/operators-rule.md#level-restricted-calls) of an Operators Rule, or 0 for a call without a level. Levels are numbered from 1 in declaration order, and a call `level(e, name)` applies the operators of the named level and of the tighter ones, so its `Level` is the number of the named level minus 1 |
+| `Level` | The minimum binding level of the call: the number of levels looser than the one a [level-restricted call](../language/operators-rule.md#level-restricted-calls) `level(e, name)` names, which applies the operators of the named level and of the tighter ones, or 0 for a call without a level. A call restricted to the loosest level applies every level, as a call without a level does, so it is the same call, with `Level` 0, and shares its memo entries and growths |
 | `Depth` | The nesting depth of the call; the start rule has depth 1 |
 | `Pos` | The position at which the call starts, in the position unit |
 | `Lookahead` | True if the call is made where failures record no expectations: inside a lookahead, or inside the `skip` expression of an Operators Rule, which is matched as in a lookahead. It has the same value on the call's exit |
@@ -129,10 +129,14 @@ first `e` bytes, or the whole input and its end when `e` is one past its length;
 code points, for each slot below `e`, the bytes up to and including the one that
 completes its character or makes it invalid, or the whole input and its end when
 the input ends inside a valid prefix of a character, and for the end slot the
-whole input and its end. When a call's exit is reported, the parse has read
-`Needed(Examined)` of the call. When the parse returns, it has read exactly
-`Needed(H)`, where `H` is the greater of the start call's `Examined` and, when the
-start call matched and the parse requires the whole input, its `End` plus one. The
+whole input and its end. Read from a reader that delivers one byte per read and
+reports the end of the input only on a read after the last byte, a parse has read
+`Needed(Examined)` of a call when the call's exit is reported, and when the parse
+returns it has read exactly `Needed(H)`, where `H` is the greater of the start
+call's `Examined` and, when the start call matched and the parse requires the whole
+input, its `End` plus one. A reader that delivers more in one read gives the parse
+input beyond `Needed(H)`, which is the buffering that
+[Streaming](streaming.md#delivery-and-finality) allows. The
 whole-input check belongs to the parse, not to the start call, so the start call's
 `Examined` does not include the slot that the check examines.
 
