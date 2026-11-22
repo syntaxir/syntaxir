@@ -93,6 +93,17 @@ func testIgnoreCaseGeneratedGo(t *testing.T) {
 	runGeneratedUntypedProgram(t, codegentest.IgnoreCaseGenGrammar, ignoreCaseGoBody(codegentest.IgnoreCaseGenInputs), want)
 }
 
+// TestIgnoreCaseGeneratedInlineAction checks that the pragma reaches the body of an inline action,
+// which is written inside it, and not a rule that the body calls (spec/language/pragmas.md).
+func TestIgnoreCaseGeneratedInlineAction(t *testing.T) {
+	t.Parallel()
+	codegentest.EachMode(t, func(t *testing.T) {
+		inputs := []string{"ABcd", "abcd", "ABCd", "ABcD"}
+		runGeneratedUntypedProgram(t, "rule main = (\"ab\" c => 1) #ignorecase \"d\"\nrule c = \"c\"",
+			ignoreCaseGoBody(inputs), "ok ABcd\nok abcd\nerror\nerror\n")
+	})
+}
+
 // TestIgnoreCaseGeneratedTypedGo checks that the typed Go parser accepts exactly the inputs that the
 // closure backend accepts, for case-insensitive literals in a choice and in a sequence.
 func TestIgnoreCaseGeneratedTypedGo(t *testing.T) {

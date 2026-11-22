@@ -44,3 +44,15 @@ func TestIgnoreCaseGeneratedTS(t *testing.T) {
 		t.Errorf("got\n%s\nwant\n%s", got, want)
 	}
 }
+
+// TestIgnoreCaseGeneratedTSInlineAction checks that the pragma reaches the body of an inline action,
+// which is written inside it, and not a rule that the body calls (spec/language/pragmas.md).
+func TestIgnoreCaseGeneratedTSInlineAction(t *testing.T) {
+	t.Parallel()
+	script := "import { parse } from \"./parser.ts\";\nfor (const s of [\"ABcd\", \"abcd\", \"ABCd\", \"ABcD\"]) {\n" +
+		"  const r = parse(s);\n  console.log(r.error === null ? \"ok \" + s.slice(r.node.start, r.node.end) : \"error\");\n}\n"
+	want := "ok ABcd\nok abcd\nerror\nerror\n"
+	if got := runTSScript(t, "rule main = (\"ab\" c => 1) #ignorecase \"d\"\nrule c = \"c\"", script); got != want {
+		t.Errorf("got\n%s\nwant\n%s", got, want)
+	}
+}

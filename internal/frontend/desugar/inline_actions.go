@@ -190,6 +190,9 @@ type inlineLowerer struct {
 	// keepInline, when set, makes the walk keep the inline actions: it returns the inline action e
 	// whose expression is now inner, as it should stay in the result.
 	keepInline func(e *ast.InlineAction, inner ast.Expr) ast.Expr
+	// fold is the depth of the #ignorecase pragmas around the walk. The pragma is lexical, so it
+	// reaches the body of an inline action written inside it, which becomes the body of a hidden rule.
+	fold int
 }
 
 // LowerInlineActionsControlled returns g with every inline action replaced by a reference to a hidden rule.
@@ -263,6 +266,9 @@ func (l *inlineLowerer) expr(e ast.Expr) ast.Expr {
 			l.errs = append(l.errs, &diagnostic.Error{Pos: e.Diagnostic(), Msg: "an inline action is not allowed in a lookahead or a discard, whose value is not used"})
 		}
 		inner := l.expr(e.Expr)
+		if l.fold > 0 {
+			inner = &ast.Attributed{SourceInfo: e.SourceInfo, Expr: inner, Attrs: []*ast.Attribute{{SourceInfo: e.SourceInfo, Name: "ignorecase", Pragma: true}}}
+		}
 		l.count++
 		name := inlineActionName(l.rule, l.count, l.taken)
 		if l.names != nil {
@@ -313,8 +319,27 @@ func (l *inlineLowerer) expr(e ast.Expr) ast.Expr {
 		copy.Expr, copy.Skip = x, skip
 		return &copy
 	case *ast.Attributed:
+		// Pragmas apply from left to right, so an #ignorecase reaches the expression and the
+		// arguments of the pragmas before it.
+		folded := 0
+		for i, a := range e.Attrs {
+			if a.Pragma && a.Name == "ignorecase" {
+				folded = i + 1
+			}
+		}
+		if folded > 0 {
+			l.fold++
+		}
 		x := l.expr(e.Expr)
-		attrs, changed := l.attributes(e.Attrs)
+		before, changedBefore := l.attributes(e.Attrs[:folded])
+		if folded > 0 {
+			l.fold--
+		}
+		after, changedAfter := l.attributes(e.Attrs[folded:])
+		attrs, changed := e.Attrs, changedBefore || changedAfter
+		if changed {
+			attrs = append(append([]*ast.Attribute(nil), before...), after...)
+		}
 		if x == e.Expr && !changed {
 			return e
 		}
