@@ -156,7 +156,7 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 				calls = append(calls, o)
 			}
 		}
-		diffs := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted)
+		diffs := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted, tsEntryActions(r.Entry))
 		compared[r.Entry] += len(calls)
 		for _, d := range diffs {
 			if r.Aborted {
@@ -178,4 +178,13 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 			t.Errorf("no call of %s compared", entry)
 		}
 	}
+}
+
+// tsEntryActions tells which Value Actions an entry of the probe runs: recognition runs only those
+// that predicates read, and the other entries build values and run them all.
+func tsEntryActions(entry string) examinedref.Actions {
+	if entry == "recognize" {
+		return examinedref.ReadActions
+	}
+	return examinedref.EveryAction
 }

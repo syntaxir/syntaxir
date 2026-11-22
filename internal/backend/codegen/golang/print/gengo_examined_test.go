@@ -104,7 +104,7 @@ func main() {
 
 // examinedReport is one report of the consumer: the exit and skipped events of an observed parse, its
 // error, and whether the error ended the parse before the start call returned (Aborted), as a runtime
-// error of a user action does, which the reference does not run.
+// error of a Value Action does.
 type examinedReport struct {
 	Case, Input int
 	Bytes       bool
@@ -274,7 +274,7 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 				calls = append(calls, o)
 			}
 		}
-		d := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted)
+		d := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted, entryActions(r.Entry))
 		compared[r.Entry] += len(calls)
 		for _, msg := range d {
 			if r.Aborted {
@@ -356,4 +356,13 @@ rule r1 = r2 &"c" / (r3 "a" / "b" r0) / !"c" / "b"
 rule r2 = !r2 r1? / ("a" &"c" / r3 !#cut) / "a"
 rule r3 = !"a" #cut "b" / r0 / "b"`, Inputs: []string{"a"}},
 	}
+}
+
+// entryActions tells which Value Actions an entry of the probe runs: recognition runs only those
+// that predicates read, and the other entries build values and run them all.
+func entryActions(entry string) examinedref.Actions {
+	if entry == "recognize" {
+		return examinedref.ReadActions
+	}
+	return examinedref.EveryAction
 }

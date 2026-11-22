@@ -43,6 +43,7 @@ type node struct {
 	caps       *capture
 	name       string // the named node type of the rule that made it, if any
 	expected   string // the inserted text of a missing node
+	message    string // the recovered error of a missing node
 }
 
 // structValue is a value of a struct type: the fields that its constructor sets. A field that it
@@ -411,7 +412,7 @@ func (a *actionEnv) member(v value, name string) (value, error) {
 		}
 	case "message":
 		if n.kind == missingNode {
-			return nil, &UnsupportedError{Construct: "the message of a missing token in an action"}
+			return n.message, nil
 		}
 	}
 	capName := strings.TrimPrefix(name, "$")
@@ -693,7 +694,7 @@ func (a *actionEnv) apply(f *lambda, args ...value) (value, error) {
 }
 
 // actionValue is the value of a Value Action with the variables vars and the captures caps. A runtime
-// error makes the parse fail; the reference records it and goes on with nil.
+// error aborts the parse; the reference records where (Result.ActionErrors) and goes on with nil.
 func (ev *evaluator) actionValue(act ast.ActionExpr, vars *binding, caps *capture) value {
 	v, err := (&actionEnv{ev: ev, vars: vars, caps: caps}).eval(act)
 	var uns *UnsupportedError
@@ -701,7 +702,7 @@ func (ev *evaluator) actionValue(act ast.ActionExpr, vars *binding, caps *captur
 	case errors.As(err, &uns):
 		ev.fail(err)
 	case err != nil:
-		ev.actionFailed = true
+		ev.actionErrors = append(ev.actionErrors, len(ev.exits))
 	}
 	return v
 }

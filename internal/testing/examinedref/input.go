@@ -118,6 +118,18 @@ func (t *text) lineEndAt(pos int) bool {
 	return t.bytes[pos] == '\n' || t.bytes[pos] == '\r'
 }
 
+// lineCol returns the 1-based line and column of pos (Lines and Columns, parsing.md): a line starts
+// after each line feed, and the column counts positions of the unit from the start of the line.
+func (t *text) lineCol(pos int) (line, col int) {
+	line, start := 1, 0
+	for i := 0; i < pos; i++ {
+		if (t.unit == input.CodePoints && t.runes[i] == '\n') || (t.unit != input.CodePoints && t.bytes[i] == '\n') {
+			line, start = line+1, i+1
+		}
+	}
+	return line, pos - start + 1
+}
+
 // slice returns the matched text of [start, end): in code points the characters, with U+FFFD for
 // an invalid byte, and in bytes the input bytes.
 func (t *text) slice(start, end int) string {

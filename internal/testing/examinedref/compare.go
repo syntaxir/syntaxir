@@ -60,18 +60,24 @@ type outcomeOf struct {
 // rule at the same position with the same binding level that returned the same match, end and
 // examined end. A key may have several reference outcomes: the steps of a growth of left recursion,
 // and calls made with different variable values or token insertions on their paths. Every skipped call
-// must be one that the reference evaluates and that fails there. A parser may make fewer calls than
+// must be one that the reference evaluates and that fails there: a skip stands for evaluating the
+// rule, so a failure that only reads the seed of a growth in progress (Exit.Growing) does not
+// justify it. A parser may make fewer calls than
 // the reference, as one that reuses memo entries, resumes the repetitions of a Document or skips calls
 // by their first character does, but none that the reference does not make. It returns one line per
 // difference.
 func CompareCalls(ref []Exit, observed []Observed) []string {
 	outs := map[callKey]map[outcomeOf]bool{}
+	evaluatedFails := map[callKey]bool{}
 	for _, x := range ref {
 		k := callKey{x.Rule, x.Level, x.Pos}
 		if outs[k] == nil {
 			outs[k] = map[outcomeOf]bool{}
 		}
 		outs[k][outcomeOf{x.Matched, x.End, x.Examined}] = true
+		if !x.Matched && !x.Growing {
+			evaluatedFails[k] = true
+		}
 	}
 	var diffs []string
 	for _, o := range observed {
@@ -81,12 +87,8 @@ func CompareCalls(ref []Exit, observed []Observed) []string {
 		case !ok:
 			diffs = append(diffs, fmt.Sprintf("%s: a call the reference does not make", describe(o)))
 		case o.Skipped:
-			failing := false
-			for w := range want {
-				failing = failing || !w.matched
-			}
-			if !failing {
-				diffs = append(diffs, fmt.Sprintf("%s: skipped, but the reference matches: %s", describe(o), outcomes(want)))
+			if !evaluatedFails[k] {
+				diffs = append(diffs, fmt.Sprintf("%s: skipped, but no evaluation of the reference fails: %s", describe(o), outcomes(want)))
 			}
 		case !want[outcomeOf{o.Matched, o.End, o.Examined}]:
 			diffs = append(diffs, fmt.Sprintf("%s: reference %s", describe(o), outcomes(want)))
@@ -116,19 +118,77 @@ func CompareStart(res Result, start string, observed []Observed) []string {
 	return []string{fmt.Sprintf("start call: no exit of %s reported", start)}
 }
 
-// CompareParse checks the calls of one observed parse against the reference's evaluation of its input
-// (CompareCalls) and, unless the parse aborted, the start call (CompareStart). A parse aborts on an
-// error that is not a syntax error; the parse of an input without limits aborts only on a runtime
-// error of a Value Action, so the reference must report that one of its actions fails.
-func CompareParse(res Result, exits []Exit, start string, observed []Observed, aborted bool) []string {
-	diffs := CompareCalls(exits, observed)
-	switch {
-	case !aborted:
-		diffs = append(diffs, CompareStart(res, start, observed)...)
-	case !res.ActionFailed:
-		diffs = append(diffs, "the parse aborted, but no Value Action of the reference fails")
+// Actions tells which Value Actions a parse runs: every action, as a parse that builds values does, or
+// only those whose values predicates read, as recognition does (spec/glossary.md, recognition).
+type Actions bool
+
+const (
+	// EveryAction is a parse that runs every Value Action whose rule's body matches.
+	EveryAction Actions = true
+	// ReadActions is a parse that runs only the Value Actions whose values predicates read.
+	ReadActions Actions = false
+)
+
+// CompareParse checks one observed parse against the reference's evaluation of its input. A parse
+// that completes is checked by CompareCalls and CompareStart. A parse aborts on an error that is not a
+// syntax error, which in a parse without limits is the runtime error of a Value Action, and it aborts
+// at the first such error it meets. A parse that runs every action meets the reference's first error
+// (Result.ActionErrors) and must abort there; one that runs only the actions predicates read may
+// abort at any of them, and need not abort. A parse that aborts at an error must have reported only
+// exits that the reference reports before it (CompareCalls over that prefix) and, as its last call,
+// the reference's last call before it: the call that matched or failed just before the action ran.
+// It returns one line per difference.
+func CompareParse(res Result, exits []Exit, start string, observed []Observed, aborted bool, actions Actions) []string {
+	if !aborted {
+		diffs := append(CompareCalls(exits, observed), CompareStart(res, start, observed)...)
+		if actions == EveryAction && res.ActionFailed() {
+			diffs = append(diffs, fmt.Sprintf("the parse completed, but a Value Action of the reference fails after %d exits", res.ActionErrors[0]))
+		}
+		return diffs
 	}
-	return diffs
+	if !res.ActionFailed() {
+		return []string{"the parse aborted, but no Value Action of the reference fails"}
+	}
+	points := res.ActionErrors
+	if actions == EveryAction {
+		points = points[:1]
+	}
+	var first []string
+	for i, k := range points {
+		diffs := append(CompareCalls(exits[:k], observed), lastCall(exits[:k], observed)...)
+		if len(diffs) == 0 {
+			return nil
+		}
+		if i == 0 {
+			first = diffs
+		}
+	}
+	return first
+}
+
+// lastCall checks that the last call a parse reported before it aborted is the last exit of the
+// reference before the failing action: the same call and, unless the parse skipped it, the same
+// outcome.
+func lastCall(exits []Exit, observed []Observed) []string {
+	if len(exits) == 0 {
+		if len(observed) > 0 {
+			return []string{fmt.Sprintf("aborted after %s, but the reference's action fails before any exit", describe(observed[len(observed)-1]))}
+		}
+		return nil
+	}
+	want := exits[len(exits)-1]
+	if len(observed) == 0 {
+		return []string{fmt.Sprintf("aborted before any call, but the reference's action fails after %s", describe(Observed{Exit: want}))}
+	}
+	o := observed[len(observed)-1]
+	same := o.Rule == want.Rule && o.Level == want.Level && o.Pos == want.Pos
+	if same && !o.Skipped {
+		same = o.Matched == want.Matched && o.End == want.End && o.Examined == want.Examined
+	}
+	if !same {
+		return []string{fmt.Sprintf("aborted after %s, but the reference's action fails after %s", describe(o), describe(Observed{Exit: want}))}
+	}
+	return nil
 }
 
 func describe(o Observed) string {

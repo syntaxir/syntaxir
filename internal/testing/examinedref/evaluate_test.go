@@ -1,6 +1,7 @@
 package examinedref_test
 
 import (
+	"reflect"
 	"slices"
 	"testing"
 
@@ -313,7 +314,7 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			if err != nil {
 				t.Fatalf("evaluate: %v", err)
 			}
-			if got != tt.want {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Fatalf("got %+v, want %+v", got, tt.want)
 			}
 			for _, x := range tt.exits {
@@ -362,7 +363,11 @@ func TestReferenceActionValues(t *testing.T) {
 		{"a lambda reads a capture of a repetition element", "rule main = rs:(r:[a-z] \";\")* { map($rs, (e) => e.$r)[1].Start == 2 } $$", "a;b;",
 			examinedref.Result{Matched: true, End: 4, Examined: 5}},
 		{"a runtime error of an action fails the parse", "var z int\nrule main = n \"a\"\nrule n int = [0-9] => 1 / z", "1a",
-			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionFailed: true}},
+			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionErrors: []int{0}}},
+		{"an action fails on an abandoned path", "var z int\nrule main = n \"b\" / [0-9] \"a\"\nrule n int = [0-9] => 1 / z", "1a",
+			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionErrors: []int{0}}},
+		{"an action fails inside a lookahead", "var z int\nrule main = &n [0-9] \"a\"\nrule n int = [0-9] => 1 / z", "1a",
+			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionErrors: []int{0}}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -374,9 +379,42 @@ func TestReferenceActionValues(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got != tc.want {
+			if !reflect.DeepEqual(got, tc.want) {
 				t.Fatalf("got %+v, want %+v", got, tc.want)
 			}
 		})
+	}
+}
+
+// TestReferenceMarksGrowthReads checks that the exits of calls that read a growth in progress are
+// marked, so that a skipped call is not justified by the failing seed of a leader.
+func TestReferenceMarksGrowthReads(t *testing.T) {
+	g, err := enginetest.ParseGrammar("rule main = e $$\nrule e = e \"+\" n / n\nrule n = [0-9]")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, exits, err := examinedref.Evaluate(g, "main", "1+2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var reads, failedReads int
+	var last examinedref.Exit
+	for _, x := range exits {
+		if x.Growing {
+			if x.Rule != "e" || x.Pos != 0 {
+				t.Fatalf("a read of a growth by %+v", x)
+			}
+			reads++
+			if !x.Matched {
+				failedReads++
+			}
+		}
+		if x.Rule == "e" && x.Pos == 0 {
+			last = x
+		}
+	}
+	// Three steps read the seed, "1" and "1+2"; the last does not grow.
+	if reads != 3 || failedReads != 1 || last.Growing || !last.Matched || last.End != 3 {
+		t.Fatalf("%d reads, %d failing, last exit of e %+v; exits %+v", reads, failedReads, last, exits)
 	}
 }

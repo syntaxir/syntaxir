@@ -13,10 +13,9 @@
 // It evaluates the whole language: terminals in both position units (input.go), anchors, sequences,
 // choices, repetitions, options, lookaheads, cuts, #recover, #missing with and without token
 // insertion, #ignorecase, attributes, inline actions as hidden rules, Operators Rules and calls with
-// a binding level (operators.go), and predicates and variables over the values that matching
-// determines (values.go). The value of a user action is not computed: a predicate that reads one makes
-// Evaluate return an *UnsupportedError naming the rule, and the grammar is outside the oracle for that
-// input.
+// a binding level (operators.go), predicates and variables, and the action language (values.go):
+// the Value Actions whose values predicates read are evaluated by actions.md and types.md, and a
+// runtime error of one aborts the parse (Result.ActionFailed).
 package examinedref
 
 import (
@@ -34,6 +33,9 @@ type Exit struct {
 	Pos, End int
 	Examined int
 	Matched  bool
+	// Growing reports a call that read the current result of a growth of left recursion in progress
+	// at its position, rather than evaluating the rule: the seed or a step of the growth.
+	Growing bool
 }
 
 // Result is the outcome of the start call.
@@ -41,24 +43,30 @@ type Result struct {
 	Matched  bool
 	End      int
 	Examined int
-	// ActionFailed reports that a Value Action of the evaluation raised a runtime error, which makes a
-	// parse that runs that action fail (spec/language/actions.md, Types and Errors). The reference
-	// goes on with nil for the action's value and reports every exit, so a producer that aborts the
-	// parse reports a prefix of what the reference reports.
-	ActionFailed bool
+	// ActionErrors are the runtime errors of Value Actions in the order the evaluation raised them,
+	// each given by the number of exits reported before it. An action runs every time its rule's
+	// body matches, also on a path that is abandoned later and inside a lookahead, and its runtime
+	// error aborts the parse (spec/runtime/parsing.md, Evaluation; spec/language/actions.md, Types
+	// and Errors). The reference goes on with nil for the action's value, so the exits before an
+	// error are those of a parse that aborts there.
+	ActionErrors []int
 }
+
+// ActionFailed reports that a Value Action of the evaluation raised a runtime error.
+func (r Result) ActionFailed() bool { return len(r.ActionErrors) > 0 }
 
 // Options select the parse that the reference evaluates.
 type Options struct {
 	// Unit is the position unit of the positions and of the examined ends.
 	Unit input.PositionUnit
 	// MissingTokens enables token insertion by #missing literals (a positive WithMissingTokens); the
-	// reference does not limit the insertions, so the limit of the parse must not be reached.
+	// reference does not limit the insertions, so the limit of the parse must not be reached. The
+	// parse is one that records no expectations, which fixes the message of an insertion.
 	MissingTokens bool
 }
 
-// UnsupportedError reports what the reference does not evaluate: the value of a user action read by
-// a predicate.
+// UnsupportedError reports a construct that the reference does not evaluate. The oracle fails on it:
+// no grammar is left out.
 type UnsupportedError struct {
 	Construct string
 }
@@ -98,9 +106,10 @@ func EvaluateWith(g *ast.Grammar, start, in string, o Options) (Result, []Exit, 
 		nodeTypes:    map[string]bool{},
 		structFields: map[string]map[string]ast.TypeExpr{},
 		aliases:      map[string]ast.TypeExpr{},
-		valuedMemo:   map[ast.Expr]int8{},
+		valuedMemo:   map[ast.Expr]bool{},
 		bottomRules:  bottomRules(rs),
 	}
+	ev.valuedRules = valuedRules(rs, ev.bottomRules)
 	for _, d := range g.Types() {
 		switch td := d.(type) {
 		case *ast.TypeDef:
@@ -133,7 +142,7 @@ func EvaluateWith(g *ast.Grammar, start, in string, o Options) (Result, []Exit, 
 	if ev.err != nil {
 		return Result{}, nil, ev.err
 	}
-	return Result{Matched: r.matched, End: r.end, Examined: r.h, ActionFailed: ev.actionFailed}, ev.exits, nil
+	return Result{Matched: r.matched, End: r.end, Examined: r.h, ActionErrors: ev.actionErrors}, ev.exits, nil
 }
 
 // initialValue is the value a variable starts with (spec/language/predicates.md, Variables): its
@@ -232,8 +241,9 @@ type evaluator struct {
 	// aliases name.
 	structFields map[string]map[string]ast.TypeExpr
 	aliases      map[string]ast.TypeExpr
-	actionFailed bool
-	valuedMemo   map[ast.Expr]int8
+	actionErrors []int
+	valuedMemo   map[ast.Expr]bool
+	valuedRules  map[string]bool
 	bottomRules  map[string]bool
 	steps        int
 	err          error
@@ -283,7 +293,9 @@ func (ev *evaluator) call(name string, level int, caller state) outcome {
 				}
 			}
 		}
-		return ev.exit(name, level, caller, o)
+		o = ev.exit(name, level, caller, o)
+		ev.exits[len(ev.exits)-1].Growing = true
+		return o
 	}
 	g := &growth{end: pos, examined: pos}
 	ev.growths[key] = g
@@ -803,7 +815,12 @@ func (ev *evaluator) attributed(e *ast.Attributed, n int, st state) outcome {
 		}
 		r := matchedAt(st, st.pos, o.h)
 		if ev.valued(e.Expr) || ev.bottom(e.Expr) {
-			r.vals = []value{&node{kind: missingNode, start: st.pos, end: st.pos, expected: missingText(e.Expr)}}
+			// The message of the insertion's error, as Node.Text gives it (pragmas.md, #missing): a parse
+			// that inserts tokens records no expectations here, so it is the position and "syntax error",
+			// with or without an enclosing @error (parsing.md, Syntax Errors).
+			line, col := ev.in.lineCol(st.pos)
+			r.vals = []value{&node{kind: missingNode, start: st.pos, end: st.pos, expected: missingText(e.Expr),
+				message: fmt.Sprintf("%d:%d: syntax error", line, col)}}
 		}
 		r.path = &inserted{site: e, pos: st.pos, next: st.path}
 		return r

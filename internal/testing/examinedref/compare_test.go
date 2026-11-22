@@ -12,7 +12,7 @@ import (
 func TestCompareCalls(t *testing.T) {
 	ref := []examinedref.Exit{
 		{Rule: "n", Pos: 0, End: 1, Examined: 2, Matched: true},
-		{Rule: "e", Pos: 0, End: 0, Examined: 0},
+		{Rule: "e", Pos: 0, End: 0, Examined: 0, Growing: true},
 		{Rule: "e", Pos: 0, End: 1, Examined: 2, Matched: true},
 		{Rule: "e", Level: 1, Pos: 2, End: 2, Examined: 3},
 		{Rule: "main", Pos: 0, End: 1, Examined: 2, Matched: true},
@@ -42,6 +42,8 @@ func TestCompareCalls(t *testing.T) {
 			call(examinedref.Exit{Rule: "n", Pos: 1, End: 1, Examined: 2}, 3), call(ref[4], 1)}},
 		{name: "a skipped call that fails", calls: []examinedref.Observed{
 			{Exit: examinedref.Exit{Rule: "e", Level: 1, Pos: 2, End: 2}, Depth: 2, Skipped: true}, call(ref[4], 1)}},
+		{name: "a skipped leader call whose evaluation matches and whose seed fails", diffs: 1, calls: []examinedref.Observed{
+			{Exit: examinedref.Exit{Rule: "e", Pos: 0, End: 0}, Depth: 2, Skipped: true}, call(ref[4], 1)}},
 		{name: "a skipped call that matches", diffs: 1, calls: []examinedref.Observed{
 			{Exit: examinedref.Exit{Rule: "n", Pos: 0, End: 0}, Depth: 2, Skipped: true}, call(ref[4], 1)}},
 		// A start call with a wrong examined end differs as a call and as the start call.
@@ -79,27 +81,58 @@ func TestRecorder(t *testing.T) {
 	}
 }
 
-// TestCompareParse checks the comparison of a whole parse: the start call unless the parse aborted,
-// and an abort only where an action of the reference fails.
+// TestCompareParse checks the comparison of a whole parse: the start call of a parse that completes,
+// and the abort of one that aborts, which must happen where an action of the reference fails, after
+// the reference's exits before that action and no others.
 func TestCompareParse(t *testing.T) {
-	exits := []examinedref.Exit{{Rule: "n", End: 1, Examined: 1, Matched: true}}
-	prefix := []examinedref.Observed{{Exit: exits[0], Depth: 2}}
-	ok := examinedref.Result{Matched: true, End: 1, Examined: 1}
-	failing := examinedref.Result{Matched: true, End: 1, Examined: 1, ActionFailed: true}
+	a := examinedref.Exit{Rule: "a", End: 1, Examined: 1, Matched: true}
+	b := examinedref.Exit{Rule: "b", Pos: 1, End: 1, Examined: 2}
+	c := examinedref.Exit{Rule: "c", Pos: 1, End: 2, Examined: 2, Matched: true}
+	start := examinedref.Exit{Rule: "main", End: 2, Examined: 2, Matched: true}
+	exits := []examinedref.Exit{a, b, c, start}
+	obs := func(xs ...examinedref.Exit) []examinedref.Observed {
+		var out []examinedref.Observed
+		for _, x := range xs {
+			depth := 2
+			if x.Rule == "main" {
+				depth = 1
+			}
+			out = append(out, examinedref.Observed{Exit: x, Depth: depth})
+		}
+		return out
+	}
+	skippedB := append(obs(a), examinedref.Observed{Exit: examinedref.Exit{Rule: "b", Pos: 1, End: 1}, Depth: 2, Skipped: true})
+	res := func(errs ...int) examinedref.Result {
+		return examinedref.Result{Matched: true, End: 2, Examined: 2, ActionErrors: errs}
+	}
 	tests := []struct {
-		name    string
-		res     examinedref.Result
-		aborted bool
-		diffs   int
+		name     string
+		res      examinedref.Result
+		observed []examinedref.Observed
+		aborted  bool
+		actions  examinedref.Actions
+		differs  bool
 	}{
-		{"a parse that ends without its start call differs", ok, false, 1},
-		{"an abort where an action of the reference fails is a prefix", failing, true, 0},
-		{"an abort where no action of the reference fails differs", ok, true, 1},
+		{"a parse that completes as the reference does agrees", res(), obs(a, b, c, start), false, examinedref.EveryAction, false},
+		{"a parse that ends without its start call differs", res(), obs(a, b, c), false, examinedref.EveryAction, true},
+		{"an abort after the exits before the failing action agrees", res(2), obs(a, b), true, examinedref.EveryAction, false},
+		{"an abort after a skip of the last call before the failing action agrees", res(2), skippedB, true, examinedref.EveryAction, false},
+		{"an abort before the failing action differs", res(2), obs(a), true, examinedref.EveryAction, true},
+		{"an abort after the failing action differs", res(2), obs(a, b, c), true, examinedref.EveryAction, true},
+		{"an abort after a call the reference makes only after the failing action differs", res(2), obs(c, b), true, examinedref.EveryAction, true},
+		{"an abort where no action of the reference fails differs", res(), obs(a, b), true, examinedref.EveryAction, true},
+		{"an abort before any call agrees with an action that fails first", res(0), nil, true, examinedref.EveryAction, false},
+		{"an abort after a call differs from an action that fails first", res(0), obs(a), true, examinedref.EveryAction, true},
+		{"a parse that runs every action must abort at the first failure", res(1, 3), obs(a, b, c), true, examinedref.EveryAction, true},
+		{"a parse that runs every action must not complete when one fails", res(2), obs(a, b, c, start), false, examinedref.EveryAction, true},
+		{"a recognizer may abort at a later failure", res(1, 3), obs(a, b, c), true, examinedref.ReadActions, false},
+		{"a recognizer may complete when an action fails", res(2), obs(a, b, c, start), false, examinedref.ReadActions, false},
+		{"a recognizer must abort at a failure", res(1, 3), obs(a, b), true, examinedref.ReadActions, true},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if d := examinedref.CompareParse(tc.res, exits, "main", prefix, tc.aborted); len(d) != tc.diffs {
-				t.Fatalf("differences %q, want %d", d, tc.diffs)
+			if d := examinedref.CompareParse(tc.res, exits, "main", tc.observed, tc.aborted, tc.actions); (len(d) > 0) != tc.differs {
+				t.Fatalf("differences %q, want some: %v", d, tc.differs)
 			}
 		})
 	}

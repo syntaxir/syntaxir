@@ -7,61 +7,84 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 // #atomic, repetitions and captures have one; a sequence has one when an element has; a choice when
 // an alternative that can match has; an optional or a recovery when its operand has one or has the
 // type _|_; a call when the rule makes a node or, for a hidden rule without an action, when its body
-// has one. Anchors, the cut, discards, top, bottom, lookaheads and predicates have none.
+// has one (valuedRules). Anchors, the cut, discards, top, bottom, lookaheads and predicates have none.
 func (ev *evaluator) valued(e ast.Expr) bool {
 	if v, ok := ev.valuedMemo[e]; ok {
-		return v > 0
+		return v
 	}
-	ev.valuedMemo[e] = 0 // a hidden rule that reaches itself before an element has no value through it
-	v := ev.valuedExpr(e)
-	if v {
-		ev.valuedMemo[e] = 1
-	}
+	v := valuedIn(e, ev.rules, ev.valuedRules, ev.bottomRules)
+	ev.valuedMemo[e] = v
 	return v
 }
 
-func (ev *evaluator) valuedExpr(e ast.Expr) bool {
+// valuedIn reports whether e has a value when the hidden rules without an action that have one are
+// those of the set valuedRules.
+func valuedIn(e ast.Expr, rules map[string]*rule, valuedRules, bottomRules map[string]bool) bool {
+	valued := func(e ast.Expr) bool { return valuedIn(e, rules, valuedRules, bottomRules) }
+	bottom := func(e ast.Expr) bool { return bottomIn(e, bottomRules) }
 	switch e := e.(type) {
 	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Atomic, *ast.Repeat, *ast.Capture:
 		return true
 	case *ast.Group:
-		return ev.valued(e.Expr)
+		return valued(e.Expr)
 	case *ast.Stream:
-		return ev.valued(e.Expr)
+		return valued(e.Expr)
 	case *ast.Seq:
 		for _, it := range e.Items {
-			if ev.valued(it) {
+			if valued(it) {
 				return true
 			}
 		}
 		return false
 	case *ast.Choice:
 		for _, alt := range e.Alts {
-			if !ev.bottom(alt) && ev.valued(alt) {
+			if !bottom(alt) && valued(alt) {
 				return true
 			}
 		}
 		return false
 	case *ast.Optional:
-		return ev.valued(e.Expr) || ev.bottom(e.Expr)
+		return valued(e.Expr) || bottom(e.Expr)
 	case *ast.Recovery:
-		return ev.valued(e.Expr) || ev.bottom(e.Expr)
+		return valued(e.Expr) || bottom(e.Expr)
 	case *ast.Attributed:
 		if missingOf(e) {
-			return ev.valued(e.Expr) || ev.bottom(e.Expr)
+			return valued(e.Expr) || bottom(e.Expr)
 		}
-		return ev.valued(e.Expr)
+		return valued(e.Expr)
 	case *ast.Ref:
-		r := ev.rules[e.Name]
+		r := rules[e.Name]
 		if r == nil {
 			return false
 		}
 		if r.ownNode || r.ops != nil {
 			return true
 		}
-		return ev.valued(r.body)
+		return valuedRules[e.Name]
 	}
 	return false
+}
+
+// valuedRules returns the hidden rules without an action whose bodies have a value: the least set of
+// such rules whose bodies have a value when the calls of the rules of the set do, so that a rule
+// that reaches itself before any element, as _r = _r, has none, and a call of a rule that has one
+// through another, as _r = "a" _r / "b", has one wherever it is.
+func valuedRules(rs *ruleSet, bottomRules map[string]bool) map[string]bool {
+	set := map[string]bool{}
+	for changed := true; changed; {
+		changed = false
+		for _, name := range rs.order {
+			r := rs.byName[name]
+			if set[name] || r.ownNode || r.ops != nil {
+				continue
+			}
+			if valuedIn(r.body, rs.byName, set, bottomRules) {
+				set[name] = true
+				changed = true
+			}
+		}
+	}
+	return set
 }
 
 // missingOf reports whether the attributes of e include #missing.

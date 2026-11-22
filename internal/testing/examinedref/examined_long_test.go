@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -47,10 +48,74 @@ type observedParse struct {
 	missing bool
 }
 
-// route is a way to run an observed parse; it returns no parse when the grammar does not support it.
+// route is a way to run an observed parse. refusal is the start of the error with which the route
+// refuses a grammar, given what the grammar uses, before any call, or "" when it runs the grammar;
+// actions tells which Value Actions it runs.
 type route struct {
-	name string
-	run  func(p *engine.Parser, in string, u input.PositionUnit) []observedParse
+	name    string
+	run     func(p *engine.Parser, in string, u input.PositionUnit) []observedParse
+	refusal func(uses grammarUses) string
+	actions examinedref.Actions
+}
+
+// grammarUses is what decides whether a route refuses a grammar: #missing anywhere in it, which only
+// the closure backend's whole-input parsing and recognition support (spec/language/pragmas.md,
+// #missing), and #stream in the start rule, which a stream parse needs (spec/runtime/streaming.md).
+type grammarUses struct {
+	missing, stream bool
+}
+
+// usesOf finds the attributes of g that decide refusals.
+func usesOf(g *ast.Grammar) grammarUses {
+	var u grammarUses
+	for _, d := range g.Rules() {
+		for _, name := range attributeNames(reflect.ValueOf(d.Expr)) {
+			u.missing = u.missing || name == "missing"
+			u.stream = u.stream || name == "stream" && d.Name == "main"
+		}
+	}
+	return u
+}
+
+// attributeNames lists the names of the attributes in the expression tree v, with "stream" for a
+// #stream repetition.
+func attributeNames(v reflect.Value) []string {
+	switch v.Kind() {
+	case reflect.Pointer, reflect.Interface:
+		if v.IsNil() {
+			return nil
+		}
+		switch x := v.Interface().(type) {
+		case *ast.Attribute:
+			return []string{x.Name}
+		case *ast.Stream:
+			return append([]string{"stream"}, attributeNames(v.Elem())...)
+		}
+		return attributeNames(v.Elem())
+	case reflect.Struct:
+		var out []string
+		for i := range v.NumField() {
+			if v.Type().Field(i).IsExported() {
+				out = append(out, attributeNames(v.Field(i))...)
+			}
+		}
+		return out
+	case reflect.Slice:
+		var out []string
+		for i := range v.Len() {
+			out = append(out, attributeNames(v.Index(i))...)
+		}
+		return out
+	}
+	return nil
+}
+
+// refusesMissing is the refusal of a route that does not support #missing.
+func refusesMissing(uses grammarUses) string {
+	if uses.missing {
+		return "missing-token recovery is not supported for "
+	}
+	return ""
 }
 
 // missingLimit is far above the insertions of the inputs, so that no parse reaches it.
@@ -61,10 +126,6 @@ func traced(rec *examinedref.Recorder, u input.PositionUnit) []engine.ParseOptio
 }
 
 func once(text string, rec *examinedref.Recorder, err error, missing bool) []observedParse {
-	if len(rec.Calls) == 0 {
-		// The route refused the grammar before any call.
-		return nil
-	}
 	return []observedParse{{text: text, calls: append([]examinedref.Observed(nil), rec.Calls...), err: err, missing: missing}}
 }
 
@@ -75,32 +136,46 @@ func routes() []route {
 	var out []route
 	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		name := b.String()
+		// The bytecode backends have no form of #missing; the closure backend parses and recognizes
+		// grammars that use it.
+		wholeInput := refusesMissing
+		if b == engine.Closure {
+			wholeInput = func(grammarUses) string { return "" }
+		}
 		out = append(out,
 			route{name + "/parse", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				_, err := p.OnBackend(b).Parse(in, append(traced(&rec, u), engine.WithExpectations())...)
 				return once(in, &rec, err, false)
-			}},
+			}, wholeInput, examinedref.EveryAction},
 			route{name + "/recognize", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).Recognize(in, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}},
+			}, wholeInput, examinedref.ReadActions},
 			route{name + "/stream", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}},
+			}, func(uses grammarUses) string {
+				if r := refusesMissing(uses); r != "" {
+					return r
+				}
+				if !uses.stream {
+					return "rule main has no #stream repetition"
+				}
+				return ""
+			}, examinedref.EveryAction},
 			route{name + "/document", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return documentParses(p.OnBackend(b), in, u)
-			}},
+			}, refusesMissing, examinedref.EveryAction},
 		)
 	}
 	out = append(out, route{"closure/insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 		var rec examinedref.Recorder
 		_, err := p.OnBackend(engine.Closure).Parse(in, append(traced(&rec, u), engine.WithMissingTokens(missingLimit))...)
 		return once(in, &rec, err, true)
-	}})
+	}, func(grammarUses) string { return "" }, examinedref.EveryAction})
 	return out
 }
 
@@ -130,16 +205,15 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	}
 	d, err := p.NewDocument(text, engine.WithUnit(u), engine.WithExpectations())
 	if err != nil {
-		documentErrors.Store(err.Error(), true)
-		return nil
+		// A refusal: a Document makes no calls before its first parse.
+		return []observedParse{{text: text, err: err}}
 	}
 	var out []observedParse
 	parse := func(text string) bool {
 		var rec examinedref.Recorder
 		_, err := d.Parse(engine.WithTrace(rec.Trace))
-		got := once(text, &rec, err, false)
-		out = append(out, got...)
-		return len(got) > 0
+		out = append(out, once(text, &rec, err, false)...)
+		return !aborted(err)
 	}
 	if !parse(text) {
 		return nil
@@ -157,9 +231,6 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	}
 	return out
 }
-
-// documentErrors are the distinct errors of NewDocument, which the test logs.
-var documentErrors sync.Map
 
 // referenceRuns caches the reference's evaluations of one grammar.
 type referenceRuns struct {
@@ -239,15 +310,24 @@ func TestExaminedOracle(t *testing.T) {
 					t.Fatalf("compile: %v", err)
 				}
 				refs := &referenceRuns{g: g, runs: map[examinedref.Options]map[string]referenceRun{}}
+				uses := usesOf(g)
 				for _, in := range c.inputs {
 					for _, u := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 						for _, r := range routes() {
+							refusal := r.refusal(uses)
 							for _, op := range r.run(p, in, u) {
+								if refusal != "" {
+									// The route must refuse the grammar, before any call, and with its error.
+									if len(op.calls) > 0 || op.err == nil || !strings.HasPrefix(op.err.Error(), refusal) {
+										t.Errorf("%s %v %q: want a refusal %q, got %d calls and error %v", r.name, u, op.text, refusal, len(op.calls), op.err)
+									}
+									continue
+								}
 								ref := refs.get(op.text, examinedref.Options{Unit: u, MissingTokens: op.missing})
 								if ref.err != nil {
 									t.Fatalf("%q: reference: %v", op.text, ref.err)
 								}
-								diffs := examinedref.CompareParse(ref.res, ref.exits, "main", op.calls, aborted(op.err))
+								diffs := examinedref.CompareParse(ref.res, ref.exits, "main", op.calls, aborted(op.err), r.actions)
 								if len(diffs) > 0 && aborted(op.err) {
 									diffs = append(diffs, fmt.Sprintf("aborted by %v", op.err))
 								}
@@ -268,7 +348,6 @@ func TestExaminedOracle(t *testing.T) {
 			})
 		}
 	})
-	documentErrors.Range(func(k, _ any) bool { t.Logf("NewDocument: %v", k); return true })
 	t.Logf("parses compared by route: %v", compared)
 	for _, r := range routes() {
 		if compared[r.name] == 0 {
