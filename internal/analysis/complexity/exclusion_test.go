@@ -179,7 +179,17 @@ func TestTriviaCheap(t *testing.T) {
 			t.Fatal(err)
 		}
 		k.classify()
-		if got := newExcl(k, true, 3).cheap(&ast.Ref{Name: "ws2"}); got != on {
+		// cheap reads the occurrence of the call, so take the call in main.
+		var call *ast.Ref
+		astfacts.WalkExpr(k.byName["main"].Expr, func(e ast.Expr) {
+			if r, ok := e.(*ast.Ref); ok && r.Name == "ws2" {
+				call = r
+			}
+		})
+		if call == nil {
+			t.Fatal("no call of ws2 in main")
+		}
+		if got := newExcl(k, true, 3).cheap(call); got != on {
 			t.Errorf("memo %v: cheap %v", on, got)
 		}
 	}

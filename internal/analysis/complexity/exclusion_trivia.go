@@ -165,7 +165,7 @@ func (x excl) triviaCall(s sym) bool {
 // scan an unterminated comment again before it fails.
 func (x excl) triviaSettles(s sym) bool {
 	for _, part := range x.k.triviaParts(x.k.ruleBody(s.e.(*ast.Ref).Name)) {
-		if x.k.containsSource(x.k.exprOf(part)) {
+		if x.k.containsSource(part) {
 			return false
 		}
 	}

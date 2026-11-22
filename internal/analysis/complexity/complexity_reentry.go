@@ -183,7 +183,7 @@ func (k *classifier) visitFixed(e ast.Expr, cycle int, leaders bool, ok *bool) b
 		*ast.Top, *ast.BeginInput, *ast.BeginLine, *ast.EndInput:
 		return false
 	}
-	if k.containsSource(e) {
+	if k.containsSource(k.nodeOf(e)) {
 		*ok = false
 	}
 	return false
@@ -209,7 +209,7 @@ func (k *classifier) restBounded(paths []*cont) bool {
 				if _, ok := it.(*ast.EndInput); ok {
 					return true
 				}
-				if r, ok := it.(*ast.Ref); ok && r.Level == rhsLevel || k.containsSource(it) {
+				if r, ok := it.(*ast.Ref); ok && r.Level == rhsLevel || k.containsSource(k.nodeOf(it)) {
 					return false
 				}
 			}

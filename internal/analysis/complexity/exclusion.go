@@ -223,12 +223,12 @@ func (x excl) spend(n int) bool {
 func (x excl) cheap(e ast.Expr) bool {
 	r, ok := e.(*ast.Ref)
 	if !ok {
-		return !x.k.containsSource(e)
+		return !x.k.containsSource(x.k.nodeOf(e))
 	}
-	if x.up && !x.k.memoAt(r) && x.k.containsSource(r) && !x.k.scanOnly(r.Name) {
+	if x.up && !x.k.memoAt(r) && x.k.containsSource(x.k.nodeOf(r)) && !x.k.scanOnly(r.Name) {
 		return false
 	}
-	if x.k.shareable(r) || !x.k.containsSource(r) {
+	if x.k.shareable(r) || !x.k.containsSource(x.k.nodeOf(r)) {
 		return true
 	}
 	reads := len(x.k.vars[r.Name]) > 0
@@ -273,7 +273,7 @@ func (x excl) freshAll(e ast.Expr) bool {
 		if x.k.srcExprs[y] {
 			ok = false
 		}
-		if r, isRef := y.(*ast.Ref); isRef && !x.k.memoAt(r) && x.k.containsSource(r) {
+		if r, isRef := y.(*ast.Ref); isRef && !x.k.memoAt(r) && x.k.containsSource(x.k.nodeOf(r)) {
 			ok = false
 		}
 	})
@@ -897,7 +897,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			// it decides, so in strict mode it must reach no scanning source: the continuation
 			// does not evaluate its calls at the positions where the unit did, and the memo does
 			// not bound what they examine.
-			if x.strict && pnotSourceOn && x.k.containsSource(a.e) {
+			if x.strict && pnotSourceOn && x.k.containsSource(x.k.nodeOf(a.e)) {
 				return x.no("pnot-source", a, nil)
 			}
 			if x.implies(s.q[s.j:], a.e) {
@@ -912,7 +912,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.e, s.q[s.j].e) && (!x.strict || !andFreshOn || x.freshAll(s.q[s.j].e)) {
 				return decisive(a, a.item, s.steps+1)
 			}
-			if x.strict && pandSourceOn && x.k.containsSource(a.e) {
+			if x.strict && pandSourceOn && x.k.containsSource(x.k.nodeOf(a.e)) {
 				return x.no("pand-source", a, nil)
 			}
 			s.i++
@@ -1318,7 +1318,7 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 			}
 		}
 		if y.sameSym(a, b) {
-			if y.strict && !y.cheap(a) || y.sourceless && x.k.containsSource(a) {
+			if y.strict && !y.cheap(a) || y.sourceless && x.k.containsSource(x.k.nodeOf(a)) {
 				return 0, false
 			}
 			j, m = j+1, m+1

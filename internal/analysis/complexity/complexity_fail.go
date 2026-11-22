@@ -1,9 +1,6 @@
 package complexity
 
-import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
-)
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // A unit restarts the input that a scanning source inside it examined only when it fails after
 // the source has run. A unit whose sources are followed by nothing that can fail, such as the
@@ -11,25 +8,26 @@ import (
 // evaluates next then examines no more than the unit examined outside its sources, which the other
 // conditions bound.
 
-// containsSource reports whether e contains a scanning source, in itself or in a rule it calls.
-func (k *classifier) containsSource(e ast.Expr) bool {
-	if v, ok := k.srcMemo[e]; ok {
+// containsSource reports whether n contains a scanning source, in itself or in a rule it calls.
+func (k *classifier) containsSource(n core.Node) bool {
+	key := k.exprOf(n)
+	if v, ok := k.srcMemo[key]; ok {
 		return v
 	}
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
+	walkNodes(n, func(x core.Node) {
 		if found {
 			return
 		}
-		if k.srcExprs[x] {
+		if k.srcExprs[k.exprOf(x)] {
 			found = true
 			return
 		}
-		if r, ok := x.(*ast.Ref); ok && k.ruleSrc[r.Name] != nil {
+		if rule, ok := k.calledRule(x); ok && k.ruleSrc[rule] != nil {
 			found = true
 		}
 	})
-	k.srcMemo[e] = found
+	k.srcMemo[key] = found
 	return found
 }
 
@@ -45,7 +43,7 @@ func (k *classifier) computeFailRules() {
 			if !k.reach[r.Name] || k.failRule[r.Name] {
 				continue
 			}
-			if k.failsAfterSource(r.Expr) {
+			if k.failsAfterSource(k.ruleBody(r.Name)) {
 				k.failRule[r.Name] = true
 				changed = true
 			}
@@ -53,74 +51,94 @@ func (k *classifier) computeFailRules() {
 	}
 }
 
-// failsAfterSource reports whether e can fail after a scanning source in it examined input.
-func (k *classifier) failsAfterSource(e ast.Expr) bool {
-	switch x := e.(type) {
+// failsAfterSource reports whether n can fail after a scanning source in it examined input.
+func (k *classifier) failsAfterSource(n core.Node) bool {
+	switch x := n.(type) {
 	case nil:
 		return false
-	case *ast.Seq:
+	case *core.Seq:
 		for i, it := range x.Items {
 			if k.failsAfterSource(it) {
 				return true
 			}
 			if k.containsSource(it) {
 				for _, later := range x.Items[i+1:] {
-					if !k.succeeds(later) {
+					if !k.succeedsOf(later) {
 						return true
 					}
 				}
 			}
 		}
 		return false
-	case *ast.Choice:
+	case *core.Choice:
 		for _, alt := range x.Alts {
-			if k.failsAfterSource(alt) {
+			if k.failsAfterSource(alt.Body) {
 				return true
 			}
 		}
 		return false
-	case *ast.Repeat:
+	case *core.Repeat:
 		if x.Min == 0 || x.Max == 0 {
 			return false
 		}
 		// A repetition ends at its first empty iteration, so one with a minimum above one can
 		// fail after an iteration ran a source even when its expression always succeeds.
-		return k.failsAfterSource(x.Expr) || x.Min > 1 && k.containsSource(x.Expr) && !k.succeeds(x)
-	case *ast.Optional:
+		return k.failsAfterSource(x.Body) || x.Min > 1 && k.containsSource(x.Body) && !k.succeedsOf(x)
+	case *core.Opt:
 		return false
-	case *ast.And:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Not:
-		return k.containsSource(x.Expr)
-	case *ast.Group:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Capture:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Discard:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Atomic:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Stream:
-		return k.failsAfterSource(x.Expr)
-	case *ast.InlineAction:
-		return k.failsAfterSource(x.Expr)
-	case *ast.Ref:
-		if k.srcExprs[x] {
-			return true
+	case *core.Look:
+		if x.Neg {
+			return k.containsSource(x.Body)
 		}
-		return k.failRule[x.Name]
-	case *ast.Predicate:
-		return k.srcExprs[x]
-	case *ast.Attributed:
-		if astfacts.RecoverSkip(x) != nil || astfacts.HasPragma(x, "missing") {
+		return k.failsAfterSource(x.Body)
+	case *core.Capture:
+		return k.failsAfterSource(x.Body)
+	case *core.Drop:
+		return k.failsAfterSource(x.Body)
+	case *core.Text:
+		return k.failsAfterSource(x.Body)
+	case *core.Label, *core.Recover, *core.Missing, *core.Stream:
+		// A #recover can fail after its skip examined input, and a #missing after the input it
+		// examined before it inserted its literal: the expression of either fails after a
+		// source it contains. Other attributes fail as their operand does.
+		operand, recovers := attributeOperand(x)
+		if recovers {
 			return k.containsSource(x)
 		}
-		return k.failsAfterSource(x.Expr)
-	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Cut, *ast.Top, *ast.Bottom,
-		*ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+		return k.failsAfterSource(operand)
+	case *core.Call, *core.Nest:
+		if k.srcExprs[k.exprOf(x)] {
+			return true
+		}
+		if rule, ok := k.calledRule(x); ok {
+			return k.failRule[rule]
+		}
+	case *core.Pred, *core.BindNode:
+		return k.srcExprs[k.exprOf(x)]
+	case *core.Lit, *core.ClassNode, *core.Any, *core.Cut, *core.Succeed, *core.FailNode, *core.Anchor:
 		return false
 	}
-	return k.containsSource(e)
+	return k.containsSource(n)
+}
+
+// attributeOperand returns the operand of the attribute nodes from n down, the nodes of
+// @error, @diagnostic, #recover, #missing and #stream that are built one into another, and whether
+// one of them is a #recover or a #missing.
+func attributeOperand(n core.Node) (operand core.Node, recovers bool) {
+	for {
+		switch x := n.(type) {
+		case *core.Label:
+			n = x.Body
+		case *core.Recover:
+			n, recovers = x.Body, true
+		case *core.Missing:
+			n, recovers = x.Body, true
+		case *core.Stream:
+			n = x.Repeat
+		default:
+			return n, recovers
+		}
+	}
 }
 
 // unitFailsAfterSource reports whether the unit can fail after a scanning source inside it
@@ -132,11 +150,11 @@ func (k *classifier) unitFailsAfterSource(u *unit) bool {
 		if u.growing {
 			return true
 		}
-		return k.failsAfterSource(u.expr)
+		return k.failsAfterSource(k.nodeOf(u.expr))
 	case unitIteration:
-		return k.failsAfterSource(u.expr.(*ast.Repeat).Expr)
+		return k.failsAfterSource(k.nodeOf(u.expr).(*core.Repeat).Body)
 	case unitOption:
-		return k.failsAfterSource(u.expr.(*ast.Optional).Expr)
+		return k.failsAfterSource(k.nodeOf(u.expr).(*core.Opt).Body)
 	}
 	return true
 }

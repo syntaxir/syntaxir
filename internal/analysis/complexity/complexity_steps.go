@@ -95,10 +95,10 @@ func (k *classifier) tailFailsAfterSource(t *cont) *source {
 		}
 	}
 	for i, it := range items {
-		if k.failsAfterSource(it) {
+		if k.failsAfterSource(k.nodeOf(it)) {
 			return k.sourceIn(it)
 		}
-		if !k.containsSource(it) {
+		if !k.containsSource(k.nodeOf(it)) {
 			continue
 		}
 		for _, later := range items[i+1:] {

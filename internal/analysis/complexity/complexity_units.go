@@ -2328,7 +2328,7 @@ func (k *classifier) pathsContainSource(paths []*cont) bool {
 				if r, ok := it.(*ast.Ref); ok && r.Level == rhsLevel {
 					return true
 				}
-				if k.containsSource(it) {
+				if k.containsSource(k.nodeOf(it)) {
 					return true
 				}
 			}
