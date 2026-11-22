@@ -540,10 +540,10 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 // that compare a field without boxing it (field-compare), the predicates that compare a captured text
 // with literals, whose test of the literals gives way to the action expression as written under limit controls
 // (text-dispatch), and the TypeScript action expressions with a cast to _, which checks nothing. Each mutant changes
-// one pattern of the generated code, which must occur, and the comparison must then fail. The
-// predicates run without limit controls here, so the mutants of the action expression as written also replace the
-// test of the controls, so that the action expression runs; a control that only does that, and one that changes
-// nothing, must find no mismatch.
+// one pattern of the generated code, which must occur, and the comparison must then fail. Whether a parse
+// runs under limit controls depends on the form of the fixtures, so each mutant of one of the two paths also
+// replaces the test of the controls, so that the path it changes runs; a control that only does that, and one
+// that changes nothing, must find no mismatch.
 func TestActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
@@ -619,14 +619,15 @@ func testActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
 		})
 	}
 	node := tooltest.RequireNode(t)
-	const tsForce, tsForced = `if (c.p.control === null) {`, `if (false) {`
+	// The action expression as written runs under limit controls, and the test of the literals without them.
+	const tsForce, tsWritten, tsTested = `if (c.p.control === null) {`, `if (false) {`, `if (true) {`
 	// TypeScript names an operator by its code: 5 is ==, 6 is !=; 0 is && and 1 is || for logic.
 	for _, m := range []mutant{
-		{"control: the action expression as written runs", tsForce, tsForced, `c.p.actionLogic(1,`, `c.p.actionLogic(1,`},
-		{"a predicate's equality becomes not equal", tsForce, tsForced, `c.p.actionBinary(5,`, `c.p.actionBinary(6,`},
-		{"a predicate's or does not decide", tsForce, tsForced, `if (!tb`, `if (tb`},
-		{"control: the literals are tested", "", "", `case "a": `, `case "a": `},
-		{"a tested literal is not matched", "", "", `case "a": `, `case "\x00": `},
+		{"control: the action expression as written runs", tsForce, tsWritten, `c.p.actionLogic(1,`, `c.p.actionLogic(1,`},
+		{"a predicate's equality becomes not equal", tsForce, tsWritten, `c.p.actionBinary(5,`, `c.p.actionBinary(6,`},
+		{"a predicate's or does not decide", tsForce, tsWritten, `if (!tb`, `if (tb`},
+		{"control: the literals are tested", tsForce, tsTested, `case "a": `, `case "a": `},
+		{"a tested literal is not matched", tsForce, tsTested, `case "a": `, `case "\x00": `},
 	} {
 		run("TypeScript", literal, m, func(mutate func(string) string) []string {
 			return codegentest.TSParsersMismatches(t, node, literal, common.GenOptions{}, mutate)
