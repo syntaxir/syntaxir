@@ -14,8 +14,9 @@ import (
 // Unit is the unit of the Exec passes: a module at the Exec stage.
 type Unit = code.At[code.Exec]
 
-// Passes are the Exec passes that every target runs, in the order they run. There is none yet.
-var Passes []*pipe.Pass[Unit, Unit]
+// Passes are the Exec passes that every target runs, in the order they run: canonicalize, the pass of
+// the same name as at the Flow stage, with the patterns of the Exec stage.
+var Passes = []*pipe.Pass[Unit, Unit]{ExecCanonicalize}
 
 // Pipeline is the pipeline of the Exec passes on a module, each on every function of the module in
 // turn (OnFuncs).

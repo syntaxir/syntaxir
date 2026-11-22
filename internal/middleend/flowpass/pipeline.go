@@ -125,12 +125,17 @@ func OnFuncs(ps ...*pipe.Pass[Unit, Unit]) pipe.Pipeline[Unit, Unit] {
 }
 
 // Names returns the names of the Flow passes in the order they run.
-func Names() []string {
-	names := make([]string, len(Passes))
-	for i, p := range Passes {
-		names[i] = p.Name()
+func Names() []string { return names(Passes) }
+
+// FormNames returns the names of the passes of forms in the order they run.
+func FormNames() []string { return names(FormPasses) }
+
+func names(ps []*pipe.Pass[Unit, Unit]) []string {
+	out := make([]string, len(ps))
+	for i, p := range ps {
+		out[i] = p.Name()
 	}
-	return names
+	return out
 }
 
 // entry is the name of the lowering that makes a Flow module, flowlower, under which a run dumps the

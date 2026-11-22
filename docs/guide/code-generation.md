@@ -316,7 +316,8 @@ the table, is always an opt-in, and is never part of a profile. Two uses of the 
 The kind says what the optimization changes: a `pass` rewrites the parser before it is lowered, a `lowering` is an
 option of the lowering to the code, a `flow pass` replaces the form in which the lowered code matches a construct with
 another where the target language prints it, an `exec pass` replaces operations of the lowered code with a form
-that one target prints more compactly, a `printer` is a choice of what the Go and TypeScript printers emit, and a `runtime`
+that one target prints more compactly, a `code pass` rewrites the lowered code before and after it is converted for
+the target, a `pattern` is one local rewrite of such a pass, a `printer` is a choice of what the Go and TypeScript printers emit, and a `runtime`
 optimization is a control of the runtime structures the parser emits. The names are the following, by kind and by name within a kind, as the usage text lists them, and an unknown name in `-opt` or `-no-opt` is an error that lists them. No flag in this
 table changes output yet:
 
@@ -334,6 +335,12 @@ table changes output yet:
 | `ts-merged-records` | exec pass | on | Ending an expectation record and merging its expectations into the enclosing record are one call that merges in place (TypeScript). Saves a copy of the expectations and a local per merge |
 | `ts-spend-runs` | exec pass | on | Charges in a row are one call that charges them as that many units (TypeScript). One call against several |
 | `ts-tested-inits` | exec pass | on | An `if` that tests whether its first call matched tests the call's result in its condition (TypeScript). Saves the boolean local that the call sets |
+| `canonicalize` | code pass | on | Apply the local rewrite patterns below to each lowered function until none applies. Simpler code at no cost to the parse |
+| `drop-after-exit` | pattern | on | The statements after an exit, break, continue or return in a block are removed. Less code |
+| `drop-unused-labels` | pattern | on | The label of a block that no exit names is removed. Less code |
+| `fold-branches` | pattern | on | An `if` or a loop with a constant condition becomes the code that runs. Less code and no test |
+| `fold-constants` | pattern | on | An operator or a conversion on constants becomes its value. Less code |
+| `splice-blocks` | pattern | on | A block without a label that declares no local is spliced into its parent. Less code |
 | `literal-sharing` | printer | on | Emit one table for equal literals (Go; TypeScript also needs `ts-literal-sharing`). Smaller source against an indirection to the table |
 | `method-sharing` | printer | on | Emit one helper for generated bodies that are exactly equal (Go and TypeScript). Code against calls: smaller source, with a call where a body was |
 | `ts-literal-sharing` | printer | off | Share literal tables in TypeScript parsers. Smaller code against speed: a small cold parse measured about 1.5 times slower. It is an opt-in: turn it on with `-opt ts-literal-sharing` |

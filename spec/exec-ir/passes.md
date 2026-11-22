@@ -20,7 +20,8 @@ one of those locals is an error of the passes. The
 module MUST satisfy the [invariants](invariants.md) where the pipeline leaves the stage: verification runs right after
 the lowering and again where the pipeline leaves the stage, and also after every pass when asked, and a violation names
 the pass after which it was found. Lowering has verified the module, so a run in which no pass runs does not verify it
-again. No pass runs at the Exec stage yet; the transformations below are used by the compositions and the printers.
+again. The first pass of the stage is `canonicalize` (below); specialization and the dead stores are used by the compositions
+and the printers.
 
 ## Specialization
 
@@ -35,21 +36,24 @@ that are off is gone, and with it the calls of their operations.
 
 ## Canonicalization
 
-The target is one pass, `canonicalize`, that applies named local patterns to a function until none applies, trying them
-in a fixed order, so that the result is the same on every run. Each pattern is an optimization with its own name, which
-turns it off, and each application of a pattern is counted on its own when passes are bisected. The patterns of the Exec
-dialect fold constant expressions and remove code that cannot run, in place:
+One pass, `canonicalize`, applies named local patterns to a function until none applies, trying them in a fixed
+order, so that the result is the same on every run. It runs at the Exec stage and, with the patterns that keep the
+invariants of that stage, at the [Flow stage](../flow-ir/passes.md#canonicalization). Each pattern is an optimization
+with its own name, which turns it off, and each application of a pattern is counted on its own when passes are
+bisected. A specialization applies every pattern, whatever optimizations a build turns off. The patterns of the Exec
+stage fold constant expressions and remove code that cannot run, in place, in this order:
 
-- an operator or a conversion whose operands are constants becomes its value, computed as running it computes it,
-  except a division or a remainder by zero, which stays;
-- `!` of a constant becomes its value, and `&&` and `||` with a constant operand that decides them become that
-  constant, or their other operand when the constant does not decide them; an operand that is dropped never holds a
-  call;
-- an `If` whose condition is a constant becomes its Init and the branch that the condition selects, and a `Loop` whose
-  condition is the constant false becomes its Init;
-- the statements after an `Exit`, `Break`, `Continue` or `Return` in the same block are removed;
-- a block without a label that declares no local is spliced into the block that holds it, and the label of a block
-  that no `Exit` names is removed.
+- `fold-constants`: an operator or a conversion whose operands are constants becomes its value, computed as running it
+  computes it, except a division or a remainder by zero, which stays; `!` of a constant becomes its value, and `&&` and
+  `||` with a constant operand that decides them become that constant, or their other operand when the constant does
+  not decide them; an operand that is dropped never holds a call;
+- `fold-branches`: an `If` whose condition is a constant becomes its Init and the branch that the condition selects,
+  as its statements, or as a block when the branch declares a local; a `Loop` whose condition is the constant false
+  becomes its Init, and the constant true condition of a `Loop` is removed;
+- `drop-after-exit`: the statements after an `Exit`, `Break`, `Continue` or `Return` in the same block are removed;
+- `drop-unused-labels`: the label of a block that no `Exit` names is removed;
+- `splice-blocks`: a block without a label that declares no local is spliced into the block that holds it, and an
+  empty `Else` is removed.
 
 Backends also print an operator on constants as its value, because target languages evaluate constant expressions in
 arithmetic of their own: a constant expression of Code IR that wraps would not be accepted, or would not wrap, there.

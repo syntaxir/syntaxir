@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
@@ -106,6 +107,9 @@ type testEnv struct {
 	Observe bool
 	Flag    func(name string) bool
 	Value   func(name string) int
+	// Canonicalize runs canonicalize after the passes of forms, which the tests of the forms leave
+	// out, so that a function shows what the passes of forms made.
+	Canonicalize bool
 }
 
 // options returns the options of a run under e that verifies after each pass.
@@ -124,6 +128,8 @@ func (e *testEnv) options(t *testing.T) RunOptions {
 	}
 	for _, name := range append(Names(), corepass.PassGuards) {
 		switch {
+		case name == codepass.PassCanonicalize && !e.Canonicalize:
+			set(name, 0)
 		case e.Flag != nil && !e.Flag(name):
 			set(name, 0)
 		case name == PassClassTables || name == PassInlineLiterals:
@@ -180,7 +186,7 @@ func guardedAdvance(m *code.Module) bool {
 // shows returns the passes whose marks the function has, in the order of the pipeline.
 func shows(l lowered) []string {
 	var out []string
-	for _, name := range Names() {
+	for _, name := range FormNames() {
 		if marks[name](l) {
 			out = append(out, name)
 		}
@@ -191,7 +197,7 @@ func shows(l lowered) []string {
 // Every pass changes the ordinary function of a target with every form, and a flag that is off
 // removes exactly its pass and its mark.
 func TestPassesDisable(t *testing.T) {
-	names := Names()
+	names := FormNames()
 	full := lower(t, lowerdata.Options{}, &testEnv{Target: all})
 	if !slices.Equal(full.ran, names) || !slices.Equal(shows(full), names) {
 		t.Fatalf("ran %v, shows %v, want %v:\n%s", full.ran, shows(full), names, full.text)
@@ -325,5 +331,21 @@ func TestFinish(t *testing.T) {
 	Finish(l.m)
 	if after := code.FuncStringIn(l.m, fn); after != before {
 		t.Errorf("a second Finish changed the function:\n%s", after)
+	}
+}
+
+// Canonicalize runs after the passes of forms and keeps what they made.
+func TestCanonicalizeRunsLast(t *testing.T) {
+	base := lower(t, lowerdata.Options{}, &testEnv{Target: all})
+	l := lower(t, lowerdata.Options{}, &testEnv{Target: all, Canonicalize: true})
+	if want := append(FormNames(), codepass.PassCanonicalize); !slices.Equal(l.ran, want) {
+		t.Errorf("ran %v, want %v", l.ran, want)
+	}
+	if !slices.Equal(shows(l), shows(base)) {
+		t.Errorf("canonicalize changed the forms: %v, want %v", shows(l), shows(base))
+	}
+	plain := lower(t, lowerdata.Options{}, &testEnv{Canonicalize: true})
+	if !slices.Equal(plain.ran, []string{codepass.PassCanonicalize}) {
+		t.Errorf("empty target: ran %v", plain.ran)
 	}
 }

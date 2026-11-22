@@ -34,11 +34,13 @@ func TestEveryCorePassIsAFlag(t *testing.T) {
 }
 
 // Every pass of the Flow pipeline is an optimization that can be turned off, under its own name, and
-// no Flow pass has the name of a Core pass.
+// no Flow pass has the name of a Core pass. A pass of Code IR that runs at both stages is of kind code
+// pass and is also an Exec pass.
 func TestEveryFlowPassIsAFlag(t *testing.T) {
 	for _, name := range flowpass.Names() {
-		if f, ok := pass.Lookup(name); !ok || f.Kind != pass.KindFlowPass {
-			t.Errorf("pass %s is not a registered optimization of kind flow pass", name)
+		f, ok := pass.Lookup(name)
+		if !ok || f.Kind != pass.KindFlowPass && (f.Kind != pass.KindCodePass || !slices.Contains(codepass.Names(), name)) {
+			t.Errorf("pass %s is not a registered optimization of kind flow pass, or of kind code pass at both stages", name)
 		}
 		if slices.Contains(corepass.Names(), name) {
 			t.Errorf("pass %s is both a Core and a Flow pass", name)
@@ -56,13 +58,15 @@ func TestEveryFlowPassIsAFlag(t *testing.T) {
 }
 
 // Every pass of the Exec pipeline is an optimization that can be turned off, under its own name, and
-// no Exec pass has the name of a Core or Flow pass.
+// no Exec pass has the name of a Core or Flow pass, except a pass of Code IR of kind code pass, which
+// runs at both stages.
 func TestEveryExecPassIsAFlag(t *testing.T) {
 	for _, name := range codepass.Names() {
-		if f, ok := pass.Lookup(name); !ok || f.Kind != pass.KindExecPass {
-			t.Errorf("pass %s is not a registered optimization of kind exec pass", name)
+		f, ok := pass.Lookup(name)
+		if !ok || f.Kind != pass.KindExecPass && f.Kind != pass.KindCodePass {
+			t.Errorf("pass %s is not a registered optimization of kind exec pass or code pass", name)
 		}
-		if slices.Contains(corepass.Names(), name) || slices.Contains(flowpass.Names(), name) {
+		if slices.Contains(corepass.Names(), name) || f.Kind != pass.KindCodePass && slices.Contains(flowpass.Names(), name) {
 			t.Errorf("pass %s is also a Core or Flow pass", name)
 		}
 	}
@@ -154,7 +158,14 @@ func TestParsePrintAfter(t *testing.T) {
 	for _, p := range append(slices.Clone(gopass.Passes), tspass.Passes...) {
 		want = append(want, p.Name())
 	}
-	want = append(want, "all")
+	// A pass at both stages is named once, at its first place.
+	var once []string
+	for _, n := range want {
+		if !slices.Contains(once, n) {
+			once = append(once, n)
+		}
+	}
+	want = append(once, "all")
 	if got := PrintNames(); !slices.Equal(got, want) {
 		t.Errorf("names %v, want %v", got, want)
 	}

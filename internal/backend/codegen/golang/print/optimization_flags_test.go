@@ -78,6 +78,12 @@ var optimizationTests = map[string]string{
 	"ts-merged-records":      "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
 	"ts-spend-runs":          "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
 	"ts-tested-inits":        "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
+	"canonicalize":           "TestCanonicalizePassOff (internal/middleend/codepass)",
+	"drop-after-exit":        "TestCanonicalizePatternOff (internal/middleend/codepass)",
+	"drop-unused-labels":     "TestCanonicalizePatternOff (internal/middleend/codepass)",
+	"fold-branches":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
+	"fold-constants":         "TestCanonicalizePatternOff (internal/middleend/codepass)",
+	"splice-blocks":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
 }
 
 // outputFlagTests says for each registered optimization that changes the output (ChangesOutput) the
@@ -164,7 +170,7 @@ func TestOutputChangingFlagChecks(t *testing.T) {
 }
 
 // A program that links the generators has the flags of every part of the pipeline, listed by kind
-// (pass, lowering, flow pass, exec pass, printer, runtime) and by name within a kind, which is the
+// (pass, lowering, flow pass, exec pass, code pass, pattern, printer, runtime) and by name within a kind, which is the
 // order of the usage text of -opt and -no-opt and of the errors that list the names. The registry
 // and the profiles over it are valid, and the profiles resolve to the values they declare.
 func TestRegistryOfTheGenerators(t *testing.T) {
@@ -173,6 +179,8 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 		"field-compare", "text-dispatch",
 		"class-runs", "class-tables", "guarded-classes", "inline-literals", "terminals",
 		"ts-merged-records", "ts-spend-runs", "ts-tested-inits",
+		"canonicalize",
+		"drop-after-exit", "drop-unused-labels", "fold-branches", "fold-constants", "splice-blocks",
 		"literal-sharing", "method-sharing", "ts-literal-sharing", "used-features",
 		"sparse-memo", "typed-list-slabs", "typed-object-slabs", "typed-output-bootstrap",
 	}

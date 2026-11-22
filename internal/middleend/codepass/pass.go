@@ -3,8 +3,9 @@
 //
 // Specialize makes the copy of a function for one set of features, in which every feature is a
 // constant: the hand-written variants of one mechanism for each build (ordinary, budget-controlled,
-// observed, node or typed values) become specializations of one composition. Simplify folds
-// constants and removes code that cannot run, which is what makes a specialization lean.
+// observed, node or typed values) become specializations of one composition. Canonicalize folds
+// constants and removes code that cannot run, which is what makes a specialization lean; the pass
+// canonicalize does the same in the pipeline, at the Flow and the Exec stage.
 package codepass
 
 import (
@@ -16,7 +17,7 @@ import (
 
 // Specialize returns a copy of the function f of the module m named name and specialized for the
 // features on, which must be features of m: each Feature expression becomes the constant true if
-// its feature is in on and false otherwise, and the copy is simplified (Simplify). The copy's
+// its feature is in on and false otherwise, and the copy is canonicalized (Canonicalize). The copy's
 // Features are on, so that it may call the operations of those features and no others.
 func Specialize(m *code.Module, f *code.Func, name string, on []string) (*code.Func, error) {
 	for _, ft := range on {
@@ -32,7 +33,7 @@ func Specialize(m *code.Module, f *code.Func, name string, on []string) (*code.F
 		}
 		return x
 	})
-	Simplify(c)
+	Canonicalize(c)
 	return c, nil
 }
 
@@ -153,193 +154,4 @@ func call(c *code.Call, x func(code.Expr) code.Expr) *code.Call {
 		n.Args = append(n.Args, x(a))
 	}
 	return n
-}
-
-// Simplify folds the constant expressions of f and removes the code that cannot run, in place:
-//
-//   - an operator on constants is replaced by its value (a division by zero is kept, so that it
-//     fails where it ran), "!" of a constant, and "&&" and "||" with a constant operand that decides
-//     them or drops out (an operand that is dropped must have no call);
-//   - an If with a constant condition is replaced by its Init and the branch that runs; a Loop whose
-//     condition is the constant false by its Init;
-//   - statements after an Exit, Break, Continue or Return in the same block are removed;
-//   - an unlabeled block that declares no local is spliced into its parent, and a block label that
-//     no Exit names is removed.
-func Simplify(f *code.Func) {
-	f.Body = mapBlock(f.Body, fold)
-	f.Body.Stmts = prune(f.Body.Stmts)
-	used := map[string]bool{}
-	code.Walk(f.Body, func(s code.Stmt) {
-		if e, ok := s.(*code.Exit); ok {
-			used[e.Label] = true
-		}
-	}, nil)
-	code.Walk(f.Body, func(s code.Stmt) {
-		if b, ok := s.(*code.Block); ok && !used[b.Label] {
-			b.Label = ""
-		}
-	}, nil)
-	f.Body.Stmts = splice(f.Body.Stmts)
-}
-
-// constant returns the value of x if it is a constant.
-func constant(x code.Expr) (any, bool) {
-	c, ok := x.(*code.Const)
-	if !ok || c.Type.Kind == code.KHandle {
-		return nil, false
-	}
-	return c.Value, true
-}
-
-// pure reports whether x has no call.
-func pure(x code.Expr) bool {
-	p := true
-	code.Walk(&code.Block{Stmts: []code.Stmt{&code.Assert{Cond: x}}}, nil, func(e code.Expr) {
-		if _, ok := e.(*code.Call); ok {
-			p = false
-		}
-	})
-	return p
-}
-
-func boolConst(v bool) code.Expr { return &code.Const{Type: code.TBool, Value: v} }
-
-// fold folds the expression x, whose subexpressions are folded.
-func fold(x code.Expr) code.Expr {
-	switch x := x.(type) {
-	case *code.Unary:
-		v, ok := constant(x.X)
-		if !ok {
-			return x
-		}
-		if x.Op == "!" {
-			return boolConst(!v.(bool))
-		}
-		c := x.X.(*code.Const)
-		return &code.Const{Type: c.Type, Value: code.Apply("-", code.ConvertValue(int64(0), c.Type), v)}
-	case *code.Binary:
-		a, aok := constant(x.X)
-		b, bok := constant(x.Y)
-		switch x.Op {
-		case "&&", "||":
-			decide := x.Op == "||" // the value of an operand that decides the result
-			switch {
-			case aok && a.(bool) == decide:
-				return boolConst(decide)
-			case aok:
-				return x.Y
-			case bok && b.(bool) != decide:
-				return x.X
-			case bok && pure(x.X):
-				return boolConst(decide)
-			}
-			return x
-		}
-		if !aok || !bok {
-			return x
-		}
-		if (x.Op == "/" || x.Op == "%") && code.Apply("==", b, code.ConvertValue(int64(0), x.Y.(*code.Const).Type)).(bool) {
-			return x
-		}
-		v := code.Apply(x.Op, a, b)
-		t := x.X.(*code.Const).Type
-		if _, isBool := v.(bool); isBool {
-			t = code.TBool
-		}
-		return &code.Const{Type: t, Value: v}
-	case *code.Convert:
-		if v, ok := constant(x.X); ok {
-			return &code.Const{Type: x.To, Value: code.ConvertValue(v, x.To)}
-		}
-	}
-	return x
-}
-
-// prune replaces Ifs and Loops with constant conditions and removes unreachable statements, in a
-// list of statements and its nested blocks.
-func prune(ss []code.Stmt) []code.Stmt {
-	var out []code.Stmt
-	for _, st := range ss {
-		switch s := st.(type) {
-		case *code.Block:
-			s.Stmts = prune(s.Stmts)
-		case *code.Loop:
-			if v, ok := constant(s.Cond); ok && !v.(bool) {
-				if s.Init != nil {
-					out = append(out, s.Init)
-				}
-				continue
-			}
-			if v, ok := constant(s.Cond); ok && v.(bool) {
-				s.Cond = nil
-			}
-			s.Body.Stmts = prune(s.Body.Stmts)
-		case *code.If:
-			s.Then.Stmts = prune(s.Then.Stmts)
-			if s.Else != nil {
-				s.Else.Stmts = prune(s.Else.Stmts)
-			}
-			if v, ok := constant(s.Cond); ok {
-				if s.Init != nil {
-					out = append(out, s.Init)
-				}
-				if v.(bool) {
-					out = append(out, s.Then)
-				} else if s.Else != nil {
-					out = append(out, s.Else)
-				}
-				continue
-			}
-		case *code.Protect:
-			s.Body.Stmts = prune(s.Body.Stmts)
-			s.Finally.Stmts = prune(s.Finally.Stmts)
-		}
-		out = append(out, st)
-		switch st.(type) {
-		case *code.Exit, *code.Break, *code.Continue, *code.Return:
-			return out
-		}
-	}
-	return out
-}
-
-// splice splices unlabeled blocks that declare no local into the list, in it and in its nested
-// blocks, and removes empty unlabeled blocks.
-func splice(ss []code.Stmt) []code.Stmt {
-	var out []code.Stmt
-	for _, st := range ss {
-		switch s := st.(type) {
-		case *code.Block:
-			s.Stmts = splice(s.Stmts)
-			if s.Label == "" && !declares(s) {
-				out = append(out, s.Stmts...)
-				continue
-			}
-		case *code.Loop:
-			s.Body.Stmts = splice(s.Body.Stmts)
-		case *code.If:
-			s.Then.Stmts = splice(s.Then.Stmts)
-			if s.Else != nil {
-				s.Else.Stmts = splice(s.Else.Stmts)
-				if len(s.Else.Stmts) == 0 {
-					s.Else = nil
-				}
-			}
-		case *code.Protect:
-			s.Body.Stmts = splice(s.Body.Stmts)
-			s.Finally.Stmts = splice(s.Finally.Stmts)
-		}
-		out = append(out, st)
-	}
-	return out
-}
-
-// declares reports whether the block declares a local directly.
-func declares(b *code.Block) bool {
-	for _, st := range b.Stmts {
-		if _, ok := st.(*code.Let); ok {
-			return true
-		}
-	}
-	return false
 }

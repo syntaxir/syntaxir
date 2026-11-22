@@ -95,7 +95,7 @@ func TestSpecialize(t *testing.T) {
 	}
 }
 
-func TestSimplifyKeepsEffects(t *testing.T) {
+func TestCanonicalizeKeepsEffects(t *testing.T) {
 	m := module()
 	f := m.AddFunc("f", nil, []Type{TBool, TInt}, nil, func(b *Builder) {
 		// The call on the left of a constant false must still run.
@@ -109,8 +109,8 @@ func TestSimplifyKeepsEffects(t *testing.T) {
 	if err := Verify(m); err != nil {
 		t.Fatal(err)
 	}
-	Simplify(f)
-	Simplify(g)
+	Canonicalize(f)
+	Canonicalize(g)
 	if !strings.Contains(FuncString(f), "log.flag()") {
 		t.Errorf("the call was dropped\n%s", FuncString(f))
 	}
@@ -119,7 +119,7 @@ func TestSimplifyKeepsEffects(t *testing.T) {
 	}
 }
 
-func TestSimplifyPrunes(t *testing.T) {
+func TestCanonicalizePrunes(t *testing.T) {
 	m := module()
 	f := m.AddFunc("f", nil, nil, nil, func(b *Builder) {
 		b.Block("a", func(b *Builder) { b.Do("log.note", Int(1)) })
@@ -133,7 +133,7 @@ func TestSimplifyPrunes(t *testing.T) {
 			b.Do("log.note", L("y"))
 		})
 	})
-	Simplify(f)
+	Canonicalize(f)
 	if err := Verify(m); err != nil {
 		t.Fatal(err)
 	}

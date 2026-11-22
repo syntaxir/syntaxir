@@ -284,6 +284,14 @@ fixed order, so it reaches the same fixed point and the same output on every run
 fixed point lets one rewrite expose the next without another pass in the pipeline, and the names of the patterns keep
 each rewrite measurable and bisectable by itself.
 
+The patterns of the statements and expressions that every dialect shares are `fold-constants`, `fold-branches`,
+`drop-after-exit`, `drop-unused-labels` and `splice-blocks`, tried in that order. The dialect of each stage declares
+which of them it takes, beside the patterns of its own operations: the Exec stage takes all five, and the Flow stage
+takes the first three, because every block of the Flow stage keeps a label of its own, so removing a label or splicing
+a block would break its invariant. The pass is one pass at both stages: it has one name, one flag and one list of
+patterns, and the manager numbers its runs at the two stages as instances of one pass. A specialization, which is not a
+step of the pipeline, applies every pattern of the Exec stage, so a composition is the same whatever a build turns off.
+
 Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the
 sharing of helpers, stay passes with names of their own. Instruction selection in `vmlower` is a table of local patterns
 of the same kind: it is deterministic and counts the matches of each pattern.

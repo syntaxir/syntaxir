@@ -1,12 +1,14 @@
 package flowpass
 
 import (
+	"slices"
 	"strconv"
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -29,11 +31,16 @@ func ordinary(a *flow.Attrs) bool { return !a.Budget && !a.Document && !a.Traced
 // leanTyped reports a function of typed rules printed in the ordinary form.
 func leanTyped(a *flow.Attrs) bool { return !a.Node && ordinary(a) }
 
-// Passes are the Flow passes, in the order they run (Pipeline). Each replaces the statements of
-// forms the lowering wrote (flow.Forms) and marks them replaced, so that a later pass leaves them
-// alone. A pass applies to a function by the attributes of the function (FuncAttrs), the forms the
-// target prints (TargetFeature) and the observation of the parser (ObserveFeature).
-var Passes = []*pipe.Pass[Unit, Unit]{
+// Passes are the Flow passes, in the order they run (Pipeline): the passes of forms, and then
+// canonicalize, which applies the local rewrite patterns of the stage to every function
+// (codepass.PassCanonicalize).
+var Passes = append(slices.Clone(FormPasses), codepass.FlowCanonicalize)
+
+// FormPasses are the passes of forms, in the order they run. Each replaces the statements of forms
+// the lowering wrote (flow.Forms) and marks them replaced, so that a later pass leaves them alone. A
+// pass applies to a function by the attributes of the function (FuncAttrs), the forms the target
+// prints (TargetFeature) and the observation of the parser (ObserveFeature).
+var FormPasses = []*pipe.Pass[Unit, Unit]{
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
 			Name:       PassTerminals,
