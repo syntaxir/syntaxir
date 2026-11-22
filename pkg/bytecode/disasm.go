@@ -24,26 +24,20 @@ func (m *Module) Disassemble() string {
 		}
 		return "[" + strings.Join(parts, " ") + "]"
 	}
-	// Label the start positions of rules and Operators Rule sections.
-	labels := map[int][]string{}
+	// Label the action expressions of the actions of rules and Operators Rule lines.
 	tlabels := map[int][]string{}
 	for _, r := range m.Rules {
 		name := m.Strings[r.Name]
-		labels[r.Entry] = append(labels[r.Entry], name+":")
 		if r.Action >= 0 {
 			tlabels[r.Action] = append(tlabels[r.Action], name+".action:")
 		}
 	}
 	line := func(l LineInfo, name string) {
-		labels[l.Entry] = append(labels[l.Entry], name+":")
 		if l.Action >= 0 {
 			tlabels[l.Action] = append(tlabels[l.Action], name+".action:")
 		}
 	}
 	for i, p := range m.OperatorsRules {
-		if p.Skip >= 0 {
-			labels[p.Skip] = append(labels[p.Skip], fmt.Sprintf("operatorsRule%d.skip:", i))
-		}
 		for k, o := range p.Operands {
 			line(o, fmt.Sprintf("operatorsRule%d.operand%d", i, k))
 		}
@@ -54,7 +48,7 @@ func (m *Module) Disassemble() string {
 
 	b.WriteString("rules:\n")
 	for i, r := range m.Rules {
-		fmt.Fprintf(&b, "  %d %s entry=%d scope=%s", i, m.Strings[r.Name], r.Entry, names(r.Scope))
+		fmt.Fprintf(&b, "  %d %s scope=%s", i, m.Strings[r.Name], names(r.Scope))
 		if r.Action >= 0 {
 			fmt.Fprintf(&b, " action=%d", r.Action)
 		}
@@ -66,6 +60,9 @@ func (m *Module) Disassemble() string {
 		}
 		if r.Where >= 0 {
 			fmt.Fprintf(&b, " where=%q", m.Strings[r.Where])
+		}
+		if r.Value != nil {
+			fmt.Fprintf(&b, " value=%s", m.flowImm(FlowImmShape, *r.Value, str))
 		}
 		var flags []string
 		for _, f := range []struct {
@@ -82,23 +79,13 @@ func (m *Module) Disassemble() string {
 		b.WriteString("\n")
 	}
 	for i, p := range m.OperatorsRules {
-		fmt.Fprintf(&b, "operatorsRule %d: skip=%d operands=%d\n", i, p.Skip, len(p.Operands))
+		fmt.Fprintf(&b, "operatorsRule %d: skip=%t operands=%d\n", i, p.SkipFlow != nil, len(p.Operands))
 		for _, o := range append(append([]OperatorInfo{}, p.Prefix...), p.InfixPostfix...) {
 			kind := []string{"prefix", "postfix", "infix"}[o.Kind]
 			assoc := []string{"left", "right", "none"}[o.Assoc]
-			fmt.Fprintf(&b, "  op%d %s %s level=%d entry=%d action=%d scope=%s", o.ID, kind, assoc, o.Level, o.Line.Entry, o.Line.Action, names(o.Line.Scope))
+			fmt.Fprintf(&b, "  op%d %s %s level=%d action=%d scope=%s", o.ID, kind, assoc, o.Level, o.Line.Action, names(o.Line.Scope))
 			b.WriteString("\n")
 		}
-	}
-	b.WriteString("code:\n")
-	for i, in := range m.Code {
-		for _, l := range labels[i] {
-			fmt.Fprintf(&b, "%s\n", l)
-		}
-		fmt.Fprintf(&b, "  %4d  %-10s %s\n", i, in.Op, m.operands(in, str, names))
-	}
-	if len(m.Ints) > 0 {
-		fmt.Fprintf(&b, "ints: %v\n", m.Ints)
 	}
 	b.WriteString("actions:\n")
 	for i, t := range m.Actions {
@@ -151,11 +138,6 @@ func (m *Module) disassembleFlow(b *strings.Builder, name string, f *Flow, str f
 	for pc, in := range f.Code {
 		fmt.Fprintf(b, "  %4d  %-10s %s\n", pc, in.Op, m.flowOperands(&in, str))
 	}
-}
-
-// skipRunSite reports whether site is a skip-run site: one that a SKIPREPEAT of the match code walks.
-func (m *Module) skipRunSite(site int) bool {
-	return slices.ContainsFunc(m.Code, func(in Instr) bool { return in.Op == OpSkipRepeat && int(in.B) == site })
 }
 
 // flowOperands renders the registers, target and immediate of a Flow instruction: destinations
@@ -222,9 +204,6 @@ func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
 		parts = append(parts, fmt.Sprint(x))
 	case FlowRunWalkOf:
 		parts = append(parts, fmt.Sprintf("site=%d build=%t keyenv=%t", x.Site, x.Build, x.KeyEnv))
-		if m.skipRunSite(x.Site) {
-			parts = append(parts, "skip-run") // flow.skipBegin: the walk of a SKIPREPEAT's site
-		}
 	case FlowResumeOf:
 		parts = append(parts, fmt.Sprintf("resume=%d min=%d max=%d shiftable=%t", x.Site, x.Min, x.Max, x.Shiftable))
 	case FlowBindOf:
@@ -285,119 +264,6 @@ func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
 		parts = append(parts, fmt.Sprintf("%#v", x))
 	}
 	return strings.Join(parts, " ")
-}
-
-func (m *Module) operands(in Instr, str func(int) string, names func([]int) string) string {
-	a, bb, c := int(in.A), int(in.B), int(in.C)
-	switch in.Op {
-	case OpStr, OpStrFold:
-		return fmt.Sprintf("%s build=%d", str(a), c)
-	case OpClass:
-		return fmt.Sprintf("%s build=%d", str(bb), c)
-	case OpAny, OpTop, OpAtomic, OpEndSkip, OpEndRepeat:
-		return fmt.Sprintf("build=%d", a)
-	case OpAssert:
-		return []string{"begin-input", "end-input", "begin-line", "end-line"}[a]
-	case OpIter:
-		if c > 0 && bb&4 != 0 {
-			return fmt.Sprintf("-> %d scan=%d build=%d", a, c, bb&1)
-		}
-		if c > 0 {
-			return fmt.Sprintf("-> %d run=%d build=%d%s", a, c, bb&1, envFreeNote(bb))
-		}
-		return fmt.Sprintf("-> %d", a)
-	case OpJump, OpChoice, OpCommit, OpRecover, OpEndRecover:
-		return fmt.Sprintf("-> %d", a)
-	case OpSeq:
-		return fmt.Sprintf("n=%d", a)
-	case OpSpread:
-		return fmt.Sprintf("n=%d tuple=%d", a, bb)
-	case OpCapture:
-		if bb == 1 {
-			return fmt.Sprintf("slot=%d pop", a)
-		}
-		return fmt.Sprintf("slot=%d", a)
-	case OpGuard:
-		return fmt.Sprintf("%s depth=%d -> %d", m.Strings[m.Classes[a].Expectation], bb, c) // the expectation as written
-	case OpScan, OpScanWide:
-		if in.Op == OpScanWide {
-			bb, c = int(m.Ints[bb]), int(m.Ints[c])
-		}
-		cl := "any"
-		if a >= 0 {
-			cl = str(m.Classes[a].Expectation)
-		}
-		return fmt.Sprintf("%s min=%d max=%d", cl, bb, c)
-	case OpScanSite:
-		cl := "any"
-		if a >= 0 {
-			cl = str(m.Classes[a].Expectation)
-		}
-		return fmt.Sprintf("%s min=%d site=%d", cl, bb, c)
-	case OpRepeat, OpRepeatWide:
-		if in.Op == OpRepeatWide {
-			a, bb = int(m.Ints[a]), int(m.Ints[bb])
-		}
-		sc := "-"
-		if c >= 0 {
-			sc = names(m.Scopes[c])
-		}
-		return fmt.Sprintf("min=%d max=%d scope=%s", a, bb, sc)
-	case OpSkipRepeat:
-		if c&1 == 1 {
-			a = int(m.Ints[a])
-		}
-		return fmt.Sprintf("min=%d site=%d%s", a, bb, envFreeNote(c))
-	case OpNext:
-		if bb == 3 {
-			return fmt.Sprintf("-> %d mode=field slot=%d", a, c)
-		}
-		return fmt.Sprintf("-> %d mode=%s", a, []string{"drop", "keep", "stream"}[bb])
-	case OpLook:
-		if bb == 1 {
-			return fmt.Sprintf("not -> %d", a)
-		}
-		if c == 1 {
-			return "and keeps"
-		}
-		return "and"
-	case OpEndLook:
-		if a == 1 {
-			return "not"
-		}
-		return "and"
-	case OpCall:
-		return fmt.Sprintf("%s min=%d keep=%d", m.Strings[m.Rules[a].Name], bb, c)
-	case OpOperatorsRule:
-		return fmt.Sprintf("operatorsRule%d", a)
-	case OpPred:
-		return fmt.Sprintf("action=%d", a)
-	case OpBind:
-		return fmt.Sprintf("%s action=%d", varName(m, a), bb)
-	case OpLabel:
-		if bb == 1 {
-			return str(a) + " mode=diagnostic"
-		}
-		return str(a)
-	}
-	return ""
-}
-
-// varName returns the name of the variable in slot i.
-func varName(m *Module, i int) string {
-	if i < 0 || i >= len(m.Vars) {
-		return fmt.Sprintf("var%d", i)
-	}
-	return m.Strings[m.Vars[i].Name]
-}
-
-// envFreeNote describes the flag of a site instruction (bit 1 of its flags) that the site is free
-// of the environment.
-func envFreeNote(flags int) string {
-	if flags&2 != 0 {
-		return " env-free"
-	}
-	return ""
 }
 
 // disassembleAction renders the pools and the instructions of the action expression t. The opcodes of action code

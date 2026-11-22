@@ -1,6 +1,8 @@
 package vmlower_test
 
 import (
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -17,7 +19,7 @@ func TestNodeTypeModuleValidation(t *testing.T) {
 	prog := compiletest.Program(t, `type Name = node[string]
 rule main = name ("," name)*
 rule name Name = ([a-z]+) #atomic`, check.Options{})
-	mp, err := vmlower.Compile(vmlower.Input{Run: prog.Runtime(), Elab: prog})
+	mp, _, err := vmlower.Compile(vmInput(t, prog))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -43,14 +45,13 @@ rule name Name = ([a-z]+) #atomic`, check.Options{})
 }
 
 // TestModuleVariableValidation checks that a module whose code names a variable that its table
-// does not declare is rejected, wherever the variable appears in the match code: an operand is a slot
+// does not declare is rejected, wherever the variable appears: an immediate of a Flow body is a slot
 // of the table, and a rule lists names. Action code is checked when the engine loads it.
 func TestModuleVariableValidation(t *testing.T) {
 	t.Parallel()
 	fresh := func() *bytecode.Module {
 		m := *compileModule(t, varModuleSource)
 		m.Strings = append([]string(nil), m.Strings...)
-		m.Code = append([]bytecode.Instr(nil), m.Code...)
 		m.Rules = append([]bytecode.RuleInfo(nil), m.Rules...)
 		return &m
 	}
@@ -67,10 +68,15 @@ func TestModuleVariableValidation(t *testing.T) {
 		mutate func(m *bytecode.Module) bool
 	}{
 		{"binding", "variable 3 out of range", func(m *bytecode.Module) bool {
-			for i := range m.Code {
-				if m.Code[i].Op == bytecode.OpBind {
-					m.Code[i].A = int32(len(m.Vars))
-					return true
+			for i, f := range m.Flows {
+				for j, in := range f.Code {
+					if in.Op == bytecode.FlowBind {
+						g := &bytecode.Flow{Regs: f.Regs, Code: slices.Clone(f.Code)}
+						g.Code[j].Imm = bytecode.FlowBindOf{Var: len(m.Vars), Action: in.Imm.(bytecode.FlowBindOf).Action}
+						m.Flows = maps.Clone(m.Flows)
+						m.Flows[i] = g
+						return true
+					}
 				}
 			}
 			return false
@@ -121,21 +127,5 @@ func TestModuleInitialValueMatchesType(t *testing.T) {
 				t.Fatal("a module with a mistyped initial value was accepted")
 			}
 		})
-	}
-}
-
-// TestLoadedBindingNeedsNoCheck checks that a crafted module whose ASSIGN asks for a check, as the
-// earlier instruction set let it, is rejected.
-func TestLoadedBindingNeedsNoCheck(t *testing.T) {
-	t.Parallel()
-	m := compileModule(t, "var x int\nrule main = {x := 1} \"a\" => x\n")
-	m.Code = append([]bytecode.Instr(nil), m.Code...)
-	for i := range m.Code {
-		if m.Code[i].Op == bytecode.OpBind {
-			m.Code[i].C = 1
-		}
-	}
-	if err := program.ValidateModule(m); err == nil {
-		t.Error("an ASSIGN with a check operand was accepted")
 	}
 }

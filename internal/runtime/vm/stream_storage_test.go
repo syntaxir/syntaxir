@@ -8,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
-	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -28,15 +27,19 @@ func TestStreamStorageCommitReferences(t *testing.T) {
 	p.Trail[0] = state.Undo{F: root, Old: live}
 	p.Trail[2] = state.Undo{F: &state.Frame{Vals: []*value.Node{dead}}, Old: dead}
 	p.Trail = p.Trail[:1]
-	machineOf(p).vals = []any{live, dead, dead}
-	machineOf(p).vals = machineOf(p).vals[:1]
+	regs := &machineOf(p).regs
+	active := regs.push(1)
+	active[0] = live
+	mark := regs.mark()
+	copy(regs.push(2), []any{dead, dead}) // the registers of a finished call
+	regs.release(mark)
 	p.Commit(1023)
-	if len(p.Trail) != 0 || p.Memo.Base != 0 || machineOf(p).vals[0] != live || root.Vals[0] != live {
+	if len(p.Trail) != 0 || p.Memo.Base != 0 || active[0] != live || root.Vals[0] != live {
 		t.Fatal("early commit damaged live state or pruned too soon")
 	}
 	p.Commit(1024)
-	if p.Memo.Base != 1024 || machineOf(p).vals[0] != live || root.Vals[0] != live {
-		t.Fatal("pruning damaged live root or active VM value")
+	if p.Memo.Base != 1024 || active[0] != live || root.Vals[0] != live {
+		t.Fatal("pruning damaged live root or active VM register")
 	}
 	if state.StreamUndoCleanup {
 		for _, u := range p.Trail[:cap(p.Trail)] {
@@ -46,54 +49,10 @@ func TestStreamStorageCommitReferences(t *testing.T) {
 		}
 	}
 	if state.StreamStackCleanup {
-		for _, v := range machineOf(p).vals[len(machineOf(p).vals):cap(machineOf(p).vals)] {
+		for _, v := range regs.chunks[0][1:] {
 			if v != nil {
-				t.Fatal("inactive VM stack entry retained a completed value")
+				t.Fatal("inactive VM register retained a completed value")
 			}
-		}
-	}
-}
-
-func TestVMStreamRepeatShape(t *testing.T) {
-	code := compileModule(t, `rule main = (x:"x" #atomic)* #stream $$`).Code
-	ip := -1
-	for i, in := range code {
-		if in.Op == bytecode.OpRepeat {
-			ip = i
-			break
-		}
-	}
-	if ip < 0 {
-		t.Fatal("missing repetition")
-	}
-	vm := &Program{m: &bytecode.Module{Code: code}}
-	if !vm.isStreamRepeat(ip) {
-		t.Fatal("stream repetition not recognized")
-	}
-	for _, target := range []int32{-1, 0, int32(ip + 2), int32(len(code)), int32(len(code) + 1)} {
-		copied := append([]bytecode.Instr(nil), code...)
-		copied[ip+1].A = target
-		vm.m = &bytecode.Module{Code: copied}
-		if vm.isStreamRepeat(ip) {
-			t.Fatalf("invalid target %d recognized as stream", target)
-		}
-	}
-	for _, defect := range []string{"iterator", "end", "next", "flag"} {
-		copied := append([]bytecode.Instr(nil), code...)
-		end := int(copied[ip+1].A)
-		switch defect {
-		case "iterator":
-			copied[ip+1].Op = bytecode.OpNext
-		case "end":
-			copied[end].Op = bytecode.OpNext
-		case "next":
-			copied[end-1].Op = bytecode.OpIter
-		case "flag":
-			copied[end-1].B = 1
-		}
-		vm.m = &bytecode.Module{Code: copied}
-		if vm.isStreamRepeat(ip) {
-			t.Fatalf("invalid %s recognized as stream", defect)
 		}
 	}
 }

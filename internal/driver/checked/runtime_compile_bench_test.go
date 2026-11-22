@@ -11,9 +11,9 @@ import (
 )
 
 // BenchmarkRuntimeBackendCompile measures what a program compiled at run time costs its backends
-// on first use, for each grammar of testdata/grammars: the bytecode module (vmlower.Compile) and the
-// Core IR of the closures (closureCore). Both build the Core IR and run the Core passes on it;
-// parsing and checking the grammar are out.
+// on first use, for each grammar of testdata/grammars: the bytecode module (Source.VMInput, which
+// plans and lowers the Node table, and vmlower.Compile) and the Core IR of the closures
+// (closureCore). Parsing and checking the grammar are out.
 func BenchmarkRuntimeBackendCompile(b *testing.B) {
 	files, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(files) == 0 {
@@ -32,7 +32,11 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := vmlower.Compile(vmlower.Input{Run: p.Runtime(), Elab: p}); err != nil {
+				in, err := Of(p).VMInput()
+				if err != nil {
+					b.Fatal(err)
+				}
+				if _, _, err := vmlower.Compile(in); err != nil {
 					b.Fatal(err)
 				}
 			}

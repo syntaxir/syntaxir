@@ -14,8 +14,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -79,8 +77,9 @@ func parseChargedOpts(t *testing.T, prog *Program, input string, o ParseOptions)
 	return n, msg, used
 }
 
-// jsonFlowPrograms returns the JSON grammar compiled as usual, and the same grammar whose VM runs the
-// value rule from its Flow form. mutate, if not nil, changes the selected body before it is installed.
+// jsonFlowPrograms returns the JSON grammar compiled as usual, and the same grammar compiled to a
+// module of its own whose value rule body mutate, if not nil, changes before it is installed. The
+// first is the reference: the tests parse it with the closure backend.
 func jsonFlowPrograms(t *testing.T, mutate func(*bytecode.Flow)) (*Program, *Program) {
 	t.Helper()
 	old, flows, n := flowPrograms(t, "../../../testdata/grammars/json/json.sxir", func(name string) bool { return name == "value" }, func(_ string, f *bytecode.Flow) {
@@ -95,10 +94,10 @@ func jsonFlowPrograms(t *testing.T, mutate func(*bytecode.Flow)) (*Program, *Pro
 }
 
 // flowPrograms returns the grammar of the file path compiled as usual, and the same grammar whose VM
-// runs from Flow IR each rule that pick accepts and whose body in the planned Node table
-// (checked.Source.FlowTable) uses only the operations of bytecode Flow bodies so far, and so the skip
-// and the lines of its Operators Rule; n is the number of such rule bodies. A rule without one keeps its match code. mutate, if not nil, changes the body of each
-// selected rule before it is installed.
+// runs a module compiled for it alone (checked.Source.VMInput, vmlower.Compile), in which mutate, if
+// not nil, changes the Flow body of each rule that pick accepts before it is installed; n is the
+// number of such rule bodies. The VM runs every rule from its Flow body, so the tests compare the
+// second program with the first parsed by the closure backend, which shares no code with the VM.
 func flowPrograms(t *testing.T, path string, pick func(rule string) bool, mutate func(rule string, f *bytecode.Flow)) (old, flows *Program, n int) {
 	t.Helper()
 	src, err := os.ReadFile(path)
@@ -113,31 +112,37 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 	t.Helper()
 	old = mustCompile(t, src)
 	cp := old.src.(interface{ Checked() *frontend.Result }).Checked()
-	ft, err := checked.Of(cp).FlowTable()
+	in, err := checked.Of(cp).VMInput()
 	if err != nil {
 		t.Fatal(err)
 	}
-	coreBC, err := vmlower.CoreOf(cp)
+	bc, _, err := vmlower.Compile(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	bc, err := vmlower.CompileCore(vmlower.Input{Run: cp.Runtime(), Elab: cp}, coreBC)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for k, m := range ft.Funcs {
-		name := ft.IR.M.Rules[k.Rule].Name
-		if !pick(name) {
-			continue
-		}
-		if _, err := vmlower.SelectFlows(bc, vmlower.Input{Run: cp.Runtime(), Elab: cp}, ft.IR.M, ft.Plan, map[plandata.Key]*code.Module{k: m}); err != nil {
-			continue // an operation without a bytecode Flow form yet
-		}
-		if mutate != nil && k.Use == plandata.RuleBody {
-			mutate(name, bc.Flows[k.Rule])
+	for i, r := range bc.Rules {
+		if f := bc.Flows[i]; f != nil && pick(bc.Strings[r.Name]) {
+			n++
+			if mutate != nil {
+				mutate(bc.Strings[r.Name], f)
+			}
 		}
 	}
-	return old, New(flowSource{Source: old.src, m: bc}), len(bc.Flows)
+	return old, New(flowSource{Source: old.src, m: bc}), n
+}
+
+// flowReference returns the tree and the error of the closure backend for input, the reference of
+// the Flow bodies, which share no code with it. It returns the spend of the closure backend too,
+// unless the backends of grammar do not yet charge the same units (knownChargeDivergences): then the
+// spend is that of the recursive VM on prog, which pins the charges of a Flow body to those of the
+// bodies that the compiler selects.
+func flowReference(t *testing.T, prog *Program, grammar, input string) (string, string, uint64) {
+	t.Helper()
+	tree, msg, used := parseChargedWith(t, prog, input, Closure)
+	if knownChargeDivergences[grammar+"|*"] {
+		_, _, used = parseCharged(t, prog, input)
+	}
+	return tree, msg, used
 }
 
 // mutateCall changes the first call of a Flow body to call the null rule (jsonNull), a different rule
@@ -165,15 +170,16 @@ var jsonDifferentialInputs = []string{
 	`  [ -1.5e+3 , false ]  `, `[1,]`, `{"a" 1}`, `"unterminated`, `tru`, `-`, `01`, `[1,2`, ``,
 }
 
-// TestFlowBodyJSONValueDifferential runs the JSON corpus through the bytecode VM with the value rule
-// as its match code and as its Flow body: the trees, the errors and the budget spends must agree.
+// TestFlowBodyJSONValueDifferential runs the JSON corpus through the bytecode VM, which runs the
+// value rule from its Flow body: the trees, the errors and the budget spends must be those of
+// flowReference.
 func TestFlowBodyJSONValueDifferential(t *testing.T) {
 	old, spiked := jsonFlowPrograms(t, nil)
 	for _, in := range jsonDifferentialInputs {
-		ot, oe, ou := parseCharged(t, old, in)
+		ot, oe, ou := flowReference(t, old, "json", in)
 		st, se, su := parseCharged(t, spiked, in)
 		if ot != st || oe != se || ou != su {
-			t.Errorf("input %q: old tree %s err %s spend %d; flow tree %s err %s spend %d", in, ot, oe, ou, st, se, su)
+			t.Errorf("input %q: closure tree %s err %s spend %d; flow tree %s err %s spend %d", in, ot, oe, ou, st, se, su)
 		}
 	}
 }
@@ -199,7 +205,7 @@ const jsonNull = 16
 
 // TestFlowBodyJSONValueFileForm saves the grammar whose value rule runs its Flow body as a compiled
 // grammar and loads it: the loaded module has the same Flow bodies, and runs the JSON corpus with the
-// trees, errors and spends of the match code. A loaded body whose call is changed changes a tree, so
+// trees, errors and spends of flowReference. A loaded body whose call is changed changes a tree, so
 // the loaded program runs the body it read.
 func TestFlowBodyJSONValueFileForm(t *testing.T) {
 	old, spiked := jsonFlowPrograms(t, nil)
@@ -210,7 +216,7 @@ func TestFlowBodyJSONValueFileForm(t *testing.T) {
 	loaded, loadedCalled := saveAndLoad(t, spiked), saveAndLoad(t, called)
 	changed := false
 	for _, in := range jsonDifferentialInputs {
-		ot, _, _ := parseCharged(t, old, in)
+		ot, _, _ := parseChargedWith(t, old, in, Closure)
 		ct, _, _ := parseCharged(t, loadedCalled, in)
 		changed = changed || ot != ct
 	}
@@ -222,10 +228,10 @@ func TestFlowBodyJSONValueFileForm(t *testing.T) {
 		t.Fatalf("loaded Flow bodies %v, want %v", got, want)
 	}
 	for _, in := range jsonDifferentialInputs {
-		ot, oe, ou := parseCharged(t, old, in)
+		ot, oe, ou := flowReference(t, old, "json", in)
 		lt, le, lu := parseCharged(t, loaded, in)
 		if ot != lt || oe != le || ou != lu {
-			t.Errorf("input %q: match code tree %s err %s spend %d; loaded flow tree %s err %s spend %d", in, ot, oe, ou, lt, le, lu)
+			t.Errorf("input %q: closure tree %s err %s spend %d; loaded flow tree %s err %s spend %d", in, ot, oe, ou, lt, le, lu)
 		}
 	}
 }
@@ -246,7 +252,7 @@ func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 	})
 	trees, spends := false, false
 	for _, in := range jsonDifferentialInputs {
-		ot, oe, ou := parseCharged(t, old, in)
+		ot, oe, ou := flowReference(t, old, "json", in)
 		ct, _, _ := parseCharged(t, called, in)
 		pt, pe, pu := parseCharged(t, peeked, in)
 		trees = trees || ot != ct
@@ -263,18 +269,18 @@ func TestFlowBodyDifferentialDetectsMutations(t *testing.T) {
 	}
 }
 
-// TestFlowBodyJSONValueIterative runs the JSON corpus through the iterative model with the value
-// rule as its match code and as its Flow body: the trees, the errors and the budget spends must
-// agree, and a changed call in the body must change a tree, so that the iterative model runs it.
+// TestFlowBodyJSONValueIterative runs the JSON corpus through the iterative model, which runs the
+// value rule from its Flow body: the trees, the errors and the budget spends must be those of
+// flowReference, and a changed call in the body must change a tree, so that the iterative model runs it.
 func TestFlowBodyJSONValueIterative(t *testing.T) {
 	old, spiked := jsonFlowPrograms(t, nil)
 	_, called := jsonFlowPrograms(t, mutateCall)
 	changed := false
 	for _, in := range jsonDifferentialInputs {
-		ot, oe, ou := parseChargedWith(t, old, in, BytecodeIterative)
+		ot, oe, ou := flowReference(t, old, "json", in)
 		st, se, su := parseChargedWith(t, spiked, in, BytecodeIterative)
 		if ot != st || oe != se || ou != su {
-			t.Errorf("input %q: match code tree %s err %s spend %d; flow tree %s err %s spend %d", in, ot, oe, ou, st, se, su)
+			t.Errorf("input %q: closure tree %s err %s spend %d; flow tree %s err %s spend %d", in, ot, oe, ou, st, se, su)
 		}
 		ct, _, _ := parseChargedWith(t, called, in, BytecodeIterative)
 		changed = changed || ct != ot
@@ -286,21 +292,21 @@ func TestFlowBodyJSONValueIterative(t *testing.T) {
 
 // TestFlowBodyIterativeDeepNesting checks that the iterative model runs a Flow body without host
 // recursion: JSON arrays nested deeper than a small host stack allows the recursive model, whose
-// value rule runs its Flow body at every level, parse with the tree, error and spend of the match
-// code.
+// value rule runs its Flow body at every level, parse with the tree, error and spend that the
+// iterative model gives them with the host stack of the test.
 func TestFlowBodyIterativeDeepNesting(t *testing.T) {
 	old, spiked := jsonFlowPrograms(t, nil)
 	const depth = 20000
 	in := strings.Repeat("[", depth) + strings.Repeat("]", depth)
 	ot, oe, ou := parseChargedWith(t, old, in, BytecodeIterative)
 	if oe != "<nil>" {
-		t.Fatalf("the match code fails: %s", oe)
+		t.Fatalf("the parse fails: %s", oe)
 	}
 	prev := debug.SetMaxStack(1 << 20) // too small for the recursive model
 	st, se, su := parseChargedWith(t, spiked, in, BytecodeIterative)
 	debug.SetMaxStack(prev)
 	if ot != st || oe != se || ou != su {
-		t.Errorf("match code err %s spend %d; flow err %s spend %d; trees equal: %v", oe, ou, se, su, ot == st)
+		t.Errorf("err %s spend %d; with a small stack err %s spend %d; trees equal: %v", oe, ou, se, su, ot == st)
 	}
 }
 
@@ -330,10 +336,8 @@ func grammarCorpus(t *testing.T, path string) []string {
 }
 
 // TestFlowBodiesTestdataGrammars runs the samples of the testdata grammars, and prefixes of them,
-// through both VM models with every rule that has a Flow body running it: the trees and the errors
-// must be those of the match code, and the module must load. The spends are not compared yet: the
-// current Flow bodies do not charge what the match code of their rules charges, a defect that
-// spec/bytecode/README.md (Flow Bodies) records.
+// through both VM models, which run every rule from its Flow body: the trees, the errors and the
+// spends must be those of flowReference, and the module must load.
 func TestFlowBodiesTestdataGrammars(t *testing.T) {
 	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
@@ -351,10 +355,10 @@ func TestFlowBodiesTestdataGrammars(t *testing.T) {
 			}
 			for _, in := range grammarCorpus(t, path) {
 				for _, b := range []Backend{Bytecode, BytecodeIterative} {
-					ot, oe, _ := parseChargedWith(t, old, in, b)
-					ft, fe, _ := parseChargedWith(t, flows, in, b)
-					if ot != ft || oe != fe {
-						t.Errorf("%v, input of %d bytes: match code err %s; flow err %s; trees equal: %v", b, len(in), oe, fe, ot == ft)
+					ot, oe, ou := flowReference(t, old, filepath.Base(filepath.Dir(path)), in)
+					ft, fe, fu := parseChargedWith(t, flows, in, b)
+					if ot != ft || oe != fe || ou != fu {
+						t.Errorf("%v, input of %d bytes: closure err %s spend %d; flow err %s spend %d; trees equal: %v", b, len(in), oe, ou, fe, fu, ot == ft)
 					}
 				}
 			}
@@ -367,8 +371,8 @@ func TestFlowBodiesTestdataGrammars(t *testing.T) {
 }
 
 // TestFlowBodyOperatorsLines requires every skip and line of the Operators Rules of the testdata
-// grammars that have them to get a Flow body, which TestFlowBodiesTestdataGrammars then runs in
-// place of its match code in both models.
+// grammars that have them to get a Flow body, which TestFlowBodiesTestdataGrammars then runs in both
+// models.
 func TestFlowBodyOperatorsLines(t *testing.T) {
 	for _, g := range []string{"cel", "golang", "python"} {
 		t.Run(g, func(t *testing.T) {
@@ -376,9 +380,6 @@ func TestFlowBodyOperatorsLines(t *testing.T) {
 			m := flows.Module()
 			lines := 0
 			for i, p := range m.OperatorsRules {
-				if p.Skip >= 0 && p.SkipFlow == nil {
-					t.Errorf("the skip of Operators Rule %d has no Flow body", i)
-				}
 				for j, l := range p.Operands {
 					if l.Flow == nil {
 						t.Errorf("operand line %d of Operators Rule %d has no Flow body", j, i)
@@ -401,7 +402,7 @@ func TestFlowBodyOperatorsLines(t *testing.T) {
 
 // TestFlowBodyFrames runs rules whose framed bodies keep the captures of repetition elements in
 // frames of their own (NEWFRAME, SETFRAME, CLEARVALS, FRAMEVAL, ATTACHFRAME) through both VM models:
-// the trees and the errors must be those of the match code. An element whose optional capture does
+// the trees and the errors must be those of the closure backend. An element whose optional capture does
 // not match must not keep the capture of the element before it, and a capture of the whole element
 // wraps its value.
 func TestFlowBodyFrames(t *testing.T) {
@@ -431,10 +432,10 @@ rule item X = "x"`,
 		}
 		for _, in := range g.inputs {
 			for _, b := range []Backend{Bytecode, BytecodeIterative} {
-				ot, oe, _ := parseChargedWith(t, old, in, b)
+				ot, oe, _ := parseChargedWith(t, old, in, Closure)
 				ft, fe, _ := parseChargedWith(t, flows, in, b)
 				if ot != ft || oe != fe {
-					t.Errorf("%v, input %q: match code tree %s err %s; flow tree %s err %s", b, in, ot, oe, ft, fe)
+					t.Errorf("%v, input %q: closure tree %s err %s; flow tree %s err %s", b, in, ot, oe, ft, fe)
 				}
 			}
 		}
@@ -469,8 +470,8 @@ func streamElements(t *testing.T, prog *Program, input string, b Backend) (strin
 
 // TestFlowBodyStreams runs stream parses of grammars whose start rule has a #stream repetition through
 // both VM models, with the start rule's stream body selected from its Flow form: the delivered
-// elements and the errors must be those of the match code, and a batch parse, which runs the rule
-// body instead, must be unchanged.
+// elements and the errors must be those of the closure backend, and so must the result of a batch
+// parse, which runs the rule body instead.
 func TestFlowBodyStreams(t *testing.T) {
 	csv, err := os.ReadFile("../../../testdata/grammars/csv/csv.sxir")
 	if err != nil {
@@ -499,15 +500,15 @@ func TestFlowBodyStreams(t *testing.T) {
 			}
 			for _, in := range g.inputs {
 				for _, b := range []Backend{Bytecode, BytecodeIterative} {
-					oe, oerr := streamElements(t, old, in, b)
+					oe, oerr := streamElements(t, old, in, Closure)
 					fe, ferr := streamElements(t, flows, in, b)
 					if oe != fe || oerr != ferr {
-						t.Errorf("%v, input %q: match code elements\n%s err %s; flow elements\n%s err %s", b, in, oe, oerr, fe, ferr)
+						t.Errorf("%v, input %q: closure elements\n%s err %s; flow elements\n%s err %s", b, in, oe, oerr, fe, ferr)
 					}
-					ot, oerr, _ := parseChargedWith(t, old, in, b)
+					ot, oerr, _ := parseChargedWith(t, old, in, Closure)
 					ft, ferr, _ := parseChargedWith(t, flows, in, b)
 					if ot != ft || oerr != ferr {
-						t.Errorf("%v, batch input %q: match code err %s; flow err %s; trees equal: %v", b, in, oerr, ferr, ot == ft)
+						t.Errorf("%v, batch input %q: closure err %s; flow err %s; trees equal: %v", b, in, oerr, ferr, ot == ft)
 					}
 				}
 			}

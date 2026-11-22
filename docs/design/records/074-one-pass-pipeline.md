@@ -4,6 +4,10 @@
 - **Author**: @ornew
 - **Date**: 2026-11-20
 
+> **Note (2026-11)**: The migration order is amended; the end state is unchanged. The VM switch to the Flow route,
+> which deletes the Core route, comes before step 12. Until step 12, `FlowTable` is the VM's Flow route in production;
+> step 12 assembles the VM pipeline in `Compile` and deletes it.
+
 ## Summary
 
 A compilation is one pipeline of passes, and a pass is one kind of value whatever it does: a transform, a lowering, the
@@ -699,9 +703,9 @@ func Describe(p *Program, o Options, targets ...Target) string
 func GoLibrary(ctx context.Context, o Options) (Output, error)
 func DescribeGoLibrary(o Options) string
 
-// FlowTable builds the Node table of p at the Flow stage for the VM's Flow route, which exists
-// only in tests until the VM switch, at the default settings and with no pruning. The VM switch
-// deletes it.
+// FlowTable builds the Node table of p at the Flow stage for the VM's Flow route, at the default
+// settings and with no pruning. It is the VM's route in production until step 12 of the migration
+// assembles the VM pipeline in Compile, which deletes it.
 func FlowTable(ctx context.Context, p *frontend.Result) (*plantypes.Table[code.Flow], error)
 
 // The slots of the assembled pipelines, for Edits.
@@ -1223,8 +1227,9 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
 13. **Gates and documentation:** the generation-time gate, the run-time compile benchmark, the determinism and allocation
     tests, and the design pages updated for the parts this record implements.
 
-The VM switch to the Flow route, which deletes the Core route, follows as separate work and changes only the VM
-pipeline.
+The VM switch to the Flow route, which deletes the Core route, comes before step 12 as separate work and changes only
+the VM pipeline: the VM selects its bytecode from the table that `FlowTable` builds. Step 12 then moves the VM, already
+on the Flow route, onto `Compile`.
 
 ## Follow-Ups
 

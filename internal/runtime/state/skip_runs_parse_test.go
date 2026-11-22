@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"strconv"
 	"strings"
 	"testing"
@@ -275,16 +276,20 @@ rule x = ("b" #recover(skip=[ac]+)) "d"`)
 	}
 }
 
-// TestSkipRunsWideMinimum checks a skip-run site whose minimum needs a wide operand, through the
-// bytecode and its file.
+// TestSkipRunsWideMinimum checks a skip-run site whose minimum is beyond 32 bits, through the
+// bytecode and its file: the Flow body holds the minimum as a constant of the full integer range.
+// wideMinimum matches the start of skip-run site 1 followed by the constant 4294967296, the
+// minimum that the walk compares the visits with.
+var wideMinimum = regexp.MustCompile(`RUNBEGIN +site=1 [^\n]*\n(?:[^\n]*\n){0,4}[^\n]*CONST +r\d+ = 4294967296\n`)
+
 func TestSkipRunsWideMinimum(t *testing.T) {
 	if strconv.IntSize < 64 {
 		t.Skip("bounds exceed a 32-bit implementation's source integer range")
 	}
 	prog := enginetest.MustCompile(t, `rule main = (x / [ab])* $$
 rule x = ("c" #recover(skip=[a] #repeat(4294967296,) / [b]+)) "d"`)
-	if dis := prog.Module().Disassemble(); !strings.Contains(dis, "SKIPREPEAT min=4294967296 site=1") || !strings.Contains(dis, "SKIPREPEAT min=1 site=2") {
-		t.Fatalf("no wide SKIPREPEAT:\n%s", dis)
+	if dis := prog.Module().Disassemble(); !wideMinimum.MatchString(dis) || !strings.Contains(dis, "RUNBEGIN   site=2 ") {
+		t.Fatalf("no skip-run site 1 with the minimum 4294967296, or no site 2:\n%s", dis)
 	}
 	for _, mode := range enginetest.ValueModes {
 		saved := enginetest.SaveLoad(t, prog, "main", mode)

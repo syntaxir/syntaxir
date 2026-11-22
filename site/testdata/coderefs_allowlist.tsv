@@ -26,7 +26,6 @@ docs/design/records/013-typescript-generation.md	unexport	firstCall	1
 docs/design/records/014-tracing-and-profiling.md	qualified	codegentest.GenCorpus	1
 docs/design/records/014-tracing-and-profiling.md	qualified	engine.WithProfile	1
 docs/design/records/014-tracing-and-profiling.md	qualified	engine.WithTrace	1
-docs/design/records/014-tracing-and-profiling.md	unexport	bodyFrame	5
 docs/design/records/014-tracing-and-profiling.md	unexport	callChild	1
 docs/design/records/014-tracing-and-profiling.md	unexport	callFrame	1
 docs/design/records/014-tracing-and-profiling.md	unexport	parseSpend	1
@@ -297,7 +296,6 @@ docs/optimizations/013-allocation-free-operators-rule-attempts-and-pooled-operat
 docs/optimizations/013-allocation-free-operators-rule-attempts-and-pooled-operators-rule-frames-in-the-engine-and-vms.md	unexport	operatorsRuleAttempt	2
 docs/optimizations/015-allocation-free-action-plumbing-in-all-backends.md	unexport	lineResult	1
 docs/optimizations/015-allocation-free-action-plumbing-in-all-backends.md	unexport	newList	1
-docs/optimizations/016-start-positions-and-lambdas-from-chunks-in-the-vms.md	unexport	newPos	1
 docs/optimizations/018-memoizing-from-the-second-call-at-a-position.md	unexport	memoTable	1
 docs/optimizations/020-splicing-the-memo-table-on-document-edits.md	unexport	memoTable	1
 docs/optimizations/022-bounded-memory-and-less-copying-in-stream-parsing.md	unexport	splitChunks	1

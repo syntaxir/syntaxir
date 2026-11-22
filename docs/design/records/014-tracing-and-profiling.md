@@ -40,7 +40,7 @@ Every rule call of the engine goes through one of two paths:
 
 - `parser.call`, used by all backends (the closure backend's rule references, the recursive VM's `CALL`, the start rule,
   streams and documents), which decides between an unmemoized call, a memo lookup, and left-recursion growth; the
-  iterative VM performs the same steps in its `bodyFrame`, pushing a `callFrame` or a `plainCallFrame`.
+  iterative VM performs the same steps when a Flow body's `CALL` starts a call, pushing a `callFrame` or a `plainCallFrame`.
 - The **plain call path**: calls of plain rules (never memoized outside `Document`, no captures) bypass `call` and
   run `invokePlain` (or `plainCallFrame`) directly. This path was added for speed (performance.md, changes 19, 38, 42,
   43) and is the hottest in the engine.
@@ -53,8 +53,8 @@ path (`call` falls back to `invokePlain` for them), and an untraced parse runs e
 
 `call` begins with `if p.tr != nil`. In a traced parse it hands the call to `tracedCall`, which reports the start,
 sets `tr.direct` and calls `call` again; `call` sees `direct`, clears it and proceeds as usual, so the call logic is not
-duplicated and calls nested in the body are traced in turn. In the iterative VM, `bodyFrame` tests `p.tr` after the
-plain-call test and pushes a `traceFrame`, which reports the start, pushes the frame that `bodyFrame` would have pushed
+duplicated and calls nested in the body are traced in turn. In the iterative VM, a Flow body's `CALL` tests `p.tr` after the
+plain-call test and pushes a `traceFrame`, which reports the start, pushes the frame that the call would have pushed
 (`callChild`), and reports the end when that frame returns.
 
 Calls are reported before the memo is consulted, so a memo hit is a call like any other, with `Memo` set in its exit
@@ -158,8 +158,8 @@ What an ordinary parse executes in addition, exactly:
 | Place | Before | After |
 |:--|:--|:--|
 | `parser.call` (closure, recursive VM, start rule, streams, documents) | | one `p.tr != nil` test at entry |
-| Plain call sites (closure rule reference, recursive VM `CALL`, iterative VM `bodyFrame`) | test `p.memoAll` | none: the family of the program decides |
-| Iterative VM `bodyFrame`, non-plain calls | | one `p.tr != nil` test |
+| Plain call sites (closure rule reference, recursive VM `CALL`, iterative VM `CALL`) | test `p.memoAll` | none: the family of the program decides |
+| Iterative VM `CALL`, non-plain calls | | one `p.tr != nil` test |
 | `parser` struct | | one pointer (`tr`) and one bool (`noPlain`) |
 
 Nothing changes in `invoke`, `invokePlain`, `callBegin`, `callEnd`, the memo, or the code of expressions. The

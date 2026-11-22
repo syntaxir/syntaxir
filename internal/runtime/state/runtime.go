@@ -435,8 +435,6 @@ type Rule struct {
 	Act Evaluator
 	// Value makes the rule's value from the value of its body, for a rule without an action.
 	Value func(p *Parser, v *value.Node, start int) *value.Node
-	// Entry is the start of the body in bytecode (only for rules of the bytecode backend).
-	Entry int
 	// InitVals are the initial values of vars, in the same order (nil when vars is empty).
 	InitVals []any
 	// VarSlots are the slots of vars, in the same order (-1 for a name that no variable declares).

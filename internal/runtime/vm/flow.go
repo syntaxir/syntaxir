@@ -14,8 +14,8 @@ import (
 )
 
 // flowBody returns the body of rule r run from its Flow form f (bytecode.Flow) with the recursive
-// model: the same entry and result as the match code's body, with the operations of f in place of
-// the instructions, and each call of a rule a host call, as the match code's calls are.
+// model: each call of a rule is a host call of the parser, and a rule called directly is called
+// plainly.
 func flowBody(vm *Program, f *bytecode.Flow) func(p *state.Parser, min int) (*value.Node, bool) {
 	return func(p *state.Parser, min int) (*value.Node, bool) { return execFlow(vm, p, f) }
 }
@@ -34,7 +34,7 @@ func execFlow(vm *Program, p *state.Parser, f *bytecode.Flow) (*value.Node, bool
 		var v *value.Node
 		var ok bool
 		if r := vm.rules[x.Rule]; vm.direct[x.Rule] {
-			v, ok = p.CallPlain(r, x.Level) // what the call of the match code does for such a rule
+			v, ok = p.CallPlain(r, x.Level)
 		} else {
 			v, ok = p.Call(r, x.Level)
 		}
@@ -49,13 +49,16 @@ type regStack struct {
 	chunks [][]any
 	cur    int // the chunk the next file is taken from
 	top    int // the first free register of the chunk cur
+	high   int // the registers of the chunk cur from top below high may hold values (clearInactive)
 }
 
 // regMark is the top of a regStack, which release returns to.
 type regMark struct{ cur, top int }
 
-// minRegChunk is the least number of registers of a chunk of a regStack.
-const minRegChunk = 1024
+// MinRegChunk is the least number of registers of a chunk of a regStack. The first chunk, which a
+// Document keeps between parses, holds at most MinRegChunk registers or the registers of the largest
+// Flow body of the module, whichever is more.
+const MinRegChunk = 1024
 
 func (s *regStack) mark() regMark { return regMark{s.cur, s.top} }
 
@@ -70,17 +73,35 @@ func (s *regStack) push(n int) []any {
 			s.chunks = slices.Delete(s.chunks, s.cur, s.cur+1) // too small for this file
 		}
 		if s.cur == len(s.chunks) {
-			s.chunks = append(s.chunks, make([]any, max(n, minRegChunk)))
+			s.chunks = append(s.chunks, make([]any, max(n, MinRegChunk)))
 		}
-		s.top = 0
+		s.top, s.high = 0, len(s.chunks[s.cur]) // a chunk taken again may hold the values of earlier files
 	}
 	regs := s.chunks[s.cur][s.top : s.top+n : s.top+n]
 	s.top += n
+	s.high = max(s.high, s.top)
 	return regs
 }
 
 // release returns the stack to the mark m, taken before the files above it were pushed.
-func (s *regStack) release(m regMark) { s.cur, s.top = m.cur, m.top }
+func (s *regStack) release(m regMark) {
+	if m.cur != s.cur {
+		s.high = len(s.chunks[m.cur]) // the files of chunk m.cur above m.top are unknown
+	}
+	s.cur, s.top = m.cur, m.top
+}
+
+// clearInactive clears the registers above the files in use, so that they keep no value of a
+// finished call alive, and lets go of the chunks above the chunk in use.
+func (s *regStack) clearInactive() {
+	if len(s.chunks) == 0 {
+		return
+	}
+	clear(s.chunks[s.cur][s.top:s.high])
+	s.high = s.top
+	clear(s.chunks[s.cur+1:])
+	s.chunks = s.chunks[:s.cur+1]
+}
 
 // drop empties the stack for the next parse. It keeps the first chunk, cleared so that it keeps no
 // value alive, and lets the others go, so that a parse whose calls nested deeply leaves no large
@@ -91,7 +112,7 @@ func (s *regStack) drop() {
 		clear(s.chunks[1:])
 		s.chunks = s.chunks[:1]
 	}
-	s.cur, s.top = 0, 0
+	s.cur, s.top, s.high = 0, 0, 0
 }
 
 // bytes returns the bytes the stack holds.
@@ -248,7 +269,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowStep:
 			p.Spend()
 		case bytecode.FlowSilent:
-			// As the match code's LOOK and END_LOOK, and its unwinding of a lookahead.
+			// Enters or leaves a lookahead that records no expectations (flow.silent).
 			x := in.Imm.(bytecode.FlowSilenceOf)
 			if x.Delta > 0 {
 				p.Silent++
@@ -275,6 +296,9 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowMergeExpected:
 			exps, _ := regs[in.Args[1]].([]state.ExpID)
 			p.MergeExpected(regs[in.Args[0]].(int), exps)
+		case bytecode.FlowMergeRenamed:
+			exps, _ := regs[in.Args[1]].([]state.ExpID)
+			p.MergeExpected(regs[in.Args[0]].(int), state.RenamedExpected(p, exps, expID(in.Imm.(bytecode.FlowExpectOf))))
 		case bytecode.FlowNewTerminal:
 			text, _ := regs[in.Args[1]].(string)
 			fr.set(in.Dst[0], p.NewNode(nodes.Data{Kind: valueimpl.MatchKind, Start: int32(regs[in.Args[0]].(int)), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true}))
@@ -388,17 +412,27 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.set(in.Dst[0], p.ScanReach(in.Imm.(int), regs[in.Args[0]].(int), regs[in.Args[1]].(int)))
 		case bytecode.FlowScanEnd:
 			p.ScanEnd(in.Imm.(int), regs[in.Args[0]].(int), regs[in.Args[1]].(int))
+		case bytecode.FlowScanReachAt:
+			n := regs[in.Args[1]].(int)
+			if n == p.Tuning().ScanHotSpan() {
+				n = p.ScanReach(in.Imm.(int), regs[in.Args[0]].(int), n)
+			}
+			fr.set(in.Dst[0], n)
+		case bytecode.FlowScanEndAt:
+			if n := regs[in.Args[1]].(int); n >= p.Tuning().ScanHotSpan() {
+				p.ScanEnd(in.Imm.(int), regs[in.Args[0]].(int), n)
+			}
 		case bytecode.FlowScanKids:
 			fr.set(in.Dst[0], p.ScanKids(in.Imm.(int), regs[in.Args[0]].(int), regs[in.Args[1]].(int), regs[in.Args[2]].(int)))
 		case bytecode.FlowPred:
-			// As the match code's PRED, in the current frame.
+			// Evaluates the predicate's action expression in the current frame.
 			fr.set(in.Dst[0], vm.predicate(p, in.Imm.(int)))
 		case bytecode.FlowBind:
-			// As the match code's BIND, in the current frame.
+			// Evaluates the bound action expression in the current frame.
 			x := in.Imm.(bytecode.FlowBindOf)
 			fr.set(in.Dst[0], vm.bind(p, x.Var, x.Action))
 		case bytecode.FlowKeep:
-			// As the match code keeps the expectations of a failed recovery body.
+			// Keeps the expectations of a failed recovery body beyond their scope.
 			exps, _ := regs[in.Args[0]].([]state.ExpID)
 			fr.set(in.Dst[0], p.Keep(exps))
 		case bytecode.FlowMakeError:
@@ -418,7 +452,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			r := vm.rules[in.Imm.(int)]
 			fr.set(in.Dst[0], p.StreamsIn(r.ID, r.Rec))
 		case bytecode.FlowStreamStart:
-			// As the match code's REPEAT of a #stream repetition.
+			// Begins the chunks of a #stream repetition.
 			if state.StreamPrefixIsolation {
 				p.StartStreamChunks()
 			}

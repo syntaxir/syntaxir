@@ -94,11 +94,10 @@ func init() {
 			if x.Delta != 1 && x.Delta != -1 {
 				return fmt.Errorf("flow.silent by %d", x.Delta)
 			}
-			// The match code names a lookahead by the index of its instruction, so the sites of Flow
-			// bodies follow the instructions, where no instruction can take them.
+			// A lookahead that is no observation has no site.
 			site := -1
 			if x.Site != 0 {
-				site = len(s.c.m.Code) + x.Site
+				site = x.Site
 			}
 			s.emit(bytecode.FlowInstr{Op: bytecode.FlowSilent, Imm: bytecode.FlowSilenceOf{Delta: x.Delta, Site: site, Ok: x.Delta == -1 && x.Ok}})
 			return nil
@@ -145,6 +144,14 @@ func init() {
 				return err
 			}
 			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMergeExpected, Args: a})
+			return nil
+		}},
+		{Op: flowpkg.OpMergeRenamed, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			a, err := s.args(c.Args)
+			if err != nil {
+				return err
+			}
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMergeRenamed, Args: a, Imm: bytecode.FlowExpectOf{Exp: s.expID(c.Imm.(ir.ExpID))}})
 			return nil
 		}},
 		{Op: flowpkg.OpNewTerminalNode, Sel: func(s *flowSel, c *code.Call, dst []int) error {
@@ -233,7 +240,8 @@ func init() {
 		}},
 		{Op: flowpkg.OpResumeStart, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			x := c.Imm.(prim.Resume)
-			return s.op(bytecode.FlowResumeStart, c, dst, bytecode.FlowResumeOf{Site: x.Site, Min: x.Min, Max: x.Max, Shiftable: x.Shiftable})
+			// Every negative maximum is no bound, which the instruction encodes as -1.
+			return s.op(bytecode.FlowResumeStart, c, dst, bytecode.FlowResumeOf{Site: x.Site, Min: x.Min, Max: max(x.Max, -1), Shiftable: x.Shiftable})
 		}},
 		{Op: flowpkg.OpResumeMore, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowResumeMore, c, dst, nil)
@@ -300,8 +308,8 @@ func init() {
 			return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Run.Vars.Index(x.Node.Var), Action: t})
 		}},
 		{Op: flowpkg.OpSkipBegin, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			// A walk of a skip-run site begins as the match code's SKIPREPEAT begins it: without values,
-			// keyed by the variables unless the site is free of them. A skip-run site and a run site
+			// A walk of a skip-run site begins without values, keyed by the variables unless the site
+			// is free of them. A skip-run site and a run site
 			// share the numbering of the parser's walk records, so RUNBEGIN begins either.
 			site := int(c.Imm.(prim.Site))
 			return s.op(bytecode.FlowRunBegin, c, dst, bytecode.FlowRunWalkOf{Site: site, KeyEnv: !s.c.in.Elab.EnvFree(site)})
@@ -378,8 +386,8 @@ func (s *flowSel) ruleCallOf(c *code.Call) (bytecode.FlowCallOf, error) {
 	return bytecode.FlowCallOf{Rule: x.Rule, Level: x.Level}, nil
 }
 
-// litOf returns the immediate of the literal lit. Its operands are interned as the match code
-// interns them: the text, then the expectation.
+// litOf returns the immediate of the literal lit. Its operands are interned in a fixed order:
+// the text, then the expectation.
 func (s *flowSel) litOf(lit *ir.Lit) bytecode.FlowLitOf {
 	of := bytecode.FlowLitOf{Fold: lit.Fold}
 	if lit.Fold {

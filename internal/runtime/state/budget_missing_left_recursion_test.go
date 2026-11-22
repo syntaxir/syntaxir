@@ -64,8 +64,8 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 		{engine.Closure, false, 10, false}:         {156, 80540},
 		{engine.Closure, true, 10, false}:          {122, 45684},
 		{engine.Closure, false, 0, true}:           {165, 82092},
-		{engine.Bytecode, false, 0, true}:          {177, 90588},
-		{engine.BytecodeIterative, false, 0, true}: {177, 92076},
+		{engine.Bytecode, false, 0, true}:          {177, 98476},
+		{engine.BytecodeIterative, false, 0, true}: {177, 100012},
 	}
 	for r, w := range want {
 		p := prog

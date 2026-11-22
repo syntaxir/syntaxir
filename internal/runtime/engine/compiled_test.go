@@ -262,41 +262,56 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 
 // TestCompiledUnmarkedCycleRejected checks that a module where a rule on a cycle of calls is not
 // marked Rec does not load: only the calls of marked rules count against the nesting limit, so the
-// cycle would recurse past the host stack. Pointing the entry of a rule at a call of itself makes a
-// direct cycle, pointing two rules' entries at calls of each other a mutual one; with the marks set,
-// the same modules load and the parse fails at the nesting limit.
+// cycle would recurse past the host stack. Giving a rule the Flow body of main with every call made
+// a call of itself makes a direct cycle, giving two rules such bodies that call each other a mutual
+// one; with the marks set, the same modules load and the parse fails at the nesting limit.
 func TestCompiledUnmarkedCycleRejected(t *testing.T) {
 	t.Parallel()
 	const src = "rule main = a \"+\" b\nrule a = [0-9]+ \"a\"\nrule b = [0-9]+ \"b\"\n"
-	// calls returns the address of a call of each rule that main calls, by rule index.
-	calls := func(m *bytecode.Module) map[int]int {
-		at := map[int]int{}
-		for ip, in := range m.Code {
-			if in.Op == bytecode.OpCall && !m.Rules[in.A].Rec {
-				at[int(in.A)] = ip
+	// calls returns the rules that main calls and that are not marked Rec, in increasing order, and
+	// the index of main.
+	calls := func(m *bytecode.Module) ([]int, int) {
+		main := -1
+		for i, r := range m.Rules {
+			if m.Strings[r.Name] == "main" {
+				main = i
 			}
 		}
-		return at
+		at := map[int]bool{}
+		for _, in := range m.Flows[main].Code {
+			if c, ok := in.Imm.(bytecode.FlowCallOf); ok && !m.Rules[c.Rule].Rec {
+				at[c.Rule] = true
+			}
+		}
+		return slices.Sorted(maps.Keys(at)), main
+	}
+	// calling returns a copy of the Flow body f whose every call calls the rule to.
+	calling := func(f *bytecode.Flow, to int) *bytecode.Flow {
+		g := &bytecode.Flow{Regs: f.Regs, Code: slices.Clone(f.Code)}
+		for i, in := range g.Code {
+			if c, ok := in.Imm.(bytecode.FlowCallOf); ok {
+				g.Code[i].Imm = bytecode.FlowCallOf{Rule: to, Level: c.Level}
+			}
+		}
+		return g
 	}
 	for _, tc := range []struct {
 		name  string
-		cycle func(m *bytecode.Module, at map[int]int) []int // patches m, returns the rules of the cycle
+		cycle func(m *bytecode.Module, rs []int, main int) []int // patches m, returns the rules of the cycle
 	}{
-		{"direct", func(m *bytecode.Module, at map[int]int) []int {
-			rs := slices.Sorted(maps.Keys(at))
+		{"direct", func(m *bytecode.Module, rs []int, main int) []int {
 			if len(rs) == 0 {
 				return nil
 			}
-			m.Rules[rs[0]].Entry = at[rs[0]]
+			m.Flows[rs[0]] = calling(m.Flows[main], rs[0])
 			return rs[:1]
 		}},
-		{"mutual", func(m *bytecode.Module, at map[int]int) []int {
-			rs := slices.Sorted(maps.Keys(at))
+		{"mutual", func(m *bytecode.Module, rs []int, main int) []int {
 			if len(rs) < 2 {
 				return nil
 			}
 			a, b := rs[0], rs[1]
-			m.Rules[a].Entry, m.Rules[b].Entry = at[b], at[a]
+			m.Flows[a], m.Flows[b] = calling(m.Flows[main], b), calling(m.Flows[main], a)
 			return []int{a, b}
 		}},
 	} {
@@ -304,7 +319,8 @@ func TestCompiledUnmarkedCycleRejected(t *testing.T) {
 			for _, mark := range []bool{false, true} {
 				prog := mustCompile(t, src)
 				m := prog.Module()
-				rs := tc.cycle(m, calls(m))
+				called, main := calls(m)
+				rs := tc.cycle(m, called, main)
 				if rs == nil {
 					t.Fatalf("no calls to patch in\n%s", src)
 				}

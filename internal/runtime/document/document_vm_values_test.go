@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/runtime/vm"
+	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -127,8 +128,10 @@ rule line = [a-z / "é" / "😀"]+ #atomic "\n"`)
 				}
 				var backing *any
 				if document.ReuseDocumentVMValues && backend != Closure {
-					if cap(documentVMValues(doc)) < 5000 {
-						t.Fatal("large parse did not keep its VM value storage")
+					// The registers hold the frames of the running bodies, which the grammar bounds,
+					// not the elements of the list.
+					if c, bound := cap(documentVMValues(doc)), keptRegisterBound(prog.Module()); c == 0 || c > bound {
+						t.Fatalf("large parse kept %d registers, want 1 to %d", c, bound)
 					}
 					backing = &documentVMValues(doc)[:cap(documentVMValues(doc))][0]
 				} else if documentVMValues(doc) != nil {
@@ -275,10 +278,42 @@ func benchmarkDocumentVMValuesShrink(b *testing.B, edit bool) {
 	}
 }
 
-// documentVMValues returns the VM value stack that the Document d keeps for its next parse, or nil.
+// keptRegisterBound returns the most registers that a Document keeps between parses of the module
+// m: the first chunk of the register stack, which holds vm.MinRegChunk registers or the registers
+// of the largest Flow body of m, whichever is more.
+func keptRegisterBound(m *bytecode.Module) int {
+	n := vm.MinRegChunk
+	add := func(f *bytecode.Flow) {
+		if f != nil {
+			n = max(n, f.Regs)
+		}
+	}
+	for _, f := range m.Flows {
+		add(f)
+	}
+	for _, f := range m.Streams {
+		add(f)
+	}
+	for i := range m.OperatorsRules {
+		p := &m.OperatorsRules[i]
+		add(p.SkipFlow)
+		for j := range p.Operands {
+			add(p.Operands[j].Flow)
+		}
+		for _, ops := range [][]bytecode.OperatorInfo{p.Prefix, p.InfixPostfix} {
+			for j := range ops {
+				add(ops[j].Line.Flow)
+			}
+		}
+	}
+	return n
+}
+
+// documentVMValues returns the first chunk of the VM register stack that the Document d keeps for its
+// next parse, with the length that running bodies use of it, or nil.
 func documentVMValues(d *document.Document) []any {
 	if mc, ok := d.Machine().(*vm.Machine); ok {
-		return mc.Values()
+		return mc.Registers()
 	}
 	return nil
 }
@@ -292,9 +327,8 @@ func BenchmarkDocumentVMValuesShrinkEdits(b *testing.B) {
 }
 
 func TestDocumentVMValueStorageForEmptyInput(t *testing.T) {
-	// Many value-building nullable calls need a large stack despite an empty
-	// input. This exercises dropping new storage at return, rather than only
-	// dropping an old large document's storage before a smaller parse.
+	// Many value-building nullable calls fill many registers despite an empty
+	// input. The registers the Document keeps for the next parse hold no value.
 	prog := mustCompile(t, "rule main = "+strings.Repeat("item ", 2048)+"$$\nrule item = \"\" #atomic")
 	for _, backend := range []Backend{Bytecode, BytecodeIterative} {
 		for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
@@ -309,8 +343,10 @@ func TestDocumentVMValueStorageForEmptyInput(t *testing.T) {
 					if err != nil || n == nil || len(nodes.D(n).Children) != 2048 {
 						t.Fatalf("empty sequence: %v, %v", n, err)
 					}
-					if documentVMValues(doc) != nil {
-						t.Fatal("empty input retained an oversized VM stack")
+					for _, v := range documentVMValues(doc)[:cap(documentVMValues(doc))] {
+						if v != nil {
+							t.Fatal("empty input retained a value in the VM registers")
+						}
 					}
 					if got, want := resultJSON(n, err), resultJSON(prog.ParseWith("main", "", opts)); got != want {
 						t.Fatal("discarded stack changed the nullable sequence")

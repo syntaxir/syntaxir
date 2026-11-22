@@ -2870,9 +2870,9 @@ check found the limit exceeded.
 Every backend must make the same charges, so that every backend reports the
 same `Used` and `Requested` for the same grammar, input and options; a backend
 that charges differently has a defect, not a permitted variation. The current
-backends do not yet meet this rule everywhere: for one, the bytecode machine's
-rules that run their [Flow bodies](../bytecode/README.md#flow-bodies) charge
-fewer units than their match code does.
+backends do not yet meet this rule everywhere: on some grammars the bytecode
+machine, which runs [Flow bodies](../bytecode/README.md#flow-bodies), and the
+closure backend charge different units.
 
 ### Memory Limit
 

@@ -27,12 +27,12 @@ func TestChargeLog(t *testing.T) {
 	if os.Getenv("SXIR_CL_BYTES") != "" {
 		unit = input.Bytes
 	}
-	old, flows, _ := flowProgramsOf(t, src, func(string) bool { return true }, nil)
+	old := mustCompile(t, src)
 	for _, c := range []struct {
 		name string
 		p    *Program
 		b    Backend
-	}{{"closure", old, Closure}, {"bytecode", old, Bytecode}, {"bytecode-iterative", old, BytecodeIterative}, {"flow", flows, Bytecode}, {"flow-iterative", flows, BytecodeIterative}} {
+	}{{"closure", old, Closure}, {"bytecode", old, Bytecode}, {"bytecode-iterative", old, BytecodeIterative}} {
 		var lines []string
 		var total uint64
 		state.ChargeLog = func(n uint64, where string) {

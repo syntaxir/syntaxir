@@ -18,25 +18,11 @@ func (w *Encoder) ints(xs []int) {
 	}
 }
 
-func (w *Encoder) code(code []Instr) {
-	w.Uint(len(code))
-	for _, in := range code {
-		w.Byte(byte(in.Op))
-		w.Int(int(in.A))
-		w.Int(int(in.B))
-		w.Int(int(in.C))
-	}
-}
-
 func (w *Encoder) line(l *LineInfo) {
-	w.Int(l.Entry)
 	w.ints(l.Scope)
 	w.Int(l.Action)
-	w.Bool(l.IsSeq)
-	w.optFlow(l.Flow)
-	if l.Flow != nil {
-		w.flowImm(FlowImmShape, l.Shape)
-	}
+	w.flow(l.Flow)
+	w.flowImm(FlowImmShape, l.Shape)
 }
 
 // optFlow writes whether there is a Flow body f, and f if there is.
@@ -82,7 +68,6 @@ func (w *Encoder) WriteModule(m *Module) {
 	w.Uint(len(m.Rules))
 	for _, r := range m.Rules {
 		w.Int(r.Name)
-		w.Int(r.Entry)
 		w.ints(r.Scope)
 		w.Int(r.Action)
 		w.Int(r.NodeType)
@@ -97,13 +82,16 @@ func (w *Encoder) WriteModule(m *Module) {
 		w.Bool(r.Rec)
 		w.Int(r.Where)
 		w.Bool(r.Splice)
+		w.Bool(r.Value != nil)
+		if r.Value != nil {
+			w.flowImm(FlowImmShape, *r.Value)
+		}
 		w.ints(r.Vars)
 	}
 	w.ints(m.Starts)
 	w.Int(m.DefaultStart)
 	w.Uint(len(m.OperatorsRules))
 	for _, p := range m.OperatorsRules {
-		w.Int(p.Skip)
 		w.optFlow(p.SkipFlow)
 		w.Uint(len(p.Operands))
 		for i := range p.Operands {
@@ -120,11 +108,6 @@ func (w *Encoder) WriteModule(m *Module) {
 				w.line(&o.Line)
 			}
 		}
-	}
-	w.code(m.Code)
-	w.Uint(len(m.Ints))
-	for _, x := range m.Ints {
-		w.Body.Write(binary.AppendVarint(nil, x))
 	}
 	w.Uint(len(m.Actions))
 	for i := range m.Actions {
@@ -427,18 +410,9 @@ func (r *Decoder) ints() []int {
 	return xs
 }
 
-func (r *Decoder) code() []Instr {
-	n := r.Count()
-	code := make([]Instr, 0, n)
-	for i := 0; i < n && r.Err == nil; i++ {
-		code = append(code, Instr{Op: Op(r.Byte()), A: r.int32(), B: r.int32(), C: r.int32()})
-	}
-	return code
-}
-
 func (r *Decoder) line() LineInfo {
-	l := LineInfo{Entry: int(r.int32()), Scope: r.ints(), Action: int(r.int32()), IsSeq: r.Bool()}
-	if l.Flow = r.optFlow(); l.Flow != nil {
+	l := LineInfo{Scope: r.ints(), Action: int(r.int32())}
+	if l.Flow = r.flow(); r.Err == nil {
 		l.Shape, _ = r.flowImm(FlowImmShape).(FlowShapeOf)
 	}
 	return l
@@ -494,10 +468,16 @@ func (r *Decoder) ReadModule() *Module {
 	m.Rules = sized[RuleInfo](r, n, 1)
 	for i := 0; i < n && r.Err == nil; i++ {
 		ri := RuleInfo{
-			Name: int(r.int32()), Entry: int(r.int32()), Scope: r.ints(), Action: int(r.int32()),
+			Name: int(r.int32()), Scope: r.ints(), Action: int(r.int32()),
 			NodeType: int(r.int32()),
-			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Vars: r.ints(),
+			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(),
 		}
+		if r.Bool() && r.Err == nil {
+			if x, ok := r.flowImm(FlowImmShape).(FlowShapeOf); ok {
+				ri.Value = &x
+			}
+		}
+		ri.Vars = r.ints()
 		m.Rules = append(m.Rules, ri)
 	}
 	m.Starts = r.ints()
@@ -505,8 +485,7 @@ func (r *Decoder) ReadModule() *Module {
 	n = r.Count()
 	m.OperatorsRules = sized[OperatorsRuleInfo](r, n, 1)
 	for i := 0; i < n && r.Err == nil; i++ {
-		p := OperatorsRuleInfo{Skip: int(r.int32())}
-		p.SkipFlow = r.optFlow()
+		p := OperatorsRuleInfo{SkipFlow: r.optFlow()}
 		k := r.Count()
 		for j := 0; j < k && r.Err == nil; j++ {
 			p.Operands = append(p.Operands, r.line())
@@ -520,12 +499,6 @@ func (r *Decoder) ReadModule() *Module {
 			}
 		}
 		m.OperatorsRules = append(m.OperatorsRules, p)
-	}
-	m.Code = r.code()
-	n = r.Count()
-	m.Ints = sized[int64](r, n, 1)
-	for i := 0; i < n && r.Err == nil; i++ {
-		m.Ints = append(m.Ints, r.int64())
 	}
 	n = r.Count()
 	m.Actions = sized[Action](r, n, 6)
@@ -775,12 +748,10 @@ func (r *Decoder) actionInstr() ActionInstr {
 	return ActionInstr{Op: op, Dst: ops[0], A: ops[1], B: ops[2], C: ops[3]}
 }
 
-// ValidateModule checks that every table and instruction reference in the module is in range,
-// that jumps go forward (only the NEXT of a repetition jumps backward) and that every rule on a
-// cycle of calls is marked Rec.
-// Recovery regions must not enclose a stream commitment. Other value-stack
-// and entry-stack invariants are not checked. fieldType checks the text of a field type, which
-// the type system above the module defines.
+// ValidateModule checks that every table reference of the module and every reference of its Flow
+// bodies is in range, that every rule and Operators Rule line has a body, that the Flow bodies are
+// well formed (validateFlows) and that every rule on a cycle of calls is marked Rec. fieldType
+// checks the text of a field type, which the type system above the module defines.
 func ValidateModule(m *Module, fieldType func(text string) error) error {
 	var err error
 	fail := func(format string, args ...any) {
@@ -802,11 +773,6 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 	strs := func(xs []int) {
 		for _, x := range xs {
 			str(x)
-		}
-	}
-	nonneg := func(i int32) {
-		if i < 0 {
-			fail("negative operand %d", i)
 		}
 	}
 	for _, c := range m.Classes {
@@ -869,8 +835,11 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		}
 		return false
 	}
+	// Every line has a Flow body (validateFlows checks it).
 	line := func(l *LineInfo) {
-		in("entry", l.Entry, len(m.Code))
+		if err == nil && l.Flow == nil {
+			fail("Operators Rule line without a Flow body")
+		}
 		strs(l.Scope)
 		opt("action", l.Action, len(m.Actions))
 	}
@@ -901,9 +870,12 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 			fail("variable %q is not declared", m.Strings[i])
 		}
 	}
-	for _, r := range m.Rules {
+	for i, r := range m.Rules {
 		str(r.Name)
-		in("entry", r.Entry, len(m.Code))
+		// A rule runs its Flow body, or else the expression of its Operators Rule.
+		if err == nil && m.Flows[i] == nil && r.OperatorsRule < 0 {
+			fail("rule %s has no body", m.Strings[r.Name])
+		}
 		strs(r.Scope)
 		opt("action", r.Action, len(m.Actions))
 		opt("string", r.NodeType, len(m.Strings))
@@ -912,6 +884,13 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		}
 		opt("string", r.Where, len(m.Strings))
 		opt("operatorsRule", r.OperatorsRule, len(m.OperatorsRules))
+		if err == nil && r.Value != nil {
+			if r.Action >= 0 || r.Splice || r.OperatorsRule >= 0 || r.ValueFreeTwin {
+				fail("rule %s shapes the value of its body, which is its value", m.Strings[r.Name])
+			} else if e := validateFlowImm(m, 0, FlowImmShape, *r.Value); e != nil {
+				fail("rule %s: %v", m.Strings[r.Name], e)
+			}
+		}
 		for _, v := range r.Vars {
 			declared(v)
 		}
@@ -947,7 +926,6 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 		fail("default start rule %d is not a start rule", m.DefaultStart)
 	}
 	for _, p := range m.OperatorsRules {
-		opt("entry", p.Skip, len(m.Code))
 		for i := range p.Operands {
 			line(&p.Operands[i])
 		}
@@ -958,164 +936,6 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 				in("associativity", o.Assoc, 3)
 				line(&o.Line)
 			}
-		}
-	}
-	forward := func(ip int, l int32, n int) {
-		if int(l) <= ip || int(l) >= n {
-			fail("invalid jump from %d to %d", ip, l)
-		}
-	}
-	flag := func(b int32, max int32) {
-		if b < 0 || b > max {
-			fail("invalid flag %d", b)
-		}
-	}
-	bound := func(index int32) int64 {
-		in("wide integer", int(index), len(m.Ints))
-		if index < 0 || int(index) >= len(m.Ints) {
-			return 0
-		}
-		n := m.Ints[index]
-		if int64(int(n)) != n {
-			fail("repetition bound %d exceeds the implementation int range", n)
-		}
-		return n
-	}
-	wideBounds := func(minIndex, maxIndex int32) {
-		min, max := bound(minIndex), bound(maxIndex)
-		if min < 0 {
-			fail("invalid minimum %d", min)
-		}
-		if max < -1 || max >= 0 && max < min {
-			fail("invalid maximum %d for minimum %d", max, min)
-		}
-	}
-	keys := make(map[int]bool, len(m.RunKeys))
-	for _, k := range m.RunKeys {
-		keys[k.Site] = true
-	}
-	keyed := func(site int32) {
-		if err == nil && !keys[int(site)] {
-			fail("run site %d is keyed by the variables but has no run key", site)
-		}
-	}
-	for ip, x := range m.Code {
-		n := len(m.Code)
-		switch x.Op {
-		case OpStr, OpStrFold:
-			str(int(x.A))
-			str(int(x.B))
-			flag(x.C, 1)
-		case OpClass:
-			in("class", int(x.A), len(m.Classes))
-			str(int(x.B))
-			flag(x.C, 1)
-		case OpAny, OpTop, OpAtomic, OpEndRepeat, OpEndLook, OpEndSkip:
-			flag(x.A, 1)
-		case OpAssert:
-			flag(x.A, 3)
-		case OpFail, OpCut, OpPushPos, OpPushNil, OpEndLabel, OpReturn, OpEnd:
-		case OpIter:
-			forward(ip, x.A, n)
-			flag(x.B, 7)
-			if x.C == 0 && x.B != 0 {
-				fail("run site flags %d without a run site", x.B)
-			}
-			if x.B&4 != 0 && x.B&2 != 0 {
-				fail("scan site with the flags %d of a run site", x.B)
-			}
-			if x.B&4 != 0 {
-				if x.C < 1 || x.C > scanSiteLimit(n) {
-					fail("invalid scan site %d", x.C)
-				}
-			} else if x.C < 0 || int(x.C) > n {
-				fail("invalid run site %d", x.C)
-			} else if x.C > 0 && x.B&2 == 0 {
-				keyed(x.C)
-			}
-		case OpJump, OpChoice, OpCommit, OpRecover, OpEndRecover:
-			forward(ip, x.A, n)
-		case OpLook:
-			flag(x.B, 1)
-			if x.B == 1 { // only a negative lookahead jumps to its target
-				forward(ip, x.A, n)
-				flag(x.C, 0)
-			} else {
-				flag(x.C, 1)
-			}
-		case OpNext:
-			if x.A < 0 || int(x.A) >= ip {
-				fail("invalid loop from %d to %d", ip, x.A)
-			}
-			flag(x.B, 3)
-			nonneg(x.C)
-		case OpSeq:
-			nonneg(x.A)
-		case OpSpread:
-			nonneg(x.A)
-			flag(x.B, 1)
-		case OpCapture:
-			nonneg(x.A)
-			flag(x.B, 1)
-		case OpRepeat:
-			nonneg(x.A)
-			if x.B < -1 {
-				fail("invalid maximum %d", x.B)
-			}
-			opt("scope", int(x.C), len(m.Scopes))
-		case OpRepeatWide:
-			wideBounds(x.A, x.B)
-			opt("scope", int(x.C), len(m.Scopes))
-		case OpSkipRepeat:
-			flag(x.C, 3)
-			if x.C&1 == 1 {
-				if min := bound(x.A); min < 0 {
-					fail("invalid minimum %d", min)
-				}
-			} else {
-				nonneg(x.A)
-			}
-			if x.B < 1 || int(x.B) > n {
-				fail("invalid skip-run site %d", x.B)
-			} else if x.C&2 == 0 {
-				keyed(x.B)
-			}
-		case OpCall:
-			in("rule", int(x.A), len(m.Rules))
-			nonneg(x.B)
-			flag(x.C, 1)
-		case OpOperatorsRule:
-			in("operatorsRule", int(x.A), len(m.OperatorsRules))
-		case OpPred:
-			in("action", int(x.A), len(m.Actions))
-		case OpBind:
-			in("variable", int(x.A), len(m.Vars))
-			in("action", int(x.B), len(m.Actions))
-			flag(x.C, 0)
-		case OpLabel:
-			str(int(x.A))
-			flag(x.B, 1)
-		case OpGuard:
-			in("class", int(x.A), len(m.Classes))
-			nonneg(x.B)
-			forward(ip, x.C, n)
-		case OpScan:
-			opt("class", int(x.A), len(m.Classes))
-			nonneg(x.B)
-			if x.C < -1 {
-				fail("invalid maximum %d", x.C)
-			}
-		case OpScanWide:
-			opt("class", int(x.A), len(m.Classes))
-			wideBounds(x.B, x.C)
-		case OpScanSite:
-			opt("class", int(x.A), len(m.Classes))
-			nonneg(x.B)
-			if x.C < 1 || x.C > scanSiteLimit(n) {
-				fail("invalid scan site %d", x.C)
-			}
-		default:
-			fail("invalid instruction %d at %d", x.Op, ip)
 		}
 	}
 	for i := range m.Actions {
@@ -1171,9 +991,6 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 	if err := validateFlows(m); err != nil {
 		return err
 	}
-	if err := ValidateStreamRecovery(m.Code); err != nil {
-		return err
-	}
 	return validateRec(m)
 }
 
@@ -1184,7 +1001,7 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 // instruction of the body; every immediate refers to a class, rule, expectation or scope in range,
 // and every capture slot to a slot of the largest frame the body may run with (its rule's scope or a
 // scope of its NEWFRAME); and the body ends with JUMP or RETURN, so that running it cannot pass its
-// end. As for match code, a runtime does not check that registers hold what an instruction reads;
+// end. A runtime does not check that registers hold what an instruction reads;
 // it checks that a slot is in the frame it indexes.
 func validateFlows(m *Module) error {
 	for _, fs := range []struct {
@@ -1268,6 +1085,9 @@ func validateFlow(m *Module, slots int, f *Flow) error {
 	}
 	if regs := f.Unassigned(); len(regs) > 0 {
 		return fmt.Errorf("register %d may be read before it is written", regs[0])
+	}
+	if pc, ok := f.RestoreAcrossCommit(); ok {
+		return fmt.Errorf("%v at %d may restore a state saved before an EMITSTREAM", f.Code[pc].Op, pc)
 	}
 	return nil
 }
@@ -1386,7 +1206,7 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		}
 	case FlowImmRunSite:
 		var x int
-		if x, ok = v.(int); ok && (x < 1 || x > len(m.Code)) {
+		if x, ok = v.(int); ok && (x < 1 || x > m.siteLimit()) {
 			return fmt.Errorf("invalid run site %d", x)
 		}
 	case FlowImmClassTest:
@@ -1430,7 +1250,7 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		if x, ok = v.(FlowRunWalkOf); !ok {
 			break
 		}
-		if x.Site < 1 || x.Site > len(m.Code) {
+		if x.Site < 1 || x.Site > m.siteLimit() {
 			return fmt.Errorf("invalid run site %d", x.Site)
 		}
 		if x.KeyEnv && !slices.ContainsFunc(m.RunKeys, func(k RunKeyInfo) bool { return k.Site == x.Site }) {
@@ -1446,7 +1266,7 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		}
 	case FlowImmScanSite:
 		var x int
-		if x, ok = v.(int); ok && (x < 1 || int64(x) > int64(scanSiteLimit(len(m.Code)))) {
+		if x, ok = v.(int); ok && (x < 1 || int64(x) > int64(scanSiteLimit(m.siteLimit()))) {
 			return fmt.Errorf("invalid scan site %d", x)
 		}
 	case FlowImmShape:
@@ -1466,48 +1286,31 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 	return nil
 }
 
-// ValidateStreamRecovery checks recovery boundaries in lexical bytecode order.
-// Both the protected body and its skip region must finish before a stream NEXT:
-// recovery restores the saved input position, but streaming discards that input.
-// Element-local recovery ends before the enclosing repetition's NEXT and is safe.
-func ValidateStreamRecovery(code []Instr) error {
-	type region struct{ skip, end int }
-	var regions []region
-	for ip, in := range code {
-		for len(regions) > 0 && regions[len(regions)-1].end == ip {
-			regions = regions[:len(regions)-1]
-		}
-		if in.Op == OpRecover {
-			skip := int(in.A)
-			if skip <= ip+1 || skip >= len(code) || code[skip-1].Op != OpEndRecover {
-				return fmt.Errorf("invalid recovery body at %d", ip)
-			}
-			end := int(code[skip-1].A)
-			if end <= skip || end >= len(code) || code[end-1].Op != OpEndSkip {
-				return fmt.Errorf("invalid recovery skip at %d", ip)
-			}
-			if len(regions) > 0 {
-				parent := regions[len(regions)-1]
-				limit := parent.end
-				if ip < parent.skip {
-					limit = parent.skip
-				}
-				if end >= limit {
-					return fmt.Errorf("crossing recovery regions at %d", ip)
-				}
-			}
-			regions = append(regions, region{skip, end})
-		} else if in.StreamsValue() && len(regions) > 0 {
-			return fmt.Errorf("recovery region encloses a stream commitment at %d", ip)
+// scanSiteLimit is the largest scan site number that Flow bodies of n instructions can name: the
+// sites of the skip runs and run sites come first, at most one for each instruction, and then two
+// for each scan site.
+func scanSiteLimit(n int) int32 { return int32(min(3*n+2, 1<<30)) }
+
+// siteLimit is the number of instructions of the Flow bodies of m: a skip-run or run site is at
+// most that number, since each is a repetition that takes instructions of its own.
+func (m *Module) siteLimit() int {
+	n := 0
+	add := func(f *Flow) {
+		if f != nil {
+			n += len(f.Code)
 		}
 	}
-	return nil
+	for _, f := range m.Flows {
+		add(f)
+	}
+	for _, f := range m.Streams {
+		add(f)
+	}
+	for i := range m.OperatorsRules {
+		flowLines(&m.OperatorsRules[i], add)
+	}
+	return n
 }
-
-// scanSiteLimit is the largest scan site number that code of n instructions can name: the sites of
-// the skip runs and run sites come first, at most one for each instruction, and then two for each
-// scan site.
-func scanSiteLimit(n int) int32 { return int32(min(3*n+2, 1<<30)) }
 
 // validateZeros checks the zero descriptors of the struct types of m (TypeInfo.Zeros): each is one
 // descriptor of the grammar in ZeroDesc, every {Name} names a struct type of the module, and no struct

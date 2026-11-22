@@ -94,14 +94,29 @@ func (s *Source) Grammar() *ast.Grammar {
 // Runtime returns the run-time program of the checked program.
 func (s *Source) Runtime() *program.Program { return s.prog.Runtime() }
 
-// Module compiles the program to a bytecode module (vmlower.Compile), once.
+// Module compiles the program to a bytecode module (vmlower.Compile) from its planned Node table
+// (VMInput), once.
 func (s *Source) Module() (*bytecode.Module, error) {
 	s.moduleOnce.Do(func() {
-		p := s.prog
-		s.module, s.moduleErr = vmlower.Compile(vmlower.Input{Run: p.Runtime(), Elab: p})
+		in, err := s.VMInput()
+		if err != nil {
+			s.moduleErr = err
+			return
+		}
+		s.module, _, s.moduleErr = vmlower.Compile(in)
 		s.built.Store(s.module)
 	})
 	return s.module, s.moduleErr
+}
+
+// VMInput returns what the bytecode lowering reads of the program: its run-time program, the
+// program itself, and its planned Node table (FlowTable), which each call builds anew.
+func (s *Source) VMInput() (vmlower.Input, error) {
+	ft, err := s.FlowTable()
+	if err != nil {
+		return vmlower.Input{}, err
+	}
+	return vmlower.Input{Run: s.prog.Runtime(), Elab: s.prog, Table: vmlower.Table{Core: ft.IR.M, Plan: ft.Plan, Funcs: ft.Funcs}}, nil
 }
 
 // BuiltModule returns the module that Module has made, or nil before it has: it builds nothing,

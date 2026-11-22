@@ -116,6 +116,7 @@ func flowModule() *bytecode.Module {
 		{Op: bytecode.FlowResumeBegin, Args: []int{4}},
 		{Op: bytecode.FlowResumeEnd, Args: []int{4, 2, 0}},
 		{Op: bytecode.FlowResumeFinish, Args: []int{4}},
+		{Op: bytecode.FlowMergeRenamed, Args: []int{1, 6}, Imm: bytecode.FlowExpectOf{Exp: bytecode.FixedExps + 1}},
 		{Op: bytecode.FlowReturn, Args: []int{0, 3}},
 	}}
 	return &bytecode.Module{
@@ -127,12 +128,20 @@ func flowModule() *bytecode.Module {
 		},
 		Scopes:  [][]int{{0, 1}},
 		RunKeys: []bytecode.RunKeyInfo{{Site: 1}},
-		Code:    []bytecode.Instr{{Op: bytecode.OpReturn}},
 		Starts:  []int{0},
 		Actions: []bytecode.Action{{}},
 		Vars:    []bytecode.VarInfo{{Str: -1}},
-		Flows:   map[int]*bytecode.Flow{1: f},
+		Flows:   map[int]*bytecode.Flow{0: matchNothing(), 1: f},
 	}
+}
+
+// matchNothing returns a Flow body that matches the empty input with the null value.
+func matchNothing() *bytecode.Flow {
+	return &bytecode.Flow{Regs: 2, Code: []bytecode.FlowInstr{
+		{Op: bytecode.FlowConst, Dst: []int{0}},
+		{Op: bytecode.FlowConst, Dst: []int{1}, Imm: true},
+		{Op: bytecode.FlowReturn, Args: []int{0, 1}},
+	}}
 }
 
 func writeModule(m *bytecode.Module) []byte {
@@ -167,27 +176,34 @@ func TestFlowBodyEncoding(t *testing.T) {
 	if err := bytecode.ValidateModule(got, noFieldTypes); err != nil {
 		t.Fatal(err)
 	}
-	// The body is written last but for the count of stream bodies, 0: one body, rule 1 (zigzag 2),
-	// 8 registers, then its instructions; the last is RETURN with the arguments 0 and 3 (zigzag 0
+	// The body is written last but for the count of stream bodies, 0: rule 1 (zigzag 2), 8
+	// registers, then its instructions; the last is RETURN with the arguments 0 and 3 (zigzag 0
 	// and 6).
 	end := []byte{byte(bytecode.FlowReturn), 0, 6, 0}
 	if !bytes.HasSuffix(data, end) {
 		t.Fatalf("the module does not end with the RETURN of the body and no stream body: % x", data[len(data)-4:])
 	}
-	head := bytes.LastIndex(data, []byte{1, 2, 8, byte(len(m.Flows[1].Code))})
+	head := bytes.LastIndex(data, []byte{2, 8, byte(len(m.Flows[1].Code))})
 	if head < 0 {
 		t.Fatal("no header of the body")
 	}
 	// A body with one instruction, a CONST of each tail, so that the bytes after the header are
 	// the instruction alone.
 	one := func(in ...byte) []byte {
-		return append(append(bytes.Clone(data[:head]), 1, 2, 8, 1), in...)
+		return append(append(bytes.Clone(data[:head]), 2, 8, 1), in...)
 	}
-	body := data[head+1 : len(data)-1]
-	two := append(bytes.Clone(data[:head]), 2)
+	// The body of rule 1 twice, as the second and third of three bodies.
+	body := data[head : len(data)-1]
+	two := append(bytes.Clone(data[:head]), body...)
 	two = append(two, body...)
-	two = append(two, body...)
-	two = append(two, 0)
+	// Before it, the count of the bodies, 2, and the body of rule 0: rule 0, 2 registers, 3
+	// instructions, CONST nil to r0, CONST true to r1 and RETURN r0 r1.
+	rule0 := []byte{2, 0, 2, 3, byte(bytecode.FlowConst), 0, bytecode.ConstNil, 0, byte(bytecode.FlowConst), 2, bytecode.ConstBool, 2, byte(bytecode.FlowReturn), 0, 2}
+	count := head - len(rule0)
+	if count < 0 || !bytes.Equal(data[count:head], rule0) {
+		t.Fatalf("the body of rule 1 does not follow the count and the body of rule 0")
+	}
+	two[count] = 3
 	for _, c := range []struct {
 		name string
 		data []byte
@@ -347,12 +363,12 @@ func TestFlowBodyValidation(t *testing.T) {
 		{"scope", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[57].Imm = 1 }, "scope 1 out of range"},
 		{"scope of a frame", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[53].Imm = -1 }, "scope -1 out of range"},
 		{"scope kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[57].Imm = nil }, "invalid immediate"},
-		{"run site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[59].Imm = 2 }, "invalid run site 2"},
+		{"run site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[59].Imm = 10000 }, "invalid run site 10000"},
 		{"run site zero", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[66].Imm = 0 }, "invalid run site 0"},
-		{"run walk site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[60].Imm = bytecode.FlowRunWalkOf{Site: 2} }, "invalid run site 2"},
+		{"run walk site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[60].Imm = bytecode.FlowRunWalkOf{Site: 10000} }, "invalid run site 10000"},
 		{"run walk key", func(m *bytecode.Module, f *bytecode.Flow) { m.RunKeys = nil }, "run site 1 is keyed by the variables but has no run key"},
 		{"run walk kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[60].Imm = 1 }, "invalid immediate"},
-		{"scan site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[67].Imm = 6 }, "invalid scan site 6"},
+		{"scan site", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[67].Imm = 10000 }, "invalid scan site 10000"},
 		{"scan site zero", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[69].Imm = 0 }, "invalid scan site 0"},
 		{"action", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[70].Imm = 1 }, "action 1 out of range"},
 		{"action expression kind", func(m *bytecode.Module, f *bytecode.Flow) { f.Code[70].Imm = nil }, "invalid immediate"},
@@ -455,6 +471,7 @@ func TestFlowBodyDisassembly(t *testing.T) {
 		"    91  RESUMESTART r4 = resume=3 min=1 max=-1 shiftable=true\n",
 		"    93  RESUMENEXT r0,r2 = r4\n",
 		"    95  RESUMEEND  r4 r2 r0\n",
+		"    97  MERGERENAMED r1 r6 ",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("disassembly has no %q:\n%s", want, got)
@@ -488,29 +505,6 @@ func TestSpecFlowOperations(t *testing.T) {
 		s, ok := bytecode.FlowOp(code).Shape()
 		if !ok || s.Name != r[2] || s.Dst != d || s.Args != a {
 			t.Errorf("the specification has %s as code %d with %d destinations and %d arguments; the runtime has %+v", r[2], code, d, a, s)
-		}
-	}
-}
-
-// TestFlowSkipRunWalkDisassembly checks that the disassembly marks a RUNBEGIN of a skip-run site,
-// the form of flow.skipBegin, and no RUNBEGIN of another site.
-func TestFlowSkipRunWalkDisassembly(t *testing.T) {
-	m := &bytecode.Module{
-		Strings: []string{"main"},
-		Rules:   []bytecode.RuleInfo{{Name: 0, Action: -1, NodeType: -1, OperatorsRule: -1, Where: -1}},
-		Code:    []bytecode.Instr{{Op: bytecode.OpSkipRepeat, A: 0, B: 1, C: 2}, {Op: bytecode.OpReturn}},
-		Flows: map[int]*bytecode.Flow{0: {Code: []bytecode.FlowInstr{
-			{Op: bytecode.FlowRunBegin, Imm: bytecode.FlowRunWalkOf{Site: 1}},
-			{Op: bytecode.FlowRunBegin, Imm: bytecode.FlowRunWalkOf{Site: 2}},
-		}}},
-	}
-	got := m.Disassemble()
-	for _, want := range []string{
-		"     0  RUNBEGIN   site=1 build=false keyenv=false skip-run\n",
-		"     1  RUNBEGIN   site=2 build=false keyenv=false\n",
-	} {
-		if !strings.Contains(got, want) {
-			t.Errorf("disassembly has no %q:\n%s", want, got)
 		}
 	}
 }

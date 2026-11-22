@@ -6,15 +6,13 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/frontend/elaborate"
-	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
-// BenchmarkBytecodeLowering isolates the construction of the module, match code and action code, from
-// the Core IR of an already checked grammar after the bytecode pipeline; source parsing, checking,
-// the Core IR build and VM setup are out.
+// BenchmarkBytecodeLowering isolates the construction of the module, its tables, Flow bodies and action
+// code, from the planned Node table of an already checked grammar; source parsing, checking, the
+// table's build and VM setup are out. The lowering does not change its input, so each iteration
+// lowers the same table.
 func BenchmarkBytecodeLowering(b *testing.B) {
 	for _, c := range []struct{ name, path string }{
 		{"JSON", "../../../testdata/grammars/json/json.sxir"},
@@ -25,19 +23,11 @@ func BenchmarkBytecodeLowering(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			p := compiletest.Program(b, string(source), check.Options{})
-			m, err := elaborate.CoreControlled(p, nil)
-			if err != nil {
-				b.Fatal(err)
-			}
-			core.Analyze(m)
-			if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
-				b.Fatal(err)
-			}
+			in := vmInput(b, compiletest.Program(b, string(source), check.Options{}))
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				if _, err := vmlower.CompileCore(vmlower.Input{Run: p.Runtime(), Elab: p}, m); err != nil {
+				if _, _, err := vmlower.Compile(in); err != nil {
 					b.Fatal(err)
 				}
 			}

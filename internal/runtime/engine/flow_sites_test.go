@@ -11,8 +11,7 @@ import (
 )
 
 // TestFlowBodySites runs grammars with skip-run, run and scan sites through both VM models with
-// every rule that has a Flow body running it: the trees and the errors must be those of the match
-// code. The run sites turn hot at a short span, so the walks of the Flow bodies record and take the
+// every rule running its Flow body: the trees and the errors must be those of the closure backend. The run sites turn hot at a short span, so the walks of the Flow bodies record and take the
 // rest from records (RUNBEGIN, SKIPVISIT, SKIPHIT, SKIPVALUE, SKIPEND, SKIPKIDS), and the long runs
 // of the inputs reach the records of scan sites (SCANREACH, SCANEND, SCANKIDS). The scan sites keep
 // the span of the Flow lowering (flow.ScanHotSpan), which the runtime's must equal.
@@ -48,13 +47,13 @@ func TestFlowBodySites(t *testing.T) {
 		}
 		for _, in := range inputs {
 			for _, b := range []Backend{Bytecode, BytecodeIterative} {
-				ot, oe, _ := parseChargedTuned(t, old, in, b, tune)
+				ot, oe, _ := parseChargedTuned(t, old, in, Closure, tune)
 				t0, h0 := state.RunHotTurns.Load(), state.ScanHits.Load()
 				ft, fe, _ := parseChargedTuned(t, flows, in, b, tune)
 				turns += state.RunHotTurns.Load() - t0
 				hits += state.ScanHits.Load() - h0
 				if ot != ft || oe != fe {
-					t.Fatalf("%s, %v, input %q:\n match code %s %s\n flow       %s %s", g.Name, b, in, ot, oe, ft, fe)
+					t.Fatalf("%s, %v, input %q:\n closure %s %s\n flow    %s %s", g.Name, b, in, ot, oe, ft, fe)
 				}
 			}
 		}
@@ -62,7 +61,7 @@ func TestFlowBodySites(t *testing.T) {
 	for _, op := range []bytecode.FlowOp{
 		bytecode.FlowRunHot, bytecode.FlowRunBegin, bytecode.FlowRunWalked, bytecode.FlowSkipVisit,
 		bytecode.FlowSkipHit, bytecode.FlowSkipValue, bytecode.FlowSkipEnd, bytecode.FlowSkipKids,
-		bytecode.FlowScanReach, bytecode.FlowScanEnd, bytecode.FlowScanKids,
+		bytecode.FlowScanReachAt, bytecode.FlowScanEndAt, bytecode.FlowScanKids,
 	} {
 		if ops[op] == 0 {
 			t.Errorf("no Flow body has %v", op)

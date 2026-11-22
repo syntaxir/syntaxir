@@ -3,6 +3,7 @@ package state_test
 import (
 	"fmt"
 	"io"
+	"maps"
 	"math/rand"
 	"slices"
 	"strings"
@@ -295,43 +296,36 @@ func TestScanSitesChargeBounds(t *testing.T) {
 	}
 }
 
-// TestScanSitesCompileToInstructions checks that the bytecode of the scan sites holds the
-// instructions that serve them, is accepted by the module validator and is rejected when it names a scan site
-// that the module cannot hold.
+// TestScanSitesCompileToInstructions checks that the Flow bodies of the scan sites hold the
+// instructions that serve them, are accepted by the module validator and are rejected when they name a
+// scan site that the module cannot hold.
 func TestScanSitesCompileToInstructions(t *testing.T) {
 	prog := enginetest.MustCompile(t, `rule main = (w / r "?" / [ab ])* $$
 rule w = (r "!" / r ".") #atomic
 rule r = [ab]*`)
 	m := prog.Module()
-	var scan, iter int
-	for _, in := range m.Code {
-		switch {
-		case in.Op == bytecode.OpScanSite:
-			scan++
-		case in.Op == bytecode.OpIter && in.B&4 != 0:
-			iter++
-		}
-	}
-	if scan == 0 || iter == 0 {
-		t.Fatalf("%d SCANSITE and %d scan ITER instructions, want both", scan, iter)
-	}
 	if err := program.ValidateModule(m); err != nil {
 		t.Fatalf("the module of scan sites is rejected: %v", err)
 	}
-	for ip, in := range m.Code {
-		if in.Op != bytecode.OpScanSite && !(in.Op == bytecode.OpIter && in.B&4 != 0) {
-			continue
+	ops := map[bytecode.FlowOp]int{}
+	for rule, f := range m.Flows {
+		for pc, in := range f.Code {
+			if s, _ := in.Op.Shape(); s.Imm != bytecode.FlowImmScanSite {
+				continue
+			}
+			ops[in.Op]++
+			bad := *m
+			bad.Flows = maps.Clone(m.Flows)
+			g := &bytecode.Flow{Regs: f.Regs, Code: slices.Clone(f.Code)}
+			g.Code[pc].Imm = 0
+			bad.Flows[rule] = g
+			if err := program.ValidateModule(&bad); err == nil {
+				t.Errorf("rule %d: instruction %d (%v) with an invalid scan site is accepted", rule, pc, in.Op)
+			}
 		}
-		bad := *m
-		bad.Code = append([]bytecode.Instr(nil), m.Code...)
-		if in.Op == bytecode.OpScanSite {
-			bad.Code[ip].C = 0
-		} else {
-			bad.Code[ip].B = 4 | 2
-		}
-		if err := program.ValidateModule(&bad); err == nil {
-			t.Errorf("instruction %d (%v) with an invalid scan site is accepted", ip, bad.Code[ip].Op)
-		}
+	}
+	if ops[bytecode.FlowScanReachAt] == 0 || ops[bytecode.FlowScanEndAt] == 0 {
+		t.Fatalf("scan site instructions %v, want SCANREACHAT and SCANENDAT", ops)
 	}
 }
 

@@ -99,8 +99,7 @@ func limitReportOf(err error) string {
 }
 
 // engineChargeBackends returns the backends of the engine for the grammar src: the closure
-// backend, both bytecode machines, and both machines running the Flow bodies of every rule that
-// has one (when some rule does).
+// backend and both bytecode machines.
 func engineChargeBackends(t testing.TB, src string, unit input.PositionUnit) []chargeBackend {
 	t.Helper()
 	return engineChargeBackendsTraced(t, src, unit, false)
@@ -109,7 +108,7 @@ func engineChargeBackends(t testing.TB, src string, unit input.PositionUnit) []c
 // engineChargeBackendsTraced is engineChargeBackends, with every parse traced if traced holds.
 func engineChargeBackendsTraced(t testing.TB, src string, unit input.PositionUnit, traced bool) []chargeBackend {
 	t.Helper()
-	old, flows, n := flowProgramsOf(t, src, func(string) bool { return true }, nil)
+	old := mustCompile(t, src)
 	on := func(prog *Program, b Backend) chargeRun {
 		return func(in string, limit uint64) string {
 			o := ParseOptions{Backend: b, Unit: unit, Expectations: true, Limits: sxirruntime.Limits{Compute: limit}}
@@ -120,15 +119,11 @@ func engineChargeBackendsTraced(t testing.TB, src string, unit input.PositionUni
 			return limitReportOf(err)
 		}
 	}
-	out := []chargeBackend{
+	return []chargeBackend{
 		{"closure", on(old, Closure)},
 		{"bytecode", on(old, Bytecode)},
 		{"bytecode-iterative", on(old, BytecodeIterative)},
 	}
-	if n > 0 {
-		out = append(out, chargeBackend{"flow", on(flows, Bytecode)}, chargeBackend{"flow-iterative", on(flows, BytecodeIterative)})
-	}
-	return out
 }
 
 // chargeDivergence is a backend that disagrees with the reference, and how.

@@ -560,7 +560,7 @@ Conditions are Flow IR expressions printed by the TypeScript printer, not rewrit
 **Bytecode.** Bytecode is emitted from Core IR optimized by the bytecode pipeline. The instruction set is a
 choice-point machine: `CHOICE` saves the whole state (position, value-stack and entry-stack heights,
 repetition states, capture trail, environment, recovered errors, frame) as one entry, and values live on a
-stack ([VM State](../../../spec/bytecode/README.md#vm-state), [Failure](../../../spec/bytecode/README.md#failure)). Flow IR's
+stack (the match instructions of the time, which the bytecode no longer has). Flow IR's
 selective saves, registers and slots have no instructions to lower to, while every node that the bytecode
 pipeline declares has one: `Choice` to `CHOICE`/`COMMIT`, `Guard` to `GUARD`, `Repeat` to
 `REPEAT`/`ITER`/`NEXT`/`ENDREPEAT`, projections to `NEXT` mode 3, `Scan` to `SCAN`, `Look` to
@@ -588,7 +588,7 @@ the loader does not verify stack use ([Load-Time Validation](../../../spec/bytec
   `ENDREPEAT`), lookahead (`LOOK` to `ENDLOOK`) and label (`LABEL` to `ENDLABEL`) opened inside a region
   closes inside it;
 - a region contains no `RETURN`, no `END` and no stream-mode `NEXT` (mode 2): a `#stream` repetition
-  streams only in the start rule's body at call depth 1 ([Match Instructions](../../../spec/bytecode/README.md#match-instructions)),
+  streams only in the start rule's body at call depth 1,
   and an inlined body never runs there, so the compiler emits mode 1;
 - slot operands inside a region are in rule A's scope; rule A is not a leader, has no Operators Rule and
   is not memoized in the module's family; a call-preserving module contains no `NEST`.

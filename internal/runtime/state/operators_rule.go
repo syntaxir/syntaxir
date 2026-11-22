@@ -11,7 +11,7 @@ import (
 // order (higher binds tighter).
 type OperatorsRule struct {
 	Skip      Matcher
-	SkipEntry int // index of the skip's code in the bytecode program (bytecode backend only; -1 if none)
+	SkipEntry int // index of the skip's Flow body in the bytecode program (bytecode backend only; -1 if none)
 	Operands  []*OperatorsRuleLine
 	Prefix    []*OperatorsRuleOp
 	Led       []*OperatorsRuleOp // infix and postfix
@@ -27,7 +27,7 @@ type OperatorsRuleLine struct {
 	Value  func(p *Parser, v *value.Node, start int) *value.Node
 	Single program.SingleMode
 	Shape  program.Shaper
-	Entry  int // index of the line's code in the bytecode program (bytecode backend only)
+	Entry  int // index of the line's Flow body in the bytecode program (bytecode backend only)
 	// Key is the line's *ast.OperatorsRuleOperand or *ast.OperatorsRuleOperator.
 	Key any
 }

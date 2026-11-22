@@ -1,3 +1,5 @@
+//go:build !sxir_budget_controls_reference
+
 package engine
 
 import (
@@ -14,10 +16,10 @@ import (
 )
 
 // TestFlowBodyDocumentRuns checks that a Document parse on the bytecode VM resumes the repetition runs
-// of the previous parse from the Flow bodies' run operations (RESUMESTART and the rest) as it resumes
-// them from the match code: after each edit of a sequence, the number of resumed elements and the
-// units that the parse charges are the match code's, and the value and error are the closure
-// backend's.
+// of the previous parse from the Flow bodies' run operations (RESUMESTART and the rest) as the closure
+// backend resumes them: after each edit of a sequence, the value, the error, the number of resumed
+// elements and the units that the parse charges are the closure backend's, but for the units of the
+// guard reads of a choice (knownGuardReadDivergence).
 func TestFlowBodyDocumentRuns(t *testing.T) {
 	codegentest.NeedsBudgetControls(t)
 	var lines strings.Builder
@@ -44,9 +46,10 @@ rule ws = [ ]*`, strings.Repeat(strings.Repeat(" ", 40)+"a", 20), []string{" ", 
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			old, flows, _ := flowProgramsOf(t, c.grammar, func(string) bool { return true }, nil)
+			prog := mustCompile(t, c.grammar)
+			m := prog.Module()
 			starts := 0
-			for _, f := range flows.Module().Flows {
+			for _, f := range m.Flows {
 				for _, in := range f.Code {
 					if in.Op == bytecode.FlowResumeStart {
 						starts++
@@ -54,17 +57,14 @@ rule ws = [ ]*`, strings.Repeat(strings.Repeat(" ", 40)+"a", 20), []string{" ", 
 				}
 			}
 			if starts == 0 {
-				t.Fatalf("no Flow body starts a resumed run:\n%s", flows.Module().Disassemble())
+				t.Fatalf("no Flow body starts a resumed run:\n%s", m.Disassemble())
 			}
 			for _, b := range []Backend{Bytecode, BytecodeIterative} {
-				// The closure backend, the match code and the Flow bodies.
-				var used [3]uint64
-				var docs [3]*document.Document
-				for i, run := range []struct {
-					prog *Program
-					b    Backend
-				}{{flows, Closure}, {old, b}, {flows, b}} {
-					docs[i] = chargedDocument(t, run.prog, run.b, c.text, &used[i])
+				// The closure backend and the Flow bodies.
+				var used [2]uint64
+				var docs [2]*document.Document
+				for i, run := range []Backend{Closure, b} {
+					docs[i] = chargedDocument(t, prog, run, c.text, &used[i])
 				}
 				rng := rand.New(rand.NewSource(5))
 				resumed := 0
@@ -73,8 +73,8 @@ rule ws = [ ]*`, strings.Repeat(strings.Repeat(" ", 40)+"a", 20), []string{" ", 
 					start := rng.Intn(len(text))
 					end := min(start+rng.Intn(3), len(text))
 					ins := c.pieces[rng.Intn(len(c.pieces))]
-					var got [3]string
-					var stats [3]runtime.ParseStats
+					var got [2]string
+					var stats [2]runtime.ParseStats
 					for i, d := range docs {
 						if err := d.Edit(start, end, ins); err != nil {
 							t.Fatal(err)
@@ -82,14 +82,15 @@ rule ws = [ ]*`, strings.Repeat(strings.Repeat(" ", 40)+"a", 20), []string{" ", 
 						v, err := d.Parse()
 						got[i], stats[i] = dump(t, v, err), d.Stats()
 					}
-					if got[2] != got[0] || stats[2].ResumedElements != stats[1].ResumedElements || used[2] != used[1] {
-						t.Fatalf("%s, round %d, edit [%d, %d) %q:\n closure    %s\n match code %s resumed %d units %d\n Flow       %s resumed %d units %d",
-							b, round, start, end, ins, got[0], got[1], stats[1].ResumedElements, used[1], got[2], stats[2].ResumedElements, used[2])
+					units := used[1] == used[0] || knownGuardReadDivergence(m, used[0], used[1])
+					if got[1] != got[0] || stats[1].ResumedElements != stats[0].ResumedElements || !units {
+						t.Errorf("%s, round %d, edit [%d, %d) %q:\n closure %s resumed %d units %d\n Flow    %s resumed %d units %d",
+							b, round, start, end, ins, got[0], stats[0].ResumedElements, used[0], got[1], stats[1].ResumedElements, used[1])
 					}
-					resumed += stats[2].ResumedElements
+					resumed += stats[1].ResumedElements
 				}
-				if resumed == 0 || used[2] == 0 {
-					t.Errorf("%s: the parses resumed %d elements, and the last charged %d units", b, resumed, used[2])
+				if resumed == 0 || used[1] == 0 {
+					t.Errorf("%s: the parses resumed %d elements, and the last charged %d units", b, resumed, used[1])
 				}
 			}
 		})

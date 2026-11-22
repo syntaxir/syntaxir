@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"reflect"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -26,15 +27,12 @@ func negativeMaxima() []int {
 
 func TestNegativeRepetitionMaxima(t *testing.T) {
 	t.Parallel()
-	for _, c := range []struct {
-		name, src string
-		op        bytecode.Op
-	}{
-		{"ordinary", `rule main = "é"* $$`, bytecode.OpRepeat},
+	for _, c := range []struct{ name, src string }{
+		{"ordinary", `rule main = "é"* $$`},
 		// The call of e keeps the repetitions plain scans rather than scan sites.
-		{"class scan", "rule main = [é]* #atomic e $$\nrule e = \"\"", bytecode.OpScan},
-		{"any scan", "rule main = .* #atomic e $$\nrule e = \"\"", bytecode.OpScan},
-		{"projection", `rule main = xs:(v:"é")* $$ => map($xs, (x) => x.$v)`, bytecode.OpRepeat},
+		{"class scan", "rule main = [é]* #atomic e $$\nrule e = \"\""},
+		{"any scan", "rule main = .* #atomic e $$\nrule e = \"\""},
+		{"projection", `rule main = xs:(v:"é")* $$ => map($xs, (x) => x.$v)`},
 	} {
 		for _, maximum := range negativeMaxima() {
 			t.Run(fmt.Sprintf("%s/%d", c.name, maximum), func(t *testing.T) {
@@ -51,25 +49,11 @@ func TestNegativeRepetitionMaxima(t *testing.T) {
 					// Saved ASTs use the compiled grammar, where source-only groups
 					// are removed. The caller's AST is checked separately below.
 					savedAST := executableASTJSON(t, p.Static().Grammar)
-					found := false
-					for _, in := range p.Module().Code {
-						if in.Op == c.op {
-							found = true
-							max := in.B
-							if c.op == bytecode.OpScan {
-								max = in.C
-							}
-							if max != -1 {
-								t.Errorf("uncanonical maximum %d in %s", max, c.op)
-							}
-						}
-					}
-					if !found {
-						t.Fatalf("expected %s lowering", c.op)
-					}
-					for _, in := range p.Module().Code {
-						if in.Op == bytecode.OpRepeatWide || in.Op == bytecode.OpScanWide {
-							t.Errorf("negative maxima alone must not lower to %s", in.Op)
+					// A negative maximum is no maximum: the body compares its count with no
+					// maximum, so it holds no negative bound.
+					for _, x := range flowConsts(p.Module()) {
+						if n, ok := x.(int); ok && n < 0 {
+							t.Errorf("a Flow body holds the bound %d", n)
 						}
 					}
 					if err := program.ValidateModule(p.Module()); err != nil {
@@ -209,20 +193,14 @@ func TestNegativeMaximumWithWideMinimum(t *testing.T) {
 				t.Fatal(err)
 			}
 			found := false
-			for _, in := range p.Module().Code {
-				index := in.B
-				if in.Op == bytecode.OpScanWide {
-					index = in.C
-				} else if in.Op != bytecode.OpRepeatWide {
-					continue
+			for _, x := range flowConsts(p.Module()) {
+				if n, ok := x.(int); ok && n < 0 {
+					t.Fatalf("a Flow body holds the bound %d", n)
 				}
-				found = true
-				if p.Module().Ints[index] != -1 {
-					t.Fatal("wide maximum is not canonical")
-				}
+				found = found || x == 2147483648
 			}
 			if !found {
-				t.Fatal("wide instruction missing")
+				t.Fatal("the wide minimum is in no Flow body")
 			}
 			for _, mode := range valueModes {
 				loaded := saveLoad(t, p, "main", mode)
@@ -240,4 +218,36 @@ func TestNegativeMaximumWithWideMinimum(t *testing.T) {
 			}
 		}
 	}
+}
+
+// flowConsts returns the immediates of the CONST instructions of the Flow bodies of m: those of its
+// rules, stream bodies, and Operators Rule skips and lines.
+func flowConsts(m *bytecode.Module) []any {
+	var out []any
+	add := func(f *bytecode.Flow) {
+		if f == nil {
+			return
+		}
+		for _, in := range f.Code {
+			if in.Op == bytecode.FlowConst {
+				out = append(out, in.Imm)
+			}
+		}
+	}
+	for _, f := range m.Flows {
+		add(f)
+	}
+	for _, f := range m.Streams {
+		add(f)
+	}
+	for _, p := range m.OperatorsRules {
+		add(p.SkipFlow)
+		for _, l := range p.Operands {
+			add(l.Flow)
+		}
+		for _, o := range slices.Concat(p.Prefix, p.InfixPostfix) {
+			add(o.Line.Flow)
+		}
+	}
+	return out
 }

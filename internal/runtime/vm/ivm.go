@@ -15,7 +15,7 @@ func NewIterative(m *bytecode.Module, actionExprs []*state.ActionProgram, f stat
 }
 
 // iterateBody runs a rule body with the iterative model: calls push frames instead of recursing.
-func iterateBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min int) (*value.Node, bool) {
+func iterateBody(vm *Program, r *state.Rule) func(p *state.Parser, min int) (*value.Node, bool) {
 	return func(p *state.Parser, min int) (*value.Node, bool) {
 		mc := ivmMachineOf(p)
 		mc.flows, mc.streams = vm.flows, vm.streams
@@ -31,7 +31,7 @@ func iterateBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, mi
 // model. Action and predicate expressions are evaluated with host calls, because their depth is
 // determined by the grammar (not by the input).
 
-// ivmMachine is the state of the iterative-model VM for one parse: the VM state it runs code
+// ivmMachine is the state of the iterative-model VM for one parse: the VM state it runs Flow bodies
 // with, the pool of its frames and the result of the last longest match. It is the driver state
 // of the VM (Machine.driver): the parser's backend state is the embedded Machine, whose
 // driver points back here.
@@ -55,8 +55,8 @@ func ivmMachineOf(p *state.Parser) *ivmMachine {
 }
 
 // newIVMMachine makes the iterative-model VM state of the parse that p runs. It takes over the
-// stacks of the VM state that p has, such as the value stack a Document kept. The first rule body
-// of a parse makes it, before any code holds the VM state that it replaces.
+// register stack of the VM state that p has, which a Document may have kept. The first rule body of
+// a parse makes it, before any body holds the VM state that it replaces.
 func newIVMMachine(p *state.Parser) *ivmMachine {
 	im := &ivmMachine{}
 	if mc, ok := p.Backend.(*Machine); ok {
@@ -103,17 +103,6 @@ func (mc *ivmMachine) iterate(vm *Program, root iframe) iresult {
 	}
 }
 
-// bodyFrame runs code (a rule body or an Operators Rule section). For an unmemoized call of a rule without
-// captures, the body frame also does the steps of the call (InvokePlain), so that such calls,
-// the most common, push one frame instead of two.
-type bodyFrame struct {
-	b       vmBody
-	block   bool // OperatorsRule section (reports a cut to the caller through p.cut)
-	started bool
-	call    bool      // a plain call of b.r: run the end of InvokePlain (plain) when the body finishes
-	plain   plainCall // call: the state saved by the call
-}
-
 // plainCall is the state of an unmemoized call of a rule without captures whose steps
 // (InvokePlain) the frame that runs the rule's body does: begin before the body and end after it.
 type plainCall struct {
@@ -149,35 +138,8 @@ func (c *plainCall) end(p *state.Parser, r *state.Rule, v *value.Node, ok bool) 
 	return v
 }
 
-func (f *bodyFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, iresult, bool) {
-	p := mc.p
-	var ev int
-	var v *value.Node
-	var ok bool
-	if !f.started {
-		f.started = true
-		ev, v, ok = mc.step(vm, &f.b, false, false, nil)
-	} else {
-		ev, v, ok = mc.step(vm, &f.b, true, res.ok, res.v)
-	}
-	switch ev {
-	case evCall:
-		in := &vm.m.Code[f.b.ip]
-		return mc.ruleCallFrame(vm, int(in.A), int(in.B)), iresult{}, false
-	case evOperatorsRule:
-		return mc.operatorsRuleFrame(f.b.r, f.b.min), iresult{}, false
-	}
-	if f.block && f.b.cut {
-		p.Cut = true
-	}
-	if f.call {
-		v = f.plain.end(p, f.b.r, v, ok)
-	}
-	return nil, iresult{v: v, ok: ok}, true
-}
-
 // ruleCallFrame returns the frame that runs the call of the rule of ID rule at the binding level
-// min that a CALL of match code or of a Flow body makes.
+// min that a CALL of a Flow body makes.
 func (mc *ivmMachine) ruleCallFrame(vm *Program, rule, min int) iframe {
 	p := mc.p
 	r := vm.rules[rule]
@@ -223,19 +185,36 @@ func (mc *ivmMachine) plainCallFrame(r *state.Rule, min int) iframe {
 		ff.plain.begin(p, r)
 		return ff
 	}
-	f := mc.bodyFrame(r.Entry, r, min, false)
-	f.call = true
+	f := reuse(&p.MemKept, &mc.pool.operatorsRuleCalls)
+	*f = operatorsRuleCallFrame{r: r, min: min}
 	f.plain.begin(p, r)
 	return f
 }
 
 // ruleBodyFrame returns the frame that runs the body of r: its Flow body if it has one, otherwise
-// its match code.
+// the expression of its Operators Rule.
 func (mc *ivmMachine) ruleBodyFrame(r *state.Rule, min int) iframe {
 	if f := mc.ruleFlow(r); f != nil {
 		return mc.flowFrame(r, f)
 	}
-	return mc.bodyFrame(r.Entry, r, min, false)
+	return mc.operatorsRuleFrame(r, min)
+}
+
+// operatorsRuleCallFrame runs a plain call of a rule whose body is the expression of its Operators
+// Rule: the steps of the call (InvokePlain) around the frame of the expression.
+type operatorsRuleCallFrame struct {
+	r       *state.Rule
+	min     int
+	started bool
+	plain   plainCall // the state saved by the call
+}
+
+func (f *operatorsRuleCallFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, iresult, bool) {
+	if !f.started {
+		f.started = true
+		return mc.operatorsRuleFrame(f.r, f.min), iresult{}, false
+	}
+	return nil, iresult{v: f.plain.end(mc.p, f.r, res.v, res.ok), ok: res.ok}, true
 }
 
 // ruleFlow returns the Flow body that a call of r runs, as Program.ruleFlow does.
@@ -285,28 +264,21 @@ func (f *flowFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 	return nil, iresult{v: v, ok: ok}, true
 }
 
-// lineFrame returns the frame that runs the line or skip of an Operators Rule whose code is the
-// entry i of Program.lines: its Flow body if it has one, otherwise its match code.
+// lineFrame returns the frame that runs the line or skip of an Operators Rule whose Flow body is the
+// entry i of Program.lines.
 func (mc *ivmMachine) lineFrame(vm *Program, i int) iframe {
-	if c := vm.lines[i]; c.flow != nil {
-		return mc.flowFrame(nil, c.flow)
-	}
-	return blockFrame(mc, vm.lines[i].entry)
-}
-
-func blockFrame(mc *ivmMachine, entry int) *bodyFrame {
-	return mc.bodyFrame(entry, nil, 0, true)
+	return mc.flowFrame(nil, vm.lines[i])
 }
 
 // Frames are reused after being popped, so pushing a frame does not allocate in steady state.
 type framePool struct {
-	bodies         []*bodyFrame
-	calls          []*callFrame
-	skips          []*skipFrame
-	longests       []*longestFrame
-	nuds           []*nudFrame
-	operatorsRules []*operatorsRuleFrame
-	flows          []*flowFrame
+	calls              []*callFrame
+	skips              []*skipFrame
+	longests           []*longestFrame
+	nuds               []*nudFrame
+	operatorsRules     []*operatorsRuleFrame
+	operatorsRuleCalls []*operatorsRuleCallFrame
+	flows              []*flowFrame
 }
 
 // reuse pops a frame from a free list, or allocates one. A new frame is charged to the memory
@@ -349,19 +321,6 @@ func (mc *ivmMachine) operatorsRuleFrame(r *state.Rule, min int) *operatorsRuleF
 	return f
 }
 
-func (mc *ivmMachine) bodyFrame(entry int, r *state.Rule, min int, block bool) *bodyFrame {
-	var f *bodyFrame
-	if n := len(mc.pool.bodies); n > 0 {
-		f = mc.pool.bodies[n-1]
-		mc.pool.bodies = mc.pool.bodies[:n-1]
-	} else {
-		f = &bodyFrame{}
-		mc.p.MemKept += uint64(unsafe.Sizeof(bodyFrame{})) + 2*uint64(unsafe.Sizeof(iframe(nil)))
-	}
-	*f = bodyFrame{b: mc.newBody(entry, r, min), block: block}
-	return f
-}
-
 // callFrame returns the frame of a call of r, memoized or not (the caller has decided, calling
 // firstCall once).
 func (mc *ivmMachine) callFrame(r *state.Rule, min int, memoized bool) *callFrame {
@@ -380,8 +339,6 @@ func (mc *ivmMachine) callFrame(r *state.Rule, min int, memoized bool) *callFram
 // releaseFrame makes a finished frame available for reuse.
 func (mc *ivmMachine) releaseFrame(f iframe) {
 	switch f := f.(type) {
-	case *bodyFrame:
-		mc.pool.bodies = append(mc.pool.bodies, f)
 	case *callFrame:
 		f.g = state.GrowState{}
 		mc.pool.calls = append(mc.pool.calls, f)
@@ -398,6 +355,8 @@ func (mc *ivmMachine) releaseFrame(f iframe) {
 	case *operatorsRuleFrame:
 		mc.p.Depth--
 		mc.pool.operatorsRules = append(mc.pool.operatorsRules, f)
+	case *operatorsRuleCallFrame:
+		mc.pool.operatorsRuleCalls = append(mc.pool.operatorsRuleCalls, f)
 	}
 }
 
@@ -668,7 +627,7 @@ func (f *operatorsRuleFrame) result(ok bool) iresult {
 }
 
 // traceFrame is a traced rule call in the iterative-model VM: it reports the call, runs the frame
-// that bodyFrame would have pushed for it, and reports the result.
+// that ruleCallFrame would have pushed for it, and reports the result.
 type traceFrame struct {
 	r       *state.Rule
 	min     int

@@ -6,7 +6,6 @@ import (
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
-	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -192,12 +191,7 @@ rule ds = "s" => "str"
 	checkBackends(t, cast, "main", "iz")
 	checkBackends(t, cast, "main", "sz")
 
-	// The generated bindings carry no check either: ASSIGN has no operand to ask for one.
-	for _, in := range cast.Module().Code {
-		if in.Op == bytecode.OpBind && in.C != 0 {
-			t.Errorf("ASSIGN with operand C = %d", in.C)
-		}
-	}
+	// The generated bindings carry no check either: BIND has no operand to ask for one.
 	data, err := cast.MarshalBinary("main")
 	if err != nil {
 		t.Fatal(err)

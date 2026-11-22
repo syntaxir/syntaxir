@@ -12,8 +12,7 @@ import (
 // Flow-stage operations (patterns). A pattern of one operation selects the instruction of that
 // operation wherever the operation is called. A pattern of a sequence of statements, a
 // superinstruction, selects one instruction for operations that test a match and leave a block when
-// it fails: the match code fused the same tests into its instructions, and a Flow body that spells
-// them out runs one dispatch for each.
+// it fails: a Flow body that spells them out runs one dispatch for each.
 //
 // The table is applied in a fixed order: at each statement of a block, in order, the patterns of
 // statements that match it are compared, and the one that covers the most operations wins, then the
@@ -55,6 +54,8 @@ var statementPatterns = []pattern{
 	{Name: "callJump", Ops: 1, Saved: 1, Stmts: func(s *flowSel, list []code.Stmt) (int, func() error) {
 		return testedJump(s, list, flowpkg.OpCallRule, bytecode.FlowCallJump, func(c *code.Call) (any, error) { return s.ruleCallOf(c) })
 	}},
+	{Name: "scanReachAt", Ops: 1, Saved: 3, Stmts: scanReachAt},
+	{Name: "scanEndAt", Ops: 1, Saved: 3, Stmts: scanEndAt},
 }
 
 // jumpOf returns the label that the jump statement st leaves to, and whether it continues the loop
@@ -287,6 +288,147 @@ func testedJump(s *flowSel, list []code.Stmt, op string, jump bytecode.FlowOp, i
 		}
 		s.jumpTo(s.emit(bytecode.FlowInstr{Op: jump, Dst: dst, Imm: x}), label, cont)
 		return nil
+	}
+}
+
+// isInt reports whether e is the int constant n.
+func isInt(e code.Expr, n int) bool {
+	c, ok := e.(*code.Const)
+	if !ok {
+		return false
+	}
+	v, ok := c.Value.(int64)
+	return ok && v == int64(n)
+}
+
+// onlyStmt returns the statement that the then block of the plain conditional st consists of, and
+// the condition; ok is false if st is no such conditional.
+func onlyStmt(st code.Stmt) (cond code.Expr, body code.Stmt, ok bool) {
+	test, ok := st.(*code.If)
+	if !ok || test.Init != nil || test.Else != nil || test.Then == nil || test.Then.Label != "" || len(test.Then.Stmts) != 1 {
+		return nil, nil, false
+	}
+	return test.Cond, test.Then.Stmts[0], true
+}
+
+// scanCall returns the call of the scan-site operation op of the statement body, whose arguments are
+// the start and the count, the local of the count, and whether body is one.
+func scanCall(body code.Stmt, op string) (c *code.Call, count string, ok bool) {
+	switch x := body.(type) {
+	case *code.Set:
+		if len(x.Dst) != 1 || len(x.Values) != 1 {
+			return nil, "", false
+		}
+		c = callOf(x.Values[0], op)
+	case *code.Do:
+		c = callOf(x.Call, op)
+	}
+	if c == nil || len(c.Args) != 2 {
+		return nil, "", false
+	}
+	l, ok := c.Args[1].(*code.Local)
+	if !ok {
+		return nil, "", false
+	}
+	return c, l.Name, true
+}
+
+// guarded splits the condition of a scan-site test into the guard that a walk which resumes its
+// run adds (flowlower's resumeRun.off: the walk is no walk of the site then), and the test itself:
+//
+//	guard && test
+//
+// The guard is nil for a test without one.
+func guarded(cond code.Expr) (guard, test code.Expr) {
+	if b, ok := cond.(*code.Binary); ok && b.Op == "&&" {
+		return b.X, b.Y
+	}
+	return nil, cond
+}
+
+// emitGuarded emits the instruction that emit emits, behind the guard if there is one: a jump past it
+// when the guard is false.
+func (s *flowSel) emitGuarded(guard code.Expr, emit func() error) error {
+	if guard == nil {
+		return emit()
+	}
+	past, err := s.branch(guard, false)
+	if err != nil {
+		return err
+	}
+	if err := emit(); err != nil {
+		return err
+	}
+	s.patch(past, len(s.f.Code))
+	return nil
+}
+
+// scanReachAt matches the test of a walk of a scan site at the scan hot span, with or without the
+// guard of a walk that may resume its run (guarded):
+//
+//	if [guard &&] count == ScanHotSpan { count = flow.scanReach(S, start, count) }
+//
+// and selects SCANREACHAT, which compares the count with the span of the parse, behind the guard.
+func scanReachAt(s *flowSel, list []code.Stmt) (int, func() error) {
+	cond, body, ok := onlyStmt(list[0])
+	if !ok {
+		return 0, nil
+	}
+	guard, cond := guarded(cond)
+	c, count, ok := scanCall(body, flowpkg.OpScanReach)
+	eq, isBin := cond.(*code.Binary)
+	if !ok || !isBin || eq.Op != "==" || !isLocal(eq.X, count) || !isInt(eq.Y, flowpkg.ScanHotSpan) {
+		return 0, nil
+	}
+	set, isSet := body.(*code.Set)
+	if !isSet || set.Dst[0].Name != count {
+		return 0, nil
+	}
+	dst, ok := s.place(set.Dst[0])
+	if !ok {
+		return 0, nil
+	}
+	return 1, func() error {
+		return s.emitGuarded(guard, func() error {
+			args, err := s.args(c.Args)
+			if err != nil {
+				return err
+			}
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowScanReachAt, Dst: []int{dst}, Args: args, Imm: int(c.Imm.(prim.Site))})
+			return nil
+		})
+	}
+}
+
+// scanEndAt matches the end of a value-free walk of a scan site that reached the scan hot span, with
+// or without the guard of a walk that may resume its run (guarded):
+//
+//	if [guard &&] ScanHotSpan-1 < count { flow.scanEnd(S, start, count) }
+//
+// and selects SCANENDAT, which compares the count with the span of the parse, behind the guard.
+func scanEndAt(s *flowSel, list []code.Stmt) (int, func() error) {
+	cond, body, ok := onlyStmt(list[0])
+	if !ok {
+		return 0, nil
+	}
+	guard, cond := guarded(cond)
+	if _, isDo := body.(*code.Do); !isDo {
+		return 0, nil
+	}
+	c, count, ok := scanCall(body, flowpkg.OpScanEnd)
+	lt, isBin := cond.(*code.Binary)
+	if !ok || !isBin || lt.Op != "<" || !isInt(lt.X, flowpkg.ScanHotSpan-1) || !isLocal(lt.Y, count) {
+		return 0, nil
+	}
+	return 1, func() error {
+		return s.emitGuarded(guard, func() error {
+			args, err := s.args(c.Args)
+			if err != nil {
+				return err
+			}
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowScanEndAt, Args: args, Imm: int(c.Imm.(prim.Site))})
+			return nil
+		})
 	}
 }
 

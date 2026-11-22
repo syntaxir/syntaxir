@@ -219,13 +219,15 @@ func TestIgnoreCaseBackendsAgree(t *testing.T) {
 	} {
 		prog := mustCompile(t, c.src)
 		folded := 0
-		for _, in := range prog.Module().Code {
-			if in.Op == bytecode.OpStrFold {
-				folded++
+		for _, f := range prog.Module().Flows {
+			for _, in := range f.Code {
+				if x, ok := in.Imm.(bytecode.FlowLitOf); ok && x.Fold {
+					folded++
+				}
 			}
 		}
 		if folded == 0 {
-			t.Fatalf("%s: no folded string instruction", c.src)
+			t.Fatalf("%s: no folded literal instruction", c.src)
 		}
 		for _, in := range c.inputs {
 			checkBackends(t, prog, "main", in)

@@ -6,24 +6,18 @@ import (
 
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
-	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // TestModuleCompilesCorpus checks that every test grammar compiles to bytecode and that all
-// branch targets are within the instruction range.
+// branch targets of its Flow bodies are within the body.
 func TestModuleCompilesCorpus(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.GenCorpus(t) {
 		m := enginetest.MustCompile(t, c.Src).Module()
-		for i, in := range m.Code {
-			switch in.Op {
-			case bytecode.OpJump, bytecode.OpChoice, bytecode.OpCommit, bytecode.OpIter, bytecode.OpNext, bytecode.OpLook, bytecode.OpRecover, bytecode.OpEndRecover:
-				if in.A < 0 || int(in.A) > len(m.Code) {
-					t.Errorf("%s: code %d: jump to %d", c.Name, i, in.A)
-				}
-			case bytecode.OpGuard:
-				if in.C <= int32(i) || int(in.C) > len(m.Code) {
-					t.Errorf("%s: code %d: guard jumps to %d", c.Name, i, in.C)
+		for rule, f := range m.Flows {
+			for i, in := range f.Code {
+				if s, _ := in.Op.Shape(); s.Target && (in.Target < 0 || in.Target >= len(f.Code)) {
+					t.Errorf("%s: rule %d: instruction %d: jump to %d", c.Name, rule, i, in.Target)
 				}
 			}
 		}

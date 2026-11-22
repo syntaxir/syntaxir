@@ -85,16 +85,12 @@ func TestRuntimeValuesChargeNothing(t *testing.T) {
 // engineRecognizeBackends is engineChargeBackends for recognizing src, which builds no values.
 func engineRecognizeBackends(t testing.TB, src string, unit input.PositionUnit) []chargeBackend {
 	t.Helper()
-	old, flows, n := flowProgramsOf(t, src, func(string) bool { return true }, nil)
+	old := mustCompile(t, src)
 	on := func(prog *Program, b Backend) chargeRun {
 		return func(in string, limit uint64) string {
 			_, err := prog.ParseWith("", in, ParseOptions{Backend: b, Unit: unit, Expectations: true, Recognize: true, Limits: sxirruntime.Limits{Compute: limit}})
 			return limitReportOf(err)
 		}
 	}
-	out := []chargeBackend{{"closure", on(old, Closure)}, {"bytecode", on(old, Bytecode)}, {"bytecode-iterative", on(old, BytecodeIterative)}}
-	if n > 0 {
-		out = append(out, chargeBackend{"flow", on(flows, Bytecode)}, chargeBackend{"flow-iterative", on(flows, BytecodeIterative)})
-	}
-	return out
+	return []chargeBackend{{"closure", on(old, Closure)}, {"bytecode", on(old, Bytecode)}, {"bytecode-iterative", on(old, BytecodeIterative)}}
 }

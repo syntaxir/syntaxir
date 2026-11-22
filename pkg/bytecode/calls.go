@@ -2,7 +2,6 @@ package bytecode
 
 import (
 	"fmt"
-	"math/bits"
 	"slices"
 	"sync"
 )
@@ -20,18 +19,16 @@ func validateRec(m *Module) error {
 	defer recScratchPool.Put(sc)
 	g := newCallGraph(m, sc)
 	return g.components(func(v int32, cycle bool) error {
-		i := int(v) - g.rules
-		if i < 0 || m.Rules[i].Rec || !cycle && !slices.Contains(g.succ(v), v) {
+		if m.Rules[v].Rec || !cycle && !slices.Contains(g.succ(v), v) {
 			return nil
 		}
-		return fmt.Errorf("rule %s is on a cycle of calls but is not marked recursive", m.Strings[m.Rules[i].Name])
+		return fmt.Errorf("rule %s is on a cycle of calls but is not marked recursive", m.Strings[m.Rules[v].Name])
 	})
 }
 
-// recScratch holds the buffers of newCallGraph, which loads reuse.
+// recScratch holds the buffer of newCallGraph, which loads reuse.
 type recScratch struct {
-	begin []uint64
-	buf   []int32
+	buf []int32
 }
 
 var recScratchPool = sync.Pool{New: func() any { return new(recScratch) }}
@@ -45,11 +42,9 @@ func resize[T any](s []T, n int) []T {
 	return s[:n]
 }
 
-// callGraph is the graph of validateRec in compressed form: the successors of node v are
-// succ(v). Rule i is node rules+i, and the nodes below are the blocks of the match code. work is
-// scratch space for components.
+// callGraph is the graph of validateRec in compressed form: node i is rule i, and its successors
+// are succ(i). work is scratch space for components.
 type callGraph struct {
-	rules  int
 	start  []int32
 	edges  []int32
 	rindex []int32
@@ -58,63 +53,6 @@ type callGraph struct {
 
 // succ returns the successors of node v.
 func (g *callGraph) succ(v int32) []int32 { return g.edges[g.start[v]:g.start[v+1]] }
-
-// Control flow of an operation, for target and falls: an instruction may go to its A, to its C or,
-// for LOOK, to its A when it is negative (B == 1), and may not go to the next instruction.
-const (
-	toA = 1 << iota
-	toC
-	toNegativeA
-	stops
-)
-
-// control holds the control flow of each operation, so that the graph reads one table entry
-// for each instruction instead of switching on its operation.
-var control = func() (c [256]uint8) {
-	for _, op := range []Op{OpJump, OpChoice, OpCommit, OpRecover, OpEndRecover, OpIter, OpNext} {
-		c[op] |= toA
-	}
-	c[OpLook] |= toNegativeA
-	c[OpGuard] |= toC
-	for _, op := range []Op{OpJump, OpCommit, OpFail, OpReturn, OpEnd} {
-		c[op] |= stops
-	}
-	return c
-}()
-
-// target returns the instruction that in may go to other than the next one, if any: the target of
-// a jump, of a choice, of a negative LOOK (a positive one has none), of a repetition's ITER and
-// NEXT, of a recovery and of a GUARD.
-func target(in *Instr) (int, bool) {
-	switch c := control[in.Op]; {
-	case c&toA != 0:
-		return int(in.A), true
-	case c&toNegativeA != 0:
-		return int(in.A), in.B == 1
-	case c&toC != 0:
-		return int(in.C), true
-	}
-	return 0, false
-}
-
-// falls reports whether the instruction after one of operation op may run after it.
-func falls(op Op) bool { return control[op]&stops == 0 }
-
-// lines calls f with the entry of each operand and operator line of p and of its skip.
-func lines(p *OperatorsRuleInfo, f func(entry int)) {
-	if p.Skip >= 0 {
-		f(p.Skip)
-	}
-	for i := range p.Operands {
-		f(p.Operands[i].Entry)
-	}
-	for i := range p.Prefix {
-		f(p.Prefix[i].Line.Entry)
-	}
-	for i := range p.InfixPostfix {
-		f(p.InfixPostfix[i].Line.Entry)
-	}
-}
 
 // flowLines calls f with the Flow body of the skip and of each operand and operator line of p, nil
 // for one that has none.
@@ -131,36 +69,14 @@ func flowLines(p *OperatorsRuleInfo, f func(*Flow)) {
 	}
 }
 
-// newCallGraph returns the graph of validateRec. A block is a run of instructions that begins at an
-// entry (of a rule, an Operators Rule line or skip), at a target, or after an instruction that does
-// not fall through, so that control enters it only at its first instruction. A block leads to the
-// blocks its instructions may go to, to the next block if its last instruction falls through, to
-// the rules it calls and, for OPERATORS_RULE, to the blocks of the lines and skip. A rule leads to
-// the block of its entry and to the rules that the CALL instructions of its Flow body and of the
-// Flow bodies of its Operators Rule's lines and skip call, since they run in place of the match
-// code. Entering a block may run any of its instructions, so the graph leads from a rule to a rule
-// whenever a run of the one may call the other.
+// newCallGraph returns the graph of validateRec. A rule leads to the rules that the CALL and
+// CALLJUMP instructions of its Flow bodies call: its body, its stream body, and the bodies of the
+// lines and the skip of its Operators Rule. A Flow body may run any of its instructions, so the
+// graph leads from a rule to a rule whenever a run of the one may call the other.
 //
-// The graph takes two buffers of sc, whose size follows the blocks and the edges, not the
-// instructions: a bit set of the instructions that begin a block, and one buffer for the rank of
-// the bit set, the graph and the scratch space of components.
+// The graph takes one buffer of sc, for the graph and the scratch space of components.
 func newCallGraph(m *Module, sc *recScratch) callGraph {
-	n := len(m.Code)
-	words := (n + 63) / 64
-	// begin marks the instructions that begin a block. A block's number is the count of the marks
-	// before its first instruction, which rank holds for each word of begin.
-	sc.begin = resize(sc.begin, words)
-	begin := sc.begin
-	clear(begin)
-	mark := func(ip int) { begin[ip>>6] |= 1 << (ip & 63) }
-	if n > 0 {
-		mark(0)
-	}
-	for i := range m.Rules {
-		mark(m.Rules[i].Entry)
-	}
-	// flowCalls calls f with the rule of each call of the Flow bodies of rule i: its own, its stream
-	// body, and those of the lines and the skip of its Operators Rule.
+	// flowCalls calls f with the rule of each call of the Flow bodies of rule i.
 	flowCalls := func(i int, f func(rule int)) {
 		calls := func(fl *Flow) {
 			if fl == nil {
@@ -178,80 +94,21 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 			flowLines(&m.OperatorsRules[o], calls)
 		}
 	}
-	for i := range m.OperatorsRules {
-		lines(&m.OperatorsRules[i], mark)
-	}
-	// edges bounds the edges: the next block, at most one for each block, comes on top.
-	edges := len(m.Rules)
+	nodes, edges := len(m.Rules), 0
 	for i := range m.Rules {
 		flowCalls(i, func(int) { edges++ })
 	}
-	for ip := range m.Code {
-		in := &m.Code[ip]
-		if t, ok := target(in); ok {
-			mark(t)
-			edges++
-		}
-		if !falls(in.Op) && ip+1 < n {
-			mark(ip + 1)
-		}
-		switch in.Op {
-		case OpCall:
-			edges++
-		case OpOperatorsRule:
-			lines(&m.OperatorsRules[in.A], func(int) { edges++ })
-		}
-	}
-	blocks := 0
-	for _, w := range begin {
-		blocks += bits.OnesCount64(w)
-	}
-	nodes := blocks + len(m.Rules)
-	edges += blocks
-	sc.buf = resize(sc.buf, words+(nodes+1)+nodes+3*nodes+edges)
+	sc.buf = resize(sc.buf, (nodes+1)+nodes+3*nodes+edges)
 	buf := sc.buf
-	rank, buf := buf[:words], buf[words:]
-	g := callGraph{rules: blocks}
+	var g callGraph
 	g.start, buf = buf[:nodes+1], buf[nodes+1:]
 	g.rindex, buf = buf[:nodes], buf[nodes:]
 	clear(g.rindex)
 	g.work, buf = buf[:3*nodes], buf[3*nodes:]
 	g.edges = buf[:0]
-	r := int32(0)
-	for i, w := range begin {
-		rank[i] = r
-		r += int32(bits.OnesCount64(w))
-	}
-	begins := func(ip int) bool { return begin[ip>>6]&(1<<(ip&63)) != 0 }
-	block := func(ip int) int32 {
-		return rank[ip>>6] + int32(bits.OnesCount64(begin[ip>>6]&(1<<(ip&63)-1)))
-	}
-	add := func(v int32) { g.edges = append(g.edges, v) }
-	addLine := func(entry int) { add(block(entry)) }
-	b := 0
-	for ip := range m.Code {
-		if begins(ip) {
-			g.start[b] = int32(len(g.edges))
-			b++
-		}
-		in := &m.Code[ip]
-		if t, ok := target(in); ok {
-			add(block(t))
-		}
-		switch in.Op {
-		case OpCall:
-			add(int32(blocks) + in.A)
-		case OpOperatorsRule:
-			lines(&m.OperatorsRules[in.A], addLine)
-		}
-		if falls(in.Op) && ip+1 < n && begins(ip+1) {
-			add(block(ip + 1))
-		}
-	}
 	for i := range m.Rules {
-		g.start[blocks+i] = int32(len(g.edges))
-		add(block(m.Rules[i].Entry))
-		flowCalls(i, func(rule int) { add(int32(blocks + rule)) })
+		g.start[i] = int32(len(g.edges))
+		flowCalls(i, func(rule int) { g.edges = append(g.edges, int32(rule)) })
 	}
 	g.start[nodes] = int32(len(g.edges))
 	return g
@@ -260,7 +117,7 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 // components finds the strongly connected components of g and calls found with each node of a
 // component when the component is complete, with whether it has more than one node, stopping at
 // the first error. It runs Pearce's variant of Tarjan's algorithm without recursion, so that a
-// long chain of blocks does not deepen the host stack: rindex holds the visit order of a node
+// long chain of calls does not deepen the host stack: rindex holds the visit order of a node
 // while it is on the stack, lowered to the least order it reaches, and a value above every order
 // once its component is complete.
 func (g *callGraph) components(found func(v int32, cycle bool) error) error {

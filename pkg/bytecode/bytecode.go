@@ -1,6 +1,6 @@
 // Package bytecode defines the module that a SyntaxIR grammar compiles to, which the bytecode VM
-// runs, and its compiled-file format: the instruction set of match code (Op, Instr), the tables of a
-// module (Module and the Info types), action code (Action), Flow bodies (Flow), the encoding of the
+// runs, and its compiled-file format: the tables of a module (Module and the Info types), Flow
+// bodies (Flow) and their instruction set (FlowOp, FlowInstr), action code (Action), the encoding of the
 // compiled-file format (Encoder, Decoder, WriteModule, ReadModule, FileMagic) and the load-time
 // validation of a module (ValidateModule). spec/bytecode/README.md specifies all of them; the
 // instruction set changes with its version, ISAVersion.
@@ -9,10 +9,6 @@
 // runtime/vm loads and runs them; most programs use those packages and not this one. Like all of
 // the module API at v0.x, this package may change in any release.
 package bytecode
-
-import (
-	"fmt"
-)
 
 // Module is a grammar compiled to bytecode. It is the only thing the VM runs.
 // The instruction set and its semantics are specified in spec/bytecode/README.md.
@@ -28,10 +24,6 @@ type Module struct {
 	Starts         []int
 	DefaultStart   int
 	OperatorsRules []OperatorsRuleInfo
-	Code           []Instr // match code
-	// Ints holds the wide integers that REPEATW, SCANW and SKIPREPEAT refer to: repetition bounds
-	// beyond the range of an operand.
-	Ints []int64
 	// Actions holds the action code of the actions, predicates and bindings.
 	Actions []Action
 	// SourceInfo reports that the values record source information (compiler.WithSourceInfo).
@@ -42,7 +34,8 @@ type Module struct {
 	// RunKeys holds the keys of the run sites that are not free of the environment, by increasing
 	// site.
 	RunKeys []RunKeyInfo
-	// Flows holds the bodies of the rules that run from Flow IR, by rule index.
+	// Flows holds the bodies of the rules, selected from Flow IR, by rule index. Every rule has one
+	// but a rule whose body is the expression of its Operators Rule (RuleInfo.OperatorsRule).
 	Flows map[int]*Flow
 	// Streams holds the stream bodies of the rules whose body has a #stream repetition, by rule
 	// index: the body that a stream parse runs at the top call of its start rule
@@ -61,26 +54,8 @@ type RunKeyInfo struct {
 }
 
 // RuleStreams reports whether rule i can start a stream parse: whether it has a stream body
-// (Module.Streams), or its match code passes values to the stream: an instruction that does
-// (Instr.StreamsValue) comes before the RETURN of its body.
-func (m *Module) RuleStreams(i int) bool {
-	if m.Streams[i] != nil {
-		return true
-	}
-	for _, in := range m.Code[m.Rules[i].Entry:] {
-		switch {
-		case in.Op == OpReturn:
-			return false
-		case in.StreamsValue():
-			return true
-		}
-	}
-	return false
-}
-
-// StreamsValue reports whether in is a NEXT that passes the value of the iteration to the stream
-// (f = 2).
-func (in Instr) StreamsValue() bool { return in.Op == OpNext && in.B == 2 }
+// (Module.Streams).
+func (m *Module) RuleStreams(i int) bool { return m.Streams[i] != nil }
 
 // InstructionSetVersion is the instruction set of every module: the value model's.
 func (m *Module) InstructionSetVersion() int { return ISAVersion }
@@ -135,7 +110,6 @@ type VarInfo struct {
 // RuleInfo describes a rule.
 type RuleInfo struct {
 	Name   int // string table index
-	Entry  int // start of the body code (for a rule with an Operators Rule, an OPERATORS_RULE instruction followed by RETURN)
 	Scope  []int
 	Action int // action expression of the action (index of Actions, -1 if none)
 	// NodeType is the named node type the rule's value is converted to (string table index, -1 if
@@ -169,6 +143,11 @@ type RuleInfo struct {
 	// Splice reports that the rule makes no node of its own: the elements of its value are the
 	// elements of the sequence that calls it (a hidden rule without an action).
 	Splice bool
+	// Value is the shape of the value that the rule makes from the value of its body, as
+	// FlowScopeValue makes it with the start of the call, before the captures are attached; nil if
+	// the value of the body is the rule's value: a rule with an action, a splice, an Operators Rule
+	// or a rule without a value. The Flow bodies of a rule leave this step to the call.
+	Value *FlowShapeOf
 	// Vars are the variables the rule or its callees read (string table indices, sorted by name).
 	// The rule's memo entries are keyed by their values at the call.
 	Vars []int
@@ -176,21 +155,18 @@ type RuleInfo struct {
 
 // OperatorsRuleInfo is an entry of the Operators Rule table.
 type OperatorsRuleInfo struct {
-	Skip int // start of the skip code (-1 if none)
-	// SkipFlow is the Flow body of the skip, which runs in place of its code, or nil.
+	// SkipFlow is the Flow body of the skip, or nil for an Operators Rule without one.
 	SkipFlow     *Flow
 	Operands     []LineInfo
 	Prefix       []OperatorInfo
 	InfixPostfix []OperatorInfo // infix and postfix operators
 }
 
-// LineInfo is an Operators Rule operand line or operator line. Its code ends with END.
+// LineInfo is an Operators Rule operand line or operator line.
 type LineInfo struct {
-	Entry  int
 	Scope  []int
 	Action int // action expression of the action (index of Actions, -1 if none)
-	IsSeq  bool
-	// Flow is the Flow body of the line, which runs in place of its code, or nil. It returns the value
+	// Flow is the Flow body of the line. It returns the value
 	// of the line's expression, which Shape makes the value of the line as SCOPEVALUE and
 	// SHAPESINGLE do: the scope value of an operand line, and the single of an operator line.
 	Flow  *Flow
@@ -218,147 +194,6 @@ const (
 	AssocRight
 	AssocNone
 )
-
-// Instr is an instruction. The meaning of its operands depends on the instruction. Jump targets
-// are instruction indices.
-type Instr struct {
-	Op      Op
-	A, B, C int32
-}
-
-// Op is an opcode.
-type Op uint8
-
-// Matching instructions
-const (
-	// STR s, d, b: match string s of the string table. On failure, record string d as the
-	// expectation. If b is 1, push a string node.
-	OpStr Op = iota + 1
-	// CLASS c, d, b: match one character of character class c of the character class table.
-	OpClass
-	// ANY b: match any one character.
-	OpAny
-	// TOP b: empty match. If b is 1, push an empty string node.
-	OpTop
-	// FAIL: fail.
-	OpFail
-	// ASSERT k: position condition (k: 0 start of input, 1 end of input, 2 start of line, 3 end of
-	// line).
-	OpAssert
-	// JUMP l: go to l.
-	OpJump
-	// CHOICE l: push a choice entry. On failure, restore the state and go to l.
-	OpChoice
-	// COMMIT l: pop the topmost choice entry and go to l.
-	OpCommit
-	// CUT: mark the current choice entry as cut.
-	OpCut
-	// PUSHPOS: push the current position (start of a tuple, a list, @).
-	OpPushPos
-	// PUSHNIL: push nil.
-	OpPushNil
-	// SEQ n: pop n values and the position below them, and push a tuple node.
-	OpSeq
-	// ATOMIC b: pop a position and push the string node from there to the current position (nothing is
-	// pushed if b is 0).
-	OpAtomic
-	// CAPTURE s, b: write the top value to slot s of the current frame. If b is 1, pop the value
-	// (if 0, leave it).
-	OpCapture
-	// REPEAT min, max, sc: start a repetition. max -1 means unbounded. sc is the index of the element
-	// scope (-1 if none). When building values, the start position is pushed with PUSHPOS just
-	// before.
-	OpRepeat
-	// ITER l, f, s: go to l if the repetition has reached its finite maximum; otherwise push an
-	// entry for one iteration. On failure, restore the state and go to l. If bit 2 of f is set, s
-	// is the scan site of the repetition instead of a run site.
-	OpIter
-	// NEXT l, f, s: commit one iteration and go to l if the repetition can continue. f is 1 to keep
-	// the value, 2 to pass it to the stream, 0 to discard it, and 3 to push the value of slot s of
-	// the element's frame instead (a projected repetition, whose elements have no value).
-	OpNext
-	// ENDREPEAT b: end the repetition, check the count, and push a List if b is 1.
-	OpEndRepeat
-	// LOOK l, neg: start a lookahead (stop recording expectations). If neg is 1, it is a negative
-	// lookahead: if the inner expression fails, restore the state and go to l. For a positive
-	// lookahead, if the inner expression fails, restore the state and fail.
-	OpLook
-	// ENDLOOK neg: the inner expression succeeded. If positive, restore only the position and the
-	// value stack and continue (captures and variables are kept). If negative, restore the state and
-	// fail.
-	OpEndLook
-	// CALL r, min, k: call rule r at binding level min. If k is 1, push the value.
-	OpCall
-	// OPERATORS_RULE p: parse the expression of OperatorsRule table p and push the value (used in rule bodies).
-	OpOperatorsRule
-	// PRED t: evaluate action expression t and fail if it is false or an error.
-	OpPred
-	// BIND name, e: define the variable name with the value of action expression e.
-	OpBind
-	// LABEL m, d: start @error (d=0) or @diagnostic (d=1).
-	OpLabel
-	// ENDLABEL: end @error.
-	OpEndLabel
-	// RECOVER l: start #recover. On failure, prepare for recovery and go to l (the skip code).
-	OpRecover
-	// ENDRECOVER l: the #recover expression succeeded. Go to l.
-	OpEndRecover
-	// ENDSKIP b: end skipping, record the error, and push an Error (nothing is pushed if b is 0).
-	OpEndSkip
-	// RETURN: end of a rule body.
-	OpReturn
-	// END: end of the code of an Operators Rule section.
-	OpEnd
-	// SCAN c, min, max: consume single characters of character class c (-1 for any character) until
-	// one does not match or max times (-1 for unbounded), and fail if the count is less than min. It
-	// is a fast form of a value-free single-character repetition that records the expectation once,
-	// at the position that did not match.
-	OpScan
-	// GUARD c, d, l: first-character dispatch. If the next character is not in character class c
-	// (or there is none), and d more rule calls would not exceed the nesting limit, record the
-	// class's expectation and go to l (the next alternative of a choice, which this alternative
-	// could not match). Otherwise continue.
-	OpGuard
-	// REPEATW min, max, sc: REPEAT with bounds stored in Ints.
-	OpRepeatWide
-	// SCANW c, min, max: SCAN with bounds stored in Ints.
-	OpScanWide
-	// SPREAD n, t: pop the value a splice rule returned and push its n elements: the children of the
-	// tuple node it returned if t is 1, else its one element (n is 1) or none (n is 0).
-	OpSpread
-	// STRF s, d, b: match the ASCII-folded string s of the string table, comparing each input
-	// character folded the same way (A-Z as a-z). B is the expectation (the literal with its
-	// suffix i), and if b is 1, push a string node with the consumed input as its text.
-	OpStrFold
-	// SKIPREPEAT min, s, w: start the value-free, unbounded repetition of the skip-run site s
-	// (from 1) without an element scope, which ITER, NEXT and ENDREPEAT then run as for REPEAT. Its
-	// walks record the rest of them from each position, and once the repetition has matched min
-	// elements, ITER reuses the record of the current position and goes to its l. If w is 1, min
-	// is stored in Ints at A.
-	OpSkipRepeat
-	// SCANSITE c, min, s: SCAN with an unbounded maximum for the scan site s (from 1) of a pure
-	// rule. After its first characters it takes the rest of the walk from the record of the walk's
-	// start if there is one, and records the walk if not.
-	OpScanSite
-)
-
-var opNames = map[Op]string{
-	OpStr: "STR", OpClass: "CLASS", OpAny: "ANY", OpTop: "TOP", OpFail: "FAIL", OpAssert: "ASSERT",
-	OpJump: "JUMP", OpChoice: "CHOICE", OpCommit: "COMMIT", OpCut: "CUT", OpPushPos: "PUSHPOS",
-	OpPushNil: "PUSHNIL", OpSeq: "SEQ", OpSpread: "SPREAD", OpAtomic: "ATOMIC", OpCapture: "CAPTURE", OpRepeat: "REPEAT",
-	OpIter: "ITER", OpNext: "NEXT", OpEndRepeat: "ENDREPEAT", OpLook: "LOOK", OpEndLook: "ENDLOOK",
-	OpCall: "CALL", OpOperatorsRule: "OPERATORS_RULE", OpPred: "PRED", OpBind: "BIND", OpLabel: "LABEL",
-	OpEndLabel: "ENDLABEL", OpRecover: "RECOVER", OpEndRecover: "ENDRECOVER", OpEndSkip: "ENDSKIP",
-	OpReturn: "RETURN", OpEnd: "END", OpScan: "SCAN", OpGuard: "GUARD",
-	OpRepeatWide: "REPEATW", OpScanWide: "SCANW", OpStrFold: "STRF", OpSkipRepeat: "SKIPREPEAT", OpScanSite: "SCANSITE",
-}
-
-func (o Op) String() string {
-	if n, ok := opNames[o]; ok {
-		return n
-	}
-	return fmt.Sprintf("OP%d", o)
-}
 
 // ISAVersion is the instruction set of the value model, the only one supported. Earlier
 // versions built the previous syntax trees, so their files are not loaded and need to be

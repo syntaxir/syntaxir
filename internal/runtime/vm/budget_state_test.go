@@ -4,7 +4,6 @@ package vm
 
 import (
 	"encoding/json"
-	"reflect"
 	"testing"
 
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
@@ -16,99 +15,6 @@ import (
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
-
-// TestBudgetStateVMChildAssembly pins that the match code assembles the children of a sequence and of a
-// repetition's list without a charge (spec/runtime/parsing.md#cost): under the least limit the assembly of
-// 320 children completes, charges nothing and leaves the nodes it takes unchanged.
-func TestBudgetStateVMChildAssembly(t *testing.T) {
-	for _, op := range []bytecode.Op{bytecode.OpSeq, bytecode.OpEndRepeat} {
-		for _, lim := range []runtime.Limits{{Compute: 1}, {Compute: 10000}} {
-			p := stateBudgetParser(lim)
-			start := 3
-			retained := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "keep", Value: "unchanged"}}})
-			machineOf(p).vals = append(machineOf(p).vals, &start)
-			want := make([]*sxirvalue.Node, 320)
-			for i := range want {
-				if i%3 != 0 {
-					want[i] = retained
-				}
-				machineOf(p).vals = append(machineOf(p).vals, state.NodeOrNil(want[i]))
-			}
-			instruction := bytecode.Instr{Op: op, A: 320}
-			if op == bytecode.OpEndRepeat {
-				instruction.A = 1
-				machineOf(p).reps = []repState{{base: 1, count: 320}}
-			}
-			vm := &Program{m: &bytecode.Module{Code: []bytecode.Instr{instruction, {Op: bytecode.OpEnd}}}}
-			body := vmBody{}
-			var result *sxirvalue.Node
-			err := catchFatal(t, func() { _, result, _ = machineOf(p).step(vm, &body, false, false, nil) })
-			if err != nil || result == nil || !reflect.DeepEqual(value.D(result).Children, want) || value.D(result).Start != 3 {
-				t.Fatalf("%v assembled children/position differs: %v", op, err)
-			}
-			if p.Control.Used != 0 {
-				t.Fatalf("%v assembly charged %d units, want none", op, p.Control.Used)
-			}
-			if value.D(retained).Text != "retained" || value.D(retained).Fields[0].Value != "unchanged" {
-				t.Fatal("assembly changed retained node")
-			}
-		}
-	}
-}
-
-// TestBudgetStateVMCutAndFailureUnwind pins that a cut charges nothing for the entries it passes, which
-// the rule body's own expressions pushed (a constant of the grammar), so that it reaches its target under
-// any limit and whatever the context, and that the unwinding of a failure charges nothing either: it
-// pops every entry without a step, as flow.reset returns to a mark (spec/flow-ir/operations.md), since the
-// work that each entry undoes was charged when it was done.
-func TestBudgetStateVMCutAndFailureUnwind(t *testing.T) {
-	newEntries := func(p *state.Parser, kind uint8) {
-		for range 320 {
-			machineOf(p).ents = append(machineOf(p).ents, vmEntry{kind: kind, cut: true})
-		}
-	}
-	vm := &Program{m: &bytecode.Module{Code: []bytecode.Instr{{Op: bytecode.OpCut}, {Op: bytecode.OpEnd}}}}
-	cut := func(p *state.Parser) {
-		body := vmBody{}
-		machineOf(p).step(vm, &body, false, false, nil)
-	}
-
-	for _, control := range []*state.BudgetControl{
-		state.NewBudgetControl(nil, runtime.Limits{Compute: 1}),
-		state.NewBudgetControl(newPollingContext(1), runtime.Limits{}),
-	} {
-		p := stateBudgetParser(runtime.Limits{Compute: 64})
-		p.Control = control
-		newEntries(p, eLabel)
-		machineOf(p).ents[0].kind = eChoice
-		machineOf(p).ents[0].cut = false
-		before := p.Control.Used
-		if err := catchFatal(t, func() { cut(p) }); err != nil {
-			t.Fatalf("cut err=%v", err)
-		}
-		if !machineOf(p).ents[0].cut {
-			t.Fatal("cut did not reach its target")
-		}
-		if p.Control.Used != before {
-			t.Fatalf("cut charged %d units", p.Control.Used-before)
-		}
-	}
-
-	for _, kind := range []uint8{eChoice, eIter} {
-		p := stateBudgetParser(runtime.Limits{Compute: 64})
-		newEntries(p, kind)
-		before := p.Control.Used
-		if err := catchFatal(t, func() { machineOf(p).unwind(vm.m, 0) }); err != nil {
-			t.Fatalf("unwinding entries of kind %d: %v", kind, err)
-		}
-		if n := len(machineOf(p).ents); n != 0 {
-			t.Fatalf("unwinding entries of kind %d left %d, want 0", kind, n)
-		}
-		if p.Control.Used != before {
-			t.Fatalf("unwinding entries of kind %d charged %d units, want none", kind, p.Control.Used-before)
-		}
-	}
-}
 
 // TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration checks that the snapshot and restoration of
 // a frame of 320 slots around an operator try charge nothing (frame.save and frame.restore,
@@ -166,9 +72,10 @@ func TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration(t *testing.T) {
 	}
 }
 
-// TestBudgetResetAndVMRestoreChargeNothing checks that a reset and the VM's restore undo every capture
-// write of the trail, in reverse order, without a charge: under a limit of two units they undo all
-// four writes and use none.
+// TestBudgetResetAndVMRestoreChargeNothing checks that a reset and the VM's restore of a Flow body
+// (RESET of a mark, then RESTORE of the position and the recovered errors, as a failed alternative
+// returns to its start) undo every capture write of the trail, in reverse order, without a charge:
+// under a limit of two units they undo all four writes and use none.
 func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 	for _, name := range []string{"reset", "restore"} {
 		t.Run(name, func(t *testing.T) {
@@ -178,8 +85,8 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 			p.Pos = 99
 			p.SetVars([]any{1})
 			p.Recovered = []state.RecEntry{state.ErrEntry(&sxirvalue.SyntaxError{Messages: []string{"temporary"}})}
+			m := state.Mark{Pos: 4, Trail: 0}
 			if name == "reset" {
-				m := state.Mark{Pos: 4, Trail: 0}
 				if err := catchFatal(t, func() { p.Reset(m) }); err != nil {
 					t.Fatalf("reset = %v, want no interruption", err)
 				}
@@ -187,14 +94,18 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 					t.Fatalf("reset state: pos=%d trail=%d", p.Pos, len(p.Trail))
 				}
 			} else {
-				machineOf(p).vals = []any{"keep", "discard-one", "discard-two"}
-				machineOf(p).reps = []repState{{count: 1}, {count: 2}}
-				save := vmSave{pos: 4, vals: 1, reps: 1, trail: 0, recovered: 0, env: nil, frame: f}
-				if err := catchFatal(t, func() { machineOf(p).restore(&save) }); err != nil {
+				err := catchFatal(t, func() {
+					runFlowBody(t, p, []any{m, 4, 0, nil, true},
+						bytecode.FlowInstr{Op: bytecode.FlowReset, Args: []int{0}},
+						bytecode.FlowInstr{Op: bytecode.FlowRestore, Args: []int{1, 2}},
+						bytecode.FlowInstr{Op: bytecode.FlowReturn, Args: []int{3, 4}},
+					)
+				})
+				if err != nil {
 					t.Fatalf("VM restore = %v, want no interruption", err)
 				}
-				if p.Pos != 4 || len(machineOf(p).vals) != 1 || len(machineOf(p).reps) != 1 || len(p.Trail) != 0 {
-					t.Fatalf("restore state: pos=%d vals=%d reps=%d trail=%d", p.Pos, len(machineOf(p).vals), len(machineOf(p).reps), len(p.Trail))
+				if p.Pos != 4 || len(p.Recovered) != 0 || len(p.Trail) != 0 {
+					t.Fatalf("restore state: pos=%d recovered=%d trail=%d", p.Pos, len(p.Recovered), len(p.Trail))
 				}
 			}
 			if p.Control.Used != 0 {
@@ -211,8 +122,10 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 	}
 }
 
-// Clearing the lists of a finished run is work of the Document: it charges nothing, so no limit
-// interrupts it, and it releases the references of the lists without changing their pointees.
+// Letting go of a finished run is work of the Document: a Flow body holds its run (RESUMESTART's
+// state) only in a register, which the machine that a Document keeps between parses clears
+// (Machine.Keep). It charges nothing, so no limit interrupts it, and it releases the reference to
+// the run without changing the run's lists or their pointees.
 func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 	marker := value.Ptr(value.Data{Text: "retained"})
 	r := &state.RunState{Old: []state.RunElem{{V: marker}}, Mid: make([]state.RunElem, 129), Post: []state.RunElem{{V: marker}}}
@@ -221,8 +134,19 @@ func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 	}
 	p := stateBudgetParser(runtime.Limits{Compute: 1})
 	mc := machineOf(p)
-	mc.freeRunState(r)
-	if p.Control.Used != 0 || len(mc.freeRuns) != 1 || r.Mid[128].V != nil || r.Post[0].V != nil || value.D(marker).Text != "retained" {
-		t.Fatalf("clear charged %d or did not release references", p.Control.Used)
+	at := mc.regs.mark()
+	mc.regs.push(1)[0] = r // the register file of a body that finished the run
+	mc.regs.release(at)
+	if err := catchFatal(t, func() { mc.Keep(0, false) }); err != nil {
+		t.Fatalf("clear = %v, want no interruption", err)
+	}
+	held := false
+	for _, c := range mc.regs.chunks {
+		for _, v := range c {
+			held = held || v == any(r)
+		}
+	}
+	if p.Control.Used != 0 || held || r.Mid[128].V != marker || r.Post[0].V != marker || value.D(marker).Text != "retained" {
+		t.Fatalf("clear charged %d units, kept the run %t or changed its lists", p.Control.Used, held)
 	}
 }

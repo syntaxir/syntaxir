@@ -6,68 +6,45 @@ import (
 	"maps"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
 	ir "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-// CoreOf returns the Core IR of prog after the bytecode pipeline, the module that Compile emits
-// the match code from.
-func CoreOf(p elaborate.Program) (*ir.Module, error) {
-	m, err := elaborate.CoreControlled(p, nil)
-	if err != nil {
-		return nil, fmt.Errorf("internal error: Core IR: %w", err)
-	}
-	// The Core passes take a Core module with the attributes of its nodes computed.
-	ir.Analyze(m)
-	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
-		return nil, fmt.Errorf("internal error: %w", err)
-	}
-	return m, nil
-}
-
-// SelectFlows sets in bc, a module that Compile emitted from prog, the Flow bodies of the functions
-// of funcs (the Flow module of each planned function of the Node table by its key,
-// checked.FlowTable.Funcs): the body of a rule, its stream body, and the skip and the lines of an
-// Operators Rule. m is the Core IR of the table and plan its plan: a rule body or stream body runs in
-// the rule frame of the VM, whose slots must be the capture layout that the plan gave the rule
-// (plandata.Plan.CheckLayout), a line in
-// the frame of the line's scope, whose slots must be those of the planned function, and a skip in
-// the frame it is run in, without slots of its own. A function that uses an operation that the
-// bytecode Flow bodies do not have is an error, and the module keeps no body of it and no action
-// expression of its predicates. The action expression of a predicate of a body is added to the
-// module's action table, after the action expressions of the match code. The functions are selected
-// in the order of their keys.
-//
-// It returns the number of matches of each pattern of the selection table (countsOf), which depends
-// only on the bodies.
-func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Plan, funcs map[plandata.Key]*code.Module) ([]PatternCount, error) {
-	c := &compiler{in: in, core: m, m: bc, strs: map[string]int{}, counts: map[string]int{}}
-	for i, s := range bc.Strings {
-		if _, ok := c.strs[s]; !ok {
-			c.strs[s] = i
-		}
-	}
+// selectFlows sets in the module the Flow bodies of the functions of the table (Table.Funcs): the
+// body of a rule, its stream body, and the skip and the lines of an Operators Rule. A rule body or
+// stream body runs in the rule frame of the VM, whose slots must be the capture layout that the
+// plan gave the rule (plandata.Plan.CheckLayout), a line in the frame of the line's scope, whose
+// slots must be those of the planned function, and a skip in the frame it is run in, without slots
+// of its own. A function that uses an operation that the bytecode Flow bodies do not have is an
+// error. The action expression of a predicate of a body is added to the module's action table,
+// after the action expressions of the tables. The functions are selected in the order of their
+// keys, so the module depends only on the table.
+func (c *compiler) selectFlows() error {
+	bc, plan, funcs := c.m, c.in.Table.Plan, c.in.Table.Funcs
 	keys := slices.SortedFunc(maps.Keys(funcs), func(a, b plandata.Key) int {
 		return cmp.Or(cmp.Compare(a.Use, b.Use), cmp.Compare(a.Rule, b.Rule), cmp.Compare(a.Line, b.Line))
 	})
 	for _, k := range keys {
 		fn := flowpkg.FuncOf(funcs[k])
 		if k.Rule < 0 || k.Rule >= len(bc.Rules) {
-			return nil, fmt.Errorf("%s: no rule %d in the module", fn.Name, k.Rule)
+			return fmt.Errorf("internal error: %s: no rule %d in the module", fn.Name, k.Rule)
 		}
 		// set stores the body, once it is selected, where the module holds the function's code.
 		var set func(f *bytecode.Flow)
 		switch k.Use {
 		case plandata.RuleBody:
 			if err := plan.CheckLayout(k.Rule, fn.Name, c.strNames(bc.Rules[k.Rule].Scope)); err != nil {
-				return nil, err
+				return err
+			}
+			if spec, ok := plan.Func(k); ok && spec.Form == lowerdata.Flat && bc.Rules[k.Rule].Value != nil {
+				// A flat function makes the rule's value itself; the call would shape it again.
+				return fmt.Errorf("internal error: %s: the flat function of a rule whose call shapes its value", fn.Name)
 			}
 			set = func(f *bytecode.Flow) {
 				if bc.Flows == nil {
@@ -78,7 +55,7 @@ func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Pla
 		case plandata.StreamBody:
 			// The stream body runs in place of the rule body, in its frame.
 			if err := plan.CheckLayout(k.Rule, fn.Name, c.strNames(bc.Rules[k.Rule].Scope)); err != nil {
-				return nil, err
+				return err
 			}
 			set = func(f *bytecode.Flow) {
 				if bc.Streams == nil {
@@ -89,20 +66,18 @@ func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Pla
 		case plandata.OperatorsSkip, plandata.OperatorsLine:
 			var err error
 			if set, err = c.operatorsLine(k, fn.Name, plan); err != nil {
-				return nil, err
+				return err
 			}
 		default:
-			return nil, fmt.Errorf("%s: a function of use %d has no bytecode Flow body", fn.Name, k.Use)
+			return fmt.Errorf("internal error: %s: a function of use %d has no bytecode Flow body", fn.Name, k.Use)
 		}
-		actionExprs := len(bc.Actions)
 		f, err := c.flow(fn, k.Rule)
 		if err != nil {
-			bc.Actions = bc.Actions[:actionExprs] // the action expressions of the predicates of the body
-			return nil, fmt.Errorf("%s: %w", fn.Name, err)
+			return fmt.Errorf("internal error: %s: %w", fn.Name, err)
 		}
 		set(f)
 	}
-	return countsOf(c.counts), nil
+	return nil
 }
 
 // operatorsLine returns the function that sets the Flow body of the skip or line k of the Operators
@@ -700,8 +675,7 @@ func (s *flowSel) op(op bytecode.FlowOp, c *code.Call, dst []int, imm any) error
 }
 
 // action expression adds the action code of t to the module's action table, compiled for the frame whose slots are
-// names, as the match code compiles the action expression of a predicate for the scope it runs in, and returns its
-// index.
+// names, the scope the predicate or binding runs in, and returns its index.
 func (s *flowSel) actionExpr(t ir.ActionExpr, names []string) (int, error) {
 	slots := make([]ir.Slot, len(names))
 	for i, n := range names {

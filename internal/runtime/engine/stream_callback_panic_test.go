@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"strings"
 	"testing"
 
@@ -207,18 +209,31 @@ func TestStreamKeepsCallerBufferedReader(t *testing.T) {
 	}
 }
 
-// corruptVMLiteral points the first literal instruction of the module of prog past the string
-// table, bypassing the saved-module validator, so the VM faults when it runs that instruction. It
-// returns a function that restores the instruction.
+// corruptVMLiteral points the literal of every literal instruction of the Flow and stream bodies of the module
+// of prog past the string table, bypassing the saved-module validator, so the VM faults when it runs
+// one. It returns a function that restores the instructions.
 func corruptVMLiteral(t *testing.T, prog *Program) (restore func()) {
 	t.Helper()
 	m := prog.Module()
-	for i, in := range m.Code {
-		if in.Op == bytecode.OpStr {
-			m.Code[i].A = int32(len(m.Strings))
-			return func() { m.Code[i] = in }
+	var undo []func()
+	for _, f := range append(slices.Collect(maps.Values(m.Streams)), slices.Collect(maps.Values(m.Flows))...) {
+		if f == nil {
+			continue
+		}
+		for i, in := range f.Code {
+			if lit, ok := in.Imm.(bytecode.FlowLitOf); ok {
+				lit.Str = len(m.Strings)
+				f.Code[i].Imm = lit
+				undo = append(undo, func() { f.Code[i] = in })
+			}
 		}
 	}
-	t.Fatal("module has no literal instruction")
-	return nil
+	if len(undo) == 0 {
+		t.Fatal("module has no literal instruction")
+	}
+	return func() {
+		for _, u := range undo {
+			u()
+		}
+	}
 }

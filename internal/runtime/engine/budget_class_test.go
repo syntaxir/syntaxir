@@ -232,15 +232,16 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 		name  string
 		expr  ast.Expr
 		input string
-		op    bytecode.Op
+		op    bytecode.FlowOp
 	}{
-		{"guard-hit", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, late, bytecode.OpGuard},
-		{"guard-miss-fallback", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, gap, bytecode.OpGuard},
-		// A repetition in a rule that calls no rule is a scan site; with the call of e it is a plain scan.
-		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.OpScan},
-		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.OpScan},
-		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.OpScanSite},
-		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.OpScanSite},
+		{"guard-hit", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, late, bytecode.FlowGuardJump},
+		{"guard-miss-fallback", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, gap, bytecode.FlowGuardJump},
+		// A repetition in a rule that calls no rule is a scan site; with the call of e it is a plain
+		// repetition of the class.
+		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.FlowMatchClass},
+		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.FlowMatchClass},
+		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.FlowScanReachAt},
+		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.FlowScanReachAt},
 	}
 	if strconv.IntSize == 64 {
 		// Construct a source-sized bound without a constant-to-int overflow on 32bit.
@@ -249,22 +250,22 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 			name  string
 			expr  ast.Expr
 			input string
-			op    bytecode.Op
+			op    bytecode.FlowOp
 		}{
-			"wide-scan", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: int(wide)}}, late, bytecode.OpScanWide,
+			"wide-scan", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: int(wide)}}, late, bytecode.FlowMatchClass,
 		})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			p := classMembershipProgram(t, tc.expr)
 			found := false
-			for _, in := range p.Module().Code {
-				if in.Op == tc.op {
-					found = true
+			for _, f := range p.Module().Flows {
+				for _, in := range f.Code {
+					found = found || in.Op == tc.op
 				}
 			}
 			if !found {
-				t.Fatalf("optimized instruction %v was not emitted", tc.op)
+				t.Fatalf("instruction %v was not selected:\n%s", tc.op, p.Module().Disassemble())
 			}
 			// Exercise the same VM paths after loading the module; the checks below trace
 			// the parse, which a compiled grammar serves in document mode.

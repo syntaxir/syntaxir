@@ -9,55 +9,81 @@ import (
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/bytecode"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// legacyStreamRecovery builds the bytecode emitted before recovery around a
-// stream was rejected: compile recovery, then restore its stream marker in the
-// AST and its NEXT flag in the module. Both file formats retain the old shape.
-func legacyStreamRecovery(t *testing.T, streamFirst bool) *Program {
+// skipStreamRemark returns the program of src, a grammar whose start rule main has one stream body,
+// with the jumps that end an evaluated element retargeted past the marks each element saves after
+// its STEP, instead of to the loop back: the next element then restores, when a choice or a
+// recovery backtracks, the state the previous element saved before it was emitted. The loop back
+// is the jump from past the STEP to an instruction between the STREAMSTART and the STEP, where a
+// Document parse reuses the elements of the previous parse; the reuse still goes through the marks.
+func skipStreamRemark(t *testing.T, src string) *Program {
 	t.Helper()
-	// The skip is bounded, so it is a scan and not a skip-run site, whose NEXT the loop would count.
-	p := mustCompile(t, `rule main = "ab" #repeat(2) #recover(skip=. #repeat(0, 1000)) $$`)
+	p := mustCompile(t, src)
 	m := p.Module()
-	next := 0
-	for i := range m.Code {
-		if m.Code[i].Op == bytecode.OpNext {
-			m.Code[i].B = 2
-			next++
+	if len(m.Streams) != 1 {
+		t.Fatalf("%s: %d stream bodies, want 1", src, len(m.Streams))
+	}
+	for _, f := range m.Streams {
+		start, step := -1, -1
+		for pc := range f.Code {
+			if f.Code[pc].Op == bytecode.FlowStreamStart && start < 0 {
+				start = pc
+			}
+			if f.Code[pc].Op == bytecode.FlowStep && start >= 0 {
+				step = pc
+				break
+			}
 		}
-	}
-	if next != 1 {
-		t.Fatalf("legacy fixture has %d NEXT instructions", next)
-	}
-	a := p.Static().Grammar.Rules()[0].Expr.(*ast.Seq).Items[0].(*ast.Attributed)
-	// Mutate the normalized executable AST, which is the .sxirc payload.
-	stream := &ast.Attribute{Name: "stream", Pragma: true}
-	if streamFirst {
-		a.Attrs = append([]*ast.Attribute{stream}, a.Attrs...)
-	} else {
-		a.Attrs = append(a.Attrs, stream)
+		past := step + 1
+		for past < len(f.Code) && (f.Code[past].Op == bytecode.FlowMark || f.Code[past].Op == bytecode.FlowMove) {
+			past++
+		}
+		loop, back := -1, 0
+		for pc := step + 1; step >= 0 && pc < len(f.Code); pc++ {
+			if in := f.Code[pc]; in.Op == bytecode.FlowJump && in.Target > start && in.Target <= step {
+				loop = pc
+			}
+		}
+		for pc := step + 1; loop >= 0 && pc < len(f.Code); pc++ {
+			if in := &f.Code[pc]; in.Op == bytecode.FlowJump && in.Target == loop {
+				in.Target = past
+				back++
+			}
+		}
+		if step < 0 || past == step+1 || back == 0 {
+			t.Fatalf("%s: stream body shape changed (step %d, past %d, %d loop backs):\n%s", src, step, past, back, m.Disassemble())
+		}
 	}
 	return p
 }
 
-func TestCompiledStreamRecoveryRejected(t *testing.T) {
+// TestCompiledStreamCommitRejected checks that a compiled grammar loads only if no path of a stream
+// body restores a state saved before an EMITSTREAM that ran since (bytecode.Flow.RestoreAcrossCommit):
+// the emitted input and recovered errors are committed, so a backtrack of a choice or of a recovery
+// into them would parse input the stream already gave away.
+func TestCompiledStreamCommitRejected(t *testing.T) {
 	t.Parallel()
-	for _, streamFirst := range []bool{false, true} {
-		p := legacyStreamRecovery(t, streamFirst)
-		for _, mode := range allModes {
-			data, err := p.Marshal("main", mode)
+	for _, src := range []string{
+		`rule main = ("ab" #recover(skip=[^a]+))+ #stream $$`,
+		`rule main = ("a" "b" / "a" "c")* #stream $$`,
+	} {
+		for _, mode := range valueModes {
+			data, err := mustCompile(t, src).Marshal("main", mode)
 			if err != nil {
-				// Building the recognizer of recognize mode rejects the shape before saving.
-				if !strings.Contains(err.Error(), "recover") {
-					t.Errorf("legacy streamFirst=%v %s mode save: %v", streamFirst, mode, err)
-				}
-				continue
+				t.Fatal(err)
 			}
-			if _, _, err := LoadProgram(data); err == nil || !strings.Contains(err.Error(), "recover") {
-				t.Errorf("legacy streamFirst=%v %s mode: %v", streamFirst, mode, err)
+			if _, _, err := LoadProgram(data); err != nil {
+				t.Errorf("%s %s mode: the generated module does not load: %v", src, mode, err)
+			}
+			data, err = skipStreamRemark(t, src).Marshal("main", mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, _, err := LoadProgram(data); err == nil || !strings.Contains(err.Error(), "before an EMITSTREAM") {
+				t.Errorf("%s %s mode: restore across a commit loaded: %v", src, mode, err)
 			}
 		}
 	}
@@ -97,45 +123,6 @@ rule item = "ab" @error(message="record") #recover(skip=[^a]+)`)
 				}
 			}
 		}
-	}
-}
-
-func TestStreamRecoveryRegions(t *testing.T) {
-	t.Parallel()
-	safe := []bytecode.Instr{{Op: bytecode.OpRecover, A: 3}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 5}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpNext, B: 2}, {Op: bytecode.OpEnd}}
-	for _, tc := range []struct {
-		name string
-		edit func([]bytecode.Instr)
-		want string
-	}{
-		{"element local", func([]bytecode.Instr) {}, ""},
-		{"body", func(c []bytecode.Instr) { c[1] = bytecode.Instr{Op: bytecode.OpNext, B: 2} }, "encloses a stream commitment"},
-		{"skip", func(c []bytecode.Instr) { c[3] = bytecode.Instr{Op: bytecode.OpNext, B: 2} }, "encloses a stream commitment"},
-		{"missing body boundary", func(c []bytecode.Instr) { c[0].A = 1 }, "invalid recovery body"},
-		{"missing skip boundary", func(c []bytecode.Instr) { c[2].A = 4 }, "invalid recovery skip"},
-	} {
-		c := append([]bytecode.Instr(nil), safe...)
-		tc.edit(c)
-		err := bytecode.ValidateStreamRecovery(c)
-		if tc.want == "" && err != nil || tc.want != "" && (err == nil || !strings.Contains(err.Error(), tc.want)) {
-			t.Errorf("%s: %v, want %q", tc.name, err, tc.want)
-		}
-	}
-	nested := []bytecode.Instr{{Op: bytecode.OpRecover, A: 8}, {Op: bytecode.OpRecover, A: 4}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 6}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 10}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpNext, B: 2}, {Op: bytecode.OpEnd}}
-	if err := bytecode.ValidateStreamRecovery(nested); err != nil {
-		t.Errorf("nested element-local recovery: %v", err)
-	}
-	nested[3].A = 10
-	if err := bytecode.ValidateStreamRecovery(nested); err == nil || !strings.Contains(err.Error(), "crossing recovery regions") {
-		t.Errorf("crossing regions: %v", err)
-	}
-	bodyToSkip := []bytecode.Instr{{Op: bytecode.OpRecover, A: 4}, {Op: bytecode.OpRecover, A: 6}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 9}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 8}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpNext, B: 2}, {Op: bytecode.OpEnd}}
-	if err := bytecode.ValidateStreamRecovery(bodyToSkip); err == nil || !strings.Contains(err.Error(), "crossing recovery regions") {
-		t.Errorf("body-to-skip crossing leaves recovery active at NEXT: %v", err)
-	}
-	nestedSkip := []bytecode.Instr{{Op: bytecode.OpRecover, A: 3}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 9}, {Op: bytecode.OpRecover, A: 6}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndRecover, A: 8}, {Op: bytecode.OpTop}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpEndSkip}, {Op: bytecode.OpNext, B: 2}, {Op: bytecode.OpEnd}}
-	if err := bytecode.ValidateStreamRecovery(nestedSkip); err != nil {
-		t.Errorf("nested recovery inside skip: %v", err)
 	}
 }
 

@@ -190,19 +190,18 @@ const (
 	// characters (flow.scanKids).
 	FlowScanKids
 	// FlowPred sets Dst[0] to whether the predicate whose action expression is the immediate holds in the current
-	// frame, as the match code's PRED evaluates it (flow.pred).
+	// frame (flow.pred).
 	FlowPred
 	// FlowBind binds the variable of the immediate FlowBindOf to the value of its action expression, evaluated in
-	// the current frame as the match code's BIND evaluates it, and sets Dst[0] to whether the
+	// the current frame, and sets Dst[0] to whether the
 	// evaluation succeeded (flow.bind).
 	FlowBind
-	// FlowCut sets Dst[0] to the cut flag of the rule call the body runs in, as the match code's CUT
-	// sets it (the register prim.Cut).
+	// FlowCut sets Dst[0] to the cut flag of the rule call the body runs in (the register prim.Cut).
 	FlowCut
 	// FlowSetCut sets the cut flag of the rule call the body runs in to the bool Args[0].
 	FlowSetCut
 	// FlowKeep sets Dst[0] to the expectations Args[0], kept beyond the scope that recorded them, as
-	// the match code keeps those of a failed recovery body (flow.keep).
+	// those of a failed recovery body are (flow.keep).
 	FlowKeep
 	// FlowMakeError sets Dst[0] to the syntax error at the int Args[0] with the expectations Args[1]
 	// (flow.makeError).
@@ -210,7 +209,7 @@ const (
 	// FlowAppendError appends the syntax error Args[0] to the recovered errors (flow.appendError).
 	FlowAppendError
 	// FlowNewErrorNode sets Dst[0] to the error node of the syntax error Args[1] from the int Args[0]
-	// to the position, as the match code's ENDSKIP builds it (flow.newErrorNode).
+	// to the position (flow.newErrorNode).
 	FlowNewErrorNode
 	// FlowRecLen sets Dst[0] to the number of recovered errors (flow.recLen).
 	FlowRecLen
@@ -225,7 +224,7 @@ const (
 
 	// The superinstructions: each does what a sequence of the instructions above does, the sequence
 	// that the bytecode lowering selects it for, in one dispatch. Each tests a match and, when it
-	// fails, continues at Target, as the match code's fused instructions did.
+	// fails, continues at Target.
 
 	// FlowJumpTrue continues at Target when the bool Args[0] is true.
 	FlowJumpTrue
@@ -290,6 +289,21 @@ const (
 	FlowResumeEnd
 	// FlowResumeFinish records the run Args[0] of a repetition that matched (flow.resumeFinish).
 	FlowResumeFinish
+	// FlowMergeRenamed merges the expectations Args[1], recorded at the int Args[0], into the
+	// enclosing scope, each that is no message renamed to the expectation of the immediate
+	// FlowExpectOf (flow.mergeRenamed, for @diagnostic).
+	FlowMergeRenamed
+	// FlowScanReachAt sets Dst[0] to the count of a walk of the scan site of the immediate that began
+	// at the int Args[0] and has matched the int Args[1] characters: when that count is the scan hot
+	// span of the parse, as FlowScanReach does, and otherwise to Args[1]. It is the lowering's test
+	// `if count == flow.ScanHotSpan { count = flow.scanReach(...) }`, with the span of the parse, which
+	// is flow.ScanHotSpan but in tests that lower it.
+	FlowScanReachAt
+	// FlowScanEndAt ends a value-free walk of the scan site of the immediate that began at the int
+	// Args[0] and matched the int Args[1] characters as FlowScanEnd does when that count is at least the
+	// scan hot span of the parse, and does nothing otherwise: the lowering's test
+	// `if flow.ScanHotSpan-1 < count { flow.scanEnd(...) }`, with the span of the parse.
+	FlowScanEndAt
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -325,13 +339,13 @@ const (
 	FlowImmSlot
 	// FlowImmScope is a scope: an int index of Module.Scopes.
 	FlowImmScope
-	// FlowImmRunSite is a skip-run or run site, numbered as the match code numbers it: an int from 1
-	// to the number of instructions of the match code.
+	// FlowImmRunSite is a skip-run or run site, numbered as the compiler numbers the sites of the
+	// grammar: an int from 1 to the number of instructions of the module's Flow bodies.
 	FlowImmRunSite
 	// FlowImmRunWalk is a FlowRunWalkOf.
 	FlowImmRunWalk
-	// FlowImmScanSite is a scan site, numbered as the match code numbers it: an int from 1 to the
-	// largest scan site that the match code can name.
+	// FlowImmScanSite is a scan site, numbered as the compiler numbers the sites of the grammar:
+	// an int from 1 to the largest scan site that a module of its Flow instructions can name.
 	FlowImmScanSite
 	// FlowImmAction is an action expression: an int index of Module.Actions.
 	FlowImmAction
@@ -459,6 +473,9 @@ var FlowShapes = [...]FlowShape{
 	FlowResumeBegin:   {Name: "RESUMEBEGIN", Args: 1},
 	FlowResumeEnd:     {Name: "RESUMEEND", Args: 3},
 	FlowResumeFinish:  {Name: "RESUMEFINISH", Args: 1},
+	FlowMergeRenamed:  {Name: "MERGERENAMED", Args: 2, Imm: FlowImmExpect},
+	FlowScanReachAt:   {Name: "SCANREACHAT", Dst: 1, Args: 2, Imm: FlowImmScanSite},
+	FlowScanEndAt:     {Name: "SCANENDAT", Args: 2, Imm: FlowImmScanSite},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
