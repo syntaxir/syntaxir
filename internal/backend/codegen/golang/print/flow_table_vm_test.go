@@ -51,11 +51,11 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			printed, gen, lowered := goNodeTable(t, g)
+			printed, gen, prog, lowered := goNodeTable(t, g)
 			if gen == nil || len(printed) == 0 || len(lowered) == 0 {
 				t.Fatal("the Node table prints no rule from Flow IR")
 			}
-			ft, err := checked.Of(gen.Prog.Elab.(*frontend.Result)).FlowTable()
+			ft, err := checked.Of(prog).FlowTable()
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -113,7 +113,7 @@ type loweredFunc struct {
 // route of each rule the Node table prints from Flow IR (true for the flat route), the generator of
 // the Node table, and the Flow functions that the Node table lowered, by name. A name lowered twice
 // with different functions fails the test.
-func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.Generator, funcs map[string]loweredFunc) {
+func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.Generator, prog *frontend.Result, funcs map[string]loweredFunc) {
 	t.Helper()
 	var mu sync.Mutex
 	var conflict []string
@@ -146,13 +146,14 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 		}
 		funcs[fn.Name] = f
 	})
-	if _, err := generateGo(g, opts, driver.Options{Observers: []pipe.Observer{record}}, hooks); err != nil {
+	_, prog, err := generateGoChecked(g, opts, driver.Options{Observers: []pipe.Observer{record}}, hooks)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if len(conflict) > 0 {
 		t.Fatalf("the Go generator lowered different functions under the names %v", conflict)
 	}
-	return routes, gen, funcs
+	return routes, gen, prog, funcs
 }
 
 // finished returns an observer of a compilation that calls record with the module of the table

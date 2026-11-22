@@ -39,11 +39,11 @@ var TableLabels = []string{"rules", "recRules"}
 // program, the build of its recognizer, the start rule, the options of the target, which
 // print.Validate checked, and the hooks of a test.
 type Target struct {
-	Prog  *common.Program
+	Prog  codegen.Checked
 	Start *common.Rule
 	Opts  common.GenOptions
 	// rec returns the recognizer, built on the first call, or nil if the parser has none.
-	rec func() (*common.Program, error)
+	rec func() (*codegen.Checked, error)
 	// hooks are the hooks of a test, or nil.
 	hooks *print.Hooks
 }
@@ -51,13 +51,17 @@ type Target struct {
 // NewTarget returns the TypeScript target of the program prog with the build of its recognizer, the
 // start rule start, the options opts, which print.Validate checked, and the hooks of a test, which
 // production leaves nil.
-func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
 	t := &Target{Prog: prog, Start: start, Opts: opts, hooks: hooks}
-	t.rec = sync.OnceValues(func() (*common.Program, error) {
+	t.rec = sync.OnceValues(func() (*codegen.Checked, error) {
 		if !opts.Recognize {
 			return nil, nil
 		}
-		return recognizer()
+		rec, err := recognizer()
+		if err != nil {
+			return nil, err
+		}
+		return &rec, nil
 	})
 	return t
 }
@@ -93,19 +97,24 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 	}
 	o := t.Opts
 	c := &plandata.Cores{}
-	for _, name := range t.Prog.StartRules {
-		c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: t.Prog.ByName[name].ID})
+	prog := t.Prog.View
+	for _, name := range prog.StartRules {
+		c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: prog.ByName[name].ID})
 	}
 	c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: t.Start.ID})
 	if rec != nil {
-		c.Roots = append(c.Roots, plandata.Entry{Table: "recRules", ID: rec.ByName[t.Start.Name].ID})
+		c.Roots = append(c.Roots, plandata.Entry{Table: "recRules", ID: rec.View.ByName[t.Start.Name].ID})
 	}
-	for i, pr := range []*common.Program{t.Prog, rec}[:len(mods)] {
+	progs := []*common.Program{prog}
+	if rec != nil {
+		progs = append(progs, rec.View)
+	}
+	for i, pr := range progs[:len(mods)] {
 		table := TableLabels[i]
 		all := append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...)
 		ct := plandata.CoreTable{Name: table, M: mods[i], Slots: o.Document}
 		// A parser with Documents resumes the runs of its repetitions (lowerdata.Options.Resume).
-		cfg := plandata.TableConfig{Values: pr == t.Prog, Budget: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document, Outline: true}
+		cfg := plandata.TableConfig{Values: pr == prog, Budget: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document, Outline: true}
 		u := plandata.Unit{Label: table, Table: table, Rules: make([]*plandata.Rule, len(all)), Prune: true, IR: flowplan.TableOf(mods[i], cfg)}
 		for j, r := range all {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
@@ -137,7 +146,10 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		p := &print.Parser{Prog: target.Prog, Rec: rec, Start: target.Start, Opts: target.Opts}
+		p := &print.Parser{Prog: target.Prog.View, Start: target.Start, Opts: target.Opts}
+		if rec != nil {
+			p.Rec = rec.View
+		}
 		params := print.Params{Params: codegen.ParamsOf(c.Value), SparseMemo: c.Value(SparseMemo) != 0}
 		// A TypeScript parser shares its literal tables only with ts-literal-sharing too.
 		params.LiteralSharing = params.LiteralSharing && c.Value(TSLiteralSharing) != 0

@@ -11,6 +11,7 @@ import (
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -18,12 +19,18 @@ import (
 // builds the typed table (print.Decision.Sources), and runs the Core passes on it under the settings
 // of g with the options o otherwise (corepass.Run).
 func typedCore(g *print.Generator, o corepass.RunOptions) (*core.Module, error) {
-	m, err := irbuild.CoreFrom(g.Prog.Elab, true)
+	return typedCoreOf(checkedOf(g), settingsOf(g), o)
+}
+
+// typedCoreOf builds the Core IR of the typed rules of the checked program prog and runs the Core
+// passes on it under the settings s with the options o otherwise, as typedCore does.
+func typedCoreOf(prog irbuild.Program, s pass.Settings, o corepass.RunOptions) (*core.Module, error) {
+	m, err := irbuild.CoreFrom(prog, true)
 	if err != nil {
 		return nil, err
 	}
 	core.Analyze(m)
-	o.Settings = settingsOf(g)
+	o.Settings = s
 	m, _, err = corepass.Run(m, o)
 	return m, err
 }

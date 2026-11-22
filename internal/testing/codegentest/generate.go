@@ -14,7 +14,7 @@ import (
 
 // Compile compiles grammars for the generators, as the compiler of package codegen does. The
 // package of the tests sets it: this package cannot import the engine, whose tests import it.
-var Compile common.Compiler
+var Compile driver.Compiler
 
 // MutateCode, if set, changes the code that GenerateCode returns, for negative controls.
 var MutateCode func([]byte) []byte

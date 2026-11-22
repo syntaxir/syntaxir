@@ -2,7 +2,6 @@ package common
 
 import (
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -19,7 +18,9 @@ import (
 //   - Run, the tables a parser runs (rules, expectations, sites, kinds): the run-time program
 //     (program.Program).
 //   - RuleList, Twins and ByName: the views of the rules of Run, in the same order (Rule).
-//   - Elab, the input of the Core IR builder: the elaboration's contract (elaborate.Program).
+//
+// The view holds no input of the elaboration to Core IR: the printers read the Core IR of the tables
+// they print from the tables, which the pipeline built.
 type Program struct {
 	*check.Model
 	// Check is the checker of the grammar's types, which Checker returns.
@@ -33,9 +34,6 @@ type Program struct {
 	RuleList []*Rule
 	Twins    []*Rule
 	ByName   map[string]*Rule
-	// Elab is the input of the elaboration to Core IR (elaborate.Program): the rules, sites and
-	// casts of the grammar as the Core IR builder reads them, for the generators that build Core IR.
-	Elab elaborate.Program
 }
 
 // Checker returns the checker of the grammar's types.

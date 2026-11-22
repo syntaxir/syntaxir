@@ -13,7 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/result"
-	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
@@ -41,8 +41,8 @@ var TableLabels = []string{"rules", "recRules", "typed", "rulesTraced", "recRule
 // build of its recognizer, the start rule and the options of the target, which print.Validate
 // completed. The tables of its parser are decided once from them (Decision).
 type Target struct {
-	Prog       *common.Program
-	Recognizer func() (*common.Program, error)
+	Prog       codegen.Checked
+	Recognizer func() (codegen.Checked, error)
 	Start      *common.Rule
 	Opts       common.GenOptions
 	// hooks are the hooks of a test, or nil (print.Hooks).
@@ -52,7 +52,7 @@ type Target struct {
 
 // NewTarget returns the Go target of the program prog with its recognizer, the start rule start, the
 // options opts, which print.Validate completed, and the hooks of a test, which production leaves nil.
-func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
 	t := &Target{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, hooks: hooks}
 	t.decide = sync.OnceValues(func() (*Decision, error) {
 		d, err := Decide(prog, recognizer, start, opts)
@@ -71,10 +71,12 @@ func (*Target) Backend() string { return "go" }
 func (t *Target) Decision() (*Decision, error) { return t.decide() }
 
 // tableSpec is one table of a Go parser: its name in the dumps (print.Generator.IRTable), the rule table it
-// fills (rules, recRules or trules), the program of its rules and whether it is a traced copy.
+// fills (rules, recRules or trules), the program of its rules, the input of the elaboration of the
+// program, and whether it is a traced copy.
 type tableSpec struct {
 	name, table string
 	prog        *common.Program
+	elab        elaborate.Program
 	traced      bool
 }
 
@@ -96,13 +98,13 @@ type Decision struct {
 // completed: the typed entry points, and with them whether the typed table is built and whether a
 // typed-only parser keeps its Node rules (common.GenOptions.KeepNodes), and the recognizer, which
 // recognizer checks.
-func Decide(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions) (*Decision, error) {
+func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions) (*Decision, error) {
 	if opts.Stream && !start.Stream {
 		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 	}
-	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog, Start: start}}
+	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
 	if opts.LogicalUnits {
-		if err := print.LogicalRefusal(prog, opts); err != nil {
+		if err := print.LogicalRefusal(prog.View, opts); err != nil {
 			return nil, err
 		}
 		switch opts.LogicalVariant {
@@ -131,23 +133,24 @@ func Decide(prog *common.Program, recognizer func() (*common.Program, error), st
 		}
 		typed, d.roots = needTyped, roots
 	}
+	var rec codegen.Checked
 	if opts.Recognize {
 		// The recognizer: the program in which no rule builds a value, in a rule table of its own.
-		rec, err := recognizer()
-		if err != nil {
+		var err error
+		if rec, err = recognizer(); err != nil {
 			return nil, err
 		}
-		d.Rec = rec
+		d.Rec = rec.View
 	}
 	add := func(traced bool, suffix string) {
 		if !traced || !print.NoNodeRules(opts) {
-			d.specs = append(d.specs, tableSpec{"rules" + suffix, "rules", prog, traced})
+			d.specs = append(d.specs, tableSpec{"rules" + suffix, "rules", prog.View, prog.Elab, traced})
 		}
 		if d.Rec != nil {
-			d.specs = append(d.specs, tableSpec{"recRules" + suffix, "recRules", d.Rec, traced})
+			d.specs = append(d.specs, tableSpec{"recRules" + suffix, "recRules", rec.View, rec.Elab, traced})
 		}
 		if typed {
-			d.specs = append(d.specs, tableSpec{"typed" + suffix, "trules", prog, traced})
+			d.specs = append(d.specs, tableSpec{"typed" + suffix, "trules", prog.View, prog.Elab, traced})
 		}
 	}
 	add(false, "")
@@ -174,9 +177,9 @@ func (d *Decision) Sources() []common.TableSource {
 	s := make([]common.TableSource, len(d.specs))
 	for i, t := range d.specs {
 		if t.table == "recRules" {
-			s[i] = common.TableSource{Build: flowplan.TableBuild(t.prog.Elab, plandata.TableConfig{}), Key: "recognizer"}
+			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "recognizer"}
 		} else {
-			s[i] = common.TableSource{Build: func() (*core.Module, error) { return irbuild.CoreFrom(t.prog.Elab, true) }, Key: "program"}
+			s[i] = common.TableSource{Build: func() (*core.Module, error) { return elaborate.CoreFrom(t.elab, true) }, Key: "program"}
 		}
 	}
 	return s

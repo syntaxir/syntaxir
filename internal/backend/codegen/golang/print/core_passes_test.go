@@ -5,13 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/pass"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -371,8 +370,7 @@ func TestCoreScans(t *testing.T) {
 	if !ok {
 		t.Fatal("does not compile")
 	}
-	g := &print.Generator{Prog: checked.Of(entry.Checked(prog)).Generator(), Table: "trules"}
-	m, err := typedCore(g, corepass.RunOptions{})
+	m, err := typedCoreOf(entry.Checked(prog), pass.Settings{}, corepass.RunOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}

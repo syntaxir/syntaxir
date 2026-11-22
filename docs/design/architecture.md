@@ -276,7 +276,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/actionlower` | Lowers the action expressions of a checked program (predicates and binding values) to the term programs that the runtime evaluates; the closure backend and `vmlower` call it |
 | `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
 | `internal/backend/llvm` | The future native-code backend |
-| `internal/backend/codegen` | What the generating backends declare alike for their printing steps: the target of the pipeline and the parameters that both printers read, which each printing step gives its printer as data |
+| `internal/backend/codegen` | What the generating backends declare alike: the checked program as a backend reads it (the printers' view and the input of the elaboration of its tables), the target of the pipeline, and the parameters that both printers read, which each printing step gives its printer as data |
 | `internal/backend/codegen/common` | Options and parts shared by the host languages, the view of a checked grammar that the generators read (`Program`, which `internal/driver/checked` builds from the semantic model, the checker and the runtime program); see [Code Generation for Host Languages](host-code-generation.md) |
 | `internal/backend/codegen/golang` | The Go backend: the tables of a Go parser, what they are planned from, and the step `print-go` |
 | `internal/backend/codegen/golang/pass` | The Go passes on the Exec stage |

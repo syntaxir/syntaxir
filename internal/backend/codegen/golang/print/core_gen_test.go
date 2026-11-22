@@ -10,12 +10,12 @@ import (
 	"sync"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/driver/generate"
-	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -91,7 +91,7 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 	}
 	rec := &flowRecord{settings: settings}
 	opts.Module = "example.com/p"
-	if _, err := generateGo(g, opts, rec.options(), rec.hooks()); err != nil || rec.gen == nil {
+	if _, rec.checked, err = generateGoChecked(g, opts, rec.options(), rec.hooks()); err != nil || rec.gen == nil {
 		return nil, false
 	}
 	gen := rec.gen
@@ -107,12 +107,12 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 // recognizerOf returns the view of the recognizer of the program that the generator g prints,
 // compiled as Program.Recognizer compiles it. The view's elaboration input is the checked program
 // that the test compiled.
-func recognizerOf(g *print.Generator) (*common.Program, error) {
-	rec, err := engine.New(checked.Of(g.Prog.Elab.(*frontend.Result))).Recognizer()
+func recognizerOf(g *print.Generator) (codegen.Checked, error) {
+	rec, err := engine.New(checked.Of(checkedOf(g))).Recognizer()
 	if err != nil {
-		return nil, err
+		return codegen.Checked{}, err
 	}
-	return checked.Of(entry.Checked(rec)).Generator(), nil
+	return codegen.Checked{View: checked.Of(entry.Checked(rec)).Generator(), Elab: entry.Checked(rec)}, nil
 }
 
 // coreTypedCase builds the Core IR of the typed rules of the generated parser with the Core passes

@@ -1,5 +1,6 @@
 // Package codegen holds what the generating backends declare alike for their printing steps: the
-// target of the pipeline that a printing step reads, and the parameters that the Go and TypeScript
+// checked program as a backend reads it, the target of the pipeline that a printing step reads, and
+// the parameters that the Go and TypeScript
 // printing steps share, which each step reads from its context and gives its printer as data
 // (common.Params). The print packages import none of it: they receive the target's program and the
 // parameters' values.
@@ -7,10 +8,19 @@ package codegen
 
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
+
+// Checked is a checked program as a generating backend reads it: the view that its printer reads and
+// the input of the elaboration of its tables to Core IR (elaborate.Program), which the steps of the
+// pipeline build the Core IR from and no printer reads.
+type Checked struct {
+	View *common.Program
+	Elab elaborate.Program
+}
 
 // TargetFeature is the target of the pipeline of a backend (with target=go), which its printing step
 // reads. Its text names the backend; a pipeline text cannot provide it as a constant, since the

@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -72,8 +73,10 @@ type flowScope struct {
 type flowRecord struct {
 	mu  sync.Mutex
 	gen *print.Generator
-	// settings are those of the generation, which the Core IR of a case is built with (typedCore).
+	// settings are those of the generation, which the Core IR of a case is built with (typedCore), and
+	// checked is the checked program that it compiled the grammar to.
 	settings pass.Settings
+	checked  *frontend.Result
 	origins  map[string]core.Origin
 	by       map[flowScope]*flowDecisions
 }
@@ -102,6 +105,15 @@ func settingsOf(gen *print.Generator) pass.Settings {
 		return rec.settings
 	}
 	return pass.Settings{}
+}
+
+// checkedOf returns the checked program of the generation of gen, which coreGenerate recorded.
+func checkedOf(gen *print.Generator) *frontend.Result {
+	rec := flowRecordOf(gen)
+	if rec == nil || rec.checked == nil {
+		panic("internal error: no generation of the test recorded the checked program of the generator")
+	}
+	return rec.checked
 }
 
 // flowRecordOf returns the record of the generation of gen, or nil.

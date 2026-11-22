@@ -21,7 +21,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 		return nil, err
 	}
 	c := &coreGenCase{name: name, mode: mode, table: "recRules", golden: recognizerGolden, gen: g}
-	c.rules = append(append([]*common.Rule(nil), rec.RuleList...), rec.Twins...)
+	c.rules = append(append([]*common.Rule(nil), rec.View.RuleList...), rec.View.Twins...)
 	m, err := irbuild.CoreFrom(rec.Elab, true)
 	if err != nil {
 		return nil, err

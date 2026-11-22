@@ -12,6 +12,8 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -106,5 +108,19 @@ func firstCharEnd(input string, pos int, u sxirinput.PositionUnit) int {
 // generateGo generates the Go parser of g with opts, the library of the tests, the edits and observers
 // of x and the hooks h of the printer, as package generate does (generate.GoWith).
 func generateGo(g *ast.Grammar, opts common.GenOptions, x driver.Options, h *print.Hooks) ([]common.GeneratedFile, error) {
-	return generate.GoWith(codegentest.Compile, g, codegentest.WithLib(opts), x, h)
+	files, _, err := generateGoChecked(g, opts, x, h)
+	return files, err
+}
+
+// generateGoChecked is generateGo that also returns the checked program that the generation compiled
+// g to, which the steps of the pipeline elaborated the Core IR of the tables from.
+func generateGoChecked(g *ast.Grammar, opts common.GenOptions, x driver.Options, h *print.Hooks) ([]common.GeneratedFile, *frontend.Result, error) {
+	var prog *frontend.Result
+	compile := func(g *ast.Grammar, o check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
+		p, rec, err := codegentest.Compile(g, o)
+		prog = p
+		return p, rec, err
+	}
+	files, err := generate.GoWith(compile, g, codegentest.WithLib(opts), x, h)
+	return files, prog, err
 }

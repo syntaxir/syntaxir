@@ -640,5 +640,5 @@ func recognizerRules(g *print.Generator) []*common.Rule {
 	if err != nil {
 		panic(err)
 	}
-	return append(append([]*common.Rule(nil), rec.RuleList...), rec.Twins...)
+	return append(append([]*common.Rule(nil), rec.View.RuleList...), rec.View.Twins...)
 }

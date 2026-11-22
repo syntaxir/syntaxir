@@ -256,8 +256,3 @@ type CompileOptions struct {
 	// reads its variable, for tests of the left-recursion guard.
 	LeftRecursionBindings bool
 }
-
-// Compiler checks a grammar for a generator. It returns the view of the checked grammar and a
-// function that returns the view of its recognizer (the program in which no rule builds a value),
-// which it checks on first use.
-type Compiler func(g *ast.Grammar, opts CompileOptions) (prog *Program, recognizer func() (*Program, error), err error)

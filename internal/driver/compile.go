@@ -168,7 +168,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = gobackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.t.GoHooks)
+		c.target = gobackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, c.t.GoHooks)
 		return nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(c.t.Gen)
@@ -176,7 +176,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = tsbackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.t.TSHooks)
+		c.target = tsbackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, c.t.TSHooks)
 		return nil
 	}
 	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)

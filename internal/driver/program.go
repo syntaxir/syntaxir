@@ -3,6 +3,7 @@ package driver
 import (
 	"sync"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -17,18 +18,21 @@ import (
 // Program is the input of a compilation: the checked program and the options that every target
 // shares (start rule, source information, default values, left-recursion bindings). Check makes it.
 type Program struct {
-	view       *common.Program
-	recognizer func() (*common.Program, error)
+	checked    codegen.Checked
+	recognizer func() (codegen.Checked, error)
 	opts       common.CompileOptions
 	start      *common.Rule
 }
 
 // View returns the view of the checked program that the generators read (common.Program).
-func (p *Program) View() *common.Program { return p.view }
+func (p *Program) View() *common.Program { return p.checked.View }
 
 // Recognizer returns the view of the recognizer of the program, the program in which no rule builds
 // a value, which it checks on the first call.
-func (p *Program) Recognizer() (*common.Program, error) { return p.recognizer() }
+func (p *Program) Recognizer() (*common.Program, error) {
+	r, err := p.recognizer()
+	return r.View, err
+}
 
 // Options returns the options that the program was checked with.
 func (p *Program) Options() common.CompileOptions { return p.opts }
@@ -51,49 +55,43 @@ type compilation struct {
 // compilationIR is the kind program: the input of a compilation.
 var compilationIR = pipe.RegisterIR(&pipe.IR[*compilation]{Name: "program"})
 
+// Compiler checks a grammar for a generator with the options opts. It returns the checked program
+// and a function that returns that of its recognizer (the program in which no rule builds a value),
+// which it checks on first use.
+type Compiler func(g *ast.Grammar, opts check.Options) (prog *frontend.Result, recognizer func() (*frontend.Result, error), err error)
+
 // Check checks the grammar g for generation with the options o, and start, the start rule of the
 // generated Parse function ("" for the grammar's default start rule). The recognizer of the program
 // is checked when a target first needs it. A grammar whose parser could insert missing tokens is an
 // error, since no generated parser supports them.
 func Check(g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	return CheckWith(GeneratorCompiler(checkForGenerator), g, o, start)
+	return CheckWith(checkForGenerator, g, o, start)
 }
 
 // CheckWith is Check with the compiler c, for the tests whose checker builds the programs as the
-// engine does.
-func CheckWith(c common.Compiler, g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	view, recognizer, err := c(g, o)
+// engine does. The generators read the views of the checked programs (View), and the steps that build
+// the Core IR of their tables the checked programs themselves.
+func CheckWith(c Compiler, g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
+	prog, rec, err := c(g, CompileOptions(o))
 	if err != nil {
 		return nil, err
 	}
-	if view.Run.HasMissing {
+	checked := codegen.Checked{View: View(prog), Elab: prog}
+	if checked.View.Run.HasMissing {
 		return nil, rprogram.MissingUnsupported("generated parsers")
 	}
-	r, err := view.StartRule(start)
+	r, err := checked.View.StartRule(start)
 	if err != nil {
 		return nil, err
 	}
-	return &Program{view: view, recognizer: sync.OnceValues(recognizer), opts: o, start: r}, nil
-}
-
-// GeneratorCompiler returns the compiler of the generators (common.Compiler) that checks a grammar
-// with c, which returns the checked program and a function that returns that of its recognizer, and
-// gives the generators their views (View).
-func GeneratorCompiler(c func(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error)) common.Compiler {
-	return func(g *ast.Grammar, opts common.CompileOptions) (*common.Program, func() (*common.Program, error), error) {
-		prog, rec, err := c(g, CompileOptions(opts))
+	recognizer := func() (codegen.Checked, error) {
+		p, err := rec()
 		if err != nil {
-			return nil, nil, err
+			return codegen.Checked{}, err
 		}
-		recognizer := func() (*common.Program, error) {
-			r, err := rec()
-			if err != nil {
-				return nil, err
-			}
-			return View(r), nil
-		}
-		return View(prog), recognizer, nil
+		return codegen.Checked{View: View(p), Elab: p}, nil
 	}
+	return &Program{checked: checked, recognizer: sync.OnceValues(recognizer), opts: o, start: r}, nil
 }
 
 // CompileOptions returns the options of the compiler that the choices o of a generator stand for.
@@ -102,13 +100,12 @@ func CompileOptions(o common.CompileOptions) check.Options {
 }
 
 // View returns the view of the checked program p that the generators read (common.Program): the
-// semantic model, the checker and the run-time program of the checked program, the checked program
-// as the input of the elaboration to Core IR (elaborate.Program), and a view of each rule over its
-// run-time rule, with the facts that only the checked program holds copied (Lean, the twin and the
+// semantic model, the checker and the run-time program of the checked program, and a view of each
+// rule over its run-time rule, with the facts that only the checked program holds copied (Lean, the twin and the
 // projections).
 func View(p *frontend.Result) *common.Program {
 	run := p.Runtime()
-	v := &common.Program{Model: p.Model, Check: p.Checker(), Typed: p.Typed, Run: run, Elab: p,
+	v := &common.Program{Model: p.Model, Check: p.Checker(), Typed: p.Typed, Run: run,
 		RuleList: make([]*common.Rule, len(p.RuleList)), Twins: make([]*common.Rule, len(p.Twins)),
 		ByName: make(map[string]*common.Rule, len(p.RuleList))}
 	view := func(r *check.Rule) *common.Rule {

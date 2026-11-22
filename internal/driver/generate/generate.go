@@ -25,13 +25,13 @@ import (
 // and the embedded copy of the Go library (pkg/runtime/libgo) with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func Go(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.LibGo = libGo
-	return GoWith(compileForGenerator, g, o, driver.Options{}, nil)
+	return GoWith(checkForGenerator, g, o, driver.Options{}, nil)
 }
 
 // GoWith is Go with the compiler c, which checks the grammar, the library o.LibGo, the edits and
 // observers of x and the hooks h of the printer (driver.Target.GoHooks), which only tests set; the
 // settings and the debugging settings of x come from o.
-func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *goprint.Hooks) ([]common.GeneratedFile, error) {
+func GoWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *goprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
 		return goprint.LibFiles(o)
 	}
@@ -58,13 +58,13 @@ func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 // selects (Settings), and lib.ts with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.TSLib = tsLib
-	return TypeScriptWith(compileForGenerator, g, o, driver.Options{}, nil)
+	return TypeScriptWith(checkForGenerator, g, o, driver.Options{}, nil)
 }
 
 // TypeScriptWith is TypeScript with the compiler c, which checks the grammar, the library o.TSLib,
 // the edits and observers of x and the hooks h of the printer (driver.Target.TSHooks), which only
 // tests set; the settings and the debugging settings of x come from o.
-func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *tsprint.Hooks) ([]common.GeneratedFile, error) {
+func TypeScriptWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *tsprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
 		return tsprint.LibFiles(o.TSLib)
 	}
@@ -86,10 +86,6 @@ func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x dr
 	}
 	return out[0].(*result.Files).Files, nil
 }
-
-// compileForGenerator is the common.Compiler that the generators compile grammars with: it gives
-// them the views (driver.View) of the programs that checkForGenerator checks.
-var compileForGenerator = driver.GeneratorCompiler(checkForGenerator)
 
 // checkForGenerator checks g to its semantic model and sites, which is all a generator reads, and checks
 // the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
