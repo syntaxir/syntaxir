@@ -5,13 +5,12 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestClassifyReusedSkips checks that a #recover skip whose repetitions are skip-run sites with
@@ -72,30 +71,29 @@ func TestReusedSkipSites(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			nodes := originNodes(st.Module).nodes
-			looseCut := func(e ast.Expr) bool {
-				n, ok := nodes[e]
-				if !ok {
-					t.Fatalf("no Core IR node for %s", fmt.FormatExpr(e))
-				}
-				return corepass.LooseCut(n)
+			// The structural module leaves Repeat.Site unset; number the sites as the compiler
+			// does (checkfacts.Source.Sites), on the module's own repetitions.
+			flags := make([]corepass.SiteRule, len(prog.RuleList))
+			for i, r := range prog.RuleList {
+				flags[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: compile.DeclaredBeyondScan(r.Def)}
 			}
-			var marked []*ast.Repeat
-			var skipExpr ast.Expr
-			for _, r := range prog.RuleList {
-				astfacts.WalkExpr(r.Def.Expr, func(x ast.Expr) {
-					if s := skipOf(x); s != nil {
-						skipExpr = s
+			skipSites := corepass.ComputeSites(st.Module, flags, nil).Skip
+			var marked []*core.Repeat
+			var skipNode core.Node
+			for _, r := range st.Module.Rules {
+				core.Walk(r.Body, func(x core.Node) {
+					if rc, ok := x.(*core.Recover); ok {
+						skipNode = rc.Skip
 					}
-					if rep, ok := x.(*ast.Repeat); ok && prog.SkipSite(rep) != 0 {
+					if rep, ok := x.(*core.Repeat); ok && skipSites[rep] != 0 {
 						marked = append(marked, rep)
 					}
 				})
 			}
-			if skipExpr == nil {
+			if skipNode == nil {
 				t.Fatal("no skip expression")
 			}
-			sites, ok := reusedSkip(skipExpr, looseCut)
+			sites, ok := reusedSkip(skipNode, corepass.LooseCut)
 			if !ok {
 				return
 			}
@@ -104,7 +102,7 @@ func TestReusedSkipSites(t *testing.T) {
 			}
 			for i := range sites {
 				if sites[i] != marked[i] {
-					t.Errorf("repetition %s is not the site %s", fmt.FormatExpr(sites[i]), fmt.FormatExpr(marked[i]))
+					t.Errorf("repetition %s is not the site %s", fmt.FormatExpr(st.Module.Origin.Of(sites[i])), fmt.FormatExpr(st.Module.Origin.Of(marked[i])))
 				}
 			}
 		})

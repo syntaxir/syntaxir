@@ -401,7 +401,7 @@ func (k *classifier) walkLookahead(e, body ast.Expr, c wctx, not bool) {
 }
 
 func (k *classifier) walkRecovery(e, base, skip ast.Expr, c wctx) {
-	shared := k.reused(skip)
+	shared := k.reused(k.nodeOf(skip))
 	if !shared {
 		k.addSource(c, exprPos(e), CauseRecoverySkip, "the skip expression "+k.show(skip)+" of #recover")
 		k.srcExprs[e] = true
@@ -2075,13 +2075,13 @@ func (k *classifier) checkGrowth() {
 			case *ast.InlineAction:
 				return visit(e.Expr)
 			case *ast.Recovery:
-				if !k.reused(e.Skip) {
+				if !k.reused(k.nodeOf(e.Skip)) {
 					report(k.sourceAt(r.Name, e, CauseRecoverySkip, "the skip expression "+k.show(e.Skip)+" of #recover"))
 				}
 				visit(e.Expr)
 				return k.nullable(e)
 			case *ast.Attributed:
-				if skip := astfacts.RecoverSkip(e); skip != nil && !k.reused(skip) {
+				if skip := astfacts.RecoverSkip(e); skip != nil && !k.reused(k.nodeOf(skip)) {
 					report(k.sourceAt(r.Name, e, CauseRecoverySkip, "the skip expression "+k.show(skip)+" of #recover"))
 				}
 				visit(e.Expr)

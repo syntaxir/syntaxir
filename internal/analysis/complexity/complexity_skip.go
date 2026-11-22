@@ -1,9 +1,6 @@
 package complexity
 
-import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
-)
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // Reused skips.
 //
@@ -15,25 +12,25 @@ import (
 // scanning source (see "Skip Runs" in spec/runtime/parsing.md and Lemma 9 of
 // spec/proofs/linear-cost.md).
 
-// reusedSkip reports whether the skip expression of a #recover is a reused skip, and returns its
-// unbounded repetitions, each of which is then a skip-run site: every unbounded repetition written
-// in it, outside the elements of others, has no #cut that applies to it, and neither its element
-// nor the rest of the skip calls a rule, has a predicate, a #recover or an Operators Rule, or, in
-// an element, an unbounded repetition. Without calls and predicates the other conditions of a
-// skip-run site hold.
-func reusedSkip(skip ast.Expr, looseCut func(ast.Expr) bool) ([]*ast.Repeat, bool) {
-	var sites []*ast.Repeat
-	ok, inside := true, map[ast.Expr]bool{}
-	astfacts.WalkExpr(skip, func(x ast.Expr) {
+// reusedSkip reports whether the skip expression of a #recover, the node skip, is a reused skip,
+// and returns its unbounded repetitions, each of which is then a skip-run site: every unbounded
+// repetition in it, outside the elements of others, has no #cut that applies to it
+// (corepass.Facts.LooseCut), and neither its element nor the rest of the skip calls a rule, has a
+// predicate, a #recover or an Operators Rule, or, in an element, an unbounded repetition. Without
+// calls and predicates the other conditions of a skip-run site hold.
+func reusedSkip(skip core.Node, looseCut func(core.Node) bool) ([]*core.Repeat, bool) {
+	var sites []*core.Repeat
+	ok, inside := true, map[core.Node]bool{}
+	core.Walk(skip, func(x core.Node) {
 		if inside[x] {
 			return
 		}
 		switch x := x.(type) {
-		case *ast.Repeat:
+		case *core.Repeat:
 			if x.Max < 0 {
 				sites = append(sites, x)
-				ok = ok && constantInput(x.Expr) && !looseCut(x.Expr)
-				astfacts.WalkExpr(x.Expr, func(y ast.Expr) { inside[y] = true })
+				ok = ok && constantInput(x.Body) && !looseCut(x.Body)
+				core.Walk(x.Body, func(y core.Node) { inside[y] = true })
 			}
 		default:
 			ok = ok && !costly(x)
@@ -42,12 +39,12 @@ func reusedSkip(skip ast.Expr, looseCut func(ast.Expr) bool) ([]*ast.Repeat, boo
 	return sites, ok
 }
 
-// constantInput reports whether every evaluation of e examines at most a constant amount of the
-// input: e has no unbounded repetition and nothing that costly reports.
-func constantInput(e ast.Expr) bool {
+// constantInput reports whether every evaluation of n examines at most a constant amount of the
+// input: n has no unbounded repetition and nothing that costly reports.
+func constantInput(n core.Node) bool {
 	ok := true
-	astfacts.WalkExpr(e, func(x ast.Expr) {
-		if r, isRep := x.(*ast.Repeat); isRep {
+	core.Walk(n, func(x core.Node) {
+		if r, isRep := x.(*core.Repeat); isRep {
 			ok = ok && r.Max >= 0
 			return
 		}
@@ -56,21 +53,19 @@ func constantInput(e ast.Expr) bool {
 	return ok
 }
 
-// costly reports whether the expression x, without its parts, can cost more than a constant in a
-// skip expression: a call, which can examine any amount of the input, a predicate, whose action expressions can
-// build values of any size, a #recover or an Operators Rule.
-func costly(x ast.Expr) bool {
-	switch x := x.(type) {
-	case *ast.Ref, *ast.Predicate, *ast.Recovery, *ast.OperatorsRule:
+// costly reports whether the node x, without its parts, can cost more than a constant in a skip
+// expression: a call, which can examine any amount of the input, a predicate or a binding, whose
+// action expressions can build values of any size, a #recover or an Operators Rule.
+func costly(x core.Node) bool {
+	switch x.(type) {
+	case *core.Call, *core.Nest, *core.Pred, *core.BindNode, *core.Recover, *core.OperatorsRule:
 		return true
-	case *ast.Attributed:
-		return astfacts.RecoverSkip(x) != nil
 	}
 	return false
 }
 
-// reused reports whether skip is a reused skip.
-func (k *classifier) reused(skip ast.Expr) bool {
-	_, ok := reusedSkip(skip, k.looseCut)
+// reused reports whether the node skip is a reused skip.
+func (k *classifier) reused(skip core.Node) bool {
+	_, ok := reusedSkip(skip, k.looseCutOf)
 	return ok
 }
