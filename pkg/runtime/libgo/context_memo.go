@@ -95,13 +95,6 @@ type growRec struct {
 	inl       ctxResult
 }
 
-// lookRec is a lookahead in progress: its site (-1 for one that records nothing) and the Document
-// examined range from before it.
-type lookRec struct {
-	site           int32
-	examined, from int
-}
-
 // ctxCallState is the context of a memoized call of a rule of a cycle (ctxEnter).
 type ctxCallState struct {
 	gp      int    // the index in gamma of the first growth of the context
@@ -154,6 +147,30 @@ func (*Parser) ctxMut(int) bool { return false }
 
 // useMem charges n bytes to the memory used (memUsed).
 func (p *Parser) useMem(n uint64) { p.memUsed += n }
+
+// lookMark is what the end of a lookahead restores; the library restores nothing there (the printed
+// lookahead drops its own errors), so the type is empty.
+type lookMark = struct{}
+
+// lookMark returns the marks of a lookahead that starts now.
+func (*Parser) lookMark() lookMark { return lookMark{} }
+
+// lookRestore restores nothing in the library.
+func (*Parser) lookRestore(lookMark) {}
+
+// examRange returns the examined range of the current evaluation in a Document parse, or zeros.
+func (p *Parser) examRange() (examined, from int) { return p.examinedNow(), p.fromNow() }
+
+// setExamRange sets the examined range of the current evaluation in a Document parse.
+func (p *Parser) setExamRange(examined, from int) {
+	if p.track {
+		p.docExamined, p.docLow = examined, from
+	}
+}
+
+// recordsIn reports whether evaluations in a context with the present set present record their
+// dependencies: always in the library.
+func (*Parser) recordsIn(presentSet) bool { return true }
 
 // ctxRes is the result type of the shared context memo (context_table.go).
 type ctxRes = ctxResult
@@ -234,7 +251,7 @@ func (p *Parser) ctxLookup(c *ctxCallState, rule, min int, env []any) *ctxResult
 	if s == nil || !p.reusable(s.e.silent) {
 		return nil
 	}
-	p.seedRead()
+	p.seedRead(c.gp)
 	p.replayDeps(p.Pos, c.gp, c.present, s.deps)
 	return s.e
 }
@@ -294,16 +311,7 @@ func (p *Parser) pushFrame(pos, gp int) {
 	p.frames = append(p.frames, depFrame{pos: pos, gp: gp, depth: len(p.gamma), base: len(p.deps)})
 }
 
-// noteSeedRead records that the evaluation read the seed of gamma[i].
-func (p *Parser) noteSeedRead(i int) {
-	p.seedRead()
-	if len(p.frames) == 0 || i >= p.frames[len(p.frames)-1].depth {
-		return
-	}
-	p.addDep(dep{kind: depSeed, idx: int32(i), val: p.gamma[i].id})
-}
-
-// LookBegin starts a lookahead of the given site. In a context at the current position, the
+// LookBegin starts a lookahead of the given site (lookBegin). In a context at the current position, the
 // lookahead records what it reads, so that a result that depends on it records its outcome
 // instead of the seeds it read (LookEnd). Where no frame records dependencies, a lookahead records
 // nothing, and the frames are the same at its end.
@@ -322,62 +330,6 @@ func (p *Parser) LookEnd(ok bool) {
 	if len(p.frames) != 0 {
 		p.lookEnd(ok)
 	}
-}
-
-func (p *Parser) lookBegin(site int) {
-	{
-		f := &p.frames[len(p.frames)-1]
-		if g := len(p.gamma); f.pos == p.Pos && f.gp < g && p.gamma[g-1].pos == p.Pos && p.gamma[g-1].cycle == p.gamma[f.gp].cycle {
-			// The examined range of the lookahead is part of its observation.
-			p.looks = append(p.looks, lookRec{site: int32(site), examined: p.docExamined, from: p.docLow})
-			if p.track {
-				p.docExamined, p.docLow = p.Pos, p.Pos
-			}
-			p.pushFrame(p.Pos, f.gp)
-			return
-		}
-	}
-	p.looks = append(p.looks, lookRec{site: -1})
-}
-
-func (p *Parser) lookEnd(ok bool) {
-	l := p.looks[len(p.looks)-1]
-	p.looks = p.looks[:len(p.looks)-1]
-	site := l.site
-	if site < 0 {
-		return
-	}
-	f, ds := p.popFrame()
-	examined, from := f.pos, f.pos
-	if p.track {
-		examined, from = p.docExamined, p.docLow
-		p.docExamined, p.docLow = max(l.examined, p.docExamined), min(l.from, p.docLow)
-	}
-	read := false
-	for _, d := range ds {
-		if d.kind == depSeed {
-			read = true
-			break
-		}
-	}
-	if !read {
-		p.mergeDeps(ds)
-		return
-	}
-	val, _ := p.obsOutcome(ok, f.pos, examined, from)
-	present := p.present(f.gp)
-	sd, _ := p.stored(ds)
-	p.ctxStore(f.pos, f.gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, sd, &ctxSlot{id: val})
-	out := make([]dep, 0, len(ds)+1)
-	out = append(out, dep{kind: depObs, idx: site, d: int32(f.depth), val: val})
-	for _, d := range ds {
-		if d.kind == depSeed {
-			out = append(out, dep{kind: depShadow, idx: d.idx, d: int32(f.depth), val: d.val})
-		} else {
-			out = append(out, d)
-		}
-	}
-	p.mergeDeps(out)
 }
 
 // --- Growths ---
@@ -451,7 +403,7 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 	for {
 		id := p.gamma[g.gi].id
 		if j := p.findJump(g, id); j != nil {
-			p.seedRead()
+			p.seedRead(g.gp)
 			p.replayDeps(g.start, g.gp, g.present, j.deps)
 			p.MergeExpected(j.far, j.exp)
 			// The step after the jump reads the seed it lands on, whose examined range is the jump's
@@ -466,7 +418,7 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 		if s == nil || !p.reusable(s.silent) {
 			return nil
 		}
-		p.seedRead()
+		p.seedRead(g.gp)
 		p.replayDeps(g.start, g.gp, g.present, s.deps)
 		p.MergeExpected(s.far, s.exp)
 		// A step taken from the context records what it examined, like every other reuse: the last step

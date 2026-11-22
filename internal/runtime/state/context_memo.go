@@ -176,7 +176,7 @@ type missingBit = bool
 
 // recordsIn reports whether evaluations in a context with the present set present record their
 // dependencies, so that their results are kept.
-func (p *Parser) recordsIn(present uint64) bool {
+func (p *Parser) recordsIn(present presentSet) bool {
 	return !p.ContextMemoOff && (p.tune.MemoMut != CtxNarrowPresent || present&presentWide == 0)
 }
 
@@ -195,92 +195,34 @@ func (p *Parser) seedRead(i int) {
 	}
 }
 
-// noteSeedRead records that the evaluation read the seed of gamma[i].
-func (p *Parser) noteSeedRead(i int) {
-	p.seedRead(i)
-	if len(p.frames) == 0 || i >= p.frames[len(p.frames)-1].depth {
-		return
+// LookBegin starts a lookahead of the given site (lookBegin).
+func (p *Parser) LookBegin(site int) { p.lookBegin(site) }
+
+// LookEnd ends the innermost lookahead, whose expression matched if ok (lookEnd). It discards the
+// errors recovered and the tokens inserted inside the lookahead, whether it matched or not
+// (lookRestore).
+func (p *Parser) LookEnd(ok bool) { p.lookEnd(ok) }
+
+// lookMark is what the end of a lookahead restores: the recovered errors and the inserted tokens at
+// its start.
+type lookMark struct{ rec, missing int }
+
+// lookMark returns the marks of a lookahead that starts now.
+func (p *Parser) lookMark() lookMark { return lookMark{rec: len(p.Recovered), missing: p.MissingLen} }
+
+// lookRestore drops the errors recovered and the tokens inserted after the marks m.
+func (p *Parser) lookRestore(m lookMark) {
+	if p.MissingLen > m.missing {
+		p.ResetMissing(m.missing)
 	}
-	p.addDep(dep{kind: depSeed, idx: int32(i), val: p.gamma[i].id})
+	p.Recovered = p.Recovered[:m.rec]
 }
 
-// lookRec is a lookahead in progress: its site (-1 for one that records nothing), the examined
-// range from before it, and the recovered errors and inserted tokens at its start, which its end
-// discards.
-type lookRec struct {
-	site         int32
-	hw, lw       int
-	rec, missing int
-}
+// examRange returns the examined range of the current evaluation.
+func (p *Parser) examRange() (examined, from int) { return p.Hw, p.lw }
 
-// LookBegin starts a lookahead of the given site. In a context at the current position, the
-// lookahead records what it reads, so that a result that depends on it records its outcome
-// instead of the seeds it read (LookEnd). A site of -1 is a lookahead that can leave captures or
-// bindings in effect after it (check.LookKeepsState): what it reads stays a dependency of the
-// result around it.
-func (p *Parser) LookBegin(site int) {
-	if n := len(p.frames); n > 0 && site >= 0 {
-		f := &p.frames[n-1]
-		if g := len(p.gamma); f.pos == p.Pos && f.gp < g && p.gamma[g-1].key.Pos == p.Pos && p.gamma[g-1].cycle == p.gamma[f.gp].cycle {
-			// The examined range of the lookahead is part of its observation.
-			p.looks = append(p.looks, lookRec{site: int32(site), hw: p.Hw, lw: p.lw, rec: len(p.Recovered), missing: p.MissingLen})
-			p.Hw, p.lw = p.Pos, p.Pos
-			p.pushFrame(p.Pos, f.gp)
-			return
-		}
-	}
-	p.looks = append(p.looks, lookRec{site: -1, rec: len(p.Recovered), missing: p.MissingLen})
-}
-
-// LookEnd ends the innermost lookahead, whose expression matched if ok. It discards the errors
-// recovered inside the lookahead, whether it matched or not.
-func (p *Parser) LookEnd(ok bool) {
-	l := p.looks[len(p.looks)-1]
-	p.looks = p.looks[:len(p.looks)-1]
-	if p.MissingLen > l.missing {
-		p.ResetMissing(l.missing)
-	}
-	p.Recovered = p.Recovered[:l.rec]
-	site := l.site
-	if site < 0 {
-		return
-	}
-	examined, from := p.Hw, p.lw
-	p.Hw, p.lw = max(l.hw, p.Hw), Min2(l.lw, p.lw)
-	f, ds := p.popFrame()
-	read := false
-	for _, d := range ds {
-		if d.kind == depSeed {
-			read = true
-			break
-		}
-	}
-	if !read {
-		p.mergeDeps(ds)
-		return
-	}
-	if p.ContextMemoUnexamined {
-		examined, from = f.pos, f.pos
-	}
-	val, ok2 := p.obsOutcome(ok, f.pos, examined, from)
-	gp := f.gp
-	present := p.present(gp)
-	ok2 = ok2 && p.recordsIn(present)
-	sd, _ := p.stored(ds)
-	if ok2 {
-		p.ctxStore(f.pos, gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, sd, &ctxSlot{id: val})
-	}
-	out := make([]dep, 0, len(ds)+1)
-	out = append(out, dep{kind: depObs, idx: site, d: int32(f.depth), val: val})
-	for _, d := range ds {
-		if d.kind == depSeed {
-			out = append(out, dep{kind: depShadow, idx: d.idx, d: int32(f.depth), val: d.val})
-		} else {
-			out = append(out, d)
-		}
-	}
-	p.mergeDeps(out)
-}
+// setExamRange sets the examined range of the current evaluation.
+func (p *Parser) setExamRange(examined, from int) { p.Hw, p.lw = examined, from }
 
 // nodesEqual reports whether two trees are equal, comparing at most *budget pairs of distinct nodes
 // (false beyond: two results that are not shown equal get different identities, which costs only

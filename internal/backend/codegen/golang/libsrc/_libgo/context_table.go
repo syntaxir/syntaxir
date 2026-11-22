@@ -757,3 +757,85 @@ func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint
 	t.canon[ck] = canonRec{e: e, id: id}
 	return e, id
 }
+
+// lookRec is a lookahead in progress: what its end restores (lookMark), its site (-1 for one that
+// records nothing), and the examined range from before it.
+type lookRec struct {
+	mark           lookMark // first, so that the library's empty mark adds no padding
+	site           int32
+	examined, from int
+}
+
+// noteSeedRead records that the evaluation read the seed of gamma[i].
+func (p *Parser) noteSeedRead(i int) {
+	p.seedRead(i)
+	if len(p.frames) == 0 || i >= p.frames[len(p.frames)-1].depth {
+		return
+	}
+	p.addDep(dep{kind: depSeed, idx: int32(i), val: p.gamma[i].id})
+}
+
+// lookBegin starts a lookahead of the given site. In a context at the current position, the
+// lookahead records what it reads, so that a result that depends on it records its outcome instead
+// of the seeds it read (lookEnd). A site of -1 is a lookahead that can leave captures or bindings in
+// effect after it (check.LookKeepsState): what it reads stays a dependency of the result around it.
+func (p *Parser) lookBegin(site int) {
+	if n := len(p.frames); n > 0 && site >= 0 {
+		f := &p.frames[n-1]
+		if g := len(p.gamma); f.pos == p.Pos && f.gp < g && p.gamma[g-1].at() == p.Pos && p.gamma[g-1].cycle == p.gamma[f.gp].cycle {
+			// The examined range of the lookahead is part of its observation.
+			examined, from := p.examRange()
+			p.looks = append(p.looks, lookRec{mark: p.lookMark(), site: int32(site), examined: examined, from: from})
+			p.setExamRange(p.Pos, p.Pos)
+			p.pushFrame(p.Pos, f.gp)
+			return
+		}
+	}
+	p.looks = append(p.looks, lookRec{mark: p.lookMark(), site: -1})
+}
+
+// lookEnd ends the innermost lookahead, whose expression matched if ok. A lookahead that read a seed
+// records its outcome as an observation of its site, keeps the outcome in the table of its context,
+// and turns the seeds it read into shadows.
+func (p *Parser) lookEnd(ok bool) {
+	l := p.looks[len(p.looks)-1]
+	p.looks = p.looks[:len(p.looks)-1]
+	p.lookRestore(l.mark)
+	site := l.site
+	if site < 0 {
+		return
+	}
+	f, ds := p.popFrame()
+	examined, from := p.examRange()
+	p.setExamRange(max(l.examined, examined), min(l.from, from))
+	read := false
+	for _, d := range ds {
+		if d.kind == depSeed {
+			read = true
+			break
+		}
+	}
+	if !read {
+		p.mergeDeps(ds)
+		return
+	}
+	if !p.rangeKept() {
+		examined, from = f.pos, f.pos
+	}
+	val, keep := p.obsOutcome(ok, f.pos, examined, from)
+	present := p.present(f.gp)
+	sd, _ := p.stored(ds)
+	if keep && p.recordsIn(present) {
+		p.ctxStore(f.pos, f.gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, sd, &ctxSlot{id: val})
+	}
+	out := make([]dep, 0, len(ds)+1)
+	out = append(out, dep{kind: depObs, idx: site, d: int32(f.depth), val: val})
+	for _, d := range ds {
+		if d.kind == depSeed {
+			out = append(out, dep{kind: depShadow, idx: d.idx, d: int32(f.depth), val: d.val})
+		} else {
+			out = append(out, d)
+		}
+	}
+	p.mergeDeps(out)
+}

@@ -184,9 +184,10 @@ func (p *Parser) runRecord(r *RunState) {
 	p.runs[r.key] = &runRecord{gen: p.gen, elems: elems}
 }
 
-// seedRead counts a read of the seed of a growth, or a reuse of a result that depends on seeds: a run
-// in which one happens is not recorded (runClean).
-func (p *Parser) seedRead() { p.seedReads++ }
+// seedRead counts a read of the seed of a growth, or a reuse of a result that depends on seeds, of
+// the growths from gamma[i] on: a run in which one happens is not recorded (runClean). The engine
+// also logs i for a test; the library needs only the count.
+func (p *Parser) seedRead(int) { p.seedReads++ }
 
 // runBytes returns the bytes of the run records runs, as a parse under a memory limit counts them.
 func runBytes(runs map[runKey]*runRecord) uint64 {
