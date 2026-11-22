@@ -26,10 +26,10 @@ type flowConformMutant struct {
 // show the checks catch a broken library.
 var flowConformMutants = []flowConformMutant{
 	{name: "a match that starts one code point late", op: flow.OpNewMatch, file: "typed.go",
-		from: "TNode: TNode[string]{Span{start, end}, text}", to: "TNode: TNode[string]{Span{start + 1, end}, text}",
+		from: "TNode: TNode[string]{Span: sxirinput.Span{Start: start, End: end}, Value: text}", to: "TNode: TNode[string]{Span: sxirinput.Span{Start: start + 1, End: end}, Value: text}",
 		cases: []string{"typed"}},
 	{name: "a match whose text differs", op: flow.OpNewMatch, file: "typed.go",
-		from: "TNode: TNode[string]{Span{start, end}, text}", to: `TNode: TNode[string]{Span{start, end}, text + "?"}`,
+		from: "TNode: TNode[string]{Span: sxirinput.Span{Start: start, End: end}, Value: text}", to: `TNode: TNode[string]{Span: sxirinput.Span{Start: start, End: end}, Value: text + "?"}`,
 		cases: []string{"typed"}},
 	{name: "a terminal that starts one code point late", op: flow.OpNewTerminalNode, file: "lib.go",
 		from: "Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true", to: "Start: int32(start) + 1, End: int32(p.Pos), Text: text, Terminal: true",
@@ -38,7 +38,7 @@ var flowConformMutants = []flowConformMutant{
 		from: "Start: int32(start), End: int32(p.Pos), Children: children, Fresh: true", to: "Start: int32(start), End: int32(p.Pos), Children: nil, Fresh: true",
 		cases: []string{"plain"}},
 	{name: "a node that drops its last child", op: flow.OpNewNode, file: "typed.go",
-		from: "*n = TSeq{Span: Span{start, end}, Typ: typ, Kids: kids, fresh: true}", to: "*n = TSeq{Span: Span{start, end}, Typ: typ, Kids: kids[:max(len(kids)-1, 0)], fresh: true}",
+		from: "*n = TSeq{Span: sxirinput.Span{Start: start, End: end}, Typ: typ, Kids: kids, fresh: true}", to: "*n = TSeq{Span: sxirinput.Span{Start: start, End: end}, Typ: typ, Kids: kids[:max(len(kids)-1, 0)], fresh: true}",
 		cases: []string{"typed"}},
 	{name: "an expectation record that keeps the entries of an earlier farthest failure", op: flow.OpExpect, file: "call_exec.go",
 		from: "p.farthest = pos\n\t\tp.exp = p.exp[:p.expBase]\n\t\tp.expBits = 0", to: "p.farthest = pos",

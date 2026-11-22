@@ -22,14 +22,14 @@ func TestGenerateDocumentNode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(code), "func NewDocument(") || !strings.Contains(string(code), "type Document = rt.Document") {
+	if !strings.Contains(string(code), "func NewDocument(") || !strings.Contains(string(code), "type Document = sxirruntime.Document") {
 		t.Fatal("Document public API missing from requested source")
 	}
 	ordinary, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "fixture", Start: "main"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(ordinary), "func NewDocument(") || strings.Contains(string(ordinary), "type Document = rt.Document") {
+	if strings.Contains(string(ordinary), "func NewDocument(") || strings.Contains(string(ordinary), "type Document = sxirruntime.Document") {
 		t.Fatal("ordinary generated source includes the Document API")
 	}
 	dir := t.TempDir()
