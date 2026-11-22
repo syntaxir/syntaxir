@@ -59,6 +59,8 @@ var statementPatterns = []pattern{
 	{Name: "scanReachAt", Ops: 1, Saved: 3, Stmts: scanReachAt},
 	{Name: "scanEndAt", Ops: 1, Saved: 3, Stmts: scanEndAt},
 	{Name: "scanClass", Ops: 5, Saved: 5, Stmts: scanClass},
+	{Name: "matchClassNode", Ops: 6, Saved: 15, Stmts: matchClassNode},
+	{Name: "matchLitNode", Ops: 3, Saved: 4, Stmts: matchLitNode},
 	{Name: "returnOk", Ops: 0, Saved: 1, Stmts: returnOk},
 	{Name: "returnFail", Ops: 0, Saved: 2, Stmts: returnFail},
 }
@@ -407,37 +409,146 @@ func assertJump(s *flowSel, list []code.Stmt) (int, func() error) {
 	}
 }
 
-// testedJump matches the operation op, of two results the second of which is whether it matched, that
-// leaves when it does not match:
+// tested is a call of an operation of two results, the second of which is whether it matched, that
+// leaves when it does not match, at the start of a list of statements:
 //
 //	if v, ok = op(); !ok { exit L }
 //
-// and selects the instruction jump with the immediate imm of the call.
-func testedJump(s *flowSel, list []code.Stmt, op string, jump bytecode.FlowOp, imm func(*code.Call) (any, error)) (int, func() error) {
+// with the registers of v and ok, and the jump that a failed match takes.
+type tested struct {
+	call  *code.Call
+	dst   []int
+	label string
+	cont  bool
+}
+
+// testedOf returns the call of op that list starts with, which covers one statement.
+func testedOf(s *flowSel, list []code.Stmt, op string) (tested, bool) {
 	test, ok := list[0].(*code.If)
 	if !ok || test.Init == nil || test.Else != nil || len(test.Init.Dst) != 2 || len(test.Init.Values) != 1 {
-		return 0, nil
+		return tested{}, false
 	}
 	c := callOf(test.Init.Values[0], op)
 	if c == nil || len(c.Args) != 0 || test.Init.Dst[1].Name == "" || !isLocal(not(test.Cond), test.Init.Dst[1].Name) {
-		return 0, nil
+		return tested{}, false
 	}
 	label, cont, ok := onlyJump(test.Then)
 	if !ok {
-		return 0, nil
+		return tested{}, false
 	}
 	dst := make([]int, 2)
 	for i, p := range test.Init.Dst {
 		if dst[i], ok = s.place(p); !ok {
-			return 0, nil
+			return tested{}, false
 		}
 	}
+	return tested{call: c, dst: dst, label: label, cont: cont}, true
+}
+
+// testedJump matches a call of op that leaves when it does not match (testedOf), and selects the
+// instruction jump with the immediate imm of the call.
+func testedJump(s *flowSel, list []code.Stmt, op string, jump bytecode.FlowOp, imm func(*code.Call) (any, error)) (int, func() error) {
+	t, ok := testedOf(s, list, op)
+	if !ok {
+		return 0, nil
+	}
 	return 1, func() error {
-		x, err := imm(c)
+		x, err := imm(t.call)
 		if err != nil {
 			return err
 		}
-		s.jumpTo(s.emit(bytecode.FlowInstr{Op: jump, Dst: dst, Imm: x}), label, cont)
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: jump, Dst: t.dst, Imm: x}), t.label, t.cont)
+		return nil
+	}
+}
+
+// posOf returns the register of the local that st sets to the position, x = $pos.
+func posOf(s *flowSel, st code.Stmt) (string, int, bool) {
+	set, ok := st.(*code.Set)
+	if !ok || len(set.Dst) != 1 || len(set.Values) != 1 || set.Dst[0].Name == "" {
+		return "", 0, false
+	}
+	if r, isReg := set.Values[0].(*code.Reg); !isReg || r.Name != prim.Pos {
+		return "", 0, false
+	}
+	x, ok := s.place(set.Dst[0])
+	return set.Dst[0].Name, x, ok
+}
+
+// terminalOf returns the register of the place that st sets to a terminal node from the local start,
+// v = flow.newTerminalNode(start, text), and the call text, or false if st is no such statement.
+func terminalOf(s *flowSel, st code.Stmt, start string) (int, *code.Call, bool) {
+	set, ok := st.(*code.Set)
+	if !ok || len(set.Dst) != 1 || len(set.Values) != 1 {
+		return 0, nil, false
+	}
+	c := callOf(set.Values[0], flowpkg.OpNewTerminalNode)
+	if c == nil || len(c.Args) != 2 || !isLocal(c.Args[0], start) {
+		return 0, nil, false
+	}
+	text, ok := c.Args[1].(*code.Call)
+	if !ok {
+		return 0, nil, false
+	}
+	v, ok := s.place(set.Dst[0])
+	return v, text, ok
+}
+
+// matchClassNode matches one character of a class (classTestOf) that a terminal node takes:
+//
+//	ch, size, ok = flow.peek()
+//	if !ok || !flow.inClass(C, ch) { flow.expect(E, $pos); exit L }
+//	x = $pos
+//	flow.advance(size)
+//	v = flow.newTerminalNode(x, flow.text(x))
+func matchClassNode(s *flowSel, list []code.Stmt) (int, func() error) {
+	t, ok := classTestOf(s, list)
+	if !ok || len(list) < 5 || t.size == "" {
+		return 0, nil
+	}
+	name, x, ok := posOf(s, list[2])
+	if !ok || x < 0 || slices.Contains(t.dst, x) {
+		return 0, nil
+	}
+	if adv, isDo := list[3].(*code.Do); !isDo || adv.Call.Callee != flowpkg.OpAdvance || len(adv.Call.Args) != 1 || !isLocal(adv.Call.Args[0], t.size) {
+		return 0, nil
+	}
+	v, text, ok := terminalOf(s, list[4], name)
+	if !ok || text.Callee != flowpkg.OpText || len(text.Args) != 1 || !isLocal(text.Args[0], name) {
+		return 0, nil
+	}
+	return 5, func() error {
+		dst := append(slices.Clone(t.dst), x, v)
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchClassNode, Dst: dst, Imm: t.imm(s)}), t.label, t.cont)
+		return nil
+	}
+}
+
+// matchLitNode matches a literal that a terminal node takes:
+//
+//	x = $pos
+//	if v, ok = flow.matchLit(L); !ok { exit L }
+//	n = flow.newTerminalNode(x, flow.str(S))
+func matchLitNode(s *flowSel, list []code.Stmt) (int, func() error) {
+	if len(list) < 3 {
+		return 0, nil
+	}
+	name, x, ok := posOf(s, list[0])
+	if !ok || x < 0 {
+		return 0, nil
+	}
+	t, ok := testedOf(s, list[1:], flowpkg.OpMatchLit)
+	if !ok || slices.Contains(t.dst, x) {
+		return 0, nil
+	}
+	n, str, ok := terminalOf(s, list[2], name)
+	if !ok || str.Callee != flowpkg.OpStr || len(str.Args) != 0 {
+		return 0, nil
+	}
+	return 3, func() error {
+		imm := bytecode.FlowLitNodeOf{Lit: s.litOf(t.call.Imm.(*ir.Lit)), Text: int(s.c.str(string(str.Imm.(prim.Chars))))}
+		dst := append([]int{x}, append(slices.Clone(t.dst), n)...)
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLitNode, Dst: dst, Imm: imm}), t.label, t.cont)
 		return nil
 	}
 }

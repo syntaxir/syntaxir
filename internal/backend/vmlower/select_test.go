@@ -69,7 +69,8 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 		"matchLitJump": bytecode.FlowMatchLitJump, "callJump": bytecode.FlowCallJump,
 		"scanReachAt": bytecode.FlowScanReachAt, "scanEndAt": bytecode.FlowScanEndAt,
 		"returnOk": bytecode.FlowReturnOk, "returnFail": bytecode.FlowReturnFail,
-		"scanClass": bytecode.FlowScanClass,
+		"scanClass": bytecode.FlowScanClass, "matchClassNode": bytecode.FlowMatchClassNode,
+		"matchLitNode": bytecode.FlowMatchLitNode,
 	} {
 		if matches[pattern] == 0 || !ops[op] {
 			t.Errorf("pattern %s matched %d times and %v is in no body", pattern, matches[pattern], op)

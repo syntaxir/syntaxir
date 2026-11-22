@@ -221,11 +221,17 @@ func corruptVMLiteral(t *testing.T, prog *Program) (restore func()) {
 			continue
 		}
 		for i, in := range f.Code {
-			if lit, ok := in.Imm.(bytecode.FlowLitOf); ok {
-				lit.Str = len(m.Strings)
-				f.Code[i].Imm = lit
-				undo = append(undo, func() { f.Code[i] = in })
+			switch x := in.Imm.(type) {
+			case bytecode.FlowLitOf:
+				x.Str = len(m.Strings)
+				f.Code[i].Imm = x
+			case bytecode.FlowLitNodeOf:
+				x.Lit.Str = len(m.Strings)
+				f.Code[i].Imm = x
+			default:
+				continue
 			}
+			undo = append(undo, func() { f.Code[i] = in })
 		}
 	}
 	if len(undo) == 0 {

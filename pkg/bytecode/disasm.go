@@ -254,6 +254,8 @@ func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
 		parts = append(parts, fmt.Sprintf("delta=%d site=%d ok=%t", x.Delta, x.Site, x.Ok))
 	case FlowClassTestOf:
 		parts = append(parts, m.flowImm(FlowImmClass, x.Class, str), m.flowImm(FlowImmExpect, x.Expect, str))
+	case FlowLitNodeOf:
+		parts = append(parts, m.flowImm(FlowImmLit, x.Lit, str), m.flowImm(FlowImmStr, x.Text, str))
 	case FlowScanClassOf:
 		parts = append(parts, m.flowImm(FlowImmClassTest, x.Test, str), m.flowImm(FlowImmScanSite, x.Site, str))
 	case FlowGuardTestOf:

@@ -245,6 +245,13 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		}
 		w.flowImm(FlowImmClassTest, x.Test)
 		w.flowImm(FlowImmScanSite, x.Site)
+	case FlowImmLitNode:
+		x, ok := v.(FlowLitNodeOf)
+		if !ok {
+			bad()
+		}
+		w.flowImm(FlowImmLit, x.Lit)
+		w.flowImm(FlowImmStr, x.Text)
 	case FlowImmGuardTest:
 		x, ok := v.(FlowGuardTestOf)
 		if !ok {
@@ -617,6 +624,10 @@ func (r *Decoder) flowImm(k FlowImm) any {
 	case FlowImmScanClass:
 		x := FlowScanClassOf{Test: r.flowImm(FlowImmClassTest).(FlowClassTestOf)}
 		x.Site = r.flowImm(FlowImmScanSite).(int)
+		return x
+	case FlowImmLitNode:
+		x := FlowLitNodeOf{Lit: r.flowImm(FlowImmLit).(FlowLitOf)}
+		x.Text = r.flowImm(FlowImmStr).(int)
 		return x
 	case FlowImmGuardTest:
 		x := FlowGuardTestOf{Guard: r.flowImm(FlowImmGuard).(FlowGuardOf)}
@@ -1242,6 +1253,15 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 			return err
 		}
 		return validateFlowImm(m, slots, FlowImmScanSite, x.Site)
+	case FlowImmLitNode:
+		var x FlowLitNodeOf
+		if x, ok = v.(FlowLitNodeOf); !ok {
+			break
+		}
+		if err := validateFlowImm(m, slots, FlowImmLit, x.Lit); err != nil {
+			return err
+		}
+		return validateFlowImm(m, slots, FlowImmStr, x.Text)
 	case FlowImmGuardTest:
 		var x FlowGuardTestOf
 		if x, ok = v.(FlowGuardTestOf); !ok {

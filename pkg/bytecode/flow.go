@@ -328,6 +328,18 @@ const (
 	// of the parse, the count becomes that of flow.scanReach of the scan site of the immediate
 	// FlowScanClassOf, as FlowScanReachAt sets it.
 	FlowScanClassAt
+	// FlowMatchClassNode matches one character of a class into a terminal node: it tests the
+	// character at the position as FlowMatchClass does with the immediate FlowClassTestOf, into
+	// Dst[0], Dst[1] and Dst[2], continuing at the target if it is not in the class; otherwise Dst[3]
+	// is the position, as FlowPos sets it, the position moves past the character as FlowAdvance moves
+	// it, and Dst[4] is the terminal node of the text from Dst[3], as FlowText and FlowNewTerminal make
+	// it.
+	FlowMatchClassNode
+	// FlowMatchLitNode matches a literal into a terminal node: Dst[0] is the position, as FlowPos sets
+	// it, and the literal of the immediate FlowLitNodeOf is matched into Dst[1] and Dst[2] as
+	// FlowMatchLitJump matches it, continuing at the target if it did not match; otherwise Dst[3] is the
+	// terminal node from Dst[0] with the string of the immediate, as FlowStr and FlowNewTerminal make it.
+	FlowMatchLitNode
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -391,6 +403,8 @@ const (
 	FlowImmResume
 	// FlowImmScanClass is a FlowScanClassOf.
 	FlowImmScanClass
+	// FlowImmLitNode is a FlowLitNodeOf.
+	FlowImmLitNode
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -507,6 +521,8 @@ var FlowShapes = [...]FlowShape{
 	FlowScanClass:      {Name: "SCANCLASS", Dst: 3, Imm: FlowImmClassTest},
 	FlowScanClassCount: {Name: "SCANCLASSCOUNT", Dst: 4, Args: 1, Imm: FlowImmClassTest},
 	FlowScanClassAt:    {Name: "SCANCLASSAT", Dst: 4, Args: 2, Imm: FlowImmScanClass},
+	FlowMatchClassNode: {Name: "MATCHCLASSNODE", Dst: 5, Target: true, Imm: FlowImmClassTest},
+	FlowMatchLitNode:   {Name: "MATCHLITNODE", Dst: 4, Target: true, Imm: FlowImmLitNode},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -575,6 +591,13 @@ type FlowLitOf struct {
 	Str  int
 	Exp  int
 	Fold bool
+}
+
+// FlowLitNodeOf is the immediate of FlowMatchLitNode: the literal, as FlowMatchLitJump takes it, and
+// the text of the node, an index of Module.Strings, as FlowStr takes it.
+type FlowLitNodeOf struct {
+	Lit  FlowLitOf
+	Text int
 }
 
 // FlowSilenceOf is the immediate of FlowSilent: Delta 1 enters a lookahead and -1 leaves it, whose

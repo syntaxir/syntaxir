@@ -300,6 +300,33 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 		case bytecode.FlowScanClassAt:
 			x := in.Imm.(bytecode.FlowScanClassOf)
 			vm.scanClass(p, fr, in, x.Test, regs[in.Args[1]].(int), regs[in.Args[0]].(int), x.Site)
+		case bytecode.FlowMatchClassNode:
+			x := in.Imm.(bytecode.FlowClassTestOf)
+			ch, size, ok := p.Peek()
+			fr.set(in.Dst[0], ch)
+			fr.set(in.Dst[1], size)
+			fr.set(in.Dst[2], ok)
+			if !ok || !vm.has(p, int32(x.Class), ch) {
+				expect(p, x.Expect)
+				pc = in.Target
+				break
+			}
+			start := p.Pos
+			fr.set(in.Dst[3], start)
+			p.Advance(size)
+			fr.set(in.Dst[4], newTerminal(p, start, p.Text(start, p.Pos)))
+		case bytecode.FlowMatchLitNode:
+			x := in.Imm.(bytecode.FlowLitNodeOf)
+			start := p.Pos
+			fr.set(in.Dst[0], start)
+			ok := vm.flowMatchLit(p, x.Lit)
+			fr.set(in.Dst[1], nil)
+			fr.set(in.Dst[2], ok)
+			if !ok {
+				pc = in.Target
+				break
+			}
+			fr.set(in.Dst[3], newTerminal(p, start, vm.m.Strings[x.Text]))
 		case bytecode.FlowMark:
 			fr.set(in.Dst[0], p.Mark())
 		case bytecode.FlowReset:
@@ -391,7 +418,7 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			p.MergeExpected(regs[in.Args[0]].(int), state.RenamedExpected(p, exps, expID(in.Imm.(bytecode.FlowExpectOf))))
 		case bytecode.FlowNewTerminal:
 			text, _ := regs[in.Args[1]].(string)
-			fr.set(in.Dst[0], p.NewNode(nodes.Data{Kind: valueimpl.MatchKind, Start: int32(regs[in.Args[0]].(int)), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true}))
+			fr.set(in.Dst[0], newTerminal(p, regs[in.Args[0]].(int), text))
 		case bytecode.FlowNewSeq, bytecode.FlowNewList:
 			kind := valueimpl.SeqKind
 			if in.Op == bytecode.FlowNewList {
@@ -601,6 +628,11 @@ func expID(x bytecode.FlowExpectOf) state.ExpID {
 		id |= state.MsgBit
 	}
 	return id
+}
+
+// newTerminal returns the terminal node of the text from start to the position (flow.newTerminalNode).
+func newTerminal(p *state.Parser, start int, text string) *value.Node {
+	return p.NewNode(nodes.Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true})
 }
 
 // expect records the expectation x at the position (flow.expect).

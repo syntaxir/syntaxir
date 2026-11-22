@@ -12,7 +12,8 @@ import (
 // composed returns the instructions that the fused instruction in stands for, placed at index at of
 // the composed body, with fresh returning a register of the frame that no other instruction uses, or
 // nil if in is no fused instruction that the test composes. The targets of the instructions are
-// indices of the composed body; one past the last continues after them.
+// indices of the composed body, one past the last continuing after them, but for those that take the
+// target of in, which keep it.
 func composed(in bytecode.FlowInstr, at int, fresh func() int) []bytecode.FlowInstr {
 	reg := func(r int) int {
 		if r < 0 {
@@ -72,6 +73,24 @@ func composed(in bytecode.FlowInstr, at int, fresh func() int) []bytecode.FlowIn
 		seq = append(seq, bytecode.FlowInstr{Op: bytecode.FlowJump, Target: loop})
 		seq[exit].Target = at + len(seq)
 		return seq
+	case bytecode.FlowMatchClassNode:
+		size, start, text := reg(in.Dst[1]), reg(in.Dst[3]), fresh()
+		return []bytecode.FlowInstr{
+			{Op: bytecode.FlowMatchClass, Dst: []int{in.Dst[0], size, in.Dst[2]}, Target: in.Target, Imm: in.Imm},
+			{Op: bytecode.FlowPos, Dst: []int{start}},
+			{Op: bytecode.FlowAdvance, Args: []int{size}},
+			{Op: bytecode.FlowText, Dst: []int{text}, Args: []int{start}},
+			{Op: bytecode.FlowNewTerminal, Dst: []int{in.Dst[4]}, Args: []int{start, text}},
+		}
+	case bytecode.FlowMatchLitNode:
+		x := in.Imm.(bytecode.FlowLitNodeOf)
+		start, text := reg(in.Dst[0]), fresh()
+		return []bytecode.FlowInstr{
+			{Op: bytecode.FlowPos, Dst: []int{start}},
+			{Op: bytecode.FlowMatchLitJump, Dst: []int{in.Dst[1], in.Dst[2]}, Target: in.Target, Imm: x.Lit},
+			{Op: bytecode.FlowStr, Dst: []int{text}, Imm: x.Text},
+			{Op: bytecode.FlowNewTerminal, Dst: []int{in.Dst[3]}, Args: []int{start, text}},
+		}
 	}
 	return nil
 }
@@ -82,18 +101,25 @@ func compose(f *bytecode.Flow, ops map[bytecode.FlowOp]int) {
 	fresh := func() int { f.Regs++; return f.Regs - 1 }
 	at := make([]int, len(f.Code)) // the index of the first instruction that stands for each
 	var out []bytecode.FlowInstr
-	var kept []int // the indices in out of the instructions of f kept as they are
+	var retarget []int // the indices in out of the instructions whose targets are instructions of f
 	for i, in := range f.Code {
 		at[i] = len(out)
 		if seq := composed(in, len(out), fresh); seq != nil {
 			ops[in.Op]++
+			if sh, _ := in.Op.Shape(); sh.Target { // the composed jumps keep the target of in
+				for j, c := range seq {
+					if sh, _ := c.Op.Shape(); sh.Target {
+						retarget = append(retarget, len(out)+j)
+					}
+				}
+			}
 			out = append(out, seq...)
 			continue
 		}
-		kept = append(kept, len(out))
+		retarget = append(retarget, len(out))
 		out = append(out, in)
 	}
-	for _, i := range kept {
+	for _, i := range retarget {
 		if sh, _ := out[i].Op.Shape(); sh.Target {
 			out[i].Target = at[out[i].Target]
 		}
@@ -141,6 +167,7 @@ func TestFusedFlowInstructionsChargeAsComposed(t *testing.T) {
 	for _, op := range []bytecode.FlowOp{
 		bytecode.FlowReturnOk, bytecode.FlowReturnFail,
 		bytecode.FlowScanClass, bytecode.FlowScanClassCount, bytecode.FlowScanClassAt,
+		bytecode.FlowMatchClassNode, bytecode.FlowMatchLitNode,
 	} {
 		if ops[op] == 0 {
 			t.Errorf("no body has %v", op)
