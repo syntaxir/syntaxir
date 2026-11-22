@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -145,7 +146,7 @@ func printGoStream() (string, error) {
 	m := compose.Build()
 	var b strings.Builder
 	for _, s := range goStreamSpecs {
-		f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+		f, err := specialize(m, s.fn, s.on)
 		if err != nil {
 			return "", err
 		}
@@ -219,11 +220,22 @@ func goBody(specs []goSpec) (string, error) {
 	return b.String(), nil
 }
 
+// specialize returns the composition fn of the module m specialized for the features on, under its
+// own name, as the pass specialize makes it.
+func specialize(m *code.Module, fn string, on []string) (*code.Func, error) {
+	l, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(codepass.Specialization),
+		&library.Library{Module: m, Requests: []library.Request{{Fn: fn, On: on, Name: fn}}})
+	if err != nil {
+		return nil, err
+	}
+	return l.Funcs[0], nil
+}
+
 // goFuncs returns the functions that the Go library prints for s: the function of the composition
 // specialized for its features, and the functions that the Go Exec passes of the library (gopass.Library)
 // make of it, such as the cold path that they split from its guard.
 func goFuncs(m *code.Module, s goSpec) ([]*code.Func, error) {
-	f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+	f, err := specialize(m, s.fn, s.on)
 	if err != nil {
 		return nil, err
 	}

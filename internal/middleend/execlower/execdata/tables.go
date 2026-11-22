@@ -4,15 +4,16 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Tables is the unit tables@exec, which the printers of the generating backends take: the tables of
 // one target that the parser runs, at the Exec stage, by name in the order of the backend's split, with
-// the plan of the program and the expectation table numbered from the
-// Node and recognizer tables. The program and the options that the printer reads besides them are
-// those of the target.
+// the plan of the program, the expectation table numbered from the Node and recognizer tables and, for
+// TypeScript, the library's compositions specialized for the parser (Library). The program and the
+// options that the printer reads besides them are those of the target.
 type Tables struct {
 	// Plan is the plan of the program, which holds what it was planned from, the routes of the calls
 	// and the rules that the entry points reach (plandata.Program.Reach); nil for a backend that does
@@ -23,6 +24,9 @@ type Tables struct {
 	// Descs is the expectation table that the Node and recognizer tables record, after the fixed
 	// expectations, numbered from their lowered tables; nil for a backend that numbers it as it prints.
 	Descs []string
+	// Library is the TypeScript library's compositions, specialized for the features of the parser,
+	// which the TypeScript printer prints into the library of the parser; nil for another backend.
+	Library *library.Library
 }
 
 // Table returns the table named name, or nil if the target has none.

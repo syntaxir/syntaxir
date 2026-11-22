@@ -253,6 +253,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/ir/code/action` | The Action dialect: operations that evaluate action expressions |
 | `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
 | `internal/ir/code/exec/prim` | The data of grammar code at the Exec stage: the primitives that the Flow operations become, the types of their immediates (which the Flow dialect declares its operations with), the registers, the handle types and the function attributes, with the check of the Exec stage |
+| `internal/ir/code/exec/library` | The unit `library`: the compositions module of the runtime libraries, the specializations that a library requests of it and the specialized functions, which a printer reads beside the Exec-stage units |
 | `internal/ir/code/exec/stores` | The analysis of the dead stores of an Exec-stage function, which the printers apply, and the check whether a flat rule can run a function, which the plan asks at the Flow stage and the Go printer at the Exec stage; no pass code |
 | `internal/frontend` | Drives the front end: canonicalizes a grammar and checks it into a result that holds the semantic model, the site numbers and the run-time program, and returns Core IR; the facts are computed by the analyses of the Core passes, which the front end is handed (`internal/middleend/checkfacts`) and does not compute |
 | `internal/frontend/parser` | `.sxir` to grammar AST, with `sxirparser`, the parser generated from the grammar of the grammar language |
@@ -283,7 +284,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/codegen/golang/print` | The printer of Go parsers, which prints a parser from its tables at the Exec stage and runs no step |
 | `internal/backend/codegen/golang/libprint` | The printer of the Exec compositions into the Go library and the shared engine state |
 | `internal/backend/codegen/golang/libsrc` | The go:generate copy of the Go library, used when the library is embedded |
-| `internal/backend/codegen/typescript` | The TypeScript backend: the tables of a TypeScript parser, what they are planned from, and the step `print-ts` |
+| `internal/backend/codegen/typescript` | The TypeScript backend: the tables of a TypeScript parser, what they are planned from, the step `ts-library` that requests the library's compositions for the parser's features, and the steps `print-ts` and `print-ts-lib` (the library alone) |
 | `internal/backend/codegen/typescript/pass` | The TypeScript passes on the Exec stage |
 | `internal/backend/codegen/typescript/print` | The printer of TypeScript parsers, which prints a parser from its tables at the Exec stage and runs no step |
 | `internal/backend/codegen/typescript/tsprim` | The primitives of the TypeScript target that its passes make and its printer prints, as data |

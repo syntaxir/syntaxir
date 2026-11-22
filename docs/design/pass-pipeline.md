@@ -306,11 +306,29 @@ takes the first three, because every block of the Flow stage keeps a label of it
 a block would break its invariant. The dialects have no patterns of their own operations yet. Code IR makes every
 pattern, so the pass declares them all without importing a dialect, which only the conversions do for more than one
 stage; at each stage it applies those that the stage's dialect declares. The pass is one pass at both stages: it has
-one name, one flag and one list of patterns, and the manager numbers its runs at the two stages as instances of one pass. A specialization, which is not a
-step of the pipeline, applies every pattern of the Exec stage, so a composition is the same whatever a build turns off.
+one name, one flag and one list of patterns, and the manager numbers its runs at the two stages as instances of one pass.
+The specialization of a composition applies every pattern of the Exec stage to its copy itself, so a composition is the
+same whatever a build turns off.
 
 Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the
-sharing of helpers, stay passes with names of their own. Instruction selection in `vmlower` is a table of local patterns
+sharing of helpers, stay passes with names of their own.
+
+### Specializing the Libraries
+
+The runtime libraries are written once as compositions of the Exec dialect, and a library is a set of copies of them,
+each specialized for some of the features: every feature expression of the copy becomes a constant. The unit of a
+library, `library`, holds the compositions module, the requests of the library (the composition, the features and the
+name of each copy) and the copies, kept outside the module, so that two requests of one composition under different
+features do not collide and the module never changes. The required pass `specialize` makes one copy per request, in
+request order. A copy is a function of its composition and its features alone, so the pass reuses the copies of an
+earlier compilation with the same module and requests, from a memo of the most recent ones that a bound keeps
+small.
+
+The TypeScript library of a parser is specialized for the parser's features inside the TypeScript pipeline: after the
+tables are lowered, the required step `ts-library` requests the compositions that the library replaces for the features
+that the used-features analysis of the plan finds, `within ts-library { specialize! }` makes the copies, and `print-ts`
+prints them into the parser's library. The library alone (`-lib only`) has no grammar: its pipeline starts at the
+library, with every feature requested, and runs `specialize` and `print-ts-lib`. Instruction selection in `vmlower` is a table of local patterns
 of the same kind: it is deterministic and counts the matches of each pattern.
 
 ## The Registry

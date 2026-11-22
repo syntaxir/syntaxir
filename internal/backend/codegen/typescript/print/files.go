@@ -1,6 +1,7 @@
 package print
 
 import (
+	"fmt"
 	"slices"
 	"sort"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 )
 
 // TsGeneratedHeader starts every generated TypeScript file. The command line tool removes stale
@@ -66,10 +68,20 @@ func substituteMethods(src string, ms []tsMethod) string {
 }
 
 // tsFiles assembles the files of a parser with the features fs from the code generated from the
-// grammar (body) and the declarations of its types (types, empty without opts.Types). With shake,
-// the library a LibEmbed parser carries keeps only what the parser's files name (shakeLib).
-func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, body, types string) ([]common.GeneratedFile, error) {
-	lib, err := loadLib(opts.TSLib, fs)
+// grammar (body), the declarations of its types (types, empty without opts.Types) and the library's
+// compositions specialized for fs (specialized, which must hold the requests of LibraryRequests). With
+// shake, the library a LibEmbed parser carries keeps only what the parser's files name (shakeLib).
+func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specialized *library.Library, body, types string) ([]common.GeneratedFile, error) {
+	want, err := LibraryRequests(fs)
+	if err != nil {
+		return nil, err
+	}
+	if specialized == nil || !slices.EqualFunc(want, specialized.Requests, func(a, b library.Request) bool {
+		return a.Fn == b.Fn && a.Name == b.Name && slices.Equal(a.On, b.On)
+	}) {
+		return nil, fmt.Errorf("internal error: the TypeScript library is not specialized for the features of the parser")
+	}
+	lib, err := loadLib(opts.TSLib, fs, specialized)
 	if err != nil {
 		return nil, err
 	}

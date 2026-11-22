@@ -942,7 +942,12 @@ specialization of the TypeScript library's compositions for the parser's feature
 branch on `tables@exec`: the TypeScript backend's required step `ts-library!` sets the unit's `library` to the
 compositions module with the requests of the TypeScript library's specification table, each keeping only the features
 that the parser has as the plan's used-features analysis reports them, and `within ts-library { specialize! }` adds the
-specialized compositions that `print-ts` prints.
+specialized compositions that `print-ts` prints. The TypeScript library alone (`-lib only`), which no grammar determines,
+is a library route of the TypeScript target: `Compile` without a program assembles
+`pipeline library -> output { specialize! print-ts-lib! }`, whose source unit holds the requests of the same
+specification table for every feature, and `print-ts-lib` is a printing pass of the TypeScript backend package beside
+`print-ts`. (Amended: the record first left the library alone to the printer, which would have run the specialization
+itself.)
 
 **The Go library is a route of the same pipeline.** `golang/libprint` prints the compositions of the Exec dialect into
 the Go runtime library, the engine state and the conformance bindings, from `go generate`. It goes through the driver and
@@ -1027,7 +1032,10 @@ Detected by architecture tests, because Go cannot restrict callers:
   specialization function: both libraries reach it through the `specialize` pass.
 - `EnterFlow` is called only by `flowlower`, `EnterExec` only by `execlower`.
 - The print packages of every backend, the library printer included, and `internal/backend/codegen/common` import none
-  of `internal/pass`, `internal/driver`, the pass packages, the lowerings, `vmlower` or the planning code. They may
+  of `internal/pass`, `internal/driver`, the pass packages, the lowerings, `vmlower` or the planning code. Until the
+  action lowering of the pipeline lowers the action expressions as a step, the two printers' files that print action
+  expressions call the action lowering's entry with its options; the test lists exactly those uses, fails when one
+  of them goes, and the ban becomes total when the action lowering leaves the printers. They may
   import the result and data types: the planning data types, Code IR, Core IR and the lowered function. To make this
   checkable by package, the data types move into packages of their own apart from the code that computes them.
 - The printing passes and the last steps of the run-time backends are declared in the backend packages above the print
@@ -1232,15 +1240,19 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
 7. **Printers on Exec-stage units**, each change with identical output and dumps: the `prim` package; Exec-stage
    attributes with the verifier's rule, and the flat-function check beside the analysis of dead stores, which the plan
    and the Go printer call each on its own stage; the printers reading `prim` and the table unit; the lowering left in
-   the printers as steps, with the TypeScript library's specialization and the import ban of the print packages; then the
-   renames and the name rules, and the walk for Flow-stage units with its negative control.
+   the printers as steps, with the TypeScript library's specialization, its library route for the library alone and the
+   printing-pass kind rule with its negative control, and the import ban of the print packages, which lists the action
+   lowering that the printers still call as its one exception; then the renames and the name rules, and the walk for
+   Flow-stage units with its negative control. The action lowering leaves the printers in the change that lowers action
+   expressions once in the pipeline, which comes next and makes the ban total.
 8. **The text form:** the printer, the reader and the resolver with the skeleton and kind checks, the headers with their
    reflection tests and per-target dumps, `-print-pipeline`, and the internal reader for tests and a development tool.
 9. **Sharing, `Fork` and the `output` kind**, `Compile` over several targets, and the sharing of Core IR between a table
    and its traced copy.
-10. **The Go library route**, with the library text door, `print-libgo`, and the deletion of the exported
-    specialization function; the library printer joins the import rules, and the printing-pass kind rule lands with its
-    negative control.
+10. **The Go library route**, with the library text door and `print-libgo`; the library printer joins the import rules.
+    (Amended: the library kind, the `specialize` pass, the deletion of the exported specialization function and the
+    printing-pass kind rule land with step 7, with the TypeScript library's route; until step 10 the Go library's
+    printer runs the pass through its own pipeline.)
 11. **Several targets from the command line and the API.**
 12. **The VM and the closure backend through `Compile`** with the parser's settings: first the settings carrier, with
     unchanged outputs; then `ProgramOf` and the run-time builds through the driver, the `program` header and its reader,

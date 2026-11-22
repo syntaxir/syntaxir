@@ -8,8 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 )
 
 // tsMethod is a printed method of the TypeScript library's Parser class.
@@ -112,19 +111,17 @@ const (
 	tsObsClass
 )
 
-// tsMethods returns the printed methods of the TypeScript library.
-func tsMethods() ([]tsMethod, error) { return tsMethodsFor(common.AllFeatures) }
-
 // specFeatures maps the features of the compositions that the library's methods are specialized
 // for to the features of a parser.
 var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Budget: common.FeatureBudget}
 
-// tsMethodsFor returns the printed methods of the TypeScript library of a parser with the features
-// fs: each is specialized for the features of its specification that fs has.
-func tsMethodsFor(fs common.FeatureSet) ([]tsMethod, error) {
-	m := compose.Build()
-	var out []tsMethod
-	for _, s := range tsSpecs {
+// LibraryRequests returns the specializations that the TypeScript library of a parser with the
+// features fs requests of the compositions (library.Request), one per method of tsSpecs, in its
+// order: each is specialized for the features of its specification that fs has, under the name of
+// its composition, which the calls of the other methods take.
+func LibraryRequests(fs common.FeatureSet) ([]library.Request, error) {
+	rs := make([]library.Request, len(tsSpecs))
+	for i, s := range tsSpecs {
 		var on []string
 		for _, o := range s.on {
 			f, ok := specFeatures[o]
@@ -135,9 +132,23 @@ func tsMethodsFor(fs common.FeatureSet) ([]tsMethod, error) {
 				on = append(on, o)
 			}
 		}
-		f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, on)
-		if err != nil {
-			return nil, err
+		rs[i] = library.Request{Fn: s.fn, On: on, Name: s.fn}
+	}
+	return rs, nil
+}
+
+// tsMethodsFor returns the printed methods of the TypeScript library from lib, the specialized
+// compositions of the requests of LibraryRequests.
+func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
+	if lib == nil || len(lib.Funcs) != len(tsSpecs) || len(lib.Requests) != len(tsSpecs) {
+		return nil, fmt.Errorf("tslib: the library holds no specialized method for each request of the TypeScript library")
+	}
+	m := lib.Module
+	var out []tsMethod
+	for i, s := range tsSpecs {
+		f := lib.Funcs[i]
+		if lib.Requests[i].Fn != s.fn || f.Name != s.fn {
+			return nil, fmt.Errorf("tslib: the specialized function %d of the library is %s of %s, not the method %s", i, f.Name, lib.Requests[i].Fn, s.name)
 		}
 		t := tsTarget
 		switch s.target {

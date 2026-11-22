@@ -9,6 +9,7 @@
 package exectest
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"strings"
@@ -17,7 +18,9 @@ import (
 	// The module is a unit of the Exec stage, whose patterns its dialect declares: Build specializes
 	// a function, which canonicalizes it with them.
 	_ "syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Box is the handle type of the test module.
@@ -243,14 +246,15 @@ func Build() *Module {
 		})
 		b.Return(L("n"))
 	})
-	m.Funcs = m.Funcs[:len(m.Funcs)-1]
+	var rs []library.Request
 	for _, on := range [][]string{nil, {"extra"}} {
-		s, err := codepass.Specialize(m, spec, "special_"+strings.Join(append([]string{"x"}, on...), "_"), on)
-		if err != nil {
-			panic(err)
-		}
-		m.Funcs = append(m.Funcs, s)
+		rs = append(rs, library.Request{Fn: spec.Name, On: on, Name: "special_" + strings.Join(append([]string{"x"}, on...), "_")})
 	}
+	l, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(codepass.Specialization), &library.Library{Module: m, Requests: rs})
+	if err != nil {
+		panic(err)
+	}
+	m.Funcs = append(m.Funcs[:len(m.Funcs)-1], l.Funcs...)
 	if err := Verify(m); err != nil {
 		panic(err)
 	}

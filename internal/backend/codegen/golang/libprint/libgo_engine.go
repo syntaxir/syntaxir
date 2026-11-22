@@ -12,7 +12,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // engineFile is the file of the printed compositions of the engine, relative to the directory of
@@ -168,7 +167,7 @@ func engineActions(pkg string, t *print.Target, actionExpr string, apply func(t,
 		panic("core: no engine action expression implementation of " + c.Callee)
 	}
 	for _, fn := range engineBackendFuncs {
-		f, err := codepass.Specialize(m, m.Func(fn), fn, nil)
+		f, err := specialize(m, fn, nil)
 		if err != nil {
 			return "", err
 		}
@@ -212,7 +211,7 @@ func printEngineSpecs(specs []goSpec) (string, error) {
 	m := compose.Build()
 	var b strings.Builder
 	for _, s := range specs {
-		f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+		f, err := specialize(m, s.fn, s.on)
 		if err != nil {
 			return "", err
 		}

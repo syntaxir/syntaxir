@@ -60,7 +60,7 @@ func TestSpecialize(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, on := range [][]string{nil, {"budget"}, {"typed"}, {"budget", "typed"}} {
-		s, err := Specialize(m, f, "f_"+strings.Join(on, "_"), on)
+		s, err := specialize(m, f, "f_"+strings.Join(on, "_"), on)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -90,8 +90,8 @@ func TestSpecialize(t *testing.T) {
 			t.Errorf("%v: 10 * 3 is not folded\n%s", on, listing)
 		}
 	}
-	if _, err := Specialize(m, f, "bad", []string{"nope"}); err == nil {
-		t.Error("Specialize accepted an undeclared feature")
+	if _, err := specialize(m, f, "bad", []string{"nope"}); err == nil {
+		t.Error("specialize accepted an undeclared feature")
 	}
 }
 

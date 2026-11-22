@@ -225,7 +225,7 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	if err != nil {
 		return nil, err
 	}
-	return tsFiles(opts, features, tsg.Params.UsedFeatures, out.String(), types)
+	return tsFiles(opts, features, tsg.Params.UsedFeatures, tsg.tables.Library, out.String(), types)
 }
 
 // useSparseMemo reports whether the parser keeps the representation selector of its first-call table:

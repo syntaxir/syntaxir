@@ -1,9 +1,31 @@
 package print
 
 import (
+	"context"
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
+
+// tsMethods returns the printed methods of the TypeScript library for every feature, from its
+// compositions specialized by the pass specialize.
+func tsMethods() ([]tsMethod, error) {
+	rs, err := LibraryRequests(common.FeatureSet(common.AllFeatures))
+	if err != nil {
+		return nil, err
+	}
+	lib, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(codepass.Specialization),
+		&library.Library{Module: compose.Build(), Requests: rs})
+	if err != nil {
+		return nil, err
+	}
+	return tsMethodsFor(lib)
+}
 
 // TestSubstituteMethods checks that the printed compositions replace the hand-written methods of
 // the library, with the comment lines before them, and nothing else.

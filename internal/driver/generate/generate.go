@@ -66,7 +66,12 @@ func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, er
 // tests set; the settings and the debugging settings of x come from o.
 func TypeScriptWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *tsprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
-		return tsprint.LibFiles(o.TSLib)
+		x.Debug = o.Debug
+		out, err := driver.Compile(context.Background(), nil, x, driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h})
+		if err != nil {
+			return nil, err
+		}
+		return out[0].(*result.Files).Files, nil
 	}
 	o, err := tsprint.Validate(o)
 	if err != nil {

@@ -78,6 +78,8 @@ var layout = []place{
 	{pkg: "internal/ir/code/exec/conform", target: "internal/ir/code/exec/conform"},
 	// prim holds the data of grammar code that the Flow operations and their primitives share.
 	{pkg: "internal/ir/code/exec/prim", target: "internal/ir/code/exec/prim"},
+	// library holds the unit of the compositions that the libraries specialize, as data.
+	{pkg: "internal/ir/code/exec/library", target: "internal/ir/code/exec/library"},
 	{pkg: "internal/ir/code/exec/ref", target: "internal/ir/code/exec/ref"},
 	{pkg: "internal/ir/code/exec/stores", target: "internal/ir/code/exec/stores"},
 	{pkg: "internal/ir/code/exec/spectest", target: "internal/ir/code/exec/spectest"},

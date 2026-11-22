@@ -1,6 +1,7 @@
 package compose
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -9,8 +10,10 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // The tests of this file run the compositions on a model of the operations: the reference model of
@@ -516,10 +519,12 @@ func (m *machine) Call(o *code.Op, args []any) []any {
 // composition returns the composition fn of the module m specialized for on.
 func composition(t *testing.T, m *code.Module, fn string, on ...string) *code.Func {
 	t.Helper()
-	f, err := codepass.Specialize(m, m.Func(fn), fn, on)
+	l, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(codepass.Specialization),
+		&library.Library{Module: m, Requests: []library.Request{{Fn: fn, On: on, Name: fn}}})
 	if err != nil {
 		t.Fatal(err)
 	}
+	f := l.Funcs[0]
 	return f
 }
 

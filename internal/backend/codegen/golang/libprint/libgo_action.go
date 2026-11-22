@@ -8,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
 // goActionsFile is the file of the printed action expression compositions in the generated Go library, relative to
@@ -193,7 +192,7 @@ func printGoActions() (string, error) {
 	b.WriteString(goActionError("*Parser", "typeName"))
 	b.WriteString(goActionError("*TParser", "ttypeName"))
 	for _, s := range goActionSpecs {
-		f, err := codepass.Specialize(m, m.Func(s.fn), s.fn, s.on)
+		f, err := specialize(m, s.fn, s.on)
 		if err != nil {
 			return "", err
 		}
@@ -428,7 +427,7 @@ func printEngineActions() (string, error) {
 	b.WriteString(goActionConsts())
 	b.WriteString(engineActionError())
 	for _, f := range actionFuncs {
-		fn, err := codepass.Specialize(m, m.Func(f.fn), f.fn, nil)
+		fn, err := specialize(m, f.fn, nil)
 		if err != nil {
 			return "", err
 		}

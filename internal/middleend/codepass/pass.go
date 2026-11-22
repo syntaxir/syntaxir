@@ -1,9 +1,10 @@
 // Package codepass holds the passes of Code IR that do not depend on a dialect (designs 065 and 072):
 // transformations of functions that keep their behavior and that every backend prints the result of.
 //
-// Specialize makes the copy of a function for one set of features, in which every feature is a
+// The pass specialize makes the copy of a function for one set of features, in which every feature is a
 // constant: the hand-written variants of one mechanism for each build (ordinary, budget-controlled,
-// observed, node or typed values) become specializations of one composition. Canonicalize folds
+// observed, node or typed values) become specializations of one composition, the copies that a
+// library requests (internal/ir/code/exec/library). Canonicalize folds
 // constants and removes code that cannot run, which is what makes a specialization lean; the pass
 // canonicalize does the same in the pipeline, at the Flow and the Exec stage.
 package codepass
@@ -15,11 +16,12 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 )
 
-// Specialize returns a copy of the function f of the module m named name and specialized for the
+// specialize returns a copy of the function f of the module m named name and specialized for the
 // features on, which must be features of m: each Feature expression becomes the constant true if
 // its feature is in on and false otherwise, and the copy is canonicalized (Canonicalize). The copy's
-// Features are on, so that it may call the operations of those features and no others.
-func Specialize(m *code.Module, f *code.Func, name string, on []string) (*code.Func, error) {
+// Features are on, so that it may call the operations of those features and no others. The pass
+// specialize (Specialization) makes the copies that a library requests with it.
+func specialize(m *code.Module, f *code.Func, name string, on []string) (*code.Func, error) {
 	for _, ft := range on {
 		if !slices.Contains(m.Features, ft) {
 			return nil, fmt.Errorf("specialize %s: undeclared feature %s", f.Name, ft)

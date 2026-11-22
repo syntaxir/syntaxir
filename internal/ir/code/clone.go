@@ -37,6 +37,12 @@ func (m *Module) Clone() *Module {
 	return &out
 }
 
+// CloneFunc returns a copy of f that a pass may change without changing f, as Clone copies the
+// functions of a module.
+func CloneFunc(f *Func) *Func {
+	return (&Cloner{stmts: map[Stmt]Stmt{}, exprs: map[Expr]Expr{}}).Func(f)
+}
+
 // Func returns the copy of f.
 func (c *Cloner) Func(f *Func) *Func {
 	if f == nil {

@@ -11,6 +11,7 @@
 package pipe
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -193,6 +194,8 @@ type passDesc struct {
 var (
 	passes  = map[string]*passDesc{}
 	inKinds = map[string][]*kind{}
+	// registrations holds the description of every registration, in the order of registration.
+	registrations []*passDesc
 )
 
 // New seals and registers a pass. A pass that keeps the same declaration may be registered at
@@ -230,7 +233,26 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 		passes[d.Name] = pd
 	}
 	inKinds[d.Name] = append(inKinds[d.Name], pd.in)
+	registrations = append(registrations, pd)
 	return &Pass[I, O]{d: pd}
+}
+
+// PassKind is one registration of a pass: its name and the names of its input and output kinds.
+type PassKind struct {
+	Name, In, Out string
+}
+
+// PassKinds returns every registration of a pass, sorted by name and input kind, for the rules that
+// the architecture tests check of the registry, such as the kinds that a printing pass takes.
+func PassKinds() []PassKind {
+	out := make([]PassKind, len(registrations))
+	for i, d := range registrations {
+		out[i] = PassKind{Name: d.Name, In: d.in.name, Out: d.out.name}
+	}
+	slices.SortFunc(out, func(a, b PassKind) int {
+		return cmp.Or(strings.Compare(a.Name, b.Name), strings.Compare(a.In, b.In))
+	})
+	return out
 }
 
 // Name returns the name of the pass.

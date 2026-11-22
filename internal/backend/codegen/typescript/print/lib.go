@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 )
 
 // The TypeScript library of generated parsers is the directory internal/backend/codegen/typescript/lib of this module, which
@@ -34,35 +35,46 @@ type tsLib struct {
 	exports map[string]bool
 }
 
-// libKey identifies an assembled library: its source and the features of the parsers it serves.
+// libKey identifies an assembled library: its source, the features of the parsers it serves and the
+// printed methods of its specialized compositions.
 type libKey struct {
 	fsys     fs.FS
 	features common.FeatureSet
+	methods  string
 }
 
-// libCache memoizes the assembled library of each source and feature set, keyed as print keys its
-// library cache: only a source whose dynamic type is a string or a pointer is a valid map key.
+// libCache memoizes the assembled library of each key, as print keys its library cache: only a source
+// whose dynamic type is a string or a pointer is a valid map key.
 var libCache struct {
 	mu  sync.Mutex
 	lib map[libKey]*tsLib
 }
 
-// loadLib assembles the library of fsys for parsers with the features fs (once per source and
-// feature set).
-func loadLib(fsys fs.FS, features common.FeatureSet) (*tsLib, error) {
+// loadLib assembles the library of fsys for parsers with the features fs from lib, the compositions
+// specialized for them (LibraryRequests), once per key (libKey).
+func loadLib(fsys fs.FS, features common.FeatureSet, lib *library.Library) (*tsLib, error) {
 	if fsys == nil {
 		return nil, fmt.Errorf("TypeScript generation needs the library source: set GenOptions.TSLib")
 	}
+	ms, err := tsMethodsFor(lib)
+	if err != nil {
+		return nil, err
+	}
+	var key strings.Builder
+	for _, m := range ms {
+		key.WriteString(m.Name + "\x00" + m.Text + "\x00")
+	}
 	k := reflect.TypeOf(fsys).Kind()
 	cacheable := k == reflect.String || k == reflect.Pointer
+	lk := libKey{fsys, features, key.String()}
 	libCache.mu.Lock()
 	defer libCache.mu.Unlock()
 	if cacheable {
-		if lib, ok := libCache.lib[libKey{fsys, features}]; ok {
+		if lib, ok := libCache.lib[lk]; ok {
 			return lib, nil
 		}
 	}
-	lib, err := assembleLib(fsys, features)
+	out, err := assembleLib(fsys, features, ms)
 	if err != nil {
 		return nil, err
 	}
@@ -70,24 +82,20 @@ func loadLib(fsys fs.FS, features common.FeatureSet) (*tsLib, error) {
 		if libCache.lib == nil {
 			libCache.lib = map[libKey]*tsLib{}
 		}
-		libCache.lib[libKey{fsys, features}] = lib
+		libCache.lib[lk] = out
 	}
-	return lib, nil
+	return out, nil
 }
 
 // assembleLib returns the generated lib.ts of the library in fsys for parsers with the features fs:
-// lib.ts after its marker, with the printed methods substituted, followed by libModules, narrowed
+// lib.ts after its marker, with the printed methods ms substituted, followed by libModules, narrowed
 // to fs (narrowLib) unless fs has every feature, and the exported names of the result.
-func assembleLib(fsys fs.FS, features common.FeatureSet) (*tsLib, error) {
+func assembleLib(fsys fs.FS, features common.FeatureSet, ms []tsMethod) (*tsLib, error) {
 	read := func(name string) (string, error) {
 		data, err := fs.ReadFile(fsys, name)
 		return string(data), err
 	}
 	src, err := read(tsLibFileName)
-	if err != nil {
-		return nil, err
-	}
-	ms, err := tsMethodsFor(features)
 	if err != nil {
 		return nil, err
 	}
@@ -128,18 +136,20 @@ func assembleLib(fsys fs.FS, features common.FeatureSet) (*tsLib, error) {
 	return lib, nil
 }
 
-// LibText returns the text of the generated lib.ts of the library in fsys.
-func LibText(fsys fs.FS) (string, error) {
-	lib, err := loadLib(fsys, common.FeatureSet(common.AllFeatures))
+// LibText returns the text of the generated lib.ts of the library in fsys, with the compositions of
+// lib specialized for every feature (LibraryRequests of common.AllFeatures).
+func LibText(fsys fs.FS, lib *library.Library) (string, error) {
+	out, err := loadLib(fsys, common.FeatureSet(common.AllFeatures), lib)
 	if err != nil {
 		return "", err
 	}
-	return lib.text, nil
+	return out.text, nil
 }
 
-// LibFiles returns the file of the library alone, as LibOnly generates it.
-func LibFiles(fsys fs.FS) ([]common.GeneratedFile, error) {
-	text, err := LibText(fsys)
+// LibFiles returns the file of the library alone, as LibOnly generates it, with the compositions of
+// lib specialized for every feature (LibraryRequests of common.AllFeatures).
+func LibFiles(fsys fs.FS, lib *library.Library) ([]common.GeneratedFile, error) {
+	text, err := LibText(fsys, lib)
 	if err != nil {
 		return nil, err
 	}

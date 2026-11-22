@@ -74,12 +74,16 @@ var (
 
 // Compile runs one pipeline for the targets under one manager. On an error it returns no output and
 // the errors of every failed target, joined in target order. Until the pipelines of several targets
-// are forked (record 074, migration step 9), a call compiles exactly one target.
+// are forked (record 074, migration step 9), a call compiles exactly one target. A nil program
+// compiles the TypeScript library alone (common.LibOnly), the one target that has no program.
 func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]Output, error) {
 	if len(targets) != 1 {
 		return nil, fmt.Errorf("a compilation takes one target, not %d", len(targets))
 	}
 	t := targets[0]
+	if p == nil {
+		return compileLibrary(ctx, o, t)
+	}
 	if err := checkTarget(p, o, t); err != nil {
 		return nil, err
 	}
@@ -110,6 +114,43 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	}
 	// The dumps are written also on an error, whose dumps show what led to it; the reports only
 	// after a build.
+	if ferr := d.flush(); ferr != nil && err == nil {
+		err = ferr
+	}
+	if err != nil {
+		return nil, err
+	}
+	d.report()
+	return []Output{out}, nil
+}
+
+// compileLibrary compiles the target t without a program: the TypeScript library alone
+// (common.LibOnly), whose pipeline starts at the library (tsLibraryPipeline).
+func compileLibrary(ctx context.Context, o Options, t Target) ([]Output, error) {
+	if t.Backend != result.TypeScript || t.Gen.Lib != common.LibOnly {
+		return nil, fmt.Errorf("target %s: a compilation without a program compiles only the TypeScript library alone (LibOnly)", t.Backend)
+	}
+	if t.GoHooks != nil || t.TSHooks != nil {
+		return nil, fmt.Errorf("target %s: the library alone has no printer hooks", t.Backend)
+	}
+	if err := CheckDebug(o.Debug); err != nil {
+		return nil, err
+	}
+	t.Gen.Debug = o.Debug
+	src, err := tsbackend.LibrarySource()
+	if err != nil {
+		return nil, err
+	}
+	a := tsLibraryPipeline(t)
+	pl, err := pipe.Apply(a.pipeline, o.Edits...)
+	if err != nil {
+		return nil, err
+	}
+	d := newDebugger(o)
+	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers()}, pl, src)
+	if err != nil {
+		err = a.error(err)
+	}
 	if ferr := d.flush(); ferr != nil && err == nil {
 		err = ferr
 	}

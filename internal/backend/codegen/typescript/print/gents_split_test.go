@@ -10,6 +10,8 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -277,7 +279,7 @@ process.stdout.write("ok\n");
 // libFiles returns the file of the TypeScript library alone, as LibOnly generates it.
 func libFiles(t testing.TB) []common.GeneratedFile {
 	t.Helper()
-	files, err := print.LibFiles(codegentest.TSLibSource())
+	files, err := generate.TypeScriptWith(codegentest.Compile, nil, common.GenOptions{Lib: common.LibOnly, TSLib: codegentest.TSLibSource()}, driver.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
