@@ -173,7 +173,7 @@ func parseReach(s string) (map[Entry]bool, error) {
 
 // CoresIR is the kind of the input of the planning of a program, and ProgramIR that of its plan. The
 // Core IR of the input is dumped as it is built and changed; the input itself is dumped as printCores
-// writes it, with the nodes that its tables outline, and the plan as printProgram writes it, with its
+// writes it, with the guarded alternatives and the outlined nodes of its tables, and the plan as printProgram writes it, with its
 // entry points and routes.
 var (
 	CoresIR = pipe.RegisterIR(&pipe.IR[*Cores]{Name: "cores", Verify: verifyCores, Print: printCores})
@@ -181,19 +181,24 @@ var (
 	ProgramIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "plan", Verify: verifyProgram, Print: printProgram})
 )
 
-// printCores writes the input c of the planning: each unit with its table and, by rule, the nodes of
-// the table that run as functions of their own (lowerdata.Options.Outlined), in the order of the rule's
-// body. A node is written as its path, the indices of the children from the body of the rule (the
-// lines of an Operators Rule are its children), and the first line of its form as core.Print writes it.
+// printCores writes the input c of the planning: each unit with its table and, by rule, in the order of
+// the rule's body, the alternatives of the table that keep their guard (lowerdata.Options.Guarded),
+// with the rules whose calls the skip makes and whether only a parse that is not a Document's takes
+// it, and the nodes of the table that run as functions of their own (lowerdata.Options.Outlined). A
+// node, and an alternative by its body, is written as its path, the indices of the children from the
+// body of the rule (the lines of an Operators Rule are its children); an outlined node also with the
+// first line of its form as core.Print writes it.
 //
 //	unit rules table=rules
 //	  rule 2 item
+//	    guard 0.0
+//	    guard 0.1 calls=3,4 outside
 //	    outline 0.3 choice
 //	unit recRules table=recRules
 func printCores(w io.Writer, c *Cores) {
 	for _, u := range c.Units {
 		fmt.Fprintf(w, "unit %s table=%s\n", u.Label, u.Table)
-		if len(u.IR.Opts.Outlined) == 0 {
+		if len(u.IR.Opts.Outlined) == 0 && len(u.IR.Opts.Guarded) == 0 {
 			continue
 		}
 		m := u.IR.M
@@ -208,6 +213,26 @@ func printCores(w io.Writer, c *Cores) {
 					head, _, _ := strings.Cut(strings.TrimSpace(core.PrintNode(m, n, false)), "\n")
 					lines = append(lines, fmt.Sprintf("    outline %s %s\n", path, head))
 				}
+				if ch, ok := n.(*core.Choice); ok {
+					for i, a := range ch.Alts {
+						g, ok := u.IR.Opts.Guarded[a]
+						if !ok {
+							continue
+						}
+						line := "    guard " + childPath(path, i)
+						if len(g.Calls) > 0 {
+							calls := make([]string, len(g.Calls))
+							for j, k := range g.Calls {
+								calls[j] = strconv.Itoa(k)
+							}
+							line += " calls=" + strings.Join(calls, ",")
+						}
+						if g.Outside {
+							line += " outside"
+						}
+						lines = append(lines, line+"\n")
+					}
+				}
 				var kids []core.Node
 				if o, ok := n.(*core.OperatorsRule); ok {
 					for _, l := range o.Lines() {
@@ -220,11 +245,7 @@ func printCores(w io.Writer, c *Cores) {
 					if k == nil {
 						continue
 					}
-					p := strconv.Itoa(i)
-					if path != "" {
-						p = path + "." + p
-					}
-					walk(k, p)
+					walk(k, childPath(path, i))
 				}
 			}
 			walk(r.Body, "")
@@ -236,6 +257,14 @@ func printCores(w io.Writer, c *Cores) {
 			}
 		}
 	}
+}
+
+// childPath returns the path of the child i of the node at path (printCores).
+func childPath(path string, i int) string {
+	if path == "" {
+		return strconv.Itoa(i)
+	}
+	return path + "." + strconv.Itoa(i)
 }
 
 // printProgram writes the plan p: its entry points, then each table and each rule of it by ID, with

@@ -61,6 +61,7 @@ var optimizationTests = map[string]string{
 	"terminals":              "TestTerminalProgramDisabledParity",
 	"text-dispatch":          "TestLiteralTextPredicateDispatchDisabledParity",
 	"field-compare":          "TestGeneratedTextFieldComparisons",
+	"dispatch":               "",
 	"guards":                 "",
 	"guarded-classes":        "TestGuardedClassDisabledParity",
 	"scans":                  "",
@@ -175,7 +176,7 @@ func TestOutputChangingFlagChecks(t *testing.T) {
 // and the profiles over it are valid, and the profiles resolve to the values they declare.
 func TestRegistryOfTheGenerators(t *testing.T) {
 	want := []string{
-		"guards", "outline", "scans",
+		"dispatch", "guards", "outline", "scans",
 		"field-compare", "text-dispatch",
 		"class-runs", "class-tables", "guarded-classes", "inline-literals", "terminals",
 		"ts-merged-records", "ts-tested-inits",

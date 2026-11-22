@@ -159,7 +159,7 @@ func TestParsePrintAfter(t *testing.T) {
 	// plan of the program, then the Flow lowering, passes and finish, then the Exec lowering and passes and the Exec
 	// passes of the targets.
 	want := append([]string{"elaborate"}, corepass.Names()...)
-	want = append(append(want, "outline", "plan", "flowlower"), flowpass.Names()...)
+	want = append(append(want, "dispatch", "outline", "plan", "flowlower"), flowpass.Names()...)
 	want = append(append(want, "flow-finish", "execlower"), codepass.Names()...)
 	for _, p := range append(slices.Clone(gopass.Passes), tspass.Passes...) {
 		want = append(want, p.Name())

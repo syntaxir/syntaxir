@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -19,7 +20,7 @@ func TestFinishingStep(t *testing.T) {
 	}
 	lowered := func() *code.Module {
 		m, r := forms(t)
-		f, err := flowlower.Lower(m, r, "r", lowerdata.Options{})
+		f, err := flowlower.Lower(m, r, "r", lowerdata.Options{Guarded: flowplan.Guarded(m, lowerdata.Options{})})
 		if err != nil {
 			t.Fatal(err)
 		}

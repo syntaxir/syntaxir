@@ -79,6 +79,7 @@ func tableIR(t *testing.T, src string, rec check.Recognition) (*plandata.TableIR
 	}
 	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
 	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
+	opts.Guarded = flowplan.Guarded(m, opts)
 	return &plandata.TableIR{M: m, Opts: opts}, rules
 }
 

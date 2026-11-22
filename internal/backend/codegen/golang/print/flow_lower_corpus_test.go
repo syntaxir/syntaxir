@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 )
 
 // TestFlowVerifiesCorpus lowers every typed rule of the corpus that Flow IR covers, from the Core
@@ -97,5 +98,7 @@ func observeSkips(b *code.Block) int {
 // typedOptions returns the options of lowering the typed rules of the Core IR m with the generator g,
 // as the typed table of its parser has them.
 func typedOptions(g *print.Generator, m *core.Module) lowerdata.Options {
-	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: lowerdata.GuardsExact, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
+	o := lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: lowerdata.GuardsExact, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}
+	o.Guarded = flowplan.Guarded(m, o)
+	return o
 }

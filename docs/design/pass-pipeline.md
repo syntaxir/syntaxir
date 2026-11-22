@@ -256,7 +256,7 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 |:--|:--|:--|:--|
 | 1 | call-specialize | The result, memo records, expectations and events of a call stay the same; under observation the call is kept | Core facts (Plain, Memo, Leader), call graph |
 | 2 | inline | The same nodes, values, memo entries and errors at the same positions | Call graph, size |
-| 3 | dispatch | The same order of trying alternatives and the same expectation records; guards use only Core facts | Core first sets and guards |
+| 3 | dispatch (program) | Skipping a guarded alternative leaves the state that evaluating it leaves, and records the same expectations | Core guards, the calls a skip passes over, memo policy |
 | 4 | match-form | The same input consumed and the same expectations recorded; the charging invariants hold | Features (Budget, Document, Traced) |
 | 5 | save-elide | No save that no failure path reads | Core effects, liveness |
 | 6 | fail-merge/thread | The same behavior on every reachable path | Reachability |
@@ -265,11 +265,20 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 9 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
 | 10 | outline (program) | The same behavior | Structure and size of the Core nodes |
 
-Outline is the one of them that runs before the Flow stage. It chooses, from the Core IR of each Node and recognizer
+Dispatch and outline run before the Flow stage, on the tables of the program right before `plan`, so each table's
+choice is made once, and the lowering of every part of a table reads it from the table's lowering options.
+
+Dispatch chooses, from the Core IR of each table and its lowering options, the alternatives that keep the guard that
+the Core pass `guards` gave them, and what the skip of each makes. Without logical units and Documents every guard is
+kept. Otherwise a guard is kept when the calls that evaluating the alternative makes before its first terminal fails are
+known; under logical units the skip makes the effects of these calls, and a Document parse evaluates an alternative
+whose skip would pass over a call of a rule it memoizes. Both pipelines run it, on by default; `-no-opt dispatch`
+lowers every alternative without its guard, and `-print-after dispatch` writes each table with its guarded alternatives
+by path. The VM chooses the guards of its table the same way when it lowers it.
+
+Outline chooses, from the Core IR of each Node and recognizer
 table after the Core passes, the nodes that run as functions of their own: a large node, the large parts of one, and,
-in a table that builds values, a structure that occurs more than once where it would not already be shared. It runs on
-the tables of the program right before `plan`, so each table's choice is made once, and the lowering of every part of a
-table reads it from the table's lowering options. The TypeScript pipeline runs it, on by default, since its runtime
+in a table that builds values, a structure that occurs more than once where it would not already be shared. The TypeScript pipeline runs it, on by default, since its runtime
 wants small functions and its printer shares outlined functions whose text is equal; `-no-opt outline` lowers every
 node in place. The Go pipeline does not run it.
 

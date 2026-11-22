@@ -18,7 +18,9 @@ func TestBisectLimitZeroBuilds(t *testing.T) {
 		opts := common.GenOptions{Module: "example.com/bisect", Lib: common.LibImport, Types: types,
 			Debug: common.Debug{OptBisectLimit: &zero, Output: &out}}
 		files := generateWithStats(t, opts, nil)
-		if !strings.HasPrefix(out.String(), "opt-bisect: 1 skip ") || strings.Contains(out.String(), " run ") {
+		// The decisions of the program's passes come first (driver.Debug.Output), so the first
+		// decision numbered need not be the first line.
+		if !strings.Contains(out.String(), "opt-bisect: 1 skip ") || strings.Contains(out.String(), " run ") {
 			t.Fatalf("types %v: the decisions under limit 0:\n%.500s", types, out.String())
 		}
 		dir := t.TempDir()

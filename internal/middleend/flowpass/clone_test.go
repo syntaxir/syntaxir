@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 )
 
 // TestCloneKeepsTheForms checks that a copy of a lowered function shares no statement or
@@ -15,7 +16,7 @@ import (
 // lowering made it.
 func TestCloneKeepsTheForms(t *testing.T) {
 	m, r := forms(t)
-	f, err := flowlower.Lower(m, r, "r", lowerdata.Options{})
+	f, err := flowlower.Lower(m, r, "r", lowerdata.Options{Guarded: flowplan.Guarded(m, lowerdata.Options{})})
 	if err != nil {
 		t.Fatal(err)
 	}

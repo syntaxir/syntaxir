@@ -203,13 +203,13 @@ func CheckOptimizable(names ...string) error {
 }
 
 // PrintNames returns the names of the steps and passes that select what to print after, in the order
-// they run: elaborate, the Core passes, outline, plan, flowlower, the Flow passes, flow-finish, execlower, the
+// they run: elaborate, the Core passes, dispatch, outline, plan, flowlower, the Flow passes, flow-finish, execlower, the
 // Exec passes and those of the registered targets (golang/pass, typescript/pass), and "all". A pass
 // that runs at several stages, such as canonicalize, is named once, at its first place.
 func PrintNames() []string {
 	out := []string{Elaborate}
 	out = append(out, corepass.Names()...)
-	out = append(out, flowplan.PassOutline, flowplan.PlanName, flowlower.Name)
+	out = append(out, flowplan.PassDispatch, flowplan.PassOutline, flowplan.PlanName, flowlower.Name)
 	out = append(out, flowpass.Names()...)
 	out = append(out, flowpass.FinishName, execlower.Name)
 	out = append(out, codepass.Names()...)

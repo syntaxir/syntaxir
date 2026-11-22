@@ -19,7 +19,8 @@ import (
 // FlowTable builds the Node table of the program p at the Flow stage for the Flow route of the bytecode
 // VM, the way a generated Go parser that counts logical compute units builds its Node table, so that
 // the VM runs the same functions: the same Core IR and lowering options (plandata.TableConfig with
-// values and logical units), lowered for Document parses, which resume runs; the same plan with its decisions
+// values and logical units), lowered for Document parses, which resume runs, with the guards that the
+// pass dispatch keeps for them (flowplan.Dispatching); the same plan with its decisions
 // (flowplan.Plan, flowplan.Unit), with every rule and the stream body of each rule that has a #stream
 // repetition (flowplan.Stream), since any such rule may start a stream parse; and the parts of the
 // pipeline of a table that every backend runs, the Core part and, on the planned table, flowlower and
@@ -42,6 +43,11 @@ func FlowTable(ctx context.Context, p *frontend.Result) (*plandata.Table[code.Fl
 	}
 	ir := flowplan.TableOf(m, cfg)
 	ir.Opts.Document, ir.Opts.Resume = true, true // one module serves Document parses, which resume runs
+	cores, err := pipe.Execute(ctx, &pipe.Run{}, pipe.Of(flowplan.Dispatching), &plandata.Cores{Units: []plandata.Unit{{IR: ir}}})
+	if err != nil {
+		return nil, fmt.Errorf("internal error: %w", err)
+	}
+	ir = cores.Units[0].IR
 	rules := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
 	planned := planRules(rules)
 	plan := flowplan.Plan(ir, planned, nil)

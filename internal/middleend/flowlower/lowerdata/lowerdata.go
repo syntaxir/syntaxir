@@ -82,7 +82,8 @@ type Options struct {
 	// Logical emits the step of each loop iteration without Budget, as the check of a counter of
 	// logical compute units (design record 076); nothing else charges.
 	Logical bool
-	// Guards selects what the guards of choices do under Logical.
+	// Guards selects what the guards of choices do under Logical, which the pass dispatch reads to
+	// choose the guards that the lowering keeps (Guarded).
 	Guards LogicalGuards
 	// Recovers reports that the module can append recovered errors (flowlower.Recovers), so backtracking
 	// points save their number.
@@ -111,4 +112,19 @@ type Options struct {
 	// lowers them with flowlower.LowerOutline. A node it holds must be flowlower.Outlinable; the lowering
 	// keeps every node in a function lowered with Observe. Empty, no node is outlined.
 	Outlined map[core.Node]bool
+	// Guarded holds the alternatives of the choices of the module that keep their guard (core.Alt.Guard),
+	// which the pass dispatch chooses (flowplan.Dispatching): the lowering skips such an alternative when
+	// the next character cannot begin it, making what its Guard says. Every other alternative is tried.
+	// Empty, no alternative is guarded.
+	Guarded map[*core.Alt]Guard
+}
+
+// Guard is what the skip of an alternative that keeps its guard makes (Options.Guarded).
+type Guard struct {
+	// Calls are the rules whose calls the skip makes under logical units, in order (flow.skippedCalls):
+	// the calls that evaluating the alternative would make before it fails at its first terminal.
+	Calls []int
+	// Outside reports that only a parse that is not a Document's takes the guard: a Document parse
+	// evaluates the alternative (flow.inDocument).
+	Outside bool
 }

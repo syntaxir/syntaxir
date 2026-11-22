@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/pass"
 )
 
@@ -144,6 +145,7 @@ func (e *testEnv) options(t *testing.T) RunOptions {
 func lower(t *testing.T, opts lowerdata.Options, env *testEnv) lowered {
 	t.Helper()
 	m, r := forms(t)
+	opts.Guarded = flowplan.Guarded(m, opts)
 	f, err := flowlower.Lower(m, r, "r", opts)
 	if err != nil {
 		t.Fatal(err)

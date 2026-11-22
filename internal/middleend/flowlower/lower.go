@@ -808,43 +808,11 @@ func leadingClass(n core.Node) *core.ClassNode {
 }
 
 // guard reports whether the alternative a keeps its guard, the rules whose calls its skip makes under
-// logical units (lowerdata.Options.Guards), and whether only a parse that is not a Document's takes
-// the guard (outside).
-//
-// In a lowering for Documents (lowerdata.Options.Document) a Document parse does not take a guard
-// whose skip passes over a call of a rule that it memoizes (docMemoized), with or without logical
-// units: the guard is kept for the other parses that run the same functions, which skip as the
-// lowering without Documents does, and a Document parse evaluates the alternative (flow.inDocument).
+// logical units, and whether only a parse that is not a Document's takes the guard (outside), as the
+// pass dispatch chose them (lowerdata.Options.Guarded).
 func (l *lowerer) guard(a *core.Alt) (keep bool, calls []int, outside bool) {
-	if a.Guard == nil || l.opts.Logical && l.opts.Guards == lowerdata.GuardsKeep {
-		return a.Guard != nil, nil, false
-	}
-	if !l.opts.Logical && !l.opts.Document {
-		return true, nil, false
-	}
-	calls, ok := core.GuardCalls(l.m, a.Body)
-	if !ok || len(calls) > 0 && l.opts.Logical && l.opts.Guards == lowerdata.GuardsEvent {
-		return false, nil, false
-	}
-	outside = l.opts.Document && docMemoized(l.m, calls)
-	if !l.opts.Logical {
-		calls = nil
-	}
-	return true, calls, outside
-}
-
-// docMemoized reports whether a Document parse memoizes one of the rules: every rule that an
-// ordinary parse memoizes, and the transient rules that only Documents memoize. A skip cannot make
-// the effects of such a call in a Document, where the memo records how far each entry examined the
-// input and what later parses reuse (spec/runtime/documents.md#reuse), so a Document parse evaluates
-// the alternative, as the engine refuses the skip there.
-func docMemoized(m *core.Module, calls []int) bool {
-	for _, k := range calls {
-		if m.Rules[k].Policy.Memo {
-			return true
-		}
-	}
-	return false
+	g, keep := l.opts.Guarded[a]
+	return keep, g.Calls, g.Outside
 }
 
 func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code.Expr {

@@ -44,9 +44,9 @@ func TestGenOptimize(t *testing.T) {
 		want string
 	}{
 		{[]string{"-optimize", "nosuch"}, `-optimize: unknown optimization profile "nosuch" (valid: speed, memory, size)`},
-		{[]string{"-no-opt", "nosuch"}, `-no-opt: unknown optimization "nosuch" (valid: guards, outline, scans, field-compare,`},
+		{[]string{"-no-opt", "nosuch"}, `-no-opt: unknown optimization "nosuch" (valid: dispatch, guards, outline, scans, field-compare,`},
 		{[]string{"-no-opt", "guards,nosuch"}, `unknown optimization "nosuch"`},
-		{[]string{"-print-after", "nosuch"}, `-print-after: unknown pass or step "nosuch" to print after (valid: elaborate, guards, scans, outline, plan, flowlower, terminals,`},
+		{[]string{"-print-after", "nosuch"}, `-print-after: unknown pass or step "nosuch" to print after (valid: elaborate, guards, scans, dispatch, outline, plan, flowlower, terminals,`},
 	} {
 		_, err := runGenGo(t, append([]string{"-g", g}, c.args...)...)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
@@ -178,7 +178,7 @@ func TestGenOpt(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"-opt", "nosuch"}, `-opt: unknown optimization "nosuch" (valid: guards, outline, scans, field-compare,`},
+		{[]string{"-opt", "nosuch"}, `-opt: unknown optimization "nosuch" (valid: dispatch, guards, outline, scans, field-compare,`},
 		{[]string{"-opt", "guards,nosuch=2"}, `-opt: unknown optimization "nosuch"`},
 		{[]string{"-opt", "class-tables=x"}, `-opt:`},
 		{[]string{"-opt", "guards=2"}, `-opt: optimization guards does not take the value 2`},

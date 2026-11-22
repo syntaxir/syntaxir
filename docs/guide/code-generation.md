@@ -324,6 +324,7 @@ table changes output yet:
 
 | Name | Kind | Default | What it does and what it costs |
 | --- | --- | --- | --- |
+| `dispatch` | pass | on | Keep the guards of the alternatives whose skip leaves what their evaluation would. Off, the parser tries every alternative, as with `-no-opt guards` |
 | `guards` | pass | on | Skip an alternative when the next character cannot start it. One read of the next character per choice against the attempts of alternatives that cannot match, and a little more code per choice |
 | `outline` | pass | on | Large and repeated parts of a rule run as functions of their own (TypeScript). Smaller functions that the JavaScript engine compiles faster, and equal parts share one function, against a call per outlined part |
 | `scans` | pass | on | A value-free repetition of a class or of any character runs as a scan. A loop against the general repetition |
@@ -384,6 +385,9 @@ each Core pass prints it under its own name. `-print-after plan` shows the plan 
 (`call=slot` through the rule table, `call=wrapper` through the rule's own function) and the ways the entry points reach
 it (`reach=slot`, `reach=wrapper`, both, or `reach=none` for a rule whose body the parser leaves out). The plan is
 written only when `plan` is named, since `all` selects the forms of the intermediate representation. In a TypeScript
+`-print-after dispatch` shows, under `-- after dispatch [program] --`, each table and, by alternative path, the
+alternatives that keep their guard, with the rules whose calls the skip makes (`calls=`) and `outside` where a Document
+parse evaluates the alternative instead. In a TypeScript
 parser, `-print-after outline` shows, under `-- after outline [program] --`, each table and, by rule, the nodes that run
 as functions of their own: the path of each, the indices of the children from the body of the rule, and the first line
 of its Core IR. `-print-after flowlower` shows the next form: the module of each table that
