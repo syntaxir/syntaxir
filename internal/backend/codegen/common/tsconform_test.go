@@ -119,18 +119,15 @@ func tsExecSuites(controlled, sparse bool) []conform.Suite {
 // (listed with a reproduction in the #305 hand-off); when the library holds the model's charges there,
 // the entry goes.
 var tsChargeDivergences = map[string]string{
+	// JavaScript cannot tell whether two equal strings are the same memory, which the model's charge
+	// for the comparison depends on, so the library cannot hold it; the entry goes when the cost of a
+	// string comparison no longer depends on memory.
 	"env.bind": "[env.bind string compare] comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
 }
 
 // tsInputChargeDivergences are those of a parse of an input of some length, where the memo has one
 // slot for each position.
 var tsInputChargeDivergences = map[string]string{}
-
-// tsRuleChargeDivergences are those of the rules: rule.invoke with captures charges more than its cost
-// states.
-var tsRuleChargeDivergences = map[string]string{
-	"rule.invoke": "[rule.invoke capture charges] the frame, the search for the captures that were set and the walk of the names each charge one unit for every capture the rule declares, where the cost states one unit for each capture and each field set",
-}
 
 // tsReport fails the test for each failure of res that is not a known difference of charges.
 func tsReport(t *testing.T, res tsConformResult, ops []string, known map[string]string) {

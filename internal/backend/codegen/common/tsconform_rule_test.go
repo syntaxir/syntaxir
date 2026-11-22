@@ -44,11 +44,7 @@ func TestTypeScriptConformanceRule(t *testing.T) {
 			if res.ran < seeds {
 				t.Fatalf("only %d cases ran", res.ran)
 			}
-			known := map[string]string{}
-			if controlled {
-				known = tsRuleChargeDivergences
-			}
-			tsReport(t, res, s.Ops, known)
+			tsReport(t, res, s.Ops, nil)
 		})
 	}
 }
