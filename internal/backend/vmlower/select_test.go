@@ -69,6 +69,7 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 		"matchLitJump": bytecode.FlowMatchLitJump, "callJump": bytecode.FlowCallJump,
 		"scanReachAt": bytecode.FlowScanReachAt, "scanEndAt": bytecode.FlowScanEndAt,
 		"returnOk": bytecode.FlowReturnOk, "returnFail": bytecode.FlowReturnFail,
+		"scanClass": bytecode.FlowScanClass,
 	} {
 		if matches[pattern] == 0 || !ops[op] {
 			t.Errorf("pattern %s matched %d times and %v is in no body", pattern, matches[pattern], op)
@@ -81,6 +82,12 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 	for _, op := range []string{flowpkg.OpScanReach, flowpkg.OpScanEnd} {
 		if matches[op] != 0 {
 			t.Errorf("%d walks of scan sites select %s apart from the test of their span", matches[op], op)
+		}
+	}
+	// One pattern selects the three forms of a value-free repetition of a class.
+	for _, op := range []bytecode.FlowOp{bytecode.FlowScanClass, bytecode.FlowScanClassCount, bytecode.FlowScanClassAt} {
+		if !ops[op] {
+			t.Errorf("%v is in no body", op)
 		}
 	}
 	if !ops[bytecode.FlowJumpTrue] {

@@ -293,6 +293,13 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.v, fr.ok = nil, false
 			fr.pc = len(f.Code)
 			return false
+		case bytecode.FlowScanClass:
+			vm.scanClass(p, fr, in, in.Imm.(bytecode.FlowClassTestOf), 0, -1, 0)
+		case bytecode.FlowScanClassCount:
+			vm.scanClass(p, fr, in, in.Imm.(bytecode.FlowClassTestOf), regs[in.Args[0]].(int), -1, 0)
+		case bytecode.FlowScanClassAt:
+			x := in.Imm.(bytecode.FlowScanClassOf)
+			vm.scanClass(p, fr, in, x.Test, regs[in.Args[1]].(int), regs[in.Args[0]].(int), x.Site)
 		case bytecode.FlowMark:
 			fr.set(in.Dst[0], p.Mark())
 		case bytecode.FlowReset:
@@ -598,6 +605,33 @@ func expID(x bytecode.FlowExpectOf) state.ExpID {
 
 // expect records the expectation x at the position (flow.expect).
 func expect(p *state.Parser, x bytecode.FlowExpectOf) { p.Expect(p.Pos, expID(x)) }
+
+// scanClass runs the repetition of the class test x of a SCANCLASS, SCANCLASSCOUNT or SCANCLASSAT
+// in: each character is tested as FlowMatchClass tests it, and one in the class is passed as
+// FlowAdvance passes it and counted from n; a walk of the scan site site,
+// begun at start, reaches as FlowScanReachAt does when the count is the scan hot span. The peek of
+// the test that ends it goes to the first three destinations, the count to the fourth if there is
+// one.
+func (vm *Program) scanClass(p *state.Parser, fr *flowRun, in *bytecode.FlowInstr, x bytecode.FlowClassTestOf, n, start, site int) {
+	for {
+		ch, size, ok := p.Peek()
+		if !ok || !vm.has(p, int32(x.Class), ch) {
+			expect(p, x.Expect)
+			fr.set(in.Dst[0], ch)
+			fr.set(in.Dst[1], size)
+			fr.set(in.Dst[2], ok)
+			if len(in.Dst) > 3 {
+				fr.set(in.Dst[3], n)
+			}
+			return
+		}
+		p.Advance(size)
+		n++
+		if site > 0 && n == p.Tuning().ScanHotSpan() {
+			n = p.ScanReach(site, start, n)
+		}
+	}
+}
 
 // guardFails reports whether the guard g of a class fails for the character ch, read if ok
 // (flow.guardFails): the character is not in the class and the alternative would not nest too deep.

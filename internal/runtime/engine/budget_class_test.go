@@ -248,10 +248,10 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 		{"guard-miss-fallback", &ast.Choice{Alts: []ast.Expr{class, &ast.Literal{Value: gap}}}, gap, bytecode.FlowGuardJump, false},
 		// A repetition in a rule that calls no rule is a scan site; with the call of e it is a plain
 		// repetition of the class.
-		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.FlowMatchClass, true},
-		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.FlowMatchClass, true},
-		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.FlowScanReachAt, true},
-		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.FlowScanReachAt, true},
+		{"scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}), late, bytecode.FlowScanClassCount, true},
+		{"negated-scan", calling(&ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}), gap, bytecode.FlowScanClassCount, true},
+		{"scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: class, Min: 1, Max: -1}}, late, bytecode.FlowScanClassAt, true},
+		{"negated-scan-site", &ast.Atomic{Expr: &ast.Repeat{Expr: &ast.CharClass{Ranges: ranges, Negated: true}, Min: 1, Max: -1}}, gap, bytecode.FlowScanClassAt, true},
 	}
 	if strconv.IntSize == 64 {
 		// Construct a source-sized bound without a constant-to-int overflow on 32bit.

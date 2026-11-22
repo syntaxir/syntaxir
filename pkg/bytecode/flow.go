@@ -313,6 +313,21 @@ const (
 	// FlowReturnFail returns failure with the null value, as FlowReturn does with the null value and
 	// false.
 	FlowReturnFail
+	// FlowScanClass runs a repetition of one character of a class that keeps no value: it tests the
+	// character at the position as FlowMatchClass does with the immediate FlowClassTestOf, into
+	// Dst[0], Dst[1] and Dst[2], and, if it is in the class, moves past it as FlowAdvance does and
+	// repeats; the first character not in the class ends it, after its expectation is recorded. It is
+	// the loop that steps (FlowStep) before each test: every pass but the last moves past a character,
+	// so the step's check always holds and the repetition ends at the end of the input at the latest.
+	FlowScanClass
+	// FlowScanClassCount is FlowScanClass that also counts the characters: Dst[3] is the int Args[0]
+	// plus one for each character it moved past.
+	FlowScanClassCount
+	// FlowScanClassAt is FlowScanClassCount for a walk of a scan site that began at the int Args[0],
+	// with the count in Args[1] and Dst[3]: after each character, when the count is the scan hot span
+	// of the parse, the count becomes that of flow.scanReach of the scan site of the immediate
+	// FlowScanClassOf, as FlowScanReachAt sets it.
+	FlowScanClassAt
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -374,6 +389,8 @@ const (
 	FlowImmRule
 	// FlowImmResume is a FlowResumeOf.
 	FlowImmResume
+	// FlowImmScanClass is a FlowScanClassOf.
+	FlowImmScanClass
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -389,104 +406,107 @@ type FlowShape struct {
 // registers, target and immediate as its shape says, and loading a module checks each instruction
 // against it.
 var FlowShapes = [...]FlowShape{
-	FlowConst:         {Name: "CONST", Dst: 1, Imm: FlowImmConst},
-	FlowMove:          {Name: "MOVE", Dst: 1, Args: 1},
-	FlowNot:           {Name: "NOT", Dst: 1, Args: 1},
-	FlowPos:           {Name: "POS", Dst: 1},
-	FlowSetPos:        {Name: "SETPOS", Args: 1},
-	FlowJump:          {Name: "JUMP", Target: true},
-	FlowJumpFalse:     {Name: "JUMPFALSE", Args: 1, Target: true},
-	FlowReturn:        {Name: "RETURN", Args: 2},
-	FlowMark:          {Name: "MARK", Dst: 1},
-	FlowReset:         {Name: "RESET", Args: 1},
-	FlowPeek:          {Name: "PEEK", Dst: 3},
-	FlowGuard:         {Name: "GUARD", Dst: 1, Args: 2, Imm: FlowImmGuard},
-	FlowExpect:        {Name: "EXPECT", Args: 1, Imm: FlowImmExpect},
-	FlowUnfresh:       {Name: "UNFRESH", Args: 1},
-	FlowCall:          {Name: "CALL", Dst: 2, Imm: FlowImmCall},
-	FlowAdd:           {Name: "ADD", Dst: 1, Args: 2},
-	FlowSub:           {Name: "SUB", Dst: 1, Args: 2},
-	FlowEq:            {Name: "EQ", Dst: 1, Args: 2},
-	FlowNe:            {Name: "NE", Dst: 1, Args: 2},
-	FlowLt:            {Name: "LT", Dst: 1, Args: 2},
-	FlowLe:            {Name: "LE", Dst: 1, Args: 2},
-	FlowStep:          {Name: "STEP", Dst: 1, Args: 1},
-	FlowSilent:        {Name: "SILENT", Imm: FlowImmSilence},
-	FlowAdvance:       {Name: "ADVANCE", Args: 1},
-	FlowInClass:       {Name: "INCLASS", Dst: 1, Args: 1, Imm: FlowImmClass},
-	FlowAtAnchor:      {Name: "ATANCHOR", Dst: 1, Imm: FlowImmAnchor},
-	FlowMatchLit:      {Name: "MATCHLIT", Dst: 2, Imm: FlowImmLit},
-	FlowIsolate:       {Name: "ISOLATE", Dst: 1},
-	FlowUnisolate:     {Name: "UNISOLATE", Dst: 2, Args: 1},
-	FlowMergeExpected: {Name: "MERGEEXPECTED", Args: 2},
-	FlowNewTerminal:   {Name: "NEWTERMINAL", Dst: 1, Args: 2},
-	FlowNewSeq:        {Name: "NEWSEQ", Dst: 1, Args: 2},
-	FlowNewList:       {Name: "NEWLIST", Dst: 1, Args: 2},
-	FlowNewVals:       {Name: "NEWVALS", Dst: 1, Imm: FlowImmCount},
-	FlowAppend:        {Name: "APPEND", Dst: 1, Args: 2},
-	FlowSpread:        {Name: "SPREAD", Dst: 1, Args: 2},
-	FlowText:          {Name: "TEXT", Dst: 1, Args: 1},
-	FlowLiteralText:   {Name: "LITERALTEXT", Dst: 1, Args: 1, Imm: FlowImmStr},
-	FlowStr:           {Name: "STR", Dst: 1, Imm: FlowImmStr},
-	FlowKidsLen:       {Name: "KIDSLEN", Dst: 1},
-	FlowKids:          {Name: "KIDS", Dst: 1, Args: 1},
-	FlowDropKids:      {Name: "DROPKIDS", Args: 1},
-	FlowPushKid:       {Name: "PUSHKID", Args: 1},
-	FlowShapeSingle:   {Name: "SHAPESINGLE", Dst: 2, Args: 2, Imm: FlowImmShape},
-	FlowScopeValue:    {Name: "SCOPEVALUE", Dst: 1, Args: 2, Imm: FlowImmShape},
-	FlowSetCapture:    {Name: "SETCAPTURE", Args: 1, Imm: FlowImmSlot},
-	FlowMarkPos:       {Name: "MARKPOS", Dst: 1, Args: 1},
-	FlowFrame:         {Name: "FRAME", Dst: 1},
-	FlowNewFrame:      {Name: "NEWFRAME", Dst: 1, Imm: FlowImmScope},
-	FlowSetFrame:      {Name: "SETFRAME", Args: 1},
-	FlowClearVals:     {Name: "CLEARVALS", Args: 1},
-	FlowFrameVal:      {Name: "FRAMEVAL", Dst: 1, Args: 1, Imm: FlowImmSlot},
-	FlowAttachFrame:   {Name: "ATTACHFRAME", Dst: 1, Args: 3, Imm: FlowImmScope},
-	FlowShapeCapture:  {Name: "SHAPECAPTURE", Dst: 1, Args: 2, Imm: FlowImmShape},
-	FlowRunHot:        {Name: "RUNHOT", Dst: 1, Imm: FlowImmRunSite},
-	FlowRunBegin:      {Name: "RUNBEGIN", Imm: FlowImmRunWalk},
-	FlowRunWalked:     {Name: "RUNWALKED", Args: 1, Imm: FlowImmRunSite},
-	FlowSkipVisit:     {Name: "SKIPVISIT"},
-	FlowSkipHit:       {Name: "SKIPHIT", Dst: 1},
-	FlowSkipValue:     {Name: "SKIPVALUE", Args: 1},
-	FlowSkipEnd:       {Name: "SKIPEND"},
-	FlowSkipKids:      {Name: "SKIPKIDS", Dst: 1},
-	FlowScanReach:     {Name: "SCANREACH", Dst: 1, Args: 2, Imm: FlowImmScanSite},
-	FlowScanEnd:       {Name: "SCANEND", Args: 2, Imm: FlowImmScanSite},
-	FlowScanKids:      {Name: "SCANKIDS", Dst: 1, Args: 3, Imm: FlowImmScanSite},
-	FlowPred:          {Name: "PRED", Dst: 1, Imm: FlowImmAction},
-	FlowBind:          {Name: "BIND", Dst: 1, Imm: FlowImmBind},
-	FlowCut:           {Name: "CUT", Dst: 1},
-	FlowSetCut:        {Name: "SETCUT", Args: 1},
-	FlowKeep:          {Name: "KEEP", Dst: 1, Args: 1},
-	FlowMakeError:     {Name: "MAKEERROR", Dst: 1, Args: 2},
-	FlowAppendError:   {Name: "APPENDERROR", Args: 1},
-	FlowNewErrorNode:  {Name: "NEWERRORNODE", Dst: 1, Args: 2},
-	FlowRecLen:        {Name: "RECLEN", Dst: 1},
-	FlowRestore:       {Name: "RESTORE", Args: 2},
-	FlowGuardLit:      {Name: "GUARDLIT", Dst: 1, Imm: FlowImmLitGuard},
-	FlowJumpTrue:      {Name: "JUMPTRUE", Args: 1, Target: true},
-	FlowMatchClass:    {Name: "MATCHCLASS", Dst: 3, Target: true, Imm: FlowImmClassTest},
-	FlowGuardJump:     {Name: "GUARDJUMP", Args: 2, Target: true, Imm: FlowImmGuardTest},
-	FlowGuardLitJump:  {Name: "GUARDLITJUMP", Target: true, Imm: FlowImmLitGuardTest},
-	FlowAssertJump:    {Name: "ASSERTJUMP", Target: true, Imm: FlowImmAnchorTest},
-	FlowMatchLitJump:  {Name: "MATCHLITJUMP", Dst: 2, Target: true, Imm: FlowImmLit},
-	FlowCallJump:      {Name: "CALLJUMP", Dst: 2, Target: true, Imm: FlowImmCall},
-	FlowStreamOn:      {Name: "STREAMON", Dst: 1, Imm: FlowImmRule},
-	FlowStreamStart:   {Name: "STREAMSTART"},
-	FlowEmitStream:    {Name: "EMITSTREAM", Args: 1},
-	FlowResumeOn:      {Name: "RESUMEON", Dst: 1},
-	FlowResumeStart:   {Name: "RESUMESTART", Dst: 1, Imm: FlowImmResume},
-	FlowResumeMore:    {Name: "RESUMEMORE", Dst: 1, Args: 1},
-	FlowResumeNext:    {Name: "RESUMENEXT", Dst: 2, Args: 1},
-	FlowResumeBegin:   {Name: "RESUMEBEGIN", Args: 1},
-	FlowResumeEnd:     {Name: "RESUMEEND", Args: 3},
-	FlowResumeFinish:  {Name: "RESUMEFINISH", Args: 1},
-	FlowMergeRenamed:  {Name: "MERGERENAMED", Args: 2, Imm: FlowImmExpect},
-	FlowScanReachAt:   {Name: "SCANREACHAT", Dst: 1, Args: 2, Imm: FlowImmScanSite},
-	FlowScanEndAt:     {Name: "SCANENDAT", Args: 2, Imm: FlowImmScanSite},
-	FlowReturnOk:      {Name: "RETURNOK", Args: 1},
-	FlowReturnFail:    {Name: "RETURNFAIL"},
+	FlowConst:          {Name: "CONST", Dst: 1, Imm: FlowImmConst},
+	FlowMove:           {Name: "MOVE", Dst: 1, Args: 1},
+	FlowNot:            {Name: "NOT", Dst: 1, Args: 1},
+	FlowPos:            {Name: "POS", Dst: 1},
+	FlowSetPos:         {Name: "SETPOS", Args: 1},
+	FlowJump:           {Name: "JUMP", Target: true},
+	FlowJumpFalse:      {Name: "JUMPFALSE", Args: 1, Target: true},
+	FlowReturn:         {Name: "RETURN", Args: 2},
+	FlowMark:           {Name: "MARK", Dst: 1},
+	FlowReset:          {Name: "RESET", Args: 1},
+	FlowPeek:           {Name: "PEEK", Dst: 3},
+	FlowGuard:          {Name: "GUARD", Dst: 1, Args: 2, Imm: FlowImmGuard},
+	FlowExpect:         {Name: "EXPECT", Args: 1, Imm: FlowImmExpect},
+	FlowUnfresh:        {Name: "UNFRESH", Args: 1},
+	FlowCall:           {Name: "CALL", Dst: 2, Imm: FlowImmCall},
+	FlowAdd:            {Name: "ADD", Dst: 1, Args: 2},
+	FlowSub:            {Name: "SUB", Dst: 1, Args: 2},
+	FlowEq:             {Name: "EQ", Dst: 1, Args: 2},
+	FlowNe:             {Name: "NE", Dst: 1, Args: 2},
+	FlowLt:             {Name: "LT", Dst: 1, Args: 2},
+	FlowLe:             {Name: "LE", Dst: 1, Args: 2},
+	FlowStep:           {Name: "STEP", Dst: 1, Args: 1},
+	FlowSilent:         {Name: "SILENT", Imm: FlowImmSilence},
+	FlowAdvance:        {Name: "ADVANCE", Args: 1},
+	FlowInClass:        {Name: "INCLASS", Dst: 1, Args: 1, Imm: FlowImmClass},
+	FlowAtAnchor:       {Name: "ATANCHOR", Dst: 1, Imm: FlowImmAnchor},
+	FlowMatchLit:       {Name: "MATCHLIT", Dst: 2, Imm: FlowImmLit},
+	FlowIsolate:        {Name: "ISOLATE", Dst: 1},
+	FlowUnisolate:      {Name: "UNISOLATE", Dst: 2, Args: 1},
+	FlowMergeExpected:  {Name: "MERGEEXPECTED", Args: 2},
+	FlowNewTerminal:    {Name: "NEWTERMINAL", Dst: 1, Args: 2},
+	FlowNewSeq:         {Name: "NEWSEQ", Dst: 1, Args: 2},
+	FlowNewList:        {Name: "NEWLIST", Dst: 1, Args: 2},
+	FlowNewVals:        {Name: "NEWVALS", Dst: 1, Imm: FlowImmCount},
+	FlowAppend:         {Name: "APPEND", Dst: 1, Args: 2},
+	FlowSpread:         {Name: "SPREAD", Dst: 1, Args: 2},
+	FlowText:           {Name: "TEXT", Dst: 1, Args: 1},
+	FlowLiteralText:    {Name: "LITERALTEXT", Dst: 1, Args: 1, Imm: FlowImmStr},
+	FlowStr:            {Name: "STR", Dst: 1, Imm: FlowImmStr},
+	FlowKidsLen:        {Name: "KIDSLEN", Dst: 1},
+	FlowKids:           {Name: "KIDS", Dst: 1, Args: 1},
+	FlowDropKids:       {Name: "DROPKIDS", Args: 1},
+	FlowPushKid:        {Name: "PUSHKID", Args: 1},
+	FlowShapeSingle:    {Name: "SHAPESINGLE", Dst: 2, Args: 2, Imm: FlowImmShape},
+	FlowScopeValue:     {Name: "SCOPEVALUE", Dst: 1, Args: 2, Imm: FlowImmShape},
+	FlowSetCapture:     {Name: "SETCAPTURE", Args: 1, Imm: FlowImmSlot},
+	FlowMarkPos:        {Name: "MARKPOS", Dst: 1, Args: 1},
+	FlowFrame:          {Name: "FRAME", Dst: 1},
+	FlowNewFrame:       {Name: "NEWFRAME", Dst: 1, Imm: FlowImmScope},
+	FlowSetFrame:       {Name: "SETFRAME", Args: 1},
+	FlowClearVals:      {Name: "CLEARVALS", Args: 1},
+	FlowFrameVal:       {Name: "FRAMEVAL", Dst: 1, Args: 1, Imm: FlowImmSlot},
+	FlowAttachFrame:    {Name: "ATTACHFRAME", Dst: 1, Args: 3, Imm: FlowImmScope},
+	FlowShapeCapture:   {Name: "SHAPECAPTURE", Dst: 1, Args: 2, Imm: FlowImmShape},
+	FlowRunHot:         {Name: "RUNHOT", Dst: 1, Imm: FlowImmRunSite},
+	FlowRunBegin:       {Name: "RUNBEGIN", Imm: FlowImmRunWalk},
+	FlowRunWalked:      {Name: "RUNWALKED", Args: 1, Imm: FlowImmRunSite},
+	FlowSkipVisit:      {Name: "SKIPVISIT"},
+	FlowSkipHit:        {Name: "SKIPHIT", Dst: 1},
+	FlowSkipValue:      {Name: "SKIPVALUE", Args: 1},
+	FlowSkipEnd:        {Name: "SKIPEND"},
+	FlowSkipKids:       {Name: "SKIPKIDS", Dst: 1},
+	FlowScanReach:      {Name: "SCANREACH", Dst: 1, Args: 2, Imm: FlowImmScanSite},
+	FlowScanEnd:        {Name: "SCANEND", Args: 2, Imm: FlowImmScanSite},
+	FlowScanKids:       {Name: "SCANKIDS", Dst: 1, Args: 3, Imm: FlowImmScanSite},
+	FlowPred:           {Name: "PRED", Dst: 1, Imm: FlowImmAction},
+	FlowBind:           {Name: "BIND", Dst: 1, Imm: FlowImmBind},
+	FlowCut:            {Name: "CUT", Dst: 1},
+	FlowSetCut:         {Name: "SETCUT", Args: 1},
+	FlowKeep:           {Name: "KEEP", Dst: 1, Args: 1},
+	FlowMakeError:      {Name: "MAKEERROR", Dst: 1, Args: 2},
+	FlowAppendError:    {Name: "APPENDERROR", Args: 1},
+	FlowNewErrorNode:   {Name: "NEWERRORNODE", Dst: 1, Args: 2},
+	FlowRecLen:         {Name: "RECLEN", Dst: 1},
+	FlowRestore:        {Name: "RESTORE", Args: 2},
+	FlowGuardLit:       {Name: "GUARDLIT", Dst: 1, Imm: FlowImmLitGuard},
+	FlowJumpTrue:       {Name: "JUMPTRUE", Args: 1, Target: true},
+	FlowMatchClass:     {Name: "MATCHCLASS", Dst: 3, Target: true, Imm: FlowImmClassTest},
+	FlowGuardJump:      {Name: "GUARDJUMP", Args: 2, Target: true, Imm: FlowImmGuardTest},
+	FlowGuardLitJump:   {Name: "GUARDLITJUMP", Target: true, Imm: FlowImmLitGuardTest},
+	FlowAssertJump:     {Name: "ASSERTJUMP", Target: true, Imm: FlowImmAnchorTest},
+	FlowMatchLitJump:   {Name: "MATCHLITJUMP", Dst: 2, Target: true, Imm: FlowImmLit},
+	FlowCallJump:       {Name: "CALLJUMP", Dst: 2, Target: true, Imm: FlowImmCall},
+	FlowStreamOn:       {Name: "STREAMON", Dst: 1, Imm: FlowImmRule},
+	FlowStreamStart:    {Name: "STREAMSTART"},
+	FlowEmitStream:     {Name: "EMITSTREAM", Args: 1},
+	FlowResumeOn:       {Name: "RESUMEON", Dst: 1},
+	FlowResumeStart:    {Name: "RESUMESTART", Dst: 1, Imm: FlowImmResume},
+	FlowResumeMore:     {Name: "RESUMEMORE", Dst: 1, Args: 1},
+	FlowResumeNext:     {Name: "RESUMENEXT", Dst: 2, Args: 1},
+	FlowResumeBegin:    {Name: "RESUMEBEGIN", Args: 1},
+	FlowResumeEnd:      {Name: "RESUMEEND", Args: 3},
+	FlowResumeFinish:   {Name: "RESUMEFINISH", Args: 1},
+	FlowMergeRenamed:   {Name: "MERGERENAMED", Args: 2, Imm: FlowImmExpect},
+	FlowScanReachAt:    {Name: "SCANREACHAT", Dst: 1, Args: 2, Imm: FlowImmScanSite},
+	FlowScanEndAt:      {Name: "SCANENDAT", Args: 2, Imm: FlowImmScanSite},
+	FlowReturnOk:       {Name: "RETURNOK", Args: 1},
+	FlowReturnFail:     {Name: "RETURNFAIL"},
+	FlowScanClass:      {Name: "SCANCLASS", Dst: 3, Imm: FlowImmClassTest},
+	FlowScanClassCount: {Name: "SCANCLASSCOUNT", Dst: 4, Args: 1, Imm: FlowImmClassTest},
+	FlowScanClassAt:    {Name: "SCANCLASSAT", Dst: 4, Args: 2, Imm: FlowImmScanClass},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.
@@ -604,6 +624,13 @@ type FlowBindOf struct {
 type FlowClassTestOf struct {
 	Class  int
 	Expect FlowExpectOf
+}
+
+// FlowScanClassOf is the immediate of FlowScanClassAt: the test of each character, as FlowMatchClass
+// takes it, and the scan site of the walk.
+type FlowScanClassOf struct {
+	Test FlowClassTestOf
+	Site int
 }
 
 // FlowGuardTestOf is the immediate of FlowGuardJump: the guard and the expectation recorded when it

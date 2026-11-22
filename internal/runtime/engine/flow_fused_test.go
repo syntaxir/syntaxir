@@ -9,10 +9,17 @@ import (
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-// composed returns the instructions that the fused instruction in stands for, with fresh returning
-// a register of the frame that no other instruction uses, or nil if in is no fused instruction that
-// the test composes.
-func composed(in bytecode.FlowInstr, fresh func() int) []bytecode.FlowInstr {
+// composed returns the instructions that the fused instruction in stands for, placed at index at of
+// the composed body, with fresh returning a register of the frame that no other instruction uses, or
+// nil if in is no fused instruction that the test composes. The targets of the instructions are
+// indices of the composed body; one past the last continues after them.
+func composed(in bytecode.FlowInstr, at int, fresh func() int) []bytecode.FlowInstr {
+	reg := func(r int) int {
+		if r < 0 {
+			return fresh()
+		}
+		return r
+	}
 	switch in.Op {
 	case bytecode.FlowReturnOk:
 		yes := fresh()
@@ -27,6 +34,44 @@ func composed(in bytecode.FlowInstr, fresh func() int) []bytecode.FlowInstr {
 			{Op: bytecode.FlowConst, Dst: []int{no}, Imm: false},
 			{Op: bytecode.FlowReturn, Args: []int{nothing, no}},
 		}
+	case bytecode.FlowScanClass, bytecode.FlowScanClassCount, bytecode.FlowScanClassAt:
+		// The loop: CONST -1 into the step's register before it; then STEP; MATCHCLASS, leaving it;
+		// ADVANCE; for a count, CONST 1 and ADD, then for a walk SCANREACHAT; and JUMP back to the STEP.
+		test, site := bytecode.FlowClassTestOf{}, 0
+		if x, ok := in.Imm.(bytecode.FlowScanClassOf); ok {
+			test, site = x.Test, x.Site
+		} else {
+			test = in.Imm.(bytecode.FlowClassTestOf)
+		}
+		ch, size, ok := reg(in.Dst[0]), reg(in.Dst[1]), reg(in.Dst[2])
+		var seq []bytecode.FlowInstr
+		n := -1
+		if in.Op != bytecode.FlowScanClass {
+			n = reg(in.Dst[3])
+			if from := in.Args[len(in.Args)-1]; from != n {
+				seq = append(seq, bytecode.FlowInstr{Op: bytecode.FlowMove, Dst: []int{n}, Args: []int{from}})
+			}
+		}
+		last := fresh()
+		seq = append(seq, bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{last}, Imm: -1})
+		loop := at + len(seq)
+		seq = append(seq,
+			bytecode.FlowInstr{Op: bytecode.FlowStep, Dst: []int{last}, Args: []int{last}},
+			bytecode.FlowInstr{Op: bytecode.FlowMatchClass, Dst: []int{ch, size, ok}, Imm: test},
+			bytecode.FlowInstr{Op: bytecode.FlowAdvance, Args: []int{size}})
+		exit := len(seq) - 2
+		if n >= 0 {
+			one := fresh()
+			seq = append(seq,
+				bytecode.FlowInstr{Op: bytecode.FlowConst, Dst: []int{one}, Imm: 1},
+				bytecode.FlowInstr{Op: bytecode.FlowAdd, Dst: []int{n}, Args: []int{n, one}})
+		}
+		if site > 0 {
+			seq = append(seq, bytecode.FlowInstr{Op: bytecode.FlowScanReachAt, Dst: []int{n}, Args: []int{in.Args[0], n}, Imm: site})
+		}
+		seq = append(seq, bytecode.FlowInstr{Op: bytecode.FlowJump, Target: loop})
+		seq[exit].Target = at + len(seq)
+		return seq
 	}
 	return nil
 }
@@ -37,16 +82,18 @@ func compose(f *bytecode.Flow, ops map[bytecode.FlowOp]int) {
 	fresh := func() int { f.Regs++; return f.Regs - 1 }
 	at := make([]int, len(f.Code)) // the index of the first instruction that stands for each
 	var out []bytecode.FlowInstr
+	var kept []int // the indices in out of the instructions of f kept as they are
 	for i, in := range f.Code {
 		at[i] = len(out)
-		if seq := composed(in, fresh); seq != nil {
+		if seq := composed(in, len(out), fresh); seq != nil {
 			ops[in.Op]++
 			out = append(out, seq...)
 			continue
 		}
+		kept = append(kept, len(out))
 		out = append(out, in)
 	}
-	for i := range out {
+	for _, i := range kept {
 		if sh, _ := out[i].Op.Shape(); sh.Target {
 			out[i].Target = at[out[i].Target]
 		}
@@ -91,7 +138,10 @@ func TestFusedFlowInstructionsChargeAsComposed(t *testing.T) {
 			}
 		}
 	}
-	for _, op := range []bytecode.FlowOp{bytecode.FlowReturnOk, bytecode.FlowReturnFail} {
+	for _, op := range []bytecode.FlowOp{
+		bytecode.FlowReturnOk, bytecode.FlowReturnFail,
+		bytecode.FlowScanClass, bytecode.FlowScanClassCount, bytecode.FlowScanClassAt,
+	} {
 		if ops[op] == 0 {
 			t.Errorf("no body has %v", op)
 		}

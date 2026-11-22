@@ -235,6 +235,71 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 		corruptSeeds(t, seeds, rand.New(rand.NewSource(source)))
 	}
 	corruptActionJumps(t)
+	corruptScans(t, srcs)
+}
+
+// corruptScans checks that a module does not load when a repetition of a class in one instruction
+// (SCANCLASS, SCANCLASSCOUNT or SCANCLASSAT) of a Flow body of the grammars srcs is corrupted: made a
+// JUMP to itself, a cycle that no step bounds and that moves past no character, or given a class, a
+// count register or a scan site out of range. The instruction moves past a character on every pass
+// but the last, so it ends by itself; what the loader must keep out is what is no longer such an
+// instruction. Each operation must occur; the modules as compiled load.
+func corruptScans(t *testing.T, srcs []string) {
+	t.Helper()
+	seen := map[bytecode.FlowOp]bool{}
+	for _, src := range srcs {
+		_, prog, _ := flowProgramsOf(t, src, func(string) bool { return true }, nil)
+		load := func() error {
+			_, _, err := LoadProgram(marshalWithTrailing(prog, "main", nil))
+			return err
+		}
+		if err := load(); err != nil {
+			t.Fatal(err)
+		}
+		m := prog.Module()
+		for _, f := range m.Flows {
+			for pc := range f.Code {
+				in := f.Code[pc]
+				if in.Op != bytecode.FlowScanClass && in.Op != bytecode.FlowScanClassCount && in.Op != bytecode.FlowScanClassAt {
+					continue
+				}
+				seen[in.Op] = true
+				reject := func(what, want string, bad bytecode.FlowInstr) {
+					f.Code[pc] = bad
+					err := load()
+					f.Code[pc] = in
+					if err == nil || !strings.Contains(err.Error(), want) {
+						t.Fatalf("%v at %d %s: got %v, want an error with %q", in.Op, pc, what, err, want)
+					}
+				}
+				reject("made a JUMP to itself", "no step bounds", bytecode.FlowInstr{Op: bytecode.FlowJump, Target: pc})
+				bad := in
+				bad.Dst = append([]int(nil), in.Dst...)
+				bad.Dst[len(bad.Dst)-1] = f.Regs
+				reject("given a register past the frame", "register", bad)
+				bad = in
+				if x, ok := in.Imm.(bytecode.FlowScanClassOf); ok {
+					x.Test.Class = len(m.Classes)
+					bad.Imm = x
+					reject("given a class out of range", "out of range", bad)
+					x = in.Imm.(bytecode.FlowScanClassOf)
+					x.Site = 0
+					bad.Imm = x
+					reject("given scan site 0", "invalid scan site", bad)
+				} else {
+					x := in.Imm.(bytecode.FlowClassTestOf)
+					x.Class = len(m.Classes)
+					bad.Imm = x
+					reject("given a class out of range", "out of range", bad)
+				}
+			}
+		}
+	}
+	for _, op := range []bytecode.FlowOp{bytecode.FlowScanClass, bytecode.FlowScanClassCount, bytecode.FlowScanClassAt} {
+		if !seen[op] {
+			t.Errorf("no Flow body of the grammars has %v", op)
+		}
+	}
 }
 
 // corruptActionJumps checks that a module does not load when an instruction of its action code is

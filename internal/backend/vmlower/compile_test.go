@@ -27,33 +27,27 @@ main.action:
   action 0 `
 	main := `flow main regs=13:
      0  POS        r1 =
-     1  CALLJUMP   r3,r2 = -> 27 key level=0
+     1  CALLJUMP   r3,r2 = -> 21 key level=0
      2  SETCAPTURE r3 slot=0
-     3  MATCHLITJUMP _,r2 = -> 27 "=" "\"=\""
+     3  MATCHLITJUMP _,r2 = -> 21 "=" "\"=\""
      4  POS        r4 =
      5  POS        r5 =
      6  CONST      r8 = 0
-     7  CONST      r0 = -1
-     8  STEP       r0 = r0
-     9  MATCHCLASS r6,r7,r2 = -> 14 "[0-9]" "[0-9]"
-    10  ADVANCE    r7
-    11  CONST      r11 = 1
-    12  ADD        r8 = r8 r11
-    13  JUMP       -> 8
-    14  CONST      r11 = 1
-    15  LT         r12 = r8 r11
-    16  JUMPTRUE   r12 -> 27
-    17  TEXT       r11 = r5
-    18  NEWTERMINAL r9 = r5 r11
-    19  SETCAPTURE r9 slot=1
-    20  MARK       r10 =
-    21  GUARDLITJUMP -> 25 ';' depth=0 "\";\""
-    22  MATCHLITJUMP _,r2 = -> 24 ";" "\";\""
-    23  JUMP       -> 25
-    24  RESET      r10
-    25  CONST      r11 = nil
-    26  RETURNOK   r11
-    27  RETURNFAIL 
+     7  SCANCLASSCOUNT r6,r7,r2,r8 = r8 "[0-9]" "[0-9]"
+     8  CONST      r11 = 1
+     9  LT         r12 = r8 r11
+    10  JUMPTRUE   r12 -> 21
+    11  TEXT       r11 = r5
+    12  NEWTERMINAL r9 = r5 r11
+    13  SETCAPTURE r9 slot=1
+    14  MARK       r10 =
+    15  GUARDLITJUMP -> 19 ';' depth=0 "\";\""
+    16  MATCHLITJUMP _,r2 = -> 18 ";" "\";\""
+    17  JUMP       -> 19
+    18  RESET      r10
+    19  CONST      r11 = nil
+    20  RETURNOK   r11
+    21  RETURNFAIL 
 flow key regs=13:
 `
 	// The action code is the engine's translation of the action's Core IR, which the action tests pin.

@@ -1,6 +1,8 @@
 package vmlower
 
 import (
+	"slices"
+
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
@@ -56,6 +58,7 @@ var statementPatterns = []pattern{
 	}},
 	{Name: "scanReachAt", Ops: 1, Saved: 3, Stmts: scanReachAt},
 	{Name: "scanEndAt", Ops: 1, Saved: 3, Stmts: scanEndAt},
+	{Name: "scanClass", Ops: 5, Saved: 5, Stmts: scanClass},
 	{Name: "returnOk", Ops: 0, Saved: 1, Stmts: returnOk},
 	{Name: "returnFail", Ops: 0, Saved: 2, Stmts: returnFail},
 }
@@ -170,43 +173,155 @@ func (s *flowSel) place(p code.Place) (int, bool) {
 	return r, ok
 }
 
-// matchClass matches the test of one character of a class:
+// classTest is the test of one character of a class at the start of a list of statements:
 //
 //	ch, size, ok = flow.peek()
 //	if !ok || !flow.inClass(C, ch) { flow.expect(E, $pos); exit L }
-func matchClass(s *flowSel, list []code.Stmt) (int, func() error) {
+//
+// with the registers of ch, size and ok, the test's immediate, the local of size, and the jump that
+// a character not in the class takes.
+type classTest struct {
+	dst   []int
+	size  string
+	in    *code.Call
+	exp   *code.Call
+	label string
+	cont  bool
+}
+
+// classTestOf returns the test of one character of a class that list starts with, which covers two
+// statements.
+func classTestOf(s *flowSel, list []code.Stmt) (classTest, bool) {
 	if len(list) < 2 {
-		return 0, nil
+		return classTest{}, false
 	}
 	peek, ok := list[0].(*code.Set)
 	if !ok || len(peek.Dst) != 3 || len(peek.Values) != 1 || callOf(peek.Values[0], flowpkg.OpPeek) == nil {
-		return 0, nil
+		return classTest{}, false
 	}
 	test, ok := list[1].(*code.If)
 	if !ok || test.Init != nil || test.Else != nil {
-		return 0, nil
+		return classTest{}, false
 	}
 	or, ok := test.Cond.(*code.Binary)
 	if !ok || or.Op != "||" || !isLocal(not(or.X), peek.Dst[2].Name) {
-		return 0, nil
+		return classTest{}, false
 	}
 	in := callOf(not(or.Y), flowpkg.OpInClass)
 	if in == nil || len(in.Args) != 1 || !isLocal(in.Args[0], peek.Dst[0].Name) || peek.Dst[0].Name == "" || peek.Dst[2].Name == "" {
-		return 0, nil
+		return classTest{}, false
 	}
 	exp, label, cont, ok := expectJump(test.Then)
 	if !ok {
-		return 0, nil
+		return classTest{}, false
 	}
 	dst := make([]int, 3)
 	for i, p := range peek.Dst {
 		if dst[i], ok = s.place(p); !ok {
-			return 0, nil
+			return classTest{}, false
 		}
 	}
+	return classTest{dst: dst, size: peek.Dst[1].Name, in: in, exp: exp, label: label, cont: cont}, true
+}
+
+// imm returns the immediate of the test t, as FlowMatchClass takes it.
+func (t classTest) imm(s *flowSel) bytecode.FlowClassTestOf {
+	return bytecode.FlowClassTestOf{Class: int(s.c.class(t.in.Imm.(*ir.Class))), Expect: s.expectOf(t.exp)}
+}
+
+// matchClass matches the test of one character of a class (classTestOf).
+func matchClass(s *flowSel, list []code.Stmt) (int, func() error) {
+	t, ok := classTestOf(s, list)
+	if !ok {
+		return 0, nil
+	}
 	return 2, func() error {
-		imm := bytecode.FlowClassTestOf{Class: int(s.c.class(in.Imm.(*ir.Class))), Expect: s.expectOf(exp)}
-		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchClass, Dst: dst, Imm: imm}), label, cont)
+		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchClass, Dst: t.dst, Imm: t.imm(s)}), t.label, t.cont)
+		return nil
+	}
+}
+
+// scanClass matches a repetition of one character of a class that keeps no value, with or without
+// a count of the characters, and with or without the test of a walk of a scan site at the scan hot
+// span:
+//
+//	loop L {
+//		flow.step()
+//		ch, size, ok = flow.peek()
+//		if !ok || !flow.inClass(C, ch) { flow.expect(E, $pos); break L }
+//		flow.advance(size)
+//		[count = count + 1
+//		[if count == ScanHotSpan { count = flow.scanReach(S, start, count) }]]
+//	}
+//
+// and selects SCANCLASS, SCANCLASSCOUNT or SCANCLASSAT, which runs the whole loop.
+func scanClass(s *flowSel, list []code.Stmt) (int, func() error) {
+	loop, ok := list[0].(*code.Loop)
+	if !ok || loop.Init != nil || loop.Cond != nil || loop.Post != nil || loop.Body == nil || loop.Body.Label != "" {
+		return 0, nil
+	}
+	body := loop.Body.Stmts
+	if len(body) < 4 || len(body) > 6 {
+		return 0, nil
+	}
+	if step, isDo := body[0].(*code.Do); !isDo || step.Call.Callee != flowpkg.OpStep || len(step.Call.Args) != 0 {
+		return 0, nil
+	}
+	t, ok := classTestOf(s, body[1:])
+	if !ok || t.label != loop.Label || t.cont || t.size == "" {
+		return 0, nil
+	}
+	if adv, isDo := body[3].(*code.Do); !isDo || adv.Call.Callee != flowpkg.OpAdvance || len(adv.Call.Args) != 1 || !isLocal(adv.Call.Args[0], t.size) {
+		return 0, nil
+	}
+	if len(body) == 4 {
+		return 1, func() error {
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowScanClass, Dst: t.dst, Imm: t.imm(s)})
+			return nil
+		}
+	}
+	inc, isSet := body[4].(*code.Set)
+	if !isSet || len(inc.Dst) != 1 || len(inc.Values) != 1 || inc.Dst[0].Name == "" {
+		return 0, nil
+	}
+	count := inc.Dst[0].Name
+	add, isBin := inc.Values[0].(*code.Binary)
+	if !isBin || add.Op != "+" || !isLocal(add.X, count) || !isInt(add.Y, 1) {
+		return 0, nil
+	}
+	n, ok := s.place(inc.Dst[0])
+	if !ok || n < 0 || slices.Contains(t.dst, n) {
+		return 0, nil
+	}
+	dst := append(slices.Clone(t.dst), n)
+	if len(body) == 5 {
+		return 1, func() error {
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowScanClassCount, Dst: dst, Args: []int{n}, Imm: t.imm(s)})
+			return nil
+		}
+	}
+	cond, reach, ok := onlyStmt(body[5])
+	if !ok {
+		return 0, nil
+	}
+	c, counted, ok := scanCall(reach, flowpkg.OpScanReach)
+	eq, isEq := cond.(*code.Binary)
+	set, isSet := reach.(*code.Set)
+	if !ok || counted != count || !isEq || eq.Op != "==" || !isLocal(eq.X, count) || !isInt(eq.Y, flowpkg.ScanHotSpan) ||
+		!isSet || set.Dst[0].Name != count || !isLocal(c.Args[1], count) {
+		return 0, nil
+	}
+	start, isStart := c.Args[0].(*code.Local)
+	if !isStart {
+		return 0, nil
+	}
+	from, ok := s.regs[start.Name]
+	if !ok || from == n || slices.Contains(t.dst, from) {
+		return 0, nil
+	}
+	return 1, func() error {
+		imm := bytecode.FlowScanClassOf{Test: t.imm(s), Site: int(c.Imm.(prim.Site))}
+		s.emit(bytecode.FlowInstr{Op: bytecode.FlowScanClassAt, Dst: dst, Args: []int{from, n}, Imm: imm})
 		return nil
 	}
 }
