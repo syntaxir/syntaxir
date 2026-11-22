@@ -179,7 +179,7 @@ row includes what its backends print into packages of their own.
 | exprLoop |  |  | `[budget, missing]` |  |
 | exprLed |  |  | `[budget, missing]` |  |
 | exprRhs |  |  | `[budget, missing]` |  |
-| memoAdvance |  |  | `[budget, document]` `[document]` |  |
+| memoAdvance | `[budget, document]` `[document]` |  | `[budget, document]` `[document]` |  |
 | equal | `[]` | `[]` | `[]` | `[]` |
 | index | `[]` | `[]` | `[]` | `[]` |
 | binary | `[]` | `[]` | `[]` | `[]` |
