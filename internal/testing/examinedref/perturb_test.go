@@ -197,6 +197,56 @@ func TestPerturbations(t *testing.T) {
 	}
 }
 
+// TestPerturbAt checks the perturbation of parses that depend on the change point, on a parse of a* that
+// marks its call with the change point: the original is parsed for each change point, a route that
+// cannot parse at a change point is counted, too small examined ends and an original that is not a
+// function of its input are reported.
+func TestPerturbAt(t *testing.T) {
+	t.Parallel()
+	// as parses a*: main@0 reads up to the first unit that is not a, or the end of the input.
+	as := func(c int, s string, examined func(int) int) []examinedref.Event {
+		n := len(s) - len(strings.TrimLeft(s, "a"))
+		enter, exit := lockEnter("main", 0, 1), lockExit("main", 0, 1, true, n, examined(n+1))
+		enter.Level, exit.Level = c, c
+		return []examinedref.Event{enter, exit}
+	}
+	exact := func(e int) int { return e }
+	calls := 0
+	tests := []struct {
+		name                        string
+		run                         func(int, string) ([]examinedref.Event, bool)
+		violations                  bool
+		refused, identical, outside bool
+	}{
+		{name: "exact", run: func(c int, s string) ([]examinedref.Event, bool) { return as(c, s, exact), true }, identical: true},
+		{name: "refused below the end", run: func(c int, s string) ([]examinedref.Event, bool) { return as(c, s, exact), c == len("abb") }, refused: true, identical: true},
+		{name: "examined end too small", run: func(c int, s string) ([]examinedref.Event, bool) {
+			return as(c, s, func(int) int { return 1 }), true
+		}, violations: true, identical: true},
+		{name: "original not a function of its input", run: func(c int, s string) ([]examinedref.Event, bool) {
+			calls++
+			return as(c+calls, s, exact), true
+		}, violations: true},
+	}
+	for _, tc := range tests {
+		r := examinedref.PerturbAt(tc.run, "abb", true, false, "a", nil)
+		if (len(r.Violations) > 0) != tc.violations {
+			t.Errorf("%s: violations %q", tc.name, r.Violations)
+		}
+		if (r.Refused > 0) != tc.refused || (r.Identical > 0) != tc.identical || (r.Outside > 0) != tc.outside {
+			t.Errorf("%s: %+v", tc.name, r)
+		}
+		if !tc.violations && r.Refused+r.Identical+r.Diverged+r.Outside != r.Perturbed {
+			t.Errorf("%s: %+v does not account for every perturbation", tc.name, r)
+		}
+	}
+	// Perturb compares every perturbation with the original parsed for the length, whose mark differs.
+	r := examinedref.Perturb(func(s string) []examinedref.Event { return as(len(s), s, exact) }, "abb", true, false, "a", nil)
+	if r.Outside == 0 || len(r.Violations) > 0 {
+		t.Errorf("Perturb: %+v", r)
+	}
+}
+
 // TestGrammarFacts checks the alphabet and the variable reads that the perturbations take from a grammar.
 func TestGrammarFacts(t *testing.T) {
 	t.Parallel()

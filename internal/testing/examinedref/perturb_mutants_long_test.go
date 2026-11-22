@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
 
@@ -20,12 +21,14 @@ import (
 type producerEdit struct{ file, old, new string }
 
 // producerMutant breaks the examined end in a copy of source files, which `go test -overlay` builds in
-// place of the originals. Each test of tests runs; each of catchers must fail, and when backends is not
+// place of the originals, or in the library of the generated TypeScript parsers (tsLib, as
+// codegentest.TSLibPatchEnv describes it), which reaches them embedded in the generator. Each test of tests runs; each of catchers must fail, and when backends is not
 // empty, each of its messages must name each backend (the engine's code is shared, so a mutant of it must
 // show on every backend). The tests that are not catchers are run for their verdict, which is logged.
 type producerMutant struct {
 	name     string
 	edits    []producerEdit
+	tsLib    *producerEdit
 	tests    []string
 	catchers []string
 	backends []string
@@ -60,6 +63,10 @@ var producerMutants = []producerMutant{
 	{name: "a stream reads one unit beyond what the parse asks for (unrecorded stream read)",
 		edits: []producerEdit{{mutantStateInput, "\tok := in.fill(n)\n", "\tin.fill(n + 1)\n\tok := in.Loaded() >= n\n"}},
 		tests: []string{"TestEngineStreamHighWater"}, catchers: []string{"TestEngineStreamHighWater"}, backends: producerBackends},
+	// The generated TypeScript parsers, whose library records the examined ends of their own.
+	{name: "every TypeScript examination counts one slot less (examined end too small)",
+		tsLib: &producerEdit{"internal/backend/codegen/typescript/lib/lib.ts", "if (end > this.docExamined) this.docExamined = end;", "if (end - 1 > this.docExamined) this.docExamined = end - 1;"},
+		tests: []string{"TestTSPerturbation"}, catchers: []string{"TestTSPerturbation"}, backends: []string{"typescript"}},
 
 	// The harness: checks that pass whatever the producer does.
 	{name: "perturbations that change nothing",
@@ -130,6 +137,13 @@ func TestEngineExaminedMutants(t *testing.T) {
 			cmd := exec.Command("go", "test", "-count=1", "-vet=off", "-tags", "sxir_long", "-overlay", ov,
 				"-run", "^("+strings.Join(m.tests, "|")+")$", ".")
 			cmd.Env = append(os.Environ(), "GOFLAGS=-trimpath")
+			if m.tsLib != nil {
+				patch, err := json.Marshal(struct{ File, Old, New string }{m.tsLib.file, m.tsLib.old, m.tsLib.new})
+				if err != nil {
+					t.Fatal(err)
+				}
+				cmd.Env = append(cmd.Env, codegentest.TSLibPatchEnv+"="+string(patch))
+			}
 			out, err := cmd.CombinedOutput()
 			if err == nil {
 				t.Fatalf("the tests passed with the mutant:\n%s", out)

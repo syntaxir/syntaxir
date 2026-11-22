@@ -308,9 +308,10 @@ func CheckLockstep(orig, pert []Event, change int, vars bool) Lockstep {
 
 // Report sums the perturbation checks of parses.
 type Report struct {
-	// Parses is the number of original inputs; Perturbed the number of perturbations parsed and Dropped
-	// the number left out (Perturbations).
-	Parses, Perturbed, Dropped int
+	// Parses is the number of original inputs; Perturbed the number of perturbations made, Dropped the
+	// number left out (Perturbations) and Refused the number that PerturbAt could not parse at their
+	// change point.
+	Parses, Perturbed, Dropped, Refused int
 	// Identical, Diverged and Outside count the perturbations whose trace is the original's, differs
 	// while a call is running, or differs where no call is running (after the start rule returned, as
 	// the check of a whole-input parse that the input ends there does).
@@ -325,6 +326,7 @@ func (r *Report) Add(o Report) {
 	r.Parses += o.Parses
 	r.Perturbed += o.Perturbed
 	r.Dropped += o.Dropped
+	r.Refused += o.Refused
 	r.Identical += o.Identical
 	r.Diverged += o.Diverged
 	r.Outside += o.Outside
@@ -339,10 +341,37 @@ func (r *Report) Add(o Report) {
 // of the exits of the original) is parsed and compared with the original (CheckLockstep). The
 // perturbations are passed to each, if not nil, before they are parsed.
 func Perturb(run func(string) []Event, in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
+	return perturb(func(_ int, s string) ([]Event, bool) { return run(s), true }, false, in, bytes, vars, alpha, each)
+}
+
+// PerturbAt is Perturb for parses that depend on the change point too, as the reparse of a Document
+// after an edit at it does. run(c, s) parses s for the change point c, or reports that it cannot (the
+// perturbation is then counted in Refused); the original is parsed for c, twice, wherever a perturbation
+// changes it at c, and compared with the perturbations at c. The examined ends that choose the change
+// points are those of run(len(Units(in, bytes)), in).
+func PerturbAt(run func(change int, s string) ([]Event, bool), in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
+	return perturb(run, true, in, bytes, vars, alpha, each)
+}
+
+func perturb(run func(int, string) ([]Event, bool), perChange bool, in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
 	r := Report{Parses: 1}
-	orig := run(in)
-	if again := run(in); !equalTraces(orig, again) {
-		r.Violations = append(r.Violations, fmt.Sprintf("two parses of the same input have different traces (%d and %d events)", len(orig), len(again)))
+	original := func(c int) ([]Event, bool, string) {
+		orig, ok := run(c, in)
+		if !ok {
+			return nil, false, ""
+		}
+		if again, _ := run(c, in); !equalTraces(orig, again) {
+			return nil, false, fmt.Sprintf("two parses of the same input for change point %d have different traces (%d and %d events)", c, len(orig), len(again))
+		}
+		return orig, true, ""
+	}
+	n := len(Units(in, bytes))
+	orig, ok, v := original(n)
+	if !ok {
+		if v == "" {
+			v = fmt.Sprintf("the original %q cannot be parsed", in)
+		}
+		r.Violations = append(r.Violations, v)
 		return r
 	}
 	var ends []int
@@ -351,6 +380,11 @@ func Perturb(run func(string) []Event, in string, bytes, vars bool, alpha string
 			ends = append(ends, e.Examined)
 		}
 	}
+	type at struct {
+		trace []Event
+		ok    bool
+	}
+	origs := map[int]at{n: {orig, true}}
 	ps, dropped := Perturbations(in, bytes, alpha, ends)
 	r.Dropped = dropped
 	for _, p := range ps {
@@ -358,7 +392,29 @@ func Perturb(run func(string) []Event, in string, bytes, vars bool, alpha string
 			each(p)
 		}
 		r.Perturbed++
-		l := CheckLockstep(orig, run(p.Input), p.Change, vars)
+		o := orig
+		if perChange {
+			a, seen := origs[p.Change]
+			if !seen {
+				var v string
+				a.trace, a.ok, v = original(p.Change)
+				if v != "" {
+					r.Violations = append(r.Violations, v)
+				}
+				origs[p.Change] = a
+			}
+			if !a.ok {
+				r.Refused++
+				continue
+			}
+			o = a.trace
+		}
+		pert, ok := run(p.Change, p.Input)
+		if !ok {
+			r.Violations = append(r.Violations, fmt.Sprintf("%s of %q at %d (%q): the original can be parsed for the change point, the perturbation cannot", p.Variant, in, p.Change, p.Input))
+			continue
+		}
+		l := CheckLockstep(o, pert, p.Change, vars)
 		switch {
 		case !l.Diverged:
 			r.Identical++
