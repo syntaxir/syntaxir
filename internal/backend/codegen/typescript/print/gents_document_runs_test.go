@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -120,7 +121,7 @@ function moveNodeInPlace(n: Node | null, shift: number): void {
 // changes what some session prints.
 func TestTSDocumentRuns(t *testing.T) {
 	node := tooltest.RequireNode(t)
-	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{common.UsedFeatures}}
+	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{codegen.UsedFeatures}}
 	type session struct{ src, script, want string }
 	run := func(s session, mutate func(string) string) string {
 		src := s.src

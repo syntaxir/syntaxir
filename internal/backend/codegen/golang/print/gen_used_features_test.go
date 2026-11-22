@@ -5,6 +5,7 @@ import (
 	"runtime"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -39,7 +40,7 @@ func TestUsedFeaturesEmbedParity(t *testing.T) {
 				t.Parallel()
 				o := mode.opts
 				if off {
-					o.NoOpt = []string{common.UsedFeatures}
+					o.NoOpt = []string{codegen.UsedFeatures}
 				}
 				codegentest.GeneratedParsersEmbedCorpus(t, goBin, codegentest.UsedFeatureCases(), o)
 			})

@@ -23,7 +23,7 @@ func typedCore(g *print.Generator, o corepass.RunOptions) (*core.Module, error) 
 		return nil, err
 	}
 	core.Analyze(m)
-	o.Settings = g.Opt()
+	o.Settings = settingsOf(g)
 	m, _, err = corepass.Run(m, o)
 	return m, err
 }

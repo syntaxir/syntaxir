@@ -48,7 +48,7 @@ func (g *Generator) actionFunc(name string, ct irc.ActionExpr, s *check.Scope, l
 // predicateFunc returns the arrow function of a predicate with the action expression ct of Core IR: a membership
 // of a captured text in literals tests them at once without limit controls (text-dispatch).
 func (g *Generator) predicateFunc(ct irc.ActionExpr, s *check.Scope) string {
-	body := g.actionStmts(ct, s, nil, g.Opt().On("text-dispatch"))
+	body := g.actionStmts(ct, s, nil, g.Params.TextDispatch)
 	return fmt.Sprintf("(%s): [Value, Value] => {\n%s}", tsActxParam(body), body)
 }
 

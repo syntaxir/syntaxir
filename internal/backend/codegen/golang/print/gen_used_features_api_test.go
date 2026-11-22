@@ -16,6 +16,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -73,7 +74,7 @@ func testUserAPI(t *testing.T, goBin, name string, g *ast.Grammar, opts common.G
 			o := opts
 			o.Package, o.Start, o.Lib, o.Module = "p", "main", common.LibEmbed, "example.com/p"
 			if off {
-				o.NoOpt = []string{common.UsedFeatures}
+				o.NoOpt = []string{codegen.UsedFeatures}
 			}
 			files, err := codegentest.Generate(t, g, o)
 			if err != nil {

@@ -77,7 +77,7 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 // newGenerator returns the generator of the TypeScript parser of prog with the options opts, which
 // prints the rules that live holds, starting with the Node table.
 func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
-	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document, TypeScript: true}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
+	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
 	tsg.NoBudget = opts.NoLimitControls
 	tsg.optionsType = "ParseOptions"
 	if opts.NoLimitControls {
@@ -119,7 +119,7 @@ func (tsg *Generator) generate(rec *common.Program) error {
 func (tsg *Generator) print(opts common.GenOptions, rec *common.Program, start *common.Rule) ([]common.GeneratedFile, error) {
 	prog := tsg.Prog
 	var out strings.Builder
-	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), common.UseSparseMemo(tsg.Opt(), prog, rec), opts.Observability, !opts.NoLimitControls)
+	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), tsg.useSparseMemo(prog, rec), opts.Observability, !opts.NoLimitControls)
 	fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
 	out.WriteString(" * A string is parsed as its UTF-8 encoding would be (lone surrogates as U+FFFD), and bytes are\n")
 	out.WriteString(" * decoded as UTF-8 (invalid sequences as U+FFFD, one per byte). If the parse recovered from errors\n")
@@ -221,11 +221,18 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	out.WriteString(tsg.Init.String())
 	out.WriteString("\n")
 	out.WriteString(tsg.Methods.String())
-	features, err := common.ParserFeatures(prog, rec, opts, tsg.Opt())
+	features, err := common.ParserFeatures(prog, rec, opts, tsg.Params)
 	if err != nil {
 		return nil, err
 	}
-	return tsFiles(opts, features, tsg.Opt().On(common.UsedFeatures), out.String(), types)
+	return tsFiles(opts, features, tsg.Params.UsedFeatures, out.String(), types)
+}
+
+// useSparseMemo reports whether the parser keeps the representation selector of its first-call table:
+// with the parameter SparseMemo on, when one of the rule tables of prog and rec, if not nil, can cross
+// the sparse-storage threshold.
+func (tsg *Generator) useSparseMemo(prog, rec *common.Program) bool {
+	return tsg.sparseMemo && (prog.Run.NSeen > 64 || rec != nil && rec.Run.NSeen > 64)
 }
 
 // TsPrintRuns returns the code points that strconv.IsPrint accepts, for the library's quoteGo: the
@@ -288,6 +295,8 @@ type Generator struct {
 	// optionsType is the name of the library's options type that the entry points take: ParseOptions
 	// with limit controls, PlainParseOptions without.
 	optionsType string
+	// sparseMemo is the parameter SparseMemo of the printing (Params).
+	sparseMemo bool
 	// live holds the rules that a parse can enter (reach.go).
 	live *tsLive
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose

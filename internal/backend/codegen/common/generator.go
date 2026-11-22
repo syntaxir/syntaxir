@@ -10,7 +10,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
-	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/limits"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -38,18 +37,14 @@ type Generator struct {
 	// rule calls and record, in the primitives that read the input, how far each call examined it.
 	Traced  bool
 	FlowErr error // the first rule, line or stream body that Flow IR does not print, or the first internal error of the unread-variable check
-	// TypeScript reports that the generator prints TypeScript, whose literal tables are shared only
-	// with the optimization ts-literal-sharing.
-	TypeScript bool
 	// Only exact emitted bodies with the same signature share a helper. Rule
 	// wrappers, memo IDs, frame layouts and expectation IDs remain in the code.
 	methodNames  map[generatedMethod]string
 	literalNames map[string]string
 	methodKeys   []generatedMethod
 	literalKeys  []string
-	// Settings are the optimizations of the compilation whose tables the generator prints, which
-	// the passes that lowered them ran with (Opt).
-	Settings pass.Settings
+	// Params are the values of the parameters of the printing step that runs the generator.
+	Params Params
 	// Exec is the table being printed, at the Exec stage, or nil: its plan, its module and the Core
 	// IR it was lowered from, which holds the rules, the expectations and the origin map (Core).
 	Exec  *plandata.Table[code.Exec]
@@ -74,9 +69,6 @@ type Generator struct {
 	fieldTypeKeys []any
 }
 
-// Opt returns the optimizations that are on (Settings).
-func (g *Generator) Opt() pass.Settings { return g.Settings }
-
 // FieldTypeVar returns the variable holding check type ft of key, declaring it with decl the
 // first time.
 func (g *Generator) FieldTypeVar(key any, ft types.Ty, decl func(v string, t *types.FieldType) string) string {
@@ -91,12 +83,6 @@ func (g *Generator) FieldTypeVar(key any, ft types.Ty, decl func(v string, t *ty
 		g.Vars.WriteString(decl(v, types.NewFieldType(ft)))
 	}
 	return v
-}
-
-// UseSparseMemo removes the representation selector entirely when neither
-// emitted rule table can cross the sparse-storage threshold.
-func UseSparseMemo(o pass.Settings, prog, rec *Program) bool {
-	return o.On("sparse-memo") && (prog.Run.NSeen > 64 || rec != nil && rec.Run.NSeen > 64)
 }
 
 // GeneratedMaxDepth returns the maximum depth that a generated parser enforces: o.MaxDepth, or the
@@ -116,7 +102,7 @@ type generatedMethod struct {
 // MethodName returns an existing exact helper or reserves the next name.
 // The signature keeps Node, typed Go and TypeScript functions distinct.
 func (g *Generator) MethodName(signature, body string) (string, bool) {
-	if !g.Opt().On("method-sharing") {
+	if !g.Params.MethodSharing {
 		return g.Name("e"), false
 	}
 	key := generatedMethod{signature, body}
@@ -135,7 +121,7 @@ func (g *Generator) MethodName(signature, body string) (string, bool) {
 // LiteralName shares immutable literal tables by decoded text. Descriptions
 // belong to each matcher, so spellings with different expectations stay distinct.
 func (g *Generator) LiteralName(value string) (string, bool) {
-	if !g.Opt().On("literal-sharing") || g.TypeScript && !g.Opt().On("ts-literal-sharing") {
+	if !g.Params.LiteralSharing {
 		return g.Name("lit"), false
 	}
 	if name, ok := g.literalNames[value]; ok {

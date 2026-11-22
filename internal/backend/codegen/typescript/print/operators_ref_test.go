@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -93,7 +94,7 @@ func TestTSOperatorsRuleMatchesReference(t *testing.T) {
 	}
 	// The whole library (used-features off): the test code drives the library with budget controls
 	// that the parser of this grammar does not use.
-	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{common.UsedFeatures}})
+	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
 	if err != nil {
 		t.Fatal(err)
 	}

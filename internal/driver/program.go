@@ -38,7 +38,7 @@ func (p *Program) Start() *common.Rule { return p.start }
 
 // compilation is the input of the pipeline of a target: the program, the target with its options
 // completed from the program and the call, the options of the call, the target as its printer
-// reads it (common.TargetFeature), and the reach of the plan that the fallback of planning gives
+// reads it (codegen.TargetFeature), and the reach of the plan that the fallback of planning gives
 // (plandata.ReachFeature), nil for none; the assembled pipeline provides both.
 type compilation struct {
 	p      *Program

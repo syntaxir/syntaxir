@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -406,7 +407,7 @@ rule letter Word = t:("é") #atomic => Word{Text: text($t)}`)
 	}
 	// Every feature (used-features off): the consumer replaces the start rule with code that records
 	// recovered errors, which the grammar has none of.
-	code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "nilpublication", Start: "main", Types: true, NoOpt: []string{common.UsedFeatures}})
+	code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "nilpublication", Start: "main", Types: true, NoOpt: []string{codegen.UsedFeatures}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -76,7 +77,7 @@ func runTSIters(t *testing.T, controlled bool, mutate func(string) string) map[[
 	}
 	// The whole library (used-features off): the table calls functions that the parser of this grammar
 	// does not use.
-	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{common.UsedFeatures}})
+	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/pipetest"
@@ -69,10 +70,12 @@ type flowScope struct {
 // flowRecord holds the decisions of the Flow passes in one generation, with the origins of the Core
 // modules of its tables, by their labels, which the decisions are keyed by.
 type flowRecord struct {
-	mu      sync.Mutex
-	gen     *print.Generator
-	origins map[string]core.Origin
-	by      map[flowScope]*flowDecisions
+	mu  sync.Mutex
+	gen *print.Generator
+	// settings are those of the generation, which the Core IR of a case is built with (typedCore).
+	settings pass.Settings
+	origins  map[string]core.Origin
+	by       map[flowScope]*flowDecisions
 }
 
 // decisions returns the decisions recorded for the table, in the copies a case of gen reads: the
@@ -91,6 +94,15 @@ func (r *flowRecord) decisions(table string, gen *print.Generator) *flowDecision
 
 // flowRecords maps each generator of coreGenerate to the record of its generation.
 var flowRecords sync.Map // *print.Generator -> *flowRecord
+
+// settingsOf returns the settings of the generation of gen, or none for a generator that no
+// generation recorded.
+func settingsOf(gen *print.Generator) pass.Settings {
+	if rec := flowRecordOf(gen); rec != nil {
+		return rec.settings
+	}
+	return pass.Settings{}
+}
 
 // flowRecordOf returns the record of the generation of gen, or nil.
 func flowRecordOf(gen *print.Generator) *flowRecord {

@@ -51,7 +51,7 @@ func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
 	l, err := flowlower.Action(t, flowlower.ActionOptions{Result: result, StructCall: g.Table == "trules", Unbounded: g.NoBudget, Visits: g.Logical, Proj: g.Proj,
-		FieldCompare: g.Table == "trules" && g.Opt().On("field-compare"), TextDispatch: dispatch})
+		FieldCompare: g.Table == "trules" && g.params.FieldCompare, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
 	}
@@ -70,7 +70,7 @@ func (g *Generator) actionBody(ct irc.ActionExpr, s *check.Scope, locals map[str
 // membership of a captured text in literals tests them at once without limit controls
 // (text-dispatch).
 func (g *Generator) predicate(ct irc.ActionExpr, s *check.Scope) string {
-	return g.lowered(ct, s, nil, "", g.Opt().On("text-dispatch"))
+	return g.lowered(ct, s, nil, "", g.Params.TextDispatch)
 }
 
 // leaf returns the expression that reads the capture (or, if variable is set, the variable) name of

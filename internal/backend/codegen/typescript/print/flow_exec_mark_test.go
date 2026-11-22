@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
@@ -19,15 +18,21 @@ import (
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
+// testGen is a generator of tables lowered with the settings opt.
+type testGen struct {
+	*Generator
+	opt pass.Settings
+}
+
 // testGenerator returns a generator of tables lowered with the settings opt.
-func testGenerator(opt pass.Settings) *Generator {
-	return &Generator{Generator: common.Generator{Settings: opt}}
+func testGenerator(opt pass.Settings) *testGen {
+	return &testGen{Generator: &Generator{}, opt: opt}
 }
 
 // printModule prints the one function of the module f at the Flow stage as printTSFlowExec prints a
 // function of the table: converted to the Exec stage with the Exec passes and the TypeScript passes
 // under the settings of g, as the lowering of a table converts it. f is consumed.
-func (g *Generator) printModule(t *testing.T, f *code.Module) (string, []string, []tsDecl) {
+func (g *testGen) printModule(t *testing.T, f *code.Module) (string, []string, []tsDecl) {
 	t.Helper()
 	// The module is at the Flow stage and no plan holds its functions.
 	in, err := plandata.NewTable(nil, nil, code.At[code.Flow]{}.With(f))
@@ -36,7 +41,7 @@ func (g *Generator) printModule(t *testing.T, f *code.Module) (string, []string,
 	}
 	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule,
 		pipe.WithConst(flowpass.ObserveFeature, false, pipe.Then(codepass.Pipeline(), pipe.PerFunc(execdata.LoweredFuncs, tspass.Pipeline)))))
-	x, err := pipe.Execute(context.Background(), &pipe.Run{Settings: g.Opt()}, exec, in)
+	x, err := pipe.Execute(context.Background(), &pipe.Run{Settings: g.opt}, exec, in)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -73,10 +72,6 @@ func (s FeatureSet) String() string {
 	}
 	return strings.Join(names, ",")
 }
-
-// UsedFeatures is the optimization that narrows a parser's features to those the analysis finds; with
-// it off, a parser has AllFeatures, the differential baseline of the pruning.
-const UsedFeatures = "used-features"
 
 // Analyze returns the features of the parser generated with opts from prog and, if the parser has
 // Recognize, from the recognizer rec (nil otherwise). The rules considered are those that the
@@ -175,10 +170,10 @@ func reachedRules(p *Program, start string) ([]*Rule, error) {
 	return out, nil
 }
 
-// ParserFeatures returns the features of the parser generated with opts and the optimization settings
-// s: those Analyze finds, or AllFeatures with the optimization UsedFeatures off.
-func ParserFeatures(prog, rec *Program, opts GenOptions, s pass.Settings) (FeatureSet, error) {
-	if !s.On(UsedFeatures) {
+// ParserFeatures returns the features of the parser generated with opts and the parameters p: those
+// Analyze finds, or AllFeatures with the parameter UsedFeatures off.
+func ParserFeatures(prog, rec *Program, opts GenOptions, p Params) (FeatureSet, error) {
+	if !p.UsedFeatures {
 		return FeatureSet(AllFeatures), nil
 	}
 	return Analyze(prog, rec, opts)

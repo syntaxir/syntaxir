@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -84,7 +85,11 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 	if err != nil {
 		return nil, false
 	}
-	rec := &flowRecord{}
+	settings, err := generate.Settings(opts)
+	if err != nil {
+		return nil, false
+	}
+	rec := &flowRecord{settings: settings}
 	opts.Module = "example.com/p"
 	if _, err := generateGo(g, opts, rec.options(), rec.hooks()); err != nil || rec.gen == nil {
 		return nil, false

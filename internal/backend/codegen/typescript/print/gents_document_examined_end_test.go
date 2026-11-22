@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -150,7 +151,7 @@ func TestTSDocumentExaminedEnds(t *testing.T) {
 	}
 	// The whole library (used-features off): the test code builds rules that the parser of this grammar
 	// does not have.
-	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{common.UsedFeatures}}
+	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{codegen.UsedFeatures}}
 	node := tooltest.RequireNode(t)
 	// run runs the test code on the library that mutate changes, and returns what it prints and
 	// whether it succeeded.

@@ -4,7 +4,6 @@ import (
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
-	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Target is the target of a compilation as its printer reads it: the program, the options of the
@@ -13,11 +12,6 @@ type Target interface {
 	// Backend names the backend of the target, which is the text of the feature.
 	Backend() string
 }
-
-// TargetFeature is the target of the pipeline of a backend (with target=go), which its printer reads.
-// Its text names the backend; a pipeline text cannot provide it as a constant, since the target holds
-// the program.
-var TargetFeature = pipe.NewFeature("target", Target.Backend, nil)
 
 // Replan is the output of a printer whose printed code enters other rules than the plan of the
 // program reaches (plandata.Program.Reach), in place of its files: Reach is the reach of the printed

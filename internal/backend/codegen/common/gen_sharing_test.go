@@ -7,33 +7,39 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsbackend "syntaxir.dev/sxir/internal/backend/codegen/typescript"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/generate"
-	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// defaultSettings returns the optimizations of a generation with no options.
-func defaultSettings(t *testing.T) pass.Settings {
+// defaultParams returns the sharing parameters of a printer of a generation with no options, as the
+// printing steps read them: TypeScript shares literal tables only with ts-literal-sharing too.
+func defaultParams(t *testing.T, ts bool) common.Params {
 	t.Helper()
 	s, err := generate.Settings(common.GenOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	return s
+	p := codegen.ParamsOf(s.Value)
+	if ts {
+		p.LiteralSharing = p.LiteralSharing && s.On(tsbackend.TSLiteralSharing)
+	}
+	return p
 }
 
 func TestGeneratedSharingIdentity(t *testing.T) {
 	t.Parallel()
-	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules", Settings: defaultSettings(t)}}
+	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules", Params: defaultParams(t, true)}}
 	name := ts.Method("first", "return [null, true];\n")
 	ts.Table = "recRules"
 	if ts.Method("recognition", "return [null, true];\n") != name {
 		t.Fatal("identical TypeScript bodies should share across rule tables")
 	}
-	g := &goprint.Generator{Table: "rules", Settings: defaultSettings(t)}
+	g := &goprint.Generator{Generator: common.Generator{Table: "rules", Params: defaultParams(t, false)}}
 	a := g.Method("first", "return nil, true\n")
 	g.Table = "recRules"
 	if g.Method("recognition", "return nil, true\n") != a {

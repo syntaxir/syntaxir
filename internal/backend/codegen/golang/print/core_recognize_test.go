@@ -33,7 +33,7 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 		}
 	}
 	c.origin = m.Origin
-	if m, _, err = corepass.Run(m, corepass.RunOptions{Settings: g.Opt(), Dump: check}); err != nil {
+	if m, _, err = corepass.Run(m, corepass.RunOptions{Settings: settingsOf(g), Dump: check}); err != nil {
 		return nil, err
 	}
 	c.m = m

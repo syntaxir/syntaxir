@@ -6,8 +6,10 @@ package golang
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/result"
@@ -36,24 +38,22 @@ var FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: 
 var TableLabels = []string{"rules", "recRules", "typed", "rulesTraced", "recRulesTraced", "typedTraced"}
 
 // Target is the Go target of a compilation (common.Target), which print-go reads: the program, the
-// build of its recognizer, the start rule, the options of the target, which print.Validate completed,
-// and the settings of the compilation. The tables of its parser are decided once from them (Decision).
+// build of its recognizer, the start rule and the options of the target, which print.Validate
+// completed. The tables of its parser are decided once from them (Decision).
 type Target struct {
 	Prog       *common.Program
 	Recognizer func() (*common.Program, error)
 	Start      *common.Rule
 	Opts       common.GenOptions
-	Settings   pass.Settings
 	// hooks are the hooks of a test, or nil (print.Hooks).
 	hooks  *print.Hooks
 	decide func() (*Decision, error)
 }
 
 // NewTarget returns the Go target of the program prog with its recognizer, the start rule start, the
-// options opts, which print.Validate completed, the settings of the compilation and the hooks of a
-// test, which production leaves nil.
-func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings, hooks *print.Hooks) *Target {
-	t := &Target{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, Settings: settings, hooks: hooks}
+// options opts, which print.Validate completed, and the hooks of a test, which production leaves nil.
+func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+	t := &Target{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, hooks: hooks}
 	t.decide = sync.OnceValues(func() (*Decision, error) {
 		d, err := Decide(prog, recognizer, start, opts)
 		if err == nil && hooks != nil {
@@ -274,14 +274,16 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 }
 
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline
-// (common.TargetFeature) from its tables at the Exec stage, with the Go printer.
+// (codegen.TargetFeature) from its tables at the Exec stage, with the Go printer, which receives the
+// values of the step's parameters (print.Params).
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
-	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{common.TargetFeature.ID()}},
-	In:   execdata.TablesIR, Out: result.IR,
+	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
+		Params: append(slices.Clone(codegen.Params), flowlower.FieldCompare, TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap)},
+	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
-		target, ok := pipe.Feature(c, common.TargetFeature).(*Target)
+		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
 		if !ok {
-			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-go runs for the target %s", pipe.Feature(c, common.TargetFeature).Backend())
+			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-go runs for the target %s", pipe.Feature(c, codegen.TargetFeature).Backend())
 		}
 		d, err := target.Decision()
 		if err != nil {
@@ -291,7 +293,9 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if target.hooks != nil {
 			h = *target.hooks
 		}
-		files, err := print.Print(&d.Parser, target.Settings, t, h)
+		params := print.Params{Params: codegen.ParamsOf(c.Value), FieldCompare: c.Value(flowlower.FieldCompare) != 0,
+			TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0}
+		files, err := print.Print(&d.Parser, params, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

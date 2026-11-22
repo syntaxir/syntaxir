@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -153,7 +154,7 @@ func depMemoPackages(t *testing.T, cases []codegentest.Case) ([]depMemoPackage, 
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		pkg := fmt.Sprintf("g%d", i)
-		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "depmemo/" + pkg, Package: pkg, Start: "main", Types: true, SourceInfo: true, Lib: common.LibEmbed, NoOpt: []string{common.UsedFeatures}})
+		files, err := codegentest.Generate(t, g, common.GenOptions{Module: "depmemo/" + pkg, Package: pkg, Start: "main", Types: true, SourceInfo: true, Lib: common.LibEmbed, NoOpt: []string{codegen.UsedFeatures}})
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}

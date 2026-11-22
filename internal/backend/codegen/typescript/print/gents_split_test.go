@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -150,7 +151,7 @@ process.stdout.write("ok\n");
 		for _, gr := range []struct {
 			g    *ast.Grammar
 			opts common.GenOptions
-		}{{g, common.GenOptions{Start: "main", Types: true, NoOpt: []string{common.UsedFeatures}}}, {g2, common.GenOptions{Start: "main", Observability: true, NoOpt: []string{common.UsedFeatures}}}} {
+		}{{g, common.GenOptions{Start: "main", Types: true, NoOpt: []string{codegen.UsedFeatures}}}, {g2, common.GenOptions{Start: "main", Observability: true, NoOpt: []string{codegen.UsedFeatures}}}} {
 			files, err := codegentest.GenerateTSRaw(gr.g, gr.opts)
 			if err != nil {
 				t.Fatal(err)

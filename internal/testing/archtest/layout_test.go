@@ -98,6 +98,7 @@ var layout = []place{
 	{pkg: "internal/middleend/codepass", target: "internal/middleend/codepass"},
 
 	// Back end.
+	{pkg: "internal/backend/codegen", target: "internal/backend/codegen"},
 	{pkg: "internal/backend/codegen/common", target: "internal/backend/codegen/common"},
 	{pkg: "internal/backend/codegen/golang", target: "internal/backend/codegen/golang"},
 	{pkg: "internal/backend/codegen/golang/print", target: "internal/backend/codegen/golang/print"},

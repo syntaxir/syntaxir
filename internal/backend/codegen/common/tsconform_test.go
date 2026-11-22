@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
@@ -36,7 +37,7 @@ func tsConformLib(t testing.TB) string {
 			tsLibErr = err
 			return
 		}
-		code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{common.UsedFeatures}})
+		code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
 		tsLibSrc, tsLibErr = string(code), err
 	})
 	if tsLibErr != nil {

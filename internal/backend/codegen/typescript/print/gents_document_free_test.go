@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -60,7 +61,7 @@ func TestTSDocumentFreeRegions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{common.UsedFeatures}}
+	opts := common.GenOptions{Start: "main", Document: true, NoOpt: []string{codegen.UsedFeatures}}
 	node := tooltest.RequireNode(t)
 	run := func(mutate func(string) string) string {
 		code, err := codegentest.GenerateTSBundle(g, opts)

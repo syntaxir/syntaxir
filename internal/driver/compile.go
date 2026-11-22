@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	gobackend "syntaxir.dev/sxir/internal/backend/codegen/golang"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
@@ -157,7 +158,7 @@ type assembled struct {
 }
 
 // decide checks the options of the target of the compilation c that do not depend on the grammar,
-// completing them, and sets the target as its printer reads it (common.TargetFeature).
+// completing them, and sets the target as its printer reads it (codegen.TargetFeature).
 func (c *compilation) decide() error {
 	p := c.p
 	switch c.t.Backend {
@@ -167,7 +168,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = gobackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.GoHooks)
+		c.target = gobackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.t.GoHooks)
 		return nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(c.t.Gen)
@@ -175,14 +176,14 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = tsbackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.TSHooks)
+		c.target = tsbackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.t.TSHooks)
 		return nil
 	}
 	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
 }
 
 // assemble returns the pipeline of the target of the compilation c, from the program to its output,
-// with the target as its printer reads it (common.TargetFeature) and the reach of the plan that the
+// with the target as its printer reads it (codegen.TargetFeature) and the reach of the plan that the
 // compilation gives (plandata.ReachFeature).
 func (c *compilation) assemble() (assembled, error) {
 	var a assembled
@@ -198,7 +199,7 @@ func (c *compilation) assemble() (assembled, error) {
 	if err != nil {
 		return assembled{}, err
 	}
-	a.pipeline = pipe.WithConst(common.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, c.reach, a.pipeline))
+	a.pipeline = pipe.WithConst(codegen.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, c.reach, a.pipeline))
 	return a, nil
 }
 

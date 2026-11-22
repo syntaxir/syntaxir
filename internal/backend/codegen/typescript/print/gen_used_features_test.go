@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -51,7 +52,7 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 				t.Parallel()
 				o := mode.opts
 				if off {
-					o.NoOpt = []string{common.UsedFeatures}
+					o.NoOpt = []string{codegen.UsedFeatures}
 				}
 				codegentest.TSParsersCorpus(t, node, codegentest.UsedFeatureCases(), o)
 			})
@@ -61,7 +62,7 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 		t.Parallel()
 		cases := codegentest.UsedFeatureCases()
 		narrowed := tsSpentUnits(t, node, cases, common.GenOptions{})
-		whole := tsSpentUnits(t, node, cases, common.GenOptions{NoOpt: []string{common.UsedFeatures}})
+		whole := tsSpentUnits(t, node, cases, common.GenOptions{NoOpt: []string{codegen.UsedFeatures}})
 		if len(narrowed) != len(whole) {
 			t.Fatalf("got %d results narrowed, %d whole", len(narrowed), len(whole))
 		}

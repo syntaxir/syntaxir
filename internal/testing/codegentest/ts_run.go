@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -520,12 +521,12 @@ func TSOutputsWithin(t *testing.T, node string, cases []Case, bundles [][]byte, 
 const TSLibPatchEnv = "SXIR_TS_LIB_PATCH"
 
 // MutantOptions returns o for the parsers of a run with a library mutant (TSLibPatchEnv set): without
-// the narrowing of the library to the features a parser uses (common.UsedFeatures), so that a mutant
+// the narrowing of the library to the features a parser uses (codegen.UsedFeatures), so that a mutant
 // finds the library code it changes even where the grammar does not use it. Without a mutant it
 // returns o, and the parsers are the pruned ones that users get.
 func MutantOptions(o common.GenOptions) common.GenOptions {
 	if os.Getenv(TSLibPatchEnv) != "" {
-		o.NoOpt = append(slices.Clip(o.NoOpt), common.UsedFeatures)
+		o.NoOpt = append(slices.Clip(o.NoOpt), codegen.UsedFeatures)
 	}
 	return o
 }

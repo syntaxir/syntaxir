@@ -6,8 +6,10 @@ package typescript
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 
+	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/result"
@@ -35,12 +37,11 @@ var TableLabels = []string{"rules", "recRules"}
 
 // Target is the TypeScript target of a compilation (common.Target), which print-ts reads: the
 // program, the build of its recognizer, the start rule, the options of the target, which
-// print.Validate checked, the settings of the compilation and the hooks of a test.
+// print.Validate checked, and the hooks of a test.
 type Target struct {
-	Prog     *common.Program
-	Start    *common.Rule
-	Opts     common.GenOptions
-	Settings pass.Settings
+	Prog  *common.Program
+	Start *common.Rule
+	Opts  common.GenOptions
 	// rec returns the recognizer, built on the first call, or nil if the parser has none.
 	rec func() (*common.Program, error)
 	// hooks are the hooks of a test, or nil.
@@ -48,10 +49,10 @@ type Target struct {
 }
 
 // NewTarget returns the TypeScript target of the program prog with the build of its recognizer, the
-// start rule start, the options opts, which print.Validate checked, the settings of the compilation
-// and the hooks of a test, which production leaves nil.
-func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings, hooks *print.Hooks) *Target {
-	t := &Target{Prog: prog, Start: start, Opts: opts, Settings: settings, hooks: hooks}
+// start rule start, the options opts, which print.Validate checked, and the hooks of a test, which
+// production leaves nil.
+func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+	t := &Target{Prog: prog, Start: start, Opts: opts, hooks: hooks}
 	t.rec = sync.OnceValues(func() (*common.Program, error) {
 		if !opts.Recognize {
 			return nil, nil
@@ -118,25 +119,29 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 }
 
 // Printing is the step print-ts: it prints the files of the TypeScript parser of the target of the
-// pipeline (common.TargetFeature) from its tables at the Exec stage, with the TypeScript printer. If the plan computed its reach
+// pipeline (codegen.TargetFeature) from its tables at the Exec stage, with the TypeScript printer. If the plan computed its reach
 // (plandata.ReachFeature) and the printed code enters other rules than it reaches, the step returns
 // the reach of the printed code (common.Replan) instead of the files, unless a bisection limit is
 // set (common.Debug.OptBisectLimit), under which one run numbers the runs of the optional passes.
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-ts", Required: true, Obligation: "The files are the TypeScript parser of the tables.",
-		Features: []pipe.FeatureID{common.TargetFeature.ID(), plandata.ReachFeature.ID()}},
+		Features: []pipe.FeatureID{codegen.TargetFeature.ID(), plandata.ReachFeature.ID()},
+		Params:   append(slices.Clone(codegen.Params), TSLiteralSharing, SparseMemo)},
 	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
-		target, ok := pipe.Feature(c, common.TargetFeature).(*Target)
+		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
 		if !ok {
-			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-ts runs for the target %s", pipe.Feature(c, common.TargetFeature).Backend())
+			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-ts runs for the target %s", pipe.Feature(c, codegen.TargetFeature).Backend())
 		}
 		rec, err := target.rec()
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
 		p := &print.Parser{Prog: target.Prog, Rec: rec, Start: target.Start, Opts: target.Opts}
-		out, err := print.Print(p, target.Settings, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)
+		params := print.Params{Params: codegen.ParamsOf(c.Value), SparseMemo: c.Value(SparseMemo) != 0}
+		// A TypeScript parser shares its literal tables only with ts-literal-sharing too.
+		params.LiteralSharing = params.LiteralSharing && c.Value(TSLiteralSharing) != 0
+		out, err := print.Print(p, params, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

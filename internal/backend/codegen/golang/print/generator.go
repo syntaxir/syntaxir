@@ -21,7 +21,6 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
-	"syntaxir.dev/sxir/internal/pass"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -101,6 +100,18 @@ type Parser struct {
 	Start *common.Rule
 }
 
+// Params are the values of the parameters of the step print-go that the Go printer reads: those of
+// both printers and the Go printer's own.
+type Params struct {
+	common.Params
+	// FieldCompare is the action lowering's: typed Go compares fields in the actions and predicates of
+	// typed rules without boxing string fields.
+	FieldCompare bool
+	// TypedObjectSlabs and TypedListSlabs allocate typed objects and lists in slabs, and
+	// TypedOutputBootstrap sizes the first slab of the typed output from the input.
+	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap bool
+}
+
 // NoNodeRules reports whether the Node table of a parser with the options o holds no rule bodies: a
 // typed-only or recognize-only parser that does not keep its Node rules, whose rows the typed table
 // or the recognizer shares.
@@ -134,23 +145,22 @@ func TypedEntries(p *Parser) (roots []plandata.Entry, typed, nodes bool, err err
 }
 
 // Print returns the files of the Go parser p, printed from its tables t at the Exec stage with the
-// settings of the compilation and the hooks h of a test.
-func Print(p *Parser, settings pass.Settings, t *execdata.Tables, h Hooks) ([]common.GeneratedFile, error) {
-	files, _, err := printTables(p, settings, t, h)
+// parameters params and the hooks h of a test.
+func Print(p *Parser, params Params, t *execdata.Tables, h Hooks) ([]common.GeneratedFile, error) {
+	files, _, err := printTables(p, params, t, h)
 	return files, err
 }
 
 // printTables prints the files of the Go parser p from its tables t at the Exec stage, with the
-// settings of the compilation and the hooks h of a test, and returns them with the generator that
-// printed them.
-func printTables(p *Parser, settings pass.Settings, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
+// parameters params and the hooks h of a test, and returns them with the generator that printed them.
+func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
 	opts, prog, rec, start := p.Opts, p.Prog, p.Rec, p.Start
 	info, err := loadLib(opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	genGo = newGenerator(p)
-	genGo.Settings, genGo.hooks, genGo.tables = settings, h, t
+	genGo.Params, genGo.params, genGo.hooks, genGo.tables = params.Params, params, h, t
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	var entries typedEntries
 	if opts.Types {
@@ -218,7 +228,7 @@ func printTables(p *Parser, settings pass.Settings, t *execdata.Tables, h Hooks)
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
-	features, err := common.ParserFeatures(prog, rec, opts, genGo.Opt())
+	features, err := common.ParserFeatures(prog, rec, opts, genGo.Params)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -423,7 +433,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			}
 			users = append(users, surface)
 		}
-		rt, err := embeddedLib(opts, features, genGo.Opt().On(common.UsedFeatures), roots, users)
+		rt, err := embeddedLib(opts, features, genGo.Params.UsedFeatures, roots, users)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -456,6 +466,8 @@ func goFieldType(t *types.FieldType) string {
 // TypeScript generator through common.Generator.
 type Generator struct {
 	common.Generator
+	// params are the parameters of the printing (Params), whose common part is common.Generator.Params.
+	params              Params
 	directTypedDocument bool
 	budgetClassNames    map[string]string
 	budgetClassKeys     []string
