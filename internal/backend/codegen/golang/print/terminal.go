@@ -214,7 +214,7 @@ func (t *terminalProgram) emit(e ast.Expr) {
 			t.word(terminalNoTable)
 		}
 		for _, alt := range e.Alts {
-			// Each alternative gets the guard that generator.first gives it.
+			// Each alternative gets the guard that first gives it.
 			if first, id, ok := t.first(alt); ok {
 				if class, rest, ok := leadingClass(alt); ok && class == first {
 					// The guard tests the class that the alternative begins with.
@@ -254,9 +254,10 @@ func (t *terminalProgram) emit(e ast.Expr) {
 	}
 }
 
-// first returns the class and expectation of the guard of an alternative, as generator.first
-// finds them for a terminal expression: the first literal or class that the alternative must
-// match first, a literal standing for its first code point.
+// first returns the class and expectation of the guard of an alternative of a terminal expression:
+// the first literal or class that the alternative must match first, a literal standing for its first
+// code point. It is the first terminal of Core IR (Attrs.First) of the alternative, except that a
+// literal matched without case gives no guard.
 func (t *terminalProgram) first(e ast.Expr) (*ast.CharClass, rprogram.ExpID, bool) {
 	g := t.g
 	switch e := e.(type) {

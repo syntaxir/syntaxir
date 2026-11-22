@@ -14,7 +14,6 @@ import (
 	"sort"
 	"strconv"
 	"strings"
-	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
@@ -29,7 +28,6 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
-	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -1484,56 +1482,6 @@ func (g *Generator) plainCall(r *common.Rule, body string) {
 }
 
 `)
-}
-
-// first returns the condition on the next character ch under which the expression e can match,
-// when e must begin with a given terminal (a literal or a character class, possibly behind
-// sequences, captures, @, - and calls of rules that are not left-recursive or OperatorsRule), with the
-// expectation e records when the condition does not hold and the number of rule calls on the way.
-// Then e fails at once without the terminal, recording only that expectation (a call memoizes the
-// same failure, and memoization only affects speed), so a choice can skip it; unless the calls on
-// the way would exceed the nesting limit.
-func (g *Generator) first(e ast.Expr, depth int, seen map[string]bool) (string, rprogram.ExpID, int, bool) {
-	switch e := e.(type) {
-	case *ast.Literal:
-		if e.Value == "" {
-			break
-		}
-		r, _ := utf8.DecodeRuneInString(e.Value)
-		if e.IgnoreCase {
-			// The next character matches the first code point in either case of an ASCII letter.
-			f := state.FoldASCIIRune(r)
-			cond := fmt.Sprintf("ch == %d", f)
-			if 'a' <= f && f <= 'z' {
-				cond += fmt.Sprintf(" || ch == %d", f-('a'-'A'))
-			}
-			return cond, g.Desc(core.LiteralDesc(e)), depth, true
-		}
-		return fmt.Sprintf("ch == %d", r), g.Desc(core.LiteralDesc(e)), depth, true
-	case *ast.CharClass:
-		return NegateCondition(g.ControlledClassReject(e)), g.Desc(core.CharClassString(e)), depth, true
-	case *ast.Seq:
-		if len(e.Items) > 0 {
-			return g.first(e.Items[0], depth, seen)
-		}
-	case *ast.Capture:
-		return g.first(e.Expr, depth, seen)
-	case *ast.Atomic:
-		return g.first(e.Expr, depth, seen)
-	case *ast.Discard:
-		return g.first(e.Expr, depth, seen)
-	case *ast.Ref:
-		r := g.Prog.ByName[e.Name]
-		if r == nil || r.Leader || seen[e.Name] {
-			break
-		}
-		if _, operatorsRule := r.Def.Expr.(*ast.OperatorsRule); operatorsRule {
-			break
-		}
-		seen[e.Name] = true
-		return g.first(r.Def.Expr, depth+r.EntryDepth(), seen)
-	}
-	return "", 0, 0, false
 }
 
 // enterRec returns the statement that counts the entry of the rule r against the nesting limit: only
