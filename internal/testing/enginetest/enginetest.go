@@ -31,6 +31,7 @@ import (
 func UseEngine() {
 	codegentest.Compile = CompileForGenerator
 	codegentest.Reference = Reference
+	codegentest.ReferenceStream = ReferenceStream
 }
 
 // Main runs the tests of a package that builds generated programs: with the Go flags and the
@@ -136,6 +137,20 @@ func Reference(t *testing.T, src string, opts check.Options) codegentest.Referen
 			unit = sxirinput.Bytes
 		}
 		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, ComputeReport: units})
+	}
+}
+
+// ReferenceStream compiles src with opts and returns the stream parse of its rule main
+// (codegentest.ReferenceStream).
+func ReferenceStream(t *testing.T, src string, opts check.Options) codegentest.ReferenceStreamParse {
+	t.Helper()
+	prog := CompileBare(t, src, opts)
+	return func(input string, bytes bool, units *uint64) error {
+		unit := sxirinput.CodePoints
+		if bytes {
+			unit = sxirinput.Bytes
+		}
+		return prog.ParseStreamWith("main", strings.NewReader(input), nil, engine.ParseOptions{Unit: unit, Expectations: true, ComputeReport: units})
 	}
 }
 

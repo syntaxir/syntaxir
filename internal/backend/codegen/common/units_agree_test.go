@@ -18,7 +18,8 @@ import (
 // (spec/runtime/parsing.md, Cost): on the cases of the generation corpus, in both position units,
 // the engine's closure backend and its recursive and iterative bytecode machines, and the node and
 // typed parses of generated Go and TypeScript parsers, each report the units of the closure
-// backend. A count that one implementation keeps and another does not (a call, a memo key, a value,
+// backend, and the stream parses of generated Go parsers of stream grammars those of the engine's
+// stream parse. A count that one implementation keeps and another does not (a call, a memo key, a value,
 // an advanced position), or an event that one counts beyond the specification (a body evaluation,
 // a repetition, a level of an Operators Rule), shows as a difference on some case.
 //

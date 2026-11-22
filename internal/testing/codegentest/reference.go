@@ -28,6 +28,15 @@ type ReferenceParse func(input string, bytes, recognize bool, units *uint64) (*v
 // package cannot import the engine. It fails the test if src does not compile.
 var Reference func(t *testing.T, src string, opts check.Options) ReferenceParse
 
+// ReferenceStreamParse parses input as a stream (ParseStream) with a program compiled for
+// ReferenceStream, with positions in bytes if bytes is set and otherwise in code points, delivering its
+// elements to no callback, and stores the compute units of the parse in *units. It returns the error.
+type ReferenceStreamParse func(input string, bytes bool, units *uint64) error
+
+// ReferenceStream is Reference for the stream parses that GeneratedParsersUnitsMismatches compares:
+// it compiles src with opts and returns the stream parse of its rule main.
+var ReferenceStream func(t *testing.T, src string, opts check.Options) ReferenceStreamParse
+
 func refProgram(t *testing.T, src string, opts check.Options) ReferenceParse {
 	t.Helper()
 	if Reference == nil {
@@ -238,6 +247,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 	}
 	write("go.mod", GoModAt("codegentest", lib))
 	var imports, parsers, recognizers, viewers, counters strings.Builder
+	streams := make([]bool, len(cases)) // the cases parsed as streams too (units)
 	var inputs [][]string
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
@@ -269,10 +279,17 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			o := opts
 			o.Lib, o.Module, o.KeepComments = common.LibImport, "codegentest/"+o.Package, true
 			o.NoLimitControls = !FixtureBudgetControls(t)
+			// With units, a grammar with a #stream repetition at its start is parsed as a stream too.
+			o.Stream = units && strings.Contains(c.Src, "#stream")
 			files, err := Generate(t, g, o)
+			if err != nil && o.Stream && strings.Contains(err.Error(), "needs a #stream repetition") {
+				o.Stream = false // the #stream repetition is not where a stream parse needs it
+				files, err = Generate(t, g, o)
+			}
 			if err != nil {
 				t.Fatalf("%s: %v", c.Name, err)
 			}
+			streams[i] = o.Stream
 			for _, f := range files {
 				content := f.Content
 				if mutate != nil && f.Path == "parser.go" {
@@ -299,8 +316,13 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		}
 		fmt.Fprintf(&recognizers, "\tfunc(s string, b bool) error { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.Recognize(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
 		if units {
-			// The units of the node parse and of the typed parse of the input.
-			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)); return fmt.Sprintf(\" units: %%d/%%d\", n, v) },\n", i, i, i)
+			// The units of the node parse and of the typed parse of the input, and of its stream parse,
+			// read one byte at a time, for a stream grammar.
+			stream := ""
+			if streams[i] {
+				stream = fmt.Sprintf("var st uint64; g%d.ParseStream(iotest.OneByteReader(strings.NewReader(s)), nil, g%[1]d.WithUnit(u), sxirruntime.WithComputeReport(&st)); out += fmt.Sprintf(\" stream: %%d\", st); ", i)
+			}
+			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)); out := fmt.Sprintf(\" units: %%d/%%d\", n, v); %[4]sreturn out },\n", i, i, i, stream)
 		} else {
 			counters.WriteString("\tfunc(string, bool) string { return \"\" },\n")
 		}
@@ -308,6 +330,13 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		inputs = append(inputs, c.Inputs)
 		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
+		var refStream ReferenceStreamParse
+		if streams[i] {
+			if ReferenceStream == nil {
+				t.Fatal("codegentest.ReferenceStream is not set: the test package must set it to compare stream parses with the engine")
+			}
+			refStream = ReferenceStream(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
+		}
 		for _, in := range c.Inputs {
 			for _, bytes := range []bool{false, true} {
 				var used uint64
@@ -322,12 +351,17 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 				if units {
 					out += fmt.Sprintf(" units: %d/%d", used, used)
 				}
+				if refStream != nil {
+					var st uint64
+					_ = refStream(in, bytes, &st)
+					out += fmt.Sprintf(" stream: %d", st)
+				}
 				want = append(want, out)
 			}
 		}
 	}
 	if units {
-		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n")
+		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n\t\"testing/iotest\"\n")
 	}
 	write("main.go", `package main
 
