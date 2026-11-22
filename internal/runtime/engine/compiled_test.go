@@ -347,6 +347,44 @@ func TestCompiledUnmarkedCycleRejected(t *testing.T) {
 	}
 }
 
+// TestCompiledStepFreeCycleRejected checks that a module whose Flow body has a cycle that charges no
+// step does not load. A corrupted module whose first conditional jump of main went back to the start
+// of the body, before its first STEP, made a parse run forever: no limit stops a cycle that neither
+// charges nor reaches a call. The same module loads and parses with the jump as compiled.
+func TestCompiledStepFreeCycleRejected(t *testing.T) {
+	t.Parallel()
+	for _, corrupt := range []bool{false, true} {
+		prog := mustCompile(t, "rule main = item* $$\nrule item = [a-z]+ \",\"?\n")
+		m := prog.Module()
+		main := slices.IndexFunc(m.Rules, func(r bytecode.RuleInfo) bool { return m.Strings[r.Name] == "main" })
+		f := m.Flows[main]
+		if f == nil {
+			t.Fatal("main has no Flow body")
+		}
+		jump := slices.IndexFunc(f.Code, func(in bytecode.FlowInstr) bool { return in.Op == bytecode.FlowJumpFalse })
+		step := slices.IndexFunc(f.Code, func(in bytecode.FlowInstr) bool { return in.Op == bytecode.FlowStep })
+		if jump < 0 || step >= 0 && step < jump {
+			t.Fatalf("main has no JUMPFALSE before its first STEP\n%s", m.Disassemble())
+		}
+		if corrupt {
+			f.Code[jump].Target = 0
+		}
+		loaded, start, err := LoadProgram(marshalWithTrailing(prog, "main", nil))
+		if corrupt {
+			if err == nil || !strings.Contains(err.Error(), "is on a cycle that charges no step") {
+				t.Fatalf("JUMPFALSE at %d back to 0: got %v, want a rejection", jump, err)
+			}
+			continue
+		}
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := resultWith(loaded, "ab,c", ParseOptions{Backend: Bytecode}); strings.HasPrefix(got, "error") {
+			t.Errorf("%s: %s", start, got)
+		}
+	}
+}
+
 // flowSeeds returns compiled grammars whose rules run Flow bodies, so that corrupting them corrupts
 // the encoding of the bodies too: the grammars srcs with every rule that has a Flow body running it,
 // saved in each compile mode, for those that have one.

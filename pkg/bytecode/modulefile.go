@@ -1000,8 +1000,9 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 // register is within the frame (a destination may be -1, which discards); every target is an
 // instruction of the body; every immediate refers to a class, rule, expectation or scope in range,
 // and every capture slot to a slot of the largest frame the body may run with (its rule's scope or a
-// scope of its NEWFRAME); and the body ends with JUMP or RETURN, so that running it cannot pass its
-// end. A runtime does not check that registers hold what an instruction reads;
+// scope of its NEWFRAME); the body ends with JUMP or RETURN, so that running it cannot pass its
+// end; and every cycle of the body is bounded (Flow.UnboundedCycle), so that a run of it ends under a
+// finite compute limit. A runtime does not check that registers hold what an instruction reads;
 // it checks that a slot is in the frame it indexes.
 func validateFlows(m *Module) error {
 	for _, fs := range []struct {
@@ -1088,6 +1089,9 @@ func validateFlow(m *Module, slots int, f *Flow) error {
 	}
 	if pc, ok := f.RestoreAcrossCommit(); ok {
 		return fmt.Errorf("%v at %d may restore a state saved before an EMITSTREAM", f.Code[pc].Op, pc)
+	}
+	if pc, ok := f.UnboundedCycle(); ok {
+		return fmt.Errorf("%v at %d is on a cycle that charges no step", f.Code[pc].Op, pc)
 	}
 	return nil
 }

@@ -114,10 +114,15 @@ version.
 
 Loading checks the magic number, the format version, a CRC-32 checksum, the mode,
 the instruction-set version and the structure of the module (every index is in
-range, every jump goes forward except the one that closes a repetition and jumps
-back, the start rule is a start rule of the module, and no bytes trail the module).
-It also rejects a recovery region that encloses a streaming commitment, including
-files that were made with `#recover` on the `#stream` repetition.
+range, every jump targets an instruction of its body, the start rule is a start
+rule of the module, and no bytes trail the module). It also rejects a recovery
+region that encloses a streaming commitment, including files that were made with
+`#recover` on the `#stream` repetition, and a body with a cycle that charges no
+compute step and reuses no element of a run it leaves at the run's end
+([Flow Bodies](../bytecode/README.md#flow-bodies)). A parse of a loaded module
+therefore ends under any finite compute limit, the default one among them, even
+when the bytecode was made up; with an `Unlimited` compute limit it MAY run
+without end.
 
 Loading does not type-check the grammar again and does not verify that the
 bytecode uses the VM stacks correctly. It trusts the mode recorded in the file as
@@ -125,8 +130,8 @@ it trusts the module's types: it checks that the mode is known, not that the
 module is the one compiled for that mode, so a file that labels a recognize-mode
 module as parse mode MAY return no value and no error. Load compiled grammars
 only from trusted sources. A file that was made to contain type errors
-MAY make actions fail while parsing, and made-up bytecode is not guaranteed to
-terminate. The checksum detects accidents, not tampering, and is not a signature.
+MAY make actions fail while parsing, and made-up bytecode MAY run until a limit
+stops it. The checksum detects accidents, not tampering, and is not a signature.
 A file from a source that is not trusted therefore cannot be verified by SyntaxIR;
 authenticating it, or accepting grammar source and compiling it with `compiler.Compile`,
 is up to the program.
