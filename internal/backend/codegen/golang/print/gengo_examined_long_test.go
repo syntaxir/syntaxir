@@ -44,7 +44,7 @@ var examinedMutants = []examinedMutant{
 		entries: []string{"parse"}},
 	// examinedExtras reaches the last step of a growth taken from the context; the known case that
 	// needs its record is a recognizer's (the grammar reduced from random cycle grammar 210).
-	{name: "a growth step taken from the context records nothing", file: "context_memo.go", old: "\t\t\tp.documentTouch(s.examined)\n", new: "\t\t\t_ = s\n",
+	{name: "a growth step taken from the context records nothing", file: "context_memo.go", old: "\t\tp.documentTouch(s.examined)\n", new: "\t\t_ = s\n",
 		entries: []string{"recognize"}},
 	{name: "a skip record reused records nothing", file: "skip_runs.go", old: "p.documentTouch(r.examined)", new: "p.documentTouch(0)",
 		entries: []string{"parse"}},
