@@ -464,7 +464,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 	for _, r := range rules {
 		k.calls[r.Name] = astfacts.AllCallsControlled(r.Expr, nil, control)
 	}
-	for i, comp := range tarjan(rules, k.calls, control) {
+	for i, comp := range tarjan(rf.source.Module.Rules, k.calls, control) {
 		for _, n := range comp {
 			k.scc[n] = i
 			if len(comp) > 1 || slices.Contains(k.calls[n], n) {

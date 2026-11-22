@@ -2,7 +2,7 @@ package complexity
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // ruleAnalysis holds the rule facts that the classifier reads by rule name, taken from the facts
@@ -30,10 +30,10 @@ func newRuleAnalysis(control *cancel.Control) *ruleAnalysis {
 		Positional: map[string]bool{}, Recovering: map[string]string{}}
 }
 
-// tarjan returns the strongly connected components of the graph of edges, starting from the rules
-// in order. A component comes after every component it reaches, so callees come before their
+// tarjan returns the strongly connected components of the graph of edges between rule names,
+// starting from the rules of a module in order. A component comes after every component it reaches, so callees come before their
 // callers. A non-nil control polls for cancellation.
-func tarjan(rules []*ast.RuleDef, edges map[string][]string, control *cancel.Control) [][]string {
+func tarjan(rules []*core.Rule, edges map[string][]string, control *cancel.Control) [][]string {
 	index := map[string]int{}
 	low := map[string]int{}
 	onStack := map[string]bool{}
