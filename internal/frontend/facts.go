@@ -22,14 +22,14 @@ type FactSource interface {
 	// facts; with bindings, a binding inside left recursion is an error too.
 	Errors(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef, bindings bool) diagnostic.ErrorList
 	// Sites numbers the sites of the module m of prog's rules with the rule flags of prog.
-	Sites(m *core.Module, prog *check.Program, control *cancel.Control) check.Sites
+	Sites(m *core.Module, prog *check.Model, control *cancel.Control) check.Sites
 }
 
-// Check checks g into its static program (check.CheckCanonical) with the rule facts and the site
+// Check checks g into its semantic model (check.CheckCanonical) with the rule facts and the site
 // numbers of the untyped Core IR module of its rules, which facts computes: the compiler takes
 // every rule fact from the Core facts. names receives the hidden rules that the lowering of inline
 // actions generates. If flags is not nil, the rules take the flags of a compiled grammar
-// (check.Program.Flags), and the sites are numbered with them. A non-nil control polls for
+// (check.Model.Flags), and the sites are numbered with them. A non-nil control polls for
 // cancellation. The Result has no Core IR module (Result.WithModule).
 func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Result, error) {
 	r, _, err := CheckStructural(g, opts, flags, names, facts, control)
@@ -42,7 +42,7 @@ func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names de
 type Structural struct {
 	// Canonical is the grammar as the compiler canonicalized it; Rules are its unique rules, in
 	// the order of the rules of Module.
-	Canonical *check.Canonical
+	Canonical *Canonical
 	Rules     []*ast.RuleDef
 	// Module is nil if the grammar has an error that keeps it from being built. Its origin map
 	// (core.Module.Origin) gives the expression each node was built from.
@@ -72,7 +72,13 @@ func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags
 		// reports every error it finds.
 		ruleFacts = &check.RuleFacts{Rules: make([]check.RuleFact, len(s.Rules))}
 	}
-	prog, err := check.CheckCanonical(s.Canonical, opts, flags, names, ruleFacts, control)
+	c := s.Canonical
+	prog, err := check.CheckCanonical(c.Grammar, c.Source, c.Starts, c.DefaultStart, opts, flags, names, ruleFacts, control)
+	if err == nil && len(c.StartErrors) > 0 {
+		// The start rules and the other declaration attributes are reported once the grammar is
+		// otherwise valid.
+		err = c.StartErrors
+	}
 	if err != nil {
 		return nil, s, mergeErrors(err, s.errors(opts, names, facts))
 	}
@@ -110,8 +116,8 @@ func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, c
 
 // structuralOf builds the structural module of the rules of prog, a program that the compiler
 // accepted, from its canonical grammar, which it does not canonicalize again.
-func structuralOf(prog *check.Program, control *cancel.Control) (*Structural, error) {
-	canon := &check.Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules,
+func structuralOf(prog *check.Model, control *cancel.Control) (*Structural, error) {
+	canon := &Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules,
 		DefaultStart: prog.DefaultStartRule}
 	defs, _ := desugar.UniqueRules(canon.Grammar, control)
 	m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)
@@ -126,7 +132,7 @@ func structuralOf(prog *check.Program, control *cancel.Control) (*Structural, er
 // is kept for CheckStructural to report only if the compiler accepts the grammar. A cancellation
 // is not a failure and unwinds.
 func buildStructural(g *ast.Grammar, opts check.Options, names desugar.InlineNames, control *cancel.Control) (*Structural, error) {
-	canon, err := check.Canonicalize(g, opts, names, control)
+	canon, err := Canonicalize(g, opts, names, control)
 	if err != nil {
 		return nil, err
 	}

@@ -62,7 +62,7 @@ rule d = "d"
 	}
 }
 
-// coreProgram compiles src to its static program, failing the test if it does not compile.
+// coreProgram checks src to its front-end Result, failing the test if it does not compile.
 func coreProgram(t *testing.T, src string) *frontend.Result {
 	t.Helper()
 	return compiletest.Program(t, src, check.Options{})

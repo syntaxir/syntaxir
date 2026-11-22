@@ -30,8 +30,9 @@ import (
 // (elaborate.Program). The tools that analyze a grammar also read the Core IR module of a Result of
 // Run or WithModule; the backends build their own from a Result of Check.
 type Result struct {
-	// Program is the compiled program: rules, flags and types.
-	*check.Program
+	// Model is the semantic model of the checked grammar: its rules with their flags, and its
+	// types.
+	*check.Model
 	// sites numbers the skip-run, run and scan sites of the program's repetitions.
 	sites check.Sites
 	// runtime is the run-time program (Runtime).
@@ -73,7 +74,7 @@ func Run(g *ast.Grammar, opts check.Options, facts FactSource, control *cancel.C
 // has none, and must not compile the grammar twice. The Result of Check does not keep its
 // structural module, which is built again from the program's grammar. r is not changed.
 func (r *Result) WithModule(control *cancel.Control) (*Result, error) {
-	st, err := structuralOf(r.Program, control)
+	st, err := structuralOf(r.Model, control)
 	if err != nil {
 		return nil, err
 	}

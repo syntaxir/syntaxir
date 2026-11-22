@@ -92,7 +92,7 @@ func renderRuleFacts(rules []*ast.RuleDef, rf *ruleFacts) string {
 
 // programRuleFacts returns the rule facts of rules as the rules of prog, the compiled grammar,
 // carry them, or false if prog lacks one of rules.
-func programRuleFacts(prog *check.Program, rules []*ast.RuleDef) (*ruleFacts, bool) {
+func programRuleFacts(prog *check.Model, rules []*ast.RuleDef) (*ruleFacts, bool) {
 	an := newRuleAnalysis(nil)
 	rf := &ruleFacts{an: an, members: map[string]bool{}, vars: map[string][]string{}}
 	for _, rd := range rules {
@@ -132,7 +132,7 @@ func TestClassifierFactsMatchProgram(t *testing.T) {
 				}
 				g, rules := testClassifierRules(t, g)
 				rf := testRuleFacts(t, g, rules)
-				want, ok := programRuleFacts(prog.Program, rules)
+				want, ok := programRuleFacts(prog.Model, rules)
 				if !ok {
 					t.Fatalf("a rule of the classifier is not compiled")
 				}

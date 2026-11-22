@@ -29,16 +29,16 @@ func TestKindsAreTheCheckers(t *testing.T) {
 	}
 
 	// A fresh checker of the same model: the first call is cancelled at its first type.
-	q := &Program{Model: p.Model}
+	q := NewChecker(p)
 	func() {
 		defer func() {
 			if _, ok := recover().(cancel.Cancellation); !ok {
 				t.Fatal("the cancelled call did not unwind with a cancellation")
 			}
 		}()
-		q.Checker().Kinds(func() { panic(cancel.Cancellation{}) })
+		q.Kinds(func() { panic(cancel.Cancellation{}) })
 	}()
-	again := q.Checker().Kinds(nil)
+	again := q.Kinds(nil)
 	if !slices.Equal(slices.Sorted(maps.Keys(again.Types)), slices.Sorted(maps.Keys(k.Types))) ||
 		!slices.Equal(slices.Sorted(maps.Keys(again.Nodes)), slices.Sorted(maps.Keys(k.Nodes))) {
 		t.Errorf("after a cancelled call: types %v, nodes %v; want %v, %v",

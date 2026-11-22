@@ -9,7 +9,7 @@ import (
 
 // markMissingRules records transitive insertion dependencies before matchers or
 // value-free twins are compiled. Unrelated rules retain completed memo reuse.
-func (prog *Program) markMissingRules(control *cancel.Control) {
+func (prog *Model) markMissingRules(control *cancel.Control) {
 	var usesMissingType func(ast.TypeExpr) bool
 	usesMissingType = func(t ast.TypeExpr) bool {
 		control.Poll()

@@ -73,7 +73,7 @@ func (Source) Errors(am *pass.AnalysisManager[*core.Module], m *core.Module, def
 
 // Sites numbers the sites of the module m of prog's rules with the rule flags of prog, keyed by
 // the repetitions of the grammar that the module's repetitions were built from.
-func (Source) Sites(m *core.Module, prog *check.Program, control *cancel.Control) check.Sites {
+func (Source) Sites(m *core.Module, prog *check.Model, control *cancel.Control) check.Sites {
 	rules := make([]corepass.SiteRule, len(prog.RuleList))
 	for i, r := range prog.RuleList {
 		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}

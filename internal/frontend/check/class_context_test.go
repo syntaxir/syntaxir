@@ -11,7 +11,7 @@ func TestFirstTerminalFacts(t *testing.T) {
 	leaf := &ast.Literal{Value: "a"}
 	a := &Rule{Rec: true, Def: &ast.RuleDef{Name: "a", Expr: &ast.Ref{Name: "b"}}}
 	b := &Rule{Rec: true, Def: &ast.RuleDef{Name: "b", Expr: &ast.Capture{Name: "x", Expr: &ast.Atomic{Expr: &ast.Discard{Expr: &ast.Seq{Items: []ast.Expr{leaf}}}}}}}
-	p := &Program{Model: &Model{ByName: map[string]*Rule{"a": a, "b": b}}}
+	p := &Model{ByName: map[string]*Rule{"a": a, "b": b}}
 	got, depth := firstTerminal(p, &ast.Ref{Name: "a"}, 0, map[string]bool{})
 	if got != leaf || depth != 2 {
 		t.Fatalf("terminal=%v depth=%d", got, depth)

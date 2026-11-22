@@ -20,7 +20,7 @@ import (
 //   - no predicate reads $x, and the names x and f are captured only once in the rule;
 //   - f is captured in every element (an item of the element's sequence), with a value that is
 //     never nil (nonNil): otherwise an element can have no record, and $e.$f would be an error.
-func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) map[string]string {
+func ruleProjectionsControlled(prog *Model, r *Rule, control *cancel.Control) map[string]string {
 	control.Poll()
 	if prog.NoProjections || r.Action == nil {
 		return nil
@@ -210,7 +210,7 @@ func directCapture(e ast.Expr, name string, control *cancel.Control) *ast.Captur
 // value is never nil when its action makes a struct or returns a
 // capture whose value is never nil, or when it has no action and its body's value is never nil
 // (without the type checker's results, which the engine computes after compiling).
-func nonNil(prog *Program, e ast.Expr, seen map[string]bool, control *cancel.Control) bool {
+func nonNil(prog *Model, e ast.Expr, seen map[string]bool, control *cancel.Control) bool {
 	control.Poll()
 	switch e := e.(type) {
 	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Atomic, *ast.Top, *ast.Seq, *ast.Repeat:
@@ -276,7 +276,7 @@ func nonNil(prog *Program, e ast.Expr, seen map[string]bool, control *cancel.Con
 }
 
 // lineNonNil reports whether a rule body or Operators Rule line e with the action t never has a nil value.
-func lineNonNil(prog *Program, e ast.Expr, t ast.ActionExpr, operator bool, seen map[string]bool, control *cancel.Control) bool {
+func lineNonNil(prog *Model, e ast.Expr, t ast.ActionExpr, operator bool, seen map[string]bool, control *cancel.Control) bool {
 	control.Poll()
 	switch t := t.(type) {
 	case nil:
@@ -294,6 +294,6 @@ func lineNonNil(prog *Program, e ast.Expr, t ast.ActionExpr, operator bool, seen
 }
 
 // RuleProjections returns the projected repetition captures of r (ruleProjectionsControlled).
-func RuleProjections(prog *Program, r *Rule) map[string]string {
+func RuleProjections(prog *Model, r *Rule) map[string]string {
 	return ruleProjectionsControlled(prog, r, nil)
 }

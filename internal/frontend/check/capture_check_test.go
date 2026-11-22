@@ -68,7 +68,7 @@ func captureCheckProgram(src string) (*engine.Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	sp := check.NewProgram(g)
+	sp := check.NewModel(g, nil)
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}

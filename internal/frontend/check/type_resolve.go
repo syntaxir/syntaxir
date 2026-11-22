@@ -273,7 +273,7 @@ func (k *TypeResolver) ResolveNamed(name string, pos ast.Pos) Ty {
 		}
 		// Within the value of a named node type, a named node type stands for itself by its
 		// name, like a struct type: its value is read from its definition where it is needed
-		// (Program.nodeValueOf). Types that refer to each other thus resolve in linear time,
+		// (Checker.nodeValueOf). Types that refer to each other thus resolve in linear time,
 		// and a type alias may refer to itself through a named node type.
 		if k.inNode {
 			return NodeTy{Value: TyTop, Name: name}

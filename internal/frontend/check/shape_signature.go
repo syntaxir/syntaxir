@@ -8,8 +8,11 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// ShapeSignature is ShapeSignature.
-func (p *Program) ShapeSignature(name string, poll func()) (string, bool) {
+// ShapeSignature returns a text that describes the elements and captures that every subexpression
+// of the rule name contributes to the tuple of its scope, in preorder, leaving out the lookaheads
+// and what they hold. It reports false if the model has no such rule or its types were not
+// checked. poll, when not nil, is called at every subexpression.
+func (p *Model) ShapeSignature(name string, poll func()) (string, bool) {
 	if p == nil || p.Typed == nil {
 		return "", false
 	}

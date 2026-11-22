@@ -11,7 +11,7 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The tests of this package check grammars to their static programs (Check), which builds no
+// The tests of this package check grammars to their semantic models (Check), which builds no
 // matchers: they check what the compiler decides, which the engine's tests check by running it.
 
 // parseTest parses SyntaxIR source for a test whose subject is not start rules: unless the source has
@@ -23,7 +23,7 @@ func parseTest(src string) (*ast.Grammar, error) {
 
 // compileStatic compiles g as the engine does, without building matchers; flags, if not nil,
 // replace static analysis and type checking.
-func compileStatic(g *ast.Grammar, opts Options, flags []RuleFlags) (*Program, error) {
+func compileStatic(g *ast.Grammar, opts Options, flags []RuleFlags) (*Model, error) {
 	names := desugar.InlineNames{}
 	p, err := Check(g, opts, flags, names, nil)
 	if err != nil {

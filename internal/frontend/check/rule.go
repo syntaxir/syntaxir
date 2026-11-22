@@ -19,10 +19,10 @@ type Rule struct {
 	Scope  *Scope
 	Action ast.ActionExpr
 	// NodeType, if not "", is the named node type the rule's value is converted to
-	// (Program.ruleNodeType).
+	// (Checker.RuleNodeType).
 	NodeType string
 	// OpNodeType, if not "", is the named node type every operator node of an Operators Rule is
-	// converted to (Program.operatorsNodeType).
+	// converted to (Checker.OperatorsNodeType).
 	OpNodeType string
 	Memo       bool
 	Missing    bool // this rule or a callee contains #missing

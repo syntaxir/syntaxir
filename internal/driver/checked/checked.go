@@ -186,12 +186,12 @@ func (s *Source) again(derive func(*check.Options), flags []check.RuleFlags) (st
 // RuleType is check.Checker.RuleType.
 func (s *Source) RuleType(name string) (string, bool) { return s.prog.Checker().RuleType(name) }
 
-// RuleTypeWithPoll is check.Program.RuleTypeWithPoll.
+// RuleTypeWithPoll is check.Model.RuleTypeWithPoll.
 func (s *Source) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 	return s.prog.RuleTypeWithPoll(name, poll)
 }
 
-// ShapeSignature is check.Program.ShapeSignature.
+// ShapeSignature is check.Model.ShapeSignature.
 func (s *Source) ShapeSignature(name string, poll func()) (string, bool) {
 	return s.prog.ShapeSignature(name, poll)
 }

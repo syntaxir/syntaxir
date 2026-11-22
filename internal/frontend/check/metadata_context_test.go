@@ -56,7 +56,7 @@ func TestProjectionMetadataCancellation(t *testing.T) {
 		run  func(*cancel.Control)
 	}{
 		{"candidate-walk", func(c *cancel.Control) {
-			ruleProjectionsControlled(NewProgram(nil), &Rule{Def: &ast.RuleDef{Expr: expr}, Action: &ast.StringLit{}}, c)
+			ruleProjectionsControlled(NewModel(nil, nil), &Rule{Def: &ast.RuleDef{Expr: expr}, Action: &ast.StringLit{}}, c)
 		}},
 	} {
 		t.Run(phase.name, func(t *testing.T) {

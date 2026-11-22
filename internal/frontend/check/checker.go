@@ -7,9 +7,9 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Checker checks the types of one program and keeps what the checks compute for it. It reads the
-// program's semantic model, Model. A program has one Checker, made with it, and every cache below lives as
-// long as that Checker: for the program's lifetime.
+// Checker checks the types of the grammar of one semantic model, Model, and keeps what the checks
+// compute for it. A model has one Checker (Model.Checker), made on first use, and every cache below
+// lives as long as that Checker: for the model's lifetime.
 type Checker struct {
 	*Model
 	// shapeControl is the compilation's cancellation control while the program is being built, so

@@ -119,7 +119,7 @@ rule unused = "z"`)
 		}
 	}
 	// A program without the grammar has no metadata to export from.
-	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(check.NewProgram(nil), check.Sites{}))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
+	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(check.NewModel(nil, nil), check.Sites{}))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
 		t.Fatal(err)
 	}
 }

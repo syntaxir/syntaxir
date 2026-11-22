@@ -10,7 +10,7 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 // memoization only affects speed), so a choice can skip e unless the calls on the way would exceed
 // the nesting limit. The backends take the first terminals from Core IR (Attrs.First); this is the
 // grammar-level reference the facts tests compare them with.
-func firstTerminal(prog *Program, e ast.Expr, depth int, seen map[string]bool) (ast.Expr, int) {
+func firstTerminal(prog *Model, e ast.Expr, depth int, seen map[string]bool) (ast.Expr, int) {
 	switch e := e.(type) {
 	case *ast.Literal:
 		if e.Value != "" {

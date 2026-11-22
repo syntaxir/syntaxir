@@ -37,7 +37,7 @@ func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, er
 // them the views (checked.Source.Generator) of the programs that checkForGenerator checks.
 var compileForGenerator = checked.GeneratorCompiler(checkForGenerator)
 
-// checkForGenerator checks g to its static program, which is all a generator reads, and checks
+// checkForGenerator checks g to its semantic model and sites, which is all a generator reads, and checks
 // the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
 // backend of the engine is built.
 func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*frontend.Result, func() (*frontend.Result, error), error) {

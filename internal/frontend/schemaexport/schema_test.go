@@ -81,7 +81,7 @@ func TestOutputSchemaInferredCaptureAndDynamic(t *testing.T) {
 }
 
 func TestOutputSchemaRejectsUnresolvedShapes(t *testing.T) {
-	p := &check.Program{Model: &check.Model{Types: map[string]ast.TypeDecl{"Known": &ast.TypeDef{Name: "Known", Type: &ast.StructType{}}}}}
+	p := &check.Model{Types: map[string]ast.TypeDecl{"Known": &ast.TypeDef{Name: "Known", Type: &ast.StructType{}}}}
 	// The checker reports undefined names, which resolve to _ so that checking can go on; a
 	// checked program has none. *_ is _, since _ includes nil.
 	for _, expr := range []ast.TypeExpr{

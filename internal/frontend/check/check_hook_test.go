@@ -10,11 +10,11 @@ import (
 )
 
 func init() {
-	check.CheckGrammar = func(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, control *cancel.Control) (*check.Program, error) {
+	check.CheckGrammar = func(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, control *cancel.Control) (*check.Model, error) {
 		r, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
 		if err != nil {
 			return nil, err
 		}
-		return r.Program, nil
+		return r.Model, nil
 	}
 }

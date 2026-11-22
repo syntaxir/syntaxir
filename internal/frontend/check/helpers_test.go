@@ -25,7 +25,7 @@ func mustParse(src string) *ast.Grammar {
 
 // mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
-func mustCompile(t *testing.T, src string, opts ...Options) *Program {
+func mustCompile(t *testing.T, src string, opts ...Options) *Model {
 	t.Helper()
 	var o Options
 	if len(opts) > 0 {
@@ -37,7 +37,7 @@ func mustCompile(t *testing.T, src string, opts ...Options) *Program {
 
 // compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
-func compileBare(t *testing.T, src string, opts ...Options) *Program {
+func compileBare(t *testing.T, src string, opts ...Options) *Model {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
@@ -87,7 +87,7 @@ func compileMessage(t *testing.T, src string, opts ...Options) string {
 }
 
 // compileStarts parses src as written, without marking start rules, and compiles it.
-func compileStarts(t *testing.T, src string) (*Program, error) {
+func compileStarts(t *testing.T, src string) (*Model, error) {
 	t.Helper()
 	g, err := parser.Parse(src)
 	if err != nil {
@@ -99,7 +99,7 @@ func compileStarts(t *testing.T, src string) (*Program, error) {
 // inferredType returns the value type the checker infers for the rule name, with the rules it
 // refers to replaced by their values at the top level and in unions and optional types. RuleType
 // refers to a rule without a declared type by name instead.
-func inferredType(p *Program, name string) (string, bool) {
+func inferredType(p *Model, name string) (string, bool) {
 	t, ok := p.Typed.Values[name]
 	if !ok {
 		return "", false
@@ -133,7 +133,7 @@ func jsonActionBlockGrammar(t *testing.T, g *ast.Grammar) *ast.Grammar {
 
 // compileContext is compileStatic under ctx, as the engine's CompileContext is: cancellation
 // discards the program and returns the context's error.
-func compileContext(ctx context.Context, g *ast.Grammar, opts Options) (prog *Program, err error) {
+func compileContext(ctx context.Context, g *ast.Grammar, opts Options) (prog *Model, err error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

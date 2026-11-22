@@ -56,7 +56,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		canon, err := check.Canonicalize(g, opts, desugar.InlineNames{}, nil)
+		canon, err := Canonicalize(g, opts, desugar.InlineNames{}, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

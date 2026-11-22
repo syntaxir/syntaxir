@@ -10,7 +10,7 @@ import (
 
 var normalizationBenchmarkGrammar *ast.Grammar
 
-var normalizationBenchmarkProgram *Program
+var normalizationBenchmarkProgram *Model
 
 func BenchmarkAttributeNormalization(b *testing.B) {
 	sources := map[string]string{

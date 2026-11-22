@@ -1,4 +1,4 @@
-// Package compiletest compiles grammars to their static programs for the tests of the packages
+// Package compiletest checks grammars to their front-end Results for the tests of the packages
 // that work on a compiled program without running it (the Core IR build, the output schema). It
 // runs the compiler with a builder that builds no matchers, so a test needs neither the engine
 // nor its closures.

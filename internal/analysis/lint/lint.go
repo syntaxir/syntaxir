@@ -179,9 +179,9 @@ func (c Config) Run(ctx context.Context, g *ast.Grammar, start string) ([]Findin
 // a start rule of the grammar of res.
 func resolveStart(res *frontend.Result, start string) (string, error) {
 	if start == "" {
-		return res.Program.DefaultStartRule, nil
+		return res.Model.DefaultStartRule, nil
 	}
-	return start, res.Program.CheckStart(start)
+	return start, res.Model.CheckStart(start)
 }
 
 // RunChecked lints the grammar g, whose front-end result is res, from the start rule start with

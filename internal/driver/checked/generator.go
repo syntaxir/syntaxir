@@ -25,7 +25,7 @@ func (s *Source) Generator() *common.Program {
 			rt, id = run.Twins, id-len(rt)
 		}
 		return &common.Rule{Rule: rt[id], Def: r.Def, Action: r.Action, Captures: r.Scope, Lean: r.Lean,
-			Projections: check.RuleProjections(p.Program, r)}
+			Projections: check.RuleProjections(p.Model, r)}
 	}
 	for i, r := range p.RuleList {
 		v.RuleList[i] = view(r)

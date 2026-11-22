@@ -89,7 +89,7 @@ func TestValueNeededRulesScoped(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	needed := valueNeededRules(g.Rules(), nil, false)
+	needed := ValueNeededRules(g.Rules(), nil, false)
 	var got []string
 	for name, ok := range needed {
 		if ok {

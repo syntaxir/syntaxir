@@ -44,7 +44,7 @@ type ValueInference struct {
 	// spliced holds the splice rules whose bodies are being expanded; a call inside them is an
 	// element of its own (Rule.Splice).
 	spliced map[string]bool
-	// bottoms, while not nil, are the rules of type _|_ as far as Program.bottomRules has found
+	// bottoms, while not nil, are the rules of type _|_ as far as Checker.bottomRules has found
 	// them.
 	bottoms map[string]bool
 	// nodeMembers, if not nil, receives the member accesses that read only node members.
@@ -700,7 +700,7 @@ func (v *ValueInference) exprElems(e ast.Expr) []ValueElem {
 // otherwise of type node[string], matches only where its operand does, so an #atomic of an
 // expression that never matches never matches and has no value: its type is _|_. A call of another
 // rule has the rule's type, which is the type of its body for a rule without an action or a
-// declared type (ruleDef), as for a call of a splice rule (Program.bottomRules). A recovery joins
+// declared type (ruleDef), as for a call of a splice rule (Checker.bottomRules). A recovery joins
 // the type with error, which is not _|_. Every other expression has a type of its own whatever its
 // operand is: no value (a lookahead, a discard, a predicate), *_|_ (an optional, which matches the
 // empty input), []_|_ (a repetition that may match no element), a match.
@@ -734,7 +734,7 @@ func (v *ValueInference) bottom(e ast.Expr) bool {
 	return false
 }
 
-// bottomRule reports whether the rule name has the type _|_ (Program.bottomRules).
+// bottomRule reports whether the rule name has the type _|_ (Checker.bottomRules).
 func (v *ValueInference) bottomRule(name string) bool {
 	if v.bottoms != nil {
 		return v.bottoms[name]

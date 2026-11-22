@@ -19,7 +19,7 @@ func deepStructReads(t *testing.T, depth int) uint64 {
 	t.Helper()
 	prog := deepStructProgram(t, depth)
 	var reads int
-	checker := check.NewChecker(prog.Model)
+	checker := check.NewChecker(prog)
 	check.CountTypeReads(checker, &reads)
 	if !checker.HasZero(types.NamedTy{Name: "S0", Kind: 's'}) {
 		t.Fatal("the chain has no zero value")
@@ -28,7 +28,7 @@ func deepStructReads(t *testing.T, depth int) uint64 {
 }
 
 // deepStructProgram compiles a chain of depth struct types, each holding the next twice, below Top.
-func deepStructProgram(t *testing.T, depth int) *check.Program {
+func deepStructProgram(t *testing.T, depth int) *check.Model {
 	t.Helper()
 	var src strings.Builder
 	for i := range depth {
@@ -36,7 +36,7 @@ func deepStructProgram(t *testing.T, depth int) *check.Program {
 	}
 	fmt.Fprintf(&src, "type S%d = { V int }\ntype Top = { K node[string]; In S0 }\n", depth)
 	src.WriteString("@start\nrule main Top = k:\"x\" => Top{K: $k}\n")
-	return compiletest.Program(t, src.String(), check.Options{}).Program
+	return compiletest.Program(t, src.String(), check.Options{}).Model
 }
 
 // growsLinearly reports whether a count for twice the depth is at most three times the count for the

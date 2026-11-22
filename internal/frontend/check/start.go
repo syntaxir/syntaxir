@@ -2,12 +2,12 @@ package check
 
 // CheckStart reports why name cannot begin a parse of prog: it is empty and there is no default
 // start rule, it is hidden, it is not defined, or it is not a start rule (CheckStartName).
-func (prog *Program) CheckStart(name string) error {
+func (prog *Model) CheckStart(name string) error {
 	return CheckStartName(prog.StartRules, prog.DefaultStartRule, prog.definesRule, name)
 }
 
 // StartRule returns the start rule name selects.
-func (prog *Program) StartRule(name string) (*Rule, error) {
+func (prog *Model) StartRule(name string) (*Rule, error) {
 	if err := prog.CheckStart(name); err != nil {
 		return nil, err
 	}
@@ -15,4 +15,4 @@ func (prog *Program) StartRule(name string) (*Rule, error) {
 }
 
 // definesRule reports whether the grammar defines the rule name.
-func (prog *Program) definesRule(name string) bool { return prog.ByName[name] != nil }
+func (prog *Model) definesRule(name string) bool { return prog.ByName[name] != nil }

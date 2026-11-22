@@ -2,7 +2,6 @@ package check
 
 import (
 	"fmt"
-	"sync"
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/diagnostic"
@@ -13,20 +12,6 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
-
-// Program is the checked program: what the compiler found out about a grammar, its rules with
-// their static facts, its types and expectations. It keeps no output of a backend and no site
-// numbers: the front end's Result adds the site numbers and the run-time program
-// (internal/frontend.Result), and the compiler side that holds a Result builds the outputs of the
-// backends (internal/driver/checked.Source).
-type Program struct {
-	// Model is the semantic model of the grammar: the grammar, its types, variables and start
-	// rules. Check always sets it.
-	*Model
-	// chk checks the types of the program (Checker), made on first use.
-	chk         *Checker
-	checkerOnce sync.Once
-}
 
 // Reserved type names.
 var builtinTypes = map[string]bool{
@@ -39,7 +24,7 @@ var builtinTypes = map[string]bool{
 // A nil Control never cancels.
 type Compiler struct {
 	Control *cancel.Control
-	Prog    *Program
+	Prog    *Model
 	proj    map[string]string // projected captures of the rule being compiled (ruleProjections)
 	// facts are the rule facts the program is checked with, or nil if the rules take the flags of
 	// a compiled grammar, which was checked when it was compiled.
@@ -50,7 +35,7 @@ type Compiler struct {
 	descIDs map[string]program.ExpID
 }
 
-// desc returns the index of an expectation string (adding it to Program.DescTable).
+// desc returns the index of an expectation string (adding it to Model.DescTable).
 func (c *Compiler) desc(s string) program.ExpID {
 	if id, ok := c.descIDs[s]; ok {
 		return id
@@ -74,9 +59,9 @@ func (c *Compiler) errorf(pos ast.Pos, format string, args ...any) {
 	c.errs = append(c.errs, &diagnostic.Error{Pos: pos, Msg: fmt.Sprintf(format, args...)})
 }
 
-// Flags returns the rule flags of the program's rules, with which a variant of the program (its
+// Flags returns the rule flags of the model's rules, with which a variant of the program (its
 // recognizer) is checked again from its grammar so that its rules keep them.
-func (p *Program) Flags() []RuleFlags {
+func (p *Model) Flags() []RuleFlags {
 	flags := make([]RuleFlags, len(p.RuleList))
 	for i, r := range p.RuleList {
 		flags[i] = RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, Twin: r.TwinOK}
@@ -87,7 +72,7 @@ func (p *Program) Flags() []RuleFlags {
 // insertionFlags returns the rule flags of prog under the facts with token insertion enabled,
 // which the compilation sets as it sets the rules' own from the facts without insertion, or nil if
 // they equal the rules' own.
-func insertionFlags(prog *Program, facts *RuleFacts, opts Options, control *cancel.Control) []RuleFlags {
+func insertionFlags(prog *Model, facts *RuleFacts, opts Options, control *cancel.Control) []RuleFlags {
 	out := make([]RuleFlags, len(prog.RuleList))
 	differ := false
 	for i, r := range prog.RuleList {
@@ -106,138 +91,18 @@ func insertionFlags(prog *Program, facts *RuleFacts, opts Options, control *canc
 	return out
 }
 
-// Canonical is the grammar that a program is compiled from: the grammar after its inline actions
-// are lowered, its default-value form (if the options ask for it) and its attributes are normalized.
-type Canonical struct {
-	// Grammar is the grammar the program runs.
-	Grammar *ast.Grammar
-	// Source is the grammar as written, normalized, or nil if Grammar is the one as written.
-	Source *ast.Grammar
-	// Starts are the start rules in order, and DefaultStart is the one used when none is named.
-	Starts       []string
-	DefaultStart string
-	// StartErrors are the errors of the start declarations; compilation reports them.
-	StartErrors diagnostic.ErrorList
-}
-
-// Canonicalize validates the grammar and returns the canonical form that Check checks.
-// names receives the hidden rules that the lowering of inline actions generates.
-func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, control *cancel.Control) (*Canonical, error) {
-	control.Check()
-	if !opts.DefaultValue {
-		if err := validateGrammar(g, control); err != nil {
-			return nil, err
-		}
-	}
-	// The inline actions are checked as written, then lowered to hidden rules. A program keeps
-	// the grammar as written, whatever its options, for checked.Source.Grammar.
-	source := g
-	if desugar.HasInlineAction(g, control) {
-		if errs := desugar.UndeclaredRules(g, control); errs != nil {
-			return nil, errs
-		}
-		lowered, errs := desugar.LowerInlineActionsControlled(g, names, control)
-		if errs != nil {
-			return nil, errs
-		}
-		g = lowered
-		control.Check()
-	}
-	if opts.DefaultValue {
-		lowered := g
-		g = desugar.DefaultValueGrammar(g, valueNeededRules(control.Rules(g), control, false), control)
-		control.Check()
-		// A defect is reported where the grammar as written has it.
-		valid := g
-		if lowered != source {
-			valid = desugar.SourceDefaultValueGrammar(source, lowered, g, names, control)
-		}
-		if err := validateGrammar(valid, control); err != nil {
-			return nil, err
-		}
-	}
-	keepSource := source != g
-	var unsupported diagnostic.ErrorList
-	for _, comment := range g.File.HeaderComments {
-		control.Poll()
-		unsupported = append(unsupported, &diagnostic.Error{Pos: comment.Pos, Msg: "comments are not allowed inside statement headers"})
-	}
-	checkBlocks := func(actionExpr ast.ActionExpr) {
-		astfacts.WalkAction(actionExpr, func(t ast.ActionExpr) {
-			control.Poll()
-			if block, ok := t.(*ast.Block); ok {
-				unsupported = append(unsupported, &diagnostic.Error{Pos: block.Diagnostic(), Msg: "action statement blocks are not implemented"})
-			}
-		})
-	}
-	for _, rd := range control.Rules(g) {
-		control.Poll()
-		checkBlocks(rd.Action)
-		astfacts.WalkExprControlled(rd.Expr, func(e ast.Expr) {
-			control.Poll()
-			switch e := e.(type) {
-			case *ast.Predicate:
-				if block, ok := e.Action.(*ast.Block); ok && len(block.Statements) > 0 {
-					for _, statement := range block.Statements {
-						control.Poll()
-						checkBlocks(statement)
-					}
-				} else {
-					checkBlocks(e.Action)
-				}
-			case *ast.InlineAction:
-				checkBlocks(e.Action)
-			case *ast.OperatorsRule:
-				for _, operand := range e.Operands {
-					control.Poll()
-					checkBlocks(operand.Action)
-				}
-				for _, level := range e.Levels {
-					control.Poll()
-					for _, operator := range level.Operators {
-						control.Poll()
-						checkBlocks(operator.Action)
-					}
-				}
-			}
-		}, control)
-	}
-	starts, defaultStart, startErrors := desugar.ResolveStarts(control.Rules(g), control)
-	_, _, linearErrors := desugar.LinearDeclarations(g, control)
-	startErrors = append(startErrors, linearErrors...)
-	control.Check()
-	if len(unsupported) != 0 {
-		return nil, unsupported
-	}
-	var normalizationError error
-	g, normalizationError = desugar.NormalizeAttributesControlled(g, opts.EagerAttributeCopies, control)
-	control.Check()
-	if normalizationError != nil {
-		return nil, normalizationError
-	}
-	if !keepSource {
-		source = nil // the grammar as written is the one the program runs
-	} else {
-		// The grammar as written is kept beside the one the program runs.
-		if source, normalizationError = desugar.NormalizeAttributesControlled(source, opts.EagerAttributeCopies, control); normalizationError != nil {
-			return nil, normalizationError
-		}
-	}
-	return &Canonical{Grammar: g, Source: source, Starts: starts, DefaultStart: defaultStart, StartErrors: startErrors}, nil
-}
-
-// CheckCanonical checks the canonical grammar canon into its static program: the rules with their
-// flags, scopes and value-free twins, the types and the expectation table, everything a backend
-// lowers and a generator reads, without building any backend's form (the front end's Result holds
-// it). The rule flags come from facts, the facts of canon's rules. names receives the hidden rules
-// that the lowering of inline actions generates. If flags is not nil, it skips type checking and
-// the checks of the facts and takes the flags of a compiled grammar instead; facts still give the
-// other rule facts. The front end numbers the sites afterwards (frontend.NewResult).
-func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Program, error) {
-	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
-	m := NewModel(g, source)
-	m.ByName, m.DescTable = map[string]*Rule{}, append([]string(nil), core.FixedDescs...)
-	prog := &Program{Model: m}
+// CheckCanonical checks the canonical grammar g (frontend.Canonicalize) into its semantic model:
+// the rules with their flags, scopes and value-free twins, the types and the expectation table,
+// everything a backend lowers and a generator reads, without building any backend's form (the
+// front end's Result holds it). source is the grammar as written, or nil if it is g, and starts
+// and defaultStart are its start rules. The rule flags come from facts, the facts of g's rules.
+// names receives the hidden rules that the lowering of inline actions generates. If flags is not
+// nil, it skips type checking and the checks of the facts and takes the flags of a compiled
+// grammar instead; facts still give the other rule facts. The front end reports the errors of the
+// start declarations of a grammar that checks, and numbers its sites (frontend.NewResult).
+func CheckCanonical(g, source *ast.Grammar, starts []string, defaultStart string, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Model, error) {
+	prog := NewModel(g, source)
+	prog.DescTable = append([]string(nil), core.FixedDescs...)
 	c := &Compiler{Control: control, Prog: prog, opts: opts}
 	if control != nil {
 		prog.Checker().SetShapeControl(control)
@@ -324,7 +189,7 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 		// Only rules whose values are referenced by predicates, and the rules needed to build those
 		// values, are evaluated as usual; so are the rules with a #stream repetition, whose elements
 		// a stream hands to its caller, unless the program is the recognizer, which only recognizes.
-		needed := valueNeededRules(rules, control, opts.Recognition == RecognizeWithStreamValues)
+		needed := ValueNeededRules(rules, control, opts.Recognition == RecognizeWithStreamValues)
 		for _, r := range prog.RuleList {
 			control.Poll()
 			if !needed[r.Name] {
@@ -372,18 +237,12 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 			return nil, c.errs
 		}
 	}
-	// The start rules and the other declaration attributes are reported once the grammar is
-	// otherwise valid.
-	if len(startErrors) > 0 {
-		return nil, startErrors
-	}
-
 	control.Check()
 	return prog, nil
 }
 
-// validateGrammar returns the validation error of g as a compile error.
-func validateGrammar(g *ast.Grammar, control *cancel.Control) error {
+// ValidateGrammar returns the validation error of g as a compile error.
+func ValidateGrammar(g *ast.Grammar, control *cancel.Control) error {
 	var validationError error
 	if control == nil {
 		validationError = ast.Validate(g)
@@ -439,7 +298,7 @@ func NumberLeaders(rules []*Rule) {
 }
 
 // defsByName returns the rule definitions of the program by name.
-func (p *Program) defsByName() map[string]*ast.RuleDef {
+func (p *Model) defsByName() map[string]*ast.RuleDef {
 	m := make(map[string]*ast.RuleDef, len(p.RuleList))
 	for _, r := range p.RuleList {
 		m[r.Name] = r.Def
@@ -458,10 +317,10 @@ func (c *Compiler) twinOf(r *Rule) *Rule {
 	return r.Twin
 }
 
-// valueNeededRules returns the rules that must build values even in a program that builds no
+// ValueNeededRules returns the rules that must build values even in a program that builds no
 // tree: the rules called within captures that predicates can read, and every rule they call. With
-// streams, also the rules with a #stream repetition (see Program.ParseStream) and every rule they call.
-func valueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams bool) map[string]bool {
+// streams, also the rules with a #stream repetition (see the engine's Program.ParseStream) and every rule they call.
+func ValueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams bool) map[string]bool {
 	control.Poll()
 	byName := map[string]*ast.RuleDef{}
 	for _, rd := range rules {
@@ -631,17 +490,9 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 }
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.
-func (prog *Program) TypeKind(typ string) *valueimpl.Kind {
+func (prog *Model) TypeKind(typ string) *valueimpl.Kind {
 	if k := prog.TypeKinds[typ]; k != nil {
 		return k
 	}
 	return valueimpl.KindOf(typ, "")
-}
-
-// NewProgram returns a program of the grammar g with no rules or types yet, for the tests that fill
-// in a program of their own.
-func NewProgram(g *ast.Grammar) *Program {
-	m := NewModel(g, nil)
-	m.ByName = map[string]*Rule{}
-	return &Program{Model: m}
 }

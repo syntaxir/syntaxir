@@ -7,8 +7,10 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
-// RuleTypeWithPoll is RuleTypeWithPoll.
-func (p *Program) RuleTypeWithPoll(name string, poll func()) (string, bool) {
+// RuleTypeWithPoll returns the type of the rule name as the editor shows it, calling poll, when
+// not nil, as it renders the type; a nil poll uses Checker.RuleType. It reports false if the model
+// has no such rule or its types were not checked.
+func (p *Model) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 	if poll == nil {
 		return p.Checker().RuleType(name)
 	}

@@ -1,6 +1,8 @@
 package check
 
 import (
+	"sync"
+
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -60,12 +62,16 @@ type Model struct {
 	// they differ from the flags of the rules; nil otherwise. Such parses run a program built with
 	// them.
 	InsertionFlags []RuleFlags
+
+	// chk checks the types of the model (Checker), made on first use under checkerOnce.
+	chk         *Checker
+	checkerOnce sync.Once
 }
 
 // NewModel returns a model of the grammar g, whose lowering of source it is (nil if g is the
-// grammar as written), with no type declarations yet.
+// grammar as written), with no type declarations or rules yet.
 func NewModel(g, source *ast.Grammar) *Model {
-	return &Model{Grammar: g, Source: source, Types: map[string]ast.TypeDecl{}}
+	return &Model{Grammar: g, Source: source, Types: map[string]ast.TypeDecl{}, ByName: map[string]*Rule{}}
 }
 
 // ResolveStart returns the rule name selects: name, or the default start rule when name is

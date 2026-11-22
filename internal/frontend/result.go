@@ -5,17 +5,18 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
+	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 var _ elaborate.Program = (*Result)(nil)
 
-// NewResult returns the Result of the compiled program prog whose sites are numbered sites, with
-// its run-time program. A Result is not changed after it is made, except by the front end that
-// adds its Core IR module before handing it out.
-func NewResult(prog *check.Program, sites check.Sites) *Result {
-	r := &Result{Program: prog, sites: sites}
+// NewResult returns the Result of the checked model m whose sites are numbered sites, with its
+// run-time program. A Result is not changed after it is made, except by the front end that adds
+// its Core IR module before handing it out.
+func NewResult(m *check.Model, sites check.Sites) *Result {
+	r := &Result{Model: m, sites: sites}
 	r.runtime = r.newRuntime()
 	return r
 }
@@ -23,7 +24,7 @@ func NewResult(prog *check.Program, sites check.Sites) *Result {
 // CoreInput returns the rules and declarations of the program as the Core IR builder reads them
 // (elaborate.Program).
 func (r *Result) CoreInput() *elaborate.Input {
-	p := r.Program
+	p := r.Model
 	in := &elaborate.Input{Types: p.Types, Vars: p.Vars, ByName: map[string]*elaborate.Rule{}}
 	all := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
 	in.Rules = make([]*elaborate.Rule, len(all))
@@ -51,6 +52,10 @@ func (r *Result) CoreInput() *elaborate.Input {
 	}
 	return in
 }
+
+// ResolveCheck returns the type that a cast to t checks, or nil if every value fits it
+// (elaborate.Program).
+func (r *Result) ResolveCheck(t ast.TypeExpr) types.Ty { return r.Checker().ResolveCheck(t) }
 
 // MissingTokens reports that the grammar uses #missing (elaborate.Program).
 func (r *Result) MissingTokens() bool { return r.HasMissing }
@@ -144,7 +149,7 @@ func (r *Result) RunKeys() map[int]check.RunKey { return r.sites.RunKeys }
 func (r *Result) Runtime() *program.Program { return r.runtime }
 
 func (r *Result) newRuntime() *program.Program {
-	p := r.Program
+	p := r.Model
 	rt := &program.Program{
 		ByName:            make(map[string]*program.Rule, len(p.RuleList)),
 		DescTable:         p.DescTable,
