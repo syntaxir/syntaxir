@@ -59,11 +59,66 @@ type ConfEvent struct {
 	Done                  bool
 	Parent                int
 	// Up is the index in ConfEvents of the call in progress around the call, -1 for none.
-	Up                    int
-	p                     any
-	idx                   int
-	first                 any
-	argFrame              any
+	Up int
+	// Facts are the events of the event table of compute units that the library made inside the
+	// call, outside the probed calls in it (confFact).
+	Facts    []ConfFact
+	p        any
+	idx      int
+	first    any
+	argFrame any
+}
+
+// ConfFact is an event of the event table of compute units (spec/runtime/parsing.md#compute-units)
+// that a function of the library made, as the hooks that the conformance test adds to the library
+// copy record it: Kind names the event, N is its size where the library knows it, and Vals are the
+// recorded forms (confVal) of the values of a key. The test derives the units from them.
+//
+//   - "key": the key of a call of a memoized rule, with the values of its variables;
+//   - "walkStart" and "walkLookup": the key of a keyed run walk where the walk starts and where it
+//     looks a position up, with N 1 if the element binds a variable of the key, else 0;
+//   - "taken": N recovered entries taken into a result that is stored;
+//   - "step": a growth step of a left-recursive rule;
+//   - "call": N calls that a skip makes in place of the alternative it skips;
+//   - "suffix": N elements of a record's suffix copied.
+type ConfFact struct {
+	Kind string
+	N    int
+	Vals []any
+}
+
+// confFact records a fact of the call in progress, if any.
+func confFact(kind string, n int, vals []any) {
+	if len(confStack) == 0 {
+		return
+	}
+	f := ConfFact{Kind: kind, N: n}
+	for _, v := range vals {
+		f.Vals = append(f.Vals, confVal(v))
+	}
+	e := confStack[len(confStack)-1]
+	e.Facts = append(e.Facts, f)
+}
+
+// confRecSince is recSince that records the entries the stored result takes.
+func (p *Parser) confRecSince(m int) recEntry {
+	confFact("taken", len(p.Recovered)-m, nil)
+	return p.recSince(m)
+}
+
+// confKeyFact records the key of a call of a memoized rule that reads the variables in slots.
+func (p *Parser) confKeyFact(slots []int) {
+	if len(slots) > 0 {
+		confFact("key", 0, p.keyValues(slots))
+	}
+}
+
+// confBool is 1 for true and 0 for false.
+func confBool(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
 }
 
 // ConfEvents are the calls in the order they began; ConfReset clears them.

@@ -232,6 +232,19 @@ rule outer = inner "-"
 rule inner = "a" tail
 rule tail = [a-z]*
 `, opts: common.GenOptions{}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
+	// The guards of the logical case over memoized rules that read a string variable, whose calls
+	// and skips count the keys of the calls they make, with the bytes of the string.
+	{name: "logicalkeys", src: `var k string
+@start
+rule main = ({ k := "ab" } -x / { k := "abcd" } -u / -item / z)* $$
+rule x = inner ";" / "e"
+rule u = outer "!" / outer "?" / "c"
+rule item = inner "." / "b"
+rule z = "y" &u
+rule outer = inner "-"
+rule inner = "a" { k != "z" } tail
+rule tail = [a-z]*
+`, opts: common.GenOptions{}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
 	// The guards of the logical case in a build with Documents, whose functions serve the plain parse
 	// and the Document parse: the plain parse takes the guards whose skips pass over memoized calls,
 	// and the Document parse evaluates those alternatives (flow.inDocument). The character "x" is an
@@ -260,6 +273,13 @@ rule main = (kw / id)* $$
 rule kw = "if" / "else"
 rule id = [a-z]+ ";"
 `, opts: common.GenOptions{Observability: true}, inputs: []string{"if;else", "abc;if"}},
+	// A memoized rule whose body recovers: the result that the call stores takes the recovered errors
+	// of the body.
+	{name: "recmemo", src: `@start
+rule main = (stmt ";" / stmt "!")* $$
+rule stmt = ("let" name) #recover(skip=(![;!] .)*)
+rule name = [a-z]+
+`, inputs: []string{"leta;lex!lety;lt;", "q!", "letab!"}},
 	// The run sites of codegentest.RunSiteGrammars and RunValueGrammars, on inputs long enough that
 	// their walks go back over RunHotSpan of input and the sites turn hot: a value-free site, and a
 	// site that builds values and is keyed by a variable, through both forms of the parser.
@@ -274,6 +294,9 @@ rule id = [a-z]+ ";"
 		inputs: []string{strings.Repeat("xy", 150) + "!", strings.Repeat("x", 200) + "z", strings.Repeat("xyx!", 60) + "q"}},
 	{name: "runlook", src: runValueGrammar("lookahead walks before lists"),
 		inputs: []string{strings.Repeat("ab", 150) + "!", strings.Repeat("a", 200) + "?" + strings.Repeat("ab", 100) + ",", strings.Repeat("aba?", 60)}},
+	// A run site whose element binds a variable of the walk's key, which counts its key at each lookup.
+	{name: "runkeys", src: runValueGrammar("a binding and a called rule that reads"),
+		inputs: []string{strings.Repeat("xy", 150) + "?", strings.Repeat("x", 200) + "!" + strings.Repeat("yx", 100) + "?", strings.Repeat("xyx!", 60) + "z"}},
 }
 
 // flowOtherTargets are the operations that the Go printer never prints, with the reason; the test
@@ -448,6 +471,7 @@ type flowEvent struct {
 	Pos, PosAfter       int
 	Counting            bool
 	Up                  int
+	Facts               []flowFact
 	Used, UsedAfter     uint64
 	Nested              uint64
 	Kids, KidsAfter     int
@@ -485,12 +509,22 @@ type flowMutation struct {
 // checks of every recorded call and the number of recorded calls of each operation.
 func flowConformRun(t *testing.T, cases []flowConformCase, mut flowMutation) (msgs []string, covered map[string]int) {
 	t.Helper()
-	patch := mut.lib
 	probeSrc, err := os.ReadFile(filepath.Join("testdata", "flowconform", "probe.go"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	lib := codegentest.LibCopyWith(t, patch, map[string]string{"zz_probe.go": string(probeSrc)})
+	hooked := map[string]int{}
+	lib := codegentest.LibCopyWith(t, func(name, src string) string {
+		if mut.lib != nil {
+			src = mut.lib(name, src)
+		}
+		return flowFactHooks(name, src, hooked)
+	}, map[string]string{"zz_probe.go": string(probeSrc)})
+	for _, h := range flowFactHookList {
+		if hooked[h.file+"\x00"+h.old] != h.n {
+			t.Fatalf("the hook of %s found %d places for %q in %s, not %d", h.what, hooked[h.file+"\x00"+h.old], h.old, h.file, h.n)
+		}
+	}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoModAt("flowconf", lib)), 0o644); err != nil {
 		t.Fatal(err)
@@ -624,6 +658,11 @@ func TestProbe(t *testing.T) {
 				covered[name]++
 
 				covered["case:"+c.name+":"+name]++
+				for _, f := range e.Facts {
+					if flowFactUnits(&flowEvent{Facts: []flowFact{f}}) > 0 {
+						covered["fact:"+name+":"+f.Kind]++
+					}
+				}
 				for _, ch := range flowChanged(&e) {
 					covered["chg:"+name+":"+ch]++
 				}
@@ -657,6 +696,11 @@ func TestFlowOperationsConform(t *testing.T) {
 	for _, m := range msgs {
 		t.Error(m)
 	}
+	for _, f := range flowFactsCovered {
+		if covered["fact:"+f] == 0 {
+			t.Errorf("no case counts the units of a fact %s", f)
+		}
+	}
 	for _, o := range flow.Ops() {
 		if why, other := flowOtherTargets[o.Name]; other {
 			if covered[o.Name] != 0 {
@@ -670,17 +714,121 @@ func TestFlowOperationsConform(t *testing.T) {
 	}
 }
 
+// flowFactsCovered are the facts that flowFactHookList records, each under an operation that the
+// cases must make it count units under: the operation, then the kind of the fact.
+var flowFactsCovered = []string{
+	flow.OpCallRule + ":key", flow.OpCallRule + ":step", flow.OpCallRule + ":taken",
+	flow.OpSkippedCalls + ":call", flow.OpSkippedCalls + ":key",
+	flow.OpRunBegin + ":walkStart", flow.OpSkipHit + ":walkLookup", flow.OpSkipKids + ":suffix",
+}
+
 // flowBodyUnits gives the units that the body of a rule, a frame, a line or an outlined node counts
-// itself, outside the probed calls in it, to the call that runs the body: the probe of the body
-// (K -1) only keeps its units apart from the calls' own. A rule function counts the unit of its call as
-// it starts, which is the event of the call (flow.callRule) that runs it.
+// itself, outside the probed calls in it, to the call that runs the body, with the facts recorded in
+// it: the probe of the body (K -1) only keeps its units apart from the calls' own. A rule function
+// counts the unit of its call as it starts, which is the event of the call (flow.callRule) that runs
+// it.
 func flowBodyUnits(events []flowEvent) {
 	for _, e := range events {
 		if e.K >= 0 || !e.Done || e.Up < 0 {
 			continue
 		}
 		events[e.Up].Nested -= e.UsedAfter - e.Used - e.Nested
+		events[e.Up].Facts = append(events[e.Up].Facts, e.Facts...)
 	}
+}
+
+// flowFact is an event of the event table that the library made inside a recorded call, as the hooks
+// of flowFactHookList record it (ConfFact of testdata/flowconform/probe.go).
+type flowFact struct {
+	Kind string
+	N    int
+	Vals []any
+}
+
+// flowFactHook adds a record of the facts of an event to the library copy: the text new replaces old,
+// which the file holds n times.
+type flowFactHook struct {
+	what, file, old, new string
+	n                    int
+}
+
+// flowFactHookList are the hooks that record, where the library makes them, the events of the event
+// table whose units depend on state that the probes of the printed calls do not see. Each one records
+// what the event is made of (the values of a key, the entries a stored result takes, a growth step,
+// the elements a copy makes), next to the work itself rather than to the count of its units, so that
+// the check derives the units from the specification and a count that is missing, misplaced or of the
+// wrong size shows. The key of a call of a memoized rule is recorded where every such call, of the
+// library or printed, begins its memo protocol (FirstCall), not where the call counts the key.
+var flowFactHookList = []flowFactHook{
+	{"the key of a call of a memoized rule", "call_exec.go", "func (p *Parser) FirstCall(r *Rule) bool {\n",
+		"func (p *Parser) FirstCall(r *Rule) bool {\n\tp.confKeyFact(r.varSlots)\n", 1},
+	{"the key of a call of a memoized typed rule", "call_exec.go", "func (p *TParser) firstCall(r *TRule) bool {\n",
+		"func (p *TParser) firstCall(r *TRule) bool {\n\tp.confKeyFact(r.varSlots)\n", 1},
+	{"a growth step", "call_exec.go", "v, ok := p.invoke(r, min)\n", "confFact(\"step\", 1, nil)\nv, ok := p.invoke(r, min)\n", 4},
+	{"the calls of a skip of rules that the parse does not memoize", "units.go", "func (p *Parser) SkipUnits(n uint64) {\n",
+		"func (p *Parser) SkipUnits(n uint64) {\n\tconfFact(\"call\", int(n), nil)\n", 1},
+	{"a call of a skip", "units.go", "\tr := rules[0]\n", "\tr := rules[0]\n\tconfFact(\"call\", 1, nil)\n", 2},
+	{"a suffix copy", "skip_vals.go", "copySpend(p, a[slack+n:], tail.buf.a[tail.i:])",
+		"confFact(\"suffix\", len(tail.buf.a)-tail.i, nil)\ncopySpend(p, a[slack+n:], tail.buf.a[tail.i:])", 1},
+	{"the key of a walk as it starts", "skip_walks.go", "\t\tw.key = p.runKeyOf(site)\n",
+		"\t\tw.key = p.runKeyOf(site)\n\t\tconfFact(\"walkStart\", confBool(len(w.key.bind) > 0), p.envSlotValues(w.key.vars))\n", 1},
+	{"the key of a walk's lookup", "skip_walks.go", "\tk := p.walkKey()\n",
+		"\tk := p.walkKey()\n\tif w.key != nil {\n\t\tconfFact(\"walkLookup\", confBool(len(w.key.bind) > 0), p.envSlotValues(w.key.vars))\n\t}\n", 1},
+}
+
+// flowFactHooks adds the hooks of flowFactHookList to the library file name, and records the entries a
+// stored result takes (recSince, which every store of a result calls) in every file but that of the
+// walks, whose records of iterations take entries that no unit counts. hooked counts the places found.
+func flowFactHooks(name, src string, hooked map[string]int) string {
+	for _, h := range flowFactHookList {
+		if h.file == name {
+			hooked[h.file+"\x00"+h.old] += strings.Count(src, h.old)
+			src = strings.ReplaceAll(src, h.old, h.new)
+		}
+	}
+	if name != "skip_walks.go" && name != "zz_probe.go" {
+		src = strings.ReplaceAll(src, "p.recSince(", "p.confRecSince(")
+	}
+	return src
+}
+
+// flowKeyUnits returns the units of a key with the recorded values vals: one for each variable, and
+// one for each byte of each string among them.
+func flowKeyUnits(vals []any) int {
+	n := len(vals)
+	for _, v := range vals {
+		if s, ok := v.(string); ok && strings.HasPrefix(s, "s:") {
+			n += len(s) - len("s:")
+		}
+	}
+	return n
+}
+
+// flowFactUnits returns the units that the event table assigns to the facts of e: a memo key and a walk
+// key their size, the key of a walk where the walk starts if the element binds none of its variables
+// and at each lookup if it binds one, an entry taken, a growth step and a call one each, and a suffix
+// copy one per element.
+func flowFactUnits(e *flowEvent) int {
+	n := 0
+	for _, f := range e.Facts {
+		switch f.Kind {
+		case "key":
+			n += flowKeyUnits(f.Vals)
+		case "walkStart":
+			if f.N == 0 {
+				n += flowKeyUnits(f.Vals)
+			}
+		case "walkLookup":
+			if f.N == 1 {
+				n += flowKeyUnits(f.Vals)
+			}
+		case "taken", "step", "call", "suffix":
+			n += f.N
+		default:
+			panic("flow probe: fact " + f.Kind)
+		}
+	}
+	return n
 }
 
 // flowUnbounded is the most units of a range that the check does not bound.
@@ -689,39 +837,35 @@ const flowUnbounded = 1 << 30
 // flowUnits returns the range of the logical compute units that the recorded call e of the operation
 // o counts itself, the probed calls inside it aside, as the event table of spec/runtime/parsing.md
 // (Compute Units) assigns them to the operation's events. A parser that counts no units counts none.
-// The range is one value where the recorded state determines the events:
+// The range is one value, the units of the facts that the library recorded inside the call
+// (flowFactUnits) and those of the operation's own events:
 //
 //   - a terminal (flow.advance, flow.matchLit, flow.matchClass, flow.skipTerminal and
 //     flow.skipClasses) counts the position units it advances over, none when it fails;
 //   - flow.makeError counts the syntax error that it builds for a recovery, one unit;
+//   - flow.callRule counts its call, one unit, and the facts of the protocol of the call: the key of
+//     a memoized rule, the steps of a growing left-recursive rule and the entries of recovered errors
+//     that a stored result takes;
+//   - flow.skippedCalls counts the calls that the skip makes, and their keys;
+//   - flow.runBegin, flow.skipHit and flow.skipKids count the keys and the suffix copies of run walks;
 //   - every other operation makes no event and counts nothing.
 //
-// The events of the other operations depend on state that the probe does not record, so their range
-// holds only what the record bounds:
-//
-//   - flow.callRule counts the call, at least one unit, then the key of a memoized rule, the steps
-//     of a growing left-recursive rule and the entries of recovered errors that it takes;
-//   - flow.skippedCalls counts at least the first call of the skipped alternative;
-//   - flow.runBegin counts the key of a walk when the walk starts, and flow.skipKids the elements of a
-//     record's suffix that it copies and the key at each lookup;
-//   - flow.pred, flow.bind and flow.eval run action code that the probes do not wrap, whose events
-//     action_charges_test.go checks.
+// flow.pred, flow.bind and flow.eval run action code that the probes do not wrap, whose events
+// action_charges_test.go checks: they count at least their facts.
 func flowUnits(o *code.Op, e *flowEvent) (lo, hi int) {
 	if !e.Counting {
 		return 0, 0
 	}
+	n := flowFactUnits(e)
 	switch o.Name {
 	case flow.OpAdvance, flow.OpMatchLit, flow.OpMatchClass, flow.OpSkipTerminal, flow.OpSkipClasses:
-		n := e.PosAfter - e.Pos
-		return n, n
-	case flow.OpMakeError:
-		return 1, 1
-	case flow.OpCallRule, flow.OpSkippedCalls:
-		return 1, flowUnbounded
-	case flow.OpRunBegin, flow.OpSkipKids, flow.OpPred, flow.OpBind, flow.OpEval:
-		return 0, flowUnbounded
+		n += e.PosAfter - e.Pos
+	case flow.OpMakeError, flow.OpCallRule:
+		n++
+	case flow.OpPred, flow.OpBind, flow.OpEval:
+		return n, flowUnbounded
 	}
-	return 0, 0
+	return n, n
 }
 
 // checkFlowCall returns what the recorded call e of the operation o, the call c, breaks.
