@@ -23,16 +23,45 @@ func (v *View) Grammar(rules []*ast.RuleDef) ([]*ast.RuleDef, error) {
 // GrammarText returns the rules of Grammar and, for each expression of them that the view
 // builds, the source text it stands for (Text).
 func (v *View) GrammarText(rules []*ast.RuleDef) ([]*ast.RuleDef, map[ast.Expr]string, error) {
-	if len(rules) != len(v.Module.Rules) {
-		return nil, nil, fmt.Errorf("%d rules for a module of %d", len(rules), len(v.Module.Rules))
+	w, err := v.written(rules)
+	if err != nil {
+		return nil, nil, err
 	}
-	w := &writer{View: v, text: map[ast.Expr]string{}}
+	return w.rules, w.text, nil
+}
+
+// writtenView is the view written as grammar rules (GrammarText), with the node of the view that
+// each expression of the rules stands for.
+type writtenView struct {
+	rules []*ast.RuleDef
+	text  map[ast.Expr]string
+	// nodes gives, for each expression of rules, the node of the view that it is written from: for
+	// an expression that several nodes are written from, as an expression of several attributes,
+	// the outermost of them.
+	nodes map[ast.Expr]core.Node
+}
+
+// written writes the view as grammar rules: rules are the rules the source module is built from.
+func (v *View) written(rules []*ast.RuleDef) (*writtenView, error) {
+	if len(rules) != len(v.Module.Rules) {
+		return nil, fmt.Errorf("%d rules for a module of %d", len(rules), len(v.Module.Rules))
+	}
+	w := &writer{View: v, text: map[ast.Expr]string{}, nodes: map[ast.Expr]core.Node{}}
 	out := make([]*ast.RuleDef, len(rules))
 	for i, rd := range rules {
 		body, err := w.expr(v.Module.Rules[i].Body)
 		if err != nil {
-			return nil, nil, fmt.Errorf("rule %s: %w", rd.Name, err)
+			return nil, fmt.Errorf("rule %s: %w", rd.Name, err)
 		}
+		// A part that the writer keeps as written, as the skip of a recovery whose body the view
+		// rewrites, is a node that the view shares with the module.
+		core.Walk(v.Module.Rules[i].Body, func(n core.Node) {
+			if x, ok := v.origin(n); ok {
+				if _, seen := w.nodes[x]; !seen {
+					w.nodes[x] = n
+				}
+			}
+		})
 		if body == rd.Expr {
 			out[i] = rd
 			continue
@@ -41,14 +70,15 @@ func (v *View) GrammarText(rules []*ast.RuleDef) ([]*ast.RuleDef, map[ast.Expr]s
 		cp.Expr = body
 		out[i] = &cp
 	}
-	return out, w.text, nil
+	return &writtenView{rules: out, text: w.text, nodes: w.nodes}, nil
 }
 
 // writer writes nodes of a view as grammar expressions and records the source text of each
-// expression that it writes for a built node.
+// expression that it writes for a built node, and the node that each expression is written from.
 type writer struct {
 	*View
-	text map[ast.Expr]string
+	text  map[ast.Expr]string
+	nodes map[ast.Expr]core.Node
 }
 
 // expr returns the grammar expression of the node n of the view.
@@ -59,6 +89,18 @@ func (v *View) expr(n core.Node) (ast.Expr, error) {
 // expr returns the grammar expression of the node n of the view.
 func (v *writer) expr(n core.Node) (ast.Expr, error) {
 	if e, ok := v.origin(n); ok {
+		if v.nodes != nil {
+			// The node is shared with the module, and so are the nodes below it: each expression
+			// below e stands for the outermost node built from it.
+			core.Walk(n, func(d core.Node) {
+				if x, ok := v.origin(d); ok {
+					if _, seen := v.nodes[x]; !seen {
+						v.nodes[x] = d
+					}
+				}
+			})
+			v.nodes[e] = n
+		}
 		return e, nil
 	}
 	e, err := v.built(n)
@@ -69,6 +111,11 @@ func (v *writer) expr(n core.Node) (ast.Expr, error) {
 		if t, ok := v.Text[n]; ok {
 			v.text[e] = t
 		}
+	}
+	if v.nodes != nil {
+		// The parts of n are written first, so an expression that n shares with a part, as the
+		// operand of an expression of attributes that the view drops, stands for n.
+		v.nodes[e] = n
 	}
 	return e, nil
 }

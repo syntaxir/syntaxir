@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -280,13 +281,13 @@ func prepareClassifierWith(g *ast.Grammar, start string, control *cancel.Control
 // stays decided by rules: the left-recursion cycles and their leaders, the memoized rules, the
 // variables that key the memo, and the run sites.
 func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
-	view, text, err := Build(rf.source, Options{}, control).GrammarText(rules)
+	w, err := Build(rf.source, Options{}, control).written(rules)
 	if err != nil {
 		// Every node the view builds has a grammar spelling; an error is a defect of the view.
 		panic("compile: cost view: " + err.Error())
 	}
-	k := newClassifierOf(g, view, rules, rf, start, control)
-	k.viewText = text
+	k := newClassifierOf(g, w.rules, rules, rf, start, control)
+	k.viewText, k.nodes = w.text, w.nodes
 	return k
 }
 
@@ -419,6 +420,12 @@ type classifier struct {
 	baseRepeats map[*ast.Repeat]bool
 	// viewText gives the text of the grammar that an expression of the view stands for.
 	viewText map[ast.Expr]string
+	// nodes gives, for each expression of rules, the Core IR node that it stands for: a node of
+	// the view when rules are a view, else of the module of the rules (originNodes). An expression
+	// that the classifier builds stands for a node that it builds with it (nodeOf).
+	nodes map[ast.Expr]core.Node
+	// ruleIDs numbers the rules by name, as the rules of the module are numbered.
+	ruleIDs map[string]int
 }
 
 func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start string, control *cancel.Control) *classifier {
@@ -437,8 +444,14 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, rf *ruleFacts, 
 		captures: map[string]map[string][]ast.Expr{}, sourceIndex: map[sourceKey]*source{},
 		predicateSource: map[*ast.Predicate]*source{}, actionSource: map[string]bool{}, includesMemo: map[sizeKey]bool{}, feedsMemo: map[feedKey]bool{}, heldMemo: map[sizeKey][]sizeKey{},
 		srcExprs: map[ast.Expr]bool{}, srcMemo: map[ast.Expr]bool{}, again: map[*ast.Repeat]*ast.Repeat{}}
-	for _, r := range rules {
+	k.ruleIDs = map[string]int{}
+	for i, r := range rules {
 		k.byName[r.Name] = r
+		k.ruleIDs[r.Name] = i
+	}
+	if slices.Equal(base, rules) {
+		// The rules are those of the module: each expression stands for the node built from it.
+		k.nodes = originNodes(rf.source.Module)
 	}
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
@@ -464,7 +477,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, rf *ruleFacts, 
 	}
 	if triviaMemo {
 		for _, r := range rules {
-			if k.isTrivia(&ast.Ref{Name: r.Name}) {
+			if k.isTrivia(k.callOf(r.Name)) {
 				k.memo[r.Name] = true
 			}
 		}

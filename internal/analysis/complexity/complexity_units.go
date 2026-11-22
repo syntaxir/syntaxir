@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -160,7 +161,8 @@ func (c wctx) with(cn *cont) wctx { c.cont = cn; return c }
 func (k *classifier) againOf(e *ast.Repeat) *ast.Repeat {
 	a := k.again[e]
 	if a == nil {
-		a = &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1}
+		a = built(k, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1},
+			core.Node(&core.Repeat{Body: k.nodeOf(e.Expr), Min: 0, Max: -1}))
 		k.again[e] = a
 	}
 	if k.srcExprs[e] {
@@ -296,7 +298,7 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 				}
 				if s, cut := topCut(alt); cutPrefixesOn && !growing && len(conts) > 0 && cut > 0 {
 					prefix := s.Items[:cut]
-					u := k.newUnit(unitAlt, c, &ast.Seq{SourceInfo: s.SourceInfo, Items: prefix},
+					u := k.newUnit(unitAlt, c, k.prefixOf(s, prefix),
 						[]*cont{{items: prefix}}, conts)
 					u.choice, u.index, u.after = e, i, c.cont
 					k.walkCutSeq(s, c, u, cut)
@@ -570,7 +572,7 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 	// An Operators Rule is a whole rule body: what follows it is what follows the rule. The other
 	// operator parts that the rule can try after an operand are continuations of their own.
 	follow := contSpec{paths: []*cont{{end: endRule, rule: c.rule}}, what: "what follows the Operators Rule"}
-	rhs := &ast.Ref{Name: c.rule, Level: rhsLevel}
+	rhs := k.rightOperand(c.rule)
 	skipCalls := map[string]bool{}
 	if pr.Skip != nil {
 		for _, n := range astfacts.AllCalls(pr.Skip, nil) {
@@ -773,7 +775,7 @@ func (k *classifier) opsAfter(rule string) charset {
 			}
 			items := []ast.Expr{k.skipItem(pr), op.Expr}
 			if op.Kind == ast.Infix {
-				items = append(items, &ast.Ref{Name: rule, Level: rhsLevel})
+				items = append(items, k.rightOperand(rule))
 			}
 			t, _ := k.firstItems(items)
 			s = s.union(t)
@@ -1345,7 +1347,7 @@ func (k *classifier) opsLeads(rule string, inner bool, visit func(*cont)) {
 			}
 			items := []ast.Expr{k.skipItem(pr), op.Expr}
 			if op.Kind == ast.Infix {
-				items = append(items, &ast.Ref{Name: rule, Level: rhsLevel})
+				items = append(items, k.rightOperand(rule))
 			}
 			visit(&cont{items: items, next: end})
 		}
@@ -1375,7 +1377,7 @@ func (k *classifier) skipItem(pr *ast.OperatorsRule) ast.Expr {
 	if pr.Skip == nil || k.nullable(pr.Skip) {
 		return pr.Skip
 	}
-	return &ast.Optional{Expr: pr.Skip}
+	return built(k, &ast.Optional{Expr: pr.Skip}, core.Node(&core.Opt{Body: k.nodeOf(pr.Skip)}))
 }
 
 // operatorsLeads continues a path into the body of rule, the Operators Rule pr. The rule begins
@@ -1398,7 +1400,7 @@ func (k *classifier) operatorsLeads(pr *ast.OperatorsRule, rule string, visit fu
 	for _, l := range pr.Levels {
 		for _, op := range l.Operators {
 			if op.Kind == ast.Prefix {
-				start(op.Expr, &ast.Ref{Name: rule, Level: rhsLevel})
+				start(op.Expr, k.rightOperand(rule))
 			}
 		}
 	}
