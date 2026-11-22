@@ -62,6 +62,7 @@ func (t *ActionProgram) run(c *EvalCtx, a []any, n []int, s [][]*value.Node, ts 
 	for pc := 0; ; pc++ {
 		in := &code[pc]
 		switch in.Op {
+		case TNop:
 		case TConst:
 			a[in.Dst] = t.Consts[in.A]
 		case TIntK:

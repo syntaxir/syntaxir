@@ -31,3 +31,15 @@ func TestActionEvalClearsRegisters(t *testing.T) {
 		}
 	}
 }
+
+// TestActionNopDoesNothing checks that a NOP runs as the specification says, doing nothing: the
+// loader accepts it, so an action expression that holds one, as a corrupted compiled grammar can,
+// must not stop the parse with a panic.
+func TestActionNopDoesNothing(t *testing.T) {
+	prog := &ActionProgram{Code: []ActionInstr{{Op: TNop}, {Op: TLocal, Dst: 0, A: 0}, {Op: TNop}, {Op: TRet, A: 0}}, NA: 1, Names: []string{"op"}}
+	op := nodes.Ptr(nodes.Data{Kind: valueimpl.SeqKind, Start: 0, End: 1})
+	got, err := prog.Eval(&EvalCtx{P: &Parser{}, Locals: &Local{Name: "op", Val: op}})
+	if err != nil || got != any(op) {
+		t.Fatalf("the action expression returned %v, %v; want $op", got, err)
+	}
+}
