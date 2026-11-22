@@ -123,6 +123,53 @@ type shaper struct {
 	nodes  []sourceast.Node
 	labels []string
 	hidden []bool // completed by the hand-written parser but kept out of the AST
+	// headers are the offset ranges of the gaps in declaration headers, whose
+	// comments the declaration owns and no node does.
+	headers [][2]int
+}
+
+// header records the gap between the offsets from and to as one of a
+// declaration header.
+func (s *shaper) header(from, to int) { s.headers = append(s.headers, [2]int{from, to}) }
+
+// typeHeader records the gaps of a rule header around the tokens of the result
+// type t, from the offset where the token before it ends: the gaps before its
+// tokens outside its delimiters. It returns where t ends.
+func (s *shaper) typeHeader(t *value.Node, from int) int {
+	switch t.Type() {
+	case "ListType", "OptionalType":
+		s.header(from, t.Start())
+		width := 1
+		if t.Type() == "ListType" {
+			width = 2
+		}
+		return s.typeHeader(fieldNode(t, "Type"), t.Start()+width)
+	case "JoinType", "MeetType":
+		for i, o := range flatten(t, t.Type()) {
+			if i > 0 {
+				op := nextToken(s.src, from)
+				s.header(from, op)
+				from = op + 1
+			}
+			from = s.typeHeader(o, from)
+		}
+		return from
+	case "StructType":
+		return t.End()
+	}
+	s.header(from, t.Start())
+	return t.End()
+}
+
+// ownHeaders empties the gaps of declaration headers.
+func (s *shaper) ownHeaders(gaps []sourceast.Gap) {
+	for i, g := range gaps {
+		for _, h := range s.headers {
+			if h[0] <= g.Start && g.End <= h[1] {
+				gaps[i] = sourceast.Gap{Start: g.Start, End: g.End}
+			}
+		}
+	}
 }
 
 func (s *shaper) add(label string, events ...sourceast.Event) int {
@@ -188,6 +235,11 @@ func (s *shaper) file(root *value.Node) {
 		for _, attr := range attrs {
 			s.attr(attr)
 		}
+		keyword := span.Start()
+		if len(attrs) > 0 {
+			keyword = nextToken(s.src, attrs[len(attrs)-1].End())
+		}
+		s.header(keyword+len("package"), fieldNode(pkg, "Name").Start())
 		i := s.span("Pkg", span)
 		s.joined(i, separators(s.src, span.End(), ';', 1<<30))
 		if len(attrs) > 0 {
@@ -205,22 +257,18 @@ func (s *shaper) decl(d *value.Node) {
 	span := sourceField(s.t, d, "SourceSpan")
 	sep := separators(s.src, span.End(), ';', 1<<30)
 	switch d.Type() {
-	case "TypeDef":
-		ty := fieldNode(d, "Type")
-		if ty.Type() == "StructType" {
-			// The hand-written parser completes the struct from the "=".
-			name := fieldNode(d, "Name")
-			eq := nextToken(s.src, name.End())
-			s.structType(ty, eq)
-		} else {
-			s.typ(ty)
-		}
-		s.statement("TypeDef", d, sep)
-	case "TypeAlias":
+	case "TypeDef", "TypeAlias":
+		// The header ends at the "=" or "~"; the type owns the comments after it.
+		name := fieldNode(d, "Name")
+		s.header(span.Start()+len("type"), name.Start())
+		s.header(name.End(), nextToken(s.src, name.End()))
 		s.typ(fieldNode(d, "Type"))
-		s.statement("TypeAlias", d, sep)
+		s.statement(d.Type(), d, sep)
 	case "VarDef":
+		name := fieldNode(d, "Name")
+		s.header(span.Start()+len("var"), name.Start())
 		if t := fieldNode(d, "Type"); t != nil {
+			s.header(name.End(), t.Start())
 			s.typ(t)
 		}
 		if v := fieldNode(d, "Value"); v != nil {
@@ -232,9 +280,18 @@ func (s *shaper) decl(d *value.Node) {
 		for _, attr := range attrs {
 			s.attr(attr)
 		}
+		keyword := span.Start()
+		if len(attrs) > 0 {
+			keyword = nextToken(s.src, attrs[len(attrs)-1].End())
+		}
+		name := fieldNode(d, "Name")
+		s.header(keyword+len("rule"), name.Start())
+		from := name.End()
 		if t := fieldNode(d, "Type"); t != nil {
+			from = s.typeHeader(t, from)
 			s.typ(t)
 		}
+		s.header(from, nextToken(s.src, from))
 		s.rule(fieldNode(d, "Expr"))
 		if a := fieldNode(d, "Action"); a != nil {
 			s.action(a)
@@ -255,6 +312,7 @@ func (s *shaper) decl(d *value.Node) {
 func (s *shaper) structType(n *value.Node, start int) {
 	for _, f := range listNodes(n, "Fields") {
 		span := sourceField(s.t, f, "SourceSpan")
+		s.header(fieldNode(f, "Name").End(), fieldNode(f, "Type").Start())
 		s.typ(fieldNode(f, "Type"))
 		s.statement("Field", f, separators(s.src, span.End(), ';', 1))
 	}
@@ -573,7 +631,9 @@ func canonicalNodes(t *testing.T, src string, root *value.Node) map[string]ast.S
 	t.Helper()
 	s := &shaper{t: t, src: []rune(src)}
 	s.file(root)
-	infos, err := sourceast.NewPositions(src).Claim(canonicalGaps(t, root), s.nodes)
+	gaps := canonicalGaps(t, root)
+	s.ownHeaders(gaps)
+	infos, err := sourceast.NewPositions(src).Claim(gaps, s.nodes)
 	if err != nil {
 		t.Fatal(err)
 	}

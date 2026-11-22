@@ -21,6 +21,28 @@ type commentBoundary struct {
 	hasNext       bool
 	leadingOwner  *ast.SourceInfo
 	trailingOwner *ast.SourceInfo
+	// header is set when the comments are in a declaration header or between the name and
+	// the type of a field: the declaration or field owns them as its HeaderComments, and no
+	// node does.
+	header bool
+}
+
+// ownByHeader gives the comments of b to the header that reads them, taking them from the
+// nodes that claimed them before: a node that ends before the header token claims the
+// trailing group before the parser reads that token. b may be nil.
+func (b *commentBoundary) ownByHeader() {
+	if b == nil || b.header {
+		return
+	}
+	b.header = true
+	if b.leadingOwner != nil {
+		b.leadingOwner.LeadingComments, b.leadingOwner.LeadingDetachedComments = "", nil
+		b.leadingOwner = nil
+	}
+	if b.trailingOwner != nil {
+		b.trailingOwner.TrailingComments = nil
+		b.trailingOwner = nil
+	}
 }
 
 func collectComments(previous ast.Pos, opens, opener bool, next token, comments []*ast.Comment) *commentBoundary {
@@ -277,7 +299,7 @@ func (p *parser) source(node ast.SourceNode, start int) {
 	if p.i > start {
 		s.End = p.toks[p.i-1].end
 	}
-	if b := p.toks[start].source; b != nil && b.hasNext {
+	if b := p.toks[start].source; b != nil && b.hasNext && !b.header {
 		if b.leadingOwner != s {
 			if old := b.leadingOwner; old != nil {
 				old.LeadingComments, old.LeadingDetachedComments = "", nil
@@ -291,7 +313,7 @@ func (p *parser) source(node ast.SourceNode, start int) {
 }
 
 func (p *parser) sourceTrailing(s *ast.SourceInfo) {
-	if b := p.toks[p.i].source; b != nil && b.hasTrailing && b.trailingOwner != s {
+	if b := p.toks[p.i].source; b != nil && b.hasTrailing && !b.header && b.trailingOwner != s {
 		if old := b.trailingOwner; old != nil {
 			old.TrailingComments = nil
 		}

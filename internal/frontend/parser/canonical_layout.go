@@ -128,11 +128,13 @@ func (r *layoutReplay) typeDef(d *ast.TypeDef) {
 		case *ast.StructType:
 			lc.next() // =
 			lc.header = false
+			gap := lc.typeBefore()
 			t.CloseBreak, t.OneLine = r.structFields(t)
+			setTypeBefore(t, gap)
 		case *ast.TypeApp:
 			lc.next() // =
 			lc.header = false
-			r.typ(t)
+			r.typeOperand(t)
 		}
 	})
 }
@@ -146,7 +148,7 @@ func (r *layoutReplay) typeAlias(d *ast.TypeAlias) {
 		lc.next() // the name
 		lc.next() // ~
 		lc.header = false
-		r.typ(d.Type)
+		r.typeOperand(d.Type)
 	})
 }
 
@@ -157,6 +159,7 @@ func (r *layoutReplay) varDef(d *ast.VarDef) {
 	lc.next() // var
 	r.header(d.Pos, func() { lc.next() })
 	if d.Type != nil {
+		_, d.HeaderTokens = lc.takeHeaderGap()
 		r.typ(d.Type)
 	}
 	if d.Value != nil {
@@ -295,23 +298,31 @@ func (r *layoutReplay) typ(t ast.TypeExpr) {
 	case *ast.JoinType:
 		for i, u := range t.Types {
 			if i > 0 {
+				lc.typeAfter(t.Types[i-1], "|")
 				lc.next() // |
+				r.typeRight(u)
+				continue
 			}
 			r.typ(u)
 		}
+		lc.typeAfter(t.Types[len(t.Types)-1], "|")
 	case *ast.MeetType:
 		for i, u := range t.Types {
 			if i > 0 {
+				lc.typeAfter(t.Types[i-1], "&")
 				lc.next() // &
+				r.typeRight(u)
+				continue
 			}
 			r.typ(u)
 		}
+		lc.typeAfter(t.Types[len(t.Types)-1], "&")
 	case *ast.ListType:
 		lc.next() // []
-		r.typ(t.Elem)
+		r.typeOperand(t.Elem)
 	case *ast.OptionalType:
 		lc.next() // *
-		r.typ(t.Elem)
+		r.typeOperand(t.Elem)
 	case *ast.TypeGroup:
 		open := lc.i
 		lc.next() // (
@@ -379,6 +390,20 @@ func (r *layoutReplay) typ(t ast.TypeExpr) {
 	}
 }
 
+// typeRight replays t as the parser's typeRight reads it.
+func (r *layoutReplay) typeRight(t ast.TypeExpr) {
+	gap := r.lc.typeLead()
+	r.typ(t)
+	setTypeLead(t, gap)
+}
+
+// typeOperand replays t as the parser's typeOperand reads it.
+func (r *layoutReplay) typeOperand(t ast.TypeExpr) {
+	gap := r.lc.typeBefore()
+	r.typ(t)
+	setTypeBefore(t, gap)
+}
+
 // structFields replays the braces and fields of the struct type t.
 func (r *layoutReplay) structFields(t *ast.StructType) (closeBreak *ast.LineBreak, oneLine bool) {
 	lc := r.lc
@@ -390,7 +415,7 @@ func (r *layoutReplay) structFields(t *ast.StructType) (closeBreak *ast.LineBrea
 		lc.leadBreak(f.Break, lead)
 		lead = nil
 		lc.next() // the name
-		lc.takeGapContents()
+		_, f.HeaderTokens = lc.takeHeaderGap()
 		r.typ(f.Type)
 		r.separator()
 	}
@@ -405,6 +430,7 @@ func (r *layoutReplay) structFields(t *ast.StructType) (closeBreak *ast.LineBrea
 // #ignorecase pragmas after it, from its #operators.
 func (r *layoutReplay) operatorsBody(e ast.Expr) {
 	lc := r.lc
+	body := e
 	var pragmas []*ast.Attribute
 	for {
 		a, ok := e.(*ast.Attributed)
@@ -418,8 +444,12 @@ func (r *layoutReplay) operatorsBody(e ast.Expr) {
 	if !ok {
 		return
 	}
+	before := lc.takeInlineGap()
 	lc.next() // #
+	open := lc.takeInlineGap()
 	lc.next() // operators
+	open = append(open, lc.takeInlineGap()...)
+	setOperatorsLayout(body, before, open)
 	r.operatorsRule(pr)
 	for _, attr := range pragmas {
 		if !lc.is("#") || lc.tok().lineBefore {
@@ -446,6 +476,7 @@ func (r *layoutReplay) operatorsRule(pr *ast.OperatorsRule) {
 			pr.SkipBreak = b
 			lc.next() // skip
 			r.choice(pr.Skip)
+			lc.endLine(b)
 		}})
 	}
 	for _, o := range pr.Operands {
@@ -454,9 +485,11 @@ func (r *layoutReplay) operatorsRule(pr *ast.OperatorsRule) {
 			lc.next() // operand
 			r.choice(o.Expr)
 			if lc.is("=>") {
+				lc.afterGap(o.Expr)
 				lc.next()
 				r.action(o.Action, o.DefaultAction)
 			}
+			lc.endLine(b)
 		}})
 	}
 	for _, l := range pr.Levels {
@@ -507,9 +540,11 @@ func (r *layoutReplay) level(l *ast.OperatorsRuleLevel) {
 		}
 		r.choice(op.Expr)
 		if lc.is("=>") {
+			lc.afterGap(op.Expr)
 			lc.next()
 			r.action(op.Action, op.DefaultAction)
 		}
+		lc.endLine(op.Break)
 		r.separator()
 	}
 	l.CloseBreak = lc.statementBreak()

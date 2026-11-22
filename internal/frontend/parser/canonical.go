@@ -158,6 +158,9 @@ type canonical struct {
 	params []string
 	// partial is set when the tree has recovered syntax errors: a nil gap is skipped.
 	partial bool
+	// headers are the offset ranges of the declaration headers whose comments
+	// a declaration owns (see header).
+	headers [][2]int
 }
 
 func (c *canonical) fail(format string, args ...any) {
@@ -348,6 +351,7 @@ func (c *canonical) file(root *types.File) *ast.Grammar {
 		hasToken = true
 		g.File.Decls = append(g.File.Decls, c.decl(d))
 	}
+	c.ownHeaders()
 	infos, err := c.pos.Claim(c.gapList, c.nodes)
 	if err != nil {
 		c.fail("source information: %v", err)
@@ -366,6 +370,32 @@ func (c *canonical) file(root *types.File) *ast.Grammar {
 		g.File.End = g.File.Pos
 	}
 	return g
+}
+
+// header returns the contents of the comments between the offsets from and to,
+// a gap of a declaration header. The declaration owns them as its
+// HeaderComments, so no node of the gap claims them (see ownHeaders).
+func (c *canonical) header(from, to int) []string {
+	c.headers = append(c.headers, [2]int{from, to})
+	return c.commentsIn(from, to)
+}
+
+// ownHeaders empties the groups of the gaps that lie in a declaration header,
+// whose comments the declaration owns, so that a comment has one owner.
+func (c *canonical) ownHeaders() {
+	if len(c.headers) == 0 {
+		return
+	}
+	slices.SortFunc(c.headers, func(a, b [2]int) int { return cmp.Compare(a[0], b[0]) })
+	h := 0
+	for i, g := range c.gapList {
+		for h < len(c.headers) && c.headers[h][1] < g.End {
+			h++
+		}
+		if h < len(c.headers) && c.headers[h][0] <= g.Start {
+			c.gapList[i] = sourceast.Gap{Start: g.Start, End: g.End}
+		}
+	}
 }
 
 // gaps returns the comment gaps of the tree.
@@ -439,7 +469,7 @@ func (c *canonical) pkg(p *ast.Pkg, n *types.Pkg) {
 		// of "package" for diagnostics.
 		c.created(i, keyword)
 	}
-	p.HeaderComments = c.commentsIn(keyword+len("package"), n.Name.Start)
+	p.HeaderComments = c.header(keyword+len("package"), n.Name.Start)
 }
 
 // semicolons returns the semicolons after the body of a declaration.
@@ -457,18 +487,13 @@ func (c *canonical) decl(d types.Decl) ast.Decl {
 		def := &ast.TypeDef{Name: c.name(d.Name)}
 		name := d.Name
 		eq := c.nextToken(name.End)
-		def.HeaderComments = c.commentsIn(d.SourceSpan.Start+len("type"), name.Start)
-		def.HeaderComments = append(def.HeaderComments, c.commentsIn(name.End, eq)...)
-		if st, ok := d.Type.(*types.StructType); ok && st != nil {
-			// The hand-written parser completes the struct from the "=".
-			def.Type = c.structType(st, eq)
-		} else {
-			if isNil(d.Type) {
-				c.fail("the source tree has a syntax error in a declaration")
-			}
-			def.Type = c.typ(d.Type)
-			def.HeaderComments = append(def.HeaderComments, c.commentsIn(eq+1, start(d.Type.(ranged)))...)
+		// The header ends at the "="; the type owns the comments after it.
+		def.HeaderComments = c.header(d.SourceSpan.Start+len("type"), name.Start)
+		def.HeaderComments = append(def.HeaderComments, c.header(name.End, eq)...)
+		if isNil(d.Type) {
+			c.fail("the source tree has a syntax error in a declaration")
 		}
+		def.Type = c.typ(d.Type)
 		c.statement(&def.SourceInfo, d.SourceSpan, sep, false)
 		return def
 	case *types.TypeAlias:
@@ -478,11 +503,10 @@ func (c *canonical) decl(d types.Decl) ast.Decl {
 		if isNil(d.Type) {
 			c.fail("the source tree has a syntax error in a declaration")
 		}
-		ty := d.Type.(ranged)
 		tilde := c.nextToken(name.End)
-		alias.HeaderComments = c.commentsIn(d.SourceSpan.Start+len("type"), name.Start)
-		alias.HeaderComments = append(alias.HeaderComments, c.commentsIn(name.End, tilde)...)
-		alias.HeaderComments = append(alias.HeaderComments, c.commentsIn(tilde+1, start(ty))...)
+		// The header ends at the "~"; the type owns the comments after it.
+		alias.HeaderComments = c.header(d.SourceSpan.Start+len("type"), name.Start)
+		alias.HeaderComments = append(alias.HeaderComments, c.header(name.End, tilde)...)
 		alias.Type = c.typ(d.Type)
 		c.statement(&alias.SourceInfo, d.SourceSpan, sep, false)
 		return alias
@@ -490,9 +514,9 @@ func (c *canonical) decl(d types.Decl) ast.Decl {
 		sep := c.semicolons(d.SourceSpan)
 		v := &ast.VarDef{Name: c.name(d.Name)}
 		name := d.Name
-		v.HeaderComments = c.commentsIn(d.SourceSpan.Start+len("var"), name.Start)
+		v.HeaderComments = c.header(d.SourceSpan.Start+len("var"), name.Start)
 		if !isNil(d.Type) {
-			v.HeaderComments = append(v.HeaderComments, c.commentsIn(name.End, start(d.Type.(ranged)))...)
+			v.HeaderComments = append(v.HeaderComments, c.header(name.End, start(d.Type.(ranged)))...)
 			v.Type = c.typ(d.Type)
 		}
 		if !isNil(d.Value) {
@@ -527,17 +551,17 @@ func (c *canonical) ruleDef(d *types.RuleDef, sep []int) *ast.RuleDef {
 	}
 	name := d.Name
 	// The header holds the comments before the name, the type and the "=".
-	rd.HeaderComments = c.commentsIn(keyword+len("rule"), name.Start)
+	rd.HeaderComments = c.header(keyword+len("rule"), name.Start)
 	from := name.End
 	if !isNil(d.Type) {
 		rd.Type = c.typ(d.Type)
 		var gaps [][2]int
 		from = c.typeHeader(d.Type, from, &gaps)
 		for _, g := range gaps {
-			rd.HeaderComments = append(rd.HeaderComments, c.commentsIn(g[0], g[1])...)
+			rd.HeaderComments = append(rd.HeaderComments, c.header(g[0], g[1])...)
 		}
 	}
-	rd.HeaderComments = append(rd.HeaderComments, c.commentsIn(from, c.nextToken(from))...)
+	rd.HeaderComments = append(rd.HeaderComments, c.header(from, c.nextToken(from))...)
 	rd.Expr = c.rule(d.Expr)
 	if !isNil(d.Action) {
 		rd.Action, rd.DefaultAction = c.actionOrDefault(d.Action)
@@ -561,7 +585,7 @@ func (c *canonical) structType(n *types.StructType, start int) *ast.StructType {
 			c.fail("the source tree has a syntax error in a struct field")
 		}
 		field := &ast.Field{Name: c.name(f.Name)}
-		field.HeaderComments = c.commentsIn(f.Name.End, start0(f.Type))
+		field.HeaderComments = c.header(f.Name.End, start0(f.Type))
 		field.Type = c.typ(f.Type)
 		c.statement(&field.SourceInfo, f.SourceSpan, c.separators(f.SourceSpan.End, ';', 1), false)
 		st.Fields = append(st.Fields, field)

@@ -388,7 +388,6 @@ func (p *parser) typeDecl() (sourceResult ast.TypeDecl) {
 	def := func(t ast.TypeExpr) *ast.TypeDef {
 		return &ast.TypeDef{SourceInfo: info, Name: name.text, Type: t, Break: br}
 	}
-	specStart := p.i
 	switch {
 	case p.is("struct"):
 		p.errorf("a struct type is defined as type %s = {...}", name.text)
@@ -402,32 +401,33 @@ func (p *parser) typeDecl() (sourceResult ast.TypeDecl) {
 		p.header = false
 		p.layout, p.layoutDepth = false, 0
 		st := &ast.StructType{}
+		open := p.i
+		gap := p.typeBefore()
 		st.Fields, st.CloseBreak, st.OneLine = p.structFields()
-		p.sourceNode(st, specStart)
+		p.sourceNode(st, open)
+		setTypeBefore(st, gap)
 		return def(st)
 	case p.is("terminal"):
 		p.errorf("a terminal type is the struct type %s = { Text string }", name.text)
 		panic(bail{})
 	case p.is("=") && p.peek(1).kind == tIdent && p.peek(1).text == "node" && p.peek(2).text == "[":
-		// A named node type: type N = node[T].
+		// A named node type: type N = node[T]. The header ends at the "=";
+		// the type owns the comments after it.
 		p.next()
 		p.header = false
-		gap := p.gapContents()
-		app, _ := p.typeTerm().(*ast.TypeApp)
+		app, _ := p.typeOperand(p.typeTerm).(*ast.TypeApp)
 		if app == nil || len(app.Args) != 1 {
 			p.errorf("a node type takes one type argument: type %s = node[T]", name.text)
 			panic(bail{})
 		}
-		td := def(app)
-		td.HeaderComments = append(td.HeaderComments, gap...)
-		return td
+		return def(app)
 	case p.is("="):
 		p.errorf("expected '{' or 'node[' after '='; write type %s ~ <type> for an alias", name.text)
 		panic(bail{})
 	case p.accept("~"):
+		// The header ends at the "~"; the type owns the comments after it.
 		p.header = false
-		gap := p.gapContents()
-		return &ast.TypeAlias{SourceInfo: info, Name: name.text, HeaderComments: gap, Type: p.typeExpr(), Break: br}
+		return &ast.TypeAlias{SourceInfo: info, Name: name.text, Type: p.typeOperand(p.typeExpr), Break: br}
 	default:
 		p.errorf("expected '=' or '~', found %s", p.tok())
 		panic(bail{})
@@ -447,10 +447,28 @@ func (p *parser) typeExpr() (sourceResult ast.TypeExpr) {
 		return t
 	}
 	u := &ast.JoinType{Types: []ast.TypeExpr{t}}
-	for p.accept("|") {
-		u.Types = append(u.Types, p.typeMeet())
+	for p.typeAfter(u.Types[len(u.Types)-1], "|"); p.accept("|"); p.typeAfter(u.Types[len(u.Types)-1], "|") {
+		u.Types = append(u.Types, p.typeRight(p.typeMeet))
 	}
 	return u
+}
+
+// typeRight parses the right operand of "|" or "&" with parse, keeping the comments before it
+// in its layout.
+func (p *parser) typeRight(parse func() ast.TypeExpr) ast.TypeExpr {
+	gap := p.typeLead()
+	x := parse()
+	setTypeLead(x, gap)
+	return x
+}
+
+// typeOperand parses a type with parse, keeping the inline comments before it in its layout:
+// the element of "[]" or "*", or the type after the "=" or "~" of a type declaration.
+func (p *parser) typeOperand(parse func() ast.TypeExpr) ast.TypeExpr {
+	gap := p.typeBefore()
+	x := parse()
+	setTypeBefore(x, gap)
+	return x
 }
 
 // typeMeet parses T & U, which binds tighter than |.
@@ -467,8 +485,8 @@ func (p *parser) typeMeet() (sourceResult ast.TypeExpr) {
 		return t
 	}
 	m := &ast.MeetType{Types: []ast.TypeExpr{t}}
-	for p.accept("&") {
-		m.Types = append(m.Types, p.typeTerm())
+	for p.typeAfter(m.Types[len(m.Types)-1], "&"); p.accept("&"); p.typeAfter(m.Types[len(m.Types)-1], "&") {
+		m.Types = append(m.Types, p.typeRight(p.typeTerm))
 	}
 	return m
 }
@@ -497,9 +515,9 @@ func (p *parser) typeTerm() (sourceResult ast.TypeExpr) {
 	defer p.leave()
 	switch {
 	case p.accept("[]"):
-		return &ast.ListType{Elem: p.typeTerm()}
+		return &ast.ListType{Elem: p.typeOperand(p.typeTerm)}
 	case p.accept("*"):
-		return &ast.OptionalType{Elem: p.typeTerm()}
+		return &ast.OptionalType{Elem: p.typeOperand(p.typeTerm)}
 	case p.accept("("):
 		open := p.i - 1
 		outer, header := p.cur, p.header
@@ -587,8 +605,8 @@ func (p *parser) structFields() (fields []*ast.Field, closeBreak *ast.LineBreak,
 		restore := p.statement()
 		fieldStart := p.i
 		fname := p.ident()
-		gap := p.takeGapContents()
-		field := &ast.Field{SourceInfo: ast.SourceInfo{Pos: fname.pos}, Name: fname.text, HeaderComments: gap, Type: p.typeExpr(), Break: fb}
+		gap, tokens := p.takeHeaderGap()
+		field := &ast.Field{SourceInfo: ast.SourceInfo{Pos: fname.pos}, Name: fname.text, HeaderComments: gap, HeaderTokens: tokens, Type: p.typeExpr(), Break: fb}
 		p.source(field, fieldStart)
 		fields = append(fields, field)
 		restore()
@@ -656,7 +674,8 @@ func (p *parser) varDef() (sourceResult *ast.VarDef) {
 	p.header = false
 	vd := &ast.VarDef{SourceInfo: ast.SourceInfo{Pos: pos}, Name: name.text, HeaderComments: p.headerContents(headerFrom), Break: br}
 	if !p.boundary() && p.tok().kind != tEOF && !p.is("=") && !p.is(";") {
-		vd.HeaderComments = append(vd.HeaderComments, p.gapContents()...)
+		gap, tokens := p.takeHeaderGap()
+		vd.HeaderComments, vd.HeaderTokens = append(vd.HeaderComments, gap...), tokens
 		vd.Type = p.typeExpr()
 	}
 	if !p.boundary() && p.is("=") {
@@ -709,12 +728,16 @@ func (p *parser) ruleDef() (sourceResult *ast.RuleDef) {
 		panic(bail{})
 	}
 	if !p.boundary() && p.isOperatorsStart() {
-		p.next()
-		p.next()
+		before := p.takeInlineGap()
+		p.next() // #
+		open := p.takeInlineGap()
+		p.next() // operators
+		open = append(open, p.takeInlineGap()...)
 		// Items inside an operators block have their own separators.
 		p.layout = false
 		rd.Expr = p.operatorsBody()
 		p.layout = true
+		setOperatorsLayout(rd.Expr, before, open)
 		if !p.boundary() && p.is("=>") {
 			if p.tok().lineBefore {
 				rd.ActionBreak = p.lineBreak()
@@ -954,14 +977,19 @@ func (p *parser) operatorsRule() (sourceResult *ast.OperatorsRule) {
 			}
 			pr.Skip = p.choice()
 			pr.SkipBreak = b
+			p.endLine(b)
 			p.source(&pr.SkipSource, itemStart)
 			itemSource = &pr.SkipSource
 		case p.accept("operand"):
 			operandPos := p.toks[p.i-1].pos
 			o := &ast.OperatorsRuleOperand{SourceInfo: ast.SourceInfo{Pos: operandPos}, Expr: p.choice(), Break: b}
+			if p.is("=>") {
+				p.afterGap(o.Expr)
+			}
 			if p.accept("=>") {
 				o.Action, o.DefaultAction = p.action()
 			}
+			p.endLine(b)
 			pr.Operands = append(pr.Operands, o)
 			p.source(o, itemStart)
 			itemSource = o.Source()
@@ -987,6 +1015,7 @@ func (p *parser) operatorsRule() (sourceResult *ast.OperatorsRule) {
 				}
 				op := p.operatorsRuleOperator()
 				op.Break = ob
+				p.endLine(ob)
 				l.Operators = append(l.Operators, op)
 				p.itemEnd()
 				p.sourceTrailing(op.Source())
@@ -1054,6 +1083,9 @@ func (p *parser) operatorsRuleOperator() (sourceResult *ast.OperatorsRuleOperato
 		panic(bail{})
 	}
 	op.Expr = p.choice()
+	if p.is("=>") {
+		p.afterGap(op.Expr)
+	}
 	if p.accept("=>") {
 		op.Action, op.DefaultAction = p.action()
 	}
@@ -1127,7 +1159,13 @@ func (p *parser) sequence() (sourceResult ast.Expr) {
 
 	var items []ast.Expr
 	for p.startsPrimary() {
-		items = append(items, p.prefixed())
+		var lead *ast.Gap
+		if len(items) > 0 {
+			lead = p.delimitedGap()
+		}
+		item := p.prefixed()
+		p.leadOf(item, lead)
+		items = append(items, item)
 	}
 	switch len(items) {
 	case 0:
@@ -1198,7 +1236,9 @@ func (p *parser) suffixed() (sourceResult ast.Expr) {
 		if p.is("*") || p.is("+") || p.is("?") {
 			gap = p.takeCommentGap()
 		} else if !p.is("@") && p.is("#") && !p.isCut() {
-			operator = p.takeInlineGap()
+			if operator = p.takeInlineGap(); operator == nil {
+				gap = p.delimitedGap()
+			}
 		}
 		switch {
 		case p.accept("*"):
@@ -1209,9 +1249,9 @@ func (p *parser) suffixed() (sourceResult ast.Expr) {
 			e = &ast.Optional{SourceInfo: ast.SourceInfo{Pos: start}, Expr: e}
 		case p.is("#") && !p.isCut():
 			e = p.pragma(e, start)
-			if a, ok := e.(*ast.Attributed); ok && operator != nil {
-				a.Attrs[len(a.Attrs)-1].Layout = &ast.SourceLayout{Before: operator}
-				operator = nil
+			if a, ok := e.(*ast.Attributed); ok && (operator != nil || gap != nil) {
+				a.Attrs[len(a.Attrs)-1].Layout = &ast.SourceLayout{Before: operator, Lead: gap}
+				operator, gap = nil, nil
 			}
 		case p.is("@"):
 			a, ok := e.(*ast.Attributed)
@@ -1228,12 +1268,15 @@ func (p *parser) suffixed() (sourceResult ast.Expr) {
 					p.appendAttributeBreak(a, b)
 				}
 				var gap []*ast.Comment
+				var lead *ast.Gap
 				if b == nil {
-					gap = p.takeInlineGap()
+					if gap = p.takeInlineGap(); gap == nil {
+						lead = p.delimitedGap()
+					}
 				}
 				attr := p.attribute()
-				if gap != nil {
-					attr.Layout = &ast.SourceLayout{Before: gap}
+				if gap != nil || lead != nil {
+					attr.Layout = &ast.SourceLayout{Before: gap, Lead: lead}
 				}
 				a.Attrs = append(a.Attrs, attr)
 			}
@@ -1615,11 +1658,16 @@ func (p *parser) primary() (sourceResult ast.Expr) {
 		}
 		if t.text == "level" && !p.boundary() && p.is("(") && !p.tok().spaceBefore {
 			p.next()
+			var gaps ast.LevelGaps
+			gaps.Open = p.takeCommentGap()
 			target := p.ident()
+			gaps.Before = p.takeCommentGap()
 			p.expect(",")
+			gaps.After = p.takeCommentGap()
 			level := p.ident()
+			gaps.Close = p.takeCommentGap()
 			p.expect(")")
-			return &ast.Ref{SourceInfo: ast.SourceInfo{Pos: target.pos}, Name: target.text, Level: level.text}
+			return &ast.Ref{SourceInfo: ast.SourceInfo{Pos: target.pos}, Name: target.text, Level: level.text, LevelGaps: levelGaps(gaps)}
 		}
 		if !p.boundary() && p.is("(") && !p.tok().spaceBefore {
 			p.errorf("level calls use level(rule, name); separate a rule and a group with whitespace")
@@ -1760,8 +1808,13 @@ func (p *parser) actionBlock() (sourceResult *ast.Block) {
 		var expr ast.ActionExpr
 		if p.tok().kind == tIdent && p.peek(1).text == ":=" {
 			name := p.ident()
+			gap := p.takeCommentGap()
 			p.expect(":=")
-			expr = &ast.Bind{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.actionExpr()}
+			bind := &ast.Bind{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.actionExpr()}
+			if gap != nil {
+				layoutOf(bind).OpGap = gap
+			}
+			expr = bind
 		} else {
 			expr = p.actionExpr()
 		}

@@ -247,6 +247,10 @@ type VarDef struct {
 
 	// Break holds the comments before the declaration, as for TypeDef.
 	Break *LineBreak `json:"-"`
+	// HeaderTokens are the comment tokens of the end of HeaderComments, those
+	// between the name and the type, in a parsed grammar. Format writes them
+	// before the type, as for Field, and HeaderComments only without them.
+	HeaderTokens []*Comment `json:"-"`
 }
 
 func (d *TypeDef) DeclName() string   { return d.Name }
@@ -362,6 +366,10 @@ type Field struct {
 	Type           TypeExpr `json:"type"`
 
 	Break *LineBreak `json:"-"`
+	// HeaderTokens are the comment tokens of HeaderComments in a parsed
+	// grammar. Format writes them when present, and HeaderComments otherwise,
+	// so changing HeaderComments alone does not change a parsed field.
+	HeaderTokens []*Comment `json:"-"`
 }
 
 // StructType is an unnamed struct type written in a type expression: { A T; B U }. Its braces
@@ -406,6 +414,17 @@ type Ref struct {
 	SourceInfo `json:"source,omitempty"`
 	Name       string `json:"name"`
 	Level      string `json:"level,omitempty"`
+
+	// LevelGaps holds the comments inside the parentheses of a level call,
+	// which no node owns.
+	LevelGaps *LevelGaps `json:"-"`
+}
+
+// LevelGaps holds the comments between the tokens of a level call
+// level(rule, name): Open those after "(", Before and After those around ","
+// and Close those before ")". A nil Gap has no comments.
+type LevelGaps struct {
+	Open, Before, After, Close *Gap
 }
 
 // Literal is a string literal "...". Matching uses its decoded rune sequence:
@@ -736,6 +755,9 @@ type OperatorsRule struct {
 	// those before the closing brace.
 	SkipBreak  *LineBreak `json:"-"`
 	CloseBreak *LineBreak `json:"-"`
+	// OpenComments holds the raw comments inside the "#operators {" that
+	// opens the rule, which no node owns.
+	OpenComments []*Comment `json:"-"`
 }
 
 // OperatorsRuleOperand is an operand line.

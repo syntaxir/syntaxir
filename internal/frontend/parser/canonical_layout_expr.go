@@ -97,8 +97,13 @@ func (r *layoutReplay) choice(e ast.Expr) {
 
 func (r *layoutReplay) sequence(e ast.Expr) {
 	if s, ok := e.(*ast.Seq); ok {
-		for _, item := range s.Items {
+		for i, item := range s.Items {
+			var lead *ast.Gap
+			if i > 0 {
+				lead = r.lc.delimitedGap()
+			}
 			r.prefixed(item)
+			r.lc.leadOf(item, lead)
 		}
 		return
 	}
@@ -194,6 +199,10 @@ func (r *layoutReplay) suffixed(e ast.Expr) {
 func (r *layoutReplay) pragma(e ast.Expr) {
 	lc := r.lc
 	operator := lc.takeInlineGap()
+	var gap *ast.Gap
+	if operator == nil {
+		gap = lc.delimitedGap()
+	}
 	var br *ast.LineBreak
 	if lc.nest == 0 && lc.atLineStart() {
 		br = lc.lineBreak()
@@ -229,6 +238,9 @@ func (r *layoutReplay) pragma(e ast.Expr) {
 	}
 	if operator != nil {
 		layoutOf(e).Operator = operator
+	}
+	if gap != nil {
+		layoutOf(e).OpGap = gap
 	}
 }
 
@@ -288,8 +300,11 @@ func (r *layoutReplay) attributed(a *ast.Attributed) {
 	a.Breaks = nil
 	for i, attr := range a.Attrs {
 		var gap []*ast.Comment
+		var lead *ast.Gap
 		if attr.Pragma {
-			gap = lc.takeInlineGap()
+			if gap = lc.takeInlineGap(); gap == nil {
+				lead = lc.delimitedGap()
+			}
 		}
 		var b *ast.LineBreak
 		if lc.nest == 0 && lc.atLineStart() {
@@ -306,12 +321,14 @@ func (r *layoutReplay) attributed(a *ast.Attributed) {
 			lc.next() // the name
 		} else {
 			if b == nil {
-				gap = lc.takeInlineGap()
+				if gap = lc.takeInlineGap(); gap == nil {
+					lead = lc.delimitedGap()
+				}
 			}
 			r.attribute(attr)
 		}
-		if gap != nil {
-			attr.Layout = &ast.SourceLayout{Before: gap}
+		if gap != nil || lead != nil {
+			attr.Layout = &ast.SourceLayout{Before: gap, Lead: lead}
 		}
 	}
 }
@@ -326,9 +343,18 @@ func (r *layoutReplay) primary(e ast.Expr) {
 		}
 	case *ast.Ref:
 		if x.Level != "" {
-			for range 6 { // level ( rule , name )
-				lc.next()
-			}
+			var gaps ast.LevelGaps
+			lc.next() // level
+			lc.next() // (
+			gaps.Open = lc.takeCommentGap()
+			lc.next() // rule
+			gaps.Before = lc.takeCommentGap()
+			lc.next() // ,
+			gaps.After = lc.takeCommentGap()
+			lc.next() // name
+			gaps.Close = lc.takeCommentGap()
+			lc.next() // )
+			x.LevelGaps = levelGaps(gaps)
 			return
 		}
 		lc.next()
@@ -450,6 +476,9 @@ func (r *layoutReplay) actionBlock(t ast.ActionExpr) (openBreak *ast.LineBreak, 
 		expr := statements[i]
 		if b, ok := expr.(*ast.Bind); ok {
 			lc.next() // the name
+			if gap := lc.takeCommentGap(); gap != nil {
+				layoutOf(b).OpGap = gap
+			}
 			lc.next() // :=
 			r.actionExpr(b.Value)
 		} else {

@@ -49,6 +49,7 @@ func (lc *layoutCursor) collectHeader(t token) {
 	if !lc.header {
 		return
 	}
+	t.source.ownByHeader()
 	if t.lineComment != nil {
 		t.lineComment.Header = lc.headerPos
 		lc.headerComments = append(lc.headerComments, t.lineComment)
@@ -100,10 +101,12 @@ func (lc *layoutCursor) appendComments(dst, comments []*ast.Comment) []*ast.Comm
 	return append(dst, comments...)
 }
 
-// gapContents returns the normalized contents of the comments before the current token, the
-// comments of the gap that a declaration or field owns when no node starts there.
-func (lc *layoutCursor) gapContents() []string {
+// headerGap returns the normalized contents of the comments before the current token, a gap
+// in the header of a variable declaration that the declaration owns. No node starting at the
+// token owns them (see commentBoundary.ownByHeader).
+func (lc *layoutCursor) headerGap() []string {
 	t := lc.toks[lc.i]
+	t.source.ownByHeader()
 	var out []string
 	if t.lineComment != nil {
 		out = append(out, t.lineComment.Content)
@@ -114,13 +117,19 @@ func (lc *layoutCursor) gapContents() []string {
 	return out
 }
 
-// takeGapContents is gapContents for a gap the formatter writes from the owner,
-// so the comments leave the token.
-func (lc *layoutCursor) takeGapContents() []string {
-	out := lc.gapContents()
+// takeHeaderGap is headerGap for the gap between the name and the type of a struct field or
+// a variable declaration, which the formatter writes before the type: it also returns the comment tokens, which leave
+// the token.
+func (lc *layoutCursor) takeHeaderGap() ([]string, []*ast.Comment) {
+	out := lc.headerGap()
 	t := &lc.toks[lc.i]
+	var tokens []*ast.Comment
+	if t.lineComment != nil {
+		tokens = append(tokens, t.lineComment)
+	}
+	tokens = append(tokens, t.comments...)
 	t.lineComment, t.comments = nil, nil
-	return out
+	return out, tokens
 }
 
 // takeRun returns the comment c at the end of the line of the token before t, together with the
@@ -370,6 +379,77 @@ func (lc *layoutCursor) takeInlineGap() []*ast.Comment {
 	t.lineComment, t.comments = nil, nil
 	lc.inlined = lc.i + 1
 	return cs
+}
+
+// delimitedGap takes the comments before the current token inside a choice that does not
+// record line breaks, such as one inside delimiters, where they may end a line or stand on lines
+// of their own: before a pragma, an attribute or an item of a sequence after the operand or the
+// item before it. An inline gap (see takeInlineGap) is left to the term layout.
+func (lc *layoutCursor) delimitedGap() *ast.Gap {
+	if lc.nest == 0 || lc.inlineGap() {
+		return nil
+	}
+	return lc.takeCommentGap()
+}
+
+// endLine ends a line of an operators rule, whose line break is b: the comments
+// at the end of the line trail the line, not a line break inside it, such as
+// the one before the ")" of a group, which the formatter writes there.
+func (lc *layoutCursor) endLine(b *ast.LineBreak) { lc.cur = b }
+
+// levelGaps returns g, the comments inside a level call, or nil when it has none.
+func levelGaps(g ast.LevelGaps) *ast.LevelGaps {
+	if g == (ast.LevelGaps{}) {
+		return nil
+	}
+	return &g
+}
+
+// typeBefore takes the inline gap before the first token of a type that follows a "=", "~",
+// "[]" or "*" (see takeInlineGap). setTypeBefore keeps it in the type's layout.
+func (lc *layoutCursor) typeBefore() []*ast.Comment { return lc.takeInlineGap() }
+
+// typeAfter keeps the comments before the type operator op, "|" or "&", when it is the current
+// token, in the OpGap field of the layout of the operand x before it. Inside parentheses they may
+// stand on lines of their own.
+func (lc *layoutCursor) typeAfter(x ast.TypeExpr, op string) {
+	if !lc.is(op) {
+		return
+	}
+	if gap := lc.takeCommentGap(); gap != nil {
+		layoutOf(x).OpGap = gap
+	}
+}
+
+// typeLead takes the comments after a type operator, "|" or "&", before its right operand, which
+// setTypeLead keeps in the Lead field of the operand's layout.
+func (lc *layoutCursor) typeLead() *ast.Gap { return lc.takeCommentGap() }
+
+// setTypeLead keeps the comments that typeLead took in the layout of x.
+func setTypeLead(x ast.TypeExpr, gap *ast.Gap) {
+	if gap != nil {
+		layoutOf(x).Lead = gap
+	}
+}
+
+// setTypeBefore keeps the comments that typeBefore took in the layout of x.
+func setTypeBefore(x ast.TypeExpr, gap []*ast.Comment) {
+	if gap != nil {
+		l := layoutOf(x)
+		l.Before = append(gap, l.Before...)
+	}
+}
+
+// setOperatorsLayout keeps the inline comments of an Operators Rule opener:
+// before, between "=" and "#", in the Before field of the layout of the rule
+// body e, and open, inside "#operators {", in the rule's OpenComments.
+func setOperatorsLayout(e ast.Expr, before, open []*ast.Comment) {
+	if before != nil {
+		layoutOf(e).Before = before
+	}
+	if pr, _ := ast.RuleOperators(e); pr != nil && open != nil {
+		pr.OpenComments = open
+	}
 }
 
 // inlineGap reports whether the comments before the current token form a gap

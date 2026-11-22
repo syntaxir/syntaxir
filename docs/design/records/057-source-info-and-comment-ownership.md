@@ -1,6 +1,6 @@
 # 057. Source Metadata and Declaration Comments
 
-- **Status**: Partially Implemented
+- **Status**: Implemented
 - **Author**: @ornew
 - **Date**: 2026-10-14
 
@@ -50,6 +50,8 @@ type SourceLayout struct {
     Before       []*Comment
     PreviousLine int
     NextLine     int
+    // ... and the fields of the other boundaries of an expression; see
+    // "Grammar AST Source Metadata" in spec/language/grammar-files.md.
 }
 ```
 
@@ -96,12 +98,29 @@ do not use mutable global state. Apply the following transitions:
 | Blank line | Flush pending group, then disable previous-token attachment. |
 | Flush with attachment enabled | The first eligible group trails the previous token and disables further trailing attachment; later flushed groups detach. |
 | Flush without attachment | Record the group as detached. Without a blank-line flush, the final buffered group leads the next token. |
-| Same-line ambiguity | Apply `MaybeDetachComment` when the next token is on the previous token's line, or a provisional trailing block ends on the next token's line. If exactly one group exists across trailing, detached and pending buffers, move it to detached rather than guessing. With multiple groups, retain the first eligible trailing group, detach intervening groups, and make the final pending group leading. |
+| Same-line ambiguity | Apply `MaybeDetachComment` when the next token is on the previous token's line, or a provisional trailing block ends on the next token's line. If exactly one group exists across trailing, detached and pending buffers, move it to detached rather than guessing, unless the previous token is an opening delimiter or a comma, which no node ends at: then the group leads the next token. With multiple groups, retain the first eligible trailing group, detach intervening groups, and make the final pending group leading. |
 | Closing delimiter or EOF | Flush by the same eligibility rule. Return detached groups even when `HasNext` is false; the owner constructor leaves them unattached and preserves original tokens as raw formatter trivia. |
 
 The ownership mapping is part of the grammar's typed construction. Leading and
 detached declaration comments belong to the declaration node, not its name or
 body; trailing comments after its final token belong to that declaration.
+The comments inside a declaration header, from the keyword to the `=` or `~`
+that ends it, belong to the declaration as `HeaderComments`, and no node inside
+the header owns them; those after the `=` or `~` belong to the body that
+follows, as the comments before any node do. One rule for every kind of
+declaration keeps ownership predictable, and the body is a node that can own
+them; a header that also took the gap after `=` would differ between rules,
+whose body is an expression, and types. A struct field owns the comments
+between its name and its type in the same way, and keeps their tokens in
+`Field.HeaderTokens` for the formatter; a variable declaration keeps those
+before its type, the end of its header, in `VarDef.HeaderTokens`, so they stay
+accepted, unlike the header comments that `File.HeaderComments` keeps. The
+comments inside the `#operators {` that opens an Operators Rule, or inside the
+parentheses of a level call, lie inside a span and have no owner; the rule
+keeps their tokens in `OperatorsRule.OpenComments` and the call in
+`Ref.LevelGaps`. A node's span runs from its first
+token to its last, so a struct type spans its braces. Each comment therefore
+has at most one owner.
 Comments before a list element belong to the element, not a separator. Nested
 expression boundaries belong to the expression production that returns them.
 Explicit Group nodes own delimiter-adjacent comments. Wrappers such as Capture,
@@ -276,10 +295,10 @@ every grammar in the repository.
 It creates the nodes (flat sequences, choices, joins and meets, the pragma and
 attribute completions, hidden literals) in the order the hand-written parser
 completes them and passes them to `Claim`; the parity tests compare the result
-with the hand-written parser's AST. Raw formatter state (`SourceInfo.Layout`) is still not
-constructed by the canonical grammar. It needs a formatter gate: byte-identical
-output on the existing format corpus and no lost comment. The focused fixtures
-are an oracle for covered boundaries, not a substitute for that gate.
+with the hand-written parser's AST. The raw formatter state (`SourceInfo.Layout`
+and the line breaks of statements) is replayed from the tokens of the source at
+the tokens where the hand-written parser records it, and the parity tests
+compare it too, so formatting gives the same output with either frontend.
 
 ## Alternatives Considered
 
@@ -355,14 +374,15 @@ independent review pass. The boundary fixture validates grammar-level boundary
 and selected owner construction only. The transparent Type/Action grouping increment is also implemented and
 validated, including owned boundary comments, strict and permissive JSON,
 structural validation and equivalent generated code and parse results.
-The in-progress raw interior-layout formatter increment is scoped to selected
-unary/lambda value boundaries and constructor field names. Canonical metadata
-construction in `sxir.sxir` covers statements, list elements and, through the
-comment-bearing gaps between tokens and the claim in the source adapter, every
-node of expressions and types, and matches the hand-written frontend on the
-parity corpus. The public-AST adapter that builds those nodes from the canonical
-tree and the raw formatter state remain follow-up scope. The record is Partially
-Implemented until those parts of the contract are implemented and validated.
+Canonical metadata construction in `sxir.sxir` covers statements, list
+elements and, through the comment-bearing gaps between tokens and the claim in
+the source adapter, every node of expressions and types. The public-AST adapter
+builds those nodes and replays the raw formatter state, and matches the
+hand-written frontend on the parity corpus. Both frontends are kept: each is
+checked on its own against the ownership contract (owner tables, a comment
+inserted next to every white space of the repository grammars with at most one
+owner, outside its owner's span, one raw token and the same owner after
+formatting) and against the other.
 
 ### Parenthesized Source Groups: Incremental Cost
 

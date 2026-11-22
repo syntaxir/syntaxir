@@ -56,8 +56,10 @@ code is generated.
 ### Grammar AST Source Metadata
 
 Source-bearing public grammar nodes expose a `SourceInfo` with `Pos` and `End`
-for one continuous half-open source interval. The interval excludes leading
-and trailing comments owned at its boundaries but includes comments inside it.
+for one continuous half-open source interval, from the first token of the node
+to its last: the span of the struct type of `type T = { ... }` is its braces, not
+the `=` before them. The interval excludes leading and trailing comments owned
+at its boundaries but includes comments inside it.
 The metadata also includes normalized `LeadingComments`,
 `TrailingComments` and `LeadingDetachedComments`, and an optional
 `DiagnosticPos`. `End` is exclusive. `Diagnostic()` returns `DiagnosticPos`
@@ -97,12 +99,19 @@ between its last attribute and `rule`, as `keywordComments` and
 `keywordDetachedComments` (`RuleDef.KeywordComments` and
 `RuleDef.KeywordDetachedComments`), and they are written there. The declaration
 attributes of the package clause and the comments before `package` are owned
-in the same way, by `Pkg`. The comments inside a declaration header, between the keyword and the end of
-the header (`rule /* c */ main /* d */ = ...`, the name, type and `~` or `=` of a
-type or variable declaration, and the package name), belong to the declaration as
-`headerComments`, one normalized string per comment in source order, and a
-struct field owns the comments between its name and its type the same way. They
-are written after the keyword, or after the field name. A string that ends in
+in the same way, by `Pkg`. The comments inside a declaration header belong to the
+declaration as `headerComments`, one normalized string per comment in source
+order, and no node inside the header owns them. The header runs from the keyword
+to the `=` or `~` that ends it: the comments before the name, between the name
+and the `=` or `~`, and around the tokens of a rule's result type (`rule /* c */
+main /* d */ T /* e */ = ...`), and before the package name of a package clause
+and the type of a variable declaration. The comments after the `=` or `~` are not
+in the header: the body that follows, the type of a type declaration, the
+expression of a rule or the value of a variable, owns them like any node owns the
+comments before it. A struct field owns the comments between its name and its
+type the same way as `headerComments`. They are written after the keyword, or
+after the field name, and the comments that a body owns before its first token
+are written after the `=` or `~`. A string that ends in
 a line break is written as `//` lines, and any other string as a block comment,
 which is also how a trailing comment over several lines is written. Each string
 of `TrailingComments` is one comment, so the boundaries between the comments of a
@@ -114,12 +123,14 @@ block comment between two of them is detached, so it is written on lines of its
 own, set off by blank lines, before the next statement. The
 owned comments of other nodes, such as the expressions of a rule body, are in
 the JSON but have no place in the formatted output without layout. Comments
-that no node owns are not in the JSON: those on lines of their own before a
-closing delimiter or at the end of the file, those inside delimiters that
-enclose nothing else, such as `{ /* e */ }`, those that follow the first
-comment on a line when a token follows them on that line, those between the
-tokens of a rule expression and those inside the lists whose layout is kept
-apart, such as attribute arguments.
+that no node owns are not in the JSON. They are the groups that the rules
+below leave without an owner: those after a blank line before a closing
+delimiter or the end of the file, those that lead or are detached at a comma,
+and a group that trails a list element and is replaced by the group that trails
+the comma after it; those inside delimiters that enclose nothing else, such as
+`{ /* e */ }`; those at a token that no node starts or ends at, such as the
+operator of a binary expression or the keyword of an operators line; and those
+inside the lists whose layout is kept apart, such as attribute arguments.
 
 The canonical `sxir.sxir` grammar and its source adapter assign the same spans
 and owners as the hand-written frontend to every source-bearing node: the
@@ -131,8 +142,10 @@ detached groups and whether an owner follows) of the next element; a list's
 first element takes its lead from the boundary after the opening delimiter. The
 grammar keeps the groups of every comment-bearing gap between two tokens, and
 the adapter gives them to the outermost node that starts (leading and detached
-groups) or ends (trailing group) at that token. `SourceInfo.Layout` is not
-constructed by the canonical grammar.
+groups) or ends (trailing group) at that token. The adapter then replays the
+tokens of the source to build `SourceInfo.Layout` and the other raw formatter
+state, at the tokens where the hand-written frontend records them, so both
+frontends build the same layout.
 
 `SourceInfo.Layout` is optional raw formatter state. Its `Before` field retains
 comment tokens at a syntax boundary, while `PreviousLine` and `NextLine` retain
@@ -142,10 +155,9 @@ comments after that comma that end its line. A nil layout uses canonical formatt
 `grammar.Format` uses stored layout tokens when present, so changing normalized
 comment strings alone does not change their formatted spelling or placement.
 `Grammar.Clone()` copies the layout and its comment tokens. JSON omits layout;
-layout alone does not create a `source` object. Current layout preservation
-covers selected Action Expression operand boundaries, including unary operands
-and confirmed lambda expressions, plus constructor field names and the
-elements of calls, constructors, list constructors, tuples, the tuple and type
+layout alone does not create a `source` object. Layout is kept at Action
+Expression operand boundaries, including unary operands and confirmed lambda
+expressions, at constructor field names and at the elements of calls, constructors, list constructors, tuples, the tuple and type
 application forms of types, and the arguments of attributes and the parameters of
 lambdas, which keep theirs in a `ListLayout`. The delimiters of those forms keep
 their comments in the node's `OpenBreak`, `BodyBreak` and `CloseBreak` fields.
@@ -158,8 +170,29 @@ a prefix operator, after the `=` of `skip=`, and inside the parentheses of
 `#recover` may also stand on lines of their own; the `OpGap`, `Lead` and
 `Close` fields keep them with the lines of the tokens around them. `Open`, `Eq` and `Sep` keep those after the `(` and after `skip` of `#recover` and before the `/` of an alternative in its choice, and `Last` of the break before the `)` of a group keeps the comment that trails the group's last token. The comments between the tokens of `#repeat(...)` stay in its `Spelling` field. The comments inside attribute arguments,
 lambda parameters and `#repeat(...)` are layout only: unlike owned comments they
-are not part of the JSON AST. Other source forms remain outside this increment's
-coverage.
+are not part of the JSON AST. In a type, the block comments that stand on one
+line with the tokens around them are kept in the `Before` field of the layout of
+the type they precede, after a `=`, `~`, `[]` or `*`. The comments around a `|`
+or `&`, which may end a line or stand on lines of their own inside parentheses,
+are kept in the `OpGap` field of the layout of the operand before it and in the
+`Lead` field of the operand after it. The comments between the name of a bind
+and its `:=` are kept in its `OpGap`, those before the `#` of a pragma or the `@`
+of an attribute inside delimiters that do not form an inline gap in the `OpGap`
+of the pragma's node or the `Lead` of the attribute's layout, those before an
+item of a sequence there in the `Lead` of the item, and those inside
+the parentheses of a level call in `Ref.LevelGaps`. The block comments between the `=` of a
+rule and the `#operators` of its body are kept in the `Before` field of the
+layout of the body, and those between an expression and the `=>` of its action,
+in a rule body or on an operand or operator line, in the `After` field of the
+layout of the expression. The comments of statements, struct fields, the
+lines of an operators rule and the end of the file are kept in the `LineBreak`
+values of those nodes, the comments of a declaration header in
+`File.HeaderComments`, those between the name and the type of a struct
+field or a variable declaration in `Field.HeaderTokens` and
+`VarDef.HeaderTokens`, and those inside the `#operators {` that opens
+an Operators Rule in `OperatorsRule.OpenComments`. Every comment of a parsed source is kept as
+exactly one comment token in one of these places, and `Grammar.AllComments`
+returns each of them once.
 
 #### Comment Grouping and Ownership
 
@@ -201,6 +234,17 @@ Ownership then follows the construct:
 - A capture, an atomic expression or an attributed expression does not duplicate
   the ownership of its inner expression only because their spans share a boundary.
 - The grammar parser and the AST built by hand-written code have the same owners.
+
+Every comment of a parsed source therefore has at most one owner: it is one
+normalized string of one node, in its `LeadingComments`, one entry of its
+`TrailingComments` or `LeadingDetachedComments`, or one entry of a
+declaration's `headerComments`, `keywordComments` or `keywordDetachedComments`,
+and the owned comments of a node lie outside its span: leading and detached
+comments before `Pos`, trailing comments at or after `End`. The one exception is
+a postfix pragma (`#atomic`, `#stream`, `#recover`, `#repeat`), whose node is completed at
+its `#` before its operand joins it: it keeps the comments before the `#` as its
+leading and detached comments. `grammar.Format`
+keeps every comment of a parsed grammar with the same owner.
 
 Normalized comment text removes only the `//` marker of a line comment and keeps the
 following white space and the final newline. For a block comment it removes the outer

@@ -2,6 +2,7 @@ package fmt
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -296,9 +297,45 @@ func (p *printer) closeBlock(b *ast.LineBreak, indent string) {
 }
 
 // fieldComments returns the comments to write between the name and the type of a field: those that
-// it owns.
+// it owns, as their tokens were spelled in a parsed grammar, or from HeaderComments otherwise.
 func fieldComments(f *ast.Field) string {
-	return inlineHeaderComments(f.HeaderComments)
+	if len(f.HeaderTokens) == 0 {
+		return inlineHeaderComments(f.HeaderComments)
+	}
+	return headerTokens(f.HeaderTokens)
+}
+
+// headerTokens returns the comment tokens at the end of a header, before the
+// type that follows it, each written as an inline comment.
+func headerTokens(tokens []*ast.Comment) string {
+	var out strings.Builder
+	for _, c := range tokens {
+		if strings.HasPrefix(c.Text, "//") {
+			// A line comment cannot stand before the type on its line.
+			out.WriteString(inlineHeaderComments([]string{c.Content}))
+			continue
+		}
+		out.WriteString(c.Text + " ")
+	}
+	return out.String()
+}
+
+// bodyComments returns the comments that the body of a declaration owns before
+// its first token, the comments after the "=" or "~" that ends the header, for a
+// declaration without layout (b, its Break, is nil), as a grammar decoded from
+// JSON has them: the detached paragraphs, then the leading comments, each
+// written as an inline comment. A parsed declaration keeps their tokens in its
+// layout instead.
+func bodyComments(b *ast.LineBreak, body ast.SourceNode) string {
+	if b != nil || body == nil {
+		return ""
+	}
+	s := body.Source()
+	texts := append([]string(nil), s.LeadingDetachedComments...)
+	if s.LeadingComments != "" {
+		texts = append(texts, s.LeadingComments)
+	}
+	return inlineHeaderComments(texts)
 }
 
 func (p *printer) typeDef(t *ast.TypeDef) {
@@ -306,6 +343,10 @@ func (p *printer) typeDef(t *ast.TypeDef) {
 	p.header("type", t.Pos, t.HeaderComments)
 	p.write(" " + t.Name + " ")
 	p.write("= ")
+	if body, ok := t.Type.(ast.SourceNode); ok && t.Type != nil {
+		p.write(bodyComments(t.Break, body))
+		p.write(typeBefore(t.Type, p.control))
+	}
 	if t.Type != nil && t.Struct() == nil {
 		p.write(formatType(t.Type, p.control))
 		return
@@ -320,7 +361,12 @@ func (p *printer) typeDef(t *ast.TypeDef) {
 func (p *printer) typeAlias(t *ast.TypeAlias) {
 	pollFormat(p.control)
 	p.header("type", t.Pos, t.HeaderComments)
-	p.write(" " + t.Name + " ~ " + formatType(t.Type, p.control))
+	p.write(" " + t.Name + " ~ ")
+	if body, ok := t.Type.(ast.SourceNode); ok {
+		p.write(bodyComments(t.Break, body))
+		p.write(typeBefore(t.Type, p.control))
+	}
+	p.write(formatType(t.Type, p.control))
 }
 
 // structBody writes the braces and fields of a struct type.
@@ -397,13 +443,22 @@ func (p *printer) structBody(fields []*ast.Field, closeBreak *ast.LineBreak, one
 
 func (p *printer) varDef(v *ast.VarDef) {
 	pollFormat(p.control)
-	p.header("var", v.Pos, v.HeaderComments)
+	owned := v.HeaderComments
+	if len(v.HeaderTokens) > 0 {
+		// A parsed declaration keeps the tokens of its header comments.
+		owned = nil
+	}
+	p.header("var", v.Pos, owned)
 	p.write(" " + v.Name)
 	if v.Type != nil {
-		p.write(" " + formatType(v.Type, p.control))
+		p.write(" " + headerTokens(v.HeaderTokens) + formatType(v.Type, p.control))
 	}
 	if v.Value != nil {
-		p.write(joinLayout(" = ", formatActionExpr(v.Value, 0, p.control)))
+		lead := ""
+		if body, ok := v.Value.(ast.SourceNode); ok {
+			lead = bodyComments(v.Break, body)
+		}
+		p.write(joinLayout(" = "+lead, formatActionExpr(v.Value, 0, p.control)))
 	}
 }
 
@@ -460,8 +515,14 @@ func (p *printer) ruleDef(r *ast.RuleDef) {
 		p.write(" " + formatType(r.Type, p.control))
 	}
 	p.write(" = ")
+	if body, ok := r.Expr.(ast.SourceNode); ok {
+		p.write(bodyComments(r.Break, body))
+	}
 	if pr, attributed := ast.RuleOperators(r.Expr); pr != nil {
-		p.write("#operators ")
+		if l := nodeLayout(r.Expr); l != nil {
+			p.write(gapBefore(l.Before, p.control))
+		}
+		p.write("#operators " + gapBefore(pr.OpenComments, p.control))
 		p.operatorsRule(pr, "")
 		if attributed != nil {
 			for _, a := range attributed.Attrs {
@@ -699,31 +760,34 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 		p.suffixOperand(e.Expr, indent)
 		if e.Break != nil {
 			p.lineBreak(e.Break, indent, false)
+			p.write(gapBefore(operatorLayout(e), p.control))
 		} else {
-			p.write(" ")
+			p.write(indentActionExprLines(pragmaGap(e, p.control), indent, p.control))
 		}
-		p.write(gapBefore(operatorLayout(e), p.control) + "#atomic")
+		p.write("#atomic")
 	case *ast.Stream:
 		p.suffixOperand(e.Expr, indent)
 		if e.Break != nil {
 			p.lineBreak(e.Break, indent, false)
+			p.write(gapBefore(operatorLayout(e), p.control))
 		} else {
-			p.write(" ")
+			p.write(indentActionExprLines(pragmaGap(e, p.control), indent, p.control))
 		}
-		p.write(gapBefore(operatorLayout(e), p.control) + "#stream")
+		p.write("#stream")
 	case *ast.Recovery:
 		p.suffixOperand(e.Expr, indent)
 		if e.Break != nil {
 			p.lineBreak(e.Break, indent, false)
+			p.write(gapBefore(operatorLayout(e), p.control))
 		} else {
-			p.write(" ")
+			p.write(indentActionExprLines(pragmaGap(e, p.control), indent, p.control))
 		}
 		// Lines of the parentheses are indented, and the closing one is not.
 		inner := indentActionExprLines(recoveryHead(e, p.control)+formatExpr(e.Skip, precChoice, p.control)+recoveryClose(e, p.control), indent+indentUnit, p.control)
 		if strings.HasSuffix(inner, "\n") {
 			inner += indent
 		}
-		p.write(gapBefore(operatorLayout(e), p.control) + "#recover" + inner + ")")
+		p.write("#recover" + inner + ")")
 	case *ast.Repeat:
 		if e.PragmaBreak == nil && hasBreak(e.Expr) {
 			p.item(e.Expr, indent)
@@ -753,11 +817,12 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 			pollFormat(p.control)
 			if b := breakAt(e.Breaks, i); b != nil {
 				p.lineBreak(b, indent, false)
+				p.write(attributeGap(a, p.control))
 			} else {
-				p.write(" ")
+				p.write(indentActionExprLines(attributeSep(a, p.control), indent, p.control))
 			}
 			// The lines of an attribute with a trailing comma continue at the indentation of its line.
-			p.write(attributeGap(a, p.control) + indentActionExprLines(formatAttribute(a, p.control), indent, p.control))
+			p.write(indentActionExprLines(formatAttribute(a, p.control), indent, p.control))
 		}
 	default:
 		p.write(formatExprNode(e, precPrefix, p.control))
@@ -1008,6 +1073,45 @@ func pad(s string, w int, control *formatControl) string {
 }
 
 // FormatType returns t in SyntaxIR syntax.
+// typeBefore returns the inline comments that a parsed type x keeps before its first token, after
+// the "=", "~", "[]" or "*" before it, to write before it.
+func typeBefore(x ast.TypeExpr, control *formatControl) string {
+	if l := nodeLayout(x); l != nil {
+		return gapBefore(l.Before, control)
+	}
+	return ""
+}
+
+// typeOperands joins the formatted operands parts of the type operator op, "|" or "&", with the
+// comments that the operands types keep around the operators: those before an operator after
+// the operand before it, and those after it before the operand after it.
+func typeOperands(types []ast.TypeExpr, parts []string, op string, control *formatControl) string {
+	if !slices.ContainsFunc(types, func(x ast.TypeExpr) bool { return nodeLayout(x) != nil }) {
+		return joinFormatParts(parts, " "+op+" ", control)
+	}
+	var b strings.Builder
+	for i, x := range types {
+		pollFormat(control)
+		l := nodeLayout(x)
+		if i > 0 {
+			if !strings.HasSuffix(b.String(), "\n") {
+				b.WriteString(" ")
+			}
+			b.WriteString(op)
+			if l != nil && l.Lead != nil {
+				b.WriteString(gapString(l.Lead, " ", control))
+			} else {
+				b.WriteString(" ")
+			}
+		}
+		writeFormatString(&b, parts[i], control)
+		if l != nil && l.OpGap != nil && i+1 < len(types) {
+			b.WriteString(gapString(l.OpGap, "", control))
+		}
+	}
+	return b.String()
+}
+
 func formatType(t ast.TypeExpr, control *formatControl) string {
 	pollFormat(control)
 	switch t := t.(type) {
@@ -1019,9 +1123,9 @@ func formatType(t ast.TypeExpr, control *formatControl) string {
 	case *ast.TypeRef:
 		return finishFormat(t.Name, control)
 	case *ast.ListType:
-		return finishFormat("[]"+formatTypeTerm(t.Elem, control), control)
+		return finishFormat("[]"+typeBefore(t.Elem, control)+formatTypeTerm(t.Elem, control), control)
 	case *ast.OptionalType:
-		return finishFormat("*"+formatTypeTerm(t.Elem, control), control)
+		return finishFormat("*"+typeBefore(t.Elem, control)+formatTypeTerm(t.Elem, control), control)
 	case *ast.JoinType:
 		parts := make([]string, len(t.Types))
 		for i, x := range t.Types {
@@ -1032,7 +1136,7 @@ func formatType(t ast.TypeExpr, control *formatControl) string {
 				parts[i] = formatTypeTerm(x, control)
 			}
 		}
-		return finishFormat(joinFormatParts(parts, " | ", control), control)
+		return finishFormat(typeOperands(t.Types, parts, "|", control), control)
 	case *ast.MeetType:
 		parts := make([]string, len(t.Types))
 		for i, x := range t.Types {
@@ -1042,7 +1146,7 @@ func formatType(t ast.TypeExpr, control *formatControl) string {
 				parts[i] = "(" + parts[i] + ")"
 			}
 		}
-		return finishFormat(joinFormatParts(parts, " & ", control), control)
+		return finishFormat(typeOperands(t.Types, parts, "&", control), control)
 	case *ast.TupleType:
 		elems := make([]listElem, len(t.Types))
 		for i, x := range t.Types {
@@ -1610,6 +1714,22 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		if len(e.Items) == 1 {
 			parts = append(parts, "_")
 		}
+		if slices.ContainsFunc(e.Items[1:], func(it ast.Expr) bool { return leadGap(it) != nil }) {
+			// Comments before an item inside delimiters keep their lines.
+			var b strings.Builder
+			for i, part := range parts {
+				pollFormat(control)
+				if i > 0 {
+					if g := leadGap(e.Items[i]); g != nil {
+						writeFormatString(&b, gapString(g, " ", control), control)
+					} else {
+						b.WriteString(" ")
+					}
+				}
+				writeFormatString(&b, part, control)
+			}
+			return finishFormat(paren(b.String(), precSeq, outer), control)
+		}
 		return finishFormat(paren(joinFormatParts(parts, " ", control), precSeq, outer), control)
 	case *ast.Capture:
 		return finishFormat(paren(e.Name+":"+leadSep(e.Expr, control)+formatExpr(e.Expr, precPrefix, control), precPrefix, outer), control)
@@ -1618,7 +1738,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 	case *ast.Not:
 		return finishFormat(paren("!"+leadSep(e.Expr, control)+formatExpr(e.Expr, precPrefix, control), precPrefix, outer), control)
 	case *ast.Atomic:
-		return finishFormat(paren(formatExpr(e.Expr, precSuffix, control)+gapAfter(operatorLayout(e), control)+" #atomic", precSuffix, outer), control)
+		return finishFormat(paren(formatExpr(e.Expr, precSuffix, control)+pragmaGap(e, control)+"#atomic", precSuffix, outer), control)
 	case *ast.Discard:
 		return finishFormat(paren(joinPrefixTokens("-", leadSep(e.Expr, control)+formatExpr(e.Expr, precPrefix, control)), precPrefix, outer), control)
 	case *ast.Repeat:
@@ -1626,9 +1746,9 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 	case *ast.Optional:
 		return finishFormat(formatExpr(e.Expr, precSuffix, control)+suffixGap(e, control)+"?", control)
 	case *ast.Stream:
-		return finishFormat(formatExpr(e.Expr, precSuffix, control)+gapAfter(operatorLayout(e), control)+" #stream", control)
+		return finishFormat(formatExpr(e.Expr, precSuffix, control)+pragmaGap(e, control)+"#stream", control)
 	case *ast.Recovery:
-		return finishFormat(formatExpr(e.Expr, precSuffix, control)+gapAfter(operatorLayout(e), control)+" #recover"+recoveryHead(e, control)+formatExpr(e.Skip, precChoice, control)+recoveryClose(e, control)+")", control)
+		return finishFormat(formatExpr(e.Expr, precSuffix, control)+pragmaGap(e, control)+"#recover"+recoveryHead(e, control)+formatExpr(e.Skip, precChoice, control)+recoveryClose(e, control)+")", control)
 	case *ast.Attributed:
 		s := formatExpr(e.Expr, precSuffix, control)
 		if _, nested := e.Expr.(*ast.Attributed); nested {
@@ -1638,7 +1758,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		}
 		for _, a := range e.Attrs {
 			pollFormat(control)
-			s += " " + attributeGap(a, control) + formatAttribute(a, control)
+			s += attributeSep(a, control) + formatAttribute(a, control)
 		}
 		return finishFormat(s, control)
 	case *ast.Group:
@@ -1648,7 +1768,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 		return finishFormat(strings.TrimSuffix(p.String(), "\n"), control)
 	case *ast.Ref:
 		if e.Level != "" {
-			return finishFormat("level("+e.Name+", "+e.Level+")", control)
+			return finishFormat(levelCall(e, control), control)
 		}
 		return finishFormat(e.Name, control)
 	case *ast.Literal:
@@ -1697,7 +1817,7 @@ func repeatSuffix(e *ast.Repeat, control *formatControl) string {
 	case !repeatHasComments(e) && e.Min == 1 && e.Max < 0:
 		return suffixGap(e, control) + "+"
 	}
-	return gapAfter(operatorLayout(e), control) + " " + formatRepeatPragma(e, control)
+	return pragmaGap(e, control) + formatRepeatPragma(e, control)
 }
 
 // hasBreak reports whether the operand e of a suffix holds a line break, or a
@@ -1720,6 +1840,15 @@ func hasBreak(e ast.Expr) bool {
 		return hasBreak(e.Expr)
 	}
 	return false
+}
+
+// pragmaGap returns what stands between the operand of the pragma e and its "#": the comments
+// before the "#" and a space after them.
+func pragmaGap(e ast.Expr, control *formatControl) string {
+	if l := nodeLayout(e); l != nil && l.OpGap != nil {
+		return gapString(l.OpGap, " ", control)
+	}
+	return gapAfter(operatorLayout(e), control) + " "
 }
 
 // suffixGap returns what stands between the operand of e and its "*", "+" or
@@ -1771,6 +1900,31 @@ func actionArrow(a *ast.InlineAction, control *formatControl) string {
 		return gapString(l.OpGap, " ", control) + "=>"
 	}
 	return " =>"
+}
+
+// levelCall returns the level call e with the comments that it keeps inside its
+// parentheses.
+func levelCall(e *ast.Ref, control *formatControl) string {
+	g := e.LevelGaps
+	if g == nil {
+		return "level(" + e.Name + ", " + e.Level + ")"
+	}
+	// gap returns the comments of x and final after them, or none when x is nil.
+	gap := func(x *ast.Gap, final, none string) string {
+		if x == nil {
+			return none
+		}
+		return gapString(x, final, control)
+	}
+	return "level(" + gap(g.Open, " ", "") + e.Name + gap(g.Before, "", "") + "," + gap(g.After, " ", " ") + e.Level + gap(g.Close, "", "") + ")"
+}
+
+// bindGap returns what stands between the name of t and its ":=".
+func bindGap(t *ast.Bind, control *formatControl) string {
+	if l := nodeLayout(t); l != nil && l.OpGap != nil {
+		return gapString(l.OpGap, " ", control)
+	}
+	return " "
 }
 
 // binaryGap returns what stands between the left operand of t and its operator.
@@ -1862,6 +2016,16 @@ func gapString(g *ast.Gap, final string, control *formatControl) string {
 		b.WriteString(final)
 	}
 	return b.String()
+}
+
+// attributeSep returns what stands between the token before the attribute a, after its
+// operand, and the attribute: the comments before it, which may end a line inside delimiters,
+// and a space.
+func attributeSep(a *ast.Attribute, control *formatControl) string {
+	if a.Layout != nil && a.Layout.Lead != nil {
+		return gapString(a.Layout.Lead, " ", control)
+	}
+	return " " + attributeGap(a, control)
 }
 
 // attributeGap returns the comments before an attribute, each followed by a
@@ -2455,7 +2619,7 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		}
 		return x + ".(" + formatType(t.Type, control) + ")"
 	case *ast.Bind:
-		return t.Name + " := " + formatActionExpr(t.Value, 0, control)
+		return t.Name + bindGap(t, control) + ":= " + formatActionExpr(t.Value, 0, control)
 	}
 	return fmt.Sprintf("<%T>", t)
 }

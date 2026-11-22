@@ -223,6 +223,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			add(t.CloseBreak)
 			for _, f := range t.Fields {
 				add(f.Break)
+				cs = appendMetadata(cs, f.HeaderTokens, control)
 				typ(f.Type)
 			}
 		}
@@ -262,6 +263,14 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 		case *InlineAction:
 			expr(e.Expr)
 			actionExpr(e.Action)
+		case *Ref:
+			if g := e.LevelGaps; g != nil {
+				for _, gap := range []*Gap{g.Open, g.Before, g.After, g.Close} {
+					if gap != nil {
+						cs = appendMetadata(cs, gap.Comments, control)
+					}
+				}
+			}
 		case *Predicate:
 			if _, block := e.Action.(*Block); !block {
 				add(e.OpenBreak)
@@ -299,6 +308,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 		case *Discard:
 			expr(e.Expr)
 		case *OperatorsRule:
+			cs = appendMetadata(cs, e.OpenComments, control)
 			add(e.SkipBreak)
 			add(e.CloseBreak)
 			expr(e.Skip)
@@ -345,6 +355,7 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			typ(s.Type)
 		case *VarDef:
 			add(s.Break)
+			cs = appendMetadata(cs, s.HeaderTokens, control)
 			if s.Type != nil {
 				typ(s.Type)
 			}

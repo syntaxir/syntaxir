@@ -84,7 +84,8 @@ type SourceLayout struct {
 	// before the closing parenthesis.
 	Open, Eq, Close *Gap
 	// OpGap holds the comments between the left operand of a binary operation
-	// and its operator.
+	// and its operator, and the like: the name of a bind and its ":=", or the
+	// parameters of a lambda and its "=>".
 	OpGap *Gap
 	// Sep holds the comments between an alternative of a choice that stands
 	// in a #recover pragma and the "/" before it.

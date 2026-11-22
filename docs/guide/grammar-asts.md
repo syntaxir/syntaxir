@@ -294,12 +294,21 @@ cause a `source` object to be emitted. When layout is present, `grammar.Format`
 uses the retained comment tokens rather than the normalized comment strings,
 so editing `LeadingComments` or `TrailingComments` alone does not change the
 formatted comment. Edit the raw layout tokens or reparse the source to
-resynchronize them. Current layout preservation covers selected Action
-Expression operand boundaries, including unary operands and confirmed lambda
-expressions, plus constructor field names and the elements of calls,
-constructors, list constructors and tuples. Other source forms remain outside
-this increment's coverage, so this is not a lossless formatter guarantee for
-every grammar form.
+resynchronize them. Layout is one of several places that keep comment tokens:
+statements, struct fields and operators lines keep theirs in `LineBreak`
+values, declaration headers in `File.HeaderComments`, the comments between
+the name and the type of a field or a variable declaration in
+`Field.HeaderTokens` and `VarDef.HeaderTokens`, those inside the `#operators {`
+of an Operators Rule in `OperatorsRule.OpenComments`, and those inside the
+parentheses of a level call in `Ref.LevelGaps`. Every comment of a parsed
+source is kept once among them, and `Grammar.AllComments` returns each once,
+so formatting a parsed grammar keeps every comment with the node that owns it.
+
+Each comment has at most one owner. The comments inside a declaration header,
+from the keyword to the `=` or `~` that ends it, belong to the declaration's
+`HeaderComments`; the comments after the `=` or `~` belong to the type,
+expression or value that follows it. The full rules are in
+[Comment Grouping and Ownership](../../spec/language/grammar-files.md#comment-grouping-and-ownership).
 
 Direct grammar JSON includes normalized source metadata. A compiled grammar
 (`.sxirc`) holds bytecode only, with no tree, source positions or comments.
