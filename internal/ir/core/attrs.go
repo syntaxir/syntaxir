@@ -104,8 +104,11 @@ func sameEffects(x, y Effects) bool { return x.Set == y.Set && slices.Equal(x.Sl
 func sameFirst(x, y *First) bool { return x == nil && y == nil || x != nil && y != nil && *x == *y }
 
 func newAnalyzer(m *Module, s *side) *analyzer {
-	return &analyzer{m: m, side: s, null: make([]bool, len(m.Rules)), ins: make([]bool, len(m.Rules)), eff: make([]Effect, len(m.Rules)),
+	a := &analyzer{m: m, side: s, null: make([]bool, len(m.Rules)), ins: make([]bool, len(m.Rules)), eff: make([]Effect, len(m.Rules)),
 		start: make([]bool, len(m.Rules))}
+	a.sub = a.nullable
+	a.rule = func(id int) (bool, bool) { return a.null[id], a.ins[id] }
+	return a
 }
 
 // run computes the attributes of every node of the module.
@@ -157,46 +160,43 @@ type analyzer struct {
 	// start holds the start rules, and cur is the rule whose body is analyzed.
 	start []bool
 	cur   int
+	// sub reads the nullabilities that node computed for a subexpression, and rule those of a rule,
+	// for Nullability.
+	sub  func(Node) (bool, bool)
+	rule func(int) (bool, bool)
 }
 
 // node sets the Nullable, NullableIns and Eff attributes of n and its subexpressions and returns
-// them. Only Missing makes the two nullabilities differ.
+// them. The nullabilities follow Nullability, from those of the subexpressions that node computed
+// first.
 func (a *analyzer) node(n Node) (bool, bool, Effects) {
 	if n == nil {
 		return true, true, Effects{}
 	}
-	var null, ins bool
 	var e Effects
 	const local = EffCapture | EffBind | EffCut
 	switch n := n.(type) {
 	case *Lit:
-		null = n.Text == ""
-		ins = null
-		if !null {
+		if n.Text != "" {
 			e.Set = EffConsume | EffFail | EffExpect
 		}
 	case *ClassNode, *Any:
 		e.Set = EffConsume | EffFail | EffExpect
 	case *Anchor:
-		null, ins = true, true
 		e.Set = EffFail | EffExpect
 	case *Seq:
-		null, ins = true, true
 		for _, it := range n.Items {
-			nn, ni, ee := a.node(it)
-			null, ins = null && nn, ins && ni
+			_, _, ee := a.node(it)
 			e = union(e, ee)
 		}
 	case *Choice:
 		for _, alt := range n.Alts {
-			nn, ni, ee := a.node(alt.Body)
-			null, ins = null || nn, ins || ni
+			_, _, ee := a.node(alt.Body)
 			e = union(e, ee)
 		}
 		e.Set &^= EffCut
 	case *Opt:
 		_, _, ee := a.node(n.Body)
-		null, ins = true, true
 		e = ee
 		// An option fails only when its body fails after a cut that commits it.
 		if ee.Set&EffCut == 0 {
@@ -204,9 +204,7 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 		}
 		e.Set &^= EffCut
 	case *Repeat:
-		nn, ni, ee := a.node(n.Body)
-		null = n.Min == 0 || n.Min == 1 && nn
-		ins = n.Min == 0 || n.Min == 1 && ni
+		_, _, ee := a.node(n.Body)
 		e = ee
 		if n.Scope != nil {
 			// The element's captures are its own; its bindings are the rule's, as everywhere
@@ -221,28 +219,23 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 		e.Set &^= EffCut
 	case *Look:
 		_, _, ee := a.node(n.Body)
-		null, ins = true, true
 		e = ee
 		// The end of a lookahead discards the errors recovered inside it.
 		e.Set &^= EffConsume | EffExpect | EffCut | EffRecover
 		e.Set |= EffFail
 	case *Cut:
-		null, ins = true, true
 		e.Set = EffCut
 	case *Succeed:
-		null, ins = true, true
 	case *FailNode:
 		e.Set = EffFail
 	case *Call:
 		// A call of a recursive rule can exceed the nesting limit.
-		null, ins = a.null[n.Rule], a.ins[n.Rule]
 		e.Set = a.eff[n.Rule] | EffCall
 		if a.m.Rules[n.Rule].Policy.Rec {
 			e.Set |= EffRaise
 		}
 	case *Nest:
-		nn, ni, ee := a.node(n.Body)
-		null, ins = nn, ni
+		_, _, ee := a.node(n.Body)
 		e.Set = ee.Set&^local | EffCall
 	case *OperatorsRule:
 		for _, l := range n.Lines() {
@@ -252,37 +245,28 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 				e.Set |= EffRaise
 			}
 		}
-		for _, l := range n.Operands {
-			nn, ni := a.nullable(l.Body)
-			null, ins = null || nn, ins || ni
-		}
 		e.Set |= EffConsume | EffFail | EffExpect | EffCall | EffRaise
 	case *Text:
-		null, ins, e = a.node(n.Body)
+		_, _, e = a.node(n.Body)
 	case *Drop:
-		null, ins, e = a.node(n.Body)
+		_, _, e = a.node(n.Body)
 	case *Capture:
-		null, ins, e = a.node(n.Body)
+		_, _, e = a.node(n.Body)
 		e = union(Effects{Set: EffCapture, Slots: []int{n.Slot}}, e)
 	case *Pred:
-		null, ins = true, true
 		e.Set = EffFail
 		if Raises(n.Action) {
 			e.Set |= EffRaise
 		}
 	case *BindNode:
-		null, ins = true, true
 		e.Set = EffBind
 		if Raises(n.Action) {
 			e.Set |= EffRaise
 		}
 	case *Label:
-		null, ins, e = a.node(n.Body)
+		_, _, e = a.node(n.Body)
 	case *Recover:
-		// A recovery that skips nothing fails, so it succeeds without consuming input only as its
-		// body does.
-		var eb, es Effects
-		null, ins, eb = a.node(n.Body)
+		_, _, eb := a.node(n.Body)
 		nullSkip, _, es := a.node(n.Skip)
 		e = union(eb, es)
 		// A recovery fails when its body fails and its skip fails or consumes nothing.
@@ -294,19 +278,16 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 		// An insertion consumes no input; without insertion the literal must match, and with it the
 		// literal fails where it was already inserted at the same position. An insertion can exceed
 		// the limit of missing tokens.
-		null, _, _ = a.node(n.Body)
-		ins = true
+		a.node(n.Body)
 		e.Set = EffConsume | EffFail | EffExpect | EffRecover | EffRaise
 	case *Stream:
-		null, ins, e = a.node(n.Repeat)
+		_, _, e = a.node(n.Repeat)
 		// Only the invocation of a start rule that starts a stream parse delivers elements.
 		if a.start[a.cur] {
 			e.Set |= EffCommit
 		}
 	case *Scan:
 		// A scan records the expectation of the character where it stops.
-		null = n.Min == 0
-		ins = null
 		e.Set = EffConsume | EffExpect
 		if n.Min > 0 {
 			e.Set |= EffFail
@@ -314,8 +295,9 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 	case *ClassRun:
 		e.Set = EffConsume | EffFail | EffExpect
 	case *Terminal:
-		null, ins, e = a.node(n.Body)
+		_, _, e = a.node(n.Body)
 	}
+	null, ins := Nullability(n, a.sub, a.rule)
 	if a.side != nil {
 		at := a.side.of(n, a.cur)
 		at.eff, at.null, at.ins, at.e = true, null, ins, e
@@ -326,8 +308,92 @@ func (a *analyzer) node(n Node) (bool, bool, Effects) {
 	return null, ins, e
 }
 
+// Nullability returns the nullabilities of n, without token insertion and with it, by the rule of
+// spec/core-ir/attributes.md (Nullability) for the kind of n. sub returns them for the nodes n is
+// made of, and rule for the rule that a Call names. It is the one statement of that rule: Analyze
+// applies it to the nodes of a module, and the facts of a module (internal/middleend/corepass) to
+// nodes that Analyze did not see.
+func Nullability(n Node, sub func(Node) (bool, bool), rule func(id int) (bool, bool)) (null, ins bool) {
+	switch n := n.(type) {
+	case nil:
+		return true, true
+	case *Lit:
+		return n.Text == "", n.Text == ""
+	case *Scan:
+		return n.Min == 0, n.Min == 0
+	case *ClassNode, *Any, *FailNode, *ClassRun:
+		return false, false
+	case *Anchor, *Opt, *Look, *Cut, *Succeed, *Pred, *BindNode:
+		return true, true
+	case *Seq:
+		null, ins = true, true
+		for _, it := range n.Items {
+			nn, ni := sub(it)
+			null, ins = null && nn, ins && ni
+			if !null && !ins {
+				break
+			}
+		}
+		return null, ins
+	case *Choice:
+		for _, alt := range n.Alts {
+			nn, ni := sub(alt.Body)
+			null, ins = null || nn, ins || ni
+			if null && ins {
+				break
+			}
+		}
+		return null, ins
+	case *Repeat:
+		if n.Min == 0 {
+			return true, true
+		}
+		if n.Min > 1 {
+			return false, false
+		}
+		return sub(n.Body)
+	case *Call:
+		return rule(n.Rule)
+	case *OperatorsRule:
+		for _, l := range n.Operands {
+			nn, ni := sub(l.Body)
+			null, ins = null || nn, ins || ni
+			if null && ins {
+				break
+			}
+		}
+		return null, ins
+	case *Missing:
+		// An insertion consumes no input.
+		null, _ = sub(n.Body)
+		return null, true
+	case *Stream:
+		return sub(n.Repeat)
+	case *Recover:
+		// When the body fails, a skip that consumes nothing is no recovery, so the node succeeds
+		// without consuming input only through its body.
+		return sub(n.Body)
+	case *Nest:
+		return sub(n.Body)
+	case *Text:
+		return sub(n.Body)
+	case *Drop:
+		return sub(n.Body)
+	case *Capture:
+		return sub(n.Body)
+	case *Label:
+		return sub(n.Body)
+	case *Terminal:
+		return sub(n.Body)
+	}
+	panic(fmt.Sprintf("core: nullability of %T", n))
+}
+
 // nullable returns the nullabilities of n, which the analysis has computed.
 func (a *analyzer) nullable(n Node) (bool, bool) {
+	if n == nil {
+		return true, true
+	}
 	if a.side != nil {
 		at := a.side.of(n, a.cur)
 		return at.null, at.ins

@@ -13,7 +13,8 @@ import (
 
 // TestFactsGolden computes the facts of every corpus grammar on its Core IR module, with the
 // rules' policies cleared so that no fact is read back from compilation, and compares them byte
-// for byte with the pinned facts (internal/testing/factstest).
+// for byte with the pinned facts (internal/testing/factstest). It also requires the node queries to
+// answer a copy of each node that Analyze did not see as Analyze does (checkUnnumberedNullable).
 func TestFactsGolden(t *testing.T) {
 	t.Parallel()
 	for _, path := range factstest.Corpus {
@@ -36,6 +37,9 @@ func TestFactsGolden(t *testing.T) {
 			}
 			f := corepass.Compute(m, nil)
 			factstest.Golden(t, path, factstest.Render(factstest.CoreRules(m, f)))
+			if err := checkUnnumberedNullable(m, f); err != nil {
+				t.Error(err)
+			}
 		})
 	}
 }

@@ -1,8 +1,6 @@
 package corepass
 
 import (
-	"fmt"
-
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
 )
@@ -61,69 +59,24 @@ func (f *Facts) Nullable(n core.Node) bool { return f.c.nullable(n, false) }
 func (f *Facts) NullableIns(n core.Node) bool { return f.c.nullable(n, true) }
 
 // nullable reports that n can succeed without consuming input, with token insertion enabled if
-// ins, by the rules of core.Analyze and the nullability of the rules it calls. A node that Analyze
-// numbered and saw (a nonzero ID) has its nullability as attributes; any other is computed.
+// ins (nullabilities).
 func (c *computer) nullable(n core.Node, ins bool) bool {
+	null, nullIns := c.nullabilities(n)
+	return null || ins && nullIns
+}
+
+// nullabilities returns the nullabilities of n, without token insertion and with it, by the rule of
+// core.Nullability and the nullabilities of the rules it calls. A node that Analyze numbered and saw
+// (a nonzero ID) has them as attributes; any other is computed.
+func (c *computer) nullabilities(n core.Node) (bool, bool) {
 	if n == nil {
-		return true
+		return true, true
 	}
 	if at := n.Attrs(); at.ID != 0 {
-		return at.Nullable || ins && at.NullableIns
+		return at.Nullable, at.NullableIns
 	}
-	switch n := n.(type) {
-	case *core.Lit:
-		return n.Text == ""
-	case *core.Scan:
-		return n.Min == 0
-	case *core.ClassNode, *core.Any, *core.FailNode, *core.ClassRun:
-		return false
-	case *core.Anchor, *core.Opt, *core.Look, *core.Cut, *core.Succeed, *core.Pred, *core.BindNode:
-		return true
-	case *core.Seq:
-		for _, it := range n.Items {
-			if !c.nullable(it, ins) {
-				return false
-			}
-		}
-		return true
-	case *core.Choice:
-		for _, alt := range n.Alts {
-			if c.nullable(alt.Body, ins) {
-				return true
-			}
-		}
-		return false
-	case *core.Repeat:
-		return n.Min == 0 || n.Min == 1 && c.nullable(n.Body, ins)
-	case *core.Call:
-		r := &c.rules[c.canon[n.Rule]]
-		return r.Nullable || ins && r.NullableIns
-	case *core.OperatorsRule:
-		for _, l := range n.Operands {
-			if c.nullable(l.Body, ins) {
-				return true
-			}
-		}
-		return false
-	case *core.Missing:
-		// An insertion consumes no input.
-		return ins || c.nullable(n.Lit, false)
-	case *core.Stream:
-		return c.nullable(n.Repeat, ins)
-	case *core.Nest:
-		return c.nullable(n.Body, ins)
-	case *core.Text:
-		return c.nullable(n.Body, ins)
-	case *core.Drop:
-		return c.nullable(n.Body, ins)
-	case *core.Capture:
-		return c.nullable(n.Body, ins)
-	case *core.Label:
-		return c.nullable(n.Body, ins)
-	case *core.Recover:
-		return c.nullable(n.Body, ins)
-	case *core.Terminal:
-		return c.nullable(n.Body, ins)
-	}
-	panic(fmt.Sprintf("corepass: nullability of %T", n))
+	return core.Nullability(n, c.nullabilities, func(id int) (bool, bool) {
+		r := &c.rules[c.canon[id]]
+		return r.Nullable, r.NullableIns
+	})
 }

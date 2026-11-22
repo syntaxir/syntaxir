@@ -25,7 +25,9 @@ import (
 //     to equal those of the typed module of the program, value-free twins included, with the
 //     rules' policies cleared so that no fact is read back from compilation;
 //   - the rule flags of the program to be those facts;
-//   - the facts to hold their invariants (checkFactInvariants).
+//   - the facts to hold their invariants (checkFactInvariants);
+//   - the node queries to answer a node that Analyze did not see as Analyze does
+//     (checkUnnumberedNullable).
 func TestFactsRandom(t *testing.T) {
 	t.Parallel()
 	compiled := 0
@@ -69,6 +71,9 @@ func TestFactsRandom(t *testing.T) {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
 		if err := checkFactInvariants(sm, structural); err != nil {
+			t.Fatalf("seed %d: %v\n%s", seed, err, src)
+		}
+		if err := checkUnnumberedNullable(sm, structural); err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
 	}
