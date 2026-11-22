@@ -160,7 +160,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.Control = o.control
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))
+	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
 	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		defer p.releaseObservation()
 	}

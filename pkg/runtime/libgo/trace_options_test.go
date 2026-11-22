@@ -19,7 +19,7 @@ func observeCalls(opts ...sxirruntime.ParseOption) {
 		panic(err)
 	}
 	silent := 0
-	ob := newObservation(&o.observe, &silent)
+	ob := newObservation(&o.observe, &silent, nil)
 	if ob == nil {
 		return
 	}

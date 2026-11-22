@@ -782,7 +782,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	p.Expectations = o.expectations
 	p.Control = o.control
 	o.control.attachMemory(p)
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))
+	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
 	p.setTracking()
 	p.setDeferMemo()
 	p.MaxDepth = o.maxDepth

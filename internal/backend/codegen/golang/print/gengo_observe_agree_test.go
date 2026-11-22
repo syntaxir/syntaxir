@@ -266,9 +266,9 @@ type entry struct {
 var entries = [][]entry{
 ENTRIES}
 
-// docStats holds the evaluations and reuses of the last parse of the Document of a document or edit
-// entry, which sets it after the parse it observes if that parse completed.
-var docStats *[2]int
+// docStats holds the evaluations, memo hits and resumed elements of the last parse of the Document of
+// a document or edit entry, which sets it after the parse it observes if that parse completed.
+var docStats *[3]int
 
 // keepStats keeps the statistics s of a Document's parse in docStats if the parse, which returned err,
 // completed: it succeeded or ended with syntax errors. A parse that an action, a limit or another fatal
@@ -277,7 +277,7 @@ func keepStats(s sxirruntime.ParseStats, err error) {
 	var one *sxirvalue.SyntaxError
 	var all sxirvalue.SyntaxErrors
 	if err == nil || errors.As(err, &one) || errors.As(err, &all) {
-		docStats = &[2]int{s.Evaluated, s.Reused}
+		docStats = &[3]int{s.Evaluated, s.MemoHits, s.ResumedElements}
 	}
 }
 
@@ -357,7 +357,7 @@ func main() {
 						Filtered    []sxirinstrument.TraceEvent
 						FilteredProfile sxirinstrument.ProfileSnapshot
 						Err         string
-						Stats       *[2]int
+						Stats       *[3]int
 					}{i, j, unit == sxirinput.Bytes, e.name, events, untimed(&prof), second, untimed(&prof2), filter, filtered, untimed(&filteredProf), fmt.Sprint(err), stats})
 					fmt.Println(string(b))
 				}
@@ -370,8 +370,8 @@ func main() {
 // agreeReport is one report of the consumer: the events and the profile of the parse, those of the
 // second trace function and profile given to it (Second, Profile2), and those of the same parse with the
 // trace filter Filter and the depth limit agreeMaxDepth (Filtered, FilteredProfile). Stats are the
-// evaluations and reuses that the Document of a document or edit entry reports for the observed parse,
-// if it completed.
+// evaluations, memo hits and resumed elements that the Document of a document or edit entry reports for
+// the observed parse, if it completed.
 type agreeReport struct {
 	Case, Input     int
 	Bytes           bool
@@ -384,13 +384,13 @@ type agreeReport struct {
 	Filtered        []instrument.TraceEvent
 	FilteredProfile instrument.ProfileSnapshot
 	Err             string
-	Stats           *[2]int
+	Stats           *[3]int
 }
 
 // statsCounted reports how the Document statistics of the observed parse of r differ from its profile:
-// the specification requires a completed parse's increases in profile Evals and MemoHits to equal the
-// Document's Evaluated and Reused. An entry whose Document or edit failed before the parse, or whose
-// parse did not complete, has none.
+// the specification requires a completed parse's increases in profile Evals, MemoHits and
+// ReusedElements to equal the Document's Evaluated, MemoHits and ResumedElements. An entry whose
+// Document or edit failed before the parse, or whose parse did not complete, has none.
 func statsCounted(producer string, r agreeReport) string {
 	if r.Entry != "document" && r.Entry != "edit" {
 		return ""
@@ -401,9 +401,9 @@ func statsCounted(producer string, r agreeReport) string {
 	if r.Stats == nil {
 		return producer + " reported no Document statistics"
 	}
-	if r.Stats[0] != r.Profile.Evals || r.Stats[1] != r.Profile.MemoHits {
-		return fmt.Sprintf("%s Document evaluated %d and reused %d, its profile has %d evals and %d memo hits",
-			producer, r.Stats[0], r.Stats[1], r.Profile.Evals, r.Profile.MemoHits)
+	if r.Stats[0] != r.Profile.Evals || r.Stats[1] != r.Profile.MemoHits || r.Stats[2] != r.Profile.ReusedElements {
+		return fmt.Sprintf("%s Document evaluated %d, hit the memo %d times and resumed %d elements, its profile has %d evals, %d memo hits and %d reused elements",
+			producer, r.Stats[0], r.Stats[1], r.Stats[2], r.Profile.Evals, r.Profile.MemoHits, r.Profile.ReusedElements)
 	}
 	return ""
 }
@@ -568,7 +568,7 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 			}
 		}
 		_, err = d.ParseWith(traced)
-		// The engine also resumes repetitions: Reused counts their elements too (ResumedElements).
+		// Reused counts the elements of resumed repetitions too (ResumedElements), apart from memo hits.
 		s := d.Stats()
 		if p := prof.Snapshot(); completedParse(err) && (s.Evaluated != p.Evals || s.MemoHits != p.MemoHits || s.ResumedElements != p.ReusedElements) {
 			t.Errorf("%q bytes=%v %s %v: engine Document evaluated %d, hit the memo %d times and resumed %d elements, its profile has %d evals, %d memo hits and %d reused elements",

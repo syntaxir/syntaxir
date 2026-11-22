@@ -131,7 +131,7 @@ func recordDocumentProbe(o *sxirrt.X_observation){documentProbeMu.Lock();defer d
 func released(t *testing.T){t.Helper();documentProbeMu.Lock();defer documentProbeMu.Unlock();for _,o:=range documentParserProbes{if o!=nil&&(o.X_trace!=nil||o.X_profiles!=nil||o.X_rules!=nil||len(o.X_stack)!=0){t.Fatal("observer references retained",o)}};documentParserProbes=nil}
 func documentEqual(t *testing.T,a,b any){t.Helper();x,err:=json.Marshal(a);if err!=nil{t.Fatal(err)};y,err:=json.Marshal(b);if err!=nil{t.Fatal(err)};if string(x)!=string(y){t.Fatalf("value/diagnostic mismatch\n%s\n%s",x,y)}}
 func scalarProfile(s sxirinstrument.ProfileSnapshot)sxirinstrument.ProfileSnapshot{s.Time=0;for i:=range s.Rules{s.Rules[i].Time=0;s.Rules[i].SelfTime=0};return s}
-func eventStats(t *testing.T,d *Document,pr *sxirinstrument.Profile,events []sxirinstrument.TraceEvent){t.Helper();s:=pr.Snapshot();checkProfile(t,s,events);if s.Parses!=1||d.Stats().Evaluated!=s.Evals||d.Stats().Reused!=s.MemoHits{t.Fatal("Document stats differ from actual calls",d.Stats(),s,events)}}
+func eventStats(t *testing.T,d *Document,pr *sxirinstrument.Profile,events []sxirinstrument.TraceEvent){t.Helper();s:=pr.Snapshot();checkProfile(t,s,events);if st:=d.Stats();s.Parses!=1||st.Evaluated!=s.Evals||st.MemoHits!=s.MemoHits||st.ResumedElements!=s.ReusedElements{t.Fatal("Document stats differ from actual calls",d.Stats(),s,events)}}
 func testInput()string{return INPUT}
 func TestDocumentCalls(t *testing.T){
  routes:=[]func(*Document,...ParseOption)(any,error){func(d *Document,opts ...ParseOption)(any,error){return d.Parse(opts...)}}
@@ -255,9 +255,8 @@ func observedLib(t *testing.T) string {
 		case "document.go", "typed_document.go":
 			// The probe sees the observation that the parse and its budget control hold, between its
 			// creation and the release that must clear it (released).
-			const wiring = "p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))\n"
-			return replace(src, wiring+"\tdefer p.releaseObservation()",
-				wiring+"\tif ProbeHook != nil {\n\t\tProbeHook(p.Observation)\n\t}\n\tdefer p.releaseObservation()", 1)
+			const release = "\n\tdefer p.releaseObservation()"
+			return replace(src, release, "\n\tif ProbeHook != nil {\n\t\tProbeHook(p.Observation)\n\t}"+release, 1)
 		case "call_exec.go":
 			// The printed calls name the stored entry entry and the reused entry e.
 			// The node store records the examined input in a Document and in an observed parse from

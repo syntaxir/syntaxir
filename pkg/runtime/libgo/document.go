@@ -567,7 +567,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
 	p.Expectations = o.expectations
-	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))
+	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, &d.stats.Resumed))
 	defer p.releaseObservation()
 	if d.unit == sxirinput.Bytes {
 		p.bs, p.n = d.text, len(d.text)

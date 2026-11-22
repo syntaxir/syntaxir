@@ -506,7 +506,7 @@ _, err := pairsparser.Parse(input,
 Filtering a rule includes the calls nested in it, and unknown names match nothing. Depth starts at one for the start
 rule. Several `WithTrace` functions each receive every selected event; if several filters or depth limits are given, the
 last of each applies. `TraceSkipped` is not paired with an exit event, and `Examined` on an exit event is the exact end of the input
-that the call examined. `Lookahead` tells a call inside a lookahead, and `ReusedElements` is always 0. The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
+that the call examined. `Lookahead` tells a call inside a lookahead, and `ReusedElements` is always 0, since a batch parse resumes no repetitions. The [specification](../../spec/runtime/observability.md#generated-go-batch-tracing) defines the
 events, the filters and what an aborted parse omits.
 
 With `-types`, `ParseValue` and `ParseRuleValue` accept the same trace options. This
@@ -624,16 +624,17 @@ The trace reports calls made during each parse. A warm memoized call is
 reported as a memo hit (`Memo=true`, `Evals=0`); its earlier nested calls are
 not replayed. Direct typed parsing and Node-conversion fallback report their
 actual parser calls, without a separate conversion event. For completed parses,
-the invocation's increases in profile `Evals` and `MemoHits` match
-`doc.Stats().Evaluated` and `.Reused`, respectively; an interrupted parse can
+the invocation's increases in profile `Evals`, `MemoHits` and `ReusedElements`
+match `doc.Stats().Evaluated`, `.MemoHits` and `.ResumedElements`, respectively;
+an interrupted parse can
 include calls that began but did not complete. On an exit event, `Examined`
 is the exact end of the input the call examined, one past the end of the input
 when the call tested the end: an edit starting before that position discards
 the call's memo result, as does an edit at or before the call's position. Edits that complete a UTF-8
 sequence just before them, and left-recursive results still growing, also
 prevent reuse. Profiles of Document parses sum it into per-rule `Examined` and
-`Wasted` (failed calls only), as for batch parses. Generated Documents do not resume repetition bodies, so `ReusedElements` is
-0.
+`Wasted` (failed calls only), as for batch parses. `Parse` resumes long repetitions as the engine's Document does, and an exit
+event's `ReusedElements` counts the elements resumed during the call, nested calls included; `ParseValue` resumes none.
 
 A trace callback cannot call `Parse`, `ParseValue` or `Edit` on the Document
 being parsed: those calls return `ErrDocumentBusy` and leave the Document

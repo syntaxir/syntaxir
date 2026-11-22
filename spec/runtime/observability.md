@@ -279,7 +279,7 @@ So does a leader call whose growth takes every step from the steps that the
 parse memoized while another growth of its cycle was in progress at its
 position: it evaluates no attempt and reuses memoized results, so it also
 counts as a reuse in `Document.Stats().Reused`.
-Generated parsers do not resume repetitions, so `ReusedElements` is always 0.
+A batch parse resumes no repetitions, so its `ReusedElements` is 0.
 Every exit event MUST report in `Examined` the call's exact examined end, as
 [Engine Tracing](#engine-tracing) defines it.
 
@@ -348,8 +348,11 @@ Events MUST report actual rule calls in the current invocation, including Node,
 direct typed and Node-conversion fallback calls. Conversion itself MUST NOT
 emit a rule event. A memoized whole-call reuse MUST report that call with
 `Memo=true` and `Evals=0`; nested events from earlier parses MUST NOT be
-replayed. Generated Documents do not resume repetition bodies, so their
-`ReusedElements` is 0.
+replayed. `Document.Parse` resumes repetitions by the
+[Reuse Model](documents.md#reuse-model), and an exit event MUST report in
+`ReusedElements` the elements that the parse resumed during the call, nested
+calls included, as the engine's does. `ParseValue` resumes no repetitions, so
+its `ReusedElements` is 0.
 
 In a Document parse, an exit event's `Examined`, as
 [Engine Tracing](#engine-tracing) defines it, is also the end against which a
@@ -362,8 +365,10 @@ A rule's profile `Examined` sums, over completed calls, `Examined - Pos`;
 `Wasted` sums the same over completed failed calls with `Memo=false`. Batch and
 Document parses of a rule accumulate into the same sums.
 
-After a completed parse, the invocation's increases in profile `Evals` and
-`MemoHits` MUST equal `Document.Stats().Evaluated` and `.Reused`, respectively.
+After a completed parse, the invocation's increases in profile `Evals`,
+`MemoHits` and `ReusedElements` MUST equal `Document.Stats().Evaluated`,
+`.MemoHits` and `.ResumedElements`, respectively, so their `Reused` is the sum of
+the last two.
 `Stats` has no call counter. An
 interrupted parse MAY leave statistics for calls that began but did not
 complete. Temporary observer and profile state MUST be released after return

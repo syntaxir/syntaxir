@@ -36,8 +36,19 @@ export interface ObservationCall {
   readonly depth: number;
   readonly lookahead: boolean;
   readonly selected: boolean;
+  // resumed is the count of resumed repetition elements when the call began.
+  readonly resumed: number;
   evals: number;
   memo: boolean;
+}
+
+/**
+ * The parser state that an observation reads: the lookahead counter, and the count of the repetition
+ * elements that the parse of a Document has resumed, which a parser that resumes none does not have.
+ */
+interface ObservedState {
+  readonly silent: number;
+  readonly resumed?: number;
 }
 
 // Remains wrapped until outside run and budget-control error classification.
@@ -54,12 +65,12 @@ export class Observation {
   private traces: readonly TraceFunction[] | null;
   private recorders: ProfileRecorder[] | null;
   private scope: object | null;
-  private parser: { readonly silent: number } | null;
+  private parser: ObservedState | null;
   private rules: Set<string> | null;
   private readonly maxDepth: number;
   protected readonly stack: ObservationCall[] = [];
 
-  constructor(o: ResolvedParseOptions, parser: { readonly silent: number }) {
+  constructor(o: ResolvedParseOptions, parser: ObservedState) {
     this.traces = o.traces;
     this.recorders = o.profiles.length === 0 ? null : o.profiles.map(profile => new ProfileRecorder(profile, o.profileClock!, o));
     this.scope = o;
@@ -90,7 +101,8 @@ export class Observation {
     // mutate its copy without changing later events, other functions' copies or call counts.
     const event: TraceEvent = {
       kind, rule: call.rule, level: call.level, depth: call.depth, pos: call.pos, lookahead: call.lookahead,
-      matched, end, memo: call.memo, evals: call.evals, reusedElements: 0, examined, skipReason,
+      matched, end, memo: call.memo, evals: call.evals,
+      reusedElements: kind === "exit" ? this.resumedNow() - call.resumed : 0, examined, skipReason,
     };
     if (recorders !== null) for (const r of recorders) r.record(event);
     if (!traced) return;
@@ -107,9 +119,14 @@ export class Observation {
     }
   }
 
+  // resumedNow returns the number of repetition elements that the parse has resumed so far.
+  private resumedNow(): number {
+    return this.parser!.resumed ?? 0;
+  }
+
   enter(rule: string, pos: number, level: number): void {
     const call: ObservationCall = { rule, pos, level, depth: this.stack.length + 1, lookahead: this.parser!.silent > 0,
-      selected: this.selected(rule), evals: 0, memo: false };
+      selected: this.selected(rule), resumed: this.resumedNow(), evals: 0, memo: false };
     this.stack.push(call);
     this.deliver("enter", call);
   }
@@ -132,7 +149,7 @@ export class Observation {
 
   skipped(rule: string, pos: number, level: number): void {
     this.deliver("skipped", { rule, pos, level, depth: this.stack.length + 1, lookahead: this.parser!.silent > 0,
-      selected: this.selected(rule), evals: 0, memo: false }, false, 0, 0, "first-character");
+      selected: this.selected(rule), resumed: 0, evals: 0, memo: false }, false, 0, 0, "first-character");
   }
 }
 

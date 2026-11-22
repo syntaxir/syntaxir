@@ -45,17 +45,17 @@ const untimed = (profile) => {
   return s;
 };
 const message = (err) => err === null ? "<nil>" : String(err.message);
-// stats holds the evaluations and reuses of the last parse of the Document of a document or edit
-// entry, which sets it after the parse it observes if that parse completed: it succeeded or ended with
-// syntax errors. A parse that an action, a limit or another fatal error aborted may leave statistics of
-// calls that did not complete.
+// stats holds the evaluations, memo hits and resumed elements of the last parse of the Document of a
+// document or edit entry, which sets it after the parse it observes if that parse completed: it
+// succeeded or ended with syntax errors. A parse that an action, a limit or another fatal error aborted
+// may leave statistics of calls that did not complete.
 let stats = null;
 for (let i = 0; i < inputs.length; i++) {
   const m = await import("./g" + i + ".ts");
   const keepStats = (document, err) => {
     if (err !== null && !(err instanceof m.SyntaxError) && !(err instanceof m.SyntaxErrors)) return;
     const s = document.stats();
-    stats = [s.evaluated, s.reused];
+    stats = [s.evaluated, s.memoHits, s.resumedElements];
   };
   const entries = [
     ["parse", (x, defaults, call) => m.parseWithOptions(x, { ...defaults, ...call }).error, true],

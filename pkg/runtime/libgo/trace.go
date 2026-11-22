@@ -66,12 +66,14 @@ func observeOf(u *sxirruntime.ParseOptions) (ob observeOptions) {
 }
 
 // newObservation returns the observation that o selects for one parse, or nil.
-// silent is the parser's lookahead counter (Parser.Silent).
-func newObservation(o *observeOptions, silent *int) *observation {
+// silent is the parser's lookahead counter (Parser.Silent), and resumed the count of the repetition
+// elements that the parse of a Document has resumed (documentStats.Resumed), or nil for a parse that
+// resumes none.
+func newObservation(o *observeOptions, silent, resumed *int) *observation {
 	if o.trace == nil && o.profile == nil {
 		return nil
 	}
-	out := &observation{silent: silent}
+	out := &observation{silent: silent, resumed: resumed}
 	out.trace = o.trace
 	if o.profile != nil {
 		out.addProfile(o.profile)
@@ -120,13 +122,25 @@ func raisedForTrace(any) bool { return false }
 // Of its fields and methods, Enter, Evaluated, Exit, Skipped are for generated parsers; not a stable API.
 type observation struct {
 	traceRecorder
-	silent *int
-	stack  []observationCall
+	silent  *int
+	resumed *int
+	stack   []observationCall
 }
 
+// observationCall is a call in progress: the event that its exit reports, whether the trace selects
+// it, and the count of resumed elements when it began.
 type observationCall struct {
 	event    sxirinstrument.TraceEvent
 	selected bool
+	resumed  int
+}
+
+// resumedNow returns the number of repetition elements that the parse has resumed so far.
+func (o *observation) resumedNow() int {
+	if o.resumed == nil {
+		return 0
+	}
+	return *o.resumed
 }
 
 func (o *observation) selected(rule string) bool {
@@ -137,7 +151,7 @@ func (o *observation) Enter(rule string, pos, level int) {
 	selected := o.selected(rule)
 	e := sxirinstrument.TraceEvent{Kind: sxirinstrument.TraceEnter, Rule: rule, Pos: pos, Level: level, Depth: len(o.stack) + 1,
 		Lookahead: *o.silent > 0}
-	o.stack = append(o.stack, observationCall{event: e, selected: selected})
+	o.stack = append(o.stack, observationCall{event: e, selected: selected, resumed: o.resumedNow()})
 	o.record(&e, selected)
 }
 
@@ -159,6 +173,7 @@ func (o *observation) Exit(matched bool, end, examined int) {
 	o.stack = o.stack[:i]
 	e := &call.event
 	e.Kind, e.Matched, e.End, e.Examined = sxirinstrument.TraceExit, matched, end, examined
+	e.ReusedElements = o.resumedNow() - call.resumed
 	o.record(e, call.selected)
 }
 
