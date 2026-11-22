@@ -51,6 +51,10 @@ rule expr = expr "a" / "a"`)
 	}
 }
 
+// TestBudgetGrowthStepBeforeEvaluation checks that a left-recursion leader charges its growth step
+// before each evaluation of its body, the seed's included, as the generated parsers do: a step that
+// does not grow, after which no evaluation follows, charges nothing, and the charge comes before the
+// memo changes, so that a growth stopped by the last unit it needs publishes nothing.
 func TestBudgetGrowthStepBeforeEvaluation(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = expr $$

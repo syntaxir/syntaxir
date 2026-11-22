@@ -517,4 +517,3 @@ func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
 	}
 	return nil
 }
-
