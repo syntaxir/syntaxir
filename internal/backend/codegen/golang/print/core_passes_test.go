@@ -269,7 +269,7 @@ func TestCoreTerminalsFrozen(t *testing.T) {
 					continue
 				}
 				if seq := valueFreeSeq(r.Body, func(n core.Node) bool {
-					_, ok := c.origin[n.Attrs().ID]
+					_, ok := c.origin.Exprs[n.Attrs().ID]
 					return ok
 				}); seq != nil {
 					d.terminals[flowKey{r.ID, c.origin.Of(seq.Items[0])}] = true

@@ -40,7 +40,8 @@ import (
 // CoreFrom builds the Core IR of the program: its rules and then its value-free twins, each at
 // the position of its ID. Shapes are those of the value model (internal/compile/value_shape.go);
 // Analyze has not run. If origin, the module records the expression each node is built from (the
-// innermost one, for nodes built from a chain of expressions) in its origin map (core.Module.Origin).
+// innermost one, for nodes built from a chain of expressions), and the action expression each
+// action expression is built from, in its origin map (core.Module.Origin).
 func CoreFrom(prog Program, origin bool) (*core.Module, error) {
 	return CoreProjecting(prog, origin, true)
 }
@@ -69,6 +70,7 @@ func coreModule(prog Program, origin, project bool, control *cancel.Control) (*c
 		exps: map[string]core.ExpID{}, classes: map[string]*core.Class{}}
 	if origin {
 		b.origin = map[core.Node]ast.Expr{}
+		b.actionExprOrigin = map[core.ActionExpr]ast.ActionExpr{}
 	}
 	b.noProject = !project
 	b.m.Control = control
@@ -115,10 +117,16 @@ func coreModule(prog Program, origin, project bool, control *cancel.Control) (*c
 	core.CallGraph(b.m)
 	core.Number(b.m)
 	if b.origin != nil {
-		b.m.Origin = make(core.Origin, len(b.origin))
+		b.m.Origin.Exprs = make(map[core.NodeID]ast.Expr, len(b.origin))
 		for n, e := range b.origin {
 			if id := n.Attrs().ID; id != 0 { // a node that the module does not hold has none
-				b.m.Origin[id] = e
+				b.m.Origin.Exprs[id] = e
+			}
+		}
+		b.m.Origin.ActionExprs = make(map[core.ActionExprID]ast.ActionExpr, len(b.actionExprOrigin))
+		for x, t := range b.actionExprOrigin {
+			if id := core.ActionExprIDOf(x); id != 0 { // one that the module does not hold has none
+				b.m.Origin.ActionExprs[id] = t
 			}
 		}
 	}
@@ -137,9 +145,11 @@ type coreBuilder struct {
 	proj map[string]string
 	// final is the action whose value is the result of the rule or line being built.
 	final ast.ActionExpr
-	// origin, if not nil, records the expression each node is built from, until the nodes have
-	// their IDs (Module.Origin).
-	origin map[core.Node]ast.Expr
+	// origin, if not nil, records the expression each node is built from, and actionExprOrigin the
+	// action expression each action expression is built from, until they have their IDs
+	// (Module.Origin).
+	origin           map[core.Node]ast.Expr
+	actionExprOrigin map[core.ActionExpr]ast.ActionExpr
 	// rec holds the checked types of the program, nil if it has none.
 	rec *check.ValueRecord
 	// shapes computes the shapes of the program's expressions, nil if it has no checker.
@@ -783,6 +793,9 @@ func (b *coreBuilder) actionExpr(t ast.ActionExpr, s *coreScope, env map[string]
 		if typ, ok := b.rec.ActionExprs[t]; ok {
 			core.SetType(x, typ)
 		}
+	}
+	if b.actionExprOrigin != nil {
+		b.actionExprOrigin[x] = t
 	}
 	return x, nil
 }

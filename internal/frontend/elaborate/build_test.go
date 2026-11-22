@@ -1,6 +1,7 @@
 package elaborate_test
 
 import (
+	"fmt"
 	"maps"
 	"slices"
 	"strings"
@@ -253,10 +254,10 @@ rule main = (a:"x" / [0-9]+ b:main)* $$
 			seen[id] = n
 		})
 	}
-	if len(m.Origin) == 0 {
+	if len(m.Origin.Exprs) == 0 {
 		t.Fatal("the module has no origin map")
 	}
-	for id, e := range m.Origin {
+	for id, e := range m.Origin.Exprs {
 		n, ok := seen[id]
 		if !ok || e == nil {
 			t.Errorf("origin map holds ID %d, which no node of the module has, or no expression", id)
@@ -264,6 +265,96 @@ rule main = (a:"x" / [0-9]+ b:main)* $$
 		}
 		if m.Origin.Of(n) != e {
 			t.Errorf("origin of %T differs from the map", n)
+		}
+	}
+}
+
+// TestCoreBuildNumbersEveryActionExpr checks that the builder gives every action expression of the
+// typed and of the untyped module an ID of its own, apart from the IDs of the nodes, and that the
+// origin map gives each one the action expression of the grammar it is built from, of the kind
+// that it is built from, and holds the IDs of the action expressions only.
+func TestCoreBuildNumbersEveryActionExpr(t *testing.T) {
+	prog := coreProgram(t, `var n int = 0
+type Pair = {
+    A string
+    B int
+}
+@start
+rule main = {n == 0} x:item {n := n + 1} ys:item* e $$ => Pair{A: $x, B: len(map($ys, (y) => len(y)))}
+rule item string = v:[a-z]+ {len($v) > (0)} => text($v)
+rule e int = #operators {
+    operand d:[0-9] => 1
+    level { infix left "+" => $lhs + $rhs }
+}
+`)
+	typed, err := elaborate.CoreFrom(prog, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	untyped, err := elaborate.Structural(structuralInput(prog), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		name string
+		m    *core.Module
+	}{{"typed", typed}, {"untyped", untyped}} {
+		seen := map[core.ActionExprID]core.ActionExpr{}
+		kinds := map[string]bool{}
+		visit := func(top core.ActionExpr) {
+			core.WalkActionExpr(top, func(x core.ActionExpr) {
+				id := core.ActionExprIDOf(x)
+				if id == 0 || id > c.m.LastActionExprID {
+					t.Errorf("%s: %T has ID %d, LastActionExprID %d", c.name, x, id, c.m.LastActionExprID)
+				}
+				if o, ok := seen[id]; ok && o != x {
+					t.Errorf("%s: %T and %T share the ID %d", c.name, o, x, id)
+				}
+				seen[id] = x
+				o := c.m.Origin.OfActionExpr(x)
+				if o == nil {
+					t.Errorf("%s: %T has no origin", c.name, x)
+					return
+				}
+				if _, group := o.(*ast.ActionGroup); group {
+					t.Errorf("%s: the origin of %T is a parenthesized expression, not the expression inside it", c.name, x)
+				}
+				kinds[fmt.Sprintf("%T<-%T", x, o)] = true
+			})
+		}
+		for _, r := range c.m.Rules {
+			core.Walk(r.Body, func(n core.Node) {
+				switch n := n.(type) {
+				case *core.Pred:
+					visit(n.Action)
+				case *core.BindNode:
+					visit(n.Action)
+				case *core.OperatorsRule:
+					for _, l := range n.Lines() {
+						if l.Action != nil {
+							visit(l.Action)
+						}
+					}
+				}
+			})
+			if r.Finish.Action != nil {
+				visit(r.Finish.Action)
+			}
+		}
+		for _, want := range []string{"*core.Binary<-*ast.Binary", "*core.VarRef<-*ast.VarRef", "*core.Const<-*ast.IntLit",
+			"*core.New<-*ast.Constructor", "*core.Builtin<-*ast.Call", "*core.Lambda<-*ast.Lambda",
+			"*core.Local<-*ast.CaptureRef", "*core.SlotRef<-*ast.CaptureRef"} {
+			if !kinds[want] {
+				t.Errorf("%s: no action expression %s among %v", c.name, want, kinds)
+			}
+		}
+		if len(c.m.Origin.ActionExprs) != len(seen) {
+			t.Errorf("%s: the origin map holds %d action expressions, the module %d", c.name, len(c.m.Origin.ActionExprs), len(seen))
+		}
+		for id := range c.m.Origin.ActionExprs {
+			if _, ok := seen[id]; !ok {
+				t.Errorf("%s: the origin map holds ID %d, which no action expression of the module has", c.name, id)
+			}
 		}
 	}
 }

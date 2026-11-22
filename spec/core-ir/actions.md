@@ -22,6 +22,14 @@ only built-in functions call it.
 | `Binary`, `Unary` | An operation on one or two action expressions |
 | `Cast` | Converts a value to a checked type |
 
+## Identity and Origin
+
+Each action expression of a module has an ID, numbered apart from the IDs of the nodes: an action expression that a
+module holds in two places has one ID. A module built with its origin maps the ID of each action expression to the
+action expression of the grammar that it is built from, as it maps the ID of each node to the grammar expression that
+the node is built from. A parenthesized action expression is the expression inside it. The origin holds across the
+passes of the module, which share the action expressions and build none.
+
 ## Errors
 
 Evaluating an action expression can end the parse with an error: a missing field, a type error or a failed conversion

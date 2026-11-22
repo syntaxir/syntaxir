@@ -1,20 +1,27 @@
 package core
 
 // ActionExpr is an action expression: the expression of an action, a predicate or a binding, with
-// its names resolved and its checked type (TypeOf).
-type ActionExpr interface{ typ() *Type }
+// its names resolved, its checked type (TypeOf) and its ID in its module (ActionExprIDOf).
+type ActionExpr interface{ exprBase() *actionExprBase }
 
-// actionExprBase holds the checked type of an action expression.
-type actionExprBase struct{ t Type }
+// actionExprBase holds the checked type and the ID of an action expression.
+type actionExprBase struct {
+	t  Type
+	id ActionExprID
+}
 
-func (b *actionExprBase) typ() *Type { return &b.t }
+func (b *actionExprBase) exprBase() *actionExprBase { return b }
 
 // TypeOf returns the checked type of the action expression t: the type of its value, nil for a lambda, which
 // only built-ins call.
-func TypeOf(t ActionExpr) Type { return *t.typ() }
+func TypeOf(t ActionExpr) Type { return t.exprBase().t }
 
 // SetType sets the checked type of the action expression t.
-func SetType(t ActionExpr, typ Type) { *t.typ() = typ }
+func SetType(t ActionExpr, typ Type) { t.exprBase().t = typ }
+
+// ActionExprIDOf returns the ID of the action expression t in its module (Number), 0 for one that
+// no module numbered.
+func ActionExprIDOf(t ActionExpr) ActionExprID { return t.exprBase().id }
 
 // Const is a constant: an int, a string, a bool or nil.
 type Const struct {

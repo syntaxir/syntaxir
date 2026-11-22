@@ -156,12 +156,12 @@ func TestViewOrigins(t *testing.T) {
 func TestViewGrammarNeedsOrigins(t *testing.T) {
 	cs := sourceOf(t, "rule main = \"a\" \"b\"*\n")
 	v := complexity.Build(viewSource(cs), complexity.Options{Laws: []complexity.Law{}}, nil)
-	origin := maps.Clone(v.Module.Origin)
+	origin := core.Origin{Exprs: maps.Clone(v.Module.Origin.Exprs), ActionExprs: v.Module.Origin.ActionExprs}
 	for _, r := range v.Module.Rules {
 		core.Walk(r.Body, func(n core.Node) {
 			switch n.(type) {
 			case *core.Seq, *core.Lit:
-				delete(origin, n.Attrs().ID)
+				delete(origin.Exprs, n.Attrs().ID)
 			}
 		})
 	}

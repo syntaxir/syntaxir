@@ -20,7 +20,10 @@ module of the same rules, because the facts read only that structure.
 
 Every node of the source module has an **origin**: the expression of the grammar that it is built from. A node that
 an attribute builds around an expression (a label, a recovery, a stream, `#missing`) has the attributed expression
-as its origin, and the body of an Operators Rule has the Operators Rule.
+as its origin, and the body of an Operators Rule has the Operators Rule. Every action expression of the source module
+has an origin too: the action expression of the grammar that it is built from
+([Identity and Origin](actions.md#identity-and-origin)). An analysis reasons on the nodes and action expressions of the
+module, which are what runs, and quotes the grammar through their origins.
 
 ## The View Is an Analysis
 

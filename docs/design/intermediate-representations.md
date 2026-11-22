@@ -68,6 +68,13 @@ literals and classes, calls to other rules, captures, and the action expressions
 once from the semantic model of the front end, and the decisions about each rule, such as which rules are memoized or
 value-free, are facts computed on it.
 
+### Origins
+
+Each node and each action expression has an ID in its module, and a module built with its origin maps each ID back to
+the grammar expression or the action expression of the grammar that it was built from. The passes keep the IDs, so
+the map holds for every module of the pipeline. An analysis of a grammar, such as the complexity classifier, reasons on
+Core IR, which is what runs, and reads the grammar only through the origin, to quote it and to place its messages.
+
 ### Effects Are Explicit
 
 Every node carries attributes computed from its subtree: whether it can match empty input, which input can start it,

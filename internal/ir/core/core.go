@@ -47,9 +47,12 @@ type Module struct {
 	Control *cancel.Control
 	// LastID is the greatest node ID of the module (Number, NewID).
 	LastID NodeID
+	// LastActionExprID is the greatest action expression ID of the module (Number).
+	LastActionExprID ActionExprID
 	// Origin is the origin map of the module: the grammar expression that each node was built from,
-	// by node ID, which elaborate records when asked; nil if it was not. It is read only after the
-	// build, so copies of the module share it (Clone).
+	// by node ID, and the action expression of the grammar that each action expression was built
+	// from, by its ID, which elaborate records when asked; empty if it was not. It is read only after
+	// the build, so copies of the module share it (Clone).
 	Origin Origin
 }
 

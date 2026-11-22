@@ -126,7 +126,7 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 	d := driverOf(gen)
 	d.CoreHook = func(pass string, m *core.Module) {
 		// The module is built, and so the origin known, before the first pass.
-		if c.origin == nil {
+		if c.origin.Exprs == nil {
 			c.origin = m.Origin
 		}
 		if breaks != nil {
@@ -333,7 +333,7 @@ func coreDecisionLines(c *coreGenCase, n *coreDecisionCounts) (lines, problems [
 					}
 				}
 			case *core.Scan:
-				e, ok := c.origin[x.Attrs().ID]
+				e, ok := c.origin.Exprs[x.Attrs().ID]
 				if !ok {
 					problem("scan", "scan without origin")
 					return
