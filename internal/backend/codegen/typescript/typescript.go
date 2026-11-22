@@ -1,0 +1,145 @@
+// Package typescript is the TypeScript backend of a compilation: it builds the tables of a TypeScript
+// parser, gives the planning what they are planned from, and declares the step print-ts, which prints
+// the parser with the TypeScript printer (package print) from its tables at the Exec stage. The
+// printer runs no step: it receives the parser and the tables that the pipeline lowered.
+package typescript
+
+import (
+	"fmt"
+	"sync"
+
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver/result"
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
+
+// The tables of a TypeScript parser are built (Target.Sources), planned with the program
+// (Target.Cores, flowplan.Planning), lowered to the Exec stage by the pipeline of the compilation
+// and printed from it (Printing).
+
+// FlowTarget is the forms of the Flow passes that TypeScript prints: none of the forms that only Go
+// prints.
+var FlowTarget = flowpass.Target{}
+
+// TableLabels are the names of the tables that a TypeScript parser can have, in the order in which
+// they are built: the Node table and the recognizer.
+var TableLabels = []string{"rules", "recRules"}
+
+// Target is the TypeScript target of a compilation (common.Target), which print-ts reads: the
+// program, the build of its recognizer, the start rule, the options of the target, which
+// print.Validate checked, the settings of the compilation and the hooks of a test.
+type Target struct {
+	Prog     *common.Program
+	Start    *common.Rule
+	Opts     common.GenOptions
+	Settings pass.Settings
+	// rec returns the recognizer, built on the first call, or nil if the parser has none.
+	rec func() (*common.Program, error)
+	// hooks are the hooks of a test, or nil.
+	hooks *print.Hooks
+}
+
+// NewTarget returns the TypeScript target of the program prog with the build of its recognizer, the
+// start rule start, the options opts, which print.Validate checked, the settings of the compilation
+// and the hooks of a test, which production leaves nil.
+func NewTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings, hooks *print.Hooks) *Target {
+	t := &Target{Prog: prog, Start: start, Opts: opts, Settings: settings, hooks: hooks}
+	t.rec = sync.OnceValues(func() (*common.Program, error) {
+		if !opts.Recognize {
+			return nil, nil
+		}
+		return recognizer()
+	})
+	return t
+}
+
+// Backend names the backend of the target.
+func (*Target) Backend() string { return "ts" }
+
+// Sources returns the builds of the Core IR of the tables of the parser and their labels: the Node
+// table and, with Recognize, the recognizer.
+func (t *Target) Sources() ([]common.TableSource, []string, error) {
+	rec, err := t.rec()
+	if err != nil {
+		return nil, nil, err
+	}
+	s := []common.TableSource{{Build: flowplan.TableBuild(t.Prog.Elab, plandata.TableConfig{Values: true}), Key: "program"}}
+	if rec != nil {
+		s = append(s, common.TableSource{Build: flowplan.TableBuild(rec.Elab, plandata.TableConfig{}), Key: "recognizer"})
+	}
+	return s, TableLabels[:len(s)], nil
+}
+
+// Cores returns what the program is planned from (flowplan.Planning), given the Core modules mods of
+// the tables in the order of Sources: the Node table and the recognizer, if the parser has one; the
+// entry points: every start rule of the Node table, which parseRule can name, and the start rule
+// that parse and recognize run; and the tables as the units that the planning plans, each leaving
+// out the rules that the plan does not reach. A parser with a Document enters every rule through
+// its slot (plandata.CoreTable.Slots), since a Document parse memoizes plain rules too. The
+// expectation table is numbered as the rules are printed, so no unit is numbered.
+func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
+	rec, err := t.rec()
+	if err != nil {
+		return nil, err
+	}
+	o := t.Opts
+	c := &plandata.Cores{}
+	for _, name := range t.Prog.StartRules {
+		c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: t.Prog.ByName[name].ID})
+	}
+	c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: t.Start.ID})
+	if rec != nil {
+		c.Roots = append(c.Roots, plandata.Entry{Table: "recRules", ID: rec.ByName[t.Start.Name].ID})
+	}
+	for i, pr := range []*common.Program{t.Prog, rec}[:len(mods)] {
+		table := TableLabels[i]
+		all := append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...)
+		ct := plandata.CoreTable{Name: table, M: mods[i], Slots: o.Document}
+		// A parser with Documents resumes the runs of its repetitions (lowerdata.Options.Resume).
+		cfg := plandata.TableConfig{Values: pr == t.Prog, Budget: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document, Outline: true}
+		u := plandata.Unit{Label: table, Table: table, Rules: make([]*plandata.Rule, len(all)), Prune: true, IR: flowplan.TableOf(mods[i], cfg)}
+		for j, r := range all {
+			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
+			ct.Rules = append(ct.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
+			u.Rules[j] = r.PlanRule()
+		}
+		c.Tables = append(c.Tables, ct)
+		c.Units = append(c.Units, u)
+	}
+	return c, nil
+}
+
+// Printing is the step print-ts: it prints the files of the TypeScript parser of the target of the
+// pipeline (common.TargetFeature) from its tables at the Exec stage, with the TypeScript printer. If the plan computed its reach
+// (plandata.ReachFeature) and the printed code enters other rules than it reaches, the step returns
+// the reach of the printed code (common.Replan) instead of the files, unless a bisection limit is
+// set (common.Debug.OptBisectLimit), under which one run numbers the runs of the optional passes.
+var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
+	Decl: pipe.Decl{Name: "print-ts", Required: true, Obligation: "The files are the TypeScript parser of the tables.",
+		Features: []pipe.FeatureID{common.TargetFeature.ID(), plandata.ReachFeature.ID()}},
+	In: execdata.TablesIR, Out: result.IR,
+	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
+		target, ok := pipe.Feature(c, common.TargetFeature).(*Target)
+		if !ok {
+			return nil, pass.PreserveNone(), fmt.Errorf("internal error: print-ts runs for the target %s", pipe.Feature(c, common.TargetFeature).Backend())
+		}
+		rec, err := target.rec()
+		if err != nil {
+			return nil, pass.PreserveNone(), err
+		}
+		p := &print.Parser{Prog: target.Prog, Rec: rec, Start: target.Start, Opts: target.Opts}
+		out, err := print.Print(p, target.Settings, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)
+		if err != nil {
+			return nil, pass.PreserveNone(), err
+		}
+		return out, pass.PreserveNone(), nil
+	},
+})

@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	gobackend "syntaxir.dev/sxir/internal/backend/codegen/golang"
+	tsbackend "syntaxir.dev/sxir/internal/backend/codegen/typescript"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -106,7 +106,7 @@ func flowStage(flowTarget flowpass.Target) pipe.Pipeline[*plandata.Table[code.Fl
 // the functions it leaves out, labeled with flowplan.UnreachableSuffix, which only the numbering
 // reads.
 var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, execdata.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *execdata.Tables]{
-	Name: "planned-tables", Labels: plannedLabels(goprint.TableLabels, tsprint.TableLabels),
+	Name: "planned-tables", Labels: plannedLabels(gobackend.TableLabels, tsbackend.TableLabels),
 	Parts: func(p *plandata.Program) ([]plandata.Planned, []string, error) {
 		units, labels := make([]plandata.Planned, len(p.Units)), make([]string, len(p.Units))
 		for i, u := range p.Units {

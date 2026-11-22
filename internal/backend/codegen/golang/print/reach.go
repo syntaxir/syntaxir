@@ -17,7 +17,7 @@ import (
 // so a rule referenced only from value-free contexts has an original body that nothing calls, and
 // so on transitively.
 //
-// The program is planned before any table is lowered (Decision.Cores, flowplan.Planning): the plan
+// The program is planned before any table is lowered (the Go backend, package golang): the plan
 // takes the calls of the rules from the Core IR of the tables after the Core passes
 // (core.Module.Reach), routes each call of a rule through its wrapper or its slot
 // (flowplan.CallsWrapper), and starts from the start rules and the typed rules that the typed entry

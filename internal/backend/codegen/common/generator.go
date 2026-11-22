@@ -9,8 +9,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
-	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/limits"
@@ -29,16 +27,12 @@ type Generator struct {
 	// Logical counts logical compute units in the ordinary form (GenOptions.LogicalUnits): loops
 	// keep their step, which the printer prints as a check of the counter.
 	Logical bool
-	// LogicalGuards selects what the guards of choices do under Logical (lowerdata.Options.Guards).
-	LogicalGuards lowerdata.LogicalGuards
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the
 	// helpers with an Ordinary form, no charges and inline class tests. The Flow passes choose the lean
 	// forms of such functions (terminal programs, class runs and tables, guarded classes) that the
 	// backend prints (FlowTarget).
 	Ordinary bool
-	// FlowTarget says which forms of the Flow passes the backend prints (flowpass.Target).
-	FlowTarget flowpass.Target
-	Document   bool
+	Document bool
 	// Traced reports the traced pass of a Go parser generated with observability: it prints the copies
 	// of the rule tables that an observed parse runs (named with TracedSuffix), whose bodies report the
 	// rule calls and record, in the primitives that read the input, how far each call examined it.

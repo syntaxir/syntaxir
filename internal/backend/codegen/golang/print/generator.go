@@ -92,16 +92,64 @@ type Hooks struct {
 	FlowTarget func(t *Target, pre *string) *Target
 }
 
-// printTables prints the files of the Go parser d from its tables t at the Exec stage, with the
+// A Parser is a Go parser of a program as the Go backend decided it before its tables were built:
+// the options as the program completes them, the program, the recognizer and the start rule.
+type Parser struct {
+	Opts  common.GenOptions
+	Prog  *common.Program
+	Rec   *common.Program // the recognizer, or nil
+	Start *common.Rule
+}
+
+// NoNodeRules reports whether the Node table of a parser with the options o holds no rule bodies: a
+// typed-only or recognize-only parser that does not keep its Node rules, whose rows the typed table
+// or the recognizer shares.
+func NoNodeRules(o common.GenOptions) bool {
+	return (o.TypedOnly || o.RecognizeOnly) && !o.KeepNodes
+}
+
+// newGenerator returns a generator of the parser p, printing the Node table.
+func newGenerator(p *Parser) *Generator {
+	o := p.Opts
+	nodes := NoNodeRules(o)
+	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: o.NoLimitControls || o.LogicalUnits,
+		Ordinary: (o.NoLimitControls || o.LogicalUnits) && !o.Document, Prog: p.Prog, Table: "rules"}
+	g.Logical = o.LogicalUnits
+	if o.Stream {
+		g.streamStart = p.Start
+	}
+	return g
+}
+
+// TypedEntries returns what the typed entry points of the parser p enter, decided from the types of
+// its start rules before anything is printed: the typed rules they enter, whether the parser needs
+// the typed table, and whether it needs the Node rules, which an entry point converts the result of.
+func TypedEntries(p *Parser) (roots []plandata.Entry, typed, nodes bool, err error) {
+	g := newGenerator(p)
+	e, err := g.typedEntries(p.Start, p.Opts.ConvertTypes)
+	if err != nil {
+		return nil, false, false, err
+	}
+	return g.typedRoots, e.needTyped, e.needNodes, nil
+}
+
+// Print returns the files of the Go parser p, printed from its tables t at the Exec stage with the
+// settings of the compilation and the hooks h of a test.
+func Print(p *Parser, settings pass.Settings, t *execdata.Tables, h Hooks) ([]common.GeneratedFile, error) {
+	files, _, err := printTables(p, settings, t, h)
+	return files, err
+}
+
+// printTables prints the files of the Go parser p from its tables t at the Exec stage, with the
 // settings of the compilation and the hooks h of a test, and returns them with the generator that
 // printed them.
-func printTables(d *Decision, settings pass.Settings, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
-	opts, prog, rec, start := d.Opts, d.Prog, d.Rec, d.Start
+func printTables(p *Parser, settings pass.Settings, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
+	opts, prog, rec, start := p.Opts, p.Prog, p.Rec, p.Start
 	info, err := loadLib(opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	genGo = d.generator()
+	genGo = newGenerator(p)
 	genGo.Settings, genGo.hooks, genGo.tables = settings, h, t
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	var entries typedEntries

@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	tsbackend "syntaxir.dev/sxir/internal/backend/codegen/typescript"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
-	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
@@ -27,14 +27,14 @@ import (
 //	}
 //
 // ts-tables splits the compilation into the tables that the TypeScript parser has: the Node table
-// and, with Recognize, the recognizer (tsprint.TSTarget.Sources). Its join gives what the program and
+// and, with Recognize, the recognizer (tsbackend.Target.Sources). Its join gives what the program and
 // its tables are planned from (cores), which plan! plans. planned-tables splits the plan into the
 // planned tables and joins them at the Exec stage, and print-ts prints the parser of the target from
 // them, which numbers the expectation table as it prints the rules.
 
 // tsTarget returns the TypeScript target of the compilation c.
-func (c *compilation) tsTarget() (*tsprint.TSTarget, error) {
-	t, ok := c.target.(*tsprint.TSTarget)
+func (c *compilation) tsTarget() (*tsbackend.Target, error) {
+	t, ok := c.target.(*tsbackend.Target)
 	if !ok {
 		return nil, fmt.Errorf("internal error: the compilation of the target %s has no TypeScript target", c.t.Backend)
 	}
@@ -43,7 +43,7 @@ func (c *compilation) tsTarget() (*tsprint.TSTarget, error) {
 
 // tsTables is the split ts-tables.
 var tsTables = pipe.RegisterSplit(compilationIR, tableIR, corepass.IR, plandata.CoresIR, &pipe.Split[*compilation, common.TableSource, *core.Module, *plandata.Cores]{
-	Name: "ts-tables", Labels: tsprint.TableLabels,
+	Name: "ts-tables", Labels: tsbackend.TableLabels,
 	Parts: func(c *compilation) ([]common.TableSource, []string, error) {
 		t, err := c.tsTarget()
 		if err != nil {
@@ -67,7 +67,7 @@ func tsPipeline(c *compilation) (assembled, error) {
 	}
 	p := pipe.Then3(
 		pipe.Then(pipe.Each(tsTables, coreConfig()), pipe.Of(flowplan.Planning)),
-		pipe.Each(plannedTables, lowering(tsprint.FlowTarget, tspass.Pipeline)),
-		pipe.Of(tsprint.Printing))
-	return assembled{pipeline: p, steps: []string{Elaborate, "each ts-tables", tsprint.Printing.Name()}}, nil
+		pipe.Each(plannedTables, lowering(tsbackend.FlowTarget, tspass.Pipeline)),
+		pipe.Of(tsbackend.Printing))
+	return assembled{pipeline: p, steps: []string{Elaborate, "each ts-tables", tsbackend.Printing.Name()}}, nil
 }

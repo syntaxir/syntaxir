@@ -10,7 +10,9 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gobackend "syntaxir.dev/sxir/internal/backend/codegen/golang"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsbackend "syntaxir.dev/sxir/internal/backend/codegen/typescript"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -165,7 +167,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = goprint.NewGoTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.GoHooks)
+		c.target = gobackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.GoHooks)
 		return nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(c.t.Gen)
@@ -173,7 +175,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = tsprint.NewTSTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.TSHooks)
+		c.target = tsbackend.NewTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.TSHooks)
 		return nil
 	}
 	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)

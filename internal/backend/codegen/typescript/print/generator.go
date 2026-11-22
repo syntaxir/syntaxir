@@ -27,7 +27,7 @@ import (
 // tsLibMarker starts the part of lib.ts in the TypeScript library that is copied into generated code.
 const tsLibMarker = "// --- Library ---\n"
 
-// A TypeScript parser (print-ts, Printing) behaves exactly like the engine (and the generated Go
+// A TypeScript parser (the step print-ts of the TypeScript backend) behaves exactly like the engine (and the generated Go
 // parsers): lib.ts, with the library (LibEmbed), parser.ts, with the code generated from the grammar,
 // and with opts.Types types.ts, with the declarations of the grammar's types. LibImport imports the
 // library from opts.LibModule instead of writing it, and LibOnly writes only lib.ts (LibFiles).

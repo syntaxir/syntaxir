@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gobackend "syntaxir.dev/sxir/internal/backend/codegen/golang"
 	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
-	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
@@ -26,7 +26,7 @@ import (
 //	  print-go!
 //	}
 //
-// go-tables splits the compilation into the tables that the Go parser has (goprint.Decide): the
+// go-tables splits the compilation into the tables that the Go parser has (gobackend.Decide): the
 // Node table, the recognizer, the typed table and their traced copies, each labeled as its dumps
 // are. Its join gives the Core modules of the tables with what the program and its tables are planned
 // from (cores), which plan! plans. planned-tables splits the plan into the planned tables and joins
@@ -34,8 +34,8 @@ import (
 // recognizer tables. print-go prints the parser of the target from them.
 
 // goTarget returns the Go target of the compilation c.
-func (c *compilation) goTarget() (*goprint.GoTarget, error) {
-	t, ok := c.target.(*goprint.GoTarget)
+func (c *compilation) goTarget() (*gobackend.Target, error) {
+	t, ok := c.target.(*gobackend.Target)
 	if !ok {
 		return nil, fmt.Errorf("internal error: the compilation of the target %s has no Go target", c.t.Backend)
 	}
@@ -44,7 +44,7 @@ func (c *compilation) goTarget() (*goprint.GoTarget, error) {
 
 // goTables is the split go-tables.
 var goTables = pipe.RegisterSplit(compilationIR, tableIR, corepass.IR, plandata.CoresIR, &pipe.Split[*compilation, common.TableSource, *core.Module, *plandata.Cores]{
-	Name: "go-tables", Labels: goprint.TableLabels,
+	Name: "go-tables", Labels: gobackend.TableLabels,
 	Parts: func(c *compilation) ([]common.TableSource, []string, error) {
 		d, err := c.goDecision()
 		if err != nil {
@@ -62,7 +62,7 @@ var goTables = pipe.RegisterSplit(compilationIR, tableIR, corepass.IR, plandata.
 })
 
 // goDecision returns the decision of the Go parser of the compilation c, which the first call makes.
-func (c *compilation) goDecision() (*goprint.Decision, error) {
+func (c *compilation) goDecision() (*gobackend.Decision, error) {
 	t, err := c.goTarget()
 	if err != nil {
 		return nil, err
@@ -77,7 +77,7 @@ func goPipeline(c *compilation) (assembled, error) {
 	}
 	p := pipe.Then3(
 		pipe.Then(pipe.Each(goTables, coreConfig()), pipe.Of(flowplan.Planning)),
-		pipe.Each(plannedTables, lowering(goprint.FlowTarget, gopass.Pipeline)),
-		pipe.Of(goprint.Printing))
-	return assembled{pipeline: p, steps: []string{Elaborate, "each go-tables", goprint.Printing.Name()}}, nil
+		pipe.Each(plannedTables, lowering(gobackend.FlowTarget, gopass.Pipeline)),
+		pipe.Of(gobackend.Printing))
+	return assembled{pipeline: p, steps: []string{Elaborate, "each go-tables", gobackend.Printing.Name()}}, nil
 }

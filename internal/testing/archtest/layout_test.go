@@ -99,10 +99,12 @@ var layout = []place{
 
 	// Back end.
 	{pkg: "internal/backend/codegen/common", target: "internal/backend/codegen/common"},
+	{pkg: "internal/backend/codegen/golang", target: "internal/backend/codegen/golang"},
 	{pkg: "internal/backend/codegen/golang/print", target: "internal/backend/codegen/golang/print"},
 	{pkg: "internal/backend/codegen/golang/libprint", target: "internal/backend/codegen/golang/libprint"},
 	{pkg: "internal/backend/codegen/golang/libsrc", target: "internal/backend/codegen/golang/libsrc"},
 	{pkg: "internal/backend/codegen/typescript/lib", target: "internal/backend/codegen/typescript/lib"},
+	{pkg: "internal/backend/codegen/typescript", target: "internal/backend/codegen/typescript"},
 	{pkg: "internal/backend/codegen/typescript/print", target: "internal/backend/codegen/typescript/print"},
 	{pkg: "internal/backend/codegen/golang/pass", target: "internal/backend/codegen/golang/pass"},
 	{pkg: "internal/backend/codegen/typescript/pass", target: "internal/backend/codegen/typescript/pass"},

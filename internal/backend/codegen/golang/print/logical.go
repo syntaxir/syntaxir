@@ -16,8 +16,8 @@ import (
 // covers the grammars without left recursion, Operators Rules and recovery, in batch parses outside
 // a Document.
 
-// logicalRefusal returns why logical units cannot be generated for the program, nil if they can.
-func logicalRefusal(prog *common.Program, opts common.GenOptions) error {
+// LogicalRefusal returns why logical units cannot be generated for the program, nil if they can.
+func LogicalRefusal(prog *common.Program, opts common.GenOptions) error {
 	switch {
 	case opts.NoLimitControls:
 		return errors.New("logical units need limit controls (not with -no-limits)")

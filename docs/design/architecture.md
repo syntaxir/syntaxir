@@ -277,12 +277,14 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
 | `internal/backend/llvm` | The future native-code backend |
 | `internal/backend/codegen/common` | Options and parts shared by the host languages, the view of a checked grammar that the generators read (`Program`, which `internal/driver/checked` builds from the semantic model, the checker and the runtime program); see [Code Generation for Host Languages](host-code-generation.md) |
+| `internal/backend/codegen/golang` | The Go backend: the tables of a Go parser, what they are planned from, and the step `print-go` |
 | `internal/backend/codegen/golang/pass` | The Go passes on the Exec stage |
-| `internal/backend/codegen/golang/print` | The printer of Go parsers |
+| `internal/backend/codegen/golang/print` | The printer of Go parsers, which prints a parser from its tables at the Exec stage and runs no step |
 | `internal/backend/codegen/golang/libprint` | The printer of the Exec compositions into the Go library and the shared engine state |
 | `internal/backend/codegen/golang/libsrc` | The go:generate copy of the Go library, used when the library is embedded |
+| `internal/backend/codegen/typescript` | The TypeScript backend: the tables of a TypeScript parser, what they are planned from, and the step `print-ts` |
 | `internal/backend/codegen/typescript/pass` | The TypeScript passes on the Exec stage |
-| `internal/backend/codegen/typescript/print` | The printer of TypeScript parsers |
+| `internal/backend/codegen/typescript/print` | The printer of TypeScript parsers, which prints a parser from its tables at the Exec stage and runs no step |
 | `internal/backend/codegen/typescript/lib` | The TypeScript runtime library |
 | `internal/runtime/program` | The runtime program (what a compiled file holds) |
 | `internal/runtime/state` | The parser state that every backend shares |
