@@ -145,6 +145,22 @@ Notes:
   just a binary built from the old code. Generated parsers embed their grammar.
 - The numbers in the optimization catalog are for the closure backend with code-point positions unless stated otherwise.
 
+### Generation and Compile Time
+
+Two benchmarks measure what the pass pipeline costs before any parse. `BenchmarkGeneration` in
+`internal/driver/generate` generates the parsers of `testdata/grammars` from the parsed grammar, with the options of
+`testdata/grammars/generate.txt`: the Go parser alone (`go`), the TypeScript parser alone (`ts`) and both from one
+compilation (`go+ts`), which checks the grammar once and shares the steps whose inputs are equal. It is the
+generation-time gate of a change to the driver, the pass manager or a pass. `BenchmarkRuntimeBackendCompile` in
+`internal/driver/checked` measures what a program compiled at run time costs its backends on first use: the bytecode
+module and the Core IR of the closures. Compare either with interleaved runs of the binaries before and after the
+change, with an identical copy of the base for the A/A spread:
+
+```bash
+go test ./internal/driver/generate -run '^$' -bench 'BenchmarkGeneration' -count 10
+go test ./internal/driver/checked -run '^$' -bench 'BenchmarkRuntimeBackendCompile' -count 10
+```
+
 ### Generated Typed-Output Retention
 
 `internal/backend/codegen/golang/print/gengo_typed_output_retention_test.go` exports a generated fixture

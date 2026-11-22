@@ -1313,7 +1313,12 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
     and the settings tests, which fail before this step. Outputs are identical under every profile and change only
     under an override of a Core pass.
 13. **Gates and documentation:** the generation-time gate, the run-time compile benchmark, the determinism and allocation
-    tests, and the design pages updated for the parts this record implements.
+    tests, and the design pages updated for the parts this record implements. (Amended: the generation-time gate is
+    the benchmark `BenchmarkGeneration`, over the grammars of `testdata/grammars` with the options of their
+    ready-made parsers, for Go, TypeScript and both in one compilation; the run-time compile benchmark is
+    `BenchmarkRuntimeBackendCompile`. The determinism test runs the generation of Go and TypeScript in one
+    compilation, so the backends that generate run twice there; the VM and the closures join it when step 12 moves
+    them onto `Compile`. The allocation test covers steps on a module and steps run per function.)
 
 The VM switch to the Flow route, which deletes the Core route, comes before step 12 as separate work and changes only
 the VM pipeline: the VM selects its bytecode from the table that `FlowTable` builds. Step 12 then moves the VM, already

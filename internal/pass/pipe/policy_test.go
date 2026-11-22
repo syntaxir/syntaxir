@@ -273,6 +273,10 @@ var (
 	maybe   = New(Def[*mod, *mod]{Decl: Decl{Name: "t-maybe", Test: true}, In: modIR, Out: modIR,
 		Applies: func(*Ctx[*mod]) bool { return maybeOn },
 		Run:     func(_ *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) { return m, pass.PreserveAll(), nil }})
+	// fnMaybe is maybe on one function.
+	fnMaybe = New(Def[*fn, *fn]{Decl: Decl{Name: "t-fn-maybe", Test: true}, In: fnIR, Out: fnIR,
+		Applies: func(*Ctx[*fn]) bool { return maybeOn },
+		Run:     func(_ *Ctx[*fn], f *fn) (*fn, pass.PreservedSet, error) { return f, pass.PreserveAll(), nil }})
 )
 
 func TestUnobservedRunAllocatesNothingPerStepBeyondTheContext(t *testing.T) {
@@ -293,6 +297,15 @@ func TestUnobservedRunAllocatesNothingPerStepBeyondTheContext(t *testing.T) {
 		t.Errorf("%v allocations per step that runs, want 2", per)
 	}
 	many := &mod{fns: []*fn{{"f", "x"}, {"g", "x"}, {"h", "x"}, {"i", "x"}}}
+	// A step run per function of a module costs the same per run as a step on the module.
+	perFunc := PerFunc(funcsView, Seq(fnIR, fnMaybe, fnMaybe, fnMaybe, fnMaybe, fnMaybe))
+	off = allocs(perFunc, many)
+	maybeOn = true
+	on = allocs(perFunc, many)
+	maybeOn = false
+	if per := (on - off) / (5 * float64(len(many.fns))); per >= 3 {
+		t.Errorf("%v allocations per step that runs on a function, want 2", per)
+	}
 	if a, b := allocs(Seq(modIR, decide), m), allocs(Seq(modIR, decide), many); a != b {
 		t.Errorf("a pattern decision allocates: %v allocations for 1 decision, %v for 4", a, b)
 	}

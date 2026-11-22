@@ -96,6 +96,12 @@ Passes run one at a time, in the order of the pipeline. A pass that works on one
 module that were computed before it runs, and never the body of another function, so what it does to a function depends
 only on that function and on facts fixed beforehand.
 
+A run is deterministic: the same input, settings, pipeline and observers give the same output, dumps, events, numbers
+and statistics apart from time, whatever the number of processors, and a test generates the grammars of
+`testdata/grammars` for Go and TypeScript in one compilation with `GOMAXPROCS` 1 and N and compares all of them. A run
+that nobody observes allocates nothing per step beyond the context of the pass, whether the step runs on a module or
+on each of its functions; the events, results, dumps and counter maps exist only for an observer that asks for them.
+
 The attributes on Core nodes (nullability, first sets, effects) are not cached analyses. They are invariants of the IR,
 stored on the nodes and checked by the verifier. What the manager caches is derived results that are not written into
 the IR: rule facts, site numbers, the call graph, the cost view, lookahead sets, liveness and the control-flow views that
