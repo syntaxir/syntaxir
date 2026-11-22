@@ -47,6 +47,12 @@ type node struct {
 	expected   string // the inserted text of a missing node
 }
 
+// structValue is a struct value that a constructor in a predicate makes.
+type structValue struct {
+	typ    string
+	fields map[string]value
+}
+
 // opaque is the value of a user action.
 type opaque struct{ rule string }
 
@@ -184,6 +190,19 @@ func (a *actionEnv) eval(x ast.ActionExpr) (value, error) {
 			t = append(t, v)
 		}
 		return t, nil
+	case *ast.Constructor:
+		if len(x.Args) > 0 {
+			return nil, &UnsupportedError{Construct: "a constructor with arguments in a predicate"}
+		}
+		sv := &structValue{typ: x.Type, fields: map[string]value{}}
+		for _, f := range x.Fields {
+			v, err := a.eval(f.Value)
+			if err != nil {
+				return nil, err
+			}
+			sv.fields[f.Name] = v
+		}
+		return sv, nil
 	case *ast.ListConstructor:
 		var l list
 		for _, e := range x.Items {
@@ -368,8 +387,15 @@ func equal(l, r value) (eq, ok bool) {
 	return false, false
 }
 
-// member reads .Start, .End, .Value, the fields of a missing value, or a capture of a node.
+// member reads a field of a constructed struct, .Start, .End, .Value, the fields of a missing value,
+// or a capture of a node.
 func (a *actionEnv) member(v value, name string) (value, error) {
+	if sv, ok := v.(*structValue); ok {
+		if f, ok := sv.fields[name]; ok {
+			return f, nil
+		}
+		return nil, &UnsupportedError{Construct: "field " + name + " of " + sv.typ + " in a predicate"}
+	}
 	if err := opaqueErr(v); err != nil {
 		return nil, err
 	}

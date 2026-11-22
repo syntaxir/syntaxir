@@ -373,7 +373,6 @@ func (ev *evaluator) exit(name string, level int, caller state, o outcome) outco
 	return o
 }
 
-
 // single is the one value of an expression that has a value: a tuple node of its elements when it is
 // a sequence, and otherwise the value it contributes.
 func (ev *evaluator) single(o outcome, st state) value {
@@ -606,11 +605,9 @@ func (ev *evaluator) element(alt ast.Expr, c *ast.Choice, o outcome, st state) [
 func (ev *evaluator) literal(s string, fold bool, st state) outcome {
 	h, i := st.pos, st.pos
 	for _, want := range s {
-		// Reading a character examines it, whether it matches or is rejected; the end of the input
-		// is slot n.
-		c, next, ch, ok := ev.in.char(i)
+		next, ch, ok := ev.in.matchChar(i, want, fold)
 		h = maxInt(h, ch)
-		if !ok || !sameChar(c, want, fold) {
+		if !ok {
 			return failed(st, h, false)
 		}
 		i = next

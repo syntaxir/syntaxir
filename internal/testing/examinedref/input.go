@@ -134,3 +134,30 @@ func (t *text) length(s string) int {
 	}
 	return len(s)
 }
+
+// matchChar matches the character want of a literal at pos; fold matches ASCII letters in either
+// case. It returns the position after the match and the examined end h. Reading a character examines
+// it whether it matches or is rejected, and the end of the input is slot n. In bytes, a character
+// other than U+FFFD is compared with the bytes of its UTF-8 encoding one at a time: the first byte
+// that differs decides the rejection, since no character that begins with other bytes can be want,
+// so the bytes after it are not examined. U+FFFD also matches one invalid byte, which only decoding
+// tells, so it is matched by decoding the character.
+func (t *text) matchChar(pos int, want rune, fold bool) (next, h int, ok bool) {
+	if t.unit == input.CodePoints || want == utf8.RuneError {
+		c, next, h, ok := t.char(pos)
+		return next, h, ok && sameChar(c, want, fold)
+	}
+	var enc [utf8.UTFMax]byte
+	size := utf8.EncodeRune(enc[:], want)
+	for k := 0; k < size; k++ {
+		i := pos + k
+		if i >= len(t.bytes) {
+			return pos, i + 1, false
+		}
+		b := t.bytes[i]
+		if b != enc[k] && !(size == 1 && sameChar(rune(b), want, fold)) {
+			return pos, i + 1, false
+		}
+	}
+	return pos + size, pos + size, true
+}

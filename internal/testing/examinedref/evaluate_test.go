@@ -261,6 +261,35 @@ func TestReferenceExaminedByHand(t *testing.T) {
 			want:  examinedref.Result{Matched: true, End: 1, Examined: 3},
 		},
 		{
+			// The first byte of "é" already differs from "b": the bytes after it are not examined.
+			name:  "a literal rejected in bytes examines the first byte that differs",
+			src:   `rule main = "b"`,
+			input: "é",
+			opts:  examinedref.Options{Unit: input.Bytes},
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 1},
+		},
+		{
+			name:  "a literal cut short in bytes examines the end slot",
+			src:   `rule main = "éb"`,
+			input: "é",
+			opts:  examinedref.Options{Unit: input.Bytes},
+			want:  examinedref.Result{Matched: false, End: 0, Examined: 3},
+		},
+		{
+			name:  "a replacement character in a literal matches one invalid byte",
+			src:   "rule main = \"\uFFFD\" \"a\"",
+			input: "\xffa",
+			opts:  examinedref.Options{Unit: input.Bytes},
+			want:  examinedref.Result{Matched: true, End: 2, Examined: 2},
+		},
+		{
+			// The predicate reads a struct that it constructs itself, not the value of an action.
+			name:  "a predicate constructs a struct",
+			src:   "type P = { X int }\nrule main = { P{X: 1} != nil } \"a\"",
+			input: "a",
+			want:  examinedref.Result{Matched: true, End: 1, Examined: 1},
+		},
+		{
 			name:  "the same input in code points is three characters",
 			src:   `rule main = .`,
 			input: "\xe2\x82A",
