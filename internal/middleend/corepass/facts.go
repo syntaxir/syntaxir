@@ -425,6 +425,9 @@ func (c *computer) alwaysSucceeds(n core.Node) bool {
 	case *core.Succeed, *core.Cut:
 		return true
 	case *core.Call:
+		// A call that names a level (Call.Level) is sure exactly when the rule's operand is: the
+		// operators only extend an operand that has already succeeded, and a prefix operator needs
+		// its token, so the rule's fact holds at every level.
 		return c.sure[c.canon[n.Rule]]
 	case *core.Seq:
 		for _, it := range n.Items {
