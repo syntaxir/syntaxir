@@ -1,7 +1,8 @@
 // Package compiler makes executable artifacts from SyntaxIR grammars: parsers that run on the
 // bytecode VM (Compile, CompileGrammar), the reference parser that differential tests compare with
 // (NewReferenceParser), compiled grammar files (Marshal), Go and TypeScript parser source
-// (GenerateGo, GenerateTypeScript) and output schemas (OutputSchema).
+// (GenerateGo, GenerateTypeScript, and Generate for several languages from one check) and output
+// schemas (OutputSchema).
 //
 // Every function takes the same Options: the start rule (WithStart), source information
 // (WithSourceInfo), default values (WithDefaultValue), the optimization setting (WithOptimize) and
@@ -38,6 +39,15 @@ type options struct {
 	defaultValue bool
 	optimize     Optimize
 	debug        Debug
+}
+
+// gen returns g with the options of the call o that the generators take: the start rule, the
+// options of the check, the optimizations and the debugging settings, which apply to every target.
+func (o options) gen(g common.GenOptions) common.GenOptions {
+	g.Start, g.DefaultValue, g.SourceInfo = o.start, o.defaultValue, o.sourceInfo
+	g.Optimize, g.Opt, g.NoOpt = o.optimize.Profile, o.optimize.Values, o.optimize.Off
+	g.Debug = o.debug.internal()
+	return g
 }
 
 // newOptions returns the settings that opts give, in order.

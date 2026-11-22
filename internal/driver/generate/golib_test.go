@@ -60,7 +60,7 @@ func TestGoLibraryTextGolden(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !b.Library || b.Backend != result.Go || b.Warning() != "" {
+	if !b.Library || len(b.Targets) != 1 || b.Targets[0].Backend != result.Go || b.Warning() != "" {
 		t.Errorf("the text reads as %+v", b)
 	}
 	var again bytes.Buffer
@@ -106,7 +106,7 @@ func TestGoLibraryTextRejects(t *testing.T) {
 	if b, err = generate.Read(pipelineText(t, out)); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := b.GoLibrary(driver.Options{}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "builds a parser for the target go, not the Go library") {
+	if _, err := b.GoLibrary(driver.Options{}, &bytes.Buffer{}); err == nil || !strings.Contains(err.Error(), "builds parsers, not the Go library") {
 		t.Errorf("a parser text built as the Go library: %v", err)
 	}
 }

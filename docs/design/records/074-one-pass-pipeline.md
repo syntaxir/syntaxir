@@ -756,7 +756,7 @@ alone. The options of the call hold only what the manager applies to the whole r
 
 ```go
 // Target is a language to generate: a GoConfig or a TSConfig.
-type Target interface{ target() }
+type Target interface{ target(options) (driver.Target, error) }
 
 // Generated is the files of one target.
 type Generated struct {
@@ -1304,7 +1304,10 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
     `go-cold-path` of the route, the requests name their files, and the `go generate` program of the library printer
     writes the files that the route returns. The architecture tests read no file built only under the tag
     `ignore`, such as a `go generate` program, as part of the package of its directory.)
-11. **Several targets from the command line and the API.**
+11. **Several targets from the command line and the API.** (Amended: the sealing method of `Target` turns a configuration and
+    the options of the call into the driver's target, so `Generate` has no switch over the configurations. A generation writes the library alone (`-lib only`, `LibOnly`) for every target or for
+    none. The pipeline text of several targets repeats the `target` header, one per target in order, and the build that
+    the text reader returns holds the list of targets.)
 12. **The VM and the closure backend through `Compile`** with the parser's settings: first the settings carrier, with
     unchanged outputs; then `ProgramOf` and the run-time builds through the driver, the `program` header and its reader,
     and the settings tests, which fail before this step. Outputs are identical under every profile and change only

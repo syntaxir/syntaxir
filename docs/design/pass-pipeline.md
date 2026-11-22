@@ -567,7 +567,9 @@ a body of one pass) means nothing, so a pipeline and its text verify at the same
 option of a build has exactly one header word, and a test holds the header scheme to the generation options, so a new
 option cannot be left out of the text. The reader of the generation reads the headers into the options of the build,
 assembles the pipeline for them and runs the text in its place; a build from the text writes the same files, dumps and
-statistics as the build that printed it.
+statistics as the build that printed it. A generation of several targets writes the call-wide headers once and one
+`target` header per target, in the order of the targets; the reader gives each target the call-wide options and the
+values of its own header.
 
 A pass registered at several kinds, such as `canonicalize` at the Flow and the Exec stage, has one name in the text, and
 the reader takes its registration at the kind of the place it stands. A feature whose value has no text form, such as

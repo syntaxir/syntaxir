@@ -72,6 +72,7 @@ JSON form without the parser or the compiler.
 | `compiler.NewReferenceParser(src, opts...)` | The reference parser, which runs the grammar's Core IR as Go closures. The other backends are tested against it. It is the only parser that inserts missing tokens, and its Documents have only the methods of `runtime.Document` |
 | `compiler.Marshal(src, mode, opts...)` | A [compiled grammar](compiled-grammars.md) in the mode `mode` |
 | `compiler.GenerateGo(src, config, opts...)`, `compiler.GenerateTypeScript(src, config, opts...)` | The files of a [generated parser](generated-parsers.md) |
+| `compiler.Generate(src, targets, opts...)` | The files of a generated parser for each target, a `GoConfig` or a `TSConfig`, in order, from one check of the grammar: each equals what `GenerateGo` or `GenerateTypeScript` returns for that target alone, and an error returns no files |
 | `compiler.GenerateLibGo(module)`, `compiler.GenerateTypeScriptLib()` | The files of the library of generated parsers alone |
 | `compiler.OutputSchema(src, opts...)` | The [output schema](schemas-and-queries.md#output-schemas) of the start rule |
 

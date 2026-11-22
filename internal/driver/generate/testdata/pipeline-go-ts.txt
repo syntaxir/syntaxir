@@ -1,0 +1,119 @@
+sxir-pipeline 1.0
+sxir (devel)
+options start= source-info=false default-value=false left-recursion-bindings=false
+settings profile= opt= no-opt=
+debug verify-each=false print-after= print-changed=false stats=false time-passes=false print-before= print-pipeline=true
+target go typed-only=false recognize-only=false no-limits=false logical-variant= expectations=false observability=false document=false stream=false module=example.com/p package=p lib=import lib-module= max-depth=0 types=false recognize=false omit-package-doc=false convert-types=false keep-nodes=false keep-unreachable=false keep-comments=false feature-witness=false disable-keep-nodes=false
+target ts typed-only=false recognize-only=false no-limits=false logical-variant= expectations=false observability=false document=false stream=false module= package= lib=import lib-module=./lib.ts max-depth=0 types=true recognize=false omit-package-doc=false convert-types=false keep-nodes=false keep-unreachable=false keep-comments=false feature-witness=false disable-keep-nodes=false
+pipeline program -> []output {
+  fork {
+    branch go {
+      with target=go {
+        with reach=none {
+          each go-tables {
+            shared core-config {
+              elaborate!
+              slot core-passes {
+                guards
+                scans
+              }
+            }
+          }
+          dispatch
+          plan!
+          each planned-tables {
+            with table-config {
+              flowlower!
+              within module@flow {
+                with flow-target=terminals,class-runs,class-tables,guarded-classes,inline-literals {
+                  func funcs@flow {
+                    slot flow-passes {
+                      terminals
+                      guarded-classes
+                      class-runs
+                      class-tables
+                      inline-literals
+                      canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                    }
+                  }
+                }
+                flow-finish!
+              }
+              execlower!
+              within module@exec {
+                func funcs@exec {
+                  slot exec-passes {
+                    canonicalize#2[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                  }
+                }
+                func lowered-funcs@exec {
+                  slot target-passes {
+                  }
+                }
+              }
+            }
+          }
+          print-go!
+        }
+      }
+    }
+    branch ts {
+      with target=ts {
+        with reach=none {
+          each ts-tables {
+            shared core-config {
+              elaborate!
+              slot core-passes {
+                guards
+                scans
+              }
+            }
+          }
+          dispatch
+          outline
+          plan!
+          each planned-tables {
+            with table-config {
+              flowlower!
+              within module@flow {
+                with flow-target= {
+                  func funcs@flow {
+                    slot flow-passes {
+                      terminals
+                      guarded-classes
+                      class-runs
+                      class-tables
+                      inline-literals
+                      canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                    }
+                  }
+                }
+                flow-finish!
+              }
+              execlower!
+              within module@exec {
+                func funcs@exec {
+                  slot exec-passes {
+                    canonicalize#2[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                  }
+                }
+                func lowered-funcs@exec {
+                  slot target-passes {
+                    ts-merged-records
+                    ts-tested-inits
+                  }
+                }
+              }
+            }
+          }
+          ts-library!
+          within ts-library {
+            specialize!
+          }
+          ts-printable!
+          print-ts!
+        }
+      }
+    }
+  }
+}

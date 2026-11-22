@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -141,7 +142,7 @@ func TestPipelineTextRepeatsTheBuild(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}
-		if !reflect.DeepEqual(got, files) {
+		if !reflect.DeepEqual(got, [][]common.GeneratedFile{files}) {
 			t.Errorf("%s: the build from the text gives other files", c.name)
 		}
 		if again.String() != out {
@@ -178,7 +179,7 @@ func TestPipelineTextEditsOptionalPasses(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", e.name, err)
 		}
-		if !reflect.DeepEqual(got, files) {
+		if !reflect.DeepEqual(got, [][]common.GeneratedFile{files}) {
 			t.Errorf("%s: the Core passes change the files", e.name)
 		}
 		s := stats.String()[len(text):]
@@ -236,5 +237,98 @@ func TestPipelineTextRejects(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), e.want) {
 			t.Errorf("%s: %v, want an error with %q", e.name, err, e.want)
 		}
+	}
+}
+
+// severalTargets returns the Go and the TypeScript targets of the first two pipeline cases, with the
+// debugging settings d.
+func severalTargets(d common.Debug) []driver.Target {
+	goT, tsT := pipelineCases[0].o, pipelineCases[1].o
+	goT.Debug, tsT.Debug = d, d
+	return []driver.Target{{Backend: result.Go, Gen: goT}, {Backend: result.TypeScript, Gen: tsT}}
+}
+
+// A generation of several targets gives each target the files it gets alone, prints a text with a
+// target line per target that matches its golden file, and a build from that text repeats the
+// files, the dumps and the statistics.
+func TestPipelineTextOfSeveralTargets(t *testing.T) {
+	c := pipelineCases[0]
+	g := c.grammar(t)
+	var out bytes.Buffer
+	d := common.Debug{PrintPipeline: true, PrintAfter: []string{"all"}, Stats: true, Output: &out}
+	files, err := generate.Targets(g, severalTargets(d)...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, alone := range pipelineCases[:2] {
+		want, _ := generateCase(t, alone, common.Debug{})
+		if !reflect.DeepEqual(files[i], want) {
+			t.Errorf("%s: the files of the target differ from those it gets alone", alone.name)
+		}
+	}
+	text := pipelineText(t, out.String())
+	if strings.Count(text, "\ntarget ") != 2 {
+		t.Errorf("the text has no target line per target:\n%s", text)
+	}
+	plain := strings.NewReplacer("print-after=all", "print-after=", "stats=true", "stats=false").Replace(text)
+	golden := filepath.Join("testdata", "pipeline-go-ts.txt")
+	if *update {
+		if err := os.WriteFile(golden, []byte(plain), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plain != string(want) {
+		t.Errorf("the pipeline text differs from %s (go test -update-pipelines rewrites it):\n%s", golden, plain)
+	}
+	b, err := generate.Read(text)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Targets) != 2 || b.Targets[0].Backend != result.Go || b.Targets[1].Backend != result.TypeScript {
+		t.Fatalf("the text reads as the targets %+v", b.Targets)
+	}
+	var again bytes.Buffer
+	got, err := b.Generate(g, driver.Options{}, &again)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, files) {
+		t.Errorf("the build from the text gives other files")
+	}
+	if again.String() != out.String() {
+		t.Errorf("the build from the text writes other output:\n%.800s\n---\n%.800s", again.String(), out.String())
+	}
+}
+
+// The targets of one generation share the options of the call, and generate the library alone all
+// or none; the library alone of several targets is the library of each alone.
+func TestTargetsRejectMixedOptions(t *testing.T) {
+	g := pipelineCases[0].grammar(t)
+	ts := severalTargets(common.Debug{})
+	ts[1].Gen.SourceInfo = true
+	if _, err := generate.Targets(g, ts...); err == nil || !strings.Contains(err.Error(), "target ts: SourceInfo differs from the value of the compilation") {
+		t.Errorf("targets of different program options: %v", err)
+	}
+	ts = severalTargets(common.Debug{})
+	ts[1].Gen.Lib = common.LibOnly
+	if _, err := generate.Targets(g, ts...); err == nil || !strings.Contains(err.Error(), "for every target of a generation or for none") {
+		t.Errorf("a library alone beside a parser: %v", err)
+	}
+	libs, err := generate.Targets(nil, driver.Target{Backend: result.Go, Gen: common.GenOptions{Module: "example.com/p", Lib: common.LibOnly}},
+		driver.Target{Backend: result.TypeScript, Gen: common.GenOptions{Lib: common.LibOnly}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	goLib, err := generate.Go(nil, common.GenOptions{Module: "example.com/p", Lib: common.LibOnly})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tsLib, _ := generateCase(t, pipelineCases[2], common.Debug{})
+	if !reflect.DeepEqual(libs, [][]common.GeneratedFile{goLib, tsLib}) {
+		t.Errorf("the libraries alone of two targets differ from each generated alone")
 	}
 }

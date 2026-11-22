@@ -8,6 +8,7 @@
 //	sxir convert [-to sxir|json] [-o output] grammar.sxir|grammar.json
 //	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-no-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
 //	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-no-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
+//	sxir gen -lang go,ts -g grammar.sxir -o dir [-go.o dir] [-ts.o dir] [-go.flag value] [-ts.flag value] [flags of both targets]
 //	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] -o grammar.sxirc
 //	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir profile -g grammar.sxir [-s main] [-i input] [-sort column] [-n rows] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
@@ -96,8 +97,22 @@ Commands:
         [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
         [-time-passes] [-opt-bisect-limit <n>] [-print-pipeline]
   gen -lang ts -lib only -o <dir>
+  gen -lang go,ts -g <grammar> -o <dir> [-go.o <dir>] [-ts.o <dir>] [-go.<flag> <value>]
+        [-ts.<flag> <value>] [the flags above]
       Generate a Go parser (or, with -lang ts, TypeScript modules) from a
-      grammar. A Go parser is a package: parser.go, api.go and, with
+      grammar. -lang lists the languages to generate, each at most once.
+      With several, -o is a parent directory and each language writes to
+      a subdirectory named after it, unless -go.o or -ts.o names its own;
+      the grammar is compiled once for all of them. -g, -s, -source-info,
+      -default-value, the optimization flags and the debugging flags apply
+      to the whole generation. A flag of the generated code applies to
+      every listed language, and its form qualified by a language, such
+      as -go.types or -ts.max-depth, to that language only, winning over
+      the unqualified flag. -module, -pkg and -nodoc apply to Go and
+      -lib-module to TypeScript. A flag that a listed language does not
+      support, such as -stream with ts, is an error that names its
+      qualified form. If any target fails, no target writes a file. With
+      -lib only, -lang go,ts writes the library of each language. A Go parser is a package: parser.go, api.go and, with
       -lib embed (the default), a copy of the library in internal/libgo,
       all written below the directory -o (created if missing). -module is
       the import path of that package; the package name is its last element
@@ -747,25 +762,25 @@ var genDiagnostics io.Writer = os.Stderr
 func genCmd(args []string, stdout io.Writer) error {
 	fs := flag.NewFlagSet("gen", flag.ContinueOnError)
 	grammarPath := fs.String("g", "", "grammar file (.sxir or .json)")
-	lang := fs.String("lang", "go", "language of the generated code: go or ts (TypeScript)")
-	pkg := fs.String("pkg", "", "package name of the generated code (Go; default: the last element of -module without a major version suffix)")
-	module := fs.String("module", "", "import path of the generated Go package")
-	libMode := fs.String("lib", "embed", "how generated code reaches the library: embed (a copy: internal/libgo in Go, lib.ts in TypeScript), import (syntaxir.dev/sxir/pkg/runtime/libgo in Go; the module of -lib-module in TypeScript) or only (just the embedded copy)")
-	libModule := fs.String("lib-module", "", "module specifier a TypeScript parser imports its library from with -lib import, such as ../shared/lib.ts")
+	lang := fs.String("lang", "go", "languages of the generated code, separated by commas: go, ts (TypeScript) or both; with several, -o is a parent directory with a directory per language, and -go.<flag> and -ts.<flag> set a flag for one language")
+	fs.String("pkg", "", "package name of the generated code (Go; default: the last element of -module without a major version suffix)")
+	fs.String("module", "", "import path of the generated Go package")
+	fs.String("lib", "embed", "how generated code reaches the library: embed (a copy: internal/libgo in Go, lib.ts in TypeScript), import (syntaxir.dev/sxir/pkg/runtime/libgo in Go; the module of -lib-module in TypeScript) or only (just the embedded copy)")
+	fs.String("lib-module", "", "module specifier a TypeScript parser imports its library from with -lib import, such as ../shared/lib.ts")
 	start := fs.String("s", "", "start rule of the generated Parse function (default: the grammar's default start rule)")
-	output := fs.String("o", "", "output directory")
-	types := fs.Bool("types", false, "also generate typed values and ParseValue (parseValue in TypeScript)")
-	document := fs.Bool("document", false, "also generate an incremental Document (typed ParseValue with -types)")
-	stream := fs.Bool("stream", false, "also generate Go ParseStream and Iterate for the start rule's #stream repetition (and their typed forms with -types; incompatible with -lang ts)")
-	observability := fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
-	expectations := fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
-	chargeUnits := fs.String("charge-units", "", "")
-	noLimitControls := fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context, a compute report or a finite Compute or Memory limit (in TypeScript a signal, a computeReport or a finite compute or memory limit) fails")
-	typedOnly := fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
-	recognizeOnly := fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
-	recognize := fs.Bool("recognize", false, "also generate Recognize, which checks input without building a tree")
-	maxDepth := fs.Int("max-depth", 0, "generated default nested recursive rule-call limit (0 selects 100000)")
-	nodoc := fs.Bool("nodoc", false, "leave out the package comment (Go)")
+	fs.String("o", "", "output directory")
+	fs.Bool("types", false, "also generate typed values and ParseValue (parseValue in TypeScript)")
+	fs.Bool("document", false, "also generate an incremental Document (typed ParseValue with -types)")
+	fs.Bool("stream", false, "also generate Go ParseStream and Iterate for the start rule's #stream repetition (and their typed forms with -types; incompatible with -lang ts)")
+	fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
+	fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
+	fs.String("charge-units", "", "")
+	fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context, a compute report or a finite Compute or Memory limit (in TypeScript a signal, a computeReport or a finite compute or memory limit) fails")
+	fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
+	fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
+	fs.Bool("recognize", false, "also generate Recognize, which checks input without building a tree")
+	fs.Int("max-depth", 0, "generated default nested recursive rule-call limit (0 selects 100000)")
+	fs.Bool("nodoc", false, "leave out the package comment (Go)")
 	sourceInfo := fs.Bool("source-info", false, "make the generated parser record the rule of each node and the names of captures")
 	defaultValue := fs.Bool("default-value", false, "make the generated parser drop value actions and declared rule types and return the default node tree (incompatible with -types)")
 	optimize := fs.String("optimize", "", "optimization profile: "+profileHelp()+"; no profile changes what the parser returns")
@@ -779,74 +794,62 @@ func genCmd(args []string, stdout io.Writer) error {
 	optBisectLimit := fs.Int("opt-bisect-limit", 0, "run only the runs of optional passes, and the applications of their patterns, numbered up to n in pipeline order, skip the later ones and write each decision to standard error; the required steps always run, and the generator generates once")
 	printPipeline := fs.Bool("print-pipeline", false, "write to standard error, before the build, the pass pipeline of the build as text: its steps in order, the required ones marked with !, the patterns of each pass, and headers with the options of the build")
 	timePasses := fs.Bool("time-passes", false, "write to standard error, after the build, the time of each pass and step that ran, summed over its units, with its share of the total")
+	for _, lang := range []string{"go", "ts"} {
+		for _, name := range genLangFlags[lang] {
+			qualify(fs, lang, name)
+		}
+	}
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	mode, err := parseGenLib(*libMode)
+	langs, err := genLangs(*lang)
 	if err != nil {
 		return err
 	}
-	switch *lang {
-	case "go":
-		if *output == "" {
-			return fmt.Errorf("-o (an output directory) is required")
+	// The qualified flags of a language that is not listed.
+	var unlisted error
+	fs.Visit(func(f *flag.Flag) {
+		if l, _, ok := strings.Cut(f.Name, "."); ok && !slices.Contains(langs, l) && unlisted == nil {
+			unlisted = fmt.Errorf("-%s is a flag of the %s target, and -lang does not list %s", f.Name, l, l)
 		}
-		if *libModule != "" {
-			return fmt.Errorf("-lib-module is only supported with -lang ts")
-		}
-		switch mode {
-		case libOnly:
-			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "no-limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
-				if isFlagSet(fs, name) {
-					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
-				}
-			}
-		case libImport:
-			if *grammarPath == "" {
-				return fmt.Errorf("-g is required")
-			}
-			if *module == "" && *pkg == "" {
-				return fmt.Errorf("-pkg or -module is required")
-			}
-		default:
-			if *grammarPath == "" {
-				return fmt.Errorf("-g is required")
-			}
-			if *module == "" {
-				return fmt.Errorf("-module (the import path of the generated package) is required with -lib embed")
+	})
+	if unlisted != nil {
+		return unlisted
+	}
+	several := len(langs) > 1
+	// The flags of one language apply to it when it is listed with others; the flags that a listed
+	// language does not support are errors that name their qualified form.
+	if several {
+		for _, name := range []string{"stream", "typed-only", "recognize-only"} {
+			if isFlagSet(fs, name) {
+				return fmt.Errorf("-%s is not supported with -lang ts; use -go.%s for the Go target", name, name)
 			}
 		}
-	case "ts":
-		if *pkg != "" || *module != "" || *nodoc || *stream || *typedOnly || *recognizeOnly {
-			return fmt.Errorf("-pkg, -module, -nodoc, -stream, -typed-only and -recognize-only are not supported with -lang ts")
+	}
+	targets := make([]genTarget, len(langs))
+	for i, l := range langs {
+		t := genTarget{lang: l, v: func(name string) any { return genFlag(fs, l, name) }}
+		if t.mode, err = parseGenLib(t.str("lib")); err != nil {
+			return err
 		}
-		if *output == "" {
-			return fmt.Errorf("-o (an output directory) is required")
+		t.dir = t.str("o")
+		if several && !isFlagSet(fs, l+".o") && t.dir != "" {
+			t.dir = filepath.Join(t.dir, l)
 		}
-		switch mode {
-		case libOnly:
-			for _, name := range []string{"g", "s", "types", "observability", "no-limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
-				if isFlagSet(fs, name) {
-					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
-				}
+		if err := t.check(fs, several); err != nil {
+			if several {
+				err = fmt.Errorf("target %s: %w", l, err)
 			}
-		case libImport:
-			if *grammarPath == "" {
-				return fmt.Errorf("-g is required")
-			}
-			if *libModule == "" {
-				return fmt.Errorf("-lib-module (the module specifier the parser imports the library from) is required with -lib import")
-			}
-		default:
-			if *grammarPath == "" {
-				return fmt.Errorf("-g is required")
-			}
-			if *libModule != "" {
-				return fmt.Errorf("-lib-module can only be combined with -lib import")
-			}
+			return err
 		}
-	default:
-		return fmt.Errorf("unknown language %q (want go or ts)", *lang)
+		targets[i] = t
+	}
+	// Every target that generates a parser reads -g, which -lib only rejects, so a mix is rejected
+	// above already; the rule is kept here as the invariant the writes below rely on.
+	for _, t := range targets[1:] {
+		if (t.mode == libOnly) != (targets[0].mode == libOnly) {
+			return fmt.Errorf("-lib only writes the library of every listed language or of none")
+		}
 	}
 	var noOptNames []string
 	if *noOpt != "" {
@@ -894,17 +897,19 @@ func genCmd(args []string, stdout io.Writer) error {
 		VerifyEach: *verifyEach, Stats: *stats, TimePasses: *timePasses, OptBisectLimit: bisectLimit,
 		PrintPipeline: *printPipeline,
 	})
-	if mode == libOnly {
-		var files []compiler.File
-		if *lang == "ts" {
-			files, err = compiler.GenerateTypeScriptLib()
-		} else {
-			files, err = compiler.GenerateLibGo(*module)
+	files := make([][]compiler.File, len(targets))
+	if targets[0].mode == libOnly {
+		for i, t := range targets {
+			if t.lang == "ts" {
+				files[i], err = compiler.GenerateTypeScriptLib()
+			} else {
+				files[i], err = compiler.GenerateLibGo(t.str("module"))
+			}
+			if err != nil {
+				return err
+			}
 		}
-		if err != nil {
-			return err
-		}
-		return writeGenerated(*output, files, mode, *lang == "ts")
+		return writeTargets(targets, files)
 	}
 	opts := []compiler.Option{
 		compiler.WithStart(*start),
@@ -917,55 +922,220 @@ func genCmd(args []string, stdout io.Writer) error {
 	if *sourceInfo {
 		opts = append(opts, compiler.WithSourceInfo())
 	}
+	configs := make([]compiler.Target, len(targets))
+	for i, t := range targets {
+		if configs[i], err = t.config(); err != nil {
+			return err
+		}
+	}
+	generated, err := compiler.Generate(fileSource(*grammarPath), configs, opts...)
+	if err != nil {
+		return sourceError(*grammarPath, "gen", err)
+	}
+	for i, g := range generated {
+		files[i] = g.Files
+	}
+	return writeTargets(targets, files)
+}
+
+// genLangFlags are the flags of sxir gen that configure one target, by the languages that take
+// them: each has the qualified form -<lang>.<flag>, which applies to that language only and wins
+// over the unqualified flag. The unqualified form applies to every listed language that takes it.
+var genLangFlags = map[string][]string{
+	"go": {"o", "lib", "types", "document", "stream", "observability", "expectations", "charge-units", "no-limits",
+		"typed-only", "recognize-only", "recognize", "max-depth", "module", "pkg", "nodoc"},
+	"ts": {"o", "lib", "types", "document", "observability", "expectations", "no-limits", "recognize", "max-depth", "lib-module"},
+}
+
+// qualify defines the flag -<lang>.<name> of fs, of the type and default of the flag -name.
+func qualify(fs *flag.FlagSet, lang, name string) {
+	f := fs.Lookup(name)
+	usage := fmt.Sprintf("-%s for the %s target only, over -%s", name, map[string]string{"go": "Go", "ts": "TypeScript"}[lang], name)
+	switch v := f.Value.(flag.Getter).Get().(type) {
+	case bool:
+		fs.Bool(lang+"."+name, v, usage)
+	case int:
+		fs.Int(lang+"."+name, v, usage)
+	case string:
+		fs.String(lang+"."+name, v, usage)
+	default:
+		panic(fmt.Sprintf("sxir gen: the flag -%s has no qualified form", name))
+	}
+}
+
+// genFlag returns the value of the target flag name for the language lang: the qualified flag if it
+// is set, and otherwise the flag name.
+func genFlag(fs *flag.FlagSet, lang, name string) any {
+	if isFlagSet(fs, lang+"."+name) {
+		return fs.Lookup(lang + "." + name).Value.(flag.Getter).Get()
+	}
+	return fs.Lookup(name).Value.(flag.Getter).Get()
+}
+
+// genLangs returns the languages that the value of -lang lists, each at most once.
+func genLangs(list string) ([]string, error) {
+	var langs []string
+	for _, l := range strings.Split(list, ",") {
+		switch {
+		case l != "go" && l != "ts":
+			return nil, fmt.Errorf("unknown language %q (want go or ts)", l)
+		case slices.Contains(langs, l):
+			return nil, fmt.Errorf("-lang lists %s twice", l)
+		}
+		langs = append(langs, l)
+	}
+	return langs, nil
+}
+
+// genTarget is a target of sxir gen: its language, its library mode, its output directory and the
+// values of its target flags (v).
+type genTarget struct {
+	lang string
+	mode genLib
+	dir  string
+	v    func(name string) any
+}
+
+func (t genTarget) str(name string) string { return t.v(name).(string) }
+func (t genTarget) on(name string) bool    { return t.v(name).(bool) }
+
+// set reports whether the flag name of t, in either form, is set.
+func (t genTarget) set(fs *flag.FlagSet, name string) bool {
+	return isFlagSet(fs, name) || isFlagSet(fs, t.lang+"."+name)
+}
+
+// check checks the flags of the target t: what its language and its library mode need and do not
+// take. A flag of the other language does not apply to t when several languages are listed.
+func (t genTarget) check(fs *flag.FlagSet, several bool) error {
+	switch {
+	case several:
+	case t.lang == "ts" && (isFlagSet(fs, "pkg") || isFlagSet(fs, "module") || isFlagSet(fs, "nodoc") || isFlagSet(fs, "stream") || isFlagSet(fs, "typed-only") || isFlagSet(fs, "recognize-only")):
+		return fmt.Errorf("-pkg, -module, -nodoc, -stream, -typed-only and -recognize-only are not supported with -lang ts")
+	case t.lang == "go" && t.str("lib-module") != "":
+		return fmt.Errorf("-lib-module is only supported with -lang ts")
+	}
+	if t.dir == "" {
+		if several {
+			return fmt.Errorf("-o (a parent directory) or -%s.o (an output directory) is required", t.lang)
+		}
+		return fmt.Errorf("-o (an output directory) is required")
+	}
+	grammar := isFlagSet(fs, "g")
+	switch t.lang {
+	case "go":
+		switch t.mode {
+		case libOnly:
+			for _, name := range []string{"g", "s", "pkg", "module", "types", "document", "stream", "observability", "no-limits", "typed-only", "recognize-only", "recognize", "max-depth", "nodoc", "source-info", "default-value", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
+				if t.set(fs, name) {
+					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
+				}
+			}
+		case libImport:
+			if !grammar {
+				return fmt.Errorf("-g is required")
+			}
+			if t.str("module") == "" && t.str("pkg") == "" {
+				return fmt.Errorf("-pkg or -module is required")
+			}
+		default:
+			if !grammar {
+				return fmt.Errorf("-g is required")
+			}
+			if t.str("module") == "" {
+				return fmt.Errorf("-module (the import path of the generated package) is required with -lib embed")
+			}
+		}
+	case "ts":
+		switch t.mode {
+		case libOnly:
+			for _, name := range []string{"g", "s", "types", "observability", "no-limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
+				if t.set(fs, name) {
+					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
+				}
+			}
+		case libImport:
+			if !grammar {
+				return fmt.Errorf("-g is required")
+			}
+			if t.str("lib-module") == "" {
+				return fmt.Errorf("-lib-module (the module specifier the parser imports the library from) is required with -lib import")
+			}
+		default:
+			if !grammar {
+				return fmt.Errorf("-g is required")
+			}
+			if t.str("lib-module") != "" {
+				return fmt.Errorf("-lib-module can only be combined with -lib import")
+			}
+		}
+	}
+	return nil
+}
+
+// config returns the configuration of the generator for the target t.
+func (t genTarget) config() (compiler.Target, error) {
+	if t.lang == "ts" {
+		return compiler.TSConfig{
+			Lib:             t.mode.generated(),
+			LibModule:       t.str("lib-module"),
+			Types:           t.on("types"),
+			Observability:   t.on("observability"),
+			NoLimitControls: t.on("no-limits"),
+			Expectations:    t.on("expectations"),
+			Recognize:       t.on("recognize"),
+			Document:        t.on("document"),
+			MaxDepth:        t.v("max-depth").(int),
+		}, nil
+	}
 	// -charge-units is internal: it selects a variant of the logical compute units that the controlled form
 	// generates, for the tests and measurements of them.
 	var logicalVariant string
-	switch *chargeUnits {
+	switch u := t.str("charge-units"); u {
 	case "":
 	case "keep-guards":
 		logicalVariant = "keep-guards"
 	case "event":
 		logicalVariant = "event"
 	default:
-		return fmt.Errorf("-charge-units: unknown value %q", *chargeUnits)
+		return nil, fmt.Errorf("-charge-units: unknown value %q", u)
 	}
-	src := fileSource(*grammarPath)
-	var files []compiler.File
-	if *lang == "ts" {
-		files, err = compiler.GenerateTypeScript(src, compiler.TSConfig{
-			Lib:             mode.generated(),
-			LibModule:       *libModule,
-			Types:           *types,
-			Observability:   *observability,
-			NoLimitControls: *noLimitControls,
-			Expectations:    *expectations,
-			Recognize:       *recognize,
-			Document:        *document,
-			MaxDepth:        *maxDepth,
-		}, opts...)
-	} else {
-		files, err = compiler.GenerateGo(src, compiler.GoConfig{
-			Module:          *module,
-			PackageName:     *pkg,
-			Lib:             mode.generated(),
-			Types:           *types,
-			Observability:   *observability,
-			NoLimitControls: *noLimitControls,
-			LogicalVariant:  logicalVariant,
-			Expectations:    *expectations,
-			Recognize:       *recognize,
-			MaxDepth:        *maxDepth,
-			Document:        *document,
-			Stream:          *stream,
-			TypedOnly:       *typedOnly,
-			RecognizeOnly:   *recognizeOnly,
-			OmitPackageDoc:  *nodoc,
-		}, opts...)
+	return compiler.GoConfig{
+		Module:          t.str("module"),
+		PackageName:     t.str("pkg"),
+		Lib:             t.mode.generated(),
+		Types:           t.on("types"),
+		Observability:   t.on("observability"),
+		NoLimitControls: t.on("no-limits"),
+		LogicalVariant:  logicalVariant,
+		Expectations:    t.on("expectations"),
+		Recognize:       t.on("recognize"),
+		MaxDepth:        t.v("max-depth").(int),
+		Document:        t.on("document"),
+		Stream:          t.on("stream"),
+		TypedOnly:       t.on("typed-only"),
+		RecognizeOnly:   t.on("recognize-only"),
+		OmitPackageDoc:  t.on("nodoc"),
+	}, nil
+}
+
+// writeTargets writes the files of each target to its directory, after checking the writes of
+// every target (planWrite): a target whose directory refuses its files writes nothing for any
+// target.
+func writeTargets(targets []genTarget, files [][]compiler.File) error {
+	writes := make([]*generatedWrite, len(targets))
+	for i, t := range targets {
+		w, err := planWrite(t.dir, files[i], t.mode, t.lang == "ts")
+		if err != nil {
+			return err
+		}
+		writes[i] = w
 	}
-	if err != nil {
-		return sourceError(*grammarPath, "gen", err)
+	for _, w := range writes {
+		if err := w.apply(); err != nil {
+			return err
+		}
 	}
-	return writeGenerated(*output, files, mode, *lang == "ts")
+	return nil
 }
 
 // genDebug returns d, the debugging setting of the debugging flags of sxir gen, writing to
@@ -1036,10 +1206,28 @@ func ownedFiles(dir string, mode genLib, ts bool) []string {
 
 // writeGenerated writes files below dir and removes the files of an earlier generation that the
 // mode owns (ownedFiles) and did not write again. Every check and read happens before the first
-// write: it refuses, leaving dir untouched, to replace or remove a file that was not generated by
-// sxir, to write through a symbolic link at an owned path or directory, and to continue after a
-// file it cannot read.
+// write (planWrite): it refuses, leaving dir untouched, to replace or remove a file that was not
+// generated by sxir, to write through a symbolic link at an owned path or directory, and to
+// continue after a file it cannot read.
 func writeGenerated(dir string, files []compiler.File, mode genLib, ts bool) error {
+	w, err := planWrite(dir, files, mode, ts)
+	if err != nil {
+		return err
+	}
+	return w.apply()
+}
+
+// generatedWrite is a write of generated files that planWrite checked: the files to write below
+// dir and the files of an earlier generation to remove.
+type generatedWrite struct {
+	dir   string
+	files []compiler.File
+	stale []string
+}
+
+// planWrite checks the write of files below dir by a generation in mode, as writeGenerated
+// describes, and returns it without writing or removing anything.
+func planWrite(dir string, files []compiler.File, mode genLib, ts bool) (*generatedWrite, error) {
 	generated := func(name string) (exists, ours bool, err error) {
 		data, err := os.ReadFile(name)
 		if errors.Is(err, os.ErrNotExist) {
@@ -1088,14 +1276,14 @@ func writeGenerated(dir string, files []compiler.File, mode genLib, ts bool) err
 		name := filepath.Join(dir, filepath.FromSlash(f.Path))
 		keep[name] = true
 		if err := noLink(name); err != nil {
-			return err
+			return nil, err
 		}
 		exists, ours, err := generated(name)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if exists && !ours {
-			return notOurs(name)
+			return nil, notOurs(name)
 		}
 	}
 	var stale []string
@@ -1104,14 +1292,20 @@ func writeGenerated(dir string, files []compiler.File, mode genLib, ts bool) err
 			continue
 		}
 		if err := noLink(name); err != nil {
-			return err
+			return nil, err
 		}
 		if exists, ours, err := generated(name); err != nil {
-			return err
+			return nil, err
 		} else if exists && ours {
 			stale = append(stale, name)
 		}
 	}
+	return &generatedWrite{dir: dir, files: files, stale: stale}, nil
+}
+
+// apply writes the files of w and removes its stale files.
+func (w *generatedWrite) apply() error {
+	dir, files, stale := w.dir, w.files, w.stale
 	for _, f := range files {
 		name := filepath.Join(dir, filepath.FromSlash(f.Path))
 		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {

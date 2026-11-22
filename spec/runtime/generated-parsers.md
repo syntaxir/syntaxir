@@ -32,7 +32,7 @@ where `<version>` names the generator: a release tag (`v0.1.0`) for a release, a
 ### The Generator
 
 ```text
-sxir gen -g <grammar> [-lang go|ts] [-module <import path>] [-pkg <package>]
+sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package>]
          [-lib embed|import|only] [-s <rule>] [-o <path>]
          [-types] [-document] [-stream] [-recognize] [-expectations] [-observability]
          [-source-info] [-default-value] [-nodoc] [-max-depth <n>]
@@ -43,7 +43,7 @@ sxir gen -g <grammar> [-lang go|ts] [-module <import path>] [-pkg <package>]
 
 | Flag | Go API: a field of `compiler.GoConfig` / `compiler.TSConfig`, or as stated | Meaning |
 |:--|:--|:--|
-| `-lang` | `compiler.GenerateGo` with a `GoConfig`, or `compiler.GenerateTypeScript` with a `TSConfig` | `go` (default) or `ts` |
+| `-lang` | `compiler.GenerateGo` with a `GoConfig`, or `compiler.GenerateTypeScript` with a `TSConfig`; for a list, `compiler.Generate` with one config per language | `go` (default), `ts`, or a list such as `go,ts`, each language at most once. With a list, `-o` is a parent directory and each language writes below it to the directory named after the language, or to `-go.o` or `-ts.o`; a flag of the generated code applies to every language and its qualified form, such as `-go.types`, to one; when any language fails, none writes a file |
 | `-g` | the grammar source argument | The grammar source: `.sxir` or `.json`. A compiled grammar holds no grammar and is an error |
 | `-module` | `Module` | Required for Go (with `-lib import` only when `-pkg` is omitted); the import path of the generated package; rejected with `-lang ts` |
 | `-pkg` | `PackageName` | The package name; MUST be a valid Go identifier; default: the last element of the import path without a major version suffix (`example.com/m/v2` gives `m`), and when that is not a valid identifier, generation fails and suggests `-pkg`; rejected with `-lang ts` and with `-lib only` |

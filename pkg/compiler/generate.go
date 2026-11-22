@@ -4,7 +4,9 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/pkg/grammar"
 )
 
@@ -20,11 +22,16 @@ func files(generated []common.GeneratedFile, err error) ([]File, error) {
 	if err != nil {
 		return nil, grammarErrors(err)
 	}
+	return convert(generated), nil
+}
+
+// convert converts the files that a generator returns.
+func convert(generated []common.GeneratedFile) []File {
 	out := make([]File, len(generated))
 	for i, f := range generated {
 		out[i] = File{Path: f.Path, Content: f.Content}
 	}
-	return out, nil
+	return out
 }
 
 // LibMode selects how generated code reaches the library of generated parsers.
@@ -136,23 +143,20 @@ type GoConfig struct {
 // need, with Types types/types.go, the package Module/types that declares the Go types of the
 // grammar, and, with LibEmbed, the files of a copy of the library in internal/libgo.
 func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) {
-	o := newOptions(opts)
+	return generateOne(src, c, opts)
+}
+
+// target returns the target of the driver for the configuration c and the options o of the call.
+func (c GoConfig) target(o options) (driver.Target, error) {
 	lib, err := c.Lib.internal()
 	if err != nil {
-		return nil, err
+		return driver.Target{}, err
 	}
-	g, err := grammar.Load(src)
-	if err != nil {
-		return nil, err
-	}
-	return files(generate.Go(g, common.GenOptions{
+	return driver.Target{Backend: result.Go, Gen: o.gen(common.GenOptions{
 		Module:          c.Module,
 		Package:         c.PackageName,
-		Start:           o.start,
 		Lib:             lib,
 		Types:           c.Types,
-		DefaultValue:    o.defaultValue,
-		SourceInfo:      o.sourceInfo,
 		Observability:   c.Observability,
 		NoLimitControls: c.NoLimitControls,
 		LogicalVariant:  c.LogicalVariant,
@@ -164,11 +168,7 @@ func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) 
 		TypedOnly:       c.TypedOnly,
 		RecognizeOnly:   c.RecognizeOnly,
 		OmitPackageDoc:  c.OmitPackageDoc,
-		Optimize:        o.optimize.Profile,
-		Opt:             o.optimize.Values,
-		NoOpt:           o.optimize.Off,
-		Debug:           o.debug.internal(),
-	}))
+	})}, nil
 }
 
 // GenerateLibGo generates only the embedded copy of the library for the package with import
@@ -231,37 +231,87 @@ type TSConfig struct {
 //
 // Generated TypeScript parsers have no stream parsing.
 func GenerateTypeScript(src grammar.Source, c TSConfig, opts ...Option) ([]File, error) {
-	o := newOptions(opts)
+	return generateOne(src, c, opts)
+}
+
+// target returns the target of the driver for the configuration c and the options o of the call.
+func (c TSConfig) target(o options) (driver.Target, error) {
 	lib, err := c.Lib.internal()
 	if err != nil {
-		return nil, err
+		return driver.Target{}, err
 	}
-	g, err := grammar.Load(src)
-	if err != nil {
-		return nil, err
-	}
-	return files(generate.TypeScript(g, common.GenOptions{
-		Start:           o.start,
+	return driver.Target{Backend: result.TypeScript, Gen: o.gen(common.GenOptions{
 		Lib:             lib,
 		LibModule:       c.LibModule,
 		Types:           c.Types,
-		DefaultValue:    o.defaultValue,
-		SourceInfo:      o.sourceInfo,
 		Observability:   c.Observability,
 		NoLimitControls: c.NoLimitControls,
 		Expectations:    c.Expectations,
 		Recognize:       c.Recognize,
 		Document:        c.Document,
 		MaxDepth:        c.MaxDepth,
-		Optimize:        o.optimize.Profile,
-		Opt:             o.optimize.Values,
-		NoOpt:           o.optimize.Off,
-		Debug:           o.debug.internal(),
-	}))
+	})}, nil
 }
 
 // GenerateTypeScriptLib generates only the library of TypeScript parsers, lib.ts: the module
 // that parsers generated with LibImport import, or the copy of a parser generated with LibEmbed.
 func GenerateTypeScriptLib() ([]File, error) {
 	return files(generate.TypeScript(nil, common.GenOptions{Lib: common.LibOnly}))
+}
+
+// Target is a language to generate: a GoConfig or a TSConfig.
+type Target interface {
+	// target returns the target of the driver that the configuration and the options o of the call
+	// select.
+	target(o options) (driver.Target, error)
+}
+
+// Generated is the files of one target.
+type Generated struct {
+	Target Target
+	Files  []File
+}
+
+// Generate generates a parser for each target from one check of src, in order. The Options apply
+// to every target (start rule, source information, default values, optimization, debugging, whose
+// dumps and reports name the backend); each config's fields apply to its target. The targets share
+// the steps whose input and settings are equal. Each result equals what GenerateGo or
+// GenerateTypeScript returns for that target alone. On an error no files are returned.
+func Generate(src grammar.Source, targets []Target, opts ...Option) ([]Generated, error) {
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("compiler: Generate takes at least one target")
+	}
+	o := newOptions(opts)
+	ts := make([]driver.Target, len(targets))
+	for i, t := range targets {
+		if t == nil {
+			return nil, fmt.Errorf("compiler: target %d is nil", i)
+		}
+		var err error
+		if ts[i], err = t.target(o); err != nil {
+			return nil, err
+		}
+	}
+	g, err := grammar.Load(src)
+	if err != nil {
+		return nil, err
+	}
+	generated, err := generate.Targets(g, ts...)
+	if err != nil {
+		return nil, grammarErrors(err)
+	}
+	out := make([]Generated, len(targets))
+	for i, fs := range generated {
+		out[i] = Generated{Target: targets[i], Files: convert(fs)}
+	}
+	return out, nil
+}
+
+// generateOne generates the files of the one target t.
+func generateOne(src grammar.Source, t Target, opts []Option) ([]File, error) {
+	out, err := Generate(src, []Target{t}, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out[0].Files, nil
 }

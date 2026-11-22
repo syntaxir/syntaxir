@@ -258,6 +258,7 @@ writes no output. To save another mode, compile the grammar source.
 ```bash
 sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
 sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -lang go,ts -g <grammar> -o <directory> [-go.o <directory>] [-ts.o <directory>] [-go.<flag> <value>] [-ts.<flag> <value>] [the flags above]
 ```
 
 Generates a standalone Go parser (see [code-generation.md](code-generation.md)) or, with `-lang ts`, a TypeScript
@@ -280,6 +281,24 @@ writes the pass pipeline of the build before it.
 breaks a parser; it generates once, so its files can keep rules that a build leaves out (see
 [Debugging the generator](code-generation.md#debugging-the-generator)). Their output is not stable and may change in
 any version. None of these flags can be combined with `-lib only`.
+
+`-lang` takes a list, such as `-lang go,ts`, to generate several languages from one compilation of the grammar; each
+language appears at most once:
+
+```bash
+sxir gen -lang go,ts -g calc.sxir -module example.com/calc -o gen -go.types -ts.max-depth 500
+```
+
+With several languages, `-o` is a parent directory, and each language writes to the subdirectory named after it
+(`gen/go` and `gen/ts` above) unless its qualified flag `-go.o` or `-ts.o` names another directory. `-g`, `-s`,
+`-source-info`, `-default-value`, the optimization flags and the debugging flags belong to the whole generation. A flag
+of the generated code, such as `-types` or `-lib`, applies to every listed language, and its qualified form
+(`-go.types`, `-ts.lib`) applies to one language and wins over the unqualified flag. `-module`, `-pkg` and `-nodoc` apply
+to Go and `-lib-module` to TypeScript. A flag that a listed language does not support is an error naming its qualified
+form: `-stream`, `-typed-only` and `-recognize-only` with `ts` listed must be written `-go.stream` and so on. The files
+of each language equal those of a run with that language alone, and when any target fails, for example because its
+directory holds a file that `sxir gen` did not generate, no target writes a file. `-lib only` with several languages
+writes the library of each.
 
 A `.sxirc` compiled without `-default-value` cannot be used with `-default-value` in `parse`: the command
 asks you to compile it again with `-default-value`.
