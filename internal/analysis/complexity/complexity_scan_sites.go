@@ -1,10 +1,10 @@
 package complexity
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
+	"fmt"
+
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // scanOnly reports whether a call of the rule name pays at most a constant when it is evaluated
@@ -39,36 +39,45 @@ func (k *classifier) scanOnlyRule(name string) bool {
 	if corepass.NoScanSites || corepass.NoRunSites {
 		return false
 	}
-	var def *ast.RuleDef
-	rules := k.base
-	if rules == nil {
-		rules = k.rules
-	}
-	for _, rd := range rules {
-		if rd.Name == name {
-			def = rd
-		}
-	}
-	if def == nil || len(k.vars[name]) > 0 || len(astfacts.AllCallsControlled(def.Expr, nil, k.control)) != 0 {
+	body, ok := k.writtenBody(name)
+	if !ok || len(k.vars[name]) > 0 {
 		return false
 	}
-	ok := true
-	astfacts.WalkExprWithPoll(def.Expr, func(x ast.Expr) {
-		switch x := x.(type) {
-		case *ast.Recovery, *ast.OperatorsRule, *ast.Stream:
+	walkNodes(body, func(x core.Node) {
+		k.control.Poll()
+		switch x.(type) {
+		case *core.Call, *core.Nest, *core.Recover, *core.OperatorsRule, *core.Stream:
 			ok = false
-		case *ast.Attributed:
-			ok = ok && !check.IsStream(x)
 		}
-	}, k.control.Poll)
-	scanSiteRepeats(def.Expr, k.control, func(_ *ast.Repeat, site bool) { ok = ok && site })
+	})
+	scanSiteRepeats(body, k.control, func(_ *core.Repeat, site bool) { ok = ok && site })
 	if !ok {
 		return false
 	}
 	for _, s := range k.walked[name] {
-		if (s.scan == nil || k.srcExprs[s.scan]) && (s.scan == nil || !isScan(s.scan)) {
+		if (s.scan == nil || k.srcExprs[s.scan]) && (s.scan == nil || !isScan(k.repeatOf(s.scan))) {
 			return false
 		}
 	}
 	return true
+}
+
+// writtenBody returns the node of the body of the rule name as the grammar writes it: in the
+// module of the grammar, not in its view. The rules of the grammar are numbered as those of its
+// module.
+func (k *classifier) writtenBody(name string) (core.Node, bool) {
+	rules := k.base
+	if rules == nil {
+		rules = k.rules
+	}
+	for i, rd := range rules {
+		if rd.Name == name {
+			r := k.facts.source.Module.Rules[i]
+			if r.Name != name {
+				panic(fmt.Sprintf("complexity: rule %d of the module is %s, not %s", i, r.Name, name))
+			}
+			return r.Body, true
+		}
+	}
+	return nil, false
 }

@@ -2,21 +2,20 @@ package complexity
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // The classifier's model of the sites that the compiler numbers on Core IR
-// (internal/middleend/corepass, ComputeSites), on the expressions of a grammar or a view of it.
+// (internal/middleend/corepass, ComputeSites), on the nodes of the rules of a grammar or a view of
+// it.
 
 // restartableRepeats returns the repetitions that an iteration of a repetition can reach: those in
 // the element of another repetition that iterates (its maximum is not 0 or 1), and those in a rule
 // that such an element calls, or that calls itself, directly or indirectly. Every other repetition is reached by a
 // derivation once, from the start rule through sequences, choices and calls, so one walk of it
 // starts at each position at most once per environment, and a record could not be reused.
-func restartableRepeats(names []string, exprOf func(string) ast.Expr, calls map[string][]string) map[*ast.Repeat]bool {
-	out := map[*ast.Repeat]bool{}
+func (k *classifier) restartableRepeats() map[*core.Repeat]bool {
+	out := map[*core.Repeat]bool{}
 	iterated := map[string]bool{}
 	var queue []string
 	mark := func(n string) {
@@ -25,27 +24,27 @@ func restartableRepeats(names []string, exprOf func(string) ast.Expr, calls map[
 			queue = append(queue, n)
 		}
 	}
-	for _, n := range names {
-		astfacts.WalkExpr(exprOf(n), func(x ast.Expr) {
-			r, ok := x.(*ast.Repeat)
-			if !ok || r.Max == 0 || r.Max == 1 {
+	for _, r := range k.rules {
+		walkNodes(k.ruleBody(r.Name), func(x core.Node) {
+			rep, ok := x.(*core.Repeat)
+			if !ok || rep.Max == 0 || rep.Max == 1 {
 				return
 			}
-			astfacts.WalkExpr(r.Expr, func(y ast.Expr) {
-				switch y := y.(type) {
-				case *ast.Repeat:
-					out[y] = true
-				case *ast.Ref:
-					mark(y.Name)
+			walkNodes(rep.Body, func(y core.Node) {
+				if inner, ok := y.(*core.Repeat); ok {
+					out[inner] = true
+				} else if c, ok := k.calledRule(y); ok {
+					mark(c)
 				}
 			})
 		})
 	}
 	// A rule that calls itself, directly or through others, repeats as an iteration does: a right
 	// recursion walks the repetitions in its rules from each position its alternatives advance to.
-	for _, n := range names {
+	for _, r := range k.rules {
+		n := r.Name
 		seen := map[string]bool{}
-		stack := append([]string(nil), calls[n]...)
+		stack := append([]string(nil), k.calls[n]...)
 		for len(stack) > 0 && !iterated[n] {
 			c := stack[len(stack)-1]
 			stack = stack[:len(stack)-1]
@@ -53,24 +52,24 @@ func restartableRepeats(names []string, exprOf func(string) ast.Expr, calls map[
 				mark(n)
 			} else if !seen[c] {
 				seen[c] = true
-				stack = append(stack, calls[c]...)
+				stack = append(stack, k.calls[c]...)
 			}
 		}
 	}
 	for len(queue) > 0 {
 		n := queue[len(queue)-1]
 		queue = queue[:len(queue)-1]
-		for _, c := range calls[n] {
+		for _, c := range k.calls[n] {
 			mark(c)
 		}
 	}
-	for _, n := range names {
-		if !iterated[n] {
+	for _, r := range k.rules {
+		if !iterated[r.Name] {
 			continue
 		}
-		astfacts.WalkExpr(exprOf(n), func(x ast.Expr) {
-			if r, ok := x.(*ast.Repeat); ok {
-				out[r] = true
+		walkNodes(k.ruleBody(r.Name), func(x core.Node) {
+			if rep, ok := x.(*core.Repeat); ok {
+				out[rep] = true
 			}
 		})
 	}
@@ -78,46 +77,39 @@ func restartableRepeats(names []string, exprOf func(string) ast.Expr, calls map[
 }
 
 // isScan reports whether e repeats a single character, which a scan walks without a record.
-func isScan(e *ast.Repeat) bool {
-	switch e.Expr.(type) {
-	case *ast.CharClass, *ast.Any:
+func isScan(e *core.Repeat) bool {
+	switch e.Body.(type) {
+	case *core.ClassNode, *core.Any:
 		return true
 	}
 	return false
 }
 
-// blocksRunAttrs reports whether the attributes of x keep a repetition that holds it from being a
-// run site: #stream, #missing, #error and #diagnostic.
-func blocksRunAttrs(x *ast.Attributed) bool {
-	for _, a := range x.Attrs {
-		switch a.Name {
-		case "stream", "missing", "error", "diagnostic":
-			return true
-		}
+// blocksRun reports whether the node n of an attribute keeps a repetition that holds it from
+// being a run site: #stream, #missing, #error and #diagnostic.
+func blocksRun(n core.Node) bool {
+	switch n.(type) {
+	case *core.Stream, *core.Missing, *core.Label:
+		return true
 	}
 	return false
 }
 
-// scanSiteRepeats calls f for each repetition without an upper bound in e, the body of a rule that
+// scanSiteRepeats calls f for each repetition without an upper bound in n, the body of a rule that
 // calls no rule, in order, with whether it is a scan site: it repeats a character class or any
 // character and does not deliver the elements of a #stream. A repetition in a #recover skip is
 // reported as a site; it is one unless it is a skip-run site, which records its walks as one.
-func scanSiteRepeats(e ast.Expr, control *cancel.Control, f func(rep *ast.Repeat, site bool)) {
-	streamed := map[*ast.Repeat]bool{}
-	astfacts.WalkExprWithPoll(e, func(x ast.Expr) {
+func scanSiteRepeats(n core.Node, control *cancel.Control, f func(rep *core.Repeat, site bool)) {
+	streamed := map[*core.Repeat]bool{}
+	walkNodes(n, func(x core.Node) {
+		control.Poll()
 		switch x := x.(type) {
-		case *ast.Attributed:
-			if rep, ok := x.Expr.(*ast.Repeat); ok && check.IsStream(x) {
-				streamed[rep] = true
-			}
-		case *ast.Stream:
-			if rep, ok := x.Expr.(*ast.Repeat); ok {
-				streamed[rep] = true
-			}
-		case *ast.Repeat:
+		case *core.Stream:
+			streamed[x.Repeat] = true
+		case *core.Repeat:
 			if x.Max < 0 {
 				f(x, isScan(x) && !streamed[x])
 			}
 		}
-	}, control.Poll)
+	})
 }

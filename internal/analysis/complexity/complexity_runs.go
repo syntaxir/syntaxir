@@ -1,7 +1,7 @@
 package complexity
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,77 +14,64 @@ import (
 // measurements switch it on.
 var runSitesOn = false
 
-// runSite reports whether the repetition e is a run site: the records of its walks can be keyed by
-// position, and its element costs a constant outside the calls it makes.
-func (k *classifier) runSite(e *ast.Repeat) bool {
-	if !runSitesOn || e.Max >= 0 {
+// runSite reports whether the repetition e is a run site (runSiteOf of its node).
+func (k *classifier) runSite(e *ast.Repeat) bool { return k.runSiteOf(k.repeatOf(e)) }
+
+// runSiteOf reports whether the repetition n is a run site: the records of its walks can be keyed
+// by position, and its element costs a constant outside the calls it makes.
+func (k *classifier) runSiteOf(n *core.Repeat) bool {
+	if !runSitesOn || n.Max >= 0 {
 		return false
 	}
-	if v, ok := k.runMemo[e]; ok {
+	if v, ok := k.runMemo[n]; ok {
 		return v
+	}
+	if k.runMemo == nil {
+		k.runMemo = map[*core.Repeat]bool{}
 	}
 	if k.base != nil {
 		// The runtime marks the run sites of the grammar, not of the view: a repetition of the view
-		// is one only if it is a run site of the grammar.
+		// is one only if it is a repetition of the grammar and a run site of it.
 		if k.baseRuns == nil {
 			k.baseRuns = newClassifier(k.g, k.base, k.facts, k.start, k.control)
-			k.baseRepeats = map[*ast.Repeat]bool{}
-			for _, r := range k.base {
-				astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
-					if rep, ok := x.(*ast.Repeat); ok {
-						k.baseRepeats[rep] = true
-					}
-				})
-			}
 		}
-		if k.runMemo == nil {
-			k.runMemo = map[*ast.Repeat]bool{}
-		}
-		k.runMemo[e] = k.baseRepeats[e] && k.baseRuns.runSite(e)
-		return k.runMemo[e]
+		e, ok := k.exprOf(n).(*ast.Repeat)
+		_, inBase := k.baseRuns.nodes[e]
+		k.runMemo[n] = ok && inBase && k.baseRuns.runSite(e)
+		return k.runMemo[n]
 	}
-	if k.looseCut(e.Expr) {
+	if k.looseCutOf(n.Body) {
 		return false
 	}
 	k.badRules()
 	if k.runRestart == nil {
-		names := make([]string, len(k.rules))
-		byName := map[string]ast.Expr{}
-		for i, r := range k.rules {
-			names[i] = r.Name
-			byName[r.Name] = r.Expr
-		}
-		k.runRestart = restartableRepeats(names, func(n string) ast.Expr { return byName[n] }, k.calls)
+		k.runRestart = k.restartableRepeats()
 	}
-	if !k.runRestart[e] {
+	if !k.runRestart[n] {
 		return false
 	}
 	ok := true
-	astfacts.WalkExpr(e.Expr, func(x ast.Expr) {
+	walkNodes(n.Body, func(x core.Node) {
 		if !ok {
 			return
 		}
 		switch x := x.(type) {
-		case *ast.Repeat:
-			ok = x.Max >= 0 || k.runSite(x)
-		case *ast.OperatorsRule, *ast.Stream:
+		case *core.Repeat:
+			ok = x.Max >= 0 || k.runSiteOf(x)
+		case *core.OperatorsRule, *core.Nest:
 			ok = false
-		case *ast.Attributed:
-			ok = !blocksRunAttrs(x)
-		case *ast.Ref:
-			ok = k.byName[x.Name] != nil && x.Level == "" && !k.runBad[x.Name]
+		case *core.Call:
+			ok = x.Level == 0 && !k.runBad[k.rules[x.Rule].Name]
+		default:
+			ok = !blocksRun(x)
 		}
 	})
-	if k.runMemo == nil {
-		k.runMemo = map[*ast.Repeat]bool{}
-	}
-	k.runMemo[e] = ok
+	k.runMemo[n] = ok
 	return ok
 }
 
 // badRules computes the rules that a record cannot stand for: rules that are on a left-recursion
-// cycle or contain an Operators Rule, #stream, #missing, #error or #diagnostic, directly or through
-// calls.
+// cycle or contain #stream, #missing, #error or #diagnostic, directly or through calls.
 func (k *classifier) badRules() {
 	if k.runBad != nil {
 		return
@@ -94,14 +81,9 @@ func (k *classifier) badRules() {
 		if k.an.Cyclic[r.Name] {
 			k.runBad[r.Name] = true
 		}
-		astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
-			switch x := x.(type) {
-			case *ast.Stream:
+		walkNodes(k.ruleBody(r.Name), func(x core.Node) {
+			if blocksRun(x) {
 				k.runBad[r.Name] = true
-			case *ast.Attributed:
-				if blocksRunAttrs(x) {
-					k.runBad[r.Name] = true
-				}
 			}
 		})
 	}

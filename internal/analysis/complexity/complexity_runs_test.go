@@ -6,11 +6,10 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestRunSitesInClassification checks that the classifier's marking of run sites is off by default,
@@ -63,15 +62,15 @@ func TestRunSitesMatchClassifier(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}
-		// The run sites are those of the grammar, which the classifier reads through its view.
-		rules := k.rules
+		// The run sites are those of the grammar, which the classifier of a view asks the
+		// classifier of the grammar about (runSiteOf).
 		if k.base != nil {
-			rules = k.base
+			k = newClassifier(k.g, k.base, k.facts, k.start, k.control)
 		}
 		classifier := 0
-		for _, r := range rules {
-			astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
-				if rep, ok := x.(*ast.Repeat); ok && !isScan(rep) && k.runSite(rep) {
+		for _, r := range k.rules {
+			walkNodes(k.ruleBody(r.Name), func(x core.Node) {
+				if rep, ok := x.(*core.Repeat); ok && !isScan(rep) && k.runSiteOf(rep) {
 					classifier++
 				}
 			})
