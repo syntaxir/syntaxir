@@ -9,7 +9,7 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 func (p *Parser) confCtxEnter(r *Rule, min int) (CtxState, ctxHit) {
 	var r0 CtxState
 	var r1 ctxHit
-	if r.Cycle != 0 && len(p.Gamma) != 0 {
+	if r.Cycle != 0 && len(p.gamma) != 0 {
 		r1 = p.ctxEnter(&r0, r, min)
 	}
 	return r0, r1

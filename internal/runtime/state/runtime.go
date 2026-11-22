@@ -171,11 +171,11 @@ type Parser struct {
 	// (context_memo.go). It only increases, so a repetition run that it does not change read
 	// none (runClean).
 	SeedReads int
-	// seedReadLog lists, under RunOpenGrowthsOnly, the index in Gamma of the outermost growth that
+	// seedReadLog lists, under RunOpenGrowthsOnly, the index in gamma of the outermost growth that
 	// each read may concern (seedRead).
 	seedReadLog []int
-	// Gamma holds the growths in progress, innermost last; those at one position are consecutive.
-	Gamma []growRec
+	// gamma holds the growths in progress, innermost last; those at one position are consecutive.
+	gamma []growRec
 	// frames and deps record the dependencies of evaluations in a context, looks the sites of the
 	// lookaheads in progress (-1 for one that records nothing), obsGuard the observations being
 	// checked, ctxs the context tables of the positions where growths are in progress, seedSeq
@@ -308,7 +308,7 @@ type MemoEntry struct {
 	// recorded, so it is re-evaluated when referenced outside a lookahead.
 	silent        bool
 	missingSilent bool // insertion-disabled lookahead seed key
-	// Growing reports that this is a seed of a left recursion that grows (Parser.Gamma).
+	// Growing reports that this is a seed of a left recursion that grows (Parser.gamma).
 	Growing bool
 	// Present is the set of leaders (Rule.LeaderBit) that grew at the position when a result of a
 	// rule of a left-recursion cycle was evaluated without reading their seeds: the result is
@@ -530,9 +530,9 @@ func (p *Parser) entry(ctx bool) *MemoEntry {
 
 // GrowingSeed returns the seed of the growth of the leader of key at its position, if it grows.
 func (p *Parser) GrowingSeed(key MemoKey) (*MemoEntry, bool) {
-	for i := len(p.Gamma) - 1; i >= 0 && p.Gamma[i].key.Pos == key.Pos; i-- {
-		if k := &p.Gamma[i].key; k.Rule == key.Rule && k.Min == key.Min && k.MissingSilent == key.MissingSilent {
-			return p.Gamma[i].seed, true
+	for i := len(p.gamma) - 1; i >= 0 && p.gamma[i].key.Pos == key.Pos; i-- {
+		if k := &p.gamma[i].key; k.Rule == key.Rule && k.Min == key.Min && k.MissingSilent == key.MissingSilent {
+			return p.gamma[i].seed, true
 		}
 	}
 	return nil, false
@@ -540,10 +540,10 @@ func (p *Parser) GrowingSeed(key MemoKey) (*MemoEntry, bool) {
 
 // InnermostSeed returns the seed of the innermost growth in progress, or nil.
 func (p *Parser) InnermostSeed() *MemoEntry {
-	if len(p.Gamma) == 0 {
+	if len(p.gamma) == 0 {
 		return nil
 	}
-	return p.Gamma[len(p.Gamma)-1].seed
+	return p.gamma[len(p.gamma)-1].seed
 }
 
 // GrowState is the grow-the-seed state of a left-recursion leader.
@@ -553,8 +553,8 @@ type GrowState struct {
 	Rec     int
 	missing int
 	Best    *MemoEntry
-	gi      int // the index of the growth in Gamma
-	gp      int // the index in Gamma of the first growth of the leader's cycle at the position
+	gi      int // the index of the growth in gamma
+	gp      int // the index in gamma of the first growth of the leader's cycle at the position
 	// ctx reports a growth in a context, whose steps are memoized with the present set present.
 	ctx bool
 	// inCtx reports a growth that began where another growth was in progress at its position.
@@ -595,7 +595,7 @@ func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 	// One compute unit before each evaluation of the body, the seed's included; it is charged before
 	// the memo changes, so that a parse stopped by the budget publishes nothing.
 	p.Spend()
-	g := GrowState{Key: key, start: p.Pos, Rec: len(p.Recovered), missing: p.missingMark(), gi: len(p.Gamma)}
+	g := GrowState{Key: key, start: p.Pos, Rec: len(p.Recovered), missing: p.missingMark(), gi: len(p.gamma)}
 	gp := p.gammaAt(key.Pos, cycle)
 	g.gp = gp
 	g.inCtx = gp < g.gi
@@ -604,7 +604,7 @@ func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 	if p.Missing != nil {
 		p.RecordMissingSeed(g.Best, g.missing)
 	}
-	p.Gamma = append(p.Gamma, growRec{key: key, seed: g.Best, id: failSeed, bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(cycle)})
+	p.gamma = append(p.gamma, growRec{key: key, seed: g.Best, id: failSeed, bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(cycle)})
 	if gp < g.gi && !p.strictCtx() && !p.inserts(r) {
 		g.present = p.present(gp)
 		g.ctx = p.recordsIn(g.present)
@@ -626,7 +626,7 @@ func (p *Parser) growMemoStep(g *GrowState) ctxHit {
 	}
 	gp := g.gp
 	for {
-		id := p.Gamma[g.gi].id
+		id := p.gamma[g.gi].id
 		if j := p.findJump(g, gp, id); j != nil {
 			if p.tune.MemoMut != CtxNoJumpSeedRead {
 				p.seedRead(gp)
@@ -697,7 +697,7 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 		p.RecordMissingSeed(g.Best, g.missing)
 	}
 	p.seedSeq++
-	p.Gamma[g.gi].seed, p.Gamma[g.gi].id = g.Best, p.seedSeq+failSeed
+	p.gamma[g.gi].seed, p.gamma[g.gi].id = g.Best, p.seedSeq+failSeed
 	p.Pos = g.start
 }
 
@@ -706,7 +706,7 @@ func (p *Parser) growAdopt(g *GrowState, v *value.Node, errs RecEntry) {
 // table of the context and returns it. It does not change the recovered errors: the printed growth
 // lists the errors of the step with recSince and drops them after the step.
 func (p *Parser) growKeepStep(g *GrowState, v *value.Node, ok bool, errs RecEntry) ctxHit {
-	id := p.Gamma[g.gi].id
+	id := p.gamma[g.gi].id
 	_, ds := p.popFrame()
 	far, inner := p.Unisolate(g.exp)
 	exp := p.Keep(inner)
@@ -776,7 +776,7 @@ func (p *Parser) adoptGrownStep(g *GrowState, e *MemoEntry, id uint64, st runSte
 // setSeed makes e, with identity id, the seed of the growth.
 func (p *Parser) setSeed(g *GrowState, e *MemoEntry, id uint64) {
 	g.Best = e
-	p.Gamma[g.gi].seed, p.Gamma[g.gi].id = e, id
+	p.gamma[g.gi].seed, p.gamma[g.gi].id = e, id
 }
 
 // recordJumps records, for each seed of the run, a jump to the current seed with what the steps
@@ -789,7 +789,7 @@ func (p *Parser) recordJumps(g *GrowState) {
 	if t.jumps == nil {
 		t.jumps = map[jumpKey][]jumpRec{}
 	}
-	end, id := g.Best, p.Gamma[g.gi].id
+	end, id := g.Best, p.gamma[g.gi].id
 	acc := jumpRec{end: end, id: id, far: -1, examined: g.start, from: g.start}
 	for i := len(g.run) - 1; i >= 0; i-- {
 		s := &g.run[i]
@@ -914,8 +914,8 @@ func (p *Parser) GrowEnd(r *Rule, g *GrowState) (*value.Node, bool) {
 	}
 	p.recordJumps(g)
 	p.dropTable(g.gi)
-	p.Gamma = p.Gamma[:g.gi]
-	if len(p.Gamma) == 0 && len(p.interned) > 0 {
+	p.gamma = p.gamma[:g.gi]
+	if len(p.gamma) == 0 && len(p.interned) > 0 {
 		clear(p.interned)
 		p.internSeq = 0
 	}

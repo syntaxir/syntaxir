@@ -115,7 +115,7 @@ func (p *Parser) heldBytes() uint64 {
 	n += uint64(cap(p.KidStack))*ptrBytes + p.actionExprs.bytes()
 	n += uint64(cap(p.Trail))*uint64(unsafe.Sizeof(Undo{})) + uint64(cap(p.Recovered))*recEntryBytes
 	n += uint64(cap(p.Created))*ptrBytes + uint64(cap(p.Exp))*expIDBytes
-	n += uint64(cap(p.Gamma))*uint64(unsafe.Sizeof(growRec{})) + uint64(cap(p.seedReadLog))*intBytes
+	n += uint64(cap(p.gamma))*uint64(unsafe.Sizeof(growRec{})) + uint64(cap(p.seedReadLog))*intBytes
 	n += uint64(cap(p.frames))*uint64(unsafe.Sizeof(depFrame{})) + uint64(cap(p.deps))*uint64(unsafe.Sizeof(dep{}))
 	n += uint64(cap(p.looks))*uint64(unsafe.Sizeof(lookRec{})) + uint64(cap(p.obsGuard))*4
 	n += uint64(cap(p.keptSeedResults)) * uint64(unsafe.Sizeof(keptSeedResult{}))

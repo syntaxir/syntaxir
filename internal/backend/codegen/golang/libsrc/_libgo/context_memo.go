@@ -44,9 +44,6 @@ import (
 // The examined input of a result is the Document examined range [from, examined) (Parser.docLow,
 // Parser.docExamined); outside a Document parse it is not tracked and is 0.
 
-// failSeed is the identity of the failure that every growth starts from.
-const failSeed uint64 = 1
-
 // maxLeaderBits is the number of leaders of a cycle that have a bit in present sets. A context holds
 // leaders of one cycle only, so the bits are given for each cycle. The present set of a context
 // with any other leader is the identity that intern gives its words of bits, tagged presentWide.
@@ -56,12 +53,6 @@ const maxLeaderBits = 31
 // of bits equals. A memo entry holds a word of bits, so a result in such a context goes to the table
 // of the context even if it read no seed (ctxPop), and no entry answers a call there (memoAllows).
 const presentWide uint32 = 1 << 31
-
-// The kinds of keys that intern holds.
-const (
-	internPresent = iota
-	internOutcome
-)
 
 // ctxResult is a result that a context keeps: a seed, the result of a growth step, or the result of
 // a call that read a seed. It holds a node (Parser) or a typed value (TParser).
@@ -96,30 +87,6 @@ type growRec struct {
 	inl       ctxResult
 }
 
-// depKind is the kind of a dependency.
-type depKind uint8
-
-const (
-	depSeed   depKind = iota // read the seed of gamma[idx], with identity val
-	depObs                   // the lookahead site idx had the outcome val in the context of depth d
-	depShadow                // a seed read by a lookahead that an observation at depth d stands for
-)
-
-// dep is a dependency recorded in a frame.
-type dep struct {
-	kind depKind
-	idx  int32
-	d    int32
-	val  uint64
-}
-
-// depFrame records the dependencies of an evaluation at pos in the context gamma[:depth], whose
-// growths at pos are gamma[gp:depth]. Its dependencies are deps[base:] while it is the innermost
-// frame.
-type depFrame struct {
-	pos, gp, depth, base int
-}
-
 // sdep is a stored dependency: a seed (or shadow) by the leader's key, or an observation by site.
 type sdep struct {
 	kind depKind
@@ -129,79 +96,14 @@ type sdep struct {
 	val  uint64
 }
 
-// The kinds of memoized evaluations in a context table.
-const (
-	ctxCall = iota
-	ctxStep
-	ctxLook
-)
-
 type ctxHeadKey struct {
 	kind    uint8
 	id, min int32
 	present uint32
 }
 
-// ctxSet is the dependencies of one shape that results of a head have.
-type ctxSet struct {
-	seeds []growKey
-	obs   []int32
-	vals  map[valsKey]*ctxSlot
-	// wide holds the results of a set of more than maxCtxDeps dependencies.
-	wide map[wideKey]*ctxSlot
-}
-
 type growKey struct {
 	rule, min int32
-}
-
-// maxCtxDeps is the number of dependency values that a valsKey holds; a set with more dependencies
-// keys its results by a wideKey.
-const maxCtxDeps = 6
-
-// valsKey is the values of the dependencies of a result, in the order of its set.
-type valsKey struct {
-	n uint8
-	v [maxCtxDeps]uint64
-}
-
-// wideKey is the values of the dependencies of a result of a set of more than maxCtxDeps: the first
-// maxCtxDeps in k and the others in rest, eight little-endian bytes each.
-type wideKey struct {
-	k    valsKey
-	rest string
-}
-
-// add appends the value v of the next dependency to the key k, or to rest once k is full.
-func (k *valsKey) add(v uint64, rest []byte) []byte {
-	if k.n < maxCtxDeps {
-		k.v[k.n] = v
-		k.n++
-		return rest
-	}
-	return binary.LittleEndian.AppendUint64(rest, v)
-}
-
-// first returns the first result of the set with the dependency values k and rest.
-func (s *ctxSet) first(k valsKey, rest []byte) *ctxSlot {
-	if len(rest) == 0 {
-		return s.vals[k]
-	}
-	return s.wide[wideKey{k, string(rest)}]
-}
-
-// setFirst makes x the first result of the set with the dependency values k and rest, and returns
-// the bytes that a key of rest takes beyond the valsKey that ctxSlotBytes counts.
-func (s *ctxSet) setFirst(k valsKey, rest []byte, x *ctxSlot) uint64 {
-	if len(rest) == 0 {
-		s.vals[k] = x
-		return 0
-	}
-	if s.wide == nil {
-		s.wide = map[wideKey]*ctxSlot{}
-	}
-	s.wide[wideKey{k, string(rest)}] = x
-	return wideKeyBytes + uint64(len(rest))
 }
 
 // ctxSlot is a result in a context table: the result, and for a growth step the identity of its
@@ -244,20 +146,6 @@ type canonKey struct {
 type canonRec struct {
 	e  *ctxResult
 	id uint64
-}
-
-// ctxTable is the table of the growths of one cycle at a position: what the calls and growth
-// steps there memoized while such a growth is in progress. It is dropped when the first of those
-// growths ends.
-type ctxTable struct {
-	pos   int
-	depth int // the index in gamma of the first of the growths
-	heads map[ctxHeadKey]*[]*ctxSet
-	jumps map[jumpKey][]jumpRec
-	canon map[canonKey]canonRec
-	// bytes counts the storage the table has taken, for the memory limit (heldBytes). It goes with
-	// the table when the table is dropped.
-	bytes uint64
 }
 
 // lookRec is a lookahead in progress: its site (-1 for one that records nothing) and the Document
@@ -496,56 +384,6 @@ func (p *Parser) pushFrame(pos, gp int) {
 	p.frames = append(p.frames, depFrame{pos: pos, gp: gp, depth: len(p.gamma), base: len(p.deps)})
 }
 
-// popFrame ends the innermost frame and returns its dependencies, valid until the next push.
-func (p *Parser) popFrame() (depFrame, []dep) {
-	f := p.frames[len(p.frames)-1]
-	p.frames = p.frames[:len(p.frames)-1]
-	ds := p.deps[f.base:]
-	p.deps = p.deps[:f.base]
-	return f, ds
-}
-
-// addDep adds d to the innermost frame unless it holds it already.
-func (p *Parser) addDep(d dep) {
-	f := &p.frames[len(p.frames)-1]
-	for i := f.base; i < len(p.deps); i++ {
-		x := &p.deps[i]
-		if x.kind == d.kind && x.idx == d.idx && (d.kind != depObs || x.d == d.d) {
-			return
-		}
-	}
-	p.Spend()
-	p.deps = append(p.deps, d)
-}
-
-// mergeDeps passes the dependencies of a finished evaluation to the innermost frame: the seeds of
-// its context, and the observations made in the same context. A shadow becomes a seed read when
-// the frame cannot check the observation it belongs to.
-func (p *Parser) mergeDeps(ds []dep) {
-	if len(p.frames) == 0 {
-		return
-	}
-	depth := int32(p.frames[len(p.frames)-1].depth)
-	for _, d := range ds {
-		switch d.kind {
-		case depSeed:
-			if d.idx < depth {
-				p.addDep(d)
-			}
-		case depObs:
-			if d.d == depth {
-				p.addDep(d)
-			}
-		case depShadow:
-			if d.d == depth {
-				p.addDep(d)
-			} else if d.idx < depth {
-				p.addDep(dep{kind: depSeed, idx: d.idx, val: d.val})
-			}
-		}
-	}
-}
-
 // noteSeedRead records that the evaluation read the seed of gamma[i].
 func (p *Parser) noteSeedRead(i int) {
 	p.seedRead()
@@ -633,19 +471,6 @@ func (p *Parser) replayObs(buf []dep, pos, gp int, present uint32, site, depth i
 	return buf
 }
 
-// table returns the table of the growths gamma[gp:] at pos, creating it if create is set, or nil.
-func (p *Parser) table(pos, gp int, create bool) *ctxTable {
-	if n := len(p.ctxs); n > 0 && p.ctxs[n-1].pos == pos && p.ctxs[n-1].depth == gp {
-		return p.ctxs[n-1]
-	}
-	if !create {
-		return nil
-	}
-	t := &ctxTable{pos: pos, depth: gp, heads: map[ctxHeadKey]*[]*ctxSet{}, bytes: ctxTableBytes}
-	p.ctxs = append(p.ctxs, t)
-	return t
-}
-
 // dropTable drops the table of the growth at gamma[i] if that growth is the first of its context.
 func (p *Parser) dropTable(i int) {
 	if n := len(p.ctxs); n > 0 && p.ctxs[n-1].pos == p.gamma[i].pos && p.ctxs[n-1].depth == i {
@@ -721,13 +546,6 @@ func (p *Parser) obsFree(pos, gp int, present uint32, site int32, g growKey) (ui
 		}
 	}
 	return s.id, true
-}
-
-// ctxFind looks up a result of head h in the table of the growths gamma[gp:] at pos for the current
-// context.
-func (p *Parser) ctxFind(pos, gp int, h ctxHeadKey, env []any) *ctxSlot {
-	s, _ := p.ctxFindSet(pos, gp, h, env)
-	return s
 }
 
 // ctxFindSet is ctxFind that also returns the set of the result, which lists what it depends on.
@@ -837,39 +655,6 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 	if added := set.setFirst(k, rest, slot); link == nil {
 		t.bytes += added
 	}
-}
-
-func equalGrowKeys(a, b []growKey) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-func equalSites(a, b []int32) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if a[i] != b[i] {
-			return false
-		}
-	}
-	return true
-}
-
-// reusable reports whether a memoized result evaluated inside a lookahead (silent) can be used by
-// a call in the current kind of context, as for memo entries: a result computed outside a
-// lookahead answers every call, and one computed inside a lookahead, which recorded no
-// expectations, only calls inside one. The errors that a result recovered differ between the two
-// kinds of context only in messages and positions, and a lookahead discards them at its end.
-func (p *Parser) reusable(silent bool) bool {
-	return !silent || p.Silent > 0
 }
 
 // LookBegin starts a lookahead of the given site. In a context at the current position, the

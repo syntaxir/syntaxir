@@ -54,7 +54,7 @@ func TestObsOutcomeWideControl(t *testing.T) {
 // examined [from, examined), and reports whether its outcome is then found in the context.
 func lookaheadStoredAt(p *Parser, pos, examined, from int) bool {
 	p.Pos = pos
-	p.Gamma = []growRec{
+	p.gamma = []growRec{
 		{key: MemoKey{Rule: 1, Pos: pos}, id: failSeed, bit: 1, cycle: 1},
 		{key: MemoKey{Rule: 2, Pos: pos}, id: failSeed + 1, bit: 2, cycle: 1},
 	}

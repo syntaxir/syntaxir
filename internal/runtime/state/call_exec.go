@@ -152,7 +152,7 @@ func (p *Parser) CallBegin(r *Rule, min int, st *CallState) (*sxirvalue.Node, bo
 	}
 	var c CtxState
 	var seed ctxHit
-	if r.Cycle != 0 && len(p.Gamma) != 0 {
+	if r.Cycle != 0 && len(p.gamma) != 0 {
 		seed = p.ctxEnter(&c, r, min)
 	}
 	if seed.e != nil {

@@ -74,7 +74,7 @@ func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 // growEnd runs grow.end. The printed engine call names the rule of the enclosing composition, which the
 // operation does not take, so the suite finds the rule of the growth.
 func (m *ctxMachine) growEnd(g GrowState) (ctxHit, GrowState) {
-	r := m.ctxRules[m.p.Gamma[g.gi].key.Rule]
+	r := m.ctxRules[m.p.gamma[g.gi].key.Rule]
 	return m.p.growEnd(r, &g), g
 }
 
@@ -139,18 +139,18 @@ func (m *ctxMachine) testOp(name string, args []any) {
 	switch name {
 	case ref.CtxGrowOp:
 		r := args[0].(*Rule)
-		p.Gamma = append(p.Gamma, growRec{key: MemoKey{Rule: r.ID, Pos: p.Pos, Min: int(args[1].(int64))},
+		p.gamma = append(p.gamma, growRec{key: MemoKey{Rule: r.ID, Pos: p.Pos, Min: int(args[1].(int64))},
 			seed: seed(args[2].(bool), args[3].(int64)), id: uint64(args[4].(int64)), bit: r.LeaderBit, idx: int32(r.LeaderIndex), cycle: int32(r.Cycle)})
 	case ref.CtxReseedOp:
-		g := &p.Gamma[len(p.Gamma)-1]
+		g := &p.gamma[len(p.gamma)-1]
 		pos := p.Pos
 		p.Pos = g.key.Pos
 		g.seed, g.id = seed(args[0].(bool), args[1].(int64)), uint64(args[2].(int64))
 		p.Pos = pos
 	case ref.CtxUngrowOp:
-		p.dropTable(len(p.Gamma) - 1)
-		p.Gamma = p.Gamma[:len(p.Gamma)-1]
-		if len(p.Gamma) == 0 {
+		p.dropTable(len(p.gamma) - 1)
+		p.gamma = p.gamma[:len(p.gamma)-1]
+		if len(p.gamma) == 0 {
 			clear(p.interned) // as GrowEnd does
 			p.internSeq = 0
 		}

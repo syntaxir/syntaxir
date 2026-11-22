@@ -89,7 +89,7 @@ func (p *Parser) RunInit(r *RunState, site, min, max int, shiftable bool) {
 	const maxInt = int(^uint(0) >> 1)
 	*r = RunState{Key: RunKey{site, p.Pos}, Min: min, Max: max, Shiftable: shiftable, J: -1,
 		EditStart: maxInt, EditEnd: maxInt, rec0: len(p.Recovered), seedReads0: p.SeedReads,
-		gamma0: len(p.Gamma), log0: len(p.seedReadLog), Mid: r.Mid[:0], Post: r.Post[:0]}
+		gamma0: len(p.gamma), log0: len(p.seedReadLog), Mid: r.Mid[:0], Post: r.Post[:0]}
 }
 
 // runTakeHere is run.takeHere.

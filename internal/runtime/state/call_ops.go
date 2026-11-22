@@ -121,7 +121,7 @@ type CallState struct {
 
 // CtxState is the context state of a memoized call (see context_memo.go).
 type CtxState struct {
-	// gp is the index in Gamma of the first growth of the rule's cycle at the position. ctx reports
+	// gp is the index in gamma of the first growth of the rule's cycle at the position. ctx reports
 	// a call in a context, with the present set present; framed reports that the call records its
 	// dependencies.
 	gp      int
@@ -154,14 +154,14 @@ type ctxHit struct {
 func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) ctxHit {
 	gp := p.gammaAt(p.Pos, r.Cycle)
 	c.gp = gp
-	if gp == len(p.Gamma) {
+	if gp == len(p.gamma) {
 		return ctxHit{}
 	}
 	if r.Leader {
 		// A leader that grows here reads its seed, whatever its variable values.
 		if i := p.gammaFind(gp, r.ID, min, p.Missing != nil && r.Missing && p.Silent > 0); i >= 0 {
 			p.noteSeedRead(i)
-			return ctxHit{e: p.Gamma[i].seed}
+			return ctxHit{e: p.gamma[i].seed}
 		}
 	}
 	c.ctx = true
