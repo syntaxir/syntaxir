@@ -2,6 +2,7 @@ package print_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -239,11 +240,12 @@ func profilesAgree(a, b instrument.ProfileSnapshot, aside setAside) string {
 // JSON report with the events and the profile (without times) of an observed parse, and its error. The
 // document entry parses a new Document of the input, observed; the edit entry parses it, replaces the
 // character in its middle with itself and parses it again, observed. Both report the Document's
-// statistics of the observed parse.
+// statistics of the observed parse if it completed (keepStats).
 const agreeProbeMain = `package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -265,11 +267,19 @@ var entries = [][]entry{
 ENTRIES}
 
 // docStats holds the evaluations and reuses of the last parse of the Document of a document or edit
-// entry, which sets it after the parse it observes.
+// entry, which sets it after the parse it observes if that parse completed.
 var docStats *[2]int
 
-// keepStats keeps the statistics s of a Document's parse in docStats.
-func keepStats(s sxirruntime.ParseStats) { docStats = &[2]int{s.Evaluated, s.Reused} }
+// keepStats keeps the statistics s of a Document's parse in docStats if the parse, which returned err,
+// completed: it succeeded or ended with syntax errors. A parse that an action, a limit or another fatal
+// error aborted may leave statistics of calls that did not complete.
+func keepStats(s sxirruntime.ParseStats, err error) {
+	var one *sxirvalue.SyntaxError
+	var all sxirvalue.SyntaxErrors
+	if err == nil || errors.As(err, &one) || errors.As(err, &all) {
+		docStats = &[2]int{s.Evaluated, s.Reused}
+	}
+}
 
 type oneByte struct{ s string }
 
@@ -360,7 +370,8 @@ func main() {
 // agreeReport is one report of the consumer: the events and the profile of the parse, those of the
 // second trace function and profile given to it (Second, Profile2), and those of the same parse with the
 // trace filter Filter and the depth limit agreeMaxDepth (Filtered, FilteredProfile). Stats are the
-// evaluations and reuses that the Document of a document or edit entry reports for the observed parse.
+// evaluations and reuses that the Document of a document or edit entry reports for the observed parse,
+// if it completed.
 type agreeReport struct {
 	Case, Input     int
 	Bytes           bool
@@ -377,8 +388,9 @@ type agreeReport struct {
 }
 
 // statsCounted reports how the Document statistics of the observed parse of r differ from its profile:
-// the specification requires the parse's increases in profile Evals and MemoHits to equal the
-// Document's Evaluated and Reused. An entry whose Document or edit failed before the parse has none.
+// the specification requires a completed parse's increases in profile Evals and MemoHits to equal the
+// Document's Evaluated and Reused. An entry whose Document or edit failed before the parse, or whose
+// parse did not complete, has none.
 func statsCounted(producer string, r agreeReport) string {
 	if r.Entry != "document" && r.Entry != "edit" {
 		return ""
@@ -442,7 +454,7 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 				return err
 			}
 			_, err = d.Parse(o...)
-			keepStats(d.Stats())
+			keepStats(d.Stats(), err)
 			return err
 		}},
 		{"edit", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error {
@@ -456,7 +468,7 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 				return err
 			}
 			_, err = d.Parse(o...)
-			keepStats(d.Stats())
+			keepStats(d.Stats(), err)
 			return err
 		}},
 `, i)
@@ -510,10 +522,19 @@ func middleChar(in string, unit input.PositionUnit) (int, int, string) {
 	return k, k + 1, string(r[k])
 }
 
+// completedParse reports whether a parse that returned err completed: it succeeded or ended with syntax
+// errors. A parse that an action, a limit or another fatal error aborted did not, and the specification
+// lets its statistics count calls that began but did not complete.
+func completedParse(err error) bool {
+	var one *value.SyntaxError
+	var all value.SyntaxErrors
+	return err == nil || errors.As(err, &one) || errors.As(err, &all)
+}
+
 // engineObservation runs the parse of the report r on the engine with the backend b, the trace filter
 // rules and the depth limit maxDepth, and returns its events, its profile and its error. It fails t if
-// the parse of a Document reports statistics that differ from its profile, as statsCounted checks those
-// of generated parsers, with the elements of resumed repetitions apart.
+// the completed parse of a Document reports statistics that differ from its profile, as statsCounted
+// checks those of generated parsers.
 func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in string, b engine.Backend, rules []string, maxDepth int) ([]instrument.TraceEvent, instrument.ProfileSnapshot, error) {
 	t.Helper()
 	var events []instrument.TraceEvent
@@ -549,7 +570,7 @@ func engineObservation(t *testing.T, prog *engine.Program, r agreeReport, in str
 		_, err = d.ParseWith(traced)
 		// The engine also resumes repetitions: Reused counts their elements too (ResumedElements).
 		s := d.Stats()
-		if p := prof.Snapshot(); s.Evaluated != p.Evals || s.MemoHits != p.MemoHits || s.ResumedElements != p.ReusedElements {
+		if p := prof.Snapshot(); completedParse(err) && (s.Evaluated != p.Evals || s.MemoHits != p.MemoHits || s.ResumedElements != p.ReusedElements) {
 			t.Errorf("%q bytes=%v %s %v: engine Document evaluated %d, hit the memo %d times and resumed %d elements, its profile has %d evals, %d memo hits and %d reused elements",
 				in, r.Bytes, r.Entry, b, s.Evaluated, s.MemoHits, s.ResumedElements, p.Evals, p.MemoHits, p.ReusedElements)
 		}

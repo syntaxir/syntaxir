@@ -45,12 +45,18 @@ const untimed = (profile) => {
   return s;
 };
 const message = (err) => err === null ? "<nil>" : String(err.message);
-// stats holds the evaluations and reuses of the last parse of the Document of a document or edit entry,
-// which sets it after the parse it observes.
+// stats holds the evaluations and reuses of the last parse of the Document of a document or edit
+// entry, which sets it after the parse it observes if that parse completed: it succeeded or ended with
+// syntax errors. A parse that an action, a limit or another fatal error aborted may leave statistics of
+// calls that did not complete.
 let stats = null;
-const keepStats = (document) => { const s = document.stats(); stats = [s.evaluated, s.reused]; };
 for (let i = 0; i < inputs.length; i++) {
   const m = await import("./g" + i + ".ts");
+  const keepStats = (document, err) => {
+    if (err !== null && !(err instanceof m.SyntaxError) && !(err instanceof m.SyntaxErrors)) return;
+    const s = document.stats();
+    stats = [s.evaluated, s.reused];
+  };
   const entries = [
     ["parse", (x, defaults, call) => m.parseWithOptions(x, { ...defaults, ...call }).error, true],
     ["recognize", (x, defaults, call) => m.recognizeWithOptions(x, { ...defaults, ...call }), true],
@@ -60,7 +66,7 @@ for (let i = 0; i < inputs.length; i++) {
       const { document, error } = m.createDocument(x, defaults);
       if (error !== null) return error;
       const err = document.parse(call).error;
-      keepStats(document);
+      keepStats(document, err);
       return err;
     }, false]);
     entries.push(["edit", (x, defaults, call, edit) => {
@@ -72,7 +78,7 @@ for (let i = 0; i < inputs.length; i++) {
       const err = document.edit(start, end, edit.ch);
       if (err !== null) return err;
       const parseErr = document.parse({ ...options, ...call }).error;
-      keepStats(document);
+      keepStats(document, parseErr);
       return parseErr;
     }, true]);
   }
