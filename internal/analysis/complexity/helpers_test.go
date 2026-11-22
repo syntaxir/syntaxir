@@ -8,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -27,30 +26,6 @@ func skipOf(e ast.Expr) ast.Expr {
 		return astfacts.RecoverSkip(e)
 	}
 	return nil
-}
-
-// writtenOf returns the rules of the view that k reads written as grammar rules, with the node
-// that each of their expressions stands for and the expression of each node (View.written).
-func writtenOf(t testing.TB, k *classifier) *writtenView {
-	t.Helper()
-	rules := make([]*ast.RuleDef, len(k.rules))
-	for i, r := range k.rules {
-		rules[i] = &ast.RuleDef{Name: r.Name}
-	}
-	w, err := k.view.written(rules)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return w
-}
-
-// show describes the expression e of the written view for a message, as the source text that it
-// stands for.
-func (w *writtenView) show(e ast.Expr) string {
-	if t, ok := w.text[e]; ok {
-		return abbreviate(t)
-	}
-	return abbreviate(syntaxfmt.FormatExpr(e))
 }
 
 // firstNode returns the first node of type T in a preorder walk of n (core.Walk), or nil.
