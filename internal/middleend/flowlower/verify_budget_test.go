@@ -1,6 +1,7 @@
 package flowlower
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -12,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // stripSteps removes the calls of step from b, at any depth.
@@ -149,12 +151,15 @@ func TestVerifyBudgetCharges(t *testing.T) {
 
 // leanClasses returns a value-free rule whose first alternative begins with two classes and is guarded
 // by the first, the forms that the class passes rewrite.
-func leanClasses() (*core.Module, *core.Rule) {
+func leanClasses(t *testing.T) (*core.Module, *core.Rule) {
+	t.Helper()
 	class := func(lo, hi rune) *core.ClassNode {
 		return &core.ClassNode{Class: &core.Class{Ranges: []core.Range{{Lo: lo, Hi: hi}}}}
 	}
 	m, r := valueFree(alts(&core.Seq{Items: []core.Node{class('a', 'z'), class('0', '9')}}, &core.Lit{Text: "q"}))
-	corepass.Guards(m)
+	if _, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(corepass.GuardsPass), m); err != nil {
+		t.Fatal(err)
+	}
 	return m, r
 }
 
@@ -170,20 +175,19 @@ func leanFinish(t *testing.T, f *code.Module) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	flowpass.Finish(f)
-	return dump(f)
+	return dump(finishFlow(t, f))
 }
 
 // TestLeanClassesSkipBudget checks that the class passes, which charge no spend for the input, leave a
 // function with budget controls as the lowering wrote it, and rewrite the same function without them.
 func TestLeanClassesSkipBudget(t *testing.T) {
 	for _, budget := range []bool{true, false} {
-		m, r := leanClasses()
+		m, r := leanClasses(t)
 		plain, err := lowerFinished(t, m, r, lowerdata.Options{Budget: budget}, 0)
 		if err != nil {
 			t.Fatal(err)
 		}
-		m, r = leanClasses()
+		m, r = leanClasses(t)
 		f, err := Lower(m, r, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)
@@ -198,13 +202,13 @@ func TestLeanClassesSkipBudget(t *testing.T) {
 // TestLeanClassesSkipBudgetFrame is the same check for the framed lowering.
 func TestLeanClassesSkipBudgetFrame(t *testing.T) {
 	for _, budget := range []bool{true, false} {
-		m, r := leanClasses()
+		m, r := leanClasses(t)
 		plain, err := LowerFrame(m, r, r.Body, nil, false, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)
 		}
 		finish(t, plain, flowpass.Target{}, 0)
-		m, r = leanClasses()
+		m, r = leanClasses(t)
 		f, err := LowerFrame(m, r, r.Body, nil, false, "r", lowerdata.Options{Budget: budget})
 		if err != nil {
 			t.Fatal(err)

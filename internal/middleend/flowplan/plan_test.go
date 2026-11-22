@@ -248,10 +248,12 @@ func TestRefusedBeforeTheForms(t *testing.T) {
 				if s.Form != lowerdata.Flat {
 					continue
 				}
-				fn := lowerFlow(t, m, s, opts)
+				fm := lowerFlowModule(t, m, s, opts)
+				fn := flow.FuncOf(fm)
 				before, vars := flowplan.Refused(fn), len(flow.AttrsOf(fn).Vars)
-				fm := &code.Module{Funcs: []*code.Func{fn}}
-				flowpass.Finish(fm)
+				if _, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(flowpass.Finishing), code.At[code.Flow]{}.With(fm)); err != nil {
+					t.Fatal(err)
+				}
 				if after := flowplan.Refused(fn); after != before {
 					t.Errorf("%s %s: refused %v as lowered, %v when finished", file, s.Name, before, after)
 				}
@@ -272,6 +274,12 @@ func TestRefusedBeforeTheForms(t *testing.T) {
 // table does, and returns it.
 func lowerFlow(t *testing.T, m *core.Module, s *plandata.FuncSpec, opts lowerdata.Options) *code.Func {
 	t.Helper()
+	return flow.FuncOf(lowerFlowModule(t, m, s, opts))
+}
+
+// lowerFlowModule is lowerFlow returning the module of the function, at the Flow stage.
+func lowerFlowModule(t *testing.T, m *core.Module, s *plandata.FuncSpec, opts lowerdata.Options) *code.Module {
+	t.Helper()
 	f, err := flowlower.LowerUnit(lowerdata.Unit{Module: m, Opts: opts, Funcs: []lowerdata.Func{s.Func}})
 	if err == nil {
 		err = flowlower.Verify(f)
@@ -279,7 +287,7 @@ func lowerFlow(t *testing.T, m *core.Module, s *plandata.FuncSpec, opts lowerdat
 	if err != nil {
 		t.Fatal(err)
 	}
-	return flow.FuncOf(f)
+	return f
 }
 
 // TestPlanDecidesBeforeThePasses checks that the plan decides on its flat functions while the table is
@@ -498,7 +506,7 @@ func TestLowerTableOutlines(t *testing.T) {
 			ir.Opts.Outline = func(n core.Node) bool { return under[n] }
 		}
 		p := flowplan.Plan(ir, planRules(rules), nil)
-		tbl, err := flowlower.LowerTable(flowplan.Unit(p, ir, nil))
+		tbl, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(flowlower.Lowering), flowplan.Unit(p, ir, nil))
 		if err != nil {
 			t.Fatal(err)
 		}

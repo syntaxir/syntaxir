@@ -186,7 +186,7 @@ func PrimOp(o *code.Op) (*code.Op, error) {
 }
 
 // attrs returns the Exec-stage attributes of the function f at the Flow stage: every Flow attribute
-// but the record of the forms, which the end of the Flow passes (flowpass.Finish) consumes, so a
+// but the record of the forms, which the end of the Flow passes (flowpass.Finishing) consumes, so a
 // function that still has forms is an error. A function without Flow attributes has none.
 func attrs(f *code.Func) (*prim.Attrs, error) {
 	if f.Attrs == nil {

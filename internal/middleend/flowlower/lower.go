@@ -1895,7 +1895,7 @@ func (l *lowerer) openForm(kind flow.FormKind, n core.Node, build bool, fail str
 		l.forms.Regions = append(l.forms.Regions, form)
 	}
 	// The block has a label of its own, as every Flow block does; nothing exits to it, and
-	// flowpass.Finish splices it away.
+	// flowpass.Finishing splices it away.
 	form.Block = &code.Block{Label: fmt.Sprintf("form%d", l.formN+1)}
 	l.formN++
 	l.emit(form.Block)

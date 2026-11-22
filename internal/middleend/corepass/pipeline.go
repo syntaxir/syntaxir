@@ -45,7 +45,7 @@ var GuardsPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 		// first-character guard and the Flow form calls the rules of the later alternatives at every
 		// position (duckdb: block_comment, 84,000 calls against none); the verifier rejects a module
 		// whose First sets are missing or stale.
-		c.Count(CounterGuarded, Guards(m))
+		c.Count(CounterGuarded, setGuards(m))
 		return m, pass.PreserveNone(), nil
 	},
 })
@@ -61,7 +61,7 @@ var ScansPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 		// A Stream is replaced as its repetition only where it delivers no elements (Eff). A Scan
 		// takes the attributes of the repetition it replaces, which are those that core.Analyze
 		// computes for it, so the attributes stay current.
-		Scans(m)
+		introduceScans(m)
 		return m, pass.PreserveNone(), nil
 	},
 })

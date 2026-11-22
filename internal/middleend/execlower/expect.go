@@ -58,7 +58,7 @@ func NumberedExpectations(p *plandata.Program, tables []*plandata.Table[code.Exe
 // merged returns the functions of the parts, whose plans hold disjoint parts of the functions of the
 // plan full, in the order in which a table lowered from full holds them: the functions of the plan in
 // its order (a refused flat function at the place of the flat function), then the outlined functions
-// in the order in which the lowering adds them (flowlower.LowerTable): the nodes that each function
+// in the order in which the lowering adds them (flowlower.Lowering): the nodes that each function
 // calls, in the order of the functions, a node lowered once for its first caller.
 func merged(full *plandata.Plan, parts []*plandata.Table[code.Exec]) ([]*code.Func, error) {
 	if len(parts) == 1 {

@@ -15,7 +15,7 @@ import (
 // TestNumberedExpectationsMergeTheParts checks that the expectation table numbered from the parts of
 // a table, a printed part and an unreachable part that hold disjoint functions of its full plan, is the
 // table numbered from the table lowered from the full plan: the functions of the plan in its order,
-// then the outlined functions in the order in which the lowering adds them (flowlower.LowerTable),
+// then the outlined functions in the order in which the lowering adds them (flowlower.Lowering),
 // each node once, for its first caller. Each function records an expectation of its own, so the table
 // shows the order of the functions. The rules are A, B, C and D, of which the printed part holds A
 // and C. A outlines the node n1; B outlines n2 and n5, and n2 outlines n3; C outlines n5, which B

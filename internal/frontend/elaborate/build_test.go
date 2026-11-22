@@ -1,6 +1,7 @@
 package elaborate_test
 
 import (
+	"context"
 	"fmt"
 	"maps"
 	"slices"
@@ -13,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -222,7 +224,9 @@ rule inner = [a-z]* #stream
 		core.Walk(r.Body, func(n core.Node) { n.Attrs().Want = false })
 	}
 	core.Analyze(m)
-	corepass.Scans(m)
+	if m, err = pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(corepass.ScansPass), m); err != nil {
+		t.Fatal(err)
+	}
 	s, ok := m.Rules[1].Body.(*core.Scan)
 	if !ok {
 		t.Fatalf("inner after scans: %T, want *core.Scan", m.Rules[1].Body)

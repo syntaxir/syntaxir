@@ -51,6 +51,7 @@ var pathAllowlist = []string{
 	// Packages of the synthetic import graphs of the negative controls.
 	"internal/testing/archtest/archtest_test.go: internal/fakeaction",
 	"internal/testing/archtest/archtest_test.go: internal/fakevm",
+	"internal/testing/archtest/pipeline_test.go: internal/lower",
 	"internal/testing/archtest/archtest_test.go: internal/unplaced",
 	// Packages of the synthetic module of the architecture table's negative control.
 	"internal/testing/archtest/architecture_table_test.go: internal/a",

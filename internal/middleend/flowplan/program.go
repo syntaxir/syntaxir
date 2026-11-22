@@ -13,7 +13,7 @@ import (
 // PlanName is the name of the step that plans a program (Planning).
 const PlanName = "plan"
 
-// Planning is the step that plans a program from the Core IR of its tables (PlanProgram), with the
+// Planning is the step that plans a program from the Core IR of its tables (planProgram), with the
 // reach that the compilation gives, if any (plandata.ReachFeature). Its facts are those of the whole
 // program, which no table decides alone: a call in one table's rule reaches rules that only the
 // program's entry points make reachable.
@@ -26,14 +26,14 @@ var Planning = pipe.New(pipe.Def[*plandata.Cores, *plandata.Program]{
 		if err := plandata.CoresIR.Verify(c); err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		return PlanProgram(c, pipe.Feature(x, plandata.ReachFeature)), pass.PreserveNone(), nil
+		return planProgram(c, pipe.Feature(x, plandata.ReachFeature)), pass.PreserveNone(), nil
 	},
 })
 
-// PlanProgram plans the program c: the route of a call of each rule (CallsWrapper), the rules that
+// planProgram plans the program c: the route of a call of each rule (CallsWrapper), the rules that
 // the entry points of c reach through those routes (Reach), or reach if it is not nil, and the tables
 // of its units (planUnits).
-func PlanProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Program {
+func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Program {
 	// An entry point that the program enters in several ways (a typed start rule that several entry
 	// points run) is one root of the plan.
 	p := &plandata.Program{Cores: c}

@@ -609,7 +609,7 @@ type Attrs struct {
 	// verifier takes the entry as its first charge; TestGeneratedRuleEntryCharge checks the methods of
 	// the checked-in parsers.
 	Entered bool
-	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finish
+	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finishing
 	// removes them.
 	Forms *Forms
 }

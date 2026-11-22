@@ -124,13 +124,13 @@ func terminalRegions(n core.Node, build bool, out map[core.Node]bool) {
 	}
 }
 
-// Guards sets the guard of every alternative of a choice that has a first terminal (Attrs.First)
+// setGuards sets the guard of every alternative of a choice that has a first terminal (Attrs.First)
 // to it: the alternative is skipped when the next character cannot start it. An alternative with a
 // guard that is a class, or a sequence whose first item is one, is marked GuardedClass: the guard's
 // test of the class is the class's own, so a target may let the class only consume the character the
-// guard read (the Flow pass guarded-classes). Precondition: the attributes are current. Guards adds
+// guard read (the Flow pass guarded-classes). Precondition: the attributes are current. setGuards adds
 // and replaces no node, so they stay current. It returns the number of alternatives that got a guard.
-func Guards(m *core.Module) int {
+func setGuards(m *core.Module) int {
 	n := 0
 	for _, r := range m.Rules {
 		m.Control.Poll()
@@ -173,14 +173,14 @@ func leadingClassNode(n core.Node) *core.ClassNode {
 	return c
 }
 
-// Scans replaces every value-free repetition of a class or of any character by a Scan, except a
-// skip-run site, which records its walks as any repetition does. A Stream that delivers no elements
-// (no EffCommit: its rule is not a start rule) is only its repetition, so it is replaced as that
-// repetition is; a Stream that may deliver elements keeps its repetition. A Scan of a scan site keeps
-// its number. Precondition: the attributes are current. A Scan takes the attributes of the
-// repetition it replaces, which are those that core.Analyze computes for the Scan, so they stay
+// introduceScans replaces every value-free repetition of a class or of any character by a Scan,
+// except a skip-run site, which records its walks as any repetition does. A Stream that delivers no
+// elements (no EffCommit: its rule is not a start rule) is only its repetition, so it is replaced
+// as that repetition is; a Stream that may deliver elements keeps its repetition. A Scan of a scan
+// site keeps its number. Precondition: the attributes are current. A Scan takes the attributes of
+// the repetition it replaces, which are those that core.Analyze computes for the Scan, so they stay
 // current.
-func Scans(m *core.Module) {
+func introduceScans(m *core.Module) {
 	for _, r := range m.Rules {
 		m.Control.Poll()
 		if r == nil {

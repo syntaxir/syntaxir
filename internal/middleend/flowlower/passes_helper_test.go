@@ -1,6 +1,7 @@
 package flowlower
 
 import (
+	"context"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -8,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // finish runs on the lowered module f the Flow passes of the target, with inline as the number of
@@ -19,8 +21,18 @@ func finish(t *testing.T, f *code.Module, target flowpass.Target, inline int) *c
 	if err != nil {
 		t.Fatal(err)
 	}
-	flowpass.Finish(f)
-	return f
+	return finishFlow(t, f)
+}
+
+// finishFlow ends the Flow passes on the module f with the step that ends them in the pipeline
+// (flowpass.Finishing), and returns the module.
+func finishFlow(t *testing.T, f *code.Module) *code.Module {
+	t.Helper()
+	u, err := pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(flowpass.Finishing), code.At[code.Flow]{}.With(f))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return u.Module()
 }
 
 // lowerFinished lowers the rule r of m and ends the passes, with the in-place literals of at most

@@ -17,12 +17,13 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// The guards of the Core IR (corepass.Guards) skip an alternative of a choice when the next character
-// cannot begin it, and every parser printed from Flow IR relies on that. The decision goldens freeze
-// what the guards are; they do not say that a guard is sound. This test does, with the engine as the
-// oracle: a guard is sound if the engine never matches its alternative at a position where the guard
-// rejects the character there. It is a property of the grammar, so it holds for every input; the test
-// checks it on the positions of the inputs of the corpus and of the checked-in grammars.
+// The guards of the Core IR (corepass.GuardsPass) skip an alternative of a choice when the next
+// character cannot begin it, and every parser printed from Flow IR relies on that. The decision
+// goldens freeze what the guards are; they do not say that a guard is sound. This test does, with
+// the engine as the oracle: a guard is sound if the engine never matches its alternative at a
+// position where the guard rejects the character there. It is a property of the grammar, so it
+// holds for every input; the test checks it on the positions of the inputs of the corpus and of the
+// checked-in grammars.
 //
 // The engine cannot be asked whether it matched one alternative in a rule, so each guarded alternative
 // becomes a rule of its own, "rule guardprobeN = (alternative) .*", added to the grammar: the rule matches

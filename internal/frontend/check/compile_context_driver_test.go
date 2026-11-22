@@ -14,6 +14,7 @@ import (
 	corebuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -148,9 +149,9 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				case "core-passes":
 					_, _, _ = corepass.Run(m, corepass.RunOptions{})
 				case "core-pass-guards":
-					corepass.Guards(m)
+					_, _ = pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(corepass.GuardsPass), m)
 				case "core-pass-scans":
-					corepass.Scans(m)
+					_, _ = pipe.Execute(context.Background(), &pipe.Run{Stop: true}, pipe.Of(corepass.ScansPass), m)
 				case "core-verify":
 					_ = ir.Verify(m)
 				}

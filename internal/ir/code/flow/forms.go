@@ -17,7 +17,7 @@ import (
 // what the verifier checks and the printers print.
 //
 // A form holds its statements in a block of its own, labeled form<N> as every Flow block has a label
-// and left by no exit, which flowpass.Finish splices into the enclosing statement list after the
+// and left by no exit, which flowpass.Finishing splices into the enclosing statement list after the
 // passes, so that a form leaves no trace in what is printed.
 type Forms struct {
 	// Classes are the forms of the classes, in the order the lowering wrote them.

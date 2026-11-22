@@ -56,7 +56,7 @@ func TestCloneKeepsTheForms(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	Finish(c)
+	finishModule(c)
 	if got := code.FuncStringIn(f, flow.FuncOf(f)); got != before {
 		t.Errorf("the passes on the copy changed the function:\n%s\nwant:\n%s", got, before)
 	}

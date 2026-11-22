@@ -153,7 +153,7 @@ func TestStaleAttributesFailTheRun(t *testing.T) {
 		t.Errorf("a pass that leaves stale attributes, without VerifyEach: %v, want a failure of the verification that names rule a", err)
 	}
 
-	// Scans makes the same replacement and keeps the attributes, so the run verifies.
+	// introduceScans makes the same replacement and keeps the attributes, so the run verifies.
 	if _, _, err := Run(analyzed(t, src()), RunOptions{}); err != nil {
 		t.Errorf("Run of an analyzed module: %v", err)
 	}

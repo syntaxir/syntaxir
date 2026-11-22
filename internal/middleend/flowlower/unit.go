@@ -95,17 +95,17 @@ var Lowering = pipe.New(pipe.Def[plandata.Planned, *plandata.Table[code.Flow]]{
 	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The module holds the functions of the plan, lowered to the Flow dialect."},
 	In:   plandata.PlannedIR, Out: plandata.FlowTable,
 	Run: func(_ *pipe.Ctx[plandata.Planned], p plandata.Planned) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
-		t, err := LowerTable(p)
+		t, err := lowerTable(p)
 		return t, pass.PreserveNone(), err
 	},
 })
 
-// LowerTable lowers the functions of the plan of p to one module at the Flow stage (LowerUnit), with
+// lowerTable lowers the functions of the plan of p to one module at the Flow stage (LowerUnit), with
 // the Core IR and the options of the table, and returns the table of the module and of the plan with
 // the decisions of the lowering taken: a flat function that p.Refuse refuses is replaced by its
 // fallback, or left out if its rule has none (plandata.Plan.Refusing). The plan of p is unchanged. It
 // does not verify the module: Verify, the postcondition of the lowering, does.
-func LowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
+func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 	specs := p.Plan.Funcs
 	u := lowerdata.Unit{Module: p.IR.M, Opts: p.IR.Opts, Funcs: make([]lowerdata.Func, len(specs))}
 	for i, s := range specs {

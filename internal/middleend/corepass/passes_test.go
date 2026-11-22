@@ -9,8 +9,8 @@ import (
 )
 
 // passes runs the passes on m in turn, each followed by Analyze and Verify.
-// guarding runs Guards for passes, which takes no count.
-func guarding(m *core.Module) { Guards(m) }
+// guarding runs setGuards for passes, which takes no count.
+func guarding(m *core.Module) { setGuards(m) }
 
 func passes(t *testing.T, m *core.Module, ps ...func(*core.Module)) {
 	t.Helper()
@@ -46,7 +46,7 @@ func TestPassesGuardedClasses(t *testing.T) {
 	alt0 := seq(class('a', 'z'), class('0', '9'), class('x', 'y'), lit("q"))
 	alt1 := seq(lit("r"), class('a', 'z'), class('0', '9'))
 	m := valueFree(module(rule(0, "a", choice(alt0, alt1))))
-	passes(t, m, guarding, Scans)
+	passes(t, m, guarding, introduceScans)
 	got := core.PrintNode(m, m.Rules[0].Body, false)
 	want := `choice
   alt guard=[a-z] class
@@ -180,7 +180,7 @@ func TestPassesOperatorLines(t *testing.T) {
 	operand := choice(class('0', '9'), lit("("))
 	op := &core.Operator{ID: 0, Kind: "infix", Level: 1, Line: &core.OpLine{Body: &core.Repeat{Max: -1, Body: class('a', 'z')}}}
 	m := valueFree(module(rule(0, "e", &core.OperatorsRule{Operands: []*core.OpLine{{Body: operand}}, Ops: []*core.Operator{op}})))
-	passes(t, m, guarding, Scans)
+	passes(t, m, guarding, introduceScans)
 	if operand.Alts[0].Guard == nil || !operand.Alts[0].GuardedClass || operand.Alts[1].Guard == nil {
 		t.Errorf("operand guards: %+v %+v", operand.Alts[0], operand.Alts[1])
 	}
@@ -189,8 +189,8 @@ func TestPassesOperatorLines(t *testing.T) {
 	}
 }
 
-// TestPassesScanPreconditions checks that Scans leaves repetitions whose elements have values,
-// scopes or projections.
+// TestPassesScanPreconditions checks that introduceScans leaves repetitions whose elements have
+// values, scopes or projections.
 func TestPassesScanPreconditions(t *testing.T) {
 	wanted := &core.Repeat{Max: -1, Body: class('a', 'z')}
 	wanted.Attrs().Want = true
@@ -199,7 +199,7 @@ func TestPassesScanPreconditions(t *testing.T) {
 	plain := &core.Repeat{Min: 1, Max: 3, Body: &core.Any{}}
 	m := module(rule(0, "a", seq(wanted, scoped, projected, plain)))
 	m.Rules[0].Want = false
-	passes(t, m, Scans)
+	passes(t, m, introduceScans)
 	items := m.Rules[0].Body.(*core.Seq).Items
 	for i, want := range []string{"*core.Repeat", "*core.Repeat", "*core.Repeat", "*core.Scan"} {
 		if got := fmt.Sprintf("%T", items[i]); got != want {
@@ -248,7 +248,7 @@ func TestPassesScanThroughStream(t *testing.T) {
 		s := &core.Repeat{Max: -1, Body: class('a', 'z')}
 		m := valueFree(module(rule(0, "main", lit("x")), rule(1, "r", r), rule(2, "s", s)))
 		m.Starts = []int{start}
-		passes(t, m, Scans)
+		passes(t, m, introduceScans)
 		return m
 	}
 	m := mod(0)

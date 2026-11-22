@@ -10,8 +10,8 @@ import (
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
-// Finish ends the Flow passes on each function of the module m, whichever of them ran (finish).
-func Finish(m *code.Module) {
+// finishModule ends the Flow passes on each function of the module m, whichever of them ran (finish).
+func finishModule(m *code.Module) {
 	for _, fn := range m.Funcs {
 		finish(fn)
 	}
@@ -22,7 +22,7 @@ func Finish(m *code.Module) {
 // replaced forms named, and orders the variables as the lowering would have made them had it written
 // the forms the passes chose: a variable shared by the whole function (ch, size, ok) where its first
 // use that is still in the function was written, and a variable a pass made at the event it belongs
-// to. The function then has no forms (Attrs.Forms is nil). Finish does nothing to a function without
+// to. The function then has no forms (Attrs.Forms is nil). finish does nothing to a function without
 // forms.
 func finish(fn *code.Func) {
 	a := flow.AttrsOf(fn)
@@ -101,7 +101,7 @@ func finish(fn *code.Func) {
 	for _, l := range fn.Locals {
 		byName[l.Name] = l
 	}
-	// The locals follow the variables; Finish makes none, and keeps each once, so that a function
+	// The locals follow the variables; finish makes none, and keeps each once, so that a function
 	// that a broken pass left invalid stays as invalid for the verifier to report.
 	placed := map[string]bool{}
 	for _, v := range vars {
@@ -150,17 +150,17 @@ func splice(b *code.Block, blocks map[*code.Block]bool) {
 	}
 }
 
-// FinishName is the name of Finish as a step of the pipeline.
+// FinishName is the name of finishModule as a step of the pipeline.
 const FinishName = "flow-finish"
 
-// Finishing is Finish as the required step FinishName that ends the Flow stage of the functions of a
-// module: it runs after the Flow passes, also after one of them failed, and before the module leaves
-// the Flow stage. It finishes the module in place.
+// Finishing is finishModule as the required step FinishName that ends the Flow stage of the
+// functions of a module: it runs after the Flow passes, also after one of them failed, and before
+// the module leaves the Flow stage. It finishes the module in place.
 var Finishing = pipe.New(pipe.Def[Unit, Unit]{
 	Decl: pipe.Decl{Name: FinishName, Required: true, Obligation: "Every function has no forms: each form is spliced into its statements and its variables are placed."},
 	In:   code.FlowStage, Out: code.FlowStage,
 	Run: func(_ *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
-		Finish(u.Module())
+		finishModule(u.Module())
 		return u, pass.PreserveNone(), nil
 	},
 })
