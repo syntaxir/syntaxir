@@ -161,23 +161,23 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[budget, document, observe]` | `[budget, document, observe, typed]` |  | `[budget]` |
-| callMemo |  | `[document, observe, typed]` |  |  |
-| grow | `[]` | `[typed]` | `[missing]` | `[]` |
+| call | `[budget, document, observe, units]` | `[budget, document, observe, typed, units]` |  | `[budget]` |
+| callMemo |  | `[document, observe, typed, units]` |  |  |
+| grow | `[units]` | `[typed, units]` | `[missing]` | `[]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
 | unmemoized | `[]` |  |  | `[]` |
-| memoized | `[budget, document, observe]` |  |  | `[budget, document, observe]` `[document, observe]` |
-| document | `[budget, document]` |  |  | `[document]` |
-| typedDocument |  | `[budget, document, observe, typed]` |  |  |
+| memoized | `[budget, document, observe, units]` |  |  | `[budget, document, observe]` `[document, observe]` |
+| document | `[budget, document, units]` |  |  | `[document]` |
+| typedDocument |  | `[budget, document, observe, typed, units]` |  |  |
 | callBegin |  |  | `[budget, document, missing]` |  |
 | callEnd |  |  | `[budget, document, missing]` |  |
 | engineCallDoc |  |  | `[budget, document, missing]` |  |
 | engineCall |  |  | `[budget, document, missing]` |  |
-| body | `[budget, document]` |  |  |  |
+| body | `[budget, document, units]` |  |  |  |
 | tracked | `[document, observe]` |  |  |  |
 | streamCommit | `[stream]` |  | `[stream]` |  |
-| streamEmit | `[stream]` |  | `[stream]` |  |
+| streamEmit | `[stream, units]` |  | `[stream]` |  |
 | streamsIn | `[stream]` |  | `[stream]` |  |
 | expect | `[budget]` `[]` |  | `[budget]` | `[budget]` |
 | mergeKept |  |  |  | `[budget]` |
@@ -185,13 +185,13 @@ row includes what its backends print into packages of their own.
 | keep | `[budget]` |  | `[budget]` | `[budget]` |
 | reset | `[]` | `[]` | `[missing]` | `[]` |
 | skipTrivia | `[]` | `[]` | `[missing]` | `[]` |
-| longest | `[budget]` | `[budget]` | `[budget, missing]` | `[budget]` |
-| operatorsParse | `[budget]` |  | `[budget, missing]` | `[budget]` |
-| operatorsExpr | `[budget]` |  | `[budget, missing]` | `[budget]` |
-| operatorsNud | `[budget]` |  | `[budget, missing]` | `[budget]` |
-| operatorsParseTyped |  | `[budget, typed]` |  |  |
-| operatorsExprTyped |  | `[budget, typed]` |  |  |
-| operatorsNudTyped |  | `[budget, typed]` |  |  |
+| longest | `[budget, units]` | `[budget, units]` | `[budget, missing]` | `[budget]` |
+| operatorsParse | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
+| operatorsExpr | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
+| operatorsNud | `[budget, units]` |  | `[budget, missing]` | `[budget]` |
+| operatorsParseTyped |  | `[budget, typed, units]` |  |  |
+| operatorsExprTyped |  | `[budget, typed, units]` |  |  |
+| operatorsNudTyped |  | `[budget, typed, units]` |  |  |
 | triviaBegin |  |  | `[budget, missing]` |  |
 | triviaEnd |  |  | `[budget, missing]` |  |
 | longestBegin |  |  | `[budget, missing]` |  |

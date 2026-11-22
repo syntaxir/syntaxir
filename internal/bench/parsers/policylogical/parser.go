@@ -301,7 +301,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	x6 = p.Pos
 	x7 = p.Nodes(2)[:0]
-	if v8, ok = p.CallLogical(rules[3], 0); !ok {
+	if v8, ok = p.Call(rules[3], 0); !ok {
 		goto L5
 	}
 	x7 = append(x7, v8)
@@ -359,7 +359,7 @@ func e9(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	x6 = p.Pos
 	x7 = p.Nodes(2)[:0]
-	if v8, ok = p.CallLogical(rules[3], 0); !ok {
+	if v8, ok = p.Call(rules[3], 0); !ok {
 		goto L5
 	}
 	x7 = append(x7, v8)
@@ -789,4 +789,4 @@ func s4(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_1c8d4a14d8862fa8
 
-const _ = rt.Protocol31
+const _ = rt.Protocol32

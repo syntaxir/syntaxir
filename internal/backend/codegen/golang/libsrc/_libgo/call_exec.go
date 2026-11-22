@@ -20,7 +20,7 @@ const minRecordedRun = 16
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, budget.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, budget, units.
 func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -31,6 +31,15 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	p.Spend()
 	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
 		p.ChargeKey(r)
+	}
+	p.Units++
+	if r.Rec {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+	}
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.KeyUnits(r)
 	}
 	start := p.Pos
 	if !r.Memo && !r.Leader || p.FirstCall(r) {
@@ -101,6 +110,12 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		entry := p.memo.alloc()
 		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
@@ -109,6 +124,12 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			entry.far, entry.expected = far, kept
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
@@ -162,7 +183,7 @@ func (p *TParser) firstCall(r *TRule) bool {
 // recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
 // of its last result in place of the entries recorded since it began.
 //
-// Printed from Exec IR function grow of internal/ir/code/exec/compose.
+// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for units.
 func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var bv *sxirvalue.Node
 	var bok bool
@@ -175,9 +196,19 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 					break
 				}
 				p.growIsolate(&g)
+				p.Units++
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.Units += uint64(len(p.Recovered) - rec)
+					if p.Units > p.UnitsCheck {
+						p.PollUnits()
+					}
 				}
 				s := p.growKeepStep(&g, v, nil, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -188,9 +219,19 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		} else {
 			for {
+				p.Units++
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
 					break
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.Units += uint64(len(p.Recovered) - rec)
+					if p.Units > p.UnitsCheck {
+						p.PollUnits()
+					}
 				}
 				p.growAdopt(&g, v, nil, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -354,7 +395,7 @@ copy:
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, typed, budget.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, typed, budget, units.
 func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	var v any
 	var ok bool
@@ -365,6 +406,15 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	p.Spend()
 	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
 		p.ChargeKey(r.Rule)
+	}
+	p.Units++
+	if r.Rec {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+	}
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.KeyUnits(r.Rule)
 	}
 	start := p.Pos
 	if !r.Memo && !r.Leader || p.firstCall(r) {
@@ -447,6 +497,12 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
@@ -458,6 +514,12 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			}
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
@@ -471,7 +533,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 // CallMemo is the memoized part of a rule call, for the rule r at binding level 0 invoked by inv:
 // the rule is called at the position again, or its memoization is no longer deferred.
 //
-// Printed from Exec IR function callMemo of internal/ir/code/exec/compose, specialized for document, observe, typed.
+// Printed from Exec IR function callMemo of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
 func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool) {
 	var v any
 	var ok bool
@@ -547,6 +609,12 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
@@ -558,6 +626,12 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		p.ctxKeep(&c, r.Id, start, 0, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
@@ -575,7 +649,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 // recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
 // of its last result in place of the entries recorded since it began.
 //
-// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for typed.
+// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for typed, units.
 func (p *TParser) grow(r *TRule, min int) (any, bool) {
 	var bv any
 	var bok bool
@@ -588,9 +662,19 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 					break
 				}
 				p.growIsolate(&g)
+				p.Units++
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 				v, ok := p.invoke(r, min)
 				if !ok {
 					p.Recovered = p.Recovered[:rec]
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.Units += uint64(len(p.Recovered) - rec)
+					if p.Units > p.UnitsCheck {
+						p.PollUnits()
+					}
 				}
 				s := p.growKeepStep(&g, nil, v, ok, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -601,9 +685,19 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 			}
 		} else {
 			for {
+				p.Units++
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 				v, ok := p.invoke(r, min)
 				if !p.growLonger(&g, ok) {
 					break
+				}
+				if (len(p.Recovered) - rec) > 0 {
+					p.Units += uint64(len(p.Recovered) - rec)
+					if p.Units > p.UnitsCheck {
+						p.PollUnits()
+					}
 				}
 				p.growAdopt(&g, nil, v, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
@@ -685,7 +779,7 @@ func (p *TParser) invokePlainObserved(r *TRule, min int) (any, bool) {
 // the call ends, an interruption included, so that a parse after it starts from the state it would
 // start from otherwise.
 //
-// Printed from Exec IR function document of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function document of internal/ir/code/exec/compose, specialized for document, budget, units.
 func (p *Parser) callDocument(r *Rule, min int) (*sxirvalue.Node, bool) {
 	oldExamined, oldLow := p.docExamined, p.docLow
 	p.docExamined, p.docLow = p.Pos, p.Pos
@@ -729,7 +823,7 @@ func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
 // memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the
 // bookkeeping of how far each call examined the input.
 //
-// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, budget.
+// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, budget, units.
 func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -849,6 +943,12 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		entry := p.memo.alloc()
 		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
@@ -867,6 +967,12 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)
@@ -884,11 +990,20 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 // parse, and otherwise the unmemoized call while the rule's memoization is deferred and the memoized
 // call after.
 //
-// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, budget.
+// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, budget, units.
 func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 	p.Spend()
 	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
 		p.ChargeKey(r)
+	}
+	p.Units++
+	if r.Rec {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+	}
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.KeyUnits(r)
 	}
 	if p.Document != nil {
 		v, ok := p.callDocument(r, min)
@@ -920,7 +1035,7 @@ func (p *Parser) callTracked(r *Rule, min int) (*sxirvalue.Node, bool) {
 // memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As
 // in document, the enclosing call's examined input is restored however the call ends.
 //
-// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, typed, budget.
+// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, typed, budget, units.
 func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)) (any, bool) {
 	var v any
 	var ok bool
@@ -928,6 +1043,15 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	p.Spend()
 	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
 		p.ChargeKey(r.Rule)
+	}
+	p.Units++
+	if r.Rec {
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
+	}
+	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+		p.KeyUnits(r.Rule)
 	}
 	start := p.Pos
 	oldExamined, oldLow := p.docExamined, p.docLow
@@ -1059,6 +1183,12 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
@@ -1071,6 +1201,12 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
+		if (len(p.Recovered) - rec) > 0 {
+			p.Units += uint64(len(p.Recovered) - rec)
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
+		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
 	}
 	p.ctxDone(&c)

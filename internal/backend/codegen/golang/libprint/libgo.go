@@ -49,12 +49,12 @@ type goSpec struct {
 var goSpecs = []goSpec{
 	// Parser.Call hands observed and Document parses to the tracked path, so it neither observes nor
 	// reads a Document itself beyond that test.
-	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Budget}, name: "Call"},
+	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Budget, exec.Units}, name: "Call"},
 	// The deferral of memoization: the node library's is the one that generated parsers call, also for
 	// the typed library's rules; the typed library's compositions call their own, of a typed rule.
 	{fn: "firstCall", name: "FirstCall"},
 	{fn: "firstCall", typed: true, name: "firstCall"},
-	{fn: "grow", name: "grow"},
+	{fn: "grow", on: []string{exec.Units}, name: "grow"},
 	// The expectation record: the form of a parse with limit controls or a Document, and the form of
 	// an ordinary parse with its slow path.
 	{fn: "expect", on: []string{exec.Budget}, name: "Expect"},
@@ -64,9 +64,9 @@ helpers, which leave out the budget charges and the Document's record of the exa
 parsers and not a stable API.`},
 	{fn: "mergeExpected", on: []string{exec.Budget}, name: "MergeExpected"},
 	{fn: "keep", on: []string{exec.Budget}, name: "Keep"},
-	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "callBody"},
-	{fn: "callMemo", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed}, name: "CallMemo"},
-	{fn: "grow", typed: true, on: []string{exec.Typed}, name: "grow"},
+	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, name: "callBody"},
+	{fn: "callMemo", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "CallMemo"},
+	{fn: "grow", typed: true, on: []string{exec.Typed, exec.Units}, name: "grow"},
 	// The observed calls and plain invocations of both libraries, which their callers take in an
 	// observed parse.
 	{fn: "observed", on: []string{exec.Document, exec.Observe}, name: "callObserved"},
@@ -75,13 +75,13 @@ parsers and not a stable API.`},
 	{fn: "observedPlain", typed: true, on: []string{exec.Document, exec.Observe}, name: "invokePlainObserved"},
 	// The tracked path of the node library: the rule call of a Document parse, the unmemoized and
 	// memoized calls, the call without observation, and the entry of the path.
-	{fn: "document", on: []string{exec.Document, exec.Budget}, name: "callDocument"},
+	{fn: "document", on: []string{exec.Document, exec.Budget, exec.Units}, name: "callDocument"},
 	{fn: "unmemoized", name: "callUnmemoized"},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Budget}, name: "callMemo"},
-	{fn: "body", on: []string{exec.Document, exec.Budget}, name: "callBody"},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Budget, exec.Units}, name: "callMemo"},
+	{fn: "body", on: []string{exec.Document, exec.Budget, exec.Units}, name: "callBody"},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
-	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "DocumentCall"},
+	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, name: "DocumentCall"},
 	// The edits of a Document that a lookup applies to the memo entry it finds, in both libraries: the
 	// form a parse runs, which charges the edits it applies, and the form an edit runs, which has no
 	// parse to charge.
@@ -116,7 +116,7 @@ var goRunOn = []string{exec.Document, exec.Budget}
 // goStreamSpecs are the functions of the stream mechanism that the compositions replace, in the
 // node library (the typed library has no streams).
 var goStreamSpecs = []goSpec{
-	{fn: "streamEmit", on: []string{exec.Stream}, name: "EmitStream"},
+	{fn: "streamEmit", on: []string{exec.Stream, exec.Units}, name: "EmitStream"},
 	{fn: "streamCommit", on: []string{exec.Stream}, name: "streamCommit"},
 	{fn: "streamsIn", on: []string{exec.Stream}, name: "StreamsIn"},
 }
@@ -124,16 +124,16 @@ var goStreamSpecs = []goSpec{
 // goOperatorSpecs are the functions of the Operators Rule loop that the compositions replace, in the
 // node and the typed library.
 var goOperatorSpecs = []goSpec{
-	{fn: "operatorsParse", on: []string{exec.Budget}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExpr", on: []string{exec.Budget}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNud", on: []string{exec.Budget}, name: "operatorsRuleNud"},
-	{fn: "longest", on: []string{exec.Budget}, name: "longest"},
+	{fn: "operatorsParse", on: []string{exec.Budget, exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExpr", on: []string{exec.Budget, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNud", on: []string{exec.Budget, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", on: []string{exec.Budget, exec.Units}, name: "longest"},
 	{fn: "skipTrivia", name: "skipTrivia"},
 	{fn: "reset", name: "Reset"},
-	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Budget, exec.Typed}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Budget, exec.Typed}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Budget, exec.Typed}, name: "operatorsRuleNud"},
-	{fn: "longest", typed: true, on: []string{exec.Budget}, name: "longest"},
+	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Budget, exec.Typed, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", typed: true, on: []string{exec.Budget, exec.Units}, name: "longest"},
 	{fn: "skipTrivia", typed: true, name: "skipTrivia"},
 	{fn: "reset", typed: true, name: "Reset"},
 }
@@ -448,6 +448,19 @@ func goTarget(s goSpec) *print.Target {
 			}
 			// A charge of n is n one-unit reservations (Take).
 			return "p.Control.Take(" + a[0] + ")"
+		case "units.count":
+			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
+				return "p.Units++"
+			}
+			return "p.Units += " + a[0]
+		case "units.check":
+			return "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
+		case "units.key":
+			return "p.KeyUnits(" + rule(a[0]) + ")"
+		case "rule.cyclic":
+			return a[0] + ".Rec"
+		case "rec.entries":
+			return "len(p.Recovered) - " + a[0]
 		case "budget.chargeKey":
 			return "p.ChargeKey(" + rule(a[0]) + ")"
 		case "budget.freeBegin":

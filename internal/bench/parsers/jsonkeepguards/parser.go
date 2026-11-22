@@ -425,7 +425,7 @@ func e1(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r18(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[1], 0); !ok {
+	if v2, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -450,7 +450,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 5)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[2], 0); !ok {
+	if v6, ok = p.Call(rules[2], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -462,7 +462,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[5], 0); !ok {
+	if v9, ok = p.Call(rules[5], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -474,7 +474,7 @@ L7:
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L10
 	}
-	if v12, ok = p.CallLogical(rules[7], 0); !ok {
+	if v12, ok = p.Call(rules[7], 0); !ok {
 		goto L11
 	}
 	v2 = v12
@@ -529,7 +529,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	x2 = p.Mark()
-	if v6, ok = p.CallLogical(rules[3], 0); !ok {
+	if v6, ok = p.Call(rules[3], 0); !ok {
 		goto L4
 	}
 	v3 = v6
@@ -559,7 +559,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var v2, v11, v12 *sxirvalue.Node
 	var x5, x6 *rt.CaptureFrame
 	var x8 rt.Mark
-	if v2, ok = p.CallLogical(rules[4], 0); !ok {
+	if v2, ok = p.Call(rules[4], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -585,7 +585,7 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r18(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[4], 0); !ok {
+		if v11, ok = p.Call(rules[4], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -610,7 +610,7 @@ fail:
 func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	var v2, v4 *sxirvalue.Node
-	if v2, ok = p.CallLogical(rules[7], 0); !ok {
+	if v2, ok = p.Call(rules[7], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -626,7 +626,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r18(p); !ok {
 		goto fail
 	}
-	if v4, ok = p.CallLogical(rules[1], 0); !ok {
+	if v4, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(1, v4)
@@ -649,7 +649,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	x2 = p.Mark()
-	if v6, ok = p.CallLogical(rules[6], 0); !ok {
+	if v6, ok = p.Call(rules[6], 0); !ok {
 		goto L4
 	}
 	v3 = v6
@@ -679,7 +679,7 @@ func e15(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var v2, v11, v12 *sxirvalue.Node
 	var x5, x6 *rt.CaptureFrame
 	var x8 rt.Mark
-	if v2, ok = p.CallLogical(rules[1], 0); !ok {
+	if v2, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -705,7 +705,7 @@ func e15(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r18(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[1], 0); !ok {
+		if v11, ok = p.Call(rules[1], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -2328,4 +2328,4 @@ fail:
 
 const _ = types.SXIRSchema_154a89c58b1cf47c
 
-const _ = rt.Protocol31
+const _ = rt.Protocol32

@@ -794,9 +794,6 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	p.Control.Check()
 	p.startUnits(o)
-	if p.units.on {
-		p.Units++ // the entry call
-	}
 	v, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
 	p.endUnits(!ok || p.Pos != p.n)
@@ -2243,10 +2240,11 @@ func (p *Parser) invoke(r *Rule, min int) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-// InvokePlain is an unmemoized call of a rule without captures: invoke without the capture
-// frame (the body never writes one, so the caller's stays current), with the failure handling of
-// call.
+// InvokePlain is an unmemoized call of a rule without captures, which counts its unit as Call does:
+// invoke without the capture frame (the body never writes one, so the caller's stays current), with
+// the failure handling of call.
 func (p *Parser) InvokePlain(r *Rule, min int) (*sxirvalue.Node, bool) {
+	p.callUnit(r.Rec)
 	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		return p.invokePlainObserved(r, min)
 	}

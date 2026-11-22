@@ -9,12 +9,18 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 // error of the diagnostic callback ends the parse before the element is delivered. Elements are final
 // once emitted: a caller error ends the parse unchanged.
 //
-// Printed from Exec IR function streamEmit of internal/ir/code/exec/compose, specialized for stream.
+// Printed from Exec IR function streamEmit of internal/ir/code/exec/compose, specialized for stream, units.
 func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
+	if p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
 	p.Control.Check()
 	p.streamReport()
 	p.streamDeliver(v)
 	p.Control.Check()
+	if p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
 	p.streamCommit(end)
 }
 

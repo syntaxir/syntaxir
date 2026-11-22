@@ -726,9 +726,6 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	if r.Entry != nil {
 		v, ok = r.Entry(p)
 	} else {
-		if p.units.on {
-			p.Units++ // the entry call
-		}
 		v, ok = p.Call(r, 0)
 	}
 	p.endUnits(!ok || p.Pos != p.n)
@@ -1374,7 +1371,9 @@ func (p *TParser) invoke(r *TRule, min int) (any, bool) {
 	return v, ok
 }
 
+// InvokePlain is Parser.InvokePlain for the typed library.
 func (p *TParser) InvokePlain(r *TRule, min int) (any, bool) {
+	p.callUnit(r.Rec)
 	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		return p.invokePlainObserved(r, min)
 	}

@@ -1469,9 +1469,9 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 		// including otherwise plain rules.
 	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
 	case r.Plain:
-		return fmt.Sprintf("p.%s(%s[%d], %d)", g.pickLogical("InvokePlain"), g.tableVar(), r.ID, min)
+		return fmt.Sprintf("p.InvokePlain(%s[%d], %d)", g.tableVar(), r.ID, min)
 	}
-	return fmt.Sprintf("p.%s(%s[%d], %d)", g.callName(), g.tableVar(), r.ID, min)
+	return fmt.Sprintf("p.Call(%s[%d], %d)", g.tableVar(), r.ID, min)
 }
 
 // ControlledClassReject preserves the compact inactive condition while bounded

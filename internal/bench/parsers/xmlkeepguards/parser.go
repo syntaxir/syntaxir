@@ -1505,7 +1505,7 @@ L2:
 	p.Reset(x1)
 L3:
 	x5 = p.Mark()
-	if v9, ok = p.CallLogical(rules[3], 0); !ok {
+	if v9, ok = p.Call(rules[3], 0); !ok {
 		goto L7
 	}
 	v6 = v9
@@ -1515,12 +1515,12 @@ L7:
 	v6 = nil
 L8:
 	p.SetCapture(0, v6)
-	if v11, ok = p.CallLogical(rules[1], 0); !ok {
+	if v11, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(1, v11)
 	x13 = p.Mark()
-	if v17, ok = p.CallLogical(rules[15], 0); !ok {
+	if v17, ok = p.Call(rules[15], 0); !ok {
 		goto L15
 	}
 	v14 = v17
@@ -1530,15 +1530,15 @@ L15:
 	v14 = nil
 L16:
 	p.SetCapture(2, v14)
-	if v19, ok = p.CallLogical(rules[1], 0); !ok {
+	if v19, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(3, v19)
-	if v21, ok = p.CallLogical(rules[55], 0); !ok {
+	if v21, ok = p.Call(rules[55], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(4, v21)
-	if v23, ok = p.CallLogical(rules[1], 0); !ok {
+	if v23, ok = p.Call(rules[1], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(5, v23)
@@ -1604,7 +1604,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[11], 0); !ok {
+	if v6, ok = p.Call(rules[11], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -1616,7 +1616,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[13], 0); !ok {
+	if v9, ok = p.Call(rules[13], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -1638,12 +1638,12 @@ func e8(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = p.MatchLiteralLogical(lit6, "<?xml", 8, false); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[4], 0); !ok {
+	if v2, ok = p.Call(rules[4], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
 	x4 = p.Mark()
-	if v8, ok = p.CallLogical(rules[6], 0); !ok {
+	if v8, ok = p.Call(rules[6], 0); !ok {
 		goto L6
 	}
 	v5 = v8
@@ -1654,7 +1654,7 @@ L6:
 L7:
 	p.SetCapture(1, v5)
 	x10 = p.Mark()
-	if v14, ok = p.CallLogical(rules[8], 0); !ok {
+	if v14, ok = p.Call(rules[8], 0); !ok {
 		goto L12
 	}
 	v11 = v14
@@ -1688,7 +1688,7 @@ func e12(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = p.MatchLiteralLogical(lit9, "version", 10, false); !ok {
 		goto fail
 	}
-	if _, ok = p.CallLogical(rules[76], 0); !ok {
+	if _, ok = p.Call(rules[76], 0); !ok {
 		goto fail
 	}
 	x1 = p.Mark()
@@ -1799,7 +1799,7 @@ func e16(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = p.MatchLiteralLogical(lit15, "encoding", 15, false); !ok {
 		goto fail
 	}
-	if _, ok = p.CallLogical(rules[76], 0); !ok {
+	if _, ok = p.Call(rules[76], 0); !ok {
 		goto fail
 	}
 	x1 = p.Mark()
@@ -1908,7 +1908,7 @@ func e19(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = p.MatchLiteralLogical(lit18, "standalone", 18, false); !ok {
 		goto fail
 	}
-	if _, ok = p.CallLogical(rules[76], 0); !ok {
+	if _, ok = p.Call(rules[76], 0); !ok {
 		goto fail
 	}
 	x1 = p.Mark()
@@ -2450,7 +2450,7 @@ func e36(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r75(p); !ok {
 		goto L4
 	}
-	if v7, ok = p.CallLogical(rules[19], 0); !ok {
+	if v7, ok = p.Call(rules[19], 0); !ok {
 		goto L4
 	}
 	p.SetCapture(1, v7)
@@ -2468,7 +2468,7 @@ L5:
 	} else if _, ok = p.MatchLiteralLogical(lit34, "[", 30, false); !ok {
 		goto L9
 	}
-	if v12, ok = p.CallLogical(rules[16], 0); !ok {
+	if v12, ok = p.Call(rules[16], 0); !ok {
 		goto L9
 	}
 	p.SetCapture(2, v12)
@@ -2549,7 +2549,7 @@ func e39(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 32)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[28], 0); !ok {
+	if v6, ok = p.Call(rules[28], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -2561,7 +2561,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 33)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[38], 0); !ok {
+	if v9, ok = p.Call(rules[38], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -2580,7 +2580,7 @@ L10:
 		p.ExpectOrdinary(p.Pos, 34)
 		goto L12
 	}
-	if v14, ok = p.CallLogical(rules[52], 0); !ok {
+	if v14, ok = p.Call(rules[52], 0); !ok {
 		goto L13
 	}
 	v2 = v14
@@ -2592,7 +2592,7 @@ L12:
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L15
 	}
-	if v17, ok = p.CallLogical(rules[13], 0); !ok {
+	if v17, ok = p.Call(rules[13], 0); !ok {
 		goto L16
 	}
 	v2 = v17
@@ -2604,7 +2604,7 @@ L15:
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L18
 	}
-	if v20, ok = p.CallLogical(rules[11], 0); !ok {
+	if v20, ok = p.Call(rules[11], 0); !ok {
 		goto L19
 	}
 	v2 = v20
@@ -2666,7 +2666,7 @@ func e43(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[20], 0); !ok {
+	if v6, ok = p.Call(rules[20], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -2678,7 +2678,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 38)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[21], 0); !ok {
+	if v9, ok = p.Call(rules[21], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -2702,7 +2702,7 @@ func e45(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r75(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[22], 0); !ok {
+	if v2, ok = p.Call(rules[22], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -2720,14 +2720,14 @@ func e47(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r75(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[25], 0); !ok {
+	if v2, ok = p.Call(rules[25], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
 	if _, ok = r75(p); !ok {
 		goto fail
 	}
-	if v4, ok = p.CallLogical(rules[22], 0); !ok {
+	if v4, ok = p.Call(rules[22], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(1, v4)
@@ -3047,7 +3047,7 @@ L7:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L10
 	}
-	if v12, ok = p.CallLogical(rules[32], 0); !ok {
+	if v12, ok = p.Call(rules[32], 0); !ok {
 		goto L11
 	}
 	v2 = v12
@@ -3059,7 +3059,7 @@ L10:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L13
 	}
-	if v15, ok = p.CallLogical(rules[33], 0); !ok {
+	if v15, ok = p.Call(rules[33], 0); !ok {
 		goto L14
 	}
 	v2 = v15
@@ -3071,7 +3071,7 @@ L13:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L16
 	}
-	if v18, ok = p.CallLogical(rules[34], 0); !ok {
+	if v18, ok = p.Call(rules[34], 0); !ok {
 		goto L17
 	}
 	v2 = v18
@@ -3268,7 +3268,7 @@ func e70(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r74(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[35], 0); !ok {
+	if v2, ok = p.Call(rules[35], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -3295,7 +3295,7 @@ func e70(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r74(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[35], 0); !ok {
+		if v11, ok = p.Call(rules[35], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -3357,7 +3357,7 @@ func e73(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r74(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[35], 0); !ok {
+	if v2, ok = p.Call(rules[35], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -3383,7 +3383,7 @@ func e73(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r74(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[35], 0); !ok {
+		if v11, ok = p.Call(rules[35], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -3436,7 +3436,7 @@ func e74(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 51)
 		goto L6
 	}
-	if v8, ok = p.CallLogical(rules[36], 0); !ok {
+	if v8, ok = p.Call(rules[36], 0); !ok {
 		goto L7
 	}
 	v2 = v8
@@ -3448,7 +3448,7 @@ L6:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L9
 	}
-	if v11, ok = p.CallLogical(rules[33], 0); !ok {
+	if v11, ok = p.Call(rules[33], 0); !ok {
 		goto L10
 	}
 	v2 = v11
@@ -3460,7 +3460,7 @@ L9:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L12
 	}
-	if v14, ok = p.CallLogical(rules[34], 0); !ok {
+	if v14, ok = p.Call(rules[34], 0); !ok {
 		goto L13
 	}
 	v2 = v14
@@ -3547,7 +3547,7 @@ func e79(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r75(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[39], 0); !ok {
+		if v11, ok = p.Call(rules[39], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -3616,7 +3616,7 @@ L7:
 L12:
 	p.Reset(x11)
 L13:
-	if v17, ok = p.CallLogical(rules[57], 0); !ok {
+	if v17, ok = p.Call(rules[57], 0); !ok {
 		goto L10
 	}
 	p.SetCapture(3, v17)
@@ -3697,7 +3697,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 56)
 		goto L6
 	}
-	if v8, ok = p.CallLogical(rules[44], 0); !ok {
+	if v8, ok = p.Call(rules[44], 0); !ok {
 		goto L7
 	}
 	v2 = v8
@@ -3709,7 +3709,7 @@ L6:
 		p.ExpectOrdinary(p.Pos, 45)
 		goto L9
 	}
-	if v11, ok = p.CallLogical(rules[45], 0); !ok {
+	if v11, ok = p.Call(rules[45], 0); !ok {
 		goto L10
 	}
 	v2 = v11
@@ -3923,7 +3923,7 @@ func e100(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r74(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[71], 0); !ok {
+	if v2, ok = p.Call(rules[71], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -3949,7 +3949,7 @@ func e100(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r74(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[71], 0); !ok {
+		if v11, ok = p.Call(rules[71], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -3989,7 +3989,7 @@ func e101(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 65)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[47], 0); !ok {
+	if v6, ok = p.Call(rules[47], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -4001,7 +4001,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 65)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[48], 0); !ok {
+	if v9, ok = p.Call(rules[48], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -4034,14 +4034,14 @@ func e104(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	x3 = p.Mark()
-	if v7, ok = p.CallLogical(rules[49], 0); !ok {
+	if v7, ok = p.Call(rules[49], 0); !ok {
 		goto L5
 	}
 	p.SetCapture(1, v7)
 	goto L4
 L5:
 	p.Reset(x3)
-	if v10, ok = p.CallLogical(rules[19], 0); !ok {
+	if v10, ok = p.Call(rules[19], 0); !ok {
 		goto L8
 	}
 	p.SetCapture(2, v10)
@@ -4109,14 +4109,14 @@ func e105(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	x3 = p.Mark()
-	if v7, ok = p.CallLogical(rules[49], 0); !ok {
+	if v7, ok = p.Call(rules[49], 0); !ok {
 		goto L5
 	}
 	p.SetCapture(1, v7)
 	goto L4
 L5:
 	p.Reset(x3)
-	if v10, ok = p.CallLogical(rules[19], 0); !ok {
+	if v10, ok = p.Call(rules[19], 0); !ok {
 		goto L8
 	}
 	p.SetCapture(2, v10)
@@ -4243,7 +4243,7 @@ func e107(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L8
 	L9:
 		p.Reset(x7)
-		if _, ok = p.CallLogical(rules[78], 0); !ok {
+		if _, ok = p.Call(rules[78], 0); !ok {
 			goto L11
 		}
 		goto L8
@@ -4314,7 +4314,7 @@ func e108(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L8
 	L9:
 		p.Reset(x7)
-		if _, ok = p.CallLogical(rules[78], 0); !ok {
+		if _, ok = p.Call(rules[78], 0); !ok {
 			goto L11
 		}
 		goto L8
@@ -4384,7 +4384,7 @@ func e111(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.ExpectOrdinary(p.Pos, 37)
 		goto L4
 	}
-	if v6, ok = p.CallLogical(rules[20], 0); !ok {
+	if v6, ok = p.Call(rules[20], 0); !ok {
 		goto L5
 	}
 	v2 = v6
@@ -4396,7 +4396,7 @@ L4:
 		p.ExpectOrdinary(p.Pos, 38)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[54], 0); !ok {
+	if v9, ok = p.Call(rules[54], 0); !ok {
 		goto L8
 	}
 	v2 = v9
@@ -4421,7 +4421,7 @@ func e112(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r75(p); !ok {
 		goto fail
 	}
-	if v2, ok = p.CallLogical(rules[25], 0); !ok {
+	if v2, ok = p.Call(rules[25], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(0, v2)
@@ -4429,7 +4429,7 @@ func e112(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if _, ok = r75(p); !ok {
 		goto L4
 	}
-	if v7, ok = p.CallLogical(rules[22], 0); !ok {
+	if v7, ok = p.Call(rules[22], 0); !ok {
 		goto L4
 	}
 	p.SetCapture(1, v7)
@@ -4473,7 +4473,7 @@ func e117(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		if _, ok = r75(p); !ok {
 			goto L9
 		}
-		if v11, ok = p.CallLogical(rules[56], 0); !ok {
+		if v11, ok = p.Call(rules[56], 0); !ok {
 			goto L9
 		}
 		p.SetCapture(0, v11)
@@ -4581,10 +4581,10 @@ func e118(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	p.SetCapture(0, v2)
-	if _, ok = p.CallLogical(rules[76], 0); !ok {
+	if _, ok = p.Call(rules[76], 0); !ok {
 		goto fail
 	}
-	if v4, ok = p.CallLogical(rules[57], 0); !ok {
+	if v4, ok = p.Call(rules[57], 0); !ok {
 		goto fail
 	}
 	p.SetCapture(1, v4)
@@ -4697,7 +4697,7 @@ func e120(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L8
 	L9:
 		p.Reset(x7)
-		if _, ok = p.CallLogical(rules[78], 0); !ok {
+		if _, ok = p.Call(rules[78], 0); !ok {
 			goto L11
 		}
 		goto L8
@@ -4768,7 +4768,7 @@ func e121(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L8
 	L9:
 		p.Reset(x7)
-		if _, ok = p.CallLogical(rules[78], 0); !ok {
+		if _, ok = p.Call(rules[78], 0); !ok {
 			goto L11
 		}
 		goto L8
@@ -4835,7 +4835,7 @@ func e124(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	goto L3
 L4:
 	p.Reset(x1)
-	if v7, ok = p.CallLogical(rules[62], 0); !ok {
+	if v7, ok = p.Call(rules[62], 0); !ok {
 		goto L6
 	}
 	v2 = v7
@@ -4875,7 +4875,7 @@ L2:
 		p.ExpectOrdinary(p.Pos, 69)
 		goto L7
 	}
-	if v9, ok = p.CallLogical(rules[55], 0); !ok {
+	if v9, ok = p.Call(rules[55], 0); !ok {
 		goto L8
 	}
 	v5 = v9
@@ -4883,7 +4883,7 @@ L2:
 L8:
 	p.Reset(x4)
 L7:
-	if v11, ok = p.CallLogical(rules[66], 0); !ok {
+	if v11, ok = p.Call(rules[66], 0); !ok {
 		goto L10
 	}
 	v5 = v11
@@ -4894,7 +4894,7 @@ L10:
 		p.ExpectOrdinary(p.Pos, 6)
 		goto L12
 	}
-	if v14, ok = p.CallLogical(rules[11], 0); !ok {
+	if v14, ok = p.Call(rules[11], 0); !ok {
 		goto L13
 	}
 	v5 = v14
@@ -4906,7 +4906,7 @@ L12:
 		p.ExpectOrdinary(p.Pos, 75)
 		goto L15
 	}
-	if v17, ok = p.CallLogical(rules[64], 0); !ok {
+	if v17, ok = p.Call(rules[64], 0); !ok {
 		goto L16
 	}
 	v5 = v17
@@ -4918,7 +4918,7 @@ L15:
 		p.ExpectOrdinary(p.Pos, 7)
 		goto L18
 	}
-	if v20, ok = p.CallLogical(rules[13], 0); !ok {
+	if v20, ok = p.Call(rules[13], 0); !ok {
 		goto L19
 	}
 	v5 = v20
@@ -11868,4 +11868,4 @@ fail:
 
 const _ = types.SXIRSchema_48e558293bfe79fa
 
-const _ = rt.Protocol31
+const _ = rt.Protocol32

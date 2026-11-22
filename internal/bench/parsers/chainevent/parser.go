@@ -359,7 +359,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L10
 	L11:
 		p.Reset(x8)
-		if _, ok = p.CallLogical(rules[9], 0); !ok {
+		if _, ok = p.Call(rules[9], 0); !ok {
 			goto L13
 		}
 		v14, _ = p.ShapeSingle(sh1, nil, x8.Pos)
@@ -367,7 +367,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L10
 	L13:
 		p.Reset(x8)
-		if _, ok = p.CallLogical(rules[10], 0); !ok {
+		if _, ok = p.Call(rules[10], 0); !ok {
 			goto L15
 		}
 		v16, _ = p.ShapeSingle(sh1, nil, x8.Pos)
@@ -375,7 +375,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L10
 	L15:
 		p.Reset(x8)
-		if v18, ok = p.CallLogical(rules[4], 0); !ok {
+		if v18, ok = p.Call(rules[4], 0); !ok {
 			goto L17
 		}
 		v9 = v18
@@ -415,7 +415,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x32 = p.Mark()
 		x34 = p.Mark()
-		if _, ok = p.CallLogical(rules[9], 0); !ok {
+		if _, ok = p.Call(rules[9], 0); !ok {
 			goto L37
 		}
 		v38, _ = p.ShapeSingle(sh1, nil, x34.Pos)
@@ -423,7 +423,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L36
 	L37:
 		p.Reset(x34)
-		if _, ok = p.CallLogical(rules[10], 0); !ok {
+		if _, ok = p.Call(rules[10], 0); !ok {
 			goto L39
 		}
 		v40, _ = p.ShapeSingle(sh1, nil, x34.Pos)
@@ -431,7 +431,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto L36
 	L39:
 		p.Reset(x34)
-		if v42, ok = p.CallLogical(rules[4], 0); !ok {
+		if v42, ok = p.Call(rules[4], 0); !ok {
 			goto L41
 		}
 		v35 = v42
@@ -490,7 +490,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x5 = p.Pos
 	p.Silent++
 	p.LookBegin(1)
-	if _, ok = p.CallLogical(rules[9], 0); !ok {
+	if _, ok = p.Call(rules[9], 0); !ok {
 		goto L6
 	}
 	p.LookEnd(true)
@@ -513,7 +513,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
 	var ok bool
 	x1 = p.Mark()
-	if _, ok = p.CallLogical(rules[12], 0); !ok {
+	if _, ok = p.Call(rules[12], 0); !ok {
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
@@ -525,7 +525,7 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	goto L2
 L3:
 	p.Reset(x1)
-	if _, ok = p.CallLogical(rules[12], 0); !ok {
+	if _, ok = p.Call(rules[12], 0); !ok {
 		goto L4
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 63 {
@@ -562,7 +562,7 @@ func e16(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
 	var ok bool
 	x1 = p.Mark()
-	if _, ok = p.CallLogical(rules[11], 0); !ok {
+	if _, ok = p.Call(rules[11], 0); !ok {
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
@@ -613,7 +613,7 @@ fail:
 
 func e20(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
-	if _, ok = p.CallLogical(rules[11], 0); !ok {
+	if _, ok = p.Call(rules[11], 0); !ok {
 		goto fail
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
@@ -634,7 +634,7 @@ func r8(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	start = p.Pos
 	x1 = p.Pos
-	if _, ok = p.CallLogical(rules[11], 0); !ok {
+	if _, ok = p.Call(rules[11], 0); !ok {
 		goto L3
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
@@ -1143,4 +1143,4 @@ func s13(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_8ed7e2c96bc03587
 
-const _ = rt.Protocol31
+const _ = rt.Protocol32

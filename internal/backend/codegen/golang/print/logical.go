@@ -107,10 +107,6 @@ func (p *primPrinter) skippedCalls(x prim.SkippedCalls) string {
 	return fmt.Sprintf("p.SkipCalls(%s, %s)", p.exp(x.Exp), strings.Join(rules, ", "))
 }
 
-// callName names the library method that calls a rule through the call protocol: under logical
-// units it counts the unit of the call and the key of a memoized rule first.
-func (g *Generator) callName() string { return g.pickLogical("Call") }
-
 // pickLogical returns the name of the library method name, or of its logical form under logical
 // units.
 func (g *Generator) pickLogical(name string) string {

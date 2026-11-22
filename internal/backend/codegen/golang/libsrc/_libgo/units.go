@@ -12,20 +12,25 @@ import (
 )
 
 // Logical compute units (design record 076): a parser generated with them (Generator.Logical)
-// counts the logical events of a parse in Parser.Units. The generated code
-// adds the calls of rules and the input that terminals advance over; the library adds what its
-// matchers advance over and the sized events (values built, string comparisons, keys, the syntax
-// error built). The counter is checked against the compute limit and the context only at checks: on
-// cycles (calls of recursive rules and loop iterations), after sized events and at the end of the
-// parse. The charges of the budget control are not made: the control of such a parse holds the
-// memory limit only.
+// counts the logical events of a parse in Parser.Units. The call protocol (Call, InvokePlain and
+// the printed compositions they run) adds the calls of rules, their keys, the steps of growths and
+// the entries of recovered errors taken; the generated code adds the calls it makes directly and the
+// input that terminals advance over; the library adds what its matchers advance over and the other
+// sized events (values built, string comparisons, the syntax error built). The counter is compared
+// with the compute limit, and the context and the memory count are observed, only at checks: on
+// cycles (calls of recursive rules, steps of growths and loop iterations), after sized events and at
+// the end of the parse. The charges of the budget control are not made: the control of such a parse
+// holds the memory limit only, which the checks observe.
 
 // unitsState is the state of the counter of a parse with logical units.
 type unitsState struct {
 	on    bool
 	limit uint64 // the resolved compute limit; 0 sets none
 	ctx   context.Context
-	ctxAt uint64  // the count at which the next check observes the context
+	// mem is the control that holds a finite memory limit, nil for none.
+	mem *BudgetControl
+	// obsAt is the count at which the next check observes the context and the memory count.
+	obsAt uint64
 	out   *uint64 // where the end of the parse reports the count (WithComputeReport)
 	memo  *string // where the end of the parse reports the memo (SetMemoReport)
 }
@@ -51,7 +56,10 @@ func (p *Parser) startUnits(o parseOptions) {
 		return
 	}
 	p.Units = 0
-	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, ctxAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
+	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, obsAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
+	if c := p.Control; c != nil && c.limits.Memory != 0 {
+		p.units.mem = c
+	}
 	if p.units.ctx != nil {
 		if p.units.ctx.Done() == nil {
 			p.units.ctx = nil
@@ -62,21 +70,49 @@ func (p *Parser) startUnits(o parseOptions) {
 	p.setUnitsCheck()
 }
 
-// setUnitsCheck sets the count above which a check looks at the limit and the context.
+// setUnitsCheck sets the count above which a check looks at the limit, the context and the memory
+// count.
 func (p *Parser) setUnitsCheck() {
 	c := uint64(math.MaxUint64)
 	if p.units.limit != 0 {
 		c = p.units.limit
 	}
-	if p.units.ctx != nil && p.units.ctxAt-1 < c {
-		c = p.units.ctxAt - 1
+	if p.units.observes() && p.units.obsAt-1 < c {
+		c = p.units.obsAt - 1
 	}
 	p.UnitsCheck = c
 }
 
+// observes reports whether the checks of the parse observe anything beside the compute limit: a
+// context that can be canceled or a finite memory limit.
+func (u *unitsState) observes() bool { return u.ctx != nil || u.mem != nil }
+
+// observeUnits observes the context, then the memory count, and starts the interval to the next
+// observation again (spec/runtime/parsing.md, Checks and Interruptions).
+func (p *Parser) observeUnits() {
+	if p.units.ctx != nil {
+		if err := contextErr(p.units.ctx); err != nil {
+			panic(fatal{err: err})
+		}
+	}
+	if p.units.mem != nil {
+		p.units.mem.checkMemory()
+	}
+	p.units.obsAt = p.Units + budgetCheckInterval
+}
+
+// unitsExceeded stops the parse if the count exceeds the compute limit.
+func (p *Parser) unitsExceeded() {
+	if p.units.limit != 0 && p.Units > p.units.limit {
+		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: p.units.limit, Used: p.Units, Hotspot: p.Observation.hotspot()}})
+	}
+}
+
 // PollUnits is the slow path of a check of the counter, which the generated code makes when the
-// count passes UnitsCheck: it observes the context once every budgetCheckInterval units, then
-// stops the parse if the count exceeds the limit. A context error wins over the limit.
+// count passes UnitsCheck: once at least budgetCheckInterval units have been counted since the last
+// observation it observes the context, then the memory count, and it stops the parse if the count
+// exceeds the limit. An error of the context wins over the memory limit, and both over the compute
+// limit.
 //
 // PollUnits is for generated parsers; not a stable API.
 func (p *Parser) PollUnits() {
@@ -87,19 +123,15 @@ func (p *Parser) PollUnits() {
 	if p.units.out != nil {
 		*p.units.out = p.Units
 	}
-	if p.units.ctx != nil && p.Units >= p.units.ctxAt {
-		if err := contextErr(p.units.ctx); err != nil {
-			panic(fatal{err: err})
-		}
-		p.units.ctxAt = p.Units + budgetCheckInterval
+	if p.units.observes() && p.Units >= p.units.obsAt {
+		p.observeUnits()
 	}
-	if p.units.limit != 0 && p.Units > p.units.limit {
-		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: p.units.limit, Used: p.Units}})
-	}
+	p.unitsExceeded()
 	p.setUnitsCheck()
 }
 
-// endUnits checks the count at the end of a parse, which counts the syntax error it builds if failed.
+// endUnits makes the check at the end of a parse, which counts the syntax error it builds if failed:
+// it observes the context and the memory count whatever the interval, then compares the count.
 func (p *Parser) endUnits(failed bool) {
 	if !p.units.on {
 		return
@@ -110,9 +142,8 @@ func (p *Parser) endUnits(failed bool) {
 	if p.units.out != nil {
 		*p.units.out = p.Units
 	}
-	if p.units.limit != 0 && p.Units > p.units.limit {
-		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: p.units.limit, Used: p.Units}})
-	}
+	p.observeUnits()
+	p.unitsExceeded()
 }
 
 // unitsSized counts a sized event of n units and checks the counter, before the work it covers.
@@ -168,8 +199,7 @@ func (p *Parser) SkipCalls(exp ExpID, rules ...*Rule) {
 }
 
 // skipCalls makes the effects that the calls of rules make when the first terminal of the last
-// fails at the position with the expectation exp, as the evaluation makes them (CallLogical and
-// Call): each call counts its unit, and a call of a memoized rule the units of its key, checked
+// fails at the position with the expectation exp, as the evaluation makes them (Call): each call counts its unit, and a call of a memoized rule the units of its key, checked
 // where the evaluation checks them. A memoized rule records its first call (FirstCall). Unless that
 // defers its memoization, an entry that answers the call ends it, merging the entry's expectations,
 // and the calls it would make are not made; otherwise the rest of the calls run in a record of
@@ -264,26 +294,21 @@ func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 	p.MergeExpected(far, inner)
 }
 
-// CallLogical is Call that counts the unit of the call, and the key of a call of a memoized rule,
-// and checks the counter.
-//
-// CallLogical is for generated parsers; not a stable API.
-func (p *Parser) CallLogical(r *Rule, min int) (*sxirvalue.Node, bool) {
+// callUnit counts the unit of a call that does not go through Call, and checks the counter if the
+// rule is on a cycle of the call graph (rec), as the call protocol does.
+func (p *Parser) callUnit(rec bool) {
 	p.Units++
-	if (r.Memo || r.Leader) && len(r.varSlots) > 0 {
-		p.Units += p.keySize(r)
-	}
-	if p.Units > p.UnitsCheck {
+	if rec && p.Units > p.UnitsCheck {
 		p.PollUnits()
 	}
-	return p.Call(r, min)
 }
 
 // KeyUnits counts the key of a call of the memoized rule r, and checks the counter if it counts any.
+// A parse that does not count logical units leaves its key unread.
 //
 // KeyUnits is for generated parsers; not a stable API.
 func (p *Parser) KeyUnits(r *Rule) {
-	if len(r.varSlots) > 0 {
+	if p.units.on && len(r.varSlots) > 0 {
 		p.unitsSized(int(p.keySize(r)))
 	}
 }
