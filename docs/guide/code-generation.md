@@ -375,13 +375,14 @@ does not apply to the parser (the lean passes in a parser with limit controls, f
 generation that writes the output prints. Each dump starts with one header line that names the step and the unit,
 `-- after <step> [<table>] --`, where `<table>` is `typed` for the typed rules, and `rules` or `recRules` for the
 untyped and recognizer tables; a pass that runs on one function at a time names the function too,
-`-- after <pass> [<table>/<function>] --`. `-print-after elaborate` shows the Core IR of each rule table as built, with the attributes of its nodes, and
-each Core pass prints it under its own name. `-print-after plan` shows the plan of a Go parser's program, under
-`-- after plan [program] --`: the entry points, then for each table every rule by ID with the route of a call of it
+`-- after <pass> [<table>/<function>] --`. The rules of the untyped and recognizer tables that the parser leaves out
+are lowered as tables of their own, `rulesUnreachable` and `recRulesUnreachable`, so that the expectation table keeps
+their rows. The dumps of each table are written together, in the order of its steps. `-print-after elaborate` shows the Core IR of each rule table as built, with the attributes of its nodes, and
+each Core pass prints it under its own name. `-print-after plan` shows the plan of the parser's program, under
+`-- after plan [program] --`, before the dumps of the tables: the entry points, then for each table every rule by ID with the route of a call of it
 (`call=slot` through the rule table, `call=wrapper` through the rule's own function) and the ways the entry points reach
 it (`reach=slot`, `reach=wrapper`, both, or `reach=none` for a rule whose body the parser leaves out). The plan is
-written only when `plan` is named, since `all` selects the forms of the intermediate representation; a TypeScript
-parser has no plan to print yet. `-print-after flowlower` shows the next form: the module of each table that
+written only when `plan` is named, since `all` selects the forms of the intermediate representation. `-print-after flowlower` shows the next form: the module of each table that
 the parser is printed from, each function as a listing of Code IR at the Flow stage, as lowered from the Core IR.
 `flow-finish` prints the same form after the Flow stage ends, and `execlower` prints the form after that, a listing of
 Code IR at the Exec stage; the Flow and Exec passes print each function they run on under their own names. A listing writes the statements and the calls of the operations of the stage in the notation of the Code IR text form, with the immediate operand of a call in brackets before its arguments.
@@ -407,6 +408,7 @@ units, with its share of the total, the time of the pass manager outside them, a
   elaborate        runs 1  changed 1
   guards           runs 1  changed 1  guarded 3
   scans            runs 1  changed 1
+  plan             runs 1  changed 1
   flowlower        runs 1  changed 1
   ...
 ```

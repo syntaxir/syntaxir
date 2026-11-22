@@ -186,10 +186,25 @@ wrote it. Each form charges what it replaces, so the VM's functions charge what 
 The functions of a planned table are lowered into one module, in the order of the plan, by one run of `flowlower`; the
 Flow passes, `execlower` and the Exec passes then run on that module, each pass on every function in turn before the
 next pass (see [Bisecting Passes](#bisecting-passes)), and a backend finds the function of a use in the module by its
-key. The VM runs the Flow part on the module of its Node table, and the Go generator both parts on the modules of its
-typed table, its Node table and its recognizer. Within the module, functions are named apart: a value-free twin by its
-rule's name and `/value-free`, the skip and the lines of an Operators Rule by its rule's name and `/skip` or `/line` and
-the index of the line, and the stream body by its rule's name and `/stream`.
+key. The VM runs the Flow part on the module of its Node table, and the Go and TypeScript generators run both parts on
+the modules of their tables: the Node table and the recognizer, and for Go the typed table and the traced copies.
+Within the module, functions are named apart: a value-free twin by its rule's name and `/value-free`, the skip and the
+lines of an Operators Rule by its rule's name and `/skip` or `/line` and the index of the line, and the stream body by
+its rule's name and `/stream`.
+
+The plan leaves out of a table the rules that no entry point reaches, unless the build keeps them. The expectation
+table still has a row for every rule of the Node and recognizer tables, numbered as a parser that prints every rule
+numbers it, so the functions that the plan leaves out of these two tables form a part of their own, labeled with the table's name and
+`Unreachable` (`rulesUnreachable`, `recRulesUnreachable`). The part runs the same steps as its table in the same run,
+and its dumps carry its label; the join at the Exec stage numbers the expectation table from both parts in the order
+of the whole table, and the printers see only the tables they print. So each function is lowered once.
+
+The plan takes the reach of the program from the compilation when it gives one, and computes it from the Core IR of
+the tables after their passes otherwise. If the code that a printer prints enters other rules than that reach, the
+printer returns the reach of the printed code instead of the files, and the driver runs the pipeline again with it,
+which must then agree; this is the fallback of planning, and it applies to every backend. Only the TypeScript printer
+returns such a reach today; what the Go printer prints is what the plan reaches. Under a bisection limit the pipeline
+runs once (see [Bisecting Passes](#bisecting-passes)).
 
 The plan of a table is computed from the Core IR of the table after its Core passes, the rules of the table (value-free
 twins included) as the plan reads them: their definitions, actions and run-time facts, and the rules that the backend
@@ -361,10 +376,14 @@ diagnosis ask for this; it costs compile time and changes no output.
 A run can also **dump** the module as text after a step or after a pass. The `-print-after` flag of the gen command
 takes the names of steps and passes, and `all` for every step and pass but `plan`, and prints to standard error. The
 required steps are `elaborate`, `plan`, `flowlower`, `flow-finish` and `execlower`; each dump is named after the step that
-produced it. `plan` dumps the plan of a Go parser's program (the entry points, and the route and reach of each rule) only
+produced it. `plan` dumps the plan of the program (the entry points, and the route and reach of each rule) only
 when it is named, since it is not a form of the module that the passes change. A dump of
 the Flow or Exec stage prints each function as a listing of Code IR. A pass that did not apply prints nothing, which is
 itself information: the dump is the way to see why an optimization did not happen for a parser.
+
+Every table runs a stage before the next stage of any table runs, so the driver keeps the dumps of each table
+together: the dump of the plan first, then the dumps of each table, from its Core IR to the Exec stage, in the order
+of the table's first dump. A dump's header names its table, so the dumps of one table read in the order of its steps.
 
 ```mermaid
 flowchart TD
@@ -427,10 +446,11 @@ overrides of individual flags.
   line with the time the manager spent outside the steps (verification, copies, dumps and observers); and a `total`
   line with the time of the runs of the manager. The time of an analysis is charged to the pass that queried it.
 
-A generator that runs the pipeline more than once, to find the rules that the printed code reaches before it prints
-them again without the others, observes only the run that writes the files: its dumps, statistics and times are the
-ones reported. It keeps them until that run ends and writes them also when it fails, since they show what led to the
-error, but not when it starts the run again with other settings.
+When the fallback of planning runs the pipeline a second time, with the reach of the printed code (see
+[Planning the Functions of a Table](#planning-the-functions-of-a-table)), only the run that writes the files is
+observed: its dumps, statistics and times are the ones reported. The driver keeps them until that run ends and writes
+the dumps also when it fails, since they show what led to the error, and drops what it kept of the first run when it
+starts the second.
 
 These settings do not change the parser that is built, bisection apart, so they are not part of `Optimize`. In Go they
 are a value of `Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print before

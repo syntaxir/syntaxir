@@ -674,14 +674,17 @@ type Backend = result.Backend // Go, TypeScript, VM, Closure
 type Target struct {
 	Backend Backend
 	Gen     common.GenOptions
+	GoHooks *goprint.Hooks // tests only: the hooks of the Go printer's decisions; production leaves it nil
+	TSHooks *tsprint.Hooks // tests only: the same for the TypeScript printer
 }
 
 // Options are the settings of a compilation, common to every target.
 type Options struct {
-	Settings pass.Settings
-	Debug    Debug       // the debugging settings, which apply to the whole call
-	Edits    []pass.Edit // internal: typed edits of the assembled pipeline (tests)
-	Pipeline string      // internal: a pipeline text whose headers and body replace the assembled ones
+	Settings  pass.Settings
+	Debug     Debug           // the debugging settings, which apply to the whole call
+	Edits     []pipe.Edit     // internal: typed edits of the assembled pipeline (tests)
+	Observers []pipe.Observer // internal: observers of every step and its unit (tests)
+	Pipeline  string          // internal: a pipeline text whose headers and body replace the assembled ones
 }
 
 // Debug holds the debugging settings of the call (common.Debug): the dumps, the verification
@@ -704,8 +707,9 @@ func GoLibrary(ctx context.Context, o Options) (Output, error)
 func DescribeGoLibrary(o Options) string
 
 // FlowTable builds the Node table of p at the Flow stage for the VM's Flow route, at the default
-// settings and with no pruning. It is the VM's route in production until step 12 of the migration
-// assembles the VM pipeline in Compile, which deletes it.
+// settings and with no pruning. It is an adapter: it runs the Core part and the Flow part of a
+// table's pipeline, and plans the one table between the two runs. It is the VM's route in
+// production until step 12 of the migration assembles the VM pipeline in Compile, which deletes it.
 func FlowTable(ctx context.Context, p *frontend.Result) (*plantypes.Table[code.Flow], error)
 
 // The slots of the assembled pipelines, for Edits.
@@ -735,9 +739,11 @@ alone. The options of the call hold only what the manager applies to the whole r
   listed language does not support (`-stream`, `-typed-only`, `-recognize-only` with `ts` listed) is an error that
   names its qualified form. With one language every flag means what it means without the list.
 - *Diagnostics.* The debugging flags (`-print-after`, `-print-changed`, `-verify-each`, `-stats`, `-time-passes`) are
-  common flags: they apply to the whole call, and dumps and report lines name the backend in their label. The driver
-  writes the dumps in the order the steps run. `-lib only` writes
-  the library of each listed language.
+  common flags: they apply to the whole call, and dumps and report lines name the backend in their label. Every table
+  runs a stage before the next stage of any, so the driver groups the dumps by table: the program's dumps (the plan)
+  first, then each table's, from its Core IR to the Exec stage, in the order of the table's first dump. The report
+  lines follow the order in which each step first ran, which is the order of the pipeline. `-lib only` writes the
+  library of each listed language.
 
 **Several targets from the API.** `pkg/compiler` gets one function over the existing configurations:
 
@@ -780,19 +786,26 @@ numbers the table from the lowered Node and recognizer tables, in that order, fu
 operation by operation in the order of their code, in the Exec lowering, after the fixed expectations. That is the
 order in which printing every function records them, which a test checks over the corpus. A rule of the Node or
 recognizer table that the plan does not reach keeps its table row, and the IDs are those of a parser that prints
-every rule, so the numbering lowers these two tables a second time without leaving out unreached rules: a lowering
-that no observer sees, with no dumps and no events, whose tables only the numbering reads. The planned tables that
+every rule. So `plan` puts the functions that pruning leaves out of these two tables into a part of their own, a
+planned table labeled with the table's name and `Unreachable` (`rulesUnreachable`, `recRulesUnreachable`), which holds
+functions disjoint from the printed table and runs the same steps in the same run, observed and dumped under its own
+label. The join numbers the expectation table from both parts in the order of the whole table, and gives the printers
+only the tables they print, so every function is lowered once. (Amended: the numbering first lowered the two tables a
+second time, without observers, which lowered each function twice.) The planned tables that
 `print-go` prints are the pruned ones, and printing them fails with an internal error if it records an expectation that
 the numbering lacks. The typed table and the traced copies add their expectations after this table as they are
 printed, since the typed table has no row of a rule it leaves out.
 
-**The fallback for planning.** If planning without printing renumbers the expectation table or changes the scopes of
-pruned rows, the driver keeps two runs instead: it executes the Go pipeline once with the feature `reach` unset, so
-every rule is printed, and takes the reach facts that `print-go` returns with its files; then it executes the same
-pipeline again with those facts as a constant `reach`, and returns the second result. No pass runs a pipeline. The
-first run has no dumping observer and reports no events. Under a bisection limit the driver executes only the first
-run, with the observers, and returns its output, which prints every rule, so that one execution numbers every decision;
-the generators already generate once under a limit.
+**The fallback for planning.** `plan` takes the reach of the program from the feature `reach` when the compilation
+sets it, and computes it from the Core IR of the tables after their passes otherwise. A printer whose printed code
+enters other rules than the computed reach returns that reach, as its output, instead of the files; the driver then
+drops what the debugging observers collected of the run and executes the same pipeline again with the printed reach as
+a constant `reach`, and the printer must print the files with it. No pass runs a pipeline. The fallback belongs to
+every backend: no step of it names one. The TypeScript printer uses it; the Go printer prints what the plan reaches, as
+migration step 4 made it. Under a bisection limit the pipeline runs once, so
+that one execution numbers every decision: the Go target keeps every rule, and the TypeScript printer prints with the
+reach that the plan computed. The observers of `Options.Observers`, which only tests set, see both runs. (Amended: the
+fallback was first a Go-only first run with `reach` unset, whose files the second run replaced.)
 `-print-pipeline` prints the second run with `with reach` as a derived provider, whose value a reader recomputes by the
 first run.
 
@@ -884,7 +897,11 @@ bytecode and the closures change only when an override turns a Core pass off.
 **Test hooks** become edits and observers: a typed hook on Core units is an observer that needs units; a replaced
 pipeline of one stage is a typed fill of the stage's slot for one table or every table; a broken test pass is a fill
 whose body ends in that pass, counted by an observer; test passes are declared as test passes, always enabled and
-without a flag; per-table text overrides are slot bodies for a part.
+without a flag; per-table text overrides are slot bodies for a part. The hooks of the printers' own decisions, which
+are not steps (the generator that printed, the routes it chose for each rule, the expectation table and the reach as
+the printer reads them), stay hooks of the printers, given as the fields `GoHooks` and `TSHooks` of a target; production leaves them nil, and an
+architecture test checks that no non-test package sets them. (Amended: the record first moved every hook to edits and
+observers; the printers' hooks observe no step, so no observer can carry them.)
 
 ### Printers Take Exec-Stage Units
 
@@ -1206,7 +1223,12 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
 6. **The driver assembles the Go and TypeScript pipelines.** The printers become passes in the backend packages; the
    driver's stage API, the pass and lowering entry points of the code generators and the hooks go, and their users move
    to `Compile` with edits, or to `FlowTable` where they need only the table. The architecture tests land with the rules
-   that hold at this step: the caller rule and the export rules.
+   that hold at this step: the caller rule and the export rules. The caller rule lists, in an allowlist that must match
+   exactly, the callers that a later step removes (the Core passes of the run-time builds, step 12; the Go library,
+   step 10) and one that stays: the runner of the Flow passes on a module in the flowpass package, for the tests of the
+   Flow passes and of the lowering, since the package's own internal tests use it and a shared helper in test support
+   would make an import cycle with them. No pass exports its run function; the tests of a single pass run it through
+   `Execute`. The printers' test hooks get a rule of their own.
 7. **Printers on Exec-stage units**, each change with identical output and dumps: the `prim` package; Exec-stage
    attributes with the verifier's rule, and the flat-function check beside the analysis of dead stores, which the plan
    and the Go printer call each on its own stage; the printers reading `prim` and the table unit; the lowering left in
