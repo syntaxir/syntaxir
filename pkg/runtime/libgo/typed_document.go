@@ -40,6 +40,15 @@ func (c *TypedDocumentCloneBase) ReleaseBase() {
 	c.Control, c.Values, c.Slices, c.Tasks = nil, nil, nil, nil
 }
 
+// typedRetainedBytes returns the bytes of the typed memo cache that a Document keeps, ok if it has
+// one, as a typed parse under a memory limit counts them: an estimate of its slots and entries.
+func typedRetainedBytes(cache *typedDocumentState, ok bool) uint64 {
+	if !ok {
+		return 0
+	}
+	return cache.retainedBytes()
+}
+
 // TypedDocumentParse parses the Document d with the typed rule root and returns the value that publish
 // makes of the parse result. The values of a typed Document parse are write-once: they are published
 // as they are, and later parses reuse them, so publish must not write to them. a is the generated
@@ -56,9 +65,10 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	}
 	o = prepareText(o, d.State.text)
 	cache, ok := d.State.typedMemo.(*typedDocumentState)
-	if ok && o.control != nil && o.control.limits.Memory != 0 && cache.retainedBytes() > o.control.limits.Memory {
-		// The retained memo alone exceeds the limit: the parse starts without it.
-		d.State.dropTypedMemo()
+	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(typedRetainedBytes(cache, ok), editLogBytes(d.State.edits)) > o.control.limits.Memory {
+		// The retained typed memo and edit log alone exceed the limit: the parse starts without them,
+		// as after ResetHistory.
+		d.State.resetHistory()
 		ok = false
 	}
 	if !ok {
@@ -77,7 +87,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	p.edits, p.gen = d.State.edits, uint32(len(d.State.edits))
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.attachTypedMemory(p, a)
-		o.control.retained = cache.retainedBytes()
+		o.control.retained = saturatingAdd(cache.retainedBytes(), editLogBytes(d.State.edits))
 	}
 	p.Observation = newObservation(&o.observe, &p.Silent, &d.State.stats.Resumed)
 	defer p.releaseObservation()

@@ -136,10 +136,16 @@ func (d *documentState) resetHistory() {
 	d.memo, d.typedMemo, d.runs, d.edits, d.moves = memoTable{}, nil, nil, nil, 0
 }
 
-// historyBytes returns the bytes that a parse under a memory limit counts for the history the
+// historyBytes returns the bytes that a Node parse under a memory limit counts for the history the
 // Document keeps beside its memo table: the run records and the edit log.
 func (d *documentState) historyBytes() uint64 {
-	return saturatingAdd(runBytes(d.runs), uint64(cap(d.edits))*uint64(unsafe.Sizeof(documentEdit{})))
+	return saturatingAdd(runBytes(d.runs), editLogBytes(d.edits))
+}
+
+// editLogBytes returns the bytes of the edit log edits, which the Node and the typed memo share: a
+// parse of either form counts them once (documentState.historyBytes, TypedDocumentParse).
+func editLogBytes(edits []documentEdit) uint64 {
+	return uint64(cap(edits)) * uint64(unsafe.Sizeof(documentEdit{}))
 }
 
 // CacheStats returns a point-in-time estimate of the memo and the repetition runs that the Document
