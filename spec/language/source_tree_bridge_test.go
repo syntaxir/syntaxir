@@ -12,7 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -136,7 +136,9 @@ var treeTypes = func() map[string]reflect.Type {
 }()
 
 // TestTreeTypesComplete requires treeTypes to name every exported struct type
-// of the typed values, so that a type that sxir.sxir adds is not missed.
+// of the typed values, so that a type that sxir.sxir adds is not missed. Error
+// is the error value that every generated parser declares, not a type of
+// sxir.sxir; the adapter makes it from an error node, not by name.
 func TestTreeTypesComplete(t *testing.T) {
 	f, err := goparser.ParseFile(token.NewFileSet(), "../../internal/frontend/parser/sxirparser/types/types.go", nil, 0)
 	if err != nil {
@@ -150,7 +152,7 @@ func TestTreeTypesComplete(t *testing.T) {
 		}
 		for _, s := range g.Specs {
 			ts := s.(*goast.TypeSpec)
-			if _, ok := ts.Type.(*goast.StructType); !ok || !ts.Name.IsExported() {
+			if _, ok := ts.Type.(*goast.StructType); !ok || !ts.Name.IsExported() || ts.Name.Name == "Error" {
 				continue
 			}
 			if _, ok := treeTypes[ts.Name.Name]; !ok {
@@ -164,7 +166,7 @@ func TestTreeTypesComplete(t *testing.T) {
 }
 
 var (
-	spanType = reflect.TypeOf(rt.Span{})
+	spanType = reflect.TypeOf(input.Span{})
 )
 
 // typedTree moves the File node root of an engine parse into the typed values.
@@ -227,7 +229,7 @@ func typedValue(t testing.TB, v any, typ reflect.Type) reflect.Value {
 	return out
 }
 
-func span(n *value.Node) rt.Span { return rt.Span{Start: n.Start(), End: n.End()} }
+func span(n *value.Node) input.Span { return input.Span{Start: n.Start(), End: n.End()} }
 
 // fill sets the struct s, a struct or node type of the typed values, from n.
 func fill(t testing.TB, n *value.Node, s reflect.Value) {
