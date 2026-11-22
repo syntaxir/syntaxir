@@ -83,11 +83,12 @@ rule ws = [ \n]* $
 		entries: []string{flowConformParse, flowConformOrdinary}},
 	{name: "typed", src: `type P = { Name string; N int }
 @start
-rule main = xs:(p:pair ";"?)* $$ => map($xs, (e) => e.$p)
+rule main = xs:(p:pair ";"?)* tl:tail $$ => map($xs, (e) => e.$p)
+rule tail = t:"!"? "."?
 rule pair = n:name "=" v:num {len(text($n)) > 0} => P{Name: text($n), N: len(text($v))}
 rule name = [a-z]+ #atomic
 rule num = d:[0-9]+ => text($d)
-`, opts: common.GenOptions{Types: true}, inputs: []string{"a=1;bc=23", "a=", flowConformLong + "=1", ""},
+`, opts: common.GenOptions{Types: true}, inputs: []string{"a=1;bc=23", "a=", flowConformLong + "=1", "", "a=1.", "a=1!."},
 		entries: []string{flowConformParse, "_, err = ParseValue(in, opts...)"}},
 	{name: "lean", src: `type Item = { Key Word; Vals []int; Sub Sub }
 type Sub = { N int }
@@ -111,6 +112,10 @@ rule main = (w:letters "!" => $w) / (w:letters "?" => $w) / (w:letters "=" => $w
 rule letters = d:[a-z]+ => text($d)
 `, opts: common.GenOptions{Types: true, TypedOnly: true}, inputs: []string{flowConformLong + flowConformLong + ";", "ab;"},
 		entries: []string{"_, err = ParseValue(in, opts...)"}},
+	{name: "scanvalsu", src: `@start
+rule main = (w:letters "!" => $w) / (w:letters "?" => $w) / (w:letters "=" => $w) / (w:letters ":" => $w) / (w:letters "," => $w) / (w:letters "." => $w) / (w:letters ";" => $w)
+rule letters = d:[a-z]+ => text($d)
+`, inputs: []string{flowConformLong + flowConformLong + ";", "ab;"}},
 	{name: "ordinary", src: `@start
 rule main = (stmt ";")* $$
 rule stmt = -([a-z] [0-9] [a-z]) "!" / (c:[a-zA-Z0-9_+*/%.] "#" => text($c)) / -kw "(" / -kw "[" / !kw id
@@ -140,6 +145,14 @@ rule main = xs:(x:item ";")* $$ => map($xs, (e) => e.$x)
 rule item = ("o" => Out{A: In{N: 1}, B: In{N: 2}, N: 3}) / ("i" => Out{A: In{N: 1}, B: In{N: 2}, N: 3}.B)
 `, opts: common.GenOptions{Types: true}, inputs: []string{"o;i;", "i;o", ""},
 		entries: []string{flowConformParse, "_, err = ParseValue(in, opts...)"}},
+	{name: "shapes", src: `@start
+rule main = item* opt one many many2 $$
+rule item = lk:!"q" alt:(x:"a" y:"b" / z:"c") ","?
+rule opt = o:"o"? "."?
+rule one = c:[0-9]?
+rule many = (q:"z"? "w")*
+rule many2 = (c:[0-9])*
+`, inputs: []string{"ab,ab", "c,c", "q", "ac", "", "ab,", "ab.", "abo.", "ab,c,o", "ab7", "abww", "abzw7zw", "ab7zwww", "ab7zw12", "ab12"}},
 	{name: "recover", src: `@start
 rule main = stmt* $$
 rule stmt = ("let" ws name "=" [0-9]+ ";") #recover(skip=(![;] .)* ";") ws
@@ -244,7 +257,9 @@ var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpI
 	flow.OpLiteralText, flow.OpReset, flow.OpMarkPos, flow.OpMergeExpected, flow.OpMergeRenamed, flow.OpKeep, flow.OpMakeError,
 	flow.OpErrorValue, flow.OpNewErrorNode, flow.OpNewMatch, flow.OpNewTerminalNode, flow.OpNewBranchNode, flow.OpNewNode,
 	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal,
-	flow.OpScanReach, flow.OpScanKids, flow.OpCtxFinish, flow.OpFreshNode}
+	flow.OpScanReach, flow.OpScanKids, flow.OpCtxFinish, flow.OpFreshNode,
+	flow.OpDropCreated, flow.OpUnfresh, flow.OpShapeSingle, flow.OpShapeCapture, flow.OpScopeValue, flow.OpAttachCaptures,
+	flow.OpAttachFrame}
 
 func (pr *flowProbe) add(c *code.Call) int {
 	pr.mu.Lock()
@@ -262,6 +277,11 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 		}
 		out := make([]string, len(args))
 		for i, a := range args {
+			if a == "nil" {
+				// An untyped nil has no type to record (the event's argument stays nil).
+				out[i] = a
+				continue
+			}
 			out[i] = fmt.Sprintf("rt.ConfArg(%d, %s)", i, a)
 		}
 		return out
@@ -324,9 +344,20 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 			return t.Stmt(c, args, dst, define)
 		}
 		k := pr.add(c)
-		s, ok := t.Stmt(c, wrapArgs(c, args), dst, define)
+		stmtArgs := wrapArgs(c, args)
+		pre := ""
+		if execlower.FlowOp(c.Callee) == flow.OpAppend {
+			// The statement assigns to its first argument: record the list before it, and the node
+			// that the element is, around the assignment.
+			pre = fmt.Sprintf("rt.ConfArg(0, %s)\n", args[0])
+			stmtArgs = []string{args[0], fmt.Sprintf("rt.ConfArg(1, %s)", args[1])}
+		}
+		s, ok := t.Stmt(c, stmtArgs, dst, define)
 		if !ok || s == "" {
 			return s, ok
+		}
+		if pr.mutate != nil {
+			s = pr.mutate(execlower.FlowOp(c.Callee), s)
 		}
 		res := make([]string, len(dst))
 		for i, d := range dst {
@@ -335,7 +366,7 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 				res[i] = "nil"
 			}
 		}
-		return fmt.Sprintf("rt.ConfPre(p, %d)\n%s\nrt.ConfPost(%s)", k, s, strings.Join(res, ", ")), true
+		return fmt.Sprintf("rt.ConfPre(p, %d)\n%s%s\nrt.ConfPost(%s)", k, pre, s, strings.Join(res, ", ")), true
 	}
 	return &w
 }
@@ -350,6 +381,7 @@ var flowOps = sync.OnceValue(func() map[string]*code.Op {
 
 // flowEvent is a call that a probe recorded (testdata/flowconform/probe.go).
 type flowEvent struct {
+	ArgFrameSet         bool
 	K                   int
 	Pos, PosAfter       int
 	Used, UsedAfter     uint64
@@ -362,6 +394,9 @@ type flowEvent struct {
 	Frame, FrameAfter   string
 	Env, EnvAfter       string
 	Vals, ValsAfter     []any
+	Created             int
+	CreatedAfter        int
+	Fresh, FreshAfter   string
 	Args                map[int]any
 	Results             []any
 	Done                bool
@@ -661,7 +696,8 @@ func flowBound(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) int {
 			q = in.Len() + 1
 		case flow.QMade:
 			if made, ok := e.Args[0].(string); ok {
-				fmt.Sscanf(made, "made:%d", &q)
+				var base int
+				fmt.Sscanf(made, "ctx:%d:made:%d", &base, &q)
 			}
 		case flow.QDeps, flow.QTable:
 			q = flowUnbounded
@@ -749,6 +785,89 @@ type failFunc func(format string, args ...any)
 // flowConformChecks are the checks of the Flow operations beyond their position and charges, by
 // operation.
 var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc){
+	flow.OpShapeSingle: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		sh := c.Imm.(core.Shape)
+		ok, known := resBool(e, 1)
+		if known && ok != (sh.Mode != core.SingleNone) {
+			fail("reported %v for a shape of mode %d", ok, sh.Mode)
+		}
+		if known && ok {
+			checkShapeValue(e, fail, sh, false)
+		} else if known && e.Results[0] != nil {
+			fail("returned %v where the expression has no value", e.Results[0])
+		}
+	},
+	flow.OpShapeCapture: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		sh := c.Imm.(core.Shape)
+		if sh.Mode == core.SingleNone {
+			// The unit node of the range matched.
+			start, ok := argInt(e, 1)
+			if v, isNode := valOf(firstResult(e)); isNode && ok && (!isTuple(v) || v.Start != start || v.End != e.Pos || v.Kids != 0) {
+				fail("returned %v for no value, not the empty tuple of %d to %d", firstResult(e), start, e.Pos)
+			} else if !isNode {
+				fail("returned %v for no value, not the empty tuple", firstResult(e))
+			}
+			return
+		}
+		checkShapeValue(e, fail, sh, false)
+	},
+	flow.OpScopeValue: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		checkShapeValue(e, fail, c.Imm.(core.Shape), true)
+	},
+	flow.OpAttachCaptures: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		attached := false
+		for i := 2; i < len(e.Args); i++ {
+			if e.Args[i] != nil {
+				attached = true
+			}
+		}
+		checkAttached(e, fail, attached)
+	},
+	flow.OpAttachFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		// The captures are the values of the frame argument.
+		attached := e.ArgFrameSet
+		checkAttached(e, fail, attached)
+	},
+	flow.OpDropCreated: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		var base int
+		if _, err := fmt.Sscanf(fmt.Sprint(e.Args[0]), "ctx:%d", &base); err != nil {
+			return
+		}
+		if e.CreatedAfter != base {
+			fail("left %d made structs, not the %d of before the context", e.CreatedAfter, base)
+		}
+	},
+	flow.OpUnfresh: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if e.Fresh != "" && e.FreshAfter != "false" {
+			fail("left the node owned by its maker (%s)", e.FreshAfter)
+		}
+	},
+	flow.OpAppend: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		before, ok1 := listLen(e.Args[0])
+		after, ok2 := listLen(firstResult(e))
+		if !ok1 || !ok2 {
+			return
+		}
+		want := 1
+		if bool(c.Imm.(flow.Spread)) {
+			x, ok := valOf(e.Args[1])
+			if !ok {
+				return
+			}
+			want = x.Kids
+		}
+		if after != before+want {
+			fail("appended %d elements to the list of %d, to make %d, not %d", after-before, before, after, before+want)
+		}
+	},
 	flow.OpCtxFinish: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		arg, res := e.Args[1], firstResult(e)
@@ -777,23 +896,15 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned %v, neither the node %v nor nil", res, e.Args[0])
 		}
 	},
-	flow.OpPred:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpBind:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpEval:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpUseCtx:         func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpShapeSingle:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpShapeCapture:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpScopeValue:     func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpAttachCaptures: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpAttachFrame:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpSetWhere:       func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpDeclareNames:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpStep:           func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpObserveSkip:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpUnfresh:        func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpDropCreated:    func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpAppend:         func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpConvertResult:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpPred:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpBind:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpEval:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpUseCtx:        func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpSetWhere:      func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpDeclareNames:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpStep:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpObserveSkip:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpConvertResult: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
 	flow.OpSkipHit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		hit, known := resBool(e, 0)
 		switch {
@@ -1260,6 +1371,48 @@ func checkNodeBuilt(e *flowEvent, fail failFunc, types ...string) (flowVal, bool
 		fail("built a value of type %s, not of %s", v.Type, strings.Join(types, " or "))
 	}
 	return v, true
+}
+
+// isTuple reports that the value is a tuple node.
+func isTuple(v flowVal) bool { return strings.Trim(v.Type, "()") == "tuple" }
+
+// checkShapeValue checks the value that an operation makes of the result x (its argument 0) for the
+// shape sh, where the expression takes one element (scope false) or the body of a scope matched (scope
+// true): the tuple node of the elements, or the element itself. It compares what is strictly
+// comparable on the recorded values: the kind of the value and, for a tuple that the operation makes,
+// its range and number of children.
+func checkShapeValue(e *flowEvent, fail failFunc, sh core.Shape, scope bool) {
+	tuple := sh.Mode == core.SingleTuple
+	if scope {
+		tuple = sh.Tuple
+	}
+	got, isNode := valOf(firstResult(e))
+	start, _ := argInt(e, 1)
+	switch {
+	case tuple && !isNode:
+		fail("returned %v, not a tuple node", firstResult(e))
+	case tuple && !isTuple(got):
+		fail("returned %v, not a tuple node", firstResult(e))
+	case tuple && !sh.Elems && (got.Start != start || got.End != e.Pos || got.Kids != sh.K):
+		fail("made the tuple %d to %d of %d children, not %d to %d of %d", got.Start, got.End, got.Kids, start, e.Pos, sh.K)
+	case tuple && sh.Elems && !sh.Shared:
+		if want, ok := valOf(e.Args[0]); ok && (got.Kids != want.Kids || got.Start != want.Start || got.End != want.End) {
+			fail("returned the tuple %v, not the result %v itself", firstResult(e), e.Args[0])
+		}
+	case !tuple && !sh.Elems && fmt.Sprint(firstResult(e)) != fmt.Sprint(e.Args[0]):
+		fail("returned %v, not the element %v itself", firstResult(e), e.Args[0])
+	}
+}
+
+// checkAttached checks the value that an operation attaches captures to: the value itself where no
+// capture is set, and otherwise a node.
+func checkAttached(e *flowEvent, fail failFunc, attached bool) {
+	switch res := firstResult(e); {
+	case !attached && fmt.Sprint(res) != fmt.Sprint(e.Args[0]):
+		fail("returned %v with no capture to attach, not %v itself", res, e.Args[0])
+	case attached && res == nil:
+		fail("returned no value with captures to attach")
+	}
 }
 
 // checkOnlyAction checks an operation that evaluates an action, a predicate or a binding, or builds
