@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 )
 
 // TestRunSitesInClassification checks that the classifier's marking of run sites is off by default,
@@ -70,7 +71,7 @@ func TestRunSitesMatchClassifier(t *testing.T) {
 		classifier := 0
 		for _, r := range k.rules {
 			walkNodes(k.ruleBody(r.Name), func(x core.Node) {
-				if rep, ok := x.(*core.Repeat); ok && !isScan(rep) && k.runSiteOf(rep) {
+				if rep, ok := x.(*core.Repeat); ok && !corepass.IsScan(rep) && k.runSiteOf(rep) {
 					classifier++
 				}
 			})

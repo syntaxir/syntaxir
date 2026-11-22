@@ -379,9 +379,7 @@ type classifier struct {
 	sourceIndex     map[sourceKey]*source
 	predicateSource map[*ast.Predicate]*source
 	repeatedRules   map[string]string
-	runMemo         map[*core.Repeat]bool
-	runRestart      map[*core.Repeat]bool
-	runBad          map[string]bool
+	numbered        *corepass.Sites // the sites that the compiler numbers (compilerSites)
 	includesMemo    map[sizeKey]bool
 	varBinding      map[string][]varBind // the bindings of each variable (see varBinds)
 	inlineNames     desugar.InlineNames  // the hidden rules of the inline actions of the rules
@@ -415,10 +413,8 @@ type classifier struct {
 
 	causes, reasons, env []ComplexityCause
 
-	// base are the rules of the grammar when rules is a view of them, or nil. baseRuns is the
-	// classifier of base that decides the run sites (runSiteOf).
-	base     []*ast.RuleDef
-	baseRuns *classifier
+	// base are the rules of the grammar when rules is a view of them, or nil.
+	base []*ast.RuleDef
 	// viewText gives the text of the grammar that an expression of the view stands for.
 	viewText map[ast.Expr]string
 	// nodes gives, for each expression of rules, the Core IR node that it stands for: a node of

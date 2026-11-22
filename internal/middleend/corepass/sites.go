@@ -280,8 +280,8 @@ func blocksCallee(x core.Node) bool {
 	return false
 }
 
-// isScan reports a repetition of a single character, which a scan walks without a record.
-func isScan(e *core.Repeat) bool {
+// IsScan reports a repetition of a single character, which a scan walks without a record.
+func IsScan(e *core.Repeat) bool {
 	switch e.Body.(type) {
 	case *core.ClassNode, *core.Any:
 		return true
@@ -343,7 +343,7 @@ func (s *sites) runSites() {
 		s.control.Poll()
 		core.Walk(s.m.Rules[id].Body, func(x core.Node) {
 			rep, ok := x.(*core.Repeat)
-			if !ok || s.out.Skip[rep] != 0 || candidate[rep] || !restart[rep] || !eligible(rep) || isScan(rep) {
+			if !ok || s.out.Skip[rep] != 0 || candidate[rep] || !restart[rep] || !eligible(rep) || IsScan(rep) {
 				return
 			}
 			candidate[rep] = true
@@ -381,7 +381,7 @@ func (s *sites) dropUnrecordedReach(candidates []*core.Repeat, candidate map[*co
 	holds := func(n core.Node) []*core.Repeat {
 		var out []*core.Repeat
 		core.Walk(n, func(x core.Node) {
-			if r, ok := x.(*core.Repeat); ok && r.Max < 0 && s.out.Skip[r] == 0 && !isScan(r) {
+			if r, ok := x.(*core.Repeat); ok && r.Max < 0 && s.out.Skip[r] == 0 && !IsScan(r) {
 				out = append(out, r)
 			}
 		})
@@ -606,7 +606,7 @@ func (s *sites) scanSites() {
 		})
 		core.Walk(body, func(x core.Node) {
 			rep, ok := x.(*core.Repeat)
-			if ok && rep.Max < 0 && isScan(rep) && !streamed[rep] && s.out.Skip[rep] == 0 {
+			if ok && rep.Max < 0 && IsScan(rep) && !streamed[rep] && s.out.Skip[rep] == 0 {
 				s.out.Scan[rep] = s.out.NumSkip + s.out.NumRun + 1 + 2*s.out.NumScan
 				s.out.NumScan++
 			}
