@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -260,7 +259,7 @@ func TestBudgetStateProjectedFrameClear(t *testing.T) {
 		slots = append(slots, ir.Slot{Name: name})
 	}
 	rep := &ir.Repeat{Min: 0, Max: 1, Body: &ir.Seq{Items: items}, Scope: slots, Project: "f0"}
-	empty := frontend.NewResult(compile.NewProgram(nil), check.Sites{})
+	empty := frontend.NewResult(check.NewProgram(nil), check.Sites{})
 	m, err := closure.Matcher(empty.Runtime(), empty.Checker(), &ir.Module{}, &ir.Capture{Name: "fs", Body: rep, Project: "f0"}, []ir.Slot{{Name: "fs"}}, false)
 	if err != nil {
 		t.Fatal(err)

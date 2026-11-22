@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"context"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/starttest"
@@ -24,7 +23,7 @@ func parseTest(src string) (*ast.Grammar, error) {
 
 // compileStatic compiles g as the engine does, without building matchers; flags, if not nil,
 // replace static analysis and type checking.
-func compileStatic(g *ast.Grammar, opts check.Options, flags []check.RuleFlags) (*Program, error) {
+func compileStatic(g *ast.Grammar, opts Options, flags []RuleFlags) (*Program, error) {
 	names := desugar.InlineNames{}
 	p, err := Check(g, opts, flags, names, nil)
 	if err != nil {
@@ -70,7 +69,7 @@ func checksWithinSteps(t *testing.T, g *ast.Grammar, limit uint32) (finished boo
 			finished = false
 		}
 	}()
-	if _, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, control); err != nil {
+	if _, err := Check(g, Options{}, nil, desugar.InlineNames{}, control); err != nil {
 		t.Fatal(err)
 	}
 	return true

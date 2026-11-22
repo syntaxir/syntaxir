@@ -1,10 +1,8 @@
-package compile
+package check
 
 import (
 	"strings"
 	"testing"
-
-	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestTypeErrors(t *testing.T) {
@@ -188,7 +186,7 @@ func TestAliasErrorsReportedOnce(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		_, err = compileStatic(g, check.Options{}, nil)
+		_, err = compileStatic(g, Options{}, nil)
 		if err == nil || strings.Count(err.Error(), tc.want) != 1 {
 			t.Errorf("%q: got %v, want %q once", tc.src, err, tc.want)
 		}

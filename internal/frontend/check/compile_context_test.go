@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"context"
 	"errors"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -19,13 +18,13 @@ func TestCompileContextCancelsDuringGrammarValidation(t *testing.T) {
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{
 		&ast.RuleDef{Name: "main", Expr: &ast.Seq{Items: items}},
 	}}}
-	if _, err := compileStatic(g, check.Options{}, nil); err == nil {
+	if _, err := compileStatic(g, Options{}, nil); err == nil {
 		t.Fatal("fixture must fail ordinary grammar validation")
 	}
 	// CompileContext and buildControlled make two entry checks, followed by
 	// ValidateContext's entry check. The fourth check is within AST traversal.
 	ctx := compileTestContext(t, 4)
-	prog, err := compileContext(ctx, g, check.Options{})
+	prog, err := compileContext(ctx, g, Options{})
 	if prog != nil || !errors.Is(err, context.Canceled) {
 		t.Fatalf("validation cancellation: program=%v error=%v", prog, err)
 	}

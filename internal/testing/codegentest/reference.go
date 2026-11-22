@@ -266,7 +266,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		fmt.Fprintf(&recognizers, "\tfunc(s string, b bool) error { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.Recognize(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
 		fmt.Fprintf(&viewers, "\tfunc(n any) string { return %s },\n", strings.ReplaceAll(NodeViewsSource, "PKG", fmt.Sprintf("g%d", i)))
 		inputs = append(inputs, c.Inputs)
-		// The generated code projects (internal/compile/project.go), and records source information as asked.
+		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, in := range c.Inputs {
 			for _, bytes := range []bool{false, true} {

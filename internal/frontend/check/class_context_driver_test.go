@@ -1,4 +1,4 @@
-package compile_test
+package check_test
 
 import (
 	"context"
@@ -12,7 +12,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -44,7 +43,7 @@ func TestClassConstructionContextCancellation(t *testing.T) {
 		name string
 		run  func(*cancel.Control)
 	}{
-		{"descriptor", func(c *cancel.Control) { compile.CharClassStringControlled(cl, c) }},
+		{"descriptor", func(c *cancel.Control) { check.CharClassStringControlled(cl, c) }},
 	} {
 		t.Run(phase.name, func(t *testing.T) {
 			c := &cancel.Control{Ctx: compileTestContext(t, 1)}
@@ -74,7 +73,7 @@ func TestClassConstructionContextFacts(t *testing.T) {
 			t.Run(fmt.Sprintf("%d/%t", i, neg), func(t *testing.T) {
 				cl := &ast.CharClass{Ranges: rs, Negated: neg}
 				c := &cancel.Control{Ctx: context.Background()}
-				if got := compile.CharClassStringControlled(cl, c); got != core.CharClassString(cl) {
+				if got := check.CharClassStringControlled(cl, c); got != core.CharClassString(cl) {
 					t.Fatalf("descriptor %s", got)
 				}
 				accept := closure.ClassAccept(cl)
@@ -102,7 +101,7 @@ func TestClassConstructionContextFacts(t *testing.T) {
 		}
 	}
 	cl := &ast.CharClass{Ranges: []ast.CharRange{{Lo: '-', Hi: '-'}, {Lo: '[', Hi: '['}, {Lo: ']', Hi: ']'}, {Lo: '^', Hi: '^'}, {Lo: '\\', Hi: '\\'}}}
-	if got := compile.CharClassStringControlled(cl, &cancel.Control{Ctx: context.Background()}); got != `[\-\[\]\^\\]` {
+	if got := check.CharClassStringControlled(cl, &cancel.Control{Ctx: context.Background()}); got != `[\-\[\]\^\\]` {
 		t.Fatalf("escaped descriptor %q", got)
 	}
 	rs := contextClassRanges()

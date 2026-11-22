@@ -10,7 +10,7 @@
 #   gate: see run-gate.sh; the log is $SXIR_AGENT_STATE/gates/train-<name>.log. Without levels it
 #   runs the ones the stack needs: `docs` for a stack of documentation, spec, site and skill paths;
 #   `engine` for any other path, and `full` besides when a path of the engine, the generators
-#   or the runtime changed: internal/runtime/engine, internal/backend/codegen/common, internal/compile, internal/ir,
+#   or the runtime changed: internal/runtime/engine, internal/backend/codegen/common, internal/frontend/check, internal/ir,
 #   pkg/bytecode, engine, codegen and core (the list in needed_levels; a package that
 #   moves to a new layout must be added there). Other code, such as internal/frontend or the
 #   schema, query and lint packages, gets engine only: its dependents are covered by the
@@ -37,7 +37,7 @@ needed_levels() {
     [ -n "$f" ] || continue
     case $f in
       docs/* | spec/* | site/* | .agents/* | AGENTS.md | README.md | SECURITY.md) docs=1 ;;
-      internal/runtime/engine/* | internal/backend/codegen/common/* | internal/compile/* | internal/ir/* | pkg/bytecode/* | \
+      internal/runtime/engine/* | internal/backend/codegen/common/* | internal/frontend/check/* | internal/ir/* | pkg/bytecode/* | \
         pkg/compiler/* | pkg/runtime/*) code=1; full=1 ;;
       *) code=1 ;;
     esac

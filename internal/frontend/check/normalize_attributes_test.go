@@ -1,10 +1,9 @@
-package compile
+package check
 
 import (
 	"os"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -20,12 +19,12 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 		"pragmas":    `rule main = ("a" #repeat(1, 3) #atomic ";") #recover(skip=[^;]+ ";") $$`,
 		"operators":  `rule main = #operators { skip " "*; operand [0-9]+; operand "(" main ")"; level { infix left "+" / "-" }; level product { infix left "*" / "/" } }`,
 	}
-	source, err := os.ReadFile("../../sxir.sxir")
+	source, err := os.ReadFile("../../../sxir.sxir")
 	if err != nil {
 		b.Fatal(err)
 	}
 	sources["source-grammar"] = string(source)
-	for name, path := range map[string]string{"json": "../../testdata/grammars/json/json.sxir", "minilang": "../../examples/minilang/minilang.sxir"} {
+	for name, path := range map[string]string{"json": "../../../testdata/grammars/json/json.sxir", "minilang": "../../../examples/minilang/minilang.sxir"} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)
@@ -56,7 +55,7 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
 					var err error
-					normalizationBenchmarkProgram, err = compileStatic(g, check.Options{EagerAttributeCopies: eager}, nil)
+					normalizationBenchmarkProgram, err = compileStatic(g, Options{EagerAttributeCopies: eager}, nil)
 					if err != nil {
 						b.Fatal(err)
 					}
@@ -69,7 +68,7 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 					if err != nil {
 						b.Fatal(err)
 					}
-					normalizationBenchmarkProgram, err = compileStatic(tree, check.Options{EagerAttributeCopies: eager}, nil)
+					normalizationBenchmarkProgram, err = compileStatic(tree, Options{EagerAttributeCopies: eager}, nil)
 					if err != nil {
 						b.Fatal(err)
 					}

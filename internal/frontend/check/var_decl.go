@@ -1,7 +1,6 @@
-package compile
+package check
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -36,7 +35,7 @@ func (c *Compiler) declareVars(g *ast.Grammar) {
 			continue
 		}
 		if c.Prog.Vars == nil {
-			c.Prog.Vars = check.NewVarTable()
+			c.Prog.Vars = NewVarTable()
 		}
 		if c.Prog.Vars.Lookup(vd.Name) != nil {
 			c.errorf(vd.Diagnostic(), "variable %s is already defined", vd.Name)
@@ -45,14 +44,14 @@ func (c *Compiler) declareVars(g *ast.Grammar) {
 		decl := c.varDecl(vd)
 		if decl == nil {
 			// Keep the name declared, so that its uses do not add errors of their own.
-			decl = &check.VarDecl{Name: vd.Name, Typ: types.TyInt, Init: 0}
+			decl = &VarDecl{Name: vd.Name, Typ: types.TyInt, Init: 0}
 		}
 		c.Prog.Vars.Add(decl)
 	}
 }
 
 // varDecl returns the declaration of vd, or nil after reporting why it is invalid.
-func (c *Compiler) varDecl(vd *ast.VarDef) *check.VarDecl {
+func (c *Compiler) varDecl(vd *ast.VarDef) *VarDecl {
 	var typ types.BasicTy
 	if vd.Type != nil {
 		ref, ok := vd.Type.(*ast.TypeRef)
@@ -70,7 +69,7 @@ func (c *Compiler) varDecl(vd *ast.VarDef) *check.VarDecl {
 		}
 		if !ok {
 			if ref, isRef := vd.Type.(*ast.TypeRef); isRef {
-				if to, retired := check.RetiredTypeNames[ref.Name]; retired {
+				if to, retired := RetiredTypeNames[ref.Name]; retired {
 					c.errorf(vd.Diagnostic(), "%s is not a type; write %s", ref.Name, to)
 					return nil
 				}
@@ -84,20 +83,20 @@ func (c *Compiler) varDecl(vd *ast.VarDef) *check.VarDecl {
 			c.errorf(vd.Diagnostic(), "variable %s needs a type or an initial value", vd.Name)
 			return nil
 		}
-		return &check.VarDecl{Name: vd.Name, Typ: typ, Init: check.ZeroValue(typ)}
+		return &VarDecl{Name: vd.Name, Typ: typ, Init: ZeroValue(typ)}
 	}
 	if _, isNil := vd.Value.(*ast.NilLit); isNil {
-		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
+		c.errorf(ActionExprPos(vd.Value, vd.Diagnostic()), "variable %s cannot be nil; its type is int, string, or bool", vd.Name)
 		return nil
 	}
 	v, ok := constantValue(vd.Value)
 	if !ok {
-		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
+		c.errorf(ActionExprPos(vd.Value, vd.Diagnostic()), "the initial value of variable %s must be an int, string, or bool literal", vd.Name)
 		return nil
 	}
-	if vd.Type != nil && check.ValueType(v) != typ {
-		c.errorf(check.ActionExprPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", check.ValueType(v), typ, vd.Name)
+	if vd.Type != nil && ValueType(v) != typ {
+		c.errorf(ActionExprPos(vd.Value, vd.Diagnostic()), "cannot use %s as %s in the initial value of variable %s", ValueType(v), typ, vd.Name)
 		return nil
 	}
-	return &check.VarDecl{Name: vd.Name, Typ: check.ValueType(v), Init: v}
+	return &VarDecl{Name: vd.Name, Typ: ValueType(v), Init: v}
 }

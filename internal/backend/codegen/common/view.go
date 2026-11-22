@@ -70,7 +70,7 @@ type Rule struct {
 	// program links a rule to its twin.
 	Twin *Rule
 	// Projections maps the captures of repetitions that the action reads only as map($x, (e) => e.$f)
-	// to the capture f, nil if there are none (compile.RuleProjections). Copied: only the checked
+	// to the capture f, nil if there are none (check.RuleProjections). Copied: only the checked
 	// program computes them.
 	Projections map[string]string
 }

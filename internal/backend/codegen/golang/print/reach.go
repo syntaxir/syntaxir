@@ -16,7 +16,7 @@ import (
 // something can enter: the start rules, which the generated entry points and Starts reach (for the
 // typed table, the start rules whose typed entry point calls the rule's Entry), and the rules a
 // printed body calls. A rule that the compiler routes through its value-free twin
-// (internal/compile/compile_walk.go, the Ref case) has an original that only value contexts call,
+// (internal/frontend/check/compile_walk.go, the Ref case) has an original that only value contexts call,
 // so a rule referenced only from value-free contexts has an original body that nothing calls, and
 // so on transitively.
 //

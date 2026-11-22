@@ -1,15 +1,14 @@
-package compile
+package check
 
 import (
 	"os"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func BenchmarkCharacterRangeValidation(b *testing.B) {
-	for _, tc := range []struct{ name, path string }{{"JSON", "../../testdata/grammars/json/json.sxir"}, {"Go", "../../testdata/grammars/golang/golang.sxir"}, {"YAML", "../../testdata/grammars/yaml/yaml.sxir"}} {
+	for _, tc := range []struct{ name, path string }{{"JSON", "../../../testdata/grammars/json/json.sxir"}, {"Go", "../../../testdata/grammars/golang/golang.sxir"}, {"YAML", "../../../testdata/grammars/yaml/yaml.sxir"}} {
 		b.Run(tc.name, func(b *testing.B) {
 			path := tc.path
 			if tc.name == "YAML" && os.Getenv("SXIR_BENCH_YAML_GRAMMAR") != "" {
@@ -34,7 +33,7 @@ func BenchmarkCharacterRangeValidation(b *testing.B) {
 			b.Run("Compile", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					if _, err := compileStatic(g, check.Options{}, nil); err != nil {
+					if _, err := compileStatic(g, Options{}, nil); err != nil {
 						b.Fatal(err)
 					}
 				}

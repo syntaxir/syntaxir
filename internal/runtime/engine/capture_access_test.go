@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -73,7 +72,7 @@ rule num Num = t:([0-9]+ #atomic) => Num{Text: text($t)}`)
 func TestCaptureAccessMatchesField(t *testing.T) {
 	t.Parallel()
 	access := mustCompile(t, `rule main = xs:(-"," y:[a-z])* $$ => map($xs, (i) => i.$y)`)
-	if a := compile.RuleProjections(access.Static().Program, access.Static().RuleList[0]); a["xs"] != "y" {
+	if a := checkpkg.RuleProjections(access.Static().Program, access.Static().RuleList[0]); a["xs"] != "y" {
 		t.Fatalf("projection: %v", a)
 	}
 	g, err := parseTest(`rule main = xs:(-"," y:[a-z])* $$ => map($xs, (i) => i.$y)`)

@@ -38,7 +38,7 @@ import (
 )
 
 // CoreFrom builds the Core IR of the program: its rules and then its value-free twins, each at
-// the position of its ID. Shapes are those of the value model (internal/compile/value_shape.go);
+// the position of its ID. Shapes are those of the value model (internal/frontend/check/value_shape.go);
 // Analyze has not run. If origin, the module records the expression each node is built from (the
 // innermost one, for nodes built from a chain of expressions), and the action expression each
 // action expression is built from, in its origin map (core.Module.Origin).

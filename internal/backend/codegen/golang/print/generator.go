@@ -1433,7 +1433,7 @@ func (g *Generator) bodyMethod(comment, body string) string {
 }
 
 // shaper returns the name of the package variable that holds the library shaper of the expression
-// e, its static shape (internal/compile/value_shape.go). Few distinct shapes occur, so the variables are shared.
+// e, its static shape (internal/frontend/check/value_shape.go). Few distinct shapes occur, so the variables are shared.
 func (g *Generator) shaper(e ast.Expr) string {
 	return g.shaperOf(shaperLit(g.Prog, e))
 }

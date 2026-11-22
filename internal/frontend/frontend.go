@@ -13,7 +13,6 @@ package frontend
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -32,7 +31,7 @@ import (
 // Run or WithModule; the backends build their own from a Result of Check.
 type Result struct {
 	// Program is the compiled program: rules, flags and types.
-	*compile.Program
+	*check.Program
 	// sites numbers the skip-run, run and scan sites of the program's repetitions.
 	sites check.Sites
 	// runtime is the run-time program (Runtime).

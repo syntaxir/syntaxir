@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"fmt"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -46,7 +45,7 @@ func (p *Program) ShapeSignature(name string, poll func()) (string, bool) {
 			return
 		}
 		fmt.Fprintf(&b, "%T{", e)
-		for _, el := range check.ShapeElems(p.Checker(), e) {
+		for _, el := range ShapeElems(p.Checker(), e) {
 			step()
 			if el.Type() != nil {
 				b.WriteString(el.Type().String())

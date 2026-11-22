@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -36,8 +36,8 @@ func TestRuntimeTablesMatchTheCompiler(t *testing.T) {
 		t.Errorf("member kinds: runtime %d, Action dialect %d", state.MemberCapture+1, len(action.MemberKinds))
 	}
 	for r := rune(0); r < 0x300; r++ {
-		if state.FoldASCIIRune(r) != compile.FoldASCIIRune(r) {
-			t.Errorf("folding %q: runtime %q, compiler %q", r, state.FoldASCIIRune(r), compile.FoldASCIIRune(r))
+		if state.FoldASCIIRune(r) != check.FoldASCIIRune(r) {
+			t.Errorf("folding %q: runtime %q, compiler %q", r, state.FoldASCIIRune(r), check.FoldASCIIRune(r))
 		}
 	}
 }

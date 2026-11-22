@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -35,10 +34,10 @@ func TestDefaultValueAcceptsWhatItDropsWithInlineActions(t *testing.T) {
 				}
 			})
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
+		if _, err := compileStatic(g, Options{}, nil); err == nil {
 			t.Errorf("%s: compiled without the option", src)
 		}
-		if _, err := compileStatic(g, check.Options{DefaultValue: true}, nil); err != nil {
+		if _, err := compileStatic(g, Options{DefaultValue: true}, nil); err != nil {
 			t.Errorf("%s: %v", src, err)
 		}
 	}
@@ -78,8 +77,8 @@ func TestDefaultValueValidationReportsTheGrammarAsWritten(t *testing.T) {
 			if repeats != 1 {
 				t.Fatalf("%d repetitions to corrupt", repeats)
 			}
-			_, withActions := compileStatic(g, check.Options{}, nil)
-			_, withDefault := compileStatic(g, check.Options{DefaultValue: true}, nil)
+			_, withActions := compileStatic(g, Options{}, nil)
+			_, withDefault := compileStatic(g, Options{DefaultValue: true}, nil)
 			if withActions == nil || withDefault == nil {
 				t.Fatalf("no error: %v / %v", withActions, withDefault)
 			}
@@ -134,7 +133,7 @@ func TestPruneSpliceTypesFollowsTheStructureOfTypes(t *testing.T) {
 		{"no reference", types.TupleTy{Elems: []types.Ty{types.TyStringNode}}, false},
 		{"a name that holds the rule's", types.RuleTy{Name: "x_m"}, false},
 	} {
-		out := check.PruneSpliceTypes(p.Checker(), rules, map[string]types.Ty{"main": c.main, "_m": types.TyStringNode})
+		out := PruneSpliceTypes(p.Checker(), rules, map[string]types.Ty{"main": c.main, "_m": types.TyStringNode})
 		if _, got := out["_m"]; got != c.kept {
 			t.Errorf("%s: kept %v, want %v", c.name, got, c.kept)
 		}

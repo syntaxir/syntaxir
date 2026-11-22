@@ -1,7 +1,6 @@
-package compile
+package check
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -14,7 +13,7 @@ type walker struct {
 	*Compiler
 }
 
-func (c *walker) compileRule(r *check.Rule) {
+func (c *walker) compileRule(r *Rule) {
 	control := c.Control
 	c.Control.Poll()
 	c.rule = r
@@ -34,7 +33,7 @@ func (c *walker) compileRule(r *check.Rule) {
 }
 
 // Expr walks the expression. If build is false, the expression is matched without building values.
-func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
+func (c *walker) Expr(e ast.Expr, s *Scope, build bool) {
 	c.Control.Poll()
 	control := c.Control
 	switch e := e.(type) {
@@ -78,7 +77,7 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 	case *ast.And:
 		// Captures and variable definitions inside a positive lookahead remain valid after it.
 		c.noRecoveringCaptures(e.Expr)
-		c.Expr(e.Expr, s, build && check.HasCapturesControlled(e.Expr, control))
+		c.Expr(e.Expr, s, build && HasCapturesControlled(e.Expr, control))
 
 	case *ast.Not:
 		c.noCaptures(e.Expr)
@@ -107,7 +106,7 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 		if field := c.proj[e.Name]; field != "" {
 			// A projected repetition (project.go): its elements share one scope of their own and
 			// build no values.
-			c.Expr(e.Expr.(*ast.Repeat).Expr, check.NewScope(), false)
+			c.Expr(e.Expr.(*ast.Repeat).Expr, NewScope(), false)
 			return
 		}
 		c.Expr(e.Expr, s, true)
@@ -130,16 +129,16 @@ func (c *walker) Expr(e ast.Expr, s *check.Scope, build bool) {
 }
 
 // repeat walks a repetition.
-func (c *walker) repeat(e *ast.Repeat, s *check.Scope, build bool) {
+func (c *walker) repeat(e *ast.Repeat, s *Scope, build bool) {
 	elemScope := s
-	if check.ElementScopedControlled(e.Expr, c.Control) {
-		elemScope = check.NewElementScope(s)
+	if ElementScopedControlled(e.Expr, c.Control) {
+		elemScope = NewElementScope(s)
 	}
 	c.Expr(e.Expr, elemScope, build)
 }
 
 // predicate checks a Predicate Action { ... } and walks it.
-func (c *walker) predicate(e *ast.Predicate, s *check.Scope) {
+func (c *walker) predicate(e *ast.Predicate, s *Scope) {
 	if a, ok := e.Action.(*ast.Bind); ok {
 		if c.Prog.Vars.Lookup(a.Name) == nil {
 			c.errorf(a.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", a.Name, a.Name)
@@ -151,7 +150,7 @@ func (c *walker) predicate(e *ast.Predicate, s *check.Scope) {
 }
 
 // attributed walks an attributed expression and checks its attributes.
-func (c *walker) attributed(e *ast.Attributed, s *check.Scope, build bool) {
+func (c *walker) attributed(e *ast.Attributed, s *Scope, build bool) {
 	c.Expr(e.Expr, s, build)
 	for _, a := range e.Attrs {
 		switch a.Name {
@@ -199,7 +198,7 @@ func (c *walker) attributed(e *ast.Attributed, s *check.Scope, build bool) {
 }
 
 // compileOperatorsRule walks the Operators Rule e, the body of the rule r.
-func (c *walker) compileOperatorsRule(r *check.Rule, e *ast.OperatorsRule) {
+func (c *walker) compileOperatorsRule(r *Rule, e *ast.OperatorsRule) {
 	if e.Skip != nil {
 		c.noCaptures(e.Skip)
 		c.Expr(e.Skip, r.Scope, false)
@@ -258,21 +257,21 @@ func (c *walker) compileOperatorsRule(r *check.Rule, e *ast.OperatorsRule) {
 
 // checkValueCaptures reports a capture named value in the scope of the operand or operator line
 // at d: the name is reserved for the folded value, which the whole-rule action reads as $value.
-func (c *walker) checkValueCaptures(d ast.Pos, scope *check.Scope) {
+func (c *walker) checkValueCaptures(d ast.Pos, scope *Scope) {
 	for _, name := range scope.Names {
-		if name == check.OperatorsRuleValue {
+		if name == OperatorsRuleValue {
 			c.errorf(d, "capture name %s is reserved for the whole-rule action of an Operators Rule, which reads the folded value as $%s", name, name)
 		}
 	}
 }
 
-var OperatorsRuleActionLocals = []string{check.OperatorsRuleValue}
+var OperatorsRuleActionLocals = []string{OperatorsRuleValue}
 
 // operatorsRuleLine walks the line e of an Operators Rule and checks its action, whose locals are
 // locals, and returns the line's scope.
-func (c *walker) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, locals []string) *check.Scope {
-	s := check.NewScope()
-	c.Expr(e, s, !c.rule.Novalue && !check.LeanLine(action, locals))
+func (c *walker) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, locals []string) *Scope {
+	s := NewScope()
+	c.Expr(e, s, !c.rule.Novalue && !LeanLine(action, locals))
 	if action != nil && !c.rule.Novalue {
 		c.CheckActionExpr(action, s, locals)
 	}

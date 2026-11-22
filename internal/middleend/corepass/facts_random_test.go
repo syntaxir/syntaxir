@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -51,7 +50,7 @@ func TestFactsRandom(t *testing.T) {
 			r.Policy = core.Policy{}
 		}
 		typed := corepass.Compute(m, nil)
-		canon, err := compile.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
+		canon, err := check.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -79,7 +78,7 @@ func TestFactsRandom(t *testing.T) {
 }
 
 // checkProgramFlags reports a rule flag of prog that is not the fact f has of the rule.
-func checkProgramFlags(prog *compile.Program, f *corepass.Facts) error {
+func checkProgramFlags(prog *check.Program, f *corepass.Facts) error {
 	for i, r := range prog.RuleList {
 		x := &f.Rules[i]
 		if r.Leader != x.Leader || r.Member != x.Member || r.Cycle != x.Cycle || r.Positional != x.Positional ||

@@ -1,4 +1,4 @@
-package compile_test
+package check_test
 
 import (
 	"testing"

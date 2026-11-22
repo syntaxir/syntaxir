@@ -1,4 +1,4 @@
-package compile
+package check
 
 import (
 	"fmt"
@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/diagnostic"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
@@ -78,7 +77,7 @@ func TestValueTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		p, err := compileStatic(g, check.Options{}, nil)
+		p, err := compileStatic(g, Options{}, nil)
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
@@ -91,7 +90,7 @@ func TestValueTypes(t *testing.T) {
 // Every rule of the repository grammars has a value type.
 func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 	var paths []string
-	for _, pattern := range []string{"../../examples/*/*.sxir", "../../testdata/grammars/*/*.sxir", "../../spec/*/*.sxir"} {
+	for _, pattern := range []string{"../../../examples/*/*.sxir", "../../../testdata/grammars/*/*.sxir", "../../../spec/*/*.sxir"} {
 		m, err := filepath.Glob(pattern)
 		if err != nil {
 			t.Fatal(err)
@@ -110,7 +109,7 @@ func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		p, err := compileStatic(g, check.Options{}, nil)
+		p, err := compileStatic(g, Options{}, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -129,7 +128,7 @@ func TestValueTypesOptionalCaptures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := compileStatic(g, check.Options{}, nil)
+	p, err := compileStatic(g, Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,11 +150,11 @@ func valueTypesOf(t *testing.T, src string) (map[string]types.Ty, diagnostic.Err
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	p, err := compileStatic(g, check.Options{}, make([]check.RuleFlags, len(g.Rules())))
+	p, err := compileStatic(g, Options{}, make([]RuleFlags, len(g.Rules())))
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	return check.ValueTypes(p.Checker(), nil)
+	return ValueTypes(p.Checker(), nil)
 }
 
 // Actions are typed in the value model: captures have the types of their values, and nodes expose

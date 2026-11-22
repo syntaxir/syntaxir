@@ -2,7 +2,6 @@ package checked
 
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -26,7 +25,7 @@ func (s *Source) Generator() *common.Program {
 			rt, id = run.Twins, id-len(rt)
 		}
 		return &common.Rule{Rule: rt[id], Def: r.Def, Action: r.Action, Captures: r.Scope, Lean: r.Lean,
-			Projections: compile.RuleProjections(p.Program, r)}
+			Projections: check.RuleProjections(p.Program, r)}
 	}
 	for i, r := range p.RuleList {
 		v.RuleList[i] = view(r)

@@ -7,7 +7,6 @@ import (
 	"reflect"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend"
@@ -120,7 +119,7 @@ rule unused = "z"`)
 		}
 	}
 	// A program without the grammar has no metadata to export from.
-	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(compile.NewProgram(nil), check.Sites{}))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
+	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(check.NewProgram(nil), check.Sites{}))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
 		t.Fatal(err)
 	}
 }

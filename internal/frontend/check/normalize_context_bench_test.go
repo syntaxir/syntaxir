@@ -1,17 +1,15 @@
-package compile
+package check
 
 import (
 	"context"
 	"os"
 	"strings"
 	"testing"
-
-	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func BenchmarkNormalizationCompileCancellation(b *testing.B) {
 	sources := map[string]string{"attributes": `rule main = "a"` + strings.Repeat(` @error("label")`, 64)}
-	for name, path := range map[string]string{"source-grammar": "../../sxir.sxir", "json": "../../testdata/grammars/json/json.sxir"} {
+	for name, path := range map[string]string{"source-grammar": "../../../sxir.sxir", "json": "../../../testdata/grammars/json/json.sxir"} {
 		data, err := os.ReadFile(path)
 		if err != nil {
 			b.Fatal(err)
@@ -36,9 +34,9 @@ func BenchmarkNormalizationCompileCancellation(b *testing.B) {
 				for b.Loop() {
 					var err error
 					if controlled {
-						normalizationBenchmarkProgram, err = compileContext(ctx, g, check.Options{})
+						normalizationBenchmarkProgram, err = compileContext(ctx, g, Options{})
 					} else {
-						normalizationBenchmarkProgram, err = compileStatic(g, check.Options{}, nil)
+						normalizationBenchmarkProgram, err = compileStatic(g, Options{}, nil)
 					}
 					if err != nil {
 						b.Fatal(err)

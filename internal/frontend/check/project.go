@@ -1,9 +1,8 @@
-package compile
+package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -21,7 +20,7 @@ import (
 //   - no predicate reads $x, and the names x and f are captured only once in the rule;
 //   - f is captured in every element (an item of the element's sequence), with a value that is
 //     never nil (nonNil): otherwise an element can have no record, and $e.$f would be an error.
-func ruleProjectionsControlled(prog *Program, r *check.Rule, control *cancel.Control) map[string]string {
+func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) map[string]string {
 	control.Poll()
 	if prog.NoProjections || r.Action == nil {
 		return nil
@@ -35,7 +34,7 @@ func ruleProjectionsControlled(prog *Program, r *check.Rule, control *cancel.Con
 		control.Poll()
 		switch e := e.(type) {
 		case *ast.Capture:
-			if rp, ok := e.Expr.(*ast.Repeat); ok && check.HasCapturesControlled(rp.Expr, control) {
+			if rp, ok := e.Expr.(*ast.Repeat); ok && HasCapturesControlled(rp.Expr, control) {
 				cands[e.Name] = rp
 				return
 			}
@@ -53,11 +52,11 @@ func ruleProjectionsControlled(prog *Program, r *check.Rule, control *cancel.Con
 		case *ast.Optional:
 			walk(e.Expr)
 		case *ast.Attributed:
-			if !check.IsStream(e) {
+			if !IsStream(e) {
 				walk(e.Expr)
 			}
 		case *ast.Repeat:
-			if !check.HasCapturesControlled(e.Expr, control) {
+			if !HasCapturesControlled(e.Expr, control) {
 				walk(e.Expr)
 			}
 		case *ast.And:
@@ -175,7 +174,7 @@ func projField(t ast.ActionExpr) (string, bool) {
 	if !ok || x.Name != l.Params[0] {
 		return "", false
 	}
-	return check.ProjectionField(m.Name)
+	return ProjectionField(m.Name)
 }
 
 // directCapture returns the capture of name that e makes unconditionally: e itself, or an item of
@@ -246,7 +245,7 @@ func nonNil(prog *Program, e ast.Expr, seen map[string]bool, control *cancel.Con
 			case *ast.Constructor, *ast.ListConstructor, *ast.TupleLit:
 				return true
 			case *ast.CaptureRef:
-				if t.Name != check.OperatorsRuleValue {
+				if t.Name != OperatorsRuleValue {
 					return false
 				}
 				// $value is the folded value, which the lines below make.
@@ -295,6 +294,6 @@ func lineNonNil(prog *Program, e ast.Expr, t ast.ActionExpr, operator bool, seen
 }
 
 // RuleProjections returns the projected repetition captures of r (ruleProjectionsControlled).
-func RuleProjections(prog *Program, r *check.Rule) map[string]string {
+func RuleProjections(prog *Program, r *Rule) map[string]string {
 	return ruleProjectionsControlled(prog, r, nil)
 }

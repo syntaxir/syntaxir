@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"fmt"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 )
 
@@ -35,7 +34,7 @@ func TestRuleTypeWithPollParity(t *testing.T) {
 			t.Fatal("type traversal changed its input")
 		}
 	}
-	for _, p := range []*Program{{Model: &check.Model{}}, shownProgram(map[string]types.Ty{})} {
+	for _, p := range []*Program{{Model: &Model{}}, shownProgram(map[string]types.Ty{})} {
 		for _, poll := range []func(){nil, func() {}} {
 			if got, ok := p.RuleTypeWithPoll("missing", poll); got != "" || ok {
 				t.Fatalf("missing=%q/%v", got, ok)
@@ -125,5 +124,5 @@ func TestRuleTypeWithPollPreservesForeignPanic(t *testing.T) {
 
 // shownProgram returns a program whose model holds types that show the types shown.
 func shownProgram(shown map[string]types.Ty) *Program {
-	return &Program{Model: &check.Model{Typed: check.NewShownInfo(shown)}}
+	return &Program{Model: &Model{Typed: NewShownInfo(shown)}}
 }

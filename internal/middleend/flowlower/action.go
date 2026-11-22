@@ -571,7 +571,7 @@ func (l *actionLowerer) concatParts(b *code.Builder, t *ir.Builtin) {
 }
 
 // fusable reports whether every argument of the concat call t is a call of list or map or a fusable
-// concat, whose elements concatParts pushes as they are made, as compile.Fusable decides.
+// concat, whose elements concatParts pushes as they are made, as check.Fusable decides.
 func fusable(t *ir.Builtin) bool {
 	for _, a := range t.Args {
 		call, ok := a.(*ir.Builtin)

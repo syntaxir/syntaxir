@@ -646,7 +646,7 @@ func (g *Generator) plainCall(r *common.Rule, body string) {
 `)
 }
 
-// tsShaper returns the library shaper of the expression e, its static shape (internal/compile/value_shape.go), packed
+// tsShaper returns the library shaper of the expression e, its static shape (internal/frontend/check/value_shape.go), packed
 // as the library's Shaper.
 func tsShaper(prog *common.Program, e ast.Expr) int {
 	s := int(check.SingleModeOf(prog.Checker(), e))<<2 | check.ValuedCount(prog.Checker(), e)<<5

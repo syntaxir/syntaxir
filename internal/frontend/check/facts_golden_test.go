@@ -1,11 +1,10 @@
-package compile
+package check
 
 import (
 	"strconv"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -28,7 +27,7 @@ func TestFactsGolden(t *testing.T) {
 			}
 			g = starttest.MarkAll(g)
 			names := desugar.InlineNames{}
-			prog, err := Check(g, check.Options{}, nil, names, nil)
+			prog, err := Check(g, Options{}, nil, names, nil)
 			if err != nil {
 				t.Fatal(names.Rewrite(err))
 			}
@@ -59,7 +58,7 @@ func TestFactsGolden(t *testing.T) {
 					"transient": strconv.FormatBool(r.Transient), "missing": strconv.FormatBool(r.Missing),
 					"first": terminalFact(firstTerminal(prog, r.Def.Expr, 0, map[string]bool{})).String()}
 				if _, ok := w["ins-cycle"]; ok {
-					ins := check.RuleFlags{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member}
+					ins := RuleFlags{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member}
 					if prog.InsertionFlags != nil {
 						ins = prog.InsertionFlags[r.ID]
 					}

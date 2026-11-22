@@ -27,7 +27,7 @@ func TestBackendsMatchOnCorpus(t *testing.T) {
 					checkBackends(t, prog, "main", in)
 				}
 			}
-			// Projected repetitions (internal/compile/project.go) give what the repetitions as written give.
+			// Projected repetitions (internal/frontend/check/project.go) give what the repetitions as written give.
 			prog, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, checkpkg.Options{NoProjections: true})
 			for _, in := range c.Inputs {
 				for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {

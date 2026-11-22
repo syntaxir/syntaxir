@@ -2,7 +2,6 @@ package frontend
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -15,7 +14,7 @@ var _ elaborate.Program = (*Result)(nil)
 // NewResult returns the Result of the compiled program prog whose sites are numbered sites, with
 // its run-time program. A Result is not changed after it is made, except by the front end that
 // adds its Core IR module before handing it out.
-func NewResult(prog *compile.Program, sites check.Sites) *Result {
+func NewResult(prog *check.Program, sites check.Sites) *Result {
 	r := &Result{Program: prog, sites: sites}
 	r.runtime = r.newRuntime()
 	return r
@@ -36,7 +35,7 @@ func (r *Result) CoreInput() *elaborate.Input {
 		if r.PredCaps != nil {
 			br.PredCaps = r.PredCaps
 		}
-		br.Projections = func() map[string]string { return compile.RuleProjections(p, r) }
+		br.Projections = func() map[string]string { return check.RuleProjections(p, r) }
 		in.Rules[i], byRule[r] = br, br
 	}
 	for _, r := range all {

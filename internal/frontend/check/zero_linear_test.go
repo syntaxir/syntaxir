@@ -5,7 +5,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -29,7 +28,7 @@ func deepStructReads(t *testing.T, depth int) uint64 {
 }
 
 // deepStructProgram compiles a chain of depth struct types, each holding the next twice, below Top.
-func deepStructProgram(t *testing.T, depth int) *compile.Program {
+func deepStructProgram(t *testing.T, depth int) *check.Program {
 	t.Helper()
 	var src strings.Builder
 	for i := range depth {

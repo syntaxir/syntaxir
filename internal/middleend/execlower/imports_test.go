@@ -15,7 +15,7 @@ func TestLoweringDoesNotDependOnTheCompiler(t *testing.T) {
 		t.Fatalf("go list -deps: %v", err)
 	}
 	for _, p := range strings.Fields(string(out)) {
-		if strings.HasSuffix(p, "/internal/compile") {
+		if strings.HasSuffix(p, "/internal/frontend/check") {
 			t.Errorf("the lowering depends on %s", p)
 		}
 	}

@@ -1,9 +1,8 @@
-package compile
+package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -59,7 +58,7 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 	for _, td := range control.Types(prog.Grammar) {
 		switch t := td.(type) {
 		case *ast.TypeDef:
-			for _, f := range check.DefFields(t) {
+			for _, f := range DefFields(t) {
 				if usesMissingType(f.Type) {
 					prog.HasMissing = true
 				}
@@ -70,7 +69,7 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 			}
 		}
 	}
-	refs := make(map[*check.Rule][]string)
+	refs := make(map[*Rule][]string)
 	for _, r := range prog.RuleList {
 		if usesMissingType(r.Def.Type) {
 			prog.HasMissing = true

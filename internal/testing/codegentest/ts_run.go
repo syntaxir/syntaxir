@@ -297,7 +297,7 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		write(name, string(code))
 		files = append(files, name)
 		var in []input
-		// The generated code projects (internal/compile/project.go), and records source information as asked.
+		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
 		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, s := range c.Inputs {
 			in = append(in, input{base64.StdEncoding.EncodeToString([]byte(s)), utf8.ValidString(s)})

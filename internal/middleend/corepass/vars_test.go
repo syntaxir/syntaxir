@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -31,7 +30,7 @@ func parseTest(src string) (*ast.Grammar, error) { return compiletest.Parse(src)
 // (Rule.Vars), computed on the untyped Core IR module of the canonical rules of g: those of rules
 // in that order, then the rules that canonicalization adds.
 func RuleVariables(g *ast.Grammar, rules []*ast.RuleDef) map[string][]string {
-	canon, err := compile.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
+	canon, err := check.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
 	if err != nil {
 		panic(err)
 	}

@@ -1,16 +1,14 @@
-package compile
+package check
 
 import (
 	"testing"
-
-	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestShapeSignatureShowsMovedDiscard(t *testing.T) {
 	t.Parallel()
 	compile := func(src string) *Program {
 		t.Helper()
-		p, err := compileStatic(mustParse(src), check.Options{}, nil)
+		p, err := compileStatic(mustParse(src), Options{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

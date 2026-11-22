@@ -1,4 +1,4 @@
-package compile
+package check
 
 import (
 	"context"
@@ -7,7 +7,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -27,7 +26,7 @@ func TestCompileMetadataCollectionCancellation(t *testing.T) {
 		{"types", func(c *cancel.Control) { c.Types(g) }},
 		{"call-walk", func(c *cancel.Control) { astfacts.AllCallsControlled(expr, nil, c) }},
 		{"type-check-arguments", func(c *cancel.Control) {
-			check.PollPredicates(c, expr)
+			PollPredicates(c, expr)
 		}},
 		{"stream-walk", func(c *cancel.Control) { (&Compiler{Control: c}).checkStream(expr) }},
 	} {
@@ -57,7 +56,7 @@ func TestProjectionMetadataCancellation(t *testing.T) {
 		run  func(*cancel.Control)
 	}{
 		{"candidate-walk", func(c *cancel.Control) {
-			ruleProjectionsControlled(NewProgram(nil), &check.Rule{Def: &ast.RuleDef{Expr: expr}, Action: &ast.StringLit{}}, c)
+			ruleProjectionsControlled(NewProgram(nil), &Rule{Def: &ast.RuleDef{Expr: expr}, Action: &ast.StringLit{}}, c)
 		}},
 	} {
 		t.Run(phase.name, func(t *testing.T) {
@@ -87,5 +86,5 @@ func TestTypeCheckEmptyAttributeCancellation(t *testing.T) {
 			t.Fatalf("empty attribute rows did not stop: %v", failure)
 		}
 	}()
-	check.PollPredicates(control, &ast.Attributed{Expr: &ast.Literal{Value: "a"}, Attrs: attrs})
+	PollPredicates(control, &ast.Attributed{Expr: &ast.Literal{Value: "a"}, Attrs: attrs})
 }

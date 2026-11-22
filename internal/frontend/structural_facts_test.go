@@ -7,7 +7,6 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -57,7 +56,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 		if err != nil {
 			t.Fatal(err)
 		}
-		canon, err := compile.Canonicalize(g, opts, desugar.InlineNames{}, nil)
+		canon, err := check.Canonicalize(g, opts, desugar.InlineNames{}, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
 		}

@@ -1,10 +1,8 @@
-package compile
+package check
 
 import (
 	"strings"
 	"testing"
-
-	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestTypedNodeConstructorErrors(t *testing.T) {
@@ -33,7 +31,7 @@ rule dyn _ = _ => 1`)
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = compileStatic(g, check.Options{}, nil)
+			_, err = compileStatic(g, Options{}, nil)
 			if err == nil || !strings.Contains(err.Error(), tc.message) {
 				t.Fatalf("got %v; want %q", err, tc.message)
 			}
@@ -45,7 +43,7 @@ rule dyn _ = _ => 1`)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
+		if _, err := compileStatic(g, Options{}, nil); err != nil {
 			t.Errorf("%s: %v", action, err)
 		}
 	}
@@ -55,7 +53,7 @@ rule dyn _ = _ => 1`)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
+		if _, err := compileStatic(g, Options{}, nil); err != nil {
 			t.Errorf("%s: %v", action, err)
 		}
 	}
@@ -77,7 +75,7 @@ rule main = {value := 1} {Int{value} != nil} "x" / "x"`,
 			t.Fatal(err)
 		}
 		// The checker rejects these constructors when the grammar is compiled.
-		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), "a struct constructor names its fields: write Int{Text: ...}") {
+		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), "a struct constructor names its fields: write Int{Text: ...}") {
 			t.Fatalf("compilation: %v", err)
 		}
 	}
@@ -109,20 +107,20 @@ func TestNodeConstructorShapes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
+		if _, err := compileStatic(g, Options{}, nil); err == nil {
 			t.Fatalf("accepted unsupported constructor shape: %s", action)
 		}
 	}
 	for _, action := range []string{`[]int{}`, `[][]string{}`} {
 		if g, err := parseTest(header + action); err != nil {
 			t.Fatal(err)
-		} else if _, err := compileStatic(g, check.Options{}, nil); err != nil {
+		} else if _, err := compileStatic(g, Options{}, nil); err != nil {
 			t.Errorf("rejected a list of values %s: %v", action, err)
 		}
 	}
 	if g, err := parseTest(header + `Int{}`); err != nil {
 		t.Fatal(err)
-	} else if _, err := compileStatic(g, check.Options{}, nil); err != nil {
+	} else if _, err := compileStatic(g, Options{}, nil); err != nil {
 		t.Fatalf("Int{} is a text struct with no field set: %v", err)
 	}
 	// Values of the wrong type are rejected when the grammar is compiled, in actions and predicates.
@@ -131,7 +129,7 @@ func TestNodeConstructorShapes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
+		if _, err := compileStatic(g, Options{}, nil); err == nil {
 			t.Errorf("%s was accepted", action)
 		}
 	}
@@ -140,7 +138,7 @@ func TestNodeConstructorShapes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
+		if _, err := compileStatic(g, Options{}, nil); err == nil {
 			t.Errorf("predicate %s was accepted", action)
 		}
 	}

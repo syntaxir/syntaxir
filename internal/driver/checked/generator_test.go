@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
@@ -49,8 +48,8 @@ rule item = [a-z]+
 		if vr.BodyExpr() != r.BodyExpr() {
 			t.Errorf("rule %s (%d): body differs", r.Name, r.ID)
 		}
-		if !maps.Equal(vr.Projections, compile.RuleProjections(p.Program, r)) {
-			t.Errorf("rule %s (%d): projections %v, want %v", r.Name, r.ID, vr.Projections, compile.RuleProjections(p.Program, r))
+		if !maps.Equal(vr.Projections, check.RuleProjections(p.Program, r)) {
+			t.Errorf("rule %s (%d): projections %v, want %v", r.Name, r.ID, vr.Projections, check.RuleProjections(p.Program, r))
 		}
 	}
 	projected, twins := false, 0

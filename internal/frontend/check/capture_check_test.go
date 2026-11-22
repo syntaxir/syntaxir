@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
@@ -69,7 +68,7 @@ func captureCheckProgram(src string) (*engine.Program, error) {
 	if err != nil {
 		return nil, err
 	}
-	sp := compile.NewProgram(g)
+	sp := check.NewProgram(g)
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}

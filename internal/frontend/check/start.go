@@ -1,15 +1,13 @@
-package compile
-
-import "syntaxir.dev/sxir/internal/frontend/check"
+package check
 
 // CheckStart reports why name cannot begin a parse of prog: it is empty and there is no default
-// start rule, it is hidden, it is not defined, or it is not a start rule (check.CheckStartName).
+// start rule, it is hidden, it is not defined, or it is not a start rule (CheckStartName).
 func (prog *Program) CheckStart(name string) error {
-	return check.CheckStartName(prog.StartRules, prog.DefaultStartRule, prog.definesRule, name)
+	return CheckStartName(prog.StartRules, prog.DefaultStartRule, prog.definesRule, name)
 }
 
 // StartRule returns the start rule name selects.
-func (prog *Program) StartRule(name string) (*check.Rule, error) {
+func (prog *Program) StartRule(name string) (*Rule, error) {
 	if err := prog.CheckStart(name); err != nil {
 		return nil, err
 	}

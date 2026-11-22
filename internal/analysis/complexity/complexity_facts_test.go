@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/factstest"
@@ -92,7 +92,7 @@ func renderRuleFacts(rules []*ast.RuleDef, rf *ruleFacts) string {
 
 // programRuleFacts returns the rule facts of rules as the rules of prog, the compiled grammar,
 // carry them, or false if prog lacks one of rules.
-func programRuleFacts(prog *compile.Program, rules []*ast.RuleDef) (*ruleFacts, bool) {
+func programRuleFacts(prog *check.Program, rules []*ast.RuleDef) (*ruleFacts, bool) {
 	an := newRuleAnalysis(nil)
 	rf := &ruleFacts{an: an, members: map[string]bool{}, vars: map[string][]string{}}
 	for _, rd := range rules {

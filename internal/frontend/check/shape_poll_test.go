@@ -1,4 +1,4 @@
-package compile
+package check
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -27,7 +26,7 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compileStatic(g, check.Options{}, nil)
+	prog, err := compileStatic(g, Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,13 +34,13 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 		t.Fatal("the compilation's control outlives the compilation")
 	}
 	expr := prog.RuleList[0].Def.Expr
-	want := len(check.ShapeElems(prog.Checker(), expr))
+	want := len(ShapeElems(prog.Checker(), expr))
 	if want != items {
 		t.Fatalf("shape has %d elements, want %d", want, items)
 	}
 	ctx := compileTestContext(t, 1<<20)
 	prog.Checker().SetShapeControl(&cancel.Control{Ctx: ctx})
-	if got := len(check.ShapeElems(prog.Checker(), expr)); got != want {
+	if got := len(ShapeElems(prog.Checker(), expr)); got != want {
 		t.Fatalf("shape with a control has %d elements, want %d", got, want)
 	}
 	if got := checks(ctx); got < items/cancel.PollStride {
@@ -49,7 +48,7 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 	}
 	prog.Checker().SetShapeControl(nil)
 	ctx = compileTestContext(t, 1<<20)
-	check.ShapeElems(prog.Checker(), expr)
+	ShapeElems(prog.Checker(), expr)
 	if got := checks(ctx); got != 0 {
 		t.Errorf("without a control the shape analysis checked a context %d times", got)
 	}
@@ -71,7 +70,7 @@ func TestRuleCyclesPollsContext(t *testing.T) {
 		byName[rd.Name] = rd
 	}
 	ctx := compileTestContext(t, 1<<20)
-	cycles := check.RuleCycles(defs, byName, &cancel.Control{Ctx: ctx})
+	cycles := RuleCycles(defs, byName, &cancel.Control{Ctx: ctx})
 	if len(cycles) != rules || len(cycles["r0"]) != rules {
 		t.Fatalf("cycles for %d rules, the first of %d", len(cycles), len(cycles["r0"]))
 	}
