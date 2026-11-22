@@ -103,19 +103,19 @@ fmt.Println(err) // A source position and undefined-rule error.
 ```
 
 To show the errors yourself, for example in an editor, take them apart with `errors.As`. A source that does not
-parse gives `grammar.SyntaxErrors`; a grammar that parses but does not compile gives `compiler.GrammarErrors`. Both
+parse gives `grammar.SyntaxErrors`; a grammar that parses but does not check gives `grammar.CheckErrors`. Both
 are lists, so declare a variable of the list type:
 
 ```go
 var syntaxErrs grammar.SyntaxErrors
-var grammarErrs compiler.GrammarErrors
+var checkErrs grammar.CheckErrors
 switch {
 case errors.As(err, &syntaxErrs):
 	for _, e := range syntaxErrs {
 		fmt.Println(e.Pos.Line, e.Pos.Col, e.Msg) // e.End ends the text the error covers; zero at a point.
 	}
-case errors.As(err, &grammarErrs):
-	for _, e := range grammarErrs {
+case errors.As(err, &checkErrs):
+	for _, e := range checkErrs {
 		fmt.Println(e.Pos.Line, e.Pos.Col, e.Msg) // Line is 0 when the error has no position.
 	}
 }

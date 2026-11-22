@@ -29,18 +29,18 @@ var entryPoints = map[string]func(grammar.Source) error{
 	},
 }
 
-func TestGrammarErrors(t *testing.T) {
+func TestCheckErrors(t *testing.T) {
 	src := grammar.FromString("g.sxir", "@start\nrule main = undefined\nrule other = \"a\" { x }\n")
 	want := "2:13: undefined rule undefined\n3:20: undefined variable x; declare it with var x at the top level"
 	for name, call := range entryPoints {
 		err := call(src)
-		errs, ok := err.(compiler.GrammarErrors)
+		errs, ok := err.(grammar.CheckErrors)
 		if !ok || err.Error() != want {
-			t.Errorf("%s: %T %q, want compiler.GrammarErrors %q", name, err, err, want)
+			t.Errorf("%s: %T %q, want grammar.CheckErrors %q", name, err, err, want)
 			continue
 		}
-		var viaAs compiler.GrammarErrors
-		var one *compiler.GrammarError
+		var viaAs grammar.CheckErrors
+		var one *grammar.CheckError
 		if !errors.As(err, &viaAs) || len(viaAs) != 2 || errors.As(err, &one) {
 			t.Errorf("%s: errors.As gives the list and not one error", name)
 		}
@@ -50,10 +50,10 @@ func TestGrammarErrors(t *testing.T) {
 	}
 }
 
-// TestGrammarErrorsOfOtherErrors checks that the errors of loading, of the options and of the start
-// rule are not grammar errors that the source holds.
-func TestGrammarErrorsOfOtherErrors(t *testing.T) {
-	var errs compiler.GrammarErrors
+// TestCheckErrorsOfOtherErrors checks that the errors of loading, of the options and of the start
+// rule are not check errors that the source holds.
+func TestCheckErrorsOfOtherErrors(t *testing.T) {
+	var errs grammar.CheckErrors
 	_, err := compiler.Compile(grammar.FromString("g.sxir", "rule main = (\n"))
 	var syntax grammar.SyntaxErrors
 	if !errors.As(err, &syntax) || errors.As(err, &errs) {
@@ -65,21 +65,21 @@ func TestGrammarErrorsOfOtherErrors(t *testing.T) {
 	}
 }
 
-// TestGrammarErrorWithoutPosition checks the error of a grammar AST without positions.
-func TestGrammarErrorWithoutPosition(t *testing.T) {
+// TestCheckErrorWithoutPosition checks the check error of a grammar AST without positions.
+func TestCheckErrorWithoutPosition(t *testing.T) {
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{
 		&ast.RuleDef{Name: "main", Attrs: []*ast.Attribute{{Name: "start"}}, Expr: &ast.Ref{Name: "undefined"}},
 	}}}
 	_, err := compiler.CompileGrammar(g)
-	errs, ok := err.(compiler.GrammarErrors)
+	errs, ok := err.(grammar.CheckErrors)
 	if !ok || len(errs) != 1 || errs[0].Pos.IsValid() || errs.Error() != errs[0].Msg {
-		t.Fatalf("%T %q, want one grammar error without a position", err, err)
+		t.Fatalf("%T %q, want one check error without a position", err, err)
 	}
 }
 
-func ExampleGrammarErrors() {
+func ExampleCompile_checkErrors() {
 	_, err := compiler.Compile(grammar.FromString("g.sxir", "@start\nrule main = item+\n"))
-	var errs compiler.GrammarErrors
+	var errs grammar.CheckErrors
 	if errors.As(err, &errs) {
 		for _, e := range errs {
 			fmt.Printf("g.sxir:%d:%d: %s\n", e.Pos.Line, e.Pos.Col, e.Msg)

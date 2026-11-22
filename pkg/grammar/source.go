@@ -5,6 +5,10 @@
 // source, which package ast defines; Format writes an AST as grammar syntax, and Convert writes a
 // source in a given encoding. A program that builds an AST by hand checks it with Validate.
 //
+// The errors of a grammar are defined here for every tool: SyntaxErrors for a source that Load
+// rejects, and CheckErrors for a grammar that loads but does not check, which the tools that check a
+// grammar (packages compiler, lint and editfuzz) return.
+//
 // Like all of the module API at v0.x, this package may change in any release.
 package grammar
 

@@ -24,6 +24,10 @@ build on it, while `pkg/grammar` builds on the parser and the formatter.
   of an older AST is reported by name rather than dropped.
 - **Loading** a source gives the grammar AST. A program that builds an AST by hand can validate it. Formatting and
   conversion between the two encodings are in `pkg/grammar` too.
+- The **errors of a grammar** are in `pkg/grammar`: `SyntaxErrors` for a source that does not load, and `CheckErrors`
+  for a grammar that loads but does not check. Every tool that checks a grammar (`pkg/compiler`, `pkg/lint` and
+  `pkg/editfuzz`) returns `CheckErrors`, so a tool that reports grammar errors links neither the compiler entry nor the
+  runtime.
 - Action expressions have one name in the AST, in the JSON form and in the syntax: the name that the specification
   gives Action Expressions.
 - A grammar source shares no type with the parse input of the runtime input package. The parse input is the abstraction

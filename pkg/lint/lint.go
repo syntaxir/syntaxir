@@ -14,7 +14,7 @@ import (
 
 	impl "syntaxir.dev/sxir/internal/analysis/lint"
 	"syntaxir.dev/sxir/internal/diagnostic"
-	"syntaxir.dev/sxir/pkg/compiler"
+	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -120,7 +120,7 @@ type Config struct {
 // suppress findings (see the directive syntax in docs/guide/linting.md).
 //
 // An empty start selects the default start rule. Run returns an error, and no findings, if g does
-// not compile (compiler.GrammarErrors), if start is not a start rule of g, if c.Disable names an unknown check, or if ctx
+// not check (grammar.CheckErrors), if start is not a start rule of g, if c.Disable names an unknown check, or if ctx
 // ends; cancellation stops both the compilation and the checks and discards all findings.
 func (c Config) Run(ctx context.Context, g *ast.Grammar, start string) ([]Finding, error) {
 	in, err := impl.Config(c).Run(ctx, g, start)
@@ -195,17 +195,17 @@ func findingsFromImpl(in []impl.Finding) []Finding {
 	return out
 }
 
-// grammarErrors returns err with the errors of a grammar that does not compile, which the front
-// end returns as a diagnostic.ErrorList, as the compiler.GrammarErrors that package compiler
-// returns for them; it returns any other error as it is.
+// grammarErrors returns err with the errors of a grammar that does not check, which the front end
+// returns as a diagnostic.ErrorList, as the grammar.CheckErrors that package compiler also returns
+// for them; it returns any other error as it is.
 func grammarErrors(err error) error {
 	list, ok := err.(diagnostic.ErrorList)
 	if !ok {
 		return err
 	}
-	out := make(compiler.GrammarErrors, len(list))
+	out := make(grammar.CheckErrors, len(list))
 	for i, e := range list {
-		out[i] = &compiler.GrammarError{Pos: e.Pos, Msg: e.Msg}
+		out[i] = &grammar.CheckError{Pos: e.Pos, Msg: e.Msg}
 	}
 	return out
 }

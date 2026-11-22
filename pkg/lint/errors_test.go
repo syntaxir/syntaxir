@@ -4,15 +4,14 @@ import (
 	"context"
 	"testing"
 
-	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/lint"
 )
 
-// TestGrammarErrors checks that a grammar that does not compile gives the compiler.GrammarErrors of
-// package compiler from every entry point of the linter.
-func TestGrammarErrors(t *testing.T) {
+// TestCheckErrors checks that a grammar that does not check gives the grammar.CheckErrors that
+// package compiler also returns, from every entry point of the linter.
+func TestCheckErrors(t *testing.T) {
 	g, err := grammar.Load(grammar.FromString("g.sxir", "@start\nrule main = undefined\n"))
 	if err != nil {
 		t.Fatal(err)
@@ -24,9 +23,9 @@ func TestGrammarErrors(t *testing.T) {
 		"Classify": func() error { _, err := lint.Classify(ctx, g, ""); return err },
 	} {
 		err := call()
-		errs, ok := err.(compiler.GrammarErrors)
+		errs, ok := err.(grammar.CheckErrors)
 		if !ok || len(errs) != 1 || errs[0].Pos != (ast.Pos{Line: 2, Col: 13}) || errs[0].Msg != "undefined rule undefined" {
-			t.Errorf("%s: %T %v, want compiler.GrammarErrors", name, err, err)
+			t.Errorf("%s: %T %v, want grammar.CheckErrors", name, err, err)
 		}
 	}
 }

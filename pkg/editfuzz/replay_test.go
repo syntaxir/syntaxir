@@ -8,7 +8,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
-	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -408,19 +407,19 @@ func TestExhaustedBudgetComparesNothing(t *testing.T) {
 	}
 }
 
-// TestGrammarCompileErrors checks that a grammar source that parses but does not compile gives the
-// compiler.GrammarErrors of package compiler, wrapped in the InvalidError of Replay and returned by
+// TestGrammarCheckErrors checks that a grammar source that parses but does not check gives the
+// grammar.CheckErrors that package compiler also returns, wrapped in the InvalidError of Replay and returned by
 // Fuzz.
-func TestGrammarCompileErrors(t *testing.T) {
+func TestGrammarCheckErrors(t *testing.T) {
 	const src = "@start\nrule main = undefined\n"
-	var errs compiler.GrammarErrors
+	var errs grammar.CheckErrors
 	err := Replay([]byte(src), sequence(src, Closure, input.CodePoints, "a"))
 	var invalid *InvalidError
 	if !errors.As(err, &invalid) || !errors.As(err, &errs) || len(errs) != 1 || errs[0].Pos.Line != 2 {
-		t.Errorf("Replay: %T %v, want an InvalidError wrapping compiler.GrammarErrors", err, err)
+		t.Errorf("Replay: %T %v, want an InvalidError wrapping grammar.CheckErrors", err, err)
 	}
 	errs = nil
 	if err := Fuzz([]byte(src), Options{Backend: Closure, Unit: input.CodePoints}); !errors.As(err, &errs) || len(errs) != 1 {
-		t.Errorf("Fuzz: %T %v, want compiler.GrammarErrors", err, err)
+		t.Errorf("Fuzz: %T %v, want grammar.CheckErrors", err, err)
 	}
 }

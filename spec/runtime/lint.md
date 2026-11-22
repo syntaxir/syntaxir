@@ -27,7 +27,7 @@ linter, identified by a name.
 | List the checks | `-list` | `lint.Checks()` |
 
 - `lint.Config.Run` takes a context, a grammar AST and the start rule and returns the findings.
-  If the grammar does not compile, it returns `compiler.GrammarErrors` and no findings; if the
+  If the grammar does not check, it returns `grammar.CheckErrors` and no findings; if the
   start rule is not a start rule of the grammar, it returns an error and no findings. Cancelling the context stops the compilation and the checks and
   discards all findings. An empty start rule selects the default start rule.
 - `sxir lint` accepts SyntaxIR source and grammar JSON; a compiled grammar holds no
@@ -354,7 +354,7 @@ as `lint-directive`.
 
 | Condition | Result |
 |:--|:--|
-| The grammar does not compile | `lint.Config.Run` returns `compiler.GrammarErrors` and no findings |
+| The grammar does not check | `lint.Config.Run` returns `grammar.CheckErrors` and no findings |
 | `-disable` or `Config.Disable` names an unknown check | An error |
 | A compiled grammar | Error: `lint needs the grammar source (.sxir or .json)` |
 

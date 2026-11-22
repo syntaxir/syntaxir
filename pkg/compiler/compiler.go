@@ -11,7 +11,7 @@
 // itself (Marshal) and runs on the iterative VM.
 //
 // A grammar source that does not load gives the errors of grammar.Load, such as
-// grammar.SyntaxErrors; a grammar that loads but does not compile gives GrammarErrors.
+// grammar.SyntaxErrors; a grammar that loads but does not check gives grammar.CheckErrors.
 package compiler
 
 import (
