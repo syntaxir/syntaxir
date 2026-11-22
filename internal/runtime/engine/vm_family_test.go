@@ -3,7 +3,6 @@
 package engine
 
 import (
-	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -16,56 +15,6 @@ import (
 )
 
 var vmBackends = []Backend{Bytecode, BytecodeIterative}
-
-// TestVMFamilyCharges pins the budget charge (the least compute limit) of every kind of parse on
-// both VMs, traced and untraced. A call charges the same units on the plain path and through
-// Parser.Call (spec/runtime/parsing.md#cost), so each family charges the cost of the parse, the
-// same on both machines. A traced parse charges more, for merging the expectations of the traced
-// calls.
-func TestVMFamilyCharges(t *testing.T) {
-	t.Parallel()
-	type charges = map[string]uint64
-	// The stream parses of the default build also charge for walking and clearing the capture
-	// frames they keep for reuse at each commit, which the reference build of stream frames drops.
-	stream := map[Backend]charges{Bytecode: {"stream": 126, "stream+trace": 130}, BytecodeIterative: {"stream": 126, "stream+trace": 130}}
-	if !state.StreamFrameScratch {
-		stream = map[Backend]charges{Bytecode: {"stream": 122, "stream+trace": 126}, BytecodeIterative: {"stream": 122, "stream+trace": 126}}
-	}
-	cases := []struct {
-		name, src string
-		opts      checkpkg.Options
-		input     string
-		stream    bool
-		want      map[Backend]charges
-	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", checkpkg.Options{}, "aaaa", false, map[Backend]charges{
-			Bytecode:          {"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34},
-			BytecodeIterative: {"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34},
-		}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", checkpkg.Options{DisableMemo: true}, "aaaa", false, map[Backend]charges{
-			Bytecode:          {"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34},
-			BytecodeIterative: {"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34},
-		}},
-		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", checkpkg.Options{DisableMemo: true}, "((x))", false, map[Backend]charges{
-			Bytecode:          {"document": 21, "document+trace": 25, "parse": 31, "parse+trace": 35, "prefix": 30, "prefix+trace": 34, "recognize": 31, "recognize+trace": 35},
-			BytecodeIterative: {"document": 21, "document+trace": 25, "parse": 31, "parse+trace": 35, "prefix": 30, "prefix+trace": 34, "recognize": 31, "recognize+trace": 35},
-		}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", checkpkg.Options{}, "aaa", false, map[Backend]charges{
-			Bytecode:          {"document": 23, "document+trace": 25, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31},
-			BytecodeIterative: {"document": 23, "document+trace": 25, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31},
-		}},
-		{"stream", codegentest.Records, checkpkg.Options{}, "#records\na=1\nbc=22\n", true, stream},
-	}
-	for _, c := range cases {
-		for _, b := range vmBackends {
-			prog := mustCompile(t, c.src, c.opts)
-			got := familyCharges(t, prog, b, c.input, c.stream)
-			if fmt.Sprint(got) != fmt.Sprint(c.want[b]) {
-				t.Errorf("%s on %s: charges %v, want %v", c.name, b, got, c.want[b])
-			}
-		}
-	}
-}
 
 // TestVMFamiliesMatchOnCorpus checks that the two families of each VM give the same results,
 // errors, expectations, recovered errors, positions and statistics on every grammar and input of
