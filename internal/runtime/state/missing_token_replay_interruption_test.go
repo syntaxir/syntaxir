@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -8,7 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 )
 
 // Cancel only after a real grammar has produced a successful LR seed and a
@@ -43,15 +46,15 @@ func TestMissingTokensCancellationDuringLRSeedReplay(t *testing.T) {
 	literalCount := int(2 * state.BudgetCheckInterval)
 	source := `rule main = e $$
 rule e = e "x" / (` + strings.Repeat(`";" #missing `, literalCount) + `)`
-	prog := mustCompile(t, source)
+	prog := enginetest.MustCompile(t, source)
 	for _, recognize := range []bool{false, true} {
 		base, cancel := context.WithCancel(context.Background())
 		ctx := &missingReplayCancelContext{Context: base, cancel: cancel, literalCount: literalCount}
-		n, err := prog.ParseWith("main", "", ParseOptions{
+		n, err := prog.ParseWith("main", "", engine.ParseOptions{
 			MissingTokens: 8 * literalCount,
 			Recognize:     recognize,
 			Context:       ctx,
-			Trace:         func(e TraceEvent) { ctx.p = state.TraceParser(e) },
+			Trace:         func(e state.TraceEvent) { ctx.p = state.TraceParser(e) },
 		})
 		cancel()
 		if !ctx.interrupted || ctx.installedAtCancel <= 0 || ctx.installedAtCancel >= literalCount || ctx.attemptsAtCancel <= literalCount {
@@ -65,11 +68,11 @@ rule e = e "x" / (` + strings.Repeat(`";" #missing `, literalCount) + `)`
 		}
 		// A retry must start with a new ledger and budget rather than import
 		// the interrupted candidate, even when pooled scratch is reused.
-		retry, recovered := requireInsertions(t, prog, "", ParseOptions{MissingTokens: 8 * literalCount, Recognize: recognize, Context: context.Background()}, literalCount)
-		if len(recovered) != literalCount || !recognize && len(missingNodes(t, retry)) != literalCount {
+		retry, recovered := requireInsertions(t, prog, "", engine.ParseOptions{MissingTokens: 8 * literalCount, Recognize: recognize, Context: context.Background()}, literalCount)
+		if len(recovered) != literalCount || !recognize && len(statetest.MissingNodes(t, retry)) != literalCount {
 			t.Fatal("retry lost or duplicated insertion events after interrupted replay")
 		}
-		if n, err := prog.ParseWith("main", "", ParseOptions{Recognize: recognize, Context: context.Background()}); n != nil || err == nil {
+		if n, err := prog.ParseWith("main", "", engine.ParseOptions{Recognize: recognize, Context: context.Background()}); n != nil || err == nil {
 			t.Fatal("interrupted invocation changed strict retry", n, err)
 		}
 	}

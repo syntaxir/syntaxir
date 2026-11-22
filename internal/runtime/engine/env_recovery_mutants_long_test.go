@@ -57,7 +57,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 			{"settling leaves the errors counted as delivered",
 				[]printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic",
 					"\tif BudgetControlsEnabled && p.Control != nil {\n\t\t// With a diagnostic"}},
-				"^TestStreamCommitForgetsTheDiagnosedCount$", []string{"."}},
+				"^TestStreamCommitForgetsTheDiagnosedCount$", core},
 			{"settling keeps the bytes of the errors",
 				[]printedEdit{{"\t\tp.Control.errs = 0\n", "\t\t_ = 0\n"}}, "^TestMemoryLimitStream$", []string{"."}},
 		})
@@ -88,7 +88,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{
 			{"a growth step keeps the errors of the step before",
 				[]printedEdit{{"\t\t\t\tp.growAdopt(&g, v, p.recSince(rec))\n\t\t\t\tp.Recovered = p.Recovered[:rec]\n", "\t\t\t\tp.growAdopt(&g, v, p.recSince(rec))\n"}},
-				"^TestMissingTokensLeftRecursion$", []string{"."}},
+				"^TestMissingTokensLeftRecursion$", core},
 			// The growth in a context drops the errors of each step after growKeepStep took them as a parameter.
 			{"a growth that grew keeps the errors of the step before",
 				[]printedEdit{{"\t\t\t\ts := p.growKeepStep(&g, v, ok, p.recSince(rec))\n\t\t\t\tp.Recovered = p.Recovered[:rec]\n", "\t\t\t\ts := p.growKeepStep(&g, v, ok, p.recSince(rec))\n"}},
@@ -105,7 +105,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 		runPrintedMutants(t, "internal/runtime/state/missing_token.go", []printedMutant{
 			{"a replay records the errors of the insertions it repeats",
 				[]printedEdit{{"\tif duplicate == nil {\n\t\tp.recAdd(errs)", "\tif true {\n\t\tp.recAdd(errs)"}},
-				"^TestMissingTokensLedgerSeedBudget$", []string{"."}},
+				"^TestMissingTokensLedgerSeedBudget$", core},
 		})
 	})
 }

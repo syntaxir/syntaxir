@@ -1,10 +1,12 @@
-package engine
+package state_test
 
 import (
 	"errors"
 	"testing"
 
-	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -25,17 +27,17 @@ func BenchmarkMissingLiteral(b *testing.B) {
 		{"enabled-valid", `rule main = "name" ";" #missing $$`, "name;", 2, false},
 		{"enabled-missing", `rule main = "name" ";" #missing $$`, "name", 2, true},
 	} {
-		g, err := parseTest(tc.source)
+		g, err := enginetest.Parse(tc.source)
 		if err != nil {
 			b.Fatal(err)
 		}
-		prog, err := Compile(g, checkpkg.Options{})
+		prog, err := entry.Compile(g, entry.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			b.Run(tc.name+"/"+unit.String(), func(b *testing.B) {
-				o := ParseOptions{Unit: unit, MissingTokens: tc.limit}
+				o := engine.ParseOptions{Unit: unit, MissingTokens: tc.limit}
 				b.ReportAllocs()
 				b.ResetTimer()
 				for i := 0; i < b.N; i++ {

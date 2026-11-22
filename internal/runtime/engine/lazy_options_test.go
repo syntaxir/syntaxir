@@ -7,6 +7,7 @@ import (
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
 
@@ -69,7 +70,7 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 				t.Fatal("the controlled graph was not built")
 			}
 			// The insertion program is built from a grammar that has an insertion.
-			withIns := mustCompile(t, insertionCycle, o)
+			withIns := mustCompile(t, statetest.InsertionCycle, o)
 			withIns.ParseWith("main", "yx", ParseOptions{MissingTokens: 1000}) // only builds the program
 			if withIns.ins == nil {
 				t.Fatal("the insertion program was not built")

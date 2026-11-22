@@ -8,21 +8,17 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-// insertionCycle is left-recursive only through an insertion: without insertion, a calls itself
-// only after "(" consumed input.
-const insertionCycle = `rule main = a $$
-rule a = "(" #missing a "x" / "y"`
 
 // TestMissingTokensInsertionOnlyLeftRecursion checks that a rule left-recursive only through an
 // insertion is grown when insertion is enabled, and only then: parses without insertion run the
 // program of the grammar's own flags, and each insertion of "(" before a seed grows it by one "x".
 func TestMissingTokensInsertionOnlyLeftRecursion(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, insertionCycle)
+	prog := mustCompile(t, statetest.InsertionCycle)
 	if prog.Static().InsertionFlags == nil || prog.ByName["a"].Leader {
 		t.Fatalf("flags: insertion %v, leader without insertion %v", prog.Static().InsertionFlags, prog.ByName["a"].Leader)
 	}
@@ -45,15 +41,15 @@ func TestMissingTokensInsertionOnlyLeftRecursion(t *testing.T) {
 				o.Context = context.Background()
 				o.Limits.Compute = 1 << 24
 			}
-			if n, err := prog.ParseWith("main", "y", o); err != nil || !recognize && len(missingNodes(t, n)) != 0 {
+			if n, err := prog.ParseWith("main", "y", o); err != nil || !recognize && len(statetest.MissingNodes(t, n)) != 0 {
 				t.Fatalf("controlled %v, recognize %v: y: %v %v", controlled, recognize, n, err)
 			}
 			for xs := 1; xs <= 4; xs++ {
 				input := "y" + strings.Repeat("x", xs)
 				// The insertions are all at the start, where their diagnostics are one syntax error.
 				n, _ := requireInsertions(t, prog, input, o, 1)
-				if !recognize && len(missingNodes(t, n)) != xs {
-					t.Fatalf("controlled %v: %q: missing nodes %d", controlled, input, len(missingNodes(t, n)))
+				if !recognize && len(statetest.MissingNodes(t, n)) != xs {
+					t.Fatalf("controlled %v: %q: missing nodes %d", controlled, input, len(statetest.MissingNodes(t, n)))
 				}
 			}
 		}
@@ -69,7 +65,7 @@ func TestMissingTokensInsertionOnlyLeftRecursion(t *testing.T) {
 // included, count toward the limit.
 func TestMissingTokensInsertionOnlyLeftRecursionLimits(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, insertionCycle)
+	prog := mustCompile(t, statetest.InsertionCycle)
 	render := func(n *value.Node, err error) string {
 		data, jerr := json.Marshal(n)
 		if jerr != nil {
@@ -114,7 +110,7 @@ func TestMissingTokensInsertionOnlyLeftRecursionLimits(t *testing.T) {
 // insertion.
 func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, insertionCycle)
+	prog := mustCompile(t, statetest.InsertionCycle)
 	for _, b := range []Backend{Bytecode, BytecodeIterative} {
 		if _, err := prog.ParseWith("main", "y", ParseOptions{Backend: b}); err == nil || !strings.Contains(err.Error(), "missing") {
 			t.Fatalf("backend %v: %v", b, err)

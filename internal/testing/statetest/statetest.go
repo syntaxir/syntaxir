@@ -18,6 +18,7 @@ import (
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 // CatchPanic runs f and returns the value it panicked with, or nil.
@@ -313,3 +314,25 @@ func AtHotSpans(t *testing.T, f func(t *testing.T, tune state.Tuning)) {
 		}
 	}
 }
+
+// MissingNodes returns the missing-token nodes of a tree, each once, in walk order.
+func MissingNodes(t *testing.T, root *value.Node) []*value.Node {
+	t.Helper()
+	var found []*value.Node
+	seen := make(map[*value.Node]bool)
+	if err := value.Walk(root, func(v value.WalkVisit) (value.WalkAction, error) {
+		if v.Node != nil && v.Node.Type() == valueimpl.TypeMissing && !seen[v.Node] {
+			seen[v.Node] = true
+			found = append(found, v.Node)
+		}
+		return value.WalkContinue, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	return found
+}
+
+// InsertionCycle is left-recursive only through an insertion: without insertion, a calls itself
+// only after "(" consumed input.
+const InsertionCycle = `rule main = a $$
+rule a = "(" #missing a "x" / "y"`

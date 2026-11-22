@@ -397,7 +397,7 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 	runPrintedMutants(t, path, mutants)
 }
 
-// TestStreamCommitMutantsFail is the negative control of the tests of the engine's stream commit,
+// TestStreamCommitMutantsFail is the negative control of the tests of the stream commit,
 // which is printed from Exec IR (internal/runtime/state/stream_exec.go), and of its implementations of the operations
 // (internal/runtime/state/stream_ops.go). The operations of the window are host operations without reference models,
 // so these mutants are what binds them. Each must fail the test named for it; the two backends'
@@ -452,13 +452,13 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"a callback alone gets no report",
 			[]printedEdit{{"if p.Diagnostic != nil || p.DiagnosticTail.Limit > 0 {", "if p.DiagnosticTail.Limit > 0 {"}}, order, inCore},
 		{"a tail alone gets no report",
-			[]printedEdit{{"if p.Diagnostic != nil || p.DiagnosticTail.Limit > 0 {", "if p.Diagnostic != nil {"}}, "^TestStreamCommitFeedsATailWithoutCallback$", here},
+			[]printedEdit{{"if p.Diagnostic != nil || p.DiagnosticTail.Limit > 0 {", "if p.Diagnostic != nil {"}}, "^TestStreamCommitFeedsATailWithoutCallback$", inCore},
 		{"the recovered errors are reported after their element",
 			[]printedEdit{{report + deliver, deliver + report}}, order, inCore},
 		{"the element is not delivered",
 			[]printedEdit{{"\terr := p.Emit(v)\n", "\tvar err error\n"}}, boundary, here},
 		{"a delivered element stays fresh",
-			[]printedEdit{{"\tif v != nil {\n\t\tnodes.D(v).Fresh = false\n\t}\n", "\t_ = nodes.D(v)\n"}}, "^TestStreamCommitFreezesDeliveredElements$", here},
+			[]printedEdit{{"\tif v != nil {\n\t\tnodes.D(v).Fresh = false\n\t}\n", "\t_ = nodes.D(v)\n"}}, "^TestStreamCommitFreezesDeliveredElements$", inCore},
 		{"the callback is not marked as the caller's",
 			[]printedEdit{{"\tp.EmitCall = true\n", ""}}, "^TestStreamCallerPanicIdentity$", here},
 		{"the mark of the callback stays",
@@ -483,7 +483,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"\tp.streamRelease()\n", ""}}, storage, vm},
 		{"the release runs before the discard",
 			[]printedEdit{{"\tp.Discard(pos - 1)\n\tp.streamRelease()\n", "\tp.streamRelease()\n\tp.Discard(pos - 1)\n"}},
-			"^TestStreamCommitDiscardsBeforeItReleases$", here},
+			"^TestStreamCommitDiscardsBeforeItReleases$", inCore},
 		{"a whole window does not prune", []printedEdit{{window, "pos-p.Memo.Base > 1024"}}, slide, inCore},
 		{"less than a window prunes", []printedEdit{{window, "pos-p.Memo.Base >= 1023"}}, slide, inCore},
 		{"the window ignores the floor", []printedEdit{{window, "pos >= 1024"}}, slide, inCore},
@@ -498,7 +498,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"the commit never settles errors",
 			[]printedEdit{{"if p.DiagnosticTail.Limit > 0 {", "if false {"}}, scratch, inCore},
 		{"the errors settle before the pruning",
-			[]printedEdit{{prune + settle, settle + prune}}, "^TestStreamCommitPrunesBeforeItSettles$", here},
+			[]printedEdit{{prune + settle, settle + prune}}, "^TestStreamCommitPrunesBeforeItSettles$", inCore},
 		{"a parse without a callback streams",
 			[]printedEdit{{"(p.Emit != nil) && p.StreamID == id", "p.StreamID == id"}}, "^TestRunSitesMatchParsesWithoutRecords$", inCore},
 		{"every rule streams", []printedEdit{{"(p.Emit != nil) && p.StreamID == id", "(p.Emit != nil)"}}, start, here},
@@ -520,22 +520,22 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"\tif StreamStackCleanup && p.Backend != nil {\n\t\tp.Backend.ClearInactive()\n\t}\n", ""}}, storage, vm},
 		{"the skip records stay", []printedEdit{{"\tp.PruneSkipRecords(pos)\n", ""}}, records, inCore},
 		{"a traced parse reuses the scratch", []printedEdit{{reuse, "if cap(p.Recovered) <= streamRecoveryScratchMax {"}}, scratch, inCore},
-		{"a large scratch is kept", []printedEdit{{reuse, "if p.Tr == nil {"}}, bounds, here},
+		{"a large scratch is kept", []printedEdit{{reuse, "if p.Tr == nil {"}}, bounds, inCore},
 		{"the scratch is never reused", []printedEdit{{reuse, "if false {"}}, scratch, inCore},
 		{"the scratch of the errors is cleared free of charge",
-			[]printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", "\t\tclear(p.Recovered[:cap(p.Recovered)])\n"}}, charges, here},
+			[]printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", "\t\tclear(p.Recovered[:cap(p.Recovered)])\n"}}, charges, inCore},
 		{"a panic of the diagnostic callback is the parser's",
-			[]printedEdit{{"\t\tp.EmitCall = true\n", ""}}, "^TestStreamDiagnosticCallbackPanicIsTheCallers$", here},
+			[]printedEdit{{"\t\tp.EmitCall = true\n", ""}}, "^TestStreamDiagnosticCallbackPanicIsTheCallers$", inCore},
 		{"the mark of the diagnostic callback stays",
-			[]printedEdit{{"\t\tp.EmitCall = false\n", ""}}, "^TestStreamDiagnosticCallbackMarkEndsWithIt$", here},
+			[]printedEdit{{"\t\tp.EmitCall = false\n", ""}}, "^TestStreamDiagnosticCallbackMarkEndsWithIt$", inCore},
 		{"cancellation in the last diagnostic is not observed",
-			[]printedEdit{{"\t\tp.DiagnosticTail.Add(original)\n\t}\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n", "\t\tp.DiagnosticTail.Add(original)\n\t}\n"}}, ends, here},
+			[]printedEdit{{"\t\tp.DiagnosticTail.Add(original)\n\t}\n\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n", "\t\tp.DiagnosticTail.Add(original)\n\t}\n"}}, ends, inCore},
 		{"the frames are scanned for free",
-			[]printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", "\tif StreamFrameScratch {\n\t\tp.FrameSlab = p.FrameSlab[:0]\n\t}\n"}}, charges, here},
+			[]printedEdit{{"\tif StreamFrameScratch {\n\t\tp.ResetStreamFrames()\n\t}\n", "\tif StreamFrameScratch {\n\t\tp.FrameSlab = p.FrameSlab[:0]\n\t}\n"}}, charges, inCore},
 		{"the settled errors stay in the scratch", []printedEdit{{"\t\tclearSpend(p, p.Recovered[:cap(p.Recovered)])\n", ""}}, scratch, inCore},
 		{"the settled errors stay recorded", []printedEdit{{"\t\tp.Recovered = p.Recovered[:0]\n", ""}}, scratch, inCore},
 		{"the settled errors of a large scratch stay", []printedEdit{{"\t\tp.Recovered = nil\n", ""}}, scratch, inCore},
-		{"the count of reported errors stays", []printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n", ""}}, "^TestStreamCommitForgetsTheDiagnosedCount$", here},
+		{"the count of reported errors stays", []printedEdit{{"\tp.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil\n", ""}}, "^TestStreamCommitForgetsTheDiagnosedCount$", inCore},
 		{"the settled errors stay counted", []printedEdit{{"\t\tp.Control.errs = 0\n", ""}}, "^TestMemoryLimitStream$", here},
 	})
 	// The checkpoints before the first diagnostic stand in for each other, so only both go together.
@@ -551,7 +551,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 	}
 	runPrintedMutantsOver(t, "internal/runtime/state/stream_exec.go", map[string]string{reportFile: reportMutant}, []printedMutant{
 		{"a cancelled context still gets its diagnostics",
-			[]printedEdit{{check + report, report + check}}, "^TestStreamCancelledContextDeliversNoDiagnostic$", here},
+			[]printedEdit{{check + report, report + check}}, "^TestStreamCancelledContextDeliversNoDiagnostic$", inCore},
 	})
 	runPrintedMutants(t, "internal/backend/closure/builder.go", []printedMutant{
 		{"the closure backend commits where the element started",

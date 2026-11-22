@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -22,8 +24,8 @@ import (
 // once the callback sees it, so no later step of the parse may extend it in place.
 func TestStreamCommitFreezesDeliveredElements(t *testing.T) {
 	t.Parallel()
-	p := mustCompile(t, `rule main = ("a" "b")* #stream $$`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	p := enginetest.MustCompile(t, `rule main = ("a" "b")* #stream $$`)
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				elements := 0
@@ -33,7 +35,7 @@ func TestStreamCommitFreezesDeliveredElements(t *testing.T) {
 						t.Errorf("element %d is %+v", elements, n)
 					}
 					return nil
-				}, ParseOptions{Backend: backend, Unit: unit})
+				}, engine.ParseOptions{Backend: backend, Unit: unit})
 				if err != nil || elements != 3 {
 					t.Fatalf("elements=%d err=%v", elements, err)
 				}
@@ -47,16 +49,16 @@ func TestStreamCommitFreezesDeliveredElements(t *testing.T) {
 // them were reported, or the next report starts inside the new element's errors.
 func TestStreamCommitForgetsTheDiagnosedCount(t *testing.T) {
 	t.Parallel()
-	p := mustCompile(t, `rule main = item+ #stream $$
+	p := enginetest.MustCompile(t, `rule main = item+ #stream $$
 rule item = ("a" #recover(skip="x")) ("b" #recover(skip="y"))`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			t.Run(backend.String()+"/"+unit.String(), func(t *testing.T) {
 				var events []string
 				err := p.ParseStreamWith("main", strings.NewReader("ayxy"), func(*value.Node) error {
 					events = append(events, "element")
 					return nil
-				}, ParseOptions{Backend: backend, Unit: unit, DiagnosticLimit: 8, DiagnosticLimitSet: true, DiagnosticCallback: func(*value.SyntaxError) error {
+				}, engine.ParseOptions{Backend: backend, Unit: unit, DiagnosticLimit: 8, DiagnosticLimitSet: true, DiagnosticCallback: func(*value.SyntaxError) error {
 					events = append(events, "diagnostic")
 					return nil
 				}})
@@ -128,13 +130,13 @@ func TestStreamCommitPrunesBeforeItSettles(t *testing.T) {
 // before it settles them, so that the terminal result counts them all.
 func TestStreamCommitFeedsATailWithoutCallback(t *testing.T) {
 	t.Parallel()
-	p := mustCompile(t, `rule main = item+ #stream $$
+	p := enginetest.MustCompile(t, `rule main = item+ #stream $$
 rule item = "ab" #recover(skip=[^a]+)`)
 	const count = 100
 	input := strings.Repeat("abX!", count)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		err := p.ParseStreamWith("main", strings.NewReader(input), func(*value.Node) error { return nil },
-			ParseOptions{Backend: backend, DiagnosticLimit: 2})
+			engine.ParseOptions{Backend: backend, DiagnosticLimit: 2})
 		var tail *value.TruncatedSyntaxErrors
 		if !errors.As(err, &tail) || tail.Total != count || tail.Dropped != count-2 || len(tail.Errors) != 2 {
 			t.Fatalf("%v: tail=%+v err=%v", backend, tail, err)
@@ -203,9 +205,9 @@ func TestStreamCancelledContextDeliversNoDiagnostic(t *testing.T) {
 // as for the callback of the elements: the parse does not report it as a fault of its own.
 func TestStreamDiagnosticCallbackPanicIsTheCallers(t *testing.T) {
 	t.Parallel()
-	p := mustCompile(t, `rule main = item+ #stream $$
+	p := enginetest.MustCompile(t, `rule main = item+ #stream $$
 rule item = "ab" #recover(skip=[^a]+)`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, runtimeValue := range []bool{false, true} {
 			t.Run(fmt.Sprintf("%v/runtime=%t", backend, runtimeValue), func(t *testing.T) {
 				var token any = &struct{ phase string }{"diagnostic"}
@@ -215,7 +217,7 @@ rule item = "ab" #recover(skip=[^a]+)`)
 				var err error
 				got := statetest.CatchPanic(func() {
 					err = p.ParseStreamWith("main", strings.NewReader("abX!"), func(*value.Node) error { return nil },
-						ParseOptions{Backend: backend, DiagnosticCallback: func(*value.SyntaxError) error { panic(token) }})
+						engine.ParseOptions{Backend: backend, DiagnosticCallback: func(*value.SyntaxError) error { panic(token) }})
 				})
 				if got != token || err != nil {
 					t.Fatalf("panic=%#v err=%v", got, err)
@@ -231,10 +233,10 @@ rule item = "ab" #recover(skip=[^a]+)`)
 // caller's panic.
 func TestStreamDiagnosticCallbackEndsTheEmission(t *testing.T) {
 	t.Parallel()
-	p := mustCompile(t, `rule main = item+ #stream $$
+	p := enginetest.MustCompile(t, `rule main = item+ #stream $$
 rule item = ("a" #recover(skip="x")) ("b" #recover(skip="y"))`)
 	stop := errors.New("stop")
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, c := range []struct {
 			name  string
 			calls int
@@ -247,7 +249,7 @@ rule item = ("a" #recover(skip="x")) ("b" #recover(skip="y"))`)
 				var err error
 				got := statetest.CatchPanic(func() {
 					err = p.ParseStreamWith("main", strings.NewReader("xyab"), func(*value.Node) error { elements++; return nil },
-						ParseOptions{Backend: backend, Context: ctx, DiagnosticCallback: func(*value.SyntaxError) error {
+						engine.ParseOptions{Backend: backend, Context: ctx, DiagnosticCallback: func(*value.SyntaxError) error {
 							diagnostics++
 							if c.want == stop {
 								return stop
