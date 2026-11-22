@@ -129,8 +129,17 @@ func (d *Document) Unit() sxirinput.PositionUnit { return d.State.unit }
 // generated Document, without changing the text, the construction options or the statistics of the
 // last parse. Trees returned earlier are detached from future node movement; this does not undo
 // earlier movement.
-func (d *Document) ResetHistory() {
-	d.State.memo, d.State.typedMemo, d.State.runs, d.State.edits, d.State.moves = memoTable{}, nil, nil, nil, 0
+func (d *Document) ResetHistory() { d.State.resetHistory() }
+
+// resetHistory is ResetHistory.
+func (d *documentState) resetHistory() {
+	d.memo, d.typedMemo, d.runs, d.edits, d.moves = memoTable{}, nil, nil, nil, 0
+}
+
+// historyBytes returns the bytes that a parse under a memory limit counts for the history the
+// Document keeps beside its memo table: the run records and the edit log.
+func (d *documentState) historyBytes() uint64 {
+	return saturatingAdd(runBytes(d.runs), uint64(cap(d.edits))*uint64(unsafe.Sizeof(documentEdit{})))
 }
 
 // CacheStats returns a point-in-time estimate of the memo and the repetition runs that the Document
@@ -553,9 +562,10 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		return res, fmt.Errorf("document start rule is missing")
 	}
 	o = prepareText(o, d.text)
-	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), runBytes(d.runs)) > o.control.limits.Memory {
-		// The retained memo and runs alone exceed the limit: the parse starts without them.
-		d.dropMemo()
+	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), d.historyBytes()) > o.control.limits.Memory {
+		// The retained memo, runs and edit log alone exceed the limit: the parse starts without them,
+		// as after ResetHistory.
+		d.resetHistory()
 	}
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
@@ -586,7 +596,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p.setDeferMemo()
 	o.control.attachMemory(p)
 	if o.control != nil && o.control.limits.Memory != 0 {
-		o.control.retained = runBytes(d.runs)
+		o.control.retained = d.historyBytes()
 	}
 	d.stats = documentStats{}
 	defer func() {
