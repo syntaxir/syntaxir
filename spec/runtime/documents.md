@@ -475,8 +475,8 @@ items of the grammar for each item it merges. The operations take:
 
 A reuse, and each recorded iteration that the look for an iteration after the
 edit passes, counts toward the interval at which the parse observes its context
-and its memory limit ([Reservations and
-Interruptions](parsing.md#reservations-and-interruptions)), as a unit does,
+and its memory limit ([Checks and
+Interruptions](parsing.md#checks-and-interruptions)), as a unit does,
 without charging it.
 
 A parse resumes a record of the previous parse at most once: resuming it removes

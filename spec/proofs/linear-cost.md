@@ -13216,7 +13216,7 @@ The bound counts what each operation charges at most, by
 [Work of a Document Parse](../runtime/documents.md#work-of-a-document-parse); the
 operations of a parse are a function of the operations on the Document since
 its creation, and so are their charges
-([Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions)).
+([Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions)).
 
 *The units that a limit counts.* No Compute limit, the default or an explicit one, counts
 the Document units of Lemma 12 that the parse reserves in regions

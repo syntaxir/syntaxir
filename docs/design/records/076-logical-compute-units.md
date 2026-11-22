@@ -35,7 +35,7 @@ backend.
 actions build and suffix copies. Each backend charges at least one unit for each call, each character that a terminal
 matches or rejects, each iteration, each operator and each value, and at most a constant of the grammar *and the
 backend* for each. The units therefore differ between backends.
-[Reservations and Interruptions](../../../spec/runtime/parsing.md#reservations-and-interruptions) adds that every
+[Checks and Interruptions](../../../spec/runtime/parsing.md#checks-and-interruptions) adds that every
 reservation is checked before its work and keeps its place among trace events, deliveries and callbacks. It also
 says that every backend must make the same charges; the current backends do not yet meet this rule.
 
@@ -489,7 +489,7 @@ The parts of the earlier plan that have not landed are re-judged under the event
    [Performance and Results](#performance-and-results). The gate is the overhead target and an overshoot within the
    stated K + B on a sweep of limits.
 3. The specification: [Cost](../../../spec/runtime/parsing.md#cost),
-   [Reservations and Interruptions](../../../spec/runtime/parsing.md#reservations-and-interruptions), the `LimitError`
+   [Checks and Interruptions](../../../spec/runtime/parsing.md#checks-and-interruptions), the `LimitError`
    paragraphs, the store policy of the memo ([Memo Policy](#memo-policy)), the reuse policy of a `Document` and
    [Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse). The
    proofs where they name the units of a backend: the linear cost proof's setting and its Document lemma, and the

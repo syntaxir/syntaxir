@@ -155,7 +155,7 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 }
 
 // TestBudgetClassInterruptionBypassesChoiceAndRecovery pins "Nothing absorbs an interruption" of
-// "Reservations and Interruptions" in spec/runtime/parsing.md.
+// "Checks and Interruptions" in spec/runtime/parsing.md.
 func TestBudgetClassInterruptionBypassesChoiceAndRecovery(t *testing.T) {
 	t.Parallel()
 	ranges := budgetClassRanges(budgetClassRangeCount)

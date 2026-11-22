@@ -36,7 +36,7 @@ TypeScript, `null`) function or profile is ignored.
 Trace functions are callbacks of the caller, outside the budget. A
 cancellation of the parse's context that a trace function makes takes effect
 no later than the next observation of the context
-([Reservations and Interruptions](parsing.md#reservations-and-interruptions)).
+([Checks and Interruptions](parsing.md#checks-and-interruptions)).
 A parser with limit controls MAY observe the context earlier, including
 between two trace functions of the same event; the functions after that
 observation then do not receive the event.

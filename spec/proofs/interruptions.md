@@ -58,7 +58,7 @@ The proof cites the following, and no other rule about interruptions.
   limit, the amount used and the amount requested. An input over `Input`
   fails with `LimitInput` before a context is consulted.
 
-[Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions)
+[Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions)
 states when a reservation is atomic. This proof uses the word for an
 interruption as the conjunction of the following, each of which is stated or
 implied above.
@@ -106,7 +106,7 @@ shrinks, and a constant for every other invocation.
 A **reservation** of $n$ units is made before the work it covers. A
 **checkpoint** observes the context without reserving. The interval of polling
 is $I = 256$ units. The reference reservation $\mathrm{Charge}(n)$, which
-[Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions)
+[Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions)
 states, is:
 
 1. $\mathrm{poll}$ holds if $s + n \ge I$, and $\mathrm{exceed}$ holds if
@@ -132,7 +132,7 @@ them and, for a Document, which of the reservations are of Document units.
 
 ## Rules of Reservations
 
-The proof also cites the following rules of [Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions),
+The proof also cites the following rules of [Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions),
 numbered as the proofs below use them.
 
 - **(A1) Precedence.** A context error observed at a reservation that polls
@@ -252,7 +252,7 @@ demands no input, so the default budget of a stream does not grow between its
 reservations. It evaluates no grammar code, and it publishes no cache (A5),
 because a stream keeps no input cache past the invocation. Every backend orders
 these steps in this way
-([Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions)). The
+([Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions)). The
 nodes that were delivered are owned by the caller, and the parser's discarding
 of its own state does not change them. A reader that is blocked is not
 preempted; the checkpoint after its return observes the cancellation (C4).

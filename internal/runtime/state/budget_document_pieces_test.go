@@ -43,7 +43,7 @@ func TestBudgetDocumentPieceConstruction(t *testing.T) {
 }
 
 // TestBudgetDocumentPieceTextPublication pins "Input caches are published complete" of
-// "Reservations and Interruptions" in spec/runtime/parsing.md.
+// "Checks and Interruptions" in spec/runtime/parsing.md.
 func TestBudgetDocumentPieceTextPublication(t *testing.T) {
 	t.Parallel()
 	if !state.DocumentPieceInput {

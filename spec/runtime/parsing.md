@@ -2689,22 +2689,19 @@ nesting of the same input.
 The reference Go API accepts invocation-local cancellation and a compute limit
 through `WithContext` and `WithLimits`; generated Go exposes corresponding
 package-local options.
-These controls are cooperative and backend-local. A zero limit selects the
+These controls are cooperative. A zero limit selects the
 [default of that limit](#default-limits) and the value `Unlimited` disables
-it. The budget counter is monotonic for one invocation and resets on the next
-call. A reservation is checked before the corresponding work begins; if it
-exceeds the remaining allowance, that work is not performed. Decoding is the
-one exception: a reservation may follow the decode of at most one character (at
-most 4 bytes) and must precede storing or using that character. Compute counts
-are implementation-specific and are not elapsed-time, memory, or buffered-input
-limits; the [memory limit](#memory-limit) counts bytes.
+it. The compute limit caps the [compute units](#compute-units) of an
+invocation, which start from zero at each call of an entry point. They do not
+measure elapsed time, memory or buffered input; the
+[memory limit](#memory-limit) counts bytes.
 
 ### Reporting the Units Spent
 
 The option `runtime.WithComputeReport(out)` stores in `*out` the compute units
 that the invocation spent, when it ends: after a success, after a failure and
 after an interruption by a limit or by the context. They are the units used
-that [Reservations and Interruptions](#reservations-and-interruptions)
+that [Checks and Interruptions](#checks-and-interruptions)
 define, so an invocation that succeeded with report r is accepted by a
 `Compute` limit of r, and one that stops at a `Compute` limit reports the
 units used when it stopped. An invocation that ends before it starts, because
@@ -2720,52 +2717,87 @@ is the same: an object whose `units` the parse sets to zero when it starts and
 to the units spent when it ends, taken only by a parser generated with limit
 controls, as it takes a `signal`.
 
-### Reservations and Interruptions
+### Checks and Interruptions
 
-The engine and generated Go parsers with limit controls count the work of an
-invocation (one call of an entry point) as follows; a cancellation or an
+The engine and parsers generated with limit controls count the
+[compute units](#compute-units) of an invocation (one call of an entry point)
+from zero, and compare them with the limit at **checks**; a cancellation or an
 exhausted limit is an **interruption**, which ends the invocation with its
 error.
 
-- **Reservations are atomic.** A reservation of n units either proceeds and
-  adds n to the units used, or interrupts with a limit error, or interrupts
-  with the error of the context. The work that it covers is performed only if
-  it proceeds.
-- **Observing the context.** A reservation observes the context when the
-  units reserved since it was last observed reach the polling interval of 256
-  units, or when the reservation would exceed the limit; a checkpoint observes
-  it without reserving. When a reservation observes a context that has an
-  error, that error wins over an exhausted limit. An observation that finds no
-  error starts the interval again.
-- **Generated Go keeps the same count.** The runtime of generated Go reaches
-  the same sums of units used as the procedure above, and so exhausts a limit
-  at the same reservation. Where it observes the context is, as in the engine,
-  a function of the reservations and checkpoints before, but need not be where
-  the engine observes it.
-- **A reservation precedes its work.** Each unit of work that the budget
-  counts is covered by a reservation made before it: in the same
-  straight-line work, or before a loop whose number of steps is a function of
-  the logical state before the loop, in the sense of the last rule of this
-  list, and which ends early
-  only by an interruption or a fatal error. The units of the steps that such an
-  end leaves undone stay counted.
-  Allocation, runtime growth, garbage collection and the callbacks of the
-  caller are outside the budget.
-- **Reservations keep their place among what is observed.** No reservation is
-  moved or merged across a trace event, the delivery of a stream element or of
-  recovered errors to a callback, any other callback of the caller, or the
-  commit of an element. An interruption therefore exposes exactly the trace
-  events, deliveries, callbacks and commits that precede the reservation that
-  interrupted, in the order of evaluation, and none that follow it, on every
-  backend and whatever the optimizations. Only the profile statistics of calls
-  that began but did not complete may differ, as
+- **Counting.** A parse adds the units of its events to its counter. It may
+  add them in any grouping, but never before the event happens: a block adds
+  the units of its events at its exits, and a loop that scans input adds what
+  it advanced over after the scan or after each chunk of it. A **sized event**,
+  a value of n elements or bytes, a string comparison, a key, a suffix copy
+  or a text of a stream, adds its n units once, when n is known and before
+  its work; the event has begun when it adds them.
+- **Checks.** A check first adds the units of the events performed so far that
+  are not yet added, so that the counter it compares is exactly their sum on
+  every backend, and then compares the counter with the limit. A parse checks:
+  1. at the entry of each call of a rule on a cycle of the call graph, and at
+     each step of a growth;
+  2. at the back-edge of each loop: the repetitions, the loops of an Operators
+     Rule and the skips of recovery; a loop that scans input checks after
+     each chunk of at most B = 4096 units that it scans;
+  3. after each sized event, before its work;
+  4. before each delivery to the caller: a stream element, a commit, or a
+     callback with recovered errors;
+  5. in a [stream](streaming.md) under the default limit, before each demand
+     ([Default Limits](#default-limits)). The demands inside one literal or one
+     chunk of a scan may be checked together after it, by comparing the events
+     before its first demand with the limit before that demand, and the events
+     before its last demand where the limit is still 2<sup>20</sup> with
+     2<sup>20</sup>: inside the chunk the events grow by at most one unit for
+     each demand, and the limit by 1024 once it is past 2<sup>20</sup>, so
+     these two comparisons reject exactly when a check before each demand
+     would;
+  6. at the end of the parse, before its outcome is returned.
+
+  A parse may check more often. Between two checks it follows a path with no
+  cycle of the grammar's control flow, and a compiler inserts checks on long
+  paths so that the units of a path between two checks stay within K =
+  max(4096, A), where A is the length of the longest literal of the grammar,
+  which a check never splits.
+- **The decision.** A parse ends with a `LimitError` of kind `LimitCompute` if
+  and only if its total exceeds `Compute`, also when it would otherwise fail
+  with a syntax error. A stream under its default limit, which rises with
+  each demand, ends with it if and only if the events before some demand
+  exceed the limit before that demand, or its total exceeds its final limit.
+  The decision depends only on the events, so it is the same on every backend
+  and at every optimization setting, wherever a backend places its extra
+  checks: the counter only grows, and every check compares a part of the sum
+  that the decision compares.
+- **Overshoot.** A parse stops at the first check that finds the counter above
+  the limit. The units counted after the counter first exceeded the limit are
+  at most K + B, and the work that counts no unit is at most a constant of the
+  grammar for each of them, apart from the work of a `Document` itself
+  ([Work of a Document Parse](documents.md#work-of-a-document-parse)). The
+  work that a sized event covers is not done when the check after it stops
+  the parse, although its units are counted.
+- **Observing the context.** A check observes the context when at least 256
+  units have been counted since it was last observed; the latency of a
+  cancellation is therefore at most 256 + K + B units. When a check finds both
+  an error of the context and an exceeded limit, the error of the context
+  wins. An observation that finds no error starts the interval again.
+- **Deliveries keep their place.** No check is moved or merged across the
+  delivery of a stream element or of recovered errors to a callback, any
+  other callback of the caller, or the commit of an element, and every
+  backend checks before each of them. An interruption therefore exposes
+  exactly the deliveries, callbacks and commits that precede the check that
+  stopped the parse, in the order of evaluation, on every backend and whatever
+  the optimizations. Trace events may run up to K + B units past the point
+  where the counter exceeded the limit, so the trace of an interrupted parse
+  may differ between backends in that span; the trace of a parse that
+  completes does not. The profile statistics of calls that began but did not
+  complete may differ, as
   [Generated Go Document Tracing and Profiling](observability.md#generated-go-document-tracing-and-profiling)
   allows.
 - **Streams.** In a stream, an error other than the end of the input that a
   reader returns together with data wins over a cancellation first observed
   after that read. The emission of an element observes the context before it
   calls the callback and again after the callback returns, and the commit of
-  the element follows, demands no input and makes its reservations after that
+  the element follows, demands no input and counts its events after that
   second observation, on every backend.
 - **Nothing absorbs an interruption.** `#recover`, ordered choice, lookaheads
   and repetitions are evaluated by failing, not by catching an interruption;
@@ -2773,16 +2805,16 @@ error.
   action; tracing passes an interruption on. An interruption therefore
   reaches the boundary of the invocation unchanged.
 - **Input caches are published complete.** A cache of a Document's input, such
-  as a table built from its text, is published only after the reservations
-  that cover building it, and no reservation or checkpoint comes between the
-  steps that publish it, so a cache is complete or absent.
-- **Charges depend on logical state only.** The size of each reservation
-  follows from the grammar, the input, the options and the values of the
-  parse, never from the address, capacity or contents of reusable storage,
-  the order of iteration over a map, or time. The reusable state of a
-  Document is part of its input: the charges of a Document parse are a
-  function of the operations on it since its creation, provided that no
-  earlier operation was interrupted by a context.
+  as a table built from its text, is published only after the work that builds
+  it, and no check comes between the steps that publish it, so a cache is
+  complete or absent.
+- **Units depend on logical state only.** The events of a parse follow from
+  the grammar, the input, the options and the values of the parse, never from
+  the address, capacity or contents of reusable storage, the order of
+  iteration over a map, or time. The reusable state of a Document is part of
+  its input: the units of a Document parse are a function of the operations on
+  it since its creation, provided that no earlier operation was interrupted by
+  a context.
 
 ### Default Limits
 
@@ -2790,7 +2822,7 @@ error.
 
 | Field | Bounds | Default |
 | --- | --- | --- |
-| `Compute` | the cost of the parse | `max(2^20, 1024 * n)` |
+| `Compute` | the [compute units](#compute-units) of the parse | `max(2^20, 1024 * n)` |
 | `Memory` | the storage the parse takes into use, in bytes ([Memory Limit](#memory-limit)) | `Unlimited` |
 | `Input` | the length of the input | `Unlimited` |
 | `Depth` | the nesting of recursive rule calls ([Limits](#limits)) | 100,000; 10,000,000 on the iterative bytecode VM; the generated default |
@@ -2847,35 +2879,26 @@ position the parser has demanded from the stream so far, and it never shrinks.
 into reads. A parser generated without limit controls spends no budget and
 accepts only a zero `Compute` and `Unlimited`.
 
-For a `Document`, `n` is the length of the text at each `Parse`, and the default
-counts the work that a parse of that text from scratch counts: the unit of each call, the key
-of each call of a rule that a parse from scratch memoizes, the evaluation of rule bodies, the
-examination of the input and the operations on recovered errors. The work that only a
-`Document` does is not counted: applying pending edits to the memo entries that it finds, moving
-the values it reuses, and copying the diagnostics it returns. The memo charges nothing else, in a
-`Document` as in any parse ([Cost](#cost)): looking a key up, walking a chain of memo entries,
-hashing and comparing keys, storing a result and growing the memo table charge no unit, whatever
-the memo holds. A rule that only a `Document` memoizes (a transient rule) pays no key, as in a
-parse from scratch, which does not memoize it. The counted units of a `Document` parse therefore
-do not depend on the entries that earlier texts left in the memo or on the edits pending: each
-call that it makes is a call of the parse from scratch, and a result that it reuses answers a
-call whose body the parse from scratch evaluates. A `Document` parse under the default limit
-therefore succeeds whenever a parse of the same text from scratch under the default limit does,
-and it returns the result of that parse; the
-[linear cost proof](../proofs/linear-cost.md#lemma-12-document-units) argues this and does not
-prove it. This holds under an explicit `Compute` limit as it does under the default: the work of
-the `Document` is no event under either, and `Limit` and `Used` of a `LimitError` leave it out.
-
-The work that no limit counts is bounded by that proof. Pending edits add at most 128
-units to a call, since a memo entry that lags behind by more edits is evaluated again instead of
-brought up to date; the moves of reused values and the copy of diagnostics depend on what the
-`Document` retains, and no limit bounds them. The work of the memo, which no unit
-counts, is bounded as [Work of a Document Parse](documents.md#work-of-a-document-parse) states:
-each entry that a lookup or a store passes was stored by a counted call, and a `Document` drops
-an entry that more than 128 edits have passed since a parse stored it or found it to answer a
-lookup. A grammar whose counted
-work is far above the default limit stops on a `Document` as it does on a parse from scratch,
-also with the most pending edits.
+For a `Document`, `n` is the length of the text at each `Parse`. The first
+parse of a `Document` counts the total of a parse of its text from scratch,
+and a later parse counts the events that it performs
+([Compute Units](#compute-units)); an explicit `Compute` limit and the default
+count the same events. A result that a later parse reuses counts as a call,
+and its key if the rule is memoized, where the parse from scratch counts at
+least that call, so a later parse counts no more than a parse of the same text
+from scratch, and under the default limit it succeeds whenever that parse does,
+and returns its result; the
+[linear cost proof](../proofs/linear-cost.md#lemma-12-document-units) argues
+this and does not prove it. The work of the `Document` itself is not an
+event, under an explicit limit as under the default: applying pending edits
+to the memo entries that a parse finds, moving or copying the values it reuses, working through what it retains from earlier parses and
+copying the diagnostics it returns. Pending edits add at most 128 steps to a
+call, since a memo entry that lags behind by more edits is evaluated again
+instead of brought up to date, and
+[Work of a Document Parse](documents.md#work-of-a-document-parse) bounds the
+rest: each entry that a lookup or a store passes was stored by a counted call,
+and a `Document` drops an entry that more than 128 edits have passed since a
+parse stored it or found it to answer a lookup.
 
 Cancellation and exhausted limits are fatal interruptions, not ordinary
 syntactic mismatches. Ordered choice, predicates, recovery, and other grammar
@@ -2894,39 +2917,25 @@ published and are discarded. A retry with fresh invocation controls must produce
 the same result as parsing the current text from scratch.
 
 In the Go API, `WithContext(ctx)` supplies the context and
-`WithLimits(Limits{Compute})` the limit. The compute counter adds the
-inspected elements of the input representation and the backend's execution
-steps, one unit each. Charges are not rolled back by backtracking, and their values
-depend on the backend, the position unit and the generated artifact. For a given
-artifact, input and options they are the same on every run: the storage that an
-earlier parse left in a reused parser, and when a collection releases it, never
-change them. A stream also charges one unit for each call to its reader's
-`Read`, so its spend depends on how the reader splits the input as well; its
-default limit does not. Reading
-input charges the budget counter in proportion to the elements examined, so a
-loop that only scans input, such as a repeated character class, is bounded by
-`Compute`. A cancelled
+`WithLimits(Limits{Compute})` the limit. Backtracking takes no units back:
+input that the parse advances over again counts again, so a loop that only
+scans input, such as a repeated character class, is bounded by `Compute`.
+The units of a stream do not depend on how its reader splits the input into
+reads, and neither does its default limit. A cancelled
 context returns the error of the context (`errors.Is(err, context.Canceled)` or
 `context.DeadlineExceeded`); an exhausted limit returns an error that matches
 `runtime.ErrLimit`, and `errors.As` with `*runtime.LimitError` gives the
 details. Stream parses and documents are specified in [Streaming](streaming.md)
 and [Incremental Documents](documents.md).
 
-A `LimitError` of kind `LimitCompute` reports the reservation that failed:
-`Requested` is the units of that reservation and `Used` the units reserved
-before it, so `Used` is at most `Limit` and `Used + Requested` exceeds it. Every
-backend reserves the examination of the input (each code point of a literal and
-each character it reads), the test of each range of a character class, each
-operator that an Operators Rule tries, and each execution step one unit at a
-time, also where it charges several of them together; a failure there reports
-`Requested` 1 and `Used` equal to `Limit`. Work that the cost model charges as one
-reservation, such as a chunk of the preparation of the input, the copy of a text
-or an operation on a list, is reserved at once, and a failure there reports the
-whole reservation in `Requested` and the units before it in `Used`. Taking the
-n elements of a list or a tuple that an action expression makes off the values gathered for it
-is one reservation of 2n units, one for copying each element and one for taking
-it off, made before any element moves, however long the list. The lists that
-the parse builds charge nothing ([Cost](#cost)).
+A `LimitError` of kind `LimitCompute` reports the check that stopped the
+parse: `Limit` is the resolved limit and `Used` the counter at that check, so
+`Limit < Used <= Limit + K + B`, or up to the units of the sized event that
+the check follows ([Checks and Interruptions](#checks-and-interruptions)).
+When the check at the end of the parse stops it, `Used` is the total of the
+parse. `Requested` is zero: a check covers many events, so no request failed.
+`Used` may differ between backends within the overshoot; the decision does
+not.
 
 A `LimitError` of kind `LimitCompute` also has `Hotspot`, the rule that the
 [profile](observability.md) of the parse ranks first when the limit is exceeded:
@@ -2939,12 +2948,10 @@ also filled ranks all of them. The message of the error names it
 (`, hotspot rule R`). It is not the rule that the parse was evaluating when the
 check found the limit exceeded.
 
-Every backend must make the same charges, so that every backend reports the
-same `Used` and `Requested` for the same grammar, input and options; a backend
-that charges differently has a defect, not a permitted variation. The current
-backends do not yet meet this rule everywhere: on some grammars the bytecode
-machine, which runs [Flow bodies](../bytecode/README.md#flow-bodies), and the
-closure backend charge different units.
+Every backend counts the same events, so the total of a parse and the
+decision of a limit are the same on every backend and at every optimization
+setting for the same grammar, input and options. A backend that counts
+differently has a defect, not a permitted variation.
 
 ### Memory Limit
 
