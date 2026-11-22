@@ -438,18 +438,18 @@ func (c *computer) alwaysSucceeds(n core.Node) bool {
 			if c.alwaysSucceeds(alt.Body) {
 				return true
 			}
-			if looseCut(alt.Body) {
+			if c.looseCut(alt.Body) {
 				return false // it may fail after committing the choice
 			}
 		}
 	case *core.Opt:
-		return !looseCut(n.Body) || c.alwaysSucceeds(n.Body)
+		return !c.looseCut(n.Body) || c.alwaysSucceeds(n.Body)
 	case *core.Repeat:
 		if n.Max == 0 {
 			return n.Min == 0
 		}
 		if n.Min == 0 {
-			return !looseCut(n.Body) || c.alwaysSucceeds(n.Body)
+			return !c.looseCut(n.Body) || c.alwaysSucceeds(n.Body)
 		}
 		// A repetition ends at its first empty iteration, so a body that always succeeds proves
 		// no minimum above one.
@@ -519,15 +519,22 @@ func (c *computer) alwaysFails(n core.Node) bool {
 
 // looseCut reports a cut in n that can commit the enclosing choice, option or repetition: one
 // outside nested choices, options, repetitions, lookaheads and calls. A recovery's skip runs in the
-// scope of its body.
+// scope of its body. It does not poll; see computer.looseCut.
 func looseCut(n core.Node) bool {
+	var c computer
+	return c.looseCut(n)
+}
+
+// looseCut is the package's looseCut, polling the control of c at each node it visits.
+func (c *computer) looseCut(n core.Node) bool {
+	c.control.Poll()
 	switch n := n.(type) {
 	case *core.Cut:
 		return true
 	case *core.Seq:
-		return slices.ContainsFunc(n.Items, looseCut)
+		return slices.ContainsFunc(n.Items, c.looseCut)
 	case *core.Capture, *core.Text, *core.Drop, *core.Label, *core.Recover, *core.Terminal:
-		return slices.ContainsFunc(core.Children(n), looseCut)
+		return slices.ContainsFunc(core.Children(n), c.looseCut)
 	}
 	return false
 }

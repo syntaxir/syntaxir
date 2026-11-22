@@ -44,8 +44,11 @@ func (f *Facts) LeftCalls(n core.Node, ins bool) []int { return f.c.leftCalls(n,
 
 // LooseCut reports a cut in n that can commit the choice, option or repetition around n: one
 // outside nested choices, options, repetitions, lookaheads and calls. A recovery's skip runs in
-// the scope of its body, so a cut in it counts.
+// the scope of its body, so a cut in it counts. It polls no control; Facts.LooseCut does.
 func LooseCut(n core.Node) bool { return looseCut(n) }
+
+// LooseCut is the package's LooseCut, polling the control of f at each node it visits.
+func (f *Facts) LooseCut(n core.Node) bool { return f.c.looseCut(n) }
 
 // Nullable reports that n can succeed without consuming input when no token is inserted, by the
 // rules of core.Analyze, with the nullability of the rules it calls. It answers for a node that
