@@ -218,6 +218,18 @@ type target struct {
 	branch string
 }
 
+// consuming reports whether every target of c is a run-time backend (the VM or the closures), whose
+// compilation stops at the first failure: a generation goes on after a failing optional pass, which
+// it rolls back, and reports the first error after its required steps have run.
+func (c *compilation) consuming() bool {
+	for _, t := range c.targets {
+		if t.t.Backend != result.VM && t.t.Backend != result.Closure {
+			return false
+		}
+	}
+	return true
+}
+
 // newCompilation checks the targets of p under o and returns their compilation, with the options of
 // each target that the program and the call hold set to theirs and the target decided.
 func newCompilation(p *Program, o Options, targets []Target) (*compilation, error) {
@@ -304,9 +316,12 @@ func callPipeline[I, O any](ref pipe.Pipeline[I, O], o Options) (pipe.Pipeline[I
 }
 
 // run executes the pipeline a of the compilation c once, with the observers of the debugging
-// settings and of the call that d runs, and returns the output of each target in order.
+// settings and of the call that d runs, and returns the output of each target in order. A
+// compilation of run-time targets only stops at the first failure (pipe.Run.Stop) and so consumes
+// its units without a rollback copy (consuming): the build of a parser fails on any internal error.
 func (c *compilation) run(ctx context.Context, d *debugger, a assembly) ([]Output, error) {
-	r := &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers(), Recover: recoverCancellation}
+	r := &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers(), Recover: recoverCancellation,
+		Stop: c.consuming()}
 	if !a.forked {
 		out, err := execute(ctx, d, r, a.one, c.p)
 		if err != nil {

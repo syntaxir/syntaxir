@@ -101,11 +101,12 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 
 ### Optimization Settings
 
-The optimization settings are a profile and the values of named optimizations. They belong to the
-compilation of a grammar, not to one generator: the settings are the same for every backend (the Go and TypeScript
-generators, the closure engine and the bytecode VMs), and each backend applies the optimizations that concern it. Today
-only the generators have optimizations to apply: the closure engine, the bytecode VMs and the reference backends accept the
-setting, check it and apply nothing.
+The optimization settings are a profile and the values of named optimizations. They belong to the compilation of a
+grammar, not to one generator: the settings are the same for every backend (the Go and TypeScript generators, the
+closure engine and the bytecode VMs), and each backend applies the optimizations that concern it. The closure engine,
+which runs the reference parser, and the bytecode VMs build their parsers under the Core passes (kind `pass`) of the
+setting, so turning one off changes how they parse, and the bytecode VMs also run the Flow passes for the forms of their
+bytecode. The recognizer and the missing-token insertion program that a parser derives build under its setting.
 
 The settings are not part of the grammar's meaning: an optimization changes the code a parser is generated as, and the memory and
 time it needs, but not what it returns. It is either on or off, or it has a count where `0` is off.

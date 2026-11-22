@@ -3,11 +3,13 @@ package driver
 import (
 	"context"
 	"errors"
+	"slices"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
@@ -113,6 +115,40 @@ func TestCompileCancelledNamesTheStep(t *testing.T) {
 		var c cancel.Cancellation
 		if !errors.As(err, &se) || !errors.As(err, &c) || !errors.Is(err, context.Canceled) || strings.Contains(err.Error(), "internal error") {
 			t.Errorf("%s: err = %v, want the cancellation of a step", backend, err)
+		}
+	}
+}
+
+// A compilation of run-time targets stops at the first failure (pipe.Run.Stop), since the build of a
+// parser fails on any internal error: after a failing Flow pass no later step runs. A generation goes
+// on to its printer and reports the failure after it.
+func TestCompileRunTimeStopsAtTheFirstFailure(t *testing.T) {
+	t.Parallel()
+	p, err := checkSource(t, "@start\nrule A = \"a\" B\nrule B = \"b\"\n", common.CompileOptions{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	speed, err := GenSettings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		target Target
+		last   string
+		runs   bool
+	}{
+		{Target{Backend: result.VM}, vmlower.Name, false},
+		{Target{Backend: result.Go, Gen: common.GenOptions{Module: "example.com/p", Lib: common.LibImport, LibGo: libsrc.FS}}, "print-go", true},
+	} {
+		var steps []string
+		o := Options{Settings: speed, Edits: []pipe.Edit{flowPasses(testFlowFail)}, Observers: []pipe.Observer{&stepNames{seen: &steps}}}
+		_, err := Compile(context.Background(), p, o, c.target)
+		if !errors.Is(err, errBroken) {
+			t.Errorf("%s: err = %v, want the failure of the pass", c.target.Backend, err)
+		}
+		ran := slices.ContainsFunc(steps, func(s string) bool { return strings.HasPrefix(s, c.last+" ") })
+		if ran != c.runs {
+			t.Errorf("%s: %s ran: %v, want %v; steps %q", c.target.Backend, c.last, ran, c.runs, steps)
 		}
 	}
 }

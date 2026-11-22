@@ -153,7 +153,7 @@ Two benchmarks measure what the pass pipeline costs before any parse. `Benchmark
 compilation (`go+ts`), which checks the grammar once and shares the steps whose inputs are equal. It is the
 generation-time gate of a change to the driver, the pass manager or a pass. `BenchmarkRuntimeBackendCompile` in
 `internal/driver/checked` measures what a program compiled at run time costs its backends on first use: the bytecode
-module and the Core IR of the closures. Compare either with interleaved runs of the binaries before and after the
+module and the Core module of the closures, each built by the driver through the pipeline of its target. Compare either with interleaved runs of the binaries before and after the
 change, with an identical copy of the base for the A/A spread:
 
 ```bash

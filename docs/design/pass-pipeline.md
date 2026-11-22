@@ -182,9 +182,12 @@ The Core IR of a Node or recognizer table and the options its functions are lowe
 pipeline that every backend shares: `elaborate` elaborates the program with or without the projected values of the
 Node table, the Core passes run on it, and the configuration of the table sets the lowering options from what the
 parser charges and records (logical compute units, observation, Documents, traced bodies). The VM
-builds the Node table of a parse with logical compute units, keeping only the guards whose skip makes no call, at the
-default optimizations and runs the driver's Flow passes for a target of its own, the bytecode target of the Flow passes,
-so its functions are those of a generated Go parser with logical compute units in the forms the VM runs.
+builds the Node table of a parse with logical compute units, keeping only the guards whose skip makes no call, under the
+settings of the program, and runs the driver's Flow passes for a target of its own, the bytecode target of the Flow
+passes, so its functions are those of a generated Go parser with logical compute units in the forms the VM runs. The
+closure backend takes the same Core module, built under the same key, and builds its closures from it when a parse first
+needs them; a VM and a closure target in one compilation share it. A compilation of run-time targets only stops at its
+first failure (`Stop`), so it consumes its units and takes no copy.
 The bytecode target declares what the VM prints beyond the forms of every backend: none of the forms of the Flow passes.
 The forms of typed rules do not apply to the Node table, guarded classes apply only to functions outside
 Documents and traced parses, and the VM has no instruction that compares a literal in place, so it matches each literal as the lowering
@@ -576,6 +579,15 @@ assembles the pipeline for them and runs the text in its place; a build from the
 statistics as the build that printed it. A generation of several targets writes the call-wide headers once and one
 `target` header per target, in the order of the targets; the reader gives each target the call-wide options and the
 values of its own header.
+
+The text of a run-time build, for the VM, the closures or both, has one more header, `program`, after `options`: the
+role of the program (the parser of the grammar, or the recognizer or the missing-token insertion program derived from
+it) and the options of the check of the grammar's parser that `options` does not write. Its settings are written as the
+default profile with an override for each flag that differs. The driver cannot make such a program, so its reader is in
+the compiler side of a run-time program (`internal/driver/checked`): it checks the grammar's parser with those options,
+derives the program of the role as a parse does, and compiles the text, which gives the same bytecode and Core module.
+The reader of a generation rejects a text with a `program` header, and a test holds the two headers together to the
+options of the check.
 
 A pass registered at several kinds, such as `canonicalize` at the Flow and the Exec stage, has one name in the text, and
 the reader takes its registration at the kind of the place it stands. A feature whose value has no text form, such as

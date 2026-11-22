@@ -112,9 +112,10 @@ var (
 )
 
 // WithOptimize selects the optimization setting. An unknown profile or optimization, or a value
-// that an optimization does not take, is an error of every function. The optimizations are
-// those of the generators today: the bytecode and the reference backends have none to select, so
-// for them the setting is checked and has no further effect.
+// that an optimization does not take, is an error of every function. Every parser applies the
+// optimizations that concern its backend: the parsers of Compile and NewReferenceParser and the
+// compiled files of Marshal build under the Core passes of the setting, the bytecode also under
+// its Flow passes, and the generators under all of them.
 func WithOptimize(o Optimize) Option { return func(opts *options) { opts.optimize = o } }
 
 // Debug is the debugging setting of the compiler: it observes and checks the pass pipeline that

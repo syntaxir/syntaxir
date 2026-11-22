@@ -5,8 +5,8 @@
 - **Date**: 2026-11-20
 
 > **Note (2026-11)**: The migration order is amended; the end state is unchanged. The VM switch to the Flow route,
-> which deletes the Core route, comes before step 12. Until step 12, `FlowTable` is the VM's Flow route in production;
-> step 12 assembles the VM pipeline in `Compile` and deletes it.
+> which deletes the Core route, comes before step 12. Until step 12, `FlowTable` was the VM's Flow route in production;
+> step 12 assembles the VM pipeline in `Compile` and deletes it (see the amendment of step 12).
 
 ## Summary
 
@@ -1311,14 +1311,25 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
 12. **The VM and the closure backend through `Compile`** with the parser's settings: first the settings carrier, with
     unchanged outputs; then `ProgramOf` and the run-time builds through the driver, the `program` header and its reader,
     and the settings tests, which fail before this step. Outputs are identical under every profile and change only
-    under an override of a Core pass.
+    under an override of a Core pass. (Amended: the VM pipeline is `vm-tables` with the shared Core part, the
+    program-level passes that run before `plan` for the generators, `plan!`, then `vm-planned-tables`, which lowers
+    the one planned table to the end of the Flow stage for the bytecode target and joins it with the program into
+    `vm-input`, and `vmlower!`. The VM's one unit plans the stream body of every rule with a `#stream` repetition, so a
+    unit holds a list of stream rules (`Unit.Streams`); a Go parser keeps the one of its start rule. The closure
+    pipeline is `closure-tables`, whose join gives `closure-input`, which holds only the Core module, and
+    `closure-core!`, which returns it without the cancel control of the compilation; both targets build the module
+    under the key `program`, so one compilation of both shares it. A compilation of run-time targets only runs with
+    `Stop`. A cancellation is a failure of its own: the step that finds the context ended
+    fails with it, and the compiler side of the program turns it into the parse's cancelled build. The `program`
+    header writes the settings as the default profile with its overrides, and the run-time builds take no debugging
+    settings, so their text is for tests.)
 13. **Gates and documentation:** the generation-time gate, the run-time compile benchmark, the determinism and allocation
     tests, and the design pages updated for the parts this record implements. (Amended: the generation-time gate is
     the benchmark `BenchmarkGeneration`, over the grammars of `testdata/grammars` with the options of their
     ready-made parsers, for Go, TypeScript and both in one compilation; the run-time compile benchmark is
     `BenchmarkRuntimeBackendCompile`. The determinism test runs the generation of Go and TypeScript in one
-    compilation, so the backends that generate run twice there; the VM and the closures join it when step 12 moves
-    them onto `Compile`. The allocation test covers steps on a module and steps run per function.)
+    compilation, so the backends that generate run twice there; the VM and the closures, once step 12 moved them onto
+    `Compile`, join it as a run-time build of both in one compilation. The allocation test covers steps on a module and steps run per function.)
 
 The VM switch to the Flow route, which deletes the Core route, comes before step 12 as separate work and changes only
 the VM pipeline: the VM selects its bytecode from the table that `FlowTable` builds. Step 12 then moves the VM, already

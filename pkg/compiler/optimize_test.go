@@ -5,8 +5,10 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/testing/examinedref"
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/vm"
 )
 
@@ -92,9 +94,8 @@ func printing(printAfter string, w *bytes.Buffer) compiler.Option {
 
 // TestOptimizeAcceptedByEveryFunction checks that every function of the package takes WithOptimize:
 // it accepts every profile and a known optimization turned off, and rejects an unknown profile or
-// optimization, whatever artifact it makes. The bytecode and reference backends have no
-// optimization to select yet, so for them the setting is validated and changes nothing, and the
-// parsers they return agree with the one that no setting made.
+// optimization, whatever artifact it makes, and the parsers that a profile makes agree with the
+// one that no setting made.
 func TestOptimizeAcceptedByEveryFunction(t *testing.T) {
 	src := grammar.FromString("opt.sxir", `@start
 rule main = (word / num / -" ")* $$
@@ -154,5 +155,58 @@ rule num = [0-9]+
 	n1, err1 := p1.Parse("if x 12")
 	if err0 != nil || err1 != nil || n0.String() != n1.String() {
 		t.Errorf("the profile changes the parser: %v %v\n%v\n%v", err0, err1, n0, n1)
+	}
+}
+
+// WithOptimize applies to the parsers of Compile and NewReferenceParser as to the generators: the
+// profiles leave the bytecode as it is, since their optimizations are those of generated code,
+// turning a Core pass off changes it, and the parsers built with the pass off agree with the
+// reference evaluator of the language on what they match.
+func TestOptimizeReachesTheRunTimeParsers(t *testing.T) {
+	src := grammar.FromString("opt.sxir", `@start
+rule main = (word / num / -" ")* $$
+rule word = "if" / "else" / [a-z]+
+rule num = [0-9]+
+`)
+	marshal := func(o compiler.Optimize) []byte {
+		b, err := compiler.Marshal(src, vm.CompiledParse, compiler.WithOptimize(o))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return b
+	}
+	base := marshal(compiler.Optimize{})
+	for _, p := range []compiler.Optimize{compiler.Speed, compiler.Memory, compiler.Size} {
+		if !bytes.Equal(marshal(p), base) {
+			t.Errorf("the profile %s changes the bytecode", p.Profile)
+		}
+	}
+	off := compiler.Optimize{Off: []string{"guards"}}
+	if bytes.Equal(marshal(off), base) {
+		t.Error("turning guards off leaves the bytecode as it is")
+	}
+	g, err := grammar.Load(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	onVM, err := compiler.Compile(src, compiler.WithOptimize(off))
+	if err != nil {
+		t.Fatal(err)
+	}
+	onClosures, err := compiler.NewReferenceParser(src, compiler.WithOptimize(off))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range []string{"", "if x 12", "else", "if", "12 ab", "x1 y", "if 1 ", "  ", "IF", "1a"} {
+		ref, _, err := examinedref.Evaluate(g, "main", in)
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := ref.Matched && ref.End == len(in)
+		for name, p := range map[string]runtime.Parser{"Compile": onVM, "NewReferenceParser": onClosures} {
+			if _, err := p.Parse(in); (err == nil) != want {
+				t.Errorf("%s with guards off: %q parses with err %v; the reference matches it: %v", name, in, err, want)
+			}
+		}
 	}
 }
