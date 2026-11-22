@@ -6,7 +6,7 @@ import "testing"
 
 // TestRepetitionListTakeOffMutants is the negative control of the tests that the lists the parse builds
 // charge nothing: a closure backend whose Parser.Kids charges the take-off of a repetition's elements, and
-// bytecode backends that charge it where a repetition ends with its list, fail
+// bytecode backends whose flow.kids charges it where a repetition ends with its list, fail
 // TestRuntimeValuesChargeNothing, and a hot run site that charges the take-off of its walk's list fails
 // TestRunSiteListChargesNothing.
 func TestRepetitionListTakeOffMutants(t *testing.T) {
@@ -18,8 +18,8 @@ func TestRepetitionListTakeOffMutants(t *testing.T) {
 			tests, []string{"."}}})
 	})
 	t.Run("vm", func(t *testing.T) {
-		runPrintedMutants(t, "internal/runtime/vm/vm.go", []printedMutant{{"a repetition's list charges the take-off",
-			[]printedEdit{{"\t\t\t\t\tkids = p.Nodes(n)\n", "\t\t\t\t\tkids = p.Nodes(n)\n\t\t\t\t\tp.SpendValue(2 * n)\n"}},
+		runPrintedMutants(t, "internal/runtime/vm/flow.go", []printedMutant{{"a repetition's list charges the take-off",
+			[]printedEdit{{"\t\tcase bytecode.FlowKids:\n", "\t\tcase bytecode.FlowKids:\n\t\t\tp.SpendValue(2 * (len(p.KidStack) - regs[in.Args[0]].(int)))\n"}},
 			tests, []string{"."}}})
 	})
 	t.Run("run site", func(t *testing.T) {
