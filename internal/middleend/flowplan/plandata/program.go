@@ -41,10 +41,12 @@ type CoreTable struct {
 }
 
 // Cores is what the planning of a program takes: the rule tables of the program and the entry points,
-// the start rules of the tables and the typed rules that the typed entry points enter.
+// the start rules of the tables and the typed rules that the typed entry points enter, and the tables
+// that the backend lowers (Units), which the planning plans from the rules the entry points reach.
 type Cores struct {
 	Tables []CoreTable
 	Roots  []Entry
+	Units  []Unit
 }
 
 // Program is the plan of a program: the entry points, the route of a call of each rule of each table
@@ -57,6 +59,13 @@ type Program struct {
 	// Tables holds the routes of the calls of the rules of each table, in the order of the tables of
 	// the program.
 	Tables []Routes
+	// Units holds the planned tables that the backend lowers: one for each unit of the program, in
+	// their order, then the unreachable part of each numbered unit that the plan prunes. Numbered
+	// holds, for each numbered unit, the parts that the expectation table is numbered from.
+	Units    []PlannedUnit
+	Numbered []Numbered
+	// Cores is what the program was planned from.
+	Cores *Cores
 }
 
 // Routes are the routes of the calls of the rules of one table.

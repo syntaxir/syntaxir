@@ -10,6 +10,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -193,17 +194,22 @@ func (d *Driver) printsBefore(name string) bool {
 // the first step of the pipeline.
 const Elaborate = "elaborate"
 
-// tableIR is the kind table: the build of the Core IR of one table of a program, which elaborate runs.
-var tableIR = pipe.RegisterIR(&pipe.IR[func() (*core.Module, error)]{Name: "table"})
+// tableIR is the kind table: the build of the Core IR of one table of a program, which elaborate runs
+// (common.TableSource).
+var tableIR = pipe.RegisterIR(&pipe.IR[common.TableSource]{Name: "table"})
+
+// coreKey keys the Core part of the pipeline of a table on the key of its build, so that the tables
+// whose builds make the same module share one run of it (pipe.Shared).
+var coreKey = pipe.RegisterKey(tableIR, &pipe.Key[common.TableSource]{Name: "core-config", Of: func(s common.TableSource) string { return s.Key }})
 
 // elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
 // computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
 // with its attributes, as the Core passes and the Core verifier read it.
-var elaborating = pipe.New(pipe.Def[func() (*core.Module, error), *core.Module]{
+var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
 	In:   tableIR, Out: corepass.IR,
-	Run: func(_ *pipe.Ctx[func() (*core.Module, error)], build func() (*core.Module, error)) (*core.Module, pass.PreservedSet, error) {
-		m, err := build()
+	Run: func(_ *pipe.Ctx[common.TableSource], src common.TableSource) (*core.Module, pass.PreservedSet, error) {
+		m, err := src.Build()
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
@@ -225,7 +231,7 @@ func (d *Driver) Core(table string, build func() (*core.Module, error)) (*core.M
 	if d.CorePipeline != nil {
 		p = d.CorePipeline(table)
 	}
-	m, err := execute(context.Background(), d, d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), build)
+	m, err := execute(context.Background(), d, d.pipeRun(table, true), pipe.Then(pipe.Of(elaborating), p), common.TableSource{Build: build})
 	if err != nil {
 		return nil, pipeError(err, Elaborate)
 	}

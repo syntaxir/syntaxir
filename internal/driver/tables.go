@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -8,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -36,9 +39,11 @@ import (
 
 // coreConfig returns the Core part of the pipeline of a table: elaborate, which runs the build of the
 // table's Core IR and computes its attributes, and the Core passes in the slot CoreSlot. The module
-// is dumped as "elaborate" as the build made it, with the attributes of its nodes.
-func coreConfig() pipe.Pipeline[func() (*core.Module, error), *core.Module] {
-	return pipe.Then(pipe.Of(elaborating), pipe.Slot(CoreSlot, corepass.Pipeline()))
+// is dumped as "elaborate" as the build made it, with the attributes of its nodes. The tables whose
+// builds have the same key share one run of it (coreKey), whose dumps are written again with the
+// label of each.
+func coreConfig() pipe.Pipeline[common.TableSource, *core.Module] {
+	return pipe.Shared(coreKey, pipe.Then(pipe.Of(elaborating), pipe.Slot(CoreSlot, corepass.Pipeline())))
 }
 
 // tableConfig derives the features of a planned table from its unit: whether the parser reports the
@@ -74,4 +79,35 @@ func lowering(flowTarget flowpass.Target, target TargetPipeline) pipe.Pipeline[p
 		pipe.PerFunc(code.ExecFuncs, pipe.Slot(ExecSlot, pipe.Seq(code.ExecStage, codepass.Passes...))),
 		pipe.PerFunc(execlower.LoweredFuncs, pipe.Slot(TargetSlot, target)))))
 	return pipe.WithDerived(tableConfig, pipe.Then3(pipe.Of(flowlower.Lowering), flow, exec))
+}
+
+// plannedTables is the split planned-tables of every backend that plans the program: it splits the
+// plan into the planned tables of the program (plandata.Program.Units), labeled as their units, and
+// joins them, at the Exec stage, into tables@exec, numbering the expectation table from the Node and
+// recognizer tables with every rule (common.JoinTables). A table that the plan prunes has a part of
+// the functions it leaves out, labeled with flowplan.UnreachableSuffix, which only the numbering
+// reads.
+var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, common.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *common.Tables]{
+	Name: "planned-tables", Labels: plannedLabels(goprint.TableLabels),
+	Parts: func(p *plandata.Program) ([]plandata.Planned, []string, error) {
+		units, labels := make([]plandata.Planned, len(p.Units)), make([]string, len(p.Units))
+		for i, u := range p.Units {
+			units[i], labels[i] = u.Planned, u.Label
+		}
+		return units, labels, nil
+	},
+	Join: common.JoinTables,
+})
+
+// plannedLabels returns the labels of the planned tables of a backend whose tables are labeled labels:
+// each label, and each with flowplan.UnreachableSuffix.
+func plannedLabels(labels ...[]string) []string {
+	var out []string
+	for _, l := range labels {
+		out = append(out, l...)
+		for _, n := range l {
+			out = append(out, n+flowplan.UnreachableSuffix)
+		}
+	}
+	return out
 }

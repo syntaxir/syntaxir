@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -42,8 +43,11 @@ type Options struct {
 	// Edits are typed edits of the assembled pipeline (internal: tests), such as a fill of one of
 	// its slots (CoreSlot, FlowSlot, ExecSlot, TargetSlot) with passes of their own.
 	Edits []pipe.Edit
-	// Observers watch every step of the run after the dumps of the targets (internal: tests), such
-	// as pipe.Stats or an observer that needs units in place of a typed hook.
+	// Observers watch every step of the run, after the dumps of the targets: each one sees the
+	// event of every step (its instance and the backend, table and function it ran on) and, as its
+	// Needs ask, the unit after it, such as the Core module of a table, the plan of the program or
+	// a table at the Exec stage. It is the one way for a test to read the units of a compilation;
+	// production callers leave it nil.
 	Observers []pipe.Observer
 }
 
@@ -71,7 +75,12 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	if err := CheckDebug(o.Debug); err != nil {
 		return nil, err
 	}
-	a, err := assemble(t)
+	// The target's options that the program and the call hold are theirs.
+	po := p.Options()
+	t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
+	t.Gen.Debug = o.Debug
+	c := &compilation{p: p, t: t, o: o}
+	a, err := assemble(c)
 	if err != nil {
 		return nil, err
 	}
@@ -80,7 +89,7 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 		return nil, err
 	}
 	d := debugger(o)
-	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers("")}, pl, p)
+	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers("")}, pl, c)
 	// The dumps are written also on an error, whose dumps show what led to it; the reports only
 	// after a build.
 	if ferr := d.flush(); ferr != nil && err == nil {
@@ -105,17 +114,27 @@ func debugger(o Options) *Driver {
 // assembled is the pipeline of one target and the steps whose failure is an error of the compilation
 // itself, such as a grammar that the target cannot generate a parser for.
 type assembled struct {
-	pipeline pipe.Pipeline[*Program, Output]
+	pipeline pipe.Pipeline[*compilation, Output]
 	// steps are the instances of those steps: required steps such as elaborate or the printer, and
 	// splits ("each <name>") whose parts are decided from the program.
 	steps []string
 }
 
-// assemble returns the pipeline of the target t, from the program to its output.
-func assemble(t Target) (assembled, error) {
-	switch t.Backend {
+// assemble returns the pipeline of the target of the compilation c, from the program to its output,
+// with the target as its printer reads it (common.TargetFeature).
+func assemble(c *compilation) (assembled, error) {
+	switch c.t.Backend {
+	case result.Go:
+		opts, err := goprint.Validate(c.t.Gen)
+		if err != nil {
+			return assembled{}, err
+		}
+		c.t.Gen = opts
+		p := c.p
+		c.target = goprint.NewGoTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings)
+		return goPipeline(c)
 	}
-	return assembled{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", t.Backend)
+	return assembled{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
 }
 
 // error returns the failure err of a run of the pipeline: the failure of one of the steps a.steps as

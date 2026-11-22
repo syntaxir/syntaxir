@@ -59,6 +59,9 @@ type Generator struct {
 	// required: the optimizations are read only from it (Opt), and Passes has no other way to read
 	// them, so that the printers and the passes cannot disagree on them.
 	Runner Runner
+	// Settings are the optimizations of a generator that prints tables lowered by the pipeline of
+	// its compilation (Tables.Settings), which has no Runner.
+	Settings pass.Settings
 	// Flow holds the Core IR of the typed rules while they are printed from Flow IR, or nil;
 	// flowRules counts the rules printed from Flow IR as flat rules and flowFrames the bodies
 	// and lines printed as matchers of runtime-owned frames.
@@ -93,8 +96,14 @@ func (g *Generator) runner() Runner {
 	return g.Runner
 }
 
-// Opt returns the optimizations that are on: the settings of the Runner, the only source of them for a generator.
-func (g *Generator) Opt() pass.Settings { return g.runner().Settings() }
+// Opt returns the optimizations that are on: the settings of the Runner, or Settings for a generator
+// without one that prints the tables of its compilation.
+func (g *Generator) Opt() pass.Settings {
+	if g.Runner == nil {
+		return g.Settings
+	}
+	return g.Runner.Settings()
+}
 
 // Core runs the elaboration build of the table's Core IR and the Core passes through the Runner.
 func (g *Generator) Core(table string, build func() (*core.Module, error)) (*core.Module, error) {

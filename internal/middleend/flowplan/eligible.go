@@ -4,26 +4,15 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // The eligibility of the rules of a table for Flow IR: which rules are lowered as flat rules and which
 // as framed bodies. The plan asks these, so every backend lowers the same rules.
 
-// Rule is what a plan reads of a rule of its table: the facts of the run-time program, the rule's
-// definition and the action, as the checked grammar holds them. A backend fills it from its view of
-// the grammar.
-type Rule struct {
-	ID   int
-	Name string
-	// Body is the expression of the rule's definition, and Action the rule's action, nil if it has
-	// none.
-	Body   ast.Expr
-	Action ast.ActionExpr
-	// Plain, Novalue and Leader are those of the run-time program (program.Rule); Lean reports that
-	// the body's value is unused, so the body runs value-free.
-	Plain, Lean, Novalue, Leader bool
-}
+// Rule is what a plan reads of a rule of its table (plandata.Rule).
+type Rule = plandata.Rule
 
 // RecEligible reports whether the rule r of the Node table or of the recognizer table is lowered as
 // a flat rule: a plain, lean, value-free rule that is not a left-recursion leader and whose body has

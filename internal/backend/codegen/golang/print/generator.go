@@ -5,7 +5,6 @@ import (
 	"cmp"
 	"fmt"
 	"go/format"
-	"go/token"
 	"io"
 	"maps"
 	"math"
@@ -22,11 +21,9 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
-	"syntaxir.dev/sxir/internal/middleend/flowpass"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -56,7 +53,7 @@ func defaultPackageName(module string) string {
 // exactly like the engine. Without opts.Stream, #stream is a plain repetition.
 func Generate(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions) ([]common.GeneratedFile, error) {
 	if opts.Lib == common.LibOnly {
-		return libFiles(opts)
+		return LibFiles(opts)
 	}
 	return GenerateParser(g, c, p, opts, nil)
 }
@@ -73,8 +70,8 @@ type Hooks struct {
 	// Reach receives the reachable rules of the plan of the program before any table is printed; a
 	// test removes a root from it to show that the output then fails.
 	Reach func(*liveRules)
-	// Lowered receives each Node or recognizer table that the expectation table is numbered from
-	// (expectationTable), with its name.
+	// Lowered receives each part of a Node or recognizer table that the expectation table is numbered
+	// from (plandata.Program.Numbered), with its label.
 	Lowered func(table string, t *plandata.Table[code.Exec])
 	// Numbering replaces the expectation table numbered from the lowered tables before any table is
 	// printed, so that a test has the printing of the Node and recognizer tables number it instead.
@@ -114,57 +111,17 @@ type Hooks struct {
 	FlowTarget func(t *Target, pre *string) *Target
 }
 
-// GenerateParser generates the files of Generate (other than for LibOnly). Before it prints any
-// table, it plans the program (planProgram), which decides the rules of the Node, recognizer and
-// typed tables that a generated call or an entry point can reach (liveRules), and numbers the
-// expectation table from the Node and recognizer tables lowered in full (expectationTable); then it
-// prints once, leaving out the rules that the plan does not reach. A typed-only parser without Node
-// rules has no Node or recognizer rule to leave out (keepTableRules); one that keeps Node rules for
-// its converting entry points prints those that the entry points reach, like any other output.
+// GenerateParser generates the files of Generate (other than for LibOnly), running the pipelines
+// through the Runner of p: it decides the tables of the parser (Decide), builds their Core IR, plans
+// the program and its tables (flowplan.Planning), which decides the rules of the Node, recognizer and
+// typed tables that a generated call or an entry point can reach (liveRules), lowers each planned
+// table to the Exec stage, numbers the expectation table (common.JoinTables) and prints the tables
+// (printTables).
 func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks) (files []common.GeneratedFile, err error) {
 	if h == nil {
 		h = &Hooks{}
 	}
-	// Under a bisection limit the generator keeps the unreachable rules, so that the numbered runs of
-	// the optional passes are those of every rule whatever the plan leaves out.
-	if opts.Debug.OptBisectLimit != nil {
-		opts.KeepUnreachable = true
-	}
-	if opts.Module == "" && (opts.Lib == common.LibEmbed || opts.Package == "") {
-		return nil, fmt.Errorf("module path is required")
-	}
-	derived := opts.Package == ""
-	if derived {
-		opts.Package = defaultPackageName(opts.Module)
-	}
-	if !token.IsIdentifier(opts.Package) || opts.Package == "_" {
-		if derived {
-			return nil, fmt.Errorf("the module path %q gives the package name %q, which is not a valid Go identifier; choose the package name with -pkg (PackageName)", opts.Module, opts.Package)
-		}
-		return nil, fmt.Errorf("invalid package name %q", opts.Package)
-	}
-	if opts.RecognizeOnly {
-		switch {
-		case opts.Types || opts.TypedOnly || opts.Document || opts.Stream:
-			return nil, fmt.Errorf("recognize-only output generates only Recognize: it cannot have typed output, typed-only output, a Document or a stream")
-		}
-		opts.Recognize = true
-	}
-	if opts.TypedOnly {
-		switch {
-		case !opts.Types:
-			return nil, fmt.Errorf("typed-only output needs typed output (-types)")
-		case opts.Document || opts.Stream:
-			return nil, fmt.Errorf("typed-only output cannot have a Document or a stream, which use the untyped Node (Recognize is allowed)")
-		}
-	}
-	if opts.Types && opts.Module == "" {
-		return nil, fmt.Errorf("module path is required for typed output: the parser imports the package module/types")
-	}
-	if err := opts.ValidateMaxDepth(false); err != nil {
-		return nil, err
-	}
-	if err := opts.ValidateDefaultValue(); err != nil {
+	if opts, err = Validate(opts); err != nil {
 		return nil, err
 	}
 	// The settings that decide the output are read from the generator (Generator.Opt); this only
@@ -172,25 +129,13 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if err := p.Validate(); err != nil {
 		return nil, err
 	}
-	// The dumps and the reports of the pipeline are written only by the generation that writes the
-	// output, not by one that generates again (restarted): they are kept in dumped until it returns,
-	// and written also on an error, whose dumps show what led to it.
-	var dumps io.Writer
-	var dumped *bytes.Buffer
-	restarted := false
-	if opts.Debug.Output != nil {
-		dumped = &bytes.Buffer{}
-		dumps = dumped
+	if _, err := loadLib(opts); err != nil {
+		return nil, err
 	}
-	info, err := loadLib(opts)
+	prog, recognizer, err := c(g, common.CompileOptions{SourceInfo: opts.SourceInfo, DefaultValue: opts.DefaultValue, LeftRecursionBindings: opts.LeftRecursionBindings})
 	if err != nil {
 		return nil, err
 	}
-	view, recognizer, err := c(g, common.CompileOptions{SourceInfo: opts.SourceInfo, DefaultValue: opts.DefaultValue, LeftRecursionBindings: opts.LeftRecursionBindings})
-	if err != nil {
-		return nil, err
-	}
-	prog := view
 	if prog.Run.HasMissing {
 		return nil, rprogram.MissingUnsupported("generated parsers")
 	}
@@ -198,88 +143,128 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if err != nil {
 		return nil, err
 	}
-	if opts.Stream {
-		if !start.Stream {
-			return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
-		}
+	d, err := Decide(prog, recognizer, start, opts)
+	if err != nil {
+		return nil, err
 	}
-	genGo := &Generator{typedOnly: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes, Document: opts.Document, NoBudget: opts.NoLimitControls || opts.LogicalUnits, Ordinary: (opts.NoLimitControls || opts.LogicalUnits) && !opts.Document, Prog: prog, Table: "rules", Runner: p.Runner(dumps), hooks: *h, keepTableRules: (opts.TypedOnly || opts.RecognizeOnly) && !opts.KeepNodes}
-	if opts.LogicalUnits {
-		if err := logicalRefusal(prog, opts); err != nil {
-			return nil, err
-		}
-		genGo.Logical = true
-		switch opts.LogicalVariant {
-		case "":
-		case "keep-guards":
-			genGo.LogicalGuards = lowerdata.GuardsKeep
-		case "event":
-			genGo.LogicalGuards = lowerdata.GuardsEvent
-		default:
-			return nil, fmt.Errorf("unknown variant %q of logical units", opts.LogicalVariant)
-		}
+	d.refuse = h.RefuseFlowRecRule
+	// The dumps and the reports of the pipelines are kept until the generation returns, and the dumps
+	// are written also on an error, whose dumps show what led to it.
+	var dumps io.Writer
+	var dumped *bytes.Buffer
+	if opts.Debug.Output != nil {
+		dumped = &bytes.Buffer{}
+		dumps = dumped
 	}
-	// The reports of the pipelines come after the last of them.
+	r := p.Runner(dumps)
 	if dumped != nil {
 		defer func() {
-			if restarted {
-				return
-			}
 			if err == nil {
-				genGo.Runner.Report()
+				r.Report()
 			}
 			if _, werr := opts.Debug.Output.Write(dumped.Bytes()); werr != nil && err == nil {
 				files, err = nil, werr
 			}
 		}()
 	}
-	// Go prints every form of the Flow passes.
-	genGo.FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
-	if opts.Stream {
-		genGo.streamStart = start
+	t, err := d.lower(r, h)
+	if err != nil {
+		return nil, err
 	}
+	files, _, err = printTables(d, r.Settings(), t, *h, p.Runner(nil))
+	return files, err
+}
+
+// lower builds, plans and lowers the tables of the parser d through the Runner r and numbers the
+// expectation table of its Node and recognizer tables. A test's Generator hook sees a generator of
+// the Runner first, whose table and Flow state follow the table being lowered, so that the passes it
+// adds to the Runner know the table they run on.
+func (d *Decision) lower(r common.Runner, h *Hooks) (*common.Tables, error) {
+	var lowering *Generator
+	if h.Generator != nil {
+		lowering = d.generator()
+		lowering.Runner, lowering.Settings = r, r.Settings()
+		h.Generator(lowering)
+	}
+	labels, sources := d.Labels(), d.Sources()
+	mods := make([]*core.Module, len(sources))
+	for i, s := range sources {
+		m, err := r.Core(labels[i], s.Build)
+		if err != nil {
+			return nil, err
+		}
+		mods[i] = m
+	}
+	plan, err := r.Plan(d.Cores(mods))
+	if err != nil {
+		return nil, err
+	}
+	tables := make([]*plandata.Table[code.Exec], len(plan.Units))
+	for i, u := range plan.Units {
+		if lowering != nil {
+			// The unreachable part of a table, which the parser does not run, has no Flow state for
+			// the test's passes.
+			lowering.Flow = nil
+			for _, s := range d.specs {
+				if s.name == u.Label {
+					lowering.Prog, lowering.Table, lowering.Traced = s.prog, s.table, s.traced
+					lowering.Flow = &common.FlowState{TableIR: u.IR}
+				}
+			}
+		}
+		x, err := r.LowerTable(u.Label, u.Planned, u.IR.Opts.Observe, FlowTarget, gopass.Pipeline)
+		if x == nil {
+			return nil, fmt.Errorf("table %s: %w", u.Label, err)
+		}
+		if err != nil {
+			return nil, fmt.Errorf("module %s of table %s: %w", x.Module.Module().Name, u.Label, err)
+		}
+		tables[i] = x
+	}
+	if h.Lowered != nil {
+		for _, n := range plan.Numbered {
+			for _, k := range n.Parts {
+				h.Lowered(plan.Units[k].Label, tables[k])
+			}
+		}
+	}
+	return common.JoinTables(plan, tables)
+}
+
+// printTables prints the files of the Go parser d from its tables t at the Exec stage, with the
+// settings of the compilation and the hooks h of a test, and returns them with the generator that
+// printed them. r is the Runner of a test that builds Core IR with the generator
+// (Generator.TypedCore), or nil.
+func printTables(d *Decision, settings pass.Settings, t *common.Tables, h Hooks, r common.Runner) (files []common.GeneratedFile, genGo *Generator, err error) {
+	opts, prog, rec, start := d.Opts, d.Prog, d.Rec, d.Start
+	info, err := loadLib(opts)
+	if err != nil {
+		return nil, nil, err
+	}
+	genGo = d.generator()
+	genGo.Runner, genGo.Settings, genGo.hooks, genGo.tables = r, settings, h, t
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	var entries typedEntries
 	if opts.Types {
-		// The typed entry points are decided before any table is printed: they fix the typed rules
-		// that the reachable rules start from, and whether the Node rule bodies are needed.
 		if entries, err = genGo.typedEntries(start, opts.ConvertTypes); err != nil {
-			return nil, err
-		}
-		if opts.TypedOnly && entries.needNodes && !opts.KeepNodes && !opts.DisableKeepNodes {
-			// A typed entry point converts the Node result of its rule, so the Node rule functions
-			// are needed; generate with them.
-			opts.KeepNodes = true
-			restarted = true
-			return GenerateParser(g, c, p, opts, h)
+			return nil, nil, err
 		}
 	}
-	var rec *common.Program
-	if opts.Recognize {
-		// The recognizer: the program in which no rule builds a value, in a rule table of its own.
-		if rec, err = recognizer(); err != nil {
-			return nil, err
-		}
-	}
-	// The program is planned before any table is printed: the routes of the calls and the rules that
-	// the entry points reach.
-	if err := genGo.planProgram(prog, rec, opts.Types, opts.KeepUnreachable); err != nil {
-		return nil, err
+	genGo.program = t.Plan
+	if !opts.KeepUnreachable {
+		genGo.live = &liveRules{Roots: t.Plan.Roots, Reach: t.Plan.Reach, cores: t.Plan.Cores, plan: t.Plan}
 	}
 	if h.Reach != nil && genGo.live != nil {
 		h.Reach(genGo.live)
 	}
 	// The expectation table of the Node and recognizer tables is numbered from them before they are
 	// printed; the typed code and the traced copies add their own after it as they are printed.
-	descs, err := genGo.expectationTable(prog, rec, p.Runner(nil))
-	if err != nil {
-		return nil, err
-	}
+	descs := t.Descs
 	if h.Numbering != nil {
 		descs = h.Numbering(descs)
 	}
 	if len(genGo.Descs) != len(core.FixedDescs) {
-		return nil, fmt.Errorf("internal error: %d expectations are recorded before the expectation table is numbered", len(genGo.Descs))
+		return nil, nil, fmt.Errorf("internal error: %d expectations are recorded before the expectation table is numbered", len(genGo.Descs))
 	}
 	for _, d := range descs {
 		genGo.Desc(d)
@@ -288,46 +273,46 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if h.Generator != nil {
 		h.Generator(genGo)
 	}
-	if err := genGo.StartRecFlow(prog); err != nil {
-		return nil, err
+	if err := genGo.useTable(); err != nil {
+		return nil, nil, err
 	}
 	genGo.rules()
 	genGo.Flow = nil
 	if genGo.streamErr != nil {
-		return nil, genGo.streamErr
+		return nil, nil, genGo.streamErr
 	}
 	if genGo.tableErr != nil {
-		return nil, genGo.tableErr
+		return nil, nil, genGo.tableErr
 	}
 	if genGo.FlowErr != nil {
-		return nil, genGo.FlowErr
+		return nil, nil, genGo.FlowErr
 	}
 	if rec != nil {
 		genGo.Prog, genGo.Table = rec, "recRules"
-		if err := genGo.StartRecFlow(rec); err != nil {
-			return nil, err
+		if err := genGo.useTable(); err != nil {
+			return nil, nil, err
 		}
 		genGo.rules()
 		genGo.Flow = nil
 		genGo.Prog, genGo.Table = prog, "rules"
 		if genGo.tableErr != nil {
-			return nil, genGo.tableErr
+			return nil, nil, genGo.tableErr
 		}
 		if genGo.FlowErr != nil {
-			return nil, genGo.FlowErr
+			return nil, nil, genGo.FlowErr
 		}
 	}
 	if h.Printed != nil {
 		h.Printed(append([]string(nil), genGo.Descs...))
 	}
 	if len(genGo.Descs) != numbered {
-		return nil, fmt.Errorf("internal error: the Node and recognizer tables record the expectation %q, which the numbering of their lowered tables does not", genGo.Descs[numbered])
+		return nil, nil, fmt.Errorf("internal error: the Node and recognizer tables record the expectation %q, which the numbering of their lowered tables does not", genGo.Descs[numbered])
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
 	features, err := common.ParserFeatures(prog, rec, opts, genGo.Opt())
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if opts.FeatureWitness {
 		witnessed := features
@@ -428,7 +413,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	if opts.Types {
 		typed, err := genGo.typedGo(start, entries)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		if opts.TypedOnly {
 			// The expectations of the typed bodies are known only now.
@@ -452,11 +437,11 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	var tracedInit string
 	if opts.Observability {
 		if tracedInit, err = genGo.tracedTables(prog, rec); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
 	if err := genGo.finishReach(); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	out.WriteString(genGo.Vars.String())
 	out.WriteString("\nfunc init() {\n")
@@ -469,14 +454,14 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	out.WriteString(genGo.Methods.String())
 	whole, err := format.Source([]byte("package " + opts.Package + "\n" + out.String()))
 	if err != nil {
-		return nil, fmt.Errorf("generated code does not compile: %w\n%s", err, out.String())
+		return nil, nil, fmt.Errorf("generated code does not compile: %w\n%s", err, out.String())
 	}
 	body := shakeVars(strings.TrimPrefix(string(whole), "package "+opts.Package+"\n"))
 	var tp *typesPackage
 	var typesFile []byte
 	if opts.Types {
 		if typesFile, tp, err = typesPackageFile(opts, typesBody); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		// The one reference to the schema of the types package (see schemaName).
 		body += "\nconst _ = " + tp.schema + "\n"
@@ -491,7 +476,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	}
 	body, err = qualifyLib(libImport(opts), body, info, tp)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var file strings.Builder
 	file.WriteString(common.Header() + "\n\n")
@@ -501,16 +486,16 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	fmt.Fprintf(&file, "package %s\n\n%s", opts.Package, body)
 	src, err := format.Source([]byte(file.String()))
 	if err != nil {
-		return nil, fmt.Errorf("generated code does not compile: %w", err)
+		return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
 	}
 	if !opts.KeepComments {
 		if src, err = trimComments(src); err != nil {
-			return nil, fmt.Errorf("generated code does not compile: %w", err)
+			return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
 		}
 	}
 	api, err := apiSource(opts, info)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	files = []common.GeneratedFile{{Path: "parser.go", Content: src}, {Path: "api.go", Content: []byte(api)}}
 	if opts.Types {
@@ -526,17 +511,17 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			}
 			surface, err := userSurface(f.Content)
 			if err != nil {
-				return nil, err
+				return nil, nil, err
 			}
 			users = append(users, surface)
 		}
 		rt, err := embeddedLib(opts, features, genGo.Opt().On(common.UsedFeatures), roots, users)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		files = append(files, rt...)
 	}
-	return files, nil
+	return files, genGo, nil
 }
 
 // goFieldType writes a field type as a generated fieldType value.
@@ -571,6 +556,7 @@ type Generator struct {
 	recoveryProg        map[*common.Program]bool // whether a program can recover from errors
 	tableErr            error                    // the rule table does not fit the form of the library's RuleSpec
 	hooks               Hooks                    // the zero value changes nothing
+	tables              *common.Tables           // the tables being printed, at the Exec stage
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
 	chunksInLib    bool
 	ruleTypesDone  bool // the types of the rule table entries are written
@@ -582,9 +568,6 @@ type Generator struct {
 	// NodeScopes records the frame layouts of the printed Node table rows, which the typed rule
 	// metadata shares.
 	NodeScopes map[*common.Rule][]string
-	// nodeLayouts is the frame layout of each rule of the Node table by rule ID, which the plan takes
-	// from the rule's Core scope (plandata.Plan.Layouts). A typed framed body runs under that frame.
-	nodeLayouts [][]string
 	// typedOnly leaves out the untyped Node family: the rule table keeps only the metadata the
 	// typed table shares.
 	typedOnly bool
@@ -601,7 +584,7 @@ type Generator struct {
 	// for the rules in plainCalled.
 	plainCalled map[*common.Rule]bool
 	wrappers    []wrapperSpan
-	// program is the plan of the program (planProgram), which routes every call of a rule, and live
+	// program is the plan of the program (flowplan.Planning), which routes every call of a rule, and live
 	// the rules that it reaches, which the generator prints, or nil if it prints every rule
 	// (GenOptions.KeepUnreachable).
 	program *plandata.Program
@@ -710,82 +693,14 @@ func (g *Generator) recovers() bool {
 	return found
 }
 
-// lowerTable plans the functions of the table being generated, whose rules, value-free twins included,
-// are all by ID, and lowers them to the Exec stage (common.Generator.LowerTable). The plan leaves out
-// the rules that the generator does not print (pruned).
-func (g *Generator) lowerTable(all []*common.Rule) (*plandata.Table[code.Exec], error) {
-	rules := make([]*flowplan.Rule, len(all))
-	for i, r := range all {
-		rules[i] = r.PlanRule()
+// useTable starts printing the table being generated (IRTable) from its table at the Exec stage.
+func (g *Generator) useTable() error {
+	t := g.tables.Table(g.IRTable())
+	if t == nil {
+		return fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
 	}
-	// A typed-only parser prints the Node rule bodies only for the frame layouts they fix, and not
-	// the lines of the Node table's Operators Rules, which are not planned.
-	bodiesOnly := g.Table == "rules" && g.typedOnly
-	live := func(id int) bool {
-		if _, operatorsRule := all[id].Def.Expr.(*ast.OperatorsRule); operatorsRule && bodiesOnly {
-			return false
-		}
-		return !g.pruned(all[id])
-	}
-	var p *plandata.Plan
-	var refuse func(plandata.Key) bool
-	if g.Table == "trules" {
-		// A typed framed body runs under the frame the typed runtime shares with the Node rule, so
-		// it has the slots of the Node rule's planned layout.
-		p = flowplan.PlanTyped(g.Flow.TableIR, rules, live, func(id int) []string { return g.nodeLayouts[id] })
-	} else {
-		p = flowplan.Plan(g.Flow.TableIR, rules, live)
-		if r := g.streamStart; r != nil && g.Table == "rules" {
-			// ParseStream runs a copy of the start rule whose body emits the #stream elements.
-			flowplan.Stream(p, g.Flow.TableIR, r.PlanRule())
-		}
-		if g.hooks.RefuseFlowRecRule != nil {
-			refuse = func(k plandata.Key) bool { return k.Use == plandata.RuleBody && g.hooks.RefuseFlowRecRule(all[k.Rule]) }
-		}
-	}
-	t, err := g.LowerTable(p, refuse, gopass.Pipeline)
-	if err != nil {
-		return nil, fmt.Errorf("table %s: %w", g.Table, err)
-	}
-	return t, nil
-}
-
-// expectationTable numbers the expectation table of the Node table of prog and the recognizer table
-// of rec, if it is not nil, from the tables lowered with every rule that the parser could print, as
-// they are planned and lowered for printing but without leaving out the rules that the plan of the
-// program does not reach (execlower.Expectations): a left-out rule keeps its table row, so the IDs
-// are those of the parser that prints every rule. r runs the lowerings, without the dumps of the
-// generation, which show the tables that the parser prints.
-func (g *Generator) expectationTable(prog, rec *common.Program, r common.Runner) ([]string, error) {
-	n := &Generator{typedOnly: g.typedOnly, Document: g.Document, NoBudget: g.NoBudget, Ordinary: g.Ordinary, streamStart: g.streamStart, hooks: g.hooks, Runner: r}
-	n.FlowTarget = g.FlowTarget
-	// Logical units lower the guards of choices in their own way, so the numbering lowers as printing does.
-	n.Logical, n.LogicalGuards = g.Logical, g.LogicalGuards
-	var tables []*plandata.Table[code.Exec]
-	for _, t := range []struct {
-		name string
-		prog *common.Program
-	}{{"rules", prog}, {"recRules", rec}} {
-		if t.prog == nil {
-			continue
-		}
-		n.Prog, n.Table = t.prog, t.name
-		if err := n.StartRecFlow(t.prog); err != nil {
-			return nil, err
-		}
-		x, err := n.lowerTable(append(append([]*common.Rule(nil), t.prog.RuleList...), t.prog.Twins...))
-		if err != nil {
-			return nil, err
-		}
-		if n.FlowErr != nil {
-			return nil, n.FlowErr
-		}
-		if g.hooks.Lowered != nil {
-			g.hooks.Lowered(t.name, x)
-		}
-		tables = append(tables, x)
-	}
-	return execlower.Expectations(tables...)
+	g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
+	return nil
 }
 
 func (g *Generator) rules() {
@@ -797,12 +712,9 @@ func (g *Generator) rules() {
 	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
 	g.plan, g.table = nil, nil
 	if g.Flow != nil {
-		// The functions of every table, and the frame layout of each rule, are planned in the middle
+		// The functions of every table, and the frame layout of each rule, were planned in the middle
 		// end and lowered as one module; the bodies follow the plan.
-		t, err := g.lowerTable(all)
-		if err != nil {
-			panic(err)
-		}
+		t := g.tables.Table(g.IRTable())
 		g.plan, g.table = t.Plan, t
 	}
 	for _, r := range all {
@@ -868,7 +780,6 @@ func (g *Generator) rules() {
 		}
 	}
 	if g.Table == "rules" && !g.Traced {
-		g.nodeLayouts = g.plan.Layouts
 		g.NodeScopes = make(map[*common.Rule][]string, len(all))
 		for _, r := range all {
 			g.NodeScopes[r] = append([]string(nil), scopes[r].Names...)
@@ -1300,17 +1211,17 @@ func (g *Generator) tracedTables(prog, rec *common.Program) (string, error) {
 		return cmp.Or(g.streamErr, g.tableErr, g.FlowErr)
 	}
 	if !g.typedOnly {
-		if err := pass(prog, "rules", func() error { return g.StartRecFlow(prog) }); err != nil {
+		if err := pass(prog, "rules", g.useTable); err != nil {
 			return "", err
 		}
 	}
 	if rec != nil {
-		if err := pass(rec, "recRules", func() error { return g.StartRecFlow(rec) }); err != nil {
+		if err := pass(rec, "recRules", g.useTable); err != nil {
 			return "", err
 		}
 	}
 	if g.typedTable {
-		if err := pass(prog, "trules", g.startFlow); err != nil {
+		if err := pass(prog, "trules", g.useTable); err != nil {
 			return "", err
 		}
 	}

@@ -81,8 +81,8 @@ func TestStatsLeaveTheGeneratedCodeAsItIs(t *testing.T) {
 }
 
 // The statistics of one pass on the fixture are pinned, so that an optimization that stops firing is
-// noticed: guards runs on the Core modules of the two tables of the parser and gives 6 alternatives a
-// guard.
+// noticed: guards runs once, on the Core module of the Node table, the one table of the parser, which
+// the numbering of the expectation table reuses, and gives 3 alternatives a guard.
 func TestStatsPinTheGuardsPassOnTheFixture(t *testing.T) {
 	st := pipe.NewStats()
 	generateWithStats(t, common.GenOptions{Module: "example.com/p", Lib: common.LibImport}, st)
@@ -90,7 +90,7 @@ func TestStatsPinTheGuardsPassOnTheFixture(t *testing.T) {
 	if !ok {
 		t.Fatalf("guards did not run: %v", st.Instances())
 	}
-	if want := (pipe.InstanceStats{Instance: "guards", Runs: 2, Changed: 2, Counters: []pipe.Counter{{Name: corepass.CounterGuarded, Value: 6}}}); fmt.Sprint(got) != fmt.Sprint(want) {
+	if want := (pipe.InstanceStats{Instance: "guards", Runs: 1, Changed: 1, Counters: []pipe.Counter{{Name: corepass.CounterGuarded, Value: 3}}}); fmt.Sprint(got) != fmt.Sprint(want) {
 		t.Errorf("guards: %+v, want %+v", got, want)
 	}
 }

@@ -122,20 +122,26 @@ func TestProfile(t *testing.T) {
 	if _, err := Profile("nosuch"); err == nil || !strings.Contains(err.Error(), "valid: speed, memory, size") {
 		t.Errorf("unknown profile: %v", err)
 	}
-	for name, flag := range map[string]string{"memory": "typed-list-slabs"} {
-		s, err := Profile(name)
-		if err == nil {
-			t.Errorf("profile %s resolves without the flags it sets: %v", name, s)
-			continue
-		}
-		for _, want := range []string{"profile " + name, `"` + flag + `"`, "not a registered flag", "not linked"} {
-			if !strings.Contains(err.Error(), want) {
-				t.Errorf("profile %s: %v, want an error with %q", name, err, want)
-			}
+	// The driver links the Go generator, which registers the flags that the memory profile sets.
+	mem, err := Profile("memory")
+	if err != nil || mem.Value("typed-list-slabs") != 0 || mem.Value("typed-object-slabs") != 0 {
+		t.Errorf("memory: %v, %v", mem, err)
+	}
+	if err := CheckRegistry(); err != nil {
+		t.Errorf("CheckRegistry: %v", err)
+	}
+	// A profile that sets a flag that no linked part registers is an error that says so.
+	var without []pass.Flag
+	for _, f := range pass.Flags() {
+		if f.Name != "typed-list-slabs" {
+			without = append(without, f)
 		}
 	}
-	if err := CheckRegistry(); err == nil || !strings.Contains(err.Error(), "not a registered flag") {
-		t.Errorf("Check without the generators: %v", err)
+	err = checkProfiles(profileDefs, without)
+	for _, want := range []string{"profile memory", `"typed-list-slabs"`, "not a registered flag", "not linked"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("a profile without its flag: %v, want an error with %q", err, want)
+		}
 	}
 }
 
@@ -213,14 +219,9 @@ func TestParseValues(t *testing.T) {
 	}
 }
 
-// testFlags is a registry with the flags that the profiles set, for the checks of the profiles
-// apart from the parts that register them.
-func testFlags() []pass.Flag {
-	return append(pass.Flags(),
-		pass.Flag{Name: "typed-object-slabs", Kind: pass.KindStorage, Default: 1, Doc: "x"},
-		pass.Flag{Name: "typed-list-slabs", Kind: pass.KindStorage, Default: 1, Doc: "x"},
-	)
-}
+// testFlags is the registry, which has the flags that the profiles set: the driver links every part
+// that registers them.
+func testFlags() []pass.Flag { return pass.Flags() }
 
 func TestProfileDefinitionsAreValid(t *testing.T) {
 	flags := testFlags()

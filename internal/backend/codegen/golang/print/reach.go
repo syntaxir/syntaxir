@@ -5,10 +5,8 @@ import (
 	"sort"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A rule of the Node table (rules), the recognizer table (recRules) or the typed table (trules) has
@@ -20,19 +18,22 @@ import (
 // so a rule referenced only from value-free contexts has an original body that nothing calls, and
 // so on transitively.
 //
-// The program is planned before any table is printed (planProgram, flowplan.Planning): the plan takes
-// the calls of the rules from the Core IR (core.Module.Reach), routes each call of a rule through its
-// wrapper or its slot (flowplan.CallsWrapper), and starts from the start rules and the typed rules that
-// the typed entry points enter (typedEntries, decided before printing). GenerateParser then prints
-// once and leaves out the rules that the plan does not reach. The rule tables still list every rule,
-// a left-out row with the frame layout of the plan (plandata.Plan.Layouts): only the Body, Action,
+// The program is planned before any table is lowered (Decision.Cores, flowplan.Planning): the plan
+// takes the calls of the rules from the Core IR of the tables after the Core passes
+// (core.Module.Reach), routes each call of a rule through its wrapper or its slot
+// (flowplan.CallsWrapper), and starts from the start rules and the typed rules that the typed entry
+// points enter (typedEntries, decided before any table is built). The tables are planned with the
+// program and lowered leaving out the rules that the plan does not reach (plandata.Unit.Prune), and
+// printed once. The rule tables still list every rule, a left-out row with the frame layout of the
+// plan (plandata.Plan.Layouts): only the Body, Action,
 // Entry and OperatorsRule assignments and the functions of an unreachable rule are left out. What a
 // left-out rule would have declared (its literals, class tables and typed helpers) is not declared
 // either.
 //
 // The expectation table of the Node and recognizer tables is numbered before they are printed, from
-// the tables lowered with every rule (expectationTable), because a left-out rule of them keeps its
-// table row: its IDs are those that printing every rule would give. The typed table has no such rows,
+// the tables with every rule, whose left-out functions are lowered as parts of their own
+// (plandata.Program.Numbered), because a left-out rule of them keeps its table row: its IDs are those
+// that printing every rule would give. The typed table has no such rows,
 // so the expectations of its left-out rules are not in any table.
 
 // ruleKey names what of a rule is entered: its slot in the rule table (the Body that p.Call and
@@ -102,56 +103,6 @@ func (g *Generator) printedBody(r *common.Rule) {
 		g.bodySet = map[ruleKey]bool{}
 	}
 	g.bodySet[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}] = true
-}
-
-// planProgram plans the program before any table is printed (flowplan.Planning) and keeps the plan
-// in g.program: the Node table of prog, the recognizer table of rec if it is not nil and, if typed is
-// set, the typed table, which enters the rules that the typed entry points enter (typedRoots). Unless
-// keepUnreachable is set, the generator then prints only the rules that the plan reaches (g.live).
-func (g *Generator) planProgram(prog, rec *common.Program, typed, keepUnreachable bool) error {
-	c := &plandata.Cores{}
-	for _, name := range prog.StartRules {
-		c.Roots = append(c.Roots, ruleKey{Table: "rules", ID: prog.ByName[name].ID})
-		if rec != nil {
-			c.Roots = append(c.Roots, ruleKey{Table: "recRules", ID: rec.ByName[name].ID})
-		}
-	}
-	c.Roots = append(c.Roots, g.typedRoots...)
-	add := func(table string, pr *common.Program) error {
-		m, err := irbuild.CoreFrom(pr.Elab, false)
-		if err != nil {
-			return err
-		}
-		t := plandata.CoreTable{Name: table, M: m, Typed: table == "trules", Slots: table == "rules" && g.Document}
-		for _, r := range append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...) {
-			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
-			t.Rules = append(t.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
-		}
-		c.Tables = append(c.Tables, t)
-		return nil
-	}
-	if err := add("rules", prog); err != nil {
-		return err
-	}
-	if rec != nil {
-		if err := add("recRules", rec); err != nil {
-			return err
-		}
-	}
-	if typed {
-		if err := add("trules", prog); err != nil {
-			return err
-		}
-	}
-	p, err := g.Runner.Plan(c)
-	if err != nil {
-		return err
-	}
-	g.program = p
-	if !keepUnreachable {
-		g.live = &liveRules{Roots: p.Roots, Reach: p.Reach, cores: c, plan: p}
-	}
-	return nil
 }
 
 // finishReach ends a pass: the second checks that no printed call reaches a rule left out and that

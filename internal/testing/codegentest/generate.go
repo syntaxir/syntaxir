@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -77,10 +78,10 @@ func GenerateRaw(t testing.TB, g *ast.Grammar, opts common.GenOptions) ([]common
 	opts.Debug.VerifyEach = true
 	opts.FeatureWitness = true
 	opts = WithLib(opts)
-	if opts.Lib == common.LibOnly {
-		return goprint.Generate(g, Compile, Passes(opts), opts)
+	if h := testGenHooks(t); h != nil {
+		return goprint.GenerateParser(g, Compile, Passes(opts), opts, h)
 	}
-	return goprint.GenerateParser(g, Compile, Passes(opts), opts, testGenHooks(t))
+	return generate.GoWith(Compile, g, opts, driver.Options{})
 }
 
 // GenerateTS generates a TypeScript parser for g that records expectations, as

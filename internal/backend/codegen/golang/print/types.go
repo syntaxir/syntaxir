@@ -336,7 +336,7 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 	if e.needTyped {
 		// Emit the typed table if any public entry point can use it.
 		g.Table = "trules"
-		if err := g.startFlow(); err != nil {
+		if err := g.useTable(); err != nil {
 			return typedOutput{}, err
 		}
 		g.rules()

@@ -2,7 +2,9 @@ package execlower
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
@@ -25,6 +27,104 @@ import (
 // expectations of its grammar expression as it is printed, so a table that runs one is not numbered
 // here and Expectations returns an error.
 func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
+	srcs := make([]funcSource, len(tables))
+	for i, t := range tables {
+		srcs[i] = funcSource{t.IR.M.Exps, t.Module.Module().Funcs}
+	}
+	return number(srcs)
+}
+
+// NumberedExpectations returns the expectation table of a parser numbered from the numbered tables of
+// the plan p (plandata.Program.Numbered), given the tables of its units at the Exec stage in the order
+// of p.Units: as Expectations numbers the tables planned with every rule (plandata.Numbered.Full),
+// each function taken from the part that holds it, in the order of the functions of a table lowered
+// from the full plan.
+func NumberedExpectations(p *plandata.Program, tables []*plandata.Table[code.Exec]) ([]string, error) {
+	srcs := make([]funcSource, len(p.Numbered))
+	for i, n := range p.Numbered {
+		parts := make([]*plandata.Table[code.Exec], len(n.Parts))
+		for j, k := range n.Parts {
+			parts[j] = tables[k]
+		}
+		fs, err := merged(n.Full, parts)
+		if err != nil {
+			return nil, err
+		}
+		srcs[i] = funcSource{parts[0].IR.M.Exps, fs}
+	}
+	return number(srcs)
+}
+
+// merged returns the functions of the parts, whose plans hold disjoint parts of the functions of the
+// plan full, in the order in which a table lowered from full holds them: the functions of the plan in
+// its order (a refused flat function at the place of the flat function), then the outlined functions
+// in the order in which the lowering adds them (flowlower.LowerTable): the nodes that each function
+// calls, in the order of the functions, a node lowered once for its first caller.
+func merged(full *plandata.Plan, parts []*plandata.Table[code.Exec]) ([]*code.Func, error) {
+	if len(parts) == 1 {
+		return parts[0].Module.Module().Funcs, nil
+	}
+	place := map[plandata.Key]int{}
+	for i, s := range full.Funcs {
+		place[s.Key] = i
+		if s.Fallback != nil {
+			place[s.Fallback.Key] = i
+		}
+	}
+	type fn struct {
+		spec *plandata.FuncSpec
+		f    *code.Func
+		at   int
+	}
+	var base []fn
+	children := map[string][]fn{}
+	for _, t := range parts {
+		fs := t.Module.Module().Funcs
+		for i, s := range t.Plan.Funcs {
+			if s.Key.Use == plandata.Outlined {
+				parent := s.Name[:strings.LastIndex(s.Name, "/outline")]
+				children[parent] = append(children[parent], fn{s, fs[i], 0})
+				continue
+			}
+			at, ok := place[s.Key]
+			if !ok {
+				return nil, fmt.Errorf("internal error: the function %s of a part of a numbered table is not planned in the table", s.Name)
+			}
+			base = append(base, fn{s, fs[i], at})
+		}
+	}
+	slices.SortStableFunc(base, func(a, b fn) int { return a.at - b.at })
+	type call struct {
+		node  core.Node
+		slots string
+		build bool
+	}
+	seen := map[call]bool{}
+	queue := base
+	for i := 0; i < len(queue); i++ {
+		for _, c := range children[queue[i].spec.Name] {
+			k := call{c.spec.Body, strings.Join(core.SlotNames(c.spec.Slots), "\x00"), c.spec.Build}
+			if !seen[k] {
+				seen[k] = true
+				queue = append(queue, c)
+			}
+		}
+	}
+	out := make([]*code.Func, len(queue))
+	for i, f := range queue {
+		out[i] = f.f
+	}
+	return out, nil
+}
+
+// funcSource is the functions of a table in order and the expectations of its Core IR by ExpID.
+type funcSource struct {
+	exps  []string
+	funcs []*code.Func
+}
+
+// number numbers the expectation table of the functions srcs, in order (Expectations).
+func number(srcs []funcSource) ([]string, error) {
 	descs := append([]string(nil), core.FixedDescs...)
 	seen := make(map[string]bool, len(descs))
 	for _, d := range descs {
@@ -36,8 +136,8 @@ func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
 			descs = append(descs, d)
 		}
 	}
-	for _, t := range tables {
-		exps := t.IR.M.Exps
+	for _, src := range srcs {
+		exps := src.exps
 		var err error
 		var expr func(code.Expr)
 		expr = func(e code.Expr) {
@@ -124,7 +224,7 @@ func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
 				}
 			}
 		}
-		for _, f := range t.Module.Module().Funcs {
+		for _, f := range src.funcs {
 			block(f.Body)
 		}
 		if err != nil {

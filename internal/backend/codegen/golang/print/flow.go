@@ -19,8 +19,8 @@ import (
 
 // Typed Go rules printed from Flow IR.
 //
-// The typed rules are built as Core IR (TypedCore), planned (flowplan.PlanTyped) and lowered as one
-// module with the rest of the table (common.Generator.LowerTable), and printed from Flow IR here. The
+// The typed rules are built as Core IR, planned (flowplan.PlanTyped, with the program) and lowered as one
+// module with the rest of the table by the pipeline of the compilation, and printed from Flow IR here. The
 // rules that flowlower.LocalRule accepts are flat functions, printed into the flat rule that typedCall
 // and flatMethod wrap. The bodies of left-recursion leaders and of rules that recover, and the lines of
 // Operators Rules, are framed functions, printed into the matcher methods that the library calls under
@@ -33,21 +33,10 @@ import (
 // reads is not declared and its assignments are left out (flowVars); one that must stay is assigned to the
 // blank identifier on the first line.
 
-// startFlow builds the Core IR of the typed rules for printing them from Flow IR.
-func (g *Generator) startFlow() error {
-	m, err := g.TypedCore()
-	if err != nil {
-		return err
-	}
-	g.Flow = &common.FlowState{TableIR: &plandata.TableIR{M: m, Opts: g.FlowOptions(m)},
-		Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
-	return nil
-}
-
 // FlowOptions returns the options of lowering the typed rules of the Core IR m, while the typed
 // table is generated.
 func (g *Generator) FlowOptions(m *core.Module) lowerdata.Options {
-	// Node is false: the options of the Node and recognizer tables (common.Generator.StartRecFlow) are
+	// Node is false: the options of the Node and recognizer tables (flowplan.TableOf) are
 	// built apart, and a function lowered with one set of options is never printed for the other
 	// runtime.
 	return lowerdata.Options{Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Recovers: flowlower.Recovers(m), Observe: g.Observability, Document: g.RecordsExamined(), Traced: g.Traced}

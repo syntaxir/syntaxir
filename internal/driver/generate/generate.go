@@ -4,6 +4,7 @@
 package generate
 
 import (
+	"context"
 	"io/fs"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -12,6 +13,7 @@ import (
 	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -23,7 +25,32 @@ import (
 // and the embedded copy of the Go library (pkg/runtime/libgo) with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func Go(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.LibGo = libGo
-	return goprint.Generate(g, compileForGenerator, Passes(o, Hooks{}), o)
+	return GoWith(compileForGenerator, g, o, driver.Options{})
+}
+
+// GoWith is Go with the compiler c, which checks the grammar, the library o.LibGo, and the edits and
+// observers of x (tests); the settings and the debugging settings of x come from o.
+func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options) ([]common.GeneratedFile, error) {
+	if o.Lib == common.LibOnly {
+		return goprint.LibFiles(o)
+	}
+	o, err := goprint.Validate(o)
+	if err != nil {
+		return nil, err
+	}
+	if x.Settings, err = Settings(o); err != nil {
+		return nil, err
+	}
+	x.Debug = o.Debug
+	p, err := driver.CheckWith(c, g, common.CompileOptions{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}, o.Start)
+	if err != nil {
+		return nil, err
+	}
+	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.Go, Gen: o})
+	if err != nil {
+		return nil, err
+	}
+	return out[0].(*result.Files).Files, nil
 }
 
 // TypeScript generates the files of a TypeScript parser for g with o, running the passes that o
