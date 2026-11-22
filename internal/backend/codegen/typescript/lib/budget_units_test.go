@@ -16,7 +16,7 @@ function run(pre, n, budget, cancel, units) {
   let polls = 0;
   const signal = { get aborted() { polls++; return cancel && armed; }, reason: "stop" };
   let armed = false;
-  const c = new BudgetControl({ signal, budget, memory: 0 });
+  const c = new BudgetControl({ signal, budget, memory: 0, profiles: [] });
   for (let i = 0; i < pre; i++) c.charge(1);
   const before = polls;
   armed = true;
@@ -39,7 +39,7 @@ for (const pre of [0, 1, 100, 254, 255, 300, 511])
         if (got !== want) { bad++; console.log("pre", pre, "n", n, "budget", budget, "cancel", cancel, "chargeUnits", got, "one-unit charges", want); }
       }
     }
-const c = new BudgetControl({ signal: null, budget: 2 ** 40, memory: 0 });
+const c = new BudgetControl({ signal: null, profiles: [], budget: 2 ** 40, memory: 0 });
 c.chargeUnits(2 ** 32);
 if (c.budgetUsed !== 2 ** 32) { bad++; console.log("used", c.budgetUsed, "after a run of 2**32 units"); }
 process.exit(bad ? 1 : 0);

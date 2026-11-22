@@ -22,7 +22,7 @@ const hullScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
+P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
 P.created = [];
 P.kidStack = [];
 P.src = readFileSync("input.txt", "utf8");

@@ -22,7 +22,7 @@ const memberScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, budget: 0 } as unknown as p.ResolvedParseOptions) : null;
+P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions) : null;
 P.created = [];
 P.kidStack = [];
 const structs: [string, [string, string][]][] = JSON.parse(readFileSync("structs.json", "utf8"));

@@ -52,7 +52,7 @@ const enc = (v: p.Value): Enc => {
 type Call = { op: string; code: number; args: Enc[] };
 const P = Object.create(p.Parser.prototype);
 const CONTROLLED = false;
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, budget: 0 } as unknown as p.ResolvedParseOptions) : null;
+P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions) : null;
 const calls: Call[] = JSON.parse(readFileSync("cases.json", "utf8"));
 const run = (c: Call) => {
   const a = c.args.map(dec);

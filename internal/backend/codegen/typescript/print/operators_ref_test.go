@@ -345,7 +345,7 @@ function refUsed(c: BudgetControl | null): number {
 }
 
 function refOutcome(input: string, maxDepth: number, controlled: boolean): string {
-  const c = controlled ? new BudgetControl({signal: null, budget: 2 ** 40} as any) : null;
+  const c = controlled ? new BudgetControl({signal: null, profiles: [], budget: 2 ** 40} as any) : null;
   const r = startIn(rules, ruleNames, starts, defaultStart, "") as Rule;
   let out: string;
   try {

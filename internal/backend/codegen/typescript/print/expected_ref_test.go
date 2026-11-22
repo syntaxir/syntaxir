@@ -106,7 +106,7 @@ export function testExpectedReference(): void {
     for (const controlled of [false, true]) {
       for (let round = 0; round < 300; round++) {
         const mk = (): Parser => {
-          const c = controlled ? new BudgetControl({signal: null, budget: 2 ** 40} as any) : null;
+          const c = controlled ? new BudgetControl({signal: null, profiles: [], budget: 2 ** 40} as any) : null;
           const p = new Parser(G, "", CodePoints, 1, G.maxDepth, c);
           p.expectations = recording;
           return p;

@@ -245,7 +245,7 @@ class Exec implements Machine {
     this.P = this.newParser(g, input, cfg);
     if (options?.sparse) this.P.sparse = true;
     if (controlled) {
-      this.ctl = new p.BudgetControl({ signal: null, budget: cfg.limit === 0 ? Number.MAX_SAFE_INTEGER : cfg.limit, memory: 0 } as unknown as p.ResolvedParseOptions);
+      this.ctl = new p.BudgetControl({ signal: null, profiles: [], budget: cfg.limit === 0 ? Number.MAX_SAFE_INTEGER : cfg.limit, memory: 0 } as unknown as p.ResolvedParseOptions);
       (this.P as { control: p.BudgetControl | null }).control = this.ctl;
       this.ctl.held = () => this.P.heldBytes();
     }
