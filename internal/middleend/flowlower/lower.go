@@ -809,15 +809,43 @@ func leadingClass(n core.Node) *core.ClassNode {
 
 // guard reports whether the alternative a keeps its guard, and the rules whose calls its skip
 // makes under logical units (lowerdata.Options.Guards).
+//
+// In a lowering for Documents (lowerdata.Options.Document) the rule holds with or without logical
+// units: a Document's statistics and the entries that later parses reuse are observable, so a guard
+// is kept only when the calls that its skip passes over are known and none of them is of a rule
+// that a Document memoizes (docMemoized); under logical units the skip counts their units.
 func (l *lowerer) guard(a *core.Alt) (bool, []int) {
-	if a.Guard == nil || !l.opts.Logical || l.opts.Guards == lowerdata.GuardsKeep {
+	if a.Guard == nil || l.opts.Logical && l.opts.Guards == lowerdata.GuardsKeep {
 		return a.Guard != nil, nil
 	}
+	if !l.opts.Logical && !l.opts.Document {
+		return true, nil
+	}
 	calls, ok := core.GuardCalls(l.m, a.Body)
-	if !ok || len(calls) > 0 && l.opts.Guards == lowerdata.GuardsEvent {
+	if !ok || len(calls) > 0 && l.opts.Logical && l.opts.Guards == lowerdata.GuardsEvent {
 		return false, nil
 	}
+	if l.opts.Document && docMemoized(l.m, calls) {
+		return false, nil
+	}
+	if !l.opts.Logical {
+		return true, nil
+	}
 	return true, calls
+}
+
+// docMemoized reports whether a Document parse memoizes one of the rules: every rule that an
+// ordinary parse memoizes, and the transient rules that only Documents memoize. A skip cannot make
+// the effects of such a call in a Document, where the memo records how far each entry examined the
+// input and what later parses reuse (spec/runtime/documents.md#reuse), so the guard is left out and the
+// alternative is evaluated, as the engine refuses the skip.
+func docMemoized(m *core.Module, calls []int) bool {
+	for _, k := range calls {
+		if m.Rules[k].Policy.Memo {
+			return true
+		}
+	}
+	return false
 }
 
 func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code.Expr {
