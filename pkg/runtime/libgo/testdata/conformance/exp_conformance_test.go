@@ -158,9 +158,10 @@ func expSuites() []conform.Suite {
 			LazyEdits: true,
 			New:       func(c ref.Config) conform.Impl { return newExpMachine(c, controlled) },
 		}, conform.Suite{
-			Name: fmt.Sprintf("typed library expectations (controlled=%v)", controlled),
-			Ops:  ops,
-			New:  func(c ref.Config) conform.Impl { return newTExpMachine(c, controlled) },
+			Name:      fmt.Sprintf("typed library expectations (controlled=%v)", controlled),
+			Ops:       ops,
+			LazyEdits: true,
+			New:       func(c ref.Config) conform.Impl { return newTExpMachine(c, controlled) },
 		})
 	}
 	return suites

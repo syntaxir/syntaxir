@@ -396,10 +396,13 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
 	found := e != nil
+	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+		found = false
+	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(p.memoExamined[e])
+			p.documentTouch(e.examined)
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -441,13 +444,13 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec)}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
 			if p.track {
-				p.examine(entry, p.docExamined)
+				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			}
 		}
 	} else if store == storeCtx {
@@ -493,10 +496,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	}
 	e := p.memoGet(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader))
 	found := e != nil
+	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+		found = false
+	}
 	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
 		p.Observation.memoHit()
 		if p.track {
-			p.documentTouch(p.memoExamined[e])
+			p.documentTouch(e.examined)
 		}
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
@@ -538,13 +544,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec)}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
 			if p.track {
-				p.examine(entry, p.docExamined)
+				entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			}
 		}
 	} else if store == storeCtx {
@@ -974,10 +980,13 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
 	found := e != nil
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && p.TypedDocument.move(e) {
+	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+		found = false
+	}
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && typedMove(e) {
 		p.Observation.memoHit()
-		p.documentTouch(p.TypedDocument.meta[e].examined)
-		if p.TypedDocument.meta[e].before {
+		p.documentTouch(e.examined)
+		if e.from < start {
 			p.documentTouchFrom(start + -1)
 		}
 		p.Document.stats.Reused++
@@ -1047,14 +1056,14 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		entry := p.memoSlab.one()
-		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec)}
+		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
-			p.TypedDocument.meta[entry] = typedDocumentMeta{examined: p.docExamined, recorded: true, before: p.docLow < start}
+			entry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false
 			if r.Positional {
-				p.TypedDocument.pin(entry)
+				entry.pinned = true
 			}
 		}
 	} else if store == storeCtx {
@@ -1132,6 +1141,101 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 //
 // Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document.
 func advanceEntry(e *memoEntry, log []documentEdit) bool {
+	var fm uint64
+	_ = fm
+	var i int
+	if false {
+		return false
+	}
+	if len(log)-int(e.vgen) > 128 {
+		return false
+	}
+	from := e.from
+	examined := e.examined
+	shift := 0
+	shifted := (e.shift != 0)
+	for i = int(e.vgen); i < len(log); i++ {
+		if examined <= log[i].start {
+			continue
+		}
+		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+			return false
+		}
+		delta := log[i].delta
+		from = from + delta
+		examined = examined + delta
+		shift = shift + delta
+		shifted = shifted || delta != 0
+	}
+	e.end += shift
+	e.from, e.examined = from, examined
+	e.far += shift
+	e.shift += int32(shift)
+	e.vgen = uint32(len(log))
+	return true
+}
+
+// advanceEntry applies to the memo entry e the edits of log it does not account for yet, and reports
+// whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one
+// that examined only input after it moves by the edit's change in length, unless it is pinned or holds
+// recovered errors, and any other is invalid. An entry that lags behind more than PendingEditLimit edits is invalid.
+// A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse
+// from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid
+// stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The
+// first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
+// when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
+//
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *TParser) advanceEntry(e *tmemoEntry, log []documentEdit) bool {
+	var fm uint64
+	var i int
+	if false {
+		return false
+	}
+	if len(log)-int(e.vgen) > 128 {
+		return false
+	}
+	fm = p.Control.FreeBegin(true)
+	from := e.from
+	examined := e.examined
+	shift := 0
+	shifted := (e.shift != 0)
+	for i = int(e.vgen); i < len(log); i++ {
+		p.Spend()
+		if examined <= log[i].start {
+			continue
+		}
+		if !(from >= log[i].end && !e.pinned && e.errs.none()) {
+			p.Control.FreeEnd(fm)
+			return false
+		}
+		delta := log[i].delta
+		from = from + delta
+		examined = examined + delta
+		shift = shift + delta
+		shifted = shifted || delta != 0
+	}
+	e.end += shift
+	e.from, e.examined = from, examined
+	e.far += shift
+	e.shift += int32(shift)
+	e.vgen = uint32(len(log))
+	p.Control.FreeEnd(fm)
+	return true
+}
+
+// advanceTEntry applies to the memo entry e the edits of log it does not account for yet, and reports
+// whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one
+// that examined only input after it moves by the edit's change in length, unless it is pinned or holds
+// recovered errors, and any other is invalid. An entry that lags behind more than PendingEditLimit edits is invalid.
+// A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse
+// from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid
+// stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The
+// first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse,
+// when no edit is pending, and a lookup applies edits only to an entry of an earlier parse.
+//
+// Printed from Exec IR function memoAdvance of internal/ir/code/exec/compose, specialized for document.
+func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 	var fm uint64
 	_ = fm
 	var i int

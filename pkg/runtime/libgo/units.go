@@ -589,10 +589,14 @@ func (p *Parser) memoLines() []string {
 // memoLines is Parser.memoLines for the memo of a typed parse.
 func (p *TParser) memoLines() []string {
 	var out []string
-	for pos, e := range p.memoSlots {
+	for i, e := range p.memoSlots {
+		pos := i
+		if i >= p.memoGap.gap {
+			pos -= p.memoGap.gapLen
+		}
 		for ; e != nil; e = e.next {
-			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d seen %d present %d\n",
-				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.seen, e.present))
+			out = append(out, fmt.Sprintf("entry %d: rule %d min %d env %v ok %t end %d silent %t far %d expected %v errs %d vgen %d present %d\n",
+				pos, e.rule, e.min, e.env, e.ok, e.end, e.silent, e.far, e.expected, e.errs.len(), e.vgen, e.present))
 		}
 	}
 	return out

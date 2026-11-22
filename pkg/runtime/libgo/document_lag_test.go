@@ -8,7 +8,7 @@ import (
 
 // A lookup treats an entry that lags behind more than pendingEditLimit edits as a miss (advanceEntry), and
 // a walk of its chain drops it (unlinkLagged): the entries of earlier texts that a Document retains stay
-// bounded by that many edits. The typed memo drops such entries when an edit passes them (splice).
+// bounded by that many edits, in both libraries.
 func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 	const epoch = 200
 	seen := []uint32{epoch - pendingEditLimit - 1, epoch - pendingEditLimit, epoch}
@@ -38,24 +38,23 @@ func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 		t.Errorf("%d entries left in the chain, want 2", n)
 	}
 
-	d := &typedDocumentState{owner: &documentState{epoch: epoch}, meta: map[*tmemoEntry]typedDocumentMeta{}}
-	d.slots = make([]*tmemoEntry, 4)
+	tp := &TParser{Parser: &Parser{edits: log, gen: epoch, Control: p.Control}}
+	tp.memoSlots = make([]*tmemoEntry, 4)
 	for i, s := range seen {
-		e := &tmemoEntry{rule: int32(i), seen: s}
-		e.next, d.slots[3] = d.slots[3], e
-		d.meta[e] = typedDocumentMeta{recorded: true}
-	}
-	d.splice(documentEdit{start: 50, end: 50})
-	kept := map[int32]bool{}
-	for e := d.slots[3]; e != nil; e = e.next {
-		kept[e.rule] = true
+		e := &tmemoEntry{rule: int32(i), from: 3, examined: 3, vgen: s}
+		e.next, tp.memoSlots[3] = tp.memoSlots[3], e
 	}
 	for i, w := range want {
-		if kept[int32(i)] != w {
-			t.Errorf("typed entry seen at %d of %d edits: kept %v, want %v", seen[i], epoch, kept[int32(i)], w)
+		e := tp.memoGetControlled(i, 3, 0, nil, false)
+		if got := e != nil && (e.vgen == tp.gen || tp.advanceEntry(e, tp.edits)); got != w {
+			t.Errorf("typed entry at %d of %d edits: found %v, want %v", seen[i], epoch, got, w)
 		}
 	}
-	if len(d.meta) != 2 {
-		t.Errorf("%d metadata entries kept, want 2", len(d.meta))
+	n = 0
+	for e := tp.memoSlots[3]; e != nil; e = e.next {
+		n++
+	}
+	if n != 2 {
+		t.Errorf("%d typed entries left in the chain, want 2", n)
 	}
 }

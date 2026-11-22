@@ -701,9 +701,6 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	} else {
 		p.setSource(input)
 	}
-	if p.TypedDocument != nil {
-		p.Document = p.TypedDocument.owner
-	}
 	p.setTracking()
 	p.setDeferMemo()
 	r = r.forParse(p.Parser)
@@ -854,14 +851,12 @@ type TParser struct {
 	memoIndexes map[int]memoIndex[tmemoEntry]
 	// memoIndexBytes counts the bytes of memoIndexes, for the memory limit.
 	memoIndexBytes uint64
+	// memoGap is the gap of memoSlots, which a typed Document parse takes from the Document with the
+	// slots (typedDocumentState); a parse from scratch has none.
+	memoGap memoGap
 	// TypedDocument is set only by typed Document parses (TypedDocumentParse).
 	TypedDocument *typedDocumentState
-	// memoExamined holds the end of the input that the call of each memo entry examined, recorded in a
-	// parse that tracks it (Parser.track) outside a typed Document, which keeps its record beside the
-	// entry too (typedDocumentMeta). The entries leave it out, so that a parse that tracks nothing
-	// allocates nothing for it. An entry is read only after the parse that stores it records it here.
-	memoExamined map[*tmemoEntry]int
-	free         [8][]*TCaptureFrame // frames freed by FreeFrame, by size
+	free          [8][]*TCaptureFrame // frames freed by FreeFrame, by size
 	// cutFailed reports that a candidate of the last longest failed after a cut. It is last, so
 	// that it moves no other field.
 	cutFailed bool
@@ -1024,16 +1019,13 @@ type tmemoEntry struct {
 	min      int32
 	ok       bool
 	silent   bool
+	// from, examined, pinned, vgen and shift are the record of memoEntry.
+	from     int
+	examined int
+	pinned   bool
 	present  uint32 // as in memoEntry
-	seen     uint32 // as in memoEntry
-}
-
-// examine records the examined end of the memo entry e (memoExamined).
-func (p *TParser) examine(e *tmemoEntry, end int) {
-	if p.memoExamined == nil {
-		p.memoExamined = make(map[*tmemoEntry]int)
-	}
-	p.memoExamined[e] = end
+	vgen     uint32
+	shift    int32
 }
 
 func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEntry {
@@ -1041,13 +1033,13 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.memoGetControlled(rule, pos, min, env, docOnly)
 	}
+	pos = p.memoGap.slot(pos)
 	if pos >= len(p.memoSlots) {
 		return nil
 	}
 	e, n := p.memoSlots[pos], 0
 	for ; e != nil && n < memoScan; e, n = e.next, n+1 {
 		if e.rule == int32(rule) && e.min == int32(min) && sameValues(e.env, env) {
-			e.seen = p.stamp()
 			return e
 		}
 	}
@@ -1058,15 +1050,12 @@ func (p *TParser) memoGet(rule, pos, min int, env []any, docOnly bool) *tmemoEnt
 	_, x := p.memoIndexAt(pos).probe(h, func(x *tmemoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
 	})
-	if x != nil {
-		x.seen = p.stamp()
-	}
 	return x
 }
 
-// memoIndexAt returns the hash index of the chain at pos, building it on first use.
-func (p *TParser) memoIndexAt(pos int) memoIndex[tmemoEntry] {
-	return indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, p.memoSlots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
+// memoIndexAt returns the hash index of the chain at the slot i, building it on first use.
+func (p *TParser) memoIndexAt(i int) memoIndex[tmemoEntry] {
+	return indexAt(&p.memoIndexes, &p.memoIndexBytes, i, p.memoSlots[i], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
 }
 
 // tentryHash is keyHash for the key of e.
@@ -1077,31 +1066,55 @@ func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
 func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *tmemoEntry {
 	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
 	// walks docOnlyScan entries (see there).
-	if pos >= len(p.memoSlots) {
+	// The walk unlinks the entries that lag behind (unlinkLagged), as Parser.memoGetControlled does.
+	i := p.memoGap.slot(pos)
+	if i >= len(p.memoSlots) {
 		return nil
 	}
 	scan := memoScan
 	if ident {
 		scan = docOnlyScan
 	}
-	e, n := p.memoSlots[pos], 0
-	for ; e != nil && n < scan; e, n = e.next, n+1 {
+	link := p.unlinkLagged(i, &p.memoSlots[i], scan)
+	for e := p.memoSlots[i]; e != nil && e != *link; e = e.next {
 		if e.rule == int32(rule) && e.min == int32(min) && p.keyMatches(e.env, key, ident) {
-			e.seen = p.stamp()
 			return e
 		}
 	}
-	if e == nil || ident {
+	if *link == nil || ident {
 		return nil
 	}
-	ix := p.memoIndexAt(pos)
-	_, x := ix.probe(keyHash(int32(rule), int32(min), key), func(x *tmemoEntry) bool {
+	p.unlinkLagged(i, link, -1)
+	if *link == nil {
+		return nil
+	}
+	_, x := p.memoIndexAt(i).probe(keyHash(int32(rule), int32(min), key), func(x *tmemoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
 	})
-	if x != nil {
-		x.seen = p.stamp()
-	}
 	return x
+}
+
+// lagged is Parser.lagged for a typed entry.
+func (p *TParser) lagged(e *tmemoEntry) bool {
+	return p.gen-e.vgen > pendingEditLimit
+}
+
+// unlinkLagged is Parser.unlinkLagged for the typed memo. An entry it removes is not reused: the slab
+// that holds it belongs to the parse that stored it.
+func (p *TParser) unlinkLagged(i int, link **tmemoEntry, limit int) **tmemoEntry {
+	for kept := 0; *link != nil && kept != limit; {
+		e := *link
+		if !p.lagged(e) {
+			link, kept = &e.next, kept+1
+			continue
+		}
+		*link = e.next
+		if ix := p.memoIndexes[i]; ix != nil {
+			p.memoIndexBytes -= min(p.memoIndexBytes, indexBytes(ix))
+			delete(p.memoIndexes, i)
+		}
+	}
+	return link
 }
 
 // memoPut stores e under the key, unless the join with the entry stored there keeps that entry
@@ -1110,11 +1123,12 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
 		return p.memoPutControlled(rule, pos, min, env, docOnly, e)
 	}
-	if pos >= len(p.memoSlots) {
-		if pos < cap(p.memoSlots) {
-			p.memoSlots = p.memoSlots[:pos+1]
+	i := p.memoGap.slot(pos)
+	if i >= len(p.memoSlots) {
+		if i < cap(p.memoSlots) {
+			p.memoSlots = p.memoSlots[:i+1]
 		} else {
-			grown := make([]*tmemoEntry, pos+1, max(2*cap(p.memoSlots), pos+1, 64))
+			grown := make([]*tmemoEntry, i+1, max(2*cap(p.memoSlots), i+1, 64))
 			copy(grown, p.memoSlots)
 			p.memoSlots = grown
 		}
@@ -1122,19 +1136,18 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 	same := func(x *tmemoEntry) bool {
 		return x.rule == int32(rule) && x.min == int32(min) && sameValues(x.env, env)
 	}
-	link := &p.memoSlots[pos]
+	link := &p.memoSlots[i]
 	for n := 0; *link != nil && n < memoScan; link, n = &(*link).next, n+1 {
 		if x := *link; same(x) {
 			if p.joinStored(x, e) == x {
 				return x
 			}
-			e.rule, e.min, e.env, e.seen = int32(rule), int32(min), env, p.stamp()
-			if ix := p.memoIndexes[pos]; ix != nil {
+			e.rule, e.min, e.env = int32(rule), int32(min), env
+			if ix := p.memoIndexes[i]; ix != nil {
 				h, _ := memoKeyHash(x.rule, x.min, false, x.env)
 				slot, _ := ix.probe(h, func(y *tmemoEntry) bool { return y == x })
 				ix[slot] = e
 			}
-			p.dropRecord(x)
 			e.next = x.next
 			*link = e
 			return e
@@ -1142,20 +1155,19 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 	}
 	if *link != nil {
 		// A long chain: the index finds the entry to replace, and a walk finds its link.
-		ix := p.memoIndexAt(pos)
+		ix := p.memoIndexAt(i)
 		h, _ := memoKeyHash(int32(rule), int32(min), false, env)
 		slot, x := ix.probe(h, same)
 		if x != nil && p.joinStored(x, e) == x {
 			return x
 		}
-		e.rule, e.min, e.env, e.seen = int32(rule), int32(min), env, p.stamp()
+		e.rule, e.min, e.env = int32(rule), int32(min), env
 		ix[slot] = e
 		if x == nil {
 			p.memoIndexBytes += memoIndexEntryBytes
 		}
 		if x != nil {
-			p.dropRecord(x)
-			link = &p.memoSlots[pos]
+			link = &p.memoSlots[i]
 			for *link != x {
 				link = &(*link).next
 			}
@@ -1164,17 +1176,16 @@ func (p *TParser) memoPut(rule, pos, min int, env []any, docOnly bool, e *tmemoE
 			return e
 		}
 	}
-	e.rule, e.min, e.env, e.seen = int32(rule), int32(min), env, p.stamp()
-	e.next = p.memoSlots[pos]
-	p.memoSlots[pos] = e
+	e.rule, e.min, e.env = int32(rule), int32(min), env
+	e.next = p.memoSlots[i]
+	p.memoSlots[i] = e
 	return e
 }
 
-// joinStored is Parser.joinStored for a typed parse. In a typed Document, an entry whose value
-// cannot move with the edits since it was stored (typedDocumentState.move) answers no call, as in
-// CallBegin, so e replaces it.
+// joinStored is Parser.joinStored for a typed parse. An entry whose value cannot move with the edits
+// that moved it (typedMove) answers no call either, as in the call, so e replaces it.
 func (p *TParser) joinStored(x, e *tmemoEntry) *tmemoEntry {
-	if x == e || p.TypedDocument != nil && !p.TypedDocument.move(x) {
+	if x == e || x.vgen != p.gen && !advanceTEntry(x, p.edits) || !typedMove(x) {
 		return e
 	}
 	if !x.silent && e.silent {
@@ -1185,22 +1196,23 @@ func (p *TParser) joinStored(x, e *tmemoEntry) *tmemoEntry {
 }
 
 // memoPutControlled is memoPut under budget controls. As in Parser.memoPutControlled, the store
-// charges nothing.
+// charges nothing, and its walk unlinks the entries that lag behind (unlinkLagged).
 func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e *tmemoEntry) *tmemoEntry {
+	i := p.memoGap.slot(pos)
 	slots := p.memoSlots
-	if pos >= len(slots) {
+	if i >= len(slots) {
 		// Growing the slot array charges no unit (it grows to positions of counted calls, by
 		// doubling). Its memory is charged by its length, not its capacity, which a pooled parser keeps.
-		p.memUsed += uint64(pos+1-len(slots)) * ptrBytes
-		if pos < cap(slots) {
-			slots = slots[:pos+1]
+		p.memUsed += uint64(i+1-len(slots)) * ptrBytes
+		if i < cap(slots) {
+			slots = slots[:i+1]
 		} else {
-			grown := make([]*tmemoEntry, pos+1, max(2*cap(slots), pos+1, 64))
+			grown := make([]*tmemoEntry, i+1, max(2*cap(slots), i+1, 64))
 			copy(grown, slots)
 			slots = grown
 		}
 	}
-	link := &slots[pos]
+	link := &slots[i]
 	var replaced *tmemoEntry
 	same := func(x *tmemoEntry) bool {
 		return x == e || x.rule == int32(rule) && x.min == int32(min) && p.keyMatches(x.env, key, ident)
@@ -1209,8 +1221,9 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	if ident {
 		scan = docOnlyScan
 	}
-	for n := 0; *link != nil && n < scan; link, n = &(*link).next, n+1 {
-		if x := *link; same(x) {
+	end := p.unlinkLagged(i, link, scan)
+	for x := *link; x != nil && link != end; link, x = &x.next, x.next {
+		if same(x) {
 			replaced = x
 			break
 		}
@@ -1219,17 +1232,20 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	var ixSlot uint64
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
-		ix = indexAt(&p.memoIndexes, &p.memoIndexBytes, pos, slots[pos], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
+		p.unlinkLagged(i, link, -1)
+	}
+	if replaced == nil && *link != nil && !ident {
+		ix = indexAt(&p.memoIndexes, &p.memoIndexBytes, i, slots[i], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
 		ixSlot, replaced = ix.probe(keyHash(int32(rule), int32(min), key), same)
 		if replaced != nil {
-			link = &slots[pos]
+			link = &slots[i]
 			for *link != replaced {
 				link = &(*link).next
 			}
 		}
 	} else if replaced != nil {
 		// The entry replaced among the first of a long chain is indexed too.
-		if ix = p.memoIndexes[pos]; ix != nil {
+		if ix = p.memoIndexes[i]; ix != nil {
 			ixSlot, _ = ix.probe(keyHash(replaced.rule, replaced.min, replaced.env), func(y *tmemoEntry) bool { return y == replaced })
 		}
 	}
@@ -1237,130 +1253,84 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 		return replaced
 	}
 	p.memoSlots = slots
-	e.rule, e.min, e.env, e.seen = int32(rule), int32(min), key, p.stamp()
+	e.rule, e.min, e.env = int32(rule), int32(min), key
 	if ix != nil {
 		n := len(ix)
 		ix[ixSlot] = e
 		p.memoIndexBytes += uint64(len(ix)-n) * memoIndexEntryBytes
 	}
 	if replaced != nil {
-		if replaced != e {
-			p.dropRecord(replaced)
-		}
 		e.next = replaced.next
 		*link = e
 		return e
 	}
-	e.next = slots[pos]
-	slots[pos] = e
+	e.next = slots[i]
+	slots[i] = e
 	return e
-}
-
-// dropRecord forgets the Document record of the entry x that a store replaces (memo.store), so that
-// the record does not keep the entry alive.
-func (p *TParser) dropRecord(x *tmemoEntry) {
-	if p.TypedDocument != nil {
-		delete(p.TypedDocument.meta, x)
-	}
 }
 
 // --- Typed Document memo ---
 
 // typedDocumentState owns private typed memo values of a typed Document (TypedDocumentParse). The
 // fresh invocation arenas that contain those values must never be reset or returned to the batch
-// pool.
+// pool. Its table has the form of memoTable: the slots with their gap, whose entries a lookup applies
+// the edits of the Document's log to (advanceTEntry).
 type typedDocumentState struct {
-	owner *documentState
 	slots []*tmemoEntry
-	meta  map[*tmemoEntry]typedDocumentMeta
+	memoGap
 }
 
-type typedDocumentMeta struct {
-	// recorded reports a record of memo.examine, and examined and before are the input that it
-	// recorded; pinned is memo.pin; shift is how far the positions in the value must move (move).
-	examined                 int
-	shift                    int
-	recorded, before, pinned bool
-}
-
-// splice applies an edit to the memo (memo.splice), relinking the chains into a new table. No parse
+// splice applies the last edit of log to the memo (memo.splice), as memoTable.splice does. No parse
 // runs during an edit (Document.parsing rejects it), and results hold values, not memo entries or
-// chains, so no TParser or result refers to the chains while they change. Entries that examined
-// only input before the edit stay; those that examined only input after it, with no recovered
-// errors and not pinned, move by its delta, and their values move when reused (move); the others
-// are dropped. The table ends after the last position that keeps an entry, as a table built anew
-// does. Those that more than pendingEditLimit edits have passed since a parse stored them or found them
-// to answer a lookup (tmemoEntry.seen, documentState.epoch) are dropped too.
-func (d *typedDocumentState) splice(ed documentEdit) {
-	var epoch uint32 // a memo without a Document has no edits behind
-	if d.owner != nil {
-		epoch = d.owner.epoch
+// chains, so no TParser or result refers to the chains while they change. The value of an entry that
+// an edit moves moves when it is reused (typedMove).
+func (d *typedDocumentState) splice(log []documentEdit) {
+	ed := log[len(log)-1]
+	type kept struct {
+		e   *tmemoEntry
+		pos int
 	}
-	old := d.slots
-	slots := make([]*tmemoEntry, len(old)+max(ed.delta, 0))
-	tails := make([]*tmemoEntry, len(slots))
-	n := 0
-	for pos, head := range old {
-		for e, next := head, (*tmemoEntry)(nil); e != nil; e = next {
-			next = e.next
-			m := d.meta[e]
-			to, from := pos, pos
-			if m.before {
-				from--
-			}
-			switch {
-			case !m.recorded:
-				delete(d.meta, e)
-				continue
-			case epoch-e.seen > pendingEditLimit:
-				// More edits behind than a lookup applies to an entry (memoTable.splice).
-				delete(d.meta, e)
-				continue
-			case m.examined <= ed.start:
-			case from >= ed.end && !m.pinned && e.errs.none():
-				to = pos + ed.delta
-				e.end += ed.delta
-				e.far += ed.delta
-				m.examined += ed.delta
-				m.shift += ed.delta
-				d.meta[e] = m
-			default:
-				delete(d.meta, e)
-				continue
-			}
-			e.next = nil
-			if tails[to] == nil {
-				slots[to] = e
-			} else {
-				tails[to].next = e
-			}
-			tails[to] = e
-			n = max(n, to+1)
+	var stay []kept
+	for pos := ed.start; pos <= ed.end; pos++ {
+		i := d.slot(pos)
+		if i >= len(d.slots) {
+			break
 		}
+		for e := d.slots[i]; e != nil; e = e.next {
+			// The entry accounts for the edits before this one first, at its slot; this one then keeps
+			// it at its position or moves it by the delta.
+			if advanceTEntry(e, log[:len(log)-1]) {
+				to := pos
+				if e.examined > ed.start {
+					to += ed.delta
+				}
+				if advanceTEntry(e, log) {
+					stay = append(stay, kept{e, to})
+				}
+			}
+		}
+		d.slots[i] = nil
 	}
-	d.slots = slots[:n]
+	d.slots, _ = moveGap(&d.memoGap, d.slots, ed.start, ed.end, ed.delta)
+	for _, k := range stay {
+		i := d.slot(k.pos)
+		k.e.next = d.slots[i]
+		d.slots[i] = k.e
+	}
 }
 
-// move makes the value of e valid at its position after edits moved e (memo.splice) and reports
-// whether it could: a value holds positions unless it is a basic value, which needs no move.
-func (d *typedDocumentState) move(e *tmemoEntry) bool {
-	m := d.meta[e]
-	if m.shift == 0 {
+// typedMove makes the value of e valid at its position after edits moved it (memo.advance) and
+// reports whether it could: a value holds positions unless it is a basic value, which needs no move.
+// The typed library keeps no copy of other values, so their entries answer no call once moved.
+func typedMove(e *tmemoEntry) bool {
+	if e.shift == 0 {
 		return true
 	}
 	if !basicValue(e.val) {
 		return false
 	}
-	m.shift = 0
-	d.meta[e] = m
+	e.shift = 0
 	return true
-}
-
-// pin keeps e from moving with an edit (memo.pin).
-func (d *typedDocumentState) pin(e *tmemoEntry) {
-	m := d.meta[e]
-	m.pinned = true
-	d.meta[e] = m
 }
 
 // --- Rule calls ---

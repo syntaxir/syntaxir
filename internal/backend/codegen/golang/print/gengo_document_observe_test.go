@@ -256,23 +256,21 @@ func observedLib(t *testing.T) string {
 		case "call_exec.go":
 			// The printed calls name the stored entry entry and the reused entry e.
 			// The node store records the examined input in a Document and in an observed parse from
-			// scratch alike; the hook keeps the Document's.
+			// scratch alike; the hook keeps the Document's. The typed store is the one of the Document
+			// call, the only typed call that records a positional rule's entry as pinned.
 			stores := []string{"if p.Document != nil {\n\t\t\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n",
-				"p.TypedDocument.meta[entry] = typedDocumentMeta{examined: p.docExamined, recorded: true, before: p.docLow < start}"}
+				"\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n\t\t\tif r.Positional"}
 			// The node runtime's hit is the one that moves the entry in a Document (documentMove); the typed
-			// runtime's batch call touches the same way outside Documents.
-			hits := map[string]string{"e.examined": "p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "p.TypedDocument.meta[e].examined": ""}
+			// runtime's is the one that moves its value (typedMove).
+			hits := []string{"p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "typedMove(e) {\n\t\tp.Observation.memoHit()\n\t\t"}
 			keep := "ExaminedHook(r.Name, start, min, p.docExamined, false); "
 			for _, old := range stores {
 				at := strings.Index(old, "entry.")
-				if strings.HasPrefix(old, "p.TypedDocument") {
-					at = 0
-				}
 				src = replace(src, old, old[:at]+keep+old[at:], 1)
 			}
-			for examined, before := range hits {
-				old := before + "p.documentTouch(" + examined + ")\n"
-				src = replace(src, old, old+"ExaminedHook(r.Name, start, min, "+examined+", true)\n", 1)
+			for _, before := range hits {
+				old := before + "p.documentTouch(e.examined)\n"
+				src = replace(src, old, old+"ExaminedHook(r.Name, start, min, e.examined, true)\n", 1)
 			}
 		}
 		return src

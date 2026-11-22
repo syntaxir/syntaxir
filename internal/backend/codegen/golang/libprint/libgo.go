@@ -37,9 +37,6 @@ type goSpec struct {
 	on    []string
 	name  string // the Go name
 	plain bool   // printed as a function of its package, without the parser as receiver
-	// docMeta keeps the Document record of a typed memo entry beside the entry (typedDocumentState.meta),
-	// as a typed Document does; other typed calls keep the examined end in the entry.
-	docMeta bool
 	// doc, if not empty, replaces the Doc of the function; the Go library names the form of an
 	// ordinary parse, which no Exec IR function describes.
 	doc string
@@ -83,12 +80,14 @@ parsers and not a stable API.`},
 	{fn: "body", on: []string{exec.Document, exec.Budget}, name: "callBody"},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
-	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "DocumentCall", docMeta: true},
-	// The edits of a Document that a lookup applies to the memo entry it finds, in the node library: the
+	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, name: "DocumentCall"},
+	// The edits of a Document that a lookup applies to the memo entry it finds, in both libraries: the
 	// form a parse runs, which charges the edits it applies, and the form an edit runs, which has no
 	// parse to charge.
 	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", plain: true},
+	{fn: "memoAdvance", typed: true, on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
+	{fn: "memoAdvance", typed: true, on: []string{exec.Document}, name: "advanceTEntry", plain: true},
 	// The predicates and bindings of both libraries.
 	{fn: "predicate", name: "Predicate"},
 	{fn: "bind", name: "Bind"},
@@ -510,21 +509,16 @@ func goTarget(s goSpec) *print.Target {
 			return "p.docLow"
 		case "doc.move":
 			if typed {
-				return "p.TypedDocument.move(" + a[0] + ")"
+				// The typed library moves no copy of a value (typedMove).
+				return "typedMove(" + a[0] + ")"
 			}
 			return "p.documentMove(" + a[0] + ")"
 		case "memo.before":
-			if typed {
-				return "p.TypedDocument.meta[" + a[0] + "].before"
-			}
 			// The entry's position is the call's (reuse): a lookup applied the edits to the entry.
 			return a[0] + ".from < start"
 		case "memo.pin":
-			if typed {
-				return "p.TypedDocument.pin(" + a[0] + ")"
-			}
 			return a[0] + ".pinned = true"
-		// The edits that a lookup applies to an entry (memoAdvance), in the node library.
+		// The edits that a lookup applies to an entry (memoAdvance), the same in both libraries.
 		case "memo.seed":
 			// The library keeps no seed of a growth in the memo.
 			return "false"
@@ -561,26 +555,12 @@ func goTarget(s goSpec) *print.Target {
 		case "doc.examined":
 			return "p.docExamined"
 		case "memo.examined":
-			if s.docMeta {
-				return "p.TypedDocument.meta[" + a[0] + "].examined"
-			}
-			if typed {
-				return "p.memoExamined[" + a[0] + "]"
-			}
 			return a[0] + ".examined"
 		case "doc.evaluated":
 			return "p.Document.stats.Evaluated++"
 		case "doc.reused":
 			return "p.Document.stats.Reused++"
 		case "memo.examine":
-			if s.docMeta {
-				return "p.TypedDocument.meta[" + a[0] + "] = typedDocumentMeta{examined: " + a[2] + ", recorded: true, before: " + a[1] + "}"
-			}
-			if typed {
-				// Outside a Document the parser keeps only the end, beside the entry (typedTrack records no
-				// start).
-				return "p.examine(" + a[0] + ", " + a[2] + ")"
-			}
 			// The library records the start of the examined input, the low end that before compares with
 			// the position: a call examines at most the unit before its position, so the start is the
 			// position or the unit before it, as in the engine.
@@ -694,10 +674,8 @@ func goTarget(s goSpec) *print.Target {
 			s := dst[0] + op + "p.memoGet(" + key() + ", " + a[4] + ")"
 			if dst[1] != "_" {
 				s += "\n" + dst[1] + op + dst[0] + " != nil"
-				if !typed {
-					// A Document applies its edits to an entry when the entry is found (advanceEntry).
-					s += fmt.Sprintf("\nif %[2]s && %[1]s.vgen != p.gen && !p.advanceEntry(%[1]s, p.edits) {\n%[2]s = false\n}", dst[0], dst[1])
-				}
+				// A Document applies its edits to an entry when the entry is found (advanceEntry).
+				s += fmt.Sprintf("\nif %[2]s && %[1]s.vgen != p.gen && !p.advanceEntry(%[1]s, p.edits) {\n%[2]s = false\n}", dst[0], dst[1])
 			}
 			return s, true
 		case "ctx.enter":
@@ -724,9 +702,7 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 		case "memo.store":
 			e := dst[0]
 			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s, errs: %s", valueField, a[7], a[4], a[5], a[6], a[8])
-			if !typed {
-				fields += ", vgen: p.gen"
-			}
+			fields += ", vgen: p.gen"
 			return fmt.Sprintf("%s%s%s\n*%s = %s{%s}\n%[4]s = p.memoPut(%[7]s, %[8]s, %[4]s)", e, op, alloc, e, entryType, fields, key(), a[9]), true
 		}
 		return "", false

@@ -931,14 +931,6 @@ func keysEqual(l, r []any) bool {
 	return true
 }
 
-// stamp marks an entry as current in this parse.
-func (p *Parser) stamp() uint32 {
-	if p.Document == nil {
-		return 0
-	}
-	return p.Document.epoch
-}
-
 func (p *Parser) memoKeyEqual(l, r []any) bool {
 	if len(l) != len(r) {
 		return false

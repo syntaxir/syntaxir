@@ -185,22 +185,22 @@ func TestGeneratedDocumentLeftRecursionMemberReparseControl(t *testing.T) {
 	flush := "for _, f := range keptSeedResults {\n\t\tf()\n\t}\n\tkeptSeedResults = nil\n"
 	reps := map[string][2]string{
 		"document.go":       {"\t\td.memo = p.memo\n", "\t" + flush + "\t\td.memo = p.memo\n"},
-		"typed_document.go": {"\tcache.slots = p.memoSlots\n", flush + "\tcache.slots = p.memoSlots\n"},
+		"typed_document.go": {"\tcache.slots, cache.memoGap = p.memoSlots, p.memoGap\n", flush + "\tcache.slots, cache.memoGap = p.memoSlots, p.memoGap\n"},
 	}
 	// The results that a call keeps in its context are also put in the memo when the parse ends:
 	// before each ctxKeep of a call, in the compositions of the Exec IR (call_exec.go).
-	keep := func(doc, minExpr, entry, alloc, meta string) string {
+	keep := func(doc, minExpr, entry, alloc string) string {
 		return "if " + doc + " != nil {\n" +
 			"\t\t\tentry := " + entry + "\n" +
-			"\t\t\texamined, rule := p.docExamined, r.Id\n\t\t\t_ = examined\n" +
+			"\t\t\trule := r.Id\n" +
 			"\t\t\tkeptSeedResults = append(keptSeedResults, func() {\n" +
 			"\t\t\t\te := " + alloc + "\n\t\t\t\t*e = entry\n" +
-			"\t\t\t\tp.memoPut(rule, start, " + minExpr + ", env, false, e)\n" + meta +
+			"\t\t\t\tp.memoPut(rule, start, " + minExpr + ", env, false, e)\n" +
 			"\t\t\t})\n\t\t}\n\t\t"
 	}
-	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memo.alloc()", "")
+	nodeKeep := keep("p.Document", "min", "memoEntry{node: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memo.alloc()")
 	typedKeep := func(minExpr string) string {
-		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memoSlab.one()", "\t\t\t\tp.TypedDocument.meta[e] = typedDocumentMeta{examined: examined, recorded: true}\n")
+		return keep("p.TypedDocument", minExpr, "tmemoEntry{val: v, ok: ok, end: p.Pos, examined: p.docExamined, from: p.docLow, vgen: p.gen, present: ^uint32(0), errs: p.recSince(rec), far: far, expected: kept}", "p.memoSlab.one()")
 	}
 	// Each anchor is the ctxKeep of a call, which the mutation prefixes, and the number of times it
 	// occurs in the file.

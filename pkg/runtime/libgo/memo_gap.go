@@ -17,8 +17,13 @@ func (g *memoGap) slot(pos int) int {
 // positions [start, end) are replaced by end-start+delta empty slots, which the gap gives or takes, and
 // the slots of the positions from end on follow them. The caller empties the slots of the positions
 // [start, end] first. It returns the slots, which it grows when the gap is too narrow, with room for
-// later insertions, and the number of slots it added.
+// later insertions, and the number of slots it added. An edit after every slot of the table moves no
+// slot: the positions after it have none yet, so an edit of a table that holds nothing there costs
+// nothing.
 func moveGap[E any](g *memoGap, slots []*E, start, end, delta int) ([]*E, int) {
+	if start >= len(slots)-g.gapLen {
+		return slots, 0
+	}
 	added := 0
 	if end+g.gapLen >= len(slots) { // room for position end, where an entry kept at start may go
 		added = end + g.gapLen + 1 - len(slots)

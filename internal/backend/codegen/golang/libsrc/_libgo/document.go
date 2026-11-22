@@ -15,9 +15,8 @@ import (
 //
 // Of its fields and methods, BeginParse, EndParse, ResolveParseOptions, State are for generated parsers; not a stable API.
 type Document struct {
-	State     *documentState
-	defaults  parseOptions
-	typedMemo interface{ splice(ed documentEdit) }
+	State    *documentState
+	defaults parseOptions
 	// parsing is set while a parse runs, whose observation callbacks must not
 	// parse or edit the Document again (BeginParse).
 	parsing bool
@@ -81,18 +80,8 @@ func (d *Document) Edit(start, end int, text string) error {
 	if d.parsing {
 		return DocumentBusy
 	}
-	ed, err := d.State.editReuse(start, end, text)
-	if err != nil {
-		return err
-	}
-	if d.typedMemo != nil {
-		if d.State.pending > pendingEditLimit {
-			d.typedMemo = nil
-		} else {
-			d.typedMemo.splice(ed)
-		}
-	}
-	return nil
+	_, err := d.State.editReuse(start, end, text)
+	return err
 }
 
 // Parse parses the current text, applying invocation options after the
@@ -203,16 +192,35 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 		ed = documentEdit{start: start, end: end, delta: utf8.RuneCountInString(replacement) - (end - start)}
 		d.text = d.text[:documentByteOffset(d.text, start)] + replacement + d.text[documentByteOffset(d.text, end):]
 	}
-	d.pending++
-	d.epoch++
 	if len(d.edits) == maxDocumentEdits {
-		// The log is full: the next parse starts without the memo, as a parse from scratch does.
-		d.memo, d.edits = memoTable{}, nil
+		// The log is full: the next parse starts without the memos, as a parse from scratch does.
+		d.memo, d.typedMemo, d.edits = memoTable{}, nil, nil
 	} else {
 		d.edits = append(d.edits, ed)
 		d.memo.splice(d.edits)
+		if d.typedMemo != nil {
+			d.typedMemo.splice(d.edits)
+		}
 	}
 	return ed, nil
+}
+
+// dropMemo drops the memo of Node parses, and the edit log with it unless the typed memo still
+// refers to it.
+func (d *documentState) dropMemo() {
+	d.memo = memoTable{}
+	if d.typedMemo == nil {
+		d.edits = nil
+	}
+}
+
+// dropTypedMemo drops the memo of typed parses, and the edit log with it unless the memo of Node
+// parses still holds entries that refer to it.
+func (d *documentState) dropTypedMemo() {
+	d.typedMemo = nil
+	if len(d.memo.slots) == 0 {
+		d.edits = nil
+	}
 }
 
 // maxDocumentEdits bounds the edit log of a Document (documentState.edits): the edit that finds it
@@ -493,7 +501,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	o = prepareText(o, d.text).forDocument()
 	if o.control != nil && o.control.limits.Memory != 0 && d.memo.chargedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
-		d.memo, d.edits = memoTable{}, nil
+		d.dropMemo()
 	}
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
 	p.setGrammar(d.root.g)
@@ -507,18 +515,18 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}
 	if d.moves > moveMarkLimit {
 		// The marks that the nodes of the memo carry would soon repeat: start without it.
-		d.memo, d.edits, d.moves = memoTable{}, nil, 0
+		d.dropMemo()
+		d.moves = 0
 	}
 	p.Document, p.memo = d, d.memo
 	p.edits, p.gen = d.edits, uint32(len(d.edits))
 	p.setTracking()
 	p.setDeferMemo()
-	d.pending = 0
 	o.control.attachMemory(p)
 	d.stats = documentStats{}
 	defer func() {
 		if x := recover(); x != nil {
-			d.memo, d.edits = memoTable{}, nil
+			d.dropMemo()
 			panic(x)
 		}
 		d.memo = p.memo

@@ -41,9 +41,11 @@ that examined only text after it by the edit's change in length; the others are 
 whose actions or predicates read positions (`.Start`, `.End`), or that recovered errors, is not moved. The Node
 Document moves the nodes of a moved result when a parse reuses it, in copies, so a tree returned earlier keeps its
 positions; a result that holds an action value other than nodes and basic values is evaluated again instead. `Edit`
-copies the kept entries into a new table, so its cost grows with document length. A typed Document relinks its
-entries during `Edit` and reuses a moved result only when its value is a basic value, a boolean, a number or a
-string; every other value, such as a struct or a list, is evaluated again. The generated batch functions remain available. `-document` can be combined with `-types`: eligible
+applies itself at once only to the results at the text it replaced; a later parse moves any other result when it
+looks the result up, so an edit costs time in proportion to those results and to its distance from the previous
+edit, not to the size of the memo. A typed Document keeps its results
+the same way and reuses a moved result only when its value is a basic value, a boolean, a number or a string; every
+other value, such as a struct or a list, is evaluated again. The generated batch functions remain available. `-document` can be combined with `-types`: eligible
 grammars use direct typed matching with a private memo and fresh invocation arenas. A typed result is
 read-only and shared, as Node values are: later parses reuse the values of earlier results, so a result can share
 values with the Document and with other results. Modifying a result can change what later parses return, including

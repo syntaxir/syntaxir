@@ -187,9 +187,15 @@ func (a *tarena[T]) bytes() uint64 {
 }
 
 // retainedBytes estimates the bytes a typed Document keeps for later parses: its memo slots and
-// the entries their metadata records.
+// the entries in them.
 func (d *typedDocumentState) retainedBytes() uint64 {
-	return uint64(len(d.slots))*ptrBytes + uint64(len(d.meta))*(uint64(unsafe.Sizeof(tmemoEntry{}))+ptrBytes+uint64(unsafe.Sizeof(typedDocumentMeta{})))
+	n := uint64(len(d.slots)) * ptrBytes
+	for _, e := range d.slots {
+		for ; e != nil; e = e.next {
+			n += uint64(unsafe.Sizeof(tmemoEntry{}))
+		}
+	}
+	return n
 }
 
 // MemoryBytes returns the bytes of the values s has allocated.

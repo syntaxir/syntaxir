@@ -296,7 +296,7 @@ var chargedElsewhere = map[string]string{
 var engineOnly = map[string]bool{"run.start": true, "run.prefix": true, "run.resync": true, "run.tail": true, "run.begin": true,
 	"run.end": true, "run.finish": true}
 
-// editForms are the operations that the engine and the node library read and write while they apply an
+// editForms are the operations that the engine and both libraries read and write while they apply an
 // edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: memoAdvance charges for
 // the edit, as TestMemoLookupChargesItsPendingEdits and the conformance suites of the Document memo
 // measure.
@@ -304,12 +304,13 @@ var editForms = []string{"memo.seed", "memo.from", "memo.pinned", "memo.shifted"
 	"edit.count", "edit.start", "edit.end", "edit.delta"}
 
 // TestEditFormsCallNothing holds the forms of the operations that a lookup reads and writes while it
-// applies an edit to an entry to fields and conversions, in the engine and in the node library.
+// applies an edit to an entry to fields and conversions, in the engine and in both libraries.
 func TestEditFormsCallNothing(t *testing.T) {
 	for _, tg := range []struct {
 		name string
 		op   func(c *code.Call, a []string) string
-	}{{"engine", engineTarget().Op}, {"library", goTarget(goSpec{fn: "memoAdvance", name: "advanceEntry"}).Op}} {
+	}{{"engine", engineTarget().Op}, {"library", goTarget(goSpec{fn: "memoAdvance", name: "advanceEntry"}).Op},
+		{"typed library", goTarget(goSpec{fn: "memoAdvance", typed: true, name: "advanceEntry"}).Op}} {
 		for _, name := range editForms {
 			op := compose.Build().Op(name)
 			if op.Cost.Const != 0 || len(op.Cost.Terms) != 0 {

@@ -45,7 +45,7 @@ func newTypedRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 	if cfg.Document {
 		// A typed Document parse sets the node Document too, which keeps the statistics.
 		base.p.Document = &documentState{}
-		tp.TypedDocument = &typedDocumentState{meta: map[*tmemoEntry]typedDocumentMeta{}}
+		tp.TypedDocument = &typedDocumentState{}
 	}
 	if cfg.Stream {
 		// The cases of a stream parse read only seen.defers and the rules' descriptors.

@@ -1009,14 +1009,13 @@ type documentState struct {
 	// a parse: the nodes that the memo keeps carry the number of the last move that visited them from
 	// one parse to the next, so a number is not used twice while the memo holds entries (parse).
 	moves uint32
-	// edits is the log of the edits since the memo was last dropped: an edit applies itself at once
+	// typedMemo is the memo of typed parses (typedDocumentState), if the Document has one; the
+	// interface keeps the typed library out of parsers without it.
+	typedMemo interface{ splice(log []documentEdit) }
+	// edits is the log of the edits since both memos were last empty: an edit applies itself at once
 	// only to the entries at its positions, and a lookup applies it to an entry it finds
-	// (advanceEntry).
+	// (advanceEntry, advanceTEntry).
 	edits []documentEdit
-	// pending is the number of edits since the memo was last used by a parse, and epoch the number of
-	// edits of the Document: the typed memo drops entries by them (typedDocumentState.splice).
-	pending int
-	epoch   uint32
 }
 
 type documentStats struct {

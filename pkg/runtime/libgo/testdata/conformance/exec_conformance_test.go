@@ -389,7 +389,7 @@ func rtSuites() []conform.Suite {
 	suites = append(suites,
 		conform.Suite{Name: "generated Go library (document edits)", Ops: rtDocEditOps, LazyEdits: true,
 			New: func(c ref.Config) conform.Impl { return newRTMachine(c, false, false, false) }},
-		conform.Suite{Name: "generated Go typed library (document edits)", Ops: rtDocEditOps,
+		conform.Suite{Name: "generated Go typed library (document edits)", Ops: rtDocEditOps, LazyEdits: true,
 			New: func(c ref.Config) conform.Impl { return newTypedMachine(c, false) }})
 	for _, controlled := range []bool{false, true} {
 		ops := []string{"memo.lookup", "memo.store", "memo.ok", "memo.end", "memo.silent"}
@@ -398,9 +398,10 @@ func rtSuites() []conform.Suite {
 			ops = append(ops, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
-			Name: fmt.Sprintf("generated Go typed library (controlled=%v)", controlled),
-			Ops:  ops,
-			New:  func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
+			Name:      fmt.Sprintf("generated Go typed library (controlled=%v)", controlled),
+			Ops:       ops,
+			LazyEdits: true,
+			New:       func(c ref.Config) conform.Impl { return newTypedMachine(c, controlled) },
 		})
 		ops = slices.Clone(rtRecoveryOps)
 		if controlled {
@@ -449,8 +450,8 @@ func recoveredErrors(arg any) recEntry {
 	return recEntry{err: &sxirvalue.SyntaxError{}}
 }
 
-// typedMachine binds the memo operations of the typed library, with the Document records of a typed
-// Document (typedDocumentState) beside the entries.
+// typedMachine binds the memo operations of the typed library, whose edits a typed Document's table
+// (typedDocumentState) applies between parses.
 type typedMachine struct {
 	p     *TParser
 	doc   *typedDocumentState
@@ -461,7 +462,7 @@ type typedMachine struct {
 
 func newTypedMachine(cfg ref.Config, controlled bool) conform.Impl {
 	p := &TParser{Parser: &Parser{MaxDepth: int(cfg.MaxDepth)}}
-	m := &typedMachine{p: p, doc: &typedDocumentState{meta: map[*tmemoEntry]typedDocumentMeta{}}, vals: map[int64][]any{}, lists: recHandles{}}
+	m := &typedMachine{p: p, doc: &typedDocumentState{}, vals: map[int64][]any{}, lists: recHandles{}}
 	m.env.setUp(p.Parser, cfg)
 	if controlled {
 		limit := cfg.Limit
@@ -510,10 +511,16 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 	switch o.Name {
 	case "memo.lookup":
 		e := p.memoGet(i(0), i(1), i(2), m.vals[args[3].(int64)], false)
-		return []any{e, e != nil}
+		found := e != nil
+		if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
+			found = false
+		}
+		return []any{e, found}
 	case "memo.store":
 		e := p.memoSlab.one()
-		*e = tmemoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8])}
+		// As in the node binding, an entry stands for one without a record until memo.examine.
+		*e = tmemoEntry{ok: args[4].(bool), end: i(5), silent: args[6].(bool), errs: recoveredErrors(args[8]), vgen: p.gen}
+		e.from, e.examined = unrecorded()
 		return []any{p.memoPut(i(0), i(1), i(2), m.vals[args[3].(int64)], false, e)}
 	case "memo.ok":
 		return []any{args[0].(*tmemoEntry).ok}
@@ -522,21 +529,26 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 	case "memo.silent":
 		return []any{args[0].(*tmemoEntry).silent}
 	case "memo.examine":
-		m.doc.meta[args[0].(*tmemoEntry)] = typedDocumentMeta{examined: i(2), recorded: true, before: args[1].(bool)}
+		e := args[0].(*tmemoEntry)
+		e.from, e.examined, e.pinned = m.posOf(e), i(2), false
+		if args[1].(bool) {
+			e.from--
+		}
 		return nil
 	case "memo.examined":
-		return []any{int64(m.doc.meta[args[0].(*tmemoEntry)].examined)}
+		e := args[0].(*tmemoEntry)
+		if e.examined == math.MaxInt {
+			return []any{int64(0)}
+		}
+		return []any{int64(e.examined)}
 	case "memo.before":
-		return []any{m.doc.meta[args[0].(*tmemoEntry)].before}
+		e := args[0].(*tmemoEntry)
+		return []any{e.examined != math.MaxInt && e.from < m.posOf(e)}
 	case "memo.pin":
-		m.doc.pin(args[0].(*tmemoEntry))
+		args[0].(*tmemoEntry).pinned = true
 		return nil
 	case "memo.splice":
-		// A typed Document edit between parses: the next parse starts from the kept chains, without
-		// the hash indexes of the last.
-		m.doc.slots = p.memoSlots
-		m.doc.splice(documentEdit{i(0), i(1), i(2)})
-		p.memoSlots, p.memoIndexes, p.memoIndexBytes = m.doc.slots, nil, 0
+		m.edit(documentEdit{i(0), i(1), i(2)})
 		return nil
 	case "budget.charge":
 		p.Control.Charge(args[0].(uint64))
@@ -545,6 +557,32 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 		return []any{p.Control.budgetUsed()}
 	}
 	panic("typed library binding: no operation " + o.Name)
+}
+
+// posOf is rtMachine.posOf for the typed memo.
+func (m *typedMachine) posOf(e *tmemoEntry) int {
+	for i, head := range m.p.memoSlots {
+		for x := head; x != nil; x = x.next {
+			if x == e {
+				if i >= m.p.memoGap.gap {
+					i -= m.p.memoGap.gapLen
+				}
+				return i
+			}
+		}
+	}
+	panic("typed library binding: entry not in the memo")
+}
+
+// edit is confEdit for a typed Document: the edit between parses logs the edit and splices it into the
+// table, and the next parse starts from the kept chains, without the hash indexes of the last.
+func (m *typedMachine) edit(ed documentEdit) {
+	p := m.p
+	p.edits = append(p.edits, ed)
+	m.doc.slots, m.doc.memoGap = p.memoSlots, p.memoGap
+	m.doc.splice(p.edits)
+	p.memoSlots, p.memoGap, p.memoIndexes, p.memoIndexBytes = m.doc.slots, m.doc.memoGap, nil, 0
+	p.gen = uint32(len(p.edits))
 }
 
 // conformanceFailures runs the handwritten cases and seeds randomized cases of n calls on s, and
@@ -925,15 +963,16 @@ func TestExecConformanceDetectsBrokenTypedLib(t *testing.T) {
 			}
 		},
 		"splice moves a pinned entry": func(m *typedMachine) {
-			for e, meta := range m.doc.meta {
-				meta.pinned = false
-				m.doc.meta[e] = meta
+			for _, head := range m.p.memoSlots {
+				for e := head; e != nil; e = e.next {
+					e.pinned = false
+				}
 			}
 		},
 	}
 	for name, unpin := range variants {
 		t.Run(name, func(t *testing.T) {
-			s := conform.Suite{Name: "broken: " + name, Ops: rtDocEditOps, New: func(c ref.Config) conform.Impl {
+			s := conform.Suite{Name: "broken: " + name, Ops: rtDocEditOps, LazyEdits: true, New: func(c ref.Config) conform.Impl {
 				return brokenTyped{newTypedMachine(c, false).(*typedMachine), unpin}
 			}}
 			fails, _ := conformanceFailures(s, 200, 150)

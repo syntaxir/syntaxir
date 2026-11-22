@@ -61,24 +61,26 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		return res, fmt.Errorf("document parse cannot change expectations")
 	}
 	o = prepareText(o, d.State.text).forDocument()
-	cache, ok := d.typedMemo.(*typedDocumentState)
+	cache, ok := d.State.typedMemo.(*typedDocumentState)
 	if ok && o.control != nil && o.control.limits.Memory != 0 && cache.retainedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
+		d.State.dropTypedMemo()
 		ok = false
 	}
 	if !ok {
-		cache = &typedDocumentState{owner: d.State, meta: make(map[*tmemoEntry]typedDocumentMeta)}
-		d.typedMemo = cache
+		cache = &typedDocumentState{}
+		d.State.typedMemo = cache
 	}
 	// Admission leaves reusable state untouched. Once execution can begin,
 	// discard private memo values on interruption or caller-context panic.
 	completed := false
 	defer func() {
 		if !completed {
-			d.typedMemo = nil
+			d.State.dropTypedMemo()
 		}
 	}()
-	p := &TParser{Parser: &Parser{Control: o.control}, TypedDocument: cache, memoSlots: cache.slots}
+	p := &TParser{Parser: &Parser{Control: o.control, Document: d.State}, TypedDocument: cache, memoSlots: cache.slots, memoGap: cache.memoGap}
+	p.edits, p.gen = d.State.edits, uint32(len(d.State.edits))
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.attachTypedMemory(p, a)
 		o.control.retained = cache.retainedBytes()
@@ -89,7 +91,6 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	a.SetBudgetControl(o.control)
 	defer a.SetBudgetControl(nil)
 	d.State.stats = documentStats{}
-	d.State.pending = 0
 	v, parseErr := p.run(root, d.State.text, o, a)
 	// Context implementations may return any public error type. Fatal budget
 	// interruption must not be mistaken for a completed syntax failure.
@@ -108,7 +109,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		res = publish(v)
 	}
 	err = typedDocumentError(parseErr, o.control)
-	cache.slots = p.memoSlots
+	cache.slots, cache.memoGap = p.memoSlots, p.memoGap
 	completed = true
 	return res, err
 }
