@@ -58,7 +58,8 @@ func TestGeneratedTSLeftRecursionDependencyMemo(t *testing.T) {
 // controls, they parse an input of length 10,000 within the default budget, which grows linearly
 // with the input and counts work that evaluations do not show, such as the scan of the jumps
 // recorded for a seed. The shapes of codegentest.ContextStoreShapes, whose constant is large, are
-// compared at codegentest.ContextStoreSizes instead, without the long input.
+// compared at codegentest.ContextStoreSizes instead, without the long input, under a compute limit of
+// codegentest.ContextStoreBudgetPerUnit for each unit of the input.
 func TestGeneratedTSLeftRecursionDependencyMemoLinear(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -90,16 +91,23 @@ func TestGeneratedTSLeftRecursionDependencyMemoLinear(t *testing.T) {
 		write(fmt.Sprintf("c%d.ts", i), code)
 		fmt.Fprintf(&main, "import * as c%d from \"./c%[1]d.ts\";\n", i)
 	}
-	main.WriteString("const evals = (m, input) => {\n" +
+	main.WriteString("const evals = (m, input, limits) => {\n" +
 		"  const profile = new m.Profile();\n" +
-		"  const r = m.parseWithOptions(input, { profile });\n" +
+		"  const r = m.parseWithOptions(input, limits === undefined ? { profile } : { profile, limits });\n" +
 		"  if (r.error !== null) throw r.error;\n" +
 		"  return profile.snapshot().evals;\n" +
 		"};\n" +
 		"const withinBudget = (m, input) => m.parseWithOptions(input, {}).error === null;\n")
 	for i, s := range shapes {
 		if i >= costly {
-			fmt.Fprintf(&main, "console.log(evals(g%[1]d, %[2]s), evals(g%[1]d, %[3]s), true);\n", i, strconv.Quote(s.Input(codegentest.ContextStoreSizes[0])), strconv.Quote(s.Input(codegentest.ContextStoreSizes[1])))
+			// The shapes of codegentest.ContextStoreShapes cost more per unit of input than the default
+			// budget grants, so they get a budget linear in the input with their constant. Their inputs
+			// are ASCII, so the length of the Go string is the number of units of the input.
+			arg := func(n int) string {
+				input := s.Input(n)
+				return fmt.Sprintf("%s, { compute: %d }", strconv.Quote(input), codegentest.ContextStoreBudgetPerUnit*uint64(len(input)))
+			}
+			fmt.Fprintf(&main, "console.log(evals(g%[1]d, %[2]s), evals(g%[1]d, %[3]s), true);\n", i, arg(codegentest.ContextStoreSizes[0]), arg(codegentest.ContextStoreSizes[1]))
 			continue
 		}
 		fmt.Fprintf(&main, "console.log(evals(g%[1]d, %[2]s), evals(g%[1]d, %[3]s), withinBudget(c%[1]d, %[4]s));\n", i, strconv.Quote(s.Input(80)), strconv.Quote(s.Input(160)), strconv.Quote(s.Input(10000)))
