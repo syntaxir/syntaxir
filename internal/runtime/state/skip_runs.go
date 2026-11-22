@@ -165,6 +165,9 @@ func (p *Parser) getSkip(s *skipSlots, pos int, k walkKey) skipRecord {
 // large as the bits, so walks that start farther and farther back copy them a logarithmic number of
 // times.
 func (p *Parser) putSkip(s *skipSlots, pos int, k walkKey, r skipRecord) {
+	if BudgetControlsEnabled && p != nil && p.Control != nil {
+		p.Control.noteStored(pos)
+	}
 	switch {
 	case len(s.marks) == 0:
 		s.base = pos &^ 63

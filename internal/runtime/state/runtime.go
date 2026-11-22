@@ -478,7 +478,7 @@ func (p *Parser) memoEnv(r *Rule) []any {
 	if p.Env == p.initEnv && r.InitVals != nil && (!BudgetControlsEnabled || p.Control == nil) {
 		return r.InitVals
 	}
-	p.chargeValueBytes(len(r.VarSlots) * int(anyBytes))
+	p.chargeMemoHeld(uint64(len(r.VarSlots)) * anyBytes)
 	return p.keyValues(r.VarSlots)
 }
 

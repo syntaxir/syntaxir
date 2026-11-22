@@ -1117,6 +1117,9 @@ func (p *Parser) hashMemoKey(rule, min int32, env []any) uint64 {
 // (joinStored), and returns the entry it keeps.
 func (p *Parser) memoPut(rule, pos, min int, key []any, docOnly bool, e *memoEntry) *memoEntry {
 	if p.Stream != nil {
+		if usedFeatures&featureBudget != 0 && p.Control != nil {
+			p.Control.noteStored(pos)
+		}
 		if pos -= p.Stream.memoBase; pos < 0 {
 			return e
 		}

@@ -19,17 +19,20 @@ import (
 //   - Tables that grow an element at a time keep a byte counter beside their data: the context
 //     tables, the hash indexes of memo chains, and the expectations of skip-run records.
 //   - Storage that only the controlled path allocates is added where it is allocated: values
-//     (strings that actions concatenate, text copied out of the input, rebound variable
-//     environments, memo keys and error lists) to BudgetControl.values, which a stream returns
-//     with its node chunks, and syntax errors to BudgetControl.errs, which a stream returns when
-//     its diagnostic tail takes the recovered errors.
+//     (strings that actions concatenate, text copied out of the input and rebound variable
+//     environments) to BudgetControl.values, which a stream returns with its node chunks, syntax
+//     errors to BudgetControl.errs, which a stream moves to memoHeld when its diagnostic tail
+//     takes the recovered errors, and the keys of memo entries and the lists of recovered errors
+//     to BudgetControl.memoHeld, which a stream recounts at each memo prune.
 //   - Buffers that grow by appending, the decoded input, the line table and the working stacks,
 //     are measured when the limit is checked (heldBytes). A parse with a finite limit starts them
 //     empty, so their capacities do not depend on an earlier parse.
 //
 // The check runs at the compute polls of the control and at its explicit checkpoints, so the count
 // can pass the limit by what one poll interval allocates. Storage dropped by backtracking is never
-// returned; a stream returns what its commits let go of.
+// returned; a stream returns what its commits let go of, except what memo entries and skip
+// records may still hold, which it returns or recounts when it prunes the memo: the nodes, text and
+// strings of delivered elements, memo keys, error lists and errors.
 
 // Sizes of the elements that the counters charge, of the types that this package defines for
 // itself; the others are in budget_sizes.go.
@@ -155,4 +158,55 @@ func (p *Parser) heldBytes() uint64 {
 // that holds c (BudgetControl.values).
 func (c *BudgetControl) chargeValueBytes(n int) {
 	c.values = limits.SaturatingAdd(c.values, uint64(n))
+}
+
+// recountMemoHeld replaces memoryCounts.memoHeld, at a memo prune, with the bytes that the
+// holders that remain reach: the keys of the memo entries, and the lists of recovered errors of
+// the entries, the skip records and the record, with, under a diagnostic limit, the errors
+// themselves, which Recovered counts through errs otherwise. Each shared key and list counts once.
+// It runs only for a finite memory limit and only if something was charged, so it costs the
+// unlimited path nothing. It is not a charged step: its units would depend on the representation
+// of the lists, and the compute total is the same with or without a memory limit. The sets it
+// builds are working space that the check does not count.
+func (p *Parser) recountMemoHeld() {
+	c := p.Control
+	if !BudgetControlsEnabled || c == nil || c.Limits.Memory == 0 || c.memoHeld == 0 {
+		return
+	}
+	r := errReach{withErrors: p.DiagnosticTail.Limit > 0}
+	keys := make(map[*any]struct{})
+	for _, head := range p.Memo.Slots {
+		for e := head; e != nil; e = e.Next {
+			r.add(e.Errs)
+			if len(e.Env) > 0 {
+				if _, met := keys[&e.Env[0]]; !met {
+					keys[&e.Env[0]] = struct{}{}
+					r.bytes += uint64(len(e.Env)) * anyBytes
+				}
+			}
+		}
+	}
+	for _, s := range p.skipTables {
+		if s != nil {
+			s.eachErrs(r.add)
+		}
+	}
+	r.add(p.Recovered...)
+	c.memoHeld = r.bytes
+}
+
+// eachErrs calls f with the errors of each record of the table.
+func (s *skipSlots) eachErrs(f func(...recEntry)) {
+	for _, r := range s.recs {
+		if r.errs != nil {
+			f(*r.errs)
+		}
+	}
+	for _, rs := range s.more {
+		for _, r := range rs {
+			if r.errs != nil {
+				f(*r.errs)
+			}
+		}
+	}
 }

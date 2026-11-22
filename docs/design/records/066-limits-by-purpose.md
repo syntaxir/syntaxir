@@ -150,18 +150,25 @@ storage at a point it controls:
   dependency frames, lookahead records, seed reads, context tables), the skip-run tables, the missing-token state,
   the variable environments a rebind copies, the syntax errors the parse builds, and a Document parse's maps of moved
   nodes and shifts. A map counts the size of its keys and values.
-- *Returned*: a stream's commit, for the storage it no longer holds: the nodes, lists, copied text, concatenated
-  strings, variable environments, memo keys and memo error lists of the elements it delivered, the memo slots it
-  prunes, and, with a diagnostic limit, the recovered errors it hands to the diagnostic tail. Storage the stream keeps
-  across commits stays counted: the environment in use, the retained tail, and, without a diagnostic limit, every
-  recovered error, which the stream keeps for its result. A Document's history reset drops its caches, so a later
-  parse does not count them.
+- *Returned*: a stream's commit, for the storage it no longer holds: the variable environments of the elements it
+  delivered, the memo slots it prunes, and, with a diagnostic limit, the recovered errors it hands to the diagnostic
+  tail. The nodes, lists, copied text and concatenated strings of the delivered elements are returned when the memo
+  prune lets go of them: a memo entry or skip record keeps what it was built from until the prune discards it, so a
+  prune returns the bytes of the commits that no remaining entry or record can reference. An entry stored before a
+  commit at a position the prune keeps, as a lookahead past the end of an element stores, holds them for another
+  window. The memo keys, error lists and errors that memo entries, skip records and the record of recovered errors
+  hold are not returned at a commit either. A prune replaces their count with the bytes that the holders that remain
+  reach, each shared key and list once. Between two prunes the count may therefore exceed what the parse holds, and
+  it never falls below it. Storage the stream keeps across commits stays counted: the environment in use, the
+  retained tail, and, without a diagnostic limit, every recovered error, which the stream keeps for its result. A
+  Document's history reset drops its caches, so a later parse does not count them.
 - *Not counted*: the caller's input string, which `Input` bounds; the compiled program and the state every parse of
   it shares, such as the initial variable environment, which belong to the grammar rather than to a parse; values
   once they are handed to the caller, such as the typed elements a stream passes to its callback; trace output, which
   goes to the caller's function; and what the allocator adds beyond the logical size (size classes, map groups and
   load factor), which depends on the Go release and on allocation history, not on the parse.
-- *Not returned*: storage abandoned by backtracking. It is garbage, but only the collector knows when it is released,
+- *Not returned*: storage abandoned by backtracking, including the recovered errors that a backtrack drops from the
+  record, which the count of errors built keeps. It is garbage, but only the collector knows when it is released,
   and returning it would put a charge on every failure path, the hottest paths of a PEG parse.
 
 Guarantee: at every point of the parse, the bytes the parser holds for it are at most the counter. The parse fails at
@@ -238,9 +245,10 @@ and hide the failure. One failed parse is the price of keeping caches that usual
 
 ### Streams
 
-A stream charges its input buffer and returns it at each commit, and memo entries retired at a commit are reused from
+A stream charges its input buffer and returns it at each commit, and memo entries retired at a prune are reused from
 the free list without a new charge. A finite `Memory` therefore bounds the stream's window: the uncommitted input,
-the memo entries and nodes since the last commit, and the diagnostics it retains. It does not bound the stream's
+the memo entries and nodes since the last prune, which is at most a window of committed input (1,024 units) behind,
+and the diagnostics it retains. It does not bound the stream's
 length, except through recovered errors: a stream keeps them for its result, so without a diagnostic limit
 (`WithDiagnosticLimit`) the count grows by every recovered error, whether or not a diagnostic callback receives
 them. With a limit of `n`, the count holds the `n` errors of the tail. `ParseStreamValue` converts each element to a

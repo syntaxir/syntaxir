@@ -1,6 +1,9 @@
 package state
 
-import "syntaxir.dev/sxir/pkg/runtime/value"
+import (
+	"syntaxir.dev/sxir/internal/runtime/limits"
+	"syntaxir.dev/sxir/pkg/runtime/value"
+)
 
 // The engine's implementations of the operations of the stream compositions printed in
 // stream_exec.go.
@@ -56,8 +59,10 @@ func (p *Parser) streamSettleErrors() {
 	}
 	p.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
 	if BudgetControlsEnabled && p.Control != nil {
-		// With a diagnostic limit, the errors are now held by the tail, which counts those it
-		// keeps; without one, Recovered keeps them and errs keeps counting them.
+		// With a diagnostic limit, the tail counts the errors it keeps, and only memo entries
+		// may still hold the originals, until the next prune recounts them (recountMemoHeld);
+		// without one, Recovered keeps the errors and errs keeps counting them.
+		p.Control.memoHeld = limits.SaturatingAdd(p.Control.memoHeld, p.Control.errs)
 		p.Control.errs = 0
 	}
 }

@@ -1288,7 +1288,7 @@ func (p *Parser) memoEnv(r *Rule) []any {
 	if p.Env != nil && p.Env == p.g.initEnv && r.initVals != nil && p.Control == nil {
 		return r.initVals
 	}
-	p.chargeValueBytes(len(r.varSlots) * int(anyBytes))
+	p.chargeMemoHeld(uint64(len(r.varSlots)) * anyBytes)
 	return p.keyValues(r.varSlots)
 }
 

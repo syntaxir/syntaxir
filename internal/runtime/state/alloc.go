@@ -24,6 +24,10 @@ const (
 // (large elements, after which the loss is small in comparison).
 func (p *Parser) splitChunks() {
 	if len(p.NodeSlab) < NodeChunk/8 || p.NodeChunks >= 2 {
+		letGo := p.MemUsed + uint64(max(p.NodeChunks, 0))*NodeChunk*nodeBytes
+		if p.Control != nil {
+			letGo += p.Control.values
+		}
 		p.NodeSlab, p.PtrSlab, p.fieldSlab = nil, nil, nil
 		// The chunks let go of hold the elements delivered so far: their bytes are returned,
 		// except those of the chunks kept (the expectation chunk in use and the frame scratch
@@ -45,6 +49,11 @@ func (p *Parser) splitChunks() {
 			p.MemUsed += uint64(cap(p.FrameSlab)) * frameBytes
 		}
 		p.NodeChunks = 0
+		if p.Control != nil && p.Control.Limits.Memory != 0 {
+			// A memo entry or skip record keeps the nodes, text and strings of the elements it was
+			// built in until it is pruned, so the bytes stay counted until then (retire).
+			p.Control.retire(letGo - min(letGo, p.MemUsed+p.Control.values))
+		}
 	}
 }
 

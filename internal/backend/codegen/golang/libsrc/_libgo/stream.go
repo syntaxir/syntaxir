@@ -248,6 +248,7 @@ func (p *Parser) streamRelease() {
 	// would chain every emitted element to the parser. New chunks start once
 	// the node chunk is nearly used up or more than one chunk was started.
 	if len(p.nodeSlab) < nodeChunk/8 || s.nodeChunks >= 2 {
+		letGo := p.memUsed
 		p.nodeSlab, p.ptrSlab, p.fieldSlab = nil, nil, nil
 		if !nodeFrameScratch {
 			p.frameSlab = nil
@@ -259,9 +260,15 @@ func (p *Parser) streamRelease() {
 		p.memUsed = uint64(cap(p.arena))*expIDBytes + uint64(cap(p.frameSlab))*frameBytes
 		if usedFeatures&featureBudget != 0 && p.Control != nil {
 			// The text snapshot in use stays held; the values before it were delivered.
+			letGo += p.Control.values
 			p.Control.values = 0
 			if s.text.source != "" {
 				p.Control.values = uint64(len(s.text.source)) + uint64(cap(s.text.offsets))*4
+			}
+			// A memo entry or skip record keeps the nodes, text and strings of the elements it was
+			// built in until it is pruned, so the bytes stay counted until then (retire).
+			if p.Control.limits.Memory != 0 {
+				p.Control.retire(letGo - min(letGo, p.memUsed+p.Control.values))
 			}
 		}
 	}
@@ -293,8 +300,10 @@ func (p *Parser) streamSettleErrors() {
 	}
 	p.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
 	if usedFeatures&featureBudget != 0 && p.Control != nil {
-		// With a diagnostic limit, the errors are now held by the tail, which counts
-		// those it keeps; without one, Recovered keeps them and errs keeps counting them.
+		// With a diagnostic limit, the tail counts the errors it keeps, and only memo entries
+		// may still hold the originals, until the next prune recounts them (recountMemoHeld);
+		// without one, Recovered keeps the errors and errs keeps counting them.
+		p.Control.memoHeld = saturatingAdd(p.Control.memoHeld, p.Control.errs)
 		p.Control.errs = 0
 	}
 }
@@ -562,6 +571,7 @@ func (p *Parser) pruneStreamMemo(pos int) {
 		t.index = moved
 	}
 	s.memoBase = pos
+	p.releaseAtPrune(pos)
 }
 
 // streamLoaded returns the position of the end of the input read so far.

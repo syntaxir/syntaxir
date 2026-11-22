@@ -78,6 +78,49 @@ func appendRecErrors(dst []*sxirvalue.SyntaxError, entries []recEntry) []*sxirva
 	}
 }
 
+// errReach counts the bytes of the lists, and optionally of the errors, that entries reach, each
+// object once: lists share their parts, so the walk keeps the objects it has met. It is the
+// recount of BudgetControl.memoHeld, which memory limits make at a memo prune. Its own sets are
+// working space of the check and are not counted.
+type errReach struct {
+	lists  map[*errList]struct{}
+	errors map[*sxirvalue.SyntaxError]struct{}
+	stack  []recEntry
+	// withErrors includes the errors themselves; otherwise only the lists count.
+	withErrors bool
+	bytes      uint64
+}
+
+// add counts what the entries reach.
+func (r *errReach) add(entries ...recEntry) {
+	r.stack = append(r.stack, entries...)
+	for len(r.stack) > 0 {
+		x := r.stack[len(r.stack)-1]
+		r.stack = r.stack[:len(r.stack)-1]
+		switch {
+		case x.list != nil:
+			if _, met := r.lists[x.list]; met {
+				continue
+			}
+			if r.lists == nil {
+				r.lists = make(map[*errList]struct{})
+			}
+			r.lists[x.list] = struct{}{}
+			r.bytes += errListBytes + uint64(cap(x.list.entries))*recEntryBytes
+			r.stack = append(r.stack, x.list.entries...)
+		case x.err != nil && r.withErrors:
+			if _, met := r.errors[x.err]; met {
+				continue
+			}
+			if r.errors == nil {
+				r.errors = make(map[*sxirvalue.SyntaxError]struct{})
+			}
+			r.errors[x.err] = struct{}{}
+			r.bytes += syntaxErrorSize(x.err)
+		}
+	}
+}
+
 // countRecErrors returns the number of errors of the entries.
 func countRecErrors(entries []recEntry) int {
 	n := 0
@@ -112,7 +155,7 @@ func (p *Parser) recSinceSlow(m int) recEntry {
 	}
 	after := p.Recovered[m:]
 	l := &errList{entries: appendSpend(p, make([]recEntry, 0, len(after)), after), n: countRecErrors(after)}
-	p.chargeValueBytes(int(errListBytes + uint64(cap(l.entries))*recEntryBytes))
+	p.chargeMemoHeld(errListBytes + uint64(cap(l.entries))*recEntryBytes)
 	p.compactDiagnosed(m, l)
 	p.Recovered = append(p.Recovered[:m], recEntry{list: l})
 	return recEntry{list: l}

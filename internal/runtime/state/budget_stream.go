@@ -97,4 +97,5 @@ func (p *Parser) PruneStreamMemo(pos int) {
 		}
 	}
 	t.Base = pos
+	p.releaseAtPrune(pos)
 }

@@ -200,6 +200,7 @@ func (p *Parser) MemoPut(k MemoKey, e *MemoEntry) *MemoEntry {
 	if !BudgetControlsEnabled || p.Control == nil {
 		return p.Memo.put(k, e, p)
 	}
+	p.Control.noteStored(k.Pos)
 	ident := k.DocOnly
 	if p.MemoAll {
 		defer p.FreeEnd(p.FreeBegin(true))
