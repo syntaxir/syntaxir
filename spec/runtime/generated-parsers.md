@@ -389,8 +389,10 @@ export function parseRuleWithOptions(name: string, input: string | Uint8Array, o
 export interface ParseOptions {
   unit?: Unit;
   signal?: CancellationSignal | null;      // unless generated with -no-limits
+  computeReport?: ComputeReport | null;    // unless generated with -no-limits
   limits?: Limits;
 }
+export interface ComputeReport { units: number }  // set by the parse: see parsing.md#reporting-the-units-spent
 export interface Limits {
   compute?: number;                       // unless generated with -no-limits
   memory?: number;                        // unless generated with -no-limits
@@ -422,7 +424,7 @@ export function marshal(n: Node | null): string;
   `NodeJSON`, `Node`, `marshal`, `SyntaxError`, `SyntaxErrors`, `ParseResult`, `ParseOptions`, `Limits`,
   `ParseInterruptionKind`, `ParseInterruptionError`, `Unlimited`, `TraceKind`, `TraceEvent`, `TraceFunction`,
   `SkipReason`, `Profile`, `CallSite`, `SkipReasonCount`, `RuleProfile` and `ProfileSnapshot`, and, unless generated with `-no-limits`, also
-  `CancellationSignal`. With `-no-limits` the exported `ParseOptions` and `Limits` are the forms without `signal` and
+  `CancellationSignal` and `ComputeReport`. With `-no-limits` the exported `ParseOptions` and `Limits` are the forms without `signal`, `computeReport` and
   `limits.compute`. `TraceKind` is `"enter"`, `"exit"` or `"skipped"`. The other exports of `lib.ts`, such as
   `ProfileData`, are the contract between the library and the generated code. They are not
   public API and may change between versions.
@@ -451,11 +453,11 @@ export function marshal(n: Node | null): string;
   `null` and `error` as a `ParseInterruptionError` whose `kind` is `"depth-limit"`, with
   `limit` and `used` the depth limit and `requested` 1, in both forms.
 - A parser generated with `-no-limits` emits no code that spends budget and sets no control, so a parse charges nothing, and its
-  `ParseOptions` has no `signal` and its `Limits` has no `compute` or `memory`; it does not
-  export `CancellationSignal`. A call that passes a signal or a finite nonzero compute or
+  `ParseOptions` has no `signal` or `computeReport` and its `Limits` has no `compute` or `memory`; it does not
+  export `CancellationSignal` or `ComputeReport`. A call that passes a signal, a compute report or a finite nonzero compute or
   memory limit anyway returns an error in the result, before
   matching, that says the parser was generated without limit controls; no option is
-  ignored. An absent or null signal, zero or `Unlimited` compute and memory limits, and the input
+  ignored. An absent or null signal or compute report, zero or `Unlimited` compute and memory limits, and the input
   and depth limits set no control and are accepted. A parser generated without `-no-limits`, the default, has the controlled form only, and a call
   that sets no limit runs it with the [default budget](parsing.md#default-limits), `compute` of `max(2^20, 1024 * n)` among its defaults. The rest of this list describes the controlled form.
 - `signal` is a structural cancellation signal: any object with `aborted` and an optional

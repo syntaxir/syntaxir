@@ -2640,7 +2640,10 @@ entries and moves) is no unit of the `Compute` limit and not of the report. The
 option turns the count on for an invocation that sets no limit and no context,
 and a nil `out` is the absence of the option. A generated Go parser takes it
 only if it was generated with limit controls, as it does a context or a finite
-`Compute` limit.
+`Compute` limit. The `computeReport` option of a generated TypeScript parser
+is the same: an object whose `units` the parse sets to zero when it starts and
+to the units spent when it ends, taken only by a parser generated with limit
+controls, as it takes a `signal`.
 
 ### Reservations and Interruptions
 

@@ -6,6 +6,15 @@ export interface CancellationSignal {
   readonly reason?: unknown;
 }
 
+/**
+ * Receives the compute units that a parse spent, when the parse ends: after a result, a failure or an
+ * interruption alike. The parse sets units to zero when it starts. It needs a parser generated with
+ * limit controls, and counts the units whatever the compute limit is.
+ */
+export interface ComputeReport {
+  units: number;
+}
+
 export type ParseInterruptionKind = "canceled" | "compute-limit" | "memory-limit" | "input-limit" | "depth-limit";
 
 /** An interrupted invocation returns no partial Node or typed result. */
@@ -45,6 +54,8 @@ export interface ResolvedParseOptions {
   signal: CancellationSignal | null;
   readonly budget: number;
   readonly memory: number;
+  /** The report of the invocation, or null. */
+  readonly report: ComputeReport | null;
 }
 
 // Signal getters are caller code. Keep their thrown identity through the
@@ -58,6 +69,8 @@ export class BudgetControl {
   private signal: CancellationSignal | null;
   private readonly budget: number;
   private budgetUsed = 0;
+  /** Whether the units are added up: with a compute limit or a report; an unlimited spend needs no number that could lose precision. */
+  private readonly counting: boolean;
   private sinceCheck = 0;
   private readonly memory: number;
   private readonly profile: Profile | null;
@@ -70,11 +83,15 @@ export class BudgetControl {
   constructor(o: ResolvedParseOptions) {
     this.signal = o.signal;
     this.budget = o.budget;
+    this.counting = o.budget !== 0 || o.report !== null;
     this.memory = o.memory;
     this.profile = o.profiles[0] ?? null;
   }
 
   release(): void { this.signal = null; }
+
+  /** used returns the compute units spent so far; it counts only with a compute limit or a report. */
+  used(): number { return this.budgetUsed; }
 
   // check is the poll: the signal first, then the memory count. Memory is counted where storage is
   // taken into use and checked here, not reserved before an allocation, so the count can pass the
@@ -115,7 +132,7 @@ export class BudgetControl {
       throw new Fatal(new ParseInterruptionError("compute-limit", this.budget, this.budgetUsed, n, undefined, this.profile === null ? "" : hotspotOf(this.profile)));
     }
     // Unlimited spend needs no cumulative number that could lose safe-integer precision.
-    if (this.budget !== 0) this.budgetUsed += n;
+    if (this.counting) this.budgetUsed += n;
     this.sinceCheck = n >= 256 ? 0 : this.sinceCheck + n;
   }
 
@@ -129,11 +146,11 @@ export class BudgetControl {
       // first units reach the next poll: first-1 before it, then the charge that polls.
       const first = 256 - this.sinceCheck;
       if (left < first) {
-        if (this.budget !== 0) this.budgetUsed += left;
+        if (this.counting) this.budgetUsed += left;
         this.sinceCheck += left;
         break;
       }
-      if (this.budget !== 0) this.budgetUsed += first - 1;
+      if (this.counting) this.budgetUsed += first - 1;
       this.sinceCheck = 255;
       this.charge(1);
       left -= first;
@@ -170,7 +187,7 @@ export function sliceBytes(n: number): number { return n <= 1 ? 0 : n < 13 ? (16
 export function stringBytes(n: number): number { return n <= 1 ? 0 : (16 + n + 7) & ~7; }
 
 export function withBudgetControl<T>(o: ResolvedParseOptions, body: (control: BudgetControl | null) => T, interrupted: (error: Error) => T): T {
-  if (o.signal === null && o.budget === 0 && o.memory === 0) return body(null);
+  if (o.signal === null && o.budget === 0 && o.memory === 0 && o.report === null) return body(null);
   let control: BudgetControl | null = null;
   try {
     control = new BudgetControl(o);
@@ -187,6 +204,7 @@ export function withBudgetControl<T>(o: ResolvedParseOptions, body: (control: Bu
     // Teardown must neither charge nor consult caller getters.
     control?.release();
     o.signal = null;
+    if (o.report !== null) o.report.units = control === null ? 0 : control.used();
   }
 }
 

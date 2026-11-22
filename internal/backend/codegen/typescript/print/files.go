@@ -35,7 +35,7 @@ var tsPublicLib = strings.Fields(`
 
 // tsPublicControls lists the library declarations of the limit controls that parser.ts re-exports
 // unless generated with -no-limits.
-var tsPublicControls = strings.Fields(`CancellationSignal`)
+var tsPublicControls = strings.Fields(`CancellationSignal ComputeReport`)
 
 // substituteMethods replaces methods of the Parser class in the library source src by the printed
 // methods ms: each method, with the comment lines before it, from its first line at the class

@@ -1142,6 +1142,8 @@ export interface ParseOptions {
   /** Records what a syntax error expects and the messages of @error; requires a parser generated with expectations. Without it an error carries the farthest failure position only. */
   expectations?: boolean;
   signal?: CancellationSignal | null;
+  /** Receives the compute units that the parse spent, when it ends; see ComputeReport. Requires a parser generated with limit controls. */
+  computeReport?: ComputeReport | null;
   limits?: Limits;
 }
 
@@ -1201,10 +1203,10 @@ export type PlainLimits = Omit<Limits, "compute" | "memory">;
  * The options of a parser generated without limit controls: those of ParseOptions except the
  * cancellation signal and the compute limit.
  */
-export type PlainParseOptions = Omit<ParseOptions, "signal" | "limits"> & { limits?: PlainLimits };
+export type PlainParseOptions = Omit<ParseOptions, "signal" | "computeReport" | "limits"> & { limits?: PlainLimits };
 
 // parseOptionKeys and limitKeys are the keys of ParseOptions and Limits.
-const parseOptionKeys = new Set(["unit", "expectations", "signal", "limits", "trace", "traceRules", "traceMaxDepth", "profile"]);
+const parseOptionKeys = new Set(["unit", "expectations", "signal", "computeReport", "limits", "trace", "traceRules", "traceMaxDepth", "profile"]);
 const limitKeys = new Set(["compute", "memory", "input", "depth"]);
 
 // resolveOptions validates options for a parse of input. A zero compute limit of a parser generated with
@@ -1223,11 +1225,16 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
       if (!limitKeys.has(key)) return new Error(`unknown limit: ${key}`);
     }
   }
-  if (!g.controlled && (options?.signal != null || ((limits?.compute ?? 0) !== 0 && limits?.compute !== Unlimited) || ((limits?.memory ?? 0) !== 0 && limits?.memory !== Unlimited))) {
-    return new Error("this parser was generated without limit controls (-no-limits; generate it without that option to use signal and the compute and memory limits)");
+  if (!g.controlled && (options?.signal != null || options?.computeReport != null || ((limits?.compute ?? 0) !== 0 && limits?.compute !== Unlimited) || ((limits?.memory ?? 0) !== 0 && limits?.memory !== Unlimited))) {
+    return new Error("this parser was generated without limit controls (-no-limits; generate it without that option to use signal, computeReport and the compute and memory limits)");
   }
   if (!g.observable && (options?.profile != null || options?.trace != null || options?.traceRules !== undefined || options?.traceMaxDepth !== undefined)) {
     return new Error("trace and profile options are only supported by a parser generated with observability");
+  }
+  const report = options?.computeReport ?? null;
+  if (report !== null) {
+    if (typeof report !== "object") return new Error("computeReport must be an object");
+    report.units = 0; // a parse that fails before it starts spends none
   }
   const profiles = observers(options?.profile, (x): x is Profile => x instanceof Profile && profileData.has(x), noProfiles);
   if (profiles === null) return new Error("profile must be a Profile or an array of Profiles");
@@ -1267,7 +1274,7 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
     if (over !== null) return new ParseInterruptionError("input-limit", maxInput, 0, over);
   }
   const budget = requested === Unlimited ? 0 : requested !== 0 ? requested : g.controlled ? defaultBudget(inputUnits(input, unit)) : 0;
-  return { unit, maxDepth: depth === 0 ? g.maxDepth : depth, expectations: options?.expectations === true, signal, budget, memory: memory === Unlimited ? 0 : memory, traces, traceRules, traceMaxDepth, profiles, profileClock };
+  return { unit, maxDepth: depth === 0 ? g.maxDepth : depth, expectations: options?.expectations === true, signal, report, budget, memory: memory === Unlimited ? 0 : memory, traces, traceRules, traceMaxDepth, profiles, profileClock };
 }
 
 // noProfiles and noTraces are the observers of an invocation that observes nothing.
