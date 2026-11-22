@@ -1843,11 +1843,11 @@ var lit8 = []rune("@")
 var sh9 = rt.Shaper{Elems: true, K: 1, Mode: 2, Tuple: true, Shared: false}
 var sh10 = rt.Shaper{Elems: true, K: 2, Mode: 2, Tuple: true, Shared: false}
 var sh11 = rt.Shaper{Elems: false, K: 1, Mode: 1, Tuple: false, Shared: false}
-var sh16 = rt.Shaper{Elems: false, K: 0, Mode: 0, Tuple: true, Shared: false}
-var lit21 = []rune("=")
-var lit22 = []rune("/*")
-var lit30 = []rune(";")
-var lit32 = []rune("}")
+var lit20 = []rune("=")
+var lit21 = []rune("/*")
+var lit29 = []rune(";")
+var lit31 = []rune("}")
+var sh34 = rt.Shaper{Elems: false, K: 0, Mode: 0, Tuple: true, Shared: false}
 var lit37 = []rune("(")
 var lit38 = []rune("{")
 var lit39 = []rune("[")
@@ -1866,63 +1866,63 @@ var lit70 = []rune("=>")
 var lit90 = []rune("node[")
 var lit92 = []rune("struct")
 var lit93 = []rune("terminal")
-var sh94 = rt.Shaper{Elems: true, K: 0, Mode: 0, Tuple: true, Shared: false}
-var lit96 = []rune(",")
-var lit124 = []rune("#")
-var lit128 = []rune("operators")
-var lit129 = []rune("skip")
-var lit130 = []rune("operand")
-var lit131 = []rune("level")
-var lit132 = []rune("prefix")
-var lit133 = []rune("postfix")
-var lit134 = []rune("infix")
-var lit135 = []rune("\"")
-var sh136 = rt.Shaper{Elems: true, K: 3, Mode: 2, Tuple: true, Shared: false}
-var sh137 = rt.Shaper{Elems: true, K: 5, Mode: 2, Tuple: true, Shared: false}
-var lit139 = []rune("atomic")
-var lit140 = []rune("stream")
-var lit141 = []rune("missing")
-var lit142 = []rune("ignorecase")
-var lit143 = []rune("repeat")
-var lit144 = []rune("recover")
-var lit145 = []rune("cut")
-var lit150 = []rune("level(")
-var lit152 = []rune("_")
-var lit154 = []rune("_|_")
-var lit156 = []rune("^^")
-var lit158 = []rune("^")
-var lit160 = []rune("$$")
-var lit162 = []rune("$")
-var lit164 = []rune(".")
-var lit165 = []rune("..")
-var lit167 = []rune("#cut")
-var lit169 = []rune("--")
-var lit177 = []rune("-")
-var lit178 = []rune("0")
-var lit197 = []rune("#ignorecase")
-var lit200 = []rune("#operators")
-var lit217 = []rune("left")
-var lit218 = []rune("right")
-var lit219 = []rune("none")
-var lit222 = []rune("...")
-var lit229 = []rune(":=")
-var lit232 = []rune("startPos")
-var lit233 = []rune("endPos")
-var lit234 = []rune("children")
-var lit235 = []rune("expected")
-var lit236 = []rune("message")
-var lit252 = []rune("[]")
-var lit260 = []rune("true")
-var lit262 = []rune("false")
-var lit264 = []rune("nil")
-var lit277 = []rune("\r\n")
-var budgetClass279 = rt.NewBudgetClass([]rt.BudgetRange{{Lo: 32, Hi: 32}, {Lo: 9, Hi: 9}, {Lo: 10, Hi: 10}, {Lo: 11, Hi: 11}, {Lo: 12, Hi: 12}, {Lo: 13, Hi: 13}, {Lo: 133, Hi: 133}, {Lo: 160, Hi: 160}, {Lo: 5760, Hi: 5760}, {Lo: 8192, Hi: 8202}, {Lo: 8232, Hi: 8232}, {Lo: 8233, Hi: 8233}, {Lo: 8239, Hi: 8239}, {Lo: 8287, Hi: 8287}, {Lo: 12288, Hi: 12288}}, false)
-var lit293 = []rune("*/")
-var lit301 = []rune("i")
-var lit356 = []rune("*")
-var budgetClass365 = rt.NewBudgetClass([]rt.BudgetRange{{Lo: 32, Hi: 32}, {Lo: 9, Hi: 9}, {Lo: 11, Hi: 11}, {Lo: 12, Hi: 12}, {Lo: 133, Hi: 133}, {Lo: 160, Hi: 160}, {Lo: 5760, Hi: 5760}, {Lo: 8192, Hi: 8202}, {Lo: 8232, Hi: 8232}, {Lo: 8233, Hi: 8233}, {Lo: 8239, Hi: 8239}, {Lo: 8287, Hi: 8287}, {Lo: 12288, Hi: 12288}}, false)
-var sh423 = rt.Shaper{Elems: true, K: 4, Mode: 2, Tuple: true, Shared: false}
-var sh424 = rt.Shaper{Elems: true, K: 6, Mode: 2, Tuple: true, Shared: false}
+var lit95 = []rune(",")
+var lit123 = []rune("#")
+var lit127 = []rune("operators")
+var lit128 = []rune("skip")
+var lit129 = []rune("operand")
+var lit130 = []rune("level")
+var lit131 = []rune("prefix")
+var lit132 = []rune("postfix")
+var lit133 = []rune("infix")
+var lit134 = []rune("\"")
+var sh135 = rt.Shaper{Elems: true, K: 3, Mode: 2, Tuple: true, Shared: false}
+var sh136 = rt.Shaper{Elems: true, K: 5, Mode: 2, Tuple: true, Shared: false}
+var lit138 = []rune("atomic")
+var lit139 = []rune("stream")
+var lit140 = []rune("missing")
+var lit141 = []rune("ignorecase")
+var lit142 = []rune("repeat")
+var lit143 = []rune("recover")
+var lit144 = []rune("cut")
+var lit149 = []rune("level(")
+var lit151 = []rune("_")
+var lit153 = []rune("_|_")
+var lit155 = []rune("^^")
+var lit157 = []rune("^")
+var lit159 = []rune("$$")
+var lit161 = []rune("$")
+var lit163 = []rune(".")
+var lit164 = []rune("..")
+var lit166 = []rune("#cut")
+var lit168 = []rune("--")
+var lit176 = []rune("-")
+var lit177 = []rune("0")
+var lit196 = []rune("#ignorecase")
+var lit199 = []rune("#operators")
+var lit216 = []rune("left")
+var lit217 = []rune("right")
+var lit218 = []rune("none")
+var lit221 = []rune("...")
+var lit228 = []rune(":=")
+var lit231 = []rune("startPos")
+var lit232 = []rune("endPos")
+var lit233 = []rune("children")
+var lit234 = []rune("expected")
+var lit235 = []rune("message")
+var lit251 = []rune("[]")
+var lit259 = []rune("true")
+var lit261 = []rune("false")
+var lit263 = []rune("nil")
+var lit276 = []rune("\r\n")
+var budgetClass278 = rt.NewBudgetClass([]rt.BudgetRange{{Lo: 32, Hi: 32}, {Lo: 9, Hi: 9}, {Lo: 10, Hi: 10}, {Lo: 11, Hi: 11}, {Lo: 12, Hi: 12}, {Lo: 13, Hi: 13}, {Lo: 133, Hi: 133}, {Lo: 160, Hi: 160}, {Lo: 5760, Hi: 5760}, {Lo: 8192, Hi: 8202}, {Lo: 8232, Hi: 8232}, {Lo: 8233, Hi: 8233}, {Lo: 8239, Hi: 8239}, {Lo: 8287, Hi: 8287}, {Lo: 12288, Hi: 12288}}, false)
+var lit292 = []rune("*/")
+var lit300 = []rune("i")
+var lit355 = []rune("*")
+var budgetClass364 = rt.NewBudgetClass([]rt.BudgetRange{{Lo: 32, Hi: 32}, {Lo: 9, Hi: 9}, {Lo: 11, Hi: 11}, {Lo: 12, Hi: 12}, {Lo: 133, Hi: 133}, {Lo: 160, Hi: 160}, {Lo: 5760, Hi: 5760}, {Lo: 8192, Hi: 8202}, {Lo: 8232, Hi: 8232}, {Lo: 8233, Hi: 8233}, {Lo: 8239, Hi: 8239}, {Lo: 8287, Hi: 8287}, {Lo: 12288, Hi: 12288}}, false)
+var sh422 = rt.Shaper{Elems: true, K: 4, Mode: 2, Tuple: true, Shared: false}
+var sh423 = rt.Shaper{Elems: true, K: 6, Mode: 2, Tuple: true, Shared: false}
+var sh424 = rt.Shaper{Elems: true, K: 0, Mode: 0, Tuple: true, Shared: false}
 
 type ruleSpec struct {
 	Name  string
@@ -1944,11 +1944,11 @@ type ruleExtra struct {
 var rulesSpec = [...]ruleSpec{
 	{"main", &sh4, 0, 0, 1, 2},
 	{"file", &sh9, 0, 0, 3, 2},
-	{"file_contents", &sh136, 0, 0, 4, 2},
+	{"file_contents", &sh135, 0, 0, 4, 2},
 	{"package_entry", &sh9, 0, 0, 5, 2},
-	{"package_attrs", &sh137, 0, 0, 0, 0},
-	{"package_stmt", &sh136, 0, 0, 6, 2},
-	{"package_body", &sh136, 0, 0, 7, 8},
+	{"package_attrs", &sh136, 0, 0, 0, 0},
+	{"package_stmt", &sh135, 0, 0, 6, 2},
+	{"package_body", &sh135, 0, 0, 7, 8},
 	{"decl", &sh9, 0, 0, 9, 2},
 	{"junk_decl", &sh9, 0, 0, 9, 2},
 	{"stmt_end", &sh10, rt.RuleMemo, 1, 10, 11},
@@ -1963,65 +1963,65 @@ var rulesSpec = [...]ruleSpec{
 	{"empty_stmt_sep", &sh11, 0, 0, 0, 0},
 	{"empty_item_sep", &sh11, 0, 0, 0, 0},
 	{"empty_field_sep", &sh11, 0, 0, 0, 0},
-	{"stmt_sync", &sh423, rt.RuleMemo, 5, 0, 0},
+	{"stmt_sync", &sh422, rt.RuleMemo, 5, 0, 0},
 	{"sync_top", &sh11, 0, 0, 0, 0},
 	{"sync_open", &sh11, rt.RuleMemo, 6, 0, 0},
-	{"sync_class", &sh136, 0, 0, 0, 0},
-	{"attr_call", &sh423, rt.RuleMemo, 7, 0, 0},
+	{"sync_class", &sh135, 0, 0, 0, 0},
+	{"attr_call", &sh422, rt.RuleMemo, 7, 0, 0},
 	{"sync_word", &sh10, rt.RuleMemo | rt.RuleRec, 8, 0, 0},
 	{"sync_closed", &sh11, rt.RuleMemo | rt.RuleRec, 9, 0, 0},
 	{"sync_index", &sh9, rt.RuleMemo | rt.RuleRec, 10, 0, 0},
 	{"sync_inner", &sh11, rt.RuleMemo | rt.RuleRec, 11, 0, 0},
-	{"sync_closed_paren", &sh136, rt.RuleRec, 0, 0, 0},
-	{"sync_closed_brace", &sh136, rt.RuleRec, 0, 0, 0},
-	{"sync_closed_bracket", &sh136, rt.RuleMemo | rt.RuleRec, 12, 0, 0},
-	{"top_start", &sh136, 0, 0, 0, 0},
+	{"sync_closed_paren", &sh135, rt.RuleRec, 0, 0, 0},
+	{"sync_closed_brace", &sh135, rt.RuleRec, 0, 0, 0},
+	{"sync_closed_bracket", &sh135, rt.RuleMemo | rt.RuleRec, 12, 0, 0},
+	{"top_start", &sh135, 0, 0, 0, 0},
 	{"attrs_prefix", &sh10, 0, 0, 0, 0},
-	{"decl_start", &sh136, rt.RuleMemo, 13, 0, 0},
+	{"decl_start", &sh135, rt.RuleMemo, 13, 0, 0},
 	{"decl_keyword", &sh11, 0, 0, 0, 0},
 	{"decl_shape", &sh10, rt.RuleMemo, 14, 0, 0},
 	{"rule_shape", &sh10, 0, 0, 0, 0},
 	{"decl_tail", &sh11, rt.RuleMemo, 15, 0, 0},
-	{"decl_shape_line", &sh136, 0, 0, 0, 0},
+	{"decl_shape_line", &sh135, 0, 0, 0, 0},
 	{"decl_shape_end", &sh10, 0, 0, 0, 0},
 	{"assign_op", &sh11, 0, 0, 0, 0},
-	{"declaration_ahead", &sh16, rt.RuleMemo, 16, 0, 0},
+	{"declaration_ahead", &sh34, rt.RuleMemo, 16, 0, 0},
 	{"sync_unit", &sh11, rt.RuleMemo, 17, 0, 0},
-	{"attrs_start", &sh423, 0, 0, 0, 0},
-	{"attrs_decl", &sh136, 0, 0, 0, 0},
-	{"sync_attrs", &sh423, rt.RuleMemo, 18, 0, 0},
-	{"sync_top_attrs", &sh423, 0, 0, 0, 0},
+	{"attrs_start", &sh422, 0, 0, 0, 0},
+	{"attrs_decl", &sh135, 0, 0, 0, 0},
+	{"sync_attrs", &sh422, rt.RuleMemo, 18, 0, 0},
+	{"sync_top_attrs", &sh422, 0, 0, 0, 0},
 	{"attr_unit", &sh11, rt.RuleMemo, 19, 0, 0},
-	{"attr_paren", &sh136, rt.RuleMemo | rt.RuleRec, 20, 0, 0},
+	{"attr_paren", &sh135, rt.RuleMemo | rt.RuleRec, 20, 0, 0},
 	{"item_sync", &sh10, rt.RuleMemo, 21, 0, 0},
 	{"field_sync", &sh10, 0, 0, 0, 0},
 	{"sync_ml", &sh11, rt.RuleMemo | rt.RuleRec, 22, 0, 0},
-	{"sync_ml_paren", &sh136, rt.RuleRec, 0, 0, 0},
-	{"sync_ml_brace", &sh136, rt.RuleRec, 0, 0, 0},
+	{"sync_ml_paren", &sh135, rt.RuleRec, 0, 0, 0},
+	{"sync_ml_brace", &sh135, rt.RuleRec, 0, 0, 0},
 	{"type_decl", &sh11, rt.RuleMemo, 23, 0, 2},
-	{"type_alias_head", &sh423, 0, 0, 0, 8},
-	{"type_alias", &sh136, 0, 0, 14, 2},
-	{"type_def", &sh136, 0, 0, 14, 2},
-	{"type_alias_body", &sh423, 0, 0, 15, 8},
-	{"type_def_body", &sh136, 0, 0, 15, 8},
-	{"type_def_spelling", &sh16, 0, 0, 0, 0},
-	{"node_type", &sh423, 0, 0, 16, 8},
+	{"type_alias_head", &sh422, 0, 0, 0, 8},
+	{"type_alias", &sh135, 0, 0, 14, 2},
+	{"type_def", &sh135, 0, 0, 14, 2},
+	{"type_alias_body", &sh422, 0, 0, 15, 8},
+	{"type_def_body", &sh135, 0, 0, 15, 8},
+	{"type_def_spelling", &sh34, 0, 0, 0, 0},
+	{"node_type", &sh422, 0, 0, 16, 8},
 	{"field_spec", &sh9, rt.RuleRec, 0, 1, 8},
-	{"field", &sh136, rt.RuleRec, 0, 14, 8},
+	{"field", &sh135, rt.RuleRec, 0, 14, 8},
 	{"field_body", &sh10, rt.RuleRec, 0, 15, 8},
 	{"type_expr", nil, rt.RuleMemo | rt.RuleRec, 24, 0, 8},
-	{"struct_type", &sh136, rt.RuleMemo | rt.RuleRec, 25, 17, 8},
-	{"type_args", &sh137, rt.RuleRec, 0, 18, 8},
+	{"struct_type", &sh135, rt.RuleMemo | rt.RuleRec, 25, 17, 8},
+	{"type_args", &sh136, rt.RuleRec, 0, 18, 8},
 	{"type_group", &sh11, rt.RuleRec, 0, 0, 8},
-	{"type_paren", &sh136, rt.RuleRec, 0, 19, 8},
-	{"type_tuple", &sh423, rt.RuleRec, 0, 20, 8},
-	{"var_decl", &sh136, rt.RuleMemo, 26, 14, 2},
-	{"var_def_body", &sh137, 0, 0, 21, 2},
-	{"var_junk_end", &sh16, 0, 0, 0, 11},
+	{"type_paren", &sh135, rt.RuleRec, 0, 19, 8},
+	{"type_tuple", &sh422, rt.RuleRec, 0, 20, 8},
+	{"var_decl", &sh135, rt.RuleMemo, 26, 14, 2},
+	{"var_def_body", &sh136, 0, 0, 21, 2},
+	{"var_junk_end", &sh34, 0, 0, 0, 11},
 	{"var_type", &sh9, 0, 0, 19, 8},
 	{"var_value", &sh10, 0, 0, 22, 8},
-	{"rule_decl", &sh136, rt.RuleMemo, 27, 14, 2},
-	{"rule_def_body", &sh424, 0, 0, 23, 8},
+	{"rule_decl", &sh135, rt.RuleMemo, 27, 14, 2},
+	{"rule_def_body", &sh423, 0, 0, 23, 8},
 	{"decl_attr_gap", &sh11, rt.RuleMemo, 28, 0, 0},
 	{"decl_attr_same_line", &sh9, 0, 0, 24, 0},
 	{"decl_attr_line_end", &sh10, 0, 0, 25, 0},
@@ -2031,13 +2031,13 @@ var rulesSpec = [...]ruleSpec{
 	{"rule_expr", nil, rt.RuleMemo | rt.RuleRec, 31, 0, 8},
 	{"unknown_pragma", &sh10, 0, 0, 0, 0},
 	{"rule_body_expr", &sh9, 0, 0, 12, 8},
-	{"operators_spelling", &sh16, 0, 0, 0, 0},
-	{"legacy_operators_start", &sh137, rt.RuleMemo, 32, 0, 0},
+	{"operators_spelling", &sh34, 0, 0, 0, 0},
+	{"legacy_operators_start", &sh136, rt.RuleMemo, 32, 0, 0},
 	{"known_pragma", &sh11, 0, 0, 0, 0},
 	{"rule_group", &sh10, rt.RuleRec, 0, 12, 8},
-	{"inline_action", &sh136, rt.RuleRec, 0, 27, 8},
+	{"inline_action", &sh135, rt.RuleRec, 0, 27, 8},
 	{"rule_ref", &sh9, 0, 0, 28, 0},
-	{"level_call", &sh136, 0, 0, 29, 8},
+	{"level_call", &sh135, 0, 0, 29, 8},
 	{"top", &sh11, 0, 0, 0, 0},
 	{"bottom", &sh11, 0, 0, 0, 0},
 	{"begin_input", &sh11, 0, 0, 0, 0},
@@ -2046,71 +2046,71 @@ var rulesSpec = [...]ruleSpec{
 	{"end_line", &sh11, 0, 0, 0, 0},
 	{"any", &sh11, 0, 0, 0, 0},
 	{"cut", &sh11, 0, 0, 0, 0},
-	{"cut_spelling", &sh94, 0, 0, 0, 0},
+	{"cut_spelling", &sh424, 0, 0, 0, 0},
 	{"predicate", &sh4, 0, 0, 30, 8},
 	{"repeat_args", &sh10, 0, 0, 30, 8},
 	{"repeat_range", &sh11, 0, 0, 0, 8},
-	{"repeat_from", &sh136, 0, 0, 31, 8},
+	{"repeat_from", &sh135, 0, 0, 31, 8},
 	{"repeat_to", &sh10, 0, 0, 32, 8},
 	{"repeat_count", &sh4, 0, 0, 33, 8},
 	{"repeat_int", &sh11, rt.RuleMemo, 33, 0, 8},
 	{"recover_args", &sh10, rt.RuleRec, 0, 12, 8},
 	{"empty_args", &sh10, rt.RuleMemo, 34, 0, 8},
-	{"attr", &sh136, rt.RuleMemo | rt.RuleRec, 35, 34, 8},
+	{"attr", &sh135, rt.RuleMemo | rt.RuleRec, 35, 34, 8},
 	{"attr_args", &sh10, rt.RuleRec, 0, 22, 8},
-	{"attr_named_args", &sh136, rt.RuleMemo | rt.RuleRec, 36, 18, 8},
-	{"attr_mixed_args", &sh136, rt.RuleRec, 0, 35, 8},
-	{"attr_no_args", &sh16, 0, 0, 0, 0},
-	{"attr_no_values", &sh16, 0, 0, 0, 0},
+	{"attr_named_args", &sh135, rt.RuleMemo | rt.RuleRec, 36, 18, 8},
+	{"attr_mixed_args", &sh135, rt.RuleRec, 0, 35, 8},
+	{"attr_no_args", &sh34, 0, 0, 0, 0},
+	{"attr_no_values", &sh34, 0, 0, 0, 0},
 	{"attr_trailing_comma", &sh11, 0, 0, 0, 8},
 	{"attr_named_tail", &sh10, rt.RuleRec, 0, 33, 8},
 	{"attr_slot", &sh9, rt.RuleMemo | rt.RuleRec, 37, 36, 8},
-	{"attr_named", &sh136, rt.RuleMemo | rt.RuleRec, 38, 37, 8},
+	{"attr_named", &sh135, rt.RuleMemo | rt.RuleRec, 38, 37, 8},
 	{"attr_value", &sh11, rt.RuleMemo | rt.RuleRec, 39, 0, 8},
 	{"signed_int", &sh11, 0, 0, 0, 8},
 	{"ops_rule_body", &sh11, 0, 0, 0, 8},
 	{"ops_rule_ignorecase", &sh10, rt.RuleLeader | rt.RuleRec, 0, 38, 8},
 	{"ops_rule_plain", &sh9, 0, 0, 38, 8},
-	{"ops_rule_expr", &sh423, rt.RuleMemo, 40, 39, 8},
+	{"ops_rule_expr", &sh422, rt.RuleMemo, 40, 39, 8},
 	{"ops_stmt", &sh9, 0, 0, 40, 8},
-	{"ops_skip_stmt", &sh136, 0, 0, 14, 8},
+	{"ops_skip_stmt", &sh135, 0, 0, 14, 8},
 	{"ops_skip_body", &sh10, 0, 0, 12, 8},
-	{"ops_operand_stmt", &sh136, 0, 0, 14, 8},
-	{"ops_operand_body", &sh136, 0, 0, 27, 8},
-	{"ops_level_stmt", &sh136, 0, 0, 41, 8},
-	{"ops_level_body", &sh423, 0, 0, 42, 8},
+	{"ops_operand_stmt", &sh135, 0, 0, 14, 8},
+	{"ops_operand_body", &sh135, 0, 0, 27, 8},
+	{"ops_level_stmt", &sh135, 0, 0, 41, 8},
+	{"ops_level_body", &sh422, 0, 0, 42, 8},
 	{"ops_operator", &sh9, 0, 0, 40, 8},
-	{"ops_prefix", &sh136, 0, 0, 14, 8},
-	{"ops_prefix_body", &sh136, 0, 0, 27, 8},
-	{"ops_postfix", &sh136, 0, 0, 14, 8},
-	{"ops_postfix_body", &sh136, 0, 0, 27, 8},
-	{"ops_infix", &sh136, 0, 0, 14, 8},
-	{"ops_infix_body", &sh423, 0, 0, 43, 8},
+	{"ops_prefix", &sh135, 0, 0, 14, 8},
+	{"ops_prefix_body", &sh135, 0, 0, 27, 8},
+	{"ops_postfix", &sh135, 0, 0, 14, 8},
+	{"ops_postfix_body", &sh135, 0, 0, 27, 8},
+	{"ops_infix", &sh135, 0, 0, 14, 8},
+	{"ops_infix_body", &sh422, 0, 0, 43, 8},
 	{"action", &sh11, rt.RuleMemo, 41, 0, 8},
 	{"default_action", &sh11, 0, 0, 0, 0},
-	{"action_block", &sh136, rt.RuleMemo, 42, 44, 8},
+	{"action_block", &sh135, rt.RuleMemo, 42, 44, 8},
 	{"action_block_stmt", &sh9, 0, 0, 12, 8},
 	{"action_block_value", &sh9, 0, 0, 12, 8},
 	{"action_stmt", &sh11, 0, 0, 0, 8},
-	{"action_bind_stmt", &sh136, 0, 0, 45, 8},
+	{"action_bind_stmt", &sh135, 0, 0, 45, 8},
 	{"action_expr", &sh11, rt.RuleMemo | rt.RuleRec, 43, 0, 8},
 	{"action_ops", nil, rt.RuleRec, 0, 0, 8},
-	{"member_spelling", &sh16, 0, 0, 0, 0},
-	{"index_suffix", &sh136, rt.RuleRec, 0, 46, 8},
-	{"cast_type", &sh136, 0, 0, 19, 8},
-	{"lambda", &sh136, rt.RuleRec, 0, 47, 8},
-	{"lambda_head", &sh136, 0, 0, 48, 8},
-	{"lambda_params", &sh136, 0, 0, 18, 8},
+	{"member_spelling", &sh34, 0, 0, 0, 0},
+	{"index_suffix", &sh135, rt.RuleRec, 0, 46, 8},
+	{"cast_type", &sh135, 0, 0, 19, 8},
+	{"lambda", &sh135, rt.RuleRec, 0, 47, 8},
+	{"lambda_head", &sh135, 0, 0, 48, 8},
+	{"lambda_params", &sh135, 0, 0, 18, 8},
 	{"lambda_param", &sh9, rt.RuleMemo, 44, 46, 8},
 	{"action_tuple", &sh11, rt.RuleRec, 0, 0, 8},
 	{"action_unit", &sh10, 0, 0, 0, 8},
-	{"action_elems", &sh136, rt.RuleRec, 0, 49, 8},
+	{"action_elems", &sh135, rt.RuleRec, 0, 49, 8},
 	{"action_group", &sh10, rt.RuleRec, 0, 12, 8},
-	{"call", &sh136, rt.RuleRec, 0, 34, 8},
-	{"action_args", &sh136, rt.RuleMemo | rt.RuleRec, 45, 18, 8},
-	{"list_constructor", &sh423, rt.RuleRec, 0, 50, 8},
-	{"constructor", &sh423, rt.RuleRec, 0, 51, 8},
-	{"constructor_fields", &sh136, rt.RuleRec, 0, 18, 8},
+	{"call", &sh135, rt.RuleRec, 0, 34, 8},
+	{"action_args", &sh135, rt.RuleMemo | rt.RuleRec, 45, 18, 8},
+	{"list_constructor", &sh422, rt.RuleRec, 0, 50, 8},
+	{"constructor", &sh422, rt.RuleRec, 0, 51, 8},
+	{"constructor_fields", &sh135, rt.RuleRec, 0, 18, 8},
 	{"init_field", &sh10, rt.RuleMemo | rt.RuleRec, 46, 52, 8},
 	{"init_field_body", &sh10, rt.RuleRec, 0, 45, 8},
 	{"int", &sh11, 0, 0, 0, 0},
@@ -2118,29 +2118,29 @@ var rulesSpec = [...]ruleSpec{
 	{"false_lit", &sh11, rt.RuleMemo, 48, 0, 0},
 	{"nil_lit", &sh11, rt.RuleMemo, 49, 0, 0},
 	{"capture_ref", &sh11, rt.RuleMemo, 50, 0, 0},
-	{"index_capture", &sh94, 0, 0, 0, 0},
+	{"index_capture", &sh424, 0, 0, 0, 0},
 	{"var_name", &sh11, rt.RuleMemo, 51, 0, 0},
 	{"var_ref", &sh11, 0, 0, 0, 0},
 	{"ws", &sh4, rt.RuleMemo, 52, 24, 8},
 	{"comments", &sh9, rt.RuleMemo, 53, 26, 0},
 	{"horizontal", &sh9, rt.RuleMemo, 54, 26, 0},
-	{"word_end", &sh94, rt.RuleMemo, 55, 0, 8},
+	{"word_end", &sh424, rt.RuleMemo, 55, 0, 8},
 	{"space_no_line", &sh9, rt.RuleMemo, 56, 0, 0},
 	{"nl", &sh11, 0, 0, 0, 0},
 	{"space", &sh11, 0, 0, 0, 0},
 	{"source_comments", &sh9, 0, 0, 26, 0},
 	{"source_non_comment", &sh11, rt.RuleMemo, 57, 0, 0},
-	{"source_string", &sh136, 0, 0, 0, 0},
-	{"source_class", &sh136, 0, 0, 0, 0},
+	{"source_string", &sh135, 0, 0, 0, 0},
+	{"source_class", &sh135, 0, 0, 0, 0},
 	{"incomplete_comment", &sh10, rt.RuleMemo, 58, 0, 0},
 	{"comment", &sh11, rt.RuleMemo, 59, 0, 0},
 	{"comment_open", &sh11, 0, 0, 0, 0},
 	{"comment_group", &sh10, 0, 0, 18, 0},
 	{"line_comment", &sh4, rt.RuleMemo, 60, 13, 0},
 	{"comment_line", &sh11, 0, 0, 0, 0},
-	{"inline_comment", &sh136, rt.RuleMemo | rt.RuleRec, 61, 53, 0},
-	{"block_no_line", &sh136, rt.RuleMemo | rt.RuleRec, 62, 53, 0},
-	{"block_with_line", &sh136, rt.RuleMemo | rt.RuleRec, 63, 53, 0},
+	{"inline_comment", &sh135, rt.RuleMemo | rt.RuleRec, 61, 53, 0},
+	{"block_no_line", &sh135, rt.RuleMemo | rt.RuleRec, 62, 53, 0},
+	{"block_with_line", &sh135, rt.RuleMemo | rt.RuleRec, 63, 53, 0},
 	{"ident", &sh11, rt.RuleMemo, 64, 0, 0},
 	{"ident_start", &sh11, 0, 0, 0, 0},
 	{"ident_char", &sh11, 0, 0, 0, 0},
@@ -2149,28 +2149,28 @@ var rulesSpec = [...]ruleSpec{
 	{"string_open", &sh11, 0, 0, 0, 0},
 	{"string_open_text", &sh10, 0, 0, 0, 0},
 	{"action_string", &sh11, 0, 0, 0, 0},
-	{"char_class", &sh136, rt.RuleMemo, 66, 54, 0},
-	{"char_class_rng", &sh136, 0, 0, 55, 0},
+	{"char_class", &sh135, rt.RuleMemo, 66, 54, 0},
+	{"char_class_rng", &sh135, 0, 0, 55, 0},
 	{"char_class_chr", &sh11, 0, 0, 0, 0},
 	{"source_head", &sh4, 0, 0, 30, 0},
 	{"source_head_open", &sh4, rt.RuleMemo, 67, 30, 0},
-	{"source_empty_boundary", &sh16, 0, 0, 0, 0},
+	{"source_empty_boundary", &sh34, 0, 0, 0, 0},
 	{"source_item_tail", &sh11, rt.RuleMemo, 68, 0, 0},
-	{"source_tail_after_separator_trailing", &sh136, 0, 0, 56, 0},
-	{"source_tail_after_separator", &sh136, 0, 0, 56, 0},
+	{"source_tail_after_separator_trailing", &sh135, 0, 0, 56, 0},
+	{"source_tail_after_separator", &sh135, 0, 0, 56, 0},
 	{"source_tail_plain", &sh4, rt.RuleMemo, 69, 19, 0},
-	{"source_tail_empty", &sh16, 0, 0, 0, 0},
+	{"source_tail_empty", &sh34, 0, 0, 0, 0},
 	{"source_semis", &sh10, rt.RuleMemo, 70, 0, 0},
 	{"source_trivia", &sh11, 0, 0, 0, 0},
 	{"source_comma_tail", &sh11, 0, 0, 0, 0},
-	{"source_comma_after_separator_trailing", &sh136, 0, 0, 57, 0},
-	{"source_comma_after_separator", &sh136, 0, 0, 56, 0},
+	{"source_comma_after_separator_trailing", &sh135, 0, 0, 57, 0},
+	{"source_comma_after_separator", &sh135, 0, 0, 56, 0},
 	{"source_after_boundary", &sh11, rt.RuleMemo, 71, 0, 0},
 	{"source_inline_line_boundary", &sh10, rt.RuleMemo, 72, 58, 0},
-	{"source_inline_run_boundary", &sh136, rt.RuleMemo, 73, 59, 0},
+	{"source_inline_run_boundary", &sh135, rt.RuleMemo, 73, 59, 0},
 	{"source_run_tail", &sh11, 0, 0, 0, 0},
 	{"source_run_line", &sh9, 0, 0, 13, 0},
-	{"source_run_end", &sh16, 0, 0, 0, 0},
+	{"source_run_end", &sh34, 0, 0, 0, 0},
 	{"source_inline_block_boundary", &sh10, rt.RuleMemo, 74, 58, 0},
 	{"source_after_opener_boundary", &sh11, rt.RuleMemo, 75, 0, 0},
 	{"source_opener_block_boundary", &sh9, 0, 0, 13, 0},
@@ -2185,7 +2185,7 @@ var rulesSpec = [...]ruleSpec{
 	{"source_remaining", &sh11, rt.RuleMemo, 80, 0, 0},
 	{"source_scope_tail", &sh9, 0, 0, 26, 0},
 	{"source_next_boundary", &sh10, 0, 0, 60, 0},
-	{"source_empty_comment", &sh16, 0, 0, 0, 0},
+	{"source_empty_comment", &sh34, 0, 0, 0, 0},
 	{"source_detached_group", &sh4, 0, 0, 13, 0},
 	{"source_leading_group", &sh9, 0, 0, 13, 0},
 	{"source_line_flush", &sh10, rt.RuleMemo, 81, 0, 0},
@@ -2195,8 +2195,8 @@ var rulesSpec = [...]ruleSpec{
 	{"source_comment_start", &sh11, 0, 0, 0, 0},
 	{"source_comment", &sh11, rt.RuleMemo, 84, 0, 0},
 	{"source_line_group", &sh10, rt.RuleMemo, 85, 18, 0},
-	{"source_line_comment", &sh136, rt.RuleMemo, 86, 61, 0},
-	{"source_block_comment", &sh423, rt.RuleMemo | rt.RuleRec, 87, 18, 0},
+	{"source_line_comment", &sh135, rt.RuleMemo, 86, 61, 0},
+	{"source_block_comment", &sh422, rt.RuleMemo | rt.RuleRec, 87, 18, 0},
 	{"source_block_star", &sh9, 0, 0, 0, 0},
 	{"source_block_line", &sh4, rt.RuleMemo | rt.RuleRec, 88, 26, 0},
 	{"source_block_piece", &sh11, rt.RuleRec, 0, 0, 0},
@@ -2213,36 +2213,36 @@ var rulesSpec = [...]ruleSpec{
 	{"source_delimiter_char", &sh11, 0, 0, 0, 0},
 	{"source_bracket", &sh10, rt.RuleMemo, 92, 0, 0},
 	{"source_gap_run", &sh10, rt.RuleMemo, 93, 0, 0},
-	{"source_gap_head", &sh94, 0, 0, 30, 0},
+	{"source_gap_head", &sh424, 0, 0, 30, 0},
 	{"source_gap", &sh9, 0, 0, 63, 0},
 	{"source_open_gap", &sh9, 0, 0, 63, 0},
 	{"source_delimiter_gap", &sh9, 0, 0, 63, 0},
-	{"source_gap_flag", &sh16, rt.RuleMemo, 94, 0, 0},
-	{"package_attrs", &sh137, rt.RuleNovalue, 0, 0, 0},
+	{"source_gap_flag", &sh34, rt.RuleMemo, 94, 0, 0},
+	{"package_attrs", &sh136, rt.RuleNovalue, 0, 0, 0},
 	{"ident_char", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"stmt_sync", &sh423, rt.RuleMemo | rt.RuleNovalue, 95, 0, 0},
-	{"word_end", &sh94, rt.RuleMemo | rt.RuleNovalue, 96, 0, 8},
+	{"stmt_sync", &sh422, rt.RuleMemo | rt.RuleNovalue, 95, 0, 0},
+	{"word_end", &sh424, rt.RuleMemo | rt.RuleNovalue, 96, 0, 8},
 	{"decl_keyword", &sh11, rt.RuleNovalue, 0, 0, 0},
 	{"nl", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"decl_start", &sh136, rt.RuleMemo | rt.RuleNovalue, 97, 0, 0},
+	{"decl_start", &sh135, rt.RuleMemo | rt.RuleNovalue, 97, 0, 0},
 	{"sync_open", &sh11, rt.RuleMemo | rt.RuleNovalue, 98, 0, 0},
-	{"top_start", &sh136, rt.RuleNovalue, 0, 0, 0},
+	{"top_start", &sh135, rt.RuleNovalue, 0, 0, 0},
 	{"digit", &sh11, rt.RuleNovalue, 0, 0, 0},
 	{"decl_shape", &sh10, rt.RuleMemo | rt.RuleNovalue, 99, 0, 0},
 	{"rule_shape", &sh10, rt.RuleNovalue, 0, 0, 0},
-	{"type_alias_head", &sh423, rt.RuleNovalue, 0, 0, 8},
-	{"type_def_spelling", &sh16, rt.RuleNovalue, 0, 0, 0},
-	{"declaration_ahead", &sh16, rt.RuleMemo | rt.RuleNovalue, 100, 0, 0},
+	{"type_alias_head", &sh422, rt.RuleNovalue, 0, 0, 8},
+	{"type_def_spelling", &sh34, rt.RuleNovalue, 0, 0, 0},
+	{"declaration_ahead", &sh34, rt.RuleMemo | rt.RuleNovalue, 100, 0, 0},
 	{"field_sync", &sh10, rt.RuleNovalue, 0, 0, 0},
-	{"var_junk_end", &sh16, rt.RuleNovalue, 0, 0, 11},
-	{"operators_spelling", &sh16, rt.RuleNovalue, 0, 0, 0},
+	{"var_junk_end", &sh34, rt.RuleNovalue, 0, 0, 11},
+	{"operators_spelling", &sh34, rt.RuleNovalue, 0, 0, 0},
 	{"space_no_line", &sh9, rt.RuleMemo | rt.RuleNovalue, 101, 0, 0},
 	{"known_pragma", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"legacy_operators_start", &sh137, rt.RuleMemo | rt.RuleNovalue, 102, 0, 0},
+	{"legacy_operators_start", &sh136, rt.RuleMemo | rt.RuleNovalue, 102, 0, 0},
 	{"ident_start", &sh11, rt.RuleNovalue, 0, 0, 0},
 	{"ident", &sh11, rt.RuleMemo | rt.RuleNovalue, 103, 0, 0},
 	{"item_sync", &sh10, rt.RuleMemo | rt.RuleNovalue, 104, 0, 0},
-	{"member_spelling", &sh16, rt.RuleNovalue, 0, 0, 0},
+	{"member_spelling", &sh34, rt.RuleNovalue, 0, 0, 0},
 	{"true_lit", &sh11, rt.RuleMemo | rt.RuleNovalue, 105, 0, 0},
 	{"false_lit", &sh11, rt.RuleMemo | rt.RuleNovalue, 106, 0, 0},
 	{"nil_lit", &sh11, rt.RuleMemo | rt.RuleNovalue, 107, 0, 0},
@@ -2272,13 +2272,13 @@ var rulesSpec = [...]ruleSpec{
 	{"attrs_prefix", &sh10, rt.RuleNovalue, 0, 0, 0},
 	{"sync_unit", &sh11, rt.RuleMemo | rt.RuleNovalue, 120, 0, 0},
 	{"sync_top", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"sync_attrs", &sh423, rt.RuleMemo | rt.RuleNovalue, 121, 0, 0},
-	{"attrs_decl", &sh136, rt.RuleNovalue, 0, 0, 0},
-	{"attrs_start", &sh423, rt.RuleNovalue, 0, 0, 0},
+	{"sync_attrs", &sh422, rt.RuleMemo | rt.RuleNovalue, 121, 0, 0},
+	{"attrs_decl", &sh135, rt.RuleNovalue, 0, 0, 0},
+	{"attrs_start", &sh422, rt.RuleNovalue, 0, 0, 0},
 	{"decl_tail", &sh11, rt.RuleMemo | rt.RuleNovalue, 122, 0, 0},
 	{"sync_ml", &sh11, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 123, 0, 0},
-	{"source_string", &sh136, rt.RuleNovalue, 0, 0, 0},
-	{"source_class", &sh136, rt.RuleNovalue, 0, 0, 0},
+	{"source_string", &sh135, rt.RuleNovalue, 0, 0, 0},
+	{"source_class", &sh135, rt.RuleNovalue, 0, 0, 0},
 	{"incomplete_comment", &sh10, rt.RuleMemo | rt.RuleNovalue, 124, 0, 0},
 	{"source_remaining", &sh11, rt.RuleMemo | rt.RuleNovalue, 125, 0, 0},
 	{"source_horizontal_char", &sh11, rt.RuleNovalue, 0, 0, 0},
@@ -2286,22 +2286,22 @@ var rulesSpec = [...]ruleSpec{
 	{"source_bracket", &sh10, rt.RuleMemo | rt.RuleNovalue, 127, 0, 0},
 	{"source_open_char", &sh11, rt.RuleNovalue, 0, 0, 0},
 	{"comment_line", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"attr_paren", &sh136, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 128, 0, 0},
-	{"attr_call", &sh423, rt.RuleMemo | rt.RuleNovalue, 129, 0, 0},
-	{"sync_class", &sh136, rt.RuleNovalue, 0, 0, 0},
+	{"attr_paren", &sh135, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 128, 0, 0},
+	{"attr_call", &sh422, rt.RuleMemo | rt.RuleNovalue, 129, 0, 0},
+	{"sync_class", &sh135, rt.RuleNovalue, 0, 0, 0},
 	{"sync_closed", &sh11, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 130, 0, 0},
 	{"sync_word", &sh10, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 131, 0, 0},
-	{"sync_top_attrs", &sh423, rt.RuleNovalue, 0, 0, 0},
-	{"decl_shape_line", &sh136, rt.RuleNovalue, 0, 0, 0},
+	{"sync_top_attrs", &sh422, rt.RuleNovalue, 0, 0, 0},
+	{"decl_shape_line", &sh135, rt.RuleNovalue, 0, 0, 0},
 	{"decl_shape_end", &sh10, rt.RuleNovalue, 0, 0, 0},
 	{"string", &sh11, rt.RuleMemo | rt.RuleNovalue, 132, 0, 0},
-	{"sync_ml_paren", &sh136, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
-	{"sync_ml_brace", &sh136, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
+	{"sync_ml_paren", &sh135, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
+	{"sync_ml_brace", &sh135, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
 	{"comment_open", &sh11, rt.RuleNovalue, 0, 0, 0},
-	{"sync_closed_paren", &sh136, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
-	{"sync_closed_bracket", &sh136, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 133, 0, 0},
+	{"sync_closed_paren", &sh135, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
+	{"sync_closed_bracket", &sh135, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 133, 0, 0},
 	{"sync_index", &sh9, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 134, 0, 0},
-	{"sync_closed_brace", &sh136, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
+	{"sync_closed_brace", &sh135, rt.RuleNovalue | rt.RuleRec, 0, 0, 0},
 	{"assign_op", &sh11, rt.RuleNovalue, 0, 0, 0},
 	{"sync_inner", &sh11, rt.RuleMemo | rt.RuleNovalue | rt.RuleRec, 135, 0, 0},
 }
@@ -2708,7 +2708,7 @@ func init() {
 			{Id: 1, Kind: "infix", Assoc: "left", Level: 2, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e461, Action: func(c *rt.TActCtx) (any, any) {
 				tv1 := tmk_Sequence(c, true, (c.Lhs), (c.Rhs))
 				return tv1, nil
-			}, Value: sh16}},
+			}, Value: sh34}},
 			{Id: 5, Kind: "postfix", Assoc: "", Level: 4, Line: &rt.TOperatorsRuleLine{Scope: []string{}, M: e467, Action: func(c *rt.TActCtx) (any, any) {
 				tv1 := tmk_Optional(c, true, (c.Lhs))
 				return tv1, nil
@@ -3187,7 +3187,7 @@ L6:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L12
 	}
 	x13 = p.Mark()
@@ -3228,7 +3228,7 @@ L11:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L16
 	}
 	goto L5
@@ -3307,7 +3307,7 @@ func e431(p *rt.TParser, _ int) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L2
 	}
 	p.LookEnd(true)
@@ -3392,7 +3392,7 @@ L4:
 	if _, ok = u179(p); !ok {
 		goto fail
 	}
-	if _, ok = p.Parser.MatchLiteral(lit197, "#ignorecase", 102, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit196, "#ignorecase", 102, false); !ok {
 		goto fail
 	}
 	x9 = p.Mark()
@@ -3447,7 +3447,7 @@ func e436(p *rt.TParser, _ int) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L2
 	}
 	p.LookEnd(true)
@@ -3552,7 +3552,7 @@ func e438(p *rt.TParser, _ int) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L2
 	}
 	p.LookEnd(true)
@@ -3657,7 +3657,7 @@ func e439(p *rt.TParser, _ int) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L2
 	}
 	p.LookEnd(true)
@@ -3733,7 +3733,7 @@ func e440(p *rt.TParser, _ int) (any, bool) {
 	p.LookBegin(166)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto L11
 	}
 	p.LookEnd(true)
@@ -4910,7 +4910,7 @@ func s18(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L7
 	}
 	goto L3
@@ -4986,7 +4986,7 @@ func s19(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L7
 	}
 	goto L3
@@ -5004,7 +5004,7 @@ L8:
 	p.LookBegin(13)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L11
 	}
 	p.LookEnd(true)
@@ -5083,7 +5083,7 @@ func s20(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L7
 	}
 	goto L3
@@ -5101,7 +5101,7 @@ L8:
 	p.LookBegin(15)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L11
 	}
 	p.LookEnd(true)
@@ -5502,7 +5502,7 @@ L7:
 	p.LookBegin(74)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L15
 	}
 	if _, ok = u180(p); !ok {
@@ -5583,7 +5583,7 @@ L15:
 L16:
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L12
 	}
 	if _, ok = u179(p); !ok {
@@ -5714,7 +5714,7 @@ L3:
 	x10, x11 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L12
 	}
 	goto L13
@@ -6069,7 +6069,7 @@ func e457(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 91 && p.In[p.Pos+1] == 93) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit252, "[]", 133, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit251, "[]", 133, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, "[]", true)
@@ -6086,7 +6086,7 @@ func e458(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit356, "*", 153, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit355, "*", 153, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, "*", true)
@@ -6173,7 +6173,7 @@ L3:
 	x21 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L24
 	}
 	x22, x23 = p.Unisolate(x21)
@@ -6256,7 +6256,7 @@ func i69(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L11
 		}
 		if _, ok = u179(p); !ok {
@@ -6283,7 +6283,7 @@ func i69(p *rt.TParser) (any, bool) {
 	x15, x16 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L17
 	}
 	goto L18
@@ -6502,7 +6502,7 @@ func i72(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L8
 		}
 		if _, ok = u179(p); !ok {
@@ -6853,7 +6853,7 @@ func i77(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -7095,7 +7095,7 @@ L36:
 	x39 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L42
 	}
 	x40, x41 = p.Unisolate(x39)
@@ -7909,7 +7909,7 @@ func e462(p *rt.TParser) (any, bool) {
 	p.LookBegin(90)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L8
 	}
 	p.LookEnd(true)
@@ -8019,7 +8019,7 @@ func e465(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, "-", true)
@@ -8029,7 +8029,7 @@ func e465(p *rt.TParser) (any, bool) {
 	p.LookBegin(92)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L6
 	}
 	p.LookEnd(true)
@@ -8145,7 +8145,7 @@ L17:
 	p.LookEnd(false)
 	p.Silent--
 	p.Reset(x16)
-	v18, _ = p.ShapeSingle(sh16, nil, x7.Pos)
+	v18, _ = p.ShapeSingle(sh34, nil, x7.Pos)
 	v8 = v18
 	goto L9
 L15:
@@ -8224,7 +8224,7 @@ L17:
 	p.LookEnd(false)
 	p.Silent--
 	p.Reset(x16)
-	v18, _ = p.ShapeSingle(sh16, nil, x7.Pos)
+	v18, _ = p.ShapeSingle(sh34, nil, x7.Pos)
 	v8 = v18
 	goto L9
 L15:
@@ -8299,7 +8299,7 @@ func e476(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	x2 = p.NewVals(1)[:0]
 	x3 = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit197, "#ignorecase", 102, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit196, "#ignorecase", 102, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, "#ignorecase", true)
@@ -8458,7 +8458,7 @@ func s87(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 35) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit124, "#", 53, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit123, "#", 53, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, "#", true)
@@ -8793,7 +8793,7 @@ func i95(p *rt.TParser) (any, bool) {
 	var x5, x11, x18, x24 []rt.ExpID
 	start = p.Pos
 	prevEnv = p.Env
-	if _, ok = p.Parser.MatchLiteral(lit150, "level(", 72, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit149, "level(", 72, false); !ok {
 		goto fail
 	}
 	if !p.Bind(0, func(c *rt.TActCtx) (any, any) {
@@ -8823,7 +8823,7 @@ L7:
 	x9 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L12
 	}
 	x10, x11 = p.Unisolate(x9)
@@ -8894,7 +8894,7 @@ func s96(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 95) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit152, "_", 77, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit151, "_", 77, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -8934,7 +8934,7 @@ func s97(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 95 && p.In[p.Pos+1] == 124 && p.In[p.Pos+2] == 95) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit154, "_|_", 78, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit153, "_|_", 78, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, p.Text(x1, p.Pos), true)
@@ -8960,7 +8960,7 @@ func s98(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 94 && p.In[p.Pos+1] == 94) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit156, "^^", 79, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit155, "^^", 79, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, p.Text(x1, p.Pos), true)
@@ -8986,7 +8986,7 @@ func s99(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 94) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit158, "^", 80, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit157, "^", 80, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, p.Text(x1, p.Pos), true)
@@ -9012,7 +9012,7 @@ func s100(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 36 && p.In[p.Pos+1] == 36) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit160, "$$", 81, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit159, "$$", 81, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, p.Text(x1, p.Pos), true)
@@ -9039,7 +9039,7 @@ func s101(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 36) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit162, "$", 82, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit161, "$", 82, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -9113,7 +9113,7 @@ func s102(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 46) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit164, ".", 84, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit163, ".", 84, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -9121,7 +9121,7 @@ func s102(p *rt.TParser) (any, bool) {
 	p.LookBegin(116)
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 46 && p.In[p.Pos+1] == 46) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit165, "..", 85, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit164, "..", 85, false); !ok {
 		goto L4
 	}
 	p.LookEnd(true)
@@ -9155,7 +9155,7 @@ func s103(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 35 && p.In[p.Pos+1] == 99 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 116) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit167, "#cut", 86, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit166, "#cut", 86, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -9214,7 +9214,7 @@ func s104(p *rt.TParser) (any, bool) {
 	p.LookBegin(119)
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 45 && p.In[p.Pos+1] == 45) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit169, "--", 87, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit168, "--", 87, false); !ok {
 		goto L4
 	}
 	p.LookEnd(true)
@@ -9451,7 +9451,7 @@ func i108(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -9503,7 +9503,7 @@ func i109(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -9641,7 +9641,7 @@ L5:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L15
 	}
 	if _, ok = u179(p); !ok {
@@ -9666,7 +9666,7 @@ L5:
 		x19, x20 = p.Pos, len(p.Recovered)
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 48) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit178, "0", 92, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit177, "0", 92, false); !ok {
 			goto L21
 		}
 		x18++
@@ -9763,7 +9763,7 @@ func i112(p *rt.TParser) (any, bool) {
 	x1 = p.Isolate(p.Pos)
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 115 && p.In[p.Pos+1] == 107 && p.In[p.Pos+2] == 105 && p.In[p.Pos+3] == 112) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit129, "skip", 57, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit128, "skip", 57, false); !ok {
 		goto L4
 	}
 	x2, x3 = p.Unisolate(x1)
@@ -9780,7 +9780,7 @@ L5:
 	x6 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L9
 	}
 	x7, x8 = p.Unisolate(x6)
@@ -10124,7 +10124,7 @@ func i116(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L11
 		}
 		if _, ok = u179(p); !ok {
@@ -10151,7 +10151,7 @@ func i116(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L17
 	}
 	if _, ok = u179(p); !ok {
@@ -10230,7 +10230,7 @@ func i117(p *rt.TParser) (any, bool) {
 		x15 = p.Pos
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L12
 		}
 		v16 = p.NewMatch(x15, p.Pos, ",", true)
@@ -10438,7 +10438,7 @@ func s120(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L3
 	}
 	if _, ok = u179(p); !ok {
@@ -10491,7 +10491,7 @@ func i121(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -10552,7 +10552,7 @@ func i122(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L3
 	}
 	p.LookEnd(true)
@@ -10620,7 +10620,7 @@ func i123(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L2
 	}
 	p.LookEnd(true)
@@ -10642,7 +10642,7 @@ L3:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -10790,7 +10790,7 @@ func s125(p *rt.TParser) (any, bool) {
 	x2, x3 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L4
 	}
 	if _, ok = u179(p); !ok {
@@ -10926,13 +10926,13 @@ func i128(p *rt.TParser) (any, bool) {
 	p.LookBegin(129)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 35) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit124, "#", 53, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit123, "#", 53, false); !ok {
 		goto L9
 	}
 	x11, x12 = p.Pos, len(p.Recovered)
 	p.Silent++
 	p.LookBegin(128)
-	if _, ok = p.Parser.MatchLiteral(lit142, "ignorecase", 67, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit141, "ignorecase", 67, false); !ok {
 		goto L13
 	}
 	x14, x15 = p.Pos, len(p.Recovered)
@@ -11019,7 +11019,7 @@ func i129(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	p.Silent++
 	p.LookBegin(131)
-	if _, ok = p.Parser.MatchLiteral(lit200, "#operators", 104, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit199, "#operators", 104, false); !ok {
 		goto L2
 	}
 	x4, x5 = p.Pos, len(p.Recovered)
@@ -11054,7 +11054,7 @@ L2:
 	p.Pos = x1
 	goto fail
 L3:
-	if _, ok = p.Parser.MatchLiteral(lit200, "#operators", 104, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit199, "#operators", 104, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -11118,7 +11118,7 @@ L9:
 	x31 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L34
 	}
 	x32, x33 = p.Unisolate(x31)
@@ -11298,7 +11298,7 @@ func i132(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 115 && p.In[p.Pos+1] == 107 && p.In[p.Pos+2] == 105 && p.In[p.Pos+3] == 112) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit129, "skip", 57, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit128, "skip", 57, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -11432,7 +11432,7 @@ func i134(p *rt.TParser) (any, bool) {
 	var x3 rt.ExpMark
 	var x5 []rt.ExpID
 	start = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit130, "operand", 58, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit129, "operand", 58, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -11594,7 +11594,7 @@ func i136(p *rt.TParser) (any, bool) {
 	var x10, x39 rt.ExpMark
 	var x12, x41 []rt.ExpID
 	start = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit131, "level", 59, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit130, "level", 59, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -11680,7 +11680,7 @@ L17:
 	x39 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L42
 	}
 	x40, x41 = p.Unisolate(x39)
@@ -11860,7 +11860,7 @@ func i139(p *rt.TParser) (any, bool) {
 	var x3 rt.ExpMark
 	var x5 []rt.ExpID
 	start = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit132, "prefix", 60, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit131, "prefix", 60, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -12009,7 +12009,7 @@ func i141(p *rt.TParser) (any, bool) {
 	var x3 rt.ExpMark
 	var x5 []rt.ExpID
 	start = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit133, "postfix", 61, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit132, "postfix", 61, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -12163,7 +12163,7 @@ func i143(p *rt.TParser) (any, bool) {
 	var x5, x33 []rt.ExpID
 	var x12 rune
 	start = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit134, "infix", 62, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit133, "infix", 62, false); !ok {
 		goto fail
 	}
 	if _, ok = u279(p); !ok {
@@ -12185,7 +12185,7 @@ func i143(p *rt.TParser) (any, bool) {
 	x17 = p.Pos
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 102 && p.In[p.Pos+3] == 116) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit217, "left", 114, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit216, "left", 114, false); !ok {
 		goto L15
 	}
 	v18 = p.NewMatch(x17, p.Pos, "left", true)
@@ -12209,7 +12209,7 @@ L14:
 	}
 	cut21 = false
 	x22 = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit218, "right", 115, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit217, "right", 115, false); !ok {
 		goto L20
 	}
 	v23 = p.NewMatch(x22, p.Pos, "right", true)
@@ -12235,7 +12235,7 @@ L19:
 	x27 = p.Pos
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 110 && p.In[p.Pos+1] == 111 && p.In[p.Pos+2] == 110 && p.In[p.Pos+3] == 101) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit219, "none", 116, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit218, "none", 116, false); !ok {
 		goto L25
 	}
 	v28 = p.NewMatch(x27, p.Pos, "none", true)
@@ -12391,7 +12391,7 @@ func s145(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 46 && p.In[p.Pos+1] == 46 && p.In[p.Pos+2] == 46) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit222, "...", 119, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit221, "...", 119, false); !ok {
 		goto fail
 	}
 	v2 = p.NewMatch(x1, p.Pos, p.Text(x1, p.Pos), true)
@@ -12470,7 +12470,7 @@ func i146(p *rt.TParser) (any, bool) {
 	x15 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L18
 	}
 	x16, x17 = p.Unisolate(x15)
@@ -12654,7 +12654,7 @@ func i150(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 58 && p.In[p.Pos+1] == 61) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit229, ":=", 121, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit228, ":=", 121, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -13203,7 +13203,7 @@ L6:
 	x14 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L11
 	}
 	v15 = p.NewMatch(x14, p.Pos, "-", true)
@@ -13213,7 +13213,7 @@ L6:
 	p.LookBegin(140)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L17
 	}
 	p.LookEnd(true)
@@ -13259,7 +13259,7 @@ func e498(p *rt.TParser) (any, bool) {
 	x8 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit356, "*", 153, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit355, "*", 153, false); !ok {
 		goto L7
 	}
 	v9 = p.NewMatch(x8, p.Pos, "*", true)
@@ -13343,7 +13343,7 @@ func e499(p *rt.TParser) (any, bool) {
 	x10 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L7
 	}
 	v11 = p.NewMatch(x10, p.Pos, "-", true)
@@ -13353,7 +13353,7 @@ func e499(p *rt.TParser) (any, bool) {
 	p.LookBegin(141)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto L13
 	}
 	p.LookEnd(true)
@@ -13396,7 +13396,7 @@ L6:
 	p.LookBegin(142)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L23
 	}
 	p.LookEnd(true)
@@ -13432,7 +13432,7 @@ func e500(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 46) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit164, ".", 84, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit163, ".", 84, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, ".", true)
@@ -13462,7 +13462,7 @@ func e501(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 46) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit164, ".", 84, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit163, ".", 84, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, ".", true)
@@ -13494,7 +13494,7 @@ func e502(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 46) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit164, ".", 84, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit163, ".", 84, false); !ok {
 		goto fail
 	}
 	v4 = p.NewMatch(x3, p.Pos, ".", true)
@@ -13829,7 +13829,7 @@ func i158(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L11
 		}
 		if _, ok = u179(p); !ok {
@@ -13856,7 +13856,7 @@ func i158(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L17
 	}
 	goto L18
@@ -13989,7 +13989,7 @@ L6:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L24
 	}
 	goto L20
@@ -14214,7 +14214,7 @@ func i162(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L8
 		}
 		if _, ok = u179(p); !ok {
@@ -14549,7 +14549,7 @@ func i165(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L11
 		}
 		if _, ok = u179(p); !ok {
@@ -14576,7 +14576,7 @@ func i165(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L17
 	}
 	if _, ok = u179(p); !ok {
@@ -14640,7 +14640,7 @@ func i166(p *rt.TParser) (any, bool) {
 	p.Enter()
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 91 && p.In[p.Pos+1] == 93) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit252, "[]", 133, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit251, "[]", 133, false); !ok {
 		goto fail
 	}
 	if _, ok = u179(p); !ok {
@@ -14697,7 +14697,7 @@ L15:
 	x21 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L24
 	}
 	x22, x23 = p.Unisolate(x21)
@@ -14843,7 +14843,7 @@ L17:
 	x35 = p.Isolate(p.Pos)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L38
 	}
 	x36, x37 = p.Unisolate(x35)
@@ -14922,7 +14922,7 @@ func i168(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L11
 		}
 		if _, ok = u179(p); !ok {
@@ -14949,7 +14949,7 @@ func i168(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto L17
 	}
 	if _, ok = u179(p); !ok {
@@ -15231,7 +15231,7 @@ func v172(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit260, "true", 99, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit259, "true", 99, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -15278,7 +15278,7 @@ func v173(p *rt.TParser) (any, bool) {
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	x1 = p.Pos
-	if _, ok = p.Parser.MatchLiteral(lit262, "false", 100, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit261, "false", 100, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -15327,7 +15327,7 @@ func v174(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 110 && p.In[p.Pos+1] == 105 && p.In[p.Pos+2] == 108) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit264, "nil", 101, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit263, "nil", 101, false); !ok {
 		goto fail
 	}
 	x2, x3 = p.Pos, len(p.Recovered)
@@ -15379,7 +15379,7 @@ func v175(p *rt.TParser) (any, bool) {
 	p.LookBegin(152)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 36) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit162, "$", 82, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit161, "$", 82, false); !ok {
 		goto L3
 	}
 	if _, ok = u298(p); !ok {
@@ -15397,7 +15397,7 @@ L3:
 L4:
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 36) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit162, "$", 82, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit161, "$", 82, false); !ok {
 		goto fail
 	}
 	if _, ok = u298(p); !ok {
@@ -15429,7 +15429,7 @@ func s176(p *rt.TParser) (any, bool) {
 	p.LookBegin(153)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 36) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit162, "$", 82, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit161, "$", 82, false); !ok {
 		goto L4
 	}
 	if _, ok = s285(p); !ok {
@@ -16025,7 +16025,7 @@ func s192(p *rt.TParser) (any, bool) {
 	x6 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L4
 	}
 	v7 = p.NewMatch(x6, p.Pos, "/*", true)
@@ -16296,7 +16296,7 @@ func i196(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 			goto L25
 		}
 		goto L21
@@ -16315,7 +16315,7 @@ func i196(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 			goto L27
 		}
 		goto L21
@@ -16361,7 +16361,7 @@ func i196(p *rt.TParser) (any, bool) {
 	x31 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 		goto fail
 	}
 	v32 = p.NewMatch(x31, p.Pos, "*/", true)
@@ -16438,7 +16438,7 @@ func i197(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 			goto L25
 		}
 		goto L21
@@ -16457,7 +16457,7 @@ func i197(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 			goto L27
 		}
 		goto L21
@@ -16509,7 +16509,7 @@ func i197(p *rt.TParser) (any, bool) {
 	x32 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 		goto fail
 	}
 	v33 = p.NewMatch(x32, p.Pos, "*/", true)
@@ -16586,7 +16586,7 @@ func i198(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 			goto L25
 		}
 		goto L21
@@ -16605,7 +16605,7 @@ func i198(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 			goto L27
 		}
 		goto L21
@@ -16693,7 +16693,7 @@ L31:
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 			goto L52
 		}
 		goto L48
@@ -16712,7 +16712,7 @@ L31:
 		}
 		if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 			p.Pos += 2
-		} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 			goto L54
 		}
 		goto L48
@@ -16758,7 +16758,7 @@ L31:
 	x58 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 		goto fail
 	}
 	v59 = p.NewMatch(x58, p.Pos, "*/", true)
@@ -16865,7 +16865,7 @@ func v203(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x3 = p.Pos
@@ -16957,13 +16957,13 @@ func v203(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x17, x18 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 105) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit301, "i", 149, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit300, "i", 149, false); !ok {
 		goto L19
 	}
 	x21, x22 = p.Pos, len(p.Recovered)
@@ -17028,7 +17028,7 @@ func s206(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x3 = p.Pos
@@ -17120,7 +17120,7 @@ func s206(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x17, x18 = p.Pos, len(p.Recovered)
@@ -17185,7 +17185,7 @@ func i207(p *rt.TParser) (any, bool) {
 	x8 = p.Pos
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 94) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit158, "^", 80, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit157, "^", 80, false); !ok {
 		goto L6
 	}
 	v9 = p.NewMatch(x8, p.Pos, "^", true)
@@ -17323,7 +17323,7 @@ func i208(p *rt.TParser) (any, bool) {
 	k1 = v3
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 45) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit177, "-", 91, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit176, "-", 91, false); !ok {
 		goto fail
 	}
 	x4, x5 = p.Pos, len(p.Recovered)
@@ -17957,7 +17957,7 @@ func i221(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto fail
 	}
 	if v3, ok = u237(p); !ok {
@@ -18021,7 +18021,7 @@ func i222(p *rt.TParser) (any, bool) {
 	k1 = v3
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 		goto fail
 	}
 	if v6, ok = u230(p); !ok {
@@ -20190,7 +20190,7 @@ func i254(p *rt.TParser) (any, bool) {
 	p.Enter()
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto fail
 	}
 	if v3, ok = u256(p); !ok {
@@ -20263,7 +20263,7 @@ func i254(p *rt.TParser) (any, bool) {
 	k4 = v28
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 		goto fail
 	}
 	c = p.UseCtx(rt.TActCtx{P: p, Start: start, End: p.Pos, Cbase: len(p.Created)})
@@ -20572,7 +20572,7 @@ L10:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 42 && p.In[p.Pos+1] == 47) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit293, "*/", 148, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit292, "*/", 148, false); !ok {
 		goto L14
 	}
 	goto L9
@@ -20591,7 +20591,7 @@ L13:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L16
 	}
 	goto L9
@@ -20662,7 +20662,7 @@ func s260(p *rt.TParser) (any, bool) {
 	x9 = p.Pos
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit277, "\r\n", 140, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit276, "\r\n", 140, false); !ok {
 		goto L8
 	}
 	v10 = p.NewMatch(x9, p.Pos, "\r\n", true)
@@ -20796,7 +20796,7 @@ L7:
 		x41 = p.NewVals(1)[:0]
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit96, ",", 44, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit95, ",", 44, false); !ok {
 			goto L39
 		}
 		if v43, ok = u273(p); !ok {
@@ -21686,7 +21686,7 @@ L16:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L35
 	}
 	goto L31
@@ -21867,7 +21867,7 @@ func s281(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit277, "\r\n", 140, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit276, "\r\n", 140, false); !ok {
 		goto L12
 	}
 	goto L8
@@ -21952,7 +21952,7 @@ L4:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L8
 	}
 	goto L3
@@ -22216,7 +22216,7 @@ L4:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L8
 	}
 	goto L3
@@ -22532,7 +22532,7 @@ L11:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L27
 	}
 	x28, x29 = p.Pos, len(p.Recovered)
@@ -22702,7 +22702,7 @@ L55:
 	p.LookBegin(213)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L69
 	}
 	p.LookEnd(true)
@@ -22811,7 +22811,7 @@ func s291(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 			goto L19
 		}
 		goto L15
@@ -22836,7 +22836,7 @@ func s291(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 			goto L22
 		}
 		goto L15
@@ -22890,7 +22890,7 @@ func s291(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L29
 	}
 	goto L25
@@ -22908,7 +22908,7 @@ L30:
 	p.LookBegin(216)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L33
 	}
 	p.LookEnd(true)
@@ -22975,7 +22975,7 @@ func s292(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L3
 	}
 	x4, x5 = p.Pos, len(p.Recovered)
@@ -23117,7 +23117,7 @@ func s295(p *rt.TParser) (any, bool) {
 		p.Expect(p.Pos, 64)
 		goto L6
 	}
-	if _, ok = p.Parser.MatchLiteral(lit139, "atomic", 64, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit138, "atomic", 64, false); !ok {
 		goto L7
 	}
 	goto L3
@@ -23134,7 +23134,7 @@ L6:
 		p.Expect(p.Pos, 65)
 		goto L8
 	}
-	if _, ok = p.Parser.MatchLiteral(lit140, "stream", 65, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit139, "stream", 65, false); !ok {
 		goto L9
 	}
 	goto L3
@@ -23151,7 +23151,7 @@ L8:
 		p.Expect(p.Pos, 66)
 		goto L10
 	}
-	if _, ok = p.Parser.MatchLiteral(lit141, "missing", 66, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit140, "missing", 66, false); !ok {
 		goto L11
 	}
 	goto L3
@@ -23168,7 +23168,7 @@ L10:
 		p.Expect(p.Pos, 67)
 		goto L12
 	}
-	if _, ok = p.Parser.MatchLiteral(lit142, "ignorecase", 67, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit141, "ignorecase", 67, false); !ok {
 		goto L13
 	}
 	goto L3
@@ -23185,7 +23185,7 @@ L12:
 		p.Expect(p.Pos, 68)
 		goto L14
 	}
-	if _, ok = p.Parser.MatchLiteral(lit143, "repeat", 68, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit142, "repeat", 68, false); !ok {
 		goto L15
 	}
 	goto L3
@@ -23202,7 +23202,7 @@ L14:
 		p.Expect(p.Pos, 69)
 		goto L16
 	}
-	if _, ok = p.Parser.MatchLiteral(lit144, "recover", 69, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit143, "recover", 69, false); !ok {
 		goto L17
 	}
 	goto L3
@@ -23221,7 +23221,7 @@ L16:
 	}
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 99 && p.In[p.Pos+1] == 117 && p.In[p.Pos+2] == 116) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit145, "cut", 70, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit144, "cut", 70, false); !ok {
 		goto L19
 	}
 	goto L3
@@ -23238,7 +23238,7 @@ L18:
 		p.Expect(p.Pos, 56)
 		goto L20
 	}
-	if _, ok = p.Parser.MatchLiteral(lit128, "operators", 56, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit127, "operators", 56, false); !ok {
 		goto L21
 	}
 	x22 = p.Pos
@@ -23292,7 +23292,7 @@ func v296(p *rt.TParser) (any, bool) {
 	var ok, x12, x36, x45, x55 bool
 	var x11, x35, x44, x54 rune
 	start, rec = p.Pos, len(p.Recovered)
-	if _, ok = p.Parser.MatchLiteral(lit128, "operators", 56, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit127, "operators", 56, false); !ok {
 		goto fail
 	}
 	x1, x2 = p.Pos, len(p.Recovered)
@@ -23334,7 +23334,7 @@ L3:
 	}
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 115 && p.In[p.Pos+1] == 107 && p.In[p.Pos+2] == 105 && p.In[p.Pos+3] == 112) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit129, "skip", 57, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit128, "skip", 57, false); !ok {
 		goto L14
 	}
 	goto L10
@@ -23351,7 +23351,7 @@ L13:
 		p.Expect(p.Pos, 58)
 		goto L15
 	}
-	if _, ok = p.Parser.MatchLiteral(lit130, "operand", 58, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit129, "operand", 58, false); !ok {
 		goto L16
 	}
 	goto L10
@@ -23368,7 +23368,7 @@ L15:
 		p.Expect(p.Pos, 59)
 		goto L17
 	}
-	if _, ok = p.Parser.MatchLiteral(lit131, "level", 59, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit130, "level", 59, false); !ok {
 		goto L18
 	}
 	goto L10
@@ -23385,7 +23385,7 @@ L17:
 		p.Expect(p.Pos, 60)
 		goto L19
 	}
-	if _, ok = p.Parser.MatchLiteral(lit132, "prefix", 60, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit131, "prefix", 60, false); !ok {
 		goto L20
 	}
 	goto L10
@@ -23402,7 +23402,7 @@ L19:
 		p.Expect(p.Pos, 61)
 		goto L21
 	}
-	if _, ok = p.Parser.MatchLiteral(lit133, "postfix", 61, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit132, "postfix", 61, false); !ok {
 		goto L22
 	}
 	goto L10
@@ -23419,7 +23419,7 @@ L21:
 		p.Expect(p.Pos, 62)
 		goto L23
 	}
-	if _, ok = p.Parser.MatchLiteral(lit134, "infix", 62, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit133, "infix", 62, false); !ok {
 		goto L24
 	}
 	goto L10
@@ -23459,7 +23459,7 @@ L27:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto L38
 	}
 	goto L34
@@ -23536,7 +23536,7 @@ L7:
 		p.Expect(p.Pos, 59)
 		goto L46
 	}
-	if _, ok = p.Parser.MatchLiteral(lit131, "level", 59, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit130, "level", 59, false); !ok {
 		goto L47
 	}
 	x48, x49 = p.Pos, len(p.Recovered)
@@ -23575,7 +23575,7 @@ L50:
 		p.Expect(p.Pos, 60)
 		goto L56
 	}
-	if _, ok = p.Parser.MatchLiteral(lit132, "prefix", 60, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit131, "prefix", 60, false); !ok {
 		goto L57
 	}
 	goto L53
@@ -23592,7 +23592,7 @@ L56:
 		p.Expect(p.Pos, 61)
 		goto L58
 	}
-	if _, ok = p.Parser.MatchLiteral(lit133, "postfix", 61, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit132, "postfix", 61, false); !ok {
 		goto L59
 	}
 	goto L53
@@ -23609,7 +23609,7 @@ L58:
 		p.Expect(p.Pos, 62)
 		goto L60
 	}
-	if _, ok = p.Parser.MatchLiteral(lit134, "infix", 62, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit133, "infix", 62, false); !ok {
 		goto L61
 	}
 	goto L53
@@ -23775,7 +23775,7 @@ func v299(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 			goto L19
 		}
 		goto L15
@@ -23800,7 +23800,7 @@ func v299(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 			goto L22
 		}
 		goto L15
@@ -23854,7 +23854,7 @@ func v299(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L29
 	}
 	goto L25
@@ -23872,7 +23872,7 @@ L30:
 	p.LookBegin(228)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L33
 	}
 	p.LookEnd(true)
@@ -23944,7 +23944,7 @@ func s300(p *rt.TParser) (any, bool) {
 		p.Expect(p.Pos, 123)
 		goto L16
 	}
-	if _, ok = p.Parser.MatchLiteral(lit232, "startPos", 123, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit231, "startPos", 123, false); !ok {
 		goto L17
 	}
 	goto L13
@@ -23961,7 +23961,7 @@ L16:
 		p.Expect(p.Pos, 124)
 		goto L18
 	}
-	if _, ok = p.Parser.MatchLiteral(lit233, "endPos", 124, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit232, "endPos", 124, false); !ok {
 		goto L19
 	}
 	goto L13
@@ -23978,7 +23978,7 @@ L18:
 		p.Expect(p.Pos, 125)
 		goto L20
 	}
-	if _, ok = p.Parser.MatchLiteral(lit234, "children", 125, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit233, "children", 125, false); !ok {
 		goto L21
 	}
 	goto L13
@@ -23995,7 +23995,7 @@ L20:
 		p.Expect(p.Pos, 126)
 		goto L22
 	}
-	if _, ok = p.Parser.MatchLiteral(lit235, "expected", 126, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit234, "expected", 126, false); !ok {
 		goto L23
 	}
 	goto L13
@@ -24012,7 +24012,7 @@ L22:
 		p.Expect(p.Pos, 127)
 		goto L24
 	}
-	if _, ok = p.Parser.MatchLiteral(lit236, "message", 127, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit235, "message", 127, false); !ok {
 		goto L25
 	}
 	goto L13
@@ -24100,7 +24100,7 @@ func v301(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101) && p.Control.Take(4) {
 		p.Pos += 4
-	} else if _, ok = p.Parser.MatchLiteral(lit260, "true", 99, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit259, "true", 99, false); !ok {
 		goto fail
 	}
 	x1, x2 = p.Pos, len(p.Recovered)
@@ -24140,7 +24140,7 @@ func v302(p *rt.TParser) (any, bool) {
 	var v any
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
-	if _, ok = p.Parser.MatchLiteral(lit262, "false", 100, false); !ok {
+	if _, ok = p.Parser.MatchLiteral(lit261, "false", 100, false); !ok {
 		goto fail
 	}
 	x1, x2 = p.Pos, len(p.Recovered)
@@ -24182,7 +24182,7 @@ func v303(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 110 && p.In[p.Pos+1] == 105 && p.In[p.Pos+2] == 108) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit264, "nil", 101, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit263, "nil", 101, false); !ok {
 		goto fail
 	}
 	x1, x2 = p.Pos, len(p.Recovered)
@@ -24215,7 +24215,7 @@ func s304(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos+3 <= len(p.In) && p.In[p.Pos] == 95 && p.In[p.Pos+1] == 124 && p.In[p.Pos+2] == 95) && p.Control.Take(3) {
 		p.Pos += 3
-	} else if _, ok = p.Parser.MatchLiteral(lit154, "_|_", 78, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit153, "_|_", 78, false); !ok {
 		goto fail
 	}
 	v = nil
@@ -24242,7 +24242,7 @@ func s305(p *rt.TParser) (any, bool) {
 	} else {
 		ch, size, ok = p.Peek()
 	}
-	if !ok || ((p.Control != nil && p.RejectBudgetClass(ch, budgetClass279)) || (p.Control == nil && (!(ch == 32 || ch == 9 || ch == 10 || ch == 11 || ch == 12 || ch == 13 || ch == 133 || ch == 160 || ch == 5760 || ch >= 8192 && ch <= 8202 || ch == 8232 || ch == 8233 || ch == 8239 || ch == 8287 || ch == 12288)))) {
+	if !ok || ((p.Control != nil && p.RejectBudgetClass(ch, budgetClass278)) || (p.Control == nil && (!(ch == 32 || ch == 9 || ch == 10 || ch == 11 || ch == 12 || ch == 13 || ch == 133 || ch == 160 || ch == 5760 || ch >= 8192 && ch <= 8202 || ch == 8232 || ch == 8233 || ch == 8239 || ch == 8287 || ch == 12288)))) {
 		p.Expect(p.Pos, 143)
 		goto L4
 	}
@@ -24355,7 +24355,7 @@ L20:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L23
 	}
 	goto L17
@@ -24405,7 +24405,7 @@ func s307(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x2 = p.Pos
@@ -24520,7 +24520,7 @@ func v308(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto fail
 	}
 	x2 = p.Pos
@@ -24571,7 +24571,7 @@ func v308(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 			goto L6
 		}
 		if p.Pos == x4 {
@@ -24788,7 +24788,7 @@ func s312(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit277, "\r\n", 140, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit276, "\r\n", 140, false); !ok {
 		goto L7
 	}
 	goto L3
@@ -24888,7 +24888,7 @@ L8:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L11
 	}
 	goto L3
@@ -24907,7 +24907,7 @@ L10:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L13
 	}
 	goto L3
@@ -24970,7 +24970,7 @@ L6:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L9
 	}
 	goto L3
@@ -25189,7 +25189,7 @@ func v317(p *rt.TParser) (any, bool) {
 	} else {
 		x4, _, x5 = p.Peek()
 	}
-	if !(x5 && (!((p.Control != nil && p.RejectBudgetClass(x4, budgetClass365)) || (p.Control == nil && (!(x4 == 32 || x4 == 9 || x4 == 11 || x4 == 12 || x4 == 133 || x4 == 160 || x4 == 5760 || x4 >= 8192 && x4 <= 8202 || x4 == 8232 || x4 == 8233 || x4 == 8239 || x4 == 8287 || x4 == 12288)))))) && p.Depth <= p.MaxDepth {
+	if !(x5 && (!((p.Control != nil && p.RejectBudgetClass(x4, budgetClass364)) || (p.Control == nil && (!(x4 == 32 || x4 == 9 || x4 == 11 || x4 == 12 || x4 == 133 || x4 == 160 || x4 == 5760 || x4 >= 8192 && x4 <= 8202 || x4 == 8232 || x4 == 8233 || x4 == 8239 || x4 == 8287 || x4 == 12288)))))) && p.Depth <= p.MaxDepth {
 		p.Expect(p.Pos, 154)
 		goto L6
 	}
@@ -25254,7 +25254,7 @@ L4:
 	}
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L8
 	}
 	goto L3
@@ -25356,7 +25356,7 @@ func s320(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 42) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit356, "*", 153, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit355, "*", 153, false); !ok {
 		goto fail
 	}
 	x1, x2 = p.Pos, len(p.Recovered)
@@ -26394,7 +26394,7 @@ L4:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L8
 	}
 	goto L3
@@ -26902,7 +26902,7 @@ func s335(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x2 = p.Pos
@@ -26995,7 +26995,7 @@ func s335(p *rt.TParser) (any, bool) {
 	x16, x17 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto L18
 	}
 	goto L19
@@ -27236,7 +27236,7 @@ func s339(p *rt.TParser) (any, bool) {
 	} else {
 		ch, size, ok = p.Peek()
 	}
-	if !ok || ((p.Control != nil && p.RejectBudgetClass(ch, budgetClass365)) || (p.Control == nil && (!(ch == 32 || ch == 9 || ch == 11 || ch == 12 || ch == 133 || ch == 160 || ch == 5760 || ch >= 8192 && ch <= 8202 || ch == 8232 || ch == 8233 || ch == 8239 || ch == 8287 || ch == 12288)))) {
+	if !ok || ((p.Control != nil && p.RejectBudgetClass(ch, budgetClass364)) || (p.Control == nil && (!(ch == 32 || ch == 9 || ch == 11 || ch == 12 || ch == 133 || ch == 160 || ch == 5760 || ch >= 8192 && ch <= 8202 || ch == 8232 || ch == 8233 || ch == 8239 || ch == 8287 || ch == 12288)))) {
 		p.Expect(p.Pos, 154)
 		goto fail
 	}
@@ -27394,7 +27394,7 @@ L10:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto L13
 	}
 	goto L3
@@ -28103,7 +28103,7 @@ L4:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 		goto L8
 	}
 	goto L3
@@ -28407,7 +28407,7 @@ L7:
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 			goto L48
 		}
 		goto L44
@@ -28445,7 +28445,7 @@ L7:
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 59) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit30, ";", 15, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit29, ";", 15, false); !ok {
 			goto L52
 		}
 		goto L44
@@ -28483,7 +28483,7 @@ L7:
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 			goto L56
 		}
 		goto L44
@@ -28575,7 +28575,7 @@ L7:
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L67
 	}
 	goto L63
@@ -28740,7 +28740,7 @@ func v352(p *rt.TParser) (any, bool) {
 	start, rec = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x2 = p.Pos
@@ -28832,13 +28832,13 @@ func v352(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit135, "\"", 29, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit134, "\"", 29, false); !ok {
 		goto fail
 	}
 	x16, x17 = p.Pos, len(p.Recovered)
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 105) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit301, "i", 149, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit300, "i", 149, false); !ok {
 		goto L18
 	}
 	x20, x21 = p.Pos, len(p.Recovered)
@@ -29039,7 +29039,7 @@ func s354(p *rt.TParser) (any, bool) {
 		}
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 			goto L21
 		}
 		goto L15
@@ -29082,7 +29082,7 @@ func s354(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto fail
 	}
 	v = nil
@@ -29106,7 +29106,7 @@ func s355(p *rt.TParser) (any, bool) {
 	x1 = p.Isolate(p.Pos)
 	if (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 42) && p.Control.Take(2) {
 		p.Pos += 2
-	} else if _, ok = p.Parser.MatchLiteral(lit22, "/*", 13, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit21, "/*", 13, false); !ok {
 		goto L4
 	}
 	x2, x3 = p.Unisolate(x1)
@@ -29435,7 +29435,7 @@ func s359(p *rt.TParser) (any, bool) {
 		p.LookBegin(283)
 		if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 			p.Pos++
-		} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+		} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 			goto L12
 		}
 		p.LookEnd(true)
@@ -29504,7 +29504,7 @@ func s359(p *rt.TParser) (any, bool) {
 	}
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 125) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit32, "}", 16, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit31, "}", 16, false); !ok {
 		goto fail
 	}
 	v = nil
@@ -29548,7 +29548,7 @@ func s360(p *rt.TParser) (any, bool) {
 	p.Pos += size
 	if (p.Pos < len(p.In) && p.In[p.Pos] == 61) && p.Control.Take(1) {
 		p.Pos++
-	} else if _, ok = p.Parser.MatchLiteral(lit21, "=", 11, false); !ok {
+	} else if _, ok = p.Parser.MatchLiteral(lit20, "=", 11, false); !ok {
 		goto L7
 	}
 	goto L3
