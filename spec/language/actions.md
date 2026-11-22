@@ -79,6 +79,12 @@ and with `rule a = _ => A` and `rule b = a => B`, the rule `b` is the same as
   error and the text of a failed action describe the rule as
   `the inline action in rule r` (a failed action also names its number, as in
   `r (inline action 2)`).
+- **Declaration order.** The hidden rules of a rule `r` are declared right after `r`, in the
+  order of their numbers. This is the declaration order that chooses the
+  [leaders](parser-expressions.md#left-recursion) of left recursion when a cycle of left calls
+  passes through an inline action. Every such cycle passes through the rule that holds the inline
+  action, which is declared before its hidden rules, so a hidden rule of an inline action never
+  leads a cycle.
 
 ```sxir
 type Add = { Left Expr; Right node[string] }
