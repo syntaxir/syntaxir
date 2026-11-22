@@ -44,8 +44,7 @@ Evidence records:
 [046](../046-direct-calls-of-plain-rules-in-generated-parsers.md),
 [060](../060-direct-rules-in-the-typed-runtime.md).
 
-Source owners: [`Rule.Plain
-classification`](../../../internal/compile/compile.go),
+Source owners: the plain-rule classification in the front end's check package,
 [`parser.invokePlain`](../../../internal/runtime/state/runtime.go),
 [`plainCallFrame`](../../../internal/runtime/vm/ivm.go), [`plain call
 emission`](../../../internal/backend/codegen/golang/print/generator.go),

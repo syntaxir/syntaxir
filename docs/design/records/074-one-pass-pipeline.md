@@ -650,7 +650,7 @@ func Check(g *ast.Grammar, o common.CompileOptions, start string) (*Program, err
 // ProgramOf returns the Program of a program checked elsewhere: the run-time programs, which are
 // checked with rule flags and a cancel control. role and parser, the options the grammar's parser
 // was checked with, are what the program header writes. It checks nothing again.
-func ProgramOf(p *compile.Program, role Role, parser compile.Options) *Program
+func ProgramOf(p *frontend.Result, role Role, parser check.Options) *Program
 
 // Role names which of the run-time programs of a grammar a program is.
 type Role uint8
@@ -702,7 +702,7 @@ func DescribeGoLibrary(o Options) string
 // FlowTable builds the Node table of p at the Flow stage for the VM's Flow route, which exists
 // only in tests until the VM switch, at the default settings and with no pruning. The VM switch
 // deletes it.
-func FlowTable(ctx context.Context, p *compile.Program) (*plantypes.Table[code.Flow], error)
+func FlowTable(ctx context.Context, p *frontend.Result) (*plantypes.Table[code.Flow], error)
 
 // The slots of the assembled pipelines, for Edits.
 var CoreSlot, FlowSlot, ExecSlot, TargetSlot = ...
@@ -854,7 +854,7 @@ program:
   ```go
   // Options configures the compilation of a grammar to a run-time program.
   type Options struct {
-  	Compile  compile.Options // what the program is: the check reads them
+  	Compile  check.Options   // what the program is: the check reads them
   	Settings pass.Settings   // how its backends build it: the VM and the closures
   }
   ```
@@ -995,7 +995,7 @@ Detected by architecture tests, because Go cannot restrict callers:
   a pipeline. The subpackages and every other caller of a compilation go through the driver's `Compile` and `Describe`;
   they may import `internal/pass` for settings and edits only. Packages that declare passes, kinds or analyses import it
   for those, and run nothing.
-- `internal/compile` imports no `internal/pass`, so the settings stay out of the check's options, and no non-test package
+- `internal/frontend/check` imports no `internal/pass`, so the settings stay out of the check's options, and no non-test package
   under `internal/runtime` imports `internal/driver` or `internal/pass`.
 - `internal/driver` exports only an allowlist of identifiers: the compilation API above, the slot keys and the
   vocabulary of the settings (profiles, their documentation and values, the parsing of overrides and dump selections,

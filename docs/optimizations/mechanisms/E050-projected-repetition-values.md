@@ -38,7 +38,7 @@ timing.
 Evidence records: [052](../052-projected-repetitions-in-generated-parse.md),
 [053](../053-projected-repetitions-in-the-engine-and-the-vms.md).
 
-Source owners: [`RuleProjections`](../../../internal/compile/project.go),
+Source owners: the rule projections in the front end's check package,
 [`closure.Builder.ProjectRepeat`](../../../internal/backend/closure/builder.go), the projected
 repetitions of the bytecode compiler,
 [`Flow projectRepeat`](../../../internal/middleend/flowlower/lower.go), which lowers the

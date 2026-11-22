@@ -404,11 +404,11 @@ cheap lookahead expression, or ends the parse.
 
 ## Measurements
 
-All numbers come from two committed tests in `internal/compile`:
+All numbers come from two committed tests in `internal/analysis/complexity`:
 
 ```sh
-SXIR_EXCLUSION_REPORT=1 go test -count=1 -run 'TestExclusionReport$' -v ./internal/compile
-go test -count=1 -run 'TestExclusionControls$' -v ./internal/compile
+SXIR_EXCLUSION_REPORT=1 go test -count=1 -run 'TestExclusionReport$' -v ./internal/analysis/complexity
+go test -count=1 -run 'TestExclusionControls$' -v ./internal/analysis/complexity
 ```
 
 `TestExclusionReport` classifies the bundled grammars, in the normal view that the compiler reads, under each setting of
@@ -547,7 +547,7 @@ classifier.
 
 ## Testing
 
-In `internal/compile`:
+In `internal/analysis/complexity`:
 
 - `TestDecideAlt`, `TestDecideAltVariables`, `TestDecideAltTrivia`: the language-level comparison, for each
   decisive case, lookahead implication through a callee and after a prefix, literals that are equal up to case, calls

@@ -252,12 +252,11 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/ir/code/action` | The Action dialect: operations that evaluate action expressions |
 | `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
 | `internal/ir/code/exec/prim` | The data of grammar code at the Exec stage: the primitives that the Flow operations become, the types of their immediates (which the Flow dialect declares its operations with), the registers, the handle types and the function attributes, with the check of the Exec stage |
-| `internal/frontend` | Drives the front end and returns the semantic model and Core IR; the facts are computed by the analyses of the Core passes, which the front end is handed (`internal/middleend/checkfacts`) and does not compute |
-| `internal/compile` | Canonicalization and checking of a grammar into the checked program (rules, shapes, starts, expectations) that the driver and the generators read |
+| `internal/frontend` | Drives the front end: canonicalizes a grammar and checks it into a result that holds the semantic model, the site numbers and the run-time program, and returns Core IR; the facts are computed by the analyses of the Core passes, which the front end is handed (`internal/middleend/checkfacts`) and does not compute |
 | `internal/frontend/parser` | `.sxir` to grammar AST, with `sxirparser`, the parser generated from the grammar of the grammar language |
 | `internal/frontend/parser/sourceast` | Adapts the canonical grammar-source metadata (comments and layout) to the public AST |
 | `internal/frontend/desugar` | Rewriting into a smaller language |
-| `internal/frontend/check` | Name resolution and the checks of the value model: the semantic model |
+| `internal/frontend/check` | Name resolution, the checks of the value model and the walk of rule bodies that decides the static facts of the rules: the semantic model and its checker |
 | `internal/frontend/types` | The type model |
 | `internal/frontend/astfacts` | The walks of grammar expressions and of a rule's calls, action expressions and attributes, and syntactic queries on them, shared by the front end and the analyses; matching facts are computed on Core IR |
 | `internal/frontend/elaborate` | Semantic model to Core IR |

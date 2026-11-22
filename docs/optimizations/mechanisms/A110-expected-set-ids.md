@@ -34,7 +34,7 @@ Evidence records:
 
 Source owners: [`record, isolate and
 keep`](../../../internal/runtime/state/runtime.go),
-[`Program.DescTable`](../../../internal/compile/compile.go), [`generated
+the expectation table of the semantic model in the front end's check package, [`generated
 expectation IDs`](../../../pkg/runtime/libgo/lib.go), [`TypeScript
 description IDs`](../../../internal/backend/codegen/typescript/lib/lib.ts).
 

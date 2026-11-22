@@ -31,7 +31,7 @@ Evidence records:
 [001](../001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
 Source owners: [`transient rules`](../../../internal/middleend/corepass/facts.go),
-[`Rule.Transient`](../../../internal/compile/compile.go), [`ordinary versus
+the transient flag of the rules in the front end's check package, [`ordinary versus
 Document memo decision`](../../../internal/runtime/state/runtime.go), [`transient rule
 metadata emission`](../../../internal/backend/codegen/typescript/print/generator.go).
 

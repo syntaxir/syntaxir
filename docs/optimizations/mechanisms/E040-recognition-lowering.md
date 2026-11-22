@@ -42,8 +42,7 @@ Evidence records: [007](../007-recognition-mode-3f7e9bf.md),
 [047](../047-recognition-in-generated-parsers.md).
 
 Source owners: [`Program.Recognizer`](../../../internal/runtime/engine/program_parse.go),
-[`recognize compilation and predicate capture
-analysis`](../../../internal/compile/compile.go), [`recognizer
+the recognize check and the predicate capture analysis in the front end's check package, [`recognizer
 generation`](../../../internal/backend/codegen/golang/print/generator.go), [`generated recognize entry
 point`](../../../internal/backend/codegen/typescript/print/generator.go).
 

@@ -9,7 +9,7 @@ before choosing an edit location:
 |:--|:--|
 | Public Go API and grammar AST | `pkg/compiler/` (compiling, the reference parser, compiled grammars, generation), `pkg/runtime/` (the `Parser` and `Document` interfaces, options, and `input/`, `value/`, `instrument/`), `pkg/runtime/vm/` (the VM parser and loaded `.sxirc`), `pkg/grammar/` and `pkg/grammar/ast/` |
 | Grammar source parsing | `internal/frontend/parser/` |
-| Compiler and static analysis | `internal/compile/` |
+| Compiler and static analysis | `internal/frontend/` (canonicalization and the checked result), `internal/frontend/check/` (the semantic model and its checker), `internal/middleend/corepass/` (the rule facts and site numbers) |
 | Runtime: execution, bytecode VMs, Documents, streams and limit controls | `internal/runtime/engine/` (parse, Document and stream entries) over `internal/runtime/` (`program/` the run-time program, `state/` the shared parser state, `vm/` the VMs, `document/` the Document, `nodes/`, `limits/`); the compile entry in `internal/driver/entry/`, and in `internal/driver/checked/` the compiler side that the runtime reaches through `state.Source`; backends in `internal/backend/` (`closure/`, `vmlower/` the bytecode compiler, `codegen/{common,golang,typescript}/`) |
 | Code generation entry points | `pkg/compiler/` (`GenerateGo`, `GenerateTypeScript`) over `internal/driver/generate/` (embedding the library sources `pkg/runtime/libgo/` and `internal/backend/codegen/typescript/lib/`), `internal/backend/codegen/common/` |
 | Output schema and structural queries | `pkg/runtime/schema/` (the types, their validation and `Compare`), `internal/frontend/schemaexport/` (the export), `pkg/runtime/query/` (the queries) |

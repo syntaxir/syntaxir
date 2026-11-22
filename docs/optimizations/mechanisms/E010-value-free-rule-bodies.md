@@ -46,8 +46,8 @@ wholly to body elision; current isolated all-backend effects are unmeasured.
 Evidence records:
 [001](../001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
-Source owners: [`leanBody`](../../../internal/compile/compile.go),
-[`walker.compileRule`](../../../internal/compile/compile_walk.go), [`body value
+Source owners: the lean-body test and the walk of rule bodies in the front end's check package,
+[`body value
 lowering`](../../../internal/backend/codegen/golang/print/generator.go), [`direct body build
 mode`](../../../internal/backend/codegen/golang/print/flowrule.go), [`TypeScript body build
 mode`](../../../internal/backend/codegen/typescript/print/generator.go).

@@ -33,8 +33,7 @@ are a combined historical result, not an isolated line-only estimate.
 Evidence records:
 [009](../009-value-free-operators-rule-lines-discarding-trivia-in-example-grammars-936857c.md).
 
-Source owners: [`LeanLine` and the Operators Rule
-walk](../../../internal/compile/compile_walk.go),
+Source owners: the lean lines and the Operators Rule walk in the front end's check package,
 the line emission of the bytecode compiler, [`Operators Rule line
 emission`](../../../internal/backend/codegen/golang/print/generator.go), [`TypeScript line
 emission`](../../../internal/backend/codegen/typescript/print/generator.go).

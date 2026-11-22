@@ -35,8 +35,8 @@ preparation speedup or a matching benefit.
 Evidence records: [095](../095-attribute-copy-on-change.md).
 
 Source owners: the attribute normalization and its source immutability and
-reference checks in the desugaring package, and
-[`Options.EagerAttributeCopies`](../../../internal/compile/compile.go).
+reference checks in the desugaring package, and the option for eager attribute copies in the
+front end's check package.
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

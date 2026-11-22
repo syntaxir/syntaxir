@@ -32,8 +32,7 @@ twins. No current isolated twin effect is reported.
 Evidence records:
 [001](../001-value-free-rule-bodies-value-free-twins-transient-rules-0b2c903.md).
 
-Source owners: [`Compiler.twinOf and
-Rule.TwinOK`](../../../internal/compile/compile.go), the twin calls of the bytecode
+Source owners: the twins and their eligibility in the front end's check package, the twin calls of the bytecode
 compiler, [`all rule/twin
 generation`](../../../internal/backend/codegen/golang/print/generator.go), [`TypeScript twin rule
 generation`](../../../internal/backend/codegen/typescript/print/generator.go).
