@@ -280,7 +280,7 @@ func (k *classifier) computeFirst() {
 	for changed := true; changed; {
 		changed = false
 		for _, r := range k.rules {
-			if s := k.first(r.Expr).union(k.firstRule[r.Name]); !s.equal(k.firstRule[r.Name]) {
+			if s := k.firstOf(k.ruleBody(r.Name)).union(k.firstRule[r.Name]); !s.equal(k.firstRule[r.Name]) {
 				k.firstRule[r.Name] = s
 				changed = true
 			}
@@ -351,7 +351,7 @@ func (k *classifier) computeBounded() {
 	for changed := true; changed; {
 		changed = false
 		for _, r := range k.rules {
-			if !k.boundedRule[r.Name] && !k.recursive[r.Name] && k.bounded(r.Expr) {
+			if !k.boundedRule[r.Name] && !k.recursive[r.Name] && k.boundedOf(k.ruleBody(r.Name)) {
 				k.boundedRule[r.Name] = true
 				changed = true
 			}
