@@ -10,7 +10,7 @@ import (
 // printed composition member; the tests that do are the ones the mutants of that code name.
 
 // MemberStructs are the struct types of the fixture, with each field and the zero descriptor of its
-// type (compile.Program.ZeroDesc), in declaration order: S has an int, a string, a list, a tuple and a
+// type (check.Checker.ZeroDesc), in declaration order: S has an int, a string, a list, a tuple and a
 // struct field.
 var MemberStructs = []struct {
 	Name   string

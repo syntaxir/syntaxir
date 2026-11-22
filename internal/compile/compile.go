@@ -26,17 +26,14 @@ type Program struct {
 	*check.Model
 	HasMissing bool // immutable syntax metadata; bytecode/generation are unsupported
 	// chk checks the types of the program (Checker), made on first use.
-	chk         *check.Checker
-	checkerOnce sync.Once
-	// unsupportedSeen holds the type syntax reported as not supported yet while compiling, so that
-	// an alias resolved from several places, by several checkers, is reported once.
-	unsupportedSeen map[ast.TypeExpr]bool
-	RuleList        []*Rule
-	DescTable       []string        // expectation table (starting with fixedDescs)
-	Twins           []*Rule         // value-free twins (Rule.Twin); ids start at len(RuleList)
-	NSeen           int             // number of rules with Rule.Seen set
-	Typed           *check.TypeInfo // types found by the type checker (nil if it did not run)
-	NoProjections   bool
+	chk           *check.Checker
+	checkerOnce   sync.Once
+	RuleList      []*Rule
+	DescTable     []string        // expectation table (starting with fixedDescs)
+	Twins         []*Rule         // value-free twins (Rule.Twin); ids start at len(RuleList)
+	NSeen         int             // number of rules with Rule.Seen set
+	Typed         *check.TypeInfo // types found by the type checker (nil if it did not run)
+	NoProjections bool
 	// RecordsSourceInfo reports that nodes record source information (Options.SourceInfo).
 	RecordsSourceInfo bool
 	// MakesDefaultValue reports that value actions and declared rule types were dropped
@@ -46,8 +43,6 @@ type Program struct {
 	// lowered to, with the inline actions they stand for; empty if it has none.
 	InlineNames desugar.InlineNames
 	ByName      map[string]*Rule
-	// structZeros caches the zero descriptors of the struct types (StructZeroOf) by name.
-	structZeros sync.Map
 	// Opts are the options the program was compiled with. The engine builds further programs from the
 	// same grammar later (the controlled closure graph and the recognizer) and derives their options
 	// from these, so that none is lost (engine.Program.lazyOptions).

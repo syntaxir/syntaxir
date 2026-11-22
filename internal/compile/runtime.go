@@ -35,7 +35,7 @@ func (p *Program) newRuntime() *program.Program {
 		RunKeys:           runtimeRunKeys(p.sites.RunKeys),
 		InsertionCycles:   p.InsertionFlags != nil,
 		StructZero: func(name string) *program.StructZero {
-			if z := p.StructZeroOf(name); z != nil {
+			if z := p.Checker().StructZeroOf(name); z != nil {
 				return &program.StructZero{Names: z.Names, Zeros: z.Zeros}
 			}
 			return nil

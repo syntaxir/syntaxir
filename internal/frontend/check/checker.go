@@ -4,10 +4,12 @@ import (
 	"sync"
 
 	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Checker checks the types of one program and keeps what the checks compute for it. It reads the
-// program through Program.
+// program through Program. A program has one Checker, made with it, and every cache below lives as
+// long as that Checker: for the program's lifetime.
 type Checker struct {
 	Program
 	// Typed holds the types found by CheckTypes (nil if it did not run).
@@ -27,10 +29,29 @@ type Checker struct {
 	kinds   *Kinds
 	// castTypes caches the types of casts (CastType) by cast.
 	castTypes sync.Map
+	// structZeros caches the zero descriptors of the struct types (StructZeroOf) by name.
+	structZeros sync.Map
+	// unsupportedSeen holds the type syntax reported as not supported yet (MarkUnsupported), so
+	// that an alias resolved from several places is reported once. The compilation that builds the
+	// program is its only writer.
+	unsupportedSeen map[ast.TypeExpr]bool
 }
 
 // NewChecker returns the checker of the program p.
 func NewChecker(p Program) *Checker { return &Checker{Program: p} }
+
+// MarkUnsupported records that the unsupported type syntax t was reported and returns true the
+// first time, so that a type reached from several places is reported once.
+func (p *Checker) MarkUnsupported(t ast.TypeExpr) (first bool) {
+	if p.unsupportedSeen[t] {
+		return false
+	}
+	if p.unsupportedSeen == nil {
+		p.unsupportedSeen = map[ast.TypeExpr]bool{}
+	}
+	p.unsupportedSeen[t] = true
+	return true
+}
 
 // SetShapeControl sets the cancellation control that the shape analysis of rule bodies polls, nil
 // outside a compilation.

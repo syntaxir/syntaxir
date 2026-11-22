@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -883,7 +884,7 @@ func referenceCaptures(caps map[string]codegentest.Capture, in string, bytes, ex
 
 // referenceZeros returns the zero values of the fields of the struct types names that the grammar declares for the reference
 // evaluator, decoded from the zero descriptors that the compiled program holds
-// (compile.Program.StructZeroOf). A struct field holds the struct with no field set.
+// (check.Checker.StructZeroOf). A struct field holds the struct with no field set.
 func referenceZeros(t testing.TB, prog *compile.Program, names ...string) map[string]map[string]ref.V {
 	t.Helper()
 	var decode func(d string) (ref.V, string)
@@ -917,13 +918,13 @@ func referenceZeros(t testing.TB, prog *compile.Program, names ...string) map[st
 	}
 	zeros := map[string]map[string]ref.V{}
 	for _, name := range names {
-		sz := prog.StructZeroOf(name)
+		sz := prog.Checker().StructZeroOf(name)
 		if sz == nil {
 			continue // the type is declared by the grammars of some generators only
 		}
 		zeros[name] = map[string]ref.V{}
 		for _, f := range sz.Names {
-			if sz.Zeros[f] != compile.NoZeroDesc {
+			if sz.Zeros[f] != check.NoZeroDesc {
 				zeros[name][f], _ = decode(sz.Zeros[f])
 			}
 		}

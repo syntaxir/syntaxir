@@ -97,7 +97,7 @@ rule main Z = k:"x" => Z{K: $k}
 		t.Fatal(err)
 	}
 	var got []string
-	z := prog.StructZeroOf("Z")
+	z := prog.Checker().StructZeroOf("Z")
 	for _, f := range z.Names {
 		got = append(got, f+"="+z.Zeros[f])
 	}
@@ -105,7 +105,7 @@ rule main Z = k:"x" => Z{K: $k}
 	if s := strings.Join(got, " "); s != want {
 		t.Errorf("descriptors\n got %s\nwant %s", s, want)
 	}
-	if prog.StructZeroOf("Nope") != nil {
+	if prog.Checker().StructZeroOf("Nope") != nil {
 		t.Error("a name that is not a struct type has descriptors")
 	}
 }
@@ -174,7 +174,7 @@ func TestZeroValueOfDeepStructTypesIsLinear(t *testing.T) {
 	}
 	// The descriptors themselves are those of the chain at the depth of the original check.
 	prog := deepStructProgram(t, 40)
-	if z := prog.StructZeroOf("Top"); z == nil || z.Zeros["In"] != "{S0}" || z.Zeros["K"] != NoZeroDesc {
+	if z := prog.Checker().StructZeroOf("Top"); z == nil || z.Zeros["In"] != "{S0}" || z.Zeros["K"] != check.NoZeroDesc {
 		t.Errorf("descriptors of Top: %+v", z)
 	}
 }

@@ -25,17 +25,6 @@ func (c checkProgram) ElementScoped(e ast.Expr, control *cancel.Control) bool {
 	return check.ElementScopedControlled(e, control)
 }
 
-func (c checkProgram) MarkUnsupported(t ast.TypeExpr) bool {
-	if c.p.unsupportedSeen[t] {
-		return false
-	}
-	if c.p.unsupportedSeen == nil {
-		c.p.unsupportedSeen = map[ast.TypeExpr]bool{}
-	}
-	c.p.unsupportedSeen[t] = true
-	return true
-}
-
 func ruleInfo(r *Rule) check.RuleInfo {
 	if r == nil {
 		return check.RuleInfo{}

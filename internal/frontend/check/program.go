@@ -21,9 +21,6 @@ type Program interface {
 	// ElementScoped reports whether the repetition element e gets a capture scope of its own per
 	// iteration (the capture analysis every backend decides the same way), polling control.
 	ElementScoped(e ast.Expr, control *cancel.Control) bool
-	// MarkUnsupported records that the unsupported type syntax t was reported and returns true
-	// the first time, so that a type reached from several places is reported once.
-	MarkUnsupported(t ast.TypeExpr) (first bool)
 }
 
 // RuleInfo is what the checker reads of a rule.

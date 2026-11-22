@@ -126,7 +126,7 @@ func (p *Parser) memberZero(c *EvalCtx, n *value.Node, name string) (any, bool) 
 	return v, true
 }
 
-// zeroValue builds the zero value of the descriptor d (compile.Program.ZeroDesc).
+// zeroValue builds the zero value of the descriptor d (check.Checker.ZeroDesc).
 func (c *EvalCtx) zeroValue(d string) (any, error) {
 	v, _, err := c.zeroFrom(d)
 	return v, err
