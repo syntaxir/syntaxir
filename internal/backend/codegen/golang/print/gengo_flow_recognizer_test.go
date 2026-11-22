@@ -214,9 +214,11 @@ func TestGeneratedFlowRecognizerMutantChild(t *testing.T) {
 // TestFlowRecognizerGuardsChoiceAlternatives checks that the recognizer printed from Flow IR guards the
 // alternatives of choices by their first characters: three alternatives are guarded by the class [uU],
 // two by a quote and two by an apostrophe, each in the six, three and three places the recognizer's matchers
-// are written. The guards are compared as conditions with the variable names removed, so the test does not
-// depend on how the printer numbers its variables. Without the Analyze pass before Guards, the Flow route
-// prints no guards for these choices and the comparison fails.
+// are written. A class guard is a condition on the decoded character; an alternative that begins with a
+// literal is guarded by the library's byte comparison of that character (HasChar). The guards are compared
+// with the variable names removed, so the test does not depend on how the printer numbers its variables.
+// Without the Analyze pass before Guards, the Flow route prints no guards for these choices and the
+// comparison fails.
 func TestFlowRecognizerGuardsChoiceAlternatives(t *testing.T) {
 	t.Parallel()
 	codegentest.PinOrdinary(t)
@@ -237,12 +239,15 @@ rule sq = "'" [^']* "'" / [uU] "&'" [^']* "'"
 	for _, m := range guardCondition.FindAllSubmatch(code, -1) {
 		got = append(got, string(variableName.ReplaceAll(m[1], []byte("x"))))
 	}
+	for _, m := range literalGuard.FindAllSubmatch(code, -1) {
+		got = append(got, string(m[1]))
+	}
 	sort.Strings(got)
 	var want []string
 	for _, c := range []struct {
 		cond string
 		n    int
-	}{{"x && (x == 117 || x == 85)", 6}, {"x && (x == 34)", 3}, {"x && (x == 39)", 3}} {
+	}{{"HasCharOrdinary(34, false)", 3}, {"HasCharOrdinary(39, false)", 3}, {"x && (x == 117 || x == 85)", 6}} {
 		for range c.n {
 			want = append(want, c.cond)
 		}
@@ -252,10 +257,12 @@ rule sq = "'" [^']* "'" / [uU] "&'" [^']* "'"
 	}
 }
 
-// guardCondition matches the first-character guard of a choice alternative in generated code, and
-// variableName the numbered variables of the generated code.
+// guardCondition matches the class guard of a choice alternative in generated code, literalGuard the
+// guard of an alternative that begins with a literal, and variableName the numbered variables of the
+// generated code.
 var (
 	guardCondition = regexp.MustCompile(`if !\((x\d+ && \([^\n]*?\))\) && p\.Depth`)
+	literalGuard   = regexp.MustCompile(`if !p\.(HasChar\w*\(\d+, (?:true|false)\)) && p\.Depth`)
 	variableName   = regexp.MustCompile(`x\d+`)
 )
 
