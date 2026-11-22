@@ -84,14 +84,14 @@ var (
 
 	tablesSplit = RegisterSplit(progIR, tableIR, modIR, modsIR, &Split[*prog, table, *mod, *mods]{Name: "t-tables",
 		Labels: []string{"a", "b", "c"},
-		Parts: func(p *prog) ([]table, []string, error) {
+		Parts: func(_ SplitCtx, p *prog) ([]table, []string, error) {
 			var ts []table
 			for _, n := range p.tables {
 				ts = append(ts, table{n})
 			}
 			return ts, p.tables, nil
 		},
-		Join: func(p *prog, ms []*mod) (*mods, error) { return &mods{names: p.tables, list: ms}, nil }})
+		Join: func(_ SplitCtx, p *prog, ms []*mod) (*mods, error) { return &mods{names: p.tables, list: ms}, nil }})
 
 	tableKey = RegisterKey(tableIR, &Key[table]{Name: "t-key", Of: func(t table) string { return t.name }})
 	modKey   = RegisterKey(modIR, &Key[*mod]{Name: "t-mod-key", Of: func(m *mod) string { return m.String() }})

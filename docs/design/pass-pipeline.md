@@ -414,6 +414,11 @@ itself information: the dump is the way to see why an optimization did not happe
 Every table runs a stage before the next stage of any table runs, so the driver keeps the dumps of each table
 together: the dump of the plan first, then the dumps of each table, from its Core IR to the Exec stage, in the order
 of the table's first dump. A dump's header names its table, so the dumps of one table read in the order of its steps.
+A compilation of several targets runs them as the branches of one fork, each named by its backend (`go`, `ts`, and
+`go#2` for a second Go target). Their dumps and statistics carry the branch's name before the table, as in
+`-- after plan [ts/program] --` and `ts/plan`: the dumps of the programs of every target come first, in target order,
+then those of each target's tables, and the dumps of one target are those it gives compiled alone. A target that
+builds the same Core IR as an earlier one replays it instead of building it again.
 
 ```mermaid
 flowchart TD
@@ -539,6 +544,8 @@ the reader takes its registration at the kind of the place it stands. A feature 
 the target that the driver builds from the checked program, prints a label, and the reader takes its value from the
 assembled pipeline at the same place, whose label must be the same. The fallback of planning gives the second run its
 reach by replacing the constant `reach` of the pipeline that ran first, whether the driver assembled it or read it.
+Over several targets it replaces that constant in the branches whose printers asked for a reach only, and runs the
+whole fork again.
 
 ## Related Topics
 

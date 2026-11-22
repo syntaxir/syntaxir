@@ -39,18 +39,9 @@ func (p *Program) Options() common.CompileOptions { return p.opts }
 // Start returns the start rule of the compilation.
 func (p *Program) Start() *common.Rule { return p.start }
 
-// compilation is the input of the pipeline of a target: the program, the target with its options
-// completed from the program and the call, the options of the call, and the target as its printer
-// reads it (codegen.TargetFeature), which the assembled pipeline provides.
-type compilation struct {
-	p      *Program
-	t      Target
-	o      Options
-	target common.Target
-}
-
-// compilationIR is the kind program: the input of a compilation.
-var compilationIR = pipe.RegisterIR(&pipe.IR[*compilation]{Name: "program"})
+// programIR is the kind program: the input of a compilation, which every target of it shares. The
+// splits of the targets read the target of their branch from its feature (codegen.TargetFeature).
+var programIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "program"})
 
 // Compiler checks a grammar for a generator with the options opts. It returns the checked program
 // and a function that returns that of its recognizer (the program in which no rule builds a value),

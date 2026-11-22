@@ -287,6 +287,8 @@ func WithDerived[I, O, T any](d *Derive[I, T], p Pipeline[I, O]) Pipeline[I, O]
 
 func Slot[M any](k *SlotKey[M], p Pipeline[M, M]) Pipeline[M, M] // a typed extension point
 func Fill[M any](k *SlotKey[M], part string, p Pipeline[M, M]) Edit
+func SetConst[T any](k *FeatureKey[T], v T) Edit       // the value of every constant provider of k
+func InBranch(branch string, e Edit) Edit               // e in the branches of a Fork named branch only
 func Apply[I, O any](p Pipeline[I, O], edits ...Edit) (Pipeline[I, O], error)
 ```
 
@@ -294,7 +296,11 @@ The arguments that are functions are registered values with a name, so that the 
 unit as functions (`Funcs[W, M]`, where `M` may differ from `W`, so that the target passes run on one lowered function
 at a time), splits, lenses, keys, derived providers, feature keys and slot keys. Each is registered with the kinds it
 reads, so the text form can be checked by kinds. A split declares the labels of the parts it may give; a part with
-another label fails the split, and a slot body for a part must name one of them. A feature key has a format and a
+another label fails the split, and a slot body for a part must name one of them. A split also declares the features it
+reads (`SplitFeature`), as the enclosing blocks provide them: the check rejects a split whose features no enclosing
+block provides, and a `Shared` block keys its result by the features of the splits inside it as by those of its
+passes. So the program unit holds no target, and the split of a backend reads the target of its branch. (Amended at
+step 9: the program unit first held the one target of the compilation.) A feature key has a format and a
 parser, which the text form and the sharing keys use. `Within` routes the module of a table unit through the Flow or
 Exec passes; it only routes units, so it is not a second step model. `Fork` returns a list kind derived from its
 branches' kind, whose verifier verifies each element. `Seq` takes the kind explicitly so that an empty sequence is a
@@ -579,50 +585,48 @@ options start= source-info=false default-value=false left-recursion-bindings=fal
 settings profile=speed opt= no-opt=
 debug verify-each=false print-after= print-changed=false stats=false time-passes=false
 target go typed-only=false recognize-only=false limits=false expectations=false ...
-pipeline program -> []output {
-  fork {
-    branch go {
-      with target=go {
-        each go-tables {
-          shared core-config {
-            elaborate!
-            slot core-passes {
-              guards
-              scans
-            }
+pipeline program -> output {
+  with target=go {
+    with reach=none {
+      each go-tables {
+        shared core-config {
+          elaborate!
+          slot core-passes {
+            guards
+            scans
           }
         }
-        plan!
-        each planned-tables {
-          with table-config {
-            flowlower!
-            within module@flow {
-              func funcs@flow {
-                slot flow-passes {
-                  terminals
-                  guarded-classes
-                  class-runs
-                  class-tables
-                  inline-literals
-                }
-              }
-              flow-finish!
-            }
-            execlower!
-            within module@exec {
-              func funcs@exec {
-                slot exec-passes {
-                }
-              }
-              func lowered-funcs@exec {
-                slot target-passes {
-                }
-              }
-            }
-          }
-        }
-        print-go!
       }
+      plan!
+      each planned-tables {
+        with table-config {
+          flowlower!
+          within module@flow {
+            func funcs@flow {
+              slot flow-passes {
+                terminals
+                guarded-classes
+                class-runs
+                class-tables
+                inline-literals
+              }
+            }
+            flow-finish!
+          }
+          execlower!
+          within module@exec {
+            func funcs@exec {
+              slot exec-passes {
+              }
+            }
+            func lowered-funcs@exec {
+              slot target-passes {
+              }
+            }
+          }
+        }
+      }
+      print-go!
     }
   }
 }
@@ -634,8 +638,11 @@ values. `plan` is a program-level step: reachability starts from every entry poi
 included, so it cannot be decided per table. `planned-tables` splits the plan into its tables again and joins them, at
 the Exec stage, into `tables@exec`, which `print-go` and `print-ts` take; the join numbers the expectation table across
 the Node and recognizer tables, which is likewise not a fact of one table. `table-config` derives the features of a table (budget controls, observation,
-Document, traced) from its unit. A TypeScript target is a second branch of the same fork with `target=ts`, the split
-`ts-tables`, the target passes `ts-spend-runs ts-merged-records ts-tested-inits`, `ts-printable!` and `print-ts!`.
+Document, traced) from its unit. A TypeScript target has `target=ts`, the split `ts-tables`, the pass `outline`, the
+target passes `ts-spend-runs ts-merged-records ts-tested-inits`, `ts-printable!` and `print-ts!`. Several targets are
+the branches of one fork, each named by its backend: `pipeline program -> []output { fork { branch go { with target=go
+{ ... } } branch ts { with target=ts { ... } } } }`. (Amended at step 9: the example first showed a fork of one Go
+branch; a single target is not forked, so its pipeline, its text and its dumps stay those of the one target.)
 
 ### The Driver
 
@@ -808,7 +815,11 @@ reach that the plan computed. The observers of `Options.Observers`, which only t
 fallback was first a Go-only first run with `reach` unset, whose files the second run replaced.)
 `-print-pipeline` prints the second run with `with reach` as a derived provider, whose value a reader recomputes by the
 first run. (Amended at step 8: it prints the first run, with the constant `reach` that the second run replaces, and a
-build from the text repeats the fallback.)
+build from the text repeats the fallback.) Over several targets, the fallback of the branches whose printers return a
+reach reruns the whole fork once, with each printed reach set only in its branch (`InBranch`); a branch that asks for
+another reach in the second run is an internal error. The other branches build their outputs again: sharing lasts one
+execution, so the second run replays nothing of the first, and within it the branches share their Core IR as in any run.
+(Amended at step 9.)
 
 **The VM** pipeline before the switch is the production route, run through the manager:
 
@@ -1268,7 +1279,12 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    `canonicalize`, at the kind of its place; and the fallback of planning replaces the constant `reach` of the pipeline
    of the first run, so `-print-pipeline` prints the first run, which a build from the text repeats with its fallback.)
 9. **Sharing, `Fork` and the `output` kind**, `Compile` over several targets, and the sharing of Core IR between a table
-   and its traced copy.
+   and its traced copy. (Amended: a single target is not forked; the splits of the backends read the target of their
+   branch as a declared feature, the program unit holding none; the dumps and statistics of a fork are grouped by
+   target, the programs first; the fallback of planning reruns the fork with the reach set in the falling branches
+   only, by the edit `InBranch`; and the errors of the failed targets are joined in target order, each naming its
+   target. `Describe` prints the fork, while the headers of the generation and the command line stay single-target
+   until step 11.)
 10. **The Go library route**, with the library text door and `print-libgo`; the library printer joins the import rules.
     (Amended: the library kind, the `specialize` pass, the deletion of the exported specialization function and the
     printing-pass kind rule land with step 7, with the TypeScript library's route; until step 10 the Go library's

@@ -107,14 +107,16 @@ func flowStage(flowTarget flowpass.Target) pipe.Pipeline[*plandata.Table[code.Fl
 // reads.
 var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, execdata.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *execdata.Tables]{
 	Name: "planned-tables", Labels: plannedLabels(gobackend.TableLabels, tsbackend.TableLabels),
-	Parts: func(p *plandata.Program) ([]plandata.Planned, []string, error) {
+	Parts: func(_ pipe.SplitCtx, p *plandata.Program) ([]plandata.Planned, []string, error) {
 		units, labels := make([]plandata.Planned, len(p.Units)), make([]string, len(p.Units))
 		for i, u := range p.Units {
 			units[i], labels[i] = u.Planned, u.Label
 		}
 		return units, labels, nil
 	},
-	Join: joinTables,
+	Join: func(_ pipe.SplitCtx, p *plandata.Program, tables []*plandata.Table[code.Exec]) (*execdata.Tables, error) {
+		return joinTables(p, tables)
+	},
 })
 
 // plannedLabels returns the labels of the planned tables of the backends whose tables are labeled

@@ -315,6 +315,12 @@ func check(n node, provided map[FeatureID]bool, seen map[string]bool) error {
 		if err := flatPasses(x.body); err != nil {
 			return err
 		}
+	case *eachNode:
+		for _, f := range x.split.features {
+			if !provided[f] {
+				return fmt.Errorf("%w: split %s reads the feature %s, which no enclosing scope provides", errCheck, x.split.name, f)
+			}
+		}
 	case *withNode:
 		p := map[FeatureID]bool{x.prov.feature: true}
 		for k := range provided {
@@ -958,7 +964,8 @@ func hasRequired(n node) bool {
 }
 
 func (rs *runner) each(x *eachNode, in any, e *env, sc *scope) any {
-	parts, labels, err := x.split.parts(in)
+	sx := SplitCtx{split: x.split, features: e.features}
+	parts, labels, err := x.split.parts(sx, in)
 	if err != nil {
 		sc.fail(&StepError{Step: "each " + x.split.name, Label: e.label, Err: err})
 		sc.broken = true
@@ -986,7 +993,7 @@ func (rs *runner) each(x *eachNode, in any, e *env, sc *scope) any {
 		sc.broken = true
 		return nil
 	}
-	out, err := x.split.join(in, outs)
+	out, err := x.split.join(sx, in, outs)
 	if err != nil {
 		sc.fail(&StepError{Step: "each " + x.split.name, Label: e.label, Err: err})
 		sc.broken = true
@@ -1014,6 +1021,14 @@ func (rs *runner) sharedKey(x *sharedNode, in any, e *env, failed bool) string {
 			for _, f := range y.p.Params {
 				parts = append(parts, fmt.Sprintf("%s.%s=%d", y.p.Name, f, y.value(f, rs.r.Settings)))
 			}
+			return
+		case *eachNode:
+			for _, f := range y.split.features {
+				if !inner[f] {
+					parts = append(parts, string(f)+"="+features[f].format(e.features[f]))
+				}
+			}
+			visit(y.body, inner)
 			return
 		case *withNode:
 			in := map[FeatureID]bool{y.prov.feature: true}

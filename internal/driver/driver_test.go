@@ -47,14 +47,14 @@ var (
 func testSplit[U, V any](name string, in *pipe.IR[[]testPart[U]], part *pipe.IR[U], done *pipe.IR[V], out *pipe.IR[[]V]) *pipe.Split[[]testPart[U], U, V, []V] {
 	return pipe.RegisterSplit(in, part, done, out, &pipe.Split[[]testPart[U], U, V, []V]{
 		Name: name, Labels: []string{"rules", "typed", "trules"},
-		Parts: func(ps []testPart[U]) ([]U, []string, error) {
+		Parts: func(_ pipe.SplitCtx, ps []testPart[U]) ([]U, []string, error) {
 			us, ls := make([]U, len(ps)), make([]string, len(ps))
 			for i, p := range ps {
 				us[i], ls[i] = p.unit, p.label
 			}
 			return us, ls, nil
 		},
-		Join: func(_ []testPart[U], vs []V) ([]V, error) { return vs, nil },
+		Join: func(_ pipe.SplitCtx, _ []testPart[U], vs []V) ([]V, error) { return vs, nil },
 	})
 }
 

@@ -57,8 +57,8 @@ func TestCheckStartRule(t *testing.T) {
 	}
 }
 
-// Compile fails before any step for a target whose options disagree with the program or the call, and
-// takes one target until the targets are forked.
+// Compile fails before any step for a target whose options disagree with the program or the call,
+// naming the target among several, and takes at least one target.
 func TestCompileChecksTheTargets(t *testing.T) {
 	t.Parallel()
 	p, err := checkSource(t, "@start\nrule A = \"a\"\n", common.CompileOptions{}, "")
@@ -75,8 +75,9 @@ func TestCompileChecksTheTargets(t *testing.T) {
 		targets []Target
 		want    string
 	}{
-		{"no target", nil, "one target, not 0"},
-		{"two targets", []Target{{Backend: result.Go}, {Backend: result.TypeScript}}, "one target, not 2"},
+		{"no target", nil, "at least one target"},
+		{"two targets", []Target{{Backend: result.TypeScript}, {Backend: result.Go}}, "target go: module path is required"},
+		{"second of a backend", []Target{{Backend: result.TypeScript}, {Backend: result.TypeScript, Gen: common.GenOptions{Stream: true}}}, "target ts#2: stream generation is only supported for Go"},
 		{"start", []Target{{Backend: result.Go, Gen: common.GenOptions{Start: "B"}}}, "target go: Start"},
 		{"source info", []Target{{Backend: result.Go, Gen: common.GenOptions{SourceInfo: true}}}, "target go: SourceInfo"},
 		{"verify", []Target{{Backend: result.Go, Gen: common.GenOptions{Debug: common.Debug{VerifyEach: true}}}}, "target go: Debug"},

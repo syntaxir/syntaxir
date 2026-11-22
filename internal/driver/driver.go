@@ -61,52 +61,54 @@ type debugger struct {
 	groups *groups
 }
 
-// groups holds what the observers of a compilation write of each table: the dumps of one table are
-// written together, those of the program first, then those of each table in the order of its first
-// dump, so that a table's dumps follow it from its Core IR to the Exec stage although the stages of
-// every table run before the next stage of any.
+// groups holds what the observers of a compilation write of each table of each target: the dumps of
+// one table are written together, those of the program first, then those of each table in the order
+// of its first dump, so that a table's dumps follow it from its Core IR to the Exec stage although the
+// stages of every table run before the next stage of any. The tables of the targets of a Fork are
+// apart, keyed by their labels (qualified), and the program of each target comes before every table.
 type groups struct {
-	order  []string // the tables in the order of their first write
-	tables map[string]*bytes.Buffer
+	order  []groupKey // the tables in the order of their first write
+	tables map[groupKey]*bytes.Buffer
 }
 
-// out returns the writer of what the observers write of the table: Output, or the group of the
-// table in a compilation.
-func (d *debugger) out(table string) io.Writer {
+// groupKey is a table of the target of a backend (the label of a Fork branch, empty for a single
+// target), or programLabel for the steps of its whole program.
+type groupKey struct{ backend, table string }
+
+// out returns the writer of what the observers write of the table of the branch backend: Output, or
+// the group of the table in a compilation.
+func (d *debugger) out(backend, table string) io.Writer {
 	g := d.groups
 	if g == nil {
 		return d.Output
 	}
-	b := g.tables[table]
+	k := groupKey{backend, table}
+	b := g.tables[k]
 	if b == nil {
 		if g.tables == nil {
-			g.tables = map[string]*bytes.Buffer{}
+			g.tables = map[groupKey]*bytes.Buffer{}
 		}
 		b = &bytes.Buffer{}
-		g.tables[table] = b
-		g.order = append(g.order, table)
+		g.tables[k] = b
+		g.order = append(g.order, k)
 	}
 	return b
 }
 
-// flush writes to Output what the observers wrote of each table, the program's first, and forgets it.
+// flush writes to Output what the observers wrote of each table, the programs' first, and forgets it.
 func (d *debugger) flush() error {
 	g := d.groups
 	if g == nil || d.Output == nil {
 		return nil
 	}
 	var err error
-	write := func(b *bytes.Buffer) {
-		if _, werr := d.Output.Write(b.Bytes()); werr != nil && err == nil {
-			err = werr
-		}
-	}
-	if b := g.tables[programLabel]; b != nil {
-		write(b)
-	}
-	for _, t := range g.order {
-		if t != programLabel {
-			write(g.tables[t])
+	for _, program := range []bool{true, false} {
+		for _, k := range g.order {
+			if (k.table == programLabel) == program {
+				if _, werr := d.Output.Write(g.tables[k].Bytes()); werr != nil && err == nil {
+					err = werr
+				}
+			}
 		}
 	}
 	d.drop()
@@ -244,7 +246,7 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 	}
 	table := tableOf(e)
 	l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
-	w := o.d.out(table)
+	w := o.d.out(e.Label.Backend, table)
 	before := !e.Step.Required && o.d.printsBefore(e.Step.Name) && o.d.watch.input != nil
 	if before {
 		// Also before a run that failed, whose input is what to look at.
@@ -306,7 +308,7 @@ func (b bisector) Before(e pipe.Event, _ func(io.Writer)) bool {
 		}
 		table := tableOf(e)
 		l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
-		fmt.Fprintf(b.d.out(table), "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
+		fmt.Fprintf(b.d.out(e.Label.Backend, table), "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
 	}
 	return run
 }

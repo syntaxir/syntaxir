@@ -35,7 +35,7 @@ import (
 //	  print-ts!
 //	}
 //
-// ts-tables splits the compilation into the tables that the TypeScript parser has: the Node table
+// ts-tables splits the program into the tables that the TypeScript parser of the target has: the Node table
 // and, with Recognize, the recognizer (tsbackend.Target.Sources). Its join gives what the program and
 // its tables are planned from (cores). The pass outline chooses the nodes of the tables that run as
 // functions of their own (flowplan.Outlining), and plan! plans them. planned-tables splits the plan into the
@@ -55,27 +55,29 @@ import (
 //	  }
 //	}
 
-// tsTarget returns the TypeScript target of the compilation c.
-func (c *compilation) tsTarget() (*tsbackend.Target, error) {
-	t, ok := c.target.(*tsbackend.Target)
+// tsTarget returns the TypeScript target of the scope of x.
+func tsTarget(x pipe.SplitCtx) (*tsbackend.Target, error) {
+	target := pipe.SplitFeature(x, codegen.TargetFeature)
+	t, ok := target.(*tsbackend.Target)
 	if !ok {
-		return nil, fmt.Errorf("internal error: the compilation of the target %s has no TypeScript target", c.t.Backend)
+		return nil, fmt.Errorf("internal error: the split ts-tables runs for the target %s", target.Backend())
 	}
 	return t, nil
 }
 
-// tsTables is the split ts-tables.
-var tsTables = pipe.RegisterSplit(compilationIR, tableIR, corepass.IR, plandata.CoresIR, &pipe.Split[*compilation, common.TableSource, *core.Module, *plandata.Cores]{
-	Name: "ts-tables", Labels: tsbackend.TableLabels,
-	Parts: func(c *compilation) ([]common.TableSource, []string, error) {
-		t, err := c.tsTarget()
+// tsTables is the split ts-tables. It splits the program for the TypeScript target of the scope it
+// runs in (codegen.TargetFeature).
+var tsTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, plandata.CoresIR, &pipe.Split[*Program, common.TableSource, *core.Module, *plandata.Cores]{
+	Name: "ts-tables", Labels: tsbackend.TableLabels, Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
+	Parts: func(x pipe.SplitCtx, _ *Program) ([]common.TableSource, []string, error) {
+		t, err := tsTarget(x)
 		if err != nil {
 			return nil, nil, err
 		}
 		return t.Sources()
 	},
-	Join: func(c *compilation, mods []*core.Module) (*plandata.Cores, error) {
-		t, err := c.tsTarget()
+	Join: func(x pipe.SplitCtx, _ *Program, mods []*core.Module) (*plandata.Cores, error) {
+		t, err := tsTarget(x)
 		if err != nil {
 			return nil, err
 		}
@@ -83,17 +85,14 @@ var tsTables = pipe.RegisterSplit(compilationIR, tableIR, corepass.IR, plandata.
 	},
 })
 
-// tsPipeline returns the pipeline of the TypeScript target of the compilation c.
-func tsPipeline(c *compilation) (assembled, error) {
-	if _, err := c.tsTarget(); err != nil {
-		return assembled{}, err
-	}
+// tsPipeline returns the pipeline of a TypeScript target.
+func tsPipeline() assembled {
 	p := pipe.Then3(
 		pipe.Then3(pipe.Each(tsTables, coreConfig()), pipe.Of(flowplan.Outlining), pipe.Of(flowplan.Planning)),
 		pipe.Each(plannedTables, lowering(tsbackend.FlowTarget, tspass.Pipeline)),
 		pipe.Then3(pipe.Of(tsbackend.Library), pipe.Within(tsbackend.LibraryLens, pipe.Of(codepass.Specialization)),
 			pipe.Then(pipe.Of(tsbackend.Printability), pipe.Of(tsbackend.Printing))))
-	return assembled{pipeline: p, steps: []string{Elaborate, "each ts-tables", tsbackend.Printing.Name()}}, nil
+	return assembled{pipeline: p, steps: []string{Elaborate, "each ts-tables", tsbackend.Printing.Name()}}
 }
 
 // libraryPipeline is the pipeline of a target from a library to its output, and the steps whose

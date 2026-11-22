@@ -7,6 +7,7 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen"
@@ -80,19 +81,23 @@ var (
 	TargetSlot = pipe.NewSlot("target-passes", execdata.LoweredIR)
 )
 
-// Compile runs one pipeline for the targets under one manager. On an error it returns no output and
-// the errors of every failed target, joined in target order. Until the pipelines of several targets
-// are forked (record 074, migration step 9), a call compiles exactly one target. A nil program
-// compiles the TypeScript library alone (common.LibOnly), the one target that has no program.
+// Compile runs one pipeline for the targets under one manager. A single target runs its own
+// pipeline; several run as the branches of one Fork, in order, labeled with their backends (go, ts;
+// a second target of one backend is go#2), and share what their sharing keys allow, such as the
+// Core IR of a table. On an error it returns no output and the errors of every failed target,
+// joined in target order. A nil program compiles the TypeScript library alone (common.LibOnly), the
+// one target that has no program, with no other target.
 func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]Output, error) {
-	if len(targets) != 1 {
-		return nil, fmt.Errorf("a compilation takes one target, not %d", len(targets))
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("a compilation takes at least one target")
 	}
-	t := targets[0]
 	if p == nil {
-		return compileLibrary(ctx, o, t)
+		if len(targets) != 1 {
+			return nil, fmt.Errorf("the TypeScript library alone is compiled alone, not with %d other targets", len(targets)-1)
+		}
+		return compileLibrary(ctx, o, targets[0])
 	}
-	c, err := newCompilation(p, o, t)
+	c, err := newCompilation(p, o, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -101,18 +106,30 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 		return nil, err
 	}
 	d := newDebugger(o)
-	out, err := c.run(ctx, d, a)
-	if r, ok := out.(*common.Replan); ok && err == nil {
-		// The fallback of planning: the printed code enters other rules than the plan reaches, so
-		// the compilation runs again with the reach of the printed code, and what the observers of
-		// the debugging settings collected of the first run is dropped.
-		d.restart()
-		if a.pipeline, err = pipe.Apply(a.pipeline, pipe.SetConst(plandata.ReachFeature, r.Reach)); err != nil {
-			return nil, fmt.Errorf("internal error: %w", err)
+	outs, err := c.run(ctx, d, a)
+	if err == nil {
+		// The fallback of planning: the printed code of a target enters other rules than the plan
+		// reaches, so the compilation runs again with the reach of the printed code in the branches of
+		// those targets, and what the observers of the debugging settings collected of the first run
+		// is dropped. The other targets run again too; their Core IR is shared with the targets that
+		// run with another reach, if their keys allow.
+		var edits []pipe.Edit
+		for i, out := range outs {
+			if r, ok := out.(*common.Replan); ok {
+				edits = append(edits, a.reach(i, r.Reach))
+			}
 		}
-		if out, err = c.run(ctx, d, a); err == nil {
-			if _, again := out.(*common.Replan); again {
-				err = fmt.Errorf("internal error: the %s printer asks again for another reach than the one it printed", t.Backend)
+		if len(edits) > 0 {
+			d.restart()
+			if a, err = a.apply(edits...); err != nil {
+				return nil, fmt.Errorf("internal error: %w", err)
+			}
+			if outs, err = c.run(ctx, d, a); err == nil {
+				for i, out := range outs {
+					if _, again := out.(*common.Replan); again {
+						err = fmt.Errorf("internal error: the %s printer asks again for another reach than the one it printed", c.targets[i].t.Backend)
+					}
+				}
 			}
 		}
 	}
@@ -125,7 +142,7 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 		return nil, err
 	}
 	d.report()
-	return []Output{out}, nil
+	return outs, nil
 }
 
 // compileLibrary compiles the target t without a program: the TypeScript library alone
@@ -154,25 +171,26 @@ func compileLibrary(ctx context.Context, o Options, t Target) ([]Output, error) 
 	return []Output{out}, nil
 }
 
-// Describe returns the pipeline that Compile runs for the target of p under o, as text without
+// Describe returns the pipeline that Compile runs for the targets of p under o, as text without
 // headers, which the reader of the build writes (generate.Describe): the assembled pipeline with the
 // edits of o, or the pipeline of the text of o. A nil program describes the TypeScript library
-// alone. Until the pipelines of several targets are forked (record 074, migration step 9), it takes
-// exactly one target. The pipeline is that of the first run: the reach of the plan is none, and
-// the fallback of planning, which a run of the text repeats, gives the second run its reach.
+// alone. The pipeline is that of the first run: the reach of the plan is none, and the fallback of
+// planning, which a run of the text repeats, gives the second run its reach.
 func Describe(p *Program, o Options, targets ...Target) (*pipe.Description, error) {
-	if len(targets) != 1 {
-		return nil, fmt.Errorf("a compilation takes one target, not %d", len(targets))
+	if len(targets) == 0 {
+		return nil, fmt.Errorf("a compilation takes at least one target")
 	}
-	t := targets[0]
 	if p == nil {
-		_, pl, err := libraryCompilation(o, t)
+		if len(targets) != 1 {
+			return nil, fmt.Errorf("the TypeScript library alone is compiled alone, not with %d other targets", len(targets)-1)
+		}
+		_, pl, err := libraryCompilation(o, targets[0])
 		if err != nil {
 			return nil, err
 		}
 		return pipe.Describe(pl), nil
 	}
-	c, err := newCompilation(p, o, t)
+	c, err := newCompilation(p, o, targets)
 	if err != nil {
 		return nil, err
 	}
@@ -180,22 +198,58 @@ func Describe(p *Program, o Options, targets ...Target) (*pipe.Description, erro
 	if err != nil {
 		return nil, err
 	}
-	return pipe.Describe(a.pipeline), nil
+	return a.describe(), nil
 }
 
-// newCompilation checks the target t of p under o and returns its compilation, with the options of
-// the target that the program and the call hold set to theirs.
-func newCompilation(p *Program, o Options, t Target) (*compilation, error) {
-	if err := checkTarget(p, o, t); err != nil {
-		return nil, err
+// compilation is a compilation of the program p for its targets under the options o of the call.
+type compilation struct {
+	p       *Program
+	o       Options
+	targets []target
+}
+
+// target is one target of a compilation: the target with its options completed from the program
+// and the call, the target as its printer reads it (codegen.TargetFeature), which the assembled
+// pipeline provides, and the name of its branch when the compilation has several targets.
+type target struct {
+	t      Target
+	target common.Target
+	branch string
+}
+
+// newCompilation checks the targets of p under o and returns their compilation, with the options of
+// each target that the program and the call hold set to theirs and the target decided.
+func newCompilation(p *Program, o Options, targets []Target) (*compilation, error) {
+	for _, t := range targets {
+		if err := checkTarget(p, o, t); err != nil {
+			return nil, err
+		}
 	}
 	if err := CheckDebug(o.Debug); err != nil {
 		return nil, err
 	}
+	c := &compilation{p: p, o: o}
+	seen := map[Backend]int{}
 	po := p.Options()
-	t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
-	t.Gen.Debug = o.Debug
-	return &compilation{p: p, t: t, o: o}, nil
+	for _, t := range targets {
+		t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
+		t.Gen.Debug = o.Debug
+		seen[t.Backend]++
+		branch := t.Backend.String()
+		if n := seen[t.Backend]; n > 1 {
+			branch += "#" + strconv.Itoa(n)
+		}
+		x, err := decide(p, t)
+		if err != nil {
+			if len(targets) > 1 {
+				err = fmt.Errorf("target %s: %w", branch, err)
+			}
+			return nil, err
+		}
+		x.branch = branch
+		c.targets = append(c.targets, x)
+	}
+	return c, nil
 }
 
 // libraryCompilation checks the target t of a compilation without a program under o, which compiles
@@ -218,20 +272,17 @@ func libraryCompilation(o Options, t Target) (libraryPipeline, pipe.Pipeline[*li
 	return a, pl, err
 }
 
-// pipeline decides the target of the compilation c and returns the pipeline that its first run
-// runs: the assembled one with the edits of the call, or the one of its pipeline text.
-func (c *compilation) pipeline() (assembled, error) {
-	if err := c.decide(); err != nil {
-		return assembled{}, err
+// pipeline returns the pipeline that the first run of the compilation c runs: the assembled one with
+// the edits of the call, or the one of its pipeline text.
+func (c *compilation) pipeline() (assembly, error) {
+	a := c.assemble()
+	var err error
+	if len(c.targets) == 1 {
+		a.one, err = callPipeline(a.one, c.o)
+	} else {
+		a.fork, err = callPipeline(a.fork, c.o)
 	}
-	a, err := c.assemble()
-	if err != nil {
-		return assembled{}, err
-	}
-	if a.pipeline, err = callPipeline(a.pipeline, c.o); err != nil {
-		return assembled{}, err
-	}
-	return a, nil
+	return a, err
 }
 
 // callPipeline returns the pipeline that the call o runs in place of the assembled pipeline ref: ref
@@ -252,13 +303,21 @@ func callPipeline[I, O any](ref pipe.Pipeline[I, O], o Options) (pipe.Pipeline[I
 }
 
 // run executes the pipeline a of the compilation c once, with the observers of the debugging
-// settings and of the call that d runs.
-func (c *compilation) run(ctx context.Context, d *debugger, a assembled) (Output, error) {
-	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}, a.pipeline, c)
-	if err != nil {
-		return nil, a.error(err)
+// settings and of the call that d runs, and returns the output of each target in order.
+func (c *compilation) run(ctx context.Context, d *debugger, a assembly) ([]Output, error) {
+	r := &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}
+	if !a.forked {
+		out, err := execute(ctx, d, r, a.one, c.p)
+		if err != nil {
+			return nil, a.error(err)
+		}
+		return []Output{out}, nil
 	}
-	return out, nil
+	outs, err := execute(ctx, d, r, a.fork, c.p)
+	if err != nil {
+		return nil, a.forkError(err)
+	}
+	return outs, nil
 }
 
 // newDebugger returns the debugger of the call o: its observers write what the debugging settings
@@ -274,56 +333,128 @@ func newDebugger(o Options) *debugger {
 // assembled is the pipeline of one target and the steps whose failure is an error of the compilation
 // itself, such as a grammar that the target cannot generate a parser for.
 type assembled struct {
-	pipeline pipe.Pipeline[*compilation, Output]
+	pipeline pipe.Pipeline[*Program, Output]
 	// steps are the instances of those steps: required steps such as elaborate or the printer, and
 	// splits ("each <name>") whose parts are decided from the program.
 	steps []string
 }
 
-// decide checks the options of the target of the compilation c that do not depend on the grammar,
-// completing them, and sets the target as its printer reads it (codegen.TargetFeature).
-func (c *compilation) decide() error {
-	p := c.p
-	switch c.t.Backend {
-	case result.Go:
-		opts, err := goprint.Validate(c.t.Gen)
-		if err != nil {
-			return err
-		}
-		c.t.Gen = opts
-		c.target = gobackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, c.t.GoHooks)
-		return nil
-	case result.TypeScript:
-		opts, err := tsprint.Validate(c.t.Gen)
-		if err != nil {
-			return err
-		}
-		c.t.Gen = opts
-		c.target = tsbackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, c.t.TSHooks)
-		return nil
-	}
-	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
+// assembly is the pipeline of a compilation: that of its one target, or the Fork of the pipelines
+// of its targets, one branch for each, and the steps whose failure is an error of the compilation
+// itself.
+type assembly struct {
+	forked   bool
+	one      pipe.Pipeline[*Program, Output]
+	fork     pipe.Pipeline[*Program, []Output]
+	branches []string
+	steps    []string
 }
 
-// assemble returns the pipeline of the target of the compilation c, from the program to its output,
-// with the target as its printer reads it (codegen.TargetFeature) and no reach of the plan
-// (plandata.ReachFeature), which the fallback of planning sets for a second run.
-func (c *compilation) assemble() (assembled, error) {
-	var a assembled
-	var err error
-	switch c.t.Backend {
+// decide checks the options of the target t of p that do not depend on the grammar, completing
+// them, and returns the target as its printer reads it (codegen.TargetFeature).
+func decide(p *Program, t Target) (target, error) {
+	switch t.Backend {
 	case result.Go:
-		a, err = goPipeline(c)
+		opts, err := goprint.Validate(t.Gen)
+		if err != nil {
+			return target{}, err
+		}
+		t.Gen = opts
+		return target{t: t, target: gobackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, t.GoHooks)}, nil
 	case result.TypeScript:
-		a, err = tsPipeline(c)
-	default:
-		err = fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
+		opts, err := tsprint.Validate(t.Gen)
+		if err != nil {
+			return target{}, err
+		}
+		t.Gen = opts
+		return target{t: t, target: tsbackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, t.TSHooks)}, nil
 	}
-	if err != nil {
-		return assembled{}, err
+	return target{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", t.Backend)
+}
+
+// assemble returns the pipeline of the compilation c, from the program to the output of each
+// target: the pipeline of each target with the target as its printer reads it
+// (codegen.TargetFeature) and no reach of the plan (plandata.ReachFeature), which the fallback of
+// planning sets for a second run; with several targets, each is a branch of one Fork.
+func (c *compilation) assemble() assembly {
+	var a assembly
+	var branches []pipe.Branch[*Program, Output]
+	for _, x := range c.targets {
+		var t assembled
+		switch x.t.Backend {
+		case result.Go:
+			t = goPipeline()
+		case result.TypeScript:
+			t = tsPipeline()
+		}
+		pl := pipe.WithConst(codegen.TargetFeature, x.target, pipe.WithConst(plandata.ReachFeature, map[plandata.Entry]bool(nil), t.pipeline))
+		for _, s := range t.steps {
+			if !slices.Contains(a.steps, s) {
+				a.steps = append(a.steps, s)
+			}
+		}
+		a.one = pl
+		branches = append(branches, pipe.B(x.branch, pl))
+		a.branches = append(a.branches, x.branch)
 	}
-	a.pipeline = pipe.WithConst(codegen.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, map[plandata.Entry]bool(nil), a.pipeline))
-	return a, nil
+	if len(c.targets) > 1 {
+		a.forked, a.one, a.fork = true, pipe.Pipeline[*Program, Output]{}, pipe.Fork(branches...)
+	}
+	return a
+}
+
+// describe returns the description of the pipeline of a.
+func (a assembly) describe() *pipe.Description {
+	if a.forked {
+		return pipe.Describe(a.fork)
+	}
+	return pipe.Describe(a.one)
+}
+
+// apply returns a with the edits applied.
+func (a assembly) apply(edits ...pipe.Edit) (assembly, error) {
+	var err error
+	if a.forked {
+		a.fork, err = pipe.Apply(a.fork, edits...)
+	} else {
+		a.one, err = pipe.Apply(a.one, edits...)
+	}
+	return a, err
+}
+
+// reach returns the edit that gives the plan of the target i of a the reach r.
+func (a assembly) reach(i int, r map[plandata.Entry]bool) pipe.Edit {
+	e := pipe.SetConst(plandata.ReachFeature, r)
+	if a.forked {
+		return pipe.InBranch(a.branches[i], e)
+	}
+	return e
+}
+
+// error returns the failure err of a run of the pipeline of one target: the failure of one of the
+// steps a.steps as the *pass.StepError that names it, with the message of the step, and any other
+// failure (a pass, a verification, a join, an invalid pipeline) as an internal error.
+func (a assembly) error(err error) error {
+	return assembled{steps: a.steps}.error(err)
+}
+
+// forkError returns the failure err of a run of the Fork of a, which joins the failures of its
+// branches in their order: the failure of each as error makes it, named with its target.
+func (a assembly) forkError(err error) error {
+	j, ok := err.(interface{ Unwrap() []error })
+	if !ok {
+		return a.error(err)
+	}
+	var errs []error
+	for _, e := range j.Unwrap() {
+		var se *pipe.StepError
+		if errors.As(e, &se) && se.Label.Backend != "" {
+			errs = append(errs, fmt.Errorf("target %s: %w", se.Label.Backend, a.error(e)))
+		} else {
+			errs = append(errs, a.error(e))
+		}
+	}
+	return errors.Join(errs...)
 }
 
 // error returns the failure err of a run of the pipeline: the failure of one of the steps a.steps as

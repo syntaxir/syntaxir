@@ -2,6 +2,7 @@ package pipe
 
 import (
 	"fmt"
+	"slices"
 
 	"syntaxir.dev/sxir/internal/pass"
 )
@@ -150,41 +151,61 @@ func PerFunc[W, M any](f *Funcs[W, M], p Pipeline[M, M]) Pipeline[W, W] {
 	return Pipeline[W, W]{&perFuncNode{view: lookup(views, f.Name), body: p.n}}
 }
 
-// Split divides a unit into labeled parts and joins their results.
+// Split divides a unit into labeled parts and joins their results. Parts and Join read the
+// features that the split declares from the scope it runs in (SplitFeature), such as the target of
+// the branch of a Fork that the split runs in.
 type Split[W, U, V, R any] struct {
-	Name   string
-	Labels []string // every label Parts may give; a slot body for a part names one of them
-	Parts  func(w W) ([]U, []string, error)
-	Join   func(w W, vs []V) (R, error)
+	Name     string
+	Labels   []string    // every label Parts may give; a slot body for a part names one of them
+	Features []FeatureID // the features Parts and Join read (SplitFeature panics on any other)
+	Parts    func(c SplitCtx, w W) ([]U, []string, error)
+	Join     func(c SplitCtx, w W, vs []V) (R, error)
+}
+
+// SplitCtx is what a split reads of the scope it runs in: the features it declares
+// (Split.Features), as the enclosing blocks provide them.
+type SplitCtx struct {
+	split    *splitDesc
+	features map[FeatureID]any
+}
+
+// SplitFeature returns the value of the feature k in the scope of the split of c. It panics if the
+// split does not declare k.
+func SplitFeature[T any](c SplitCtx, k *FeatureKey[T]) T {
+	if !contains(c.split.features, k.id) {
+		panic(fmt.Sprintf("pipe: split %s reads the undeclared feature %s", c.split.name, k.id))
+	}
+	return c.features[k.id].(T)
 }
 
 type splitDesc struct {
 	name                      string
 	labels                    []string
+	features                  []FeatureID
 	whole, part, done, result *kind
-	parts                     func(any) ([]any, []string, error)
-	join                      func(any, []any) (any, error)
+	parts                     func(SplitCtx, any) ([]any, []string, error)
+	join                      func(SplitCtx, any, []any) (any, error)
 }
 
 var splits = map[string]*splitDesc{}
 
 // RegisterSplit registers a split by name.
 func RegisterSplit[W, U, V, R any](w *IR[W], u *IR[U], v *IR[V], r *IR[R], s *Split[W, U, V, R]) *Split[W, U, V, R] {
-	register(splits, s.Name, &splitDesc{name: s.Name, labels: s.Labels, whole: kindOf(w), part: kindOf(u), done: kindOf(v), result: kindOf(r),
-		parts: func(x any) ([]any, []string, error) {
-			us, ls, err := s.Parts(x.(W))
+	register(splits, s.Name, &splitDesc{name: s.Name, labels: s.Labels, features: slices.Clone(s.Features), whole: kindOf(w), part: kindOf(u), done: kindOf(v), result: kindOf(r),
+		parts: func(c SplitCtx, x any) ([]any, []string, error) {
+			us, ls, err := s.Parts(c, x.(W))
 			out := make([]any, len(us))
 			for i, u := range us {
 				out[i] = u
 			}
 			return out, ls, err
 		},
-		join: func(x any, vs []any) (any, error) {
+		join: func(c SplitCtx, x any, vs []any) (any, error) {
 			tv := make([]V, len(vs))
 			for i, v := range vs {
 				tv[i] = v.(V)
 			}
-			return s.Join(x.(W), tv)
+			return s.Join(c, x.(W), tv)
 		}})
 	return s
 }
@@ -319,6 +340,16 @@ type Edit struct {
 	// prov, if not nil, is the constant provider that replaces every constant provider of its
 	// feature (SetConst).
 	prov *provDesc
+	// branch, if not empty, is the branch of a Fork that the edit inner applies to (InBranch).
+	branch string
+	inner  *Edit
+}
+
+// InBranch applies the edit e only to the branches of a Fork named branch, such as a value that
+// the driver learns from a first run for one target only. A pipeline without such a branch is an
+// error, as is an e that does not apply to one.
+func InBranch(branch string, e Edit) Edit {
+	return Edit{branch: branch, inner: &e}
 }
 
 // SetConst gives every constant provider of the feature k in the pipeline the value v, such as a
@@ -337,46 +368,81 @@ func Fill[M any](k *SlotKey[M], part string, p Pipeline[M, M]) Edit {
 func Apply[I, O any](p Pipeline[I, O], edits ...Edit) (Pipeline[I, O], error) {
 	n := p.n
 	for _, e := range edits {
-		found := false
-		if e.prov != nil {
-			n = rewrite(n, func(x node) node {
-				w, ok := x.(*withNode)
-				if !ok || !w.prov.constant || w.prov.feature != e.prov.feature {
-					return x
-				}
-				found = true
-				return &withNode{prov: e.prov, body: w.body}
-			})
-			if !found {
-				return p, fmt.Errorf("%w: no constant provider of the feature %s", errCheck, e.prov.feature)
-			}
-			continue
-		}
-		n = rewrite(n, func(x node) node {
-			s, ok := x.(*slotNode)
-			if !ok || s.slot.name != e.slot {
-				return x
-			}
-			found = true
-			c := &slotNode{slot: s.slot, skel: s.skel, def: s.def, parts: map[string]node{}, order: append([]string(nil), s.order...)}
-			for k, v := range s.parts {
-				c.parts[k] = v
-			}
-			if e.part == "" {
-				c.def, c.parts, c.order = e.body, map[string]node{}, nil
-			} else {
-				if c.parts[e.part] == nil {
-					c.order = append(c.order, e.part)
-				}
-				c.parts[e.part] = e.body
-			}
-			return c
-		})
-		if !found {
-			return p, fmt.Errorf("%w: no slot %s", errCheck, e.slot)
+		var err error
+		if n, err = apply(n, e); err != nil {
+			return p, err
 		}
 	}
 	return Pipeline[I, O]{n}, nil
+}
+
+// apply returns n with the edit e applied.
+func apply(n node, e Edit) (node, error) {
+	found := false
+	switch {
+	case e.inner != nil:
+		var err error
+		n = rewrite(n, func(x node) node {
+			f, ok := x.(*forkNode)
+			if !ok || err != nil {
+				return x
+			}
+			c := &forkNode{in: f.in, out: f.out, names: f.names, branches: slices.Clone(f.branches)}
+			for i, name := range f.names {
+				if name == e.branch {
+					found = true
+					if c.branches[i], err = apply(c.branches[i], *e.inner); err != nil {
+						return x
+					}
+				}
+			}
+			return c
+		})
+		if err != nil {
+			return n, err
+		}
+		if !found {
+			return n, fmt.Errorf("%w: no branch %s", errCheck, e.branch)
+		}
+		return n, nil
+	case e.prov != nil:
+		n = rewrite(n, func(x node) node {
+			w, ok := x.(*withNode)
+			if !ok || !w.prov.constant || w.prov.feature != e.prov.feature {
+				return x
+			}
+			found = true
+			return &withNode{prov: e.prov, body: w.body}
+		})
+		if !found {
+			return n, fmt.Errorf("%w: no constant provider of the feature %s", errCheck, e.prov.feature)
+		}
+		return n, nil
+	}
+	n = rewrite(n, func(x node) node {
+		s, ok := x.(*slotNode)
+		if !ok || s.slot.name != e.slot {
+			return x
+		}
+		found = true
+		c := &slotNode{slot: s.slot, skel: s.skel, def: s.def, parts: map[string]node{}, order: append([]string(nil), s.order...)}
+		for k, v := range s.parts {
+			c.parts[k] = v
+		}
+		if e.part == "" {
+			c.def, c.parts, c.order = e.body, map[string]node{}, nil
+		} else {
+			if c.parts[e.part] == nil {
+				c.order = append(c.order, e.part)
+			}
+			c.parts[e.part] = e.body
+		}
+		return c
+	})
+	if !found {
+		return n, fmt.Errorf("%w: no slot %s", errCheck, e.slot)
+	}
+	return n, nil
 }
 
 // Branch is one backend of a Fork.
