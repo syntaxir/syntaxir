@@ -117,7 +117,7 @@ are the following.
 
 | Quantity | Measures |
 |:--|:--|
-| `body` | The units that the evaluation of a rule's body that the call runs, and of the rule's action, charge, as the operations they call declare them. |
+| `body` | The units that the evaluation of a rule's body that the call runs, and of the rule's action, charge, as the operations they call declare them; for an operation of the Operators Rule, those of the trivia expression, or of the expression or the action of a line, that it runs. |
 | `covered` | The number of positions the memo covers from its floor: the slots that a target keeps per position pays for when it prunes them, moves the rest and drops the indexes of crowded positions. |
 | `deps` | The number of dependencies that the call passes to the enclosing evaluation or stores: those that the frame of the evaluation it ends recorded, and those stored with the results, steps and jumps it reuses, with the observations they lead to. |
 | `dropped` | The number of the entries above the mark of the call, which it drops: elements gathered (`action.dropKids`) or values made (`action.dropCreated`). |

@@ -11,9 +11,9 @@ const CallState = "CallState"
 
 // splitCall adds to m the operations of the split call protocol, which holds the state of a call
 // between its begin and its end while a target that does not recurse runs the rule body, and the
-// transitional operations of the missing-token mode, which only the engine has: the mode records the
-// tokens it inserts with the recovered errors (Rec).
-func splitCall(m *code.Module, add func(*code.Op), rule, values, ctx, mark, entry code.Type) {
+// operations of the missing-token mode, which only the engine has: the mode records the tokens it
+// inserts with the recovered errors (Rec).
+func splitCall(m *code.Module, rule, values, ctx, mark, entry code.Type) {
 	m.AddComponent(Suspended, `The calls whose rule body runs between the begin and the end of the split call
 protocol, each with the state that its begin saved for its end in a record that its caller holds.`)
 	st := m.AddHandle(CallState, Suspended, "The record of a suspended call, which its caller holds.")

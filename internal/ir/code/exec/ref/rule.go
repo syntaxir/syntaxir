@@ -231,8 +231,18 @@ func (m *Model) perform(e Eval, start int64, capture func()) {
 }
 
 // bodyQuantity returns exec.QBody for a call of o with args: the units that the evaluation it runs
-// charges.
+// charges. The actions of the Operators Rule are the model's own and charge nothing.
 func (m *Model) bodyQuantity(o *code.Op, args []any) int64 {
+	switch o.Name {
+	case "opr.skip":
+		i := args[0].(RuleRef).Index
+		return int64(scriptAt(m.cfg.Oprs[i].Trivia, m.oprRule(i).trivia).Charge)
+	case "opr.match":
+		l := args[0].(*OprLine)
+		return int64(scriptAt(l.spec.Expr, l.evals).Charge)
+	case "opr.lineValue", "opr.build", "opr.buildTyped":
+		return 0
+	}
 	switch r := args[0].(type) {
 	case RuleRef:
 		return int64(m.next(r.Index).Charge)

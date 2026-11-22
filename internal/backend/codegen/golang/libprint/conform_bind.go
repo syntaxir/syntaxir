@@ -222,10 +222,28 @@ func printEngineOprBindings() (string, error) {
 	return bindingFile("state", oprBindingEngineOps(), engineTarget(), "confOprBindings")
 }
 
+// oprBindingGoOps returns the Operators Rule operations of a Go library: the descriptors, those that run
+// the grammar code of a rule (conform.OprMatchOps) and those that make its values, with opr.build for the
+// node library and opr.buildTyped for the typed one. The libraries have neither the missing-token mode nor
+// the records of the split forms of the loop.
+func oprBindingGoOps(typed bool) []string {
+	build := "opr.build"
+	if typed {
+		build = "opr.buildTyped"
+	}
+	return append(slices.Clone(oprBindingDescriptorOps), "opr.skip", "opr.match", "opr.lineValue", build)
+}
+
 // GoOprBindings returns the Go test file of the conformance bindings of the Operators Rule operations
 // for package libgo, for the node library's Parser.
 func GoOprBindings() (string, error) {
-	return bindingFile("libgo", oprBindingDescriptorOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "confOprBindings")
+	return bindingFile("libgo", oprBindingGoOps(false), goTarget(goSpec{fn: "expect", name: "Expect"}), "confOprBindings")
+}
+
+// GoTypedOprBindings returns the Go test file of the conformance bindings of the Operators Rule
+// operations for package libgo, for the typed library's TParser.
+func GoTypedOprBindings() (string, error) {
+	return bindingFile("libgo", oprBindingGoOps(true), goTarget(goSpec{fn: "reset", typed: true, name: "Reset"}), "confTOprBindings")
 }
 
 // ctxBindingOps are the operations of the dependency memo of left recursion and of the growth outside

@@ -2479,44 +2479,44 @@ op opr.hasSkip(r Rule) bool
   contract:
     // Reports whether the Operators Rule r skips trivia between its operands and operators.
 
-transitional op opr.skip(r Rule) bool
+op opr.skip(r Rule) bool
   component rules
   writes rules, pos, silent, cut
   noreturn
-  cost <= 0
+  cost <= 0 + 1*body
   contract:
     // Runs the trivia expression of the Operators Rule r and reports whether it matched; on failure
     // the position is unspecified.
   requires:
     // opr.hasSkip(r).
 
-transitional op opr.match(l Line) (Value, bool)
+op opr.match(l Line) (Value, bool)
   component rules
   writes rules, pos, silent, cut
   noreturn
-  cost <= 0
+  cost <= 0 + 1*body
   contract:
     // Runs the expression of the line l in the current frame and returns its value and success; on
     // failure the position is unspecified. A cut in the expression sets the cut register.
 
-transitional op opr.lineValue(r Rule, l Line, f Frame, v Value, start int) Value
+op opr.lineValue(r Rule, l Line, f Frame, v Value, start int) Value
   component host
   reads frames
   writes host
   noreturn
-  cost <= 0
+  cost <= 0 + 1*body
   contract:
     // Returns the value of the operand line l of the rule r that matched from start to the position
     // with the value v and the captures of f: the line's action, or its shaped value with its captures.
   requires:
     // l is an operand line of r, and f a frame of opr.scope(l) slots.
 
-transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
+op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
   component host
   reads operators, frames
   writes host
   noreturn
-  cost <= 0
+  cost <= 0 + 1*body
   contract:
     // Returns the value of the application of the operator of a to lhs (null for a prefix operator)
     // and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it:
@@ -2529,13 +2529,13 @@ transitional op opr.build(r Rule, a Attempt, lhs Value, rhs Value) Value
   requires:
     // The operator of a is one of r, and the frame of a has the slots of its line.
 
-transitional op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Value) (Value, int)
+op opr.buildTyped(r Rule, a Attempt, lhs Value, lstart int, rhs Value) (Value, int)
   component host
   reads operators, frames
   writes host
   features typed
   noreturn
-  cost <= 0
+  cost <= 0 + 1*body
   contract:
     // Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns
     // where the value of the application starts.
@@ -2550,7 +2550,7 @@ op opr.attempt(op Operator, f Frame, v Value, start int, cut bool, errs Errs) At
     // Returns the match of op from start to the position with the value v, the captures of f, the
     // variable environment, the cut flag cut and the recovered errors errs.
 
-transitional op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut bool, errs Errs, mark int) Attempt
+op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut bool, errs Errs, mark int) Attempt
   component operators
   reads env, pos, recovered
   features missing
@@ -2562,7 +2562,7 @@ transitional op opr.attemptMissing(op Operator, f Frame, v Value, start int, cut
   requires:
     // mark is a result of missing.mark at or before every later mark that is still in use.
 
-transitional op opr.replay(a Attempt)
+op opr.replay(a Attempt)
   component recovered
   reads operators
   writes recovered

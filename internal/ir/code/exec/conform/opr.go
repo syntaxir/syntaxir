@@ -148,7 +148,7 @@ if it has none.`, `v is a node and k is an index of ref.OprFieldNames.`, code.TH
 // that records source information: a rule of each kind of operator that skips trivia, a rule without
 // prefix operators whose value nothing uses, one with no operator, and one whose operators have a named
 // node type. The scripts of the trivia and of the lines of the first rule match and fail, move the
-// position by different lengths, record errors, pass cuts and capture; those of the last rule match;
+// position by different lengths, charge, record errors, pass cuts and capture; those of the last rule match;
 // the other lines have none and fail at once. The lines of the first rule have each shape of value of a
 // sequence or of one element, with and without an action; the last rule has an operator with an action,
 // one whose action returns the null value, which does not convert to the type, and some without an
@@ -163,6 +163,11 @@ func OprConfig() ref.Config {
 	// captures is an evaluation that sets the captures of the slots.
 	captures := func(ok bool, n int64, slots ...int64) ref.OprExpr {
 		return ref.OprExpr{Eval: ref.Eval{OK: ok, Len: n, Captures: slots}}
+	}
+	// charged is the evaluation e that charges n units.
+	charged := func(e ref.OprExpr, n uint64) ref.OprExpr {
+		e.Charge = n
+		return e
 	}
 	// shaped gives an operator's line the shape of its value, and an action.
 	shaped := func(o ref.OprOp, shape ref.OprShape, action bool) ref.OprOp {
@@ -180,17 +185,17 @@ func OprConfig() ref.Config {
 		Oprs: []ref.OprRule{
 			{Prefix: []ref.OprOp{shaped(op("prefix", "left", 9, 1, x(true, 2, false)), ref.OprTuple, false),
 				shaped(op("prefix", "left", 8, 0), ref.OprNone, true)},
-				Led: []ref.OprOp{op("infix", "left", 1, 0, x(true, 1, false), x(false, 2, true), x(true, 3, true, 6), x(false, 0, false)),
+				Led: []ref.OprOp{op("infix", "left", 1, 0, x(true, 1, false), charged(x(false, 2, true), 1), x(true, 3, true, 6), x(false, 0, false)),
 					shaped(op("infix", "left", 2, 2, captures(true, 1, 0, 1), captures(false, 2, 1), captures(true, 1)), ref.OprTuple, false),
 					shaped(op("infix", "right", 3, 1, x(true, 0, true)), ref.OprShared, true),
 					shaped(op("postfix", "left", 4, 0, x(false, 1, false, 7), x(true, 4, false)), ref.OprNone, false),
 					op("infix", "none", 5, 3)},
-				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{x(true, 3, false), x(false, 1, true)}},
+				Operands: []ref.OprLineSpec{{Scope: 0, Expr: []ref.OprExpr{charged(x(true, 3, false), 2), x(false, 1, true)}},
 					{Scope: 2, Expr: []ref.OprExpr{captures(true, 2, 1)}, Shape: ref.OprTuple},
 					{Scope: 1, Expr: []ref.OprExpr{captures(true, 1, 0)}, Shape: ref.OprShared},
 					{Scope: 1, Expr: []ref.OprExpr{captures(true, 1, 0)}, Action: true}},
 				Skip:   true,
-				Trivia: []ref.Eval{{OK: true, Len: 2}, {OK: false, Len: 1}, {OK: true}, {OK: true, Len: 1, Errs: []int64{9}}}},
+				Trivia: []ref.Eval{{OK: true, Len: 2, Charge: 3}, {OK: false, Len: 1}, {OK: true}, {OK: true, Len: 1, Errs: []int64{9}}}},
 			{Novalue: true, Led: []ref.OprOp{op("infix", "right", 1, 0), op("postfix", "none", 2, 1)},
 				Operands: []ref.OprLineSpec{{Scope: 1}}},
 			{},
@@ -220,10 +225,25 @@ func OprCases() []Case {
 	m := OprModule()
 	var cs []Case
 	cfg := OprConfig()
+	// typed is whether the case being built is the specialization for a parser of typed values, whose
+	// values carry no rule's name; add builds each case for both.
+	typed := false
 	add := func(name string, body func(b *code.Builder)) {
 		cs = append(cs, Case{Module: m, Func: m.AddFunc(name, nil, nil, []string{"budget", "stream", "document"}, body), Config: cfg})
+		typed = true
+		cs = append(cs, Case{Module: m, Func: m.AddFunc("typed_"+name, nil, nil, []string{"budget", "stream", "document", exec.Typed}, body),
+			Config: cfg})
+		typed = false
 	}
 	i := code.Int
+	// named is the index of the rule r whose name a value of it carries in a parse that records source
+	// information: none for a parser of typed values.
+	named := func(r int64) code.Expr {
+		if typed {
+			return i(-1)
+		}
+		return i(r)
+	}
 	rule := func(n int64) code.Expr { return code.C(RuleOp, i(n)) }
 	eq := code.Eq
 	nullAttempt := code.Null(code.THandle(exec.Attempt))
@@ -436,7 +456,7 @@ func OprCases() []Case {
 		v0 := match(b, "v0", ol0, 3)
 		lv0 := b.Let("lv0", code.C("opr.lineValue", r, ol0, f0, v0, i(3)))
 		b.Assert(eq(lv0, v0), "the value of a line of one element is its expression's")
-		b.Assert(eq(ruleOf(lv0), i(0)), "and takes the rule's name")
+		b.Assert(eq(ruleOf(lv0), named(0)), "and takes the rule's name")
 		b.Assert(all(eq(start(lv0), i(3)), eq(end(lv0), i(6))), "with the range of the match")
 		f2 := frame(b, "f2", 2)
 		v1 := match(b, "v1", ol1, 1)
@@ -451,7 +471,7 @@ func OprCases() []Case {
 		b.Assert(code.Not(eq(lv1b, lv1)), "a value that a rule has taken is wrapped")
 		b.Assert(all(eq(kids(lv1b), i(1)), eq(kid(lv1b, 0), lv1)), "in a node whose one element it is")
 		b.Assert(all(eq(start(lv1b), i(2)), eq(end(lv1b), i(5))), "of the range of the line")
-		b.Assert(all(eq(field(lv1b, "c1"), c1), eq(ruleOf(lv1b), i(0))), "which takes the captures and the name")
+		b.Assert(all(eq(field(lv1b, "c1"), c1), eq(ruleOf(lv1b), named(0))), "which takes the captures and the name")
 		b.Do("frame.set", i(0), lv1b)
 		lv1c := b.Let("lv1c", code.C("opr.lineValue", r, ol1, f2, lv1b, i(2)))
 		b.Assert(code.Not(eq(lv1c, lv1b)), "and so is a value that is itself a capture")
@@ -499,7 +519,7 @@ func OprCases() []Case {
 		b.Assert(all(eq(field(n1, "lhs"), lhs), eq(field(n1, "op"), v1), eq(field(n1, "rhs"), rhs)), "which are its fields")
 		b.Assert(all(eq(field(v1, "c0"), code.C(ref.FrameSlotOp, f2, i(0))), eq(field(v1, "c1"), code.C(ref.FrameSlotOp, f2, i(1)))),
 			"the operator's tuple node takes its captures")
-		b.Assert(eq(ruleOf(n1), i(0)), "and the application takes the rule's name")
+		b.Assert(eq(ruleOf(n1), named(0)), "and the application takes the rule's name")
 		o3 := b.Let("o3", code.C("opr.at", led, i(3)))
 		a3 := attempt("a3", o3, f0, code.C(OprNodeOp), 5, 7)
 		b.SetReg(exec.Pos, i(10))
@@ -587,7 +607,7 @@ func OprCases() []Case {
 		a := b.Let("a", code.C("opr.attempt", o0, f0, v0, i(6), code.BoolC(false), code.C("rec.since", i(0))))
 		b.Assert(eq(ruleOf(code.C("opr.build", r, a, v0, v0)), i(-1)), "and nor does an application")
 	})
-	cs[len(cs)-1].Config.SourceInfo = false
+	cs[len(cs)-2].Config.SourceInfo, cs[len(cs)-1].Config.SourceInfo = false, false
 	typeOf := func(v code.Expr) code.Expr { return code.C(ref.OprValueTypeOp, v) }
 	add("opr_values_of_elements", func(b *code.Builder) {
 		// The lines of one element that is not a sequence but whose value is a node of its range, and
@@ -599,13 +619,13 @@ func OprCases() []Case {
 		w := b.Let("w", code.C("opr.lineValue", r, ol1, f1, v1, i(2)))
 		b.Assert(all(eq(start(w), i(2)), eq(end(w), i(3)), eq(kids(w), i(1)), eq(kid(w, 0), v1)),
 			"an element with captures is wrapped in a node of the line's range")
-		b.Assert(all(eq(code.C(ref.OprValueFieldOp, w, i(3)), code.C(ref.FrameSlotOp, f1, i(0))), eq(ruleOf(w), i(3))),
+		b.Assert(all(eq(code.C(ref.OprValueFieldOp, w, i(3)), code.C(ref.FrameSlotOp, f1, i(0))), eq(ruleOf(w), named(3))),
 			"which takes the captures and the rule's name")
 		f0 := frame(b, "f0", 0)
 		ol2 := b.Let("ol2", code.C("opr.operand", r, i(2)))
 		v2 := match(b, "v2", ol2, 4)
 		u := b.Let("u", code.C("opr.lineValue", r, ol2, f0, v2, i(4)))
-		b.Assert(all(eq(start(u), i(4)), eq(end(u), i(7)), eq(kids(u), i(0)), eq(ruleOf(u), i(3))),
+		b.Assert(all(eq(start(u), i(4)), eq(end(u), i(7)), eq(kids(u), i(0)), eq(ruleOf(u), named(3))),
 			"no valued element makes an empty node of the line's range")
 		led, prefix := b.Let("led", code.C("opr.led", r)), b.Let("prefix", code.C("opr.prefix", r))
 		errs := b.Let("errs", code.C("rec.since", i(0)))
@@ -1154,7 +1174,8 @@ func RandomOpr(name string, rng *rand.Rand, opNames []string, n int, cfg ref.Con
 					rhs = oprEntry{null, nil}
 				}
 				setPos(regs[exec.Pos].(int64) + rng.Int64N(4))
-				if slices.Contains(opNames, "opr.buildTyped") && rng.IntN(2) == 0 {
+				// A parser of typed values builds its applications only with opr.buildTyped.
+				if slices.Contains(opNames, "opr.buildTyped") && (!slices.Contains(opNames, "opr.build") || rng.IntN(2) == 0) {
 					lstart := rng.Int64N(8)
 					value, _ = call("opr.buildTyped", []any{rule.h, a.h, lhs.h, lstart, rhs.h},
 						[]code.Expr{rule.expr, a.expr, lhs.expr, code.Int(lstart), rhs.expr})

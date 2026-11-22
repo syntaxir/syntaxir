@@ -58,16 +58,23 @@ func oprRandom(seed uint64) Case {
 	return RandomOpr("random", rand.New(rand.NewPCG(seed, 7)), slices.Concat(OprOps, OprTypedOps, OprMissingOps), oprCalls, cfg)
 }
 
+// runAsBuilt runs c on s as a parser of the values that c is specialized for: the model parses typed
+// values and untyped ones.
+func runAsBuilt(s Suite, c Case) (skipped bool, err error) {
+	s.Typed = slices.Contains(c.Func.Features, exec.Typed)
+	return Run(s, c)
+}
+
 // oprFails reports whether some handwritten or randomized case of the Operators Rule family fails on s.
 func oprFails(s Suite) (handwritten, random bool) {
 	for _, c := range OprCases() {
-		if _, err := Run(s, c); err != nil {
+		if _, err := runAsBuilt(s, c); err != nil {
 			handwritten = true
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds && !random; seed++ {
 		c := oprRandom(seed)
-		_, err := Run(s, c)
+		_, err := runAsBuilt(s, c)
 		random = err != nil
 	}
 	return handwritten, random
@@ -76,13 +83,13 @@ func oprFails(s Suite) (handwritten, random bool) {
 func TestModelPassesOprCases(t *testing.T) {
 	s := oprSuite("model", nil)
 	for _, c := range OprCases() {
-		if skipped, err := Run(s, c); err != nil || skipped {
+		if skipped, err := runAsBuilt(s, c); err != nil || skipped {
 			t.Errorf("%s: skipped %v, %v", c.Func.Name, skipped, err)
 		}
 	}
 	for seed := uint64(0); seed < oprSeeds; seed++ {
 		c := oprRandom(seed)
-		if _, err := Run(s, c); err != nil {
+		if _, err := runAsBuilt(s, c); err != nil {
 			t.Fatal(err)
 		}
 	}

@@ -67,7 +67,8 @@ const (
 	// and the expectations of its set when its farthest position is that of the steps after it.
 	QRun = "run"
 	// QBody is the units that the evaluation of a rule's body that the call runs, and of the rule's
-	// action, charge, as the operations they call declare them.
+	// action, charge, as the operations they call declare them; for an operation of the Operators Rule,
+	// those of the trivia expression, or of the expression or the action of a line, that it runs.
 	QBody = "body"
 	// QSteps is the number of memoized steps and jumps that the call takes.
 	QSteps = "steps"
@@ -94,12 +95,9 @@ const (
 // addParsing adds to m, a module made by memoizedCall, the declarations with which rules parse the input
 // and report on it: the registers, the expectation record, the invocation of rule bodies, the growth of
 // left recursion, captures, the Operators Rule, Documents, observation, suspended calls and the
-// components they write, with their operations. Some of
-// the operations have reference models and conformance cases; the others are transitional: existing functions
-// of the hand-written runtimes, declared with their current behavior and no conformance cases (design
-// 065, Migration Order), until the stage that migrates their mechanism replaces them. A rule body runs
-// grammar code, which may change any state; the declarations name only the operation's own component
-// and the registers. It also adds the host operations of the stream window (streamWindow).
+// components they write, with their operations. Each operation has a reference model and conformance
+// cases. A rule body runs grammar code, which may change any state; the declarations name only the
+// operation's own component and the registers. It also adds the host operations of the stream window (streamWindow).
 func addParsing(m *code.Module) {
 	m.AddRegister(Pos, code.TInt, "The position of the parse in the input.")
 	m.AddRegister(Silent, code.TInt, "The depth of lookaheads, inside which expectations are not recorded.")
@@ -125,10 +123,6 @@ that read a seed), or the last result of a growth.`)
 	value, errs, entry, values := code.THandle(Value), code.THandle(Errs), code.THandle(Entry), code.THandle(Values)
 	result := []code.Type{value, code.TBool}
 	regs := []string{Pos, Silent}
-	add := func(o *code.Op) {
-		o.Kind = code.OpTransitional
-		m.AddOp(o)
-	}
 	ruleArg := []code.Param{code.P("r", rule)}
 	call := []code.Param{code.P("r", rule), code.P("min", code.TInt)}
 
@@ -481,6 +475,6 @@ so far, exclusive.`, Requires: `The parse tracks the examined input (doc.trackin
 	documentMove(m)
 	documentEdits(m)
 	documentRuns(m, value)
-	splitCall(m, add, rule, values, ctx, mark, entry)
-	framesAndOperators(m, add, rule, value, errs)
+	splitCall(m, rule, values, ctx, mark, entry)
+	framesAndOperators(m, rule, value, errs)
 }

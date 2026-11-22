@@ -74,6 +74,9 @@ type Suite struct {
 	// CallUnitBefore sets ref.Config.CallUnitBefore: the implementation's call protocol charges the unit
 	// of a call before rule.invoke and rule.invokePlain run.
 	CallUnitBefore bool
+	// Typed is an implementation that parses typed values: it runs the cases specialized for exec.Typed
+	// and no others, and sets ref.Config.Typed for the model. Any other runs no case specialized for it.
+	Typed bool
 	// Exact are the operations whose charges must equal their cost bound, not stay within it: in a
 	// metered implementation, the model's quantities state the work to the unit.
 	Exact []string
@@ -155,13 +158,14 @@ func (f *Failure) Error() string {
 // Run runs case c on suite s. It returns nil when the case passes or calls an operation the suite
 // does not provide (skipped reports which), and a *Failure otherwise.
 func Run(s Suite, c Case) (skipped bool, err error) {
-	if !provides(s, c.Module, c.Func, map[string]bool{}) {
+	if !provides(s, c.Module, c.Func, map[string]bool{}) || slices.Contains(c.Func.Features, exec.Typed) != s.Typed {
 		return true, nil
 	}
 	cfg := c.Config
 	cfg.LazyEdits = s.LazyEdits
 	cfg.DocCallMemo = s.DocCallMemo
 	cfg.CallUnitBefore = s.CallUnitBefore
+	cfg.Typed = s.Typed
 	p := &pair{suite: s, model: ref.New(cfg), impl: s.New(cfg),
 		refOrd: ordinals{at: map[any]int{}}, implOrd: ordinals{at: map[any]int{}}, handles: map[any]*handle{}}
 	fail := func(msg string) error {

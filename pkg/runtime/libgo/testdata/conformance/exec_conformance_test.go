@@ -217,18 +217,23 @@ func (m *rtMachine) Values(id int64) any {
 	return id
 }
 
-// interrupted turns the panic that ends a parse into the interruption of Exec IR.
+// interrupted turns the panic that ends a parse into the interruption of Exec IR: the nesting limit is
+// "nesting", the other limits "limit", and an error that is no limit, such as a value that does not
+// convert, "error".
 func interrupted() {
 	if x := recover(); x != nil {
 		f, ok := x.(fatal)
 		if !ok {
 			panic(x)
 		}
-		// The nesting limit is a LimitError too, of its own kind.
-		if le, limit := f.err.(*sxirruntime.LimitError); limit && le.Kind != sxirruntime.LimitDepth {
-			panic(code.Interrupt{Reason: "limit"})
+		le, limit := f.err.(*sxirruntime.LimitError)
+		switch {
+		case !limit:
+			panic(code.Interrupt{Reason: "error"})
+		case le.Kind == sxirruntime.LimitDepth:
+			panic(code.Interrupt{Reason: "nesting"})
 		}
-		panic(code.Interrupt{Reason: "nesting"})
+		panic(code.Interrupt{Reason: "limit"})
 	}
 }
 

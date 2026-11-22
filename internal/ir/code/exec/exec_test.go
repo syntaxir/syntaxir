@@ -37,10 +37,10 @@ func TestParserGolden(t *testing.T) {
 	}
 }
 
-// TestCrossComponentWriters pins the transitional operations of the whole abstract machine (machine) that write
-// a component other than their own, which Verify allows only for transitional operations: the growth
-// operations that recorded recovered errors again have since moved that write to the grow composition, so
-// none is left. A new writer needs a reason recorded here. The
+// TestCrossComponentWriters pins the operations of the whole abstract machine (machine) that write a
+// component other than their own, which Verify allows only for transitional operations: the growth
+// operations that recorded recovered errors again have since moved that write to the grow composition, and
+// the machine declares no transitional operation, so none is left. A new writer needs a reason recorded here. The
 // leaves of action expressions, which the lowering declares, are pinned there (TestActionLeavesWriteOwnComponent).
 func TestCrossComponentWriters(t *testing.T) {
 	m := machine()

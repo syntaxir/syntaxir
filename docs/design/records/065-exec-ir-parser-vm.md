@@ -220,8 +220,9 @@ An operation is placed by four rules.
    collector, the word size of a bit page, a membership filter.
 4. **No re-entry.** An operation does not run grammar code. Where a mechanism must run a rule body in the middle — a
    memoized call, a growth step — it is a composition, or a begin and an end operation around the body. The
-   transitional operations that invoke a rule's body or a line of an Operators Rule are the exception until their
-   mechanism is a composition; their contracts say so ([Operations](../../../spec/code-ir/module.md#operations)).
+   operations that run a rule's body, the trivia or a line of an Operators Rule, or the action of such a line are the
+   exception: their contracts say so, and their reference models script what the grammar code does
+   ([Operations](../../../spec/code-ir/module.md#operations)).
 
 The measured history supports these rules. Each of the 22 core commits of [Changes Paid Several
 Times](#changes-paid-several-times) is placed below by the part of this design it would change (classified by hand
@@ -365,7 +366,8 @@ setter for each field, a field holding the zero value of its type until it is se
 conformance cases that run on the engine and, for all but the records, on generated Go. A harness that reaches
 the targets' printed bindings by reflection serves both. The operations that run grammar code (`opr.skip`, `opr.match`)
 have a scripted model, the trivia and each operand or operator line a script of evaluations as a rule's body has, with
-conformance cases that run on the engine and on TypeScript; a line's captures are writes to the slots of the current
+conformance cases that run on the engine, on generated Go and on TypeScript, and their charges are bounded by those of
+the scripts (the quantity `body`); a line's captures are writes to the slots of the current
 frame, which the cases read back. The operations that build values (`opr.lineValue`, `opr.build`, `opr.buildTyped`)
 have a model of nodes, with their ranges, elements, fields, rule names and the named node type of a rule's operators,
 in which each line has the static shape of its value (one element, a sequence, a sequence whose tuple a memo entry
@@ -374,12 +376,13 @@ none for an operator) and may have an action, a probe that returns a node of the
 was given, or the null value. An operator's value converts to the operators' named node type when the rule declares
 one, and one that does not convert, the null value, ends the parse with the evaluation error that the cases expect; the
 cases take the values
-apart and compare them by identity, on the engine and on TypeScript, and `opr.buildTyped` on the model until a target
-of typed values runs it. These stay transitional until generated Go runs them too. Those that keep missing tokens
+apart and compare them by identity, on the engine, on generated Go and on TypeScript. `opr.buildTyped` runs on the
+typed Go runtime, whose nodes carry no rule name, so every case runs again specialized for typed values and expects
+none there. Those that keep missing tokens
 (`opr.attemptMissing`, `opr.replay`) have a model on the reference model of the missing-token mode: a match copies the
 tokens inserted after its mark, and applying it records them again with its errors, leaving out those of tokens that
 are present, as `missing.replay` does; the cases run on the engine, the only target with the mode, with their charges
-held to the exact cost. They stay transitional, as the mode stays on the engine. *Target*: the
+held to the exact cost; the cases on that one target bind them, as the mode exists there alone. *Target*: the
 representation of lists, lines and attempts.
 
 **Rules.** What the grammar says of a rule (whether a parse from scratch or a Document parse memoizes it, whether it
@@ -567,8 +570,8 @@ record allocates and by the size of a dense record of calls in position order. A
 list declares the copy in its bound. A transitional or host operation that charges declares a bound too, with no
 reference model to measure it against; a test instead follows the static calls of the Go runtime from each such
 operation and requires a quantity of its bound for every charge it can reach, so that a charge added to the
-runtime is accounted for when it is added. The operations that run a rule body declare none: what they
-charge includes the grammar code they run, which no bound of theirs can state. The application of a term charges
+runtime is accounted for when it is added. The operations that run grammar code bound what it charges by the
+quantity `body`, which the reference model reads from the script of the evaluation (its actions charge nothing). The application of a term charges
 nothing itself: it adds what the code of the term charges, which the operations it calls declare.
 
 Charges inside an operation spend the same budget that `budget.charge` and `budget.used` see. The conformance suite
@@ -1053,8 +1056,8 @@ implements. That definition does not make each operation's implementation shared
 
 These stay transitional, each declared with its contract and cost bound and implemented by hand on each target:
 
-- the operations of the call protocol, the Operators Rule, Documents, the stream window and the split call protocol
-  that have no reference model, whose charges a static test follows instead (left-recursion growth, missing tokens, Operators Rule lines, Documents and the stream window); printed
+- the operations of the call protocol, Documents, the stream window and the split call protocol
+  that have no reference model, whose charges a static test follows instead (left-recursion growth, missing tokens, Documents and the stream window); printed
   tests bind what they do;
 - the primitives of grammar code, which reach each runtime's helpers through the lowering of Flow IR, among them the
   sites that make a recovered error;

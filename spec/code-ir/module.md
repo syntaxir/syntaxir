@@ -77,9 +77,9 @@ An operation is of one of four kinds.
 
 An operation never runs grammar code and never chooses between outcomes of the parse: reusing or recomputing a
 result, growing or stopping, which error or expectation survives. Those choices are made in functions, which read
-the results of operations. The exceptions are the transitional operations that invoke a rule's body or a line of an
-Operators Rule, which say so in their contracts. An action expression is not run by an operation: a function applies it
-([Application](functions.md#application)).
+the results of operations. The exceptions are the operations that run a rule's body, the trivia or a line of an
+Operators Rule, or the action of such a line, which say so in their contracts. Any other action expression is not run by
+an operation: a function applies it ([Application](functions.md#application)).
 
 ## Immediate Operands
 

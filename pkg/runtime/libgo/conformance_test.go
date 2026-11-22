@@ -21,7 +21,7 @@ func TestMain(m *testing.M) {
 
 // libOverlay writes a go build overlay (go help build, -overlay) that adds the tests of
 // testdata/conformance and the conformance bindings that the library's printer prints
-// (libgo.GoExpBindings, libgo.GoTypedExpBindings, libgo.GoDocBindings, libgo.GoRuleBindings, libgo.GoTypedRuleBindings, libgo.GoOprBindings,
+// (libgo.GoExpBindings, libgo.GoTypedExpBindings, libgo.GoDocBindings, libgo.GoRuleBindings, libgo.GoTypedRuleBindings, libgo.GoOprBindings, libgo.GoTypedOprBindings,
 // libgo.GoCtxBindings, libgo.GoFrameBindings, libgo.GoTypedFrameBindings, libgo.GoActionStateBindings,
 // libgo.GoTypedActionStateBindings, libgo.GoObsBindings) to the
 // library package, and returns its path. The tests bind the operations to unexported code of the
@@ -73,6 +73,7 @@ func libOverlay(t *testing.T, mutate func(name, src string) string) string {
 		"texp_bind_exec_test.go":     libprint.GoTypedExpBindings,
 		"doc_bind_exec_test.go":      libprint.GoDocBindings,
 		"opr_bind_exec_test.go":      libprint.GoOprBindings,
+		"topr_bind_exec_test.go":     libprint.GoTypedOprBindings,
 		"ctx_bind_exec_test.go":      libprint.GoCtxBindings,
 		"frame_bind_exec_test.go":    libprint.GoFrameBindings,
 		"tframe_bind_exec_test.go":   libprint.GoTypedFrameBindings,
@@ -120,7 +121,7 @@ func TestLibExecConformance(t *testing.T) {
 	if err != nil {
 		t.Fatalf("go test: %v\n%s", err, out)
 	}
-	for _, name := range []string{"TestExecConformance", "TestExecConformanceDetectsBrokenLib", "TestExecConformanceDetectsBrokenTypedLib", "TestExecConformanceRule", "TestExecConformanceRuleDetectsBrokenLib", "TestExecConformanceRuleDetectsCharges", "TestExecConformanceTypedRule", "TestExecConformanceTypedRuleDetectsBrokenLib", "TestExecConformanceTypedRuleDetectsCharges", "TestExecConformanceObs", "TestExecConformanceObsDetectsBrokenLib", "TestExecConformanceExp", "TestExecConformanceExpDetectsBrokenLib", "TestExecConformanceTypedExpDetectsBrokenLib", "TestExecConformanceExpDetectsCharges", "TestExecConformanceDoc", "TestExecConformanceDocDetectsBrokenLib", "TestExecConformanceOpr", "TestExecConformanceOprDetectsBrokenLib", "TestExecConformanceCtx", "TestExecConformanceCtxDetectsBrokenLib", "TestExecConformanceCtxDetectsCharges", "TestExecConformanceFrame", "TestExecConformanceFrameDetectsBrokenLib", "TestExecConformanceActionState", "TestExecConformanceActionStateDetectsBrokenLib", "TestValueConformance", "TestValueConformanceDetectsBrokenLib", "TestValueBoxedOperands", "TestValueBoxedStringCharges", "TestValueCompareStrings", "TestValueMemberTable", "TestValueBuiltinTable", "TestValueStructTable", "TestValueHullTable", "TestValueIterTable", "TestValuePushTable", "TestValueCastTable"} {
+	for _, name := range []string{"TestExecConformance", "TestExecConformanceDetectsBrokenLib", "TestExecConformanceDetectsBrokenTypedLib", "TestExecConformanceRule", "TestExecConformanceRuleDetectsBrokenLib", "TestExecConformanceRuleDetectsCharges", "TestExecConformanceTypedRule", "TestExecConformanceTypedRuleDetectsBrokenLib", "TestExecConformanceTypedRuleDetectsCharges", "TestExecConformanceObs", "TestExecConformanceObsDetectsBrokenLib", "TestExecConformanceExp", "TestExecConformanceExpDetectsBrokenLib", "TestExecConformanceTypedExpDetectsBrokenLib", "TestExecConformanceExpDetectsCharges", "TestExecConformanceDoc", "TestExecConformanceDocDetectsBrokenLib", "TestExecConformanceOpr", "TestExecConformanceOprDetectsBrokenLib", "TestExecConformanceOprOperatorTypeIsChecked", "TestExecConformanceOprConversionFailureIsChecked", "TestExecConformanceCtx", "TestExecConformanceCtxDetectsBrokenLib", "TestExecConformanceCtxDetectsCharges", "TestExecConformanceFrame", "TestExecConformanceFrameDetectsBrokenLib", "TestExecConformanceActionState", "TestExecConformanceActionStateDetectsBrokenLib", "TestValueConformance", "TestValueConformanceDetectsBrokenLib", "TestValueBoxedOperands", "TestValueBoxedStringCharges", "TestValueCompareStrings", "TestValueMemberTable", "TestValueBuiltinTable", "TestValueStructTable", "TestValueHullTable", "TestValueIterTable", "TestValuePushTable", "TestValueCastTable"} {
 		if !strings.Contains(string(out), "--- PASS: "+name+" ") {
 			t.Errorf("go test did not run %s:\n%s", name, out)
 		}

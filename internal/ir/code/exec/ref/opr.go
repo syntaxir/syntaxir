@@ -538,8 +538,8 @@ func (m *Model) oprLineValue(r int64, l *OprLine, f *Frame, v any, start int64) 
 		v = withCaptures(v, f, start, pos)
 	}
 	if n, ok := v.(*OprValue); ok && n != nil && n.fresh {
-		// The value takes the rule's name, and is final.
-		if m.cfg.SourceInfo && n.rule < 0 {
+		// The value takes the rule's name, unless it is typed, and is final.
+		if m.cfg.SourceInfo && !m.cfg.Typed && n.rule < 0 {
 			n.rule = r
 		}
 		n.fresh = false
@@ -548,8 +548,8 @@ func (m *Model) oprLineValue(r int64, l *OprLine, f *Frame, v any, start int64) 
 }
 
 // oprBuild is opr.build, and opr.buildTyped if typed: the value of the application of the operator of a
-// to lhs, which starts at lstart if it is not a node, and rhs, and where the value starts. A typed value
-// carries no rule's name.
+// to lhs, which starts at lstart if it is not a node, and rhs, and where the value starts. A typed value,
+// and any value of a parser of typed values, carries no rule's name.
 func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any, typed bool) (any, int64) {
 	if m.cfg.Oprs[r].Novalue {
 		return nil, a.start
@@ -600,7 +600,7 @@ func (m *Model) oprBuild(r int64, a *OprAttempt, lhs any, lstart int64, rhs any,
 	if m.cfg.Oprs[r].OpType {
 		// The node of the operators' named node type, which carries no rule name.
 		n.opType = r + 1
-	} else if m.cfg.SourceInfo && !typed {
+	} else if m.cfg.SourceInfo && !typed && !m.cfg.Typed {
 		n.rule = r
 	}
 	if kind != "prefix" {

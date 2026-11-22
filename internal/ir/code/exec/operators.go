@@ -43,9 +43,8 @@ const (
 // Cut is the register of the cut flag: whether the scope the parse entered last committed.
 const Cut = "cut"
 
-// framesAndOperators adds the operations of the capture frames and the Operators Rule loop, as add
-// adds transitional operations.
-func framesAndOperators(m *code.Module, add func(*code.Op), rule, value, errs code.Type) {
+// framesAndOperators adds the operations of the capture frames and the Operators Rule loop.
+func framesAndOperators(m *code.Module, rule, value, errs code.Type) {
 	m.AddRegister(Cut, code.TBool, "The cut flag of the scope the parse entered last.")
 	m.AddComponent(Frames, `The capture frames: the frame that captures write to, the slots of each frame and the
 trail of the writes that a reset undoes.`)
@@ -145,23 +144,25 @@ frame.save does not.`,
 	m.AddOp(&code.Op{Name: "opr.hasSkip", Component: Rules, Params: r, Results: []code.Type{code.TBool},
 		Contract: `Reports whether the Operators Rule r skips trivia between its operands and operators.`})
 
-	// The grammar code and the values of an Operators Rule.
-	add(&code.Op{Name: "opr.skip", Component: Rules, Params: r, Results: []code.Type{code.TBool},
-		Writes: append([]string{Rules}, regs...), NoReturn: true,
+	// The grammar code and the values of an Operators Rule, which charge what the expression or the
+	// action that they run charges (QBody).
+	body := code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}}}
+	m.AddOp(&code.Op{Name: "opr.skip", Component: Rules, Params: r, Results: []code.Type{code.TBool},
+		Writes: append([]string{Rules}, regs...), NoReturn: true, Cost: body,
 		Contract: `Runs the trivia expression of the Operators Rule r and reports whether it matched; on failure
 the position is unspecified.`, Requires: `opr.hasSkip(r).`})
-	add(&code.Op{Name: "opr.match", Component: Rules, Params: []code.Param{code.P("l", line)}, Results: []code.Type{value, code.TBool},
-		Writes: append([]string{Rules}, regs...), NoReturn: true,
+	m.AddOp(&code.Op{Name: "opr.match", Component: Rules, Params: []code.Param{code.P("l", line)}, Results: []code.Type{value, code.TBool},
+		Writes: append([]string{Rules}, regs...), NoReturn: true, Cost: body,
 		Contract: `Runs the expression of the line l in the current frame and returns its value and success; on
 failure the position is unspecified. A cut in the expression sets the cut register.`})
-	add(&code.Op{Name: "opr.lineValue", Component: Host, Params: append(r, code.P("l", line), code.P("f", frame),
+	m.AddOp(&code.Op{Name: "opr.lineValue", Component: Host, Params: append(r, code.P("l", line), code.P("f", frame),
 		code.P("v", value), code.P("start", code.TInt)), Results: []code.Type{value}, Reads: []string{Frames},
-		Writes: []string{Host}, NoReturn: true,
+		Writes: []string{Host}, NoReturn: true, Cost: body,
 		Contract: `Returns the value of the operand line l of the rule r that matched from start to the position
 with the value v and the captures of f: the line's action, or its shaped value with its captures.`,
 		Requires: `l is an operand line of r, and f a frame of opr.scope(l) slots.`})
-	add(&code.Op{Name: "opr.build", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value), code.P("rhs", value)),
-		Results: []code.Type{value}, Reads: []string{Opr, Frames}, Writes: []string{Host}, NoReturn: true,
+	m.AddOp(&code.Op{Name: "opr.build", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value), code.P("rhs", value)),
+		Results: []code.Type{value}, Reads: []string{Opr, Frames}, Writes: []string{Host}, NoReturn: true, Cost: body,
 		Contract: `Returns the value of the application of the operator of a to lhs (null for a prefix operator)
 and rhs (null for a postfix operator), which ends at the position, or for a postfix operator with it:
 the action of the operator's line, or the node of the tuple (lhs, operator, rhs). The operator is the
@@ -171,9 +172,9 @@ that type and carries no rule name, and the value of the action is converted to 
 (the failure not convertible of the Exec IR values): one that is not a string, tuple or list node ends
 the parse with the error "cannot convert <type> to <type> in result of rule <name>".`,
 		Requires: `The operator of a is one of r, and the frame of a has the slots of its line.`})
-	add(&code.Op{Name: "opr.buildTyped", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value),
+	m.AddOp(&code.Op{Name: "opr.buildTyped", Component: Host, Params: append(r, code.P("a", attempt), code.P("lhs", value),
 		code.P("lstart", code.TInt), code.P("rhs", value)), Results: []code.Type{value, code.TInt}, Reads: []string{Opr, Frames},
-		Writes: []string{Host}, NoReturn: true, Features: []string{Typed},
+		Writes: []string{Host}, NoReturn: true, Cost: body, Features: []string{Typed},
 		Contract: `Is opr.build for typed values, where lhs, if it is not a node, starts at lstart; it also returns
 where the value of the application starts.`,
 		Requires: `As for opr.build.`})
@@ -184,14 +185,14 @@ where the value of the application starts.`,
 		Reads: []string{Env, Pos},
 		Contract: `Returns the match of op from start to the position with the value v, the captures of f, the
 variable environment, the cut flag cut and the recovered errors errs.`})
-	add(&code.Op{Name: "opr.attemptMissing", Component: Opr, Params: append(o, code.P("f", frame), code.P("v", value),
+	m.AddOp(&code.Op{Name: "opr.attemptMissing", Component: Opr, Params: append(o, code.P("f", frame), code.P("v", value),
 		code.P("start", code.TInt), code.P("cut", code.TBool), code.P("errs", errs), code.P("mark", code.TInt)), Results: []code.Type{attempt},
 		Reads: []string{Env, Pos, Rec}, Features: []string{Missing}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}}},
 		Contract: `Is opr.attempt in a parse that can insert missing tokens: the match also holds a copy of the tokens
 inserted after mark, none outside the missing-token mode. It charges one unit for each token it copies.`,
 		Requires: `mark is a result of missing.mark at or before every later mark that is still in use.`})
-	add(&code.Op{Name: "opr.replay", Component: Rec, Params: a, Reads: []string{Opr}, Writes: []string{Rec}, Features: []string{Missing}, NoReturn: true,
+	m.AddOp(&code.Op{Name: "opr.replay", Component: Rec, Params: a, Reads: []string{Opr}, Writes: []string{Rec}, Features: []string{Missing}, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QTokens}, {Coef: 1, Quantity: QErrs}}},
 		Contract: `Records again the tokens that the match a inserted and the errors it recovered, as missing.replay
 does for the call of a memo entry and at the same cost; outside the missing-token mode, where a holds no

@@ -43,8 +43,10 @@ type Config struct {
 	// of the Operators Rule family.
 	Oprs []OprRule
 	// SourceInfo makes a parse that records source information: a node that an Operators Rule makes
-	// carries the name of the rule.
+	// carries the name of the rule, unless the parse is Typed.
 	SourceInfo bool
+	// Typed models a parser of typed values, whose nodes carry no rule's name.
+	Typed bool
 	// CtxRules are the left-recursion shapes of the rules of the indexes of RuleRef for the ctx
 	// operations; a rule past the list is on no cycle.
 	CtxRules []CtxRule

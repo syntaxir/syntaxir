@@ -14,8 +14,8 @@ import (
 )
 
 // The tests of this file run the compositions on a model of the operations: the reference model of
-// the modelled operations (ref.Model) and a model of the transitional ones written from their
-// contracts, with rules whose bodies the tests script. They check the contracts of the compositions
+// the operations (ref.Model), and the tests' own model, written from the contracts, of the operations
+// whose state the tests script, among them rules with scripted bodies. They check the contracts of the compositions
 // (what a call leaves in the parser state, what it charges, which entries it reuses) without a
 // generated parser, and where a generated parser cannot tell (it restores the position after a failed call itself).
 

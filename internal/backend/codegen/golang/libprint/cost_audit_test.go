@@ -331,13 +331,6 @@ func TestEditFormsCallNothing(t *testing.T) {
 	}
 }
 
-// runsGrammar are the transitional operations that run a rule body. Their charges include
-// those of the grammar code they run, which a bound of the operation cannot state; the compositions
-// that replace them (rule completion, the Document call) charge their own steps.
-var runsGrammar = map[string]bool{"rule.invoke": true, "rule.invokePlain": true, "rule.run": true, "call.track": true,
-	// The grammar code of an Operators Rule, and the actions that make the values of its lines.
-	"opr.skip": true, "opr.match": true, "opr.lineValue": true, "opr.build": true, "opr.buildTyped": true}
-
 // makesValues are the host operations that make a value of an action expression with the constructors that action expressions call
 // (List, Tuple, NewStruct). The static calls of a constructor reach the charges of all its uses, the field
 // writes and failures that the operation never makes among them, so the audit cannot attribute them;
@@ -354,7 +347,7 @@ var makesValues = map[string]bool{"node.zero": true}
 func TestTransitionalAndHostCostsMatchCharges(t *testing.T) {
 	pkg, callees, charges := libCalls(t)
 	for _, op := range compose.Build().Ops {
-		if op.Kind != code.OpTransitional && op.Kind != code.OpHost || runsGrammar[op.Name] || makesValues[op.Name] ||
+		if op.Kind != code.OpTransitional && op.Kind != code.OpHost || makesValues[op.Name] ||
 			documentWork[op.Name] != "" {
 			continue
 		}
