@@ -52,6 +52,11 @@ var pathAllowlist = []string{
 	"internal/testing/archtest/archtest_test.go: internal/fakeaction",
 	"internal/testing/archtest/archtest_test.go: internal/fakevm",
 	"internal/testing/archtest/archtest_test.go: internal/unplaced",
+	// Packages of the synthetic module of the architecture table's negative control.
+	"internal/testing/archtest/architecture_table_test.go: internal/a",
+	"internal/testing/archtest/architecture_table_test.go: internal/b",
+	"internal/testing/archtest/architecture_table_test.go: internal/driver/other",
+	"internal/testing/archtest/architecture_table_test.go: internal/driver/sub/deep",
 	// Changed-file lists of the queue scripts' tests.
 	"internal/testing/archtest/scripts_test.go: internal/runtime/engine/x.go",
 	"internal/testing/archtest/scripts_test.go: docs/a.md",
