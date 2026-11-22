@@ -90,11 +90,11 @@ func cloneWithControl(input *types.Box, c *typedDocumentClone,beforeFinish ...fu
 func TestPublicationControls(t *testing.T) {
  input:=&types.Box{First:&types.Token{Text:"private"},Items:make([]*types.Token,1000)}
  c:=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(nil,Limits{Compute:1})}}
- if output,err:=cloneWithControl(input,c);output!=nil || !errors.Is(err,ErrLimit) {t.Fatalf("budget: %v %v",output,err)}
- if c.Control!=nil || c.Values!=nil || c.Slices!=nil || c.Tasks!=nil {t.Fatal("interrupted clone retained state")}
+ if output,err:=cloneWithControl(input,c);output==nil || err!=nil {t.Fatalf("a Compute limit interrupted the copy, which is Document work no limit counts: %v %v",output,err)}
  ctx,cancel:=context.WithCancel(context.Background());cancel()
  c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(ctx,Limits{})}}
  if output,err:=cloneWithControl(input,c);output!=nil || !errors.Is(err,context.Canceled) {t.Fatalf("cancel: %v %v",output,err)}
+ if c.Control!=nil || c.Values!=nil || c.Slices!=nil || c.Tasks!=nil {t.Fatal("interrupted clone retained state")}
  ctx,cancel=context.WithCancel(context.Background())
  c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(ctx,Limits{})}}
  if output,err:=cloneWithControl(&types.Box{First:&types.Token{}},c,cancel);output!=nil || !errors.Is(err,context.Canceled) {t.Fatalf("final cancellation poll: %v %v",output,err)}

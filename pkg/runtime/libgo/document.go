@@ -49,7 +49,7 @@ func MakeDocument(root *Rule, text string, opts []ParseOption) (d *Document, err
 		return nil, err
 	}
 	defer recoverParse(&d, &err)
-	o = prepareText(o, text).forDocument()
+	o = prepareText(o, text)
 	// Construction performs the same input decoding and budget checks as a parse,
 	// but its counters do not carry into subsequent invocations.
 	p := &Parser{unit: o.unit, Control: o.control}
@@ -498,7 +498,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	if d.root == nil {
 		return res, fmt.Errorf("document start rule is missing")
 	}
-	o = prepareText(o, d.text).forDocument()
+	o = prepareText(o, d.text)
 	if o.control != nil && o.control.limits.Memory != 0 && d.memo.chargedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
 		d.dropMemo()

@@ -685,16 +685,6 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 	return o
 }
 
-// forDocument marks the control of o as that of a Document parse, whose default compute limit
-// counts only the work that a parse from scratch counts (see BudgetControl.ChargeDoc). An explicit
-// limit is unchanged.
-func (o parseOptions) forDocument() parseOptions {
-	if o.control != nil && o.limits.Compute == 0 && o.controls {
-		o.control.defaultCompute = true
-	}
-	return o
-}
-
 // prepareText is prepareOptions for the input text of a batch parse or a Document. It rejects a text
 // longer than the Input limit before any work: O(1), unless the byte length passes the limit in CodePoints,
 // where the count of code points decides.

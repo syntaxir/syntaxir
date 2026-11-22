@@ -158,6 +158,31 @@ func TestEditsAndReuse(t *testing.T){
   }
  }
 }
+// The work of a typed Document parse on its pending edits and entries is no event: the least Compute limit
+// of a reparse does not depend on how many edits the memo entries are behind by.
+func TestTypedDocumentWorkIsNoEvent(t *testing.T){
+ for _,unit:=range []PositionUnit{CodePoints,Bytes}{
+  least:=func(k int)uint64{
+   passes:=func(n uint64)bool{
+    d,err:=NewDocument(inputs[1],WithUnit(unit));if err!=nil{t.Fatal(err)}
+    if _,err:=d.ParseValue();err!=nil&&!errors.Is(err,ErrLimit){_=err}
+    for i:=0;i<k;i++{
+     if err:=d.Edit(0,0,"a");err!=nil{t.Fatal(err)}
+     if err:=d.Edit(0,1,"");err!=nil{t.Fatal(err)}
+    }
+    _,err=d.ParseValue(WithLimits(Limits{Compute:n}))
+    if err!=nil&&!errors.Is(err,ErrLimit){_=err}
+    return !errors.Is(err,ErrLimit)
+   }
+   lo,hi:=uint64(0),uint64(1)
+   for !passes(hi){lo,hi=hi,hi*2;if hi>1<<30{t.Fatal("no limit passes")}}
+   for hi-lo>1{mid:=(lo+hi)/2;if passes(mid){hi=mid}else{lo=mid}}
+   return hi
+  }
+  one,many:=least(1),least(40)
+  if one!=many{t.Fatalf("unit %v: the least limit of a reparse is %d after 1 edit pair and %d after 40: Document work counted",unit,one,many)}
+ }
+}
 type admissionPanicContext struct {context.Context; token any; donePanic bool; done chan struct{}}
 func(c *admissionPanicContext)Done()<-chan struct{}{if c.donePanic{panic(c.token)};return c.done}
 func(c *admissionPanicContext)Err()error{panic(c.token)}

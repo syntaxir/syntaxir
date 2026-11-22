@@ -93,12 +93,11 @@ type BudgetControl struct {
 	// position the parser has demanded from the stream (demand).
 	adaptive bool
 
-	// defaultCompute is set when the compute limit is the default of a Document parse. Under it the
-	// limit counts only the work that a parse from scratch counts: the units reserved for work that
-	// only a Document does (chargeDoc, freeBegin) are added to doc and to the limit, so they leave
-	// room for the counted work. An explicit limit counts all units, and doc stays zero.
-	defaultCompute bool
-	// doc is the part of the units reserved that only a Document parse reserves, under a default limit.
+	// doc is the part of the units reserved that only a Document parse reserves: its work on pending
+	// edits, entries, reused values and runs is not an event, so it is no part of the count against
+	// any Compute limit, the default or an explicit one (chargeDoc, freeBegin). Those units still
+	// advance sinceCheck, so that the polls for cancellation and memory keep their cadence inside
+	// Document work: a poll is a check, not a charge.
 	doc uint64
 	// freeing is set between freeBegin and freeEnd; freed holds the limit that freeBegin lifted.
 	freeing  bool
@@ -268,18 +267,21 @@ func (c *BudgetControl) Take(n uint64) bool {
 // noFree is the mark that FreeBegin returns when it opens no region.
 const noFree = ^uint64(0)
 
-// ChargeDoc reserves n units of work that only a Document parse does, as Charge does, and under a
-// default limit leaves them out of the count against it: the limit rises by n first, so the units
-// leave the room that counted work has. Under an explicit limit it is Charge. It is safe on a nil
-// receiver.
+// ChargeDoc reserves n units of work that only a Document parse does, as Charge does, and leaves
+// them out of the count against the limit, whichever limit it is: the limit rises by n first, so the
+// units leave the room that counted work has. An unlimited control has no limit to raise. The units
+// are in budgetUsed and advance sinceCheck, so cancellation and memory are polled as for any work,
+// and are in doc, which LimitError leaves out. It is safe on a nil receiver.
 func (c *BudgetControl) ChargeDoc(n uint64) {
 	if c == nil {
 		return
 	}
-	if c.defaultCompute && !c.freeing {
+	if !c.freeing {
 		c.settle()
 		c.doc = saturatingAdd(c.doc, n)
-		c.limits.Compute = saturatingAdd(c.limits.Compute, n)
+		if c.limits.Compute != 0 {
+			c.limits.Compute = saturatingAdd(c.limits.Compute, n)
+		}
 		c.refill()
 	}
 	c.Charge(n)
@@ -287,10 +289,10 @@ func (c *BudgetControl) ChargeDoc(n uint64) {
 
 // FreeBegin opens a region in which every reservation is work that only a Document parse does, as
 // ChargeDoc reserves it, and returns the mark for FreeEnd, if on holds. The region ends the work it
-// covers before any counted work starts. Under a default limit it lifts the limit until FreeEnd;
-// otherwise, or in a region, it opens none and returns noFree. It is safe on a nil receiver.
+// covers before any counted work starts. It lifts the limit until FreeEnd; with on false, or in a
+// region, it opens none and returns noFree. It is safe on a nil receiver.
 func (c *BudgetControl) FreeBegin(on bool) uint64 {
-	if c == nil || !on || !c.defaultCompute || c.freeing {
+	if c == nil || !on || c.freeing {
 		return noFree
 	}
 	c.settle()
@@ -302,7 +304,7 @@ func (c *BudgetControl) FreeBegin(on bool) uint64 {
 
 // FreeEnd ends the region that FreeBegin opened (mark is what it returned, noFree if it opened none):
 // the units reserved since the region began are Document units, and the limit is what it was plus
-// them.
+// them, or none if it was none.
 func (c *BudgetControl) FreeEnd(mark uint64) {
 	if mark == noFree || !c.freeing {
 		return
@@ -310,7 +312,10 @@ func (c *BudgetControl) FreeEnd(mark uint64) {
 	c.settle()
 	n := c.base - c.freeMark
 	c.doc = saturatingAdd(c.doc, n)
-	c.limits.Compute, c.freeing = saturatingAdd(c.freed, n), false
+	c.limits.Compute, c.freeing = c.freed, false
+	if c.freed != 0 {
+		c.limits.Compute = saturatingAdd(c.freed, n)
+	}
 	c.refill()
 }
 

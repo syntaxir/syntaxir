@@ -181,6 +181,9 @@ func TestDocumentReturnedRecoveryErrorOwnership(t *testing.T) {
 	}
 }
 
+// The copy that publishes the diagnostics of a reused result is Document work, which no Compute
+// limit counts: a limit too small for the copy does not interrupt it, and the memo stays. The
+// cancellation of the copy is TestDocumentDiagnosticPublicationCancellation.
 func TestDocumentDiagnosticPublicationBudget(t *testing.T) {
 	calls := 0
 	r := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
@@ -204,20 +207,14 @@ func TestDocumentDiagnosticPublicationBudget(t *testing.T) {
 	}
 	limited := normal
 	limited.limits = sxirruntime.Limits{Compute: 64}
-	if out, err := d.parse(limited); out != nil || !errors.Is(err, sxirruntime.ErrLimit) {
-		t.Fatalf("diagnostic budget: %v %v", out, err)
+	if _, err := d.parse(limited); err == nil || errors.Is(err, sxirruntime.ErrLimit) {
+		t.Fatalf("the copy of the diagnostics met the limit: %v", err)
 	}
 	if calls != 1 {
 		t.Fatal("warm parse should reuse memo before publication")
 	}
-	if len(d.memo.slots) != 0 {
-		t.Fatal("interrupted publication retained memo")
-	}
-	if _, err := d.parse(normal); err == nil {
-		t.Fatal("retry lost recovered diagnostic")
-	}
-	if calls != 2 {
-		t.Fatal("retry failed to rebuild cleared memo")
+	if len(d.memo.slots) == 0 {
+		t.Fatal("the published parse dropped its memo")
 	}
 }
 
