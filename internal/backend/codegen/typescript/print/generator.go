@@ -221,7 +221,7 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	out.WriteString(tsg.Init.String())
 	out.WriteString("\n")
 	out.WriteString(tsg.Methods.String())
-	features, err := common.ParserFeatures(prog, rec, opts, tsg.Params)
+	features, err := common.ParserFeatures(prog, rec, opts, tsg.Params, tsg.tables.Plan)
 	if err != nil {
 		return nil, err
 	}

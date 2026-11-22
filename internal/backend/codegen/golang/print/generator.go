@@ -228,7 +228,7 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
-	features, err := common.ParserFeatures(prog, rec, opts, genGo.Params)
+	features, err := common.ParserFeatures(prog, rec, opts, genGo.Params, t.Plan)
 	if err != nil {
 		return nil, nil, err
 	}

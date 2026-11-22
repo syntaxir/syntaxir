@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -126,14 +127,14 @@ func TestFeatureWitness(t *testing.T) {
 	}
 }
 
-// TestAnalyzeFeatures checks the features that the analysis finds for small grammars: none of the
-// grammar's for a grammar without memoized, recursive-left, recovering or Operators rules, and those of
-// the options, of which the limit controls are on unless NoLimitControls turns them off; and that the
-// library declares the features with the analysis's values.
+// TestAnalyzeFeatures checks the features that the analysis finds for small grammars, as the Go
+// printer records them in a parser generated with FeatureWitness: none of the grammar's for a grammar
+// without memoized, recursive-left, recovering or Operators rules, and those of the options, of which
+// the limit controls are on unless NoLimitControls turns them off.
 func TestAnalyzeFeatures(t *testing.T) {
 	t.Parallel()
 	const budget = common.FeatureBudget
-	for _, tc := range []struct {
+	for i, tc := range []struct {
 		src  string
 		opts common.GenOptions
 		want common.FeatureSet
@@ -148,24 +149,28 @@ func TestAnalyzeFeatures(t *testing.T) {
 		// A rule that no entry point reaches adds nothing.
 		{src: "@start\nrule main = \"a\" $$\nrule unused = (\"q\" #recover(skip=\"z\")) e\nrule e = e \"+\" / \"n\"", opts: common.GenOptions{NoLimitControls: true}},
 	} {
-		g, err := compiletest.Parse(tc.src)
-		if err != nil {
-			t.Fatal(err)
-		}
-		view, _, err := codegentest.Compile(g, common.CompileOptions{})
-		if err != nil {
-			t.Fatal(err)
-		}
-		got, err := common.Analyze(view, nil, tc.opts)
-		if err != nil {
-			t.Fatal(err)
-		}
-		// Memoization follows the compiler's choice for the rules; compare it only where the case names it.
-		if !tc.want.Has(common.FeatureMemo) {
-			got &^= common.FeatureSet(common.FeatureMemo)
-		}
-		if got != tc.want {
-			t.Errorf("%q %+v: features %q, want %q", tc.src, tc.opts, got, tc.want)
-		}
+		t.Run(strconv.Itoa(i), func(t *testing.T) {
+			g, err := compiletest.Parse(tc.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var got common.FeatureSet
+			codegentest.SetGenHooks(t, &print.Hooks{Features: func(s common.FeatureSet) common.FeatureSet {
+				got = s
+				return s
+			}})
+			opts := tc.opts
+			opts.FeatureWitness, opts.Package, opts.Module, opts.Start = true, "feat", "example.com/feat", "main"
+			if _, err := codegentest.Generate(t, g, opts); err != nil {
+				t.Fatal(err)
+			}
+			// Memoization follows the compiler's choice for the rules; compare it only where the case names it.
+			if !tc.want.Has(common.FeatureMemo) {
+				got &^= common.FeatureSet(common.FeatureMemo)
+			}
+			if got != tc.want {
+				t.Errorf("%q %+v: features %q, want %q", tc.src, tc.opts, got, tc.want)
+			}
+		})
 	}
 }

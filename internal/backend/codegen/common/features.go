@@ -2,11 +2,11 @@ package common
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
-	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
-	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -74,11 +74,12 @@ func (s FeatureSet) String() string {
 }
 
 // Analyze returns the features of the parser generated with opts from prog and, if the parser has
-// Recognize, from the recognizer rec (nil otherwise). The rules considered are those that the
-// entry points can enter: every start rule (ParseRule and the typed entry points name any) and the
-// start rule of opts, followed through the calls of the Core IR of each program, value-free twins
-// included.
-func Analyze(prog, rec *Program, opts GenOptions) (FeatureSet, error) {
+// Recognize, from the recognizer rec (nil otherwise), whose tables the program was planned as plan
+// (plandata.Program). The rules considered are those that the start rules (ParseRule, the start rule
+// of opts and the typed entry points name only start rules) can enter, in the Node table of prog and
+// in the recognizer table of rec, value-free twins included, followed through the calls of the Core
+// IR that the plan was made from (plandata.Program.Reached); no Core IR is built for the analysis.
+func Analyze(prog, rec *Program, opts GenOptions, plan *plandata.Program) (FeatureSet, error) {
 	var f Feature
 	if opts.Document {
 		f |= FeatureDocument
@@ -92,24 +93,27 @@ func Analyze(prog, rec *Program, opts GenOptions) (FeatureSet, error) {
 	if !opts.NoLimitControls {
 		f |= FeatureBudget
 	}
-	for _, p := range []*Program{prog, rec} {
-		if p == nil {
+	for _, t := range []struct {
+		p     *Program
+		table string
+	}{{prog, "rules"}, {rec, "recRules"}} {
+		if t.p == nil {
 			continue
 		}
-		reached, err := reachedRules(p, opts.Start)
+		reached, err := reachedRules(t.p, t.table, plan)
 		if err != nil {
 			return 0, err
 		}
 		for _, r := range reached {
 			f |= ruleFeatures(r)
 		}
-		if p.Vars != nil {
+		if t.p.Vars != nil {
 			f |= FeatureVars
 		}
-		if p.Run.NumSkipSites+p.Run.NumRunSites > 0 {
+		if t.p.Run.NumSkipSites+t.p.Run.NumRunSites > 0 {
 			f |= FeatureSkipRuns
 		}
-		if p.Run.NumScanSites > 0 {
+		if t.p.Run.NumScanSites > 0 {
 			f |= FeatureScanSites
 		}
 	}
@@ -147,34 +151,31 @@ func ruleFeatures(r *Rule) Feature {
 }
 
 // reachedRules returns the rules of p, value-free twins included, that a parse can enter from the
-// start rules of p and the start rule named start.
-func reachedRules(p *Program, start string) ([]*Rule, error) {
-	m, err := irbuild.CoreFrom(p.Elab, false)
-	if err != nil {
-		return nil, fmt.Errorf("feature analysis: %w", err)
+// start rules of p in the rule table table of plan, whose Core IR plan was planned from.
+func reachedRules(p *Program, table string, plan *plandata.Program) ([]*Rule, error) {
+	if !slices.ContainsFunc(plan.Cores.Tables, func(t plandata.CoreTable) bool { return t.Name == table }) {
+		return nil, fmt.Errorf("internal error: feature analysis: the plan has no table %s", table)
 	}
-	var roots []core.Root
+	var roots []plandata.Entry
 	for _, name := range p.StartRules {
-		roots = append(roots, core.Root{Rule: p.ByName[name].ID, Entry: core.EnterSlot})
-	}
-	if s, err := p.Run.StartRule(start); err == nil {
-		roots = append(roots, core.Root{Rule: s.ID, Entry: core.EnterSlot})
+		roots = append(roots, plandata.Entry{Table: table, ID: p.ByName[name].ID})
 	}
 	rules := append(append([]*Rule(nil), p.RuleList...), p.Twins...)
+	reach := plan.Reached(roots)
 	var out []*Rule
-	for id, e := range m.Reach(roots, func(int) core.Entry { return core.EnterSlot }) {
-		if e != 0 {
-			out = append(out, rules[id])
+	for id, r := range rules {
+		if reach[plandata.Entry{Table: table, ID: id}] || reach[plandata.Entry{Table: table, ID: id, Wrapper: true}] {
+			out = append(out, r)
 		}
 	}
 	return out, nil
 }
 
-// ParserFeatures returns the features of the parser generated with opts and the parameters p: those
-// Analyze finds, or AllFeatures with the parameter UsedFeatures off.
-func ParserFeatures(prog, rec *Program, opts GenOptions, p Params) (FeatureSet, error) {
+// ParserFeatures returns the features of the parser generated with opts and the parameters p from
+// the tables planned as plan: those Analyze finds, or AllFeatures with the parameter UsedFeatures off.
+func ParserFeatures(prog, rec *Program, opts GenOptions, p Params, plan *plandata.Program) (FeatureSet, error) {
 	if !p.UsedFeatures {
 		return FeatureSet(AllFeatures), nil
 	}
-	return Analyze(prog, rec, opts)
+	return Analyze(prog, rec, opts, plan)
 }
