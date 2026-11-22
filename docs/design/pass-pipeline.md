@@ -272,8 +272,8 @@ the Exec stage.
 
 ### Canonicalization
 
-One pass of Code IR, `canonicalize`, applies local rewrite patterns until none applies. Each dialect declares the
-patterns of its own operations, and the pass runs at both stages: at the Flow stage after fail-merge/thread and before
+One pass of Code IR, `canonicalize`, applies local rewrite patterns until none applies. The dialect of each stage
+declares which patterns apply at the stage, and the pass runs at both stages: at the Flow stage after fail-merge/thread and before
 charge, so that charges are placed in code that is already simplified, and at the Exec stage after specialization for
 the features of a build and before dead-store removal, so that what specialization made unreachable is gone before
 liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
@@ -286,10 +286,12 @@ each rewrite measurable and bisectable by itself.
 
 The patterns of the statements and expressions that every dialect shares are `fold-constants`, `fold-branches`,
 `drop-after-exit`, `drop-unused-labels` and `splice-blocks`, tried in that order. The dialect of each stage declares
-which of them it takes, beside the patterns of its own operations: the Exec stage takes all five, and the Flow stage
+which of them it takes: the Exec stage takes all five, and the Flow stage
 takes the first three, because every block of the Flow stage keeps a label of its own, so removing a label or splicing
-a block would break its invariant. The pass is one pass at both stages: it has one name, one flag and one list of
-patterns, and the manager numbers its runs at the two stages as instances of one pass. A specialization, which is not a
+a block would break its invariant. The dialects have no patterns of their own operations yet. Code IR makes every
+pattern, so the pass declares them all without importing a dialect, which only the conversions do for more than one
+stage; at each stage it applies those that the stage's dialect declares. The pass is one pass at both stages: it has
+one name, one flag and one list of patterns, and the manager numbers its runs at the two stages as instances of one pass. A specialization, which is not a
 step of the pipeline, applies every pattern of the Exec stage, so a composition is the same whatever a build turns off.
 
 Rewrites that are not local patterns, such as specialization for the features of a build, dead-store removal and the

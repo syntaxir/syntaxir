@@ -11,7 +11,8 @@ import (
 // of the optimization that turns it off, and each application is a decision of its own, so that
 // bisection can skip one application. The dialect of each stage declares the patterns of the stage
 // (RegisterPatterns): the patterns of its own operations, and those of the statements and expressions
-// of the base that keep the invariants of the stage.
+// of the base that keep the invariants of the stage. Package code makes every pattern (Patterns), so
+// a pass that applies them can declare them all without importing a dialect.
 
 // Pattern is a named local rewrite of the body of a function.
 type Pattern struct {
@@ -24,13 +25,20 @@ type Pattern struct {
 	apply func(f *Func, allow func() bool) int
 }
 
-// NewPattern returns the pattern name, which rewrites in place each match in a function that allow
+// newPattern returns the pattern name, which rewrites in place each match in a function that allow
 // admits, asks allow once for each match before it rewrites it, and returns the number of rewrites.
-func NewPattern(name, doc string, apply func(f *Func, allow func() bool) int) Pattern {
+// Only package code makes patterns, so Patterns lists them all.
+func newPattern(name, doc string, apply func(f *Func, allow func() bool) int) Pattern {
 	if name == "" || doc == "" || apply == nil {
 		panic(fmt.Sprintf("code: pattern %q has no name, description or rewrite", name))
 	}
 	return Pattern{Name: name, Doc: doc, apply: apply}
+}
+
+// Patterns returns every pattern, at whatever stage, in the order of the base's patterns below: the
+// patterns that a pass applying the patterns of a stage declares.
+func Patterns() []Pattern {
+	return []Pattern{FoldConstants, FoldBranches, DropAfterExit, DropUnusedLabels, SpliceBlocks}
 }
 
 // stagePatterns holds the patterns of each stage, in the order they are tried.
@@ -41,8 +49,8 @@ var stagePatterns = map[string][]Pattern{}
 func RegisterPatterns[S Stage](ps ...Pattern) {
 	stage := stageName[S]()
 	for _, p := range ps {
-		if p.apply == nil {
-			panic(fmt.Sprintf("code: pattern %q is not made by NewPattern", p.Name))
+		if !slices.ContainsFunc(Patterns(), func(q Pattern) bool { return q.Name == p.Name }) {
+			panic(fmt.Sprintf("code: pattern %q is not one of Patterns", p.Name))
 		}
 		if slices.ContainsFunc(stagePatterns[stage], func(q Pattern) bool { return q.Name == p.Name }) {
 			panic(fmt.Sprintf("code: pattern %s is registered twice at the %s stage", p.Name, stage))
@@ -51,8 +59,16 @@ func RegisterPatterns[S Stage](ps ...Pattern) {
 	}
 }
 
-// PatternsAt returns the patterns of the stage S, in the order they are tried.
-func PatternsAt[S Stage]() []Pattern { return slices.Clone(stagePatterns[stageName[S]()]) }
+// PatternsAt returns the patterns of the stage S, in the order they are tried. The dialect of the stage
+// declares them when it is initialized, so PatternsAt panics when no pattern is declared at S: a
+// program that has a unit of the stage links its dialect.
+func PatternsAt[S Stage]() []Pattern {
+	ps, ok := stagePatterns[stageName[S]()]
+	if !ok {
+		panic(fmt.Sprintf("code: no pattern is declared at the %s stage: its dialect is not linked", stageName[S]()))
+	}
+	return slices.Clone(ps)
+}
 
 // ApplyPatterns applies the patterns ps to f in place, in the order given, sweep after sweep, until a
 // sweep rewrites nothing; the patterns try their matches in a fixed order, so the result is the same
@@ -84,19 +100,19 @@ var (
 	// running it computes it, except a division or a remainder by zero; "!" of a constant by its
 	// value; and "&&" or "||" with a constant operand that decides it by that constant, or by its
 	// other operand when the constant does not decide it. An operand that is dropped holds no call.
-	FoldConstants = NewPattern("fold-constants", "an operator or a conversion on constants becomes its value", foldConstants)
+	FoldConstants = newPattern("fold-constants", "an operator or a conversion on constants becomes its value", foldConstants)
 	// FoldBranches replaces an If whose condition is a constant by its Init and the statements of
 	// the branch the condition selects (the branch as a block when it declares a local), a Loop whose
 	// condition is the constant false by its Init, and the constant true condition of a Loop by
 	// none.
-	FoldBranches = NewPattern("fold-branches", "an If or a loop with a constant condition becomes the code that runs", foldBranches)
+	FoldBranches = newPattern("fold-branches", "an If or a loop with a constant condition becomes the code that runs", foldBranches)
 	// DropAfterExit removes the statements after an Exit, Break, Continue or Return in the same block.
-	DropAfterExit = NewPattern("drop-after-exit", "the statements after an exit, break, continue or return in a block are removed", dropAfterExit)
+	DropAfterExit = newPattern("drop-after-exit", "the statements after an exit, break, continue or return in a block are removed", dropAfterExit)
 	// DropUnusedLabels removes the label of a block that no Exit names.
-	DropUnusedLabels = NewPattern("drop-unused-labels", "the label of a block that no exit names is removed", dropUnusedLabels)
+	DropUnusedLabels = newPattern("drop-unused-labels", "the label of a block that no exit names is removed", dropUnusedLabels)
 	// SpliceBlocks splices a block without a label that declares no local into the statements that
 	// hold it, and removes an empty Else.
-	SpliceBlocks = NewPattern("splice-blocks", "a block without a label that declares no local is spliced into its parent", spliceBlocks)
+	SpliceBlocks = newPattern("splice-blocks", "a block without a label that declares no local is spliced into its parent", spliceBlocks)
 )
 
 // eachList calls fn with each statement list of b, the lists nested in a statement before the list
