@@ -1,6 +1,7 @@
-// Package statetest supplies the fault-injecting callbacks and readers, and the leak check, that
-// tests of the parser state use to show a caller cannot corrupt it. It imports no engine code, so
-// the engine's own in-package tests can share it with the tests of the state package.
+// Package statetest holds the helpers that tests of the parser state share across test packages:
+// fault-injecting callbacks and readers, the leak check, and the run at lowered hot spans. It
+// imports no engine code, so the engine's own in-package tests can share it with the tests of the
+// state package.
 package statetest
 
 import (
@@ -9,6 +10,7 @@ import (
 	"io"
 	"reflect"
 	"runtime"
+	"strconv"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -291,4 +293,23 @@ func RequireMemoCleared(t *testing.T, chunks [][]state.MemoEntry) {
 // positions in the unit.
 func ActionBudgetParser(ctx context.Context, limits sxirruntime.Limits, unit input.PositionUnit) *state.Parser {
 	return &state.Parser{Input: state.Input{Unit: unit, Control: state.NewBudgetControl(ctx, limits)}}
+}
+
+// hotSpans are the thresholds at which the differential tests of run sites run: the one of the
+// engine, at which the short inputs of the tests stay cold, and short ones, at which sites turn hot
+// in the middle of a parse and the records answer the walks after it.
+var hotSpans = []int{new(state.Tuning).RunHotSpan(), 2, 1}
+
+// AtHotSpans runs f with the run-site and scan-site hot spans lowered to each of hotSpans (the
+// test-only settings f passes to its parses), and checks that the sites turn hot at the short ones.
+func AtHotSpans(t *testing.T, f func(t *testing.T, tune state.Tuning)) {
+	t.Helper()
+	for _, span := range hotSpans {
+		tune := state.Tuning{RunHot: span, ScanHot: span}
+		turns := state.RunHotTurns.Load()
+		t.Run("span"+strconv.Itoa(span), func(t *testing.T) { f(t, tune) })
+		if span <= 2 && state.RunHotTurns.Load() == turns {
+			t.Errorf("no run site turned hot at span %d", span)
+		}
+	}
 }

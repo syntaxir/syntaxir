@@ -1,4 +1,4 @@
-package engine
+package state_test
 
 import (
 	"fmt"
@@ -12,8 +12,11 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -32,27 +35,27 @@ func scanSiteInputs(alphabet string, rng *rand.Rand) []string {
 // values and syntax errors with their expectations, against walks without records and a program
 // compiled without scan sites, and that the calls reach the records.
 func TestScanSitesMatchParsesWithoutRecords(t *testing.T) {
-	atHotSpans(t, scanSitesMatchWithoutRecords)
+	statetest.AtHotSpans(t, scanSitesMatchWithoutRecords)
 }
 
 func scanSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 	rng := rand.New(rand.NewSource(131))
 	for _, g := range scanSiteGrammars {
-		prog := mustCompile(t, g.Src)
+		prog := enginetest.MustCompile(t, g.Src)
 		if prog.NumScanSites == 0 {
 			t.Errorf("%s: no scan sites", g.Name)
 		}
 		plain := compileWithoutScanSites(t, g.Src)
 		inputs := scanSiteInputs(g.Alphabet, rng)
 		hits := state.ScanHits.Load()
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			hitsB := state.ScanHits.Load()
 			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ without records, first:\n%s", g.Name, b, len(diffs), diffs[0])
 			}
 			for _, in := range inputs {
 				for _, exp := range []bool{true, false} {
-					o := ParseOptions{Backend: b, Expectations: exp, Tune: tune}
+					o := engine.ParseOptions{Backend: b, Expectations: exp, Tune: tune}
 					n, err := prog.ParseWith("main", in, o)
 					wn, werr := plain.ParseWith("main", in, o)
 					if got, want := skipDump(t, n, err), skipDump(t, wn, werr); got != want {
@@ -91,7 +94,7 @@ func TestScanSitesAreMarked(t *testing.T) {
 		{"a repetition of a choice", "rule main = r \"a\"\nrule r = (\"x\" / \"yz\")*", 0},
 		{"a repetition in a stream", "rule main = [x]* #stream", 0},
 	} {
-		if n := mustCompile(t, c.src).NumScanSites; n != c.sites {
+		if n := enginetest.MustCompile(t, c.src).NumScanSites; n != c.sites {
 			t.Errorf("%s: %d scan sites, want %d", c.name, n, c.sites)
 		}
 	}
@@ -103,9 +106,9 @@ func TestScanSitesReuseRecords(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	prog := mustCompile(t, scanSiteGrammars[2].Src)
+	prog := enginetest.MustCompile(t, scanSiteGrammars[2].Src)
 	in := strings.Repeat("(", 400) + strings.Repeat(" ", 400)
-	o := ParseOptions{Backend: Closure, Limits: runtime.Limits{Compute: 200_000}}
+	o := engine.ParseOptions{Backend: engine.Closure, Limits: runtime.Limits{Compute: 200_000}}
 	if _, err := prog.ParseWith("main", in, o); err != nil {
 		t.Errorf("the parse with records: %v", err)
 	}
@@ -120,7 +123,7 @@ func TestScanSitesReuseRecords(t *testing.T) {
 func TestScanSitesInDocuments(t *testing.T) {
 	hits := state.ScanHits.Load()
 	for _, g := range scanSiteGrammars {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if d := scanDocumentMismatch(t, g.Src, g.Alphabet, b); d != "" {
 				t.Errorf("%s, %s: %s", g.Name, b, d)
 			}
@@ -133,10 +136,10 @@ func TestScanSitesInDocuments(t *testing.T) {
 
 // scanDocumentMismatch edits Documents of the grammar src, whose scan sites turn hot at two
 // characters, and returns the first difference from a fresh parse of the edited text.
-func scanDocumentMismatch(t *testing.T, src, alphabet string, b Backend) string {
+func scanDocumentMismatch(t *testing.T, src, alphabet string, b engine.Backend) string {
 	t.Helper()
 	rng := rand.New(rand.NewSource(133))
-	prog := mustCompile(t, src)
+	prog := enginetest.MustCompile(t, src)
 	var pool []string
 	for _, in := range scanSiteInputs(alphabet, rng) {
 		if len(in) >= 40 {
@@ -144,7 +147,7 @@ func scanDocumentMismatch(t *testing.T, src, alphabet string, b Backend) string 
 		}
 	}
 	for i := 0; i < 40; i++ {
-		o := ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
+		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
 		d, err := prog.NewDocumentWith("main", pool[rng.Intn(len(pool))], o)
 		if err != nil {
 			t.Fatal(err)
@@ -185,13 +188,13 @@ func TestScanSitesNegativeControls(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	prog := mustCompile(t, scanSiteGrammars[2].Src)
+	prog := enginetest.MustCompile(t, scanSiteGrammars[2].Src)
 	in := strings.Repeat("(", 400) + strings.Repeat(" ", 400)
 	for _, m := range []struct {
 		name string
 		mut  int
 	}{{"end", state.SkipKeepPos}, {"making", state.SkipNeverRecord}} {
-		o := ParseOptions{Backend: Closure, Limits: runtime.Limits{Compute: 200_000}, Tune: state.Tuning{SkipMut: m.mut}}
+		o := engine.ParseOptions{Backend: engine.Closure, Limits: runtime.Limits{Compute: 200_000}, Tune: state.Tuning{SkipMut: m.mut}}
 		if _, err := prog.ParseWith("main", in, o); err == nil {
 			t.Errorf("a record without its %s goes unseen", m.name)
 		}
@@ -201,10 +204,10 @@ func TestScanSitesNegativeControls(t *testing.T) {
 // TestScanSitesInStreams checks that a stream that delivers a run of a scan site in pieces, so
 // that a call ends where the available input does, emits what a parse of the whole text builds.
 func TestScanSitesInStreams(t *testing.T) {
-	prog := mustCompile(t, `rule main = row* #stream $$
+	prog := enginetest.MustCompile(t, `rule main = row* #stream $$
 rule row = ws "x" ws ";" / ws "x" ws "!" / ws "y" ws ";"
 rule ws = [ ]*`)
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		scanSitesInStreams(t, prog, b)
 	}
 }
@@ -214,7 +217,7 @@ rule ws = [ ]*`)
 // sites that turn hot at two characters. A walk that
 // reaches the end of the loaded input must not record, and the others may, so some parse takes a
 // record. On the bytecode backends the walks of ws build lists, which the valued ITER serves.
-func scanSitesInStreams(t *testing.T, prog *Program, b Backend) {
+func scanSitesInStreams(t *testing.T, prog *engine.Program, b engine.Backend) {
 	t.Helper()
 	hits := state.ScanHits.Load()
 	defer func() {
@@ -233,7 +236,7 @@ func scanSitesInStreams(t *testing.T, prog *Program, b Backend) {
 		}
 		text := sb.String()
 		var want []string
-		o := ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
+		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
 		off := o
 		off.Tune.SkipOff = true
 		werr := prog.ParseStreamWith("main", strings.NewReader(text), func(n *value.Node) error { want = append(want, skipDump(t, n, nil)); return nil }, off)
@@ -248,11 +251,11 @@ func scanSitesInStreams(t *testing.T, prog *Program, b Backend) {
 }
 
 // scanSteps returns the compute steps that the parse of in with the test-only settings tune charges.
-func scanSteps(t *testing.T, prog *Program, in string, b Backend, tune state.Tuning) uint64 {
+func scanSteps(t *testing.T, prog *engine.Program, in string, b engine.Backend, tune state.Tuning) uint64 {
 	t.Helper()
 	var steps uint64
-	o := ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}, Tune: tune, Trace: func(e TraceEvent) {
-		if e.Kind == TraceExit && e.Rule == "main" {
+	o := engine.ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}, Tune: tune, Trace: func(e engine.TraceEvent) {
+		if e.Kind == engine.TraceExit && e.Rule == "main" {
 			steps = state.TraceParser(e).Control.Used
 		}
 	}}
@@ -274,9 +277,9 @@ func TestScanSitesChargeBounds(t *testing.T) {
 			tune := state.Tuning{ScanHot: span}
 			rng := rand.New(rand.NewSource(137))
 			for _, g := range scanSiteGrammars {
-				prog := mustCompile(t, g.Src)
+				prog := enginetest.MustCompile(t, g.Src)
 				plain := compileWithoutScanSites(t, g.Src)
-				for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+				for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 					for _, in := range scanSiteInputs(g.Alphabet, rng) {
 						got, again, base := scanSteps(t, prog, in, b, tune), scanSteps(t, prog, in, b, tune), scanSteps(t, plain, in, b, tune)
 						if got == 0 || got != again {
@@ -296,7 +299,7 @@ func TestScanSitesChargeBounds(t *testing.T) {
 // instructions that serve them, is accepted by the module validator and is rejected when it names a scan site
 // that the module cannot hold.
 func TestScanSitesCompileToInstructions(t *testing.T) {
-	prog := mustCompile(t, `rule main = (w / r "?" / [ab ])* $$
+	prog := enginetest.MustCompile(t, `rule main = (w / r "?" / [ab ])* $$
 rule w = (r "!" / r ".") #atomic
 rule r = [ab]*`)
 	m := prog.Module()
@@ -343,11 +346,11 @@ rule r = [ab] #repeat(5000000000,)`,
 		`rule main = (r "!" / r "?" / [ab ])* $$
 rule r = [ab] #repeat(5000000000,)`,
 	} {
-		prog := mustCompile(t, src)
+		prog := enginetest.MustCompile(t, src)
 		plain := compileWithoutScanSites(t, src)
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, in := range []string{"", "ab!", strings.Repeat("a", 200) + "!", strings.Repeat("ab", 90) + "?"} {
-				o := ParseOptions{Backend: b, Expectations: true}
+				o := engine.ParseOptions{Backend: b, Expectations: true}
 				n, err := prog.ParseWith("main", in, o)
 				wn, werr := plain.ParseWith("main", in, o)
 				if got, want := skipDump(t, n, err), skipDump(t, wn, werr); got != want {
@@ -359,7 +362,7 @@ rule r = [ab] #repeat(5000000000,)`,
 }
 
 // compileWithoutScanSites compiles src with the marking of scan sites off (see compileWithout).
-func compileWithoutScanSites(t *testing.T, src string) *Program {
+func compileWithoutScanSites(t *testing.T, src string) *engine.Program {
 	t.Helper()
 	return compileWithout(t, src, &corepass.NoScanSites)
 }
@@ -369,18 +372,18 @@ func compileWithoutScanSites(t *testing.T, src string) *Program {
 // run, and both read the flag then. The program parses once with each so that they are built before
 // the flag is cleared again; without that the program a test takes for plain marks its sites on the
 // closure backend.
-func compileWithout(t *testing.T, src string, flag *bool) *Program {
+func compileWithout(t *testing.T, src string, flag *bool) *engine.Program {
 	t.Helper()
 	*flag = true
 	defer func() { *flag = false }()
-	prog := mustCompile(t, src)
+	prog := enginetest.MustCompile(t, src)
 	rec, err := prog.Recognizer()
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, p := range []*Program{prog, rec} {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			p.ParseWith("main", "", ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}})
+	for _, p := range []*engine.Program{prog, rec} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+			p.ParseWith("main", "", engine.ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}})
 		}
 	}
 	return prog
@@ -398,18 +401,18 @@ func TestScanSitesHitAtTheirOwnHotSpan(t *testing.T) {
 	if scanSpan >= runSpan {
 		t.Fatalf("the hot span of scan sites (%d) is not below that of run sites (%d)", scanSpan, runSpan)
 	}
-	prog := mustCompile(t, scanSpanProbe)
+	prog := enginetest.MustCompile(t, scanSpanProbe)
 	rec, err := prog.Recognizer()
 	if err != nil {
 		t.Fatal(err)
 	}
 	// Parsing walks the scan sites that build values and recognition those that do not.
-	for name, p := range map[string]*Program{"parse": prog, "recognize": rec} {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for name, p := range map[string]*engine.Program{"parse": prog, "recognize": rec} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, n := range []int{scanSpan + 4, 40, runSpan - 1} {
 				in := strings.Repeat(" ", n) + "e"
 				before := state.ScanHits.Load()
-				if _, err := p.ParseWith("main", in, ParseOptions{Backend: b}); err != nil {
+				if _, err := p.ParseWith("main", in, engine.ParseOptions{Backend: b}); err != nil {
 					t.Fatalf("%s, %s: run of %d: %v", name, b, n, err)
 				}
 				if state.ScanHits.Load() == before {
@@ -424,7 +427,7 @@ func TestScanSitesHitAtTheirOwnHotSpan(t *testing.T) {
 // (it is meaningful under -race): the counters that tests read are atomic and parses share no
 // other state.
 func TestScanSitesInConcurrentParses(t *testing.T) {
-	prog := mustCompile(t, scanSpanProbe)
+	prog := enginetest.MustCompile(t, scanSpanProbe)
 	lim := runtime.Limits{Compute: 1 << 40}
 	if !state.BudgetControlsEnabled {
 		// The reference build has no budget controls; the parses still share the counters.
@@ -436,9 +439,9 @@ func TestScanSitesInConcurrentParses(t *testing.T) {
 		go func(g int) {
 			defer wg.Done()
 			for i := 0; i < 20; i++ {
-				for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+				for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 					in := strings.Repeat(" ", 20+(g+i)%50) + "e"
-					if _, err := prog.ParseWith("main", in, ParseOptions{Backend: b, Limits: lim}); err != nil {
+					if _, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Limits: lim}); err != nil {
 						t.Errorf("%s: %v", b, err)
 						return
 					}
@@ -462,12 +465,12 @@ func TestScanSitesChargeIsPinned(t *testing.T) {
 	if span := new(state.Tuning).ScanHotSpan(); span != 16 {
 		t.Fatalf("the hot span of scan sites is %d, not the 16 the pinned charges assume", span)
 	}
-	prog, plain := mustCompile(t, scanSpanProbe), compileWithoutScanSites(t, scanSpanProbe)
+	prog, plain := enginetest.MustCompile(t, scanSpanProbe), compileWithoutScanSites(t, scanSpanProbe)
 	type steps struct{ scan, plain uint64 }
-	want := map[Backend]map[int]steps{
-		Closure:           {16: {265, 259}, 20: {297, 307}},
-		Bytecode:          {16: {265, 259}, 20: {297, 307}},
-		BytecodeIterative: {16: {265, 259}, 20: {297, 307}},
+	want := map[engine.Backend]map[int]steps{
+		engine.Closure:           {16: {265, 259}, 20: {297, 307}},
+		engine.Bytecode:          {16: {265, 259}, 20: {297, 307}},
+		engine.BytecodeIterative: {16: {265, 259}, 20: {297, 307}},
 	}
 	for b, byLen := range want {
 		for n, w := range byLen {
@@ -481,10 +484,10 @@ func TestScanSitesChargeIsPinned(t *testing.T) {
 
 // scanExamined returns the rule, the position and the examined range (the high-water mark) at each
 // exit of a rule in the parse of in, and its result.
-func scanExamined(t *testing.T, prog *Program, in string, o ParseOptions) (out []string, tree string) {
+func scanExamined(t *testing.T, prog *engine.Program, in string, o engine.ParseOptions) (out []string, tree string) {
 	t.Helper()
-	o.Trace = func(e TraceEvent) {
-		if e.Kind == TraceExit {
+	o.Trace = func(e engine.TraceEvent) {
+		if e.Kind == engine.TraceExit {
 			out = append(out, fmt.Sprintf("%s@%d hw=%d", e.Rule, e.Pos, state.TraceParser(e).Hw))
 		}
 	}
@@ -520,11 +523,11 @@ func TestScanSitesKeepTheExaminedRange(t *testing.T) {
 	}, scanSiteGrammars...)
 	for _, span := range []int{16, 2} {
 		for _, g := range grammars {
-			prog, plain := mustCompile(t, g.Src), compileWithoutScanSites(t, g.Src)
+			prog, plain := enginetest.MustCompile(t, g.Src), compileWithoutScanSites(t, g.Src)
 			inputs := append([]string{strings.Repeat(" ", 30) + "z", strings.Repeat(" ", 20) + "z ", strings.Repeat("x", 20) + "yzzzzzA!", strings.Repeat("x", 20) + "yzzzzzA?", strings.Repeat("\xff", 20) + "!zzz", strings.Repeat("\xff", 20) + "!z", strings.Repeat("é", 20) + "!zzz", strings.Repeat("é", 20) + "?", strings.Repeat("\xe2\x82", 10) + "!zzz", strings.Repeat("\xe2\x82!", 10) + "\xe2\x82"}, scanSiteInputs(g.Alphabet, rng)...)
 			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-				for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-					o := ParseOptions{Backend: b, Unit: unit, Tune: state.Tuning{ScanHot: span}}
+				for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+					o := engine.ParseOptions{Backend: b, Unit: unit, Tune: state.Tuning{ScanHot: span}}
 					for _, in := range inputs {
 						got, gotTree := scanExamined(t, prog, in, o)
 						want, wantTree := scanExamined(t, plain, in, o)
@@ -556,20 +559,20 @@ rule ws = [ ]*`
 // the results are the same either way.
 func TestScanSitesShareRecordsWithLookaheads(t *testing.T) {
 	for _, src := range []string{scanSharedTable, scanSharedTableFromLookahead} {
-		prog, plain := mustCompile(t, src), compileWithoutScanSites(t, src)
+		prog, plain := enginetest.MustCompile(t, src), compileWithoutScanSites(t, src)
 		rec, err := prog.Recognizer()
 		if err != nil {
 			t.Fatal(err)
 		}
 		in := strings.Repeat(" ", 30) + "e"
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			n, err := prog.ParseWith("main", in, ParseOptions{Backend: b})
-			wn, werr := plain.ParseWith("main", in, ParseOptions{Backend: b})
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+			n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b})
+			wn, werr := plain.ParseWith("main", in, engine.ParseOptions{Backend: b})
 			if skipDump(t, n, err) != skipDump(t, wn, werr) {
 				t.Errorf("%s: the results differ", b)
 			}
 			before := state.ScanHits.Load()
-			if _, err := rec.ParseWith("main", in, ParseOptions{Backend: b}); err != nil {
+			if _, err := rec.ParseWith("main", in, engine.ParseOptions{Backend: b}); err != nil {
 				t.Fatal(err)
 			}
 			if hits := state.ScanHits.Load() - before; hits != 2 {
@@ -581,11 +584,11 @@ func TestScanSitesShareRecordsWithLookaheads(t *testing.T) {
 
 // documentSteps returns the steps that the first parse of a Document of text and the parse after
 // replacing text[a:b] with ins charge.
-func documentSteps(t *testing.T, prog *Program, b Backend, text string, a, e int, ins string) (first, edit uint64) {
+func documentSteps(t *testing.T, prog *engine.Program, b engine.Backend, text string, a, e int, ins string) (first, edit uint64) {
 	t.Helper()
 	var steps uint64
-	o := ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}, Trace: func(ev TraceEvent) {
-		if ev.Kind == TraceExit && ev.Rule == "main" {
+	o := engine.ParseOptions{Backend: b, Limits: runtime.Limits{Compute: 1 << 40}, Trace: func(ev engine.TraceEvent) {
+		if ev.Kind == engine.TraceExit && ev.Rule == "main" {
 			steps = state.TraceParser(ev).Control.Used
 		}
 	}}
@@ -614,7 +617,7 @@ func TestScanSitesResumeInDocuments(t *testing.T) {
 	}
 	const src = `rule main = (ws "a" / ws "b" / ws "c" / ws "d" / ws "e")* $$
 rule ws = [ ]*`
-	prog, plain := mustCompile(t, src), compileWithoutScanSites(t, src)
+	prog, plain := enginetest.MustCompile(t, src), compileWithoutScanSites(t, src)
 	cases := []struct {
 		name          string
 		text          string
@@ -637,7 +640,7 @@ rule ws = [ ]*`
 		}{fmt.Sprintf("an edit at %d of a run of 40", a), strings.Repeat(" ", 40) + "e", a, a, " ", false})
 	}
 	for _, c := range cases {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			first, edit := documentSteps(t, prog, b, c.text, c.a, c.e, c.ins)
 			_, want := documentSteps(t, plain, b, c.text, c.a, c.e, c.ins)
 			if edit != want || (c.lessThanFirst && edit >= first) {

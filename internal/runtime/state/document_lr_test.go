@@ -1,12 +1,15 @@
-package engine
+package state_test
 
 import (
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
 
 // TestDocumentSeedDependentResultsNotInMemo checks the invariant that lets a Document keep its
@@ -207,14 +210,14 @@ rule expr = expr "+" term / term
 rule term = term "*" num / num
 rule num = [0-9]+ #atomic`
 		}
-		prog, err := Compile(mustParse(src), compile.Options{})
+		prog, err := entry.Compile(enginetest.MustParse(src), compile.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}
 		text := strings.Repeat("1+2+3\n", 1000)
-		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			b.Run(kind+"/"+backend.String(), func(b *testing.B) {
-				doc, err := prog.NewDocumentWith("main", text, ParseOptions{Backend: backend})
+				doc, err := prog.NewDocumentWith("main", text, engine.ParseOptions{Backend: backend})
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -233,7 +236,7 @@ rule num = [0-9]+ #atomic`
 					}
 				}
 				got, gotErr := doc.Parse()
-				want, wantErr := prog.ParseWith("main", doc.Text(), ParseOptions{Backend: backend})
+				want, wantErr := prog.ParseWith("main", doc.Text(), engine.ParseOptions{Backend: backend})
 				if codegentest.ResultJSON(got, gotErr) != codegentest.ResultJSON(want, wantErr) {
 					b.Fatal("edited Document differs from a fresh parse")
 				}

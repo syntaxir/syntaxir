@@ -1,6 +1,6 @@
 //go:build sxir_long
 
-package engine
+package state_test
 
 import (
 	"os"
@@ -8,8 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -28,7 +30,7 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog := mustCompile(t, string(src))
+		prog := enginetest.MustCompile(t, string(src))
 		texts, _ := filepath.Glob(filepath.Join(filepath.Dir(g), "*.txt"))
 		var inputs []string
 		for _, f := range texts {
@@ -40,8 +42,8 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 			inputs = append(inputs, in, in[:len(in)/2], in[:len(in)*3/4])
 		}
 		for _, in := range inputs {
-			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				o := ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes, Tune: state.Tuning{RunHot: 1, ScanHot: 1}}
+			for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+				o := engine.ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes, Tune: state.Tuning{RunHot: 1, ScanHot: 1}}
 				n, err := prog.ParseWith(prog.DefaultStartRule, in, o)
 				with := codegentest.ResultJSON(n, err)
 				o.Tune.SkipOff = true

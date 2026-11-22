@@ -395,7 +395,7 @@ docs/optimizations/126-unreachable-rule-bodies-typescript.md	unexport	rulesStrs	
 docs/optimizations/129-opt-in-expectations.md	unexport	expectOrdinarySlow	1
 docs/optimizations/130-memoizing-members-of-left-recursion-cycles.md	unexport	callBody	1
 docs/optimizations/134-records-of-single-character-scans.md	gofile	state/scan_sites.go	1
-docs/optimizations/134-records-of-single-character-scans.md	gofile	internal/runtime/engine/scan_sites_test.go	1
+docs/optimizations/134-records-of-single-character-scans.md	gofile	internal/runtime/state/scan_sites_test.go	1
 docs/optimizations/134-records-of-single-character-scans.md	unexport	scanSiteList	1
 docs/optimizations/135-shared-recovered-error-lists.md	gofile	state/recovered.go	1
 docs/optimizations/135-shared-recovered-error-lists.md	gofile	pkg/runtime/libgo/recovered.go	1

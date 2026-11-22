@@ -1,4 +1,4 @@
-package engine
+package state_test
 
 import (
 	"fmt"
@@ -10,8 +10,11 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
@@ -62,38 +65,38 @@ func checkReferenceLimit(t *testing.T, c codegentest.Case, in, want string) {
 
 // depMemoDiffers compares, on every backend, the results of the grammar with the dependency
 // memo and the results of the grammar compiled without a memo that evaluates every call in a
-// context again (ParseOptions.ContextMemoOff), and returns the differences, ignoring an input that
+// context again (engine.ParseOptions.ContextMemoOff), and returns the differences, ignoring an input that
 // exhausts a limit in either. With unexamined, the memo leaves examined ranges out of identities
-// and outcomes (ParseOptions.ContextMemoUnexamined). It returns false if the grammar does not
+// and outcomes (engine.ParseOptions.ContextMemoUnexamined). It returns false if the grammar does not
 // compile. It stops at the first difference unless parallel: then it runs every comparison
 // concurrently, because the evaluation without a memo of one input can take minutes (without limit
 // controls, no limit ends it) and the comparisons are independent, and returns the differences in
 // the order of the sequential run.
 func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, unexamined, parallel bool, tune state.Tuning) ([]string, bool) {
 	t.Helper()
-	g, err := parseTest(c.Src)
+	g, err := enginetest.Parse(c.Src)
 	if err != nil {
 		return nil, false
 	}
-	if _, err := Compile(g, compile.Options{}); err != nil {
+	if _, err := entry.Compile(g, compile.Options{}); err != nil {
 		return nil, false
 	}
-	memo, ref := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{DisableMemo: true})
+	memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, compile.Options{DisableMemo: true})
 	type job struct {
 		in      string
-		backend Backend
+		backend engine.Backend
 		rec     bool
 	}
 	var jobs []job
 	for _, in := range c.Inputs {
-		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, recognize := range []bool{false, true} {
 				jobs = append(jobs, job{in, backend, recognize})
 			}
 		}
 	}
 	compare := func(j job) string {
-		o := ParseOptions{Backend: j.backend, Recognize: j.rec, ContextMemoUnexamined: unexamined, Tune: tune}
+		o := engine.ParseOptions{Backend: j.backend, Recognize: j.rec, ContextMemoUnexamined: unexamined, Tune: tune}
 		got, err := memo.ParseWith("", j.in, o)
 		o.ContextMemoUnexamined, o.ContextMemoOff = false, true
 		want, wantErr := ref.ParseWith("", j.in, o)
@@ -229,11 +232,11 @@ func TestLeftRecursionDependencyMemoControls(t *testing.T) {
 func TestLeftRecursionDependencyMemoLinear(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.DependencyMemoShapes {
-		prog := mustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			evals := func(n int) int {
 				var pr instrument.Profile
-				if _, err := prog.ParseWith("", s.Input(n), ParseOptions{Backend: b, Profiles: []*instrument.Profile{&pr}}); err != nil {
+				if _, err := prog.ParseWith("", s.Input(n), engine.ParseOptions{Backend: b, Profiles: []*instrument.Profile{&pr}}); err != nil {
 					t.Fatalf("%s %s n=%d: %v", s.Name, b, n, err)
 				}
 				return pr.Snapshot().Evals
@@ -253,10 +256,10 @@ func TestLeftRecursionDependencyMemoLinear(t *testing.T) {
 func TestLeftRecursionDependencyMemoDefaultBudget(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.DependencyMemoShapes {
-		prog := mustCompile(t, "@start\nrule main = "+s.Rules)
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules)
 		in := s.Input(10000)
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if _, err := prog.ParseWith("", in, ParseOptions{Backend: b}); err != nil {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+			if _, err := prog.ParseWith("", in, engine.ParseOptions{Backend: b}); err != nil {
 				t.Errorf("%s %s n=10000: %v", s.Name, b, err)
 			}
 		}
@@ -264,7 +267,7 @@ func TestLeftRecursionDependencyMemoDefaultBudget(t *testing.T) {
 }
 
 // TestLeftRecursionDependencyMemoUnexamined checks that leaving the examined range out of the
-// identities of growth steps and the outcomes of lookaheads (ParseOptions.ContextMemoUnexamined,
+// identities of growth steps and the outcomes of lookaheads (engine.ParseOptions.ContextMemoUnexamined,
 // what generated parsers do outside Document and observed parses) changes only what is evaluated: the random
 // grammars give the results of evaluating every call in a context again, and on mutual leaders it
 // takes a step that the examined range keeps apart.
@@ -277,17 +280,17 @@ func TestLeftRecursionDependencyMemoUnexamined(t *testing.T) {
 	n := 0
 	compiled := 0
 	for _, c := range depMemoGrammars(seeds) {
-		if g, err := parseTest(c.Src); err != nil {
+		if g, err := enginetest.Parse(c.Src); err != nil {
 			continue
-		} else if _, err := Compile(g, compile.Options{}); err != nil {
+		} else if _, err := entry.Compile(g, compile.Options{}); err != nil {
 			continue
 		}
 		compiled++
-		memo, ref := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{DisableMemo: true})
+		memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, compile.Options{DisableMemo: true})
 		for _, in := range c.Inputs {
-			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				got, err := memo.ParseWith("", in, ParseOptions{Backend: backend, ContextMemoUnexamined: true})
-				want, wantErr := ref.ParseWith("", in, ParseOptions{Backend: backend, ContextMemoOff: true})
+			for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+				got, err := memo.ParseWith("", in, engine.ParseOptions{Backend: backend, ContextMemoUnexamined: true})
+				want, wantErr := ref.ParseWith("", in, engine.ParseOptions{Backend: backend, ContextMemoOff: true})
 				a, b := codegentest.ResultJSON(got, err), codegentest.ResultJSON(want, wantErr)
 				checkReferenceLimit(t, c, in, b)
 				if a != b && !endedByResourceLimit(a, b) {
@@ -301,11 +304,11 @@ func TestLeftRecursionDependencyMemoUnexamined(t *testing.T) {
 	if n > 0 || compiled < seeds*2 {
 		t.Errorf("%d differences in %d grammars", n, compiled)
 	}
-	prog := mustCompile(t, "rule main = a $$\nrule a = a \"x\" / b \"y\" / \"n\"\nrule b = b \"z\" / a \"w\" / \"m\"")
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, "rule main = a $$\nrule a = a \"x\" / b \"y\" / \"n\"\nrule b = b \"z\" / a \"w\" / \"m\"")
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		evals := func(unexamined bool) int {
 			var pr instrument.Profile
-			if _, err := prog.ParseWith("", "mzy", ParseOptions{Backend: b, Profiles: []*instrument.Profile{&pr}, ContextMemoUnexamined: unexamined}); err != nil {
+			if _, err := prog.ParseWith("", "mzy", engine.ParseOptions{Backend: b, Profiles: []*instrument.Profile{&pr}, ContextMemoUnexamined: unexamined}); err != nil {
 				t.Fatalf("%s: %v", b, err)
 			}
 			return pr.Snapshot().Evals
@@ -321,8 +324,8 @@ func TestLeftRecursionDependencyMemoUnexamined(t *testing.T) {
 // insertion limit: a store that keeps results of rules that insert tokens differs from the
 // reference exactly there.
 func TestEndedByResourceLimit(t *testing.T) {
-	prog := mustCompile(t, "@start\nrule main = \"a\" #missing \"b\" #missing \"c\" #missing")
-	got, err := prog.ParseWith("", "", ParseOptions{Backend: Closure, MissingTokens: 1})
+	prog := enginetest.MustCompile(t, "@start\nrule main = \"a\" #missing \"b\" #missing \"c\" #missing")
+	got, err := prog.ParseWith("", "", engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1})
 	ins := codegentest.ResultJSON(got, err)
 	if !strings.Contains(ins, "insertion limit") || endedByResourceLimit(ins, "") || endedByResourceLimit("", ins) {
 		t.Errorf("the insertion limit error %s must not count as a resource limit", ins)
@@ -331,8 +334,8 @@ func TestEndedByResourceLimit(t *testing.T) {
 	// the error that a parse ended by the compute limit returns.
 	res := codegentest.ResultJSON(nil, &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: 5, Used: 4, Requested: 2})
 	if state.BudgetControlsEnabled {
-		loop := mustCompile(t, "@start\nrule main = \"a\"+")
-		res = codegentest.ResultJSON(loop.ParseWith("", strings.Repeat("a", 100), ParseOptions{Backend: Closure, Limits: sxirruntime.Limits{Compute: 5}}))
+		loop := enginetest.MustCompile(t, "@start\nrule main = \"a\"+")
+		res = codegentest.ResultJSON(loop.ParseWith("", strings.Repeat("a", 100), engine.ParseOptions{Backend: engine.Closure, Limits: sxirruntime.Limits{Compute: 5}}))
 	}
 	if !strings.Contains(res, "compute limit") || !endedByResourceLimit(res, "x") || !endedByResourceLimit("x", res) {
 		t.Errorf("the compute limit error %s must count as a resource limit", res)

@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 )
 
 // TestCalleeBindingsUndoneAtReturn checks that a binding made in a called rule is not visible to
@@ -13,7 +14,7 @@ import (
 // thresholds where its walks take records: the records of a run site leave out the bindings of
 // the rules its element calls, which rests on this.
 func TestCalleeBindingsUndoneAtReturn(t *testing.T) {
-	// Not parallel: atHotSpans checks that run sites turned hot through the process-wide counter
+	// Not parallel: statetest.AtHotSpans checks that run sites turned hot through the process-wide counter
 	// state.RunHotTurns, which the parses of parallel tests advance too.
 	cases := []struct {
 		name, src string
@@ -55,7 +56,7 @@ rule c = {x := 1} "a" / {x := 2} "b"`, true, []string{"ab!", "abab", "aab!ba!b"}
 				}
 			}
 			if c.run {
-				atHotSpans(t, run)
+				statetest.AtHotSpans(t, run)
 			} else {
 				run(t, state.Tuning{})
 			}

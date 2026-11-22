@@ -1,6 +1,7 @@
-package engine
+package state_test
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -9,8 +10,11 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -18,11 +22,18 @@ import (
 // skipRunGrammars are the grammars with skip-run sites that the tests parse.
 var skipRunGrammars = codegentest.SkipRunGrammars
 
-// skipDump is dump with the expectations and messages of every syntax error, which the message
+// skipDump is the JSON of the value with the error message, and the expectations and messages of every syntax error, which the message
 // of an error leaves out when it has messages.
 func skipDump(t *testing.T, n *value.Node, err error) string {
 	t.Helper()
-	s := dump(t, n, err)
+	data, jerr := json.Marshal(n)
+	if jerr != nil {
+		t.Fatal(jerr)
+	}
+	s := string(data)
+	if err != nil {
+		s += " error: " + err.Error()
+	}
 	var errs []*value.SyntaxError
 	var list value.SyntaxErrors
 	var one *value.SyntaxError
@@ -40,12 +51,12 @@ func skipDump(t *testing.T, n *value.Node, err error) string {
 
 // skipRunMismatches parses every input with records and without them on the backend, with the
 // test-only settings tune, and returns the descriptions of the parses that differ.
-func skipRunMismatches(t *testing.T, prog *Program, inputs []string, b Backend, tune state.Tuning) []string {
+func skipRunMismatches(t *testing.T, prog *engine.Program, inputs []string, b engine.Backend, tune state.Tuning) []string {
 	t.Helper()
 	var diffs []string
 	for _, in := range inputs {
 		for _, exp := range []bool{true, false} {
-			diffs = append(diffs, skipRunMismatch(t, prog, in, ParseOptions{Backend: b, Expectations: exp, Tune: tune})...)
+			diffs = append(diffs, skipRunMismatch(t, prog, in, engine.ParseOptions{Backend: b, Expectations: exp, Tune: tune})...)
 		}
 	}
 	return diffs
@@ -53,7 +64,7 @@ func skipRunMismatches(t *testing.T, prog *Program, inputs []string, b Backend, 
 
 // skipRunMismatch parses in with o, and with o and records off, and returns the description of
 // the difference, if any.
-func skipRunMismatch(t *testing.T, prog *Program, in string, o ParseOptions) []string {
+func skipRunMismatch(t *testing.T, prog *engine.Program, in string, o engine.ParseOptions) []string {
 	t.Helper()
 	var diffs []string
 	{
@@ -74,9 +85,9 @@ func skipRunMismatch(t *testing.T, prog *Program, in string, o ParseOptions) []s
 func TestSkipRunsMatchParsesWithoutRecords(t *testing.T) {
 	rng := rand.New(rand.NewSource(75))
 	for _, g := range skipRunGrammars {
-		prog := mustCompile(t, g.Src)
+		prog := enginetest.MustCompile(t, g.Src)
 		inputs := codegentest.SkipRunInputs(g.Alphabet, 300, rng)
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if diffs := skipRunMismatches(t, prog, inputs, b, state.Tuning{}); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ, first:\n%s", g.Name, b, len(diffs), diffs[0])
 			}
@@ -86,15 +97,15 @@ func TestSkipRunsMatchParsesWithoutRecords(t *testing.T) {
 		if !strings.Contains(c.Src, "#recover") {
 			continue
 		}
-		g, err := parseTest(c.Src)
+		g, err := enginetest.Parse(c.Src)
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}
-		prog, err := Compile(g, compile.Options{SourceInfo: true})
+		prog, err := entry.Compile(g, compile.Options{SourceInfo: true})
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if diffs := skipRunMismatches(t, prog, c.Inputs, b, state.Tuning{}); len(diffs) > 0 {
 				t.Errorf("corpus %s, %s: %d parses differ, first:\n%s", c.Name, b, len(diffs), diffs[0])
 			}
@@ -107,10 +118,10 @@ func TestSkipRunsMatchParsesWithoutRecords(t *testing.T) {
 // Records are reused from the third walk over a position on, which the nested family reaches at
 // once.
 func TestSkipRunsNegativeControls(t *testing.T) {
-	var prog *Program
+	var prog *engine.Program
 	for _, g := range skipRunGrammars {
 		if g.Name == "nested recovery" {
-			prog = mustCompile(t, g.Src)
+			prog = enginetest.MustCompile(t, g.Src)
 		}
 	}
 	for _, tc := range []struct {
@@ -121,7 +132,7 @@ func TestSkipRunsNegativeControls(t *testing.T) {
 		{state.SkipNoExpected, "((((a"},
 		{state.SkipEarlyStore, "((((((a("},
 	} {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if diffs := skipRunMismatches(t, prog, []string{tc.input}, b, state.Tuning{SkipMut: tc.mutation}); len(diffs) == 0 {
 				t.Errorf("mutation %d, %s: no difference on %q", tc.mutation, b, tc.input)
 			}
@@ -137,23 +148,23 @@ func TestSkipRunsBudgetAbort(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	var prog *Program
+	var prog *engine.Program
 	for _, g := range skipRunGrammars {
 		if g.Name == "nested recovery" {
-			prog = mustCompile(t, g.Src)
+			prog = enginetest.MustCompile(t, g.Src)
 		}
 	}
 	in := strings.Repeat("(", 30) + "a" + strings.Repeat(")", 5)
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		n, err := prog.ParseWith("main", in, ParseOptions{Backend: b, Expectations: true})
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+		n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Expectations: true})
 		want := skipDump(t, n, err)
 		stopped := 0
 		for budget := uint64(1); ; budget++ {
-			o := ParseOptions{Backend: b, Expectations: true, Limits: runtime.Limits{Compute: budget}}
+			o := engine.ParseOptions{Backend: b, Expectations: true, Limits: runtime.Limits{Compute: budget}}
 			n, err := prog.ParseWith("main", in, o)
 			if errors.Is(err, runtime.ErrLimit) {
 				stopped++
-				n, err := prog.ParseWith("main", in, ParseOptions{Backend: b, Expectations: true})
+				n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Expectations: true})
 				if got := skipDump(t, n, err); got != want {
 					t.Fatalf("%s: after a parse stopped at budget %d:\n got  %s\n want %s", b, budget, got, want)
 				}
@@ -174,15 +185,15 @@ func TestSkipRunsBudgetAbort(t *testing.T) {
 // give the results of fresh parses with skip-run records, and that random edits detect records
 // that leave out the end or the start of their examined range.
 func TestSkipRunsDocument(t *testing.T) {
-	var progs []*Program
+	var progs []*engine.Program
 	var alphabets []string
 	for _, g := range skipRunGrammars {
 		if g.Name == "line starts in the element" || g.Name == "look-ahead past the end" {
-			progs, alphabets = append(progs, mustCompile(t, g.Src)), append(alphabets, g.Alphabet)
+			progs, alphabets = append(progs, enginetest.MustCompile(t, g.Src)), append(alphabets, g.Alphabet)
 		}
 	}
 	for _, mutation := range []int{0, state.SkipNoExamined, state.SkipNoFrom} {
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			detected := false
 			for i, prog := range progs {
 				diff := skipRunDocumentDiff(t, prog, alphabets[i], b, mutation)
@@ -202,7 +213,7 @@ func TestSkipRunsDocument(t *testing.T) {
 // and returns the first difference between its parse and a fresh parse without records, or "".
 // Under a mutation, a Document that reuses a stale result can also run past the end of its input;
 // the panic counts as a difference.
-func skipRunDocumentDiff(t *testing.T, prog *Program, alphabet string, b Backend, mutation int) (diff string) {
+func skipRunDocumentDiff(t *testing.T, prog *engine.Program, alphabet string, b engine.Backend, mutation int) (diff string) {
 	t.Helper()
 	if mutation != 0 {
 		defer func() {
@@ -212,7 +223,7 @@ func skipRunDocumentDiff(t *testing.T, prog *Program, alphabet string, b Backend
 		}()
 	}
 	rng := rand.New(rand.NewSource(7))
-	o := ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipMut: mutation}}
+	o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipMut: mutation}}
 	doc, err := prog.NewDocumentWith("main", "!a?ad\n?baz\n!aa?ac\n", o)
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +245,7 @@ func skipRunDocumentDiff(t *testing.T, prog *Program, alphabet string, b Backend
 		}
 		n, err := doc.Parse()
 		got := skipDump(t, n, err)
-		fn, ferr := prog.ParseWith("main", doc.Text(), ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipOff: true}})
+		fn, ferr := prog.ParseWith("main", doc.Text(), engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipOff: true}})
 		if want := skipDump(t, fn, ferr); got != want {
 			return "edit " + strings.ReplaceAll(doc.Text(), "\n", `\n`) + "\n got  " + got + "\n want " + want
 		}
@@ -246,18 +257,18 @@ func skipRunDocumentDiff(t *testing.T, prog *Program, alphabet string, b Backend
 // at, streams the elements and errors of a parse without records.
 func TestSkipRunsStream(t *testing.T) {
 	// The walks before an "e" fail and those before a "d" recover.
-	prog := mustCompile(t, `rule main = (x / [ace])* #stream $$
+	prog := enginetest.MustCompile(t, `rule main = (x / [ace])* #stream $$
 rule x = ("b" #recover(skip=[ac]+)) "d"`)
 	input := strings.Repeat(strings.Repeat("a", 40)+"c"+strings.Repeat("a", 9)+"e"+strings.Repeat("a", 20)+"d", 50)
-	run := func(off bool, b Backend) string {
+	run := func(off bool, b engine.Backend) string {
 		var out strings.Builder
 		err := prog.ParseStreamWith("main", strings.NewReader(input), func(n *value.Node) error {
 			out.WriteString(skipDump(t, n, nil) + "\n")
 			return nil
-		}, ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipOff: off}})
+		}, engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{SkipOff: off}})
 		return out.String() + skipDump(t, nil, err)
 	}
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		if got, want := run(false, b), run(true, b); got != want {
 			t.Errorf("%s: the streams differ", b)
 		}
@@ -270,16 +281,16 @@ func TestSkipRunsWideMinimum(t *testing.T) {
 	if strconv.IntSize < 64 {
 		t.Skip("bounds exceed a 32-bit implementation's source integer range")
 	}
-	prog := mustCompile(t, `rule main = (x / [ab])* $$
+	prog := enginetest.MustCompile(t, `rule main = (x / [ab])* $$
 rule x = ("c" #recover(skip=[a] #repeat(4294967296,) / [b]+)) "d"`)
 	if dis := prog.Module().Disassemble(); !strings.Contains(dis, "SKIPREPEAT min=4294967296 site=1") || !strings.Contains(dis, "SKIPREPEAT min=1 site=2") {
 		t.Fatalf("no wide SKIPREPEAT:\n%s", dis)
 	}
-	for _, mode := range valueModes {
-		saved := saveLoad(t, prog, "main", mode)
-		for _, b := range []Backend{Bytecode, BytecodeIterative} {
+	for _, mode := range enginetest.ValueModes {
+		saved := enginetest.SaveLoad(t, prog, "main", mode)
+		for _, b := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
 			for _, in := range []string{"aabbd", "bbbab", "abd"} {
-				if diffs := skipRunMismatch(t, saved, in, servedBy(mode, ParseOptions{Backend: b, Expectations: true})); len(diffs) > 0 {
+				if diffs := skipRunMismatch(t, saved, in, enginetest.ServedBy(mode, engine.ParseOptions{Backend: b, Expectations: true})); len(diffs) > 0 {
 					t.Errorf("%s %s: %s", mode, b, diffs[0])
 				}
 			}

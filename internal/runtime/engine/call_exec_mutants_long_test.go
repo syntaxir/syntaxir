@@ -500,7 +500,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"the errors settle before the pruning",
 			[]printedEdit{{prune + settle, settle + prune}}, "^TestStreamCommitPrunesBeforeItSettles$", here},
 		{"a parse without a callback streams",
-			[]printedEdit{{"(p.Emit != nil) && p.StreamID == id", "p.StreamID == id"}}, "^TestRunSitesMatchParsesWithoutRecords$", here},
+			[]printedEdit{{"(p.Emit != nil) && p.StreamID == id", "p.StreamID == id"}}, "^TestRunSitesMatchParsesWithoutRecords$", inCore},
 		{"every rule streams", []printedEdit{{"(p.Emit != nil) && p.StreamID == id", "(p.Emit != nil)"}}, start, here},
 		{"a recursive rule streams at any depth", []printedEdit{{depth, "true"}}, lefts, here},
 		{"a recursive rule never streams", []printedEdit{{depth, "!rec"}}, start, here},

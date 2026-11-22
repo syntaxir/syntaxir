@@ -14,7 +14,7 @@ import (
 // the charge log) are process-wide: a program compiled or a parse run while one is set behaves
 // otherwise, so a test that writes one must not run in parallel with other tests. Such a write in a
 // parallel test made TestBudgetStreamDefaultIgnoresChunking fail now and then, when the hot spans
-// of run sites were such variables: atHotSpans, called by the parallel
+// of run sites were such variables: statetest.AtHotSpans, called by the parallel
 // TestCalleeBindingsUndoneAtReturn, lowered them, a run site of the stream's grammar turned hot, and
 // the parse stayed under the budget that it must exceed. The settings of a parse are now its own
 // (state.Tuning, TestRuntimeHasNoPackageSettings); the compiler's switches are still package state.

@@ -1,4 +1,4 @@
-package engine
+package state_test
 
 import (
 	"fmt"
@@ -8,8 +8,11 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
@@ -17,7 +20,7 @@ import (
 // contextStoreGrowth parses the shape at the two codegentest.ContextStoreSizes on the backend and
 // returns the evaluations of B at its busiest position and of all rules, at each size. The parses
 // have no compute limit: a context that the store cannot index exceeds the default one.
-func contextStoreGrowth(t *testing.T, prog *Program, s codegentest.DependencyMemoShape, o ParseOptions) (b, all [2]int) {
+func contextStoreGrowth(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions) (b, all [2]int) {
 	t.Helper()
 	for i, m := range codegentest.ContextStoreSizes {
 		var pr instrument.Profile
@@ -41,7 +44,7 @@ func contextStoreGrowth(t *testing.T, prog *Program, s codegentest.DependencyMem
 // contextStoreBounded reports, for the shape on the backend, whether B is evaluated at its busiest
 // position as often for the larger input as for the smaller, and the parse evaluates at most
 // codegentest.ContextStoreGrowth times the calls.
-func contextStoreBounded(t *testing.T, prog *Program, s codegentest.DependencyMemoShape, o ParseOptions) (string, bool) {
+func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.DependencyMemoShape, o engine.ParseOptions) (string, bool) {
 	b, all := contextStoreGrowth(t, prog, s, o)
 	msg := fmt.Sprintf("%s %s: B evaluated at most %v times at a position, %v evaluations in all, at m=%v",
 		s.Name, o.Backend, b, all, codegentest.ContextStoreSizes)
@@ -54,9 +57,9 @@ func contextStoreBounded(t *testing.T, prog *Program, s codegentest.DependencyMe
 func TestContextStoreBounds(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.ContextStoreShapes {
-		prog := mustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if msg, ok := contextStoreBounded(t, prog, s, ParseOptions{Backend: b}); !ok {
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}); !ok {
 				t.Error(msg)
 			}
 		}
@@ -79,9 +82,9 @@ func TestContextStoreBoundsControls(t *testing.T) {
 				s = x
 			}
 		}
-		prog := mustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-			if msg, ok := contextStoreBounded(t, prog, s, ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}); ok {
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}); ok {
 				t.Errorf("mutation %d not detected: %s", c.mutation, msg)
 			}
 		}
@@ -97,8 +100,8 @@ var missingChain = codegentest.DependencyMemoShape{Name: "missing-token insertio
 // with the input, as without insertion.
 func TestContextStoreMissingInsertion(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
-	if msg, ok := contextStoreBounded(t, prog, missingChain, ParseOptions{Backend: Closure, MissingTokens: 1}); !ok {
+	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
+	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1}); !ok {
 		t.Error(msg)
 	}
 }
@@ -106,8 +109,8 @@ func TestContextStoreMissingInsertion(t *testing.T) {
 // TestContextStoreMissingInsertionControl checks that TestContextStoreMissingInsertion detects a
 // parse with insertion that keeps no result in a context.
 func TestContextStoreMissingInsertionControl(t *testing.T) {
-	prog := mustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
-	if msg, ok := contextStoreBounded(t, prog, missingChain, ParseOptions{Backend: Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}); ok {
+	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
+	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}); ok {
 		t.Errorf("CtxStrictMissing not detected: %s", msg)
 	}
 }
@@ -154,18 +157,18 @@ func missingRandomMismatches(t *testing.T, seeds int, tune state.Tuning) []strin
 		if !strings.Contains(src, "#missing") {
 			continue
 		}
-		g, err := parseTest(src)
+		g, err := enginetest.Parse(src)
 		if err != nil {
 			continue
 		}
-		if _, err := Compile(g, compile.Options{}); err != nil {
+		if _, err := entry.Compile(g, compile.Options{}); err != nil {
 			continue
 		}
 		checked++
-		memo, ref := mustCompile(t, src), mustCompile(t, src, compile.Options{DisableMemo: true})
+		memo, ref := enginetest.MustCompile(t, src), enginetest.MustCompile(t, src, compile.Options{DisableMemo: true})
 		for _, in := range c.Inputs {
 			for _, recognize := range []bool{false, true} {
-				o := ParseOptions{Backend: Closure, Recognize: recognize, MissingTokens: 3, Tune: tune}
+				o := engine.ParseOptions{Backend: engine.Closure, Recognize: recognize, MissingTokens: 3, Tune: tune}
 				got, err := memo.ParseWith("", in, o)
 				o.ContextMemoOff = true
 				want, wantErr := ref.ParseWith("", in, o)
