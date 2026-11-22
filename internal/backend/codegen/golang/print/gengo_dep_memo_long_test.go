@@ -27,38 +27,28 @@ import (
 // result that replays the seeds its observations read where it was made, and one that passes on only
 // those seeds of its observations with current identities, a result with more dependencies than a
 // key holds that is not stored, and one identity for every present set of leaders without bits.
+// The library shares those checks with the engine, whose tests break each through Parser.ctxMut, so
+// most mutations break the same check of the library by making ctxMut report it (ctxMutant).
 var depMemoMutations = map[string][][2]string{
-	"seed identities": {
-		{"rest = k.add(p.gamma[i].id, rest)\n", "rest = k.add(0, rest)\n"},
-		{"if d.kind == depSeed {\n\t\t\trest = k.add(d.val, rest)\n", "if d.kind == depSeed {\n\t\t\trest = k.add(0, rest)\n"},
-	},
-	"observations": {
-		{"v := p.obsValue(pos, gp, h.present, o)\n", "v := obsWide + 0*uint64(o)\n"},
-		{"if d.kind == depObs {\n\t\t\trest = k.add(d.val, rest)\n", "if d.kind == depObs {\n\t\t\trest = k.add(obsWide, rest)\n"},
-		{"if v, free := p.obsFree(g.start, g.gp, g.present, d.site, g.growKey()); v != d.val || !free {", "if false {"},
-	},
+	"seed identities": {ctxMutant("ctxMutIgnoreSeeds")},
+	"observations":    {ctxMutant("ctxMutIgnoreObs")},
 	"present growths": {
 		{"return !c.ctx || c.present&^present == 0\n", "return true\n"},
 	},
-	"canonical seeds": {
-		{"if c.e.examined == e.examined && c.e.errs.none() && p.nodesEqual(", "if true || p.nodesEqual("},
-	},
-	"jumps over observations of the growing seed": {
-		{"v != d.val || !free {", "v != d.val || !free && false {"},
-	},
-	"replayed observations": {
-		{"buf = append(buf, dep{kind: d.kind, idx: int32(i), d: depth, val: p.gamma[i].id})", "buf = append(buf, dep{kind: d.kind, idx: int32(i), d: depth, val: d.val})"},
-		{"buf = p.replayObs(buf, pos, gp, present, d.site, depth)\n", "\n"},
-	},
+	"canonical seeds": {ctxMutant("ctxMutNoCanonical")},
+	"jumps over observations of the growing seed": {ctxMutant("ctxMutJumpAnySeed")},
+	"replayed observations":                       {ctxMutant("ctxMutStaleReplay")},
 	"observations replayed in the current context": {
 		{"buf = p.replayObs(buf, pos, gp, present, d.site, depth)\n", "\n"},
 	},
-	"dependency cap": {
-		{"\t\tif d.kind == depSeed {\n\t\t\tseeds = append(seeds, growKey{d.rule, d.min})", "\t\tif len(seeds)+len(obs) == maxCtxDeps {\n\t\t\treturn\n\t\t}\n\t\tif d.kind == depSeed {\n\t\t\tseeds = append(seeds, growKey{d.rule, d.min})"},
-	},
-	"wide present identity": {
-		{"return presentWide | uint32(p.intern(key))", "return presentWide | 1 + 0*uint32(len(key))"},
-	},
+	"dependency cap":        {ctxMutant("ctxMutCapDeps")},
+	"wide present identity": {ctxMutant("ctxMutConstWide")},
+}
+
+// ctxMutant returns the replacement that makes the library's Parser.ctxMut report the check named
+// by the constant mut broken, as the engine's tests break it.
+func ctxMutant(mut string) [2]string {
+	return [2]string{"func (*Parser) ctxMut(int) bool { return false }", "func (*Parser) ctxMut(m int) bool { return m == " + mut + " }"}
 }
 
 // TestGeneratedLeftRecursionDependencyMemoControls checks that the grammars of

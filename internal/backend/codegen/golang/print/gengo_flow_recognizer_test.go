@@ -74,9 +74,10 @@ func invertClassTests(code []byte) []byte {
 	})
 }
 
-// guardFirstCharacter matches the first-character guard of a literal alternative in generated code,
-// with the character it tests.
-var guardFirstCharacter = regexp.MustCompile(`if !\(x(\d+) && \(x(\d+) == (\d+)\)\) && p\.Depth`)
+// guardFirstCharacter matches the first-character guard of a literal alternative in generated code
+// (the Flow operation guardLitFails, printed as a call of HasChar or its ordinary or traced form),
+// with the helper, the character it tests and whether it folds case.
+var guardFirstCharacter = regexp.MustCompile(`if !p\.(HasChar\w*)\((\d+), (true|false)\) && p\.Depth`)
 
 // shiftGuardFirstCharacters changes the character of every literal guard to the next one, as a printer
 // would if it read the first set of an alternative one character off. An alternative whose first
@@ -84,8 +85,8 @@ var guardFirstCharacter = regexp.MustCompile(`if !\(x(\d+) && \(x(\d+) == (\d+)\
 func shiftGuardFirstCharacters(code []byte) []byte {
 	return guardFirstCharacter.ReplaceAllFunc(code, func(m []byte) []byte {
 		sub := guardFirstCharacter.FindSubmatch(m)
-		c, _ := strconv.Atoi(string(sub[3]))
-		return []byte(fmt.Sprintf("if !(x%s && (x%s == %d)) && p.Depth", sub[1], sub[2], c+1))
+		c, _ := strconv.Atoi(string(sub[2]))
+		return []byte(fmt.Sprintf("if !p.%s(%d, %s) && p.Depth", sub[1], c+1, sub[3]))
 	})
 }
 
