@@ -170,7 +170,7 @@ func TestOutputChangingFlagChecks(t *testing.T) {
 }
 
 // A program that links the generators has the flags of every part of the pipeline, listed by kind
-// (pass, lowering, flow pass, exec pass, code pass, pattern, printer, runtime) and by name within a kind, which is the
+// (pass, lowering, flow pass, exec pass, code pass, pattern, printer, storage) and by name within a kind, which is the
 // order of the usage text of -opt and -no-opt and of the errors that list the names. The registry
 // and the profiles over it are valid, and the profiles resolve to the values they declare.
 func TestRegistryOfTheGenerators(t *testing.T) {
@@ -340,7 +340,7 @@ func TestOptimizationCombinationsParity(t *testing.T) {
 	codegentest.PinOrdinary(t)
 	var names []string
 	for _, f := range pass.Flags() {
-		if f.Kind != pass.KindRuntime && !f.ChangesOutput {
+		if f.Kind != pass.KindStorage && !f.ChangesOutput {
 			names = append(names, f.Name)
 		}
 	}
@@ -380,7 +380,7 @@ func TestOptimizationDisabledNodeRouteParity(t *testing.T) {
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	var all []string
 	for _, f := range pass.Flags() {
-		if f.Kind != pass.KindRuntime && !f.ChangesOutput {
+		if f.Kind != pass.KindStorage && !f.ChangesOutput {
 			all = append(all, f.Name)
 		}
 	}

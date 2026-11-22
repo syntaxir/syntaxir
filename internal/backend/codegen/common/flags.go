@@ -11,6 +11,6 @@ func init() {
 		pass.Flag{Name: "literal-sharing", Kind: pass.KindPrinter, Default: 1, Doc: "emit one table for equal literals (Go; TypeScript also needs ts-literal-sharing)"},
 		pass.Flag{Name: UsedFeatures, Kind: pass.KindPrinter, Default: 1, Doc: "leave out the library code of the features that the grammar and the options rule out (Go with the embedded library); off, the parser carries every feature"},
 		pass.Flag{Name: "ts-literal-sharing", Kind: pass.KindPrinter, Default: 0, Doc: "share literal tables in TypeScript parsers; off because a small cold parse measured about 1.5 times slower (design 090)"},
-		pass.Flag{Name: "sparse-memo", Kind: pass.KindRuntime, Default: 1, Doc: "keep the first-call table of large TypeScript parsers sparse"},
+		pass.Flag{Name: "sparse-memo", Kind: pass.KindStorage, Default: 1, Doc: "keep the first-call table of large TypeScript parsers sparse"},
 	)
 }

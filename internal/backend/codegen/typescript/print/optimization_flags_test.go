@@ -30,7 +30,7 @@ func TestOptimizationDisabledTSParity(t *testing.T) {
 	node := tooltest.RequireNode(t)
 	var all []string
 	for _, f := range pass.Flags() {
-		if f.Kind != pass.KindRuntime && !f.ChangesOutput {
+		if f.Kind != pass.KindStorage && !f.ChangesOutput {
 			all = append(all, f.Name)
 		}
 	}

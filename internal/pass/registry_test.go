@@ -14,7 +14,7 @@ func init() {
 		Flag{Name: "t-sharing", Kind: KindPrinter, Default: 1, Doc: "shares"},
 		Flag{Name: "t-guards", Kind: KindCorePass, Default: 1, Doc: "guards"},
 		Flag{Name: "t-opt-in", Kind: KindPrinter, Doc: "an opt-in"},
-		Flag{Name: "t-slabs", Kind: KindRuntime, Default: 1, Doc: "slabs"},
+		Flag{Name: "t-slabs", Kind: KindStorage, Default: 1, Doc: "slabs"},
 	)
 	Register(
 		Flag{Name: "t-exec", Kind: KindExecPass, Default: 1, Doc: "an exec pass"},
@@ -27,7 +27,7 @@ func init() {
 }
 
 // The registry lists the flags by kind, in the order pass, lowering, flow pass, exec pass, code
-// pass, pattern, printer, runtime, and by name within a kind, whatever order the parts registered them in: the usage text
+// pass, pattern, printer, storage, and by name within a kind, whatever order the parts registered them in: the usage text
 // and the errors that list the names are the same in every build.
 func TestRegistryOrder(t *testing.T) {
 	want := []string{"t-ablation", "t-guards", "t-count", "t-flow", "t-exec", "t-code", "t-pattern", "t-opt-in", "t-sharing", "t-slabs"}
@@ -41,7 +41,7 @@ func TestRegistryOrder(t *testing.T) {
 	if !slices.IsSorted(kinds) {
 		t.Errorf("kinds out of order: %v", kinds)
 	}
-	if got := []string{KindCorePass.String(), KindLowering.String(), KindFlowPass.String(), KindExecPass.String(), KindCodePass.String(), KindPattern.String(), KindPrinter.String(), KindRuntime.String()}; !slices.Equal(got, []string{"pass", "lowering", "flow pass", "exec pass", "code pass", "pattern", "printer", "runtime"}) {
+	if got := []string{KindCorePass.String(), KindLowering.String(), KindFlowPass.String(), KindExecPass.String(), KindCodePass.String(), KindPattern.String(), KindPrinter.String(), KindStorage.String()}; !slices.Equal(got, []string{"pass", "lowering", "flow pass", "exec pass", "code pass", "pattern", "printer", "storage"}) {
 		t.Errorf("kind names %v", got)
 	}
 	// Sorting is a function of the set alone.
@@ -69,7 +69,7 @@ func TestCheckFlags(t *testing.T) {
 		{"repeated", []Flag{{Name: "a", Doc: "x"}, {Name: "a", Doc: "y"}}, "twice"},
 		{"undocumented", []Flag{{Name: "a"}}, "no description"},
 		{"unnamed", []Flag{{Doc: "x"}}, "no name"},
-		{"unknown kind", []Flag{{Name: "a", Doc: "x", Kind: KindRuntime + 1}}, "unknown kind(8)"},
+		{"unknown kind", []Flag{{Name: "a", Doc: "x", Kind: KindStorage + 1}}, "unknown kind(8)"},
 		{"on and off flag with a count", []Flag{{Name: "a", Doc: "x", Default: 2}}, "speed value is 2"},
 		{"output change that is on", []Flag{{Name: "a", Doc: "x", Default: 1, ChangesOutput: true}}, "must be an opt-in"},
 		{"integer output change that is on", []Flag{{Name: "a", Doc: "x", Int: true, Default: 4, ChangesOutput: true}}, "must be an opt-in"},
@@ -164,7 +164,7 @@ func TestFlagSummaries(t *testing.T) {
 		{Flag{Name: "inline-literals", Kind: KindLowering, Int: true, Default: 4}, "inline-literals (lowering, 4; count)"},
 		{Flag{Name: "guards", Kind: KindCorePass, Default: 1}, "guards (pass, on)"},
 		{Flag{Name: "ts-literal-sharing", Kind: KindPrinter}, "ts-literal-sharing (printer, off)"},
-		{Flag{Name: "sparse-memo", Kind: KindRuntime, Default: 1}, "sparse-memo (runtime, on)"},
+		{Flag{Name: "sparse-memo", Kind: KindStorage, Default: 1}, "sparse-memo (storage, on)"},
 		{Flag{Name: "f", Kind: KindFlowPass, Default: 1}, "f (flow pass, on)"},
 		{Flag{Name: "fake-output", Kind: KindPrinter, ChangesOutput: true}, "fake-output (printer, off; changes output)"},
 	} {

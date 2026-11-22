@@ -317,8 +317,8 @@ The kind says what the optimization changes: a `pass` rewrites the parser before
 option of the lowering to the code, a `flow pass` replaces the form in which the lowered code matches a construct with
 another where the target language prints it, an `exec pass` replaces operations of the lowered code with a form
 that one target prints more compactly, a `code pass` rewrites the lowered code before and after it is converted for
-the target, a `pattern` is one local rewrite of such a pass, a `printer` is a choice of what the Go and TypeScript printers emit, and a `runtime`
-optimization is a control of the runtime structures the parser emits. The names are the following, by kind and by name within a kind, as the usage text lists them, and an unknown name in `-opt` or `-no-opt` is an error that lists them. No flag in this
+the target, a `pattern` is one local rewrite of such a pass, a `printer` is a choice of what the Go and TypeScript printers emit, and a `storage`
+optimization is a control of the storage the parser emits. The names are the following, by kind and by name within a kind, as the usage text lists them, and an unknown name in `-opt` or `-no-opt` is an error that lists them. No flag in this
 table changes output yet:
 
 | Name | Kind | Default | What it does and what it costs |
@@ -345,10 +345,10 @@ table changes output yet:
 | `method-sharing` | printer | on | Emit one helper for generated bodies that are exactly equal (Go and TypeScript). Code against calls: smaller source, with a call where a body was |
 | `ts-literal-sharing` | printer | off | Share literal tables in TypeScript parsers. Smaller code against speed: a small cold parse measured about 1.5 times slower. It is an opt-in: turn it on with `-opt ts-literal-sharing` |
 | `used-features` | printer | on | Leave out the library code of the features that the grammar and the options rule out, such as left recursion, recovery, Operators Rules, streams or Documents, and the declarations of the embedded library that the parser does not name (Go and TypeScript, with `-lib embed`; `-lib only` writes the whole library). Off, the parser carries every feature; what a parse returns and charges is the same either way. Smaller source and binary, at no cost on average; single TypeScript workloads move by about 3% either way, as the JavaScript engine inlines the smaller library differently |
-| `sparse-memo` | runtime | on | Keep the first-call table of large TypeScript parsers sparse. Memory in proportion to the positions visited against a page lookup per check |
-| `typed-list-slabs` | runtime | on | Allocate typed lists in slabs (typed Go). Fewer allocations against memory, as for objects |
-| `typed-object-slabs` | runtime | on | Allocate typed objects in slabs (typed Go). Fewer allocations against memory: an object that escapes keeps the unused objects of its chunk |
-| `typed-output-bootstrap` | runtime | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start |
+| `sparse-memo` | storage | on | Keep the first-call table of large TypeScript parsers sparse. Memory in proportion to the positions visited against a page lookup per check |
+| `typed-list-slabs` | storage | on | Allocate typed lists in slabs (typed Go). Fewer allocations against memory, as for objects |
+| `typed-object-slabs` | storage | on | Allocate typed objects in slabs (typed Go). Fewer allocations against memory: an object that escapes keeps the unused objects of its chunk |
+| `typed-output-bootstrap` | storage | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start |
 
 A profile is chosen with `-optimize` (`compiler.WithOptimize` with a `compiler.Optimize` for `compiler.GenerateGo` and `compiler.GenerateTypeScript`). Each sets flags of the table above to other values
 than `speed` has and nothing else, so `-opt` and `-no-opt` still apply after it:

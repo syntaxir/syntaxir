@@ -137,7 +137,7 @@ the generic manager in `internal/pass/pipe` under the settings of the driver in 
 ([design 063](design/records/063-configurable-optimization-pass-pipeline.md)). To add an optimization:
 
 1. Declare a pass with its `Requires`, `After`, `Applies` and `Obligation`, and a `Run` that returns the unit after
-   the pass and the analyses it preserved (nothing, unless it says otherwise), or add a lowering or runtime flag; register its name, kind, description and `speed` value in the registry from the package that reads
+   the pass and the analyses it preserved (nothing, unless it says otherwise), or add a lowering or storage flag; register its name, kind, description and `speed` value in the registry from the package that reads
    it (`pass.Register` in an `init` function; the Core passes register theirs in `internal/middleend/corepass/flags.go`).
 2. Add its entry to `optimizationTests` in `internal/backend/codegen/golang/print/optimization_flags_test.go`. The entry names the test of
    the parser generated without it, or leaves it to `TestOptimizationDisabledParity`, which compares such parsers with the

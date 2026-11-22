@@ -217,8 +217,8 @@ func TestParseValues(t *testing.T) {
 // apart from the parts that register them.
 func testFlags() []pass.Flag {
 	return append(pass.Flags(),
-		pass.Flag{Name: "typed-object-slabs", Kind: pass.KindRuntime, Default: 1, Doc: "x"},
-		pass.Flag{Name: "typed-list-slabs", Kind: pass.KindRuntime, Default: 1, Doc: "x"},
+		pass.Flag{Name: "typed-object-slabs", Kind: pass.KindStorage, Default: 1, Doc: "x"},
+		pass.Flag{Name: "typed-list-slabs", Kind: pass.KindStorage, Default: 1, Doc: "x"},
 	)
 }
 

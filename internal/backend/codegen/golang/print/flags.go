@@ -6,8 +6,8 @@ import "syntaxir.dev/sxir/internal/pass"
 func init() {
 	pass.Register(
 		pass.Flag{Name: "field-compare", Kind: pass.KindLowering, Default: 1, Doc: "typed Go compares fields in the actions and predicates of typed rules without boxing string fields"},
-		pass.Flag{Name: "typed-object-slabs", Kind: pass.KindRuntime, Default: 1, Doc: "allocate typed objects in slabs (typed Go)"},
-		pass.Flag{Name: "typed-list-slabs", Kind: pass.KindRuntime, Default: 1, Doc: "allocate typed lists in slabs (typed Go)"},
-		pass.Flag{Name: "typed-output-bootstrap", Kind: pass.KindRuntime, Default: 1, Doc: "size the first slab of the typed output from the input (typed Go)"},
+		pass.Flag{Name: "typed-object-slabs", Kind: pass.KindStorage, Default: 1, Doc: "allocate typed objects in slabs (typed Go)"},
+		pass.Flag{Name: "typed-list-slabs", Kind: pass.KindStorage, Default: 1, Doc: "allocate typed lists in slabs (typed Go)"},
+		pass.Flag{Name: "typed-output-bootstrap", Kind: pass.KindStorage, Default: 1, Doc: "size the first slab of the typed output from the input (typed Go)"},
 	)
 }

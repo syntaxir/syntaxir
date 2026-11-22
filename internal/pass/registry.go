@@ -37,8 +37,9 @@ const (
 	// KindPrinter is a choice of what the Go and TypeScript printers emit: the form of an action expression of an
 	// action or a predicate, or whether equal generated bodies and tables share one helper.
 	KindPrinter
-	// KindRuntime is a control of the runtime structures that the printers emit.
-	KindRuntime
+	// KindStorage is a control of the storage that the printers emit for results and tables: slabs and
+	// first-call tables.
+	KindStorage
 )
 
 func (k Kind) String() string {
@@ -57,8 +58,8 @@ func (k Kind) String() string {
 		return "pattern"
 	case KindPrinter:
 		return "printer"
-	case KindRuntime:
-		return "runtime"
+	case KindStorage:
+		return "storage"
 	}
 	return "kind(" + strconv.Itoa(int(k)) + ")"
 }
@@ -116,7 +117,7 @@ func CheckFlags(flags []Flag) error {
 			return fmt.Errorf("flag %q has no name or no description", f.Name)
 		case seen[f.Name]:
 			return fmt.Errorf("flag %s is declared twice", f.Name)
-		case f.Kind < KindCorePass || f.Kind > KindRuntime:
+		case f.Kind < KindCorePass || f.Kind > KindStorage:
 			return fmt.Errorf("flag %s has the unknown %s", f.Name, f.Kind)
 		case f.Default < 0 || !f.Int && f.Default > 1:
 			return fmt.Errorf("flag %s is on or off but its speed value is %d", f.Name, f.Default)
