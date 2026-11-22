@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -10,7 +10,9 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -55,10 +57,10 @@ rule piece = .*`
 
 rule piece = .*`
 		}
-		prog := mustCompile(t, grammar)
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		prog := enginetest.MustCompile(t, grammar)
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
-				retained, err := prog.ParseWith("main", strings.Repeat("oldλ\xff", 90), ParseOptions{Backend: b, Unit: u, Limits: runtime.Limits{Compute: 1 << 50}})
+				retained, err := prog.ParseWith("main", strings.Repeat("oldλ\xff", 90), engine.ParseOptions{Backend: b, Unit: u, Limits: runtime.Limits{Compute: 1 << 50}})
 				if err != nil || retained == nil {
 					t.Fatalf("retained parse %v/%v: %v", b, u, err)
 				}
@@ -70,9 +72,9 @@ rule piece = .*`
 						}
 						var observed *state.Parser
 						armed := false
-						n, err := prog.ParseWith("main", source, ParseOptions{Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e TraceEvent) {
+						n, err := prog.ParseWith("main", source, engine.ParseOptions{Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e engine.TraceEvent) {
 							observed = state.TraceParser(e)
-							if e.Kind != TraceExit || e.Rule != "piece" || !e.Matched {
+							if e.Kind != engine.TraceExit || e.Rule != "piece" || !e.Matched {
 								return
 							}
 							armed = true
@@ -114,7 +116,7 @@ rule piece = .*`
 						} else if err != nil || (!recognize && n == nil) {
 							t.Fatalf("source substring %v: n=%v err=%v", b, n, err)
 						}
-						n, err = prog.ParseWith("main", source, ParseOptions{Backend: b, Unit: u, Recognize: recognize})
+						n, err = prog.ParseWith("main", source, engine.ParseOptions{Backend: b, Unit: u, Recognize: recognize})
 						if err != nil || (!recognize && n == nil) || (recognize && n != nil) {
 							t.Fatalf("%v/%v retry: n=%v err=%v", b, u, n, err)
 						}
@@ -163,11 +165,11 @@ func TestBudgetTextNodeRoutesParity(t *testing.T) {
 rule main Token = t:(.* $$) #atomic => Token{Text: text($t)}`, `rule main = item $$
 
 rule item = "!" #recover(skip=.*)`} {
-		prog := mustCompile(t, src)
-		for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		prog := enginetest.MustCompile(t, src)
+		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 				for _, recognize := range []bool{false, true} {
-					opts := ParseOptions{Backend: b, Unit: u, Recognize: recognize}
+					opts := engine.ParseOptions{Backend: b, Unit: u, Recognize: recognize}
 					want, wantErr := prog.ParseWith("main", input, opts)
 					opts.Limits = runtime.Limits{Compute: 1 << 50}
 					got, gotErr := prog.ParseWith("main", input, opts)

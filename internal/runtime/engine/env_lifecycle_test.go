@@ -267,4 +267,3 @@ func TestBindingBranchesFromOneSnapshot(t *testing.T) {
 		}
 	}
 }
-

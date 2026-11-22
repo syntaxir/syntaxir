@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"bufio"
@@ -11,7 +11,9 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -54,10 +56,10 @@ func TestBudgetLiteralReplacementMismatchBudget(t *testing.T) {
 func TestBudgetLiteralReplacementPublicLookahead(t *testing.T) {
 	t.Parallel()
 	literal := strings.Repeat("a", 4096) + string(utf8.RuneError)
-	prog := mustCompile(t, "rule main = !"+strconv.Quote(literal)+" \"b\" $$")
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, "rule main = !"+strconv.Quote(literal)+" \"b\" $$")
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, recognize := range []bool{false, true} {
-			opts := ParseOptions{Backend: backend, Unit: input.Bytes, Recognize: recognize}
+			opts := engine.ParseOptions{Backend: backend, Unit: input.Bytes, Recognize: recognize}
 			if _, err := prog.ParseWith("main", "b", opts); err != nil {
 				t.Fatalf("baseline %v/%v: %v", backend, recognize, err)
 			}

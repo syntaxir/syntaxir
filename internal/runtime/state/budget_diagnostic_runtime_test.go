@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -11,7 +11,9 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -33,9 +35,9 @@ func diagnosticAlternatives() string {
 func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 	t.Parallel()
 	source := diagnosticAlternatives()
-	prog := mustCompile(t, source)
-	accessorProg := mustCompile(t, strings.Replace(source, "rule main = bad $$\n", `rule main = (bad #recover(skip=.* #atomic) "!" / fallback) $$`+"\n", 1)+"\nrule fallback = .* #atomic\n")
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, source)
+	accessorProg := enginetest.MustCompile(t, strings.Replace(source, "rule main = bad $$\n", `rule main = (bad #recover(skip=.* #atomic) "!" / fallback) $$`+"\n", 1)+"\nrule fallback = .* #atomic\n")
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, u := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 			for _, recognize := range []bool{false, true} {
 				for _, accessor := range []bool{false, true} {
@@ -52,12 +54,12 @@ func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 						var observed *state.Parser
 						var c *state.BudgetControl
 						var at uint64
-						n, err := active.ParseWith("main", "x", ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e TraceEvent) {
+						n, err := active.ParseWith("main", "x", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e engine.TraceEvent) {
 							observed = state.TraceParser(e)
-							if e.Kind == TraceEnter && e.Rule == "fallback" {
+							if e.Kind == engine.TraceEnter && e.Rule == "fallback" {
 								fallback++
 							}
-							if !armed && e.Kind == TraceExit && ((accessor && e.Rule == "bad") || (!accessor && e.Rule == "main")) {
+							if !armed && e.Kind == engine.TraceExit && ((accessor && e.Rule == "bad") || (!accessor && e.Rule == "main")) {
 								if e.Matched || len(state.TraceExpectations(e)) != 16 {
 									t.Fatalf("unexpected diagnostic fixture exp=%d", len(state.TraceExpectations(e)))
 								}
@@ -88,7 +90,7 @@ func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 						if !accessor && c.Used <= at+16*17 {
 							t.Fatal("budget exhausted before diagnostic sorting")
 						}
-						n, err = active.ParseWith("main", "x", ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize})
+						n, err = active.ParseWith("main", "x", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize})
 						if accessor {
 							if err != nil || (recognize && n != nil) || (!recognize && n == nil) {
 								t.Fatalf("accessor fresh retry differs: %v", err)
@@ -113,10 +115,10 @@ func TestBudgetDiagnosticRecoveryFatalAndRetainedOutputs(t *testing.T) {
 	src := `rule main = (bad #recover(skip=(!"!" .)+) "!" / fallback) $$
 rule fallback = .* #atomic
 rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
-	prog := mustCompile(t, src)
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, src)
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, u := range []input.PositionUnit{input.Bytes, input.CodePoints} {
-			retained, retainedErr := prog.ParseWith("main", "x!", ParseOptions{Expectations: true, Backend: b, Unit: u})
+			retained, retainedErr := prog.ParseWith("main", "x!", engine.ParseOptions{Expectations: true, Backend: b, Unit: u})
 			if retained == nil || retainedErr == nil {
 				t.Fatal("recovery setup did not produce node and errors")
 			}
@@ -125,12 +127,12 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 			for _, recognize := range []bool{false, true} {
 				armed, fallback := false, 0
 				var observed *state.Parser
-				n, err := prog.ParseWith("main", "x", ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e TraceEvent) {
+				n, err := prog.ParseWith("main", "x", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e engine.TraceEvent) {
 					observed = state.TraceParser(e)
-					if e.Kind == TraceEnter && e.Rule == "fallback" {
+					if e.Kind == engine.TraceEnter && e.Rule == "fallback" {
 						fallback++
 					}
-					if !armed && e.Kind == TraceExit && e.Rule == "bad" {
+					if !armed && e.Kind == engine.TraceExit && e.Rule == "bad" {
 						armed = true
 						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 256
 					}
@@ -148,12 +150,12 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 				}
 				if !recognize {
 					armed, fallback = false, 0
-					n, err = prog.ParseWith("main", "x", ParseOptions{Expectations: true, Backend: b, Unit: u, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e TraceEvent) {
+					n, err = prog.ParseWith("main", "x", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e engine.TraceEvent) {
 						observed = state.TraceParser(e)
-						if e.Kind == TraceEnter && e.Rule == "fallback" {
+						if e.Kind == engine.TraceEnter && e.Rule == "fallback" {
 							fallback++
 						}
-						if !armed && e.Kind == TraceExit && e.Rule == "bad" {
+						if !armed && e.Kind == engine.TraceExit && e.Rule == "bad" {
 							armed = true
 							// The post-callback check succeeds; the message copy polls next.
 							state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
@@ -164,7 +166,7 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 						t.Fatalf("recovery message cancellation entered alternative or retained scratch: %v fallback=%d", err, fallback)
 					}
 				}
-				_, retryErr := prog.ParseWith("main", "x!", ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize})
+				_, retryErr := prog.ParseWith("main", "x!", engine.ParseOptions{Expectations: true, Backend: b, Unit: u, Recognize: recognize})
 				var recovered value.SyntaxErrors
 				if !errors.As(retryErr, &recovered) || len(recovered) != 1 || !reflect.DeepEqual(recovered[0].Messages, []string{message}) {
 					t.Fatalf("recovery retry differs: %v", retryErr)

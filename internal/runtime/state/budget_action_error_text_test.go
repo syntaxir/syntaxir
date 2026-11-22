@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -109,7 +110,7 @@ func TestBudgetActionErrorOpaqueFormattingPreservesNative(t *testing.T) {
 func TestBudgetActionErrorProducersAreEager(t *testing.T) {
 	t.Parallel()
 	long := strings.Repeat("T", 1024)
-	prog := mustCompile(t, "type A = {\n    N int\n}\n\nrule main = \"a\"\n")
+	prog := enginetest.MustCompile(t, "type A = {\n    N int\n}\n\nrule main = \"a\"\n")
 	node := nodes.Ptr(nodes.Data{Kind: &valueimpl.Kind{Type: long}})
 	producers := []struct {
 		name string
@@ -130,7 +131,7 @@ func TestBudgetActionErrorProducersAreEager(t *testing.T) {
 	for _, tc := range producers {
 		t.Run(tc.name, func(t *testing.T) {
 			p := diagnosticParser(runtime.Limits{Compute: 1 << 50})
-			p.Prog = &prog.sharedProgram
+			p.Prog = prog.Shared()
 			owned := tc.make(p)
 			if owned == nil {
 				t.Fatal("expected expression error")

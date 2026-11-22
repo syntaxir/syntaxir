@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -169,8 +171,8 @@ func TestBudgetInputTextSourceSubstringRemainsConstantBudget(t *testing.T) {
 
 func TestBudgetTraceTextInterruptionRetriesPooledParser(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, `rule main = .* $$`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, `rule main = .* $$`)
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, unit := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 			raw := strings.Repeat("z", 9000)
 			if unit == input.CodePoints {
@@ -178,14 +180,14 @@ func TestBudgetTraceTextInterruptionRetriesPooledParser(t *testing.T) {
 			}
 			armed := false
 			var observed *state.Parser
-			node, err := prog.ParseWith("main", raw, ParseOptions{
+			node, err := prog.ParseWith("main", raw, engine.ParseOptions{
 				Backend: backend,
 				Unit:    unit,
 				Limits: runtime.Limits{
 					Compute: 1 << 30,
 				},
-				Trace: func(e TraceEvent) {
-					if !armed && e.Kind == TraceExit && e.Rule == "main" && e.Matched {
+				Trace: func(e engine.TraceEvent) {
+					if !armed && e.Kind == engine.TraceExit && e.Rule == "main" && e.Matched {
 						armed = true
 						observed = state.TraceParser(e)
 						if unit == input.Bytes {
@@ -202,7 +204,7 @@ func TestBudgetTraceTextInterruptionRetriesPooledParser(t *testing.T) {
 			if observed == nil || observed.Scratch != nil || observed.Control != nil {
 				t.Fatalf("%v/%v interrupted parser cleanup: %#v", backend, unit, observed)
 			}
-			node, err = prog.ParseWith("main", raw, ParseOptions{Backend: backend, Unit: unit})
+			node, err = prog.ParseWith("main", raw, engine.ParseOptions{Backend: backend, Unit: unit})
 			if err != nil || node == nil {
 				t.Fatalf("%v/%v pooled retry: node=%v err=%v", backend, unit, node, err)
 			}

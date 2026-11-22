@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"context"
@@ -10,8 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -147,15 +149,15 @@ func budgetMemoVariableGrammar() string {
 
 func TestBudgetMemoParseBudgetPoolRetryAndRetainedResult(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, budgetMemoVariableGrammar())
+	prog := enginetest.MustCompile(t, budgetMemoVariableGrammar())
 	input := "a"
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			// The memo keys of 280 variables cost more than the default budget of a one-character
 			// input: the fixture's cost comes from the grammar, so the setup parse disables the
 			// budget. The limit below falls inside the key of the first call of r, which reads
 			// every variable (four units each).
-			opts := ParseOptions{Backend: backend, Unit: unit, Limits: runtime.Limits{Compute: runtime.Unlimited}}
+			opts := engine.ParseOptions{Backend: backend, Unit: unit, Limits: runtime.Limits{Compute: runtime.Unlimited}}
 			retained, err := prog.ParseWith("main", input, opts)
 			if err != nil || retained == nil {
 				t.Fatalf("%v/%v setup parse: node=%v err=%v", backend, unit, retained, err)
@@ -169,11 +171,11 @@ func TestBudgetMemoParseBudgetPoolRetryAndRetainedResult(t *testing.T) {
 			markerCalls := 0
 			limited := opts
 			limited.Limits = runtime.Limits{Compute: 1 << 50}
-			limited.Trace = func(e TraceEvent) {
-				if e.Kind == TraceEnter && e.Rule == "marker" {
+			limited.Trace = func(e engine.TraceEvent) {
+				if e.Kind == engine.TraceEnter && e.Rule == "marker" {
 					markerCalls++
 				}
-				if !armed && e.Kind == TraceEnter && e.Rule == "r" {
+				if !armed && e.Kind == engine.TraceEnter && e.Rule == "r" {
 					armed = true
 					state.TraceParser(e).DeferMemo = false
 					state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 16
@@ -302,12 +304,12 @@ func TestBudgetMemoChainAndStringKeysChargeNothing(t *testing.T) {
 
 func TestBudgetMemoBatchGrowthInterruption(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, `rule main = expr #recover(skip=.*) $$
+	prog := enginetest.MustCompile(t, `rule main = expr #recover(skip=.*) $$
 
 rule expr = expr atom / atom
 
 rule atom = "a"`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			for _, recognize := range []bool{false, true} {
 				for _, cancel := range []bool{false, true} {
@@ -317,11 +319,11 @@ rule atom = "a"`)
 					var chunks [][]state.MemoEntry
 					armed := false
 					exprExits := 0
-					opts := ParseOptions{Backend: backend, Unit: unit, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 40}, Trace: func(e TraceEvent) {
-						if e.Kind == TraceExit && e.Rule == "expr" {
+					opts := engine.ParseOptions{Backend: backend, Unit: unit, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 40}, Trace: func(e engine.TraceEvent) {
+						if e.Kind == engine.TraceExit && e.Rule == "expr" {
 							exprExits++
 						}
-						if !armed && e.Kind == TraceExit && e.Rule == "atom" {
+						if !armed && e.Kind == engine.TraceExit && e.Rule == "atom" {
 							armed = true
 							observed = state.TraceParser(e)
 							statetest.MemoPrefix(state.TraceParser(e).Memo, retained)
@@ -353,7 +355,7 @@ rule atom = "a"`)
 					if string(after) != string(before) {
 						t.Fatal("batch cleanup changed retained graph")
 					}
-					retry, retryErr := prog.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: unit, Recognize: recognize})
+					retry, retryErr := prog.ParseWith("main", "a", engine.ParseOptions{Backend: backend, Unit: unit, Recognize: recognize})
 					if retryErr != nil || (retry == nil) != recognize {
 						t.Fatalf("retry=%v/%v", retry, retryErr)
 					}

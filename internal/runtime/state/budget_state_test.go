@@ -1,6 +1,6 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"errors"
@@ -12,9 +12,11 @@ import (
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/compile"
 	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -211,19 +213,19 @@ func TestBudgetStateBatchRollbackAndPoolRetry(t *testing.T) {
 	src := `rule main = (` + body.String() + ` {` + predicate.String() + `} arm "!" / fallback) #recover(skip=.*) $$
 rule fallback = .* #atomic
 rule arm = _`
-	prog := mustCompile(t, src)
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
+	prog := enginetest.MustCompile(t, src)
+	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		for _, u := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 			for _, recognize := range []bool{false, true} {
 				armed := false
 				fallback := 0
 				var observed *state.Parser
-				n, err := prog.ParseWith("main", "a", ParseOptions{Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e TraceEvent) {
+				n, err := prog.ParseWith("main", "a", engine.ParseOptions{Backend: b, Unit: u, Recognize: recognize, Limits: runtime.Limits{Compute: 1 << 50}, Trace: func(e engine.TraceEvent) {
 					observed = state.TraceParser(e)
-					if e.Kind == TraceEnter && e.Rule == "fallback" {
+					if e.Kind == engine.TraceEnter && e.Rule == "fallback" {
 						fallback++
 					}
-					if e.Kind == TraceExit && e.Rule == "arm" && e.Matched {
+					if e.Kind == engine.TraceExit && e.Rule == "arm" && e.Matched {
 						if len(state.TraceParser(e).Trail) < 320 {
 							t.Fatalf("%v/%v recognize=%t: outer capture trail=%d", b, u, recognize, len(state.TraceParser(e).Trail))
 						}
@@ -234,7 +236,7 @@ rule arm = _`
 				if !armed || n != nil || !errors.Is(err, runtime.ErrLimit) || fallback > 1 || observed == nil || observed.Scratch != nil || observed.Control != nil {
 					t.Fatalf("%v/%v recognize=%t: armed=%t returned=%t err=%v fallback=%d", b, u, recognize, armed, n != nil, err, fallback)
 				}
-				n, err = prog.ParseWith("main", "a", ParseOptions{Backend: b, Unit: u, Recognize: recognize})
+				n, err = prog.ParseWith("main", "a", engine.ParseOptions{Backend: b, Unit: u, Recognize: recognize})
 				if err != nil || (recognize && n != nil) || (!recognize && n == nil) {
 					t.Fatalf("%v/%v retry: %v", b, u, err)
 				}

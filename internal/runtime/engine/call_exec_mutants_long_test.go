@@ -42,7 +42,7 @@ func TestCallProtocolMutantsFail(t *testing.T) {
 			"^TestDocumentMatchesFreshParse$", []string{"."}},
 		{"a result that goes nowhere is stored in the memo",
 			[]printedEdit{{route, "\tif store != storeCtx {\n"}},
-			"^TestBudgetUnrecordedContextCalls$", []string{"."}},
+			"^TestBudgetUnrecordedContextCalls$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"a result that read a growing seed is stored in the memo",
 			[]printedEdit{{route, "\tif store != storeNowhere {\n"}},
 			"^TestLeftRecursionMemberMemoStale$", []string{"."}},
@@ -53,7 +53,7 @@ func TestCallProtocolMutantsFail(t *testing.T) {
 				{"Gen: p.Gen, Vgen: p.Gen, " + copyErrs, "Gen: p.Gen, Vgen: p.Gen, Errs: errs}"},
 				{"Positional: r.Positional, " + copyErrs, "Positional: r.Positional, Errs: errs}"},
 			},
-			"^TestBudgetCallEndChargesErrorsAfterExpectations$", []string{"."}},
+			"^TestBudgetCallEndChargesErrorsAfterExpectations$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 	})
 }
 
@@ -80,7 +80,7 @@ func TestExpectationRecordMutantsFail(t *testing.T) {
 		kept   = "^TestBudgetExpectationKeepSnapshotsAndAtomicCopy$"
 		chunks = "^TestBudgetExpectationKeepFillsChunks$"
 	)
-	here := []string{"."}
+	here := []string{"syntaxir.dev/sxir/internal/runtime/state"}
 	runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{
 		{"an expectation in a lookahead is recorded",
 			[]printedEdit{{dropped, "if pos < p.Farthest {\n\t\treturn"}}, scan, here},
@@ -300,7 +300,7 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 		{"^TestBudgetDiagnosticRecoveredLists$", "syntaxir.dev/sxir/internal/runtime/vm", [][]funcEdit{
 			{{"Longest", "\tp.SpendN(uint64(len(l)))\n", ""}},
 		}},
-		{"^TestBudgetResetRestoresRepeatedCaptureWritesInReverse$", ".", [][]funcEdit{
+		{"^TestBudgetResetRestoresRepeatedCaptureWritesInReverse$", "syntaxir.dev/sxir/internal/runtime/state", [][]funcEdit{
 			{{"Reset", "\tp.Trail = p.Trail[:m.Trail]\n", ""}},
 		}},
 		{"^TestBudgetStateOperatorsRuleFrameSnapshotAndRestoration$", "syntaxir.dev/sxir/internal/runtime/vm", [][]funcEdit{
@@ -687,7 +687,7 @@ func TestDocumentReuseMutantsFail(t *testing.T) {
 		{"tree field ge", []printedEdit{{"ok && c != nil && nodes.D(c).Mark < p.Gen {", "ok && c != nil {"}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"tree field not stored", []printedEdit{{"nodes.D(n).Fields[i].Value = p.moveChild(c, gen, shift)", "_ = i\n\t\t\tp.moveChild(c, gen, shift)"}}, "^TestDocumentMovesReusedTrees$", []string{"."}},
 		{"child no generation", []printedEdit{{"\t\tif nodes.D(c).Mark != gen {\n\t\t\tshift = p.ShiftOf(c)\n\t\t}\n", ""}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
-		{"child always generation", []printedEdit{{"if nodes.D(c).Mark != gen {", "if true {"}}, "^TestBudgetDocumentMovementChargesEdges$", []string{"."}},
+		{"child always generation", []printedEdit{{"if nodes.D(c).Mark != gen {", "if true {"}}, "^TestBudgetDocumentMovementChargesEdges$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"child empty unmoved", []printedEdit{{"\tif shift == 0 {\n\t\treturn c\n\t}\n\treturn p.MoveEmpty(c, shift)", "\treturn c"}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"child empty zero copies", []printedEdit{{"\tif shift == 0 {\n\t\treturn c\n\t}\n", ""}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"empty no charge", []printedEdit{{"func (p *Parser) MoveEmpty(n *value.Node, shift int) *value.Node {\n\tp.Spend()\n", "func (p *Parser) MoveEmpty(n *value.Node, shift int) *value.Node {\n"}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
@@ -702,7 +702,7 @@ func TestDocumentReuseMutantsFail(t *testing.T) {
 		{"descendant nil", []printedEdit{{"\tcase c == nil:\n\t\treturn nil\n", ""}}, "^TestDocumentLeftRecursionMemberReparse$", []string{"syntaxir.dev/sxir/internal/runtime/document"}},
 		{"descendant empty kept", []printedEdit{{"\t\treturn p.MoveEmpty(c, shift)\n\tcase nodes.D(c).Mark < p.Gen:", "\t\treturn c\n\tcase nodes.D(c).Mark < p.Gen:"}}, "^TestDocMoveChargesAtItsBound$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"descendant unmoved", []printedEdit{{"\t\treturn p.moveChild(c, gen, shift)\n\t}\n\treturn c", "\t\treturn c\n\t}\n\treturn c"}}, "^TestDocumentMovesReusedTrees$", []string{"."}},
-		{"descendant always moved", []printedEdit{{"case nodes.D(c).Mark < p.Gen:\n\t\treturn p.moveChild(c, gen, shift)", "case true:\n\t\treturn p.moveChild(c, gen, shift)"}}, "^TestBudgetDocumentShiftReplayAndSharedEmptyGraph$", []string{"."}},
+		{"descendant always moved", []printedEdit{{"case nodes.D(c).Mark < p.Gen:\n\t\treturn p.moveChild(c, gen, shift)", "case true:\n\t\treturn p.moveChild(c, gen, shift)"}}, "^TestBudgetDocumentShiftReplayAndSharedEmptyGraph$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"value nil", []printedEdit{{"\tif v == nil {\n\t\treturn nil\n\t}\n\tif p.Moved", "\tif p.Moved"}}, "^TestDocumentResumeEdges$", []string{"."}},
 		{"value base", []printedEdit{{"p.moveBase, p.baseShift = base, shift", "p.moveBase, p.baseShift = 0, shift"}}, "^TestRunOperationsChargeTheirDeclaredWork$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 		{"value shift", []printedEdit{{"p.moveBase, p.baseShift = base, shift", "p.moveBase, p.baseShift = base, 0"}}, "^TestDocumentMovesReusedTrees$", []string{"."}},
@@ -743,7 +743,7 @@ func TestDocumentReuseMutantsFail(t *testing.T) {
 	runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{
 		{"lookup no advance", []printedEdit{{"if found && e.Vgen != p.Gen && !p.AdvanceEntry(e, p.Edits[:p.Gen]) {", "if false {"}}, "^TestBudgetDocumentReuseCancellationAndFreshRetry$", []string{"syntaxir.dev/sxir/internal/runtime/document"}},
 		{"reuse always moves", []printedEdit{{"\t\tif e.shifted {\n", "\t\tif true {\n"}}, "^TestBudgetDiagnosticRecoveredLists$", []string{"syntaxir.dev/sxir/internal/runtime/vm"}},
-		{"reuse never moves", []printedEdit{{"\t\tif e.shifted {\n", "\t\tif false {\n"}}, "^TestBudgetDocumentStaleMemoCallReplayIsBounded$", []string{"."}},
+		{"reuse never moves", []printedEdit{{"\t\tif e.shifted {\n", "\t\tif false {\n"}}, "^TestBudgetDocumentStaleMemoCallReplayIsBounded$", []string{"syntaxir.dev/sxir/internal/runtime/state"}},
 	})
 }
 

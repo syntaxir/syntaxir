@@ -1,12 +1,14 @@
 //go:build !sxir_budget_controls_reference
 
-package engine
+package state_test
 
 import (
 	"errors"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -50,20 +52,20 @@ func TestBudgetUnrecordedContextCalls(t *testing.T) {
 rule f = e ("x" / "y" / "z")?
 rule g = ";" / "x" #recover(skip=[b]+)`
 	// In missingProg, g may call h, so every rule of the cycle contains #missing.
-	missingProg, prog := mustCompile(t, grammar+" / h\nrule h = \"q\" #missing"), mustCompile(t, grammar)
+	missingProg, prog := enginetest.MustCompile(t, grammar+" / h\nrule h = \"q\" #missing"), enginetest.MustCompile(t, grammar)
 	type run struct {
-		backend   Backend
+		backend   engine.Backend
 		recognize bool
 		missing   int
 		ctxOff    bool
 	}
 	type usage struct{ compute, memory uint64 }
 	want := map[run]usage{
-		{Closure, false, 10, false}:         {156, 80540},
-		{Closure, true, 10, false}:          {122, 45684},
-		{Closure, false, 0, true}:           {165, 82092},
-		{Bytecode, false, 0, true}:          {177, 90588},
-		{BytecodeIterative, false, 0, true}: {177, 91884},
+		{engine.Closure, false, 10, false}:         {156, 80540},
+		{engine.Closure, true, 10, false}:          {122, 45684},
+		{engine.Closure, false, 0, true}:           {165, 82092},
+		{engine.Bytecode, false, 0, true}:          {177, 90588},
+		{engine.BytecodeIterative, false, 0, true}: {177, 91884},
 	}
 	for r, w := range want {
 		p := prog
@@ -71,7 +73,7 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 			p = missingProg
 		}
 		parseFn := func(l runtime.Limits) error {
-			_, err := p.ParseWith("e", "abb+a-a+a", ParseOptions{Backend: r.backend, Recognize: r.recognize, MissingTokens: r.missing, ContextMemoOff: r.ctxOff, Limits: l})
+			_, err := p.ParseWith("e", "abb+a-a+a", engine.ParseOptions{Backend: r.backend, Recognize: r.recognize, MissingTokens: r.missing, ContextMemoOff: r.ctxOff, Limits: l})
 			return err
 		}
 		got := usage{
