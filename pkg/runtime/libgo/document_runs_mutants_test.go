@@ -11,7 +11,7 @@ import (
 // compositions printed into call_exec.go (runReuse, runPrefix, runResync, runTail) or in the run
 // records of document_runs.go.
 var runMutants = []goMutant{
-	{"a reused element observes no context", "call_exec.go", "runReuse", "p.Control.Poll()\n\tv := p.runTake", "v := p.runTake"},
+	{"a reused element observes no context", "call_exec.go", "runReuse", "p.poll()\n\tv := p.runTake", "v := p.runTake"},
 	{"a resumed element counts only as a memo hit", "call_exec.go", "runReuse", "p.Document.stats.Resumed++\n", ""},
 	{"the reused prefix ignores the edit", "call_exec.go", "runPrefix", "if r.old[r.K].examined > r.EditStart {", "if false {"},
 	{"the reused tail does not move", "call_exec.go", "runTail", "p.runReuse(r, i, r.EditDelta,", "p.runReuse(r, i, 0,"},

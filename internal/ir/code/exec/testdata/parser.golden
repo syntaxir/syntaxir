@@ -427,14 +427,15 @@ host op budget.poll()
   component budget
   reads budget
   writes budget
-  features budget
   noreturn
   cost <= 0
   contract:
     // Counts a step of work that charges no unit toward the interval at which the parse observes
-    // cancellation and its memory limit, and observes them where budget.charge of one unit would. It charges
-    // nothing, so it never ends the parse with a limit interruption of Compute; it may end it with a
-    // cancellation or memory interruption.
+    // cancellation and its memory limit, and observes them at the end of each interval: with budget controls
+    // where budget.charge of one unit would, and with logical compute units, which such work does not
+    // advance, after each interval of as many of these steps. It charges and counts nothing, so it never ends the parse
+    // with a limit interruption of Compute; it may end it with a cancellation or memory interruption. Only
+    // builds with budget controls or logical units (Budget, Units) call it.
 
 op budget.used() u64
   component budget

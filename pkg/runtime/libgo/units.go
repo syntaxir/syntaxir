@@ -31,6 +31,8 @@ type unitsState struct {
 	mem *BudgetControl
 	// obsAt is the count at which the next check observes the context and the memory count.
 	obsAt uint64
+	// polls counts the steps of work that count no unit (poll) since the last observation they made.
+	polls uint64
 	out   *uint64 // where the end of the parse reports the count (WithComputeReport)
 	memo  *string // where the end of the parse reports the memo (SetMemoReport)
 }
@@ -128,6 +130,24 @@ func (p *Parser) PollUnits() {
 	}
 	p.unitsExceeded()
 	p.setUnitsCheck()
+}
+
+// poll is a step of work that counts no unit (budget.poll), such as a reused element of a run: under
+// logical units, which such work does not advance, it observes the context and the memory count after
+// each budgetCheckInterval of these steps; under budget controls the control polls.
+func (p *Parser) poll() {
+	if !p.units.on {
+		p.Control.Poll()
+		return
+	}
+	if !p.units.observes() {
+		return
+	}
+	if p.units.polls++; p.units.polls >= budgetCheckInterval {
+		p.units.polls = 0
+		p.observeUnits()
+		p.setUnitsCheck()
+	}
 }
 
 // endUnits makes the check at the end of a parse, which counts the syntax error it builds if failed:

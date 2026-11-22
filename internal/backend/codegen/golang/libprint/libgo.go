@@ -774,7 +774,7 @@ func goRunOp(callee string, a []string) (string, bool) {
 	case "doc.log":
 		return "p.edits", true
 	case "budget.poll":
-		return "p.Control.Poll()", true
+		return "p.poll()", true
 	}
 	name, ok := strings.CutPrefix(callee, "run.")
 	if !ok {

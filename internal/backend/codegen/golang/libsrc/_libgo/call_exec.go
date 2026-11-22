@@ -1459,7 +1459,7 @@ func (p *Parser) ResumeMore(r *RunState) bool {
 // Printed from Exec IR function runReuse of internal/ir/code/exec/compose, specialized for document, budget.
 func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Node {
 	var fm uint64
-	p.Control.Poll()
+	p.poll()
 	v := p.runTake(r, i, shift)
 	p.documentTouch(r.old[i].examined)
 	p.documentTouchFrom(r.old[i].from)
@@ -1520,7 +1520,7 @@ func (p *Parser) runResync(r *RunState) bool {
 		if r.Seek >= n || r.old[r.Seek].start >= at {
 			break
 		}
-		p.Control.Poll()
+		p.poll()
 		r.Seek = r.Seek + 1
 	}
 	if r.Seek == n || r.old[r.Seek].start != at {
@@ -1530,7 +1530,7 @@ func (p *Parser) runResync(r *RunState) bool {
 		return false
 	}
 	for q = r.Seek; q < n; q++ {
-		p.Control.Poll()
+		p.poll()
 		if r.old[q].from < r.EditEnd {
 			r.Barred = q + 1
 			return false

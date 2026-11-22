@@ -84,7 +84,7 @@ fewer than its maximum.`
 	reuse := m.AddFunc("runReuse", []Param{P("r", run), P("i", TInt), P("shift", TInt), P("gen", TInt)}, []Type{value}, feats, func(b *Builder) {
 		i := L("i")
 		// A reused element charges no unit, but it is a step of the parse at which a cancellation is observed.
-		b.If(F(exec.Budget), func(b *Builder) { b.Do("budget.poll") })
+		b.If(Bin("||", F(exec.Budget), F(exec.Units)), func(b *Builder) { b.Do("budget.poll") })
 		v := b.Let("v", C("run.take", r, i, L("shift"), L("gen")))
 		b.Do("doc.touch", C("run.oldExamined", r, i))
 		b.Do("doc.touchFrom", C("run.oldFrom", r, i))
@@ -137,7 +137,7 @@ moved here.`
 		b.If(Lt(field("seek"), field("k")), func(b *Builder) { set(b, "seek", field("k")) })
 		b.Loop("search", func(b *Builder) {
 			b.If(Bin("||", Bin(">=", field("seek"), n), Bin(">=", C("run.oldStart", r, field("seek")), at)), func(b *Builder) { b.Break("search") })
-			b.If(F(exec.Budget), func(b *Builder) { b.Do("budget.poll") })
+			b.If(Bin("||", F(exec.Budget), F(exec.Units)), func(b *Builder) { b.Do("budget.poll") })
 			set(b, "seek", Add(field("seek"), Int(1)))
 		})
 		lo := field("seek")
@@ -149,7 +149,7 @@ moved here.`
 		b.Var("q", TInt)
 		q := L("q")
 		b.For("after", Assign("q", lo), Lt(q, n), Assign("q", Add(q, Int(1))), func(b *Builder) {
-			b.If(F(exec.Budget), func(b *Builder) { b.Do("budget.poll") })
+			b.If(Bin("||", F(exec.Budget), F(exec.Units)), func(b *Builder) { b.Do("budget.poll") })
 			b.If(Lt(C("run.oldFrom", r, q), field("editEnd")), func(b *Builder) {
 				set(b, "barred", Add(q, Int(1)))
 				b.Return(BoolC(false))
