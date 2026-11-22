@@ -134,7 +134,7 @@ The measured soundness of the bound (below) stays as a test after the switch.
 
 ## Limitations
 
-- The bound is on the units of record 076 and of the [Cost](../../spec/runtime/parsing.md#cost) section that adopts
+- The bound is on the units of record 076 and of the [Cost](../../../spec/runtime/parsing.md#cost) section that adopts
   them. A backend that still charges the earlier per-operation units can report `Used` above it; the report is true of
   a backend once it has adopted them, and the measured-soundness test (Validation) is its check on generated Go.
 - The bound is loose: it adds every part of every rule, and takes `2K` for each rule.
