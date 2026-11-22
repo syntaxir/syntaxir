@@ -775,16 +775,16 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				if site := vm.runSites[ip]; site != nil {
 					// A Document parse: resume the run of the previous parse (state/resume.go).
 					r := mc.newRunState()
-					p.StartRun(r, ip, min, max, site.shiftable)
+					p.RunStart(r, ip, min, max, site.shiftable)
 					rep := &mc.reps[len(mc.reps)-1]
 					rep.run = r
-					for el := p.NextPrefix(r); el != nil; el = p.NextPrefix(r) {
+					for v, ok := p.RunPrefix(r); ok; v, ok = p.RunPrefix(r) {
 						if site.keep {
-							mc.push(el.V)
+							mc.push(v)
 						}
 					}
 					rep.count = r.Count
-					if !r.More() {
+					if !p.RunMore(r) {
 						ip = site.end
 						continue
 					}
@@ -843,6 +843,23 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				ip = int(in.A)
 				continue
 			}
+			if rep.run != nil {
+				// The elements of the old run after the edit, reused when the run is back in step
+				// with it, charge no unit (state.ResumeRepeat).
+				r := rep.run
+				if p.RunResync(r) {
+					for v, ok := p.RunTail(r); ok; v, ok = p.RunTail(r) {
+						if m.Code[in.A-1].B != 0 { // NEXT keeps values
+							mc.push(v)
+						}
+					}
+					rep.count = r.Count
+					if !p.RunMore(r) {
+						ip = int(in.A)
+						continue
+					}
+				}
+			}
 			// One unit for the iteration, before its element (spec/runtime/parsing.md#cost): an
 			// iteration that ends at the maximum or takes the rest of the walk from a record evaluates
 			// no element.
@@ -852,21 +869,8 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 			}
 			kind := uint8(eIter)
 			if rep.run != nil {
-				r := rep.run
-				if p.Resync(r) {
-					for el := p.NextTail(r); el != nil; el = p.NextTail(r) {
-						if m.Code[in.A-1].B != 0 { // NEXT keeps values
-							mc.push(el.V)
-						}
-					}
-					rep.count = r.Count
-					if !r.More() {
-						ip = int(in.A)
-						continue
-					}
-				}
 				kind = eRunIter
-				p.BeginElem(r)
+				p.RunBegin(rep.run)
 			}
 			mc.ents = append(mc.ents, vmEntry{kind: kind, ip: in.A, save: mc.save()})
 			if sc := mc.reps[len(mc.reps)-1].scope; sc >= 0 {
@@ -899,7 +903,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				if in.B != 0 {
 					v = asNodeValue(mc.vals[len(mc.vals)-1])
 				}
-				p.EndElem(rep.run, true, v)
+				p.RunEnd(rep.run, true, v)
 			}
 			if in.B == 2 && p.Emit != nil && b.r != nil && p.StreamsIn(b.r.ID, b.r.Rec) {
 				// Elements of the start rule's #stream are passed on without being retained, and committed.
@@ -946,7 +950,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				p.RunWalked(rep.site, rep.coldStart)
 			}
 			if rep.run != nil {
-				p.FinishRun(rep.run)
+				p.RunFinish(rep.run)
 				mc.freeRunState(rep.run)
 			}
 			if in.A == 1 {
@@ -1078,7 +1082,7 @@ func (mc *Machine) unwind(m *bytecode.Module, ebase int) (ip int, ok bool) {
 		mc.ents = mc.ents[:len(mc.ents)-1]
 		switch e.kind {
 		case eRunIter:
-			p.EndElem(mc.reps[e.save.reps-1].run, false, nil)
+			p.RunEnd(mc.reps[e.save.reps-1].run, false, nil)
 			mc.restore(&e.save)
 			if e.cut {
 				continue

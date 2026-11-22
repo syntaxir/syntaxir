@@ -90,8 +90,6 @@ handle type may be callable: its values are code that [an application](../code-i
 | `Grow` | `growth` | The state of the growth of a left-recursion leader. |
 | `EditLog` | `memo` | The edits of a Document, in order. |
 | `Run` | `runs` | A repetition run in progress in a Document parse. |
-| `RunElem` | `runs` | An element of an old run that the parse reuses, or none. |
-| `RunSite` | `runs` | A repetition that a Document parse can resume. |
 | `Action` | `host` | An action expression of a predicate or a binding, in the form the target holds: code that is applied to an `Act`, and returns a `Datum` and a `Fail` ([Application](../code-ir/functions.md#application)). |
 | `CallState` | `suspended` | The record of a suspended call, which its caller holds. |
 | `Frame` | `frames` | A capture frame: the slots of the captures of a rule body or a line. |
@@ -136,10 +134,6 @@ are the following.
 | `pending_edits` | The number of edits since the entry under the call's key was stored or last found, counting an entry that `memo.splice` removed and a target may still hold: the edits that a target which applies them to an entry when it finds it has yet to apply. |
 | `present` | The work of naming the present set of the call's context when a leader in it has no bit in a word of bits: one for each growth of the context, and one more when no operation named that set since the first growth in progress began; 0 when every leader of the context has a bit. Which leaders of a cycle have a bit depends on the target, because the width of the word of bits does: 63 in the engine and 31 in the generated Go and TypeScript parsers and the model, so the quantity is the one of the target that runs. |
 | `pruned` | The number of memo entries stored before the call's position argument. |
-| `run_elems` | The number of elements of the finished run. |
-| `run_growth` | The number of new elements the run holds, when one more makes their count a power of two, and 0 otherwise: the copy that doubling storage stands for, whatever capacity it has. |
-| `run_scan` | The number of old elements from the one the search finds to the end of the run. |
-| `run_search` | The number of bits of the count of old elements that the run has not passed: what a binary search for the next element inspects. |
 | `run` | For each step of the run of the growth that the call records as jumps (the steps since the last step that read another seed): one, one for each jump recorded before from its seed, and the expectations of its set when its farthest position is that of the steps after it. |
 | `segs` | The number of entries of the recovered-error list after the mark of the call, or for grow.adopt and grow.keepStep after the mark that the growth took when it began: errors that rec.push recorded and lists that rec.add recorded or rec.since put in their place. |
 | `seq_len` | The number of elements of the Seq argument of a primitive, which it copies. |

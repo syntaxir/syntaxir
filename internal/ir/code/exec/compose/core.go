@@ -814,6 +814,7 @@ code and not a stable API.`
 
 	addOperators(m)
 	addDocument(m)
+	addRuns(m)
 	addValue(m)
 	addActions(m)
 

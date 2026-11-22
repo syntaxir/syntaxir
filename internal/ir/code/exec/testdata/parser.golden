@@ -54,7 +54,8 @@ component window
 
 component runs
   // The repetition runs of a Document: for each repetition of the last parse that a parse may
-  // resume, the positions, the examined input, the value and the expectations of its elements.
+  // resume, the positions, the examined input, the value and the expectations of its elements; and the runs
+  // recorded so far in this parse.
 
 component suspended
   // The calls whose rule body runs between the begin and the end of the split call
@@ -145,12 +146,6 @@ handle EditLog of memo
 
 handle Run of runs
   // A repetition run in progress in a Document parse.
-
-handle RunElem of runs
-  // An element of an old run that the parse reuses, or none.
-
-handle RunSite of runs
-  // A repetition that a Document parse can resume.
 
 handle CallState of suspended
   // The record of a suspended call, which its caller holds.
@@ -427,6 +422,19 @@ op budget.chargeKey(r Rule)
     // that such a variable holds. A call of a rule that a parse from scratch memoizes pays it whether or not
     // it looks the key up, so that deferring memoization changes no unit; a rule that reads no variable
     // charges nothing.
+
+host op budget.poll()
+  component budget
+  reads budget
+  writes budget
+  features budget
+  noreturn
+  cost <= 0
+  contract:
+    // Counts a step of work that charges no unit toward the interval at which the parse observes
+    // cancellation and its memory limit, and observes them where budget.charge of one unit would. It charges
+    // nothing, so it never ends the parse with a limit interruption of Compute; it may end it with a
+    // cancellation or memory interruption.
 
 op budget.used() u64
   component budget
@@ -1583,79 +1591,493 @@ host op edit.delta(log EditLog, i int) int
   requires:
     // 0 <= i < edit.count(log).
 
-host op run.start(r Run, site RunSite)
+host op run.init(r Run, site int, min int, max int, shiftable bool)
+  component runs
+  reads runs, pos, recovered
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Starts the run r of the repetition site at the position: its fields are the zero values except min, max
+    // and shiftable, j is -1, editStart and editEnd are the greatest int; it has no old run and no new
+    // elements. It notes the recovered errors and the reads of growing results so far, for run.clean.
+
+host op run.takeHere(r Run) bool
   component runs
   reads runs
   writes runs
   features document
   cost <= 0
   contract:
-    // Starts the run r of the repetition at the position. It takes over the record that this parse left
-    // there, or the record of the previous parse here or where the one edit since moved it; with no such
-    // record it has nothing to reuse.
+    // Takes over as the old run of r the record that this parse holds for the site of r at its start, and
+    // reports whether there is one. The records that this parse holds are those it made, and those of the parse
+    // before when no edit came since.
 
-host op run.prefix(r Run) RunElem
+host op run.previous() bool
   component runs
   reads runs
-  writes runs
   features document
-  noreturn
-  cost <= 1 + 1*merge
+  cost <= 0
   contract:
-    // Reuses the next old element if it examined only input before the one edit since, replaying what
-    // running it did: the examined input, the expectations, the position, the reuse statistics. Returns it,
-    // or none when the prefix of the run ends.
+    // Reports whether the parse may take over the records of the parse before: an edit came since it, and
+    // its records were kept.
 
-host op run.resync(r Run) bool
-  component runs
-  reads runs
-  writes runs
-  features document
-  noreturn
-  cost <= 0 + 1*run_search + 1*run_scan
-  contract:
-    // Reports whether an old element after the edit starts where the next element would, and every element from it on examined only input after the edit; run.tail then reuses them.
-
-host op run.tail(r Run) RunElem
-  component runs
-  reads runs
-  writes runs
-  features document
-  noreturn
-  cost <= 1 + 1*merge + 2*moved + 1*move_edits
-  contract:
-    // Reuses the next old element after the edit, moved by the edit with its value (doc.move), replaying
-    // what running it did as run.prefix does. Returns it, or none at the end of the run or its bound.
-
-host op run.begin(r Run)
+host op run.takeLast(r Run, at int, gen int) bool
   component runs
   reads runs
   writes runs
   features document
   cost <= 0
   contract:
-    // Starts evaluating an element: its examined input and its expectations are recorded apart from the enclosing call's.
+    // Takes over as the old run of r the record of the parse before for the site of r at the position at,
+    // if that parse recorded it when the Document had had gen edits, removes it from the records of that parse,
+    // and reports whether it did.
 
-host op run.end(r Run, ok bool, v Value)
+host op run.oldCount(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the number of elements of the old run of r, 0 if it has none.
+
+host op run.oldStart(r Run, i int) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns, for the old element i of r, where it started, as of the edits that r took up to now.
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.oldEnd(r Run, i int) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns, for the old element i of r, where it ended, as of the edits that r took up to now.
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.oldFrom(r Run, i int) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns, for the old element i of r, the start of the input it examined, as of the edits that r took up to now.
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.oldExamined(r Run, i int) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns, for the old element i of r, the end of the input it examined, exclusive, as of the edits that r took up to now.
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.oldFar(r Run, i int) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns, for the old element i of r, the position of the expectations it recorded, as of the edits that r took up to now.
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.oldKept(r Run, i int) ExpKept
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the expectations that the old element i of r recorded at run.oldFar(r, i).
+  requires:
+    // 0 <= i < run.oldCount(r).
+
+host op run.take(r Run, i int, shift int, gen int) Value
+  component runs
+  reads runs, host
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Moves the old element i of r by shift: its positions, examined input and far position, and the nodes of
+    // its value, which the parse that recorded it made when the Document had had gen edits (doc.move). Returns
+    // its value. With shift 0 it changes nothing.
+  requires:
+    // 0 <= i < run.oldCount(r); shift is 0 unless r is shiftable.
+
+host op run.resumed()
   component runs
   reads runs
   writes runs
   features document
-  noreturn
-  cost <= 0 + 1*merge + 1*run_growth
+  cost <= 0
   contract:
-    // Ends evaluating an element, adding its examined input and its expectations to those of the enclosing call, and records it if it matched with the value v.
+    // Counts an element that the parse reused from a run, in the statistics of the Document (as doc.reused)
+    // and in its count of resumed elements.
 
-host op run.finish(r Run)
+host op run.add(r Run, after bool, start int, end int, from int, examined int, far int, kept ExpKept, v Value)
   component runs
   reads runs
   writes runs
   features document
-  noreturn
-  cost <= 0 + 1*run_elems
+  cost <= 0
   contract:
-    // Records the run of a repetition that matched for the next parse, unless it is too short, or recovered
-    // errors, or read the seed of a growth.
+    // Adds to r an element that the parse evaluated: from start to end, having examined [from, examined),
+    // with the expectations kept at far and the value v. It belongs to the new elements before the old elements
+    // after the edit that r reuses, or, with after, to those after them.
+
+host op run.clean(r Run) bool
+  component runs
+  reads runs, recovered
+  features document
+  cost <= 0
+  contract:
+    // Reports whether, since run.init(r), no recovered error remains and no call read the current result of
+    // a growth, directly or by reusing a result that read one, even of a growth that started and ended within
+    // the run.
+
+host op run.minimum() int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the least number of elements of a run that a Document records.
+
+host op run.record(r Run)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Records in this parse the run r for its site and start, replacing any record there, with the generation
+    // of the Document: the old elements before k, the new elements before the old elements after the edit, the
+    // old elements from j to j + t when j >= 0, and the new elements after them.
+
+host op doc.log() EditLog
+  component runs
+  reads memo
+  features document
+  cost <= 0
+  contract:
+    // Returns the log of the edits of the Document since its memo was last dropped; the parse is of the text
+    // after them all.
+
+host op run.min(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field min of the run r: The least number of elements of the repetition.
+
+host op run.setMin(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field min of the run r to x.
+
+host op run.max(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field max of the run r: The greatest number of elements of the repetition, or -1 for no bound.
+
+host op run.setMax(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field max of the run r to x.
+
+host op run.shiftable(r Run) bool
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field shiftable of the run r: Whether the values of the elements may move with an edit (no position in them).
+
+host op run.setShiftable(r Run, x bool)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field shiftable of the run r to x.
+
+host op run.count(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field count of the run r: The number of elements of the run so far, reused or evaluated.
+
+host op run.setCount(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field count of the run r to x.
+
+host op run.done(r Run) bool
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field done of the run r: Whether a reused element ended the repetition: it was empty, or the run reached max.
+
+host op run.setDone(r Run, x bool)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field done of the run r to x.
+
+host op run.moved(r Run) bool
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field moved of the run r: Whether the old run is the one that the edit moved here: none of it lies before the edit.
+
+host op run.setMoved(r Run, x bool)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field moved of the run r to x.
+
+host op run.editStart(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field editStart of the run r: The start of the input that the one edit since the old run replaced; the greatest int when the old run is of this text.
+
+host op run.setEditStart(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field editStart of the run r to x.
+
+host op run.editEnd(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field editEnd of the run r: The end of the input that the edit replaced; the greatest int when the old run is of this text.
+
+host op run.setEditEnd(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field editEnd of the run r to x.
+
+host op run.editDelta(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field editDelta of the run r: How many units longer the replacement of the edit is than what it replaced; 0 when the old run is of this text.
+
+host op run.setEditDelta(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field editDelta of the run r to x.
+
+host op run.k(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field k of the run r: The number of old elements before the edit that the run reused.
+
+host op run.setK(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field k of the run r to x.
+
+host op run.j(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field j of the run r: The index of the first old element after the edit that the run reuses, or -1 before the run is back in step.
+
+host op run.setJ(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field j of the run r to x.
+
+host op run.t(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field t of the run r: The number of old elements from j on that the run reused.
+
+host op run.setT(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field t of the run r to x.
+
+host op run.seek(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field seek of the run r: The old element at which the search for the old element after the edit that the run resyncs at resumes (runResync).
+
+host op run.setSeek(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field seek of the run r to x.
+
+host op run.barred(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field barred of the run r: The number of old elements that the run cannot resync at: one past the last old element that the scan found to examine input before the end of the edit (runResync).
+
+host op run.setBarred(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field barred of the run r to x.
+
+host op run.elemStart(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field elemStart of the run r: Where the element being evaluated started.
+
+host op run.setElemStart(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field elemStart of the run r to x.
+
+host op run.outerExamined(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field outerExamined of the run r: The examined end of the enclosing call, set aside while an element is evaluated (doc.enter).
+
+host op run.setOuterExamined(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field outerExamined of the run r to x.
+
+host op run.outerLow(r Run) int
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field outerLow of the run r: The examined start of the enclosing call, set aside while an element is evaluated (doc.enter).
+
+host op run.setOuterLow(r Run, x int)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field outerLow of the run r to x.
+
+host op run.mark(r Run) ExpMark
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field mark of the run r: The isolation of the expectations of the element being evaluated (exp.isolate).
+
+host op run.setMark(r Run, x ExpMark)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field mark of the run r to x.
 
 op call.state() CallState
   component suspended

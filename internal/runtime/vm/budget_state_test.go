@@ -3,9 +3,7 @@
 package vm
 
 import (
-	"context"
 	"encoding/json"
-	"errors"
 	"reflect"
 	"testing"
 
@@ -213,33 +211,18 @@ func TestBudgetResetAndVMRestoreChargeNothing(t *testing.T) {
 	}
 }
 
-// interruptAt makes the k-th reservation of c the one that observes a canceled context: the work of a
-// Document counts under no Compute limit, but it keeps advancing the poll counter.
-func interruptAt(c *state.BudgetControl, k uint64) {
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-	c.Ctx = ctx
-	c.SinceCheck = state.BudgetCheckInterval - k
-}
-
-func TestBudgetDocumentRunStateClearReservation(t *testing.T) {
+// Clearing the lists of a finished run is work of the Document: it charges nothing, so no limit
+// interrupts it, and it releases the references of the lists without changing their pointees.
+func TestBudgetDocumentRunStateClearCountsNothing(t *testing.T) {
 	marker := value.Ptr(value.Data{Text: "retained"})
 	r := &state.RunState{Old: []state.RunElem{{V: marker}}, Mid: make([]state.RunElem, 129), Post: []state.RunElem{{V: marker}}}
 	for i := range r.Mid {
 		r.Mid[i].V = marker
 	}
-	p := stateBudgetParser(runtime.Limits{Compute: 1 << 40})
-	interruptAt(p.Control, 129) // the 129th element observes the cancellation
+	p := stateBudgetParser(runtime.Limits{Compute: 1})
 	mc := machineOf(p)
-	if err := catchFatal(t, func() { mc.freeRunState(r) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("clear interruption = %v", err)
-	}
-	if len(mc.freeRuns) != 0 || r.Old != nil || r.Mid[128].V != marker || r.Post[0].V != marker || value.D(marker).Text != "retained" {
-		t.Fatal("incomplete clear was published or changed pointees")
-	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 130})
 	mc.freeRunState(r)
-	if len(mc.freeRuns) != 1 || r.Mid[128].V != nil || r.Post[0].V != nil {
-		t.Fatal("completed clear did not release references")
+	if p.Control.Used != 0 || len(mc.freeRuns) != 1 || r.Mid[128].V != nil || r.Post[0].V != nil || value.D(marker).Text != "retained" {
+		t.Fatalf("clear charged %d or did not release references", p.Control.Used)
 	}
 }

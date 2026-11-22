@@ -58,163 +58,99 @@ type RunElem struct {
 }
 
 // RunState is a run of a repetition in progress in a Document parse (ResumeRepeat, and the REPEAT
-// instruction of the VMs).
+// instruction of the VMs). The printed compositions of the runs (run_exec.go, from
+// internal/ir/code/exec/compose) read and write its exported fields, which are the fields of the
+// Run record of the Exec IR (exec.RunFields); the rest is the engine's own.
 type RunState struct {
-	Key              RunKey
-	min, max         int
-	shiftable        bool
-	Old              []RunElem // the run of the previous parse that this one takes over, updated in place
-	edit             DocEdit   // the edit since (none if old is from this parse)
-	Count            int
-	done             bool // the old run ended where it stopped
-	moved            bool // old is the run that the edit moved here: none of it lies before the edit
-	rec0, seedReads0 int
-	gamma0, log0     int // for RunOpenGrowthsOnly: the growths open and the reads logged at the start
-	// The run is old[:k], then the new elements mid, then old[j:j+t] (the elements after the edit,
-	// moved), then the new elements post.
-	K, J, T   int
-	Mid, Post []RunElem
-	// The element being parsed: where it started, and the state its examined range and
-	// expectations are kept apart from (BeginElem).
-	elemStart, savedHW, savedLW int
-	mk                          ExpMark
+	Min, Max                      int
+	Shiftable, Done, Moved        bool
+	Count                         int
+	EditStart, EditEnd, EditDelta int
+	// The run is Old[:K], then the new elements Mid, then Old[J:J+T] (the elements after the edit,
+	// moved), then the new elements Post.
+	K, J, T int
+	// The search for the old element to resync at resumes at Seek; the run resyncs at none before
+	// Barred (runResync).
+	Seek, Barred            int
+	ElemStart               int
+	OuterExamined, OuterLow int
+	Mark                    ExpMark
+	Key                     RunKey
+	Old                     []RunElem // the run that this one takes over, updated in place
+	Mid, Post               []RunElem
+	rec0, seedReads0        int
+	gamma0, log0            int // for RunOpenGrowthsOnly: the growths open and the reads logged at the start
 }
 
-// StartRun starts a run of the repetition site id with the given bounds at the current position:
-// it looks for the run to take over, the run here or the one that the edit since moved here.
-func (p *Parser) StartRun(r *RunState, id, min, max int, shiftable bool) {
-	start := p.Pos
-	*r = RunState{Key: RunKey{id, start}, min: min, max: max, shiftable: shiftable, J: -1,
-		edit: DocEdit{Start: int(^uint(0) >> 1), End: int(^uint(0) >> 1)}, rec0: len(p.Recovered), seedReads0: p.SeedReads,
-		gamma0: len(p.Gamma), log0: len(p.seedReadLog),
-		Mid: r.Mid[:0], Post: r.Post[:0]}
-	if rec := p.Runs[r.Key]; rec != nil {
-		r.Old = rec.Elems // the same repetition ran here earlier in this parse
-	} else if p.LastRuns != nil && p.Gen > 0 {
-		r.edit = p.Edits[p.Gen-1]
-		at := r.Key
-		switch {
-		case start <= r.edit.Start:
-		case start >= r.edit.End+r.edit.Delta: // after the inserted text: where the edit moved it
-			at.start -= r.edit.Delta
-			r.moved = true
-		default:
-			return // inside the inserted text: no run was there
-		}
-		if rec := p.LastRuns[at]; rec != nil && rec.gen+1 == p.Gen {
-			r.Old = rec.Elems
-			delete(p.LastRuns, at)
-		}
-	}
+// RunInit is run.init: it starts the run r of the site at the position, keeping the capacity of its
+// lists of new elements.
+func (p *Parser) RunInit(r *RunState, site, min, max int, shiftable bool) {
+	const maxInt = int(^uint(0) >> 1)
+	*r = RunState{Key: RunKey{site, p.Pos}, Min: min, Max: max, Shiftable: shiftable, J: -1,
+		EditStart: maxInt, EditEnd: maxInt, rec0: len(p.Recovered), seedReads0: p.SeedReads,
+		gamma0: len(p.Gamma), log0: len(p.seedReadLog), Mid: r.Mid[:0], Post: r.Post[:0]}
 }
 
-// More reports whether the run may take another element.
-func (r *RunState) More() bool { return !r.done && (r.max < 0 || r.Count < r.max) }
-
-// NextPrefix reuses the next old element if it examined only input before the edit, and returns
-// it (its value is for the caller to push), or nil.
-func (p *Parser) NextPrefix(r *RunState) *RunElem {
-	p.Spend()
-	if r.moved || r.K >= len(r.Old) || r.Old[r.K].examined > r.edit.Start || r.done {
-		return nil
-	}
-	el := &r.Old[r.K]
-	p.reuseElem(r, el, 0, 0)
-	r.K++
-	return el
-}
-
-// Resync reports whether the run is back in step with the old run after the edit: an old element
-// after the edit starts where the next element would. If so, the rest of the old run is reused
-// (NextTail), and the run goes on from its end as usual. An element after the edit examined only
-// input after it, so whichever run it belongs to, parsing at its moved position gives it moved.
-func (p *Parser) Resync(r *RunState) bool {
-	if r.J >= 0 || r.Old == nil || p.Pos-r.edit.Delta < r.edit.End || !r.shiftable && r.edit.Delta != 0 {
+// runTakeHere is run.takeHere.
+func (p *Parser) runTakeHere(r *RunState) bool {
+	rec := p.Runs[r.Key]
+	if rec == nil {
 		return false
 	}
-	at := p.Pos - r.edit.Delta
-	i := p.RunSearch(r.Old, r.K, at)
-	if i == len(r.Old) || r.Old[i].Start != at || !p.RunAfter(r.Old[i:], r.edit.End) {
-		return false
-	}
-	r.J = i
+	r.Old = rec.Elems
 	return true
 }
 
-// NextTail reuses the next old element after the edit (after resync), moved by the edit, and
-// returns it, or nil.
-func (p *Parser) NextTail(r *RunState) *RunElem {
-	p.Spend()
-	i := r.J + r.T
-	if r.J < 0 || i >= len(r.Old) || !r.More() {
-		return nil
+// runTakeLast is run.takeLast.
+func (p *Parser) runTakeLast(r *RunState, at, gen int) bool {
+	key := RunKey{r.Key.Site, at}
+	rec := p.LastRuns[key]
+	if rec == nil || int(rec.gen) != gen {
+		return false
 	}
-	el := &r.Old[i]
-	p.reuseElem(r, el, r.edit.Delta, p.Gen-1)
-	r.T++
-	return el
+	r.Old = rec.Elems
+	delete(p.LastRuns, key)
+	return true
 }
 
-// reuseElem reuses the element el of an old run, recorded in the generation gen and moved by shift
-// since: it replays what running it did, except pushing its value.
-func (p *Parser) reuseElem(r *RunState, el *RunElem, shift int, gen uint32) {
+// runTake is run.take: it moves the old element i of r by shift, its value made in the generation gen.
+func (p *Parser) runTake(r *RunState, i, shift, gen int) *value.Node {
+	el := &r.Old[i]
 	if shift != 0 {
-		el.V = p.moveValue(el.V, shift, gen)
+		el.V = p.moveValue(el.V, shift, uint32(gen))
 		el.Start += shift
 		el.end += shift
 		el.From += shift
 		el.examined += shift
 		el.far += shift
 	}
-	p.touch(el.examined)
-	p.lw = Min2(p.lw, el.From)
-	if len(el.exp) > 0 && el.far >= p.Farthest {
-		p.MergeExpected(el.far, el.exp)
-	}
-	p.Pos = el.end
-	p.Stats.Reused++
-	p.Resumed++
-	r.Count++
-	// The old run ended after an empty element or at its maximum.
-	r.done = el.end == el.Start || r.max >= 0 && r.Count >= r.max
+	return el.V
 }
 
-// BeginElem starts parsing an element: its examined range and expectations are recorded apart.
-func (p *Parser) BeginElem(r *RunState) {
-	r.elemStart, r.savedHW, r.savedLW = p.Pos, p.Hw, p.lw
-	p.Hw, p.lw = p.Pos, p.Pos
-	r.mk = p.Isolate(p.Pos)
-}
-
-// EndElem ends parsing an element (before the state is reset if it failed), and records it if it
-// matched with the value v.
-func (p *Parser) EndElem(r *RunState, ok bool, v *value.Node) {
-	// Recording the run is work of the Document that a parse from scratch does not do.
-	defer p.FreeEnd(p.FreeBegin(true))
-	far, inner := p.Unisolate(r.mk)
-	var exp []ExpID
-	if ok {
-		exp = p.Keep(inner)
-	}
-	p.MergeExpected(far, inner)
-	from, examined := p.lw, p.Hw
-	p.Hw, p.lw = max(r.savedHW, p.Hw), Min2(r.savedLW, p.lw)
-	if !ok {
-		return
-	}
-	r.Count++
-	el := RunElem{Start: r.elemStart, end: p.Pos, From: from, examined: examined, far: far, exp: exp, V: v}
-	if r.J < 0 {
-		if BudgetControlsEnabled && p.Control != nil {
-			p.runListGrowth(len(r.Mid))
-		}
-		r.Mid = append(r.Mid, el)
-	} else {
-		if BudgetControlsEnabled && p.Control != nil {
-			p.runListGrowth(len(r.Post))
-		}
+// runAdd is run.add.
+func (p *Parser) runAdd(r *RunState, after bool, start, end, from, examined, far int, exp []ExpID, v *value.Node) {
+	el := RunElem{Start: start, end: end, From: from, examined: examined, far: far, exp: exp, V: v}
+	if after {
 		r.Post = append(r.Post, el)
+	} else {
+		r.Mid = append(r.Mid, el)
 	}
+}
+
+// runClean is run.clean.
+func (p *Parser) runClean(r *RunState) bool {
+	return len(p.Recovered) == r.rec0 && !p.readSeedIn(r)
+}
+
+// runRecord is run.record.
+func (p *Parser) runRecord(r *RunState) {
+	var elems []RunElem
+	if r.J < 0 {
+		elems = append(r.Old[:r.K], r.Mid...)
+	} else {
+		elems = append(slices.Replace(r.Old[:r.J+r.T], r.K, r.J, r.Mid...), r.Post...)
+	}
+	p.Runs[r.Key] = &RunRecord{gen: p.Gen, Elems: elems}
 }
 
 // RunOpenGrowthsOnly records a run that read only seeds of growths that started and ended within it.
@@ -236,65 +172,32 @@ func (p *Parser) readSeedIn(r *RunState) bool {
 	return p.SeedReads != r.seedReads0
 }
 
-// FinishRun records the run of a repetition that matched, for the next parse.
-func (p *Parser) FinishRun(r *RunState) {
-	defer p.FreeEnd(p.FreeBegin(true))
-	if r.Count < p.tune.minRecorded() || len(p.Recovered) != r.rec0 || p.readSeedIn(r) {
-		return
-	}
-	var elems []RunElem
-	if BudgetControlsEnabled && p.Control != nil {
-		// Keep assembling storage private until every counted copy finishes.
-		// The ordinary path retains its in-place replacement and reuse.
-		total := r.K + len(r.Mid)
-		if r.J >= 0 {
-			total += r.T + len(r.Post)
-		}
-		elems = make([]RunElem, total)
-		off := 0
-		parts := [][]RunElem{r.Old[:r.K], r.Mid}
-		if r.J >= 0 {
-			parts = append(parts, r.Old[r.J:r.J+r.T], r.Post)
-		}
-		for _, part := range parts {
-			copySpend(p, elems[off:], part)
-			off += len(part)
-		}
-	} else if r.J < 0 {
-		elems = append(r.Old[:r.K], r.Mid...)
-	} else {
-		elems = append(slices.Replace(r.Old[:r.J+r.T], r.K, r.J, r.Mid...), r.Post...)
-	}
-	p.Runs[r.Key] = &RunRecord{gen: p.Gen, Elems: elems}
-}
-
 // ResumeRepeat runs the repetition rs (see compiler.repeat) in a Document parse, resuming its run
-// from the previous parse when it can.
+// from the previous parse when it can (the compositions of run_exec.go). An iteration that evaluates
+// the element charges its unit, as in any repetition; the elements that the run reuses charge none.
 func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 	start := p.Pos
 	var r RunState
-	p.StartRun(&r, rs.Id, rs.Min, rs.Max, rs.Shiftable)
+	p.RunStart(&r, rs.Id, rs.Min, rs.Max, rs.Shiftable)
 	base := len(p.KidStack)
 	if rs.Build {
-		m := p.FreeBegin(true)
-		p.growKids(len(r.Old))
-		p.FreeEnd(m)
+		p.KidStack = slices.Grow(p.KidStack, len(r.Old))
 	}
-	for el := p.NextPrefix(&r); el != nil; el = p.NextPrefix(&r) {
+	for v, ok := p.RunPrefix(&r); ok; v, ok = p.RunPrefix(&r) {
 		if rs.Build {
-			p.KidStack = append(p.KidStack, el.V)
+			p.KidStack = append(p.KidStack, v)
 		}
 	}
-	for r.More() {
-		p.Spend()
-		if p.Resync(&r) {
-			for el := p.NextTail(&r); el != nil; el = p.NextTail(&r) {
+	for p.RunMore(&r) {
+		if p.RunResync(&r) {
+			for v, ok := p.RunTail(&r); ok; v, ok = p.RunTail(&r) {
 				if rs.Build {
-					p.KidStack = append(p.KidStack, el.V)
+					p.KidStack = append(p.KidStack, v)
 				}
 			}
 			continue
 		}
+		p.Spend()
 		m0 := p.Mark()
 		prevCut, prevFrame := p.Cut, p.Frame
 		p.Cut = false
@@ -303,7 +206,7 @@ func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 			f = p.NewFrame(len(rs.Scope.Names))
 			p.Frame = f
 		}
-		p.BeginElem(&r)
+		p.RunBegin(&r)
 		v, ok := rs.M(p)
 		if ok && rs.Build {
 			v = rs.Value(p, v, m0.Pos)
@@ -311,7 +214,7 @@ func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 				v = p.AttachCaptures(v, rs.Scope, f, m0.Pos, p.Pos)
 			}
 		}
-		p.EndElem(&r, ok, v)
+		p.RunEnd(&r, ok, v)
 		cut := p.Cut
 		p.Cut, p.Frame = prevCut, prevFrame
 		if !ok {
@@ -333,50 +236,15 @@ func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 		p.TruncateKids(base)
 		return nil, false
 	}
-	p.FinishRun(&r)
+	p.RunFinish(&r)
 	if !rs.Build {
 		return nil, true
 	}
 	return p.NewNode(nodes.Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: p.Kids(base), Fresh: true}), true
 }
 
-// after reports whether every element examined only input from end on.
-func after(elems []RunElem, end int) bool {
-	for _, el := range elems {
-		if el.From < end {
-			return false
-		}
-	}
-	return true
-}
-
-// ReleaseRunLists clears the element lists of a finished run for reuse; the clearing is work of
-// the Document that a parse from scratch does not do.
+// ReleaseRunLists clears the element lists of a finished run for reuse.
 func (p *Parser) ReleaseRunLists(r *RunState) {
-	m := p.FreeBegin(true)
-	clearSpend(p, r.Mid)
-	clearSpend(p, r.Post)
-	p.FreeEnd(m)
-}
-
-// runListGrowth charges the growth of a list of new elements of a run from n to n + 1 elements. The
-// lists grow from empty in each run, so a charge by their length alone (growthSpend), not by the
-// capacity that a reused RunState keeps, adds up to less than twice their length. It is kept out of line
-// so that EndElem, which every evaluated element of a run calls, stays as small as it was.
-//
-//go:noinline
-func (p *Parser) runListGrowth(n int) { p.growthSpend(n, n+1) }
-
-// growKids makes room for extra more values on KidStack. It charges the copy that growing stands
-// for by kidRoom, not by the capacity of KidStack, which a Document keeps from its earlier parses: a
-// growth past the room charges the values on the stack, and the room then at least doubles, so the
-// charges are a function of the operations of the parse and add up to at most four times the
-// greatest length that a growth asks for. The charge falls before the stack changes.
-func (p *Parser) growKids(extra int) {
-	n := len(p.KidStack)
-	if BudgetControlsEnabled && p.Control != nil && extra > 0 && n+extra > p.kidRoom {
-		p.chargeValues(n)
-		p.kidRoom = max(n+extra, 2*p.kidRoom)
-	}
-	p.KidStack = slices.Grow(p.KidStack, extra)
+	clear(r.Mid)
+	clear(r.Post)
 }

@@ -51,37 +51,38 @@ func TestBudgetDocumentMemoReplayAtomicReservation(t *testing.T) {
 	}
 }
 
-func TestBudgetDocumentResyncSearchAndTailAccounting(t *testing.T) {
+// The search for the old element after the edit and the scan of the elements after it are work of
+// the Document, which charges nothing: a limit of one unit does not interrupt them, and the search finds
+// the element that starts at the moved position.
+func TestBudgetDocumentResyncSearchAndTailCountNothing(t *testing.T) {
 	t.Parallel()
 	elems := make([]state.RunElem, 513)
 	for i := range elems {
 		elems[i] = state.RunElem{Start: i * 2, From: 100}
 	}
-	for _, at := range []int{-1, 0, 1, 510, 1024, 1025} {
-		p := statetest.NewBudgetParser(runtime.Limits{Compute: 100})
-		want := (&state.Parser{}).RunSearch(elems, 3, at)
-		if got := p.RunSearch(elems, 3, at); got != want {
-			t.Fatalf("search(%d) = %d, want %d", at, got, want)
+	for _, at := range []int{-1, 0, 1, 6, 510, 1024, 1025} {
+		p := statetest.NewBudgetParser(runtime.Limits{Compute: 1})
+		r := state.RunState{Old: elems, K: 3, J: -1, Max: -1, Shiftable: true, EditStart: -1, EditEnd: -1}
+		p.Pos = at
+		got := p.RunResync(&r)
+		if want := at >= 6 && at <= 1024 && at%2 == 0; got != want || got && r.J != at/2 {
+			t.Fatalf("resync at %d = %v (j %d), want %v", at, got, r.J, want)
+		}
+		if p.Control.Used != 0 {
+			t.Fatalf("resync at %d charged %d", at, p.Control.Used)
 		}
 	}
+	// An element after the found one that examined input before the end of the edit stops the resync.
 	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1})
-	if err := statetest.CatchFatal(t, func() { p.RunSearch(elems, 0, 510) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("search interruption = %v", err)
-	}
-	p = statetest.NewBudgetParser(runtime.Limits{Compute: 2})
-	if err := statetest.CatchFatal(t, func() { p.RunAfter(elems[:3], 100) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("tail interruption = %v", err)
-	}
-	if p.Control.Used != 2 {
-		t.Fatalf("tail interruption charged %d, want the two visited elements", p.Control.Used)
-	}
-	p = statetest.NewBudgetParser(runtime.Limits{Compute: 3})
-	if !p.RunAfter(elems[:3], 100) || p.Control.Used != 3 {
-		t.Fatal("tail traversal did not account for each element")
+	r := state.RunState{Old: elems, J: -1, Max: -1, Shiftable: true, EditStart: 50, EditEnd: 101}
+	p.Pos = 400
+	if p.RunResync(&r) || p.Control.Used != 0 {
+		t.Fatalf("resynchronized over elements that examined the edit, charging %d", p.Control.Used)
 	}
 }
 
-func TestBudgetDocumentRunPublicationCopyIsProvisional(t *testing.T) {
+// Recording a run is work of the Document: it charges nothing, so no limit interrupts it.
+func TestBudgetDocumentRunPublicationCountsNothing(t *testing.T) {
 	t.Parallel()
 	old := make([]state.RunElem, 128)
 	mid := make([]state.RunElem, 1)
@@ -90,20 +91,11 @@ func TestBudgetDocumentRunPublicationCopyIsProvisional(t *testing.T) {
 	}
 	mid[0].Start = 900
 	r := state.RunState{Key: state.RunKey{Site: 1}, Old: old, K: 128, J: -1, Mid: mid, Count: 129}
-	retained := &state.RunRecord{Elems: old}
-	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1 << 40})
-	interruptAt(p.Control, 129) // the copy of the 129th element observes the cancellation
-	p.Runs = map[state.RunKey]*state.RunRecord{r.Key: retained}
-	if err := statetest.CatchFatal(t, func() { p.FinishRun(&r) }); !errors.Is(err, context.Canceled) {
-		t.Fatalf("copy interruption = %v", err)
-	}
-	if p.Runs[r.Key] != retained || len(retained.Elems) != 128 || retained.Elems[127].Start != 127 {
-		t.Fatal("interrupted assembly replaced retained run")
-	}
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 129})
-	p.FinishRun(&r)
-	if len(p.Runs[r.Key].Elems) != 129 || p.Runs[r.Key].Elems[128].Start != 900 {
-		t.Fatal("completed run assembly differs")
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1})
+	p.Runs = map[state.RunKey]*state.RunRecord{r.Key: {Elems: old}}
+	p.RunFinish(&r)
+	if p.Control.Used != 0 || len(p.Runs[r.Key].Elems) != 129 || p.Runs[r.Key].Elems[128].Start != 900 {
+		t.Fatalf("recording charged %d or differs", p.Control.Used)
 	}
 }
 
@@ -135,7 +127,7 @@ func TestBudgetDocumentRunAssemblyMatchesOrdinarySplice(t *testing.T) {
 		if controlled {
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 8})
 		}
-		p.FinishRun(&r)
+		p.RunFinish(&r)
 		var got []int
 		for _, el := range p.Runs[r.Key].Elems {
 			got = append(got, el.Start)

@@ -1,6 +1,10 @@
 package exec
 
-import "syntaxir.dev/sxir/internal/ir/code"
+import (
+	"strings"
+
+	"syntaxir.dev/sxir/internal/ir/code"
+)
 
 // QMoved is the size of the value of the entry that the call moves: for each distinct node in it, one
 // and the number of its children and fields.
@@ -11,30 +15,12 @@ const QMoved = "moved"
 // entry's, the edits since that generation. It is zero for a target that keeps no generations.
 const QMoveEdits = "move_edits"
 
-// Cost quantities of the repetition runs of the engine.
-const (
-	// QRunSearch is the number of bits of the count of old elements that the run has not passed: what
-	// a binary search for the next element inspects.
-	QRunSearch = "run_search"
-	// QRunScan is the number of old elements from the one the search finds to the end of the run.
-	QRunScan = "run_scan"
-	// QRunGrowth is the number of new elements the run holds, when one more makes their count a power
-	// of two, and 0 otherwise: the copy that doubling storage stands for, whatever capacity it has.
-	QRunGrowth = "run_growth"
-	// QRunElems is the number of elements of the finished run.
-	QRunElems = "run_elems"
-)
-
 // Names of the handle types of the operations of Document edits and runs.
 const (
 	// EditLog is the edits of a Document, in order.
 	EditLog = "EditLog"
 	// Run is a repetition run in progress in a Document parse.
 	Run = "Run"
-	// RunElem is an element of an old run that the parse reuses.
-	RunElem = "RunElem"
-	// Site is a repetition that a Document parse can resume.
-	Site = "RunSite"
 )
 
 // Runs is the repetition runs of a Document: for each repetition of the last parse that a parse may
@@ -107,51 +93,126 @@ grows by shift, and shifted tells whether its value has to move.`})
 	}
 }
 
-// documentRuns adds to m the host operations of the repetition runs of a Document. Runs exist in
-// the engine alone. A backend calls these operations where a repetition of a Document parse starts,
-// reuses elements, and runs its element expression, which they leave to it, so that none of them runs
-// grammar code. Their effects on the parse are those of evaluating the elements they stand for; what
-// to reuse is decided from the run, not from a composition. No target declares a reference model of
-// them, and tests of the engine measure their charges at these bounds.
+// RunField is a field of the record of a run in progress (handle Run), which the operation run.<name>
+// reads and run.set<Name> writes.
+type RunField struct {
+	Name string
+	Type code.Type
+	Doc  string
+}
+
+// RunFields are the fields of the record of a run in progress. A target holds them as fields of its
+// record of the run, under the names with the first letter upper-cased where its language needs that
+// for access from the printed functions.
+func RunFields() []RunField {
+	f := func(n string, t code.Type, doc string) RunField { return RunField{n, t, doc} }
+	return []RunField{
+		f("min", code.TInt, "The least number of elements of the repetition."),
+		f("max", code.TInt, "The greatest number of elements of the repetition, or -1 for no bound."),
+		f("shiftable", code.TBool, "Whether the values of the elements may move with an edit (no position in them)."),
+		f("count", code.TInt, "The number of elements of the run so far, reused or evaluated."),
+		f("done", code.TBool, "Whether a reused element ended the repetition: it was empty, or the run reached max."),
+		f("moved", code.TBool, "Whether the old run is the one that the edit moved here: none of it lies before the edit."),
+		f("editStart", code.TInt, "The start of the input that the one edit since the old run replaced; the greatest int when the old run is of this text."),
+		f("editEnd", code.TInt, "The end of the input that the edit replaced; the greatest int when the old run is of this text."),
+		f("editDelta", code.TInt, "How many units longer the replacement of the edit is than what it replaced; 0 when the old run is of this text."),
+		f("k", code.TInt, "The number of old elements before the edit that the run reused."),
+		f("j", code.TInt, "The index of the first old element after the edit that the run reuses, or -1 before the run is back in step."),
+		f("t", code.TInt, "The number of old elements from j on that the run reused."),
+		f("seek", code.TInt, "The old element at which the search for the old element after the edit that the run resyncs at resumes (runResync)."),
+		f("barred", code.TInt, "The number of old elements that the run cannot resync at: one past the last old element that the scan found to examine input before the end of the edit (runResync)."),
+		f("elemStart", code.TInt, "Where the element being evaluated started."),
+		f("outerExamined", code.TInt, "The examined end of the enclosing call, set aside while an element is evaluated (doc.enter)."),
+		f("outerLow", code.TInt, "The examined start of the enclosing call, set aside while an element is evaluated (doc.enter)."),
+		f("mark", code.THandle(Mark), "The isolation of the expectations of the element being evaluated (exp.isolate)."),
+	}
+}
+
+// documentRuns adds to m the host operations of the repetition runs of a Document (spec/runtime/documents.md,
+// "Runs"). A backend calls the compositions of the runs (runStart, runPrefix, runResync, runTail, runBegin,
+// runEnd, runFinish) where a repetition of a Document parse starts, reuses elements and evaluates its
+// element expression, which it runs itself, so that no operation runs grammar code. The operations hold
+// the records of runs and their elements; which record a run takes over, which elements it reuses, and
+// what it records are decided by the compositions. They charge nothing: what a run reuses is not an
+// event of the parse, and the compositions charge the work of the Document in its free regions.
 func documentRuns(m *code.Module, value code.Type) {
 	m.AddComponent(Runs, `The repetition runs of a Document: for each repetition of the last parse that a parse may
-resume, the positions, the examined input, the value and the expectations of its elements.`)
+resume, the positions, the examined input, the value and the expectations of its elements; and the runs
+recorded so far in this parse.`)
 	run := m.AddHandle(Run, Runs, "A repetition run in progress in a Document parse.")
-	elem := m.AddHandle(RunElem, Runs, "An element of an old run that the parse reuses, or none.")
-	site := m.AddHandle(Site, Runs, "A repetition that a Document parse can resume.")
+	r := code.P("r", run)
+	i := code.P("i", code.TInt)
 	host := func(o *code.Op) {
 		o.Kind = code.OpHost
 		o.Component = Runs
-		o.Reads = []string{Runs}
-		o.Writes = []string{Runs}
+		if o.Reads == nil {
+			o.Reads = []string{Runs}
+		}
 		o.Features = []string{Document}
 		m.AddOp(o)
 	}
-	reuse := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}}}
-	moved := code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 2, Quantity: QMoved}, {Coef: 1, Quantity: QMoveEdits}}}
-	host(&code.Op{Name: "run.start", Params: []code.Param{code.P("r", run), code.P("site", site)},
-		Contract: `Starts the run r of the repetition at the position. It takes over the record that this parse left
-there, or the record of the previous parse here or where the one edit since moved it; with no such
-record it has nothing to reuse.`})
-	host(&code.Op{Name: "run.prefix", Params: []code.Param{code.P("r", run)}, Results: []code.Type{elem}, NoReturn: true, Cost: reuse,
-		Contract: `Reuses the next old element if it examined only input before the one edit since, replaying what
-running it did: the examined input, the expectations, the position, the reuse statistics. Returns it,
-or none when the prefix of the run ends.`})
-	host(&code.Op{Name: "run.resync", Params: []code.Param{code.P("r", run)}, Results: []code.Type{code.TBool}, NoReturn: true,
-		Cost:     code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRunSearch}, {Coef: 1, Quantity: QRunScan}}},
-		Contract: `Reports whether an old element after the edit starts where the next element would, and every element from it on examined only input after the edit; run.tail then reuses them.`})
-	host(&code.Op{Name: "run.tail", Params: []code.Param{code.P("r", run)}, Results: []code.Type{elem}, NoReturn: true, Cost: moved,
-		Contract: `Reuses the next old element after the edit, moved by the edit with its value (doc.move), replaying
-what running it did as run.prefix does. Returns it, or none at the end of the run or its bound.`})
-	host(&code.Op{Name: "run.begin", Params: []code.Param{code.P("r", run)},
-		Contract: `Starts evaluating an element: its examined input and its expectations are recorded apart from the enclosing call's.`})
-	host(&code.Op{Name: "run.end", Params: []code.Param{code.P("r", run), code.P("ok", code.TBool), code.P("v", value)}, NoReturn: true,
-		Cost:     code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QMerge}, {Coef: 1, Quantity: QRunGrowth}}},
-		Contract: `Ends evaluating an element, adding its examined input and its expectations to those of the enclosing call, and records it if it matched with the value v.`})
-	host(&code.Op{Name: "run.finish", Params: []code.Param{code.P("r", run)}, NoReturn: true,
-		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QRunElems}}},
-		Contract: `Records the run of a repetition that matched for the next parse, unless it is too short, or recovered
-errors, or read the seed of a growth.`})
+	host(&code.Op{Name: "run.init", Writes: []string{Runs},
+		Params: []code.Param{r, code.P("site", code.TInt), code.P("min", code.TInt), code.P("max", code.TInt), code.P("shiftable", code.TBool)},
+		Reads:  []string{Runs, Pos, Rec},
+		Contract: `Starts the run r of the repetition site at the position: its fields are the zero values except min, max
+and shiftable, j is -1, editStart and editEnd are the greatest int; it has no old run and no new
+elements. It notes the recovered errors and the reads of growing results so far, for run.clean.`})
+	host(&code.Op{Name: "run.takeHere", Params: []code.Param{r}, Results: []code.Type{code.TBool}, Writes: []string{Runs},
+		Contract: `Takes over as the old run of r the record that this parse holds for the site of r at its start, and
+reports whether there is one. The records that this parse holds are those it made, and those of the parse
+before when no edit came since.`})
+	host(&code.Op{Name: "run.previous", Results: []code.Type{code.TBool},
+		Contract: `Reports whether the parse may take over the records of the parse before: an edit came since it, and
+its records were kept.`})
+	host(&code.Op{Name: "run.takeLast", Params: []code.Param{r, code.P("at", code.TInt), code.P("gen", code.TInt)},
+		Results: []code.Type{code.TBool}, Writes: []string{Runs},
+		Contract: `Takes over as the old run of r the record of the parse before for the site of r at the position at,
+if that parse recorded it when the Document had had gen edits, removes it from the records of that parse,
+and reports whether it did.`})
+	host(&code.Op{Name: "run.oldCount", Params: []code.Param{r}, Results: []code.Type{code.TInt},
+		Contract: `Returns the number of elements of the old run of r, 0 if it has none.`})
+	for _, a := range [][2]string{{"run.oldStart", "where it started"}, {"run.oldEnd", "where it ended"},
+		{"run.oldFrom", "the start of the input it examined"}, {"run.oldExamined", "the end of the input it examined, exclusive"},
+		{"run.oldFar", "the position of the expectations it recorded"}} {
+		host(&code.Op{Name: a[0], Params: []code.Param{r, i}, Results: []code.Type{code.TInt},
+			Requires: `0 <= i < run.oldCount(r).`, Contract: `Returns, for the old element i of r, ` + a[1] + `, as of the edits that r took up to now.`})
+	}
+	host(&code.Op{Name: "run.oldKept", Params: []code.Param{r, i}, Results: []code.Type{code.THandle(Kept)},
+		Requires: `0 <= i < run.oldCount(r).`, Contract: `Returns the expectations that the old element i of r recorded at run.oldFar(r, i).`})
+	host(&code.Op{Name: "run.take", Params: []code.Param{r, i, code.P("shift", code.TInt), code.P("gen", code.TInt)},
+		Results: []code.Type{value}, Reads: []string{Runs, Host}, Writes: []string{Runs},
+		Requires: `0 <= i < run.oldCount(r); shift is 0 unless r is shiftable.`,
+		Contract: `Moves the old element i of r by shift: its positions, examined input and far position, and the nodes of
+its value, which the parse that recorded it made when the Document had had gen edits (doc.move). Returns
+its value. With shift 0 it changes nothing.`})
+	host(&code.Op{Name: "run.resumed", Writes: []string{Runs},
+		Contract: `Counts an element that the parse reused from a run, in the statistics of the Document (as doc.reused)
+and in its count of resumed elements.`})
+	host(&code.Op{Name: "run.add", Writes: []string{Runs},
+		Params: []code.Param{r, code.P("after", code.TBool), code.P("start", code.TInt), code.P("end", code.TInt), code.P("from", code.TInt),
+			code.P("examined", code.TInt), code.P("far", code.TInt), code.P("kept", code.THandle(Kept)), code.P("v", value)},
+		Contract: `Adds to r an element that the parse evaluated: from start to end, having examined [from, examined),
+with the expectations kept at far and the value v. It belongs to the new elements before the old elements
+after the edit that r reuses, or, with after, to those after them.`})
+	host(&code.Op{Name: "run.clean", Params: []code.Param{r}, Results: []code.Type{code.TBool}, Reads: []string{Runs, Rec},
+		Contract: `Reports whether, since run.init(r), no recovered error remains and no call read the current result of
+a growth, directly or by reusing a result that read one, even of a growth that started and ended within
+the run.`})
+	host(&code.Op{Name: "run.minimum", Results: []code.Type{code.TInt},
+		Contract: `Returns the least number of elements of a run that a Document records.`})
+	host(&code.Op{Name: "run.record", Params: []code.Param{r}, Writes: []string{Runs},
+		Contract: `Records in this parse the run r for its site and start, replacing any record there, with the generation
+of the Document: the old elements before k, the new elements before the old elements after the edit, the
+old elements from j to j + t when j >= 0, and the new elements after them.`})
+	host(&code.Op{Name: "doc.log", Results: []code.Type{code.THandle(EditLog)}, Reads: []string{Memo},
+		Contract: `Returns the log of the edits of the Document since its memo was last dropped; the parse is of the text
+after them all.`})
+	for _, f := range RunFields() {
+		host(&code.Op{Name: "run." + f.Name, Params: []code.Param{r}, Results: []code.Type{f.Type},
+			Contract: `Returns the field ` + f.Name + ` of the run r: ` + f.Doc})
+		host(&code.Op{Name: "run.set" + strings.ToUpper(f.Name[:1]) + f.Name[1:], Params: []code.Param{r, code.P("x", f.Type)},
+			Writes: []string{Runs}, Contract: `Sets the field ` + f.Name + ` of the run r to x.`})
+	}
 }
 
 // PendingEditLimit is the number of edits that a memo entry may lag behind when a lookup finds it. A

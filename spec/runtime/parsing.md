@@ -389,7 +389,10 @@ charge nothing else. A walk that
 takes the rest of a walk from a record of a [skip run](#skip-runs), a
 [run site](#run-sites) or a [scan site](#scan-sites) neither evaluates nor
 charges the iterations and characters that it skips, and the lookup that
-finds the record ends the walk without an iteration. Growing the storage of a
+finds the record ends the walk without an iteration. Likewise, a repetition of
+a [Document](documents.md) parse that resumes a recorded run
+([Runs](documents.md#reuse-model)) neither evaluates nor charges the elements
+that it reuses, and finding them charges no iteration. Growing the storage of a
 parse charges no unit: the memo table and the record of the rules called at
 each position grow to the positions and rules of calls that are counted, and
 growing them by doubling, or by pages of positions, copies and clears at most a

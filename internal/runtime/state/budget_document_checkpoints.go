@@ -1,39 +1,6 @@
 package state
 
-import (
-	"slices"
-	"sort"
-)
-
-func (p *Parser) RunSearch(elems []RunElem, start, at int) int {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return start + sort.Search(len(elems)-start, func(i int) bool { return elems[start+i].Start >= at })
-	}
-	lo, hi := start, len(elems)
-	for lo < hi {
-		p.Spend()
-		mid := int(uint(lo+hi) >> 1)
-		if elems[mid].Start < at {
-			lo = mid + 1
-		} else {
-			hi = mid
-		}
-	}
-	return lo
-}
-
-func (p *Parser) RunAfter(elems []RunElem, end int) bool {
-	if !BudgetControlsEnabled || p.Control == nil {
-		return after(elems, end)
-	}
-	for _, el := range elems {
-		p.Spend()
-		if el.From < end {
-			return false
-		}
-	}
-	return true
-}
+import "slices"
 
 // GrowSpend bounds the explicit copy of existing values when capacity must
 // grow. Allocation and runtime zeroing remain nonpreemptible intervals.

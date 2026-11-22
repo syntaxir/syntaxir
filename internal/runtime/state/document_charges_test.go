@@ -3,7 +3,6 @@
 package state
 
 import (
-	"math/bits"
 	"math/rand/v2"
 	"reflect"
 	"slices"
@@ -598,216 +597,175 @@ func mergeUnits(far int, exp []ExpID) uint64 {
 	return spent(p, func() { p.MergeExpected(far, exp) })
 }
 
-func TestRunOperationsChargeTheirDeclaredWork(t *testing.T) {
+// events returns the units that f charges on p that are events of the parse: those outside the free
+// regions of the work of the Document.
+func events(p *Parser, f func()) uint64 {
+	used, doc := p.Control.Used, p.Control.Doc
+	f()
+	return (p.Control.Used - used) - (p.Control.Doc - doc)
+}
+
+// tailWork returns the units of work of the Document that run.tail does to take, after the last of
+// the gen edits, an element with the value v of the run that the parse before recorded; v moves in
+// place.
+func tailWork(edits []DocEdit, gen uint32, v *value.Node) uint64 {
+	p := docParser()
+	p.Edits, p.Gen = edits, gen
+	ed := edits[gen-1]
+	r := RunState{Old: oldRun(1, nil), J: 0, Max: -1, EditStart: ed.Start, EditEnd: ed.End, EditDelta: ed.Delta}
+	r.Old[0].V = v
+	doc := p.Control.Doc
+	p.RunTail(&r)
+	return p.Control.Doc - doc
+}
+
+// The operations of runs count no event (spec/runtime/documents.md, "Work of a Document Parse"): what
+// a run reuses is not an event, as the take of a record skips the iterations it stands for, and the
+// bookkeeping of the expectations and the examined input of its elements is work of the Document.
+func TestRunOperationsChargeNoEvent(t *testing.T) {
 	t.Parallel()
 	exp := []ExpID{1, 2, 3}
-	t.Run("run.start and run.begin charge nothing", func(t *testing.T) {
+	run := func(old []RunElem, e DocEdit) RunState {
+		return RunState{Old: old, J: -1, Max: -1, EditStart: e.Start, EditEnd: e.End, EditDelta: e.Delta}
+	}
+	t.Run("run.start and run.begin", func(t *testing.T) {
 		p := docParser()
 		p.LastRuns = map[RunKey]*RunRecord{{Site: 1}: {Elems: oldRun(1000, nil)}}
 		p.Edits, p.Gen = []DocEdit{{Start: 100, End: 101}}, 1
 		p.LastRuns[RunKey{Site: 1}].gen = 0
 		var r RunState
-		if got := spent(p, func() { p.StartRun(&r, 1, 0, -1, true); p.BeginElem(&r) }); got != 0 || len(r.Old) != 1000 {
+		if got := events(p, func() { p.RunStart(&r, 1, 0, -1, true); p.RunBegin(&r) }); got != 0 || len(r.Old) != 1000 {
 			t.Fatalf("charged %d, took over %d elements", got, len(r.Old))
 		}
+		if _, ok := p.LastRuns[RunKey{Site: 1}]; ok {
+			t.Fatal("the record of the parse before can be taken again")
+		}
 	})
-	t.Run("run.prefix charges one and the merge", func(t *testing.T) {
+	t.Run("run.prefix", func(t *testing.T) {
 		p := docParser()
-		r := RunState{Old: oldRun(2, exp), J: -1, max: -1, edit: DocEdit{Start: 2, End: 3}}
-		want := 1 + mergeUnits(2, exp)
-		if got := spent(p, func() {
-			if p.NextPrefix(&r) == nil {
+		r := run(oldRun(2, exp), DocEdit{Start: 2, End: 3})
+		if got := events(p, func() {
+			if _, ok := p.RunPrefix(&r); !ok {
 				t.Fatal("the element examined only input before the edit")
 			}
-		}); got != want || want != 4 {
-			t.Fatalf("charged %d, want %d", got, want)
+		}); got != 0 {
+			t.Fatalf("charged %d", got)
 		}
-		if got := spent(p, func() {
-			if p.NextPrefix(&r) != nil {
+		if p.Farthest != 2 || len(p.Exp)-p.ExpBase != 1 || p.Stats.Reused != 1 || p.Resumed != 1 || p.Pos != 2 {
+			t.Fatalf("replayed far %d, %d items, reused %d, resumed %d, at %d", p.Farthest, len(p.Exp)-p.ExpBase, p.Stats.Reused, p.Resumed, p.Pos)
+		}
+		if got := events(p, func() {
+			if _, ok := p.RunPrefix(&r); ok {
 				t.Fatal("the element examined the edit")
 			}
-		}); got != 1 {
+		}); got != 0 {
 			t.Fatalf("end of prefix charged %d", got)
 		}
 	})
-	t.Run("run.resync charges the search and the scan", func(t *testing.T) {
+	t.Run("run.resync", func(t *testing.T) {
 		for _, at := range []int{0, 511, 1022} {
 			p := docParser()
-			r := RunState{Old: oldRun(1023, nil), J: -1, max: -1, shiftable: true, edit: DocEdit{Start: -1, End: -1}}
+			r := run(oldRun(1023, nil), DocEdit{Start: -1, End: -1})
+			r.Shiftable = true
 			p.Pos = 2 * at
-			want := uint64(bits.Len(1023) + 1023 - at)
-			if got := spent(p, func() {
-				if !p.Resync(&r) {
-					t.Fatal("no resynchronization")
+			if got := events(p, func() {
+				if !p.RunResync(&r) || r.J != at {
+					t.Fatalf("no resynchronization at %d: j = %d", at, r.J)
 				}
-			}); got != want {
-				t.Fatalf("at %d: charged %d, want %d", at, got, want)
+			}); got != 0 {
+				t.Fatalf("at %d: charged %d", at, got)
 			}
 		}
 	})
-	t.Run("run.tail charges one, the merge and the move", func(t *testing.T) {
+	t.Run("run.tail moves the element", func(t *testing.T) {
 		p := docParser()
 		p.Edits, p.Gen = []DocEdit{{Start: 0, End: 0, Delta: 2}}, 1
-		r := RunState{Old: oldRun(1, exp), J: 0, max: -1, edit: p.Edits[0]}
-		v := nodes.Ptr(nodes.Data{Start: 0, End: 0})
-		r.Old[0].V = v
-		// The element moves to 2 through 4, so its expectations merge at 4.
-		want := 1 + mergeUnits(4, exp) + movedBound(1, 0, 0)
-		if got := spent(p, func() {
-			if p.NextTail(&r) == nil {
+		r := run(oldRun(1, exp), p.Edits[0])
+		r.J = 0
+		r.Old[0].V = nodes.Ptr(nodes.Data{Start: 0, End: 0})
+		if got := events(p, func() {
+			if _, ok := p.RunTail(&r); !ok {
 				t.Fatal("the element is after the edit")
 			}
-		}); got != want {
-			t.Fatalf("charged %d, want %d", got, want)
-		}
-		if s := nodes.D(r.Old[0].V).Start; s != 2 {
-			t.Fatalf("the empty value is at %d", s)
-		}
-	})
-	t.Run("run.tail replays no edit for the nodes of the run's generation", func(t *testing.T) {
-		p := docParser()
-		p.Edits, p.Gen = []DocEdit{{Start: 0, End: 0}, {Start: 0, End: 0, Delta: 2}}, 2
-		r := RunState{Old: oldRun(1, nil), J: 0, max: -1, edit: p.Edits[1]}
-		r.Old[0].V = nodes.Ptr(nodes.Data{Start: 0, End: 2, Mark: 1})
-		if got := spent(p, func() { p.NextTail(&r) }); got != 1+1 {
+		}); got != 0 {
 			t.Fatalf("charged %d", got)
+		}
+		// The element moves to 2 through 4, so its expectations merge at 4.
+		if s := nodes.D(r.Old[0].V).Start; s != 2 || p.Farthest != 4 || p.Pos != 4 {
+			t.Fatalf("the empty value is at %d, far %d, position %d", s, p.Farthest, p.Pos)
+		}
+		if len(p.Moved) != 0 || len(p.Shifts) != 0 {
+			t.Fatalf("the move left %d copies and %d shifts", len(p.Moved), len(p.Shifts))
 		}
 	})
 	t.Run("run.tail leaves a value that another result moved", func(t *testing.T) {
 		p := docParser()
 		p.Edits, p.Gen = []DocEdit{{Start: 0, End: 0, Delta: 2}}, 1
-		r := RunState{Old: oldRun(1, nil), J: 0, max: -1, edit: p.Edits[0]}
+		r := run(oldRun(1, nil), p.Edits[0])
+		r.J = 0
 		r.Old[0].V = nodes.Ptr(nodes.Data{Start: 2, End: 4, Mark: 1})
-		if got := spent(p, func() { p.NextTail(&r) }); got != 1 || nodes.D(r.Old[0].V).Start != 2 {
+		if got := events(p, func() { p.RunTail(&r) }); got != 0 || nodes.D(r.Old[0].V).Start != 2 {
 			t.Fatalf("charged %d", got)
 		}
-	})
-	t.Run("run.end charges the merge and the growth", func(t *testing.T) {
-		for _, capacity := range []int{63, 1024} {
-			p := docParser()
-			var r RunState
-			r.J = -1
-			r.Mid = make([]RunElem, 63, capacity)
-			p.BeginElem(&r)
-			p.Exp = append(p.Exp, 1, 2, 3)
-			p.Pos = 2
-			// The 64th iteration makes the length a power of two, which charges the 63 before it
-			// whatever the capacity; keeping copies the three expectations, and merging them charges three.
-			got := spent(p, func() { p.EndElem(&r, true, nil) })
-			if want := uint64(63 + 3 + 3); got != want {
-				t.Fatalf("capacity %d: charged %d, want %d", capacity, got, want)
-			}
-			p.BeginElem(&r)
-			if got := spent(p, func() { p.EndElem(&r, true, nil) }); got != 0 {
-				t.Fatalf("capacity %d: no growth, no expectations: charged %d", capacity, got)
-			}
+		// The value is current, so the take moves nothing: it does no more work of the Document than the
+		// take of an element without a value.
+		if got, want := tailWork(p.Edits, p.Gen, nodes.Ptr(nodes.Data{Start: 2, End: 4, Mark: 1})), tailWork(p.Edits, p.Gen, nil); got != want {
+			t.Fatalf("the take of a current value did %d units of work of the Document, one without a value %d", got, want)
 		}
-		// A length that stays below a power of two charges no growth, though the storage is full.
+	})
+	t.Run("run.tail moves a value by the shift of its run", func(t *testing.T) {
+		// The element was recorded in the parse after the second edit, which its nodes, of the parse after
+		// the first, already account for: they move by the shift of the run, without reading the log. The
+		// move is the root, its edge to its child and the child.
+		edits := []DocEdit{{Start: 0, End: 0, Delta: 1}, {Start: 0, End: 0, Delta: 1}, {Start: 0, End: 0, Delta: 2}}
+		value := func() *value.Node {
+			child := nodes.Ptr(nodes.Data{Start: 10, End: 15, Mark: 1})
+			return nodes.Ptr(nodes.Data{Start: 10, End: 20, Mark: 1, Children: []*value.Node{child}})
+		}
+		v := value()
+		got, base := tailWork(edits, 3, v), tailWork(edits, 3, nil)
+		if got-base != 3 || nodes.D(v).Start != 12 || nodes.D(nodes.D(v).Children[0]).End != 17 {
+			t.Fatalf("the move did %d units of work of the Document, want 3; the value is at %d, its child ends at %d",
+				got-base, nodes.D(v).Start, nodes.D(nodes.D(v).Children[0]).End)
+		}
+	})
+	t.Run("run.end records the element and its kept expected items", func(t *testing.T) {
 		p := docParser()
 		var r RunState
 		r.J = -1
-		r.Mid = make([]RunElem, 62)
-		p.BeginElem(&r)
-		if got := spent(p, func() { p.EndElem(&r, true, nil) }); got != 0 {
-			t.Fatalf("growth within the binary digits charged %d", got)
-		}
-	})
-	t.Run("run.end compares and copies the expected items it records", func(t *testing.T) {
-		p := docParser()
-		var r RunState
-		r.J = -1
-		r.Mid = make([]RunElem, 0, 64)
-		// The set kept last has as many items and differs at the last: keeping compares each item,
-		// then copies each, at most two units for each.
 		p.LastKept = []ExpID{1, 2, 4}
-		p.BeginElem(&r)
+		p.RunBegin(&r)
 		p.Exp = append(p.Exp, 1, 2, 3)
 		p.Pos = 2
-		if got, want := spent(p, func() { p.EndElem(&r, true, nil) }), uint64(3+2*3); got != want {
-			t.Fatalf("charged %d, want the merge and two units for each of the 3 items, %d", got, want)
-		}
-		if !slices.Equal(p.LastKept, []ExpID{1, 2, 3}) {
-			t.Fatalf("kept %v", p.LastKept)
-		}
-	})
-	t.Run("run.prefix with expected items scans the record for each colliding item", func(t *testing.T) {
-		p := docParser()
-		p.Expectations = true
-		// The record at the farthest position holds distinct items until their bits fill the filter,
-		// so every item merged next collides and is looked for in the whole record.
-		id := ExpID(100)
-		for ; p.ExpBits != ^uint64(0); id++ {
-			p.Expect(2, id)
-		}
-		held := uint64(len(p.Exp) - p.ExpBase)
-		r := RunState{Old: oldRun(2, exp), J: -1, max: -1, edit: DocEdit{Start: 2, End: 3}}
-		// Each item charges one unit and one for each item that the record holds, which grows by
-		// the items merged before it: at most one plus the size of the record, for each.
-		n := uint64(len(exp))
-		want := 1 + n*(1+held) + n*(n-1)/2
-		if got := spent(p, func() {
-			if p.NextPrefix(&r) == nil {
-				t.Fatal("the element examined only input before the edit")
-			}
-		}); got != want || held < 64 {
-			t.Fatalf("a record of %d items: charged %d, want %d", held, got, want)
-		}
-		if got := uint64(len(p.Exp) - p.ExpBase); got != held+n {
-			t.Fatalf("the record holds %d items, want %d", got, held+n)
-		}
-	})
-	t.Run("run.finish charges the elements of the run", func(t *testing.T) {
-		p := docParser()
-		r := RunState{Old: oldRun(100, nil), K: 40, J: 60, T: 30, Mid: oldRun(5, nil), Post: oldRun(7, nil), Count: 82}
-		if got := spent(p, func() { p.FinishRun(&r) }); got != 40+5+30+7 {
+		if got := events(p, func() { p.RunEnd(&r, true, nil) }); got != 0 {
 			t.Fatalf("charged %d", got)
 		}
-		r = RunState{Old: oldRun(100, nil), K: minRecordedLen - 1, J: -1, Count: minRecordedLen - 1}
-		if got := spent(p, func() { p.FinishRun(&r) }); got != 0 {
-			t.Fatalf("a short run charged %d", got)
+		if len(r.Mid) != 1 || !slices.Equal(r.Mid[0].exp, []ExpID{1, 2, 3}) || r.Count != 1 {
+			t.Fatalf("recorded %+v, count %d", r.Mid, r.Count)
 		}
 	})
-}
-
-// Making room on the stack of values for a resumed record charges by the room that the parse paid
-// for, not by the capacity that the stack keeps from earlier parses of the Document, and the room
-// at least doubles, so a stack that shrinks and grows again within it charges nothing more.
-func TestGrowKidsChargesByTheRoomOfTheParse(t *testing.T) {
-	t.Parallel()
-	for _, capacity := range []int{100, 4096} {
+	t.Run("run.finish", func(t *testing.T) {
 		p := docParser()
-		p.KidStack = make([]*value.Node, 100, capacity)
-		// resize sets the length of the stack, as the uncharged pushes and pops of a parse do.
-		resize := func(n int) { p.KidStack = slices.Grow(p.KidStack[:0], n)[:n] }
-		if got := spent(p, func() { p.growKids(50) }); got != 100 {
-			t.Fatalf("capacity %d: the first growth charged %d, want the 100 values", capacity, got)
+		r := RunState{Old: oldRun(100, nil), K: 40, J: 60, T: 30, Mid: oldRun(5, nil), Post: oldRun(7, nil), Count: 82}
+		if got := events(p, func() { p.RunFinish(&r) }); got != 0 || len(p.Runs[r.Key].Elems) != 40+5+30+7 {
+			t.Fatalf("charged %d", got)
 		}
-		if got := spent(p, func() { p.growKids(50) }); got != 0 {
-			t.Fatalf("capacity %d: a growth within the room charged %d", capacity, got)
+		r = RunState{Old: oldRun(100, nil), K: minRecordedLen - 1, J: -1, Count: minRecordedLen - 1, Key: RunKey{Site: 2}}
+		if got := events(p, func() { p.RunFinish(&r) }); got != 0 || p.Runs[r.Key] != nil {
+			t.Fatalf("a short run charged %d or was recorded", got)
 		}
-		resize(150)
-		if got := spent(p, func() { p.growKids(1) }); got != 150 {
-			t.Fatalf("capacity %d: a growth past the room of 150 charged %d, want the 150 values", capacity, got)
+	})
+	t.Run("a resumed run charges only the iteration it evaluates", func(t *testing.T) {
+		p := docParser()
+		p.Runs[RunKey{Site: 1}] = &RunRecord{Elems: oldRun(1000, nil)}
+		evaluated := 0
+		rs := &RunSite{Id: 1, Min: 0, Max: -1, Build: true, M: func(p *Parser) (*value.Node, bool) { evaluated++; return nil, false },
+			Value: func(_ *Parser, v *value.Node, _ int) *value.Node { return v }}
+		var ok bool
+		if got := events(p, func() { _, ok = p.ResumeRepeat(rs) }); got != 1 || !ok || evaluated != 1 || p.Pos != 2000 {
+			t.Fatalf("charged %d (ok %v, %d evaluated, at %d); want the one iteration that failed", got, ok, evaluated, p.Pos)
 		}
-		// The room is now 300: a stack that shrinks and grows again within it charges nothing.
-		for range 100 {
-			resize(299)
-			if got := spent(p, func() { p.growKids(1) }); got != 0 {
-				t.Fatalf("capacity %d: growing again within the room charged %d", capacity, got)
-			}
-		}
-		resize(300)
-		if got := spent(p, func() { p.growKids(1) }); got != 300 {
-			t.Fatalf("capacity %d: a growth past the room charged %d, want the 300 values", capacity, got)
-		}
-		if cap(p.KidStack) < 301 {
-			t.Fatalf("capacity %d: room for %d values", capacity, cap(p.KidStack))
-		}
-	}
-	p := docParser()
-	if got := spent(p, func() { p.growKids(1000) }); got != 0 {
-		t.Fatalf("an empty stack charged %d", got)
-	}
+	})
 }
 
 // costBound returns the bound of the declared cost of a call of op with args in the state of model.

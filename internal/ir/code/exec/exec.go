@@ -271,6 +271,11 @@ each variable that the rule reads and one for each byte of the UTF-8 encoding of
 that such a variable holds. A call of a rule that a parse from scratch memoizes pays it whether or not
 it looks the key up, so that deferring memoization changes no unit; a rule that reads no variable
 charges nothing.`})
+	m.AddOp(&code.Op{Name: "budget.poll", Component: Bud, Kind: code.OpHost, Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Budget}, NoReturn: true,
+		Contract: `Counts a step of work that charges no unit toward the interval at which the parse observes
+cancellation and its memory limit, and observes them where budget.charge of one unit would. It charges
+nothing, so it never ends the parse with a limit interruption of Compute; it may end it with a
+cancellation or memory interruption.`})
 	m.AddOp(&code.Op{Name: "budget.used", Component: Bud, Results: []code.Type{code.TU64},
 		Reads: []string{Bud}, Features: []string{Budget},
 		Contract: `Returns the units charged so far: by budget.charge and inside other operations.`})

@@ -169,7 +169,7 @@ type Parser struct {
 	Runs, LastRuns map[RunKey]*RunRecord
 	// SeedReads counts the reads of growing seeds and the reuses of results that depend on them
 	// (context_memo.go). It only increases, so a repetition run that it does not change read
-	// none (FinishRun).
+	// none (runClean).
 	SeedReads int
 	// seedReadLog lists, under RunOpenGrowthsOnly, the index in Gamma of the outermost growth that
 	// each read may concern (seedRead).
@@ -231,7 +231,6 @@ type Parser struct {
 	cutFailed   bool           // a candidate of the last longest match failed after a cut
 	afterEmpty  bool           // the next expression is the right operand of an infix operator that consumed no input
 	nudBound    int            // the binding level above which no operator can follow the last start of an expression
-	kidRoom     int            // the room on KidStack that this parse has paid for (growKids), whatever its capacity
 }
 
 // BackendState is the state that a backend keeps beside the parser for the parse it runs, such

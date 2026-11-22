@@ -455,19 +455,23 @@ items of the grammar for each item it merges. The operations take:
   iterations that it then holds is a power of two, the number that it held
   before;
 - looking for a recorded iteration after the edit, before an iteration after the
-  edit is evaluated: a binary search over the recorded iterations that the run
-  has not passed, at most 1 + log₂(m + 1) steps for m such iterations, then one
-  step for each recorded iteration that it scans from the one it finds, which
-  stops at the first that examined input before the end of the edit or at the
-  end of the record; when it passes them all the run reuses them;
-- making room for the values of the record that it resumes: room for every
-  iteration of the record on the stack of values. The parse keeps an amount of
-  room that it has paid for, zero when it starts. When the values on the stack
-  and the room asked for exceed it, the parse takes as many steps as there are values on
-  the stack, and the room paid for becomes at least twice what it was and at
-  least what is asked for; otherwise nothing;
+  edit is evaluated: one step for each recorded iteration that it passes.
+  Scanning recorded iterations charges nothing; each recorded iteration is
+  scanned at most once per parse, by the search for the iteration that starts
+  where the next one would, and at most once more by the check that it and the
+  iterations after it examined only input after the edit, since the search
+  resumes where it last stopped and an iteration that fails the check bars every
+  later look up to it; when it passes them all the run reuses them;
+- keeping the values of the iterations that it reuses: one step for each, and
+  growing the stack of values as any parse does;
 - recording the run when it ends: one step for each iteration, and nothing for a
   run too short to record.
+
+A reuse, and each recorded iteration that the look for an iteration after the
+edit passes, counts toward the interval at which the parse observes its context
+and its memory limit ([Reservations and
+Interruptions](parsing.md#reservations-and-interruptions)), as a unit does,
+without charging it.
 
 A parse resumes a record of the previous parse at most once: resuming it removes
 it from the records that the parse can resume.

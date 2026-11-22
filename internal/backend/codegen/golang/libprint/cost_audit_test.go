@@ -291,10 +291,18 @@ var chargedElsewhere = map[string]string{
 }
 
 // engineOnly are the host operations that the generated Go library has no form of: the runs of a
-// Document exist in the engine alone, whose tests measure the charges of each
-// (TestRunOperationsChargeTheirDeclaredWork).
-var engineOnly = map[string]bool{"run.start": true, "run.prefix": true, "run.resync": true, "run.tail": true, "run.begin": true,
-	"run.end": true, "run.finish": true}
+// Document, the edit log they read and the poll of a resumed run exist in the engine alone, whose
+// tests measure that they count no event (TestRunOperationsChargeNoEvent). The operations of runs
+// declare no cost.
+var engineOnly = func() map[string]bool {
+	only := map[string]bool{"doc.log": true, "budget.poll": true}
+	for _, op := range compose.Build().Ops {
+		if op.Component == exec.Runs {
+			only[op.Name] = true
+		}
+	}
+	return only
+}()
 
 // editForms are the operations that the engine and both libraries read and write while they apply an
 // edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: memoAdvance charges for

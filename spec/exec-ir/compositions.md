@@ -89,6 +89,25 @@ The application of the edits of a Document to a memo entry when a lookup finds i
 |:--|:--|
 | `func memoAdvance(e Entry, log EditLog) bool [document, budget]` | Applies to the memo entry e the edits of log it does not account for yet, and reports whether it is still valid. For each edit, in order, an entry that examined only input before it stays, one that examined only input after it moves by the edit's change in length, unless it is pinned or holds recovered errors, and any other is invalid. An entry that lags behind more than 128 edits is invalid. A form specialized for budget charges one unit for each edit it applies, as work of the Document that a parse from scratch does not do. The entry changes only if it is still valid, and after every charge: one that is not valid stays in its slot until a store replaces it, and a lookup before that applies the same edits again. The first test, of memo.seed, is a guard that no production path reaches: the seed of a growth lives within one parse, when no edit is pending, and a lookup applies edits only to an entry of an earlier parse. |
 
+## Repetition Runs
+
+The repetition runs of a Document ([Runs](../runtime/documents.md#reuse-model)): which record a
+repetition takes over, which recorded elements it reuses, and what it records. A backend runs the
+repetition and its element itself and calls these around the element. They count no event; the forms
+specialized for a budget do the bookkeeping of the expectations in a free region.
+
+| Declaration | Meaning |
+|:--|:--|
+| `func runStart(r Run, site int, min int, max int, shiftable bool) [document, budget]` | Starts the run r of the repetition site, with at least min and at most max elements (max -1 for no bound), at the position, and finds the record it takes over: the record of this site here that this parse made, or that the parse before made of the same text; or else, when exactly one edit [a, b) by delta came since the parse before, the record of that parse here when the position is at most a, or at the position less delta when it is at least b + delta. Between them no record is taken. shiftable tells whether the values of the elements hold no position, so that the run may reuse old elements that the edit moved. |
+| `func runMore(r Run) bool [document, budget]` | Reports whether the run r may take another element: no reused element ended it, and it has fewer than its maximum. |
+| `func runReuse(r Run, i int, shift int, gen int) Value [document, budget]` | Reuses the old element i of the run r, moved by shift since the parse that recorded it when the Document had had gen edits: it replays what evaluating the element did (the examined input, the expectations, the position and the statistics) and returns its value, for the caller to keep. |
+| `func runPrefix(r Run) (Value, bool) [document, budget]` | Reuses the next old element of the run r if it examined only input before the edit since the old run, whatever the edit's change in length, and returns its value and true; it returns false when the reused prefix ends: at an element that examined input at or after the start of the edit, at the end of the old run, after an element that ended the run, or at once when the old run is the one that the edit moved here. |
+| `func runResync(r Run) bool [document, budget]` | Reports whether the run r is back in step with its old run after the edit: an old element starts where the next element would, moved by the edit, and it and every old element after it examined only input after the edit; their values move with the edit only if the run is shiftable. runTail then reuses them. |
+| `func runTail(r Run) (Value, bool) [document, budget]` | Reuses the next old element after the edit that runResync found the run r in step with, moved by the edit, and returns its value and true; it returns false at the end of the old run or when the run may take no more elements. |
+| `func runBegin(r Run) [document, budget]` | Starts evaluating an element of the run r: its examined input and its expectations are recorded apart from those of the enclosing call, so that the run can record them with the element. |
+| `func runEnd(r Run, ok bool, v Value) [document, budget]` | Ends evaluating an element of the run r, with its success ok and value v, before the parse resets its state if it failed: it adds the element's examined input and expectations to those of the enclosing call, and records the element if it matched. |
+| `func runFinish(r Run) [document, budget]` | Records the run r of a repetition that matched, for the rest of this parse and the next one, unless it has fewer elements than the least a Document records, a recovered error remains, or a call in it read the current result of a growth. |
+
 ## Action Expressions
 
 The operators, member reads and built-in functions of action expressions over the operations of [Values](values.md), and the application of the action expressions of predicates and bindings.
@@ -180,6 +199,15 @@ row includes what its backends print into packages of their own.
 | exprLed |  |  | `[budget, missing]` |  |
 | exprRhs |  |  | `[budget, missing]` |  |
 | memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` |  |
+| runStart |  |  | `[budget, document]` |  |
+| runMore |  |  | `[budget, document]` |  |
+| runReuse |  |  | `[budget, document]` |  |
+| runPrefix |  |  | `[budget, document]` |  |
+| runResync |  |  | `[budget, document]` |  |
+| runTail |  |  | `[budget, document]` |  |
+| runBegin |  |  | `[budget, document]` |  |
+| runEnd |  |  | `[budget, document]` |  |
+| runFinish |  |  | `[budget, document]` |  |
 | equal | `[]` | `[]` | `[]` | `[]` |
 | index | `[]` | `[]` | `[]` | `[]` |
 | binary | `[]` | `[]` | `[]` | `[]` |

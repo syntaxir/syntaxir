@@ -90,7 +90,19 @@ var engineStreamSpecs = []goSpec{
 var engineDocumentSpecs = []goSpec{
 	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "AdvanceEntry"},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "AdvanceEntry", plain: true},
+	{fn: "runStart", on: runOn, name: "RunStart"},
+	{fn: "runMore", on: runOn, name: "RunMore"},
+	{fn: "runReuse", on: runOn, name: "runReuse"},
+	{fn: "runPrefix", on: runOn, name: "RunPrefix"},
+	{fn: "runResync", on: runOn, name: "RunResync"},
+	{fn: "runTail", on: runOn, name: "RunTail"},
+	{fn: "runBegin", on: runOn, name: "RunBegin"},
+	{fn: "runEnd", on: runOn, name: "RunEnd"},
+	{fn: "runFinish", on: runOn, name: "RunFinish"},
 }
+
+// runOn are the features of the engine's forms of the repetition runs of a Document.
+var runOn = []string{exec.Document, exec.Budget}
 
 // printEngine returns the Go file of the printed compositions for package state of the engine.
 func printEngine() (string, error) {
@@ -228,7 +240,7 @@ func engineTarget() *print.Target {
 		exec.Ctx: "CtxState", exec.Res: "ctxHit", exec.Grow: "GrowState", exec.CallState: "*CallState",
 		exec.Frame: "*Frame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "OperatorsRuleAttempt",
-		action.Seq: "[]*sxirvalue.Node", exec.Datum: "any", exec.LongestState: "*LongestState", exec.NudState: "*NudState", exec.ExprState: "*ExprState", exec.EditLog: "[]DocEdit",
+		action.Seq: "[]*sxirvalue.Node", exec.Datum: "any", exec.LongestState: "*LongestState", exec.NudState: "*NudState", exec.ExprState: "*ExprState", exec.EditLog: "[]DocEdit", exec.Run: "*RunState",
 		action.Obj: "*sxirvalue.Node", action.Name: "string", action.Str: "string", action.Act: "*EvalCtx", action.Fail: "error", action.Elem: "*sxirvalue.Node",
 		action.NodeType: "*nodes.NodeTypeKinds", action.FType: "*program.FieldType",
 	}
@@ -264,6 +276,9 @@ func engineTarget() *print.Target {
 				return a[0] + "." + name + " = " + a[1]
 			}
 			return a[0] + "." + strings.ToUpper(field[:1]) + field[1:]
+		}
+		if s, ok := engineRunOp(c.Callee, a); ok {
+			return s
 		}
 		switch c.Callee {
 		case "stream.emits":
@@ -400,6 +415,8 @@ func engineTarget() *print.Target {
 			return "p.SpendN(" + a[0] + ")"
 		case "budget.chargeKey":
 			return "p.ChargeKey(" + a[0] + ")"
+		case "budget.poll":
+			return "p.Poll()"
 		case "doc.active":
 			return "p.MemoAll"
 		case "budget.freeBegin":
@@ -776,4 +793,53 @@ func printedImports(body string, std []string, ownPaths []struct{ name, path str
 		return "\nimport " + paths[0] + "\n"
 	}
 	return "\nimport (\n\t" + strings.ReplaceAll(strings.Join(paths, "\n\t"), "\n\t\n", "\n\n") + "\n)\n"
+}
+
+// engineRunOp returns the engine's Go form of a host operation of the repetition runs of a Document
+// (state/resume.go), given its printed arguments, or reports false for another operation.
+func engineRunOp(callee string, a []string) (string, bool) {
+	name, ok := strings.CutPrefix(callee, "run.")
+	if !ok {
+		if callee == "doc.log" {
+			return "p.Edits[:p.Gen]", true
+		}
+		return "", false
+	}
+	for _, f := range exec.RunFields() {
+		if name == f.Name {
+			return a[0] + "." + strings.ToUpper(f.Name[:1]) + f.Name[1:], true
+		}
+		if name == "set"+strings.ToUpper(f.Name[:1])+f.Name[1:] {
+			return a[0] + "." + strings.ToUpper(f.Name[:1]) + f.Name[1:] + " = " + a[1], true
+		}
+	}
+	elem := map[string]string{"oldStart": "Start", "oldEnd": "end", "oldFrom": "From", "oldExamined": "examined", "oldFar": "far", "oldKept": "exp"}
+	if f, ok := elem[name]; ok {
+		return a[0] + ".Old[" + a[1] + "]." + f, true
+	}
+	switch name {
+	case "init":
+		return "p.RunInit(" + strings.Join(a, ", ") + ")", true
+	case "takeHere":
+		return "p.runTakeHere(" + a[0] + ")", true
+	case "previous":
+		return "p.LastRuns != nil && p.Gen > 0", true
+	case "takeLast":
+		return "p.runTakeLast(" + strings.Join(a, ", ") + ")", true
+	case "oldCount":
+		return "len(" + a[0] + ".Old)", true
+	case "take":
+		return "p.runTake(" + strings.Join(a, ", ") + ")", true
+	case "resumed":
+		return "p.Stats.Reused++\np.Resumed++", true
+	case "add":
+		return "p.runAdd(" + strings.Join(a, ", ") + ")", true
+	case "clean":
+		return "p.runClean(" + a[0] + ")", true
+	case "minimum":
+		return "p.tune.minRecorded()", true
+	case "record":
+		return "p.runRecord(" + a[0] + ")", true
+	}
+	panic("core: no engine implementation of " + callee)
 }
