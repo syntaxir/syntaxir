@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -237,7 +238,7 @@ func (in *classifierInput) classifier(start string, control *cancel.Control, bui
 	defined := func(name string) bool {
 		return slices.ContainsFunc(rules, func(rd *ast.RuleDef) bool { return rd.Name == name })
 	}
-	if err := check.CheckStartName(st.Canonical.Starts, st.Canonical.DefaultStart, defined, start); err != nil {
+	if err := program.CheckStartName(st.Canonical.Starts, st.Canonical.DefaultStart, defined, start); err != nil {
 		return nil, err
 	}
 	if start == "" {
