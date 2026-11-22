@@ -4,9 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/vmlowertest"
 )
 
 // BenchmarkBytecodeLowering isolates the construction of the module, its tables, Flow bodies and action
@@ -27,7 +27,7 @@ func BenchmarkBytecodeLowering(b *testing.B) {
 			b.ReportAllocs()
 			b.ResetTimer()
 			for b.Loop() {
-				if _, _, err := vmlower.Compile(in); err != nil {
+				if _, _, err := vmlowertest.Lower(in); err != nil {
 					b.Fatal(err)
 				}
 			}

@@ -36,9 +36,11 @@ type Unit struct {
 	// the unit labeled Frames, which comes before it.
 	Typed  bool
 	Frames string
-	// Stream, if not nil, is the start rule whose copy emits the elements of its #stream repetition
-	// (flowplan.Stream).
-	Stream *Rule
+	// Streams are the rules whose stream bodies the table has, in order: the copy of each that emits
+	// the elements of its #stream repetition (flowplan.Stream). A Go parser has the one of its start
+	// rule; the VM, whose one module serves every start rule, one for each rule with a #stream
+	// repetition.
+	Streams []*Rule
 	// Refuse is a test's decision on a flat function by its key, nil for none (flowplan.Unit).
 	Refuse func(Key) bool
 	// Numbered says that the expectation table is numbered from the table with every rule that it

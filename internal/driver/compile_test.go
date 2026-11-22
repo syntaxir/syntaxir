@@ -83,7 +83,8 @@ func TestCompileChecksTheTargets(t *testing.T) {
 		{"verify", []Target{{Backend: result.Go, Gen: common.GenOptions{Debug: common.Debug{VerifyEach: true}}}}, "target go: Debug"},
 		{"settings", []Target{{Backend: result.Go, Gen: common.GenOptions{Optimize: "size"}}}, "target go: Optimize"},
 		{"unknown profile", []Target{{Backend: result.Go, Gen: common.GenOptions{Optimize: "nope"}}}, "nope"},
-		{"no pipeline", []Target{{Backend: result.VM}}, "no pipeline is assembled for the backend vm"},
+		{"no pipeline", []Target{{Backend: result.Closure}}, "no pipeline is assembled for the backend closure"},
+		{"generation options of the VM", []Target{{Backend: result.VM, Gen: common.GenOptions{Package: "p"}}}, "target vm: Gen sets an option of a generating backend"},
 		{"hooks of Go", []Target{{Backend: result.TypeScript, GoHooks: &goprint.Hooks{}}}, "GoHooks are set for a target of another backend"},
 		{"hooks of TypeScript", []Target{{Backend: result.Go, TSHooks: &tsprint.Hooks{}}}, "target go: TSHooks are set for a target of another backend"},
 	} {
@@ -97,8 +98,8 @@ func TestCompileChecksTheTargets(t *testing.T) {
 	}
 	// Fields equal to the program's and the call's are accepted.
 	equal := Target{Backend: result.VM, Gen: common.GenOptions{Start: "A", Optimize: "speed", Opt: map[string]int{"guards": 1}}}
-	if _, err := Compile(context.Background(), p, o, equal); err == nil || !strings.Contains(err.Error(), "no pipeline") {
-		t.Errorf("equal fields: err = %v, want the missing pipeline", err)
+	if outs, err := Compile(context.Background(), p, o, equal); err != nil || outs[0].Backend() != result.VM {
+		t.Errorf("equal fields: err = %v", err)
 	}
 }
 

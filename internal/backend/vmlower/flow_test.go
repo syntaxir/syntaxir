@@ -7,13 +7,13 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/vmlowertest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
@@ -27,19 +27,19 @@ func grammarProgram(t *testing.T, path string) *frontend.Result {
 }
 
 // compileGrammar compiles prog to a bytecode module, and returns the planned Node table it was
-// lowered from (checked.Source.FlowTable) and the matches of each pattern of the selection table.
-func compileGrammar(t *testing.T, prog *frontend.Result) (*checked.FlowTable, *bytecode.Module, []vmlower.PatternCount) {
+// lowered from (vmInput) and the matches of each pattern of statements of the selection table.
+func compileGrammar(t *testing.T, prog *frontend.Result) (*plandata.Table[code.Flow], *bytecode.Module, map[string]int) {
 	t.Helper()
 	in := vmInput(t, prog)
-	bc, counts, err := vmlower.Compile(in)
+	bc, counts, err := vmlowertest.Lower(in)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &checked.FlowTable{IR: &plandata.TableIR{M: in.Table.Core}, Plan: in.Table.Plan, Funcs: in.Table.Funcs}, bc, counts
+	return in.Table, bc, counts
 }
 
 // ruleID returns the ID of the rule name in the table's Core IR.
-func ruleID(t *testing.T, ft *checked.FlowTable, name string) int {
+func ruleID(t *testing.T, ft *plandata.Table[code.Flow], name string) int {
 	t.Helper()
 	for i, r := range ft.IR.M.Rules {
 		if r.Name == name {
@@ -51,11 +51,11 @@ func ruleID(t *testing.T, ft *checked.FlowTable, name string) int {
 }
 
 // ruleIDs returns the IDs of the rules whose bodies the table holds, in increasing order.
-func ruleIDs(ft *checked.FlowTable) []int {
+func ruleIDs(ft *plandata.Table[code.Flow]) []int {
 	var ids []int
-	for k := range ft.Funcs {
-		if k.Use == plandata.RuleBody {
-			ids = append(ids, k.Rule)
+	for _, s := range ft.Plan.Funcs {
+		if s.Key.Use == plandata.RuleBody {
+			ids = append(ids, s.Key.Rule)
 		}
 	}
 	slices.Sort(ids)
@@ -97,16 +97,16 @@ func TestSelectFlowsChecksTheLayout(t *testing.T) {
 	prog := grammarProgram(t, "../../../testdata/grammars/json/json.sxir")
 	in := vmInput(t, prog)
 	id := -1
-	for i, r := range in.Table.Core.Rules {
+	for i, r := range in.Table.IR.M.Rules {
 		if r.Name == "main" { // its frame has the slot of a capture
 			id = i
 		}
 	}
-	if id < 0 || len(in.Table.Core.Rules[id].Scope) == 0 {
+	if id < 0 || len(in.Table.IR.M.Rules[id].Scope) == 0 {
 		t.Fatal("main has no capture slot")
 	}
-	in.Table.Core.Rules[id].Scope = nil
-	if _, _, err := vmlower.Compile(in); err == nil {
+	in.Table.IR.M.Rules[id].Scope = nil
+	if _, _, err := vmlowertest.Lower(in); err == nil {
 		t.Fatal("a body selected into a frame without its planned slots")
 	}
 }

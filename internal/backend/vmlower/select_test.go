@@ -7,14 +7,13 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/vmlower"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // selectGrammar compiles the grammar at path from scratch; it returns the module file body, the
-// module's strings and the matches of each pattern.
-func selectGrammar(t *testing.T, path string) (file []byte, strs []string, counts []vmlower.PatternCount) {
+// module's strings and the matches of each pattern of statements.
+func selectGrammar(t *testing.T, path string) (file []byte, strs []string, counts map[string]int) {
 	t.Helper()
 	_, bc, counts := compileGrammar(t, grammarProgram(t, path))
 	w := &bytecode.Encoder{Strs: map[string]int{}}
@@ -54,8 +53,8 @@ func TestSuperinstructionsAreSelected(t *testing.T) {
 	ops := map[bytecode.FlowOp]bool{}
 	for _, path := range paths {
 		_, bc, counts := compileGrammar(t, grammarProgram(t, path))
-		for _, c := range counts {
-			matches[c.Pattern] += c.Matches
+		for p, n := range counts {
+			matches[p] += n
 		}
 		for _, f := range bc.Flows {
 			for _, in := range f.Code {

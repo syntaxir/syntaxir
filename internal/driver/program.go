@@ -19,7 +19,10 @@ import (
 // shares (start rule, source information, default values, left-recursion bindings). Check makes it
 // for a generation, and ProgramOf for a run-time program checked elsewhere.
 type Program struct {
-	checked    codegen.Checked
+	// prog is the checked program, and view its view for the generators (View), which a run-time
+	// program makes on first use only, since only a generating backend reads it.
+	prog       *frontend.Result
+	view       func() *common.Program
 	recognizer func() (codegen.Checked, error)
 	opts       common.CompileOptions
 	// start is the start rule of a generation; nil for a run-time program, which starts at any of
@@ -64,13 +67,16 @@ func ProgramOf(p *frontend.Result, role Role, parser check.Options) *Program {
 	recognizer := func() (codegen.Checked, error) {
 		return codegen.Checked{}, fmt.Errorf("internal error: the %s program of a run-time build has no recognizer view", role)
 	}
-	return &Program{checked: codegen.Checked{View: View(p), Elab: p}, recognizer: recognizer,
+	return &Program{prog: p, view: sync.OnceValue(func() *common.Program { return View(p) }), recognizer: recognizer,
 		opts: common.CompileOptions{SourceInfo: p.Opts.SourceInfo, DefaultValue: p.Opts.DefaultValue, LeftRecursionBindings: p.Opts.LeftRecursionBindings},
 		role: role, parser: parser}
 }
 
 // View returns the view of the checked program that the generators read (common.Program).
-func (p *Program) View() *common.Program { return p.checked.View }
+func (p *Program) View() *common.Program { return p.view() }
+
+// checked returns the checked program with its view, as the generators read it.
+func (p *Program) checked() codegen.Checked { return codegen.Checked{View: p.view(), Elab: p.prog} }
 
 // Recognizer returns the view of the recognizer of the program, the program in which no rule builds
 // a value, which it checks on the first call.
@@ -134,7 +140,7 @@ func CheckWith(c Compiler, g *ast.Grammar, o common.CompileOptions, start string
 		}
 		return codegen.Checked{View: View(p), Elab: p}, nil
 	}
-	return &Program{checked: checked, recognizer: sync.OnceValues(recognizer), opts: o, start: r, parser: prog.Opts}, nil
+	return &Program{prog: prog, view: func() *common.Program { return checked.View }, recognizer: sync.OnceValues(recognizer), opts: o, start: r, parser: prog.Opts}, nil
 }
 
 // CompileOptions returns the options of the compiler that the choices o of a generator stand for.

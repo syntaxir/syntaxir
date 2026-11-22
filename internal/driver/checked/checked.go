@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -166,29 +167,20 @@ func (s *Source) Starts() []string { return slices.Clone(s.Runtime().StartRules)
 // rule.
 func (s *Source) DefaultStart() string { return s.Runtime().DefaultStartRule }
 
-// Module compiles the program to a bytecode module (vmlower.Compile) from its planned Node table
-// (VMInput), once.
+// Module builds the bytecode module of the program once, with the VM target of the driver under the
+// settings of the program and a background context: the bytecode has no parse whose context it runs
+// under, and its build is not cancelled.
 func (s *Source) Module() (*bytecode.Module, error) {
 	s.moduleOnce.Do(func() {
-		in, err := s.VMInput()
+		outs, err := driver.Compile(context.Background(), s.Program(), driver.Options{Settings: s.settings}, driver.Target{Backend: result.VM})
 		if err != nil {
 			s.moduleErr = err
 			return
 		}
-		s.module, _, s.moduleErr = vmlower.Compile(in)
+		s.module = outs[0].(*vmlower.Bytecode).Module
 		s.built.Store(s.module)
 	})
 	return s.module, s.moduleErr
-}
-
-// VMInput returns what the bytecode lowering reads of the program: its run-time program, the
-// program itself, and its planned Node table (FlowTable), which each call builds anew.
-func (s *Source) VMInput() (vmlower.Input, error) {
-	ft, err := s.FlowTable()
-	if err != nil {
-		return vmlower.Input{}, err
-	}
-	return vmlower.Input{Run: s.prog.Runtime(), Elab: s.prog, Table: vmlower.Table{Core: ft.IR.M, Plan: ft.Plan, Funcs: ft.Funcs}}, nil
 }
 
 // BuiltModule returns the module that Module has made, or nil before it has: it builds nothing,

@@ -6,10 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/vmlowertest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
@@ -19,7 +19,7 @@ func TestNodeTypeModuleValidation(t *testing.T) {
 	prog := compiletest.Program(t, `type Name = node[string]
 rule main = name ("," name)*
 rule name Name = ([a-z]+) #atomic`, check.Options{})
-	mp, _, err := vmlower.Compile(vmInput(t, prog))
+	mp, _, err := vmlowertest.Lower(vmInput(t, prog))
 	if err != nil {
 		t.Fatal(err)
 	}

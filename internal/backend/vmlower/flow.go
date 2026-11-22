@@ -3,7 +3,6 @@ package vmlower
 import (
 	"cmp"
 	"fmt"
-	"maps"
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -16,7 +15,7 @@ import (
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
-// selectFlows sets in the module the Flow bodies of the functions of the table (Table.Funcs): the
+// selectFlows sets in the module the Flow bodies of the functions of the table (Input.Table): the
 // body of a rule, its stream body, and the skip and the lines of an Operators Rule. A rule body or
 // stream body runs in the rule frame of the VM, whose slots must be the capture layout that the
 // plan gave the rule (plandata.Plan.CheckLayout), a line in the frame of the line's scope, whose
@@ -26,12 +25,18 @@ import (
 // after the action expressions of the tables. The functions are selected in the order of their
 // keys, so the module depends only on the table.
 func (c *compiler) selectFlows() error {
-	bc, plan, funcs := c.m, c.in.Table.Plan, c.in.Table.Funcs
-	keys := slices.SortedFunc(maps.Keys(funcs), func(a, b plandata.Key) int {
+	bc, t := c.m, c.in.Table
+	plan, fns := t.Plan, t.Module.Module().Funcs
+	keys := make([]plandata.Key, len(plan.Funcs))
+	for i, s := range plan.Funcs {
+		keys[i] = s.Key
+	}
+	slices.SortFunc(keys, func(a, b plandata.Key) int {
 		return cmp.Or(cmp.Compare(a.Use, b.Use), cmp.Compare(a.Rule, b.Rule), cmp.Compare(a.Line, b.Line))
 	})
 	for _, k := range keys {
-		fn := flowpkg.FuncOf(funcs[k])
+		i, _ := t.Index(k)
+		fn := fns[i]
 		if k.Rule < 0 || k.Rule >= len(bc.Rules) {
 			return fmt.Errorf("internal error: %s: no rule %d in the module", fn.Name, k.Rule)
 		}
@@ -770,7 +775,6 @@ func (s *flowSel) call(c *code.Call, dst []int) error {
 	if !ok {
 		return fmt.Errorf("operation %s has no bytecode Flow form", c.Callee)
 	}
-	s.c.counts[c.Callee]++
 	return opPatterns[i].Sel(s, c, dst)
 }
 

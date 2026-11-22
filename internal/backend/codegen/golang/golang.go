@@ -246,7 +246,7 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 			u.Rules[j] = r.PlanRule()
 		}
 		if d.Opts.Stream && s.table == "rules" {
-			u.Stream = d.Start.PlanRule()
+			u.Streams = []*plandata.Rule{d.Start.PlanRule()}
 		}
 		if d.refuse != nil && !u.Typed {
 			refuse := d.refuse

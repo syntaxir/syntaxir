@@ -197,7 +197,7 @@ var pipelineExecutors = map[string]string{
 
 // TestOnlyTheDriverExecutesPipelines checks that outside internal/pass, the driver package itself
 // (not its subpackages) and test support, no non-test package executes a pipeline, but the packages
-// of pipelineExecutors: every other caller of a compilation goes through Compile or FlowTable.
+// of pipelineExecutors: every other caller of a compilation goes through Compile.
 func TestOnlyTheDriverExecutesPipelines(t *testing.T) {
 	pkgs, err := loadSources(moduleRoot, modulePath)
 	if err != nil {
@@ -221,7 +221,7 @@ func TestOnlyTheDriverExecutesPipelines(t *testing.T) {
 var driverExports = []string{
 	// The compilation API.
 	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "DescribeGoLibrary",
-	"FlowTable", "GoLibrary", "Options", "Output", "Program", "ProgramOf", "Target", "View",
+	"GoLibrary", "Options", "Output", "Program", "ProgramOf", "Target", "View",
 	// The roles of the run-time programs of a grammar (ProgramOf).
 	"Insertion", "Parser", "Recognizer", "Role",
 	// The slot keys.

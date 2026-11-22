@@ -32,9 +32,9 @@ func TestVMUnitsMutantsFail(t *testing.T) {
 			[]printedEdit{{"\thit := ok && vm.has(p, int32(g.Class), ch)\n", "\tp.Spend()\n\thit := ok && vm.has(p, int32(g.Class), ch)\n"}},
 			test, []string{"."}},
 	})
-	runPrintedMutants(t, "internal/driver/flowtable.go", []printedMutant{
+	runPrintedMutants(t, "internal/driver/vm.go", []printedMutant{
 		{"the Flow table skips alternatives that call rules without counting the calls",
-			[]printedEdit{{"Guards: lowerdata.GuardsEvent}", "Guards: lowerdata.GuardsKeep}"}},
+			[]printedEdit{{"Guards: lowerdata.GuardsEvent,", "Guards: lowerdata.GuardsKeep,"}},
 			test, []string{"."}},
 	})
 }

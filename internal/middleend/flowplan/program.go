@@ -85,8 +85,8 @@ func planUnits(c *plandata.Cores, p *plandata.Program) {
 				return PlanTyped(u.IR, u.Rules, live, func(id int) []string { return frames[id] })
 			}
 			t := Plan(u.IR, u.Rules, live)
-			if u.Stream != nil {
-				Stream(t, u.IR, u.Stream)
+			for _, r := range u.Streams {
+				Stream(t, u.IR, r)
 			}
 			return t
 		}

@@ -38,12 +38,6 @@ type pattern struct {
 	Ops, Saved int
 }
 
-// PatternCount is the number of matches of a pattern of the selection table in a module.
-type PatternCount struct {
-	Pattern string
-	Matches int
-}
-
 // statementPatterns are the superinstructions, in the order that breaks ties.
 var statementPatterns = []pattern{
 	{Name: "matchClass", Ops: 3, Saved: 11, Stmts: matchClass},
@@ -782,15 +776,12 @@ func (s *flowSel) patch(jumps []int, t int) {
 	}
 }
 
-// countsOf returns the number of matches of each pattern of the selection table in counts: the patterns
-// of statements, then those of one operation, each in the order of the table.
-func countsOf(counts map[string]int) []PatternCount {
-	out := make([]PatternCount, 0, len(statementPatterns)+len(opPatterns))
-	for _, p := range statementPatterns {
-		out = append(out, PatternCount{p.Name, counts[p.Name]})
-	}
-	for _, p := range opPatterns {
-		out = append(out, PatternCount{p.Name, counts[p.Name]})
+// superinstructions returns the names of the patterns of statements, in the order of the table: the
+// counters of the lowering, which count their matches in a module.
+func superinstructions() []string {
+	out := make([]string, len(statementPatterns))
+	for i, p := range statementPatterns {
+		out[i] = p.Name
 	}
 	return out
 }

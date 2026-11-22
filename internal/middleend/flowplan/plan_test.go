@@ -54,7 +54,7 @@ func plan(t *testing.T, src string, rec check.Recognition, live func(int) bool) 
 }
 
 // lowerTable runs on the planned table u the steps of the pipeline of a table that the bytecode VM runs
-// (driver.FlowTable): flowlower, the Flow passes pl for the VM's target (flowpass.Bytecode) and
+// (the VM pipeline of the driver): flowlower, the Flow passes pl for the VM's target (flowpass.Bytecode) and
 // flow-finish, with the observers obs.
 func lowerTable(u plandata.Planned, pl pipe.Pipeline[flowpass.Unit, flowpass.Unit], obs ...pipe.Observer) (*plandata.Table[code.Flow], error) {
 	p := pipe.Then(pipe.Of(flowlower.Lowering), pipe.Within(plandata.FlowModule, pipe.Then(

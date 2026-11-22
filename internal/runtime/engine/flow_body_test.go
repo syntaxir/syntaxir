@@ -11,7 +11,6 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/pass"
@@ -95,7 +94,7 @@ func jsonFlowPrograms(t *testing.T, mutate func(*bytecode.Flow)) (*Program, *Pro
 }
 
 // flowPrograms returns the grammar of the file path compiled as usual, and the same grammar whose VM
-// runs a module compiled for it alone (checked.Source.VMInput, vmlower.Compile), in which mutate, if
+// runs a module compiled for it alone (checked.Source.Module), in which mutate, if
 // not nil, changes the Flow body of each rule that pick accepts before it is installed; n is the
 // number of such rule bodies. The VM runs every rule from its Flow body, so the tests compare the
 // second program with the first parsed by the closure backend, which shares no code with the VM.
@@ -113,11 +112,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 	t.Helper()
 	old = mustCompile(t, src)
 	cp := old.src.(interface{ Checked() *frontend.Result }).Checked()
-	in, err := checked.Of(cp, pass.Settings{}).VMInput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	bc, _, err := vmlower.Compile(in)
+	bc, err := checked.Of(cp, pass.Settings{}).Module()
 	if err != nil {
 		t.Fatal(err)
 	}

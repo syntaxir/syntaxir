@@ -10,14 +10,16 @@ import (
 )
 
 // printingKindErrors returns the registrations of ks that print an output (the kind output) from a
-// unit of another kind than one at the Exec stage (a name that ends in @exec) or the library: a printer
-// takes Exec-stage units only, and the library's compositions, which are at no stage and hold no Flow
-// operation (record 074, Printers Take Exec-Stage Units). library is accepted by name, since another
-// stage-less kind could carry anything.
+// unit of another kind than one at the Exec stage (a name that ends in @exec), the library or
+// vm-input: a printer takes Exec-stage units only, and the library's compositions, which are at no
+// stage and hold no Flow operation (record 074, Printers Take Exec-Stage Units). The bytecode
+// lowering is no printer: it selects the instructions of the VM from the Flow stage, so it takes its
+// table there (vm-input). library and vm-input are accepted by name, since another stage-less kind
+// could carry anything.
 func printingKindErrors(ks []pipe.PassKind) []string {
 	var out []string
 	for _, k := range ks {
-		if k.Out == "output" && !strings.HasSuffix(k.In, "@exec") && k.In != "library" {
+		if k.Out == "output" && !strings.HasSuffix(k.In, "@exec") && k.In != "library" && k.In != "vm-input" {
 			out = append(out, fmt.Sprintf("%s prints the output from %s", k.Name, k.In))
 		}
 	}
@@ -34,7 +36,7 @@ func TestPrintingPassesTakeExecStageUnits(t *testing.T) {
 		}
 	}
 	// The rule proves nothing without the printing passes registered.
-	for _, want := range []string{"print-go", "print-ts", "print-ts-lib", "print-libgo"} {
+	for _, want := range []string{"print-go", "print-ts", "print-ts-lib", "print-libgo", "vmlower"} {
 		if !slices.Contains(printing, want) {
 			t.Errorf("the printing pass %s is not registered; registered printing passes: %v", want, printing)
 		}
@@ -52,6 +54,7 @@ func TestPrintingKindRuleReportsPlantedPasses(t *testing.T) {
 		{Name: "print-program", In: "program", Out: "output"},
 		{Name: "print-exec", In: "tables@exec", Out: "output"},
 		{Name: "print-lib", In: "library", Out: "output"},
+		{Name: "lower-vm", In: "vm-input", Out: "output"},
 		{Name: "lower", In: "code@flow", Out: "code@exec"},
 	}
 	got := printingKindErrors(ks)

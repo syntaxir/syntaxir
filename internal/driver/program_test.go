@@ -7,7 +7,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/result"
-	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
@@ -22,10 +21,10 @@ func TestProgramOf(t *testing.T) {
 	if g.Role() != Parser || !g.ParserOptions().SourceInfo {
 		t.Errorf("a generation's program: role %s, parser options %+v", g.Role(), g.ParserOptions())
 	}
-	elab := g.checked.Elab.(*frontend.Result)
+	elab := g.prog
 	parser := check.Options{SourceInfo: true, DisableMemo: true}
 	p := ProgramOf(elab, Recognizer, parser)
-	if p.checked.Elab.(*frontend.Result) != elab || p.View().Run != elab.Runtime() {
+	if p.prog != elab || p.View().Run != elab.Runtime() {
 		t.Error("ProgramOf does not wrap the program it is given")
 	}
 	if p.Role() != Recognizer || p.ParserOptions() != parser || p.Start() != nil || !p.Options().SourceInfo {

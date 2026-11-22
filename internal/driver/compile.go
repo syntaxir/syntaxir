@@ -363,16 +363,33 @@ func decide(p *Program, t Target) (target, error) {
 			return target{}, err
 		}
 		t.Gen = opts
-		return target{t: t, target: gobackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, t.GoHooks)}, nil
+		return target{t: t, target: gobackend.NewTarget(p.checked(), p.recognizer, p.Start(), opts, t.GoHooks)}, nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(t.Gen)
 		if err != nil {
 			return target{}, err
 		}
 		t.Gen = opts
-		return target{t: t, target: tsbackend.NewTarget(p.checked, p.recognizer, p.Start(), opts, t.TSHooks)}, nil
+		return target{t: t, target: tsbackend.NewTarget(p.checked(), p.recognizer, p.Start(), opts, t.TSHooks)}, nil
+	case result.VM:
+		if err := runTimeGen(t); err != nil {
+			return target{}, err
+		}
+		return target{t: t, target: &vmTarget{prog: p.prog}}, nil
 	}
 	return target{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", t.Backend)
+}
+
+// runTimeGen reports an option of the target t of a run-time backend, which generates no code, that
+// only a generating backend reads: its options are those that Program and the call hold.
+func runTimeGen(t Target) error {
+	g := t.Gen
+	g.SourceInfo, g.DefaultValue, g.LeftRecursionBindings, g.Debug = false, false, false, common.Debug{}
+	g.Start, g.Optimize, g.Opt, g.NoOpt = "", "", nil, nil
+	if !reflect.DeepEqual(g, common.GenOptions{}) {
+		return fmt.Errorf("target %s: Gen sets an option of a generating backend", t.Backend)
+	}
+	return nil
 }
 
 // assemble returns the pipeline of the compilation c, from the program to the output of each
@@ -389,6 +406,8 @@ func (c *compilation) assemble() assembly {
 			t = goPipeline()
 		case result.TypeScript:
 			t = tsPipeline()
+		case result.VM:
+			t = vmPipeline()
 		}
 		pl := pipe.WithConst(codegen.TargetFeature, x.target, pipe.WithConst(plandata.ReachFeature, map[plandata.Entry]bool(nil), t.pipeline))
 		for _, s := range t.steps {

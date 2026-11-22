@@ -15,19 +15,19 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Compile compiles a checked grammar to a bytecode module: the type, variable, rule and Operators
+// compile compiles a checked grammar to a bytecode module: the type, variable, rule and Operators
 // Rule tables from the Core IR of its Node table, the Flow body of each function of the table
 // selected by the selection table (selectFlows), and the action code of the actions and predicates.
 // Every rule runs its Flow body, except a rule whose body is the expression of its Operators Rule,
 // whose skip and lines run theirs. It returns the module and the number of matches of each pattern
-// of the selection table (countsOf), which depends only on the bodies. A failure is an internal
+// of statements of the selection table by name, which depends only on the bodies. A failure is an internal
 // error: the grammar checked, so its table builds and every function of it has a Flow body. A
 // grammar that uses #missing has no bytecode form.
-func Compile(in Input) (*bytecode.Module, []PatternCount, error) {
+func compile(in Input) (*bytecode.Module, map[string]int, error) {
 	if in.Elab.MissingTokens() {
 		return nil, nil, program.MissingUnsupported("bytecode module construction")
 	}
-	c := &compiler{in: in, core: in.Table.Core, m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
+	c := &compiler{in: in, core: in.Table.IR.M, m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
 		strs: map[string]int{}, counts: map[string]int{}}
 	c.compile()
 	if c.err != nil {
@@ -46,7 +46,7 @@ func Compile(in Input) (*bytecode.Module, []PatternCount, error) {
 	if err := c.complete(); err != nil {
 		return nil, nil, err
 	}
-	return c.m, countsOf(c.counts), nil
+	return c.m, c.counts, nil
 }
 
 // complete checks that every rule, Operators Rule skip and line of the module has the body it runs:
@@ -111,7 +111,8 @@ type compiler struct {
 	// scope holds the capture slots of the frame of the action expression being added (actionExpr).
 	scope []ir.Slot
 	err   error
-	// counts holds the number of matches of each pattern of the Flow selection table, by name.
+	// counts holds the number of matches of each pattern of statements of the selection table, by
+	// name.
 	counts map[string]int
 }
 

@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/vmlowertest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
@@ -97,7 +98,7 @@ rule e = #operators {
 func TestMissingTokensModuleGuard(t *testing.T) {
 	t.Parallel()
 	prog := compiletest.Program(t, `rule main = ";" #missing`, check.Options{SourceInfo: true})
-	if _, _, err := vmlower.Compile(vmInput(t, prog)); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
+	if _, err := checked.Of(prog, pass.Settings{}).Module(); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
 		t.Fatal("silent bytecode lowering", err)
 	}
 }
@@ -110,21 +111,18 @@ func compileModule(t *testing.T, src string, opts ...check.Options) *bytecode.Mo
 		o = opts[0]
 	}
 	o.SourceInfo = true
-	m, _, err := vmlower.Compile(vmInput(t, compiletest.Program(t, src, o)))
+	m, _, err := vmlowertest.Lower(vmInput(t, compiletest.Program(t, src, o)))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return m
 }
 
-// vmInput returns the input of the bytecode lowering of prog (checked.Source.VMInput).
+// vmInput returns the input of the bytecode lowering of prog at the default settings, as the VM
+// pipeline of the driver builds it (vmlowertest.Input).
 func vmInput(t testing.TB, prog *frontend.Result) vmlower.Input {
 	t.Helper()
-	in, err := checked.Of(prog, pass.Settings{}).VMInput()
-	if err != nil {
-		t.Fatal(err)
-	}
-	return in
+	return vmlowertest.Input(t, prog, pass.Settings{})
 }
 
 // varModuleSource declares variables of each type, reads them in predicates and rebinds them.

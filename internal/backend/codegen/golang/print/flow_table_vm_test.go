@@ -9,7 +9,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
-	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -18,11 +17,12 @@ import (
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/pipetest"
+	"syntaxir.dev/sxir/internal/testing/vmlowertest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // TestFlowTableFollowsGoNodeTable checks that the Node table the bytecode VM runs from Flow IR
-// (checked.Source.FlowTable) is the one a generated Go Document runs when it counts the reference
+// (the table of the VM pipeline of the driver, vmlowertest.Input) is the one a generated Go Document runs when it counts the reference
 // variant of logical compute units, whose guards skip no call (lowerdata.GuardsEvent), as the VM's do:
 // a Go Document counts compute units in the functions of its Node table, and the guards that its
 // default variant keeps over calls (lowerdata.GuardsExact) are the one difference between the variants.
@@ -59,20 +59,18 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			if gen == nil || len(printed) == 0 || len(lowered) == 0 {
 				t.Fatal("the Node table prints no rule from Flow IR")
 			}
-			ft, err := checked.Of(prog, pass.Settings{}).FlowTable()
-			if err != nil {
-				t.Fatal(err)
-			}
+			ft := vmlowertest.Input(t, prog, pass.Settings{}).Table
+			mod := ft.Module.Module()
 			goRules := map[int]bool{} // the rules of which the Go generator lowered a function
 			for _, f := range lowered {
 				goRules[f.rule] = true
 			}
 			vm := map[string]bool{}
 			compared, absent := 0, 0
-			for k, m := range ft.Funcs {
-				fn := flow.FuncOf(m)
+			for i, s := range ft.Plan.Funcs {
+				k, fn := s.Key, mod.Funcs[i]
 				vm[fn.Name] = true
-				got := loweredFunc{rule: k.Rule, text: code.FuncStringIn(m, fn), flat: !flow.AttrsOf(fn).Frame}
+				got := loweredFunc{rule: k.Rule, text: code.FuncStringIn(mod, fn), flat: !flow.AttrsOf(fn).Frame}
 				want, ok := lowered[fn.Name]
 				switch {
 				case ok && want != got:
@@ -91,12 +89,12 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 				}
 			}
 			for id, printedFlat := range printed {
-				m, ok := ft.Funcs[plandata.Key{Use: plandata.RuleBody, Rule: id}]
+				i, ok := ft.Index(plandata.Key{Use: plandata.RuleBody, Rule: id})
 				if !ok {
 					t.Errorf("rule %d: printed from Flow IR in Go, no body in the VM's table", id)
 					continue
 				}
-				if fn := flow.FuncOf(m); flow.AttrsOf(fn).Frame == printedFlat {
+				if fn := mod.Funcs[i]; flow.AttrsOf(fn).Frame == printedFlat {
 					t.Errorf("rule %s: the VM runs the flat function %v, Go prints the flat function %v", fn.Name, !printedFlat, printedFlat)
 				}
 			}
