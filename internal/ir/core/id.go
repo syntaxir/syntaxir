@@ -4,7 +4,7 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Number gives every node of the rules of m that has no ID one, in the order of the rules and of
 // Walk, after LastID, and sets LastID; then every action expression of the rules that has no ID
-// one, in the order of the rules and of their nodes (eachActionExpr), after LastActionExprID, and
+// one, in the order of the rules and of their nodes (EachActionExpr), after LastActionExprID, and
 // sets LastActionExprID. The builder of a module numbers it once it is built; a node or an action
 // expression reached twice keeps the ID it got first.
 func Number(m *Module) {
@@ -22,7 +22,7 @@ func Number(m *Module) {
 		if r == nil {
 			continue
 		}
-		eachActionExpr(r, func(t ActionExpr) {
+		EachActionExpr(r, func(t ActionExpr) {
 			WalkActionExpr(t, func(x ActionExpr) {
 				if b := x.exprBase(); b.id == 0 {
 					m.LastActionExprID++
@@ -33,10 +33,10 @@ func Number(m *Module) {
 	}
 }
 
-// eachActionExpr calls f for each action expression that the rule r holds at the top: its action,
+// EachActionExpr calls f for each action expression that the rule r holds at the top: its action,
 // the actions of the lines of an Operators Rule and the action expressions of its predicates and
 // bindings, in the order of Walk and with the action of the rule last.
-func eachActionExpr(r *Rule, f func(ActionExpr)) {
+func EachActionExpr(r *Rule, f func(ActionExpr)) {
 	Walk(r.Body, func(n Node) {
 		switch n := n.(type) {
 		case *Pred:

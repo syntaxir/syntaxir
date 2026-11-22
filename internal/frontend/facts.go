@@ -36,9 +36,11 @@ func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names de
 	return r, err
 }
 
-// Structural is the untyped Core IR module of the canonical rules of a grammar, from which Check
-// takes the rule facts, with the manager of its analyses, which holds those facts. A tool reads
-// the facts through the manager (corepass.FactsOf).
+// Structural is the structural Core IR module of the canonical rules of a grammar, built without
+// the checker, from which Check takes the rule facts, with the manager of its analyses, which
+// holds those facts. A tool reads the facts through the manager (corepass.FactsOf). Once the types
+// of the program check, the module carries their checked types (recordTypes); a module of a
+// program whose types do not check carries none.
 type Structural struct {
 	// Canonical is the grammar as the compiler canonicalized it; Rules are its unique rules, in
 	// the order of the rules of Module.
@@ -95,7 +97,29 @@ func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags
 	if fe := s.errors(opts, names, facts); len(fe) > 0 {
 		return nil, s, fe
 	}
+	if rec := prog.Checker().ValueRecord(); rec != nil {
+		recordTypes(s.Module, rec, core.SetType)
+	}
 	return NewResult(prog, facts.Sites(s.Module, prog, control)), s, nil
+}
+
+// recordTypes records on the structural module m of a program whose types check the checked types
+// that rec gives its parts: the value type of every rule and the type of every action expression
+// but a lambda, which has none (spec/core-ir/modules.md, Structural modules). set records the type
+// of an action expression: core.SetType, but in the tests of the record.
+func recordTypes(m *core.Module, rec *check.ValueRecord, set func(core.ActionExpr, core.Type)) {
+	for _, r := range m.Rules {
+		if t, ok := rec.Rules[r.Name]; ok {
+			r.Type = t
+		}
+		core.EachActionExpr(r, func(t core.ActionExpr) {
+			core.WalkActionExpr(t, func(x core.ActionExpr) {
+				if typ, ok := rec.ActionExprs[m.Origin.OfActionExpr(x)]; ok {
+					set(x, typ)
+				}
+			})
+		})
+	}
 }
 
 // CheckDefault is CheckStructural with the default options and no rule flags, for an analysis of
@@ -123,6 +147,9 @@ func structuralOf(prog *check.Model, control *cancel.Control) (*Structural, erro
 	m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)
 	if err != nil {
 		return nil, err
+	}
+	if rec := prog.Checker().ValueRecord(); rec != nil {
+		recordTypes(m, rec, core.SetType)
 	}
 	return &Structural{Canonical: canon, Rules: defs, Module: m, Analyses: newAnalyses(control)}, nil
 }

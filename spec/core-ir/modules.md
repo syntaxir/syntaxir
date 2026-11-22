@@ -25,6 +25,19 @@ and `Nest` nodes, including the nodes of the lines of an Operators Rule.
 A module is typed when every action expression but a lambda, every capture slot and the value of every rule that is not value-free
 has a checked type. A checked type is opaque to Core IR: it is compared by identity only.
 
+### Structural modules
+
+The structural module of a grammar is built from its canonical rules without the checker, before the types of the
+program are checked: the compiler takes its rule facts from it, and the analyses of the grammar, such as the
+classification of its cost, read it also for a grammar that the compiler rejects. It has no value-free twins and is
+never typed.
+
+The checked types of a structural module are all or nothing. When the types of the program check, every rule of the
+module carries the checked type of its value and every action expression but a lambda carries its checked type, the
+types that the typed module gives the same rules and expressions. When they do not check, no rule and no action
+expression carries a type. No structural module carries the types of some parts only; a reader of a structural module
+tells the two cases apart by the type of any rule.
+
 ## Rule
 
 A rule has the following parts.

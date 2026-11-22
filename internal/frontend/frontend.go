@@ -43,9 +43,9 @@ type Result struct {
 	// Analyses is the manager of the analyses of Module, through which the tools read its facts
 	// (corepass.FactsOf); the front end computes none of them. It is nil when Module is.
 	Analyses *pass.AnalysisManager[*core.Module]
-	// Structural is the untyped Core IR module of the program's rules, from which the compiler took
-	// its rule facts, with the manager of its analyses, which holds them. The complexity classifier
-	// reads it. It is nil when Module is.
+	// Structural is the structural Core IR module of the program's rules, from which the compiler
+	// took its rule facts, with the manager of its analyses, which holds them, and which carries the
+	// checked types of the program. The complexity classifier reads it. It is nil when Module is.
 	Structural *Structural
 }
 
