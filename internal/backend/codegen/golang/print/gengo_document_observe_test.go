@@ -250,7 +250,7 @@ func observedLib(t *testing.T) string {
 		}
 		return strings.ReplaceAll(src, old, new)
 	}
-	patch, check := libPatchFromEnv(t, func(name, src string) string {
+	patch, check := codegentest.GoLibPatch(t, func(name, src string) string {
 		switch name {
 		case "document.go", "typed_document.go":
 			// The probe sees the observation that the parse and its budget control hold, between its

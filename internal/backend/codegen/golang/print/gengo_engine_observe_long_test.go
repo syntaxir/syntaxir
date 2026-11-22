@@ -31,7 +31,7 @@ var (
 	discardRun       = engineObservationRun{"./internal/runtime/engine", "TestProfileStreamMemory", ""}
 	engineOptionsRun = engineObservationRun{"./internal/runtime/engine", "TestTraceOptions", ""}
 	// The generated parsers of the agreement use a copy of the library that the overlay does not
-	// change; a mutant of the library changes that copy too (agreeLibPatchEnv).
+	// change; a mutant of the library changes that copy too (codegentest.GoLibPatchEnv).
 	libOptionsRun = engineObservationRun{"./pkg/runtime/libgo", "TestTraceOption(Selection|Composition)", ""}
 	// The Documents of both producers, whose parses share the defaults' trace selection.
 	engineDocumentRun    = engineObservationRun{"./internal/runtime/engine", "TestDocumentTraceSelection", ""}
@@ -250,7 +250,7 @@ func TestEngineObservationMutants(t *testing.T) {
 				cmd.Env = append(os.Environ(), "GOTOOLCHAIN=local", "GOFLAGS=")
 				if strings.HasPrefix(m.file, "pkg/runtime/libgo/") {
 					patch, _ := json.Marshal(struct{ File, Old, New string }{m.file, m.old, m.new})
-					cmd.Env = append(cmd.Env, agreeLibPatchEnv+"="+string(patch))
+					cmd.Env = append(cmd.Env, codegentest.GoLibPatchEnv+"="+string(patch))
 				}
 				if ts {
 					patch, _ := json.Marshal(struct{ File, Old, New string }{m.file, m.old, m.new})

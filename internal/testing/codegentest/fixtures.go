@@ -2,6 +2,7 @@ package codegentest
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	goast "go/ast"
 	goparser "go/parser"
@@ -546,3 +547,60 @@ import "context"
 // SetContext sets the context of the parse.
 func (o *parseOptions) SetContext(c context.Context) { o.context = c }
 `
+
+// GoLibPatchEnv names the environment variable through which the mutants of the observation tests
+// change the library that generated Go parsers import in the tests that build them in a module of
+// their own: a JSON object with the file of the library (relative to the module root, under
+// pkg/runtime/libgo) and the text to replace (Old) with New. Those tests import a copy of the library
+// (LibCopy), which the go command's overlay does not reach, so they build the copy changed as the
+// variable says (GoLibPatch, PatchedLib).
+const GoLibPatchEnv = "SXIR_GO_LIB_PATCH"
+
+// GoLibPatch returns the patch of GoLibPatchEnv, applied after then (if not nil), for LibCopyWith,
+// and a function that fails t unless the patch replaced exactly one occurrence. Without the variable
+// it returns then and a check that passes.
+func GoLibPatch(t testing.TB, then func(name, src string) string) (func(name, src string) string, func()) {
+	t.Helper()
+	spec := os.Getenv(GoLibPatchEnv)
+	if spec == "" {
+		return then, func() {}
+	}
+	var m struct{ File, Old, New string }
+	if err := json.Unmarshal([]byte(spec), &m); err != nil {
+		t.Fatalf("%s: %v", GoLibPatchEnv, err)
+	}
+	dir, name := filepath.Split(filepath.FromSlash(m.File))
+	if filepath.ToSlash(filepath.Clean(dir)) != copiedPackages[0] {
+		t.Fatalf("%s: %s is not a file of the library", GoLibPatchEnv, m.File)
+	}
+	patched := 0
+	patch := func(file, src string) string {
+		if file == name {
+			patched += strings.Count(src, m.Old)
+			src = strings.Replace(src, m.Old, m.New, 1)
+		}
+		if then != nil {
+			src = then(file, src)
+		}
+		return src
+	}
+	return patch, func() {
+		t.Helper()
+		if patched != 1 {
+			t.Fatalf("%s: %q occurs %d times in %s", GoLibPatchEnv, m.Old, patched, m.File)
+		}
+	}
+}
+
+// PatchedLib returns the library for GoModAt: the copy of LibCopy, changed as GoLibPatchEnv says if it
+// is set.
+func PatchedLib(t testing.TB) string {
+	t.Helper()
+	if os.Getenv(GoLibPatchEnv) == "" {
+		return LibCopy()
+	}
+	patch, check := GoLibPatch(t, nil)
+	lib := LibCopyWith(t, patch, nil)
+	check()
+	return lib
+}
