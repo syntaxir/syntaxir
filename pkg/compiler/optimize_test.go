@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime/vm"
 )
 
 // WithOptimize and the PrintAfter field of WithDebug are the flags -optimize, -no-opt and -print-after
@@ -87,4 +88,71 @@ func printing(printAfter string, w *bytes.Buffer) compiler.Option {
 		d.Output = w
 	}
 	return compiler.WithDebug(d)
+}
+
+// TestOptimizeAcceptedByEveryFunction checks that every function of the package takes WithOptimize:
+// it accepts every profile and a known optimization turned off, and rejects an unknown profile or
+// optimization, whatever artifact it makes. The bytecode and reference backends have no
+// optimization to select yet, so for them the setting is validated and changes nothing, and the
+// parsers they return agree with the one that no setting made.
+func TestOptimizeAcceptedByEveryFunction(t *testing.T) {
+	src := grammar.FromString("opt.sxir", `@start
+rule main = (word / num / -" ")* $$
+rule word = "if" / "else" / [a-z]+
+rule num = [0-9]+
+`)
+	type artifact struct {
+		name string
+		make func(o compiler.Optimize) error
+	}
+	artifacts := []artifact{
+		{"Compile", func(o compiler.Optimize) error { _, err := compiler.Compile(src, compiler.WithOptimize(o)); return err }},
+		{"NewReferenceParser", func(o compiler.Optimize) error {
+			_, err := compiler.NewReferenceParser(src, compiler.WithOptimize(o))
+			return err
+		}},
+		{"Marshal", func(o compiler.Optimize) error {
+			_, err := compiler.Marshal(src, vm.CompiledParse, compiler.WithOptimize(o))
+			return err
+		}},
+		{"OutputSchema", func(o compiler.Optimize) error {
+			_, err := compiler.OutputSchema(src, compiler.WithOptimize(o))
+			return err
+		}},
+		{"GenerateGo", func(o compiler.Optimize) error {
+			_, err := compiler.GenerateGo(src, compiler.GoConfig{Module: "opt", Lib: compiler.LibImport}, compiler.WithOptimize(o))
+			return err
+		}},
+		{"GenerateTypeScript", func(o compiler.Optimize) error {
+			_, err := compiler.GenerateTypeScript(src, compiler.TSConfig{}, compiler.WithOptimize(o))
+			return err
+		}},
+	}
+	for _, a := range artifacts {
+		t.Run(a.name, func(t *testing.T) {
+			for _, ok := range []compiler.Optimize{{}, compiler.Speed, compiler.Memory, compiler.Size, {Off: []string{"guards"}}} {
+				if err := a.make(ok); err != nil {
+					t.Errorf("%+v: %v", ok, err)
+				}
+			}
+			for _, bad := range []compiler.Optimize{{Profile: "fastest"}, {Off: []string{"nonsense"}}, {Values: map[string]int{"nonsense": 1}}} {
+				if err := a.make(bad); err == nil {
+					t.Errorf("%+v: accepted", bad)
+				}
+			}
+		})
+	}
+	p0, err := compiler.Compile(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	p1, err := compiler.Compile(src, compiler.WithOptimize(compiler.Size))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n0, err0 := p0.Parse("if x 12")
+	n1, err1 := p1.Parse("if x 12")
+	if err0 != nil || err1 != nil || n0.String() != n1.String() {
+		t.Errorf("the profile changes the parser: %v %v\n%v\n%v", err0, err1, n0, n1)
+	}
 }
