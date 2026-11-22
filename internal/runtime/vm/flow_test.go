@@ -63,7 +63,7 @@ func TestFlowRecoveredErrorCount(t *testing.T) {
 // TestFlowKeepCopies checks that KEEP returns the expectations in storage of the parser's own: the
 // expectations of a failed recovery body sit in the record that the skip goes on to overwrite, so a
 // result that shared the argument's storage would change with it. Keeping the same expectations
-// again returns the same storage, as the match code's recovery does.
+// again returns the same storage (state.Parser.Keep).
 func TestFlowKeepCopies(t *testing.T) {
 	p := stateBudgetParser(runtime.Limits{})
 	exps := []state.ExpID{7, 9}

@@ -91,8 +91,8 @@ func predicateBlocks() []flowGrammar {
 
 // TestFlowBodyPredicates runs grammars with predicates from Flow bodies (checkFlowGrammars). The
 // predicates read captures of the rule's frame and of a repetition element's frame, read none, hold,
-// fail and fail to evaluate, so the Flow bodies run PRED in each frame the match code runs its PRED
-// in. The cases of predicate blocks run too.
+// fail and fail to evaluate, so the Flow bodies run PRED in each frame that a predicate reads. The
+// cases of predicate blocks run too.
 func TestFlowBodyPredicates(t *testing.T) {
 	checkFlowGrammars(t, append([]flowGrammar{
 		{"rule frame", `rule main = items:item+ $$ => $items
@@ -108,8 +108,8 @@ rule w = [a-z]+ {true}`, []string{"a", "a,bc", "", "a,", "1"}, true},
 // TestFlowBodyBindings runs grammars with bindings from Flow bodies (checkFlowGrammars). The bindings
 // read captures of the rule's frame and of an element's frame, are undone by the backtracking of a
 // choice, an option and a repetition, fail to evaluate, and are restored when the rule that bound
-// them returns, so the Flow bodies run BIND where the match code runs its BIND. The cases of
-// predicate blocks, most of which bind, run too.
+// them returns, so the Flow bodies run BIND in each of these places. The cases of predicate blocks,
+// most of which bind, run too.
 func TestFlowBodyBindings(t *testing.T) {
 	checkFlowGrammars(t, append([]flowGrammar{
 		{"rule frame", `var n int

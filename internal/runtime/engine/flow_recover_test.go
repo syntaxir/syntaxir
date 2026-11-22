@@ -16,7 +16,7 @@ import (
 // (NEWERRORNODE). The grammars recover with and without a value, in a repetition, nested, in a
 // choice and a lookahead that drop the errors recovered inside them, in a rule that fails after
 // recovering, with a skip that matches nothing, under @error, and with a body that succeeds, so the
-// recovered errors and the expectations of every outcome must be those of the match code.
+// recovered errors and the expectations of every outcome must be those of the reference parser.
 func TestFlowBodyRecoveries(t *testing.T) {
 	checkFlowGrammars(t, []flowGrammar{
 		{"value", `rule main = x:("a" ";") #recover(skip=[^;]* ";") $$ => $x`, []string{"a;", "b;", "bb;", ";", "a", "", "b"}, true},

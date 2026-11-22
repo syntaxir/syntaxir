@@ -37,10 +37,10 @@ var attachCases = []attachCase{
 	{"self capture", "fresh", []bool{true}, true, 0},
 }
 
-// TestAttachCapturesChargesAsGoLibrary checks that the match code of the engine (state.AttachCaptures,
-// which the bytecode VM's ATTACHFRAME also runs) and the Go library's AttachCaptures charge what
-// attachCases say for each attachment: a parse spends the same units for its captures whichever
-// backend runs the rule.
+// TestAttachCapturesChargesAsGoLibrary checks that the engine's attachment of captures
+// (state.AttachCaptures, which the bytecode VM's ATTACHFRAME also runs) and the Go library's
+// AttachCaptures charge what attachCases say for each attachment: a parse spends the same units for
+// its captures whichever backend runs the rule.
 func TestAttachCapturesChargesAsGoLibrary(t *testing.T) {
 	for _, c := range attachCases {
 		if got := engineAttachCharge(c); got != c.want {
