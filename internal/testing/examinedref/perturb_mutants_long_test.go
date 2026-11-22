@@ -3,6 +3,7 @@
 package examinedref_test
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -21,14 +22,18 @@ import (
 type producerEdit struct{ file, old, new string }
 
 // producerMutant breaks the examined end in a copy of source files, which `go test -overlay` builds in
-// place of the originals, or in the library of the generated TypeScript parsers (tsLib, as
-// codegentest.TSLibPatchEnv describes it), which reaches them embedded in the generator. Each test of tests runs; each of catchers must fail, and when backends is not
+// place of the originals, in the copy of the library that generated Go parsers import (goLib, as
+// codegentest.GoLibPatchEnv describes it), or in the library of the generated TypeScript parsers (tsLib,
+// as codegentest.TSLibPatchEnv describes it), which reaches them embedded in the generator. Each test of
+// tests runs in the package pkg (this one if empty); each of catchers must fail, and when backends is not
 // empty, each of its messages must name each backend (the engine's code is shared, so a mutant of it must
 // show on every backend). The tests that are not catchers are run for their verdict, which is logged.
 type producerMutant struct {
 	name     string
 	edits    []producerEdit
+	goLib    *producerEdit
 	tsLib    *producerEdit
+	pkg      string
 	tests    []string
 	catchers []string
 	backends []string
@@ -39,6 +44,8 @@ const (
 	mutantStateRuntime = "internal/runtime/state/runtime.go"
 	mutantPerturb      = "internal/testing/examinedref/perturb.go"
 	mutantHighWater    = "internal/testing/examinedref/highwater.go"
+	mutantGoLib        = "pkg/runtime/libgo/lib.go"
+	mutantTSLib        = "internal/backend/codegen/typescript/lib/lib.ts"
 )
 
 var producerMutants = []producerMutant{
@@ -63,10 +70,26 @@ var producerMutants = []producerMutant{
 	{name: "a stream reads one unit beyond what the parse asks for (unrecorded stream read)",
 		edits: []producerEdit{{mutantStateInput, "\tok := in.fill(n)\n", "\tin.fill(n + 1)\n\tok := in.Loaded() >= n\n"}},
 		tests: []string{"TestEngineStreamHighWater"}, catchers: []string{"TestEngineStreamHighWater"}, backends: producerBackends},
-	// The generated TypeScript parsers, whose library records the examined ends of their own.
+	// The generated Go parsers, whose library records the examined ends of their own: an examined end that
+	// is too small, which perturbation shows, and one that is too large, which the stream's high-water mark
+	// shows.
+	{name: "a generated rejected literal leaves out the character that differs (examined end too small)",
+		goLib: &producerEdit{mutantGoLib, "\tp.documentTouch(p.Pos + k + 1)\n", "\tp.documentTouch(p.Pos + k)\n"},
+		tests: []string{"TestGeneratedPerturbationAndHighWater"}, catchers: []string{"TestGeneratedPerturbationAndHighWater"}},
+	{name: "every generated examination counts one more slot (examined end too large)",
+		goLib: &producerEdit{mutantGoLib, "\tif p.track && end > p.docExamined {\n\t\tp.docExamined = end\n",
+			"\tif p.track && end+1 > p.docExamined {\n\t\tp.docExamined = end + 1\n"},
+		tests: []string{"TestGeneratedPerturbationAndHighWater"}, catchers: []string{"TestGeneratedPerturbationAndHighWater"}},
+	// The generated TypeScript parsers, whose library records the examined ends of their own. They have no
+	// stream, so the comparison with the reference (part 1 of the oracle) is what shows an examined end
+	// that is too large.
 	{name: "every TypeScript examination counts one slot less (examined end too small)",
-		tsLib: &producerEdit{"internal/backend/codegen/typescript/lib/lib.ts", "if (end > this.docExamined) this.docExamined = end;", "if (end - 1 > this.docExamined) this.docExamined = end - 1;"},
+		tsLib: &producerEdit{mutantTSLib, "if (end > this.docExamined) this.docExamined = end;", "if (end - 1 > this.docExamined) this.docExamined = end - 1;"},
 		tests: []string{"TestTSPerturbation"}, catchers: []string{"TestTSPerturbation"}, backends: []string{"typescript"}},
+	{name: "every TypeScript examination counts one more slot (examined end too large)",
+		tsLib: &producerEdit{mutantTSLib, "if (end > this.docExamined) this.docExamined = end;", "if (end + 1 > this.docExamined) this.docExamined = end + 1;"},
+		pkg:   "syntaxir.dev/sxir/internal/backend/codegen/typescript/print",
+		tests: []string{"TestTSObservedExaminedEndsAreExact"}, catchers: []string{"TestTSObservedExaminedEndsAreExact"}},
 
 	// The harness: checks that pass whatever the producer does.
 	{name: "perturbations that change nothing",
@@ -141,8 +164,15 @@ func TestEngineExaminedMutants(t *testing.T) {
 			}
 			// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
 			cmd := exec.Command("go", "test", "-count=1", "-vet=off", "-tags", "sxir_long", "-overlay", ov,
-				"-run", "^("+strings.Join(m.tests, "|")+")$", ".")
+				"-run", "^("+strings.Join(m.tests, "|")+")$", cmp.Or(m.pkg, "."))
 			cmd.Env = append(os.Environ(), "GOFLAGS=-trimpath")
+			if m.goLib != nil {
+				patch, err := json.Marshal(struct{ File, Old, New string }{m.goLib.file, m.goLib.old, m.goLib.new})
+				if err != nil {
+					t.Fatal(err)
+				}
+				cmd.Env = append(cmd.Env, codegentest.GoLibPatchEnv+"="+string(patch))
+			}
 			if m.tsLib != nil {
 				patch, err := json.Marshal(struct{ File, Old, New string }{m.tsLib.file, m.tsLib.old, m.tsLib.new})
 				if err != nil {

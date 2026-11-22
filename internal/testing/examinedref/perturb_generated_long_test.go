@@ -267,7 +267,8 @@ func runPerturbProbes(t *testing.T, cases []codegentest.Case) []perturbProbeRepo
 			t.Fatal(err)
 		}
 	}
-	write("go.mod", []byte(codegentest.GoMod("perturbprobe")))
+	// The library of a mutant of TestEngineExaminedMutants comes through codegentest.GoLibPatchEnv.
+	write("go.mod", []byte(codegentest.GoModAt("perturbprobe", codegentest.PatchedLib(t))))
 	for _, f := range examinedProbeFiles {
 		src, err := os.ReadFile(f)
 		if err != nil {

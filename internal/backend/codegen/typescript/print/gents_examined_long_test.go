@@ -73,7 +73,9 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
-		o := common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true}
+		// The library mutants of examinedref's TestEngineExaminedMutants come through
+		// codegentest.TSLibPatchEnv.
+		o := codegentest.MutantOptions(common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true})
 		code, err := codegentest.GenerateTSBundle(g, o)
 		if err != nil {
 			// A grammar whose values have no static types has no typed entry.
@@ -82,7 +84,7 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 				t.Fatalf("%s: %v", c.Name, err)
 			}
 		}
-		write(fmt.Sprintf("m%d.ts", i), string(code))
+		write(fmt.Sprintf("m%d.ts", i), string(codegentest.PatchTSLib(t, code)))
 		fmt.Fprintf(&imports, "import * as m%d from \"./m%d.ts\";\n", i, i)
 		var in []string
 		for _, s := range c.Inputs {
