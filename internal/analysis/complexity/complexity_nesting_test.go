@@ -307,7 +307,7 @@ func TestRestartRuleAtGrowthStart(t *testing.T) {
 				k.strip(self, cs.paths, u)
 				k.nestDry = false
 				for _, r := range k.restarts {
-					got = append(got, fmt.Sprintf("%s %s at %d:%d", r.rule, r.call.Name, exprPos(r.call).Line, exprPos(r.call).Col))
+					got = append(got, fmt.Sprintf("%s %s at %d:%d", r.rule, k.rules[r.call.Rule].Name, k.posOf(r.call).Line, k.posOf(r.call).Col))
 				}
 			}
 		}

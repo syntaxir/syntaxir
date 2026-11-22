@@ -61,7 +61,7 @@ func (s *source) String() string { return fmt.Sprintf("%s at %s", s.what, at(s.r
 // site is a call of a rule.
 type site struct {
 	caller, callee string
-	ref            *ast.Ref
+	call           *core.Call
 	cont           *cont // what follows the call
 	// mayStart: the call can run before its caller's body consumes input; mustStart: it always
 	// does.
@@ -453,7 +453,7 @@ func (k *classifier) walkRef(n *core.Call, c wctx) {
 		u.calls[name] = true
 	}
 	e := k.exprOf(n).(*ast.Ref)
-	k.sites = append(k.sites, &site{caller: c.rule, callee: name, ref: e, cont: c.cont, mayStart: c.mayStart,
+	k.sites = append(k.sites, &site{caller: c.rule, callee: name, call: n, cont: c.cont, mayStart: c.mayStart,
 		mustStart: c.mustStart, repeated: c.repeated, seqs: c.seqs, units: c.open})
 	// A growth of the callee's cycle at the position of the call encloses the evaluation of the
 	// caller, so the caller is on the cycle and the call is a left call of its body.
@@ -925,7 +925,7 @@ func (k *classifier) followFor(cycle int, growth bool) func(string) charset {
 // after the call. A lead without a call is a path that examines input first or cannot be followed;
 // a lead that is done examines nothing more.
 type lead struct {
-	call *ast.Ref
+	call *core.Call
 	lit  *core.Lit
 	rest *cont
 	done bool
@@ -933,14 +933,14 @@ type lead struct {
 	// evaluations can nest without a bound and end at one position (nestsEnd, nestsOps).
 	up bool
 	// via: the calls whose bodies the path looked through to reach the lead.
-	via *refList
+	via *callList
 	// left: the cycles (bit i for cycle i) of the rules whose body ends the path passed.
 	left uint64
 }
 
 // sameGrowths reports whether a call of rule, reached through via and after leaving the bodies in
 // left, lies in the same growths of its cycle as the start of the path.
-func (k *classifier) sameGrowths(rule string, via *refList, left uint64) bool {
+func (k *classifier) sameGrowths(rule string, via *callList, left uint64) bool {
 	if !k.an.Cyclic[rule] {
 		return true
 	}
@@ -948,17 +948,17 @@ func (k *classifier) sameGrowths(rule string, via *refList, left uint64) bool {
 		return false
 	}
 	for v := via; v != nil; v = v.next {
-		if k.sameCycle(v.ref.Name, rule) {
+		if k.sameCycle(k.rules[v.call.Rule].Name, rule) {
 			return false
 		}
 	}
 	return true
 }
 
-// refList is a list of calls, the last one looked through first.
-type refList struct {
-	ref  *ast.Ref
-	next *refList
+// callList is a list of calls, the last one looked through first.
+type callList struct {
+	call *core.Call
+	next *callList
 }
 
 type endKey struct {
@@ -987,13 +987,13 @@ func (k *classifier) leads(paths []*cont, from []lead, only *string, seen map[st
 	type upKey struct {
 		endKey
 		up   bool
-		via  *refList
+		via  *callList
 		left uint64
 	}
 	ended := map[upKey]bool{}
 	type state struct {
 		up   bool
-		via  *refList
+		via  *callList
 		left uint64
 	}
 	var visit func(p *cont, st state)
@@ -1111,16 +1111,15 @@ func (k *classifier) leads(paths []*cont, from []lead, only *string, seen map[st
 					out = append(out, lead{})
 					return
 				}
-				e := k.exprOf(n).(*ast.Ref)
-				share := k.shareable(e) && k.sameGrowths(name, st.via, st.left)
+				share := k.shareableOf(n) && k.sameGrowths(name, st.via, st.left)
 				if share && (only == nil || *only == name) {
-					out = append(out, lead{call: e, rest: rest, up: up, via: st.via, left: st.left})
+					out = append(out, lead{call: n, rest: rest, up: up, via: st.via, left: st.left})
 					return
 				}
 				if share && seen != nil {
 					seen[name] = true
 				}
-				st.via = &refList{e, st.via}
+				st.via = &callList{n, st.via}
 				if pr := k.operatorsBody(name); pr != nil {
 					k.operatorsLeads(pr, name, func(c *cont) { visit(c, st) })
 					return
@@ -1456,7 +1455,10 @@ func (k *classifier) strip(u, c []*cont, owner *unit) ([]*cont, []*cont) {
 // evaluations with a constant.
 func (k *classifier) rescans(lc []lead) bool {
 	for _, l := range lc {
-		if l.call != nil && l.up && !k.memoAt(l.call) && k.ruleSrc[l.call.Name] != nil && !k.scanOnly(l.call.Name) {
+		if l.call == nil {
+			continue
+		}
+		if name := k.rules[l.call.Rule].Name; l.up && !k.memoAtOf(l.call) && k.ruleSrc[name] != nil && !k.scanOnly(name) {
 			return true
 		}
 	}
@@ -1510,7 +1512,7 @@ func commonLead(a, b []lead) bool {
 
 func sameLead(a, b *lead) bool {
 	if a.call != nil || b.call != nil {
-		return a.call != nil && b.call != nil && a.call.Name == b.call.Name && a.call.Level == b.call.Level
+		return a.call != nil && b.call != nil && a.call.Rule == b.call.Rule && a.call.Level == b.call.Level
 	}
 	return a.lit.Text == b.lit.Text && a.lit.Fold == b.lit.Fold
 }
@@ -1863,7 +1865,7 @@ func (k *classifier) startsGrowth(rule string) bool {
 		for _, s := range k.sites {
 			// A call after something that can match nothing is a left call only when that matches
 			// nothing; after input it is outside the growths of its cycle at its position.
-			if k.outside[s.ref] || !s.mustStart {
+			if k.outside[k.exprOf(s.call).(*ast.Ref)] || !s.mustStart {
 				add(s.callee)
 			}
 		}
@@ -1898,7 +1900,7 @@ func (k *classifier) growthStarts(cycle int) ([]contSpec, bool) {
 			}
 		}
 		out = append(out, contSpec{paths: paths,
-			what: fmt.Sprintf("what follows the call %s at %s", s.callee, at(s.caller, exprPos(s.ref)))})
+			what: fmt.Sprintf("what follows the call %s at %s", s.callee, at(s.caller, k.posOf(s.call)))})
 	}
 	return out, true
 }

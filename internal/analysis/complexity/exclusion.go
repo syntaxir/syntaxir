@@ -5,7 +5,6 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // This file is the exclusion analysis over symbols, which the classifier uses as a cost argument:
@@ -789,7 +788,7 @@ type exclState struct {
 	boundP, boundQ bool
 	upQ            bool // q passed a symUp mark
 	// viaP are the calls that p was expanded through so far.
-	viaP *refList
+	viaP *callList
 }
 
 // zeroBinds reports whether the symbols of p from i up to the first one that consumes input
@@ -1070,7 +1069,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			return x.expand(s, s.p, s.i, func(t *exclState, p []sym) {
 				t.p = p
 				if _, call := k.calledRule(a.n); call {
-					t.viaP = &refList{k.exprOf(a.n).(*ast.Ref), s.viaP}
+					t.viaP = &callList{a.n.(*core.Call), s.viaP}
 				}
 			})
 		}
@@ -1124,8 +1123,7 @@ func (x excl) recordAlike(s exclState, a sym) {
 	if _, call := x.k.calledRule(a.n); x.owner == nil || !call || !x.k.recursive[x.owner.rule] {
 		return
 	}
-	r := x.k.exprOf(a.n).(*ast.Ref)
-	add := func(rule string) { x.k.addRestart(restart{rule, r, s.viaP}) }
+	add := func(rule string) { x.k.addRestart(restart{rule, a.n.(*core.Call), s.viaP}) }
 	for _, b := range s.q[s.j+1:] {
 		switch b.kind {
 		case symSkip:

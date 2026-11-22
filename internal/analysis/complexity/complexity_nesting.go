@@ -3,7 +3,7 @@ package complexity
 import (
 	"slices"
 
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // --- Nesting at one end ---
@@ -49,8 +49,8 @@ var restartsAhead = true
 // continuation can reach the end of the body of rule without consuming input (E3).
 type restart struct {
 	rule string
-	call *ast.Ref // the call in the unit
-	via  *refList // the calls that the unit looked through before it
+	call *core.Call // the call in the unit
+	via  *callList  // the calls that the unit looked through before it
 }
 
 // nestsAt reports whether the call s nests at one end: its callee is in E_s.
@@ -236,13 +236,13 @@ func (k *classifier) nestSet(rs []restart) map[*site]bool {
 			empty[s] = true
 		}
 	}
-	// byRef[c] are the restarts through the call c itself or through its body.
-	byRef := map[*ast.Ref][]*restart{}
+	// byCall[c] are the restarts through the call c itself or through its body.
+	byCall := map[*core.Call][]*restart{}
 	for i := range rs {
 		r := &rs[i]
-		byRef[r.call] = append(byRef[r.call], r)
+		byCall[r.call] = append(byCall[r.call], r)
 		for v := r.via; v != nil; v = v.next {
-			byRef[v.ref] = append(byRef[v.ref], r)
+			byCall[v.call] = append(byCall[v.call], r)
 		}
 	}
 	out := map[*site]bool{}
@@ -262,7 +262,7 @@ func (k *classifier) nestSet(rs []restart) map[*site]bool {
 		if empty[t] {
 			add(t.caller) // E1
 		}
-		for _, r := range byRef[t.ref] {
+		for _, r := range byCall[t.call] {
 			add(r.rule) // E3 through t
 		}
 		for len(work) > 0 {
@@ -288,8 +288,8 @@ func (k *classifier) checkRestarts() {
 	all := k.nestSet(append(slices.Clip(k.restarts), k.usedRestarts...))
 	for _, t := range k.sites {
 		if all[t] && !k.nestSites[t] {
-			k.reason(t.caller, exprPos(t.ref), "the evaluations of the call of %s at %s can nest without a bound and end at one position, through a unit that evaluates calls alike with a continuation, which the classifier found only after it relied on the call",
-				t.callee, at(t.caller, exprPos(t.ref)))
+			k.reason(t.caller, k.posOf(t.call), "the evaluations of the call of %s at %s can nest without a bound and end at one position, through a unit that evaluates calls alike with a continuation, which the classifier found only after it relied on the call",
+				t.callee, at(t.caller, k.posOf(t.call)))
 		}
 	}
 }
