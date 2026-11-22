@@ -1,6 +1,9 @@
 package check
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import (
+	"syntaxir.dev/sxir/internal/runtime/program"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // Sites numbers the skip-run, run and scan sites of a program's repetitions: the repetitions whose
 // walks a parser records (see "Skip Runs", "Run Sites" and "Scan Sites" in
@@ -18,17 +21,5 @@ type Sites struct {
 	// EnvFree[site] reports a skip-run or run site whose records are not keyed by the environment.
 	EnvFree []bool
 	// RunKeys holds, by site, the key of each run site that is not free of the environment.
-	RunKeys map[int]RunKey
-}
-
-// RunKey holds the variables that key the records of a run site that is not free of the
-// environment. Vars are the variables that its element reads, directly or in the rules it calls,
-// and those that the element binds itself, Bind: a walk from a position is a function of the
-// position, the input and the values of Vars, and changes no variable but those of Bind, since a
-// binding made in a called rule ends when the rule returns. A walk that takes a record sets the
-// variables of Bind to the values that the walk of the record ended with. Keying by the bound
-// variables as well makes a binding that leaves a value as it was the same as no binding, which a
-// walk cannot tell apart. Both lists are sorted.
-type RunKey struct {
-	Vars, Bind []string
+	RunKeys map[int]program.RunKey
 }

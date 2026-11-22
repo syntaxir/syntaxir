@@ -137,13 +137,6 @@ func (r *Result) EnvFree(site int) bool {
 	return site < len(r.sites.EnvFree) && r.sites.EnvFree[site]
 }
 
-// RunKey returns the variables that key the records of the run site (check.RunKey); a site free of
-// the environment, or no run site, has none.
-func (r *Result) RunKey(site int) check.RunKey { return r.sites.RunKeys[site] }
-
-// RunKeys returns the keys of the run sites that are not free of the environment, by site.
-func (r *Result) RunKeys() map[int]check.RunKey { return r.sites.RunKeys }
-
 // Runtime returns the run-time program of the Result: the tables that a parser runs, without the
 // grammar or its types. It is made with the Result.
 func (r *Result) Runtime() *program.Program { return r.runtime }
@@ -167,7 +160,7 @@ func (r *Result) newRuntime() *program.Program {
 		NumRunSites:       r.sites.NumRun,
 		NumScanSites:      r.sites.NumScan,
 		EnvFreeSites:      r.sites.EnvFree,
-		RunKeys:           runtimeRunKeys(r.sites.RunKeys),
+		RunKeys:           r.sites.RunKeys,
 		InsertionCycles:   p.InsertionFlags != nil,
 		StructZero: func(name string) *program.StructZero {
 			if z := p.Checker().StructZeroOf(name); z != nil {
@@ -222,16 +215,4 @@ func runtimeVars(t *check.VarTable) *program.VarTable {
 		decls = append(decls, &program.VarDecl{Name: d.Name, Init: d.Init})
 	}
 	return program.NewVarTable(decls)
-}
-
-// runtimeRunKeys returns the run keys of the run-time program.
-func runtimeRunKeys(keys map[int]check.RunKey) map[int]program.RunKey {
-	if keys == nil {
-		return nil
-	}
-	out := make(map[int]program.RunKey, len(keys))
-	for site, k := range keys {
-		out[site] = program.RunKey(k)
-	}
-	return out
 }

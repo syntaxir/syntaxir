@@ -60,9 +60,13 @@ type Program struct {
 }
 
 // RunKey holds the variables that key the records of a run site that is not free of the
-// environment: Vars, those that a walk from a position reads, and Bind, those that it binds and that
-// a walk that takes a record sets to the values the walk of the record ended with. Both lists are
-// sorted.
+// environment. Vars are the variables that its element reads, directly or in the rules it calls,
+// and those that the element binds itself, Bind: a walk from a position is a function of the
+// position, the input and the values of Vars, and changes no variable but those of Bind, since a
+// binding made in a called rule ends when the rule returns. A walk that takes a record sets the
+// variables of Bind to the values that the walk of the record ended with. Keying by the bound
+// variables as well makes a binding that leaves a value as it was the same as no binding, which a
+// walk cannot tell apart. Both lists are sorted.
 type RunKey struct {
 	Vars, Bind []string
 }

@@ -86,12 +86,9 @@ func (Source) Sites(m *core.Module, prog *check.Model, control *cancel.Control) 
 		}
 		return out
 	}
-	var runKeys map[int]check.RunKey
-	for site, k := range s.RunKeys {
-		if runKeys == nil {
-			runKeys = make(map[int]check.RunKey, len(s.RunKeys))
-		}
-		runKeys[site] = check.RunKey{Vars: k.Vars, Bind: k.Bind}
+	runKeys := s.RunKeys
+	if len(runKeys) == 0 {
+		runKeys = nil
 	}
 	return check.Sites{Skip: key(s.Skip), Run: key(s.Run), Scan: key(s.Scan),
 		NumSkip: s.NumSkip, NumRun: s.NumRun, NumScan: s.NumScan, EnvFree: s.EnvFreeSites(), RunKeys: runKeys}

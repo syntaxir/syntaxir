@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/runtime/program"
 )
 
 // Site numbering.
@@ -42,7 +43,7 @@ import (
 // The records of a run site are keyed by the environment unless the site is free of it (EnvFree):
 // neither its element's predicates nor the rules it calls read or bind a variable. Skip-run sites
 // are free of it by their conditions. The records of a run site that is not free of it are keyed
-// by the values of the variables of its run key (RunKey).
+// by the values of the variables of its run key (program.RunKey).
 //
 // Scan sites. A rule that calls no rule is transient, so it is walked again at every position
 // where a failed alternative leads back. A repetition of a single character without a maximum in
@@ -102,19 +103,7 @@ type Sites struct {
 	// envFree[site] reports a skip-run or run site free of the environment.
 	envFree []bool
 	// RunKeys holds, by site, the key of each run site that is not free of the environment.
-	RunKeys map[int]RunKey
-}
-
-// RunKey holds the variables that key the records of a run site that is not free of the
-// environment. Vars are the variables that its element reads, directly or in the rules it calls,
-// and those that the element binds itself, Bind: a walk from a position is a function of the
-// position, the input and the values of Vars, and changes no variable but those of Bind, since a
-// binding made in a called rule ends when the rule returns. A walk that takes a record sets the
-// variables of Bind to the values that the walk of the record ended with. Keying by the bound
-// variables as well makes a binding that leaves a value as it was the same as no binding, which a
-// walk cannot tell apart. Both lists are sorted.
-type RunKey struct {
-	Vars, Bind []string
+	RunKeys map[int]program.RunKey
 }
 
 // EnvFree reports whether the skip-run or run site is free of the environment: its records are
@@ -136,7 +125,7 @@ func (s *Sites) markEnvFree(site int) {
 // what the numbering reads of rule i. A non-nil control polls for cancellation.
 func ComputeSites(m *core.Module, rules []SiteRule, control *cancel.Control) *Sites {
 	s := &sites{m: m, rules: rules, control: control, calls: make([][]int, len(m.Rules)),
-		out: &Sites{Skip: map[*core.Repeat]int{}, Run: map[*core.Repeat]int{}, Scan: map[*core.Repeat]int{}, RunKeys: map[int]RunKey{}}}
+		out: &Sites{Skip: map[*core.Repeat]int{}, Run: map[*core.Repeat]int{}, Scan: map[*core.Repeat]int{}, RunKeys: map[int]program.RunKey{}}}
 	for _, r := range m.Rules {
 		control.Poll()
 		if r == nil {
@@ -437,8 +426,8 @@ func (s *sites) dropUnrecordedReach(candidates []*core.Repeat, candidate map[*co
 	}
 }
 
-// runKey returns the RunKey of the run site e.
-func (s *sites) runKey(e *core.Repeat) RunKey {
+// runKey returns the key of the run site e.
+func (s *sites) runKey(e *core.Repeat) program.RunKey {
 	vars, bind := map[string]bool{}, map[string]bool{}
 	readVars := func(t core.ActionExpr) {
 		core.WalkActionExpr(t, func(x core.ActionExpr) {
@@ -462,7 +451,7 @@ func (s *sites) runKey(e *core.Repeat) RunKey {
 			}
 		}
 	})
-	return RunKey{Vars: sortedNames(vars), Bind: sortedNames(bind)}
+	return program.RunKey{Vars: sortedNames(vars), Bind: sortedNames(bind)}
 }
 
 func sortedNames(set map[string]bool) []string {
