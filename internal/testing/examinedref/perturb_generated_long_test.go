@@ -34,6 +34,7 @@ const perturbProbeMain = `package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -78,6 +79,7 @@ type report struct {
 	Perturbations []perturbation
 	Streamed, EOF bool
 	HighWater     []string
+	Panics        []string
 }
 
 func eventOf(ev sxirinstrument.TraceEvent) examinedref.Event {
@@ -112,9 +114,15 @@ func main() {
 					out := report{Case: i, Input: j, Bytes: bytes, Entry: e.name}
 					if len(examinedref.Units(in, bytes)) <= MAXUNITS {
 						// run parses s, or, on the edit route, edits a Document of in to s from the change point on
-						// and parses it again, as TestEnginePerturbation's edit route does.
-						run := func(change int, s string) ([]examinedref.Event, bool) {
-							var tr []examinedref.Event
+						// and parses it again, as TestEnginePerturbation's edit route does. A panic of the parser
+						// is reported, and the parse counts as refused.
+						run := func(change int, s string) (tr []examinedref.Event, ran bool) {
+							defer func() {
+								if x := recover(); x != nil {
+									out.Panics = append(out.Panics, fmt.Sprintf("change point %d, %q: %v", change, s, x))
+									tr, ran = nil, false
+								}
+							}()
 							trace := sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) { tr = append(tr, eventOf(ev)) })
 							switch {
 							case e.stream != nil:
@@ -192,6 +200,7 @@ type perturbProbeReport struct {
 	}
 	Streamed, EOF bool
 	HighWater     []string
+	Panics        []string
 }
 
 // TestGeneratedPerturbationAndHighWater checks the examined ends of generated Go parsers, built with
@@ -220,6 +229,7 @@ func TestGeneratedPerturbationAndHighWater(t *testing.T) {
 				}
 				totals[r.Entry].Add(*r.Report)
 				reportPerturb(t, prefix, r.Report.Violations, 5)
+				reportPerturb(t, prefix+" (panic)", r.Panics, 3)
 				for _, p := range r.Perturbations {
 					if err := validPerturbation(in, r.Bytes, examinedref.Perturbation{Variant: examinedref.Variant(p.Variant), Change: p.Change, Input: string(p.Input)}); err != nil {
 						t.Errorf("%s (perturbation): %v", prefix, err)
