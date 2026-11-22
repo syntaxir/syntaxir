@@ -1,11 +1,12 @@
 package complexity
 
 import (
+	"fmt"
 	"math"
 	"slices"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -102,15 +103,31 @@ func asciiFold(r rune) charset {
 // literalFirst is the first character of a literal, or the empty set for the empty literal. A
 // literal that holds a replacement character also matches input that is not valid UTF-8, which
 // decodes to that character.
-func literalFirst(l *ast.Literal) charset {
-	if l.Value == "" {
+func literalFirst(l *ast.Literal) charset { return litFirst(l.Value, l.IgnoreCase) }
+
+// litFirst is the first character of a literal of text, matched without case if fold.
+func litFirst(text string, fold bool) charset {
+	if text == "" {
 		return nil
 	}
-	r, _ := utf8.DecodeRuneInString(l.Value)
-	if l.IgnoreCase {
+	r, _ := utf8.DecodeRuneInString(text)
+	if fold {
 		return asciiFold(r)
 	}
 	return charOf(r)
+}
+
+// coreClassChars is the characters of a class of Core IR.
+func coreClassChars(c *core.Class) charset {
+	rs := make([]ast.CharRange, len(c.Ranges))
+	for i, r := range c.Ranges {
+		rs[i] = ast.CharRange{Lo: r.Lo, Hi: r.Hi}
+	}
+	s := normalizeRanges(rs)
+	if c.Negated {
+		return s.complement()
+	}
+	return s
 }
 
 func classChars(c *ast.CharClass) charset {
@@ -121,111 +138,122 @@ func classChars(c *ast.CharClass) charset {
 	return s
 }
 
-// nullable reports whether e can succeed without consuming input when token insertion is enabled:
-// the nullability of its node with insertion (corepass.Facts.NullableIns), as the nullable rules
-// (nullRule) are.
-func (k *classifier) nullable(e ast.Expr) bool {
-	return k.facts.source.Facts.NullableIns(k.nodeOf(e))
-}
+// nullable reports whether e can succeed without consuming input when token insertion is enabled
+// (nullableNode of its node).
+func (k *classifier) nullable(e ast.Expr) bool { return k.nullableNode(k.nodeOf(e)) }
 
-// first returns the first characters of e: the characters that an evaluation of e can examine
+// nullableNode reports whether n can succeed without consuming input when token insertion is
+// enabled: the nullability of n with insertion (corepass.Facts.NullableIns), as the nullable rules
+// (nullRule) are.
+func (k *classifier) nullableNode(n core.Node) bool { return k.facts.source.Facts.NullableIns(n) }
+
+// first returns the first characters of e (firstOf of its node).
+func (k *classifier) first(e ast.Expr) charset { return k.firstOf(k.nodeOf(e)) }
+
+// firstOf returns the first characters of n: the characters that an evaluation of n can examine
 // beyond its start, as it consumes them or as a lookahead that it evaluates before it consumes
-// input examines them. Characters that follow e when it matches without consuming input are not
+// input examines them. Characters that follow n when it matches without consuming input are not
 // included; firstCont adds them.
-func (k *classifier) first(e ast.Expr) charset {
+func (k *classifier) firstOf(n core.Node) charset {
 	k.control.Poll()
-	switch e := e.(type) {
+	switch n := n.(type) {
 	case nil:
 		return nil
-	case *ast.Ref:
-		if e.Level == rhsLevel {
-			return k.operandFirst(e.Name)
+	case *core.Call:
+		return k.firstRule[k.rules[n.Rule].Name]
+	case *core.Nest:
+		if isRightOperand(n) {
+			return k.operatorsStart(n.Body.(*core.OperatorsRule))
 		}
-		return k.firstRule[e.Name]
-	case *ast.Literal:
-		return literalFirst(e)
-	case *ast.CharClass:
-		return classChars(e)
-	case *ast.Any:
+		return k.firstOf(n.Body)
+	case *core.Lit:
+		return litFirst(n.Text, n.Fold)
+	case *core.ClassNode:
+		return coreClassChars(n.Class)
+	case *core.Any:
 		return allChars
-	case *ast.EndLine:
-		return lineBreakChars
-	case *ast.Seq:
+	case *core.Anchor:
+		if n.Kind == core.EndLine {
+			return lineBreakChars
+		}
+		return nil
+	case *core.Scan:
+		if n.Max == 0 {
+			return nil
+		}
+		if n.Class == nil {
+			return allChars
+		}
+		return coreClassChars(n.Class)
+	case *core.ClassRun:
+		if len(n.Classes) == 0 {
+			return nil
+		}
+		return coreClassChars(n.Classes[0])
+	case *core.Seq:
 		var s charset
-		for _, it := range e.Items {
-			s = s.union(k.first(it))
-			if !k.nullable(it) {
+		for _, it := range n.Items {
+			s = s.union(k.firstOf(it))
+			if !k.nullableNode(it) {
 				break
 			}
 		}
 		return s
-	case *ast.Choice:
+	case *core.Choice:
 		var s charset
-		for _, alt := range e.Alts {
-			s = s.union(k.first(alt))
+		for _, alt := range n.Alts {
+			s = s.union(k.firstOf(alt.Body))
 		}
 		return s
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Repeat:
+		if n.Max == 0 {
 			return nil
 		}
-		return k.first(e.Expr)
-	case *ast.Optional:
-		return k.first(e.Expr)
-	case *ast.And:
-		return k.first(e.Expr)
-	case *ast.Not:
-		return k.first(e.Expr)
-	case *ast.Group:
-		return k.first(e.Expr)
-	case *ast.Capture:
-		return k.first(e.Expr)
-	case *ast.Discard:
-		return k.first(e.Expr)
-	case *ast.Atomic:
-		return k.first(e.Expr)
-	case *ast.Stream:
-		return k.first(e.Expr)
-	case *ast.InlineAction:
-		return k.first(e.Expr)
-	case *ast.Recovery:
-		return k.first(e.Expr).union(k.first(e.Skip))
-	case *ast.Attributed:
-		s := k.first(e.Expr)
-		if skip := astfacts.RecoverSkip(e); skip != nil {
-			s = s.union(k.first(skip))
-		}
-		return s
-	case *ast.OperatorsRule:
-		return k.operatorsStart(e)
+		return k.firstOf(n.Body)
+	case *core.Opt:
+		return k.firstOf(n.Body)
+	case *core.Look:
+		return k.firstOf(n.Body)
+	case *core.Capture:
+		return k.firstOf(n.Body)
+	case *core.Text:
+		return k.firstOf(n.Body)
+	case *core.Drop:
+		return k.firstOf(n.Body)
+	case *core.Label:
+		return k.firstOf(n.Body)
+	case *core.Missing:
+		return k.firstOf(n.Body)
+	case *core.Terminal:
+		return k.firstOf(n.Body)
+	case *core.Stream:
+		return k.firstOf(n.Repeat)
+	case *core.Recover:
+		return k.firstOf(n.Body).union(k.firstOf(n.Skip))
+	case *core.OperatorsRule:
+		return k.operatorsStart(n)
+	case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.FailNode:
+		return nil
 	}
-	// Predicates, anchors other than $, cuts, the top and bottom expressions.
-	return nil
+	panic(fmt.Sprintf("complexity: first characters of %T", n))
 }
 
-// operatorsStart is the first characters of an Operators Rule expression and of each right
-// operand: its skip, its operands and its prefix operator parts.
-func (k *classifier) operatorsStart(pr *ast.OperatorsRule) charset {
-	s := k.first(pr.Skip)
-	for _, o := range pr.Operands {
-		s = s.union(k.first(o.Expr))
+// operatorsStart is the first characters of an Operators Rule and of each right operand: its
+// skip, its operands and its prefix operator parts.
+func (k *classifier) operatorsStart(o *core.OperatorsRule) charset {
+	var s charset
+	if o.Skip != nil {
+		s = k.firstOf(o.Skip.Body)
 	}
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Prefix {
-				s = s.union(k.first(op.Expr))
-			}
+	for _, l := range o.Operands {
+		s = s.union(k.firstOf(l.Body))
+	}
+	for _, op := range o.Ops {
+		if op.Kind == ast.Prefix {
+			s = s.union(k.firstOf(op.Line.Body))
 		}
 	}
 	return s
-}
-
-// operandFirst is the first characters of a right operand of the Operators Rule of rule.
-func (k *classifier) operandFirst(rule string) charset {
-	if pr := k.operators(rule); pr != nil {
-		return k.operatorsStart(pr)
-	}
-	return allChars
 }
 
 func (k *classifier) operandsNullable(rule string) bool {
@@ -265,55 +293,61 @@ func (k *classifier) computeFirst() {
 	}
 }
 
-// bounded reports whether every match of e is shorter than a constant of the grammar.
-func (k *classifier) bounded(e ast.Expr) bool {
+// bounded reports whether every match of e is shorter than a constant of the grammar (boundedOf
+// its node).
+func (k *classifier) bounded(e ast.Expr) bool { return k.boundedOf(k.nodeOf(e)) }
+
+// boundedOf reports whether every match of n is shorter than a constant of the grammar.
+func (k *classifier) boundedOf(n core.Node) bool {
 	k.control.Poll()
-	switch e := e.(type) {
-	case nil, *ast.Literal, *ast.CharClass, *ast.Any, *ast.Predicate, *ast.Cut,
-		*ast.Top, *ast.Bottom, *ast.BeginInput, *ast.EndInput, *ast.BeginLine,
-		*ast.EndLine, *ast.And, *ast.Not:
+	switch n := n.(type) {
+	case nil, *core.Lit, *core.ClassNode, *core.Any, *core.ClassRun, *core.Anchor, *core.Look,
+		*core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.FailNode:
 		return true
-	case *ast.Ref:
-		return e.Level != rhsLevel && k.boundedRule[e.Name]
-	case *ast.Seq:
-		for _, it := range e.Items {
-			if !k.bounded(it) {
+	case *core.Call:
+		return k.boundedRule[k.rules[n.Rule].Name]
+	case *core.Nest:
+		return !isRightOperand(n) && k.boundedOf(n.Body)
+	case *core.Scan:
+		return n.Max >= 0
+	case *core.Seq:
+		for _, it := range n.Items {
+			if !k.boundedOf(it) {
 				return false
 			}
 		}
 		return true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			if !k.bounded(alt) {
+	case *core.Choice:
+		for _, alt := range n.Alts {
+			if !k.boundedOf(alt.Body) {
 				return false
 			}
 		}
 		return true
-	case *ast.Repeat:
-		return e.Max >= 0 && k.bounded(e.Expr)
-	case *ast.Optional:
-		return k.bounded(e.Expr)
-	case *ast.Group:
-		return k.bounded(e.Expr)
-	case *ast.Capture:
-		return k.bounded(e.Expr)
-	case *ast.Discard:
-		return k.bounded(e.Expr)
-	case *ast.Atomic:
-		return k.bounded(e.Expr)
-	case *ast.Stream:
-		return k.bounded(e.Expr)
-	case *ast.InlineAction:
-		return k.bounded(e.Expr)
-	case *ast.Recovery:
-		return k.bounded(e.Expr) && k.bounded(e.Skip)
-	case *ast.Attributed:
-		if skip := astfacts.RecoverSkip(e); skip != nil && !k.bounded(skip) {
-			return false
-		}
-		return k.bounded(e.Expr)
+	case *core.Repeat:
+		return n.Max >= 0 && k.boundedOf(n.Body)
+	case *core.Opt:
+		return k.boundedOf(n.Body)
+	case *core.Capture:
+		return k.boundedOf(n.Body)
+	case *core.Text:
+		return k.boundedOf(n.Body)
+	case *core.Drop:
+		return k.boundedOf(n.Body)
+	case *core.Label:
+		return k.boundedOf(n.Body)
+	case *core.Missing:
+		return k.boundedOf(n.Body)
+	case *core.Terminal:
+		return k.boundedOf(n.Body)
+	case *core.Stream:
+		return k.boundedOf(n.Repeat)
+	case *core.Recover:
+		return k.boundedOf(n.Body) && k.boundedOf(n.Skip)
+	case *core.OperatorsRule:
+		return false
 	}
-	return false
+	panic(fmt.Sprintf("complexity: boundedness of %T", n))
 }
 
 // computeBounded marks the rules whose matches are bounded in length: the greatest fixed point
