@@ -52,7 +52,16 @@ const maxLeaderBits = 31
 // presentWide tags the identity of a present set that does not fit in a word of bits, which no word
 // of bits equals. A memo entry holds a word of bits, so a result in such a context goes to the table
 // of the context even if it read no seed (ctxPop), and no entry answers a call there (memoAllows).
-const presentWide uint32 = 1 << 31
+const presentWide presentSet = 1 << 31
+
+// presentSet is a present set: the bits of the leaders of a context, or presentWide and an
+// identity. The engine's sets have a word of 64 bits, by Rule.LeaderBit.
+type presentSet = uint32
+
+// missingBit is the missing-silent bit of a key in the engine's parses with missing-token insertion
+// (MemoKey.MissingSilent there). The library inserts no tokens, so its keys hold no such bit: the
+// type has no values but its zero and takes no space.
+type missingBit = struct{}
 
 // ctxResult is a result that a context keeps: a seed, the result of a growth step, or the result of
 // a call that read a seed. It holds a node (Parser) or a typed value (TParser).
@@ -87,25 +96,6 @@ type growRec struct {
 	inl       ctxResult
 }
 
-// sdep is a stored dependency: a seed (or shadow) by the leader's key, or an observation by site.
-type sdep struct {
-	kind depKind
-	rule int32
-	min  int32
-	site int32
-	val  uint64
-}
-
-type ctxHeadKey struct {
-	kind    uint8
-	id, min int32
-	present uint32
-}
-
-type growKey struct {
-	rule, min int32
-}
-
 // ctxSlot is a result in a context table: the result, and for a growth step the identity of its
 // result and what the step itself recorded (its result is a seed shared by equal results).
 type ctxSlot struct {
@@ -118,12 +108,6 @@ type ctxSlot struct {
 	env            []any
 	deps           []sdep
 	next           *ctxSlot
-}
-
-type jumpKey struct {
-	g       growKey
-	present uint32
-	seed    uint64
 }
 
 // jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
@@ -600,7 +584,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 			continue
 		}
 		if d.kind == depSeed {
-			seeds = append(seeds, growKey{d.rule, d.min})
+			seeds = append(seeds, growKey{rule: d.rule, min: d.min, ms: d.ms})
 		} else {
 			obs = append(obs, d.site)
 		}
@@ -771,7 +755,7 @@ type runStep struct {
 	deps           []sdep
 }
 
-func (g *growState) growKey() growKey { return growKey{g.rule, g.min} }
+func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min} }
 
 // growBegin starts the growth of the leader r at level min at the current position from a failure.
 // A growth in a context, where another leader of its cycle grows, memoizes its steps (growMemoStep, growKeepStep);
@@ -931,9 +915,9 @@ func (p *Parser) adoptGrownStep(g *growState, s *ctxResult, id uint64, st runSte
 	var obs []sdep
 	for _, d := range st.deps {
 		switch {
-		case d.kind == depSeed && (growKey{d.rule, d.min}) != own:
+		case d.kind == depSeed && (growKey{rule: d.rule, min: d.min, ms: d.ms}) != own:
 			other = true
-		case d.kind == depShadow && (growKey{d.rule, d.min}) == own:
+		case d.kind == depShadow && (growKey{rule: d.rule, min: d.min, ms: d.ms}) == own:
 			// A lookahead of the step read the growth's own seed: its outcome holds for this seed
 			// only, while a jump checks its observations under the first seed of the run.
 			other = true

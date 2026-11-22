@@ -613,7 +613,7 @@ func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 }
 
 func (g *GrowState) growKey() growKey {
-	return growKey{int32(g.Key.Rule), int32(g.Key.Min), g.Key.MissingSilent}
+	return growKey{rule: int32(g.Key.Rule), min: int32(g.Key.Min), ms: g.Key.MissingSilent}
 }
 
 // growMemoStep takes the steps of a growth in a context that its table gives, from the jumps and the
@@ -750,9 +750,9 @@ func (p *Parser) adoptGrownStep(g *GrowState, e *MemoEntry, id uint64, st runSte
 	var obs []sdep
 	for _, d := range st.deps {
 		switch {
-		case d.kind == depSeed && (growKey{d.rule, d.min, d.ms}) != own:
+		case d.kind == depSeed && (growKey{rule: d.rule, min: d.min, ms: d.ms}) != own:
 			other = true
-		case d.kind == depShadow && (growKey{d.rule, d.min, d.ms}) == own:
+		case d.kind == depShadow && (growKey{rule: d.rule, min: d.min, ms: d.ms}) == own:
 			// A lookahead of the step read the growth's own seed: its outcome holds for this seed
 			// only, while a jump checks its observations under the first seed of the run.
 			other = true

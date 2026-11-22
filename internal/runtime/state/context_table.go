@@ -226,3 +226,31 @@ func equalSites(a, b []int32) bool {
 func (p *Parser) reusable(silent bool) bool {
 	return !silent || p.Silent > 0
 }
+// sdep is a stored dependency: a seed (or shadow) by the leader's key, or an observation by site.
+type sdep struct {
+	kind depKind
+	rule int32
+	min  int32
+	ms   missingBit
+	site int32
+	val  uint64
+}
+
+type ctxHeadKey struct {
+	kind    uint8
+	id, min int32
+	ms      missingBit
+	present presentSet
+}
+
+type growKey struct {
+	ms        missingBit // first, so that it adds no padding where it takes no space
+	rule, min int32
+}
+
+type jumpKey struct {
+	g       growKey
+	present presentSet
+	seed    uint64
+}
+

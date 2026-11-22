@@ -80,28 +80,6 @@ type growRec struct {
 	cycle int32  // Rule.Cycle
 }
 
-// sdep is a stored dependency: a seed (or shadow) by the leader's key, or an observation by site.
-type sdep struct {
-	kind depKind
-	rule int32
-	min  int32
-	ms   bool
-	site int32
-	val  uint64
-}
-
-type ctxHeadKey struct {
-	kind    uint8
-	id, min int32
-	ms      bool
-	present uint64
-}
-
-type growKey struct {
-	rule, min int32
-	ms        bool
-}
-
 // ctxSlot is a result in a context table: the entry, and for a growth step the identity of its
 // result and what the step itself recorded (its result entry is a seed shared by equal results).
 type ctxSlot struct {
@@ -114,12 +92,6 @@ type ctxSlot struct {
 	env            []any
 	deps           []sdep
 	next           *ctxSlot
-}
-
-type jumpKey struct {
-	g       growKey
-	present uint64
-	seed    uint64
 }
 
 // jumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
@@ -214,7 +186,16 @@ func (p *Parser) gammaFind(gp int, rule, min int, ms bool) int {
 // identity that intern gives the set, which no word of bits equals. A memo entry holds a word of
 // bits (MemoEntry.Present), so a result in such a context goes to the table of the context even if
 // it read no seed (ctxPop), and no entry answers a call there (ctxAllows).
-const presentWide uint64 = 1 << 63
+const presentWide presentSet = 1 << 63
+
+// presentSet is a present set: the bits of the leaders of a context (Rule.LeaderBit), or presentWide
+// and an identity. The Go library's sets have 32 bits.
+type presentSet = uint64
+
+// missingBit is the missing-silent bit of a key (MemoKey.MissingSilent): the key of a seed of a
+// lookahead where missing-token insertion is off. The Go library inserts no tokens and gives the
+// bit a type that takes no space.
+type missingBit = bool
 
 // present returns the present set of the context gamma[gp:]: the bits of its leaders, or the
 // identity of the set if a leader has no bit (presentWide).
@@ -550,7 +531,7 @@ func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
 			return
 		}
 		if d.kind == depSeed {
-			seeds = append(seeds, growKey{d.rule, d.min, d.ms})
+			seeds = append(seeds, growKey{rule: d.rule, min: d.min, ms: d.ms})
 		} else {
 			obs = append(obs, d.site)
 		}
