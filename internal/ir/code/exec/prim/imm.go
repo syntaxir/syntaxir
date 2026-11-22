@@ -30,6 +30,14 @@ type RunWalk struct {
 	Build, KeyEnv bool
 }
 
+// Resume is the immediate of resumeStart: the repetition that a Document parse resumes
+// (core.Repeat.Resume), its bounds (Max < 0 is unbounded), and whether the values of its elements
+// contain no position values, so that reused elements may move with an edit (core.Repeat.Shiftable).
+type Resume struct {
+	Site, Min, Max int
+	Shiftable      bool
+}
+
 // Slot is the immediate of setCapture and frameVal: a capture slot of a frame.
 type Slot int
 
@@ -140,6 +148,12 @@ func ImmString(imm any) string {
 		return s
 	case Site:
 		return fmt.Sprintf("site %d", int(x))
+	case Resume:
+		s := fmt.Sprintf("resume %d min %d max %d", x.Site, x.Min, x.Max)
+		if x.Shiftable {
+			s += " shiftable"
+		}
+		return s
 	case RunWalk:
 		return fmt.Sprintf("site %d build=%t key-env=%t", x.Site, x.Build, x.KeyEnv)
 	case Slot:

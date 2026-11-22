@@ -229,6 +229,14 @@ rule id = [a-z]+ ";"
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outline)",
+	// The Go generator resumes no runs until its library holds them (lowerdata.Options.Resume, transitional).
+	flow.OpResumeOn:     "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeStart:  "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeMore:   "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeNext:   "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeBegin:  "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeEnd:    "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
+	flow.OpResumeFinish: "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
 }
 
 // flowExactCharges are the operations whose charges equal their cost bound.

@@ -95,6 +95,12 @@ type Options struct {
 	// the recording primitive (MatchLit) as its alternative, which the target takes when the parse is a
 	// Document's. The Flow verifier rejects an in-place read without one in a function lowered with it (flow.Attrs.Document).
 	Document bool
+	// Resume lowers the repetitions that a Document parse resumes (core.Repeat.Resume) with the
+	// operations of their runs (flow.resumeStart and the rest), in the Node functions of a lowering for
+	// Documents. It is transitional: it holds for the backends that implement the operations, so that
+	// the others lower as before until they do, and goes away when every backend does, after which
+	// every Document lowering resumes the runs.
+	Resume bool
 	// Traced lowers the traced copy of a rule that an observed parse runs (flow.Attrs.Traced): every read of the
 	// input records how far the parse examined, and the Flow verifier rejects a read in place in the function.
 	Traced bool

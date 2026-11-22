@@ -59,6 +59,13 @@ const (
 	OpSkipKids        = "runtime.skipKids"
 	OpScanReach       = "runtime.scanReach"
 	OpScanKids        = "runtime.scanKids"
+	OpResumeOn        = "runtime.resumeOn"
+	OpResumeStart     = "runtime.resumeStart"
+	OpResumeMore      = "runtime.resumeMore"
+	OpResumeNext      = "runtime.resumeNext"
+	OpResumeBegin     = "runtime.resumeBegin"
+	OpResumeEnd       = "runtime.resumeEnd"
+	OpResumeFinish    = "runtime.resumeFinish"
 	OpHasLit          = "runtime.hasLit"
 	OpMatchLit        = "runtime.matchLit"
 	OpMatchClass      = "runtime.matchClass"
@@ -149,6 +156,13 @@ var imms = map[string]reflect.Type{
 	OpSkipKids:        nil,
 	OpScanReach:       reflect.TypeFor[Site](),
 	OpScanKids:        reflect.TypeFor[Site](),
+	OpResumeOn:        nil,
+	OpResumeStart:     reflect.TypeFor[Resume](),
+	OpResumeMore:      nil,
+	OpResumeNext:      nil,
+	OpResumeBegin:     nil,
+	OpResumeEnd:       nil,
+	OpResumeFinish:    nil,
 	OpHasLit:          reflect.TypeFor[*core.Lit](),
 	OpMatchLit:        reflect.TypeFor[*core.Lit](),
 	OpMatchClass:      reflect.TypeFor[*core.Class](),

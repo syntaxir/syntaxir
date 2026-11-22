@@ -34,14 +34,16 @@ violation it finds in a function, naming the function. Every function that lower
 ## Budget
 
 A function lowered with budget controls keeps the work of a parse bounded by its limits. A charge is a Step, a Peek,
-which charges the read of the character, or a CallRule, which the runtime charges as a rule call.
+which charges the read of the character, a CallRule, which the runtime charges as a rule call, or a ResumeNext, which
+polls the budget controls in place of the unit that a reused element of a run does not charge.
 
 - The function charges before it consumes input: before an Advance, a MatchLit, a MatchClass, a SkipTerminal, a
   SkipClasses or a ScanReach. A SkipHit charges its lookup and the record it takes before it moves the position.
 - Every iteration of a loop without a Counter charges, on each path from the start of its body to a Continue or to the
   end of the body. The loop of a repetition charges one Step in each iteration before its element, a repetition of a
-  character class (a loop of Peek and Advance) included, after the SkipHit of a walk: the iteration that the
-  [cost](../runtime/parsing.md#cost) counts.
+  character class (a loop of Peek and Advance) included, after the SkipHit of a walk and after the ResumeNext of a
+  run that evaluates its element: the iteration that the [cost](../runtime/parsing.md#cost) counts. An iteration that
+  keeps an element that ResumeNext reused continues without a Step.
 - A function whose entry the code that holds it charges starts charged. A path is followed through ifs, blocks and
   exits; a path that ends in an exit leaves the block or loop it names with the charge state it has.
 
@@ -50,3 +52,7 @@ which charges the read of the character, or a CallRule, which the runtime charge
 In a function lowered for a build with Documents, a read of the input in place, HasLit, is the whole condition of an
 If, and the If's alternative is the recording primitive, MatchLit, which the target takes when the parse is a
 Document's. Otherwise a Document parse would read input without recording how far it examined it.
+
+The operations of the runs that a Document parse resumes, ResumeOn, ResumeStart, ResumeMore, ResumeNext, ResumeBegin,
+ResumeEnd and ResumeFinish, appear only in a Node function lowered for a build with Documents, and the site of a
+ResumeStart is positive.

@@ -28,6 +28,8 @@ import (
 //   - a traced function (Attrs.Traced) reads no input in place (opsInPlace);
 //   - in a Document function (Attrs.Document), an in-place literal read is the whole condition of a
 //     branch whose alternative records the read (matchLit);
+//   - the operations of the runs that a Document parse resumes are in Node functions lowered for
+//     Documents only, and a run starts at a positive site;
 //   - a function lowered with budget controls (Attrs.Budget) charges a step before it consumes input
 //     and in each iteration of a loop without a counter (verifyCharges).
 func VerifyModule(m *code.Module) error {
@@ -205,6 +207,13 @@ func (v *flowVerifier) call(c *code.Call) {
 	case OpRunBegin:
 		if w, _ := c.Imm.(prim.RunWalk); w.Site <= 0 {
 			v.fail("%s site %d", c.Callee, w.Site)
+		}
+	case OpResumeStart, OpResumeOn, OpResumeMore, OpResumeNext, OpResumeBegin, OpResumeEnd, OpResumeFinish:
+		if !a.Node || !a.Document {
+			v.fail("%s outside a Node function lowered for Documents", c.Callee)
+		}
+		if r, ok := c.Imm.(prim.Resume); c.Callee == OpResumeStart && (!ok || r.Site <= 0) {
+			v.fail("%s site %d", c.Callee, r.Site)
 		}
 	case OpStreamStart, OpEmitStream:
 		if !a.Node || !a.Frame {

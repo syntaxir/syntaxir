@@ -52,6 +52,7 @@ handle type of the component of the Flow dialect.
 | `mark` | A mark of the whole state of a parse |
 | `frame` | A capture frame of the runtime |
 | `error` | A syntax error |
+| `run` | The run of a repetition that a Document parse resumes |
 
 ## Registers
 

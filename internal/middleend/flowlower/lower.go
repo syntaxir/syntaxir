@@ -961,14 +961,19 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 		start, base = l.decl("x", prim.TypeInt), l.decl("x", prim.TypeInt)
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: base}}, Values: []code.Expr{pos(), call(flow.OpKidsLen, nil)}})
 	}
-	run := l.runBegin(n, build, start)
+	rr := l.resumeBegin(n)
+	run := l.runBegin(n, build, start, rr)
 	count := l.decl("x", prim.TypeInt)
 	l.set(count, num(0))
-	lp := l.newLoop(n.Max, func(lp *code.Loop) { run.visit(l, count, lp) })
+	lp := l.newLoop(n.Max, func(lp *code.Loop) {
+		rr.next(l, count, build, lp)
+		run.visit(l, count, lp)
+	})
 	m := l.mark(s, n.Body, !own)
 	if own {
 		l.clearScope(es, n.Body)
 	}
+	rr.begin(l)
 	f := l.label()
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, es, build, f)
@@ -982,6 +987,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 		l.set(attached, attach(v, use(m.pos), &prim.Names{List: core.SlotNames(es.slots)}, l.scopeVals(es)))
 		v = use(attached)
 	}
+	rr.end(l, true, v)
 	l.emit(inc(count))
 	if build {
 		l.emit(run.push(do(flow.OpPushKid, nil, v), v))
@@ -990,6 +996,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	if l.used[f] {
 		l.cont(lp.Label)
 		l.close(bf)
+		rr.end(l, false, null())
 		l.reset(m)
 		if build {
 			l.cutFail(cut, fail, run.drop(do(flow.OpDropKids, nil, use(base)))...)
@@ -1009,6 +1016,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 			l.failIf(nil, cond, fail, run.drop(nil)...)
 		}
 	}
+	rr.finish(l)
 	if !build {
 		run.end(l, nil)
 		return null()
@@ -1024,6 +1032,91 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	return use(list)
 }
 
+// resumeRun is the lowering of a repetition that a Document parse resumes (core.Repeat.Resume), as
+// the engine runs it: the variable of whether the walk resumes its run (flow.resumeOn), set once when
+// it begins, and of the run. A resuming walk first reuses the elements of the run that the record it
+// took over holds (flow.resumeNext), each charging no step, evaluates each other element between
+// flow.resumeBegin and flow.resumeEnd, and records the run if it matched (flow.resumeFinish); it is
+// no walk of a run or scan site. A walk that does not resume, outside a Document parse or inside a
+// lookahead or a skip expression, is the repetition's ordinary walk. nil for any other repetition,
+// whose methods then emit nothing.
+type resumeRun struct {
+	on, r string
+}
+
+// resumeBegin begins the lowering of the repetition n at the position, before the walk of a run site
+// begins. It returns nil if the lowering does not resume n: a projected repetition or a skip-run site
+// keeps no run, as in the engine.
+func (l *lowerer) resumeBegin(n *core.Repeat) *resumeRun {
+	if !l.opts.Resume || !l.opts.Document || !l.opts.Node || n.Resume == 0 || n.Project != "" || n.Site != 0 {
+		return nil
+	}
+	rr := &resumeRun{on: l.decl("x", prim.TypeBool), r: l.decl("x", prim.TypeRun)}
+	l.set(rr.on, call(flow.OpResumeOn, nil))
+	start := prim.Resume{Site: n.Resume, Min: n.Min, Max: n.Max, Shiftable: n.Shiftable}
+	l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{code.Assign(rr.r, call(flow.OpResumeStart, start))}}})
+	return rr
+}
+
+// off returns the condition that the walk does not resume: cond, which holds for an ordinary walk,
+// and that the walk does not resume.
+func (rr *resumeRun) off(cond code.Expr) code.Expr {
+	if rr == nil {
+		return cond
+	}
+	return code.And(code.Not(use(rr.on)), cond)
+}
+
+// unless returns the statements ss, which a walk that does not resume runs.
+func (rr *resumeRun) unless(ss ...code.Stmt) []code.Stmt {
+	if rr == nil {
+		return ss
+	}
+	return []code.Stmt{&code.If{Cond: code.Not(use(rr.on)), Then: &code.Block{Stmts: ss}}}
+}
+
+// next emits the beginning of an iteration of the loop lp, before its charge: a resuming walk stops
+// when its run may take no more elements, and keeps the next element that the run reuses, gathered
+// on the stack if build, and counted in count.
+func (rr *resumeRun) next(l *lowerer, count string, build bool, lp *code.Loop) {
+	if rr == nil {
+		return
+	}
+	v, ok := l.decl("v", prim.TypeValue), l.decl("x", prim.TypeBool)
+	keep := []code.Stmt{inc(count)}
+	if build {
+		keep = append(keep, do(flow.OpPushKid, nil, use(v)))
+	}
+	keep = append(keep, &code.Continue{Label: lp.Label})
+	l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{
+		&code.If{Cond: code.Not(call(flow.OpResumeMore, nil, use(rr.r))), Then: &code.Block{Stmts: []code.Stmt{l.jump(lp.Label)}}},
+		&code.Set{Dst: []code.Place{{Name: v}, {Name: ok}}, Values: []code.Expr{call(flow.OpResumeNext, nil, use(rr.r))}},
+		&code.If{Cond: use(ok), Then: &code.Block{Stmts: keep}},
+	}}})
+}
+
+// begin emits the start of the evaluation of an element, after the charge of its iteration.
+func (rr *resumeRun) begin(l *lowerer) {
+	if rr != nil {
+		l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpResumeBegin, nil, use(rr.r))}}})
+	}
+}
+
+// end emits the end of the evaluation of an element that matched (ok) with the value v, or failed,
+// before the state is reset.
+func (rr *resumeRun) end(l *lowerer, ok bool, v code.Expr) {
+	if rr != nil {
+		l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpResumeEnd, nil, use(rr.r), code.BoolC(ok), v)}}})
+	}
+}
+
+// finish emits the record of the run of a resuming walk that matched.
+func (rr *resumeRun) finish(l *lowerer) {
+	if rr != nil {
+		l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpResumeFinish, nil, use(rr.r))}}})
+	}
+}
+
 // runSite is the lowering of a repetition that is a run site (core.Repeat.Run), whose walks keep
 // records once the site is hot (flow.runHot); nil for any other repetition, whose methods then emit
 // what a plain repetition does. A walk tests hot once, when it begins: a hot walk is a walk of the
@@ -1032,21 +1125,23 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 type runSite struct {
 	n          *core.Repeat
 	hot, start string
+	rr         *resumeRun
 }
 
 // runBegin begins the lowering of the repetition n, whose walk begins at the position, held in
 // start if not empty (the variable of a walk that builds a value). It returns nil if n is no run
-// site.
-func (l *lowerer) runBegin(n *core.Repeat, build bool, start string) *runSite {
+// site. A walk that resumes its run (rr) is no walk of the site: it is not hot and tells the site
+// nothing.
+func (l *lowerer) runBegin(n *core.Repeat, build bool, start string, rr *resumeRun) *runSite {
 	if n.Run == 0 || n.Project != "" {
 		return nil
 	}
-	r := &runSite{n: n, hot: l.decl("x", prim.TypeBool), start: start}
+	r := &runSite{n: n, hot: l.decl("x", prim.TypeBool), start: start, rr: rr}
 	if start == "" {
 		r.start = l.decl("x", prim.TypeInt)
 		l.set(r.start, pos())
 	}
-	l.set(r.hot, call(flow.OpRunHot, prim.Site(n.Run)))
+	l.set(r.hot, rr.off(call(flow.OpRunHot, prim.Site(n.Run))))
 	walk := prim.RunWalk{Site: n.Run, Build: build, KeyEnv: !n.RunEnvFree}
 	l.emit(&code.If{Cond: use(r.hot), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpRunBegin, walk)}}})
 	return r
@@ -1109,7 +1204,9 @@ func (r *runSite) end(l *lowerer, list func(hot bool)) {
 		l.emit(do(flow.OpSkipEnd, nil))
 	}
 	l.stack[len(l.stack)-1] = &b.Else.Stmts
-	l.emit(do(flow.OpRunWalked, prim.Site(r.n.Run), use(r.start)))
+	for _, st := range r.rr.unless(do(flow.OpRunWalked, prim.Site(r.n.Run), use(r.start))) {
+		l.emit(st)
+	}
 	if list != nil {
 		list(false)
 	}
@@ -1119,7 +1216,8 @@ func (r *runSite) end(l *lowerer, list func(hot bool)) {
 // scanSiteRepeat lowers the scan site n, a repetition of one character without a maximum or a scope of
 // its own, in a local or a framed function. A walk that matches ScanHotSpan characters takes the
 // rest from the record of its start or goes on (ScanReach), and records itself when it ends
-// (ScanEnd; ScanKids for a walk that builds a value, whose records are those of the next site).
+// (ScanEnd; ScanKids for a walk that builds a value, whose records are those of the next site). A
+// walk that resumes its run (resumeRun) is no walk of the site.
 func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail string) code.Expr {
 	if n.Max >= 0 || n.Scope != nil || n.Project != "" {
 		panic("flow: a scan site has no maximum, no scope of its own and no projection")
@@ -1134,21 +1232,27 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	} else {
 		l.emit(&code.Set{Dst: []code.Place{{Name: start}, {Name: count}}, Values: []code.Expr{pos(), num(0)}})
 	}
-	lp := l.newLoop(-1, nil)
+	rr := l.resumeBegin(n)
+	lp := l.newLoop(-1, func(lp *code.Loop) { rr.next(l, count, build, lp) })
 	m := l.mark(s, n.Body, true)
+	rr.begin(l)
 	f := l.label()
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, s, build, f)
 	if build {
 		sv := l.decl("v", prim.TypeValue)
 		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, m.at()))
+		rr.end(l, true, use(sv))
 		l.emit(do(flow.OpPushKid, nil, use(sv)))
+	} else {
+		rr.end(l, true, null())
 	}
 	l.emit(inc(count))
-	l.scanReach(site, start, count)
+	l.scanReach(site, start, count, rr)
 	if l.used[f] {
 		l.cont(lp.Label)
 		l.close(bf)
+		rr.end(l, false, null())
 		l.reset(m)
 		if build {
 			l.cutFail(cut, fail, do(flow.OpDropKids, nil, use(base)))
@@ -1161,7 +1265,7 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	}
 	l.endLoop()
 	if !build {
-		l.scanEnd(site, start, count)
+		l.scanEnd(site, start, count, rr)
 	}
 	if n.Min > 0 {
 		cond := code.Bin("<", use(count), num(n.Min))
@@ -1171,26 +1275,34 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 			l.failIf(nil, cond, fail)
 		}
 	}
+	rr.finish(l)
 	if !build {
 		return null()
 	}
 	list := l.decl("v", prim.TypeValue)
-	l.set(list, l.branch(true, use(start), call(flow.OpScanKids, prim.Site(site), use(start), use(base), use(count))))
+	scanned := code.Assign(list, l.branch(true, use(start), call(flow.OpScanKids, prim.Site(site), use(start), use(base), use(count))))
+	if rr == nil {
+		l.emit(scanned)
+	} else {
+		// A resuming walk gathers its elements on the stack, as any repetition does.
+		l.emit(&code.If{Cond: use(rr.on), Then: &code.Block{Stmts: []code.Stmt{code.Assign(list, l.branch(true, use(start), call(flow.OpKids, nil, use(base))))}},
+			Else: &code.Block{Stmts: []code.Stmt{scanned}}})
+	}
 	return use(list)
 }
 
 // scanReach emits the test of a walk of the scan site that began at start after its count was
 // raised: at ScanHotSpan characters, the walk takes the count from ScanReach.
-func (l *lowerer) scanReach(site int, start, count string) {
-	l.emit(&code.If{Cond: code.Bin("==", use(count), num(flow.ScanHotSpan)), Then: &code.Block{Stmts: []code.Stmt{
+func (l *lowerer) scanReach(site int, start, count string, rr *resumeRun) {
+	l.emit(&code.If{Cond: rr.off(code.Bin("==", use(count), num(flow.ScanHotSpan))), Then: &code.Block{Stmts: []code.Stmt{
 		&code.Set{Dst: []code.Place{{Name: count}}, Values: []code.Expr{call(flow.OpScanReach, prim.Site(site), use(start), use(count))}},
 	}}})
 }
 
 // scanEnd emits the end of a value-free walk of the scan site that began at start: a walk that
 // reached ScanHotSpan characters records itself or notes that it walked (ScanEnd).
-func (l *lowerer) scanEnd(site int, start, count string) {
-	l.emit(&code.If{Cond: code.Bin("<", num(flow.ScanHotSpan-1), use(count)), Then: &code.Block{Stmts: []code.Stmt{
+func (l *lowerer) scanEnd(site int, start, count string, rr *resumeRun) {
+	l.emit(&code.If{Cond: rr.off(code.Bin("<", num(flow.ScanHotSpan-1), use(count))), Then: &code.Block{Stmts: []code.Stmt{
 		do(flow.OpScanEnd, prim.Site(site), use(start), use(count)),
 	}}})
 }
@@ -1241,7 +1353,8 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 // newLoop begins a loop of at most max iterations (unbounded if max < 0). Each iteration runs visit,
 // if not nil, and then charges one step before its element, whatever the element is: the iteration
 // of the cost. The visit of a walk may take the rest of it from a record and leave the loop, which
-// evaluates no element and charges no step.
+// evaluates no element and charges no step, and the visit of a resuming walk may keep an element that
+// its run reuses and continue, which polls in place of the step (flow.resumeNext).
 func (l *lowerer) newLoop(max int, visit func(*code.Loop)) *code.Loop {
 	lp := &code.Loop{Label: l.loopLabel()}
 	if max >= 0 {
@@ -1315,11 +1428,11 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 		l.emit(inc(count))
 	}
 	if n.Site != 0 {
-		l.scanReach(n.Site, start, count)
+		l.scanReach(n.Site, start, count, nil)
 	}
 	l.endLoop()
 	if n.Site != 0 {
-		l.scanEnd(n.Site, start, count)
+		l.scanEnd(n.Site, start, count, nil)
 	}
 	if n.Min > 0 {
 		l.failIf(nil, code.Bin("<", use(count), num(n.Min)), fail)
@@ -1531,16 +1644,20 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 		}
 	}
 	stream := n == l.streaming
+	rr := l.resumeBegin(n)
 	var run *runSite
 	if !stream {
-		run = l.runBegin(n, build && field == "", start)
+		run = l.runBegin(n, build && field == "", start, rr)
 	}
 	count := l.decl("x", prim.TypeInt)
 	l.set(count, num(0))
 	if stream {
 		l.emit(&code.If{Cond: call(flow.OpStreamOn, nil), Then: &code.Block{Stmts: []code.Stmt{do(flow.OpStreamStart, nil)}}})
 	}
-	lp := l.newLoop(n.Max, func(lp *code.Loop) { run.visit(l, count, lp) })
+	lp := l.newLoop(n.Max, func(lp *code.Loop) {
+		rr.next(l, count, build && field == "", lp)
+		run.visit(l, count, lp)
+	})
 	if field != "" {
 		l.emit(do(flow.OpClearVals, nil, use(frame)))
 	}
@@ -1553,6 +1670,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 		}
 		l.setFrame(use(frame))
 	}
+	rr.begin(l)
 	f := l.label()
 	bf := l.open(f)
 	v, cut := l.cutNode(n.Body, es, build && field == "", f)
@@ -1579,6 +1697,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 			l.emit(do(flow.OpFreeFrame, nil, use(frame)))
 		}
 	}
+	rr.end(l, true, v)
 	l.emit(inc(count))
 	if stream {
 		// The element is delivered and committed, not retained.
@@ -1602,6 +1721,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 		if own {
 			l.setFrame(use(prev))
 		}
+		rr.end(l, false, null())
 		l.reset(m)
 		if build {
 			l.cutFail(cut, fail, run.drop(do(flow.OpDropKids, nil, use(base)))...)
@@ -1621,6 +1741,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 			l.failIf(nil, cond, fail, run.drop(nil)...)
 		}
 	}
+	rr.finish(l)
 	if !build {
 		run.end(l, nil)
 		return null()

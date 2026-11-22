@@ -10,8 +10,9 @@ import (
 // verifyCharges checks the budget-charging invariants of a function lowered with budget controls
 // (Attrs.Budget), which keep the spend of a parse bounded by its limits and the context polled (the
 // runtime polls every 256 units of spend). A charge is a step, a peek or the guard of a literal (which
-// charge the spend of the character they read), or a rule call (which the runtime charges as a rule
-// call):
+// charge the spend of the character they read), a rule call (which the runtime charges as a rule call),
+// or the reuse of an element of a resumed run (flow.resumeNext), which polls the budget controls in place
+// of the unit that a reused element does not charge:
 //
 //   - the function charges before it consumes input: before an advance or a call of an operation in
 //     opsConsume;
@@ -96,7 +97,7 @@ func (w *chargeVerifier) stmts(ss []code.Stmt, charged bool) (bool, bool) {
 				charged = w.expr(charged, s.Call.Args...)
 			}
 		case *code.Set:
-			if c := callOf(s.Values); c != nil && c.Callee == OpPeek {
+			if c := callOf(s.Values); c != nil && (c.Callee == OpPeek || c.Callee == OpResumeNext) {
 				charged = true
 				continue
 			}

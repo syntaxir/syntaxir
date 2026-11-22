@@ -28,10 +28,11 @@ const (
 	TFrame   = "frame"
 	TError   = "error"
 	TRune    = "rune"
+	TRun     = "run"
 )
 
 // HandleTypes are the handle types, in the order the modules of grammar code declare them.
-var HandleTypes = []string{TValue, TEnv, TExpMark, TExpIDs, TVals, TCtx, TMark, TFrame, TError, TRune}
+var HandleTypes = []string{TValue, TEnv, TExpMark, TExpIDs, TVals, TCtx, TMark, TFrame, TError, TRune, TRun}
 
 // Type classifies the type of a variable of grammar code: int, bool or one of the handle types.
 type Type uint8
@@ -59,9 +60,12 @@ const (
 	TypeFrame
 	// TypeError is a syntax error.
 	TypeError
+	// TypeRun is the run of a repetition that a Document parse resumes (resumeStart): a record of the
+	// parse that the run's operations read and write, one for each walk of the repetition.
+	TypeRun
 )
 
-var typeNames = [...]string{"int", "bool", "rune", "value", "env", "expmark", "expids", "vals", "ctx", "mark", "frame", "error"}
+var typeNames = [...]string{"int", "bool", "rune", "value", "env", "expmark", "expids", "vals", "ctx", "mark", "frame", "error", "run"}
 
 func (t Type) String() string { return typeNames[t] }
 

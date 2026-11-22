@@ -145,6 +145,13 @@ const (
 	OpSkipKids        = "flow.skipKids"
 	OpScanReach       = "flow.scanReach"
 	OpScanKids        = "flow.scanKids"
+	OpResumeOn        = "flow.resumeOn"
+	OpResumeStart     = "flow.resumeStart"
+	OpResumeMore      = "flow.resumeMore"
+	OpResumeNext      = "flow.resumeNext"
+	OpResumeBegin     = "flow.resumeBegin"
+	OpResumeEnd       = "flow.resumeEnd"
+	OpResumeFinish    = "flow.resumeFinish"
 	OpHasLit          = "flow.hasLit"
 	OpMatchLit        = "flow.matchLit"
 	OpMatchClass      = "flow.matchClass"
@@ -218,7 +225,7 @@ func immOf[T any]() reflect.Type { return reflect.TypeFor[T]() }
 func Ops() []*code.Op {
 	h := code.THandle
 	value, env, expmark, expids, vals, ctx := h(prim.TValue), h(prim.TEnv), h(prim.TExpMark), h(prim.TExpIDs), h(prim.TVals), h(prim.TCtx)
-	mark, frame, errT, runeT := h(prim.TMark), h(prim.TFrame), h(prim.TError), h(prim.TRune)
+	mark, frame, errT, runeT, run := h(prim.TMark), h(prim.TFrame), h(prim.TError), h(prim.TRune), h(prim.TRun)
 	b, i := code.TBool, code.TInt
 	P := code.P
 	all := []string{State, prim.Pos, prim.Cut}
@@ -401,6 +408,36 @@ stack is dropped to base), or the gathered elements, which the record that it ma
 unit for the record that it makes, as flow.scanEnd does (spec/runtime/parsing.md#scan-sites), and nothing
 for the elements: the values that the parse gathers are not an item of the cost
 (spec/runtime/parsing.md#cost).`}), "the site (Site)", immOf[prim.Site]())
+
+	// The runs of the repetitions that a Document parse resumes (spec/runtime/documents.md#reuse-model),
+	// each the composition of the same name with the prefix run (spec/exec-ir/compositions.md#repetition-runs).
+	// They count no event and declare no cost: a reused element charges no unit, and flow.resumeNext polls.
+	op(&code.Op{Name: OpResumeOn, Results: []code.Type{b}, Laws: []string{pure},
+		Contract: `Reports that the repetitions resume their runs: the parse is a Document's, outside lookaheads and
+the evaluation of a skip expression (the silent depth is 0).`})
+	withImm(op(&code.Op{Name: OpResumeStart, Results: []code.Type{run}, Reads: pos, Writes: []string{State},
+		Contract: `Starts the run of the repetition at the position and returns it, with the record of the run that it
+takes over, as the composition runStart does.`,
+		Requires: "flow.resumeOn holds."}), "the repetition (Resume)", immOf[prim.Resume]())
+	op(&code.Op{Name: OpResumeMore, Params: []code.Param{P("r", run)}, Results: []code.Type{b}, Laws: []string{pure},
+		Contract: "Reports whether the run r may take another element: no reused element ended it, and it has fewer than its maximum (runMore)."})
+	op(&code.Op{Name: OpResumeNext, Params: []code.Param{P("r", run)}, Results: []code.Type{value, b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true,
+		Contract: `Reuses the next element of the run r that the record it took over holds, as the composition runNext
+does: it replays what evaluating the element did (the position, the examined input, the expectations and the
+statistics) and returns its value and true, for the caller to keep. It returns false when the repetition
+evaluates its next element instead. A reused element charges no unit: the call polls the budget controls,
+which may end the parse, and is the charge of the iteration that keeps the element.`,
+		Requires: "flow.resumeMore of r holds."})
+	op(&code.Op{Name: OpResumeBegin, Params: []code.Param{P("r", run)}, Reads: pos, Writes: []string{State},
+		Contract: `Starts evaluating an element of the run r, after the charge of its iteration: its examined input and its
+expectations are recorded apart from those of the enclosing call (runBegin).`})
+	op(&code.Op{Name: OpResumeEnd, Params: []code.Param{P("r", run), P("ok", b), P("x", value)}, Reads: pos, Writes: []string{State},
+		Contract: `Ends evaluating the element of the run r that flow.resumeBegin started, with its success ok and its
+value x, before a failed element resets the state: it adds the element's examined input and expectations to
+those of the enclosing call, and records the element if it matched (runEnd).`})
+	op(&code.Op{Name: OpResumeFinish, Params: []code.Param{P("r", run)}, Writes: []string{State},
+		Contract: `Records the run r of a repetition that matched, before its value is built (runFinish). A repetition that
+fails drops its run without a call.`})
 	withImm(op(&code.Op{Name: OpHasLit, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QLit),
 		Contract: `Reports that the input at the position begins with the literal, read in place without recording
 anything; false where the input cannot be read in place. With budget controls a match charges a unit per
