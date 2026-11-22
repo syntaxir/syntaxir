@@ -1304,11 +1304,15 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
     const u = unit === Bytes ? Bytes : CodePoints;
     const observed = traceOptions !== null && (traceOptions.traces.length !== 0 || traceOptions.profiles.length !== 0);
     if ((usedFeatures & featureDocument) !== 0 && document !== null) {
+      // Under a memory limit the count starts at what the Document keeps; if that alone passes the
+      // limit, the Document drops it and the parse runs from scratch.
+      if (control !== null && !control.retain(() => document.retainedBytes())) document.clear();
       const d = new DocumentParser(g, input, u, seen, maxDepth, control);
       d.memoState = document;
       d.slots = document.slots;
       d.gap = document.gap;
       d.gapLen = document.gapLen;
+      d.memoEntries = document.entries;
       // The runs of the last parse: the records of the same text, which this parse takes over, or
       // those of the text before the edits since, which it may resume once.
       d.gen = document.edits.length;
@@ -1329,6 +1333,7 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
       const d = p as DocumentParser;
       const res = publishDocumentResult(result(d, d.call(r, 0)));
       document.slots = d.slots;
+      document.entries = d.memoEntries;
       document.runs = d.runs;
       document.runGen = d.gen;
       document.evaluated = d.evaluated;
@@ -1468,6 +1473,8 @@ export class DocumentMemo {
   slots: (MemoEntry | null | undefined)[] = [];
   gap = 0;
   gapLen = 0;
+  // entries is the number of entries in the slots.
+  entries = 0;
   // edits is the log of the edits since the memo was last dropped; an entry accounts for the first
   // MemoEntry.vgen of them.
   edits: DocumentEdit[] = [];
@@ -1485,9 +1492,25 @@ export class DocumentMemo {
     this.slots = [];
     this.gap = 0;
     this.gapLen = 0;
+    this.entries = 0;
     this.edits = [];
     this.runs = null;
     this.runGen = 0;
+  }
+
+  // retainedBytes returns the bytes that the memory limit counts for what the memo keeps for the next
+  // parse (spec/runtime/documents.md), by the size model of the sites that make them (Parser.memoPut,
+  // DocumentParser.runAdd and runRecord): its slots, which edits may have added to, its entries, the
+  // records of the runs and their elements, and the log of the edits. It walks the runs, so a parse
+  // reads it only under a memory limit (BudgetControl.retain).
+  retainedBytes(): number {
+    let n = (this.slots.length === 0 ? 0 : arrayBytes(this.slots.length)) + this.entries * entryBytes;
+    if (this.runs !== null) {
+      for (const t of this.runs.values()) {
+        for (const r of t.values()) n += objectBytes(2) + arrayBytes(r.elems.length) + r.elems.length * objectBytes(7);
+      }
+    }
+    return n + (this.edits.length === 0 ? 0 : arrayBytes(this.edits.length) + this.edits.length * objectBytes(3));
   }
 
   // edit applies an edit to the memo and records it in the log. It counts no units: the work of a
@@ -1517,6 +1540,8 @@ export class DocumentMemo {
         if (this.advanceEntry(e, this.edits)) {
           e.next = stay;
           stay = e;
+        } else {
+          this.entries--;
         }
         e = next;
       }
@@ -3235,6 +3260,8 @@ export class Parser {
   memoIndex: Map<number, Map<number, MemoEntry>> | null = null;
   /** memoSlot is the slot where the last memoProbe found its entry, or would store one. */
   memoSlot = 0;
+  /** memoEntries is the number of entries in the slots, which a Document keeps (DocumentMemo.entries). */
+  memoEntries = 0;
 
   // memoProbe returns the entry that match accepts among the entries of ix at h and above, leaving
   // in memoSlot the slot where it is, or the free slot where it would be stored.
@@ -3335,6 +3362,7 @@ export class Parser {
     }
     e.next = this.slots[i] || null;
     this.slots[i] = e;
+    this.memoEntries++;
     return e;
   }
 
@@ -6219,6 +6247,7 @@ export class DocumentParser extends TrackedParser {
       } else {
         if (prev === null) this.slots[i] = next;
         else prev.next = next;
+        this.memoEntries--;
         this.memoIndex?.delete(pos);
       }
       e = next;

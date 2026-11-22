@@ -125,6 +125,20 @@ export class BudgetControl {
     }
   }
 
+  /**
+   * retain starts the memory count at the bytes that a Document retains from earlier parses, which
+   * retained returns; it reads them only under a finite memory limit. It reports false, counting
+   * nothing, when they alone exceed the limit: the Document then drops them and parses from scratch
+   * (spec/runtime/documents.md).
+   */
+  retain(retained: () => number): boolean {
+    if (this.memory === 0) return true;
+    const n = retained();
+    if (n > this.memory) return false;
+    this.mem += n;
+    return true;
+  }
+
   /** memoryUsed returns the count the memory limit checks: the allocated bytes and the peak of the working stacks. */
   memoryUsed(): number {
     if (this.held !== null) {

@@ -120,8 +120,10 @@ parse runs from scratch. Retained bytes within `Memory` are kept, so a parse
 that reuses them can exceed the limit where a parse from scratch would not; that
 interruption clears them, and the next parse starts without them. The retained
 bytes are counted as the memory limit counts storage, not as `EstimatedBytes`
-estimates it. A generated document counts its memo table, and a typed generated
-document an estimate of its retained memo slots and entries.
+estimates it. A generated Go document counts its memo table and repetition
+records, and a typed one an estimate of its retained memo slots and entries; a
+generated TypeScript document counts its memo slots and entries, its repetition
+records and its edits.
 
 ### Statistics
 
