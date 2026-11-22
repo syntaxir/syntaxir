@@ -154,7 +154,7 @@ func TestSkipUnlessChanged(t *testing.T) {
 }
 
 // runnerPackages are the package patterns whose tests run the mutants that use Pipeline.
-var runnerPackages = []string{"./internal/backend/...", "./pkg/runtime/libgo/...", "./pkg/sample", "./internal/runtime/engine/..."}
+var runnerPackages = []string{"./internal/backend/...", "./pkg/runtime/libgo/...", "./pkg/sample", "./internal/runtime/engine/...", "./internal/testing/examinedref"}
 
 // testImports returns the import paths of the packages that the tests of the packages pkgs depend on, from the
 // module root. A pattern that matches no package is an error that names it: a runner list that names a moved or
