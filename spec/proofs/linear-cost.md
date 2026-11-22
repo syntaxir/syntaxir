@@ -139,7 +139,8 @@ $C = C_{\mathrm{body}} + C_{\mathrm{in}} + C_{\mathrm{it}} + C_{\mathrm{val}}$:
 the rule bodies evaluated with each growth step counted, the input that
 terminals, repetitions of character classes and lookaheads examine, the
 iterations of repetitions and the operators applied, and the size of the
-values that actions and predicates build. A step of a rule body includes the
+values that actions and predicates build, with the strings whose length `len`
+measures. A step of a rule body includes the
 calls it makes, so $C_{\mathrm{body}}$ counts each call: a constant, and the
 lookup of its key, which costs in proportion to the size of the key
 ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)). The call

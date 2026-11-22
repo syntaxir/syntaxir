@@ -9,7 +9,7 @@
 A compute limit protects a service from hostile input to a trusted grammar. This record proposes to count compute
 units at a small set of **logical events**: the events that the language defines and an attacker can multiply. Units
 are no longer counted per operation of a backend. The events are calls of rules, input that terminals advance over
-(counted again after backtracking), the size of the values that actions build or compare, the suffix copies of run
+(counted again after backtracking), the size of the values that actions build, compare or measure, the suffix copies of run
 sites, and the syntax errors built. Every other piece of work is bounded by these events times a constant of
 the grammar, so it charges nothing. Body evaluations, iterations and operators were proposed as events at the start
 of this design; the table drops them because calls and input bound them
@@ -122,6 +122,7 @@ call. A unit that bounds neither kind defends against nothing and only costs tim
 | Input that a terminal advances over: a literal, a character class, `.`, or a fused scan, including inside a lookahead and inside an alternative that later fails | 1 for each position unit advanced, counted again each time backtracking returns before it and a terminal advances over it again | Backtracking that re-examines input (quadratic and worse re-scans) and long scans |
 | A value that an action, a predicate or a binding builds | 1 for each element of a list and each byte of a string that it builds | Values that grow faster than the input, such as a concatenation in a repetition |
 | A comparison of strings by an action, a predicate, a binding or a key | The length in bytes of the shorter operand | Repeated comparison of long equal strings |
+| `len` of a string, in either position unit | The length in bytes of the string | Repeated measures of long strings, whose length in code points, or in bytes from another encoding, takes a walk |
 | A list operation that visits elements (`map`, `filter`, folds) | 1 for each element visited | Repeated walks of long lists |
 | A suffix copy of a [run site](../../../spec/runtime/parsing.md#run-sites) | 1 for each element copied | Copies that taking a record adds, which no other event bounds |
 | A syntax error built (by recovery, by missing-token insertion, or as the final error of a failed parse) | 1 | Missing-token insertion, which can build errors without consuming input |

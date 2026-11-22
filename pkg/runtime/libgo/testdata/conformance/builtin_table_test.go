@@ -111,3 +111,36 @@ func TestValueBuiltinTable(t *testing.T) {
 		}
 	}
 }
+
+// TestValueLengthUnits runs the length table (conform.RunLengths) on the composition length of the node
+// and the typed library under logical compute units: len of a string counts its bytes in either unit.
+func TestValueLengthUnits(t *testing.T) {
+	unit := func(codePoints bool) sxirinput.PositionUnit {
+		if codePoints {
+			return sxirinput.CodePoints
+		}
+		return sxirinput.Bytes
+	}
+	for _, typed := range []bool{false, true} {
+		target := "node"
+		if typed {
+			target = "typed"
+		}
+		if err := conform.RunLengths(target, func(s string, codePoints bool) (int, uint64) {
+			p := &Parser{unit: unit(codePoints)}
+			conformUnits(p, 0)
+			var v, e any
+			if typed {
+				v, e = (&TParser{Parser: p}).ActionLength(s)
+			} else {
+				v, e = p.ActionLength(s)
+			}
+			if e != nil {
+				t.Fatalf("%s: len(%q) fails: %v", target, s, e)
+			}
+			return v.(int), uint64(p.Units)
+		}); err != nil {
+			t.Error(err)
+		}
+	}
+}

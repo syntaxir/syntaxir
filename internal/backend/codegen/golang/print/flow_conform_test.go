@@ -114,7 +114,7 @@ rule ws = [ \n]* $
 @start
 rule main = xs:(p:pair ";"?)* tl:tail $$ => map($xs, (e) => e.$p)
 rule tail = t:"!"? "."?
-rule pair = n:name "=" v:num {len(text($n)) > 0} => P{Name: text($n), N: len(text($v))}
+rule pair = n:name "=" v:num {len(text($n)) > 0 && len(text($v)) > 0} => P{Name: text($n), N: 1}
 rule name = [a-z]+ #atomic
 rule num = d:[0-9]+ => text($d)
 `, opts: common.GenOptions{Types: true}, inputs: []string{"a=1;bc=23", "a=", flowConformLong + "=1", "", "a=1.", "a=1!."},

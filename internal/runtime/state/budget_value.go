@@ -45,9 +45,12 @@ func (p *Parser) ValueLogic(op string, x any) (bool, error) {
 	return p.actionLogic(code, x)
 }
 
-// ValueTextLen is str.len: the length of s in the position unit. It is a scalar operation, which
-// counts nothing (spec/runtime/parsing.md#compute-units).
-func (p *Parser) ValueTextLen(s string) int { return TextLen(p.Unit, s) }
+// ValueTextLen is str.len: the length of s in the position unit. It counts the bytes of s in either
+// unit (spec/runtime/parsing.md#compute-units).
+func (p *Parser) ValueTextLen(s string) int {
+	p.valueUnits(len(s))
+	return TextLen(p.Unit, s)
+}
 
 // ValueField returns the field name of fs (node.field). Reading a field counts nothing.
 func (p *Parser) ValueField(fs valueimpl.Fields, name string) (any, bool) { return fs.Get(name) }

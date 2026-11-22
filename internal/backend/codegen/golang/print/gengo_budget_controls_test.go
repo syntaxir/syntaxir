@@ -175,13 +175,14 @@ func TestStringAndMalformedTextBudget(t *testing.T){
  for _,invoke:=range []func(*sxirrt.Parser){
   func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpEq,text,strings.Clone(text))},
   func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpAdd,text,text)},
+  func(p *sxirrt.Parser){p.X_unitLen(text)},
  }{
   p:=counting(&sxirrt.Parser{},127)
   func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);if !ok || !errors.Is(f.X_err,ErrLimit){t.Fatal("string units not checked",f)}}();invoke(p)}()
  }
- // Measuring a text in position units examines it and counts nothing.
- p=counting(&sxirrt.Parser{},1)
- if p.X_unitLen(text)!=301 || p.Units!=0{t.Fatalf("unit length counted %d units",p.Units)}
+ // Measuring a text in position units counts its bytes, in either position unit.
+ p=counting(&sxirrt.Parser{},0)
+ if p.X_unitLen(text)!=301 || p.Units!=uint64(len(text)){t.Fatalf("unit length counted %d units, not %d",p.Units,len(text))}
  // Preparing a malformed source and slicing its texts count nothing: preparing the input is linear
  // once, and the Input limit bounds it.
  runes:=[]rune(strings.Repeat("�",300))

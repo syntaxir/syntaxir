@@ -100,7 +100,8 @@ func TestClosureFamilyCharges(t *testing.T) {
 		{"plain calls", "rule main = item* $$\nrule item = \"a\"", entry.Options{}, "aaaa", false, every(10)},
 		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", entry.Options{DisableMemo: true}, "aaaa", false, every(10)},
 		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", entry.Options{DisableMemo: true}, "((x))", false, every(10)},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", entry.Options{}, "aaa", false, every(8)},
+		// len of each one-byte text counts its byte.
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", entry.Options{}, "aaa", false, every(11)},
 		{"stream", codegentest.Records, entry.Options{}, "#records\na=1\nbc=22\n", true, map[string]uint64{"stream": 24, "stream+trace": 24}},
 	}
 	for _, c := range cases {

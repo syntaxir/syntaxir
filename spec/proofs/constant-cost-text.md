@@ -44,7 +44,8 @@ of its range and includes what that range includes.
 **What the conditions bound.** Under the conditions, the cost of a parse is
 bounded by bounding each part that [Cost](../runtime/parsing.md#cost) counts:
 rule bodies, examined input, iterations and applied operators, and the size of
-the values that actions and predicates build. A step of an action, a predicate
+the values that actions and predicates build, with the strings whose length
+`len` measures. A step of an action, a predicate
 or a binding that costs a constant, outside a scanning source, is part of the
 constant cost of the evaluation of the body that contains it: a body is a
 finite expression, and outside its scanning sources each of its parts is

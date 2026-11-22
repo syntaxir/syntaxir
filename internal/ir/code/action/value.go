@@ -489,8 +489,9 @@ each position unit of the result; a target that otherwise bounds the work may ch
 for the bytes it copies out of a stream.`})
 	pure(&code.Op{Name: "str.len", Params: []code.Param{x}, Results: []code.Type{datum},
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
-		Contract: `Returns the length of the string x in the position unit as an int. A target that bounds the work and
-counts characters charges for the bytes it reads.`,
+		Contract: `Returns the length of the string x in the position unit as an int. A parse that counts compute units
+counts the length in bytes of x, in either position unit (spec/runtime/parsing.md#compute-units); a target that
+otherwise bounds the work and counts characters charges for the bytes it reads.`,
 		Requires: `x is a string.`})
 	pure(&code.Op{Name: "str.of", Params: []code.Param{x}, Results: []code.Type{code.THandle(Str)},
 		Contract: `Returns the string x.`, Requires: `x is a string.`})

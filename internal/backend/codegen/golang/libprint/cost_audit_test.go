@@ -268,9 +268,10 @@ func siteName(f *types.Func) string {
 // the test, so that a new count in the library is attributed when it is added, and so does a listed
 // site that no operation reaches.
 var siteCost = map[string][]string{
-	// The sized events of values: the bytes that a string concatenation makes or a comparison covers, and the text of a range of
-	// a stream, which node.rangeText reads.
+	// The sized events of values: the bytes that a string concatenation makes, a comparison covers or
+	// len measures, and the text of a range of a stream, which node.rangeText reads.
 	"Parser.strAdd":      {action.QValueBytes},
+	"Parser.unitLen":     {action.QValueBytes},
 	"Parser.compareText": {action.QValueBytes},
 	"Parser.TextEqual":   {action.QValueBytes},
 	"Parser.rangeText":   {action.QValueBytes},

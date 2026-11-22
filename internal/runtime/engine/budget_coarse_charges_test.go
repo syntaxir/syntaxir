@@ -37,8 +37,9 @@ func leastBudget(t *testing.T, prog *Program, input string, o ParseOptions) uint
 }
 
 // One more element of each repetition, scan, rule call and Operators Rule counts exactly the compute
-// units of its events (spec/runtime/parsing.md#compute-units): the input it advances over, its calls
-// and the values its actions build, so a lost or an extra count changes the step. The iterations, the
+// units of its events (spec/runtime/parsing.md#compute-units): the input it advances over, its calls,
+// the values its actions build and the bytes of the strings that len measures, so a lost or an extra
+// count changes the step. The iterations, the
 // lines of an operator level that fail and the lookups of its operators count nothing. Every backend counts the same.
 func TestBudgetCoarseChargesPerIteration(t *testing.T) {
 	t.Parallel()
@@ -54,7 +55,7 @@ func TestBudgetCoarseChargesPerIteration(t *testing.T) {
 		{"call", "rule main = item* $$\nrule item = \"a\"", func(k int) string { return strings.Repeat("a", k) },
 			2, 2},
 		{"capture call", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", func(k int) string { return strings.Repeat("a", k) },
-			2, 2},
+			3, 3},
 		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic",
 			func(k int) string { return strings.Repeat(",a", k) }, 5, 3},
 		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}",

@@ -13,7 +13,8 @@ import (
 
 // A generated Go parser with limit controls counts the compute units of the logical events of each
 // element of its input ("Compute Units" in spec/runtime/parsing.md): the calls, the input that
-// terminals advance over, and the elements that list built-ins visit and build. Each grammar adds one
+// terminals advance over, the elements that list built-ins visit and build, and the bytes of the
+// strings that len measures. Each grammar adds one
 // element to the input at a time, and the least compute limit under which the parse finishes has to
 // grow by the same step at every size: the units of one element. The step is pinned exactly, so a
 // count that is lost or added for a call, a character or a value changes it.
@@ -30,7 +31,7 @@ func TestGeneratedGoChargesEachElement(t *testing.T) {
 		{"repeat", `rule main = ("a" "b")* $$`, "", "ab", "", 2},
 		{"scan", `rule main = [a-z]* $$`, "", "a", "", 1},
 		{"call", "rule main = item* $$\nrule item = \"a\"", "", "a", "", 2},
-		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 2},
+		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 3},
 		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic", "", ",a", "", 5},
 		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}", "", "-", "a", 1},
 		// One more "+a" of a left-associative infix is 3 units, all of them input that a terminal

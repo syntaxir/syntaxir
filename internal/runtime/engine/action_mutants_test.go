@@ -43,6 +43,7 @@ var engineMutants = []engineMutant{
 	{"a capture keeps its box", "action_exec.go", "actionMember", "return unboxed(v), nil", "return v, nil"},
 	{"End is a field", "action_exec.go", "memberKind", "return MemberEnd, name", "return MemberField, name"},
 	{"a struct declares every field", "eval.go", "memberZero", "if !p.HasValueField(", "if false && !p.HasValueField("},
+	{"len counts no units", "budget_value.go", "ValueTextLen", "p.valueUnits(len(s))", "_ = s"},
 	{"nil has length 1", "action_exec.go", "actionLength", "return any(0), nil", "return any(1), nil"},
 	{"the length of a string node is that of its text", "action_exec.go", "actionLength", "if nodes.D(n).Terminal {", "if false {"},
 	{"a bool is not an element", "action_exec.go", "actionPush", "if k == 1 || k == 2 || k == 3 {", "if k == 1 || k == 2 {"},
@@ -86,7 +87,7 @@ var engineMutants = []engineMutant{
 }
 
 // TestPrintedOperatorMutants is the proof that TestEngineValueConformance, TestEngineValueBoxedOperands,
-// TestEngineValueMemberTable, TestEngineValueBuiltinTable and TestEngineValueStructTable hold the printed code of the operators,
+// TestEngineValueMemberTable, TestEngineValueBuiltinTable, TestEngineValueLengthUnits and TestEngineValueStructTable hold the printed code of the operators,
 // the member reads, the built-in functions, the conversions and the ranges of structs of action expressions in the engine: with a source overlay of each mutant, one
 // of them fails.
 func TestPrintedOperatorMutants(t *testing.T) {
@@ -106,7 +107,7 @@ func TestPrintedOperatorMutants(t *testing.T) {
 			continue
 		}
 		batch = append(batch, mutanttest.Mutant{Replace: map[string]string{path: mutated}, Pkgs: []string{"./internal/runtime/state"},
-			Run: "^TestEngineValue(Conformance|BoxedOperands|EqualCharges|MemberTable|BuiltinTable|StructTable|HullTable|IterTable|ItemAtOpensBoxes|PushTable|CastTable)$"})
+			Run: "^TestEngineValue(Conformance|BoxedOperands|EqualCharges|MemberTable|BuiltinTable|LengthUnits|StructTable|HullTable|IterTable|ItemAtOpensBoxes|PushTable|CastTable)$"})
 	}
 	// -vet=off (in the Batch): the verdict reads what the tests report, and vet would only analyze the mutated code
 	// again. The mutants build together, as one mutant schema (mutanttest.Batch).

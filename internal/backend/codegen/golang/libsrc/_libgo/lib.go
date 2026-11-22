@@ -1979,7 +1979,10 @@ func (p *Parser) inputByte(i int) (byte, bool) {
 	return p.bs[i], true
 }
 
+// unitLen is str.len: the length of s in the position unit. It counts the bytes of s in either unit
+// (spec/runtime/parsing.md#compute-units).
 func (p *Parser) unitLen(s string) int {
+	p.valueUnits(len(s))
 	if p.unit == sxirinput.Bytes {
 		return len(s)
 	}

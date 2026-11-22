@@ -3623,8 +3623,12 @@ export class Parser {
     return this.cps[this.pos]!;
   }
 
+  // unitLen is str.len: the length of s in the position unit. It counts the bytes of s in either unit
+  // (spec/runtime/parsing.md#compute-units).
   unitLen(s: string): number {
-    return this.unit === Bytes ? utf8Len(s) : runeCount(s);
+    const n = utf8Len(s);
+    if (this.control !== null) this.unitsSized(n);
+    return this.unit === Bytes ? n : runeCount(s);
   }
 
   // expect records that id was expected at pos. Its text is printed from Exec IR (internal/ir/code/exec/compose).

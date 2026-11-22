@@ -341,7 +341,8 @@ The **cost** of a parse is the sum of the following:
   examine, counted again each time it is examined;
 - the iterations of repetitions and the operators that an Operators Rule
   applies;
-- the size of the values that actions and predicates build;
+- the size of the values that actions and predicates build, and the strings
+  whose length `len` measures;
 - the elements that a walk of a [run site](#run-sites) copies from the record
   it takes behind its own values (its suffix copies).
 
@@ -395,6 +396,7 @@ without limit controls counts no units.
 | The input that a terminal advances over: a literal, a character class or `.`, inside a lookahead and inside an alternative that later fails too | 1 for each position unit it advances over |
 | A value that an action, a predicate or a binding builds | 1 for each element of a list and each byte of a string that it builds |
 | A comparison of two strings by an action, a predicate, a binding or a key | The length in bytes of the shorter operand |
+| `len` of a string, in either position unit | The length in bytes of the string |
 | A built-in function that visits the elements of a list (`map`, `filter`, `foldl` and `foldr`) | 1 for each element it visits |
 | A suffix copy of a [run site](#run-sites) | 1 for each element it copies |
 | A syntax error built: by a recovery, by missing-token insertion, or as the error of a failed parse | 1 |

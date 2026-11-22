@@ -42,6 +42,7 @@ var goMutants = []goMutant{
 	{"a set field of a struct reads as its zero", "action_exec.go", "ActionMember", "if set {\n\t\treturn f, nil\n\t}", "if set && !st {\n\t\treturn f, nil\n\t}"},
 	{"a capture keeps its box", "action_exec.go", "ActionMember", "return UnboxValue(v), nil", "return v, nil"},
 	{"End is a field", "action_exec.go", "memberKind", "return MemberEnd, name", "return MemberField, name"},
+	{"len counts no units", "lib.go", "unitLen", "p.valueUnits(len(s))", "_ = s"},
 	{"nil has length 1", "action_exec.go", "ActionLength", "return any(0), nil", "return any(1), nil"},
 	{"a string has no length", "action_exec.go", "ActionLength", "if k == 2 {", "if false {"},
 	{"a bool is not an element", "action_exec.go", "ActionPush", "if k == 1 || k == 2 || k == 3 {", "if k == 1 || k == 2 {"},
@@ -87,7 +88,7 @@ var goMutants = []goMutant{
 
 // TestPrintedOperatorMutants is the proof that the value conformance holds the printed code of the
 // operators of action expressions and of the member reads in the generated Go library: with the source of each
-// mutant, TestValueConformance, TestValueMemberTable, TestValueBuiltinTable or TestValueStructTable fails. A mutant that no test notices would be
+// mutant, TestValueConformance, TestValueMemberTable, TestValueBuiltinTable, TestValueLengthUnits or TestValueStructTable fails. A mutant that no test notices would be
 // one that the model and the code do not both bound.
 func TestPrintedOperatorMutants(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
@@ -100,7 +101,7 @@ func TestPrintedOperatorMutants(t *testing.T) {
 		if m.file == "action_value.go" || m.fn == "memberKind" {
 			heads = []string{"func "}
 		}
-		if m.file == "budget.go" || m.file == "value_spend.go" || m.fn == "strAdd" {
+		if m.file == "budget.go" || m.file == "value_spend.go" || m.file == "lib.go" || m.fn == "strAdd" {
 			heads = []string{"func (p *Parser) "}
 		}
 		if strings.Contains(m.old, "UnboxValue") || strings.Contains(m.old, "UnboxNode") {
@@ -116,7 +117,7 @@ func TestPrintedOperatorMutants(t *testing.T) {
 				t.Parallel()
 				overlay := mutatedLib(t, m.file, head, m.fn, m.old, m.new)
 				// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
-				out, err := goTestLib(overlay, "-count=1", "-vet=off", "-run", "^TestValue(Conformance|BoxedOperands|BoxedStringCharges|CompareStrings|MemberTable|BuiltinTable|StructTable|HullTable|IterTable|PushTable|CastTable)$").CombinedOutput()
+				out, err := goTestLib(overlay, "-count=1", "-vet=off", "-run", "^TestValue(Conformance|BoxedOperands|BoxedStringCharges|CompareStrings|MemberTable|BuiltinTable|LengthUnits|StructTable|HullTable|IterTable|PushTable|CastTable)$").CombinedOutput()
 				if err == nil {
 					t.Fatalf("the value tests pass with the mutant %q:\n%s", m.name, out)
 				}

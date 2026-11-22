@@ -81,11 +81,16 @@ func TestBudgetActionStringHelpersChargeLongBudget(t *testing.T) {
 		t.Fatalf("long string concatenation error = %v, want ErrLimit", err)
 	}
 
-	// The length of a string is a scalar operation, no event: it counts nothing.
+	// len of a string counts its bytes, in either position unit, and the check after it stops the parse
+	// past a limit.
 	p = statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.CodePoints)
+	if err := statetest.CatchFatal(t, func() { p.ValueTextLen(long) }); !errors.Is(err, runtime.ErrLimit) {
+		t.Fatalf("long rune length error = %v, want ErrLimit", err)
+	}
+	p = statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 2 * uint64(len(long))}, sxirinput.CodePoints)
 	var n int
-	if err := statetest.CatchFatal(t, func() { n = p.ValueTextLen(long) }); err != nil || n != len(long) || p.Control.Used != 0 {
-		t.Fatalf("long rune length = %d, error = %v, counted %d, want %d, no error and no unit", n, err, p.Control.Used, len(long))
+	if err := statetest.CatchFatal(t, func() { n = p.ValueTextLen(long) }); err != nil || n != len(long) || p.Control.Used != uint64(len(long)) {
+		t.Fatalf("long rune length = %d, error = %v, counted %d, want %d, no error and %d units", n, err, p.Control.Used, len(long), len(long))
 	}
 }
 
