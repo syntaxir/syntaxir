@@ -8,7 +8,8 @@ parsers.
 
 ## Observation Options
 
-The engine (package `engine`) and generated Go parsers select what a parse
+The engine (the parse options of package `runtime`,
+`syntaxir.dev/sxir/pkg/runtime`) and generated Go parsers select what a parse
 reports with the same four parse options, which have the same meaning in both;
 generated TypeScript parsers take them as fields of their parse options with
 the same meaning
@@ -68,7 +69,8 @@ text of a range, and the failure and recovered errors of the current exit event;
 and it records a profile through an `instrument.ProfileRecorder`
 (`Profile.Recorder`), to which it passes every event of the parse in order
 (`Record`, then `Resume` after the trace functions have handled it) and which it
-closes when the parse returns (`Close`).
+closes when the parse returns (`Close`); a stream parse also tells it which
+positions it has discarded (`Discard`), so that the recorder forgets them.
 
 ## Engine Tracing
 
@@ -142,12 +144,18 @@ whole-input check belongs to the parse, not to the start call, so the start call
 
 The methods `LineCol(pos)`, `Text()`, `Failure()` and `Recovered()` read the
 state of the parser and MUST be called only from the trace function, while it
-handles the event. `Text` returns the input the call matched. `Failure` returns
-the farthest failure recorded during the call as a `*SyntaxError`, or nil.
-`Recovered` returns the errors that `#recover` recovered from during the call,
-which `Failure` does not include. `LineCol` returns 0, 0 for a position in input
-that a stream parse has discarded. The fields can be kept after the call.
-Tracing does not change the result.
+handles the event. `Text` returns the input the call matched, and the empty
+string for an event that is not the exit of a call that matched and for input
+that a stream parse has discarded. `Failure` returns, on an exit event, the
+farthest failure recorded during the call as a `*SyntaxError`, or nil; it is nil
+when the call recorded no expectation, as inside a lookahead. A call that
+matched can have a failure: the input after its match was tried and rejected.
+`Recovered` returns, on the exit of a call that matched, the errors that
+`#recover` recovered from during the call, nested calls and a memoized result
+included, which `Failure` does not include. `LineCol` returns 0, 0 for a
+position in input that a stream parse has discarded or has not read yet, and for
+any position when the producer has no line information. The fields can be kept
+after the call. Tracing does not change the result.
 
 ## Reported Calls
 
@@ -192,8 +200,14 @@ has the totals `Parses`, `Entered`, `Calls`, `Evals`, `MemoHits`, `Skipped`,
 `ReusedElements` (completed root calls only, counted once), `Examined` (over
 completed root calls, the input from each call's position to its `Examined`),
 `Time` (the time of the completed root calls) and `Rules`, a list of
-`RuleProfile`. `ProfileSnapshot.Hints()` returns text that points at costly
-rules. `Entered` counts calls that began, including calls interrupted before
+`RuleProfile`. `ProfileSnapshot.Hints()` returns a list of lines of text that point at costly
+rules, most important first; they are heuristics. `Profile.Hotspot()` returns the
+name of the rule with the greatest `MaxEvals` among the rules that evaluated
+twice or more at one position and level, ties going to the greater `Repeats` and
+then to the first name, or the empty string if there is none; a `LimitError` of
+a compute limit reports it
+([Cancellation and Compute Limits](parsing.md#cancellation-and-compute-limits)).
+`Entered` counts calls that began, including calls interrupted before
 their exit; the other counts and the times cover completed calls only. A
 `RuleProfile` has the fields below.
 
@@ -289,7 +303,8 @@ per-invocation accounting, and a profile MUST NOT retain anything of a parse
 after it returns. `Snapshot()` MUST return an owned copy with rules sorted by
 name and each rule's skip reasons sorted by reason; callers may marshal the
 snapshot for deterministic JSON, whose keys are the camel-case field names.
-`ProfileSnapshot.Hints()` returns text that points at costly rules.
+`ProfileSnapshot.Hints()` returns a list of lines of text that point at costly
+rules.
 
 The snapshot and its rows are those of [Engine Profiling](#engine-profiling).
 The `Line` and `Col` of `LongestFailAt` and `MaxEvalsAt` are 0 because

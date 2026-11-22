@@ -419,10 +419,17 @@ main failed: 1:7: syntax error: expected [0-9]
 1:7: syntax error: expected [0-9]
 ```
 
-A `TraceEvent`, the event type of the package `syntaxir.dev/sxir/pkg/runtime/instrument` that generated parsers report too, has `Kind` (`TraceEnter` or `TraceExit`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
+A `TraceEvent`, the event type of the package `syntaxir.dev/sxir/pkg/runtime/instrument` that generated parsers report too, has `Kind` (`TraceEnter` or `TraceExit`; the engine never reports `TraceSkipped`), `Rule`, `Level`, `Depth`, `Pos` and `Lookahead`; exit events
 also have `Matched`, `End`, `Memo`, `Evals`, `ReusedElements` and `Examined`, and the methods `Text` (the input matched), `Failure`
 (the farthest failure recorded during the call, as a `*SyntaxError`, or nil) and `Recovered` (the errors `#recover`
 recovered from during the call, whose expectations `Failure` does not include). `LineCol` converts a position.
+
+`Examined` is the exact end of the input that the call looked at, in the position unit: the first position past
+everything that can change the call's result. A character that the call looked at to reject it counts, and so does input
+read inside a lookahead; a call that tests the end of the input examines one position past it. It tells how far a result
+depends on the input after its match, which is what decides whether an edit can leave a memoized result valid and how
+much of a stream a call had to read. The engine, generated Go parsers and generated TypeScript parsers report the same
+`Examined` for the same call. The [specification](../../spec/runtime/observability.md#engine-tracing) defines it.
 
 `runtime.WithProfile` adds a parse to a `instrument.Profile` (the `Profile` of the package `instrument`, which generated parsers
 fill too), which can collect any number of parses, for example a whole test corpus. `Snapshot` reads it:
@@ -441,6 +448,9 @@ for _, h := range snap.Hints() {
 }
 ```
 
+`Profile.Hotspot()` names the rule that evaluated the same position and level most often, for use in messages; a compute
+limit error carries it when the parse had a profile.
+
 `TraceExit.ReusedElements` counts repetition elements reused during that call, including nested calls.
 `RuleProfile.ReusedElements` accumulates the same inclusive counts; parent and child rows can describe the same
 reuse, so do not sum them. `ProfileSnapshot.ReusedElements` counts reuse once, from completed root exits. The profile JSON
@@ -452,8 +462,9 @@ Profile text prints the root-only total on its own summary line and the inclusiv
 `ProfileSnapshot.Rules` lists the rules sorted by name; sort them as you need. The times in a profile exclude the time
 of the `WithTrace` functions. Engine tracing works with
 every backend, with `Recognize`, `ParseStream` and `Document` (the option given to `NewDocument` traces each
-`Document.Parse`). Several `WithTrace` options each receive every event, and several `WithProfile` options each
-record the parse. `runtime.WithTraceFilter` and `runtime.WithTraceMaxDepth` select the events that the trace functions
+`Document.Parse`; options of one `Parse` add trace functions and profiles to those defaults, and replace the filter and
+depth limit for that parse only). Several `WithTrace` options each receive every event, and several `WithProfile`
+options each record the parse; a nil function or profile is ignored. `runtime.WithTraceFilter` and `runtime.WithTraceMaxDepth` select the events that the trace functions
 receive, as described for generated parsers below; profiles still record every call. A `Profile` is not safe for
 concurrent parses. Generated Go Node and typed parsers have their own opt-in
 trace and profile options, described below, with the same names and meaning

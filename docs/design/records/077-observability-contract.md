@@ -74,6 +74,14 @@ pays for the profile's counts, not for the event delivery.
   separate traced path keeps plain parses at their previous cost.
 - **Give TypeScript its own trace shape with fewer fields.** Rejected: one shape lets a tool read traces from any
   producer, and the fields a producer cannot fill are documented as such.
+- **Let the trace filter and depth limit change what profiles record, or apply to some trace functions only.**
+  Rejected: a profile that depended on the selection would not describe the parse, and a selection per function would
+  need a second way to name a function. The selection belongs to the parse and applies to every trace function.
+- **Match a perturbed parse with the original by call key in the oracle.** Rejected: a key hides context that the trace
+  does not show, such as the values of variables and the seed a growth reads, so it can flag correct ends or pair calls
+  from different contexts. The oracle matches the two parses in lockstep.
+- **Leave token insertion and Documents after edits out of the oracle.** Rejected: the examined end is part of the
+  contract on every observed route, and reuse after an edit is where an inexact end causes harm.
 
 ## Testing
 
@@ -164,6 +172,15 @@ property under test, but predicates read them and so decide matches and examined
 action values has exact examined ends like any other, and the oracle checks every grammar of the corpus. A construct
 that the reference cannot evaluate fails the test.
 
+The oracle's review found gaps in the language specification, which the reference follows as it now states them. The
+leader of a cycle of left calls depends on declaration order only, and the hidden rules that the inline actions of a
+rule lower to are declared right after it, in the order of their numbers, so such a rule never leads a cycle
+([Growths of Left Recursion](../../../spec/runtime/parsing.md#growths-of-left-recursion) and
+[Actions](../../../spec/language/actions.md)). A cut failure of an infix or postfix candidate fails the expression, as
+one of a prefix candidate does ([Operators Rule](../../../spec/language/operators-rule.md)). `#ignorecase` is lexical:
+it reaches the expression of an inline action written inside it but not the rules that expression calls
+([Pragmas](../../../spec/language/pragmas.md)).
+
 Limits of the claim: the frontend is outside it.
 
 ## Limitations and Open Work
@@ -171,5 +188,8 @@ Limits of the claim: the frontend is outside it.
 - **Partially Implemented:** the perturbation and stream high-water parts of the oracle are not yet written. Until they
   are, the examined ends rest on the reference evaluator alone, and the input that a stream parse reads on the agreement
   tests in Testing.
+- The reference evaluates the values of Value Actions as well as the values that matching determines
+  (the values of the `examinedref` package), so a grammar whose predicates read action values is compared like any
+  other.
 - The specification's limitations list the remaining differences between the backends, such as first-character skips
   of calls that fail on the next character.
