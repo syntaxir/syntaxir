@@ -465,15 +465,14 @@ count; that matters only where K grows with the input, and has not been
 measured.
 
 A parse of a Document also does work that the cost does not count: it applies pending
-edits to the memo entries it finds, moves the values it reuses, and works through
-what the Document retains from earlier parses. Its time and its compute units
-include that work, so they are not proportional to its cost;
+edits to the memo entries it finds, moves or copies the values it reuses, and works through
+what the Document retains from earlier parses. Its time includes that work, so it is not
+proportional to its cost, but no `Compute` limit counts it (the generated TypeScript runtime
+still counts it under an explicit limit until it leaves that work out);
 [Work of a Document Parse](documents.md#work-of-a-document-parse) bounds what each
-of its operations charges, and the
+of its operations does, and the
 [linear cost proof](../proofs/linear-cost.md#corollary-compute-of-a-document-parse)
-states the bound of their sum. An explicit `Compute` limit caps the whole of it, and the default
-limit caps the part that a parse from scratch also does
-([Default Limits](#default-limits)). The [memory limit](#memory-limit) caps the storage a parse
+states the bound of their sum. The [memory limit](#memory-limit) caps the storage a parse
 takes into use in bytes.
 
 ### Termination
@@ -2756,13 +2755,13 @@ call whose body the parse from scratch evaluates. A `Document` parse under the d
 therefore succeeds whenever a parse of the same text from scratch under the default limit does,
 and it returns the result of that parse; the
 [linear cost proof](../proofs/linear-cost.md#lemma-12-document-units) argues this and does not
-prove it. An explicit `Compute` limit counts all the work of the parse. Under the default, `Limit`
-and `Used` of a `LimitError` leave the work of the `Document` out as well.
+prove it. This holds under an explicit `Compute` limit as it does under the default: the work of
+the `Document` is no event under either, and `Limit` and `Used` of a `LimitError` leave it out.
 
-The work that the default leaves out is bounded by that proof. Pending edits add at most 128
+The work that no limit counts is bounded by that proof. Pending edits add at most 128
 units to a call, since a memo entry that lags behind by more edits is evaluated again instead of
 brought up to date; the moves of reused values and the copy of diagnostics depend on what the
-`Document` retains, and the default does not bound them. The work of the memo, which no unit
+`Document` retains, and no limit bounds them. The work of the memo, which no unit
 counts, is bounded as [Work of a Document Parse](documents.md#work-of-a-document-parse) states:
 each entry that a lookup or a store passes was stored by a counted call, and a `Document` drops
 an entry that more than 128 edits have passed since a parse stored it or found it to answer a

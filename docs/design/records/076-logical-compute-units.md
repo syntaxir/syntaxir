@@ -394,7 +394,8 @@ drop or double one charge in each pass show that the test catches it.
 The first parse of a `Document` has the total of a parse of its text from scratch, exactly. A later parse counts the
 events it performs: a reused result is one call, and its key is counted if the rule is memoized. The work of the
 `Document` itself (pending edits, moves, chain steps and copies of diagnostics) is not an event. It stays bounded by
-[Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse). An explicit `Compute` limit and
+[Work of a Document Parse](../../../spec/runtime/documents.md#work-of-a-document-parse), and no `Compute` limit counts it,
+on any backend, except that the generated TypeScript runtime still counts it under an explicit limit until it leaves that work out. An explicit `Compute` limit and
 the default count the same events, so a reparse under the default limit succeeds whenever a parse of the same text
 from scratch does. The proof target is that a reparse never counts more than the parse from scratch.
 

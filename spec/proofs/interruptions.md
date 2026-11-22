@@ -92,14 +92,14 @@ A stream does not know `n`, and its default budget is $B_t = \max(2^{20},
 1024\,d_t)$, where $d_t$ is the number of units up to the furthest position
 that the parser has demanded from the stream at the time of the reservation.
 It never shrinks, and it depends on the input and the grammar, not on how the
-reader splits the input. A Document parse under the default budget leaves out
-the work that only a Document does (its **Document units**: the application of
+reader splits the input. A Document parse leaves out,
+under every budget, the work that only a Document does (its **Document units**: the application of
 pending edits, the moves of reused values, the recorded runs, the extra units
 of decoding the characters of its text, and the copy of the diagnostics): the
 reservation of $d$ Document units raises $B$ by $d$ before it is made, and a
 limit error reports $B - \delta$ and $u - \delta$ for the $\delta$ Document units reserved so
-far. An explicit budget counts every unit, and then $B$ is constant. So for a
-stream and for a Document under the default budget $B$ is a function of the
+far. So for a
+stream and for a Document $B$ is a function of the
 point of the reservation, written $B_i$ at the $i$th reservation, and never
 shrinks, and a constant for every other invocation.
 
@@ -330,7 +330,7 @@ effect, so by Lemma 1 the counter is $u_i = \sum_{j \le i} n_j$ until the first
 reservation at which $u_{i-1} + n_i > B_i$, which interrupts with the error of
 step 3. $B_i$ is a constant, or for a stream a function of the demand so far,
 which is the same in both invocations because it depends on the input and
-the grammar, or for a Document under the default budget a function of the Document units
+the grammar, or for a Document a function of the Document units
 among the reservations before $i$, which the charge sequence holds. The counters $s_i$ are a function of the sequence and of the
 checkpoints, so the reservations that poll are fixed by them, and so are the
 observations of generated Go (A2). Whether the

@@ -61,7 +61,7 @@ terms of what the Document retains; over a sequence of parses, the total that it
 retains drops out, and what each parse moves and the lengths of its chains
 remain, which step 6 of [Open Steps](#open-steps) leaves unbounded. After
 Lemma 12 an argument, not a proof, shows that the units
-which the default budget counts for a Document parse are at most those of a
+which a Compute limit counts for a Document parse are at most those of a
 parse of the same text from scratch.
 Lemma 14 bounds the work of the recovered errors, which $C$ does not count, by a
 constant times $C$, and Lemma 16 bounds the number of the recovered errors of an
@@ -13068,8 +13068,8 @@ Lemma 6. Each bound is a constant times $K (L + 1) \hat{n}$, so the sum is too.
 $\square$
 
 The theorem holds for a parse of a [Document](../runtime/documents.md) as for
-any other, in the units of $C$. Compute charges that parse the Document units
-as well, which the corollary of Lemma 12 bounds.
+any other, in the units of $C$. That parse also does the Document units, which no
+Compute limit counts and the corollary of Lemma 12 bounds.
 
 The classifier reports the two classes only when the conditions hold, and it
 over-approximates where it cannot decide them
@@ -13203,8 +13203,8 @@ operations of a parse are a function of the operations on the Document since
 its creation, and so are their charges
 ([Reservations and Interruptions](../runtime/parsing.md#reservations-and-interruptions)).
 
-*The units that the default budget counts.* The default budget of a Document
-parse leaves out the Document units of Lemma 12 that the parse reserves in regions
+*The units that a limit counts.* No Compute limit, the default or an explicit one, counts
+the Document units of Lemma 12 that the parse reserves in regions
 of Document work: the edits that a lookup applies, the moves of reused values with the cleanup
 that ends them, the operations of recorded runs, the extra units that decoding a piece of the
 text costs, and the copy of the diagnostics that the parse publishes. The other Document units of

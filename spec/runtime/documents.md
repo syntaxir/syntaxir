@@ -338,33 +338,43 @@ at least a minimum number of iterations.
 
 ### Work of a Document Parse
 
-A Document parse of the engine, on each of its backends, does work that a parse
-of the same text from scratch does not: it applies pending edits, walks and
-indexes the chains of memo entries that earlier parses left, moves the values it
-reuses, works through the records of runs, grows the memo table and decodes the
-characters of its text. This
-section bounds the units of Compute that each of these operations charges, as an
-explicit `Compute` limit counts them; the default limit leaves most of them out
-([Default Limits](parsing.md#default-limits)). Each bound is an upper bound: an
-operation may charge less. The generated runtimes keep no runs and move a copy
-of a reused value; they are not covered here.
+A Document parse, on every backend, does work that a parse of the same text
+from scratch does not: it applies pending edits, walks and indexes the chains of
+memo entries that earlier parses left, moves or copies the values it reuses,
+works through the records of runs, grows the memo table, copies diagnostics and
+decodes the characters of its text. None of this work is an event of the parse
+([Cost](parsing.md#cost)): no `Compute` limit, the default or an explicit one,
+counts it, and it does not change the units that a parse reports, so a parse
+reaches the same decision on the same limit whichever way a backend does it:
+moving a value, copying it, applying an edit at once or when a lookup finds the
+entry. What a parse counts is its calls, their keys and the other events of the
+table in [Cost](parsing.md#cost); a result that it reuses counts one call and
+its key, whatever the work to bring it up to date.
 
-The charges are those of a function of the logical state, as for every parse
-([Reservations and Interruptions](parsing.md#reservations-and-interruptions),
-"Charges depend on logical state only"): the same Document after the same
-operations charges the same units for its next parse.
+This section bounds that work instead, in units of work: the steps that an
+implementation makes and that the polls for cancellation and the memory limit
+count, as they count the steps of any parse. Each bound is an upper bound: an
+operation may do less. The bounds are what keeps the time of a Document parse
+proportional to what the parse counts, plus the bound of each operation, even
+though no limit counts the work. The generated runtimes keep no runs
+([Reuse](#reuse)); a run's work is not covered for them until they resume runs. The generated
+TypeScript runtime still counts its Document work against an explicit `Compute` limit until it
+leaves that work out as the engine and the generated Go runtime do.
+
+The work is a function of the logical state, as for every parse: the same
+Document after the same operations does the same work for its next parse.
 
 A **chain** is the sequence of memo entries at one position, live or dropped
 ([Reuse Model](#reuse-model)), in the order a lookup passes them. An entry
 **lags** when it lags behind by more than 128 edits, the entry that a lookup
 treats as absent ([Reuse](#reuse)).
 
-**Edits.** An edit charges no Compute. A Document keeps a log of the edits since
+**Edits.** An edit does no work that a parse counts. A Document keeps a log of the edits since
 its memo was last dropped. The edit that finds 65,536 edits in the log drops the
 memo entries and the run records and empties the log instead of adding to it, so
 a parse finds at most 65,536 pending edits.
 
-**Lookups.** A lookup charges nothing for finding an entry: the call of the rule
+**Lookups.** A lookup counts nothing for finding an entry: the call of the rule
 paid for the lookup of its key ([Cost](parsing.md#cost)), whatever the lookup
 compares. The work of a lookup stays bounded by that payment:
 
@@ -383,11 +393,11 @@ compares. The work of a lookup stays bounded by that payment:
   the removal of a lagging entry drop the index of a position, so a parse builds
   the index of a position at most once;
 - when the entry it finds does not account for every edit of the log, it
-  applies the pending edits to the entry, one unit for each, at most 128
+  applies the pending edits to the entry, one unit of work for each, at most 128
   ([Reuse](#reuse)), since an entry that lags is never found. This is the only
-  charge of a lookup.
+  work of a lookup beyond the bound above, and no limit counts it.
 
-**Stores.** A store charges nothing: it walks and indexes the chain as a lookup
+**Stores.** A store does only bounded work: it walks and indexes the chain as a lookup
 does to find the entry it replaces, and links the new entry. When the entry it
 replaces lies beyond the first 32, it walks the chain up to it; when it lies
 among them and the position has an index, it hashes the key it replaces. A store of a rule that only a Document memoizes walks at most
@@ -400,69 +410,74 @@ links nothing. In the reference implementation it first
 applies to that entry the edits that it does not account for, as a lookup does;
 an entry that cannot take them is replaced, and so is an entry whose value an
 edit shifted and the generated typed Go code cannot move. A store at a position
-beyond the slots of the memo table grows them, which charges nothing, as in any
+beyond the slots of the memo table grows them, which counts nothing, as in any
 parse ([Cost](parsing.md#cost)).
 
-**Moves.** A lookup that finds an entry whose value an edit shifted
+**Moves.** A backend either moves the value of an entry that an edit shifted
+or copies it; the bound below is the engine's, and a copy of the same value is
+bounded by the same number of units, one for each node and one for each child
+and field it copies. A lookup that finds an entry whose value an edit shifted
 ([Reuse Model](#reuse-model)) moves the value, once: the entry then accounts for
-every pending edit. A move makes one pass over the value. It charges one unit
+every pending edit. A move makes one pass over the value. It does one unit of work
 for each node it visits and one for each child and field of it. It does not
 visit a node that starts where it ends (an **empty** node) in place: it copies it
-for the move, with the empty nodes below it, and charges the copy as a visit and
-at most one more unit to forget it at the end; a reference to a node that the
-move has already copied charges one unit and copies nothing. A node that does not start where it ends is moved in place, and a
+for the move, with the empty nodes below it, and does the copy as a visit and
+at most one more unit of work to forget it at the end; a reference to a node that the
+move has already copied costs one unit and copies nothing. A node that does not start where it ends is moved in place, and a
 move does not visit a node that this parse built or has already moved, so such a
 node moves at most once in a parse. Each node of the value accounts for the
 edits up to the parse that last moved or built it. For the nodes that account
 for the same number of edits, the move replays the edits that they do not
-account for once, at one unit for each, and charges at most one unit to forget
-them at the end. A move therefore charges at most two units for each node it visits,
+account for once, at one unit for each, and does at most one unit to forget
+them at the end. A move therefore does at most two units for each node it visits,
 counting an empty node once for each reference by which it reaches it, and for
 each child and field of those nodes, plus one unit for each edit it replays.
 
 **Runs.** The operations of a repetition that may resume a record
 ([Reuse Model](#reuse-model)) merge the expected items of an iteration into
-those of the farthest failure. A **merge** charges one unit for each item, and,
+those of the farthest failure. The operations of runs reserve no unit on any
+backend, and a resumed element is no event: its work is bounded in steps, as
+follows, but no limit counts it. A **merge** takes one step for each item, and,
 when the Document records expected items (`WithExpectations`), at most one more
-unit for each item that the record of the farthest failure holds when it adds
+step for each item that the record of the farthest failure holds when it adds
 the item: it may look for the item among them. That record holds each item at
-most once, so a merge charges at most one plus the number of distinct expected
-items of the grammar for each item it merges. The operations charge:
+most once, so a merge does at most one plus the number of distinct expected
+items of the grammar for each item it merges. The operations take:
 
 - starting the run, and starting the evaluation of an iteration: nothing;
-- each attempt to reuse the next recorded iteration: one unit, and when it
+- each attempt to reuse the next recorded iteration: one step, and when it
   reuses one, the merge of its expected items, and, for an iteration after the
   edit, the move of its value;
 - ending an evaluated iteration: the merge of its expected items, and, when it
-  matched, at most two units for each expected item that it records (it
+  matched, at most two steps for each expected item that it records (it
   compares them with the last set of expected items that the parse kept and
   copies them unless the two are the same) and, when the number of new
   iterations that it then holds is a power of two, the number that it held
   before;
 - looking for a recorded iteration after the edit, before an iteration after the
   edit is evaluated: a binary search over the recorded iterations that the run
-  has not passed, at most 1 + log₂(m + 1) units for m such iterations, then one
-  unit for each recorded iteration that it scans from the one it finds, which
+  has not passed, at most 1 + log₂(m + 1) steps for m such iterations, then one
+  step for each recorded iteration that it scans from the one it finds, which
   stops at the first that examined input before the end of the edit or at the
   end of the record; when it passes them all the run reuses them;
 - making room for the values of the record that it resumes: room for every
   iteration of the record on the stack of values. The parse keeps an amount of
   room that it has paid for, zero when it starts. When the values on the stack
-  and the room asked for exceed it, the parse charges the number of values on
+  and the room asked for exceed it, the parse takes as many steps as there are values on
   the stack, and the room paid for becomes at least twice what it was and at
   least what is asked for; otherwise nothing;
-- recording the run when it ends: one unit for each iteration, and nothing for a
+- recording the run when it ends: one step for each iteration, and nothing for a
   run too short to record.
 
 A parse resumes a record of the previous parse at most once: resuming it removes
 it from the records that the parse can resume.
 
-These charges for growing storage are functions of lengths and of the operations of the parse: the capacity that
+This work of growing storage is a function of lengths and of the operations of the parse: the capacity that
 earlier parses left in storage that the Document keeps for its next parse
-changes no charge.
+changes no work.
 
 **Decoding.** A parse in `Bytes` positions that decodes a character of the text
-of a Document charges, besides the unit of a parse from scratch, one unit for
+of a Document does, besides the unit of a parse from scratch, one unit of work for
 each further byte that it reads for the decoding: at most three more units for
 each examination of the input.
 
