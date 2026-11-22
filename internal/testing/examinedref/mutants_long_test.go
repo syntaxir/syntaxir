@@ -57,6 +57,8 @@ var referenceMutants = []referenceMutant{
 	{name: "a hidden rule is declared before its holder", file: "rules.go", run: "oracle",
 		old: "\t\trs.add(r)\n\t\tfor _, h := range l.hidden {\n\t\t\th.ops, h.fold = operatorsOf(h.body)\n\t\t\trs.add(h)\n\t\t}",
 		new: "\t\tfor _, h := range l.hidden {\n\t\t\th.ops, h.fold = operatorsOf(h.body)\n\t\t\trs.add(h)\n\t\t}\n\t\trs.add(r)"},
+	{name: "an iteration is a tuple only when it captures", file: "evaluate.go", run: "oracle",
+		old: "\tcase scopeCaptures(body):\n", new: "\tcase caps != nil:\n"},
 	{name: "the values of hidden rules are decided in one pass", file: "shape.go", run: "oracle",
 		old: "\t\t\t\tset[name] = true\n\t\t\t\tchanged = true\n", new: "\t\t\t\tset[name] = true\n"},
 	{name: "a rule's action is not run", file: "values.go", run: "oracle",

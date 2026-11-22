@@ -710,7 +710,8 @@ func (ev *evaluator) repeat(e *ast.Repeat, st state) outcome {
 }
 
 // iteration is the value of one iteration: the value of the element, the unit when it has none, and
-// a tuple of the element's values that holds the captures of the iteration when it has any.
+// a tuple of the element's values that holds the captures of the iteration when the element has a
+// capture, whether or not this iteration made one (spec/language/parser-expressions.md, Capture).
 func (ev *evaluator) iteration(body ast.Expr, o outcome, st state) value {
 	caps := o.caps
 	switch {
@@ -718,10 +719,48 @@ func (ev *evaluator) iteration(body ast.Expr, o outcome, st state) value {
 		return &node{kind: tupleNode, start: st.pos, end: o.end, elems: o.vals, caps: caps}
 	case !ev.valued(body):
 		return &node{kind: tupleNode, start: st.pos, end: o.end, caps: caps}
-	case caps != nil:
+	case scopeCaptures(body):
 		return &node{kind: tupleNode, start: st.pos, end: o.end, elems: o.vals, caps: caps}
 	}
 	return ev.single(o, st)
+}
+
+// scopeCaptures reports whether e has a capture of its own scope: one not inside a repetition, which
+// has scopes of its own, a called rule or a negative lookahead, whose captures never outlive it.
+func scopeCaptures(e ast.Expr) bool {
+	switch e := e.(type) {
+	case *ast.Capture:
+		return true
+	case *ast.Seq:
+		for _, it := range e.Items {
+			if scopeCaptures(it) {
+				return true
+			}
+		}
+	case *ast.Choice:
+		for _, alt := range e.Alts {
+			if scopeCaptures(alt) {
+				return true
+			}
+		}
+	case *ast.Group:
+		return scopeCaptures(e.Expr)
+	case *ast.Optional:
+		return scopeCaptures(e.Expr)
+	case *ast.And:
+		return scopeCaptures(e.Expr)
+	case *ast.Recovery:
+		return scopeCaptures(e.Expr)
+	case *ast.Stream:
+		return scopeCaptures(e.Expr)
+	case *ast.Atomic:
+		return scopeCaptures(e.Expr)
+	case *ast.Discard:
+		return scopeCaptures(e.Expr)
+	case *ast.Attributed:
+		return scopeCaptures(e.Expr)
+	}
+	return false
 }
 
 // recovery follows spec/language/pragmas.md (#recover): when the expression fails, the skip is

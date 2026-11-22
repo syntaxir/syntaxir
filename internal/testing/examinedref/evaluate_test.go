@@ -362,6 +362,8 @@ func TestReferenceActionValues(t *testing.T) {
 			examinedref.Result{Matched: true, End: 4, Examined: 4}},
 		{"a lambda reads a capture of a repetition element", "rule main = rs:(r:[a-z] \";\")* { map($rs, (e) => e.$r)[1].Start == 2 } $$", "a;b;",
 			examinedref.Result{Matched: true, End: 4, Examined: 5}},
+		{"an iteration that makes no capture is still a tuple", "rule main = xs:(n:\"a\" / -\"b\")* { map($xs, (e) => e.$n)[1] == nil } $$", "ab",
+			examinedref.Result{Matched: true, End: 2, Examined: 3}},
 		{"a runtime error of an action fails the parse", "var z int\nrule main = n \"a\"\nrule n int = [0-9] => 1 / z", "1a",
 			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionErrors: []int{0}}},
 		{"an action fails on an abandoned path", "var z int\nrule main = n \"b\" / [0-9] \"a\"\nrule n int = [0-9] => 1 / z", "1a",
