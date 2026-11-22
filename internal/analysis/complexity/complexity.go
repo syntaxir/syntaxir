@@ -530,6 +530,21 @@ func (k *classifier) memoAt(r *ast.Ref) bool {
 	return k.memo[r.Name] || k.members[r.Name] && k.outside[r]
 }
 
+// memoAtOf is memoAt of the call n, a call or a right operand (calledRule).
+func (k *classifier) memoAtOf(n core.Node) bool { return k.memoAt(k.exprOf(n).(*ast.Ref)) }
+
+// shareableOf is shareable of the call n, a call or a right operand (calledRule).
+func (k *classifier) shareableOf(n core.Node) bool { return k.shareable(k.exprOf(n).(*ast.Ref)) }
+
+// plainCall returns the rule that n calls when n is a call that names no level of an Operators
+// Rule.
+func (k *classifier) plainCall(n core.Node) (string, bool) {
+	if c, ok := n.(*core.Call); ok && c.Level == 0 {
+		return k.rules[c.Rule].Name, true
+	}
+	return "", false
+}
+
 // sameCycle reports whether a and b are rules of one left-recursion cycle.
 func (k *classifier) sameCycle(a, b string) bool {
 	return k.an.Cyclic[a] && k.an.Cyclic[b] && k.an.Cycle[a] == k.an.Cycle[b]

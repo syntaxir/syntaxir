@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Trivia rules are rules whose shape lets the analysis compare their calls by position:
@@ -152,10 +151,7 @@ func (x excl) triviaCall(s sym) bool {
 	if !triviaOn || s.kind != symMatch {
 		return false
 	}
-	if _, ok := s.e.(*ast.Ref); !ok {
-		return false
-	}
-	c, ok := x.k.nodeOf(s.e).(*core.Call)
+	c, ok := s.n.(*core.Call)
 	return ok && c.Level == 0 && x.k.isTrivia(x.k.rules[c.Rule].Name)
 }
 
@@ -164,7 +160,7 @@ func (x excl) triviaCall(s sym) bool {
 // contain no scanning source, so Lemma 1 bounds them. A part that scans, such as a comment, can
 // scan an unterminated comment again before it fails.
 func (x excl) triviaSettles(s sym) bool {
-	for _, part := range x.k.triviaParts(x.k.ruleBody(s.e.(*ast.Ref).Name)) {
+	for _, part := range x.k.triviaParts(x.k.ruleBody(x.k.rules[s.n.(*core.Call).Rule].Name)) {
 		if x.k.containsSource(part) {
 			return false
 		}
@@ -177,8 +173,8 @@ func (x excl) triviaSettles(s sym) bool {
 // variables of p[i] unless a binding lies between them, which stops the dropping for a rule that
 // reads variables.
 func (x excl) collapseTrivia(p []sym, i int) []sym {
-	name := p[i].e.(*ast.Ref).Name
-	reads := len(x.k.vars[name]) > 0
+	call := p[i].n.(*core.Call)
+	reads := len(x.k.vars[x.k.rules[call.Rule].Name]) > 0
 	for m := i + 1; m < len(p); m++ {
 		switch p[m].kind {
 		case symBind:
@@ -189,7 +185,7 @@ func (x excl) collapseTrivia(p []sym, i int) []sym {
 		case symSkip, symEnv, symNot, symAnd, symUp:
 			continue
 		case symMatch:
-			if r, ok := p[m].e.(*ast.Ref); ok && r.Name == name && r.Level == "" {
+			if c, ok := p[m].n.(*core.Call); ok && c.Rule == call.Rule && c.Level == 0 {
 				p = append(p[:m:m], p[m+1:]...)
 				m--
 				continue

@@ -136,12 +136,14 @@ func (k *classifier) leftCalls(e ast.Expr) []string {
 	return names
 }
 
-// literalRest returns a literal of the characters rest, the rest of a literal after a prefix the
-// exclusion analysis compared, which stands for the literal node of them. The runes give valid
-// UTF-8, the text of the node as the front end builds it.
-func (k *classifier) literalRest(rest []rune, ignoreCase bool) *ast.Literal {
+// literalRest returns the literal node of the characters rest, the rest of a literal after a
+// prefix the exclusion analysis compared, matched without case if fold, which stands for a literal
+// of them. The runes give valid UTF-8, the text of the node as the front end builds it.
+func (k *classifier) literalRest(rest []rune, fold bool) *core.Lit {
 	text := string(rest)
-	return built(k, &ast.Literal{Value: text, IgnoreCase: ignoreCase}, core.Node(&core.Lit{Text: text, Fold: ignoreCase}))
+	n := &core.Lit{Text: text, Fold: fold}
+	built(k, &ast.Literal{Value: text, IgnoreCase: fold}, core.Node(n))
+	return n
 }
 
 // looseCut reports whether e has a cut that commits the choice, option or repetition around it

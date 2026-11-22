@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
-	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -64,9 +63,9 @@ var deadPathsOn = true
 var emptyUndecidedOn = true
 
 // copyStopsOn makes a path of the strict analysis end at a copying operation that is a scanning
-// source and that the path would otherwise pass over: a predicate or a binding that holds one, an
-// inline action that holds one after its expression, and the action at the end of a rule body
-// that has one, where a path leaves the body or a call is expanded into it. The copy can examine
+// source and that the path would otherwise pass over: a predicate or a binding that holds one,
+// and the action at the end of a rule body that has one (an inline action is the action of a
+// hidden rule), where a path leaves the body or a call is expanded into it. The copy can examine
 // as much input as the path has consumed, which neither side's alike symbols bound. It is on by
 // default; the variable is a test hook, whose off setting is the analysis that passed over such a
 // copy as over any predicate.
@@ -114,11 +113,12 @@ const (
 	symDead
 )
 
-// sym is a symbol of a path; item is the index of the top-level item of the alternative that it
+// sym is a symbol of a path: a node of the rules, or a node that the analysis builds (a rest of a
+// literal, a mark or a stop); item is the index of the top-level item of the alternative that it
 // comes from.
 type sym struct {
 	kind symKind
-	e    ast.Expr
+	n    core.Node
 	item int
 }
 
@@ -158,7 +158,7 @@ type excl struct {
 // body the path goes on, empty after the end of the parse. It is a symbol that consumes nothing
 // and tells nothing (symSkip), and does not count toward exclLen.
 type exitMark struct {
-	ast.Bottom
+	core.Succeed
 	rule, into string
 }
 
@@ -212,39 +212,38 @@ func (x excl) spend(n int) bool {
 	return false
 }
 
-// cheap reports whether evaluating e again at a position where the unit evaluated it costs the
+// cheap reports whether evaluating n again at a position where the unit evaluated it costs the
 // continuation no more than a constant or than the unit paid for it there, in the sense of the
-// cases of Lemma 4: an expression without a scanning source, which Lemma 1 bounds (case 3); a call
-// that the memo answers, at the cost of a memo access, or a call of a rule that calls no rule,
-// which repeats only its own scan (case 2); or a call of a rule whose body is cheap in all its
-// parts. After a symUp mark, a call that the memo does not answer and that scans is not cheap:
-// the nested evaluations repeat it once each, which no constant bounds, unless the rule's scanning
-// sources are all scan sites (scanOnly), whose records answer the repeated walks.
-func (x excl) cheap(e ast.Expr) bool {
-	r, ok := e.(*ast.Ref)
+// cases of Lemma 4: a node without a scanning source, which Lemma 1 bounds (case 3); a call that
+// the memo answers, at the cost of a memo access, or a call of a rule that calls no rule, which
+// repeats only its own scan (case 2); or a call of a rule whose body is cheap in all its parts.
+// After a symUp mark, a call that the memo does not answer and that scans is not cheap: the nested
+// evaluations repeat it once each, which no constant bounds, unless the rule's scanning sources are
+// all scan sites (scanOnly), whose records answer the repeated walks.
+func (x excl) cheap(n core.Node) bool {
+	rule, ok := x.k.calledRule(n)
 	if !ok {
-		return !x.k.containsSource(x.k.nodeOf(e))
+		return !x.k.containsSource(n)
 	}
-	if x.up && !x.k.memoAt(r) && x.k.containsSource(x.k.nodeOf(r)) && !x.k.scanOnly(r.Name) {
+	if x.up && !x.k.memoAtOf(n) && x.k.containsSource(n) && !x.k.scanOnly(rule) {
 		return false
 	}
-	if x.k.shareable(r) || !x.k.containsSource(x.k.nodeOf(r)) {
+	if x.k.shareableOf(n) || !x.k.containsSource(n) {
 		return true
 	}
-	reads := len(x.k.vars[r.Name]) > 0
+	reads := len(x.k.vars[rule]) > 0
 	if reads && !x.env {
 		return false
 	}
 	// With the same variables, the memo answers the second call of a rule that reads them as it
 	// answers any other, and a rule that calls no rule repeats only its own scan.
-	if reads && r.Level != rhsLevel && (x.k.memoAt(r) || len(x.k.calls[r.Name]) == 0) {
+	if reads && !isRightOperand(n) && (x.k.memoAtOf(n) || len(x.k.calls[rule]) == 0) {
 		return true
 	}
-	def := x.k.byName[r.Name]
-	if r.Level != "" || def == nil || x.k.an.Cyclic[r.Name] {
+	if _, plain := x.k.plainCall(n); !plain || x.k.byName[rule] == nil || x.k.an.Cyclic[rule] {
 		return false
 	}
-	key := cheapKey{r.Name, x.env, x.up}
+	key := cheapKey{rule, x.env, x.up}
 	switch x.cheapR[key] {
 	case 1, 3:
 		return false
@@ -252,7 +251,7 @@ func (x excl) cheap(e ast.Expr) bool {
 		return true
 	}
 	x.cheapR[key] = 1
-	ok = x.cheapAll(def.Expr)
+	ok = x.cheapAll(x.k.ruleBody(rule))
 	x.cheapR[key] = 3
 	if ok {
 		x.cheapR[key] = 2
@@ -260,75 +259,66 @@ func (x excl) cheap(e ast.Expr) bool {
 	return ok
 }
 
-// freshAll reports whether evaluating e costs a constant where the unit did not evaluate it, as for
+// freshAll reports whether evaluating n costs a constant where the unit did not evaluate it, as for
 // a lookahead that only the continuation evaluates, or an alternative of it before the one that
-// matches what the unit matched: e has no scanning source of its own, and each call in it is
+// matches what the unit matched: n has no scanning source of its own, and each call in it is
 // answered by the memo, whose first evaluation at a position Lemma 4 counts once (case 2), or
 // reaches no scanning source (case 3). cheap is weaker: it bounds the second evaluation of a
 // symbol by what the unit paid for the first one at the same position, which a symbol that only the
 // continuation evaluates has no first evaluation to charge to.
-func (x excl) freshAll(e ast.Expr) bool {
+func (x excl) freshAll(n core.Node) bool {
 	ok := true
-	astfacts.WalkExpr(e, func(y ast.Expr) {
-		if x.k.srcExprs[y] {
+	walkNodes(n, func(y core.Node) {
+		if x.k.srcExprs[x.k.exprOf(y)] {
 			ok = false
 		}
-		if r, isRef := y.(*ast.Ref); isRef && !x.k.memoAt(r) && x.k.containsSource(x.k.nodeOf(r)) {
+		if _, call := x.k.calledRule(y); call && !x.k.memoAtOf(y) && x.k.containsSource(y) {
 			ok = false
 		}
 	})
 	return ok
 }
 
-// cheapAll reports whether every part of e is cheap: e has no scanning source of its own, and each
-// call in it is cheap. Evaluating e again at a position, or an attempt of it that fails, then costs
+// cheapAll reports whether every part of n is cheap: n has no scanning source of its own, and each
+// call in it is cheap. Evaluating n again at a position, or an attempt of it that fails, then costs
 // no more than a constant or what the calls cost the first time.
-func (x excl) cheapAll(e ast.Expr) bool {
+func (x excl) cheapAll(n core.Node) bool {
 	ok := true
-	astfacts.WalkExpr(e, func(y ast.Expr) {
-		if x.k.srcExprs[y] {
+	walkNodes(n, func(y core.Node) {
+		if x.k.srcExprs[x.k.exprOf(y)] {
 			ok = false
 		}
-		if r, isRef := y.(*ast.Ref); isRef && !x.cheap(r) {
+		if _, call := x.k.calledRule(y); call && !x.cheap(y) {
 			ok = false
 		}
 	})
 	return ok
 }
 
-// paths returns the paths of e: sequences of symbols such that every successful evaluation of e
+// paths returns the paths of n: sequences of symbols such that every successful evaluation of n
 // evaluates, and succeeds on, the symbols of one of them in order. ok is false when there are more
 // than exclPaths of them.
-func (x excl) paths(e ast.Expr, item int) (paths [][]sym, ok bool) {
+func (x excl) paths(n core.Node, item int) (paths [][]sym, ok bool) {
 	one := func(s sym) ([][]sym, bool) { return [][]sym{{s}}, true }
 	if x.strict {
-		switch e.(type) {
-		case *ast.Predicate:
+		switch n.(type) {
+		case *core.Pred, *core.BindNode:
 			// A predicate or a binding is passed over as a symbol that consumes nothing, but a
 			// copying operation in it can examine as much input as the path has consumed.
-			if copyStopsOn && x.k.srcExprs[e] {
-				return one(sym{symStop, e, item})
+			if copyStopsOn && x.k.srcExprs[x.k.exprOf(n)] {
+				return one(sym{symStop, n, item})
 			}
-		case *ast.InlineAction:
-			// The action runs after its expression, and so does its copying operation.
-			if copyStopsOn && x.k.srcExprs[e] {
-				ps, ok := x.pathsOf(e, item)
-				if !ok {
-					return nil, false
-				}
-				return stopped(ps, item)
-			}
-		case *ast.Choice, *ast.Optional, *ast.Repeat:
-			if !x.cheapAll(e) {
+		case *core.Choice, *core.Opt, *core.Repeat:
+			if !x.cheapAll(n) {
 				y := x
 				y.env = true
-				if !y.cheapAll(e) {
-					return one(sym{symStop, e, item})
+				if !y.cheapAll(n) {
+					return one(sym{symStop, n, item})
 				}
 				// The part is cheap where the variables are the same, which the comparison
 				// checks when it reaches the mark.
-				envSym := []sym{{symEnv, e, item}}
-				ps, ok := x.pathsOf(e, item)
+				envSym := []sym{{symEnv, n, item}}
+				ps, ok := x.pathsOf(n, item)
 				for i, p := range ps {
 					ps[i] = append(slices.Clip(envSym), p...)
 				}
@@ -336,55 +326,50 @@ func (x excl) paths(e ast.Expr, item int) (paths [][]sym, ok bool) {
 			}
 		}
 	}
-	return x.pathsOf(e, item)
+	return x.pathsOf(n, item)
 }
 
-// pathsOf is paths without the check of strict mode on e itself.
-func (x excl) pathsOf(e ast.Expr, item int) (paths [][]sym, ok bool) {
+// pathsOf is paths without the check of strict mode on n itself.
+func (x excl) pathsOf(n core.Node, item int) (paths [][]sym, ok bool) {
 	one := func(s sym) ([][]sym, bool) { return [][]sym{{s}}, true }
-	switch e := e.(type) {
+	switch n := n.(type) {
 	case nil:
 		return [][]sym{nil}, true
-	case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any:
-		return one(sym{symMatch, e, item})
-	case *ast.Not:
-		if binds(e.Expr) {
-			return [][]sym{{{symNot, e.Expr, item}, {symBind, e, item}}}, true
+	case *core.Call, *core.Lit, *core.ClassNode, *core.Any:
+		return one(sym{symMatch, n, item})
+	case *core.Nest:
+		if isRightOperand(n) {
+			return one(sym{symMatch, n, item})
 		}
-		return one(sym{symNot, e.Expr, item})
-	case *ast.And:
-		if binds(e.Expr) {
-			return [][]sym{{{symAnd, e.Expr, item}, {symBind, e, item}}}, true
+	case *core.Look:
+		kind := symAnd
+		if n.Neg {
+			kind = symNot
 		}
-		return one(sym{symAnd, e.Expr, item})
-	case *ast.Predicate:
-		if binds(e) {
-			return one(sym{symBind, e, item})
+		if binds(n.Body) {
+			return [][]sym{{{kind, n.Body, item}, {symBind, n, item}}}, true
 		}
-		return one(sym{symSkip, e, item})
-	case *ast.Cut, *ast.Top, *ast.BeginInput, *ast.EndInput,
-		*ast.BeginLine, *ast.EndLine:
-		return one(sym{symSkip, e, item})
-	case *ast.Bottom:
+		return one(sym{kind, n.Body, item})
+	case *core.BindNode:
+		return one(sym{symBind, n, item})
+	case *core.Pred, *core.Cut, *core.Succeed, *core.Anchor:
+		return one(sym{symSkip, n, item})
+	case *core.FailNode:
 		if x.strict && deadPathsOn {
-			return one(sym{symDead, e, item})
+			return one(sym{symDead, n, item})
 		}
 		return nil, true
-	case *ast.Group:
-		return x.paths(e.Expr, item)
-	case *ast.Capture:
-		return x.paths(e.Expr, item)
-	case *ast.Discard:
-		return x.paths(e.Expr, item)
-	case *ast.Atomic:
-		return x.paths(e.Expr, item)
-	case *ast.Stream:
-		return x.paths(e.Expr, item)
-	case *ast.InlineAction:
-		return x.paths(e.Expr, item)
-	case *ast.Seq:
+	case *core.Capture:
+		return x.paths(n.Body, item)
+	case *core.Drop:
+		return x.paths(n.Body, item)
+	case *core.Text:
+		return x.paths(n.Body, item)
+	case *core.Stream:
+		return x.paths(n.Repeat, item)
+	case *core.Seq:
 		paths = [][]sym{nil}
-		for _, it := range e.Items {
+		for _, it := range n.Items {
 			ps, ok := x.paths(it, item)
 			if !ok {
 				return nil, false
@@ -394,68 +379,66 @@ func (x excl) pathsOf(e ast.Expr, item int) (paths [][]sym, ok bool) {
 			}
 		}
 		return paths, true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			ps, ok := x.paths(alt, item)
+	case *core.Choice:
+		for _, alt := range n.Alts {
+			ps, ok := x.paths(alt.Body, item)
 			if !ok {
 				return nil, false
 			}
 			paths = append(paths, ps...)
 		}
 		return paths, len(paths) <= exclPaths
-	case *ast.Optional:
-		ps, ok := x.paths(e.Expr, item)
+	case *core.Opt:
+		ps, ok := x.paths(n.Body, item)
 		return append([][]sym{nil}, ps...), ok && len(ps) < exclPaths
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Repeat:
+		if n.Max == 0 {
 			return [][]sym{nil}, true
 		}
-		if e.Max != 1 {
+		if n.Max != 1 {
 			// A repetition is one symbol, which the analysis expands only when it must: two
 			// equal repetitions at one position match alike, as they are greedy.
-			if binds(e) {
-				return [][]sym{{{symMatch, e, item}, {symBind, e, item}}}, true
+			if binds(n) {
+				return [][]sym{{{symMatch, n, item}, {symBind, n, item}}}, true
 			}
-			return one(sym{symMatch, e, item})
+			return one(sym{symMatch, n, item})
 		}
-		return x.repeatPaths(e, item)
+		return x.repeatPaths(n, item)
 	}
-	// Attributed expressions, #recover, Operators Rules.
-	return one(sym{symStop, e, item})
+	// @error, @diagnostic, #missing, #recover, Operators Rules.
+	return one(sym{symStop, n, item})
 }
 
 // repeatPaths returns the paths of a repetition: no iteration when its minimum is 0, and its
-// expression followed, when it can repeat, by a stop.
-func (x excl) repeatPaths(e *ast.Repeat, item int) ([][]sym, bool) {
-	{
-		ps, ok := x.paths(e.Expr, item)
-		if !ok {
-			return nil, false
-		}
-		if e.Max != 1 {
-			for i, p := range ps {
-				ps[i] = append(slices.Clip(p), sym{symStop, e, item})
-			}
-		}
-		if e.Min == 0 {
-			ps = append([][]sym{nil}, ps...)
-		}
-		return ps, len(ps) <= exclPaths
+// body followed, when it can repeat, by a stop.
+func (x excl) repeatPaths(n *core.Repeat, item int) ([][]sym, bool) {
+	ps, ok := x.paths(n.Body, item)
+	if !ok {
+		return nil, false
 	}
+	if n.Max != 1 {
+		for i, p := range ps {
+			ps[i] = append(slices.Clip(p), sym{symStop, n, item})
+		}
+	}
+	if n.Min == 0 {
+		ps = append([][]sym{nil}, ps...)
+	}
+	return ps, len(ps) <= exclPaths
 }
 
 // body returns the paths that a symbol stands for: the body of the rule of a call, or the paths of
 // a repetition.
 func (x excl) body(s sym) ([][]sym, bool) {
-	if r, ok := s.e.(*ast.Repeat); ok {
+	if r, ok := s.n.(*core.Repeat); ok {
 		return x.repeatPaths(r, s.item)
 	}
-	def, ok := x.inlinable(s.e)
+	rule, ok := x.inlinable(s.n)
 	if !ok {
 		return nil, false
 	}
-	ps, ok := x.paths(def.Expr, s.item)
-	if !ok || !x.copyStops(def.Name) {
+	ps, ok := x.paths(x.k.ruleBody(rule), s.item)
+	if !ok || !x.copyStops(rule) {
 		return ps, ok
 	}
 	return stopped(ps, s.item)
@@ -471,7 +454,7 @@ func concatPaths(ps, qs [][]sym) ([][]sym, bool) {
 			continue
 		}
 		if pathLen(p) >= exclLen {
-			next = append(next, append(slices.Clip(p), sym{kind: symStop, e: stopLength}))
+			next = append(next, append(slices.Clip(p), sym{kind: symStop, n: stopLength}))
 			continue
 		}
 		for _, q := range qs {
@@ -485,7 +468,7 @@ func concatPaths(ps, qs [][]sym) ([][]sym, bool) {
 func pathLen(p []sym) int {
 	n := len(p)
 	for _, s := range p {
-		if _, exit := s.e.(*exitMark); s.kind == symSkip && exit {
+		if _, exit := s.n.(*exitMark); s.kind == symSkip && exit {
 			n--
 		}
 	}
@@ -498,7 +481,7 @@ func (x excl) contPaths(c *cont, depth int) ([][]sym, bool) {
 	paths := [][]sym{nil}
 	for ; c != nil; c = c.next {
 		for _, it := range c.items {
-			ps, ok := x.paths(it, 0)
+			ps, ok := x.paths(x.k.nodeOf(it), 0)
 			if !ok {
 				return nil, false
 			}
@@ -529,9 +512,9 @@ func (x excl) contPaths(c *cont, depth int) ([][]sym, bool) {
 
 // Stops that end a continuation that the analysis follows no further, told apart for diagnostics.
 var (
-	stopFollow = &ast.Bottom{} // more than x.follow rule or operator ends
-	stopLength = &ast.Bottom{} // exclLen symbols
-	stopCopy   = &ast.Bottom{} // an action at the end of a rule body that copies (copyStops)
+	stopFollow = &core.FailNode{} // more than x.follow rule or operator ends
+	stopLength = &core.FailNode{} // exclLen symbols
+	stopCopy   = &core.FailNode{} // an action at the end of a rule body that copies (copyStops)
 )
 
 // copyStops reports whether the strict analysis ends a path at the end of the body of rule, whose
@@ -571,11 +554,11 @@ func (x excl) ruleEnd(rule string, depth int) ([][]sym, bool) {
 			continue
 		}
 		if x.copyStops(rule) {
-			after = append(after, x.exited([][]sym{{{kind: symStop, e: stopCopy}}}, rule, s.caller)...)
+			after = append(after, x.exited([][]sym{{{kind: symStop, n: stopCopy}}}, rule, s.caller)...)
 			continue
 		}
 		if depth >= x.follow {
-			after = append(after, x.exited([][]sym{{{kind: symStop, e: stopFollow}}}, rule, s.caller)...)
+			after = append(after, x.exited([][]sym{{{kind: symStop, n: stopFollow}}}, rule, s.caller)...)
 			continue
 		}
 		y, nest := x, x.k.nestsEnd(s)
@@ -589,7 +572,7 @@ func (x excl) ruleEnd(rule string, depth int) ([][]sym, bool) {
 				ps[i] = append([]sym{{kind: symUp}}, p...)
 			}
 		}
-		if def := x.k.byName[rule]; def != nil && binds(def.Expr) {
+		if x.k.byName[rule] != nil && binds(x.k.ruleBody(rule)) {
 			// The caller does not see the bindings of the rule, which the unit may have seen.
 			for i, p := range ps {
 				ps[i] = append([]sym{{kind: symBind}}, p...)
@@ -609,10 +592,10 @@ func (x excl) ruleEnd(rule string, depth int) ([][]sym, bool) {
 // computed once for each key; contPaths, its only caller, copies the paths that it extends.
 func (x excl) opsEnd(rule string, depth int) ([][]sym, bool) {
 	if x.copyStops(rule) {
-		return [][]sym{{{kind: symStop, e: stopCopy}}}, true
+		return [][]sym{{{kind: symStop, n: stopCopy}}}, true
 	}
 	if depth >= x.follow {
-		return [][]sym{{{kind: symStop, e: stopFollow}}}, true
+		return [][]sym{{{kind: symStop, n: stopFollow}}}, true
 	}
 	key := opsKey{rule, depth, x.follow, x.env, x.up}
 	if r, ok := x.opsR[key]; ok {
@@ -653,20 +636,17 @@ func (x excl) opsEndPaths(rule string, depth int) ([][]sym, bool) {
 	return after, len(after) <= exclPaths
 }
 
-// inlinable reports whether the analysis may expand a call into the paths of its body: the callee
-// is not a rule of a left-recursion cycle. A callee that reads variables can be expanded too: every
-// successful evaluation follows one of the paths of its body, whatever the variables, and the
-// bindings in the body appear on the paths.
-func (x excl) inlinable(e ast.Expr) (*ast.RuleDef, bool) {
-	r, ok := e.(*ast.Ref)
-	if !ok || r.Level != "" {
-		return nil, false
+// inlinable reports whether the analysis may expand a call into the paths of the body of its rule,
+// which it returns: the call names no level of an Operators Rule, and the callee is not a rule of
+// a left-recursion cycle. A callee that reads variables can be expanded too: every successful
+// evaluation follows one of the paths of its body, whatever the variables, and the bindings in
+// the body appear on the paths.
+func (x excl) inlinable(n core.Node) (string, bool) {
+	rule, ok := x.k.plainCall(n)
+	if !ok || x.k.byName[rule] == nil || x.k.an.Cyclic[rule] {
+		return "", false
 	}
-	def := x.k.byName[r.Name]
-	if def == nil || x.k.an.Cyclic[r.Name] {
-		return nil, false
-	}
-	return def, true
+	return rule, true
 }
 
 // sameSym reports whether two symbols at one position succeed alike and end alike: a parsing
@@ -674,69 +654,72 @@ func (x excl) inlinable(e ast.Expr) (*ast.RuleDef, bool) {
 // values of the variables that it reads, have one result. A rule that reads variables is equal to
 // itself only where x.env holds. Calls of rules of left-recursion cycles are left aside, as a call
 // inside a growth sees the seed of the growth.
-func (x excl) sameSym(a, b ast.Expr) bool {
+func (x excl) sameSym(a, b core.Node) bool {
 	switch a := a.(type) {
-	case *ast.Ref:
-		b, ok := b.(*ast.Ref)
-		// A right operand is parsed at the level of its operator, which the reference does not
-		// tell, so two of them are not equal.
-		return ok && a.Name == b.Name && a.Level == b.Level && a.Level != rhsLevel &&
-			(x.env || len(x.k.vars[a.Name]) == 0) &&
-			!x.k.an.Cyclic[a.Name]
-	case *ast.Literal:
-		b, ok := b.(*ast.Literal)
-		return ok && a.Value == b.Value && a.IgnoreCase == b.IgnoreCase
-	case *ast.CharClass:
-		b, ok := b.(*ast.CharClass)
-		return ok && classChars(a).equal(classChars(b))
-	case *ast.Any:
-		_, ok := b.(*ast.Any)
+	case *core.Call:
+		// A right operand is parsed at the level of its operator, which its node does not tell,
+		// so two of them are not equal: it is a Nest, never a Call.
+		b, ok := b.(*core.Call)
+		name := x.k.rules[a.Rule].Name
+		return ok && a.Rule == b.Rule && a.Level == b.Level &&
+			(x.env || len(x.k.vars[name]) == 0) &&
+			!x.k.an.Cyclic[name]
+	case *core.Lit:
+		b, ok := b.(*core.Lit)
+		return ok && a.Text == b.Text && a.Fold == b.Fold
+	case *core.ClassNode:
+		b, ok := b.(*core.ClassNode)
+		return ok && coreClassChars(a.Class).equal(coreClassChars(b.Class))
+	case *core.Any:
+		_, ok := b.(*core.Any)
 		return ok
-	case *ast.Repeat:
-		b, ok := b.(*ast.Repeat)
-		return ok && (a == b || syntaxfmt.FormatExpr(a) == syntaxfmt.FormatExpr(b)) && x.pure(a)
+	case *core.Repeat:
+		b, ok := b.(*core.Repeat)
+		return ok && sameNode(x.k.facts.source.Module, a, b) && x.pure(a)
 	}
 	return false
 }
 
-// pure reports whether e calls only rules that are not rules of left-recursion cycles, and read no
+// pure reports whether n calls only rules that are not rules of left-recursion cycles, and read no
 // variable unless x.env holds, and has no predicate itself, so that its result at a position is
 // one.
-func (x excl) pure(e ast.Expr) bool {
+func (x excl) pure(n core.Node) bool {
 	ok := true
-	astfacts.WalkExpr(e, func(y ast.Expr) {
-		switch y := y.(type) {
-		case *ast.Ref:
-			if !x.env && len(x.k.vars[y.Name]) > 0 || x.k.an.Cyclic[y.Name] {
+	walkNodes(n, func(y core.Node) {
+		if rule, call := x.k.calledRule(y); call {
+			if !x.env && len(x.k.vars[rule]) > 0 || x.k.an.Cyclic[rule] {
 				ok = false
 			}
-		case *ast.Predicate, *ast.Recovery, *ast.Attributed, *ast.OperatorsRule, *ast.Cut:
+			return
+		}
+		switch y.(type) {
+		case *core.Pred, *core.BindNode, *core.Recover, *core.Label, *core.Missing, *core.OperatorsRule, *core.Cut:
 			ok = false
 		}
 	})
 	return ok
 }
 
-// disjoint reports whether two expressions cannot both succeed at one position: each consumes a
-// first character, and their first characters are disjoint. Whichever fails, it fails at the
-// character at that position, which the other one would consume.
-func (x excl) disjoint(a, b ast.Expr) bool {
-	return !x.k.nullable(a) && !x.k.nullable(b) && !x.k.first(a).intersects(x.k.first(b))
+// disjoint reports whether two nodes cannot both succeed at one position: each consumes a first
+// character, and their first characters are disjoint. Whichever fails, it fails at the character
+// at that position, which the other one would consume.
+func (x excl) disjoint(a, b core.Node) bool {
+	return !x.k.nullableOf(a) && !x.k.nullableOf(b) && !x.k.firstOf(a).intersects(x.k.firstOf(b))
 }
 
 // litStep compares two literals at one position. When one is a prefix of the other it returns the
 // rest of the longer one, on the side of a (restA) or of b; excl reports that they cannot both
 // match.
-func (x excl) litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bool) {
-	if a.Value == "" || b.Value == "" {
+func (x excl) litStep(a, b *core.Lit) (restA, restB *core.Lit, excl, ok bool) {
+	if a.Text == "" || b.Text == "" {
 		return nil, nil, false, false
 	}
-	if a.IgnoreCase != b.IgnoreCase {
+	if a.Fold != b.Fold {
 		// The analysis passes and decides only literals of the same case sensitivity.
 		return nil, nil, false, false
 	}
-	fold := a.IgnoreCase
-	av, bv := []rune(a.Value), []rune(b.Value)
+	fold := a.Fold
+	av, bv := []rune(a.Text), []rune(b.Text)
 	n := min(len(av), len(bv))
 	for i := range n {
 		x, y := av[i], bv[i]
@@ -749,9 +732,9 @@ func (x excl) litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bo
 	}
 	switch {
 	case len(av) < len(bv):
-		return nil, x.k.literalRest(bv[n:], b.IgnoreCase), false, true
+		return nil, x.k.literalRest(bv[n:], b.Fold), false, true
 	case len(bv) < len(av):
-		return x.k.literalRest(av[n:], a.IgnoreCase), nil, false, true
+		return x.k.literalRest(av[n:], a.Fold), nil, false, true
 	}
 	return nil, nil, false, true
 }
@@ -759,25 +742,25 @@ func (x excl) litStep(a, b *ast.Literal) (restA, restB *ast.Literal, excl, ok bo
 // litInChar reports whether a literal and a symbol that matches one character from a class, or
 // any character, both match the first character of the literal wherever the literal matches. It
 // returns the rest of the literal, or nil when the literal has one character.
-func (x excl) litInChar(l, c ast.Expr) (rest *ast.Literal, ok bool) {
-	lit, isLit := l.(*ast.Literal)
-	if !isLit || lit.Value == "" {
+func (x excl) litInChar(l, c core.Node) (rest *core.Lit, ok bool) {
+	lit, isLit := l.(*core.Lit)
+	if !isLit || lit.Text == "" {
 		return nil, false
 	}
 	switch c := c.(type) {
-	case *ast.CharClass:
-		if literalFirst(lit).intersects(classChars(c).complement()) {
+	case *core.ClassNode:
+		if litFirst(lit.Text, lit.Fold).intersects(coreClassChars(c.Class).complement()) {
 			return nil, false
 		}
-	case *ast.Any:
+	case *core.Any:
 	default:
 		return nil, false
 	}
-	rs := []rune(lit.Value)
+	rs := []rune(lit.Text)
 	if len(rs) == 1 {
 		return nil, true
 	}
-	return x.k.literalRest(rs[1:], lit.IgnoreCase), true
+	return x.k.literalRest(rs[1:], lit.Fold), true
 }
 
 func foldASCII(r rune) rune {
@@ -831,7 +814,7 @@ func (x excl) nextMatch(q []sym, j int) (int, bool) {
 		switch q[j].kind {
 		case symSkip, symBind, symEnv, symUp:
 		case symNot, symAnd:
-			if x.strict && skipFreshOn && !x.freshAll(q[j].e) {
+			if x.strict && skipFreshOn && !x.freshAll(q[j].n) {
 				return j, false
 			}
 		default:
@@ -897,22 +880,22 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			// it decides, so in strict mode it must reach no scanning source: the continuation
 			// does not evaluate its calls at the positions where the unit did, and the memo does
 			// not bound what they examine.
-			if x.strict && pnotSourceOn && x.k.containsSource(x.k.nodeOf(a.e)) {
+			if x.strict && pnotSourceOn && x.k.containsSource(a.n) {
 				return x.no("pnot-source", a, nil)
 			}
-			if x.implies(s.q[s.j:], a.e) {
+			if x.implies(s.q[s.j:], a.n) {
 				return decisive(a, a.item, s.steps+1)
 			}
 			s.i++
 			continue
 		case symAnd:
-			if j, ok := x.nextMatch(s.q, s.j); ok && j < len(s.q) && s.q[j].kind == symMatch && x.disjoint(a.e, s.q[j].e) {
+			if j, ok := x.nextMatch(s.q, s.j); ok && j < len(s.q) && s.q[j].kind == symMatch && x.disjoint(a.n, s.q[j].n) {
 				return decisive(a, a.item, s.steps+1)
 			}
-			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.e, s.q[s.j].e) && (!x.strict || !andFreshOn || x.freshAll(s.q[s.j].e)) {
+			if s.j < len(s.q) && s.q[s.j].kind == symAnd && x.disjoint(a.n, s.q[s.j].n) && (!x.strict || !andFreshOn || x.freshAll(s.q[s.j].n)) {
 				return decisive(a, a.item, s.steps+1)
 			}
-			if x.strict && pandSourceOn && x.k.containsSource(x.k.nodeOf(a.e)) {
+			if x.strict && pandSourceOn && x.k.containsSource(a.n) {
 				return x.no("pand-source", a, nil)
 			}
 			s.i++
@@ -961,10 +944,10 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			// call, so its scan could repeat in every step.
 			y := x
 			y.sourceless = x.strict
-			if end, alt, ok := y.impliesAt(s.p[s.i:], b.e); ok && (!x.strict || !beforeFreshOn || x.freshBefore(b.e, alt)) {
+			if end, alt, ok := y.impliesAt(s.p[s.i:], b.n); ok && (!x.strict || !beforeFreshOn || x.freshBefore(b.n, alt)) {
 				return decisive(a, s.p[s.i+end].item, s.steps+1)
 			}
-			if x.strict && qnotFreshOn && !x.freshAll(b.e) {
+			if x.strict && qnotFreshOn && !x.freshAll(b.n) {
 				return x.no("qnot-notcheap", a, &b)
 			}
 			s.j++
@@ -972,10 +955,10 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 		case symAnd:
 			// Only the continuation evaluates its lookahead, also where it decides, so in strict
 			// mode it must cost a constant.
-			if x.strict && qandFreshOn && !x.freshAll(b.e) {
+			if x.strict && qandFreshOn && !x.freshAll(b.n) {
 				return x.no("qand-notcheap", a, &b)
 			}
-			if x.disjoint(a.e, b.e) {
+			if x.disjoint(a.n, b.n) {
 				return decisive(a, a.item, s.steps+1)
 			}
 			s.j++
@@ -993,18 +976,18 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 				s.q = q
 			}
 		}
-		if x.disjoint(a.e, b.e) {
+		if x.disjoint(a.n, b.n) {
 			return decisive(a, a.item, s.steps+1)
 		}
 		// Two calls of one trivia rule at one position end alike, so they do not count toward the
 		// bound; in strict mode the second must be cheap, as the memo of a trivia rule makes it.
-		if x.triviaCall(a) && x.sameSym(a.e, b.e) && (!x.strict || x.cheap(a.e)) {
+		if x.triviaCall(a) && x.sameSym(a.n, b.n) && (!x.strict || x.cheap(a.n)) {
 			x.recordAlike(s, a)
 			s.i, s.j = s.i+1, s.j+1
 			continue
 		}
-		if x.sameSym(a.e, b.e) {
-			if s.steps+1 >= x.maxK || x.strict && !x.cheap(a.e) {
+		if x.sameSym(a.n, b.n) {
+			if s.steps+1 >= x.maxK || x.strict && !x.cheap(a.n) {
 				if s.steps+1 >= x.maxK {
 					return x.no("same-bound", a, &b)
 				}
@@ -1014,8 +997,8 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			s.i, s.j, s.steps = s.i+1, s.j+1, s.steps+1
 			continue
 		}
-		la, aLit := a.e.(*ast.Literal)
-		lb, bLit := b.e.(*ast.Literal)
+		la, aLit := a.n.(*core.Lit)
+		lb, bLit := b.n.(*core.Lit)
 		if aLit && bLit {
 			ra, rb, excl, ok := x.litStep(la, lb)
 			if !ok {
@@ -1046,7 +1029,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 		// Two classes, or a class and any character, that overlap: split each into the part that
 		// the other matches and the rest. If either matches in its rest, the other fails, so
 		// where both succeed they consume one character of the intersection and end alike.
-		if oneChar(a.e) && oneChar(b.e) {
+		if oneChar(a.n) && oneChar(b.n) {
 			if s.steps+1 >= x.maxK {
 				return x.no("char-bound", a, &b)
 			}
@@ -1054,7 +1037,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			continue
 		}
 		// A literal and a class that contains its first character both consume that character.
-		if rest, ok := x.litInChar(a.e, b.e); ok {
+		if rest, ok := x.litInChar(a.n, b.n); ok {
 			if s.steps+1 >= x.maxK {
 				return x.no("char-bound", a, &b)
 			}
@@ -1066,7 +1049,7 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 			s.j, s.steps = s.j+1, s.steps+1
 			continue
 		}
-		if rest, ok := x.litInChar(b.e, a.e); ok {
+		if rest, ok := x.litInChar(b.n, a.n); ok {
 			if s.steps+1 >= x.maxK {
 				return x.no("char-bound", a, &b)
 			}
@@ -1086,16 +1069,16 @@ func (x excl) excludes(s exclState) (ok bool, item, n int) {
 		expandP := func() (bool, int, int) {
 			return x.expand(s, s.p, s.i, func(t *exclState, p []sym) {
 				t.p = p
-				if r, ok := a.e.(*ast.Ref); ok {
-					t.viaP = &refList{r, s.viaP}
+				if _, call := k.calledRule(a.n); call {
+					t.viaP = &refList{k.exprOf(a.n).(*ast.Ref), s.viaP}
 				}
 			})
 		}
 		expandQ := func() (bool, int, int) {
 			return x.expand(s, s.q, s.j, func(t *exclState, q []sym) { t.q = q })
 		}
-		if ra, ok := a.e.(*ast.Ref); ok {
-			if rb, ok := b.e.(*ast.Ref); ok && k.reachable(rb.Name)[ra.Name] && !k.reachable(ra.Name)[rb.Name] {
+		if ra, ok := k.calledRule(a.n); ok {
+			if rb, ok := k.calledRule(b.n); ok && k.reachable(rb)[ra] && !k.reachable(ra)[rb] {
 				expandP, expandQ = expandQ, expandP
 			}
 		}
@@ -1117,15 +1100,15 @@ func (x excl) stuck(p []sym, i int) bool {
 			return true
 		case symSkip, symBind, symEnv, symUp:
 		case symNot:
-			if x.implies(p[i+1:], s.e) {
+			if x.implies(p[i+1:], s.n) {
 				return true
 			}
 		case symAnd:
-			if j, _ := x.nextMatch(p, i+1); j < len(p) && p[j].kind == symMatch && x.disjoint(s.e, p[j].e) {
+			if j, _ := x.nextMatch(p, i+1); j < len(p) && p[j].kind == symMatch && x.disjoint(s.n, p[j].n) {
 				return true
 			}
 		case symMatch:
-			return !x.k.nullable(s.e) && len(x.k.first(s.e)) == 0
+			return !x.k.nullableOf(s.n) && len(x.k.firstOf(s.n)) == 0
 		default:
 			return false
 		}
@@ -1138,21 +1121,21 @@ func (x excl) stuck(p []sym, i int) bool {
 // input (restart): the body of the rule of the unit, or the body of the caller that the
 // continuation reached after it left that one, whose rule the next exit mark names.
 func (x excl) recordAlike(s exclState, a sym) {
-	r, ok := a.e.(*ast.Ref)
-	if x.owner == nil || !ok || !x.k.recursive[x.owner.rule] {
+	if _, call := x.k.calledRule(a.n); x.owner == nil || !call || !x.k.recursive[x.owner.rule] {
 		return
 	}
+	r := x.k.exprOf(a.n).(*ast.Ref)
 	add := func(rule string) { x.k.addRestart(restart{rule, r, s.viaP}) }
 	for _, b := range s.q[s.j+1:] {
 		switch b.kind {
 		case symSkip:
-			if m, ok := b.e.(*exitMark); ok {
+			if m, ok := b.n.(*exitMark); ok {
 				add(m.rule)
 				return
 			}
 		case symUp, symBind, symEnv, symNot, symAnd:
 		case symMatch:
-			if !x.k.nullable(b.e) {
+			if !x.k.nullableOf(b.n) {
 				return
 			}
 		case symDead:
@@ -1173,7 +1156,7 @@ func (x excl) recordAlike(s exclState, a sym) {
 // unit, or the caller that the last exit of q reached.
 func (x excl) bodyOf(q []sym) string {
 	for i := len(q) - 1; i >= 0; i-- {
-		if m, ok := q[i].e.(*exitMark); ok && q[i].kind == symSkip {
+		if m, ok := q[i].n.(*exitMark); ok && q[i].kind == symSkip {
 			return m.into
 		}
 	}
@@ -1209,13 +1192,13 @@ func (x excl) expand(s exclState, side []sym, idx int, set func(*exclState, []sy
 
 // implies reports whether every evaluation that succeeds on q also matches the lookahead body at
 // its start, so that a negative lookahead on the body fails there.
-func (x excl) implies(q []sym, body ast.Expr) bool {
+func (x excl) implies(q []sym, body core.Node) bool {
 	_, _, ok := x.impliesAt(q, body)
 	return ok
 }
 
 // impliesAt is implies; end is the index of the last symbol of q that the match of body reads.
-func (x excl) impliesAt(q []sym, body ast.Expr) (end, alt int, ok bool) {
+func (x excl) impliesAt(q []sym, body core.Node) (end, alt int, ok bool) {
 	paths, alts := x.exactPaths(body)
 	for i, kp := range paths {
 		if end, ok := x.matchesExact(q, 0, kp, 0); ok {
@@ -1227,9 +1210,9 @@ func (x excl) impliesAt(q []sym, body ast.Expr) (end, alt int, ok bool) {
 
 // freshBefore reports whether the alternatives of the lookahead body before the alternative alt
 // (as exactPaths numbers them) cost a constant (freshAll).
-func (x excl) freshBefore(body ast.Expr, alt int) bool {
-	for _, e := range x.lookAlts(body)[:alt] {
-		if !x.freshAll(e) {
+func (x excl) freshBefore(body core.Node, alt int) bool {
+	for _, n := range x.lookAlts(body)[:alt] {
+		if !x.freshAll(n) {
 			return false
 		}
 	}
@@ -1238,18 +1221,18 @@ func (x excl) freshBefore(body ast.Expr, alt int) bool {
 
 // lookAlts returns the alternatives of a lookahead body, through calls that make up the whole
 // body.
-func (x excl) lookAlts(body ast.Expr) []ast.Expr {
+func (x excl) lookAlts(body core.Node) []core.Node {
 	for range exclInline {
-		def, ok := x.inlinable(ungroup(body))
+		rule, ok := x.inlinable(body)
 		if !ok {
 			break
 		}
-		body = def.Expr
+		body = x.k.ruleBody(rule)
 	}
-	if c, ok := ungroup(body).(*ast.Choice); ok {
-		return c.Alts
+	if c, ok := body.(*core.Choice); ok {
+		return core.Children(c)
 	}
-	return []ast.Expr{body}
+	return []core.Node{body}
 }
 
 // exactPaths returns the paths of a lookahead body for which a match of the path is a match of the
@@ -1258,31 +1241,35 @@ func (x excl) lookAlts(body ast.Expr) []ast.Expr {
 // or a nested choice can match where the body, which is greedy and ordered, does not. It stops
 // after an alternative with a cut that commits the choice: that alternative can fail after its cut
 // where a later one matches, and the body then fails without trying the later one.
-func (x excl) exactPaths(body ast.Expr) (out [][]ast.Expr, index []int) {
+func (x excl) exactPaths(body core.Node) (out [][]core.Node, index []int) {
 	alts := x.lookAlts(body)
 	for i, alt := range alts {
-		if i > 0 && x.k.looseCut(alts[i-1]) {
+		if i > 0 && x.k.looseCutOf(alts[i-1]) {
 			break
 		}
-		var p []ast.Expr
+		var p []core.Node
 		ok := true
-		var add func(e ast.Expr)
-		add = func(e ast.Expr) {
-			switch e := e.(type) {
-			case *ast.Group:
-				add(e.Expr)
-			case *ast.Discard:
-				add(e.Expr)
-			case *ast.Capture:
-				add(e.Expr)
-			case *ast.Atomic:
-				add(e.Expr)
-			case *ast.Seq:
-				for _, it := range e.Items {
+		var add func(n core.Node)
+		add = func(n core.Node) {
+			switch n := n.(type) {
+			case *core.Drop:
+				add(n.Body)
+			case *core.Capture:
+				add(n.Body)
+			case *core.Text:
+				add(n.Body)
+			case *core.Seq:
+				for _, it := range n.Items {
 					add(it)
 				}
-			case *ast.Ref, *ast.Literal, *ast.CharClass, *ast.Any:
-				p = append(p, e)
+			case *core.Call, *core.Lit, *core.ClassNode, *core.Any:
+				p = append(p, n)
+			case *core.Nest:
+				if isRightOperand(n) {
+					p = append(p, n)
+				} else {
+					ok = false
+				}
 			default:
 				ok = false
 			}
@@ -1298,14 +1285,14 @@ func (x excl) exactPaths(body ast.Expr) (out [][]ast.Expr, index []int) {
 // matchesExact reports whether every evaluation that succeeds on q matches the exact path kp at the
 // symbol j of q, where the symbols before j have matched what came before kp. In strict mode the
 // symbols that both evaluate are cheap.
-func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, ok bool) {
+func (x excl) matchesExact(q []sym, j int, kp []core.Node, depth int) (end int, ok bool) {
 	m := 0
 	for m < len(kp) {
 		var ok bool
 		if j, ok = x.nextMatch(q, j); !ok || j == len(q) || q[j].kind != symMatch {
 			return 0, false
 		}
-		a, b := q[j].e, kp[m]
+		a, b := q[j].n, kp[m]
 		y := x
 		for _, z := range q[:j] {
 			switch {
@@ -1318,14 +1305,14 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 			}
 		}
 		if y.sameSym(a, b) {
-			if y.strict && !y.cheap(a) || y.sourceless && x.k.containsSource(x.k.nodeOf(a)) {
+			if y.strict && !y.cheap(a) || y.sourceless && x.k.containsSource(a) {
 				return 0, false
 			}
 			j, m = j+1, m+1
 			continue
 		}
-		la, aLit := a.(*ast.Literal)
-		lb, bLit := b.(*ast.Literal)
+		la, aLit := a.(*core.Lit)
+		lb, bLit := b.(*core.Lit)
 		if aLit && bLit {
 			ra, rb, excl, ok := x.litStep(la, lb)
 			if !ok || excl {
@@ -1336,7 +1323,7 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 				q = replaced(q, j, sym{symMatch, ra, q[j].item})
 				m++
 			case rb != nil:
-				kp = append([]ast.Expr{rb}, kp[m+1:]...)
+				kp = append([]core.Node{rb}, kp[m+1:]...)
 				m = 0
 				j++
 			default:
@@ -1345,8 +1332,8 @@ func (x excl) matchesExact(q []sym, j int, kp []ast.Expr, depth int) (end int, o
 			continue
 		}
 		// A class of q that the class of the body contains matches it.
-		if ca, ok := a.(*ast.CharClass); ok {
-			if cb, ok := b.(*ast.CharClass); ok && !classChars(ca).intersects(classChars(cb).complement()) {
+		if ca, ok := a.(*core.ClassNode); ok {
+			if cb, ok := b.(*core.ClassNode); ok && !coreClassChars(ca.Class).intersects(coreClassChars(cb.Class).complement()) {
 				j, m = j+1, m+1
 				continue
 			}
@@ -1393,19 +1380,19 @@ type altDecision struct {
 }
 
 // topItems returns the top-level items of an alternative.
-func topItems(alt ast.Expr) []ast.Expr {
-	if s, ok := ungroup(alt).(*ast.Seq); ok {
+func topItems(alt core.Node) []core.Node {
+	if s, ok := alt.(*core.Seq); ok {
 		return s.Items
 	}
-	return []ast.Expr{alt}
+	return []core.Node{alt}
 }
 
 // decideAlt decides whether the alternative i of ch excludes every later alternative after a
 // prefix of its top-level items, examining at most maxK symbols. It is the analysis without the
 // strict conditions: it tells which choices are exclusive, not what a later alternative costs.
-func (k *classifier) decideAlt(ch *ast.Choice, i, maxK int) altDecision {
+func (k *classifier) decideAlt(ch *core.Choice, i, maxK int) altDecision {
 	x := newExcl(k, false, maxK)
-	items := topItems(ch.Alts[i])
+	items := topItems(ch.Alts[i].Body)
 	d := altDecision{items: len(items)}
 	ps := [][]sym{nil}
 	for n, it := range items {
@@ -1419,7 +1406,7 @@ func (k *classifier) decideAlt(ch *ast.Choice, i, maxK int) altDecision {
 	}
 	prefix, kk := 0, 0
 	for _, later := range ch.Alts[i+1:] {
-		qs, ok := x.paths(later, 0)
+		qs, ok := x.paths(later.Body, 0)
 		if !ok {
 			return d
 		}
@@ -1485,17 +1472,13 @@ func (k *classifier) unitDecided(u *unit, conts []contSpec) (ok bool, why string
 	return true, ""
 }
 
-// binds reports whether evaluating e can bind a variable in the scope that it is evaluated in: e
+// binds reports whether evaluating n can bind a variable in the scope that it is evaluated in: n
 // contains a binding outside the rules that it calls, whose bindings end with the call.
-func binds(e ast.Expr) bool {
+func binds(n core.Node) bool {
 	found := false
-	astfacts.WalkExpr(e, func(y ast.Expr) {
-		if p, ok := y.(*ast.Predicate); ok {
-			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
-				if _, ok := t.(*ast.Bind); ok {
-					found = true
-				}
-			})
+	walkNodes(n, func(y core.Node) {
+		if _, ok := y.(*core.BindNode); ok {
+			found = true
 		}
 	})
 	return found
@@ -1514,11 +1497,11 @@ func (x excl) no(tag string, a sym, b *sym) (bool, int, int) {
 	return false, 0, 0
 }
 
-// oneChar reports whether e matches exactly one character wherever it succeeds: a character class
+// oneChar reports whether n matches exactly one character wherever it succeeds: a character class
 // or any character.
-func oneChar(e ast.Expr) bool {
-	switch e.(type) {
-	case *ast.CharClass, *ast.Any:
+func oneChar(n core.Node) bool {
+	switch n.(type) {
+	case *core.ClassNode, *core.Any:
 		return true
 	}
 	return false

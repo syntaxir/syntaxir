@@ -13,6 +13,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -81,7 +82,7 @@ func TestDecideAlt(t *testing.T) {
 				ch = y
 			}
 		})
-		d := k.decideAlt(ch, 0, 3)
+		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3)
 		if d.decided != c.decided || d.decided && (d.k != c.k || d.prefix != c.prefix) {
 			t.Errorf("%s: decided %v k %d prefix %d, want %v k %d prefix %d", c.name, d.decided, d.k, d.prefix, c.decided, c.k, c.prefix)
 		}
@@ -138,7 +139,7 @@ func TestDecideAltTrivia(t *testing.T) {
 			if on {
 				want = c.on
 			}
-			if d := k.decideAlt(ch, 0, 3); d.decided != want {
+			if d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3); d.decided != want {
 				t.Errorf("%s: trivia %v: decided %v (k %d), want %v", c.name, on, d.decided, d.k, want)
 			}
 		}
@@ -189,7 +190,7 @@ func TestTriviaCheap(t *testing.T) {
 		if call == nil {
 			t.Fatal("no call of ws2 in main")
 		}
-		if got := newExcl(k, true, 3).cheap(call); got != on {
+		if got := newExcl(k, true, 3).cheap(k.nodeOf(call)); got != on {
 			t.Errorf("memo %v: cheap %v", on, got)
 		}
 	}
@@ -209,14 +210,14 @@ func TestCollapseTrivia(t *testing.T) {
 		t.Fatal(err)
 	}
 	x := newExcl(k, true, 3)
-	ws, ws2, lit := &ast.Ref{Name: "ws"}, &ast.Ref{Name: "ws2"}, &ast.Literal{Value: "x"}
+	ws, ws2, lit := k.nodeOf(k.callOf("ws")), k.nodeOf(k.callOf("ws2")), core.Node(k.literalRest([]rune("x"), false))
 	p := []sym{{symMatch, ws, 0}, {symSkip, nil, 0}, {symMatch, ws, 1}, {symNot, lit, 1}, {symMatch, ws, 2},
 		{symMatch, ws2, 2}, {symMatch, ws, 3}, {symMatch, lit, 3}, {symMatch, ws, 4}}
-	if got, want := fmtPath(x.collapseTrivia(p, 0)), fmtPath([]sym{p[0], p[1], p[3], p[5], p[6], p[7], p[8]}); got != want {
+	if got, want := fmtPath(k, x.collapseTrivia(p, 0)), fmtPath(k, []sym{p[0], p[1], p[3], p[5], p[6], p[7], p[8]}); got != want {
 		t.Errorf("collapsed %s, want %s", got, want)
 	}
-	if len(p) != 9 || p[2].e != ws || p[2].item != 1 {
-		t.Errorf("the path was changed in place: %s", fmtPath(p))
+	if len(p) != 9 || p[2].n != ws || p[2].item != 1 {
+		t.Errorf("the path was changed in place: %s", fmtPath(k, p))
 	}
 }
 
@@ -234,7 +235,7 @@ func TestCollapseTriviaBinding(t *testing.T) {
 		t.Fatal(err)
 	}
 	x := newExcl(k, true, 3)
-	wv, ws := &ast.Ref{Name: "wv"}, &ast.Ref{Name: "ws"}
+	wv, ws := k.nodeOf(k.callOf("wv")), k.nodeOf(k.callOf("ws"))
 	for _, c := range []struct {
 		name string
 		p    []sym
@@ -245,7 +246,7 @@ func TestCollapseTriviaBinding(t *testing.T) {
 		{"no binding", []sym{{symMatch, wv, 0}, {symSkip, nil, 1}, {symMatch, wv, 2}}, 2},
 	} {
 		if got := x.collapseTrivia(c.p, 0); len(got) != c.want {
-			t.Errorf("%s: collapsed to %s", c.name, fmtPath(got))
+			t.Errorf("%s: collapsed to %s", c.name, fmtPath(k, got))
 		}
 	}
 }
@@ -367,7 +368,7 @@ func TestDecideAltVariables(t *testing.T) {
 				ch = y
 			}
 		})
-		d := k.decideAlt(ch, 0, 3)
+		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 3)
 		if d.decided != c.decided || d.decided && (d.k != c.k || d.prefix != c.prefix) {
 			t.Errorf("%s: decided %v k %d prefix %d, want %v k %d prefix %d", c.name, d.decided, d.k, d.prefix, c.decided, c.k, c.prefix)
 		}
@@ -531,35 +532,39 @@ func exclBlocker(k *classifier, u *unit, strict bool, maxK int) string {
 	return ""
 }
 
-// stopKind names the kind of expression of a symbol at which the analysis stops.
+// stopKind names the kind of node of a symbol at which the analysis stops.
 func stopKind(k *classifier, s sym) string {
-	switch e := s.e.(type) {
+	switch n := s.n.(type) {
 	case nil:
 		return "end of continuation"
-	case *ast.Bottom:
-		switch e {
+	case *core.FailNode:
+		switch n {
 		case stopFollow:
 			return "follow bound"
 		case stopLength:
 			return "length bound"
 		}
 		return "bottom"
-	case *ast.Choice, *ast.Optional, *ast.Repeat:
+	case *core.Choice, *core.Opt, *core.Repeat:
 		return "part that is not cheap"
-	case *ast.Ref:
-		switch {
-		case e.Level != "":
+	case *core.Nest:
+		if isRightOperand(n) {
 			return "operator level call"
-		case k.an.Cyclic[e.Name]:
+		}
+	case *core.Call:
+		switch {
+		case n.Level != 0:
+			return "operator level call"
+		case k.an.Cyclic[k.rules[n.Rule].Name]:
 			return "left-recursive call"
 		}
 		return "call"
-	case *ast.CharClass, *ast.Any, *ast.Literal:
+	case *core.ClassNode, *core.Any, *core.Lit:
 		return "character"
-	case *ast.Attributed, *ast.OperatorsRule, *ast.Recovery:
+	case *core.Label, *core.Missing, *core.OperatorsRule, *core.Recover:
 		return "attributed, Operators Rule or #recover"
 	}
-	return fmt.Sprintf("%T", s.e)
+	return fmt.Sprintf("%T", s.n)
 }
 
 // exclStats counts the decisions of the non-strict analysis over the choices of the reachable
@@ -595,7 +600,7 @@ func exclusionStats(g *ast.Grammar, start string) (exclStats, error) {
 			worst := 0
 			for i := range ch.Alts[:len(ch.Alts)-1] {
 				st.alts++
-				d := k.decideAlt(ch, i, most)
+				d := k.decideAlt(k.nodeOf(ch).(*core.Choice), i, most)
 				if !d.decided {
 					worst = most + 1
 					continue
@@ -713,7 +718,7 @@ func TestExclusionReport(t *testing.T) {
 
 // fmtPath formats a path for tests: stops as STOP, the end of the parse as END, a mark of
 // changed variables as BIND.
-func fmtPath(p []sym) string {
+func fmtPath(k *classifier, p []sym) string {
 	var b []string
 	for _, s := range p {
 		switch s.kind {
@@ -728,13 +733,13 @@ func fmtPath(p []sym) string {
 		case symUp:
 			b = append(b, "UP")
 		case symNot:
-			b = append(b, "!"+syntaxfmt.FormatExpr(s.e))
+			b = append(b, "!"+syntaxfmt.FormatExpr(k.exprOf(s.n)))
 		case symAnd:
-			b = append(b, "&"+syntaxfmt.FormatExpr(s.e))
+			b = append(b, "&"+syntaxfmt.FormatExpr(k.exprOf(s.n)))
 		case symSkip:
 			b = append(b, "_")
 		default:
-			b = append(b, syntaxfmt.FormatExpr(s.e))
+			b = append(b, syntaxfmt.FormatExpr(k.exprOf(s.n)))
 		}
 	}
 	return strings.Join(b, " ")
@@ -773,7 +778,7 @@ func TestFollowPaths(t *testing.T) {
 	}
 	stops := 0
 	for _, p := range ps {
-		if last := p[len(p)-1]; last.kind == symStop && last.e == stopFollow {
+		if last := p[len(p)-1]; last.kind == symStop && last.n == stopFollow {
 			stops++
 		}
 	}
@@ -805,7 +810,7 @@ func TestContPathsEnds(t *testing.T) {
 	}
 	got := map[string]bool{}
 	for _, p := range ps {
-		got[fmtPath(p)] = true
+		got[fmtPath(k, p)] = true
 	}
 	for _, want := range []string{`"+" "-" "+" "-" "+" "-" "+" "-" "+" "-" STOP`, `_ END`} {
 		if !got[want] {
@@ -858,8 +863,8 @@ func comparePaths(t *testing.T, src string, strict bool, maxK int) (bool, string
 	tag := ""
 	exclTrace = func(s string, _ sym, _ *sym) { tag = s }
 	defer func() { exclTrace = nil }()
-	ps, ok := x.paths(k.byName["p"].Expr, 0)
-	qs, ok2 := x.paths(k.byName["q"].Expr, 0)
+	ps, ok := x.paths(k.ruleBody("p"), 0)
+	qs, ok2 := x.paths(k.ruleBody("q"), 0)
 	if !ok || !ok2 {
 		t.Fatal("too many paths")
 	}
@@ -1110,7 +1115,7 @@ func TestExclusionBudget(t *testing.T) {
 		k.computeFirst()
 		ch := ungroup(ungroup(k.byName["main"].Expr).(*ast.Seq).Items[0]).(*ast.Choice)
 		start := time.Now()
-		d := k.decideAlt(ch, 0, 5)
+		d := k.decideAlt(k.nodeOf(ch).(*core.Choice), 0, 5)
 		if d.decided != c.decided || (k.exclOverBudget > 0) != c.exceeded {
 			t.Errorf("n %d: decided %v, over budget %d", c.n, d.decided, k.exclOverBudget)
 		}

@@ -618,10 +618,13 @@ func bindsOutsideCalls(n core.Node) bool {
 // same reports whether two nodes are the same expression: they print the same, whatever their
 // positions in the module.
 func (b *builder) same(x, y core.Node) bool {
-	if x == y {
-		return true
-	}
-	return core.PrintNode(b.src.Module, x, false) == core.PrintNode(b.src.Module, y, false)
+	return sameNode(b.src.Module, x, y)
+}
+
+// sameNode reports whether two nodes of the module m, or of a view of it, are the same expression:
+// they are one node, or they print the same, whatever their positions.
+func sameNode(m *core.Module, x, y core.Node) bool {
+	return x == y || core.PrintNode(m, x, false) == core.PrintNode(m, y, false)
 }
 
 // subsumed reports whether an earlier alternative covers alt: it equals alt or is a prefix of
