@@ -5,75 +5,16 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-type budgetContextPanicToken struct{ phase string }
-
-func (*budgetContextPanicToken) Error() string { return "context panic token" }
-func (*budgetContextPanicToken) RuntimeError() {}
-
-var _ runtime.Error = (*budgetContextPanicToken)(nil)
-
-type budgetContextErrPanic struct {
-	context.Context
-	done    chan struct{}
-	armed   bool
-	panicAt int
-	calls   int
-	token   *budgetContextPanicToken
-	control *state.BudgetControl
-	atPanic uint64
-	since   uint64
-}
-
-func newBudgetContextErrPanic(token *budgetContextPanicToken, panicAt int) *budgetContextErrPanic {
-	return &budgetContextErrPanic{Context: context.Background(), done: make(chan struct{}), token: token, panicAt: panicAt}
-}
-
-func (c *budgetContextErrPanic) Done() <-chan struct{} { return c.done }
-
-func (c *budgetContextErrPanic) Err() error {
-	if !c.armed {
-		return nil
-	}
-	c.calls++
-	if c.calls == c.panicAt {
-		if c.control != nil {
-			c.atPanic, c.since = c.control.Used, c.control.SinceCheck
-		}
-		panic(c.token)
-	}
-	return nil
-}
-
-type budgetContextDonePanic struct {
-	context.Context
-	token *budgetContextPanicToken
-}
-
-func (c *budgetContextDonePanic) Done() <-chan struct{} { panic(c.token) }
-
-func budgetContextRecover(run func()) (got any) {
-	defer func() { got = recover() }()
-	run()
-	return nil
-}
-
-func budgetContextAssertCleanup(t *testing.T, p *state.Parser) {
-	t.Helper()
-	if p == nil || p.Scratch != nil || p.Control != nil {
-		t.Fatalf("parser not released after caller panic: %#v", p)
-	}
-}
 
 func budgetContextNodeJSON(t *testing.T, n *value.Node) []byte {
 	t.Helper()
@@ -107,16 +48,16 @@ func TestBudgetContextErrPanicIdentityBeforeExecution(t *testing.T) {
 	for _, base := range budgetContextVariants() {
 		for _, phase := range []string{"admission", "later-check", "Done"} {
 			t.Run(budgetContextVariantName(base)+"/"+phase, func(t *testing.T) {
-				token := &budgetContextPanicToken{phase: phase}
+				token := &statetest.ContextPanicToken{Phase: phase}
 				opts := base
-				ctx := newBudgetContextErrPanic(token, 1)
-				ctx.armed = true
+				ctx := statetest.NewContextErrPanic(token, 1)
+				ctx.Armed = true
 				opts.Context = ctx
 				if phase == "later-check" {
-					ctx.panicAt = 3
+					ctx.PanicAt = 3
 				}
 				if phase == "Done" {
-					opts.Context = &budgetContextDonePanic{Context: context.Background(), token: token}
+					opts.Context = &statetest.ContextDonePanic{Context: context.Background(), Token: token}
 				}
 				entries := 0
 				opts.Trace = func(e TraceEvent) {
@@ -126,12 +67,12 @@ func TestBudgetContextErrPanicIdentityBeforeExecution(t *testing.T) {
 				}
 				var node *value.Node
 				var returnedErr error
-				got := budgetContextRecover(func() { node, returnedErr = prog.ParseWith("main", text, opts) })
+				got := statetest.CatchPanic(func() { node, returnedErr = prog.ParseWith("main", text, opts) })
 				if got != token || node != nil || returnedErr != nil || entries != 0 {
 					t.Fatalf("panic=%#v node=%v error=%v trace entries=%d", got, node, returnedErr, entries)
 				}
-				if phase != "Done" && ctx.calls != ctx.panicAt {
-					t.Fatalf("Err calls=%d want %d at %s", ctx.calls, ctx.panicAt, phase)
+				if phase != "Done" && ctx.Calls != ctx.PanicAt {
+					t.Fatalf("Err calls=%d want %d at %s", ctx.Calls, ctx.PanicAt, phase)
 				}
 				// This fixture checks identity before execution, without assigning
 				// an ordinal Context call to a specific lazy-setup component.
@@ -154,47 +95,47 @@ rule child = "a"`)
 	for _, base := range budgetContextVariants() {
 		backend := base.Backend
 		t.Run(budgetContextVariantName(base)+"/child precheck", func(t *testing.T) {
-			token := &budgetContextPanicToken{phase: "child trace precheck"}
-			ctx := newBudgetContextErrPanic(token, 2)
+			token := &statetest.ContextPanicToken{Phase: "child trace precheck"}
+			ctx := statetest.NewContextErrPanic(token, 2)
 			var observed *state.Parser
 			childCallbacks := 0
 			var node *value.Node
 			var returnedErr error
-			got := budgetContextRecover(func() {
+			got := statetest.CatchPanic(func() {
 				node, returnedErr = childProg.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: base.Unit, Recognize: base.Recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 20}, Trace: func(e TraceEvent) {
 					if e.Kind == TraceEnter && e.Rule == "main" {
 						observed = state.TraceParser(e)
-						ctx.control, ctx.armed = state.TraceParser(e).Control, true
+						ctx.Control, ctx.Armed = state.TraceParser(e).Control, true
 					}
 					if e.Kind == TraceEnter && e.Rule == "child" {
 						childCallbacks++
 					}
 				}})
 			})
-			if got != token || node != nil || returnedErr != nil || ctx.calls != 2 || childCallbacks != 0 {
-				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d child callback=%d, want panic at child's pre-callback check", got, node, returnedErr, ctx.calls, childCallbacks)
+			if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 || childCallbacks != 0 {
+				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d child callback=%d, want panic at child's pre-callback check", got, node, returnedErr, ctx.Calls, childCallbacks)
 			}
-			budgetContextAssertCleanup(t, observed)
+			statetest.AssertReleased(t, observed)
 		})
 
 		t.Run(budgetContextVariantName(base)+"/callback postcheck", func(t *testing.T) {
-			token := &budgetContextPanicToken{phase: "trace postcheck"}
-			ctx := newBudgetContextErrPanic(token, 1)
+			token := &statetest.ContextPanicToken{Phase: "trace postcheck"}
+			ctx := statetest.NewContextErrPanic(token, 1)
 			var observed *state.Parser
 			var node *value.Node
 			var returnedErr error
-			got := budgetContextRecover(func() {
+			got := statetest.CatchPanic(func() {
 				node, returnedErr = plainProg.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: base.Unit, Recognize: base.Recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 20}, Trace: func(e TraceEvent) {
 					if e.Kind == TraceEnter && e.Rule == "main" {
 						observed = state.TraceParser(e)
-						ctx.control, ctx.armed = state.TraceParser(e).Control, true
+						ctx.Control, ctx.Armed = state.TraceParser(e).Control, true
 					}
 				}})
 			})
-			if got != token || node != nil || returnedErr != nil || ctx.calls != 1 {
-				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want exact panic at callback postcheck", got, node, returnedErr, ctx.calls)
+			if got != token || node != nil || returnedErr != nil || ctx.Calls != 1 {
+				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want exact panic at callback postcheck", got, node, returnedErr, ctx.Calls)
 			}
-			budgetContextAssertCleanup(t, observed)
+			statetest.AssertReleased(t, observed)
 		})
 	}
 }
@@ -205,45 +146,45 @@ func TestBudgetContextErrPanicIdentityAtPublicationAndFailedReservation(t *testi
 	for _, base := range budgetContextVariants() {
 		backend := base.Backend
 		t.Run(budgetContextVariantName(base)+"/publication", func(t *testing.T) {
-			token := &budgetContextPanicToken{phase: "publication"}
-			ctx := newBudgetContextErrPanic(token, 2)
+			token := &statetest.ContextPanicToken{Phase: "publication"}
+			ctx := statetest.NewContextErrPanic(token, 2)
 			var observed *state.Parser
 			var node *value.Node
 			var returnedErr error
-			got := budgetContextRecover(func() {
+			got := statetest.CatchPanic(func() {
 				node, returnedErr = prog.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: base.Unit, Recognize: base.Recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 20}, Trace: func(e TraceEvent) {
 					if e.Kind == TraceExit && e.Rule == "main" {
 						observed = state.TraceParser(e)
-						ctx.control, ctx.armed = state.TraceParser(e).Control, true
+						ctx.Control, ctx.Armed = state.TraceParser(e).Control, true
 					}
 				}})
 			})
-			if got != token || node != nil || returnedErr != nil || ctx.calls != 2 {
-				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want final publication panic", got, node, returnedErr, ctx.calls)
+			if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 {
+				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want final publication panic", got, node, returnedErr, ctx.Calls)
 			}
-			budgetContextAssertCleanup(t, observed)
+			statetest.AssertReleased(t, observed)
 		})
 
 		t.Run(budgetContextVariantName(base)+"/failed reservation", func(t *testing.T) {
-			token := &budgetContextPanicToken{phase: "failed reservation"}
-			ctx := newBudgetContextErrPanic(token, 2)
+			token := &statetest.ContextPanicToken{Phase: "failed reservation"}
+			ctx := statetest.NewContextErrPanic(token, 2)
 			var observed *state.Parser
 			var node *value.Node
 			var returnedErr error
-			got := budgetContextRecover(func() {
+			got := statetest.CatchPanic(func() {
 				node, returnedErr = prog.ParseWith("main", "a", ParseOptions{Backend: backend, Unit: base.Unit, Recognize: base.Recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 20}, Trace: func(e TraceEvent) {
 					if e.Kind == TraceEnter && e.Rule == "main" {
 						observed = state.TraceParser(e)
-						ctx.control = state.TraceParser(e).Control
-						ctx.armed = true
-						ctx.control.Limits.Compute = ctx.control.Used
+						ctx.Control = state.TraceParser(e).Control
+						ctx.Armed = true
+						ctx.Control.Limits.Compute = ctx.Control.Used
 					}
 				}})
 			})
-			if got != token || node != nil || returnedErr != nil || ctx.calls != 2 || ctx.control == nil || ctx.atPanic != ctx.control.Used || ctx.atPanic != ctx.control.Limits.Compute {
-				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d control=%v, want context panic on rejected reservation", got, node, returnedErr, ctx.calls, ctx.control)
+			if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 || ctx.Control == nil || ctx.AtPanic != ctx.Control.Used || ctx.AtPanic != ctx.Control.Limits.Compute {
+				t.Fatalf("panic=%#v node=%v error=%v Err calls=%d control=%v, want context panic on rejected reservation", got, node, returnedErr, ctx.Calls, ctx.Control)
 			}
-			budgetContextAssertCleanup(t, observed)
+			statetest.AssertReleased(t, observed)
 		})
 	}
 }
@@ -267,26 +208,26 @@ func TestBudgetContextErrPanicIdentityAtCountedBudgetAndRetry(t *testing.T) {
 						retainedJSON = budgetContextNodeJSON(t, retained)
 					}
 
-					token := &budgetContextPanicToken{phase: "spent budget"}
-					ctx := newBudgetContextErrPanic(token, 2)
+					token := &statetest.ContextPanicToken{Phase: "spent budget"}
+					ctx := statetest.NewContextErrPanic(token, 2)
 					var observed *state.Parser
 					var node *value.Node
 					var returnedErr error
-					got := budgetContextRecover(func() {
+					got := statetest.CatchPanic(func() {
 						node, returnedErr = prog.ParseWith("main", literal, ParseOptions{Backend: backend, Unit: unit, Recognize: recognize, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 30}, Trace: func(e TraceEvent) {
 							if e.Kind == TraceEnter && e.Rule == "main" {
 								observed = state.TraceParser(e)
-								ctx.control, ctx.armed = state.TraceParser(e).Control, true
+								ctx.Control, ctx.Armed = state.TraceParser(e).Control, true
 							}
 						}})
 					})
 					if got != token || node != nil || returnedErr != nil {
 						t.Fatalf("panic=%#v node=%v error=%v, want exact panic during spent budget", got, node, returnedErr)
 					}
-					if ctx.calls != 2 || ctx.since != state.BudgetCheckInterval-1 || ctx.atPanic < state.BudgetCheckInterval-1 {
-						t.Fatalf("Err calls=%d steps=%d since check=%d, want callback postcheck then next counted-budget poll", ctx.calls, ctx.atPanic, ctx.since)
+					if ctx.Calls != 2 || ctx.Since != state.BudgetCheckInterval-1 || ctx.AtPanic < state.BudgetCheckInterval-1 {
+						t.Fatalf("Err calls=%d steps=%d since check=%d, want callback postcheck then next counted-budget poll", ctx.Calls, ctx.AtPanic, ctx.Since)
 					}
-					budgetContextAssertCleanup(t, observed)
+					statetest.AssertReleased(t, observed)
 
 					if !recognize {
 						if string(budgetContextNodeJSON(t, retained)) != string(retainedJSON) {
@@ -324,26 +265,26 @@ func TestBudgetContextErrPanicIdentityLoadedASTOmittedProgram(t *testing.T) {
 				}
 				before := budgetContextNodeJSON(t, retained)
 
-				token := &budgetContextPanicToken{phase: "loaded spent budget"}
-				ctx := newBudgetContextErrPanic(token, 2)
+				token := &statetest.ContextPanicToken{Phase: "loaded spent budget"}
+				ctx := statetest.NewContextErrPanic(token, 2)
 				var observed *state.Parser
 				var node *value.Node
 				var returnedErr error
-				got := budgetContextRecover(func() {
+				got := statetest.CatchPanic(func() {
 					node, returnedErr = prog.ParseWith("main", literal, ParseOptions{Backend: backend, Unit: unit, Context: ctx, Limits: sxirruntime.Limits{Compute: 1 << 30}, Trace: func(e TraceEvent) {
 						if e.Kind == TraceEnter && e.Rule == "main" {
 							observed = state.TraceParser(e)
-							ctx.control, ctx.armed = state.TraceParser(e).Control, true
+							ctx.Control, ctx.Armed = state.TraceParser(e).Control, true
 						}
 					}})
 				})
-				if got != token || node != nil || returnedErr != nil || ctx.calls != 2 {
-					t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want exact loaded-VM panic", got, node, returnedErr, ctx.calls)
+				if got != token || node != nil || returnedErr != nil || ctx.Calls != 2 {
+					t.Fatalf("panic=%#v node=%v error=%v Err calls=%d, want exact loaded-VM panic", got, node, returnedErr, ctx.Calls)
 				}
-				if ctx.since != state.BudgetCheckInterval-1 || ctx.atPanic < state.BudgetCheckInterval-1 {
-					t.Fatalf("steps at panic=%d since check=%d, want counted-spend polling boundary", ctx.atPanic, ctx.since)
+				if ctx.Since != state.BudgetCheckInterval-1 || ctx.AtPanic < state.BudgetCheckInterval-1 {
+					t.Fatalf("steps at panic=%d since check=%d, want counted-spend polling boundary", ctx.AtPanic, ctx.Since)
 				}
-				budgetContextAssertCleanup(t, observed)
+				statetest.AssertReleased(t, observed)
 
 				retry, retryErr := prog.ParseWith("main", literal, servedBy(CompiledDocument, ParseOptions{Backend: backend, Unit: unit}))
 				if retryErr != nil || string(budgetContextNodeJSON(t, retry)) != string(before) || string(budgetContextNodeJSON(t, retained)) != string(before) {

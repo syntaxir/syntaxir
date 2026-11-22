@@ -5,31 +5,13 @@ package engine
 import (
 	"context"
 	"errors"
-	"io"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-type budgetCancelledRefillReader struct {
-	cancel context.CancelFunc
-	first  []byte
-	calls  int
-}
-
-func (r *budgetCancelledRefillReader) Read(dst []byte) (int, error) {
-	r.calls++
-	if r.calls == 1 {
-		r.cancel()
-		return copy(dst, r.first), nil
-	}
-	if len(r.first) == 0 {
-		return 0, nil
-	}
-	return 0, io.EOF
-}
 
 func TestBudgetStreamRawReaderCancellation(t *testing.T) {
 	t.Parallel()
@@ -41,15 +23,15 @@ rule row = .+ #atomic`)
 			t.Run(shape, func(t *testing.T) {
 				ctx, cancel := context.WithCancel(context.Background())
 				defer cancel()
-				reader := &budgetCancelledRefillReader{cancel: cancel}
+				reader := &statetest.CancelledRefillReader{Cancel: cancel}
 				if shape == "partial-rune" {
-					reader.first = []byte{0xc3}
+					reader.First = []byte{0xc3}
 				}
 				o.Context = ctx
 				emits := 0
 				err := prog.ParseStreamWith("main", reader, func(*value.Node) error { emits++; return nil }, o)
-				if !errors.Is(err, context.Canceled) || reader.calls != 1 || emits != 0 {
-					t.Fatalf("error=%v readercalls=%d emits=%d", err, reader.calls, emits)
+				if !errors.Is(err, context.Canceled) || reader.Calls != 1 || emits != 0 {
+					t.Fatalf("error=%v readercalls=%d emits=%d", err, reader.Calls, emits)
 				}
 			})
 		}
@@ -60,23 +42,23 @@ func TestBudgetStreamRawReaderAdmission(t *testing.T) {
 	t.Parallel()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	caller := &budgetCancelledRefillReader{cancel: func() {}}
+	caller := &statetest.CancelledRefillReader{Cancel: func() {}}
 	var returned error
 	observer := &state.StreamReaderObserver{Reader: caller, Result: &returned, Control: state.NewBudgetControl(ctx, runtime.Limits{})}
-	err := catchFatal(t, func() { _, _ = observer.Read(make([]byte, 4)) })
-	if !errors.Is(err, context.Canceled) || caller.calls != 0 || returned != nil {
-		t.Fatalf("error=%v calls=%d returned=%v", err, caller.calls, returned)
+	err := statetest.CatchFatal(t, func() { _, _ = observer.Read(make([]byte, 4)) })
+	if !errors.Is(err, context.Canceled) || caller.Calls != 0 || returned != nil {
+		t.Fatalf("error=%v calls=%d returned=%v", err, caller.Calls, returned)
 	}
 }
 
 type budgetRawReaderPanicContext struct {
 	context.Context
-	reader *budgetCancelledRefillReader
-	token  *budgetContextPanicToken
+	reader *statetest.CancelledRefillReader
+	token  *statetest.ContextPanicToken
 }
 
 func (c *budgetRawReaderPanicContext) Err() error {
-	if c.reader.calls != 0 {
+	if c.reader.Calls != 0 {
 		panic(c.token)
 	}
 	return c.Context.Err()
@@ -90,8 +72,8 @@ rule row = .+ #atomic`)
 	budgetStreamVariants(t, func(t *testing.T, o ParseOptions) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
-		reader := &budgetCancelledRefillReader{cancel: cancel, first: []byte{0xc3}}
-		token := &budgetContextPanicToken{phase: "raw reader postcheck"}
+		reader := &statetest.CancelledRefillReader{Cancel: cancel, First: []byte{0xc3}}
+		token := &statetest.ContextPanicToken{Phase: "raw reader postcheck"}
 		o.Context = &budgetRawReaderPanicContext{Context: ctx, reader: reader, token: token}
 		var saved TraceEvent
 		o.Trace = func(e TraceEvent) {
@@ -100,12 +82,12 @@ rule row = .+ #atomic`)
 			}
 		}
 		var err error
-		got := budgetContextRecover(func() {
+		got := statetest.CatchPanic(func() {
 			err = prog.ParseStreamWith("main", reader, func(*value.Node) error { t.Fatal("unexpected emit"); return nil }, o)
 		})
-		if got != token || err != nil || reader.calls != 1 {
-			t.Fatalf("panic=%#v error=%v calls=%d", got, err, reader.calls)
+		if got != token || err != nil || reader.Calls != 1 {
+			t.Fatalf("panic=%#v error=%v calls=%d", got, err, reader.Calls)
 		}
-		assertTraceParserDetached(t, state.TraceParser(saved), false)
+		statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 	})
 }

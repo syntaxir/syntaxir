@@ -12,6 +12,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -29,7 +30,7 @@ func TestBudgetActionErrorTextReservationsAndOwnership(t *testing.T) {
 		}
 		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: steps - 1})
 		var partial error
-		if err := catchFatal(t, func() { partial = p.ActionError(parts...) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
+		if err := statetest.CatchFatal(t, func() { partial = p.ActionError(parts...) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
 			t.Fatalf("one-short formatting: fatal=%v partial=%v", err, partial)
 		}
 		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 100})
@@ -39,14 +40,14 @@ func TestBudgetActionErrorTextReservationsAndOwnership(t *testing.T) {
 	}
 	// The second 128-byte write is rejected atomically.
 	p := diagnosticParser(runtime.Limits{Compute: 130})
-	err := catchFatal(t, func() { _ = p.ActionError(strings.Repeat("x", 512)) })
+	err := statetest.CatchFatal(t, func() { _ = p.ActionError(strings.Repeat("x", 512)) })
 	var limit *runtime.LimitError
 	if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 130 || limit.Requested != 128 || p.Control.Used != 130 {
 		t.Fatalf("chunk reservation: %v", err)
 	}
 	for _, parts := range [][]string{make([]string, 320), {strings.Repeat("x", 1024)}} {
-		p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
-		if err := catchFatal(t, func() { _ = p.ActionError(parts...) }); !errors.Is(err, context.Canceled) {
+		p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
+		if err := statetest.CatchFatal(t, func() { _ = p.ActionError(parts...) }); !errors.Is(err, context.Canceled) {
 			t.Fatalf("fragment/copy cancellation: %v", err)
 		}
 	}
@@ -58,16 +59,16 @@ func TestBudgetActionErrorFinalPrefixIsFlatAndBounded(t *testing.T) {
 	where := strings.Repeat("rule", 512)
 	want := "action in " + where + ": " + cause.Error()
 	p := diagnosticParser(runtime.Limits{Compute: uint64(len(want) + 8)})
-	err := catchFatal(t, func() { p.FailAction(where, cause) })
+	err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) })
 	if err.Error() != want || errors.Unwrap(err) != nil || errors.Is(err, cause) || p.Control.Used != uint64(len(want)+8) {
 		t.Fatalf("final error contract: %v", err)
 	}
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(len(want) + 7)})
-	if err := catchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("one-short wrapper: %v", err)
 	}
-	p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
-	if err := catchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, context.Canceled) {
+	p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
+	if err := statetest.CatchFatal(t, func() { p.FailAction(where, cause) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("wrapper cancellation: %v", err)
 	}
 }
@@ -93,14 +94,14 @@ func TestBudgetActionErrorOpaqueFormattingPreservesNative(t *testing.T) {
 	for _, cause := range []error{errors.New("ordinary"), actionFormattingError{}, actionFormattingError{panics: true}} {
 		want := fmt.Sprintf("action in r: %v", cause)
 		p := diagnosticParser(runtime.Limits{Compute: 1 << 50})
-		if got := catchFatal(t, func() { p.FailAction("r", cause) }); got.Error() != want || errors.Unwrap(got) != nil {
+		if got := statetest.CatchFatal(t, func() { p.FailAction("r", cause) }); got.Error() != want || errors.Unwrap(got) != nil {
 			t.Fatalf("opaque native formatting: %q, want %q", got, want)
 		}
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	p := actionBudgetParser(ctx, runtime.Limits{}, input.Bytes)
-	if err := catchFatal(t, func() { p.FailAction("r", actionFormattingError{cancel: cancel}) }); err != context.Canceled {
+	p := statetest.ActionBudgetParser(ctx, runtime.Limits{}, input.Bytes)
+	if err := statetest.CatchFatal(t, func() { p.FailAction("r", actionFormattingError{cancel: cancel}) }); err != context.Canceled {
 		t.Fatalf("opaque boundary cancellation: %v", err)
 	}
 }
@@ -144,7 +145,7 @@ func TestBudgetActionErrorProducersAreEager(t *testing.T) {
 			}
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
 			var partial error
-			if err := catchFatal(t, func() { partial = tc.make(p) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
+			if err := statetest.CatchFatal(t, func() { partial = tc.make(p) }); !errors.Is(err, runtime.ErrLimit) || partial != nil {
 				t.Fatalf("leaf was not eager: fatal=%v partial=%v", err, partial)
 			}
 		})

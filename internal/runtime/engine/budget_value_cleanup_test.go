@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -27,7 +28,7 @@ func TestBudgetValueTakeOffChargesNothing(t *testing.T) {
 	}
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
 	var kids []*value.Node
-	if err := catchFatal(t, func() { kids = p.Kids(0) }); err != nil {
+	if err := statetest.CatchFatal(t, func() { kids = p.Kids(0) }); err != nil {
 		t.Fatalf("take-off of 257 values under a limit of 128 = %v, want no error", err)
 	}
 	if p.Control.Used != 0 {
@@ -74,7 +75,7 @@ func TestBudgetValueFieldAndEnvironmentWalks(t *testing.T) {
 			p := &state.Parser{}
 			p.SetVars(values)
 			p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-			if err := catchFatal(t, func() { run.fn(p) }); !errors.Is(err, runtime.ErrLimit) {
+			if err := statetest.CatchFatal(t, func() { run.fn(p) }); !errors.Is(err, runtime.ErrLimit) {
 				t.Fatalf("walk interruption = %v", err)
 			}
 			if len(fields) != 300 || fields[299].Value != 299 {
@@ -92,7 +93,7 @@ func TestBudgetValueTrackingCleanupAfterInterruption(t *testing.T) {
 		p.Created[i] = retained
 	}
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { p.DropCreated(1) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.DropCreated(1) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("tracking cleanup interruption = %v", err)
 	}
 	// The interruption boundary must disable controls before mandatory cleanup.

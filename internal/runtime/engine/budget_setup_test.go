@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/document"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -79,8 +80,8 @@ func assertSetupBackendState(t *testing.T, p *Program, backend Backend, ready bo
 	}
 }
 
-func setupDonePanicContext(token *budgetContextPanicToken) context.Context {
-	return &budgetContextDonePanic{Context: context.Background(), token: token}
+func setupDonePanicContext(token *statetest.ContextPanicToken) context.Context {
+	return &statetest.ContextDonePanic{Context: context.Background(), Token: token}
 }
 
 func TestBudgetSetupValidationPrecedesContextMethods(t *testing.T) {
@@ -91,28 +92,28 @@ func TestBudgetSetupValidationPrecedesContextMethods(t *testing.T) {
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative, Backend(99)} {
 			t.Run(setupProgramLabel(moduleOnly)+"/"+backend.String(), func(t *testing.T) {
 				p := setupProgram(t, ordinary, moduleOnly)
-				ctxToken := &budgetContextPanicToken{phase: "validation accessed Context.Done"}
+				ctxToken := &statetest.ContextPanicToken{Phase: "validation accessed Context.Done"}
 				ctx := setupDonePanicContext(ctxToken)
 				opts := ParseOptions{Backend: backend, Context: ctx}
 				var returnedErr error
-				got := budgetContextRecover(func() { _, returnedErr = p.ParseWith("missing", "x", opts) })
+				got := statetest.CatchPanic(func() { _, returnedErr = p.ParseWith("missing", "x", opts) })
 				if got != nil || returnedErr == nil {
 					t.Fatalf("ParseWith missing rule panic=%v err=%v", got, returnedErr)
 				}
 				if backend == Backend(99) {
-					got = budgetContextRecover(func() { _, returnedErr = p.ParseWith("main", "x", opts) })
+					got = statetest.CatchPanic(func() { _, returnedErr = p.ParseWith("main", "x", opts) })
 					if got != nil || returnedErr == nil {
 						t.Fatalf("ParseWith invalid backend panic=%v err=%v", got, returnedErr)
 					}
 				}
-				got = budgetContextRecover(func() {
+				got = statetest.CatchPanic(func() {
 					_, returnedErr = p.NewDocumentWith("main", "x", ParseOptions{Backend: backend, Recognize: true, Context: ctx})
 				})
 				if got != nil || returnedErr == nil {
 					t.Fatalf("NewDocumentWith recognition rejection panic=%v err=%v", got, returnedErr)
 				}
 				if moduleOnly {
-					got = budgetContextRecover(func() {
+					got = statetest.CatchPanic(func() {
 						_, returnedErr = p.ParseWith("main", "x", ParseOptions{Backend: Closure, Context: ctx})
 					})
 					if got != nil || returnedErr == nil {
@@ -120,40 +121,40 @@ func TestBudgetSetupValidationPrecedesContextMethods(t *testing.T) {
 					}
 				}
 
-				got = budgetContextRecover(func() { _, returnedErr = p.NewDocumentWith("missing", "x", opts) })
+				got = statetest.CatchPanic(func() { _, returnedErr = p.NewDocumentWith("missing", "x", opts) })
 				if got != nil || returnedErr == nil {
 					t.Fatalf("NewDocumentWith missing rule panic=%v err=%v", got, returnedErr)
 				}
 				if backend == Backend(99) {
-					got = budgetContextRecover(func() { _, returnedErr = p.NewDocumentWith("main", "x", opts) })
+					got = statetest.CatchPanic(func() { _, returnedErr = p.NewDocumentWith("main", "x", opts) })
 					if got != nil || returnedErr == nil {
 						t.Fatalf("NewDocumentWith invalid backend panic=%v err=%v", got, returnedErr)
 					}
 				}
 
 				streamProgram := setupProgram(t, stream, moduleOnly)
-				got = budgetContextRecover(func() {
+				got = statetest.CatchPanic(func() {
 					returnedErr = streamProgram.ParseStreamWith("missing", strings.NewReader("x"), nil, opts)
 				})
 				if got != nil || returnedErr == nil {
 					t.Fatalf("ParseStreamWith missing rule panic=%v err=%v", got, returnedErr)
 				}
 				if backend == Backend(99) {
-					got = budgetContextRecover(func() {
+					got = statetest.CatchPanic(func() {
 						returnedErr = streamProgram.ParseStreamWith("main", strings.NewReader("x"), nil, opts)
 					})
 					if got != nil || returnedErr == nil {
 						t.Fatalf("ParseStreamWith invalid backend panic=%v err=%v", got, returnedErr)
 					}
 				}
-				got = budgetContextRecover(func() {
+				got = statetest.CatchPanic(func() {
 					returnedErr = streamProgram.ParseStreamWith("main", strings.NewReader("x"), nil, ParseOptions{Backend: backend, Recognize: true, Context: ctx})
 				})
 				if got != nil || returnedErr == nil {
 					t.Fatalf("ParseStreamWith recognition rejection panic=%v err=%v", got, returnedErr)
 				}
 				plain := setupProgram(t, ordinary, moduleOnly)
-				got = budgetContextRecover(func() {
+				got = statetest.CatchPanic(func() {
 					returnedErr = plain.ParseStreamWith("main", strings.NewReader("x"), nil, ParseOptions{Backend: backend, Context: ctx})
 				})
 				if got != nil || returnedErr == nil {
@@ -169,10 +170,10 @@ func TestBudgetSetupValidationPrecedesContextMethods(t *testing.T) {
 	// Recognition is unavailable without the grammar; reject before constructing a recognizer or
 	// consulting the caller's Context.
 	p := setupProgram(t, ordinary, true)
-	token := &budgetContextPanicToken{phase: "module-only recognition touched Context"}
+	token := &statetest.ContextPanicToken{Phase: "module-only recognition touched Context"}
 	ctx := setupDonePanicContext(token)
 	var err error
-	got := budgetContextRecover(func() {
+	got := statetest.CatchPanic(func() {
 		_, err = p.ParseWith("main", "x", ParseOptions{Backend: Bytecode, Recognize: true, Context: ctx})
 	})
 	if got != nil || err == nil || p.rec != nil || p.preparedVM(Bytecode) != nil || p.preparedVM(BytecodeIterative) != nil {
@@ -353,12 +354,12 @@ func TestBudgetSetupInputPreparationPanicIdentity(t *testing.T) {
 	t.Parallel()
 	for _, unit := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 		t.Run(unit.String(), func(t *testing.T) {
-			token := &budgetContextPanicToken{phase: "input materialization"}
-			ctx := newBudgetContextErrPanic(token, 2)
+			token := &statetest.ContextPanicToken{Phase: "input materialization"}
+			ctx := statetest.NewContextErrPanic(token, 2)
 			c := state.NewBudgetControl(ctx, runtime.Limits{})
-			ctx.control, ctx.armed = c, true
+			ctx.Control, ctx.Armed = c, true
 			completed := false
-			got := budgetContextRecover(func() {
+			got := statetest.CatchPanic(func() {
 				_ = state.NewControlledTextInput(strings.Repeat("a", 8192), unit, true, nil, c)
 				completed = true
 			})
@@ -376,7 +377,7 @@ func TestBudgetSetupInputPreparationPanicIdentity(t *testing.T) {
 type setupPhasePanicContext struct {
 	context.Context
 	ready func() bool
-	token *budgetContextPanicToken
+	token *statetest.ContextPanicToken
 }
 
 func (c *setupPhasePanicContext) Err() error {
@@ -395,7 +396,7 @@ func TestBudgetSetupPostBackendPanicIdentity(t *testing.T) {
 					prog := setupProgram(t, codegentest.Records, moduleOnly)
 					ctx, cancel := context.WithCancel(context.Background())
 					defer cancel()
-					token := &budgetContextPanicToken{phase: "post-backend setup"}
+					token := &statetest.ContextPanicToken{Phase: "post-backend setup"}
 					gate := &setupPhasePanicContext{Context: ctx, ready: func() bool { return setupBackendReady(prog, backend) }, token: token}
 					callbacks := 0
 					reader := &setupCountingReader{r: strings.NewReader("#records\na=1\n")}
@@ -403,7 +404,7 @@ func TestBudgetSetupPostBackendPanicIdentity(t *testing.T) {
 					var n *value.Node
 					var d *document.Document
 					var err error
-					got := budgetContextRecover(func() {
+					got := statetest.CatchPanic(func() {
 						switch api {
 						case "batch":
 							n, err = prog.ParseWith("main", "#records\na=1\n", o)

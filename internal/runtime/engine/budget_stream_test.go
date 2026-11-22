@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -80,20 +81,20 @@ func TestBudgetStreamAdmission(t *testing.T) {
 		}
 		for _, phase := range []string{"Done", "Err"} {
 			t.Run(phase, func(t *testing.T) {
-				token := &budgetContextPanicToken{phase: phase}
+				token := &statetest.ContextPanicToken{Phase: phase}
 				if phase == "Done" {
-					o.Context = &budgetContextDonePanic{Context: context.Background(), token: token}
+					o.Context = &statetest.ContextDonePanic{Context: context.Background(), Token: token}
 				} else {
-					c := newBudgetContextErrPanic(token, 1)
-					c.armed = true
+					c := statetest.NewContextErrPanic(token, 1)
+					c.Armed = true
 					o.Context = c
 				}
-				got := budgetContextRecover(func() { _ = prog.ParseStreamWith("main", r, nil, o) })
+				got := statetest.CatchPanic(func() { _ = prog.ParseStreamWith("main", r, nil, o) })
 				if got != token || r.reads != 0 {
 					t.Fatalf("panic=%v reads=%d", got, r.reads)
 				}
 				// Fixed errors precede caller Context methods and reader wrapping.
-				if got := budgetContextRecover(func() { err = prog.ParseStreamWith("missing", r, nil, o) }); got != nil || err == nil {
+				if got := statetest.CatchPanic(func() { err = prog.ParseStreamWith("missing", r, nil, o) }); got != nil || err == nil {
 					t.Fatalf("invalid start panic=%v error=%v", got, err)
 				}
 			})
@@ -274,7 +275,7 @@ func TestBudgetStreamLimitsAndCallerPanics(t *testing.T) {
 			if !errors.As(err, &we) || we.Kind != kind || count != 0 {
 				t.Fatalf("error=%v emits=%d", err, count)
 			}
-			assertTraceParserDetached(t, state.TraceParser(saved), false)
+			statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 		}
 		for _, phase := range []string{"reader", "emit", "trace", "context"} {
 			t.Run(phase, func(t *testing.T) {
@@ -282,10 +283,10 @@ func TestBudgetStreamLimitsAndCallerPanics(t *testing.T) {
 				defer cancel()
 				o := base
 				o.Context = ctx
-				token := &streamRuntimePanicToken{phase: phase}
-				r := &streamCallbackReader{text: "#records\na=1\n", panicValue: token}
+				token := &statetest.StreamPanicToken{Phase: phase}
+				r := &statetest.StreamReader{Text: "#records\na=1\n", PanicValue: token}
 				if phase != "reader" {
-					r.panicValue = nil
+					r.PanicValue = nil
 				}
 				var saved TraceEvent
 				o.Trace = func(e TraceEvent) {
@@ -297,14 +298,14 @@ func TestBudgetStreamLimitsAndCallerPanics(t *testing.T) {
 							panic(token)
 						}
 						if phase == "context" {
-							c := newBudgetContextErrPanic(&budgetContextPanicToken{phase: phase}, 1)
-							c.armed = true
+							c := statetest.NewContextErrPanic(&statetest.ContextPanicToken{Phase: phase}, 1)
+							c.Armed = true
 							state.TraceParser(e).Control.Ctx = c
 							token = nil
 						}
 					}
 				}
-				got := catchStreamPanic(func() {
+				got := statetest.CatchPanic(func() {
 					_ = prog.ParseStreamWith("main", r, func(*value.Node) error {
 						if phase == "emit" {
 							panic(token)
@@ -313,14 +314,14 @@ func TestBudgetStreamLimitsAndCallerPanics(t *testing.T) {
 					}, o)
 				})
 				if phase == "context" {
-					if _, ok := got.(*budgetContextPanicToken); !ok {
+					if _, ok := got.(*statetest.ContextPanicToken); !ok {
 						t.Fatalf("context panic=%v", got)
 					}
 				} else if got != token {
 					t.Fatalf("panic=%v want %v", got, token)
 				}
-				assertTraceParserDetached(t, state.TraceParser(saved), false)
-				if r.closed {
+				statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
+				if r.Closed {
 					t.Fatal("reader closed")
 				}
 			})
@@ -347,7 +348,7 @@ func TestBudgetStreamCompactionChunks(t *testing.T) {
 		v[i] = i
 	}
 	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 128})
-	got := catchStreamPanic(func() { state.CopyStreamPrefix(c, v, v[1:]) })
+	got := statetest.CatchPanic(func() { state.CopyStreamPrefix(c, v, v[1:]) })
 	f, ok := got.(state.Fatal)
 	if !ok || !errors.Is(f.Err, runtime.ErrLimit) || c.Used != 128 || v[128] != 128 {
 		t.Fatalf("copy interruption=%v steps=%d", got, c.Used)
@@ -362,7 +363,7 @@ func TestBudgetStreamCommitReservations(t *testing.T) {
 	p := &state.Parser{Input: state.Input{Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, FrameSlab: make([]state.Frame, 258)}
 	p.Frame = &p.FrameSlab[0]
 	p.FrameSlab[1].Vals = []*value.Node{node}
-	got := catchStreamPanic(func() { p.ResetStreamFrames() })
+	got := statetest.CatchPanic(func() { p.ResetStreamFrames() })
 	if _, ok := got.(state.Fatal); !ok || len(p.FrameSlab) != 258 || p.FrameSlab[1].Vals[0] != node || nodes.D(node).Text != "delivered" {
 		t.Fatalf("frame interruption=%v", got)
 	}
@@ -387,7 +388,7 @@ func TestBudgetStreamCommitReservations(t *testing.T) {
 			if all {
 				pos = 260
 			}
-			got := catchStreamPanic(func() { p.PruneStreamMemo(pos) })
+			got := statetest.CatchPanic(func() { p.PruneStreamMemo(pos) })
 			if _, ok := got.(state.Fatal); !ok || a.Node != nil || b.Node != node || memo.Base != 0 || growing.Node != node {
 				t.Fatalf("memo partial prune=%v", got)
 			}
@@ -498,7 +499,7 @@ func TestBudgetStreamCommitAfterDelivery(t *testing.T) {
 		if !errors.As(err, &we) || we.Kind != runtime.LimitCompute || we.Requested != uint64(last) || we.Used != controller.Limits.Compute || count != 1 {
 			t.Fatalf("normal commit interruption error=%v emits=%d", err, count)
 		}
-		assertTraceParserDetached(t, state.TraceParser(saved), false)
+		statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 		if node == nil || codegentest.ResultJSON(node, nil) != before {
 			t.Fatal("commit changed emitted Node")
 		}
@@ -531,7 +532,7 @@ func TestBudgetStreamEmitBoundary(t *testing.T) {
 			if phase == "before" {
 				cancel()
 			}
-			got := catchStreamPanic(func() { p.EmitStream(nil, 0) })
+			got := statetest.CatchPanic(func() { p.EmitStream(nil, 0) })
 			f, ok := got.(state.Fatal)
 			if phase == "error" {
 				if !ok || f.Err != stop || calls != 1 || p.EmitCall {
@@ -557,8 +558,8 @@ func TestBudgetStreamReaderPanicInsideTrace(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		o.Context = ctx
-		token := &streamRuntimePanicToken{phase: "trace reader"}
-		r := &streamCallbackReader{panicValue: token}
+		token := &statetest.StreamPanicToken{Phase: "trace reader"}
+		r := &statetest.StreamReader{PanicValue: token}
 		var saved TraceEvent
 		o.Trace = func(e TraceEvent) {
 			if e.Kind == TraceEnter && e.Rule == "main" {
@@ -566,11 +567,11 @@ func TestBudgetStreamReaderPanicInsideTrace(t *testing.T) {
 				e.LineCol(1)
 			}
 		}
-		got := catchStreamPanic(func() { _ = prog.ParseStreamWith("main", r, nil, o) })
-		if got != token || r.closed {
-			t.Fatalf("panic=%v closed=%t", got, r.closed)
+		got := statetest.CatchPanic(func() { _ = prog.ParseStreamWith("main", r, nil, o) })
+		if got != token || r.Closed {
+			t.Fatalf("panic=%v closed=%t", got, r.Closed)
 		}
-		assertTraceParserDetached(t, state.TraceParser(saved), false)
+		statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 	})
 }
 
@@ -593,7 +594,7 @@ func TestBudgetStreamVMFaultAttribution(t *testing.T) {
 			if err == nil || !strings.HasPrefix(err.Error(), "invalid bytecode:") {
 				t.Fatalf("VM error=%v", err)
 			}
-			assertTraceParserDetached(t, state.TraceParser(saved), false)
+			statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 			restore()
 			if err := prog.ParseStreamWith("main", strings.NewReader("z"), nil, ParseOptions{Backend: b}); err != nil {
 				t.Fatalf("restored VM: %v", err)

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/document"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -25,22 +26,22 @@ func TestBudgetDocumentConstructorCallerPanicIdentity(t *testing.T) {
 	prog := mustCompile(t, `rule main = .* $$`)
 	budgetDocumentVariants(t, func(t *testing.T, base ParseOptions) {
 		for _, at := range []int{0, 1, 2} {
-			token := &budgetContextPanicToken{phase: fmt.Sprint(at)}
+			token := &statetest.ContextPanicToken{Phase: fmt.Sprint(at)}
 			o := base
-			ctx := newBudgetContextErrPanic(token, at)
-			ctx.armed = true
+			ctx := statetest.NewContextErrPanic(token, at)
+			ctx.Armed = true
 			o.Context = ctx
 			if at == 0 {
-				o.Context = &budgetContextDonePanic{Context: context.Background(), token: token}
+				o.Context = &statetest.ContextDonePanic{Context: context.Background(), Token: token}
 			}
 			var d *document.Document
 			var err error
-			got := budgetContextRecover(func() { d, err = prog.NewDocumentWith("main", "é💡abc", o) })
+			got := statetest.CatchPanic(func() { d, err = prog.NewDocumentWith("main", "é💡abc", o) })
 			if got != token || d != nil || err != nil {
 				t.Fatalf("checkpoint %d: panic=%v document=%v error=%v", at, got, d, err)
 			}
-			if at > 0 && ctx.calls != at {
-				t.Fatalf("calls=%d want %d", ctx.calls, at)
+			if at > 0 && ctx.Calls != at {
+				t.Fatalf("calls=%d want %d", ctx.Calls, at)
 			}
 		}
 	})

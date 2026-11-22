@@ -15,6 +15,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -108,14 +109,14 @@ rule entry = key:[a-z]+ #atomic ":" value:[0-9]+ #atomic => Entry{Key: text($key
 						if event.Kind != TraceEnter || event.Rule != "main" || event.Depth != 1 || event.Pos != 0 {
 							t.Fatalf("retained event metadata changed: %+v", event)
 						}
-						assertTraceParserDetached(t, batchRetentionParser(t, event), false)
+						statetest.AssertTraceParserDetached(t, batchRetentionParser(t, event), false)
 
 						// A later parse reuses scratch; the caller-owned prior Node stays intact.
 						retry, retryErr, retryEvent := parseFn("!beta:45?", false)
 						if retryErr != nil || recognize && retry != nil || !recognize && (retry == nil || nodes.D(retry).Children[1].Field("Key") != "beta" || nodes.D(retry).Children[1].Field("Count") != 2) {
 							t.Fatalf("retry node=%v err=%v", retry, retryErr)
 						}
-						assertTraceParserDetached(t, batchRetentionParser(t, retryEvent), false)
+						statetest.AssertTraceParserDetached(t, batchRetentionParser(t, retryEvent), false)
 						if node != nil && !reflect.DeepEqual(batchRetentionJSON(t, node), before) {
 							t.Fatal("retry changed the earlier successful Node")
 						}
@@ -125,7 +126,7 @@ rule entry = key:[a-z]+ #atomic ":" value:[0-9]+ #atomic => Entry{Key: text($key
 						if failed != nil || !errors.As(failedErr, &syntaxErr) {
 							t.Fatalf("syntax failure node=%v err=%v", failed, failedErr)
 						}
-						assertTraceParserDetached(t, batchRetentionParser(t, failedEvent), false)
+						statetest.AssertTraceParserDetached(t, batchRetentionParser(t, failedEvent), false)
 						if node != nil && !reflect.DeepEqual(batchRetentionJSON(t, node), before) {
 							t.Fatal("syntax failure changed the earlier successful Node")
 						}
@@ -147,7 +148,7 @@ func TestBudgetBatchTraceCallbackPanicDetachesParserAndPreservesRetry(t *testing
 				var observed *state.Parser
 				var node *value.Node
 				var err error
-				got := budgetContextRecover(func() {
+				got := statetest.CatchPanic(func() {
 					node, err = prog.ParseWith("main", text, ParseOptions{Backend: backend, Unit: unit, Trace: func(e TraceEvent) {
 						if e.Kind == TraceEnter && e.Rule == "main" {
 							observed = state.TraceParser(e)
@@ -158,7 +159,7 @@ func TestBudgetBatchTraceCallbackPanicDetachesParserAndPreservesRetry(t *testing
 				if got != token || node != nil || err != nil {
 					t.Fatalf("panic=%#v node=%v err=%v, want callback panic identity", got, node, err)
 				}
-				assertTraceParserDetached(t, observed, true)
+				statetest.AssertTraceParserDetached(t, observed, true)
 				if n, err := prog.ParseWith("main", text, ParseOptions{Backend: backend, Unit: unit}); n == nil || err != nil {
 					t.Fatalf("retry node=%v err=%v", n, err)
 				}
@@ -180,9 +181,9 @@ func TestBudgetBatchTraceInterruptionDetachesParser(t *testing.T) {
 							t.Fatalf("prior Node=%v err=%v", held, err)
 						}
 						before := batchRetentionJSON(t, held)
-						token := &budgetContextPanicToken{phase: cause}
+						token := &statetest.ContextPanicToken{Phase: cause}
 						var observed *state.Parser
-						var panicCtx *budgetContextErrPanic
+						var panicCtx *statetest.ContextErrPanic
 						var cancel context.CancelFunc
 						opts := ParseOptions{Backend: backend, Unit: unit, Recognize: recognize}
 						switch cause {
@@ -196,7 +197,7 @@ func TestBudgetBatchTraceInterruptionDetachesParser(t *testing.T) {
 							if cause == "publication-panic" {
 								at = 2
 							}
-							panicCtx = newBudgetContextErrPanic(token, at)
+							panicCtx = statetest.NewContextErrPanic(token, at)
 							opts.Context = panicCtx
 						}
 						opts.Trace = func(e TraceEvent) {
@@ -211,15 +212,15 @@ func TestBudgetBatchTraceInterruptionDetachesParser(t *testing.T) {
 								case "steps":
 									state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used
 								case "context-panic":
-									panicCtx.armed = true
+									panicCtx.Armed = true
 								}
 							} else if cause == "publication-panic" {
-								panicCtx.armed = true
+								panicCtx.Armed = true
 							}
 						}
 						var node *value.Node
 						var returnedErr error
-						got := budgetContextRecover(func() { node, returnedErr = prog.ParseWith("main", strings.Repeat("a", 512), opts) })
+						got := statetest.CatchPanic(func() { node, returnedErr = prog.ParseWith("main", strings.Repeat("a", 512), opts) })
 						if node != nil {
 							t.Fatal("interrupted parse published a Node")
 						}
@@ -234,12 +235,12 @@ func TestBudgetBatchTraceInterruptionDetachesParser(t *testing.T) {
 								t.Fatalf("panic=%v err=%v", got, returnedErr)
 							}
 						default:
-							if got != token || returnedErr != nil || panicCtx.calls != panicCtx.panicAt {
-								t.Fatalf("panic=%v err=%v context calls=%d", got, returnedErr, panicCtx.calls)
+							if got != token || returnedErr != nil || panicCtx.Calls != panicCtx.PanicAt {
+								t.Fatalf("panic=%v err=%v context calls=%d", got, returnedErr, panicCtx.Calls)
 							}
 						}
 						// Publication checks follow a completed run; they do not mark that run aborted.
-						assertTraceParserDetached(t, observed, cause != "publication-panic")
+						statetest.AssertTraceParserDetached(t, observed, cause != "publication-panic")
 						if !reflect.DeepEqual(batchRetentionJSON(t, held), before) {
 							t.Fatal("interruption changed prior Node")
 						}
@@ -330,7 +331,7 @@ func TestBudgetBatchTraceEventReleasesCapturedContextAfterReturn(t *testing.T) {
 					if !released {
 						t.Fatal("stored event still retains its trace-captured context after bounded GC")
 					}
-					assertTraceParserDetached(t, state.TraceParser(event), false)
+					statetest.AssertTraceParserDetached(t, state.TraceParser(event), false)
 				})
 			}
 		}

@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -23,7 +24,7 @@ func TestBudgetTextFallbackBudgetCore(t *testing.T) {
 		if u == sxirinput.CodePoints {
 			end = len(in.In)
 		}
-		if err := catchFatal(t, func() { _ = in.Text(0, end) }); !errors.Is(err, runtime.ErrLimit) {
+		if err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) }); !errors.Is(err, runtime.ErrLimit) {
 			t.Fatalf("%v materialization error=%v, want compute limit", u, err)
 		}
 	}
@@ -36,7 +37,7 @@ func TestBudgetTextSizingOverflow(t *testing.T) {
 		t.Fatalf("exact maximum=%d", got)
 	}
 	for _, args := range [][2]int{{maxInt, 1}, {maxInt - 2, 3}, {-1, 1}, {0, -1}} {
-		if err := catchFatal(t, func() { state.CheckedTextSize(args[0], args[1]) }); err == nil {
+		if err := statetest.CatchFatal(t, func() { state.CheckedTextSize(args[0], args[1]) }); err == nil {
 			t.Fatalf("sizing %v did not fail", args)
 		}
 	}
@@ -81,7 +82,7 @@ rule piece = .*`
 								if traceText {
 									polls = 1
 								}
-								state.TraceParser(e).Control.Ctx = newPollingContext(polls)
+								state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(polls)
 							} else if u == sxirinput.CodePoints {
 								// A source substring of Bytes charges no input, so only
 								// code points see the tightened budget.
@@ -137,7 +138,7 @@ func TestBudgetTextStepBudgetAndLazyOffsets(t *testing.T) {
 			end = len(in.Bs)
 			in.Control.Limits.Compute = 1
 		}
-		err := catchFatal(t, func() { _ = in.Text(0, end) })
+		err := statetest.CatchFatal(t, func() { _ = in.Text(0, end) })
 		var limit *runtime.LimitError
 		if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
 			t.Fatalf("%v step error=%v", u, err)
@@ -145,7 +146,7 @@ func TestBudgetTextStepBudgetAndLazyOffsets(t *testing.T) {
 	}
 	source := "aé😀z"
 	in := state.Input{Unit: sxirinput.CodePoints, Src: source, SrcOK: true, In: []rune(source), Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}
-	if err := catchFatal(t, func() { _ = in.Text(1, 3) }); !errors.Is(err, runtime.ErrLimit) || in.Offs != nil {
+	if err := statetest.CatchFatal(t, func() { _ = in.Text(1, 3) }); !errors.Is(err, runtime.ErrLimit) || in.Offs != nil {
 		t.Fatalf("lazy offsets error=%v offsets=%v", err, in.Offs)
 	}
 	in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 100})

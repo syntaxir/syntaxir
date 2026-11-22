@@ -3,13 +3,13 @@ package engine
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"math/rand/v2"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -104,32 +104,17 @@ func TestStreamTextSnapshotBoundaries(t *testing.T) {
 func TestStreamTextSnapshotDoesNotReadAhead(t *testing.T) {
 	t.Parallel()
 	for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-		reader := &snapshotOneByteReader{source: strings.Repeat("x", 200)}
+		reader := &statetest.OneByteReader{Source: strings.Repeat("x", 200)}
 		in := state.Input{Unit: unit, Reader: bufio.NewReader(reader)}
 		in.Fill(1)
-		calls := reader.calls
-		if got := in.Text(0, 1); got != "x" || reader.calls != calls {
+		calls := reader.Calls
+		if got := in.Text(0, 1); got != "x" || reader.Calls != calls {
 			t.Fatal("text read ahead")
 		}
 		if in.StreamText.Source != "" {
 			t.Fatal("tiny fragment allocated a snapshot")
 		}
 	}
-}
-
-type snapshotOneByteReader struct {
-	source string
-	calls  int
-}
-
-func (r *snapshotOneByteReader) Read(p []byte) (int, error) {
-	r.calls++
-	if len(r.source) == 0 {
-		return 0, io.EOF
-	}
-	p[0] = r.source[0]
-	r.source = r.source[1:]
-	return 1, nil
 }
 
 func TestStreamTextSnapshotRetainedMalformedResults(t *testing.T) {
@@ -178,7 +163,7 @@ rule row = x:(!"\n" .)+ #atomic "\n"`)
 				}
 				want := nodes.D(whole.Field("rows").(*value.Node)).Children
 				var got []*value.Node
-				err = prog.ParseStreamWith("main", &snapshotOneByteReader{source: text}, func(n *value.Node) error { got = append(got, n); return nil }, opts)
+				err = prog.ParseStreamWith("main", &statetest.OneByteReader{Source: text}, func(n *value.Node) error { got = append(got, n); return nil }, opts)
 				if err != nil || len(got) != len(want) {
 					t.Fatalf("rows=%d: %v", len(got), err)
 				}

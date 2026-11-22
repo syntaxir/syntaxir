@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -88,7 +89,7 @@ func TestBudgetInputTextChunkInterruptionLeavesSourceAndRetries(t *testing.T) {
 	byteSource := []byte(strings.Repeat("a", 4097))
 	byteBefore := append([]byte(nil), byteSource...)
 	byteInput := fallbackTextInput(input.Bytes, 0, byteSource, nil, state.NewBudgetControl(nil, runtime.Limits{Compute: 4096}))
-	if err := catchFatal(t, func() { _ = byteInput.Text(0, len(byteSource)) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(byteSource)) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("Bytes second-chunk error = %v, want ErrLimit", err)
 	}
 	if !reflect.DeepEqual(byteSource, byteBefore) || byteInput.Control.Used != 4096 {
@@ -105,7 +106,7 @@ func TestBudgetInputTextChunkInterruptionLeavesSourceAndRetries(t *testing.T) {
 	}
 	runeBefore := append([]rune(nil), runeSource...)
 	runeInput := fallbackTextInput(input.CodePoints, 0, nil, runeSource, state.NewBudgetControl(nil, runtime.Limits{Compute: 257}))
-	if err := catchFatal(t, func() { _ = runeInput.Text(0, len(runeSource)) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runeSource)) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("CodePoints encoding-chunk error = %v, want ErrLimit", err)
 	}
 	if !reflect.DeepEqual(runeSource, runeBefore) || runeInput.Control.Used != 256 {
@@ -120,8 +121,8 @@ func TestBudgetInputTextChunkInterruptionLeavesSourceAndRetries(t *testing.T) {
 func TestBudgetInputTextPollingCancellationAtCopyAndEncoding(t *testing.T) {
 	t.Parallel()
 	bytes := []byte(strings.Repeat("b", 8192))
-	byteInput := fallbackTextInput(input.Bytes, 0, bytes, nil, state.NewBudgetControl(newPollingContext(2), runtime.Limits{}))
-	if err := catchFatal(t, func() { _ = byteInput.Text(0, len(bytes)) }); !errors.Is(err, context.Canceled) {
+	byteInput := fallbackTextInput(input.Bytes, 0, bytes, nil, state.NewBudgetControl(statetest.NewPollingContext(2), runtime.Limits{}))
+	if err := statetest.CatchFatal(t, func() { _ = byteInput.Text(0, len(bytes)) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Bytes cancellation = %v, want context.Canceled", err)
 	}
 	if byteInput.Control.Used != 4096 {
@@ -132,8 +133,8 @@ func TestBudgetInputTextPollingCancellationAtCopyAndEncoding(t *testing.T) {
 	for i := range runes {
 		runes[i] = '語'
 	}
-	runeInput := fallbackTextInput(input.CodePoints, 0, nil, runes, state.NewBudgetControl(newPollingContext(3), runtime.Limits{}))
-	if err := catchFatal(t, func() { _ = runeInput.Text(0, len(runes)) }); !errors.Is(err, context.Canceled) {
+	runeInput := fallbackTextInput(input.CodePoints, 0, nil, runes, state.NewBudgetControl(statetest.NewPollingContext(3), runtime.Limits{}))
+	if err := statetest.CatchFatal(t, func() { _ = runeInput.Text(0, len(runes)) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("CodePoints cancellation = %v, want context.Canceled", err)
 	}
 	if runeInput.Control.Used == 0 {

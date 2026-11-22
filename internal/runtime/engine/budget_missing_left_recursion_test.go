@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -98,7 +99,7 @@ func TestBudgetCallEndChargesErrorsAfterExpectations(t *testing.T) {
 		p.Expect(0, 7)
 		p.Recovered = append(p.Recovered, state.ErrEntry(&value.SyntaxError{}), state.ErrEntry(&value.SyntaxError{}), state.ErrEntry(&value.SyntaxError{}))
 		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: limit})
-		err = catchFatal(t, func() { p.CallEnd(r, st, nil, true) })
+		err = statetest.CatchFatal(t, func() { p.CallEnd(r, st, nil, true) })
 		_, stored = p.Memo.Get(state.MemoKey{Rule: r.ID})
 		return err, len(p.LastKept) == 1, stored
 	}

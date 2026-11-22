@@ -12,6 +12,7 @@ import (
 	"unsafe"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
 
@@ -73,7 +74,7 @@ func TestBudgetExpectationCollisionScanBudgetsAndShortCircuits(t *testing.T) {
 	p = diagnosticParser(runtime.Limits{Compute: uint64(len(prefix) - 1)})
 	p.Farthest, p.ExpBits, p.Exp = 7, bit, append([]state.ExpID(nil), prefix...)
 	before := append([]state.ExpID(nil), p.Exp...)
-	if err := catchFatal(t, func() { p.Expect(7, ids[len(ids)-1]) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.Expect(7, ids[len(ids)-1]) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("one-short collision scan error = %v, want ErrLimit", err)
 	}
 	if !reflect.DeepEqual(p.Exp, before) || p.Control.Used != uint64(len(prefix)-1) {
@@ -112,7 +113,7 @@ func TestBudgetExpectationKeepSnapshotsAndAtomicCopy(t *testing.T) {
 	equalParser.Arena = append([]state.ExpID(nil), first...)
 	equalParser.LastKept = equalParser.Arena[:len(ids):len(ids)]
 	oldLast := &equalParser.LastKept[0]
-	if err := catchFatal(t, func() { equalParser.Keep(ids) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { equalParser.Keep(ids) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("one-short keep equality error = %v, want ErrLimit", err)
 	}
 	if &equalParser.LastKept[0] != oldLast || len(equalParser.LastKept) != len(ids) {
@@ -129,7 +130,7 @@ func TestBudgetExpectationKeepSnapshotsAndAtomicCopy(t *testing.T) {
 	copyParser.LastKept = copyParser.Arena[:len(first):len(first)]
 	priorAlias := copyParser.LastKept
 	oldSnapshot := append([]state.ExpID(nil), copyParser.LastKept...)
-	if err := catchFatal(t, func() { copyParser.Keep(changed) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { copyParser.Keep(changed) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("partial expectation copy error = %v, want ErrLimit", err)
 	}
 	if len(copyParser.Arena) != len(first) || !reflect.DeepEqual(copyParser.LastKept, oldSnapshot) {
@@ -273,13 +274,13 @@ func TestBudgetMergeExpectedForwardAliasAndBudgets(t *testing.T) {
 	}
 
 	canceled := diagnosticParser(runtime.Limits{})
-	canceled.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
+	canceled.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
 	canceled.Exp, canceled.ExpBase, canceled.Farthest, canceled.Silent = []state.ExpID{7, 8}, 1, 5, 1
 	longIDs := make([]state.ExpID, 300)
 	for i := range longIDs {
 		longIDs[i] = state.ExpID(i)
 	}
-	if err := catchFatal(t, func() { canceled.MergeExpected(5, longIDs) }); !errors.Is(err, context.Canceled) {
+	if err := statetest.CatchFatal(t, func() { canceled.MergeExpected(5, longIDs) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("polling cancellation in ignored merge = %v, want context.Canceled", err)
 	}
 	if !reflect.DeepEqual(canceled.Exp, []state.ExpID{7, 8}) {
@@ -327,7 +328,7 @@ func TestBudgetMakeErrorInterruptionDuringConstructionAndSort(t *testing.T) {
 	}
 	p := diagnosticParser(runtime.Limits{Compute: n - 1})
 	p.Descs = descs
-	if err := catchFatal(t, func() { _ = p.MakeError(0, ids) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { _ = p.MakeError(0, ids) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("description construction error = %v, want ErrLimit", err)
 	}
 	if p.Control.Used != n-1 {
@@ -337,7 +338,7 @@ func TestBudgetMakeErrorInterruptionDuringConstructionAndSort(t *testing.T) {
 	// Permit every description visit, then stop within the controlled sort of long-prefix strings.
 	p = diagnosticParser(runtime.Limits{Compute: n + 512})
 	p.Descs = descs
-	if err := catchFatal(t, func() { _ = p.MakeError(0, ids) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { _ = p.MakeError(0, ids) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("sort interruption error = %v, want ErrLimit", err)
 	}
 	if p.Control.Used <= n || p.Control.Used > n+512 {

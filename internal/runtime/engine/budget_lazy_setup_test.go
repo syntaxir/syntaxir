@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -175,8 +176,8 @@ func TestBudgetLazyClosureContextReentry(t *testing.T) {
 func TestBudgetLazyClosureIncompleteInitialization(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = "a"`)
-	token := &budgetContextPanicToken{phase: "initializer"}
-	got := budgetContextRecover(func() { prog.budgetOnce.Do(func() { panic(token) }) })
+	token := &statetest.ContextPanicToken{Phase: "initializer"}
+	got := statetest.CatchPanic(func() { prog.budgetOnce.Do(func() { panic(token) }) })
 	if got != token {
 		t.Fatal("panic identity changed")
 	}

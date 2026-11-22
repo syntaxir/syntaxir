@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/starttest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -121,11 +122,11 @@ func budgetGuardedChoiceSilentSkip(t *testing.T, prog *Program, m state.Matcher)
 
 		t.Run(unit.String()+"/cancel", func(t *testing.T) {
 			p := state.NewParser(&prog.sharedProgram, "z", unit, false)
-			ctx := newPollingContext(1)
+			ctx := statetest.NewPollingContext(1)
 			p.Control = state.NewBudgetControl(ctx, runtime.Limits{})
 			p.Silent = 1
 			p.MaxDepth = budgetGuardedChoiceAlternatives + 1
-			if err := catchFatal(t, func() { _, _ = m(p) }); err != nil || p.Control.Used != 1 {
+			if err := statetest.CatchFatal(t, func() { _, _ = m(p) }); err != nil || p.Control.Used != 1 {
 				t.Fatalf("direct silent choice err=%v steps=%d, want no poll between the charges of straight-line code", err, p.Control.Used)
 			}
 		})
@@ -243,7 +244,7 @@ func budgetGuardedChoiceFatalAndRetry(t *testing.T, prog *Program, backend Backe
 				if e.Kind == TraceEnter && e.Rule == "main" {
 					observed = state.TraceParser(e)
 					if cancel {
-						state.TraceParser(e).Control.Ctx = newPollingContext(2)
+						state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
 					} else {
 						state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
 					}

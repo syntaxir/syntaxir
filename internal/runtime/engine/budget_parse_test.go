@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -85,7 +86,7 @@ func TestBudgetParseLongLiteralAndScanner(t *testing.T) {
 			n, err := prog.ParseWith("main", literal, ParseOptions{Backend: b, Unit: sxirinput.Bytes, Context: ctx, Trace: func(e TraceEvent) {
 				if e.Kind == TraceEnter {
 					calls++
-					state.TraceParser(e).Control.Ctx = newPollingContext(2)
+					state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
 				}
 			}})
 			cancel()

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -103,7 +104,7 @@ func TestTextDecodesInvalidInputOnce(t *testing.T) {
 
 	// The decoding is interruptible and leaves nothing behind.
 	c.Limits.Compute = c.Used + 100
-	if err := catchFatal(t, func() { _ = in.Text(0, 2000) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { _ = in.Text(0, 2000) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("decoding interruption: %v", err)
 	}
 	c.Limits.Compute = 1 << 30

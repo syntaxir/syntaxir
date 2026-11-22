@@ -9,6 +9,7 @@ import (
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
@@ -52,7 +53,7 @@ func TestAttachCapturesChargesAsGoLibrary(t *testing.T) {
 }
 
 func engineAttachCharge(c attachCase) uint64 {
-	p := stateBudgetParser(runtime.Limits{Compute: 1 << 30})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1 << 30})
 	var v *sxirvalue.Node
 	switch c.value {
 	case "fresh":

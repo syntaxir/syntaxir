@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -18,13 +19,13 @@ func TestBudgetStreamReferenceAdmission(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	for _, o := range []ParseOptions{{Context: ctx}, {Limits: runtime.Limits{Compute: 1}}, {Limits: runtime.Limits{Memory: 1}}} {
-		r := &streamCallbackReader{text: "#records\na=1\n"}
+		r := &statetest.StreamReader{Text: "#records\na=1\n"}
 		callbacks := 0
-		r.onRead = func() { callbacks++ }
+		r.OnRead = func() { callbacks++ }
 		o.Trace = func(TraceEvent) { callbacks++ }
 		err := prog.ParseStreamWith("main", r, func(*value.Node) error { callbacks++; return nil }, o)
-		if err == nil || !strings.Contains(err.Error(), "reference build") || callbacks != 0 || r.offset != 0 || r.closed {
-			t.Fatalf("error=%v callbacks=%d offset=%d", err, callbacks, r.offset)
+		if err == nil || !strings.Contains(err.Error(), "reference build") || callbacks != 0 || r.Offset != 0 || r.Closed {
+			t.Fatalf("error=%v callbacks=%d offset=%d", err, callbacks, r.Offset)
 		}
 	}
 	for _, o := range []ParseOptions{{}, {Context: context.Background()}} {

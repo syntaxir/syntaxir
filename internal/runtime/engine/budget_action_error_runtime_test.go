@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -118,7 +119,7 @@ rule ` + longRule + ` = a:"a" => A{N: 1 / (len($a) - 1)}`,
 										// exhaustion is covered by focused builder whiteboxes.
 										state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 256
 									} else {
-										poll := newPollingContext(2)
+										poll := statetest.NewPollingContext(2)
 										state.TraceParser(e).Control.Ctx = poll
 										state.TraceParser(e).Control.SinceCheck = 0
 										state.TraceParser(e).Control.SinceCheck = 0

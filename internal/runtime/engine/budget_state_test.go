@@ -15,17 +15,12 @@ import (
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
-
-func stateBudgetParser(limits runtime.Limits) *state.Parser {
-	prog := &state.SharedProgram{}
-	state.InitSharedProgram(prog, &program.Program{})
-	return &state.Parser{Prog: prog, Input: state.Input{Control: state.NewBudgetControl(nil, limits)}}
-}
 
 func undoFixture(p *state.Parser) (*state.Frame, []*sxirvalue.Node) {
 	old0 := value.Ptr(value.Data{Text: "old-zero", Fields: valueimpl.Fields{{Name: "keep", Value: "zero"}}})
@@ -50,7 +45,7 @@ func assertUndoRestored(t *testing.T, f *state.Frame, nodes []*sxirvalue.Node) {
 
 func TestBudgetResetRestoresRepeatedCaptureWritesInReverse(t *testing.T) {
 	t.Parallel()
-	p := stateBudgetParser(runtime.Limits{Compute: 4})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 4})
 	f, nodes := undoFixture(p)
 	p.Pos = 71
 	p.Frame = f
@@ -70,20 +65,20 @@ func TestBudgetResetRestoresRepeatedCaptureWritesInReverse(t *testing.T) {
 // under a context that cancels at its first poll neither polls nor fails, and restores every slot.
 func TestBudgetResetUndoChargesNothing(t *testing.T) {
 	t.Parallel()
-	p := stateBudgetParser(runtime.Limits{})
+	p := statetest.NewBudgetParser(runtime.Limits{})
 	f := &state.Frame{Vals: make([]*sxirvalue.Node, 257)}
 	for i := range f.Vals {
 		old := value.Ptr(value.Data{Text: "old"})
 		f.Vals[i] = value.Ptr(value.Data{Text: "new"})
 		p.Trail = append(p.Trail, state.Undo{F: f, Slot: i, Old: old})
 	}
-	ctx := newPollingContext(1)
+	ctx := statetest.NewPollingContext(1)
 	p.Control = state.NewBudgetControl(ctx, runtime.Limits{})
-	if err := catchFatal(t, func() { p.Reset(state.Mark{Trail: 0}) }); err != nil {
+	if err := statetest.CatchFatal(t, func() { p.Reset(state.Mark{Trail: 0}) }); err != nil {
 		t.Fatalf("undoing 257 writes failed: %v", err)
 	}
-	if ctx.checks != 0 || p.Control.Used != 0 {
-		t.Fatalf("undoing 257 writes polled %d times and charged %d units, want none", ctx.checks, p.Control.Used)
+	if ctx.Checks != 0 || p.Control.Used != 0 {
+		t.Fatalf("undoing 257 writes polled %d times and charged %d units, want none", ctx.Checks, p.Control.Used)
 	}
 	if len(p.Trail) != 0 {
 		t.Fatalf("reset left %d trail entries", len(p.Trail))
@@ -99,7 +94,7 @@ func TestBudgetAttachCapturesNilFrameAndFieldOrder(t *testing.T) {
 	t.Parallel()
 	retained := value.Ptr(value.Data{Text: "base", Fields: valueimpl.Fields{{Name: "existing", Value: "kept"}}})
 	allNil := &state.Frame{Vals: make([]*sxirvalue.Node, 320)}
-	p := stateBudgetParser(runtime.Limits{Compute: 100_000})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 100_000})
 	got := p.AttachCaptures(retained, &program.Scope{Names: make([]string, len(allNil.Vals))}, allNil, 2, 9)
 	if got != retained || len(value.D(retained).Fields) != 1 || value.D(retained).Fields[0].Value != "kept" {
 		t.Fatal("all-nil capture frame changed the base node")
@@ -133,7 +128,7 @@ func TestBudgetAttachCapturesWrapsNonfreshAndSelfCapture(t *testing.T) {
 	child := value.Ptr(value.Data{Text: "retained-child"})
 	prior := valueimpl.Fields{{Name: "prior", Value: "unchanged"}}
 	shared := value.Ptr(value.Data{Text: "shared", Fields: append(valueimpl.Fields(nil), prior...)})
-	p := stateBudgetParser(runtime.Limits{Compute: 100_000})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 100_000})
 	wrapped := p.AttachCaptures(shared, &program.Scope{Names: []string{"child"}}, &state.Frame{Vals: []*sxirvalue.Node{child}}, 4, 7)
 	if wrapped == shared || len(value.D(wrapped).Children) != 1 || value.D(wrapped).Children[0] != shared {
 		t.Fatal("nonfresh node was not wrapped before capture attachment")
@@ -163,8 +158,8 @@ func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 	t.Parallel()
 	base := value.Ptr(value.Data{Text: "retained", Fields: valueimpl.Fields{{Name: "prior", Value: "kept"}}})
 	wide := &state.Frame{Vals: make([]*sxirvalue.Node, 320)}
-	p := stateBudgetParser(runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { _ = p.AttachCaptures(base, &program.Scope{Names: make([]string, 320)}, wide, 0, 1) }); err != nil {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 128})
+	if err := statetest.CatchFatal(t, func() { _ = p.AttachCaptures(base, &program.Scope{Names: make([]string, 320)}, wide, 0, 1) }); err != nil {
 		t.Fatalf("all-nil scan = %v, want no error", err)
 	}
 	if p.Control.Used != 0 {
@@ -182,9 +177,9 @@ func TestBudgetAttachCapturesWideScopesChargeNothing(t *testing.T) {
 		vals[i] = value.Ptr(value.Data{Text: fmt.Sprintf("value-%d", i)})
 	}
 	retained := value.Ptr(value.Data{Text: "shared-retained", Fields: valueimpl.Fields{{Name: "existing", Value: "stable"}}})
-	p = stateBudgetParser(runtime.Limits{Compute: 32})
+	p = statetest.NewBudgetParser(runtime.Limits{Compute: 32})
 	var got *sxirvalue.Node
-	if err := catchFatal(t, func() { got = p.AttachCaptures(retained, &program.Scope{Names: names}, &state.Frame{Vals: vals}, 3, 9) }); err != nil {
+	if err := statetest.CatchFatal(t, func() { got = p.AttachCaptures(retained, &program.Scope{Names: names}, &state.Frame{Vals: vals}, 3, 9) }); err != nil {
 		t.Fatalf("capture field walk = %v, want no error", err)
 	}
 	if p.Control.Used != 0 {
@@ -266,8 +261,8 @@ func TestBudgetStateProjectedFrameClear(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := stateBudgetParser(runtime.Limits{Compute: 64})
-	if err := catchFatal(t, func() { m(p) }); !errors.Is(err, runtime.ErrLimit) || len(p.Trail) != 0 {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 64})
+	if err := statetest.CatchFatal(t, func() { m(p) }); !errors.Is(err, runtime.ErrLimit) || len(p.Trail) != 0 {
 		t.Fatalf("projected clear err=%v capture writes=%d", err, len(p.Trail))
 	}
 }

@@ -11,46 +11,11 @@ import (
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-type streamRuntimePanicToken struct{ phase string }
-
-func (p *streamRuntimePanicToken) Error() string { return "caller panic: " + p.phase }
-func (*streamRuntimePanicToken) RuntimeError()   {}
-
-type streamCallbackReader struct {
-	text       string
-	offset     int
-	panicValue any
-	err        error
-	onRead     func()
-	closed     bool
-}
-
-func (r *streamCallbackReader) Read(b []byte) (int, error) {
-	if r.onRead != nil {
-		f := r.onRead
-		r.onRead = nil
-		f()
-	}
-	if r.offset < len(r.text) {
-		n := copy(b, r.text[r.offset:])
-		r.offset += n
-		return n, nil
-	}
-	if r.panicValue != nil {
-		panic(r.panicValue)
-	}
-	if r.err != nil {
-		return 0, r.err
-	}
-	return 0, io.EOF
-}
-func (r *streamCallbackReader) Close() error { r.closed = true; return nil }
-func catchStreamPanic(f func()) (val any)    { defer func() { val = recover() }(); f(); return }
 
 func TestStreamCallerPanicIdentity(t *testing.T) {
 	t.Parallel()
@@ -64,11 +29,11 @@ func TestStreamCallerPanicIdentity(t *testing.T) {
 							t.Run(fmt.Sprintf("%s/%s/trace=%t/buffered=%t/%s/runtime=%t", b, u, traced, buffered, phase, runtimeValue), func(t *testing.T) {
 								var token any = &struct{ phase string }{phase}
 								if runtimeValue {
-									token = &streamRuntimePanicToken{phase}
+									token = &statetest.StreamPanicToken{Phase: phase}
 								}
-								r := &streamCallbackReader{text: "#records\na=1\nbc=22\n"}
+								r := &statetest.StreamReader{Text: "#records\na=1\nbc=22\n"}
 								if phase == "reader" {
-									r.panicValue = token
+									r.PanicValue = token
 								}
 								var reader io.Reader = r
 								if buffered {
@@ -89,7 +54,7 @@ func TestStreamCallerPanicIdentity(t *testing.T) {
 								var err error
 								var nodes []*sxirvalue.Node
 								var before []string
-								got := catchStreamPanic(func() {
+								got := statetest.CatchPanic(func() {
 									err = prog.ParseStreamWith("main", reader, func(n *sxirvalue.Node) error {
 										nodes = append(nodes, n)
 										before = append(before, codegentest.ResultJSON(n, nil))
@@ -102,7 +67,7 @@ func TestStreamCallerPanicIdentity(t *testing.T) {
 								if got != token || err != nil || len(nodes) != 2 {
 									t.Fatalf("panic=%#v error=%v emitted=%d; want exact caller panic and two records", got, err, len(nodes))
 								}
-								if r.closed {
+								if r.Closed {
 									t.Fatal("caller reader was closed")
 								}
 								if traced && (event.Rule != "main" || event.Depth != 1 || event.Pos != 0) {
@@ -138,9 +103,9 @@ func TestStreamCallerReturnedErrorIdentity(t *testing.T) {
 				for _, phase := range []string{"reader", "emit"} {
 					t.Run(fmt.Sprintf("%s/%s/trace=%t/%s", b, u, traced, phase), func(t *testing.T) {
 						stop := errors.New("caller stopped")
-						r := &streamCallbackReader{text: "#records\na=1\nbc=22\n"}
+						r := &statetest.StreamReader{Text: "#records\na=1\nbc=22\n"}
 						if phase == "reader" {
-							r.err = stop
+							r.Err = stop
 						}
 						opts := ParseOptions{Backend: b, Unit: u}
 						if traced {
@@ -148,7 +113,7 @@ func TestStreamCallerReturnedErrorIdentity(t *testing.T) {
 						}
 						count := 0
 						var err error
-						got := catchStreamPanic(func() {
+						got := statetest.CatchPanic(func() {
 							err = prog.ParseStreamWith("main", r, func(*sxirvalue.Node) error {
 								count++
 								if phase == "emit" && count == 2 {
@@ -157,8 +122,8 @@ func TestStreamCallerReturnedErrorIdentity(t *testing.T) {
 								return nil
 							}, opts)
 						})
-						if got != nil || err != stop || !errors.Is(err, stop) || count != 2 || r.closed {
-							t.Fatalf("panic=%v error=%v count=%d closed=%t", got, err, count, r.closed)
+						if got != nil || err != stop || !errors.Is(err, stop) || count != 2 || r.Closed {
+							t.Fatalf("panic=%v error=%v count=%d closed=%t", got, err, count, r.Closed)
 						}
 					})
 				}
@@ -173,10 +138,10 @@ func TestStreamReaderPanicInsideTraceKeepsOriginalValue(t *testing.T) {
 	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 		for _, u := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 			t.Run(b.String()+"/"+u.String(), func(t *testing.T) {
-				token := &streamRuntimePanicToken{"nested reader"}
-				r := &streamCallbackReader{panicValue: token}
+				token := &statetest.StreamPanicToken{Phase: "nested reader"}
+				r := &statetest.StreamReader{PanicValue: token}
 				var err error
-				got := catchStreamPanic(func() {
+				got := statetest.CatchPanic(func() {
 					err = prog.ParseStreamWith("main", r, nil, ParseOptions{Backend: b, Unit: u, Trace: func(e TraceEvent) {
 						if e.Kind == TraceEnter && e.Rule == "main" {
 							state.TraceParser(e).Fill(1)
@@ -204,13 +169,13 @@ func TestStreamNormalCallerReturnKeepsVMFaultAttribution(t *testing.T) {
 					// Corrupt the prepared module after a normal caller return. This fault is
 					// engine-owned and must retain the VM's invalid-module classification.
 					damage := func() { corruptVMLiteral(t, prog) }
-					r := &streamCallbackReader{text: "aa"}
+					r := &statetest.StreamReader{Text: "aa"}
 					if phase == "reader" {
-						r.onRead = damage
+						r.OnRead = damage
 					}
 					count := 0
 					var err error
-					got := catchStreamPanic(func() {
+					got := statetest.CatchPanic(func() {
 						err = prog.ParseStreamWith("main", r, func(*sxirvalue.Node) error {
 							count++
 							if phase == "emit" {

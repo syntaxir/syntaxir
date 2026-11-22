@@ -13,6 +13,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -45,7 +46,7 @@ func TestBudgetStreamTextByteSnapshotBoundaries(t *testing.T) {
 			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: uint64(used - 1)})
 			before := in.StreamText
 			var val string
-			err := catchFatal(t, func() { val = in.Text(0, end) })
+			err := statetest.CatchFatal(t, func() { val = in.Text(0, end) })
 			var limit *runtime.LimitError
 			if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || val != "" || !reflect.DeepEqual(in.StreamText, before) {
 				t.Fatalf("materialization error=%v value=%q", err, val)
@@ -72,12 +73,12 @@ func TestBudgetStreamTextFallbackAndNoReadAhead(t *testing.T) {
 	for _, u := range []input.PositionUnit{input.Bytes, input.CodePoints} {
 		for _, size := range []int{1, 63, 1025, 4097} {
 			t.Run(fmt.Sprintf("%s/%d", u, size), func(t *testing.T) {
-				r := &snapshotOneByteReader{source: strings.Repeat("x", size+100)}
+				r := &statetest.OneByteReader{Source: strings.Repeat("x", size+100)}
 				in := state.Input{Unit: u, Reader: bufio.NewReader(r)}
 				in.Fill(size)
-				reads := r.calls
+				reads := r.Calls
 				in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 20})
-				if in.Text(0, size) != strings.Repeat("x", size) || r.calls != reads {
+				if in.Text(0, size) != strings.Repeat("x", size) || r.Calls != reads {
 					t.Fatal("controlled text read ahead or changed text")
 				}
 				if size < 64 || size > state.StreamTextChunk {
@@ -116,7 +117,7 @@ func TestBudgetStreamTextCodePointPublication(t *testing.T) {
 			}
 			in.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: limit})
 			before := append([]int32(nil), old.Offsets...)
-			err := catchFatal(t, func() { _ = in.Text(0, 8) })
+			err := statetest.CatchFatal(t, func() { _ = in.Text(0, 8) })
 			if !errors.Is(err, runtime.ErrLimit) || !reflect.DeepEqual(in.StreamText, old) || !reflect.DeepEqual(old.Offsets, before) {
 				t.Fatalf("%s error=%v mutated old cache", phase, err)
 			}
@@ -136,7 +137,7 @@ func TestBudgetStreamTextCodePointPublication(t *testing.T) {
 	}
 	oneShort := budgetStreamTextInput(input.CodePoints, text)
 	oneShort.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 5*size - 1})
-	if err := catchFatal(t, func() { _ = oneShort.Text(0, 5) }); !errors.Is(err, runtime.ErrLimit) || oneShort.StreamText.Source != "" {
+	if err := statetest.CatchFatal(t, func() { _ = oneShort.Text(0, 5) }); !errors.Is(err, runtime.ErrLimit) || oneShort.StreamText.Source != "" {
 		t.Fatalf("one-short error=%v", err)
 	}
 }
@@ -186,7 +187,7 @@ func TestBudgetStreamTextOffsetCancellation(t *testing.T) {
 	c := &budgetStreamTextPhaseContext{Context: ctx, observe: func() bool { return in.Control.Used >= 2048 }}
 	c.cancel = cancel
 	in.Control = state.NewBudgetControl(c, runtime.Limits{})
-	err := catchFatal(t, func() { _ = in.Text(0, 10) })
+	err := statetest.CatchFatal(t, func() { _ = in.Text(0, 10) })
 	if err != context.Canceled || in.Control.Used < 2048 || in.Control.Used >= 3072 || !reflect.DeepEqual(in.StreamText, old) {
 		t.Fatalf("offset cancel error=%v steps=%d", err, in.Control.Used)
 	}
@@ -250,7 +251,7 @@ rule row = (!"\n" .)+ #atomic "\n"`)
 				if !armed || !errors.Is(err, want) || emissions != 0 {
 					t.Fatalf("phase=%s armed=%t error=%v emits=%d old=%+v", phase, armed, err, emissions, previous)
 				}
-				assertTraceParserDetached(t, state.TraceParser(saved), false)
+				statetest.AssertTraceParserDetached(t, state.TraceParser(saved), false)
 				if err := prog.ParseStreamWith("main", strings.NewReader(text), func(*value.Node) error { return nil }, base); err != nil {
 					t.Fatalf("fresh replay: %v", err)
 				}

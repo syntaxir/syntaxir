@@ -12,14 +12,11 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-func actionBudgetParser(ctx context.Context, limits runtime.Limits, unit sxirinput.PositionUnit) *state.Parser {
-	return &state.Parser{Input: state.Input{Unit: unit, Control: state.NewBudgetControl(ctx, limits)}}
-}
 
 func actionBudgetNodes(n int) []*value.Node {
 	items := make([]*value.Node, n)
@@ -36,7 +33,7 @@ func TestBudgetActionStringHelperParity(t *testing.T) {
 	right := strings.Repeat("prefix-", 2048) + "b" + string([]byte{0x00})
 
 	for _, unit := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
-		p := actionBudgetParser(nil, runtime.Limits{Compute: 1 << 40}, unit)
+		p := statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 1 << 40}, unit)
 		wantLen := len(malformed)
 		if unit == sxirinput.CodePoints {
 			wantLen = utf8.RuneCountInString(malformed)
@@ -72,20 +69,20 @@ func TestBudgetActionStringHelperParity(t *testing.T) {
 func TestBudgetActionStringHelpersChargeLongBudget(t *testing.T) {
 	t.Parallel()
 	long := strings.Repeat("a", 8192)
-	p := actionBudgetParser(nil, runtime.Limits{Compute: 256}, sxirinput.CodePoints)
-	if err := catchFatal(t, func() { p.CompareText(long+"x", long+"y") }); !errors.Is(err, runtime.ErrLimit) {
+	p := statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 256}, sxirinput.CodePoints)
+	if err := statetest.CatchFatal(t, func() { p.CompareText(long+"x", long+"y") }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long equal-prefix comparison error = %v, want ErrLimit", err)
 	}
 
-	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.Bytes)
-	if err := catchFatal(t, func() {
+	p = statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.Bytes)
+	if err := statetest.CatchFatal(t, func() {
 		_, _ = p.ValueBinary("+", long, long)
 	}); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long string concatenation error = %v, want ErrLimit", err)
 	}
 
-	p = actionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.CodePoints)
-	if err := catchFatal(t, func() { p.ValueTextLen(long) }); !errors.Is(err, runtime.ErrLimit) {
+	p = statetest.ActionBudgetParser(nil, runtime.Limits{Compute: 128}, sxirinput.CodePoints)
+	if err := statetest.CatchFatal(t, func() { p.ValueTextLen(long) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("long rune length error = %v, want ErrLimit", err)
 	}
 }
@@ -106,8 +103,8 @@ func TestBudgetActionCollectionLoopsChargeElements(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			ctx := newPollingContext(1)
-			p := actionBudgetParser(ctx, runtime.Limits{}, sxirinput.CodePoints)
+			ctx := statetest.NewPollingContext(1)
+			p := statetest.ActionBudgetParser(ctx, runtime.Limits{}, sxirinput.CodePoints)
 			var locals *state.Local
 			if tc.name == "local copy" {
 				for i := 0; i < size; i++ {
@@ -116,7 +113,7 @@ func TestBudgetActionCollectionLoopsChargeElements(t *testing.T) {
 			}
 			c := &state.EvalCtx{P: p, Locals: locals}
 			var returned error
-			fatalErr := catchFatal(t, func() { returned = tc.run(c) })
+			fatalErr := statetest.CatchFatal(t, func() { returned = tc.run(c) })
 			if returned != nil {
 				t.Fatalf("operation returned ordinary error: %v", returned)
 			}
@@ -188,7 +185,7 @@ rule items = [a-z] #atomic*`)
 				n, err := prog.ParseWith("main", input, ParseOptions{Backend: backend, Unit: unit, Trace: func(e TraceEvent) {
 					if !armed && e.Kind == TraceExit && e.Rule == "items" {
 						armed = true
-						attempt = state.NewBudgetControl(newPollingContext(2), runtime.Limits{})
+						attempt = state.NewBudgetControl(statetest.NewPollingContext(2), runtime.Limits{})
 						state.TraceParser(e).Control = attempt
 					}
 				}})

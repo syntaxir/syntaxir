@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -21,8 +22,8 @@ func TestBudgetDocumentMemoReplayAtomicReservation(t *testing.T) {
 	edits := []state.DocEdit{{Start: 0, End: 1, Delta: 2}, {Start: 0, End: 1, Delta: 3}, {Start: 0, End: 1, Delta: 4}}
 	before := state.MemoEntry{Pos: 10, End: 12, From: 10, Examined: 13, Far: 12}
 	e := before
-	p := stateBudgetParser(runtime.Limits{Compute: 2})
-	if err := catchFatal(t, func() { p.AdvanceEntry(&e, edits) }); !errors.Is(err, runtime.ErrLimit) {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 2})
+	if err := statetest.CatchFatal(t, func() { p.AdvanceEntry(&e, edits) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("interruption = %v", err)
 	}
 	if !reflect.DeepEqual(e, before) {
@@ -31,7 +32,7 @@ func TestBudgetDocumentMemoReplayAtomicReservation(t *testing.T) {
 	if p.Control.Used != 2 {
 		t.Fatal("edit replay charged unexpected spend")
 	}
-	p = stateBudgetParser(runtime.Limits{Compute: 3})
+	p = statetest.NewBudgetParser(runtime.Limits{Compute: 3})
 	want := before
 	if !state.AdvanceEntry(&want, edits) || !p.AdvanceEntry(&e, edits) || !reflect.DeepEqual(e, want) {
 		t.Fatal("completed replay differs from ordinary edit replay")
@@ -45,24 +46,24 @@ func TestBudgetDocumentResyncSearchAndTailAccounting(t *testing.T) {
 		elems[i] = state.RunElem{Start: i * 2, From: 100}
 	}
 	for _, at := range []int{-1, 0, 1, 510, 1024, 1025} {
-		p := stateBudgetParser(runtime.Limits{Compute: 100})
+		p := statetest.NewBudgetParser(runtime.Limits{Compute: 100})
 		want := (&state.Parser{}).RunSearch(elems, 3, at)
 		if got := p.RunSearch(elems, 3, at); got != want {
 			t.Fatalf("search(%d) = %d, want %d", at, got, want)
 		}
 	}
-	p := stateBudgetParser(runtime.Limits{Compute: 1})
-	if err := catchFatal(t, func() { p.RunSearch(elems, 0, 510) }); !errors.Is(err, runtime.ErrLimit) {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1})
+	if err := statetest.CatchFatal(t, func() { p.RunSearch(elems, 0, 510) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("search interruption = %v", err)
 	}
-	p = stateBudgetParser(runtime.Limits{Compute: 2})
-	if err := catchFatal(t, func() { p.RunAfter(elems[:3], 100) }); !errors.Is(err, runtime.ErrLimit) {
+	p = statetest.NewBudgetParser(runtime.Limits{Compute: 2})
+	if err := statetest.CatchFatal(t, func() { p.RunAfter(elems[:3], 100) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("tail interruption = %v", err)
 	}
 	if p.Control.Used != 2 {
 		t.Fatalf("tail interruption charged %d, want the two visited elements", p.Control.Used)
 	}
-	p = stateBudgetParser(runtime.Limits{Compute: 3})
+	p = statetest.NewBudgetParser(runtime.Limits{Compute: 3})
 	if !p.RunAfter(elems[:3], 100) || p.Control.Used != 3 {
 		t.Fatal("tail traversal did not account for each element")
 	}
@@ -78,9 +79,9 @@ func TestBudgetDocumentRunPublicationCopyIsProvisional(t *testing.T) {
 	mid[0].Start = 900
 	r := state.RunState{Key: state.RunKey{Site: 1}, Old: old, K: 128, J: -1, Mid: mid, Count: 129}
 	retained := &state.RunRecord{Elems: old}
-	p := stateBudgetParser(runtime.Limits{Compute: 128})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 128})
 	p.Runs = map[state.RunKey]*state.RunRecord{r.Key: retained}
-	if err := catchFatal(t, func() { p.FinishRun(&r) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.FinishRun(&r) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("copy interruption = %v", err)
 	}
 	if p.Runs[r.Key] != retained || len(retained.Elems) != 128 || retained.Elems[127].Start != 127 {
@@ -98,9 +99,9 @@ func TestBudgetDocumentMovementChargesEdges(t *testing.T) {
 	child := nodes.Ptr(nodes.Data{Start: 2, End: 3})
 	field := nodes.Ptr(nodes.Data{Start: 4, End: 5})
 	root := nodes.Ptr(nodes.Data{Start: 1, End: 6, Children: []*value.Node{child}, Fields: valueimpl.Fields{{Name: "field", Value: field}}})
-	p := stateBudgetParser(runtime.Limits{Compute: 3})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 3})
 	p.Gen = 1
-	if err := catchFatal(t, func() { p.MoveTree(root, 10) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.MoveTree(root, 10) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("movement interruption = %v", err)
 	}
 	// Legacy movement is non-transactional, but later unvisited fields remain.
@@ -139,8 +140,8 @@ func TestBudgetDocumentGrowthCopyReservation(t *testing.T) {
 		values[i] = nodes.Ptr(nodes.Data{Start: int32(i)})
 	}
 	before := append([]*value.Node(nil), values...)
-	p := stateBudgetParser(runtime.Limits{Compute: 128})
-	if err := catchFatal(t, func() { state.GrowSpend(p, values, 1) }); !errors.Is(err, runtime.ErrLimit) {
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 128})
+	if err := statetest.CatchFatal(t, func() { state.GrowSpend(p, values, 1) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("growth interruption = %v", err)
 	}
 	if !reflect.DeepEqual(values, before) {
@@ -155,11 +156,11 @@ func TestBudgetDocumentGrowthCopyReservation(t *testing.T) {
 
 func TestBudgetDocumentMovementMapCleanupIsCounted(t *testing.T) {
 	t.Parallel()
-	p := stateBudgetParser(runtime.Limits{Compute: 1})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 1})
 	a, b := nodes.Ptr(nodes.Data{Text: "a"}), nodes.Ptr(nodes.Data{Text: "b"})
 	p.Moved = map[*value.Node]*value.Node{a: a, b: b}
 	p.Shifts = map[uint32]int{1: 3, 2: 4}
-	if err := catchFatal(t, func() { p.ClearMovementSpend() }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.ClearMovementSpend() }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("cleanup interruption = %v", err)
 	}
 	if len(p.Moved) != 1 || len(p.Shifts) != 2 || nodes.D(a).Text != "a" || nodes.D(b).Text != "b" {
@@ -174,11 +175,11 @@ func TestBudgetDocumentMovementMapCleanupIsCounted(t *testing.T) {
 
 func TestBudgetDocumentShiftReplayAndSharedEmptyGraph(t *testing.T) {
 	t.Parallel()
-	p := stateBudgetParser(runtime.Limits{Compute: 2})
+	p := statetest.NewBudgetParser(runtime.Limits{Compute: 2})
 	p.Gen = 4
 	p.Edits = []state.DocEdit{{Start: 0, End: 1, Delta: 1}, {Start: 0, End: 1, Delta: 1}, {Start: 0, End: 1, Delta: 1}, {Start: 0, End: 1, Delta: 1}}
 	n := nodes.Ptr(nodes.Data{Start: 10, End: 11, Mark: 1})
-	if err := catchFatal(t, func() { p.ShiftOf(n) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.ShiftOf(n) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("shift interruption = %v", err)
 	}
 	if p.Shifts != nil || nodes.D(n).Start != 10 {
@@ -193,7 +194,7 @@ func TestBudgetDocumentShiftReplayAndSharedEmptyGraph(t *testing.T) {
 	root := nodes.Ptr(nodes.Data{Start: 0, End: 0, Children: []*value.Node{empty, leaf}, Fields: valueimpl.Fields{{Name: "empty", Value: empty}, {Name: "leaf", Value: leaf}}})
 	clone := root.Clone()
 	history := codegentest.ResultJSON(clone, nil)
-	p = stateBudgetParser(runtime.Limits{Compute: 32})
+	p = statetest.NewBudgetParser(runtime.Limits{Compute: 32})
 	p.Gen = 1
 	p.Moved = map[*value.Node]*value.Node{}
 	got := p.MoveEmpty(root, 2)
@@ -217,7 +218,7 @@ func TestBudgetDocumentStaleMemoCallReplayIsBounded(t *testing.T) {
 	e.Pos = 10 // A shifted slot can retain older value coordinates until replay.
 	before := *e
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 2}) // The lookup is free; only two of three edits fit.
-	if err := catchFatal(t, func() { p.CallBegin(r, 0, &state.CallState{}) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.CallBegin(r, 0, &state.CallState{}) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("stale hit interruption = %v", err)
 	}
 	if !reflect.DeepEqual(*e, before) {
@@ -235,7 +236,7 @@ func TestBudgetDocumentGrowthRejectsNegativeCapacity(t *testing.T) {
 	panicOf := func(run func()) (got any) { defer func() { got = recover() }(); run(); return nil }
 	values := []int{1}
 	want := panicOf(func() { _ = slices.Grow(values, -1) })
-	for _, p := range []*state.Parser{{}, stateBudgetParser(runtime.Limits{Compute: 1})} {
+	for _, p := range []*state.Parser{{}, statetest.NewBudgetParser(runtime.Limits{Compute: 1})} {
 		got := panicOf(func() { state.GrowSpend(p, values, -1) })
 		if got == nil || !reflect.DeepEqual(got, want) {
 			t.Fatalf("negative capacity panic=%v, want=%v", got, want)

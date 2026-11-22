@@ -8,26 +8,9 @@ import (
 	"time"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
-
-func catchFatal(t *testing.T, f func()) error {
-	t.Helper()
-	var got error
-	func() {
-		defer func() {
-			if v := recover(); v != nil {
-				fatal, ok := v.(state.Fatal)
-				if !ok {
-					t.Fatalf("panic = %T(%v), want fatal", v, v)
-				}
-				got = fatal.Err
-			}
-		}()
-		f()
-	}()
-	return got
-}
 
 func TestNewBudgetControlDisabled(t *testing.T) {
 	t.Parallel()
@@ -59,7 +42,7 @@ func TestBudgetControlExactLimitsAndOverflow(t *testing.T) {
 		t.Fatalf("counter = %d, want 8", c.Used)
 	}
 	var limitErr *runtime.LimitError
-	err := catchFatal(t, func() { c.Charge(1) })
+	err := statetest.CatchFatal(t, func() { c.Charge(1) })
 	if !errors.Is(err, runtime.ErrLimit) || !errors.As(err, &limitErr) {
 		t.Fatalf("limit+1 error = %v, want a LimitError matching ErrLimit", err)
 	}
@@ -69,7 +52,7 @@ func TestBudgetControlExactLimitsAndOverflow(t *testing.T) {
 
 	c = state.NewBudgetControl(nil, runtime.Limits{Compute: math.MaxUint64})
 	c.Charge(math.MaxUint64 - 1)
-	if err := catchFatal(t, func() { c.Charge(2) }); err == nil {
+	if err := statetest.CatchFatal(t, func() { c.Charge(2) }); err == nil {
 		t.Fatal("overflowing reservation unexpectedly succeeded")
 	}
 	if c.Used != math.MaxUint64-1 {
@@ -82,7 +65,7 @@ func TestBudgetControlFailedReservationLeavesCounter(t *testing.T) {
 	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 6})
 	c.Charge(2)
 	var got *runtime.LimitError
-	if !errors.As(catchFatal(t, func() { c.Charge(5) }), &got) {
+	if !errors.As(statetest.CatchFatal(t, func() { c.Charge(5) }), &got) {
 		t.Fatal("reservation over the limit did not fail with LimitError")
 	}
 	if got.Kind != runtime.LimitCompute || got.Used != 2 || got.Requested != 5 {
@@ -95,7 +78,7 @@ func TestBudgetControlFailedReservationLeavesCounter(t *testing.T) {
 
 func TestBudgetControlUnlimitedCounterSaturates(t *testing.T) {
 	t.Parallel()
-	c := state.NewBudgetControl(newPollingContext(0), runtime.Limits{})
+	c := state.NewBudgetControl(statetest.NewPollingContext(0), runtime.Limits{})
 	c.Charge(math.MaxUint64 - 2)
 	c.Charge(10)
 	if c.Used != math.MaxUint64 {
@@ -112,7 +95,7 @@ func TestBudgetControlCancellationAndCause(t *testing.T) {
 	ctx, cancel := context.WithCancelCause(context.Background())
 	cancel(cause)
 	c := state.NewBudgetControl(ctx, runtime.Limits{Compute: 1})
-	got := catchFatal(t, func() { c.Charge(2) })
+	got := statetest.CatchFatal(t, func() { c.Charge(2) })
 	if !errors.Is(got, context.Canceled) {
 		t.Fatalf("error = %v, want context.Canceled", got)
 	}
@@ -126,44 +109,24 @@ func TestBudgetControlCancellationAndCause(t *testing.T) {
 	deadlineCtx, deadlineCancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer deadlineCancel()
 	deadline := state.NewBudgetControl(deadlineCtx, runtime.Limits{Compute: 1})
-	if err := catchFatal(t, deadline.Check); !errors.Is(err, context.DeadlineExceeded) {
+	if err := statetest.CatchFatal(t, deadline.Check); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("deadline error = %v, want context.DeadlineExceeded", err)
 	}
 }
 
-type pollingContext struct {
-	context.Context
-	done   chan struct{}
-	checks int
-	at     int
-}
-
-func newPollingContext(at int) *pollingContext {
-	return &pollingContext{Context: context.Background(), done: make(chan struct{}), at: at}
-}
-
-func (c *pollingContext) Done() <-chan struct{} { return c.done }
-func (c *pollingContext) Err() error {
-	c.checks++
-	if c.at > 0 && c.checks >= c.at {
-		return context.Canceled
-	}
-	return nil
-}
-
 func TestBudgetControlPollInterval(t *testing.T) {
 	t.Parallel()
-	ctx := newPollingContext(1)
+	ctx := statetest.NewPollingContext(1)
 	c := state.NewBudgetControl(ctx, runtime.Limits{})
 	c.Charge(state.BudgetCheckInterval - 1)
-	if ctx.checks != 0 {
-		t.Fatalf("checks before interval = %d, want 0", ctx.checks)
+	if ctx.Checks != 0 {
+		t.Fatalf("checks before interval = %d, want 0", ctx.Checks)
 	}
-	if err := catchFatal(t, func() { c.Charge(1) }); !errors.Is(err, context.Canceled) {
+	if err := statetest.CatchFatal(t, func() { c.Charge(1) }); !errors.Is(err, context.Canceled) {
 		t.Fatalf("interval poll error = %v, want context.Canceled", err)
 	}
-	if ctx.checks != 1 {
-		t.Fatalf("checks at interval = %d, want 1", ctx.checks)
+	if ctx.Checks != 1 {
+		t.Fatalf("checks at interval = %d, want 1", ctx.Checks)
 	}
 }
 
@@ -173,7 +136,7 @@ func TestBudgetControlExplicitCheck(t *testing.T) {
 	c := state.NewBudgetControl(ctx, runtime.Limits{})
 	c.Charge(1)
 	cancel()
-	if err := catchFatal(t, c.Check); !errors.Is(err, context.Canceled) {
+	if err := statetest.CatchFatal(t, c.Check); !errors.Is(err, context.Canceled) {
 		t.Fatalf("check error = %v, want context.Canceled", err)
 	}
 }

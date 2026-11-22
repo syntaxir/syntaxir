@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -63,7 +64,7 @@ func TestBudgetDiagnosticBatchFailureAndTraceAccessor(t *testing.T) {
 								armed, c, at = true, state.TraceParser(e).Control, state.TraceParser(e).Control.Used
 								if accessor {
 									if cancel {
-										c.Ctx = newPollingContext(1)
+										c.Ctx = statetest.NewPollingContext(1)
 										c.SinceCheck = 0
 									} else {
 										c.Limits.Compute = at + 1
@@ -155,7 +156,7 @@ rule bad = "a" @error(message=` + strconv.Quote(message) + `)`
 						if !armed && e.Kind == TraceExit && e.Rule == "bad" {
 							armed = true
 							// The post-callback check succeeds; the message copy polls next.
-							state.TraceParser(e).Control.Ctx = newPollingContext(2)
+							state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
 							state.TraceParser(e).Control.SinceCheck = 0
 						}
 					}})

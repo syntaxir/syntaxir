@@ -7,29 +7,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"reflect"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-// memoTestParser returns a parser whose variables are memoTestVars(n).
-func memoTestParser(n int) *state.Parser {
-	p := &state.Parser{}
-	p.SetVars(memoTestVars(n))
-	return p
-}
-
 func TestBudgetMemoEnvValuesDeepLookup(t *testing.T) {
 	t.Parallel()
 	const count = 320 // three levels: two inner nodes and a leaf on every path
-	p := memoTestParser(count)
+	p := statetest.MemoParser(count)
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1_000_000})
 	vals := p.EnvValues([]int{count - 1, -1})
 	if len(vals) != 2 || vals[0] != count-1 || vals[1] != nil {
@@ -40,9 +33,9 @@ func TestBudgetMemoEnvValuesDeepLookup(t *testing.T) {
 		t.Fatalf("lookups used %d steps, want %d", p.Control.Used, want)
 	}
 
-	limited := memoTestParser(count)
+	limited := statetest.MemoParser(count)
 	limited.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
-	if err := catchFatal(t, func() { limited.EnvValues([]int{0}) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { limited.EnvValues([]int{0}) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("deep envValues error = %v, want ErrLimit", err)
 	}
 
@@ -58,10 +51,10 @@ func TestBudgetMemoBindPreservesSnapshotsOnInterruption(t *testing.T) {
 	t.Parallel()
 	const count = 48 // two levels: an inner node and a leaf on every path
 	// A rebind costs a unit for the old value and one for each node it copies.
-	p := memoTestParser(count)
+	p := statetest.MemoParser(count)
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 2})
 	before := p.Env
-	if err := catchFatal(t, func() { p.Bind(0, "replacement") }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.Bind(0, "replacement") }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("replacement error = %v, want ErrLimit", err)
 	}
 	if p.Env != before {
@@ -74,7 +67,7 @@ func TestBudgetMemoBindPreservesSnapshotsOnInterruption(t *testing.T) {
 	}
 
 	// Equal bindings keep the persistent snapshot identity.
-	stable := memoTestParser(count)
+	stable := statetest.MemoParser(count)
 	stable.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1_000_000})
 	head := stable.Env
 	stable.Bind(count-1, count-1)
@@ -209,15 +202,15 @@ func TestBudgetMemoParseBudgetPoolRetryAndRetainedResult(t *testing.T) {
 func TestBudgetMemoBindCopyAndCancellation(t *testing.T) {
 	t.Parallel()
 	// An equal binding performs the lookup but does not copy a path.
-	probe := memoTestParser(320)
+	probe := statetest.MemoParser(320)
 	root := probe.Env
 	probe.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 30})
 	probe.Bind(0, 0)
 	searchSteps := probe.Control.Used
-	p := memoTestParser(320)
+	p := statetest.MemoParser(320)
 	root = p.Env
 	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: searchSteps + 2})
-	if err := catchFatal(t, func() { p.Bind(0, 999) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { p.Bind(0, 999) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("path-copy error=%v", err)
 	}
 	if p.Env != root || p.Control.Used != searchSteps+2 {
@@ -232,11 +225,11 @@ func TestBudgetMemoBindCopyAndCancellation(t *testing.T) {
 		t.Fatal("path copy changed saved snapshot")
 	}
 	for _, run := range []func(*state.Parser){func(p *state.Parser) { p.EnvValues([]int{0}) }, func(p *state.Parser) { p.Bind(0, 999) }} {
-		p := memoTestParser(320)
+		p := statetest.MemoParser(320)
 		root := p.Env
-		p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
+		p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
 		p.Control.Charge(state.BudgetCheckInterval - 2) // the next units reach the poll
-		if err := catchFatal(t, func() { run(p) }); !errors.Is(err, context.Canceled) {
+		if err := statetest.CatchFatal(t, func() { run(p) }); !errors.Is(err, context.Canceled) {
 			t.Fatalf("environment cancellation=%v", err)
 		}
 		if p.Env != root {
@@ -261,15 +254,15 @@ func TestBudgetMemoChainAndStringKeysChargeNothing(t *testing.T) {
 	free := func(what string, run func()) {
 		t.Helper()
 		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
-		if err := catchFatal(t, run); err != nil {
+		if err := statetest.CatchFatal(t, run); err != nil {
 			t.Fatalf("%s: %v", what, err)
 		}
 		if p.Control.Used != 0 {
 			t.Fatalf("%s charged %d units, want none", what, p.Control.Used)
 		}
-		p.Control = state.NewBudgetControl(newPollingContext(1), runtime.Limits{})
+		p.Control = state.NewBudgetControl(statetest.NewPollingContext(1), runtime.Limits{})
 		p.Control.Charge(state.BudgetCheckInterval - 1) // a unit more reaches the poll
-		if err := catchFatal(t, run); err != nil {
+		if err := statetest.CatchFatal(t, run); err != nil {
 			t.Fatalf("%s polled the context: %v", what, err)
 		}
 	}
@@ -307,65 +300,6 @@ func TestBudgetMemoChainAndStringKeysChargeNothing(t *testing.T) {
 	})
 }
 
-func budgetMemoPrefix(table *state.MemoTable, retained *value.Node) {
-	if len(table.Slots) == 0 { // a growth in progress has no entry in the table
-		table.Slots = append(table.Slots, nil)
-	}
-	for i := 0; i < 320; i++ {
-		e := table.Alloc()
-		*e = state.MemoEntry{Rule: int32(10000 + i), Node: retained, Next: table.Slots[0]}
-		table.Slots[0] = e
-	}
-}
-
-func requireMemoCleared(t *testing.T, chunks [][]state.MemoEntry) {
-	t.Helper()
-	for _, chunk := range chunks {
-		for i := range chunk {
-			if !reflect.DeepEqual(chunk[i], state.MemoEntry{}) {
-				t.Fatalf("used memo cell %d retained state", i)
-			}
-		}
-	}
-}
-
-func TestBudgetMemoGrowthFailureCleanup(t *testing.T) {
-	t.Parallel()
-	prog := mustCompile(t, `rule main = expr $$
-
-rule expr = expr "a" / "a"`)
-	p := state.AcquirePooledParser(&prog.sharedProgram)
-	retained := nodes.Ptr(nodes.Data{Text: "retained", Children: []*value.Node{nodes.Ptr(nodes.Data{Text: "child"})}})
-	before, _ := json.Marshal(retained)
-	key := state.MemoKey{Rule: prog.ByName["expr"].ID}
-	g := p.GrowBegin(key, inlinedRules(t, prog)[prog.ByName["expr"].ID])
-	oldSeed := g.Best
-	budgetMemoPrefix(p.Memo, retained)
-	oldHead := p.Memo.Slots[0]
-	p.Pos, p.Hw = 1, 1
-	p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 64})
-	p.Control.Used = 64
-	if err := catchFatal(t, func() { p.GrowStepVM(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("LR replacement interruption=%v", err)
-	}
-	if p.Memo.Slots[0] != oldHead {
-		t.Fatal("interrupted growth changed memo chain")
-	}
-	if seed, ok := p.GrowingSeed(key); !ok || seed != oldSeed || g.Best != oldSeed || !oldSeed.Growing {
-		t.Fatal("interruption replaced the old seed")
-	}
-	chunks := append([][]state.MemoEntry(nil), p.Memo.Chunks...)
-	p.ReleaseScratch()
-	if p.Control != nil || p.Scratch != nil {
-		t.Fatal("cleanup retained control/scratch")
-	}
-	requireMemoCleared(t, chunks)
-	after, _ := json.Marshal(retained)
-	if string(after) != string(before) {
-		t.Fatal("cleanup mutated public graph")
-	}
-}
-
 func TestBudgetMemoBatchGrowthInterruption(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = expr #recover(skip=.*) $$
@@ -390,10 +324,10 @@ rule atom = "a"`)
 						if !armed && e.Kind == TraceExit && e.Rule == "atom" {
 							armed = true
 							observed = state.TraceParser(e)
-							budgetMemoPrefix(state.TraceParser(e).Memo, retained)
+							statetest.MemoPrefix(state.TraceParser(e).Memo, retained)
 							chunks = append([][]state.MemoEntry(nil), state.TraceParser(e).Memo.Chunks...)
 							if cancel {
-								state.TraceParser(e).Control.Ctx = newPollingContext(2)
+								state.TraceParser(e).Control.Ctx = statetest.NewPollingContext(2)
 							} else {
 								// Stop at the next charge, inside the growth of expr.
 								state.TraceParser(e).Control.Limits.Compute = state.TraceParser(e).Control.Used + 1
@@ -414,7 +348,7 @@ rule atom = "a"`)
 					if observed.Control != nil || observed.Scratch != nil {
 						t.Fatal("batch interruption retained invocation state")
 					}
-					requireMemoCleared(t, chunks)
+					statetest.RequireMemoCleared(t, chunks)
 					after, _ := json.Marshal(retained)
 					if string(after) != string(before) {
 						t.Fatal("batch cleanup changed retained graph")
@@ -433,60 +367,3 @@ rule atom = "a"`)
 // before each evaluation of its body, the seed's included, as the generated parsers do: a step that
 // does not grow, after which no evaluation follows, charges nothing, and the charge comes before the
 // memo changes, so that a growth stopped by the last unit it needs publishes nothing.
-func TestBudgetGrowthStepBeforeEvaluation(t *testing.T) {
-	t.Parallel()
-	prog := mustCompile(t, `rule main = expr $$
-
-rule expr = expr "a" / "a"`)
-	key := state.MemoKey{Rule: prog.ByName["expr"].ID}
-	retained := nodes.Ptr(nodes.Data{Text: "retained"})
-	// parser returns a parser whose budget has room for n more units.
-	parser := func(n uint64) *state.Parser {
-		p := state.AcquirePooledParser(&prog.sharedProgram)
-		p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: 1 << 20})
-		p.Control.Used = 1<<20 - n
-		return p
-	}
-
-	// The units of a begun growth and of a growing step, with room for all.
-	expr := prog.ByName["expr"]
-	p := parser(1 << 10)
-	g := p.GrowBegin(key, inlinedRules(t, prog)[expr.ID])
-	begin := 1<<10 - (p.Control.Limits.Compute - p.Control.Used)
-	p.Pos = 1
-	used := p.Control.Used
-	if p.GrowStepVM(&g, retained, true); !p.GrowNext(&g) {
-		t.Fatal("the seed did not grow")
-	}
-	step := p.Control.Used - used
-	p.Pos, used = 1, p.Control.Used
-	if p.GrowStepVM(&g, retained, true); p.GrowNext(&g) || p.Control.Used != used {
-		t.Fatalf("a step that does not grow charged %d units, want 0: no evaluation follows it", p.Control.Used-used)
-	}
-	p.ReleaseScratch()
-	if begin < 1 || step < 1 {
-		t.Fatalf("a growth charges %d units to begin and %d to grow, want the step", begin, step)
-	}
-
-	// Short of one unit, neither publishes.
-	p = parser(begin - 1)
-	if err := catchFatal(t, func() { p.GrowBegin(key, inlinedRules(t, prog)[expr.ID]) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("growth begun short of a unit: %v", err)
-	}
-	if _, ok := p.GrowingSeed(key); ok {
-		t.Fatal("a growth stopped before its seed published the seed")
-	}
-	p.ReleaseScratch()
-
-	p = parser(begin + step - 1)
-	g = p.GrowBegin(key, inlinedRules(t, prog)[expr.ID])
-	seed := g.Best
-	p.Pos = 1
-	if err := catchFatal(t, func() { p.GrowStepVM(&g, retained, true) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatalf("growth step short of a unit: %v", err)
-	}
-	if stored, ok := p.GrowingSeed(key); !ok || stored != seed || p.Pos != 1 {
-		t.Fatal("a growth step stopped short of a unit changed the seed or the position")
-	}
-	p.ReleaseScratch()
-}

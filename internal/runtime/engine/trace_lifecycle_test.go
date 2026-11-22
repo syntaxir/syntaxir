@@ -4,50 +4,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 	"testing"
 
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
-
-func assertTraceParserDetached(t *testing.T, p *state.Parser, aborted bool) {
-	t.Helper()
-	if p == nil {
-		t.Fatal("trace callback did not expose a parser")
-	}
-	if p.Aborted != aborted {
-		t.Fatalf("aborted=%t want %t", p.Aborted, aborted)
-	}
-	var inspect func(reflect.Value, string)
-	inspect = func(v reflect.Value, path string) {
-		switch v.Kind() {
-		case reflect.Pointer, reflect.Map, reflect.Slice, reflect.Func, reflect.Chan, reflect.Interface, reflect.UnsafePointer:
-			if !v.IsNil() {
-				t.Errorf("finished parser retains %s (%s)", path, v.Kind())
-			}
-		case reflect.String:
-			if v.Len() != 0 {
-				t.Errorf("finished parser retains %s (string)", path)
-			}
-		case reflect.Struct:
-			for i := range v.NumField() {
-				inspect(v.Field(i), path+"."+v.Type().Field(i).Name)
-			}
-		case reflect.Array:
-			for i := range v.Len() {
-				inspect(v.Index(i), fmt.Sprintf("%s[%d]", path, i))
-			}
-		}
-	}
-	inspect(reflect.ValueOf(*p), "parser")
-}
-
-func traceLifecycleRecover(f func()) (got any) { defer func() { got = recover() }(); f(); return }
 
 type traceLifecycleClosingReader struct {
 	io.Reader
@@ -78,7 +44,7 @@ func TestTraceLifecycleStreamDetachment(t *testing.T) {
 					var nodes []*sxirvalue.Node
 					var snapshots []string
 					err := error(nil)
-					got := traceLifecycleRecover(func() {
+					got := statetest.CatchPanic(func() {
 						err = prog.ParseStreamWith("main", r, func(n *sxirvalue.Node) error {
 							nodes = append(nodes, n)
 							snapshots = append(snapshots, codegentest.ResultJSON(n, nil))
@@ -120,7 +86,7 @@ func TestTraceLifecycleStreamDetachment(t *testing.T) {
 							t.Fatalf("err=%v panic=%v nodes=%d", err, got, len(nodes))
 						}
 					}
-					assertTraceParserDetached(t, state.TraceParser(e), false) // Stream has no Document invalidation flag.
+					statetest.AssertTraceParserDetached(t, state.TraceParser(e), false) // Stream has no Document invalidation flag.
 					if e.Rule != "main" || e.Depth != 1 || e.Pos != 0 {
 						t.Fatal("saved stream metadata changed")
 					}

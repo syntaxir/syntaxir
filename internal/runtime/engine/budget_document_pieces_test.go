@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -36,7 +37,7 @@ func TestBudgetDocumentPieceConstruction(t *testing.T) {
 		}
 	}
 	c := state.NewBudgetControl(nil, runtime.Limits{Compute: 1})
-	if err := catchFatal(t, func() { state.NewControlledDocumentInput(strings.Repeat("a", 8192), input.CodePoints, c) }); !errors.Is(err, runtime.ErrLimit) {
+	if err := statetest.CatchFatal(t, func() { state.NewControlledDocumentInput(strings.Repeat("a", 8192), input.CodePoints, c) }); !errors.Is(err, runtime.ErrLimit) {
 		t.Fatalf("piece preparation interruption: %v", err)
 	}
 }
@@ -52,7 +53,7 @@ func TestBudgetDocumentPieceTextPublication(t *testing.T) {
 		pieces := state.NewDocumentPieces(strings.Repeat("x", 8192), unit)
 		pieces.Replace(4096, 4097, "é")
 		in := state.Input{Unit: unit, Eof: true, Pieces: pieces, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 4096})}
-		if err := catchFatal(t, func() { in.Text(0, pieces.N) }); !errors.Is(err, runtime.ErrLimit) {
+		if err := statetest.CatchFatal(t, func() { in.Text(0, pieces.N) }); !errors.Is(err, runtime.ErrLimit) {
 			t.Fatalf("%s: piece materialization bypassed the limit: %v", unit, err)
 		}
 		if pieces.FullOK || pieces.Full != "" {

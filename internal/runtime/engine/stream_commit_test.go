@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -95,7 +96,7 @@ func TestStreamCommitDiscardsBeforeItReleases(t *testing.T) {
 	p := &state.Parser{Input: state.Input{Unit: sxirinput.Bytes, Eof: true, Bs: []byte(strings.Repeat("a", 256)), BaseLine: 1, BaseCol: 1, Lines: []int{0},
 		Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 128})}, Memo: state.NewMemoTable(), FrameSlab: make([]state.Frame, 2)}
 	p.Frame = &p.FrameSlab[1]
-	got := catchStreamPanic(func() { p.Commit(130) })
+	got := statetest.CatchPanic(func() { p.Commit(130) })
 	if !state.StreamFrameScratch {
 		if got != nil || p.Base != 129 || p.Control.Used != 127 {
 			t.Fatalf("interruption=%v base=%d used=%d", got, p.Base, p.Control.Used)
@@ -117,7 +118,7 @@ func TestStreamCommitPrunesBeforeItSettles(t *testing.T) {
 	p := &state.Parser{Input: state.Input{Base: 1023, Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1})}, Memo: memo, Recovered: []state.RecEntry{state.ErrEntry(first)}}
 	p.DiagnosticTail.Limit = 1
 	p.SetDiagnosed(1)
-	got := catchStreamPanic(func() { p.Commit(1024) })
+	got := statetest.CatchPanic(func() { p.Commit(1024) })
 	if _, ok := got.(state.Fatal); !ok || len(p.Recovered) != 1 || p.Recovered[0] != state.ErrEntry(first) || p.Diagnosed() != 1 || memo.Base != 0 {
 		t.Fatalf("interruption=%v recovered=%v diagnosed=%d floor=%d", got, p.Recovered, p.Diagnosed(), memo.Base)
 	}
@@ -192,7 +193,7 @@ func TestStreamCancelledContextDeliversNoDiagnostic(t *testing.T) {
 	p := &state.Parser{Input: state.Input{Control: state.NewBudgetControl(ctx, runtime.Limits{})}, Memo: state.NewMemoTable(), Recovered: []state.RecEntry{state.ErrEntry(&value.SyntaxError{Pos: 1})},
 		Diagnostic: func(*value.SyntaxError) error { diagnostics++; return nil },
 		Emit:       func(*value.Node) error { elements++; return nil }}
-	got := catchStreamPanic(func() { p.EmitStream(nil, 0) })
+	got := statetest.CatchPanic(func() { p.EmitStream(nil, 0) })
 	if f, ok := got.(state.Fatal); !ok || f.Err != context.Canceled || diagnostics != 0 || elements != 0 {
 		t.Fatalf("panic=%v diagnostics=%d elements=%d", got, diagnostics, elements)
 	}
@@ -209,10 +210,10 @@ rule item = "ab" #recover(skip=[^a]+)`)
 			t.Run(fmt.Sprintf("%v/runtime=%t", backend, runtimeValue), func(t *testing.T) {
 				var token any = &struct{ phase string }{"diagnostic"}
 				if runtimeValue {
-					token = &streamRuntimePanicToken{"diagnostic"}
+					token = &statetest.StreamPanicToken{Phase: "diagnostic"}
 				}
 				var err error
-				got := catchStreamPanic(func() {
+				got := statetest.CatchPanic(func() {
 					err = p.ParseStreamWith("main", strings.NewReader("abX!"), func(*value.Node) error { return nil },
 						ParseOptions{Backend: backend, DiagnosticCallback: func(*value.SyntaxError) error { panic(token) }})
 				})
@@ -244,7 +245,7 @@ rule item = ("a" #recover(skip="x")) ("b" #recover(skip="y"))`)
 				defer cancel()
 				diagnostics, elements := 0, 0
 				var err error
-				got := catchStreamPanic(func() {
+				got := statetest.CatchPanic(func() {
 					err = p.ParseStreamWith("main", strings.NewReader("xyab"), func(*value.Node) error { elements++; return nil },
 						ParseOptions{Backend: backend, Context: ctx, DiagnosticCallback: func(*value.SyntaxError) error {
 							diagnostics++

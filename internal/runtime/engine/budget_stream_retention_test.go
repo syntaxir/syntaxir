@@ -12,6 +12,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -49,7 +50,7 @@ type streamControlRetentionRun struct {
 	program      *Program
 	control      weak.Pointer[state.BudgetControl]
 	context      weak.Pointer[streamControlRetentionContext]
-	reader       weak.Pointer[streamCallbackReader]
+	reader       weak.Pointer[statetest.StreamReader]
 	emitState    weak.Pointer[streamControlRetentionSentinel]
 	nodes        []*value.Node
 	snapshots    []string
@@ -68,7 +69,7 @@ func runStreamControlRetentionCase(t *testing.T, prog *Program, outcome string, 
 	contextState := &streamControlRetentionSentinel{}
 	contextState.data[0] = 42
 	ctx := &streamControlRetentionContext{Context: context.Background(), done: make(chan struct{}), state: contextState}
-	reader := &streamCallbackReader{text: input}
+	reader := &statetest.StreamReader{Text: input}
 	callbackState := &streamControlRetentionSentinel{}
 	callbackState.data[0] = 42
 	ctxRef, readerRef, callbackRef := weak.Make(ctx), weak.Make(reader), weak.Make(callbackState)
@@ -81,12 +82,12 @@ func runStreamControlRetentionCase(t *testing.T, prog *Program, outcome string, 
 	}
 
 	if outcome == "reader-error" {
-		reader.text, reader.err = "#records\na=1\n", stop
+		reader.Text, reader.Err = "#records\na=1\n", stop
 	} else if outcome == "syntax" {
-		reader.text = "#records\na=1\nbad=x\n"
+		reader.Text = "#records\na=1\nbad=x\n"
 	}
 	if outcome == "emit-panic" || outcome == "trace-panic" || outcome == "context-panic" {
-		ctx.token = &streamRuntimePanicToken{phase: outcome}
+		ctx.token = &statetest.StreamPanicToken{Phase: outcome}
 	}
 	panicToken := ctx.token
 	var controlRef weak.Pointer[state.BudgetControl]
@@ -94,7 +95,7 @@ func runStreamControlRetentionCase(t *testing.T, prog *Program, outcome string, 
 	var nodes []*value.Node
 	var snapshots []string
 	var returnedErr error
-	gotPanic := catchStreamPanic(func() {
+	gotPanic := statetest.CatchPanic(func() {
 		returnedErr = prog.ParseStreamWith("main", reader, func(n *value.Node) error {
 			if streamControlRetentionTouch(callbackState) != 42 {
 				panic("emit sentinel missing")
@@ -142,7 +143,7 @@ func runStreamControlRetentionCase(t *testing.T, prog *Program, outcome string, 
 		event: event, program: prog, control: controlRef, context: ctxRef, reader: readerRef,
 		emitState: callbackRef, nodes: nodes, snapshots: snapshots,
 		err: returnedErr, wantErr: stop, panic: gotPanic, panicToken: panicToken,
-		readerClosed: reader.closed,
+		readerClosed: reader.Closed,
 	}
 }
 
@@ -202,7 +203,7 @@ func TestBudgetStreamTraceRetentionWithActiveControls(t *testing.T) {
 						t.Fatalf("emitted node %d changed before GC", i)
 					}
 				}
-				assertTraceParserDetached(t, state.TraceParser(run.event), false) // Stream executions do not retain the Document abort flag.
+				statetest.AssertTraceParserDetached(t, state.TraceParser(run.event), false) // Stream executions do not retain the Document abort flag.
 				if run.readerClosed {
 					t.Fatal("parser closed caller-owned reader")
 				}

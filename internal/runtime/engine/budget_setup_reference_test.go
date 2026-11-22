@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/document"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -25,7 +26,7 @@ func TestBudgetSetupReferenceAdmission(t *testing.T) {
 				cancel()
 				callbacks := 0
 				o := ParseOptions{Backend: backend, Context: ctx, Trace: func(TraceEvent) { callbacks++ }}
-				reader := &streamCallbackReader{text: "#records\na=1\n", onRead: func() { callbacks++ }}
+				reader := &statetest.StreamReader{Text: "#records\na=1\n", OnRead: func() { callbacks++ }}
 				var n *value.Node
 				var d *document.Document
 				var err error
@@ -37,8 +38,8 @@ func TestBudgetSetupReferenceAdmission(t *testing.T) {
 				case "stream":
 					err = prog.ParseStreamWith("main", reader, func(*value.Node) error { callbacks++; return nil }, o)
 				}
-				if err == nil || !strings.Contains(err.Error(), "reference build") || n != nil || d != nil || callbacks != 0 || reader.offset != 0 || prog.preparedVM(Bytecode) != nil || prog.preparedVM(BytecodeIterative) != nil || prog.rec != nil {
-					t.Fatalf("omitted=%t backend=%s api=%s error=%v callbacks=%d readeroffset=%d vm=%p ivm=%p rec=%p", omitted, backend, api, err, callbacks, reader.offset, prog.preparedVM(Bytecode), prog.preparedVM(BytecodeIterative), prog.rec)
+				if err == nil || !strings.Contains(err.Error(), "reference build") || n != nil || d != nil || callbacks != 0 || reader.Offset != 0 || prog.preparedVM(Bytecode) != nil || prog.preparedVM(BytecodeIterative) != nil || prog.rec != nil {
+					t.Fatalf("omitted=%t backend=%s api=%s error=%v callbacks=%d readeroffset=%d vm=%p ivm=%p rec=%p", omitted, backend, api, err, callbacks, reader.Offset, prog.preparedVM(Bytecode), prog.preparedVM(BytecodeIterative), prog.rec)
 				}
 			}
 		}

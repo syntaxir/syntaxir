@@ -12,6 +12,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -26,7 +27,7 @@ func TestBudgetLiteralReplacementMismatchBudget(t *testing.T) {
 			if streaming {
 				p.Reader = bufio.NewReader(strings.NewReader(""))
 			}
-			err := catchFatal(t, func() { p.MatchLiteral([]rune(literal), []byte(literal)) })
+			err := statetest.CatchFatal(t, func() { p.MatchLiteral([]rune(literal), []byte(literal)) })
 			var limit *runtime.LimitError
 			if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 32 || limit.Requested != 1 {
 				t.Fatalf("streaming=%v replacement=%v error=%v, want one-step reservation at limit", streaming, suffix != "", err)
@@ -95,7 +96,7 @@ func TestBudgetLiteralReplacementSentinelBoundaries(t *testing.T) {
 			if tc.visits > 1 {
 				c = state.NewBudgetControl(nil, runtime.Limits{Compute: tc.visits - 1})
 				p.Control = c
-				err := catchFatal(t, func() { p.LiteralHasReplacement([]rune(tc.literal)) })
+				err := statetest.CatchFatal(t, func() { p.LiteralHasReplacement([]rune(tc.literal)) })
 				var limit *runtime.LimitError
 				if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != tc.visits-1 || limit.Requested != 1 || c.Used != tc.visits-1 {
 					t.Fatalf("one-short error=%v spent=%d", err, c.Used)
@@ -111,10 +112,10 @@ func TestBudgetLiteralReplacementSentinelBoundaries(t *testing.T) {
 
 func TestBudgetLiteralReplacementSentinelCancellation(t *testing.T) {
 	t.Parallel()
-	ctx := newPollingContext(1)
+	ctx := statetest.NewPollingContext(1)
 	c := state.NewBudgetControl(ctx, runtime.Limits{Compute: 1 << 20})
 	p := &state.Parser{Input: state.Input{Control: c}}
-	err := catchFatal(t, func() { p.LiteralHasReplacement([]rune(strings.Repeat("a", 4096) + string(utf8.RuneError))) })
+	err := statetest.CatchFatal(t, func() { p.LiteralHasReplacement([]rune(strings.Repeat("a", 4096) + string(utf8.RuneError))) })
 	if !errors.Is(err, context.Canceled) || c.Used != state.BudgetCheckInterval-1 {
 		t.Fatalf("error=%v spent=%d, want cancellation before first 256-unit poll reservation", err, c.Used)
 	}

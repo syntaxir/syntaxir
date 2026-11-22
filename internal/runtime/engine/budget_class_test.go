@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -126,7 +127,7 @@ func TestBudgetClassRangeCancellationAndPoolRetry(t *testing.T) {
 							startSteps = control.Used
 							// Trace emit polls once after this callback; cancel at the next
 							// 256-step checkpoint, inside the deliberately long range scan.
-							control.Ctx = newPollingContext(2)
+							control.Ctx = statetest.NewPollingContext(2)
 						} else if e.Kind == TraceExit {
 							exits++
 						}
@@ -284,7 +285,7 @@ func TestBudgetClassOptimizedRoutes(t *testing.T) {
 								if e.Kind == TraceEnter && e.Rule == "main" {
 									c = state.TraceParser(e).Control
 									start = c.Used
-									c.Ctx = newPollingContext(2)
+									c.Ctx = statetest.NewPollingContext(2)
 								}
 							},
 						})

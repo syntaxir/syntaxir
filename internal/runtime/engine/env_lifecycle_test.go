@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -149,7 +150,7 @@ func TestBindingSnapshots(t *testing.T) {
 	for _, n := range variableCounts {
 		t.Run(fmt.Sprint(n), func(t *testing.T) {
 			p := &state.Parser{}
-			p.SetVars(memoTestVars(n))
+			p.SetVars(statetest.MemoVars(n))
 			d := p.EnvDepth()
 			first := p.Env
 			last := n - 1
@@ -203,9 +204,9 @@ func TestBindingRestoresReferenceValues(t *testing.T) {
 				values []any
 			}
 			p := &state.Parser{}
-			p.SetVars(memoTestVars(n))
+			p.SetVars(statetest.MemoVars(n))
 			d := p.EnvDepth()
-			values := memoTestVars(n)
+			values := statetest.MemoVars(n)
 			saved := []snapshot{{p.Env, slices.Clone(values)}}
 			verify := func(e *state.Env, want []any) {
 				t.Helper()
@@ -250,7 +251,7 @@ func TestBindingBranchesFromOneSnapshot(t *testing.T) {
 	t.Parallel()
 	for _, n := range variableCounts {
 		p := &state.Parser{}
-		p.SetVars(memoTestVars(n))
+		p.SetVars(statetest.MemoVars(n))
 		d := p.EnvDepth()
 		saved := p.Env
 		p.Bind(0, "a")
@@ -267,11 +268,3 @@ func TestBindingBranchesFromOneSnapshot(t *testing.T) {
 	}
 }
 
-// memoTestVars returns n variable values: slot i holds i.
-func memoTestVars(n int) []any {
-	vals := make([]any, n)
-	for i := range vals {
-		vals[i] = i
-	}
-	return vals
-}

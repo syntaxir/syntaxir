@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
-	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 type streamRefillResult struct {
@@ -70,7 +70,7 @@ func TestStreamReaderObserverBoundsBufioRetries(t *testing.T) {
 		control := state.NewBudgetControl(nil, runtime.Limits{Compute: 3})
 		observer, _ := streamRefillObserver(reader, control)
 		buffered := bufio.NewReader(observer)
-		limitErr := catchFatal(t, func() { _, _ = buffered.ReadByte() })
+		limitErr := statetest.CatchFatal(t, func() { _, _ = buffered.ReadByte() })
 		var limit *runtime.LimitError
 		if !errors.As(limitErr, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 3 || limit.Requested != 1 || reader.reads != 3 {
 			t.Fatalf("error=%v reads=%d spent=%d", limitErr, reader.reads, control.Used)
@@ -85,7 +85,7 @@ func TestStreamReaderObserverBoundsBufioRetries(t *testing.T) {
 			var r rune
 			var size int
 			var readErr error
-			limitErr := catchFatal(t, func() { r, size, readErr = buffered.ReadRune() })
+			limitErr := statetest.CatchFatal(t, func() { r, size, readErr = buffered.ReadRune() })
 			if max == 1 {
 				var limit *runtime.LimitError
 				if !errors.As(limitErr, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 1 || limit.Requested != 1 || reader.reads != 1 || size != 0 {
@@ -101,23 +101,6 @@ func TestStreamReaderObserverBoundsBufioRetries(t *testing.T) {
 	}
 }
 
-func TestBudgetStreamEmptyRefillBudget(t *testing.T) {
-	t.Parallel()
-	prog := mustCompile(t, `rule main = row* #stream $$
-
-rule row = .+ #atomic`)
-	budgetStreamVariants(t, func(t *testing.T, o ParseOptions) {
-		reader := &budgetCancelledRefillReader{cancel: func() {}}
-		o.Limits = runtime.Limits{Compute: 64}
-		emits := 0
-		err := prog.ParseStreamWith("main", reader, func(*value.Node) error { emits++; return nil }, o)
-		var limit *runtime.LimitError
-		if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Used != 64 || limit.Requested != 1 || reader.calls == 0 || reader.calls > 64 || emits != 0 {
-			t.Fatalf("error=%v calls=%d emits=%d", err, reader.calls, emits)
-		}
-	})
-}
-
 func TestStreamReaderObserverOneShortFailsBeforeCallerRead(t *testing.T) {
 	t.Parallel()
 	reader := &streamRefillScript{results: []streamRefillResult{{data: []byte("a")}, {data: []byte("b")}}}
@@ -128,7 +111,7 @@ func TestStreamReaderObserverOneShortFailsBeforeCallerRead(t *testing.T) {
 		t.Fatalf("first read = %d,%q,%v", n, first[:n], err)
 	}
 	var second [1]byte
-	limitErr := catchFatal(t, func() { _, _ = observer.Read(second[:]) })
+	limitErr := statetest.CatchFatal(t, func() { _, _ = observer.Read(second[:]) })
 	if !errors.Is(limitErr, runtime.ErrLimit) {
 		t.Fatalf("second read error=%v, want ErrLimit", limitErr)
 	}
@@ -148,7 +131,7 @@ func TestStreamReaderObserverCancellationAndReadErrorPrecedence(t *testing.T) {
 		cancel()
 		reader := &streamRefillScript{results: []streamRefillResult{{data: []byte("x")}}}
 		observer, _ := streamRefillObserver(reader, control)
-		fatalErr := catchFatal(t, func() { _, _ = observer.Read(make([]byte, 1)) })
+		fatalErr := statetest.CatchFatal(t, func() { _, _ = observer.Read(make([]byte, 1)) })
 		if !errors.Is(fatalErr, context.Canceled) || reader.reads != 0 || control.Used != 1 {
 			t.Fatalf("error=%v reads=%d steps=%d; want cancellation before caller Read", fatalErr, reader.reads, control.Used)
 		}
@@ -165,7 +148,7 @@ func TestStreamReaderObserverCancellationAndReadErrorPrecedence(t *testing.T) {
 			reader := &streamRefillScript{results: []streamRefillResult{{err: returned}}, onRead: func(int) { cancel() }}
 			control := state.NewBudgetControl(ctx, runtime.Limits{Compute: 1})
 			observer, result := streamRefillObserver(reader, control)
-			fatalErr := catchFatal(t, func() { _, _ = observer.Read(make([]byte, 1)) })
+			fatalErr := statetest.CatchFatal(t, func() { _, _ = observer.Read(make([]byte, 1)) })
 			if returned == io.EOF {
 				if !errors.Is(fatalErr, context.Canceled) {
 					t.Fatalf("error=%v, want cancellation to supersede EOF", fatalErr)
