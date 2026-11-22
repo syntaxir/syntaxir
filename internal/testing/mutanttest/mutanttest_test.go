@@ -156,19 +156,121 @@ func TestSkipUnlessChanged(t *testing.T) {
 // runnerPackages are the package patterns whose tests run the mutants that use Pipeline.
 var runnerPackages = []string{"./internal/backend/...", "./pkg/runtime/libgo/...", "./pkg/sample", "./internal/runtime/engine/...", "./internal/testing/examinedref"}
 
-// testImports returns the import paths of the packages that the tests of the packages pkgs depend on, from the
-// module root. A pattern that matches no package is an error that names it: a runner list that names a moved or
-// deleted package must not leave the check with nothing to check.
-func testImports(pkgs ...string) ([]string, error) {
-	cmd := exec.Command("go", append([]string{"list", "-deps", "-test", "-f", "{{.ImportPath}}"}, pkgs...)...)
+// runnerTagSets are the build tag sets under which testImports lists the runners' dependencies. A file
+// whose build constraint names a tag of the module (sxir_*) takes part in some sets and not in others,
+// and the mutant runners live mostly in the long tier, so the listing is the union over sets that
+// between them build every such file: the default (files under !sxir_long, !sxir_feature_witness and
+// !sxir_budget_controls_reference), the long tier with the charge log and the feature witness, and the
+// long tier with the budget-control reference. TestRunnerTagSetsBuildEveryFile checks that they do.
+var runnerTagSets = [][]string{
+	nil,
+	{"sxir_long", "sxir_charge_log", "sxir_feature_witness"},
+	{"sxir_long", "sxir_budget_controls_reference"},
+}
+
+// goList runs go list with the build tags tags and the arguments args, from the module root. A pattern that
+// matches no package is an error that names it.
+func goList(tags []string, args ...string) (string, error) {
+	cmd := exec.Command("go", append([]string{"list", "-tags", strings.Join(tags, ",")}, args...)...)
 	cmd.Env = gitEnv()
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, fmt.Errorf("go list %s: %v: %s", strings.Join(pkgs, " "), err, strings.TrimSpace(stderr.String()))
+		return "", fmt.Errorf("go list -tags %q %s: %v: %s", strings.Join(tags, ","), strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}
-	return strings.Fields(string(out)), nil
+	return string(out), nil
+}
+
+// testImports returns the import paths of the packages that the tests of the packages pkgs depend on under
+// any of the tag sets sets, from the module root. A pattern that matches no package is an error that names
+// it: a runner list that names a moved or deleted package must not leave the check with nothing to check.
+func testImports(sets [][]string, pkgs ...string) ([]string, error) {
+	var all []string
+	for _, tags := range sets {
+		out, err := goList(tags, append([]string{"-deps", "-test", "-f", "{{.ImportPath}}"}, pkgs...)...)
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, strings.Split(strings.TrimSpace(out), "\n")...)
+	}
+	slices.Sort(all)
+	return slices.Compact(all), nil
+}
+
+// unbuiltTaggedFiles returns the Go files of the packages pkgs that none of the tag sets sets builds although
+// their build constraint names a tag of the module (sxir_*): files whose imports testImports cannot see. Files
+// left out for other reasons (//go:build ignore, another platform) are not its concern.
+func unbuiltTaggedFiles(sets [][]string, pkgs ...string) ([]string, error) {
+	const files = `{{$d := .Dir}}{{range .GoFiles}}+{{$d}}/{{.}}
+{{end}}{{range .CgoFiles}}+{{$d}}/{{.}}
+{{end}}{{range .TestGoFiles}}+{{$d}}/{{.}}
+{{end}}{{range .XTestGoFiles}}+{{$d}}/{{.}}
+{{end}}{{range .IgnoredGoFiles}}-{{$d}}/{{.}}
+{{end}}`
+	built, ignored := map[string]bool{}, map[string]bool{}
+	for _, tags := range sets {
+		out, err := goList(tags, append([]string{"-f", files}, pkgs...)...)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range strings.Fields(out) {
+			if f, ok := strings.CutPrefix(l, "+"); ok {
+				built[f] = true
+			} else {
+				ignored[strings.TrimPrefix(l, "-")] = true
+			}
+		}
+	}
+	var out []string
+	for f := range ignored {
+		if built[f] {
+			continue
+		}
+		src, err := os.ReadFile(f)
+		if err != nil {
+			return nil, err
+		}
+		for _, l := range strings.Split(string(src), "\n") {
+			if strings.HasPrefix(l, "package ") {
+				break
+			}
+			if strings.HasPrefix(l, "//go:build ") && strings.Contains(l, "sxir_") {
+				out = append(out, f)
+				break
+			}
+		}
+	}
+	slices.Sort(out)
+	return out, nil
+}
+
+// TestRunnerTagSetsBuildEveryFile checks that the tag sets of testImports build every file of the mutant
+// runners that a tag of the module selects, so that no import of such a file escapes
+// TestPipelineCoversImports. Its negative control is that the default build alone leaves the long tier out:
+// the check sees build tags, and the listing with runnerTagSets is what includes those files.
+func TestRunnerTagSetsBuildEveryFile(t *testing.T) {
+	t.Chdir("../../..")
+	missed, err := unbuiltTaggedFiles(runnerTagSets, runnerPackages...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range missed {
+		t.Errorf("%s: no tag set of runnerTagSets builds it, so its imports are not checked", f)
+	}
+	missed, err = unbuiltTaggedFiles([][]string{nil}, runnerPackages...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	long := 0
+	for _, f := range missed {
+		if strings.HasSuffix(f, "_long_test.go") {
+			long++
+		}
+	}
+	if long == 0 {
+		t.Errorf("the default build leaves no long-tier test file out (%d files): the check does not see build tags", len(missed))
+	}
 }
 
 // TestPipelineCoversImports checks that every module package that the tests of the packages whose mutants use
@@ -176,7 +278,7 @@ func testImports(pkgs ...string) ([]string, error) {
 // rather than skips, when the packages cannot be listed.
 func TestPipelineCoversImports(t *testing.T) {
 	t.Chdir("../../..")
-	imports, err := testImports(runnerPackages...)
+	imports, err := testImports(runnerTagSets, runnerPackages...)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -203,7 +305,7 @@ func TestPipelineCoversImports(t *testing.T) {
 func TestPipelineImportsNameMissingPackages(t *testing.T) {
 	t.Chdir("../../..")
 	const missing = "./no/such/runner"
-	_, err := testImports(append(slices.Clone(runnerPackages), missing)...)
+	_, err := testImports(runnerTagSets, append(slices.Clone(runnerPackages), missing)...)
 	if err == nil || !strings.Contains(err.Error(), "no/such/runner") {
 		t.Fatalf("listing with %s: error %v, want one that names it", missing, err)
 	}
