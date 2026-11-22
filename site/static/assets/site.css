@@ -52,11 +52,12 @@
   --tok-punct: light-dark(#4a536e, #a1aac7);
   --tok-attr: light-dark(#a35d00, #e8b45c);
 
-  /* Typography: Space Grotesk for display text, Plus Jakarta Sans for body text (Noto Sans JP for
-     Japanese), JetBrains Mono for code only. The files are self-hosted (assets/fonts/fonts.css). */
-  --font-display: "Space Grotesk", "Plus Jakarta Sans", "Noto Sans JP", system-ui, sans-serif;
-  --font-body: "Plus Jakarta Sans", "Noto Sans JP", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, "Noto Sans JP", monospace;
+  /* Typography: Space Grotesk for display text, Plus Jakarta Sans for body text, JetBrains Mono for
+     code only. The files are self-hosted (assets/fonts/fonts.css). Characters outside their ranges,
+     such as the Japanese in a few code examples, come from the system's fonts. */
+  --font-display: "Space Grotesk", "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius: 6px;
   --topbar-h: 64px;

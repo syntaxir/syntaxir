@@ -315,8 +315,8 @@ decoding excludes compression/encoding, browser DOM, worker and WebAssembly cost
   changes, copy the new files again; never edit them. `apple-touch-icon.png` (180 px, with a margin for the rounded
   corners) draws the full four-row mark in its dark-scheme colors on `#0a0a0a`; it is rendered with `rsvg-convert` and
   ImageMagick `magick`, so render it again when the mark changes.
-- **Fonts.** The pages use Space Grotesk for headings, Plus Jakarta Sans for text, Noto Sans JP for Japanese and
-  JetBrains Mono for code, all under the SIL Open Font License. The site serves them itself from
+- **Fonts.** The pages use Space Grotesk for headings, Plus Jakarta Sans for text and JetBrains Mono
+  for code, all under the SIL Open Font License. The site serves them itself from
   `site/static/assets/fonts/`, with each family's licence next to its files; `hack/site-fonts.sh` downloads them
   from Google Fonts and writes `fonts.css`, which loads them. Each file covers a Unicode range, and a browser
   downloads a file only when a page uses a character in it.

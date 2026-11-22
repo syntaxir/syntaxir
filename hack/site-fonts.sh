@@ -7,7 +7,8 @@
 # The site serves its fonts itself, so that pages load nothing from elsewhere (the Content-Security-Policy
 # in site/static/_headers allows fonts from the site only). The fonts are variable WOFF2 files from
 # Google Fonts, split by Unicode range as Google Fonts splits them: a browser downloads a file only when a
-# page uses a character in its range, so the Japanese files cost nothing on a page without Japanese text.
+# page uses a character in its range. Characters outside every range (such as the Japanese in a few code
+# examples) come from the system's fonts.
 # Every family is licensed under the SIL Open Font License 1.1, whose text is stored next to its files.
 #
 # Run it from the repository root to update the fonts, and commit the result. It replaces the directory.
@@ -25,7 +26,6 @@ families=(
 	"Space Grotesk|space-grotesk|wght@300..700|latin latin-ext|spacegrotesk"
 	"Plus Jakarta Sans|plus-jakarta-sans|ital,wght@0,200..800;1,200..800|latin latin-ext|plusjakartasans"
 	"JetBrains Mono|jetbrains-mono|wght@100..800|latin latin-ext greek|jetbrainsmono"
-	"Noto Sans JP|noto-sans-jp|wght@100..900||notosansjp"
 )
 
 tmp=$(mktemp -d)
@@ -45,7 +45,7 @@ for entry in "${families[@]}"; do
 	curl -fsS -A "$ua" -o "$tmp/$dir.css" "https://fonts.googleapis.com/css2?family=${family// /+}:$axes&display=swap" ||
 		{ echo "site-fonts: cannot download the stylesheet of $family" >&2; exit 1; }
 	# One line per @font-face: subset, style, weight, URL, unicode-range. A subset is named by the comment
-	# before its rule ("/* latin */"); rules without one (the Japanese slices) are numbered in order.
+	# before its rule ("/* latin */"); rules without one are numbered in order.
 	awk '
 		/^\/\* / { subset = $2 }
 		/^@font-face/ { if (!named) subset = n + 0; n++; named = 0 }
