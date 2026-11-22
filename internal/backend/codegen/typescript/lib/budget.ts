@@ -71,7 +71,7 @@ export class BudgetControl {
     this.signal = o.signal;
     this.budget = o.budget;
     this.memory = o.memory;
-    this.profile = o.profiles.length === 0 ? null : o.profiles[0];
+    this.profile = o.profiles[0] ?? null;
   }
 
   release(): void { this.signal = null; }
