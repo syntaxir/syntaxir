@@ -54,6 +54,21 @@ const (
 	// budgetEntry is the units that no position carries: the entry call and the final syntax
 	// error (record 076, events).
 	budgetEntry = 2
+	// budgetRecoverError is the units of one recovery: the syntax error that it builds (record
+	// 076, events), and the error as one of the P errors that Lemma 14 charges once more when a
+	// take lists the entries that follow it. The skip expression is a part of the recovery, evaluated
+	// at most once in its evaluation (the condition on #recover of the specification), so its own
+	// events count with those of the body.
+	budgetRecoverError = 2
+	// budgetRecoverList is the units that a call adds in a grammar with a recovery: the call may
+	// record one list of recovered errors that it reuses, and Lemma 14 charges each recorded list
+	// once (the A of P + A + S).
+	budgetRecoverList = 1
+	// budgetRecoverTake is the units that an evaluation of a body adds in a grammar with a
+	// recovery for the take at the store that ends it, a memo entry, a growth result or an
+	// attempt of an Operators Rule (the S of P + A + S in Lemma 14). A line of an Operators Rule
+	// stores at each of its attempts, so it counts as one more.
+	budgetRecoverTake = 1
 )
 
 // deriveBudget returns the bound of the grammar from the start rule, or nil when it is not
@@ -126,12 +141,13 @@ func (k *classifier) deriveBudget(c *Complexity) *Budget {
 		evals[name] = v
 		return v
 	}
+	recovers := k.hasRecover()
 	var total uint64
 	for _, r := range k.rules {
 		if !k.reach[r.Name] {
 			continue
 		}
-		total = add(total, mul(evalsOf(r.Name, map[string]bool{}), k.bodyEvents(r)))
+		total = add(total, mul(evalsOf(r.Name, map[string]bool{}), k.bodyEvents(r, recovers)))
 	}
 	if over {
 		return nil
@@ -143,13 +159,31 @@ func (k *classifier) deriveBudget(c *Complexity) *Budget {
 	return &Budget{PerUnit: per, Fixed: add(per, budgetEntry), Combinations: max(c.Combinations, 1)}
 }
 
+// hasRecover reports whether a rule that the start rule reaches holds a #recover. Only then can
+// a parse record errors, so only then do the takes of recovered errors (Lemma 14) add units.
+func (k *classifier) hasRecover() bool {
+	found := false
+	for _, r := range k.rules {
+		if k.reach[r.Name] {
+			core.Walk(r.Body, func(n core.Node) {
+				if _, ok := n.(*core.Recover); ok {
+					found = true
+				}
+			})
+		}
+	}
+	return found
+}
+
 // bodyEvents returns the events of one evaluation of the body of r at one position, as the
 // units of record 076 count them: a call and the key of a call that the memo answers, the
 // advance of a terminal, a syntax error that a terminal or a recovery can build, and a value
-// that a capture, a predicate or an action builds. The events inside a repetition happen once
-// for each iteration, and the iterations cover each position budgetCover times (Lemma 4), so
-// they count budgetCover times, once more for each enclosing repetition.
-func (k *classifier) bodyEvents(r *core.Rule) uint64 {
+// that a capture, a predicate or an action builds. With recovers, the entries of recovered errors
+// that the calls and the stores take count too (budgetRecoverList, budgetRecoverTake). The events
+// inside a repetition happen once for each iteration, and the iterations cover each position
+// budgetCover times (Lemma 4), so they count budgetCover times, once more for each enclosing
+// repetition.
+func (k *classifier) bodyEvents(r *core.Rule, recovers bool) uint64 {
 	var total uint64
 	sat := func(a, b uint64) uint64 {
 		if a > math.MaxUint64-b {
@@ -166,7 +200,16 @@ func (k *classifier) bodyEvents(r *core.Rule) uint64 {
 			if k.memo[name] {
 				units += uint64(len(k.vars[name]))
 			}
+			if recovers {
+				units += budgetRecoverList
+			}
 			return units
+		case *core.Recover:
+			return budgetRecoverError
+		case *core.OperatorsRule:
+			if recovers {
+				return budgetRecoverTake * uint64(len(x.Lines()))
+			}
 		case *core.Lit:
 			return uint64(len(x.Text)) + 1
 		case *core.ClassNode, *core.Any:
@@ -188,6 +231,9 @@ func (k *classifier) bodyEvents(r *core.Rule) uint64 {
 	})
 	if k.ruleAction(r.Name) != nil {
 		total = sat(total, 1)
+	}
+	if recovers {
+		total = sat(total, budgetRecoverTake)
 	}
 	return total
 }

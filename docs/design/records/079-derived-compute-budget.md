@@ -67,7 +67,10 @@ and the final syntax error of a failed parse (the first and the eighth rows of t
 | A call of a rule | 1, and 1 more for each variable of the callee's memo key if the callee is memoized |
 | A literal | its length in bytes, and 1 for the syntax error that a failed match can build |
 | A character, a class or `.` | 4, and 1 for the error |
-| A recovery, a capture, a predicate, an inline action | 1 |
+| A capture, a predicate, an inline action | 1 |
+| A recovery | 2: the syntax error that it builds, and the same error as one of the `P` errors that Lemma 14 charges once more at a take. Its skip expression is part of the body and counts as any other part |
+| In a grammar with a recovery: a call | 1 more, for the list of recovered errors that the call may record when it reuses a result (the `A` of Lemma 14) |
+| In a grammar with a recovery: the body of a rule | 1 more for the take at the store that ends its evaluation, and for an Operators Rule 1 more for each line (the `S` of Lemma 14) |
 | The action of the rule | 1 |
 | Inside a repetition | the events of its body count once more, for the iterations cover each position twice, and once more for each repetition that encloses it |
 
@@ -90,6 +93,7 @@ Every constant comes from a lemma of [the proof](../../../spec/proofs/linear-cos
 | The memo key | 1 per variable, a constant for a grammar with no string variable | Lemma 2 and record 076 |
 | A value that an action builds | at most linear in the spans of the captures it reads, counted 1 per node | Lemma 6 |
 | The width of a class | 4 | the UTF-8 encoding |
+| Units of the recovered errors | at most `P + A + S`: the errors built, the lists recorded and the takes | Lemma 14 |
 
 The derivation applies to the class Linear only, where there is no string variable and `L = 0` in the theorem. A count
 that passes what a counter holds makes the bound absent, not wrong.
@@ -120,14 +124,19 @@ The measured soundness of the bound (below) stays as a test after the switch.
 - The bound is at least the measured units of the Linear grammars of the logical-unit corpus on generated Go, in the
   units of record 076 (the benchmark package's soundness test): valid, truncated and damaged inputs, at several sizes, in both
   position units, for `Parse` and `ParseValue`. XML (unknown), chain (polynomial) and keyed (linear-env) have no budget.
-  The test logs the largest ratio of measured units to the bound:
+  The test logs the largest ratio of measured units to the bound. The recover grammar has no logical-unit build yet
+  (generated Go does not count logical units for a recovery), so it is measured in the units of the generated code's
+  own charges, which are at least the events; the bound that holds for them holds for the events:
 
   | Grammar | Bound | Inputs | Largest measured / bound |
   | --- | --- | --- | --- |
   | JSON | `634 * n + 636` | 68 | 0.019 |
   | policy | `54 * n + 56` | 5 | 0.055 |
+  | recover | `120 * n + 122` | 53 | 0.794 |
 
-  The bound is 18 to 53 times the largest count. A bound with half the constants still holds on this corpus, so the
+  Without the recovery terms the recover grammar's bound is `92 * n + 94`, and 3 of its inputs exceed it (largest
+  ratio 1.037). The bound is 18 to 53 times the largest count on JSON and policy, and 1.3 times on the recover grammar
+  in the proxy units. A bound with half the constants still holds on this corpus, so the
   mutant divides them by 64 and must be exceeded by some parse of each grammar; this also fails a derivation that grows
   looser than that.
 - The proof's confirmation of each constant is the gate of the default.

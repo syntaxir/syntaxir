@@ -22,6 +22,14 @@ func TestBudgetDerivation(t *testing.T) {
 		// repetition's body included: 2 + 2 + 2 + 2 + 2.
 		{"nested repetitions", "@start\nrule main = (\"a\" \"b\"*)* $$\n", 20},
 		// Two captures, two literals and the action: 1 + 2 + 1 + 2 + 1, evaluated twice.
+		// "a" and ";" count 2 each, the recovery 2 (the error built, and the error charged again at a
+		// take, Lemma 14), its skip a class under a repetition (4 + 1, twice) and ";" (2), and the
+		// take at the store that ends the evaluation 1: 2 + 2 + 2 + 10 + 2 + 1, evaluated twice.
+		{"recovery", "@start\nrule main = (\"a\" \";\") #recover(skip=[^;]* \";\") $$\n", 38},
+		// With a recovery, a call adds 1 for the list that it may record: main is 2 for the call and 1
+		// for the take, evaluated twice; a is "x" 2, the recovery 2, its skip 12 and the take 1,
+		// evaluated twice, as main evaluates it twice and calls it once (Lemma 10): 6 + 34.
+		{"recovery with a call", "@start\nrule main = a $$\nrule a = (\"x\" #recover(skip=[^;]* \";\"))\n", 40},
 		{"captures and action", "@start\nrule main = x:\"a\" y:\"b\" => x\n", 14},
 	} {
 		got := classifySource(t, c.src)

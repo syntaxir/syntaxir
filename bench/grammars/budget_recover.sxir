@@ -1,0 +1,13 @@
+// Recoveries under the derived compute budget (design record 079). Each line is an item and ";". A line
+// that does not match is skipped up to its ";" and recovered, which builds a syntax error and
+// records it as an entry of recovered errors that the stores of the memo take, and the memoized
+// rule item is called at the start of every line.
+
+package recover
+
+@start
+rule doc = line* $$
+rule line = (item ";") #recover(skip=[^;]* ";")
+rule item = word ("=" word)? ws
+rule word = [a-z]+
+rule ws = " "*

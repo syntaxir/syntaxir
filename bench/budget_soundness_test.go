@@ -3,10 +3,12 @@ package bench
 import (
 	"context"
 	"os"
+	"strings"
 	"testing"
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
+	grecover "syntaxir.dev/sxir/internal/bench/parsers/recoverplain"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/lint"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -45,7 +47,26 @@ func budgetCases() []budgetCase {
 		}
 		out = append(out, budgetCase{c.name, grammar, append(ladder, c.inputs...), c.logical})
 	}
-	return out
+	return append(out, recoverCase())
+}
+
+// recoverCase is the grammar with #recover. Generated Go does not count logical units for a
+// recovery yet (design record 076), so it counts the units of the generated code's own charges,
+// which charge at least one unit for each event of the record: the bound that holds for them holds
+// for the events. The inputs are lines that all recover, lines that recover after a long
+// prefix, a mix, valid lines, and damaged inputs, in a ladder of sizes.
+func recoverCase() budgetCase {
+	var in []string
+	for _, line := range []string{"ab=cd;", "1;", "a=;", "1234567;", "a;1;b=c;;", ";", "abcdefghijklmnop=", "a=b;c=d"} {
+		for _, n := range []int{1, 2, 16, 256, 4096, 65536 / len(line)} {
+			in = append(in, strings.Repeat(line, n))
+		}
+	}
+	in = append(in, "", ";;;", "é;", "a=é;\n;", strings.Repeat("é", 300)+";")
+	return budgetCase{"recover", "grammars/budget_recover.sxir", in, [2]unitsParse{
+		func(s string, o ...sxirruntime.ParseOption) error { _, err := grecover.Parse(s, o...); return err },
+		func(s string, o ...sxirruntime.ParseOption) error { _, err := grecover.ParseValue(s, o...); return err },
+	}}
 }
 
 func classifyFile(t *testing.T, path string) *lint.Classification {
@@ -139,6 +160,7 @@ func TestBudgetCorpusClasses(t *testing.T) {
 	}{
 		{"../testdata/grammars/json/json.sxir", lint.Linear},
 		{"grammars/logical_policy.sxir", lint.Linear},
+		{"grammars/budget_recover.sxir", lint.Linear},
 		{"grammars/logical_keyed.sxir", lint.LinearEnv},
 		{"grammars/logical_chain.sxir", lint.Polynomial},
 	} {
