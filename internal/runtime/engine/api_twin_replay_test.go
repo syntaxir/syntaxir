@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -70,7 +70,7 @@ func TestBodyEvaluationsReplay(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}

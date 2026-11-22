@@ -3,6 +3,8 @@ package compile
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 // The declared node[T] and tuple types of fields and rules are checked when the grammar is
@@ -19,7 +21,7 @@ func TestNodeTypesCheckedAtCompileTime(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.static) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.static) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.static)
 		}
 	}

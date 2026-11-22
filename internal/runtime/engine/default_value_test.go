@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -13,7 +13,7 @@ import (
 // compileDefault compiles src with default values and source information.
 func compileDefault(t *testing.T, src string) *Program {
 	t.Helper()
-	return mustCompile(t, src, compile.Options{DefaultValue: true})
+	return mustCompile(t, src, checkpkg.Options{DefaultValue: true})
 }
 
 // checkDefaultValue checks that src compiled with default values gives the same results on every
@@ -66,12 +66,12 @@ func TestDefaultValueSkipsTypeErrors(t *testing.T) {
 		"type T = { A string }",
 		"rule main T = x:\"x\" => T{A: 1, Zzz: $x}",
 	)
-	if _, err := Compile(mustParse(src), compile.Options{}); err == nil {
+	if _, err := Compile(mustParse(src), checkpkg.Options{}); err == nil {
 		t.Fatal("the grammar compiles without default values; the test needs a type error")
 	}
 	checkDefaultValue(t, src, "rule main = x:\"x\"", "x", "y")
 	// Errors in expressions are still reported.
-	if _, err := Compile(mustParse("rule main = missing => 1"), compile.Options{DefaultValue: true}); err == nil {
+	if _, err := Compile(mustParse("rule main = missing => 1"), checkpkg.Options{DefaultValue: true}); err == nil {
 		t.Error("an undefined rule compiled with default values")
 	}
 }
@@ -163,7 +163,7 @@ func TestDefaultValueCompiledRoundTrip(t *testing.T) {
 		"type T = { A string }",
 		"rule main T = x:\"x\" => T{A: 1}",
 	)
-	prog, err := Compile(mustParse(src), compile.Options{DefaultValue: true})
+	prog, err := Compile(mustParse(src), checkpkg.Options{DefaultValue: true})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
@@ -47,7 +48,7 @@ var _ state.Source = (*Source)(nil)
 
 // Compile compiles the grammar and checks its declarations of linear cost; control, if not nil,
 // polls the compilation and may cancel it with a cancel.Cancellation panic.
-func Compile(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*Source, error) {
+func Compile(g *ast.Grammar, opts check.Options, control *cancel.Control) (*Source, error) {
 	s, err := Check(g, opts, nil, control)
 	if err != nil {
 		return nil, err
@@ -61,7 +62,7 @@ func Compile(g *ast.Grammar, opts compile.Options, control *cancel.Control) (*So
 // Check compiles the grammar to a checked program without checking its declarations of linear
 // cost. If flags is not nil, it skips the static analysis of the rules and uses flags instead. The
 // errors name the rules as written, not the hidden rules that inline actions are lowered to.
-func Check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags, control *cancel.Control) (*Source, error) {
+func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, control *cancel.Control) (*Source, error) {
 	names := desugar.InlineNames{}
 	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
 	if err != nil {
@@ -166,18 +167,18 @@ func (s *Source) Family(core any, f state.Family, plainDispatch bool) ([]*state.
 // Recognizer compiles the grammar again as a program that builds no tree, with the rule flags of
 // this one.
 func (s *Source) Recognizer() (state.Source, error) {
-	return s.again(func(o *compile.Options) { o.Recognition = compile.Recognize }, s.prog.Flags())
+	return s.again(func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
 }
 
 // Insertion compiles the grammar again with the rule flags of missing-token insertion.
 func (s *Source) Insertion() (state.Source, error) {
-	return s.again(func(*compile.Options) {}, s.prog.InsertionFlags)
+	return s.again(func(*check.Options) {}, s.prog.InsertionFlags)
 }
 
 // again compiles the grammar again with the rule flags and the options the program was compiled
 // with, changed by derive for what the build is for. This is the one place that makes them, so no
 // option is dropped from a program built again (TestLazyProgramsCarryEveryOption).
-func (s *Source) again(derive func(*compile.Options), flags []compile.RuleFlags) (state.Source, error) {
+func (s *Source) again(derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
 	return Check(s.Grammar(), o, flags, nil)

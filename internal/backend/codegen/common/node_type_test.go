@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -35,7 +35,7 @@ rule m M = "m"`, map[string]string{
 		}},
 	} {
 		for _, sourceInfo := range []bool{false, true} {
-			prog := compileBare(t, tc.src, compile.Options{SourceInfo: sourceInfo})
+			prog := compileBare(t, tc.src, check.Options{SourceInfo: sourceInfo})
 			for input, want := range tc.inputs {
 				// With source information the error names the grammar position of the cast.
 				suffix := ""

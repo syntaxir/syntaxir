@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -359,7 +359,7 @@ func flowSeeds(t testing.TB, srcs []string) [][]byte {
 func FuzzLoadProgram(f *testing.F) {
 	for _, src := range []string{codegentest.Arith, codegentest.AST, codegentest.IncrementalGrammar, codegentest.Records} {
 		g := mustParse(src)
-		prog, err := Compile(g, compile.Options{})
+		prog, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			f.Fatal(err)
 		}
@@ -388,12 +388,12 @@ func BenchmarkLoad(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, _ := Compile(mustParse(string(src)), compile.Options{})
+	prog, _ := Compile(mustParse(string(src)), checkpkg.Options{})
 	data, _ := prog.MarshalBinary("main")
 	b.Run("source", func(b *testing.B) {
 		for b.Loop() {
 			g, _ := parseTest(string(src))
-			Compile(g, compile.Options{})
+			Compile(g, checkpkg.Options{})
 		}
 	})
 	b.Run("compiled", func(b *testing.B) {

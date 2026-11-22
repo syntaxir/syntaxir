@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -25,7 +25,7 @@ func BenchmarkBytecodeLowering(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			p := compiletest.Program(b, string(source), compile.Options{})
+			p := compiletest.Program(b, string(source), check.Options{})
 			m, err := elaborate.CoreControlled(p, nil)
 			if err != nil {
 				b.Fatal(err)

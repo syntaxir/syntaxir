@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -35,7 +35,7 @@ func BenchmarkStreamStorageRetainedHeap(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		prog, err := Compile(g, compile.Options{})
+		prog, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -85,7 +85,7 @@ func BenchmarkStreamRetentionWorkload(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func BenchmarkStreamPrefixSize(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

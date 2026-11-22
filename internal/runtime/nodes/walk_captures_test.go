@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -19,7 +19,7 @@ func TestWalkHiddenCaptures(t *testing.T) {
 rule x = #operators {
     operand "x"
     level { prefix "-" }
-}`, compile.Options{})
+}`, check.Options{})
 	n, err := prog.Parse("main", strings.Repeat("-", 40)+"x")
 	if err != nil {
 		t.Fatal(err)
@@ -48,7 +48,7 @@ func TestWalkElementCaptures(t *testing.T) {
 rule x = #operators {
     operand "x"
     level { prefix "-" }
-}`, compile.Options{SourceInfo: true})
+}`, check.Options{SourceInfo: true})
 	n, err := prog.Parse("main", strings.Repeat("-", 40)+"x")
 	if err != nil {
 		t.Fatal(err)
@@ -68,7 +68,7 @@ rule x = #operators {
 	}
 
 	prog = enginetest.CompileBare(t, `rule main = &s:word w:word "!"
-rule word = [a-z]+`, compile.Options{SourceInfo: true})
+rule word = [a-z]+`, check.Options{SourceInfo: true})
 	n, err = prog.Parse("main", "ab!")
 	if err != nil {
 		t.Fatal(err)

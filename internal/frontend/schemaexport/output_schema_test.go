@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -27,7 +28,7 @@ rule unused = "z"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := entry.Compile(g, compile.Options{})
+	p, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +132,7 @@ rule main = (-"a")*`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := entry.Compile(g, compile.Options{})
+	p, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -159,7 +160,7 @@ rule main = (-"a")*`)
 // single capture with the paths of all of them, which keeps the schema valid.
 func TestOutputSchemaMergesRepeatedCaptures(t *testing.T) {
 	t.Parallel()
-	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" b:\"y\" a:\"z\"\n", compile.Options{DefaultValue: true})
+	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" b:\"y\" a:\"z\"\n", check.Options{DefaultValue: true})
 	s, err := enginetest.OutputSchema(p, "main", false)
 	if err != nil {
 		t.Fatal(err)
@@ -185,7 +186,7 @@ func TestOutputSchemaMergesRepeatedCaptures(t *testing.T) {
 // and it is the same whatever the order of the places.
 func TestOutputSchemaRepeatedCaptureJoin(t *testing.T) {
 	t.Parallel()
-	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" a:[0-9]+ a:\"q\" a:[0-9]+\n", compile.Options{DefaultValue: true})
+	p := enginetest.CompileBare(t, "@start\nrule main = a:\"x\" a:[0-9]+ a:\"q\" a:[0-9]+\n", check.Options{DefaultValue: true})
 	s, err := enginetest.OutputSchema(p, "main", false)
 	if err != nil {
 		t.Fatal(err)
@@ -217,7 +218,7 @@ func TestOutputSchemaLookaheadCapture(t *testing.T) {
 		{"differing shapes", "@start\nrule main = &a:[0-9]+ b:\"y\" a:\"z\"\n", true, true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := enginetest.CompileBare(t, tc.src, compile.Options{DefaultValue: true})
+			p := enginetest.CompileBare(t, tc.src, check.Options{DefaultValue: true})
 			s, err := enginetest.OutputSchema(p, "main", false)
 			if err != nil {
 				t.Fatal(err)

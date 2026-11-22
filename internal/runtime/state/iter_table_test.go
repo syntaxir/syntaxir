@@ -3,7 +3,7 @@ package state
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -16,7 +16,7 @@ import (
 // cannot show a primitive that passes the box.
 func TestEngineValueItemAtOpensBoxes(t *testing.T) {
 	prog := &SharedProgram{}
-	InitSharedProgram(prog, compiletest.Program(t, "@start\nrule main = \"a\"\n", compile.Options{}).Runtime())
+	InitSharedProgram(prog, compiletest.Program(t, "@start\nrule main = \"a\"\n", check.Options{}).Runtime())
 	p := &Parser{Prog: prog, Input: NewInput(conform.BuiltinInput, input.Bytes)}
 	c := &EvalCtx{P: p}
 	one, _ := element(c, "list", 1)

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -65,7 +65,7 @@ func TestPredicateBlocksSourceAndSavedGrammar(t *testing.T) {
 		t.Fatalf("formatter round trip: %v", err)
 	}
 	for _, original := range []*ast.Grammar{g, jsonActionBlockGrammar(t, g), formattedGrammar} {
-		program, err := Compile(original, compile.Options{})
+		program, err := Compile(original, checkpkg.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -18,7 +19,7 @@ import (
 )
 
 // Options configures compilation.
-type Options = compile.Options
+type Options = check.Options
 
 // A checked source exports the output schemas of the parsers of its programs.
 var _ engine.SchemaSource = (*checked.Source)(nil)

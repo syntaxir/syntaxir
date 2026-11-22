@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -42,7 +42,7 @@ func compiledRecognitionBenchmarkGrammar(b *testing.B, ruleCount int) (*ast.Gram
 	if err != nil {
 		b.Fatalf("parse benchmark grammar: %v", err)
 	}
-	p, err := Compile(g, compile.Options{})
+	p, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatalf("compile benchmark grammar: %v", err)
 	}
@@ -72,7 +72,7 @@ func BenchmarkCompiledRecognitionSerialization(b *testing.B) {
 				b.Run("CompileAndFirstSave/"+mode.String(), func(b *testing.B) {
 					b.ReportAllocs()
 					for b.Loop() {
-						fresh, err := Compile(g, compile.Options{})
+						fresh, err := Compile(g, checkpkg.Options{})
 						if err != nil {
 							b.Fatal(err)
 						}
@@ -102,7 +102,7 @@ func BenchmarkCompiledRecognitionASTBearing(b *testing.B) {
 			g, source := compiledRecognitionBenchmarkGrammar(b, ruleCount)
 			// Use a separately compiled Program so that preparing the cached save
 			// cannot affect the first-save measurement.
-			saved, err := Compile(g, compile.Options{})
+			saved, err := Compile(g, checkpkg.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}
@@ -138,7 +138,7 @@ func BenchmarkCompiledRecognitionASTBearing(b *testing.B) {
 			b.Run("CompileAndFirstSave", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					fresh, err := Compile(g, compile.Options{})
+					fresh, err := Compile(g, checkpkg.Options{})
 					if err != nil {
 						b.Fatal(err)
 					}

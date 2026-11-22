@@ -9,7 +9,7 @@ func (prog *Program) CheckStart(name string) error {
 }
 
 // StartRule returns the start rule name selects.
-func (prog *Program) StartRule(name string) (*Rule, error) {
+func (prog *Program) StartRule(name string) (*check.Rule, error) {
 	if err := prog.CheckStart(name); err != nil {
 		return nil, err
 	}

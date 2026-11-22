@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -116,7 +116,7 @@ process.stdout.write(JSON.stringify(out));
 	if err := json.Unmarshal(out, &got); err != nil {
 		t.Fatalf("decode Node results: %v\n%s", err, out)
 	}
-	prog, err := entry.Compile(g, compile.Options{})
+	prog, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

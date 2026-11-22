@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -28,7 +28,7 @@ func BenchmarkStreamFrameScratch(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		prog, err := Compile(g, compile.Options{})
+		prog, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}

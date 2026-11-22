@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
@@ -13,7 +13,7 @@ import (
 // first call of Module, and that BuiltModule observes it without building it.
 func TestModuleBuiltOncePerSource(t *testing.T) {
 	t.Parallel()
-	s := Of(compiletest.Program(t, `rule main = "a"`, compile.Options{}))
+	s := Of(compiletest.Program(t, `rule main = "a"`, check.Options{}))
 	if m := s.BuiltModule(); m != nil {
 		t.Fatalf("BuiltModule() = %p before Module, want nil", m)
 	}
@@ -35,7 +35,7 @@ func TestModuleBuiltOncePerSource(t *testing.T) {
 // the compilation fail.
 func TestModuleErrorSharedByPrograms(t *testing.T) {
 	t.Parallel()
-	s := Of(compiletest.Program(t, `rule main = "a"`, compile.Options{}))
+	s := Of(compiletest.Program(t, `rule main = "a"`, check.Options{}))
 	want := errors.New("internal error: injected")
 	s.moduleOnce.Do(func() { s.moduleErr = want })
 	for name, p := range map[string]*engine.Program{"first": engine.New(s), "sharing": engine.New(s)} {

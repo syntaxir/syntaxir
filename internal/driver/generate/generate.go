@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -40,7 +41,7 @@ var compileForGenerator = checked.GeneratorCompiler(checkForGenerator)
 // checkForGenerator checks g to its static program, which is all a generator reads, and checks
 // the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
 // backend of the engine is built.
-func checkForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, func() (*compile.Program, error), error) {
+func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*compile.Program, func() (*compile.Program, error), error) {
 	prog, err := check(g, opts, nil)
 	if err != nil {
 		return nil, nil, err
@@ -51,7 +52,7 @@ func checkForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, 
 			source = prog.Source
 		}
 		o := prog.Opts
-		o.Recognition = compile.Recognize
+		o.Recognition = checkpkg.Recognize
 		return check(source, o, prog.Flags())
 	}
 	return prog, recognizer, nil
@@ -59,7 +60,7 @@ func checkForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, 
 
 // check checks g with opts and, if not nil, the rule flags flags, naming the hidden rules of
 // inline actions in errors as written.
-func check(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags) (*compile.Program, error) {
+func check(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*compile.Program, error) {
 	names := desugar.InlineNames{}
 	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, nil)
 	if err != nil {

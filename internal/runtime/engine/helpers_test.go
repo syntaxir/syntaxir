@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -31,9 +31,9 @@ func parseTest(src string) (*ast.Grammar, error) {
 
 // mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
-func mustCompile(t testing.TB, src string, opts ...compile.Options) *Program {
+func mustCompile(t testing.TB, src string, opts ...checkpkg.Options) *Program {
 	t.Helper()
-	var o compile.Options
+	var o checkpkg.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -43,13 +43,13 @@ func mustCompile(t testing.TB, src string, opts ...compile.Options) *Program {
 
 // compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
-func compileBare(t testing.TB, src string, opts ...compile.Options) *Program {
+func compileBare(t testing.TB, src string, opts ...checkpkg.Options) *Program {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	var o compile.Options
+	var o checkpkg.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -67,7 +67,7 @@ func compileError(t *testing.T, src string) string {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	_, err = Compile(g, compile.Options{})
+	_, err = Compile(g, checkpkg.Options{})
 	if err == nil {
 		t.Fatalf("expected a compile error\n%s", src)
 	}
@@ -97,7 +97,7 @@ type parseCase struct {
 func check(t *testing.T, src string, cases ...parseCase) {
 	t.Helper()
 	prog := mustCompile(t, src)
-	noMemo := mustCompile(t, src, compile.Options{DisableMemo: true})
+	noMemo := mustCompile(t, src, checkpkg.Options{DisableMemo: true})
 	for _, c := range cases {
 		got := result(prog, c.input)
 		if got != c.want && !(strings.HasPrefix(c.want, "error: ") && strings.Contains(got, c.want[len("error: "):]) && strings.HasPrefix(got, "error: ")) {

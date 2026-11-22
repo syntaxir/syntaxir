@@ -1,14 +1,16 @@
 package compile
 
+import "syntaxir.dev/sxir/internal/frontend/check"
+
 import "syntaxir.dev/sxir/internal/frontend/elaborate"
 
 // CoreInput returns the rules and declarations of the program as the Core IR builder reads them
 // (elaborate.Program).
 func (p *Program) CoreInput() *elaborate.Input {
 	in := &elaborate.Input{Types: p.Types, Vars: p.Vars, ByName: map[string]*elaborate.Rule{}}
-	all := append(append([]*Rule(nil), p.RuleList...), p.Twins...)
+	all := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
 	in.Rules = make([]*elaborate.Rule, len(all))
-	byRule := make(map[*Rule]*elaborate.Rule, len(all))
+	byRule := make(map[*check.Rule]*elaborate.Rule, len(all))
 	for i, r := range all {
 		br := &elaborate.Rule{ID: r.ID, Name: r.Name, Where: r.Where, Def: r.Def, Body: r.BodyExpr(), Action: r.Action, NodeType: r.NodeType,
 			Memo: r.Memo, Transient: r.Transient, Plain: r.Plain, Rec: r.Rec, Leader: r.Leader, Splice: r.Splice, Novalue: r.Novalue,

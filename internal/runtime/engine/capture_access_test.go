@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -81,7 +82,7 @@ func TestCaptureAccessMatchesField(t *testing.T) {
 	}
 	member := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.FieldAccess)
 	member.Name = "y"
-	if _, err := Compile(g, compile.Options{}); err == nil || !strings.Contains(err.Error(), "read the capture with .$y") {
+	if _, err := Compile(g, checkpkg.Options{}); err == nil || !strings.Contains(err.Error(), "read the capture with .$y") {
 		t.Fatalf("field access on a node: %v", err)
 	}
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {

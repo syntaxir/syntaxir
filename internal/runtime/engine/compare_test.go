@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -94,7 +94,7 @@ func TestCompareStaticErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := Compile(g, compile.Options{}); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := Compile(g, checkpkg.Options{}); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}
@@ -112,7 +112,7 @@ func TestCompareStaticErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", src, err)
 		}
-		if _, err := Compile(g, compile.Options{}); err != nil {
+		if _, err := Compile(g, checkpkg.Options{}); err != nil {
 			t.Errorf("%q: %v", src, err)
 		}
 	}

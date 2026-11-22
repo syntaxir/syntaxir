@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -16,7 +16,7 @@ func classMembershipProgram(t *testing.T, expr ast.Expr) *Program {
 		t.Fatal(err)
 	}
 	g.Rules()[0].Expr = expr
-	p, err := Compile(g, compile.Options{})
+	p, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		t.Fatalf("compile class grammar: %v", err)
 	}

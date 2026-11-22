@@ -14,9 +14,9 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -126,7 +126,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		codegentest.GeneratePackageIn(t, dir, "replay", fmt.Sprintf("g%d", i), g, common.GenOptions{Start: "main", Types: true, ConvertTypes: true, Recognize: true})
-		prog, err := entry.Compile(g, compile.Options{})
+		prog, err := entry.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

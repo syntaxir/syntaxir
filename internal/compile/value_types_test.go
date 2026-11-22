@@ -78,7 +78,7 @@ func TestValueTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		p, err := compileStatic(g, Options{}, nil)
+		p, err := compileStatic(g, check.Options{}, nil)
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
@@ -110,7 +110,7 @@ func TestValueTypesOfRepositoryGrammars(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		p, err := compileStatic(g, Options{}, nil)
+		p, err := compileStatic(g, check.Options{}, nil)
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -129,7 +129,7 @@ func TestValueTypesOptionalCaptures(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := compileStatic(g, Options{}, nil)
+	p, err := compileStatic(g, check.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -151,7 +151,7 @@ func valueTypesOf(t *testing.T, src string) (map[string]types.Ty, diagnostic.Err
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	p, err := compileStatic(g, Options{}, make([]RuleFlags, len(g.Rules())))
+	p, err := compileStatic(g, check.Options{}, make([]check.RuleFlags, len(g.Rules())))
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}

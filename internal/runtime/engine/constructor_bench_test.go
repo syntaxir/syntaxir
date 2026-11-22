@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -23,7 +23,7 @@ func BenchmarkNodeListConstruction(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				p, err := Compile(g, compile.Options{})
+				p, err := Compile(g, checkpkg.Options{})
 				if err != nil {
 					b.Fatal(err)
 				}

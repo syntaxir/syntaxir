@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -44,7 +44,7 @@ func TestActionDumpGolden(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			prog, err := compiletest.Compile(g, compile.Options{})
+			prog, err := compiletest.Compile(g, check.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}

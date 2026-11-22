@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -54,7 +55,7 @@ func TestReservedTypeSyntax(t *testing.T) {
 		"rule main = \"a\" => [](node[string], node[_]){}",
 		"type A ~ node[node[string]] | node[int]\nrule main = \"a\"",
 	} {
-		for _, opts := range []Options{{}} {
+		for _, opts := range []check.Options{{}} {
 			g, err := parseTest(src)
 			if err != nil {
 				t.Fatalf("%q: %v", src, err)
@@ -73,7 +74,7 @@ func TestReservedTypeSyntax(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}
@@ -88,7 +89,7 @@ func TestReservedTypeSyntax(t *testing.T) {
 		{"type T = { F Nope[int] }\nrule main = \"a\"", "undefined type Nope"},
 		{"rule main Nope[int] = \"a\"", "undefined type Nope"},
 	} {
-		for _, opts := range []Options{{}} {
+		for _, opts := range []check.Options{{}} {
 			g, err := parseTest(tc.src)
 			if err != nil {
 				t.Fatalf("%q: %v", tc.src, err)
@@ -106,7 +107,7 @@ func TestReservedTypeSyntax(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), "undefined type Nope") || strings.Contains(err.Error(), "takes no type arguments") {
+	if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), "undefined type Nope") || strings.Contains(err.Error(), "takes no type arguments") {
 		t.Fatalf("got %v", err)
 	}
 	// A type used from several places, also by the checks of separate actions, is reported once.
@@ -114,7 +115,7 @@ func TestReservedTypeSyntax(t *testing.T) {
 		"type A ~ node[string, int]\nrule main A = \"a\"\nrule other A = \"b\"",
 		"type A ~ node[string, int]\nrule main = x:\"a\" {$x.(A) == $x} => $x.(A)",
 	} {
-		for _, opts := range []Options{{}} {
+		for _, opts := range []check.Options{{}} {
 			g, err := parseTest(src)
 			if err != nil {
 				t.Fatal(err)
@@ -189,7 +190,7 @@ func TestReservedUnnamedStructType(t *testing.T) {
 		{"type A ~ { A node[string] }\nrule main = x:\"a\" => []A{$x}\nrule b = x:\"a\" => []A{$x}", "1:10"},
 		{"type A ~ { A node[string] }\nrule main = x:\"a\" {[]A{$x} == nil} => []A{$x}", "1:10"},
 	} {
-		for _, opts := range []Options{{}} {
+		for _, opts := range []check.Options{{}} {
 			g, err := parseTest(tc.src)
 			if err != nil {
 				t.Fatalf("%q: %v", tc.src, err)

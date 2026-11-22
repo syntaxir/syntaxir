@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -19,7 +19,7 @@ func TestNamedNodeTypesAcrossBackends(t *testing.T) {
 	t.Parallel()
 	inputs := []string{"", "ab", "ab 12 c3", "<1,x>", "ab <12,y>[1]!bc", "12 ?", "[]!a"}
 	for _, sourceInfo := range []bool{false, true} {
-		prog := compileBare(t, codegentest.NodeTypeGrammar, compile.Options{SourceInfo: sourceInfo})
+		prog := compileBare(t, codegentest.NodeTypeGrammar, checkpkg.Options{SourceInfo: sourceInfo})
 		for _, input := range inputs {
 			want := codegentest.ResultJSON(prog.ParseWith("main", input, ParseOptions{Backend: Closure}))
 			for _, backend := range []Backend{Bytecode, BytecodeIterative} {
@@ -142,7 +142,7 @@ rule tree Tree = "(" ts:tree* ")" => Tree{$ts}`,
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := Compile(g, compile.Options{})
+		prog, err := Compile(g, checkpkg.Options{})
 		if err == nil {
 			_, err = prog.Parse("main", "((()))")
 		}
@@ -187,7 +187,7 @@ func mutualNodeTypeSteps(t *testing.T, n int) uint64 {
 		t.Fatal(err)
 	}
 	c := &cancel.Control{Ctx: context.Background()}
-	if _, err := checked.Compile(g, compile.Options{}, c); err != nil {
+	if _, err := checked.Compile(g, checkpkg.Options{}, c); err != nil {
 		t.Fatal(err)
 	}
 	return uint64(c.Steps)
@@ -215,7 +215,7 @@ func TestNamedNodeTypeText(t *testing.T) {
 	t.Parallel()
 	const want = `Out{Any: Any("bc"), Items: [Ident("ab") Num("12")], Len: 4, Nums: Nums[Num("3")], Pair: Pair(Num("1") Ident("x")), Start: 3, Text: "ab12"}`
 	for _, sourceInfo := range []bool{false, true} {
-		prog := compileBare(t, codegentest.NodeTypeGrammar, compile.Options{SourceInfo: sourceInfo})
+		prog := compileBare(t, codegentest.NodeTypeGrammar, checkpkg.Options{SourceInfo: sourceInfo})
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			n, err := prog.ParseWith("main", "ab 12<1,x>[3]!bc", ParseOptions{Backend: backend})
 			if err != nil {

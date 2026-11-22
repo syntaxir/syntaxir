@@ -70,7 +70,7 @@ func (prog *Program) markMissingRules(control *cancel.Control) {
 			}
 		}
 	}
-	refs := make(map[*Rule][]string)
+	refs := make(map[*check.Rule][]string)
 	for _, r := range prog.RuleList {
 		if usesMissingType(r.Def.Type) {
 			prog.HasMissing = true

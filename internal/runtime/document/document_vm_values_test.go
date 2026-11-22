@@ -8,8 +8,8 @@ import (
 	"unsafe"
 	"weak"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -21,7 +21,7 @@ import (
 )
 
 func BenchmarkDocumentVMValuesUnchanged(b *testing.B) {
-	prog, err := entry.Compile(mustParse(reparseGrammar), compile.Options{})
+	prog, err := entry.Compile(mustParse(reparseGrammar), check.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -222,7 +222,7 @@ rule line = [a-z / "é" / "😀"]+ #atomic "\n"`)
 }
 
 func benchmarkDocumentVMValuesShrink(b *testing.B, edit bool) {
-	prog, err := entry.Compile(mustParse(reparseGrammar), compile.Options{})
+	prog, err := entry.Compile(mustParse(reparseGrammar), check.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

@@ -11,8 +11,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -35,7 +35,7 @@ func testGeneratedNegativeMaximum(t *testing.T) {
 		maximum = -2
 	}
 	g := codegentest.GrammarWithNegativeMaximum(t, `rule main []node[string] = v1:"é"* $$ => $v1.Value`, maximum)
-	p, err := entry.Compile(g, compile.Options{})
+	p, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

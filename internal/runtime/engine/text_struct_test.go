@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -14,7 +14,7 @@ func TestTextStructsAcrossBackends(t *testing.T) {
 	t.Parallel()
 	inputs := []string{"", "ab", "ab 12 3.5", "<x> ! #a # @b @", "ab ?", "12.", "<x", "! ab <yz> 7", "[ab]ab", "[ab]cd 1"}
 	for _, sourceInfo := range []bool{false, true} {
-		prog := compileBare(t, codegentest.TextStructGrammar, compile.Options{SourceInfo: sourceInfo})
+		prog := compileBare(t, codegentest.TextStructGrammar, checkpkg.Options{SourceInfo: sourceInfo})
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 			for _, input := range inputs {
 				want := codegentest.ResultJSON(prog.ParseWith("main", input, ParseOptions{Backend: Closure, Unit: unit}))

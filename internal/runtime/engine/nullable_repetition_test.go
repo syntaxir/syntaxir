@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -22,7 +22,7 @@ func TestNullableRepetitionMinimum(t *testing.T) {
 			t.Run(body+bound.text, func(t *testing.T) {
 				src := "rule main = (" + body + ")" + bound.text + " #stream $$\nrule r = _ => nil"
 				for _, disabled := range []bool{false, true} {
-					prog := mustCompile(t, src, compile.Options{DisableMemo: disabled})
+					prog := mustCompile(t, src, checkpkg.Options{DisableMemo: disabled})
 					programs := []*Program{prog}
 					for _, mode := range allModes {
 						programs = append(programs, saveLoad(t, prog, "main", mode))
@@ -131,7 +131,7 @@ rule item = "a" / _`},
 		if err != nil {
 			b.Fatal(err)
 		}
-		p, err := Compile(g, compile.Options{})
+		p, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}

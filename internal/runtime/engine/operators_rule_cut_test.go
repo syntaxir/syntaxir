@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -17,7 +17,7 @@ import (
 func TestOperatorsRulePrefixPartCuts(t *testing.T) {
 	t.Parallel()
 	for _, disableMemo := range []bool{false, true} {
-		prog := mustCompile(t, codegentest.PrefixPartCuts, compile.Options{DisableMemo: disableMemo})
+		prog := mustCompile(t, codegentest.PrefixPartCuts, checkpkg.Options{DisableMemo: disableMemo})
 		for _, c := range codegentest.PrefixPartCutInputs {
 			t.Run(fmt.Sprintf("%s/memo=%t", c.Input, !disableMemo), func(t *testing.T) {
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
@@ -74,7 +74,7 @@ func TestOperatorsRulePrefixPartCuts(t *testing.T) {
 // Compilation is outside the timer. These accepted inputs perform equivalent work on the old and
 // new cut contracts; committed failures have deliberately different outcomes and are tested above.
 func BenchmarkOperatorsRulePrefixPartCut(b *testing.B) {
-	prog, err := Compile(mustParse(codegentest.PrefixPartCuts), compile.Options{})
+	prog, err := Compile(mustParse(codegentest.PrefixPartCuts), checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

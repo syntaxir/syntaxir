@@ -69,7 +69,7 @@ func wellTypedCases(t *testing.T, all []codegentest.ActionCase) (cases []codegen
 	for _, c := range all {
 		g, err := parseTest(c.Src)
 		if err == nil {
-			_, err = entry.Compile(g, compile.Options{})
+			_, err = entry.Compile(g, check.Options{})
 		}
 		if err != nil {
 			// The generator makes action expressions that are well typed by construction: a rejection is a fault of it,
@@ -112,7 +112,7 @@ func TestActionEngineBackends(t *testing.T) {
 		cases, _ := actionSeedCases(t, seed, actionBackendSeeds, true)
 		for _, c := range cases {
 			g, _ := parseTest(c.Src)
-			prog, err := entry.Compile(g, compile.Options{})
+			prog, err := entry.Compile(g, check.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -695,7 +695,7 @@ func TestActionReferenceEvaluator(t *testing.T) {
 		cases, _ := actionSeedCases(t, seed, actionProcessSeeds, true)
 		for _, c := range cases {
 			g, _ := parseTest(c.Src)
-			prog, err := entry.Compile(g, compile.Options{})
+			prog, err := entry.Compile(g, check.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -793,7 +793,7 @@ func TestActionFixedReference(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
-		prog, err := entry.Compile(g, compile.Options{})
+		prog, err := entry.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}

@@ -14,7 +14,7 @@ type walker struct {
 	*Compiler
 }
 
-func (c *walker) compileRule(r *Rule) {
+func (c *walker) compileRule(r *check.Rule) {
 	control := c.Control
 	c.Control.Poll()
 	c.rule = r
@@ -199,7 +199,7 @@ func (c *walker) attributed(e *ast.Attributed, s *check.Scope, build bool) {
 }
 
 // compileOperatorsRule walks the Operators Rule e, the body of the rule r.
-func (c *walker) compileOperatorsRule(r *Rule, e *ast.OperatorsRule) {
+func (c *walker) compileOperatorsRule(r *check.Rule, e *ast.OperatorsRule) {
 	if e.Skip != nil {
 		c.noCaptures(e.Skip)
 		c.Expr(e.Skip, r.Scope, false)

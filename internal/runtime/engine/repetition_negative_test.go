@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -43,7 +43,7 @@ func TestNegativeRepetitionMaxima(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				for _, opts := range []compile.Options{{}, {DisableMemo: true}, {NoProjections: true}} {
+				for _, opts := range []checkpkg.Options{{}, {DisableMemo: true}, {NoProjections: true}} {
 					p, err := Compile(g, opts)
 					if err != nil {
 						t.Fatal(err)
@@ -173,7 +173,7 @@ func TestCompiledSourceMetadataOmitted(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := Compile(g, compile.Options{})
+	p, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -204,7 +204,7 @@ func TestNegativeMaximumWithWideMinimum(t *testing.T) {
 	for _, body := range []string{`"é" #repeat(2147483648, ) $$`, `[é] #repeat(2147483648, ) #atomic $$`} {
 		for _, maximum := range negativeMaxima() {
 			g := codegentest.GrammarWithNegativeMaximum(t, "rule main = "+body, maximum)
-			p, err := Compile(g, compile.Options{})
+			p, err := Compile(g, checkpkg.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}

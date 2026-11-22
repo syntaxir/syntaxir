@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	sxirfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -18,7 +18,7 @@ import (
 // shapeRun is the outcome of a parse: its result with the value shape, and the units reserved.
 func shapeRun(t *testing.T, g *ast.Grammar, input string, back engine.Backend) (string, uint64) {
 	t.Helper()
-	prog, err := entry.Compile(starttest.MarkAll(g), compile.Options{SourceInfo: true})
+	prog, err := entry.Compile(starttest.MarkAll(g), check.Options{SourceInfo: true})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

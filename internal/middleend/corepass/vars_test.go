@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -30,7 +31,7 @@ func parseTest(src string) (*ast.Grammar, error) { return compiletest.Parse(src)
 // (Rule.Vars), computed on the untyped Core IR module of the canonical rules of g: those of rules
 // in that order, then the rules that canonicalization adds.
 func RuleVariables(g *ast.Grammar, rules []*ast.RuleDef) map[string][]string {
-	canon, err := compile.Canonicalize(g, compile.Options{}, desugar.InlineNames{}, nil)
+	canon, err := compile.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
 	if err != nil {
 		panic(err)
 	}
@@ -320,7 +321,7 @@ func BenchmarkVariableDependencies(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil); err != nil {
+				if _, err := frontend.Check(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil); err != nil {
 					b.Fatal(err)
 				}
 			}

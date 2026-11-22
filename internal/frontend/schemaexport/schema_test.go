@@ -21,7 +21,7 @@ func compileError(t *testing.T, src string) string {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	if _, err := compiletest.Compile(g, compile.Options{}); err != nil {
+	if _, err := compiletest.Compile(g, check.Options{}); err != nil {
 		return err.Error()
 	}
 	t.Fatalf("expected a compile error\n%s", src)

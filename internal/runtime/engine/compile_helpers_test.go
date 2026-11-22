@@ -6,6 +6,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -17,7 +18,7 @@ import (
 // entry itself imports this package, so the tests cannot call it.
 
 // Compile compiles the grammar, as entry.Compile does.
-func Compile(g *ast.Grammar, opts compile.Options) (*Program, error) {
+func Compile(g *ast.Grammar, opts checkpkg.Options) (*Program, error) {
 	s, err := checked.Compile(g, opts, nil)
 	if err != nil {
 		return nil, err
@@ -26,7 +27,7 @@ func Compile(g *ast.Grammar, opts compile.Options) (*Program, error) {
 }
 
 // CompileContext compiles the grammar under ctx, as entry.CompileContext does.
-func CompileContext(ctx context.Context, g *ast.Grammar, opts compile.Options) (prog *Program, err error) {
+func CompileContext(ctx context.Context, g *ast.Grammar, opts checkpkg.Options) (prog *Program, err error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -51,7 +52,7 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts compile.Options) (
 
 // build builds a program from the grammar without the check of its declarations of linear cost. If
 // flags is not nil, it skips static analysis and type checking and uses flags instead.
-func build(g *ast.Grammar, opts compile.Options, flags []compile.RuleFlags) (*Program, error) {
+func build(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*Program, error) {
 	s, err := checked.Check(g, opts, flags, nil)
 	if err != nil {
 		return nil, err

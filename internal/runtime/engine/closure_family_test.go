@@ -16,6 +16,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -101,16 +102,16 @@ func TestClosureFamilyCharges(t *testing.T) {
 	}
 	cases := []struct {
 		name, src string
-		opts      compile.Options
+		opts      checkpkg.Options
 		input     string
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", compile.Options{}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", compile.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
-		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", compile.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 24, "parse": 30, "parse+trace": 34, "prefix": 29, "prefix+trace": 33, "recognize": 30, "recognize+trace": 34}},
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", compile.Options{}, "aaa", false, map[string]uint64{"document": 23, "document+trace": 25, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
-		{"stream", codegentest.Records, compile.Options{}, "#records\na=1\nbc=22\n", true, stream},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", checkpkg.Options{}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", checkpkg.Options{DisableMemo: true}, "aaaa", false, map[string]uint64{"document": 24, "document+trace": 26, "parse": 32, "parse+trace": 34, "prefix": 31, "prefix+trace": 33, "recognize": 32, "recognize+trace": 34}},
+		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", checkpkg.Options{DisableMemo: true}, "((x))", false, map[string]uint64{"document": 20, "document+trace": 24, "parse": 30, "parse+trace": 34, "prefix": 29, "prefix+trace": 33, "recognize": 30, "recognize+trace": 34}},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", checkpkg.Options{}, "aaa", false, map[string]uint64{"document": 23, "document+trace": 25, "parse": 29, "parse+trace": 31, "prefix": 28, "prefix+trace": 30, "recognize": 29, "recognize+trace": 31}},
+		{"stream", codegentest.Records, checkpkg.Options{}, "#records\na=1\nbc=22\n", true, stream},
 	}
 	for _, c := range cases {
 		prog := mustCompile(t, c.src, c.opts)
@@ -142,7 +143,7 @@ func TestClosureFamiliesMatchOnCorpus(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.GenCorpus(t) {
 		t.Run(c.Name, func(t *testing.T) {
-			for _, o := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, o := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				prog := mustCompile(t, c.Src, o)
 				for _, in := range c.Inputs {
 					for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {

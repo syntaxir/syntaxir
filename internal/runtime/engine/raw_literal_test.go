@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -28,7 +28,7 @@ func TestRawInvalidASTLiterals(t *testing.T) {
 				// Share the raw string with an action constant/string-table entry. VM
 				// preparation must normalize matching data without changing action values.
 				g.Rules()[0].Action.(*ast.Constructor).Fields[1].Value.(*ast.StringLit).Value = raw
-				p, err := Compile(g, compile.Options{})
+				p, err := Compile(g, checkpkg.Options{})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -38,7 +38,7 @@ func TestRawInvalidASTLiterals(t *testing.T) {
 				canonical := mustParse(src)
 				codegentest.ReplaceFirstLiteral(canonical.Rules()[0].Expr, string([]rune(raw)))
 				canonical.Rules()[0].Action.(*ast.Constructor).Fields[1].Value.(*ast.StringLit).Value = raw
-				want, err := Compile(canonical, compile.Options{})
+				want, err := Compile(canonical, checkpkg.Options{})
 				if err != nil {
 					t.Fatal(err)
 				}

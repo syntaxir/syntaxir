@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -53,7 +53,7 @@ func TestValueResults(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := Compile(g, compile.Options{}); err == nil {
+		if _, err := Compile(g, checkpkg.Options{}); err == nil {
 			t.Errorf("%q: accepted", src)
 		}
 	}

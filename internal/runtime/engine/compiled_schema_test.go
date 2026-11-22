@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -46,7 +46,7 @@ func wantSchemaNeedsSource(t *testing.T, err error) {
 func TestCompiledSchemaMatchesSource(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.CorpusWithParsers(t) {
-		for _, options := range []compile.Options{{SourceInfo: true}, {DefaultValue: true}} {
+		for _, options := range []checkpkg.Options{{SourceInfo: true}, {DefaultValue: true}} {
 			t.Run(c.Name, func(t *testing.T) {
 				src := compileBare(t, c.Src, options)
 				if len(src.StartRules) == 0 {

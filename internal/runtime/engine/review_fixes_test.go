@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -32,13 +32,13 @@ func TestCompiledBytesIgnoreLayoutWithoutSourceInfo(t *testing.T) {
 	t.Parallel()
 	const a = "rule main = x:(n / w) $$ => $x.(Num)\n" + codegentest.CastRules
 	b := "\n\n  " + strings.ReplaceAll(a, " => ", "   =>   ")
-	bytesOf := func(src string, opts ...compile.Options) []byte {
+	bytesOf := func(src string, opts ...checkpkg.Options) []byte {
 		t.Helper()
 		g, err := parseTest(src)
 		if err != nil {
 			t.Fatal(err)
 		}
-		o := compile.Options{}
+		o := checkpkg.Options{}
 		if len(opts) > 0 {
 			o = opts[0]
 		}
@@ -55,7 +55,7 @@ func TestCompiledBytesIgnoreLayoutWithoutSourceInfo(t *testing.T) {
 	if !bytes.Equal(bytesOf(a), bytesOf(b)) {
 		t.Error("compiled bytes depend on whitespace without source information")
 	}
-	if bytes.Equal(bytesOf(a, compile.Options{SourceInfo: true}), bytesOf(b, compile.Options{SourceInfo: true})) {
+	if bytes.Equal(bytesOf(a, checkpkg.Options{SourceInfo: true}), bytesOf(b, checkpkg.Options{SourceInfo: true})) {
 		t.Error("compiled bytes with source information lack the cast position")
 	}
 }

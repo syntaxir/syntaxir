@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 )
@@ -39,7 +39,7 @@ rule c = {x := 1} "a" / {x := 2} "b"`, true, []string{"ab!", "abab", "aab!ba!b"}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			run := func(t *testing.T, tune state.Tuning) {
-				for _, opts := range []compile.Options{{}, {DisableMemo: true}} {
+				for _, opts := range []checkpkg.Options{{}, {DisableMemo: true}} {
 					prog := mustCompile(t, c.src, opts)
 					for _, in := range c.ok {
 						if _, err := prog.ParseWith("main", in, ParseOptions{Tune: tune}); err != nil {

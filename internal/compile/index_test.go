@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -19,7 +20,7 @@ func TestIndexTypeErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}
@@ -31,7 +32,7 @@ func TestIndexTypeErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err != nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 			t.Errorf("%q: %v", src, err)
 		}
 	}
@@ -44,7 +45,7 @@ func TestIndexTypeErrors(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); (err == nil) != tc.ok {
+		if _, err := compileStatic(g, check.Options{}, nil); (err == nil) != tc.ok {
 			t.Errorf("field %s: %v", tc.field, err)
 		}
 	}

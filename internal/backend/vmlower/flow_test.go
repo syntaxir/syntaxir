@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -23,7 +24,7 @@ func grammarProgram(t *testing.T, path string) *compile.Program {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return compiletest.Program(t, string(src), compile.Options{})
+	return compiletest.Program(t, string(src), check.Options{})
 }
 
 // flowTable returns the planned Node table of prog (checked.Source.FlowTable) and a module compiled

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -46,7 +47,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, opts := range []compile.Options{{}, {Recognition: compile.RecognizeWithStreamValues}, {NoProjections: true}, {DefaultValue: true}} {
+	for _, opts := range []check.Options{{}, {Recognition: check.RecognizeWithStreamValues}, {NoProjections: true}, {DefaultValue: true}} {
 		name := fmt.Sprintf("%+v", opts)
 		prog, err := compileGrammar(g, opts)
 		if err != nil {
@@ -76,7 +77,7 @@ func structuralInputFacts(t *testing.T, path string) int {
 			if got[i].Cyclic() {
 				cyclic++
 			}
-			if opts.Recognition != compile.BuildValues {
+			if opts.Recognition != check.BuildValues {
 				got[i].Vars, got[i].Positional = nil, false
 				want[i].Vars, want[i].Positional = nil, false
 			}

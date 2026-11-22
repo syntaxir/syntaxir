@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
@@ -30,7 +30,7 @@ func TestFormatPreservesMinusSemantics(t *testing.T) {
 		"type P = { N int }\nrule main P = \"a\" $$ => P{N: - -1}",
 	} {
 		t.Run(src, func(t *testing.T) {
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []check.Options{{}, {DisableMemo: true}} {
 				before := enginetest.MustCompile(t, src, options)
 				after := enginetest.MustCompile(t, fmt.Format(entry.Checked(before).Grammar), options)
 				for _, input := range []string{"", "a", "b", "aa", "ab", "ac"} {
@@ -107,7 +107,7 @@ func TestFormatPreservesCorpus(t *testing.T) {
 			if len(s.inputs) == 0 {
 				return
 			}
-			p1, p2 := enginetest.MustCompile(t, s.src, compile.Options{NoProjections: true}), enginetest.MustCompile(t, formatted, compile.Options{NoProjections: true})
+			p1, p2 := enginetest.MustCompile(t, s.src, check.Options{NoProjections: true}), enginetest.MustCompile(t, formatted, check.Options{NoProjections: true})
 			for _, input := range s.inputs {
 				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					opts := engine.ParseOptions{Unit: unit}

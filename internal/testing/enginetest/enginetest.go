@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -67,9 +68,9 @@ func MustParse(src string) *ast.Grammar {
 
 // MustCompile compiles SyntaxIR source with source information, so that results show rule names
 // and capture labels.
-func MustCompile(t testing.TB, src string, opts ...compile.Options) *engine.Program {
+func MustCompile(t testing.TB, src string, opts ...check.Options) *engine.Program {
 	t.Helper()
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -79,13 +80,13 @@ func MustCompile(t testing.TB, src string, opts ...compile.Options) *engine.Prog
 
 // CompileBare compiles SyntaxIR source with the options as given: without source information
 // unless they request it.
-func CompileBare(t testing.TB, src string, opts ...compile.Options) *engine.Program {
+func CompileBare(t testing.TB, src string, opts ...check.Options) *engine.Program {
 	t.Helper()
 	g, err := Parse(src)
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -103,17 +104,17 @@ func CompileStarts(t testing.TB, src string) (*engine.Program, error) {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	return entry.Compile(g, compile.Options{})
+	return entry.Compile(g, check.Options{})
 }
 
 // CompileMessage compiles src and returns the error message, or "" if it compiles.
-func CompileMessage(t testing.TB, src string, opts ...compile.Options) string {
+func CompileMessage(t testing.TB, src string, opts ...check.Options) string {
 	t.Helper()
 	g, err := Parse(src)
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -126,7 +127,7 @@ func CompileMessage(t testing.TB, src string, opts ...compile.Options) string {
 
 // Reference compiles src with the engine for the comparisons of generated parsers with it. Its
 // parses record expectations, as the generated parsers' do.
-func Reference(t *testing.T, src string, opts compile.Options) codegentest.ReferenceParse {
+func Reference(t *testing.T, src string, opts check.Options) codegentest.ReferenceParse {
 	t.Helper()
 	prog := CompileBare(t, src, opts)
 	return func(input string, bytes, recognize bool) (*value.Node, error) {
@@ -144,7 +145,7 @@ var CompileForGenerator = checked.GeneratorCompiler(compileForGenerator)
 
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
 // returns that of its recognizer.
-func compileForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, func() (*compile.Program, error), error) {
+func compileForGenerator(g *ast.Grammar, opts check.Options) (*compile.Program, func() (*compile.Program, error), error) {
 	prog, err := entry.Compile(g, opts)
 	if err != nil {
 		return nil, nil, err
@@ -217,7 +218,7 @@ func CorpusProgram(t testing.TB, c codegentest.Case) (*engine.Program, bool) {
 	if err != nil {
 		return nil, false
 	}
-	prog, err := entry.Compile(g, compile.Options{})
+	prog, err := entry.Compile(g, check.Options{})
 	if err != nil || prog.HasMissing {
 		return nil, false
 	}

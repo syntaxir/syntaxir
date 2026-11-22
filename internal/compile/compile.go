@@ -28,9 +28,9 @@ type Program struct {
 	// chk checks the types of the program (Checker), made on first use.
 	chk           *check.Checker
 	checkerOnce   sync.Once
-	RuleList      []*Rule
+	RuleList      []*check.Rule
 	DescTable     []string        // expectation table (starting with fixedDescs)
-	Twins         []*Rule         // value-free twins (Rule.Twin); ids start at len(RuleList)
+	Twins         []*check.Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
 	NSeen         int             // number of rules with Rule.Seen set
 	Typed         *check.TypeInfo // types found by the type checker (nil if it did not run)
 	NoProjections bool
@@ -42,11 +42,11 @@ type Program struct {
 	// InlineNames are the hidden rules that the inline actions of the grammar as written were
 	// lowered to, with the inline actions they stand for; empty if it has none.
 	InlineNames desugar.InlineNames
-	ByName      map[string]*Rule
+	ByName      map[string]*check.Rule
 	// Opts are the options the program was compiled with. The engine builds further programs from the
 	// same grammar later (the controlled closure graph and the recognizer) and derives their options
 	// from these, so that none is lost (engine.Program.lazyOptions).
-	Opts Options
+	Opts check.Options
 
 	// typeKinds holds the node kinds of the grammar's types (TypeKind), made with the program from
 	// the checker's (check.Checker.Kinds).
@@ -55,14 +55,14 @@ type Program struct {
 	// aliases of them.
 	NodeKinds map[string]*nodes.NodeTypeKinds
 	// sites numbers the skip-run, run and scan sites of the program's repetitions (SetSites).
-	sites Sites
+	sites check.Sites
 	// NumSkipSites, NumRunSites and NumScanSites count the sites (Sites).
 	NumSkipSites, NumRunSites, NumScanSites int
 	// InsertionFlags are the rule flags of the parses with missing-token insertion enabled, in
 	// which left recursion through an insertion forms cycles of its own (RuleFact.CycleIns), when
 	// they differ from the flags of the rules; nil otherwise. Such parses run a program built with
 	// them.
-	InsertionFlags []RuleFlags
+	InsertionFlags []check.RuleFlags
 	// runtime is the run-time program (Runtime), made once under runtimeOnce.
 	runtimeOnce sync.Once
 	runtime     *program.Program
@@ -83,10 +83,10 @@ type Compiler struct {
 	proj    map[string]string // projected captures of the rule being compiled (ruleProjections)
 	// facts are the rule facts the program is checked with, or nil if the rules take the flags of
 	// a compiled grammar, which was checked when it was compiled.
-	facts   *RuleFacts
-	opts    Options
+	facts   *check.RuleFacts
+	opts    check.Options
 	errs    diagnostic.ErrorList
-	rule    *Rule
+	rule    *check.Rule
 	descIDs map[string]program.ExpID
 }
 
@@ -116,10 +116,10 @@ func (c *Compiler) errorf(pos ast.Pos, format string, args ...any) {
 
 // Flags returns the rule flags of the program's rules, with which a variant of the program (its
 // recognizer) is checked again from its grammar so that its rules keep them.
-func (p *Program) Flags() []RuleFlags {
-	flags := make([]RuleFlags, len(p.RuleList))
+func (p *Program) Flags() []check.RuleFlags {
+	flags := make([]check.RuleFlags, len(p.RuleList))
 	for i, r := range p.RuleList {
-		flags[i] = RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, Twin: r.TwinOK}
+		flags[i] = check.RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, Twin: r.TwinOK}
 	}
 	return flags
 }
@@ -127,18 +127,18 @@ func (p *Program) Flags() []RuleFlags {
 // insertionFlags returns the rule flags of prog under the facts with token insertion enabled,
 // which the compilation sets as it sets the rules' own from the facts without insertion, or nil if
 // they equal the rules' own.
-func insertionFlags(prog *Program, facts *RuleFacts, opts Options, control *cancel.Control) []RuleFlags {
-	out := make([]RuleFlags, len(prog.RuleList))
+func insertionFlags(prog *Program, facts *check.RuleFacts, opts check.Options, control *cancel.Control) []check.RuleFlags {
+	out := make([]check.RuleFlags, len(prog.RuleList))
 	differ := false
 	for i, r := range prog.RuleList {
 		control.Poll()
 		rf := &facts.Rules[i]
-		f := RuleFlags{Leader: rf.LeaderIns, Member: rf.MemberIns, Cycle: rf.CycleIns, Positional: r.Positional}
+		f := check.RuleFlags{Leader: rf.LeaderIns, Member: rf.MemberIns, Cycle: rf.CycleIns, Positional: r.Positional}
 		f.Memo = !opts.DisableMemo && !f.Leader
 		_, isOperatorsRule := r.Def.Expr.(*ast.OperatorsRule)
 		f.Twin = r.Action == nil && !isOperatorsRule && rf.CycleIns == 0 && !hasStream(r.Def.Expr, control)
 		out[i] = f
-		differ = differ || f != (RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Positional: r.Positional, Cycle: r.Cycle, Twin: r.TwinOK})
+		differ = differ || f != (check.RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Positional: r.Positional, Cycle: r.Cycle, Twin: r.TwinOK})
 	}
 	if !differ {
 		return nil
@@ -162,7 +162,7 @@ type Canonical struct {
 
 // Canonicalize validates the grammar and returns the canonical form that Check checks.
 // names receives the hidden rules that the lowering of inline actions generates.
-func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, control *cancel.Control) (*Canonical, error) {
+func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames, control *cancel.Control) (*Canonical, error) {
 	control.Check()
 	if !opts.DefaultValue {
 		if err := validateGrammar(g, control); err != nil {
@@ -273,9 +273,9 @@ func Canonicalize(g *ast.Grammar, opts Options, names desugar.InlineNames, contr
 // that the lowering of inline actions generates. If flags is not nil, it skips type checking and
 // the checks of the facts and takes the flags of a compiled grammar instead; facts still give the
 // other rule facts. The site numbers are set afterwards (SetSites).
-func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Program, error) {
+func CheckCanonical(canon *Canonical, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts *check.RuleFacts, control *cancel.Control) (*Program, error) {
 	g, source, starts, defaultStart, startErrors := canon.Grammar, canon.Source, canon.Starts, canon.DefaultStart, canon.StartErrors
-	prog := &Program{Model: check.NewModel(g, source), ByName: map[string]*Rule{},
+	prog := &Program{Model: check.NewModel(g, source), ByName: map[string]*check.Rule{},
 		DescTable: append([]string(nil), core.FixedDescs...)}
 	c := &Compiler{Control: control, Prog: prog, opts: opts}
 	if control != nil {
@@ -311,7 +311,7 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 	c.errs = append(c.errs, redeclared...)
 	for _, rd := range rules {
 		control.Poll()
-		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: check.NewScope(), Action: rd.Action, Splice: astfacts.SpliceRule(rd)}
+		r := &check.Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: check.NewScope(), Action: rd.Action, Splice: astfacts.SpliceRule(rd)}
 		if r.Splice && rd.Type != nil {
 			c.errorf(rd.Diagnostic(), "rule %s makes no node of its own, so it cannot have a result type", rd.Name)
 		}
@@ -359,11 +359,11 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 		// against the cycles of both.
 		c.errs = append(c.errs, facts.BindingErrors...)
 	}
-	if opts.Recognition != BuildValues {
+	if opts.Recognition != check.BuildValues {
 		// Only rules whose values are referenced by predicates, and the rules needed to build those
 		// values, are evaluated as usual; so are the rules with a #stream repetition, whose elements
 		// a stream hands to its caller, unless the program is the recognizer, which only recognizes.
-		needed := valueNeededRules(rules, control, opts.Recognition == RecognizeWithStreamValues)
+		needed := valueNeededRules(rules, control, opts.Recognition == check.RecognizeWithStreamValues)
 		for _, r := range prog.RuleList {
 			control.Poll()
 			if !needed[r.Name] {
@@ -391,7 +391,7 @@ func CheckCanonical(canon *Canonical, opts Options, flags []RuleFlags, names des
 	NumberLeaders(prog.RuleList)
 	kinds := prog.Checker().Kinds(control.Poll)
 	prog.typeKinds, prog.NodeKinds = kinds.Types, kinds.Nodes
-	for _, rs := range [][]*Rule{prog.RuleList, prog.Twins} {
+	for _, rs := range [][]*check.Rule{prog.RuleList, prog.Twins} {
 		control.Poll()
 		for _, r := range rs {
 			control.Poll()
@@ -440,7 +440,7 @@ func validateGrammar(g *ast.Grammar, control *cancel.Control) error {
 // leanBody reports whether the value of the rule body is unused. It is unused when there is an
 // action, which reads captures only, provided the rule has no #stream. Every backend and the
 // code generator use this test to compile the body value-free.
-func leanBody(r *Rule) bool {
+func leanBody(r *check.Rule) bool {
 	if r.Stream {
 		return false
 	}
@@ -449,7 +449,7 @@ func leanBody(r *Rule) bool {
 
 // NumberSeen numbers the rules whose memoization firstCall may defer (Rule.Seen) and returns
 // their count.
-func NumberSeen(lists ...[]*Rule) int {
+func NumberSeen(lists ...[]*check.Rule) int {
 	n := 0
 	for _, rules := range lists {
 		for _, r := range rules {
@@ -465,7 +465,7 @@ func NumberSeen(lists ...[]*Rule) int {
 
 // NumberLeaders numbers the leaders of each cycle of rules, in order (Rule.LeaderIndex), and gives
 // the first MaxLeaderBits of each a bit (Rule.LeaderBit).
-func NumberLeaders(rules []*Rule) {
+func NumberLeaders(rules []*check.Rule) {
 	n := map[int]int{}
 	for _, r := range rules {
 		r.LeaderIndex, r.LeaderBit = 0, 0
@@ -487,10 +487,10 @@ func (p *Program) defsByName() map[string]*ast.RuleDef {
 }
 
 // twinOf returns the value-free twin of rule r (creating it if needed; it is assembled later).
-func (c *Compiler) twinOf(r *Rule) *Rule {
+func (c *Compiler) twinOf(r *check.Rule) *check.Rule {
 	if r.Twin == nil {
 		prog := c.Prog
-		r.Twin = &Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: check.NewScope(),
+		r.Twin = &check.Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: check.NewScope(),
 			Memo: r.Memo, Missing: r.Missing, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars, Positional: r.Positional, Novalue: true}
 		prog.Twins = append(prog.Twins, r.Twin)
 	}
@@ -623,7 +623,7 @@ func FoldedRunes(rs []rune) []rune {
 }
 
 // levelMin returns the minimum binding level of a call with a binding level.
-func (c *Compiler) levelMin(e *ast.Ref, r *Rule) int {
+func (c *Compiler) levelMin(e *ast.Ref, r *check.Rule) int {
 	pr, ok := r.Def.Expr.(*ast.OperatorsRule)
 	if !ok {
 		c.errorf(e.Diagnostic(), "rule %s has no Operators Rule levels", e.Name)
@@ -680,5 +680,5 @@ func (prog *Program) TypeKind(typ string) *valueimpl.Kind {
 // NewProgram returns a program of the grammar g with no rules or types yet, for the tests that fill
 // in a program of their own.
 func NewProgram(g *ast.Grammar) *Program {
-	return &Program{Model: check.NewModel(g, nil), ByName: map[string]*Rule{}}
+	return &Program{Model: check.NewModel(g, nil), ByName: map[string]*check.Rule{}}
 }

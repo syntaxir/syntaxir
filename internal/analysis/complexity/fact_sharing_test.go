@@ -3,8 +3,8 @@ package complexity
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -30,7 +30,7 @@ func TestClassifierSharesFacts(t *testing.T) {
 		t.Fatal(err)
 	}
 	separate := factComputations(func() {
-		if _, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil); err != nil {
+		if _, err := frontend.Check(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := NewCostSource(g, nil); err != nil {

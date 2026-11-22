@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -78,10 +78,10 @@ func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, unexamined, par
 	if err != nil {
 		return nil, false
 	}
-	if _, err := entry.Compile(g, compile.Options{}); err != nil {
+	if _, err := entry.Compile(g, check.Options{}); err != nil {
 		return nil, false
 	}
-	memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, compile.Options{DisableMemo: true})
+	memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, check.Options{DisableMemo: true})
 	type job struct {
 		in      string
 		backend engine.Backend
@@ -232,7 +232,7 @@ func TestLeftRecursionDependencyMemoControls(t *testing.T) {
 func TestLeftRecursionDependencyMemoLinear(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.DependencyMemoShapes {
-		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			evals := func(n int) int {
 				var pr instrument.Profile
@@ -282,11 +282,11 @@ func TestLeftRecursionDependencyMemoUnexamined(t *testing.T) {
 	for _, c := range depMemoGrammars(seeds) {
 		if g, err := enginetest.Parse(c.Src); err != nil {
 			continue
-		} else if _, err := entry.Compile(g, compile.Options{}); err != nil {
+		} else if _, err := entry.Compile(g, check.Options{}); err != nil {
 			continue
 		}
 		compiled++
-		memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, compile.Options{DisableMemo: true})
+		memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, check.Options{DisableMemo: true})
 		for _, in := range c.Inputs {
 			for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 				got, err := memo.ParseWith("", in, engine.ParseOptions{Backend: backend, ContextMemoUnexamined: true})

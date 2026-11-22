@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -58,7 +58,7 @@ func checkConstructedFieldType(t *testing.T, typ, src string, parseFn func(strin
 			if err != nil {
 				t.Fatal(err)
 			}
-			checked, err := Compile(g, compile.Options{})
+			checked, err := Compile(g, checkpkg.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}

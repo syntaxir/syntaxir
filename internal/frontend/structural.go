@@ -4,8 +4,8 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -15,7 +15,7 @@ import (
 // if g cannot be built into such a module (the compiler then reports why); the errors are in the
 // order of Facts.Errors, with the names of the hidden rules that inline actions generate shown as
 // written.
-func structuralErrors(g *ast.Grammar, opts compile.Options, names desugar.InlineNames, facts FactSource, control *cancel.Control) diagnostic.ErrorList {
+func structuralErrors(g *ast.Grammar, opts check.Options, names desugar.InlineNames, facts FactSource, control *cancel.Control) diagnostic.ErrorList {
 	s, err := buildStructural(g, opts, names, control)
 	if err != nil {
 		return nil
@@ -25,7 +25,7 @@ func structuralErrors(g *ast.Grammar, opts compile.Options, names desugar.Inline
 
 // errors returns the structural errors of the module (structuralErrors), which facts computes from
 // the facts that its analyses hold.
-func (s *Structural) errors(opts compile.Options, names desugar.InlineNames, facts FactSource) diagnostic.ErrorList {
+func (s *Structural) errors(opts check.Options, names desugar.InlineNames, facts FactSource) diagnostic.ErrorList {
 	if s == nil || s.Module == nil {
 		return nil
 	}

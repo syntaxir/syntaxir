@@ -245,7 +245,7 @@ func Describe(e ast.Expr) string {
 }
 
 // CompileOptions are the choices of the check of a grammar that a generator asks its Compiler for;
-// each means what the compiler option of the same name means (compile.Options).
+// each means what the compiler option of the same name means (check.Options).
 type CompileOptions struct {
 	// SourceInfo records source information in the values: the rule that produced each node and
 	// where its captures are.

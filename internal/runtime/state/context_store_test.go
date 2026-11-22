@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -57,7 +57,7 @@ func contextStoreBounded(t *testing.T, prog *engine.Program, s codegentest.Depen
 func TestContextStoreBounds(t *testing.T) {
 	t.Parallel()
 	for _, s := range codegentest.ContextStoreShapes {
-		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b}); !ok {
 				t.Error(msg)
@@ -82,7 +82,7 @@ func TestContextStoreBoundsControls(t *testing.T) {
 				s = x
 			}
 		}
-		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, compile.Options{SourceInfo: true})
+		prog := enginetest.MustCompile(t, "@start\nrule main = "+s.Rules, check.Options{SourceInfo: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if msg, ok := contextStoreBounded(t, prog, s, engine.ParseOptions{Backend: b, Tune: state.Tuning{MemoMut: c.mutation}}); ok {
 				t.Errorf("mutation %d not detected: %s", c.mutation, msg)
@@ -100,7 +100,7 @@ var missingChain = codegentest.DependencyMemoShape{Name: "missing-token insertio
 // with the input, as without insertion.
 func TestContextStoreMissingInsertion(t *testing.T) {
 	t.Parallel()
-	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
+	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, check.Options{SourceInfo: true})
 	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1}); !ok {
 		t.Error(msg)
 	}
@@ -109,7 +109,7 @@ func TestContextStoreMissingInsertion(t *testing.T) {
 // TestContextStoreMissingInsertionControl checks that TestContextStoreMissingInsertion detects a
 // parse with insertion that keeps no result in a context.
 func TestContextStoreMissingInsertionControl(t *testing.T) {
-	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, compile.Options{SourceInfo: true})
+	prog := enginetest.MustCompile(t, "@start\nrule main = "+missingChain.Rules, check.Options{SourceInfo: true})
 	if msg, ok := contextStoreBounded(t, prog, missingChain, engine.ParseOptions{Backend: engine.Closure, MissingTokens: 1, Tune: state.Tuning{MemoMut: state.CtxStrictMissing}}); ok {
 		t.Errorf("CtxStrictMissing not detected: %s", msg)
 	}
@@ -161,11 +161,11 @@ func missingRandomMismatches(t *testing.T, seeds int, tune state.Tuning) []strin
 		if err != nil {
 			continue
 		}
-		if _, err := entry.Compile(g, compile.Options{}); err != nil {
+		if _, err := entry.Compile(g, check.Options{}); err != nil {
 			continue
 		}
 		checked++
-		memo, ref := enginetest.MustCompile(t, src), enginetest.MustCompile(t, src, compile.Options{DisableMemo: true})
+		memo, ref := enginetest.MustCompile(t, src), enginetest.MustCompile(t, src, check.Options{DisableMemo: true})
 		for _, in := range c.Inputs {
 			for _, recognize := range []bool{false, true} {
 				o := engine.ParseOptions{Backend: engine.Closure, Recognize: recognize, MissingTokens: 3, Tune: tune}

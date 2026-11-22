@@ -3,15 +3,16 @@ package compile
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 func TestFirstTerminalFacts(t *testing.T) {
 	t.Parallel()
 	leaf := &ast.Literal{Value: "a"}
-	a := &Rule{Rec: true, Def: &ast.RuleDef{Name: "a", Expr: &ast.Ref{Name: "b"}}}
-	b := &Rule{Rec: true, Def: &ast.RuleDef{Name: "b", Expr: &ast.Capture{Name: "x", Expr: &ast.Atomic{Expr: &ast.Discard{Expr: &ast.Seq{Items: []ast.Expr{leaf}}}}}}}
-	p := &Program{ByName: map[string]*Rule{"a": a, "b": b}}
+	a := &check.Rule{Rec: true, Def: &ast.RuleDef{Name: "a", Expr: &ast.Ref{Name: "b"}}}
+	b := &check.Rule{Rec: true, Def: &ast.RuleDef{Name: "b", Expr: &ast.Capture{Name: "x", Expr: &ast.Atomic{Expr: &ast.Discard{Expr: &ast.Seq{Items: []ast.Expr{leaf}}}}}}}
+	p := &Program{ByName: map[string]*check.Rule{"a": a, "b": b}}
 	got, depth := firstTerminal(p, &ast.Ref{Name: "a"}, 0, map[string]bool{})
 	if got != leaf || depth != 2 {
 		t.Fatalf("terminal=%v depth=%d", got, depth)

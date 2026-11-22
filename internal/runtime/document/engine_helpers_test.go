@@ -10,9 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -149,9 +149,9 @@ func parseTest(src string) (*ast.Grammar, error) {
 
 // mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
-func mustCompile(t *testing.T, src string, opts ...compile.Options) *Program {
+func mustCompile(t *testing.T, src string, opts ...check.Options) *Program {
 	t.Helper()
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -277,13 +277,13 @@ func snapshotVariants(t *testing.T, run func(*testing.T, state.ParseOptions)) {
 
 // compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
-func compileBare(t *testing.T, src string, opts ...compile.Options) *Program {
+func compileBare(t *testing.T, src string, opts ...check.Options) *Program {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}

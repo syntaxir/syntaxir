@@ -57,7 +57,7 @@ type Kid = node[string]
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, err = compileStatic(g, Options{}, nil)
+			_, err = compileStatic(g, check.Options{}, nil)
 			switch {
 			case tc.zero && err != nil:
 				t.Fatalf("a field of type %s has a zero value, got %v", tc.ftype, err)
@@ -73,7 +73,7 @@ type Kid = node[string]
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := compileStatic(g, Options{}, nil); err != nil {
+	if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 		t.Fatalf("a field that is set: %v", err)
 	}
 }
@@ -92,7 +92,7 @@ rule main Z = k:"x" => Z{K: $k}
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compileStatic(g, Options{}, nil)
+	prog, err := compileStatic(g, check.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -149,7 +149,7 @@ func deepStructProgram(t *testing.T, depth int) *Program {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compileStatic(g, Options{}, nil)
+	prog, err := compileStatic(g, check.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

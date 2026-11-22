@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
@@ -321,7 +321,7 @@ rule main Root = x:(";" #missing) => Root{Token: $x}`
 	if err != nil {
 		t.Fatal(err)
 	}
-	reloaded, err := Compile(parsed, compile.Options{})
+	reloaded, err := Compile(parsed, checkpkg.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

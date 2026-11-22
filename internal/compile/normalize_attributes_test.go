@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -55,7 +56,7 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
 					var err error
-					normalizationBenchmarkProgram, err = compileStatic(g, Options{EagerAttributeCopies: eager}, nil)
+					normalizationBenchmarkProgram, err = compileStatic(g, check.Options{EagerAttributeCopies: eager}, nil)
 					if err != nil {
 						b.Fatal(err)
 					}
@@ -68,7 +69,7 @@ func BenchmarkAttributeNormalization(b *testing.B) {
 					if err != nil {
 						b.Fatal(err)
 					}
-					normalizationBenchmarkProgram, err = compileStatic(tree, Options{EagerAttributeCopies: eager}, nil)
+					normalizationBenchmarkProgram, err = compileStatic(tree, check.Options{EagerAttributeCopies: eager}, nil)
 					if err != nil {
 						b.Fatal(err)
 					}

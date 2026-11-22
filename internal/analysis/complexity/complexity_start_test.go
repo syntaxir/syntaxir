@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -61,7 +61,7 @@ func TestClassifyComplexityStartRule(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := frontend.Check(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
+		prog, err := frontend.Check(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -138,7 +138,7 @@ func runSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}
-		prog, err := entry.Compile(g, compile.Options{SourceInfo: true})
+		prog, err := entry.Compile(g, check.Options{SourceInfo: true})
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}

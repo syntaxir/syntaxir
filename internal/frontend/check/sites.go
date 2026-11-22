@@ -1,4 +1,4 @@
-package compile
+package check
 
 import "syntaxir.dev/sxir/pkg/grammar/ast"
 

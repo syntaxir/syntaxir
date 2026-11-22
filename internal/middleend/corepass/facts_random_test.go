@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -34,7 +35,7 @@ func TestFactsRandom(t *testing.T) {
 		if err != nil {
 			t.Fatalf("seed %d: %v\n%s", seed, err, src)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			if testing.Verbose() {
 				t.Logf("seed %d: %v", seed, err)
@@ -50,7 +51,7 @@ func TestFactsRandom(t *testing.T) {
 			r.Policy = core.Policy{}
 		}
 		typed := corepass.Compute(m, nil)
-		canon, err := compile.Canonicalize(g, compile.Options{}, desugar.InlineNames{}, nil)
+		canon, err := compile.Canonicalize(g, check.Options{}, desugar.InlineNames{}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -85,7 +86,7 @@ func checkProgramFlags(prog *compile.Program, f *corepass.Facts) error {
 			r.Transient != x.Transient || r.Rec != x.Rec || !slices.Equal(r.Vars, x.Vars) || r.Memo != x.Memo {
 			return fmt.Errorf("rule %s: flags %+v, facts %+v", r.Name, *r, *x)
 		}
-		ins := compile.RuleFlags{Leader: r.Leader, Member: r.Member, Cycle: r.Cycle}
+		ins := check.RuleFlags{Leader: r.Leader, Member: r.Member, Cycle: r.Cycle}
 		if prog.InsertionFlags != nil {
 			ins = prog.InsertionFlags[i]
 		}

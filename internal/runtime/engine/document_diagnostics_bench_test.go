@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -14,7 +14,7 @@ var documentDiagnosticBenchmarkError error
 
 func BenchmarkDocumentDiagnosticPublication(b *testing.B) {
 	prog, err := Compile(mustParse(`rule main = item* $$
-rule item = "a;" @error(message="original") #recover(skip="?;")`), compile.Options{})
+rule item = "a;" @error(message="original") #recover(skip="?;")`), checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

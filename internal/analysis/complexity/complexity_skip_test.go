@@ -3,8 +3,8 @@ package complexity
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -67,7 +67,7 @@ func TestReusedSkipSites(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			prog, st, err := frontend.CheckStructural(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
+			prog, st, err := frontend.CheckStructural(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

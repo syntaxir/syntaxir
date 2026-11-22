@@ -3,6 +3,8 @@ package compile
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestPredicateBlocksStatementValidation(t *testing.T) {
@@ -16,7 +18,7 @@ rule main = {x := 1; len(true)} "a"`,
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
 			t.Fatalf("accepted invalid statement: %s", source)
 		}
 	}
@@ -25,7 +27,7 @@ rule main = {x := 1; len(true)} "a"`,
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), "action statement blocks are not implemented") {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), "action statement blocks are not implemented") {
 			t.Fatalf("unsupported boundary %s: %v", source, err)
 		}
 	}

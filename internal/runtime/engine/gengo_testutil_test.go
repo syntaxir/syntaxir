@@ -3,8 +3,8 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -17,7 +17,7 @@ func init() {
 }
 
 // referenceProgram compiles src with the engine for the comparisons of generated parsers with it.
-func referenceProgram(t *testing.T, src string, opts compile.Options) codegentest.ReferenceParse {
+func referenceProgram(t *testing.T, src string, opts checkpkg.Options) codegentest.ReferenceParse {
 	t.Helper()
 	prog := compileBare(t, src, opts)
 	return func(input string, bytes, recognize bool) (*value.Node, error) {

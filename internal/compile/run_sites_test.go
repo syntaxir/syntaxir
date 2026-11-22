@@ -3,6 +3,7 @@ package compile
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -30,7 +31,7 @@ func TestRunSitesNeedRecordedReach(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s: %v", tc.name, err)
 			}
-			prog, err := Check(g, Options{}, nil, desugar.InlineNames{}, nil)
+			prog, err := Check(g, check.Options{}, nil, desugar.InlineNames{}, nil)
 			if err != nil {
 				t.Fatalf("%s: %v", tc.name, err)
 			}

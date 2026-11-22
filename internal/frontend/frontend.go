@@ -13,6 +13,7 @@ package frontend
 import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -50,13 +51,13 @@ func (r *Result) InlineNames() desugar.InlineNames { return r.Program.InlineName
 // RunDefault is Run with the default options, for the tools that check a grammar without
 // compiling it for a backend.
 func RunDefault(g *ast.Grammar, facts FactSource, control *cancel.Control) (*Result, error) {
-	return Run(g, compile.Options{}, facts, control)
+	return Run(g, check.Options{}, facts, control)
 }
 
 // Run checks g with the compiler's options opts, reading the facts that facts computes. A non-nil
 // control polls for cancellation. The error is the compiler's error list, with the names of the
 // hidden rules that inline actions generate shown as written.
-func Run(g *ast.Grammar, opts compile.Options, facts FactSource, control *cancel.Control) (*Result, error) {
+func Run(g *ast.Grammar, opts check.Options, facts FactSource, control *cancel.Control) (*Result, error) {
 	names := desugar.InlineNames{}
 	prog, st, err := CheckStructural(g, opts, nil, names, facts, control)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -25,12 +26,12 @@ type Source struct{}
 
 // RuleFacts returns the facts that the compiler reads of the module m of the rules defs, with the
 // binding errors, from the facts that am holds of m.
-func (Source) RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef) *compile.RuleFacts {
+func (Source) RuleFacts(am *pass.AnalysisManager[*core.Module], m *core.Module, defs []*ast.RuleDef) *check.RuleFacts {
 	f := corepass.FactsOf(am, m)
-	out := &compile.RuleFacts{Rules: make([]compile.RuleFact, len(defs))}
+	out := &check.RuleFacts{Rules: make([]check.RuleFact, len(defs))}
 	for i := range defs {
 		r := &f.Rules[i]
-		rf := compile.RuleFact{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member,
+		rf := check.RuleFact{Cycle: r.Cycle, Leader: r.Leader, Member: r.Member,
 			CycleIns: r.CycleIns, LeaderIns: r.LeaderIns, MemberIns: r.MemberIns,
 			Positional: r.Positional, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars}
 		if r.Recovering >= 0 {
@@ -73,7 +74,7 @@ func (Source) Errors(am *pass.AnalysisManager[*core.Module], m *core.Module, def
 
 // Sites numbers the sites of the module m of prog's rules with the rule flags of prog, keyed by
 // the repetitions of the grammar that the module's repetitions were built from.
-func (Source) Sites(m *core.Module, prog *compile.Program, control *cancel.Control) compile.Sites {
+func (Source) Sites(m *core.Module, prog *compile.Program, control *cancel.Control) check.Sites {
 	rules := make([]corepass.SiteRule, len(prog.RuleList))
 	for i, r := range prog.RuleList {
 		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}
@@ -86,13 +87,13 @@ func (Source) Sites(m *core.Module, prog *compile.Program, control *cancel.Contr
 		}
 		return out
 	}
-	var runKeys map[int]compile.RunKey
+	var runKeys map[int]check.RunKey
 	for site, k := range s.RunKeys {
 		if runKeys == nil {
-			runKeys = make(map[int]compile.RunKey, len(s.RunKeys))
+			runKeys = make(map[int]check.RunKey, len(s.RunKeys))
 		}
-		runKeys[site] = compile.RunKey{Vars: k.Vars, Bind: k.Bind}
+		runKeys[site] = check.RunKey{Vars: k.Vars, Bind: k.Bind}
 	}
-	return compile.Sites{Skip: key(s.Skip), Run: key(s.Run), Scan: key(s.Scan),
+	return check.Sites{Skip: key(s.Skip), Run: key(s.Run), Scan: key(s.Scan),
 		NumSkip: s.NumSkip, NumRun: s.NumRun, NumScan: s.NumScan, EnvFree: s.EnvFreeSites(), RunKeys: runKeys}
 }

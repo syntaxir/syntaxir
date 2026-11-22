@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/vm"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -39,7 +39,7 @@ func corpusProgram(c codegentest.Case) (*Program, bool) {
 	if err != nil {
 		return nil, false
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil || prog.HasMissing {
 		return nil, false
 	}

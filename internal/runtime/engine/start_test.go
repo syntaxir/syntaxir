@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -20,7 +20,7 @@ func compileStarts(t *testing.T, src string) (*Program, error) {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	return Compile(g, compile.Options{})
+	return Compile(g, checkpkg.Options{})
 }
 
 // checkStartRestriction checks that every way into prog parses only from start rules. Streams
@@ -139,7 +139,7 @@ func TestStartRestriction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := Compile(g, compile.Options{Recognition: recognitionMode(recognition)})
+		prog, err := Compile(g, checkpkg.Options{Recognition: recognitionMode(recognition)})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -161,7 +161,7 @@ func TestStartRoundTrip(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			prog, err := Compile(g, compile.Options{Recognition: recognitionMode(recognition)})
+			prog, err := Compile(g, checkpkg.Options{Recognition: recognitionMode(recognition)})
 			if err != nil {
 				t.Fatal(err)
 			}

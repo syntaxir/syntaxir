@@ -1,11 +1,12 @@
 package compile
 
 import (
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // SetSites sets the site numbers of the program, which Check leaves unset.
-func (prog *Program) SetSites(s Sites) {
+func (prog *Program) SetSites(s check.Sites) {
 	prog.sites = s
 	prog.NumSkipSites, prog.NumRunSites, prog.NumScanSites = s.NumSkip, s.NumRun, s.NumScan
 }
@@ -30,7 +31,7 @@ func (prog *Program) EnvFree(site int) bool {
 
 // RunKey returns the variables that key the records of the run site (RunKey); a site free of the
 // environment, or no run site, has none.
-func (prog *Program) RunKey(site int) RunKey { return prog.sites.RunKeys[site] }
+func (prog *Program) RunKey(site int) check.RunKey { return prog.sites.RunKeys[site] }
 
 // RunKeys returns the keys of the run sites that are not free of the environment, by site.
-func (prog *Program) RunKeys() map[int]RunKey { return prog.sites.RunKeys }
+func (prog *Program) RunKeys() map[int]check.RunKey { return prog.sites.RunKeys }

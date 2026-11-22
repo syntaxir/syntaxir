@@ -8,7 +8,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -178,7 +178,7 @@ func BenchmarkByteLiteralMatching(b *testing.B) {
 					if err != nil {
 						b.Fatal(err)
 					}
-					p, err := Compile(g, compile.Options{})
+					p, err := Compile(g, checkpkg.Options{})
 					if err != nil {
 						b.Fatal(err)
 					}

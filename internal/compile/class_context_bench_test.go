@@ -4,6 +4,7 @@ import (
 	"context"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -28,9 +29,9 @@ func BenchmarkClassCompileCancellation(b *testing.B) {
 			for b.Loop() {
 				var err error
 				if controlled {
-					normalizationBenchmarkProgram, err = compileContext(ctx, g, Options{})
+					normalizationBenchmarkProgram, err = compileContext(ctx, g, check.Options{})
 				} else {
-					normalizationBenchmarkProgram, err = compileStatic(g, Options{}, nil)
+					normalizationBenchmarkProgram, err = compileStatic(g, check.Options{}, nil)
 				}
 				if err != nil {
 					b.Fatal(err)

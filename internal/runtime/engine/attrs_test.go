@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -61,7 +61,7 @@ func TestRecoverBacktracking(t *testing.T) {
 	t.Parallel()
 	src := `rule main = item "!" / item "?"
 rule item = ("a" #atomic ";") #recover(skip=[^;]+ ";")`
-	for _, opts := range []compile.Options{{}, {DisableMemo: true}} {
+	for _, opts := range []checkpkg.Options{{}, {DisableMemo: true}} {
 		prog := mustCompile(t, src, opts)
 		n, err := prog.ParseWith("main", "x;?", ParseOptions{Expectations: true})
 		if n == nil {

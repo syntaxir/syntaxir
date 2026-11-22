@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -16,7 +16,7 @@ import (
 func TestLeftRecursionGuardIgnoresVariables(t *testing.T) {
 	t.Parallel()
 	inputs := []string{"x", "xxx", "xxxxxxxxxx", "", "y"}
-	for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+	for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 		options.LeftRecursionBindings = true
 		prog := mustCompile(t, codegentest.LRBindingSource, options)
 		plain := mustCompile(t, codegentest.PlainLRSource, options)

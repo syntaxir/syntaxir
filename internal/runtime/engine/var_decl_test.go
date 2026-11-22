@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -12,13 +12,13 @@ import (
 )
 
 // compileMessage compiles src and returns the error message, or "" if it compiles.
-func compileMessage(t *testing.T, src string, opts ...compile.Options) string {
+func compileMessage(t *testing.T, src string, opts ...checkpkg.Options) string {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	var o compile.Options
+	var o checkpkg.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}

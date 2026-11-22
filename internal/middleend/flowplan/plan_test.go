@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
@@ -40,8 +40,8 @@ rule expr = #operators {
 `
 
 // plan compiles src with the recognition mode rec and plans its table: the Node table for
-// compile.BuildValues, the recognizer for compile.Recognize.
-func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool) (*core.Module, []*compile.Rule, *plandata.Plan) {
+// check.BuildValues, the recognizer for check.Recognize.
+func plan(t *testing.T, src string, rec check.Recognition, live func(int) bool) (*core.Module, []*check.Rule, *plandata.Plan) {
 	t.Helper()
 	ir, rules := tableIR(t, src, rec)
 	p := flowplan.Plan(ir, planRules(rules), live)
@@ -54,10 +54,10 @@ func plan(t *testing.T, src string, rec compile.Recognition, live func(int) bool
 // tableIR compiles src with the recognition mode rec and returns the Core IR of its table after the
 // Core passes, with the options of a Node table that charges the budget, and the compiled rules,
 // value-free twins included.
-func tableIR(t *testing.T, src string, rec compile.Recognition) (*plandata.TableIR, []*compile.Rule) {
+func tableIR(t *testing.T, src string, rec check.Recognition) (*plandata.TableIR, []*check.Rule) {
 	t.Helper()
-	prog := compiletest.Program(t, src, compile.Options{Recognition: rec})
-	m, err := elaborate.CoreProjecting(prog, false, rec == compile.BuildValues)
+	prog := compiletest.Program(t, src, check.Options{Recognition: rec})
+	m, err := elaborate.CoreProjecting(prog, false, rec == check.BuildValues)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,13 +65,13 @@ func tableIR(t *testing.T, src string, rec compile.Recognition) (*plandata.Table
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
+	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
 	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
 	return &plandata.TableIR{M: m, Opts: opts}, rules
 }
 
 // planRules returns what the plan reads of the compiled rules.
-func planRules(rules []*compile.Rule) []*flowplan.Rule {
+func planRules(rules []*check.Rule) []*flowplan.Rule {
 	out := make([]*flowplan.Rule, len(rules))
 	for i, r := range rules {
 		out[i] = &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader}
@@ -83,8 +83,8 @@ func planRules(rules []*compile.Rule) []*flowplan.Rule {
 // the fallback, a value-building rule is framed and builds, an Operators Rule has its skip and lines
 // after the rule bodies, and each layout is the Core rule's scope.
 func TestPlanRoutes(t *testing.T) {
-	m, rules, p := plan(t, grammar, compile.BuildValues, nil)
-	byName := map[string]*compile.Rule{}
+	m, rules, p := plan(t, grammar, check.BuildValues, nil)
+	byName := map[string]*check.Rule{}
 	for _, r := range rules {
 		if r.Twin == nil || byName[r.Name] == nil {
 			byName[r.Name] = r
@@ -96,7 +96,7 @@ func TestPlanRoutes(t *testing.T) {
 		}
 	}
 	// The rules of the recognizer are value-free and may run flat.
-	_, recRules, rec := plan(t, grammar, compile.Recognize, nil)
+	_, recRules, rec := plan(t, grammar, check.Recognize, nil)
 	var flat *plandata.FuncSpec
 	for _, s := range rec.Funcs {
 		if s.Form == lowerdata.Flat {
@@ -144,8 +144,8 @@ func TestPlanRoutes(t *testing.T) {
 
 // TestPlanLive checks that a rule that is not live has no functions and keeps its layout.
 func TestPlanLive(t *testing.T) {
-	_, rules, all := plan(t, grammar, compile.BuildValues, nil)
-	_, _, p := plan(t, grammar, compile.BuildValues, func(id int) bool { return rules[id].Name != "item" && rules[id].Name != "expr" })
+	_, rules, all := plan(t, grammar, check.BuildValues, nil)
+	_, _, p := plan(t, grammar, check.BuildValues, func(id int) bool { return rules[id].Name != "item" && rules[id].Name != "expr" })
 	for _, s := range p.Funcs {
 		if n := rules[s.Key.Rule].Name; n == "item" || n == "expr" {
 			t.Errorf("rule %s is not live but has %+v", n, s.Key)
@@ -160,7 +160,7 @@ func TestPlanLive(t *testing.T) {
 // planned flat functions of the grammar are accepted, and one that reads its entry position at a
 // reachable point is refused.
 func TestRefused(t *testing.T) {
-	m, _, p := plan(t, grammar, compile.Recognize, nil)
+	m, _, p := plan(t, grammar, check.Recognize, nil)
 	opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
 	n, starts := 0, 0
 	for _, s := range p.Funcs {
@@ -229,7 +229,7 @@ func TestRefusedBeforeTheForms(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, rec := range []compile.Recognition{compile.Recognize, compile.BuildValues} {
+		for _, rec := range []check.Recognition{check.Recognize, check.BuildValues} {
 			m, _, p := plan(t, string(src), rec, nil)
 			opts := lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}
 			for _, s := range p.Funcs {
@@ -275,7 +275,7 @@ func lowerFlow(t *testing.T, m *core.Module, s *plandata.FuncSpec, opts lowerdat
 // after flowlower, in the order of the plan, and the first Flow pass already runs on the functions of
 // the plan, pass by pass, as the driver's manager numbers them.
 func TestPlanDecidesBeforeThePasses(t *testing.T) {
-	prog := compiletest.Program(t, grammar, compile.Options{Recognition: compile.Recognize})
+	prog := compiletest.Program(t, grammar, check.Options{Recognition: check.Recognize})
 	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -285,7 +285,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 		t.Fatal(err)
 	}
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
-	p := flowplan.Plan(ir, planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
+	p := flowplan.Plan(ir, planRules(append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
 	var seen, planned []string
 	pl := codegentest.RecordingFlow(true, func(m *code.Module) {
 		if seen == nil {
@@ -329,7 +329,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 // Operators Rule has its skip and lines, and the lowering refuses no flat function.
 func TestPlanTyped(t *testing.T) {
 	const src = grammar + "rule sum = (l:sum \"+\" r:num => $l) / num\n"
-	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
+	prog := compiletest.Program(t, src, check.Options{Recognition: check.BuildValues})
 	m, err := elaborate.CoreFrom(prog, false)
 	if err != nil {
 		t.Fatal(err)
@@ -338,9 +338,9 @@ func TestPlanTyped(t *testing.T) {
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	rules := append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...)
+	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m)}}
-	byName := map[string]*compile.Rule{}
+	byName := map[string]*check.Rule{}
 	for _, r := range rules {
 		if byName[r.Name] == nil {
 			byName[r.Name] = r
@@ -388,7 +388,7 @@ func TestPlanTyped(t *testing.T) {
 // has the capture layout of the rule's body; the recognizer has none.
 func TestPlanStream(t *testing.T) {
 	const src = "rule main = ws is:item* #stream $$ => $is\nrule ws = [ ]*\nrule item = n:[0-9]+ ws => $n\n"
-	prog := compiletest.Program(t, src, compile.Options{Recognition: compile.BuildValues})
+	prog := compiletest.Program(t, src, check.Options{Recognition: check.BuildValues})
 	m, err := elaborate.CoreProjecting(prog, false, true)
 	if err != nil {
 		t.Fatal(err)
@@ -397,7 +397,7 @@ func TestPlanStream(t *testing.T) {
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	rules := planRules(append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...))
+	rules := planRules(append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...))
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, rules, nil)
 	if !flowplan.Stream(p, ir, rules[0]) {
@@ -435,7 +435,7 @@ func TestPlanBindsFramed(t *testing.T) {
 rule main = set "a"
 rule set = "b" {x := 1}
 `
-	ir, rules := tableIR(t, src, compile.Recognize)
+	ir, rules := tableIR(t, src, check.Recognize)
 	planned := planRules(rules)
 	p := flowplan.Plan(ir, planned, nil)
 	var binds, free int
@@ -468,8 +468,8 @@ rule set = "b" {x := 1}
 // (plandata.Plan.Outlined); and that a table that outlines nothing adds none.
 func TestLowerTableOutlines(t *testing.T) {
 	for _, outline := range []bool{false, true} {
-		ir, rules := tableIR(t, grammar, compile.BuildValues)
-		var item *compile.Rule
+		ir, rules := tableIR(t, grammar, check.BuildValues)
+		var item *check.Rule
 		for _, r := range rules {
 			if r.Name == "item" && item == nil {
 				item = r

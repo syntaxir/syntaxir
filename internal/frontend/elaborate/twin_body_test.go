@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -39,7 +39,7 @@ func TestTwinBodies(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -74,7 +74,7 @@ func TestTwinMemoPolicy(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}

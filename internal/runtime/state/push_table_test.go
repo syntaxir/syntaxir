@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -18,7 +18,7 @@ import (
 func TestEngineValuePushTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		prog := &SharedProgram{}
-		InitSharedProgram(prog, compiletest.Program(t, "@start\nrule main = \"a\"\n", compile.Options{}).Runtime())
+		InitSharedProgram(prog, compiletest.Program(t, "@start\nrule main = \"a\"\n", check.Options{}).Runtime())
 		p := &Parser{Prog: prog, Input: NewInput(conform.BuiltinInput, input.Bytes)}
 		if controlled {
 			p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 1 << 62})

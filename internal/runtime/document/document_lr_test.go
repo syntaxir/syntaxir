@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -15,7 +15,7 @@ func TestDocumentIndirectLeftRecursionEdits(t *testing.T) {
 	const src = `rule main = (l:([^\n] / ![ab] r2) "\n" / r1 / m:[^\n]* "\n")* [^\n]* $$
 rule r1 = (r2 / "b") #repeat(0, 2)
 rule r2 = r1 / r2 "a" "b"`
-	for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+	for _, options := range []check.Options{{}, {DisableMemo: true}} {
 		prog := mustCompile(t, src, options)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {

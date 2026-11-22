@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -38,7 +38,7 @@ func TestTopBottomListCheck(t *testing.T) {
 		{"*[]_ | int", "*([]_ | int)"},
 	} {
 		src := "type T = { A " + tc.field + " }\ntype U = { F _ }\nrule main = x:\"a\" => T{A: U{F: \"s\"}.F.(" + tc.field + ")}\nrule ok = x:\"a\"* => T{A: U{F: $x.Value}.F.(" + tc.field + ")}\nrule rule []_ = x:\"a\"* => U{F: $x.Value}.F.([]_)\nrule bad []_ = x:\"a\" => U{F: $x}.F.([]_)"
-		for _, opts := range []compile.Options{{}} {
+		for _, opts := range []checkpkg.Options{{}} {
 			program := mustCompile(t, src, opts)
 			data, err := program.MarshalBinary("main")
 			if err != nil {

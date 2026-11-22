@@ -35,10 +35,10 @@ func TestDefaultValueAcceptsWhatItDropsWithInlineActions(t *testing.T) {
 				}
 			})
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
 			t.Errorf("%s: compiled without the option", src)
 		}
-		if _, err := compileStatic(g, Options{DefaultValue: true}, nil); err != nil {
+		if _, err := compileStatic(g, check.Options{DefaultValue: true}, nil); err != nil {
 			t.Errorf("%s: %v", src, err)
 		}
 	}
@@ -78,8 +78,8 @@ func TestDefaultValueValidationReportsTheGrammarAsWritten(t *testing.T) {
 			if repeats != 1 {
 				t.Fatalf("%d repetitions to corrupt", repeats)
 			}
-			_, withActions := compileStatic(g, Options{}, nil)
-			_, withDefault := compileStatic(g, Options{DefaultValue: true}, nil)
+			_, withActions := compileStatic(g, check.Options{}, nil)
+			_, withDefault := compileStatic(g, check.Options{DefaultValue: true}, nil)
 			if withActions == nil || withDefault == nil {
 				t.Fatalf("no error: %v / %v", withActions, withDefault)
 			}

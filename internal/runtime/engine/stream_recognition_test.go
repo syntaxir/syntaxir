@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -38,7 +38,7 @@ func TestStreamCaptureRecognition(t *testing.T) {
 			source := "rule main = (" + tc.body + ")" + tc.bound + " #stream $$\nrule r = \"é\" => nil"
 			plain := mustCompile(t, strings.ReplaceAll(source, " #stream", ""))
 			for _, disableMemo := range []bool{false, true} {
-				p := mustCompile(t, source, compile.Options{DisableMemo: disableMemo})
+				p := mustCompile(t, source, checkpkg.Options{DisableMemo: disableMemo})
 				programs := []*Program{p}
 				for _, mode := range allModes {
 					programs = append(programs, saveLoad(t, p, "main", mode))
@@ -98,7 +98,7 @@ func BenchmarkStreamCaptureRecognition(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		p, err := Compile(g, compile.Options{})
+		p, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -131,7 +131,7 @@ func TestStreamRecognitionCompiled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{Recognition: compile.RecognizeWithStreamValues})
+	prog, err := Compile(g, checkpkg.Options{Recognition: checkpkg.RecognizeWithStreamValues})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -163,7 +163,7 @@ func TestStreamRecognitionCompiled(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ordinary, err := Compile(g, compile.Options{})
+	ordinary, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

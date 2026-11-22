@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -111,7 +111,7 @@ func TestWideRepetitionBounds(t *testing.T) {
 	}
 	for _, c := range codegentest.WideRepetitionCases() {
 		t.Run(c.Name, func(t *testing.T) {
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				prog := mustCompile(t, c.Src, options)
 				for _, input := range c.Inputs {
 					checkBackends(t, prog, "main", input)

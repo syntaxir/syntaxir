@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -32,7 +32,7 @@ rule item = [a-z]`)
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -100,7 +100,7 @@ rule item = [a-z]`)
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -147,7 +147,7 @@ rule item = [a-z]`)
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

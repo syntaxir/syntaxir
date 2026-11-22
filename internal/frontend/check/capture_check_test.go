@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
@@ -111,7 +112,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 				b.Fatal(err)
 			}
 			// The examples need the analysis of a full compile, which a hand-built program lacks.
-			p, err := entry.Compile(g, compile.Options{})
+			p, err := entry.Compile(g, check.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}

@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -54,8 +54,8 @@ rule main (Alias) = n:([0-9]+) => (T{Text: (text($n))})`,
 			}
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			got, gotErr := entry.CompileContext(ctx, g, compile.Options{})
-			want, wantErr := entry.Compile(g, compile.Options{})
+			got, gotErr := entry.CompileContext(ctx, g, check.Options{})
+			want, wantErr := entry.Compile(g, check.Options{})
 			if !reflect.DeepEqual(gotErr, wantErr) {
 				t.Fatalf("compile diagnostics differ: %v / %v", gotErr, wantErr)
 			}

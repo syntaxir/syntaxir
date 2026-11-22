@@ -3,6 +3,8 @@ package compile
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 // A value of a join is told apart by its struct or node type name, or, for an unnamed node
@@ -20,7 +22,7 @@ func TestJoinNodeMembersTellApart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err != nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 			t.Errorf("%q: %v", src, err)
 		}
 	}
@@ -34,7 +36,7 @@ func TestJoinNodeMembersTellApart(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		_, err = compileStatic(g, Options{}, nil)
+		_, err = compileStatic(g, check.Options{}, nil)
 		if err == nil || !strings.Contains(err.Error(), "a "+tc.kind+" node is both") || strings.Count(err.Error(), "is both") != 1 {
 			t.Errorf("%q: got %v, want one ambiguous %s join error", tc.src, err, tc.kind)
 		}

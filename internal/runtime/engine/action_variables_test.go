@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -14,7 +14,7 @@ func TestMemoActionVariables(t *testing.T) {
 	for _, c := range codegentest.ActionVariableCases {
 		t.Run(c.Name, func(t *testing.T) {
 			for _, disable := range []bool{false, true} {
-				prog := mustCompile(t, c.Src, compile.Options{DisableMemo: disable})
+				prog := mustCompile(t, c.Src, checkpkg.Options{DisableMemo: disable})
 				if vars := prog.ByName["r"].Vars; len(vars) != 1 || vars[0] != "x" {
 					t.Errorf("r variable dependencies: %v", vars)
 				}

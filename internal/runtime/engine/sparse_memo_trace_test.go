@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -23,7 +23,7 @@ func TestSparseMemoParseControls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,8 +3,8 @@ package flowplan_test
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -25,7 +25,7 @@ import (
 // that was lowered is unchanged. (No grammar of the repository
 // has a flat function that Refused rejects, so the test refuses by the hook.)
 func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
-	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
+	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", check.Options{Recognition: check.Recognize})
 	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -36,7 +36,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	}
 	var rules []*flowplan.Rule
 	byName := map[string]int{}
-	for _, r := range append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...) {
+	for _, r := range append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...) {
 		rules = append(rules, &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 		byName[r.Name] = r.ID
 	}
@@ -90,7 +90,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 // to the decision, is replaced by its framed fallback, in the plan and in the module of the lowered
 // table, and the others stay flat.
 func TestPlanRefusesByItsPredicate(t *testing.T) {
-	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", compile.Options{Recognition: compile.Recognize})
+	prog := compiletest.Program(t, "rule main = a b !.\nrule a = \"a\"+\nrule b = [b]*\n", check.Options{Recognition: check.Recognize})
 	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -100,7 +100,7 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 		t.Fatal(err)
 	}
 	var rules []*flowplan.Rule
-	for _, r := range append(append([]*compile.Rule(nil), prog.RuleList...), prog.Twins...) {
+	for _, r := range append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...) {
 		rules = append(rules, &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 	}
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}

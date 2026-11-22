@@ -8,8 +8,8 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -26,8 +26,8 @@ func testInvalidCharacterClassEntryPoints(t *testing.T) {
 			cc := &ast.CharClass{SourceInfo: ast.SourceInfo{Pos: ast.Pos{Line: 3, Col: 7}}, Ranges: []ast.CharRange{cr}}
 			g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: cc}}}}
 			for name, run := range map[string]func() error{
-				"compile":           func() error { _, err := Compile(g, compile.Options{}); return err },
-				"saved AST rebuild": func() error { _, err := build(g, compile.Options{}, []compile.RuleFlags{{}}); return err },
+				"compile":           func() error { _, err := Compile(g, checkpkg.Options{}); return err },
+				"saved AST rebuild": func() error { _, err := build(g, checkpkg.Options{}, []checkpkg.RuleFlags{{}}); return err },
 				"Go generator": func() error {
 					_, err := codegentest.GenerateCode(t, g, common.GenOptions{Start: "main", Package: "p"})
 					return err

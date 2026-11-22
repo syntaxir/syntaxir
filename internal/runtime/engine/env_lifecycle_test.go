@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
@@ -89,7 +89,7 @@ rule main = {limit := 1} {i := 0} {j := 0} (` + c.body + `)* $$`)
 					if err != nil {
 						b.Fatal(err)
 					}
-					prog, err := Compile(g, compile.Options{})
+					prog, err := Compile(g, checkpkg.Options{})
 					if err != nil {
 						b.Fatal(err)
 					}
@@ -127,7 +127,7 @@ func BenchmarkDistinctBindings(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			prog, err := Compile(g, compile.Options{})
+			prog, err := Compile(g, checkpkg.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -22,7 +22,7 @@ func TestCoreFactsGolden(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
@@ -69,7 +69,7 @@ func TestRecoverAndMissingNullability(t *testing.T) {
 		{`rule a = ("x" #missing #recover(skip="y")) "z"`, false, true},
 		{`rule a = "(" #missing a "x" / "y"`, false, true},
 	} {
-		m, err := elaborate.CoreFrom(compiletest.Program(t, tc.src, compile.Options{}), false)
+		m, err := elaborate.CoreFrom(compiletest.Program(t, tc.src, check.Options{}), false)
 		if err != nil {
 			t.Fatal(err)
 		}

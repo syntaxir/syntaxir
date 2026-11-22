@@ -3,6 +3,7 @@ package checked
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -17,7 +18,7 @@ func (s *Source) Generator() *common.Program {
 	v := &common.Program{Model: p.Model, Check: p.Checker(), Typed: p.Typed, Run: run, Elab: p,
 		RuleList: make([]*common.Rule, len(p.RuleList)), Twins: make([]*common.Rule, len(p.Twins)),
 		ByName: make(map[string]*common.Rule, len(p.RuleList))}
-	view := func(r *compile.Rule) *common.Rule {
+	view := func(r *check.Rule) *common.Rule {
 		rt := run.RuleList
 		id := r.ID
 		if id >= len(rt) {
@@ -42,14 +43,14 @@ func (s *Source) Generator() *common.Program {
 }
 
 // CompileOptions returns the options of the compiler that the choices o of a generator stand for.
-func CompileOptions(o common.CompileOptions) compile.Options {
-	return compile.Options{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}
+func CompileOptions(o common.CompileOptions) check.Options {
+	return check.Options{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}
 }
 
 // GeneratorCompiler returns the compiler of the generators (common.Compiler) that checks a grammar
 // with c, which returns the checked program and a function that returns that of its recognizer, and
 // gives the generators their views (Source.Generator).
-func GeneratorCompiler(c func(g *ast.Grammar, opts compile.Options) (*compile.Program, func() (*compile.Program, error), error)) common.Compiler {
+func GeneratorCompiler(c func(g *ast.Grammar, opts check.Options) (*compile.Program, func() (*compile.Program, error), error)) common.Compiler {
 	return func(g *ast.Grammar, opts common.CompileOptions) (*common.Program, func() (*common.Program, error), error) {
 		prog, rec, err := c(g, CompileOptions(opts))
 		if err != nil {

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
@@ -115,7 +115,7 @@ rule f = [0-9] / "(" e ")"`,
 		{"1+2*3", "1!+2?", "(1+2)!*3", "1*2!+3*4?", "1+", "(1+2!", "1!?", "((1!)?)+2", "", "+", "1+*"},
 	}
 	for gi, src := range grammars {
-		memo, plain := mustCompile(t, src), mustCompile(t, src, compile.Options{DisableMemo: true})
+		memo, plain := mustCompile(t, src), mustCompile(t, src, checkpkg.Options{DisableMemo: true})
 		for _, in := range inputs[gi] {
 			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -141,7 +141,7 @@ rule f = [0-9] / "(" e ")"`,
 // limit in either. full adds positions in bytes.
 func memberMemoDiffers(t *testing.T, c codegentest.Case, full bool) []string {
 	t.Helper()
-	memo, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{DisableMemo: true})
+	memo, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, checkpkg.Options{DisableMemo: true})
 	units := []sxirinput.PositionUnit{sxirinput.CodePoints}
 	if full {
 		units = append(units, sxirinput.Bytes)
@@ -198,7 +198,7 @@ func TestLeftRecursionMemberMemoRandom(t *testing.T) {
 			if err != nil {
 				continue
 			}
-			if _, err := Compile(g, compile.Options{}); err != nil {
+			if _, err := Compile(g, checkpkg.Options{}); err != nil {
 				continue
 			}
 			compiled++
@@ -230,7 +230,7 @@ func checkRecoveringMemberMemo(t *testing.T, from, to int64) {
 		if err != nil {
 			continue
 		}
-		if _, err := Compile(g, compile.Options{}); err != nil {
+		if _, err := Compile(g, checkpkg.Options{}); err != nil {
 			continue
 		}
 		compiled++

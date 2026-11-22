@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 )
 
 // BenchmarkCompileBundledGrammars measures the compilation of each grammar of testdata/grammars
@@ -27,7 +27,7 @@ func BenchmarkCompileBundledGrammars(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
-				if _, err := Compile(g, compile.Options{}); err != nil {
+				if _, err := Compile(g, checkpkg.Options{}); err != nil {
 					b.Skipf("does not compile alone: %v", err)
 				}
 			}

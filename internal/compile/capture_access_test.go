@@ -3,6 +3,8 @@ package compile
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestCaptureAccessErrors(t *testing.T) {
@@ -18,7 +20,7 @@ func TestCaptureAccessErrors(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}

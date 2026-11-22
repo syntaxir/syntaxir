@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/actionlower"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -20,7 +21,7 @@ import (
 func TestEngineValueIterTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		prog := &state.SharedProgram{}
-		cp := compiletest.Program(t, "@start\nrule main = \"a\"\n", compile.Options{})
+		cp := compiletest.Program(t, "@start\nrule main = \"a\"\n", check.Options{})
 		state.InitSharedProgram(prog, cp.Runtime())
 		p := &state.Parser{Prog: prog, Input: state.NewInput(conform.BuiltinInput, input.Bytes)}
 		if controlled {

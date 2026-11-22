@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -38,7 +38,7 @@ func TestOperatorsRuleNamedNodeTypeShape(t *testing.T) {
 	cases := codegentest.OperatorsNamedNodeCases()
 	for _, sourceInfo := range []bool{false, true} {
 		{
-			prog := compileBare(t, cases[0].Src, compile.Options{SourceInfo: sourceInfo})
+			prog := compileBare(t, cases[0].Src, checkpkg.Options{SourceInfo: sourceInfo})
 			for _, tc := range []struct{ input, want string }{
 				{"1", "Expr"},
 				{"1+2", "Expr(Expr string Expr)"},
@@ -70,7 +70,7 @@ func TestOperatorsRuleNamedNodeTypeAcrossBackends(t *testing.T) {
 	for _, c := range codegentest.OperatorsNamedNodeCases() {
 		for _, sourceInfo := range []bool{false, true} {
 			{
-				prog := compileBare(t, c.Src, compile.Options{SourceInfo: sourceInfo})
+				prog := compileBare(t, c.Src, checkpkg.Options{SourceInfo: sourceInfo})
 				for _, input := range c.Inputs {
 					want := codegentest.ResultJSON(prog.ParseWith("main", input, ParseOptions{Backend: Closure}))
 					for _, backend := range []Backend{Bytecode, BytecodeIterative} {

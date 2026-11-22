@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -89,16 +89,16 @@ rule e = #operators {
 // TestMissingTokensModuleGuard checks that a grammar that uses #missing has no bytecode form.
 func TestMissingTokensModuleGuard(t *testing.T) {
 	t.Parallel()
-	prog := compiletest.Program(t, `rule main = ";" #missing`, compile.Options{SourceInfo: true})
+	prog := compiletest.Program(t, `rule main = ";" #missing`, check.Options{SourceInfo: true})
 	if _, err := vmlower.Compile(vmlower.Input{Run: prog.Runtime(), Elab: prog}); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
 		t.Fatal("silent bytecode lowering", err)
 	}
 }
 
 // compileModule compiles src with source information, and the options opts if any, to a module.
-func compileModule(t *testing.T, src string, opts ...compile.Options) *bytecode.Module {
+func compileModule(t *testing.T, src string, opts ...check.Options) *bytecode.Module {
 	t.Helper()
-	var o compile.Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}

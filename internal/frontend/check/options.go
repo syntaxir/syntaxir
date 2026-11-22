@@ -1,4 +1,4 @@
-package compile
+package check
 
 // Recognition is what a compiled program does with the input: build values or only check it.
 type Recognition uint8

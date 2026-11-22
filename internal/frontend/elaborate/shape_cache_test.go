@@ -24,7 +24,7 @@ func TestShapeCacheFacts(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}
-		prog, err := compiletest.Compile(g, compile.Options{})
+		prog, err := compiletest.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatalf("%s: %v", path, err)
 		}

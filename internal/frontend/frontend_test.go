@@ -3,8 +3,8 @@ package frontend_test
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -17,12 +17,12 @@ import (
 // variants are the compiler options that change the Core IR of a grammar.
 var variants = []struct {
 	name string
-	opts compile.Options
+	opts check.Options
 }{
-	{"parse", compile.Options{}},
-	{"recognize", compile.Options{Recognition: compile.RecognizeWithStreamValues}},
-	{"no projections", compile.Options{NoProjections: true}},
-	{"default value", compile.Options{DefaultValue: true}},
+	{"parse", check.Options{}},
+	{"recognize", check.Options{Recognition: check.RecognizeWithStreamValues}},
+	{"no projections", check.Options{NoProjections: true}},
+	{"default value", check.Options{DefaultValue: true}},
 }
 
 // TestRunMatchesCompile requires, for every corpus grammar and variant, that Run's module, once its
@@ -73,11 +73,11 @@ func TestRunReportsCompileErrors(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, want := compiletest.Compile(g, compile.Options{})
+	_, want := compiletest.Compile(g, check.Options{})
 	if want == nil {
 		t.Fatal("the grammar compiles")
 	}
-	res, got := frontend.Run(g, compile.Options{}, checkfacts.Source{}, nil)
+	res, got := frontend.Run(g, check.Options{}, checkfacts.Source{}, nil)
 	if res != nil || got == nil || got.Error() != want.Error() {
 		t.Fatalf("Run = %v, %v; want the error %v", res, got, want)
 	}

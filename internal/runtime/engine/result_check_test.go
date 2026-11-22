@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -44,7 +44,7 @@ func checkRuleResultType(t *testing.T, typ string, resultGrammar func(typ, rt st
 			if err != nil {
 				t.Fatal(err)
 			}
-			checked, err := Compile(g, compile.Options{})
+			checked, err := Compile(g, checkpkg.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -59,7 +59,7 @@ func checkRuleResultType(t *testing.T, typ string, resultGrammar func(typ, rt st
 			if err != nil {
 				t.Fatal(err)
 			}
-			untyped, err := Compile(ug, compile.Options{})
+			untyped, err := Compile(ug, checkpkg.Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -176,7 +176,7 @@ func TestOperatorResultChecks(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := Compile(g, checkpkg.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

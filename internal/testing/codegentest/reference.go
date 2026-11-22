@@ -12,7 +12,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -25,9 +25,9 @@ type ReferenceParse func(input string, bytes, recognize bool) (*value.Node, erro
 // Reference compiles src with opts for the comparisons of generated parsers with the engine and
 // returns the parse function of its rule main. The test package sets it, as it sets Compile: this
 // package cannot import the engine. It fails the test if src does not compile.
-var Reference func(t *testing.T, src string, opts compile.Options) ReferenceParse
+var Reference func(t *testing.T, src string, opts check.Options) ReferenceParse
 
-func refProgram(t *testing.T, src string, opts compile.Options) ReferenceParse {
+func refProgram(t *testing.T, src string, opts check.Options) ReferenceParse {
 	t.Helper()
 	if Reference == nil {
 		t.Fatal("codegentest.Reference is not set: the test package must set it to compile with the engine")
@@ -267,7 +267,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		fmt.Fprintf(&viewers, "\tfunc(n any) string { return %s },\n", strings.ReplaceAll(NodeViewsSource, "PKG", fmt.Sprintf("g%d", i)))
 		inputs = append(inputs, c.Inputs)
 		// The generated code projects (internal/compile/project.go), and records source information as asked.
-		prog := refProgram(t, c.Src, compile.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
+		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, in := range c.Inputs {
 			for _, bytes := range []bool{false, true} {
 				n, err := prog(in, bytes, false)
@@ -399,7 +399,7 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 		fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.ParseValue(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
 		fmt.Fprintf(&converters, "\tfunc(s string, b bool) (any, error) { u := c%d.CodePoints; if b { u = c%d.Bytes }; return c%d.ParseValue(s, c%[3]d.WithUnit(u)) },\n", i, i, i)
 		inputs = append(inputs, c.Inputs)
-		prog := refProgram(t, c.Src, compile.Options{SourceInfo: true})
+		prog := refProgram(t, c.Src, check.Options{SourceInfo: true})
 		for _, in := range c.Inputs {
 			n, err := prog(in, false, false)
 			wantErr = append(wantErr, fmt.Sprint(err))

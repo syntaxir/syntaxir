@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -26,7 +26,7 @@ func testOperatorsRuleExplicitDefaultAction(t *testing.T) {
     level { infix left "+" }
 }`
 	plain := mustCompile(t, source)
-	for _, opts := range []compile.Options{{SourceInfo: true}} {
+	for _, opts := range []check.Options{{SourceInfo: true}} {
 		g, err := parseTest(source + " => ...")
 		if err != nil {
 			t.Fatal(err)

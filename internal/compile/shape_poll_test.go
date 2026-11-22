@@ -27,7 +27,7 @@ func TestShapeAnalysisPollsContext(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compileStatic(g, Options{}, nil)
+	prog, err := compileStatic(g, check.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -21,14 +21,14 @@ func TestBackendsMatchOnCorpus(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.GenCorpus(t) {
 		t.Run(c.Name, func(t *testing.T) {
-			for _, o := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, o := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				prog := mustCompile(t, c.Src, o)
 				for _, in := range c.Inputs {
 					checkBackends(t, prog, "main", in)
 				}
 			}
 			// Projected repetitions (internal/compile/project.go) give what the repetitions as written give.
-			prog, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, compile.Options{NoProjections: true})
+			prog, plain := mustCompile(t, c.Src), mustCompile(t, c.Src, checkpkg.Options{NoProjections: true})
 			for _, in := range c.Inputs {
 				for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					n1, err1 := prog.ParseWith("main", in, ParseOptions{Expectations: true, Unit: u})
@@ -133,7 +133,7 @@ rule e = #operators {
     level { postfix "!" }
 }`
 	for _, disableMemo := range []bool{false, true} {
-		prog := mustCompile(t, src, compile.Options{DisableMemo: disableMemo})
+		prog := mustCompile(t, src, checkpkg.Options{DisableMemo: disableMemo})
 		for _, tc := range []struct {
 			input string
 			depth int

@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -56,8 +56,8 @@ rule main (Alias) = {count := (1)} {(count == 1)} n:([0-9]+) => (Number{Text: (t
 			if gotErr != nil {
 				return
 			}
-			optimized, optimizedErr := Compile(g, compile.Options{})
-			eager, eagerErr := Compile(g, compile.Options{EagerAttributeCopies: true})
+			optimized, optimizedErr := Compile(g, checkpkg.Options{})
+			eager, eagerErr := Compile(g, checkpkg.Options{EagerAttributeCopies: true})
 			if !reflect.DeepEqual(optimizedErr, eagerErr) {
 				t.Fatalf("compile errors differ: %v / %v", optimizedErr, eagerErr)
 			}

@@ -19,7 +19,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -298,7 +298,7 @@ func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		files = append(files, name)
 		var in []input
 		// The generated code projects (internal/compile/project.go), and records source information as asked.
-		prog := refProgram(t, c.Src, compile.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
+		prog := refProgram(t, c.Src, check.Options{NoProjections: true, SourceInfo: opts.SourceInfo})
 		for _, s := range c.Inputs {
 			in = append(in, input{base64.StdEncoding.EncodeToString([]byte(s)), utf8.ValidString(s)})
 			for _, bytes := range []bool{false, true} {

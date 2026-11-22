@@ -26,9 +26,9 @@ func mustParse(src string) *ast.Grammar {
 
 // mustCompile compiles SyntaxIR source with source information, so that results show rule names and
 // capture labels.
-func mustCompile(t *testing.T, src string, opts ...Options) *Program {
+func mustCompile(t *testing.T, src string, opts ...check.Options) *Program {
 	t.Helper()
-	var o Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -38,13 +38,13 @@ func mustCompile(t *testing.T, src string, opts ...Options) *Program {
 
 // compileBare compiles SyntaxIR source with the options as given: without source information unless
 // they request it.
-func compileBare(t *testing.T, src string, opts ...Options) *Program {
+func compileBare(t *testing.T, src string, opts ...check.Options) *Program {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	var o Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -62,7 +62,7 @@ func compileError(t *testing.T, src string) string {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	_, err = compileStatic(g, Options{}, nil)
+	_, err = compileStatic(g, check.Options{}, nil)
 	if err == nil {
 		t.Fatalf("expected a compile error\n%s", src)
 	}
@@ -70,13 +70,13 @@ func compileError(t *testing.T, src string) string {
 }
 
 // compileMessage compiles src and returns the error message, or "" if it compiles.
-func compileMessage(t *testing.T, src string, opts ...Options) string {
+func compileMessage(t *testing.T, src string, opts ...check.Options) string {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatalf("%q: %v", src, err)
 	}
-	var o Options
+	var o check.Options
 	if len(opts) > 0 {
 		o = opts[0]
 	}
@@ -94,7 +94,7 @@ func compileStarts(t *testing.T, src string) (*Program, error) {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	return compileStatic(g, Options{}, nil)
+	return compileStatic(g, check.Options{}, nil)
 }
 
 // inferredType returns the value type the checker infers for the rule name, with the rules it
@@ -134,7 +134,7 @@ func jsonActionBlockGrammar(t *testing.T, g *ast.Grammar) *ast.Grammar {
 
 // compileContext is compileStatic under ctx, as the engine's CompileContext is: cancellation
 // discards the program and returns the context's error.
-func compileContext(ctx context.Context, g *ast.Grammar, opts Options) (prog *Program, err error) {
+func compileContext(ctx context.Context, g *ast.Grammar, opts check.Options) (prog *Program, err error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}

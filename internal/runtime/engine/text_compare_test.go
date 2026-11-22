@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -14,7 +14,7 @@ import (
 // and without budget controls.
 func TestTextFieldComparisons(t *testing.T) {
 	t.Parallel()
-	prog := compileBare(t, codegentest.TextCompareGrammar, compile.Options{})
+	prog := compileBare(t, codegentest.TextCompareGrammar, checkpkg.Options{})
 	limits := runtime.Limits{Compute: 1 << 40}
 	for _, controlled := range []bool{false, true} {
 		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -72,7 +72,7 @@ rule name Name = t:([a-z]+) #atomic => Name{Text: text($t)}`
 func TestTextFieldComparisonEdges(t *testing.T) {
 	t.Parallel()
 	inputs := []string{"?!", "?a!", "#a", "^ab", "^m", "~ab", "=a", "&x,y", "&a,b", "&b,a", "&ab,ab"}
-	prog := compileBare(t, textCompareEdgeGrammar, compile.Options{})
+	prog := compileBare(t, textCompareEdgeGrammar, checkpkg.Options{})
 	for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 		for _, input := range inputs {
 			// The reference build has no budget controls to compare against.

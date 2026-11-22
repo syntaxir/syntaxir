@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -20,7 +20,7 @@ import (
 func TestEngineValueStructTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		prog := &SharedProgram{}
-		InitSharedProgram(prog, compiletest.Program(t, "type S = { F0 int }\n@start\nrule main = \"a\"\n", compile.Options{}).Runtime())
+		InitSharedProgram(prog, compiletest.Program(t, "type S = { F0 int }\n@start\nrule main = \"a\"\n", check.Options{}).Runtime())
 		p := &Parser{Prog: prog, Input: NewInput(conform.BuiltinInput, input.Bytes)}
 		if controlled {
 			p.Control = NewBudgetControl(nil, runtime.Limits{Compute: 1 << 62})
@@ -64,7 +64,7 @@ func TestEngineValueStructTable(t *testing.T) {
 // emits for a struct literal, with FIELD for each field, makes the struct the table wants, and FIELD
 // charges what STEP, SETFIELD and COVER, which it fuses, charge.
 func TestEngineValueStructTableActionCode(t *testing.T) {
-	cp := compiletest.Program(t, "type S = { F0 int\n F1 int }\n@start\nrule main = \"a\"\n", compile.Options{})
+	cp := compiletest.Program(t, "type S = { F0 int\n F1 int }\n@start\nrule main = \"a\"\n", check.Options{})
 	for _, controlled := range []bool{false, true} {
 		prog := &SharedProgram{}
 		InitSharedProgram(prog, cp.Runtime())

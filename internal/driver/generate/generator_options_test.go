@@ -4,8 +4,8 @@ import (
 	"reflect"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
@@ -19,11 +19,11 @@ func TestGeneratorRecognizerCarriesEveryOption(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	typ := reflect.TypeFor[compile.Options]()
+	typ := reflect.TypeFor[check.Options]()
 	for i := 0; i < typ.NumField(); i++ {
 		name := typ.Field(i).Name
 		t.Run(name, func(t *testing.T) {
-			var o compile.Options
+			var o check.Options
 			f := reflect.ValueOf(&o).Elem().FieldByName(name)
 			switch f.Kind() {
 			case reflect.Bool:
@@ -47,7 +47,7 @@ func TestGeneratorRecognizerCarriesEveryOption(t *testing.T) {
 				f := typ.Field(j).Name
 				expected := want.Field(j).Interface()
 				if f == "Recognition" {
-					expected = compile.Recognize
+					expected = check.Recognize
 				}
 				if got.Field(j).Interface() != expected {
 					t.Errorf("recognizer: option %s is %v, want %v", f, got.Field(j).Interface(), expected)

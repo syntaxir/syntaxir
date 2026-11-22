@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -64,7 +65,7 @@ rule d = "d"
 // coreProgram compiles src to its static program, failing the test if it does not compile.
 func coreProgram(t *testing.T, src string) *compile.Program {
 	t.Helper()
-	return compiletest.Program(t, src, compile.Options{})
+	return compiletest.Program(t, src, check.Options{})
 }
 
 // typeString returns the checker's spelling of a Core type handle.

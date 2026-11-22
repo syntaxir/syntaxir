@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -77,7 +77,7 @@ func moduleFacts(t *testing.T, path string) (*core.Module, *corepass.Facts) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compiletest.Compile(g, compile.Options{})
+	prog, err := compiletest.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -3,8 +3,8 @@ package checked
 import (
 	"fmt"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
@@ -38,7 +38,7 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 	if err != nil {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
-	rules := append(append([]*compile.Rule(nil), p.RuleList...), p.Twins...)
+	rules := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
 	plan := flowplan.Plan(t, planRules(rules), nil)
 	lt, err := d.LowerFlowTable("rules", flowplan.Unit(plan, t, nil), false, flowpass.Bytecode)
 	if err != nil {
@@ -54,7 +54,7 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 }
 
 // planRules returns what the plan of a table reads of the compiled rules (flowplan.Rule).
-func planRules(rules []*compile.Rule) []*flowplan.Rule {
+func planRules(rules []*check.Rule) []*flowplan.Rule {
 	out := make([]*flowplan.Rule, len(rules))
 	for i, r := range rules {
 		out[i] = &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean,

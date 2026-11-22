@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -154,7 +154,7 @@ func BenchmarkStreamRecoveryPreparation(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		p, err := Compile(g, compile.Options{})
+		p, err := Compile(g, checkpkg.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -165,7 +165,7 @@ func BenchmarkStreamRecoveryPreparation(b *testing.B) {
 		b.Run(fmt.Sprintf("Compile/%d", n), func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := Compile(g, compile.Options{}); err != nil {
+				if _, err := Compile(g, checkpkg.Options{}); err != nil {
 					b.Fatal(err)
 				}
 			}

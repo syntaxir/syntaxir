@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -37,7 +37,7 @@ func TestBudgetPrimitiveASTAliases(t *testing.T) {
 			}
 			rules := g.Rules()
 			rules[1].Expr = primitiveOf(rules[0].Expr)
-			shared, err := Compile(g, compile.Options{SourceInfo: true})
+			shared, err := Compile(g, checkpkg.Options{SourceInfo: true})
 			if err != nil {
 				t.Fatal(err)
 			}

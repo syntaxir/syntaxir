@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -43,7 +43,7 @@ func TestCallsWrapper(t *testing.T) {
 // calls is not reached. The step checks its input.
 func TestPlanProgramReachesThroughTheRoutes(t *testing.T) {
 	t.Parallel()
-	prog := compiletest.Program(t, "rule main = a b\nrule a = \"a\"\nrule b = c\nrule c = \"c\"\nrule unused = \"u\"\n", compile.Options{})
+	prog := compiletest.Program(t, "rule main = a b\nrule a = \"a\"\nrule b = c\nrule c = \"c\"\nrule unused = \"u\"\n", check.Options{})
 	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +87,7 @@ func TestPlanProgramReachesThroughTheRoutes(t *testing.T) {
 // rule's route and reach.
 func TestPlanIsDumpedOnlyByName(t *testing.T) {
 	t.Parallel()
-	prog := compiletest.Program(t, "rule main = a\nrule a = \"a\"\nrule unused = \"u\"\n", compile.Options{})
+	prog := compiletest.Program(t, "rule main = a\nrule a = \"a\"\nrule unused = \"u\"\n", check.Options{})
 	m, err := elaborate.CoreProjecting(prog, false, false)
 	if err != nil {
 		t.Fatal(err)

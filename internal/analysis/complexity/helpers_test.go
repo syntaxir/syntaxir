@@ -6,13 +6,14 @@ import (
 
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // compileStatic compiles g as the engine does, without building matchers.
 func compileStatic(g *ast.Grammar) (*compile.Program, error) {
-	return compiletest.Compile(g, compile.Options{})
+	return compiletest.Compile(g, check.Options{})
 }
 
 // skipOf returns the skip expression of e if e is an expression with #recover, or nil.

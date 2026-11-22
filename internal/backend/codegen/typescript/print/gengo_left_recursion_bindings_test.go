@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -19,7 +19,7 @@ func TestGeneratedTSLeftRecursionGuardIgnoresVariables(t *testing.T) {
 	var script strings.Builder
 	script.WriteString("import { parse, recognize } from \"./parser.ts\";\n")
 	var want strings.Builder
-	prog := compileBare(t, codegentest.LRBindingSource, compile.Options{LeftRecursionBindings: true})
+	prog := compileBare(t, codegentest.LRBindingSource, check.Options{LeftRecursionBindings: true})
 	for _, in := range codegentest.LRBindingInputs {
 		fmt.Fprintf(&script, "{ const r = parse(%q); const e = recognize(%[1]q); console.log(r.error === null ? String(r.node) : \"error: \" + r.error.message, e === null ? \"null\" : e.message); }\n", in)
 		n, err := prog.ParseWith("main", in, engine.ParseOptions{Expectations: true, Limits: runtime.Limits{Depth: 400}})

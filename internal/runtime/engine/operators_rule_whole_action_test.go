@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -54,12 +54,12 @@ func testOperatorsRuleWholeActionCompiles(t *testing.T) {
 			}{{"source AST", g}, {"JSON AST", decoded}} {
 				t.Run(input.name, func(t *testing.T) {
 					for name, run := range map[string]func() error{
-						"compile": func() error { _, err := Compile(input.g, compile.Options{}); return err },
+						"compile": func() error { _, err := Compile(input.g, checkpkg.Options{}); return err },
 						"recognizer compile": func() error {
-							_, err := Compile(input.g, compile.Options{Recognition: compile.RecognizeWithStreamValues})
+							_, err := Compile(input.g, checkpkg.Options{Recognition: checkpkg.RecognizeWithStreamValues})
 							return err
 						},
-						"saved AST rebuild": func() error { _, err := build(input.g, compile.Options{}, []compile.RuleFlags{{}}); return err },
+						"saved AST rebuild": func() error { _, err := build(input.g, checkpkg.Options{}, []checkpkg.RuleFlags{{}}); return err },
 						"Go generator": func() error {
 							_, err := codegentest.GenerateCode(t, input.g, common.GenOptions{Start: "main", Package: "p"})
 							return err
@@ -85,7 +85,7 @@ func testOperatorsRuleWholeActionCompiles(t *testing.T) {
 								if perr != nil {
 									t.Fatal(perr)
 								}
-								_, oerr := Compile(o, compile.Options{Recognition: compile.RecognizeWithStreamValues})
+								_, oerr := Compile(o, checkpkg.Options{Recognition: checkpkg.RecognizeWithStreamValues})
 								if (err == nil) != (oerr == nil) || err != nil && !strings.Contains(err.Error(), strings.SplitN(oerr.Error(), ": ", 2)[1]) {
 									t.Fatalf("got %v; an ordinary rule gives %v", err, oerr)
 								}
@@ -274,7 +274,7 @@ func TestOperatorsRuleWholeActionDefaultValue(t *testing.T) {
     level { infix left "+" }
 }`
 	plain := mustCompile(t, body)
-	prog := mustCompile(t, "type Out = { E _ }\n"+body+" => Out{E: $value}", compile.Options{DefaultValue: true})
+	prog := mustCompile(t, "type Out = { E _ }\n"+body+" => Out{E: $value}", checkpkg.Options{DefaultValue: true})
 	if got, want := result(prog, "1+2"), result(plain, "1+2"); got != want {
 		t.Errorf("default value %s; want %s", got, want)
 	}

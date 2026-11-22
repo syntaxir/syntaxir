@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -58,7 +58,7 @@ func budgetGuardedChoiceProgramOf(t *testing.T, choice *ast.Choice, first ast.Ex
 		&ast.RuleDef{Name: "fallback", Expr: &ast.Literal{Value: "z"}},
 	}}}
 	starttest.MarkAll(g)
-	prog, err := entry.Compile(g, compile.Options{})
+	prog, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatalf("compile guarded-choice grammar: %v", err)
 	}
@@ -292,7 +292,7 @@ func compileExprProgram(t *testing.T, e ast.Expr) *engine.Program {
 	t.Helper()
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: e}}}}
 	starttest.MarkAll(g)
-	prog, err := entry.Compile(g, compile.Options{})
+	prog, err := entry.Compile(g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
@@ -13,7 +14,7 @@ import (
 
 // compileForGenerator compiles g for the generators, as the compileForGenerator of package
 // codegen does.
-func compileForGenerator(g *ast.Grammar, opts compile.Options) (*compile.Program, func() (*compile.Program, error), error) {
+func compileForGenerator(g *ast.Grammar, opts checkpkg.Options) (*compile.Program, func() (*compile.Program, error), error) {
 	prog, err := Compile(g, opts)
 	if err != nil {
 		return nil, nil, err

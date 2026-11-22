@@ -10,7 +10,7 @@ import (
 	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -125,7 +125,7 @@ func TestTSDocumentMatchesFreshParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ref := referenceProgram(t, src, compile.Options{NoProjections: true})
+	ref := referenceProgram(t, src, check.Options{NoProjections: true})
 	rng := rand.New(rand.NewSource(64))
 	var cases []documentCase
 	var wants []string

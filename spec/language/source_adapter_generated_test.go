@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -35,7 +36,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 		t.Skip("go command not found")
 	}
 	// The generator and the comparison compile with the engine, as the tests of the generator do.
-	codegentest.Compile = checked.GeneratorCompiler(func(g *ast.Grammar, opts compile.Options) (*compile.Program, func() (*compile.Program, error), error) {
+	codegentest.Compile = checked.GeneratorCompiler(func(g *ast.Grammar, opts check.Options) (*compile.Program, func() (*compile.Program, error), error) {
 		prog, err := entry.Compile(g, opts)
 		if err != nil {
 			return nil, nil, err
@@ -48,7 +49,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 			return entry.Checked(rec), nil
 		}, nil
 	})
-	codegentest.Reference = func(t *testing.T, src string, opts compile.Options) codegentest.ReferenceParse {
+	codegentest.Reference = func(t *testing.T, src string, opts check.Options) codegentest.ReferenceParse {
 		g, err := compiletest.Parse(src)
 		if err != nil {
 			t.Fatal(err)

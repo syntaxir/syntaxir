@@ -21,7 +21,7 @@ import (
 //   - no predicate reads $x, and the names x and f are captured only once in the rule;
 //   - f is captured in every element (an item of the element's sequence), with a value that is
 //     never nil (nonNil): otherwise an element can have no record, and $e.$f would be an error.
-func ruleProjectionsControlled(prog *Program, r *Rule, control *cancel.Control) map[string]string {
+func ruleProjectionsControlled(prog *Program, r *check.Rule, control *cancel.Control) map[string]string {
 	control.Poll()
 	if prog.NoProjections || r.Action == nil {
 		return nil
@@ -295,6 +295,6 @@ func lineNonNil(prog *Program, e ast.Expr, t ast.ActionExpr, operator bool, seen
 }
 
 // RuleProjections returns the projected repetition captures of r (ruleProjectionsControlled).
-func RuleProjections(prog *Program, r *Rule) map[string]string {
+func RuleProjections(prog *Program, r *check.Rule) map[string]string {
 	return ruleProjectionsControlled(prog, r, nil)
 }

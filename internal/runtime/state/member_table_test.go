@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -55,7 +55,7 @@ func engineMemberFixture(t *testing.T, controlled bool) (*EvalCtx, map[string]an
 	}
 	src.WriteString("@start\nrule main = \"a\"\n")
 	prog := &SharedProgram{}
-	InitSharedProgram(prog, compiletest.Program(t, src.String(), compile.Options{}).Runtime())
+	InitSharedProgram(prog, compiletest.Program(t, src.String(), check.Options{}).Runtime())
 	for _, s := range conform.MemberStructs {
 		for _, f := range s.Fields {
 			if got := prog.StructZeroOf(s.Name).Zeros[f[0]]; got != f[1] {

@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -35,7 +36,7 @@ func TestTopBottomTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}
@@ -66,7 +67,7 @@ func TestTopBottomTypes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err != nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 			t.Errorf("%q: %v", src, err)
 		}
 	}
@@ -78,7 +79,7 @@ func TestTopBottomReportedOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = compileStatic(g, Options{}, nil)
+	_, err = compileStatic(g, check.Options{}, nil)
 	if err == nil || strings.Count(err.Error(), "_|_") != 1 || strings.Contains(err.Error(), "never") {
 		t.Fatalf("got %v, want one _|_ error", err)
 	}
@@ -86,7 +87,7 @@ func TestTopBottomReportedOnce(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = compileStatic(g, Options{}, nil); err == nil || strings.Count(err.Error(), "_|_") != 1 {
+	if _, err = compileStatic(g, check.Options{}, nil); err == nil || strings.Count(err.Error(), "_|_") != 1 {
 		t.Fatalf("got %v, want one _|_ error", err)
 	}
 	// An empty meet (only an AST can hold one) is _.
@@ -95,7 +96,7 @@ func TestTopBottomReportedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	g.Types()[0].(*ast.TypeDef).Struct().Fields[0].Type = &ast.MeetType{}
-	if _, err := compileStatic(g, Options{}, nil); err != nil {
+	if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -116,7 +117,7 @@ func TestTopBottomLocationsAreRejected(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.src, err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), tc.want) {
 			t.Errorf("%q: got %v, want %q", tc.src, err, tc.want)
 		}
 	}
@@ -125,7 +126,7 @@ func TestTopBottomLocationsAreRejected(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), "cannot use int") {
+	if _, err := compileStatic(g, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), "cannot use int") {
 		t.Fatalf("got %v, want a type error", err)
 	}
 }

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
@@ -24,7 +24,7 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		p := compiletest.Program(b, string(src), compile.Options{})
+		p := compiletest.Program(b, string(src), check.Options{})
 		name := filepath.Base(filepath.Dir(f))
 		b.Run(name+"/bytecode", func(b *testing.B) {
 			if p.HasMissing {

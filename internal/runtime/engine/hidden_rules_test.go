@@ -4,8 +4,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -47,7 +47,7 @@ func TestSourceGrammarKeepsInlineActionsInEveryMode(t *testing.T) {
 	src := `type A = { X node[string] }
 rule main = (x:"a" => A{X: $x}) _b
 rule _b = "b"`
-	for _, opts := range []compile.Options{{}, {DefaultValue: true}, {SourceInfo: true}} {
+	for _, opts := range []checkpkg.Options{{}, {DefaultValue: true}, {SourceInfo: true}} {
 		p := compileBare(t, src, opts)
 		g := p.SourceGrammar()
 		inline := 0

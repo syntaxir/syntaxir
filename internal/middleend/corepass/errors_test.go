@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -42,9 +42,9 @@ func TestBindingErrorsMatchCompile(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			_, cerr := compiletest.Compile(g, compile.Options{})
+			_, cerr := compiletest.Compile(g, check.Options{})
 			want := errorLines(cerr)
-			prog, err := compiletest.Compile(g, compile.Options{LeftRecursionBindings: true})
+			prog, err := compiletest.Compile(g, check.Options{LeftRecursionBindings: true})
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
@@ -63,7 +64,7 @@ func TestStructuralFacts(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			for _, opts := range []compile.Options{{}, {Recognition: compile.RecognizeWithStreamValues}, {NoProjections: true}, {DefaultValue: true}} {
+			for _, opts := range []check.Options{{}, {Recognition: check.RecognizeWithStreamValues}, {NoProjections: true}, {DefaultValue: true}} {
 				prog, err := compiletest.Compile(g, opts)
 				if err != nil {
 					continue
@@ -116,7 +117,7 @@ func TestStructuralFactsNegative(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := compiletest.Compile(g, compile.Options{LeftRecursionBindings: true})
+	prog, err := compiletest.Compile(g, check.Options{LeftRecursionBindings: true})
 	if err != nil {
 		t.Fatal(err)
 	}

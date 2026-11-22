@@ -5,14 +5,14 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // BenchmarkDocumentInputEdit isolates storage and memo-splice costs from
 // parsing and full-text materialization. The two variants keep length stable.
 func BenchmarkDocumentInputEdit(b *testing.B) {
-	program, err := Compile(mustParse(`rule main = .*`), compile.Options{})
+	program, err := Compile(mustParse(`rule main = .*`), checkpkg.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

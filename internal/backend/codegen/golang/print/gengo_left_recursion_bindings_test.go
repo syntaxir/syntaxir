@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -56,8 +56,8 @@ func testGeneratedLeftRecursionGuardIgnoresVariables(t *testing.T) {
 	if code := codegentest.GeneratePackage(t, dir, "tg", mustParse(typedLRBindingSource), opts); !strings.Contains(code, "TParse(trules") {
 		t.Fatal("typed library is not exercised")
 	}
-	prog := compileBare(t, codegentest.LRBindingSource, compile.Options{LeftRecursionBindings: true})
-	typed := compileBare(t, typedLRBindingSource, compile.Options{LeftRecursionBindings: true})
+	prog := compileBare(t, codegentest.LRBindingSource, check.Options{LeftRecursionBindings: true})
+	typed := compileBare(t, typedLRBindingSource, check.Options{LeftRecursionBindings: true})
 	controls := codegentest.FixtureBudgetControls(t)
 	var limited, typedLimited string
 	if controls {

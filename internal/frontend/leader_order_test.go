@@ -4,8 +4,8 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -26,7 +26,7 @@ func TestLeaderDeclarationOrder(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, st, err := frontend.CheckStructural(g, compile.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
+	_, st, err := frontend.CheckStructural(g, check.Options{}, nil, desugar.InlineNames{}, checkfacts.Source{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

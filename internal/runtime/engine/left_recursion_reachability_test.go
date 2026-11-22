@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -50,7 +50,7 @@ func TestLeftRecursionIgnoresUnreachableRecoveryChain(t *testing.T) {
 			}
 			fmt.Fprintf(&original, "rule chain%d = \"\"", depth)
 			fmt.Fprintf(&removed, "rule chain%d = \"\"", depth)
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				p, q := mustCompile(t, original.String(), options), mustCompile(t, removed.String(), options)
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -71,7 +71,7 @@ func TestLeftRecursionReachabilitySavedAndDocuments(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.ReachabilityGeneratedCases {
 		t.Run(c.Name, func(t *testing.T) {
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				p := mustCompile(t, c.Src, options)
 				for _, mode := range valueModes {
 					q := saveLoad(t, p, "main", mode)
@@ -121,7 +121,7 @@ func TestLeftRecursionReachabilitySavedAndDocuments(t *testing.T) {
 
 func TestLeftRecursionRecoverySkipStreams(t *testing.T) {
 	t.Parallel()
-	for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+	for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 		p := mustCompile(t, `rule main = (a "\n")* #stream $$
 rule a = "x" #recover(skip=a) / "y"`, options)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
@@ -158,7 +158,7 @@ func TestLeftRecursionIgnoresUnreachableAlternatives(t *testing.T) {
 	const original = codegentest.LeftRecursionDeadTail
 	const removed = `rule r1 = r2?
 rule r2 = (("a" / r1 / "\n") / ("" / "\n")) #repeat(0, 1)`
-	for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+	for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 		p, q := mustCompile(t, original, options), mustCompile(t, removed, options)
 		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -189,7 +189,7 @@ func TestLeftRecursionUnconditionalSuffixForms(t *testing.T) {
 			prefix := fmt.Sprintf("rule r1 = r2?\nrule r2 = ((\"a\" / r1 / \"\\n\") / (%s)", prior)
 			original := prefix + " / (r2 / $$)) #repeat(0, 1)\nrule empty = \"\"\nrule alias = empty"
 			removed := prefix + ") #repeat(0, 1)\nrule empty = \"\"\nrule alias = empty"
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				p, q := mustCompile(t, original, options), mustCompile(t, removed, options)
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {

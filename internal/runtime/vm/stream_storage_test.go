@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -17,7 +17,7 @@ import (
 // must release them at the next prune without disturbing active root values.
 func TestStreamStorageCommitReferences(t *testing.T) {
 	prog := &state.SharedProgram{}
-	state.InitSharedProgram(prog, compiletest.Program(t, `rule main = "a"`, compile.Options{SourceInfo: true}).Runtime())
+	state.InitSharedProgram(prog, compiletest.Program(t, `rule main = "a"`, check.Options{SourceInfo: true}).Runtime())
 	p := state.NewParser(prog, strings.Repeat("a", 4096), input.CodePoints, false)
 	live := nodes.Ptr(nodes.Data{Text: "live"})
 	dead := nodes.Ptr(nodes.Data{Text: "dead"})

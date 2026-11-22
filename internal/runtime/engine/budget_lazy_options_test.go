@@ -5,7 +5,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -15,13 +15,13 @@ func TestBudgetLazyClosureSavedFlagsAndOptions(t *testing.T) {
 	t.Parallel()
 	original := mustCompile(t, `rule main = first:item rest:(-"," value:item)* $$ => concat(list($first), map($rest, (e) => e.$value))
 rule item = [a-z]+`)
-	flags := make([]compile.RuleFlags, len(original.Static().RuleList))
+	flags := make([]checkpkg.RuleFlags, len(original.Static().RuleList))
 	for i, r := range original.Static().RuleList {
-		flags[i] = compile.RuleFlags{Memo: r.Memo, Leader: r.Leader, Positional: r.Positional, Twin: r.TwinOK}
+		flags[i] = checkpkg.RuleFlags{Memo: r.Memo, Leader: r.Leader, Positional: r.Positional, Twin: r.TwinOK}
 	}
-	for _, savedFlags := range [][]compile.RuleFlags{nil, flags} {
+	for _, savedFlags := range [][]checkpkg.RuleFlags{nil, flags} {
 		for _, noProjections := range []bool{false, true} {
-			p, err := build(original.Static().Grammar, compile.Options{NoProjections: noProjections}, savedFlags)
+			p, err := build(original.Static().Grammar, checkpkg.Options{NoProjections: noProjections}, savedFlags)
 			if err != nil {
 				t.Fatal(err)
 			}

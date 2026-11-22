@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -39,7 +39,7 @@ func TestTypedNodeConstructors(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, input := range []*ast.Grammar{g, decoded} {
-		p, err := Compile(input, compile.Options{})
+		p, err := Compile(input, checkpkg.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

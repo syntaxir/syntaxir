@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -19,7 +20,7 @@ func TestCompileMalformedAST(t *testing.T) {
 		{"reversed repeat", &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: &ast.Repeat{Expr: &ast.Literal{Value: "a"}, Min: 2, Max: 1}}}}}, "$.file.decls[0].expr.max"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			for _, opts := range []Options{{}} {
+			for _, opts := range []check.Options{{}} {
 				func() {
 					defer func() {
 						if r := recover(); r != nil {

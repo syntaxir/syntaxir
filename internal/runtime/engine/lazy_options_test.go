@@ -4,7 +4,7 @@ import (
 	"reflect"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -15,22 +15,22 @@ import (
 type lazyOverride struct{ controlled, recognizer, insertion any }
 
 // lazyOverrides are the options that a lazily built program sets itself, by the field of
-// compile.Options. Every other option must be the program's own.
+// checkpkg.Options. Every other option must be the program's own.
 var lazyOverrides = map[string]lazyOverride{
-	"Recognition": {recognizer: compile.Recognize},
+	"Recognition": {recognizer: checkpkg.Recognize},
 }
 
 // recognitionMode returns the compile mode of a program that recognizes (RecognizeWithStreamValues) or builds
 // values.
-func recognitionMode(recognize bool) compile.Recognition {
+func recognitionMode(recognize bool) checkpkg.Recognition {
 	if recognize {
-		return compile.RecognizeWithStreamValues
+		return checkpkg.RecognizeWithStreamValues
 	}
-	return compile.BuildValues
+	return checkpkg.BuildValues
 }
 
 // turnOn sets the option of o named name to a value other than its zero value.
-func turnOn(t *testing.T, o *compile.Options, name string) {
+func turnOn(t *testing.T, o *checkpkg.Options, name string) {
 	f := reflect.ValueOf(o).Elem().FieldByName(name)
 	switch f.Kind() {
 	case reflect.Bool:
@@ -50,11 +50,11 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
-	typ := reflect.TypeFor[compile.Options]()
+	typ := reflect.TypeFor[checkpkg.Options]()
 	for i := 0; i < typ.NumField(); i++ {
 		name := typ.Field(i).Name
 		t.Run(name, func(t *testing.T) {
-			var o compile.Options
+			var o checkpkg.Options
 			turnOn(t, &o, name)
 			o.LeftRecursionBindings = true // the grammar below needs it
 			prog := mustCompile(t, codegentest.LRBindingSource, o)
@@ -76,7 +76,7 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 			}
 			for _, c := range []struct {
 				what      string
-				from, got compile.Options
+				from, got checkpkg.Options
 				pick      func(lazyOverride) any
 			}{
 				{"controlled graph", prog.Static().Opts, prog.budgetProgram.Static().Opts, func(s lazyOverride) any { return s.controlled }},
@@ -109,7 +109,7 @@ func TestLazyProgramsCarryEveryOption(t *testing.T) {
 // backend, with the default budget (the controlled closure graph) and through the recognizer. The
 // results agree with the bytecode backends and with the program's own closure graph.
 func TestLeftRecursionBindingsOnTheLazyClosureGraph(t *testing.T) {
-	prog := mustCompile(t, codegentest.LRBindingSource, compile.Options{LeftRecursionBindings: true})
+	prog := mustCompile(t, codegentest.LRBindingSource, checkpkg.Options{LeftRecursionBindings: true})
 	rec, err := prog.Recognizer()
 	if err != nil {
 		t.Fatal(err)

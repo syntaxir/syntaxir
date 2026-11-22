@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -24,7 +24,7 @@ func TestHiddenRulesCompiledRoundTrip(t *testing.T) {
 	}
 	for _, s := range sources {
 		t.Run(s.name, func(t *testing.T) {
-			for _, opts := range []compile.Options{{}, {DefaultValue: true}, {SourceInfo: true}} {
+			for _, opts := range []checkpkg.Options{{}, {DefaultValue: true}, {SourceInfo: true}} {
 				prog := compileBare(t, s.src, opts)
 				for _, mode := range valueModes {
 					loaded := saveLoad(t, prog, "main", mode)

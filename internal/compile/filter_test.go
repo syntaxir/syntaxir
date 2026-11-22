@@ -3,6 +3,8 @@ package compile
 import (
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/frontend/check"
 )
 
 func TestFilterTypeAndRuntimeValidation(t *testing.T) {
@@ -20,7 +22,7 @@ rule main = v1:"a" => Out{Items: filter(list($v1, nil), (x) => x != nil)}`,
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err == nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err == nil {
 			t.Fatalf("accepted invalid filter: %s", source)
 		}
 	}

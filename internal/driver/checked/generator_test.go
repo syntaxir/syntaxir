@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
@@ -24,7 +25,7 @@ rule item = [a-z]+
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := Compile(g, compile.Options{}, nil)
+	s, err := Compile(g, check.Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -37,7 +38,7 @@ rule item = [a-z]+
 	if len(v.RuleList) != len(p.RuleList) || len(v.Twins) != len(p.Twins) || len(v.ByName) != len(p.ByName) {
 		t.Fatalf("rules %d/%d, twins %d/%d, names %d/%d", len(v.RuleList), len(p.RuleList), len(v.Twins), len(p.Twins), len(v.ByName), len(p.ByName))
 	}
-	check := func(vr *common.Rule, r *compile.Rule, want *common.Rule) {
+	check := func(vr *common.Rule, r *check.Rule, want *common.Rule) {
 		t.Helper()
 		if vr.Rule != want.Rule || vr.ID != r.ID || vr.Name != r.Name {
 			t.Errorf("rule %s (%d): the view embeds rule %s (%d), not the run-time rule of its ID", r.Name, r.ID, vr.Name, vr.ID)

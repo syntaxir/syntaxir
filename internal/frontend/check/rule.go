@@ -1,7 +1,6 @@
-package compile
+package check
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -17,7 +16,7 @@ type Rule struct {
 	ID     int
 	Name   string
 	Def    *ast.RuleDef
-	Scope  *check.Scope
+	Scope  *Scope
 	Action ast.ActionExpr
 	// NodeType, if not "", is the named node type the rule's value is converted to
 	// (Program.ruleNodeType).

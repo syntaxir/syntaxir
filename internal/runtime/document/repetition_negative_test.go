@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -18,7 +18,7 @@ func TestNegativeMaximumDocumentsAndStreams(t *testing.T) {
 	resume := state.Tuning{MinRec: 1}
 	for _, maximum := range negativeMaxima() {
 		g := grammarWithNegativeMaximum(t, `rule main = "é"* #stream $$`, maximum)
-		p, err := entry.Compile(g, compile.Options{})
+		p, err := entry.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

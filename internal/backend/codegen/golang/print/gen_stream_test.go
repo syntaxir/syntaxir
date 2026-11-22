@@ -17,7 +17,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -414,7 +414,7 @@ func testGeneratedStreams(t *testing.T, goBin string, cases []codegentest.Case, 
 		return g%[1]d.ParseStream(r, e, opts...)
 	},
 `, i)
-		prog := mustCompile(t, c.Src, compile.Options{NoProjections: true})
+		prog := mustCompile(t, c.Src, check.Options{NoProjections: true})
 		for _, in := range c.Inputs {
 			for _, bytes := range []bool{false, true} {
 				variants := append([]streamRun{{Chunk: 0}, {Chunk: 1}, {Chunk: 2, EOFWithData: true}, {Chunk: 3, Fail: true}, {Chunk: 1, StopAt: 2}, {NilEmit: true}}, streamDiagVariants...)

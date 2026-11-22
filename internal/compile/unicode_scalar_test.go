@@ -4,6 +4,7 @@ import (
 	"os"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -33,7 +34,7 @@ func BenchmarkCharacterRangeValidation(b *testing.B) {
 			b.Run("Compile", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					if _, err := compileStatic(g, Options{}, nil); err != nil {
+					if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 						b.Fatal(err)
 					}
 				}

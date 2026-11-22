@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -92,7 +92,7 @@ func TestDocumentLeftRecursionMemberReparseRandom(t *testing.T) {
 		if err != nil {
 			continue
 		}
-		if _, err := entry.Compile(g, compile.Options{}); err != nil {
+		if _, err := entry.Compile(g, check.Options{}); err != nil {
 			continue
 		}
 		compiled++

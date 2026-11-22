@@ -10,8 +10,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -45,7 +45,7 @@ func testGeneratedInvalidUTF8Literals(t *testing.T) {
 	i := 0
 	for _, tc := range codegentest.InvalidLiteralCorpus() {
 		g := codegentest.LiteralCorpusGrammar(t, tc)
-		prog, err := entry.Compile(g, compile.Options{})
+		prog, err := entry.Compile(g, check.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

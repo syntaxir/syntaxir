@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -127,12 +128,12 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 		g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: e}}}}
 		starttest.MarkAll(g)
 		for _, compiledRecognition := range []bool{false, true} {
-			a, err := entry.Compile(g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
+			a, err := entry.Compile(g, check.Options{Recognition: recognitionMode(compiledRecognition)})
 			if err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
-			b, err := entry.CompileContext(ctx, g, compile.Options{Recognition: recognitionMode(compiledRecognition)})
+			b, err := entry.CompileContext(ctx, g, check.Options{Recognition: recognitionMode(compiledRecognition)})
 			cancel()
 			if err != nil {
 				t.Fatal(err)
@@ -181,7 +182,7 @@ func classProgramWithoutContext(t *testing.T) (*engine.Program, weak.Pointer[cla
 	cl := &ast.CharClass{Ranges: []ast.CharRange{{Lo: 'a', Hi: 'a'}, {Lo: 'b', Hi: 'b'}, {Lo: 'β', Hi: 'β'}}}
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Choice{Alts: []ast.Expr{&ast.Seq{Items: []ast.Expr{cl, &ast.EndInput{}}}, &ast.Discard{Expr: &ast.Repeat{Expr: cl, Min: 1, Max: -1}}}}}}}}
 	starttest.MarkAll(g)
-	p, err := entry.CompileContext(ctx, g, compile.Options{})
+	p, err := entry.CompileContext(ctx, g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,9 +218,9 @@ func TestClassConstructionProgramReleasesCompileContext(t *testing.T) {
 
 // recognitionMode returns the compile mode of a program that recognizes (RecognizeWithStreamValues) or builds
 // values.
-func recognitionMode(recognize bool) compile.Recognition {
+func recognitionMode(recognize bool) check.Recognition {
 	if recognize {
-		return compile.RecognizeWithStreamValues
+		return check.RecognizeWithStreamValues
 	}
-	return compile.BuildValues
+	return check.BuildValues
 }

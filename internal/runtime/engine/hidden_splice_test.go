@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -11,7 +11,7 @@ func TestHiddenRulesSpliceTheirExpression(t *testing.T) {
 	t.Parallel()
 	for _, tc := range codegentest.SpliceCases() {
 		t.Run(tc.Name, func(t *testing.T) {
-			for _, opts := range []compile.Options{{}, {DefaultValue: true}, {SourceInfo: true}, {DisableMemo: true}} {
+			for _, opts := range []checkpkg.Options{{}, {DefaultValue: true}, {SourceInfo: true}, {DisableMemo: true}} {
 				hidden, inlined := compileBare(t, tc.Hidden, opts), compileBare(t, tc.Inlined, opts)
 				matched := false
 				for _, input := range tc.Inputs {

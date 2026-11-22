@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -23,7 +24,7 @@ rule a = "x" => {x:=1; x<10; 2}`,
 			t.Fatal(err)
 		}
 		for _, input := range []*ast.Grammar{g, jsonActionBlockGrammar(t, g)} {
-			if _, err := compileStatic(input, Options{}, nil); err == nil || !strings.Contains(err.Error(), "action statement blocks are not implemented") {
+			if _, err := compileStatic(input, check.Options{}, nil); err == nil || !strings.Contains(err.Error(), "action statement blocks are not implemented") {
 				t.Fatalf("%s: %v", src, err)
 			}
 		}
@@ -34,7 +35,7 @@ rule a = {x:=1} {x<10} "x"`, "type A = {}\nrule a = \"x\" => A{}", `rule a = "x"
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := compileStatic(g, Options{}, nil); err != nil {
+		if _, err := compileStatic(g, check.Options{}, nil); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,7 +45,7 @@ func TestSinglePredicateBlockAST(t *testing.T) {
 	t.Parallel()
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Predicate{Action: &ast.Block{Statements: []ast.ActionExpr{&ast.BoolLit{Value: true}}}}}}}}
 	starttest.MarkAll(g)
-	if _, err := compileStatic(jsonActionBlockGrammar(t, g), Options{}, nil); err != nil {
+	if _, err := compileStatic(jsonActionBlockGrammar(t, g), check.Options{}, nil); err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := g.Rules()[0].Expr.(*ast.Predicate).Action.(*ast.Block); !ok {

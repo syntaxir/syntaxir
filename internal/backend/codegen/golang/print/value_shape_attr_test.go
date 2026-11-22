@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -114,7 +114,7 @@ func TestStreamSeesThroughGroupsAndAttributes(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", src, err)
 		}
-		if _, err := entry.Compile(g, compile.Options{}); err == nil {
+		if _, err := entry.Compile(g, check.Options{}); err == nil {
 			t.Errorf("%s: compiled, want a #stream placement error", src)
 		}
 	}

@@ -3,7 +3,7 @@ package engine
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/compile"
+	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -14,7 +14,7 @@ func TestAliasNodeIdentity(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.AliasCases {
 		t.Run(c.Name, func(t *testing.T) {
-			for _, options := range []compile.Options{{}, {DisableMemo: true}} {
+			for _, options := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				prog := mustCompile(t, c.Src, options)
 				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 					n, err := prog.ParseWith("main", "éé", ParseOptions{Unit: unit})

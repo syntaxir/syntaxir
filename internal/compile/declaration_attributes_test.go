@@ -3,6 +3,7 @@ package compile
 import (
 	"testing"
 
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -19,7 +20,7 @@ func TestUnknownDeclarationAttribute(t *testing.T) {
 	// A declaration attribute is never a # pragma.
 	g := mustParse("rule a = \"x\"\n")
 	g.Rules()[0].Attrs = []*ast.Attribute{{Name: "atomic", Pragma: true}}
-	if _, err := compileStatic(g, Options{}, nil); err == nil || err.Error() != "unknown declaration attribute #atomic" {
+	if _, err := compileStatic(g, check.Options{}, nil); err == nil || err.Error() != "unknown declaration attribute #atomic" {
 		t.Errorf("pragma: %v", err)
 	}
 }

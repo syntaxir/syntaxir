@@ -25,7 +25,7 @@ func (c checkProgram) ElementScoped(e ast.Expr, control *cancel.Control) bool {
 	return check.ElementScopedControlled(e, control)
 }
 
-func ruleInfo(r *Rule) check.RuleInfo {
+func ruleInfo(r *check.Rule) check.RuleInfo {
 	if r == nil {
 		return check.RuleInfo{}
 	}

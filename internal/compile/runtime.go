@@ -62,7 +62,7 @@ func (p *Program) newRuntime() *program.Program {
 }
 
 // RuntimeRule returns the run-time facts of the rule r.
-func RuntimeRule(r *Rule) *program.Rule {
+func RuntimeRule(r *check.Rule) *program.Rule {
 	return &program.Rule{
 		Where: r.Where, Splice: r.Splice, ID: r.ID, Name: r.Name, Scope: RuntimeScope(r.Scope),
 		NodeType: r.NodeType, OpNodeType: r.OpNodeType, Memo: r.Memo, Missing: r.Missing,
@@ -90,7 +90,7 @@ func runtimeVars(t *check.VarTable) *program.VarTable {
 }
 
 // runtimeRunKeys returns the run keys of the run-time program.
-func runtimeRunKeys(keys map[int]RunKey) map[int]program.RunKey {
+func runtimeRunKeys(keys map[int]check.RunKey) map[int]program.RunKey {
 	if keys == nil {
 		return nil
 	}

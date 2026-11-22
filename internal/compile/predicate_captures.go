@@ -5,6 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,9 +15,9 @@ import (
 // same name reads no capture. A capture made in another
 // alternative, after the predicate, in another scope, or replaced by a later capture of the same
 // name on every way to the predicate is not one of them.
-func predicateCaptures(e ast.Expr, control *cancel.Control) *PredicateCaptures {
+func predicateCaptures(e ast.Expr, control *cancel.Control) *check.PredicateCaptures {
 	control.Poll()
-	p := &PredicateCaptures{Read: map[*ast.Capture]bool{}, Names: map[string]bool{}}
+	p := &check.PredicateCaptures{Read: map[*ast.Capture]bool{}, Names: map[string]bool{}}
 	astfacts.WalkExprControlled(e, func(x ast.Expr) {
 		if pr, ok := x.(*ast.Predicate); ok {
 			astfacts.WalkAction(pr.Action, func(t ast.ActionExpr) {

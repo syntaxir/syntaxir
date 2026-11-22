@@ -5,8 +5,8 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -15,12 +15,12 @@ import (
 // @start; the front end checks a copy whose first rule starts. The copy shares the expressions of g,
 // so the grammar that the front end checked keeps the positions of g, as RunChecked requires.
 func checked(g *ast.Grammar) *frontend.Result {
-	res, err := frontend.Run(g, compile.Options{}, checkfacts.Source{}, nil)
+	res, err := frontend.Run(g, check.Options{}, checkfacts.Source{}, nil)
 	if err == nil {
 		return res
 	}
 	if copied := firstRuleStarts(g); copied != nil {
-		if res, err2 := frontend.Run(copied, compile.Options{}, checkfacts.Source{}, nil); err2 == nil {
+		if res, err2 := frontend.Run(copied, check.Options{}, checkfacts.Source{}, nil); err2 == nil {
 			return res
 		}
 	}
