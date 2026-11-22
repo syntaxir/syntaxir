@@ -188,7 +188,7 @@ func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
 func goType(t prim.Type) string {
 	return [...]string{prim.TypeInt: "int", prim.TypeBool: "bool", prim.TypeRune: "rune", prim.TypeValue: "any",
 		prim.TypeEnv: "*Env", prim.TypeExpMark: "ExpMark", prim.TypeExpIDs: "[]ExpID", prim.TypeVals: "[]any",
-		prim.TypeCtx: "*TActCtx", prim.TypeMark: "Mark", prim.TypeFrame: "*TCaptureFrame", prim.TypeError: "*SyntaxError"}[t]
+		prim.TypeCtx: "*TActCtx", prim.TypeMark: "Mark", prim.TypeFrame: "*TCaptureFrame", prim.TypeError: "*SyntaxError", prim.TypeRun: "*RunState"}[t]
 }
 
 // goType returns the Go type of a variable of the function printed: the types of the Node library

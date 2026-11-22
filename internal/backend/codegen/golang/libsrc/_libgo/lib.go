@@ -1011,6 +1011,14 @@ type Parser struct {
 	// moved maps the nodes of a value that holds a node more than once to their copies
 	// (documentMove).
 	moved map[*sxirvalue.Node]*sxirvalue.Node
+	// runs and lastRuns are the repetition runs recorded in this Document parse and the previous one
+	// (document_runs.go); runs is nil outside a Document parse, where no repetition resumes. freeRuns
+	// are the finished runs kept for the next runs that start.
+	runs, lastRuns map[runKey]*runRecord
+	freeRuns       []*RunState
+	// seedReads counts the reads of growing seeds and the reuses of results that depend on them, in a
+	// Document parse: a run in which one happens is not recorded (runClean).
+	seedReads int
 	// interned and internSeq number keys too large for a word while a growth is in progress (intern).
 	// They come last, away from the fields of every parse.
 	interned  map[string]uint64
@@ -1038,11 +1046,18 @@ type documentState struct {
 	// only to the entries at its positions, and a lookup applies it to an entry it finds
 	// (advanceEntry, advanceTEntry).
 	edits []documentEdit
+	// runs are the repetition runs that the last parse recorded, after runGen edits: the next parse
+	// resumes them (document_runs.go). They are dropped with the memo (dropMemo).
+	runs   map[runKey]*runRecord
+	runGen uint32
 }
 
+// documentStats counts the rule evaluations of a Document parse and its reuses: memo hits and the
+// elements of repetitions that it resumed (Resumed).
 type documentStats struct {
 	Evaluated int
 	Reused    int
+	Resumed   int
 }
 
 // setGrammar prepares p to parse with the rules of g.

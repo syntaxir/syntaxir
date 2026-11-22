@@ -1,4 +1,4 @@
-protocol 29
+protocol 30
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -113,6 +113,7 @@ method (*BudgetControl) ChargeDoc(uint64)
 method (*BudgetControl) Check()
 method (*BudgetControl) FreeBegin(bool) uint64
 method (*BudgetControl) FreeEnd(uint64)
+method (*BudgetControl) Poll()
 method (*BudgetControl) Take(uint64) bool
 method (*Chunk) MemoryBytes() uint64
 method (*Class) Has(rune) bool
@@ -222,6 +223,13 @@ method (*Parser) RecoveryErrorText(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxEr
 method (*Parser) RejectBudgetClass(rune, *BudgetClass) bool
 method (*Parser) Reset(Mark)
 method (*Parser) Restore(int, int)
+method (*Parser) ResumeBegin(*RunState)
+method (*Parser) ResumeEnd(*RunState, bool, *syntaxir.dev/sxir/pkg/runtime/value.Node)
+method (*Parser) ResumeFinish(*RunState)
+method (*Parser) ResumeMore(*RunState) bool
+method (*Parser) ResumeNext(*RunState) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
+method (*Parser) ResumeOn() bool
+method (*Parser) ResumeStart(int, int, int, bool) *RunState
 method (*Parser) RunBegin(int, bool, bool)
 method (*Parser) RunHot(int) bool
 method (*Parser) RunWalked(int, int)
@@ -412,6 +420,7 @@ type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
 type RunKey struct{Vars []int; Bind []int}
+type RunState struct{Min int; Max int; Shiftable bool; Done bool; Moved bool; Prefixed bool; Count int; EditStart int; EditEnd int; EditDelta int; K int; J int; T int; Seek int; Barred int; ElemStart int; OuterExamined int; OuterLow int; Mark ExpMark}
 type Shaper struct{Elems bool; K int; Mode singleMode; Tuple bool; Shared bool}
 type StreamPull[T any] struct{}
 type TActCtx struct{P *TParser; F *TCaptureFrame; Start int; End int; Cbase int; Lhs any; Rhs any; Op any; Value any}

@@ -5,7 +5,7 @@
 # entries of the scope, drops stale ones and logs a summary per case. Review the diff: it is a regression freeze.
 corpus/0/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
 corpus/0/../../examples/calculator/calc_lr.sxir	a1cad168faaca85361e77c00
-corpus/0/../../examples/minilang/minilang.sxir	05315baa9e144c8841fc3626
+corpus/0/../../examples/minilang/minilang.sxir	d94948a7aa1f285b57669634
 corpus/0/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/0/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/0/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
@@ -108,7 +108,7 @@ corpus/0/inline action: nested in a whole rule	359bedf776cb8a555281753a
 corpus/0/inline action: operators rule operand	a8574ffdd58d97f251220291
 corpus/0/inline action: optional	ff9270e0948146424ba7c739
 corpus/0/inline action: outer capture stays	52171c844d8df935a51d8835
-corpus/0/inline action: recover argument	0cdbc703bfcff11fddbd1357
+corpus/0/inline action: recover argument	b3437cbfa56abfbac94d2b59
 corpus/0/inline action: recovery	ea79a920bb4cd024b47846e5
 corpus/0/inline action: recovery inside	2fe35451425bacb13d36656d
 corpus/0/inline action: repetition	39507fb8edd018fdcb87ab2a
@@ -147,7 +147,7 @@ corpus/0/member reached from two call sites	a7b41a36b8a46e5537ae4510
 corpus/0/members in a deeper cycle	6f9f60ed99d030cf10cb0375
 corpus/0/members that read two leaders	92123470d1541562eb37b7af
 corpus/0/memo entries are keyed by the variables the rule reads	89204875107e7905a0d9ba2f
-corpus/0/memo keyed by variables	ef1ad8acfacbcccf0aa600ae
+corpus/0/memo keyed by variables	d3513fb704bf02fcd56186da
 corpus/0/memoized rule with a cut called at one position	806edcc0d4c661ce817e6a69
 corpus/0/mutual leaders	fda0e4e5c71f4e9e3c188401
 corpus/0/named node type run-time conversions	17cb7f4b88546ab30ab03909
@@ -369,7 +369,7 @@ corpus/0/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/0/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
 corpus/1/../../examples/calculator/calc.sxir	3414ab9a12e43d589c3a855a
 corpus/1/../../examples/calculator/calc_lr.sxir	a1cad168faaca85361e77c00
-corpus/1/../../examples/minilang/minilang.sxir	05315baa9e144c8841fc3626
+corpus/1/../../examples/minilang/minilang.sxir	d94948a7aa1f285b57669634
 corpus/1/../../examples/outline/outline.sxir	ac2b4410d93427e9ee495bfa
 corpus/1/LR cut inside optional	43f49a844240c6c683f943f0
 corpus/1/Operators Rule explicit default action	db095dc3b41fa8a7d57c8e5c
@@ -472,7 +472,7 @@ corpus/1/inline action: nested in a whole rule	359bedf776cb8a555281753a
 corpus/1/inline action: operators rule operand	a8574ffdd58d97f251220291
 corpus/1/inline action: optional	ff9270e0948146424ba7c739
 corpus/1/inline action: outer capture stays	52171c844d8df935a51d8835
-corpus/1/inline action: recover argument	0cdbc703bfcff11fddbd1357
+corpus/1/inline action: recover argument	b3437cbfa56abfbac94d2b59
 corpus/1/inline action: recovery	ea79a920bb4cd024b47846e5
 corpus/1/inline action: recovery inside	2fe35451425bacb13d36656d
 corpus/1/inline action: repetition	39507fb8edd018fdcb87ab2a
@@ -511,7 +511,7 @@ corpus/1/member reached from two call sites	a7b41a36b8a46e5537ae4510
 corpus/1/members in a deeper cycle	6f9f60ed99d030cf10cb0375
 corpus/1/members that read two leaders	92123470d1541562eb37b7af
 corpus/1/memo entries are keyed by the variables the rule reads	89204875107e7905a0d9ba2f
-corpus/1/memo keyed by variables	ef1ad8acfacbcccf0aa600ae
+corpus/1/memo keyed by variables	d3513fb704bf02fcd56186da
 corpus/1/memoized rule with a cut called at one position	806edcc0d4c661ce817e6a69
 corpus/1/mutual leaders	fda0e4e5c71f4e9e3c188401
 corpus/1/named node type run-time conversions	17cb7f4b88546ab30ab03909
@@ -733,7 +733,7 @@ corpus/1/wide unbounded minimum 4294967296	dc22f98e217c2a4badad7964
 corpus/1/wide unbounded minimum 9223372036854775807	dc22f98e217c2a4badad7964
 grammars/0/cel	1db67b96c3f1210917670c4b
 grammars/0/csv	783759e61a8e6ee45d0d1516
-grammars/0/cue	18acde4ec436bb8a0f41358b
+grammars/0/cue	d66fd23210dfbfcec9102412
 grammars/0/duckdb	95b2180f61e4ec98b7145950
 grammars/0/golang	2acc903fd60e898ab7b9a8a3
 grammars/0/json	291821d937575e0d69f1a40d
@@ -743,7 +743,7 @@ grammars/0/xml	bace603bae944ad2b9df3b0f
 grammars/0/yaml	b1e32f98b4f3190c2e196ffb
 grammars/1/cel	1db67b96c3f1210917670c4b
 grammars/1/csv	783759e61a8e6ee45d0d1516
-grammars/1/cue	b03a08bc2323885b79524140
+grammars/1/cue	f7b8930376b1e33a159bdf94
 grammars/1/duckdb	208d27b28ccb1e34ad74db82
 grammars/1/golang	4271c2e520fd54308f2297a1
 grammars/1/json	291821d937575e0d69f1a40d

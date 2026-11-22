@@ -90,6 +90,12 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("if p.Pos-%s >= RunHotSpan {\np.RunWalked(%d, %s)\n}", args[0], c.Imm.(prim.Site), args[0])
 	case flow.OpScanEnd:
 		return fmt.Sprintf("p.ScanEnd(%d, %s, %s)", c.Imm.(prim.Site), args[0], args[1])
+	case flow.OpResumeBegin:
+		return fmt.Sprintf("p.ResumeBegin(%s)", args[0])
+	case flow.OpResumeEnd:
+		return fmt.Sprintf("p.ResumeEnd(%s, %s, %s)", args[0], args[1], args[2])
+	case flow.OpResumeFinish:
+		return fmt.Sprintf("p.ResumeFinish(%s)", args[0])
 	case flow.OpEmitStream:
 		return fmt.Sprintf("p.EmitStream(%s, p.Pos)", args[0])
 	case flow.OpDropKids:
@@ -151,6 +157,15 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("p.ScanReach(%d, %s, %s)", c.Imm.(prim.Site), args[0], args[1])
 	case flow.OpScanKids:
 		return fmt.Sprintf("p.ScanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), args[0], args[1], args[2])
+	case flow.OpResumeOn:
+		return "p.ResumeOn()"
+	case flow.OpResumeStart:
+		x := c.Imm.(prim.Resume)
+		return fmt.Sprintf("p.ResumeStart(%d, %d, %d, %t)", x.Site, x.Min, x.Max, x.Shiftable)
+	case flow.OpResumeMore:
+		return fmt.Sprintf("p.ResumeMore(%s)", args[0])
+	case flow.OpResumeNext:
+		return fmt.Sprintf("p.ResumeNext(%s)", args[0])
 	case flow.OpHasLit:
 		return p.hasLit(c.Imm.(*core.Lit))
 	case flow.OpMatchLit:

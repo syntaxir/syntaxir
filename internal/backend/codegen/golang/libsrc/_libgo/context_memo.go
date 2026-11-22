@@ -436,6 +436,7 @@ func (p *Parser) ctxLookup(c *ctxCallState, rule, min int, env []any) *ctxResult
 	if s == nil || !p.reusable(s.e.silent) {
 		return nil
 	}
+	p.seedRead()
 	p.replayDeps(p.Pos, c.gp, c.present, s.deps)
 	return s.e
 }
@@ -547,6 +548,7 @@ func (p *Parser) mergeDeps(ds []dep) {
 
 // noteSeedRead records that the evaluation read the seed of gamma[i].
 func (p *Parser) noteSeedRead(i int) {
+	p.seedRead()
 	if len(p.frames) == 0 || i >= p.frames[len(p.frames)-1].depth {
 		return
 	}
@@ -1028,6 +1030,7 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 	for {
 		id := p.gamma[g.gi].id
 		if j := p.findJump(g, id); j != nil {
+			p.seedRead()
 			p.replayDeps(g.start, g.gp, g.present, j.deps)
 			p.MergeExpected(j.far, j.exp)
 			// The step after the jump reads the seed it lands on, whose examined range is the jump's
@@ -1042,6 +1045,7 @@ func (p *Parser) growMemoStep(g *growState) *ctxResult {
 		if s == nil || !p.reusable(s.silent) {
 			return nil
 		}
+		p.seedRead()
 		p.replayDeps(g.start, g.gp, g.present, s.deps)
 		p.MergeExpected(s.far, s.exp)
 		// A step taken from the context records what it examined, like every other reuse: the last step

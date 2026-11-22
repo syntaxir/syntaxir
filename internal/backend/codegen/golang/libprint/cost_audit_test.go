@@ -290,19 +290,12 @@ var chargedElsewhere = map[string]string{
 	"stream.dropRecords": "the engine charges one unit for each slot of inactive capacity it clears",
 }
 
-// engineOnly are the host operations that the generated Go library has no form of: the runs of a
-// Document, the edit log they read and the poll of a resumed run exist in the engine alone, whose
-// tests measure that they count no event (TestRunOperationsChargeNoEvent). The operations of runs
-// declare no cost.
-var engineOnly = func() map[string]bool {
-	only := map[string]bool{"doc.log": true, "budget.poll": true}
-	for _, op := range compose.Build().Ops {
-		if op.Component == exec.Runs {
-			only[op.Name] = true
-		}
-	}
-	return only
-}()
+// documentWork are the operations whose charges are Document work: they reserve the units of the
+// value they move in a free region (FreeBegin, FreeEnd), which counts no unit of the parse, as the
+// engine's form does (TestRunOperationsChargeNoEvent). They declare no cost.
+var documentWork = map[string]string{
+	"run.take": "moves the value of a reused element of a run (moveRunValue)",
+}
 
 // editForms are the operations that the engine and both libraries read and write while they apply an
 // edit to a memo entry that a lookup finds (memoAdvance). They declare no cost: memoAdvance charges for
@@ -361,7 +354,8 @@ var makesValues = map[string]bool{"node.zero": true}
 func TestTransitionalAndHostCostsMatchCharges(t *testing.T) {
 	pkg, callees, charges := libCalls(t)
 	for _, op := range compose.Build().Ops {
-		if op.Kind != code.OpTransitional && op.Kind != code.OpHost || runsGrammar[op.Name] || makesValues[op.Name] {
+		if op.Kind != code.OpTransitional && op.Kind != code.OpHost || runsGrammar[op.Name] || makesValues[op.Name] ||
+			documentWork[op.Name] != "" {
 			continue
 		}
 		found := false
@@ -372,7 +366,7 @@ func TestTransitionalAndHostCostsMatchCharges(t *testing.T) {
 			fns = append(fns, f...)
 		}
 		if !found {
-			if op.Kind == code.OpHost && !engineOnly[op.Name] {
+			if op.Kind == code.OpHost {
 				t.Errorf("host operation %s has no Go form to audit", op.Name)
 			}
 			continue

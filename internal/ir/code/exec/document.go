@@ -200,7 +200,7 @@ after the edit that r reuses, or, with after, to those after them.`})
 a growth, directly or by reusing a result that read one, even of a growth that started and ended within
 the run.`})
 	host(&code.Op{Name: "run.minimum", Results: []code.Type{code.TInt},
-		Contract: `Returns the least number of elements of a run that a Document records.`})
+		Contract: `Returns the least number of elements of a run that a Document records, MinRecordedRun outside tests.`})
 	host(&code.Op{Name: "run.record", Params: []code.Param{r}, Writes: []string{Runs},
 		Contract: `Records in this parse the run r for its site and start, replacing any record there, with the generation
 of the Document: the old elements before k, the new elements before the old elements after the edit, the
@@ -225,3 +225,8 @@ after them all.`})
 // where they land in a few places, reuse pays at every count measured, up to 1,024, and the limit gives
 // that up for the bound.
 const PendingEditLimit = 128
+
+// MinRecordedRun is the number of elements below which a Document records no run of a repetition
+// (run.minimum): a short repetition costs little to run again. Every backend records the same runs, so
+// that each reuses the same elements.
+const MinRecordedRun = 16

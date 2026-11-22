@@ -65,6 +65,9 @@ type TableConfig struct {
 	// Document records how far each call examines the input, as a build with Documents and a traced
 	// parse do.
 	Document bool
+	// Resume lowers the repetitions that a Document parse resumes with the operations of their runs
+	// (lowerdata.Options.Resume, transitional as it is): set by the backends that implement them.
+	Resume bool
 	// Traced selects the traced bodies.
 	Traced bool
 	// Outline runs the large and the repeated nodes of the framed functions as functions of their own

@@ -114,29 +114,7 @@ func TestPrintedOperatorMutants(t *testing.T) {
 		for _, head := range heads {
 			t.Run(m.name+" "+strings.TrimSuffix(strings.TrimPrefix(head, "func "), " "), func(t *testing.T) {
 				t.Parallel()
-				done := false
-				overlay := libOverlay(t, func(name, src string) string {
-					if name != m.file {
-						return src
-					}
-					i := strings.Index(src, head+m.fn+"(")
-					if i < 0 {
-						return src
-					}
-					end := len(src)
-					if j := strings.Index(src[i+1:], "\nfunc "); j >= 0 {
-						end = i + 1 + j
-					}
-					out, ok := codegentest.MutateFunc(src[i:end], m.fn, m.old, m.new)
-					if !ok {
-						return src
-					}
-					done = true
-					return src[:i] + out + src[end:]
-				})
-				if !done {
-					t.Fatalf("the library has no %s%s with %q", head, m.fn, m.old)
-				}
+				overlay := mutatedLib(t, m.file, head, m.fn, m.old, m.new)
 				// -vet=off: the verdict reads what the tests report, and vet would only analyze the mutated code again.
 				out, err := goTestLib(overlay, "-count=1", "-vet=off", "-run", "^TestValue(Conformance|BoxedOperands|BoxedStringCharges|CompareStrings|MemberTable|BuiltinTable|StructTable|HullTable|IterTable|PushTable|CastTable)$").CombinedOutput()
 				if err == nil {
@@ -148,4 +126,35 @@ func TestPrintedOperatorMutants(t *testing.T) {
 			})
 		}
 	}
+}
+
+// mutatedLib returns the overlay of the library whose function fn, declared in file with the head
+// head ("func (p *Parser) " or "func "), has its first old replaced with new. The library must
+// have that function with old.
+func mutatedLib(t *testing.T, file, head, fn, old, new string) string {
+	t.Helper()
+	done := false
+	overlay := libOverlay(t, func(name, src string) string {
+		if name != file {
+			return src
+		}
+		i := strings.Index(src, head+fn+"(")
+		if i < 0 {
+			return src
+		}
+		end := len(src)
+		if j := strings.Index(src[i+1:], "\nfunc "); j >= 0 {
+			end = i + 1 + j
+		}
+		out, ok := codegentest.MutateFunc(src[i:end], fn, old, new)
+		if !ok {
+			return src
+		}
+		done = true
+		return src[:i] + out + src[end:]
+	})
+	if !done {
+		t.Fatalf("the library has no %s%s with %q", head, fn, old)
+	}
+	return overlay
 }

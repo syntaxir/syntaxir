@@ -1750,7 +1750,7 @@ host op run.minimum() int
   features document
   cost <= 0
   contract:
-    // Returns the least number of elements of a run that a Document records.
+    // Returns the least number of elements of a run that a Document records, MinRecordedRun outside tests.
 
 host op run.record(r Run)
   component runs

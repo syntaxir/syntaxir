@@ -270,6 +270,34 @@ func (c *BudgetControl) Take(n uint64) bool {
 	return true
 }
 
+// Poll counts one step of work that reserves no unit, such as the reuse of an element of a run of a
+// Document, toward the interval at which the parse observes cancellation and its memory limit, and
+// observes them when the interval ends, as a reservation of one unit does (budget.poll). Work that
+// reserves nothing then still lets a cancellation end the parse within an interval of steps. It is
+// safe on a nil receiver.
+func (c *BudgetControl) Poll() {
+	if c == nil || !c.polled {
+		// Nothing is observed at the interval.
+		return
+	}
+	c.settle()
+	if reachesInterval(c.sinceCheck, 1, budgetCheckInterval) {
+		if c.ctx != nil {
+			if err := contextErr(c.ctx); err != nil {
+				c.interrupted = true
+				panic(fatal{err: err})
+			}
+		}
+		if c.limits.Memory != 0 {
+			c.checkMemory()
+		}
+		c.sinceCheck = 0
+	} else {
+		c.sinceCheck++
+	}
+	c.refill()
+}
+
 // noFree is the mark that FreeBegin returns when it opens no region.
 const noFree = ^uint64(0)
 

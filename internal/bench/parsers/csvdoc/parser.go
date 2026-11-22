@@ -143,9 +143,10 @@ func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.Spend()
 	var x1, x7, x8 int
 	var x2 []*sxirvalue.Node
-	var x3, x10 rt.Mark
-	var ok bool
-	var v12, v13, v14, v15 *sxirvalue.Node
+	var x3, x14 rt.Mark
+	var ok, x9, x13 bool
+	var x10 *rt.RunState
+	var v12, v16, v17, v18, v19 *sxirvalue.Node
 	x1 = p.Pos
 	x2 = p.Nodes(1)[:0]
 	x3 = p.Mark()
@@ -159,31 +160,57 @@ L4:
 	p.Reset(x3)
 L5:
 	x7, x8 = p.Pos, len(p.KidStack)
+	x9 = p.ResumeOn()
+	if x9 {
+		x10 = p.ResumeStart(1, 0, -1, true)
+	}
 	for {
-		p.Spend()
-		x10 = p.Mark()
-		if v12, ok = p.Call(rules[1], 0); !ok {
-			goto L11
+		if x9 {
+			if !p.ResumeMore(x10) {
+				break
+			}
+			v12, x13 = p.ResumeNext(x10)
+			if x13 {
+				p.KidStack = append(p.KidStack, v12)
+				continue
+			}
 		}
-		v13 = p.ScopeValue(sh2, v12, x10.Pos)
-		p.KidStack = append(p.KidStack, v13)
-		if p.Pos == x10.Pos {
+		p.Spend()
+		x14 = p.Mark()
+		if x9 {
+			p.ResumeBegin(x10)
+		}
+		if v16, ok = p.Call(rules[1], 0); !ok {
+			goto L15
+		}
+		v17 = p.ScopeValue(sh2, v16, x14.Pos)
+		if x9 {
+			p.ResumeEnd(x10, true, v17)
+		}
+		p.KidStack = append(p.KidStack, v17)
+		if p.Pos == x14.Pos {
 			break
 		}
 		continue
-	L11:
-		p.Reset(x10)
+	L15:
+		if x9 {
+			p.ResumeEnd(x10, false, nil)
+		}
+		p.Reset(x14)
 		break
 	}
-	v14 = p.NewBranch(rt.ListKind, x7, p.Kids(x8))
-	p.SetCapture(0, v14)
-	x2 = append(x2, v14)
+	if x9 {
+		p.ResumeFinish(x10)
+	}
+	v18 = p.NewBranch(rt.ListKind, x7, p.Kids(x8))
+	p.SetCapture(0, v18)
+	x2 = append(x2, v18)
 	if !p.AtEndBatch() {
 		p.Expect(p.Pos, rt.IdEndInput)
 		goto fail
 	}
-	v15 = p.NewBranch(rt.SeqKind, x1, x2)
-	return v15, true
+	v19 = p.NewBranch(rt.SeqKind, x1, x2)
+	return v19, true
 fail:
 	return nil, false
 }
@@ -254,11 +281,12 @@ fail:
 
 func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.Spend()
-	var x1, size, x6, x7, x9, x13, x14, x16, x17, x19, x23, x26, x27 int
-	var x2, x11, x21 rt.Mark
-	var ok, x8, x18 bool
+	var x1, size, x6, x7, x11, x17, x18, x20, x21, x25, x31, x34, x35 int
+	var x2, x15, x29 rt.Mark
+	var ok, x8, x10, x14, x22, x24, x28 bool
 	var ch rune
-	var v28 *sxirvalue.Node
+	var x9, x23 *rt.RunState
+	var v36 *sxirvalue.Node
 	x1 = p.Pos
 	x2 = p.Mark()
 	if !p.HasChar(34, false) && p.Depth <= p.MaxDepth {
@@ -293,27 +321,43 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	if 15 < x7 {
 		p.ScanEnd(4, x6, x7)
 	}
-	x9 = p.Pos
-	x8 = p.RunHot(2)
+	x8 = p.ResumeOn()
 	if x8 {
+		x9 = p.ResumeStart(2, 0, -1, true)
+	}
+	x11 = p.Pos
+	x10 = !x8 && p.RunHot(2)
+	if x10 {
 		p.RunBegin(2, false, false)
 	}
 	for {
 		if x8 {
+			if !p.ResumeMore(x9) {
+				break
+			}
+			_, x14 = p.ResumeNext(x9)
+			if x14 {
+				continue
+			}
+		}
+		if x10 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
 		p.Spend()
-		x11 = p.Mark()
+		x15 = p.Mark()
+		if x8 {
+			p.ResumeBegin(x9)
+		}
 		if p.Document == nil && (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 34 && p.In[p.Pos+1] == 34) && p.Control.Take(2) {
 			p.Pos += 2
 		} else if _, ok = p.MatchLiteral(lit8, "\"\"", 9, false); !ok {
-			goto L12
+			goto L16
 		}
-		x13 = p.Pos
-		x14 = 0
+		x17 = p.Pos
+		x18 = 0
 		for {
 			p.Spend()
 			if p.Document == nil && p.Pos < len(p.In) {
@@ -327,27 +371,36 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 				break
 			}
 			p.Pos += size
-			x14++
-			if x14 == 16 {
-				x14 = p.ScanReach(6, x13, x14)
+			x18++
+			if x18 == 16 {
+				x18 = p.ScanReach(6, x17, x18)
 			}
 		}
-		if 15 < x14 {
-			p.ScanEnd(6, x13, x14)
+		if 15 < x18 {
+			p.ScanEnd(6, x17, x18)
 		}
-		if p.Pos == x11.Pos {
+		if x8 {
+			p.ResumeEnd(x9, true, nil)
+		}
+		if p.Pos == x15.Pos {
 			break
 		}
 		continue
-	L12:
-		p.Reset(x11)
+	L16:
+		if x8 {
+			p.ResumeEnd(x9, false, nil)
+		}
+		p.Reset(x15)
 		break
 	}
 	if x8 {
+		p.ResumeFinish(x9)
+	}
+	if x10 {
 		p.SkipEnd()
-	} else {
-		if p.Pos-x9 >= rt.RunHotSpan {
-			p.RunWalked(2, x9)
+	} else if !x8 {
+		if p.Pos-x11 >= rt.RunHotSpan {
+			p.RunWalked(2, x11)
 		}
 	}
 	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
@@ -359,8 +412,8 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 L5:
 	p.Reset(x2)
 L4:
-	x16 = p.Pos
-	x17 = 0
+	x20 = p.Pos
+	x21 = 0
 	for {
 		p.Spend()
 		if p.Document == nil && p.Pos < len(p.In) {
@@ -374,34 +427,50 @@ L4:
 			break
 		}
 		p.Pos += size
-		x17++
-		if x17 == 16 {
-			x17 = p.ScanReach(8, x16, x17)
+		x21++
+		if x21 == 16 {
+			x21 = p.ScanReach(8, x20, x21)
 		}
 	}
-	if 15 < x17 {
-		p.ScanEnd(8, x16, x17)
+	if 15 < x21 {
+		p.ScanEnd(8, x20, x21)
 	}
-	x19 = p.Pos
-	x18 = p.RunHot(3)
-	if x18 {
+	x22 = p.ResumeOn()
+	if x22 {
+		x23 = p.ResumeStart(3, 0, -1, true)
+	}
+	x25 = p.Pos
+	x24 = !x22 && p.RunHot(3)
+	if x24 {
 		p.RunBegin(3, false, false)
 	}
 	for {
-		if x18 {
+		if x22 {
+			if !p.ResumeMore(x23) {
+				break
+			}
+			_, x28 = p.ResumeNext(x23)
+			if x28 {
+				continue
+			}
+		}
+		if x24 {
 			if p.SkipHit() {
 				break
 			}
 			p.SkipVisit()
 		}
 		p.Spend()
-		x21 = p.Mark()
+		x29 = p.Mark()
+		if x22 {
+			p.ResumeBegin(x23)
+		}
 		if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 13) && p.Control.Take(1) {
 			p.Pos++
 		} else if _, ok = p.MatchLiteral(lit9, "\r", 11, false); !ok {
-			goto L22
+			goto L30
 		}
-		x23 = p.Pos
+		x31 = p.Pos
 		p.Silent++
 		p.LookBegin(2)
 		if p.Document == nil && p.Pos < len(p.In) {
@@ -412,21 +481,21 @@ L4:
 		}
 		if !ok || (ch == 10) {
 			p.Expect(p.Pos, 12)
-			goto L24
+			goto L32
 		}
 		p.Pos += size
 		p.LookEnd(true)
 		p.Silent--
-		p.Pos = x23
-		goto L25
-	L24:
+		p.Pos = x31
+		goto L33
+	L32:
 		p.LookEnd(false)
 		p.Silent--
-		p.Pos = x23
-		goto L22
-	L25:
-		x26 = p.Pos
-		x27 = 0
+		p.Pos = x31
+		goto L30
+	L33:
+		x34 = p.Pos
+		x35 = 0
 		for {
 			p.Spend()
 			if p.Document == nil && p.Pos < len(p.In) {
@@ -440,33 +509,42 @@ L4:
 				break
 			}
 			p.Pos += size
-			x27++
-			if x27 == 16 {
-				x27 = p.ScanReach(10, x26, x27)
+			x35++
+			if x35 == 16 {
+				x35 = p.ScanReach(10, x34, x35)
 			}
 		}
-		if 15 < x27 {
-			p.ScanEnd(10, x26, x27)
+		if 15 < x35 {
+			p.ScanEnd(10, x34, x35)
 		}
-		if p.Pos == x21.Pos {
+		if x22 {
+			p.ResumeEnd(x23, true, nil)
+		}
+		if p.Pos == x29.Pos {
 			break
 		}
 		continue
-	L22:
-		p.Reset(x21)
+	L30:
+		if x22 {
+			p.ResumeEnd(x23, false, nil)
+		}
+		p.Reset(x29)
 		break
 	}
-	if x18 {
+	if x22 {
+		p.ResumeFinish(x23)
+	}
+	if x24 {
 		p.SkipEnd()
-	} else {
-		if p.Pos-x19 >= rt.RunHotSpan {
-			p.RunWalked(3, x19)
+	} else if !x22 {
+		if p.Pos-x25 >= rt.RunHotSpan {
+			p.RunWalked(3, x25)
 		}
 	}
 	goto L3
 L3:
-	v28 = p.NewTerminal(x1, p.Text(x1, p.Pos))
-	return v28, true
+	v36 = p.NewTerminal(x1, p.Text(x1, p.Pos))
+	return v36, true
 }
 
 func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
@@ -526,4 +604,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol29
+const _ = rt.Protocol30

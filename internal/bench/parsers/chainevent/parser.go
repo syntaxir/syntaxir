@@ -1143,4 +1143,4 @@ func s13(p *rt.TParser) (any, bool) {
 
 const _ = types.SXIRSchema_8ed7e2c96bc03587
 
-const _ = rt.Protocol29
+const _ = rt.Protocol30

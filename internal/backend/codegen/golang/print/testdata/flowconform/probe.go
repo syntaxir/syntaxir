@@ -131,7 +131,9 @@ func confState(p any) (s confSnap) {
 		panic(fmt.Sprintf("probe: parser %T", p))
 	}
 	if q.Control != nil {
-		s.used = q.Control.budgetUsed()
+		// The units that count against the limit: the work that only a Document does is not counted
+		// under its default limit (BudgetControl.doc).
+		s.used = q.Control.budgetUsed() - q.Control.doc
 	}
 	if q.Stream != nil && q.Stream.Emit != nil {
 		s.streaming = true

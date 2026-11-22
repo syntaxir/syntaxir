@@ -23,7 +23,7 @@ func BuildTable(prog elaborate.Program, c plandata.TableConfig, coreStep func(bu
 		return nil, err
 	}
 	opts := lowerdata.Options{Budget: c.Budget, Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Observe: c.Observe, Node: true,
-		Document: c.Document, Traced: c.Traced}
+		Document: c.Document, Resume: c.Resume, Traced: c.Traced}
 	if c.Outline {
 		if chosen := outlineNodes(m, c.Values); len(chosen) > 0 {
 			opts.Outline = func(n core.Node) bool { return chosen[n] }

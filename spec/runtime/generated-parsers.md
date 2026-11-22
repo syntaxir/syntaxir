@@ -317,8 +317,11 @@ API.
 - Construction options become the defaults of later calls. A call MAY set the
   depth, the context and the compute limits; it MUST NOT change the unit.
 - `ParseStats` counts the rule evaluations (`Evaluated`) and reuses (`Reused`) of the
-  last parse. A generated `Document` reuses only memo results: `MemoHits` equals
-  `Reused` and `ResumedElements` is zero.
+  last parse: the reused memo results (`MemoHits`) and the elements of repetitions
+  that it resumed (`ResumedElements`). `Parse` reuses and resumes them by the rules of
+  the engine's [Reuse Model](documents.md#reuse-model), so its `Stats` equal the
+  engine's after the same grammar, text and edits. `ParseValue` keeps its own typed
+  memo and resumes no repetitions, so the `Stats` after it can differ.
 - A parse returns what a parse of the whole current text returns. An interruption
   discards memo history so that a later call can retry.
 - A `Document` is for one goroutine. A returned tree can share nodes with later
@@ -351,11 +354,13 @@ and, with `-types`, `parseValue(options?)`.
   what `parseValue` returns. An invocation MUST NOT change the unit or the
   expectations. A `parse` or `edit` made while the Document parses, from a trace
   callback, returns an error.
-- A parse reuses the results of earlier parses that the edits since left valid, by
-  the rules of the Go `Document`. `stats()` returns `{ evaluated, reused }`, the
-  rule evaluations and the reused results of the last parse, which equal the Go
-  `Stats` after `Parse` of the same grammar, text and edits. The Go `ParseValue`
-  keeps its own typed memo, so the Go `Stats` after it can differ.
+- A parse reuses the memo results of earlier parses that the edits since left valid,
+  by the rules of the Go `Document`, but resumes no repetitions: it evaluates their
+  elements again. `stats()` returns `{ evaluated, reused }`, the rule evaluations and
+  the reused results of the last parse, which equal the Go `Stats` after `Parse` of
+  the same grammar, text and edits when that parse resumed no repetition
+  (`ResumedElements` is zero). The Go `ParseValue` keeps its own typed memo, so the
+  Go `Stats` after it can differ.
 - A returned tree can share nodes with the results of later parses, so mutating it
   can change what they contain. A reused result whose position an edit moved is
   returned in copies, which leave earlier trees unchanged.

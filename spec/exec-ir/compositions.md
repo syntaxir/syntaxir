@@ -200,16 +200,16 @@ row includes what its backends print into packages of their own.
 | exprLed |  |  | `[budget, missing]` |  |
 | exprRhs |  |  | `[budget, missing]` |  |
 | memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` |  |
-| runStart |  |  | `[budget, document]` |  |
-| runMore |  |  | `[budget, document]` |  |
-| runReuse |  |  | `[budget, document]` |  |
-| runPrefix |  |  | `[budget, document]` |  |
-| runResync |  |  | `[budget, document]` |  |
-| runTail |  |  | `[budget, document]` |  |
-| runNext |  |  | `[budget, document]` |  |
-| runBegin |  |  | `[budget, document]` |  |
-| runEnd |  |  | `[budget, document]` |  |
-| runFinish |  |  | `[budget, document]` |  |
+| runStart | `[budget, document]` |  | `[budget, document]` |  |
+| runMore | `[budget, document]` |  | `[budget, document]` |  |
+| runReuse | `[budget, document]` |  | `[budget, document]` |  |
+| runPrefix | `[budget, document]` |  | `[budget, document]` |  |
+| runResync | `[budget, document]` |  | `[budget, document]` |  |
+| runTail | `[budget, document]` |  | `[budget, document]` |  |
+| runNext | `[budget, document]` |  | `[budget, document]` |  |
+| runBegin | `[budget, document]` |  | `[budget, document]` |  |
+| runEnd | `[budget, document]` |  | `[budget, document]` |  |
+| runFinish | `[budget, document]` |  | `[budget, document]` |  |
 | equal | `[]` | `[]` | `[]` | `[]` |
 | index | `[]` | `[]` | `[]` | `[]` |
 | binary | `[]` | `[]` | `[]` | `[]` |

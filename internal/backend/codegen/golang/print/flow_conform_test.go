@@ -73,6 +73,35 @@ const (
 	flowConformOrdinary = "_, err = Parse(in, ordinary...)"
 )
 
+// flowConformDocument parses in as a Document, then again after an edit in its middle that adds a
+// character, and after one that removes it. Only the last parse, of in, is recorded: the reads of the
+// others are of other texts.
+const flowConformDocument = `err = func() error {
+	d, err := NewDocument(in, sxirruntime.WithExpectations())
+	if err != nil {
+		return err
+	}
+	if _, err := d.Parse(); err != nil {
+		return err
+	}
+	at := len(in) / 2
+	for at > 0 && in[at-1] != ';' {
+		at--
+	}
+	if err := d.Edit(at, at, "x"); err != nil {
+		return err
+	}
+	if _, err := d.Parse(); err != nil {
+		return err
+	}
+	if err := d.Edit(at, at+1, ""); err != nil {
+		return err
+	}
+	rt.ConfReset()
+	_, err = d.Parse()
+	return err
+}()`
+
 const flowConformLong = "abcdefghijklmnopqrstuvwxyzabcdefghij"
 
 var flowConformCases = []flowConformCase{
@@ -204,6 +233,14 @@ rule outer = inner "-"
 rule inner = "a" tail
 rule tail = [a-z]*
 `, opts: common.GenOptions{LogicalUnits: true}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
+	// A Document whose repetition resumes its run after edits: the elements before an edit are the
+	// reused prefix, and those after it, moved by an edit that changes the length, the reused tail. The
+	// parses run under the default limit, under which the work of the Document is not counted.
+	{name: "document", src: `@start
+rule main = (item ";")* $$
+rule item = [a-z]+ ("=" [0-9]+)?
+`, opts: common.GenOptions{Document: true}, inputs: []string{strings.Repeat("ab;", 40), strings.Repeat("ab=1;cd;", 20), "ab;"},
+		entries: []string{flowConformDocument}},
 	{name: "observe", src: `@start
 rule main = (kw / id)* $$
 rule kw = "if" / "else"
@@ -229,14 +266,6 @@ rule id = [a-z]+ ";"
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outline)",
-	// The Go generator resumes no runs until its library holds them (lowerdata.Options.Resume, transitional).
-	flow.OpResumeOn:     "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeStart:  "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeMore:   "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeNext:   "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeBegin:  "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeEnd:    "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
-	flow.OpResumeFinish: "the Go generator does not lower resumed runs yet (lowerdata.Options.Resume)",
 }
 
 // flowExactCharges are the operations whose charges equal their cost bound.

@@ -17,7 +17,8 @@ const (
 	// writes into generated code.
 	scanHotSpan = 16
 	// minRecordedLen is the number of elements below which a Document does not record a run: a
-	// short repetition costs little to run again.
+	// short repetition costs little to run again. It equals exec.MinRecordedRun, which the Go library
+	// of generated parsers is printed with.
 	minRecordedLen = 16
 )
 

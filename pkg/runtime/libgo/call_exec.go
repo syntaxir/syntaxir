@@ -10,6 +10,10 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 // found it.
 const pendingEditLimit = 128
 
+// minRecordedRun is the number of elements below which a Document records no run of a repetition
+// (exec.MinRecordedRun), as in the engine.
+const minRecordedRun = 16
+
 // Call calls rule r at binding level min: unmemoized while its memoization is deferred, and
 // otherwise through the memo and the dependency memo of left-recursion contexts, growing the seed of
 // a left-recursion leader. A call that is also the entry of Document
@@ -1268,6 +1272,227 @@ func advanceTEntry(e *tmemoEntry, log []documentEdit) bool {
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
 	return true
+}
+
+// runStart starts the run r of the repetition site, with at least min and at most max elements (max -1 for
+// no bound), at the position, and finds the record it takes over: the record of this site here that this
+// parse made, or that the parse before made of the same text; or else, when exactly one edit [a, b) by
+// delta came since the parse before, the record of that parse here when the position is at most a, or at
+// the position less delta when it is at least b + delta. Between them no record is taken. shiftable tells
+// whether the values of the elements hold no position, so that the run may reuse old elements that the
+// edit moved.
+//
+// Printed from Exec IR function runStart of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runStart(r *RunState, site int, min int, max int, shiftable bool) {
+	var at int
+	p.runInit(r, site, min, max, shiftable)
+	if p.runTakeHere(r) {
+		return
+	}
+	if !(p.lastRuns != nil && p.gen > 0) {
+		return
+	}
+	log := p.edits
+	last := len(log) - 1
+	r.EditStart = log[last].start
+	r.EditEnd = log[last].end
+	r.EditDelta = log[last].delta
+	at = p.Pos
+	if p.Pos > r.EditStart {
+		if p.Pos < r.EditEnd+r.EditDelta {
+			return
+		}
+		at = p.Pos - r.EditDelta
+		r.Moved = true
+	}
+	p.runTakeLast(r, at, last)
+}
+
+// ResumeMore reports whether the run r may take another element: no reused element ended it, and it has
+// fewer than its maximum.
+//
+// Printed from Exec IR function runMore of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) ResumeMore(r *RunState) bool {
+	return !r.Done && (r.Max < 0 || r.Count < r.Max)
+}
+
+// runReuse reuses the old element i of the run r, moved by shift since the parse that recorded it when the
+// Document had had gen edits: it replays what evaluating the element did (the examined input, the
+// expectations, the position and the statistics) and returns its value, for the caller to keep.
+//
+// Printed from Exec IR function runReuse of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Node {
+	var fm uint64
+	p.Control.Poll()
+	v := p.runTake(r, i, shift)
+	p.documentTouch(r.old[i].examined)
+	p.documentTouchFrom(r.old[i].from)
+	k := r.old[i].exp
+	far := r.old[i].far
+	if len(k) > 0 && far >= p.farthest {
+		fm = p.Control.FreeBegin(true)
+		p.MergeExpected(far, k)
+		p.Control.FreeEnd(fm)
+	}
+	p.Pos = r.old[i].end
+	p.Document.stats.Reused++
+	p.Document.stats.Resumed++
+	r.Count = r.Count + 1
+	r.Done = r.old[i].end == r.old[i].start || r.Max >= 0 && r.Count >= r.Max
+	return v
+}
+
+// runPrefix reuses the next old element of the run r if it examined only input before the edit since the
+// old run, whatever the edit's change in length, and returns its value and true; it returns false when the
+// reused prefix ends: at an element that examined input at or after the start of the edit, at the end of
+// the old run, after an element that ended the run, or at once when the old run is the one that the edit
+// moved here.
+//
+// Printed from Exec IR function runPrefix of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runPrefix(r *RunState) (*sxirvalue.Node, bool) {
+	if r.Moved || r.Done || r.K >= len(r.old) {
+		return nil, false
+	}
+	if r.old[r.K].examined > r.EditStart {
+		return nil, false
+	}
+	v := p.runReuse(r, r.K, 0, 0)
+	r.K = r.K + 1
+	return v, true
+}
+
+// runResync reports whether the run r is back in step with its old run after the edit: an old element
+// starts where the next element would, moved by the edit, and it and every old element after it examined
+// only input after the edit; their values move with the edit only if the run is shiftable. runTail then
+// reuses them.
+//
+// Printed from Exec IR function runResync of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runResync(r *RunState) bool {
+	var q int
+	n := len(r.old)
+	if r.J >= 0 || n == 0 || p.Pos-r.EditDelta < r.EditEnd {
+		return false
+	}
+	if !r.Shiftable && r.EditDelta != 0 {
+		return false
+	}
+	at := p.Pos - r.EditDelta
+	if r.Seek < r.K {
+		r.Seek = r.K
+	}
+	for {
+		if r.Seek >= n || r.old[r.Seek].start >= at {
+			break
+		}
+		p.Control.Poll()
+		r.Seek = r.Seek + 1
+	}
+	if r.Seek == n || r.old[r.Seek].start != at {
+		return false
+	}
+	if r.Seek < r.Barred {
+		return false
+	}
+	for q = r.Seek; q < n; q++ {
+		p.Control.Poll()
+		if r.old[q].from < r.EditEnd {
+			r.Barred = q + 1
+			return false
+		}
+	}
+	r.J = r.Seek
+	return true
+}
+
+// runTail reuses the next old element after the edit that runResync found the run r in step with, moved by
+// the edit, and returns its value and true; it returns false at the end of the old run or when the run may
+// take no more elements.
+//
+// Printed from Exec IR function runTail of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runTail(r *RunState) (*sxirvalue.Node, bool) {
+	i := r.J + r.T
+	if r.J < 0 || i >= len(r.old) {
+		return nil, false
+	}
+	if !p.ResumeMore(r) {
+		return nil, false
+	}
+	v := p.runReuse(r, i, r.EditDelta, len(p.edits)-1)
+	r.T = r.T + 1
+	return v, true
+}
+
+// ResumeNext reuses the next element of the run r that the old run supplies, when runMore(r) holds, and returns
+// its value and true: first the reused prefix (runPrefix), then, once the run is back in step with the old
+// run after the edit (runResync), the old elements after it (runTail). It returns false when the
+// repetition evaluates its next element instead.
+//
+// Printed from Exec IR function runNext of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) ResumeNext(r *RunState) (*sxirvalue.Node, bool) {
+	if !r.Prefixed {
+		pv, pok := p.runPrefix(r)
+		if pok {
+			return pv, true
+		}
+		r.Prefixed = true
+	}
+	if r.J < 0 && !p.runResync(r) {
+		return nil, false
+	}
+	tv, tok := p.runTail(r)
+	return tv, tok
+}
+
+// ResumeBegin starts evaluating an element of the run r: its examined input and its expectations are recorded
+// apart from those of the enclosing call, so that the run can record them with the element.
+//
+// Printed from Exec IR function runBegin of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) ResumeBegin(r *RunState) {
+	r.ElemStart = p.Pos
+	oe, ol := p.docExamined, p.docLow
+	p.docExamined, p.docLow = p.Pos, p.Pos
+	r.OuterExamined = oe
+	r.OuterLow = ol
+	r.Mark = p.Isolate(p.Pos)
+}
+
+// ResumeEnd ends evaluating an element of the run r, with its success ok and value v, before the parse resets
+// its state if it failed: it adds the element's examined input and expectations to those of the enclosing
+// call, and records the element if it matched.
+//
+// Printed from Exec IR function runEnd of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) ResumeEnd(r *RunState, ok bool, v *sxirvalue.Node) {
+	var fm uint64
+	var kept []ExpID
+	fm = p.Control.FreeBegin(true)
+	far, inner := p.Unisolate(r.Mark)
+	if ok {
+		kept = p.Keep(inner)
+	}
+	p.MergeExpected(far, inner)
+	from := p.docLow
+	examined := p.docExamined
+	p.docExamined = max(r.OuterExamined, p.docExamined)
+	if r.OuterLow < p.docLow {
+		p.docLow = r.OuterLow
+	}
+	if ok {
+		r.Count = r.Count + 1
+		p.runAdd(r, r.J >= 0, r.ElemStart, p.Pos, from, examined, far, kept, v)
+	}
+	p.Control.FreeEnd(fm)
+}
+
+// runFinish records the run r of a repetition that matched, for the rest of this parse and the next one,
+// unless it has fewer elements than the least a Document records, a recovered error remains, or a call in it
+// read the current result of a growth.
+//
+// Printed from Exec IR function runFinish of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) runFinish(r *RunState) {
+	if r.Count < minRecordedRun || !p.runClean(r) {
+		return
+	}
+	p.runRecord(r)
 }
 
 // Predicate applies the action expression of a predicate to the context that action.ctx makes. It fails on the boolean

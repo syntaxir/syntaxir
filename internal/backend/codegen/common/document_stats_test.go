@@ -180,6 +180,66 @@ func TestDocumentStatsEngineAndGo(t *testing.T) {
 	}
 }
 
+// TestDocumentRunsEngineAndGo runs the same edits on the Documents of the engine and of the generated
+// Go parser of a grammar whose repetition is long enough for its runs to be recorded and resumed, and
+// requires the same statistics after each parse (evaluations, reuses, memo hits and resumed elements of
+// repetitions), with the same end of the result and the same success: a Go Document resumes the runs
+// of repetitions that the engine does.
+func TestDocumentRunsEngineAndGo(t *testing.T) {
+	t.Parallel()
+	codegentest.PinOrdinary(t)
+	if testing.Short() {
+		t.Skip("builds a generated Go program")
+	}
+	cases := []documentStatsCase{{"long run", `@start
+rule main = (item ";")* $$
+rule item = id ("=" [0-9]+)? / "(" main ")"
+rule id = [a-z]+ #atomic`,
+		strings.Repeat("a;bb=1;c;", 12),
+		[]string{"x;", "y=2;", "q", "k", "3", "(z;)", "w;", "ab;", "c=4;"}}}
+	resumed := 0
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			g, err := parser.Parse(c.src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			script := documentStatsScriptOf(t, c)
+			data, err := json.Marshal(script)
+			if err != nil {
+				t.Fatal(err)
+			}
+			goOut := documentStatsGo(t, g, string(data))
+			d, err := compileBare(t, c.src).NewDocument("main", script.Text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var b strings.Builder
+			show := func() {
+				n, err := d.Parse()
+				end := -1
+				if n != nil {
+					end = n.End()
+				}
+				s := d.Stats()
+				fmt.Fprintln(&b, s.Evaluated, s.Reused, s.MemoHits, s.ResumedElements, end, err != nil)
+				resumed += s.ResumedElements
+			}
+			show()
+			for _, e := range script.Edits {
+				if err := d.Edit(e[0].(int), e[1].(int), e[2].(string)); err != nil {
+					fmt.Fprintln(&b, "edit", err)
+				}
+				show()
+			}
+			compareDocumentStats(t, "engine", b.String(), "Go", goOut, "evaluated reused memo-hits resumed end failed")
+		})
+	}
+	if resumed == 0 {
+		t.Fatal("the Documents of the long run resumed no element of a repetition")
+	}
+}
+
 // compareDocumentStats requires the lines that two Documents print for the parses of a script to be
 // equal.
 func compareDocumentStats(t *testing.T, aName, a, bName, b, fields string) {

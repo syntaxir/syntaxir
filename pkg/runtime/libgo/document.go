@@ -127,16 +127,16 @@ func (d *Document) ResolveParseOptions(opts []sxirruntime.ParseOption) (parseOpt
 // Unit returns the position unit of the document, fixed at construction.
 func (d *Document) Unit() sxirinput.PositionUnit { return d.State.unit }
 
-// ResetHistory releases the memo, the incremental reuse history of a generated Document, without
-// changing the text, the construction options or the statistics of the last parse. Trees returned
-// earlier are detached from future node movement; this does not undo earlier movement.
+// ResetHistory releases the memo and the repetition runs, the incremental reuse history of a
+// generated Document, without changing the text, the construction options or the statistics of the
+// last parse. Trees returned earlier are detached from future node movement; this does not undo
+// earlier movement.
 func (d *Document) ResetHistory() {
-	d.State.memo, d.State.typedMemo, d.State.edits, d.State.moves = memoTable{}, nil, nil, 0
+	d.State.memo, d.State.typedMemo, d.State.runs, d.State.edits, d.State.moves = memoTable{}, nil, nil, nil, 0
 }
 
-// CacheStats returns a point-in-time estimate of the memo that the Document retains. A generated
-// Document keeps no repetition records, so RepetitionElements is 0. It does not measure the process
-// heap or bytes returned to the operating system.
+// CacheStats returns a point-in-time estimate of the memo and the repetition runs that the Document
+// retains. It does not measure the process heap or bytes returned to the operating system.
 func (d *Document) CacheStats() sxirruntime.CacheStats {
 	var s sxirruntime.CacheStats
 	t := &d.State.memo
@@ -162,14 +162,18 @@ func (d *Document) CacheStats() sxirruntime.CacheStats {
 	s.EstimatedBytes += uint64(cap(t.bitPages.chunks)) * uint64(unsafe.Sizeof((*[64][16]uint64)(nil)))
 	s.EstimatedBytes += uint64(len(t.bitPages.chunks)) * uint64(unsafe.Sizeof([64][16]uint64{}))
 	s.EstimatedBytes += t.indexBytes
+	for _, run := range d.State.runs {
+		s.RepetitionElements += len(run.elems)
+	}
+	s.EstimatedBytes += runBytes(d.State.runs)
 	return s
 }
 
-// Stats returns the evaluation and reuse counts of the last Parse. A generated Document reuses
-// memo results only, never repetition elements, so every reuse is a memo hit.
+// Stats returns the evaluation and reuse counts of the last Parse: Reused counts the memo hits and the
+// elements of repetitions that the parse resumed.
 func (d *Document) Stats() sxirruntime.ParseStats {
 	s := d.State.stats
-	return sxirruntime.ParseStats{Evaluated: s.Evaluated, Reused: s.Reused, MemoHits: s.Reused}
+	return sxirruntime.ParseStats{Evaluated: s.Evaluated, Reused: s.Reused, MemoHits: s.Reused - s.Resumed, ResumedElements: s.Resumed}
 }
 
 // A slice's first element, length and capacity identify an exact slice view.
@@ -238,8 +242,9 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 		d.text = d.text[:documentByteOffset(d.text, start)] + replacement + d.text[documentByteOffset(d.text, end):]
 	}
 	if len(d.edits) == maxDocumentEdits {
-		// The log is full: the next parse starts without the memos, as a parse from scratch does.
-		d.memo, d.typedMemo, d.edits = memoTable{}, nil, nil
+		// The log is full: the next parse starts without the memos and the runs, as a parse from scratch
+		// does.
+		d.memo, d.typedMemo, d.edits, d.runs = memoTable{}, nil, nil, nil
 	} else {
 		d.edits = append(d.edits, ed)
 		d.memo.splice(d.edits)
@@ -250,20 +255,20 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 	return ed, nil
 }
 
-// dropMemo drops the memo of Node parses, and the edit log with it unless the typed memo still
-// refers to it.
+// dropMemo drops the memo of Node parses and the runs that they recorded, and the edit log with them
+// unless the typed memo still refers to it.
 func (d *documentState) dropMemo() {
-	d.memo = memoTable{}
+	d.memo, d.runs = memoTable{}, nil
 	if d.typedMemo == nil {
 		d.edits = nil
 	}
 }
 
 // dropTypedMemo drops the memo of typed parses, and the edit log with it unless the memo of Node
-// parses still holds entries that refer to it.
+// parses still holds entries that refer to it or runs whose generations count its edits.
 func (d *documentState) dropTypedMemo() {
 	d.typedMemo = nil
-	if len(d.memo.slots) == 0 {
+	if len(d.memo.slots) == 0 && d.runs == nil {
 		d.edits = nil
 	}
 }
@@ -345,31 +350,41 @@ func (p *Parser) documentMove(e *memoEntry) bool {
 		e.shift = 0
 		return true
 	}
-	shift := e.shift
+	// Moving the value is work of the Document that a parse from scratch does not do.
+	defer p.Control.FreeEnd(p.Control.FreeBegin(true))
+	n, ok := p.moveCopy(e.node, e.shift)
+	if !ok {
+		return false
+	}
+	e.node, e.shift = n, 0
+	return true
+}
+
+// moveCopy returns a copy of the value n with its positions moved by shift, and reports whether it
+// could: a value that holds a host value other than a node or a basic value is not moved. The check
+// and the copy each cost, for every distinct node of the value, a unit and one more for each of its
+// children and fields.
+func (p *Parser) moveCopy(n *sxirvalue.Node, shift int32) (*sxirvalue.Node, bool) {
 	// The check marks the nodes it visits with the number of the move, which no earlier move of the
 	// Document had, so that a mark that an earlier move left, in this parse or an earlier one, whether
 	// that move went on or refused, never reads as a visit of this one. A node that the check finds
 	// marked occurs in the value more than once; such a value is moved through a map from the nodes to
 	// their copies, so that each is copied once and the copies are shared as the nodes were.
-	// Moving the value is work of the Document that a parse from scratch does not do.
-	defer p.Control.FreeEnd(p.Control.FreeBegin(true))
 	d := p.Document
 	d.moves++
-	movable, shared := p.movable(e.node, d.moves)
+	movable, shared := p.movable(n, d.moves)
 	if !movable {
-		return false
+		return nil, false
 	}
 	if shared {
 		if p.moved == nil {
 			p.moved = map[*sxirvalue.Node]*sxirvalue.Node{}
 		}
-		e.node = p.moveShared(e.node, int32(shift))
+		n = p.moveShared(n, shift)
 		clear(p.moved)
-	} else {
-		e.node = p.moveNode(e.node, int32(shift))
+		return n, true
 	}
-	e.shift = 0
-	return true
+	return p.moveNode(n, shift), true
 }
 
 // movable reports whether moveNode can move n: its fields and box hold only nodes and basic values;
@@ -545,8 +560,8 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}
 	o = prepareText(o, d.text)
 	defer o.reportSpent(false)
-	if o.control != nil && o.control.limits.Memory != 0 && d.memo.chargedBytes() > o.control.limits.Memory {
-		// The retained memo alone exceeds the limit: the parse starts without it.
+	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), runBytes(d.runs)) > o.control.limits.Memory {
+		// The retained memo and runs alone exceed the limit: the parse starts without them.
 		d.dropMemo()
 	}
 	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
@@ -566,16 +581,28 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}
 	p.Document, p.memo = d, d.memo
 	p.edits, p.gen = d.edits, uint32(len(d.edits))
+	// The runs of the last parse: the records of the same text, which this parse takes over, or those
+	// of the text before the edits since, which it may resume once.
+	p.runs, p.lastRuns = d.runs, d.runs
+	if p.runs != nil && d.runGen == p.gen {
+		p.lastRuns = nil
+	} else {
+		p.runs = map[runKey]*runRecord{}
+	}
 	p.setTracking()
 	p.setDeferMemo()
 	o.control.attachMemory(p)
+	if o.control != nil && o.control.limits.Memory != 0 {
+		o.control.retained = runBytes(d.runs)
+	}
 	d.stats = documentStats{}
 	defer func() {
 		if x := recover(); x != nil {
+			// The parse stopped inside growths and runs: none of its state is kept.
 			d.dropMemo()
 			panic(x)
 		}
-		d.memo = p.memo
+		d.memo, d.runs, d.runGen = p.memo, p.runs, p.gen
 	}()
 	p.Control.Check()
 	v, ok := p.Call(d.root.forParse(p), 0)

@@ -291,9 +291,10 @@ length of the text by δ, a memo entry with recorded range [l, h) is:
   and its evaluation was position-free;
 - dropped otherwise.
 
-A backend may drop an entry that these rules would shift: a generated Go
-parser drops one whose value holds a host value other than a node or a basic
-value, which it cannot move.
+A backend may drop an entry that these rules would shift: the typed memo of a
+generated Go parser (`ParseValue`) drops one whose value holds a value other
+than a basic value, which it cannot move. The values of `Parse` are nodes and
+basic values, which every backend moves.
 
 Edits are applied to an entry in order, either all at once or when the entry is
 next looked up. Every backend applies them to an entry when a lookup finds it, and
@@ -561,13 +562,15 @@ All three engine backends and both position units support documents. Generated G
 parsers provide an opt-in `Document` with `NewDocument`, `Text`, `Edit`, `Parse`,
 `Stats` and `Node.Clone`, and, with typed values, `Document.ParseValue`; they have
 neither `EditBatch`, `Version`, `Unit`, `Snapshot`, `CacheStats`, `ResetHistory`
-nor change notifications, and their `Stats` has only `Evaluated` and `Reused`.
+nor change notifications. `Parse` reuses memoized results and resumes runs as
+the engine does, and their `Stats` counts both; `ParseValue` keeps a typed memo of
+its own, which resumes no runs.
 Generated TypeScript parsers provide an opt-in `Document` with `createDocument`,
 `text`, `bytes`, `edit`, `parse`, `stats` and, with typed values, `parseValue`.
 `text` and `bytes` return the current text as `doc.Text()` defines it, in
 `CodePoints` with each invalid UTF-8 byte replaced with U+FFFD. It
 reuses the memoized results of earlier parses as the generated Go `Document`
-does, and its `stats` has only `evaluated` and `reused`. See
+does but resumes no runs, and its `stats` has only `evaluated` and `reused`. See
 [Generated Parsers](generated-parsers.md#incremental-documents).
 
 ## Conformance

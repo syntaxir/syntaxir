@@ -184,7 +184,7 @@ func TestGeneratedDocumentLeftRecursionMemberReparseControl(t *testing.T) {
 	codegentest.PinOrdinary(t)
 	flush := "for _, f := range keptSeedResults {\n\t\tf()\n\t}\n\tkeptSeedResults = nil\n"
 	reps := map[string][2]string{
-		"document.go":       {"\t\td.memo = p.memo\n", "\t" + flush + "\t\td.memo = p.memo\n"},
+		"document.go":       {"\t\td.memo, d.runs, d.runGen = p.memo, p.runs, p.gen\n", "\t" + flush + "\t\td.memo, d.runs, d.runGen = p.memo, p.runs, p.gen\n"},
 		"typed_document.go": {"\tcache.slots, cache.memoGap = p.memoSlots, p.memoGap\n", flush + "\tcache.slots, cache.memoGap = p.memoSlots, p.memoGap\n"},
 	}
 	// The results that a call keeps in its context are also put in the memo when the parse ends:

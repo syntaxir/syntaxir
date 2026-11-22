@@ -88,12 +88,29 @@ parsers and not a stable API.`},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", plain: true},
 	{fn: "memoAdvance", typed: true, on: []string{exec.Document, exec.Budget}, name: "advanceEntry"},
 	{fn: "memoAdvance", typed: true, on: []string{exec.Document}, name: "advanceTEntry", plain: true},
+	// The repetition runs of a Document parse in the node library, which generated rule bodies run
+	// through ResumeStart, ResumeMore, ResumeNext, ResumeBegin, ResumeEnd and ResumeFinish, the forms of
+	// the Flow operations of the same names (flow.resumeStart and the others).
+	{fn: "runStart", on: goRunOn, name: "runStart"},
+	{fn: "runMore", on: goRunOn, name: "ResumeMore"},
+	{fn: "runReuse", on: goRunOn, name: "runReuse"},
+	{fn: "runPrefix", on: goRunOn, name: "runPrefix"},
+	{fn: "runResync", on: goRunOn, name: "runResync"},
+	{fn: "runTail", on: goRunOn, name: "runTail"},
+	{fn: "runNext", on: goRunOn, name: "ResumeNext"},
+	{fn: "runBegin", on: goRunOn, name: "ResumeBegin"},
+	{fn: "runEnd", on: goRunOn, name: "ResumeEnd"},
+	{fn: "runFinish", on: goRunOn, name: "runFinish"},
 	// The predicates and bindings of both libraries.
 	{fn: "predicate", name: "Predicate"},
 	{fn: "bind", name: "Bind"},
 	{fn: "predicate", typed: true, name: "Predicate"},
 	{fn: "bind", typed: true, name: "Bind"},
 }
+
+// goRunOn are the features of the node library's forms of the repetition runs of a Document, which
+// are the engine's (runOn).
+var goRunOn = []string{exec.Document, exec.Budget}
 
 // goStreamSpecs are the functions of the stream mechanism that the compositions replace, in the
 // node library (the typed library has no streams).
@@ -161,7 +178,11 @@ func printLibGo() (string, error) {
 // engine does, and the typed memo drops an entry once more edits have passed since a parse stored it or
 // found it.
 const pendingEditLimit = %d
-`, exec.PendingEditLimit)
+
+// minRecordedRun is the number of elements below which a Document records no run of a repetition
+// (exec.MinRecordedRun), as in the engine.
+const minRecordedRun = %d
+`, exec.PendingEditLimit, exec.MinRecordedRun)
 	return libFileHeader(body, nil) + limit + body, nil
 }
 
@@ -227,7 +248,7 @@ func goTarget(s goSpec) *print.Target {
 	handles := map[string]string{
 		exec.Rule: "*Rule", exec.Value: "*sxirvalue.Node", exec.Entry: "*memoEntry", exec.Values: "[]any", exec.Errs: "recEntry",
 		exec.ExpID: "ExpID", exec.Mark: "ExpMark", exec.Set: "[]ExpID", exec.Kept: "[]ExpID", exec.EditLog: "[]documentEdit",
-		exec.Ctx: "ctxCallState", exec.Res: "*ctxResult", exec.Grow: "growState",
+		exec.Ctx: "ctxCallState", exec.Res: "*ctxResult", exec.Grow: "growState", exec.Run: "*RunState",
 		exec.Frame: "*CaptureFrame", exec.Backtrack: "Mark", exec.Scope: "*Env", exec.Operators: "[]*OperatorsRuleOp",
 		exec.Operator: "*OperatorsRuleOp", exec.Line: "*OperatorsRuleLine", exec.Attempt: "operatorsRuleAttempt",
 		action.Action: "func(*ActCtx) (any, any)", exec.Datum: "any", action.Seq: "[]*sxirvalue.Node",
@@ -270,6 +291,13 @@ func goTarget(s goSpec) *print.Target {
 		rule = func(r string) string { return r + ".Rule" }
 		step = func(v string) string { return "nil, " + v }
 	}
+	if !typed {
+		for _, r := range goSpecs {
+			if slices.Equal(r.on, goRunOn) && strings.HasPrefix(r.fn, "run") {
+				names[r.fn] = r.name
+			}
+		}
+	}
 	names[s.fn] = s.name
 	if s.cold != "" {
 		names[gopass.ColdPaths[s.fn]] = s.cold
@@ -281,6 +309,9 @@ func goTarget(s goSpec) *print.Target {
 	}
 	t.Op = func(c *code.Call, a []string) string {
 		if s, ok := goValueOp(c.Callee, a, typed); ok {
+			return s
+		}
+		if s, ok := goRunOp(c.Callee, a); ok && !typed {
 			return s
 		}
 		switch c.Callee {
@@ -707,4 +738,60 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 		return "", false
 	}
 	return t
+}
+
+// goRunOp returns the node library's Go form of an operation of the repetition runs of a Document,
+// of the edit log they read and of the poll of a reused element, given its printed arguments, or
+// reports false for another operation. The library's RunState holds the fields of the Run record as
+// the engine's does (engineRunOp); the recorded elements are its own.
+func goRunOp(callee string, a []string) (string, bool) {
+	switch callee {
+	case "doc.log":
+		return "p.edits", true
+	case "budget.poll":
+		return "p.Control.Poll()", true
+	}
+	name, ok := strings.CutPrefix(callee, "run.")
+	if !ok {
+		return "", false
+	}
+	for _, f := range exec.RunFields() {
+		field := strings.ToUpper(f.Name[:1]) + f.Name[1:]
+		if name == f.Name {
+			return a[0] + "." + field, true
+		}
+		if name == "set"+field {
+			return a[0] + "." + field + " = " + a[1], true
+		}
+	}
+	elem := map[string]string{"oldStart": "start", "oldEnd": "end", "oldFrom": "from", "oldExamined": "examined", "oldFar": "far", "oldKept": "exp"}
+	if f, ok := elem[name]; ok {
+		return a[0] + ".old[" + a[1] + "]." + f, true
+	}
+	switch name {
+	case "init":
+		return "p.runInit(" + strings.Join(a, ", ") + ")", true
+	case "takeHere":
+		return "p.runTakeHere(" + a[0] + ")", true
+	case "previous":
+		return "p.lastRuns != nil && p.gen > 0", true
+	case "takeLast":
+		return "p.runTakeLast(" + strings.Join(a, ", ") + ")", true
+	case "oldCount":
+		return "len(" + a[0] + ".old)", true
+	case "take":
+		// The library moves a copy of the value (runTake), which needs no generation.
+		return "p.runTake(" + strings.Join(a[:3], ", ") + ")", true
+	case "resumed":
+		return "p.Document.stats.Reused++\np.Document.stats.Resumed++", true
+	case "add":
+		return "p.runAdd(" + strings.Join(a, ", ") + ")", true
+	case "clean":
+		return "p.runClean(" + a[0] + ")", true
+	case "minimum":
+		return "minRecordedRun", true
+	case "record":
+		return "p.runRecord(" + a[0] + ")", true
+	}
+	panic("core: no Go implementation of " + callee)
 }
