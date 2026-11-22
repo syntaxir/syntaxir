@@ -111,7 +111,7 @@ func TestTSPerturbation(t *testing.T) {
 	write("main.mjs", []byte(tsPerturbServer))
 	type grammarFacts struct {
 		alpha    string
-		vars     bool
+		dep      examinedref.Dependence
 		document bool
 	}
 	facts := make([]grammarFacts, len(cases))
@@ -127,7 +127,12 @@ func TestTSPerturbation(t *testing.T) {
 		}
 		code = codegentest.PatchTSLib(t, code)
 		write(fmt.Sprintf("g%d.ts", i), code)
-		facts[i] = grammarFacts{alpha: examinedref.GrammarAlphabet(g), vars: examinedref.ReadsVariables(g),
+		cycles, err := examinedref.LeftCycles(g, false)
+		if err != nil {
+			t.Fatalf("%s: rule facts: %v", c.Name, err)
+		}
+		facts[i] = grammarFacts{alpha: examinedref.GrammarAlphabet(g),
+			dep:      examinedref.Dependence{Variables: examinedref.ReadsVariables(g), Cycles: cycles},
 			document: strings.Contains(string(code), "export function createDocument(")}
 	}
 
@@ -210,11 +215,11 @@ func TestTSPerturbation(t *testing.T) {
 								return nil, false
 							}
 							return events(reply), true
-						}, in, bytes, facts[i].vars, facts[i].alpha, check)
+						}, in, bytes, facts[i].dep, facts[i].alpha, check)
 					} else {
 						r = examinedref.Perturb(func(s string) []examinedref.Event {
 							return events(ask(tsPerturbRequest{Case: i, Entry: entry, Bytes: bytes, Text: []byte(s)}))
-						}, in, bytes, facts[i].vars, facts[i].alpha, check)
+						}, in, bytes, facts[i].dep, facts[i].alpha, check)
 					}
 					prefix := fmt.Sprintf("typescript %s %s: %s", u.name, entry, c.Name)
 					reportPerturb(t, prefix+" (perturbation)", invalid, 3)
@@ -225,8 +230,8 @@ func TestTSPerturbation(t *testing.T) {
 		}
 		for _, entry := range tsPerturbEntries {
 			r := totals[entry]
-			t.Logf("%s %s: %d inputs (%d too long), %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt), %d diverged outside calls",
-				u.name, entry, r.Parses, skipped[entry], r.Perturbed, r.Dropped, r.Refused, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Outside)
+			t.Logf("%s %s: %d inputs (%d too long), %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",
+				u.name, entry, r.Parses, skipped[entry], r.Perturbed, r.Dropped, r.Refused, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Growing, r.Outside)
 			if r.Diverged == 0 || r.Identical == 0 || r.Checked == 0 {
 				t.Errorf("typescript %s %s: the perturbations never diverged or never kept the trace", u.name, entry)
 			}

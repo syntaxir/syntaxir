@@ -57,7 +57,7 @@ ENTRIES}
 type job struct {
 	Inputs [][]byte // bytes: JSON would replace invalid UTF-8 in a string
 	Alpha  string
-	Vars   bool
+	Dep    examinedref.Dependence
 }
 
 type perturbation struct {
@@ -118,7 +118,7 @@ func main() {
 							}
 							return tr
 						}
-						r := examinedref.Perturb(run, in, bytes, jobs[i].Vars, jobs[i].Alpha, func(p examinedref.Perturbation) {
+						r := examinedref.Perturb(run, in, bytes, jobs[i].Dep, jobs[i].Alpha, func(p examinedref.Perturbation) {
 							out.Perturbations = append(out.Perturbations, perturbation{int(p.Variant), p.Change, []byte(p.Input)})
 						})
 						out.Report = &r
@@ -151,7 +151,7 @@ var examinedProbeFiles = []string{"perturb.go", "highwater.go"}
 type perturbProbeJob struct {
 	Inputs [][]byte
 	Alpha  string
-	Vars   bool
+	Dep    examinedref.Dependence
 }
 
 type perturbProbeReport struct {
@@ -212,8 +212,8 @@ func TestGeneratedPerturbationAndHighWater(t *testing.T) {
 				t.Errorf("%s: no input perturbed", entry)
 				continue
 			}
-			t.Logf("%s: %d inputs, %d perturbations (%d dropped): %d identical, %d diverged in a call (%d exits checked, %d exempt), %d diverged outside calls",
-				entry, r.Parses, r.Perturbed, r.Dropped, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Outside)
+			t.Logf("%s: %d inputs, %d perturbations (%d dropped): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",
+				entry, r.Parses, r.Perturbed, r.Dropped, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Growing, r.Outside)
 			if r.Diverged == 0 || r.Identical == 0 || r.Checked == 0 {
 				t.Errorf("%s: the perturbations never diverged or never kept the trace", entry)
 			}
@@ -276,7 +276,12 @@ func runPerturbProbes(t *testing.T, cases []codegentest.Case) []perturbProbeRepo
 `, pkg)
 		}
 		entries.WriteString("\t},\n")
-		job := perturbProbeJob{Alpha: examinedref.GrammarAlphabet(g), Vars: examinedref.ReadsVariables(g)}
+		cycles, err := examinedref.LeftCycles(g, false)
+		if err != nil {
+			t.Fatalf("%s: rule facts: %v", c.Name, err)
+		}
+		job := perturbProbeJob{Alpha: examinedref.GrammarAlphabet(g),
+			Dep: examinedref.Dependence{Variables: examinedref.ReadsVariables(g), Cycles: cycles}}
 		for _, s := range c.Inputs {
 			job.Inputs = append(job.Inputs, []byte(s))
 		}

@@ -28,9 +28,11 @@ type analysis struct {
 	err      error
 }
 
-// ruleFacts is the result of the analysis that the evaluator reads.
+// ruleFacts is the result of the analysis: the leaders, which the evaluator reads, and the cycles of
+// left calls, which the perturbation check reads (LeftCycles).
 type ruleFacts struct {
 	leaders map[string]bool
+	cycles  map[string]int
 }
 
 // analyzeRules computes the leaders of the rules, with token insertion if ins is set.
@@ -49,7 +51,7 @@ func analyzeRules(rs *ruleSet, ins bool) (ruleFacts, error) {
 	if a.err != nil {
 		return ruleFacts{}, a.err
 	}
-	return ruleFacts{leaders: leaders}, nil
+	return ruleFacts{leaders: leaders, cycles: cycleNumbers(a.names, a.left)}, nil
 }
 
 func (a *analysis) unsupported(e ast.Expr) {
@@ -375,8 +377,33 @@ func (a *analysis) looseCut(e ast.Expr) bool {
 }
 
 // cyclicRules returns the rules that lie on a cycle of the graph of left calls among the rules that
-// are not excluded: a rule in a component of several rules, or with a left call of itself.
+// are not excluded.
 func cyclicRules(names []string, edges map[string][]string, excluded map[string]bool) map[string]bool {
+	out := map[string]bool{}
+	for _, comp := range cycles(names, edges, excluded) {
+		for _, v := range comp {
+			out[v] = true
+		}
+	}
+	return out
+}
+
+// cycleNumbers numbers the cycles of the graph of left calls: the rules of one cycle get the same
+// number, and a rule on no cycle has none.
+func cycleNumbers(names []string, edges map[string][]string) map[string]int {
+	out := map[string]int{}
+	for i, comp := range cycles(names, edges, nil) {
+		for _, v := range comp {
+			out[v] = i
+		}
+	}
+	return out
+}
+
+// cycles returns the cycles of the graph of left calls among the rules that are not excluded, as its
+// strongly connected components that hold one: a component of several rules, or a rule with a left
+// call of itself.
+func cycles(names []string, edges map[string][]string, excluded map[string]bool) [][]string {
 	index := map[string]int{}
 	low := map[string]int{}
 	onStack := map[string]bool{}
@@ -422,18 +449,17 @@ func cyclicRules(names []string, edges map[string][]string, excluded map[string]
 			visit(v)
 		}
 	}
-	out := map[string]bool{}
+	var out [][]string
 	for _, comp := range comps {
 		if len(comp) > 1 {
-			for _, v := range comp {
-				out[v] = true
-			}
+			out = append(out, comp)
 			continue
 		}
 		v := comp[0]
 		for _, w := range edges[v] {
 			if w == v && !excluded[v] {
-				out[v] = true
+				out = append(out, comp)
+				break
 			}
 		}
 	}

@@ -42,6 +42,23 @@ func ReadsVariables(g *ast.Grammar) bool {
 	return reads
 }
 
+// LeftCycles numbers the cycles of left calls of the grammar's rules, by the Rule Facts that the
+// reference evaluator grows left recursion by (facts.go), for a parse with token insertion if
+// missingTokens is set: the rules of one cycle get the same number, and a rule on no cycle has none.
+// Inside a growth of left recursion, a call of a rule of the cycle at the growth's position depends
+// on the seed and the step of the growth (CheckLockstep).
+func LeftCycles(g *ast.Grammar, missingTokens bool) (map[string]int, error) {
+	rs, err := newRuleSet(g)
+	if err != nil {
+		return nil, err
+	}
+	facts, err := analyzeRules(rs, missingTokens)
+	if err != nil {
+		return nil, err
+	}
+	return facts.cycles, nil
+}
+
 // walkAST calls f with every pointer to a struct reachable from g, once each.
 func walkAST(g *ast.Grammar, f func(any)) {
 	seen := map[uintptr]bool{}

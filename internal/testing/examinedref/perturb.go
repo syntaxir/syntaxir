@@ -194,11 +194,12 @@ type Lockstep struct {
 	Diverged bool
 	At       int
 	// Running is the number of calls running at the first difference; Checked the number of their
-	// exits (in either run) whose examined end was compared with the change point, and Exempt the number
-	// of exits left out because a match completed before the call's enter ends beyond the change point
-	// in a grammar that reads variables.
-	Running, Checked, Exempt int
-	Violations               []string
+	// exits (in either run) whose examined end was compared with the change point, Exempt the number
+	// of running calls left out because a match completed before the call's enter ends beyond the change
+	// point in a grammar that reads variables, and Growing the number left out because they are calls of
+	// a cycle of left calls inside a growth of that cycle at their position.
+	Running, Checked, Exempt, Growing int
+	Violations                        []string
 }
 
 // pairs returns, for each enter event of tr, the index of its exit, or -1 if the trace ends first (an
@@ -227,17 +228,35 @@ func pairs(tr []Event) ([]int, error) {
 	return exit, nil
 }
 
+// Dependence holds the facts of a grammar through which a call's result can depend on more than the
+// input from its position on, which CheckLockstep must allow for.
+type Dependence struct {
+	// Variables reports that the grammar reads variables (ReadsVariables).
+	Variables bool
+	// Cycles numbers the cycles of left calls (LeftCycles): rules with the same number lie on one cycle,
+	// and a rule on no cycle has no number.
+	Cycles map[string]int
+}
+
 // CheckLockstep compares the trace orig of a parse with the trace pert of the parse of an input that
-// agrees with the original on the slots before change and differs from it from change on. At the first
-// event where the traces differ, every call that is still running (entered and not exited before that
-// event, the call whose exit differs included) read a slot at or after change in both runs, so its
-// examined end in each run, which the run reports at the call's exit, must exceed change.
+// agrees with the original on the slots before change and differs from it from change on. Up to the
+// first event where the traces differ, the two parses made the same calls with the same results, and a
+// call whose result is a function of the input from its position on was the same computation in both:
+// every such call that is still running at that event (entered and not exited before it, the call whose
+// exit differs included) read a slot at or after change in both runs, so its examined end in each run,
+// which the run reports at the call's exit, must exceed change.
 //
-// In a grammar that reads variables (vars), a call can also depend on the value of a variable bound by a
-// match that completed before the call began, whose input the call's examined range does not include;
-// a call is then checked only when change is at least the largest end of a match completed before its
-// enter, so that no such match spans a changed slot.
-func CheckLockstep(orig, pert []Event, change int, vars bool) Lockstep {
+// Two facts of the grammar (dep) make a call's result depend on more than that input. In a grammar that
+// reads variables, a call can depend on the value of a variable bound by a match that completed before
+// the call began, whose input the call's examined range does not include; a call is then checked only
+// when change is at least the largest end of a match completed before its enter, so that no such match
+// spans a changed slot. Inside a growth of left recursion, a call of a rule of the growing cycle at the
+// growth's position depends on the seed and the step of the growth, and a growth step ends without an
+// event: a step that one parse completes and the other does not can be followed by the same events, so
+// such a call can be entered in different steps of the two parses. A call is therefore not checked when
+// an enclosing running call at its position belongs to the same cycle of left calls (dep.Cycles); the
+// enclosing calls, which decided the steps, are checked.
+func CheckLockstep(orig, pert []Event, change int, dep Dependence) Lockstep {
 	var l Lockstep
 	exitO, err := pairs(orig)
 	if err != nil {
@@ -281,9 +300,13 @@ func CheckLockstep(orig, pert []Event, change int, vars bool) Lockstep {
 		}
 	}
 	l.Running = len(stack)
-	for _, i := range stack {
-		if vars && change < matchedEnd[i] {
+	for n, i := range stack {
+		if dep.Variables && change < matchedEnd[i] {
 			l.Exempt++
+			continue
+		}
+		if inGrowth(orig, stack[:n], i, dep.Cycles) {
+			l.Growing++
 			continue
 		}
 		for _, run := range []struct {
@@ -306,6 +329,22 @@ func CheckLockstep(orig, pert []Event, change int, vars bool) Lockstep {
 	return l
 }
 
+// inGrowth reports whether the call entered at tr[i] is a call of a cycle of left calls inside a growth
+// of that cycle at its position: one of the enclosing calls entered at tr[j] for j in outer is at the
+// same position and of a rule of the same cycle (cycles, as LeftCycles numbers them).
+func inGrowth(tr []Event, outer []int, i int, cycles map[string]int) bool {
+	c, ok := cycles[tr[i].Rule]
+	if !ok {
+		return false
+	}
+	for _, j := range outer {
+		if d, ok := cycles[tr[j].Rule]; ok && d == c && tr[j].Pos == tr[i].Pos {
+			return true
+		}
+	}
+	return false
+}
+
 // Report sums the perturbation checks of parses.
 type Report struct {
 	// Parses is the number of original inputs; Perturbed the number of perturbations made, Dropped the
@@ -316,9 +355,9 @@ type Report struct {
 	// while a call is running, or differs where no call is running (after the start rule returned, as
 	// the check of a whole-input parse that the input ends there does).
 	Identical, Diverged, Outside int
-	// Checked and Exempt sum those of the comparisons (Lockstep).
-	Checked, Exempt int
-	Violations      []string
+	// Checked, Exempt and Growing sum those of the comparisons (Lockstep).
+	Checked, Exempt, Growing int
+	Violations               []string
 }
 
 // Add adds the counts and violations of o to r.
@@ -332,6 +371,7 @@ func (r *Report) Add(o Report) {
 	r.Outside += o.Outside
 	r.Checked += o.Checked
 	r.Exempt += o.Exempt
+	r.Growing += o.Growing
 	r.Violations = append(r.Violations, o.Violations...)
 }
 
@@ -340,8 +380,8 @@ func (r *Report) Add(o Report) {
 // the parse being a function of its input; then each perturbation (Perturbations, for the examined ends
 // of the exits of the original) is parsed and compared with the original (CheckLockstep). The
 // perturbations are passed to each, if not nil, before they are parsed.
-func Perturb(run func(string) []Event, in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
-	return perturb(func(_ int, s string) ([]Event, bool) { return run(s), true }, false, in, bytes, vars, alpha, each)
+func Perturb(run func(string) []Event, in string, bytes bool, dep Dependence, alpha string, each func(Perturbation)) Report {
+	return perturb(func(_ int, s string) ([]Event, bool) { return run(s), true }, false, in, bytes, dep, alpha, each)
 }
 
 // PerturbAt is Perturb for parses that depend on the change point too, as the reparse of a Document
@@ -349,11 +389,11 @@ func Perturb(run func(string) []Event, in string, bytes, vars bool, alpha string
 // perturbation is then counted in Refused); the original is parsed for c, twice, wherever a perturbation
 // changes it at c, and compared with the perturbations at c. The examined ends that choose the change
 // points are those of run(len(Units(in, bytes)), in).
-func PerturbAt(run func(change int, s string) ([]Event, bool), in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
-	return perturb(run, true, in, bytes, vars, alpha, each)
+func PerturbAt(run func(change int, s string) ([]Event, bool), in string, bytes bool, dep Dependence, alpha string, each func(Perturbation)) Report {
+	return perturb(run, true, in, bytes, dep, alpha, each)
 }
 
-func perturb(run func(int, string) ([]Event, bool), perChange bool, in string, bytes, vars bool, alpha string, each func(Perturbation)) Report {
+func perturb(run func(int, string) ([]Event, bool), perChange bool, in string, bytes bool, dep Dependence, alpha string, each func(Perturbation)) Report {
 	r := Report{Parses: 1}
 	original := func(c int) ([]Event, bool, string) {
 		orig, ok := run(c, in)
@@ -414,7 +454,7 @@ func perturb(run func(int, string) ([]Event, bool), perChange bool, in string, b
 			r.Violations = append(r.Violations, fmt.Sprintf("%s of %q at %d (%q): the original can be parsed for the change point, the perturbation cannot", p.Variant, in, p.Change, p.Input))
 			continue
 		}
-		l := CheckLockstep(o, pert, p.Change, vars)
+		l := CheckLockstep(o, pert, p.Change, dep)
 		switch {
 		case !l.Diverged:
 			r.Identical++
@@ -425,6 +465,7 @@ func perturb(run func(int, string) ([]Event, bool), perChange bool, in string, b
 		}
 		r.Checked += l.Checked
 		r.Exempt += l.Exempt
+		r.Growing += l.Growing
 		for _, v := range l.Violations {
 			r.Violations = append(r.Violations, fmt.Sprintf("%s of %q at %d (%q): %s", p.Variant, in, p.Change, p.Input, v))
 		}

@@ -137,13 +137,25 @@ has them), in both position units.
    alphabet of the grammar's characters, the units of x and NUL, or by x itself (extension), which changes slot n and
    every slot after it. In code points, a perturbation whose first c units do not decode as those of x is dropped and
    counted. The parse of x is run twice, which must give the same events, and the parse of the perturbation once; the
-   events are compared in order. Up to their first difference the two parses are the same computation, so the read of a
-   changed slot that caused it happened inside every call running at that point, in both parses: each such call's exit,
-   in each parse that has it, must have an examined end greater than c. A difference with no running call, such as the
-   whole-input check after the start call returned, constrains nothing. In a grammar whose predicates read variables, a
-   call is checked only when c is at least the largest end of a matched exit reported before the call's enter event,
-   since a variable can carry input read before the call into it. Perturbation shows examined ends that are too small;
-   an end that is too large is the stream high-water mark's to show.
+   events are compared in order. Up to their first difference the two parses made the same calls with the same
+   results, so a call whose result is a function of the input from its position on was the same computation in both,
+   and the read of a changed slot that caused the difference happened inside it if it is running at that point: each
+   such call's exit, in each parse that has it, must have an examined end greater than c. A difference with no running
+   call, such as the whole-input check after the start call returned, constrains nothing. Two kinds of calls depend on
+   more than that input, and are not checked:
+
+   - In a grammar whose predicates read variables, a call is checked only when c is at least the largest end of a
+     matched exit reported before the call's enter event, since a variable can carry input read before the call into
+     it.
+   - Inside a growth of left recursion, a call of a rule of the growing cycle at the growth's position depends on the
+     seed and the step of the growth as well. A growth step ends without an event, so a step that one parse completes
+     and the other does not can be followed by identical events, and such a call can be entered in different steps of
+     the two parses. A call is not checked when an enclosing running call at its position belongs to the same cycle of
+     left calls, from the Rule Facts that the reference grows by. The enclosing calls, which decide the steps, are
+     checked, and part 1 checks the exits of the exempt calls exactly.
+
+   Perturbation shows examined ends that are too small; an end that is too large is the stream high-water mark's to
+   show.
 
 3. **Stream high-water mark.** A stream parse reads from a reader that delivers one byte per read and returns the end
    of the input only on a read after the last byte. Let `Needed(e)` be the input a parse must have read to have

@@ -14,10 +14,12 @@ import (
 
 // perturbProgram is a compiled case of the engine tests.
 type perturbProgram struct {
-	name, alpha           string
-	vars, stream, missing bool
-	parser                *engine.Parser
-	inputs                []string
+	name, alpha     string
+	stream, missing bool
+	// dep is the dependence of a parse without token insertion, and insertDep of one with it.
+	dep, insertDep examinedref.Dependence
+	parser         *engine.Parser
+	inputs         []string
 }
 
 // perturbPrograms compiles the cases of the perturbation and high-water tests.
@@ -38,8 +40,17 @@ func perturbPrograms(t *testing.T) []perturbProgram {
 			t.Fatalf("%s: compile: %v", c.Name, err)
 		}
 		uses := usesOf(g)
-		out = append(out, perturbProgram{name: c.Name, alpha: examinedref.GrammarAlphabet(g), vars: examinedref.ReadsVariables(g),
-			stream: uses.stream, missing: uses.missing, parser: p, inputs: c.Inputs})
+		vars := examinedref.ReadsVariables(g)
+		var dep [2]examinedref.Dependence
+		for i, missingTokens := range []bool{false, true} {
+			cycles, err := examinedref.LeftCycles(g, missingTokens)
+			if err != nil {
+				t.Fatalf("%s: rule facts: %v", c.Name, err)
+			}
+			dep[i] = examinedref.Dependence{Variables: vars, Cycles: cycles}
+		}
+		out = append(out, perturbProgram{name: c.Name, alpha: examinedref.GrammarAlphabet(g), stream: uses.stream,
+			missing: uses.missing, dep: dep[0], insertDep: dep[1], parser: p, inputs: c.Inputs})
 	}
 	return out
 }
@@ -158,11 +169,15 @@ func TestEnginePerturbation(t *testing.T) {
 							run := func(change int, s string) ([]examinedref.Event, bool) {
 								return route.run(p.parser, b, u.unit, in, change, s)
 							}
+							dep := p.dep
+							if route.name == "insertion" {
+								dep = p.insertDep
+							}
 							var r examinedref.Report
 							if route.name == "edit" {
-								r = examinedref.PerturbAt(run, in, bytes, p.vars, p.alpha, check)
+								r = examinedref.PerturbAt(run, in, bytes, dep, p.alpha, check)
 							} else {
-								r = examinedref.Perturb(func(s string) []examinedref.Event { tr, _ := run(0, s); return tr }, in, bytes, p.vars, p.alpha, check)
+								r = examinedref.Perturb(func(s string) []examinedref.Event { tr, _ := run(0, s); return tr }, in, bytes, dep, p.alpha, check)
 							}
 							prefix := fmt.Sprintf("%s %s %s: %s", b, u.name, route.name, p.name)
 							reportPerturb(t, prefix+" (perturbation)", invalid, 3)
@@ -179,8 +194,8 @@ func TestEnginePerturbation(t *testing.T) {
 						}
 						continue
 					}
-					t.Logf("%s %s: %d inputs (%d too long), %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt), %d diverged outside calls",
-						u.name, route.name, r.Parses, skipped[route.name], r.Perturbed, r.Dropped, r.Refused, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Outside)
+					t.Logf("%s %s: %d inputs (%d too long), %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",
+						u.name, route.name, r.Parses, skipped[route.name], r.Perturbed, r.Dropped, r.Refused, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Growing, r.Outside)
 					// A check that never sees a difference, or never sees none, cannot tell an exact examined end
 					// from one that is too small.
 					if r.Diverged == 0 || r.Identical == 0 || r.Checked == 0 {
