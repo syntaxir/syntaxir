@@ -2,6 +2,7 @@ package print_test
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -12,17 +13,21 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/examinedref"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // The examined end of a call in an observed parse is exact: every unit of input that can change the
 // call's result lies below it, and nothing beyond what the call or a call it used looked at. The tests
-// here compare the ends that the generated parsers report on every route an observed parse takes with
-// a reference: the typed parse (ParseValue), the Node parse (Parse) and the recognizer (Recognize) with
-// the engine's parse of the same input and unit, and the stream parse (ParseStream), which reads its
-// input one byte at a time, with the batch parse of the same generated parser, which the engine checks.
+// here compare the calls that the generated parsers report on every route an observed parse takes, the
+// typed parse (ParseValue), the Node parse (Parse), the recognizer (Recognize) and the stream parse
+// (ParseStream), which reads its input one byte at a time, with the independent reference
+// (examinedref) of the same input and unit: every exit must be a call of the reference with the same
+// match, end and examined end, every skipped call must fail in the reference, and the start call must
+// return what the reference's does.
 
 // examinedProbeMain is the consumer of the generated packages: for each input, unit and entry it prints
 // one JSON report with the exits of the observed parse and its error.
@@ -30,6 +35,7 @@ const examinedProbeMain = `package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -71,19 +77,23 @@ func main() {
 		for j, in := range inputs[i] {
 			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, e := range entries[i] {
-					var exits []sxirinstrument.TraceEvent
+					var events []sxirinstrument.TraceEvent
 					err := e.run(string(in), sxirruntime.WithUnit(unit), sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) {
-						if ev.Kind == sxirinstrument.TraceExit {
-							exits = append(exits, ev)
+						if ev.Kind != sxirinstrument.TraceEnter {
+							events = append(events, ev)
 						}
 					}))
+					var errs sxirvalue.SyntaxErrors
+					var truncated *sxirvalue.TruncatedSyntaxErrors
 					b, _ := json.Marshal(struct {
 						Case, Input int
 						Bytes       bool
 						Entry       string
-						Exits       []sxirinstrument.TraceEvent
+						Events      []sxirinstrument.TraceEvent
 						Err         string
-					}{i, j, unit == sxirinput.Bytes, e.name, exits, fmt.Sprint(err)})
+						Aborted     bool
+					}{i, j, unit == sxirinput.Bytes, e.name, events, fmt.Sprint(err),
+						err != nil && !errors.As(err, &errs) && !errors.As(err, &truncated)})
 					fmt.Println(string(b))
 				}
 			}
@@ -92,28 +102,16 @@ func main() {
 }
 `
 
-// examinedReport is one report of the consumer.
+// examinedReport is one report of the consumer: the exit and skipped events of an observed parse, its
+// error, and whether the error ended the parse before the start call returned (Aborted), as a runtime
+// error of a user action does, which the reference does not run.
 type examinedReport struct {
 	Case, Input int
 	Bytes       bool
 	Entry       string
-	Exits       []examinedExit
+	Events      []instrument.TraceEvent
 	Err         string
-}
-
-// examinedExit is an exit of a generated parse or of the engine's.
-type examinedExit struct {
-	Rule                      string
-	Level, Pos, End, Examined int
-	Matched                   bool
-}
-
-// examinedKey identifies the calls that a reference and a generated parse both make: a call of the same
-// rule at the same position and level with the same outcome.
-type examinedKey struct {
-	rule            string
-	level, pos, end int
-	matched         bool
+	Aborted     bool
 }
 
 // examinedCases are the cases of the exactness tests: the representative cases of the generated corpus,
@@ -122,6 +120,12 @@ func examinedCases(t *testing.T) []codegentest.Case {
 	t.Helper()
 	cases := append(codegentest.Representative(codegentest.GenCorpus(t)), observeShapes...)
 	cases = append(cases, examinedExtras()...)
+	for _, c := range codegentest.ExaminedShapes() {
+		// Generated parsers do not insert tokens, and refuse the grammars that would.
+		if !strings.Contains(c.Src, "#missing") {
+			cases = append(cases, c)
+		}
+	}
 	for _, c := range streamCases(t) {
 		if !strings.Contains(c.Src, "#stream") || len(c.Inputs) == 0 {
 			continue
@@ -224,80 +228,72 @@ func runExaminedProbes(t *testing.T, cases []codegentest.Case, lib string, mutat
 	return reports
 }
 
-// examinedDiffs compares the examined ends of the exits of got with those of the exits of ref for the same
-// calls (examinedKey), the exits of the rule skip set aside, and returns the number of exits compared and the
-// differences. A call that ref does not make is not compared; one that ref makes more than once may have any
-// of its ends.
-func examinedDiffs(got, ref []examinedExit, skip string) (compared int, diffs []string) {
-	ends := map[examinedKey]map[int]bool{}
-	for _, x := range ref {
-		k := examinedKey{x.Rule, x.Level, x.Pos, x.End, x.Matched}
-		if ends[k] == nil {
-			ends[k] = map[int]bool{}
-		}
-		ends[k][x.Examined] = true
-	}
-	for _, x := range got {
-		if x.Rule == skip {
-			continue
-		}
-		want := ends[examinedKey{x.Rule, x.Level, x.Pos, x.End, x.Matched}]
-		if want == nil {
-			continue
-		}
-		compared++
-		if !want[x.Examined] {
-			diffs = append(diffs, fmt.Sprintf("examined end of %s@%d (level %d, end %d, matched %v): %d, reference %v", x.Rule, x.Pos, x.Level, x.End, x.Matched, x.Examined, want))
-		}
-	}
-	return compared, diffs
-}
-
-// examinedMismatches checks the reports against their references (see the comment at the top of the file),
-// and returns the number of exits compared and the differences, both by entry.
+// examinedMismatches checks the reports against the reference (see the comment at the top of the
+// file), and returns the number of calls compared and the differences, both by entry. An input whose
+// predicates read the value of a user action is outside the reference and not compared; the grammars
+// with such inputs must be those codegentest.ExaminedOutsideReference names.
 func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examinedReport) (compared map[string]int, diffs map[string][]string) {
 	t.Helper()
 	compared, diffs = map[string]int{}, map[string][]string{}
-	type group struct {
+	type key struct {
 		c, j  int
 		bytes bool
 	}
-	batch := map[group][]examinedExit{}
-	for _, r := range reports {
-		if r.Entry == "parse" {
-			batch[group{r.Case, r.Input, r.Bytes}] = r.Exits
-		}
+	type refRun struct {
+		res   examinedref.Result
+		exits []examinedref.Exit
+		err   error
 	}
-	progs := map[int]*engine.Program{}
+	refs := map[key]refRun{}
+	grammars := map[int]*ast.Grammar{}
+	outside := map[int]bool{}
 	for _, r := range reports {
 		c := cases[r.Case]
 		in := c.Inputs[r.Input]
-		var ref []examinedExit
-		skip := ""
-		if r.Entry == "stream" {
-			// The start rule of a stream parse delivers its elements instead of gathering them.
-			ref, skip = batch[group{r.Case, r.Input, r.Bytes}], "main"
-		} else {
-			prog := progs[r.Case]
-			if prog == nil {
-				prog = mustCompile(t, c.Src)
-				progs[r.Case] = prog
+		k := key{r.Case, r.Input, r.Bytes}
+		ref, ok := refs[k]
+		if !ok {
+			g := grammars[r.Case]
+			if g == nil {
+				var err error
+				if g, err = parseTest(c.Src); err != nil {
+					t.Fatalf("%s: %v", c.Name, err)
+				}
+				grammars[r.Case] = g
 			}
-			o := engine.ParseOptions{Expectations: true, Backend: engine.Closure, Unit: input.CodePoints, Recognize: r.Entry == "recognize"}
+			o := examinedref.Options{Unit: input.CodePoints}
 			if r.Bytes {
 				o.Unit = input.Bytes
 			}
-			o.Trace = func(e engine.TraceEvent) {
-				if e.Kind == engine.TraceExit {
-					ref = append(ref, examinedExit{e.Rule, e.Level, e.Pos, e.End, e.Examined, e.Matched})
-				}
-			}
-			prog.ParseWith("main", in, o)
+			ref.res, ref.exits, ref.err = examinedref.EvaluateWith(g, "main", in, o)
+			refs[k] = ref
 		}
-		n, d := examinedDiffs(r.Exits, ref, skip)
-		compared[r.Entry] += n
+		var uns *examinedref.UnsupportedError
+		if errors.As(ref.err, &uns) {
+			outside[r.Case] = true
+			continue
+		}
+		if ref.err != nil {
+			t.Fatalf("%s %q: reference: %v", c.Name, in, ref.err)
+		}
+		var calls []examinedref.Observed
+		for _, e := range r.Events {
+			if o, ok := examinedref.ObservedOf(e); ok {
+				calls = append(calls, o)
+			}
+		}
+		d := examinedref.CompareCalls(ref.exits, calls)
+		if !r.Aborted {
+			d = append(d, examinedref.CompareStart(ref.res, "main", calls)...)
+		}
+		compared[r.Entry] += len(calls)
 		for _, msg := range d {
 			diffs[r.Entry] = append(diffs[r.Entry], fmt.Sprintf("%s %q bytes=%v %s: %s", c.Name, in, r.Bytes, r.Entry, msg))
+		}
+	}
+	for i, c := range cases {
+		if listed := codegentest.ExaminedOutsideReference[c.Name]; listed != outside[i] {
+			t.Errorf("%s: outside the reference %v, listed in codegentest.ExaminedOutsideReference %v", c.Name, outside[i], listed)
 		}
 	}
 	return compared, diffs
