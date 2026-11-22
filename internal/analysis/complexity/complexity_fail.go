@@ -10,8 +10,7 @@ import "syntaxir.dev/sxir/internal/ir/core"
 
 // containsSource reports whether n contains a scanning source, in itself or in a rule it calls.
 func (k *classifier) containsSource(n core.Node) bool {
-	key := k.exprOf(n)
-	if v, ok := k.srcMemo[key]; ok {
+	if v, ok := k.srcMemo[n]; ok {
 		return v
 	}
 	found := false
@@ -19,7 +18,7 @@ func (k *classifier) containsSource(n core.Node) bool {
 		if found {
 			return
 		}
-		if k.srcExprs[k.exprOf(x)] {
+		if k.srcNodes[x] {
 			found = true
 			return
 		}
@@ -27,7 +26,7 @@ func (k *classifier) containsSource(n core.Node) bool {
 			found = true
 		}
 	})
-	k.srcMemo[key] = found
+	k.srcMemo[n] = found
 	return found
 }
 
@@ -107,14 +106,14 @@ func (k *classifier) failsAfterSource(n core.Node) bool {
 		}
 		return k.failsAfterSource(operand)
 	case *core.Call, *core.Nest:
-		if k.srcExprs[k.exprOf(x)] {
+		if k.srcNodes[x] {
 			return true
 		}
 		if rule, ok := k.calledRule(x); ok {
 			return k.failRule[rule]
 		}
 	case *core.Pred, *core.BindNode:
-		return k.srcExprs[k.exprOf(x)]
+		return k.srcNodes[x]
 	case *core.Lit, *core.ClassNode, *core.Any, *core.Cut, *core.Succeed, *core.FailNode, *core.Anchor:
 		return false
 	}

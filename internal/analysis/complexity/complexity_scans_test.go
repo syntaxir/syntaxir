@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -62,11 +63,11 @@ func boundedScans(t *testing.T, src string) map[string]bool {
 		t.Fatal(err)
 	}
 	k.collect()
-	var scans []*ast.Repeat
+	var scans []*core.Repeat
 	for _, r := range k.rules {
 		if r.Name != "main" {
-			astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-				if x, ok := e.(*ast.Repeat); ok && k.srcExprs[x] && k.again[k.repeatOf(x)] != nil {
+			walkNodes(k.ruleBody(r.Name), func(n core.Node) {
+				if x, ok := n.(*core.Repeat); ok && k.srcNodes[x] && k.again[x] != nil {
 					scans = append(scans, x)
 				}
 			})
@@ -75,10 +76,11 @@ func boundedScans(t *testing.T, src string) map[string]bool {
 	k.computeBoundedScans()
 	out := map[string]bool{}
 	for _, r := range scans {
-		if !k.srcExprs[r] {
-			out[syntaxfmt.FormatExpr(r)] = true
-			if k.srcExprs[k.exprOf(k.again[k.repeatOf(r)])] {
-				t.Errorf("the later iterations of %s stay a scanning source", syntaxfmt.FormatExpr(r))
+		if !k.srcNodes[r] {
+			text := syntaxfmt.FormatExpr(k.exprOf(r))
+			out[text] = true
+			if k.srcNodes[k.again[r]] {
+				t.Errorf("the later iterations of %s stay a scanning source", text)
 			}
 		}
 	}

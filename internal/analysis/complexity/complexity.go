@@ -342,7 +342,7 @@ type classifier struct {
 	// members are the rules of left-recursion cycles, other than leaders, that are memoized at a
 	// call outside the growths of their cycle at its position; outside are those calls.
 	members map[string]bool
-	outside map[*ast.Ref]bool
+	outside map[core.Node]bool
 	// starters are the rules of cycles, other than leaders, whose left calls of leaders can start
 	// growths (startsGrowth); computed after the walk.
 	starters map[string]bool
@@ -376,7 +376,7 @@ type classifier struct {
 	growing         map[int]map[string]charset // FOLLOW without the seed reads of a cycle, by cycle
 	binds           []*binding
 	sourceIndex     map[sourceKey]*source
-	predicateSource map[*ast.Predicate]*source
+	predicateSource map[core.Node]*source
 	repeatedRules   map[string]string
 	numbered        *corepass.Sites // the sites that the compiler numbers (compilerSites)
 	includesMemo    map[sizeKey]bool
@@ -385,13 +385,13 @@ type classifier struct {
 	readingVars     map[string]bool      // the variables whose read sizeOf is following
 	feedsMemo       map[feedKey]bool
 	heldMemo        map[sizeKey][]sizeKey
-	sizes           sizeMemo          // the size degrees of the values of rules (complexity_sizes.go)
-	srcExprs        map[ast.Expr]bool // the expressions that are scanning sources
-	failRule        map[string]bool   // rules that can fail after a scanning source examined input
-	srcMemo         map[ast.Expr]bool
-	scanOnlyRules   map[string]bool                  // the rules for which scanOnly holds, once computed
-	again           map[*core.Repeat]*core.Repeat    // the rest of each repetition (againOf)
-	captures        map[string]map[string][]ast.Expr // captured expressions by rule and name
+	sizes           sizeMemo           // the size degrees of the values of rules (complexity_sizes.go)
+	srcNodes        map[core.Node]bool // the nodes that are scanning sources
+	failRule        map[string]bool    // rules that can fail after a scanning source examined input
+	srcMemo         map[core.Node]bool
+	scanOnlyRules   map[string]bool                   // the rules for which scanOnly holds, once computed
+	again           map[*core.Repeat]*core.Repeat     // the rest of each repetition (againOf)
+	captures        map[string]map[string][]core.Node // the captured nodes by rule and name
 
 	scanRun     map[*core.Repeat]int  // the longest run before each repetition (computeBoundedScans)
 	scanCounted map[*core.Repeat]bool // the repetitions with a constant number of evaluations at a position
@@ -440,9 +440,9 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 		varType: map[string]string{}, nullRule: rf.nullable, firstRule: map[string]charset{},
 		boundedRule: map[string]bool{}, reachFrom: map[string]map[string]bool{}, local: map[string]*source{}, walked: map[string][]*source{},
 		ruleSrc: map[string]*source{}, follow: map[string]charset{}, growing: map[int]map[string]charset{},
-		captures: map[string]map[string][]ast.Expr{}, sourceIndex: map[sourceKey]*source{},
-		predicateSource: map[*ast.Predicate]*source{}, actionSource: map[string]bool{}, includesMemo: map[sizeKey]bool{}, feedsMemo: map[feedKey]bool{}, heldMemo: map[sizeKey][]sizeKey{},
-		srcExprs: map[ast.Expr]bool{}, srcMemo: map[ast.Expr]bool{}, again: map[*core.Repeat]*core.Repeat{}}
+		captures: map[string]map[string][]core.Node{}, sourceIndex: map[sourceKey]*source{},
+		predicateSource: map[core.Node]*source{}, actionSource: map[string]bool{}, includesMemo: map[sizeKey]bool{}, feedsMemo: map[feedKey]bool{}, heldMemo: map[sizeKey][]sizeKey{},
+		srcNodes: map[core.Node]bool{}, srcMemo: map[core.Node]bool{}, again: map[*core.Repeat]*core.Repeat{}}
 	k.ruleIDs = map[string]int{}
 	for i, r := range rules {
 		k.byName[r.Name] = r
@@ -455,7 +455,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 	if len(base) != len(rules) || !slices.Equal(base, rules) {
 		k.base = base
 	}
-	k.outside = map[*ast.Ref]bool{}
+	k.outside = map[core.Node]bool{}
 	for _, r := range rules {
 		k.calls[r.Name] = k.callsOf(k.ruleBody(r.Name))
 	}
@@ -519,21 +519,17 @@ func (k *classifier) reachable(from string) map[string]bool {
 
 // shareable reports whether a call of the rule is answered alike in a unit and its continuation:
 // the rule reads no variable and is memoized or calls no rule.
-func (k *classifier) shareable(r *ast.Ref) bool {
-	return r.Level != rhsLevel && len(k.vars[r.Name]) == 0 && (k.memoAt(r) || len(k.calls[r.Name]) == 0)
+func (k *classifier) shareable(n core.Node) bool {
+	rule, _ := k.calledRule(n)
+	return !isRightOperand(n) && len(k.vars[rule]) == 0 && (k.memoAt(n) || len(k.calls[rule]) == 0)
 }
 
 // memoAt reports whether the memo answers the call r: the rule is memoized, or it is a member of a
 // cycle that is memoized and the call is outside the growths of its cycle at its position.
-func (k *classifier) memoAt(r *ast.Ref) bool {
-	return k.memo[r.Name] || k.members[r.Name] && k.outside[r]
+func (k *classifier) memoAt(n core.Node) bool {
+	rule, _ := k.calledRule(n)
+	return k.memo[rule] || k.members[rule] && k.outside[n]
 }
-
-// memoAtOf is memoAt of the call n, a call or a right operand (calledRule).
-func (k *classifier) memoAtOf(n core.Node) bool { return k.memoAt(k.exprOf(n).(*ast.Ref)) }
-
-// shareableOf is shareable of the call n, a call or a right operand (calledRule).
-func (k *classifier) shareableOf(n core.Node) bool { return k.shareable(k.exprOf(n).(*ast.Ref)) }
 
 // callsOf returns the rules that n calls, in the order of n, a rule called at several places listed
 // at each.
@@ -590,7 +586,7 @@ func (k *classifier) collect() {
 	// every rule's captures are known before the walk.
 	for _, r := range k.rules {
 		if k.reach[r.Name] {
-			k.collectCaptures(r)
+			k.collectCaptures(r.Name)
 		}
 	}
 	for _, r := range k.rules {

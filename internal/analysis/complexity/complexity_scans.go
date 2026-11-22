@@ -544,12 +544,11 @@ func (k *classifier) computeBoundedScans() {
 	k.sureRule = map[string]charset{}
 	runs := map[string]*runAnalysis{}
 	k.scanRun = map[*core.Repeat]int{}
-	for e := range k.srcExprs {
-		rep, ok := e.(*ast.Repeat)
+	for x := range k.srcNodes {
+		n, ok := x.(*core.Repeat)
 		if !ok {
 			continue
 		}
-		n := k.repeatOf(rep)
 		if k.again[n] == nil {
 			continue
 		}
@@ -589,15 +588,15 @@ func (k *classifier) computeBoundedScans() {
 			k.countedWalk(k.ruleBody(r.Name), counted[r.Name], counted, &changed)
 		}
 	}
-	for e := range k.srcExprs {
-		rep, ok := e.(*ast.Repeat)
+	for x := range k.srcNodes {
+		n, ok := x.(*core.Repeat)
 		if !ok {
 			continue
 		}
-		if n := k.repeatOf(rep); k.firstBound(n) && k.scanCounted[n] {
-			delete(k.srcExprs, rep)
+		if k.firstBound(n) && k.scanCounted[n] {
+			delete(k.srcNodes, n)
 			if a := k.again[n]; a != nil {
-				delete(k.srcExprs, k.exprOf(a))
+				delete(k.srcNodes, a)
 			}
 		}
 	}

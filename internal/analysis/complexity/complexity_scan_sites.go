@@ -58,7 +58,7 @@ func (k *classifier) scanOnlyRule(name string) bool {
 		return false
 	}
 	for _, s := range k.walked[name] {
-		if s.scan == nil || k.srcExprs[k.exprOf(s.scan)] && !corepass.IsScan(s.scan) {
+		if s.scan == nil || k.srcNodes[s.scan] && !corepass.IsScan(s.scan) {
 			return false
 		}
 	}

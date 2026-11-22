@@ -224,10 +224,10 @@ func (x excl) cheap(n core.Node) bool {
 	if !ok {
 		return !x.k.containsSource(n)
 	}
-	if x.up && !x.k.memoAtOf(n) && x.k.containsSource(n) && !x.k.scanOnly(rule) {
+	if x.up && !x.k.memoAt(n) && x.k.containsSource(n) && !x.k.scanOnly(rule) {
 		return false
 	}
-	if x.k.shareableOf(n) || !x.k.containsSource(n) {
+	if x.k.shareable(n) || !x.k.containsSource(n) {
 		return true
 	}
 	reads := len(x.k.vars[rule]) > 0
@@ -236,7 +236,7 @@ func (x excl) cheap(n core.Node) bool {
 	}
 	// With the same variables, the memo answers the second call of a rule that reads them as it
 	// answers any other, and a rule that calls no rule repeats only its own scan.
-	if reads && !isRightOperand(n) && (x.k.memoAtOf(n) || len(x.k.calls[rule]) == 0) {
+	if reads && !isRightOperand(n) && (x.k.memoAt(n) || len(x.k.calls[rule]) == 0) {
 		return true
 	}
 	if _, plain := x.k.plainCall(n); !plain || x.k.byName[rule] == nil || x.k.an.Cyclic[rule] {
@@ -268,10 +268,10 @@ func (x excl) cheap(n core.Node) bool {
 func (x excl) freshAll(n core.Node) bool {
 	ok := true
 	walkNodes(n, func(y core.Node) {
-		if x.k.srcExprs[x.k.exprOf(y)] {
+		if x.k.srcNodes[y] {
 			ok = false
 		}
-		if _, call := x.k.calledRule(y); call && !x.k.memoAtOf(y) && x.k.containsSource(y) {
+		if _, call := x.k.calledRule(y); call && !x.k.memoAt(y) && x.k.containsSource(y) {
 			ok = false
 		}
 	})
@@ -284,7 +284,7 @@ func (x excl) freshAll(n core.Node) bool {
 func (x excl) cheapAll(n core.Node) bool {
 	ok := true
 	walkNodes(n, func(y core.Node) {
-		if x.k.srcExprs[x.k.exprOf(y)] {
+		if x.k.srcNodes[y] {
 			ok = false
 		}
 		if _, call := x.k.calledRule(y); call && !x.cheap(y) {
@@ -304,7 +304,7 @@ func (x excl) paths(n core.Node, item int) (paths [][]sym, ok bool) {
 		case *core.Pred, *core.BindNode:
 			// A predicate or a binding is passed over as a symbol that consumes nothing, but a
 			// copying operation in it can examine as much input as the path has consumed.
-			if copyStopsOn && x.k.srcExprs[x.k.exprOf(n)] {
+			if copyStopsOn && x.k.srcNodes[n] {
 				return one(sym{symStop, n, item})
 			}
 		case *core.Choice, *core.Opt, *core.Repeat:

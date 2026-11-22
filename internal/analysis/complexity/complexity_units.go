@@ -6,7 +6,6 @@ import (
 	"slices"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -160,15 +159,15 @@ func (c wctx) with(cn *cont) wctx { c.cont = cn; return c }
 // walk marks n as a source before it first calls againOf(n), and leads and wordExcludes run after
 // every rule is walked, so the mark is never missed.
 func (k *classifier) againOf(n *core.Repeat) *core.Repeat {
-	e := k.exprOf(n).(*ast.Repeat)
 	a := k.again[n]
 	if a == nil {
 		a = &core.Repeat{Body: n.Body, Min: 0, Max: -1}
+		e := k.exprOf(n).(*ast.Repeat)
 		built(k, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1}, core.Node(a))
 		k.again[n] = a
 	}
-	if k.srcExprs[e] {
-		k.srcExprs[k.exprOf(a)] = true
+	if k.srcNodes[n] {
+		k.srcNodes[a] = true
 	}
 	return a
 }
@@ -183,14 +182,15 @@ func (k *classifier) walkRule(r *ast.RuleDef) {
 	}
 }
 
-func (k *classifier) collectCaptures(r *ast.RuleDef) {
-	m := map[string][]ast.Expr{}
-	astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-		if cp, ok := e.(*ast.Capture); ok {
-			m[cp.Name] = append(m[cp.Name], cp.Expr)
+// collectCaptures records the captures of the body of rule, by name.
+func (k *classifier) collectCaptures(rule string) {
+	m := map[string][]core.Node{}
+	walkNodes(k.ruleBody(rule), func(n core.Node) {
+		if cp, ok := n.(*core.Capture); ok {
+			m[cp.Name] = append(m[cp.Name], cp.Body)
 		}
 	})
-	k.captures[r.Name] = m
+	k.captures[rule] = m
 }
 
 // addSource records a scanning source found in the walk.
@@ -208,7 +208,7 @@ func (k *classifier) addSource(c wctx, pos ast.Pos, kind ComplexityCauseKind, wh
 func (k *classifier) settleSources() {
 	live := func(ss []*source) *source {
 		for _, s := range ss {
-			if s.scan == nil || k.srcExprs[k.exprOf(s.scan)] {
+			if s.scan == nil || k.srcNodes[s.scan] {
 				return s
 			}
 		}
@@ -323,7 +323,7 @@ func (k *classifier) walk(n core.Node, c wctx) {
 		}
 		if n.Max < 0 && !c.skipSites && !k.runSiteOf(n) {
 			k.addSource(c, k.posOf(n), CauseRestartedRepetition, "the repetition "+k.showOf(n)).scan = n
-			k.srcExprs[k.exprOf(n)] = true
+			k.srcNodes[n] = true
 		}
 		u := k.newUnit(unitIteration, c, n, []*cont{{items: []core.Node{n.Body}}},
 			[]contSpec{{paths: []*cont{c.cont}, what: "what follows the repetition " + k.showOf(n)}})
@@ -425,7 +425,7 @@ func (k *classifier) walkRecovery(n, base, skip core.Node, c wctx) {
 	shared := k.reused(skip)
 	if !shared {
 		k.addSource(c, k.posOf(n), CauseRecoverySkip, "the skip expression "+k.showOf(skip)+" of #recover")
-		k.srcExprs[k.exprOf(n)] = true
+		k.srcNodes[n] = true
 	}
 	u := k.newUnit(unitRecover, c, n, []*cont{{items: []core.Node{base}}},
 		[]contSpec{{paths: []*cont{c.cont.then(skip)}, what: "the skip expression " + k.showOf(skip)}})
@@ -451,13 +451,12 @@ func (k *classifier) walkRef(n *core.Call, c wctx) {
 	for _, u := range c.open {
 		u.calls[name] = true
 	}
-	e := k.exprOf(n).(*ast.Ref)
 	k.sites = append(k.sites, &site{caller: c.rule, callee: name, call: n, cont: c.cont, mayStart: c.mayStart,
 		mustStart: c.mustStart, repeated: c.repeated, seqs: c.seqs, units: c.open})
 	// A growth of the callee's cycle at the position of the call encloses the evaluation of the
 	// caller, so the caller is on the cycle and the call is a left call of its body.
 	if !k.sameCycle(c.rule, name) || !c.mayStart {
-		k.outside[e] = true
+		k.outside[n] = true
 	}
 	// The growth of a cycle is a scanning source at every call of its rules other than a left call,
 	// and at a call of a leader in the body of another rule: the growth that starts at a left call
@@ -466,7 +465,7 @@ func (k *classifier) walkRef(n *core.Call, c wctx) {
 	if k.an.Cyclic[name] && (!k.sameCycle(c.rule, name) || !c.mustStart ||
 		(leaderSourceOn && k.an.Leaders[name] && c.rule != name)) {
 		k.addSource(c, k.posOf(n), CauseRegrowth, "the growth of the left-recursive rule "+name+" at a new position")
-		k.srcExprs[e] = true
+		k.srcNodes[n] = true
 	}
 }
 
@@ -533,7 +532,7 @@ func (k *classifier) walkOperators(pr *core.OperatorsRule, c wctx) {
 	hasOps := len(pr.Ops) > 0
 	if hasOps {
 		k.addSource(c, k.posOf(pr), CauseRegrowth, "the operators that the Operators Rule applies")
-		k.srcExprs[k.exprOf(pr)] = true
+		k.srcNodes[pr] = true
 	}
 	end := &cont{end: endOps, rule: c.rule}
 	inside := c.with(end)
@@ -1090,7 +1089,7 @@ func (k *classifier) leads(paths []*cont, from []lead, only *string, seen map[st
 					out = append(out, lead{})
 					return
 				}
-				share := k.shareableOf(n) && k.sameGrowths(name, st.via, st.left)
+				share := k.shareable(n) && k.sameGrowths(name, st.via, st.left)
 				if share && (only == nil || *only == name) {
 					out = append(out, lead{call: n, rest: rest, up: up, via: st.via, left: st.left})
 					return
@@ -1274,14 +1273,14 @@ func (k *classifier) repeatCost(n core.Node) *source {
 		}
 		if c, call := x.(*core.Call); call {
 			name := k.rules[c.Rule].Name
-			if (k.srcExprs[k.exprOf(c)] || k.ruleSrc[name] != nil) && !(k.memoAtOf(c) && len(k.vars[name]) == 0) && !k.scanOnly(name) {
+			if (k.srcNodes[c] || k.ruleSrc[name] != nil) && !(k.memoAt(c) && len(k.vars[name]) == 0) && !k.scanOnly(name) {
 				if found = k.local[name]; found == nil {
 					found = k.sourceIn(c)
 				}
 			}
 			return
 		}
-		if k.srcExprs[k.exprOf(x)] {
+		if k.srcNodes[x] {
 			if found = k.walkedAt(x); found == nil {
 				found = k.sourceIn(x)
 			}
@@ -1437,7 +1436,7 @@ func (k *classifier) rescans(lc []lead) bool {
 		if l.call == nil {
 			continue
 		}
-		if name := k.rules[l.call.Rule].Name; l.up && !k.memoAtOf(l.call) && k.ruleSrc[name] != nil && !k.scanOnly(name) {
+		if name := k.rules[l.call.Rule].Name; l.up && !k.memoAt(l.call) && k.ruleSrc[name] != nil && !k.scanOnly(name) {
 			return true
 		}
 	}
@@ -1844,7 +1843,7 @@ func (k *classifier) startsGrowth(rule string) bool {
 		for _, s := range k.sites {
 			// A call after something that can match nothing is a left call only when that matches
 			// nothing; after input it is outside the growths of its cycle at its position.
-			if k.outside[k.exprOf(s.call).(*ast.Ref)] || !s.mustStart {
+			if k.outside[s.call] || !s.mustStart {
 				add(s.callee)
 			}
 		}
@@ -2016,7 +2015,7 @@ func (k *classifier) checkGrowth() {
 				if k.an.Cyclic[name] && k.an.Cycle[name] == cycle {
 					return k.nullableOf(n)
 				}
-				if !k.memoAtOf(n) {
+				if !k.memoAt(n) {
 					if s := k.ruleSrc[name]; s != nil {
 						report(s)
 					}
@@ -2073,7 +2072,7 @@ func (k *classifier) checkGrowth() {
 				report(k.sourceAt(r.Name, n, CauseRegrowth, "the operators that the Operators Rule applies"))
 				return k.nullableOf(n)
 			case *core.Pred, *core.BindNode:
-				if s := k.predicateSource[k.predicateOf(n)]; s != nil {
+				if s := k.predicateSource[n]; s != nil {
 					report(s)
 				}
 				return true

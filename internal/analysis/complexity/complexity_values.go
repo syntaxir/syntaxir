@@ -64,15 +64,7 @@ type binding struct {
 
 // captured returns the nodes of the expressions that rule captures as name.
 func (k *classifier) captured(rule, name string) []core.Node {
-	exprs := k.captures[rule][name]
-	if exprs == nil {
-		return nil
-	}
-	nodes := make([]core.Node, len(exprs))
-	for i, e := range exprs {
-		nodes[i] = k.nodeOf(e)
-	}
-	return nodes
+	return k.captures[rule][name]
 }
 
 // content describes what a value can hold, for the copying operations that copy it.
@@ -1163,11 +1155,11 @@ func (k *classifier) copied(t core.ActionExpr, pos ast.Pos, tc actionCtx, all co
 	if all.unbounded || len(all.rec) > 0 || len(all.acc) > 0 {
 		s := &source{rule: tc.rule, pos: pos, what: "the copying operation " + text}
 		k.addSource(tc.c, pos, CauseOther, s.what)
-		if tc.pred != nil && k.predicateSource[k.predicateOf(tc.pred)] == nil {
-			k.predicateSource[k.predicateOf(tc.pred)] = s
+		if tc.pred != nil && k.predicateSource[tc.pred] == nil {
+			k.predicateSource[tc.pred] = s
 		}
 		if tc.pred != nil {
-			k.srcExprs[k.exprOf(tc.pred)] = true
+			k.srcNodes[tc.pred] = true
 		}
 		if tc.pred == nil {
 			k.actionSource[tc.rule] = true

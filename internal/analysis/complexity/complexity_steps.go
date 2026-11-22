@@ -120,7 +120,7 @@ func (k *classifier) sourceIn(n core.Node) *source {
 		if found != nil {
 			return
 		}
-		if k.srcExprs[k.exprOf(x)] {
+		if k.srcNodes[x] {
 			found = k.walkedAt(x)
 			if found != nil {
 				return

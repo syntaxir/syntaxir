@@ -42,7 +42,7 @@ func (k *classifier) regionScans() map[*core.Repeat]bool {
 			continue
 		}
 		sigma := triviaUnwrap(body).(*core.Repeat)
-		if d, ok := k.scanRun[sigma]; ok && d >= runOpen && k.srcExprs[k.exprOf(sigma)] {
+		if d, ok := k.scanRun[sigma]; ok && d >= runOpen && k.srcNodes[sigma] {
 			regions[r.Name] = true
 		}
 	}

@@ -2,7 +2,6 @@ package complexity
 
 import (
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // --- Re-entry into a growth ---
@@ -106,20 +105,19 @@ func (k *classifier) visitFixed(n core.Node, cycle int, leaders bool, ok *bool) 
 		return false
 	}
 	if rule, isCall := k.calledRule(n); isCall {
-		r := k.exprOf(n).(*ast.Ref)
-		if k.an.Cyclic[rule] && k.an.Cycle[rule] == cycle && !k.outside[r] {
+		if k.an.Cyclic[rule] && k.an.Cycle[rule] == cycle && !k.outside[n] {
 			if !leaders {
 				*ok = false
 				return false
 			}
 			return k.an.Leaders[rule]
 		}
-		if (k.srcExprs[r] || k.ruleSrc[rule] != nil) && !(k.memoAt(r) && len(k.vars[rule]) == 0) {
+		if (k.srcNodes[n] || k.ruleSrc[rule] != nil) && !(k.memoAt(n) && len(k.vars[rule]) == 0) {
 			*ok = false
 		}
 		return false
 	}
-	if k.srcExprs[k.exprOf(n)] {
+	if k.srcNodes[n] {
 		*ok = false
 		return false
 	}
