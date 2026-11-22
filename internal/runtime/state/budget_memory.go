@@ -160,53 +160,18 @@ func (c *BudgetControl) chargeValueBytes(n int) {
 	c.values = limits.SaturatingAdd(c.values, uint64(n))
 }
 
-// recountMemoHeld replaces memoryCounts.memoHeld, at a memo prune, with the bytes that the
-// holders that remain reach: the keys of the memo entries, and the lists of recovered errors of
-// the entries, the skip records and the record, with, under a diagnostic limit, the errors
-// themselves, which Recovered counts through errs otherwise. Each shared key and list counts once.
-// It runs only for a finite memory limit and only if something was charged, so it costs the
-// unlimited path nothing. It is not a charged step: its units would depend on the representation
-// of the lists, and the compute total is the same with or without a memory limit. The sets it
-// builds are working space that the check does not count.
-func (p *Parser) recountMemoHeld() {
-	c := p.Control
-	if !BudgetControlsEnabled || c == nil || c.Limits.Memory == 0 || c.memoHeld == 0 {
-		return
-	}
-	r := errReach{withErrors: p.DiagnosticTail.Limit > 0}
-	keys := make(map[*any]struct{})
+// memoryLimit returns the memory limit of the parse, 0 for none.
+func (c *BudgetControl) memoryLimit() uint64 { return c.Limits.Memory }
+
+// diagnosticLimited reports that the parse keeps its recovered errors under a diagnostic limit
+// (DiagnosticTail), so that the memo holds the errors themselves.
+func (p *Parser) diagnosticLimited() bool { return p.DiagnosticTail.Limit > 0 }
+
+// eachMemoHolder calls f with the recovered errors and the key values of each memo entry.
+func (p *Parser) eachMemoHolder(f func(errs recEntry, env []any)) {
 	for _, head := range p.Memo.Slots {
 		for e := head; e != nil; e = e.Next {
-			r.add(e.Errs)
-			if len(e.Env) > 0 {
-				if _, met := keys[&e.Env[0]]; !met {
-					keys[&e.Env[0]] = struct{}{}
-					r.bytes += uint64(len(e.Env)) * anyBytes
-				}
-			}
-		}
-	}
-	for _, s := range p.skipTables {
-		if s != nil {
-			s.eachErrs(r.add)
-		}
-	}
-	r.add(p.Recovered...)
-	c.memoHeld = r.bytes
-}
-
-// eachErrs calls f with the errors of each record of the table.
-func (s *skipSlots) eachErrs(f func(...recEntry)) {
-	for _, r := range s.recs {
-		if r.errs != nil {
-			f(*r.errs)
-		}
-	}
-	for _, rs := range s.more {
-		for _, r := range rs {
-			if r.errs != nil {
-				f(*r.errs)
-			}
+			f(e.Errs, e.Env)
 		}
 	}
 }

@@ -122,7 +122,7 @@ func (p *Parser) chargeMemoHeld(n uint64) {
 
 // releaseAtPrune settles what a stream's memo holds when it prunes the memo before pos: it returns the
 // bytes that commits let go of and no remaining holder reaches (releaseRetired), and recounts what the
-// holders keep (recountMemoHeld, which each parser defines for its memo and skip tables).
+// holders keep (recountMemoHeld, over the memo that each parser provides and the skip tables).
 func (p *Parser) releaseAtPrune(pos int) {
 	if p.controlled() {
 		p.Control.releaseRetired(pos)

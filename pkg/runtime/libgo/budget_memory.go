@@ -205,53 +205,18 @@ func (s *Chunk[T]) MemoryBytes() uint64 {
 	return uint64(s.allocated) * uint64(unsafe.Sizeof(*new(T)))
 }
 
-// recountMemoHeld replaces memoryCounts.memoHeld, at a memo prune, with the bytes that the
-// holders that remain reach: the keys of the memo entries, and the lists of recovered errors of
-// the entries, the skip records and the record, with, under a diagnostic limit, the errors
-// themselves, which Recovered counts through errs otherwise. Each shared key and list counts once.
-// It runs only for a finite memory limit and only if something was charged, so it costs the
-// unlimited path nothing. It is not a charged step: its units would depend on the representation
-// of the lists, and the compute total is the same with or without a memory limit. The sets it
-// builds are working space that the check does not count.
-func (p *Parser) recountMemoHeld() {
-	c := p.Control
-	if c == nil || c.limits.Memory == 0 || c.memoHeld == 0 {
-		return
-	}
-	r := errReach{withErrors: p.Stream != nil && p.Stream.tail.limit > 0}
-	keys := make(map[*any]struct{})
+// memoryLimit returns the memory limit of the parse, 0 for none.
+func (c *BudgetControl) memoryLimit() uint64 { return c.limits.Memory }
+
+// diagnosticLimited reports that the parse keeps its recovered errors under a diagnostic limit
+// (the tail of a stream), so that the memo holds the errors themselves.
+func (p *Parser) diagnosticLimited() bool { return p.Stream != nil && p.Stream.tail.limit > 0 }
+
+// eachMemoHolder calls f with the recovered errors and the key values of each memo entry.
+func (p *Parser) eachMemoHolder(f func(errs recEntry, env []any)) {
 	for _, head := range p.memo.slots {
 		for e := head; e != nil; e = e.next {
-			r.add(e.errs)
-			if len(e.env) > 0 {
-				if _, met := keys[&e.env[0]]; !met {
-					keys[&e.env[0]] = struct{}{}
-					r.bytes += uint64(len(e.env)) * anyBytes
-				}
-			}
-		}
-	}
-	for _, s := range p.skipTables {
-		if s != nil {
-			s.eachErrs(r.add)
-		}
-	}
-	r.add(p.Recovered...)
-	c.memoHeld = r.bytes
-}
-
-// eachErrs calls f with the errors of each record of the table.
-func (s *skipSlots) eachErrs(f func(...recEntry)) {
-	for _, r := range s.recs {
-		if r.errs != nil {
-			f(*r.errs)
-		}
-	}
-	for _, rs := range s.more {
-		for _, r := range rs {
-			if r.errs != nil {
-				f(*r.errs)
-			}
+			f(e.errs, e.env)
 		}
 	}
 }
