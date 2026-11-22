@@ -1,6 +1,8 @@
 package pipe
 
 import (
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -261,20 +263,73 @@ func TestParseRejects(t *testing.T) {
 	}
 }
 
-// TestFeatureWithoutTextForm checks that a feature without a parser prints but cannot be read
-// back: only the typed door provides it.
+// TestFeatureWithoutTextForm checks that a feature without a parser prints, and that a text takes
+// its value from the pipeline assembled for the same build: only the typed door provides it. A text
+// whose value differs, and a pipeline that provides none there, are errors that name the feature.
 func TestFeatureWithoutTextForm(t *testing.T) {
-	k := NewFeature("t-opaque", func(func()) string { return "opaque" }, nil)
-	ref := WithConst(k, func() {}, Seq(modIR))
+	k := NewFeature("t-opaque", func(v *int) string { return "opaque" + strconv.Itoa(*v) }, nil)
+	one, two := 1, 2
+	ref := WithConst(k, &one, WithConst(k, &two, Seq(modIR)))
 	text := Describe(ref).String()
-	if !strings.Contains(text, "with t-opaque=opaque {") {
+	if !strings.Contains(text, "with t-opaque=opaque1 {") || !strings.Contains(text, "with t-opaque=opaque2 {") {
 		t.Fatalf("Describe:\n%s", text)
 	}
 	d, err := Parse(text)
-	if err == nil {
-		_, err = Resolve(d, ref)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if err == nil || !strings.Contains(err.Error(), "feature t-opaque has no text form") {
-		t.Errorf("%v, want the feature named", err)
+	p, err := Resolve(d, ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []int
+	walkWith(p.n, func(pr *provDesc) { got = append(got, *pr.value(nil).(*int)) })
+	if !slices.Equal(got, []int{1, 2}) {
+		t.Errorf("the resolved values are %v, want [1 2] from the assembled pipeline", got)
+	}
+	for _, c := range []struct {
+		name string
+		ref  Pipeline[*mod, *mod]
+		text string
+		want string
+	}{
+		{"another value", WithConst(k, &one, WithConst(k, &one, Seq(modIR))), text,
+			"feature t-opaque has no text form: the text gives t-opaque=opaque2 where the assembled pipeline gives t-opaque=opaque1"},
+		{"no value", WithConst(k, &one, Seq(modIR)), text,
+			"feature t-opaque has no text form, and the assembled pipeline provides no value of it here"},
+	} {
+		d, err := Parse(c.text)
+		if err == nil {
+			_, err = Resolve(d, c.ref)
+		}
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want an error with %q", c.name, err, c.want)
+		}
+	}
+}
+
+// walkWith calls f with the provider of each with block of n, outer blocks first.
+func walkWith(n node, f func(*provDesc)) {
+	if w, ok := n.(*withNode); ok {
+		f(w.prov)
+		walkWith(w.body, f)
+		return
+	}
+	children(n, func(c node) { walkWith(c, f) })
+}
+
+// TestSetConst checks that the edit SetConst replaces the value of every constant provider of its
+// feature, and that a pipeline without one is an error.
+func TestSetConst(t *testing.T) {
+	k := NewFeature("t-set", strconv.Itoa, strconv.Atoi)
+	p, err := Apply(WithConst(k, 1, WithConst(k, 2, Seq(modIR))), SetConst(k, 3))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if text := Describe(p).String(); strings.Count(text, "with t-set=3 {") != 2 || strings.Contains(text, "t-set=1") {
+		t.Errorf("Describe after SetConst:\n%s", text)
+	}
+	if _, err := Apply(Seq(modIR), SetConst(k, 3)); err == nil || !strings.Contains(err.Error(), "no constant provider of the feature t-set") {
+		t.Errorf("SetConst on a pipeline without the feature: %v", err)
 	}
 }

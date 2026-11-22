@@ -316,6 +316,15 @@ func Slot[M any](k *SlotKey[M], p Pipeline[M, M]) Pipeline[M, M] {
 type Edit struct {
 	slot, part string
 	body       node
+	// prov, if not nil, is the constant provider that replaces every constant provider of its
+	// feature (SetConst).
+	prov *provDesc
+}
+
+// SetConst gives every constant provider of the feature k in the pipeline the value v, such as a
+// value that the driver learns from a first run of the pipeline. A pipeline without one is an error.
+func SetConst[T any](k *FeatureKey[T], v T) Edit {
+	return Edit{prov: constProv(k, v)}
 }
 
 // Fill replaces the body of the slot k, for the Each part labeled part ("" for every part).
@@ -323,11 +332,26 @@ func Fill[M any](k *SlotKey[M], part string, p Pipeline[M, M]) Edit {
 	return Edit{slot: k.name, part: part, body: p.n}
 }
 
-// Apply returns p with the edits applied; an edit of a slot that p does not have is an error.
+// Apply returns p with the edits applied, in order; an edit of a slot or a feature that p does not
+// have is an error.
 func Apply[I, O any](p Pipeline[I, O], edits ...Edit) (Pipeline[I, O], error) {
 	n := p.n
 	for _, e := range edits {
 		found := false
+		if e.prov != nil {
+			n = rewrite(n, func(x node) node {
+				w, ok := x.(*withNode)
+				if !ok || !w.prov.constant || w.prov.feature != e.prov.feature {
+					return x
+				}
+				found = true
+				return &withNode{prov: e.prov, body: w.body}
+			})
+			if !found {
+				return p, fmt.Errorf("%w: no constant provider of the feature %s", errCheck, e.prov.feature)
+			}
+			continue
+		}
 		n = rewrite(n, func(x node) node {
 			s, ok := x.(*slotNode)
 			if !ok || s.slot.name != e.slot {

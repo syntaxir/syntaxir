@@ -231,11 +231,19 @@ func (h *Header[T]) Read(l Line, v *T) error {
 	if hw == nil {
 		return fmt.Errorf("header: unknown header word %q", l.Word)
 	}
-	rv := reflect.ValueOf(v).Elem()
+	// An unknown key is reported first: a misspelt key is named, not the key it misses.
 	var want []string
 	for _, f := range hw.Fields {
+		want = append(want, f.key())
+	}
+	for _, f := range l.Fields {
+		if !slices.Contains(want, f.Key) {
+			return fmt.Errorf("header %s: unknown key %s", l.Word, f.Key)
+		}
+	}
+	rv := reflect.ValueOf(v).Elem()
+	for _, f := range hw.Fields {
 		k := f.key()
-		want = append(want, k)
 		s, ok := l.Value(k)
 		fv := fieldValue(rv, f.Field)
 		if f.Codec == nil && fv.Kind() == reflect.Pointer {
@@ -257,11 +265,6 @@ func (h *Header[T]) Read(l Line, v *T) error {
 		}
 		if err != nil {
 			return fmt.Errorf("header %s: %s: %v", l.Word, k, err)
-		}
-	}
-	for _, f := range l.Fields {
-		if !slices.Contains(want, f.Key) {
-			return fmt.Errorf("header %s: unknown key %s", l.Word, f.Key)
 		}
 	}
 	return nil

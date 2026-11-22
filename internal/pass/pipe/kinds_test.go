@@ -42,6 +42,19 @@ func TestPassAtTwoKinds(t *testing.T) {
 			t.Errorf("-no-opt %s does not turn off both instances: %v %v", off, out, err)
 		}
 	}
+	// Its text names it alike at both kinds, and the resolver takes the registration at the kind of
+	// each place, so the pipeline read back runs as the typed one.
+	d, err := Parse(Describe(p).String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := Resolve(d, p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err = run(t, &Run{}, back, &prog{tables: []string{"a"}}); err != nil || out.String() != "[a]\na1: xfg\na2: yfg\n" {
+		t.Errorf("the pipeline read back: %v %v", out, err)
+	}
 }
 
 // A name registered again at a kind it has, or with another declaration, panics.

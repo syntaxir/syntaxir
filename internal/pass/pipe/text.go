@@ -470,7 +470,8 @@ func parseStep(tok string) (item, error) {
 // and that the required skeleton of d is that of ref, the pipeline assembled for the same build:
 // its required steps, the blocks that hold them, in order, and every constant feature with its
 // value. So a text can reorder, repeat, insert or remove optional passes, and set their parameters,
-// only. An unknown name is an error that names it.
+// only. An unknown name is an error that names it. A feature without a text form, such as a value
+// that the driver builds from the program, takes its value from ref at the same place.
 func Resolve[I, O any](d *Description, ref Pipeline[I, O]) (Pipeline[I, O], error) {
 	var zero Pipeline[I, O]
 	in, out := registeredKind(reflect.TypeFor[I]()), registeredKind(reflect.TypeFor[O]())
@@ -480,7 +481,8 @@ func Resolve[I, O any](d *Description, ref Pipeline[I, O]) (Pipeline[I, O], erro
 	if d.In != in.name || d.Out != out.name {
 		return zero, fmt.Errorf("%w: the text takes %s to %s, and the pipeline %s to %s", errCheck, d.In, d.Out, in.name, out.name)
 	}
-	n, err := resolveBlock(d.body, in, out, "pipeline", 0)
+	r := &resolver{given: givenValues(ref.n)}
+	n, err := r.block(d.body, in, out, "pipeline", 0)
 	if err != nil {
 		return zero, err
 	}
@@ -530,13 +532,66 @@ func resolveErr(line int, format string, a ...any) error {
 	return fmt.Errorf("%w: %s", errCheck, fmt.Sprintf(format, a...))
 }
 
-// resolveBlock resolves the items of a block that takes units of in; out, if not nil, is the kind
+// resolver resolves the items of a text against the registries.
+type resolver struct {
+	// given holds, for each feature without a text form, the constant providers of it in the
+	// pipeline assembled for the same build, in the order in which the text is resolved; a text
+	// takes the values of those features from there.
+	given map[FeatureID][]*provDesc
+}
+
+// givenValues returns the constant providers of the features without a text form in the tree n, in
+// the order of their blocks in the text.
+func givenValues(n node) map[FeatureID][]*provDesc {
+	given := map[FeatureID][]*provDesc{}
+	var walk func(node)
+	walk = func(n node) {
+		switch x := n.(type) {
+		case *withNode:
+			if x.prov.constant && features[x.prov.feature].parse == nil {
+				given[x.prov.feature] = append(given[x.prov.feature], x.prov)
+			}
+			walk(x.body)
+		case *slotNode:
+			walk(x.def)
+			for _, p := range x.order {
+				walk(x.parts[p])
+			}
+		case *forkNode:
+			for _, b := range x.branches {
+				walk(b)
+			}
+		default:
+			children(n, walk)
+		}
+	}
+	walk(n)
+	return given
+}
+
+// givenValue resolves the constant provider it of a feature without a text form: a text cannot
+// give its value, so it takes the value that the assembled pipeline provides at the same place,
+// whose text it must equal. The check of the skeleton then holds the two to the same block.
+func (r *resolver) givenValue(it item) (*provDesc, error) {
+	id := FeatureID(it.name)
+	vs := r.given[id]
+	if len(vs) == 0 {
+		return nil, resolveErr(it.line, "feature %s has no text form, and the assembled pipeline provides no value of it here", it.name)
+	}
+	r.given[id] = vs[1:]
+	if vs[0].text != it.value {
+		return nil, resolveErr(it.line, "feature %s has no text form: the text gives %s=%s where the assembled pipeline gives %s=%s", it.name, it.name, it.value, it.name, vs[0].text)
+	}
+	return vs[0], nil
+}
+
+// block resolves the items of a block that takes units of in; out, if not nil, is the kind
 // it must return. A block is a chain even of one step, as in the normal form.
-func resolveBlock(its []item, in, out *kind, where string, line int) (node, error) {
+func (r *resolver) block(its []item, in, out *kind, where string, line int) (node, error) {
 	cur := in
 	c := &chainNode{}
 	for _, it := range its {
-		n, err := resolveItem(it, cur)
+		n, err := r.item(it, cur)
 		if err != nil {
 			return nil, err
 		}
@@ -563,31 +618,31 @@ func describeItem(it item) string {
 	return strings.TrimSpace(it.op + " " + it.name)
 }
 
-func resolveItem(it item, in *kind) (node, error) {
+func (r *resolver) item(it item, in *kind) (node, error) {
 	what := describeItem(it)
 	switch it.op {
 	case "":
-		return resolvePass(it)
+		return resolvePass(it, in)
 	case "func":
 		v := views[it.name]
 		if v == nil {
 			return nil, resolveErr(it.line, "no view %s", it.name)
 		}
-		b, err := resolveBlock(it.body, v.part, v.part, what, it.line)
+		b, err := r.block(it.body, v.part, v.part, what, it.line)
 		return &perFuncNode{view: v, body: b}, err
 	case "each":
 		s := splits[it.name]
 		if s == nil {
 			return nil, resolveErr(it.line, "no split %s", it.name)
 		}
-		b, err := resolveBlock(it.body, s.part, s.done, what, it.line)
+		b, err := r.block(it.body, s.part, s.done, what, it.line)
 		return &eachNode{split: s, body: b}, err
 	case "within":
 		l := lenses[it.name]
 		if l == nil {
 			return nil, resolveErr(it.line, "no lens %s", it.name)
 		}
-		b, err := resolveBlock(it.body, l.part, l.partOut, what, it.line)
+		b, err := r.block(it.body, l.part, l.partOut, what, it.line)
 		return &withinNode{lens: l, body: b}, err
 	case "shared":
 		k := keys[it.name]
@@ -597,21 +652,21 @@ func resolveItem(it item, in *kind) (node, error) {
 		if k.k != in {
 			return nil, resolveErr(it.line, "shared key %s reads %s, but its block starts on %s", it.name, k.k.name, in.name)
 		}
-		b, err := resolveBlock(it.body, in, nil, what, it.line)
+		b, err := r.block(it.body, in, nil, what, it.line)
 		return &sharedNode{key: k, body: b}, err
 	case "with":
-		pr, err := readProvider(it, in)
+		pr, err := r.provider(it, in)
 		if err != nil {
 			return nil, err
 		}
-		b, err := resolveBlock(it.body, in, nil, what, it.line)
+		b, err := r.block(it.body, in, nil, what, it.line)
 		return &withNode{prov: pr, body: b}, err
 	case "slot":
 		s := slots[it.name]
 		if s == nil {
 			return nil, resolveErr(it.line, "no slot %s", it.name)
 		}
-		def, err := resolveBlock(it.body, s.k, s.k, what, it.line)
+		def, err := r.block(it.body, s.k, s.k, what, it.line)
 		if err != nil {
 			return nil, err
 		}
@@ -620,7 +675,7 @@ func resolveItem(it item, in *kind) (node, error) {
 			if sn.parts[p.label] != nil {
 				return nil, resolveErr(p.line, "slot %s has two bodies for the part %s", it.name, p.label)
 			}
-			b, err := resolveBlock(p.body, s.k, s.k, what+" for "+p.label, p.line)
+			b, err := r.block(p.body, s.k, s.k, what+" for "+p.label, p.line)
 			if err != nil {
 				return nil, err
 			}
@@ -634,7 +689,7 @@ func resolveItem(it item, in *kind) (node, error) {
 			if br.op != "branch" {
 				return nil, resolveErr(br.line, "a fork holds branches only, not %s", describeItem(br))
 			}
-			b, err := resolveBlock(br.body, in, out, "branch "+br.name, br.line)
+			b, err := r.block(br.body, in, out, "branch "+br.name, br.line)
 			if err != nil {
 				return nil, err
 			}
@@ -652,10 +707,24 @@ func resolveItem(it item, in *kind) (node, error) {
 	return nil, resolveErr(it.line, "unknown block %s", it.op)
 }
 
-func resolvePass(it item) (node, error) {
-	p := passes[it.name]
-	if p == nil {
+// resolvePass resolves the pass of it on units of in: the registration of the pass at that kind,
+// since a pass may be registered at several (New).
+func resolvePass(it item, in *kind) (node, error) {
+	if passes[it.name] == nil {
 		return nil, resolveErr(it.line, "no pass %s", it.name)
+	}
+	var p *passDesc
+	var at []string
+	for _, r := range registrations {
+		if r.Name == it.name {
+			at = append(at, r.in.name)
+			if r.in == in {
+				p = r
+			}
+		}
+	}
+	if p == nil {
+		return nil, resolveErr(it.line, "pass %s takes %s, but it gets %s", it.name, strings.Join(at, " or "), in.name)
 	}
 	if it.required != p.Required {
 		if p.Required {
@@ -685,7 +754,7 @@ func resolvePass(it item) (node, error) {
 	return n, nil
 }
 
-func readProvider(it item, in *kind) (*provDesc, error) {
+func (r *resolver) provider(it item, in *kind) (*provDesc, error) {
 	if !it.constant {
 		pr := providers[it.name]
 		if pr == nil {
@@ -701,7 +770,7 @@ func readProvider(it item, in *kind) (*provDesc, error) {
 		return nil, resolveErr(it.line, "no feature %s", it.name)
 	}
 	if f.parse == nil {
-		return nil, resolveErr(it.line, "feature %s has no text form, so a text cannot provide it", it.name)
+		return r.givenValue(it)
 	}
 	v, err := f.parse(it.value)
 	if err != nil {
