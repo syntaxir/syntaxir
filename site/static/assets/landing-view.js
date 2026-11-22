@@ -19,7 +19,7 @@ export function liveView(res) {
   }
   if (!res.matched) {
     const e = res.errors?.[0];
-    const output = e ? `${e.line}:${e.col}: syntax error: ${e.message}` : res.error || "The input does not match the grammar.";
+    const output = e ? `${e.line}:${e.col}: ${e.message}` : res.error || "The input does not match the grammar.";
     return { output, badge: { kind: "error", text: e ? `Syntax error at ${e.line}:${e.col}` : "No match" }, nodes: "–", depth: "–", time };
   }
   if (res.error) {

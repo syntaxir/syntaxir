@@ -10,7 +10,7 @@ test("a parsed tree shows the S-expression and the measured telemetry", () => {
 });
 
 test("a syntax error shows its position and no tree telemetry", () => {
-  const v = liveView({ ...ok, matched: false, errors: [{ line: 1, col: 5, message: 'expected "(", [0-9]' }], micros: 1200, runs: 1 });
+  const v = liveView({ ...ok, matched: false, errors: [{ line: 1, col: 5, message: 'syntax error: expected "(", [0-9]' }], micros: 1200, runs: 1 });
   assert.equal(v.output, '1:5: syntax error: expected "(", [0-9]');
   assert.deepEqual(v.badge, { kind: "error", text: "Syntax error at 1:5" });
   assert.equal(v.nodes, "–");
