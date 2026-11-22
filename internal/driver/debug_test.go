@@ -1,12 +1,14 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"regexp"
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
@@ -47,9 +49,29 @@ var (
 		}})
 )
 
-// debugPipeline runs the test passes of the debugging tests in place of the Core passes.
-func debugPipeline(string) pipe.Pipeline[*core.Module, *core.Module] {
+// debugPipeline is the pipeline of the test passes of the debugging tests, which run in place of the
+// Core passes.
+func debugPipeline() pipe.Pipeline[*core.Module, *core.Module] {
 	return pipe.Seq(corepass.IR, debugSame, debugRename, debugCount, debugRename)
+}
+
+// runCore runs, with the observers of d, the Core part of the pipeline of a table, elaborate and then
+// passes, on each of the tables (the table rules if none is given), as a compilation runs it, and
+// returns the module of the first.
+func runCore(d *debugger, passes pipe.Pipeline[*core.Module, *core.Module], tables ...string) (*core.Module, error) {
+	if len(tables) == 0 {
+		tables = []string{"rules"}
+	}
+	ps := make([]testPart[common.TableSource], len(tables))
+	for i, l := range tables {
+		ps[i] = testPart[common.TableSource]{l, common.TableSource{Build: oneRule}}
+	}
+	p := pipe.Each(testCoreTables, pipe.Then(pipe.Of(elaborating), passes))
+	out, err := execute(context.Background(), d, &pipe.Run{Observers: d.observers()}, p, ps)
+	if len(out) == 0 {
+		return nil, err
+	}
+	return out[0], err
 }
 
 // oneRule builds a Core module of one rule r, which matches "a".
@@ -65,8 +87,8 @@ func oneRule() (*core.Module, error) {
 // received it. A step that PrintAfter selects too is dumped once.
 func TestDriverPrintChanged(t *testing.T) {
 	var dump strings.Builder
-	d := &Driver{PrintChanged: true, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
-	if _, err := d.Core("rules", oneRule); err != nil {
+	d := &debugger{PrintChanged: true, Output: &dump}
+	if _, err := runCore(d, debugPipeline()); err != nil {
 		t.Fatal(err)
 	}
 	got := dump.String()
@@ -84,8 +106,8 @@ func TestDriverPrintChanged(t *testing.T) {
 	}
 
 	dump.Reset()
-	d = &Driver{PrintChanged: true, PrintAfter: []string{"test-debug-rename", "test-debug-same"}, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
-	if _, err := d.Core("rules", oneRule); err != nil {
+	d = &debugger{PrintChanged: true, PrintAfter: []string{"test-debug-rename", "test-debug-same"}, Output: &dump}
+	if _, err := runCore(d, debugPipeline()); err != nil {
 		t.Fatal(err)
 	}
 	if n := strings.Count(dump.String(), "-- after test-debug-rename [rules] --"); n != 1 {
@@ -96,13 +118,13 @@ func TestDriverPrintChanged(t *testing.T) {
 	}
 
 	// Without an Output nothing is collected or written.
-	d = &Driver{PrintChanged: true, Stats: true, TimePasses: true, Hooks: Hooks{CorePipeline: debugPipeline}}
-	if _, err := d.Core("rules", oneRule); err != nil {
+	d = &debugger{PrintChanged: true, Stats: true, TimePasses: true}
+	if _, err := runCore(d, debugPipeline()); err != nil {
 		t.Fatal(err)
 	}
-	d.Report()
-	if r := d.pipeRun("rules", true); len(r.Observers) != 0 {
-		t.Errorf("a driver without Output observes with %d observers", len(r.Observers))
+	d.report()
+	if obs := d.observers(); len(obs) != 0 {
+		t.Errorf("a debugger without Output observes with %d observers", len(obs))
 	}
 }
 
@@ -111,8 +133,8 @@ func TestDriverPrintChanged(t *testing.T) {
 // required step is no pass to print before.
 func TestDriverPrintBefore(t *testing.T) {
 	var dump strings.Builder
-	d := &Driver{PrintBefore: []string{"test-debug-rename"}, PrintAfter: []string{"test-debug-rename"}, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
-	if _, err := d.Core("rules", oneRule); err != nil {
+	d := &debugger{PrintBefore: []string{"test-debug-rename"}, PrintAfter: []string{"test-debug-rename"}, Output: &dump}
+	if _, err := runCore(d, debugPipeline()); err != nil {
 		t.Fatal(err)
 	}
 	want := strings.Join([]string{
@@ -133,8 +155,8 @@ func TestDriverPrintBefore(t *testing.T) {
 
 	// With PrintChanged too, the input is written once before the first change.
 	dump.Reset()
-	d = &Driver{PrintBefore: []string{"all"}, PrintChanged: true, Output: &dump, Hooks: Hooks{CorePipeline: debugPipeline}}
-	if _, err := d.Core("rules", oneRule); err != nil {
+	d = &debugger{PrintBefore: []string{"all"}, PrintChanged: true, Output: &dump}
+	if _, err := runCore(d, debugPipeline()); err != nil {
 		t.Fatal(err)
 	}
 	if n := strings.Count(dump.String(), "-- before test-debug-rename [rules] --"); n != 1 {
@@ -163,20 +185,18 @@ func TestDriverPrintBefore(t *testing.T) {
 	}
 }
 
-// Report writes the statistics of every pass instance that ran, in the order it ran, over all the
-// stages the driver ran, and the times of every step instance with a total.
+// The report writes the statistics of every pass instance that ran, in the order it ran, over every
+// table of the run, and the times of every step instance with a total.
 func TestDriverReport(t *testing.T) {
 	var out strings.Builder
-	d := &Driver{Stats: true, TimePasses: true, Output: &out, Hooks: Hooks{CorePipeline: debugPipeline}}
-	for range 2 {
-		if _, err := d.Core("rules", oneRule); err != nil {
-			t.Fatal(err)
-		}
+	d := &debugger{Stats: true, TimePasses: true, Output: &out}
+	if _, err := runCore(d, debugPipeline(), "rules", "typed"); err != nil {
+		t.Fatal(err)
 	}
 	if out.Len() != 0 {
-		t.Fatalf("the reports were written before Report:\n%s", out.String())
+		t.Fatalf("the reports were written before the report:\n%s", out.String())
 	}
-	d.Report()
+	d.report()
 	got := out.String()
 	stats, times, ok := strings.Cut(got, "-- time-passes --\n")
 	if !ok || !strings.HasPrefix(stats, "-- stats --\n") {
@@ -214,27 +234,25 @@ func TestDriverReport(t *testing.T) {
 // one writer of the debugging settings.
 func TestDriverDumpNamesTheBackend(t *testing.T) {
 	var dump strings.Builder
-	d := &Driver{PrintAfter: []string{"guards"}, Output: &dump}
-	o := pipeObserver{d: d, table: "rules"}
-	e := pipe.Event{Step: pipe.StepInfo{Name: "guards", Instance: "guards", In: "core", Out: "core"}, Label: pipe.Label{Backend: "go", Func: "main"}}
+	d := &debugger{PrintAfter: []string{"guards"}, Output: &dump}
+	o := pipeObserver{d: d}
+	e := pipe.Event{Step: pipe.StepInfo{Name: "guards", Instance: "guards", In: "core", Out: "core"}, Label: pipe.Label{Backend: "go", Table: "rules", Func: "main"}}
 	o.After(e, &pipe.Result{Ran: true, Print: func(w io.Writer) { io.WriteString(w, "unit\n") }})
 	if got := dump.String(); got != "-- after guards [go/rules/main] --\nunit\n" {
 		t.Errorf("dump %q", got)
 	}
 }
 
-// OptBisectLimit runs the optional runs numbered up to the limit, over every stage the driver runs,
+// OptBisectLimit runs the optional runs numbered up to the limit, over every table of the run,
 // skips the later ones, always runs the required steps and writes each decision. Searching for the
 // smallest limit whose output differs from that of limit 0 finds the run of the pass that broke it.
 func TestDriverOptBisectLimit(t *testing.T) {
-	breaking := func(string) pipe.Pipeline[*core.Module, *core.Module] {
-		return pipe.Seq(corepass.IR, debugSame, debugCount, debugBreak, debugRename)
-	}
+	breaking := pipe.Seq(corepass.IR, debugSame, debugCount, debugBreak, debugRename)
 	run := func(limit int) (string, string) {
 		t.Helper()
 		var out strings.Builder
-		d := &Driver{OptBisectLimit: &limit, Output: &out, Hooks: Hooks{CorePipeline: breaking}}
-		m, err := d.Core("rules", oneRule)
+		d := &debugger{OptBisectLimit: &limit, Output: &out}
+		m, err := runCore(d, breaking)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -269,16 +287,14 @@ func TestDriverOptBisectLimit(t *testing.T) {
 		t.Errorf("the first limit that breaks the output is %d, whose run is not test-debug-break:\n%s", first, decisions)
 	}
 
-	// The numbers go on over the stages of one driver.
+	// The numbers go on over the tables of one run.
 	limit := 5
 	var out strings.Builder
-	d := &Driver{OptBisectLimit: &limit, Output: &out, Hooks: Hooks{CorePipeline: breaking}}
-	for range 2 {
-		if _, err := d.Core("rules", oneRule); err != nil {
-			t.Fatal(err)
-		}
+	d := &debugger{OptBisectLimit: &limit, Output: &out}
+	if _, err := runCore(d, breaking, "rules", "typed"); err != nil {
+		t.Fatal(err)
 	}
-	if !strings.Contains(out.String(), "opt-bisect: 5 run test-debug-same [rules]\nopt-bisect: 6 skip test-debug-count [rules]\n") {
-		t.Errorf("the second stage is not numbered after the first:\n%s", out.String())
+	if !strings.Contains(out.String(), "opt-bisect: 5 run test-debug-same [typed]\nopt-bisect: 6 skip test-debug-count [typed]\n") {
+		t.Errorf("the second table is not numbered after the first:\n%s", out.String())
 	}
 }

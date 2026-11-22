@@ -7,20 +7,24 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// pipelinedTypedCore runs the pipeline on the typed rules of g.
-func pipelinedTypedCore(g *print.Generator, verifyEach bool) (*core.Module, error) {
+// typedCore builds the Core IR of the typed rules of the program that g prints, as the Go target
+// builds the typed table (print.Decision.Sources), and runs the Core passes on it under the settings
+// of g with the options o otherwise (corepass.Run).
+func typedCore(g *print.Generator, o corepass.RunOptions) (*core.Module, error) {
 	m, err := irbuild.CoreFrom(g.Prog.Elab, true)
 	if err != nil {
 		return nil, err
 	}
 	core.Analyze(m)
-	m, _, err = corepass.Run(m, corepass.RunOptions{Settings: g.Opt(), VerifyEach: verifyEach})
+	o.Settings = g.Opt()
+	m, _, err = corepass.Run(m, o)
 	return m, err
 }
 
@@ -57,10 +61,10 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 				var g *print.Generator
 				opts := mode.opts
 				opts.Module = "example.com/p"
-				if _, err := print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), &print.Hooks{Generator: func(x *print.Generator) { g = x }}); err != nil || g == nil {
+				if _, err := generateGo(pg, opts, driver.Options{}, &print.Hooks{Generator: func(x *print.Generator) { g = x }}); err != nil || g == nil {
 					return
 				}
-				want, err := pipelinedTypedCore(g, false)
+				want, err := typedCore(g, corepass.RunOptions{})
 				if err != nil {
 					t.Errorf("%s: %s: %v", mode.name, c.Name, err)
 					return
@@ -68,7 +72,7 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 				if len(want.Rules) == 0 {
 					return
 				}
-				got, err := pipelinedTypedCore(g, true)
+				got, err := typedCore(g, corepass.RunOptions{VerifyEach: true})
 				if err != nil {
 					t.Errorf("%s: %s: %v", mode.name, c.Name, err)
 					return

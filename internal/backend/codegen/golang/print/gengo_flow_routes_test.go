@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -150,7 +150,7 @@ rule o = #operators {
 				seq.Items[len(seq.Items)-1] = w(op)
 			}
 		}
-		if _, err = print.GenerateParser(g, compileForGenerator, codegentest.Passes(common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p"}), codegentest.WithLib(common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p"}), nil); err == nil {
+		if _, err = generateGo(g, common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p"}, driver.Options{}, nil); err == nil {
 			t.Errorf("generate with an Operators Rule spliced into a %s inside a leader: accepted", name)
 		}
 	}

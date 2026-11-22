@@ -7,7 +7,7 @@
 // A plan lists functions (plandata.FuncSpec) in the order a backend lowers them, keyed by their use
 // in the table, and fixes the capture-slot layout of each rule's frame, from which both the Go
 // table rows and the VM's rule scopes derive. The route facts are analyses of Core IR and of the
-// rules of the table (Rule, RecEligible, NodeFrameOK); the refusal of a flat function (Refused) is
+// rules of the table (plandata.Rule, RecEligible, NodeFrameOK); the refusal of a flat function (Refused) is
 // an analysis of its Flow IR as the lowering writes it, before any pass, which the plan makes once
 // for every backend while the table is lowered (Unit).
 package flowplan
@@ -33,7 +33,7 @@ import (
 // facts (route). Whether the table runs a flat function or its framed fallback is decided when the
 // table is lowered (Unit), so that every backend that lowers the table from the plan runs the same
 // functions.
-func Plan(t *plandata.TableIR, rules []*Rule, live func(rule int) bool) *plandata.Plan {
+func Plan(t *plandata.TableIR, rules []*plandata.Rule, live func(rule int) bool) *plandata.Plan {
 	return route(t.M, rules, live)
 }
 
@@ -44,7 +44,7 @@ func Plan(t *plandata.TableIR, rules []*Rule, live func(rule int) bool) *plandat
 // layout of the frame that the typed runtime shares with the Node table, is a framed body. The lines of
 // an Operators Rule are planned as in the Node table. A rule left out of the plan is one that Flow IR
 // does not print, which the backend reports.
-func PlanTyped(t *plandata.TableIR, rules []*Rule, live func(rule int) bool, frameSlots func(rule int) []string) *plandata.Plan {
+func PlanTyped(t *plandata.TableIR, rules []*plandata.Rule, live func(rule int) bool, frameSlots func(rule int) []string) *plandata.Plan {
 	m := t.M
 	p := &plandata.Plan{Typed: true}
 	names := funcNames(rules)
@@ -71,7 +71,7 @@ func PlanTyped(t *plandata.TableIR, rules []*Rule, live func(rule int) bool, fra
 // TypedFrameOK reports whether the body of the typed rule r runs in place under the frame the typed
 // runtime owns: the rule is a left-recursion leader or recovers, and its body is one that a framed body
 // may have.
-func TypedFrameOK(r *Rule) bool {
+func TypedFrameOK(r *plandata.Rule) bool {
 	return (r.Leader || Recovers(r.Body)) && flowlower.BodyOK(r.Body, true, true)
 }
 
@@ -94,7 +94,7 @@ func Recovers(e ast.Expr) bool {
 // (plandata.StreamBody), and reports whether it did: the rule is lowered as a framed body (NodeFrameOK), with the
 // capture layout of the rule's body in the table, which the action addresses by slot. The function comes
 // after the others of the plan.
-func Stream(p *plandata.Plan, t *plandata.TableIR, r *Rule) bool {
+func Stream(p *plandata.Plan, t *plandata.TableIR, r *plandata.Rule) bool {
 	cr := t.M.Rules[r.ID]
 	if p.Typed || !t.Opts.Node || !NodeFrameOK(r, cr) {
 		return false
@@ -122,7 +122,7 @@ func Unit(p *plandata.Plan, t *plandata.TableIR, refuse func(plandata.Key) bool)
 // route plans the routes of the table whose Core IR, after the Core passes of the table, is m, from
 // the facts of its rules: a flat function where the rule may run flat, with its framed body as the
 // fallback, and the framed body otherwise.
-func route(m *core.Module, rules []*Rule, live func(rule int) bool) *plandata.Plan {
+func route(m *core.Module, rules []*plandata.Rule, live func(rule int) bool) *plandata.Plan {
 	t := &plandata.Plan{Layouts: make([][]string, len(rules))}
 	add := t.Add
 	names := funcNames(rules)
@@ -153,7 +153,7 @@ func route(m *core.Module, rules []*Rule, live func(rule int) bool) *plandata.Pl
 // funcNames returns the names of the functions of the rules in the module of a table, which names its
 // functions apart: a value-free twin, which has the name of its rule and comes after the rules, is
 // named by the name of the rule and "/value-free".
-func funcNames(rules []*Rule) []string {
+func funcNames(rules []*plandata.Rule) []string {
 	names := make([]string, len(rules))
 	seen := map[string]bool{}
 	for i, r := range rules {
@@ -168,7 +168,7 @@ func funcNames(rules []*Rule) []string {
 
 // operatorsRules adds to the plan t the skips and the lines of the live Operators Rules of the rules, in
 // the order of the rules, whose Core module is m and whose functions are named by names.
-func operatorsRules(t *plandata.Plan, m *core.Module, rules []*Rule, live func(rule int) bool, names []string) {
+func operatorsRules(t *plandata.Plan, m *core.Module, rules []*plandata.Rule, live func(rule int) bool, names []string) {
 	for i, r := range rules {
 		e, ok := r.Body.(*ast.OperatorsRule)
 		if !ok || live != nil && !live(r.ID) {
@@ -181,7 +181,7 @@ func operatorsRules(t *plandata.Plan, m *core.Module, rules []*Rule, live func(r
 // operators plans the skip and the lines of the Operators Rule e of the rule r, whose Core rule is
 // cr and whose functions are named after rule. A line that Flow IR cannot lower inside the rule's
 // frame is left out.
-func operators(cr *core.Rule, r *Rule, rule string, e *ast.OperatorsRule, add func(*plandata.FuncSpec)) {
+func operators(cr *core.Rule, r *plandata.Rule, rule string, e *ast.OperatorsRule, add func(*plandata.FuncSpec)) {
 	co, _ := cr.Body.(*core.OperatorsRule)
 	if co == nil {
 		return

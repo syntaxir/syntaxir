@@ -8,9 +8,14 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -96,4 +101,10 @@ func firstCharEnd(input string, pos int, u sxirinput.PositionUnit) int {
 		return pos + size
 	}
 	return pos + 1
+}
+
+// generateGo generates the Go parser of g with opts, the library of the tests, the edits and observers
+// of x and the hooks h of the printer, as package generate does (generate.GoWith).
+func generateGo(g *ast.Grammar, opts common.GenOptions, x driver.Options, h *print.Hooks) ([]common.GeneratedFile, error) {
+	return generate.GoWith(codegentest.Compile, g, codegentest.WithLib(opts), x, h)
 }

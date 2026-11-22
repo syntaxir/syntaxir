@@ -144,8 +144,8 @@ type Planned struct {
 // function of a use with Index. Only NewTable makes one, and a pass that changes the module keeps the
 // functions of the plan in it (With).
 type Table[S code.Stage] struct {
-	// Plan is nil for a module that no plan holds the functions of: one lowered as a table of its own
-	// (common.Runner.Flow).
+	// Plan is nil for a module that no plan holds the functions of, such as a module that a test
+	// lowers on its own.
 	Plan   *Plan
 	IR     *TableIR
 	Module code.At[S]

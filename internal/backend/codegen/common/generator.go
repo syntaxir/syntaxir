@@ -7,11 +7,9 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
-	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/limits"
@@ -54,13 +52,8 @@ type Generator struct {
 	literalNames map[string]string
 	methodKeys   []generatedMethod
 	literalKeys  []string
-	// Runner runs the pipelines of the IR with the optimizations that are on and the dumps,
-	// verification and reports of GenOptions.Debug (Passes.Runner). It is
-	// required: the optimizations are read only from it (Opt), and Passes has no other way to read
-	// them, so that the printers and the passes cannot disagree on them.
-	Runner Runner
-	// Settings are the optimizations of a generator that prints tables lowered by the pipeline of
-	// its compilation (Tables.Settings), which has no Runner.
+	// Settings are the optimizations of the compilation whose tables the generator prints, which
+	// the passes that lowered them ran with (Opt).
 	Settings pass.Settings
 	// Flow holds the Core IR of the typed rules while they are printed from Flow IR, or nil;
 	// flowRules counts the rules printed from Flow IR as flat rules and flowFrames the bodies
@@ -87,28 +80,8 @@ type Generator struct {
 	fieldTypeKeys []any
 }
 
-// runner returns the Runner of the generator, and panics if there is none: a Generator is built
-// with the Runner of its Passes, so a missing one is a programming error.
-func (g *Generator) runner() Runner {
-	if g.Runner == nil {
-		panic("common.Generator has no Runner: set Generator.Runner to the Runner of its Passes before generating")
-	}
-	return g.Runner
-}
-
-// Opt returns the optimizations that are on: the settings of the Runner, or Settings for a generator
-// without one that prints the tables of its compilation.
-func (g *Generator) Opt() pass.Settings {
-	if g.Runner == nil {
-		return g.Settings
-	}
-	return g.Runner.Settings()
-}
-
-// Core runs the elaboration build of the table's Core IR and the Core passes through the Runner.
-func (g *Generator) Core(table string, build func() (*core.Module, error)) (*core.Module, error) {
-	return g.runner().Core(table, build)
-}
+// Opt returns the optimizations that are on (Settings).
+func (g *Generator) Opt() pass.Settings { return g.Settings }
 
 // FieldTypeVar returns the variable holding check type ft of key, declaring it with decl the
 // first time.
@@ -251,25 +224,6 @@ func (g *Generator) FailFlow(what string) {
 	}
 }
 
-// LowerTable lowers the functions of the plan p of the table being generated, with its decisions
-// (flowplan.Unit; refuse is a test's hook, nil refuses none), through the Flow and the Exec part of
-// the pipeline with target in one run (Runner.LowerTable), labeled with the table (IRTable), and
-// returns the table at the Exec stage, whose functions the printers then print
-// (execlower.Func). An error of the lowering or the conversion is returned; a failure of the
-// passes is kept as the first internal error of the generation (FlowErr), which fails it, and the
-// table is returned for the printing to go on.
-func (g *Generator) LowerTable(p *plandata.Plan, refuse func(plandata.Key) bool, target TargetPipeline) (*plandata.Table[code.Exec], error) {
-	r := g.runner()
-	t, err := r.LowerTable(g.IRTable(), flowplan.Unit(p, g.Flow.TableIR, refuse), g.Observability, g.FlowTarget, target)
-	if t == nil {
-		return nil, err
-	}
-	if err != nil && g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("module %s of table %s: %w", t.Module.Module().Name, g.IRTable(), err)
-	}
-	return t, nil
-}
-
 // IRTable is the name of the table being generated in the dumps of the IR: "typed" for the typed
 // rules, as Core IR names it, and the name of the table otherwise; with TracedSuffix in the traced pass.
 func (g *Generator) IRTable() string {
@@ -298,27 +252,6 @@ func FrameScope(names []string) *check.Scope {
 		s.Slot(name)
 	}
 	return s
-}
-
-// StartRecFlow builds the Core IR of the program rec (the recognizer, or the program of the Node
-// table) with the Core passes of the generator, and the options its functions are lowered with
-// (flowplan.BuildTable), for printing its rules from Flow IR, with the configuration of the generator's
-// target. The bytecode VM builds the Node table it runs from Flow IR through the same function.
-func (g *Generator) StartRecFlow(rec *Program) error {
-	// The TypeScript parser outlines the large and the repeated nodes of its functions.
-	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Observe: g.Observability,
-		Document: g.RecordsExamined(), Traced: g.Traced, Outline: g.TypeScript,
-		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
-		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
-		Resume: g.Document}
-	t, err := flowplan.BuildTable(rec.Elab, c, func(build func() (*core.Module, error)) (*core.Module, error) {
-		return g.Core(g.IRTable(), build)
-	})
-	if err != nil {
-		return err
-	}
-	g.Flow = &FlowState{TableIR: t, Rules: append(append([]*Rule(nil), rec.RuleList...), rec.Twins...)}
-	return nil
 }
 
 // NodeJoin reports whether the join u has a Go interface and a TypeScript union of its own: every

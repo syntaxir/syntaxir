@@ -10,18 +10,30 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
+// defaultSettings returns the optimizations of a generation with no options.
+func defaultSettings(t *testing.T) pass.Settings {
+	t.Helper()
+	s, err := generate.Settings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
 func TestGeneratedSharingIdentity(t *testing.T) {
 	t.Parallel()
-	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules", Runner: codegentest.Passes(common.GenOptions{}).Runner(nil)}}
+	ts := &tsprint.Generator{Generator: common.Generator{Table: "rules", Settings: defaultSettings(t)}}
 	name := ts.Method("first", "return [null, true];\n")
 	ts.Table = "recRules"
 	if ts.Method("recognition", "return [null, true];\n") != name {
 		t.Fatal("identical TypeScript bodies should share across rule tables")
 	}
-	g := &goprint.Generator{Table: "rules", Runner: codegentest.Passes(common.GenOptions{}).Runner(nil)}
+	g := &goprint.Generator{Table: "rules", Settings: defaultSettings(t)}
 	a := g.Method("first", "return nil, true\n")
 	g.Table = "recRules"
 	if g.Method("recognition", "return nil, true\n") != a {

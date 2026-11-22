@@ -1,11 +1,9 @@
 package print
 
 import (
-	"bytes"
 	"cmp"
 	"fmt"
 	"go/format"
-	"io"
 	"maps"
 	"math"
 	"path"
@@ -15,7 +13,6 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
@@ -41,28 +38,14 @@ func defaultPackageName(module string) string {
 	return base
 }
 
-// Generate generates the files of a Go parser for g, compiling it with c and running the passes
-// with p, which the driver resolved from opts: parser.go with the code
-// generated from the grammar, api.go, which re-exports the names the library defines for the users
-// of the parser, with opts.Types types/types.go, the package of the Go types of the typed values,
-// and, with opts.Lib LibEmbed, a copy of the library in internal/libgo. Paths are
-// relative to the directory of the generated package. common.Go describes the options.
-//
-// Eligible rule bodies inline their expressions; other expressions become Go functions. Actions
-// and predicates become Go expressions, and the library (package libgo of this module) behaves
-// exactly like the engine. Without opts.Stream, #stream is a plain repetition.
-func Generate(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions) ([]common.GeneratedFile, error) {
-	if opts.Lib == common.LibOnly {
-		return LibFiles(opts)
-	}
-	return GenerateParser(g, c, p, opts, nil)
-}
-
-// Hooks let a test observe or change the decisions of one generation. The zero value, like nil,
-// changes nothing.
+// Hooks let a test observe or change the decisions of one generation, which reach the printer
+// through its target (driver.Target.GoHooks). They are for tests: production leaves them nil, which
+// changes nothing, like the zero value, and no package other than a test sets them. A test reads the
+// units of the compilation, such as the tables it prints, through the observers of the compilation
+// (driver.Options.Observers), not through hooks.
 type Hooks struct {
-	// Generator receives the generator of the pass that writes the output, before it prints, so
-	// that the test can build the Core IR of the same options (Generator.TypedCore).
+	// Generator receives the generator of print-go after it numbered the expectation table, before
+	// it prints the Node and recognizer tables.
 	Generator func(*Generator)
 	// Features replaces the features that a parser generated with FeatureWitness records (a negative
 	// control of the analysis).
@@ -70,9 +53,6 @@ type Hooks struct {
 	// Reach receives the reachable rules of the plan of the program before any table is printed; a
 	// test removes a root from it to show that the output then fails.
 	Reach func(*liveRules)
-	// Lowered receives each part of a Node or recognizer table that the expectation table is numbered
-	// from (plandata.Program.Numbered), with its label.
-	Lowered func(table string, t *plandata.Table[code.Exec])
 	// Numbering replaces the expectation table numbered from the lowered tables before any table is
 	// printed, so that a test has the printing of the Node and recognizer tables number it instead.
 	Numbering func(descs []string) []string
@@ -111,138 +91,17 @@ type Hooks struct {
 	FlowTarget func(t *Target, pre *string) *Target
 }
 
-// GenerateParser generates the files of Generate (other than for LibOnly), running the pipelines
-// through the Runner of p: it decides the tables of the parser (Decide), builds their Core IR, plans
-// the program and its tables (flowplan.Planning), which decides the rules of the Node, recognizer and
-// typed tables that a generated call or an entry point can reach (liveRules), lowers each planned
-// table to the Exec stage, numbers the expectation table (common.JoinTables) and prints the tables
-// (printTables).
-func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks) (files []common.GeneratedFile, err error) {
-	if h == nil {
-		h = &Hooks{}
-	}
-	if opts, err = Validate(opts); err != nil {
-		return nil, err
-	}
-	// The settings that decide the output are read from the generator (Generator.Opt); this only
-	// reports the error of resolving them where the options are validated.
-	if err := p.Validate(); err != nil {
-		return nil, err
-	}
-	if _, err := loadLib(opts); err != nil {
-		return nil, err
-	}
-	prog, recognizer, err := c(g, common.CompileOptions{SourceInfo: opts.SourceInfo, DefaultValue: opts.DefaultValue, LeftRecursionBindings: opts.LeftRecursionBindings})
-	if err != nil {
-		return nil, err
-	}
-	if prog.Run.HasMissing {
-		return nil, rprogram.MissingUnsupported("generated parsers")
-	}
-	start, err := prog.StartRule(opts.Start)
-	if err != nil {
-		return nil, err
-	}
-	d, err := Decide(prog, recognizer, start, opts)
-	if err != nil {
-		return nil, err
-	}
-	d.refuse = h.RefuseFlowRecRule
-	// The dumps and the reports of the pipelines are kept until the generation returns, and the dumps
-	// are written also on an error, whose dumps show what led to it.
-	var dumps io.Writer
-	var dumped *bytes.Buffer
-	if opts.Debug.Output != nil {
-		dumped = &bytes.Buffer{}
-		dumps = dumped
-	}
-	r := p.Runner(dumps)
-	if dumped != nil {
-		defer func() {
-			if err == nil {
-				r.Report()
-			}
-			if _, werr := opts.Debug.Output.Write(dumped.Bytes()); werr != nil && err == nil {
-				files, err = nil, werr
-			}
-		}()
-	}
-	t, err := d.lower(r, h)
-	if err != nil {
-		return nil, err
-	}
-	files, _, err = printTables(d, r.Settings(), t, *h, p.Runner(nil))
-	return files, err
-}
-
-// lower builds, plans and lowers the tables of the parser d through the Runner r and numbers the
-// expectation table of its Node and recognizer tables. A test's Generator hook sees a generator of
-// the Runner first, whose table and Flow state follow the table being lowered, so that the passes it
-// adds to the Runner know the table they run on.
-func (d *Decision) lower(r common.Runner, h *Hooks) (*common.Tables, error) {
-	var lowering *Generator
-	if h.Generator != nil {
-		lowering = d.generator()
-		lowering.Runner, lowering.Settings = r, r.Settings()
-		h.Generator(lowering)
-	}
-	labels, sources := d.Labels(), d.Sources()
-	mods := make([]*core.Module, len(sources))
-	for i, s := range sources {
-		m, err := r.Core(labels[i], s.Build)
-		if err != nil {
-			return nil, err
-		}
-		mods[i] = m
-	}
-	plan, err := r.Plan(d.Cores(mods))
-	if err != nil {
-		return nil, err
-	}
-	tables := make([]*plandata.Table[code.Exec], len(plan.Units))
-	for i, u := range plan.Units {
-		if lowering != nil {
-			// The unreachable part of a table, which the parser does not run, has no Flow state for
-			// the test's passes.
-			lowering.Flow = nil
-			for _, s := range d.specs {
-				if s.name == u.Label {
-					lowering.Prog, lowering.Table, lowering.Traced = s.prog, s.table, s.traced
-					lowering.Flow = &common.FlowState{TableIR: u.IR}
-				}
-			}
-		}
-		x, err := r.LowerTable(u.Label, u.Planned, u.IR.Opts.Observe, FlowTarget, gopass.Pipeline)
-		if x == nil {
-			return nil, fmt.Errorf("table %s: %w", u.Label, err)
-		}
-		if err != nil {
-			return nil, fmt.Errorf("module %s of table %s: %w", x.Module.Module().Name, u.Label, err)
-		}
-		tables[i] = x
-	}
-	if h.Lowered != nil {
-		for _, n := range plan.Numbered {
-			for _, k := range n.Parts {
-				h.Lowered(plan.Units[k].Label, tables[k])
-			}
-		}
-	}
-	return common.JoinTables(plan, tables)
-}
-
 // printTables prints the files of the Go parser d from its tables t at the Exec stage, with the
 // settings of the compilation and the hooks h of a test, and returns them with the generator that
-// printed them. r is the Runner of a test that builds Core IR with the generator
-// (Generator.TypedCore), or nil.
-func printTables(d *Decision, settings pass.Settings, t *common.Tables, h Hooks, r common.Runner) (files []common.GeneratedFile, genGo *Generator, err error) {
+// printed them.
+func printTables(d *Decision, settings pass.Settings, t *common.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
 	opts, prog, rec, start := d.Opts, d.Prog, d.Rec, d.Start
 	info, err := loadLib(opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	genGo = d.generator()
-	genGo.Runner, genGo.Settings, genGo.hooks, genGo.tables = r, settings, h, t
+	genGo.Settings, genGo.hooks, genGo.tables = settings, h, t
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	var entries typedEntries
 	if opts.Types {

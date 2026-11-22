@@ -3,7 +3,6 @@ package flowplan_test
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -34,10 +33,10 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	var rules []*flowplan.Rule
+	var rules []*plandata.Rule
 	byName := map[string]int{}
 	for _, r := range append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...) {
-		rules = append(rules, &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
+		rules = append(rules, &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 		byName[r.Name] = r.ID
 	}
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
@@ -53,8 +52,7 @@ func TestPlanTakesTheFallbackOfARefusedFunction(t *testing.T) {
 	b, _ := planned.Func(plandata.Key{Rule: byName["b"]})
 	b.Fallback = nil
 	refused := map[string]bool{"a": true, "b": true}
-	d := &driver.Driver{}
-	lt, err := d.LowerFlowTable("rules", flowplan.Unit(planned, ir, func(k plandata.Key) bool { return refused[rules[k.Rule].Name] }), false, flowpass.Bytecode)
+	lt, err := lowerTable(flowplan.Unit(planned, ir, func(k plandata.Key) bool { return refused[rules[k.Rule].Name] }), flowpass.Pipeline())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -99,9 +97,9 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 	if m, _, err = corepass.Run(m, corepass.RunOptions{}); err != nil {
 		t.Fatal(err)
 	}
-	var rules []*flowplan.Rule
+	var rules []*plandata.Rule
 	for _, r := range append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...) {
-		rules = append(rules, &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
+		rules = append(rules, &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader})
 	}
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
 	u := flowplan.Unit(flowplan.Plan(ir, rules, nil), ir, nil)
@@ -115,7 +113,7 @@ func TestPlanRefusesByItsPredicate(t *testing.T) {
 		}
 		return decide(k, f)
 	}
-	lt, err := (&driver.Driver{}).LowerFlowTable("rules", u, false, flowpass.Bytecode)
+	lt, err := lowerTable(u, flowpass.Pipeline())
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -77,10 +76,7 @@ func GenerateRaw(t testing.TB, g *ast.Grammar, opts common.GenOptions) ([]common
 	opts.Debug.VerifyEach = true
 	opts.FeatureWitness = true
 	opts = WithLib(opts)
-	if h := testGenHooks(t); h != nil {
-		return goprint.GenerateParser(g, Compile, Passes(opts), opts, h)
-	}
-	return generate.GoWith(Compile, g, opts, driver.Options{})
+	return generate.GoWith(Compile, g, opts, driver.Options{}, testGenHooks(t))
 }
 
 // GenerateTS generates a TypeScript parser for g that records expectations, as
@@ -113,13 +109,7 @@ func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFi
 	}
 	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
-	return generate.TypeScriptWith(Compile, g, opts, driver.Options{})
-}
-
-// Passes returns the passes that the driver resolves from opts (generate.Passes), as the generators of
-// package generate run them.
-func Passes(opts common.GenOptions) common.Passes {
-	return generate.Passes(opts, generate.Hooks{})
+	return generate.TypeScriptWith(Compile, g, opts, driver.Options{}, nil)
 }
 
 // NoOptIf returns the optimizations to turn off (common.GenOptions.NoOpt) if cond holds, and none

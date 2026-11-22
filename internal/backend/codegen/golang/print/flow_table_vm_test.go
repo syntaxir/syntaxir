@@ -8,6 +8,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -15,7 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -119,31 +120,7 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 	funcs = map[string]loweredFunc{} // the Flow functions that the Node table lowered
 	routes = map[int]bool{}          // the rules the Node table prints, true for the flat route
 	hooks := &print.Hooks{
-		Generator: func(x *print.Generator) {
-			d := driverOf(x)
-			d.FlowPipeline = func(table string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-				if table != "rules" {
-					return flowpass.Pipeline()
-				}
-				return recordFlow(func(m *code.Module) {
-					fn := flow.FuncOf(m)
-					a := flow.AttrsOf(fn)
-					f := loweredFunc{rule: -1, text: code.FuncStringIn(m, fn), flat: !a.Frame}
-					if a.Rule != nil {
-						f.rule = a.Rule.ID
-					}
-					mu.Lock()
-					defer mu.Unlock()
-					if old, ok := funcs[fn.Name]; ok && old != f {
-						conflict = append(conflict, fn.Name)
-					}
-					funcs[fn.Name] = f
-				})
-			}
-			if x.Table == "rules" {
-				gen = x
-			}
-		},
+		Generator: func(x *print.Generator) { gen = x },
 		LeanRoute: func(table string, r *common.Rule) {
 			if table == "rules" {
 				routes[r.ID] = true
@@ -156,7 +133,20 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 		},
 	}
 	opts := common.GenOptions{Package: "p", Module: "example.com/p", Document: true, NoOpt: []string{flowpass.PassInlineLiterals}}
-	if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), hooks); err != nil {
+	record := finished("rules", func(m *code.Module, fn *code.Func) {
+		a := flow.AttrsOf(fn)
+		f := loweredFunc{rule: -1, text: code.FuncStringIn(m, fn), flat: !a.Frame}
+		if a.Rule != nil {
+			f.rule = a.Rule.ID
+		}
+		mu.Lock()
+		defer mu.Unlock()
+		if old, ok := funcs[fn.Name]; ok && old != f {
+			conflict = append(conflict, fn.Name)
+		}
+		funcs[fn.Name] = f
+	})
+	if _, err := generateGo(g, opts, driver.Options{Observers: []pipe.Observer{record}}, hooks); err != nil {
 		t.Fatal(err)
 	}
 	if len(conflict) > 0 {
@@ -165,12 +155,18 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 	return routes, gen, funcs
 }
 
-// recordFlow returns the Flow pipeline with codegentest.RecordFlowPass last, which calls record with
-// each function as the driver leaves the Flow stage: a copy of the module, which flow-finish ends.
-func recordFlow(record func(m *code.Module)) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-	return codegentest.RecordingFlow(false, func(m *code.Module) {
-		c := m.Clone()
-		flowpass.Finish(c)
-		record(c)
-	})
+// finished returns an observer of a compilation that calls record with the module of the table
+// labeled table and each of its functions after flow-finish ended them, as the compilation leaves the
+// Flow stage.
+func finished(table string, record func(m *code.Module, f *code.Func)) pipe.Observer {
+	return &pipetest.Watch{Units: true, Fn: func(e pipe.Event, r *pipe.Result) {
+		u, ok := r.Unit.(code.At[code.Flow])
+		if !ok || r.Err != nil || e.Step.Name != flowpass.FinishName || e.Label.Table != table {
+			return
+		}
+		m := u.Module()
+		for _, f := range m.Funcs {
+			record(m, f)
+		}
+	}}
 }

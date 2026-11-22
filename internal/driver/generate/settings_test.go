@@ -2,15 +2,11 @@ package generate_test
 
 import (
 	"bytes"
-	"io"
-	"slices"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Settings applies the profile, then Opt, then NoOpt, so an optimization that is both given a
@@ -61,39 +57,28 @@ func TestSettingsOrder(t *testing.T) {
 	}
 }
 
-// Passes gives every runner the settings, the debugging settings of Debug and the hooks, writes the dumps of each runner to the writer that it is made with only, and
-// reports the error of the settings.
-func TestPassesRunners(t *testing.T) {
+// Settings validates the debugging settings of Debug with the optimizations: the settings of a valid
+// Debug are the optimizations, a Debug that writes anything needs an Output, and PrintAfter names a step
+// or a pass, not a stage.
+func TestSettingsDebug(t *testing.T) {
 	t.Parallel()
 	var dumps bytes.Buffer
-	hooks := generate.Hooks{CoreHook: func(string, *core.Module) {}}
-	p := generate.Passes(common.GenOptions{NoOpt: []string{"guards"}, Debug: common.Debug{PrintAfter: []string{"guards"}, PrintChanged: true, VerifyEach: true, Stats: true, TimePasses: true, Output: &dumps}}, hooks)
-	if err := p.Validate(); err != nil {
-		t.Fatalf("validate: %v", err)
+	s, err := generate.Settings(common.GenOptions{NoOpt: []string{"guards"}, Debug: common.Debug{PrintAfter: []string{"guards"}, PrintChanged: true, VerifyEach: true, Stats: true, TimePasses: true, Output: &dumps}})
+	if err != nil {
+		t.Fatalf("settings: %v", err)
 	}
-	var runners []*driver.Driver
-	for _, w := range []io.Writer{nil, &dumps} {
-		d, ok := p.Runner(w).(*driver.Driver)
-		if !ok {
-			t.Fatalf("the runner is %T, not a *driver.Driver", p.Runner(w))
-		}
-		if d.Settings().On("guards") || !slices.Equal(d.PrintAfter, []string{"guards"}) || !d.PrintChanged || !d.VerifyEach || !d.Stats || !d.TimePasses || d.CoreHook == nil || d.Output != w {
-			t.Errorf("runner of %v: guards %v, PrintAfter %q, PrintChanged %v, VerifyEach %v, Stats %v, TimePasses %v, CoreHook set %v, Output %v", w, d.Opt.On("guards"), d.PrintAfter, d.PrintChanged, d.VerifyEach, d.Stats, d.TimePasses, d.CoreHook != nil, d.Output)
-		}
-		runners = append(runners, d)
-	}
-	if runners[0] == runners[1] {
-		t.Error("two runners share a driver")
+	if s.On("guards") {
+		t.Error("guards is on although NoOpt turns it off")
 	}
 	for _, d := range []common.Debug{{PrintAfter: []string{"guards"}}, {PrintChanged: true}, {Stats: true}, {TimePasses: true}} {
-		if err := generate.Passes(common.GenOptions{Debug: d}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "need an Output writer") {
+		if _, err := generate.Settings(common.GenOptions{Debug: d}); err == nil || !strings.Contains(err.Error(), "need an Output writer") {
 			t.Errorf("%+v without Output: %v", d, err)
 		}
 	}
-	if err := generate.Passes(common.GenOptions{Debug: common.Debug{VerifyEach: true}}, generate.Hooks{}).Validate(); err != nil {
+	if _, err := generate.Settings(common.GenOptions{Debug: common.Debug{VerifyEach: true}}); err != nil {
 		t.Errorf("VerifyEach writes nothing and needs no Output: %v", err)
 	}
-	if err := generate.Passes(common.GenOptions{Debug: common.Debug{PrintAfter: []string{"core"}, Output: &dumps}}, generate.Hooks{}).Validate(); err == nil || !strings.Contains(err.Error(), "the step that makes its IR is elaborate") {
+	if _, err := generate.Settings(common.GenOptions{Debug: common.Debug{PrintAfter: []string{"core"}, Output: &dumps}}); err == nil || !strings.Contains(err.Error(), "the step that makes its IR is elaborate") {
 		t.Errorf("a stage name: %v", err)
 	}
 }

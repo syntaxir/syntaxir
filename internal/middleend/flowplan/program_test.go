@@ -2,16 +2,18 @@ package flowplan_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 // A call enters the wrapper of a plain rule, and in the typed table that of any rule but a
@@ -56,7 +58,7 @@ func TestPlanProgramReachesThroughTheRoutes(t *testing.T) {
 	tab.Rules[byName["a"]].Plain = true
 	main := plandata.Entry{Table: "rules", ID: byName["main"]}
 	c := &plandata.Cores{Tables: []plandata.CoreTable{tab}, Roots: []plandata.Entry{main}}
-	p, err := (&driver.Driver{}).Plan(c)
+	p, err := planProgram(c)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,14 +80,14 @@ func TestPlanProgramReachesThroughTheRoutes(t *testing.T) {
 		t.Errorf("routes %v, want only a through its wrapper", p.Tables)
 	}
 	bad := &plandata.Cores{Tables: []plandata.CoreTable{{Name: "rules", M: m}}, Roots: []plandata.Entry{main}}
-	if _, err := (&driver.Driver{}).Plan(bad); err == nil || !strings.Contains(err.Error(), "call facts") {
+	if _, err := planProgram(bad); err == nil || !strings.Contains(err.Error(), "call facts") {
 		t.Errorf("a table without call facts: %v, want an error that says so", err)
 	}
 }
 
-// The plan is dumped only when -print-after names it, not under all, with its entry points, and each
-// rule's route and reach.
-func TestPlanIsDumpedOnlyByName(t *testing.T) {
+// The dump of the plan shows its entry points, and each rule's route and reach. The driver dumps it
+// only when -print-after names it, not under all (TestDumpsGroupByTable).
+func TestPlanDump(t *testing.T) {
 	t.Parallel()
 	prog := compiletest.Program(t, "rule main = a\nrule a = \"a\"\nrule unused = \"u\"\n", check.Options{})
 	m, err := elaborate.CoreProjecting(prog, false, false)
@@ -99,18 +101,18 @@ func TestPlanIsDumpedOnlyByName(t *testing.T) {
 	tab := plandata.CoreTable{Name: "rules", M: m, Rules: make([]plandata.CallRule, len(m.Rules))}
 	tab.Rules[byName["a"]].Plain = true
 	c := &plandata.Cores{Tables: []plandata.CoreTable{tab}, Roots: []plandata.Entry{{Table: "rules", ID: byName["main"]}}}
-	var all, named bytes.Buffer
-	if _, err := (&driver.Driver{PrintAfter: []string{driver.PrintAll}, Output: &all}).Plan(c); err != nil {
-		t.Fatal(err)
-	}
-	if all.Len() != 0 {
-		t.Errorf("-print-after all dumps the plan:\n%s", all.String())
-	}
-	if _, err := (&driver.Driver{PrintAfter: []string{flowplan.PlanName}, Output: &named}).Plan(c); err != nil {
+	var named bytes.Buffer
+	dump := &pipetest.Watch{Print: true, Fn: func(e pipe.Event, r *pipe.Result) {
+		if e.Step.Name == flowplan.PlanName && r.Err == nil {
+			fmt.Fprintf(&named, "-- after %s --\n", e.Step.Instance)
+			r.Print(&named)
+		}
+	}}
+	if _, err := planProgram(c, dump); err != nil {
 		t.Fatal(err)
 	}
 	for _, line := range []string{
-		"-- after plan [program] --",
+		"-- after plan --",
 		"roots rules.main",
 		"table rules",
 		fmt.Sprintf("rule %d main call=slot reach=slot", byName["main"]),
@@ -121,4 +123,10 @@ func TestPlanIsDumpedOnlyByName(t *testing.T) {
 			t.Errorf("the dump lacks %q:\n%s", line, named.String())
 		}
 	}
+}
+
+// planProgram runs the step that plans the program c (flowplan.Planning), computing its reach, with
+// the observers obs.
+func planProgram(c *plandata.Cores, obs ...pipe.Observer) (*plandata.Program, error) {
+	return pipe.Execute(context.Background(), &pipe.Run{Observers: obs}, pipe.WithConst(plandata.ReachFeature, nil, pipe.Of(flowplan.Planning)), c)
 }

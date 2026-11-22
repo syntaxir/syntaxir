@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -14,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 // irDumpHeader matches the header of a dump of the module of a table after the lowering that made it
@@ -96,55 +98,58 @@ var BrokenExecPass = pipe.New(pipe.Def[codepass.Unit, codepass.Unit]{
 	},
 })
 
-// BrokenFlowPipeline returns a FlowPipeline hook of a generator (driver.Driver) that runs the Flow
-// pipeline with BrokenFlowPass added at its end on the functions of the table named table, and the
-// Flow pipeline as it is on the others. It counts the functions of the table in seen.
-func BrokenFlowPipeline(table string, seen *int) func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-	return func(tb string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-		if tb != table {
-			return flowpass.Pipeline()
-		}
-		*seen++
-		return flowpass.OnFuncs(append(slices.Clone(flowpass.Passes), BrokenFlowPass)...)
-	}
+// BrokenFlow returns the edit of a compilation (driver.Options.Edits) that runs the Flow passes with
+// BrokenFlowPass added at their end on the functions of the table labeled table, and the Flow passes
+// as they are on the others.
+func BrokenFlow(table string) pipe.Edit {
+	return pipe.Fill(driver.FlowSlot, table, pipe.Seq(code.FlowStage, append(slices.Clone(flowpass.Passes), BrokenFlowPass)...))
 }
 
-// BrokenExecPipeline is BrokenFlowPipeline for the Exec pipeline, with BrokenExecPass.
-func BrokenExecPipeline(table string, seen *int) func(string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
-	return func(tb string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
-		if tb != table {
-			return codepass.Pipeline()
-		}
-		*seen++
-		return codepass.OnFuncs(append(slices.Clone(codepass.Passes), BrokenExecPass)...)
-	}
+// BrokenExec is BrokenFlow for the Exec passes, with BrokenExecPass.
+func BrokenExec(table string) pipe.Edit {
+	return pipe.Fill(driver.ExecSlot, table, pipe.Seq(code.ExecStage, append(slices.Clone(codepass.Passes), BrokenExecPass)...))
 }
 
 // recordFeature is the function that RecordFlowPass calls, which RecordingFlow provides.
-var recordFeature = pipe.NewFeature("test-flow-record", func(func(*code.Module)) string { return "record" }, nil)
+var recordFeature = pipe.NewFeature("test-flow-record", func(func(pipe.Label, *code.Module)) string { return "record" }, nil)
 
-// RecordFlowPass is a Flow pass of the tests that calls the function of RecordingFlow with the module
-// of each function it runs on and changes nothing. It is no registered optimization: it declares that
-// it is a test pass.
+// RecordFlowPass is a Flow pass of the tests that calls the function of RecordingFlow with the label
+// and the module of each function it runs on and changes nothing. It is no registered optimization:
+// it declares that it is a test pass.
 var RecordFlowPass = pipe.New(pipe.Def[flowpass.Unit, flowpass.Unit]{
 	Decl: pipe.Decl{Name: "test-flow-record", Test: true, Obligation: "none: it records the function and changes nothing",
 		Features: []pipe.FeatureID{recordFeature.ID()}},
 	In: code.FlowStage, Out: code.FlowStage,
 	Run: func(c *pipe.Ctx[flowpass.Unit], u flowpass.Unit) (flowpass.Unit, pass.PreservedSet, error) {
-		pipe.Feature(c, recordFeature)(u.Module())
+		pipe.Feature(c, recordFeature)(c.Label(), u.Module())
 		return u, pass.PreserveAll(), nil
 	},
 })
 
 // RecordingFlow returns the Flow pipeline with RecordFlowPass before the passes (first) or after them,
-// which calls record with the module of each function it runs on. After the passes, it runs on a
-// function only when the passes before it succeeded, before flow-finish ends the function.
-func RecordingFlow(first bool, record func(m *code.Module)) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-	passes := slices.Clone(flowpass.Passes)
+// on each function of a module, which calls record with the label and the module of each function it
+// runs on. After the passes, it runs on a function only when the passes before it succeeded, before
+// flow-finish ends the function.
+func RecordingFlow(first bool, record func(l pipe.Label, m *code.Module)) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
+	return pipe.WithConst(recordFeature, record, flowpass.OnFuncs(recordingPasses(first)...))
+}
+
+// recordingPasses returns the Flow passes with RecordFlowPass before them (first) or after them.
+func recordingPasses(first bool) []*pipe.Pass[flowpass.Unit, flowpass.Unit] {
 	if first {
-		passes = append([]*pipe.Pass[flowpass.Unit, flowpass.Unit]{RecordFlowPass}, passes...)
-	} else {
-		passes = append(passes, RecordFlowPass)
+		return append([]*pipe.Pass[flowpass.Unit, flowpass.Unit]{RecordFlowPass}, flowpass.Passes...)
 	}
-	return pipe.WithConst(recordFeature, record, flowpass.OnFuncs(passes...))
+	return append(slices.Clone(flowpass.Passes), RecordFlowPass)
+}
+
+// FlowPasses returns an observer of a compilation (driver.Options.Observers) that calls record with
+// the label and the module of the function after each Flow pass that runs on a function of a table.
+// The Flow passes run on each function in their order and flow-finish ends it after them, so the last
+// call for a function sees it after every pass that ran on it, with the forms that they replaced.
+func FlowPasses(record func(l pipe.Label, m *code.Module)) pipe.Observer {
+	return &pipetest.Watch{Units: true, Fn: func(e pipe.Event, r *pipe.Result) {
+		if u, ok := r.Unit.(flowpass.Unit); ok && r.Err == nil && e.Label.Func != "" && e.Step.In == code.FlowStage.Name {
+			record(e.Label, u.Module())
+		}
+	}}
 }

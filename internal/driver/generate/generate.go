@@ -21,16 +21,17 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Go generates the files of a Go parser for g with o, running the passes that o selects (Passes),
+// Go generates the files of a Go parser for g with o, running the passes that o selects (Settings),
 // and the embedded copy of the Go library (pkg/runtime/libgo) with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func Go(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.LibGo = libGo
-	return GoWith(compileForGenerator, g, o, driver.Options{})
+	return GoWith(compileForGenerator, g, o, driver.Options{}, nil)
 }
 
-// GoWith is Go with the compiler c, which checks the grammar, the library o.LibGo, and the edits and
-// observers of x (tests); the settings and the debugging settings of x come from o.
-func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options) ([]common.GeneratedFile, error) {
+// GoWith is Go with the compiler c, which checks the grammar, the library o.LibGo, the edits and
+// observers of x and the hooks h of the printer (driver.Target.GoHooks), which only tests set; the
+// settings and the debugging settings of x come from o.
+func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *goprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
 		return goprint.LibFiles(o)
 	}
@@ -46,7 +47,7 @@ func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 	if err != nil {
 		return nil, err
 	}
-	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.Go, Gen: o})
+	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.Go, Gen: o, GoHooks: h})
 	if err != nil {
 		return nil, err
 	}
@@ -54,15 +55,16 @@ func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 }
 
 // TypeScript generates the files of a TypeScript parser for g with o, running the passes that o
-// selects (Passes), and lib.ts with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
+// selects (Settings), and lib.ts with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.TSLib = tsLib
-	return TypeScriptWith(compileForGenerator, g, o, driver.Options{})
+	return TypeScriptWith(compileForGenerator, g, o, driver.Options{}, nil)
 }
 
 // TypeScriptWith is TypeScript with the compiler c, which checks the grammar, the library o.TSLib,
-// and the edits and observers of x (tests); the settings and the debugging settings of x come from o.
-func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options) ([]common.GeneratedFile, error) {
+// the edits and observers of x and the hooks h of the printer (driver.Target.TSHooks), which only
+// tests set; the settings and the debugging settings of x come from o.
+func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *tsprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
 		return tsprint.LibFiles(o.TSLib)
 	}
@@ -78,7 +80,7 @@ func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x dr
 	if err != nil {
 		return nil, err
 	}
-	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.TypeScript, Gen: o})
+	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h})
 	if err != nil {
 		return nil, err
 	}

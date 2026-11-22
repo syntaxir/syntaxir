@@ -12,6 +12,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 )
@@ -135,7 +136,7 @@ func flowGenerate(src string, opts common.GenOptions) (string, int, int, bool) {
 	var gen *print.Generator
 	h := &print.Hooks{Generator: func(x *print.Generator) { gen = x }}
 	opts.Module, opts.KeepComments = "example.com/p", true
-	files, err := print.GenerateParser(g, compileForGenerator, codegentest.Passes(opts), codegentest.WithLib(opts), h)
+	files, err := generateGo(g, opts, driver.Options{}, h)
 	if err != nil {
 		return "", 0, 0, false
 	}

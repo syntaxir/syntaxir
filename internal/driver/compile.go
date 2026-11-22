@@ -34,6 +34,12 @@ type Output = result.Output
 type Target struct {
 	Backend Backend
 	Gen     common.GenOptions
+	// GoHooks and TSHooks are the hooks of a test in the printer of a Go or a TypeScript target
+	// (goprint.Hooks, tsprint.Hooks), which observe or change the decisions of its printing. They are
+	// for tests: production leaves them nil, and no package other than a test sets them. A target
+	// sets at most the hooks of its own backend.
+	GoHooks *goprint.Hooks
+	TSHooks *tsprint.Hooks
 }
 
 // Options are the settings of a compilation, common to every target.
@@ -85,7 +91,7 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	if err := c.decide(); err != nil {
 		return nil, err
 	}
-	d := debugger(o)
+	d := newDebugger(o)
 	out, err := c.run(ctx, d)
 	if r, ok := out.(*common.Replan); ok && err == nil {
 		// The fallback of planning: the printed code enters other rules than the plan reaches, so
@@ -107,13 +113,13 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	if err != nil {
 		return nil, err
 	}
-	d.Report()
+	d.report()
 	return []Output{out}, nil
 }
 
 // run executes the pipeline of the compilation c once, with the observers of the debugging settings
 // and of the call that d runs.
-func (c *compilation) run(ctx context.Context, d *Driver) (Output, error) {
+func (c *compilation) run(ctx context.Context, d *debugger) (Output, error) {
 	a, err := c.assemble()
 	if err != nil {
 		return nil, err
@@ -122,20 +128,21 @@ func (c *compilation) run(ctx context.Context, d *Driver) (Output, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers("")}, pl, c)
+	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}, pl, c)
 	if err != nil {
 		return nil, a.error(err)
 	}
 	return out, nil
 }
 
-// debugger returns the driver whose observers write what the debugging settings of the call o select
-// and run its observers, with the dumps of each table kept together (Driver.out).
-func debugger(o Options) *Driver {
+// newDebugger returns the debugger of the call o: its observers write what the debugging settings
+// select, with the dumps of each table kept together (debugger.out), and run the observers of the
+// call.
+func newDebugger(o Options) *debugger {
 	g := o.Debug
-	return &Driver{Opt: o.Settings, PrintAfter: g.PrintAfter, PrintBefore: g.PrintBefore, PrintChanged: g.PrintChanged,
-		VerifyEach: g.VerifyEach, Stats: g.Stats, TimePasses: g.TimePasses, OptBisectLimit: g.OptBisectLimit,
-		Output: g.Output, Hooks: Hooks{Observers: o.Observers}, groups: &groups{}, numbering: &pipe.Numbering{}}
+	return &debugger{PrintAfter: g.PrintAfter, PrintBefore: g.PrintBefore, PrintChanged: g.PrintChanged,
+		Stats: g.Stats, TimePasses: g.TimePasses, OptBisectLimit: g.OptBisectLimit,
+		Output: g.Output, call: o.Observers, groups: &groups{}}
 }
 
 // assembled is the pipeline of one target and the steps whose failure is an error of the compilation
@@ -158,7 +165,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = goprint.NewGoTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings)
+		c.target = goprint.NewGoTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.GoHooks)
 		return nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(c.t.Gen)
@@ -166,7 +173,7 @@ func (c *compilation) decide() error {
 			return err
 		}
 		c.t.Gen = opts
-		c.target = tsprint.NewTSTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings)
+		c.target = tsprint.NewTSTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings, c.t.TSHooks)
 		return nil
 	}
 	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
@@ -223,6 +230,10 @@ func checkTarget(p *Program, o Options, t Target) error {
 		return bad("LeftRecursionBindings")
 	case !reflect.DeepEqual(g.Debug, common.Debug{}) && !reflect.DeepEqual(g.Debug, o.Debug):
 		return bad("Debug")
+	case t.GoHooks != nil && t.Backend != result.Go:
+		return fmt.Errorf("target %s: GoHooks are set for a target of another backend", t.Backend)
+	case t.TSHooks != nil && t.Backend != result.TypeScript:
+		return fmt.Errorf("target %s: TSHooks are set for a target of another backend", t.Backend)
 	}
 	if g.Optimize != "" || len(g.Opt) > 0 || len(g.NoOpt) > 0 {
 		s, err := GenSettings(g)

@@ -164,7 +164,7 @@ func (g *Generator) flowFramed(l *execlower.Lowered, slots []core.Slot, scope *c
 	return g.execFramed(p, l, slots, scope, comment, ruleBody)
 }
 
-// planned returns the function of the use k in the module of the table, which LowerTable lowered: the
+// planned returns the function of the use k in the module of the table, which the compilation lowered: the
 // plan holds it, since the printer asks only for the functions of the plan.
 func (g *Generator) planned(k plandata.Key) *execlower.Lowered {
 	l, ok := execlower.Func(g.table, k)

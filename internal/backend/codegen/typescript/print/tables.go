@@ -29,7 +29,7 @@ var TableLabels = []string{"rules", "recRules"}
 
 // TSTarget is the TypeScript target of a compilation (common.Target), which print-ts reads: the
 // program, the build of its recognizer, the start rule, the options of the target, which Validate
-// checked, and the settings of the compilation.
+// checked, the settings of the compilation and the hooks of a test.
 type TSTarget struct {
 	Prog     *common.Program
 	Start    *common.Rule
@@ -37,12 +37,15 @@ type TSTarget struct {
 	Settings pass.Settings
 	// rec returns the recognizer, built on the first call, or nil if the parser has none.
 	rec func() (*common.Program, error)
+	// hooks are the hooks of a test, or nil.
+	hooks *Hooks
 }
 
 // NewTSTarget returns the TypeScript target of the program prog with the build of its recognizer, the
-// start rule start, the options opts, which Validate checked, and the settings of the compilation.
-func NewTSTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings) *TSTarget {
-	t := &TSTarget{Prog: prog, Start: start, Opts: opts, Settings: settings}
+// start rule start, the options opts, which Validate checked, the settings of the compilation and
+// the hooks of a test, which production leaves nil.
+func NewTSTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings, hooks *Hooks) *TSTarget {
+	t := &TSTarget{Prog: prog, Start: start, Opts: opts, Settings: settings, hooks: hooks}
 	t.rec = sync.OnceValues(func() (*common.Program, error) {
 		if !opts.Recognize {
 			return nil, nil
@@ -146,6 +149,9 @@ func (t *TSTarget) print(tables *common.Tables, given bool) (result.Output, erro
 	}
 	if printed := tsg.printedReach(t.Prog, rec, t.Start); !given && t.Opts.Debug.OptBisectLimit == nil && !printed.equal(live) {
 		return &common.Replan{Lang: result.TypeScript, Reach: printed.entries()}, nil
+	}
+	if t.hooks != nil && t.hooks.Generator != nil {
+		defer t.hooks.Generator(tsg)
 	}
 	files, err := tsg.print(t.Opts, rec, t.Start)
 	if err != nil {

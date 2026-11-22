@@ -1,7 +1,6 @@
 package generate
 
 import (
-	"io"
 	"maps"
 	"slices"
 
@@ -35,38 +34,4 @@ func resolve(o common.GenOptions) (pass.Settings, error) {
 		return pass.Settings{}, err
 	}
 	return driver.GenSettings(o)
-}
-
-// Hooks are the test hooks of the pipelines of a generation (driver.Hooks). The settings, the dumps, the
-// verification and the reports come from the GenOptions, so Hooks has no field for them.
-type Hooks = driver.Hooks
-
-// Passes returns the passes of a generation with o (common.Passes): the settings of Settings (read through the Runner), and
-// runners that are copies of hooks with those settings and the debugging settings of o.Debug. hooks
-// supplies only the test hooks of the driver; the zero value runs the pipelines of the passes.
-func Passes(o common.GenOptions, hooks Hooks) common.Passes {
-	s, err := resolve(o)
-	g := o.Debug
-	d := driver.Driver{
-		Opt: s, PrintAfter: g.PrintAfter, PrintBefore: g.PrintBefore, PrintChanged: g.PrintChanged,
-		VerifyEach: g.VerifyEach, Stats: g.Stats, TimePasses: g.TimePasses, OptBisectLimit: g.OptBisectLimit,
-		Hooks: hooks,
-	}
-	return passes{driver: d, err: err}
-}
-
-// passes is the common.Passes of Passes.
-type passes struct {
-	driver driver.Driver // the driver of every runner, without Output
-	err    error         // the error of resolving the settings
-}
-
-var _ common.Runner = (*driver.Driver)(nil)
-
-func (p passes) Validate() error { return p.err }
-
-func (p passes) Runner(w io.Writer) common.Runner {
-	d := p.driver
-	d.Output = w
-	return &d
 }

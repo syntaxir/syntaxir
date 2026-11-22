@@ -1,13 +1,14 @@
 package flowplan_test
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -23,6 +24,7 @@ import (
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 const grammar = `rule main = ws item* !.
@@ -45,10 +47,20 @@ func plan(t *testing.T, src string, rec check.Recognition, live func(int) bool) 
 	t.Helper()
 	ir, rules := tableIR(t, src, rec)
 	p := flowplan.Plan(ir, planRules(rules), live)
-	if _, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
+	if _, err := lowerTable(flowplan.Unit(p, ir, nil), flowpass.Pipeline()); err != nil {
 		t.Fatal(err)
 	}
 	return ir.M, rules, p
+}
+
+// lowerTable runs on the planned table u the steps of the pipeline of a table that the bytecode VM runs
+// (driver.FlowTable): flowlower, the Flow passes pl for the VM's target (flowpass.Bytecode) and
+// flow-finish, with the observers obs.
+func lowerTable(u plandata.Planned, pl pipe.Pipeline[flowpass.Unit, flowpass.Unit], obs ...pipe.Observer) (*plandata.Table[code.Flow], error) {
+	p := pipe.Then(pipe.Of(flowlower.Lowering), pipe.Within(plandata.FlowModule, pipe.Then(
+		pipe.WithConst(flowpass.ObserveFeature, false, pipe.WithConst(flowpass.TargetFeature, flowpass.Bytecode, pl)),
+		pipe.Of(flowpass.Finishing))))
+	return pipe.Execute(context.Background(), &pipe.Run{Observers: obs}, p, u)
 }
 
 // tableIR compiles src with the recognition mode rec and returns the Core IR of its table after the
@@ -71,10 +83,10 @@ func tableIR(t *testing.T, src string, rec check.Recognition) (*plandata.TableIR
 }
 
 // planRules returns what the plan reads of the compiled rules.
-func planRules(rules []*check.Rule) []*flowplan.Rule {
-	out := make([]*flowplan.Rule, len(rules))
+func planRules(rules []*check.Rule) []*plandata.Rule {
+	out := make([]*plandata.Rule, len(rules))
 	for i, r := range rules {
-		out[i] = &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader}
+		out[i] = &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader}
 	}
 	return out
 }
@@ -287,7 +299,7 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 	ir := &plandata.TableIR{M: m, Opts: lowerdata.Options{Budget: true, Recovers: flowlower.Recovers(m), Node: true}}
 	p := flowplan.Plan(ir, planRules(append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)), nil)
 	var seen, planned []string
-	pl := codegentest.RecordingFlow(true, func(m *code.Module) {
+	pl := codegentest.RecordingFlow(true, func(_ pipe.Label, m *code.Module) {
 		if seen == nil {
 			for _, s := range p.Funcs {
 				planned = append(planned, s.Name)
@@ -296,16 +308,20 @@ func TestPlanDecidesBeforeThePasses(t *testing.T) {
 		seen = append(seen, flow.FuncOf(m).Name)
 	})
 	var dump strings.Builder
-	d := &driver.Driver{PrintAfter: []string{flowlower.Name}, Output: &dump,
-		Hooks: driver.Hooks{FlowPipeline: func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] { return pl }}}
-	if _, err := d.LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode); err != nil {
+	after := &pipetest.Watch{Print: true, Fn: func(e pipe.Event, r *pipe.Result) {
+		if e.Step.Name == flowlower.Name && r.Err == nil {
+			fmt.Fprintf(&dump, "-- after %s --\n", e.Step.Instance)
+			r.Print(&dump)
+		}
+	}}
+	if _, err := lowerTable(flowplan.Unit(p, ir, nil), pl, after); err != nil {
 		t.Fatal(err)
 	}
 	if len(planned) == 0 || !slices.Equal(seen, planned) {
 		t.Errorf("the first pass ran on %v, want the functions of the plan %v", seen, planned)
 	}
 	// The module is dumped once after flowlower, its functions in the order of the plan.
-	body, ok := strings.CutPrefix(dump.String(), "-- after flowlower [rules] --\n")
+	body, ok := strings.CutPrefix(dump.String(), "-- after flowlower --\n")
 	if !ok || strings.Contains(body, "\n-- ") {
 		t.Fatalf("the dump is not the one module after flowlower:\n%s", dump.String())
 	}
@@ -408,7 +424,7 @@ func TestPlanStream(t *testing.T) {
 	if s.Key != (plandata.Key{Use: plandata.StreamBody, Rule: 0}) || !s.Stream || s.Name != "main/stream" || !ok || !slices.Equal(core.SlotNames(s.Slots), core.SlotNames(body.Slots)) {
 		t.Fatalf("stream body %+v", s)
 	}
-	lt, err := (&driver.Driver{}).LowerFlowTable("rules", flowplan.Unit(p, ir, nil), false, flowpass.Bytecode)
+	lt, err := lowerTable(flowplan.Unit(p, ir, nil), flowpass.Pipeline())
 	if err != nil {
 		t.Fatal(err)
 	}

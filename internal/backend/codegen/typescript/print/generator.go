@@ -1,11 +1,9 @@
 package print
 
 import (
-	"bytes"
 	_ "embed"
 	"encoding/json"
 	"fmt"
-	"io"
 	"maps"
 	"regexp"
 	"slices"
@@ -28,118 +26,27 @@ import (
 // tsLibMarker starts the part of lib.ts in the TypeScript library that is copied into generated code.
 const tsLibMarker = "// --- Library ---\n"
 
-// Generate generates the files of a TypeScript parser for g, compiling it with c and running the
-// passes with p, which the driver resolved from opts, that behaves
-// exactly like the engine (and the generated Go parsers): lib.ts, with the library
-// (LibEmbed), parser.ts, with the code generated from the grammar, and with opts.Types
-// types.ts, with the declarations of the grammar's types. LibImport imports the library from
-// opts.LibModule instead of writing it, and LibOnly writes only lib.ts, for which g may
-// be nil. common.TypeScript describes the options.
+// A TypeScript parser (print-ts, Printing) behaves exactly like the engine (and the generated Go
+// parsers): lib.ts, with the library (LibEmbed), parser.ts, with the code generated from the grammar,
+// and with opts.Types types.ts, with the declarations of the grammar's types. LibImport imports the
+// library from opts.LibModule instead of writing it, and LibOnly writes only lib.ts (LibFiles).
+// common.TypeScript describes the options.
 //
 // Each parsing expression becomes a function and actions and predicates become TypeScript
-// expressions, as in the Go generator; the library (internal/backend/codegen/typescript/lib) mirrors the Go library. opts.Package
-// is not used. opts.Types adds declarations and Node-to-value conversion entry points.
+// expressions, as in the Go generator; the library (internal/backend/codegen/typescript/lib) mirrors
+// the Go library. opts.Package is not used. opts.Types adds declarations and Node-to-value
+// conversion entry points.
+
 // maxLeaderBits is the number of leaders of each left-recursion cycle that have a bit in the present
 // sets of the library's dependency memo (Rule.leaderBit), as in the Go library. The sign bit stays
 // clear: a negative present set is the identity of a larger one (Parser.presentOf).
 const maxLeaderBits = 31
 
-func Generate(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions) ([]common.GeneratedFile, error) {
-	return GenerateParser(g, c, p, opts, nil)
-}
-
-// Hooks change how GenerateParser generates, for tests.
+// Hooks change how print-ts prints, for tests only: a test sets them on its target
+// (driver.Target.TSHooks), and production leaves them nil.
 type Hooks struct {
-	// Generator, if not nil, is called with the generator once it has generated.
+	// Generator, if not nil, is called with the generator once it has printed the parser.
 	Generator func(*Generator)
-}
-
-// GenerateParser generates the files of Generate with the hooks h, which may be nil.
-func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts common.GenOptions, h *Hooks) ([]common.GeneratedFile, error) {
-	if h == nil {
-		h = &Hooks{}
-	}
-	if opts.Lib == common.LibOnly {
-		return LibFiles(opts.TSLib)
-	}
-	opts, err := Validate(opts)
-	if err != nil {
-		return nil, err
-	}
-	// The settings that decide the output are read from the generator (Generator.Opt); this only
-	// reports the error of resolving them where the options are validated.
-	if err := p.Validate(); err != nil {
-		return nil, err
-	}
-	view, recognizer, err := c(g, common.CompileOptions{SourceInfo: opts.SourceInfo, DefaultValue: opts.DefaultValue, LeftRecursionBindings: opts.LeftRecursionBindings})
-	if err != nil {
-		return nil, err
-	}
-	prog := view
-	if prog.Run.HasMissing {
-		return nil, rprogram.MissingUnsupported("generated parsers")
-	}
-	start, err := prog.StartRule(opts.Start)
-	if err != nil {
-		return nil, err
-	}
-	var rec *common.Program
-	if opts.Recognize {
-		recView, err := recognizer()
-		if err != nil {
-			return nil, err
-		}
-		rec = recView
-	}
-	live, err := reachableRules(prog, rec, start, opts.Document)
-	if err != nil {
-		return nil, err
-	}
-	// The code is generated up to twice; only the last generation's dumps and reports are written, and
-	// the dumps also when it fails, since they show what led to the error. Under a bisection limit it
-	// generates once, so that one sequence numbers the runs of the optional passes.
-	var dumped *bytes.Buffer
-	newGen := func(live *tsLive) (*Generator, error) {
-		dumped = &bytes.Buffer{}
-		tsg := newGenerator(prog, opts, live)
-		var dumps io.Writer
-		if opts.Debug.Output != nil {
-			dumps = dumped
-		}
-		tsg.Runner = p.Runner(dumps)
-		if err := tsg.generate(rec); err != nil {
-			return nil, err
-		}
-		return tsg, nil
-	}
-	flush := func() {
-		if opts.Debug.Output != nil && dumped != nil {
-			_, _ = opts.Debug.Output.Write(dumped.Bytes()) // the error of the generation is the one to return
-		}
-	}
-	tsg, err := newGen(live)
-	if err != nil {
-		flush()
-		return nil, err
-	}
-	// The printed code can call fewer rules than the Core IR does (a call after an expression that
-	// cannot match is not printed): the rules that only such calls reach are generated again without.
-	if printed := tsg.printedReach(prog, rec, start); !printed.equal(live) && opts.Debug.OptBisectLimit == nil {
-		if tsg, err = newGen(printed); err != nil {
-			flush()
-			return nil, err
-		}
-	}
-	if h.Generator != nil {
-		defer h.Generator(tsg)
-	}
-	if opts.Debug.Output != nil {
-		tsg.Runner.Report()
-		if _, err := opts.Debug.Output.Write(dumped.Bytes()); err != nil {
-			return nil, err
-		}
-	}
-	return tsg.print(opts, rec, start)
 }
 
 // Validate checks the options of a TypeScript parser that do not depend on the grammar, other than
@@ -385,8 +292,7 @@ type Generator struct {
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
 	// functions the printer prints; nil if its Core IR or its lowering failed (FlowErr).
 	table *plandata.Table[code.Exec]
-	// tables are the tables of the compilation at the Exec stage that the printer prints, or nil for a
-	// generator that lowers its tables itself.
+	// tables are the tables of the compilation at the Exec stage that the printer prints.
 	tables   *common.Tables
 	reachErr error
 	// printed holds, for each table, the rules that the printed code of each rule calls (by ID).

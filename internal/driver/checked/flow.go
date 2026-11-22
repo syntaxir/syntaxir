@@ -1,14 +1,10 @@
 package checked
 
 import (
-	"fmt"
+	"context"
 
 	"syntaxir.dev/sxir/internal/driver"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowpass"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 )
 
@@ -26,47 +22,18 @@ type FlowTable struct {
 }
 
 // FlowTable builds the Node table of the program the way the generated Go parser with budget
-// controls builds its Node table, so that the VM runs the same functions: the same Core IR and
-// lowering options (flowplan.BuildTable), the same plan, with its decisions (flowplan.Plan,
-// flowplan.Unit), with the stream body of each rule that has a #stream repetition
-// (flowplan.Stream), since any such rule may start a stream parse, and the Core step and the Flow steps of the driver on the table at the default
+// controls builds its Node table, so that the VM runs the same functions (driver.FlowTable): the same
+// Core IR and lowering options, the same plan with its decisions and the stream body of each rule that
+// has a #stream repetition, and the Core and Flow parts of the pipeline of the table at the default
 // optimizations, for the VM's target (flowpass.Bytecode).
 func (s *Source) FlowTable() (*FlowTable, error) {
-	p := s.prog
-	d := &driver.Driver{}
-	t, err := flowplan.BuildTable(p, plandata.TableConfig{Values: true, Budget: true}, func(build func() (*core.Module, error)) (*core.Module, error) {
-		return d.Core("rules", build)
-	})
+	lt, err := driver.FlowTable(context.Background(), s.prog)
 	if err != nil {
-		return nil, fmt.Errorf("internal error: Core IR: %w", err)
+		return nil, err
 	}
-	t.Opts.Document, t.Opts.Resume = true, true // one module serves Document parses, which resume runs
-	rules := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
-	planned := planRules(rules)
-	plan := flowplan.Plan(t, planned, nil)
-	for i, r := range p.RuleList {
-		// Any rule with a #stream repetition may start a stream parse, which runs its stream body.
-		if r.Stream && !flowplan.Stream(plan, t, planned[i]) {
-			return nil, fmt.Errorf("internal error: rule %s has no stream body", r.Name)
-		}
-	}
-	lt, err := d.LowerFlowTable("rules", flowplan.Unit(plan, t, nil), false, flowpass.Bytecode)
-	if err != nil {
-		return nil, fmt.Errorf("table rules: %w", err)
-	}
-	ft := &FlowTable{IR: t, Plan: lt.Plan, Funcs: map[plandata.Key]*code.Module{}}
+	ft := &FlowTable{IR: lt.IR, Plan: lt.Plan, Funcs: map[plandata.Key]*code.Module{}}
 	for i, f := range lt.Plan.Funcs {
 		ft.Funcs[f.Key] = lt.Module.Module().FuncUnit(i)
 	}
 	return ft, nil
-}
-
-// planRules returns what the plan of a table reads of the compiled rules (flowplan.Rule).
-func planRules(rules []*check.Rule) []*flowplan.Rule {
-	out := make([]*flowplan.Rule, len(rules))
-	for i, r := range rules {
-		out[i] = &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean,
-			Novalue: r.Novalue, Leader: r.Leader}
-	}
-	return out
 }

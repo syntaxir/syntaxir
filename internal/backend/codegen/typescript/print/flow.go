@@ -7,13 +7,10 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -32,55 +29,21 @@ import (
 // generation then fails.
 type tsFlowUnsupported string
 
-// startTSFlow starts printing the rules of the table being generated: from its table at the Exec stage
-// among the tables of the compilation, or, without them, by building its Core IR and lowering its
-// planned functions to the Exec stage (lowerTable). It reports whether the table was lowered; if not,
-// the generation fails with the error it records.
+// startTSFlow starts printing the rules of the table being generated from its table at the Exec stage
+// among the tables of the compilation. It reports whether the table was lowered; if not, the
+// generation fails with the error it records.
 func (g *Generator) startTSFlow() bool {
 	g.Flow, g.table = nil, nil
-	if g.tables != nil {
-		t := g.tables.Table(g.IRTable())
-		if t == nil {
-			if g.FlowErr == nil {
-				g.FlowErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
-			}
-			return false
-		}
-		g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
-		g.table = t
-		return true
-	}
-	err := g.StartRecFlow(g.Prog)
-	if err == nil {
-		g.table, err = g.lowerTable()
-	}
-	if err != nil {
+	t := g.tables.Table(g.IRTable())
+	if t == nil {
 		if g.FlowErr == nil {
-			g.FlowErr = err
+			g.FlowErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
 		}
-		g.table = nil
 		return false
 	}
+	g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
+	g.table = t
 	return true
-}
-
-// lowerTable plans the functions of the table being generated, whose rules, value-free twins included,
-// are by ID, and lowers them through the Flow and the Exec part of the pipeline with the TypeScript
-// passes (common.Generator.LowerTable). The plan leaves out the rules that the generator does not print
-// (pruned). The table's configuration (common.Generator.StartRecFlow) runs a rule that binds variables
-// as a framed body, whose frame the library owns, and outlines nodes, so no function grows large.
-func (g *Generator) lowerTable() (*plandata.Table[code.Exec], error) {
-	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
-	rules := make([]*flowplan.Rule, len(all))
-	for i, r := range all {
-		rules[i] = r.PlanRule()
-	}
-	p := flowplan.Plan(g.Flow.TableIR, rules, func(id int) bool { return !g.pruned(all[id]) })
-	t, err := g.LowerTable(p, nil, tspass.Pipeline)
-	if err != nil {
-		return nil, fmt.Errorf("table %s: %w", g.Table, err)
-	}
-	return t, nil
 }
 
 // flowRule prints the body of the rule r as a function of its own and returns the call expression

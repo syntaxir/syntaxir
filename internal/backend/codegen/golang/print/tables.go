@@ -87,14 +87,23 @@ type GoTarget struct {
 	Start      *common.Rule
 	Opts       common.GenOptions
 	Settings   pass.Settings
-	decide     func() (*Decision, error)
+	// hooks are the hooks of a test, or nil (Hooks).
+	hooks  *Hooks
+	decide func() (*Decision, error)
 }
 
 // NewGoTarget returns the Go target of the program prog with its recognizer, the start rule start, the
-// options opts, which Validate completed, and the settings of the compilation.
-func NewGoTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings) *GoTarget {
-	t := &GoTarget{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, Settings: settings}
-	t.decide = sync.OnceValues(func() (*Decision, error) { return Decide(prog, recognizer, start, opts) })
+// options opts, which Validate completed, the settings of the compilation and the hooks of a test,
+// which production leaves nil.
+func NewGoTarget(prog *common.Program, recognizer func() (*common.Program, error), start *common.Rule, opts common.GenOptions, settings pass.Settings, hooks *Hooks) *GoTarget {
+	t := &GoTarget{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, Settings: settings, hooks: hooks}
+	t.decide = sync.OnceValues(func() (*Decision, error) {
+		d, err := Decide(prog, recognizer, start, opts)
+		if err == nil && hooks != nil {
+			d.refuse = hooks.RefuseFlowRecRule
+		}
+		return d, err
+	})
 	return t
 }
 
@@ -339,7 +348,11 @@ var Printing = pipe.New(pipe.Def[*common.Tables, result.Output]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		files, _, err := printTables(d, target.Settings, t, Hooks{}, nil)
+		var h Hooks
+		if target.hooks != nil {
+			h = *target.hooks
+		}
+		files, _, err := printTables(d, target.Settings, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

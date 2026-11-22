@@ -47,7 +47,7 @@ func TestEveryFlowPassIsAFlag(t *testing.T) {
 		}
 	}
 	// The manager accepts the pipeline (names, After, features) and every pass states its obligation.
-	if _, err := (&Driver{}).Flow("rules", framed(), false, flowpass.Target{}); err != nil {
+	if _, err := runFlowTable(t, testRun{}, "rules", planned(framed()), flowpass.Target{}); err != nil {
 		t.Error(err)
 	}
 	for _, p := range flowpass.Passes {
@@ -70,7 +70,7 @@ func TestEveryExecPassIsAFlag(t *testing.T) {
 			t.Errorf("pass %s is also a Core or Flow pass", name)
 		}
 	}
-	if _, err := (&Driver{}).Exec("rules", execModule(t), noTarget, false); err != nil {
+	if _, err := runExecTable(t, testRun{}, "rules", planned(framed()), noTarget); err != nil {
 		t.Error(err)
 	}
 	for _, p := range codepass.Passes {

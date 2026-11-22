@@ -28,7 +28,7 @@ func TestLibGoIsPerCall(t *testing.T) {
 		if src != nil {
 			opts.LibGo = src
 		}
-		files, err := print.Generate(nil, nil, nil, opts)
+		files, err := print.LibFiles(opts)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -45,7 +45,7 @@ func TestLibGoIsPerCall(t *testing.T) {
 	if !strings.Contains(b, "source-b") || strings.Contains(b, "source-a") {
 		t.Errorf("second source not used alone:\n%s", b)
 	}
-	if _, err := print.Generate(nil, nil, nil, common.GenOptions{Module: "example.com/m", Lib: common.LibOnly}); err == nil || !strings.Contains(err.Error(), "LibGo") {
+	if _, err := print.LibFiles(common.GenOptions{Module: "example.com/m", Lib: common.LibOnly}); err == nil || !strings.Contains(err.Error(), "LibGo") {
 		t.Errorf("generation without a library source: err = %v, want a LibGo error", err)
 	}
 }
@@ -60,7 +60,7 @@ type unhashableFS struct {
 // TestLibGoNotHashable shows that a source that is not a valid map key is used, not cached.
 func TestLibGoNotHashable(t *testing.T) {
 	src := unhashableFS{FS: miniLib("source-u"), tag: []int{1}}
-	files, err := print.Generate(nil, nil, nil, common.GenOptions{Module: "example.com/m", Lib: common.LibOnly, LibGo: src})
+	files, err := print.LibFiles(common.GenOptions{Module: "example.com/m", Lib: common.LibOnly, LibGo: src})
 	if err != nil {
 		t.Fatal(err)
 	}

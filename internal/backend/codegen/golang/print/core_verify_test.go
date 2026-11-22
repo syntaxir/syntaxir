@@ -6,8 +6,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -15,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 // brokenGuards is a pass that runs after guards and leaves the first literal guard it finds out of
@@ -56,9 +56,9 @@ var brokenGuards = pipe.New(pipe.Def[*core.Module, *core.Module]{
 	},
 })
 
-// withBrokenGuards returns hooks whose pipeline of Core passes has brokenGuards added after the
-// pass guards. The mutant is no registered optimization: it declares that it is a test pass.
-func withBrokenGuards() generate.Hooks {
+// withBrokenGuards returns the options of a compilation whose Core passes have brokenGuards added
+// after the pass guards. The mutant is no registered optimization: it declares that it is a test pass.
+func withBrokenGuards() driver.Options {
 	var ps []*pipe.Pass[*core.Module, *core.Module]
 	for _, p := range corepass.Passes {
 		ps = append(ps, p)
@@ -66,9 +66,7 @@ func withBrokenGuards() generate.Hooks {
 			ps = append(ps, brokenGuards)
 		}
 	}
-	return generate.Hooks{
-		CorePipeline: func(string) pipe.Pipeline[*core.Module, *core.Module] { return pipe.Seq(corepass.IR, ps...) },
-	}
+	return driver.Options{Edits: []pipe.Edit{pipe.Fill(driver.CoreSlot, "", pipe.Seq(corepass.IR, ps...))}}
 }
 
 // A pass that breaks the Core IR is caught: at the end of the run without VerifyEachPass, and by name
@@ -83,20 +81,30 @@ rule num = [0-9]+
 		t.Fatal(err)
 	}
 	opts := common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p", Lib: common.LibImport}
-	hooks := withBrokenGuards()
+	x := withBrokenGuards()
 
-	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-	if err == nil || !strings.Contains(err.Error(), "verify core:") || strings.Contains(err.Error(), "break-guard") {
+	_, err = generateGo(pg, opts, x, nil)
+	if err == nil || !strings.Contains(err.Error(), "verify core [") || strings.Contains(err.Error(), "break-guard") {
 		t.Fatalf("without VerifyEachPass: %v", err)
 	}
 	opts.Debug.VerifyEach = true
-	_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-	if err == nil || !strings.Contains(err.Error(), "internal error: break-guard: ") {
+	_, err = generateGo(pg, opts, x, nil)
+	if err == nil || !strings.Contains(err.Error(), "internal error: break-guard [rules]: ") {
 		t.Fatalf("with VerifyEachPass: %v", err)
 	}
 	if !slices.Contains(corepass.Names(), corepass.PassGuards) {
 		t.Fatal("no guards pass")
 	}
+}
+
+// brokenIn returns the options of a compilation with the edit, which count in seen the runs of the
+// pass named name on the functions of the table labeled table.
+func brokenIn(edit pipe.Edit, name, table string, seen *int) driver.Options {
+	return driver.Options{Edits: []pipe.Edit{edit}, Observers: []pipe.Observer{&pipetest.Watch{Fn: func(e pipe.Event, _ *pipe.Result) {
+		if e.Step.Name == name && e.Label.Table == table {
+			*seen++
+		}
+	}}}}
 }
 
 // pipelineTables are builds that print functions of the given table from Flow IR and Exec IR: the
@@ -125,18 +133,18 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := generate.Hooks{FlowPipeline: codegentest.BrokenFlowPipeline(c.table, &seen)}
+			x := brokenIn(codegentest.BrokenFlow(c.table), "break-flow", c.table, &seen)
 			opts := c.opts
-			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: verify code@flow [") || strings.Contains(err.Error(), "break-flow") {
+			_, err := generateGo(pg, opts, x, nil)
+			if err == nil || !strings.Contains(err.Error(), "["+c.table+"/") || !strings.Contains(err.Error(), "internal error: verify code@flow [") || strings.Contains(err.Error(), "break-flow") {
 				t.Fatalf("without VerifyEachPass: %v", err)
 			}
 			if seen == 0 {
 				t.Fatal("no function ran through the Flow pipeline")
 			}
 			opts.Debug.VerifyEach = true
-			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-flow [") {
+			_, err = generateGo(pg, opts, x, nil)
+			if err == nil || !strings.Contains(err.Error(), "["+c.table+"/") || !strings.Contains(err.Error(), "internal error: break-flow [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
 			}
 		})
@@ -157,18 +165,18 @@ rule num = [0-9]+
 	for _, c := range pipelineTables {
 		t.Run(c.table, func(t *testing.T) {
 			seen := 0
-			hooks := generate.Hooks{ExecPipeline: codegentest.BrokenExecPipeline(c.table, &seen)}
+			x := brokenIn(codegentest.BrokenExec(c.table), "break-exec", c.table, &seen)
 			opts := c.opts
-			_, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: verify code@exec [") || strings.Contains(err.Error(), "break-exec") {
+			_, err := generateGo(pg, opts, x, nil)
+			if err == nil || !strings.Contains(err.Error(), "["+c.table+"/") || !strings.Contains(err.Error(), "internal error: verify code@exec [") || strings.Contains(err.Error(), "break-exec") {
 				t.Fatalf("without VerifyEachPass: %v", err)
 			}
 			if seen == 0 {
 				t.Fatal("no module ran through the Exec pipeline")
 			}
 			opts.Debug.VerifyEach = true
-			_, err = print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
-			if err == nil || !strings.Contains(err.Error(), "of table "+c.table+": ") || !strings.Contains(err.Error(), "internal error: break-exec [") {
+			_, err = generateGo(pg, opts, x, nil)
+			if err == nil || !strings.Contains(err.Error(), "["+c.table+"/") || !strings.Contains(err.Error(), "internal error: break-exec [") {
 				t.Fatalf("with VerifyEachPass: %v", err)
 			}
 		})
@@ -182,7 +190,7 @@ func TestPrintAfterNeedsAWriter(t *testing.T) {
 		t.Fatal(err)
 	}
 	opts := common.GenOptions{Types: true, TypedOnly: true, Module: "example.com/p", Lib: common.LibImport, Debug: common.Debug{PrintAfter: []string{"guards"}}}
-	if _, err := print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), nil); err == nil || !strings.Contains(err.Error(), "Output") {
+	if _, err := generateGo(pg, opts, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "Output") {
 		t.Fatalf("err %v", err)
 	}
 }
@@ -207,11 +215,9 @@ rule num = [0-9]+
 		{"rename locals", "removed the local", testExecRenameLocals},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			hooks := generate.Hooks{ExecPipeline: func(string) pipe.Pipeline[codepass.Unit, codepass.Unit] {
-				return codepass.OnFuncs(append(slices.Clone(codepass.Passes), c.pass)...)
-			}}
+			x := driver.Options{Edits: []pipe.Edit{pipe.Fill(driver.ExecSlot, "", pipe.Seq(code.ExecStage, append(slices.Clone(codepass.Passes), c.pass)...))}}
 			opts := common.GenOptions{Module: "example.com/p", Lib: common.LibImport}
-			if _, err := print.GenerateParser(pg, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil); err == nil || !strings.Contains(err.Error(), c.want) {
+			if _, err := generateGo(pg, opts, x, nil); err == nil || !strings.Contains(err.Error(), c.want) {
 				t.Fatalf("err %v, want %q", err, c.want)
 			}
 		})

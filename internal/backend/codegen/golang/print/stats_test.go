@@ -6,11 +6,10 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
 // statsGrammar is the fixture whose statistics the test pins.
@@ -27,11 +26,11 @@ func generateWithStats(t *testing.T, opts common.GenOptions, st *pipe.Stats) []c
 	if err != nil {
 		t.Fatal(err)
 	}
-	var hooks generate.Hooks
+	var x driver.Options
 	if st != nil {
-		hooks.Observers = []pipe.Observer{st}
+		x.Observers = []pipe.Observer{st}
 	}
-	files, err := print.GenerateParser(g, codegentest.Compile, generate.Passes(opts, hooks), codegentest.WithLib(opts), nil)
+	files, err := generateGo(g, opts, x, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,5 +97,6 @@ func TestStatsPinTheGuardsPassOnTheFixture(t *testing.T) {
 // isRequired reports whether the instance is of a step that no optimization flag names, such as a
 // required step: -no-opt rejects its name.
 func isRequired(instance string) bool {
-	return generate.Passes(common.GenOptions{NoOpt: []string{instance}}, generate.Hooks{}).Validate() != nil
+	_, err := generate.Settings(common.GenOptions{NoOpt: []string{instance}})
+	return err != nil
 }

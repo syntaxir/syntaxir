@@ -11,15 +11,12 @@ import (
 // The eligibility of the rules of a table for Flow IR: which rules are lowered as flat rules and which
 // as framed bodies. The plan asks these, so every backend lowers the same rules.
 
-// Rule is what a plan reads of a rule of its table (plandata.Rule).
-type Rule = plandata.Rule
-
 // RecEligible reports whether the rule r of the Node table or of the recognizer table is lowered as
 // a flat rule: a plain, lean, value-free rule that is not a left-recursion leader and whose body has
 // no cut, recovery, Operators Rule or semantic predicate. Captures unused by recognition are omitted;
 // a predicate keeps the general form because it can require values, capture frames and variable
 // bindings.
-func RecEligible(r *Rule) bool {
+func RecEligible(r *plandata.Rule) bool {
 	if !r.Plain || !r.Lean || !r.Novalue || r.Leader || !flowlower.BodyOK(r.Body, false, false) {
 		return false
 	}
@@ -47,7 +44,7 @@ func RecEligible(r *Rule) bool {
 // IR makes, so a Core-lowered body agrees with them. The recognizer's table writes its actions
 // without projections, so its Core IR is built without them and agrees with them as well; either
 // table's body is eligible when its action reads only captures of the frame.
-func NodeFrameOK(r *Rule, cr *core.Rule) bool {
+func NodeFrameOK(r *plandata.Rule, cr *core.Rule) bool {
 	if !flowlower.BodyOK(r.Body, true, true) || !flowlower.FramedBody(cr.Body) {
 		return false
 	}

@@ -9,20 +9,21 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/execlower"
-	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 // TestExpectationsOfTheLoweredTables checks that the expectation table numbered from the lowered
-// Node and recognizer tables (execlower.Expectations), which GenerateParser numbers before it prints,
-// is the one that printing every rule of them numbers on first use, across the corpus and the outputs
-// that change which functions a table prints. The printing numbers the table when the hook Numbering
-// takes the numbering away, which the generation then reports as an expectation that the numbering
-// lacks. The same expectations in the order of the Core module of the Node table (core.Module.Exps)
-// must differ for some grammar, which shows that the comparison sees the order.
+// Node and recognizer tables (execlower.NumberedExpectations), which the compilation numbers where it
+// joins them and the printing receives (the hook Numbering), is the one that printing every rule of
+// them numbers on first use, across the corpus and the outputs that change which functions a table
+// prints. The printing numbers the table when the hook Numbering takes the numbering away, which the
+// generation then reports as an expectation that the numbering lacks. The same expectations in the
+// order of the Core module of the first numbered table (core.Module.Exps), which an observer of the
+// compilation keeps, must differ for some grammar, which shows that the comparison sees the order.
 func TestExpectationsOfTheLoweredTables(t *testing.T) {
 	modes := []struct {
 		name string
@@ -52,17 +53,24 @@ func TestExpectationsOfTheLoweredTables(t *testing.T) {
 				if err != nil {
 					return
 				}
-				var tables []*plandata.Table[code.Exec]
-				var printed []string
+				var numbered, printed []string
+				var cmu sync.Mutex
+				cores := map[string]*core.Module{}
+				keep := &pipetest.Watch{Units: true, Fn: func(e pipe.Event, r *pipe.Result) {
+					if m, ok := r.Unit.(*core.Module); ok && r.Err == nil {
+						cmu.Lock()
+						cores[e.Label.Table] = m
+						cmu.Unlock()
+					}
+				}}
 				opts := mode.opts
 				opts.Module = "example.com/p"
 				opts.KeepUnreachable = true
 				h := &print.Hooks{
-					Lowered:   func(_ string, t *plandata.Table[code.Exec]) { tables = append(tables, t) },
-					Numbering: func([]string) []string { return nil },
+					Numbering: func(descs []string) []string { numbered = append([]string(nil), descs...); return nil },
 					Printed:   func(descs []string) { printed = descs },
 				}
-				_, err = print.GenerateParser(pg, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), h)
+				_, err = generateGo(pg, opts, driver.Options{Observers: []pipe.Observer{keep}}, h)
 				if printed == nil {
 					return
 				}
@@ -70,11 +78,7 @@ func TestExpectationsOfTheLoweredTables(t *testing.T) {
 					t.Errorf("%s: %s: the printing numbers expectations that the numbering lacks, and the generation gives %v", mode.name, c.Name, err)
 					return
 				}
-				got, err := execlower.Expectations(tables...)
-				if err != nil {
-					t.Errorf("%s: %s: %v", mode.name, c.Name, err)
-					return
-				}
+				got := append(slices.Clone(core.FixedDescs), numbered...)
 				if !slices.Equal(got, printed) {
 					t.Errorf("%s: %s: the lowered tables number\n%q\nbut printing them numbers\n%q", mode.name, c.Name, got, printed)
 					return
@@ -83,7 +87,15 @@ func TestExpectationsOfTheLoweredTables(t *testing.T) {
 				defer mu.Unlock()
 				compared++
 				byCore := append([]string(nil), core.FixedDescs...)
-				for _, d := range tables[0].IR.M.Exps {
+				first := cores["rules"]
+				if first == nil {
+					first = cores["recRules"]
+				}
+				if first == nil {
+					t.Errorf("%s: %s: the compilation built no Core module of the Node or the recognizer table", mode.name, c.Name)
+					return
+				}
+				for _, d := range first.Exps {
 					if !slices.Contains(byCore, d) {
 						byCore = append(byCore, d)
 					}

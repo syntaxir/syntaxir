@@ -46,7 +46,13 @@ import (
 // builds have the same key share one run of it (coreKey), whose dumps are written again with the
 // label of each.
 func coreConfig() pipe.Pipeline[common.TableSource, *core.Module] {
-	return pipe.Shared(coreKey, pipe.Then(pipe.Of(elaborating), pipe.Slot(CoreSlot, corepass.Pipeline())))
+	return pipe.Shared(coreKey, corePart())
+}
+
+// corePart returns the Core part of the pipeline of a table that coreConfig shares: elaborate and the
+// Core passes in the slot CoreSlot.
+func corePart() pipe.Pipeline[common.TableSource, *core.Module] {
+	return pipe.Then(pipe.Of(elaborating), pipe.Slot(CoreSlot, corepass.Pipeline()))
 }
 
 // tableConfig derives the features of a planned table from its unit: whether the parser reports the
@@ -73,15 +79,22 @@ var tableConfig = pipe.RegisterDerive(plandata.PlannedIR, &pipe.Derive[plandata.
 // The plan and the Core module of the planned table stay the caller's: flowlower only reads them, and
 // the module it makes shares the Core nodes and rules with the Core module, which the passes and
 // flow-finish read and never change (flow.Forms).
-func lowering(flowTarget flowpass.Target, target TargetPipeline) pipe.Pipeline[plandata.Planned, *plandata.Table[code.Exec]] {
-	flow := pipe.Within(plandata.FlowModule, pipe.Then(
-		pipe.WithConst(flowpass.TargetFeature, flowTarget,
-			pipe.PerFunc(code.FlowFuncs, pipe.Slot(FlowSlot, pipe.Seq(code.FlowStage, flowpass.Passes...)))),
-		pipe.Of(flowpass.Finishing)))
+func lowering(flowTarget flowpass.Target, target targetPipeline) pipe.Pipeline[plandata.Planned, *plandata.Table[code.Exec]] {
 	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule, pipe.Then(
 		pipe.PerFunc(code.ExecFuncs, pipe.Slot(ExecSlot, pipe.Seq(code.ExecStage, codepass.Passes...))),
 		pipe.PerFunc(execlower.LoweredFuncs, pipe.Slot(TargetSlot, target)))))
-	return pipe.WithDerived(tableConfig, pipe.Then3(pipe.Of(flowlower.Lowering), flow, exec))
+	return pipe.WithDerived(tableConfig, pipe.Then3(pipe.Of(flowlower.Lowering), flowStage(flowTarget), exec))
+}
+
+// flowStage returns the Flow stage of the pipeline of a planned table after its lowering, for a backend
+// that prints the forms flowTarget: the Flow passes in the slot FlowSlot on each function of the
+// module of the table, pass by pass, and flow-finish, which ends each function, also after a failed
+// pass.
+func flowStage(flowTarget flowpass.Target) pipe.Pipeline[*plandata.Table[code.Flow], *plandata.Table[code.Flow]] {
+	return pipe.Within(plandata.FlowModule, pipe.Then(
+		pipe.WithConst(flowpass.TargetFeature, flowTarget,
+			pipe.PerFunc(code.FlowFuncs, pipe.Slot(FlowSlot, pipe.Seq(code.FlowStage, flowpass.Passes...)))),
+		pipe.Of(flowpass.Finishing)))
 }
 
 // plannedTables is the split planned-tables of every backend that plans the program: it splits the

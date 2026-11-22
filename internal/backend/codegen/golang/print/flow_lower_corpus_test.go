@@ -6,6 +6,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 )
 
@@ -26,7 +27,7 @@ func TestFlowVerifiesCorpus(t *testing.T) {
 			lowered, framed, observed, skips := 0, 0, 0, 0
 			for _, gen := range coreGenerations(t, mode) {
 				g := gen.gen
-				m, err := g.TypedCore()
+				m, err := typedCore(g, corepass.RunOptions{})
 				if err != nil {
 					t.Fatalf("%s: %v", gen.name, err)
 				}

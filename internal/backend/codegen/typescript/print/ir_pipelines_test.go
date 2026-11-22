@@ -8,9 +8,10 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
-	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
 
 // TestEveryFlowFunctionRunsTheIRPipelines generates TypeScript parsers whose functions take every route
@@ -40,7 +41,7 @@ func TestEveryFlowFunctionRunsTheIRPipelines(t *testing.T) {
 			var dump bytes.Buffer
 			o := c.opts
 			o.Debug = common.Debug{PrintAfter: []string{"flowlower", "execlower"}, VerifyEach: true, Output: &dump}
-			if _, err := print.GenerateParser(g, compileForGenerator, codegentest.Passes(o), codegentest.WithLib(o), nil); err != nil {
+			if _, err := generateTS(g, o, driver.Options{}, nil); err != nil {
 				t.Fatal(err)
 			}
 			codegentest.CheckIRPipelines(t, dump.String(), "rules", "recRules")
@@ -62,24 +63,28 @@ rule num = [0-9]+
 	for _, table := range []string{"rules", "recRules"} {
 		for _, ir := range []string{"flow", "exec"} {
 			t.Run(table+"/"+ir, func(t *testing.T) {
-				seen := 0
-				h := generate.Hooks{}
-				if ir == "flow" {
-					h.FlowPipeline = codegentest.BrokenFlowPipeline(table, &seen)
-				} else {
-					h.ExecPipeline = codegentest.BrokenExecPipeline(table, &seen)
+				x := driver.Options{Edits: []pipe.Edit{codegentest.BrokenFlow(table)}}
+				if ir == "exec" {
+					x.Edits = []pipe.Edit{codegentest.BrokenExec(table)}
 				}
+				// The broken pass runs on the functions of the table.
+				seen := 0
+				x.Observers = []pipe.Observer{&pipetest.Watch{Fn: func(e pipe.Event, _ *pipe.Result) {
+					if e.Step.Name == "break-"+ir && e.Label.Table == table {
+						seen++
+					}
+				}}}
 				opts := common.GenOptions{Recognize: true}
-				_, err := print.GenerateParser(pg, compileForGenerator, generate.Passes(opts, h), codegentest.WithLib(opts), nil)
-				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "internal error: verify code@"+ir+" [") || strings.Contains(err.Error(), "break-"+ir) {
+				_, err := generateTS(pg, opts, x, nil)
+				if err == nil || !strings.Contains(err.Error(), "["+table+"/") || !strings.Contains(err.Error(), "internal error: verify code@"+ir+" [") || strings.Contains(err.Error(), "break-"+ir) {
 					t.Fatalf("without VerifyEachPass: %v", err)
 				}
 				if seen == 0 {
 					t.Fatalf("no function of the %s table ran through the %s pipeline", table, ir)
 				}
 				opts.Debug.VerifyEach = true
-				_, err = print.GenerateParser(pg, compileForGenerator, generate.Passes(opts, h), codegentest.WithLib(opts), nil)
-				if err == nil || !strings.Contains(err.Error(), "of table "+table+": ") || !strings.Contains(err.Error(), "internal error: break-"+ir+" [") {
+				_, err = generateTS(pg, opts, x, nil)
+				if err == nil || !strings.Contains(err.Error(), "["+table+"/") || !strings.Contains(err.Error(), "internal error: break-"+ir+" [") {
 					t.Fatalf("with VerifyEachPass: %v", err)
 				}
 			})

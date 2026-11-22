@@ -3,7 +3,7 @@ package common
 import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -78,7 +78,7 @@ type Rule struct {
 // BodyExpr returns the expression the rule's body matches.
 func (r *Rule) BodyExpr() ast.Expr { return r.Def.Expr }
 
-// PlanRule returns what the plan of a table reads of the rule (flowplan.Rule).
-func (r *Rule) PlanRule() *flowplan.Rule {
-	return &flowplan.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader}
+// PlanRule returns what the plan of a table reads of the rule (plandata.Rule).
+func (r *Rule) PlanRule() *plandata.Rule {
+	return &plandata.Rule{ID: r.ID, Name: r.Name, Body: r.Def.Expr, Action: r.Action, Plain: r.Plain, Lean: r.Lean, Novalue: r.Novalue, Leader: r.Leader}
 }

@@ -11,6 +11,9 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
+	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
@@ -80,6 +83,8 @@ func TestCompileChecksTheTargets(t *testing.T) {
 		{"settings", []Target{{Backend: result.Go, Gen: common.GenOptions{Optimize: "size"}}}, "target go: Optimize"},
 		{"unknown profile", []Target{{Backend: result.Go, Gen: common.GenOptions{Optimize: "nope"}}}, "nope"},
 		{"no pipeline", []Target{{Backend: result.VM}}, "no pipeline is assembled for the backend vm"},
+		{"hooks of Go", []Target{{Backend: result.TypeScript, GoHooks: &goprint.Hooks{}}}, "GoHooks are set for a target of another backend"},
+		{"hooks of TypeScript", []Target{{Backend: result.Go, TSHooks: &tsprint.Hooks{}}}, "target go: TSHooks are set for a target of another backend"},
 	} {
 		if _, err := Compile(context.Background(), p, o, c.targets...); err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: err = %v, want %q", c.name, err, c.want)
@@ -122,8 +127,8 @@ func TestDumpsGroupByTable(t *testing.T) {
 	t.Parallel()
 	var w bytes.Buffer
 	dump := func(names []string, events []struct{ step, table string }) {
-		d := debugger(Options{Debug: common.Debug{PrintAfter: names, Output: &w}})
-		obs := d.observers("")
+		d := newDebugger(Options{Debug: common.Debug{PrintAfter: names, Output: &w}})
+		obs := d.observers()
 		for _, e := range events {
 			step := e.step
 			obs[0].After(pipe.Event{Step: pipe.StepInfo{Name: step, Instance: step}, Label: pipe.Label{Table: e.table}},
@@ -192,6 +197,66 @@ func TestCompileGo(t *testing.T) {
 	}
 	if !slices.Equal(lowered, want) || steps[len(steps)-1] != "print-go " {
 		t.Errorf("steps = %q, want the tables %q lowered before print-go", steps, want)
+	}
+}
+
+// TestCompileReplansTheTypeScriptTarget checks the fallback of planning on a TypeScript target: the
+// printed code of main leaves out the call of B after a lookahead that always fails, which the Core IR
+// keeps, so print-ts returns the reach of the printed code and Compile runs the pipeline again with it.
+// The parser of the second run leaves B out, the observers of the call see both runs, and the dumps
+// of the debugging settings are those of the second run only. A lookahead that the printed code keeps
+// the call after gives one run.
+func TestCompileReplansTheTypeScriptTarget(t *testing.T) {
+	t.Parallel()
+	speed, err := GenSettings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		src   string
+		runs  int
+		keepB bool
+	}{
+		{"@start\nrule main = !\"\"* B / \"x\"\nrule B = \"b\"\n", 2, false},
+		{"@start\nrule main = !\"\" B / \"x\"\nrule B = \"b\"\n", 1, true},
+	} {
+		p, err := checkSource(t, c.src, common.CompileOptions{}, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		var steps []string
+		var dump bytes.Buffer
+		gen := common.GenOptions{Lib: common.LibImport, LibModule: "./lib", TSLib: tslib.FS}
+		o := Options{Settings: speed, Debug: common.Debug{PrintAfter: []string{"execlower"}, Output: &dump}, Observers: []pipe.Observer{&stepNames{seen: &steps}}}
+		out, err := Compile(context.Background(), p, o, Target{Backend: result.TypeScript, Gen: gen})
+		if err != nil {
+			t.Fatalf("%q: %v", c.src, err)
+		}
+		runs, last := 0, 0
+		for i, s := range steps {
+			if strings.HasPrefix(s, "print-ts ") {
+				runs++
+				if runs < c.runs {
+					last = i + 1
+				}
+			}
+		}
+		if runs != c.runs {
+			t.Errorf("%q: print-ts ran %d times, want %d: %q", c.src, runs, c.runs, steps)
+		}
+		lowered := 0
+		for _, s := range steps[last:] {
+			if strings.HasPrefix(s, "execlower ") {
+				lowered++
+			}
+		}
+		if got := strings.Count(dump.String(), "-- after execlower ["); got != lowered || lowered == 0 {
+			t.Errorf("%q: the dumps hold %d tables after execlower, want the %d of the last run", c.src, got, lowered)
+		}
+		files := out[0].(*result.Files)
+		if got := strings.Contains(string(files.Files[0].Content), `"B", `); got != c.keepB {
+			t.Errorf("%q: the parser has the rule B %v, want %v", c.src, got, c.keepB)
+		}
 	}
 }
 

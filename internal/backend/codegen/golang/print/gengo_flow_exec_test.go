@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -25,7 +26,7 @@ func execGenerate(src string, opts common.GenOptions) (string, map[string]int, i
 	var all []*print.Generator
 	h := &print.Hooks{Generator: func(x *print.Generator) { last = x; all = append(all, x) }}
 	opts.Module, opts.KeepComments = "example.com/p", true
-	files, err := print.GenerateParser(g, compileForGenerator, codegentest.Passes(opts), codegentest.WithLib(opts), h)
+	files, err := generateGo(g, opts, driver.Options{}, h)
 	if err != nil {
 		return "", nil, 0, false
 	}

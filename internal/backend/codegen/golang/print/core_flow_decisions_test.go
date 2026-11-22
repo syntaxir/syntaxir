@@ -6,12 +6,15 @@ import (
 	"sync"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/pipetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -63,11 +66,13 @@ type flowScope struct {
 	traced bool
 }
 
-// flowRecord holds the decisions of the Flow passes in one generation.
+// flowRecord holds the decisions of the Flow passes in one generation, with the origins of the Core
+// modules of its tables, by their labels, which the decisions are keyed by.
 type flowRecord struct {
-	mu  sync.Mutex
-	gen *print.Generator
-	by  map[flowScope]*flowDecisions
+	mu      sync.Mutex
+	gen     *print.Generator
+	origins map[string]core.Origin
+	by      map[flowScope]*flowDecisions
 }
 
 // decisions returns the decisions recorded for the table, in the copies a case of gen reads: the
@@ -94,38 +99,58 @@ func flowRecordOf(gen *print.Generator) *flowRecord {
 	return rec
 }
 
-// recordingHooks returns hooks that keep the last generator that prints in rec, as the generator of
-// the case, and record in rec, after the Flow passes of each function that a generator lowers from
-// Core IR, what the passes replaced. A generation may print with several generators, so each records
-// with the Core IR of its own table.
-func recordingHooks(rec *flowRecord) *print.Hooks {
-	return &print.Hooks{
-		Generator: func(x *print.Generator) {
-			rec.gen = x
-			// The decisions are recorded by a test pass at the end of the Flow pipeline, which runs
-			// only when the passes before it succeeded, before flow-finish drops the forms.
-			d := driverOf(x)
-			d.FlowPipeline = func(string) pipe.Pipeline[flowpass.Unit, flowpass.Unit] {
-				return codegentest.RecordingFlow(false, func(m *code.Module) { rec.record(x, m) })
-			}
-		},
-	}
+// options returns the options of a compilation whose observers keep the origin of the Core module of
+// each table, which the functions are lowered from, and record in rec what the Flow passes replaced in
+// each function of a table, after each pass, before flow-finish drops the forms. A pass leaves alone
+// what an earlier one replaced, so the decisions recorded after a pass include those after the passes
+// before it.
+func (rec *flowRecord) options() driver.Options {
+	return driver.Options{Observers: []pipe.Observer{&pipetest.Watch{Units: true, Fn: rec.core}, codegentest.FlowPasses(rec.record)}}
 }
 
-// record adds the decisions of the passes on the function of m, which the generator g lowered from
-// the Core IR of its current table (codegen.FlowState), before flowpass.Finish drops its forms.
-func (rec *flowRecord) record(g *print.Generator, m *code.Module) {
-	a := flow.AttrsOf(flow.FuncOf(m))
-	if a == nil || a.Forms == nil || a.Rule == nil || g.Flow == nil {
+// hooks returns the hooks that keep the generator that prints in rec, as the generator of the case.
+func (rec *flowRecord) hooks() *print.Hooks {
+	return &print.Hooks{Generator: func(x *print.Generator) { rec.gen = x }}
+}
+
+// core keeps the origin of the Core module of the table of the event, after each Core step.
+func (rec *flowRecord) core(e pipe.Event, r *pipe.Result) {
+	m, ok := r.Unit.(*core.Module)
+	if !ok || r.Err != nil {
 		return
 	}
-	origin := g.Flow.M.Origin
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
+	if rec.origins == nil {
+		rec.origins = map[string]core.Origin{}
+	}
+	rec.origins[e.Label.Table] = m.Origin
+}
+
+// record adds the decisions of the passes on the function of m, of the planned table labeled l.Table,
+// before flow-finish drops its forms. A table of the Flow stage is lowered from the Core module of the
+// same label; the typed table is the generator's trules. The functions that the plan leaves
+// unreachable (flowplan.UnreachableSuffix) are not printed, so the decisions leave them out.
+func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
+	a := flow.AttrsOf(flow.FuncOf(m))
+	if a == nil || a.Forms == nil || a.Rule == nil || strings.HasSuffix(l.Table, flowplan.UnreachableSuffix) {
+		return
+	}
+	label := l.Table
+	table := strings.TrimSuffix(label, "Traced")
+	if table == "typed" {
+		table = "trules"
+	}
+	rec.mu.Lock()
+	defer rec.mu.Unlock()
+	origin, ok := rec.origins[label]
+	if !ok {
+		return
+	}
 	if rec.by == nil {
 		rec.by = map[flowScope]*flowDecisions{}
 	}
-	scope := flowScope{g.Table, a.Traced}
+	scope := flowScope{table, a.Traced}
 	d := rec.by[scope]
 	if d == nil {
 		d = newFlowDecisions()

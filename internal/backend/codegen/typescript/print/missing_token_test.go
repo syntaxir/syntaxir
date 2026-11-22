@@ -5,8 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
-	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/driver"
 )
 
 // TestMissingTokensInsertionOnlyLeftRecursionRejected checks that a grammar whose left recursion
@@ -18,7 +17,7 @@ rule a = "(" #missing a "x" / "y"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := print.GenerateParser(g, compileForGenerator, codegentest.Passes(common.GenOptions{Start: "main"}), codegentest.WithLib(common.GenOptions{Start: "main"}), nil); err == nil || !strings.Contains(err.Error(), "missing") {
+	if _, err := generateTS(g, common.GenOptions{Start: "main"}, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "missing") {
 		t.Fatal("generated a parser for the grammar:", err)
 	}
 }

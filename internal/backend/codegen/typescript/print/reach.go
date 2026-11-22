@@ -5,16 +5,16 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // A generated parser prints only the rules that a parse can enter: the start rules, which parseRule
-// names and parse and recognize run, and the rules that the printed bodies call (core.Module.Reach).
-// The Core IR also has calls that the printed code leaves out, after an expression that never matches;
-// GenerateParser then generates again with the rules that the printed calls reach (printedReach).
+// names and parse and recognize run, and the rules that the printed bodies call: the reach of the
+// plan of the program (plandata.Program.Reach). The Core IR can also have calls that the printed
+// code leaves out, after an expression that never matches; print-ts then returns the rules that the
+// printed calls reach (printedReach) and the driver compiles again with them as the reach of the plan.
 // A rule left out has no constant, body, action, plain function or table row, and what only it would
 // have declared (helpers, literals, expectations) is not declared either. A rule that returns a tree
 // has a value-free twin that every call from a value-free context uses, so the original of a rule
@@ -28,18 +28,9 @@ type tsLive struct {
 	reach map[string][]core.Entry
 }
 
-// reachableRules returns the rules of prog and of the recognizer rec (nil if there is none) that a
-// parse can enter: every start rule of the Node table, which parseRule can name, and the rule start
-// that parse and recognize run. document tells whether the parser has a Document, whose calls all
-// enter rules through their constants (callsPlain).
-func reachableRules(prog, rec *common.Program, start *common.Rule, document bool) (*tsLive, error) {
-	return reachFrom(prog, rec, start, document, func(table string, p *common.Program) (*core.Module, error) {
-		return irbuild.CoreFrom(p.Elab, false)
-	})
-}
-
 // printedReach returns the rules that a parse can enter through the calls that the generated code
-// prints (checkCall), from the roots of reachableRules. Printing leaves out the calls that Core IR
+// prints (checkCall), from the entry points of the parser: every start rule of the Node table, which
+// parseRule can name, and the rule start that parse and recognize run. Printing leaves out the calls that Core IR
 // has at points that the lowered code never reaches, such as after a lookahead that always fails.
 func (g *Generator) printedReach(prog, rec *common.Program, start *common.Rule) *tsLive {
 	l, _ := reachFrom(prog, rec, start, g.Document, func(table string, p *common.Program) (*core.Module, error) {
@@ -53,7 +44,7 @@ func (g *Generator) printedReach(prog, rec *common.Program, start *common.Rule) 
 	return l
 }
 
-// reachFrom computes the reach of reachableRules over the call graph of the module that module
+// reachFrom computes the reach of the entry points of printedReach over the call graph of the module that module
 // returns for each table.
 func reachFrom(prog, rec *common.Program, start *common.Rule, document bool, module func(table string, p *common.Program) (*core.Module, error)) (*tsLive, error) {
 	l := &tsLive{reach: map[string][]core.Entry{}}

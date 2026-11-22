@@ -14,7 +14,7 @@ import (
 )
 
 // The rules of the Node table are printed from Flow IR (the lean value-free rules by the same route
-// as the recognizer's, common.Generator.StartRecFlow, and the others as framed bodies). The tests
+// as the recognizer's, and the others as framed bodies). The tests
 // below check the routes the rules take and run the parsers against the engine; the generated text
 // of the ten checked-in grammars is frozen in testdata/output_manifest.txt of the alpha-parsers repository.
 

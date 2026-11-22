@@ -12,19 +12,18 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The tests here check the Core IR of the typed Go rules, after the passes of
-// print.Generator.TypedCore, against the decisions frozen in testdata/decisions/typed
+// The tests here check the Core IR of the typed Go rules, after the Core passes (typedCore), against the decisions frozen in testdata/decisions/typed
 // (core_typed_decisions_test.go).
 
 // coreGenMode is a set of generator options under which the Core passes are frozen.
@@ -76,12 +75,8 @@ func (c *coreGenCase) altOrigin(x *core.Choice, i int) (ast.Expr, bool) {
 	return altOriginIn(c.origin, x, i)
 }
 
-// driverOf returns the driver that runs the passes of the generator g (codegentest.Passes), whose
-// hooks a test sets to observe or change a pipeline.
-func driverOf(g *print.Generator) *driver.Driver { return g.Runner.(*driver.Driver) }
-
 // coreGenerate generates the parser of the grammar source with the options and returns the
-// generator that wrote it, for the Core IR of the same options (print.Generator.TypedCore), in the
+// generator that wrote it, for the Core IR of the same options (typedCore), in the
 // state of its traced pass with observability, and records the decisions of its Flow passes
 // (flowRecordOf). It reports false for a grammar that the generator rejects.
 func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
@@ -91,7 +86,7 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 	}
 	rec := &flowRecord{}
 	opts.Module = "example.com/p"
-	if _, err := print.GenerateParser(g, codegentest.Compile, codegentest.Passes(opts), codegentest.WithLib(opts), recordingHooks(rec)); err != nil || rec.gen == nil {
+	if _, err := generateGo(g, opts, rec.options(), rec.hooks()); err != nil || rec.gen == nil {
 		return nil, false
 	}
 	gen := rec.gen
@@ -115,16 +110,15 @@ func recognizerOf(g *print.Generator) (*common.Program, error) {
 	return checked.Of(entry.Checked(rec)).Generator(), nil
 }
 
-// coreTypedCase builds the Core IR of the typed rules of the generated parser with the passes of
-// print.Generator.TypedCore, verifying the module after each pass. A scan has the ID, and so the
+// coreTypedCase builds the Core IR of the typed rules of the generated parser with the Core passes
+// (typedCore), verifying the module after each pass. A scan has the ID, and so the
 // origin, of the repetition it replaces. If breaks is not nil, it is called
 // after each pass, before the module is verified: a negative control breaks a pass there.
 func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreGenCase, pass string, m *core.Module)) (*coreGenCase, error) {
 	c := &coreGenCase{name: name, mode: mode, table: "trules", golden: typedGolden, gen: gen}
 	c.flow = flowRecordOf(gen).decisions(c.table, gen)
 	c.rules = typedRules(gen)
-	d := driverOf(gen)
-	d.CoreHook = func(pass string, m *core.Module) {
+	m, err := typedCore(gen, corepass.RunOptions{Dump: func(pass string, m *core.Module) {
 		// The module is built, and so the origin known, before the first pass.
 		if c.origin.Exprs == nil {
 			c.origin = m.Origin
@@ -136,9 +130,7 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 		if err := core.Verify(m); err != nil {
 			c.passErrs = append(c.passErrs, fmt.Sprintf("after %s: %v", pass, err))
 		}
-	}
-	defer func() { d.CoreHook = nil }()
-	m, err := gen.TypedCore()
+	}})
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +139,7 @@ func coreTypedCase(name, mode string, gen *print.Generator, breaks func(c *coreG
 }
 
 // coreGenerated holds the corpus grammars generated in each mode, by mode name. The tests that read
-// it change its generators (Generator.Table, the CoreHook of driverOf), so they do not run in parallel.
+// it change its generators (Generator.Table), so they do not run in parallel.
 var coreGenerated = map[string][]coreGenerated1{}
 
 type coreGenerated1 struct {
@@ -175,7 +167,7 @@ func coreGenerations(t *testing.T, mode coreGenMode) []coreGenerated1 {
 			if !ok {
 				return
 			}
-			if m, err := gen.TypedCore(); err != nil || len(m.Rules) == 0 {
+			if m, err := typedCore(gen, corepass.RunOptions{}); err != nil || len(m.Rules) == 0 {
 				return
 			}
 			gens[i] = gen
