@@ -1,6 +1,9 @@
 package complexity
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import (
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // --- Growth that carries a growing result ---
 
@@ -94,44 +97,40 @@ func (k *classifier) carryPaths(r, s string, cycle int) (paths []*cont, ok bool)
 				return
 			}
 			rest := p.rest()
-			switch e := p.items[0].(type) {
-			case *ast.Group:
-				p = rest.then(e.Expr)
-			case *ast.Capture:
-				p = rest.then(e.Expr)
-			case *ast.Discard:
-				p = rest.then(e.Expr)
-			case *ast.Atomic:
-				p = rest.then(e.Expr)
-			case *ast.Stream:
-				p = rest.then(e.Expr)
-			case *ast.InlineAction:
-				p = rest.then(e.Expr)
-			case *ast.Optional:
-				visit(rest.then(e.Expr), depth)
+			switch n := k.nodeOf(p.items[0]).(type) {
+			case *core.Capture:
+				p = rest.then(k.exprOf(n.Body))
+			case *core.Drop:
+				p = rest.then(k.exprOf(n.Body))
+			case *core.Text:
+				p = rest.then(k.exprOf(n.Body))
+			case *core.Opt:
+				visit(rest.then(k.exprOf(n.Body)), depth)
 				p = rest
-			case *ast.Seq:
-				p = rest.then(e.Items...)
-			case *ast.Choice:
-				for _, alt := range e.Alts {
-					visit(rest.then(alt), depth)
+			case *core.Seq:
+				p = rest.then(k.exprsOf(n.Items)...)
+			case *core.Choice:
+				for _, alt := range n.Alts {
+					visit(rest.then(k.exprOf(alt.Body)), depth)
 				}
 				return
-			case *ast.Ref:
-				if !k.an.Cyclic[e.Name] || k.an.Cycle[e.Name] != cycle || e.Level != "" {
+			case *core.Call:
+				name := k.rules[n.Rule].Name
+				if !k.an.Cyclic[name] || k.an.Cycle[name] != cycle || !plainCall(n) {
 					return
 				}
-				if e.Name == s {
+				if name == s {
 					paths = append(paths, rest)
 					return
 				}
-				if k.an.Leaders[e.Name] || depth > len(k.rules) {
+				if k.an.Leaders[name] || depth > len(k.rules) {
 					return
 				}
-				p = rest.then(k.byName[e.Name].Expr)
+				p = rest.then(k.byName[name].Expr)
 				depth++
 			default:
-				if k.consumesNothing(e) {
+				// A right operand is a call that restricts the levels of its Operators Rule.
+				if !isRightOperand(n) && k.consumesNothing(k.exprOf(n)) {
 					p = rest
 					continue
 				}
