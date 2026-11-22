@@ -11,6 +11,9 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
+// TestGeneratedTypedDocumentPublicationClone checks the CloneValue copy of a typed Document value: it
+// keeps identities and aliases, shares nothing with the Document, counts no compute unit and observes
+// the context of a conversion and the memory limit through its control.
 func TestGeneratedTypedDocumentPublicationClone(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -89,16 +92,36 @@ func cloneWithControl(input *types.Box, c *typedDocumentClone,beforeFinish ...fu
 }
 func TestPublicationControls(t *testing.T) {
  input:=&types.Box{First:&types.Token{Text:"private"},Items:make([]*types.Token,1000)}
- c:=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(nil,Limits{Compute:1})}}
- if output,err:=cloneWithControl(input,c);output==nil || err!=nil {t.Fatalf("a Compute limit interrupted the copy, which is Document work no limit counts: %v %v",output,err)}
+ // A compute limit gives the copy no control (the copy is Document work that no limit counts), and
+ // a memory limit far above the copy does not interrupt it.
+ if sxirrt.X_newBudgetControl(Limits{Compute:1})!=nil {t.Fatal("a compute limit made a control")}
+ c:=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(Limits{Compute:1,Memory:1<<40})}}
+ if output,err:=cloneWithControl(input,c);output==nil || err!=nil {t.Fatalf("a memory limit above the copy interrupted it: %v %v",output,err)}
+ // The control of a conversion carries the context of the parse, which the copy observes.
  ctx,cancel:=context.WithCancel(context.Background());cancel()
- c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(ctx,Limits{})}}
+ control,done:=sxirrt.X_conversionControl(ctx,nil)
+ c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: control}}
  if output,err:=cloneWithControl(input,c);output!=nil || !errors.Is(err,context.Canceled) {t.Fatalf("cancel: %v %v",output,err)}
+ done()
  if c.Control!=nil || c.Values!=nil || c.Slices!=nil || c.Tasks!=nil {t.Fatal("interrupted clone retained state")}
  ctx,cancel=context.WithCancel(context.Background())
- c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(ctx,Limits{})}}
+ control,done=sxirrt.X_conversionControl(ctx,nil)
+ c=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: control}}
  if output,err:=cloneWithControl(&types.Box{First:&types.Token{}},c,cancel);output!=nil || !errors.Is(err,context.Canceled) {t.Fatalf("final cancellation poll: %v %v",output,err)}
+ done()
  if output,err:=cloneWithControl(input,&typedDocumentClone{});output==nil || err!=nil {t.Fatalf("retry: %v",err)}
+}
+// The conversion of a typed Document parse's result observes the context of the parse: a cancellation
+// during the conversion stops it, publishes nothing and leaves the Document able to parse again.
+func TestPublicationObservesTheParseContext(t *testing.T) {
+ d,err:=NewDocument("x");if err!=nil {t.Fatal(err)}
+ ctx,cancel:=context.WithCancel(context.Background())
+ o,err:=d.doc.ResolveParseOptions([]ParseOption{WithContext(ctx)});if err!=nil {t.Fatal(err)}
+ a:=&tslabs{}
+ v,err:=sxirrt.TypedDocumentParse(d.doc,trules[0],o,a,func(v any) any {cancel();a.control.Check();return v})
+ if v!=nil || !errors.Is(err,context.Canceled) {t.Fatalf("conversion missed the cancellation: %v %v",v,err)}
+ if a.control!=nil {t.Fatal("the conversion kept its control")}
+ if v,err:=d.ParseValue();v==nil || err!=nil {t.Fatalf("retry: %v %v",v,err)}
 }
 func TestPublicationCollidingNames(t *testing.T) {
  c:=&typedDocumentClone{}

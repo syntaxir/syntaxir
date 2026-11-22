@@ -98,7 +98,11 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 			return res, parseErr
 		}
 	}
-	o.control.Check()
+	// The conversion that publish makes observes the context of the parse too (conversionControl).
+	c, done := conversionControl(o.unitsCtx, o.control)
+	defer done()
+	a.SetBudgetControl(c)
+	c.Check()
 	if v != nil {
 		res = publish(v)
 	}

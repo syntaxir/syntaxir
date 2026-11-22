@@ -67,12 +67,17 @@ const budgetCheckInterval = uint64(256)
 
 // BudgetControl is the memory limit of a single parser invocation: the memory the parse counts
 // (memoryCounts) and the parser state the memory check reads. The compute limit and the context of a
-// parse are its counter of logical units' (unitsState), which observes the memory count at its polls.
+// parse are its counter of logical units (unitsState), which observes the memory count at its polls.
+// The conversion of a result to typed values runs outside that counter: its control carries the
+// context of the parse as well (conversionControl), which Check observes.
 //
 // BudgetControl is for generated parsers; not a stable API.
 type BudgetControl struct {
 	limits      sxirruntime.Limits
 	interrupted bool // distinguishes limit interruptions from ordinary parse errors
+	// ctx is the context of the parse while its result is converted (conversionControl), nil
+	// otherwise.
+	ctx context.Context
 
 	// memoryCounts are the memory the control counts itself; retained is what a typed Document
 	// retains from earlier parses. The memory check adds the counters of the parser and the typed
@@ -109,11 +114,36 @@ func contextErr(ctx context.Context) error {
 	return ctx.Err()
 }
 
-// Check observes the memory limit at an explicit checkpoint. It is safe on a nil receiver.
+// Check observes, at an explicit checkpoint, the context of a conversion (conversionControl) and then
+// the memory limit. It is safe on a nil receiver.
 func (c *BudgetControl) Check() {
-	if c != nil {
+	if c == nil {
+		return
+	}
+	if c.ctx != nil {
+		if err := contextErr(c.ctx); err != nil {
+			panic(fatal{err: err})
+		}
+	}
+	if c.limits.Memory != 0 {
 		c.checkMemory()
 	}
+}
+
+// conversionControl returns the control that a conversion to typed values passes to the converter,
+// whose steps observe it every 256 steps (Check): the control c of the parse's memory limit, which
+// carries the context ctx of the parse while the conversion runs, or a control of the context alone.
+// done ends the conversion: c forgets the context, so that a later parse with the same control
+// observes its own.
+func conversionControl(ctx context.Context, c *BudgetControl) (_ *BudgetControl, done func()) {
+	if ctx == nil || ctx.Done() == nil {
+		return c, func() {}
+	}
+	if c == nil {
+		return &BudgetControl{ctx: ctx}, func() {}
+	}
+	c.ctx = ctx
+	return c, func() { c.ctx = nil }
 }
 
 // controlled reports whether the parse has a memory limit, whose control counts the memory of the
@@ -154,9 +184,11 @@ func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
 	n, err := parseConversionInput(r, input, o)
-	o.control.Check()
-	res = conv(n, o.control, err)
-	o.control.Check()
+	c, done := conversionControl(o.unitsCtx, o.control)
+	defer done()
+	c.Check()
+	res = conv(n, c, err)
+	c.Check()
 	return res, err
 }
 

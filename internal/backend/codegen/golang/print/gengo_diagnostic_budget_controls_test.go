@@ -57,12 +57,10 @@ rule letter Word = t:("z" / "a" / "é") #atomic => Word{Text: text($t)}`)
 const generatedGoDiagnosticConsumer = `package PACKAGE
 
 import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
-import("context";"errors";"fmt";"reflect";"slices";"strings";"testing")
-func diagnosticParser(limits Limits)*sxirrt.Parser{return &sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,limits)}}
+import("errors";"fmt";"reflect";"slices";"strings";"testing")
+// diagnosticParser returns a parser that counts logical compute units under the compute limit limit.
+func diagnosticParser(limit uint64)*sxirrt.Parser{p:=&sxirrt.Parser{};p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:limit});return p}
 func catchFatal(t *testing.T,f func())(err error){t.Helper();defer func(){if v:=recover();v!=nil{fatal,ok:=v.(sxirrt.X_fatal);if !ok{panic(v)};err=fatal.X_err}}();f();return nil}
-type pollingContext struct{context.Context}
-func(*pollingContext)Done()<-chan struct{}{return make(chan struct{})}
-func(*pollingContext)Err()error{return context.Canceled}
 func TestDiagnosticTextParityAndBudget(t *testing.T){
  maxInt:=int(^uint(0)>>1)
  rows:=[]*SyntaxError{
@@ -76,47 +74,36 @@ func TestDiagnosticTextParityAndBudget(t *testing.T){
   {Line:4,Col:5,Expected:[]string{"end of input","\"a\"","\"b\"","\"c\"","\"d\"","\"e\"","\"f\"","\"g\"","\"h\"","[0-9]","[x-z]"}},
  }
  for i,e:=range rows{t.Run(fmt.Sprint(i),func(t *testing.T){
-  want:=e.Error();parts:=e.Messages;if len(parts)==0{parts=e.Expected[:min(len(e.Expected),10)]}
-  steps:=uint64(len(want)+2*len(parts))
-  p:=diagnosticParser(Limits{Compute:steps})
-  retained:=p.RecoveryErrorText(e)
-  if retained!=want{t.Fatal("message parity",retained,want)}
-  if p.Control.X_budgetUsed()!=steps{t.Fatalf("text spend %+v",p.Control)}
-  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:steps-1})
-  if err:=catchFatal(t,func(){p.RecoveryErrorText(e)});!errors.Is(err,ErrLimit){t.Fatal("one-short text",err)}
-  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100000})
-  p.RecoveryErrorText(&SyntaxError{Line:1,Col:2,Messages:[]string{"other"}})
-  if retained!=want || e.Error()!=want{t.Fatal("retained message overwritten")}
+  // The text of an error is resolved when the caller reads it, outside the parse: it counts nothing
+  // and makes no check, under a limit of one unit and a canceled context alike.
+  want:=e.Error()
+  p:=diagnosticParser(1)
+  var retained string
+  if err:=catchFatal(t,func(){retained=e.Error()});err!=nil || retained!=want || p.Units!=0{t.Fatal("message parity",retained,want,err,p.Units)}
+  if (&SyntaxError{Line:1,Col:2,Messages:[]string{"other"}}).Error()!="1:2: other" || retained!=want || e.Error()!=want{t.Fatal("retained message overwritten")}
  })}
- p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(&pollingContext{Context:context.Background()},Limits{Compute:100000})}
- var partial string
- if err:=catchFatal(t,func(){partial=p.RecoveryErrorText(&SyntaxError{Line:2,Col:3,Messages:make([]string,320)})});!errors.Is(err,context.Canceled)||partial!=""{t.Fatal("format cancellation published partial",partial,err)}
 }
 func TestDiagnosticSortingAndSnapshots(t *testing.T){
+ // Sorting expectations takes no parser; keeping and merging them and listing recovered errors count nothing (spec/runtime/
+ // parsing.md, Compute Units): each runs whole under a limit of one unit.
  for _,n:=range []int{0,1,2,3,7,8,9,127,128,129,511}{
   values:=make([]string,n)
   for i:=range values{values[i]=[]string{"","é","\xff","z","\xc3\xff",strings.Repeat("p",300),"\"a\"","[a]","\"\xff","[é"}[(n-i)%10]+strings.Repeat("p",(n-i)%3)}
   kind:=func(s string)int{if s!=""{switch s[0]{case '"':return 1;case '[':return 2}};return 0}
   want:=slices.Clone(values);slices.SortFunc(want,func(a,b string)int{if d:=kind(a)-kind(b);d!=0{return d};return strings.Compare(a,b)})
-  p:=diagnosticParser(Limits{Compute:1<<50});p.X_sortExpected(values)
+  sxirrt.X_sortExpectedEntries(values)
   if !slices.Equal(values,want){t.Fatalf("sort length %d changed",n)}
  }
- p:=diagnosticParser(Limits{Compute:128})
- if err:=catchFatal(t,func(){p.X_sortExpected(make([]string,320))});!errors.Is(err,ErrLimit){t.Fatal("sort moves unbounded",err)}
  ids:=make([]sxirrt.ExpID,320);for i:=range ids{ids[i]=sxirrt.ExpID(i)}
- p=diagnosticParser(Limits{Compute:100000})
+ p:=diagnosticParser(1)
  kept:=p.Keep(ids);before:=slices.Clone(kept)
- p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:319})
- if err:=catchFatal(t,func(){p.Keep(ids)});!errors.Is(err,ErrLimit){t.Fatal("snapshot equality unbounded",err)}
+ if err:=catchFatal(t,func(){p.Keep(ids)});err!=nil || p.Units!=0{t.Fatal("snapshot equality counted",err,p.Units)}
  if !slices.Equal(kept,before){t.Fatal("snapshot overwritten")}
- p=diagnosticParser(Limits{Compute:319})
- if err:=catchFatal(t,func(){p.Keep(ids)});!errors.Is(err,ErrLimit){t.Fatal("snapshot copy unbounded",err)}
- p=diagnosticParser(Limits{Compute:100000});p.MergeExpected(0,ids)
- p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:128})
- if err:=catchFatal(t,func(){p.MergeExpected(0,ids)});!errors.Is(err,ErrLimit){t.Fatal("merged expectations unbounded",err)}
- p=diagnosticParser(Limits{Compute:319})
+ p=diagnosticParser(1)
+ if err:=catchFatal(t,func(){p.MergeExpected(0,ids);p.MergeExpected(0,ids)});err!=nil || p.Units!=0{t.Fatal("merged expectations counted",err,p.Units)}
+ p=diagnosticParser(1)
  for range 320{p.PushRecovered(&SyntaxError{})}
- if err:=catchFatal(t,func(){p.X_recSince(0)});!errors.Is(err,ErrLimit){t.Fatal("recovered error lists unbounded",err)}
+ if err:=catchFatal(t,func(){p.X_recSince(0)});err!=nil || p.Units!=0{t.Fatal("recovered error lists counted",err,p.Units)}
 }
 func TestRecoveredPublicDiagnostics(t *testing.T){
  for _,unit:=range []PositionUnit{Bytes,CodePoints}{

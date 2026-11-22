@@ -623,8 +623,10 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		// observed after it, before the conversion, as the engine checks after its copy.
 		p.unitsObserve()
 	}
-	res = convert(n, o.control, err)
-	p.Control.Check()
+	c, done := conversionControl(o.unitsCtx, o.control)
+	defer done()
+	res = convert(n, c, err)
+	c.Check()
 	return res, err
 }
 

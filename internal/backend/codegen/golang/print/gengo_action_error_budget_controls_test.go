@@ -92,17 +92,15 @@ func TestPublicActionErrorAccounting(t *testing.T){
 }
 func catchActionText(f func())(text string,err error){defer func(){if x:=recover();x!=nil{switch x:=x.(type){case sxirrt.X_evalError:text=x.X_msg;case sxirrt.X_fatal:err=x.X_err;default:panic(x)}}}();f();return}
 func TestActionTextFragmentsAndFlatPrefix(t *testing.T){
- for _,parts:=range [][]string{{""},{"","",""},{"a","","λ\xff"},{strings.Repeat("n",8192)}}{
-  want:=strings.Join(parts,"");steps:=uint64(len(want)+2*len(parts));p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:steps})}
-  retained:=p.X_actionErrorText(parts...);if retained!=want || p.Control.X_budgetUsed()!=steps{t.Fatal("fragment text/counters")}
-  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:steps-1});var partial string
-  _,e:=catchActionText(func(){partial=p.X_actionErrorText(parts...)});if !errors.Is(e,ErrLimit) || partial!=""{t.Fatal("one-short message",e)}
-  p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:100});if p.X_actionErrorText("retry")!="retry" || retained!=want{t.Fatal("retained message changed")}
+ // The error of a failed action is a value that the parse builds: its text counts nothing, under any
+ // limit (spec/runtime/parsing.md, Compute Units).
+ message:="division by zero"
+ for _,parts:=range [][]string{{""},{"","",""},{"a","","λ\xff"},{strings.Repeat("n",8192)},{strings.Repeat("rule",512)}}{
+  where:=strings.Join(parts,"");want:="action in "+where+": "+message
+  p:=&sxirrt.Parser{};p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1})
+  e:=p.X_wrapEvalError(where,message)
+  if e.Error()!=want || errors.Unwrap(e)!=nil || p.Units!=0{t.Fatal("flat wrapper contract",e,p.Units)}
  }
- where:=strings.Repeat("rule",512);message:="division by zero";want:="action in "+where+": "+message
- p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+8)})};e:=p.X_wrapEvalError(where,message)
- if e.Error()!=want || errors.Unwrap(e)!=nil || p.Control.X_budgetUsed()!=uint64(len(want)+8){t.Fatal("flat wrapper contract",e)}
- p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:uint64(len(want)+7)});_,e=catchActionText(func(){p.X_wrapEvalError(where,message)});if !errors.Is(e,ErrLimit){t.Fatal("one-short wrapper",e)}
 }
 func TestActionCompositionErrorText(t *testing.T){
  long:=strings.Repeat("Kind",2048);n:=new(Node);sxirrt.D(n).Kind=sxirrt.KindOf(long,"");tn:=&sxirrt.TSeq{Typ:"tuple",Kids:make([]any,2048)}
@@ -118,9 +116,10 @@ func TestActionCompositionErrorText(t *testing.T){
    func(){fn:=func(...any)any{return nil};if typed{raise(tp.ActionPush(&sxirrt.TActCtx{P:tp},long,fn))}else{raise(p.ActionPush(&sxirrt.ActCtx{P:p},long,fn))}},
   }
   for _,run:=range cases{
-   p.Control=nil;ordinary,e:=catchActionText(run);if e!=nil || ordinary==""{t.Fatal("ordinary helper error",e)}
-   p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:1<<50});active,e:=catchActionText(run);if e!=nil || active!=ordinary{t.Fatal("active helper error changed",e)}
-   p.Control=sxirrt.X_newBudgetControl(nil,Limits{Compute:256});partial,e:=catchActionText(run);if partial!="" || !errors.Is(e,ErrLimit){t.Fatal("helper error unbounded",e)}
+   p.X_startUnits(sxirrt.X_parseOptions{});ordinary,e:=catchActionText(run);if e!=nil || ordinary==""{t.Fatal("ordinary helper error",e)}
+   p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1<<50});active,e:=catchActionText(run);if e!=nil || active!=ordinary{t.Fatal("active helper error changed",e)}
+   // The text of the error counts nothing: under the least limit the helper fails as it does without one.
+   p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1});limited,e:=catchActionText(run);if e!=nil || limited!=ordinary || p.Units!=0{t.Fatal("limited helper error changed",e,p.Units)}
   }
  }
 }

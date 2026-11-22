@@ -158,32 +158,37 @@ func TestFatalNotRecovered(t *testing.T){
   if !isZero(v)||!errors.Is(err,ErrLimit){t.Fatalf("%s ast=%v swallowed interruption value=%v err=%v",name,ast,v,err)}
  }}
 }
+// counting returns a parser that counts logical compute units under the compute limit limit (none for
+// zero), as a parse with limit controls does.
+func counting(p *sxirrt.Parser,limit uint64)*sxirrt.Parser{p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:limit});return p}
 func TestStringAndMalformedTextBudget(t *testing.T){
  text:=strings.Repeat("a",300)+"é"
- p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:100000})}
+ // A comparison counts the bytes of the shorter string, and a concatenation the bytes of the string it
+ // builds (spec/runtime/parsing.md, Compute Units).
+ p:=counting(&sxirrt.Parser{},0)
  for op,want:=range map[int]any{sxirrt.OpEq:true,sxirrt.OpNe:false,sxirrt.OpLt:false,sxirrt.OpLe:true,sxirrt.OpGt:false,sxirrt.OpGe:true,sxirrt.OpAdd:text+text}{
   got,f:=p.ActionBinary(op,text,strings.Clone(text))
   if f!=nil || !reflect.DeepEqual(got,want){t.Fatalf("string op %d: %v (failure %v) want %v",op,got,f,want)}
  }
- if p.Control.X_budgetUsed()==0{t.Fatal("string spend not charged")}
+ if want:=uint64(6*len(text)+2*len(text));p.Units!=want{t.Fatalf("string operations counted %d units, not %d",p.Units,want)}
+ // The check after the sized event stops the parse past a limit.
  for _,invoke:=range []func(*sxirrt.Parser){
   func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpEq,text,strings.Clone(text))},
   func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpAdd,text,text)},
-  func(p *sxirrt.Parser){p.X_unitLen(text)},
  }{
-  p:=&sxirrt.Parser{Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:127})}
-  func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);if !ok || !errors.Is(f.X_err,ErrLimit){t.Fatal("string spend not bounded",f)}}();invoke(p)}()
+  p:=counting(&sxirrt.Parser{},127)
+  func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);if !ok || !errors.Is(f.X_err,ErrLimit){t.Fatal("string units not checked",f)}}();invoke(p)}()
  }
- // Malformed-source normalization is charged once, for sizing and copying the input (4 per
- // character) and for its offset table (1 per byte); later texts slice it for free.
+ // Measuring a text in position units examines it and counts nothing.
+ p=counting(&sxirrt.Parser{},1)
+ if p.X_unitLen(text)!=301 || p.Units!=0{t.Fatalf("unit length counted %d units",p.Units)}
+ // Preparing a malformed source and slicing its texts count nothing: preparing the input is linear
+ // once, and the Input limit bounds it.
  runes:=[]rune(strings.Repeat("�",300))
- p=&sxirrt.Parser{In:runes,X_n:len(runes),Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute: 2100})}
+ p=counting(&sxirrt.Parser{In:runes,X_n:len(runes)},1)
  if got:=p.Text(0,len(runes));got!=string(runes){t.Fatal("normalized text mismatch")}
- if p.Control.X_budgetUsed()!=2100{t.Fatalf("normalized counters: %+v",p.Control)}
  if got:=p.Text(1,len(runes)-1);got!=string(runes[1:len(runes)-1]){t.Fatal("normalized substring mismatch")}
- if p.Control.X_budgetUsed()!=2100{t.Fatalf("text of a normalized source charged: %+v",p.Control)}
- p=&sxirrt.Parser{In:runes,X_n:len(runes),Control:sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:2099})}
- func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);if !ok || !errors.Is(f.X_err,ErrLimit){t.Fatal("normalized text unbounded",f)}}();p.Text(0,len(runes))}()
+ if p.Units!=0{t.Fatalf("the text of a normalized source counted %d units",p.Units)}
 }
 
 func TestFailureDiagnosticsBounded(t *testing.T){
@@ -198,22 +203,15 @@ func TestFailureDiagnosticsBounded(t *testing.T){
   if _,err=r.call("é");err!=nil{t.Fatal("retry after diagnostic interruption",err)}
  }}
 }
-func TestLineDiagnosticReservations(t *testing.T){
+func TestLineDiagnosticsCountNothing(t *testing.T){
+ // The line and column of an error are resolved outside the parse and count nothing, under any limit.
  for _,unit:=range []PositionUnit{Bytes,CodePoints}{
   input:=strings.Repeat("é\n",300)
-  makeParser:=func(limit uint64)*sxirrt.Parser{
-   p:=&sxirrt.Parser{X_unit:unit,X_bs:input,In:[]rune(input)};p.X_n=len(p.In);if unit==Bytes{p.X_n=len(input)}
-   p.Control=sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:limit})
-   return p
-  }
-  p:=makeParser(100000);e:=p.MakeError(p.X_n-1,nil)
+  p:=&sxirrt.Parser{X_unit:unit,X_bs:input,In:[]rune(input)};p.X_n=len(p.In);if unit==Bytes{p.X_n=len(input)}
+  counting(p,1)
+  e:=p.MakeError(p.X_n-1,nil)
   if e.Line!=300 || e.Col!=map[PositionUnit]int{Bytes:3,CodePoints:2}[unit]{t.Fatal("line coordinate changed",e)}
-  used:=p.Control.X_budgetUsed()
-  if used<uint64(p.X_n){t.Errorf("diagnostic input uncharged: %d for %d",used,p.X_n)}
-  p=makeParser(used)
-  if e:=p.MakeError(p.X_n-1,nil);e.Line!=300{t.Fatal("exact diagnostic ceiling",e)}
-  p=makeParser(used-1)
-  func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);var exhausted *LimitError;if !ok || !errors.As(f.X_err,&exhausted) || exhausted.Kind!=LimitCompute{t.Error("one-short diagnostic unbounded",f)}}();p.MakeError(p.X_n-1,nil)}()
+  if p.Units!=0{t.Errorf("the line of an error counted %d units",p.Units)}
  }
 }
 
@@ -264,38 +262,48 @@ rule leaf Leaf = t:("é") #atomic => Leaf{Text: text($t)}`)
 const generatedGoConversionConsumer = `package PACKAGE
 
 import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
-import("context";"errors";"reflect";"strings";"testing";"codegentest/PACKAGE/types")
+import("context";"errors";"math";"reflect";"strings";"testing";"codegentest/PACKAGE/types")
+// leastLimit returns the least compute limit under which parse does not stop with a compute limit.
+func leastLimit(t *testing.T,parse func(...ParseOption)error)uint64{
+ t.Helper()
+ limited:=func(n uint64)bool{err:=parse(WithLimits(Limits{Compute:n}));if err!=nil && !errors.Is(err,ErrLimit){t.Fatal(err)};return err!=nil}
+ hi:=uint64(1);for limited(hi){hi*=2}
+ lo:=uint64(1);for lo<hi{mid:=lo+(hi-lo)/2;if limited(mid){lo=mid+1}else{hi=mid}}
+ return lo
+}
 func TestConversionVisits(t *testing.T){
  n,err:=Parse(strings.Repeat("é",100));if err!=nil{t.Fatal(err)}
- // Converting a result charges nothing, under any limit.
- for _,ceiling:=range []uint64{1,2,100000}{
-  c:=sxirrt.X_newBudgetControl(context.Background(),Limits{Compute:ceiling})
+ // Converting a result under a memory limit observes it and builds the same values.
+ for _,c:=range []*sxirrt.BudgetControl{nil,sxirrt.X_newBudgetControl(Limits{Memory:math.MaxInt64})}{
   a:=astConv{control:c};v:=a.toTypeBranch(n)
   if v==nil || len(v.Leaves)!=100{t.Fatal("conversion failed")}
-  if c.X_budgetUsed()!=0{t.Fatalf("conversion spend under %d: %d",ceiling,c.X_budgetUsed())}
  }
- // It still polls every 256 steps: converting 100 leaves takes 202 (the branch, its list, and each
- // list edge and leaf), which reach no poll, and 200 leaves take 402, which reach one.
+ // It observes the context of the parse every 256 steps: converting 100 leaves takes 202 (the branch,
+ // its list, and each list edge and leaf), which reach no observation, and 200 leaves take 402, which
+ // reach one.
  ctx,cancel:=context.WithCancel(context.Background());cancel()
- (&astConv{control:sxirrt.X_newBudgetControl(ctx,Limits{})}).toTypeBranch(n)
+ c,done:=sxirrt.X_conversionControl(ctx,nil)
+ (&astConv{control:c}).toTypeBranch(n)
+ done()
  n,err=Parse(strings.Repeat("é",200));if err!=nil{t.Fatal(err)}
- c:=sxirrt.X_newBudgetControl(ctx,Limits{})
+ c,done=sxirrt.X_conversionControl(ctx,nil);defer done()
  func(){defer func(){f,ok:=recover().(sxirrt.X_fatal);if !ok || !errors.Is(f.X_err,context.Canceled){t.Fatalf("conversion poll: %+v",f)}}();(&astConv{control:c}).toTypeBranch(n)}()
 }
 func TestParseConversionSharesCounter(t *testing.T){
  input:=strings.Repeat("é",100)
- before:=uint64(0)
- conv:=func(n *Node,c *sxirrt.BudgetControl,parseErr error)*types.Branch{before=c.X_budgetUsed();v:=(&astConv{control:c}).toTypeBranch(n);if c.X_budgetUsed()!=before{t.Fatal("conversion charged")};return v}
- o:=sxirrt.X_parseOptions{X_expectations: true, X_maxDepth:sxirGrammar.X_maxDepth,X_limits:Limits{Compute:100000}}
- retained,err:=sxirrt.RunParseConverted(rules[0],input,o,conv)
+ // Converting the result counts no unit (spec/runtime/parsing.md, Compute Units): ParseValue needs the
+ // least limit that Parse needs.
+ node:=leastLimit(t,func(o ...ParseOption)error{_,e:=Parse(input,o...);return e})
+ value:=leastLimit(t,func(o ...ParseOption)error{_,e:=ParseValue(input,o...);return e})
+ if node<=1 || value!=node{t.Fatalf("ParseValue needs %d units, Parse %d",value,node)}
+ o:=sxirrt.X_parseOptions{X_expectations: true, X_controls: true, X_maxDepth:sxirGrammar.X_maxDepth,X_limits:Limits{Compute:node}}
+ retained,err:=sxirrt.RunParseConverted(rules[0],input,o,func(n *Node,c *sxirrt.BudgetControl,parseErr error)*types.Branch{return (&astConv{control:c}).toTypeBranch(n)})
  if err!=nil || retained==nil{t.Fatal(err)}
  snapshot:=*retained.Leaves[0]
- // The parse's own units are all ParseValue needs.
- total:=before
- for _,limit:=range []uint64{total-1,total}{
+ for _,limit:=range []uint64{node-1,node}{
   o.X_limits.Compute=limit
   got,err:=sxirrt.RunParseConverted(rules[0],input,o,func(n *Node,c *sxirrt.BudgetControl,parseErr error)*types.Branch{return (&astConv{control:c}).toTypeBranch(n)})
-  if limit==total {if err!=nil || len(got.Leaves)!=100{t.Fatal("exact parse ceiling",err)}}else if got!=nil || !errors.Is(err,ErrLimit){t.Fatalf("result leaked at %d: %v %v",limit,got,err)}
+  if limit==node {if err!=nil || len(got.Leaves)!=100{t.Fatal("exact parse ceiling",err)}}else if got!=nil || !errors.Is(err,ErrLimit){t.Fatalf("result leaked at %d: %v %v",limit,got,err)}
  }
  if !reflect.DeepEqual(*retained.Leaves[0],snapshot){t.Fatal("earlier result was overwritten")}
  // Cancellation raised inside conversion is surfaced at the same outer boundary.

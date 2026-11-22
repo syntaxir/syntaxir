@@ -1,4 +1,4 @@
-actionErrorText budgetUsed wrapEvalError recycle release setValueField setGrammar sortExpected setSource recSince none
+wrapEvalError recycle release setValueField setGrammar setSource recSince none
 captureScratch saved created memo bound slot old fields run
 f n name val next unit src ctx bs err msg value
 fatal evalError contextPanic tracePanic observation tfield parseOptions tundo
@@ -20,3 +20,10 @@ limits
 unitLen recoverParse
 expectations
 profiles
+startUnits
+controls
+unitsLimit
+conversionControl
+sortExpectedEntries
+unitsCtx
+unitsObserve

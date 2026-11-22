@@ -241,7 +241,9 @@ func (p *Parser) streamDeliver(v *sxirvalue.Node) {
 	if v != nil {
 		D(v).Fresh = false
 	}
-	p.streamFail(p.Stream.Emit(v, p.Control))
+	c, done := conversionControl(p.units.ctx, p.Control)
+	defer done()
+	p.streamFail(p.Stream.Emit(v, c))
 }
 
 // streamFail ends the parse with the error err of the stream callback, if there is one.
