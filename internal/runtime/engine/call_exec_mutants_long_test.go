@@ -58,11 +58,11 @@ func TestCallProtocolMutantsFail(t *testing.T) {
 }
 
 // TestExpectationRecordMutantsFail is the negative control of the tests of the engine's expectation
-// record, which is printed from Exec IR into the same file as the call protocol. Its operations are
-// transitional and have no conformance cases, so these mutants are what binds the printed code. Two
-// edits are left out because they change nothing: without expectations a record holds at most the
-// placeholder and its filter stays empty, so a merge past the farthest position that keeps the
-// record or the filter leaves the state that resetting them gives.
+// record, which is printed from Exec IR into the same file as the call protocol. The conformance cases
+// bind the record's operations, not the compositions printed from them, so these mutants are what binds
+// the printed code. Two edits are left out because they change nothing: without expectations a record
+// holds at most the placeholder and its filter stays empty, so a merge past the farthest position that
+// keeps the record or the filter leaves the state that resetting them gives.
 func TestExpectationRecordMutantsFail(t *testing.T) {
 	const (
 		dropped   = "if p.Silent > 0 || pos < p.Farthest {\n\t\treturn"
