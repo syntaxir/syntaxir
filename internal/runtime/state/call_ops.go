@@ -152,14 +152,14 @@ type ctxHit struct {
 // min at the position, in a parse where leaders grow: it fills c and returns the seed of r if r is
 // a leader that grows here, recording the read of the seed.
 func (p *Parser) ctxEnter(c *CtxState, r *Rule, min int) ctxHit {
-	gp := p.gammaAt(p.Pos, r.Cycle)
+	gp := p.gammaAt(p.Pos, int32(r.Cycle))
 	c.gp = gp
 	if gp == len(p.gamma) {
 		return ctxHit{}
 	}
 	if r.Leader {
 		// A leader that grows here reads its seed, whatever its variable values.
-		if i := p.gammaFind(gp, r.ID, min, p.Missing != nil && r.Missing && p.Silent > 0); i >= 0 {
+		if i := p.gammaFind(gp, growKey{rule: int32(r.ID), min: int32(min), ms: p.Missing != nil && r.Missing && p.Silent > 0}); i >= 0 {
 			p.noteSeedRead(i)
 			return ctxHit{e: p.gamma[i].seed}
 		}

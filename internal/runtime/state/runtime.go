@@ -596,7 +596,7 @@ func (p *Parser) GrowBegin(key MemoKey, r *Rule) GrowState {
 	// the memo changes, so that a parse stopped by the budget publishes nothing.
 	p.Spend()
 	g := GrowState{Key: key, start: p.Pos, Rec: len(p.Recovered), missing: p.missingMark(), gi: len(p.gamma)}
-	gp := p.gammaAt(key.Pos, cycle)
+	gp := p.gammaAt(key.Pos, int32(cycle))
 	g.gp = gp
 	g.inCtx = gp < g.gi
 	g.Best = p.entry(g.inCtx)

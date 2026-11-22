@@ -1,8 +1,6 @@
 package state
 
 import (
-	"encoding/binary"
-
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -43,31 +41,31 @@ import (
 // examined input of the steps from there. Steps and jumps make a growth that is evaluated again in
 // another context take only the steps that read the seeds that changed.
 
-// The checks of the dependency memo that Tuning.MemoMut breaks.
+// The checks of the dependency memo that Tuning.MemoMut breaks (ctxMut).
 const (
-	CtxIgnoreSeeds      = 1 + iota // a reuse does not compare the identities of the seeds read
-	CtxIgnoreObs                   // a reuse does not check observations
-	CtxIgnorePresent               // a result in the memo table is reused whatever its present set
-	CtxNoCanonical                 // equal step results get the same identity without comparing them
-	CtxKeepSeedResults             // a Document keeps the results that read a seed for later parses
-	CtxJumpAnySeed                 // a jump uses observations whose outcomes read the growing seed
-	CtxStaleReplay                 // a reuse replays the seeds its observations read where they were made
-	CtxNoReplayObs                 // a reuse passes on only the seeds its observations read where they were made
-	CtxCapDeps                     // a result with more than maxCtxDeps dependencies is not stored
-	CtxNarrowPresent               // a context whose present set needs more than a word records nothing
-	CtxNarrowOutcome               // a lookahead whose examined range needs more than a word is not stored
-	CtxStrictMissing               // a parse with missing-token insertion keeps no result in a context
-	CtxStoreInserts                // rules that insert tokens keep their results in contexts too
-	CtxConstWide                   // all present sets of leaders without bits have one identity
-	CtxNoReplayLookup              // a reused result of a lookup passes no dependencies to the enclosing call
-	CtxNoStepMemo                  // a growth in a context takes no memoized step or jump and evaluates the body
-	CtxKeepInPlace                 // the keep of a leader's result changes the result that grow.end returned
-	CtxNoJumpReplayDeps            // a jump passes on none of the dependencies of its steps
-	CtxNoJumpMergeExp              // a jump passes on none of the expectations of its steps
-	CtxNoStepReplayDeps            // a memoized step passes on none of its dependencies
-	CtxNoStepMergeExp              // a memoized step passes on none of its expectations
-	CtxNoJumpSeedRead              // a jump does not count as a read of the seed of the growth
-	CtxNoStepSeedRead              // a memoized step does not count as a read of the seed of the growth
+	CtxIgnoreSeeds      = ctxMutIgnoreSeeds
+	CtxIgnoreObs        = ctxMutIgnoreObs
+	CtxIgnorePresent    = ctxMutIgnorePresent
+	CtxNoCanonical      = ctxMutNoCanonical
+	CtxKeepSeedResults  = ctxMutKeepSeedResults
+	CtxJumpAnySeed      = ctxMutJumpAnySeed
+	CtxStaleReplay      = ctxMutStaleReplay
+	CtxNoReplayObs      = ctxMutNoReplayObs
+	CtxCapDeps          = ctxMutCapDeps
+	CtxNarrowPresent    = ctxMutNarrowPresent
+	CtxNarrowOutcome    = ctxMutNarrowOutcome
+	CtxStrictMissing    = ctxMutStrictMissing
+	CtxStoreInserts     = ctxMutStoreInserts
+	CtxConstWide        = ctxMutConstWide
+	CtxNoReplayLookup   = ctxMutNoReplayLookup
+	CtxNoStepMemo       = ctxMutNoStepMemo
+	CtxKeepInPlace      = ctxMutKeepInPlace
+	CtxNoJumpReplayDeps = ctxMutNoJumpReplayDeps
+	CtxNoJumpMergeExp   = ctxMutNoJumpMergeExp
+	CtxNoStepReplayDeps = ctxMutNoStepReplayDeps
+	CtxNoStepMergeExp   = ctxMutNoStepMergeExp
+	CtxNoJumpSeedRead   = ctxMutNoJumpSeedRead
+	CtxNoStepSeedRead   = ctxMutNoStepSeedRead
 )
 
 // growRec is a growth in progress: the leader's key, its current seed and the seed's identity.
@@ -152,35 +150,23 @@ func (p *Parser) inserts(r *Rule) bool {
 	return p.Missing != nil && r.Missing && p.tune.MemoMut != CtxStoreInserts
 }
 
-// gammaAt returns the index of the first growth of the cycle at pos that the innermost growths
-// there are (len(gamma) if the innermost growth is not one).
-//
-// Only these growths matter to a call of a rule of the cycle at pos. A call at pos inside the growth
-// of a leader at pos is reached from the leader through calls at pos, so the leader reaches the
-// rule and a seed the call reads is of a leader that the rule reaches: the leaders whose seeds the
-// call can read are on the rule's cycle. Growths at pos are nested in an order of their cycles,
-// since a growth inside the growth of a leader of another cycle at pos cannot reach that leader:
-// the growths of the rule's cycle at pos are consecutive, and if the innermost growth at pos is of
-// another cycle, there is none.
-func (p *Parser) gammaAt(pos, cycle int) int {
-	i := len(p.gamma)
-	for i > 0 && p.gamma[i-1].key.Pos == pos && int(p.gamma[i-1].cycle) == cycle {
-		i--
-	}
-	return i
+// ctxMut reports that the check m of the dependency memo is broken in this parse (Tuning.MemoMut).
+func (p *Parser) ctxMut(m int) bool { return p.tune.MemoMut == m }
+
+// useMem charges n bytes to the memory used (MemUsed).
+func (p *Parser) useMem(n uint64) { p.MemUsed += n }
+
+// gkey returns the key of the growth's leader.
+func (g *growRec) gkey() growKey {
+	return growKey{rule: int32(g.key.Rule), min: int32(g.key.Min), ms: g.key.MissingSilent}
 }
 
-// gammaFind returns the index of the growth of the leader of key at its position, from gp on, or
-// -1. A leader that grows is read whatever the values of the variables (Env is not compared).
-func (p *Parser) gammaFind(gp int, rule, min int, ms bool) int {
-	for i := len(p.gamma) - 1; i >= gp; i-- {
-		k := &p.gamma[i].key
-		if k.Rule == rule && k.Min == min && k.MissingSilent == ms {
-			return i
-		}
-	}
-	return -1
-}
+// at returns the position of the growth.
+func (g *growRec) at() int { return g.key.Pos }
+
+// leaderBit returns the bit of the growth's leader in present sets, or 0 if it has none
+// (Rule.LeaderBit).
+func (g *growRec) leaderBit() presentSet { return g.bit }
 
 // presentWide tags the present set of a context with a leader that has no bit (Rule.LeaderBit): the
 // identity that intern gives the set, which no word of bits equals. A memo entry holds a word of
@@ -196,65 +182,6 @@ type presentSet = uint64
 // lookahead where missing-token insertion is off. The Go library inserts no tokens and gives the
 // bit a type that takes no space.
 type missingBit = bool
-
-// present returns the present set of the context gamma[gp:]: the bits of its leaders, or the
-// identity of the set if a leader has no bit (presentWide).
-func (p *Parser) present(gp int) uint64 {
-	var m uint64
-	for i := gp; i < len(p.gamma); i++ {
-		b := p.gamma[i].bit
-		if b == 0 {
-			return p.presentWide(gp)
-		}
-		m |= b
-	}
-	return m
-}
-
-// presentWide returns the identity of the present set of the context gamma[gp:]: its words of bits,
-// by Rule.LeaderIndex, interned.
-func (p *Parser) presentWide(gp int) uint64 {
-	var w []uint64
-	for i := gp; i < len(p.gamma); i++ {
-		p.Spend()
-		k := int(p.gamma[i].idx)
-		for len(w) <= k/64 {
-			w = append(w, 0)
-		}
-		w[k/64] |= 1 << (k % 64)
-	}
-	if p.tune.MemoMut == CtxConstWide {
-		return presentWide | 1
-	}
-	key := make([]byte, 1, 1+8*len(w))
-	key[0] = internPresent
-	for _, x := range w {
-		key = binary.LittleEndian.AppendUint64(key, x)
-	}
-	return p.intern(key, presentWide)
-}
-
-// intern returns the identity of key: tag with a number from 1 that no other key has while a growth
-// is in progress. The identities are those of present sets and outcomes too large for a word
-// (presentWide, obsWide); they appear only in the context tables and dependencies of growths in
-// progress, so the parser forgets them and numbers again from 1 when the last growth ends
-// (GrowEnd). The numbers stay below 2^60, as more keys would not fit in memory. Like the chunks of
-// the allocators, an entry is charged to MemUsed when it is made and is not given back when it is
-// forgotten: the charge is bounded by the compute unit each entry spends.
-func (p *Parser) intern(key []byte, tag uint64) uint64 {
-	if v, ok := p.interned[string(key)]; ok {
-		return v
-	}
-	if p.interned == nil {
-		p.interned = map[string]uint64{}
-	}
-	p.Spend()
-	p.internSeq++
-	v := tag | p.internSeq
-	p.interned[string(key)] = v
-	p.MemUsed += internBytes + uint64(len(key))
-	return v
-}
 
 // recordsIn reports whether evaluations in a context with the present set present record their
 // dependencies, so that their results are kept.
@@ -286,98 +213,6 @@ func (p *Parser) noteSeedRead(i int) {
 	p.addDep(dep{kind: depSeed, idx: int32(i), val: p.gamma[i].id})
 }
 
-// stored converts frame dependencies to stored ones and reports whether they include a seed read
-// or an observation.
-func (p *Parser) stored(ds []dep) ([]sdep, bool) {
-	if len(ds) == 0 {
-		return nil, false
-	}
-	out := make([]sdep, 0, len(ds))
-	ctx := false
-	for _, d := range ds {
-		p.Spend()
-		switch d.kind {
-		case depSeed, depShadow:
-			k := p.gamma[d.idx].key
-			out = append(out, sdep{kind: d.kind, rule: int32(k.Rule), min: int32(k.Min), ms: k.MissingSilent, val: d.val})
-			ctx = ctx || d.kind == depSeed
-		case depObs:
-			out = append(out, sdep{kind: depObs, site: d.idx, val: d.val})
-			ctx = true
-		}
-	}
-	return out, ctx
-}
-
-// replayDeps passes the stored dependencies of a reused result at pos, whose present set is
-// present, to the innermost frame, as if the evaluation that produced them had run in the current
-// context gamma[gp:]: the seeds it read with their current identities, and each observation with
-// the seeds that its outcome read in the current context (replayObs) as well as those it read where
-// it was made. A frame that cannot check an observation depends on those seeds instead.
-func (p *Parser) replayDeps(pos, gp int, present uint64, ds []sdep) {
-	if len(p.frames) == 0 || len(ds) == 0 {
-		return
-	}
-	depth := int32(len(p.gamma))
-	buf := make([]dep, 0, len(ds))
-	for _, d := range ds {
-		switch d.kind {
-		case depSeed, depShadow:
-			i := p.gammaFind(gp, int(d.rule), int(d.min), d.ms)
-			if i < 0 {
-				continue
-			}
-			v := p.gamma[i].id
-			if p.tune.MemoMut == CtxStaleReplay {
-				v = d.val
-			}
-			buf = append(buf, dep{kind: d.kind, idx: int32(i), d: depth, val: v})
-		case depObs:
-			buf = append(buf, dep{kind: depObs, idx: d.site, d: depth, val: d.val})
-			if p.tune.MemoMut != CtxStaleReplay && p.tune.MemoMut != CtxNoReplayObs {
-				buf = p.replayObs(buf, pos, gp, present, d.site, depth)
-			}
-		}
-	}
-	p.mergeDeps(buf)
-}
-
-// replayObs appends to buf the shadows of the seeds that the outcome memoized for the lookahead
-// site at pos in the current context read, and the observations it depends on with their shadows.
-func (p *Parser) replayObs(buf []dep, pos, gp int, present uint64, site, depth int32) []dep {
-	for _, s := range p.obsGuard {
-		if s == site {
-			return buf
-		}
-	}
-	p.obsGuard = append(p.obsGuard, site)
-	defer func() { p.obsGuard = p.obsGuard[:len(p.obsGuard)-1] }()
-	s, set := p.ctxFindSet(pos, gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, nil)
-	if s == nil {
-		return buf
-	}
-	for _, k := range set.seeds {
-		if i := p.gammaFind(gp, int(k.rule), int(k.min), k.ms); i >= 0 {
-			buf = append(buf, dep{kind: depShadow, idx: int32(i), d: depth, val: p.gamma[i].id})
-		}
-	}
-	for _, o := range set.obs {
-		if v := p.obsValue(pos, gp, present, o); v != obsNone {
-			buf = append(buf, dep{kind: depObs, idx: o, d: depth, val: v})
-			buf = p.replayObs(buf, pos, gp, present, o, depth)
-		}
-	}
-	return buf
-}
-
-// dropTable drops the context table of the growth at gamma[i] if that growth is the first at its
-// position.
-func (p *Parser) dropTable(i int) {
-	if n := len(p.ctxs); n > 0 && p.ctxs[n-1].pos == p.gamma[i].key.Pos && p.ctxs[n-1].depth == i {
-		p.ctxs = p.ctxs[:n-1]
-	}
-}
-
 // lookRec is a lookahead in progress: its site (-1 for one that records nothing), the examined
 // range from before it, and the recovered errors and inserted tokens at its start, which its end
 // discards.
@@ -385,215 +220,6 @@ type lookRec struct {
 	site         int32
 	hw, lw       int
 	rec, missing int
-}
-
-// The values of an observation other than outcomes (obsOutcome).
-const (
-	obsNone    uint64 = 1 << 63       // no outcome is memoized
-	obsIgnored uint64 = 1<<63 | 1<<62 // every outcome under CtxIgnoreObs
-	// obsWide tags the identity that intern gives an outcome whose examined range does not fit in
-	// the bits of a word.
-	obsWide uint64 = 1<<63 | 1<<60
-)
-
-// obsOutcome encodes the outcome of a lookahead at pos, whose expression matched if ok and examined
-// [from, examined): equal values are equal outcomes with equal examined ranges. An outcome whose
-// range reaches 2^30 units or more from pos gets an interned identity (obsWide). ok2 is false only
-// under CtxNarrowOutcome, for such an outcome.
-func (p *Parser) obsOutcome(ok bool, pos, examined, from int) (v uint64, ok2 bool) {
-	hi, lo := examined-pos, pos-from
-	if hi < 0 || lo < 0 || hi >= 1<<30 || lo >= 1<<30 {
-		if p.tune.MemoMut == CtxNarrowOutcome {
-			return obsWide, false
-		}
-		key := make([]byte, 2, 18)
-		key[0] = internOutcome
-		if ok {
-			key[1] = 1
-		}
-		key = binary.LittleEndian.AppendUint64(key, uint64(hi))
-		key = binary.LittleEndian.AppendUint64(key, uint64(lo))
-		return p.intern(key, obsWide), true
-	}
-	v = uint64(hi)<<1 | uint64(lo)<<31
-	if ok {
-		v |= 1
-	}
-	return v, true
-}
-
-// obsValue returns the outcome memoized for the lookahead site at pos in the current context
-// (obsOutcome), or obsNone.
-func (p *Parser) obsValue(pos, gp int, present uint64, site int32) uint64 {
-	if p.tune.MemoMut == CtxIgnoreObs {
-		return obsIgnored
-	}
-	for _, s := range p.obsGuard {
-		if s == site {
-			return obsNone
-		}
-	}
-	p.obsGuard = append(p.obsGuard, site)
-	defer func() { p.obsGuard = p.obsGuard[:len(p.obsGuard)-1] }()
-	s := p.ctxFind(pos, gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, nil)
-	if s == nil {
-		return obsNone
-	}
-	return s.id
-}
-
-// obsFree returns the outcome memoized for the lookahead site at pos in the current context, or
-// obsNone, and reports whether it was obtained without reading the seed of the growth g, directly
-// or through the observations it depends on. Such an outcome is the outcome of the lookahead for
-// every seed of g: an evaluation follows the same path, and reads the same seeds, as long as the
-// seeds it reads are equal.
-func (p *Parser) obsFree(pos, gp int, present uint64, site int32, g growKey) (uint64, bool) {
-	for _, s := range p.obsGuard {
-		if s == site {
-			return obsNone, false
-		}
-	}
-	p.obsGuard = append(p.obsGuard, site)
-	defer func() { p.obsGuard = p.obsGuard[:len(p.obsGuard)-1] }()
-	s, set := p.ctxFindSet(pos, gp, ctxHeadKey{kind: ctxLook, id: site, present: present}, nil)
-	if s == nil {
-		return obsNone, false
-	}
-	for _, k := range set.seeds {
-		if k == g {
-			return s.id, false
-		}
-	}
-	for _, o := range set.obs {
-		if _, free := p.obsFree(pos, gp, present, o, g); !free {
-			return s.id, false
-		}
-	}
-	return s.id, true
-}
-
-// ctxFindSet is ctxFind that also returns the set of the result, which lists what it depends on.
-func (p *Parser) ctxFindSet(pos, gp int, h ctxHeadKey, env []any) (*ctxSlot, *ctxSet) {
-	t := p.table(pos, gp, false)
-	if t == nil {
-		return nil, nil
-	}
-	p.Spend()
-	sets := t.heads[h]
-	if sets == nil {
-		return nil, nil
-	}
-next:
-	for _, s := range *sets {
-		p.Spend()
-		var k valsKey
-		var rest []byte
-		for _, g := range s.seeds {
-			i := p.gammaFind(gp, int(g.rule), int(g.min), g.ms)
-			if i < 0 {
-				continue next
-			}
-			v := p.gamma[i].id
-			if p.tune.MemoMut == CtxIgnoreSeeds {
-				v = 0
-			}
-			rest = k.add(v, rest)
-		}
-		for _, o := range s.obs {
-			v := p.obsValue(pos, gp, h.present, o)
-			if v == obsNone {
-				continue next
-			}
-			rest = k.add(v, rest)
-		}
-		for x := s.first(k, rest); x != nil; x = x.next {
-			p.Spend()
-			if env == nil && x.env == nil || p.memoKeyEqual(x.env, env) {
-				return x, s
-			}
-		}
-	}
-	return nil, nil
-}
-
-// ctxStore stores slot as the result of head h in the context of the growths gamma[gp:] at pos,
-// with the stored dependencies ds.
-func (p *Parser) ctxStore(pos, gp int, h ctxHeadKey, ds []sdep, slot *ctxSlot) {
-	var seeds []growKey
-	var obs []int32
-	var k valsKey
-	var rest []byte
-	for _, d := range ds {
-		if d.kind == depShadow {
-			continue
-		}
-		if p.tune.MemoMut == CtxCapDeps && len(seeds)+len(obs) == maxCtxDeps {
-			return
-		}
-		if d.kind == depSeed {
-			seeds = append(seeds, growKey{rule: d.rule, min: d.min, ms: d.ms})
-		} else {
-			obs = append(obs, d.site)
-		}
-	}
-	// The values follow the order of the set: seeds first, then observations.
-	for _, d := range ds {
-		if d.kind == depSeed {
-			v := d.val
-			if p.tune.MemoMut == CtxIgnoreSeeds {
-				v = 0
-			}
-			rest = k.add(v, rest)
-		}
-	}
-	for _, d := range ds {
-		if d.kind == depObs {
-			v := d.val
-			if p.tune.MemoMut == CtxIgnoreObs {
-				v = obsIgnored
-			}
-			rest = k.add(v, rest)
-		}
-	}
-	t := p.table(pos, gp, true)
-	p.Spend()
-	sets := t.heads[h]
-	if sets == nil {
-		sets = new([]*ctxSet)
-		t.heads[h] = sets
-		t.bytes += ctxHeadBytes
-	}
-	var set *ctxSet
-	for _, s := range *sets {
-		p.Spend()
-		if equalGrowKeys(s.seeds, seeds) && equalSites(s.obs, obs) {
-			set = s
-			break
-		}
-	}
-	if set == nil {
-		set = &ctxSet{seeds: seeds, obs: obs, vals: map[valsKey]*ctxSlot{}}
-		*sets = append(*sets, set)
-		t.bytes += ctxSetBytes + uint64(len(seeds))*growKeyBytes + uint64(len(obs))*4
-	}
-	slot.deps = ds
-	t.bytes += ctxSlotBytes + uint64(len(ds))*sdepBytes + uint64(len(slot.env))*anyBytes + uint64(len(slot.exp))*expIDBytes
-	link := set.first(k, rest)
-	for x := link; x != nil; x = x.next {
-		p.Spend()
-		if x.env == nil && slot.env == nil || p.memoKeyEqual(x.env, slot.env) {
-			// Replace the result in place: the other kind of context (inside or outside a lookahead)
-			// evaluated it again.
-			nx := x.next
-			*x = *slot
-			x.next = nx
-			return
-		}
-	}
-	slot.next = link
-	if added := set.setFirst(k, rest, slot); link == nil {
-		t.bytes += added
-	}
 }
 
 // LookBegin starts a lookahead of the given site. In a context at the current position, the

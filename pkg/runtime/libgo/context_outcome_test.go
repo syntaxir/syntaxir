@@ -20,8 +20,8 @@ func TestObsOutcomeWide(t *testing.T) {
 	outcomes = append(outcomes, outcome{true, pos - 1, pos}, outcome{true, pos, pos + 1})
 	ids := map[uint64]outcome{}
 	for _, o := range outcomes {
-		v := p.obsOutcome(o.ok, pos, o.examined, o.from)
-		if again := p.obsOutcome(o.ok, pos, o.examined, o.from); again != v {
+		v, _ := p.obsOutcome(o.ok, pos, o.examined, o.from)
+		if again, _ := p.obsOutcome(o.ok, pos, o.examined, o.from); again != v {
 			t.Errorf("%+v: number %#x, then %#x", o, v, again)
 		}
 		if prev, dup := ids[v]; dup && prev != o {
