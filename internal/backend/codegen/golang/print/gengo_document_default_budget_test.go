@@ -19,8 +19,8 @@ func TestGeneratedDocumentDefaultLimitsSucceedWhereFreshDoes(t *testing.T) {
 }
 
 // At the boundary, a generated Document parse succeeds with pending edits where a parse from scratch
-// succeeds, up to the largest text the default admits; and an explicit limit counts the work that
-// only a Document does.
+// succeeds, up to the largest text the default admits; and an explicit limit counts no work that only a
+// Document does.
 func TestGeneratedDocumentDefaultLimitsAtBoundary(t *testing.T) {
 	t.Parallel()
 	runDocumentBudgetFixture(t, "rule main = (. &rest)* $$\nrule rest = . #repeat(0, 1000000)", fixtureBoundary)
@@ -332,25 +332,36 @@ func minimal(t *testing.T, run func(limit uint64) error) uint64 {
   }
   return hi
 }
-// An explicit limit counts all the work of a Document parse: the one after more edits than the memo
-// survives needs more than a parse from scratch, which defers memoization, and stops one unit below what it needs.
-func TestExplicitLimitCountsDocumentWork(t *testing.T) {
+// An explicit limit counts no work that only a Document does: the least limit of a Document parse is the
+// units of the events the parse counts. After more edits than the memo survives nothing is reused, so it
+// is the least limit of a parse from scratch; after few edits the reused results count one call each, so
+// it is less. One unit below the least limit stops the parse.
+func TestExplicitLimitCountsNoDocumentWork(t *testing.T) {
   text := strings.Repeat("a", 200)
   fresh := minimal(t, func(l uint64) error { _, err := Parse(text, WithLimits(Limits{Compute: l})); return err })
-  doc := func(l uint64) error {
-    d, err := NewDocument(text)
-    if err != nil { return err }
-    if _, err := d.Parse(); err != nil { return err }
-    sameLength(t, d, 150)
-    _, err = d.Parse(WithLimits(Limits{Compute: l}))
-    return err
+  doc := func(edits int) func(l uint64) error {
+    return func(l uint64) error {
+      d, err := NewDocument(text)
+      if err != nil { return err }
+      if _, err := d.Parse(); err != nil { return err }
+      sameLength(t, d, edits)
+      _, err = d.Parse(WithLimits(Limits{Compute: l}))
+      return err
+    }
   }
-  m := minimal(t, doc)
-  t.Logf("fresh %d, document %d", fresh, m)
-  if m <= fresh { t.Fatalf("document minimal limit %d does not exceed fresh %d", m, fresh) }
-  if err := doc(m - 1); !errors.Is(err, ErrLimit) { t.Fatalf("limit %d: %v", m-1, err) }
-}
-`
+  for _, edits := range []int{150, 200} {
+    m := minimal(t, doc(edits))
+    t.Logf("%d edits: fresh %d, document %d", edits, fresh, m)
+    if m != fresh { t.Fatalf("%d edits: document minimal limit %d differs from the %d units of the parse from scratch", edits, m, fresh) }
+    if err := doc(edits)(m - 1); !errors.Is(err, ErrLimit) { t.Fatalf("%d edits, limit %d: %v", edits, m-1, err) }
+  }
+  // A few edits leave the entries of the memo reusable: the reparse counts less than the parse from scratch,
+  // and the work of applying the edits to the entries is no part of it.
+  m := minimal(t, doc(1))
+  t.Logf("1 edit: fresh %d, document %d", fresh, m)
+  if m >= fresh { t.Fatalf("1 edit: document minimal limit %d does not stay below the %d of the parse from scratch", m, fresh) }
+  if err := doc(1)(m - 1); !errors.Is(err, ErrLimit) { t.Fatalf("1 edit, limit %d: %v", m-1, err) }
+}`
 
 const fixtureRunaway = `package fixture
 import (
