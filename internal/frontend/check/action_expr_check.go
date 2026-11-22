@@ -67,7 +67,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 			c.errorf(t.Diagnostic(), "undefined capture $%s", t.Name)
 		}
 	case *ast.VarRef:
-		if c.Prog.Vars().Lookup(t.Name) == nil {
+		if c.Prog.Vars.Lookup(t.Name) == nil {
 			c.errorf(t.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", t.Name, t.Name)
 		}
 	case *ast.FieldAccess:

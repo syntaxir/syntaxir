@@ -223,7 +223,7 @@ func (k *TypeResolver) unsupported(t ast.TypeExpr, pos ast.Pos, format string, a
 
 // defined reports whether name is a built-in or declared type.
 func (k *TypeResolver) defined(name string) bool {
-	if _, ok := k.Prog.TypeDecls()[name]; ok {
+	if _, ok := k.Prog.typeDecls()[name]; ok {
 		return true
 	}
 	r := &TypeResolver{Prog: k.Prog, errs: &diagnostic.ErrorList{}, report: true}
@@ -265,7 +265,7 @@ func (k *TypeResolver) ResolveNamed(name string, pos ast.Pos) Ty {
 	case "error": // the value of recovery: a recovered error or a missing token
 		return TyErr
 	}
-	switch spec := k.Prog.TypeDecls()[name].(type) {
+	switch spec := k.Prog.typeDecls()[name].(type) {
 	case *ast.TypeDef:
 		val := spec.NodeValue()
 		if val == nil {
@@ -332,7 +332,7 @@ func DefFields(spec *ast.TypeDef) []*ast.Field {
 // that do not start with an uppercase letter, and types that do not resolve (undefined names,
 // aliases that refer to themselves, unsupported syntax and fields of type _|_).
 func (k *TypeResolver) checkTypeDefinitions() {
-	for _, td := range k.control.Types(k.Prog.Grammar()) {
+	for _, td := range k.control.Types(k.Prog.Grammar) {
 		k.control.Poll()
 		switch spec := td.(type) {
 		case *ast.TypeDef:

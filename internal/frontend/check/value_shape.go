@@ -25,7 +25,7 @@ func (p *Checker) SpliceBody(name string) (ast.Expr, bool) {
 	if p == nil {
 		return nil, false
 	}
-	if r := p.Rule(name); r.Splice {
+	if r := p.ByName[name]; r != nil && r.Splice {
 		return r.Def.Expr, true
 	}
 	return nil, false

@@ -39,7 +39,7 @@ func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *ca
 	defer dropRepeatedErrors(errs, len(*errs))
 	k := &TypeResolver{control: control, Prog: prog, errs: errs, report: true}
 	k.checkTypeDefinitions()
-	rules := control.Rules(prog.Grammar())
+	rules := control.Rules(prog.Grammar)
 	for _, rd := range rules {
 		control.Poll()
 		if rd.Type != nil {
@@ -61,7 +61,7 @@ func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *ca
 	info.recOnce.Do(func() {})
 	info.shown = shownRuleTypes(prog, rules, values, control)
 	k.report = false
-	for _, td := range control.Types(prog.Grammar()) {
+	for _, td := range control.Types(prog.Grammar) {
 		control.Poll()
 		switch spec := td.(type) {
 		case *ast.TypeDef:
@@ -132,14 +132,14 @@ type typedField struct {
 // It does not report errors; validation still uses the type expression as written.
 func (prog *Checker) ConcreteType(t ast.TypeExpr) (string, ast.TypeDecl) {
 	if ref, ok := t.(*ast.TypeRef); ok {
-		switch spec := prog.TypeDecls()[ref.Name].(type) {
+		switch spec := prog.typeDecls()[ref.Name].(type) {
 		case *ast.TypeDef:
 			return ref.Name, spec
 		}
 	}
 	k := &TypeResolver{Prog: prog}
 	if n, ok := k.Resolve(t).(NamedTy); ok && n.Kind == 's' {
-		return n.Name, prog.TypeDecls()[n.Name]
+		return n.Name, prog.typeDecls()[n.Name]
 	}
 	return "", nil
 }
@@ -148,7 +148,7 @@ func (prog *Checker) ConcreteType(t ast.TypeExpr) (string, ast.TypeDecl) {
 // aliases, with the name of that definition; it returns "" and nil when name denotes no struct
 // type.
 func (prog *Checker) StructType(name string) (string, *ast.TypeDef) {
-	switch spec := prog.TypeDecls()[name].(type) {
+	switch spec := prog.typeDecls()[name].(type) {
 	case *ast.TypeDef:
 		return name, spec
 	case *ast.TypeAlias:

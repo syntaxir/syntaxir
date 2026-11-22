@@ -37,7 +37,7 @@ func Export(p Source, start string, allRules bool) (*schema.Output, error) {
 		return nil, ErrUnavailable
 	}
 	g, c := p.Model.Grammar, p.Checker
-	if c.Rule(start).Def == nil {
+	if c.ByName[start] == nil {
 		return nil, fmt.Errorf("unknown schema start rule %q", start)
 	}
 	// Without all rules, the export is the start rule's reachable part, which is stored per start rule.
@@ -124,10 +124,11 @@ func Export(p Source, start string, allRules bool) (*schema.Output, error) {
 			continue
 		}
 		selected[name] = true
-		rd := c.Rule(name).Def
-		if rd == nil {
+		r := c.ByName[name]
+		if r == nil {
 			return nil, fmt.Errorf("unresolved schema rule %q", name)
 		}
+		rd := r.Def
 		astfacts.WalkExpr(rd.Expr, func(x ast.Expr) {
 			if r, ok := x.(*ast.Ref); ok && !selected[r.Name] {
 				todo = append(todo, r.Name)

@@ -1,40 +1,13 @@
 package compile
 
 import (
-	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// checkProgram is the program as the checker reads it (check.Program).
-type checkProgram struct{ p *Program }
-
-func (c checkProgram) Grammar() *ast.Grammar              { return c.p.Grammar }
-func (c checkProgram) TypeDecls() map[string]ast.TypeDecl { return c.p.Types }
-func (c checkProgram) Vars() *check.VarTable              { return c.p.Vars }
-
-func (c checkProgram) Rule(name string) check.RuleInfo { return ruleInfo(c.p.ByName[name]) }
-
-func (c checkProgram) EachRule(f func(name string, r check.RuleInfo)) {
-	for name, r := range c.p.ByName {
-		f(name, ruleInfo(r))
-	}
-}
-
-func (c checkProgram) ElementScoped(e ast.Expr, control *cancel.Control) bool {
-	return check.ElementScopedControlled(e, control)
-}
-
-func ruleInfo(r *check.Rule) check.RuleInfo {
-	if r == nil {
-		return check.RuleInfo{}
-	}
-	return check.RuleInfo{Def: r.Def, Splice: r.Splice, Where: r.Where}
-}
-
 // Checker returns the checker of the program, made on first use.
 func (p *Program) Checker() *check.Checker {
-	p.checkerOnce.Do(func() { p.chk = check.NewChecker(checkProgram{p}) })
+	p.checkerOnce.Do(func() { p.chk = check.NewChecker(p.Model) })
 	return p.chk
 }
 

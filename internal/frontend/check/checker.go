@@ -8,10 +8,10 @@ import (
 )
 
 // Checker checks the types of one program and keeps what the checks compute for it. It reads the
-// program through Program. A program has one Checker, made with it, and every cache below lives as
+// program's semantic model, Model. A program has one Checker, made with it, and every cache below lives as
 // long as that Checker: for the program's lifetime.
 type Checker struct {
-	Program
+	*Model
 	// Typed holds the types found by CheckTypes (nil if it did not run).
 	Typed *TypeInfo
 	// shapeControl is the compilation's cancellation control while the program is being built, so
@@ -35,10 +35,21 @@ type Checker struct {
 	// that an alias resolved from several places is reported once. The compilation that builds the
 	// program is its only writer.
 	unsupportedSeen map[ast.TypeExpr]bool
+	// typeReads, if not nil, is called on each read of the type declarations (typeDecls); only the
+	// tests set it (export_test.go), to count the work of a decision in reads.
+	typeReads func()
 }
 
-// NewChecker returns the checker of the program p.
-func NewChecker(p Program) *Checker { return &Checker{Program: p} }
+// typeDecls returns the type declarations of the model by name.
+func (p *Checker) typeDecls() map[string]ast.TypeDecl {
+	if p.typeReads != nil {
+		p.typeReads()
+	}
+	return p.Types
+}
+
+// NewChecker returns the checker of the model m.
+func NewChecker(m *Model) *Checker { return &Checker{Model: m} }
 
 // MarkUnsupported records that the unsupported type syntax t was reported and returns true the
 // first time, so that a type reached from several places is reported once.

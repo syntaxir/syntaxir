@@ -33,7 +33,7 @@ func (p *Checker) Kinds(poll func()) *Kinds {
 	defer p.kindsMu.Unlock()
 	if p.kinds == nil {
 		k := &Kinds{Types: map[string]*valueimpl.Kind{}, Nodes: map[string]*nodes.NodeTypeKinds{}}
-		for name, spec := range p.TypeDecls() {
+		for name, spec := range p.typeDecls() {
 			if poll != nil {
 				poll()
 			}

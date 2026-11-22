@@ -67,7 +67,7 @@ func (v *ValueInference) shownSeen(t Ty, seen map[string]bool) Ty {
 		if !ok || seen[r.Name] {
 			return nil, false
 		}
-		if rl := v.Prog.Rule(r.Name); rl.Def == nil || rl.Where == "" {
+		if rl := v.Prog.ByName[r.Name]; rl == nil || rl.Where == "" {
 			return nil, false
 		}
 		next := maps.Clone(seen)
@@ -426,7 +426,7 @@ func (prog *Checker) nodeValueOf(n NodeTy) Ty {
 // NodeTypeOf returns the named node type that the type name names, through aliases. Its value is
 // resolved once and cached.
 func (prog *Checker) NodeTypeOf(name string) (NodeTy, bool) {
-	switch prog.TypeDecls()[name].(type) {
+	switch prog.typeDecls()[name].(type) {
 	case *ast.TypeDef, *ast.TypeAlias:
 	default:
 		return NodeTy{}, false
@@ -526,7 +526,7 @@ func (v *ValueInference) actionExprType(t ast.ActionExpr, env *valueEnv) Ty {
 		v.errorf(t.Diagnostic(), "$%s has no value in its scope", t.Name)
 		return TyAny
 	case *ast.VarRef:
-		if d := v.Prog.Vars().Lookup(t.Name); d != nil {
+		if d := v.Prog.Vars.Lookup(t.Name); d != nil {
 			return d.Typ
 		}
 		return TyAny // an undeclared variable was reported when names were resolved
@@ -845,7 +845,7 @@ func (v *ValueInference) member(x Ty, m *ast.FieldAccess) Ty {
 			if a == TyMissing {
 				found = append(found, recoveredMember(m.Name, true)...)
 			}
-			if st, ok := v.Prog.TypeDecls()[a.Name].(*ast.TypeDef); ok {
+			if st, ok := v.Prog.typeDecls()[a.Name].(*ast.TypeDef); ok {
 				if f := FieldOf(st, m.Name); f != nil {
 					found = append(found, v.resolve(f.Type))
 				}

@@ -130,7 +130,7 @@ func ValueTypes(p *Checker, control *cancel.Control) (map[string]Ty, diagnostic.
 // types of the program's parts in rec, each if not nil.
 func valueTypesChecked(p *Checker, control *cancel.Control, nodeMembers map[*ast.FieldAccess]bool, rec *ValueRecord) (map[string]Ty, diagnostic.ErrorList) {
 	v := &ValueInference{Prog: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
-	rules := p.Grammar().Rules()
+	rules := p.Grammar.Rules()
 	for _, rd := range rules {
 		v.Rules[rd.Name] = rd
 	}
@@ -377,7 +377,7 @@ func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
 	case *ast.Predicate:
 		if a, ok := e.Action.(*ast.Bind); ok {
 			t := v.actionExpr(a.Value, env)
-			if d := v.Prog.Vars().Lookup(a.Name); d != nil {
+			if d := v.Prog.Vars.Lookup(a.Name); d != nil {
 				switch {
 				case !v.assignable(t, d.Typ):
 					v.errorf(a.Diagnostic(), "cannot use %s as %s in the binding of variable %s%s", v.display(t), d.Typ, a.Name, v.castHint(t, d.Typ))
@@ -389,7 +389,7 @@ func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
 			v.actionExpr(e.Action, env)
 		}
 	case *ast.Repeat:
-		if v.Prog.ElementScoped(e.Expr, v.control) {
+		if ElementScopedControlled(e.Expr, v.control) {
 			v.predicates(e.Expr, inner(e.Expr))
 		} else {
 			v.predicates(e.Expr, env)
@@ -754,18 +754,18 @@ func (p *Checker) bottomRules(control *cancel.Control) map[string]bool {
 	p.bottomsOnce.Do(func() {
 		set := map[string]bool{}
 		var names []string
-		p.EachRule(func(name string, r RuleInfo) {
+		for name, r := range p.ByName {
 			if r.Def != nil && r.Def.Action == nil && r.Def.Type == nil {
 				set[name] = true
 				names = append(names, name)
 			}
-		})
+		}
 		sort.Strings(names)
 		w := &ValueInference{Prog: p, control: control, bottoms: set}
 		for changed := true; changed; {
 			changed = false
 			for _, name := range names {
-				if set[name] && !w.bottom(p.Rule(name).Def.Expr) {
+				if set[name] && !w.bottom(p.ByName[name].Def.Expr) {
 					set[name], changed = false, true
 				}
 			}

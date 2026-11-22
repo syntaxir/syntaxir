@@ -53,7 +53,7 @@ func CompileCore(in Input, m *ir.Module) (*bytecode.Module, error) {
 
 // actionCode returns the action code of the action expression of s, adding the strings it uses to the module.
 func (c *compiler) actionCode(s actionSite) (bytecode.Action, error) {
-	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Elab.Checker().Vars(), Scope: scopeOf(s.scope), Proj: s.proj})
+	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Elab.Checker().Vars, Scope: scopeOf(s.scope), Proj: s.proj})
 	if err != nil {
 		return bytecode.Action{}, fmt.Errorf("internal error: %w", err)
 	}
@@ -171,7 +171,7 @@ func b2i(b bool) int32 {
 // compile fills the module with the type, variable and rule tables and the code of the rules.
 func (c *compiler) compile() {
 	chk := c.in.Elab.Checker()
-	for _, decl := range chk.Grammar().Types() {
+	for _, decl := range chk.Grammar.Types() {
 		td, ok := decl.(*ast.TypeDef)
 		if !ok {
 			continue // an alias is not a type of the module
