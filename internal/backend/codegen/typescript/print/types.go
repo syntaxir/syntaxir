@@ -514,7 +514,10 @@ function astKid(n: Node, i: number): Value {
   return kid === undefined ? null : unboxNode(kid);
 }
 
+// astResult converts the result of a parse. A parse without a result, failed or nil, has a null value,
+// whatever the type of the rule: only the value of a result converts, with its scalars defaulted.
 function astResult<T>(r: ParseResult, repr: number, control: BudgetControl | null = null): Types.TypedParseResult<T> {
+  if (r.node === null) return { value: null, error: r.error };
   return { value: astConvert(unboxNode(r.node), repr, control) as T | null, error: r.error };
 }
 

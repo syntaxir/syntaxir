@@ -25,6 +25,9 @@ import (
 // Compare public typed values with the existing generated Go Node-conversion
 // route. Normalize spans, integer/text transport and CST Nodes explicitly;
 // neither backend's JSON shape is being used as the other's value contract.
+// A parse without a result has no value: TypeScript returns null and Go the
+// zero value of the start rule's type, which the oracle checks and reports as
+// null.
 func TestGeneratedTSTypedReplay(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testGeneratedTSTypedReplay)
@@ -116,7 +119,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 	}
 	write("go.mod", codegentest.GoMod("replay"))
 	write("package.json", `{"type":"module"}`)
-	var imports, parsers, recognizers, terminalNames, valueNames strings.Builder
+	var imports, parsers, failures, recognizers, terminalNames, valueNames strings.Builder
 	var inputs [][]string
 	var named [][]string
 	var files []string
@@ -151,6 +154,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 		files = append(files, fmt.Sprintf("ts/g%d/parser.ts", i))
 		fmt.Fprintf(&imports, "g%d \"replay/g%d\"\n", i, i)
 		fmt.Fprintf(&parsers, "func(s string, bytes bool)(any,error){u:=g%d.CodePoints; if bytes {u=g%d.Bytes};return g%d.ParseValue(s,g%d.WithUnit(u))},\n", i, i, i, i)
+		fmt.Fprintf(&failures, "func(s string, bytes bool)bool{u:=g%d.CodePoints; if bytes {u=g%d.Bytes};n,_:=g%d.Parse(s,g%d.WithUnit(u));return n==nil},\n", i, i, i, i)
 		fmt.Fprintf(&recognizers, "func(s string, bytes bool)error{u:=g%d.CodePoints; if bytes {u=g%d.Bytes};return g%d.Recognize(s,g%d.WithUnit(u))},\n", i, i, i, i)
 		var in []string
 		for _, s := range c.Inputs {
@@ -162,7 +166,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 	write("inputs.json", string(b))
 	nb, _ := json.Marshal(named)
 	write("named.json", string(nb))
-	write("main.go", "package main\nimport (\"encoding/base64\";\"encoding/json\";\"fmt\";\"os\";\"reflect\";\"strconv\";\"strings\";"+imports.String()+")\nvar parsers=[]func(string,bool)(any,error){"+parsers.String()+"}\nvar recognizers=[]func(string,bool)error{"+recognizers.String()+"}\nvar terminalTypes=map[string]bool{"+terminalNames.String()+"}\nvar valueNames=map[string]string{"+valueNames.String()+"}\n"+tsTypedGoOracle)
+	write("main.go", "package main\nimport (\"encoding/base64\";\"encoding/json\";\"fmt\";\"os\";\"reflect\";\"strconv\";\"strings\";"+imports.String()+")\nvar parsers=[]func(string,bool)(any,error){"+parsers.String()+"}\nvar failures=[]func(string,bool)bool{"+failures.String()+"}\nvar recognizers=[]func(string,bool)error{"+recognizers.String()+"}\nvar terminalTypes=map[string]bool{"+terminalNames.String()+"}\nvar valueNames=map[string]string{"+valueNames.String()+"}\n"+tsTypedGoOracle)
 	write("replay.mjs", tsTypedReplayHarness)
 	cmd := exec.Command(tsc, append([]string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict", "--noUnusedLocals", "--noUnusedParameters", "--noUncheckedIndexedAccess", "--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--allowImportingTsExtensions"}, files...)...)
 	cmd.Dir = dir
@@ -211,6 +215,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 }
 
 const tsTypedGoOracle = `
+func result(v any,failed bool) any { if !failed {return normal(reflect.ValueOf(v))};if x:=reflect.ValueOf(v);x.IsValid()&&!x.IsZero() {return map[string]any{"value of a failed parse":normal(x)}};return nil }
 func text(s string) string { return base64.StdEncoding.EncodeToString([]byte(s)) }
 func normal(v reflect.Value) any {
   if !v.IsValid() {return nil}
@@ -239,7 +244,7 @@ func normal(v reflect.Value) any {
   }
   panic(v.Kind())
 }
-func main(){data,_:=os.ReadFile(os.Args[1]);var inputs [][]string;json.Unmarshal(data,&inputs);for i,in:=range inputs {for _,b64:=range in {b,_:=base64.StdEncoding.DecodeString(b64);for _,bytes:=range []bool{false,true}{v,e:=parsers[i](string(b),bytes);var err,rec any;if e!=nil {err=e.Error()};if e:=recognizers[i](string(b),bytes);e!=nil{rec=e.Error()};row,_:=json.Marshal(map[string]any{"grammar":i,"bytes":bytes,"input":b64,"value":normal(reflect.ValueOf(v)),"error":err,"recognize":rec});fmt.Println(string(row))}}}}
+func main(){data,_:=os.ReadFile(os.Args[1]);var inputs [][]string;json.Unmarshal(data,&inputs);for i,in:=range inputs {for _,b64:=range in {b,_:=base64.StdEncoding.DecodeString(b64);for _,bytes:=range []bool{false,true}{v,e:=parsers[i](string(b),bytes);var err,rec any;if e!=nil {err=e.Error()};if e:=recognizers[i](string(b),bytes);e!=nil{rec=e.Error()};row,_:=json.Marshal(map[string]any{"grammar":i,"bytes":bytes,"input":b64,"value":result(v,failures[i](string(b),bytes)),"error":err,"recognize":rec});fmt.Println(string(row))}}}}
 `
 
 const tsTypedReplayHarness = `import {readFileSync} from "node:fs";
