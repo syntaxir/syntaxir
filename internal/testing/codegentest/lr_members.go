@@ -364,7 +364,7 @@ rule L = T "!" / &T S "q" "q"`,
 	// A context with more dependencies than the context store holds inline, and more leaders than
 	// have a bit in present sets.
 	cases = append(cases, Case{
-		Name:   "seven dependencies and 33 leaders",
+		Name:   "seven dependencies and 34 leaders",
 		Src:    "@start\nrule main = " + ContextChain(32, 7, false),
 		Inputs: []string{"axy", "aaxx", "aaaxxx", "axq", "aaxzx", "a", ""},
 	})

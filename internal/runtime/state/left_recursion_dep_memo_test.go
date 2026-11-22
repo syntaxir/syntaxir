@@ -33,7 +33,7 @@ func depMemoGrammars(seeds int) []codegentest.Case {
 // limit applies. In a build without budget controls no limit applies and the evaluation does not
 // finish, so the tests leave these inputs out there. checkReferenceLimit keeps the list exact.
 var limitBoundReferences = map[string][]string{
-	"seven dependencies and 33 leaders":                         {"axy", "aaxx", "aaaxxx", "axq", "aaxzx", "a"},
+	"seven dependencies and 34 leaders":                         {"axy", "aaxx", "aaaxxx", "axq", "aaxzx", "a"},
 	"random cycle grammar 341 with cuts and 63 padding leaders": {"a", "accaab"},
 }
 
