@@ -37,7 +37,7 @@ Focused boundary/reset tests, generated Go and Node 22 strict-TypeScript control
 For repeatable controls, export optimized and dense-reference generated Go fixtures with `SXIR_SPARSE_MEMO_GENERATED_DIR`; export TypeScript fixtures with `SXIR_SPARSE_MEMO_TS_DIR`. The tests compare results before timing. Example commands:
 
 ```sh
-go test ./internal/runtime/engine -run '^TestSparseMemo' -count=1
+go test ./internal/runtime/engine ./internal/runtime/state -run '^TestSparseMemo' -count=1
 go test ./internal/backend/... -run 'TestGenerated.*SparseMemo' -count=1
 go test ./runtime -run '^TestSparseMemo' -count=1
 go test ./internal/backend/codegen/typescript/print -run '^TestGeneratedTSSparseMemoControls$' -count=1

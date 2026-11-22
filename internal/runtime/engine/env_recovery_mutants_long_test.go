@@ -83,7 +83,7 @@ func TestRecoveryMutantsFail(t *testing.T) {
 			{"a report delivers no errors of a list",
 				[]printedEdit{{"errs = appendRecErrors(errs[:0], p.Recovered[p.diagnosed:p.diagnosed+1])",
 					"errs = errs[:0]\n\t\tif e := p.Recovered[p.diagnosed]; e.err != nil {\n\t\t\terrs = append(errs, e.err)\n\t\t}"}},
-				"^TestStreamDiagnosticsOfSharedLists$", []string{"."}},
+				"^TestStreamDiagnosticsOfSharedLists$", core},
 		})
 		runPrintedMutants(t, "internal/runtime/state/call_exec.go", []printedMutant{
 			{"a growth step keeps the errors of the step before",

@@ -3,12 +3,10 @@ package engine
 import (
 	"fmt"
 	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
-	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -18,139 +16,8 @@ const streamStorageGrammar = `rule main = h:"#head\n" #atomic row* #stream $$ {t
 rule row = k:"x" #atomic vs:value+ "\n"
 rule value = v:[a-z]+ #atomic ","`
 
-func TestStreamPrefixStorageIsolation(t *testing.T) {
-	t.Parallel()
-	if !state.StreamPrefixIsolation {
-		t.Skip("reference build shares prefix storage")
-	}
-	p := state.NewStreamParser(&mustCompile(t, `rule main = "a"`).sharedProgram, strings.NewReader("a"), sxirinput.CodePoints)
-	root := p.NewFrame(1)
-	p.Frame = root
-	prefix := p.NewNode(nodes.Data{Text: "prefix"})
-	root.Vals[0] = prefix
-	if p.NodeSlab != nil || p.PtrSlab != nil || p.FrameSlab != nil {
-		t.Fatal("prefix wasted or shared a bulk allocation")
-	}
-	p.StartStreamChunks()
-	next := p.NewNode(nodes.Data{Text: "element"})
-	element := p.NewFrame(1)
-	if next == prefix || &element.Vals[0] == &root.Vals[0] || element == root {
-		t.Fatal("element allocation still shares live prefix chunks")
-	}
-	if p.Frame != root || root.Vals[0] != prefix || nodes.D(prefix).Text != "prefix" {
-		t.Fatal("prefix isolation changed live root capture")
-	}
-}
-
-// Large prefixes must switch to slabs instead of allocating every object.
-func TestStreamPrefixAllocationBudget(t *testing.T) {
-	t.Parallel()
-	if !state.StreamPrefixIsolation {
-		t.Skip("reference build uses slabs")
-	}
-	p := state.NewStreamParser(&mustCompile(t, `rule main = "a"`).sharedProgram, strings.NewReader("a"), sxirinput.CodePoints)
-	for range state.NodeChunk/8 + 4 {
-		p.NewNode(nodes.Data{Text: "prefix"})
-	}
-	if len(p.NodeSlab) == 0 || p.NodeChunks != 1 {
-		t.Fatal("large prefix did not switch to bounded slab allocation")
-	}
-	p.StartStreamChunks()
-	if p.NodeChunks != 0 || len(p.NodeSlab) != 0 {
-		t.Fatal("stream boundary did not seal large prefix storage")
-	}
-	p.NewNode(nodes.Data{Text: "element"})
-	if p.NodeChunks != 1 || len(p.NodeSlab) != state.NodeChunk-1 {
-		t.Fatal("elements did not resume normal slab allocation")
-	}
-}
-
-// Prefix captures and emitted values must survive isolation for both compact
-// and wide repetition instructions, including bytecode loaded from a compiled grammar.
-func TestStreamPrefixLoadedRepetitions(t *testing.T) {
-	t.Parallel()
-	bounds := []string{"#repeat(0)", "#repeat(2)", "*"}
-	if strconv.IntSize == 64 {
-		bounds = append(bounds, "#repeat(0, 4294967296)")
-	}
-	for _, bound := range bounds {
-		text, count := "#head\nxx", 2
-		if bound == "#repeat(0)" {
-			text, count = "#head\n", 0
-		}
-		source := `rule main = h:"#head\n" #atomic (x:"x" #atomic)` + bound + ` #stream $$ {text($h) == "#head\n"}`
-		prog := mustCompile(t, source)
-		for _, mode := range valueModes {
-			saved := saveLoad(t, prog, "main", mode)
-			for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-				if backend == Closure {
-					err := saved.ParseStreamWith("main", strings.NewReader(text), func(*value.Node) error { return nil }, servedBy(mode, ParseOptions{Backend: backend}))
-					wantClosureRefused(t, err)
-					continue
-				}
-				for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-					t.Run(fmt.Sprintf("%s/%s/%s/%s", bound, mode, backend, unit), func(t *testing.T) {
-						var retained []*value.Node
-						err := saved.ParseStreamWith("main", strings.NewReader(text), func(n *value.Node) error { retained = append(retained, n); return nil }, servedBy(mode, ParseOptions{Backend: backend, Unit: unit}))
-						if err != nil || len(retained) != count {
-							t.Fatalf("got %d rows: %v", len(retained), err)
-						}
-						for _, n := range retained {
-							if nodes.D(n.Field("x").(*value.Node)).Text != "x" {
-								t.Fatal("retained capture changed")
-							}
-						}
-					})
-				}
-			}
-		}
-	}
-}
-
-func TestStreamPrefixMemoReuse(t *testing.T) {
-	t.Parallel()
-	prog := mustCompile(t, `rule main = &header h:header (x:"x" #atomic)* #stream $$ {text($h) == "#head\n"}
-rule header = "#head\n" #atomic`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-			t.Run(fmt.Sprintf("%s/%s", backend, unit), func(t *testing.T) {
-				opts := ParseOptions{Backend: backend, Unit: unit}
-				input := "#head\n" + strings.Repeat("x", 1300)
-				count := 0
-				err := prog.ParseStreamWith("main", strings.NewReader(input), func(n *value.Node) error {
-					if nodes.D(n.Field("x").(*value.Node)).Text != "x" {
-						t.Fatal("emitted capture changed")
-					}
-					count++
-					return nil
-				}, opts)
-				if err != nil || count != 1300 {
-					t.Fatalf("emitted %d: %v", count, err)
-				}
-				if err := prog.ParseStreamWith("main", strings.NewReader(input), nil, opts); err != nil {
-					t.Fatalf("nil callback: %v", err)
-				}
-			})
-		}
-	}
-}
-
-func TestStreamPrefixLeftRecursiveCaptureSurvivesCommit(t *testing.T) {
-	t.Parallel()
-	prog := mustCompile(t, `rule main = h:head #atomic "x"* #stream {text($h) == "aa"} $$
-rule head = head "a" / "a" #atomic`)
-	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-			t.Run(fmt.Sprintf("%s/%s", backend, unit), func(t *testing.T) {
-				count := 0
-				err := prog.ParseStreamWith("main", strings.NewReader("aaxx"), func(*value.Node) error { count++; return nil }, ParseOptions{Backend: backend, Unit: unit})
-				if err != nil || count != 2 {
-					t.Fatalf("LR capture lost after stream commits: count=%d, %v", count, err)
-				}
-			})
-		}
-	}
-}
+// The tests of the stream prefix storage are in the state package; these benchmarks choose a
+// backend's rule and descriptors, which only the engine can do.
 
 // Measure live parser storage after a large first row followed by small rows.
 // Input and compiled-program storage precede the baseline GC. The callback

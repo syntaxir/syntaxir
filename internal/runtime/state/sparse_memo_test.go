@@ -1,14 +1,15 @@
-package engine
+package state_test
 
 import (
-	"crypto/sha256"
-	"fmt"
 	"os"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/compile"
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -92,47 +93,17 @@ func TestSparseMemoResetBounds(t *testing.T) {
 	}
 }
 
-func TestSparseMemoParseControls(t *testing.T) {
-	t.Parallel()
-	src, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.sxir")
-	if err != nil {
-		t.Fatal(err)
-	}
-	g, err := parseTest(string(src))
-	if err != nil {
-		t.Fatal(err)
-	}
-	prog, err := Compile(g, compile.Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if prog.NSeen <= 64 {
-		t.Fatal("control no longer exercises sparse rule count")
-	}
-	for i, input := range []string{"const 日本語 = \"😀\";\nconst v = [1, 2].map(x => x + 1);\n", "function f( { return 1;", strings.Repeat("const 日本語 = 1 + 2;\n", 100), strings.Repeat("const a = 1;\n", 100) + "function f( { return 1;"} {
-		for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-			for _, recognize := range []bool{false, true} {
-				checkTrace(t, prog, "main", input, ParseOptions{Unit: unit, Recognize: recognize})
-				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
-					spent, result := parseSpend(prog, "main", input, ParseOptions{Backend: backend, Unit: unit, Recognize: recognize})
-					t.Logf("semantic=%d/%s/%s/%t result=%x spent=%x", i, backend, unit, recognize, sha256.Sum256([]byte(result)), sha256.Sum256([]byte(fmt.Sprintf("%+v", spent))))
-				}
-			}
-		}
-	}
-}
-
 func TestSparseMemoInputSelection(t *testing.T) {
 	t.Parallel()
 	data, err := os.ReadFile("../../../testdata/grammars/typescript/typescript.sxir")
 	if err != nil {
 		t.Fatal(err)
 	}
-	g, err := parseTest(string(data))
+	g, err := enginetest.Parse(string(data))
 	if err != nil {
 		t.Fatal(err)
 	}
-	prog, err := Compile(g, compile.Options{})
+	prog, err := entry.Compile(g, compile.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -142,9 +113,9 @@ func TestSparseMemoInputSelection(t *testing.T) {
 		"/*" + strings.Repeat("é", 512) + "*/",
 		"/*" + strings.Repeat("a", 1020) + "*/",
 	} {
-		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
-				p := state.NewParser(&prog.sharedProgram, text, unit, true)
+				p := state.NewParser(prog.Shared(), text, unit, true)
 				p.DeferMemo = true
 				if _, err := prog.Run(p, backend, "main"); err != nil {
 					t.Fatal(err)
