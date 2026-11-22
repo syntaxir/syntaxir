@@ -18,7 +18,7 @@ import (
 // shapeRun is the outcome of a parse: its result with the value shape, and the units reserved.
 func shapeRun(t *testing.T, g *ast.Grammar, input string, back engine.Backend) (string, uint64) {
 	t.Helper()
-	prog, err := entry.Compile(starttest.MarkAll(g), check.Options{SourceInfo: true})
+	prog, err := entry.Compile(starttest.MarkAll(g), entry.Options{Compile: check.Options{SourceInfo: true}})
 	if err != nil {
 		t.Fatalf("compile: %v", err)
 	}

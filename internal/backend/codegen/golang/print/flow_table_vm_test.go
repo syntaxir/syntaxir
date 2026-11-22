@@ -15,6 +15,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/pipetest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -58,7 +59,7 @@ func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 			if gen == nil || len(printed) == 0 || len(lowered) == 0 {
 				t.Fatal("the Node table prints no rule from Flow IR")
 			}
-			ft, err := checked.Of(prog).FlowTable()
+			ft, err := checked.Of(prog, pass.Settings{}).FlowTable()
 			if err != nil {
 				t.Fatal(err)
 			}

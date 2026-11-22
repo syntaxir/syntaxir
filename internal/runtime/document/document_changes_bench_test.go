@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -21,7 +20,7 @@ import (
 // does not model shifted spans, Unicode edits, errors, or slow consumers.
 func BenchmarkDocumentChangesSnapshotEdit(b *testing.B) {
 	prog, err := entry.Compile(mustParse(`rule main = item* $$
-rule item = [a-z]`), check.Options{})
+rule item = [a-z]`), entry.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

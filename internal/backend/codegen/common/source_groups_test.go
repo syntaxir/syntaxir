@@ -5,7 +5,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -49,7 +48,7 @@ rule number Alias = v1:[0-9]+ => Number{Text: text($v1)}
 				t.Fatal(err)
 			}
 		}
-		p, err := entry.Compile(input, check.Options{})
+		p, err := entry.Compile(input, entry.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

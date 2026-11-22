@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -132,7 +131,7 @@ rule line = [a-z]+ #atomic "\n" #recover(skip="\n")`,
 // BenchmarkDocumentReparse measures Edit plus Parse. The optional unchanged
 // Parse runs outside the timer; it must not destroy later repetition reuse.
 func BenchmarkDocumentReparse(b *testing.B) {
-	prog, err := entry.Compile(mustParse(reparseGrammar), check.Options{})
+	prog, err := entry.Compile(mustParse(reparseGrammar), entry.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

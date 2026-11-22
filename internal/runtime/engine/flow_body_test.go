@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -112,7 +113,7 @@ func flowProgramsOf(t testing.TB, src string, pick func(rule string) bool, mutat
 	t.Helper()
 	old = mustCompile(t, src)
 	cp := old.src.(interface{ Checked() *frontend.Result }).Checked()
-	in, err := checked.Of(cp).VMInput()
+	in, err := checked.Of(cp, pass.Settings{}).VMInput()
 	if err != nil {
 		t.Fatal(err)
 	}

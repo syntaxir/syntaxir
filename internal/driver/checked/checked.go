@@ -23,6 +23,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -30,12 +31,24 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
 
-// Source is the compiler side of a checked program (state.Source). It holds what the backends
-// build from the checked program, which keeps no output of a backend: the bytecode module, made once
-// under moduleOnce, with the internal error of its compilation, if any, kept beside it so that
-// every parse that runs this source reports it.
+// Options configures the compilation of a grammar to a run-time program: what the program is,
+// which the check reads, and how its backends build it, which only the backends read.
+type Options struct {
+	// Compile are the options of the check: what the program is.
+	Compile check.Options
+	// Settings are the optimization settings that the VM and the closure backend build the program
+	// with. The zero settings are the speed profile, in which every Core pass is on.
+	Settings pass.Settings
+}
+
+// Source is the compiler side of a checked program (state.Source). It holds the checked program
+// with the settings that its backends build it with, and what the backends build from them, which
+// the checked program does not keep: the bytecode module, made once under moduleOnce, with the
+// internal error of its compilation, if any, kept beside it so that every parse that runs this
+// source reports it.
 type Source struct {
-	prog *frontend.Result
+	prog     *frontend.Result
+	settings pass.Settings
 
 	moduleOnce sync.Once
 	module     *bytecode.Module
@@ -48,7 +61,7 @@ var _ state.Source = (*Source)(nil)
 
 // Compile compiles the grammar and checks its declarations of linear cost; control, if not nil,
 // polls the compilation and may cancel it with a cancel.Cancellation panic.
-func Compile(g *ast.Grammar, opts check.Options, control *cancel.Control) (*Source, error) {
+func Compile(g *ast.Grammar, opts Options, control *cancel.Control) (*Source, error) {
 	s, err := Check(g, opts, nil, control)
 	if err != nil {
 		return nil, err
@@ -66,7 +79,7 @@ func Compile(g *ast.Grammar, opts check.Options, control *cancel.Control) (*Sour
 // types; shared metadata and single operations still have stretches that do not poll, so it is no
 // guarantee of latency. The Core IR and what the backends build from it are made when a parse
 // first needs them, outside the compilation, under the context of that parse.
-func CompileContext(ctx context.Context, g *ast.Grammar, opts check.Options) (s *Source, err error) {
+func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (s *Source, err error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -88,21 +101,26 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts check.Options) (s 
 // Check compiles the grammar to a checked program without checking its declarations of linear
 // cost. If flags is not nil, it skips the static analysis of the rules and uses flags instead. The
 // errors name the rules as written, not the hidden rules that inline actions are lowered to.
-func Check(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, control *cancel.Control) (*Source, error) {
+func Check(g *ast.Grammar, opts Options, flags []check.RuleFlags, control *cancel.Control) (*Source, error) {
 	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, control)
+	prog, err := frontend.Check(g, opts.Compile, flags, names, checkfacts.Source{}, control)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}
-	return &Source{prog: prog}, nil
+	return &Source{prog: prog, settings: opts.Settings}, nil
 }
 
-// Of returns the Source of the checked program prog.
-func Of(prog *frontend.Result) *Source { return &Source{prog: prog} }
+// Of returns the Source of the checked program prog, which its backends build with the settings.
+func Of(prog *frontend.Result, settings pass.Settings) *Source {
+	return &Source{prog: prog, settings: settings}
+}
 
 // Checked returns the checked program, which the generators, the analyses and the output schema
 // read.
 func (s *Source) Checked() *frontend.Result { return s.prog }
+
+// Settings returns the optimization settings that the backends build the program with.
+func (s *Source) Settings() pass.Settings { return s.settings }
 
 // Schema returns the checked grammar that the output schema is exported from.
 func (s *Source) Schema() schemaexport.Source {
@@ -225,12 +243,13 @@ func (s *Source) Insertion() (state.Source, error) {
 }
 
 // again compiles the grammar again with the rule flags and the options the program was compiled
-// with, changed by derive for what the build is for. This is the one place that makes them, so no
-// option is dropped from a program built again (TestLazyProgramsCarryEveryOption).
+// with, changed by derive for what the build is for, and with the program's settings. This is the
+// one place that makes them, so no option or setting is dropped from a program built again
+// (TestLazyProgramsCarryEveryOption).
 func (s *Source) again(derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
-	return Check(s.Grammar(), o, flags, nil)
+	return Check(s.Grammar(), Options{Compile: o, Settings: s.settings}, flags, nil)
 }
 
 // RuleType is check.Checker.RuleType.

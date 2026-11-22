@@ -127,12 +127,12 @@ func TestClassConstructionCompileContextParity(t *testing.T) {
 		g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: e}}}}
 		starttest.MarkAll(g)
 		for _, compiledRecognition := range []bool{false, true} {
-			a, err := entry.Compile(g, check.Options{Recognition: recognitionMode(compiledRecognition)})
+			a, err := entry.Compile(g, entry.Options{Compile: check.Options{Recognition: recognitionMode(compiledRecognition)}})
 			if err != nil {
 				t.Fatal(err)
 			}
 			ctx, cancel := context.WithCancel(context.Background())
-			b, err := entry.CompileContext(ctx, g, check.Options{Recognition: recognitionMode(compiledRecognition)})
+			b, err := entry.CompileContext(ctx, g, entry.Options{Compile: check.Options{Recognition: recognitionMode(compiledRecognition)}})
 			cancel()
 			if err != nil {
 				t.Fatal(err)
@@ -181,7 +181,7 @@ func classProgramWithoutContext(t *testing.T) (*engine.Program, weak.Pointer[cla
 	cl := &ast.CharClass{Ranges: []ast.CharRange{{Lo: 'a', Hi: 'a'}, {Lo: 'b', Hi: 'b'}, {Lo: 'β', Hi: 'β'}}}
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Choice{Alts: []ast.Expr{&ast.Seq{Items: []ast.Expr{cl, &ast.EndInput{}}}, &ast.Discard{Expr: &ast.Repeat{Expr: cl, Min: 1, Max: -1}}}}}}}}
 	starttest.MarkAll(g)
-	p, err := entry.CompileContext(ctx, g, check.Options{})
+	p, err := entry.CompileContext(ctx, g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

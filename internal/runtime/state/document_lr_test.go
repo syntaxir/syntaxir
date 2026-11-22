@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -210,7 +209,7 @@ rule expr = expr "+" term / term
 rule term = term "*" num / num
 rule num = [0-9]+ #atomic`
 		}
-		prog, err := entry.Compile(enginetest.MustParse(src), check.Options{})
+		prog, err := entry.Compile(enginetest.MustParse(src), entry.Options{})
 		if err != nil {
 			b.Fatal(err)
 		}

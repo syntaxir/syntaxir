@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 )
 
@@ -17,7 +16,7 @@ rule item = [a-z]`)
 	if err != nil {
 		b.Fatal(err)
 	}
-	prog, err := entry.Compile(g, check.Options{})
+	prog, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		b.Fatal(err)
 	}

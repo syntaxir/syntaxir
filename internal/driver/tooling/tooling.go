@@ -99,9 +99,10 @@ type (
 	CompileOptions = check.Options
 )
 
-// CompileContext compiles g, with cancellation.
+// CompileContext compiles g, with cancellation, at the default optimization settings: the tools
+// read the checked program, and a parser that they build from it runs as the default one does.
 func CompileContext(ctx context.Context, g *ast.Grammar, opts CompileOptions) (*Program, error) {
-	return checked.CompileContext(ctx, g, opts)
+	return checked.CompileContext(ctx, g, checked.Options{Compile: opts})
 }
 
 // A FrontResult is the checked front-end result of a compiled grammar: its semantic model and Core

@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
@@ -35,7 +34,7 @@ func BenchmarkOutputSchemaExport(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			p, err := entry.Compile(g, check.Options{})
+			p, err := entry.Compile(g, entry.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}

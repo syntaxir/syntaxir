@@ -9,7 +9,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -17,8 +16,9 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Options configures compilation.
-type Options = check.Options
+// Options configures the compilation of a grammar to a run-time program: the options of the check
+// (Compile) and the optimization settings of its backends (Settings).
+type Options = checked.Options
 
 // A checked source exports the output schemas of the parsers of its programs.
 var _ engine.SchemaSource = (*checked.Source)(nil)

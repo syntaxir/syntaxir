@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -119,7 +120,7 @@ func compileModule(t *testing.T, src string, opts ...check.Options) *bytecode.Mo
 // vmInput returns the input of the bytecode lowering of prog (checked.Source.VMInput).
 func vmInput(t testing.TB, prog *frontend.Result) vmlower.Input {
 	t.Helper()
-	in, err := checked.Of(prog).VMInput()
+	in, err := checked.Of(prog, pass.Settings{}).VMInput()
 	if err != nil {
 		t.Fatal(err)
 	}

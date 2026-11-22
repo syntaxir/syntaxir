@@ -78,7 +78,7 @@ func depMemoDiffers(t *testing.T, c codegentest.Case, limit int, examined, paral
 	if err != nil {
 		return nil, false
 	}
-	if _, err := entry.Compile(g, check.Options{}); err != nil {
+	if _, err := entry.Compile(g, entry.Options{}); err != nil {
 		return nil, false
 	}
 	memo, ref := enginetest.MustCompile(t, c.Src), enginetest.MustCompile(t, c.Src, check.Options{DisableMemo: true})
@@ -283,7 +283,7 @@ func TestLeftRecursionDependencyMemoUnexamined(t *testing.T) {
 	for _, c := range depMemoGrammars(seeds) {
 		if g, err := enginetest.Parse(c.Src); err != nil {
 			continue
-		} else if _, err := entry.Compile(g, check.Options{}); err != nil {
+		} else if _, err := entry.Compile(g, entry.Options{}); err != nil {
 			continue
 		}
 		compiled++

@@ -260,10 +260,10 @@ func (c *compiled) variantParser(v compileVariant) (*engine.Parser, error) {
 	}
 	var opts entry.Options
 	if v.sourceInfo {
-		opts.SourceInfo = true
+		opts.Compile.SourceInfo = true
 	}
 	if v.defaultValue {
-		opts.DefaultValue = true
+		opts.Compile.DefaultValue = true
 	}
 	p, err := entry.CompileParser(c.g, c.info.Start, opts)
 	if err != nil {

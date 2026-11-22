@@ -91,7 +91,7 @@ func CompileBare(t testing.TB, src string, opts ...check.Options) *engine.Progra
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	prog, err := entry.Compile(g, o)
+	prog, err := entry.Compile(g, entry.Options{Compile: o})
 	if err != nil {
 		t.Fatalf("compile error: %v\n%s", err, src)
 	}
@@ -105,7 +105,7 @@ func CompileStarts(t testing.TB, src string) (*engine.Program, error) {
 	if err != nil {
 		t.Fatalf("syntax error: %v\n%s", err, src)
 	}
-	return entry.Compile(g, check.Options{})
+	return entry.Compile(g, entry.Options{})
 }
 
 // CompileMessage compiles src and returns the error message, or "" if it compiles.
@@ -119,7 +119,7 @@ func CompileMessage(t testing.TB, src string, opts ...check.Options) string {
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	_, err = entry.Compile(g, o)
+	_, err = entry.Compile(g, entry.Options{Compile: o})
 	if err == nil {
 		return ""
 	}
@@ -160,7 +160,7 @@ var CompileForGenerator driver.Compiler = compileForGenerator
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
 // returns that of its recognizer.
 func compileForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
-	prog, err := entry.Compile(g, opts)
+	prog, err := entry.Compile(g, entry.Options{Compile: opts})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -199,11 +199,13 @@ func ParseGrammar(src string) (*ast.Grammar, error) { return parser.Parse(src) }
 type CompileOption func(*entry.Options)
 
 // WithSourceInfo records the rule of each node and the names of captures in parse results.
-func WithSourceInfo() CompileOption { return func(o *entry.Options) { o.SourceInfo = true } }
+func WithSourceInfo() CompileOption { return func(o *entry.Options) { o.Compile.SourceInfo = true } }
 
 // WithDefaultValue drops value actions and declared rule types, so that the parser returns the
 // default node tree.
-func WithDefaultValue() CompileOption { return func(o *entry.Options) { o.DefaultValue = true } }
+func WithDefaultValue() CompileOption {
+	return func(o *entry.Options) { o.Compile.DefaultValue = true }
+}
 
 // Compile compiles g to an engine parser that starts at the rule start (empty for the default
 // start rule) and runs on the program's default backend, the closure backend.
@@ -232,7 +234,7 @@ func CorpusProgram(t testing.TB, c codegentest.Case) (*engine.Program, bool) {
 	if err != nil {
 		return nil, false
 	}
-	prog, err := entry.Compile(g, check.Options{})
+	prog, err := entry.Compile(g, entry.Options{})
 	if err != nil || prog.HasMissing {
 		return nil, false
 	}

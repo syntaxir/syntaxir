@@ -42,7 +42,7 @@ func testOperatorsRuleExplicitDefaultAction(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		explicit, err := entry.Compile(g, opts)
+		explicit, err := entry.Compile(g, entry.Options{Compile: opts})
 		if err != nil {
 			t.Fatal(err)
 		}

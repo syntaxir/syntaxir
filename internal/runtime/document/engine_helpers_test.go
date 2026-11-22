@@ -289,7 +289,7 @@ func compileBare(t *testing.T, src string, opts ...check.Options) *Program {
 	if len(opts) > 0 {
 		o = opts[0]
 	}
-	prog, err := entry.Compile(g, o)
+	prog, err := entry.Compile(g, entry.Options{Compile: o})
 	if err != nil {
 		t.Fatalf("compile error: %v\n%s", err, src)
 	}

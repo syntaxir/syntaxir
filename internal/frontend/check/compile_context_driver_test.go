@@ -60,7 +60,7 @@ func TestCompileContextCancellation(t *testing.T) {
 	}
 	for _, polls := range []int{1, 3, 12} {
 		ctx := compileTestContext(t, polls)
-		prog, err := entry.CompileContext(ctx, g, fcheck.Options{})
+		prog, err := entry.CompileContext(ctx, g, entry.Options{})
 		if prog != nil || !errors.Is(err, context.Canceled) {
 			t.Fatalf("polls=%d: program=%v error=%v", polls, prog, err)
 		}
@@ -77,7 +77,7 @@ func TestCompileContextCancellation(t *testing.T) {
 func TestCompileContextPhaseCancellation(t *testing.T) {
 	t.Parallel()
 	g := compileTestGrammar(t)
-	p, err := entry.Compile(g, fcheck.Options{})
+	p, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,9 +175,9 @@ func TestCompileContextOrdinaryParity(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		ordinary, ordinaryErr := entry.Compile(g, fcheck.Options{})
+		ordinary, ordinaryErr := entry.Compile(g, entry.Options{})
 		ctx, cancel := context.WithCancel(context.Background())
-		controlled, controlledErr := entry.CompileContext(ctx, g, fcheck.Options{})
+		controlled, controlledErr := entry.CompileContext(ctx, g, entry.Options{})
 		cancel()
 		if (ordinaryErr == nil) != (controlledErr == nil) {
 			t.Fatalf("error mismatch: %v / %v", ordinaryErr, controlledErr)

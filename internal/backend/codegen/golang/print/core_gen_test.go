@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -108,11 +109,11 @@ func coreGenerate(src string, opts common.GenOptions) (*print.Generator, bool) {
 // compiled as Program.Recognizer compiles it. The view's elaboration input is the checked program
 // that the test compiled.
 func recognizerOf(g *print.Generator) (codegen.Checked, error) {
-	rec, err := engine.New(checked.Of(checkedOf(g))).Recognizer()
+	rec, err := engine.New(checked.Of(checkedOf(g), pass.Settings{})).Recognizer()
 	if err != nil {
 		return codegen.Checked{}, err
 	}
-	return codegen.Checked{View: checked.Of(entry.Checked(rec)).Generator(), Elab: entry.Checked(rec)}, nil
+	return codegen.Checked{View: checked.Of(entry.Checked(rec), pass.Settings{}).Generator(), Elab: entry.Checked(rec)}, nil
 }
 
 // coreTypedCase builds the Core IR of the typed rules of the generated parser with the Core passes

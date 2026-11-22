@@ -9,7 +9,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -42,7 +41,7 @@ func actionChargeCases(t *testing.T, all []codegentest.ActionCase) []codegentest
 	for _, c := range all {
 		g, err := parseTest(c.Src)
 		if err == nil {
-			_, err = entry.Compile(g, check.Options{})
+			_, err = entry.Compile(g, entry.Options{})
 		}
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
@@ -157,7 +156,7 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 	// The engine.
 	for i, c := range actionExprs {
 		g, _ := parseTest(c.Src)
-		prog, err := entry.Compile(g, check.Options{})
+		prog, err := entry.Compile(g, entry.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}

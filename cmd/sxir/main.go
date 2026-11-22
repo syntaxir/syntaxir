@@ -745,9 +745,11 @@ type compileFlags struct {
 	sourceInfo, defaultValue bool
 }
 
-// options returns the compile options of the flags.
+// options returns the compile options of the flags, at the default optimization settings.
 func (f compileFlags) options() entry.Options {
-	return entry.Options{SourceInfo: f.sourceInfo, DefaultValue: f.defaultValue}
+	var o entry.Options
+	o.Compile.SourceInfo, o.Compile.DefaultValue = f.sourceInfo, f.defaultValue
+	return o
 }
 
 func isFlagSet(fs *flag.FlagSet, name string) bool {

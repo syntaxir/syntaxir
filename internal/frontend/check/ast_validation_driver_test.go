@@ -23,8 +23,8 @@ func testMalformedASTEntryPointsAndPosition(t *testing.T) {
 	e.Expr = e
 	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "p", Expr: e}}}}
 	for name, run := range map[string]func() error{
-		"compile":           func() error { _, err := entry.Compile(g, check.Options{}); return err },
-		"saved AST rebuild": func() error { _, err := checked.Check(g, check.Options{}, []check.RuleFlags{{}}, nil); return err },
+		"compile":           func() error { _, err := entry.Compile(g, entry.Options{}); return err },
+		"saved AST rebuild": func() error { _, err := checked.Check(g, checked.Options{}, []check.RuleFlags{{}}, nil); return err },
 		"Go generator": func() error {
 			_, err := codegentest.GenerateCode(t, g, common.GenOptions{Start: "p", Package: "p"})
 			return err

@@ -187,7 +187,7 @@ func mutualNodeTypeSteps(t *testing.T, n int) uint64 {
 		t.Fatal(err)
 	}
 	c := &cancel.Control{Ctx: context.Background()}
-	if _, err := checked.Compile(g, checkpkg.Options{}, c); err != nil {
+	if _, err := checked.Compile(g, checked.Options{}, c); err != nil {
 		t.Fatal(err)
 	}
 	return uint64(c.Steps)

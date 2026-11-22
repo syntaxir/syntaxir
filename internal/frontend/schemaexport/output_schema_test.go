@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
@@ -28,7 +29,7 @@ rule unused = "z"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := entry.Compile(g, check.Options{})
+	p, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +120,7 @@ rule unused = "z"`)
 		}
 	}
 	// A program without the grammar has no metadata to export from.
-	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(check.NewModel(nil, nil), check.Sites{}))), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
+	if _, err := enginetest.OutputSchema(engine.New(checked.Of(frontend.NewResult(check.NewModel(nil, nil), check.Sites{}), pass.Settings{})), "main", false); !errors.Is(err, schemaexport.ErrUnavailable) {
 		t.Fatal(err)
 	}
 }
@@ -132,7 +133,7 @@ rule main = (-"a")*`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := entry.Compile(g, check.Options{})
+	p, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

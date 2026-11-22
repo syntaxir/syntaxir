@@ -24,7 +24,7 @@ rule item = [a-z]+
 	if err != nil {
 		t.Fatal(err)
 	}
-	s, err := Compile(g, check.Options{}, nil)
+	s, err := Compile(g, Options{}, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

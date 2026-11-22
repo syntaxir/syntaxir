@@ -16,8 +16,8 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -129,11 +129,11 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		codegentest.GeneratePackageIn(t, dir, "replay", fmt.Sprintf("g%d", i), g, common.GenOptions{Start: "main", Types: true, ConvertTypes: true, Recognize: true})
-		prog, err := entry.Compile(g, check.Options{})
+		prog, err := entry.Compile(g, entry.Options{})
 		if err != nil {
 			t.Fatal(err)
 		}
-		view := checked.Of(entry.Checked(prog)).Generator()
+		view := checked.Of(entry.Checked(prog), pass.Settings{}).Generator()
 		meta := &print.TypedGen{G: &print.Generator{Prog: view}, Info: view.Typed, Joins: map[string]string{}, Anon: map[string]types.JoinTy{}}
 		meta.ValueResolver = common.NewValueResolver(view, func(x types.Ty) bool { _, ok := meta.Joins[x.String()]; return ok })
 		if err := meta.Name(); err != nil {

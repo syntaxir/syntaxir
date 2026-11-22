@@ -138,7 +138,7 @@ func runSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}
-		prog, err := entry.Compile(g, check.Options{SourceInfo: true})
+		prog, err := entry.Compile(g, entry.Options{Compile: check.Options{SourceInfo: true}})
 		if err != nil {
 			t.Fatalf("corpus %s: %v", c.Name, err)
 		}

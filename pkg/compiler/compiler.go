@@ -59,9 +59,19 @@ func newOptions(opts []Option) options {
 	return o
 }
 
-// entry returns the compile options of the settings.
-func (o options) entry() entry.Options {
-	return entry.Options{SourceInfo: o.sourceInfo, DefaultValue: o.defaultValue}
+// entry returns the options of the compile entry: the options of the check, and the optimization
+// setting converted to the settings of the backends. It is the one place that builds them, so every
+// function that builds a parser carries the setting, and it reports an invalid optimization or
+// debugging setting.
+func (o options) entry() (entry.Options, error) {
+	var e entry.Options
+	e.Compile.SourceInfo, e.Compile.DefaultValue = o.sourceInfo, o.defaultValue
+	s, err := generate.Settings(common.GenOptions{Optimize: o.optimize.Profile, Opt: o.optimize.Values, NoOpt: o.optimize.Off, Debug: o.debug.internal()})
+	if err != nil {
+		return entry.Options{}, err
+	}
+	e.Settings = s
+	return e, nil
 }
 
 // WithStart selects the start rule of the parser, which must be a start rule (a rule marked
@@ -164,19 +174,14 @@ func (d Debug) internal() common.Debug {
 	return common.Debug{PrintAfter: d.PrintAfter, PrintBefore: d.PrintBefore, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, OptBisectLimit: d.OptBisectLimit, PrintPipeline: d.PrintPipeline, Output: d.Output}
 }
 
-// check reports an invalid optimization or debugging setting.
-func (o options) check() error {
-	_, err := generate.Settings(common.GenOptions{Optimize: o.optimize.Profile, Opt: o.optimize.Values, NoOpt: o.optimize.Off, Debug: o.debug.internal()})
-	return err
-}
-
 // build checks g and returns the engine parser of the settings, on the program's default
 // backend.
 func build(g *ast.Grammar, o options) (*engine.Parser, error) {
-	if err := o.check(); err != nil {
+	e, err := o.entry()
+	if err != nil {
 		return nil, err
 	}
-	p, err := entry.CompileParser(g, o.start, o.entry())
+	p, err := entry.CompileParser(g, o.start, e)
 	return p, grammarErrors(err)
 }
 

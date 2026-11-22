@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
@@ -92,17 +92,17 @@ func TestClosureFamilyCharges(t *testing.T) {
 	}
 	cases := []struct {
 		name, src string
-		opts      entry.Options
+		opts      check.Options
 		input     string
 		stream    bool
 		want      map[string]uint64
 	}{
-		{"plain calls", "rule main = item* $$\nrule item = \"a\"", entry.Options{}, "aaaa", false, every(10)},
-		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", entry.Options{DisableMemo: true}, "aaaa", false, every(10)},
-		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", entry.Options{DisableMemo: true}, "((x))", false, every(10)},
+		{"plain calls", "rule main = item* $$\nrule item = \"a\"", check.Options{}, "aaaa", false, every(10)},
+		{"plain calls, no memo", "rule main = item* $$\nrule item = \"a\"", check.Options{DisableMemo: true}, "aaaa", false, every(10)},
+		{"recursion", "rule main = e $$\nrule e = \"(\" e \")\" / x\nrule x = \"x\"", check.Options{DisableMemo: true}, "((x))", false, every(10)},
 		// len of each one-byte text counts its byte.
-		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", entry.Options{}, "aaa", false, every(11)},
-		{"stream", codegentest.Records, entry.Options{}, "#records\na=1\nbc=22\n", true, map[string]uint64{"stream": 24, "stream+trace": 24}},
+		{"captures", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", check.Options{}, "aaa", false, every(11)},
+		{"stream", codegentest.Records, check.Options{}, "#records\na=1\nbc=22\n", true, map[string]uint64{"stream": 24, "stream+trace": 24}},
 	}
 	for _, c := range cases {
 		prog := enginetest.MustCompile(t, c.src, c.opts)

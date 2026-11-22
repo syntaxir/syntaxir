@@ -37,7 +37,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 	}
 	// The generator and the comparison compile with the engine, as the tests of the generator do.
 	codegentest.Compile = driver.Compiler(func(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
-		prog, err := entry.Compile(g, opts)
+		prog, err := entry.Compile(g, entry.Options{Compile: opts})
 		if err != nil {
 			return nil, nil, err
 		}
@@ -54,7 +54,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		prog, err := entry.Compile(g, opts)
+		prog, err := entry.Compile(g, entry.Options{Compile: opts})
 		if err != nil {
 			t.Fatal(err)
 		}

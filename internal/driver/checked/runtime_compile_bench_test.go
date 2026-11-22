@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
@@ -32,7 +33,7 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				in, err := Of(p).VMInput()
+				in, err := Of(p, pass.Settings{}).VMInput()
 				if err != nil {
 					b.Fatal(err)
 				}

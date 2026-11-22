@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -19,7 +20,7 @@ import (
 
 // Compile compiles the grammar, as entry.Compile does.
 func Compile(g *ast.Grammar, opts checkpkg.Options) (*Program, error) {
-	s, err := checked.Compile(g, opts, nil)
+	s, err := checked.Compile(g, checked.Options{Compile: opts}, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +44,7 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts checkpkg.Options) 
 			}
 		}
 	}()
-	s, err := checked.Compile(g, opts, &cancel.Control{Ctx: ctx})
+	s, err := checked.Compile(g, checked.Options{Compile: opts}, &cancel.Control{Ctx: ctx})
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +54,7 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts checkpkg.Options) 
 // build builds a program from the grammar without the check of its declarations of linear cost. If
 // flags is not nil, it skips static analysis and type checking and uses flags instead.
 func build(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*Program, error) {
-	s, err := checked.Check(g, opts, flags, nil)
+	s, err := checked.Check(g, checked.Options{Compile: opts}, flags, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -61,7 +62,7 @@ func build(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*
 }
 
 // checkedProgram returns the program that runs the checked program sp.
-func checkedProgram(sp *frontend.Result) *Program { return New(checked.Of(sp)) }
+func checkedProgram(sp *frontend.Result) *Program { return New(checked.Of(sp, pass.Settings{})) }
 
 // Static returns the checked program that p was compiled from, or nil for a program loaded from a
 // compiled grammar.
@@ -93,7 +94,7 @@ func (p *Program) SchemaSource(start string) (schemaexport.Source, error) {
 	if sp == nil {
 		return schemaexport.Source{}, program.ErrSchemaNeedsSource
 	}
-	return checked.Of(sp).Schema(), nil
+	return checked.Of(sp, pass.Settings{}).Schema(), nil
 }
 
 // lazyModule returns the bytecode module that p holds: for a program compiled from a grammar, the

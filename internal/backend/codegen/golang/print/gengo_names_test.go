@@ -16,7 +16,6 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -280,7 +279,7 @@ func TestGeneratedTypesNamedLikeEveryLibExport(t *testing.T) {
 		}
 		// The grammar language reserves some names (Error, ...).
 		if g, err := parseTest("type " + name + " = { Value int }\nrule main = \"a\"\n"); err == nil {
-			if _, err := entry.Compile(g, check.Options{}); err == nil {
+			if _, err := entry.Compile(g, entry.Options{}); err == nil {
 				names = append(names, name)
 			}
 		}
@@ -610,7 +609,7 @@ func TestGeneratedRichGrammarsWithTypesNamedLikeLibExports(t *testing.T) {
 				// The grammar language reserves some names (Error, ...).
 				if g, err := parseTest("type " + n + " = { Value int }\nrule main = \"a\"\n"); err != nil {
 					continue
-				} else if _, err := entry.Compile(g, check.Options{}); err != nil {
+				} else if _, err := entry.Compile(g, entry.Options{}); err != nil {
 					continue
 				}
 				fmt.Fprintf(&src, "type %s = { Value int }\n", n)

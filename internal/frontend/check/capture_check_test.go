@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
@@ -72,7 +73,7 @@ func captureCheckProgram(src string) (*engine.Program, error) {
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}
-	return engine.New(checked.Of(frontend.NewResult(sp, check.Sites{}))), nil
+	return engine.New(checked.Of(frontend.NewResult(sp, check.Sites{}), pass.Settings{})), nil
 }
 
 func captureCheckSource(n int, shape string) string {
@@ -112,7 +113,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 				b.Fatal(err)
 			}
 			// The examples need the analysis of a full compile, which a hand-built program lacks.
-			p, err := entry.Compile(g, check.Options{})
+			p, err := entry.Compile(g, entry.Options{})
 			if err != nil {
 				b.Fatal(err)
 			}

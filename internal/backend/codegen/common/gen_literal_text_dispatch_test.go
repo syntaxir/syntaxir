@@ -12,7 +12,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -119,7 +118,7 @@ func TestGeneratedLiteralDispatchWorkload(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%s: %v", workload.name, err)
 		}
-		prog, err := entry.Compile(g, check.Options{})
+		prog, err := entry.Compile(g, entry.Options{})
 		if err != nil {
 			t.Fatalf("%s compile engine reference: %v", workload.name, err)
 		}

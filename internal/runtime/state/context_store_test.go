@@ -182,7 +182,7 @@ func missingRandomMismatches(t *testing.T, seeds int, tune state.Tuning) []strin
 		if err != nil {
 			continue
 		}
-		if _, err := entry.Compile(g, check.Options{}); err != nil {
+		if _, err := entry.Compile(g, entry.Options{}); err != nil {
 			continue
 		}
 		checked++

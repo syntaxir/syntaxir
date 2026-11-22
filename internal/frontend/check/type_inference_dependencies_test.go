@@ -22,7 +22,7 @@ func TestInferenceDependencyChains(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				_, err = entry.Compile(g, fcheck.Options{})
+				_, err = entry.Compile(g, entry.Options{})
 				if err == nil || !strings.Contains(err.Error(), "produces P, which is not assignable to node[string]") {
 					t.Errorf("long-chain type mismatch: %v", err)
 				}
@@ -70,7 +70,7 @@ func BenchmarkInferenceDependencies(b *testing.B) {
 			}
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := entry.Compile(g, fcheck.Options{}); err != nil {
+				if _, err := entry.Compile(g, entry.Options{}); err != nil {
 					b.Fatal(err)
 				}
 			}
@@ -85,7 +85,7 @@ func TestInferenceChainFieldMismatch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = entry.Compile(g, fcheck.Options{})
+	_, err = entry.Compile(g, entry.Options{})
 	if err == nil || !strings.Contains(err.Error(), "cannot use P as node[string] in field Value of Holder") {
 		t.Errorf("long-chain field mismatch: %v", err)
 	}

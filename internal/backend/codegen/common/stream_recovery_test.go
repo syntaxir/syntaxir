@@ -28,7 +28,7 @@ func testStreamRecoveryRejected(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, opts := range []check.Options{{}, {Recognition: check.RecognizeWithStreamValues}} {
-			if _, err := entry.Compile(g, opts); err == nil || !strings.Contains(err.Error(), streamRecoveryError) {
+			if _, err := entry.Compile(g, entry.Options{Compile: opts}); err == nil || !strings.Contains(err.Error(), streamRecoveryError) {
 				t.Errorf("%s: %v", src, err)
 			}
 		}
@@ -55,7 +55,7 @@ func testStreamRecoveryRejected(t *testing.T) {
 		Skip: &ast.Repeat{Expr: &ast.Any{}, Min: 0, Max: -1},
 	}}}}}
 	starttest.MarkAll(g)
-	_, err := entry.Compile(g, check.Options{})
+	_, err := entry.Compile(g, entry.Options{})
 	if errs, ok := err.(diagnostic.ErrorList); !ok || len(errs) != 1 || errs[0].Pos != pos || !strings.Contains(err.Error(), streamRecoveryError) {
 		t.Errorf("public AST: %v; want positioned recovery error", err)
 	}

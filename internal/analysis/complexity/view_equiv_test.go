@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/analysis/complexity"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -241,7 +242,7 @@ func newEquivCheck(t *testing.T, s equivSubject, tier equivTier) *equivCheck {
 		t.Fatal(err)
 	}
 	c := &equivCheck{subject: s, g: g, inputs: map[string][]string{}}
-	for i, o := range []entry.Options{{}, {DefaultValue: true}} {
+	for i, o := range []entry.Options{{}, {Compile: check.Options{DefaultValue: true}}} {
 		if c.progs[i], err = entry.Compile(entered(g), o); err != nil {
 			t.Fatalf("the grammar with every rule a start rule does not compile: %v", err)
 		}
@@ -453,7 +454,7 @@ func (c *equivCheck) check(t *testing.T, opts complexity.Options) {
 	vprog, err := entry.Compile(entered(vg), entry.Options{})
 	if err != nil {
 		mode = withDefaults
-		if vprog, err = entry.Compile(entered(vg), entry.Options{DefaultValue: true}); err != nil {
+		if vprog, err = entry.Compile(entered(vg), entry.Options{Compile: check.Options{DefaultValue: true}}); err != nil {
 			// The grammar compiles with default values, so the view has lost a capture that a
 			// predicate reads, or made one that a predicate cannot: a difference in what ≡E keeps.
 			t.Fatalf("%s: the view does not compile with default values: %v", equivDifference, err)

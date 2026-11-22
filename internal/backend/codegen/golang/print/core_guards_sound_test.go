@@ -10,7 +10,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -129,7 +128,7 @@ func guardProbes(t *testing.T, src string, cases []*coreGenCase) (*engine.Progra
 		if err != nil {
 			return nil, err
 		}
-		return entry.Compile(g, check.Options{})
+		return entry.Compile(g, entry.Options{})
 	}
 	var idx []int
 	for i := range alts {

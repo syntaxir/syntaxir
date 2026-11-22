@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/schema"
 )
@@ -21,7 +20,7 @@ func missingSchema(t *testing.T) *schema.Output {
 	if err != nil {
 		t.Fatal(err)
 	}
-	p, err := entry.Compile(g, check.Options{})
+	p, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
