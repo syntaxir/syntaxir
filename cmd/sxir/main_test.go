@@ -430,7 +430,7 @@ func readTS(t *testing.T, dir string, names ...string) string {
 }
 
 // TestGenGoLimitControlsDefault holds that sxir gen generates the limit-controlled
-// form, which counts compute units outside Documents, unless -no-limits asks for the
+// form, which counts compute units outside streams, unless -no-limits asks for the
 // ordinary one.
 func TestGenGoLimitControlsDefault(t *testing.T) {
 	g := writeFile(t, "kv.sxir", kv)

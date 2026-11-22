@@ -8,7 +8,7 @@
 // The generated parsers that the benchmarks run are in internal/bench/parsers, written by sxir gen;
 // regenerate them with go generate ./bench. Document (minilangdoc, minilangtdoc, csvdoc) and stream (csvstream)
 // parsers are separate packages, so the batch parsers keep their generated form. A parser with limit controls
-// outside Documents and streams counts logical compute units (design record 076); the references of their
+// outside streams counts logical compute units (design record 076); the references of their
 // variants (-charge-units) are separate packages: *logical is the default form, *event counts each call where it
 // happens, *keepguards keeps every guard without the effects of the calls it skips, and *plain is the same grammar
 // without limit controls. The inputs come from internal/bench/inputs.

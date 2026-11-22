@@ -91,9 +91,10 @@ func TestTerminalProgramGeneration(t *testing.T) {
 		if strings.Contains(string(reference), "SkipTerminal") {
 			t.Errorf("%s: the reference has a terminal program", c.Name)
 		}
-		// Documents keep the straight-line code, which charges budget for each expression; parsers with
-		// limit controls run the programs through the form that counts the input they advance over.
-		for _, opts := range []common.GenOptions{{}, {NoLimitControls: true, Document: true}} {
+		// Documents keep the straight-line code, which records the input that each expression
+		// examines; parsers with limit controls run the programs through the form that counts the
+		// input they advance over.
+		for _, opts := range []common.GenOptions{{}, {Document: true}, {NoLimitControls: true, Document: true}} {
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "terminal", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {

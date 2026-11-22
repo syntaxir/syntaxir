@@ -12,9 +12,10 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// TestGeneratedGoGraphBudget checks the budget charges of the term compositions over value graphs (fields,
-// list members, folds) and their cancellation. The parsers are Documents: outside one a parser with limit
-// controls counts compute units, in which these operations count nothing.
+// TestGeneratedGoGraphBudget checks the budget charges of the library's term compositions over value
+// graphs (fields, list members, folds) and their cancellation, which the consumers drive through a budget
+// control of their own. The generated conversions of the types package charge nothing: a parser with
+// limit controls counts compute units, in which these operations count nothing.
 func TestGeneratedGoGraphBudget(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -150,7 +151,7 @@ func TestTypedFieldMaterialization(t *testing.T){
   got:=typedMember(tp,bag,name).(*sxirrt.TSeq);ordinary,_:=bag.TField(name)
   want:=ordinary.(*sxirrt.TSeq)
   if !reflect.DeepEqual(got,want) || got.Start!=3 || got.End!=303{t.Fatal("field materialization changed",name)}
-  wantSteps:=uint64(2*len(bag.Items));if name=="Nested"{wantSteps+=uint64(2*len(bag.Nested))};if p.Control.X_budgetUsed()!=wantSteps{t.Fatal("list field spend omitted",name,p.Control.X_budgetUsed(),wantSteps)}
+  wantSteps:=uint64(len(bag.Items));if name=="Nested"{wantSteps+=uint64(len(bag.Nested))};if p.Control.X_budgetUsed()!=wantSteps{t.Fatal("list field spend omitted",name,p.Control.X_budgetUsed(),wantSteps)}
   if name=="Items"{got.Kids[0]=nil;if bag.Items[0]==nil{t.Fatal("field result aliases input")}}
  }
  p:=graphParser(32);tp:=&sxirrt.TParser{Parser:p};empty:=&Bag{Items:[]*Leaf{},Nested:nil}

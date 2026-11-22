@@ -1,251 +1,250 @@
 # Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-cond	0	"!(((p.Control != nil && p.RejectBudgetClass(ch, budgetClass)) || (p.Control == nil && (!(ch == 97 || ch == 98 || ch == 102 || ch == 110 || ch == 114 || ch == 116 || ch == 118 || ch == 34 || ch == 39 || ch == 92 || ch == 63 || ch == 96)))))"
-cond	1	""
-cond	2	"(ch == 114 || ch == 82)"
-cond	3	"(ch == 120 || ch == 88)"
-cond	4	"(ch == 97 || ch == 98 || ch == 102 || ch == 110 || ch == 114 || ch == 116 || ch == 118 || ch == 34 || ch == 39 || ch == 92 || ch == 63 || ch == 96)"
-cond	5	"(ch >= 48 && ch <= 51)"
-cond	6	"ch == 101"
-cond	7	"ch == 102"
-cond	8	"ch == 105"
-cond	9	"ch == 108"
-cond	10	"ch == 110"
-cond	11	"ch == 112"
-cond	12	"ch == 114"
-cond	13	"ch == 116"
-cond	14	"ch == 118"
-cond	15	"ch == 119"
-cond	16	"ch == 123"
-cond	17	"ch == 33"
-cond	18	"ch == 34"
-cond	19	"ch == 37"
-cond	20	"ch == 39"
-cond	21	"ch == 40"
-cond	22	"ch == 42"
-cond	23	"ch == 43"
-cond	24	"ch == 45"
-cond	25	"ch == 46"
-cond	26	"ch == 47"
-cond	27	"ch == 48"
-cond	28	"ch == 49"
-cond	29	"ch == 60"
-cond	30	"ch == 61"
-cond	31	"ch == 62"
-cond	32	"ch == 63"
-cond	33	"ch == 91"
-cond	34	"ch == 92"
-cond	35	"ch == 96"
-cond	36	"ch == 97"
-cond	37	"ch == 98"
-cond	38	"ch == 99"
+cond	0	""
+cond	1	"(ch == 114 || ch == 82)"
+cond	2	"(ch == 120 || ch == 88)"
+cond	3	"(ch == 97 || ch == 98 || ch == 102 || ch == 110 || ch == 114 || ch == 116 || ch == 118 || ch == 34 || ch == 39 || ch == 92 || ch == 63 || ch == 96)"
+cond	4	"(ch >= 48 && ch <= 51)"
+cond	5	"ch == 101"
+cond	6	"ch == 102"
+cond	7	"ch == 105"
+cond	8	"ch == 108"
+cond	9	"ch == 110"
+cond	10	"ch == 112"
+cond	11	"ch == 114"
+cond	12	"ch == 116"
+cond	13	"ch == 118"
+cond	14	"ch == 119"
+cond	15	"ch == 123"
+cond	16	"ch == 33"
+cond	17	"ch == 34"
+cond	18	"ch == 37"
+cond	19	"ch == 39"
+cond	20	"ch == 40"
+cond	21	"ch == 42"
+cond	22	"ch == 43"
+cond	23	"ch == 45"
+cond	24	"ch == 46"
+cond	25	"ch == 47"
+cond	26	"ch == 48"
+cond	27	"ch == 49"
+cond	28	"ch == 60"
+cond	29	"ch == 61"
+cond	30	"ch == 62"
+cond	31	"ch == 63"
+cond	32	"ch == 91"
+cond	33	"ch == 92"
+cond	34	"ch == 96"
+cond	35	"ch == 97"
+cond	36	"ch == 98"
+cond	37	"ch == 99"
 grammar	lean,logical,lean boxed	"grammars/cel"
-guard	1	13	1	0	0	"\"<=\""	29
-guard	1	14	1	0	0	"\"<\""	29
-guard	1	15	1	0	0	"\">=\""	31
-guard	1	16	1	0	0	"\">\""	31
-guard	1	17	1	0	0	"\"==\""	30
-guard	1	18	1	0	0	"\"!=\""	17
-guard	1	19	1	0	0	"\"in\""	8
-guard	1	25	1	0	0	"\"+\""	23
-guard	1	26	1	0	0	"\"-\""	24
-guard	1	28	1	0	0	"\"*\""	22
-guard	1	29	1	0	0	"\"/\""	26
-guard	1	30	1	0	0	"\"%\""	19
-guard	16	1	1	1	0	"\"?\""	32
-guard	16	2	0	0	0	""	1
-guard	2	1	0	0	0	""	1
-guard	2	2	0	0	0	""	1
-guard	2	3	0	0	0	""	1
-guard	20	1	1	1	0	"\"?\""	32
-guard	20	2	0	0	0	""	1
-guard	26	1	1	1	0	"\"?\""	32
-guard	26	2	0	0	0	""	1
-guard	29	3	1	0	0	"\"true\""	13
-guard	29	4	1	0	0	"\"false\""	7
-guard	33	13	0	0	0	""	1
-guard	33	17	1	0	0	"\".\""	25
-guard	33	5	0	0	0	""	1
-guard	35	3	1	0	0	"\"0x\""	27
-guard	35	7	0	0	0	""	1
-guard	36	5	1	0	0	"\"0x\""	27
-guard	36	9	0	0	0	""	1
-guard	37	2	1	0	1	"[rR]"	2
-guard	37	7	0	0	0	""	1
-guard	38	4	1	0	1	"[rR]"	2
-guard	38	9	0	0	0	""	1
-guard	39	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	39	17	1	0	0	"\"\\\"\""	18
-guard	39	22	1	0	0	"\"'\""	20
-guard	39	9	1	0	0	"\"'''\""	20
-guard	40	1	1	0	0	"\"\\\"\""	18
-guard	40	11	1	0	0	"\"\\\"\""	18
-guard	40	16	0	0	0	""	1
-guard	40	19	0	0	0	""	1
-guard	40	20	0	0	0	""	1
-guard	40	23	1	0	0	"\"'\""	20
-guard	40	26	1	0	0	"\"''\""	20
-guard	40	30	0	0	0	""	1
-guard	40	31	0	0	0	""	1
-guard	40	33	1	0	0	"\"'\""	20
-guard	40	38	0	0	0	""	1
-guard	40	4	1	0	0	"\"\\\"\\\"\""	18
-guard	40	41	0	0	0	""	1
-guard	40	42	0	0	0	""	1
-guard	40	8	0	0	0	""	1
-guard	40	9	0	0	0	""	1
-guard	41	1	1	0	0	"\"\\\"\""	18
-guard	41	11	1	0	0	"\"\\\"\""	18
-guard	41	16	0	0	0	""	1
-guard	41	19	1	0	0	"\"\\\\\""	34
-guard	41	20	0	0	0	""	1
-guard	41	23	1	0	0	"\"'\""	20
-guard	41	26	1	0	0	"\"''\""	20
-guard	41	30	1	0	0	"\"\\\\\""	34
-guard	41	31	0	0	0	""	1
-guard	41	33	1	0	0	"\"'\""	20
-guard	41	38	0	0	0	""	1
-guard	41	4	1	0	0	"\"\\\"\\\"\""	18
-guard	41	41	1	0	0	"\"\\\\\""	34
-guard	41	42	0	0	0	""	1
-guard	41	8	1	0	0	"\"\\\\\""	34
-guard	41	9	0	0	0	""	1
-guard	42	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	4
-guard	42	4	1	0	0	"[0-3]"	5
-guard	42	8	1	0	0	"[xX]"	3
-guard	43	1	1	0	0	"\"\\\\\""	34
-guard	43	12	1	0	0	"\"\\\\U\""	34
-guard	43	2	1	0	0	"\"\\\\u\""	34
-guard	43	21	1	0	0	"\"0\""	27
-guard	43	25	1	0	0	"\"10\""	28
-guard	45	5	1	0	0	"\"true\""	13
-guard	45	6	1	0	0	"\"false\""	7
-guard	45	7	1	0	0	"\"null\""	10
-guard	45	8	1	0	0	"\"in\""	8
-guard	46	10	1	0	0	"\"const\""	38
-guard	46	11	1	0	0	"\"continue\""	38
-guard	46	12	1	0	0	"\"else\""	6
-guard	46	13	1	0	0	"\"for\""	7
-guard	46	14	1	0	0	"\"function\""	7
-guard	46	15	1	0	0	"\"if\""	8
-guard	46	16	1	0	0	"\"import\""	8
-guard	46	17	1	0	0	"\"let\""	9
-guard	46	18	1	0	0	"\"loop\""	9
-guard	46	19	1	0	0	"\"package\""	11
-guard	46	20	1	0	0	"\"namespace\""	10
-guard	46	21	1	0	0	"\"return\""	12
-guard	46	22	1	0	0	"\"var\""	14
-guard	46	23	1	0	0	"\"void\""	14
-guard	46	24	1	0	0	"\"while\""	15
-guard	46	4	1	0	0	"\"true\""	13
-guard	46	5	1	0	0	"\"false\""	7
-guard	46	6	1	0	0	"\"null\""	10
-guard	46	7	1	0	0	"\"in\""	8
-guard	46	8	1	0	0	"\"as\""	36
-guard	46	9	1	0	0	"\"break\""	37
-guard	47	2	0	0	0	""	1
-guard	47	3	1	0	0	"\"`\""	35
-guard	50	10	1	0	0	"\"const\""	38
-guard	50	11	1	0	0	"\"continue\""	38
-guard	50	12	1	0	0	"\"else\""	6
-guard	50	13	1	0	0	"\"for\""	7
-guard	50	14	1	0	0	"\"function\""	7
-guard	50	15	1	0	0	"\"if\""	8
-guard	50	16	1	0	0	"\"import\""	8
-guard	50	17	1	0	0	"\"let\""	9
-guard	50	18	1	0	0	"\"loop\""	9
-guard	50	19	1	0	0	"\"package\""	11
-guard	50	20	1	0	0	"\"namespace\""	10
-guard	50	21	1	0	0	"\"return\""	12
-guard	50	22	1	0	0	"\"var\""	14
-guard	50	23	1	0	0	"\"void\""	14
-guard	50	24	1	0	0	"\"while\""	15
-guard	50	4	1	0	0	"\"true\""	13
-guard	50	5	1	0	0	"\"false\""	7
-guard	50	6	1	0	0	"\"null\""	10
-guard	50	7	1	0	0	"\"in\""	8
-guard	50	8	1	0	0	"\"as\""	36
-guard	50	9	1	0	0	"\"break\""	37
-guard	51	5	1	0	0	"\"true\""	13
-guard	51	6	1	0	0	"\"false\""	7
-guard	51	7	1	0	0	"\"null\""	10
-guard	51	8	1	0	0	"\"in\""	8
-guard	54	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	54	17	1	0	0	"\"\\\"\""	18
-guard	54	22	1	0	0	"\"'\""	20
-guard	54	9	1	0	0	"\"'''\""	20
-guard	55	1	1	0	0	"\"\\\"\""	18
-guard	55	11	1	0	0	"\"\\\"\""	18
-guard	55	16	0	0	0	""	1
-guard	55	19	0	0	0	""	1
-guard	55	20	0	0	0	""	1
-guard	55	23	1	0	0	"\"'\""	20
-guard	55	26	1	0	0	"\"''\""	20
-guard	55	30	0	0	0	""	1
-guard	55	31	0	0	0	""	1
-guard	55	33	1	0	0	"\"'\""	20
-guard	55	38	0	0	0	""	1
-guard	55	4	1	0	0	"\"\\\"\\\"\""	18
-guard	55	41	0	0	0	""	1
-guard	55	42	0	0	0	""	1
-guard	55	8	0	0	0	""	1
-guard	55	9	0	0	0	""	1
-guard	56	1	1	0	0	"\"\\\"\""	18
-guard	56	11	1	0	0	"\"\\\"\""	18
-guard	56	16	0	0	0	""	1
-guard	56	19	1	0	0	"\"\\\\\""	34
-guard	56	20	0	0	0	""	1
-guard	56	23	1	0	0	"\"'\""	20
-guard	56	26	1	0	0	"\"''\""	20
-guard	56	30	1	0	0	"\"\\\\\""	34
-guard	56	31	0	0	0	""	1
-guard	56	33	1	0	0	"\"'\""	20
-guard	56	38	0	0	0	""	1
-guard	56	4	1	0	0	"\"\\\"\\\"\""	18
-guard	56	41	1	0	0	"\"\\\\\""	34
-guard	56	42	0	0	0	""	1
-guard	56	8	1	0	0	"\"\\\\\""	34
-guard	56	9	0	0	0	""	1
-guard	57	1	1	0	0	"\"\\\\\""	34
-guard	57	12	1	0	0	"\"\\\\U\""	34
-guard	57	2	1	0	0	"\"\\\\u\""	34
-guard	57	21	1	0	0	"\"0\""	27
-guard	57	25	1	0	0	"\"10\""	28
-guard	58	3	1	0	1	"[abfnrtv\"\\'\\\\?`]"	4
-guard	58	4	1	0	1	"[0-3]"	5
-guard	58	8	1	0	1	"[xX]"	3
-guard	6	1	0	0	0	""	1
-guard	6	10	0	0	0	""	1
-guard	6	15	0	0	0	""	1
-guard	6	16	0	0	0	""	1
-guard	6	17	0	0	0	""	1
-guard	6	18	0	0	0	""	1
-guard	6	19	0	0	0	""	1
-guard	6	24	0	0	0	""	1
-guard	6	29	0	0	0	""	1
-guard	6	30	0	0	0	""	1
-guard	6	31	0	0	0	""	1
-guard	6	32	0	0	0	""	1
-guard	6	33	0	0	0	""	1
-guard	6	38	0	0	0	""	1
-guard	6	39	0	0	0	""	1
-guard	6	40	0	0	0	""	1
-guard	6	42	1	1	0	"\"(\""	21
-guard	6	43	1	1	0	"\"[\""	33
-guard	6	44	1	1	0	"\"{\""	16
-guard	6	45	0	0	0	""	1
-guard	6	6	0	0	0	""	1
-guard	6	7	0	0	0	""	1
-guard	6	8	0	0	0	""	1
-guard	6	9	0	0	0	""	1
-guard	7	10	0	0	0	""	1
-guard	7	14	0	0	0	""	1
-guard	7	18	0	0	0	""	1
-guard	7	2	0	0	0	""	1
-guard	7	6	0	0	0	""	1
-guard	8	1	0	0	0	""	1
-guard	8	11	0	0	0	""	1
-guard	8	16	0	0	0	""	1
-guard	8	6	0	0	0	""	1
+guard	1	13	1	0	0	"\"<=\""	28
+guard	1	14	1	0	0	"\"<\""	28
+guard	1	15	1	0	0	"\">=\""	30
+guard	1	16	1	0	0	"\">\""	30
+guard	1	17	1	0	0	"\"==\""	29
+guard	1	18	1	0	0	"\"!=\""	16
+guard	1	19	1	0	0	"\"in\""	7
+guard	1	25	1	0	0	"\"+\""	22
+guard	1	26	1	0	0	"\"-\""	23
+guard	1	28	1	0	0	"\"*\""	21
+guard	1	29	1	0	0	"\"/\""	25
+guard	1	30	1	0	0	"\"%\""	18
+guard	16	1	1	1	0	"\"?\""	31
+guard	16	2	0	0	0	""	0
+guard	2	1	0	0	0	""	0
+guard	2	2	0	0	0	""	0
+guard	2	3	0	0	0	""	0
+guard	20	1	1	1	0	"\"?\""	31
+guard	20	2	0	0	0	""	0
+guard	26	1	1	1	0	"\"?\""	31
+guard	26	2	0	0	0	""	0
+guard	29	3	1	0	0	"\"true\""	12
+guard	29	4	1	0	0	"\"false\""	6
+guard	33	13	0	0	0	""	0
+guard	33	17	1	0	0	"\".\""	24
+guard	33	5	0	0	0	""	0
+guard	35	3	1	0	0	"\"0x\""	26
+guard	35	7	0	0	0	""	0
+guard	36	5	1	0	0	"\"0x\""	26
+guard	36	9	0	0	0	""	0
+guard	37	2	1	0	1	"[rR]"	1
+guard	37	7	0	0	0	""	0
+guard	38	4	1	0	1	"[rR]"	1
+guard	38	9	0	0	0	""	0
+guard	39	1	1	0	0	"\"\\\"\\\"\\\"\""	17
+guard	39	17	1	0	0	"\"\\\"\""	17
+guard	39	22	1	0	0	"\"'\""	19
+guard	39	9	1	0	0	"\"'''\""	19
+guard	40	1	1	0	0	"\"\\\"\""	17
+guard	40	11	1	0	0	"\"\\\"\""	17
+guard	40	16	0	0	0	""	0
+guard	40	19	0	0	0	""	0
+guard	40	20	0	0	0	""	0
+guard	40	23	1	0	0	"\"'\""	19
+guard	40	26	1	0	0	"\"''\""	19
+guard	40	30	0	0	0	""	0
+guard	40	31	0	0	0	""	0
+guard	40	33	1	0	0	"\"'\""	19
+guard	40	38	0	0	0	""	0
+guard	40	4	1	0	0	"\"\\\"\\\"\""	17
+guard	40	41	0	0	0	""	0
+guard	40	42	0	0	0	""	0
+guard	40	8	0	0	0	""	0
+guard	40	9	0	0	0	""	0
+guard	41	1	1	0	0	"\"\\\"\""	17
+guard	41	11	1	0	0	"\"\\\"\""	17
+guard	41	16	0	0	0	""	0
+guard	41	19	1	0	0	"\"\\\\\""	33
+guard	41	20	0	0	0	""	0
+guard	41	23	1	0	0	"\"'\""	19
+guard	41	26	1	0	0	"\"''\""	19
+guard	41	30	1	0	0	"\"\\\\\""	33
+guard	41	31	0	0	0	""	0
+guard	41	33	1	0	0	"\"'\""	19
+guard	41	38	0	0	0	""	0
+guard	41	4	1	0	0	"\"\\\"\\\"\""	17
+guard	41	41	1	0	0	"\"\\\\\""	33
+guard	41	42	0	0	0	""	0
+guard	41	8	1	0	0	"\"\\\\\""	33
+guard	41	9	0	0	0	""	0
+guard	42	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	3
+guard	42	4	1	0	0	"[0-3]"	4
+guard	42	8	1	0	0	"[xX]"	2
+guard	43	1	1	0	0	"\"\\\\\""	33
+guard	43	12	1	0	0	"\"\\\\U\""	33
+guard	43	2	1	0	0	"\"\\\\u\""	33
+guard	43	21	1	0	0	"\"0\""	26
+guard	43	25	1	0	0	"\"10\""	27
+guard	45	5	1	0	0	"\"true\""	12
+guard	45	6	1	0	0	"\"false\""	6
+guard	45	7	1	0	0	"\"null\""	9
+guard	45	8	1	0	0	"\"in\""	7
+guard	46	10	1	0	0	"\"const\""	37
+guard	46	11	1	0	0	"\"continue\""	37
+guard	46	12	1	0	0	"\"else\""	5
+guard	46	13	1	0	0	"\"for\""	6
+guard	46	14	1	0	0	"\"function\""	6
+guard	46	15	1	0	0	"\"if\""	7
+guard	46	16	1	0	0	"\"import\""	7
+guard	46	17	1	0	0	"\"let\""	8
+guard	46	18	1	0	0	"\"loop\""	8
+guard	46	19	1	0	0	"\"package\""	10
+guard	46	20	1	0	0	"\"namespace\""	9
+guard	46	21	1	0	0	"\"return\""	11
+guard	46	22	1	0	0	"\"var\""	13
+guard	46	23	1	0	0	"\"void\""	13
+guard	46	24	1	0	0	"\"while\""	14
+guard	46	4	1	0	0	"\"true\""	12
+guard	46	5	1	0	0	"\"false\""	6
+guard	46	6	1	0	0	"\"null\""	9
+guard	46	7	1	0	0	"\"in\""	7
+guard	46	8	1	0	0	"\"as\""	35
+guard	46	9	1	0	0	"\"break\""	36
+guard	47	2	0	0	0	""	0
+guard	47	3	1	0	0	"\"`\""	34
+guard	50	10	1	0	0	"\"const\""	37
+guard	50	11	1	0	0	"\"continue\""	37
+guard	50	12	1	0	0	"\"else\""	5
+guard	50	13	1	0	0	"\"for\""	6
+guard	50	14	1	0	0	"\"function\""	6
+guard	50	15	1	0	0	"\"if\""	7
+guard	50	16	1	0	0	"\"import\""	7
+guard	50	17	1	0	0	"\"let\""	8
+guard	50	18	1	0	0	"\"loop\""	8
+guard	50	19	1	0	0	"\"package\""	10
+guard	50	20	1	0	0	"\"namespace\""	9
+guard	50	21	1	0	0	"\"return\""	11
+guard	50	22	1	0	0	"\"var\""	13
+guard	50	23	1	0	0	"\"void\""	13
+guard	50	24	1	0	0	"\"while\""	14
+guard	50	4	1	0	0	"\"true\""	12
+guard	50	5	1	0	0	"\"false\""	6
+guard	50	6	1	0	0	"\"null\""	9
+guard	50	7	1	0	0	"\"in\""	7
+guard	50	8	1	0	0	"\"as\""	35
+guard	50	9	1	0	0	"\"break\""	36
+guard	51	5	1	0	0	"\"true\""	12
+guard	51	6	1	0	0	"\"false\""	6
+guard	51	7	1	0	0	"\"null\""	9
+guard	51	8	1	0	0	"\"in\""	7
+guard	54	1	1	0	0	"\"\\\"\\\"\\\"\""	17
+guard	54	17	1	0	0	"\"\\\"\""	17
+guard	54	22	1	0	0	"\"'\""	19
+guard	54	9	1	0	0	"\"'''\""	19
+guard	55	1	1	0	0	"\"\\\"\""	17
+guard	55	11	1	0	0	"\"\\\"\""	17
+guard	55	16	0	0	0	""	0
+guard	55	19	0	0	0	""	0
+guard	55	20	0	0	0	""	0
+guard	55	23	1	0	0	"\"'\""	19
+guard	55	26	1	0	0	"\"''\""	19
+guard	55	30	0	0	0	""	0
+guard	55	31	0	0	0	""	0
+guard	55	33	1	0	0	"\"'\""	19
+guard	55	38	0	0	0	""	0
+guard	55	4	1	0	0	"\"\\\"\\\"\""	17
+guard	55	41	0	0	0	""	0
+guard	55	42	0	0	0	""	0
+guard	55	8	0	0	0	""	0
+guard	55	9	0	0	0	""	0
+guard	56	1	1	0	0	"\"\\\"\""	17
+guard	56	11	1	0	0	"\"\\\"\""	17
+guard	56	16	0	0	0	""	0
+guard	56	19	1	0	0	"\"\\\\\""	33
+guard	56	20	0	0	0	""	0
+guard	56	23	1	0	0	"\"'\""	19
+guard	56	26	1	0	0	"\"''\""	19
+guard	56	30	1	0	0	"\"\\\\\""	33
+guard	56	31	0	0	0	""	0
+guard	56	33	1	0	0	"\"'\""	19
+guard	56	38	0	0	0	""	0
+guard	56	4	1	0	0	"\"\\\"\\\"\""	17
+guard	56	41	1	0	0	"\"\\\\\""	33
+guard	56	42	0	0	0	""	0
+guard	56	8	1	0	0	"\"\\\\\""	33
+guard	56	9	0	0	0	""	0
+guard	57	1	1	0	0	"\"\\\\\""	33
+guard	57	12	1	0	0	"\"\\\\U\""	33
+guard	57	2	1	0	0	"\"\\\\u\""	33
+guard	57	21	1	0	0	"\"0\""	26
+guard	57	25	1	0	0	"\"10\""	27
+guard	58	3	1	0	1	"[abfnrtv\"\\'\\\\?`]"	3
+guard	58	4	1	0	1	"[0-3]"	4
+guard	58	8	1	0	1	"[xX]"	2
+guard	6	1	0	0	0	""	0
+guard	6	10	0	0	0	""	0
+guard	6	15	0	0	0	""	0
+guard	6	16	0	0	0	""	0
+guard	6	17	0	0	0	""	0
+guard	6	18	0	0	0	""	0
+guard	6	19	0	0	0	""	0
+guard	6	24	0	0	0	""	0
+guard	6	29	0	0	0	""	0
+guard	6	30	0	0	0	""	0
+guard	6	31	0	0	0	""	0
+guard	6	32	0	0	0	""	0
+guard	6	33	0	0	0	""	0
+guard	6	38	0	0	0	""	0
+guard	6	39	0	0	0	""	0
+guard	6	40	0	0	0	""	0
+guard	6	42	1	1	0	"\"(\""	20
+guard	6	43	1	1	0	"\"[\""	32
+guard	6	44	1	1	0	"\"{\""	15
+guard	6	45	0	0	0	""	0
+guard	6	6	0	0	0	""	0
+guard	6	7	0	0	0	""	0
+guard	6	8	0	0	0	""	0
+guard	6	9	0	0	0	""	0
+guard	7	10	0	0	0	""	0
+guard	7	14	0	0	0	""	0
+guard	7	18	0	0	0	""	0
+guard	7	2	0	0	0	""	0
+guard	7	6	0	0	0	""	0
+guard	8	1	0	0	0	""	0
+guard	8	11	0	0	0	""	0
+guard	8	16	0	0	0	""	0
+guard	8	6	0	0	0	""	0
 runs	57	15	1:2
 runs	57	5	0:2
 runs	58	4	1:2
@@ -298,470 +297,214 @@ scope	5	2
 scope	5	25	q,i
 scope	5	3	q,f
 terminal	50	1
-grammar	lean observable	"grammars/cel"
-guard	1	13	1	0	0	"\"<=\""	29
-guard	1	14	1	0	0	"\"<\""	29
-guard	1	15	1	0	0	"\">=\""	31
-guard	1	16	1	0	0	"\">\""	31
-guard	1	17	1	0	0	"\"==\""	30
-guard	1	18	1	0	0	"\"!=\""	17
-guard	1	19	1	0	0	"\"in\""	8
-guard	1	25	1	0	0	"\"+\""	23
-guard	1	26	1	0	0	"\"-\""	24
-guard	1	28	1	0	0	"\"*\""	22
-guard	1	29	1	0	0	"\"/\""	26
-guard	1	30	1	0	0	"\"%\""	19
-guard	16	1	1	1	0	"\"?\""	32
-guard	16	2	0	0	0	""	1
-guard	2	1	0	0	0	""	1
-guard	2	2	0	0	0	""	1
-guard	2	3	0	0	0	""	1
-guard	20	1	1	1	0	"\"?\""	32
-guard	20	2	0	0	0	""	1
-guard	26	1	1	1	0	"\"?\""	32
-guard	26	2	0	0	0	""	1
-guard	29	3	1	0	0	"\"true\""	13
-guard	29	4	1	0	0	"\"false\""	7
-guard	33	13	0	0	0	""	1
-guard	33	17	1	0	0	"\".\""	25
-guard	33	5	0	0	0	""	1
-guard	35	3	1	0	0	"\"0x\""	27
-guard	35	7	0	0	0	""	1
-guard	36	5	1	0	0	"\"0x\""	27
-guard	36	9	0	0	0	""	1
-guard	37	2	1	0	0	"[rR]"	2
-guard	37	7	0	0	0	""	1
-guard	38	4	1	0	0	"[rR]"	2
-guard	38	9	0	0	0	""	1
-guard	39	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	39	17	1	0	0	"\"\\\"\""	18
-guard	39	22	1	0	0	"\"'\""	20
-guard	39	9	1	0	0	"\"'''\""	20
-guard	40	1	1	0	0	"\"\\\"\""	18
-guard	40	11	1	0	0	"\"\\\"\""	18
-guard	40	16	0	0	0	""	1
-guard	40	19	0	0	0	""	1
-guard	40	20	0	0	0	""	1
-guard	40	23	1	0	0	"\"'\""	20
-guard	40	26	1	0	0	"\"''\""	20
-guard	40	30	0	0	0	""	1
-guard	40	31	0	0	0	""	1
-guard	40	33	1	0	0	"\"'\""	20
-guard	40	38	0	0	0	""	1
-guard	40	4	1	0	0	"\"\\\"\\\"\""	18
-guard	40	41	0	0	0	""	1
-guard	40	42	0	0	0	""	1
-guard	40	8	0	0	0	""	1
-guard	40	9	0	0	0	""	1
-guard	41	1	1	0	0	"\"\\\"\""	18
-guard	41	11	1	0	0	"\"\\\"\""	18
-guard	41	16	0	0	0	""	1
-guard	41	19	1	0	0	"\"\\\\\""	34
-guard	41	20	0	0	0	""	1
-guard	41	23	1	0	0	"\"'\""	20
-guard	41	26	1	0	0	"\"''\""	20
-guard	41	30	1	0	0	"\"\\\\\""	34
-guard	41	31	0	0	0	""	1
-guard	41	33	1	0	0	"\"'\""	20
-guard	41	38	0	0	0	""	1
-guard	41	4	1	0	0	"\"\\\"\\\"\""	18
-guard	41	41	1	0	0	"\"\\\\\""	34
-guard	41	42	0	0	0	""	1
-guard	41	8	1	0	0	"\"\\\\\""	34
-guard	41	9	0	0	0	""	1
-guard	42	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	4
-guard	42	4	1	0	0	"[0-3]"	5
-guard	42	8	1	0	0	"[xX]"	3
-guard	43	1	1	0	0	"\"\\\\\""	34
-guard	43	12	1	0	0	"\"\\\\U\""	34
-guard	43	2	1	0	0	"\"\\\\u\""	34
-guard	43	21	1	0	0	"\"0\""	27
-guard	43	25	1	0	0	"\"10\""	28
-guard	45	5	1	0	0	"\"true\""	13
-guard	45	6	1	0	0	"\"false\""	7
-guard	45	7	1	0	0	"\"null\""	10
-guard	45	8	1	0	0	"\"in\""	8
-guard	46	10	1	0	0	"\"const\""	38
-guard	46	11	1	0	0	"\"continue\""	38
-guard	46	12	1	0	0	"\"else\""	6
-guard	46	13	1	0	0	"\"for\""	7
-guard	46	14	1	0	0	"\"function\""	7
-guard	46	15	1	0	0	"\"if\""	8
-guard	46	16	1	0	0	"\"import\""	8
-guard	46	17	1	0	0	"\"let\""	9
-guard	46	18	1	0	0	"\"loop\""	9
-guard	46	19	1	0	0	"\"package\""	11
-guard	46	20	1	0	0	"\"namespace\""	10
-guard	46	21	1	0	0	"\"return\""	12
-guard	46	22	1	0	0	"\"var\""	14
-guard	46	23	1	0	0	"\"void\""	14
-guard	46	24	1	0	0	"\"while\""	15
-guard	46	4	1	0	0	"\"true\""	13
-guard	46	5	1	0	0	"\"false\""	7
-guard	46	6	1	0	0	"\"null\""	10
-guard	46	7	1	0	0	"\"in\""	8
-guard	46	8	1	0	0	"\"as\""	36
-guard	46	9	1	0	0	"\"break\""	37
-guard	47	2	0	0	0	""	1
-guard	47	3	1	0	0	"\"`\""	35
-guard	50	10	1	0	0	"\"const\""	38
-guard	50	11	1	0	0	"\"continue\""	38
-guard	50	12	1	0	0	"\"else\""	6
-guard	50	13	1	0	0	"\"for\""	7
-guard	50	14	1	0	0	"\"function\""	7
-guard	50	15	1	0	0	"\"if\""	8
-guard	50	16	1	0	0	"\"import\""	8
-guard	50	17	1	0	0	"\"let\""	9
-guard	50	18	1	0	0	"\"loop\""	9
-guard	50	19	1	0	0	"\"package\""	11
-guard	50	20	1	0	0	"\"namespace\""	10
-guard	50	21	1	0	0	"\"return\""	12
-guard	50	22	1	0	0	"\"var\""	14
-guard	50	23	1	0	0	"\"void\""	14
-guard	50	24	1	0	0	"\"while\""	15
-guard	50	4	1	0	0	"\"true\""	13
-guard	50	5	1	0	0	"\"false\""	7
-guard	50	6	1	0	0	"\"null\""	10
-guard	50	7	1	0	0	"\"in\""	8
-guard	50	8	1	0	0	"\"as\""	36
-guard	50	9	1	0	0	"\"break\""	37
-guard	51	5	1	0	0	"\"true\""	13
-guard	51	6	1	0	0	"\"false\""	7
-guard	51	7	1	0	0	"\"null\""	10
-guard	51	8	1	0	0	"\"in\""	8
-guard	54	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	54	17	1	0	0	"\"\\\"\""	18
-guard	54	22	1	0	0	"\"'\""	20
-guard	54	9	1	0	0	"\"'''\""	20
-guard	55	1	1	0	0	"\"\\\"\""	18
-guard	55	11	1	0	0	"\"\\\"\""	18
-guard	55	16	0	0	0	""	1
-guard	55	19	0	0	0	""	1
-guard	55	20	0	0	0	""	1
-guard	55	23	1	0	0	"\"'\""	20
-guard	55	26	1	0	0	"\"''\""	20
-guard	55	30	0	0	0	""	1
-guard	55	31	0	0	0	""	1
-guard	55	33	1	0	0	"\"'\""	20
-guard	55	38	0	0	0	""	1
-guard	55	4	1	0	0	"\"\\\"\\\"\""	18
-guard	55	41	0	0	0	""	1
-guard	55	42	0	0	0	""	1
-guard	55	8	0	0	0	""	1
-guard	55	9	0	0	0	""	1
-guard	56	1	1	0	0	"\"\\\"\""	18
-guard	56	11	1	0	0	"\"\\\"\""	18
-guard	56	16	0	0	0	""	1
-guard	56	19	1	0	0	"\"\\\\\""	34
-guard	56	20	0	0	0	""	1
-guard	56	23	1	0	0	"\"'\""	20
-guard	56	26	1	0	0	"\"''\""	20
-guard	56	30	1	0	0	"\"\\\\\""	34
-guard	56	31	0	0	0	""	1
-guard	56	33	1	0	0	"\"'\""	20
-guard	56	38	0	0	0	""	1
-guard	56	4	1	0	0	"\"\\\"\\\"\""	18
-guard	56	41	1	0	0	"\"\\\\\""	34
-guard	56	42	0	0	0	""	1
-guard	56	8	1	0	0	"\"\\\\\""	34
-guard	56	9	0	0	0	""	1
-guard	57	1	1	0	0	"\"\\\\\""	34
-guard	57	12	1	0	0	"\"\\\\U\""	34
-guard	57	2	1	0	0	"\"\\\\u\""	34
-guard	57	21	1	0	0	"\"0\""	27
-guard	57	25	1	0	0	"\"10\""	28
-guard	58	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	4
-guard	58	4	1	0	0	"[0-3]"	5
-guard	58	8	1	0	0	"[xX]"	3
-guard	6	1	0	0	0	""	1
-guard	6	10	0	0	0	""	1
-guard	6	15	0	0	0	""	1
-guard	6	16	0	0	0	""	1
-guard	6	17	0	0	0	""	1
-guard	6	18	0	0	0	""	1
-guard	6	19	0	0	0	""	1
-guard	6	24	0	0	0	""	1
-guard	6	29	0	0	0	""	1
-guard	6	30	0	0	0	""	1
-guard	6	31	0	0	0	""	1
-guard	6	32	0	0	0	""	1
-guard	6	33	0	0	0	""	1
-guard	6	38	0	0	0	""	1
-guard	6	39	0	0	0	""	1
-guard	6	40	0	0	0	""	1
-guard	6	42	1	1	0	"\"(\""	21
-guard	6	43	1	1	0	"\"[\""	33
-guard	6	44	1	1	0	"\"{\""	16
-guard	6	45	0	0	0	""	1
-guard	6	6	0	0	0	""	1
-guard	6	7	0	0	0	""	1
-guard	6	8	0	0	0	""	1
-guard	6	9	0	0	0	""	1
-guard	7	10	0	0	0	""	1
-guard	7	14	0	0	0	""	1
-guard	7	18	0	0	0	""	1
-guard	7	2	0	0	0	""	1
-guard	7	6	0	0	0	""	1
-guard	8	1	0	0	0	""	1
-guard	8	11	0	0	0	""	1
-guard	8	16	0	0	0	""	1
-guard	8	6	0	0	0	""	1
-scan	23	16
-scan	23	8
-scan	31	2
-scan	33	14
-scan	33	19
-scan	33	6
-scan	33	9
-scan	35	5
-scan	35	7
-scan	36	7
-scan	36	9
-scan	45	12
-scan	47	5
-scan	49	1
-scan	49	6
-scan	49	8
-scan	50	28
-scan	51	12
-scan	53	4
-scan	54	19
-scan	54	24
-scan	55	20
-scan	55	31
-scan	55	42
-scan	55	9
-scan	56	20
-scan	56	31
-scan	56	42
-scan	56	9
-scope	1	1	
-scope	1	10	
-scope	1	11	
-scope	1	12	
-scope	1	2	
-scope	1	24	
-scope	1	27	
-scope	1	3	then
-scope	13	5	x
-scope	15	5	x
-scope	19	5	x
-scope	25	5	x
-scope	3	3	o
-scope	4	3	o
-scope	5	1	
-scope	5	12	f,as
-scope	5	2	
-scope	5	25	q,i
-scope	5	3	q,f
-grammar	controlled document	"grammars/cel"
-guard	1	13	1	0	0	"\"<=\""	29
-guard	1	14	1	0	0	"\"<\""	29
-guard	1	15	1	0	0	"\">=\""	31
-guard	1	16	1	0	0	"\">\""	31
-guard	1	17	1	0	0	"\"==\""	30
-guard	1	18	1	0	0	"\"!=\""	17
-guard	1	19	1	0	0	"\"in\""	8
-guard	1	25	1	0	0	"\"+\""	23
-guard	1	26	1	0	0	"\"-\""	24
-guard	1	28	1	0	0	"\"*\""	22
-guard	1	29	1	0	0	"\"/\""	26
-guard	1	30	1	0	0	"\"%\""	19
-guard	16	1	1	1	0	"\"?\""	32
-guard	16	2	0	0	0	""	1
-guard	2	1	0	0	0	""	1
-guard	2	2	0	0	0	""	1
-guard	2	3	0	0	0	""	1
-guard	20	1	1	1	0	"\"?\""	32
-guard	20	2	0	0	0	""	1
-guard	26	1	1	1	0	"\"?\""	32
-guard	26	2	0	0	0	""	1
-guard	29	3	1	0	0	"\"true\""	13
-guard	29	4	1	0	0	"\"false\""	7
-guard	33	13	0	0	0	""	1
-guard	33	17	1	0	0	"\".\""	25
-guard	33	5	0	0	0	""	1
-guard	35	3	1	0	0	"\"0x\""	27
-guard	35	7	0	0	0	""	1
-guard	36	5	1	0	0	"\"0x\""	27
-guard	36	9	0	0	0	""	1
-guard	37	2	1	0	0	"[rR]"	2
-guard	37	7	0	0	0	""	1
-guard	38	4	1	0	0	"[rR]"	2
-guard	38	9	0	0	0	""	1
-guard	39	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	39	17	1	0	0	"\"\\\"\""	18
-guard	39	22	1	0	0	"\"'\""	20
-guard	39	9	1	0	0	"\"'''\""	20
-guard	40	1	1	0	0	"\"\\\"\""	18
-guard	40	11	1	0	0	"\"\\\"\""	18
-guard	40	16	0	0	0	""	1
-guard	40	19	0	0	0	""	1
-guard	40	20	0	0	0	""	1
-guard	40	23	1	0	0	"\"'\""	20
-guard	40	26	1	0	0	"\"''\""	20
-guard	40	30	0	0	0	""	1
-guard	40	31	0	0	0	""	1
-guard	40	33	1	0	0	"\"'\""	20
-guard	40	38	0	0	0	""	1
-guard	40	4	1	0	0	"\"\\\"\\\"\""	18
-guard	40	41	0	0	0	""	1
-guard	40	42	0	0	0	""	1
-guard	40	8	0	0	0	""	1
-guard	40	9	0	0	0	""	1
-guard	41	1	1	0	0	"\"\\\"\""	18
-guard	41	11	1	0	0	"\"\\\"\""	18
-guard	41	16	0	0	0	""	1
-guard	41	19	1	0	0	"\"\\\\\""	34
-guard	41	20	0	0	0	""	1
-guard	41	23	1	0	0	"\"'\""	20
-guard	41	26	1	0	0	"\"''\""	20
-guard	41	30	1	0	0	"\"\\\\\""	34
-guard	41	31	0	0	0	""	1
-guard	41	33	1	0	0	"\"'\""	20
-guard	41	38	0	0	0	""	1
-guard	41	4	1	0	0	"\"\\\"\\\"\""	18
-guard	41	41	1	0	0	"\"\\\\\""	34
-guard	41	42	0	0	0	""	1
-guard	41	8	1	0	0	"\"\\\\\""	34
-guard	41	9	0	0	0	""	1
-guard	42	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	0
-guard	42	4	1	0	0	"[0-3]"	5
-guard	42	8	1	0	0	"[xX]"	3
-guard	43	1	1	0	0	"\"\\\\\""	34
-guard	43	12	1	0	0	"\"\\\\U\""	34
-guard	43	2	1	0	0	"\"\\\\u\""	34
-guard	43	21	1	0	0	"\"0\""	27
-guard	43	25	1	0	0	"\"10\""	28
-guard	45	5	1	0	0	"\"true\""	13
-guard	45	6	1	0	0	"\"false\""	7
-guard	45	7	1	0	0	"\"null\""	10
-guard	45	8	1	0	0	"\"in\""	8
-guard	46	10	1	0	0	"\"const\""	38
-guard	46	11	1	0	0	"\"continue\""	38
-guard	46	12	1	0	0	"\"else\""	6
-guard	46	13	1	0	0	"\"for\""	7
-guard	46	14	1	0	0	"\"function\""	7
-guard	46	15	1	0	0	"\"if\""	8
-guard	46	16	1	0	0	"\"import\""	8
-guard	46	17	1	0	0	"\"let\""	9
-guard	46	18	1	0	0	"\"loop\""	9
-guard	46	19	1	0	0	"\"package\""	11
-guard	46	20	1	0	0	"\"namespace\""	10
-guard	46	21	1	0	0	"\"return\""	12
-guard	46	22	1	0	0	"\"var\""	14
-guard	46	23	1	0	0	"\"void\""	14
-guard	46	24	1	0	0	"\"while\""	15
-guard	46	4	1	0	0	"\"true\""	13
-guard	46	5	1	0	0	"\"false\""	7
-guard	46	6	1	0	0	"\"null\""	10
-guard	46	7	1	0	0	"\"in\""	8
-guard	46	8	1	0	0	"\"as\""	36
-guard	46	9	1	0	0	"\"break\""	37
-guard	47	2	0	0	0	""	1
-guard	47	3	1	0	0	"\"`\""	35
-guard	50	10	1	0	0	"\"const\""	38
-guard	50	11	1	0	0	"\"continue\""	38
-guard	50	12	1	0	0	"\"else\""	6
-guard	50	13	1	0	0	"\"for\""	7
-guard	50	14	1	0	0	"\"function\""	7
-guard	50	15	1	0	0	"\"if\""	8
-guard	50	16	1	0	0	"\"import\""	8
-guard	50	17	1	0	0	"\"let\""	9
-guard	50	18	1	0	0	"\"loop\""	9
-guard	50	19	1	0	0	"\"package\""	11
-guard	50	20	1	0	0	"\"namespace\""	10
-guard	50	21	1	0	0	"\"return\""	12
-guard	50	22	1	0	0	"\"var\""	14
-guard	50	23	1	0	0	"\"void\""	14
-guard	50	24	1	0	0	"\"while\""	15
-guard	50	4	1	0	0	"\"true\""	13
-guard	50	5	1	0	0	"\"false\""	7
-guard	50	6	1	0	0	"\"null\""	10
-guard	50	7	1	0	0	"\"in\""	8
-guard	50	8	1	0	0	"\"as\""	36
-guard	50	9	1	0	0	"\"break\""	37
-guard	51	5	1	0	0	"\"true\""	13
-guard	51	6	1	0	0	"\"false\""	7
-guard	51	7	1	0	0	"\"null\""	10
-guard	51	8	1	0	0	"\"in\""	8
-guard	54	1	1	0	0	"\"\\\"\\\"\\\"\""	18
-guard	54	17	1	0	0	"\"\\\"\""	18
-guard	54	22	1	0	0	"\"'\""	20
-guard	54	9	1	0	0	"\"'''\""	20
-guard	55	1	1	0	0	"\"\\\"\""	18
-guard	55	11	1	0	0	"\"\\\"\""	18
-guard	55	16	0	0	0	""	1
-guard	55	19	0	0	0	""	1
-guard	55	20	0	0	0	""	1
-guard	55	23	1	0	0	"\"'\""	20
-guard	55	26	1	0	0	"\"''\""	20
-guard	55	30	0	0	0	""	1
-guard	55	31	0	0	0	""	1
-guard	55	33	1	0	0	"\"'\""	20
-guard	55	38	0	0	0	""	1
-guard	55	4	1	0	0	"\"\\\"\\\"\""	18
-guard	55	41	0	0	0	""	1
-guard	55	42	0	0	0	""	1
-guard	55	8	0	0	0	""	1
-guard	55	9	0	0	0	""	1
-guard	56	1	1	0	0	"\"\\\"\""	18
-guard	56	11	1	0	0	"\"\\\"\""	18
-guard	56	16	0	0	0	""	1
-guard	56	19	1	0	0	"\"\\\\\""	34
-guard	56	20	0	0	0	""	1
-guard	56	23	1	0	0	"\"'\""	20
-guard	56	26	1	0	0	"\"''\""	20
-guard	56	30	1	0	0	"\"\\\\\""	34
-guard	56	31	0	0	0	""	1
-guard	56	33	1	0	0	"\"'\""	20
-guard	56	38	0	0	0	""	1
-guard	56	4	1	0	0	"\"\\\"\\\"\""	18
-guard	56	41	1	0	0	"\"\\\\\""	34
-guard	56	42	0	0	0	""	1
-guard	56	8	1	0	0	"\"\\\\\""	34
-guard	56	9	0	0	0	""	1
-guard	57	1	1	0	0	"\"\\\\\""	34
-guard	57	12	1	0	0	"\"\\\\U\""	34
-guard	57	2	1	0	0	"\"\\\\u\""	34
-guard	57	21	1	0	0	"\"0\""	27
-guard	57	25	1	0	0	"\"10\""	28
-guard	58	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	0
-guard	58	4	1	0	0	"[0-3]"	5
-guard	58	8	1	0	0	"[xX]"	3
-guard	6	1	0	0	0	""	1
-guard	6	10	0	0	0	""	1
-guard	6	15	0	0	0	""	1
-guard	6	16	0	0	0	""	1
-guard	6	17	0	0	0	""	1
-guard	6	18	0	0	0	""	1
-guard	6	19	0	0	0	""	1
-guard	6	24	0	0	0	""	1
-guard	6	29	0	0	0	""	1
-guard	6	30	0	0	0	""	1
-guard	6	31	0	0	0	""	1
-guard	6	32	0	0	0	""	1
-guard	6	33	0	0	0	""	1
-guard	6	38	0	0	0	""	1
-guard	6	39	0	0	0	""	1
-guard	6	40	0	0	0	""	1
-guard	6	42	1	1	0	"\"(\""	21
-guard	6	43	1	1	0	"\"[\""	33
-guard	6	44	1	1	0	"\"{\""	16
-guard	6	45	0	0	0	""	1
-guard	6	6	0	0	0	""	1
-guard	6	7	0	0	0	""	1
-guard	6	8	0	0	0	""	1
-guard	6	9	0	0	0	""	1
-guard	7	10	0	0	0	""	1
-guard	7	14	0	0	0	""	1
-guard	7	18	0	0	0	""	1
-guard	7	2	0	0	0	""	1
-guard	7	6	0	0	0	""	1
-guard	8	1	0	0	0	""	1
-guard	8	11	0	0	0	""	1
-guard	8	16	0	0	0	""	1
-guard	8	6	0	0	0	""	1
+grammar	lean observable,controlled document	"grammars/cel"
+guard	1	13	1	0	0	"\"<=\""	28
+guard	1	14	1	0	0	"\"<\""	28
+guard	1	15	1	0	0	"\">=\""	30
+guard	1	16	1	0	0	"\">\""	30
+guard	1	17	1	0	0	"\"==\""	29
+guard	1	18	1	0	0	"\"!=\""	16
+guard	1	19	1	0	0	"\"in\""	7
+guard	1	25	1	0	0	"\"+\""	22
+guard	1	26	1	0	0	"\"-\""	23
+guard	1	28	1	0	0	"\"*\""	21
+guard	1	29	1	0	0	"\"/\""	25
+guard	1	30	1	0	0	"\"%\""	18
+guard	16	1	1	1	0	"\"?\""	31
+guard	16	2	0	0	0	""	0
+guard	2	1	0	0	0	""	0
+guard	2	2	0	0	0	""	0
+guard	2	3	0	0	0	""	0
+guard	20	1	1	1	0	"\"?\""	31
+guard	20	2	0	0	0	""	0
+guard	26	1	1	1	0	"\"?\""	31
+guard	26	2	0	0	0	""	0
+guard	29	3	1	0	0	"\"true\""	12
+guard	29	4	1	0	0	"\"false\""	6
+guard	33	13	0	0	0	""	0
+guard	33	17	1	0	0	"\".\""	24
+guard	33	5	0	0	0	""	0
+guard	35	3	1	0	0	"\"0x\""	26
+guard	35	7	0	0	0	""	0
+guard	36	5	1	0	0	"\"0x\""	26
+guard	36	9	0	0	0	""	0
+guard	37	2	1	0	0	"[rR]"	1
+guard	37	7	0	0	0	""	0
+guard	38	4	1	0	0	"[rR]"	1
+guard	38	9	0	0	0	""	0
+guard	39	1	1	0	0	"\"\\\"\\\"\\\"\""	17
+guard	39	17	1	0	0	"\"\\\"\""	17
+guard	39	22	1	0	0	"\"'\""	19
+guard	39	9	1	0	0	"\"'''\""	19
+guard	40	1	1	0	0	"\"\\\"\""	17
+guard	40	11	1	0	0	"\"\\\"\""	17
+guard	40	16	0	0	0	""	0
+guard	40	19	0	0	0	""	0
+guard	40	20	0	0	0	""	0
+guard	40	23	1	0	0	"\"'\""	19
+guard	40	26	1	0	0	"\"''\""	19
+guard	40	30	0	0	0	""	0
+guard	40	31	0	0	0	""	0
+guard	40	33	1	0	0	"\"'\""	19
+guard	40	38	0	0	0	""	0
+guard	40	4	1	0	0	"\"\\\"\\\"\""	17
+guard	40	41	0	0	0	""	0
+guard	40	42	0	0	0	""	0
+guard	40	8	0	0	0	""	0
+guard	40	9	0	0	0	""	0
+guard	41	1	1	0	0	"\"\\\"\""	17
+guard	41	11	1	0	0	"\"\\\"\""	17
+guard	41	16	0	0	0	""	0
+guard	41	19	1	0	0	"\"\\\\\""	33
+guard	41	20	0	0	0	""	0
+guard	41	23	1	0	0	"\"'\""	19
+guard	41	26	1	0	0	"\"''\""	19
+guard	41	30	1	0	0	"\"\\\\\""	33
+guard	41	31	0	0	0	""	0
+guard	41	33	1	0	0	"\"'\""	19
+guard	41	38	0	0	0	""	0
+guard	41	4	1	0	0	"\"\\\"\\\"\""	17
+guard	41	41	1	0	0	"\"\\\\\""	33
+guard	41	42	0	0	0	""	0
+guard	41	8	1	0	0	"\"\\\\\""	33
+guard	41	9	0	0	0	""	0
+guard	42	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	3
+guard	42	4	1	0	0	"[0-3]"	4
+guard	42	8	1	0	0	"[xX]"	2
+guard	43	1	1	0	0	"\"\\\\\""	33
+guard	43	12	1	0	0	"\"\\\\U\""	33
+guard	43	2	1	0	0	"\"\\\\u\""	33
+guard	43	21	1	0	0	"\"0\""	26
+guard	43	25	1	0	0	"\"10\""	27
+guard	45	5	1	0	0	"\"true\""	12
+guard	45	6	1	0	0	"\"false\""	6
+guard	45	7	1	0	0	"\"null\""	9
+guard	45	8	1	0	0	"\"in\""	7
+guard	46	10	1	0	0	"\"const\""	37
+guard	46	11	1	0	0	"\"continue\""	37
+guard	46	12	1	0	0	"\"else\""	5
+guard	46	13	1	0	0	"\"for\""	6
+guard	46	14	1	0	0	"\"function\""	6
+guard	46	15	1	0	0	"\"if\""	7
+guard	46	16	1	0	0	"\"import\""	7
+guard	46	17	1	0	0	"\"let\""	8
+guard	46	18	1	0	0	"\"loop\""	8
+guard	46	19	1	0	0	"\"package\""	10
+guard	46	20	1	0	0	"\"namespace\""	9
+guard	46	21	1	0	0	"\"return\""	11
+guard	46	22	1	0	0	"\"var\""	13
+guard	46	23	1	0	0	"\"void\""	13
+guard	46	24	1	0	0	"\"while\""	14
+guard	46	4	1	0	0	"\"true\""	12
+guard	46	5	1	0	0	"\"false\""	6
+guard	46	6	1	0	0	"\"null\""	9
+guard	46	7	1	0	0	"\"in\""	7
+guard	46	8	1	0	0	"\"as\""	35
+guard	46	9	1	0	0	"\"break\""	36
+guard	47	2	0	0	0	""	0
+guard	47	3	1	0	0	"\"`\""	34
+guard	50	10	1	0	0	"\"const\""	37
+guard	50	11	1	0	0	"\"continue\""	37
+guard	50	12	1	0	0	"\"else\""	5
+guard	50	13	1	0	0	"\"for\""	6
+guard	50	14	1	0	0	"\"function\""	6
+guard	50	15	1	0	0	"\"if\""	7
+guard	50	16	1	0	0	"\"import\""	7
+guard	50	17	1	0	0	"\"let\""	8
+guard	50	18	1	0	0	"\"loop\""	8
+guard	50	19	1	0	0	"\"package\""	10
+guard	50	20	1	0	0	"\"namespace\""	9
+guard	50	21	1	0	0	"\"return\""	11
+guard	50	22	1	0	0	"\"var\""	13
+guard	50	23	1	0	0	"\"void\""	13
+guard	50	24	1	0	0	"\"while\""	14
+guard	50	4	1	0	0	"\"true\""	12
+guard	50	5	1	0	0	"\"false\""	6
+guard	50	6	1	0	0	"\"null\""	9
+guard	50	7	1	0	0	"\"in\""	7
+guard	50	8	1	0	0	"\"as\""	35
+guard	50	9	1	0	0	"\"break\""	36
+guard	51	5	1	0	0	"\"true\""	12
+guard	51	6	1	0	0	"\"false\""	6
+guard	51	7	1	0	0	"\"null\""	9
+guard	51	8	1	0	0	"\"in\""	7
+guard	54	1	1	0	0	"\"\\\"\\\"\\\"\""	17
+guard	54	17	1	0	0	"\"\\\"\""	17
+guard	54	22	1	0	0	"\"'\""	19
+guard	54	9	1	0	0	"\"'''\""	19
+guard	55	1	1	0	0	"\"\\\"\""	17
+guard	55	11	1	0	0	"\"\\\"\""	17
+guard	55	16	0	0	0	""	0
+guard	55	19	0	0	0	""	0
+guard	55	20	0	0	0	""	0
+guard	55	23	1	0	0	"\"'\""	19
+guard	55	26	1	0	0	"\"''\""	19
+guard	55	30	0	0	0	""	0
+guard	55	31	0	0	0	""	0
+guard	55	33	1	0	0	"\"'\""	19
+guard	55	38	0	0	0	""	0
+guard	55	4	1	0	0	"\"\\\"\\\"\""	17
+guard	55	41	0	0	0	""	0
+guard	55	42	0	0	0	""	0
+guard	55	8	0	0	0	""	0
+guard	55	9	0	0	0	""	0
+guard	56	1	1	0	0	"\"\\\"\""	17
+guard	56	11	1	0	0	"\"\\\"\""	17
+guard	56	16	0	0	0	""	0
+guard	56	19	1	0	0	"\"\\\\\""	33
+guard	56	20	0	0	0	""	0
+guard	56	23	1	0	0	"\"'\""	19
+guard	56	26	1	0	0	"\"''\""	19
+guard	56	30	1	0	0	"\"\\\\\""	33
+guard	56	31	0	0	0	""	0
+guard	56	33	1	0	0	"\"'\""	19
+guard	56	38	0	0	0	""	0
+guard	56	4	1	0	0	"\"\\\"\\\"\""	17
+guard	56	41	1	0	0	"\"\\\\\""	33
+guard	56	42	0	0	0	""	0
+guard	56	8	1	0	0	"\"\\\\\""	33
+guard	56	9	0	0	0	""	0
+guard	57	1	1	0	0	"\"\\\\\""	33
+guard	57	12	1	0	0	"\"\\\\U\""	33
+guard	57	2	1	0	0	"\"\\\\u\""	33
+guard	57	21	1	0	0	"\"0\""	26
+guard	57	25	1	0	0	"\"10\""	27
+guard	58	3	1	0	0	"[abfnrtv\"\\'\\\\?`]"	3
+guard	58	4	1	0	0	"[0-3]"	4
+guard	58	8	1	0	0	"[xX]"	2
+guard	6	1	0	0	0	""	0
+guard	6	10	0	0	0	""	0
+guard	6	15	0	0	0	""	0
+guard	6	16	0	0	0	""	0
+guard	6	17	0	0	0	""	0
+guard	6	18	0	0	0	""	0
+guard	6	19	0	0	0	""	0
+guard	6	24	0	0	0	""	0
+guard	6	29	0	0	0	""	0
+guard	6	30	0	0	0	""	0
+guard	6	31	0	0	0	""	0
+guard	6	32	0	0	0	""	0
+guard	6	33	0	0	0	""	0
+guard	6	38	0	0	0	""	0
+guard	6	39	0	0	0	""	0
+guard	6	40	0	0	0	""	0
+guard	6	42	1	1	0	"\"(\""	20
+guard	6	43	1	1	0	"\"[\""	32
+guard	6	44	1	1	0	"\"{\""	15
+guard	6	45	0	0	0	""	0
+guard	6	6	0	0	0	""	0
+guard	6	7	0	0	0	""	0
+guard	6	8	0	0	0	""	0
+guard	6	9	0	0	0	""	0
+guard	7	10	0	0	0	""	0
+guard	7	14	0	0	0	""	0
+guard	7	18	0	0	0	""	0
+guard	7	2	0	0	0	""	0
+guard	7	6	0	0	0	""	0
+guard	8	1	0	0	0	""	0
+guard	8	11	0	0	0	""	0
+guard	8	16	0	0	0	""	0
+guard	8	6	0	0	0	""	0
 scan	23	16
 scan	23	8
 scan	31	2

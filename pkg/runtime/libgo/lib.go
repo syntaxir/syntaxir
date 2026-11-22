@@ -699,6 +699,13 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 		}
 	}
 	o.control.Check()
+	if o.logical && o.unitsCtx != nil {
+		// The context of a parse with logical units is the counter's; it is observed here as the
+		// control observes its own, before the parse changes anything.
+		if err := contextErr(o.unitsCtx); err != nil {
+			panic(fatal{err: err})
+		}
+	}
 	return o
 }
 

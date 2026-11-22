@@ -93,9 +93,9 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	defer a.SetBudgetControl(nil)
 	d.State.stats = documentStats{}
 	v, parseErr := p.run(root, d.State.text, o, a)
-	// Context implementations may return any public error type. Fatal budget
-	// interruption must not be mistaken for a completed syntax failure.
-	if o.control != nil && o.control.interrupted {
+	// Context implementations may return any public error type. A fatal stop (a limit, the context
+	// or the memory count) must not be mistaken for a completed syntax failure.
+	if p.stopped || o.control != nil && o.control.interrupted {
 		return res, parseErr
 	}
 	if parseErr != nil {

@@ -697,6 +697,7 @@ func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv
 
 // run parses the whole input with the typed rule r.
 func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, err error) {
+	p.stopped = false
 	p.MaxDepth = o.maxDepth
 	p.Ext = ext
 	p.setGrammar(r.g)
@@ -715,7 +716,7 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 		if x := recover(); x != nil {
 			switch x := x.(type) {
 			case fatal:
-				v, err = nil, x.err
+				v, err, p.stopped = nil, x.err, true
 			default:
 				panic(x)
 			}
@@ -857,6 +858,9 @@ type TParser struct {
 	// memoGap is the gap of memoSlots, which a typed Document parse takes from the Document with the
 	// slots (typedDocumentState); a parse from scratch has none.
 	memoGap memoGap
+	// stopped reports that the last run ended with a fatal stop (a limit, the context or the memory
+	// count) rather than a result or a syntax error, whatever type the stop's error has.
+	stopped bool
 	// TypedDocument is set only by typed Document parses (TypedDocumentParse).
 	TypedDocument *typedDocumentState
 	free          [8][]*TCaptureFrame // frames freed by FreeFrame, by size

@@ -219,7 +219,11 @@ func jsString(s string) string {
 	return b.String()
 }
 
-// compare checks the CHARGE lines of a generated parser against the reference.
+// compare checks the CHARGE lines of a generated parser against the reference: the same total, and
+// at each limit the same decision. A generated parser checks its counter at structural points
+// (spec/runtime/parsing.md#checks-and-interruptions) where the closure backend checks at every
+// event, so a LimitError of either reports Used past the limit and at most the total, with Requested
+// 0, and the two need not report the same Used.
 func (r chargeRef) compare(t *testing.T, c chargeCase, name, out string) {
 	t.Helper()
 	seen := 0
@@ -239,7 +243,7 @@ func (r chargeRef) compare(t *testing.T, c chargeCase, name, out string) {
 		}
 		got := strings.Split(at, ",")
 		for k, l := range r.limits[u][i] {
-			if k >= len(got) || got[k] != r.at[u][i][k] {
+			if k >= len(got) || !sameLimitDecision(got[k], r.at[u][i][k], l, total) {
 				g := "-"
 				if k < len(got) {
 					g = got[k]
@@ -252,6 +256,20 @@ func (r chargeRef) compare(t *testing.T, c chargeCase, name, out string) {
 	if seen != 2*len(c.inputs) {
 		t.Fatalf("%s: %d reports for %d inputs\n%s", name, seen, len(c.inputs), codegentest.Clip(out, 0))
 	}
+}
+
+// sameLimitDecision reports whether the limit report got of a parse that counts total units under the
+// Compute limit l makes the decision of the reference report want (limitReportOf): both complete, or
+// both stop with Used in (l, total] and Requested 0.
+func sameLimitDecision(got, want string, l, total uint64) bool {
+	if got == "ok" || want == "ok" {
+		return got == want
+	}
+	var used, requested uint64
+	if n, _ := fmt.Sscanf(got, "%d/%d", &used, &requested); n != 2 {
+		return false
+	}
+	return used > l && used <= total && requested == 0
 }
 
 // allOptimizationsOff names every optimization, for GenOptions.NoOpt.

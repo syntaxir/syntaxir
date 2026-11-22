@@ -7,6 +7,7 @@ import (
 	"go/parser"
 	"go/token"
 	"io/fs"
+	"os"
 	"strings"
 	"testing"
 
@@ -155,7 +156,8 @@ func TestComputeReportChangesNothing(t *testing.T) {
 	}
 }
 
-// A stream and a Document report the units of their parse, on the engine and in generated parsers.
+// A stream and a Document report the units of their parse, on the engine and in generated parsers; a
+// Document reports the same units on both.
 func TestComputeReportStreamAndDocument(t *testing.T) {
 	skipWithoutEngineControls(t)
 	csvIn := inputs.CSVInput(40)
@@ -190,10 +192,49 @@ func TestComputeReportStreamAndDocument(t *testing.T) {
 		if _, err := edoc.Parse(engine.Use(sxirruntime.WithComputeReport(&ed))); err != nil {
 			t.Fatal(err)
 		}
-		if gd == 0 || ed == 0 {
+		// A Document parse counts the same logical units on every backend, a reusing one too.
+		if gd == 0 || gd != ed {
 			t.Errorf("Document parse %d: generated parser %d units, engine %d", i, gd, ed)
 		}
-		t.Logf("Document parse %d: generated parser %d units, engine %d", i, gd, ed)
+	}
+}
+
+// A build with Documents runs the same rule functions for a plain parse and a Document parse, and a
+// guard whose skip passes over a call of a rule that a Document memoizes is taken only outside
+// Documents (flow.inDocument): each kind of parse counts the units of the engine's, on a valid input
+// and an invalid one.
+func TestComputeReportDocumentBuildAgreesWithEngine(t *testing.T) {
+	skipWithoutEngineControls(t)
+	src, err := os.ReadFile("../internal/bench/parsers/minilangdoc/parser.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(src), "!(p.Document != nil) && ") {
+		t.Fatal("the generated parser takes no guard only outside Documents: the check is void")
+	}
+	mini := load(t, "../examples/minilang/minilang.sxir")
+	for _, text := range []string{inputs.MinilangInput(5, 0), inputs.MinilangInput(5, 0) + " fn ( {"} {
+		var gp, ep uint64
+		_, gerr := gminilangdoc.Parse(text, sxirruntime.WithComputeReport(&gp))
+		_, eerr := mini.Parse(text, engine.Use(sxirruntime.WithComputeReport(&ep)))
+		if (gerr == nil) != (eerr == nil) || gp == 0 || gp != ep {
+			t.Errorf("plain parse: generated parser %d units (%v), engine %d (%v)", gp, gerr, ep, eerr)
+		}
+		gdoc, err := gminilangdoc.NewDocument(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		edoc, err := mini.NewDocument(text)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var gd, ed uint64
+		_, gerr = gdoc.Parse(sxirruntime.WithComputeReport(&gd))
+		_, eerr = edoc.Parse(engine.Use(sxirruntime.WithComputeReport(&ed)))
+		if (gerr == nil) != (eerr == nil) || gd == 0 || gd != ed {
+			t.Errorf("Document parse: generated parser %d units (%v), engine %d (%v)", gd, gerr, ed, eerr)
+		}
+		t.Logf("valid %v: plain %d units, Document %d", gerr == nil, gp, gd)
 	}
 }
 
@@ -251,7 +292,8 @@ func TestMemoReportNotPublic(t *testing.T) {
 // A Document reparse after more edits than a memo entry may lag behind (pendingEditLimit is 128):
 // its own work (entry advances and moves) is no event, so a Compute limit does not count it, yet the
 // report is the units used, as for every parse. A limit at the report accepts the reparse, and a
-// limit that stops it gives an error whose Used equals the report.
+// limit that stops it gives an error whose Used equals the report. Each reparse runs on a Document of
+// its own, after the same edits: a reparse without edits since the last would reuse its whole result.
 func TestComputeReportDocumentManyEdits(t *testing.T) {
 	skipWithoutEngineControls(t)
 	mini := load(t, "../examples/minilang/minilang.sxir")
@@ -260,28 +302,28 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 		edit  func(int, int, string) error
 		parse func(...sxirruntime.ParseOption) error
 	}
-	newDocs := func() map[string]doc {
-		gd, err := gminilangdoc.NewDocument(text)
-		if err != nil {
-			t.Fatal(err)
+	newDoc := func(name string) doc {
+		if name == "generated" {
+			gd, err := gminilangdoc.NewDocument(text)
+			if err != nil {
+				t.Fatal(err)
+			}
+			return doc{gd.Edit, func(o ...sxirruntime.ParseOption) error { _, err := gd.Parse(o...); return err }}
 		}
 		ed, err := mini.NewDocument(text)
 		if err != nil {
 			t.Fatal(err)
 		}
-		return map[string]doc{
-			"generated": {gd.Edit, func(o ...sxirruntime.ParseOption) error { _, err := gd.Parse(o...); return err }},
-			"engine": {ed.Edit, func(o ...sxirruntime.ParseOption) error {
-				_, err := ed.Parse(engine.Use(o...))
-				return err
-			}},
-		}
+		return doc{ed.Edit, func(o ...sxirruntime.ParseOption) error {
+			_, err := ed.Parse(engine.Use(o...))
+			return err
+		}}
 	}
 	// reparse parses a fresh Document of text, edits it 300 times and parses it again with o, so that
 	// every check is of the same reparse: a parse of a Document that has not changed since its last
 	// parse reuses its result and counts only the call of the start rule.
 	reparse := func(name string, o ...sxirruntime.ParseOption) error {
-		d := newDocs()[name]
+		d := newDoc(name)
 		if err := d.parse(); err != nil {
 			t.Fatal(name, err)
 		}
@@ -292,7 +334,8 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 		}
 		return d.parse(o...)
 	}
-	for name := range newDocs() {
+	units := map[string]uint64{}
+	for _, name := range []string{"generated", "engine"} {
 		var n uint64
 		if err := reparse(name, sxirruntime.WithComputeReport(&n)); err != nil {
 			t.Fatal(name, err)
@@ -300,6 +343,7 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 		if n < 2 {
 			t.Fatalf("%s: %d units reported", name, n)
 		}
+		units[name] = n
 		t.Logf("%s: %d units after 300 edits", name, n)
 		if err := reparse(name, sxirruntime.WithLimits(sxirruntime.Limits{Compute: n})); err != nil {
 			t.Errorf("%s: a reparse is rejected at its report %d: %v", name, n, err)
@@ -313,6 +357,9 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 		if m != le.Used {
 			t.Errorf("%s: reported %d units, the error says %d", name, m, le.Used)
 		}
+	}
+	if units["generated"] != units["engine"] {
+		t.Errorf("the generated parser counts %d units after the edits, the engine %d", units["generated"], units["engine"])
 	}
 }
 

@@ -32,7 +32,7 @@ type GenOptions struct {
 	// Document), and a parse with a control option fails with an error.
 	NoLimitControls bool
 	// LogicalVariant selects a test variant of the logical compute units that the limit-controlled
-	// form counts outside Documents and streams (see compiler.GoConfig).
+	// form counts outside streams (see compiler.GoConfig).
 	LogicalVariant string
 	// Expectations makes the generated parser record what a syntax error expects: the expectations
 	// at the farthest failure and the messages of @error. Without it the generated code keeps
@@ -192,9 +192,9 @@ func (opts GenOptions) ValidateDefaultValue() error {
 
 // LogicalUnits reports whether the generated Go functions count logical compute units
 // (spec/runtime/parsing.md#compute-units): the form of a parser with limit controls outside
-// Documents and streams.
+// streams, without budget charges (the ordinary form, or a Document's).
 func (o GenOptions) LogicalUnits() bool {
-	return !o.NoLimitControls && !o.Document && !o.Stream
+	return !o.NoLimitControls && !o.Stream
 }
 
 // ValidateMaxDepth reports a negative MaxDepth and, for TypeScript output (ts), one above the

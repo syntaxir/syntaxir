@@ -312,20 +312,34 @@ func Build() *Module {
 		if doc == nodeDoc || doc == typedDoc {
 			docOpen(b, doc)
 		}
+		// The entries of recovered errors that the stored result of a rule that only a Document parse
+		// memoizes takes are Document work, like the rest of its memo protocol, which a parse from scratch
+		// does not make: a parse that counts compute units counts them only for the other rules, as the
+		// engine's call leaves them out of the reported units.
+		takeCounted := take
+		if doc == nodeDoc || doc == typedDoc {
+			var docOnly Expr = C("rule.docOnlyMemo", r)
+			if doc == nodeDoc {
+				docOnly = And(C("doc.active"), docOnly)
+			}
+			takeCounted = func(b *Builder, rec Expr) {
+				b.If(Not(docOnly), func(b *Builder) { take(b, rec) })
+			}
+		}
 		b.LetN([]string{"far", "inner"}, C("exp.unisolate", L("m")))
 		b.Let("kept", C("keep", L("inner")))
 		b.Let("store", C("ctx.pop", c))
 		b.IfElse(Eq(L("store"), C("ctx.storeMemo")), func(b *Builder) {
 			// The store keeps an entry computed outside a lookahead that a result computed inside one
 			// would narrow; the present set of the context joins that of the entry kept either way.
-			take(b, L("rec"))
+			takeCounted(b, L("rec"))
 			entry := b.Let("entry", C("memo.store", id, L("start"), level, L("env"), L("ok"), R(exec.Pos), silent,
 				L("v"), C("rec.since", L("rec")), C("rule.docOnlyMemo", r)))
 			b.Do("memo.setPresent", entry, c)
 			b.If(Bin("||", Not(silent), C("memo.silent", entry)), func(b *Builder) { recordEntry(b, entry, doc) })
 		}, func(b *Builder) {
 			b.If(Eq(L("store"), C("ctx.storeCtx")), func(b *Builder) {
-				take(b, L("rec"))
+				takeCounted(b, L("rec"))
 				b.Do("ctx.keep", c, r, L("start"), level, L("env"), L("ok"), R(exec.Pos), silent, L("v"),
 					C("rec.since", L("rec")), L("far"), L("kept"))
 			})

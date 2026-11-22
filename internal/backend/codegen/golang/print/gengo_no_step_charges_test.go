@@ -10,9 +10,9 @@ import (
 
 // Without limit controls no function of the parser package or the types package charges steps or counts compute
 // units, including the typed constructors, the conversions of typed values and the closures of actions, which
-// the specialization of the rule functions does not reach. With them, the conversions of the types package
-// count nothing outside a Document, since converting the result to typed values is no event of the compute
-// units, and charge steps for a list in a Document, which still charges budget.
+// the specialization of the rule functions does not reach. With them, no function charges steps, and the
+// conversions of the types package count nothing, in a Document too, since converting the result to typed
+// values is no event of the compute units.
 func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 	t.Parallel()
 	for _, src := range []string{codegentest.OrdinaryOnlyTyped, codegentest.OrdinaryOnlyConverted} {
@@ -44,12 +44,17 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 				t.Errorf("%+v: a parser without limit controls charges steps or counts units", opts)
 			}
 		}
-		if out := generated(common.GenOptions{Types: true, Document: true}); !strings.Contains(out, ".Spend()") {
-			t.Error("a controlled parser does not charge steps: the check is void")
+		for _, document := range []bool{false, true} {
+			out := generated(common.GenOptions{Types: true, Document: document})
+			if strings.Contains(out, ".Spend()") {
+				t.Errorf("document=%v: a parser with compute units charges steps", document)
+			}
+			if !strings.Contains(out, ".Units") {
+				t.Errorf("document=%v: a controlled parser counts no units: the check is void", document)
+			}
 		}
 	}
-	// The conversions of the types package charge steps only in a Document with limit controls, for a list,
-	// and count no units outside one.
+	// The conversions of the types package charge and count nothing with limit controls, in a Document too.
 	g, err := parseTest(codegentest.OrdinaryOnlyConverted)
 	if err != nil {
 		t.Fatal(err)
@@ -68,10 +73,9 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 		t.Fatal("no types.go")
 		return ""
 	}
-	if out := types(false); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Units") {
-		t.Error("the types package of a parser with compute units charges or counts its conversions")
-	}
-	if !strings.Contains(types(true), ".Spend()") {
-		t.Error("the types package of a controlled Document parser does not charge steps: the check of the types package is void")
+	for _, document := range []bool{false, true} {
+		if out := types(document); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Units") {
+			t.Errorf("document=%v: the types package of a parser with compute units charges or counts its conversions", document)
+		}
 	}
 }

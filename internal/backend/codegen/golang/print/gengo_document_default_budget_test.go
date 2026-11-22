@@ -393,7 +393,10 @@ func TestRunawayStopped(t *testing.T) {
     }
     var le *LimitError
     if !errors.As(err, &le) { t.Fatalf("%d pending: %v", pending, err) }
-    if le.Used > le.Limit { t.Fatalf("stopped at %d units used under a limit of %d", le.Used, le.Limit) }
+    // The check of the counter is coarse: the parse stops past the limit, within the overshoot of a check.
+    if le.Requested != 0 || le.Used <= le.Limit || le.Used > le.Limit+2*4096 {
+      t.Fatalf("stopped at %d units used, %d requested, under a limit of %d", le.Used, le.Requested, le.Limit)
+    }
     if want := uint64(max(1<<20, 1024*len(d.Text()))); le.Limit != want {
       t.Fatalf("limit %d, want the default %d", le.Limit, want)
     }

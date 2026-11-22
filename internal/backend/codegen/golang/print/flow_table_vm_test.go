@@ -21,9 +21,11 @@ import (
 )
 
 // TestFlowTableFollowsGoNodeTable checks that the Node table the bytecode VM runs from Flow IR
-// (checked.Source.FlowTable) is the one a generated Go Document runs, the Go form that still charges
-// budget steps (outside Documents a Go parser with limit controls runs the ordinary form and counts
-// compute units). It pairs the functions of the two tables by name, which the plan of a table gives each
+// (checked.Source.FlowTable) is the one a generated Go Document runs when it counts the reference
+// variant of logical compute units, whose guards skip no call (lowerdata.GuardsEvent), as the VM's do:
+// a Go Document counts compute units in the functions of its Node table, and the guards that its
+// default variant keeps over calls (lowerdata.GuardsExact) are the one difference between the variants.
+// It pairs the functions of the two tables by name, which the plan of a table gives each
 // function from its key (a rule's body, its stream body, a skip or line of an Operators Rule, or a
 // node the lowering outlines), and compares each pair in full: the text of the function after the
 // Flow passes, which holds its operations, locals, blocks and immediates, and its route (flat or
@@ -34,7 +36,7 @@ import (
 // function of such a rule, and it plans a stream body only for the start rule of ParseStream, where
 // the VM, whose one module serves every start rule, plans one for each rule with a #stream
 // repetition. The parser is generated without inline-literals, the one Flow pass of the Go target
-// that applies to the Node table under budget controls: the VM's target (flowpass.Bytecode) prints
+// that applies to the Node table of a Document: the VM's target (flowpass.Bytecode) prints
 // none of the forms.
 func TestFlowTableFollowsGoNodeTable(t *testing.T) {
 	paths, err := filepath.Glob("../../../../../testdata/grammars/*/*.sxir")
@@ -133,7 +135,7 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 			}
 		},
 	}
-	opts := common.GenOptions{Package: "p", Module: "example.com/p", Document: true, NoOpt: []string{flowpass.PassInlineLiterals}}
+	opts := common.GenOptions{Package: "p", Module: "example.com/p", Document: true, LogicalVariant: "event", NoOpt: []string{flowpass.PassInlineLiterals}}
 	record := finished("rules", func(m *code.Module, fn *code.Func) {
 		a := flow.AttrsOf(fn)
 		f := loweredFunc{rule: -1, text: code.FuncStringIn(m, fn), flat: !a.Frame}

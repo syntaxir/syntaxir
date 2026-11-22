@@ -943,10 +943,12 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
-		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
-				p.PollUnits()
+		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader)) {
+			if (len(p.Recovered) - rec) > 0 {
+				p.Units += uint64(len(p.Recovered) - rec)
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 			}
 		}
 		entry := p.memo.alloc()
@@ -967,10 +969,12 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 	} else if store == storeCtx {
-		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
-				p.PollUnits()
+		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader)) {
+			if (len(p.Recovered) - rec) > 0 {
+				p.Units += uint64(len(p.Recovered) - rec)
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 			}
 		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{node: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})
@@ -1183,10 +1187,12 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
-		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
-				p.PollUnits()
+		if !(r.DocMemo && !r.Memo && !r.Leader) {
+			if (len(p.Recovered) - rec) > 0 {
+				p.Units += uint64(len(p.Recovered) - rec)
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 			}
 		}
 		entry := p.memoSlab.one()
@@ -1201,10 +1207,12 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
-		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
-				p.PollUnits()
+		if !(r.DocMemo && !r.Memo && !r.Leader) {
+			if (len(p.Recovered) - rec) > 0 {
+				p.Units += uint64(len(p.Recovered) - rec)
+				if p.Units > p.UnitsCheck {
+					p.PollUnits()
+				}
 			}
 		}
 		p.ctxKeep(&c, r.Id, start, min, env, &ctxResult{val: v, ok: ok, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), silent: p.Silent > 0, errs: p.recSince(rec), far: far, expected: kept})

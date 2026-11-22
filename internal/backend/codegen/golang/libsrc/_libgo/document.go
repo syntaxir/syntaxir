@@ -605,8 +605,13 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		d.memo, d.runs, d.runGen = p.memo, p.runs, p.gen
 	}()
 	p.Control.Check()
+	p.startUnits(o)
 	v, ok := p.Call(d.root.forParse(p), 0)
 	p.Control.Check()
+	p.endUnits(!ok || p.Pos != p.n)
+	if p.units.memo != nil {
+		p.reportMemo(p.memoLines())
+	}
 	var n *sxirvalue.Node
 	if ok && p.Pos == p.n {
 		n = v

@@ -234,6 +234,21 @@ rule outer = inner "-"
 rule inner = "a" tail
 rule tail = [a-z]*
 `, opts: common.GenOptions{}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
+	// The guards of the logical case in a build with Documents, whose functions serve the plain parse
+	// and the Document parse: the plain parse takes the guards whose skips pass over memoized calls,
+	// and the Document parse evaluates those alternatives (flow.inDocument). The character "x" is an
+	// item of its own, so that the edits of flowConformDocument leave a text that parses.
+	{name: "docguards", src: `@start
+rule main = (-x / -u / -item / z / "x")* $$
+rule x = inner ";" / "e"
+rule u = outer "!" / outer "?" / "c"
+rule item = inner "." / "b"
+rule z = "y" &u
+rule outer = inner "-"
+rule inner = "a" tail
+rule tail = [a-z]*
+`, opts: common.GenOptions{Document: true}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""},
+		entries: []string{flowConformParse, flowConformDocument}},
 	// A Document whose repetition resumes its run after edits: the elements before an edit are the
 	// reused prefix, and those after it, moved by an edit that changes the length, the reused tail. The
 	// parses run under the default limit, under which the work of the Document is not counted.
@@ -626,7 +641,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits || c.opts.Document || c.opts.Stream) {
+				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits || c.opts.Stream) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}

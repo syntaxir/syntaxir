@@ -99,7 +99,6 @@ func init() {
 		}
 		tn2 := c.ActionStruct("File", 1)
 		tfirst3 := true
-		c.P.Spend()
 		c.ActionSetField(tn2, "Records", tv1)
 		tfirst3 = c.P.ActionCover(tn2, tv1, tfirst3)
 		c.P.ActionMade(c, tn2, tfirst3)
@@ -108,21 +107,21 @@ func init() {
 	rules[1].Body = e6
 	rules[1].Action = func(c *rt.ActCtx) (any, any) {
 		tm1 := len(c.P.KidStack)
-		c.P.Spend()
+		c.P.UnitsSized(1)
 		tf2 := c.P.ActionPush(c, "list", c.Cap(0))
 		if tf2 != nil {
 			return nil, tf2
 		}
+		c.P.UnitsOfItems(c.Cap(1), 2)
 		tf3 := c.P.ActionPushItems(c, "concat", c.Cap(1))
 		if tf3 != nil {
 			return nil, tf3
 		}
 		tk4 := c.P.ElemsAbove(tm1)
-		tn5 := c.P.ActionHull(c, false, tk4)
+		tn5 := c.P.ActionHullLogical(c, false, tk4)
 		tf6 := any(tn5)
 		tn7 := c.ActionStruct("Record", 1)
 		tfirst8 := true
-		c.P.Spend()
 		c.ActionSetField(tn7, "Fields", tf6)
 		tfirst8 = c.P.ActionCover(tn7, tf6, tfirst8)
 		c.P.ActionMade(c, tn7, tfirst8)
@@ -137,10 +136,10 @@ func init() {
 	sxirGrammar.NodeTypes["Field"] = rt.NewNodeTypeKinds("Field")
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
+	sxirGrammar.Logical = true
 }
 
 func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
 	var x1, x7, x8 int
 	var x2 []*sxirvalue.Node
 	var x3, x14 rt.Mark
@@ -150,9 +149,10 @@ func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = p.Nodes(1)[:0]
 	x3 = p.Mark()
-	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 65279) && p.Control.Take(1) {
+	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 65279) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit1, "\ufeff", 5, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit1, "\ufeff", 5, false); !ok {
 		goto L4
 	}
 	goto L5
@@ -175,7 +175,9 @@ L5:
 				continue
 			}
 		}
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		x14 = p.Mark()
 		if x9 {
 			p.ResumeBegin(x10)
@@ -216,7 +218,6 @@ fail:
 }
 
 func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
 	var x1, x10 rt.Mark
 	var x5, x6 int
 	var ok bool
@@ -244,14 +245,17 @@ L2:
 	x5, x6 = p.Pos, len(p.KidStack)
 	x7 = p.NewFrame(len(scope4))
 	for {
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		clear(x7.Vals)
 		x10 = p.Mark()
 		x8 = p.Frame
 		p.Frame = x7
-		if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 44) && p.Control.Take(1) {
+		if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 44) {
 			p.Pos++
-		} else if _, ok = p.MatchLiteral(lit5, ",", 6, false); !ok {
+			p.Units += 1
+		} else if _, ok = p.MatchLiteralLogical(lit5, ",", 6, false); !ok {
 			goto L11
 		}
 		if v13, ok = p.Call(rules[2], 0); !ok {
@@ -280,7 +284,6 @@ fail:
 }
 
 func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
 	var x1, size, x6, x7, x11, x17, x18, x20, x21, x25, x31, x34, x35 int
 	var x2, x15, x29 rt.Mark
 	var ok, x8, x10, x14, x22, x24, x28 bool
@@ -293,17 +296,19 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Expect(p.Pos, 7)
 		goto L4
 	}
-	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
+	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 34) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit7, "\"", 7, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit7, "\"", 7, false); !ok {
 		goto L5
 	}
 	x6 = p.Pos
 	x7 = 0
 	for {
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		if p.Document == nil && p.Pos < len(p.In) {
-			p.SpendRead(1)
 			ch, size, ok = p.In[p.Pos], 1, true
 		} else {
 			ch, size, ok = p.Peek()
@@ -313,6 +318,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
+		p.Units += uint64(size)
 		x7++
 		if x7 == 16 {
 			x7 = p.ScanReach(4, x6, x7)
@@ -346,22 +352,26 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		x15 = p.Mark()
 		if x8 {
 			p.ResumeBegin(x9)
 		}
-		if p.Document == nil && (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 34 && p.In[p.Pos+1] == 34) && p.Control.Take(2) {
+		if p.Document == nil && (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 34 && p.In[p.Pos+1] == 34) {
 			p.Pos += 2
-		} else if _, ok = p.MatchLiteral(lit8, "\"\"", 9, false); !ok {
+			p.Units += 2
+		} else if _, ok = p.MatchLiteralLogical(lit8, "\"\"", 9, false); !ok {
 			goto L16
 		}
 		x17 = p.Pos
 		x18 = 0
 		for {
-			p.Spend()
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
 			if p.Document == nil && p.Pos < len(p.In) {
-				p.SpendRead(1)
 				ch, size, ok = p.In[p.Pos], 1, true
 			} else {
 				ch, size, ok = p.Peek()
@@ -371,6 +381,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 				break
 			}
 			p.Pos += size
+			p.Units += uint64(size)
 			x18++
 			if x18 == 16 {
 				x18 = p.ScanReach(6, x17, x18)
@@ -403,9 +414,10 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			p.RunWalked(2, x11)
 		}
 	}
-	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 34) && p.Control.Take(1) {
+	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 34) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit7, "\"", 7, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit7, "\"", 7, false); !ok {
 		goto L5
 	}
 	goto L3
@@ -415,9 +427,10 @@ L4:
 	x20 = p.Pos
 	x21 = 0
 	for {
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		if p.Document == nil && p.Pos < len(p.In) {
-			p.SpendRead(1)
 			ch, size, ok = p.In[p.Pos], 1, true
 		} else {
 			ch, size, ok = p.Peek()
@@ -427,6 +440,7 @@ L4:
 			break
 		}
 		p.Pos += size
+		p.Units += uint64(size)
 		x21++
 		if x21 == 16 {
 			x21 = p.ScanReach(8, x20, x21)
@@ -460,21 +474,23 @@ L4:
 			}
 			p.SkipVisit()
 		}
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		x29 = p.Mark()
 		if x22 {
 			p.ResumeBegin(x23)
 		}
-		if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 13) && p.Control.Take(1) {
+		if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 13) {
 			p.Pos++
-		} else if _, ok = p.MatchLiteral(lit9, "\r", 11, false); !ok {
+			p.Units += 1
+		} else if _, ok = p.MatchLiteralLogical(lit9, "\r", 11, false); !ok {
 			goto L30
 		}
 		x31 = p.Pos
 		p.Silent++
 		p.LookBegin(2)
 		if p.Document == nil && p.Pos < len(p.In) {
-			p.SpendRead(1)
 			ch, size, ok = p.In[p.Pos], 1, true
 		} else {
 			ch, size, ok = p.Peek()
@@ -484,6 +500,7 @@ L4:
 			goto L32
 		}
 		p.Pos += size
+		p.Units += uint64(size)
 		p.LookEnd(true)
 		p.Silent--
 		p.Pos = x31
@@ -497,9 +514,10 @@ L4:
 		x34 = p.Pos
 		x35 = 0
 		for {
-			p.Spend()
+			if p.Units > p.UnitsCheck {
+				p.PollUnits()
+			}
 			if p.Document == nil && p.Pos < len(p.In) {
-				p.SpendRead(1)
 				ch, size, ok = p.In[p.Pos], 1, true
 			} else {
 				ch, size, ok = p.Peek()
@@ -509,6 +527,7 @@ L4:
 				break
 			}
 			p.Pos += size
+			p.Units += uint64(size)
 			x35++
 			if x35 == 16 {
 				x35 = p.ScanReach(10, x34, x35)
@@ -548,7 +567,6 @@ L3:
 }
 
 func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
 	var v *sxirvalue.Node
 	var x1, x8 int
 	var ok bool
@@ -557,9 +575,10 @@ func e13(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Expect(p.Pos, 13)
 		goto L3
 	}
-	if p.Document == nil && (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10) && p.Control.Take(2) {
+	if p.Document == nil && (p.Pos+2 <= len(p.In) && p.In[p.Pos] == 13 && p.In[p.Pos+1] == 10) {
 		p.Pos += 2
-	} else if _, ok = p.MatchLiteral(lit11, "\r\n", 13, false); !ok {
+		p.Units += 2
+	} else if _, ok = p.MatchLiteralLogical(lit11, "\r\n", 13, false); !ok {
 		goto L4
 	}
 	goto L2
@@ -570,9 +589,10 @@ L3:
 		p.Expect(p.Pos, 14)
 		goto L5
 	}
-	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 10) && p.Control.Take(1) {
+	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 10) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit12, "\n", 14, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit12, "\n", 14, false); !ok {
 		goto L6
 	}
 	goto L2
@@ -580,9 +600,10 @@ L6:
 	p.Pos = x1
 L5:
 	x8 = p.Pos
-	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 13) && p.Control.Take(1) {
+	if p.Document == nil && (p.Pos < len(p.In) && p.In[p.Pos] == 13) {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit9, "\r", 11, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit9, "\r", 11, false); !ok {
 		goto L9
 	}
 	goto L10

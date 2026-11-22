@@ -9,8 +9,9 @@ import (
 )
 
 // Logical compute units (spec/runtime/parsing.md, Compute Units): the form of the functions under
-// limit controls, outside Documents and streams. It is the ordinary form of the functions with a
-// counter that each logical event adds to, and checks of the counter on cycles.
+// limit controls, outside streams. It is the form of the functions without budget charges (the
+// ordinary form, or a Document's) with a counter that each logical event adds to, and checks of the
+// counter on cycles.
 
 // callUnit returns the statements that count the unit of a call of r at its entry, and check the
 // counter if r is on a cycle of the call graph.
@@ -30,7 +31,9 @@ const logicalPoll = "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
 
 // skippedCalls prints the effects of the calls that the alternative a guard skips would make
 // (flow.skippedCalls). Calls of rules that the parse does not memoize only count their units; the
-// calls of memoized rules have the effects of the memo too, which the library makes.
+// calls of memoized rules have the effects of the memo too, which the library makes. In a Document
+// no skip passes over a call of a rule that the Document memoizes (lowerdata.GuardsExact), so the
+// transient rules, which only Documents memoize, only count their units.
 func (p *primPrinter) skippedCalls(x prim.SkippedCalls) string {
 	g := p.g
 	memo := false

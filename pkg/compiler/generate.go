@@ -95,7 +95,7 @@ type GoConfig struct {
 	// finite Compute limit returns an error; Limits.Input and Limits.Depth work in both forms.
 	NoLimitControls bool
 	// LogicalVariant is internal: it selects a variant of the logical compute units that the
-	// controlled form counts outside Documents and streams, for tests and measurements: "keep-guards"
+	// controlled form counts outside streams, for tests and measurements: "keep-guards"
 	// keeps every dispatch guard without the effects of the calls it skips (inexact, to measure what
 	// the effects cost); "event" keeps only the guards whose skip makes no call, so that each call is
 	// counted where it happens, as the reference of the exactness tests.

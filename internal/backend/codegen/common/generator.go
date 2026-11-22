@@ -23,9 +23,9 @@ type Generator struct {
 	// NoBudget leaves the step charges out of Go output generated without budget controls, where
 	// no control exists to charge: the statements, and the closures that only held one.
 	NoBudget bool
-	// Logical counts logical compute units in the ordinary form, which a parser with limit controls
-	// outside Documents and streams does: loops keep their step, which the printer prints as a check
-	// of the counter.
+	// Logical counts logical compute units in the form without budget charges (the ordinary form, or
+	// a Document's), which a parser with limit controls outside streams does: loops keep their step,
+	// which the printer prints as a check of the counter.
 	Logical bool
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the
 	// helpers with an Ordinary form, no charges and inline class tests. The Flow passes choose the lean

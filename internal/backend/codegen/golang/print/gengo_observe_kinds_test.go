@@ -13,7 +13,8 @@ import (
 // TestGeneratedObservationEventKinds checks that every entry point of an observability build reports
 // every kind of event in the shared core form: enter, exit and skipped events, memo results, calls in
 // a lookahead (marked on enter and exit), left-recursive growth, the exact examined end, no reused
-// elements and accessors that return zero values, with a profile that adds the same events up. The
+// elements and accessors that return zero values, with a profile that adds the same events up. A
+// Document parse skips none of these calls, of rules that a Document memoizes. The
 // entry points are the Node batch parse and rule parse, the recognizer, the Document, the stream and
 // the typed batch, rule and Document parses.
 func TestGeneratedObservationEventKinds(t *testing.T) {
@@ -138,7 +139,12 @@ const observationKindsConsumerTail = `
     }
    }
   }
-  if len(stack) != 0 || enter == 0 || exit == 0 || skipped == 0 || memo == 0 || growth == 0 || lookEnter == 0 || lookEnter != lookExit {
+  // A Document memoizes first and second, and a Document parse takes no guard whose skip passes over a
+  // call of a rule that it memoizes: it reports no skipped call, as the engine does.
+  if document := name == "document"; document != (skipped == 0) {
+   t.Errorf("%s: %d skipped calls", name, skipped)
+  }
+  if len(stack) != 0 || enter == 0 || exit == 0 || memo == 0 || growth == 0 || lookEnter == 0 || lookEnter != lookExit {
    t.Errorf("%s: enter %d exit %d skipped %d memo %d growth %d lookahead %d/%d open %d", name, enter, exit, skipped, memo, growth, lookEnter, lookExit, len(stack))
   }
   s := profile.Snapshot()

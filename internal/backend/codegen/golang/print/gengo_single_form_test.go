@@ -13,9 +13,9 @@ import (
 )
 
 // A generated parser has one form of its rule bodies, and no body starts with a branch that chooses
-// between forms at run time. With limit controls outside a Document its bodies count compute units
-// and neither charge steps nor read a budget control; a Document with limit controls charges steps;
-// without limit controls no body charges, counts or mentions a control. A Document calls no helper
+// between forms at run time. With limit controls its bodies count compute units and neither charge
+// steps nor read a budget control, in a Document too; without limit controls no body charges, counts
+// or mentions a control. A Document calls no helper
 // that has an Ordinary form (NewNodeOrdinary, NextOrdinary, ...), which belongs to the forms outside
 // Documents.
 func TestGeneratedRuleBodiesHaveOneForm(t *testing.T) {
@@ -41,7 +41,7 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 	if err != nil {
 		t.Fatal(err)
 	}
-	logical := controls && !document
+	logical := controls
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*goast.FuncDecl)
 		if !ok || fn.Body == nil || len(fn.Body.List) == 0 || fn.Type.Results == nil || len(fn.Type.Results.List) != 2 {
@@ -89,8 +89,6 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 	switch {
 	case logical && charging == 0:
 		problems = append(problems, "no rule body counts compute units with limit controls")
-	case controls && document && charging == 0:
-		problems = append(problems, "no rule body charges a step with limit controls in a Document")
 	}
 	return problems, bodies, charging
 }
@@ -120,8 +118,8 @@ func testGeneratedRuleBodiesHaveOneForm(t *testing.T) {
 }
 
 // TestGeneratedRuleBodiesHaveOneFormNegativeControls checks that the check notices the other form:
-// the ordinary form judged as controlled, the controlled form as ordinary, a form with compute units
-// that charges a step, and Document forms that call an ordinary helper.
+// the ordinary form judged as controlled, the controlled form as ordinary, forms with compute units
+// that charge a step, outside a Document and in one, and Document forms that call an ordinary helper.
 func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 	t.Parallel()
 	g, err := parseTest(oneFormGrammar)
@@ -148,6 +146,7 @@ func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 		{"the ordinary form as controlled", plain, true, false, "no rule body counts compute units"},
 		{"the controlled form as ordinary", controlled, false, false, "charges, counts or tests a control"},
 		{"the controlled form with a step charge", withBody(controlled, "p.Spend(); return nil, true"), true, false, "charges or tests a budget control"},
+		{"the controlled Document form with a step charge", withBody(controlledDoc, "p.Spend(); return nil, true"), true, true, "charges or tests a budget control"},
 		{"the plain form as a Document form", plain, false, true, "calls the ordinary helper"},
 		{"the controlled Document form with an Ordinary helper", withBody(controlledDoc, `return p.NewNodeOrdinary("x", 0, nil), true`), true, true, "calls the ordinary helper"},
 	} {

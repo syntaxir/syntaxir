@@ -58,7 +58,8 @@ rule num = [0-9]+ ("." [0-9]+)?
 		t.Error("a form of the parser has no WithLimits")
 	}
 	// The helpers with an Ordinary form belong to the forms outside Documents: the form without limit
-	// controls, and the form with them, which counts units beside the ordinary helpers.
+	// controls, and the form with them, which counts units beside the ordinary helpers. A Document
+	// records the input it examines, which the Ordinary helpers do not.
 	if !strings.Contains(with, "Ordinary(") || !strings.Contains(without, "Ordinary(") {
 		t.Error("a form outside Documents calls no Ordinary helper: the check below is void")
 	}
@@ -69,14 +70,22 @@ rule num = [0-9]+ ("." [0-9]+)?
 		t.Errorf("parser without limit controls is %d bytes, with %d: want smaller", len(without), len(with))
 	}
 	// With a Document the parser has the form that serves a Document, which has neither budget charges
-	// nor control reads when the parser has no controls.
+	// nor control reads: with limit controls it counts logical compute units like a batch parse.
 	documentWith, documentWithout := gen(true, true), gen(false, true)
 	for _, bad := range []string{"p.Control", ".Spend()", ".SpendRead(", "BudgetClass"} {
 		if strings.Contains(documentWithout, bad) {
 			t.Errorf("a Document parser without limit controls has %q", bad)
 		}
-		if !strings.Contains(documentWith, bad) && bad != "BudgetClass" {
-			t.Errorf("a Document parser with limit controls lacks %q: the check is void", bad)
+		if strings.Contains(documentWith, bad) {
+			t.Errorf("a Document parser with limit controls has %q", bad)
+		}
+	}
+	for _, want := range []string{"p.Units", "p.PollUnits()"} {
+		if !strings.Contains(documentWith, want) {
+			t.Errorf("a Document parser with limit controls lacks %q", want)
+		}
+		if strings.Contains(documentWithout, want) {
+			t.Errorf("a Document parser without limit controls has %q", want)
 		}
 	}
 	if !strings.Contains(documentWithout, "p.Document == nil") {

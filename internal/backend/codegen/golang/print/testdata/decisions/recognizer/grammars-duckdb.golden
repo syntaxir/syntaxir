@@ -398,7 +398,7 @@ rule	1052	guard=2:d99ac66fb8
 grammar	controlled document	"grammars/duckdb"
 rule	1	guard=2:de95f35329
 rule	2	guard=2:05aed1bc9b
-rule	5	guard=4:488fa4b3ee
+rule	5	guard=4:48508bffb3
 rule	6	guard=2:7c5b4e2fb4
 rule	8	guard=3:082c09b0c1
 rule	9	guard=3:56744c488d
@@ -450,8 +450,8 @@ rule	92	guard=6:66f4e7a993
 rule	93	guard=2:b577bf8cd5
 rule	94	guard=4:6370921783
 rule	96	guard=3:cf9d8ea383 scan=1:41ff9acab2
-rule	97	guard=3:d0a09e2f3c scan=1:28bbce1a45
-rule	99	guard=19:ac0299d105
+rule	97	guard=3:c960efe1b8 scan=1:28bbce1a45
+rule	99	guard=19:93802b7dfe
 rule	101	scope=1:7540c4e38c
 rule	102	guard=3:c8d39c1748
 rule	104	scope=1:0a4caa6347
@@ -774,7 +774,7 @@ rule	1021	guard=7:e2d2750be3
 rule	1023	scan=2:08eef92c48
 rule	1026	guard=2:05d09bc11f scan=1:ba10422a5b
 rule	1028	guard=3:b97a81afe7
-rule	1029	guard=4:657c2d0c0d
+rule	1029	guard=4:91038592fa
 rule	1030	scan=1:9ff14b9cbb
 rule	1032	guard=4:f270b3950c scan=3:775ae7a8af
 rule	1034	guard=4:4fa5240a0a scan=2:abc6f1f4c9
