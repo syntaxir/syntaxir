@@ -203,6 +203,7 @@ func TestBuild(t *testing.T) {
 			`id="workbench" data-grammar="`, `id="live-input" class="wb-input" value="1 &#43; 2 * 3 ^ 2"`, `data-preset="1 &#43; 2 * 3 ^ 2"`,
 			`role="tablist"`, `class="lp-narrow"`, `id="live-fallback" hidden`, `<th scope="row">Language server (LSP)</th>`,
 			`<span class="c-rockets" role="img" aria-label="Speed: 3 of 5">`, `<span class="sr-only">Strength: </span>`, `id="compare-speed"`,
+			`<div class="lp-table-scroll" role="region" aria-labelledby="comparison-title" tabindex="0">`,
 			`assets/landing.css`, `assets/landing.js`, `href="docs/tutorial/getting-started/"`,
 		},
 		"reference/compiler/index.html": {

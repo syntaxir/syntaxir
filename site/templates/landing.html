@@ -465,6 +465,7 @@ sxir lsp</code></pre>
       <symbol id="i-neg" viewBox="0 0 16 16"><path d="M4 4 L12 12 M12 4 L4 12"/></symbol>
       <symbol id="i-rocket" viewBox="0 0 16 16"><path d="M8 1 C10.6 2.6 11.6 5.4 11 9 L9.6 11.5 H6.4 L5 9 C4.4 5.4 5.4 2.6 8 1 Z M5 9 L2.5 11.5 L5.6 11.5 M11 9 L13.5 11.5 L10.4 11.5 M7 13 L8 15 L9 13"/><circle cx="8" cy="6" r="1.3"/></symbol>
     </svg>
+    <div class="lp-table-scroll" role="region" aria-labelledby="comparison-title" tabindex="0">
     <table class="lp-table">
       <thead>
         <tr><th scope="col">Capability</th>{{range .Tools}}<th scope="col">{{.}}</th>{{end}}</tr>
@@ -473,8 +474,8 @@ sxir lsp</code></pre>
         {{- range .Compare}}
         <tr>
           <th scope="row">{{.Capability}}</th>
-          {{- range $i, $c := .Cells}}
-          <td data-label="{{index $.Tools $i}}"{{if $c.Rating}} class="c-rating"{{else if $c.Kind}} class="c-{{$c.Kind}}"{{end}}>
+          {{- range $c := .Cells}}
+          <td{{if $c.Rating}} class="c-rating"{{else if $c.Kind}} class="c-{{$c.Kind}}"{{end}}>
             {{- if $c.Rating}}<span class="c-rockets" role="img" aria-label="Speed: {{$c.Rating}} of 5">{{range $r := ratingSlots $c.Rating}}<svg class="{{if $r}}is-on{{end}}" aria-hidden="true"><use href="#i-rocket"/></svg>{{end}}</span> <span class="c-text">{{$c.Text}}<sup><a href="#compare-speed">*</a></sup></span>
             {{- else if eq $c.Kind "pos"}}<svg class="c-mark" aria-hidden="true"><use href="#i-pos"/></svg><span class="c-text"><span class="sr-only">Strength: </span>{{$c.Text}}</span>
             {{- else if eq $c.Kind "neg"}}<svg class="c-mark" aria-hidden="true"><use href="#i-neg"/></svg><span class="c-text"><span class="sr-only">Limitation: </span>{{$c.Text}}</span>
@@ -485,6 +486,7 @@ sxir lsp</code></pre>
         {{- end}}
       </tbody>
     </table>
+    </div>
     <p class="lp-note"><svg class="c-mark c-pos-mark" aria-hidden="true"><use href="#i-pos"/></svg> a strength, <svg class="c-mark c-neg-mark" aria-hidden="true"><use href="#i-neg"/></svg> missing or weak. Checked on 2026-10-29 against tree-sitter 0.27.1, ANTLR 4.13.2, participle 2.1.4 and pigeon 1.3.0. <a href="docs/why-syntaxir/#how-syntaxir-compares">The full comparison</a> covers more tools, with sources, and <a href="docs/why-syntaxir/#current-limits">Current Limits</a> lists what each SyntaxIR target supports today.</p>
     <p class="lp-note" id="compare-speed">* Speed: generated Go typed values against Go's hand-written standard-library parsers on five workloads (JSON, XML, CSV and two arithmetic grammars), from <a href="docs/benchmarks/">Benchmark Results</a>: SyntaxIR takes 2.4 times as long, as the geometric mean. Five rockets mean as fast or faster, four within 2×, three within 4×, two within 8×, one slower. No benchmark compares SyntaxIR with the other tools yet, so they are not rated.</p>
 

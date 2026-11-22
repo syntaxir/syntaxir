@@ -171,7 +171,12 @@
 
 /* Comparison: a table on wide screens, one card per tool on narrow ones. */
 
-.lp-table { width: 100%; border-collapse: collapse; font-size: 15px; }
+/* The table scrolls inside its own container when it is wider than the page, never the page itself
+   (position: relative keeps the absolutely placed screen-reader text inside it too);
+   the row labels stay pinned while the tool columns move. */
+.lp-table-scroll { position: relative; overflow-x: auto; overscroll-behavior-x: contain; }
+.lp-table { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 15px; }
+.lp-table th:first-child { position: sticky; left: 0; z-index: 1; background: var(--bg); }
 .lp-table th, .lp-table td { text-align: left; vertical-align: top; padding: 14px 16px; border-bottom: 1px solid var(--line); }
 .lp-table thead th { font: 600 13px var(--font-body); color: var(--ink-muted); text-transform: uppercase; letter-spacing: 0.05em; border-bottom-color: var(--line-strong); }
 .lp-table tbody th { font-family: var(--font-display); font-weight: 700; white-space: nowrap; }
@@ -222,13 +227,17 @@
 }
 
 @media (max-width: 900px) {
-  .lp-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
-  .lp-table, .lp-table tbody, .lp-table tr, .lp-table th, .lp-table td { display: block; }
-  .lp-table tr { border-top: 1px solid var(--line-strong); padding: 8px 0 16px; }
-  .lp-table tbody th { border: 0; padding: 8px 16px 4px; font-size: 1.125rem; }
-  .lp-table td { border: 0; padding: 8px 16px 8px calc(16px + 7.5rem); position: relative; }
-  .lp-table td + td { border-top: 1px solid var(--line); }
-  .lp-table td::before { content: attr(data-label); position: absolute; left: 16px; width: 7rem; font-size: 13px; font-weight: 600; color: var(--ink-muted); }
+  /* A narrow table stays a table: fixed, compact columns that fit the row labels, SyntaxIR and one
+     more tool on a phone, and scroll sideways inside .lp-table-scroll under the pinned labels. */
+  .lp-table { table-layout: fixed; width: max(100%, calc(6rem + 4 * 7.25rem)); }
+  .lp-table th, .lp-table td { padding: 8px 10px; overflow-wrap: break-word; hyphens: auto; }
+  .lp-table thead th { font-size: 11.5px; letter-spacing: 0.03em; }
+  .lp-table thead th:first-child { width: 6rem; }
+  .lp-table th:first-child { border-right: 1px solid var(--line-strong); }
+  .lp-table tbody th { font-size: 13px; white-space: normal; }
+  .lp-table td { font-size: 13px; line-height: 1.45; }
+  .c-mark { width: 12px; height: 12px; margin-right: 4px; }
+  .c-rockets svg { width: 15px; height: 15px; }
 }
 
 @media (max-width: 640px) {
