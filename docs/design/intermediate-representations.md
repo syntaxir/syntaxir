@@ -165,20 +165,17 @@ verified keeps that nesting. A pass that needs a graph view asks the analysis ma
 `flowlower`, the pass that lowers Core IR to Code IR, produces the Flow stage in one uniform shape and fails loudly on a
 construct it does not support rather than guess. The shape is then chosen by the Flow passes, which hold every
 control-level decision: call specialization, inlining, dispatch, the form of a match, removal of saves that no failure
-path reads, merging and threading of failure paths, canonicalization, where to charge, sharing slots between locals, and
-outlining. Each pass declares an obligation, the property it preserves, and the features under which it applies, and the
+path reads, merging and threading of failure paths, canonicalization, sharing slots between locals, and outlining. Each pass declares an obligation, the property it preserves, and the features under which it applies, and the
 Flow verifier checks the result, right after `flowlower`, again where the pipeline leaves the Flow stage, and after
 every pass with `-verify-each`: structure, variables, one runtime per function, the budget invariants, recorded reads
 under a Document and no in-place reads in a traced parse. The passes, their order and their obligations are listed in
 [the pass pipeline](pass-pipeline.md#the-flow-passes).
 
-A charge of one step is one reservation of one unit, so a printer that charges several steps, or the code points of a
-literal, with one call keeps them separate reservations: the runtime reserves a run that fits at once and, when the run
-does not fit, fails at the unit that does not, as the separate charges would, and reports that unit as the reservation
-that failed. The charge pass keeps the total charge, charges every loop iteration, charges input before examining it and
-never moves or merges a charge across a write to the observation or to the stream window, a callback of the caller, or a
-commit. An interruption therefore leaves exactly the trace events, stream deliveries, callbacks and commits that come
-before the reservation that failed, as the parse without the pass would.
+Where a parse counts compute units is not a choice of a pass: a parse counts the logical events of
+[Compute Units](../../spec/runtime/parsing.md#compute-units), so the total and the decision of the compute limit are
+the same on every backend and at every optimization setting, and it adds and checks them as
+[Checks and Interruptions](../../spec/runtime/parsing.md#checks-and-interruptions) allows. The step of each loop
+iteration (`flow.step`) counts nothing and checks the counter. No Flow pass places, moves or merges a count.
 
 Marks are typed locals of the Flow and Exec stages, not values that can be used once: a choice restores the same mark
 before each of its next alternatives, and a loop restores the mark of its iteration. Both verifiers check how marks
@@ -214,8 +211,7 @@ The properties that passes ask of an operation are derived from its declaration,
 disagree with it. An operation is **pure**, that is, a call of it can be removed, when it writes nothing, cannot end the
 parse and, while the budget is on, has no cost: a call that charges the budget is not pure in a budget-controlled build,
 because removing it changes where a limit interrupts. It is **zero-width** when it does not write the position, and
-**infallible** when it neither fails nor ends the parse. Dead-store removal, save-elide and the charge pass read these
-properties.
+**infallible** when it neither fails nor ends the parse. Dead-store removal and save-elide read these properties.
 
 Every law of an operation is typed: it has a kind that passes read, such as equal results (equal arguments give equal
 results), a stable read (two reads with no write of the component between them give the same result) or the merge of two

@@ -604,10 +604,10 @@ locals nothing reads. The design plans more that no code implements yet:
   writes and the declared laws: a save and restore of a component that nothing between them writes; an
   `isolate` and `unisolate` pair around code that records no expectation; examined-bound recording outside a
   Document; trace events outside an observable build.
-- **Charge coalescing.** Charges in straight-line code merge, under the invariants of record 062: each loop
-  iteration charges, input is charged before it is inspected, and no charge moves across a commit. Budget counts
-  stay as `budget.golden` pins them unless a stage states otherwise. The TypeScript backend merges the charges in
-  a row of a rule before it prints them; that is not a pass of Exec IR.
+- **Charge coalescing**, planned under the invariants of record 062, has no subject since a parse counts logical
+  compute units ([Compute Units](../../../spec/runtime/parsing.md#compute-units)): the events fix where units are
+  counted, the same on every backend, so no stage places, moves or merges a charge, and the step of a loop
+  (`flow.step`) only checks the counter.
 - **Inlining** of compositions into callers, within a budget that the backend sets per target.
 - **Cold-path marking** of error paths, growth and Document bookkeeping, which a backend may outline. A function
   that is marked no-inline exists today.

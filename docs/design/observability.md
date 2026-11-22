@@ -23,8 +23,8 @@ the command-line tools `explain`, `trace` and `profile` are built on it.
 - **Specialization, not a second code path.** Generated code gets the same features through specializations of the Exec
   stage for the features of a build, so the plain build stays free of them. The ordinary, budget-controlled, observed
   and Document variants of a mechanism are specializations of one composition.
-- **Limits keep the order of what is observed.** No budget charge moves or merges across a trace event, a stream
+- **Limits keep the order of what is observed.** No check of a limit moves or merges across a trace event, a stream
   delivery, a callback of the caller or a commit, so a parse that a limit interrupts has reported exactly the events,
-  deliveries and commits that come before the reservation that failed.
+  deliveries and commits that come before the check that stopped it.
 - **Failures carry the same information.** A failure in a trace event carries the same syntax error that the parse
   returns, so a traced failure and a plain failure can be compared.

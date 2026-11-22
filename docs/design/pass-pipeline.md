@@ -261,7 +261,7 @@ preserves, and the analyses it needs and keeps. The table is in the order the pi
 | 5 | save-elide | No save that no failure path reads | Core effects, liveness |
 | 6 | fail-merge/thread | The same behavior on every reachable path | Reachability |
 | 7 | canonicalize | The same behavior; each pattern keeps the behavior of the operations it rewrites | None beyond the operations it matches |
-| 8 | charge | The same total charge; every loop iteration charges, input is charged before it is examined, and no charge moves or merges across a write to the observation or to the stream window, a callback of the caller, or a commit | Charge flow |
+| 8 | charge | None runs: a parse counts the logical events of [Compute Units](../../spec/runtime/parsing.md#compute-units), which fix where units are counted on every backend, and checks them where [Checks and Interruptions](../../spec/runtime/parsing.md#checks-and-interruptions) says | None |
 | 9 | slots | Locals share a slot only when their types are equal and their live ranges do not overlap | Liveness |
 | 10 | outline (program) | The same behavior | Structure and size of the Core nodes |
 
@@ -310,8 +310,7 @@ the Exec stage.
 ### Canonicalization
 
 One pass of Code IR, `canonicalize`, applies local rewrite patterns until none applies. The dialect of each stage
-declares which patterns apply at the stage, and the pass runs at both stages: at the Flow stage after fail-merge/thread and before
-charge, so that charges are placed in code that is already simplified, and at the Exec stage after specialization for
+declares which patterns apply at the stage, and the pass runs at both stages: at the Flow stage after fail-merge/thread, and at the Exec stage after specialization for
 the features of a build and before dead-store removal, so that what specialization made unreachable is gone before
 liveness is computed. A pattern rewrites one operation, or a few adjacent ones, into a simpler form: it folds a
 constant, removes code after an exit or splices a block into its parent. Each pattern has a name in the registry, so
