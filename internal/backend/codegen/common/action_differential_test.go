@@ -396,9 +396,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	}
 	node := tooltest.RequireNode(t)
 	for _, m := range []mutant{
-		{"control: unchanged", `c.p.actionHull(c, `, `c.p.actionHull(c, `},
-		{"a tuple becomes a list", `c.p.actionHull(c, true, `, `c.p.actionHull(c, false, `},
-		{"a list becomes a tuple", `c.p.actionHull(c, false, `, `c.p.actionHull(c, true, `},
+		{"control: unchanged", `c.p.actionHullLogical(c, `, `c.p.actionHullLogical(c, `},
+		{"a tuple becomes a list", `c.p.actionHullLogical(c, true, `, `c.p.actionHullLogical(c, false, `},
+		{"a list becomes a tuple", `c.p.actionHullLogical(c, false, `, `c.p.actionHullLogical(c, true, `},
 		{"concat pushes no elements", `c.p.actionPushItems(c, "concat", `, `c.p.actionPushItems(c, "concat", null); void (`},
 		{"an element is pushed as nil", `c.p.actionPush(c, "list", `, `c.p.actionPush(c, "list", null); void (`},
 		{"a field is set to nil", `c.actionSetField(`, `((n: Node, f: string, _v: Value) => c.actionSetField(n, f, null))(`},
@@ -522,7 +522,7 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 		{"map pushes nil for every element", `c.p.actionPush(c, "map", `, `c.p.actionPush(c, "map", null); void (`},
 		{"map takes no elements", `c.p.actionItems("map", `, `c.p.actionItems("map", null); void (`},
 		{"foldl takes no elements", `c.p.actionItems("foldl", `, `c.p.actionItems("foldl", null); void (`},
-		{"the map of a projected repetition makes no elements", `c.newList(`, `c.newList([]); void (`},
+		{"the map of a projected repetition makes no elements", `c.newListLogical(`, `c.newListLogical([]); void (`},
 	} {
 		hits := 0
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {

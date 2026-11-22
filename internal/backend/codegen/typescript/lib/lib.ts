@@ -331,15 +331,14 @@ export function sortedFields(fs: readonly NodeField[]): NodeField[] {
   return fs.slice().sort((a, b) => compareStrings(a.name, b.name));
 }
 
-export function setField(n: Node, name: string, v: Value, control: BudgetControl | null = null): void {
+export function setField(n: Node, name: string, v: Value): void {
   if (n.fields === noFields) {
     n.fields = [{ name, value: v }];
     return;
   }
   const fs = n.fields as NodeField[];
   for (const f of fs) {
-    control?.charge(1);
-    if (control === null ? f.name === name : equalStringsSpend(f.name, name, control)) {
+    if (f.name === name) {
       f.value = v;
       return;
     }
@@ -870,7 +869,7 @@ export function compareExpected(a: string, b: string): number {
 
 /**
  * Makes a SyntaxError without capturing a stack trace. Only the construction runs with the limit at
- * zero, so no charge, signal getter or interruption is made while it is lowered.
+ * zero, so no signal getter or interruption is made while it is lowered.
  */
 function bareSyntaxError(pos: number, line: number, col: number, expected: string[], messages: string[]): SyntaxError {
   const v8 = Error as { stackTraceLimit?: number };
@@ -1045,7 +1044,7 @@ export interface Grammar {
   readonly sparse: boolean;
   // observable reports that the generated rules report their calls, so trace and profile options apply.
   readonly observable: boolean;
-  // controlled reports that the generated rules spend budget, so the cancellation and limit options apply.
+  // controlled reports that the generated rules count compute units, so the cancellation and limit options apply.
   readonly controlled: boolean;
   // sourceInfo reports that values record source information: the rule that produced each node and
   // where its captures are.
@@ -1234,7 +1233,7 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
   const report = options?.computeReport ?? null;
   if (report !== null) {
     if (typeof report !== "object") return new Error("computeReport must be an object");
-    report.units = 0; // a parse that fails before it starts spends none
+    report.units = 0; // a parse that fails before it starts counts none
   }
   const profiles = observers(options?.profile, (x): x is Profile => x instanceof Profile && profileData.has(x), noProfiles);
   if (profiles === null) return new Error("profile must be a Profile or an array of Profiles");
@@ -1368,22 +1367,21 @@ export function isStackOverflow(x: unknown): boolean {
   );
 }
 
-// result returns the result of a parse whose call of the start rule returned v.
+// result returns the result of a parse whose call of the start rule returned v, after the check at
+// the end of the parse (Parser.endUnits).
 export function result(p: Parser, v: R): ParseResult {
-  if (v !== undefined && p.pos === p.n) {
+  const ok = v !== undefined && p.pos === p.n;
+  p.endUnits(!ok);
+  if (ok) {
     if (p.recovered.length > 0) {
-      const errors = recoveredErrors(p.recovered, p.control);
-      if (p.control !== null) reserveRecoveredMessageSpend(errors, p.control);
-      const error = new SyntaxErrors(errors);
-      p.control?.check();
-      return { node: v, error };
+      return { node: v, error: new SyntaxErrors(recoveredErrors(p.recovered)) };
     }
     return { node: v, error: null };
   }
   if (v !== undefined) {
     p.expect(p.pos, idEndInput);
   }
-  return { node: null, error: p.makeError(p.farthest, p.control === null ? p.exp.slice(p.expBase, p.expTop) : copyIDsSpend(p.exp, p.expBase, p.expTop, p.control)) };
+  return { node: null, error: p.makeError(p.farthest, p.exp.slice(p.expBase, p.expTop)) };
 }
 
 // --- Documents ---
@@ -1492,8 +1490,8 @@ export class DocumentMemo {
     this.runGen = 0;
   }
 
-  // edit applies an edit to the memo and records it in the log. It charges nothing: a lookup charges
-  // the edits it applies to an entry.
+  // edit applies an edit to the memo and records it in the log. It counts no units: the work of a
+  // Document is no event of the parse.
   edit(ed: DocumentEdit): void {
     if (this.edits.length === maxDocumentEdits) {
       this.clear();
@@ -1560,8 +1558,8 @@ export class DocumentMemo {
     }
   }
 
-  // advanceEntry is DocumentParser.memoAdvance without charges, for an edit and for a store that
-  // joins with an entry of an earlier parse.
+  // advanceEntry is DocumentParser.memoAdvance, for an edit and for a store that joins with an entry
+  // of an earlier parse.
   advanceEntry(e: MemoEntry, log: DocumentEdit[]): boolean {
     throw new Error("the printed method replaces this one");
   }
@@ -1804,21 +1802,16 @@ export class DocumentBase {
 }
 
 // createDocumentBase validates the options of a Document of input, which is copied, and makes the
-// Document with make. Like a parse, it decodes the input under the limit controls of the options. It
-// is for generated parsers.
+// Document with make. Like a parse, it makes the check at the start under the limit controls of the
+// options. It is for generated parsers.
 export function createDocumentBase<D>(g: Grammar, input: string | Uint8Array, options: ParseOptions | undefined,
   make: (input: Uint8Array, defaults: ParseOptions | undefined, o: ResolvedParseOptions) => D): { document: D | null; error: Error | null } {
   const defaults = optionsSnapshot(options);
   const bytes = typeof input === "string" ? encodeUTF8(input) : input.slice();
   const o = resolveOptions(g, defaults, bytes);
   if (o instanceof Error) return { document: null, error: o };
-  const error = withBudgetControl<Error | null>(o, control => {
-    if (control !== null) {
-      new Parser(g, bytes, o.unit, 0, o.maxDepth, control);
-      control.check();
-    }
-    return null;
-  }, e => e);
+  // Preparing the input is free: withBudgetControl makes only the check at the start.
+  const error = withBudgetControl<Error | null>(o, () => null, e => e);
   if (error !== null) return { document: null, error };
   return { document: make(o.unit === Bytes ? bytes : normalizeCodePoints(bytes), defaults, o), error: null };
 }
@@ -2338,15 +2331,14 @@ class SkipSlots {
     return i >= 0 && i >>> 5 < this.marks.length && (this.marks[i >>> 5]! & (1 << (i & 31))) !== 0;
   }
 
-  // get returns the record of pos for walks that start with the key k, if any. Comparing the values
-  // of the key charges as comparing those of a memo key does.
-  get(pos: number, k: WalkKey, control: BudgetControl | null): SkipRecord | undefined {
+  // get returns the record of pos for walks that start with the key k, if any.
+  get(pos: number, k: WalkKey): SkipRecord | undefined {
     const r = this.recs.get(k.h)?.get(pos);
-    if (r === undefined || k.vals === null || sameValues(r.key, k.vals, control)) {
+    if (r === undefined || k.vals === null || sameValues(r.key, k.vals)) {
       return r;
     }
     for (const x of this.more?.get(k.h)?.get(pos) ?? []) {
-      if (sameValues(x.key, k.vals, control)) {
+      if (sameValues(x.key, k.vals)) {
         return x;
       }
     }
@@ -2357,7 +2349,7 @@ class SkipSlots {
   // and reports whether it made the records of a new hash. Room made for bits before base is as
   // large as the bits, so walks that start farther and farther back copy them a logarithmic number
   // of times.
-  put(pos: number, k: WalkKey, r: SkipRecord | null, control: BudgetControl | null): boolean {
+  put(pos: number, k: WalkKey, r: SkipRecord | null): boolean {
     if (this.marks.length === 0) {
       this.base = pos - (pos & 31);
     } else if (pos < this.base) {
@@ -2383,9 +2375,9 @@ class SkipSlots {
       this.recs.set(k.h, m);
     }
     const old = m.get(pos);
-    if (old !== undefined && k.vals !== null && !sameValues(old.key, k.vals, control)) {
+    if (old !== undefined && k.vals !== null && !sameValues(old.key, k.vals)) {
       // Another key with the same hash holds the slot: the record goes with the others.
-      this.putMore(pos, k.h, r, control);
+      this.putMore(pos, k.h, r);
       return made;
     }
     if (old !== undefined && old.list && !r.list) {
@@ -2400,7 +2392,7 @@ class SkipSlots {
 
   // putMore stores r in the records of the hash h at pos whose key shares the hash of the one in
   // recs, keeping a record with values over one without, as put does.
-  putMore(pos: number, h: number, r: SkipRecord, control: BudgetControl | null): void {
+  putMore(pos: number, h: number, r: SkipRecord): void {
     this.more ??= new Map();
     let m = this.more.get(h);
     if (m === undefined) {
@@ -2409,7 +2401,7 @@ class SkipSlots {
     }
     const rs = m.get(pos) ?? [];
     for (let i = 0; i < rs.length; i++) {
-      if (sameValues(rs[i]!.key, r.key, control)) {
+      if (sameValues(rs[i]!.key, r.key)) {
         if (!rs[i]!.list || r.list) {
           rs[i] = r;
         }
@@ -2510,9 +2502,9 @@ export type Errs = RecEntry | null;
 export const noErrs: Errs = null;
 
 // recoveredErrors returns the errors of the record entries in order, unrolling the lists without
-// recursion (lists nest as deep as the growths of a leader go). Each entry it visits costs one unit
-// of budget; the visits are at most twice the errors (spec/proofs/linear-cost.md, Lemma 14).
-export function recoveredErrors(entries: readonly RecEntry[], control: BudgetControl | null): SyntaxError[] {
+// recursion (lists nest as deep as the growths of a leader go). The visits are at most twice the
+// errors (spec/proofs/linear-cost.md, Lemma 14).
+export function recoveredErrors(entries: readonly RecEntry[]): SyntaxError[] {
   const out: SyntaxError[] = [];
   const lists: (readonly RecEntry[])[] = [entries];
   const at: number[] = [0];
@@ -2526,7 +2518,6 @@ export function recoveredErrors(entries: readonly RecEntry[], control: BudgetCon
       continue;
     }
     at[top] = i + 1;
-    control?.charge(1);
     const x = l[i]!;
     if (x instanceof ErrList) {
       lists.push(x.entries);
@@ -2543,12 +2534,10 @@ export function recoveredErrors(entries: readonly RecEntry[], control: BudgetCon
 const memoScan = 32;
 
 /**
- * memoKeyHash hashes a memo key deterministically, so that budgeted costs do not vary between runs.
- * Values that are not hashed (nodes) all hash alike and are told apart by the key comparison. The
- * hash costs one step plus one for each variable of the key, and the characters of string values,
- * as comparing them would.
+ * memoKeyHash hashes a memo key deterministically, so that the work of a parse does not vary between
+ * runs. Values that are not hashed (nodes) all hash alike and are told apart by the key comparison.
  */
-function memoKeyHash(rule: number, min: number, env: Value[] | null, control: BudgetControl | null): number {
+function memoKeyHash(rule: number, min: number, env: Value[] | null): number {
   let h = 0x811c9dc5;
   const mix = (x: number): void => {
     h = Math.imul(h ^ x, 0x01000193);
@@ -2557,18 +2546,13 @@ function memoKeyHash(rule: number, min: number, env: Value[] | null, control: Bu
   mix(rule);
   mix(min);
   if (env !== null) {
-    control?.charge(1 + env.length);
     for (const v of env) {
       if (v === null) {
         mix(0);
       } else if (typeof v === "string") {
         mix(v.length);
-        for (let from = 0; from < v.length; from += 128) {
-          const end = Math.min(from + 128, v.length);
-          control?.charge(end - from);
-          for (let i = from; i < end; i++) {
-            mix(v.charCodeAt(i));
-          }
+        for (let i = 0; i < v.length; i++) {
+          mix(v.charCodeAt(i));
         }
       } else if (typeof v === "number") {
         mix(v | 0); // +0 and -0 are equal
@@ -2580,14 +2564,12 @@ function memoKeyHash(rule: number, min: number, env: Value[] | null, control: Bu
         mix(0x7f4a7c15);
       }
     }
-  } else {
-    control?.charge(1);
   }
   return h >>> 0;
 }
 
 // sameValues reports whether two lists of variable values are equal.
-export function sameValues(a: Value[] | null, b: Value[] | null, control: BudgetControl | null = null): boolean {
+export function sameValues(a: Value[] | null, b: Value[] | null): boolean {
   if (a === null || b === null) {
     return (a === null ? 0 : a.length) === (b === null ? 0 : b.length);
   }
@@ -2595,19 +2577,6 @@ export function sameValues(a: Value[] | null, b: Value[] | null, control: Budget
     return false;
   }
   for (let i = 0; i < a.length; i++) {
-    if (control !== null) {
-      control.charge(1);
-      const x = a[i], y = b[i];
-      if (typeof x === "string" && typeof y === "string") {
-        if (x.length !== y.length) return false;
-        for (let from = 0; from < x.length; from += 128) {
-          const end = Math.min(from + 128, x.length);
-          control.charge(end - from);
-          if (x.slice(from, end) !== y.slice(from, end)) return false;
-        }
-        continue;
-      }
-    }
     if (a[i] !== b[i]) {
       return false;
     }
@@ -2876,6 +2845,9 @@ function mergeSdeps(a: Sdep[], b: Sdep[]): Sdep[] {
 
 export class Parser {
   observation: Observation | null = null; // set for the duration of an observed parse
+  // inDocument is flow.inDocument: whether the parse is a Document's (DocumentParser), whose memo a
+  // dispatch guard must not skip past.
+  readonly inDocument: boolean = false;
   readonly g: Grammar;
   readonly sourceInfo: boolean; // g.sourceInfo, read on every node
   unit: Unit;
@@ -2990,19 +2962,48 @@ export class Parser {
 
   readonly control: BudgetControl | null;
 
-  spend(n = 1): void { this.control?.charge(n); }
-  // spendUnits charges n units as n calls of spend() do (BudgetControl.chargeUnits).
-  spendUnits(n: number): void { this.control?.chargeUnits(n); }
+  // units counts the logical compute units of the parse (spec/runtime/parsing.md, Compute Units): the
+  // call protocol adds the calls of rules, their keys, the steps of growths and the entries of
+  // recovered errors taken; the generated code adds the calls it makes directly, the input that
+  // terminals advance over and the syntax errors that recoveries build; the library adds what its
+  // matchers advance over and the other sized events (values built, string comparisons, the syntax
+  // error of a failed parse). The count is checked only at checks: on cycles (calls of recursive
+  // rules, steps of growths and loop iterations), after sized events and at the end of the parse.
+  // unitsCheck is the count above which a check calls pollUnits; without a control the count is
+  // never checked.
+  units = 0;
+  unitsCheck = Infinity;
 
-  // freeBegin and freeEnd bracket work that only a Document parse does (BudgetControl.freeBegin). The
-  // printed methods hold the mark as an unsigned 64-bit integer, whose largest value marks no region.
-  freeBegin(on: boolean): bigint {
-    const mark = this.control === null ? noFreeRegion : this.control.freeBegin(on);
-    return mark === noFreeRegion ? noFreeMark : BigInt(mark);
+  // pollUnits is the slow path of a check of the counter (BudgetControl.poll).
+  pollUnits(): void {
+    const c = this.control;
+    this.unitsCheck = c === null ? Infinity : c.poll(this.units);
   }
 
-  freeEnd(mark: bigint): void {
-    if (mark !== noFreeMark) this.control?.freeEnd(Number(mark));
+  // unitsSized counts a sized event of n units and checks the counter, before the work it covers.
+  unitsSized(n: number): void {
+    this.units += n;
+    if (this.units > this.unitsCheck) this.pollUnits();
+  }
+
+  // unitsOfItems counts k units for each element of the list or tuple v, and checks the counter.
+  unitsOfItems(v: Value, k: number): void {
+    if (v instanceof Node) this.unitsSized(k * v.children.length);
+  }
+
+  // callUnit counts the unit of a call of a rule that does not go through call, and checks the
+  // counter if the rule is on a cycle of the call graph (rec), as the call protocol does.
+  callUnit(rec: boolean): void {
+    this.units++;
+    if (rec && this.units > this.unitsCheck) this.pollUnits();
+  }
+
+  // endUnits makes the check at the end of a parse, which counts the syntax error it builds if failed.
+  endUnits(failed: boolean): void {
+    const c = this.control;
+    if (c === null) return;
+    if (failed) this.units++;
+    c.end(this.units);
   }
   // alloc counts n bytes of storage taken into use for the memory limit; only a controlled parse counts.
   alloc(n: number): void { const c = this.control; if (c !== null) c.mem += n; }
@@ -3029,7 +3030,10 @@ export class Parser {
     this.g = g;
     this.sourceInfo = g.sourceInfo;
     this.control = control;
-    if (control !== null) control.held = () => this.heldBytes();
+    if (control !== null) {
+      control.held = () => this.heldBytes();
+      this.unitsCheck = control.unitsCheck();
+    }
     this.unit = unit;
     this.maxDepth = maxDepth;
     if (g.initEnv === undefined) {
@@ -3046,19 +3050,8 @@ export class Parser {
     this.cps = new Int32Array(0);
     this.bs = new Uint8Array(0);
     this.offs = null;
-    if (control !== null) {
-      if (unit === Bytes) {
-        this.bs = typeof input === "string" ? encodeUTF8Spend(input, control) : input;
-        this.n = this.bs.length;
-        this.src = this.decodeBytesSpend();
-      } else if (typeof input === "string") {
-        this.src = this.decodeStringSpend(input);
-        this.n = this.cps.length;
-      } else {
-        this.src = this.decodeCodePointsSpend(input);
-        this.n = this.cps.length;
-      }
-    } else if (unit === Bytes) {
+    // Preparing the input is free (spec/runtime/parsing.md, Compute Units).
+    if (unit === Bytes) {
       this.bs = typeof input === "string" ? encodeUTF8(input) : input;
       this.n = this.bs.length;
       this.src = this.decodeBytes();
@@ -3176,110 +3169,6 @@ export class Parser {
     return codePointsString(cps.subarray(0, j));
   }
 
-  decodeStringSpend(s: string): string {
-    const control = this.control!;
-    const n = runeCountSpend(s, control);
-    const cps = new Int32Array(n);
-    let offs: Int32Array | null = null;
-    let lone = false;
-    let j = 0;
-    for (let i = 0; i < s.length; i++) {
-      let c = stringUnitSpend(s, i, control);
-      if (c >= 0xd800 && c <= 0xdfff) {
-        if (c < 0xdc00 && i + 1 < s.length && (stringUnitSpend(s, i + 1, control) & 0xfc00) === 0xdc00) {
-          if (offs === null) {
-            offs = new Int32Array(n + 1);
-            for (let k = 0; k < j; k++) {
-              control.charge(1);
-              offs[k] = k;
-            }
-          }
-          offs[j] = i;
-          cps[j++] = 0x10000 + ((c - 0xd800) << 10) + (stringUnitSpend(s, i + 1, control) - 0xdc00);
-          i++;
-          continue;
-        }
-        c = 0xfffd;
-        lone = true;
-      }
-      if (offs !== null) {
-        offs[j] = i;
-      }
-      control.charge(1);
-      cps[j++] = c;
-    }
-    if (offs !== null) {
-      offs[n] = s.length;
-    }
-    this.cps = cps;
-    this.offs = offs;
-    return lone ? wellFormedSpend(s, control) : s;
-  }
-
-  decodeCodePointsSpend(b: Uint8Array): string {
-    const control = this.control!;
-    const cps = new Int32Array(b.length);
-    let j = 0;
-    let astral = false;
-    for (let i = 0; i < b.length;) {
-      const decoded = decodeRuneSpend(b, i, b.length, control);
-      const c = decoded.rune;
-      i += decoded.size;
-      astral = astral || c > 0xffff;
-      cps[j++] = c;
-    }
-    this.cps = cps.subarray(0, j);
-    if (astral) {
-      const offs = new Int32Array(j + 1);
-      let o = 0;
-      for (let k = 0; k < j; k++) {
-        control.charge(1);
-        offs[k] = o;
-        o += cps[k]! > 0xffff ? 2 : 1;
-      }
-      offs[j] = o;
-      this.offs = offs;
-    }
-    return codePointsStringSpend(this.cps, control);
-  }
-
-  decodeBytesSpend(): string {
-    const control = this.control!;
-    const b = this.bs;
-    const n = b.length;
-    let ascii = true;
-    for (let i = 0; i < n; i++) {
-      if (byteUnitSpend(b, i, n, control) >= 0x80) {
-        ascii = false;
-        break;
-      }
-    }
-    const cps = new Int32Array(n);
-    const offs = ascii ? null : new Int32Array(n + 1);
-    let j = 0;
-    let o = 0;
-    for (let i = 0; i < n;) {
-      const decoded = decodeRuneSpend(b, i, n, control);
-      let c = decoded.rune;
-      if (decoded.size === 1 && c === 0xfffd) {
-        c = 0xdc00 + byteUnitSpend(b, i, n, control); // an invalid byte
-      }
-      if (offs !== null) {
-        offs[i] = o;
-      }
-      o += c > 0xffff ? 2 : 1;
-      control.charge(1);
-      cps[j++] = c;
-      i += decoded.size;
-    }
-    if (offs !== null) {
-      offs[n] = o;
-    }
-    this.offs = offs;
-    return codePointsStringSpend(cps.subarray(0, j), control);
-  }
-
-
   // firstCall records a call of the memoized rule r at the position and reports whether its
   // memoization is deferred, in which case the call is not memoized. A result is reused only when the rule
   // is called again at the same position, which in practice is rare, so memoizing every first call would
@@ -3326,8 +3215,8 @@ export class Parser {
 
   // memoGet returns the entry for the rule, position, level and variable values. A lookup walks the
   // first memoScan entries of the position's chain and then asks the position's hash index, so
-  // it costs the size of its key and not the length of the chain. It charges nothing: the call paid
-  // for the lookup of its key (chargeKey).
+  // it costs the size of its key and not the length of the chain. It counts no units: the call counted
+  // its key (keyUnits).
   memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
     let e = this.slots[pos < this.gap ? pos : pos + this.gapLen] || null;
     for (let n = 0; e && n < memoScan; e = e.next, n++) {
@@ -3339,7 +3228,7 @@ export class Parser {
       return null;
     }
     const ix = this.memoIndexAt(pos);
-    return this.memoProbe(ix, memoKeyHash(rule, min, env, null), (x) => x.rule === rule && x.min === min && sameValues(x.env, env));
+    return this.memoProbe(ix, memoKeyHash(rule, min, env), (x) => x.rule === rule && x.min === min && sameValues(x.env, env));
   }
 
   /** memoIndex holds the hash index of each position whose chain has more than memoScan entries. */
@@ -3370,7 +3259,7 @@ export class Parser {
       ix = new Map();
       this.alloc(2 * mapEntryBytes + mapBytes);
       for (let e = this.slots[pos < this.gap ? pos : pos + this.gapLen] || null; e; e = e.next) {
-        this.memoProbe(ix, memoKeyHash(e.rule, e.min, e.env, null), () => false);
+        this.memoProbe(ix, memoKeyHash(e.rule, e.min, e.env), () => false);
         ix.set(this.memoSlot, e);
         this.alloc(mapEntryBytes);
       }
@@ -3380,7 +3269,7 @@ export class Parser {
   }
 
   // memoPut stores e under the key, replacing an entry with the same key unless the join of the two
-  // keeps that entry (joinStored), and returns the entry it keeps. The store charges nothing: it
+  // keeps that entry (joinStored), and returns the entry it keeps. The store counts no units: it
   // follows the evaluation of a body that counted, and its walk costs what memoGet's does.
   memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
     this.alloc(entryBytes);
@@ -3400,7 +3289,7 @@ export class Parser {
     if (replaced === null && x) {
       // A long chain: the index finds the entry to replace.
       ix = this.memoIndexAt(pos);
-      replaced = this.memoProbe(ix, memoKeyHash(rule, min, env, null), same);
+      replaced = this.memoProbe(ix, memoKeyHash(rule, min, env), same);
       ixSlot = this.memoSlot;
       if (replaced !== null) {
         prev = null;
@@ -3413,7 +3302,7 @@ export class Parser {
       ix = this.memoIndex?.get(pos);
       if (ix !== undefined) {
         const r = replaced;
-        this.memoProbe(ix, memoKeyHash(r.rule, r.min, r.env, null), (y) => y === r);
+        this.memoProbe(ix, memoKeyHash(r.rule, r.min, r.env), (y) => y === r);
         ixSlot = this.memoSlot;
       }
     }
@@ -3437,8 +3326,7 @@ export class Parser {
     }
     if (this.slots.length === 0) {
       // One slot per position, allocated at once: writes far beyond the end of an array would
-      // make it a slow dictionary. Filling them charges no unit: there is one for each position of
-      // the input, which the parse counts as a whole.
+      // make it a slow dictionary. Filling them counts no units: the memo is no event of the parse.
       const slots: (MemoEntry | null)[] = new Array(this.n + 1).fill(null);
       if (this.control !== null) {
         this.alloc(arrayBytes(slots.length));
@@ -3465,7 +3353,7 @@ export class Parser {
     return e;
   }
 
-  // keyValues is envValues for a memo key, without charges: the call paid for its key (chargeKey).
+  // keyValues is envValues for a memo key: the call counted its units (keyUnits).
   keyValues(slots: number[]): Value[] | null {
     if (slots.length === 0) {
       return null;
@@ -3478,10 +3366,11 @@ export class Parser {
     return vals;
   }
 
-  // chargeKey charges the lookup of the memo key of a call of r, a rule that a parse from scratch
-  // memoizes (budget.chargeKey): one unit for each variable r reads and one for each byte of the
-  // UTF-8 encoding of each string value among them, whether or not the call looks the key up.
-  chargeKey(r: Rule): void {
+  // keyUnits counts the memo key of a call of r, a rule that a parse from scratch memoizes
+  // (units.key): one unit for each variable r reads and one for each byte of the UTF-8 encoding of
+  // each string value among them, whether or not the call looks the key up, as a sized event. A
+  // parse without limit controls leaves its key unread.
+  keyUnits(r: Rule): void {
     if (this.control === null || r.vars.length === 0) {
       return;
     }
@@ -3492,7 +3381,79 @@ export class Parser {
         n += utf8Len(v);
       }
     }
-    this.spendUnits(n);
+    this.unitsSized(n);
+  }
+
+  // enterCall counts the entry of a call of r that the overrides of call make outside the printed
+  // call protocol, as its entry counts it: one unit, checked if r is on a cycle of the call graph,
+  // and the key of a rule that a parse from scratch memoizes (keyUnits).
+  enterCall(r: Rule): void {
+    this.callUnit(r.rec);
+    if (r.leader || r.memo) this.keyUnits(r);
+  }
+
+  // skipUnits counts the units of the n calls of rules that the parse does not memoize, which the
+  // alternative that a guard skips would make before its first terminal fails: one each.
+  skipUnits(n: number): void {
+    this.unitsSized(n);
+  }
+
+  // skipCalls makes the effects that the calls of rules, outermost first, make when the first
+  // terminal of the last fails at the position with the expectation exp, as the evaluation makes them
+  // (call): each call counts its unit, and a call of a memoized rule the units of its key, checked
+  // where the evaluation checks them. A memoized rule records its first call (firstCall). Unless that
+  // defers its memoization, an entry that answers the call ends it, merging the entry's expectations,
+  // and the calls it would make are not made; otherwise the rest of the calls run in a record of their
+  // own, and the call stores the failure entry with that record's expectations, after those of the
+  // calls inside it. The failing terminal records exp. The calls are outside every left-recursion
+  // context and Document, which the guards that make them are not kept in. A rule that the parse
+  // does not memoize is given by its rec flag, all that its call's unit reads.
+  skipCalls(rules: (Rule | boolean)[], exp: number): void {
+    this.skipCallsFrom(rules, 0, exp);
+  }
+
+  private skipCallsFrom(rules: (Rule | boolean)[], i: number, exp: number): void {
+    if (i === rules.length) {
+      this.expect(this.pos, exp);
+      return;
+    }
+    const r = rules[i]!;
+    if (typeof r === "boolean") {
+      this.callUnit(r);
+      this.skipCallsFrom(rules, i + 1, exp);
+      return;
+    }
+    this.callUnit(r.rec);
+    this.keyUnits(r);
+    if (this.firstCall(r)) {
+      this.skipCallsFrom(rules, i + 1, exp);
+      return;
+    }
+    const start = this.pos;
+    const env = this.keyValues(r.vars);
+    const e = this.memoGet(r.id, start, 0, env);
+    if (e !== null && (!e.silent || this.silent > 0)) {
+      this.mergeKept(e.far, e.expected);
+      return;
+    }
+    const far0 = this.farthest;
+    const base0 = this.expBase;
+    this.expBase = this.expTop;
+    this.farthest = start;
+    this.skipCallsFrom(rules, i + 1, exp);
+    const far = this.farthest;
+    const from = this.expBase;
+    const to = this.expTop;
+    this.expTop = this.expBase;
+    this.expBase = base0;
+    this.farthest = far0;
+    const kept = this.keep(from, to);
+    const entry = this.memoPut(r.id, start, 0, env, newEntry(undefined, false, start, this.silent > 0, null));
+    if (!(this.silent > 0) || entry.silent) {
+      entry.far = far;
+      entry.expected = kept;
+    }
+    this.mergeExpected(far, from, to);
   }
 
   // envValues returns the current values of the variables in slots (null for none).
@@ -3503,16 +3464,13 @@ export class Parser {
     const vals: Value[] = new Array(slots.length);
     this.alloc(arrayBytes(slots.length));
     for (let i = 0; i < slots.length; i++) {
-      this.spend();
       vals[i] = this.variable(slots[i]!);
     }
     return vals;
   }
 
-  // variable returns the value of the variable in slot i. Under budget controls it costs one
-  // unit for each array on the path to the slot (the levels of the environment, and the leaf).
+  // variable returns the value of the variable in slot i.
   variable(slot: number): Value {
-    this.spend(this.envDepth + 1);
     return envGet(this.env!, slot, this.envDepth);
   }
 
@@ -3522,14 +3480,13 @@ export class Parser {
     }
     const f: Frame = new Array(n);
     this.alloc(arrayBytes(n));
-    // Opening a frame charges nothing: its slots are a constant of the grammar for the call.
+    // Opening a frame counts no units: captures are no event of the parse.
     f.fill(null);
     return f;
   }
 
-  // kids returns kidStack[base:] as a child list and pops it. It charges nothing: the values that the
-  // parse gathers are not an item of the cost, and taking each off is constant work for the evaluation
-  // that gathered it (spec/runtime/parsing.md#cost).
+  // kids returns kidStack[base:] as a child list and pops it. It counts no units: gathering the values
+  // of a parse is no event (spec/runtime/parsing.md#compute-units).
   kids(base: number): (Node | null)[] {
     const c = this.control;
     if (c !== null) c.mem += arrayBytes(this.kidStack.length - base);
@@ -3538,12 +3495,9 @@ export class Parser {
     return ks;
   }
 
-  // elemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action expression gathered
-  // above base as kids does and, under budget controls, reserves two units for each element, one for
-  // copying it and one for taking it off, in one reservation before it moves any.
+  // elemsAbove is action.elemsAbove (spec/exec-ir/values.md): it returns the elements that an action
+  // expression gathered above base as kids does.
   elemsAbove(base: number): (Node | null)[] {
-    const n = this.kidStack.length - base;
-    if (n > 0) this.control?.charge(2 * n);
     return this.kids(base);
   }
 
@@ -3552,10 +3506,9 @@ export class Parser {
     this.kidStack.length = base;
   }
 
-  // dropSpend pops values[base:], charging one unit for each.
-  dropSpend(values: unknown[], base: number): void {
+  // dropAbove pops values[base:].
+  dropAbove(values: unknown[], base: number): void {
     if (values.length > base) {
-      this.spend(values.length - base);
       values.length = base;
     }
   }
@@ -3625,26 +3578,6 @@ export class Parser {
   // peek returns the character at the current position (-1 at the end) and sets psize to its size
   // in units.
   peek(): number {
-    const control = this.control;
-    if (control !== null) {
-      if (this.pos >= this.n) {
-        control.charge(1); // EOF probes count, including repeated probes.
-        return -1;
-      }
-      if (this.unit === Bytes) {
-        const c = byteUnitSpend(this.bs, this.pos, this.n, control);
-        if (c < 0x80) {
-          this.psize = 1;
-          return c;
-        }
-        const decoded = decodeRuneSpend(this.bs, this.pos, this.n, control);
-        this.psize = decoded.size;
-        return decoded.rune;
-      }
-      control.charge(1);
-      this.psize = 1;
-      return this.cps[this.pos]!;
-    }
     if (this.pos >= this.n) {
       return -1;
     }
@@ -3663,8 +3596,6 @@ export class Parser {
   }
 
   unitLen(s: string): number {
-    const control = this.control;
-    if (control !== null) return this.unit === Bytes ? utf8LenSpend(s, control) : runeCountValueSpend(s, control);
     return this.unit === Bytes ? utf8Len(s) : runeCount(s);
   }
 
@@ -3696,9 +3627,8 @@ export class Parser {
   }
 
   // unisolate ends the record that isolate began, returns the farthest position it reached and
-  // leaves a copy of its expectations in isoIds. It charges no units, as exp.unisolate bounds
-  // (spec/exec-ir/operations.md): each expectation it copies was charged when it was recorded, and a
-  // merge charges it again. The copy counts toward the memory limit.
+  // leaves a copy of its expectations in isoIds. It counts no units: expectations are no event of the
+  // parse. The copy counts toward the memory limit.
   unisolate(mk: number): number {
     const far = this.farthest;
     const from = this.expBase;
@@ -3733,7 +3663,6 @@ export class Parser {
   renameExpected(ids: number[], name: number): number[] {
     const out: number[] = [];
     for (const id of ids) {
-      this.spend();
       out.push((id & msgBit) !== 0 ? id : name);
     }
     return out;
@@ -3767,20 +3696,18 @@ export class Parser {
 
   // scanReach is called by a walk of the scan site that began at start when it has matched
   // SCAN_HOT_SPAN characters, count of them. At a hot site with a record of start it moves to the
-  // recorded end and returns the recorded count, charging one unit for the lookup and one for the
-  // record; otherwise it returns count, charging one unit for the lookup at a hot site.
+  // recorded end and returns the recorded count; otherwise it returns count. It counts no units: the
+  // records of a site are no event of the parse.
   scanReach(site: number, start: number, count: number): number {
     const i = 2 * site + (this.silent > 0 ? 1 : 0);
     this.scanHotNow = this.scanCold[i]?.hot === true;
     this.scanHit = false;
     if (!this.scanHotNow) return count;
-    this.spend();
     const rec = this.scanTables[site]?.get(start);
     if (rec === undefined) {
       this.scanExaminedBegin();
       return count;
     }
-    this.spend();
     this.scanHit = true;
     this.scanRec = rec;
     this.pos = rec.end;
@@ -3829,9 +3756,8 @@ export class Parser {
     return kids;
   }
 
-  // scanStore records the walk of the site that began at start, charging one unit.
+  // scanStore records the walk of the site that began at start.
   scanStore(site: number, start: number, rec: ScanRecord): void {
-    this.spend();
     let t = this.scanTables[site];
     if (t === undefined) {
       t = new Map();
@@ -3924,15 +3850,14 @@ export class Parser {
   }
 
   // walkKey returns the key of the walk at the current position: the values of the variables of the
-  // key and their hash for a site keyed by them, noKey otherwise. Reading the values and hashing
-  // them charge as for a memo key.
+  // key and their hash for a site keyed by them, noKey otherwise.
   walkKey(): WalkKey {
     const k = this.walk().key;
     if (k === null) {
       return noKey;
     }
     const vals = this.envValues(k.vars);
-    return { vals, h: memoKeyHash(0, 0, vals, this.control) };
+    return { vals, h: memoKeyHash(0, 0, vals) };
   }
 
   // walkBind returns the values of the variables that the element of the walk's site binds, in the
@@ -3974,12 +3899,10 @@ export class Parser {
     }
     const w = this.walk();
     this.skipClose();
-    this.spend();
-    const r = w.slots?.get(this.pos, this.walkKey(), this.control);
+    const r = w.slots?.get(this.pos, this.walkKey());
     if (r === undefined || (w.build && !r.list)) {
       return false;
     }
-    this.spend();
     this.documentTouch(r.examined);
     this.documentTouchFrom(r.from);
     this.mergeKept(r.far, r.exp);
@@ -4045,7 +3968,7 @@ export class Parser {
   }
 
   // skipEnd ends the walk and records the rest of it from each position it visited recording. A walk
-  // that builds values drops them, uncharged.
+  // that builds values drops them.
   skipEnd(): void {
     this.walkEnd();
     const w = this.walk();
@@ -4057,9 +3980,8 @@ export class Parser {
 
   // skipKids ends a walk begun with build as skipEnd does, and returns the values of its iterations,
   // then those of the record it took, as a child list. The list may share its elements with the
-  // records of other walks. Like kids it charges nothing: the values that the parse gathers, takes
-  // off, places in records and drops are not an item of the cost (spec/runtime/parsing.md#cost); each
-  // is moved a constant number of times for the iteration that gathered it or the record that holds it.
+  // records of other walks. Like kids it counts no units: the values that the parse gathers, takes
+  // off, places in records and drops are no event (spec/runtime/parsing.md#compute-units).
   skipKids(): (Node | null)[] {
     const n = this.walk().vals.length;
     this.walkEnd();
@@ -4068,8 +3990,7 @@ export class Parser {
     if (w.placed) {
       // The elements from lo on are never written again, and a buffer whose list starts at 0 is
       // never written below it: such a list is the buffer itself. Otherwise the list is a copy, which
-      // the Go runtime makes no copy of and charges nothing for (a slice of the buffer), so its time
-      // is not charged here either.
+      // the Go runtime makes no copy of (a slice of the buffer).
       const b = w.buf!;
       kids = w.lo === 0 ? b.a : b.a.slice(w.lo);
     } else {
@@ -4145,8 +4066,8 @@ export class Parser {
   // placeVals places the list of the walk: its values, then the elements of the record it took (if
   // any, hit), from w.lo on in w.buf. It writes the values in place before the tail where the buffer
   // has room there that no record refers to, and otherwise copies the tail with room to spare, so
-  // that a walk that goes on to reach a record again finds it. Placing the values charges nothing
-  // (skipKids); copying the tail charges a unit for each element: the cost of the grammar does not
+  // that a walk that goes on to reach a record again finds it. Placing the values counts no units
+  // (skipKids); copying the tail counts a unit for each element: the cost of the grammar does not
   // bound these suffix copies (spec/runtime/parsing.md#run-sites).
   placeVals(w: SkipWalk, hit: SkipRecord | null): void {
     const vals = w.vals;
@@ -4175,7 +4096,7 @@ export class Parser {
     this.alloc(arrayBytes(a.length));
     for (let k = 0; k < n; k++) a[slack + k] = vals[k]!;
     if (tl > 0) {
-      this.spend(tl);
+      this.unitsSized(tl); // a suffix copy (spec/runtime/parsing.md, Compute Units)
       for (let k = 0; k < tl; k++) a[slack + n + k] = tb!.a[ti + k]!;
     }
     w.buf = { a, lo: slack };
@@ -4185,7 +4106,6 @@ export class Parser {
   // skipPut stores the record r of the position pos, for walks that start in env, in the slots of
   // the walk.
   skipPut(pos: number, k: WalkKey, r: SkipRecord): void {
-    this.spend();
     this.skipSlot(pos, k, r);
   }
 
@@ -4200,7 +4120,7 @@ export class Parser {
       this.alloc(objectBytes(3) + arrayBytes(0) + mapBytes);
     }
     const words = s.marks.length;
-    const made = s.put(pos, k, r, this.control);
+    const made = s.put(pos, k, r);
     // The words the marks grew by, and the record with its map entry.
     this.alloc(8 * (s.marks.length - words) + (r === null ? 0 : objectBytes(10) + mapEntryBytes) + (made ? mapBytes : 0));
   }
@@ -4208,13 +4128,9 @@ export class Parser {
   // text returns the text of [start, end): a range of the input, which costs a constant whatever
   // its length (the string the slice builds is not part of the parse cost).
   text(start: number, end: number): string {
-    const control = this.control;
-    if (control !== null) {
-      control.charge(1);
-    }
     const from = this.offs === null ? start : this.offs[start]!;
     const to = this.offs === null ? end : this.offs[end]!;
-    if (control !== null) control.mem += sliceBytes(to - from);
+    this.alloc(sliceBytes(to - from));
     return this.src.slice(from, to);
   }
 
@@ -4228,7 +4144,6 @@ export class Parser {
     const exp: string[] = [];
     const msgs: string[] = [];
     for (const x of expected) {
-      this.spend();
       if (x === expFar) continue;
       if ((x & msgBit) !== 0) {
         msgs.push(this.g.descs[x & ~msgBit]!);
@@ -4236,15 +4151,13 @@ export class Parser {
         exp.push(this.g.descs[x]!);
       }
     }
-    if (this.control === null) exp.sort(compareExpected);
-    else sortExpectedSpend(exp, this.control);
+    exp.sort(compareExpected);
     // Look the line up in a table of line starts, built on the first error, instead of scanning
     // from the start of the input for each error.
     if (this.lines === null) {
       const lines = [0];
       const units = this.unit === Bytes ? this.bs : this.cps;
       for (let i = 0; i < this.n; i++) {
-        this.control?.charge(1);
         if (units[i] === 0x0a) {
           lines.push(i + 1);
         }
@@ -4257,7 +4170,6 @@ export class Parser {
     let lo = 0;
     let hi = this.lines.length;
     while (lo < hi) {
-      this.spend();
       const mid = (lo + hi) >>> 1;
       if (this.lines[mid]! < pos + 1) {
         lo = mid + 1;
@@ -4266,11 +4178,9 @@ export class Parser {
       }
     }
     const col = pos - this.lines[lo - 1]! + 1;
-    if (this.control !== null) reserveSyntaxMessageSpend(lo, col, exp, msgs, this.control);
     const error = bare ? bareSyntaxError(pos, lo, col, exp, msgs) : new SyntaxError(pos, lo, col, exp, msgs);
     // The error object with its message, and its lists of expectations and messages.
     this.alloc(objectBytes(8) + stringBytes(error.message.length) + arrayBytes(exp.length) + arrayBytes(msgs.length));
-    this.control?.check();
     return error;
   }
 
@@ -4279,8 +4189,7 @@ export class Parser {
     const w = Math.floor(i / 32);
     const bit = 1 << i % 32;
     if (w >= this.seen.length) {
-      // Growing the record charges no unit: it grows to the positions and rules of counted calls,
-      // by doubling.
+      // The record grows to the positions and rules of counted calls, by doubling.
       const grown = new Int32Array(Math.max(w + 1, 2 * this.seen.length, 64));
       this.alloc(typedBytes(grown.byteLength));
       grown.set(this.seen);
@@ -4301,8 +4210,7 @@ export class Parser {
       this.seenPageChunks = [];
       this.alloc(2 * arrayBytes(0));
     }
-    // Recording the call charges nothing, and neither does growing the record: it grows to the
-    // positions and rules of counted calls, by pages of 1,024 positions.
+    // The record grows to the positions and rules of counted calls, by pages of 1,024 positions.
     let pages = this.seenPages[s];
     if (pages === undefined) {
       pages = [];
@@ -4395,7 +4303,7 @@ export class Parser {
   // spec/runtime/parsing.md and spec/proofs/memoization.md), without Documents: the examined input
   // of results is not tracked.
 
-  // recSince returns the errors recovered since the mark rec, charging one unit per entry after it:
+  // recSince returns the errors recovered since the mark rec:
   // none, the single entry after the mark, or a new list of the entries after it, which then takes
   // their place in the record, so that a later recSince over an earlier mark visits it as one entry.
   // A mark after rec is no longer valid.
@@ -4405,10 +4313,9 @@ export class Parser {
       return null;
     }
     if (end - rec === 1) {
-      this.spend();
       return this.recovered[rec]!;
     }
-    const l = new ErrList(this.control === null ? this.recovered.slice(rec) : copyEntriesSpend(this.recovered, rec, end, this.control));
+    const l = new ErrList(this.recovered.slice(rec));
     this.alloc(objectBytes(1));
     this.recovered.length = rec;
     this.recovered.push(l);
@@ -4464,7 +4371,6 @@ export class Parser {
   presentWide(gp: number): number {
     const w: number[] = [];
     for (let i = gp; i < this.gamma.length; i++) {
-      this.spend();
       const k = this.gamma[i]!.idx;
       while (w.length <= k >> 5) {
         w.push(0);
@@ -4477,12 +4383,10 @@ export class Parser {
   // intern returns a positive number for key that no other key has while a growth is in progress.
   // The numbers identify present sets and lookahead outcomes too large for a word; they appear only in the context tables
   // and dependencies of growths in progress, and the parser forgets them when the last growth ends
-  // (growEnd). A new number costs a budget unit if charged, as in the Go runtime; numbers that only
-  // this runtime needs (obsOutcome) are not charged.
-  intern(key: string, charged = true): number {
+  // (growEnd).
+  intern(key: string): number {
     let v = this.interned.get(key);
     if (v === undefined) {
-      if (charged) this.spend();
       v = ++this.internSeq;
       this.interned.set(key, v);
     }
@@ -4590,7 +4494,6 @@ export class Parser {
         return;
       }
     }
-    this.spend();
     this.deps.push(d);
   }
 
@@ -4638,7 +4541,6 @@ export class Parser {
     }
     const out: Sdep[] = [];
     for (const d of ds) {
-      this.spend();
       if (d.kind === depObs) {
         out.push({ kind: depObs, rule: 0, min: 0, site: d.idx, val: d.val });
       } else {
@@ -4790,13 +4692,11 @@ export class Parser {
     if (t === null) {
       return null;
     }
-    this.spend();
     const sets = t.heads.get(h);
     if (sets === undefined) {
       return null;
     }
     next: for (const s of sets) {
-      this.spend();
       let k = "";
       for (let j = 0; j < s.seeds.length; j += 2) {
         const i = this.gammaFind(gp, s.seeds[j]!, s.seeds[j + 1]!);
@@ -4813,8 +4713,7 @@ export class Parser {
         k += v + ",";
       }
       for (let x: CtxSlot | null = s.vals.get(k) ?? null; x !== null; x = x.next) {
-        this.spend();
-        if (env === null && x.env === null || sameValues(x.env, env, this.control)) {
+        if (env === null && x.env === null || sameValues(x.env, env)) {
           this.foundSet = s;
           return x;
         }
@@ -4847,7 +4746,6 @@ export class Parser {
       if (d.kind === depObs) k += d.val + ",";
     }
     const t = this.table(pos, gp, true)!;
-    this.spend();
     let sets = t.heads.get(h);
     if (sets === undefined) {
       sets = [];
@@ -4856,7 +4754,6 @@ export class Parser {
     }
     let set: CtxSet | null = null;
     for (const s of sets) {
-      this.spend();
       if (sameNumbers(s.seeds, seeds) && sameNumbers(s.obs, obs)) {
         set = s;
         break;
@@ -4870,8 +4767,7 @@ export class Parser {
     slot.deps = ds;
     const link = set.vals.get(k) ?? null;
     for (let x = link; x !== null; x = x.next) {
-      this.spend();
-      if (x.env === null && slot.env === null || sameValues(x.env, slot.env, this.control)) {
+      if (x.env === null && slot.env === null || sameValues(x.env, slot.env)) {
         // Replace the result in place: the other kind of context (inside or outside a lookahead)
         // evaluated it again.
         const nx = x.next;
@@ -4909,15 +4805,14 @@ export class Parser {
   // examined range is [from, examined) (pos in a parse that does not track it): equal values are
   // equal outcomes with equal examined ranges. An outcome whose range reaches 2^30 units or more from
   // pos, or that does not hold pos, gets an interned number, as in the Go runtime; so does one that
-  // reaches 2^22 units or more before pos, whose encoding would not fit in a safe integer, without
-  // the budget unit of intern. Interned outcomes are negative and below obsNone.
+  // reaches 2^22 units or more before pos, whose encoding would not fit in a safe integer. Interned outcomes are negative and below obsNone.
   obsOutcome(ok: boolean, pos: number, examined: number, from: number): number {
     const hi = examined - pos;
     const lo = pos - from;
     const wide = hi < 0 || lo < 0 || hi >= 2 ** 30 || lo >= 2 ** 30;
     if (wide || lo >= 2 ** 22) {
       const key = "o" + (ok ? 1 : 0) + "," + hi + "," + lo;
-      return obsNone - this.intern(key, wide);
+      return obsNone - this.intern(key);
     }
     return lo * 2 ** 31 + hi * 2 + (ok ? 1 : 0);
   }
@@ -4992,8 +4887,8 @@ export class Parser {
   // growBegin starts the growth of the leader r at level min at the current position from a failure.
   // A growth in a context, where another leader of its cycle grows, memoizes its steps (growMemoStep, growKeepStep).
   growBegin(r: Rule, min: number): GrowState {
-    // One budget unit before each evaluation of the body, the seed's included.
-    this.spend();
+    // The growth counts no unit itself: the composition counts each evaluation of the body, the seed's
+    // included.
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
@@ -5072,7 +4967,6 @@ export class Parser {
   // drops the errors after the growth's mark.
   growAdopt(g: GrowState, v: R, errs: Errs): void {
     const rec = this.gamma[g.gi]!;
-    this.spend();
     this.alloc(objectBytes(9));
     rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow(), this.fromNow());
     rec.id = this.nextSeedID();
@@ -5155,7 +5049,6 @@ export class Parser {
     } else {
       this.recordJumps(g);
     }
-    this.spend();
     this.setSeed(g, s, id);
     this.pos = g.start;
   }
@@ -5208,7 +5101,6 @@ export class Parser {
     let acc: JumpRec = { end: cur.seed, id: cur.id, far: -1, exp: noExp, examined: g.start, from: g.start, silent: false, deps: noSdeps };
     for (let i = g.run.length - 1; i >= 0; i--) {
       const s = g.run[i]!;
-      this.spend();
       acc = { ...acc };
       if (s.far > acc.far) {
         acc.far = s.far;
@@ -5239,7 +5131,6 @@ export class Parser {
   // ends its run there again, with the same observations and other shadows.
   jumpShadowed(js: JumpRec[], j: JumpRec): boolean {
     next: for (const e of js) {
-      this.spend();
       if (e.silent && !j.silent) {
         continue;
       }
@@ -5259,13 +5150,11 @@ export class Parser {
     if (t === null || t.jumps === null) {
       return null;
     }
-    this.spend();
     const js = t.jumps.get(jumpKey(g, id));
     if (js === undefined) {
       return null;
     }
     next: for (const j of js) {
-      this.spend();
       if (j.silent && this.silent === 0) {
         continue;
       }
@@ -5293,7 +5182,6 @@ export class Parser {
     }
     const out = a.slice();
     for (const x of b) {
-      this.spend();
       if (!out.includes(x)) {
         out.push(x);
       }
@@ -5314,7 +5202,6 @@ export class Parser {
       t.canon = new Map();
     }
     const ck = g.rule + "," + g.min + "," + e.end;
-    this.spend();
     const c = t.canon.get(ck);
     if (c !== undefined) {
       const budget = { n: 64 };
@@ -5341,7 +5228,6 @@ export class Parser {
     if (--budget.n < 0) {
       return false;
     }
-    this.spend();
     if (Object.getPrototypeOf(a) !== Object.getPrototypeOf(b) || a.type !== b.type || a.rule !== b.rule || a.start !== b.start || a.end !== b.end ||
       a.text !== b.text || a.fresh !== b.fresh || a.terminal !== b.terminal || a.labeled !== b.labeled || a.box !== null || b.box !== null ||
       (a instanceof TypedNode && a.base !== (b as TypedNode).base) ||
@@ -5399,11 +5285,11 @@ export class Parser {
   // frame (the body never writes one, so the caller's stays current), with the failure handling of
   // call.
   invokePlain(r: Rule, min: number): R {
-    this.spend();
+    this.callUnit(r.rec);
     return this.invokePlainBody(r, min);
   }
 
-  // invokePlainBody is invokePlain without the step of the entry, which the caller charges.
+  // invokePlainBody is invokePlain without the unit of the call, which the caller counts.
   invokePlainBody(r: Rule, min: number): R {
     const start = this.pos;
     const rec = this.recovered.length;
@@ -5487,9 +5373,8 @@ export class Parser {
   }
 
   // attachCaptures attaches the non-null captures as fields of the node. A node of another rule, or
-  // one that is itself captured, is first wrapped in a tuple node. It charges nothing: captures and the
-  // nodes that the parse builds are not an item of the cost (spec/runtime/parsing.md#cost), and the
-  // slots and names of a scope, and so the fields that it looks at, are a constant of the grammar.
+  // one that is itself captured, is first wrapped in a tuple node. It counts no units: captures and the
+  // nodes that the parse builds are no event (spec/runtime/parsing.md#compute-units).
   attachCaptures(v: Node | null, names: string[], f: Frame, start: number, end: number): Node | null {
     let found = false;
     let wrap = v === null || !v.fresh;
@@ -5580,11 +5465,12 @@ export class Parser {
 
   // --- Terminals ---
 
+  // The terminals count the input they advance over (Parser.units).
+
   // matchLiteral matches the literal at the position. A literal that fails leaves the position where
   // it was, also after matching a part of its text (flow.matchLit); so do matchLiteralFold and
   // matchReplacementLiteral.
   matchLiteral(lit: Lit, desc: number, build: boolean): R {
-    this.spend();
     const start = this.pos;
     if (this.unit === Bytes) {
       const b = lit.bytes;
@@ -5592,7 +5478,6 @@ export class Parser {
         return this.matchReplacementLiteral(lit, desc, build);
       }
       for (let i = 0; i < b.length; i++) {
-        this.control?.charge(1);
         if (this.bs[this.pos + i] !== b[i]) {
           return this.matchReplacementLiteral(lit, desc, build);
         }
@@ -5600,7 +5485,6 @@ export class Parser {
       this.pos += b.length;
     } else {
       for (const r of lit.cps) {
-        this.control?.charge(1);
         if (this.pos >= this.n || this.cps[this.pos] !== r) {
           this.pos = start;
           this.expect(start, desc);
@@ -5609,6 +5493,7 @@ export class Parser {
         this.pos++;
       }
     }
+    this.units += this.pos - start;
     if (!build) {
       return null;
     }
@@ -5620,7 +5505,6 @@ export class Parser {
   // letter lowercased; each character is compared as matchChar compares it, with an ASCII letter of
   // the input folded the same way.
   matchLiteralFold(lit: Lit, desc: number, build: boolean): R {
-    this.spend();
     const start = this.pos;
     for (const want of lit.cps) {
       const size = this.matchChar(want, true);
@@ -5631,6 +5515,7 @@ export class Parser {
       }
       this.pos += size;
     }
+    this.units += this.pos - start;
     if (!build) {
       return null;
     }
@@ -5641,16 +5526,7 @@ export class Parser {
   // Keep replacement decoding off the successful byte-comparison path.
   matchReplacementLiteral(lit: Lit, desc: number, build: boolean): R {
     const start = this.pos;
-    let replacement = false;
-    if (this.control === null) {
-      replacement = lit.cps.includes(0xfffd);
-    } else {
-      for (const cp of lit.cps) {
-        this.spend();
-        if (cp === 0xfffd) { replacement = true; break; }
-      }
-    }
-    if (!replacement) {
+    if (!lit.cps.includes(0xfffd)) {
       this.expect(start, desc);
       return undefined;
     }
@@ -5663,6 +5539,7 @@ export class Parser {
       }
       this.pos += size;
     }
+    this.units += this.pos - start;
     if (!build) {
       return null;
     }
@@ -5677,15 +5554,13 @@ export class Parser {
   // byte that differs: no character that begins with other bytes can be want, so the bytes after it
   // are not examined. U+FFFD also matches one invalid byte, which only decoding tells, so it decodes
   // the character. With fold, want is folded (foldASCII) and an ASCII letter of the input matches it
-  // in either case. It records the input it examined and consumes nothing; it charges a unit for
-  // reading the character, as peek does, and what decoding charges when it decodes. It is also the
-  // guard of an alternative that begins with a literal whose first character is want.
+  // in either case. It records the input it examined and consumes nothing. It is also the guard of an
+  // alternative that begins with a literal whose first character is want.
   matchChar(want: number, fold: boolean): number {
     if (this.unit !== Bytes || want === 0xfffd) {
       const got = this.peek();
       return got >= 0 && (got === want || (fold && foldASCII(got) === want)) ? this.psize : -1;
     }
-    this.control?.charge(1);
     const n = want < 0x80 ? 1 : want < 0x800 ? 2 : want < 0x10000 ? 3 : 4;
     for (let k = 0; k < n; k++) {
       const i = this.pos + k;
@@ -5704,17 +5579,14 @@ export class Parser {
     if (this.pos === 0) {
       return true;
     }
-    this.control?.charge(1);
     return (this.unit === Bytes ? this.bs[this.pos - 1] : this.cps[this.pos - 1]) === 0x0a;
   }
 
   // atLineEnd reports whether a line ends at the position (`$`): the input ends there or a line feed
   // or a carriage return follows. It examines the slot at the position alone
   // (spec/runtime/documents.md, Slots): a line feed and a carriage return are one byte each, so in
-  // bytes the byte at the position decides it and no character is decoded. It charges a unit for
-  // reading the slot.
+  // bytes the byte at the position decides it and no character is decoded.
   atLineEnd(): boolean {
-    this.control?.charge(1);
     this.documentTouch(this.pos + 1);
     if (this.pos >= this.n) {
       return true;
@@ -5724,7 +5596,6 @@ export class Parser {
   }
 
   atEnd(): boolean {
-    this.control?.charge(1);
     return this.pos === this.n;
   }
 
@@ -5814,7 +5685,7 @@ export class Parser {
   }
 
   // actionItemAt returns the element that map, filter, foldl or foldr passes to its function at step i; the loop
-  // charges the step.
+  // counts the visit.
   // Its text is printed from Exec IR (internal/ir/code/exec/compose).
   actionItemAt(items: readonly (Node | null)[], i: number, right: boolean): Value {
     throw new Error("the printed method replaces this one");
@@ -5862,8 +5733,14 @@ export class Parser {
     throw new Error("the printed method replaces this one");
   }
 
-  // fieldConforms returns whether v is a value of the type t of a cast in the value model, charging a step for
-  // each element of a list or a tuple it examines. Its text is printed from Exec IR (internal/ir/code/exec/compose).
+  // actionHullLogical is actionHull that counts one unit for each element of the list or tuple it
+  // builds.
+  actionHullLogical(c: Actx, tuple: boolean, kids: readonly (Node | null)[]): Node {
+    this.unitsSized(kids.length);
+    return this.actionHull(c, tuple, kids);
+  }
+
+  // fieldConforms returns whether v is a value of the type t of a cast in the value model. Its text is printed from Exec IR (internal/ir/code/exec/compose).
   fieldConforms(t: FieldType, v: Value): boolean {
     throw new Error("the printed method replaces this one");
   }
@@ -5904,30 +5781,30 @@ export class Parser {
     throw new Error("the printed method replaces this one");
   }
 
-  // strAdd, strCmp and strEq are the operations str.add, str.cmp and str.eq: under budget controls they
-  // charge for the bytes they read.
+  // strAdd, strCmp and strEq are the operations str.add, str.cmp and str.eq. Under limit controls they
+  // count their sized events: the bytes of UTF-8 of the string that strAdd builds, and those of the
+  // shorter string that a comparison covers.
   strAdd(l: Value, r: Value): Value {
-    return this.control === null ? (l as string) + (r as string) : joinValueStringsSpend([l as string, r as string], this.control);
+    if (this.control !== null) this.unitsSized(utf8Len(l as string) + utf8Len(r as string));
+    return (l as string) + (r as string);
   }
 
   strCmp(l: Value, r: Value): number {
-    return this.control === null ? compareStrings(l as string, r as string) : compareStringsSpend(l as string, r as string, this.control);
+    if (this.control !== null) this.unitsSized(Math.min(utf8Len(l as string), utf8Len(r as string)));
+    return compareStrings(l as string, r as string);
   }
 
   strEq(l: Value, r: Value): boolean {
-    return this.control === null ? l === r : equalStringsSpend(l as string, r as string, this.control);
+    if (this.control !== null) this.unitsSized(Math.min(utf8Len(l as string), utf8Len(r as string)));
+    return l === r;
   }
 
   // bindValue rebinds the variable in slot i, copying the path to the slot and preserving
-  // environments saved for rollback. Binding the value it has already is a no-op. Under budget
-  // controls it costs one unit for the old value and one for each array that a rebind copies.
+  // environments saved for rollback. Binding the value it has already is a no-op.
   bindValue(slot: number, val: Value): void {
-    const control = this.control;
-    this.spend();
     const old = envGet(this.env!, slot, this.envDepth);
     // Variables are checked scalar values; an equal binding has no effect.
-    if (control === null ? old === val : equalValuesSpend(old, val, control)) return;
-    this.spend(this.envDepth + 1);
+    if (old === val) return;
     // envSet copies one array of at most envWidth slots on each level.
     this.alloc((this.envDepth + 1) * arrayBytes(envWidth));
     this.env = envSet(this.env!, slot, this.envDepth, val);
@@ -6207,7 +6084,7 @@ export class ObservedParser extends TrackedParser {
     const o = this.observation!;
     o.enter(r.name, this.pos, min);
     const enclosing = this.docExaminedBegin();
-    this.spend();
+    this.enterCall(r);
     const v = !r.memo && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
     const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
@@ -6218,7 +6095,7 @@ export class ObservedParser extends TrackedParser {
     const o = this.observation!;
     o.enter(r.name, this.pos, min);
     const enclosing = this.docExaminedBegin();
-    this.spend();
+    this.callUnit(r.rec);
     const v = this.invokePlainBody(r, min);
     const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
@@ -6262,6 +6139,7 @@ export class ObservedParser extends TrackedParser {
  * input that each call examined, [docLow, docExamined), with its memo entry.
  */
 export class DocumentParser extends TrackedParser {
+  override readonly inDocument: boolean = true;
   // memoState is the memo that the Document keeps between parses, with what edits did to it.
   memoState: DocumentMemo = new DocumentMemo();
   // evaluated and reused count the rule evaluations and the reused results of the parse, and resumed
@@ -6280,7 +6158,7 @@ export class DocumentParser extends TrackedParser {
 
   override call(r: Rule, min: number): R {
     const o = this.observation;
-    this.spend();
+    this.enterCall(r);
     if (o === null) return this.callDocument(r, min);
     o.enter(r.name, this.pos, min);
     // callDocument restores the enclosing call's examined input; the call's own is what it leaves
@@ -6317,8 +6195,7 @@ export class DocumentParser extends TrackedParser {
     if (from < this.docLow) this.docLow = from;
   }
 
-  // memoAdvance applies to the entry e the edits of log that it does not account for yet, charging one
-  // unit for each, and reports whether e is still valid (DocumentMemo).
+  // memoAdvance applies to the entry e the edits of log that it does not account for yet and reports whether e is still valid (DocumentMemo).
   memoAdvance(e: MemoEntry, log: DocumentEdit[]): boolean {
     throw new Error("the printed method replaces this one");
   }
@@ -6330,9 +6207,7 @@ export class DocumentParser extends TrackedParser {
   }
 
   // unlinkLagged removes from the chain at pos the entries that lag behind (lagged) among the first
-  // limit entries that do not, or among all of them if limit is negative. Removing an entry charges
-  // nothing, as the walk does not: each entry is removed once, after the counted call that stored it.
-  // The index of the position, if there is one, no longer matches the chain and is dropped.
+  // limit entries that do not, or among all of them if limit is negative. The index of the position, if there is one, no longer matches the chain and is dropped.
   unlinkLagged(pos: number, limit: number): void {
     const i = pos < this.gap ? pos : pos + this.gapLen;
     let prev: MemoEntry | null = null;
@@ -6371,8 +6246,7 @@ export class DocumentParser extends TrackedParser {
     return super.memoPut(rule, pos, min, env, e);
   }
 
-  // An entry of an earlier parse that cannot take the edits since is not current: e replaces it. The
-  // store charges nothing, so the edits are applied without charges.
+  // An entry of an earlier parse that cannot take the edits since is not current: e replaces it.
   override joinStored(x: MemoEntry, e: MemoEntry): MemoEntry {
     const log = this.memoState.edits;
     if (x !== e && x.vgen !== log.length && !this.memoState.advanceEntry(x, log)) return e;
@@ -6382,8 +6256,7 @@ export class DocumentParser extends TrackedParser {
   // documentMove moves the nodes of the value of e by the shift that edits gave e (memoAdvance), in
   // copies, since the value may be part of a result already returned, and reports whether it could: a
   // value that holds a host value other than a node or a basic value is not moved. Moving the value is
-  // work of the Document that a parse from scratch does not do: a check of the value, one unit for each
-  // node it holds and one for each child and field, and a copy, which charges the same.
+  // work of the Document, which counts no units.
   documentMove(e: MemoEntry): boolean {
     const n = e.node;
     if (e.shift === 0) return true;
@@ -6392,23 +6265,17 @@ export class DocumentParser extends TrackedParser {
       e.shift = 0;
       return true;
     }
-    const fm = this.freeBegin(true);
-    try {
-      if (!this.movable(n, new Set())) return false;
-      e.node = this.moveNode(n, e.shift, new Map());
-      e.shift = 0;
-      return true;
-    } finally {
-      this.freeEnd(fm);
-    }
+    if (!this.movable(n, new Set())) return false;
+    e.node = this.moveNode(n, e.shift, new Map());
+    e.shift = 0;
+    return true;
   }
 
   // movable reports whether moveNode can move n: its fields and box hold only nodes and basic values.
-  // visited holds the nodes already checked; each is charged once.
+  // visited holds the nodes already checked.
   movable(n: Node | null, visited: Set<Node>): boolean {
     if (n === null || visited.has(n)) return true;
     visited.add(n);
-    this.spendUnits(1 + n.children.length + n.fields.length);
     if (!basicValue(n.box)) return false;
     for (const c of n.children) {
       if (!this.movable(c, visited)) return false;
@@ -6424,14 +6291,13 @@ export class DocumentParser extends TrackedParser {
   }
 
   // moveNode returns a copy of the movable node n with its positions and those of its descendants
-  // moved by shift, charging each copy as movable charges its check. moved maps the nodes copied so far
+  // moved by shift. moved maps the nodes copied so far
   // to their copies, so that a node that occurs more than once is copied once and its copies are
   // shared as it was.
   moveNode(n: Node | null, shift: number, moved: Map<Node, Node>): Node | null {
     if (n === null) return null;
     const done = moved.get(n);
     if (done !== undefined) return done;
-    this.spendUnits(1 + n.children.length + n.fields.length);
     const c: Node = Object.assign(Object.create(Object.getPrototypeOf(n)), n);
     moved.set(n, c);
     c.start += shift;
@@ -6554,16 +6420,11 @@ export class DocumentParser extends TrackedParser {
   // of the Document that a parse from scratch does not do.
   moveRunValue(v: Node | null, shift: number): Node | null {
     if (v === null) return null;
-    const fm = this.freeBegin(true);
-    try {
-      if (!this.movable(v, new Set())) {
-        // A run whose values may move holds nodes and basic values only (flow.resumeStart).
-        throw new Error("internal error: the value of an element of a run holds a host value that cannot move");
-      }
-      return this.moveNode(v, shift, new Map());
-    } finally {
-      this.freeEnd(fm);
+    if (!this.movable(v, new Set())) {
+      // A run whose values may move holds nodes and basic values only (flow.resumeStart).
+      throw new Error("internal error: the value of an element of a run holds a host value that cannot move");
     }
+    return this.moveNode(v, shift, new Map());
   }
 
   // runAdd is run.add.
@@ -6702,8 +6563,6 @@ export class Actx {
     this.p = p;
   }
 
-  spend(): void { this.p.spend(); }
-
   result(action: Action, where: string): Node | null {
     try {
       const [v, f] = action(this);
@@ -6723,7 +6582,6 @@ export class Actx {
       const n = v;
       const created = this.p.created;
       for (let i = this.cbase; i < created.length; i++) {
-        this.spend();
         if (created[i] === n) {
           n.start = this.start;
           n.end = this.end;
@@ -6763,11 +6621,18 @@ export class Actx {
   actionSetField(n: Node, name: string, v: Value): void {
     // The field record and its slot; the first field also makes the array.
     this.p.alloc((n.fields === noFields ? arrayBytes(0) + 16 : 0) + 8 + objectBytes(2));
-    setField(n, name, v, this.p.control);
+    setField(n, name, v);
   }
 
   newList(items: readonly (Node | null)[]): Node {
-    return this.listNode(this.p.control === null ? items.slice() : copyNodesSpend(items, 0, items.length, this.p.control));
+    return this.listNode(items.slice());
+  }
+
+  // newListLogical is newList for the list that map makes of a projection: it counts the elements that
+  // map visits and those of the list it builds.
+  newListLogical(items: readonly (Node | null)[]): Node {
+    this.p.unitsSized(2 * items.length);
+    return this.newList(items);
   }
 
   // listNode returns a list value with the child list kids (which it takes over). Its range, which
@@ -6794,16 +6659,13 @@ export class Actx {
       case "b":
         return [false, i + 1];
       case "l":
-        this.spend();
         return [this.listNode(this.p.elemsAbove(this.p.kidStack.length)), i + 1];
       case "(": {
         const base = this.p.kidStack.length;
-        this.spend();
         i++;
         while (i < d.length && d[i] !== ")") {
           let e: Value;
           [e, i] = this.zeroValue(d, i);
-          this.spend();
           if (this.p.actionPush(this, "tuple", e) !== null) {
             throw new Error("runtime: a zero value is not a tuple element"); // zero values are never functions
           }
@@ -6831,11 +6693,10 @@ export class Actx {
     return b;
   }
 
-  // pushAll pushes items on the parser's kidStack in order, charging one unit for each (the primitive
-  // act.pushAll).
+  // pushAll pushes items on the parser's kidStack in order (the primitive act.pushAll). It counts no
+  // units: the action counts the elements it builds.
   pushAll(items: readonly (Node | null)[]): void {
     for (const it of items) {
-      this.spend();
       this.p.kidStack.push(it);
     }
   }

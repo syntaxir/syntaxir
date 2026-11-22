@@ -24,7 +24,7 @@ import (
 // with types and with Documents, and does the same with the optimization used-features off, whose
 // copy is the whole library. Each narrowed copy is type-checked with the strictest options (when
 // tsc is found), so this also checks that narrowing leaves no dangling name and no unused local.
-// With limit controls, the narrowed copy must also charge the units that the whole library charges
+// With limit controls, the narrowed copy must also count the units that the whole library counts
 // for each input (the subtest limits/charges). The default tier runs the narrowed copies, the long
 // tier the whole library too.
 func TestUsedFeaturesTSParity(t *testing.T) {
@@ -74,7 +74,7 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 			}
 		}
 		if !charged {
-			t.Fatal("no parse charged a unit: the comparison checks nothing")
+			t.Fatal("no parse counted a unit: the comparison checks nothing")
 		}
 	})
 }
@@ -82,7 +82,7 @@ func TestUsedFeaturesTSParity(t *testing.T) {
 // tsSpentUnits generates the TypeScript parser of each case with opts, which must have limit
 // controls, parses each input that is valid UTF-8 as a string in both units under a compute limit
 // that no input reaches, and returns, per parse, the case, input, unit and the compute units that
-// the parse charged (the sum of the units passed to BudgetControl.charge and chargeUnits).
+// the parse counted (its ComputeReport).
 func tsSpentUnits(t *testing.T, node string, cases []codegentest.Case, opts common.GenOptions) []string {
 	t.Helper()
 	dir := t.TempDir()
@@ -147,7 +147,7 @@ func tsSpentUnits(t *testing.T, node string, cases []codegentest.Case, opts comm
 }
 
 // tsSpentHarness parses the inputs of inputs.json with the parsers g<i>.ts in a worker with a large
-// stack and prints, per parse, the compute units charged and the error, if any. The worker hands
+// stack and prints, per parse, the compute units counted and the error, if any. The worker hands
 // its output to the main thread, which writes it and lets the process end by itself: ending it
 // with process.exit when the worker exits can cut off output that a slow reader has not yet drained.
 const tsSpentHarness = tsWorkerMain + `
@@ -155,23 +155,17 @@ const tsSpentHarness = tsWorkerMain + `
   const lines = [];
   for (let i = 0; i < inputs.length; i++) {
     const m = await import("./g" + i + ".ts");
-    const proto = m.BudgetControl.prototype;
-    let spent = 0;
-    for (const name of ["charge", "chargeUnits"]) {
-      const f = proto[name];
-      proto[name] = function (n) { spent += n; return f.call(this, n); };
-    }
     for (const input of inputs[i]) {
       for (const unit of [m.CodePoints, m.Bytes]) {
-        spent = 0;
+        const report = { units: 0 };
         let err;
         try {
-          const r = m.parseWithOptions(input, { unit, limits: { compute: 2 ** 40 } });
+          const r = m.parseWithOptions(input, { unit, computeReport: report, limits: { compute: 2 ** 40 } });
           err = r.error === null ? "" : r.error.message;
         } catch (x) {
           err = "throw " + String(x);
         }
-        lines.push("spent " + spent + " " + JSON.stringify(err));
+        lines.push("spent " + report.units + " " + JSON.stringify(err));
       }
     }
   }

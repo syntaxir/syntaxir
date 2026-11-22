@@ -23,7 +23,7 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array(
  const active=p.parseWithOptions(input,{unit,signal:{aborted:false}}),converted=p.parseValueWithOptions(input,{unit,signal:{aborted:false}});
  check(active.error===null&&stable(active.node)===stable(normal.node)&&stable(converted.value)===stable(typed.value),"controlled action values match ordinary values");
  check(p.parseRuleWithOptions("fast",input,{unit,limits:{compute:128}}).error===null,"small match fits before action-string spend");
- for(const error of [p.parseWithOptions(input,{unit,limits:{compute:128}}).error,p.parseValueWithOptions(input,{unit,limits:{compute:128}}).error,p.recognizeWithOptions(input,{unit,limits:{compute:128}})])check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit"&&error.requested===128,"predicate-dependent action equality consumes bounded chunks");
+ for(const error of [p.parseWithOptions(input,{unit,limits:{compute:128}}).error,p.parseValueWithOptions(input,{unit,limits:{compute:128}}).error,p.recognizeWithOptions(input,{unit,limits:{compute:128}})])check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit"&&error.limit===128&&error.used>128&&error.requested===0,"predicate-dependent action equality counts the units it compares");
  let polls=0;const cause={marker:"action"};
  const stopped=p.parseWithOptions(input,{unit,signal:{get aborted(){return ++polls>=3},reason:cause}});
  check(stopped.node===null&&stopped.error instanceof p.ParseInterruptionError&&stopped.error.kind==="canceled"&&stopped.error.cause===cause,"cancellation during action equality");

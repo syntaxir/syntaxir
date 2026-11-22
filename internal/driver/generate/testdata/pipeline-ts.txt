@@ -45,7 +45,6 @@ pipeline program -> output {
             }
             func lowered-funcs@exec {
               slot target-passes {
-                ts-spend-runs
                 ts-merged-records
                 ts-tested-inits
               }

@@ -34,7 +34,7 @@ func TestTypeScriptConformanceOpr(t *testing.T) {
 	if res.ran < seeds {
 		t.Fatalf("only %d cases ran", res.ran)
 	}
-	tsReport(t, res, tsconformtest.OprSuiteOps, map[string]string{})
+	tsReport(t, res)
 }
 
 // TestTypeScriptConformanceOprDetectsMutants is the negative control of TestTypeScriptConformanceOpr. The

@@ -31,24 +31,19 @@ func TestTypeScriptConformanceFrame(t *testing.T) {
 	}
 	for _, controlled := range []bool{false, true} {
 		t.Run(fmt.Sprint("controlled=", controlled), func(t *testing.T) {
-			s := conform.Suite{Name: fmt.Sprint("typescript frame (controlled=", controlled, ")"), Ops: append(conform.FrameSuiteOps(false), budgetOps(controlled)...), Exact: tsFrameExact(controlled)}
+			s := conform.Suite{Name: fmt.Sprint("typescript frame (controlled=", controlled, ")"), Ops: append(conform.FrameSuiteOps(false), budgetOps(controlled)...), Free: tsFrameFree(controlled)}
 			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}
 			res := tsFrameRun(runner, tsconformtest.Frame(controlled), s, seeds, 150)
 			if res.ran < seeds {
 				t.Fatalf("only %d cases ran", res.ran)
 			}
-			known := map[string]string{}
-			if controlled {
-				known = tsChargeDivergences
-			}
-			tsReport(t, res, s.Ops, known)
+			tsReport(t, res)
 		})
 	}
 }
 
-// tsFrameExact are the operations whose charge the suite holds to the model's exactly, not only to its
-// bound: the operations that spend for each slot or each write.
-func tsFrameExact(controlled bool) []string {
+// tsFrameFree are the operations of the frames that count no compute units: captures are no event.
+func tsFrameFree(controlled bool) []string {
 	if !controlled {
 		return nil
 	}
@@ -74,21 +69,18 @@ func TestTypeScriptConformanceFrameDetectsMutants(t *testing.T) {
 		{name: "a write is not made", sig: "setCapture(slot: number", old: "this.frame[slot] = v;", new: ""},
 		{name: "a new frame has no empty slots", sig: "newFrame(n: number", old: "f.fill(null);", new: "f.fill(emptyFrame as unknown as null);"},
 		{name: "a frame of no slots is not shared", sig: "newFrame(n: number", old: "return emptyFrame;", new: "return [];"},
-		{name: "a new frame charges a unit for each of its slots", sig: "newFrame(n: number", old: "f.fill(null);", new: "this.spend(n);\n    f.fill(null);", charges: true},
+		{name: "a new frame counts a unit for each of its slots", sig: "newFrame(n: number", old: "f.fill(null);", new: "this.units += n;\n    f.fill(null);", charges: true},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
 			lib := tsMutate(t, m)
-			s := conform.Suite{Name: "typescript frame mutant", Ops: append(conform.FrameSuiteOps(false), budgetOps(m.charges)...), Exact: tsFrameExact(m.charges)}
+			s := conform.Suite{Name: "typescript frame mutant", Ops: append(conform.FrameSuiteOps(false), budgetOps(m.charges)...), Free: tsFrameFree(m.charges)}
 			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}
 			res := tsFrameRun(runner, tsconformtest.Frame(m.charges), s, 150, 150)
 			for _, err := range res.fails {
 				op, kind := tsFailureKind(err)
-				if m.charges && kind != "bound" && kind != "exact" {
-					continue
-				}
-				if _, known := tsChargeDivergences[op]; known && kind != "result" && kind != "other" {
+				if m.charges && kind != "bound" && kind != "exact" && kind != "free" {
 					continue
 				}
 				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])
@@ -108,14 +100,14 @@ func TestTypeScriptConformanceFramePrintedDetectsMutants(t *testing.T) {
 		{name: "a mark leaves out the trail", method: "op_frame_mark", old: "const r0Trail = this.trail.length;", new: "const r0Trail = 0;"},
 		{name: "an undo does not unwind the trail", method: "op_frame_undo", old: "u.f[u.slot] = u.old;", new: ""},
 		{name: "an undo keeps the entries", method: "op_frame_undo", old: "this.trail.length = p0;", new: ""},
-		{name: "an undo charges a unit for each write it undoes", method: "op_frame_undo", old: "u.f[u.slot] = u.old;", new: "this.spend();\n      u.f[u.slot] = u.old;", charges: true},
+		{name: "an undo counts a unit for each write it undoes", method: "op_frame_undo", old: "u.f[u.slot] = u.old;", new: "this.units++;\n      u.f[u.slot] = u.old;", charges: true},
 		{name: "a save keeps what was saved before", method: "op_frame_save", old: "this.saved.length = 0;", new: ""},
-		{name: "a save charges a unit for each slot", method: "op_frame_save", old: "this.saved.push(x);", new: "this.spend();\n      this.saved.push(x);", charges: true},
+		{name: "a save counts a unit for each slot", method: "op_frame_save", old: "this.saved.push(x);", new: "this.units++;\n      this.saved.push(x);", charges: true},
 		{name: "a restore reads the first slot only", method: "op_frame_restore", old: "p0[t] = this.saved[t]!;", new: "p0[t] = this.saved[0]!;"},
-		{name: "a restore charges a unit for each slot", method: "op_frame_restore", old: "p0[t] = this.saved[t]!;", new: "this.spend();\n      p0[t] = this.saved[t]!;", charges: true},
+		{name: "a restore counts a unit for each slot", method: "op_frame_restore", old: "p0[t] = this.saved[t]!;", new: "this.units++;\n      p0[t] = this.saved[t]!;", charges: true},
 	}
 	tsDetectPrinted(t, mutants, func(r tsconformtest.Runner, charges bool) tsConformResult {
-		s := conform.Suite{Name: "typescript frame printed mutant", Ops: append(conform.FrameSuiteOps(false), budgetOps(charges)...), Exact: tsFrameExact(charges)}
+		s := conform.Suite{Name: "typescript frame printed mutant", Ops: append(conform.FrameSuiteOps(false), budgetOps(charges)...), Free: tsFrameFree(charges)}
 		return tsFrameRun(r, tsconformtest.Frame(charges), s, 150, 150)
 	})
 }

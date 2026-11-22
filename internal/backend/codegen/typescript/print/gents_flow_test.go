@@ -143,9 +143,10 @@ for (let n = 1; n < 400; n++) {
   p.parseWithOptions("a;1;b;", { unit: p.CodePoints, limits: { compute: n } });
   check((Error as { stackTraceLimit?: number }).stackTraceLimit === limit, "limit restored after the budget limit " + n);
 }
-// Building the recovered error spends budget (the expectations and the table of line starts), so a
-// signal getter and an interruption run while it is built. Neither may see the lowered limit, and the
-// error of an interrupted parse keeps its stack.
+// The recovery counts the input it skips, so the signal is observed while the parse recovers, and
+// building the recovered error counts nothing (diagnostics are free), so neither a signal getter nor
+// an interruption runs while it is built. Neither sees the lowered limit, and the error of an
+// interrupted parse keeps its stack.
 const long = "a;1;b;" + "x".repeat(20000) + ";";
 const polled = (): number[] => {
   const seen: number[] = [];
@@ -155,22 +156,27 @@ const polled = (): number[] => {
 };
 const seen = polled();
 check(seen.length > 20 && seen.every((x) => x === limit), "the signal observes the stack limit: " + seen.filter((x) => x !== limit).length);
-// A negative control: lowering the limit around the whole of makeError is seen by the signal.
+// makeError reads no signal: a getter that runs while it builds the error would see it lowered.
 const proto = (p as unknown as { Parser: { prototype: unknown } }).Parser.prototype as { makeError: (...a: unknown[]) => unknown };
 const original = proto.makeError;
+let building = false, readWhileBuilding = 0;
 proto.makeError = function (this: unknown, ...a: unknown[]): unknown {
-  const v8 = Error as { stackTraceLimit?: number };
-  v8.stackTraceLimit = 0;
-  try { return original.apply(this, a); } finally { v8.stackTraceLimit = limit; }
+  building = true;
+  try { return original.apply(this, a); } finally { building = false; }
 };
-check(polled().some((x) => x === 0), "the control sees a lowered limit");
+const watched = { get aborted(): boolean { if (building) readWhileBuilding++; return false; } };
+check(p.parseWithOptions(long, { unit: p.CodePoints, signal: watched }).error instanceof p.SyntaxErrors, "the watched parse recovers");
+check(readWhileBuilding === 0, "building a recovered error reads the signal " + readWhileBuilding + " times");
 proto.makeError = original;
-for (let n = 40050; n <= 60000; n += 61) {
+let interrupted = 0;
+for (let n = 1; n <= 30000; n += 61) {
   const r = p.parseWithOptions(long, { unit: p.CodePoints, limits: { compute: n } });
   if (r.error instanceof p.ParseInterruptionError) {
+    interrupted++;
     check(typeof r.error.stack === "string" && r.error.stack.includes("\n    at "), "an interruption keeps its stack at " + n);
   }
 }
+check(interrupted > 0, "the limits interrupt the parse");
 console.log("ok");
 `, common.GenOptions{Start: "main"})
 	if !strings.Contains(out, "ok") {
@@ -191,7 +197,8 @@ func TestGeneratedTSLeavesOutUnreadCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, f := range files {
-		if strings.HasSuffix(f.Path, "parser.ts") && strings.Contains(string(f.Content), "++;") {
+		// The counter of compute units is no count of a repetition.
+		if strings.HasSuffix(f.Path, "parser.ts") && strings.Contains(strings.NewReplacer("p.units++;", "", "this.units++;", "").Replace(string(f.Content)), "++;") {
 			t.Errorf("the parser increments a count:\n%s", f.Content)
 		}
 	}

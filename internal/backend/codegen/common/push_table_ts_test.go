@@ -2,6 +2,7 @@ package common_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,12 +20,14 @@ import (
 
 // pushScript runs the calls of calls.json on the printed methods actionPush and actionPushItems of the TypeScript
 // library and prints, in order, the canonical result of each (conform.MemberCanon), the number of elements it
-// pushed and the units it charged. The input of the parser is input.txt.
+// pushed and the units it counted. The input of the parser is input.txt.
 const pushScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
+P.control = null;
+P.units = 0;
+P.unitsCheck = Infinity;
 P.created = [];
 P.kidStack = [];
 P.src = readFileSync("input.txt", "utf8");
@@ -47,7 +50,7 @@ const canon = (v: p.Value): string => {
   }
   return "not a value: " + String(v);
 };
-const used = (): number => (CONTROLLED ? (P.control as any).budgetUsed : 0);
+const used = (): number => (CONTROLLED ? P.units : 0);
 const calls: [string, string][] = JSON.parse(readFileSync("calls.json", "utf8"));
 console.log(JSON.stringify(calls.map(([fn, v]) => {
   const base = P.kidStack.length;
@@ -64,8 +67,8 @@ console.log(JSON.stringify(calls.map(([fn, v]) => {
 })));
 `
 
-// runTSPushes runs the push table on the TypeScript library after mutate changed its source, with a budget
-// control if controlled, and returns the result of each call by its call and value.
+// runTSPushes runs the push table on the TypeScript library after mutate changed its source, counting
+// its units if controlled, and returns the result of each call by its call and value.
 func runTSPushes(t *testing.T, controlled bool, mutate func(string) string) map[[2]string]string {
 	t.Helper()
 	node := tooltest.RequireNode(t)
@@ -129,14 +132,30 @@ func pushResult(got map[[2]string]string, call, v string) (string, int, int) {
 	return parts[0], pushed, units
 }
 
+// checkTSPushes runs the push table with the results of the TypeScript library. A push counts no compute
+// units: the code of an action counts the elements that concat builds itself (UNITSOF, units.items), as in
+// the engine, so the table's units, which a target whose pushItems counted them would charge, are not
+// checked; controlled, every call must have counted none.
+func checkTSPushes(name string, controlled bool, got map[[2]string]string) error {
+	var counted []string
+	err := conform.RunPushes(name, false, func(call, v string) (string, int, int) {
+		r, pushed, units := pushResult(got, call, v)
+		if controlled && units != 0 {
+			counted = append(counted, fmt.Sprintf("%s: %s(%s) counted %d units, want none", name, call, v, units))
+		}
+		return r, pushed, units
+	})
+	if err == nil && len(counted) > 0 {
+		err = fmt.Errorf("push table:\n%s", strings.Join(counted, "\n"))
+	}
+	return err
+}
+
 // TestValuePushTableTypeScript runs the push table (conform.PushCases) on the TypeScript library.
 func TestValuePushTableTypeScript(t *testing.T) {
 	t.Parallel()
 	for _, controlled := range []bool{false, true} {
-		got := runTSPushes(t, controlled, nil)
-		if err := conform.RunPushes("typescript controlled="+strconv.FormatBool(controlled), controlled, func(call, v string) (string, int, int) {
-			return pushResult(got, call, v)
-		}); err != nil {
+		if err := checkTSPushes("typescript controlled="+strconv.FormatBool(controlled), controlled, runTSPushes(t, controlled, nil)); err != nil {
 			t.Error(err)
 		}
 	}
@@ -156,7 +175,7 @@ func TestPrintedPushMutantsTypeScript(t *testing.T) {
 		{"nil pushes no element", "actionPush(c: Actx", "this.kidStack.push(null);", ""},
 		{"concat pushes no elements", "actionPushItems(c: Actx", "c.pushAll(items);", ""},
 		{"concat takes a value that is not a list", "actionPushItems(c: Actx", "if (ok) {", "if (true) {"},
-		{"concat charges nothing for the elements it pushes", "pushAll(items:", "this.spend();", ""},
+		{"concat counts the elements it pushes", "pushAll(items:", "this.p.kidStack.push(it);", "this.p.kidStack.push(it); this.p.units++;"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
@@ -168,7 +187,7 @@ func TestPrintedPushMutantsTypeScript(t *testing.T) {
 				}
 				return out
 			})
-			if conform.RunPushes(m.name, true, func(call, v string) (string, int, int) { return pushResult(got, call, v) }) == nil {
+			if checkTSPushes(m.name, true, got) == nil {
 				t.Error("the push table did not notice")
 			}
 		})

@@ -45,7 +45,7 @@ func TestTypeScriptConformanceDoc(t *testing.T) {
 	if res.ran < seeds+len(conform.DocCases()) {
 		t.Fatalf("only %d cases ran (%d skipped, %d pending)", res.ran, res.skipped, res.pending)
 	}
-	tsReport(t, res, tsDocSuite().Ops, nil)
+	tsReport(t, res)
 }
 
 // tsDocDetect requires the doc suite on the session's library to fail.

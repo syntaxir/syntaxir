@@ -16,8 +16,8 @@ import (
 //
 // Every action expression is lowered by flowlower.Action and printed from Exec IR as the statements of a function: the
 // calls of the compositions of the library's Parser (actionBinary, ...) with the failure of each checked
-// after it, a step charged for each subexpression under budget controls, and the leaves, which read the
-// captures and variables of the action.
+// after it, the logical compute units of the values it builds and the elements it visits under limit
+// controls, and the leaves, which read the captures and variables of the action.
 
 // actionStmts returns the statements of a function that returns the value of the action expression ct of Core IR,
 // printed from Exec IR. The scope s and the locals resolve the leaves (leaf). A predicate that
@@ -27,7 +27,7 @@ func (g *Generator) actionStmts(ct irc.ActionExpr, s *check.Scope, locals map[st
 	if ct == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := flowlower.Action(ct, flowlower.ActionOptions{Steps: !g.NoBudget, Unbounded: g.NoBudget, Proj: g.Proj, TextDispatch: dispatch})
+	l, err := flowlower.Action(ct, flowlower.ActionOptions{Unbounded: true, Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
 	}
@@ -83,10 +83,16 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			}
 			return decl + dst[0] + " = false;\nswitch (" + a[0] + ") { " + cases + dst[0] + " = true; }", true
 		},
-		Self:     "c.p",
-		Handle:   tsHandle,
-		FuncName: tsActionMethod,
-		Reg:      func(name string) string { panic("tsgen: a lowered action expression reads the register " + name) },
+		Self:   "c.p",
+		Handle: tsHandle,
+		FuncName: func(name string) string {
+			if g.Logical && name == "hull" {
+				// The list or tuple built counts one unit for each element.
+				return tsActionMethod(name) + "Logical"
+			}
+			return tsActionMethod(name)
+		},
+		Reg: func(name string) string { panic("tsgen: a lowered action expression reads the register " + name) },
 		Op: func(c *code.Call, a []string) string {
 			switch c.Callee {
 			case action.OpActionConst:
@@ -121,12 +127,19 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 				x := c.Imm.(action.Cast)
 				return fmt.Sprintf("castFailure(c, %s, %s, %d, %d)", a[0], g.castTypeVar(x), x.Line, x.Col)
 			case action.OpActionTextEqual:
-				// == of two strings, which charges as binary does.
+				// == of two strings, which counts the units of the comparison as binary does.
 				return fmt.Sprintf("c.p.%s(%d, %s, %s)[0] === true", tsActionMethod("binary"), action.BinaryCode("=="), a[0], a[1])
 			case action.OpActionFromStr, action.OpActionFromObj, "val.fromBool":
 				return a[0]
-			case action.OpActionSpend, "seq.step":
-				return "c.spend()"
+			case "seq.step":
+				// An element that map, filter or fold visits.
+				return "c.p.units++"
+			case "units.add":
+				return "c.p.unitsSized(" + a[0] + ")"
+			case "units.items":
+				return "c.p.unitsOfItems(" + a[0] + ", " + a[1] + ")"
+			case "units.since":
+				return "c.p.unitsSized(c.p.kidStack.length - " + a[0] + ")"
 			case "action.kids":
 				return "c.p.kidStack.length"
 			case "seq.len":
@@ -137,6 +150,9 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			case action.OpActionKeep:
 				return fmt.Sprintf("c.p.kidStack.push(%s[%s]!)", a[0], a[1])
 			case action.OpActionCopyList:
+				if g.Logical {
+					return "c.newListLogical(" + a[0] + ")"
+				}
 				return "c.newList(" + a[0] + ")"
 			case action.OpActionElemsAbove:
 				return "c.p.elemsAbove(" + a[0] + ")"

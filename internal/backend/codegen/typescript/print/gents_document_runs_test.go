@@ -90,7 +90,7 @@ const documentRunsScript = `
 // methods printed from the run compositions (runReuse, runPrefix, runResync, runTail) or in the run
 // records of DocumentParser. Each is the text replaced and its replacement.
 var documentRunsMutants = []struct{ name, old, new string }{
-	{"a reused element observes no signal", "    this.control?.poll();\n    const v = this.runTake(", "    const v = this.runTake("},
+	{"a reused element observes no signal", "    this.control?.step();\n    const v = this.runTake(", "    const v = this.runTake("},
 	{"a resumed element counts only as a memo hit", "    this.resumed++;\n", ""},
 	{"the reused prefix ignores the edit", "if (r.old[r.k]!.examined > r.editStart) {", "if (false) {"},
 	{"the reused tail does not move", "this.runReuse(r, i, r.editDelta,", "this.runReuse(r, i, 0,"},

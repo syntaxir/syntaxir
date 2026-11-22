@@ -25,8 +25,11 @@ func TestGeneratedTSBudgetControlFields(t *testing.T) {
  rule main Box = x:item {$x.` + names[width-1] + ` == 1} => $x
  rule item Box = "z" => Box{` + strings.Join(values, ",") + `}
  rule fast = "z"`
+	// Building a struct, reading its member and converting it count no units of their own, so each
+	// route counts the units of the engine's.
 	consumer := `import * as p from "./parser.ts";
-` + tsTypedAssert + `
+` + tsTypedAssert + tsUnitsOf + `
+const item=` + tsEngineUnits(t, src, "item", "z", false) + `,main=` + tsEngineUnits(t, src, "main", "z", false) + `,recognized=` + tsEngineUnits(t, src, "main", "z", true) + `;
 function minimum(fits:(n:number)=>boolean):number {
  let lo=0,hi=1;while(!fits(hi)){hi*=2;check(hi<10000000,"finite field budget")}
  while(lo+1<hi){const mid=Math.floor((lo+hi)/2);if(fits(mid))hi=mid;else lo=mid}
@@ -36,13 +39,9 @@ for(const unit of [p.CodePoints,p.Bytes]) {
  const normal=p.parse("z",unit),typed=p.parseValue("z",unit);
  const active=p.parseWithOptions("z",{unit,signal:{aborted:false}}),converted=p.parseValueWithOptions("z",{unit,signal:{aborted:false}});
  check(normal.error===null&&typed.error===null&&active.error===null&&converted.error===null&&stable(active.node)===stable(normal.node)&&stable(converted.value)===stable(typed.value),"field construction, lookup and typed conversion parity");
- check(p.parseRuleWithOptions("fast","z",{unit,limits:{compute:4096}}).error===null,"matching fits before field construction");
- const construction=p.parseRuleWithOptions("item","z",{unit,limits:{compute:4096}});
- check(construction.node===null&&construction.error instanceof p.ParseInterruptionError&&construction.error.kind==="compute-limit","field construction scans consume budget");
- for(const error of [p.parseWithOptions("z",{unit,limits:{compute:4096}}).error,p.parseValueWithOptions("z",{unit,limits:{compute:4096}}).error,p.recognizeWithOptions("z",{unit,limits:{compute:4096}})])check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit","field-dependent parse routes consume budget");
- const itemBudget=minimum(n=>p.parseRuleWithOptions("item","z",{unit,limits:{compute:n}}).error===null);
- const lookup=p.parseWithOptions("z",{unit,limits:{compute:itemBudget+128}});
- check(lookup.node===null&&lookup.error instanceof p.ParseInterruptionError&&lookup.error.kind==="compute-limit","member lookup charges beyond construction");
+ check(unitsOf(unit,o=>p.parseRuleWithOptions("item","z",o))===item.get(unit),"field construction counts the engine's units");
+ check(unitsOf(unit,o=>p.parseWithOptions("z",o))===main.get(unit)&&unitsOf(unit,o=>p.parseValueWithOptions("z",o))===main.get(unit),"member lookup counts the engine's units");
+ check(unitsOf(unit,o=>p.recognizeWithOptions("z",o))===recognized.get(unit),"field-dependent recognition counts the engine's units");
  const parseBudget=minimum(n=>p.parseWithOptions("z",{unit,limits:{compute:n}}).error===null);
  check(p.parseWithOptions("z",{unit,limits:{compute:parseBudget+1024}}).error===null,"same budget finishes parse");
  const conversion=p.parseValueWithOptions("z",{unit,limits:{compute:parseBudget}});

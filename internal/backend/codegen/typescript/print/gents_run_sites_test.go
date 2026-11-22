@@ -65,13 +65,13 @@ var tsRunSiteMutations = map[string][][2]string{
 	// The key holds the environment as an object besides the values: walks under equal values
 	// built apart share no record.
 	"key by object": {{
-		"    return { vals, h: memoKeyHash(0, 0, vals, this.control) };\n",
-		"    return { vals: [...vals!, this.env as unknown as Value], h: memoKeyHash(0, 0, vals, this.control) };\n",
+		"    return { vals, h: memoKeyHash(0, 0, vals) };\n",
+		"    return { vals: [...vals!, this.env as unknown as Value], h: memoKeyHash(0, 0, vals) };\n",
 	}},
 	// A lookup steps through every record of the site before it takes the one of its key.
 	"scan keys": {{
-		"    const r = this.recs.get(k.h)?.get(pos);\n",
-		"    for (const m of this.recs.values()) {\n      control?.charge(m.size);\n    }\n    const r = this.recs.get(k.h)?.get(pos);\n",
+		"    const r = w.slots?.get(this.pos, this.walkKey());\n",
+		"    for (const m of w.slots?.recs.values() ?? []) {\n      this.units += m.size;\n    }\n    const r = w.slots?.get(this.pos, this.walkKey());\n",
 	}},
 	"any list": {{
 		"if (r === undefined || (w.build && !r.list)) {",

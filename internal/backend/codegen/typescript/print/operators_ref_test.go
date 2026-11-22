@@ -80,8 +80,8 @@ rule ws = " "*`
 
 // TestTSOperatorsRuleMatchesReference parses random inputs with the Operators Rule methods printed
 // from Exec IR and with the hand-written forms they replaced, kept in the test, with and without
-// budget controls and with small nesting limits, and compares the values, the errors and the units
-// charged.
+// limit controls and with small nesting limits, and compares the values, the errors and the compute
+// units counted.
 func TestTSOperatorsRuleMatchesReference(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -92,7 +92,7 @@ func TestTSOperatorsRuleMatchesReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The whole library (used-features off): the test code drives the library with budget controls
+	// The whole library (used-features off): the test code drives the library with limit controls
 	// that the parser of this grammar does not use.
 	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
 	if err != nil {
@@ -116,7 +116,7 @@ console.log("ok");
 }
 
 // tsOperatorsReference holds the hand-written reset, skipTrivia, longest, apply and Operators Rule
-// loop that the printed methods replaced, without the unit the loop charged per iteration, and the
+// loop that the printed methods replaced, which count only the copies of recovered errors, and the
 // random comparison. It is appended to a bundle, which declares Parser, G, run and the rule tables.
 const tsOperatorsReference = `
 function refReset(p: Parser, pos: number, env: Env | null, trail: number, recovered: number): void {
@@ -154,7 +154,6 @@ function refLongest(p: Parser, ops: OperatorsRuleOp[]): OperatorsRuleAttempt | n
   let best: OperatorsRuleAttempt | null = null;
   let cutFailed = false;
   for (const op of ops) {
-    p.spend();
     const prevFrame = p.frame;
     const prevCut = p.cut;
     const f = p.newFrame(op.line.scope.length);
@@ -169,6 +168,9 @@ function refLongest(p: Parser, ops: OperatorsRuleOp[]): OperatorsRuleAttempt | n
       ok = false; // an empty prefix or postfix match could be applied forever
     }
     if (ok && (best === null || p.pos > best.end)) {
+      // The copy of the errors the candidate recovered counts a unit for each (the suffix copies).
+      p.units += p.recovered.length - m0rec;
+      if (p.units > p.unitsCheck) p.pollUnits();
       best = {
         op,
         frame: f,
@@ -188,7 +190,7 @@ function refLongest(p: Parser, ops: OperatorsRuleOp[]): OperatorsRuleAttempt | n
       continue;
     }
     // reset undoes this candidate's captures; restore them. Nothing parses between saving
-    // and restoring, so one buffer per parser suffices. The copies charge nothing.
+    // and restoring, so one buffer per parser suffices. The copies count no units.
     p.saved.length = 0;
     for (const x of f) {
       p.saved.push(x);
@@ -318,7 +320,6 @@ function refOperatorsRuleNud(p: Parser, r: Rule): R {
     return undefined;
   }
   for (const o of pr.operands) {
-    p.spend();
     const prevFrame = p.frame;
     const prevCut = p.cut;
     const f = p.newFrame(o.scope.length);
@@ -340,7 +341,7 @@ function refOperatorsRuleNud(p: Parser, r: Rule): R {
   return undefined;
 }
 function refUsed(c: BudgetControl | null): number {
-  return c === null ? 0 : (c as any).budgetUsed;
+  return c === null ? 0 : c.used;
 }
 
 function refOutcome(input: string, maxDepth: number, controlled: boolean): string {

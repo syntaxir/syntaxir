@@ -157,7 +157,7 @@ export function retainControlForTest(signal:CancellationSignal,mode:string,arm:(
    held.control=control;
    if(control===null)throw new Error("active controller missing");
    arm();
-   if(mode==="limit")control.charge(2);
+   if(mode==="limit")control.poll(2);
    if(mode==="canceled"||mode==="getter-panic")control.check();
    if(mode==="body-panic")throw marker;
    if(mode==="syntax")return new SyntaxError(0,1,1,["z"],[]);

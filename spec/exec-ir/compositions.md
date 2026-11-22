@@ -161,13 +161,13 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[document, observe, units]` | `[document, observe, typed, units]` |  | `[budget]` |
+| call | `[document, observe, units]` | `[document, observe, typed, units]` |  | `[units]` |
 | callMemo |  | `[document, observe, typed, units]` |  |  |
-| grow | `[units]` | `[typed, units]` | `[missing, units]` | `[]` |
+| grow | `[units]` | `[typed, units]` | `[missing, units]` | `[units]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
 | unmemoized | `[]` |  |  | `[]` |
-| memoized | `[document, observe, units]` |  |  | `[budget, document, observe]` `[document, observe]` |
+| memoized | `[document, observe, units]` |  |  | `[document, observe, units]` |
 | document | `[document, units]` |  |  | `[document]` |
 | typedDocument |  | `[document, observe, typed, units]` |  |  |
 | callBegin |  |  | `[document, missing, units]` |  |
@@ -179,16 +179,16 @@ row includes what its backends print into packages of their own.
 | streamCommit | `[stream]` |  | `[stream]` |  |
 | streamEmit | `[stream, units]` |  | `[stream]` |  |
 | streamsIn | `[stream]` |  | `[stream]` |  |
-| expect | `[units]` |  | `[units]` | `[budget]` |
-| mergeKept |  |  |  | `[budget]` |
-| mergeExpected | `[units]` |  | `[units]` | `[budget]` |
-| keep | `[units]` |  | `[units]` | `[budget]` |
+| expect | `[units]` |  | `[units]` | `[]` |
+| mergeKept |  |  |  | `[]` |
+| mergeExpected | `[units]` |  | `[units]` | `[]` |
+| keep | `[units]` |  | `[units]` | `[]` |
 | reset | `[]` | `[]` | `[missing]` | `[]` |
 | skipTrivia | `[]` | `[]` | `[missing]` | `[]` |
-| longest | `[units]` | `[units]` | `[missing, units]` | `[budget]` |
-| operatorsParse | `[units]` |  | `[missing, units]` | `[budget]` |
-| operatorsExpr | `[units]` |  | `[missing, units]` | `[budget]` |
-| operatorsNud | `[units]` |  | `[missing, units]` | `[budget]` |
+| longest | `[units]` | `[units]` | `[missing, units]` | `[units]` |
+| operatorsParse | `[units]` |  | `[missing, units]` | `[units]` |
+| operatorsExpr | `[units]` |  | `[missing, units]` | `[units]` |
+| operatorsNud | `[units]` |  | `[missing, units]` | `[units]` |
 | operatorsParseTyped |  | `[typed, units]` |  |  |
 | operatorsExprTyped |  | `[typed, units]` |  |  |
 | operatorsNudTyped |  | `[typed, units]` |  |  |
@@ -207,17 +207,17 @@ row includes what its backends print into packages of their own.
 | exprLoop |  |  | `[missing, units]` |  |
 | exprLed |  |  | `[missing, units]` |  |
 | exprRhs |  |  | `[missing, units]` |  |
-| memoAdvance | `[document, units]` `[document]` | `[document, units]` `[document]` | `[document, units]` `[document]` | `[budget, document]` `[document]` |
-| runStart | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runMore | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runReuse | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runPrefix | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runResync | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runTail | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runNext | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runBegin | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runEnd | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
-| runFinish | `[document, units]` |  | `[budget, document]` | `[budget, document]` |
+| memoAdvance | `[document, units]` `[document]` | `[document, units]` `[document]` | `[document, units]` `[document]` | `[document]` |
+| runStart | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runMore | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runReuse | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runPrefix | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runResync | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runTail | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runNext | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runBegin | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runEnd | `[document, units]` |  | `[budget, document]` | `[document, units]` |
+| runFinish | `[document, units]` |  | `[budget, document]` | `[document, units]` |
 | equal | `[]` | `[]` | `[]` | `[]` |
 | index | `[]` | `[]` | `[]` | `[]` |
 | binary | `[]` | `[]` | `[]` | `[]` |

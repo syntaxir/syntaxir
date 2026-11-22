@@ -61,7 +61,7 @@ func (g *Generator) ruleBodyCall(r *common.Rule, scope *check.Scope) (call strin
 	if !ok {
 		return "", false
 	}
-	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true), true
+	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr())), true
 }
 
 // noFunction records that the table being printed has no function of what, which the plan of a table
@@ -75,9 +75,8 @@ func (g *Generator) noFunction(what string) {
 
 // funcCall prints the lowered function l, whose capture scope has the slots if it is framed, as a
 // function of its own and returns the call expression that runs it, and sets scope to the capture
-// scope of a framed l. The comment describes the function. The function of a rule body (ruleBody)
-// charges the unit of the body's evaluation first, as Method does.
-func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+// scope of a framed l. The comment describes the function.
+func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string) string {
 	frame := prim.AttrsOf(l.Func).Frame
 	var body string
 	var vars []string
@@ -86,9 +85,6 @@ func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *chec
 	var b strings.Builder
 	for _, v := range vars {
 		b.WriteString(v)
-	}
-	if ruleBody && !g.NoBudget {
-		b.WriteString(indent(tsSpend(1)))
 	}
 	b.WriteString(indent(body))
 	if frame {
@@ -190,18 +186,10 @@ func (p *tsPrimPrinter) write(s string) {
 // counted returns the expression node, which constructs a node, counted for the memory limit as
 // bytes, an expression of the library's size model, when the parser has limit controls.
 func (p *tsPrimPrinter) counted(node, bytes string) string {
-	if p.g.NoBudget {
+	if !p.g.limits {
 		return node
 	}
 	return "p.counted(" + node + ", " + bytes + ")"
-}
-
-// tsSpend returns the statement that charges n steps, as n one-unit charges.
-func tsSpend(n int) string {
-	if n == 1 {
-		return "p.spend();\n"
-	}
-	return fmt.Sprintf("p.spendUnits(%d);\n", n)
 }
 
 func indent(s string) string {
@@ -346,8 +334,8 @@ func (p *tsPrimPrinter) grammarAction(n core.Node) ast.ActionExpr {
 
 // lineFunc prints the line k of the Operators Rule g.cur, whose Core IR is l, as a function and
 // returns the call expression that runs it, or false if the plan of the table has none. It sets scope
-// to the capture scope of the line. With budget controls the library loop that runs the line charges
-// its entry and the function charges each iteration of a repetition.
+// to the capture scope of the line. With limit controls the function counts the logical compute units
+// of the line's events and checks the counter at each iteration of a repetition.
 func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope) (string, bool) {
 	if g.table == nil || l == nil {
 		return "", false
@@ -359,5 +347,5 @@ func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
-	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false), true
+	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)"), true
 }

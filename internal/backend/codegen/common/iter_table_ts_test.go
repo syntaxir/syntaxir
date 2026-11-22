@@ -24,7 +24,9 @@ const iterScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
+P.control = null;
+P.units = 0;
+P.unitsCheck = Infinity;
 P.created = [];
 P.kidStack = [];
 P.src = readFileSync("input.txt", "utf8");
@@ -54,7 +56,7 @@ const call = (fn: string, v: p.Value): p.Value => {
   }
   return fxFilter(c, v, (item) => item);
 };
-const used = (): number => (CONTROLLED ? (P.control as any).budgetUsed : 0);
+const used = (): number => (CONTROLLED ? P.units : 0);
 const calls: [string, string][] = JSON.parse(readFileSync("calls.json", "utf8"));
 console.log(JSON.stringify(calls.map(([fn, v]) => {
   const before = used();
@@ -66,8 +68,8 @@ console.log(JSON.stringify(calls.map(([fn, v]) => {
 })));
 `
 
-// runTSIters runs the iteration table on the TypeScript library after mutate changed its source, with a
-// budget control if controlled, and returns the result of each call by its call and value.
+// runTSIters runs the iteration table on the TypeScript library after mutate changed its source, counting
+// its units if controlled, and returns the result of each call by its call and value.
 func runTSIters(t *testing.T, controlled bool, mutate func(string) string) map[[2]string]string {
 	t.Helper()
 	node := tooltest.RequireNode(t)

@@ -39,7 +39,7 @@ const reason = { marker: "cancellation reason" };
 const canceled: CancellationSignal = Object.freeze({aborted:true,reason});
 function limits(r: {error: Error|null},kind: p.ParseInterruptionKind,n:number): void {
  check(r.error instanceof p.ParseInterruptionError,"identifiable interruption");
- check(r.error.kind===kind && r.error.limit===n && r.error.used>=0 && r.error.used<=n && r.error.requested>n-r.error.used,"atomic reservation accounting");
+ check(r.error.kind===kind && r.error.limit===n && r.error.used>n && r.error.requested===0,"the count passed the limit at a check");
 }
 for (const unit of [p.CodePoints,p.Bytes]) {
  const routes = [
@@ -220,17 +220,21 @@ for(const unit of [p.CodePoints,p.Bytes]) {
 
 func TestGeneratedTSBudgetControlWideClassSteps(t *testing.T) {
 	t.Parallel()
-	// A wide class is tested by comparisons that cost no spend of their own: each peek that reads a
-	// character charges it, and each repetition charges its step. The guard of an alternative is a
-	// terminal that reads the character again, so the peek of the guard charges once per alternative
-	// (spec/runtime/parsing.md#cost). The start rule charges its call and the evaluation of its body.
-	// The budgets that parse and recognition need for one character and
-	// for a run of them are pinned, so that a long input of wide-class matches still reaches the limits.
+	// A wide class is tested by comparisons that count no units of their own: a terminal counts the
+	// input it advances over (spec/runtime/parsing.md, Compute Units). The units that parse and
+	// recognition need for one character and for a run of them are the engine's, so that a long
+	// input of wide-class matches still reaches the limits.
 	var class strings.Builder
 	for i := 0; i < 800; i++ {
 		class.WriteRune(rune(0x1000 + i*2))
 	}
 	src := "rule main = ([" + class.String() + "] / \"z\")+"
+	inputs := []string{"z", strings.Repeat("z", 50), strings.Repeat("\u1000", 50)}
+	var budgets, parseBudgets []string
+	for _, in := range inputs {
+		budgets = append(budgets, tsEngineUnits(t, src, "main", in, true))
+		parseBudgets = append(parseBudgets, tsEngineUnits(t, src, "main", in, false))
+	}
 	consumer := `import * as p from "./parser.ts";
 ` + tsTypedAssert + `
 function threshold(run:(n:number)=>Error|null):number {
@@ -239,9 +243,9 @@ function threshold(run:(n:number)=>Error|null):number {
  check(run(hi-1)!==null,"one-short budget fails");return hi;
 }
 const wide=String.fromCodePoint(0x1000);
-// The budgets of recognition and of parsing: for "z", fifty "z" and fifty wide characters.
-const budgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[13],[405],[305]]],[p.Bytes,[[20],[657],[1008]]]]);
-const parseBudgets=new Map<p.Unit,number[][]>([[p.CodePoints,[[13],[405],[355]]],[p.Bytes,[[20],[657],[1058]]]]);
+// The units of recognition and of parsing: for "z", fifty "z" and fifty wide characters.
+const budgets=[` + strings.Join(budgets, ",") + `];
+const parseBudgets=[` + strings.Join(parseBudgets, ",") + `];
 for(const unit of [p.CodePoints,p.Bytes]) {
  check(p.parse("z",unit).error===null&&p.recognize("z",unit)===null,"wide class fallback succeeds without controls");
  check(stable(p.parseWithOptions("z",{unit,signal:{aborted:false}}).node)===stable(p.parse("z",unit).node),"controlled class fallback preserves result");
@@ -251,18 +255,20 @@ for(const unit of [p.CodePoints,p.Bytes]) {
   for(let i=0;i<inputs.length;i++) {
    const input=inputs[i]!;
    const n=threshold(k=>p.recognizeWithOptions(input,{unit,limits:{[key]:k}}));
-   check(n===budgets.get(unit)![i]![0],key+" budget of recognition for input "+i);
+   check(n===budgets[i]!.get(unit),key+" budget of recognition for input "+i);
    const limited=p.recognizeWithOptions(input,{unit,limits:{[key]:n-1}});
    check(limited instanceof p.ParseInterruptionError&&limited.kind===kind,"recognition stops one unit short of its budget");
    const m=threshold(k=>p.parseWithOptions(input,{unit,limits:{[key]:k}}).error);
-   check(m===parseBudgets.get(unit)![i]![0],key+" budget of parsing for input "+i);
+   check(m===parseBudgets[i]!.get(unit),key+" budget of parsing for input "+i);
    const parsed=p.parseWithOptions(input,{unit,limits:{[key]:m-1}}).error;
    check(parsed instanceof p.ParseInterruptionError&&parsed.kind===kind,"parse stops one unit short of its budget");
   }
  }
  check(threshold(k=>p.recognizeWithOptions(wide.repeat(50),{unit,limits:{compute:k}}))>threshold(k=>p.recognizeWithOptions("z",{unit,limits:{compute:k}})),"a longer input needs more spend");
  const cause={marker:"class cancellation"};let polls=0;
- const result=p.parseWithOptions("z",{unit,signal:{get aborted(){return ++polls>=2},reason:cause}});
+ check(p.parseWithOptions(wide.repeat(50),{unit,signal:{get aborted(){polls++;return false}}}).error===null,"observe the parse");
+ const cancelAt=polls;polls=0;
+ const result=p.parseWithOptions(wide.repeat(50),{unit,signal:{get aborted(){return ++polls>=cancelAt},reason:cause}});
  check(result.node===null&&result.error instanceof p.ParseInterruptionError&&result.error.kind==="canceled"&&result.error.cause===cause,"cancellation is polled while a wide class is tested");
 }
 `

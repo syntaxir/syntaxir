@@ -8,13 +8,9 @@ import "syntaxir.dev/sxir/internal/ir/code/exec/prim"
 
 // The primitive operations of the TypeScript target that the passes make.
 const (
-	SpendOp  = "ts.spend"
 	MergeOp  = "ts.unisolateMerge"
 	FailedOp = "ts.failed"
 )
-
-// SpendRun is the immediate operand of a call of SpendOp: the number of charges in a row.
-type SpendRun struct{ N int }
 
 // Failed is the immediate operand of a call of FailedOp: the variable of the bool that the Init of
 // the If sets.
@@ -44,7 +40,7 @@ var printed = map[string]bool{
 	prim.OpSkipBegin: true, prim.OpRunBegin: true, prim.OpSkipVisit: true, prim.OpSkipValue: true,
 	prim.OpSkipEnd: true, prim.OpRunWalked: true, prim.OpScanEnd: true, prim.OpResumeBegin: true,
 	prim.OpResumeEnd: true, prim.OpResumeFinish: true, prim.OpObserveSkip: true, prim.OpSetEnv: true,
-	prim.OpSetFrame: true,
+	prim.OpSetFrame: true, prim.OpSkippedCalls: true,
 	// Values.
 	prim.OpEnv: true, prim.OpFrame: true, prim.OpRecLen: true, prim.OpKidsLen: true, prim.OpSkipHit: true,
 	prim.OpRunHot: true, prim.OpSkipKids: true, prim.OpScanReach: true, prim.OpScanKids: true,
@@ -56,9 +52,9 @@ var printed = map[string]bool{
 	prim.OpNewTerminalNode: true, prim.OpNewBranchNode: true, prim.OpNewVals: true, prim.OpKids: true,
 	prim.OpShapeSingle: true, prim.OpShapeCapture: true, prim.OpScopeValue: true, prim.OpAttachFrame: true,
 	prim.OpMarkState: true, prim.OpMarkPos: true, prim.OpNewFrame: true, prim.OpFrameVal: true,
-	prim.OpPred: true, prim.OpBind: true,
+	prim.OpPred: true, prim.OpBind: true, prim.OpInDocument: true,
 	// The operations of the TypeScript passes.
-	SpendOp: true, MergeOp: true, FailedOp: true,
+	MergeOp: true, FailedOp: true,
 }
 
 // Printed reports whether the TypeScript printer prints a call of the primitive name.

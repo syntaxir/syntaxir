@@ -14,8 +14,8 @@ rule item Item = n:name ","? => Item{Name: text($n)}
 rule name = [a-z]+
 rule fast = "z"`
 
-// The generated TypeScript has two forms: with -no-limits the rules do not spend budget and the
-// entry points reject the control options; with it they charge and accept them.
+// The generated TypeScript has two forms: with -no-limits the rules count no compute units and the
+// entry points reject the control options; with it they count and check the units and accept them.
 func TestGeneratedTSBudgetControlForms(t *testing.T) {
 	t.Parallel()
 	g, err := parseTest(tsBudgetFormsGrammar)
@@ -43,14 +43,14 @@ func TestGeneratedTSBudgetControlForms(t *testing.T) {
 			}
 		}
 	}
-	for _, charge := range []string{"p.spend(", "c.spend(", "charge("} {
-		if strings.Contains(plain, charge) {
-			t.Errorf("a parser generated without limit controls mentions %q:\n%s", charge, plain)
+	for _, count := range []string{"p.units", "pollUnits(", "unitsSized("} {
+		if strings.Contains(plain, count) {
+			t.Errorf("a parser generated without limit controls mentions %q:\n%s", count, plain)
 		}
 	}
-	for _, charge := range []string{"p.spend(", "c.spend("} {
-		if !strings.Contains(controlled, charge) {
-			t.Errorf("a parser generated with limit controls has no %q", charge)
+	for _, count := range []string{"p.units", "p.pollUnits("} {
+		if !strings.Contains(controlled, count) {
+			t.Errorf("a parser generated with limit controls has no %q", count)
 		}
 	}
 	if strings.Contains(plain, "CancellationSignal") {

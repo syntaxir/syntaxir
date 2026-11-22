@@ -335,7 +335,6 @@ table changes output yet:
 | `inline-literals` | flow pass | 4 | Compare literals of at most four code points in place first; the number is the longest literal, and 0 turns it off. Code against calls: faster, with more code |
 | `terminals` | flow pass | on | Value-free choices of many literals and classes run as one program (lean typed Go). Data against code: the choice becomes a table in the parser instead of nested alternatives |
 | `ts-merged-records` | exec pass | on | Ending an expectation record and merging its expectations into the enclosing record are one call that merges in place (TypeScript). Saves a copy of the expectations and a local per merge |
-| `ts-spend-runs` | exec pass | on | Charges in a row are one call that charges them as that many units (TypeScript). One call against several |
 | `ts-tested-inits` | exec pass | on | An `if` that tests whether its first call matched tests the call's result in its condition (TypeScript). Saves the boolean local that the call sets |
 | `canonicalize` | code pass | on | Apply the local rewrite patterns below to each lowered function until none applies. Simpler code at no cost to the parse |
 | `drop-after-exit` | pattern | on | The statements after an exit, break, continue or return in a block are removed. Less code |

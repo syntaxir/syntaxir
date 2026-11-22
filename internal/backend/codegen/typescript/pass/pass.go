@@ -16,7 +16,6 @@ import (
 
 // Names of the passes, which are also the names of their flags.
 const (
-	PassSpendRuns     = "ts-spend-runs"
 	PassMergedRecords = "ts-merged-records"
 	PassTestedInits   = "ts-tested-inits"
 )
@@ -24,17 +23,6 @@ const (
 // Passes are the TypeScript Exec passes, in the order they run on a lowered function with its module;
 // they change the function only.
 var Passes = []*pipe.Pass[*execdata.Lowered, *execdata.Lowered]{
-	pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
-		Decl: pipe.Decl{
-			Name:       PassSpendRuns,
-			Obligation: "One spend of n units charges what the n charges in a row it replaces charge, in the same place.",
-		},
-		In: execdata.LoweredIR, Out: execdata.LoweredIR,
-		Run: func(_ *pipe.Ctx[*execdata.Lowered], l *execdata.Lowered) (*execdata.Lowered, pass.PreservedSet, error) {
-			spendRuns(l)
-			return l, pass.PreserveNone(), nil
-		},
-	}),
 	pipe.New(pipe.Def[*execdata.Lowered, *execdata.Lowered]{
 		Decl: pipe.Decl{
 			Name:       PassMergedRecords,
@@ -64,7 +52,6 @@ var Pipeline = pipe.Seq(execdata.LoweredIR, Passes...)
 
 func init() {
 	pass.Register(
-		pass.Flag{Name: PassSpendRuns, Kind: pass.KindExecPass, Default: 1, Doc: "charges in a row are one spend (TypeScript)"},
 		pass.Flag{Name: PassMergedRecords, Kind: pass.KindExecPass, Default: 1, Doc: "the end of an expectation record and the merge of its expectations are one call (TypeScript)"},
 		pass.Flag{Name: PassTestedInits, Kind: pass.KindExecPass, Default: 1, Doc: "an If tests the call of its Init in its condition, without the bool the call sets (TypeScript)"},
 	)
@@ -97,28 +84,6 @@ func rewrite(l *execdata.Lowered, f func([]code.Stmt) []code.Stmt) {
 		return f(ss)
 	}
 	l.Func.Body.Stmts = block(l.Func.Body.Stmts)
-}
-
-// spendRuns replaces each run of charges with one call of tsprim.SpendOp.
-func spendRuns(l *execdata.Lowered) {
-	addOp(l, &code.Op{Name: tsprim.SpendOp, Writes: []string{prim.Component}, NoReturn: true,
-		Imm: "the number of charges", Contract: "Charges a step as many times as Imm says."})
-	rewrite(l, func(ss []code.Stmt) []code.Stmt {
-		var out []code.Stmt
-		for i := 0; i < len(ss); i++ {
-			if step(ss[i]) {
-				n := 1
-				for i+n < len(ss) && step(ss[i+n]) {
-					n++
-				}
-				out = append(out, &code.Do{Call: &code.Call{Callee: tsprim.SpendOp, Imm: tsprim.SpendRun{N: n}}})
-				i += n - 1
-				continue
-			}
-			out = append(out, ss[i])
-		}
-		return out
-	})
 }
 
 // mergedRecords replaces each end of an expectation record that a merge of its expectations follows
@@ -179,12 +144,6 @@ func testedFlag(s *code.If) (string, bool) {
 		return "", false
 	}
 	return flag.Name, true
-}
-
-// step reports whether s charges a step.
-func step(s code.Stmt) bool {
-	d, ok := s.(*code.Do)
-	return ok && d.Call.Callee == prim.OpStep
 }
 
 // mergedRecord reports whether a and b end an expectation record and merge its expectations into the

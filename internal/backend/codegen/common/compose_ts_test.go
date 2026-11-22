@@ -2,9 +2,10 @@ package common_test
 
 // tsCompose is TypeScript that the table scripts include after they import the generated module as p.
 // Its functions call the compositions that generated parsers print from Exec IR (the action methods of
-// the parser) as the lowered action expressions do: a list or a tuple pushes its elements on kidStack and ends with
-// actionHull, a struct sets its fields and covers their ranges, and an iteration reads the items and
-// steps through them with actionItemAt. A failure that a composition returns is thrown as FxError,
+// the parser) as the lowered action expressions do under limit controls: a list or a tuple pushes its elements on
+// kidStack and ends with actionHullLogical, which counts a unit for each, a struct sets its fields and covers
+// their ranges, and an iteration reads the items and steps through them with actionItemAt, counting a unit for
+// each element it visits. A failure that a composition returns is thrown as FxError,
 // which the scripts report.
 const tsCompose = `
 class FxError {
@@ -25,27 +26,22 @@ function fxPush(c: p.Actx, fn: string, v: p.Value): void {
 }
 function fxList(c: p.Actx, ...args: p.Value[]): p.Value {
   const base = c.p.kidStack.length;
-  c.spend();
   for (const a of args) {
-    c.spend();
     fxPush(c, "list", a);
   }
-  return c.listNode(c.p.kids(base));
+  return c.p.actionHullLogical(c, false, c.p.kids(base));
 }
 function fxTuple(c: p.Actx, ...args: p.Value[]): p.Value {
   const base = c.p.kidStack.length;
-  c.spend();
   for (const a of args) {
-    c.spend();
     fxPush(c, "tuple", a);
   }
-  return c.p.actionHull(c, true, c.p.kids(base));
+  return c.p.actionHullLogical(c, true, c.p.kids(base));
 }
 function fxStruct(c: p.Actx, typ: string, ...kv: p.Value[]): p.Value {
   const n = c.actionStruct(typ);
   let first = true;
   for (let i = 0; i < kv.length; i += 2) {
-    c.spend();
     const v = kv[i + 1]!;
     c.actionSetField(n, kv[i] as string, v);
     first = c.p.actionCover(n, v, first);
@@ -63,30 +59,29 @@ function fxItems(c: p.Actx, fn: string, v: p.Value): readonly (p.Node | null)[] 
 function fxFold(c: p.Actx, fn: string, right: boolean, acc: p.Value, list: p.Value, f: (acc: p.Value, item: p.Value) => p.Value): p.Value {
   const items = fxItems(c, fn, list);
   for (let i = 0; i < items.length; i++) {
-    c.spend();
+    c.p.units++;
     acc = f(acc, c.p.actionItemAt(items, i, right));
   }
   return acc;
 }
 function fxMap(c: p.Actx, list: p.Value, f: (item: p.Value) => p.Value): p.Value {
   const base = c.p.kidStack.length;
-  c.spend();
   const items = fxItems(c, "map", list);
   for (let i = 0; i < items.length; i++) {
-    c.spend();
+    c.p.units++;
     fxPush(c, "map", f(c.p.actionItemAt(items, i, false)));
   }
-  return c.listNode(c.p.kids(base));
+  return c.p.actionHullLogical(c, false, c.p.kids(base));
 }
 function fxFilter(c: p.Actx, list: p.Value, f: (item: p.Value) => p.Value): p.Value {
   const base = c.p.kidStack.length;
   const items = fxItems(c, "filter", list);
   for (let i = 0; i < items.length; i++) {
-    c.spend();
+    c.p.units++;
     if (fxValue(c.p.actionFilterKeep(f(c.p.actionItemAt(items, i, false))))) {
       c.p.kidStack.push(items[i]!);
     }
   }
-  return c.listNode(c.p.kids(base));
+  return c.p.actionHullLogical(c, false, c.p.kids(base));
 }
 `

@@ -44,7 +44,7 @@ func TestTypeScriptConformanceRule(t *testing.T) {
 			if res.ran < seeds {
 				t.Fatalf("only %d cases ran", res.ran)
 			}
-			tsReport(t, res, s.Ops, nil)
+			tsReport(t, res)
 		})
 	}
 }
@@ -70,7 +70,7 @@ func TestTypeScriptConformanceRuleDetectsMutants(t *testing.T) {
 			res := tsRuleRun(runner, tsconformtest.Rule(m.charges), s, 150, 150)
 			for _, err := range res.fails {
 				op, kind := tsFailureKind(err)
-				if m.charges && kind != "bound" && kind != "exact" {
+				if m.charges && kind != "bound" && kind != "exact" && kind != "free" {
 					continue
 				}
 				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])

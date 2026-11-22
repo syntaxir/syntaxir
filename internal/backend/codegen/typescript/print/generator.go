@@ -65,6 +65,9 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 	if opts.TypedOnly {
 		return opts, fmt.Errorf("typed-only generation is only supported for Go")
 	}
+	if opts.LogicalVariant != "" {
+		return opts, fmt.Errorf("the variants of logical units are only supported for Go")
+	}
 	if err := opts.ValidateMaxDepth(true); err != nil {
 		return opts, err
 	}
@@ -78,7 +81,10 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 // prints the rules that live holds, starting with the Node table.
 func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
 	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
-	tsg.NoBudget = opts.NoLimitControls
+	// Limit controls count logical compute units (spec/runtime/parsing.md, Compute Units) in every
+	// form of the functions, a Document's included: no form charges a budget.
+	tsg.limits = !opts.NoLimitControls
+	tsg.NoBudget, tsg.Logical = true, tsg.limits
 	tsg.optionsType = "ParseOptions"
 	if opts.NoLimitControls {
 		tsg.optionsType = "PlainParseOptions"
@@ -292,6 +298,9 @@ type Generator struct {
 	// keyUsed holds the run sites of the rule table being generated whose key constant
 	// (runKeyName) the emitted code refers to; runKeys writes only those.
 	keyUsed map[int]bool
+	// limits reports a parser with limit controls, which counts logical compute units (Logical) and
+	// the storage that the memory limit counts.
+	limits bool
 	// optionsType is the name of the library's options type that the entry points take: ParseOptions
 	// with limit controls, PlainParseOptions without.
 	optionsType string
@@ -375,9 +384,6 @@ func (g *Generator) plainPrefix() string {
 //
 // fn turns a call expression into a function.
 func (g *Generator) Method(comment, body string) string {
-	if !g.NoBudget {
-		body = "  p.spend();\n" + body
-	}
 	name, shared := g.MethodName("Parser/R", body)
 	if shared {
 		return name
@@ -562,8 +568,12 @@ func (g *Generator) plainCall(r *common.Rule, body string) {
 	m := &g.Methods
 	name := g.tracePlainCall(r, fmt.Sprintf("%s%d", g.plainPrefix(), r.ID))
 	fmt.Fprintf(m, "// %s, called as by invokePlain\nfunction %s(p: Parser): R {\n", r.Name, name)
-	if !g.NoBudget {
-		m.WriteString("  p.spend();\n")
+	if g.Logical {
+		// The unit of the call, checked if the rule is on a cycle of the call graph (Parser.callUnit).
+		m.WriteString("  p.units++;\n")
+		if r.Rec {
+			m.WriteString("  if (p.units > p.unitsCheck) {\n    p.pollUnits();\n  }\n")
+		}
 	}
 	m.WriteString(`  const start = p.pos;
   const rec = p.recovered.length;

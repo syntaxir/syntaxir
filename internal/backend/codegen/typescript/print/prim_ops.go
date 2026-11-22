@@ -110,7 +110,7 @@ func (p *tsPrimPrinter) isRead(name string) bool {
 func tsPrimPure(c *code.Call) bool {
 	switch c.Callee {
 	case prim.OpEnv, prim.OpFrame, prim.OpRecLen, prim.OpKidsLen, prim.OpNewVals, prim.OpStr, prim.OpMarkPos,
-		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore:
+		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore, prim.OpInDocument:
 		return true
 	}
 	return false
@@ -123,7 +123,8 @@ func tsPure(x code.Expr) bool { return Pure(x, tsPrimPure) }
 func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	switch c.Callee {
 	case prim.OpStep:
-		p.write(tsSpend(1))
+		// The check of the counter at a loop's iteration (logical units only lower steps).
+		p.write(tsUnitsCheck)
 	case prim.OpSilent:
 		s := c.Imm.(prim.Silence)
 		if s.Delta > 0 {
@@ -139,7 +140,11 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 		}
 	case prim.OpAdvance:
 		p.read(c.Args...)
-		p.write("p.pos += " + args()[0] + ";\n")
+		n := args()[0]
+		p.write("p.pos += " + n + ";\n")
+		if p.g.Logical {
+			p.write("p.units += " + n + ";\n")
+		}
 	case prim.OpExpect:
 		p.read(c.Args...)
 		x := c.Imm.(prim.Expectation)
@@ -162,7 +167,13 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 		p.write(fmt.Sprintf("p.mergeKept(%s, p.renameExpected(%s, %d));\n", a[0], a[1], p.desc(c.Imm.(core.ExpID))))
 	case prim.OpAppendError:
 		p.read(c.Args...)
+		if p.g.Logical {
+			// The syntax error that a recovery built is an event of one compute unit.
+			p.write("p.units++;\n")
+		}
 		p.write(fmt.Sprintf("p.recovered.push(%s!);\n", args()[0]))
+	case prim.OpSkippedCalls:
+		p.write(p.skippedCalls(c.Imm.(prim.SkippedCalls)))
 	case prim.OpPushKid:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.kidStack.push(%s);\n", args()[0]))
@@ -245,6 +256,8 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		return "p.frame"
 	case prim.OpRecLen:
 		return "p.recovered.length"
+	case prim.OpInDocument:
+		return "p.inDocument"
 	case prim.OpKidsLen:
 		return "p.kidStack.length"
 	case prim.OpSkipHit:
@@ -637,7 +650,7 @@ func (p *tsPrimPrinter) outline(c *code.Call) string {
 	if !ok {
 		panic(fmt.Errorf("internal error: the table %s has no function of the outlined node of rule %s", g.Table, g.Cur.Name))
 	}
-	call := g.funcCall(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
+	call := g.funcCall(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)")
 	if p.outlined == nil {
 		p.outlined = map[*code.Call]string{}
 	}

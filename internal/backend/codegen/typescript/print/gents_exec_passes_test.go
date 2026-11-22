@@ -13,8 +13,7 @@ import (
 )
 
 // tsExecPassForms holds, for each TypeScript Exec pass that the corpus exercises, a text that only
-// the form it makes prints in a generated parser. The corpus has no charges in a row, which
-// TestFlowExecStepRunFlag covers.
+// the form it makes prints in a generated parser.
 var tsExecPassForms = map[string]string{
 	tspass.PassMergedRecords: "p.unisolateMerge(",
 	tspass.PassTestedInits:   " === undefined",
@@ -62,7 +61,7 @@ func TestTSExecPassesKeepResultsAndSpends(t *testing.T) {
 		t.Skip("runs generated TypeScript")
 	}
 	node := tooltest.RequireNode(t)
-	off := []string{tspass.PassSpendRuns, tspass.PassMergedRecords, tspass.PassTestedInits}
+	off := []string{tspass.PassMergedRecords, tspass.PassTestedInits}
 	cases := codegentest.Representative(codegentest.GenCorpus(t))
 	codegentest.TSParsersCorpus(t, node, cases, common.GenOptions{NoOpt: off})
 	var sources []string

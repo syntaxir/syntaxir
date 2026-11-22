@@ -18,8 +18,8 @@ type tsMutant struct {
 	last          bool
 	// suite is the suite of tsExecSuites that must fail: 0 memo, 1 environment, 2 recovered errors.
 	suite int
-	// charges makes the mutant a change of charges: the suite runs with budget controls and must fail
-	// at a bound or an exact cost.
+	// charges makes the mutant a change of the compute units: the suite runs with limit controls and
+	// must fail at a bound, an exact cost or an operation that counts none.
 	charges bool
 	// controlled runs the suite with budget controls and counts any failure, for a change of code that a
 	// parse without them does not run.
@@ -47,20 +47,20 @@ func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 		{name: "a store replaces the entry of another level", sig: "memoPut(rule: number", old: "x.min === min", new: "true", suite: 0},
 		{name: "a store in a silent context narrows the entry", sig: "joinStored(x: MemoEntry", old: "if (!x.silent && e.silent) return x;", new: "", suite: 0},
 		{name: "a store keeps the entry of the silent context", sig: "joinStored(x: MemoEntry", old: "if (!x.silent && e.silent) return x;", new: "if (x.silent && !e.silent) return x;", suite: 0},
-		{name: "a lookup charges for the entries it walks", sig: "memoGet(rule: number", old: "if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", new: "this.spend();\n      if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", suite: 0, charges: true},
+		{name: "a lookup counts the entries it walks", sig: "memoGet(rule: number", old: "if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", new: "this.units++;\n      if (e.rule === rule && e.min === min && sameValues(e.env, env)) {", suite: 0, charges: true},
 		// Deferred memoization.
 		{name: "a rule is never eager", sig: "seenFirst(s: number", old: "this.eager[s] = 1;", new: "", suite: 0},
 		{name: "a rule becomes eager later", sig: "seenFirst(s: number", old: "(calls >> 4)", new: "(calls >> 3)", suite: 0},
 		// The variable environment.
-		{name: "an equal binding makes a new environment", sig: "bindValue(slot: number", old: "if (control === null ? old === val : equalValuesSpend(old, val, control)) return;", new: "", suite: 1},
+		{name: "an equal binding makes a new environment", sig: "bindValue(slot: number", old: "if (old === val) return;", new: "", suite: 1},
 		{name: "a lookup reads another slot", sig: "variable(slot: number", old: "envGet(this.env!, slot, this.envDepth)", new: "envGet(this.env!, 0, this.envDepth)", suite: 1},
 		{name: "a key leaves out all but its first variable", sig: "keyValues(slots: number[]", old: "envGet(this.env!, slots[i]!, this.envDepth)", new: "envGet(this.env!, slots[0]!, this.envDepth)", suite: 1},
-		{name: "a lookup charges nothing", sig: "variable(slot: number", old: "this.spend(this.envDepth + 1);", new: "", suite: 1, charges: true},
-		{name: "a key charge leaves out its strings", sig: "chargeKey(r: Rule)", old: "n += utf8Len(v);", new: "n += 0;", suite: 1, charges: true},
-		{name: "a key charges for its reads", sig: "keyValues(slots: number[]", old: "vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", new: "this.spend();\n      vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", suite: 1, charges: true},
+		{name: "a lookup counts the levels it reads", sig: "variable(slot: number", old: "return envGet(this.env!, slot, this.envDepth);", new: "this.units += this.envDepth + 1;\n    return envGet(this.env!, slot, this.envDepth);", suite: 1, charges: true},
+		{name: "the units of a key leave out its strings", sig: "keyUnits(r: Rule)", old: "n += utf8Len(v);", new: "n += 0;", suite: 1, charges: true},
+		{name: "a key counts its reads", sig: "keyValues(slots: number[]", old: "vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", new: "this.units++;\n      vals[i] = envGet(this.env!, slots[i]!, this.envDepth);", suite: 1, charges: true},
 		// The recovered errors.
 		{name: "since leaves the entries in place", sig: "recSince(rec: number", old: "this.recovered.length = rec;", new: "", suite: 2},
-		{name: "since charges nothing for the copy", sig: "recSince(rec: number", old: "copyEntriesSpend(this.recovered, rec, end, this.control)", new: "this.recovered.slice(rec)", suite: 2, charges: true},
+		{name: "since counts the entries it copies", sig: "recSince(rec: number", old: "const l = new ErrList(this.recovered.slice(rec));", new: "this.units += end - rec;\n    const l = new ErrList(this.recovered.slice(rec));", suite: 2, charges: true},
 		{name: "add records nothing", sig: "recAdd(errs: Errs", old: "this.recovered.push(errs);", new: "", suite: 2},
 	}
 	for _, m := range mutants {
@@ -73,10 +73,7 @@ func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 			res := tsConformRun(runner, f, s, 150, 150)
 			for _, err := range res.fails {
 				op, kind := tsFailureKind(err)
-				if m.charges && kind != "bound" && kind != "exact" {
-					continue
-				}
-				if _, known := tsChargeDivergences[op]; known && kind != "result" && kind != "other" {
+				if m.charges && kind != "bound" && kind != "exact" && kind != "free" {
 					continue
 				}
 				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])
@@ -93,8 +90,8 @@ func TestTypeScriptConformanceExecDetectsMutants(t *testing.T) {
 type tsPrintedMutant struct {
 	name, method, old, new string
 	class                  string
-	// charges makes the mutant a change of charges: the suite runs with budget controls and must fail
-	// at a bound or an exact cost.
+	// charges makes the mutant a change of the compute units: the suite runs with limit controls and
+	// must fail at a bound, an exact cost or an operation that counts none.
 	charges bool
 }
 
@@ -110,10 +107,7 @@ func tsDetectPrinted(t *testing.T, mutants []tsPrintedMutant, run func(r tsconfo
 			res := run(runner, m.charges)
 			for _, err := range res.fails {
 				op, kind := tsFailureKind(err)
-				if m.charges && kind != "bound" && kind != "exact" {
-					continue
-				}
-				if _, known := tsChargeDivergences[op]; known && kind != "result" && kind != "other" {
+				if m.charges && kind != "bound" && kind != "exact" && kind != "free" {
 					continue
 				}
 				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])

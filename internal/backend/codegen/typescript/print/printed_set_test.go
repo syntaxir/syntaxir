@@ -89,7 +89,7 @@ func TestPrinterDispatchNamesThePrintedPrimitives(t *testing.T) {
 			})
 		}
 	}
-	all := append(prim.OpNames(), tsprim.SpendOp, tsprim.MergeOp, tsprim.FailedOp)
+	all := append(prim.OpNames(), tsprim.MergeOp, tsprim.FailedOp)
 	var printed []string
 	for _, op := range all {
 		if tsprim.Printed(op) {

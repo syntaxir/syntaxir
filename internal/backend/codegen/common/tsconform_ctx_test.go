@@ -24,7 +24,8 @@ func tsCtxSuite(controlled bool) conform.Suite {
 		ops = slices.DeleteFunc(ops, func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
 	}
 	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(ops, budgetOps(controlled)...)}
-	s.Exact = []string{"grow.begin", "grow.adopt"}
+	// The composition counts each step it evaluates: beginning and adopting count none.
+	s.Free = []string{"grow.begin", "grow.adopt"}
 	return s
 }
 
@@ -46,7 +47,7 @@ func TestTypeScriptConformanceCtx(t *testing.T) {
 			s := tsCtxSuite(controlled)
 			runner := tsconformtest.Runner{Session: tsconformtest.Start(t, node, lib)}
 			res := tsCtxRun(runner, tsconformtest.Ctx(controlled), s, seeds, 150)
-			tsReport(t, res, s.Ops, map[string]string{})
+			tsReport(t, res)
 		})
 	}
 }
@@ -70,8 +71,8 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 		{name: "a jump merges no expectations", sig: "growMemoStep(g: GrowState", old: "this.mergeKept(j.far, j.exp);", new: ""},
 		{name: "a memoized step replays no dependencies", sig: "growMemoStep(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, s.deps);", new: ""},
 		{name: "a memoized step merges no expectations", sig: "growMemoStep(g: GrowState", old: "this.mergeKept(s.far, s.exp);", new: ""},
-		{name: "a growth begins without its unit", sig: "growBegin(r: Rule", old: "this.spend();", new: "", charges: true},
-		{name: "an adopted seed costs nothing", sig: "growAdopt(g: GrowState", old: "this.spend();", new: "", charges: true},
+		{name: "a growth counts a unit as it begins", sig: "growBegin(r: Rule", old: "const start = this.pos;", new: "this.units++;\n    const start = this.pos;", charges: true},
+		{name: "an adopted seed counts a unit", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: "this.units++;\n    this.pos = g.start;", charges: true},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
@@ -82,7 +83,7 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 			res := tsCtxRun(runner, tsconformtest.Ctx(m.charges), s, 150, 150)
 			for _, err := range res.fails {
 				op, kind := tsFailureKind(err)
-				if m.charges && kind != "bound" && kind != "exact" {
+				if m.charges && kind != "bound" && kind != "exact" && kind != "free" {
 					continue
 				}
 				t.Logf("detected at %s (%s):\n%v", op, kind, strings.SplitN(err.Error(), "\ncase:", 2)[0])

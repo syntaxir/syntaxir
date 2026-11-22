@@ -16,8 +16,8 @@ import (
 // The functions of grammar code are written at the Flow stage and converted to the Exec stage with
 // the TypeScript passes when their table is lowered (Generator.lowerTable), and printed by print.Body,
 // which prints their structure and decides which assignments stay (stores.Dead). The primitives are printed in place by tsPrimPrinter.
-// Before printing, the TypeScript Exec passes (typescript/pass) make charges in a row one spend, the
-// end of an expectation record followed by the merge of its expectations one unisolateMerge, and the
+// Before printing, the TypeScript Exec passes (typescript/pass) make the end of an expectation record
+// followed by the merge of its expectations one unisolateMerge, and the
 // test of the call an If's Init the If's condition, so that the locals they no longer read are not
 // declared. Each pass has a flag; the printer prints the operations they replace as well.
 
@@ -151,8 +151,6 @@ func (p *tsPrimPrinter) bodyTarget() *BodyTarget {
 		},
 		Do: func(c *code.Call, args func() []string, dead bool) string {
 			switch c.Callee {
-			case tsprim.SpendOp:
-				return at(dead, func() { p.write(tsSpend(c.Imm.(tsprim.SpendRun).N)) })
 			case tsprim.MergeOp:
 				return at(dead, func() {
 					p.read(c.Args...)

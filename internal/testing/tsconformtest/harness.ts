@@ -248,6 +248,7 @@ class Exec implements Machine {
       this.ctl = new p.BudgetControl({ signal: null, profiles: [], budget: cfg.limit === 0 ? Number.MAX_SAFE_INTEGER : cfg.limit, memory: 0 } as unknown as p.ResolvedParseOptions);
       (this.P as { control: p.BudgetControl | null }).control = this.ctl;
       this.ctl.held = () => this.P.heldBytes();
+      this.P.unitsCheck = this.ctl.unitsCheck();
     }
   }
 
@@ -262,7 +263,7 @@ class Exec implements Machine {
   }
 
   used(): number {
-    return this.ctl === null ? 0 : (this.ctl as unknown as { budgetUsed: number }).budgetUsed;
+    return this.ctl === null ? 0 : this.P.units;
   }
 
   // errorsOf returns the handle of the errors that a list of the record holds, one for each entry.
@@ -307,15 +308,9 @@ class Exec implements Machine {
   // of the cases that make a handle, and those that the printer never prints (print.OperationMethods
   // lists them: they are no operation of a composition), run on the library's own state.
   call(op: string, a: any[]): any[] {
-    // The printed charge of a run of units (spendUnits, as Take of the Go library and ChargeUnits of the Go
-    // engine do) reserves the run at once only if it ends before the next poll of the control, and otherwise
-    // one unit at a time, so that a poll falls where it does for the units and a failed run reports the unit
-    // that does not fit. That is bounded by design, as the work is: the generated code charges a constant
-    // or opr.count of the lines of an operator match (compose/operators.go chargeLines), both bounded by
-    // the input. The case of an unlimited budget charges 2^40 units, which no parse can reach, so a charge
-    // of more than 2^20 units is made as the one reservation that the library's charge makes.
-    if (op === "budget.charge" && Number(a[0]) > 1 << 20) {
-      this.P.spend(Number(a[0]));
+    // A charge of the cases counts its units and checks the counter, as the printed count of units does.
+    if (op === "budget.charge") {
+      if (this.ctl !== null) this.P.unitsSized(Number(a[0]));
       return [];
     }
     const printed = this.printed()[op];
@@ -340,6 +335,10 @@ class Exec implements Machine {
         return [err(a[0])];
       case "budget.used":
         return [this.used()];
+      case "budget.chargeKey":
+        // The units of the key of a memoized rule's call (units.key).
+        P.keyUnits(a[0] as p.Rule);
+        return [];
       case "env.lookup":
         return [P.variable(a[0])];
       case "env.scope":
@@ -446,13 +445,15 @@ class CtxM extends ExpM {
       case "test.ungrow":
       case "test.lookBegin":
       case "test.lookEnd": {
-        // The conformance operations charge nothing.
+        // The conformance operations count no units.
         const ctl = P.control;
+        const units = P.units;
         (P as { control: p.BudgetControl | null }).control = null;
         try {
           this.testOp(op, a);
         } finally {
           (P as { control: p.BudgetControl | null }).control = ctl;
+          P.units = units;
         }
         return [];
       }
@@ -528,7 +529,7 @@ class RuleM extends Exec {
     this.evals.set(i, k + 1);
     const start = P.pos;
     this.log.push("body r" + i + " level=" + min + " pos=" + start);
-    if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
+    if (e.charge > 0 && this.ctl !== null) this.P.unitsSized(e.charge);
     for (const id of e.errs ?? []) P.recovered.push(err(id));
     for (const c of e.captures ?? []) P.frame[c] = new p.Node(p.typeTupleValue, "", 0, 0, "", [], p.noFields, false, false);
     P.pos = start + e.len;
@@ -627,7 +628,7 @@ class OprM extends Exec {
       const e: OprExprSpec = script.length > 0 ? script[Math.min(k, script.length - 1)]! : { ok: false, len: 0, charge: 0 };
       k++;
       const start = P.pos;
-      if (e.charge > 0 && this.ctl !== null) this.ctl.charge(e.charge);
+      if (e.charge > 0 && this.ctl !== null) this.P.unitsSized(e.charge);
       for (const id of e.errs ?? []) P.recovered.push(err(id));
       // A capture of the line is a write to a slot of the current frame, as the grammar code's is.
       for (const c of e.captures ?? []) this.call("frame.set", [c, new p.Node("tuple", "", start, start, "", [], p.noFields, true, false)]);

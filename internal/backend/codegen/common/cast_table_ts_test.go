@@ -2,6 +2,7 @@ package common_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,13 +20,15 @@ import (
 
 // castScript checks the cases of cases.json on the TypeScript library (Parser.fieldConforms, printed from the
 // compositions conforms, valueConforms, elemsConform and tupleConform) and prints, for each, whether the
-// value is of the type and the steps the check charged, in order. A case holds a type and a value of the cast
+// value is of the type and the units the check counted, in order. A case holds a type and a value of the cast
 // table (conform.CastType and conform.CastValue).
 const castScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
+P.control = null;
+P.units = 0;
+P.unitsCheck = Infinity;
 P.created = [];
 P.kidStack = [];
 P.g = { structFields: new Map() };
@@ -58,16 +61,15 @@ const field = (t: T): p.FieldType => ({
 const cases: [T, V][] = JSON.parse(readFileSync("cases.json", "utf8"));
 console.log(JSON.stringify(cases.map(([t, v]) => {
   const val = build(v);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const used = (): number => (CONTROLLED ? (P.control as any).budgetUsed : 0);
+  const used = (): number => (CONTROLLED ? P.units : 0);
   const before = used();
   const ok = P.fieldConforms(field(t), val);
   return [ok, used() - before];
 })));
 `
 
-// runTSCasts runs the cast table on the TypeScript library after mutate changed its source, with a budget
-// control if controlled, and returns the result of each case that the TypeScript library runs, in order.
+// runTSCasts runs the cast table on the TypeScript library after mutate changed its source, counting
+// its units if controlled, and returns the result of each case that the TypeScript library runs, in order.
 func runTSCasts(t *testing.T, controlled bool, mutate func(string) string) [][2]any {
 	t.Helper()
 	node := tooltest.RequireNode(t)
@@ -120,14 +122,32 @@ func runTSCasts(t *testing.T, controlled bool, mutate func(string) string) [][2]
 }
 
 // checkTSCasts runs the cast table with the results of the TypeScript library, which come in the order of
-// the cases that it runs.
+// the cases that it runs. A cast counts no compute units (the elements it examines are no event), so
+// controlled, every check must have counted none.
 func checkTSCasts(controlled bool, results [][2]any) error {
 	i := 0
-	return conform.RunCasts("typescript", controlled, func(*conform.CastType, conform.CastValue) (bool, int) {
+	if err := conform.RunCasts("typescript", false, func(*conform.CastType, conform.CastValue) (bool, int) {
 		r := results[i]
 		i++
-		return r[0].(bool), int(r[1].(float64))
-	})
+		return r[0].(bool), 0
+	}); err != nil || !controlled {
+		return err
+	}
+	var counted []string
+	i = 0
+	for _, c := range conform.CastCases {
+		if c.Only != "" && c.Only != "typescript" {
+			continue
+		}
+		if n := int(results[i][1].(float64)); n != 0 {
+			counted = append(counted, fmt.Sprintf("typescript: %s is %s: counted %d units, want none", c.Value, c.Type, n))
+		}
+		i++
+	}
+	if len(counted) > 0 {
+		return fmt.Errorf("cast table:\n%s", strings.Join(counted, "\n"))
+	}
+	return nil
 }
 
 // TestValueCastTableTypeScript runs the cast table (conform.CastCases) on the TypeScript library.
@@ -150,8 +170,8 @@ func TestPrintedCastMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"an element of a list charges no step", "elemsConform(t: FieldType", "this.spend();", ""},
-		{"an element of a tuple charges no step", "tupleConform(t: FieldType", "this.spend();", ""},
+		{"the check of a list counts units", "elemsConform(t: FieldType", "): boolean {", "): boolean { this.units++;"},
+		{"the check of a tuple counts units", "tupleConform(t: FieldType", "): boolean {", "): boolean { this.units++;"},
 		{"a tuple of another length conforms", "tupleConform(t: FieldType", "if (count !== t.alts.length) {", "if (count > t.alts.length) {"},
 		{"a list type takes any value", "fieldConforms(t: FieldType", "if (!(shape === 6)) {", "if (false) {"},
 		{"a tuple type takes a list value", "fieldConforms(t: FieldType", "if (!(shape === 5)) {", "if (!(shape === 5 || shape === 6)) {"},

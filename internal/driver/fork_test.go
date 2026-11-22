@@ -291,7 +291,7 @@ func TestCompileForkDumpsEachTargetAsAlone(t *testing.T) {
 		t.Fatal(err)
 	}
 	debug := func(w io.Writer) common.Debug {
-		return common.Debug{PrintAfter: []string{"elaborate", "plan", "outline", "execlower", "ts-spend-runs"}, Output: w, Stats: true}
+		return common.Debug{PrintAfter: []string{"elaborate", "plan", "outline", "execlower", "ts-merged-records"}, Output: w, Stats: true}
 	}
 	targets := []Target{goOut(common.GenOptions{}), tsOut(common.GenOptions{}), goOut(common.GenOptions{Recognize: true})}
 	var fork bytes.Buffer

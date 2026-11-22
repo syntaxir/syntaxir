@@ -21,26 +21,31 @@ func TestGeneratedTSBudgetControlScalarStrings(t *testing.T) {
  rule main Box = x:item {$x.Ok} => $x
  rule item Box = "z" => ` + tt.action + `
 rule fast = "z"`
+			// Recognition needs the scalar value through the predicate dependency. The
+			// concatenation case checks its string field in the predicate as well.
+			if tt.name == "concatenation" {
+				src = strings.Replace(src, "{$x.Ok}", "{$x.S != \"\"}", 1)
+			}
+			// The string operations count the units of the engine's, on every route.
 			consumer := `import * as p from "./parser.ts";
-` + tsTypedAssert + `
+` + tsTypedAssert + tsUnitsOf + `
+const parsed=` + tsEngineUnits(t, src, "main", "z", false) + `,recognized=` + tsEngineUnits(t, src, "main", "z", true) + `;
 for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array([122])]) {
  const ordinary=p.parse(input,unit),typed=p.parseValue(input,unit);
  check(ordinary.error===null&&typed.error===null&&typed.value?.Ok===true,"ordinary scalar value");
  const active=p.parseWithOptions(input,{unit,signal:{aborted:false}}),converted=p.parseValueWithOptions(input,{unit,signal:{aborted:false}});
  check(active.error===null&&converted.error===null&&stable(active.node)===stable(ordinary.node)&&stable(converted.value)===stable(typed.value),"controlled scalar value parity");
  check(p.parseRuleWithOptions("fast",input,{unit,limits:{compute:128}}).error===null,"matching-only spend fits");
- for(const error of [p.parseWithOptions(input,{unit,limits:{compute:128}}).error,p.parseValueWithOptions(input,{unit,limits:{compute:128}}).error,p.recognizeWithOptions(input,{unit,limits:{compute:128}})])check(error instanceof p.ParseInterruptionError&&error.kind==="compute-limit","scalar visits consume cumulative step budget");
+ check(unitsOf(unit,o=>p.parseWithOptions(input,o))===parsed.get(unit)&&unitsOf(unit,o=>p.parseValueWithOptions(input,o))===parsed.get(unit),"scalar operations count the engine's units");
+ check(unitsOf(unit,o=>p.recognizeWithOptions(input,o))===recognized.get(unit),"predicate-dependent recognition counts the engine's units");
  let polls=0;const cause={marker:"scalar"};
- const canceled=p.parseWithOptions(input,{unit,signal:{get aborted(){return ++polls>=4},reason:cause}});
+ check(p.parseWithOptions(input,{unit,signal:{get aborted(){polls++;return false}}}).error===null,"observe the parse");
+ const cancelAt=polls;polls=0;
+ const canceled=p.parseWithOptions(input,{unit,signal:{get aborted(){return ++polls>=cancelAt},reason:cause}});
  check(canceled.node===null&&canceled.error instanceof p.ParseInterruptionError&&canceled.error.kind==="canceled"&&canceled.error.cause===cause,"scalar cancellation retains cause and no partial result");
  check(p.parseWithOptions(input,{unit,limits:{compute:0}}).error===null,"fresh scalar retry");
 }
 `
-			// Recognition needs the scalar value through the predicate dependency. The
-			// concatenation case checks its string field in the predicate as well.
-			if tt.name == "concatenation" {
-				src = strings.Replace(src, "{$x.Ok}", "{$x.S != \"\"}", 1)
-			}
 			runTypedTSFixture(t, src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 		})
 	}

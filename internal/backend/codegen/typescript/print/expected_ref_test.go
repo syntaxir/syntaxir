@@ -15,9 +15,10 @@ import (
 // TestTSKeepAndMergeMatchReference runs random sequences of the operations on the expectation
 // record of the TypeScript library through the methods printed from Exec IR (keep, mergeExpected,
 // mergeKept) and through the hand-written forms they replaced, kept in the test, in parses that
-// record expectations and parses that do not, with and without budget controls. After each operation it
+// record expectations and parses that do not, with and without limit controls. After each operation it
 // compares the record (farthest position, base, top and the stack below the top), the set kept
-// last, whether a kept set is the one kept last, and the units charged.
+// last, whether a kept set is the one kept last, and the compute units counted, which are none:
+// expectations are no event.
 func TestTSKeepAndMergeMatchReference(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -28,7 +29,7 @@ func TestTSKeepAndMergeMatchReference(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The whole library (used-features off): the test code drives the library with budget controls
+	// The whole library (used-features off): the test code drives the library with limit controls
 	// that the parser of this grammar does not use.
 	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
 	if err != nil {
@@ -53,7 +54,7 @@ console.log("ok");
 
 // tsExpectedReference holds the hand-written keep, mergeExpected and mergeKept that the printed
 // methods replaced, and the random comparison. It is appended to a bundle, which declares Parser, G,
-// BudgetControl, noExp, expFar and copyIDsSpend.
+// BudgetControl, noExp and expFar.
 const tsExpectedReference = `
 function refKeep(p: Parser, from: number, to: number): number[] {
   if (from === to) {
@@ -63,7 +64,6 @@ function refKeep(p: Parser, from: number, to: number): number[] {
   if (last.length === to - from) {
     let same = true;
     for (let i = 0; i < last.length; i++) {
-      p.spend();
       if (last[i] !== p.exp[from + i]) {
         same = false;
         break;
@@ -73,26 +73,24 @@ function refKeep(p: Parser, from: number, to: number): number[] {
       return last;
     }
   }
-  p.lastKept = p.control === null ? p.exp.slice(from, to) : copyIDsSpend(p.exp, from, to, p.control);
+  p.lastKept = p.exp.slice(from, to);
   return p.lastKept;
 }
 
 function refMergeExpected(p: Parser, far: number, from: number, to: number): void {
   for (let i = from; i < to; i++) {
-    p.spend();
     p.expect(far, p.exp[i]!);
   }
 }
 
 function refMergeKept(p: Parser, far: number, k: number[]): void {
   for (let i = 0; i < k.length; i++) {
-    p.spend();
     p.expect(far, k[i]!);
   }
 }
 
 function used(p: Parser): number {
-  return p.control === null ? 0 : (p.control as any).budgetUsed;
+  return p.units;
 }
 
 export function testExpectedReference(): void {
@@ -114,7 +112,7 @@ export function testExpectedReference(): void {
         const marks: number[][] = [];
         const check = (step: number, what: string): void => {
           let same = a.farthest === b.farthest && a.expBase === b.expBase && a.expTop === b.expTop &&
-            a.silent === b.silent && used(a) === used(b) && a.lastKept.length === b.lastKept.length;
+            a.silent === b.silent && used(a) === 0 && used(b) === 0 && a.lastKept.length === b.lastKept.length;
           for (let i = 0; same && i < a.expTop; i++) same = a.exp[i] === b.exp[i];
           for (let i = 0; same && i < a.lastKept.length; i++) same = a.lastKept[i] === b.lastKept[i];
           if (!same) {

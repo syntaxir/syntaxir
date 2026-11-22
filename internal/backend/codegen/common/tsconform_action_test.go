@@ -32,19 +32,19 @@ var tsActionFamilies = []tsActionFamily{
 }
 
 func tsActionRun(r tsconformtest.Runner, fam tsActionFamily, controlled bool, seeds, n int) tsConformResult {
-	s := conform.Suite{Name: fmt.Sprint("typescript ", fam.name, " (controlled=", controlled, ")"), Ops: append(append([]string{}, fam.ops...), budgetOps(controlled)...), Exact: tsActionExact(controlled)}
+	s := conform.Suite{Name: fmt.Sprint("typescript ", fam.name, " (controlled=", controlled, ")"), Ops: append(append([]string{}, fam.ops...), budgetOps(controlled)...), Free: tsActionFree(controlled)}
 	return tsConformRunCases(r, tsconformtest.Action(controlled), s, fam.cases(), seeds, func(seed int) conform.Case {
 		return fam.random(fmt.Sprint("random_", seed), rand.New(rand.NewPCG(uint64(seed), 13)), n)
 	})
 }
 
-// tsActionExact are the operations whose charge the suite holds to the model's exactly: those that spend for
-// each element.
-func tsActionExact(controlled bool) []string {
+// tsActionFree are the operations that count no compute units: gathering and dropping the values of an
+// action are no events, and the action counts the elements it builds (units.items, units.since).
+func tsActionFree(controlled bool) []string {
 	if !controlled {
 		return nil
 	}
-	return []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.dropCreated"}
+	return []string{"act.pushAll", "action.dropKids", "action.elemsAbove", "action.keep", "action.dropCreated"}
 }
 
 func TestTypeScriptConformanceAction(t *testing.T) {
@@ -62,8 +62,7 @@ func TestTypeScriptConformanceAction(t *testing.T) {
 				if res.ran < seeds {
 					t.Fatalf("only %d cases ran", res.ran)
 				}
-				s := append(append([]string{}, fam.ops...), budgetOps(controlled)...)
-				tsReport(t, res, s, map[string]string{})
+				tsReport(t, res)
 			})
 		}
 	}
@@ -71,18 +70,18 @@ func TestTypeScriptConformanceAction(t *testing.T) {
 
 // TestTypeScriptConformanceActionDetectsMutants is the negative control of TestTypeScriptConformanceAction.
 // The printed operations have mutants of their printed text; the library's own functions pushAll, kids and
-// dropSpend have source mutants (kids is also what action.elemsAbove runs on).
+// dropAbove have source mutants (kids is also what action.elemsAbove runs on).
 func TestTypeScriptConformanceActionDetectsMutants(t *testing.T) {
 	node := tooltest.RequireNode(t)
 	libMutants := []tsMutant{
 		{name: "pushAll pushes nothing", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "void it;"},
 		{name: "pushAll pushes the first element", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "this.p.kidStack.push(items[0]!);"},
-		{name: "pushAll charges nothing", sig: "pushAll(items: readonly (Node | null)[])", old: "this.spend();", new: "", charges: true, controlled: true},
+		{name: "pushAll counts the elements it pushes", sig: "pushAll(items: readonly (Node | null)[])", old: "this.p.kidStack.push(it);", new: "this.p.units++;\n      this.p.kidStack.push(it);", charges: true, controlled: true},
 		{name: "kids leaves the elements", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);"},
 		{name: "kids takes one element too many", sig: "kids(base: number): (Node | null)[]", old: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = base;", new: "const ks = this.kidStack.slice(base);\n    this.kidStack.length = Math.max(base - 1, 0);"},
-		{name: "elemsAbove charges one unit for each element", sig: "elemsAbove(base: number)", old: "this.control?.charge(2 * n);", new: "this.control?.charge(n);", charges: true, controlled: true},
-		{name: "dropKids drops one fewer", sig: "dropSpend(values: unknown[], base: number)", old: "values.length = base;", new: "values.length = Math.min(base + 1, values.length);"},
-		{name: "dropSpend charges nothing", sig: "dropSpend(values: unknown[], base: number)", old: "this.spend(values.length - base);", new: "", charges: true, controlled: true},
+		{name: "elemsAbove counts a unit for each element", sig: "elemsAbove(base: number)", old: "return this.kids(base);", new: "this.units += this.kidStack.length - base;\n    return this.kids(base);", charges: true, controlled: true},
+		{name: "dropKids drops one fewer", sig: "dropAbove(values: unknown[], base: number)", old: "values.length = base;", new: "values.length = Math.min(base + 1, values.length);"},
+		{name: "dropAbove counts the values it drops", sig: "dropAbove(values: unknown[], base: number)", old: "values.length = base;", new: "this.units += values.length - base;\n      values.length = base;", charges: true, controlled: true},
 	}
 	for _, m := range libMutants {
 		t.Run(m.name, func(t *testing.T) {
@@ -108,8 +107,8 @@ func TestTypeScriptConformanceActionDetectsMutants(t *testing.T) {
 		{name: "action.kids is one more", method: "op_action_kids", old: "this.kidStack.length", new: "this.kidStack.length + 1"},
 		{name: "act.made records nothing", method: "op_act_made", old: "this.created.push(p1);", new: "void p1;"},
 		{name: "action.created is one more", method: "op_action_created", old: "this.created.length", new: "this.created.length + 1"},
-		{name: "action.dropCreated is ignored", method: "op_action_dropCreated", old: "this.dropSpend(this.created, p0);", new: "void p0;"},
-		{name: "action.dropKids is ignored", method: "op_action_dropKids", old: "this.dropSpend(this.kidStack, p0);", new: "void p0;"},
+		{name: "action.dropCreated is ignored", method: "op_action_dropCreated", old: "this.dropAbove(this.created, p0);", new: "void p0;"},
+		{name: "action.dropKids is ignored", method: "op_action_dropKids", old: "this.dropAbove(this.kidStack, p0);", new: "void p0;"},
 		{name: "action.dropKids drops one fewer", method: "op_action_dropKids", old: "this.kidStack, p0", new: "this.kidStack, p0 + 1"},
 		{name: "act.pushAll pushes through a wrong context", method: "op_act_pushAll", old: "p0.pushAll(p1);", new: "p0.pushAll(p1.slice(1));"},
 	}

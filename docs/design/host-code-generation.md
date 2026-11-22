@@ -75,10 +75,10 @@ The TypeScript instance has passes that are specific to TypeScript:
 - outlining large functions that hold a frame;
 - its own decision on sharing literal tables, which differs from Go's;
 - specializing the conversion to typed values;
-- joining charges in a row into one charge of as many units (`ts-spend-runs`), the end of an expectation record and
-  the merge of its expectations into one merge in place (`ts-merged-records`), and the test of whether the call that
-  an `if` begins with matched into its condition (`ts-tested-inits`). These are the passes of `typescript/pass`; the
-  printer prints the operations they replace as well, so each can be turned off.
+- joining the end of an expectation record and the merge of its expectations into one merge in place
+  (`ts-merged-records`), and the test of whether the call that an `if` begins with matched into its condition
+  (`ts-tested-inits`). These are the passes of `typescript/pass`; the printer prints the operations they replace as
+  well, so each can be turned off.
 
 ## The Runtime Library
 

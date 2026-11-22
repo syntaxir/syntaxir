@@ -18,17 +18,16 @@ type tsMethod struct {
 }
 
 // tsSpecs are the methods of the TypeScript library that the compositions replace. The library has
-// no streams. The batch Parser's callBody observes nothing: the parsers of observed and Document
-// parses override call. The methods of tsDocClass belong to the DocumentParser class, the
-// parser of a Document parse: its call takes callDocument, which memoizes the rules that the Document
-// memoizes and records the input that each call examined. callMemo is specialized with budget
-// controls, which bracket the memo protocol of a rule that only a Document memoizes as Document work
-// (Parser.freeBegin); the other call forms without them, and the expectation forms with the charges of
-// the batch forms. memoAdvance applies
-// the pending edits of the Document to an entry that a lookup finds, charging one unit for each in a
-// region of Document work (Parser.freeBegin); advanceEntry, its form without charges, belongs to the
-// DocumentMemo class, which applies the edits to the entries at an edit and to an entry that a store
-// joins. callTracked, of tsObsClass, is the
+// no streams. A parser with limit controls counts logical compute units (exec.Units): the call
+// protocol counts the calls, their keys, the steps of growths and the entries of recovered errors it
+// takes. The batch Parser's callBody observes nothing: the parsers of observed and Document parses
+// override call, and count the entry of the call there (Parser.enterCall). The methods of tsDocClass
+// belong to the DocumentParser class, the parser of a Document parse: its call takes callDocument,
+// which memoizes the rules that the Document memoizes and records the input that each call examined.
+// The work of a Document is free, so its methods count only the entries of recovered errors that the
+// memoized call takes. memoAdvance applies the pending edits of the Document to an entry that a lookup
+// finds; advanceEntry, the same form, belongs to the DocumentMemo class, which applies the edits to
+// the entries at an edit and to an entry that a store joins. callTracked, of tsObsClass, is the
 // memoized call of the ObservedParser class, which records how far each call examined the input
 // without a Document; callUnmemoized belongs to TrackedParser, the class of both.
 var tsSpecs = []struct {
@@ -37,13 +36,13 @@ var tsSpecs = []struct {
 	name   string
 	target tsClass
 }{
-	{fn: "call", on: []string{exec.Budget}, name: "callBody"},
+	{fn: "call", on: []string{exec.Units}, name: "callBody"},
 	{fn: "firstCall", name: "firstCall"},
 	{fn: "document", on: []string{exec.Document}, name: "callDocument", target: tsDocClass},
 	{fn: "unmemoized", name: "callUnmemoized", target: tsDocClass},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Budget}, name: "callMemo", target: tsDocClass},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe}, name: "callTracked", target: tsObsClass},
-	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "memoAdvance", target: tsDocClass},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callMemo", target: tsDocClass},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callTracked", target: tsObsClass},
+	{fn: "memoAdvance", on: []string{exec.Document}, name: "memoAdvance", target: tsDocClass},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", target: tsDocClass},
 	// The repetition runs of a Document parse, which the rule bodies run through the resume methods of
 	// DocumentParser (resumeStart and the others), the forms of the Flow operations of the same names.
@@ -58,16 +57,16 @@ var tsSpecs = []struct {
 	{fn: "runBegin", on: tsRunOn, name: "runElemBegin", target: tsDocClass},
 	{fn: "runEnd", on: tsRunOn, name: "runElemEnd", target: tsDocClass},
 	{fn: "runFinish", on: tsRunOn, name: "runFinish", target: tsDocClass},
-	{fn: "grow", name: "grow"},
-	{fn: "expect", on: []string{exec.Budget}, name: "expect"},
-	{fn: "mergeKept", on: []string{exec.Budget}, name: "mergeKept"},
-	{fn: "mergeExpected", on: []string{exec.Budget}, name: "mergeExpected"},
-	{fn: "keep", on: []string{exec.Budget}, name: "keep"},
+	{fn: "grow", on: []string{exec.Units}, name: "grow"},
+	{fn: "expect", name: "expect"},
+	{fn: "mergeKept", name: "mergeKept"},
+	{fn: "mergeExpected", name: "mergeExpected"},
+	{fn: "keep", name: "keep"},
 	// The Operators Rule loop and backtracking.
-	{fn: "operatorsParse", on: []string{exec.Budget}, name: "operatorsRuleParse"},
-	{fn: "operatorsExpr", on: []string{exec.Budget}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNud", on: []string{exec.Budget}, name: "operatorsRuleNud"},
-	{fn: "longest", on: []string{exec.Budget}, name: "longest"},
+	{fn: "operatorsParse", on: []string{exec.Units}, name: "operatorsRuleParse"},
+	{fn: "operatorsExpr", on: []string{exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNud", on: []string{exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", on: []string{exec.Units}, name: "longest"},
 	{fn: "skipTrivia", name: "skipTrivia"},
 	{fn: "reset", name: "reset"},
 	// Predicates and bindings.
@@ -97,9 +96,9 @@ var tsSpecs = []struct {
 	{fn: "tupleConform", name: "tupleConform"},
 }
 
-// tsRunOn are the features of the methods of the repetition runs of a Document, which are the
-// engine's (runOn).
-var tsRunOn = []string{exec.Document, exec.Budget}
+// tsRunOn are the features of the methods of the repetition runs of a Document. Their work counts no
+// units; under exec.Units a reused element is a step at which a cancellation is observed (budget.poll).
+var tsRunOn = []string{exec.Document, exec.Units}
 
 // tsClass selects the target that prints a method of the library (tsSpecs): tsTarget, tsDocTarget or
 // tsObsTarget.
@@ -112,8 +111,8 @@ const (
 )
 
 // specFeatures maps the features of the compositions that the library's methods are specialized
-// for to the features of a parser.
-var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Budget: common.FeatureBudget}
+// for to the features of a parser: a parser with limit controls counts logical compute units.
+var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Units: common.FeatureBudget}
 
 // LibraryRequests returns the specializations that the TypeScript library of a parser with the
 // features fs requests of the compositions (library.Request), one per method of tsSpecs, in its
@@ -382,7 +381,9 @@ var tsTarget = &Target{
 		case "node.children":
 			return a[0] + ".children"
 		case "seq.step":
-			return "this.spend()"
+			// A step over the elements that a value of an action holds or that a cast checks is no
+			// event: the action counts the elements it builds (units.items, units.since).
+			return ""
 		case "val.seq":
 			return fmt.Sprintf("this.counted(new Node(%s ? typeTupleValue : typeListValue, \"\", 0, 0, \"\", %s, noFields, false, false), nodeBytes)", a[1], a[2])
 		case "node.typeName":
@@ -416,11 +417,11 @@ var tsTarget = &Target{
 		case "action.created":
 			return "this.created.length"
 		case "action.dropCreated":
-			return "this.dropSpend(this.created, " + a[0] + ")"
+			return "this.dropAbove(this.created, " + a[0] + ")"
 		case "action.kids":
 			return "this.kidStack.length"
 		case "action.dropKids":
-			return "this.dropSpend(this.kidStack, " + a[0] + ")"
+			return "this.dropAbove(this.kidStack, " + a[0] + ")"
 		case "opr.led", "opr.prefix":
 			return a[0] + ".operatorsRule!." + strings.TrimPrefix(c.Callee, "opr.")
 		case "opr.count":
@@ -470,11 +471,20 @@ var tsTarget = &Target{
 			return "this.afterEmpty = " + a[0]
 		case "opr.afterEmpty":
 			return "this.afterEmpty"
-		case "budget.charge":
+		case "units.count":
 			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
-				return "this.spend()"
+				return "this.units++"
 			}
-			return "this.spendUnits(Number(" + a[0] + "))"
+			// The counter is a number; a count of u64 prints as a bigint.
+			return "this.units += Number(" + a[0] + ")"
+		case "units.check":
+			return "if (this.units > this.unitsCheck) {\n  this.pollUnits();\n}"
+		case "units.key":
+			return "this.keyUnits(" + a[0] + ")"
+		case "rule.cyclic":
+			return a[0] + ".rec"
+		case "rec.entries":
+			return "this.recovered.length - " + a[0]
 		case "seen.defers":
 			return "true" // the Parser parses neither streams nor Documents (DocumentParser takes callDocument)
 		case "seen.first":
@@ -491,8 +501,6 @@ var tsTarget = &Target{
 			return fmt.Sprintf("this.invokePlainBody(%s, %s)", a[0], a[1])
 		case "env.key":
 			return "this.keyValues(" + a[0] + ".vars)"
-		case "budget.chargeKey":
-			return "this.chargeKey(" + a[0] + ")"
 		case "rec.mark":
 			return "this.recovered.length"
 		case "rec.truncate":
@@ -651,7 +659,7 @@ var tsTarget = &Target{
 			}
 			return strings.Join(lines, "\n"), true
 		case "node.field":
-			return absent(fmt.Sprintf("findFieldSpend(%s, %s, this.control)", a[0], a[1])), true
+			return absent(fmt.Sprintf("lookupField(%s, %s)", a[0], a[1])), true
 		case "node.zero":
 			return absent(fmt.Sprintf("%s.memberZero(%s, %s)", a[0], a[1], a[2])), true
 		case "depth.enter":
@@ -681,7 +689,7 @@ var tsTarget = &Target{
 		case "rec.add":
 			return "this.recAdd(" + a[0] + ");", true
 		case "exp.copy":
-			return fmt.Sprintf("this.lastKept = this.control === null ? this.exp.slice(%[1]sFrom, %[1]sTo) : copyIDsSpend(this.exp, %[1]sFrom, %[1]sTo, this.control);\n%[2]s = this.lastKept;", a[0], lhs(dst[0])), true
+			return fmt.Sprintf("this.lastKept = this.exp.slice(%[1]sFrom, %[1]sTo);\n%[2]s = this.lastKept;", a[0], lhs(dst[0])), true
 		case "exp.isolate":
 			m := dst[0]
 			return fmt.Sprintf("const %s%s = this.farthest;\nconst %s%s = this.expBase;\nthis.expBase = this.expTop;\nthis.farthest = %s;",
@@ -760,10 +768,6 @@ var tsDocTarget = func() *Target {
 			return a[0] + ".length"
 		case "edit.start", "edit.end", "edit.delta":
 			return a[0] + "[" + a[1] + "]!." + strings.TrimPrefix(c.Callee, "edit.")
-		case "budget.freeBegin":
-			return "this.freeBegin(" + a[0] + ")"
-		case "budget.freeEnd":
-			return "this.freeEnd(" + a[0] + ")"
 		}
 		if s, ok := tsRunOp(c.Callee, a); ok {
 			return s
@@ -807,7 +811,7 @@ var tsObsTarget = func() *Target {
 			return fmt.Sprintf("%s.examined = %s", a[0], a[2])
 		case "doc.touchFrom", "doc.low", "doc.reused", "doc.evaluated", "doc.move", "memo.before", "memo.pin",
 			"memo.seed", "memo.from", "memo.pinned", "memo.shifted", "memo.applied", "memo.advance",
-			"edit.count", "edit.start", "edit.end", "edit.delta", "budget.freeBegin", "budget.freeEnd":
+			"edit.count", "edit.start", "edit.end", "edit.delta":
 			panic("tsgen: the Document operation " + c.Callee + " in a method of an observed parse")
 		}
 		return tsDocTarget.Op(c, a)
@@ -833,8 +837,8 @@ func tsActionMethod(fn string) string { return tsTarget.FuncName(fn) }
 func tsHandle(name string) string { return tsTarget.Handle(name) }
 
 // tsRunOp returns the TypeScript form, in the methods of DocumentParser, of an operation of the
-// repetition runs of a Document, of the edit log they read and of the poll of a reused element, given
-// its printed arguments, or reports false for another operation. RunState holds the fields of the Run
+// repetition runs of a Document and of the edit log they read, given its printed arguments, or
+// reports false for another operation. RunState holds the fields of the Run
 // record under their names (exec.RunFields), its mark as the parts of an isolation (tsIsolationParts);
 // the recorded elements are the library's own.
 func tsRunOp(callee string, a []string) (string, bool) {
@@ -842,7 +846,8 @@ func tsRunOp(callee string, a []string) (string, bool) {
 	case "doc.log":
 		return "this.memoState.edits", true
 	case "budget.poll":
-		return "this.control?.poll()", true
+		// A reused element counts no unit, but it is a step at which a cancellation is observed.
+		return "this.control?.step()", true
 	}
 	name, ok := strings.CutPrefix(callee, "run.")
 	if !ok {

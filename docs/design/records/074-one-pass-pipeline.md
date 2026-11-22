@@ -639,7 +639,7 @@ included, so it cannot be decided per table. `planned-tables` splits the plan in
 the Exec stage, into `tables@exec`, which `print-go` and `print-ts` take; the join numbers the expectation table across
 the Node and recognizer tables, which is likewise not a fact of one table. `table-config` derives the features of a table (budget controls, observation,
 Document, traced) from its unit. A TypeScript target has `target=ts`, the split `ts-tables`, the pass `outline`, the
-target passes `ts-spend-runs ts-merged-records ts-tested-inits`, `ts-printable!` and `print-ts!`. Several targets are
+target passes `ts-merged-records ts-tested-inits`, `ts-printable!` and `print-ts!`. Several targets are
 the branches of one fork, each named by its backend: `pipeline program -> []output { fork { branch go { with target=go
 { ... } } branch ts { with target=ts { ... } } } }`. (Amended at step 9: the example first showed a fork of one Go
 branch; a single target is not forked, so its pipeline, its text and its dumps stay those of the one target.)

@@ -104,7 +104,7 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 	b.WriteString("\n// --- Typed values (sxir gen -types) ---\n\n")
 	// With limit controls every parse is controlled, so parseValue takes the path of parseValueWithOptions.
 	astBody := fmt.Sprintf("astResult<%s>(run(G, R%d, nseen, input, unit), %d)", stType, start.ID, repr)
-	if !g.NoBudget {
+	if g.limits {
 		astBody = "parseValueWithOptions(input, { unit: unit ?? CodePoints })"
 	}
 	fmt.Fprintf(&b, tsTypedAPI, stType, start.ID, repr, g.optionsType, astBody)
@@ -524,8 +524,8 @@ function astResult<T>(r: ParseResult, repr: number, control: BudgetControl | nul
 // Cache canonical Node/representation pairs, including null, in this call only.
 // Register shells before filling edges: shared fold/LR DAGs stay shared and deep
 // output graphs do not consume the JavaScript call stack. Source Nodes stay intact.
-// The conversion charges no compute units: the values a parse builds charge nothing in any
-// representation. It polls the signal and the memory limit every 256 steps.
+// The conversion counts no compute units: converting the values of a parse to a representation
+// is no event of the parse. It polls the signal and the memory limit every 256 steps.
 function astConvert(value: Value, repr: number, control: BudgetControl | null = null): unknown {
   const cache = new Map<Node, Map<number, unknown>>();
   const pending: ValuePending[] = [];

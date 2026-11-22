@@ -55,6 +55,8 @@ type Call = { op: string; code: number; args: Enc[] };
 const P = Object.create(p.Parser.prototype);
 const CONTROLLED = false;
 P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions) : null;
+P.units = 0;
+P.unitsCheck = Infinity;
 const calls: Call[] = JSON.parse(readFileSync("cases.json", "utf8"));
 const run = (c: Call) => {
   const a = c.args.map(dec);
@@ -162,9 +164,8 @@ func (v tsValues) Call(o *xexec.Op, args []any) []any {
 }
 
 // runTSValues runs every call of the value conformance on the TypeScript library, after mutate changed
-// its source.
-// runTSValues runs every call on the library after mutate changed its source; controlled sets a budget
-// control on the parser, which makes the string operations take the paths of a limited parse.
+// its source; controlled sets a budget control on the parser, which makes the string operations count
+// their units, as in a limited parse.
 func runTSValues(t *testing.T, controlled bool, mutate func(string) string) tsValues {
 	t.Helper()
 	node := tooltest.RequireNode(t)
@@ -345,8 +346,8 @@ func TestPrintedOperatorMutantsTypeScript(t *testing.T) {
 		{"! of a bool does not negate", "actionUnary(op: number", "!(x as boolean)", "(x as boolean)", false, false},
 		{"a logical operand need not be a bool", "actionLogic(op: number", "valKind(x) !== 3", "false", false, false},
 		{"a box is not opened", "actionEqual(l: Value", "const a = unboxValue(l);", "const a = l;", false, false},
-		{"the surrogate fix-up is dropped from the controlled comparison", "function compareStringsSpend(", "x = x >= 0xe000 ? x - 0x800 : x + 0x2000;", "", false, true},
-		{"the controlled comparison treats < as <=", "strCmp(l: Value", "compareStringsSpend(l as string, r as string, this.control)", "(compareStringsSpend(l as string, r as string, this.control) < 0 ? -1 : 1)", false, true},
+		{"the controlled comparison treats < as <=", "strCmp(l: Value", "return compareStrings(l as string, r as string);", "return compareStrings(l as string, r as string) < 0 ? -1 : 1;", false, true},
+		{"the controlled equality compares the lengths", "strEq(l: Value", "return l === r;", "return (l as string).length === (r as string).length;", false, true},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

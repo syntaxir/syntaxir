@@ -15,7 +15,9 @@ func TestGeneratedTSBudgetControlBindings(t *testing.T) {
 		name, src, baseline string
 		isolated            bool
 		// nameFree marks the cases of long identifiers: a variable is a slot, so its name costs
-		// nothing and the parse stays within the budget of the baseline plus the margin.
+		// nothing and the parse stays within the units of the baseline plus a margin. The other
+		// cases bind long strings: a binding counts nothing, and the comparisons that read the
+		// strings count the units of the engine's.
 		nameFree bool
 	}{
 		{"head-equal", `type Box = { S string }
@@ -55,25 +57,27 @@ func TestGeneratedTSBudgetControlBindings(t *testing.T) {
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
-			limitCheck := `check(stopped.node===null&&stopped.error instanceof p.ParseInterruptionError&&stopped.error.kind==="compute-limit","` + tt.name + ` spend exceeds baseline");
- check(p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).error instanceof p.ParseInterruptionError,"typed routes share binding budget");`
+			helpers := tsUnitsOf
+			limitCheck := `const want=` + tsEngineUnits(t, tt.src, "main", "z", false) + `.get(unit)!;
+ check(unitsOf(unit,o=>p.parseWithOptions(input,o))===want&&unitsOf(unit,o=>p.parseValueWithOptions(input,o))===want,"` + tt.name + ` counts the engine's units");`
 			if tt.nameFree {
-				limitCheck = `check(stopped.error===null&&p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).error===null,"` + tt.name + ` costs more than its baseline");`
-			}
-			consumer := `import * as p from "./parser.ts";
-` + tsTypedAssert + `
+				helpers = `
 function minimum(fits:(n:number)=>boolean):number {
  let lo=0,hi=1;while(!fits(hi)){hi*=2;check(hi<10000000,"finite binding budget")}
  while(lo+1<hi){const mid=Math.floor((lo+hi)/2);if(fits(mid))hi=mid;else lo=mid}
  return hi;
 }
-for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array([122])]) {
+`
+				limitCheck = `const baseline=minimum(n=>p.parseRuleWithOptions("` + tt.baseline + `",input,{unit,limits:{compute:n}}).error===null);
+ const limit=baseline+128;
+ const stopped=p.parseWithOptions(input,{unit,limits:{compute:limit}});
+ check(stopped.error===null&&p.parseValueWithOptions(input,{unit,limits:{compute:limit}}).error===null,"` + tt.name + ` costs more than its baseline");`
+			}
+			consumer := `import * as p from "./parser.ts";
+` + tsTypedAssert + helpers + `for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array([122])]) {
  const ordinary=p.parse(input,unit),typed=p.parseValue(input,unit);
  const active=p.parseWithOptions(input,{unit,signal:{aborted:false}}),converted=p.parseValueWithOptions(input,{unit,signal:{aborted:false}});
  check(ordinary.error===null&&typed.error===null&&active.error===null&&converted.error===null&&stable(active.node)===stable(ordinary.node)&&stable(converted.value)===stable(typed.value),"binding and environment value parity");
- const baseline=minimum(n=>p.parseRuleWithOptions("` + tt.baseline + `",input,{unit,limits:{compute:n}}).error===null);
- const limit=baseline+128;
- const stopped=p.parseWithOptions(input,{unit,limits:{compute:limit}});
  ` + limitCheck + `
  check(p.parseValueWithOptions(input,{unit,limits:{compute:0}}).error===null,"fresh binding retry");
 }
@@ -81,7 +85,7 @@ for(const unit of [p.CodePoints,p.Bytes])for(const input of ["z",new Uint8Array(
 			if !tt.isolated && tt.nameFree {
 				consumer += `const stop=p.recognizeWithOptions("z",{limits:{compute:128}});check(!(stop instanceof p.ParseInterruptionError),"a long variable name costs no more than a short one");`
 			} else if !tt.isolated {
-				consumer += `const stop=p.recognizeWithOptions("z",{limits:{compute:128}});check(stop instanceof p.ParseInterruptionError&&stop.kind==="compute-limit","predicate-dependent recognition counts binding spend");`
+				consumer += `for(const unit of [p.CodePoints,p.Bytes])check(unitsOf(unit,o=>p.recognizeWithOptions("z",o))===` + tsEngineUnits(t, tt.src, "main", "z", true) + `.get(unit),"predicate-dependent recognition counts the engine's units");`
 			}
 			runTypedTSFixture(t, tt.src, consumer, common.GenOptions{Start: "main", Types: true, Recognize: true}, "")
 		})

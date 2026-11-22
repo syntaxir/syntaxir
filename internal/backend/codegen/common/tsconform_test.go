@@ -106,53 +106,19 @@ func tsExecSuites(controlled, sparse bool) []conform.Suite {
 	}
 	name := fmt.Sprintf("typescript (controlled=%v, sparse seen=%v)", controlled, sparse)
 	return []conform.Suite{
-		{Name: name + " memo", Ops: with(memoOps)},
-		{Name: name + " environment", Ops: with(envOps), Exact: []string{"env.lookup", "env.bind", "env.key", "budget.chargeKey"}},
-		{Name: name + " recovered errors", Ops: with(recOps), Exact: recOps},
+		{Name: name + " memo", Ops: with(memoOps), Free: memoOps},
+		{Name: name + " environment", Ops: with(envOps), Free: []string{"env.lookup", "env.bind", "env.key", "memo.lookup", "memo.store"}, Exact: []string{"budget.chargeKey"}},
+		{Name: name + " recovered errors", Ops: with(recOps), Free: recOps},
 	}
 }
 
-// tsChargeDivergences are the operations whose charges in the library differ from the model's, each
-// with the difference. The charge checks of the suite stop a case at the first call that differs, so the
-// suite holds these operations to everything but their charges and tolerates the failure that charges
-// cause: a difference of charges or the interruption that follows from one. A failure of any other
-// kind, or at any other operation, fails the test. Each reason starts with the name of the divergence it covers
-// (listed with a reproduction in the #305 hand-off); when the library holds the model's charges there,
-// the entry goes.
-var tsChargeDivergences = map[string]string{
-	// JavaScript cannot tell whether two equal strings are the same memory, which the model's charge
-	// for the comparison depends on, so the library cannot hold it; the entry goes when the cost of a
-	// string comparison no longer depends on memory.
-	"env.bind": "[env.bind string compare] comparing a string with the value of the slot charges one unit for each byte (the model: two for each byte of strings that are not the same memory, and one for strings that are)",
-}
-
-// tsInputChargeDivergences are those of a parse of an input of some length, where the memo has one
-// slot for each position.
-var tsInputChargeDivergences = map[string]string{}
-
-// tsReport fails the test for each failure of res that is not a known difference of charges.
-func tsReport(t *testing.T, res tsConformResult, ops []string, known map[string]string) {
+// tsReport fails the test for each failure of res.
+func tsReport(t *testing.T, res tsConformResult) {
 	t.Helper()
 	t.Logf("%d cases ran, %d skipped, %d pending, %d failed", res.ran, res.skipped, res.pending, len(res.fails))
-	seen := map[string]int{}
 	for _, err := range res.fails {
 		op, kind := tsFailureKind(err)
-		switch kind {
-		case "bound", "exact", "limit", "interrupt":
-			if _, ok := known[op]; ok {
-				seen[op]++
-				continue
-			}
-		}
 		t.Errorf("%s at %s: %v", kind, op, err)
-	}
-	for op := range known {
-		if seen[op] == 0 && slices.Contains(ops, op) {
-			t.Logf("%s no longer differs in charges in this suite", op)
-		}
-	}
-	for op, n := range seen {
-		t.Logf("known difference of charges: %s in %d cases: %s", op, n, known[op])
 	}
 }
 
@@ -175,11 +141,7 @@ func TestTypeScriptConformanceExec(t *testing.T) {
 					if res.ran < seeds {
 						t.Fatalf("only %d cases ran", res.ran)
 					}
-					known := map[string]string{}
-					if controlled {
-						known = tsChargeDivergences
-					}
-					tsReport(t, res, s.Ops, known)
+					tsReport(t, res)
 				})
 			}
 		}
@@ -187,7 +149,7 @@ func TestTypeScriptConformanceExec(t *testing.T) {
 }
 
 // tsFailureKind returns the operation of the call at which a case failed and the kind of the
-// difference: "bound" and "exact" for the charges of the call, "limit" for the interruption that
+// difference: "bound", "exact" and "free" for the units of the call, "limit" for the interruption that
 // follows from them, "result" for a handle or a value, "interrupt" for another interruption, and
 // "other" for the rest.
 func tsFailureKind(err error) (op, kind string) {
@@ -203,6 +165,8 @@ func tsFailureKind(err error) (op, kind string) {
 		kind = "bound"
 	case strings.Contains(f.Msg, "not the exact cost"):
 		kind = "exact"
+	case strings.Contains(f.Msg, "is no event"):
+		kind = "free"
 	case strings.Contains(f.Msg, "past the limit"), strings.Contains(f.Msg, "interrupted by the limit"):
 		kind = "limit"
 	case strings.HasPrefix(f.Msg, "interrupted:"):
@@ -225,14 +189,7 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 	f := tsconformtest.Exec(true)
 	f.Options = map[string]any{"input": 100}
 	res := tsConformRun(runner, f, s, 100, 150)
-	known := map[string]string{}
-	for op, reason := range tsChargeDivergences {
-		known[op] = reason
-	}
-	for op, reason := range tsInputChargeDivergences {
-		known[op] = reason
-	}
-	tsReport(t, res, s.Ops, known)
+	tsReport(t, res)
 }
 
 // TestTypeScriptConformancePrintedOps pins the operations that the harness does not run as printed
@@ -247,7 +204,8 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 // DocumentParser and ObservedParser targets, since the batch Parser reads no Document and tracks nothing;
 // obs.active, obs.enter and obs.exit have no printed form of their own (the printer emits the observation
 // hooks inside the printed rule code); env.scope, env.lookup, rec.push and budget.used are support
-// operations of the cases. An observed parse without a Document keeps no start of the examined input and
+// operations of the cases, and budget.charge and budget.chargeKey too: the TypeScript parser has no
+// budget form, and the harness counts their units in the parser's counter of compute units. An observed parse without a Document keeps no start of the examined input and
 // no statistics.
 func TestTypeScriptConformancePrintedOps(t *testing.T) {
 	h, err := tsconformtest.Printed()
@@ -258,7 +216,7 @@ func TestTypeScriptConformancePrintedOps(t *testing.T) {
 		name, reason string
 		want         []string
 	}{
-		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "action.elemsAbove", "action.keep"}, tsconformtest.DocOps...)},
+		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.charge", "budget.chargeKey", "budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "action.elemsAbove", "action.keep"}, tsconformtest.DocOps...)},
 		{"PrintedDocumentParser", "", nil},
 		{"PrintedObservedParser", "the Document operation", []string{"doc.evaluated", "doc.low", "doc.reused", "doc.touchFrom"}},
 	}

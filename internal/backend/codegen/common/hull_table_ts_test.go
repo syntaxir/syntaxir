@@ -18,13 +18,15 @@ import (
 )
 
 // hullScript makes the tuples and lists of cases.json on the TypeScript library (fxTuple of tsCompose and
-// Actx.newList, over the printed method actionHull), prints the range of each, and the units that the
-// composition charges over the elements again, in order. The input of the parser is input.txt.
+// Actx.newList, over the printed method actionHull), prints the range of each, and the units that
+// actionHullLogical counts over the elements again, in order. The input of the parser is input.txt.
 const hullScript = `import { readFileSync } from "node:fs";
 import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
-P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 1e15 } as unknown as p.ResolvedParseOptions) : null;
+P.control = null;
+P.units = 0;
+P.unitsCheck = Infinity;
 P.created = [];
 P.kidStack = [];
 P.src = readFileSync("input.txt", "utf8");
@@ -39,7 +41,7 @@ const values: Record<string, p.Value> = {
   "node": new p.Node("tuple", "", 2, 5, "", [text, text], p.noFields, false, false),
   "late": new p.Node("string", "", 7, 9, "q", p.noNodes, p.noFields, false, true),
 };
-const used = (): number => (CONTROLLED ? (P.control as any).budgetUsed : 0);
+const used = (): number => (CONTROLLED ? P.units : 0);
 // pushed returns the elements that list makes of vs.
 const pushed = (vs: p.Value[]): (p.Node | null)[] => {
   const base = P.kidStack.length;
@@ -53,7 +55,7 @@ console.log(JSON.stringify(cases.map(([kind, elems]) => {
     const n = (kind === "tuple" ? fxTuple(c, ...vs) : c.newList(pushed(vs))) as p.Node;
     const rng = n.start + "-" + n.end;
     const before = used();
-    P.actionHull(c, kind === "tuple", n.children);
+    P.actionHullLogical(c, kind === "tuple", n.children);
     return rng + " " + (used() - before);
   } catch (x) {
     return x instanceof FxError ? "error: " + x.msg : "exception: " + String(x);
@@ -63,8 +65,8 @@ console.log(JSON.stringify(cases.map(([kind, elems]) => {
 
 func hullKey(kind string, elems []string) string { return kind + ":" + strings.Join(elems, ",") }
 
-// runTSHulls runs the hull table on the TypeScript library after mutate changed its source, with a
-// budget control if controlled, and returns the result of each case by its kind and elements.
+// runTSHulls runs the hull table on the TypeScript library after mutate changed its source, counting
+// its units if controlled, and returns the result of each case by its kind and elements.
 func runTSHulls(t *testing.T, controlled bool, mutate func(string) string) map[string]string {
 	t.Helper()
 	node := tooltest.RequireNode(t)
@@ -150,7 +152,7 @@ func TestPrintedHullMutantsTypeScript(t *testing.T) {
 	}
 	t.Parallel()
 	mutants := []struct{ name, sig, old, new string }{
-		{"an element of a hull charges no step", "actionHull(c: Actx", "this.spend();", ""},
+		{"an element of a hull counts no unit", "actionHullLogical(c: Actx", "this.unitsSized(kids.length);", ""},
 		{"an element that adds no range widens the range", "actionHull(c: Actx", "if (has) {", "if (has || true) {"},
 		{"the start of a hull is the latest", "actionHull(c: Actx", "es < lo", "es > lo"},
 		{"the end of a hull is the earliest", "actionHull(c: Actx", "ee > hi", "ee < hi"},

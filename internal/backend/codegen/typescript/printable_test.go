@@ -37,7 +37,7 @@ func TestPrintableAdmitsPrintedFunction(t *testing.T) {
 	f := grammarFunc(&prim.Attrs{Frame: true, Start: "s"},
 		[]code.Param{local("n", prim.TypeInt), local("m", prim.TypeMark), local("v", prim.TypeValue)},
 		do(prim.OpStep, nil),
-		do(tsprim.SpendOp, tsprim.SpendRun{N: 2}),
+		do(tsprim.MergeOp, nil),
 		do(prim.OpPred, prim.Predicate{Capture: prim.Capture{Frame: true}}),
 		do(prim.OpBind, prim.Binding{Capture: prim.Capture{Frame: true}}),
 		do(prim.OpAdvance, nil, &code.Local{Name: "n"}))
