@@ -1,4 +1,4 @@
-package flowlower
+package actionlower
 
 import (
 	"slices"
@@ -15,7 +15,7 @@ import (
 // is what an application of an action expression runs: the lowered function takes the context and returns the value and the
 // failure. The negative controls change the function by one parameter or result and must be rejected.
 func TestLoweredActionHasTheSignatureOfAction(t *testing.T) {
-	l, err := Action(&core.Const{Value: 1}, ActionOptions{})
+	l, err := Lower(&core.Const{Value: 1}, Options{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -46,8 +46,8 @@ func TestLoweredActionHasTheSignatureOfAction(t *testing.T) {
 	}
 }
 
-// TestActionChecksItsSignature goes through Action itself: when the callable type Action declares another signature than
-// the function that Action lowers, lowering fails, so a lowering that dropped the check would pass for any change to
+// TestActionChecksItsSignature goes through Lower itself: when the callable type Action declares another signature than
+// the function that Lower lowers, lowering fails, so a lowering that dropped the check would pass for any change to
 // the signature. The test changes the handle type of the shared base module of action expressions and restores it.
 func TestActionChecksItsSignature(t *testing.T) {
 	m, err := actionModule()
@@ -66,13 +66,13 @@ func TestActionChecksItsSignature(t *testing.T) {
 		{"no parameter", code.Signature{Results: saved.Results}},
 	} {
 		h.Callable = &c.sig
-		_, err := Action(&core.Const{Value: 1}, ActionOptions{})
+		_, err := Lower(&core.Const{Value: 1}, Options{})
 		if err == nil || !strings.Contains(err.Error(), "signature of Action") {
 			t.Errorf("%s: err = %v, want the signature of Action to be reported", c.name, err)
 		}
 	}
 	h.Callable = saved
-	if _, err := Action(&core.Const{Value: 1}, ActionOptions{}); err != nil {
+	if _, err := Lower(&core.Const{Value: 1}, Options{}); err != nil {
 		t.Errorf("with the declared signature: %v", err)
 	}
 }

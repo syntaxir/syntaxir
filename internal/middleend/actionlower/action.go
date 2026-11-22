@@ -1,20 +1,4 @@
-package flowlower
-
-import (
-	"fmt"
-	"slices"
-	"strconv"
-	"strings"
-	"sync"
-
-	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/code/action"
-	"syntaxir.dev/sxir/internal/ir/code/exec"
-	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
-	ir "syntaxir.dev/sxir/internal/ir/core"
-)
-
-// Action expressions lowered to the Action dialect.
+// Package actionlower lowers action expressions to the Action dialect.
 //
 // An action expression (an action, a predicate or the value of a binding) becomes a function of Code IR that calls
 // the compositions of the operators of action expressions (binary, unary, logic, member, length, text, convert,
@@ -32,17 +16,32 @@ import (
 // A built-in function that takes a function (map, filter, foldl, foldr) is a loop over the elements of
 // its list argument: each step charges the step of the element (seq.step), binds the parameters of the
 // lambda to locals of the loop and evaluates its body in place.
+package actionlower
+
+import (
+	"fmt"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec"
+	"syntaxir.dev/sxir/internal/ir/code/exec/compose"
+	ir "syntaxir.dev/sxir/internal/ir/core"
+)
 
 // CtxParam is the parameter of a lowered action expression: the context the action expression is applied to. An action expression's results are those of
-// the callable type Action (action.Action) unless the action expression is evaluated in place of an action (ActionOptions.Result).
+// the callable type Action (action.Action) unless the action expression is evaluated in place of an action (Options.Result).
 const CtxParam = "c"
 
-// ActionCompositions are the compositions of the parser VM that lowered action expressions call.
-var ActionCompositions = []string{"binary", "unary", "logic", "member", "length", "text", "convert", "conforms",
+// Compositions are the compositions of the parser VM that lowered action expressions call.
+var Compositions = []string{"binary", "unary", "logic", "member", "length", "text", "convert", "conforms",
 	"push", "pushItems", "hull", "cover", "made", "items", "itemAt", "filterKeep"}
 
-// ActionLowered is an action expression lowered to Exec IR.
-type ActionLowered struct {
+// Lowered is an action expression lowered to Exec IR.
+type Lowered struct {
 	// Module declares what Func calls: the compositions of the operators of action expressions with what they call,
 	// and the operations of the leaves.
 	Module *code.Module
@@ -52,8 +51,8 @@ type ActionLowered struct {
 	Result string
 }
 
-// ActionOptions configures Action.
-type ActionOptions struct {
+// Options configures Lower.
+type Options struct {
 	// Result, if not empty, names a local of the lowered function (Func.Locals) that its body assigns
 	// the action expression's value to last, and a failure ends the parse by action.raise; otherwise the body returns
 	// the value and the failure. A printer that prints the body without the function, in place of an
@@ -88,11 +87,11 @@ type ActionOptions struct {
 	Proj map[string]string
 }
 
-// Action lowers the action expression t. It reports an error if t is not an action expression that the front end builds: a
+// Lower lowers the action expression t. It reports an error if t is not an action expression that the front end builds: a
 // built-in other than those of the language, one with arguments of the wrong number, a lambda that
 // is not the function argument of map, filter, foldl or foldr, or a parameter read outside the body
 // of its lambda.
-func Action(t ir.ActionExpr, o ActionOptions) (*ActionLowered, error) {
+func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
 	if !wellFormed(t) {
 		return nil, fmt.Errorf("lower: an action expression that the front end does not build: %s", ir.ActionExprString(t))
 	}
@@ -140,7 +139,7 @@ func Action(t ir.ActionExpr, o ActionOptions) (*ActionLowered, error) {
 			return nil, err
 		}
 	}
-	return &ActionLowered{Module: m, Func: fn, Result: o.Result}, nil
+	return &Lowered{Module: m, Func: fn, Result: o.Result}, nil
 }
 
 // checkActionSignature reports an error unless the parameters and results of f are those of the callable
@@ -165,7 +164,7 @@ func checkActionSignature(m *code.Module, f *code.Func) error {
 	return nil
 }
 
-// wellFormed reports whether t is an action expression that Action lowers: the built-ins of the language with their
+// wellFormed reports whether t is an action expression that Lower lowers: the built-ins of the language with their
 // arguments, lambdas only as their function arguments, and parameters only in the bodies of their
 // lambdas.
 func wellFormed(t ir.ActionExpr) bool {
@@ -265,7 +264,7 @@ func actionModule() (*code.Module, error) {
 			})
 			m.Funcs = append(m.Funcs, f)
 		}
-		for _, name := range ActionCompositions {
+		for _, name := range Compositions {
 			if base.Func(name) == nil {
 				actionBaseErr = fmt.Errorf("lower: no composition %s", name)
 				return
@@ -299,7 +298,7 @@ type actionLowerer struct {
 	proj       map[string]string
 	// params holds the values of the parameters of each lambda whose body is being lowered.
 	params map[*ir.Lambda][]code.Expr
-	// inPlace is set when the action expression is evaluated in place of an action (ActionOptions.Result).
+	// inPlace is set when the action expression is evaluated in place of an action (Options.Result).
 	inPlace      bool
 	fieldCompare bool
 }

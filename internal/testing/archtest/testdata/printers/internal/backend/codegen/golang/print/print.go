@@ -6,6 +6,7 @@ package print
 import (
 	"example.com/print/internal/driver"
 	"example.com/print/internal/driver/result"
+	"example.com/print/internal/middleend/actionlower"
 	"example.com/print/internal/middleend/codepass"
 	"example.com/print/internal/middleend/flowlower"
 	"example.com/print/internal/middleend/flowlower/lowerdata"
@@ -17,7 +18,7 @@ var (
 	_ = driver.Compile
 	_ = result.IR
 	_ = codepass.Specialize
-	_ = flowlower.Action
+	_ = actionlower.Lower
 	_ = flowlower.Term
 	_ lowerdata.Options
 	_ = plan.Planning

@@ -1,9 +1,9 @@
-package flowlower
+package actionlower
 
 import "syntaxir.dev/sxir/internal/pass"
 
-// The flags of the lowering of action expressions (Action), which the steps that run it declare as
-// parameters (ActionOptions.TextDispatch, ActionOptions.FieldCompare).
+// The flags of the lowering of action expressions (Lower), which the steps that run it declare as
+// parameters (Options.TextDispatch, Options.FieldCompare).
 const (
 	TextDispatch = "text-dispatch"
 	FieldCompare = "field-compare"

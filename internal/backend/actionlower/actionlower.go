@@ -1,6 +1,6 @@
 // Package actionlower lowers the action expressions of a checked program, the predicates and the
 // values of bindings to the action programs that the runtime evaluates (state.ActionProgram): it lowers
-// a Core IR action expression to Exec IR (flowlower.Action) and translates the function into the instructions of the
+// a Core IR action expression to Exec IR (internal/middleend/actionlower) and translates the function into the instructions of the
 // register machine of action expressions. The closure backend and the bytecode compiler (vmlower) call it when
 // they build a program; the runtime only runs the result.
 package actionlower
@@ -13,7 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	ir "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -27,7 +27,7 @@ type Env struct {
 	Vars    *check.VarTable
 	// Scope holds the capture slots of the frame the action expression reads.
 	Scope *program.Scope
-	// Proj are the projected captures of the rule whose action the action expression is (flowlower.ActionOptions.Proj),
+	// Proj are the projected captures of the rule whose action the action expression is (Options.Proj of internal/middleend/actionlower),
 	// nil for every other action expression.
 	Proj map[string]string
 }
@@ -53,7 +53,7 @@ type actionReg struct {
 // map, filter and the folds visit (seq.step), and the values that the plain evaluation builds and
 // the lowering does not (units.add, units.items, units.since), but no step of its own evaluation.
 func Compile(t ir.ActionExpr, env Env) (*state.ActionProgram, error) {
-	l, err := flowlower.Action(t, flowlower.ActionOptions{Unbounded: true, Visits: true, Proj: env.Proj})
+	l, err := actionlower.Lower(t, actionlower.Options{Unbounded: true, Visits: true, Proj: env.Proj})
 	if err != nil {
 		return nil, err
 	}

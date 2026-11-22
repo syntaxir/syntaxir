@@ -28,7 +28,7 @@ func iterCall(call string, v any, fold func(fn string, right bool, acc, list any
 func TestValueIterTable(t *testing.T) {
 	for _, controlled := range []bool{false, true} {
 		// A step of an iteration of the library is no logical event: the code of an action counts each
-		// element that map, filter or a fold visits itself (flowlower.ActionOptions.Visits), which the action
+		// element that map, filter or a fold visits itself (actionlower.Options.Visits), which the action
 		// charge goldens check. So the table's steps, which a target whose iteration charges them checks, are
 		// not checked here, and under limit controls the library must count nothing.
 		c, vals := nodeBuiltinFixture(controlled)

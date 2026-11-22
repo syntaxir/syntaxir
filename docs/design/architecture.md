@@ -270,6 +270,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/middleend/flowplan/plandata` | The data of planning, without pass code: a table's configuration and Core IR, its plan, and the table unit that carries the plan and the module of the table through its pipeline |
 | `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |
 | `internal/middleend/flowlower/lowerdata` | The data that the lowering to the Flow stage takes, without pass code: the functions of a table, their forms and options |
+| `internal/middleend/actionlower` | Action expressions of Core IR (actions, predicates and binding values) to functions of the Action dialect; every backend lowers its action expressions with it |
 | `internal/middleend/flowpass` | The Flow passes |
 | `internal/middleend/execlower` | Complete conversion from the Flow stage to the Exec stage |
 | `internal/middleend/codepass` | Dialect-independent passes of Code IR |

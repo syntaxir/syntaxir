@@ -558,7 +558,7 @@ ShapeListValue or ShapeStruct, which a value of a node type has by its base.`,
 walked by a built-in function or made by a constructor. A target that bounds the work (the budget feature) charges
 one unit for it; a target that does not charges nothing. In a parse that counts compute units, the step of an
 element that map, filter or a fold visits is an event of one unit, which the lowering of an action expression keeps for each visit
-(flowlower.ActionOptions.Visits); the steps of the functions over values (hull and the checks of conformance) are no
+(actionlower.Options.Visits); the steps of the functions over values (hull and the checks of conformance) are no
 event and count nothing.`})
 	// Logical compute units (design record 076): the lists that a fused concat does
 	// not build.

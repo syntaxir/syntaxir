@@ -31,10 +31,10 @@ var printPackages = []string{
 // expression until the action lowering of the pipeline lowers them as a step, and the import ban
 // becomes total. Each entry must be used: a use that goes must leave the list.
 var printerImportExceptions = []string{
-	"internal/backend/codegen/golang/print/action_exec.go: flowlower.Action",
-	"internal/backend/codegen/golang/print/action_exec.go: flowlower.ActionOptions",
-	"internal/backend/codegen/typescript/print/action_exec.go: flowlower.Action",
-	"internal/backend/codegen/typescript/print/action_exec.go: flowlower.ActionOptions",
+	"internal/backend/codegen/golang/print/action_exec.go: actionlower.Lower",
+	"internal/backend/codegen/golang/print/action_exec.go: actionlower.Options",
+	"internal/backend/codegen/typescript/print/action_exec.go: actionlower.Lower",
+	"internal/backend/codegen/typescript/print/action_exec.go: actionlower.Options",
 }
 
 // bannedForPrinters reports why a printer may not import the package at the module path r, or "".
@@ -53,7 +53,7 @@ func bannedForPrinters(r string) string {
 	case under("internal/middleend/corepass"), under("internal/middleend/flowpass"), under("internal/middleend/codepass"),
 		under("internal/backend/codegen/golang/pass"), under("internal/backend/codegen/typescript/pass"):
 		return "a pass package"
-	case under("internal/middleend/flowlower"), under("internal/middleend/execlower"), under("internal/backend/vmlower"),
+	case under("internal/middleend/flowlower"), under("internal/middleend/actionlower"), under("internal/middleend/execlower"), under("internal/backend/vmlower"),
 		under("internal/backend/actionlower"):
 		return "a lowering"
 	case under("internal/middleend/flowplan"):
@@ -163,7 +163,7 @@ func TestPrintersImportRuleNegativeControl(t *testing.T) {
 	}
 	const p = "internal/backend/codegen/golang/print"
 	violations, stale := printerImportViolations(pkgs, module, []string{p, "internal/backend/codegen/common"},
-		[]string{p + "/print.go: flowlower.Action", p + "/print.go: flowlower.Gone"})
+		[]string{p + "/print.go: actionlower.Lower", p + "/print.go: actionlower.Gone"})
 	want := []string{
 		"internal/backend/codegen/golang/print/print.go: codepass.Specialize (a pass package)",
 		"internal/backend/codegen/golang/print/print.go: driver.Compile (the driver)",
@@ -174,7 +174,7 @@ func TestPrintersImportRuleNegativeControl(t *testing.T) {
 	if !slices.Equal(violations, want) {
 		t.Errorf("violations:\n%s\nwant:\n%s", strings.Join(violations, "\n"), strings.Join(want, "\n"))
 	}
-	if want := []string{p + "/print.go: flowlower.Gone"}; !slices.Equal(stale, want) {
+	if want := []string{p + "/print.go: actionlower.Gone"}; !slices.Equal(stale, want) {
 		t.Errorf("stale = %q, want %q", stale, want)
 	}
 }

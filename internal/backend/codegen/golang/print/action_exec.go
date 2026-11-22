@@ -11,12 +11,12 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
 	irc "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 )
 
 // Action expressions printed from Exec IR.
 //
-// Every action expression is lowered by flowlower.Action and printed from Exec IR: the calls of the compositions of the
+// Every action expression is lowered by actionlower.Lower and printed from Exec IR: the calls of the compositions of the
 // library (ActionBinary, ...) with the failure of each checked after it, and the leaves, which read
 // the captures and variables of the action.
 
@@ -50,7 +50,7 @@ func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]
 	if t == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := flowlower.Action(t, flowlower.ActionOptions{Result: result, StructCall: g.Table == "trules", Unbounded: true, Visits: g.Logical, Proj: g.Proj,
+	l, err := actionlower.Lower(t, actionlower.Options{Result: result, StructCall: g.Table == "trules", Unbounded: true, Visits: g.Logical, Proj: g.Proj,
 		FieldCompare: g.Table == "trules" && g.params.FieldCompare, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))

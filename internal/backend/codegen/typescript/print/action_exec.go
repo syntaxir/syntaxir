@@ -9,12 +9,12 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	irc "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 )
 
 // Action expressions printed from Exec IR.
 //
-// Every action expression is lowered by flowlower.Action and printed from Exec IR as the statements of a function: the
+// Every action expression is lowered by actionlower.Lower and printed from Exec IR as the statements of a function: the
 // calls of the compositions of the library's Parser (actionBinary, ...) with the failure of each checked
 // after it, the logical compute units of the values it builds and the elements it visits under limit
 // controls, and the leaves, which read the captures and variables of the action.
@@ -27,7 +27,7 @@ func (g *Generator) actionStmts(ct irc.ActionExpr, s *check.Scope, locals map[st
 	if ct == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := flowlower.Action(ct, flowlower.ActionOptions{Unbounded: true, Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
+	l, err := actionlower.Lower(ct, actionlower.Options{Unbounded: true, Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
 	}

@@ -9,7 +9,7 @@ package codegen
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -48,9 +48,9 @@ func init() {
 }
 
 // Params are the parameters that the printing steps of both backends declare: those above and the
-// action lowering's text dispatch (flowlower.TextDispatch), which the printers pass to the action
+// action lowering's text dispatch (actionlower.TextDispatch), which the printers pass to the action
 // lowering they still run.
-var Params = []string{MethodSharing, LiteralSharing, UsedFeatures, flowlower.TextDispatch}
+var Params = []string{MethodSharing, LiteralSharing, UsedFeatures, actionlower.TextDispatch}
 
 // ParamsOf returns the values of Params that value, the parameter reader of a printing step's context
 // (pipe.Ctx.Value), gives.
@@ -59,6 +59,6 @@ func ParamsOf(value func(string) int) common.Params {
 		MethodSharing:  value(MethodSharing) != 0,
 		LiteralSharing: value(LiteralSharing) != 0,
 		UsedFeatures:   value(UsedFeatures) != 0,
-		TextDispatch:   value(flowlower.TextDispatch) != 0,
+		TextDispatch:   value(actionlower.TextDispatch) != 0,
 	}
 }

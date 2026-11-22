@@ -1,4 +1,4 @@
-package flowlower_test
+package actionlower_test
 
 import (
 	"crypto/sha256"
@@ -16,7 +16,7 @@ import (
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/flowlower"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
@@ -24,7 +24,7 @@ var update = flag.Bool("update", false, "update golden files")
 
 // TestActionDumpGolden lists the action expressions of every grammar of testdata/grammars lowered to Exec IR, against
 // the goldens in testdata/actions: a review aid that shows what a change of the lowering does to the
-// printed programs. An action expression that Action does not lower is listed by the kinds that it holds and Action
+// printed programs. An action expression that Lower does not lower is listed by the kinds that it holds and Lower
 // does not lower. A dump above actionDigestAbove bytes is stored as one digest line for each action expression
 // (actionDigests); a difference then names the action expressions that changed, with the digests of the golden and
 // of the run and the actual text, and the command that regenerates the goldens.
@@ -79,7 +79,7 @@ func TestActionDumpGolden(t *testing.T) {
 					t.Error(d)
 				}
 			}
-			t.Errorf("the lowered action expressions differ from %s; regenerate after review: go test ./internal/middleend/flowlower -run TestActionDumpGolden -update", golden)
+			t.Errorf("the lowered action expressions differ from %s; regenerate after review: go test ./internal/middleend/actionlower -run TestActionDumpGolden -update", golden)
 		})
 	}
 }
@@ -176,7 +176,7 @@ func dumpActions(t *testing.T, m *core.Module) string {
 			return
 		}
 		fmt.Fprintf(&b, "## %s %s\n", rule, what)
-		l, err := flowlower.Action(x, flowlower.ActionOptions{})
+		l, err := actionlower.Lower(x, actionlower.Options{})
 		if err != nil {
 			t.Fatalf("%s %s: %v", rule, what, err)
 		}
@@ -206,7 +206,7 @@ func dumpActions(t *testing.T, m *core.Module) string {
 	return b.String()
 }
 
-// TestActionRejectsMalformedActions checks that Action reports an error, and no lowered function, for action expressions
+// TestActionRejectsMalformedActions checks that Lower reports an error, and no lowered function, for action expressions
 // that the front end does not build, so that a generator fails loudly instead of printing them.
 func TestActionRejectsMalformedActions(t *testing.T) {
 	one := &core.Const{Value: 1}
@@ -223,15 +223,15 @@ func TestActionRejectsMalformedActions(t *testing.T) {
 		&core.Lambda{Body: one},
 		&core.Binary{Op: "+", L: one, R: &core.Lambda{Params: []string{"e"}, Body: one}},
 	} {
-		if l, err := flowlower.Action(x, flowlower.ActionOptions{}); err == nil || l != nil {
-			t.Errorf("Action(%s) = %v, %v; want an error", core.ActionExprString(x), l, err)
+		if l, err := actionlower.Lower(x, actionlower.Options{}); err == nil || l != nil {
+			t.Errorf("Lower(%s) = %v, %v; want an error", core.ActionExprString(x), l, err)
 		}
 	}
-	if _, err := flowlower.Action(&core.Builtin{Func: "len", Args: []core.ActionExpr{one}}, flowlower.ActionOptions{}); err != nil {
-		t.Errorf("Action(len(1)): %v", err)
+	if _, err := actionlower.Lower(&core.Builtin{Func: "len", Args: []core.ActionExpr{one}}, actionlower.Options{}); err != nil {
+		t.Errorf("Lower(len(1)): %v", err)
 	}
-	if _, err := flowlower.Action(mapped, flowlower.ActionOptions{}); err != nil {
-		t.Errorf("Action(%s): %v", core.ActionExprString(mapped), err)
+	if _, err := actionlower.Lower(mapped, actionlower.Options{}); err != nil {
+		t.Errorf("Lower(%s): %v", core.ActionExprString(mapped), err)
 	}
 }
 
@@ -271,9 +271,9 @@ func TestActionLowersNoFunctionValue(t *testing.T) {
 		{"a built-in that is not one", b("apply", list, lambda("e")), false},
 		{"a lambda alone", lambda("e"), false},
 	} {
-		l, err := flowlower.Action(c.actionExpr, flowlower.ActionOptions{})
+		l, err := actionlower.Lower(c.actionExpr, actionlower.Options{})
 		if (err == nil) != c.ok || (err == nil) != (l != nil) {
-			t.Errorf("%s: Action(%s) = %v, %v; want ok %v", c.name, core.ActionExprString(c.actionExpr), l, err, c.ok)
+			t.Errorf("%s: Lower(%s) = %v, %v; want ok %v", c.name, core.ActionExprString(c.actionExpr), l, err, c.ok)
 		}
 	}
 }

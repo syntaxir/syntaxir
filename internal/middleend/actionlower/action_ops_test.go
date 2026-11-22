@@ -1,4 +1,4 @@
-package flowlower
+package actionlower
 
 import (
 	"slices"
