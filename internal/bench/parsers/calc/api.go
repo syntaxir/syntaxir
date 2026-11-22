@@ -115,6 +115,13 @@ type LimitKind = sxirruntime.LimitKind
 // Used is the depth reached (the limit) and Requested is one, the nested call that would exceed
 // it. For LimitMemory, Used is the count of bytes at the check that failed and Requested is zero,
 // since memory is checked at polls rather than reserved.
+//
+// For LimitCompute, Hotspot is the rule that the Profile of the parse ranks first when the limit is
+// exceeded (Profile.Hotspot: the most evaluations at one position and level, a tie going to the
+// rule with more repeated evaluations, then to the first name). Every backend records the profile
+// while the parse runs and ranks it this way. It is empty without a Profile and when no rule
+// evaluated twice at a position. A parse without a Profile does not name one: run it again with
+// WithProfile to find the hotspot.
 type LimitError = sxirruntime.LimitError
 
 // ErrLimit is matched by errors.Is for any LimitError.
