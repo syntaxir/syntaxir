@@ -158,6 +158,8 @@ func tsFlowType(t prim.Type) string {
 		return "number[]"
 	case prim.TypeError:
 		return "SyntaxError | null"
+	case prim.TypeRun:
+		return "RunState"
 	}
 	panic(tsFlowUnsupported("variable of type " + t.String()))
 }
@@ -176,6 +178,9 @@ func tsFlowZero(t prim.Type) string {
 		return "noExp"
 	case prim.TypeError:
 		return "null"
+	case prim.TypeRun:
+		// A run is read only where flow.resumeOn held, after flow.resumeStart set it.
+		return "null!"
 	}
 	return "0"
 }

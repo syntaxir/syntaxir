@@ -1453,7 +1453,8 @@ func (p *Parser) ResumeBegin(r *RunState) {
 	p.docExamined, p.docLow = p.Pos, p.Pos
 	r.OuterExamined = oe
 	r.OuterLow = ol
-	r.Mark = p.Isolate(p.Pos)
+	m := p.Isolate(p.Pos)
+	r.Mark = m
 }
 
 // ResumeEnd ends evaluating an element of the run r, with its success ok and value v, before the parse resets

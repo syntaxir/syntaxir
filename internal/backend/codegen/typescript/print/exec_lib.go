@@ -46,6 +46,19 @@ var tsSpecs = []struct {
 	{fn: "memoized", on: []string{exec.Document, exec.Observe}, name: "callTracked", target: tsObsClass},
 	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "memoAdvance", target: tsDocClass},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", target: tsDocClass},
+	// The repetition runs of a Document parse, which the rule bodies run through the resume methods of
+	// DocumentParser (resumeStart and the others), the forms of the Flow operations of the same names.
+	// runBegin and runEnd take other names, since runBegin is the walk of a run site.
+	{fn: "runStart", on: tsRunOn, name: "runStart", target: tsDocClass},
+	{fn: "runMore", on: tsRunOn, name: "runMore", target: tsDocClass},
+	{fn: "runReuse", on: tsRunOn, name: "runReuse", target: tsDocClass},
+	{fn: "runPrefix", on: tsRunOn, name: "runPrefix", target: tsDocClass},
+	{fn: "runResync", on: tsRunOn, name: "runResync", target: tsDocClass},
+	{fn: "runTail", on: tsRunOn, name: "runTail", target: tsDocClass},
+	{fn: "runNext", on: tsRunOn, name: "runNext", target: tsDocClass},
+	{fn: "runBegin", on: tsRunOn, name: "runElemBegin", target: tsDocClass},
+	{fn: "runEnd", on: tsRunOn, name: "runElemEnd", target: tsDocClass},
+	{fn: "runFinish", on: tsRunOn, name: "runFinish", target: tsDocClass},
 	{fn: "grow", name: "grow"},
 	{fn: "expect", on: []string{exec.Budget}, name: "expect"},
 	{fn: "mergeKept", on: []string{exec.Budget}, name: "mergeKept"},
@@ -84,6 +97,10 @@ var tsSpecs = []struct {
 	{fn: "elemsConform", name: "elemsConform"},
 	{fn: "tupleConform", name: "tupleConform"},
 }
+
+// tsRunOn are the features of the methods of the repetition runs of a Document, which are the
+// engine's (runOn).
+var tsRunOn = []string{exec.Document, exec.Budget}
 
 // tsClass selects the target that prints a method of the library (tsSpecs): tsTarget, tsDocTarget or
 // tsObsTarget.
@@ -239,13 +256,17 @@ var tsTarget = &Target{
 		return map[string]string{
 			exec.Rule: "Rule", exec.Value: "R", exec.Entry: "MemoEntry | null", exec.Values: "Value[] | null",
 			exec.Errs: "Errs", exec.Kept: "number[]", exec.ExpID: "number", exec.EditLog: "DocumentEdit[]",
-			exec.Ctx: "CtxCall", exec.Res: "CtxResult | null", exec.Grow: "GrowState",
+			exec.Ctx: "CtxCall", exec.Res: "CtxResult | null", exec.Grow: "GrowState", exec.Run: "RunState",
 			exec.Frame: "Frame", exec.Scope: "Env | null", exec.Operators: "OperatorsRuleOp[]", exec.Operator: "OperatorsRuleOp",
 			exec.Line: "OperatorsRuleLine", exec.Attempt: "OperatorsRuleAttempt | null",
 			action.Action: "Action", exec.Datum: "Value", action.Seq: "readonly (Node | null)[]",
 			action.Obj: "Node", action.Name: "string", action.Str: "string", action.Act: "Actx", action.Fail: "Value", action.Elem: "Node | null",
 			action.NodeType: "string", action.FType: "FieldType",
 		}[name]
+	},
+	Zero: func(name string) string {
+		// A set of expectations starts empty.
+		return map[string]string{exec.Kept: "noExp"}[name]
 	},
 	FuncName: func(name string) string {
 		for _, s := range tsSpecs {
@@ -733,6 +754,9 @@ var tsDocTarget = func() *Target {
 		case "budget.freeEnd":
 			return "this.freeEnd(" + a[0] + ")"
 		}
+		if s, ok := tsRunOp(c.Callee, a); ok {
+			return s
+		}
 		return tsTarget.Op(c, a)
 	}
 	t.Stmt = func(c *code.Call, a []string, dst []string, decl string) (string, bool) {
@@ -796,3 +820,64 @@ func tsActionMethod(fn string) string { return tsTarget.FuncName(fn) }
 
 // tsHandle returns the TypeScript type of the handle type name in the TypeScript library.
 func tsHandle(name string) string { return tsTarget.Handle(name) }
+
+// tsRunOp returns the TypeScript form, in the methods of DocumentParser, of an operation of the
+// repetition runs of a Document, of the edit log they read and of the poll of a reused element, given
+// its printed arguments, or reports false for another operation. RunState holds the fields of the Run
+// record under their names (exec.RunFields), its mark as the parts of an isolation (tsIsolationParts);
+// the recorded elements are the library's own.
+func tsRunOp(callee string, a []string) (string, bool) {
+	switch callee {
+	case "doc.log":
+		return "this.memoState.edits", true
+	case "budget.poll":
+		return "this.control?.poll()", true
+	}
+	name, ok := strings.CutPrefix(callee, "run.")
+	if !ok {
+		return "", false
+	}
+	for _, f := range exec.RunFields() {
+		field := strings.ToUpper(f.Name[:1]) + f.Name[1:]
+		switch {
+		case name == f.Name && f.Name == "mark":
+			// The mark is read where exp.unisolate takes it, which reads its parts.
+			return a[0] + ".mark", true
+		case name == "set"+field && f.Name == "mark":
+			return fmt.Sprintf("%[1]s.mark%[3]s = %[2]s%[3]s;\n%[1]s.mark%[4]s = %[2]s%[4]s", a[0], a[1], tsIsolationParts[0].Suffix, tsIsolationParts[1].Suffix), true
+		case name == f.Name:
+			return a[0] + "." + f.Name, true
+		case name == "set"+field:
+			return a[0] + "." + f.Name + " = " + a[1], true
+		}
+	}
+	elem := map[string]string{"oldStart": "start", "oldEnd": "end", "oldFrom": "from", "oldExamined": "examined", "oldFar": "far", "oldKept": "exp"}
+	if f, ok := elem[name]; ok {
+		return a[0] + ".old[" + a[1] + "]!." + f, true
+	}
+	switch name {
+	case "init":
+		return "this.runInit(" + strings.Join(a, ", ") + ")", true
+	case "takeHere":
+		return "this.runTakeHere(" + a[0] + ")", true
+	case "previous":
+		return "(this.lastRuns !== null && this.gen > 0)", true
+	case "takeLast":
+		return "this.runTakeLast(" + strings.Join(a, ", ") + ")", true
+	case "oldCount":
+		return a[0] + ".old.length", true
+	case "take":
+		return "this.runTake(" + strings.Join(a, ", ") + ")", true
+	case "resumed":
+		return "this.reused++;\nthis.resumed++", true
+	case "add":
+		return "this.runAdd(" + strings.Join(a, ", ") + ")", true
+	case "clean":
+		return "this.runClean(" + a[0] + ")", true
+	case "minimum":
+		return "minRecordedRun", true
+	case "record":
+		return "this.runRecord(" + a[0] + ")", true
+	}
+	panic("tsgen: no TypeScript form of " + callee)
+}

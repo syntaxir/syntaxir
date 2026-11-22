@@ -228,7 +228,7 @@ func mergedRecord(a, b code.Stmt) (*code.Call, bool) {
 // it matched, which an assignment tests.
 func TwoResults(name string) bool {
 	switch name {
-	case flow.OpMatchLit, flow.OpCallRule, flow.OpCallOutline:
+	case flow.OpMatchLit, flow.OpCallRule, flow.OpCallOutline, flow.OpResumeNext:
 		return true
 	}
 	return false

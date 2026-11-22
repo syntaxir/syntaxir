@@ -354,13 +354,13 @@ and, with `-types`, `parseValue(options?)`.
   what `parseValue` returns. An invocation MUST NOT change the unit or the
   expectations. A `parse` or `edit` made while the Document parses, from a trace
   callback, returns an error.
-- A parse reuses the memo results of earlier parses that the edits since left valid,
-  by the rules of the Go `Document`, but resumes no repetitions: it evaluates their
-  elements again. `stats()` returns `{ evaluated, reused }`, the rule evaluations and
-  the reused results of the last parse, which equal the Go `Stats` after `Parse` of
-  the same grammar, text and edits when that parse resumed no repetition
-  (`ResumedElements` is zero). The Go `ParseValue` keeps its own typed memo, so the
-  Go `Stats` after it can differ.
+- A parse reuses the memo results of earlier parses that the edits since left valid
+  and resumes the runs of repetitions, by the rules of the Go `Document`. `stats()`
+  returns `{ evaluated, reused, memoHits, resumedElements }`, the rule evaluations,
+  the reused results, and among them the memo hits and the resumed elements of
+  repetitions of the last parse, which equal the Go `Stats` after `Parse` of the same
+  grammar, text and edits; `parseValue` converts the result of such a parse. The Go
+  `ParseValue` keeps its own typed memo, so the Go `Stats` after it can differ.
 - A returned tree can share nodes with the results of later parses, so mutating it
   can change what they contain. A reused result whose position an edit moved is
   returned in copies, which leave earlier trees unchanged.

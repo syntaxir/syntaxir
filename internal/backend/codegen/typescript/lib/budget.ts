@@ -175,6 +175,19 @@ export class BudgetControl {
     this.sinceCheck = n >= 256 ? 0 : this.sinceCheck + n;
   }
 
+  // poll counts one step of work that charges no unit, such as the reuse of an element of a run of a
+  // Document, toward the interval at which the parse observes cancellation and its memory limit, and
+  // observes them where the interval ends, as a charge of one unit does (budget.poll). Work that charges
+  // nothing then still lets a cancellation end the parse within an interval of steps.
+  poll(): void {
+    if (this.sinceCheck >= 255) {
+      this.check();
+      this.sinceCheck = 1;
+    } else {
+      this.sinceCheck++;
+    }
+  }
+
   // chargeUnits reserves n units as n charges of one unit do: the same units, the same polls and the
   // same failure, in a time that grows with the polls the units reach, not with n. The units between
   // two polls are reserved at once; a run that does not fit fails at the unit that does not: used is

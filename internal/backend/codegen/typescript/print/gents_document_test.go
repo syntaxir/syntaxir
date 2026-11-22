@@ -357,7 +357,7 @@ for (const [s, e, r] of [[0, 1, "s"], [4, 5, "x"]]) {
   console.log(d.text(), marshal(a.node) === marshal(f.node) && String(a.error) === String(f.error), JSON.stringify(d.stats()));
 }
 `
-	want := "s12;? true {\"evaluated\":2,\"reused\":1}\ns12;x true {\"evaluated\":3,\"reused\":0}\n"
+	want := "s12;? true {\"evaluated\":2,\"reused\":1,\"memoHits\":1,\"resumedElements\":0}\ns12;x true {\"evaluated\":3,\"reused\":0,\"memoHits\":0,\"resumedElements\":0}\n"
 	run := func(mutate func(string) string) string {
 		return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Document: true}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 			code, err := codegentest.GenerateTSBundle(g, opts)
@@ -402,10 +402,10 @@ for (const edit of [null, [3, 5, "xy"]]) {
   const s = profile.snapshot(), stats = d.stats();
   const exits = events.filter((e) => e.kind === "exit");
   console.log(result.error === null, s.parses, s.calls === exits.length, s.entered === events.filter((e) => e.kind === "enter").length,
-    s.memoHits === exits.filter((e) => e.memo).length, s.evals === stats.evaluated, s.memoHits === stats.reused, JSON.stringify(stats));
+    s.memoHits === exits.filter((e) => e.memo).length, s.evals === stats.evaluated, s.memoHits === stats.memoHits, JSON.stringify(stats));
 }
 `
-	want := "true 1 true true true true true {\"evaluated\":11,\"reused\":0}\ntrue 1 true true true true true {\"evaluated\":3,\"reused\":4}\n"
+	want := "true 1 true true true true true {\"evaluated\":11,\"reused\":0,\"memoHits\":0,\"resumedElements\":0}\ntrue 1 true true true true true {\"evaluated\":3,\"reused\":4,\"memoHits\":4,\"resumedElements\":0}\n"
 	run := func(mutate func(string) string) string {
 		return codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Document: true, Observability: true}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 			code, err := codegentest.GenerateTSBundle(g, opts)

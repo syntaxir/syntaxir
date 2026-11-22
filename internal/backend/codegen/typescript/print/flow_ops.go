@@ -111,7 +111,7 @@ func (p *tsFlowPrinter) isRead(name string) bool {
 func tsFlowPure(c *code.Call) bool {
 	switch execlower.FlowOp(c.Callee) {
 	case flow.OpEnv, flow.OpFrame, flow.OpRecLen, flow.OpKidsLen, flow.OpNewVals, flow.OpStr, flow.OpMarkPos,
-		flow.OpFrameVal, flow.OpInClass, flow.OpGuardFails:
+		flow.OpFrameVal, flow.OpInClass, flow.OpGuardFails, flow.OpResumeOn, flow.OpResumeMore:
 		return true
 	}
 	return false
@@ -217,6 +217,13 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 	case flow.OpScanEnd:
 		a := args()
 		p.write(fmt.Sprintf("p.scanEnd(%d, %s, %s);\n", c.Imm.(prim.Site), a[0], a[1]))
+	case flow.OpResumeBegin:
+		p.write(fmt.Sprintf("p.resumeBegin(%s);\n", args()[0]))
+	case flow.OpResumeEnd:
+		a := args()
+		p.write(fmt.Sprintf("p.resumeEnd(%s, %s, %s);\n", a[0], a[1], a[2]))
+	case flow.OpResumeFinish:
+		p.write(fmt.Sprintf("p.resumeFinish(%s);\n", args()[0]))
 	case flow.OpObserveSkip:
 		if p.dead || p.dry {
 			return
@@ -253,6 +260,15 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 	case flow.OpScanKids:
 		a := args()
 		return fmt.Sprintf("p.scanKids(%d, %s, %s, %s)", c.Imm.(prim.Site), a[0], a[1], a[2])
+	case flow.OpResumeOn:
+		return "p.resumeOn()"
+	case flow.OpResumeStart:
+		x := c.Imm.(prim.Resume)
+		return fmt.Sprintf("p.resumeStart(%d, %d, %d, %t)", x.Site, x.Min, x.Max, x.Shiftable)
+	case flow.OpResumeMore:
+		return fmt.Sprintf("p.resumeMore(%s)", args()[0])
+	case flow.OpResumeNext:
+		return fmt.Sprintf("p.resumeNext(%s)", args()[0])
 	case flow.OpMatchLit:
 		lit := c.Imm.(*core.Lit)
 		if lit.Fold {

@@ -87,8 +87,9 @@ func documentStatsScriptOf(t *testing.T, c documentStatsCase) documentStatsScrip
 }
 
 // TestDocumentStatsAcrossTargets runs the same edits on the Documents of the generated Go and
-// TypeScript parsers of a grammar and requires the same evaluation and reuse counts after each parse,
-// with the same end of the result and the same success.
+// TypeScript parsers of a grammar and requires the same statistics after each parse (evaluations,
+// reuses, memo hits and resumed elements of repetitions), with the same end of the result and the same
+// success.
 func TestDocumentStatsAcrossTargets(t *testing.T) {
 	t.Parallel()
 	codegentest.PinOrdinary(t)
@@ -106,27 +107,9 @@ func TestDocumentStatsAcrossTargets(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The memo hits and resumed elements that Go prints are not compared.
-			var goLines []string
-			for l := range strings.Lines(documentStatsGo(t, g, string(data))) {
-				if f := strings.Fields(l); len(f) == 6 {
-					l = strings.Join([]string{f[0], f[1], f[4], f[5]}, " ") + "\n"
-				}
-				goLines = append(goLines, l)
-			}
-			goOut := strings.Join(goLines, "")
-			tsOut := codegentest.RunTSGrammarScriptWith(t, g, `import { createDocument } from "./parser.ts";
-const c = `+string(data)+`;
-const d = createDocument(c.Text).document;
-const show = () => { const r = d.parse(); const s = d.stats(); console.log(s.evaluated, s.reused, r.node === null ? -1 : r.node.end, r.error !== null); };
-show();
-for (const e of c.Edits) {
-  const err = d.edit(e[0], e[1], e[2]);
-  if (err !== null) console.log("edit", String(err));
-  show();
-}
-`, common.GenOptions{Start: "main", Document: true})
-			compareDocumentStats(t, "Go", goOut, "TypeScript", tsOut, "evaluated reused end failed")
+			goOut := documentStatsGo(t, g, string(data))
+			tsOut := documentStatsTS(t, g, string(data))
+			compareDocumentStats(t, "Go", goOut, "TypeScript", tsOut, "evaluated reused memo-hits resumed end failed")
 			t.Logf("parses: %d", strings.Count(goOut, "\n"))
 		})
 	}
@@ -180,14 +163,15 @@ func TestDocumentStatsEngineAndGo(t *testing.T) {
 	}
 }
 
-// TestDocumentRunsEngineAndGo runs the same edits on the Documents of the engine and of the generated
-// Go parser of a grammar whose repetition is long enough for its runs to be recorded and resumed, and
-// requires the same statistics after each parse (evaluations, reuses, memo hits and resumed elements of
-// repetitions), with the same end of the result and the same success: a Go Document resumes the runs
-// of repetitions that the engine does.
-func TestDocumentRunsEngineAndGo(t *testing.T) {
+// TestDocumentRunsAcrossTargets runs the same edits on the Documents of the engine and of the
+// generated Go and TypeScript parsers of a grammar whose repetition is long enough for its runs to be
+// recorded and resumed, and requires the same statistics after each parse (evaluations, reuses, memo
+// hits and resumed elements of repetitions), with the same end of the result and the same success: the
+// generated Documents resume the runs of repetitions that the engine does.
+func TestDocumentRunsAcrossTargets(t *testing.T) {
 	t.Parallel()
 	codegentest.PinOrdinary(t)
+	tooltest.RequireNode(t)
 	if testing.Short() {
 		t.Skip("builds a generated Go program")
 	}
@@ -210,6 +194,7 @@ rule id = [a-z]+ #atomic`,
 				t.Fatal(err)
 			}
 			goOut := documentStatsGo(t, g, string(data))
+			tsOut := documentStatsTS(t, g, string(data))
 			d, err := compileBare(t, c.src).NewDocument("main", script.Text)
 			if err != nil {
 				t.Fatal(err)
@@ -233,11 +218,29 @@ rule id = [a-z]+ #atomic`,
 				show()
 			}
 			compareDocumentStats(t, "engine", b.String(), "Go", goOut, "evaluated reused memo-hits resumed end failed")
+			compareDocumentStats(t, "engine", b.String(), "TypeScript", tsOut, "evaluated reused memo-hits resumed end failed")
 		})
 	}
 	if resumed == 0 {
 		t.Fatal("the Documents of the long run resumed no element of a repetition")
 	}
+}
+
+// documentStatsTS runs the script on a Document of the generated TypeScript parser of g and returns
+// what it prints for each parse, as documentStatsGo does for Go.
+func documentStatsTS(t *testing.T, g *ast.Grammar, script string) string {
+	t.Helper()
+	return codegentest.RunTSGrammarScriptWith(t, g, `import { createDocument } from "./parser.ts";
+const c = `+script+`;
+const d = createDocument(c.Text).document;
+const show = () => { const r = d.parse(); const s = d.stats(); console.log(s.evaluated, s.reused, s.memoHits, s.resumedElements, r.node === null ? -1 : r.node.end, r.error !== null); };
+show();
+for (const e of c.Edits) {
+  const err = d.edit(e[0], e[1], e[2]);
+  if (err !== null) console.log("edit", String(err));
+  show();
+}
+`, common.GenOptions{Start: "main", Document: true})
 }
 
 // compareDocumentStats requires the lines that two Documents print for the parses of a script to be

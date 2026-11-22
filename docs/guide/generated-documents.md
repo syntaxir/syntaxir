@@ -19,7 +19,7 @@ if err := doc.Edit(6, 11, "revision"); err != nil {
 	return err
 }
 tree, err = doc.Parse()
-stats := doc.Stats() // rule evaluations and reused memo results from this Parse
+stats := doc.Stats() // rule evaluations, memo hits and resumed repetition elements from this Parse
 _ = tree
 _ = stats
 ```
@@ -33,8 +33,9 @@ later call can retry. `Document` is single-goroutine, and results can share node
 `tree.Clone()` if an earlier tree must remain detached from the Document. It copies Node graphs, including Node
 values in `[]any` and `[]*Node` fields, while preserving cycles and repeated references to the same slice view.
 Overlapping slice views with different lengths or capacities are copied independently; arbitrary mutable action
-values such as maps remain shared. `ParseStats` counts the rule evaluations (`Evaluated`) and reuses (`Reused`) of the last parse; a generated
-`Document` reuses only memo results, so `MemoHits` equals `Reused` and `ResumedElements` is zero.
+values such as maps remain shared. `ParseStats` counts the rule evaluations (`Evaluated`) and reuses (`Reused`) of the last parse: the memo
+results it reused (`MemoHits`) and the elements of long repetitions it resumed (`ResumedElements`), as the
+engine's `Document` counts them. `ParseValue` keeps a typed memo of its own and resumes no repetitions.
 
 ## What Is Kept Between Parses
 
@@ -89,11 +90,11 @@ the current text as UTF-8: the exact bytes in `Bytes`, invalid bytes included, a
 `CodePoints`. `parse(options?)` returns the `ParseResult` of `parse`, and with `-types` the Document also has
 `parseValue(options?)`. An invocation cannot change the unit or the expectations, and a `parse` or `edit` made
 from a trace callback of a parse returns an error. Like the Go `Document`, it keeps the memoized results that
-the edits leave valid and reuses them in the next `parse`; `stats()` returns `{ evaluated, reused }` for the
-last parse, the same counts as Go's `Stats` after `Parse`; Go's typed `ParseValue` keeps its own memo and can
-count differently. With `-observability`, `parse` takes the `trace` and `profile` options of `parse`: a
-reused result is reported as a memo hit, so a profile's evaluations and memo hits are the `evaluated` and
-`reused` of `stats()`. A returned tree can share nodes with later results, so do not
+the edits leave valid and the runs of long repetitions, and reuses them in the next `parse` and `parseValue`;
+`stats()` returns `{ evaluated, reused, memoHits, resumedElements }` for the last parse, the same counts as
+Go's `Stats` after `Parse`; Go's typed `ParseValue` keeps its own memo and can count differently. With
+`-observability`, `parse` takes the `trace` and `profile` options of `parse`: a reused result is reported as a
+memo hit, so a profile's evaluations and memo hits are the `evaluated` and `memoHits` of `stats()`. A returned tree can share nodes with later results, so do not
 mutate a tree while the Document is in use.
 
 ## Related Topics

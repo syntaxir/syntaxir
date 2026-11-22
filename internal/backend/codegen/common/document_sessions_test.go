@@ -36,6 +36,7 @@ var engineDocumentDifferences = map[string]string{
 	"lag 129/units":     documentChargesDiffer,
 	"lag moved/units":   documentChargesDiffer + "; " + documentMovesDiffer,
 	"log full/units":    documentChargesDiffer,
+	"runs/units":        documentChargesDiffer + "; " + documentMovesDiffer,
 }
 
 // The mechanisms of engineDocumentDifferences.

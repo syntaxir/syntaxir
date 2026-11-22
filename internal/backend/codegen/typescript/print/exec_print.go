@@ -67,6 +67,9 @@ type Target struct {
 	// Self, if not empty, is the expression whose methods the functions of the module are; empty is
 	// this.
 	Self string
+	// Zero, if not nil, returns the TypeScript value that a variable of the handle type name starts
+	// with, or "" for null, which the type of the handle then includes (Handle).
+	Zero func(name string) string
 }
 
 // Part is a part of a value that a target holds in several locals (Target.Parts): the suffix of the
@@ -215,13 +218,19 @@ func (p *printer) typ(t code.Type) string {
 	panic("tsgen: invalid type")
 }
 
-func zero(t code.Type) string {
+// zero returns the value that a variable of the type t starts with.
+func (p *printer) zero(t code.Type) string {
 	switch t.Kind {
 	case code.KBool:
 		return "false"
 	case code.KU64:
 		return "0n"
 	case code.KHandle:
+		if p.t.Zero != nil {
+			if z := p.t.Zero(t.Handle); z != "" {
+				return z
+			}
+		}
 		return "null"
 	}
 	return "0"
@@ -296,7 +305,7 @@ func (p *printer) fn() error {
 		if _, ok := p.partner[l.Name]; ok {
 			continue
 		}
-		p.line("let %s: %s = %s;", l.Name, p.typ(l.Type), zero(l.Type))
+		p.line("let %s: %s = %s;", l.Name, p.typ(l.Type), p.zero(l.Type))
 		if !reads(f.Body.Stmts, l.Name) {
 			p.line("void %s;", l.Name)
 		}

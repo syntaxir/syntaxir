@@ -195,7 +195,10 @@ repetition evaluates its next element instead.`
 		b.LetN([]string{"oe", "ol"}, C("doc.enter", R(exec.Pos)))
 		set(b, "outerExamined", L("oe"))
 		set(b, "outerLow", L("ol"))
-		set(b, "mark", C("exp.isolate", R(exec.Pos)))
+		// The mark is bound before it is stored, as the memoized call binds its own, for the targets that
+		// hold a mark as its parts.
+		m := b.Let("m", C("exp.isolate", R(exec.Pos)))
+		set(b, "mark", m)
 	})
 	begin.Doc = `runBegin starts evaluating an element of the run r: its examined input and its expectations are recorded
 apart from those of the enclosing call, so that the run can record them with the element.`

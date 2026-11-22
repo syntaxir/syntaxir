@@ -282,7 +282,8 @@ func (p *Parser) RunBegin(r *RunState) {
 	p.Hw, p.lw = p.Pos, p.Pos
 	r.OuterExamined = oe
 	r.OuterLow = ol
-	r.Mark = p.Isolate(p.Pos)
+	m := p.Isolate(p.Pos)
+	r.Mark = m
 }
 
 // RunEnd ends evaluating an element of the run r, with its success ok and value v, before the parse resets

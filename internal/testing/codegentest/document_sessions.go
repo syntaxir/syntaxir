@@ -66,8 +66,8 @@ rule name = [a-z]+ #atomic`
 // contract of memo entries (spec/runtime/documents.md, Reuse): entries before an edit stay, entries
 // after it move with their values, entries that examined the unit before their position, pinned
 // entries and entries with recovered errors are evaluated again after an edit before them, an entry
-// more than 128 edits behind is evaluated again without the edits being applied, and a log of 65,536
-// edits drops the memo.
+// more than 128 edits behind is evaluated again without the edits being applied, a long repetition
+// resumes its run (Reuse Model), and a log of 65,536 edits drops the memo.
 var DocumentSessions = []DocumentSession{
 	{Name: "moves", Grammar: documentListGrammar, Text: "a,12,bc,3,d",
 		Steps: []DocumentStep{parse, edit(0, 0, "x"), parse, edit(3, 4, "45"), parse, edit(0, 1, ""), parse, edit(6, 6, "zz,"), parse}},
@@ -103,6 +103,11 @@ rule num = [0-9]+ #atomic`, Text: "a=1;b=?;c=3;",
 		Steps: []DocumentStep{parse, {Start: 10, End: 11, Text: "d", Times: 129}, parse, parse}},
 	{Name: "lag moved", Grammar: documentListGrammar, Text: "a,12,bc,3,d",
 		Steps: []DocumentStep{parse, {Start: 0, End: 0, Text: "x", Times: 60}, parse, {Start: 0, End: 1, Text: "", Times: 60}, edit(10, 11, "e"), parse}},
+	// The repetition has more elements than a Document records a run with (exec.MinRecordedRun): the
+	// parses after the edits resume its run, reusing the elements before each edit and, back in step
+	// after it, the elements after it, moved; a parse of the same text takes the run over.
+	{Name: "runs", Grammar: documentListGrammar, Text: strings.Repeat("ab,12,", 15) + "c",
+		Steps: []DocumentStep{parse, edit(6, 6, "x,"), parse, edit(0, 0, "q,"), parse, edit(19, 21, "7"), parse, parse}},
 	{Name: "log full", Grammar: documentListGrammar, Text: "a,12,bc,3,d", Long: true,
 		Steps: []DocumentStep{parse, {Start: 10, End: 11, Text: "d", Times: 1<<16 - 1}, parse, edit(10, 11, "d"), parse, parse}},
 }

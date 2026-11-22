@@ -66,7 +66,7 @@ type TableConfig struct {
 	// parse do.
 	Document bool
 	// Resume lowers the repetitions that a Document parse resumes with the operations of their runs
-	// (lowerdata.Options.Resume, transitional as it is): set by the backends that implement them.
+	// (lowerdata.Options.Resume): set for a parser with Documents.
 	Resume bool
 	// Traced selects the traced bodies.
 	Traced bool

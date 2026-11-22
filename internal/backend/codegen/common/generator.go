@@ -299,9 +299,9 @@ func (g *Generator) StartRecFlow(rec *Program) error {
 	// The TypeScript parser outlines the large and the repeated nodes of its functions.
 	c := plandata.TableConfig{Values: g.Table != "recRules", Budget: !g.NoBudget, Logical: g.Logical, Guards: g.LogicalGuards, Observe: g.Observability,
 		Document: g.RecordsExamined(), Traced: g.Traced, Outline: g.TypeScript,
-		// The Go library implements the operations of the runs of a Document parse; TypeScript does not
-		// yet (lowerdata.Options.Resume).
-		Resume: g.Document && !g.TypeScript}
+		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
+		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
+		Resume: g.Document}
 	t, err := flowplan.BuildTable(rec.Elab, c, func(build func() (*core.Module, error)) (*core.Module, error) {
 		return g.Core(g.IRTable(), build)
 	})

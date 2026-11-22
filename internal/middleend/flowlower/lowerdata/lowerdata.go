@@ -97,10 +97,8 @@ type Options struct {
 	Document bool
 	// Resume lowers the repetitions that a Document parse resumes (core.Repeat.Resume) with the
 	// operations of their runs (flow.resumeStart and the rest), in the Node functions of a lowering for
-	// Documents. It is transitional: the generated Go parser implements the operations and sets it;
-	// generated TypeScript, the only generator that does not implement them yet, lowers as before.
-	// It goes away when TypeScript implements them, after which every Document lowering resumes the
-	// runs.
+	// Documents: the generators set it for a parser with Documents. A lowering that records the examined
+	// input only for observed parses (Traced) sets Document without it, since those parses keep no runs.
 	Resume bool
 	// Traced lowers the traced copy of a rule that an observed parse runs (flow.Attrs.Traced): every read of the
 	// input records how far the parse examined, and the Flow verifier rejects a read in place in the function.

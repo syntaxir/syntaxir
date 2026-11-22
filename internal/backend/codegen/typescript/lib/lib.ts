@@ -1310,6 +1310,14 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
       d.slots = document.slots;
       d.gap = document.gap;
       d.gapLen = document.gapLen;
+      // The runs of the last parse: the records of the same text, which this parse takes over, or
+      // those of the text before the edits since, which it may resume once.
+      d.gen = document.edits.length;
+      if (document.runs !== null && document.runGen === d.gen) {
+        d.runs = document.runs;
+      } else {
+        d.lastRuns = document.runs;
+      }
       p = d;
     } else if (observed) {
       p = new ObservedParser(g, input, u, seen, maxDepth, control);
@@ -1322,8 +1330,11 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
       const d = p as DocumentParser;
       const res = publishDocumentResult(result(d, d.call(r, 0)));
       document.slots = d.slots;
+      document.runs = d.runs;
+      document.runGen = d.gen;
       document.evaluated = d.evaluated;
       document.reused = d.reused;
+      document.resumed = d.resumed;
       return res;
     }
     return result(p, p.call(r, 0));
@@ -1426,6 +1437,10 @@ function mergeOptions(defaults: ParseOptions | undefined, invocation: ParseOptio
 // more than evaluating the call again.
 const pendingEditLimit = 128;
 
+// minRecordedRun is the number of elements below which a Document records no run of a repetition
+// (exec.MinRecordedRun): a short repetition costs little to run again.
+const minRecordedRun = 16;
+
 // maxDocumentEdits bounds the edit log of a Document: the edit that finds it full drops the memo and
 // starts the log again, so that a parse finds at most this many pending edits.
 const maxDocumentEdits = 1 << 16;
@@ -1458,15 +1473,23 @@ export class DocumentMemo {
   // edits is the log of the edits since the memo was last dropped; an entry accounts for the first
   // MemoEntry.vgen of them.
   edits: DocumentEdit[] = [];
-  // evaluated and reused are the statistics of the last parse.
+  // runs are the repetition runs that the last parse recorded, after runGen edits of the log: the next
+  // parse resumes them (RunState). They are dropped with the memo.
+  runs: RunTable | null = null;
+  runGen = 0;
+  // evaluated, reused and resumed are the statistics of the last parse: resumed counts the elements of
+  // repetitions that it reused, which reused counts with the memo hits.
   evaluated = 0;
   reused = 0;
+  resumed = 0;
 
   clear(): void {
     this.slots = [];
     this.gap = 0;
     this.gapLen = 0;
     this.edits = [];
+    this.runs = null;
+    this.runGen = 0;
   }
 
   // edit applies an edit to the memo and records it in the log. It charges nothing: a lookup charges
@@ -1544,6 +1567,88 @@ export class DocumentMemo {
   }
 }
 
+// --- Repetition runs of a Document ---
+//
+// A Document parse resumes the runs of repetitions as the engine does (spec/runtime/documents.md,
+// "Reuse Model"). It records the run of each repetition that may resume (flow.resumeStart): for each
+// element, its positions, the input it examined, its expectations and its value. When the repetition
+// runs again, the printed methods of the runs (runStart through runFinish, printed from
+// internal/ir/code/exec/compose) decide which recorded elements it reuses, as they decide it for the
+// engine, so that both reuse the same elements.
+
+// RunElem is an element of a recorded run: it matched [start, end), examined [from, examined), and
+// recorded the expectations exp at far.
+interface RunElem {
+  start: number;
+  end: number;
+  from: number;
+  examined: number;
+  far: number;
+  exp: number[];
+  v: Node | null;
+}
+
+// RunRecord is a run of a repetition in the parse after gen edits of the Document's log.
+interface RunRecord {
+  gen: number;
+  elems: RunElem[];
+}
+
+// noRunsMessage is the error of a method of the runs called on a parser that resumes none.
+const noRunsMessage = "internal error: only a Document parse resumes the runs of repetitions";
+
+// noRunElems is the old run of a run that takes over none.
+const noRunElems: RunElem[] = [];
+
+// RunTable holds the recorded runs by repetition site, then by the position where each started.
+type RunTable = Map<number, Map<number, RunRecord>>;
+
+// runAt returns the record of runs for the site at the position, or undefined.
+function runAt(t: RunTable, site: number, start: number): RunRecord | undefined {
+  return t.get(site)?.get(start);
+}
+
+/**
+ * RunState is a run of a repetition in progress in a Document parse. Its fields up to mark are the
+ * fields of the Run record of the Exec IR (exec.RunFields), which the printed methods read and write;
+ * the mark of the isolation of the element being evaluated is held as its parts, markFar and markBase
+ * (exp.isolate). The rest is the library's own. It is for generated parsers.
+ */
+export class RunState {
+  min = 0;
+  max = 0;
+  shiftable = false;
+  count = 0;
+  done = false;
+  moved = false;
+  editStart = 0;
+  editEnd = 0;
+  editDelta = 0;
+  prefixed = false;
+  // The run is old[0:k], then the new elements mid, then old[j:j+t] (the elements after the edit,
+  // moved), then the new elements post.
+  k = 0;
+  j = -1;
+  t = 0;
+  // The search for the old element to resync at resumes at seek; the run resyncs at none before
+  // barred (runResync).
+  seek = 0;
+  barred = 0;
+  elemStart = 0;
+  outerExamined = 0;
+  outerLow = 0;
+  markFar = 0;
+  markBase = 0;
+  site = 0;
+  start = 0;
+  // old is the run that this one takes over, updated in place.
+  old: RunElem[] = [];
+  mid: RunElem[] = [];
+  post: RunElem[] = [];
+  rec0 = 0;
+  seedReads0 = 0;
+}
+
 // basicValue reports whether v holds no positions: null, a boolean, a number or a string.
 function basicValue(v: unknown): boolean {
   return v === null || v === undefined || typeof v === "boolean" || typeof v === "number" || typeof v === "bigint" || typeof v === "string";
@@ -1553,8 +1658,12 @@ function basicValue(v: unknown): boolean {
 export interface DocumentStats {
   /** evaluated is the number of rule evaluations. */
   evaluated: number;
-  /** reused is the number of results reused instead of evaluating a rule again. */
+  /** reused is the number of results reused instead of evaluating a rule again: memoHits plus resumedElements. */
   reused: number;
+  /** memoHits is the number of rule results reused from the memo. */
+  memoHits: number;
+  /** resumedElements is the number of elements of repetitions reused from the runs of the parse before. */
+  resumedElements: number;
 }
 
 // lastRuneInvalid reports whether the last character of b[0:end] is an invalid byte: a byte that does
@@ -1569,9 +1678,10 @@ function lastRuneInvalid(b: Uint8Array, end: number): boolean {
 
 /**
  * DocumentBase is the Document of a generated parser: a text that edits change, and the parse of
- * the configured start rule over it. A parse returns what a parse of the whole current text returns;
- * this Document parses the whole text again each time. A Document is mutable, not a snapshot, and a
- * parse or an edit made while it parses, from a trace callback, fails.
+ * the configured start rule over it. A parse returns what a parse of the whole current text returns,
+ * reusing the memoized results and resuming the runs of repetitions of the parse before that the edits
+ * since left valid. A Document is mutable, not a snapshot, and a parse or an edit made while it parses,
+ * from a trace callback, fails.
  */
 export class DocumentBase {
   private readonly g: Grammar;
@@ -1657,9 +1767,10 @@ export class DocumentBase {
     return null;
   }
 
-  /** stats returns the rule evaluations and the reused results of the last parse. */
+  /** stats returns the rule evaluations, the reused results and the resumed elements of repetitions of the last parse. */
   stats(): DocumentStats {
-    return { evaluated: this.memo.evaluated, reused: this.memo.reused };
+    const m = this.memo;
+    return { evaluated: m.evaluated, reused: m.reused, memoHits: m.reused - m.resumed, resumedElements: m.resumed };
   }
 
   /**
@@ -2864,6 +2975,9 @@ export class Parser {
   // docLow is the start of that input in a Document parse. Other parses read neither.
   docExamined = 0;
   docLow = 0;
+  // seedReads counts the reads of growing seeds and the reuses of results that depend on them: a run of
+  // a repetition in which one happens is not recorded (DocumentParser.runClean).
+  seedReads = 0;
 
   // scanTables are the records of the walks of scan sites by site, scanCold whether each site is hot,
   // by 2*site, plus 1 in a lookahead, and scanHotNow, scanHit and scanRec the state of the walk that
@@ -3468,6 +3582,44 @@ export class Parser {
 
   documentTouchFrom(from: number): void {
     void from;
+  }
+
+  // The repetitions of the functions lowered for Documents resume their runs through these methods,
+  // the forms of the Flow operations of the same names (flow.resumeOn and the others). Only the parser
+  // of a Document parse resumes runs (DocumentParser); every other parser reports false from resumeOn,
+  // so that the repetitions call none of the others.
+  resumeOn(): boolean {
+    return false;
+  }
+
+  resumeStart(site: number, min: number, max: number, shiftable: boolean): RunState {
+    void [site, min, max, shiftable];
+    throw new Error(noRunsMessage);
+  }
+
+  resumeMore(r: RunState): boolean {
+    void r;
+    throw new Error(noRunsMessage);
+  }
+
+  resumeNext(r: RunState): R {
+    void r;
+    throw new Error(noRunsMessage);
+  }
+
+  resumeBegin(r: RunState): void {
+    void r;
+    throw new Error(noRunsMessage);
+  }
+
+  resumeEnd(r: RunState, ok: boolean, v: Node | null): void {
+    void [r, ok, v];
+    throw new Error(noRunsMessage);
+  }
+
+  resumeFinish(r: RunState): void {
+    void r;
+    throw new Error(noRunsMessage);
   }
 
   // peek returns the character at the current position (-1 at the end) and sets psize to its size
@@ -4368,6 +4520,7 @@ export class Parser {
     if (s === null || !this.reusable(s.e!.silent)) {
       return null;
     }
+    this.seedReads++;
     this.replayDeps(this.pos, c.gp, c.present, s.deps);
     return s.e;
   }
@@ -4470,6 +4623,7 @@ export class Parser {
 
   // noteSeedRead records that the evaluation read the seed of gamma[i].
   noteSeedRead(i: number): void {
+    this.seedReads++;
     const n = this.depFrames.length;
     if (n === 0 || i >= this.depFrames[n - 1]!.depth) {
       return;
@@ -4863,6 +5017,7 @@ export class Parser {
       const id = this.gamma[g.gi]!.id;
       const j = this.findJump(g, id);
       if (j !== null) {
+        this.seedReads++;
         this.replayDeps(g.start, g.gp, g.present, j.deps);
         this.mergeKept(j.far, j.exp);
         // The step after the jump reads the seed it lands on, whose examined range is the jump's
@@ -4876,6 +5031,7 @@ export class Parser {
       if (s === null || !this.reusable(s.silent)) {
         return null;
       }
+      this.seedReads++;
       this.replayDeps(g.start, g.gp, g.present, s.deps);
       this.mergeKept(s.far, s.exp);
       // A step taken from the context records what it examined, like every other reuse: the last step
@@ -6102,9 +6258,19 @@ export class ObservedParser extends TrackedParser {
 export class DocumentParser extends TrackedParser {
   // memoState is the memo that the Document keeps between parses, with what edits did to it.
   memoState: DocumentMemo = new DocumentMemo();
-  // evaluated and reused count the rule evaluations and the reused results of the parse.
+  // evaluated and reused count the rule evaluations and the reused results of the parse, and resumed
+  // the elements of repetitions among the reused results.
   evaluated = 0;
   reused = 0;
+  resumed = 0;
+  // runs and lastRuns are the repetition runs recorded in this parse and those of the parse before,
+  // which this one may resume once (runStart); lastRuns is null when the parse before was of the same
+  // text, whose runs this one takes over in runs. freeRuns are the finished runs kept for the next runs
+  // that start.
+  runs: RunTable = new Map();
+  lastRuns: RunTable | null = null;
+  gen = 0;
+  freeRuns: RunState[] = [];
 
   override call(r: Rule, min: number): R {
     const o = this.observation;
@@ -6269,6 +6435,198 @@ export class DocumentParser extends TrackedParser {
       c.fields = n.fields.map(f => (f.value instanceof Node ? { name: f.name, value: this.moveNode(f.value, shift, moved) } : f));
     }
     return c;
+  }
+
+  // resumeOn reports whether a repetition resumes its run: outside lookaheads and skip expressions.
+  override resumeOn(): boolean {
+    return this.silent === 0;
+  }
+
+  // resumeStart starts the run of the repetition site at the position, with at least min and at most
+  // max elements (max -1 for no bound). shiftable tells whether the values of its elements hold no
+  // position values.
+  override resumeStart(site: number, min: number, max: number, shiftable: boolean): RunState {
+    const r = this.freeRuns.pop() ?? new RunState();
+    this.runStart(r, site, min, max, shiftable);
+    return r;
+  }
+
+  override resumeMore(r: RunState): boolean {
+    return this.runMore(r);
+  }
+
+  override resumeNext(r: RunState): R {
+    return this.runNext(r);
+  }
+
+  override resumeBegin(r: RunState): void {
+    this.runElemBegin(r);
+  }
+
+  override resumeEnd(r: RunState, ok: boolean, v: Node | null): void {
+    this.runElemEnd(r, ok, v);
+  }
+
+  // resumeFinish records the run r of a repetition that matched, and keeps r for the next run that
+  // starts.
+  override resumeFinish(r: RunState): void {
+    this.runFinish(r);
+    r.old = noRunElems;
+    r.mid.length = 0;
+    r.post.length = 0;
+    this.freeRuns.push(r);
+  }
+
+  // runInit is run.init: it starts the run r of the site at the position, keeping its lists of new
+  // elements.
+  runInit(r: RunState, site: number, min: number, max: number, shiftable: boolean): void {
+    r.min = min;
+    r.max = max;
+    r.shiftable = shiftable;
+    r.count = 0;
+    r.done = false;
+    r.moved = false;
+    r.editStart = Number.MAX_SAFE_INTEGER;
+    r.editEnd = Number.MAX_SAFE_INTEGER;
+    r.editDelta = 0;
+    r.prefixed = false;
+    r.k = 0;
+    r.j = -1;
+    r.t = 0;
+    r.seek = 0;
+    r.barred = 0;
+    r.elemStart = 0;
+    r.outerExamined = 0;
+    r.outerLow = 0;
+    r.markFar = 0;
+    r.markBase = 0;
+    r.site = site;
+    r.start = this.pos;
+    r.old = noRunElems;
+    r.mid.length = 0;
+    r.post.length = 0;
+    r.rec0 = this.recovered.length;
+    r.seedReads0 = this.seedReads;
+  }
+
+  // runTakeHere is run.takeHere.
+  runTakeHere(r: RunState): boolean {
+    const rec = runAt(this.runs, r.site, r.start);
+    if (rec === undefined) return false;
+    r.old = rec.elems;
+    return true;
+  }
+
+  // runTakeLast is run.takeLast.
+  runTakeLast(r: RunState, at: number, gen: number): boolean {
+    const t = this.lastRuns?.get(r.site);
+    const rec = t?.get(at);
+    if (rec === undefined || rec.gen !== gen) return false;
+    r.old = rec.elems;
+    t!.delete(at);
+    return true;
+  }
+
+  // runTake is run.take: it moves the old element i of r by shift. The value moves in a copy, as a
+  // memo entry's does (documentMove), since it may be part of a result already returned; the copy needs
+  // no generation gen of the value's positions.
+  runTake(r: RunState, i: number, shift: number, gen: number): Node | null {
+    void gen;
+    const el = r.old[i]!;
+    if (shift !== 0) {
+      el.v = this.moveRunValue(el.v, shift);
+      el.start += shift;
+      el.end += shift;
+      el.from += shift;
+      el.examined += shift;
+      el.far += shift;
+    }
+    return el.v;
+  }
+
+  // moveRunValue returns a copy of the value v of a recorded element moved by shift. Moving it is work
+  // of the Document that a parse from scratch does not do.
+  moveRunValue(v: Node | null, shift: number): Node | null {
+    if (v === null) return null;
+    const fm = this.freeBegin(true);
+    try {
+      if (!this.movable(v, new Set())) {
+        // A run whose values may move holds nodes and basic values only (flow.resumeStart).
+        throw new Error("internal error: the value of an element of a run holds a host value that cannot move");
+      }
+      return this.moveNode(v, shift, new Map());
+    } finally {
+      this.freeEnd(fm);
+    }
+  }
+
+  // runAdd is run.add.
+  // The value of an element that matched is never undefined (R).
+  runAdd(r: RunState, after: boolean, start: number, end: number, from: number, examined: number, far: number, exp: number[], v: R): void {
+    this.alloc(objectBytes(7));
+    (after ? r.post : r.mid).push({ start, end, from, examined, far, exp, v: v as Node | null });
+  }
+
+  // runClean is run.clean: the run recovered no error and read no seed of a growth, directly or by
+  // reusing a result that depends on one.
+  runClean(r: RunState): boolean {
+    return this.recovered.length === r.rec0 && this.seedReads === r.seedReads0;
+  }
+
+  // runRecord is run.record.
+  runRecord(r: RunState): void {
+    const elems = r.j < 0 ? r.old.slice(0, r.k).concat(r.mid) : r.old.slice(0, r.k).concat(r.mid, r.old.slice(r.j, r.j + r.t), r.post);
+    this.alloc(objectBytes(2) + arrayBytes(elems.length));
+    let t = this.runs.get(r.site);
+    if (t === undefined) {
+      t = new Map();
+      this.runs.set(r.site, t);
+    }
+    t.set(r.start, { gen: this.gen, elems });
+  }
+
+  // The methods of the runs printed from Exec IR (internal/ir/code/exec/compose): runStart finds the
+  // record that a run takes over, runMore tells whether it may take another element, runNext reuses
+  // the next old element (runPrefix, runResync, runTail and runReuse), runElemBegin and runElemEnd
+  // (runBegin and runEnd) bracket an element that the parse evaluates, and runFinish records the run.
+  runStart(r: RunState, site: number, min: number, max: number, shiftable: boolean): void {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runMore(r: RunState): boolean {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runReuse(r: RunState, i: number, shift: number, gen: number): Node | null {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runPrefix(r: RunState): R {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runResync(r: RunState): boolean {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runTail(r: RunState): R {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runNext(r: RunState): R {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runElemBegin(r: RunState): void {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runElemEnd(r: RunState, ok: boolean, v: Node | null): void {
+    throw new Error("the printed method replaces this one");
+  }
+
+  runFinish(r: RunState): void {
+    throw new Error("the printed method replaces this one");
   }
 
   // callDocument is a rule call in a Document parse, which memoizes the rules that the Document reuses
