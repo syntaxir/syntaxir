@@ -5,6 +5,7 @@ package examinedref_test
 import (
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"sync"
 	"testing"
@@ -19,63 +20,11 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// oracleCase is a grammar with inputs, from the generated corpus or the shapes below.
+// oracleCase is a grammar with inputs, from the generated corpus or codegentest.ExaminedShapes.
 type oracleCase struct {
 	name, src string
 	inputs    []string
 }
-
-// oracleShapes are shapes that the reference must agree with the engine on besides the generated
-// corpus: growths of left recursion, Operators Rules, recovery, token insertion, predicates and
-// variables, #ignorecase, inline actions and input that is not valid UTF-8.
-func oracleShapes() []oracleCase {
-	const ops = "rule e = #operators {\n skip \" \"*\n operand [0-9]+ #atomic\n operand \"(\" e \" \"* \")\"\n" +
-		" level add { infix left \"+\" / \"-\" }\n level cmp { infix none \"<\" }\n level neg { prefix \"-\" }\n" +
-		" level mul { infix left \"*\" }\n level pow { infix right \"**\" }\n level post { postfix \"!\" postfix \"[\" e \"]\" }\n}"
-	return []oracleCase{
-		{name: "direct growth", src: "rule main = e $$\nrule e = e \"+\" n / n\nrule n = [0-9]+",
-			inputs: []string{"1", "1+2", "1+2+3", "1+2+", "1x"}},
-		{name: "indirect growth", src: "rule main = a $$\nrule a = b \"1\" / b \"2\" / \"a\"\nrule b = a \"x\" / b \"y\" / \"b\"",
-			inputs: []string{"b1", "by2", "ax2", "byy1x2", "b1x1y2", "byyyyyy2x1"}},
-		{name: "growth read from a lookahead", src: "rule main = e $$\nrule e = &(e \"x\" t) e \"x\" / t\nrule t = [0-9]+",
-			inputs: []string{"1x2", "1x2x3", "1x23x4", "1x2x"}},
-		{name: "operators", src: "rule main = e $$\n" + ops,
-			inputs: []string{"1", "1+2*3", "1 + 2 * 3 ** 4 ** 5", "-1+2", "2**-1", "1<2<3", "1<2", "(1+2)*3!", "1[2+3]!", "1+", "1 <", "(1", "1+-", ""}},
-		{name: "level-restricted calls", src: "rule main = level(e, mul) (\",\" level(e, cmp))* $$\n" + ops,
-			inputs: []string{"1*2", "1+2", "1*2,3+4<5", "-1+2", "1,2<3<4", "1*2,"}},
-		{name: "operators with juxtaposition and cuts",
-			src: "rule main = e $$\nrule e = #operators {\n operand [a-z]\n operand \"\"\n level { infix right \"\" }\n level { prefix \"-\" #cut \"z\" }\n level { postfix \"?\" #cut \"!\" }\n}",
-			inputs: []string{"", "a", "ab", "abc", "-za", "-a", "a?!", "a?b", "a?"}},
-		{name: "operators in left recursion", src: "rule main = s $$\nrule s = s \";\" e / e\n" + ops,
-			inputs: []string{"1;2", "1+2;3*4", "1;", "1;2+"}},
-		{name: "recovery", src: "rule main = stmt* $$\nrule stmt = (\"let\" \" \" [a-z]+ \";\") #recover(skip=[^;]* \";\")",
-			inputs: []string{"let a;", "let a;let b;", "lex a;let b;", "let ;x;", "let a", ";;"}},
-		{name: "recovery in left recursion", src: "rule main = e $$\nrule e = e \"+\" (n #recover(skip=[a-z]+)) / n\nrule n = [0-9]+",
-			inputs: []string{"1+2", "1+x+2", "1+x", "1+", "x"}},
-		{name: "token insertion", src: "rule main = \"(\" [a-z]* \")\" #missing \";\" #missing $$",
-			inputs: []string{"(a);", "(a;", "(a)", "(a", "(", "a"}},
-		{name: "token insertion in left recursion", src: "rule main = e $$\nrule e = e \"+\" #missing n / n\nrule n = [0-9]+",
-			inputs: []string{"1+2", "12", "1+2 3", "1"}},
-		{name: "predicates and variables",
-			src:    "var depth int\nrule main = item* $$\nrule item = n:[0-9] { text($n) != \"0\" } { depth := depth + 1 } \"a\" / { depth > 1 } \"b\"",
-			inputs: []string{"1a", "1a2ab", "1ab", "0a", "b", "1a2a3ab"}},
-		{name: "bindings undone by backtracking",
-			src:    "var x int\nrule main = ({ x := 1 } \"a\" \"b\" / \"a\") { x == 0 } \"c\" $$",
-			inputs: []string{"ac", "abc", "ab"}},
-		{name: "ignorecase", src: "rule main = (\"select\" kw)* $$ #ignorecase\nrule kw = \" \" \"from\"",
-			inputs: []string{"select from", "SELECT from", "SeLeCt FROM", "select"}},
-		{name: "inline actions", src: "rule main = (e => 1) $$\nrule e = (e \"+\" [0-9] => 2) / ([0-9] => 3)",
-			inputs: []string{"1", "1+2", "1+2+", "x"}},
-		{name: "invalid UTF-8", src: "rule main = (\"é\" / [a-z] / .)* $$",
-			inputs: []string{"é", "\xc3", "\xe2\x82A", "a\xffb", "\xf0\x9f\x98", "\xf0\x9f\x98\x80"}},
-		{name: "line anchors", src: "rule main = (^ [a-z]+ $ \"\\n\"?)* $$",
-			inputs: []string{"ab\ncd", "ab\n", "ab cd", "\n\n"}},
-	}
-}
-
-// outsideReference names the grammars of the corpus with inputs whose predicates read the value of
-// a user action, which the reference does not compute.
-var outsideReference = map[string]bool{}
 
 // oneByte returns one byte per Read, so that a stream parse loads its input as late as it can.
 type oneByte struct{ s string }
@@ -178,14 +127,15 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	if mid < len(chars) {
 		text += strings.Join(chars[mid+1:], "")
 	}
-	d, err := p.NewDocument(text, engine.WithUnit(u))
+	d, err := p.NewDocument(text, engine.WithUnit(u), engine.WithExpectations())
 	if err != nil {
+		documentErrors.Store(err.Error(), true)
 		return nil
 	}
 	var out []observedParse
 	parse := func(text string) bool {
 		var rec examinedref.Recorder
-		_, err := d.Parse(engine.WithTrace(rec.Trace), engine.WithExpectations())
+		_, err := d.Parse(engine.WithTrace(rec.Trace))
 		got := once(text, &rec, err, false)
 		out = append(out, got...)
 		return len(got) > 0
@@ -206,6 +156,9 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	}
 	return out
 }
+
+// documentErrors are the distinct errors of NewDocument, which the test logs.
+var documentErrors sync.Map
 
 // referenceRuns caches the reference's evaluations of one grammar.
 type referenceRuns struct {
@@ -245,6 +198,10 @@ func aborted(err error) bool {
 	return !errors.As(err, &errs) && !errors.As(err, &truncated)
 }
 
+// shapesOnly is the environment variable that limits TestExaminedOracle to codegentest.ExaminedShapes,
+// as the mutants of the reference run it.
+const shapesOnly = "SXIR_EXAMINED_SHAPES_ONLY"
+
 // TestExaminedOracle checks the calls of the engine's observed parses against the reference on the
 // generated corpus and the shapes, on every route, backend and position unit: every reported exit is
 // an exit of the reference with the same match, end and examined end, every skipped call fails in the
@@ -252,10 +209,14 @@ func aborted(err error) bool {
 func TestExaminedOracle(t *testing.T) {
 	t.Parallel()
 	var cases []oracleCase
-	for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {
+	if os.Getenv(shapesOnly) == "" {
+		for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {
+			cases = append(cases, oracleCase{name: c.Name, src: c.Src, inputs: c.Inputs})
+		}
+	}
+	for _, c := range codegentest.ExaminedShapes() {
 		cases = append(cases, oracleCase{name: c.Name, src: c.Src, inputs: c.Inputs})
 	}
-	cases = append(cases, oracleShapes()...)
 
 	var mu sync.Mutex
 	compared := map[string]int{}
@@ -268,7 +229,11 @@ func TestExaminedOracle(t *testing.T) {
 				if err != nil {
 					t.Fatalf("parse: %v", err)
 				}
-				p, err := enginetest.CompileSource(c.src, "main")
+				started, err := enginetest.Parse(c.src)
+				if err != nil {
+					t.Fatalf("parse: %v", err)
+				}
+				p, err := enginetest.Compile(started, "main")
 				if err != nil {
 					t.Fatalf("compile: %v", err)
 				}
@@ -281,6 +246,9 @@ func TestExaminedOracle(t *testing.T) {
 								ref := refs.get(op.text, examinedref.Options{Unit: u, MissingTokens: op.missing})
 								var uns *examinedref.UnsupportedError
 								if errors.As(ref.err, &uns) {
+									if !unsupported {
+										t.Logf("%q: %v", op.text, uns)
+									}
 									unsupported = true
 									continue
 								}
@@ -305,11 +273,11 @@ func TestExaminedOracle(t *testing.T) {
 						}
 					}
 				}
-				if unsupported != outsideReference[c.name] {
+				if unsupported != codegentest.ExaminedOutsideReference[c.name] {
 					if unsupported {
-						t.Errorf("outside the reference, but not listed in outsideReference")
+						t.Errorf("outside the reference, but not listed in codegentest.ExaminedOutsideReference")
 					} else {
-						t.Errorf("listed in outsideReference, but the reference evaluates every input")
+						t.Errorf("listed in codegentest.ExaminedOutsideReference, but the reference evaluates every input")
 					}
 				}
 				if unsupported {
@@ -320,6 +288,7 @@ func TestExaminedOracle(t *testing.T) {
 			})
 		}
 	})
+	documentErrors.Range(func(k, _ any) bool { t.Logf("NewDocument: %v", k); return true })
 	t.Logf("parses compared by route: %v; grammars outside the reference: %q", compared, outside)
 	for _, r := range routes() {
 		if compared[r.name] == 0 {
