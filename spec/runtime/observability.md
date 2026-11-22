@@ -89,7 +89,7 @@ A `TraceEvent` has the following fields.
 |:--|:--|
 | `Kind` | `TraceEnter`, reported when a rule is called before the memo is consulted, or `TraceExit`, reported when the call returns |
 | `Rule` | The name of the rule that is called |
-| `Level` | The binding level the rule was called with, or 0 for a call without a level |
+| `Level` | The minimum binding level of a [level-restricted call](../language/operators-rule.md#level-restricted-calls) of an Operators Rule, or 0 for a call without a level. Levels are numbered from 1 in declaration order, and a call `level(e, name)` applies the operators of the named level and of the tighter ones, so its `Level` is the number of the named level minus 1 |
 | `Depth` | The nesting depth of the call; the start rule has depth 1 |
 | `Pos` | The position at which the call starts, in the position unit |
 | `Lookahead` | True if the call is made where failures record no expectations: inside a lookahead, or inside the `skip` expression of an Operators Rule, which is matched as in a lookahead. It has the same value on the call's exit |
@@ -116,6 +116,25 @@ growing left-recursive seed extends its end to the end stored with that seed, so
 the `Examined` of a call depends on the seed it reuses as well as on its other
 fields. The initial seed of a growth is a failure whose stored examined end is the
 leader's start.
+
+The operand of a prefix operator and the right operand of an infix operator are
+parsed within the call of the Operators Rule that applies the operator, not by a
+call of their own: they are not reported, and what they examine is part of the
+`Examined` of that call.
+
+A stream parse reads only the input that its calls and the
+[whole-input](parsing.md#whole-input) check examine. Let `Needed(e)` be the input
+that a parse must have read to have examined the slots below `e`: in bytes, the
+first `e` bytes, or the whole input and its end when `e` is one past its length; in
+code points, for each slot below `e`, the bytes up to and including the one that
+completes its character or makes it invalid, or the whole input and its end when
+the input ends inside a valid prefix of a character, and for the end slot the
+whole input and its end. When a call's exit is reported, the parse has read
+`Needed(Examined)` of the call. When the parse returns, it has read exactly
+`Needed(H)`, where `H` is the greater of the start call's `Examined` and, when the
+start call matched and the parse requires the whole input, its `End` plus one. The
+whole-input check belongs to the parse, not to the start call, so the start call's
+`Examined` does not include the slot that the check examines.
 
 The methods `LineCol(pos)`, `Text()`, `Failure()` and `Recovered()` read the
 state of the parser and MUST be called only from the trace function, while it

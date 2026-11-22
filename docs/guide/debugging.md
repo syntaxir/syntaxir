@@ -180,8 +180,9 @@ Other marks on a result:
   main -> matched 1:1-1:4 "1+2"
   ```
 
-- `(level n)` after a rule name: an Operators Rule call with a binding level (`e(name)`); `[lookahead]`: a call inside
-  `&` or `!`.
+- `(level n)` after a rule name: a level-restricted call of an Operators Rule (`level(e, name)`), where n, the
+  minimum binding level, is the number of the named level, counted from 1 in declaration order, minus 1;
+  `[lookahead]`: a call inside `&` or `!`.
 
 Traces grow quickly, so narrow them down:
 

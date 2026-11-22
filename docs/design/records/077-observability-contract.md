@@ -1,6 +1,7 @@
 # 077. Observability Contract
 
-- **Status**: Partially Implemented: the contract and its producers have landed; the independent examined-end oracle that gates it has not
+- **Status**: Partially Implemented: the contract, its producers and the reference evaluator of the examined-end oracle
+  have landed; the perturbation and stream high-water parts of the oracle have not
 - **Author**: @ornew
 - **Date**: 2026-11-21
 
@@ -81,52 +82,87 @@ pays for the profile's counts, not for the event delivery.
 - `TestGeneratedTSObservationOptions` checks the meaning of the options in TypeScript, including the Document defaults.
 - `TestEngineObservationMutants` checks that the agreement tests fail on deliberately broken observation code in the
   engine, generated Go and TypeScript.
-- `TestObservedExaminedEndsAreExact` and `TestObservedExaminedEndsMutants` compare the examined ends of observed generated
-  Go parses with the engine's, and check that a left-out record of an examined end is caught.
-
-These tests compare the producers with the engine. They do not compare the engine with an independent definition of
-the examined end, which is the open part of this record.
+- The examined oracle below checks the examined ends of every producer against definitions that run none of their
+  code: `TestExaminedOracle` for the engine, `TestObservedExaminedEndsAreExact` for generated Go and
+  `TestTSObservedExaminedEndsAreExact` for generated TypeScript compare each exit with the reference evaluator, on the
+  generated corpus and on shapes chosen for the reference in the `codegentest` package.
 
 ## Examined Oracle
 
-The examined end is a release gate, so it is checked against a definition that does not run the engine's code. The
-oracle has three parts, each applied to every exit of an observed parse on every route (value, parse, recognize,
-stream) and on the engine:
+The examined end is a release gate, so it is checked against definitions that do not run the producers' code. The
+oracle has three parts. Each applies to the observed parses of the engine, on every backend, and of the generated Go
+and TypeScript parsers, on their routes (typed value, parse, recognize, stream and Document parses, as each producer
+has them), in both position units.
 
-1. **Perturbation.** For an exit with examined end `e`, the parse is repeated on the input with every unit at a
-   position `>= e` replaced by another unit. The call at the same key must keep its matched flag, end and examined
-   end. A change beyond `e` that reaches the result shows that `e` is too small.
-2. **Stream high-water mark.** A reader wrapper records the greatest unit it delivered. For a stream parse the root exit's
-   examined end is one past that unit (the end slot counts once the reader reported the end), and no exit examines
-   beyond it. A difference shows that `e` is too large or that a read is not recorded.
-3. **Unmemoized reference evaluator.** A small interpreter of the grammar that evaluates each rule by the
-   definitions of the language specification, without memo entries, contexts, first-character dispatch, or
-   generated code. It tracks the examined maximum of each call itself and reports the exits, which must equal the
-   observed exits in matched flag, end and examined end. Left recursion is evaluated by the growth rules of the
-   runtime specification: the leaders of the cycles of left calls are computed from the Rule Facts definitions of the
-   core IR specification (nullability, the rules proven to succeed, left calls, cycles, and leaders by declaration
-   order), only leaders grow, and the other rules of a cycle are evaluated again in each step, so that no memo decides a
-   result.
+1. **Unmemoized reference evaluator.** A small interpreter of the grammar, in `internal/testing/examinedref`, evaluates
+   each rule by the definitions of the language specification, without memo entries, contexts, first-character
+   dispatch or generated code, tracks the examined end of each call itself and reports every exit. Every exit that a
+   producer reports must be an exit of the reference: a call of the same rule at the same position with the same
+   binding level that returned the same match, end and examined end. A key may have several reference outcomes: the
+   steps of a growth of left recursion, and calls made with different variable values or token insertions on their
+   paths. Every skipped call must fail in the reference, and the start call must return exactly the reference's
+   result. A producer may make fewer calls than the reference (memo hits, resumed repetitions of a Document, calls
+   skipped by their first character) but none that the reference does not make.
 
-Independence: the evaluator reads the grammar through the frontend only (the parsed grammar, not Core IR, Exec IR or any
-lowering), and its matching, growth and examined rules are written from `spec/language` and `spec/runtime`. It shares no
-code with the engine, the backends, the memo, or the generated runtimes, so an error in those cannot agree with the
-evaluator by construction. The evaluator is not yet checked by mutants of its own rules, nor by an independent review of them
-against the specification; both are open work. Limits of the claim: the frontend and the value of user actions are
-outside it; predicates the evaluator cannot run exclude a grammar and are named in the test. Its facts are those of
-parses without token insertion.
+   The reference evaluates the whole language: terminals in both units, with the slots that decoding a byte sequence
+   examines; anchors; sequences, choices, repetitions, options and lookaheads; cuts; `#recover`; `#missing`, with and
+   without token insertion; `#ignorecase`; attributes; inline actions, as calls of their hidden rules; Operators Rules
+   and level-restricted calls; predicates and variables; and the action language: Value Actions of rules, inline
+   actions, Operators Rule operands and operators (`$lhs`, `$op`, `$rhs`) and whole-rule actions (`$value`), struct and
+   named node constructors, zero values of unset fields, casts to every Type, including structs and joins named by
+   aliases, and the built-in functions. A runtime error of a Value Action makes the parse fail; the reference records it
+   and goes on, so a producer that aborts reports a prefix of the reference's exits, and a producer may abort only where
+   an action of the reference fails. Left recursion
+   grows by the rules of the runtime specification: the leaders of the cycles of left calls come from the Rule Facts
+   definitions of the core IR specification, computed for the parse with or without token insertion, only leaders
+   grow, and the other rules of a cycle are evaluated again in each step.
 
-Status: the reference evaluator is in `internal/testing/examinedref`. It evaluates the matching core of the language,
-including left recursion by the growth rules above, line anchors, and cuts (a lookahead is a boundary for a cut, as the
-Cut section of the language specification states). Its comparison with the engine is a passing check in the long tier
-(`TestExaminedOracle`): on the generated corpus and the shapes, none of the 784 inputs of grammars inside the core has an
-exit whose examined end differs. Grammars outside the core (predicates, variables, actions with effects, recovery,
-binding levels, Operators Rules, attributes) are not covered: 198 corpus grammars, which the test counts and does not
-compare. Perturbation and the stream high-water mark are not yet implemented.
+2. **Perturbation.** For an observed parse of an input x, each distinct examined end c below the length of x is a
+   change point. A perturbation of x at c is an input whose first c units are those of x (in code points, whose
+   decoding of its first c code points is that of x) and that differs from x in every slot at or beyond c: every unit
+   from c replaced by another, x cut at c, or x extended at its end. The parse of x is run twice, which must give the
+   same events, and the parse of the perturbation once; the events are compared in order. Up to their first
+   difference the two parses are the same computation, so the read of a changed slot that caused it happened inside
+   every call running at that point, in both parses: each such call's exit, in each parse that has it, must have an
+   examined end greater than c. A difference with no running call, such as the whole-input check after the start
+   call returned, constrains nothing. In a grammar whose predicates read variables, a call is checked only when c is
+   at least the largest end of a matched exit reported before the call's enter event, since a variable can carry
+   input read before the call into it. Perturbation shows examined ends that are too small; an end that is too large
+   is the stream high-water mark's to show.
+
+3. **Stream high-water mark.** A stream parse reads from a reader that delivers one byte per read and returns the end
+   of the input only on a read after the last byte. Let `Needed(e)` be the input a parse must have read to have
+   examined the slots below `e`, as [Tracing and Profiling](../../../spec/runtime/observability.md#engine-tracing)
+   defines it. When an exit is reported, the parse has read `Needed(Examined)` of the call; the parse reports exactly
+   one exit of the start call; and when it returns, it has read exactly `Needed(H)`, where `H` is the greater of the
+   start call's examined end and, when the start call matched and the parse requires the whole input, its end plus
+   one. The whole-input check belongs to the parse, not to the start call, so the start call's examined end does not
+   include the slot it examines.
+
+Independence: the reference reads the grammar through the frontend only (the parsed grammar, not Core IR, Exec IR or
+any lowering), and its matching, growth and examined rules are written from `spec/language`, `spec/runtime` and
+`spec/core-ir`. Perturbation and the high-water mark use only the producers' events and the input. None of them shares
+code with the engine, the backends, the memo or the generated runtimes, so an error in those cannot agree with them by
+construction. Each part is checked by mutants of its own rules and of its comparison (`TestReferenceMutants` and the
+mutants of perturbation and the high-water mark), which must make the oracle fail. A mutant of the reference must fail
+a shape that the oracle passes without it, so that a shape on which a producer differs cannot hide it. A rule whose
+breaking changes only the shape of a value, such as the associativity of an operator, has no mutant: no exit carries
+that shape.
+
+The reference evaluates the action language itself, from `spec/language/actions.md` and `spec/language/types.md`.
+The producers' evaluator of actions runs on the state of a parser: it needs the capture frames of a compiled program, the
+parser's variables, node arena and budget, and terms lowered through the middle end. Reusing it would tie the
+reference to that state through an adapter that is itself a second interpreter boundary. Action values are not the
+property under test, but predicates read them and so decide matches and examined ends: a grammar whose predicates read
+action values has exact examined ends like any other, and the oracle checks every grammar of the corpus. A construct
+that the reference cannot evaluate fails the test.
+
+Limits of the claim: the frontend is outside it.
 
 ## Limitations and Open Work
 
-- **Partially Implemented:** the oracle covers the matching core only, and its perturbation and stream parts are not yet written.
-  Until they are, the exactness of the examined end rests on the agreement tests in Testing.
+- **Partially Implemented:** the perturbation and stream high-water parts of the oracle are not yet written. Until they
+  are, the examined ends rest on the reference evaluator alone, and the input that a stream parse reads on the agreement
+  tests in Testing.
 - The specification's limitations list the remaining differences between the backends, such as first-character skips
   of calls that fail on the next character.

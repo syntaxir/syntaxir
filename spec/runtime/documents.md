@@ -257,6 +257,14 @@ its result depends on what the slot holds:
   to the first that completes it or makes it invalid, or slot n when the text
   ends inside a valid prefix of a character, and no byte before i.
 
+In bytes, a slot is a byte, and only what decodes a character examines more than
+one slot at a time: a character class, `.`, and the `U+FFFD` of a literal, which
+matches one invalid byte. Any other character of a literal is compared byte by
+byte with its UTF-8 encoding, so a literal that differs at a byte examines no byte
+after it, and testing for the end of a line examines the one byte at i. Skipping
+an alternative or a call by the character at i is a shortcut of evaluating it and
+examines what the evaluation would.
+
 **Examined range.** The examined range of an evaluation is the interval
 [l, h) from the least to one past the greatest slot that it, or a call
 within it, examined; an evaluation at p that examined no slot has the empty
