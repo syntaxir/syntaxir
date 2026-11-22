@@ -147,7 +147,7 @@ func flowGenerate(src string, opts common.GenOptions) (string, int, int, bool) {
 	}
 	n, frames := 0, 0
 	if gen != nil {
-		n, frames = gen.FlowRules, gen.FlowFrames
+		n, frames = gen.FlatRules, gen.FramedRules
 	}
 	return b.String(), n, frames, true
 }

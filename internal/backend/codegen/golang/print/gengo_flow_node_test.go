@@ -69,7 +69,7 @@ var operatorGrammars = map[string]bool{"cel": true, "cue": true, "duckdb": true,
 
 // TestFlowNodeRulesPrintFromFlow generates the Node parsers of the checked-in grammars in each form
 // and checks that the rules of the Node table and the lines of their Operators Rules take the Flow route
-// (a rule or line Flow IR does not print fails the generation), so that the generated text that the output manifest freezes is Flow's. In
+// (a rule or line the printer does not print fails the generation), so that the generated text that the output manifest freezes is Flow's. In
 // the forms with observability it also checks that the matchers write the reports of skipped alternatives.
 func TestFlowNodeRulesPrintFromFlow(t *testing.T) {
 	t.Parallel()

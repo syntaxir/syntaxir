@@ -15,7 +15,7 @@ import (
 func TestFlowVarsMutantFailsToCompile(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	for name, h := range map[string]*print.Hooks{"every variable unread": {FlowVarsMutant: true}, "assignment reads ignored": {FlowVarsMutantUses: true}} {
+	for name, h := range map[string]*print.Hooks{"every variable unread": {VarsMutant: true}, "assignment reads ignored": {VarsMutantUses: true}} {
 		t.Run(name, func(t *testing.T) {
 			codegentest.SetGenHooks(t, h)
 			testFlowVarsMutantFailsToCompile(t)

@@ -8,12 +8,12 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
 
-// Flat and framed rules of the Node and recognizer tables, as the Flow IR printer shapes them.
+// Flat and framed rules of the Node and recognizer tables, as the printer shapes them.
 //
-// A flat rule is printed from Flow IR as one function (flowRecRule, flowTypedRule): the declarations
+// A flat rule is printed from Exec IR as one function (recRuleFunc, typedRuleFunc): the declarations
 // and statements of the one method that calls the rule's body, up to the rule's value, wrapped by
-// flatMethod or leanRuleBody. A framed rule keeps a library frame: its body (flowNodeFrameBody) is
-// printed from Flow IR into the matcher of the rule, but the library drives the frame, the growth of
+// flatMethod or leanRuleBody. A framed rule keeps a library frame: its body (nodeFrameBody) is
+// printed from Exec IR into the matcher of the rule, but the library drives the frame, the growth of
 // a left-recursion seed or the finalization of a cut or a recovery. The predicates flowlower.BodyOK
 // and flowplan.RecEligible select which rules take which shape.
 //

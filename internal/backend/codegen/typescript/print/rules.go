@@ -20,24 +20,24 @@ import (
 //
 // Each table is planned (flowplan.Plan) and lowered once, with the options of the untyped tables
 // except for the Go-only forms (in-place literal reads and class tables), and every function of the
-// plan, the outlined nodes included, is printed by tsFlowPrinter as a function of its own. A block
+// plan, the outlined nodes included, is printed by tsPrimPrinter as a function of its own. A block
 // becomes a labeled block and a loop a labeled for statement, so that an exit leaves the construct it
 // names with break or continue. A rule that the plan has no function for, or that the printer does not
 // cover, fails the generation.
 
-// tsFlowUnsupported is the panic value of the printer for a construct it does not print; the
+// tsUnprintable is the panic value of the printer for a construct it does not print; the
 // generation then fails.
-type tsFlowUnsupported string
+type tsUnprintable string
 
-// startTSFlow starts printing the rules of the table being generated from its table at the Exec stage
+// startTSTable starts printing the rules of the table being generated from its table at the Exec stage
 // among the tables of the compilation. It reports whether the table was lowered; if not, the
 // generation fails with the error it records.
-func (g *Generator) startTSFlow() bool {
+func (g *Generator) startTSTable() bool {
 	g.Exec, g.table = nil, nil
 	t := g.tables.Table(g.IRTable())
 	if t == nil {
-		if g.FlowErr == nil {
-			g.FlowErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
+		if g.PrintErr == nil {
+			g.PrintErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
 		}
 		return false
 	}
@@ -46,12 +46,12 @@ func (g *Generator) startTSFlow() bool {
 	return true
 }
 
-// flowRule prints the body of the rule r as a function of its own and returns the call expression
+// ruleBodyCall prints the body of the rule r as a function of its own and returns the call expression
 // that runs it, or false if the plan of the table has none: a lean value-free rule that may run flat
 // is a flat function; another rule's body is a framed body, which runs under the frame the library
 // owns, which also runs its action and finish. On success it sets scope to the capture scope of a
 // framed body.
-func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, ok bool) {
+func (g *Generator) ruleBodyCall(r *common.Rule, scope *check.Scope) (call string, ok bool) {
 	if g.table == nil {
 		return "", false
 	}
@@ -59,18 +59,18 @@ func (g *Generator) flowRule(r *common.Rule, scope *check.Scope) (call string, o
 	if !ok {
 		return "", false
 	}
-	return g.flowFunc(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
+	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr()), true)
 }
 
-// flowFunc prints the lowered function l, whose capture scope has the slots if it is framed, as a
+// funcCall prints the lowered function l, whose capture scope has the slots if it is framed, as a
 // function of its own and returns the call expression that runs it, or false if the printer does not
 // print l. On success it sets scope to the capture scope of a framed l. The comment describes the
 // function. The function of a rule body (ruleBody) charges the unit of the body's evaluation first,
 // as Method does.
-func (g *Generator) flowFunc(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
+func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string, ruleBody bool) (call string, ok bool) {
 	defer func() {
 		if e := recover(); e != nil {
-			if _, unsupported := e.(tsFlowUnsupported); !unsupported {
+			if _, unsupported := e.(tsUnprintable); !unsupported {
 				panic(e)
 			}
 			call, ok = "", false
@@ -80,7 +80,7 @@ func (g *Generator) flowFunc(l *execdata.Lowered, slots []core.Slot, scope *chec
 	var body string
 	var vars []string
 	var decls []tsDecl
-	body, vars, decls = g.printTSFlowExec(l)
+	body, vars, decls = g.printTSFunc(l)
 	var b strings.Builder
 	for _, v := range vars {
 		b.WriteString(v)
@@ -116,7 +116,7 @@ var (
 	tsMarkZero  = [4]string{"0", "null as Env | null", "0", "0"}
 )
 
-func tsFlowType(t prim.Type) string {
+func tsPrimType(t prim.Type) string {
 	switch t {
 	case prim.TypeInt, prim.TypeRune:
 		return "number"
@@ -137,10 +137,10 @@ func tsFlowType(t prim.Type) string {
 	case prim.TypeRun:
 		return "RunState"
 	}
-	panic(tsFlowUnsupported("variable of type " + t.String()))
+	panic(tsUnprintable("variable of type " + t.String()))
 }
 
-func tsFlowZero(t prim.Type) string {
+func tsPrimZero(t prim.Type) string {
 	switch t {
 	case prim.TypeBool:
 		return "false"
@@ -178,7 +178,7 @@ func tsSharedKey(code string, decls []tsDecl) string {
 // tsDecl is a package-level constant of a printed function.
 type tsDecl struct{ name, text string }
 
-func (p *tsFlowPrinter) write(s string) {
+func (p *tsPrimPrinter) write(s string) {
 	if !p.dead && !p.dry {
 		p.b.WriteString(s)
 	}
@@ -186,7 +186,7 @@ func (p *tsFlowPrinter) write(s string) {
 
 // counted returns the expression node, which constructs a node, counted for the memory limit as
 // bytes, an expression of the library's size model, when the parser has limit controls.
-func (p *tsFlowPrinter) counted(node, bytes string) string {
+func (p *tsPrimPrinter) counted(node, bytes string) string {
 	if p.g.NoBudget {
 		return node
 	}
@@ -227,14 +227,14 @@ var tsFixedExpNames = []string{"idAny", "idBeginInput", "idEndInput", "idBeginLi
 
 // exp returns the TypeScript expression of the expectation id: the name of a fixed one, otherwise its
 // ID in the parser's table.
-func (p *tsFlowPrinter) exp(id core.ExpID) string {
+func (p *tsPrimPrinter) exp(id core.ExpID) string {
 	if int(id) < len(tsFixedExpNames) {
 		return tsFixedExpNames[id]
 	}
 	return strconv.Itoa(int(p.desc(id)))
 }
 
-func (p *tsFlowPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
+func (p *tsPrimPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
 
 // classIn returns the condition that the code point in ch is in the class c (false at the end of the
 // input is the caller's check).
@@ -265,12 +265,12 @@ func wrap(cond string) string {
 }
 
 // decl declares a package-level constant of the printed function, once per pass that prints.
-func (p *tsFlowPrinter) decl(name, s string) {
+func (p *tsPrimPrinter) decl(name, s string) {
 	p.decls = append(p.decls, tsDecl{name, s})
 }
 
 // call returns the call of the rule r from the Operators Rule level min.
-func (p *tsFlowPrinter) call(r *common.Rule, min int) string {
+func (p *tsPrimPrinter) call(r *common.Rule, min int) string {
 	g := p.g
 	g.checkCall(r)
 	switch {
@@ -315,7 +315,7 @@ func tsShape(sh core.Shape) int {
 }
 
 // scopeNames returns the constant that holds the capture names n, declaring it on first use.
-func (p *tsFlowPrinter) scopeNames(n *prim.Names) string {
+func (p *tsPrimPrinter) scopeNames(n *prim.Names) string {
 	if p.dry {
 		return "scope"
 	}
@@ -333,19 +333,19 @@ func (p *tsFlowPrinter) scopeNames(n *prim.Names) string {
 
 // grammarAction returns the action expression of the grammar predicate that the node n is built from, for the name
 // of the variable that a binding sets.
-func (p *tsFlowPrinter) grammarAction(n core.Node) ast.ActionExpr {
+func (p *tsPrimPrinter) grammarAction(n core.Node) ast.ActionExpr {
 	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
 	if !ok {
-		panic(tsFlowUnsupported(fmt.Sprintf("no grammar predicate for %T", n)))
+		panic(tsUnprintable(fmt.Sprintf("no grammar predicate for %T", n)))
 	}
 	return e.Action
 }
 
-// flowLine prints the line k of the Operators Rule g.cur, whose Core IR is l, as a function and
+// lineFunc prints the line k of the Operators Rule g.cur, whose Core IR is l, as a function and
 // returns the call expression that runs it, or false if the plan of the table has none. It sets scope
 // to the capture scope of the line. With budget controls the library loop that runs the line charges
 // its entry and the function charges each iteration of a repetition.
-func (g *Generator) flowLine(k plandata.Key, l *core.OpLine, scope *check.Scope) (string, bool) {
+func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope) (string, bool) {
 	if g.table == nil || l == nil {
 		return "", false
 	}
@@ -356,5 +356,5 @@ func (g *Generator) flowLine(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	prev := g.Proj
 	g.Proj = nil // the actions of the lines use no projections of the rule
 	defer func() { g.Proj = prev }()
-	return g.flowFunc(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
+	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)", false)
 }

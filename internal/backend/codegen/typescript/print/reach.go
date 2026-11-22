@@ -122,7 +122,7 @@ func (l *tsLive) equal(o *tsLive) bool {
 }
 
 // callsPlain reports whether a call of the rule r is printed as a call of its plain function
-// (tsFlowPrinter.call) rather than through its constant. A parser with a Document calls every rule
+// (tsPrimPrinter.call) rather than through its constant. A parser with a Document calls every rule
 // through its constant, since a Document parse memoizes plain rules too.
 func callsPlain(r *common.Rule, document bool) bool {
 	_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)

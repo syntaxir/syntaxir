@@ -29,7 +29,7 @@ func testGenerator(opt pass.Settings) *testGen {
 	return &testGen{Generator: &Generator{}, opt: opt}
 }
 
-// printModule prints the one function of the module f at the Flow stage as printTSFlowExec prints a
+// printModule prints the one function of the module f at the Flow stage as printTSFunc prints a
 // function of the table: converted to the Exec stage with the Exec passes and the TypeScript passes
 // under the settings of g, as the lowering of a table converts it. f is consumed.
 func (g *testGen) printModule(t *testing.T, f *code.Module) (string, []string, []tsDecl) {
@@ -45,7 +45,7 @@ func (g *testGen) printModule(t *testing.T, f *code.Module) (string, []string, [
 	if err != nil {
 		t.Fatal(err)
 	}
-	return g.printTSFlowExec(execdata.View(x.Module.Module(), 0))
+	return g.printTSFunc(execdata.View(x.Module.Module(), 0))
 }
 
 // markInIfFunc returns a framed function whose mark of the parser state is set in the body of an If

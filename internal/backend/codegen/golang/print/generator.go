@@ -63,32 +63,32 @@ type Hooks struct {
 	// in rules, in a Node or recognizer table, so that a test checks the route that is chosen, not
 	// the text of the generated code.
 	LeanRoute func(table string, r *common.Rule)
-	// FramedRoute is called like LeanRoute for each rule whose framed body is printed from Flow IR
-	// (flowNodeFrameBody), in a Node or recognizer table.
+	// FramedRoute is called like LeanRoute for each rule whose framed body is printed from Exec IR
+	// (nodeFrameBody), in a Node or recognizer table.
 	FramedRoute func(table string, r *common.Rule)
 	// OperatorsRoute is called like LeanRoute for each line of a Node or recognizer table that is
-	// printed from Flow IR for an Operators Rule.
+	// printed from Exec IR for an Operators Rule.
 	OperatorsRoute func(table string, r *common.Rule)
 	// StreamRoute is called like LeanRoute for each ParseStream start rule whose stream body is
-	// printed from Flow IR (flowStreamBody).
+	// printed from Exec IR (streamBodyFunc).
 	StreamRoute func(table string, r *common.Rule)
-	// RefuseFlowRecRule makes the plan of the Node and recognizer tables refuse the flat functions of
+	// RefuseRecRule makes the plan of the Node and recognizer tables refuse the flat functions of
 	// the rules it selects (flowplan.Unit), so that the framed body that takes their place is
 	// exercised. No manifest grammar reaches that fallback.
-	RefuseFlowRecRule func(*common.Rule) bool
-	// FlowVarsMutant makes every variable of a printed function unread: the generated code must
+	RefuseRecRule func(*common.Rule) bool
+	// VarsMutant makes every variable of a printed function unread: the generated code must
 	// then fail to compile, which shows that the tests of generated code catch a wrong decision.
-	FlowVarsMutant bool
-	// FlowVarsMutantUses ignores the reads of the values of assignments that stay, which leaves
+	VarsMutant bool
+	// VarsMutantUses ignores the reads of the values of assignments that stay, which leaves
 	// variables that only they read undeclared: the generated code must then fail to compile. In the
 	// functions printed from Exec IR (execRoute) it leaves undeclared the locals that no statement
 	// other than an assignment reads.
-	FlowVarsMutantUses bool
-	// FlowTarget replaces the Go implementation of the primitive operations of grammar code at the Exec
-	// stage (flowPrinter.execTarget), given the printer's own and the address of the statements that the
+	VarsMutantUses bool
+	// PrimTarget replaces the Go implementation of the primitive operations of grammar code at the Exec
+	// stage (primPrinter.execTarget), given the printer's own and the address of the statements that the
 	// expression printed last needs before it (those of the action expression of an Eval), so that the conformance
 	// test of the Flow operations wraps each call in a probe of its own.
-	FlowTarget func(t *Target, pre *string) *Target
+	PrimTarget func(t *Target, pre *string) *Target
 }
 
 // A Parser is a Go parser of a program as the Go backend decided it before its tables were built:
@@ -202,8 +202,8 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	if genGo.tableErr != nil {
 		return nil, nil, genGo.tableErr
 	}
-	if genGo.FlowErr != nil {
-		return nil, nil, genGo.FlowErr
+	if genGo.PrintErr != nil {
+		return nil, nil, genGo.PrintErr
 	}
 	if rec != nil {
 		genGo.Prog, genGo.Table = rec, "recRules"
@@ -216,8 +216,8 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 		if genGo.tableErr != nil {
 			return nil, nil, genGo.tableErr
 		}
-		if genGo.FlowErr != nil {
-			return nil, nil, genGo.FlowErr
+		if genGo.PrintErr != nil {
+			return nil, nil, genGo.PrintErr
 		}
 	}
 	if h.Printed != nil {
@@ -480,8 +480,8 @@ type Generator struct {
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
 	chunksInLib    bool
 	ruleTypesDone  bool // the types of the rule table entries are written
-	FlowRules      int
-	FlowFrames     int
+	FlatRules      int
+	FramedRules    int
 	ExecFuncs      int            // the functions printed from Exec IR (execRoute)
 	ExecTables     map[string]int // ExecFuncs by table
 	LoweredActions int            // the action expressions printed from Exec IR (lowered)
@@ -492,7 +492,7 @@ type Generator struct {
 	// typed table shares.
 	typedOnly bool
 	// caps maps capture names to the Go variables that hold them in a flat rule of the typed
-	// library (see flowrule.go), instead of frame slots.
+	// library (see rule_shapes.go), instead of frame slots.
 	caps map[string]string
 	// streamStart is the start rule of ParseStream, whose separate body
 	// (generated while streamBody is set) emits its #stream elements.
@@ -650,26 +650,26 @@ func (g *Generator) rules() {
 		}
 		_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
 		if g.Table == "trules" {
-			// Typed flat rules need no separate body; Flow IR prints every typed rule.
-			if d := g.flowTypedRule(r); d != nil {
+			// Typed flat rules need no separate body; the printer prints every typed rule from Exec IR.
+			if d := g.typedRuleFunc(r); d != nil {
 				flats[r] = d
 				continue
 			}
 			if !operatorsRule {
-				if body := g.flowFrameBody(r, s); body != "" {
+				if body := g.frameBody(r, s); body != "" {
 					bodies[r] = body
 					continue
 				}
-				g.FailFlow("the body of rule " + r.Name)
+				g.Unprintable("the body of rule " + r.Name)
 			}
 			continue
 		}
 		// The lines of an Operators Rule are printed with its table row (operatorsRule).
 		spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
 		if ok && spec.Form == lowerdata.Flat {
-			// flowRecRule returns nil only if the printed form breaks the plan's decision, which fails
-			// the generation (Generator.FlowErr).
-			if d := g.flowRecRule(r, spec); d != nil {
+			// recRuleFunc returns nil only if the printed form breaks the plan's decision, which fails
+			// the generation (Generator.PrintErr).
+			if d := g.recRuleFunc(r, spec); d != nil {
 				if g.hooks.LeanRoute != nil && !g.Traced {
 					g.hooks.LeanRoute(g.Table, r)
 				}
@@ -684,18 +684,18 @@ func (g *Generator) rules() {
 			if g.hooks.FramedRoute != nil && !g.Traced {
 				g.hooks.FramedRoute(g.Table, r)
 			}
-			bodies[r] = g.flowNodeFrameBody(r, spec, s)
+			bodies[r] = g.nodeFrameBody(r, spec, s)
 			continue
 		}
 		if !operatorsRule {
-			g.FailFlow("the body of rule " + r.Name)
+			g.Unprintable("the body of rule " + r.Name)
 		}
 	}
 	if g.plan != nil && g.Table != "trules" {
 		// Every row keeps the frame layout of the plan, which the VM's rule scopes derive from too.
 		for _, r := range all {
-			if err := g.plan.CheckLayout(r.ID, r.Name, scopes[r].Names); err != nil && g.FlowErr == nil {
-				g.FlowErr = err
+			if err := g.plan.CheckLayout(r.ID, r.Name, scopes[r].Names); err != nil && g.PrintErr == nil {
+				g.PrintErr = err
 			}
 		}
 	}
@@ -871,13 +871,13 @@ func (g *Generator) rules() {
 		// #stream elements, generated last so that the batch code is the same
 		// as without streams. Its captures have a layout of their own.
 		s := check.NewScope()
-		body := g.flowStreamBody(r, s)
+		body := g.streamBodyFunc(r, s)
 		if body != "" {
 			if g.hooks.StreamRoute != nil && !g.Traced {
 				g.hooks.StreamRoute(g.Table, r)
 			}
 		} else {
-			g.FailFlow("the stream body of rule " + r.Name)
+			g.Unprintable("the stream body of rule " + r.Name)
 		}
 		if strings.Join(s.Names, "\x00") != strings.Join(scopes[r].Names, "\x00") {
 			// The copied action addresses captures by the batch body's slots.
@@ -977,7 +977,7 @@ func (g *Generator) ownsBody(r *common.Rule) bool {
 // directly and finishes the value as the rule's kind requires (what finish does), so a call goes
 // through no rule table entry or function value.
 //
-// For a flat rule (d, see flowrule.go), the method that runs the body (s<id>, v<id> or i<id>)
+// For a flat rule (d, see rule_shapes.go), the method that runs the body (s<id>, v<id> or i<id>)
 // has it inlined, with the action.
 func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *flatRule) {
 	if _, operatorsRule := r.Def.Expr.(*ast.OperatorsRule); operatorsRule || r.Leader {
@@ -1128,7 +1128,7 @@ func (g *Generator) tracedTables(prog, rec *common.Program) (string, error) {
 			return err
 		}
 		g.rules()
-		return cmp.Or(g.streamErr, g.tableErr, g.FlowErr)
+		return cmp.Or(g.streamErr, g.tableErr, g.PrintErr)
 	}
 	if !g.typedOnly {
 		if err := pass(prog, "rules", g.useTable); err != nil {
@@ -1372,13 +1372,13 @@ func classReject(e *ast.CharClass) string {
 func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "\t%s[%d].OperatorsRule = &%s{\n", g.tableVar(), r.ID, g.pick("OperatorsRule", "TOperatorsRule"))
-	// The lines of the rule's Core IR, in the order of e, if they are printed from Flow IR.
-	co := g.flowOperatorsRule(r)
+	// The lines of the rule's Core IR, in the order of e, if they are printed from Exec IR.
+	co := g.operatorsRuleOf(r)
 	if e.Skip != nil {
 		s := check.NewScope()
-		m := g.flowOperatorsRuleBody(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, s, false)
+		m := g.operatorsRuleBody(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, s, false)
 		if m == "" {
-			g.FailFlow("the skip of an Operators Rule of rule " + g.Cur.Name)
+			g.Unprintable("the skip of an Operators Rule of rule " + g.Cur.Name)
 		}
 		fmt.Fprintf(&b, "\t\tSkip: %s,\n", m)
 	}
@@ -1418,7 +1418,7 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 }
 
 // operatorsRuleLine returns the line of an Operators Rule with the expression e and the action;
-// l is its Core IR if it is printed from Flow IR, or nil.
+// l is its Core IR if it is printed from Exec IR, or nil.
 func (g *Generator) operatorsRuleLine(k plandata.Key, e ast.Expr, action ast.ActionExpr, operator bool, l *core.OpLine) string {
 	s := check.NewScope()
 	var locals []string
@@ -1428,9 +1428,9 @@ func (g *Generator) operatorsRuleLine(k plandata.Key, e ast.Expr, action ast.Act
 	// Lines whose value is unused are matched without values, as in the engine; so are all lines
 	// of a rule without a value (in the recognizer).
 	build := !g.Cur.Novalue && !check.LeanLine(action, locals)
-	m := g.flowOperatorsRuleBody(k, s, build)
+	m := g.operatorsRuleBody(k, s, build)
 	if m == "" {
-		g.FailFlow("a line of an Operators Rule of rule " + g.Cur.Name)
+		g.Unprintable("a line of an Operators Rule of rule " + g.Cur.Name)
 	}
 	act := "nil"
 	if action != nil && !g.Cur.Novalue {

@@ -22,7 +22,7 @@ import (
 
 // TestFlowTypedOnlyNodeRulesPrintFromFlow generates the Node rules of a typed-only parser, in the ordinary
 // and the budget-controlled forms, over the corpus, and checks that every rule and Operators Rule line takes
-// the Flow route (a rule Flow IR does not print fails the generation).
+// the Flow route (a rule the printer does not print fails the generation).
 func TestFlowTypedOnlyNodeRulesPrintFromFlow(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {

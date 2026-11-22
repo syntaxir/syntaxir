@@ -49,7 +49,7 @@ Evidence records:
 Source owners: the lean-body test and the walk of rule bodies in the front end's check package,
 [`body value
 lowering`](../../../internal/backend/codegen/golang/print/generator.go), [`direct body build
-mode`](../../../internal/backend/codegen/golang/print/flowrule.go), [`TypeScript body build
+mode`](../../../internal/backend/codegen/golang/print/rule_shapes.go), [`TypeScript body build
 mode`](../../../internal/backend/codegen/typescript/print/generator.go).
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)

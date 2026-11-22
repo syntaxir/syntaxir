@@ -92,8 +92,8 @@ func (tsg *Generator) generate(rec *common.Program) error {
 	tsg.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	tsg.rules()
 	tsg.runKeys()
-	if tsg.FlowErr != nil {
-		return tsg.FlowErr
+	if tsg.PrintErr != nil {
+		return tsg.PrintErr
 	}
 	if tsg.reachErr != nil {
 		return tsg.reachErr
@@ -104,8 +104,8 @@ func (tsg *Generator) generate(rec *common.Program) error {
 		tsg.rules()
 		tsg.runKeys()
 		tsg.Prog, tsg.Table = prog, "rules"
-		if tsg.FlowErr != nil {
-			return tsg.FlowErr
+		if tsg.PrintErr != nil {
+			return tsg.PrintErr
 		}
 		if tsg.reachErr != nil {
 			return tsg.reachErr
@@ -300,7 +300,7 @@ type Generator struct {
 	// live holds the rules that a parse can enter (reach.go).
 	live *tsLive
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
-	// functions the printer prints; nil if its Core IR or its lowering failed (FlowErr).
+	// functions the printer prints; nil if its Core IR or its lowering failed (PrintErr).
 	table *plandata.Table[code.Exec]
 	// tables are the tables of the compilation at the Exec stage that the printer prints.
 	tables   *execdata.Tables
@@ -422,7 +422,7 @@ func (g *Generator) action(ct core.ActionExpr, s *check.Scope, locals map[string
 }
 
 func (g *Generator) rules() {
-	g.startTSFlow()
+	g.startTSTable()
 	init := &g.Init
 	bodies := map[*common.Rule]string{}
 	scopes := map[*common.Rule]*check.Scope{}
@@ -437,11 +437,11 @@ func (g *Generator) rules() {
 		scopes[r] = s
 		if _, ok := r.Def.Expr.(*ast.OperatorsRule); !ok {
 			g.Cur, g.Proj = r, g.Projections(r)
-			if call, ok := g.flowRule(r, s); ok {
+			if call, ok := g.ruleBodyCall(r, s); ok {
 				bodies[r] = call
 			} else {
-				g.FailFlow("rule " + r.Name + " of table " + g.Table)
-				bodies[r] = "null" // the generation fails with the error g.failFlow records
+				g.Unprintable("rule " + r.Name + " of table " + g.Table)
+				bodies[r] = "null" // the generation fails with the error g.Unprintable records
 			}
 			g.Proj = nil
 		}
@@ -618,7 +618,7 @@ func tsShaper(prog *common.Program, e ast.Expr) int {
 func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "%s.operatorsRule = {\n", g.ruleVar(r))
-	// The lines of the rule's Core IR, in the order of e, if the printer prints them from Flow IR.
+	// The lines of the rule's Core IR, in the order of e, if the printer prints them from Exec IR.
 	var co *core.OperatorsRule
 	if g.Exec != nil {
 		co, _ = g.Core().Rules[r.ID].Body.(*core.OperatorsRule)
@@ -628,9 +628,9 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 		if co != nil {
 			skip = co.Skip
 		}
-		m, ok := g.flowLine(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, skip, check.NewScope())
+		m, ok := g.lineFunc(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, skip, check.NewScope())
 		if !ok {
-			g.FailFlow("the skip of an Operators Rule of rule " + r.Name)
+			g.Unprintable("the skip of an Operators Rule of rule " + r.Name)
 			m = "null"
 		}
 		fmt.Fprintf(&b, "  skip: %s,\n", g.fn(m))
@@ -675,9 +675,9 @@ func (g *Generator) operatorsRule(r *common.Rule, e *ast.OperatorsRule) {
 // values, as the engine does, and so every line of a rule without a value (in the recognizer).
 func (g *Generator) operatorsRuleLine(e ast.Expr, action ast.ActionExpr, operator bool, k plandata.Key, l *core.OpLine) string {
 	s := check.NewScope()
-	m, ok := g.flowLine(k, l, s)
+	m, ok := g.lineFunc(k, l, s)
 	if !ok {
-		g.FailFlow("a line of an Operators Rule of rule " + g.Cur.Name)
+		g.Unprintable("a line of an Operators Rule of rule " + g.Cur.Name)
 		m = "null"
 	}
 	m = g.fn(m)

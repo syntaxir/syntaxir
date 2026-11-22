@@ -266,7 +266,7 @@ var (
 	variableName   = regexp.MustCompile(`x\d+`)
 )
 
-// TestFlowRecognizerFallbackMatchesEngine checks the fallback of the Flow route: a rule that flowRecRule
+// TestFlowRecognizerFallbackMatchesEngine checks the fallback of the Flow route: a rule that recRuleFunc
 // refuses is printed from its framed body, called through the rule table, and the recognizer and parser of every
 // input of the grammar must still agree with the engine. The test refuses every eligible rule, so that the
 // framed body is exercised for all of them, and requires that each refused rule took the framed route.
@@ -282,7 +282,7 @@ func TestFlowRecognizerFallbackMatchesEngine(t *testing.T) {
 	refused, framed := map[string]bool{}, map[string]bool{}
 	gh := &print.Hooks{}
 	codegentest.SetGenHooks(t, gh)
-	gh.RefuseFlowRecRule = func(r *common.Rule) bool {
+	gh.RefuseRecRule = func(r *common.Rule) bool {
 		if flowplan.RecEligible(r.PlanRule()) {
 			refused[r.Name] = true
 			return true
@@ -300,7 +300,7 @@ func TestFlowRecognizerFallbackMatchesEngine(t *testing.T) {
 	}
 	for name := range refused {
 		if !framed[name] {
-			t.Errorf("rule %s was refused by flowRecRule but did not take the framed route", name)
+			t.Errorf("rule %s was refused by recRuleFunc but did not take the framed route", name)
 		}
 	}
 }

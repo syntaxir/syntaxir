@@ -21,8 +21,8 @@ import (
 // primitive (package prim) selects its form; the immediate holds its static data and the arguments
 // its operands.
 
-// tsFlowPrinter prints the primitives of a function of grammar code at the Exec stage.
-type tsFlowPrinter struct {
+// tsPrimPrinter prints the primitives of a function of grammar code at the Exec stage.
+type tsPrimPrinter struct {
 	g *Generator
 	b strings.Builder
 	// dead reports that the current point is unreachable.
@@ -48,7 +48,7 @@ type tsFlowPrinter struct {
 }
 
 // part returns the name that stands for the component i of the mark m.
-func (p *tsFlowPrinter) part(m string, i int) string {
+func (p *tsPrimPrinter) part(m string, i int) string {
 	ps := p.parts[m]
 	if ps == nil {
 		ps = &[4]string{}
@@ -62,7 +62,7 @@ func (p *tsFlowPrinter) part(m string, i int) string {
 
 // label returns the TypeScript label of the label name: L_ and its name, or for a label that the
 // lowering left unnamed, L and its number.
-func (p *tsFlowPrinter) label(name string) string {
+func (p *tsPrimPrinter) label(name string) string {
 	if n, ok := p.labels[name]; ok {
 		return n
 	}
@@ -80,7 +80,7 @@ func (p *tsFlowPrinter) label(name string) string {
 }
 
 // read records the locals that the expressions read at a reachable point.
-func (p *tsFlowPrinter) read(xs ...code.Expr) {
+func (p *tsPrimPrinter) read(xs ...code.Expr) {
 	if p.dead {
 		return
 	}
@@ -94,20 +94,20 @@ func (p *tsFlowPrinter) read(xs ...code.Expr) {
 }
 
 // readName records that the local or the part of a mark name is read at a reachable point.
-func (p *tsFlowPrinter) readName(name string) {
+func (p *tsPrimPrinter) readName(name string) {
 	if !p.dead {
 		p.next[name] = true
 	}
 }
 
 // isRead reports whether the local name is read, by the previous pass.
-func (p *tsFlowPrinter) isRead(name string) bool {
+func (p *tsPrimPrinter) isRead(name string) bool {
 	return name != "" && (p.reads == nil || p.reads[name])
 }
 
-// tsFlowPure reports whether evaluating the call c of a primitive has no effect, so that an
+// tsPrimPure reports whether evaluating the call c of a primitive has no effect, so that an
 // assignment of it to nothing read is left out.
-func tsFlowPure(c *code.Call) bool {
+func tsPrimPure(c *code.Call) bool {
 	switch c.Callee {
 	case prim.OpEnv, prim.OpFrame, prim.OpRecLen, prim.OpKidsLen, prim.OpNewVals, prim.OpStr, prim.OpMarkPos,
 		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore:
@@ -117,10 +117,10 @@ func tsFlowPure(c *code.Call) bool {
 }
 
 // tsPure reports whether evaluating x has no effect.
-func tsPure(x code.Expr) bool { return Pure(x, tsFlowPure) }
+func tsPure(x code.Expr) bool { return Pure(x, tsPrimPure) }
 
 // stmtOp writes the call c of a primitive without results, whose printed arguments args returns.
-func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
+func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	switch c.Callee {
 	case prim.OpStep:
 		p.write(tsSpend(1))
@@ -192,7 +192,7 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 	case prim.OpDropTrail:
 		m := p.markLocal(c)
 		if !p.marks[m].Trail {
-			panic(tsFlowUnsupported("a mark without a trail dropped"))
+			panic(tsUnprintable("a mark without a trail dropped"))
 		}
 		p.readName(p.part(m, 2))
 		p.write(fmt.Sprintf("p.trail.length = %sTrail;\n", m))
@@ -230,13 +230,13 @@ func (p *tsFlowPrinter) stmtOp(c *code.Call, args func() []string) {
 		trace := p.g.traceSkipped(p.g.Core().Origin.Of(c.Imm.(core.Node)))
 		p.b.WriteString(strings.TrimLeft(trace, " "))
 	default:
-		panic(tsFlowUnsupported("operation " + c.Callee))
+		panic(tsUnprintable("operation " + c.Callee))
 	}
 }
 
 // expr returns the TypeScript expression of the call c of a primitive with results, whose printed
 // arguments args returns.
-func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
+func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	g := p.g
 	switch c.Callee {
 	case prim.OpEnv:
@@ -362,14 +362,14 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 		a := args()
 		return fmt.Sprintf("p.scopeValue(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
 	case prim.OpAttachCaptures:
-		panic(tsFlowUnsupported("captures attached from variables"))
+		panic(tsUnprintable("captures attached from variables"))
 	case prim.OpAttachFrame:
 		a := args()
 		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(prim.Attach).Names), a[2], a[1])
 	case prim.OpPred:
 		x := c.Imm.(prim.Predicate)
 		if !x.Frame {
-			panic(tsFlowUnsupported("a predicate that reads variables"))
+			panic(tsUnprintable("a predicate that reads variables"))
 		}
 		// The action expression reads the current frame.
 		if p.dry {
@@ -379,11 +379,11 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
-			panic(tsFlowUnsupported("a bind that reads variables"))
+			panic(tsUnprintable("a bind that reads variables"))
 		}
 		b, ok := p.grammarAction(x.Node).(*ast.Bind)
 		if !ok {
-			panic(tsFlowUnsupported("a bind without a grammar bind"))
+			panic(tsUnprintable("a bind without a grammar bind"))
 		}
 		if p.dry {
 			return "p.bind(a)"
@@ -403,20 +403,20 @@ func (p *tsFlowPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpFrameVal:
 		return fmt.Sprintf("%s[%d]!", args()[0], c.Imm.(prim.Slot))
 	}
-	panic(tsFlowUnsupported("operation " + c.Callee))
+	panic(tsUnprintable("operation " + c.Callee))
 }
 
 // markLocal returns the local of the mark that the call c takes as its argument.
-func (p *tsFlowPrinter) markLocal(c *code.Call) string {
+func (p *tsPrimPrinter) markLocal(c *code.Call) string {
 	l, ok := c.Args[0].(*code.Local)
 	if !ok {
-		panic(tsFlowUnsupported("a mark that is not a variable"))
+		panic(tsUnprintable("a mark that is not a variable"))
 	}
 	return l.Name
 }
 
 // set writes the assignment s of one call of a primitive.
-func (p *tsFlowPrinter) set(s *code.Set, expr func(code.Expr) string) {
+func (p *tsPrimPrinter) set(s *code.Set, expr func(code.Expr) string) {
 	if p.dead {
 		return
 	}
@@ -436,7 +436,7 @@ func (p *tsFlowPrinter) set(s *code.Set, expr func(code.Expr) string) {
 
 // setText returns the assignment s of one call of a primitive as TypeScript, or "" if it is left out.
 // As a statement it ends with a semicolon and a newline.
-func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt bool) string {
+func (p *tsPrimPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt bool) string {
 	end := ""
 	if stmt {
 		end = ";\n"
@@ -517,7 +517,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 		return ""
 	}
 	if len(s.Dst) != 1 {
-		panic(tsFlowUnsupported("an assignment of a call with several results"))
+		panic(tsUnprintable("an assignment of a call with several results"))
 	}
 	var parts []string
 	switch d := s.Dst[0]; {
@@ -548,7 +548,7 @@ func (p *tsFlowPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 }
 
 // reg returns the TypeScript expression of the register name.
-func (p *tsFlowPrinter) reg(name string) string {
+func (p *tsPrimPrinter) reg(name string) string {
 	if name == prim.Cut {
 		return "p.cut"
 	}
@@ -558,7 +558,7 @@ func (p *tsFlowPrinter) reg(name string) string {
 // testedCond returns the condition that the call, which has two results, fails: the call and its
 // test in one condition, since nothing else reads the flag it sets. The condition assigns the value
 // of the call to the local v if something reads v.
-func (p *tsFlowPrinter) testedCond(call *code.Call, v string, expr func(code.Expr) string) string {
+func (p *tsPrimPrinter) testedCond(call *code.Call, v string, expr func(code.Expr) string) string {
 	p.read(call)
 	cond := expr(call) + " === undefined"
 	if p.isRead(v) {
@@ -568,7 +568,7 @@ func (p *tsFlowPrinter) testedCond(call *code.Call, v string, expr func(code.Exp
 }
 
 // peek writes the read of the next character into the places of s.
-func (p *tsFlowPrinter) peek(s *code.Set) {
+func (p *tsPrimPrinter) peek(s *code.Set) {
 	if p.dead {
 		return
 	}
@@ -600,10 +600,10 @@ func (p *tsFlowPrinter) peek(s *code.Set) {
 
 // reset returns the statement that goes back to the mark m: the position, and the parts of the parser
 // state that the code since the mark may change.
-func (p *tsFlowPrinter) reset(m string) string {
+func (p *tsPrimPrinter) reset(m string) string {
 	st, ok := p.marks[m]
 	if !ok {
-		panic(tsFlowUnsupported("a reset of a mark that is not set"))
+		panic(tsUnprintable("a reset of a mark that is not set"))
 	}
 	p.readName(p.part(m, 0))
 	if !st.Env && !st.Trail && !st.Rec {
@@ -621,7 +621,7 @@ func (p *tsFlowPrinter) reset(m string) string {
 
 // outline prints the function of the outlined node of the call c and returns the call of it. The
 // passes that only collect reads print no function.
-func (p *tsFlowPrinter) outline(c *code.Call) string {
+func (p *tsPrimPrinter) outline(c *code.Call) string {
 	if p.dry {
 		return "e(p)"
 	}
@@ -638,9 +638,9 @@ func (p *tsFlowPrinter) outline(c *code.Call) string {
 	if !ok {
 		panic(fmt.Errorf("internal error: the table %s has no function of the outlined node of rule %s", g.Table, g.Cur.Name))
 	}
-	call, ok := g.flowFunc(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
+	call, ok := g.funcCall(l, x.Slots, check.NewScope(), g.Cur.Name+" (outlined)", false)
 	if !ok {
-		panic(tsFlowUnsupported("an outlined node"))
+		panic(tsUnprintable("an outlined node"))
 	}
 	if p.outlined == nil {
 		p.outlined = map[*code.Call]string{}

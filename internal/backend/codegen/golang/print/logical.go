@@ -81,7 +81,7 @@ const logicalPoll = "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
 // skippedCalls prints the effects of the calls that the alternative a guard skips would make
 // (flow.skippedCalls). Calls of rules that the parse does not memoize only count their units; the
 // calls of memoized rules have the effects of the memo too, which the library makes.
-func (p *flowPrinter) skippedCalls(x prim.SkippedCalls) string {
+func (p *primPrinter) skippedCalls(x prim.SkippedCalls) string {
 	g := p.g
 	memo := false
 	for _, k := range x.Rules {

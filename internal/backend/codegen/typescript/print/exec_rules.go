@@ -15,15 +15,15 @@ import (
 //
 // The functions of grammar code are written at the Flow stage and converted to the Exec stage with
 // the TypeScript passes when their table is lowered (Generator.lowerTable), and printed by print.Body,
-// which prints their structure and decides which assignments stay (stores.Dead). The primitives are printed in place by tsFlowPrinter.
+// which prints their structure and decides which assignments stay (stores.Dead). The primitives are printed in place by tsPrimPrinter.
 // Before printing, the TypeScript Exec passes (typescript/pass) make charges in a row one spend, the
 // end of an expectation record followed by the merge of its expectations one unisolateMerge, and the
 // test of the call an If's Init the If's condition, so that the locals they no longer read are not
 // declared. Each pass has a flag; the printer prints the operations they replace as well.
 
-// printTSFlowExec prints the function l of the table, lowered to the Exec stage with the TypeScript
+// printTSFunc prints the function l of the table, lowered to the Exec stage with the TypeScript
 // passes (lowerTable), and returns its body, its variable declarations and the declarations it needs.
-func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []tsDecl) {
+func (g *Generator) printTSFunc(l *execdata.Lowered) (string, []string, []tsDecl) {
 	a := prim.AttrsOf(l.Func)
 	g.ExecFuncs++
 	vars := map[string]bool{}
@@ -43,7 +43,7 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 	// parts a mark saves does.
 	parts := map[string]*[4]string{}
 	partReads := map[string]bool{}
-	newPrinter := func(dry bool) *tsFlowPrinter {
+	newPrinter := func(dry bool) *tsPrimPrinter {
 		r := map[string]bool{}
 		for v := range reads {
 			r[v] = true
@@ -51,9 +51,9 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 		for v := range partReads {
 			r[v] = true
 		}
-		return &tsFlowPrinter{g: g, parts: parts, dry: dry, reads: r, next: map[string]bool{}, labels: map[string]string{}}
+		return &tsPrimPrinter{g: g, parts: parts, dry: dry, reads: r, next: map[string]bool{}, labels: map[string]string{}}
 	}
-	partsRead := func(p *tsFlowPrinter) map[string]bool {
+	partsRead := func(p *tsPrimPrinter) map[string]bool {
 		out := map[string]bool{}
 		for _, ps := range parts {
 			for _, part := range ps {
@@ -81,7 +81,7 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 	res := Body(l.Module, l.Func, p.bodyTarget(), st)
 	for _, v := range []string{a.Start, a.Ctx} {
 		if v != "" && (st.Read[v] || p.next[v]) {
-			panic(tsFlowUnsupported("the start or the context of a value-free rule"))
+			panic(tsUnprintable("the start or the context of a value-free rule"))
 		}
 	}
 	body := res.Text
@@ -111,11 +111,11 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 			continue
 		}
 		if st.Read[v.Name] {
-			if typ := tsFlowType(t); typ == "number" || typ == "boolean" {
+			if typ := tsPrimType(t); typ == "number" || typ == "boolean" {
 				// The initial value gives the type.
-				decl = append(decl, fmt.Sprintf("  let %s = %s;\n", v.Name, tsFlowZero(t)))
+				decl = append(decl, fmt.Sprintf("  let %s = %s;\n", v.Name, tsPrimZero(t)))
 			} else {
-				decl = append(decl, fmt.Sprintf("  let %s: %s = %s;\n", v.Name, typ, tsFlowZero(t)))
+				decl = append(decl, fmt.Sprintf("  let %s: %s = %s;\n", v.Name, typ, tsPrimZero(t)))
 			}
 		}
 	}
@@ -123,7 +123,7 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 }
 
 // bodyTarget returns the printing of the primitives of a lowered function by the printer p.
-func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
+func (p *tsPrimPrinter) bodyTarget() *BodyTarget {
 	// at runs print at the point that dead tells and returns what it writes.
 	at := func(dead bool, print func()) string {
 		prev, prevDead := p.b, p.dead
@@ -210,6 +210,6 @@ func (p *tsFlowPrinter) bodyTarget() *BodyTarget {
 			at(dead, func() { text = p.testedCond(c, v, expr) })
 			return text, true
 		},
-		Pure: tsFlowPure,
+		Pure: tsPrimPure,
 	}
 }

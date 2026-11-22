@@ -32,8 +32,8 @@ LR/Operators Rule cut extensions.
 Evidence records: [078](../078-local-cuts-in-typed-direct-rules.md).
 
 Source owners: [`typed structural
-emitter`](../../../internal/backend/codegen/golang/print/flowrule.go), [`framed body
-emission`](../../../internal/backend/codegen/golang/print/flowframe.go).
+emitter`](../../../internal/backend/codegen/golang/print/rule_shapes.go), [`framed body
+emission`](../../../internal/backend/codegen/golang/print/frame_comment.go).
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

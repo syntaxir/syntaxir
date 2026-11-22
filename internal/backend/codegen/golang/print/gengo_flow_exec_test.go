@@ -14,7 +14,7 @@ import (
 // execGenerate generates the parser of the grammar source with the options, joined into one text,
 // and returns the number of the functions printed from Exec IR by table, the functions that the
 // generators counted as printed from Exec IR (Generator.ExecFuncs) less the rules and framed
-// functions that they printed (Generator.FlowRules and FlowFrames), which is zero because every
+// functions that they printed (Generator.FlatRules and FramedRules), which is zero because every
 // printed function is printed from Exec IR once, or reports false if the generator rejects the
 // grammar.
 func execGenerate(src string, opts common.GenOptions) (string, map[string]int, int, bool) {
@@ -41,7 +41,7 @@ func execGenerate(src string, opts common.GenOptions) (string, map[string]int, i
 	}
 	extra := 0
 	for _, x := range all {
-		extra += x.ExecFuncs - x.FlowRules - x.FlowFrames
+		extra += x.ExecFuncs - x.FlatRules - x.FramedRules
 	}
 	return b.String(), n, extra, true
 }

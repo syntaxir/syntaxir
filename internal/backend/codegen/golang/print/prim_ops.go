@@ -20,7 +20,7 @@ import (
 // without its final newline.
 
 // op returns the Go text of the call c of a primitive operation with the printed arguments args.
-func (p *flowPrinter) op(c *code.Call, args []string) string {
+func (p *primPrinter) op(c *code.Call, args []string) string {
 	g := p.g
 	switch name := c.Callee; name {
 	// Statements.
@@ -272,12 +272,12 @@ func (p *flowPrinter) op(c *code.Call, args []string) string {
 	case prim.OpCtxFinish:
 		return fmt.Sprintf("%s.Finish(%s)", args[0], args[1])
 	default:
-		panic(fmt.Sprintf("flow printer: operation %s", c.Callee))
+		panic(fmt.Sprintf("primitive printer: operation %s", c.Callee))
 	}
 }
 
 // appendText returns the statement of flow.append, which assigns the list it appends to.
-func (p *flowPrinter) appendText(c *code.Call, args []string) string {
+func (p *primPrinter) appendText(c *code.Call, args []string) string {
 	vals, x := args[0], args[1]
 	spread := bool(c.Imm.(prim.Spread))
 	if spread && p.untyped() {
@@ -289,7 +289,7 @@ func (p *flowPrinter) appendText(c *code.Call, args []string) string {
 }
 
 // hasLit returns the condition that the input at the position begins with the literal, read in place.
-func (p *flowPrinter) hasLit(lit *core.Lit) string {
+func (p *primPrinter) hasLit(lit *core.Lit) string {
 	g := p.g
 	if g.Traced {
 		panic("internal error: an in-place read of a literal in a traced body")
@@ -327,7 +327,7 @@ func (p *flowPrinter) hasLit(lit *core.Lit) string {
 }
 
 // negate returns the negation of the call c of a primitive operation with the printed arguments args.
-func (p *flowPrinter) negate(c *code.Call, args []string) string {
+func (p *primPrinter) negate(c *code.Call, args []string) string {
 	g := p.g
 	switch c.Callee {
 	case prim.OpAtAnchor:
@@ -353,7 +353,7 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 	case prim.OpSkipTerminal:
 		table, ok := g.terminalTable(g.Core().Origin.Of(c.Imm.(*core.Terminal).Body))
 		if !ok {
-			panic("flow printer: terminal region without a terminal program")
+			panic("primitive printer: terminal region without a terminal program")
 		}
 		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("SkipTerminal"), table)
 	case prim.OpSkipClasses:
@@ -386,7 +386,7 @@ func (p *flowPrinter) negate(c *code.Call, args []string) string {
 // caps sets the capture variables of the generator's action expressions to the captures of the slots names, whose
 // printed arguments are args (nil for a slot the action expression does not read), and returns the function that
 // restores them.
-func (p *flowPrinter) caps(names, args []string) func() {
+func (p *primPrinter) caps(names, args []string) func() {
 	caps := map[string]string{}
 	for i, a := range args {
 		if a != "nil" {

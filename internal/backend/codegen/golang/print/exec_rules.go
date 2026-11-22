@@ -22,34 +22,34 @@ import (
 // stage and converted to the Exec stage by the lowering of each planned table in the compilation
 // (internal/driver), and printed by the Go backend of the Exec stage (print.Body), which prints the
 // compositions of the library too. The primitives of grammar code are printed in place by the flow
-// printer (flowPrinter.op).
+// printer (primPrinter.op).
 
-// execBody prints the body of the lowered function l with the flow printer p, for a function that is
+// execBody prints the body of the lowered function l with the primitive printer p, for a function that is
 // printed whatever its body: it checks the variables (execVars) and counts the function (execCount).
-func (p *flowPrinter) execBody(l *execdata.Lowered) BodyResult {
+func (p *primPrinter) execBody(l *execdata.Lowered) BodyResult {
 	res := p.execPrint(l)
 	p.execVars(l, &res)
 	p.execCount()
 	return res
 }
 
-// execPrint prints the body of the lowered function l with the flow printer p.
-func (p *flowPrinter) execPrint(l *execdata.Lowered) BodyResult {
+// execPrint prints the body of the lowered function l with the primitive printer p.
+func (p *primPrinter) execPrint(l *execdata.Lowered) BodyResult {
 	return Body(l.Module, l.Func, p.execTarget(), l.Vars)
 }
 
 // execVars checks the variables of the printed body res of the lowered function l: a variable that
-// the body names but that is not declared is an internal error (Generator.FlowErr). Hooks.FlowVarsMutant and Hooks.FlowVarsMutantUses instead leave variables
+// the body names but that is not declared is an internal error (Generator.PrintErr). Hooks.VarsMutant and Hooks.VarsMutantUses instead leave variables
 // undeclared, without the check.
-func (p *flowPrinter) execVars(l *execdata.Lowered, res *BodyResult) {
-	if p.g.hooks.FlowVarsMutant {
+func (p *primPrinter) execVars(l *execdata.Lowered, res *BodyResult) {
+	if p.g.hooks.VarsMutant {
 		// The locals that the body names stay undeclared.
 		for _, v := range l.Vars {
 			res.Stores.Dead[v] = true
 		}
 		return
 	}
-	if p.g.hooks.FlowVarsMutantUses {
+	if p.g.hooks.VarsMutantUses {
 		// The locals that only the values of assignments read stay undeclared.
 		hard := otherReads(l.Func.Body)
 		for _, v := range l.Vars {
@@ -59,10 +59,10 @@ func (p *flowPrinter) execVars(l *execdata.Lowered, res *BodyResult) {
 		}
 		return
 	}
-	if p.g.FlowErr == nil {
+	if p.g.PrintErr == nil {
 		for _, id := range freeIdents(res.Text) {
 			if res.Stores.Dead[id] {
-				p.g.FlowErr = fmt.Errorf("internal error: the printed body names the variable %s, which is not declared", id)
+				p.g.PrintErr = fmt.Errorf("internal error: the printed body names the variable %s, which is not declared", id)
 				break
 			}
 		}
@@ -70,7 +70,7 @@ func (p *flowPrinter) execVars(l *execdata.Lowered, res *BodyResult) {
 }
 
 // execCount counts a function printed from Exec IR that the generated code includes.
-func (p *flowPrinter) execCount() {
+func (p *primPrinter) execCount() {
 	p.g.ExecFuncs++
 	if p.g.ExecTables == nil {
 		p.g.ExecTables = map[string]int{}
@@ -79,7 +79,7 @@ func (p *flowPrinter) execCount() {
 }
 
 // otherReads returns the locals that the statements of b other than assignments read, whatever
-// their reachability: the reads that Hooks.FlowVarsMutantUses keeps.
+// their reachability: the reads that Hooks.VarsMutantUses keeps.
 func otherReads(b *code.Block) map[string]bool {
 	out := map[string]bool{}
 	read := func(x code.Expr) {
@@ -136,17 +136,17 @@ func otherReads(b *code.Block) map[string]bool {
 }
 
 // execTarget returns the Go implementation of the primitive operations of grammar code at the Exec
-// stage, which the flow printer prints in place (flowPrinter.op).
-func (p *flowPrinter) execTarget() *Target {
+// stage, which the primitive printer prints in place (primPrinter.op).
+func (p *primPrinter) execTarget() *Target {
 	t := p.target()
-	if h := p.g.hooks.FlowTarget; h != nil {
+	if h := p.g.hooks.PrimTarget; h != nil {
 		return h(t, &p.pre)
 	}
 	return t
 }
 
-// target returns the Go implementation of execTarget that Hooks.FlowTarget does not replace.
-func (p *flowPrinter) target() *Target {
+// target returns the Go implementation of execTarget that Hooks.PrimTarget does not replace.
+func (p *primPrinter) target() *Target {
 	return &Target{
 		Reg: func(name string) string {
 			return map[string]string{prim.Pos: "p.Pos", prim.Cut: "p.Cut"}[name]
@@ -196,8 +196,8 @@ func goPrec(text string) int {
 	return token.UnaryPrec
 }
 
-// execFlatRule prints the lowered local function l as a flat rule (flowTypedRule).
-func (g *Generator) execFlatRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
+// execFlatRule prints the lowered local function l as a flat rule (typedRuleFunc).
+func (g *Generator) execFlatRule(p *primPrinter, l *execdata.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execBody(l)
 	st := res.Stores
@@ -220,20 +220,20 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execdata.Lowered) *flatRule 
 	if len(unread) > 0 {
 		out.body = "\t" + strings.Repeat("_, ", len(unread)-1) + "_ = " + strings.Join(unread, ", ") + "\n" + out.body
 	}
-	g.FlowRules++
+	g.FlatRules++
 	return out
 }
 
 // execRecRule prints the lowered local function l of a rule of the Node library as a flat rule. The
 // plan has accepted the function as the lowering wrote it (flowplan.Unit); if the forms that the
 // Go passes chose make stores.RefusesFlat reject it, the generation fails with an internal error
-// (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
-func (g *Generator) execRecRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
+// (Generator.PrintErr) and execRecRule returns nil. It counts only a rule it prints.
+func (g *Generator) execRecRule(p *primPrinter, l *execdata.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execPrint(l)
 	if a := prim.AttrsOf(fn); stores.RefusesFlat(fn, a.Start, a.Ctx, prim.VarsOf(fn)) {
-		if g.FlowErr == nil {
-			g.FlowErr = fmt.Errorf("internal error: the plan runs %s flat, but in the forms of the Go passes it reads its start or its context, or keeps a value", fn.Name)
+		if g.PrintErr == nil {
+			g.PrintErr = fmt.Errorf("internal error: the plan runs %s flat, but in the forms of the Go passes it reads its start or its context, or keeps a value", fn.Name)
 		}
 		return nil
 	}
@@ -262,12 +262,12 @@ func (g *Generator) execRecRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
 	if len(unread) > 0 {
 		out.body = "\t" + strings.Repeat("_, ", len(unread)-1) + "_ = " + strings.Join(unread, ", ") + "\n" + out.body
 	}
-	g.FlowRules++
+	g.FlatRules++
 	return out
 }
 
-// execFramed prints the lowered framed function l as flowFramed does.
-func (g *Generator) execFramed(p *flowPrinter, l *execdata.Lowered, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
+// execFramed prints the lowered framed function l as framedFunc does.
+func (g *Generator) execFramed(p *primPrinter, l *execdata.Lowered, slots []irc.Slot, scope *check.Scope, comment string, ruleBody bool) string {
 	fn := l.Func
 	res := p.execBody(l)
 	st := res.Stores
@@ -295,7 +295,7 @@ func (g *Generator) execFramed(p *flowPrinter, l *execdata.Lowered, slots []irc.
 	for _, sl := range slots {
 		scope.Slot(sl.Name)
 	}
-	g.FlowFrames++
+	g.FramedRules++
 	if ruleBody {
 		return g.bodyMethod(comment, b.String())
 	}

@@ -17,7 +17,7 @@ import (
 
 // Generator is the state that the Go and TypeScript generators share: the program and rule being
 // printed, the generation switches both read, the expectation table, the shared names of
-// literals, methods and field type variables, and the Flow IR of the rules printed from it.
+// literals, methods and field type variables, and the Exec IR of the rules printed from it.
 type Generator struct {
 	Observability bool
 	// NoBudget leaves the step charges out of Go output generated without budget controls, where
@@ -29,14 +29,14 @@ type Generator struct {
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the
 	// helpers with an Ordinary form, no charges and inline class tests. The Flow passes choose the lean
 	// forms of such functions (terminal programs, class runs and tables, guarded classes) that the
-	// backend prints (FlowTarget).
+	// backend prints (PrimTarget).
 	Ordinary bool
 	Document bool
 	// Traced reports the traced pass of a Go parser generated with observability: it prints the copies
 	// of the rule tables that an observed parse runs (named with TracedSuffix), whose bodies report the
 	// rule calls and record, in the primitives that read the input, how far each call examined it.
-	Traced  bool
-	FlowErr error // the first rule, line or stream body that Flow IR does not print, or the first internal error of the unread-variable check
+	Traced   bool
+	PrintErr error // the first rule, line or stream body that the printer does not print, or the first internal error of the unread-variable check
 	// Only exact emitted bodies with the same signature share a helper. Rule
 	// wrappers, memo IDs, frame layouts and expectation IDs remain in the code.
 	methodNames  map[generatedMethod]string
@@ -199,11 +199,11 @@ func (g *Generator) CoreAction(r *Rule) core.ActionExpr {
 	return cr.Finish.Action
 }
 
-// FailFlow records that Flow IR does not print a part of a table, which fails the generation: every
-// table is printed from Flow IR and has no other route.
-func (g *Generator) FailFlow(what string) {
-	if g.FlowErr == nil {
-		g.FlowErr = fmt.Errorf("Flow IR does not print %s", what)
+// Unprintable records that the printer does not print a part of a table, which fails the generation: every
+// table is printed from Exec IR and has no other route.
+func (g *Generator) Unprintable(what string) {
+	if g.PrintErr == nil {
+		g.PrintErr = fmt.Errorf("the printer does not print %s", what)
 	}
 }
 

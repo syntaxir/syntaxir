@@ -9,8 +9,8 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
 
-// Grammar code lowered from Flow IR prints with Body, by the conventions of the TypeScript printer
-// of Flow IR, so that the code printed from Exec IR is the code printed from Flow IR.
+// Grammar code at the Exec stage prints with Body, by the conventions of the TypeScript printer of
+// the primitives (tsPrimPrinter).
 //
 // A block whose label a printed jump names prints as a labeled block statement; any other block
 // prints its statements in place. A loop prints as a for or while statement, labeled if a printed

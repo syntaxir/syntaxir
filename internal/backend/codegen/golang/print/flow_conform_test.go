@@ -494,7 +494,7 @@ func flowConformRun(t *testing.T, cases []flowConformCase, mut flowMutation) (ms
 		opts := c.opts
 		opts.Lib, opts.NoLimitControls, opts.KeepComments, opts.Expectations = common.LibImport, c.noLimits, true, true
 		opts.Package, opts.Module = c.name, "flowconf/"+c.name
-		files, err := generateGo(g, opts, driver.Options{}, &print.Hooks{FlowTarget: pr.target})
+		files, err := generateGo(g, opts, driver.Options{}, &print.Hooks{PrimTarget: pr.target})
 		if err != nil {
 			t.Fatalf("%s: %v", c.name, err)
 		}

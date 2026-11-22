@@ -57,7 +57,7 @@ func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error),
 	t.decide = sync.OnceValues(func() (*Decision, error) {
 		d, err := Decide(prog, recognizer, start, opts)
 		if err == nil && hooks != nil {
-			d.refuse = hooks.RefuseFlowRecRule
+			d.refuse = hooks.RefuseRecRule
 		}
 		return d, err
 	})
@@ -88,7 +88,7 @@ type Decision struct {
 	// roots are the typed rules that the typed entry points enter.
 	roots []plandata.Entry
 	specs []tableSpec
-	// refuse is a test's hook (hooks.RefuseFlowRecRule).
+	// refuse is a test's hook (hooks.RefuseRecRule).
 	refuse func(*common.Rule) bool
 	// guards is what the guards of choices do under logical units (common.GenOptions.LogicalVariant).
 	guards lowerdata.LogicalGuards

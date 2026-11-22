@@ -33,8 +33,8 @@ unsupported rules.
 
 Evidence records: [060](../060-direct-rules-in-the-typed-runtime.md).
 
-Source owners: [`Generator.flowTypedRule`](../../../internal/backend/codegen/golang/print/flow.go), [`typed framed body
-lowering`](../../../internal/backend/codegen/golang/print/flowframe.go), [`GenOptions private
+Source owners: [`Generator.typedRuleFunc`](../../../internal/backend/codegen/golang/print/rules_typed.go), [`typed framed body
+lowering`](../../../internal/backend/codegen/golang/print/frame_comment.go), [`GenOptions private
 typed controls`](../../../internal/backend/codegen/golang/print/generator.go), [`runtime invocation
 ownership`](../../../pkg/runtime/libgo/typed.go).
 

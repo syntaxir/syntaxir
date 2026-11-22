@@ -27,8 +27,8 @@ func ExecVarsError(text string, dead ...string) error {
 	for _, v := range dead {
 		res.Stores.Dead[v] = true
 	}
-	(&flowPrinter{g: g}).execVars(&execdata.Lowered{}, res)
-	return g.FlowErr
+	(&primPrinter{g: g}).execVars(&execdata.Lowered{}, res)
+	return g.PrintErr
 }
 
 var (

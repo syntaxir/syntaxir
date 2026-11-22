@@ -340,8 +340,8 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			return typedOutput{}, err
 		}
 		g.rules()
-		if g.FlowErr != nil {
-			return typedOutput{}, g.FlowErr
+		if g.PrintErr != nil {
+			return typedOutput{}, g.PrintErr
 		}
 		g.Exec = nil
 		g.Table, g.typedTable = "rules", true

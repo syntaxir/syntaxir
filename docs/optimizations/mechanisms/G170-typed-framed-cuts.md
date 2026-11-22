@@ -32,8 +32,8 @@ alone.
 Evidence records: [081](../081-scoped-cuts-in-unfinished-typed-go-bodies.md).
 
 Source owners: [`typed structural
-emitter`](../../../internal/backend/codegen/golang/print/flowrule.go), [`framed body
-emission`](../../../internal/backend/codegen/golang/print/flowframe.go).
+emitter`](../../../internal/backend/codegen/golang/print/rule_shapes.go), [`framed body
+emission`](../../../internal/backend/codegen/golang/print/frame_comment.go).
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

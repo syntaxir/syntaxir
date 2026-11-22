@@ -13,7 +13,7 @@ import (
 // text of the checked-in grammars with an Operators Rule is frozen in testdata/output_manifest.txt of the alpha-parsers repository.
 
 // TestOperatorsLinesWithRecoveryPrintFromFlow checks that a line with recovery is printed from Flow IR in the
-// Node and recognizer tables (a line Flow IR does not print fails the generation).
+// Node and recognizer tables (a line the printer does not print fails the generation).
 func TestOperatorsLinesWithRecoveryPrintFromFlow(t *testing.T) {
 	t.Parallel()
 	codegentest.PinOrdinary(t)

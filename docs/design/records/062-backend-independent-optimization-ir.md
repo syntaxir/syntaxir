@@ -671,7 +671,7 @@ stage of its first consumer, so its differential tests and negative controls run
    stage 1 plus the Document and stream tests and the Node, recognition, Document and stream benchmarks. The
    direct Go printers are removed; the rest of the Go term lowering and the remaining `go/ast`
    passes follow. Terminal programs (`internal/backend/codegen/golang/print/terminal.go`) are owned by no stage: `terminalTable` is called by the
-   Flow IR emitter (`internal/backend/codegen/golang/print/flow.go`), so Node output keeps the program and does not fall back to straight-line
+   Flow IR emitter (`internal/backend/codegen/golang/print/rules_typed.go`), so Node output keeps the program and does not fall back to straight-line
    code, and the emitter stays where it is. Moving the emitter is not part of any stage here, because it is a Go
    emission helper shared by Flow IR, not a lowering of the AST.
 3. **TypeScript.** Gate: the TypeScript parity tests in `bench` and `internal/engine`, TypeScript event

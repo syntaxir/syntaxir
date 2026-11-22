@@ -24,7 +24,7 @@ func hasCut(e ast.Expr) (found bool) {
 
 // TestFlowCutsPrintFromFlow checks the route of the rules with cuts: over the corpus and the ten grammars, in
 // the ordinary and the budget-controlled forms, a rule with a cut takes
-// the Flow route in the Node and recognizer tables (a rule Flow IR does not print fails the generation).
+// the Flow route in the Node and recognizer tables (a rule the printer does not print fails the generation).
 func TestFlowCutsPrintFromFlow(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
