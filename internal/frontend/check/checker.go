@@ -12,8 +12,6 @@ import (
 // long as that Checker: for the program's lifetime.
 type Checker struct {
 	*Model
-	// Typed holds the types found by CheckTypes (nil if it did not run).
-	Typed *TypeInfo
 	// shapeControl is the compilation's cancellation control while the program is being built, so
 	// that the shape analysis of rule bodies polls it; nil otherwise.
 	shapeControl *cancel.Control

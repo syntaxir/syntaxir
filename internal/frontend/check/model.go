@@ -33,7 +33,7 @@ type Model struct {
 	DescTable     []string  // expectation table (starting with fixedDescs)
 	Twins         []*Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
 	NSeen         int       // number of rules with Rule.Seen set
-	Typed         *TypeInfo // types found by the type checker (nil if it did not run)
+	Typed         *TypeInfo // types found by the type checker (CheckTypes; nil if it did not run)
 	NoProjections bool
 	// RecordsSourceInfo reports that nodes record source information (Options.SourceInfo).
 	RecordsSourceInfo bool

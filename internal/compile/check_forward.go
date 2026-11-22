@@ -14,7 +14,5 @@ func CheckTypes(prog *Program, errs *diagnostic.ErrorList) { CheckTypesControlle
 
 // CheckTypesControlled is CheckTypes polling control; a nil control never cancels.
 func CheckTypesControlled(prog *Program, errs *diagnostic.ErrorList, control *cancel.Control) {
-	c := prog.Checker()
-	check.CheckTypesControlled(c, errs, control)
-	prog.Typed = c.Typed
+	check.CheckTypesControlled(prog.Checker(), errs, control)
 }

@@ -21,8 +21,8 @@ var ErrUnavailable = program.ErrSchemaUnavailable
 
 // Source is the checked grammar that a schema is exported from.
 type Source struct {
-	// Model is the grammar's semantic model, and Checker the checker of its types; its Typed is nil
-	// if the types were not checked, and then the grammar has no schema.
+	// Model is the grammar's semantic model, and Checker the checker of its types. The model's
+	// Typed is nil if the types were not checked, and then the grammar has no schema.
 	Model   *check.Model
 	Checker *check.Checker
 	// SourceInfo reports that the values record source information.
@@ -33,7 +33,7 @@ type Source struct {
 // it calls or whose values its values contain, and the struct types they refer to; or every rule
 // and type with allRules. entry.SchemaSource checks the start rule first.
 func Export(p Source, start string, allRules bool) (*schema.Output, error) {
-	if p.Model == nil || p.Model.Grammar == nil || p.Checker == nil || p.Checker.Typed == nil {
+	if p.Model == nil || p.Model.Grammar == nil || p.Checker == nil || p.Model.Typed == nil {
 		return nil, ErrUnavailable
 	}
 	g, c := p.Model.Grammar, p.Checker

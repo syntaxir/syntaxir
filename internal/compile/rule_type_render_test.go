@@ -123,10 +123,7 @@ func TestRuleTypeWithPollPreservesForeignPanic(t *testing.T) {
 	})
 }
 
-// shownProgram returns a program whose checker and its program hold types that show the types shown.
+// shownProgram returns a program whose model holds types that show the types shown.
 func shownProgram(shown map[string]types.Ty) *Program {
-	info := check.NewShownInfo(shown)
-	p := &Program{Model: &check.Model{Typed: info}}
-	p.Checker().Typed = info
-	return p
+	return &Program{Model: &check.Model{Typed: check.NewShownInfo(shown)}}
 }

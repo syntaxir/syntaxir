@@ -30,7 +30,6 @@ func TestKindsAreTheCheckers(t *testing.T) {
 
 	// A fresh checker of the same model: the first call is cancelled at its first type.
 	q := &Program{Model: p.Model}
-	q.Checker().Typed = p.Typed
 	func() {
 		defer func() {
 			if _, ok := recover().(cancel.Cancellation); !ok {
