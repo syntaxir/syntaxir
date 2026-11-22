@@ -16,8 +16,8 @@
 </div>
 
 **Never write a parser again.** Describe your language once as a typed grammar, and SyntaxIR builds every parser you
-need: generated code or a VM, fast, safe on any input and ready for your editor. Here a whole operator precedence table,
-associativity included, is one rule:
+need: generated code in any target language or a VM, fast, safe on any input and ready for your editor. Here a whole
+operator precedence table, associativity included, is one rule:
 
 ```sxir
 // calc.sxir
@@ -56,8 +56,9 @@ sxir: 1:5: syntax error: expected "(", [0-9]
 ```
 
 > [!NOTE]
-> SyntaxIR is pre-release: the language, the Go API and the file formats may change. Generated Go is not yet as fast
-> as Go's hand-written parsers, and closing that gap is the current work. [Why SyntaxIR](docs/why-syntaxir.md) has every
+> SyntaxIR is pre-release: the language, the Go API and the file formats may change. Parsers are generated for Go and
+> TypeScript today, and more target languages are on the roadmap. Generated Go is not yet as fast as Go's hand-written
+> parsers, and closing that gap is the current work. [Why SyntaxIR](docs/why-syntaxir.md) has every
 > measured number, the current limits and how SyntaxIR compares with other tools.
 
 ## Why SyntaxIR

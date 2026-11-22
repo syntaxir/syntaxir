@@ -19,9 +19,9 @@ import (
 // example runs on the playground's WebAssembly build of the engine (site/static/assets/landing.js).
 
 // landingDescription is the lead of the landing page and its meta description.
-const landingDescription = "Write one typed grammar. SyntaxIR compiles it through a multi-stage IR into generated Go and " +
-	"TypeScript, a bytecode VM or WebAssembly in the browser, with cost analysis, compute limits and a full " +
-	"language toolchain."
+const landingDescription = "Write one typed grammar. SyntaxIR compiles it through a multi-stage IR into a parser for any " +
+	"target: generated code in your language (Go and TypeScript today), a bytecode VM or WebAssembly in the browser, " +
+	"with cost analysis, compute limits and a full language toolchain."
 
 // landingData is the data of the landing template.
 type landingData struct {

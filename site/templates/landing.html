@@ -101,7 +101,7 @@
     <div class="lp-section-head lp-split-head">
       <div>
         <h2 id="live-title">Same tree, same errors, every runtime.</h2>
-        <p>Edit the expression: the real SyntaxIR engine, compiled to WebAssembly, parses it in your browser. The other tabs show what the same grammar becomes in Go, in TypeScript, on the bytecode VM and with the <code>sxir</code> command.</p>
+        <p>Edit the expression: the real SyntaxIR engine, compiled to WebAssembly, parses it in your browser. The other tabs show what the same grammar becomes for other targets (Go and TypeScript, the bytecode VM) and with the <code>sxir</code> command.</p>
       </div>
       <a class="lp-text-link lp-accent-link" id="live-open" href="playground/">Open in full Playground</a>
     </div>
@@ -221,7 +221,7 @@ sxir lsp</code></pre>
           </svg>
         </figure>
         <h3>Shared DSLs across runtimes</h3>
-        <p>Ship a filter, query or policy language to Go services and TypeScript front ends from one grammar. Conformance tests hold every backend to the same trees and errors.</p>
+        <p>Ship a filter, query or policy language to every service and front end from one grammar, in Go and TypeScript today. Conformance tests hold every backend to the same trees and errors.</p>
       </article>
 
       <article class="lp-case lp-case-third">
@@ -360,7 +360,7 @@ sxir lsp</code></pre>
     </div>
     <figure class="lp-figure">
       <div class="lp-diagram">
-        <svg class="lp-wide" viewBox="0 0 960 236" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
+        <svg class="lp-wide" viewBox="0 0 960 236" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for every target, today Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
           <defs>
             <marker id="wf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
             <marker id="wf-loop" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-red" d="M 0 1 L 10 5 L 0 9 z"/></marker>
@@ -386,13 +386,13 @@ sxir lsp</code></pre>
           <line class="d-line-bold s-green" x1="660" y1="144" x2="724" y2="144" marker-end="url(#wf-pass)"/>
           <text class="d-label-strong d-small" x="690" y="134" text-anchor="middle">PASS</text>
           <rect class="d-panel d-stroke-green" x="734" y="78" width="218" height="132" rx="8"/>
-          <text class="d-title" x="843" y="108" text-anchor="middle">Parsers</text>
+          <text class="d-title" x="843" y="108" text-anchor="middle">Parsers for every target</text>
           <line class="d-line-soft" x1="754" y1="120" x2="932" y2="120"/>
           <text class="d-label-strong" x="843" y="142" text-anchor="middle">Go · TypeScript · VM · WASM</text>
           <text class="d-label" x="843" y="166" text-anchor="middle">Compute &amp; depth limits on</text>
           <text class="d-label" x="843" y="186" text-anchor="middle">Same tree on every backend</text>
         </svg>
-        <svg class="lp-narrow" viewBox="0 0 360 500" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
+        <svg class="lp-narrow" viewBox="0 0 360 500" role="img" aria-label="A human describes the language in natural language with example inputs. An LLM agent writes the typed .sxir grammar. The SyntaxIR gate runs sxir lint, the cost classification of lint -classify, sxir sample and sxir edit-fuzz, and sends positioned diagnostics back to the agent on a lint or cost failure. Once it passes, the grammar becomes parsers for every target, today Go, TypeScript, the VM and WebAssembly, with compute and depth limits on and the same tree on every backend.">
           <defs>
             <marker id="wf-arrow-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-fill-ink" d="M 0 1 L 10 5 L 0 9 z"/></marker>
             <marker id="wf-loop-n" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="d-dot s-red" d="M 0 1 L 10 5 L 0 9 z"/></marker>
@@ -417,7 +417,7 @@ sxir lsp</code></pre>
           <line class="d-line-bold s-green" x1="144" y1="340" x2="144" y2="372" marker-end="url(#wf-pass-n)"/>
           <text class="d-label-strong d-small" x="156" y="362">PASS</text>
           <rect class="d-panel d-stroke-green" x="24" y="380" width="240" height="114" rx="8"/>
-          <text class="d-title" x="144" y="408" text-anchor="middle">Parsers</text>
+          <text class="d-title" x="144" y="408" text-anchor="middle">Parsers for every target</text>
           <line class="d-line-soft" x1="44" y1="418" x2="244" y2="418"/>
           <text class="d-label-strong" x="144" y="440" text-anchor="middle">Go · TypeScript · VM · WASM</text>
           <text class="d-label" x="144" y="462" text-anchor="middle">Compute &amp; depth limits on</text>
