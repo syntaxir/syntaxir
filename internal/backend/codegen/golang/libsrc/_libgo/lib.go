@@ -2429,6 +2429,7 @@ func (p *Parser) MatchLiteral(rs []rune, text string, desc ExpID, build bool) (*
 			if p.Pos >= p.n || p.In[p.Pos] != r {
 				p.documentTouch(p.Pos + 1)
 				p.Expect(start, desc)
+				p.Pos = start
 				return nil, false
 			}
 			p.Pos++
@@ -2499,6 +2500,7 @@ func (p *Parser) matchReplacementLiteral(rs []rune, text string, desc ExpID, bui
 		size, ok := p.MatchChar(want, false)
 		if !ok {
 			p.Expect(start, desc)
+			p.Pos = start
 			return nil, false
 		}
 		p.Pos += size
@@ -2524,6 +2526,7 @@ func (p *Parser) MatchLiteralOrdinary(rs []rune, text string, desc ExpID, build 
 		for _, r := range rs {
 			if p.Pos >= p.n || p.In[p.Pos] != r {
 				p.Expect(start, desc)
+				p.Pos = start
 				return nil, false
 			}
 			p.Pos++

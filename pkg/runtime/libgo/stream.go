@@ -718,6 +718,7 @@ func (p *Parser) matchReplacementLiteralTraced(rs []rune, text string, desc ExpI
 		size, ok := p.MatchCharTraced(want, false)
 		if !ok {
 			p.Expect(start, desc)
+			p.Pos = start
 			return nil, false
 		}
 		p.Pos += size
