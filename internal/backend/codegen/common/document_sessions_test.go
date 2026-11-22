@@ -13,50 +13,10 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// generatedDocumentUnits reports whether the generated Go and TypeScript runtimes charge the same
-// units for a Document parse, so that the units are compared. They do not yet: the two libraries
-// charge their reads and decoding of the input differently (in the case "moves", 100 and 124 units
-// for the first parse, before any edit).
-const generatedDocumentUnits = false
-
-// engineDocumentDifferences are the columns of the shared Document sessions in which the engine
-// differs from the generated runtimes, each with the mechanism that makes it differ. The key is the
-// case and the column ("units" or "reused"). Every Document event charges the same units on every
-// backend, and Reused is the same on every backend (#310); an entry goes when the engine or the
-// generated runtimes stop differing there, and a difference that no entry lists, or an entry whose
-// difference is gone, fails the test.
-var engineDocumentDifferences = map[string]string{
-	"moves/units":       documentChargesDiffer + "; " + documentMovesDiffer,
-	"moves bytes/units": documentChargesDiffer + "; " + documentMovesDiffer,
-	"same length/units": documentChargesDiffer + "; " + documentMovesDiffer,
-	"unit before/units": documentChargesDiffer + "; " + documentMovesDiffer,
-	"pinned/units":      documentChargesDiffer + "; " + documentMovesDiffer,
-	"recovered/units":   documentChargesDiffer + "; " + documentMovesDiffer,
-	"lag 128/units":     documentChargesDiffer,
-	"lag 129/units":     documentChargesDiffer,
-	"lag moved/units":   documentChargesDiffer + "; " + documentMovesDiffer,
-	"log full/units":    documentChargesDiffer,
-	"runs/units":        documentChargesDiffer + "; " + documentMovesDiffer,
-}
-
-// The mechanisms of engineDocumentDifferences.
-const (
-	// documentChargesDiffer makes every parse differ, the first included: the generated runtimes
-	// charge the memo protocol of a call (keeping and merging its expected set, one unit for each
-	// expectation) and the reads and the decoding of the input by their own operations, where the
-	// engine charges a Document parse as a parse without a Document.
-	documentChargesDiffer = "[memo protocol and operation charges] the generated runtimes charge keeping and merging the expected set of a memoized call and their own operations; the engine charges as a parse without a Document"
-	// documentMovesDiffer makes the parses after an edit differ further: a generated runtime copies
-	// a reused value that moved and charges its check and its copy, where the engine moves the value
-	// in place by generation.
-	documentMovesDiffer = "[value moves] the generated runtimes copy a moved value and charge its check and copy; the engine moves it in place by generation"
-)
-
 // TestDocumentSessionsAcrossTargets runs the shared Document sessions (codegentest.DocumentSessions)
 // on the Documents of the generated Go and TypeScript parsers and of the engine, and compares their
-// transcripts: the generated runtimes exactly (their units once generatedDocumentUnits holds), the
-// engine exactly in evaluations, ends and failures, and in units and reuses up to the known
-// differences (engineDocumentDifferences).
+// transcripts, which agree exactly in every column: a Document counts the same evaluations, reuses
+// and compute units on every backend.
 func TestDocumentSessionsAcrossTargets(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -64,13 +24,11 @@ func TestDocumentSessionsAcrossTargets(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated Go programs")
 	}
-	seen, ran := map[string]bool{}, map[string]bool{}
 	for _, c := range codegentest.DocumentSessions {
 		if c.Long && !codegentest.Long() {
 			continue
 		}
 		t.Run(c.Name, func(t *testing.T) {
-			ran[c.Name] = true
 			ts := sessionLines(t, "TypeScript", codegentest.RunDocumentSessionTS(t, c))
 			goLines := sessionLines(t, "Go", codegentest.RunDocumentSessionGo(t, c))
 			eng := sessionLines(t, "engine", documentSessionEngine(t, c))
@@ -79,23 +37,12 @@ func TestDocumentSessionsAcrossTargets(t *testing.T) {
 			}
 			for i := range ts {
 				for col, name := range sessionColumns {
-					if name == "units" && !generatedDocumentUnits {
-						continue
-					}
 					if goLines[i][col] != ts[i][col] {
 						t.Errorf("parse %d: %s: Go %s, TypeScript %s", i, name, goLines[i][col], ts[i][col])
 					}
-				}
-				for col, name := range sessionColumns {
-					if eng[i][col] == ts[i][col] {
-						continue
+					if eng[i][col] != ts[i][col] {
+						t.Errorf("parse %d: %s: engine %s, TypeScript %s", i, name, eng[i][col], ts[i][col])
 					}
-					key := c.Name + "/" + name
-					if _, ok := engineDocumentDifferences[key]; ok && (name == "units" || name == "reused") {
-						seen[key] = true
-						continue
-					}
-					t.Errorf("parse %d: %s: engine %s, TypeScript %s", i, name, eng[i][col], ts[i][col])
 				}
 			}
 			for _, x := range []struct {
@@ -105,12 +52,6 @@ func TestDocumentSessionsAcrossTargets(t *testing.T) {
 				t.Logf("%s: %s\n%s", x.target, codegentest.DocumentSessionLine, strings.Join(joinLines(x.lines), "\n"))
 			}
 		})
-	}
-	for key, why := range engineDocumentDifferences {
-		name, _, _ := strings.Cut(key, "/")
-		if !seen[key] && !t.Failed() && ran[name] {
-			t.Errorf("the known engine difference %s (%s) no longer differs", key, why)
-		}
 	}
 }
 
