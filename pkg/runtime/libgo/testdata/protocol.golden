@@ -1,4 +1,4 @@
-protocol 27
+protocol 28
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -53,10 +53,10 @@ func AsTval(any) TVal
 func BaseNode(*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 func D(*syntaxir.dev/sxir/pkg/runtime/value.Node) *Data
 func DocumentParseConverted[T any](*documentState, parseOptions, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
-func IterateNodes(*grammar, []ParseOption, func(func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error) error) (*syntaxir.dev/sxir/pkg/runtime.StreamIterator, error)
-func IterateStream[T any](*grammar, []ParseOption, func(func(T) error) error) (*StreamPull[T], error)
+func IterateNodes(*grammar, []syntaxir.dev/sxir/pkg/runtime.ParseOption, func(func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error) error) (*syntaxir.dev/sxir/pkg/runtime.StreamIterator, error)
+func IterateStream[T any](*grammar, []syntaxir.dev/sxir/pkg/runtime.ParseOption, func(func(T) error) error) (*StreamPull[T], error)
 func KindOf(string, string) *syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
-func MakeDocument(*Rule, string, []ParseOption) (*Document, error)
+func MakeDocument(*Rule, string, []syntaxir.dev/sxir/pkg/runtime.ParseOption) (*Document, error)
 func NewBudgetClass([]BudgetRange, bool) *BudgetClass
 func NewGrammar(int) *grammar
 func NewNode(syntaxir.dev/sxir/pkg/runtime/value.NodeKind, int, int, string, []*syntaxir.dev/sxir/pkg/runtime/value.Node, string, syntaxir.dev/sxir/pkg/runtime/value/impl.Fields, any) *syntaxir.dev/sxir/pkg/runtime/value.Node
@@ -66,12 +66,13 @@ func NewTError(int, int, string) *TError
 func NewTRules([]*Rule) []*TRule
 func RawField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string) any
 func RenamedExpected(*Parser, []ExpID, ExpID) []ExpID
-func ResolveOptions(*grammar, []ParseOption) (parseOptions, error)
-func RunParse(*Rule, string, []ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
+func ResolveOptions(*grammar, []syntaxir.dev/sxir/pkg/runtime.ParseOption) (parseOptions, error)
+func RunParse(*Rule, string, []syntaxir.dev/sxir/pkg/runtime.ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
 func RunParseConverted[T any](*Rule, string, parseOptions, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl, error) T) (T, error)
 func RunParseResolved(*Rule, string, parseOptions) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
-func RunParseStream(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error, []ParseOption) error
-func RunParseStreamWithBudget(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error, []ParseOption) error
+func RunParseStream(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error, []syntaxir.dev/sxir/pkg/runtime.ParseOption) error
+func RunParseStreamWithBudget(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error, []syntaxir.dev/sxir/pkg/runtime.ParseOption) error
+func SetMemoReport(*string)
 func SetNodeElems(*syntaxir.dev/sxir/pkg/runtime/value.Node, []*syntaxir.dev/sxir/pkg/runtime/value.Node)
 func SetNodeField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
 func SetNodeStart(*syntaxir.dev/sxir/pkg/runtime/value.Node, int)
@@ -84,10 +85,10 @@ func TKid([]any, int) any
 func TListOf([]any) any
 func TMatchAs[N any](*TMatch) *N
 func TParseResolved[T any](*TRule, string, parseOptions, any, func(any) T) (T, error)
-func TParse[T any](*TRule, string, []ParseOption, any, func(any) T) (T, error)
+func TParse[T any](*TRule, string, []syntaxir.dev/sxir/pkg/runtime.ParseOption, any, func(any) T) (T, error)
 func TPtr[T any](*T) any
 func TPub(*TPubHooks, any) any
-func TPubError(any) *Error
+func TPubError(any) *TErrorValue
 func TPubIn(*TPubHooks, any, any) any
 func TPubMatch(any) *TNode[string]
 func TPubNode(*TPubHooks, any) *TNode[any]
@@ -100,18 +101,6 @@ func TraceTRules([]*TRule) []*TRule
 func TypedDocumentParse[T any](*Document, *TRule, parseOptions, budgetControlSetter, func(any) T) (T, error)
 func UnboxNode(*syntaxir.dev/sxir/pkg/runtime/value.Node) any
 func UnboxValue(any) any
-func WithContext(context.Context) ParseOption
-func WithDiagnosticCallback(func(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) error) ParseOption
-func WithDiagnosticLimit(int) ParseOption
-func WithExpectations() ParseOption
-func WithLimits(syntaxir.dev/sxir/pkg/runtime.Limits) ParseOption
-func WithMemoReport(*string) ParseOption
-func WithProfile(*syntaxir.dev/sxir/pkg/runtime/instrument.Profile) ParseOption
-func WithTrace(func(syntaxir.dev/sxir/pkg/runtime/instrument.TraceEvent)) ParseOption
-func WithTraceFilter(...string) ParseOption
-func WithTraceMaxDepth(int) ParseOption
-func WithUnit(syntaxir.dev/sxir/pkg/runtime/input.PositionUnit) ParseOption
-func WithUnitsReport(*uint64) ParseOption
 method (*ActCtx) ActionCastFailed(any, *FieldType, int, int) any
 method (*ActCtx) ActionSetField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
 method (*ActCtx) ActionStruct(string, int) *syntaxir.dev/sxir/pkg/runtime/value.Node
@@ -128,12 +117,15 @@ method (*BudgetControl) Take(uint64) bool
 method (*Chunk) MemoryBytes() uint64
 method (*Class) Has(rune) bool
 method (*Document) BeginParse() error
+method (*Document) CacheStats() syntaxir.dev/sxir/pkg/runtime.CacheStats
 method (*Document) Edit(int, int, string) error
 method (*Document) EndParse()
-method (*Document) Parse(...ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
-method (*Document) ResolveParseOptions([]ParseOption) (parseOptions, error)
+method (*Document) Parse(...syntaxir.dev/sxir/pkg/runtime.ParseOption) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
+method (*Document) ResetHistory()
+method (*Document) ResolveParseOptions([]syntaxir.dev/sxir/pkg/runtime.ParseOption) (parseOptions, error)
 method (*Document) Stats() syntaxir.dev/sxir/pkg/runtime.ParseStats
 method (*Document) Text() string
+method (*Document) Unit() syntaxir.dev/sxir/pkg/runtime/input.PositionUnit
 method (*Parser) ActionBinary(int, any, any) (any, any)
 method (*Parser) ActionConforms(*FieldType, any) bool
 method (*Parser) ActionConvert(*nodeTypeKinds, any) (any, any)
@@ -256,8 +248,6 @@ method (*Parser) TooDeep()
 method (*Parser) Unisolate(ExpMark) (int, []ExpID)
 method (*Parser) UnitsOfItems(any, int)
 method (*Parser) UnitsSized(int)
-method (*Span) TSetSpan(int, int)
-method (*Span) TSpan() (int, int)
 method (*StreamPull) Close()
 method (*StreamPull) Next() (T, bool, error)
 method (*TActCtx) ActionCastFailed(any, *FieldType, int, int) any
@@ -278,6 +268,8 @@ method (*TError) TName() string
 method (*TError) TSetFresh(bool)
 method (*TError) TStruct() bool
 method (*TError) TText() (string, bool)
+method (*TErrorValue) TSetSpan(int, int)
+method (*TErrorValue) TSpan() (int, int)
 method (*TMatch) TField(string) (any, bool)
 method (*TMatch) TFresh() bool
 method (*TMatch) TKids() []any
@@ -285,6 +277,8 @@ method (*TMatch) TName() string
 method (*TMatch) TSetFresh(bool)
 method (*TMatch) TStruct() bool
 method (*TMatch) TText() (string, bool)
+method (*TNode) TSetSpan(int, int)
+method (*TNode) TSpan() (int, int)
 method (*TParser) ActionBinary(int, any, any) (any, any)
 method (*TParser) ActionConforms(*FieldType, any) bool
 method (*TParser) ActionConvert(uint16, any) (any, any)
@@ -364,6 +358,8 @@ method (*TSeq) TFresh() bool
 method (*TSeq) TKids() []any
 method (*TSeq) TName() string
 method (*TSeq) TSetFresh(bool)
+method (*TSeq) TSetSpan(int, int)
+method (*TSeq) TSpan() (int, int)
 method (*TSeq) TStruct() bool
 method (*TSeq) TText() (string, bool)
 method (*TerminalProgram) Prepare() *TerminalProgram
@@ -385,7 +381,6 @@ method (*observation) Skipped(string, int, int)
 method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) IsNodeType() bool
 method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) RuleName() string
 method (*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind) TypeName() string
-method (Span) Range() (int, int)
 method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Get(string) (any, bool)
 method (syntaxir.dev/sxir/pkg/runtime/value/impl.Fields) Sorted() syntaxir.dev/sxir/pkg/runtime/value/impl.Fields
 type ActCtx struct{P *Parser; Lhs any; Rhs any; Op any; Value any}
@@ -400,7 +395,6 @@ type Data = syntaxir.dev/sxir/pkg/runtime/value/impl.Data[syntaxir.dev/sxir/pkg/
 type Document struct{State *documentState}
 type DocumentSliceKey struct{First any; Length int; Capacity int}
 type Env struct{}
-type Error struct{Span; Message string}
 type ExpID int32
 type ExpMark struct{}
 type FieldType struct{Kind byte; Name string; Elem *FieldType; Alts []*FieldType; Text string}
@@ -408,28 +402,27 @@ type Mark struct{Pos int; Trail int}
 type OperatorsRule struct{Skip matcher; Operands []*OperatorsRuleLine; Prefix []*OperatorsRuleOp; Led []*OperatorsRuleOp}
 type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (any, any); Value Shaper}
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
-type ParseOption func(*parseOptions)
 type Parser struct{Control *BudgetControl; Units uint64; UnitsCheck uint64; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
 type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
 type RunKey struct{Vars []int; Bind []int}
 type Shaper struct{Elems bool; K int; Mode singleMode; Tuple bool; Shared bool}
-type Span struct{Start int; End int}
 type StreamPull[T any] struct{}
 type TActCtx struct{P *TParser; F *TCaptureFrame; Start int; End int; Cbase int; Lhs any; Rhs any; Op any; Value any}
 type TCaptureFrame struct{Vals []any}
-type TError struct{Error}
+type TError struct{TErrorValue}
+type TErrorValue struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Message string}
 type TMatch struct{TNode[string]; Nt uint16}
-type TNode[T any] struct{Span; Value T}
+type TNode[T any] struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Value T}
 type TOperand struct{V any; Str string; IsStr bool}
 type TOperatorsRule struct{Skip tmatcher; Operands []*TOperatorsRuleLine; Prefix []*TOperatorsRuleOp; Led []*TOperatorsRuleOp}
 type TOperatorsRuleLine struct{Scope []string; M tmatcher; Action func(*TActCtx) (any, any); Value Shaper}
 type TOperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *TOperatorsRuleLine}
 type TParser struct{*Parser; Ext any; Where string; Frame *TCaptureFrame; Trail []tundo; Created []TVal; KidStack []any; TypedDocument *typedDocumentState}
-type TPubHooks struct{Match func(*TNode[string]) any; Error func(*Error) any; Node func(*TNode[any]) any; Back func(any) any}
+type TPubHooks struct{Match func(*TNode[string]) any; Error func(*TErrorValue) any; Node func(*TNode[any]) any; Back func(any) any}
 type TRule struct{*Rule; Body func(*TParser, int) (any, bool); Action func(*TActCtx) (any, any); OperatorsRule *TOperatorsRule; Entry func(*TParser) (any, bool); Nt uint16; OpNt uint16}
-type TSeq struct{Span; Typ string; Kids []any}
+type TSeq struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Typ string; Kids []any}
 type TVal interface{TField(string) (any, bool); TFresh() bool; TKids() []any; TName() string; TSetFresh(bool); TSetSpan(int, int); TSpan() (int, int); TStruct() bool; TText() (string, bool)}
 type TerminalProgram struct{Code []uint16; Classes []*Class; Literals []TerminalText}
 type TerminalText struct{Runes []rune; Text string}

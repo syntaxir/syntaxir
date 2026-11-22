@@ -110,7 +110,7 @@ func libgoLeastLimit(t *testing.T, c *attachCase) uint64 {
 	}}
 	g.SetRules([]*libgo.Rule{r}, 0)
 	parses := func(limit uint64) bool {
-		_, err := libgo.RunParse(r, "", []libgo.ParseOption{libgo.WithLimits(runtime.Limits{Compute: limit})})
+		_, err := libgo.RunParse(r, "", []runtime.ParseOption{runtime.WithLimits(runtime.Limits{Compute: limit})})
 		if err != nil && !errors.Is(err, runtime.ErrLimit) {
 			t.Fatal(err)
 		}

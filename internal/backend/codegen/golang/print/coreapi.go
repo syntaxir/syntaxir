@@ -141,9 +141,10 @@ func CoreAPISource(fsys fs.FS) ([]byte, error) {
 }
 
 // compiledParserFiles are the files of package runtime that declare the API of compiled parsers
-// (the Parser and Document interfaces and the parse options), which generated code does not use:
-// a generated parser has its own Parser, Document and options, so the index leaves them out.
-var compiledParserFiles = map[string]bool{"parser.go": true, "options.go": true}
+// (the Parser and Document interfaces), which generated code does not use: a generated parser has its
+// own Parser and Document, so the index leaves them out. The parse options are in the index: a
+// generated parser takes the options of package runtime, which are the one definition of them.
+var compiledParserFiles = map[string]bool{"parser.go": true}
 
 // packageDecls returns the exported top-level declarations (other than methods) of the package pkg
 // whose files are in fsys, without the compiledParserFiles of package runtime.

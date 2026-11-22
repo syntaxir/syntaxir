@@ -452,7 +452,7 @@ func testGeneratedDeclaredNodeAny(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"func ParseValue(input string, opts ...rt.ParseOption) (*TNode[any], error)",
+		"func ParseValue(input string, opts ...sxirruntime.ParseOption) (*TNode[any], error)",
 		"//\tmain: *TNode[any]\n",
 		"return rt.TParse(trules[",
 	} {

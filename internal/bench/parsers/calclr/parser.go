@@ -5,20 +5,22 @@ package calclr
 
 import (
 	types "syntaxir.dev/sxir/internal/bench/parsers/calclr/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
 // Recognize checks that the whole input matches the rule main without building a tree, and returns the
 // syntax errors Parse would return (SyntaxErrors for errors recovered with #recover). Actions needed by
 // predicates are evaluated and can report runtime errors; other actions are skipped.
-func Recognize(input string, opts ...rt.ParseOption) error {
+func Recognize(input string, opts ...sxirruntime.ParseOption) error {
 	_, err := rt.RunParse(recRules[0], input, opts)
 	return err
 }
@@ -31,7 +33,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -68,7 +70,7 @@ func tmk_Binary(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f1))
 	v.Right = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -80,7 +82,7 @@ func tmk_Unary(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f0))
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -125,7 +127,7 @@ func (a *tslabs) MemoryBytes() uint64 { return a.tBinary.MemoryBytes() + a.tUnar
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (types.Expr, error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (types.Expr, error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) types.Expr { a.result = true; return rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, v)) })
 }
@@ -136,7 +138,7 @@ func ParseValue(input string, opts ...rt.ParseOption) (types.Expr, error) {
 // Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
 //
 //	main: types.Expr
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -2272,6 +2274,6 @@ func s13(p *rt.TParser) (any, bool) {
 	return v, true
 }
 
-const _ = types.SXIRSchema_8542efa0ed0e2417
+const _ = types.SXIRSchema_c64e72272c66f4eb
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

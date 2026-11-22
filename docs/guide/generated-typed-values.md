@@ -93,11 +93,11 @@ stars text 42
 | Grammar type | Go type |
 |:--|:--|
 | `int`, `string`, `bool` | the same |
-| struct type `T` | `*T`: the same fields, plus an embedded `Span` with the value's range |
+| struct type `T` | `*T`: the same fields, plus an embedded `Span` (`input.Span` of package `runtime/input`, the range [Start, End) in the parse's position unit) |
 | `node[T]`: what a literal, class, `.`, `#atomic` or an action-free rule matches | `*TNode[T']`: `Span` and `Value`, with `T'` the Go type of `T`; `*TNode[string]` for text |
 | tuple `(A, B, ...)` | `TupleN[A', B', ...]`: the fields `E0`, `E1`, ... |
 | unit `()` | `Unit` |
-| `error` (left by `#recover`) | `*Error`: `Span`, `Text` and `Message` |
+| `error` (left by `#recover`) | `*Error`: `Span` and `Message` |
 | join `U ~ A \| B` of struct types, node types and `error` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and by every `*TNode` if a member is an unnamed node type); a node converts to the member of its name, or to the unnamed node member of its kind (string, tuple or list) |
 | join of node types written in place, for example `*(If \| Block)`, `*(Block \| error)` or `*(Item \| node[[]Item])` | an interface named after its members in the order of their first spelling in the file, `IfOrBlock`, `BlockOrError` for one member and `error`, or `ItemOrItemListNode`; it is implemented like the interface of an alias. The same members in any order share it, a join that an alias declares is that alias, and a join with a list or a scalar member, or with no struct or named node type member, stays `any`. Two different sets that get the same name, or a grammar type with that name, are a generation error |
 | `[]T` | a slice; an empty list is an empty slice, not `nil` |

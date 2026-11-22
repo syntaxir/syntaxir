@@ -60,6 +60,7 @@ rule predicate Word = t:(!("a"* "é") "a"* "b") #atomic => Word{Text: text($t)}`
 const generatedGoBudgetConsumer = `package PACKAGE
 
 import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 import("context";"errors";"fmt";"reflect";"strings";"sync";"testing";"time")
 
 type invocation struct{name string; call func(string,...ParseOption)(any,error)}
@@ -76,7 +77,7 @@ func TestControls(t *testing.T){
  expired,stop:=context.WithDeadline(context.Background(),time.Unix(0,0));defer stop()
  input:=strings.Repeat("a",300)+"é"
  for _,r:=range routes(){for _,unit:=range []PositionUnit{CodePoints,Bytes}{t.Run(r.name+string(rune('0'+unit)),func(t *testing.T){
-  calls:=0;option:=func(o *sxirrt.X_parseOptions){calls++;o.X_unit=unit}
+  calls:=0;option:=func(o *sxirruntime.ParseOptions){calls++;o.Unit=unit}
   v,err:=r.call(input,option)
   if err!=nil || calls!=1 {t.Fatalf("baseline callbacks=%d err=%v",calls,err)}
   before:=v
@@ -122,14 +123,14 @@ func TestValidationAndOptions(t *testing.T){
  for _,r:=range routes(){
   _,err:=r.call("?",WithContext(ctx),WithLimits(Limits{Depth: Unlimited}));if err==nil || !strings.Contains(err.Error(),"unlimited depth"){t.Fatalf("configuration precedence: %v",err)}
   sentinel:=new(int)
-  func(){defer func(){if got:=recover();got!=sentinel{t.Fatalf("option panic %v",got)}}();r.call("?",func(*sxirrt.X_parseOptions){panic(sentinel)})}()
+  func(){defer func(){if got:=recover();got!=sentinel{t.Fatalf("option panic %v",got)}}();r.call("?",func(*sxirruntime.ParseOptions){panic(sentinel)})}()
  }
  for _,call:=range []func()error{func()error{_,e:=ParseRule("missing","?",WithContext(ctx));return e},func()error{_,e:=ParseRuleValue("missing","?",WithContext(ctx));return e}} {
   err:=call();if err==nil || errors.Is(err,context.Canceled) {t.Fatalf("name validation: %v",err)}
  }
  for _,r:=range routes(){
   calls:=0
-  option:=func(o *sxirrt.X_parseOptions){calls++;o.X_limits=Limits{Compute:100000}}
+  option:=func(o *sxirruntime.ParseOptions){calls++;o.Limits=Limits{Compute:100000}}
   _,err:=r.call("é",WithContext(ctx),WithContext(context.Background()),WithLimits(Limits{Compute:1}),option)
   if err!=nil || calls!=1 {t.Fatalf("last effective options: %v, callbacks %d",err,calls)}
  }

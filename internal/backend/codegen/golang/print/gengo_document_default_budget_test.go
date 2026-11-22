@@ -141,6 +141,10 @@ func runDocumentBudgetFixtureWith(t *testing.T, opts common.GenOptions, grammar,
 	if err != nil {
 		t.Fatal(err)
 	}
+	if !opts.Types {
+		// Without typed values the generated NewDocument returns runtime.Document, an interface.
+		testSource = strings.ReplaceAll(testSource, "*Document", "Document")
+	}
 	dir := t.TempDir()
 	for name, source := range map[string]string{
 		"go.mod":         codegentest.GoMod("fixture"),

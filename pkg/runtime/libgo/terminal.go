@@ -61,6 +61,8 @@ const maxTerminalTableEntries = 0xffff
 
 // TerminalText is a literal of a TerminalProgram, as the generated code passes it to
 // MatchLiteral.
+//
+// TerminalText is for generated parsers; not a stable API.
 type TerminalText struct {
 	Runes []rune
 	Text  string

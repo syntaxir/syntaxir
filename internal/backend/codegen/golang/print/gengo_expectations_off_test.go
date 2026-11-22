@@ -199,7 +199,7 @@ import (
 	avail "codegentest/avail"
 	off "codegentest/off"
 	offs "codegentest/offs"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 func try(name string, f func() error) {
@@ -217,7 +217,7 @@ func try(name string, f func() error) {
 }
 
 func main() {
-	ask := rt.WithExpectations()
+	ask := sxirruntime.WithExpectations()
 	try("parse", func() error { _, err := off.Parse("a", ask); return err })
 	try("ast", func() error { _, err := off.ParseValue("a", ask); return err })
 	try("stream", func() error { return offs.ParseStream(strings.NewReader("a\n"), func(*offs.Node) error { return nil }, ask) })

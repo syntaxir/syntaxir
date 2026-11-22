@@ -1,6 +1,6 @@
 # The Generated Go API
 
-A Go parser written by [`sxir gen`](code-generation.md) has a small API: `parser.go` defines the functions that parse, `api.go` re-exports the result types of the `value`, `input`, `runtime` and `instrument` packages (under `syntaxir.dev/sxir/pkg/runtime`) and the options of the library package under their own names (generated code imports the library as `rt "<module>/internal/libgo"`, its copy, or as `rt "syntaxir.dev/sxir/pkg/runtime/libgo"` with `-lib import`), and, with `-types`, `types/types.go` defines the Go types of the grammar. This guide describes
+A Go parser written by [`sxir gen`](code-generation.md) has a small API: `parser.go` defines the functions that parse, `api.go` re-exports the result types and the parse options of the `value`, `input`, `runtime` and `instrument` packages (under `syntaxir.dev/sxir/pkg/runtime`) under their own names (generated code imports the library as `rt "<module>/internal/libgo"`, its copy, or as `rt "syntaxir.dev/sxir/pkg/runtime/libgo"` with `-lib import`), and, with `-types`, `types/types.go` defines the Go types of the grammar. This guide describes
 it, the call options that all entry points share, and recognition. Options that add typed values, incremental documents
 and streams have their own guides:
 
@@ -25,7 +25,7 @@ func Parse(input string, opts ...ParseOption) (*Node, error)
 // name selects the grammar's default start rule.
 func ParseRule(name, input string, opts ...ParseOption) (*Node, error)
 
-type ParseOption = rt.ParseOption // an alias; the options are internal to the library
+type ParseOption = runtime.ParseOption // an alias: the options are those of package runtime, and so is each With function below
 func WithUnit(unit PositionUnit) ParseOption
 func WithLimits(limits Limits) ParseOption // Limits.Depth in every package; Compute needs limit controls (the default; -no-limits opts out), Input does not
 
@@ -49,6 +49,10 @@ Compared with the engine's API:
   `WithExpectations()`.** Otherwise `SyntaxError.Expected` and `Messages` are empty (see
   [recording expectations](error-messages.md#recording-expectations)). A parser generated without the flag has no
   `WithExpectations`.
+- **The options are those of package `runtime`.** A function of the generated package takes `runtime.ParseOption`, so
+  `runtime.WithLimits` and the `With` functions that `api.go` repeats are the same options. A generated parser does not
+  insert missing tokens, so `runtime.WithMissingTokens` with a nonzero limit returns an error; only the reference parser
+  supports it. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
 - **`Parse` and `ParseRule` replace `Parser.Parse`.** Position units and rule-call limits use
   functional options (`Parse(input, pairsparser.WithUnit(pairsparser.Bytes))`), like the engine. `ParseRule(name, input)` plays the role of
   `Parser.WithStart(name).Parse(input)`, and like it accepts only rules marked `@start`: another rule is an error,

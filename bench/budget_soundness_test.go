@@ -11,7 +11,6 @@ import (
 	"syntaxir.dev/sxir/pkg/lint"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
 // The derived budget of a Linear grammar (design record 079) bounds the compute units of a parse:
@@ -72,7 +71,7 @@ func classifyFile(t *testing.T, path string) *lint.Classification {
 func boundHeld(t *testing.T, c budgetCase, b *lint.Budget, num, den uint64) (violations int, ratio map[sxirinput.PositionUnit]float64) {
 	t.Helper()
 	ratio = map[sxirinput.PositionUnit]float64{}
-	unlimited := rt.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited})
+	unlimited := sxirruntime.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited})
 	for i, in := range c.inputs {
 		for _, unit := range exactUnits {
 			n := uint64(len(in))

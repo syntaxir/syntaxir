@@ -39,6 +39,9 @@ type ParseOptions struct {
 	// DiagnosticLimitSet records that a limit was given, an explicit zero included.
 	DiagnosticLimit    int
 	DiagnosticLimitSet bool
+	// ComputeReport, if not nil, receives the compute units that the parse spent when it ends
+	// (see WithComputeReport).
+	ComputeReport *uint64
 }
 
 // ParseOption configures one parse, or the defaults of a Document.
@@ -88,14 +91,27 @@ func WithUnit(u input.PositionUnit) ParseOption {
 	return func(o *ParseOptions) { o.Unit = u }
 }
 
+// WithComputeReport stores in *out the compute units that the parse spent, when it ends: after a
+// success, after a failure, and after a stop by a limit or a context. They are the units that the
+// Compute limit counts, so a parse that succeeded with the report r is accepted by a Compute limit
+// of r and rejected by one below it. A parse rejected before it starts (an invalid
+// option, an input over the Input limit) stores zero. Every entry point that runs a parse reports,
+// one that streams when its stream ends. A nil out disables the report. A generated Go parser
+// takes the option only if it was generated with limit controls, as it does a Compute limit.
+func WithComputeReport(out *uint64) ParseOption {
+	return func(o *ParseOptions) { o.ComputeReport = out }
+}
+
 // WithTrace calls f at the start and at the end of every rule call of the parse, in order, so that
 // the events nest like the calls (the depth of an event is in TraceEvent.Depth). It reports the
 // calls the parser makes: a call skipped because the next character cannot start the rule is not
 // reported. Tracing does not change the result, but it makes the parse several times slower. The
 // event's methods (LineCol, Text, Failure) read the parser's state, so call them from f; its
-// fields can be kept. With several WithTrace options, each function receives every event, in the
-// order of the options. A nil f is ignored. WithTraceFilter and WithTraceMaxDepth select the
-// events the functions receive. Generated Go parsers have options of the same names and meaning.
+// fields can be kept. A generated Go parser keeps no such state in its events: their methods
+// return zero values, and only the fields carry information. With several WithTrace options, each
+// function receives every event, in the order of the options. A nil f is ignored. WithTraceFilter
+// and WithTraceMaxDepth select the events the functions receive. Generated Go parsers take these
+// options and give them the same meaning.
 func WithTrace(f func(instrument.TraceEvent)) ParseOption {
 	return func(o *ParseOptions) {
 		if f != nil {

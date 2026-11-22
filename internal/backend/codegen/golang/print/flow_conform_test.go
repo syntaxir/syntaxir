@@ -505,8 +505,8 @@ func TestProbe(t *testing.T) {
 		Events []*rt.ConfEvent
 	}
 	var runs []run
-	opts := []ParseOption{rt.WithExpectations(), rt.WithLimits(sxirruntime.Limits{Compute: 1 << 40})}
-	ordinary := []ParseOption{rt.WithExpectations()}
+	opts := []ParseOption{sxirruntime.WithExpectations(), sxirruntime.WithLimits(sxirruntime.Limits{Compute: 1 << 40})}
+	ordinary := []ParseOption{sxirruntime.WithExpectations()}
 	for _, in := range inputs {
 		for entry := range %d {
 			rt.ConfReset()

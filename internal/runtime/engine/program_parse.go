@@ -25,6 +25,7 @@ func (prog *Program) Parse(start, input string) (*value.Node, error) {
 
 // ParseWith parses with options such as the position unit.
 func (prog *Program) ParseWith(start, input string, o ParseOptions) (n *value.Node, err error) {
+	reportCompute(o, nil)
 	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
 		return nil, err
 	}
@@ -50,6 +51,7 @@ func (prog *Program) ParseWith(start, input string, o ParseOptions) (n *value.No
 	if err != nil {
 		return nil, err
 	}
+	defer reportCompute(o, control)
 	control.Check()
 	p := state.AcquirePooledParser(&active.sharedProgram)
 	defer p.ReleaseBatchScratch()
@@ -412,6 +414,7 @@ func (prog *Program) ParseStream(start string, r io.Reader, emit func(*value.Nod
 
 // ParseStreamWith parses a stream with options such as the position unit.
 func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value.Node) error, o ParseOptions) (err error) {
+	reportCompute(o, nil)
 	// Admission invokes caller-owned Context methods before execution recovery.
 	// Preserve their panic values rather than classifying them as VM faults.
 	defer func() {
@@ -439,6 +442,7 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 	if err != nil {
 		return err
 	}
+	defer reportCompute(o, control)
 	control.Check()
 	p := state.NewControlledStreamParser(&prog.sharedProgram, r, o.Unit, control)
 	p.SetTuning(o.Tune)
@@ -516,4 +520,17 @@ func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
 		return program.MissingUnsupported("bytecode backends")
 	}
 	return nil
+}
+
+// reportCompute stores in the report of o, if it has one, the compute units that c has spent: zero
+// for a nil control, which a parse that is rejected before it starts has.
+func reportCompute(o ParseOptions, c *state.BudgetControl) {
+	if o.ComputeReport == nil {
+		return
+	}
+	if c == nil {
+		*o.ComputeReport = 0
+		return
+	}
+	*o.ComputeReport = c.Used - c.Doc // what a Compute limit counts, as LimitError.Used does
 }

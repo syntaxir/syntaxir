@@ -60,6 +60,10 @@ rule token Token = t:("a;" @error(message="want token")) #atomic => Token{Text: 
 		}
 		source := strings.ReplaceAll(documentErrorOwnershipTest, "PACKAGE", variant.name)
 		source = strings.ReplaceAll(source, "METHODS", methods)
+		if !variant.types {
+			// Without typed values the generated NewDocument returns runtime.Document, an interface.
+			source = strings.ReplaceAll(source, "*Document", "Document")
+		}
 		if err := os.WriteFile(filepath.Join(path, "parser_test.go"), []byte(source), 0644); err != nil {
 			t.Fatal(err)
 		}

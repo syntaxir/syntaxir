@@ -4,6 +4,7 @@
 package types
 
 import (
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
@@ -13,21 +14,25 @@ import (
 // []any of the elements of a tuple or list.
 type TNode[T any] rt.TNode[T]
 
-// Error is input skipped by error recovery (#recover).
-type Error rt.Error
+// Error is input skipped by error recovery (#recover): the range of the skipped input and the message
+// of the error that recovery replaced.
+type Error struct {
+	sxirinput.Span
+	Message string
+}
 
 // SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
-	Error: func(e *rt.Error) any { return (*Error)(e) },
+	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
 	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
-			return (*rt.Error)(x)
+			return (*rt.TErrorValue)(x)
 		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
@@ -37,7 +42,7 @@ var SXIRHooks = &rt.TPubHooks{
 
 // AttDef is the struct type AttDef.
 type AttDef struct {
-	rt.Span
+	sxirinput.Span
 	Name    *Name
 	Type    AttType
 	Default *Keyword
@@ -46,28 +51,28 @@ type AttDef struct {
 
 // AttlistDecl is the struct type AttlistDecl.
 type AttlistDecl struct {
-	rt.Span
+	sxirinput.Span
 	Name *Name
 	Defs []*AttDef
 }
 
 // Attribute is the struct type Attribute.
 type Attribute struct {
-	rt.Span
+	sxirinput.Span
 	Name  *Name
 	Value *AttValue
 }
 
 // Choice is the struct type Choice.
 type Choice struct {
-	rt.Span
+	sxirinput.Span
 	Items []Particle
 	Occur *Occurrence
 }
 
 // Doctype is the struct type Doctype.
 type Doctype struct {
-	rt.Span
+	sxirinput.Span
 	Name       *Name
 	ExternalID *ExternalID
 	Subset     []Decl
@@ -75,7 +80,7 @@ type Doctype struct {
 
 // Document is the struct type Document.
 type Document struct {
-	rt.Span
+	sxirinput.Span
 	Decl    *XMLDecl
 	Prolog  []Misc
 	Doctype *Doctype
@@ -85,7 +90,7 @@ type Document struct {
 
 // Element is the struct type Element.
 type Element struct {
-	rt.Span
+	sxirinput.Span
 	Name    *Name
 	Attrs   []*Attribute
 	Content []Content
@@ -93,14 +98,14 @@ type Element struct {
 
 // ElementDecl is the struct type ElementDecl.
 type ElementDecl struct {
-	rt.Span
+	sxirinput.Span
 	Name    *Name
 	Content ContentSpec
 }
 
 // EntityDecl is the struct type EntityDecl.
 type EntityDecl struct {
-	rt.Span
+	sxirinput.Span
 	Parameter  bool
 	Name       *Name
 	Value      *EntityValue
@@ -110,60 +115,60 @@ type EntityDecl struct {
 
 // Enumeration is the struct type Enumeration.
 type Enumeration struct {
-	rt.Span
+	sxirinput.Span
 	Values []*Nmtoken
 }
 
 // ExternalID is the struct type ExternalID.
 type ExternalID struct {
-	rt.Span
+	sxirinput.Span
 	Public *PubidLiteral
 	System *SystemLiteral
 }
 
 // Mixed is the struct type Mixed.
 type Mixed struct {
-	rt.Span
+	sxirinput.Span
 	Names []*Name
 }
 
 // NameParticle is the struct type NameParticle.
 type NameParticle struct {
-	rt.Span
+	sxirinput.Span
 	Name  *Name
 	Occur *Occurrence
 }
 
 // NotationDecl is the struct type NotationDecl.
 type NotationDecl struct {
-	rt.Span
+	sxirinput.Span
 	Name       *Name
 	ExternalID *ExternalID
 }
 
 // NotationType is the struct type NotationType.
 type NotationType struct {
-	rt.Span
+	sxirinput.Span
 	Names []*Name
 }
 
 // PI is the struct type PI.
 type PI struct {
-	rt.Span
+	sxirinput.Span
 	Target *Name
 	Data   *PIData
 }
 
 // Sequence is the struct type Sequence.
 type Sequence struct {
-	rt.Span
+	sxirinput.Span
 	Items []Particle
 	Occur *Occurrence
 }
 
 // XMLDecl is the struct type XMLDecl.
 type XMLDecl struct {
-	rt.Span
+	sxirinput.Span
 	Version    *Version
 	Encoding   *EncName
 	Standalone *YesNo
@@ -280,12 +285,14 @@ func (*PI) isMisc()                      {}
 func (*Sequence) isContentSpec()         {}
 func (*Sequence) isParticle()            {}
 
-func (v *AttDef) TName() string         { return "AttDef" }
-func (v *AttDef) TText() (string, bool) { return "", false }
-func (v *AttDef) TKids() []any          { return nil }
-func (v *AttDef) TStruct() bool         { return true }
-func (v *AttDef) TFresh() bool          { return false }
-func (v *AttDef) TSetFresh(bool)        {}
+func (v *AttDef) TName() string           { return "AttDef" }
+func (v *AttDef) TText() (string, bool)   { return "", false }
+func (v *AttDef) TSpan() (int, int)       { return v.Start, v.End }
+func (v *AttDef) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *AttDef) TKids() []any            { return nil }
+func (v *AttDef) TStruct() bool           { return true }
+func (v *AttDef) TFresh() bool            { return false }
+func (v *AttDef) TSetFresh(bool)          {}
 func (v *AttDef) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -320,12 +327,14 @@ func (v *AttDef) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *AttlistDecl) TName() string         { return "AttlistDecl" }
-func (v *AttlistDecl) TText() (string, bool) { return "", false }
-func (v *AttlistDecl) TKids() []any          { return nil }
-func (v *AttlistDecl) TStruct() bool         { return true }
-func (v *AttlistDecl) TFresh() bool          { return false }
-func (v *AttlistDecl) TSetFresh(bool)        {}
+func (v *AttlistDecl) TName() string           { return "AttlistDecl" }
+func (v *AttlistDecl) TText() (string, bool)   { return "", false }
+func (v *AttlistDecl) TSpan() (int, int)       { return v.Start, v.End }
+func (v *AttlistDecl) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *AttlistDecl) TKids() []any            { return nil }
+func (v *AttlistDecl) TStruct() bool           { return true }
+func (v *AttlistDecl) TFresh() bool            { return false }
+func (v *AttlistDecl) TSetFresh(bool)          {}
 func (v *AttlistDecl) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -379,12 +388,14 @@ func (v *AttlistDecl) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Attribute) TName() string         { return "Attribute" }
-func (v *Attribute) TText() (string, bool) { return "", false }
-func (v *Attribute) TKids() []any          { return nil }
-func (v *Attribute) TStruct() bool         { return true }
-func (v *Attribute) TFresh() bool          { return false }
-func (v *Attribute) TSetFresh(bool)        {}
+func (v *Attribute) TName() string           { return "Attribute" }
+func (v *Attribute) TText() (string, bool)   { return "", false }
+func (v *Attribute) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Attribute) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Attribute) TKids() []any            { return nil }
+func (v *Attribute) TStruct() bool           { return true }
+func (v *Attribute) TFresh() bool            { return false }
+func (v *Attribute) TSetFresh(bool)          {}
 func (v *Attribute) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -411,12 +422,14 @@ func (v *Attribute) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Choice) TName() string         { return "Choice" }
-func (v *Choice) TText() (string, bool) { return "", false }
-func (v *Choice) TKids() []any          { return nil }
-func (v *Choice) TStruct() bool         { return true }
-func (v *Choice) TFresh() bool          { return false }
-func (v *Choice) TSetFresh(bool)        {}
+func (v *Choice) TName() string           { return "Choice" }
+func (v *Choice) TText() (string, bool)   { return "", false }
+func (v *Choice) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Choice) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Choice) TKids() []any            { return nil }
+func (v *Choice) TStruct() bool           { return true }
+func (v *Choice) TFresh() bool            { return false }
+func (v *Choice) TSetFresh(bool)          {}
 func (v *Choice) TField(name string) (any, bool) {
 	switch name {
 	case "Items":
@@ -470,12 +483,14 @@ func (v *Choice) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Doctype) TName() string         { return "Doctype" }
-func (v *Doctype) TText() (string, bool) { return "", false }
-func (v *Doctype) TKids() []any          { return nil }
-func (v *Doctype) TStruct() bool         { return true }
-func (v *Doctype) TFresh() bool          { return false }
-func (v *Doctype) TSetFresh(bool)        {}
+func (v *Doctype) TName() string           { return "Doctype" }
+func (v *Doctype) TText() (string, bool)   { return "", false }
+func (v *Doctype) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Doctype) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Doctype) TKids() []any            { return nil }
+func (v *Doctype) TStruct() bool           { return true }
+func (v *Doctype) TFresh() bool            { return false }
+func (v *Doctype) TSetFresh(bool)          {}
 func (v *Doctype) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -533,12 +548,14 @@ func (v *Doctype) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Document) TName() string         { return "Document" }
-func (v *Document) TText() (string, bool) { return "", false }
-func (v *Document) TKids() []any          { return nil }
-func (v *Document) TStruct() bool         { return true }
-func (v *Document) TFresh() bool          { return false }
-func (v *Document) TSetFresh(bool)        {}
+func (v *Document) TName() string           { return "Document" }
+func (v *Document) TText() (string, bool)   { return "", false }
+func (v *Document) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Document) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Document) TKids() []any            { return nil }
+func (v *Document) TStruct() bool           { return true }
+func (v *Document) TFresh() bool            { return false }
+func (v *Document) TSetFresh(bool)          {}
 func (v *Document) TField(name string) (any, bool) {
 	switch name {
 	case "Decl":
@@ -639,12 +656,14 @@ func (v *Document) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Element) TName() string         { return "Element" }
-func (v *Element) TText() (string, bool) { return "", false }
-func (v *Element) TKids() []any          { return nil }
-func (v *Element) TStruct() bool         { return true }
-func (v *Element) TFresh() bool          { return false }
-func (v *Element) TSetFresh(bool)        {}
+func (v *Element) TName() string           { return "Element" }
+func (v *Element) TText() (string, bool)   { return "", false }
+func (v *Element) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Element) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Element) TKids() []any            { return nil }
+func (v *Element) TStruct() bool           { return true }
+func (v *Element) TFresh() bool            { return false }
+func (v *Element) TSetFresh(bool)          {}
 func (v *Element) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -729,12 +748,14 @@ func (v *Element) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *ElementDecl) TName() string         { return "ElementDecl" }
-func (v *ElementDecl) TText() (string, bool) { return "", false }
-func (v *ElementDecl) TKids() []any          { return nil }
-func (v *ElementDecl) TStruct() bool         { return true }
-func (v *ElementDecl) TFresh() bool          { return false }
-func (v *ElementDecl) TSetFresh(bool)        {}
+func (v *ElementDecl) TName() string           { return "ElementDecl" }
+func (v *ElementDecl) TText() (string, bool)   { return "", false }
+func (v *ElementDecl) TSpan() (int, int)       { return v.Start, v.End }
+func (v *ElementDecl) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *ElementDecl) TKids() []any            { return nil }
+func (v *ElementDecl) TStruct() bool           { return true }
+func (v *ElementDecl) TFresh() bool            { return false }
+func (v *ElementDecl) TSetFresh(bool)          {}
 func (v *ElementDecl) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -761,12 +782,14 @@ func (v *ElementDecl) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *EntityDecl) TName() string         { return "EntityDecl" }
-func (v *EntityDecl) TText() (string, bool) { return "", false }
-func (v *EntityDecl) TKids() []any          { return nil }
-func (v *EntityDecl) TStruct() bool         { return true }
-func (v *EntityDecl) TFresh() bool          { return false }
-func (v *EntityDecl) TSetFresh(bool)        {}
+func (v *EntityDecl) TName() string           { return "EntityDecl" }
+func (v *EntityDecl) TText() (string, bool)   { return "", false }
+func (v *EntityDecl) TSpan() (int, int)       { return v.Start, v.End }
+func (v *EntityDecl) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *EntityDecl) TKids() []any            { return nil }
+func (v *EntityDecl) TStruct() bool           { return true }
+func (v *EntityDecl) TFresh() bool            { return false }
+func (v *EntityDecl) TSetFresh(bool)          {}
 func (v *EntityDecl) TField(name string) (any, bool) {
 	switch name {
 	case "Parameter":
@@ -805,12 +828,14 @@ func (v *EntityDecl) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Enumeration) TName() string         { return "Enumeration" }
-func (v *Enumeration) TText() (string, bool) { return "", false }
-func (v *Enumeration) TKids() []any          { return nil }
-func (v *Enumeration) TStruct() bool         { return true }
-func (v *Enumeration) TFresh() bool          { return false }
-func (v *Enumeration) TSetFresh(bool)        {}
+func (v *Enumeration) TName() string           { return "Enumeration" }
+func (v *Enumeration) TText() (string, bool)   { return "", false }
+func (v *Enumeration) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Enumeration) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Enumeration) TKids() []any            { return nil }
+func (v *Enumeration) TStruct() bool           { return true }
+func (v *Enumeration) TFresh() bool            { return false }
+func (v *Enumeration) TSetFresh(bool)          {}
 func (v *Enumeration) TField(name string) (any, bool) {
 	switch name {
 	case "Values":
@@ -860,12 +885,14 @@ func (v *Enumeration) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *ExternalID) TName() string         { return "ExternalID" }
-func (v *ExternalID) TText() (string, bool) { return "", false }
-func (v *ExternalID) TKids() []any          { return nil }
-func (v *ExternalID) TStruct() bool         { return true }
-func (v *ExternalID) TFresh() bool          { return false }
-func (v *ExternalID) TSetFresh(bool)        {}
+func (v *ExternalID) TName() string           { return "ExternalID" }
+func (v *ExternalID) TText() (string, bool)   { return "", false }
+func (v *ExternalID) TSpan() (int, int)       { return v.Start, v.End }
+func (v *ExternalID) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *ExternalID) TKids() []any            { return nil }
+func (v *ExternalID) TStruct() bool           { return true }
+func (v *ExternalID) TFresh() bool            { return false }
+func (v *ExternalID) TSetFresh(bool)          {}
 func (v *ExternalID) TField(name string) (any, bool) {
 	switch name {
 	case "Public":
@@ -892,12 +919,14 @@ func (v *ExternalID) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Mixed) TName() string         { return "Mixed" }
-func (v *Mixed) TText() (string, bool) { return "", false }
-func (v *Mixed) TKids() []any          { return nil }
-func (v *Mixed) TStruct() bool         { return true }
-func (v *Mixed) TFresh() bool          { return false }
-func (v *Mixed) TSetFresh(bool)        {}
+func (v *Mixed) TName() string           { return "Mixed" }
+func (v *Mixed) TText() (string, bool)   { return "", false }
+func (v *Mixed) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Mixed) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Mixed) TKids() []any            { return nil }
+func (v *Mixed) TStruct() bool           { return true }
+func (v *Mixed) TFresh() bool            { return false }
+func (v *Mixed) TSetFresh(bool)          {}
 func (v *Mixed) TField(name string) (any, bool) {
 	switch name {
 	case "Names":
@@ -947,12 +976,14 @@ func (v *Mixed) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *NameParticle) TName() string         { return "NameParticle" }
-func (v *NameParticle) TText() (string, bool) { return "", false }
-func (v *NameParticle) TKids() []any          { return nil }
-func (v *NameParticle) TStruct() bool         { return true }
-func (v *NameParticle) TFresh() bool          { return false }
-func (v *NameParticle) TSetFresh(bool)        {}
+func (v *NameParticle) TName() string           { return "NameParticle" }
+func (v *NameParticle) TText() (string, bool)   { return "", false }
+func (v *NameParticle) TSpan() (int, int)       { return v.Start, v.End }
+func (v *NameParticle) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *NameParticle) TKids() []any            { return nil }
+func (v *NameParticle) TStruct() bool           { return true }
+func (v *NameParticle) TFresh() bool            { return false }
+func (v *NameParticle) TSetFresh(bool)          {}
 func (v *NameParticle) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -979,12 +1010,14 @@ func (v *NameParticle) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *NotationDecl) TName() string         { return "NotationDecl" }
-func (v *NotationDecl) TText() (string, bool) { return "", false }
-func (v *NotationDecl) TKids() []any          { return nil }
-func (v *NotationDecl) TStruct() bool         { return true }
-func (v *NotationDecl) TFresh() bool          { return false }
-func (v *NotationDecl) TSetFresh(bool)        {}
+func (v *NotationDecl) TName() string           { return "NotationDecl" }
+func (v *NotationDecl) TText() (string, bool)   { return "", false }
+func (v *NotationDecl) TSpan() (int, int)       { return v.Start, v.End }
+func (v *NotationDecl) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *NotationDecl) TKids() []any            { return nil }
+func (v *NotationDecl) TStruct() bool           { return true }
+func (v *NotationDecl) TFresh() bool            { return false }
+func (v *NotationDecl) TSetFresh(bool)          {}
 func (v *NotationDecl) TField(name string) (any, bool) {
 	switch name {
 	case "Name":
@@ -1019,12 +1052,14 @@ func (v *NotationDecl) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *NotationType) TName() string         { return "NotationType" }
-func (v *NotationType) TText() (string, bool) { return "", false }
-func (v *NotationType) TKids() []any          { return nil }
-func (v *NotationType) TStruct() bool         { return true }
-func (v *NotationType) TFresh() bool          { return false }
-func (v *NotationType) TSetFresh(bool)        {}
+func (v *NotationType) TName() string           { return "NotationType" }
+func (v *NotationType) TText() (string, bool)   { return "", false }
+func (v *NotationType) TSpan() (int, int)       { return v.Start, v.End }
+func (v *NotationType) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *NotationType) TKids() []any            { return nil }
+func (v *NotationType) TStruct() bool           { return true }
+func (v *NotationType) TFresh() bool            { return false }
+func (v *NotationType) TSetFresh(bool)          {}
 func (v *NotationType) TField(name string) (any, bool) {
 	switch name {
 	case "Names":
@@ -1074,12 +1109,14 @@ func (v *NotationType) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *PI) TName() string         { return "PI" }
-func (v *PI) TText() (string, bool) { return "", false }
-func (v *PI) TKids() []any          { return nil }
-func (v *PI) TStruct() bool         { return true }
-func (v *PI) TFresh() bool          { return false }
-func (v *PI) TSetFresh(bool)        {}
+func (v *PI) TName() string           { return "PI" }
+func (v *PI) TText() (string, bool)   { return "", false }
+func (v *PI) TSpan() (int, int)       { return v.Start, v.End }
+func (v *PI) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *PI) TKids() []any            { return nil }
+func (v *PI) TStruct() bool           { return true }
+func (v *PI) TFresh() bool            { return false }
+func (v *PI) TSetFresh(bool)          {}
 func (v *PI) TField(name string) (any, bool) {
 	switch name {
 	case "Target":
@@ -1106,12 +1143,14 @@ func (v *PI) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Sequence) TName() string         { return "Sequence" }
-func (v *Sequence) TText() (string, bool) { return "", false }
-func (v *Sequence) TKids() []any          { return nil }
-func (v *Sequence) TStruct() bool         { return true }
-func (v *Sequence) TFresh() bool          { return false }
-func (v *Sequence) TSetFresh(bool)        {}
+func (v *Sequence) TName() string           { return "Sequence" }
+func (v *Sequence) TText() (string, bool)   { return "", false }
+func (v *Sequence) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Sequence) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Sequence) TKids() []any            { return nil }
+func (v *Sequence) TStruct() bool           { return true }
+func (v *Sequence) TFresh() bool            { return false }
+func (v *Sequence) TSetFresh(bool)          {}
 func (v *Sequence) TField(name string) (any, bool) {
 	switch name {
 	case "Items":
@@ -1165,12 +1204,14 @@ func (v *Sequence) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *XMLDecl) TName() string         { return "XMLDecl" }
-func (v *XMLDecl) TText() (string, bool) { return "", false }
-func (v *XMLDecl) TKids() []any          { return nil }
-func (v *XMLDecl) TStruct() bool         { return true }
-func (v *XMLDecl) TFresh() bool          { return false }
-func (v *XMLDecl) TSetFresh(bool)        {}
+func (v *XMLDecl) TName() string           { return "XMLDecl" }
+func (v *XMLDecl) TText() (string, bool)   { return "", false }
+func (v *XMLDecl) TSpan() (int, int)       { return v.Start, v.End }
+func (v *XMLDecl) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *XMLDecl) TKids() []any            { return nil }
+func (v *XMLDecl) TStruct() bool           { return true }
+func (v *XMLDecl) TFresh() bool            { return false }
+func (v *XMLDecl) TSetFresh(bool)          {}
 func (v *XMLDecl) TField(name string) (any, bool) {
 	switch name {
 	case "Version":
@@ -1376,7 +1417,7 @@ func tb17(v *PERef) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [19]uint16
 
-// SXIRSchema_f2495284b507cf77 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_492c47a2fe98288b ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_f2495284b507cf77 = 0
+const SXIRSchema_492c47a2fe98288b = 0

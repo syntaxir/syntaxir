@@ -399,7 +399,7 @@ func Iterate(r io.Reader, opts ...ParseOption) (*StreamIterator, error) {
 		if opts.Types {
 			fmt.Fprintf(&out, "func NewDocument(text string, opts ...ParseOption) (*Document, error) {\n\td, err := MakeDocument(rules[%d], text, opts)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn &Document{d}, nil\n}\n\n", start.ID)
 		} else {
-			fmt.Fprintf(&out, "func NewDocument(text string, opts ...ParseOption) (*Document, error) { return MakeDocument(rules[%d], text, opts) }\n\n", start.ID)
+			fmt.Fprintf(&out, "func NewDocument(text string, opts ...ParseOption) (sxirruntime.Document, error) {\n\td, err := MakeDocument(rules[%d], text, opts)\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\treturn d, nil\n}\n\n", start.ID)
 		}
 	}
 	if rec != nil {
@@ -438,7 +438,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		}
 		out.WriteString("\n// --- Typed values ---\n\n")
 		if opts.Document {
-			out.WriteString("// Document is an incremental document: it parses its text again after edits, reusing the\n// results of the parse before that it can.\ntype Document struct{ *" + libAlias + ".Document }\n\n")
+			out.WriteString(typedDocumentDecl)
 		}
 		out.WriteString(typed.parser)
 		out.WriteString("\n")
@@ -1874,3 +1874,38 @@ func goSlots(prog *common.Program, names []string) string {
 	}
 	return "[]int{" + strings.Join(slots, ", ") + "}"
 }
+
+// typedDocumentDecl declares the Document of a parser with typed values: the methods of
+// runtime.Document over the library's Document, and ParseValue, which the typed code adds. It holds
+// the library's Document in an unexported field, so that the methods that are for generated parsers
+// are not the API of the parser.
+const typedDocumentDecl = `// Document is an incremental document: it parses its text again after edits, reusing the
+// results of the parse before that it can. It implements runtime.Document, and ParseValue returns
+// the typed value.
+type Document struct{ doc *` + libAlias + `.Document }
+
+var _ sxirruntime.Document = (*Document)(nil)
+
+// Text returns the current text.
+func (d *Document) Text() string { return d.doc.Text() }
+
+// Unit returns the position unit of the document, fixed at construction.
+func (d *Document) Unit() PositionUnit { return d.doc.Unit() }
+
+// Edit replaces the range [start, end) of the text, in the document's position unit, with text.
+func (d *Document) Edit(start, end int, text string) error { return d.doc.Edit(start, end, text) }
+
+// Parse parses the current text. opts apply once over the construction defaults.
+func (d *Document) Parse(opts ...ParseOption) (*Node, error) { return d.doc.Parse(opts...) }
+
+// Stats returns the evaluation and reuse counts of the last Parse.
+func (d *Document) Stats() ParseStats { return d.doc.Stats() }
+
+// CacheStats inspects the retained incremental history without changing it.
+func (d *Document) CacheStats() CacheStats { return d.doc.CacheStats() }
+
+// ResetHistory discards the incremental reuse history while keeping the text, the construction
+// options, and the statistics of the last parse.
+func (d *Document) ResetHistory() { d.doc.ResetHistory() }
+
+`

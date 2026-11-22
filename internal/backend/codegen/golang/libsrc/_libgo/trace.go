@@ -3,61 +3,9 @@ package libgo
 import (
 	"slices"
 
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
-
-// WithTrace observes actual generated calls synchronously. With several
-// WithTrace options, each function receives every event, in the order of the
-// options; a nil function is ignored. Callback panics propagate unchanged after
-// cleanup; an aborted parse can omit exit events. The events carry no parser
-// state: their LineCol, Text, Failure and Recovered return zero values.
-func WithTrace(trace func(sxirinstrument.TraceEvent)) ParseOption {
-	return func(o *parseOptions) {
-		switch prev := o.observe.trace; {
-		case trace == nil:
-		case prev == nil:
-			o.observe.trace = trace
-		default:
-			o.observe.trace = func(e sxirinstrument.TraceEvent) {
-				prev(e)
-				trace(e)
-			}
-		}
-	}
-}
-
-// WithProfile adds the rule calls of the parse to profile. It records every
-// call, whatever WithTraceFilter and WithTraceMaxDepth select, and its times
-// exclude the trace functions. With several WithProfile options, each profile
-// records the parse; a nil profile is ignored. A Profile must not be shared by
-// concurrent parses.
-func WithProfile(profile *sxirinstrument.Profile) ParseOption {
-	return func(o *parseOptions) {
-		switch {
-		case profile == nil:
-		case o.observe.profile == nil:
-			o.observe.profile = profile
-		default:
-			x := o.observe.withExtras()
-			x.more = append(slices.Clip(x.more), profile)
-		}
-	}
-}
-
-// WithTraceFilter selects named rules and their nested calls. Unknown names
-// match nothing. With no names, every entered rule is selected. The last
-// WithTraceFilter applies.
-func WithTraceFilter(rules ...string) ParseOption {
-	names := append([]string(nil), rules...)
-	return func(o *parseOptions) { o.observe.withExtras().rules = names }
-}
-
-// WithTraceMaxDepth limits delivered events, counting the start rule as one.
-// Zero and negative values leave delivery unlimited; parsing is unaffected. The
-// last WithTraceMaxDepth applies.
-func WithTraceMaxDepth(n int) ParseOption {
-	return func(o *parseOptions) { o.observe.withExtras().maxDepth = n }
-}
 
 // observeOptions are the parse options that select an observation: the trace
 // function (the trace functions of the options in order), the first profile and
@@ -85,6 +33,36 @@ func (o *observeOptions) withExtras() *observeExtras {
 	}
 	o.extras = x
 	return x
+}
+
+// observeOf returns the observation that the settings u of the options of package runtime
+// select. The events carry no parser state: their LineCol, Text, Failure and Recovered return zero
+// values.
+func observeOf(u *sxirruntime.ParseOptions) (ob observeOptions) {
+	for _, f := range u.Traces {
+		switch prev := ob.trace; {
+		case prev == nil:
+			ob.trace = f
+		default:
+			ob.trace = func(e sxirinstrument.TraceEvent) {
+				prev(e)
+				f(e)
+			}
+		}
+	}
+	for i, p := range u.Profiles {
+		if i == 0 {
+			ob.profile = p
+		} else {
+			x := ob.withExtras()
+			x.more = append(slices.Clip(x.more), p)
+		}
+	}
+	if sel := u.TraceSelection; sel != nil {
+		x := ob.withExtras()
+		x.rules, x.maxDepth = sel.Rules, sel.MaxDepth
+	}
+	return ob
 }
 
 // newObservation returns the observation that o selects for one parse, or nil.

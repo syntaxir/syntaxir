@@ -4,6 +4,7 @@
 package types
 
 import (
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
@@ -13,21 +14,25 @@ import (
 // []any of the elements of a tuple or list.
 type TNode[T any] rt.TNode[T]
 
-// Error is input skipped by error recovery (#recover).
-type Error rt.Error
+// Error is input skipped by error recovery (#recover): the range of the skipped input and the message
+// of the error that recovery replaced.
+type Error struct {
+	sxirinput.Span
+	Message string
+}
 
 // SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
-	Error: func(e *rt.Error) any { return (*Error)(e) },
+	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
 	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
-			return (*rt.Error)(x)
+			return (*rt.TErrorValue)(x)
 		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
@@ -37,7 +42,7 @@ var SXIRHooks = &rt.TPubHooks{
 
 // Binary is the struct type Binary.
 type Binary struct {
-	rt.Span
+	sxirinput.Span
 	Left  Expr
 	Op    *TNode[string]
 	Right Expr
@@ -45,7 +50,7 @@ type Binary struct {
 
 // Unary is the struct type Unary.
 type Unary struct {
-	rt.Span
+	sxirinput.Span
 	Op *TNode[string]
 	X  Expr
 }
@@ -61,12 +66,14 @@ func (*Error) isExpr()  {}
 func (*Number) isExpr() {}
 func (*Unary) isExpr()  {}
 
-func (v *Binary) TName() string         { return "Binary" }
-func (v *Binary) TText() (string, bool) { return "", false }
-func (v *Binary) TKids() []any          { return nil }
-func (v *Binary) TStruct() bool         { return true }
-func (v *Binary) TFresh() bool          { return false }
-func (v *Binary) TSetFresh(bool)        {}
+func (v *Binary) TName() string           { return "Binary" }
+func (v *Binary) TText() (string, bool)   { return "", false }
+func (v *Binary) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Binary) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Binary) TKids() []any            { return nil }
+func (v *Binary) TStruct() bool           { return true }
+func (v *Binary) TFresh() bool            { return false }
+func (v *Binary) TSetFresh(bool)          {}
 func (v *Binary) TField(name string) (any, bool) {
 	switch name {
 	case "Left":
@@ -97,12 +104,14 @@ func (v *Binary) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Unary) TName() string         { return "Unary" }
-func (v *Unary) TText() (string, bool) { return "", false }
-func (v *Unary) TKids() []any          { return nil }
-func (v *Unary) TStruct() bool         { return true }
-func (v *Unary) TFresh() bool          { return false }
-func (v *Unary) TSetFresh(bool)        {}
+func (v *Unary) TName() string           { return "Unary" }
+func (v *Unary) TText() (string, bool)   { return "", false }
+func (v *Unary) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Unary) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Unary) TKids() []any            { return nil }
+func (v *Unary) TStruct() bool           { return true }
+func (v *Unary) TFresh() bool            { return false }
+func (v *Unary) TSetFresh(bool)          {}
 func (v *Unary) TField(name string) (any, bool) {
 	switch name {
 	case "Op":
@@ -151,7 +160,7 @@ func tb0(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [2]uint16
 
-// SXIRSchema_8542efa0ed0e2417 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_c64e72272c66f4eb ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_8542efa0ed0e2417 = 0
+const SXIRSchema_c64e72272c66f4eb = 0

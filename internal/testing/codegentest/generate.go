@@ -48,10 +48,10 @@ func Generate(t testing.TB, g *ast.Grammar, opts common.GenOptions) ([]common.Ge
 }
 
 // goEntryPoint matches the declaration of a generated Go function that takes parse options.
-var goEntryPoint = regexp.MustCompile(`(?m)^func [^\n]*opts \.\.\.((?:rt\.)?)ParseOption[^\n]*\{$`)
+var goEntryPoint = regexp.MustCompile(`(?m)^func [^\n]*opts \.\.\.((?:rt\.|sxirruntime\.)?)ParseOption[^\n]*\{$`)
 
 // goOneLineEntryPoint matches a generated Go function with parse options whose body is on one line.
-var goOneLineEntryPoint = regexp.MustCompile(`(?m)^(func [^\n]*opts \.\.\.((?:rt\.)?)ParseOption[^\n]*?\{) ([^\n]*\})$`)
+var goOneLineEntryPoint = regexp.MustCompile(`(?m)^(func [^\n]*opts \.\.\.((?:rt\.|sxirruntime\.)?)ParseOption[^\n]*?\{) ([^\n]*\})$`)
 
 // askExpectations makes every parse of the generated Go files pass WithExpectations first, as a
 // caller that wants the expectations does, so that tests of a parser generated with expectations

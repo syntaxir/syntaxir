@@ -6,16 +6,17 @@ import (
 	"strings"
 	"testing"
 
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 // observeCalls reports a fixed sequence of calls to the observation that opts select: main calls
 // item, which calls pair (calling word twice) and skips word; main then calls item again, which
 // calls word.
-func observeCalls(opts ...ParseOption) {
+func observeCalls(opts ...sxirruntime.ParseOption) {
 	var o parseOptions
-	for _, opt := range opts {
-		opt(&o)
+	if err := o.applyOptions(opts); err != nil {
+		panic(err)
 	}
 	silent := 0
 	ob := newObservation(&o.observe, &silent)
@@ -52,27 +53,27 @@ func (l *eventLog) trace(e sxirinstrument.TraceEvent) {
 func TestTraceOptionSelection(t *testing.T) {
 	for _, c := range []struct {
 		name string
-		opts []ParseOption
+		opts []sxirruntime.ParseOption
 		want string
 	}{
 		{"all", nil, "enter main 1,enter item 2,enter pair 3,enter word 4,exit word 4,enter word 4,exit word 4,exit pair 3,skipped word 3,exit item 2,enter item 2,enter word 3,exit word 3,exit item 2,exit main 1"},
-		{"pair and nested", []ParseOption{WithTraceFilter("pair")},
+		{"pair and nested", []sxirruntime.ParseOption{sxirruntime.WithTraceFilter("pair")},
 			"enter pair 3,enter word 4,exit word 4,enter word 4,exit word 4,exit pair 3"},
-		{"skipped and called", []ParseOption{WithTraceFilter("word", "no such rule")},
+		{"skipped and called", []sxirruntime.ParseOption{sxirruntime.WithTraceFilter("word", "no such rule")},
 			"enter word 4,exit word 4,enter word 4,exit word 4,skipped word 3,enter word 3,exit word 3"},
-		{"depth", []ParseOption{WithTraceMaxDepth(2)},
+		{"depth", []sxirruntime.ParseOption{sxirruntime.WithTraceMaxDepth(2)},
 			"enter main 1,enter item 2,exit item 2,enter item 2,exit item 2,exit main 1"},
-		{"filter and depth", []ParseOption{WithTraceFilter("item"), WithTraceMaxDepth(3)},
+		{"filter and depth", []sxirruntime.ParseOption{sxirruntime.WithTraceFilter("item"), sxirruntime.WithTraceMaxDepth(3)},
 			"enter item 2,enter pair 3,exit pair 3,skipped word 3,exit item 2,enter item 2,enter word 3,exit word 3,exit item 2"},
-		{"last filter and depth", []ParseOption{WithTraceFilter("main"), WithTraceMaxDepth(1), WithTraceFilter("pair"), WithTraceMaxDepth(3)},
+		{"last filter and depth", []sxirruntime.ParseOption{sxirruntime.WithTraceFilter("main"), sxirruntime.WithTraceMaxDepth(1), sxirruntime.WithTraceFilter("pair"), sxirruntime.WithTraceMaxDepth(3)},
 			"enter pair 3,exit pair 3"},
-		{"no depth limit", []ParseOption{WithTraceMaxDepth(1), WithTraceMaxDepth(0), WithTraceFilter("no such rule"), WithTraceFilter()},
+		{"no depth limit", []sxirruntime.ParseOption{sxirruntime.WithTraceMaxDepth(1), sxirruntime.WithTraceMaxDepth(0), sxirruntime.WithTraceFilter("no such rule"), sxirruntime.WithTraceFilter()},
 			"enter main 1,enter item 2,enter pair 3,enter word 4,exit word 4,enter word 4,exit word 4,exit pair 3,skipped word 3,exit item 2,enter item 2,enter word 3,exit word 3,exit item 2,exit main 1"},
-		{"unknown rule", []ParseOption{WithTraceFilter("no such rule")}, ""},
+		{"unknown rule", []sxirruntime.ParseOption{sxirruntime.WithTraceFilter("no such rule")}, ""},
 	} {
 		var got eventLog
 		var prof sxirinstrument.Profile
-		observeCalls(append(c.opts, WithTrace(got.trace), WithProfile(&prof))...)
+		observeCalls(append(c.opts, sxirruntime.WithTrace(got.trace), sxirruntime.WithProfile(&prof))...)
 		if s := strings.Join(got, ","); s != c.want {
 			t.Errorf("%s: got\n%s\nwant\n%s", c.name, s, c.want)
 		}
@@ -87,11 +88,11 @@ func TestTraceOptionSelection(t *testing.T) {
 // profiles they add to its defaults.
 func TestTraceOptionComposition(t *testing.T) {
 	var all, a, b eventLog
-	observeCalls(WithTrace(all.trace))
+	observeCalls(sxirruntime.WithTrace(all.trace))
 	var order []string
 	var pa, pb sxirinstrument.Profile
-	observeCalls(WithTrace(a.trace), WithTrace(nil), WithProfile(&pa), WithProfile(nil), WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "a") }),
-		WithTrace(b.trace), WithProfile(&pb), WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "b") }))
+	observeCalls(sxirruntime.WithTrace(a.trace), sxirruntime.WithTrace(nil), sxirruntime.WithProfile(&pa), sxirruntime.WithProfile(nil), sxirruntime.WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "a") }),
+		sxirruntime.WithTrace(b.trace), sxirruntime.WithProfile(&pb), sxirruntime.WithTrace(func(sxirinstrument.TraceEvent) { order = append(order, "b") }))
 	if !slices.Equal(a, all) || !slices.Equal(b, all) {
 		t.Errorf("trace functions received\n%v\n%v\nwant\n%v", a, b, all)
 	}
@@ -106,11 +107,17 @@ func TestTraceOptionComposition(t *testing.T) {
 	var defaults parseOptions
 	var p1, p2, p3, p4, pc sxirinstrument.Profile
 	for _, pr := range []*sxirinstrument.Profile{&p1, &p2, &p3, &p4} {
-		WithProfile(pr)(&defaults)
+		if err := defaults.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(pr)}); err != nil {
+			t.Fatal(err)
+		}
 	}
 	first, second := defaults, defaults
-	WithProfile(&pb)(&first)
-	WithProfile(&pc)(&second)
+	if err := first.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(&pb)}); err != nil {
+		t.Fatal(err)
+	}
+	if err := second.applyOptions([]sxirruntime.ParseOption{sxirruntime.WithProfile(&pc)}); err != nil {
+		t.Fatal(err)
+	}
 	if len(defaults.observe.extras.more) != 3 || len(first.observe.extras.more) != 4 || len(second.observe.extras.more) != 4 {
 		t.Fatal("profiles added to a copy of the defaults")
 	}

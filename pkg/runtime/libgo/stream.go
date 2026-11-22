@@ -122,7 +122,7 @@ func (r *streamReader) Read(dst []byte) (int, error) {
 // committed element of the rule's #stream repetition to emit.
 //
 // RunParseStream is for generated parsers; not a stable API.
-func RunParseStream(r *Rule, reader io.Reader, emit func(*sxirvalue.Node) error, opts []ParseOption) error {
+func RunParseStream(r *Rule, reader io.Reader, emit func(*sxirvalue.Node) error, opts []sxirruntime.ParseOption) error {
 	if witnessFeatures {
 		useFeature(r.g, featureStream)
 	}
@@ -137,11 +137,11 @@ func RunParseStream(r *Rule, reader io.Reader, emit func(*sxirvalue.Node) error,
 // control, so that converting elements to typed values is charged to it.
 //
 // RunParseStreamWithBudget is for generated parsers; not a stable API.
-func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.Node, *BudgetControl) error, opts []ParseOption) (err error) {
+func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.Node, *BudgetControl) error, opts []sxirruntime.ParseOption) (err error) {
 	if witnessFeatures {
 		useFeature(r.g, featureStream)
 	}
-	o, err := ResolveOptions(r.g, append(opts[:len(opts):len(opts)], streaming))
+	o, err := resolveEntryOptions(r.g, opts, true)
 	if err != nil {
 		return err
 	}
@@ -152,6 +152,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	var n *sxirvalue.Node
 	defer recoverParse(&n, &err)
 	o = prepareOptions(o, 0, true)
+	defer o.reportSpent(true)
 	if o.control != nil {
 		reader = &streamReader{reader: reader, control: o.control}
 	}
@@ -339,27 +340,6 @@ func (p *Parser) reportError(original *sxirvalue.SyntaxError) error {
 	return nil
 }
 
-// streaming marks the options of a stream entry point.
-func streaming(o *parseOptions) { o.streaming = true }
-
-// WithDiagnosticCallback reports each committed #recover error during ParseStream or Iterate,
-// immediately before the corresponding stream element. Recoveries in abandoned alternatives are not
-// reported. The callback receives an independent copy; returning an error stops parsing, suppresses
-// that element and is returned unchanged. A nil callback disables delivery. The option is invalid
-// with other entry points. Recoveries after the #stream repetition are reported before the result.
-// With or without this option, recovered errors remain available at the end of the stream.
-func WithDiagnosticCallback(f func(*sxirvalue.SyntaxError) error) ParseOption {
-	return func(o *parseOptions) { o.diagnostic = f }
-}
-
-// WithDiagnosticLimit retains at most n committed stream recoveries, keeping the latest ones.
-// Zero retains every error, as without the option. Negative values are invalid. The option,
-// including zero, is valid only with stream entry points. When errors are dropped, the result is
-// a *TruncatedSyntaxErrors.
-func WithDiagnosticLimit(n int) ParseOption {
-	return func(o *parseOptions) { o.diagnosticLimit, o.diagnosticLimitSet = n, true }
-}
-
 // Keep only small recovery scratch slices across stream elements. The
 // diagnostic tail, not this scratch, owns committed errors.
 const streamRecoveryScratchMax = 16
@@ -438,7 +418,7 @@ type StreamPull[T any] struct {
 // lazy iterator over the elements that run passes to emit.
 //
 // IterateStream is for generated parsers; not a stable API.
-func IterateStream[T any](g *grammar, opts []ParseOption, run func(emit func(T) error) error) (*StreamPull[T], error) {
+func IterateStream[T any](g *grammar, opts []sxirruntime.ParseOption, run func(emit func(T) error) error) (*StreamPull[T], error) {
 	if err := validateStream(g, opts); err != nil {
 		return nil, err
 	}
@@ -453,7 +433,7 @@ func IterateStream[T any](g *grammar, opts []ParseOption, run func(emit func(T) 
 // iterator over the nodes that run passes to emit.
 //
 // IterateNodes is for generated parsers; not a stable API.
-func IterateNodes(g *grammar, opts []ParseOption, run func(emit func(*sxirvalue.Node) error) error) (*sxirruntime.StreamIterator, error) {
+func IterateNodes(g *grammar, opts []sxirruntime.ParseOption, run func(emit func(*sxirvalue.Node) error) error) (*sxirruntime.StreamIterator, error) {
 	if err := validateStream(g, opts); err != nil {
 		return nil, err
 	}
@@ -461,8 +441,8 @@ func IterateNodes(g *grammar, opts []ParseOption, run func(emit func(*sxirvalue.
 }
 
 // validateStream validates the options of a stream entry point of grammar g.
-func validateStream(g *grammar, opts []ParseOption) error {
-	_, err := ResolveOptions(g, append(opts[:len(opts):len(opts)], streaming))
+func validateStream(g *grammar, opts []sxirruntime.ParseOption) error {
+	_, err := resolveEntryOptions(g, opts, true)
 	return err
 }
 

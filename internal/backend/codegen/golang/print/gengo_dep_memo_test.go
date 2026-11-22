@@ -102,10 +102,10 @@ func testGeneratedLeftRecursionDependencyMemoLinear(t *testing.T) {
 			// budget grants, so with controls they get a budget linear in the input with their constant.
 			limit := ""
 			if i >= costly && controls {
-				limit = fmt.Sprintf(", sxirrt.WithLimits(sxirruntime.Limits{Compute: %d})", codegentest.ContextStoreBudgetPerUnit*uint64(len(input)))
+				limit = fmt.Sprintf(", sxirruntime.WithLimits(sxirruntime.Limits{Compute: %d})", codegentest.ContextStoreBudgetPerUnit*uint64(len(input)))
 			}
-			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.Parse(%s, sxirrt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
-			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.ParseValue(%s, sxirrt.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
+			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.Parse(%s, sxirruntime.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
+			fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; if _, err := %s.ParseValue(%s, sxirruntime.WithProfile(&p)%s); err != nil { panic(err) }; fmt.Print(p.Snapshot().Evals, \" \") }\n", pkg, in, limit)
 		}
 		if long == 0 {
 			calls.WriteString("\tfmt.Print(true, \" \", true)\n")
@@ -120,7 +120,6 @@ func testGeneratedLeftRecursionDependencyMemoLinear(t *testing.T) {
 import (
 	"fmt"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 ` + imports.String() + `)

@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"unsafe"
 
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -22,31 +23,32 @@ import (
 // TParser embeds the parser and redefines the methods that handle values; the generated
 // methods of the typed rules (trules) run on it.
 
-// Span is the range of input a typed value covers, in the parse's position unit (End is exclusive).
-//
-// Of its fields and methods, TSetSpan, TSpan are for generated parsers; not a stable API.
-type Span struct{ Start, End int }
-
-// Range returns the start and the end (exclusive) of the span.
-func (s Span) Range() (start, end int) { return s.Start, s.End }
-
-func (s *Span) TSpan() (int, int)       { return s.Start, s.End }
-func (s *Span) TSetSpan(start, end int) { s.Start, s.End = start, end }
-
 // TNode is a node whose Value has type T: a string node (TNode[string]) holds the text a
 // literal, a character class, ., a #atomic or _ matched, and a tuple or list node holds its
 // elements. A node of a statically unknown value is a TNode[any] whose Value is a string, or a
 // []any of the elements of a tuple or list.
+//
+// TNode is for generated parsers; not a stable API.
 type TNode[T any] struct {
-	Span
+	sxirinput.Span
 	Value T
 }
 
-// Error is input skipped by error recovery (#recover).
-type Error struct {
-	Span
+func (n *TNode[T]) TSpan() (int, int)       { return n.Start, n.End }
+func (n *TNode[T]) TSetSpan(start, end int) { n.Start, n.End = start, end }
+
+// TErrorValue is the data of the input that error recovery (#recover) skipped: its range and the
+// message. The types package of a parser declares the type of the same fields that users see
+// (Error), so TPub hands out a TErrorValue as that type.
+//
+// TErrorValue is for generated parsers; not a stable API.
+type TErrorValue struct {
+	sxirinput.Span
 	Message string
 }
+
+func (e *TErrorValue) TSpan() (int, int)       { return e.Start, e.End }
+func (e *TErrorValue) TSetSpan(start, end int) { e.Start, e.End = start, end }
 
 // TMatch and TError are a string node and an Error while the typed library handles them: whether
 // the value is fresh (see Data.Fresh) is part of the state of the parse, not of the result. The
@@ -101,7 +103,7 @@ func tnodeTypeOf(nt uint16) *tnodeType {
 
 // TError is for generated parsers; not a stable API.
 type TError struct {
-	Error
+	TErrorValue
 	fresh bool
 }
 
@@ -109,10 +111,10 @@ type TError struct {
 //
 // NewTError is for generated parsers; not a stable API.
 func NewTError(start, end int, message string) *TError {
-	return &TError{Error{Span: Span{Start: start, End: end}, Message: message}, true}
+	return &TError{TErrorValue{Span: sxirinput.Span{Start: start, End: end}, Message: message}, true}
 }
 
-// TPub returns the public form of a value: *TNode[string] and *Error for TMatch and TError, a
+// TPub returns the public form of a value: *TNode[string] and the types package's *Error for TMatch and TError, a
 // *TNode[any] for a tuple or list node and a []any for a tuple or list value, with the public
 // forms of their elements.
 //
@@ -131,7 +133,7 @@ func TPubIn(h *TPubHooks, a any, v any) any {
 		}
 		return h.Match(&x.TNode)
 	case *TError:
-		return h.Error(&x.Error)
+		return h.Error(&x.TErrorValue)
 	case *TSeq:
 		if x.nt != 0 {
 			return tnodeTypeOf(x.nt).pub(a, x)
@@ -150,7 +152,7 @@ func TPubIn(h *TPubHooks, a any, v any) any {
 // TPubHooks is for generated parsers; not a stable API.
 type TPubHooks struct {
 	Match func(*TNode[string]) any
-	Error func(*Error) any
+	Error func(*TErrorValue) any
 	Node  func(*TNode[any]) any
 	Back  func(any) any
 }
@@ -216,9 +218,9 @@ func TPubMatch(v any) *TNode[string] {
 }
 
 // TPubError is for generated parsers; not a stable API.
-func TPubError(v any) *Error {
+func TPubError(v any) *TErrorValue {
 	if x, ok := v.(*TError); ok {
-		return &x.Error
+		return &x.TErrorValue
 	}
 	return nil
 }
@@ -288,7 +290,7 @@ func (e *TError) TField(name string) (any, bool) {
 //
 // TSeq is for generated parsers; not a stable API.
 type TSeq struct {
-	Span
+	sxirinput.Span
 	Typ    string
 	Kids   []any
 	fields []tfield
@@ -307,11 +309,13 @@ func (n *TSeq) TName() string {
 	}
 	return n.Typ
 }
-func (n *TSeq) TText() (string, bool) { return "", false }
-func (n *TSeq) TKids() []any          { return n.Kids }
-func (n *TSeq) TStruct() bool         { return false }
-func (n *TSeq) TFresh() bool          { return n.fresh }
-func (n *TSeq) TSetFresh(f bool)      { n.fresh = f }
+func (n *TSeq) TSpan() (int, int)       { return n.Start, n.End }
+func (n *TSeq) TSetSpan(start, end int) { n.Start, n.End = start, end }
+func (n *TSeq) TText() (string, bool)   { return "", false }
+func (n *TSeq) TKids() []any            { return n.Kids }
+func (n *TSeq) TStruct() bool           { return false }
+func (n *TSeq) TFresh() bool            { return n.fresh }
+func (n *TSeq) TSetFresh(f bool)        { n.fresh = f }
 func (n *TSeq) TField(name string) (any, bool) {
 	for _, f := range n.fields {
 		if f.name == name {
@@ -566,11 +570,11 @@ func TBack(h *TPubHooks, v any) any {
 			return nil
 		}
 		return &TMatch{TNode: *x}
-	case *Error:
+	case *TErrorValue:
 		if x == nil {
 			return nil
 		}
-		return &TError{Error: *x}
+		return &TError{TErrorValue: *x}
 	case *TNode[any]:
 		if x == nil {
 			return nil
@@ -615,6 +619,7 @@ func tbackAll(h *TPubHooks, vs []any) []any {
 	return out
 }
 
+// TDeref is for generated parsers; not a stable API.
 func TDeref[T any](p *T) any {
 	if p == nil {
 		return nil
@@ -650,7 +655,7 @@ func TListOf(kids []any) any {
 // generated code's chunks.
 //
 // TParse is for generated parsers; not a stable API.
-func TParse[T any](r *TRule, input string, opts []ParseOption, ext any, conv func(any) T) (T, error) {
+func TParse[T any](r *TRule, input string, opts []sxirruntime.ParseOption, ext any, conv func(any) T) (T, error) {
 	o, err := ResolveOptions(r.g, opts)
 	if err != nil {
 		var zero T
@@ -665,6 +670,7 @@ func TParse[T any](r *TRule, input string, opts []ParseOption, ext any, conv fun
 func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv func(any) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
+	defer o.reportSpent(false)
 	p, _ := tpool.Get().(*TParser)
 	if p == nil {
 		p = &TParser{Parser: &Parser{}}
@@ -918,7 +924,7 @@ func (p *TParser) SetCapture(slot int, v any) {
 // are not an item of the cost (spec/runtime/parsing.md#cost).
 func (p *TParser) NewNode(typ string, start, end int, kids []any) *TSeq {
 	n := p.nodes.one()
-	*n = TSeq{Span: Span{start, end}, Typ: typ, Kids: kids, fresh: true}
+	*n = TSeq{Span: sxirinput.Span{Start: start, End: end}, Typ: typ, Kids: kids, fresh: true}
 	return n
 }
 
@@ -930,13 +936,13 @@ func (p *TParser) NewMatch(start, end int, text string, fresh bool) *TMatch {
 	}
 	m := &p.matches[0]
 	p.matches = p.matches[1:]
-	*m = TMatch{TNode: TNode[string]{Span{start, end}, text}, fresh: fresh}
+	*m = TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: start, End: end}, Value: text}, fresh: fresh}
 	return m
 }
 
 func (p *TParser) NewNodeOrdinary(typ string, start, end int, kids []any) *TSeq {
 	n := p.nodes.one()
-	*n = TSeq{Span: Span{start, end}, Typ: typ, Kids: kids, fresh: true}
+	*n = TSeq{Span: sxirinput.Span{Start: start, End: end}, Typ: typ, Kids: kids, fresh: true}
 	return n
 }
 
@@ -946,7 +952,7 @@ func (p *TParser) NewMatchOrdinary(start, end int, text string, fresh bool) *TMa
 	}
 	m := &p.matches[0]
 	p.matches = p.matches[1:]
-	*m = TMatch{TNode: TNode[string]{Span{start, end}, text}, fresh: fresh}
+	*m = TMatch{TNode: TNode[string]{Span: sxirinput.Span{Start: start, End: end}, Value: text}, fresh: fresh}
 	return m
 }
 
@@ -1785,7 +1791,7 @@ func (p *TParser) RecoverAttr(m, skip tmatcher, build bool) (any, bool) {
 	if !build {
 		return nil, true
 	}
-	return &TError{Error{Span: Span{m0.Pos, p.Pos}, Message: p.RecoveryErrorText(e)}, true}, true
+	return &TError{TErrorValue{Span: sxirinput.Span{Start: m0.Pos, End: p.Pos}, Message: p.RecoveryErrorText(e)}, true}, true
 }
 
 // --- Actions and predicates ---

@@ -5,20 +5,22 @@ package minilang
 
 import (
 	types "syntaxir.dev/sxir/internal/bench/parsers/minilang/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
 // Recognize checks that the whole input matches the rule main without building a tree, and returns the
 // syntax errors Parse would return (SyntaxErrors for errors recovered with #recover). Actions needed by
 // predicates are evaluated and can report runtime errors; other actions are skipped.
-func Recognize(input string, opts ...rt.ParseOption) error {
+func Recognize(input string, opts ...sxirruntime.ParseOption) error {
 	_, err := rt.RunParse(recRules[0], input, opts)
 	return err
 }
@@ -31,7 +33,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -76,7 +78,7 @@ func tmk_ArrayLit(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tArrayLit)
 	v.Elems = tl0(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -88,7 +90,7 @@ func tmk_Assign(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Target = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -101,7 +103,7 @@ func tmk_Binary(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f1))
 	v.Right = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -112,7 +114,7 @@ func tmk_Block(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tBlock)
 	v.Body = tl1(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -124,7 +126,7 @@ func tmk_Call(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Fn = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Args = tl0(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -137,7 +139,7 @@ func tmk_Cond(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Then = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	v.Else = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -148,7 +150,7 @@ func tmk_ExprStmt(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tExprStmt)
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -161,7 +163,7 @@ func tmk_Func(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Params = tl2(a, f1)
 	v.Body = rt.TAs[*types.Block](f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -174,7 +176,7 @@ func tmk_If(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Then = rt.TAs[*types.Block](f1)
 	v.Else = rt.TAs[types.IfOrBlock](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -186,7 +188,7 @@ func tmk_Index(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Index = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -198,7 +200,7 @@ func tmk_Let(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv1(a, f0)
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -210,7 +212,7 @@ func tmk_Member(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Name = tv1(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -221,7 +223,7 @@ func tmk_Program(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tProgram)
 	v.Body = tl1(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -232,7 +234,7 @@ func tmk_Return(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tReturn)
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -244,7 +246,7 @@ func tmk_Unary(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f0))
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -256,7 +258,7 @@ func tmk_While(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Cond = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Body = rt.TAs[*types.Block](f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -398,7 +400,7 @@ func (a *tslabs) MemoryBytes() uint64 {
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (*types.Program, error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (*types.Program, error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) *types.Program { a.result = true; return rt.TAs[*types.Program](v) })
 }
@@ -409,7 +411,7 @@ func ParseValue(input string, opts ...rt.ParseOption) (*types.Program, error) {
 // Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
 //
 //	main: *types.Program
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -8650,6 +8652,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_d71436240c289458
+const _ = types.SXIRSchema_551976c1f383fd3e
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

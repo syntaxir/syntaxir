@@ -133,7 +133,7 @@ func assertDirect(t *testing.T,d *Document,unit PositionUnit){
  if !reflect.DeepEqual(got,want)||!reflect.DeepEqual(gotErr,wantErr){t.Fatalf("unit %v input %q: Document %#v / %#v; batch %#v / %#v",unit,d.Text(),got,gotErr,want,wantErr)}
  ref,refErr:=reference.ParseValue(d.Text(),reference.WithUnit(reference.PositionUnit(unit)))
  if jsonValue(t,got)!=jsonValue(t,ref)||errorValue(gotErr)!=errorValue(refErr){t.Fatalf("unit %v input %q differs from conversion: %s / %s; %v / %v",unit,d.Text(),jsonValue(t,got),jsonValue(t,ref),gotErr,refErr)}
- if _,ok:=d.State.X_typedMemo.(*sxirrt.X_typedDocumentState);!ok{t.Fatal("direct typed cache not retained")}
+ if _,ok:=d.doc.State.X_typedMemo.(*sxirrt.X_typedDocumentState);!ok{t.Fatal("direct typed cache not retained")}
 }
 func TestEditsAndReuse(t *testing.T){
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{
@@ -191,9 +191,9 @@ func TestControlsAndInvalidOptions(t *testing.T){
   d,err:=NewDocument(inputs[0],WithUnit(unit));if err!=nil{t.Fatal(err)}
   assertDirect(t,d,unit)
   assertDirect(t,d,unit)
-  before,old:=d.Stats(),d.State.X_typedMemo
+  before,old:=d.Stats(),d.doc.State.X_typedMemo
   if before.Evaluated!=0||before.Reused!=1{t.Fatal("root was not warm",before)}
-  unchanged:=func(){t.Helper();if d.State.X_typedMemo!=old||d.Stats()!=before{t.Fatal("pre-admission failure changed cache or stats",d.Stats())}}
+  unchanged:=func(){t.Helper();if d.doc.State.X_typedMemo!=old||d.Stats()!=before{t.Fatal("pre-admission failure changed cache or stats",d.Stats())}}
   reused:=func(){t.Helper();assertDirect(t,d,unit);if d.Stats()!=before{t.Fatal("valid cache was not reused after pre-admission failure",d.Stats())}}
   if _,err:=d.ParseValue(WithLimits(Limits{Depth: Unlimited}));err==nil{t.Fatal("invalid depth accepted")};unchanged();reused()
   if _,err:=d.ParseValue(WithUnit(PositionUnit(1-int(unit))));err==nil{t.Fatal("unit change accepted")};unchanged();reused()
@@ -207,7 +207,7 @@ func TestControlsAndInvalidOptions(t *testing.T){
   }
   // Reusing the warm root may fit in one unit, so an edit makes the parse evaluate the root again.
   if err:=d.Edit(0,0,"a");err!=nil{t.Fatal(err)}
-  if _,err:=d.ParseValue(WithLimits(Limits{Compute:1}));!errors.Is(err,ErrLimit)||d.State.X_typedMemo!=nil{t.Fatalf("compute limit cleanup: %v",err)}
+  if _,err:=d.ParseValue(WithLimits(Limits{Compute:1}));!errors.Is(err,ErrLimit)||d.doc.State.X_typedMemo!=nil{t.Fatalf("compute limit cleanup: %v",err)}
   assertDirect(t,d,unit)
  }
 }
@@ -249,7 +249,7 @@ func TestInterruptionWithSyntaxErrorPayload(t *testing.T){
   assertDirect(t,d,CodePoints)
   ctx:=&syntaxErrorContext{Context:context.Background(),err:failure,done:make(chan struct{})}
   _,err=d.ParseValue(WithContext(ctx))
-  if errorValue(err)!=errorValue(failure)||d.State.X_typedMemo!=nil{t.Fatalf("interrupted cache retained: %v",err)}
+  if errorValue(err)!=errorValue(failure)||d.doc.State.X_typedMemo!=nil{t.Fatalf("interrupted cache retained: %v",err)}
   assertDirect(t,d,CodePoints)
  }
 }

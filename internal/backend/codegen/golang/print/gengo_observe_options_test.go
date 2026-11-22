@@ -52,7 +52,7 @@ import (
 	"strings"
 	"testing"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
@@ -62,11 +62,11 @@ func TestTraceOptions(t *testing.T) {
 	var profile sxirinstrument.Profile
 	trace := func(sxirinstrument.TraceEvent) { events++ }
 	for name, opts := range map[string][]ParseOption{
-		"trace":       {sxirrt.WithTrace(trace)},
-		"profile":     {sxirrt.WithProfile(&profile)},
-		"filter":      {sxirrt.WithTraceFilter("main")},
-		"trace depth": {sxirrt.WithTraceMaxDepth(1)},
-		"both":        {sxirrt.WithTrace(trace), sxirrt.WithProfile(&profile)},
+		"trace":       {sxirruntime.WithTrace(trace)},
+		"profile":     {sxirruntime.WithProfile(&profile)},
+		"filter":      {sxirruntime.WithTraceFilter("main")},
+		"trace depth": {sxirruntime.WithTraceMaxDepth(1)},
+		"both":        {sxirruntime.WithTrace(trace), sxirruntime.WithProfile(&profile)},
 	} {
 		entries := map[string]func() error{
 			"Parse":     func() error { _, err := Parse("aa", opts...); return err },

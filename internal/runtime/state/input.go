@@ -51,6 +51,9 @@ type ParseOptions struct {
 	// DiagnosticLimitSet records an explicit zero limit, which is stream-only too.
 	DiagnosticLimit    int
 	DiagnosticLimitSet bool
+	// ComputeReport, if not nil, receives the compute units that the parse spent when it ends
+	// (runtime.WithComputeReport). A parse with it has a budget control, which counts them.
+	ComputeReport *uint64
 	// Expectations records the expectations of syntax errors: what was expected at the farthest
 	// failure and the messages of @error. Without it, a syntax error has the farthest failure
 	// position, no expectations and no messages. A Document fixes it at construction.

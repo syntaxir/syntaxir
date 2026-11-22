@@ -43,7 +43,7 @@ func testGeneratedMemoLookaheadState(t *testing.T) {
 		for _, pkg := range []string{fmt.Sprintf("g%d", i), fmt.Sprintf("l%d", i)} {
 			codegentest.GeneratePackage(t, dir, pkg, mustParse(c.Src), common.GenOptions{Start: "s", Types: true, Recognize: true, Observability: true, NoLimitControls: pkg[0] != 'l'})
 			fmt.Fprintf(&imports, "\t%q\n", "codegentest/"+pkg)
-			for _, op := range []string{"_, _ = %s.Parse(%s, sxirrt.WithProfile(&p))", "_, _ = %s.ParseValue(%s, sxirrt.WithProfile(&p))", "_ = %s.Recognize(%s, sxirrt.WithProfile(&p))"} {
+			for _, op := range []string{"_, _ = %s.Parse(%s, sxirruntime.WithProfile(&p))", "_, _ = %s.ParseValue(%s, sxirruntime.WithProfile(&p))", "_ = %s.Recognize(%s, sxirruntime.WithProfile(&p))"} {
 				fmt.Fprintf(&calls, "\t{ var p sxirinstrument.Profile; "+op+"; fmt.Print(evals(p), \" \") }\n", pkg, in)
 			}
 		}
@@ -54,7 +54,7 @@ func testGeneratedMemoLookaheadState(t *testing.T) {
 import (
 	"fmt"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 ` + imports.String() + `)
 

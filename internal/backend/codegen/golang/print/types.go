@@ -194,9 +194,9 @@ func ParseValue(input string, opts ...ParseOption) (%s, error) {
 		fmt.Fprintf(&entries, `// ParseValue converts the current Document result to typed values. Typed values
 // belong to this call; CST Node members may still share the Document's Node graph.
 func (d *Document) ParseValue(opts ...ParseOption) (%s, error) {
-%s o, err := d.ResolveParseOptions(opts)
+%s o, err := d.doc.ResolveParseOptions(opts)
  if err != nil { var zero %s; return zero, err }
- return DocumentParseConverted(d.State, o, func(n *Node, c *BudgetControl, parseErr error) %s {
+ return DocumentParseConverted(d.doc.State, o, func(n *Node, c *BudgetControl, parseErr error) %s {
 %s%s })
 }
 
@@ -357,10 +357,10 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 // Document and with earlier results, so a caller that modifies one may change later results, as with
 // Node values. CloneValue returns an independent copy.
 func (d *Document) ParseValue(opts ...ParseOption) (%s, error) {
-%s o, err := d.ResolveParseOptions(opts)
+%s o, err := d.doc.ResolveParseOptions(opts)
  if err != nil { var zero %s; return zero, err }
  a := &tslabs{}
- return TypedDocumentParse(d.Document, trules[%d], o, a, func(v any) %s {
+ return TypedDocumentParse(d.doc, trules[%d], o, a, func(v any) %s {
   a.result = true
   return %s
  })
@@ -722,7 +722,7 @@ func (t *TypedGen) conv(x types.Ty, v string) string {
 func (t *TypedGen) decls(b *strings.Builder) {
 	for _, name := range t.structs {
 		fmt.Fprintf(b, "// %s is the struct type %s.\n", name, name)
-		fmt.Fprintf(b, "type %s struct {\n\t%s.Span\n", name, libAlias)
+		fmt.Fprintf(b, "type %s struct {\n\t%s.Span\n", name, runtimeAliases["input"])
 		for _, f := range t.Info.Fields[name] {
 			fmt.Fprintf(b, "\t%s %s\n", t.fieldGo(f.Name), t.goType(f.T))
 		}
@@ -1309,6 +1309,7 @@ func (t *TypedGen) valueMethods(b *strings.Builder) {
 	for _, name := range t.structs {
 		g := name
 		fmt.Fprintf(b, "func (v *%[1]s) TName() string { return %[2]q }\nfunc (v *%[1]s) TText() (string, bool) { return \"\", false }\n", g, name)
+		fmt.Fprintf(b, "func (v *%[1]s) TSpan() (int, int) { return v.Start, v.End }\nfunc (v *%[1]s) TSetSpan(start, end int) { v.Start, v.End = start, end }\n", g)
 		fmt.Fprintf(b, "func (v *%[1]s) TKids() []any { return nil }\nfunc (v *%[1]s) TStruct() bool { return true }\n", g)
 		fmt.Fprintf(b, "func (v *%[1]s) TFresh() bool { return false }\nfunc (v *%[1]s) TSetFresh(bool) {}\n", g)
 		fmt.Fprintf(b, "func (v *%s) TField(name string) (any, bool) {\n\tswitch name {\n", g)

@@ -240,6 +240,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `pkg/runtime/vm` | Loading a compiled file into a parser, and the parser and Document of the VM |
 | `pkg/runtime/libgo` | The support library of generated Go parsers |
 | `internal/driver` | Assembles and drives the compiler pipeline; the table of optimization profiles; the body of `pkg/compiler` and `cmd/sxir`. `entry` is the compile entry, and `checked` the compiler side of a compiled program, which the runtime reaches only through an interface of the parser state; `tooling` is what the language server uses of the compiler, its only way to reach it |
+| `internal/driver/generate` | Generates Go and TypeScript parser source from grammar syntax trees; `pkg/compiler` generates through it |
 | `internal/diagnostic` | Positioned static errors |
 | `internal/cancel` | Cancellation of static work |
 | `internal/cliflag` | Flag names of backends and position units |
@@ -252,7 +253,9 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/ir/code/exec` | The Exec dialect: operations of the abstract machine, with `compose` (compositions), `ref` (reference models), `conform` (conformance suite) and `spectest` (specification tests) below it |
 | `internal/ir/code/exec/prim` | The data of grammar code at the Exec stage: the primitives that the Flow operations become, the types of their immediates (which the Flow dialect declares its operations with), the registers, the handle types and the function attributes, with the check of the Exec stage |
 | `internal/frontend` | Drives the front end and returns the semantic model and Core IR; the facts are computed by the analyses of the Core passes, which the front end is handed (`internal/middleend/checkfacts`) and does not compute |
+| `internal/compile` | Canonicalization and checking of a grammar into the checked program (rules, shapes, starts, expectations) that the driver and the generators read |
 | `internal/frontend/parser` | `.sxir` to grammar AST, with `sxirparser`, the parser generated from the grammar of the grammar language |
+| `internal/frontend/parser/sourceast` | Adapts the canonical grammar-source metadata (comments and layout) to the public AST |
 | `internal/frontend/desugar` | Rewriting into a smaller language |
 | `internal/frontend/check` | Name resolution and the checks of the value model: the semantic model |
 | `internal/frontend/types` | The type model |
@@ -269,6 +272,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/middleend/execlower` | Complete conversion from the Flow stage to the Exec stage |
 | `internal/middleend/codepass` | Dialect-independent passes of Code IR |
 | `internal/backend/closure` | The reference parser, built from Core IR |
+| `internal/backend/actionlower` | Lowers the action expressions of a checked program (predicates and binding values) to the term programs that the runtime evaluates; the closure backend and `vmlower` call it |
 | `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
 | `internal/backend/llvm` | The future native-code backend |
 | `internal/backend/codegen/common` | Options and parts shared by the host languages, the view of a checked grammar that the generators read (`Program`, which `internal/driver/checked` builds from the semantic model, the checker and the runtime program); see [Code Generation for Host Languages](host-code-generation.md) |
@@ -292,8 +296,8 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/analysis/complexity` | The cost view and the complexity classification |
 | `internal/lsp/protocol` | JSON-RPC and LSP messages |
 | `internal/lsp/sxirls` | The grammar language server |
-| `internal/testing` | Repository test support, one package per kind of test: `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `linearity`, `recoveryquality`, `archtest` (the import-graph test) and `exectest` |
-| `internal/bench` | Benchmark inputs, size measurement and generated benchmark parsers; not part of the public or the runtime layer |
+| `internal/testing` | Repository test support, one package per kind of test: `codegentest`, `compiletest`, `enginetest`, `factstest`, `starttest`, `complexitytest`, `linearity`, `recoveryquality`, `archtest` (the import-graph test), `statetest` (fault-injecting callbacks and readers, and the leak check), `exectest`, `examinedref` (the independent reference of the examined end of a call), `mutanttest` (lets slow mutant tests skip themselves), `tsconformtest` (the Exec conformance suite on the TypeScript backend) and `importgroups` (the import-block rule, with the `fiximports` command that rewrites files to it) |
+| `internal/bench` | Benchmark inputs, size measurement and generated benchmark parsers; not part of the public or the runtime layer. `inputs` generates the benchmark documents from a fixed seed, and `probe` generates the parsers of `testdata/grammars` and measures what they leave behind |
 
 The repository also holds `bench/`, `spec/`, `site/` and `examples/`.
 

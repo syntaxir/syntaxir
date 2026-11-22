@@ -4,6 +4,7 @@
 package types
 
 import (
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
@@ -13,21 +14,25 @@ import (
 // []any of the elements of a tuple or list.
 type TNode[T any] rt.TNode[T]
 
-// Error is input skipped by error recovery (#recover).
-type Error rt.Error
+// Error is input skipped by error recovery (#recover): the range of the skipped input and the message
+// of the error that recovery replaced.
+type Error struct {
+	sxirinput.Span
+	Message string
+}
 
 // SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
-	Error: func(e *rt.Error) any { return (*Error)(e) },
+	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
 	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
-			return (*rt.Error)(x)
+			return (*rt.TErrorValue)(x)
 		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
@@ -37,20 +42,20 @@ var SXIRHooks = &rt.TPubHooks{
 
 // Array is the struct type Array.
 type Array struct {
-	rt.Span
+	sxirinput.Span
 	Elements []Value
 }
 
 // Member is the struct type Member.
 type Member struct {
-	rt.Span
+	sxirinput.Span
 	Key   *String
 	Value Value
 }
 
 // Object is the struct type Object.
 type Object struct {
-	rt.Span
+	sxirinput.Span
 	Members []*Member
 }
 
@@ -77,12 +82,14 @@ func (*Number) isValue() {}
 func (*Object) isValue() {}
 func (*String) isValue() {}
 
-func (v *Array) TName() string         { return "Array" }
-func (v *Array) TText() (string, bool) { return "", false }
-func (v *Array) TKids() []any          { return nil }
-func (v *Array) TStruct() bool         { return true }
-func (v *Array) TFresh() bool          { return false }
-func (v *Array) TSetFresh(bool)        {}
+func (v *Array) TName() string           { return "Array" }
+func (v *Array) TText() (string, bool)   { return "", false }
+func (v *Array) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Array) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Array) TKids() []any            { return nil }
+func (v *Array) TStruct() bool           { return true }
+func (v *Array) TFresh() bool            { return false }
+func (v *Array) TSetFresh(bool)          {}
 func (v *Array) TField(name string) (any, bool) {
 	switch name {
 	case "Elements":
@@ -132,12 +139,14 @@ func (v *Array) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Member) TName() string         { return "Member" }
-func (v *Member) TText() (string, bool) { return "", false }
-func (v *Member) TKids() []any          { return nil }
-func (v *Member) TStruct() bool         { return true }
-func (v *Member) TFresh() bool          { return false }
-func (v *Member) TSetFresh(bool)        {}
+func (v *Member) TName() string           { return "Member" }
+func (v *Member) TText() (string, bool)   { return "", false }
+func (v *Member) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Member) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Member) TKids() []any            { return nil }
+func (v *Member) TStruct() bool           { return true }
+func (v *Member) TFresh() bool            { return false }
+func (v *Member) TSetFresh(bool)          {}
 func (v *Member) TField(name string) (any, bool) {
 	switch name {
 	case "Key":
@@ -164,12 +173,14 @@ func (v *Member) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Object) TName() string         { return "Object" }
-func (v *Object) TText() (string, bool) { return "", false }
-func (v *Object) TKids() []any          { return nil }
-func (v *Object) TStruct() bool         { return true }
-func (v *Object) TFresh() bool          { return false }
-func (v *Object) TSetFresh(bool)        {}
+func (v *Object) TName() string           { return "Object" }
+func (v *Object) TText() (string, bool)   { return "", false }
+func (v *Object) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Object) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Object) TKids() []any            { return nil }
+func (v *Object) TStruct() bool           { return true }
+func (v *Object) TFresh() bool            { return false }
+func (v *Object) TSetFresh(bool)          {}
 func (v *Object) TField(name string) (any, bool) {
 	switch name {
 	case "Members":
@@ -268,7 +279,7 @@ func tb3(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [5]uint16
 
-// SXIRSchema_a67b30236948d0ba ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_82fa9a37aee3a517 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_a67b30236948d0ba = 0
+const SXIRSchema_82fa9a37aee3a517 = 0

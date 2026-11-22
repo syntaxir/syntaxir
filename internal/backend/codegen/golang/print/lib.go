@@ -11,6 +11,7 @@ import (
 	"io/fs"
 	"path"
 	"reflect"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,6 +53,16 @@ var (
 		"instrument": "sxirinstrument",
 	}
 )
+
+// isRuntimeAlias reports whether name is the alias that generated code gives to a runtime package.
+func isRuntimeAlias(name string) bool {
+	for _, a := range runtimeAliases {
+		if a == name {
+			return true
+		}
+	}
+	return false
+}
 
 // runtimeImports returns the import specs of the runtime packages whose aliases used holds, in
 // the order of their import paths.
@@ -349,6 +360,9 @@ func qualifyLib(rtImport, body string, info *libInfo, tp *typesPackage) (string,
 		inserts = append(inserts, insertion{fset.Position(id.Pos()).Offset - len(prefix), d.pkg + "."})
 	}
 	std := map[string]bool{}
+	// explicitRuntime holds the aliases of the runtime packages that the body names itself, as
+	// sxirinput.Span, which need an import as much as the names that qualify adds.
+	explicitRuntime := map[string]bool{}
 	selectorBase := map[*goast.Ident]bool{}
 	goast.Inspect(f, func(n goast.Node) bool {
 		switch n := n.(type) {
@@ -370,6 +384,9 @@ func qualifyLib(rtImport, body string, info *libInfo, tp *typesPackage) (string,
 			continue
 		}
 		if selectorBase[id] {
+			if isRuntimeAlias(id.Name) {
+				explicitRuntime[id.Name] = true
+			}
 			if p, ok := stdImports[id.Name]; ok {
 				std[p] = true
 			}
@@ -425,6 +442,9 @@ func qualifyLib(rtImport, body string, info *libInfo, tp *typesPackage) (string,
 		return true
 	})
 	runtimeUsed := map[string]bool{}
+	for a := range explicitRuntime {
+		runtimeUsed[a] = true
+	}
 	for _, in := range inserts {
 		runtimeUsed[strings.TrimSuffix(in.qualifier, ".")] = true
 	}
@@ -545,6 +565,10 @@ func declaredNames(src string) ([]string, error) {
 	return out, nil
 }
 
+// qualifyRuntime matches the package qualifiers, in the declarations of the runtime packages, of the
+// packages that generated code imports under other names (runtimeAliases).
+var qualifyRuntime = regexp.MustCompile(`\b(?:input|value|instrument)\.`)
+
 // apiNames returns the library names that the generated package re-exports for its users, in
 // declaration order by group.
 func apiNames(opts common.GenOptions) []string {
@@ -571,10 +595,7 @@ func apiNames(opts common.GenOptions) []string {
 		names = append(names, "StreamIterator", "ErrStreamClosed", "WithDiagnosticCallback", "WithDiagnosticLimit", "TruncatedSyntaxErrors")
 	}
 	if opts.Document {
-		names = append(names, "ParseStats")
-		if !opts.Types {
-			names = append(names, "Document")
-		}
+		names = append(names, "ParseStats", "CacheStats")
 	}
 	if opts.Types {
 		names = append(names, "Span")
@@ -645,6 +666,12 @@ func apiSource(opts common.GenOptions, info *libInfo) (string, error) {
 			if err := printer.Fprint(&sigb, token.NewFileSet(), &ft); err != nil {
 				return "", err
 			}
+			// A signature that the runtime packages declare names their packages by their own names.
+			sigs := qualifyRuntime.ReplaceAllStringFunc(sigb.String(), func(m string) string {
+				return runtimeAliases[strings.TrimSuffix(m, ".")] + "."
+			})
+			sigb.Reset()
+			sigb.WriteString(sigs)
 			call := fmt.Sprintf("%s.%s(%s)", pkg, name, strings.Join(args, ", "))
 			ret := ""
 			if fn.Type.Results != nil && len(fn.Type.Results.List) > 0 {
@@ -652,6 +679,11 @@ func apiSource(opts common.GenOptions, info *libInfo) (string, error) {
 			}
 			fmt.Fprintf(&b, "func %s%s { %s%s }\n\n", name, strings.TrimPrefix(sigb.String(), "func"), ret, call)
 		}
+	}
+	if opts.Document && !opts.Types {
+		// The Document of a parser without typed values is the interface of package runtime; the
+		// library's Document is not API.
+		b.WriteString("// Document is an incremental document: it parses its text again after edits, reusing the\n// results of the parse before that it can.\ntype Document = sxirruntime.Document\n\n")
 	}
 	body := b.String()
 	used := map[string]bool{}
@@ -661,7 +693,11 @@ func apiSource(opts common.GenOptions, info *libInfo) (string, error) {
 	var h strings.Builder
 	fmt.Fprintf(&h, "%s\n\npackage %s\n\n", common.Header(), opts.Package)
 	h.WriteString("import (\n\t\"context\"\n\n")
-	fmt.Fprintf(&h, "\t%s %q\n", libAlias, libImport(opts))
+	// The library is imported only when a re-exported name is declared there; the options and
+	// most user-visible names are the runtime packages'.
+	if strings.Contains(body, libAlias+".") {
+		fmt.Fprintf(&h, "\t%s %q\n", libAlias, libImport(opts))
+	}
 	for _, spec := range runtimeImports(used) {
 		fmt.Fprintf(&h, "\t%s\n", spec)
 	}

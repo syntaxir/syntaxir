@@ -1063,7 +1063,6 @@ rule stmt S = n:[a-z]+ #atomic ";" => S{N: $n}`)
 const generatedRecoveringStreamConsumer = `package recovering
 
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 	"errors"
@@ -1107,7 +1106,7 @@ func TestDiagnosticLimitBoundsMemory(t *testing.T) {
 				at[count/(2*n)] = ms.HeapAlloc
 			}
 			return nil
-		}, WithUnit(unit), sxirrt.WithDiagnosticLimit(3), sxirrt.WithDiagnosticCallback(func(*SyntaxError) error { diags++; return nil }))
+		}, WithUnit(unit), sxirruntime.WithDiagnosticLimit(3), sxirruntime.WithDiagnosticCallback(func(*SyntaxError) error { diags++; return nil }))
 		var truncated *sxirvalue.TruncatedSyntaxErrors
 		if !errors.As(err, &truncated) || truncated.Total != n || truncated.Dropped != n-3 || truncated.CountsSaturated || count != 2*n || diags != n {
 			t.Fatal(err, count, diags)
@@ -1123,7 +1122,7 @@ func TestDiagnosticLimitBoundsMemory(t *testing.T) {
 }
 
 func TestDiagnosticOptionsAreStreamOnly(t *testing.T) {
-	for _, opt := range []ParseOption{sxirrt.WithDiagnosticLimit(0), sxirrt.WithDiagnosticCallback(func(*SyntaxError) error { return nil })} {
+	for _, opt := range []ParseOption{sxirruntime.WithDiagnosticLimit(0), sxirruntime.WithDiagnosticCallback(func(*SyntaxError) error { return nil })} {
 		check := func(name string, err error) {
 			if err == nil || !strings.Contains(err.Error(), "only supported for stream parsing") {
 				t.Errorf("%s: %v", name, err)
@@ -1147,15 +1146,15 @@ func TestDiagnosticOptionsAreStreamOnly(t *testing.T) {
 		check("Document.ParseValue", err)
 	}
 	// A nil callback is not an option to reject.
-	if _, err := Parse("ab;", sxirrt.WithDiagnosticCallback(nil)); err != nil {
+	if _, err := Parse("ab;", sxirruntime.WithDiagnosticCallback(nil)); err != nil {
 		t.Error(err)
 	}
 	read := false
 	r := readFunc(func([]byte) (int, error) { read = true; return 0, io.EOF })
-	if err := ParseStream(r, nil, sxirrt.WithDiagnosticLimit(-1)); err == nil || !strings.Contains(err.Error(), "nonnegative") {
+	if err := ParseStream(r, nil, sxirruntime.WithDiagnosticLimit(-1)); err == nil || !strings.Contains(err.Error(), "nonnegative") {
 		t.Error(err)
 	}
-	if _, err := Iterate(r, sxirrt.WithDiagnosticLimit(-1)); err == nil {
+	if _, err := Iterate(r, sxirruntime.WithDiagnosticLimit(-1)); err == nil {
 		t.Error("Iterate accepted a negative limit")
 	}
 	if _, err := IterateValue(r, WithLimits(Limits{Depth: Unlimited})); err == nil {
@@ -1178,7 +1177,7 @@ func TestIterateValue(t *testing.T) {
 		t.Fatal(err, want)
 	}
 	var diags []*SyntaxError
-	it, err := IterateValue(strings.NewReader("ab;1x;cd;"), sxirrt.WithDiagnosticCallback(func(e *SyntaxError) error { diags = append(diags, e); return nil }))
+	it, err := IterateValue(strings.NewReader("ab;1x;cd;"), sxirruntime.WithDiagnosticCallback(func(e *SyntaxError) error { diags = append(diags, e); return nil }))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1210,7 +1209,7 @@ func TestIterateValue(t *testing.T) {
 	}
 	// A callback panic reaches the caller of Next unchanged.
 	type marker struct{}
-	nodes, _ := Iterate(strings.NewReader("1x;"), sxirrt.WithDiagnosticCallback(func(*SyntaxError) error { panic(marker{}) }))
+	nodes, _ := Iterate(strings.NewReader("1x;"), sxirruntime.WithDiagnosticCallback(func(*SyntaxError) error { panic(marker{}) }))
 	func() {
 		defer func() {
 			if x := recover(); x != (marker{}) {
@@ -1296,7 +1295,7 @@ func TestParseStreamValueBudgetControls(t *testing.T) {
 const generatedStreamConsumer = `package fixture
 
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	"context"
 	"errors"
 	"io"
@@ -1312,7 +1311,7 @@ func TestTraceAndProfile(t *testing.T) {
 	profile := &sxirinstrument.Profile{}
 	n := 0
 	err := ParseStream(strings.NewReader(input), func(*Node) error { n++; return nil },
-		sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }), sxirrt.WithProfile(profile))
+		sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }), sxirruntime.WithProfile(profile))
 	if err != nil || n != 3 {
 		t.Fatal(err, n)
 	}
@@ -1430,7 +1429,7 @@ func TestMemoryIsBounded(t *testing.T) {
 const generatedStreamListsConsumer = `package lists
 
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	"io"
 	"runtime"
 	"testing"
@@ -1470,7 +1469,7 @@ func TestMemoryIsBounded(t *testing.T) {
 			count := 0
 			opts := []ParseOption{WithUnit(unit)}
 			if profiled {
-				opts = append(opts, sxirrt.WithProfile(&sxirinstrument.Profile{}))
+				opts = append(opts, sxirruntime.WithProfile(&sxirinstrument.Profile{}))
 			}
 			err := ParseStream(&listReader{n: n, seed: 1}, func(*Node) error {
 				count++
@@ -1496,7 +1495,7 @@ func TestMemoryIsBounded(t *testing.T) {
 const generatedStreamMemoConsumer = `package memo
 
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	"io"
 	"runtime"
 	"testing"
@@ -1531,7 +1530,7 @@ func TestMemoryIsBounded(t *testing.T) {
 			count := 0
 			opts := []ParseOption{WithUnit(unit)}
 			if profiled {
-				opts = append(opts, sxirrt.WithProfile(&sxirinstrument.Profile{}))
+				opts = append(opts, sxirruntime.WithProfile(&sxirinstrument.Profile{}))
 			}
 			err := ParseStream(&lineReader{line: "key=42\n", n: n}, func(*Node) error {
 				count++

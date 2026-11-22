@@ -155,7 +155,7 @@ func TestGeneratedLiteralDispatchWorkload(t *testing.T) {
 				}
 				fingerprint := sha256.Sum256(code)
 				api := "variadic-unit"
-				if strings.Contains(string(code), "func Parse(input string, opts ...sxirrt.ParseOption)") {
+				if strings.Contains(string(code), "func Parse(input string, opts ...sxirruntime.ParseOption)") {
 					api = "functional-options"
 				}
 				if mode.types {

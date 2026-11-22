@@ -80,15 +80,15 @@ rule num = [0-9]+ ("." [0-9]+)?
 		t.Errorf("Document parser without limit controls is %d bytes, with %d", len(documentWithout), len(documentWith))
 	}
 	tests := `package wc
-import("errors";"strings";"testing";"context";sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo";sxirruntime "syntaxir.dev/sxir/pkg/runtime")
+import("errors";"strings";"testing";"context";sxirruntime "syntaxir.dev/sxir/pkg/runtime")
 func TestOptions(t *testing.T) {
  if _,err:=Parse("abc 12.5 x"); err!=nil {t.Fatal(err)}
  if err:=Recognize("abc 12.5 x"); err!=nil {t.Fatal(err)}
  if _,err:=Parse("abc ("); err==nil {t.Fatal("no error for bad input")}
  if _,err:=ParseValue("abc 12.5 x"); err!=nil {t.Fatal(err)}
  // A zero Limits and a nil context set no control, so they are accepted.
- if _,err:=Parse("abc",sxirrt.WithLimits(sxirruntime.Limits{}),sxirrt.WithContext(nil)); err!=nil {t.Fatal(err)}
- for name,opt:=range map[string]sxirrt.ParseOption{"limits":sxirrt.WithLimits(sxirruntime.Limits{Compute:1}),"memory":sxirrt.WithLimits(sxirruntime.Limits{Memory:1}),"context":sxirrt.WithContext(context.Background())} {
+ if _,err:=Parse("abc",sxirruntime.WithLimits(sxirruntime.Limits{}),sxirruntime.WithContext(nil)); err!=nil {t.Fatal(err)}
+ for name,opt:=range map[string]sxirruntime.ParseOption{"limits":sxirruntime.WithLimits(sxirruntime.Limits{Compute:1}),"memory":sxirruntime.WithLimits(sxirruntime.Limits{Memory:1}),"context":sxirruntime.WithContext(context.Background())} {
   for entry,call:=range map[string]func() error{
    "Parse":func() error {_,err:=Parse("abc",opt);return err},
    "Recognize":func() error {return Recognize("abc",opt)},
@@ -101,14 +101,14 @@ func TestOptions(t *testing.T) {
  }
  // A finite Input needs no control: it is checked against the length of the input. A later
  // WithLimits keeps the fields it leaves zero.
- for entry,call:=range map[string]func(...sxirrt.ParseOption) error{
-  "Parse":func(o ...sxirrt.ParseOption) error {_,err:=Parse("abc 12.5 x",o...);return err},
-  "Recognize":func(o ...sxirrt.ParseOption) error {return Recognize("abc 12.5 x",o...)},
-  "ParseValue":func(o ...sxirrt.ParseOption) error {_,err:=ParseValue("abc 12.5 x",o...);return err},
-  "ParseRule":func(o ...sxirrt.ParseOption) error {_,err:=ParseRule("word","abcdefghij",o...);return err},
+ for entry,call:=range map[string]func(...sxirruntime.ParseOption) error{
+  "Parse":func(o ...sxirruntime.ParseOption) error {_,err:=Parse("abc 12.5 x",o...);return err},
+  "Recognize":func(o ...sxirruntime.ParseOption) error {return Recognize("abc 12.5 x",o...)},
+  "ParseValue":func(o ...sxirruntime.ParseOption) error {_,err:=ParseValue("abc 12.5 x",o...);return err},
+  "ParseRule":func(o ...sxirruntime.ParseOption) error {_,err:=ParseRule("word","abcdefghij",o...);return err},
  } {
   if err:=call(WithLimits(Limits{Input:10}));err!=nil {t.Errorf("%s: an input as long as the limit: %v",entry,err)}
-  for _,opts:=range [][]sxirrt.ParseOption{{WithLimits(Limits{Input:9})},{WithLimits(Limits{Input:9}),WithLimits(Limits{Depth:50})}} {
+  for _,opts:=range [][]sxirruntime.ParseOption{{WithLimits(Limits{Input:9})},{WithLimits(Limits{Input:9}),WithLimits(Limits{Depth:50})}} {
    var le *LimitError
    if err:=call(opts...);!errors.As(err,&le) || le.Kind!=LimitInput || le.Limit!=9 || le.Requested!=10 {t.Errorf("%s: a longer input: %v",entry,err)}
   }

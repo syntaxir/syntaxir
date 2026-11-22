@@ -102,6 +102,10 @@ func NewBudgetControl(ctx context.Context, limits runtime.Limits) *BudgetControl
 	return &BudgetControl{Ctx: ctx, Limits: limits}
 }
 
+// NewReportControl returns a control with no context and the limits limits, which hold no compute or
+// memory bound: the control of a parse that only counts its units (ParseOptions.ComputeReport).
+func NewReportControl(limits runtime.Limits) *BudgetControl { return &BudgetControl{Limits: limits} }
+
 // ContextPanic attributes a panic to caller-owned context code rather than VM
 // execution. Parse boundaries re-raise its original value after cleanup.
 type ContextPanic struct{ Value any }

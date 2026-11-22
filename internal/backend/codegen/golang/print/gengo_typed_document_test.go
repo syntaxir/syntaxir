@@ -34,7 +34,7 @@ func TestGenerateTypedDocument(t *testing.T) {
 		"parser.go": string(code),
 		"parser_test.go": `package fixture
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
  "context"
  "errors"
  "reflect"
@@ -43,7 +43,7 @@ import (
 func TestTypedDocumentResultAndOwnership(t *testing.T) {
  for _, unit := range []PositionUnit{CodePoints, Bytes} {
   calls := 0
-  d, err := NewDocument("é", func(o *sxirrt.X_parseOptions) { calls++; o.X_unit = unit })
+  d, err := NewDocument("é", func(o *sxirruntime.ParseOptions) { calls++; o.Unit = unit })
   if err != nil || calls != 1 { t.Fatalf("construction: %v, calls %d", err, calls) }
   old, err := d.ParseValue()
   fresh, freshErr := ParseValue("é", WithUnit(unit))
@@ -59,7 +59,7 @@ func TestTypedDocumentResultAndOwnership(t *testing.T) {
   if old.First.Text != "é" || old.Items[0] != old.First || next.First.Text != "b" { t.Fatal("later edit changed a retained typed value") }
   if calls != 1 { t.Fatalf("constructor option re-evaluated: %d", calls) }
   invocationCalls := 0
-  _, err = d.ParseValue(func(o *sxirrt.X_parseOptions) { invocationCalls++; o.X_unit = unit })
+  _, err = d.ParseValue(func(o *sxirruntime.ParseOptions) { invocationCalls++; o.Unit = unit })
   if err != nil || invocationCalls != 1 { t.Fatalf("invocation option: %v, calls %d", err, invocationCalls) }
   if _, err := d.ParseValue(WithUnit(PositionUnit(1-int(unit)))); err == nil { t.Fatal("unit change accepted") }
   if _, err := d.ParseValue(WithLimits(Limits{Depth: Unlimited})); err == nil { t.Fatal("unlimited depth accepted") }
@@ -314,7 +314,7 @@ rule main ErrDocumentBusy = t:("a") #atomic => ErrDocumentBusy{Text: text($t)}`)
 		"go.mod": codegentest.GoMod("observedcollision"),
 		"fixture/parser_test.go": `package fixture
 
-import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 import sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 import ("errors"; "testing"; "observedcollision/fixture/types")
 func TestCollision(t *testing.T) {
@@ -324,7 +324,7 @@ func TestCollision(t *testing.T) {
  var typed *types.ErrDocumentBusy = got
  if err != nil || typed.Text != "a" { t.Fatal(got, err) }
  var inner error
- d.ParseValue(sxirrt.WithTrace(func(sxirinstrument.TraceEvent) { if inner == nil { _, inner = d.ParseValue(WithLimits(Limits{Depth: Unlimited})) } }))
+ d.ParseValue(sxirruntime.WithTrace(func(sxirinstrument.TraceEvent) { if inner == nil { _, inner = d.ParseValue(WithLimits(Limits{Depth: Unlimited})) } }))
  if !errors.Is(inner, ErrDocumentBusy) { t.Fatal("busy Document checked options first", inner) }
 }
 `,

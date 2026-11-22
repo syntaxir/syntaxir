@@ -34,7 +34,7 @@ import (
 	"io"
 	"os"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
@@ -44,7 +44,7 @@ var _ *sxirvalue.Node
 
 type entry struct {
 	name string
-	run  func(string, ...sxirrt.ParseOption) error
+	run  func(string, ...sxirruntime.ParseOption) error
 }
 
 var entries = [][]entry{
@@ -72,7 +72,7 @@ func main() {
 			for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 				for _, e := range entries[i] {
 					var exits []sxirinstrument.TraceEvent
-					err := e.run(string(in), sxirrt.WithUnit(unit), sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) {
+					err := e.run(string(in), sxirruntime.WithUnit(unit), sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) {
 						if ev.Kind == sxirinstrument.TraceExit {
 							exits = append(exits, ev)
 						}
@@ -184,12 +184,12 @@ func runExaminedProbes(t *testing.T, cases []codegentest.Case, lib string, mutat
 		}
 		fmt.Fprintf(&imports, "\tf%d \"examinedprobe/f%d\"\n", i, i)
 		fmt.Fprintf(&entries, `	{
-		{"value", func(in string, o ...sxirrt.ParseOption) error { _, err := f%[1]d.ParseValue(in, o...); return err }},
-		{"parse", func(in string, o ...sxirrt.ParseOption) error { _, err := f%[1]d.Parse(in, o...); return err }},
-		{"recognize", func(in string, o ...sxirrt.ParseOption) error { return f%[1]d.Recognize(in, o...) }},
+		{"value", func(in string, o ...sxirruntime.ParseOption) error { _, err := f%[1]d.ParseValue(in, o...); return err }},
+		{"parse", func(in string, o ...sxirruntime.ParseOption) error { _, err := f%[1]d.Parse(in, o...); return err }},
+		{"recognize", func(in string, o ...sxirruntime.ParseOption) error { return f%[1]d.Recognize(in, o...) }},
 `, i)
 		if o.Stream {
-			fmt.Fprintf(&entries, `		{"stream", func(in string, o ...sxirrt.ParseOption) error {
+			fmt.Fprintf(&entries, `		{"stream", func(in string, o ...sxirruntime.ParseOption) error {
 			return f%d.ParseStream(&oneByte{in}, func(*sxirvalue.Node) error { return nil }, o...)
 		}},
 `, i)

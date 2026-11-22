@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"unicode/utf8"
+	"unsafe"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -40,7 +41,7 @@ func (d *Document) BeginParse() error {
 func (d *Document) EndParse() { d.parsing = false }
 
 // MakeDocument is for generated parsers; not a stable API.
-func MakeDocument(root *Rule, text string, opts []ParseOption) (d *Document, err error) {
+func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *Document, err error) {
 	if witnessFeatures {
 		useFeature(root.g, featureDocument)
 	}
@@ -86,7 +87,7 @@ func (d *Document) Edit(start, end int, text string) error {
 
 // Parse parses the current text, applying invocation options after the
 // Document's construction defaults. An invocation cannot change its unit.
-func (d *Document) Parse(opts ...ParseOption) (*sxirvalue.Node, error) {
+func (d *Document) Parse(opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	if err := d.BeginParse(); err != nil {
 		return nil, err
 	}
@@ -98,18 +99,18 @@ func (d *Document) Parse(opts ...ParseOption) (*sxirvalue.Node, error) {
 	return d.State.parse(o)
 }
 
-func (d *Document) ResolveParseOptions(opts []ParseOption) (parseOptions, error) {
+func (d *Document) ResolveParseOptions(opts []sxirruntime.ParseOption) (parseOptions, error) {
 	o := d.defaults
-	for _, opt := range opts {
-		opt(&o)
+	if err := o.applyOptions(opts); err != nil {
+		return o, err
 	}
 	depth, err := resolveDepth(o.limits.Depth, d.State.root.g.maxDepth)
 	if err != nil {
 		return o, err
 	}
 	o.maxDepth = depth
-	if d.State.root.g.NoBudgetControls && (o.context != nil || !limitsDisabled(o.limits)) {
-		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext and a finite Compute or Memory limit)")
+	if d.State.root.g.NoBudgetControls && (o.context != nil || o.computeOut != nil || !limitsDisabled(o.limits)) {
+		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext, WithComputeReport and a finite Compute or Memory limit)")
 	}
 	if err := o.validateDiagnostics(); err != nil {
 		return o, err
@@ -117,7 +118,51 @@ func (d *Document) ResolveParseOptions(opts []ParseOption) (parseOptions, error)
 	if err := o.validateObservation(d.State.root.g); err != nil {
 		return o, err
 	}
+	if o.computeOut != nil {
+		*o.computeOut = 0
+	}
 	return o, nil
+}
+
+// Unit returns the position unit of the document, fixed at construction.
+func (d *Document) Unit() sxirinput.PositionUnit { return d.State.unit }
+
+// ResetHistory releases the memo, the incremental reuse history of a generated Document, without
+// changing the text, the construction options or the statistics of the last parse. Trees returned
+// earlier are detached from future node movement; this does not undo earlier movement.
+func (d *Document) ResetHistory() {
+	d.State.memo, d.State.typedMemo, d.State.edits, d.State.moves = memoTable{}, nil, nil, 0
+}
+
+// CacheStats returns a point-in-time estimate of the memo that the Document retains. A generated
+// Document keeps no repetition records, so RepetitionElements is 0. It does not measure the process
+// heap or bytes returned to the operating system.
+func (d *Document) CacheStats() sxirruntime.CacheStats {
+	var s sxirruntime.CacheStats
+	t := &d.State.memo
+	for _, head := range t.slots {
+		for e := head; e != nil; e = e.next {
+			s.LiveMemoEntries++
+		}
+	}
+	for e := t.free; e != nil; e = e.next {
+		s.RetiredMemoEntries++
+	}
+	s.EstimatedBytes += uint64(cap(t.slots)) * uint64(unsafe.Sizeof((*memoEntry)(nil)))
+	s.EstimatedBytes += uint64(cap(t.chunks)) * uint64(unsafe.Sizeof([]memoEntry(nil)))
+	for _, chunk := range t.chunks {
+		s.EstimatedBytes += uint64(cap(chunk)) * uint64(unsafe.Sizeof(memoEntry{}))
+	}
+	s.EstimatedBytes += uint64(cap(t.seen)) * uint64(unsafe.Sizeof(uint64(0)))
+	s.EstimatedBytes += uint64(cap(t.calls)) * uint64(unsafe.Sizeof(seenCalls{}))
+	s.EstimatedBytes += uint64(cap(t.pages)) * uint64(unsafe.Sizeof(seenRulePages{}))
+	for _, dir := range t.pages {
+		s.EstimatedBytes += uint64(cap(dir.pages)) * uint64(unsafe.Sizeof((*[16]uint64)(nil)))
+	}
+	s.EstimatedBytes += uint64(cap(t.bitPages.chunks)) * uint64(unsafe.Sizeof((*[64][16]uint64)(nil)))
+	s.EstimatedBytes += uint64(len(t.bitPages.chunks)) * uint64(unsafe.Sizeof([64][16]uint64{}))
+	s.EstimatedBytes += t.indexBytes
+	return s
 }
 
 // Stats returns the evaluation and reuse counts of the last Parse. A generated Document reuses
@@ -499,6 +544,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		return res, fmt.Errorf("document start rule is missing")
 	}
 	o = prepareText(o, d.text)
+	defer o.reportSpent(false)
 	if o.control != nil && o.control.limits.Memory != 0 && d.memo.chargedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.
 		d.dropMemo()

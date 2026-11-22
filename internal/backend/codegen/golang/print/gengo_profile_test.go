@@ -85,14 +85,14 @@ const generatedProfileAllocs = `//go:build !race
 
 package PACKAGE
 
-import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 import sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 import "testing"
 func TestProfileAllocs(t *testing.T){
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{for op,parse:=range []func(...ParseOption){func(opts ...ParseOption){Parse("aa",opts...)},func(opts ...ParseOption){ParseRule("main","aa",opts...)},func(opts ...ParseOption){Recognize("aa",opts...)}}{
-  var pr sxirinstrument.Profile;parse(WithUnit(unit),sxirrt.WithProfile(&pr))
-  profiled:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),sxirrt.WithProfile(&pr))})
-  traced:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){}))})
+  var pr sxirinstrument.Profile;parse(WithUnit(unit),sxirruntime.WithProfile(&pr))
+  profiled:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),sxirruntime.WithProfile(&pr))})
+  traced:=testing.AllocsPerRun(20,func(){parse(WithUnit(unit),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){}))})
   if profiled>traced+1{t.Fatal("a profiled parse allocates more than its recorder over a traced one",op,unit,profiled,traced)}
  }}
 }
@@ -104,7 +104,7 @@ func TestProfileAllocs(t *testing.T){
 // trace function, so they are at most the parse's wall time less those sleeps.
 const generatedProfileConsumer = `package PACKAGE
 
-import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 import sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 import("context";"encoding/json";"fmt";"reflect";"sync";"testing";"time")
 func TestProfile(t *testing.T){
@@ -112,7 +112,7 @@ func TestProfile(t *testing.T){
  TYPED
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{for op,parse:=range operations{
   var pr sxirinstrument.Profile;var events []sxirinstrument.TraceEvent
-  got,err:=parse(WithUnit(unit),sxirrt.WithProfile(&pr),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));expected,base:=parse(WithUnit(unit));if !reflect.DeepEqual(got,expected){t.Fatal("profile changed value")}
+  got,err:=parse(WithUnit(unit),sxirruntime.WithProfile(&pr),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));expected,base:=parse(WithUnit(unit));if !reflect.DeepEqual(got,expected){t.Fatal("profile changed value")}
   if fmt.Sprint(err)!=fmt.Sprint(base){t.Fatal("error changed",err,base)}
   s:=pr.Snapshot();checkProfile(t,s,events)
   if op<2{CHECKS}
@@ -120,19 +120,19 @@ func TestProfile(t *testing.T){
   bytes1,_:=json.Marshal(s);bytes2,_:=json.Marshal(pr.Snapshot());if string(bytes1)!=string(bytes2){t.Fatal("unstable snapshot")}
   if len(s.Rules)>0{s.Rules[0].Rule="mutated";if len(s.Rules[0].SkipReasons)>0{s.Rules[0].SkipReasons[0].Count=999}}
   if b,_:=json.Marshal(pr.Snapshot());string(b)!=string(bytes1){t.Fatal("snapshot aliases sink")}
-  before:=pr.Snapshot();parse(WithUnit(unit),sxirrt.WithProfile(&pr),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){t.Fatal("filtered event")}),sxirrt.WithTraceFilter("absent"),sxirrt.WithTraceMaxDepth(1));after:=pr.Snapshot()
+  before:=pr.Snapshot();parse(WithUnit(unit),sxirruntime.WithProfile(&pr),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){t.Fatal("filtered event")}),sxirruntime.WithTraceFilter("absent"),sxirruntime.WithTraceMaxDepth(1));after:=pr.Snapshot()
   if after.Parses!=2||after.Calls!=2*before.Calls||after.Evals!=2*before.Evals||after.Skipped!=2*before.Skipped{t.Fatal("filter affected profile",before,after)}
   for i,r:=range after.Rules{if r.Repeats!=2*before.Rules[i].Repeats||r.MaxEvals!=before.Rules[i].MaxEvals{t.Fatal("history crossed invocation",r,before.Rules[i])}}
-  saved:=pr.Snapshot();parse(sxirrt.WithProfile(nil));if !reflect.DeepEqual(saved,pr.Snapshot()){t.Fatal("sink retained")}
-  var reentrant sxirinstrument.Profile;once:=false;parse(sxirrt.WithProfile(&reentrant),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){if !once{once=true;parse(sxirrt.WithProfile(&reentrant))}}));re:=reentrant.Snapshot();if re.Parses!=2||re.Calls!=2*before.Calls{t.Fatal("reentrant state",re,before)}
-  var aborted sxirinstrument.Profile;marker:=new(int);func(){defer func(){if recover()!=marker{t.Fatal("panic identity")}}();parse(sxirrt.WithProfile(&aborted),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){panic(marker)}));t.Fatal("missing panic")}();a:=aborted.Snapshot();if a.Parses!=1||a.Entered!=1||a.Calls!=0||a.Evals!=0||a.Time!=0{t.Fatal("fabricated completion",a)}
-  parse(sxirrt.WithProfile(&aborted));a=aborted.Snapshot();if a.Parses!=2||a.Calls!=before.Calls||a.Entered!=before.Entered+1{t.Fatal("abort poisoned next parse",a)}
-  var exitPanic sxirinstrument.Profile;func(){defer func(){if recover()!=marker{t.Fatal("exit panic identity")}}();parse(sxirrt.WithProfile(&exitPanic),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==sxirinstrument.TraceExit{panic(marker)}}));t.Fatal("missing exit panic")}();if x:=exitPanic.Snapshot();x.Calls!=1{t.Fatal("exit panic lost completed call",x)}
-  if PLAIN&&op==0{var timed sxirinstrument.Profile;var slept time.Duration;start:=time.Now();parse(sxirrt.WithProfile(&timed),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){if e.Rule=="part"{s:=time.Now();time.Sleep(time.Millisecond);slept+=time.Since(s)}}));limit:=time.Since(start)-slept;if slept<4*time.Millisecond{t.Fatal("trace function not called for every event of part",slept)};ts:=timed.Snapshot();if ts.Time>limit{t.Fatal("trace function time counted",ts.Time,limit)};for _,r:=range ts.Rules{if r.Time>limit||r.SelfTime>limit{t.Fatal("trace function time counted in a rule",r,limit)}}}
-  ctx,cancel:=context.WithCancel(context.Background());cancel();var canceled sxirinstrument.Profile;parse(sxirrt.WithProfile(&canceled),WithContext(ctx));if canceled.Snapshot().Entered!=0{t.Fatal("canceled call entered")}
-  var wg sync.WaitGroup;for range 4{wg.Go(func(){var p sxirinstrument.Profile;parse(sxirrt.WithProfile(&p));if p.Snapshot().Parses!=1{t.Error("concurrent isolation")}})};wg.Wait()
+  saved:=pr.Snapshot();parse(sxirruntime.WithProfile(nil));if !reflect.DeepEqual(saved,pr.Snapshot()){t.Fatal("sink retained")}
+  var reentrant sxirinstrument.Profile;once:=false;parse(sxirruntime.WithProfile(&reentrant),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){if !once{once=true;parse(sxirruntime.WithProfile(&reentrant))}}));re:=reentrant.Snapshot();if re.Parses!=2||re.Calls!=2*before.Calls{t.Fatal("reentrant state",re,before)}
+  var aborted sxirinstrument.Profile;marker:=new(int);func(){defer func(){if recover()!=marker{t.Fatal("panic identity")}}();parse(sxirruntime.WithProfile(&aborted),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){panic(marker)}));t.Fatal("missing panic")}();a:=aborted.Snapshot();if a.Parses!=1||a.Entered!=1||a.Calls!=0||a.Evals!=0||a.Time!=0{t.Fatal("fabricated completion",a)}
+  parse(sxirruntime.WithProfile(&aborted));a=aborted.Snapshot();if a.Parses!=2||a.Calls!=before.Calls||a.Entered!=before.Entered+1{t.Fatal("abort poisoned next parse",a)}
+  var exitPanic sxirinstrument.Profile;func(){defer func(){if recover()!=marker{t.Fatal("exit panic identity")}}();parse(sxirruntime.WithProfile(&exitPanic),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==sxirinstrument.TraceExit{panic(marker)}}));t.Fatal("missing exit panic")}();if x:=exitPanic.Snapshot();x.Calls!=1{t.Fatal("exit panic lost completed call",x)}
+  if PLAIN&&op==0{var timed sxirinstrument.Profile;var slept time.Duration;start:=time.Now();parse(sxirruntime.WithProfile(&timed),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){if e.Rule=="part"{s:=time.Now();time.Sleep(time.Millisecond);slept+=time.Since(s)}}));limit:=time.Since(start)-slept;if slept<4*time.Millisecond{t.Fatal("trace function not called for every event of part",slept)};ts:=timed.Snapshot();if ts.Time>limit{t.Fatal("trace function time counted",ts.Time,limit)};for _,r:=range ts.Rules{if r.Time>limit||r.SelfTime>limit{t.Fatal("trace function time counted in a rule",r,limit)}}}
+  ctx,cancel:=context.WithCancel(context.Background());cancel();var canceled sxirinstrument.Profile;parse(sxirruntime.WithProfile(&canceled),WithContext(ctx));if canceled.Snapshot().Entered!=0{t.Fatal("canceled call entered")}
+  var wg sync.WaitGroup;for range 4{wg.Go(func(){var p sxirinstrument.Profile;parse(sxirruntime.WithProfile(&p));if p.Snapshot().Parses!=1{t.Error("concurrent isolation")}})};wg.Wait()
  }}
- var rejected sxirinstrument.Profile;_,rejectedError:=Parse("\x00",sxirrt.WithProfile(&rejected));if rejectedError==nil{t.Fatal("invalid input accepted")};failedRoot:=false;for _,r:=range rejected.Snapshot().Rules{if r.Rule=="main"&&r.Failed==1{failedRoot=true}};if !failedRoot{t.Fatal("failed root unrecorded",rejected.Snapshot())}
+ var rejected sxirinstrument.Profile;_,rejectedError:=Parse("\x00",sxirruntime.WithProfile(&rejected));if rejectedError==nil{t.Fatal("invalid input accepted")};failedRoot:=false;for _,r:=range rejected.Snapshot().Rules{if r.Rule=="main"&&r.Failed==1{failedRoot=true}};if !failedRoot{t.Fatal("failed root unrecorded",rejected.Snapshot())}
  var nilProfile *sxirinstrument.Profile;if len(nilProfile.Snapshot().Rules)!=0{t.Fatal("nil snapshot")}
 }
 ` + generatedProfileCheck

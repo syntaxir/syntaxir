@@ -50,7 +50,6 @@ import (
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
 func TestHotspot(t *testing.T) {
@@ -67,7 +66,7 @@ func TestHotspot(t *testing.T) {
 	}
 	limits := WithLimits(Limits{Compute: need - 1})
 	var profile sxirinstrument.Profile
-	_, err := Parse(in, limits, sxirrt.WithProfile(&profile))
+	_, err := Parse(in, limits, sxirruntime.WithProfile(&profile))
 	var le *sxirruntime.LimitError
 	if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute {
 		t.Fatalf("got %v, want a compute limit error", err)

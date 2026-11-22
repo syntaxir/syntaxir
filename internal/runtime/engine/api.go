@@ -42,6 +42,7 @@ func Apply(o *ParseOptions, opts []runtime.ParseOption) {
 		Context: o.Context, Limits: o.Limits, MissingTokens: o.MissingTokens, Expectations: o.Expectations,
 		Unit: o.Unit, TraceSelection: o.TraceSelection, Profiles: o.Profiles,
 		DiagnosticCallback: o.DiagnosticCallback, DiagnosticLimit: o.DiagnosticLimit, DiagnosticLimitSet: o.DiagnosticLimitSet,
+		ComputeReport: o.ComputeReport,
 	}
 	if o.Trace != nil {
 		p.Traces = []func(TraceEvent){o.Trace}
@@ -52,6 +53,7 @@ func Apply(o *ParseOptions, opts []runtime.ParseOption) {
 	o.Context, o.Limits, o.MissingTokens, o.Expectations = p.Context, p.Limits, p.MissingTokens, p.Expectations
 	o.Unit, o.TraceSelection, o.Profiles = p.Unit, p.TraceSelection, p.Profiles
 	o.DiagnosticCallback, o.DiagnosticLimit, o.DiagnosticLimitSet = p.DiagnosticCallback, p.DiagnosticLimit, p.DiagnosticLimitSet
+	o.ComputeReport = p.ComputeReport
 	o.Trace = nil
 	for _, f := range p.Traces {
 		if o.Trace == nil {

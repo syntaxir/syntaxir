@@ -61,6 +61,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 		return res, fmt.Errorf("document parse cannot change expectations")
 	}
 	o = prepareText(o, d.State.text)
+	defer o.reportSpent(false)
 	cache, ok := d.State.typedMemo.(*typedDocumentState)
 	if ok && o.control != nil && o.control.limits.Memory != 0 && cache.retainedBytes() > o.control.limits.Memory {
 		// The retained memo alone exceeds the limit: the parse starts without it.

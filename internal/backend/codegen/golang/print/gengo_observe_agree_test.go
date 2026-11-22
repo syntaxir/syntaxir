@@ -249,7 +249,6 @@ import (
 	"os"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
@@ -259,7 +258,7 @@ var _ *sxirvalue.Node
 
 type entry struct {
 	name string
-	run  func(string, sxirinput.PositionUnit, ...sxirrt.ParseOption) error
+	run  func(string, sxirinput.PositionUnit, ...sxirruntime.ParseOption) error
 }
 
 var entries = [][]entry{
@@ -320,8 +319,8 @@ func main() {
 					var events, second []sxirinstrument.TraceEvent
 					var prof, prof2 sxirinstrument.Profile
 					docStats = nil
-					err := e.run(string(in), unit, sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { events = append(events, ev) }), sxirrt.WithProfile(&prof),
-						sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { second = append(second, ev) }), sxirrt.WithProfile(&prof2))
+					err := e.run(string(in), unit, sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) { events = append(events, ev) }), sxirruntime.WithProfile(&prof),
+						sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) { second = append(second, ev) }), sxirruntime.WithProfile(&prof2))
 					stats := docStats
 					// The same parse with a trace filter and a depth limit: the filter names a rule called
 					// within the start rule, if any, and a name that is not a rule.
@@ -334,8 +333,8 @@ func main() {
 					}
 					var filtered []sxirinstrument.TraceEvent
 					var filteredProf sxirinstrument.Profile
-					e.run(string(in), unit, sxirrt.WithTraceFilter("main"), sxirrt.WithTraceFilter(filter...), sxirrt.WithTraceMaxDepth(1), sxirrt.WithTraceMaxDepth(MAXDEPTH),
-						sxirrt.WithTrace(func(ev sxirinstrument.TraceEvent) { filtered = append(filtered, ev) }), sxirrt.WithProfile(&filteredProf))
+					e.run(string(in), unit, sxirruntime.WithTraceFilter("main"), sxirruntime.WithTraceFilter(filter...), sxirruntime.WithTraceMaxDepth(1), sxirruntime.WithTraceMaxDepth(MAXDEPTH),
+						sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) { filtered = append(filtered, ev) }), sxirruntime.WithProfile(&filteredProf))
 					b, _ := json.Marshal(struct {
 						Case, Input int
 						Bytes       bool
@@ -488,13 +487,13 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 		codegentest.GeneratePackageIn(t, dir, "agreeprobe", pkg, g, o)
 		fmt.Fprintf(&imports, "\tf%d \"agreeprobe/f%d\"\n", i, i)
 		fmt.Fprintf(&entries, `	{
-		{"parse", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
-			_, err := f%[1]d.Parse(in, append(o, sxirrt.WithUnit(u))...)
+		{"parse", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error {
+			_, err := f%[1]d.Parse(in, append(o, sxirruntime.WithUnit(u))...)
 			return err
 		}},
-		{"recognize", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error { return f%[1]d.Recognize(in, append(o, sxirrt.WithUnit(u))...) }},
-		{"document", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
-			d, err := f%[1]d.NewDocument(in, sxirrt.WithUnit(u))
+		{"recognize", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error { return f%[1]d.Recognize(in, append(o, sxirruntime.WithUnit(u))...) }},
+		{"document", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error {
+			d, err := f%[1]d.NewDocument(in, sxirruntime.WithUnit(u))
 			if err != nil {
 				return err
 			}
@@ -502,8 +501,8 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 			keepStats(d.Stats())
 			return err
 		}},
-		{"edit", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
-			d, err := f%[1]d.NewDocument(in, sxirrt.WithUnit(u))
+		{"edit", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error {
+			d, err := f%[1]d.NewDocument(in, sxirruntime.WithUnit(u))
 			if err != nil {
 				return err
 			}
@@ -518,8 +517,8 @@ func runAgreeProbes(t *testing.T, cases []codegentest.Case) []agreeReport {
 		}},
 `, i)
 		if o.Stream {
-			fmt.Fprintf(&entries, `		{"stream", func(in string, u sxirinput.PositionUnit, o ...sxirrt.ParseOption) error {
-			return f%d.ParseStream(&oneByte{in}, func(*sxirvalue.Node) error { return nil }, append(o, sxirrt.WithUnit(u))...)
+			fmt.Fprintf(&entries, `		{"stream", func(in string, u sxirinput.PositionUnit, o ...sxirruntime.ParseOption) error {
+			return f%d.ParseStream(&oneByte{in}, func(*sxirvalue.Node) error { return nil }, append(o, sxirruntime.WithUnit(u))...)
 		}},
 `, i)
 		}

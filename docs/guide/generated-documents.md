@@ -2,7 +2,9 @@
 
 Generate with `sxir gen -g grammar.sxir -module example.com/parser -document -o parser`, or pass
 `Document: true` to `compiler.GoConfig`. This adds a mutable Node `Document` alongside the ordinary batch `Parse` and
-`ParseRule` functions. The engine's version of the same feature is described in
+`ParseRule` functions. `NewDocument` returns a `runtime.Document`, the interface of the engine's Documents (`Text`,
+`Unit`, `Edit`, `Parse`, `Stats`, `CacheStats`, `ResetHistory`); with `-types` it returns the package's own `*Document`,
+which implements it and adds `ParseValue`. The engine's version of the same feature is described in
 [Incremental Parsing](incremental.md).
 
 ## Editing and Reparsing

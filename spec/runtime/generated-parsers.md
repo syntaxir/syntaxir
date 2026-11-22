@@ -198,7 +198,7 @@ const (
   a generated parser applies the default limits, `Compute` of `max(2^20, 1024 * n)` among them, unless it
   opts out. A parser generated without them (`-no-limits`) holds no code that spends budget or reads a
   control: one form of each function; with `-document` it is the form that serves a Document, without
-  charges. Such a parser, given a context or a finite `Compute` or `Memory` limit, returns an error
+  charges. Such a parser, given a context, `WithComputeReport` or a finite `Compute` or `Memory` limit, returns an error
   that the parser was generated without limit controls; no option is ignored. A nil context,
   `Compute` and `Memory` limits that are zero or `Unlimited`, any `Input` and any `Depth` set
   no control and are accepted.
@@ -233,10 +233,10 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
 | Grammar type | Go type |
 |:--|:--|
 | `int`, `string`, `bool` | The same |
-| Struct type `T` | `*T` with the same fields and an embedded `Span{Start, End int}` |
+| Struct type `T` | `*T` with the same fields and an embedded `Span`, which is `input.Span{Start, End int}` of package `runtime/input`: the range [Start, End) of the input in the parse's position unit |
 | `node[T]` | `*TNode[T']`, with `Span` and `Value` of the Go type `T'` of `T`: `*TNode[string]` for a string node, whose `Value` is the text, and `*TNode[any]` for `node[_]` |
 | Tuple `(A, B, ...)` | `TupleN[A', B', ...]` with the fields `E0`, `E1`, ...; `Unit` for `()` |
-| `error` (from `#recover`) | `*Error` with `Span`, `Text` and `Message` |
+| `error` (from `#recover`) | `*Error`, a type of the types package with `Span` and `Message` |
 | Join `U ~ A \| B` of node types: struct types, named node types, unnamed node types and `error` | An interface `U` implemented by `*A`, `*B` and `*Error`, and by every `*TNode[T]` if a member is an unnamed node type. A value converts to the member its type names, or, for a node of an unnamed node type or of a named node type that is no member, to the unnamed node member of its kind (string, tuple or list) with that member's Go type; `node[_]` takes every other node as a `*TNode[any]` |
 | Join of node types written in place (a field, a list element, a rule value) and declared by no alias: `A \| B` (two or more distinct members, with or without `error`), or `A \| error` (one member and `error`) | An interface named after its members in the order of their first spelling in the file (declarations in source order, then the fields of a type), `AOrB`, or `AOrError` for one member and `error`, implemented like the interface of an alias; an unnamed node member is named after its value and `Node`, as `StringNode` for `node[string]`, `ItemListNode` for `node[[]Item]` and `Node` for `node[_]`. The same set of members in any order is one interface, and a set that an alias declares is that alias. A type of the grammar with the generated name, or two different sets with the same name, is a generation error. A join without a struct or named node type member, a join with a member that is no node type (a list, a scalar), or one with two unnamed node members of one kind has no interface and is `any`; an alias gives a join of unnamed node types an interface |
 | `[]T` | A slice; an empty list is an empty slice and not `nil` |
@@ -305,9 +305,11 @@ can report runtime errors.
 
 ### Incremental Documents
 
-With `-document`, the Go package gains `NewDocument(text string, opts ...ParseOption) (*Document, error)` and a
-`Document` with these members: `Parse`, `Edit(start, end, replacement)`, `Text`,
-`Stats` and, with `-types`, `ParseValue`.
+With `-document`, the Go package gains `NewDocument(text string, opts ...ParseOption)`, which returns a
+`runtime.Document` (`Parse`, `Edit(start, end, replacement)`, `Text`, `Unit`, `Stats`, `CacheStats` and
+`ResetHistory`); the package re-exports it as `Document`. With `-types`, `NewDocument` returns the package's own
+`*Document`, which implements `runtime.Document` and adds `ParseValue`. The library's own Document type is not part of the
+API.
 
 - `Edit` replaces a half-open range in the position unit chosen at construction. It
   rejects an invalid range, and a position inside a UTF-8 character in `Bytes`

@@ -5,18 +5,20 @@ package minilangtdoc
 
 import (
 	types "syntaxir.dev/sxir/internal/bench/parsers/minilangtdoc/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
 // NewDocument creates an incremental Node document for the start rule main.
-func NewDocument(text string, opts ...rt.ParseOption) (*Document, error) {
+func NewDocument(text string, opts ...sxirruntime.ParseOption) (*Document, error) {
 	d, err := rt.MakeDocument(rules[0], text, opts)
 	if err != nil {
 		return nil, err
@@ -29,7 +31,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -42,8 +44,35 @@ func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, err
 }
 
 // Document is an incremental document: it parses its text again after edits, reusing the
-// results of the parse before that it can.
-type Document struct{ *rt.Document }
+// results of the parse before that it can. It implements runtime.Document, and ParseValue returns
+// the typed value.
+type Document struct{ doc *rt.Document }
+
+var _ sxirruntime.Document = (*Document)(nil)
+
+// Text returns the current text.
+func (d *Document) Text() string { return d.doc.Text() }
+
+// Unit returns the position unit of the document, fixed at construction.
+func (d *Document) Unit() sxirinput.PositionUnit { return d.doc.Unit() }
+
+// Edit replaces the range [start, end) of the text, in the document's position unit, with text.
+func (d *Document) Edit(start, end int, text string) error { return d.doc.Edit(start, end, text) }
+
+// Parse parses the current text. opts apply once over the construction defaults.
+func (d *Document) Parse(opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
+	return d.doc.Parse(opts...)
+}
+
+// Stats returns the evaluation and reuse counts of the last Parse.
+func (d *Document) Stats() sxirruntime.ParseStats { return d.doc.Stats() }
+
+// CacheStats inspects the retained incremental history without changing it.
+func (d *Document) CacheStats() sxirruntime.CacheStats { return d.doc.CacheStats() }
+
+// ResetHistory discards the incremental reuse history while keeping the text, the construction
+// options, and the statistics of the last parse.
+func (d *Document) ResetHistory() { d.doc.ResetHistory() }
 
 func tinit() {
 	tnamedPub := func(a any, x rt.TVal) any {
@@ -78,7 +107,7 @@ func tmk_ArrayLit(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tArrayLit)
 	v.Elems = tl0(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -90,7 +119,7 @@ func tmk_Assign(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Target = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -103,7 +132,7 @@ func tmk_Binary(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f1))
 	v.Right = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -114,7 +143,7 @@ func tmk_Block(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tBlock)
 	v.Body = tl1(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -126,7 +155,7 @@ func tmk_Call(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Fn = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Args = tl0(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -139,7 +168,7 @@ func tmk_Cond(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Then = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	v.Else = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -150,7 +179,7 @@ func tmk_ExprStmt(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tExprStmt)
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -163,7 +192,7 @@ func tmk_Func(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Params = tl2(a, f1)
 	v.Body = rt.TAs[*types.Block](f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -176,7 +205,7 @@ func tmk_If(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Then = rt.TAs[*types.Block](f1)
 	v.Else = rt.TAs[types.IfOrBlock](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -188,7 +217,7 @@ func tmk_Index(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Index = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -200,7 +229,7 @@ func tmk_Let(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv1(a, f0)
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -212,7 +241,7 @@ func tmk_Member(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Name = tv1(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -223,7 +252,7 @@ func tmk_Program(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tProgram)
 	v.Body = tl1(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -234,7 +263,7 @@ func tmk_Return(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tReturn)
 	v.Value = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -246,7 +275,7 @@ func tmk_Unary(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Op = (*types.TNode[string])(rt.TPubMatch(f0))
 	v.X = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -258,7 +287,7 @@ func tmk_While(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Cond = rt.TAs[types.Expr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Body = rt.TAs[*types.Block](f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -1222,7 +1251,7 @@ func (c *typedDocumentClone) list2(v []*types.Ident) []*types.Ident {
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (*types.Program, error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (*types.Program, error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) *types.Program { a.result = true; return rt.TAs[*types.Program](v) })
 }
@@ -1230,19 +1259,19 @@ func ParseValue(input string, opts ...rt.ParseOption) (*types.Program, error) {
 // ParseValue directly parses the Document and returns typed values. The values are shared with the
 // Document and with earlier results, so a caller that modifies one may change later results, as with
 // Node values. CloneValue returns an independent copy.
-func (d *Document) ParseValue(opts ...rt.ParseOption) (*types.Program, error) {
-	if err := d.BeginParse(); err != nil {
+func (d *Document) ParseValue(opts ...sxirruntime.ParseOption) (*types.Program, error) {
+	if err := d.doc.BeginParse(); err != nil {
 		var zero *types.Program
 		return zero, err
 	}
-	defer d.EndParse()
-	o, err := d.ResolveParseOptions(opts)
+	defer d.doc.EndParse()
+	o, err := d.doc.ResolveParseOptions(opts)
 	if err != nil {
 		var zero *types.Program
 		return zero, err
 	}
 	a := &tslabs{}
-	return rt.TypedDocumentParse(d.Document, trules[0], o, a, func(v any) *types.Program {
+	return rt.TypedDocumentParse(d.doc, trules[0], o, a, func(v any) *types.Program {
 		a.result = true
 		return rt.TAs[*types.Program](v)
 	})
@@ -1264,7 +1293,7 @@ func CloneValue(value *types.Program) *types.Program {
 // Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
 //
 //	main: *types.Program
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -7371,6 +7400,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_d71436240c289458
+const _ = types.SXIRSchema_551976c1f383fd3e
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

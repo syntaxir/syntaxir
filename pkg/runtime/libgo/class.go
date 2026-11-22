@@ -77,6 +77,8 @@ func (p *TParser) classSkip(c *Class, id ExpID) bool {
 }
 
 // ClassStep is one character class of a sequence, with the expectation to record when it fails.
+//
+// ClassStep is for generated parsers; not a stable API.
 type ClassStep struct {
 	C  *Class
 	ID ExpID

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 )
 
 var documentBenchmarkRecordCounts = [...]int{256, 4096} // 1/20 KiB UTF-8
@@ -17,7 +17,7 @@ var documentBenchmarkResult *Node
 // documentBenchmarkFixture returns a warm Document over base, edited once at its last value and
 // restored to base, so that every benchmark operation starts from the same warm state. The edited
 // result is checked against a fresh batch parse of the edited text before timing.
-func documentBenchmarkFixture(tb testing.TB, unit PositionUnit, records int) (*rt.Document, int, string, string) {
+func documentBenchmarkFixture(tb testing.TB, unit PositionUnit, records int) (sxirruntime.Document, int, string, string) {
 	tb.Helper()
 	base := strings.Repeat("é:0;", records)
 	edit := len(base) - 2 // the last record's value; one ASCII byte or code point

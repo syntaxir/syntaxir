@@ -4,6 +4,7 @@
 package types
 
 import (
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
@@ -13,21 +14,25 @@ import (
 // []any of the elements of a tuple or list.
 type TNode[T any] rt.TNode[T]
 
-// Error is input skipped by error recovery (#recover).
-type Error rt.Error
+// Error is input skipped by error recovery (#recover): the range of the skipped input and the message
+// of the error that recovery replaced.
+type Error struct {
+	sxirinput.Span
+	Message string
+}
 
 // SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
-	Error: func(e *rt.Error) any { return (*Error)(e) },
+	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
 	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
-			return (*rt.Error)(x)
+			return (*rt.TErrorValue)(x)
 		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
@@ -37,25 +42,27 @@ var SXIRHooks = &rt.TPubHooks{
 
 // File is the struct type File.
 type File struct {
-	rt.Span
+	sxirinput.Span
 	Records []*Record
 }
 
 // Record is the struct type Record.
 type Record struct {
-	rt.Span
+	sxirinput.Span
 	Fields []*Field
 }
 
 // Field is the node type Field = node[string].
 type Field struct{ TNode[string] }
 
-func (v *File) TName() string         { return "File" }
-func (v *File) TText() (string, bool) { return "", false }
-func (v *File) TKids() []any          { return nil }
-func (v *File) TStruct() bool         { return true }
-func (v *File) TFresh() bool          { return false }
-func (v *File) TSetFresh(bool)        {}
+func (v *File) TName() string           { return "File" }
+func (v *File) TText() (string, bool)   { return "", false }
+func (v *File) TSpan() (int, int)       { return v.Start, v.End }
+func (v *File) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *File) TKids() []any            { return nil }
+func (v *File) TStruct() bool           { return true }
+func (v *File) TFresh() bool            { return false }
+func (v *File) TSetFresh(bool)          {}
 func (v *File) TField(name string) (any, bool) {
 	switch name {
 	case "Records":
@@ -105,12 +112,14 @@ func (v *File) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-func (v *Record) TName() string         { return "Record" }
-func (v *Record) TText() (string, bool) { return "", false }
-func (v *Record) TKids() []any          { return nil }
-func (v *Record) TStruct() bool         { return true }
-func (v *Record) TFresh() bool          { return false }
-func (v *Record) TSetFresh(bool)        {}
+func (v *Record) TName() string           { return "Record" }
+func (v *Record) TText() (string, bool)   { return "", false }
+func (v *Record) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Record) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Record) TKids() []any            { return nil }
+func (v *Record) TStruct() bool           { return true }
+func (v *Record) TFresh() bool            { return false }
+func (v *Record) TSetFresh(bool)          {}
 func (v *Record) TField(name string) (any, bool) {
 	switch name {
 	case "Fields":
@@ -182,7 +191,7 @@ func tb0(v *Field) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [2]uint16
 
-// SXIRSchema_eb8cdcb52c16a5c7 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_744c7118d3003d84 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_eb8cdcb52c16a5c7 = 0
+const SXIRSchema_744c7118d3003d84 = 0

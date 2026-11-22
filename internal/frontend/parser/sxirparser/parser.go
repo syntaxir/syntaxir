@@ -5,6 +5,8 @@ package sxirparser
 
 import (
 	types "syntaxir.dev/sxir/internal/frontend/parser/sxirparser/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -96,7 +98,7 @@ func tmk_ActionBind(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Expr = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -110,7 +112,7 @@ func tmk_ActionBlock(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -121,7 +123,7 @@ func tmk_ActionGroup(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tActionGroup)
 	v.Expr = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -132,7 +134,7 @@ func tmk_ActionTuple(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tActionTuple)
 	v.Elems = tl2(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -143,7 +145,7 @@ func tmk_Atomic(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tAtomic)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -158,7 +160,7 @@ func tmk_Attr(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.TSetRanges(1, trOne(f1), nil)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -172,7 +174,7 @@ func tmk_AttrArgs(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -184,7 +186,7 @@ func tmk_AttrNamed(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Value = rt.TAs[types.AttrValue](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -195,7 +197,7 @@ func tmk_AttrSlot(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tAttrSlot)
 	v.Value = rt.TAs[types.AttrValue](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -207,7 +209,7 @@ func tmk_Attributed(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Attr = rt.TAs[*types.Attr](f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -220,7 +222,7 @@ func tmk_BinaryOp(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.L = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	v.R = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -233,7 +235,7 @@ func tmk_Call(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Args = tl2(a, f1)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -245,7 +247,7 @@ func tmk_Capture(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -257,7 +259,7 @@ func tmk_CaptureAccess(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Capture = tv4(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -269,7 +271,7 @@ func tmk_Cast(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -281,7 +283,7 @@ func tmk_CharClass(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Not = astBool(f0)
 	v.Items = tl5(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -293,7 +295,7 @@ func tmk_CharRng(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Start_ = tv5(a, f0)
 	v.End_ = tv5(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -305,7 +307,7 @@ func tmk_Choice(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.L = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.R = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -322,7 +324,7 @@ func tmk_CommentGap(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -333,7 +335,7 @@ func tmk_CommentGroup(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tCommentGroup)
 	v.Lines = tl8(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -350,7 +352,7 @@ func tmk_Constructor(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, 
 	v.TSetRanges(2, trOne(f2), nil)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -361,7 +363,7 @@ func tmk_Discard(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tDiscard)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -377,7 +379,7 @@ func tmk_Field(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 any
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -389,7 +391,7 @@ func tmk_FieldAccess(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Name = tv11(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -401,7 +403,7 @@ func tmk_FieldBody(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -421,7 +423,7 @@ func tmk_File(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 any,
 	v.TSetRanges(2, trOne(f2), nil)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5, f6)
@@ -431,7 +433,7 @@ func tmk_GapFlag(c *rt.TActCtx, final bool) any {
 	a := c.P.Ext.(*tslabs)
 	v := rt.Alloc(&a.tGapFlag)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v)
@@ -442,7 +444,7 @@ func tmk_IgnoreCase(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tIgnoreCase)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -459,7 +461,7 @@ func tmk_Infix(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 any
 	v.Source = rt.TAs[*types.SourceItem](f5)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5)
@@ -475,7 +477,7 @@ func tmk_InitField(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -487,7 +489,7 @@ func tmk_InitFieldBody(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Val = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -499,7 +501,7 @@ func tmk_InlineAction(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Action = rt.TAs[types.Action](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -512,7 +514,7 @@ func tmk_InlineComment(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Body = (*types.TNode[string])(rt.TPubMatch(f1))
 	v.End_ = (*types.TNode[string])(rt.TPubMatch(f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -524,7 +526,7 @@ func tmk_JoinType(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.L = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.R = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -536,7 +538,7 @@ func tmk_Lambda(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Params = tl12(a, f0)
 	v.Body = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -548,7 +550,7 @@ func tmk_LevelCall(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Rule = tv11(a, f0)
 	v.Level = tv11(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -562,7 +564,7 @@ func tmk_ListConstructor(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any 
 	v.Comments = tl1(a, f2)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -573,7 +575,7 @@ func tmk_ListType(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tListType)
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -585,7 +587,7 @@ func tmk_Lookahead(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Op = astString(f0)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -597,7 +599,7 @@ func tmk_MeetType(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.L = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.R = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -608,7 +610,7 @@ func tmk_MissingPragma(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tMissingPragma)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -619,7 +621,7 @@ func tmk_OneOrMore(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tOneOrMore)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -637,7 +639,7 @@ func tmk_OperatorsLevel(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 an
 	v.TSetRanges(1, trOne(f1), nil)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5)
@@ -653,7 +655,7 @@ func tmk_OperatorsLevelBody(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f
 	v.TSetRanges(1, trOne(f1), nil)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -669,7 +671,7 @@ func tmk_OperatorsOperand(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -681,7 +683,7 @@ func tmk_OperatorsOperandBody(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Action = rt.TAs[types.Action](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -694,7 +696,7 @@ func tmk_OperatorsOperatorBody(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	v.Action = rt.TAs[types.Action](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -708,7 +710,7 @@ func tmk_OperatorsRule(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Head = rt.TAs[*types.SourceLead](f2)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -723,7 +725,7 @@ func tmk_OperatorsSkip(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any
 	v.Source = rt.TAs[*types.SourceItem](f3)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -734,7 +736,7 @@ func tmk_OperatorsSkipBody(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tOperatorsSkipBody)
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -745,7 +747,7 @@ func tmk_Optional(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tOptional)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -756,7 +758,7 @@ func tmk_OptionalType(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tOptionalType)
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -772,7 +774,7 @@ func tmk_Pkg(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any) any {
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -787,7 +789,7 @@ func tmk_PkgBody(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -803,7 +805,7 @@ func tmk_Postfix(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 a
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -817,7 +819,7 @@ func tmk_Predicate(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -833,7 +835,7 @@ func tmk_Prefix(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 an
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -845,7 +847,7 @@ func tmk_Recover(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.Skip = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -859,7 +861,7 @@ func tmk_Repeat(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any) any {
 	v.Max = tv12(a, f2)
 	v.Range_ = astBool(f3)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -872,7 +874,7 @@ func tmk_RepeatBounds(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Max = tv12(a, f1)
 	v.Range_ = astBool(f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -892,7 +894,7 @@ func tmk_RuleDef(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 a
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(5, trOne(f5), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5, f6, f7)
@@ -910,7 +912,7 @@ func tmk_RuleDefBody(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, 
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5)
@@ -921,7 +923,7 @@ func tmk_RuleGroup(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tRuleGroup)
 	v.Expr = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -932,7 +934,7 @@ func tmk_RuleRef(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tRuleRef)
 	v.Name = tv11(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -944,7 +946,7 @@ func tmk_Sequence(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.L = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	v.R = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -960,7 +962,7 @@ func tmk_SourceBoundary(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 an
 	v.TSetRanges(0, trOne(f0), nil)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -971,7 +973,7 @@ func tmk_SourceComment(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tSourceComment)
 	v.Text = astString(f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -984,7 +986,7 @@ func tmk_SourceItem(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Next = rt.TAs[*types.SourceLead](f1)
 	v.TSetRanges(0, trOne(f0), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -998,7 +1000,7 @@ func tmk_SourceLead(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.HasNext = astBool(f2)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -1015,7 +1017,7 @@ func tmk_SourceMetadata(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 an
 	v.TSetRanges(2, trOne(f2), nil)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -1026,7 +1028,7 @@ func tmk_Stream(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tStream)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -1040,7 +1042,7 @@ func tmk_StructType(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Head = rt.TAs[*types.SourceLead](f2)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -1051,7 +1053,7 @@ func tmk_TupleType(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tTupleType)
 	v.Types = tl17(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -1067,7 +1069,7 @@ func tmk_TypeAlias(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -1079,7 +1081,7 @@ func tmk_TypeAliasBody(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -1092,7 +1094,7 @@ func tmk_TypeApp(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Args = tl17(a, f1)
 	v.TSetRanges(1, trOne(f1), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -1108,7 +1110,7 @@ func tmk_TypeDef(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 a
 	v.Source = rt.TAs[*types.SourceItem](f4)
 	v.TSetRanges(2, trOne(f2), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -1120,7 +1122,7 @@ func tmk_TypeDefBody(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv11(a, f0)
 	v.Type = rt.TAs[types.DefinedType](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -1131,7 +1133,7 @@ func tmk_TypeGroup(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tTypeGroup)
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -1142,7 +1144,7 @@ func tmk_TypeRef(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tTypeRef)
 	v.Name = tv11(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -1154,7 +1156,7 @@ func tmk_UnaryOp(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Op = astString(f0)
 	v.X = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -1171,7 +1173,7 @@ func tmk_VarDef(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 an
 	v.Source = rt.TAs[*types.SourceItem](f5)
 	v.TSetRanges(3, trOne(f3), nil)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4, f5)
@@ -1184,7 +1186,7 @@ func tmk_VarDefBody(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Type = rt.TAs[types.Type](rt.TPubIn(types.SXIRHooks, a, f1))
 	v.Value = rt.TAs[types.ActionExpr](rt.TPubIn(types.SXIRHooks, a, f2))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -1195,7 +1197,7 @@ func tmk_ZeroOrMore(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tZeroOrMore)
 	v.X = rt.TAs[types.RuleExpr](rt.TPubIn(types.SXIRHooks, a, f0))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -1669,11 +1671,11 @@ func tv17(a *tslabs, v any) *types.VarRef {
 	return rt.TMatchAs[types.VarRef](x)
 }
 
-func trOne(v any) rt.Span {
+func trOne(v any) sxirinput.Span {
 	if n, _ := v.(*rt.TSeq); n != nil {
 		return n.Span
 	}
-	return rt.Span{}
+	return sxirinput.Span{}
 }
 
 type tslabs struct {
@@ -1808,7 +1810,7 @@ func (a *tslabs) MemoryBytes() uint64 {
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (*types.File, error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (*types.File, error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) *types.File { a.result = true; return rt.TAs[*types.File](v) })
 }
@@ -1820,7 +1822,7 @@ func ParseValue(input string, opts ...rt.ParseOption) (*types.File, error) {
 //
 //	main: *types.File
 //	file: *types.File
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -29659,6 +29661,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_dbc7c7db6f001573
+const _ = types.SXIRSchema_25ea8d92a0d0cf50
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

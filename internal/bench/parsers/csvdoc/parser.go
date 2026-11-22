@@ -4,19 +4,24 @@
 package csvdoc
 
 import (
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
 // NewDocument creates an incremental Node document for the start rule main.
-func NewDocument(text string, opts ...rt.ParseOption) (*rt.Document, error) {
-	return rt.MakeDocument(rules[0], text, opts)
+func NewDocument(text string, opts ...sxirruntime.ParseOption) (sxirruntime.Document, error) {
+	d, err := rt.MakeDocument(rules[0], text, opts)
+	if err != nil {
+		return nil, err
+	}
+	return d, nil
 }
 
 var rules []*rt.Rule
@@ -24,7 +29,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -540,4 +545,4 @@ fail:
 	return nil, false
 }
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

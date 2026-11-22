@@ -136,6 +136,8 @@ func (ks *nodeTypeKinds) convertOwned(n *sxirvalue.Node) bool {
 
 // BaseNode returns the node n of a named node type as the string, tuple or list node it was
 // converted from: a copy with the kind of that node (n itself for other nodes).
+//
+// BaseNode is for generated parsers; not a stable API.
 func BaseNode(n *sxirvalue.Node) *sxirvalue.Node {
 	if !D(n).Kind.IsNodeType() {
 		return n
@@ -151,6 +153,8 @@ func BaseNode(n *sxirvalue.Node) *sxirvalue.Node {
 func (p *Parser) ActionNodeType(typ string) *nodeTypeKinds { return p.g.NodeTypes[typ] }
 
 // RawField returns the value of the field or capture name, whether or not it is public.
+//
+// RawField is for generated parsers; not a stable API.
 func RawField(n *sxirvalue.Node, name string) any {
 	if n == nil {
 		return nil
@@ -512,10 +516,14 @@ func (g *grammar) StartError(name string) error {
 	return fmt.Errorf("rule %s is not a start rule; parsing can begin only at a rule marked @start", name)
 }
 
-// ParseOption configures an individual parsing invocation. Options apply in order.
-type ParseOption func(*parseOptions)
-
+// parseOptions is the resolved state of the options of one invocation: the settings of the options
+// of package runtime (user), and what the library derives from them.
 type parseOptions struct {
+	// user holds the settings that the options of package runtime set. The fields below that
+	// derive from them (unit, context, limits, expectations, observe and the diagnostic ones) are
+	// set only by applyOptions, so that a Document applies the options of a parse over the user
+	// settings of its construction.
+	user     sxirruntime.ParseOptions
 	unit     sxirinput.PositionUnit
 	maxDepth int
 	context  context.Context
@@ -535,8 +543,8 @@ type parseOptions struct {
 	logical    bool
 	unitsLimit uint64
 	unitsCtx   context.Context
-	unitsOut   *uint64
-	memoOut    *string
+	// computeOut receives the units that the parse spent (WithComputeReport).
+	computeOut *uint64
 	// observe selects the observation of the parse (trace.go).
 	observe observeOptions
 	// streaming is set by the stream entry points, which alone accept the
@@ -547,47 +555,49 @@ type parseOptions struct {
 	diagnosticLimitSet bool
 }
 
-// WithUnit selects the unit of input positions (CodePoints by default).
-func WithUnit(unit sxirinput.PositionUnit) ParseOption {
-	return func(o *parseOptions) { o.unit = unit }
-}
-
-// WithExpectations makes the parse record what a syntax error expects and the messages of @error,
-// which the SyntaxError then lists. Without it the error carries the farthest failure position only.
-// A parser generated without expectations has no WithExpectations, and a parse that passes the
-// option through the library returns an error.
-func WithExpectations() ParseOption { return func(o *parseOptions) { o.expectations = true } }
-
-// WithContext selects cooperative cancellation for one invocation.
-// A nil context is equivalent to context.Background.
-func WithContext(ctx context.Context) ParseOption { return func(o *parseOptions) { o.context = ctx } }
-
-// WithLimits sets the limits of the invocation field by field: a nonzero field overrides the value
-// of an earlier WithLimits, including the construction defaults of a Document, and a zero field
-// leaves it unchanged. A field that no option sets takes its default; Unlimited disables a limit.
-// Counters are never rolled back.
-func WithLimits(limits sxirruntime.Limits) ParseOption {
-	return func(o *parseOptions) { o.limits = mergeLimits(o.limits, limits) }
+// applyOptions applies opts, in order, over the settings of o and derives the fields of o from
+// them. A generated parser implements the settings of the options of package runtime except
+// MissingTokens, which only the reference parser supports.
+func (o *parseOptions) applyOptions(opts []sxirruntime.ParseOption) error {
+	for _, opt := range opts {
+		opt(&o.user)
+	}
+	u := &o.user
+	if u.MissingTokens != 0 {
+		return fmt.Errorf("a generated parser does not support WithMissingTokens: only the reference parser inserts missing tokens")
+	}
+	o.unit, o.limits, o.expectations = u.Unit, u.Limits, u.Expectations
+	o.context, o.computeOut = u.Context, u.ComputeReport
+	o.diagnostic, o.diagnosticLimit, o.diagnosticLimitSet = u.DiagnosticCallback, u.DiagnosticLimit, u.DiagnosticLimitSet
+	o.observe = observeOf(u)
+	return nil
 }
 
 // ResolveOptions applies opts to the defaults of grammar g.
 //
 // ResolveOptions is for generated parsers; not a stable API.
-func ResolveOptions(g *grammar, opts []ParseOption) (parseOptions, error) {
+func ResolveOptions(g *grammar, opts []sxirruntime.ParseOption) (parseOptions, error) {
+	return resolveEntryOptions(g, opts, false)
+}
+
+// resolveEntryOptions is ResolveOptions for the entry points of a stream if streaming is set, which
+// alone accept the diagnostic options.
+func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming bool) (parseOptions, error) {
+	o := parseOptions{controls: !g.NoBudgetControls, logical: g.Logical, streaming: streaming}
 	if len(opts) == 0 {
-		return parseOptions{maxDepth: g.maxDepth, controls: !g.NoBudgetControls, logical: g.Logical}, nil
+		o.maxDepth = g.maxDepth
+		return o, nil
 	}
-	o := parseOptions{controls: !g.NoBudgetControls, logical: g.Logical}
-	for _, opt := range opts {
-		opt(&o)
+	if err := o.applyOptions(opts); err != nil {
+		return o, err
 	}
 	depth, err := resolveDepth(o.limits.Depth, g.maxDepth)
 	if err != nil {
 		return o, err
 	}
 	o.maxDepth = depth
-	if g.NoBudgetControls && (o.context != nil || !limitsDisabled(o.limits)) {
-		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext and a finite Compute or Memory limit)")
+	if g.NoBudgetControls && (o.context != nil || o.computeOut != nil || !limitsDisabled(o.limits)) {
+		return o, fmt.Errorf("this parser was generated without limit controls (-no-limits; generate it without that option to use WithContext, WithComputeReport and a finite Compute or Memory limit)")
 	}
 	if o.expectations && !g.Expectations {
 		return o, fmt.Errorf("this parser was generated without expectations (generate with -expectations to use WithExpectations)")
@@ -605,6 +615,9 @@ func ResolveOptions(g *grammar, opts []ParseOption) (parseOptions, error) {
 		if o.context != nil || !limitsDisabled(o.limits) {
 			useFeature(g, featureBudget)
 		}
+	}
+	if o.computeOut != nil {
+		*o.computeOut = 0 // a parse that is rejected before it starts spent nothing
 	}
 	return o, nil
 }
@@ -680,9 +693,27 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 				o.control.adaptive = adaptive
 			}
 		}
+		if o.control == nil && o.computeOut != nil && !(o.logical && !stream) {
+			// The parse only counts its units: a control with no bound.
+			o.control = newCountingControl(nil, sxirruntime.Limits{})
+		}
 	}
 	o.control.Check()
 	return o
+}
+
+// reportSpent stores in the report of o, if it has one, the units that its control has reserved. A
+// parse with logical units reports through its counter instead (unitsState.out), except a stream,
+// which does not count them.
+func (o parseOptions) reportSpent(stream bool) {
+	if o.computeOut == nil || o.logical && !stream {
+		return
+	}
+	if o.control == nil {
+		*o.computeOut = 0
+		return
+	}
+	*o.computeOut = o.control.budgetUsed() - o.control.doc // what a Compute limit counts, as LimitError.Used does
 }
 
 // prepareText is prepareOptions for the input text of a batch parse or a Document. It rejects a text
@@ -723,7 +754,7 @@ func recoverParse[T any](v *T, err *error) {
 // RunParse parses the whole input with rule r.
 //
 // RunParse is for generated parsers; not a stable API.
-func RunParse(r *Rule, input string, opts []ParseOption) (n *sxirvalue.Node, err error) {
+func RunParse(r *Rule, input string, opts []sxirruntime.ParseOption) (n *sxirvalue.Node, err error) {
 	o, err := ResolveOptions(r.g, opts)
 	if err != nil {
 		return nil, err
@@ -741,6 +772,7 @@ func RunParseResolved(r *Rule, input string, o parseOptions) (n *sxirvalue.Node,
 // from an ordinary nil result without inspecting caller-owned error values.
 func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Node, err error) {
 	o = prepareText(o, input)
+	defer o.reportSpent(false)
 	p, _ := ppool.Get().(*Parser)
 	if p == nil {
 		p = &Parser{}

@@ -93,7 +93,7 @@ func testGeneratedNamedValueScalarResults(t *testing.T) {
 		if err != nil {
 			t.Fatalf("%q: %v", tc.source, err)
 		}
-		if want := "func ParseValue(input string, opts ...rt.ParseOption) " + tc.want; !strings.Contains(string(out), want) {
+		if want := "func ParseValue(input string, opts ...sxirruntime.ParseOption) " + tc.want; !strings.Contains(string(out), want) {
 			t.Errorf("%q: no %q", tc.source, want)
 		}
 	}

@@ -230,11 +230,11 @@ import (
 	"os"
 	"strings"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 IMPORTS)
 
-var entries = []func(io.Reader, func(*sxirvalue.Node) error, ...sxirrt.ParseOption) error{
+var entries = []func(io.Reader, func(*sxirvalue.Node) error, ...sxirruntime.ParseOption) error{
 ENTRIES}
 
 func sum(v any) string {
@@ -276,11 +276,11 @@ func main() {
 				var elems []any
 				reads := 0
 				emit := func(n *sxirvalue.Node) error { elems = append(elems, [2]any{reads, n}); return nil }
-				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }))
+				err := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, emit, sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent) { events = append(events, e) }))
 				var prof sxirinstrument.Profile
 				reads = 0
 				elems2 := 0
-				perr := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, func(*sxirvalue.Node) error { elems2++; return nil }, sxirrt.WithProfile(&prof))
+				perr := entries[i](&reader{s: in, chunk: chunk, reads: &reads}, func(*sxirvalue.Node) error { elems2++; return nil }, sxirruntime.WithProfile(&prof))
 				snap := prof.Snapshot()
 				snap.Time = 0
 				for k := range snap.Rules {

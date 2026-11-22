@@ -27,8 +27,8 @@ import (
 	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -268,9 +268,9 @@ func TestWorkloads(t *testing.T) {
 func TestGeneratedDocumentAndStream(t *testing.T) {
 	type document interface {
 		Edit(start, end int, text string) error
-		Parse(...rt.ParseOption) (*value.Node, error)
+		Parse(...sxirruntime.ParseOption) (*value.Node, error)
 	}
-	check := func(t *testing.T, input, marker string, newDoc func(string) (document, error), parse func(string, ...rt.ParseOption) (*value.Node, error)) {
+	check := func(t *testing.T, input, marker string, newDoc func(string) (document, error), parse func(string, ...sxirruntime.ParseOption) (*value.Node, error)) {
 		at := utf8.RuneCountInString(input[:strings.Index(input, marker)+len(marker)])
 		doc, err := newDoc(input)
 		if err != nil {

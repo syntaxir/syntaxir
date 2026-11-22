@@ -4,6 +4,7 @@
 package types
 
 import (
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
@@ -13,21 +14,25 @@ import (
 // []any of the elements of a tuple or list.
 type TNode[T any] rt.TNode[T]
 
-// Error is input skipped by error recovery (#recover).
-type Error rt.Error
+// Error is input skipped by error recovery (#recover): the range of the skipped input and the message
+// of the error that recovery replaced.
+type Error struct {
+	sxirinput.Span
+	Message string
+}
 
 // SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
-	Error: func(e *rt.Error) any { return (*Error)(e) },
+	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
 	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
-			return (*rt.Error)(x)
+			return (*rt.TErrorValue)(x)
 		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
@@ -37,17 +42,19 @@ var SXIRHooks = &rt.TPubHooks{
 
 // Item is the struct type Item.
 type Item struct {
-	rt.Span
+	sxirinput.Span
 	Text     *TNode[string]
 	Children []*Item
 }
 
-func (v *Item) TName() string         { return "Item" }
-func (v *Item) TText() (string, bool) { return "", false }
-func (v *Item) TKids() []any          { return nil }
-func (v *Item) TStruct() bool         { return true }
-func (v *Item) TFresh() bool          { return false }
-func (v *Item) TSetFresh(bool)        {}
+func (v *Item) TName() string           { return "Item" }
+func (v *Item) TText() (string, bool)   { return "", false }
+func (v *Item) TSpan() (int, int)       { return v.Start, v.End }
+func (v *Item) TSetSpan(start, end int) { v.Start, v.End = start, end }
+func (v *Item) TKids() []any            { return nil }
+func (v *Item) TStruct() bool           { return true }
+func (v *Item) TFresh() bool            { return false }
+func (v *Item) TSetFresh(bool)          {}
 func (v *Item) TField(name string) (any, bool) {
 	switch name {
 	case "Text":
@@ -101,7 +108,7 @@ func (v *Item) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-// SXIRSchema_18b1586b9cea6061 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_e75e5689b88357fb ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_18b1586b9cea6061 = 0
+const SXIRSchema_e75e5689b88357fb = 0

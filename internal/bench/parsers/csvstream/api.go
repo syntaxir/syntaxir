@@ -7,7 +7,6 @@ import (
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -62,17 +61,16 @@ const CodePoints = sxirinput.CodePoints
 // Bytes counts positions in UTF-8 bytes.
 const Bytes = sxirinput.Bytes
 
-// ParseOption configures an individual parsing invocation. Options apply in order.
-type ParseOption = rt.ParseOption
+// ParseOption configures one parse, or the defaults of a Document.
+type ParseOption = sxirruntime.ParseOption
 
-// WithUnit selects the unit of input positions (CodePoints by default).
-func WithUnit(unit sxirinput.PositionUnit) ParseOption { return rt.WithUnit(unit) }
+// WithUnit selects the position unit. Matching always proceeds by code point, whatever the unit.
+func WithUnit(u sxirinput.PositionUnit) ParseOption { return sxirruntime.WithUnit(u) }
 
-// WithLimits sets the limits of the invocation field by field: a nonzero field overrides the value
+// WithLimits sets the invocation-local limits field by field: a nonzero field overrides the value
 // of an earlier WithLimits, including the construction defaults of a Document, and a zero field
 // leaves it unchanged. A field that no option sets takes its default; Unlimited disables a limit.
-// Counters are never rolled back.
-func WithLimits(limits sxirruntime.Limits) ParseOption { return rt.WithLimits(limits) }
+func WithLimits(l Limits) ParseOption { return sxirruntime.WithLimits(l) }
 
 // Limits bounds one parse invocation. A zero limit selects the default of that limit, and
 // Unlimited disables it.
@@ -188,9 +186,8 @@ func Walk(root *Node, visit func(WalkVisit) (WalkAction, error)) error {
 	return sxirvalue.Walk(root, visit)
 }
 
-// WithContext selects cooperative cancellation for one invocation.
-// A nil context is equivalent to context.Background.
-func WithContext(ctx context.Context) ParseOption { return rt.WithContext(ctx) }
+// WithContext selects invocation-local cooperative cancellation. Nil disables it.
+func WithContext(ctx context.Context) ParseOption { return sxirruntime.WithContext(ctx) }
 
 // StreamIterator advances synchronously to one committed element at a time.
 // It is single-owner: Next and Close must not overlap, including callbacks.
@@ -201,21 +198,21 @@ type StreamIterator = sxirruntime.StreamIterator
 // ErrStreamClosed is returned after an iterator is abandoned before termination.
 var ErrStreamClosed = sxirruntime.ErrStreamClosed
 
-// WithDiagnosticCallback reports each committed #recover error during ParseStream or Iterate,
-// immediately before the corresponding stream element. Recoveries in abandoned alternatives are not
-// reported. The callback receives an independent copy; returning an error stops parsing, suppresses
-// that element and is returned unchanged. A nil callback disables delivery. The option is invalid
-// with other entry points. Recoveries after the #stream repetition are reported before the result.
-// With or without this option, recovered errors remain available at the end of the stream.
+// WithDiagnosticCallback reports each committed #recover error during stream parsing,
+// immediately before the corresponding stream element. Speculative recoveries are not reported.
+// The callback receives an independent copy; returning an error stops parsing and suppresses that
+// element. A nil callback disables delivery. Non-nil callbacks are invalid with whole-input
+// parsing, prefix parsing and Documents. With or without this option, recovered errors remain
+// available at stream completion.
 func WithDiagnosticCallback(f func(*sxirvalue.SyntaxError) error) ParseOption {
-	return rt.WithDiagnosticCallback(f)
+	return sxirruntime.WithDiagnosticCallback(f)
 }
 
-// WithDiagnosticLimit retains at most n committed stream recoveries, keeping the latest ones.
-// Zero retains every error, as without the option. Negative values are invalid. The option,
-// including zero, is valid only with stream entry points. When errors are dropped, the result is
-// a *TruncatedSyntaxErrors.
-func WithDiagnosticLimit(n int) ParseOption { return rt.WithDiagnosticLimit(n) }
+// WithDiagnosticLimit retains at most n committed stream recoveries, keeping the latest errors.
+// Zero retains every error, as in an unconfigured stream parse. Negative values are invalid. This
+// option is valid only with stream parsing, including when n is zero. When errors are dropped,
+// the terminal error is *value.TruncatedSyntaxErrors.
+func WithDiagnosticLimit(n int) ParseOption { return sxirruntime.WithDiagnosticLimit(n) }
 
 // TruncatedSyntaxErrors is the incomplete result of a stream parsed with a positive diagnostic
 // limit. Errors is the retained tail in occurrence order. Saturated counts are lower bounds;

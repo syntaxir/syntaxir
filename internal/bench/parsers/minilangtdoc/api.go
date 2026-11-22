@@ -7,7 +7,6 @@ import (
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -62,17 +61,16 @@ const CodePoints = sxirinput.CodePoints
 // Bytes counts positions in UTF-8 bytes.
 const Bytes = sxirinput.Bytes
 
-// ParseOption configures an individual parsing invocation. Options apply in order.
-type ParseOption = rt.ParseOption
+// ParseOption configures one parse, or the defaults of a Document.
+type ParseOption = sxirruntime.ParseOption
 
-// WithUnit selects the unit of input positions (CodePoints by default).
-func WithUnit(unit sxirinput.PositionUnit) ParseOption { return rt.WithUnit(unit) }
+// WithUnit selects the position unit. Matching always proceeds by code point, whatever the unit.
+func WithUnit(u sxirinput.PositionUnit) ParseOption { return sxirruntime.WithUnit(u) }
 
-// WithLimits sets the limits of the invocation field by field: a nonzero field overrides the value
+// WithLimits sets the invocation-local limits field by field: a nonzero field overrides the value
 // of an earlier WithLimits, including the construction defaults of a Document, and a zero field
 // leaves it unchanged. A field that no option sets takes its default; Unlimited disables a limit.
-// Counters are never rolled back.
-func WithLimits(limits sxirruntime.Limits) ParseOption { return rt.WithLimits(limits) }
+func WithLimits(l Limits) ParseOption { return sxirruntime.WithLimits(l) }
 
 // Limits bounds one parse invocation. A zero limit selects the default of that limit, and
 // Unlimited disables it.
@@ -188,15 +186,20 @@ func Walk(root *Node, visit func(WalkVisit) (WalkAction, error)) error {
 	return sxirvalue.Walk(root, visit)
 }
 
-// WithContext selects cooperative cancellation for one invocation.
-// A nil context is equivalent to context.Background.
-func WithContext(ctx context.Context) ParseOption { return rt.WithContext(ctx) }
+// WithContext selects invocation-local cooperative cancellation. Nil disables it.
+func WithContext(ctx context.Context) ParseOption { return sxirruntime.WithContext(ctx) }
 
 // ParseStats counts the rule evaluations and reuses of the last parse. Reused is MemoHits plus
 // ResumedElements.
 type ParseStats = sxirruntime.ParseStats
 
-// Span is the range of input a typed value covers, in the parse's position unit (End is exclusive).
-//
-// Of its fields and methods, TSetSpan, TSpan are for generated parsers; not a stable API.
-type Span = rt.Span
+// CacheStats describes the incremental history a Document retains. EstimatedBytes includes
+// backing buffers and run records, but excludes map buckets, allocator metadata, the document
+// text, result trees, shared expectation, error and environment payloads, and strings shared with
+// results the caller holds.
+type CacheStats = sxirruntime.CacheStats
+
+// Span is a range [Start, End) of the input, in the position unit of the parse that produced
+// it; End is exclusive. The typed values of a generated parser embed it to report the input they
+// cover.
+type Span = sxirinput.Span

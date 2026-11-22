@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strings"
+	"sync/atomic"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
@@ -25,25 +26,22 @@ type unitsState struct {
 	limit uint64 // the resolved compute limit; 0 sets none
 	ctx   context.Context
 	ctxAt uint64  // the count at which the next check observes the context
-	out   *uint64 // where the end of the parse reports the count (WithUnitsReport)
-	memo  *string // where the end of the parse reports the memo (WithMemoReport)
+	out   *uint64 // where the end of the parse reports the count (WithComputeReport)
+	memo  *string // where the end of the parse reports the memo (SetMemoReport)
 }
 
-// WithUnitsReport makes a parse with logical units store its count in *out when it ends, whether it
-// succeeds, fails or is stopped by a limit. It is for tests and measurements; not a stable
-// API.
-func WithUnitsReport(out *uint64) ParseOption {
-	return func(o *parseOptions) { o.unitsOut = out }
-}
+// memoReport is where the next parse with logical units stores the state of its memo (SetMemoReport).
+var memoReport atomic.Pointer[string]
 
-// WithMemoReport makes a parse with logical units store in *out, when it ends without being stopped,
-// the state of its memo that later calls read: the policy counts of each rule, the positions where
-// each rule was called (the seen marks) and the stored entries, each chain in its order. It is for
-// the tests of logical units, which compare it between parsers that must leave the same state; not
-// a stable API.
-func WithMemoReport(out *string) ParseOption {
-	return func(o *parseOptions) { o.memoOut = out }
-}
+// SetMemoReport makes the parses that start after it, and that count logical units, store in *out,
+// when they end without being stopped, the state of their memo that later calls read: the policy
+// counts of each rule, the positions where each rule was called (the seen marks) and the stored
+// entries, each chain in its order. A nil out stops the reports. It is a hook for the tests of
+// logical units, which compare the memo between parsers that must leave the same state: it holds
+// one destination for the whole process, so a test that uses it runs no parse beside it.
+//
+// SetMemoReport is for generated parsers; not a stable API.
+func SetMemoReport(out *string) { memoReport.Store(out) }
 
 // startUnits starts the counter of a parse with the options o.
 func (p *Parser) startUnits(o parseOptions) {
@@ -53,7 +51,7 @@ func (p *Parser) startUnits(o parseOptions) {
 		return
 	}
 	p.Units = 0
-	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, ctxAt: budgetCheckInterval, out: o.unitsOut, memo: o.memoOut}
+	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, ctxAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
 	if p.units.ctx != nil {
 		if p.units.ctx.Done() == nil {
 			p.units.ctx = nil
@@ -526,7 +524,7 @@ func (p *TParser) UnitsOfItems(v any, k int) {
 	}
 }
 
-// reportMemo stores the report of WithMemoReport, with the lines of the entries of the memo that
+// reportMemo stores the report of SetMemoReport, with the lines of the entries of the memo that
 // the parse stored them in.
 func (p *Parser) reportMemo(entries []string) {
 	if !p.units.on || p.units.memo == nil {
@@ -567,7 +565,7 @@ func (t *memoTable) isSeen(pos, s int) bool {
 	return i>>6 < len(t.seen) && t.seen[i>>6]&(uint64(1)<<(i&63)) != 0
 }
 
-// memoLines returns the lines of the report of WithMemoReport for the entries of the memo of a
+// memoLines returns the lines of the report of SetMemoReport for the entries of the memo of a
 // Node parse: per position, its chain in order, with the number of Document edits each entry
 // accounts for.
 func (p *Parser) memoLines() []string {

@@ -39,7 +39,7 @@ func testGeneratedLookaheadHasNoFirstTerminal(t *testing.T) {
 	for _, pkg := range []string{"g", "l"} {
 		codegentest.GeneratePackage(t, dir, pkg, mustParse(codegentest.LookaheadFirstSrc), common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, NoLimitControls: pkg != "l"})
 		imports.WriteString("\t\"codegentest/" + pkg + "\"\n")
-		for _, op := range []string{"_, err := %s.Parse(\"bc\", sxirrt.WithProfile(&p))", "_, err := %s.ParseValue(\"bc\", sxirrt.WithProfile(&p))", "err := %s.Recognize(\"bc\", sxirrt.WithProfile(&p))"} {
+		for _, op := range []string{"_, err := %s.Parse(\"bc\", sxirruntime.WithProfile(&p))", "_, err := %s.ParseValue(\"bc\", sxirruntime.WithProfile(&p))", "err := %s.Recognize(\"bc\", sxirruntime.WithProfile(&p))"} {
 			calls.WriteString("\t{ var p sxirinstrument.Profile; " + strings.ReplaceAll(op, "%s", pkg) + "; fmt.Print(evals(p, err), \" \") }\n")
 		}
 	}
@@ -48,7 +48,7 @@ func testGeneratedLookaheadHasNoFirstTerminal(t *testing.T) {
 import (
 	"fmt"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 ` + imports.String() + `)
 

@@ -15,7 +15,6 @@ import (
 	gxmlplain "syntaxir.dev/sxir/internal/bench/parsers/xmlplain"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -26,22 +25,22 @@ import (
 type logicalCase struct {
 	name   string
 	input  string
-	parse  func(string, ...rt.ParseOption) (*value.Node, error)
-	value  func(string, ...rt.ParseOption) (any, error)
-	plain  func(string, ...rt.ParseOption) (*value.Node, error)
-	plainV func(string, ...rt.ParseOption) (any, error)
-	today  func(string, ...rt.ParseOption) (*value.Node, error)
-	todayV func(string, ...rt.ParseOption) (any, error)
+	parse  func(string, ...sxirruntime.ParseOption) (*value.Node, error)
+	value  func(string, ...sxirruntime.ParseOption) (any, error)
+	plain  func(string, ...sxirruntime.ParseOption) (*value.Node, error)
+	plainV func(string, ...sxirruntime.ParseOption) (any, error)
+	today  func(string, ...sxirruntime.ParseOption) (*value.Node, error)
+	todayV func(string, ...sxirruntime.ParseOption) (any, error)
 }
 
 func logicalCases(scale int) []logicalCase {
 	return []logicalCase{
-		{"JSON", inputs.JSONInput(256 << 10 / scale), gjsonlogical.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gjsonlogical.ParseValue(s, o...) },
-			gjsonplain.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gjsonplain.ParseValue(s, o...) },
-			gjson.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gjson.ParseValue(s, o...) }},
-		{"XML", inputs.XMLInput(256 << 10 / scale), gxmllogical.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gxmllogical.ParseValue(s, o...) },
-			gxmlplain.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gxmlplain.ParseValue(s, o...) },
-			gxml.Parse, func(s string, o ...rt.ParseOption) (any, error) { return gxml.ParseValue(s, o...) }},
+		{"JSON", inputs.JSONInput(256 << 10 / scale), gjsonlogical.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gjsonlogical.ParseValue(s, o...) },
+			gjsonplain.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gjsonplain.ParseValue(s, o...) },
+			gjson.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gjson.ParseValue(s, o...) }},
+		{"XML", inputs.XMLInput(256 << 10 / scale), gxmllogical.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gxmllogical.ParseValue(s, o...) },
+			gxmlplain.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gxmlplain.ParseValue(s, o...) },
+			gxml.Parse, func(s string, o ...sxirruntime.ParseOption) (any, error) { return gxml.ParseValue(s, o...) }},
 	}
 }
 
@@ -51,19 +50,19 @@ func TestLogicalUnitsAgree(t *testing.T) {
 	for _, c := range logicalCases(16) {
 		for un, unit := range logicalUnitsOf {
 			var nu, vu uint64
-			n, err := c.parse(c.input, rt.WithUnit(unit), rt.WithUnitsReport(&nu), rt.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited}))
+			n, err := c.parse(c.input, sxirruntime.WithUnit(unit), sxirruntime.WithComputeReport(&nu), sxirruntime.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited}))
 			if err != nil {
 				t.Fatal(c.name, un, err)
 			}
-			want, err := c.plain(c.input, rt.WithUnit(unit))
+			want, err := c.plain(c.input, sxirruntime.WithUnit(unit))
 			if err != nil || n.String() != want.String() {
 				t.Fatal(c.name, un, "Parse differs from the parser without limit controls", err)
 			}
-			v, err := c.value(c.input, rt.WithUnit(unit), rt.WithUnitsReport(&vu), rt.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited}))
+			v, err := c.value(c.input, sxirruntime.WithUnit(unit), sxirruntime.WithComputeReport(&vu), sxirruntime.WithLimits(sxirruntime.Limits{Compute: sxirruntime.Unlimited}))
 			if err != nil {
 				t.Fatal(c.name, un, err)
 			}
-			wantV, err := c.plainV(c.input, rt.WithUnit(unit))
+			wantV, err := c.plainV(c.input, sxirruntime.WithUnit(unit))
 			if err != nil || !sameJSON(t, v, wantV) {
 				t.Fatal(c.name, un, "ParseValue differs from the parser without limit controls", err)
 			}
@@ -74,17 +73,17 @@ func TestLogicalUnitsAgree(t *testing.T) {
 			// The limit accepts at the count and rejects one below it, with the count at the check.
 			for _, f := range []struct {
 				name  string
-				run   func(...rt.ParseOption) error
+				run   func(...sxirruntime.ParseOption) error
 				total uint64
 			}{
-				{"Parse", func(o ...rt.ParseOption) error { _, err := c.parse(c.input, o...); return err }, nu},
-				{"ParseValue", func(o ...rt.ParseOption) error { _, err := c.value(c.input, o...); return err }, vu},
+				{"Parse", func(o ...sxirruntime.ParseOption) error { _, err := c.parse(c.input, o...); return err }, nu},
+				{"ParseValue", func(o ...sxirruntime.ParseOption) error { _, err := c.value(c.input, o...); return err }, vu},
 			} {
-				if err := f.run(rt.WithUnit(unit), rt.WithLimits(sxirruntime.Limits{Compute: f.total})); err != nil {
+				if err := f.run(sxirruntime.WithUnit(unit), sxirruntime.WithLimits(sxirruntime.Limits{Compute: f.total})); err != nil {
 					t.Fatal(c.name, un, f.name, "rejected at its count", err)
 				}
 				var used uint64
-				err := f.run(rt.WithUnit(unit), rt.WithLimits(sxirruntime.Limits{Compute: f.total - 1}), rt.WithUnitsReport(&used))
+				err := f.run(sxirruntime.WithUnit(unit), sxirruntime.WithLimits(sxirruntime.Limits{Compute: f.total - 1}), sxirruntime.WithComputeReport(&used))
 				var le *sxirruntime.LimitError
 				if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute || le.Used <= le.Limit {
 					t.Fatal(c.name, un, f.name, "not rejected one below its count", err)
@@ -94,7 +93,7 @@ func TestLogicalUnitsAgree(t *testing.T) {
 			// A canceled context stops the parse.
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
-			if _, err := c.parse(c.input, rt.WithUnit(unit), rt.WithContext(ctx)); !errors.Is(err, context.Canceled) {
+			if _, err := c.parse(c.input, sxirruntime.WithUnit(unit), sxirruntime.WithContext(ctx)); !errors.Is(err, context.Canceled) {
 				t.Fatal(c.name, un, "canceled context not seen", err)
 			}
 		}

@@ -31,7 +31,7 @@ func (prog *Program) admitParse(start string, o ParseOptions, f state.Family, st
 	if err := state.CheckInput(lim, text, o.Unit); err != nil {
 		return nil, nil, nil, err
 	}
-	if o.Context == nil && lim.Compute == 0 && lim.Memory == 0 {
+	if o.Context == nil && lim.Compute == 0 && lim.Memory == 0 && o.ComputeReport == nil {
 		if o.Recognize {
 			if _, err := prog.preflightRule(o.Backend, start, stream); err != nil {
 				return nil, nil, nil, err
@@ -65,6 +65,9 @@ func (prog *Program) admitParse(start string, o ParseOptions, f state.Family, st
 		}
 	}
 	c := state.NewBudgetControl(o.Context, lim)
+	if c == nil && o.ComputeReport != nil {
+		c = state.NewReportControl(lim) // it counts, and limits nothing
+	}
 	if !state.BudgetControlsEnabled && c != nil {
 		return nil, nil, nil, state.ErrNoControls
 	}

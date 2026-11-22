@@ -30,8 +30,8 @@ import "syntaxir.dev/sxir/pkg/runtime/value/impl"
 // valueimpl's testdata/representation.golden records), valueimpl replaces its constant with the one of
 // that version, and the library refers to the new constant.
 
-// Protocol27 is declared because the library implements protocol version 27.
-const Protocol27 = 27
+// Protocol28 is declared because the library implements protocol version 28.
+const Protocol28 = 28
 
 // The node representation of protocol version 15, which value/impl must serve.
 const _ = valueimpl.Protocol15

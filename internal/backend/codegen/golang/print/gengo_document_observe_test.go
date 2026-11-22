@@ -84,6 +84,10 @@ func TestGeneratedDocumentObservation(t *testing.T) {
 				typed = `routes=append(routes,func(d *Document,opts ...ParseOption)(any,error){return d.ParseValue(opts...) });referenceRoutes=append(referenceRoutes,func(d *reference.Document)(any,error){return d.ParseValue()})`
 			}
 			consumer := strings.NewReplacer("PACKAGE", name, "INPUT", fmt.Sprintf("%q", f.input), "TYPED", typed, "PLAIN", fmt.Sprint(f.name == "plain"), "LOOKAHEAD", fmt.Sprint(f.name == "lookahead")).Replace(generatedDocumentObservationConsumer)
+			if route == "node" {
+				// Without typed values the generated NewDocument returns runtime.Document, an interface.
+				consumer = strings.NewReplacer("*Document", "Document", "*reference.Document", "reference.Document").Replace(consumer)
+			}
 			write(name+"/observation_test.go", consumer+generatedProfileCheck)
 		}
 	}
@@ -97,6 +101,7 @@ func TestGeneratedDocumentObservation(t *testing.T) {
 const generatedDocumentObservationConsumer = `package PACKAGE
 
 import sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+import sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 import sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 
 import(
@@ -134,26 +139,26 @@ func TestDocumentCalls(t *testing.T){
  TYPED
  for i,parse:=range routes{for _,unit:=range []PositionUnit{CodePoints,Bytes}{
   source:=testInput();d,err:=NewDocument(source,WithUnit(unit));if err!=nil{t.Fatal(err)};ref,err:=reference.NewDocument(source,reference.WithUnit(reference.PositionUnit(unit)));if err!=nil{t.Fatal(err)}
-  run:=func(warm bool){t.Helper();var profile sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;var kept []keptExamined;examinedHook=func(rule string,pos,level,examined int,hit bool){kept=append(kept,keptExamined{len(events),sxirinstrument.TraceEvent{Rule:rule,Pos:pos,Level:level,Examined:examined,Memo:hit}})};v,gotErr:=parse(d,sxirrt.WithProfile(&profile),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));examinedHook=nil;checkExamined(t,events,kept);if LOOKAHEAD{for _,e:=range events{if e.Kind==sxirinstrument.TraceExit&&e.Rule=="part"&&!e.Memo&&e.Examined>e.Pos+2{t.Fatal("call examined end includes its caller's lookahead",e)}}};want,wantErr:=referenceRoutes[i](ref);documentEqual(t,v,want);documentEqual(t,gotErr,wantErr);eventStats(t,d,&profile,events);if warm&&(len(events)!=2||events[1].Kind!=sxirinstrument.TraceExit||!events[1].Memo||events[1].Evals!=0||profile.Snapshot().Calls!=1){t.Fatal("warm parse replayed old calls",events,profile.Snapshot())};released(t)}
+  run:=func(warm bool){t.Helper();var profile sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;var kept []keptExamined;examinedHook=func(rule string,pos,level,examined int,hit bool){kept=append(kept,keptExamined{len(events),sxirinstrument.TraceEvent{Rule:rule,Pos:pos,Level:level,Examined:examined,Memo:hit}})};v,gotErr:=parse(d,sxirruntime.WithProfile(&profile),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));examinedHook=nil;checkExamined(t,events,kept);if LOOKAHEAD{for _,e:=range events{if e.Kind==sxirinstrument.TraceExit&&e.Rule=="part"&&!e.Memo&&e.Examined>e.Pos+2{t.Fatal("call examined end includes its caller's lookahead",e)}}};want,wantErr:=referenceRoutes[i](ref);documentEqual(t,v,want);documentEqual(t,gotErr,wantErr);eventStats(t,d,&profile,events);if warm&&(len(events)!=2||events[1].Kind!=sxirinstrument.TraceExit||!events[1].Memo||events[1].Evals!=0||profile.Snapshot().Calls!=1){t.Fatal("warm parse replayed old calls",events,profile.Snapshot())};released(t)}
   run(false);run(true)
   _,size:=utf8.DecodeLastRuneInString(source);start,end:=utf8.RuneCountInString(source)-1,utf8.RuneCountInString(source);if unit==Bytes{start,end=len(source)-size,len(source)}
   if err:=d.Edit(start,end,source[len(source)-size:]);err!=nil{t.Fatal(err)};if err:=ref.Edit(start,end,source[len(source)-size:]);err!=nil{t.Fatal(err)}
   run(false);if PLAIN&&d.Stats().Reused==0{t.Fatal("unchanged prefix not reused")};run(true)
   for _,text:=range []string{"\x00",source}{n:=utf8.RuneCountInString(d.Text());if unit==Bytes{n=len(d.Text())};if err:=d.Edit(0,n,text);err!=nil{t.Fatal(err)};if err:=ref.Edit(0,n,text);err!=nil{t.Fatal(err)};run(false);run(true)}
-  var warmProfile sxirinstrument.Profile;var warmEvents []sxirinstrument.TraceEvent;parse(d,sxirrt.WithProfile(&warmProfile),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){warmEvents=append(warmEvents,e)}),WithLimits(Limits{Compute:100000}));eventStats(t,d,&warmProfile,warmEvents)
+  var warmProfile sxirinstrument.Profile;var warmEvents []sxirinstrument.TraceEvent;parse(d,sxirruntime.WithProfile(&warmProfile),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){warmEvents=append(warmEvents,e)}),WithLimits(Limits{Compute:100000}));eventStats(t,d,&warmProfile,warmEvents)
   for _,marker:=range []any{new(int),sxirrt.X_fatal{errors.New("private fatal")},sxirrt.X_evalError{"private eval"},sxirrt.X_contextPanic{new(int)},sxirrt.X_tracePanic{new(int)}}{
   for _,controlled:=range []bool{false,true}{for _,kind:=range []sxirinstrument.TraceKind{sxirinstrument.TraceEnter,sxirinstrument.TraceExit}{
-   var interrupted sxirinstrument.Profile;opts:=[]ParseOption{sxirrt.WithProfile(&interrupted),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==kind{panic(marker)}})};if controlled{opts=append(opts,WithLimits(Limits{Compute:100000}))}
+   var interrupted sxirinstrument.Profile;opts:=[]ParseOption{sxirruntime.WithProfile(&interrupted),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==kind{panic(marker)}})};if controlled{opts=append(opts,WithLimits(Limits{Compute:100000}))}
    func(){defer func(){if recover()!=marker{t.Fatal("callback panic changed")}}();parse(d,opts...);t.Fatal("callback did not panic")}();a:=interrupted.Snapshot();if a.Entered!=1||kind==sxirinstrument.TraceEnter&&a.Calls!=0||kind==sxirinstrument.TraceExit&&a.Calls!=1{t.Fatal("aborted counters",a)};released(t)
-   var retry sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;parse(d,sxirrt.WithProfile(&retry),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("panic retained root memo",events)}
+   var retry sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;parse(d,sxirruntime.WithProfile(&retry),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("panic retained root memo",events)}
   }}}
-  ctx,cancel:=context.WithCancel(context.Background());v,err:=parse(d,WithContext(ctx),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==sxirinstrument.TraceEnter{cancel()}}));if v!=nil&&!reflect.ValueOf(v).IsZero()||!errors.Is(err,context.Canceled){t.Fatal("cancellation result",v,err)};released(t)
-  var retry sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;parse(d,sxirrt.WithProfile(&retry),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("cancel retained root memo",events)}
-  before:=d.Stats();ctx,cancel=context.WithCancel(context.Background());cancel();parse(d,WithContext(ctx),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){t.Fatal("pre-canceled event")}));if d.Stats()!=before{t.Fatal("pre-admission canceled invocation changed stats")}
+  ctx,cancel:=context.WithCancel(context.Background());v,err:=parse(d,WithContext(ctx),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind==sxirinstrument.TraceEnter{cancel()}}));if v!=nil&&!reflect.ValueOf(v).IsZero()||!errors.Is(err,context.Canceled){t.Fatal("cancellation result",v,err)};released(t)
+  var retry sxirinstrument.Profile;var events []sxirinstrument.TraceEvent;parse(d,sxirruntime.WithProfile(&retry),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("cancel retained root memo",events)}
+  before:=d.Stats();ctx,cancel=context.WithCancel(context.Background());cancel();parse(d,WithContext(ctx),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){t.Fatal("pre-canceled event")}));if d.Stats()!=before{t.Fatal("pre-admission canceled invocation changed stats")}
   released(t)
   length:=utf8.RuneCountInString(d.Text());if unit==Bytes{length=len(d.Text())};if err:=d.Edit(0,length,d.Text());err!=nil{t.Fatal(err)}
-  v,err=parse(d,WithLimits(Limits{Compute:1}),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){}));var interrupted *LimitError;if v!=nil&&!reflect.ValueOf(v).IsZero()||!errors.As(err,&interrupted)||interrupted.Kind!=LimitCompute{t.Fatal("budget result",v,err)};released(t)
-  retry=sxirinstrument.Profile{};events=nil;parse(d,sxirrt.WithProfile(&retry),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("budget interruption retained root memo",events)};released(t)
+  v,err=parse(d,WithLimits(Limits{Compute:1}),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){}));var interrupted *LimitError;if v!=nil&&!reflect.ValueOf(v).IsZero()||!errors.As(err,&interrupted)||interrupted.Kind!=LimitCompute{t.Fatal("budget result",v,err)};released(t)
+  retry=sxirinstrument.Profile{};events=nil;parse(d,sxirruntime.WithProfile(&retry),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}));eventStats(t,d,&retry,events);if events[len(events)-1].Memo{t.Fatal("budget interruption retained root memo",events)};released(t)
  }}
  if checkedExamined==0{t.Fatal("no memo examined end checked")}
 }
@@ -165,7 +170,7 @@ func TestDocumentObservationKeepsReuse(t *testing.T){
  _=referenceRoutes
  for _,parse:=range routes{for _,unit:=range []PositionUnit{CodePoints,Bytes}{
   source:=testInput();observed,err:=NewDocument(source,WithUnit(unit));if err!=nil{t.Fatal(err)};plain,err:=NewDocument(source,WithUnit(unit));if err!=nil{t.Fatal(err)}
-  step:=func(){t.Helper();var profile sxirinstrument.Profile;a,errA:=parse(observed,sxirrt.WithProfile(&profile),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){}));b,errB:=parse(plain);documentEqual(t,a,b);documentEqual(t,errA,errB);if observed.Stats()!=plain.Stats(){t.Fatal("observation changed reuse",observed.Stats(),plain.Stats())}}
+  step:=func(){t.Helper();var profile sxirinstrument.Profile;a,errA:=parse(observed,sxirruntime.WithProfile(&profile),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){}));b,errB:=parse(plain);documentEqual(t,a,b);documentEqual(t,errA,errB);if observed.Stats()!=plain.Stats(){t.Fatal("observation changed reuse",observed.Stats(),plain.Stats())}}
   step()
   var positions []int;for i:=range source{positions=append(positions,i)};positions=append(positions,len(source))
   for j,k:=range positions{if unit==CodePoints{k=j};if err:=observed.Edit(k,k,"");err!=nil{t.Fatal(err)};if err:=plain.Edit(k,k,"");err!=nil{t.Fatal(err)};step()}
@@ -173,30 +178,30 @@ func TestDocumentObservationKeepsReuse(t *testing.T){
  released(t)
 }
 func TestDocumentDefaultsAndIsolation(t *testing.T){
- var defaults sxirinstrument.Profile;var defaultEvents []sxirinstrument.TraceEvent;d,err:=NewDocument(testInput(),sxirrt.WithProfile(&defaults),sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){defaultEvents=append(defaultEvents,e)}));if err!=nil{t.Fatal(err)}
+ var defaults sxirinstrument.Profile;var defaultEvents []sxirinstrument.TraceEvent;d,err:=NewDocument(testInput(),sxirruntime.WithProfile(&defaults),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){defaultEvents=append(defaultEvents,e)}));if err!=nil{t.Fatal(err)}
  if defaults.Snapshot().Parses!=0||len(defaultEvents)!=0{t.Fatal("construction emitted calls")};d.Parse();if defaults.Snapshot().Parses!=1{t.Fatal("default profile unused")};n:=len(defaultEvents)
  // The options of a Parse add to the defaults, for that Parse only; nil options are ignored.
- var extra sxirinstrument.Profile;extraEvents:=0;d.Parse(sxirrt.WithProfile(nil),sxirrt.WithTrace(nil),sxirrt.WithProfile(&extra),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){extraEvents++}))
+ var extra sxirinstrument.Profile;extraEvents:=0;d.Parse(sxirruntime.WithProfile(nil),sxirruntime.WithTrace(nil),sxirruntime.WithProfile(&extra),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){extraEvents++}))
  if defaults.Snapshot().Parses!=2||extra.Snapshot().Parses!=1||extraEvents==0||len(defaultEvents)-n!=extraEvents{t.Fatalf("invocation options do not add to the defaults: %d default parses, %d added, %d events, %d added",defaults.Snapshot().Parses,extra.Snapshot().Parses,len(defaultEvents)-n,extraEvents)}
  n,added:=len(defaultEvents),extraEvents;d.Parse();if defaults.Snapshot().Parses!=3||len(defaultEvents)<=n||extra.Snapshot().Parses!=1||extraEvents!=added{t.Fatal("invocation options kept as defaults")};released(t)
  makeDoc:=func()*Document{d,err:=NewDocument(testInput());if err!=nil{t.Fatal(err)};return d}
- var unfiltered sxirinstrument.Profile;makeDoc().Parse(sxirrt.WithProfile(&unfiltered));for _,opts:=range [][]ParseOption{{sxirrt.WithTraceFilter("unknown")},{sxirrt.WithTraceMaxDepth(1)},{sxirrt.WithTraceFilter("main")}}{var filtered sxirinstrument.Profile;opts=append(opts,sxirrt.WithProfile(&filtered),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){}));makeDoc().Parse(opts...);if !reflect.DeepEqual(scalarProfile(unfiltered.Snapshot()),scalarProfile(filtered.Snapshot())){t.Fatal("profile depends on trace filter")}};released(t)
- var nested sxirinstrument.Profile;entered:=false;makeDoc().Parse(sxirrt.WithProfile(&nested),sxirrt.WithTrace(func(sxirinstrument.TraceEvent){if !entered{entered=true;other:=makeDoc();other.Parse(sxirrt.WithProfile(&nested));Parse(testInput(),sxirrt.WithProfile(&nested))}}));if nested.Snapshot().Parses!=3{t.Fatal("independent reentry lost")};released(t)
+ var unfiltered sxirinstrument.Profile;makeDoc().Parse(sxirruntime.WithProfile(&unfiltered));for _,opts:=range [][]ParseOption{{sxirruntime.WithTraceFilter("unknown")},{sxirruntime.WithTraceMaxDepth(1)},{sxirruntime.WithTraceFilter("main")}}{var filtered sxirinstrument.Profile;opts=append(opts,sxirruntime.WithProfile(&filtered),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){}));makeDoc().Parse(opts...);if !reflect.DeepEqual(scalarProfile(unfiltered.Snapshot()),scalarProfile(filtered.Snapshot())){t.Fatal("profile depends on trace filter")}};released(t)
+ var nested sxirinstrument.Profile;entered:=false;makeDoc().Parse(sxirruntime.WithProfile(&nested),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){if !entered{entered=true;other:=makeDoc();other.Parse(sxirruntime.WithProfile(&nested));Parse(testInput(),sxirruntime.WithProfile(&nested))}}));if nested.Snapshot().Parses!=3{t.Fatal("independent reentry lost")};released(t)
 }
 // A trace filter or depth limit given to one Parse replaces the Document's default for that Parse only.
 // Each Parse follows an Edit of the whole text, so that it makes every call again.
 func TestDocumentTraceSelection(t *testing.T){
  for _,unit:=range []PositionUnit{CodePoints,Bytes}{
-  var events []sxirinstrument.TraceEvent;record:=sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)})
+  var events []sxirinstrument.TraceEvent;record:=sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)})
   full:=func(d *Document,opts ...ParseOption)[]sxirinstrument.TraceEvent{t.Helper();n:=len(d.Text());if unit==CodePoints{n=utf8.RuneCountInString(d.Text())};if err:=d.Edit(0,n,testInput());err!=nil{t.Fatal(err)};events=nil;d.Parse(opts...);return events}
   ref,err:=NewDocument(testInput(),WithUnit(unit),record);if err!=nil{t.Fatal(err)}
-  d,err:=NewDocument(testInput(),WithUnit(unit),record,sxirrt.WithTraceFilter("main"),sxirrt.WithTraceMaxDepth(1));if err!=nil{t.Fatal(err)}
+  d,err:=NewDocument(testInput(),WithUnit(unit),record,sxirruntime.WithTraceFilter("main"),sxirruntime.WithTraceMaxDepth(1));if err!=nil{t.Fatal(err)}
   top:=func(all []sxirinstrument.TraceEvent)(out []sxirinstrument.TraceEvent){for _,e:=range all{if e.Depth==1{out=append(out,e)}};return}
   for i,step:=range []struct{opts []ParseOption;want func([]sxirinstrument.TraceEvent)[]sxirinstrument.TraceEvent}{
    {nil,top},
-   {[]ParseOption{sxirrt.WithTraceFilter("no such rule")},func([]sxirinstrument.TraceEvent)[]sxirinstrument.TraceEvent{return nil}},
+   {[]ParseOption{sxirruntime.WithTraceFilter("no such rule")},func([]sxirinstrument.TraceEvent)[]sxirinstrument.TraceEvent{return nil}},
    {nil,top},
-   {[]ParseOption{sxirrt.WithTraceMaxDepth(0)},func(all []sxirinstrument.TraceEvent)[]sxirinstrument.TraceEvent{return all}},
+   {[]ParseOption{sxirruntime.WithTraceMaxDepth(0)},func(all []sxirinstrument.TraceEvent)[]sxirinstrument.TraceEvent{return all}},
    {nil,top},
   }{
    all:=full(ref);if len(top(all))==0||len(top(all))==len(all){t.Fatal("no call below the start rule",all)}
@@ -216,7 +221,7 @@ func TestDocumentReentryRejected(t *testing.T){
   d,err:=NewDocument(testInput());if err!=nil{t.Fatal(err)}
   fresh,err:=NewDocument(testInput());if err!=nil{t.Fatal(err)};parse(fresh)
   var inner []error;text:=d.Text()
-  v,gotErr:=parse(d,sxirrt.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind!=kind||len(inner)!=0{return};for _,again:=range routes{_,err:=again(d);inner=append(inner,err);_,err=again(d,WithLimits(Limits{Depth: Unlimited}));inner=append(inner,err)};inner=append(inner,d.Edit(0,0,"x"))}))
+  v,gotErr:=parse(d,sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){if e.Kind!=kind||len(inner)!=0{return};for _,again:=range routes{_,err:=again(d);inner=append(inner,err);_,err=again(d,WithLimits(Limits{Depth: Unlimited}));inner=append(inner,err)};inner=append(inner,d.Edit(0,0,"x"))}))
   if len(inner)!=2*len(routes)+1{t.Fatal("callback did not run")}
   for _,err:=range inner{if !errors.Is(err,ErrDocumentBusy){t.Fatal("same-Document reentry was not rejected",err)}}
   want,wantErr:=referenceRoutes[i](ref);documentEqual(t,v,want);documentEqual(t,gotErr,wantErr)
@@ -224,7 +229,7 @@ func TestDocumentReentryRejected(t *testing.T){
   if d.Stats()!=fresh.Stats(){t.Fatal("rejected calls changed statistics",d.Stats(),fresh.Stats())}
   for j,again:=range routes{v,err:=again(d);want,wantErr:=referenceRoutes[j](ref);documentEqual(t,v,want);documentEqual(t,err,wantErr)}
   if err:=d.Edit(0,0,"");err!=nil{t.Fatal("edit after parse",err)}
-  func(){defer func(){recover()}();parse(d,sxirrt.WithTrace(func(sxirinstrument.TraceEvent){panic("stop")}))}()
+  func(){defer func(){recover()}();parse(d,sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){panic("stop")}))}()
   if _,err:=parse(d);errors.Is(err,ErrDocumentBusy){t.Fatal("callback panic left the Document busy")}
   if err:=d.Edit(0,0,"");err!=nil{t.Fatal(err)};parse(d,WithLimits(Limits{Compute:1}))
   if _,err:=parse(d);errors.Is(err,ErrDocumentBusy){t.Fatal("budget interruption left the Document busy")}
@@ -232,7 +237,7 @@ func TestDocumentReentryRejected(t *testing.T){
  }
  released(t)
 }
-func TestDocumentConcurrentIsolation(t *testing.T){var wg sync.WaitGroup;for range 4{wg.Go(func(){d,err:=NewDocument(testInput());if err!=nil{t.Error(err);return};var profile sxirinstrument.Profile;d.Parse(sxirrt.WithProfile(&profile));d.Parse(sxirrt.WithProfile(&profile));if profile.Snapshot().Parses!=2{t.Error("independent profile not accumulated")}})};wg.Wait();released(t)}
+func TestDocumentConcurrentIsolation(t *testing.T){var wg sync.WaitGroup;for range 4{wg.Go(func(){d,err:=NewDocument(testInput());if err!=nil{t.Error(err);return};var profile sxirinstrument.Profile;d.Parse(sxirruntime.WithProfile(&profile));d.Parse(sxirruntime.WithProfile(&profile));if profile.Snapshot().Parses!=2{t.Error("independent profile not accumulated")}})};wg.Wait();released(t)}
 `
 
 // observedLib returns a copy of the library that calls ProbeHook when an invocation starts

@@ -141,6 +141,12 @@ func newBudgetControl(ctx context.Context, limits sxirruntime.Limits) *BudgetCon
 	if ctx == nil && limits.Compute == 0 && limits.Memory == 0 {
 		return nil
 	}
+	return newCountingControl(ctx, limits)
+}
+
+// newCountingControl returns a control with the context ctx, which is nil or cancelable, and the
+// limits limits, bounded or not.
+func newCountingControl(ctx context.Context, limits sxirruntime.Limits) *BudgetControl {
 	c := &BudgetControl{ctx: ctx, limits: limits, polled: ctx != nil || limits.Memory != 0}
 	c.refill()
 	return c
@@ -580,6 +586,7 @@ func (p *Parser) hasLiteralPrefix(text string) bool {
 func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*sxirvalue.Node, *BudgetControl, error) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
+	defer o.reportSpent(false)
 	n, err := parseConversionInput(r, input, o)
 	o.control.Check()
 	res = conv(n, o.control, err)
@@ -619,6 +626,8 @@ type BudgetClass struct {
 }
 
 // NewBudgetClass returns the class of ranges, negated or not.
+//
+// NewBudgetClass is for generated parsers; not a stable API.
 func NewBudgetClass(ranges []BudgetRange, negated bool) *BudgetClass {
 	c := &BudgetClass{ranges: ranges, negated: negated}
 	if len(ranges) >= 1<<15 {

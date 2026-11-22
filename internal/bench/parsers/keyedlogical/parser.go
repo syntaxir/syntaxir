@@ -5,13 +5,15 @@ package keyedlogical
 
 import (
 	types "syntaxir.dev/sxir/internal/bench/parsers/keyedlogical/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule doc. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
@@ -20,7 +22,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -59,7 +61,7 @@ func tv1(a *tslabs, v any) *types.TNode[types.Tuple1[*types.TNode[[]*types.TNode
 		s, e := x.TSpan()
 		text, _ := x.TText()
 		_ = text
-		out := &types.TNode[types.Tuple1[*types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]]]{Span: rt.Span{Start: s, End: e}}
+		out := &types.TNode[types.Tuple1[*types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]]]{Span: sxirinput.Span{Start: s, End: e}}
 		out.Value = tv2(a, text)
 		return out
 	}
@@ -96,7 +98,7 @@ func tv3(a *tslabs, v any) *types.TNode[[]*types.TNode[types.Tuple5[*types.TNode
 		s, e := x.TSpan()
 		text, _ := x.TText()
 		_ = text
-		out := &types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]{Span: rt.Span{Start: s, End: e}}
+		out := &types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]{Span: sxirinput.Span{Start: s, End: e}}
 		out.Value = tl0(a, text)
 		return out
 	}
@@ -144,7 +146,7 @@ func tv5(a *tslabs, v any) *types.TNode[types.Tuple5[*types.TNode[string], *type
 		s, e := x.TSpan()
 		text, _ := x.TText()
 		_ = text
-		out := &types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]{Span: rt.Span{Start: s, End: e}}
+		out := &types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]{Span: sxirinput.Span{Start: s, End: e}}
 		out.Value = tv6(a, text)
 		return out
 	}
@@ -190,7 +192,7 @@ func tv8(a *tslabs, v any) *types.TNode[[]any] {
 		s, e := x.TSpan()
 		text, _ := x.TText()
 		_ = text
-		out := &types.TNode[[]any]{Span: rt.Span{Start: s, End: e}}
+		out := &types.TNode[[]any]{Span: sxirinput.Span{Start: s, End: e}}
 		out.Value = tl1(a, text)
 		return out
 	}
@@ -216,7 +218,7 @@ func tv9(a *tslabs, v any) *types.TNode[[]*types.TNode[string]] {
 		s, e := x.TSpan()
 		text, _ := x.TText()
 		_ = text
-		out := &types.TNode[[]*types.TNode[string]]{Span: rt.Span{Start: s, End: e}}
+		out := &types.TNode[[]*types.TNode[string]]{Span: sxirinput.Span{Start: s, End: e}}
 		out.Value = tl2(a, text)
 		return out
 	}
@@ -295,7 +297,7 @@ func (a *tslabs) MemoryBytes() uint64 {
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (*types.TNode[types.Tuple1[*types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]]], error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (*types.TNode[types.Tuple1[*types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]]], error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) *types.TNode[types.Tuple1[*types.TNode[[]*types.TNode[types.Tuple5[*types.TNode[string], *types.TNode[[]*types.TNode[string]], *types.TNode[string], *types.TNode[[]any], *types.TNode[string]]]]]] {
 		a.result = true
@@ -309,7 +311,7 @@ func ParseValue(input string, opts ...rt.ParseOption) (*types.TNode[types.Tuple1
 // Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
 //
 //	doc: *TNode[Tuple1[*TNode[[]*TNode[Tuple5[*TNode[string], *TNode[[]*TNode[string]], *TNode[string], *TNode[[]any], *TNode[string]]]]]]
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -1295,6 +1297,6 @@ func s6(p *rt.TParser) (any, bool) {
 	return v, true
 }
 
-const _ = types.SXIRSchema_e1b1819193e5b76b
+const _ = types.SXIRSchema_a78c5dc69004a17f
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

@@ -98,7 +98,7 @@ rule n Word = t:(("(" n ")" / "é") #recover(skip="?")) #atomic => Word{Text: te
 				}
 			}
 			harness := `package ` + pkg + `
-import("fmt";"strings";"sync";"testing";sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo")
+import("fmt";"strings";"sync";"testing";sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo";sxirruntime "syntaxir.dev/sxir/pkg/runtime")
 func TestLimitsAndReuse(t *testing.T) {
  rows:=[]struct{name,input string;unit PositionUnit;limit int;want,recWant string}{` + rows.String() + `}
  for repeat:=0;repeat<3;repeat++ {for _,c:=range rows {
@@ -144,7 +144,7 @@ func TestConfiguration(t *testing.T) {
  if _,err:=Parse("?",WithLimits(Limits{Depth: 20}),bad);err==nil || !strings.Contains(err.Error(),"unlimited depth") {t.Fatal("last setting not applied")}
  if _,err:=Parse("?",WithLimits(Limits{Depth: uint64(int(^uint(0)>>1))}));err!=nil && strings.Contains(err.Error(),"unlimited depth") {t.Fatal("largest native int rejected")}
  called:=0
- option:=func(o *sxirrt.X_parseOptions){called++;o.X_limits.Depth=20;_,err:=Parse("?",WithLimits(Limits{Depth: 1}));_ = err}
+ option:=func(o *sxirruntime.ParseOptions){called++;o.Limits.Depth=20;_,err:=Parse("?",WithLimits(Limits{Depth: 1}));_ = err}
  Parse("?",option);ParseValue("?",option);Recognize("?",option)
  if called!=3 {t.Fatal("options retained or evaluated more than once")}
  for _,invoke:=range []func(){func(){Parse("?",nil)},func(){ParseRule("missing","?",nil)},func(){ParseValue("?",nil)},func(){Recognize("?",nil)}} {

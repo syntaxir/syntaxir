@@ -67,6 +67,10 @@ rule a A = t:("a") #atomic => A{Text: text($t)}`, "a+a+a+a"},
 			}
 			files[pkg+"/parser.go"] = string(code)
 			consumer := strings.ReplaceAll(generatedDocumentGrowthConsumer, "package fixture", "package "+pkg)
+			if !typed {
+				// Without typed values the generated NewDocument returns runtime.Document, an interface.
+				consumer = strings.ReplaceAll(consumer, "*Document", "Document")
+			}
 			files[pkg+"/parser_test.go"] = strings.ReplaceAll(consumer, "INPUT", fmt.Sprintf("%q", g.text))
 			files[pkg+"/route_test.go"] = "package " + pkg + route
 		}
@@ -92,8 +96,8 @@ const (
 	generatedDocumentNodeRoute = `
 import "testing"
 
-func interruptible(d *Document, opts ...ParseOption) error { _, err := d.Parse(opts...); return err }
-func matchesTyped(*testing.T, *Document, PositionUnit) {}
+func interruptible(d Document, opts ...ParseOption) error { _, err := d.Parse(opts...); return err }
+func matchesTyped(*testing.T, Document, PositionUnit) {}
 `
 	generatedDocumentTypedRoute = `
 import (
@@ -118,7 +122,7 @@ func matchesTyped(t *testing.T, d *Document, unit PositionUnit) {
 const generatedDocumentGrowthConsumer = `package fixture
 
 import (
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 	"context"
 	"encoding/json"
 	"errors"
@@ -187,7 +191,7 @@ func TestInterruptedGrowth(t *testing.T) {
 		for _, cause := range []string{"cancel", "panic"} {
 			grown := 0
 			_, err := interrupt(t, unit, func(cancel context.CancelFunc) []ParseOption {
-				return []ParseOption{sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) {
+				return []ParseOption{sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent) {
 					if e.Kind != sxirinstrument.TraceExit || !e.Memo || !e.Matched || e.Rule == "main" {
 						return
 					}

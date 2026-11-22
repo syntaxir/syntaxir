@@ -52,7 +52,7 @@ import (
 	"strings"
 	"testing"
 
-	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"; sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 func TestExamined(t *testing.T) {
@@ -62,7 +62,7 @@ func TestExamined(t *testing.T) {
 	}
 	var out strings.Builder
 	for i := 0; i < 2; i++ {
-		_, _ = d.PARSE(sxirrt.WithTrace(func(e sxirinstrument.TraceEvent) {
+		_, _ = d.PARSE(sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent) {
 			if e.Kind == sxirinstrument.TraceExit {
 				fmt.Fprintf(&out, "exit %s pos=%d memo=%v evals=%d examined=%d\n", e.Rule, e.Pos, e.Memo, e.Evals, e.Examined)
 			}

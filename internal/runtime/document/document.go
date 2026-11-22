@@ -116,6 +116,9 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 	if o.Unit != d.in.Unit || d.runner.SelectBackend(o.Backend) != d.back || o.Recognize || o.Expectations != d.defaults.Expectations {
 		return nil, fmt.Errorf("document parse cannot change unit, backend, recognition mode or expectations")
 	}
+	if o.ComputeReport != nil {
+		*o.ComputeReport = 0
+	}
 	var p *state.Parser
 	executionStarted := false
 	defer func() {
@@ -152,8 +155,14 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 		return nil, err
 	}
 	c := state.NewBudgetControl(o.Context, lim)
+	if c == nil && o.ComputeReport != nil {
+		c = state.NewReportControl(lim) // it counts, and limits nothing
+	}
 	if !state.BudgetControlsEnabled && c != nil {
 		return nil, state.ErrNoControls
+	}
+	if o.ComputeReport != nil {
+		defer func() { *o.ComputeReport = c.Used - c.Doc }()
 	}
 	c.Check()
 	if lim.Memory != 0 && d.retainedBytes() > lim.Memory {

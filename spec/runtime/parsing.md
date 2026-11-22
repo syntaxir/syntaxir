@@ -2624,6 +2624,24 @@ most 4 bytes) and must precede storing or using that character. Compute counts
 are implementation-specific and are not elapsed-time, memory, or buffered-input
 limits; the [memory limit](#memory-limit) counts bytes.
 
+### Reporting the Units Spent
+
+The option `runtime.WithComputeReport(out)` stores in `*out` the compute units
+that the invocation spent, when it ends: after a success, after a failure and
+after an interruption by a limit or by the context. They are the units used
+that [Reservations and Interruptions](#reservations-and-interruptions)
+define, so an invocation that succeeded with report r is accepted by a
+`Compute` limit of r, and one that stops at a `Compute` limit reports the
+units used when it stopped. An invocation that ends before it starts, because
+an option is invalid or the input is longer than the `Input` limit, stores
+zero. Every entry point that runs a parse reports, one that streams when its
+stream ends. The work that only a Document parse does (on pending edits,
+entries and moves) is no unit of the `Compute` limit and not of the report. The
+option turns the count on for an invocation that sets no limit and no context,
+and a nil `out` is the absence of the option. A generated Go parser takes it
+only if it was generated with limit controls, as it does a context or a finite
+`Compute` limit.
+
 ### Reservations and Interruptions
 
 The engine and generated Go parsers with limit controls count the work of an

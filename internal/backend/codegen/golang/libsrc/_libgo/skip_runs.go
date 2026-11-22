@@ -75,6 +75,8 @@ type walkKey struct {
 // the environment: Vars, those that its element reads or binds and those that the rules it calls
 // read, and Bind, those that it binds, which a walk that takes a record sets to the values the walk
 // of the record left in them.
+//
+// RunKey is for generated parsers; not a stable API.
 type RunKey struct {
 	Vars, Bind []int
 }

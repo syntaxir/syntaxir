@@ -5,8 +5,8 @@ import (
 
 	ghand "syntaxir.dev/sxir/internal/bench/parsers/handlogical"
 	gjsonlogical "syntaxir.dev/sxir/internal/bench/parsers/jsonlogical"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
-	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 )
 
 // TestLogicalHandCounts checks the counts of logical units of the JSON grammar against totals
@@ -38,8 +38,8 @@ func TestLogicalHandCounts(t *testing.T) {
 	} {
 		for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			var a, b uint64
-			_, err1 := gjsonlogical.Parse(c.in, rt.WithUnit(u), rt.WithUnitsReport(&a))
-			_, err2 := gjsonlogical.ParseValue(c.in, rt.WithUnit(u), rt.WithUnitsReport(&b))
+			_, err1 := gjsonlogical.Parse(c.in, sxirruntime.WithUnit(u), sxirruntime.WithComputeReport(&a))
+			_, err2 := gjsonlogical.ParseValue(c.in, sxirruntime.WithUnit(u), sxirruntime.WithComputeReport(&b))
 			if (err1 == nil) != (c.why != "10 calls + 1 error") || (err2 == nil) != (err1 == nil) {
 				t.Fatal(c.in, err1, err2)
 			}
@@ -68,7 +68,7 @@ func TestLogicalHandCountsActions(t *testing.T) {
 	} {
 		for _, u := range []sxirinput.PositionUnit{sxirinput.Bytes, sxirinput.CodePoints} {
 			var n uint64
-			if _, err := ghand.ParseRule(c.rule, c.in, rt.WithUnit(u), rt.WithUnitsReport(&n)); err != nil {
+			if _, err := ghand.ParseRule(c.rule, c.in, sxirruntime.WithUnit(u), sxirruntime.WithComputeReport(&n)); err != nil {
 				t.Fatal(c.rule, err)
 			}
 			if n != c.want {

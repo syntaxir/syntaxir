@@ -18,6 +18,7 @@ type PrefixResult struct {
 // and fatal errors return a zero result. Explicit EOF assertions still see the
 // entire supplied input.
 func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (result PrefixResult, err error) {
+	reportCompute(o, nil)
 	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
 		return PrefixResult{}, err
 	}
@@ -43,6 +44,7 @@ func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (resul
 	if err != nil {
 		return PrefixResult{}, err
 	}
+	defer reportCompute(o, control)
 	control.Check()
 	p := state.AcquirePooledParser(&active.sharedProgram)
 	defer p.ReleaseBatchScratch()

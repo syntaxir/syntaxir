@@ -71,9 +71,9 @@ func (t *TypedGen) rangeDecls(b *strings.Builder, name string) {
 	for _, f := range t.Info.Fields[name] {
 		switch t.rangeKind(f.Name, f.T) {
 		case rangeOne:
-			fmt.Fprintf(b, "\t%s %s.Span\n", t.rangeField(f.Name), libAlias)
+			fmt.Fprintf(b, "\t%s %s.Span\n", t.rangeField(f.Name), runtimeAliases["input"])
 		case rangeAll:
-			fmt.Fprintf(b, "\t%s []%s.Span\n", t.rangeField(f.Name), libAlias)
+			fmt.Fprintf(b, "\t%s []%s.Span\n", t.rangeField(f.Name), runtimeAliases["input"])
 		}
 	}
 }
@@ -96,7 +96,7 @@ func (t *TypedGen) rangeMethods(b *strings.Builder, name string) {
 	if set.Len() == 0 {
 		return
 	}
-	fmt.Fprintf(b, "// TSetRanges sets the ranges that the list or tuple of field i had where it was made.\nfunc (v *%[1]s) TSetRanges(i int, one %[2]s.Span, all []%[2]s.Span) {\n\tswitch i {\n%[3]s\t}\n}\n\n", name, libAlias, set.String())
+	fmt.Fprintf(b, "// TSetRanges sets the ranges that the list or tuple of field i had where it was made.\nfunc (v *%[1]s) TSetRanges(i int, one sxirinput.Span, all []sxirinput.Span) {\n\tswitch i {\n%[2]s\t}\n}\n\n", name, set.String())
 	fmt.Fprintf(b, "// TCopyRanges copies the ranges of the lists and tuples of from.\nfunc (v *%[1]s) TCopyRanges(from *%[1]s) {\n%[2]s}\n\n", name, cp.String())
 }
 
@@ -197,7 +197,7 @@ func (t *TypedGen) rangeFuncs(b *strings.Builder) {
 		fmt.Fprintf(b, "// %s appends the ranges of the lists and tuples in the value v, a value of type %s.\nfunc %[1]s(v any, rs []Span) []Span {\n", f.name, f.elem)
 		switch x := f.elem.(type) {
 		case types.ListTy:
-			b.WriteString("\tif v == nil {\n\t\treturn rs\n\t}\n\tn, _ := v.(*TSeq)\n\tif n == nil {\n\t\treturn append(rs, Span{})\n\t}\n\trs = append(rs, n.Span)\n")
+			b.WriteString("\tif v == nil {\n\t\treturn rs\n\t}\n\tn, _ := v.(*TSeq)\n\tif n == nil {\n\t\treturn append(rs, sxirinput.Span{})\n\t}\n\trs = append(rs, n.Span)\n")
 			if carrierTy(x.Elem) {
 				fmt.Fprintf(b, "\tfor _, c := range n.Kids {\n\t\trs = %s(c, rs)\n\t}\n", t.rangeFunc(x.Elem))
 			}
@@ -207,9 +207,9 @@ func (t *TypedGen) rangeFuncs(b *strings.Builder) {
 				nested = nested || carrierTy(e)
 			}
 			if nested {
-				b.WriteString("\tn, _ := v.(*TSeq)\n\tvar sp Span\n\tvar kids []any\n\tif n != nil {\n\t\tsp, kids = n.Span, n.Kids\n\t}\n\trs = append(rs, sp)\n")
+				b.WriteString("\tn, _ := v.(*TSeq)\n\tvar sp sxirinput.Span\n\tvar kids []any\n\tif n != nil {\n\t\tsp, kids = n.Span, n.Kids\n\t}\n\trs = append(rs, sp)\n")
 			} else {
-				b.WriteString("\tn, _ := v.(*TSeq)\n\tvar sp Span\n\tif n != nil {\n\t\tsp = n.Span\n\t}\n\trs = append(rs, sp)\n")
+				b.WriteString("\tn, _ := v.(*TSeq)\n\tvar sp sxirinput.Span\n\tif n != nil {\n\t\tsp = n.Span\n\t}\n\trs = append(rs, sp)\n")
 			}
 			for i, e := range x.Elems {
 				if carrierTy(e) {
@@ -230,7 +230,7 @@ func (t *TypedGen) rangeStatements(name string) string {
 		case rangeOne:
 			fmt.Fprintf(&b, "\tv.TSetRanges(%d, trOne(f%[1]d), nil)\n", i)
 		case rangeAll:
-			fmt.Fprintf(&b, "\tv.TSetRanges(%d, Span{}, %s(f%[1]d, nil))\n", i, t.rangeFunc(f.T))
+			fmt.Fprintf(&b, "\tv.TSetRanges(%d, sxirinput.Span{}, %s(f%[1]d, nil))\n", i, t.rangeFunc(f.T))
 		}
 	}
 	return b.String()
@@ -258,18 +258,18 @@ func (t *TypedGen) rangeHelpers(b *strings.Builder) {
 // only those that are not nil. A field whose lists and tuples hold no list or tuple stores the one range in
 // One; a field of nested lists and tuples stores them all in All.
 type sxirRangeCursor struct {
-	One rt.Span
-	All []rt.Span
+	One sxirinput.Span
+	All []sxirinput.Span
 	I   int
 }
 
 // Next returns the next range; a cursor that has none left hands out the empty range at 0.
-func (c *sxirRangeCursor) Next() rt.Span {
+func (c *sxirRangeCursor) Next() sxirinput.Span {
 	if c.All == nil {
 		return c.One
 	}
 	if c.I >= len(c.All) {
-		return rt.Span{}
+		return sxirinput.Span{}
 	}
 	r := c.All[c.I]
 	c.I++
@@ -277,12 +277,12 @@ func (c *sxirRangeCursor) Next() rt.Span {
 }
 
 // sxirListAt returns the list value of kids with the range r that the list had where it was made.
-func sxirListAt(kids []any, r rt.Span) any {
+func sxirListAt(kids []any, r sxirinput.Span) any {
 	return &rt.TSeq{Typ: rt.TypeListValue, Kids: kids, Span: r}
 }
 
 // sxirListFieldAt is sxirListAt that charges a step for each element (TParser.ListField).
-func sxirListFieldAt(p *rt.TParser, kids []any, r rt.Span) any {
+func sxirListFieldAt(p *rt.TParser, kids []any, r sxirinput.Span) any {
 	n := p.ListField(kids).(*rt.TSeq)
 	n.Span = r
 	return n

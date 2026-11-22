@@ -5,13 +5,15 @@ package xmlevent
 
 import (
 	types "syntaxir.dev/sxir/internal/bench/parsers/xmlevent/types"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
@@ -20,7 +22,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -119,7 +121,7 @@ func tmk_AttDef(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any) any {
 	v.Default = tv8(a, f2)
 	v.Value = tv0(a, f3)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3)
@@ -131,7 +133,7 @@ func tmk_AttlistDecl(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv9(a, f0)
 	v.Defs = tl0(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -143,7 +145,7 @@ func tmk_Attribute(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv9(a, f0)
 	v.Value = tv0(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -155,7 +157,7 @@ func tmk_Choice(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Items = tl1(a, f0)
 	v.Occur = tv11(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -168,7 +170,7 @@ func tmk_Doctype(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.ExternalID = rt.TAs[*types.ExternalID](f1)
 	v.Subset = tl2(a, f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -183,7 +185,7 @@ func tmk_Document(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f4 
 	v.Root = rt.TAs[*types.Element](f3)
 	v.Epilog = tl3(a, f4)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -196,7 +198,7 @@ func tmk_Element(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Attrs = tl4(a, f1)
 	v.Content = tl5(a, f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -208,7 +210,7 @@ func tmk_ElementDecl(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv9(a, f0)
 	v.Content = rt.TAs[types.ContentSpec](rt.TPubIn(types.SXIRHooks, a, f1))
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -223,7 +225,7 @@ func tmk_EntityDecl(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any, f3 any, f
 	v.ExternalID = rt.TAs[*types.ExternalID](f3)
 	v.NData = tv9(a, f4)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2, f3, f4)
@@ -234,7 +236,7 @@ func tmk_Enumeration(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tEnumeration)
 	v.Values = tl6(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -246,7 +248,7 @@ func tmk_ExternalID(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Public = tv14(a, f0)
 	v.System = tv15(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -257,7 +259,7 @@ func tmk_Mixed(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tMixed)
 	v.Names = tl7(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -269,7 +271,7 @@ func tmk_NameParticle(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv9(a, f0)
 	v.Occur = tv11(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -281,7 +283,7 @@ func tmk_NotationDecl(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Name = tv9(a, f0)
 	v.ExternalID = rt.TAs[*types.ExternalID](f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -292,7 +294,7 @@ func tmk_NotationType(c *rt.TActCtx, final bool, f0 any) any {
 	v := rt.Alloc(&a.tNotationType)
 	v.Names = tl7(a, f0)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0)
@@ -304,7 +306,7 @@ func tmk_PI(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Target = tv9(a, f0)
 	v.Data = tv13(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -316,7 +318,7 @@ func tmk_Sequence(c *rt.TActCtx, final bool, f0 any, f1 any) any {
 	v.Items = tl1(a, f0)
 	v.Occur = tv11(a, f1)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1)
@@ -329,7 +331,7 @@ func tmk_XMLDecl(c *rt.TActCtx, final bool, f0 any, f1 any, f2 any) any {
 	v.Encoding = tv5(a, f1)
 	v.Standalone = tv17(a, f2)
 	if final {
-		v.Span = rt.Span{Start: c.Start, End: c.End}
+		v.Span = sxirinput.Span{Start: c.Start, End: c.End}
 		return v
 	}
 	return c.MadeOf(v, f0, f1, f2)
@@ -689,7 +691,7 @@ func (a *tslabs) MemoryBytes() uint64 {
 // from errors, the result is returned together with SyntaxErrors; an Error node where a struct
 // type is expected becomes nil.
 // It builds the values directly, without the nodes Parse returns.
-func ParseValue(input string, opts ...rt.ParseOption) (*types.Document, error) {
+func ParseValue(input string, opts ...sxirruntime.ParseOption) (*types.Document, error) {
 	a := &tslabs{}
 	return rt.TParse(trules[0], input, opts, a, func(v any) *types.Document { a.result = true; return rt.TAs[*types.Document](v) })
 }
@@ -700,7 +702,7 @@ func ParseValue(input string, opts ...rt.ParseOption) (*types.Document, error) {
 // Invalid options and names of rules that are not start rules return nil with an error. Start rule result types:
 //
 //	main: *types.Document
-func ParseRuleValue(name, input string, opts ...rt.ParseOption) (any, error) {
+func ParseRuleValue(name, input string, opts ...sxirruntime.ParseOption) (any, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -11620,6 +11622,6 @@ fail:
 	return nil, false
 }
 
-const _ = types.SXIRSchema_81b1b965676ccf8e
+const _ = types.SXIRSchema_48e558293bfe79fa
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28

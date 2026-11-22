@@ -40,6 +40,7 @@ func TestGenerateDocumentNode(t *testing.T) {
 		"parser_test.go": `package fixture
 import (
 	sxirrt "syntaxir.dev/sxir/pkg/runtime/libgo"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
   "context"
   "encoding/json"
@@ -49,7 +50,7 @@ import (
 func TestGeneratedDocumentAgainstBatch(t *testing.T) {
   for _, unit := range []PositionUnit{CodePoints, Bytes} {
    count := 0
-   d, err := NewDocument("aa", func(o *sxirrt.X_parseOptions) { count++; o.X_unit = unit })
+   d, err := NewDocument("aa", func(o *sxirruntime.ParseOptions) { count++; o.Unit = unit })
    if err != nil || count != 1 { t.Fatalf("new document: %v, option count %d", err, count) }
    for _, change := range []struct{ start, end int; text string }{{2, 2, "a"}, {1, 2, "b"}, {1, 2, "a"}} {
     node, err := d.Parse()

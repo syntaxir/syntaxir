@@ -13,7 +13,7 @@ import (
 
 // Parse parses the whole input with the rule main. Options select position units, depth, cancellation and compute limits.
 // If the parse recovered from errors with #recover, it returns the node together with SyntaxErrors.
-func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func Parse(input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	return rt.RunParse(rules[0], input, opts)
 }
 
@@ -21,14 +21,14 @@ func Parse(input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
 // its #stream repetition to emit (nil if the element has no value) without retaining it. Committed
 // elements are final even if the parse fails later. A non-EOF error from r or an error returned by
 // emit ends the parse and is returned unchanged. A nil emit collects the repetition instead.
-func ParseStream(r io.Reader, emit func(*sxirvalue.Node) error, opts ...rt.ParseOption) error {
+func ParseStream(r io.Reader, emit func(*sxirvalue.Node) error, opts ...sxirruntime.ParseOption) error {
 	return rt.RunParseStream(streamRule, r, emit, opts)
 }
 
 // Iterate returns an iterator over the elements that ParseStream would pass to emit, parsing only as
 // far as each call to Next needs. Options are validated before it returns; r is first read by Next.
 // The parser's lookahead and buffering may read ahead of the returned elements.
-func Iterate(r io.Reader, opts ...rt.ParseOption) (*sxirruntime.StreamIterator, error) {
+func Iterate(r io.Reader, opts ...sxirruntime.ParseOption) (*sxirruntime.StreamIterator, error) {
 	return rt.IterateNodes(sxirGrammar, opts, func(emit func(*sxirvalue.Node) error) error { return rt.RunParseStream(streamRule, r, emit, opts) })
 }
 
@@ -37,7 +37,7 @@ var sxirGrammar = rt.NewGrammar(100000)
 
 // ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
-func ParseRule(name, input string, opts ...rt.ParseOption) (*sxirvalue.Node, error) {
+func ParseRule(name, input string, opts ...sxirruntime.ParseOption) (*sxirvalue.Node, error) {
 	o, err := rt.ResolveOptions(sxirGrammar, opts)
 	if err != nil {
 		return nil, err
@@ -636,4 +636,4 @@ fail:
 
 var streamRule *rt.Rule
 
-const _ = rt.Protocol27
+const _ = rt.Protocol28
