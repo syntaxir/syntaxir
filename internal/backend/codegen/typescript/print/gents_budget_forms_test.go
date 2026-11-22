@@ -125,7 +125,7 @@ for (const unit of [p.CodePoints, p.Bytes]) {
   }
 }
 `
-	runTypedTSFixture(t, tsBudgetFormsGrammar, consumer, common.GenOptions{Start: "main", Recognize: true}, "")
+	runTypedTSFixture(t, tsBudgetFormsGrammar, consumer, common.GenOptions{Start: "main", Recognize: true, NoLimitControls: true}, "")
 }
 
 func TestGeneratedTSWithBudgetControlsAcceptsControlOptions(t *testing.T) {

@@ -37,7 +37,7 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 			}
 			return all
 		}
-		for _, opts := range []common.GenOptions{{Types: true}, {Types: true, TypedOnly: true}, {Types: true, Document: true}, {Types: true, Recognize: true, Document: true}} {
+		for _, opts := range []common.GenOptions{{Types: true, NoLimitControls: true}, {Types: true, TypedOnly: true, NoLimitControls: true}, {Types: true, Document: true, NoLimitControls: true}, {Types: true, Recognize: true, Document: true, NoLimitControls: true}} {
 			if out := generated(opts); strings.Contains(out, ".Spend()") {
 				t.Errorf("%+v: a parser without budget controls charges steps", opts)
 			}

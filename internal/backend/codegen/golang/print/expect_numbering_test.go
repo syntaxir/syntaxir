@@ -28,15 +28,15 @@ func TestExpectationsOfTheLoweredTables(t *testing.T) {
 		name string
 		opts common.GenOptions
 	}{
-		{"plain", common.GenOptions{}},
-		{"recognize", common.GenOptions{Recognize: true}},
-		{"typed", common.GenOptions{Types: true, Recognize: true, LimitControls: true}},
-		{"typed-only", common.GenOptions{Types: true, TypedOnly: true}},
-		{"typed-only recognize", common.GenOptions{Types: true, TypedOnly: true, Recognize: true}},
-		{"recognize-only", common.GenOptions{RecognizeOnly: true}},
-		{"document", common.GenOptions{Document: true, LimitControls: true}},
-		{"observability", common.GenOptions{Observability: true, Recognize: true}},
-		{"without guards and scans", common.GenOptions{Types: true, NoOpt: []string{"guards", "scans"}}},
+		{"plain", common.GenOptions{NoLimitControls: true}},
+		{"recognize", common.GenOptions{NoLimitControls: true, Recognize: true}},
+		{"typed", common.GenOptions{Types: true, Recognize: true}},
+		{"typed-only", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}},
+		{"typed-only recognize", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Recognize: true}},
+		{"recognize-only", common.GenOptions{NoLimitControls: true, RecognizeOnly: true}},
+		{"document", common.GenOptions{Document: true}},
+		{"observability", common.GenOptions{NoLimitControls: true, Observability: true, Recognize: true}},
+		{"without guards and scans", common.GenOptions{NoLimitControls: true, Types: true, NoOpt: []string{"guards", "scans"}}},
 	}
 	cases := append(codegentest.CorpusWithParsers(t), codegentest.CoreExtraGrammars...)
 	var mu sync.Mutex
