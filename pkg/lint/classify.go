@@ -95,6 +95,19 @@ type Classification struct {
 	// 1 when there are none. For the class Linear it bounds the number of combinations of the
 	// values of the variables that memoized rules read at one position.
 	Combinations int
+	// Budget is the bound on the compute units of a parse that the classification derives, for the
+	// class Linear only, and nil for any other class. It is reported and is not applied as a
+	// default limit.
+	Budget *Budget
+}
+
+// Budget bounds the compute units of a parse of a grammar of the class Linear: a parse of n
+// position units of the input costs at most PerUnit * n + Fixed units, where n counts bytes for
+// the position unit Bytes and code points for CodePoints. The units are the logical events of
+// the compute limit. The constants wait for the proof of linear cost to confirm them, so the
+// bound is a report and is not the default of Limits.Compute.
+type Budget struct {
+	PerUnit, Fixed uint64
 }
 
 // Classify classifies the cost of parsing with the grammar g from its start rule start, the
@@ -106,7 +119,12 @@ func Classify(ctx context.Context, g *ast.Grammar, start string) (*Classificatio
 	if err != nil {
 		return nil, grammarErrors(err)
 	}
+	var budget *Budget
+	if c.Budget != nil {
+		budget = &Budget{PerUnit: c.Budget.PerUnit, Fixed: c.Budget.Fixed}
+	}
 	return &Classification{
+		Budget:          budget,
 		Class:           Class(c.Class),
 		Degree:          c.Degree,
 		WitnessedDegree: c.WitnessedDegree,

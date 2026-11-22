@@ -207,7 +207,8 @@ Linear  <  Linear·Env(vars)  <  Unknown(reason)  <  Poly(k, witness)  <  Exp(wi
 
 The automatic budget needs, for a `Linear` start rule, a constant c_G, an upper bound on cost per input position. It is
 the sum, over memoized and transient rules, of twice the local cost of one body evaluation without loops, plus the
-per-iteration cost of each loop. The classifier does not compute c_G, because the automatic budget is not implemented.
+per-iteration cost of each loop. [Record 079](079-derived-compute-budget.md) defines the constant that the classifier computes, in the units of
+[record 076](076-logical-compute-units.md), and its report.
 
 **Soundness argument (sketch).** The cost of a parse is the sum, over every body evaluation, of its local cost. For a
 grammar that satisfies L1–L4, with the left-recursion guard keyed by rule and position:
@@ -300,11 +301,12 @@ The single budget keeps charges for value construction
 proportional to the size built: string concatenation, `concat` and `list` materialization, and fold accumulators. A
 per-call or per-iteration charge alone lets E4 cost 2^n while charging n.
 
-The automatic budget is opt-in: a parse option sets the budget to c · (n + 1) + k for the input length n. The default
-c is c_G of a `Linear` start rule, times a safety factor. For other verdicts the caller must give c explicitly. Without
-the option, parses stay unbounded, as today. Exhausting the automatic budget returns the ordinary budget limit error. When
-the parse has a profile, the error names its hotspot, the rule with the most repeated evaluations at one position
-(`MaxEvals` of the rule rows of `Profile`), as [record 078](078-limit-error-hotspot.md) specifies.
+The budget of a `Linear` start rule is c · (n + 1) + k for the input length n, derived by the classifier
+([record 079](079-derived-compute-budget.md)); [record 066](066-limits-by-purpose.md) makes every parse budgeted by
+default, so the opt-in option of this record is replaced by the default of `Compute`. For other verdicts the caller gives
+the budget. Exhausting the budget returns the ordinary limit error. When the parse has a profile, the error names its
+hotspot, the rule with the most repeated evaluations at one position (`MaxEvals` of the rule rows of `Profile`), as
+[record 078](078-limit-error-hotspot.md) specifies.
 
 ### Specification
 
@@ -655,6 +657,6 @@ blow-ups. That leaves unmemoized re-entry and diverging state as the exponential
 
 - The classifier is sound only in one direction. A `Poly` or `Exp` verdict may have no slow input.
 - The soundness argument is a proof sketch. The regression and differential tests check it; it is not mechanized.
-- The constant c_G depends on each backend's charging table, so the automatic budget is not portable between backends
-  or releases.
+- The constant c_G is in the units of record 076, which are the same on every backend, and depends on the constants of
+  that record's table, so a change of the table changes the budget between releases.
 - The citations in the Literature section are unverified.

@@ -142,6 +142,9 @@ type Complexity struct {
 	// Memoized are the rules that the classifier assumes the memo answers, which are the rules
 	// that every parse memoizes (see TestComplexityMemoPolicy).
 	Memoized map[string]bool
+	// Budget is the bound on the compute units of a parse that the classifier derives for the
+	// class Linear (see Budget), and nil for any other class.
+	Budget *Budget
 }
 
 // ClassifyComplexityControlled classifies the cost of g from the start rule start ("" selects the default
@@ -610,6 +613,7 @@ func (k *classifier) result() *Complexity {
 			c.WitnessedDegree = max(c.WitnessedDegree, x.Degree)
 		}
 	}
+	c.Budget = k.deriveBudget(c)
 	return c
 }
 

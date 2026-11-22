@@ -309,6 +309,7 @@ scan.sxir:5:10: hint: the cost can grow as n^2: after the alternative at 3:14 in
 scan.sxir: the cost from start rule main is polynomial (n^2)
 	witness: scan.sxir:5:10: the cost can grow as n^2: after the alternative at 3:14 in rule main fails, the later alternative "a" at 3:18 in rule main can start again inside the input that the repetition "a"* at 5:10 in rule a examined; this repeats in the repetition (a / "a")* at 3:13 in rule main
 scan-fast.sxir: the cost from start rule main is linear
+	budget: at most 20 * n + 22 compute units for an input of n position units (derived; not applied as the default limit)
 ```
 
 ## How It Works

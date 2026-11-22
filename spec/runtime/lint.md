@@ -53,12 +53,15 @@ linter, identified by a name.
   the first three polynomial or exponential witnesses and the first
   three reasons for the class unknown, each on a line
   `witness: file:line:col: message` or `reason: file:line:col: message`, and a
-  line `... and N more` for those not shown. With `-f json` the document has a
+  line `... and N more` for those not shown. The line after
+  the class of a `linear` class is `budget: at most c * n + k compute units for
+  an input of n position units`, with the derived constants. With `-f json` the document has a
   member `classification` with `class`, `degree` (for a polynomial class),
   `witnessedDegree` (the witnessed degree of a class unknown, when it has
   polynomial causes),
   `combinations` (the bound N on K of a class `linear`, when it is greater
-  than 1), and
+  than 1), `budget` (for the class `linear` only: `perUnit` and `fixed`, the
+  constants of the [budget](parsing.md#classification) `perUnit * n + fixed`), and
   every witness and reason in `witnesses` and `reasons`, each with `line`,
   `col`, `rule` and `message`.
 - `sxir lint` exits with status 1 if there is a finding of severity `error`, and
@@ -104,6 +107,7 @@ empty and not a start rule of `g`, or if the context ends.
 | `Reasons` | The reasons for the class `Unknown`, sorted by position. A grammar of the class `Exponential` can have them too |
 | `Env` | The causes that bound the cost only given an environment bound, of the kind `CauseDivergingBinding`. The class is `LinearEnv` when `Env` is not empty and there are no causes and no reasons; a grammar of a worse class can have entries too |
 | `Combinations` | The product of the numbers of values of the variables with finitely many values, and 1 when there are none. For the class `Linear` it bounds the number of combinations of values that memoized rules read at one position |
+| `Budget` | The [budget](parsing.md#classification) of the class `Linear`, a `*lint.Budget` with `PerUnit` and `Fixed` (units at most `PerUnit * n + Fixed` for `n` position units), and nil for any other class. It is a report and not a limit |
 | `lint.Cause` | `Kind`, `Class` (`Polynomial` or `Exponential` for a cause, `Unknown` for a reason, `LinearEnv` for an entry of `Env`), `Degree` (k of a polynomial cause), `Rule`, `Pos`, and `Message`, which names the class and the witness, or for a reason the reason |
 | `lint.CauseKind` | The pattern of grammar that a cause comes from: `CauseRestartedRepetition`, `CauseLookaheadScan`, `CauseRecoverySkip`, `CauseRegrowth`, `CauseDivergingBinding` and `CauseSelfGrowingValue`, and `CauseOther` for a reason and for a cause that no pattern covers. `String` gives `restarted repetition`, `lookahead scan`, `recovery skip`, `regrowth`, `diverging binding`, `self-growing value` and `other` |
 

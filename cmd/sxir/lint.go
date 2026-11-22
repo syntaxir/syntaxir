@@ -36,10 +36,18 @@ type lintClassification struct {
 	// Combinations bounds K for a linear class whose variables with finite values have more than
 	// one combination of values.
 	Combinations int `json:"combinations,omitempty"`
+	// Budget is the bound on the compute units of a parse that a linear class derives: at most
+	// perUnit * n + fixed units for an input of n position units. It is a report, not the default.
+	Budget *lintBudget `json:"budget,omitempty"`
 	// Witnesses are the polynomial and exponential causes, which an unknown class can have too.
 	Witnesses []lintCause `json:"witnesses"`
 	// Reasons are the conditions for linear cost that the classifier cannot establish.
 	Reasons []lintCause `json:"reasons"`
+}
+
+type lintBudget struct {
+	PerUnit uint64 `json:"perUnit"`
+	Fixed   uint64 `json:"fixed"`
 }
 
 type lintCause struct {
@@ -73,6 +81,9 @@ func lintClassificationOf(c *complexity.Complexity) *lintClassification {
 	if c.Class == complexity.ClassLinear && c.Combinations > 1 {
 		out.Combinations = c.Combinations
 	}
+	if c.Budget != nil {
+		out.Budget = &lintBudget{c.Budget.PerUnit, c.Budget.Fixed}
+	}
 	return out
 }
 
@@ -90,6 +101,9 @@ func printClassification(w io.Writer, path, start string, c *lintClassification)
 		class = fmt.Sprintf("%s (K <= %d)", class, c.Combinations)
 	}
 	fmt.Fprintf(w, "%s: the cost from start rule %s is %s\n", path, start, class)
+	if b := c.Budget; b != nil {
+		fmt.Fprintf(w, "\tbudget: at most %d * n + %d compute units for an input of n position units (derived; not applied as the default limit)\n", b.PerUnit, b.Fixed)
+	}
 	for _, list := range []struct {
 		what   string
 		causes []lintCause

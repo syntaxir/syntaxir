@@ -2419,6 +2419,17 @@ no classification and no `super-linear` finding. A grammar can also require the
 class Linear with [`@linear`](../language/grammar-files.md#declared-linear-cost),
 which makes every cause and reason an error.
 
+A grammar of the class Linear also has a **budget**: a bound `c * n + k` on the
+compute units of a parse of an input of `n` position units, for constants `c`
+and `k` that the classification derives from the structure of the grammar, in the
+units of [Cost](#cost). `n` is the length of the input in the position unit of
+the parse, as for the [default](#default-limits) of `Compute`; the bound holds
+for both position units. The bound is on the units of Cost as that section
+defines them; a backend that charges other units for the same parse can report
+`Used` above it. The budget is reported with the classification and is
+not applied: it never changes the default of `Compute` or any limit. No other class has a
+budget, because no constant of the grammar bounds its cost.
+
 | Class | Promise |
 |:--|:--|
 | Linear | Every parse from the start rule has a cost of at most c · (n + 1) |

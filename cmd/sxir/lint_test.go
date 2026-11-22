@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -141,6 +142,30 @@ func TestLintList(t *testing.T) {
 	}
 }
 
+// linearBudget is the line of the text output that reports a derived budget.
+func linearBudget(perUnit, fixed int) string {
+	return fmt.Sprintf("\tbudget: at most %d * n + %d compute units for an input of n position units (derived; not applied as the default limit)\n", perUnit, fixed)
+}
+
+// TestLintClassifyBudgetOnlyForLinear checks that only a linear class reports a budget, in the
+// text and in the JSON output.
+func TestLintClassifyBudgetOnlyForLinear(t *testing.T) {
+	quadratic := writeFile(t, "q.sxir", "@start\nrule main = (a / \"a\")* $$\nrule a = \"a\"* \"c\"\n")
+	out, err := runCLI(t, "", "lint", "-g", quadratic, "-classify")
+	if err != nil || strings.Contains(out, "budget") {
+		t.Errorf("polynomial text: %q %v", out, err)
+	}
+	out, err = runCLI(t, "", "lint", "-g", quadratic, "-classify", "-f", "json")
+	if err != nil || strings.Contains(out, "budget") {
+		t.Errorf("polynomial json: %q %v", out, err)
+	}
+	linear := writeFile(t, "l.sxir", "@start\nrule main = (a / \"a\")* $$\nrule a = \"a\" \"c\"\n")
+	out, err = runCLI(t, "", "lint", "-g", linear, "-classify", "-f", "json")
+	if err != nil || !strings.Contains(out, "\"perUnit\": 20") || !strings.Contains(out, "\"fixed\": 22") {
+		t.Errorf("linear json: %q %v", out, err)
+	}
+}
+
 func TestLintClassify(t *testing.T) {
 	quadratic := writeFile(t, "q.sxir", "@start\nrule main = (a / \"a\")* $$\nrule a = \"a\"* \"c\"\n")
 	// Without -classify there is no classification and no super-linear finding.
@@ -174,17 +199,17 @@ func TestLintClassify(t *testing.T) {
 		t.Errorf("classification without -classify:\n%s", out)
 	}
 
-	// A linear grammar shows only its class; the class unknown shows its first reasons and how
-	// many more there are, and no finding.
+	// A linear grammar shows its class and the budget that the classification derives; the class
+	// unknown shows its first reasons and how many more there are, and no finding.
 	linear := writeFile(t, "l.sxir", "@start\nrule main = (a / \"a\")* $$\nrule a = \"a\" \"c\"\n")
 	out, err = runCLI(t, "", "lint", "-g", linear, "-classify")
-	if want := linear + ": the cost from start rule main is linear\n"; out != want || err != nil {
+	if want := linear + ": the cost from start rule main is linear\n" + linearBudget(20, 22); out != want || err != nil {
 		t.Errorf("linear: got %q %v, want %q", out, err, want)
 	}
 	// A linear class with variables with finite values shows the bound on K.
 	counter := writeFile(t, "k.sxir", "var v int\n@start\nrule main = r $$\nrule r = \"#\" {v := v + 1} {v <= 3} r / \"y\" {v >= 0}\n")
 	out, err = runCLI(t, "", "lint", "-g", counter, "-classify")
-	if want := counter + ": the cost from start rule main is linear (K <= 4)\n"; out != want || err != nil {
+	if want := counter + ": the cost from start rule main is linear (K <= 4)\n" + linearBudget(88, 90); out != want || err != nil {
 		t.Errorf("counter: got %q %v, want %q", out, err, want)
 	}
 	out, _ = runCLI(t, "", "lint", "-g", counter, "-classify", "-f", "json")
@@ -192,7 +217,8 @@ func TestLintClassify(t *testing.T) {
 	if err := json.Unmarshal([]byte(out), &doc); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
-	if c := doc.Classification; c == nil || c.Class != "linear" || c.Combinations != 4 {
+	if c := doc.Classification; c == nil || c.Class != "linear" || c.Combinations != 4 ||
+		c.Budget == nil || c.Budget.PerUnit != 88 || c.Budget.Fixed != 90 {
 		t.Errorf("counter: got %+v\n%s", doc.Classification, out)
 	}
 	if !strings.Contains(out, "\"combinations\": 4") {
