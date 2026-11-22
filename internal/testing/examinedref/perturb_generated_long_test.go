@@ -26,7 +26,8 @@ func init() {
 }
 
 // perturbProbeMain is the consumer of the generated packages. For each input, unit and route of each case it
-// checks the observed parse by perturbation, and the stream route by its high-water mark, with the checks of
+// checks the observed parse by perturbation (examinedref.Perturb, and examinedref.PerturbAt for the reparse
+// of a Document after an edit), and the stream route by its high-water mark, with the checks of
 // examinedref, which the test copies into the consumer's module (examinedProbeFiles), and prints one JSON
 // report.
 const perturbProbeMain = `package main
@@ -35,6 +36,7 @@ import (
 	"encoding/json"
 	"io"
 	"os"
+	"strings"
 
 	"perturbprobe/examinedref"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -45,10 +47,13 @@ IMPORTS)
 
 var _ *sxirvalue.Node
 
+// entry is a route of a generated package: run parses a string, stream a reader, and document makes a
+// Document, which the routes document and edit parse.
 type entry struct {
-	name   string
-	run    func(string, ...sxirruntime.ParseOption) error
-	stream func(io.Reader, ...sxirruntime.ParseOption) error
+	name     string
+	run      func(string, ...sxirruntime.ParseOption) error
+	stream   func(io.Reader, ...sxirruntime.ParseOption) error
+	document func(string, ...sxirruntime.ParseOption) (sxirruntime.Document, error)
 }
 
 var entries = [][]entry{
@@ -106,21 +111,43 @@ func main() {
 				for _, e := range entries[i] {
 					out := report{Case: i, Input: j, Bytes: bytes, Entry: e.name}
 					if len(examinedref.Units(in, bytes)) <= MAXUNITS {
-						run := func(s string) []examinedref.Event {
+						// run parses s, or, on the edit route, edits a Document of in to s from the change point on
+						// and parses it again, as TestEnginePerturbation's edit route does.
+						run := func(change int, s string) ([]examinedref.Event, bool) {
 							var tr []examinedref.Event
-							opts := []sxirruntime.ParseOption{sxirruntime.WithUnit(unit), sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) {
-								tr = append(tr, eventOf(ev))
-							})}
-							if e.stream != nil {
-								_ = e.stream(examinedref.NewCountingReader(s), opts...)
-							} else {
-								_ = e.run(s, opts...)
+							trace := sxirruntime.WithTrace(func(ev sxirinstrument.TraceEvent) { tr = append(tr, eventOf(ev)) })
+							switch {
+							case e.stream != nil:
+								_ = e.stream(examinedref.NewCountingReader(s), sxirruntime.WithUnit(unit), trace)
+							case e.name == "edit":
+								d, err := e.document(in, sxirruntime.WithUnit(unit))
+								if err != nil {
+									return nil, false
+								}
+								_, _ = d.Parse()
+								rest := strings.Join(examinedref.Units(s, bytes)[change:], "")
+								if d.Edit(change, len(examinedref.Units(in, bytes)), rest) != nil {
+									return nil, false
+								}
+								_, _ = d.Parse(trace)
+							case e.document != nil:
+								if d, err := e.document(s, sxirruntime.WithUnit(unit)); err == nil {
+									_, _ = d.Parse(trace)
+								}
+							default:
+								_ = e.run(s, sxirruntime.WithUnit(unit), trace)
 							}
-							return tr
+							return tr, true
 						}
-						r := examinedref.Perturb(run, in, bytes, jobs[i].Dep, jobs[i].Alpha, func(p examinedref.Perturbation) {
+						each := func(p examinedref.Perturbation) {
 							out.Perturbations = append(out.Perturbations, perturbation{int(p.Variant), p.Change, []byte(p.Input)})
-						})
+						}
+						var r examinedref.Report
+						if e.name == "edit" {
+							r = examinedref.PerturbAt(run, in, bytes, jobs[i].Dep, jobs[i].Alpha, each)
+						} else {
+							r = examinedref.Perturb(func(s string) []examinedref.Event { tr, _ := run(0, s); return tr }, in, bytes, jobs[i].Dep, jobs[i].Alpha, each)
+						}
 						out.Report = &r
 					}
 					if e.stream != nil {
@@ -168,8 +195,9 @@ type perturbProbeReport struct {
 }
 
 // TestGeneratedPerturbationAndHighWater checks the examined ends of generated Go parsers, built with
-// observability, the typed library, the recognizer and ParseStream where the start rule has a #stream
-// repetition: by perturbation on the value, parse, recognize and stream routes, as TestEnginePerturbation
+// observability, the typed library, the recognizer, Documents where the grammar has them, and ParseStream
+// where the start rule has a #stream repetition: by perturbation on the value, parse, recognize, stream,
+// document and edit routes (the reparse of a Document after an edit), as TestEnginePerturbation
 // checks the engine's, and by the high-water mark of the stream route, as TestEngineStreamHighWater does.
 func TestGeneratedPerturbationAndHighWater(t *testing.T) {
 	t.Parallel()
@@ -206,14 +234,14 @@ func TestGeneratedPerturbationAndHighWater(t *testing.T) {
 				reportPerturb(t, fmt.Sprintf("%s high water %q", prefix, in), r.HighWater, 5)
 			}
 		}
-		for _, entry := range []string{"value", "parse", "recognize", "stream"} {
+		for _, entry := range []string{"value", "parse", "recognize", "stream", "document", "edit"} {
 			r := totals[entry]
 			if r == nil {
 				t.Errorf("%s: no input perturbed", entry)
 				continue
 			}
-			t.Logf("%s: %d inputs, %d perturbations (%d dropped): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",
-				entry, r.Parses, r.Perturbed, r.Dropped, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Growing, r.Outside)
+			t.Logf("%s: %d inputs, %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",
+				entry, r.Parses, r.Perturbed, r.Dropped, r.Refused, r.Identical, r.Diverged, r.Checked, r.Exempt, r.Growing, r.Outside)
 			if r.Diverged == 0 || r.Identical == 0 || r.Checked == 0 {
 				t.Errorf("%s: the perturbations never diverged or never kept the trace", entry)
 			}
@@ -254,7 +282,7 @@ func runPerturbProbes(t *testing.T, cases []codegentest.Case) []perturbProbeRepo
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
-		o := common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, Stream: true}
+		o := common.GenOptions{Start: "main", Types: true, Recognize: true, Observability: true, Stream: true, Document: true}
 		if _, err := codegentest.GenerateCode(t, g, o); err != nil {
 			if !strings.Contains(err.Error(), "needs a #stream repetition") {
 				t.Fatalf("%s: %v", c.Name, err)
@@ -275,6 +303,9 @@ func runPerturbProbes(t *testing.T, cases []codegentest.Case) []perturbProbeRepo
 		}},
 `, pkg)
 		}
+		fmt.Fprintf(&entries, `		{name: "document", document: func(in string, o ...sxirruntime.ParseOption) (sxirruntime.Document, error) { return %[1]s.NewDocument(in, o...) }},
+		{name: "edit", document: func(in string, o ...sxirruntime.ParseOption) (sxirruntime.Document, error) { return %[1]s.NewDocument(in, o...) }},
+`, pkg)
 		entries.WriteString("\t},\n")
 		cycles, err := examinedref.LeftCycles(g, false)
 		if err != nil {

@@ -157,6 +157,9 @@ has them), in both position units.
    Perturbation shows examined ends that are too small; an end that is too large is the stream high-water mark's to
    show.
 
+   Perturbation runs on every route that a producer has, the reparse of a Document after an edit included: the
+   Document of x is edited to the perturbation from c on and parsed again, against the same edit of x to itself.
+
 3. **Stream high-water mark.** A stream parse reads from a reader that delivers one byte per read and returns the end
    of the input only on a read after the last byte. Let `Needed(e)` be the input a parse must have read to have
    examined the slots below `e`, as [Tracing and Profiling](../../../spec/runtime/observability.md#engine-tracing)
