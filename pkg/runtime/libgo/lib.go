@@ -2837,6 +2837,7 @@ func (p *Parser) RecoverAttr(m, skip matcher, build bool) (*sxirvalue.Node, bool
 		return nil, false
 	}
 	e := p.MakeError(far, expected)
+	p.Units++ // the syntax error built, a compute unit
 	p.PushRecovered(e)
 	if !build {
 		return nil, true

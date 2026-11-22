@@ -1,5 +1,5 @@
 # Recognizer lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean	"grammars/duckdb"
+grammar	lean,logical	"grammars/duckdb"
 rule	1	guard=2:de95f35329
 rule	2	guard=2:05aed1bc9b
 rule	5	guard=4:48508bffb3
@@ -395,7 +395,7 @@ rule	1048	guard=33:fda82c3429
 rule	1049	guard=2:52f807c060 scan=1:4178a0a8e5
 rule	1051	guard=5:b9120857bf scan=1:4fcb2d248b
 rule	1052	guard=2:d99ac66fb8
-grammar	controlled	"grammars/duckdb"
+grammar	controlled document	"grammars/duckdb"
 rule	1	guard=2:de95f35329
 rule	2	guard=2:05aed1bc9b
 rule	5	guard=4:488fa4b3ee

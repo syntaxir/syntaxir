@@ -15,17 +15,18 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// TestGeneratedLoopCharge checks that every repetition of a list built-in is charged. The action expressions of an
-// action carry no charge, so the loops that the generated code prints for them are what bounds the budget an
-// action spends: map, filter, foldl and foldr charge one step per element (map and filter also charge the
-// elements of their result), and a lambda body, evaluated once per element (nested lambdas: once per element
-// of each loop), charges nothing itself.
+// TestGeneratedLoopCharge checks that every repetition of a list built-in is counted. A list built-in
+// counts one compute unit for each element it visits (spec/runtime/parsing.md, Compute Units), so the
+// counts of the loops that the generated code prints for them are what bounds the units an action
+// counts: map, filter, foldl and foldr count one unit per element (map also counts the elements of its
+// result), and a lambda body, evaluated once per element (nested lambdas: once per element of each
+// loop), counts nothing itself.
 //
 // For each built-in and for nested lambdas it generates a parser whose action uses the loop, and one
-// whose action is len($xs). It asserts that the first needs at least one step per lambda call more than the
-// second, that this grows by at least one per call from the input of N to that of 2N, and that a Budget
-// halfway between ends the first with ErrLimit on the large input while the second completes.
-// The negative control runs the same checks against generated code without the per-element charge of the
+// whose action is len($xs). It asserts that the first needs at least one unit per lambda call more than the
+// second, that this grows by at least one per call from the input of N to that of 2N, and that a compute
+// limit halfway between ends the first with ErrLimit on the large input while the second completes.
+// The negative control runs the same checks against generated code without the per-element count of the
 // loops: every case has to violate them.
 func TestGeneratedLoopCharge(t *testing.T) {
 	t.Parallel()
@@ -48,26 +49,27 @@ func TestGeneratedLoopCharge(t *testing.T) {
 			}
 		})
 		t.Run(form+"/negative control", func(t *testing.T) {
-			// Without the charge of the loops, a lambda call is not charged at all. The actions of the cases make
-			// no tuple, list literal or struct whose elements charge a step, so every step that the code of an
-			// action charges (c.P.Spend(), unlike the rule's p.Spend()) is that of a loop.
-			step := regexp.MustCompile(`(?m)^\t+c\.P\.Spend\(\)\n`)
+			// Without the count of the loops, a lambda call is not counted at all. The actions of the cases
+			// count nothing else one unit at a time (a list they build counts its elements at once, in
+			// ActionHullLogical), so every single unit that the code of an action counts (c.P.Units++) is
+			// the visit of an element by a loop.
+			visit := regexp.MustCompile(`(?m)^\t+c\.P\.Units\+\+\n`)
 			problems := loopChargeProblems(t, cases, typed, func(pkg string, code []byte) []byte {
 				if pkg == "base" {
 					return code
 				}
-				if !step.Match(code) {
-					t.Fatalf("%s: the generated code charges no step in a loop", pkg)
+				if !visit.Match(code) {
+					t.Fatalf("%s: the generated code counts no element of a loop", pkg)
 				}
-				return step.ReplaceAll(code, nil)
+				return visit.ReplaceAll(code, nil)
 			})
 			for _, p := range problems {
 				t.Logf("expected violation: %s", p)
 			}
 			for _, c := range cases {
 				if c.name == "map" {
-					// The elements of the result are charged as they are pushed and collected, so the loop is
-					// charged even without its own charge. The other cases build no list of that size.
+					// The elements of the result are counted as the list is built, so the loop is counted
+					// even without its own count. The other cases build no list of that size.
 					continue
 				}
 				found := false
@@ -75,7 +77,7 @@ func TestGeneratedLoopCharge(t *testing.T) {
 					found = found || strings.HasPrefix(p, c.name+":")
 				}
 				if !found {
-					t.Errorf("%s: the library without the charge of the loops passes the checks", c.name)
+					t.Errorf("%s: the code without the count of the loops passes the checks", c.name)
 				}
 			}
 		})
@@ -175,10 +177,10 @@ func main() {
 		base1, act1, base2, act2 := num(f[1]), num(f[2]), num(f[3]), num(f[4])
 		extra1, extra2 := act1-base1, act2-base2
 		if extra1 < c.calls(c.n) {
-			problems = append(problems, fmt.Sprintf("%s: %d steps for %d lambda calls, want at least one per call", c.name, extra1, c.calls(c.n)))
+			problems = append(problems, fmt.Sprintf("%s: %d units for %d lambda calls, want at least one per call", c.name, extra1, c.calls(c.n)))
 		}
 		if grow, want := extra2-extra1, c.calls(2*c.n)-c.calls(c.n); grow < want {
-			problems = append(problems, fmt.Sprintf("%s: the steps of the loop grow by %d from %d to %d elements, want at least %d", c.name, grow, c.n, 2*c.n, want))
+			problems = append(problems, fmt.Sprintf("%s: the units of the loop grow by %d from %d to %d elements, want at least %d", c.name, grow, c.n, 2*c.n, want))
 		}
 		if f[5] != "limit" {
 			problems = append(problems, fmt.Sprintf("%s: with the limit halfway the parser ends with %q, want ErrLimit", c.name, f[5]))

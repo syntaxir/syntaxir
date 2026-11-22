@@ -1,5 +1,5 @@
 # Recognizer lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean	"grammars/typescript"
+grammar	lean,logical	"grammars/typescript"
 rule	0	guard=2:326a16ed75
 rule	1	scope=1:66e9d01b78
 rule	2	guard=2:0cc6e63b3e
@@ -348,7 +348,7 @@ rule	570	guard=6:2e3ee2a88b scan=2:4a6eb56100
 rule	571	guard=4:aa5a0e5ce7
 rule	572	guard=4:5fb54283bf
 rule	573	guard=3:7584f9f027
-grammar	controlled	"grammars/typescript"
+grammar	controlled document	"grammars/typescript"
 rule	0	guard=2:326a16ed75
 rule	1	scope=1:66e9d01b78
 rule	2	guard=2:0cc6e63b3e

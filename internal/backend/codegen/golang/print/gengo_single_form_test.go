@@ -12,10 +12,12 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// A generated parser has one form of its rule bodies. With budget controls its bodies charge steps
-// and no body starts with a branch that chooses between forms at run time; without them no body
-// charges or mentions a control. A parser with budget controls or a Document calls no helper that has
-// an Ordinary form (NewNodeOrdinary, NextOrdinary, ...), which belongs to the form without both.
+// A generated parser has one form of its rule bodies, and no body starts with a branch that chooses
+// between forms at run time. With limit controls outside a Document its bodies count compute units
+// and neither charge steps nor read a budget control; a Document with limit controls charges steps;
+// without limit controls no body charges, counts or mentions a control. A Document calls no helper
+// that has an Ordinary form (NewNodeOrdinary, NextOrdinary, ...), which belongs to the forms outside
+// Documents.
 func TestGeneratedRuleBodiesHaveOneForm(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testGeneratedRuleBodiesHaveOneForm)
@@ -30,8 +32,8 @@ rule expr Text = #operators {
 }`
 
 // oneFormProblems checks the rule bodies of the generated source src against the form that
-// controls (budget controls) and document select, and reports the bodies it found, the bodies that
-// charge, and what contradicts the form.
+// controls (limit controls) and document select, and reports the bodies it found, the bodies that
+// charge steps or count units, and what contradicts the form.
 func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problems []string, bodies, charging int) {
 	t.Helper()
 	fset := token.NewFileSet()
@@ -39,7 +41,7 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain := !controls && !document
+	logical := controls && !document
 	for _, decl := range file.Decls {
 		fn, ok := decl.(*goast.FuncDecl)
 		if !ok || fn.Body == nil || len(fn.Body.List) == 0 || fn.Type.Results == nil || len(fn.Type.Results.List) != 2 {
@@ -59,10 +61,11 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 				problems = append(problems, fn.Name.Name+" starts with the branch "+cond.String()+" between forms")
 			}
 		}
-		charges, controlRead, ordinaryCall := false, false, ""
+		charges, counts, controlRead, ordinaryCall := false, false, false, ""
 		goast.Inspect(fn.Body, func(n goast.Node) bool {
 			if sel, ok := n.(*goast.SelectorExpr); ok {
 				charges = charges || sel.Sel.Name == "Spend"
+				counts = counts || sel.Sel.Name == "Units"
 				controlRead = controlRead || sel.Sel.Name == "Control"
 				if strings.HasSuffix(sel.Sel.Name, "Ordinary") {
 					ordinaryCall = sel.Sel.Name
@@ -70,18 +73,24 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 			}
 			return true
 		})
-		if charges {
+		if logical && counts || !logical && charges {
 			charging++
 		}
-		if !controls && (charges || controlRead) {
-			problems = append(problems, fn.Name.Name+" charges or tests a control without budget controls")
+		switch {
+		case !controls && (charges || counts || controlRead):
+			problems = append(problems, fn.Name.Name+" charges, counts or tests a control without limit controls")
+		case logical && (charges || controlRead):
+			problems = append(problems, fn.Name.Name+" charges or tests a budget control with compute units")
 		}
-		if !plain && ordinaryCall != "" {
-			problems = append(problems, fn.Name.Name+" calls the ordinary helper "+ordinaryCall+" in a form with budget controls or a Document")
+		if document && ordinaryCall != "" {
+			problems = append(problems, fn.Name.Name+" calls the ordinary helper "+ordinaryCall+" in a Document form")
 		}
 	}
-	if controls && charging == 0 {
-		problems = append(problems, "no rule body charges a step with budget controls")
+	switch {
+	case logical && charging == 0:
+		problems = append(problems, "no rule body counts compute units with limit controls")
+	case controls && document && charging == 0:
+		problems = append(problems, "no rule body charges a step with limit controls in a Document")
 	}
 	return problems, bodies, charging
 }
@@ -105,14 +114,14 @@ func testGeneratedRuleBodiesHaveOneForm(t *testing.T) {
 			if bodies == 0 {
 				t.Fatalf("types=%v document=%v: no rule bodies found", types, document)
 			}
-			t.Logf("types=%v document=%v: %d rule bodies, %d charging", types, document, bodies, charging)
+			t.Logf("types=%v document=%v: %d rule bodies, %d charging or counting", types, document, bodies, charging)
 		}
 	}
 }
 
 // TestGeneratedRuleBodiesHaveOneFormNegativeControls checks that the check notices the other form:
-// the ordinary form judged as controlled, the controlled form as ordinary, and a Document form
-// that calls an ordinary helper.
+// the ordinary form judged as controlled, the controlled form as ordinary, a form with compute units
+// that charges a step, and Document forms that call an ordinary helper.
 func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 	t.Parallel()
 	g, err := parseTest(oneFormGrammar)
@@ -126,17 +135,21 @@ func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 		}
 		return codegentest.MergeGenerated(files)
 	}
-	plain, controlled, doc := gen(false, false), gen(true, false), gen(false, true)
+	plain, controlled, doc, controlledDoc := gen(false, false), gen(true, false), gen(false, true), gen(true, true)
+	withBody := func(src []byte, body string) []byte {
+		return append(src[:len(src):len(src)], []byte("\nfunc badBody(p *Parser) (*Node, bool) { "+body+" }\n")...)
+	}
 	for _, c := range []struct {
 		name               string
 		src                []byte
 		controls, document bool
 		want               string
 	}{
-		{"the ordinary form as controlled", plain, true, false, "no rule body charges"},
-		{"the controlled form as ordinary", controlled, false, false, "charges or tests a control"},
+		{"the ordinary form as controlled", plain, true, false, "no rule body counts compute units"},
+		{"the controlled form as ordinary", controlled, false, false, "charges, counts or tests a control"},
+		{"the controlled form with a step charge", withBody(controlled, "p.Spend(); return nil, true"), true, false, "charges or tests a budget control"},
 		{"the plain form as a Document form", plain, false, true, "calls the ordinary helper"},
-		{"the controlled form with an Ordinary helper", append(controlled[:len(controlled):len(controlled)], []byte("\nfunc badBody(p *Parser) (*Node, bool) { return p.NewNodeOrdinary(\"x\", 0, nil), true }\n")...), true, false, "calls the ordinary helper"},
+		{"the controlled Document form with an Ordinary helper", withBody(controlledDoc, `return p.NewNodeOrdinary("x", 0, nil), true`), true, true, "calls the ordinary helper"},
 	} {
 		problems, _, _ := oneFormProblems(t, c.src, c.controls, c.document)
 		found := false
@@ -149,6 +162,9 @@ func TestGeneratedRuleBodiesHaveOneFormNegativeControls(t *testing.T) {
 	}
 	if problems, _, _ := oneFormProblems(t, doc, false, true); len(problems) != 0 {
 		t.Errorf("the Document form: %q", problems)
+	}
+	if problems, _, _ := oneFormProblems(t, controlledDoc, true, true); len(problems) != 0 {
+		t.Errorf("the Document form with limit controls: %q", problems)
 	}
 }
 

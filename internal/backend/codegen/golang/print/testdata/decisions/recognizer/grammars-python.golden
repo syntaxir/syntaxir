@@ -1,5 +1,5 @@
 # Recognizer lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean	"grammars/python"
+grammar	lean,logical	"grammars/python"
 rule	2	scan=2:7f192a48b2
 rule	3	guard=2:fc4588d430 scope=1:2db1079a86
 rule	5	guard=2:83789735aa
@@ -193,7 +193,7 @@ rule	406	guard=18:e89c050846 scan=4:78b2e62640
 rule	407	guard=14:499d77e1a3 scan=4:49a549f623
 rule	412	guard=8:e728dfaa01 scan=1:1dc20ad926
 rule	413	guard=3:9dcfc2f7f4
-grammar	controlled	"grammars/python"
+grammar	controlled document	"grammars/python"
 rule	2	scan=2:7f192a48b2
 rule	3	guard=2:fc4588d430 scope=1:2db1079a86
 rule	5	guard=2:83789735aa

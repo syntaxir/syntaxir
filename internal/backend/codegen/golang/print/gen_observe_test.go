@@ -174,10 +174,15 @@ func TestCallbackPanicAndInterruption(t *testing.T){
  Parse(INPUT)
  ctx,cancel:=context.WithCancel(context.Background());cancel()
  if _,err:=Parse(INPUT,WithContext(ctx),sxirruntime.WithTrace(func(sxirinstrument.TraceEvent){t.Fatal("callback after pre-cancel")}));!errors.Is(err,context.Canceled){t.Fatal(err)}
- var events []sxirinstrument.TraceEvent
+ // An interrupted parse reports the events it performed and no others, so no exit of a call it did
+ // not finish: a prefix of the events of the parse without a limit, which holds the exit of main
+ // only if the parse ran to its end and the check at the end interrupted it
+ // (spec/runtime/parsing.md, Checks and Interruptions).
+ var full,events []sxirinstrument.TraceEvent
+ Parse(INPUT,sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){full=append(full,e)}))
  _,err:=Parse(INPUT,WithLimits(Limits{Compute:1}),sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent){events=append(events,e)}))
  if !errors.Is(err,ErrLimit){t.Fatal("budget",err)}
- for _,e:=range events{if e.Kind==sxirinstrument.TraceExit&&e.Rule=="main"{t.Fatal("fabricated root exit",events)}}
+ if len(events)>len(full)||len(events)>0&&!reflect.DeepEqual(events,full[:len(events)]){t.Fatal("fabricated events of an interrupted parse",events,full)}
  Parse(INPUT)
 }
 `

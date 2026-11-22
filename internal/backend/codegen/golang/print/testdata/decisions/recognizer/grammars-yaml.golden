@@ -46,7 +46,7 @@ cond	43	"ch == 84"
 cond	44	"ch == 85"
 cond	45	"ch == 89"
 cond	46	"ch == 92"
-grammar	lean	"grammars/yaml"
+grammar	lean,logical	"grammars/yaml"
 guard	1	10	0	0	0	""	11
 guard	1	20	0	0	0	""	11
 guard	1	29	1	0	0	"\"...\""	29
@@ -310,7 +310,7 @@ scope	62	65	e
 scope	62	84	e
 scope	77	8	
 scope	80	8	
-grammar	controlled	"grammars/yaml"
+grammar	controlled document	"grammars/yaml"
 guard	1	10	0	0	0	""	11
 guard	1	20	0	0	0	""	11
 guard	1	29	1	0	0	"\"...\""	29

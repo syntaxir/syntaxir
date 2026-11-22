@@ -139,6 +139,9 @@ func TestRecoveredPublicDiagnostics(t *testing.T){
 }
 `
 
+// TestGeneratedGoRecoveryMessageBudget checks that a recovered error with a long message keeps its message
+// and, under a small compute limit, counts nothing for it: the values of recovered errors and their
+// messages are no event of the compute units (spec/runtime/parsing.md, Compute Units).
 func TestGeneratedGoRecoveryMessageBudget(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -192,11 +195,12 @@ func TestLongRecoveredMessage(t *testing.T){
    var v any
    opts:=[]ParseOption{WithUnit(unit),WithLimits(Limits{Compute:256})}
    if ast{v,err=ParseValue("!",opts...)}else{v,err=Parse("!",opts...)}
-   if (v!=nil && !reflect.ValueOf(v).IsZero()) || !errors.Is(err,ErrLimit){t.Fatalf("AST=%v long diagnostic copy unbounded: value=%T error=%T",ast,v,err)}
+   // The value of a recovered error, with its message, is built by the parse rather than an action:
+   // it counts no compute unit, however long the message.
+   if v==nil || reflect.ValueOf(v).IsZero() || !errors.As(err,&recovered){t.Fatalf("AST=%v long diagnostic copy counted: value=%T error=%v",ast,v,err)}
   }
-  // Recognition records the error but does not construct a node message.
   err=Recognize("!",WithUnit(unit),WithLimits(Limits{Compute:256}))
-  if !errors.As(err,&recovered){t.Fatal("recognizer charged unconstructed node message",err)}
+  if !errors.As(err,&recovered){t.Fatal("recognizer counted the message",err)}
   if captured.Text()!=want{t.Fatal("retained message overwritten")}
   if _,err:=ParseValue("!",WithUnit(unit),WithLimits(Limits{Compute:100000}));!errors.As(err,&recovered){t.Fatal("generous recovery retry",err)}
  }

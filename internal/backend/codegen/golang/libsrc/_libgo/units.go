@@ -313,36 +313,55 @@ func (p *Parser) KeyUnits(r *Rule) {
 	}
 }
 
-// MatchLiteralLogical is MatchLiteralOrdinary that counts the input it advances over.
+// The matchers of logical units below count the input they advance over. A parse that tracks the
+// examined input (an observed parse, which runs the traced bodies) matches with the form that records
+// it; any other parse with the ordinary form.
+
+// MatchLiteralLogical is MatchLiteralOrdinary, or MatchLiteral in a parse that tracks the examined
+// input, that counts the input it advances over.
 //
 // MatchLiteralLogical is for generated parsers; not a stable API.
-func (p *Parser) MatchLiteralLogical(rs []rune, text string, desc ExpID, build bool) (*sxirvalue.Node, bool) {
+func (p *Parser) MatchLiteralLogical(rs []rune, text string, desc ExpID, build bool) (v *sxirvalue.Node, ok bool) {
 	start := p.Pos
-	v, ok := p.MatchLiteralOrdinary(rs, text, desc, build)
+	if p.track {
+		v, ok = p.MatchLiteral(rs, text, desc, build)
+	} else {
+		v, ok = p.MatchLiteralOrdinary(rs, text, desc, build)
+	}
 	if ok {
 		p.Units += uint64(p.Pos - start)
 	}
 	return v, ok
 }
 
-// MatchLiteralFoldLogical is MatchLiteralFoldOrdinary that counts the input it advances over.
+// MatchLiteralFoldLogical is MatchLiteralFoldOrdinary, or MatchLiteralFold in a parse that tracks
+// the examined input, that counts the input it advances over.
 //
 // MatchLiteralFoldLogical is for generated parsers; not a stable API.
-func (p *Parser) MatchLiteralFoldLogical(rs []rune, desc ExpID, build bool) (*sxirvalue.Node, bool) {
+func (p *Parser) MatchLiteralFoldLogical(rs []rune, desc ExpID, build bool) (v *sxirvalue.Node, ok bool) {
 	start := p.Pos
-	v, ok := p.MatchLiteralFoldOrdinary(rs, desc, build)
+	if p.track {
+		v, ok = p.MatchLiteralFold(rs, desc, build)
+	} else {
+		v, ok = p.MatchLiteralFoldOrdinary(rs, desc, build)
+	}
 	if ok {
 		p.Units += uint64(p.Pos - start)
 	}
 	return v, ok
 }
 
-// MatchAnyLogical is MatchAnyOrdinary that counts the input it advances over.
+// MatchAnyLogical is MatchAnyOrdinary, or MatchAny in a parse that tracks the examined input, that
+// counts the input it advances over.
 //
 // MatchAnyLogical is for generated parsers; not a stable API.
-func (p *Parser) MatchAnyLogical(build bool) (*sxirvalue.Node, bool) {
+func (p *Parser) MatchAnyLogical(build bool) (v *sxirvalue.Node, ok bool) {
 	start := p.Pos
-	v, ok := p.MatchAnyOrdinary(build)
+	if p.track {
+		v, ok = p.MatchAny(build)
+	} else {
+		v, ok = p.MatchAnyOrdinary(build)
+	}
 	if ok {
 		p.Units += uint64(p.Pos - start)
 	}

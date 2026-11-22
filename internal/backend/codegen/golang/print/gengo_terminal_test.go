@@ -91,16 +91,17 @@ func TestTerminalProgramGeneration(t *testing.T) {
 		if strings.Contains(string(reference), "SkipTerminal") {
 			t.Errorf("%s: the reference has a terminal program", c.Name)
 		}
-		// Parsers with budget controls or Documents keep the straight-line code, which charges
-		// budget for each expression.
+		// Documents keep the straight-line code, which charges budget for each expression; parsers with
+		// limit controls run the programs through the form that counts the input they advance over.
 		for _, opts := range []common.GenOptions{{}, {NoLimitControls: true, Document: true}} {
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "terminal", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if strings.Contains(string(codegentest.MergeGenerated(files)), "SkipTerminal") {
-				t.Errorf("%s: terminal program with %+v", c.Name, opts)
+			src := string(codegentest.MergeGenerated(files))
+			if opts.Document && strings.Contains(src, "SkipTerminal") || !opts.NoLimitControls && strings.Contains(src, "p.SkipTerminal(") {
+				t.Errorf("%s: terminal program that counts nothing with %+v", c.Name, opts)
 			}
 		}
 	}

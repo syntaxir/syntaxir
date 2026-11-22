@@ -1,66 +1,16 @@
 package print
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Logical compute units (design record 076): the ordinary form of the functions, with a counter
-// that each logical event adds to and checks of the counter on cycles. The option is internal; it
-// covers the grammars without left recursion, Operators Rules and recovery, in batch parses outside
-// a Document.
-
-// LogicalRefusal returns why logical units cannot be generated for the program, nil if they can.
-func LogicalRefusal(prog *common.Program, opts common.GenOptions) error {
-	switch {
-	case opts.NoLimitControls:
-		return errors.New("logical units need limit controls (not with -no-limits)")
-	case opts.Document || opts.Stream:
-		return errors.New("logical units do not cover Documents and streams")
-	case opts.Observability:
-		return errors.New("logical units do not cover observability")
-	}
-	for _, r := range prog.RuleList {
-		f := ruleFeaturesOf(r)
-		if f != "" {
-			return fmt.Errorf("logical units do not cover %s (rule %s)", f, r.Name)
-		}
-	}
-	return nil
-}
-
-// ruleFeaturesOf names a feature of r that logical units do not cover, "" if none.
-func ruleFeaturesOf(r *common.Rule) string {
-	if r.Leader || r.Member || r.Cycle != 0 {
-		return "left recursion"
-	}
-	if r.Def == nil {
-		return ""
-	}
-	if _, ok := r.Def.Expr.(*ast.OperatorsRule); ok {
-		return "Operators Rules"
-	}
-	found := ""
-	astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) {
-		switch e := e.(type) {
-		case *ast.Recovery:
-			found = "recovery"
-		case *ast.Attributed:
-			for _, a := range e.Attrs {
-				if a.Name == "recover" {
-					found = "recovery"
-				}
-			}
-		}
-	})
-	return found
-}
+// Logical compute units (spec/runtime/parsing.md, Compute Units): the form of the functions under
+// limit controls, outside Documents and streams. It is the ordinary form of the functions with a
+// counter that each logical event adds to, and checks of the counter on cycles.
 
 // callUnit returns the statements that count the unit of a call of r at its entry, and check the
 // counter if r is on a cycle of the call graph.

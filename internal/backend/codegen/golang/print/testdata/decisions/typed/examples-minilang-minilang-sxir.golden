@@ -20,7 +20,7 @@ cond	17	"ch == 60"
 cond	18	"ch == 61"
 cond	19	"ch == 62"
 cond	20	"ch == 92"
-grammar	lean,lean boxed	"../../examples/minilang/minilang.sxir"
+grammar	lean,logical,lean boxed	"../../examples/minilang/minilang.sxir"
 guard	14	28	1	0	0	"\"==\""	18
 guard	14	29	1	0	0	"\"!=\""	11
 guard	14	30	1	0	0	"\"<=\""	17
@@ -91,7 +91,7 @@ scope	14	51	i
 scope	14	57	n
 scope	14	6	e
 scope	15	5	x
-grammar	lean observable,controlled	"../../examples/minilang/minilang.sxir"
+grammar	lean observable,controlled document	"../../examples/minilang/minilang.sxir"
 guard	14	28	1	0	0	"\"==\""	18
 guard	14	29	1	0	0	"\"!=\""	11
 guard	14	30	1	0	0	"\"<=\""	17

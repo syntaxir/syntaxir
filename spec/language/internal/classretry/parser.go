@@ -73,21 +73,24 @@ func init() {
 	rules[0].Body = e2
 	sxirGrammar.Starts = []string{"main"}
 	sxirGrammar.DefaultStart = "main"
+	sxirGrammar.Logical = true
 }
 
 func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
 	var x1, x2, size, x13 int
 	var x4, x6 rt.Mark
 	var v7, v11, v14, v15, v16 *sxirvalue.Node
 	var ok bool
 	x1, x2 = p.Pos, len(p.KidStack)
 	for {
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		x4 = p.Mark()
 		x6 = p.Mark()
-		if !p.HasChar(91, false) && p.Depth <= p.MaxDepth {
-			p.Expect(p.Pos, 5)
+		if !p.HasCharOrdinary(91, false) && p.Depth <= p.MaxDepth {
+			p.ExpectOrdinary(p.Pos, 5)
+			p.SkipUnits(1)
 			goto L9
 		}
 		if v11, ok = r1(p); !ok {
@@ -98,19 +101,15 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	L10:
 		p.Reset(x6)
 	L9:
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			_, size, ok = p.In[p.Pos], 1, true
-		} else {
-			_, size, ok = p.Peek()
-		}
+		_, size, ok = p.NextOrdinary()
 		if !ok {
-			p.Expect(p.Pos, rt.IdAny)
+			p.ExpectOrdinary(p.Pos, rt.IdAny)
 			goto L12
 		}
 		x13 = p.Pos
 		p.Pos += size
-		v14 = p.NewTerminal(x13, p.Text(x13, p.Pos))
+		p.Units += uint64(size)
+		v14 = p.NewTerminalOrdinary(x13, p.Text(x13, p.Pos))
 		v7 = v14
 		goto L8
 	L12:
@@ -127,95 +126,78 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Reset(x4)
 		break
 	}
-	v16 = p.NewBranch(rt.ListKind, x1, p.Kids(x2))
+	v16 = p.NewBranchOrdinary(rt.ListKind, x1, p.Kids(x2))
 	return v16, true
 }
 
 func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
-	p.Spend()
-	var x1, x3, x5, x6, x8, x16, x18, size, x20, x28, x32 int
+	var x1, x3, x5, x6, x8, x35, x16, x18, size, x20, x28, x32 int
 	var x2, x17 []*sxirvalue.Node
 	var ok, x25 bool
 	var v4, v12, v19, v21, v22, v23, v29, v30, v31, v33, v34 *sxirvalue.Node
 	var x9, x11 rt.Mark
-	var x24, ch rune
+	var x24 rune
 	x1 = p.Pos
 	x2 = p.Nodes(3)[:0]
 	x3 = p.Pos
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 91) && p.Control.Take(1) {
+	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit3, "[", 5, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit3, "[", 5, false); !ok {
 		goto fail
 	}
-	v4 = p.NewTerminal(x3, "[")
+	v4 = p.NewTerminalOrdinary(x3, "[")
 	x2 = append(x2, v4)
 	x5, x6 = p.Pos, len(p.KidStack)
 	for x8 = 0; x8 < 1000000; x8++ {
-		p.Spend()
+		if p.Units > p.UnitsCheck {
+			p.PollUnits()
+		}
 		x9 = p.Mark()
 		x11 = p.Mark()
-		if !p.HasChar(92, false) && p.Depth <= p.MaxDepth {
-			p.Expect(p.Pos, 6)
+		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
+			p.ExpectOrdinary(p.Pos, 6)
 			goto L14
 		}
 		x16 = p.Pos
 		x17 = p.Nodes(2)[:0]
 		x18 = p.Pos
-		if (p.Pos < len(p.In) && p.In[p.Pos] == 92) && p.Control.Take(1) {
+		if p.Pos < len(p.In) && p.In[p.Pos] == 92 {
 			p.Pos++
-		} else if _, ok = p.MatchLiteral(lit4, "\\", 6, false); !ok {
+			p.Units += 1
+		} else if _, ok = p.MatchLiteralLogical(lit4, "\\", 6, false); !ok {
 			goto L15
 		}
-		v19 = p.NewTerminal(x18, "\\")
+		v19 = p.NewTerminalOrdinary(x18, "\\")
 		x17 = append(x17, v19)
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			_, size, ok = p.In[p.Pos], 1, true
-		} else {
-			_, size, ok = p.Peek()
-		}
+		_, size, ok = p.NextOrdinary()
 		if !ok {
-			p.Expect(p.Pos, rt.IdAny)
+			p.ExpectOrdinary(p.Pos, rt.IdAny)
 			goto L15
 		}
 		x20 = p.Pos
 		p.Pos += size
-		v21 = p.NewTerminal(x20, p.Text(x20, p.Pos))
+		p.Units += uint64(size)
+		v21 = p.NewTerminalOrdinary(x20, p.Text(x20, p.Pos))
 		x17 = append(x17, v21)
-		v22 = p.NewBranch(rt.SeqKind, x16, x17)
+		v22 = p.NewBranchOrdinary(rt.SeqKind, x16, x17)
 		v23, _ = p.ShapeSingle(sh5, v22, x11.Pos)
 		v12 = v23
 		goto L13
 	L15:
 		p.Reset(x11)
 	L14:
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			x24, _, x25 = p.In[p.Pos], 1, true
-		} else {
-			x24, _, x25 = p.Peek()
-		}
+		x24, x35, x25 = p.NextOrdinary()
 		if !(x25 && (!(x24 == 93 || x24 == 92 || x24 == 10))) && p.Depth <= p.MaxDepth {
-			p.Expect(p.Pos, 7)
+			p.ExpectOrdinary(p.Pos, 7)
 			goto L26
 		}
-		if p.Pos < len(p.In) {
-			p.Control.Take(1)
-			ch, size, ok = p.In[p.Pos], 1, true
-		} else {
-			ch, size, ok = p.Peek()
-		}
-		if !ok || (ch == 93 || ch == 92 || ch == 10) {
-			p.Expect(p.Pos, 7)
-			goto L27
-		}
 		x28 = p.Pos
-		p.Pos += size
-		v29 = p.NewTerminal(x28, p.Text(x28, p.Pos))
+		p.Pos += x35
+		p.Units += uint64(x35)
+		v29 = p.NewTerminalOrdinary(x28, p.Text(x28, p.Pos))
 		v12 = v29
 		goto L13
-	L27:
-		p.Reset(x11)
 	L26:
 		goto L10
 	L13:
@@ -229,24 +211,25 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Reset(x9)
 		break
 	}
-	v31 = p.NewBranch(rt.ListKind, x5, p.Kids(x6))
+	v31 = p.NewBranchOrdinary(rt.ListKind, x5, p.Kids(x6))
 	x2 = append(x2, v31)
 	x32 = p.Pos
-	if (p.Pos < len(p.In) && p.In[p.Pos] == 93) && p.Control.Take(1) {
+	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-	} else if _, ok = p.MatchLiteral(lit6, "]", 8, false); !ok {
+		p.Units += 1
+	} else if _, ok = p.MatchLiteralLogical(lit6, "]", 8, false); !ok {
 		goto fail
 	}
-	v33 = p.NewTerminal(x32, "]")
+	v33 = p.NewTerminalOrdinary(x32, "]")
 	x2 = append(x2, v33)
-	v34 = p.NewBranch(rt.SeqKind, x1, x2)
+	v34 = p.NewBranchOrdinary(rt.SeqKind, x1, x2)
 	return v34, true
 fail:
 	return nil, false
 }
 
 func r1(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Spend()
+	p.Units++
 	start, trail := p.Pos, len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false

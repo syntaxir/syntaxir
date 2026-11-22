@@ -1,5 +1,5 @@
 # Recognizer lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean	"grammars/golang"
+grammar	lean,logical	"grammars/golang"
 rule	0	scope=2:6a32898b83
 rule	1	guard=4:fb1c61869e
 rule	2	guard=2:807aca0f2c
@@ -205,7 +205,7 @@ rule	382	guard=3:7dd73a6972 scan=1:0f22ee5c3c
 rule	384	guard=3:1cea0ff0a9
 rule	385	guard=2:1fb1de29ad
 rule	386	scan=1:0bf1577341
-grammar	controlled	"grammars/golang"
+grammar	controlled document	"grammars/golang"
 rule	0	scope=2:6a32898b83
 rule	1	guard=4:fb1c61869e
 rule	2	guard=2:807aca0f2c

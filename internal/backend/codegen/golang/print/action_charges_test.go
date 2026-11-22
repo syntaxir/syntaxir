@@ -174,7 +174,7 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 		}
 	}
 	// Generated Go: the node parser's Parse and Recognize, and the typed parser's ParseValue.
-	maps.Copy(got, goActionCharges(t, prefix, actionExprs, nil))
+	maps.Copy(got, goActionCharges(t, prefix, actionExprs, false, nil))
 	// Generated TypeScript.
 	for i, c := range actionExprs {
 		g, _ := parseTest(c.Src)
@@ -201,9 +201,10 @@ func actionChargeKey(prefix string, actionExprs []codegentest.ActionCase, i int,
 }
 
 // goActionCharges returns the golden entries of the generated Go targets for action expressions: the charges of the node
-// parser's Parse and Recognize and of the typed parser's ParseValue. mutate, if not nil, edits each generated
-// parser before it is built; it is given the target the parser is built for, "go-node" or "go-typed".
-func goActionCharges(t *testing.T, prefix string, actionExprs []codegentest.ActionCase, mutate func(target string, src []byte) []byte) map[string]string {
+// parser's Parse and Recognize and of the typed parser's ParseValue. The parsers count compute units, or with
+// document the budget that the Document form charges. mutate, if not nil, edits each generated parser before it
+// is built; it is given the target the parser is built for, "go-node" or "go-typed".
+func goActionCharges(t *testing.T, prefix string, actionExprs []codegentest.ActionCase, document bool, mutate func(target string, src []byte) []byte) map[string]string {
 	t.Helper()
 	cases := make([]codegentest.Case, len(actionExprs))
 	for i, c := range actionExprs {
@@ -217,6 +218,7 @@ func goActionCharges(t *testing.T, prefix string, actionExprs []codegentest.Acti
 		opts  common.GenOptions
 		parse string
 	}{{"go-node", common.GenOptions{}, "Parse"}, {"go-typed", common.GenOptions{Types: true}, "ParseValue"}} {
+		run.opts.Document = document
 		var edit func([]byte) []byte
 		if mutate != nil {
 			edit = func(src []byte) []byte { return mutate(run.name, src) }

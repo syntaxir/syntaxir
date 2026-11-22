@@ -46,7 +46,8 @@ func TestCorePipelineVerifiesEveryPass(t *testing.T) {
 	}{
 		{"lean", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}},
 		{"lean observable", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Observability: true}},
-		{"controlled", common.GenOptions{Types: true, TypedOnly: true}},
+		{"logical", common.GenOptions{Types: true, TypedOnly: true}},
+		{"controlled document", common.GenOptions{Types: true, Document: true}},
 		{"lean boxed", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
 		{"lean without guarded classes", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"guarded-classes"}}},
 		{"lean without terminals", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"terminals"}}},

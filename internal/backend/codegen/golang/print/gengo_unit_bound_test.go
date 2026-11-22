@@ -11,12 +11,12 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// A generated Go parser with limit controls charges at least one unit, and at most a constant, for
-// each call, character, iteration, operator and value ("Cost" in spec/runtime/parsing.md), as the
-// engine's backends do (TestBudgetCoarseChargesPerIteration). Each grammar adds one element to the
-// input at a time, and the least budget under which the parse finishes has to grow by the same
-// step at every size: a constant per element. The step is pinned exactly, so a charge that is lost
-// for a call, a character, an iteration, an operator or a value changes it.
+// A generated Go parser with limit controls counts the compute units of the logical events of each
+// element of its input ("Compute Units" in spec/runtime/parsing.md): the calls, the input that
+// terminals advance over, and the elements that list built-ins visit and build. Each grammar adds one
+// element to the input at a time, and the least compute limit under which the parse finishes has to
+// grow by the same step at every size: the units of one element. The step is pinned exactly, so a
+// count that is lost or added for a call, a character or a value changes it.
 func TestGeneratedGoChargesEachElement(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -27,13 +27,21 @@ func TestGeneratedGoChargesEachElement(t *testing.T) {
 		pkg, src, before, unit, after string
 		step                          uint64
 	}{
-		{"repeat", `rule main = ("a" "b")* $$`, "", "ab", "", 7},
-		{"scan", `rule main = [a-z]* $$`, "", "a", "", 4},
-		{"call", "rule main = item* $$\nrule item = \"a\"", "", "a", "", 6},
-		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 7},
-		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic", "", ",a", "", 11},
-		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}", "", "-", "a", 9},
-		{"infix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n}", "a", "+a", "", 13},
+		{"repeat", `rule main = ("a" "b")* $$`, "", "ab", "", 2},
+		{"scan", `rule main = [a-z]* $$`, "", "a", "", 1},
+		{"call", "rule main = item* $$\nrule item = \"a\"", "", "a", "", 2},
+		{"capturecall", "rule main = item* $$\nrule item = x:\"a\" {len(text($x)) == 1}", "", "a", "", 2},
+		{"projected", "type L = { N int }\nrule main = xs:(-\",\" r:x)* $$ => L{N: len(map($xs, (e) => e.$r))}\nrule x = [a-z] #atomic", "", ",a", "", 5},
+		{"prefix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n    level {\n        prefix \"-\"\n    }\n}", "", "-", "a", 1},
+		// One more "+a" of a left-associative infix is 3 units, all of them input that a terminal
+		// advances over: the right operand of the "+" before it, parsed with only tighter operators
+		// allowed, matches its operand "a" (1) and then selects the next operator, "+" (1), which it
+		// rejects only after the selection, since an operator is selected before precedence is
+		// considered (Operator selection, spec/language/operators-rule.md). That right operand ends
+		// before the "+", and the loop of the expression selects it again (1), input advanced over
+		// again after backtracking. The operators, the operand and the selections count nothing more,
+		// and the expression calls no rule for its operands.
+		{"infix", "rule main = expr $$\nrule expr = #operators {\n    operand \"a\"\n    level {\n        infix left \"+\"\n    }\n}", "a", "+a", "", 3},
 	}
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoMod("fixture")), 0o644); err != nil {

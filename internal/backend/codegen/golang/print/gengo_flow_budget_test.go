@@ -18,10 +18,10 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// The Node and recognizer tables of a parser with budget controls are printed from Flow IR, which makes
-// the charges explicit (flow.Attrs.Budget, verified by flow.VerifyModule). The spend of a parse depends on the backend,
-// the position unit and the generated artifact, so the step totals are not compared with another
-// implementation: these tests build each parser, run it under limits and a polling context, check the
+// The Node and recognizer tables of a parser with limit controls are printed from Flow IR. Outside
+// Documents and streams they count the compute units of spec/runtime/parsing.md, whose totals the
+// specification makes the same on every backend; Documents and streams still charge the budget
+// steps of the Flow IR (flow.Attrs.Budget, verified by flow.VerifyModule). These tests build each parser, run it under limits and a polling context, check the
 // invariants that every build must keep (limits fail with a well-formed error at the counter they limit,
 // the least successful limit succeeds, the context is polled at the library's cadence) and freeze the
 // totals in testdata/budget.golden, so that a change of the charges shows up as a reviewed diff.
@@ -63,10 +63,21 @@ func (c *countCtx) Value(key any) any                 { return nil }
 var probes = []struct{ parse, recognize probe }{
 PROBES}
 
+// units is whether the parsers count logical compute units, which they do with limit controls outside
+// Documents and streams; the others reserve budget.
+const units = UNITS
+
+// unitsOvershoot bounds how far past the limit a parser that counts units goes before a check stops
+// it: K + B of spec/runtime/parsing.md (Checks and Interruptions), with K = 4096 for the grammars of
+// these tests, whose largest single event is far smaller.
+const unitsOvershoot = 4096 + 4096
+
 // shape returns what is wrong with err as the error of a run limited to compute units, "" if nothing. A
 // compute limit error has the type LimitError of the generated package, found by reflection because every
-// package has a copy of the library; its kind must be the compute limit and the reservation that failed
-// must have gone past it.
+// package has a copy of the library; its kind must be the compute limit. A parser that counts units
+// reports the count of the check that stopped it, past the limit by at most unitsOvershoot, and requests
+// nothing; one that reserves budget reports the reservation that failed, which must have gone past the
+// limit.
 func shape(err error, spend uint64) string {
 	if err == nil || !strings.Contains(err.Error(), "limit exceeded") {
 		return "" // not limited: the run failed or succeeded on its own
@@ -78,7 +89,13 @@ func shape(err error, spend uint64) string {
 		}
 		v = v.Elem()
 		kind, limit, used, req := v.FieldByName("Kind").Uint(), v.FieldByName("Limit").Uint(), v.FieldByName("Used").Uint(), v.FieldByName("Requested").Uint()
-		if kind != 0 || limit != spend || used > limit || used+req <= limit || req == 0 {
+		malformed := kind != 0 || limit != spend
+		if units {
+			malformed = malformed || used <= limit || used-limit > unitsOvershoot || req != 0
+		} else {
+			malformed = malformed || used > limit || used+req <= limit || req == 0
+		}
+		if malformed {
 			return fmt.Sprintf("malformed compute limit error: kind %d limit %d used %d requested %d", kind, limit, used, req)
 		}
 		return ""
@@ -242,6 +259,7 @@ func runBudgetProbesWith(t *testing.T, rt string, cases []codegentest.Case, star
 		inputs = append(inputs, c.Inputs)
 	}
 	main := strings.Replace(budgetProbeSources("f", len(cases)), "IMPORTS", "", 1)
+	main = strings.Replace(main, "UNITS", strconv.FormatBool(!opts.Document && !opts.Stream), 1)
 	write("main.go", strings.ReplaceAll(main, ".Parse(s, opts...)", "."+parse+"(s, opts...)"))
 	data, _ := json.Marshal(inputs)
 	write("inputs.json", string(data))
@@ -314,8 +332,9 @@ var budgetGoldenFile = codegentest.GoldenFile{
 // TestFlowNodeBudgetInvariants checks, for the parsers of the generated corpus with budget controls built with
 // the rules printed from Flow IR, the invariants every build keeps whichever way it spends budget:
 //
-//   - a limit below the total fails with a compute limit error whose reservation went
-//     past the limit, and the least limit that does not fail succeeds (the bad counts of the reports);
+//   - a limit below the total fails with a compute limit error: one that counts units stops past the
+//     limit by at most K + B and requests nothing, one that reserves budget reports the reservation that
+//     went past the limit; and the least limit that does not fail succeeds (the bad counts of the reports);
 //   - the context is polled every 256 compute units, as the library does, so the polls of a run number at
 //     least spend/256 (less a slack of two);
 //   - a run that parses the whole input without error charged at least one compute unit for each character;
@@ -449,25 +468,29 @@ func budgetTotalsWith(t *testing.T, rt, group string, cases []codegentest.Case, 
 	return got, problems
 }
 
-// stepStatement is a charge of one step in generated code.
-const stepStatement = "p.Spend()\n"
+// stepStatements are the counts of one unit in generated code: a step charge of a parser that reserves
+// budget and a unit of a parser that counts compute units.
+var stepStatements = []string{"p.Spend()\n", "p.Units++\n"}
 
-// dropFirstStep removes the first step charge of the code, as a printer would if it lost the charge of a
-// Step of the IR; dropLastStep removes the last.
+// dropFirstStep removes the first count of one unit of the code, as a printer would if it lost the
+// charge of a Step of the IR or the unit of an event; dropLastStep removes the last.
 func dropFirstStep(code []byte) []byte {
-	i := bytes.Index(code, []byte(stepStatement))
-	if i < 0 {
-		return code
-	}
-	return append(append([]byte(nil), code[:i]...), code[i+len(stepStatement):]...)
+	return dropStep(code, bytes.Index)
 }
 
 func dropLastStep(code []byte) []byte {
-	i := bytes.LastIndex(code, []byte(stepStatement))
-	if i < 0 {
-		return code
+	return dropStep(code, bytes.LastIndex)
+}
+
+// dropStep removes the occurrence of a step statement that find locates, of the first statement of
+// stepStatements that the code has.
+func dropStep(code []byte, find func(s, sep []byte) int) []byte {
+	for _, st := range stepStatements {
+		if i := find(code, []byte(st)); i >= 0 {
+			return append(append([]byte(nil), code[:i]...), code[i+len(st):]...)
+		}
 	}
-	return append(append([]byte(nil), code[:i]...), code[i+len(stepStatement):]...)
+	return code
 }
 
 // The cadence of the library's context polls (pkg/runtime/libgo/budget.go: budgetCheckInterval).

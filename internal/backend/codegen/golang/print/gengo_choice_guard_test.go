@@ -3,6 +3,7 @@ package print_test
 import (
 	"math/rand"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -82,8 +83,9 @@ func TestGuardedClassDisabledParity(t *testing.T) {
 	codegentest.GeneratedTypesCorpus(t, filepath.Join(runtime.GOROOT(), "bin", "go"), guardedClassCases(), common.GenOptions{NoOpt: []string{"guarded-classes"}}, 0)
 }
 
-// TestGuardedClassEligibility checks that parsers that spend budget for reading (budget controls or
-// Documents) keep the class reading and testing the character again.
+// TestGuardedClassEligibility checks that parsers that spend budget for reading (Documents) keep the
+// class reading and testing the character again, and that a parser with compute units, whose class
+// consumes the guard's character, counts the input it advances over.
 func TestGuardedClassEligibility(t *testing.T) {
 	t.Parallel()
 	for _, c := range guardedClassCases() {
@@ -92,15 +94,26 @@ func TestGuardedClassEligibility(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, opts := range []common.GenOptions{{NoLimitControls: true, TypedOnly: true}, {TypedOnly: true}, {Types: true}, {NoLimitControls: true, Types: true, Document: true}} {
-			want := opts.NoLimitControls && !opts.Document
+			want := !opts.Document
 			opts.Package, opts.Module, opts.Start, opts.Types, opts.Lib = "guarded", "example.com/generated", "main", true, common.LibImport
 			files, err := codegentest.Generate(t, g, opts)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if got := strings.Contains(string(codegentest.MergeGenerated(files)), "p.Pos += x"); got != want {
-				t.Errorf("%s (budget controls %v, document %v): a class consumes the guard's character: %v, want %v", c.Name, !opts.NoLimitControls, opts.Document, got, want)
+			src := string(codegentest.MergeGenerated(files))
+			if got := strings.Contains(src, "p.Pos += x"); got != want {
+				t.Errorf("%s (limit controls %v, document %v): a class consumes the guard's character: %v, want %v", c.Name, !opts.NoLimitControls, opts.Document, got, want)
+			}
+			if !opts.NoLimitControls {
+				for _, m := range guardAdvance.FindAllStringSubmatch(src, -1) {
+					if strings.TrimSpace(m[2]) != "p.Units += uint64("+m[1]+")" {
+						t.Errorf("%s (limit controls): the class advances by %s without counting it: %q", c.Name, m[1], m[2])
+					}
+				}
 			}
 		}
 	}
 }
+
+// guardAdvance matches the advance of a class over the guard's character and the line after it.
+var guardAdvance = regexp.MustCompile(`(?m)^\s*p\.Pos \+= (x\d+)\n(\s*[^\n]*)$`)

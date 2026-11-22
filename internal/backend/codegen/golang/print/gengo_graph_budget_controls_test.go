@@ -12,6 +12,9 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
+// TestGeneratedGoGraphBudget checks the budget charges of the term compositions over value graphs (fields,
+// list members, folds) and their cancellation. The parsers are Documents: outside one a parser with limit
+// controls counts compute units, in which these operations count nothing.
 func TestGeneratedGoGraphBudget(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -39,7 +42,7 @@ rule rollback Bag = (x:leaf "z" / x:leaf) rest:(part:leaf "b")* last:leaf #cut =
 	}
 	for _, convert := range []bool{false, true} {
 		pkg := fmt.Sprintf("graph_%v", convert)
-		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", Types: true, Recognize: true, ConvertTypes: convert})
+		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: pkg, Start: "main", Types: true, Recognize: true, ConvertTypes: convert, Document: true})
 		if err != nil {
 			t.Fatal(err)
 		}

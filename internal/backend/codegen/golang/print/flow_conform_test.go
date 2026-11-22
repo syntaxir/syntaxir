@@ -233,7 +233,7 @@ rule z = "y" &u
 rule outer = inner "-"
 rule inner = "a" tail
 rule tail = [a-z]*
-`, opts: common.GenOptions{LogicalUnits: true}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
+`, opts: common.GenOptions{}, inputs: []string{"ccbeyca.a;a-!a-?", "aqq-?aqqq.ya-!", "a-", "q", ""}},
 	// A Document whose repetition resumes its run after edits: the elements before an edit are the
 	// reused prefix, and those after it, moved by an edit that changes the length, the reused tail. The
 	// parses run under the default limit, under which the work of the Document is not counted.
@@ -626,7 +626,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, !c.opts.LogicalUnits) {
+				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits || c.opts.Document || c.opts.Stream) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}

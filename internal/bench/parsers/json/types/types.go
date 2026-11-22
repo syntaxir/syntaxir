@@ -122,7 +122,6 @@ func (v *Array) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Elements))
 			for i, x := range v.Elements {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -213,7 +212,6 @@ func (v *Object) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Members))
 			for i, x := range v.Members {
-				p.Spend()
 				kids[i] = rt.TPtr(x)
 			}
 			return p.ListField(kids)
@@ -279,7 +277,7 @@ func tb3(v *Number) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [5]uint16
 
-// SXIRSchema_82fa9a37aee3a517 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_154a89c58b1cf47c ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_82fa9a37aee3a517 = 0
+const SXIRSchema_154a89c58b1cf47c = 0

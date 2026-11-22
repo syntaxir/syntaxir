@@ -94,11 +94,8 @@ type GoConfig struct {
 	// parser is smaller, faster to build and faster to run, and a parse that passes a context or a
 	// finite Compute limit returns an error; Limits.Input and Limits.Depth work in both forms.
 	NoLimitControls bool
-	// LogicalUnits is internal: in the default controlled form, the functions count logical compute units
-	// (design record 076) in place of the charges of the limit-controlled form. It does not cover
-	// Documents, streams, observability, left recursion, Operators Rules or recovery.
-	LogicalUnits bool
-	// LogicalVariant selects a variant of LogicalUnits for tests and measurements: "keep-guards"
+	// LogicalVariant is internal: it selects a variant of the logical compute units that the
+	// controlled form counts outside Documents and streams, for tests and measurements: "keep-guards"
 	// keeps every dispatch guard without the effects of the calls it skips (inexact, to measure what
 	// the effects cost); "event" keeps only the guards whose skip makes no call, so that each call is
 	// counted where it happens, as the reference of the exactness tests.
@@ -158,7 +155,6 @@ func GenerateGo(src grammar.Source, c GoConfig, opts ...Option) ([]File, error) 
 		SourceInfo:      o.sourceInfo,
 		Observability:   c.Observability,
 		NoLimitControls: c.NoLimitControls,
-		LogicalUnits:    c.LogicalUnits,
 		LogicalVariant:  c.LogicalVariant,
 		Expectations:    c.Expectations,
 		Recognize:       c.Recognize,

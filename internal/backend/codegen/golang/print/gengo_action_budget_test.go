@@ -15,35 +15,29 @@ import (
 // place where a predicate or a binding forgets what its action expression left: the nodes an action expression created, when the
 // action expression succeeds or fails, and the values it gathered, when it fails. A concat gathers the elements of
 // its lists in place, so one more element of its first list, before the second fails, is one more
-// value gathered and forgotten. delta is what the second spends more than the first on the input "a",
-// on both entries: building and gathering the value, and the unit of forgetting it, which a library that
-// forgets without charging leaves out (see TestGeneratedActionChargeMutants).
+// value gathered and forgotten.
 //
-// typedParse is the same for the parse entry of a typed parser (ParseValue), whose Created and KidStack hold
-// typed values and cost less to forget than nodes; its recognize entry runs the node parser's code. units is
-// the same in logical compute units (spec/runtime/parsing.md#compute-units), which every backend that counts
-// them counts alike, the engine's in every entry among them: a list element of an action value counts one
-// unit, and forgetting counts nothing, nor do the nodes created before an action expression fails. The budget
-// columns differ, since every budget target charges the values of an action expression in its own way; they are
-// pinned apart so that a change in any is a stated change.
+// units is what the second counts more than the first on the input "a", in a generated parser on
+// every entry, typed or not, and in the engine on every backend and entry: the compute units of
+// spec/runtime/parsing.md#compute-units count one unit for each element of a list that an action, a
+// predicate or a binding builds, and nothing for forgetting values, building a struct or converting
+// the result to typed values. A list that fails before it is built counts nothing.
 var actionChargePairs = []struct {
 	name, one, two string
-	delta          int64
-	typedParse     int64
 	units          int64
 }{
 	{"a predicate forgets the nodes its action expression created",
-		actionPredicate(`list(T{N: 1})`), actionPredicate(`list(T{N: 1}, T{N: 2})`), 7, 5, 1},
+		actionPredicate(`list(T{N: 1})`), actionPredicate(`list(T{N: 1}, T{N: 2})`), 1},
 	{"a binding forgets the nodes its action expression created",
-		actionBinding(`len(list(T{N: 1}))`), actionBinding(`len(list(T{N: 1}, T{N: 2}))`), 7, 5, 1},
+		actionBinding(`len(list(T{N: 1}))`), actionBinding(`len(list(T{N: 1}, T{N: 2}))`), 1},
 	{"a failed predicate forgets the values its action expression gathered",
-		actionFailedPredicate(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedPredicate(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 1},
+		actionFailedPredicate(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedPredicate(`concat(list(1, 2), list(10 / (1 - len($x))))`), 1},
 	{"a failed binding forgets the values its action expression gathered",
-		actionFailedBinding(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedBinding(`concat(list(1, 2), list(10 / (1 - len($x))))`), 3, 2, 1},
+		actionFailedBinding(`concat(list(1), list(10 / (1 - len($x))))`), actionFailedBinding(`concat(list(1, 2), list(10 / (1 - len($x))))`), 1},
 	{"a failed predicate forgets the nodes its action expression created",
-		actionFailedPredicate(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedPredicate(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 0},
+		actionFailedPredicate(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedPredicate(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 0},
 	{"a failed binding forgets the nodes its action expression created",
-		actionFailedBinding(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedBinding(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 3, 1, 0},
+		actionFailedBinding(`list(T{N: 1}, 10 / (1 - len($x)))`), actionFailedBinding(`list(T{N: 1}, T{N: 2}, 10 / (1 - len($x)))`), 0},
 }
 
 func actionPredicate(actionExpr string) string {
@@ -68,18 +62,19 @@ func actionFailedBinding(actionExpr string) string {
 // pair and entry, what the second grammar spends more than the first.
 func actionChargeDeltas(t *testing.T, rt string) map[string]int64 {
 	t.Helper()
-	return actionChargeDeltasWith(t, rt, common.GenOptions{}, "Parse")
+	return actionChargeDeltasWith(t, rt, common.GenOptions{}, "Parse", nil)
 }
 
-// actionChargeDeltasWith is actionChargeDeltas for the generator options and entry point of runBudgetProbesWith.
-func actionChargeDeltasWith(t *testing.T, rt string, opts common.GenOptions, parse string) map[string]int64 {
+// actionChargeDeltasWith is actionChargeDeltas for the generator options and entry point of runBudgetProbesWith,
+// with the code of each parser changed by mutate if not nil.
+func actionChargeDeltasWith(t *testing.T, rt string, opts common.GenOptions, parse string, mutate func([]byte) []byte) map[string]int64 {
 	t.Helper()
 	var cases []codegentest.Case
 	for _, p := range actionChargePairs {
 		cases = append(cases, codegentest.Case{Name: p.name + " (one)", Src: p.one, Inputs: []string{"a"}},
 			codegentest.Case{Name: p.name + " (two)", Src: p.two, Inputs: []string{"a"}})
 	}
-	got, problems := budgetTotalsWith(t, rt, "actions", cases, "main", nil, opts, parse)
+	got, problems := budgetTotalsWith(t, rt, "actions", cases, "main", mutate, opts, parse)
 	for _, p := range problems {
 		t.Error(p)
 	}
@@ -112,24 +107,14 @@ func actionChargeWant() map[string]int64 {
 	want := map[string]int64{}
 	for _, p := range actionChargePairs {
 		for _, entry := range []string{"parse", "recognize"} {
-			want[p.name+" | "+entry] = p.delta
+			want[p.name+" | "+entry] = p.units
 		}
 	}
 	return want
 }
 
-// actionChargeWantTyped returns the deltas of actionChargePairs for a typed parser, in the form of
-// actionChargeDeltas: its parse entry is typedParse, its recognize entry the node parser's delta.
-func actionChargeWantTyped() map[string]int64 {
-	want := map[string]int64{}
-	for _, p := range actionChargePairs {
-		want[p.name+" | parse"], want[p.name+" | recognize"] = p.typedParse, p.delta
-	}
-	return want
-}
-
 // TestGeneratedActionChargesPerValue checks the charges of generated Go for each value that a predicate
-// or a binding forgets, which the totals of the budget goldens mix with everything else a parse spends.
+// or a binding builds and forgets, which the totals of the budget goldens mix with everything else a parse counts.
 func TestGeneratedActionChargesPerValue(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -145,15 +130,16 @@ func TestGeneratedActionChargesPerValue(t *testing.T) {
 }
 
 // TestGeneratedTypedActionChargesPerValue is TestGeneratedActionChargesPerValue for the typed library: the
-// predicate and the binding of a typed parser (TParser) forget the values of an action expression in their own code.
+// predicate and the binding of a typed parser (TParser) forget the values of an action expression in their own code,
+// and count what the node parser counts.
 func TestGeneratedTypedActionChargesPerValue(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
 	if testing.Short() {
 		t.Skip("builds generated consumers")
 	}
-	got := actionChargeDeltasWith(t, codegentest.LibCopy(), common.GenOptions{Types: true}, "ParseValue")
-	for k, want := range actionChargeWantTyped() {
+	got := actionChargeDeltasWith(t, codegentest.LibCopy(), common.GenOptions{Types: true}, "ParseValue", nil)
+	for k, want := range actionChargeWant() {
 		if got[k] != want {
 			t.Errorf("%s: one more value costs %d units, want %d", k, got[k], want)
 		}

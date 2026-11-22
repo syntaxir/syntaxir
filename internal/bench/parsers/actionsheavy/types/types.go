@@ -96,7 +96,6 @@ func (v *Doc) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Lines))
 			for i, x := range v.Lines {
-				p.Spend()
 				kids[i] = rt.TPtr(x)
 			}
 			return p.ListField(kids)
@@ -167,7 +166,7 @@ func (v *Line) TZeroField(c *rt.TActCtx, name string) (any, bool) {
 	return nil, false
 }
 
-// SXIRSchema_c5ad502b37a5bde7 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_6ec40af3da5ba489 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_c5ad502b37a5bde7 = 0
+const SXIRSchema_6ec40af3da5ba489 = 0

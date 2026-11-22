@@ -183,7 +183,10 @@ func TestTypedTraceLifecycle(t *testing.T){
   parse(WithTrace(func(e TraceEvent){if e.Kind==TraceEnter&&e.Depth>1{panic(marker)}}),WithTraceMaxDepth(1))
   ctx,cancel:=context.WithCancel(context.Background());cancel()
   _,err:=parse(WithContext(ctx),WithTrace(func(TraceEvent){t.Fatal("pre-cancel callback")}));if !errors.Is(err,context.Canceled){t.Fatal(err)}
-  events=nil;_,err=parse(WithLimits(Limits{Compute:1}),WithTrace(func(e TraceEvent){events=append(events,e)}));if !errors.Is(err,ErrLimit){t.Fatal("typed budget",err)};for _,e:=range events{if e.Kind==TraceExit&&e.Rule=="main"{t.Fatal("fabricated typed exit",events)}}
+  // An interrupted parse reports the events it performed and no others: a prefix of the events of
+  // the parse without a limit, with the exit of main only if the check at the end interrupted it.
+  var full []TraceEvent;parse(WithTrace(func(e TraceEvent){full=append(full,e)}))
+  events=nil;_,err=parse(WithLimits(Limits{Compute:1}),WithTrace(func(e TraceEvent){events=append(events,e)}));if !errors.Is(err,ErrLimit){t.Fatal("typed budget",err)};if len(events)>len(full)||len(events)>0&&!reflect.DeepEqual(events,full[:len(events)]){t.Fatal("fabricated typed events",events,full)}
  }
  var wg sync.WaitGroup;for i:=0;i<4;i++{wg.Go(func(){for j:=0;j<4;j++{ParseValue(INPUT,WithTrace(func(TraceEvent){}))}})};wg.Wait()
  p:=&sxirrt.TParser{Parser:&sxirrt.Parser{Observation:&sxirrt.X_observation{}}};p.X_recycle();if p.Observation!=nil{t.Fatal("typed pool retained observer")}

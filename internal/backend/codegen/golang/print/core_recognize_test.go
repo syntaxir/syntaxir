@@ -44,7 +44,8 @@ func coreRecognizeCase(name, mode string, g *print.Generator) (*coreGenCase, err
 // recognizerGenModes are the modes in which the Core IR of the recognizers is frozen.
 var recognizerGenModes = []coreGenMode{
 	{"lean", common.GenOptions{NoLimitControls: true, Recognize: true}},
-	{"controlled", common.GenOptions{Recognize: true}},
+	{"logical", common.GenOptions{Recognize: true}},
+	{"controlled document", common.GenOptions{Recognize: true, Document: true}},
 }
 
 // recognizerCorpus is the corpus grammars of the recognizer freeze.
@@ -64,8 +65,8 @@ var recognizerKnownDifferences = []codegentest.Case{
 
 // TestCoreRecognizerDecisionsFrozen compares the decisions of the Core IR of the recognizers of the
 // corpus with those frozen in testdata/decisions/recognizer, in each recognizer mode. The
-// grammars of recognizerKnownDifferences must have a guarded class in the lean mode, and none in the
-// controlled one. -update rewrites the golden (core_typed_decisions_test.go).
+// grammars of recognizerKnownDifferences must have a guarded class in the lean and the logical modes,
+// and none in the one that charges budget steps. -update rewrites the golden (core_typed_decisions_test.go).
 func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 	t.Parallel()
 	recognizerGolden.freeze(t, recognizerGenModes, func(t *testing.T, mode coreGenMode) []*coreGenCase {
@@ -88,9 +89,9 @@ func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 				if known.Name != gc.Name {
 					continue
 				}
-				want := 0
-				if mode.opts.NoLimitControls {
-					want = 1
+				want := 1
+				if budgetForm(mode.opts) {
+					want = 0
 				}
 				if got := len(c.flow.guarded); got != want {
 					t.Errorf("%s: %d guarded classes, want %d", gc.Name, got, want)
@@ -106,7 +107,7 @@ func TestCoreRecognizerDecisionsFrozen(t *testing.T) {
 		}
 		return cases
 	}, func(t *testing.T, mode coreGenMode, n *coreDecisionCounts) {
-		lean := mode.opts.NoLimitControls
+		lean := !budgetForm(mode.opts)
 		if n.guards == 0 || n.scans == 0 || n.scopes == 0 || (n.guardedClasses > 0) != lean {
 			t.Errorf("counts %+v", n)
 		}

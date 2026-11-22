@@ -123,9 +123,9 @@ func NoNodeRules(o common.GenOptions) bool {
 func newGenerator(p *Parser) *Generator {
 	o := p.Opts
 	nodes := NoNodeRules(o)
-	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: o.NoLimitControls || o.LogicalUnits,
-		Ordinary: (o.NoLimitControls || o.LogicalUnits) && !o.Document, Prog: p.Prog, Table: "rules"}
-	g.Logical = o.LogicalUnits
+	g := &Generator{typedOnly: nodes, keepTableRules: nodes, Document: o.Document, NoBudget: o.NoLimitControls || o.LogicalUnits(),
+		Ordinary: (o.NoLimitControls || o.LogicalUnits()) && !o.Document, Prog: p.Prog, Table: "rules"}
+	g.Logical = o.LogicalUnits()
 	if o.Stream {
 		g.streamStart = p.Start
 	}
@@ -248,7 +248,7 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	if opts.NoLimitControls {
 		genGo.Init.WriteString("\tsxirGrammar.NoBudgetControls = true\n")
 	}
-	if opts.LogicalUnits {
+	if opts.LogicalUnits() {
 		genGo.Init.WriteString("\tsxirGrammar.Logical = true\n")
 		if opts.Recognize {
 			genGo.Init.WriteString("\tsxirRecGrammar.Logical = true\n")

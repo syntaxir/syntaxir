@@ -1,5 +1,5 @@
 # Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean,lean boxed	"grammars/cue"
+grammar	lean,logical,lean boxed	"grammars/cue"
 rule	0	guard=2:410a741517
 rule	1	scan=1:ab2c2a3500
 rule	2	guard=2:8ec7258ae3 scope=4:2daaca842d
@@ -357,7 +357,7 @@ rule	288	guard=5:053c3ba85d
 rule	290	guard=2:9ae586571e
 rule	291	guard=4:9cff960967
 rule	292	guard=7:64c58b78eb
-grammar	controlled	"grammars/cue"
+grammar	controlled document	"grammars/cue"
 rule	0	guard=2:410a741517
 rule	1	scan=1:ab2c2a3500
 rule	2	guard=2:8ec7258ae3 scope=4:2daaca842d

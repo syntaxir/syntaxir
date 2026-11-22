@@ -58,7 +58,7 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 			t.Errorf("line %d: blank line inside %s", i+1, fn)
 		}
 	}
-	for _, bad := range []string{"{ ;", ".Spend()", ".SpendRead(", "func() any { return "} {
+	for _, bad := range []string{"{ ;", ".Spend()", ".SpendRead(", "p.Units", "func() any { return "} {
 		if strings.Contains(src, bad) {
 			t.Errorf("generated source contains %q", bad)
 		}
@@ -76,13 +76,13 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 	if m == nil || m[1] != m[4] || m[2] != m[3] {
 		t.Errorf("fields out of order do not keep the order written:\n%s", src)
 	}
-	// Negative control: with budget controls the steps are charged.
+	// Negative control: with limit controls the parser counts compute units.
 	files, err = codegentest.Generate(t, g, common.GenOptions{Package: "p", Start: "main", Lib: common.LibImport, Types: true, Module: "example.com/p"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(files[0].Content), ".Spend()") {
-		t.Error("generated source with budget controls charges no steps")
+	if !strings.Contains(string(files[0].Content), "p.Units") {
+		t.Error("generated source with limit controls counts no compute units")
 	}
 }
 

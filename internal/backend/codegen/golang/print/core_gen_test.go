@@ -36,7 +36,8 @@ type coreGenMode struct {
 var coreGenModes = []coreGenMode{
 	{"lean", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true}},
 	{"lean observable", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, Observability: true}},
-	{"controlled", common.GenOptions{Types: true, TypedOnly: true}},
+	{"logical", common.GenOptions{Types: true, TypedOnly: true}},
+	{"controlled document", common.GenOptions{Types: true, Document: true}},
 	{"lean boxed", common.GenOptions{NoLimitControls: true, Types: true, TypedOnly: true, NoOpt: []string{"text-dispatch", "field-compare"}}},
 }
 
@@ -407,11 +408,20 @@ func TestCoreTypedDecisionsFrozen(t *testing.T) {
 		return coreGenCases(t, mode, nil)
 	}, func(t *testing.T, mode coreGenMode, n *coreDecisionCounts) {
 		// The observing bodies of a build with observability are its traced copies, which record every
-		// read and so are not lean: they have no terminal programs, class runs or guarded classes.
-		lean := mode.opts.NoLimitControls && !mode.opts.Observability
+		// read and so are not lean: they have no terminal programs, class runs or guarded classes. Nor
+		// has the form that charges budget steps, which only a Document or a stream with limit controls
+		// still prints; outside them the controlled form is the lean one with a counter of compute units.
+		lean := !budgetForm(mode.opts) && !mode.opts.Observability
 		if n.guards == 0 || n.scans == 0 || n.scopes == 0 ||
 			(n.terminals > 0) != lean || (n.classRuns > 0) != lean || (n.guardedClasses > 0) != lean {
 			t.Errorf("counts %+v", n)
 		}
 	})
+}
+
+// budgetForm reports whether the options print the form that charges budget steps: limit controls in
+// a Document or a stream. Elsewhere a parser with limit controls prints the ordinary form and counts
+// logical compute units (spec/runtime/parsing.md, Compute Units).
+func budgetForm(opts common.GenOptions) bool {
+	return !opts.NoLimitControls && (opts.Document || opts.Stream)
 }

@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -66,18 +67,32 @@ func TestGenOptimize(t *testing.T) {
 // each function printed from it after flowlower.
 func TestGenPrintAfter(t *testing.T) {
 	g := writeFile(t, "opt.sxir", optimizeGrammar)
-	// The passes that the lean form lets run are printed with -no-limits; a parser with limit
-	// controls, the default, is run without it.
-	run := func(list string, extra ...string) string {
+	// The passes that the lean form lets run are printed with -no-limits. A parser with limit
+	// controls, the default, is the same form with a counter of compute units outside Documents; a
+	// Document still charges budget steps, which the lean passes do not preserve.
+	gen := func(list string, args ...string) string {
 		t.Helper()
 		var out strings.Builder
 		old := genDiagnostics
 		genDiagnostics = &out
 		defer func() { genDiagnostics = old }()
-		if _, err := runGenGo(t, append([]string{"-g", g, "-types", "-typed-only", "-lib", "import", "-print-after", list}, extra...)...); err != nil {
+		if _, err := runGenGo(t, append([]string{"-g", g, "-types", "-lib", "import", "-print-after", list}, args...)...); err != nil {
 			t.Fatal(err)
 		}
 		return out.String()
+	}
+	run := func(list string, extra ...string) string {
+		t.Helper()
+		return gen(list, append([]string{"-typed-only"}, extra...)...)
+	}
+	sections := func(out string) []string {
+		var names []string
+		for _, line := range strings.Split(out, "\n") {
+			if strings.HasPrefix(line, "-- after ") {
+				names = append(names, line)
+			}
+		}
+		return names
 	}
 	all := run("all", "-no-limits")
 	for _, want := range []string{"-- after elaborate [typed] --", "-- after guards [typed] --", "-- after scans [typed] --", "-- after class-runs [typed/"} {
@@ -85,14 +100,17 @@ func TestGenPrintAfter(t *testing.T) {
 			t.Errorf("-print-after all lacks %q", want)
 		}
 	}
-	// A parser with limit controls reads the input in ways the lean passes do not preserve, so they do not run.
-	controlled := run("all")
-	if !strings.Contains(controlled, "-- after scans [") || strings.Contains(controlled, "-- after terminals [") || strings.Contains(controlled, "-- after class-runs [") {
-		t.Errorf("-print-after all by default prints the passes that apply to a lean parser")
+	if got, want := sections(run("all")), sections(all); !slices.Equal(got, want) {
+		t.Errorf("-print-after all by default prints the sections %q, the lean form %q", got, want)
+	}
+	// A Document reads the input in ways the lean passes do not preserve, so they do not run.
+	document := gen("all", "-document")
+	if !strings.Contains(document, "-- after scans [") || strings.Contains(document, "-- after terminals [") || strings.Contains(document, "-- after class-runs [") {
+		t.Errorf("-print-after all for a Document prints the passes that apply to a lean parser")
 	}
 	// A pass that does not apply prints nothing, however it is asked for.
-	if got := run("terminals"); got != "" {
-		t.Errorf("-print-after terminals by default printed:\n%.300s", got)
+	if got := gen("terminals", "-document"); got != "" {
+		t.Errorf("-print-after terminals for a Document printed:\n%.300s", got)
 	}
 	guards := run("guards", "-no-limits")
 	if strings.Count(guards, "-- after ") != strings.Count(all, "-- after guards [") || !strings.Contains(guards, "-- after guards [") {

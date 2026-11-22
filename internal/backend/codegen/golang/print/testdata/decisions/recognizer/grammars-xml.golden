@@ -24,7 +24,7 @@ cond	21	"ch == 78"
 cond	22	"ch == 80"
 cond	23	"ch == 83"
 cond	24	"ch == 93"
-grammar	lean	"grammars/xml"
+grammar	lean,logical	"grammars/xml"
 guard	12	3	0	0	0	""	1
 guard	12	5	1	0	0	"\"-\""	12
 guard	14	3	0	0	0	""	1
@@ -143,7 +143,7 @@ scope	38	7
 scope	44	9	
 scope	45	7	
 scope	55	6	
-grammar	controlled	"grammars/xml"
+grammar	controlled document	"grammars/xml"
 guard	12	3	0	0	0	""	1
 guard	12	5	1	0	0	"\"-\""	12
 guard	14	3	0	0	0	""	1

@@ -114,6 +114,10 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpFreeFrame:
 		return fmt.Sprintf("p.FreeFrame(%s)", args[0])
 	case prim.OpAppendError:
+		if g.Logical {
+			// The syntax error that a recovery built is an event of one compute unit.
+			return fmt.Sprintf("p.Units++\np.PushRecovered(%s)", args[0])
+		}
 		return fmt.Sprintf("p.PushRecovered(%s)", args[0])
 	case prim.OpDeclareNames:
 		// Declared whatever the reachability.

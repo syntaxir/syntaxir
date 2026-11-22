@@ -1,5 +1,5 @@
 # Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean,lean boxed	"grammars/python"
+grammar	lean,logical,lean boxed	"grammars/python"
 rule	3	guard=2:fc4588d430 scope=1:2db1079a86
 rule	5	guard=2:83789735aa
 rule	7	scope=1:07e2c25411
@@ -387,7 +387,7 @@ rule	407	guard=18:c061e8be81 scan=4:231ac980f1
 rule	408	guard=14:95533c5ca4 scan=4:abb8b58257
 rule	413	guard=8:c0ac9a9098 scan=1:8c743ee153
 rule	414	guard=3:91a55ed83b
-grammar	controlled	"grammars/python"
+grammar	controlled document	"grammars/python"
 rule	3	guard=2:fc4588d430 scope=1:2db1079a86
 rule	5	guard=2:83789735aa
 rule	7	scope=1:07e2c25411

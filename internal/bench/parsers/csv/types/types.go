@@ -95,7 +95,6 @@ func (v *File) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Records))
 			for i, x := range v.Records {
-				p.Spend()
 				kids[i] = rt.TPtr(x)
 			}
 			return p.ListField(kids)
@@ -152,7 +151,6 @@ func (v *Record) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Fields))
 			for i, x := range v.Fields {
-				p.Spend()
 				kids[i] = tb0(x)
 			}
 			return p.ListField(kids)
@@ -191,7 +189,7 @@ func tb0(v *Field) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [2]uint16
 
-// SXIRSchema_744c7118d3003d84 ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_c4f5a63686afb509 ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_744c7118d3003d84 = 0
+const SXIRSchema_c4f5a63686afb509 = 0

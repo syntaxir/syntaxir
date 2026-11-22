@@ -12,6 +12,11 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
+// TestGeneratedGoClassDispatchBudget checks the compute limits of parsers whose classes test wide
+// ranges: the exact boundary of the compute limit keeps the outcome, a character class counts the
+// input it advances over and nothing for testing membership, however many ranges it tests
+// (spec/runtime/parsing.md, Compute Units), and the context is observed at the check that ends
+// the parse.
 func TestGeneratedGoClassDispatchBudget(t *testing.T) {
 	t.Parallel()
 	codegentest.NeedsBudgetControls(t)
@@ -71,7 +76,7 @@ func(c *classContext)Done()<-chan struct{}{return c.done}
 func(c *classContext)Err()error{
  if c.inside{return context.Canceled}
  var pcs [32]uintptr;n:=runtime.Callers(2,pcs[:]);f:=runtime.CallersFrames(pcs[:n])
- for{frame,more:=f.Next();if strings.HasSuffix(frame.Function,".(*Parser).RejectBudgetClass"){c.inside=true;close(c.done);return context.Canceled};if !more{break}}
+ for{frame,more:=f.Next();if strings.HasSuffix(frame.Function,".(*Parser).endUnits"){c.inside=true;close(c.done);return context.Canceled};if !more{break}}
  return nil
 }
 func TestClassDispatch(t *testing.T){
@@ -100,13 +105,13 @@ func TestClassDispatch(t *testing.T){
    for lo<hi {m:=lo+(hi-lo)/2;_,err:=r.call(WithUnit(u),WithLimits(Limits{Compute:m}));if errors.Is(err,ErrLimit){lo=m+1}else{hi=m}}
    a,ae=r.call(WithUnit(u),WithLimits(Limits{Compute:lo}));if tc.valid&&zero(a){t.Fatal("valid controlled output is zero")};if jsonValue(t,a)!=want||jsonValue(t,ae)!=diag{t.Fatal("exact boundary changed result")}
    a,ae=r.call(WithUnit(u),WithLimits(Limits{Compute:lo-1}));if lo<=1||!zero(a)||!errors.Is(ae,ErrLimit){t.Fatalf("one short result=%v err=%v",a,ae)}
-   if tc.input==last&&tc.name=="main"&&lo<320{t.Fatal("wide membership is not charged")}
+   if tc.input==last&&tc.name=="main"&&lo>=320{t.Fatalf("wide membership counts units: %d",lo)}
    retry,re:=r.call(WithUnit(u));if tc.valid&&zero(retry){t.Fatal("valid retry output is zero")};if jsonValue(t,retry)!=want||jsonValue(t,re)!=diag{t.Fatal("retry differs")}
   })}
  }}
  for _,u:=range []PositionUnit{CodePoints,Bytes}{
   c:=&classContext{Context:context.Background(),done:make(chan struct{})}
-  n,e:=Parse(last,WithUnit(u),WithContext(c));if n!=nil||!errors.Is(e,context.Canceled)||!c.inside{t.Fatalf("membership cancellation: %v inside=%v",e,c.inside)}
+  n,e:=Parse(last,WithUnit(u),WithContext(c));if n!=nil||!errors.Is(e,context.Canceled)||!c.inside{t.Fatalf("cancellation at the end check: %v inside=%v",e,c.inside)}
   if n,e:=Parse(last,WithUnit(u));e!=nil||n==nil{t.Fatal("cancellation retry")}
  }
 }

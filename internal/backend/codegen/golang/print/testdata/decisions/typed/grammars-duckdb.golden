@@ -1,5 +1,5 @@
 # Typed lowering decisions of the Core IR and Flow passes (see core_typed_decisions_test.go).
-grammar	lean,lean boxed	"grammars/duckdb"
+grammar	lean,logical,lean boxed	"grammars/duckdb"
 rule	1	guard=2:de95f35329
 rule	2	guard=2:05aed1bc9b
 rule	5	guard=4:48508bffb3
@@ -1178,7 +1178,7 @@ rule	1373	guard=5:0936863b22 scan=1:022a72e5e3
 rule	1374	guard=4:7e4079fc74 scan=3:bbde9a37ef
 rule	1380	guard=15:4baa5fb08d
 rule	1415	guard=2:f9554fb18b
-grammar	controlled	"grammars/duckdb"
+grammar	controlled document	"grammars/duckdb"
 rule	1	guard=2:de95f35329
 rule	2	guard=2:05aed1bc9b
 rule	5	guard=4:488fa4b3ee

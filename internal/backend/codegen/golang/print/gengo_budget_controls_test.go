@@ -94,7 +94,9 @@ func TestControls(t *testing.T){
    v,err=r.call(input,WithUnit(unit),limit(lo));if err!=nil{t.Fatalf("exact ceiling=%d: %v",lo,err)}
    v,err=r.call(input,WithUnit(unit),limit(lo-1));var exhausted *LimitError
    if !isZero(v) || !errors.As(err,&exhausted) || !errors.Is(err,ErrLimit){t.Fatalf("one short value=%v err=%v",v,err)}
-   if exhausted.Limit!=lo-1 || exhausted.Requested==0 || exhausted.Used>exhausted.Limit || exhausted.Requested<=exhausted.Limit-exhausted.Used {t.Fatalf("reservation metadata: %+v",exhausted)}
+   // The check that stops the parse reports the units counted, past the limit by at most K + B
+   // (spec/runtime/parsing.md, Checks and Interruptions), and requests nothing.
+   if exhausted.Limit!=lo-1 || exhausted.Requested!=0 || exhausted.Used<=exhausted.Limit || exhausted.Used-exhausted.Limit>4096+4096 {t.Fatalf("check metadata: %+v",exhausted)}
    if exhausted.Kind!=LimitCompute {t.Fatalf("wrong counter: %+v",exhausted)}
   }
   if _,err=r.call(input,option,WithLimits(Limits{}),WithContext(nil));err!=nil{t.Fatal("retry",err)}
@@ -189,7 +191,10 @@ func TestFailureDiagnosticsBounded(t *testing.T){
  for _,r:=range routes(){for _,steps:=range []bool{false,true}{
   limits:=Limits{Compute:128};if steps{limits=Limits{Compute:128}}
   v,err:=r.call(input,WithUnit(Bytes),WithLimits(limits))
-  if !isZero(v) || !errors.Is(err,ErrLimit){t.Errorf("%s steps=%v early-failure diagnosis escaped budget: %v %v",r.name,steps,v,err)}
+  // The line and column of the error are resolved when the caller reads it, outside the parse,
+  // and count no compute unit (spec/runtime/parsing.md, Compute Units).
+  var syntax *SyntaxError
+  if !isZero(v) || !errors.As(err,&syntax) || errors.Is(err,ErrLimit) || syntax.Line!=1{t.Errorf("%s steps=%v early-failure diagnosis counted units: %v %v",r.name,steps,v,err)}
   if _,err=r.call("é");err!=nil{t.Fatal("retry after diagnostic interruption",err)}
  }}
 }
@@ -451,11 +456,13 @@ func TestNilPublication(t *testing.T){
  if v,err:=ParseValue("é");v==nil || v.Text!="é" || err!=nil{t.Fatalf("value retry: %v %v",v,err)}
 }
 
-type clonePhaseContext struct{context.Context;control *sxirrt.BudgetControl;marker any;calls int}
+// clonePhaseContext is cancelled, or panics with marker, once the start rule has recorded its errors:
+// publishing them counts no compute unit, so the check at the end of the parse is what observes it.
+type clonePhaseContext struct{context.Context;entered bool;marker any;calls int}
 func(c *clonePhaseContext)Done()<-chan struct{}{return make(chan struct{})}
 func(c *clonePhaseContext)Err()error{
  c.calls++
- if c.control!=nil && c.control.X_budgetUsed()>=256 {if c.marker!=nil{panic(c.marker)};return context.Canceled}
+ if c.entered {if c.marker!=nil{panic(c.marker)};return context.Canceled}
  return nil
 }
 func TestRecoveredNilClonePublication(t *testing.T){
@@ -464,7 +471,7 @@ func TestRecoveredNilClonePublication(t *testing.T){
  for i:=range recovered{recovered[i]=&SyntaxError{Line:i+1,Col:1}}
  for _,named:=range []bool{false,true}{for _,panicMode:=range []bool{false,true}{
   ctx:=&clonePhaseContext{Context:context.Background()};if panicMode{ctx.marker=new(int)}
-  trules[0].Entry=func(p *sxirrt.TParser)(any,bool){ctx.control=p.Control;for _,e:=range recovered{p.PushRecovered(e)};return nil,true}
+  trules[0].Entry=func(p *sxirrt.TParser)(any,bool){ctx.entered=true;for _,e:=range recovered{p.PushRecovered(e)};return nil,true}
   call:=func()(any,error){if named{return ParseRuleValue("main","",WithContext(ctx))};return ParseValue("",WithContext(ctx))}
   if panicMode{func(){defer func(){if got:=recover();got!=ctx.marker{t.Errorf("clone panic missed or changed: %T",got)}}();call()}()}else{
    v,err:=call()

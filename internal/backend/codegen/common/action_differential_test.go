@@ -344,9 +344,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	for _, m := range []mutant{
-		{"control: unchanged", `c.P.ActionHull(c, `, `c.P.ActionHull(c, `},
-		{"a tuple becomes a list", `c.P.ActionHull(c, true, `, `c.P.ActionHull(c, false, `},
-		{"a list becomes a tuple", `c.P.ActionHull(c, false, `, `c.P.ActionHull(c, true, `},
+		{"control: unchanged", `c.P.ActionHullLogical(c, `, `c.P.ActionHullLogical(c, `},
+		{"a tuple becomes a list", `c.P.ActionHullLogical(c, true, `, `c.P.ActionHullLogical(c, false, `},
+		{"a list becomes a tuple", `c.P.ActionHullLogical(c, false, `, `c.P.ActionHullLogical(c, true, `},
 		{"concat pushes no elements", `c.P.ActionPushItems(c, "concat", `, `c.P.ActionPushItems(c, "concat", any(nil)); _ = (`},
 		{"an element is pushed as nil", `c.P.ActionPush(c, "list", `, `c.P.ActionPush(c, "list", any(nil)); _ = (`},
 		{"a field is set to nil", `c.ActionSetField(`, `c.ActionSetFieldNil(`},
@@ -373,9 +373,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	}
 	// Typed Go: the typed parsers against the parsers that convert their nodes and against the engine.
 	for _, m := range []mutant{
-		{"control: unchanged", `c.P.ActionHull(c, `, `c.P.ActionHull(c, `},
-		{"a tuple becomes a list", `c.P.ActionHull(c, true, `, `c.P.ActionHull(c, false, `},
-		{"a list becomes a tuple", `c.P.ActionHull(c, false, `, `c.P.ActionHull(c, true, `},
+		{"control: unchanged", `c.P.ActionHullLogical(c, `, `c.P.ActionHullLogical(c, `},
+		{"a tuple becomes a list", `c.P.ActionHullLogical(c, true, `, `c.P.ActionHullLogical(c, false, `},
+		{"a list becomes a tuple", `c.P.ActionHullLogical(c, false, `, `c.P.ActionHullLogical(c, true, `},
 		{"concat pushes no elements", `c.P.ActionPushItems(c, "concat", `, `c.P.ActionPushItems(c, "concat", any(nil)); _ = (`},
 		{"an element is pushed as nil", `c.P.ActionPush(c, "list", `, `c.P.ActionPush(c, "list", any(nil)); _ = (`},
 		// The constructor takes its first two fields in the other order, as a call that passed them

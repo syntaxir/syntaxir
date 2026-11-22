@@ -917,18 +917,15 @@ func genCmd(args []string, stdout io.Writer) error {
 	if *sourceInfo {
 		opts = append(opts, compiler.WithSourceInfo())
 	}
-	// -charge-units is internal: it generates logical compute units (design record 076), and its
-	// variants for the tests and measurements of them.
-	var logicalUnits bool
+	// -charge-units is internal: it selects a variant of the logical compute units that the controlled form
+	// generates, for the tests and measurements of them.
 	var logicalVariant string
 	switch *chargeUnits {
 	case "":
-	case "logical":
-		logicalUnits = true
-	case "logical-keep-guards":
-		logicalUnits, logicalVariant = true, "keep-guards"
-	case "logical-event":
-		logicalUnits, logicalVariant = true, "event"
+	case "keep-guards":
+		logicalVariant = "keep-guards"
+	case "event":
+		logicalVariant = "event"
 	default:
 		return fmt.Errorf("-charge-units: unknown value %q", *chargeUnits)
 	}
@@ -954,7 +951,6 @@ func genCmd(args []string, stdout io.Writer) error {
 			Types:           *types,
 			Observability:   *observability,
 			NoLimitControls: *noLimitControls,
-			LogicalUnits:    logicalUnits,
 			LogicalVariant:  logicalVariant,
 			Expectations:    *expectations,
 			Recognize:       *recognize,

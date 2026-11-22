@@ -103,19 +103,17 @@ func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), st
 		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 	}
 	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
-	if opts.LogicalUnits {
-		if err := print.LogicalRefusal(prog.View, opts); err != nil {
-			return nil, err
-		}
-		switch opts.LogicalVariant {
-		case "":
-		case "keep-guards":
-			d.guards = lowerdata.GuardsKeep
-		case "event":
-			d.guards = lowerdata.GuardsEvent
-		default:
-			return nil, fmt.Errorf("unknown variant %q of logical units", opts.LogicalVariant)
-		}
+	if opts.LogicalVariant != "" && !opts.LogicalUnits() {
+		return nil, fmt.Errorf("the variant %q of logical units needs limit controls outside Documents and streams", opts.LogicalVariant)
+	}
+	switch opts.LogicalVariant {
+	case "":
+	case "keep-guards":
+		d.guards = lowerdata.GuardsKeep
+	case "event":
+		d.guards = lowerdata.GuardsEvent
+	default:
+		return nil, fmt.Errorf("unknown variant %q of logical units", opts.LogicalVariant)
 	}
 	typed := false
 	if opts.Types {
@@ -265,12 +263,12 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	o := d.Opts
 	examined := o.Document || s.traced
 	// Logical units count no budget controls in the code: they count the logical units instead.
-	budget := !o.NoLimitControls && !o.LogicalUnits
+	budget := !o.NoLimitControls && !o.LogicalUnits()
 	if s.table == "trules" {
 		// Node is false: a function lowered with the options of one runtime is never printed for the other.
-		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Budget: budget, Logical: o.LogicalUnits, Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Budget: budget, Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
 	}
-	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Budget: budget, Logical: o.LogicalUnits, Guards: d.guards, Observe: s.traced, Document: examined,
+	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Budget: budget, Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
 		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
 		Resume: o.Document, Traced: s.traced})

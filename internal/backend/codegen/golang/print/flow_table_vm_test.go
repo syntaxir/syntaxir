@@ -21,8 +21,9 @@ import (
 )
 
 // TestFlowTableFollowsGoNodeTable checks that the Node table the bytecode VM runs from Flow IR
-// (checked.Source.FlowTable) is the one the generated Go parser with budget controls and Documents
-// runs. It pairs the functions of the two tables by name, which the plan of a table gives each
+// (checked.Source.FlowTable) is the one a generated Go Document runs, the Go form that still charges
+// budget steps (outside Documents a Go parser with limit controls runs the ordinary form and counts
+// compute units). It pairs the functions of the two tables by name, which the plan of a table gives each
 // function from its key (a rule's body, its stream body, a skip or line of an Operators Rule, or a
 // node the lowering outlines), and compares each pair in full: the text of the function after the
 // Flow passes, which holds its operations, locals, blocks and immediates, and its route (flat or

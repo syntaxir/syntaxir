@@ -11,8 +11,9 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-// A parser generated without limit controls holds no code that spends budget or reads a control, does not
-// export the control options, and fails a parse that passes them instead of ignoring them.
+// A parser generated without limit controls holds no code that counts compute units, spends budget or reads
+// a control, does not export the control options, and fails a parse that passes them instead of ignoring
+// them.
 func TestGeneratedWithoutBudgetControls(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -35,7 +36,8 @@ rule num = [0-9]+ ("." [0-9]+)?
 		return string(codegentest.MergeGenerated(files))
 	}
 	with, without := gen(true), gen(false)
-	for _, want := range []string{"p.Spend()", "p.Control.Take(", "func WithContext"} {
+	// With limit controls a batch parse counts logical compute units and checks them.
+	for _, want := range []string{"p.Units", "p.PollUnits()", "func WithContext"} {
 		if !strings.Contains(with, want) {
 			t.Errorf("with limit controls: missing %q", want)
 		}
@@ -43,7 +45,10 @@ rule num = [0-9]+ ("." [0-9]+)?
 			t.Errorf("without limit controls: found %q", want)
 		}
 	}
-	for _, bad := range []string{"p.Control", "BudgetClass"} {
+	for _, bad := range []string{"p.Control", "BudgetClass", "p.Spend()"} {
+		if strings.Contains(with, bad) {
+			t.Errorf("with limit controls: found %q", bad)
+		}
 		if strings.Contains(without, bad) {
 			t.Errorf("without limit controls: found %q", bad)
 		}
@@ -52,11 +57,13 @@ rule num = [0-9]+ ("." [0-9]+)?
 	if !strings.Contains(with, "func WithLimits") || !strings.Contains(without, "func WithLimits") {
 		t.Error("a form of the parser has no WithLimits")
 	}
-	// The helpers with an Ordinary form belong to the form without limit controls and Documents only.
-	for name, text := range map[string]string{"with limit controls": with, "Document with limit controls": gen(true, true)} {
-		if strings.Contains(text, "Ordinary(") {
-			t.Errorf("%s: a call of an Ordinary helper", name)
-		}
+	// The helpers with an Ordinary form belong to the forms outside Documents: the form without limit
+	// controls, and the form with them, which counts units beside the ordinary helpers.
+	if !strings.Contains(with, "Ordinary(") || !strings.Contains(without, "Ordinary(") {
+		t.Error("a form outside Documents calls no Ordinary helper: the check below is void")
+	}
+	if strings.Contains(gen(true, true), "Ordinary(") {
+		t.Error("Document with limit controls: a call of an Ordinary helper")
 	}
 	if len(without) >= len(with) {
 		t.Errorf("parser without limit controls is %d bytes, with %d: want smaller", len(without), len(with))

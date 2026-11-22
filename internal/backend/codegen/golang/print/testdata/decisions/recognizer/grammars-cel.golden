@@ -38,7 +38,7 @@ cond	35	"ch == 96"
 cond	36	"ch == 97"
 cond	37	"ch == 98"
 cond	38	"ch == 99"
-grammar	lean	"grammars/cel"
+grammar	lean,logical	"grammars/cel"
 guard	1	13	1	0	0	"\"<=\""	29
 guard	1	14	1	0	0	"\"<\""	29
 guard	1	15	1	0	0	"\">=\""	31
@@ -224,7 +224,7 @@ scope	5	12
 scope	5	2	
 scope	5	25	
 scope	5	3	
-grammar	controlled	"grammars/cel"
+grammar	controlled document	"grammars/cel"
 guard	1	13	1	0	0	"\"<=\""	29
 guard	1	14	1	0	0	"\"<\""	29
 guard	1	15	1	0	0	"\">=\""	31

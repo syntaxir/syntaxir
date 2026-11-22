@@ -371,7 +371,6 @@ func (v *AttlistDecl) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Defs))
 			for i, x := range v.Defs {
-				p.Spend()
 				kids[i] = rt.TPtr(x)
 			}
 			return p.ListField(kids)
@@ -464,7 +463,6 @@ func (v *Choice) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Items))
 			for i, x := range v.Items {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -531,7 +529,6 @@ func (v *Doctype) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Subset))
 			for i, x := range v.Subset {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -613,7 +610,6 @@ func (v *Document) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Prolog))
 			for i, x := range v.Prolog {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -635,7 +631,6 @@ func (v *Document) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Epilog))
 			for i, x := range v.Epilog {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -714,7 +709,6 @@ func (v *Element) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Attrs))
 			for i, x := range v.Attrs {
-				p.Spend()
 				kids[i] = rt.TPtr(x)
 			}
 			return p.ListField(kids)
@@ -729,7 +723,6 @@ func (v *Element) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Content))
 			for i, x := range v.Content {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -868,7 +861,6 @@ func (v *Enumeration) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Values))
 			for i, x := range v.Values {
-				p.Spend()
 				kids[i] = tb5(x)
 			}
 			return p.ListField(kids)
@@ -959,7 +951,6 @@ func (v *Mixed) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Names))
 			for i, x := range v.Names {
-				p.Spend()
 				kids[i] = tb0(x)
 			}
 			return p.ListField(kids)
@@ -1092,7 +1083,6 @@ func (v *NotationType) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Names))
 			for i, x := range v.Names {
-				p.Spend()
 				kids[i] = tb0(x)
 			}
 			return p.ListField(kids)
@@ -1185,7 +1175,6 @@ func (v *Sequence) TFieldSpend(p *rt.TParser, name string) (any, bool) {
 			}
 			kids := make([]any, len(v.Items))
 			for i, x := range v.Items {
-				p.Spend()
 				kids[i] = rt.TBack(SXIRHooks, x)
 			}
 			return p.ListField(kids)
@@ -1417,7 +1406,7 @@ func tb17(v *PERef) any {
 // is no named node type. It is for generated parsers.
 var SXIRNodeTypes [19]uint16
 
-// SXIRSchema_492c47a2fe98288b ties the parser package to this package: the parser refers to it once, so a
+// SXIRSchema_48e558293bfe79fa ties the parser package to this package: the parser refers to it once, so a
 // parser and a types package generated from different schemas do not compile together.
 // It is for generated parsers; not a stable API.
-const SXIRSchema_492c47a2fe98288b = 0
+const SXIRSchema_48e558293bfe79fa = 0
