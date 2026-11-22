@@ -24,7 +24,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
 
 // Target is how printed code reaches the parser state and the operations of one Go implementation.
@@ -88,8 +88,8 @@ func Func(m *code.Module, f *code.Func, t *Target) (string, error) {
 type BodyResult struct {
 	// Text is the statements, unformatted.
 	Text string
-	// Stores is what codepass.DeadStores found about the function's locals.
-	Stores *codepass.Stores
+	// Stores is what stores.Dead found about the function's locals.
+	Stores *stores.Result
 	// End reports that the end of the body's statements is reachable, before its label.
 	End bool
 	// Exited reports that a reachable jump exits the body's labeled block, whose label the caller
@@ -100,10 +100,10 @@ type BodyResult struct {
 // Body prints the statements of the body of the function f of the verified module m without the
 // function's declaration, its locals or the label of its body, which the caller prints around them,
 // as the function of a rule that the generator wraps. Assignments to the locals cand of f that
-// nothing reads are left out, and dead places print as the blank identifier (codepass.DeadStores, with
+// nothing reads are left out, and dead places print as the blank identifier (stores.Dead, with
 // the purity of Target.Pure).
 func Body(m *code.Module, f *code.Func, t *Target, cand []string) BodyResult {
-	st := codepass.DeadStores(f, cand, func(x code.Expr) bool { return Pure(x, t.Pure) })
+	st := stores.Dead(f, cand, func(x code.Expr) bool { return Pure(x, t.Pure) })
 	p := &execPrinter{m: m, t: t, f: f, labels: map[string]int{}, stores: st, outer: f.Body.Label}
 	fr := &frame{label: f.Body.Label, goName: f.Body.Label}
 	p.scope = append(p.scope, fr)
@@ -188,7 +188,7 @@ type execPrinter struct {
 	// dead reports that the current point is unreachable.
 	dead bool
 	// stores, if not nil, holds the dead locals and the assignments left out (Body).
-	stores *codepass.Stores
+	stores *stores.Result
 	// outer is the label of the function's body whose label the caller prints (Body), if any.
 	outer string
 }

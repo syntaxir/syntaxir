@@ -7,7 +7,7 @@ import (
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
@@ -15,7 +15,7 @@ import (
 //
 // The functions of grammar code are written at the Flow stage and converted to the Exec stage with
 // the TypeScript passes when their table is lowered (Generator.lowerTable), and printed by print.Body,
-// which prints their structure and decides which assignments stay (codepass.DeadStores). The primitives are printed in place by tsFlowPrinter.
+// which prints their structure and decides which assignments stay (stores.Dead). The primitives are printed in place by tsFlowPrinter.
 // Before printing, the TypeScript Exec passes (typescript/pass) make charges in a row one spend, the
 // end of an expectation record followed by the merge of its expectations one unisolateMerge, and the
 // test of the call an If's Init the If's condition, so that the locals they no longer read are not
@@ -32,7 +32,7 @@ func (g *Generator) printTSFlowExec(l *execdata.Lowered) (string, []string, []ts
 			vars[v] = true
 		}
 	}
-	st := codepass.DeadStores(l.Func, l.Vars, tsPure)
+	st := stores.Dead(l.Func, l.Vars, tsPure)
 	reads := map[string]bool{}
 	for name := range vars {
 		if st.Read[name] {

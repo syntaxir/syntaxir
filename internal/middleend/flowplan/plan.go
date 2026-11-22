@@ -19,9 +19,9 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -219,10 +219,10 @@ func operators(cr *core.Rule, r *plandata.Rule, rule string, e *ast.OperatorsRul
 // Refused reports whether the table runs the framed fallback instead of the flat function f, which
 // the lowering of a flat plandata.FuncSpec wrote: a reachable statement of f reads its entry position or its
 // context, which a flat rule has no parameters for, or a variable of f holds a value, which a
-// value-free flat rule does not keep (codepass.RefusesFlat). The plan decides on f as the lowering
+// value-free flat rule does not keep (stores.RefusesFlat). The plan decides on f as the lowering
 // writes it (Unit); a backend that prints a flat function in forms of its own asserts that they keep
-// the decision by asking codepass.RefusesFlat again on the function at the Exec stage.
+// the decision by asking stores.RefusesFlat again on the function at the Exec stage.
 func Refused(f *code.Func) bool {
 	a := flow.AttrsOf(f)
-	return codepass.RefusesFlat(f, a.Start, a.Ctx, flow.VarsOf(f))
+	return stores.RefusesFlat(f, a.Start, a.Ctx, flow.VarsOf(f))
 }

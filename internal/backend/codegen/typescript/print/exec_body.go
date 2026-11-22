@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
 
 // Grammar code lowered from Flow IR prints with Body, by the conventions of the TypeScript printer
@@ -63,14 +63,14 @@ type BodyResult struct {
 // Body prints the statements of the body of the function f of the module m, as the grammar code of
 // a TypeScript function whose declaration, locals and returns the caller prints. A body with a
 // label prints without it, and the caller prints the labeled block around the statements if the
-// body is exited (BodyResult.Exited). st is what codepass.DeadStores found about the locals of f, with
+// body is exited (BodyResult.Exited). st is what stores.Dead found about the locals of f, with
 // the purity of Pure: assignments it removes are left out, and the places of locals that no
 // statement that stays reads are left out of the assignments that stay, with their values
 // printed alone unless pure.
 //
 // The values of a function's Return are a value and a constant bool: true returns the value, and
 // false returns undefined.
-func Body(m *code.Module, f *code.Func, t *BodyTarget, st *codepass.Stores) BodyResult {
+func Body(m *code.Module, f *code.Func, t *BodyTarget, st *stores.Result) BodyResult {
 	p := &bodyPrinter{m: m, t: t, st: st, used: map[string]bool{}}
 	p.stmts(f.Body.Stmts)
 	return BodyResult{Text: p.b.String(), End: !p.dead, Exited: f.Body.Label != "" && p.used[f.Body.Label]}
@@ -99,7 +99,7 @@ func Pure(x code.Expr, call func(*code.Call) bool) bool {
 type bodyPrinter struct {
 	m  *code.Module
 	t  *BodyTarget
-	st *codepass.Stores
+	st *stores.Result
 	b  strings.Builder
 	// dead reports that the current point is unreachable; used holds the labels that printed jumps
 	// name.

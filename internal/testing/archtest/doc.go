@@ -22,11 +22,13 @@
 //     internal/pass imports nothing of the module; internal/ir/** imports only internal/ir/**,
 //     internal/pass, internal/cancel and pkg/grammar/ast, and within it internal/ir/code imports no
 //     dialect, code/flow imports only code, ir/core and code/exec/prim, code/exec/prim only code and
-//     ir/core, code/action and code/exec import only code, and the packages of a dialect's subtree
-//     also each other and, under code/exec, code/action. Only the conversions (flowlower,
-//     execlower, vmlower) and test support import the dialects of more than one stage: the
-//     dialects of one stage (Flow and Action, or Exec and Action) count as one, and code/exec/prim,
-//     the data that the Flow operations and their primitives share, is of no dialect.
+//     ir/core, code/exec/stores only code and code/exec/prim, code/action and code/exec import only
+//     code, and the packages of a dialect's subtree also each other and, under code/exec,
+//     code/action. Only the conversions (flowlower, execlower, vmlower) and test support import
+//     the dialects of more than one stage: the dialects of one stage (Flow and Action, or Exec and
+//     Action) count as one, and code/exec/prim, the data that the Flow operations and their
+//     primitives share, and code/exec/stores, the analysis of the stores of a function at either
+//     stage, are of no dialect.
 //
 // The rules are stated on the paths of the release layout. The test places every package of the
 // module at its path in that layout (layout_test.go), so it checks the rules while the packages

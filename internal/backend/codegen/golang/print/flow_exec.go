@@ -10,8 +10,8 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 	irc "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
@@ -226,12 +226,12 @@ func (g *Generator) execFlatRule(p *flowPrinter, l *execdata.Lowered) *flatRule 
 
 // execRecRule prints the lowered local function l of a rule of the Node library as a flat rule. The
 // plan has accepted the function as the lowering wrote it (flowplan.Unit); if the forms that the
-// Go passes chose make codepass.RefusesFlat reject it, the generation fails with an internal error
+// Go passes chose make stores.RefusesFlat reject it, the generation fails with an internal error
 // (Generator.FlowErr) and execRecRule returns nil. It counts only a rule it prints.
 func (g *Generator) execRecRule(p *flowPrinter, l *execdata.Lowered) *flatRule {
 	fn := l.Func
 	res := p.execPrint(l)
-	if a := prim.AttrsOf(fn); codepass.RefusesFlat(fn, a.Start, a.Ctx, prim.VarsOf(fn)) {
+	if a := prim.AttrsOf(fn); stores.RefusesFlat(fn, a.Start, a.Ctx, prim.VarsOf(fn)) {
 		if g.FlowErr == nil {
 			g.FlowErr = fmt.Errorf("internal error: the plan runs %s flat, but in the forms of the Go passes it reads its start or its context, or keeps a value", fn.Name)
 		}

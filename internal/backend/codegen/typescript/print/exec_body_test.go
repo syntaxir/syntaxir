@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	ir "syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
 
 // bodyFunc returns a module with the operations of the body tests and the function f of the locals
@@ -49,7 +49,7 @@ func bodyTarget(named *[]string) *BodyTarget {
 // printBody prints the body of f with the stores of the int locals cand.
 func printBody(m *ir.Module, f *ir.Func, cand []string, named *[]string) BodyResult {
 	t := bodyTarget(named)
-	st := codepass.DeadStores(f, cand, func(x ir.Expr) bool { return Pure(x, t.Pure) })
+	st := stores.Dead(f, cand, func(x ir.Expr) bool { return Pure(x, t.Pure) })
 	return Body(m, f, t, st)
 }
 

@@ -1,4 +1,4 @@
-package codepass
+package stores
 
 import (
 	"slices"
@@ -91,7 +91,7 @@ func TestDeadStores(t *testing.T) {
 			if err := Verify(m); err != nil {
 				t.Fatal(err)
 			}
-			st := DeadStores(f, c.locals, pureLocals)
+			st := Dead(f, c.locals, pureLocals)
 			if got := keys(st.Dead); !slices.Equal(got, c.dead) {
 				t.Errorf("dead %v, want %v", got, c.dead)
 			}
@@ -110,7 +110,7 @@ func TestDeadStores(t *testing.T) {
 
 func TestDeadStoresKeepCandidatesOnly(t *testing.T) {
 	f := storesFunc(t, []string{"a", "entry"}, Assign("a", Int(1)), Assign("entry", Int(2)))
-	st := DeadStores(f, []string{"a"}, pureLocals)
+	st := Dead(f, []string{"a"}, pureLocals)
 	if got := keys(st.Dead); !slices.Equal(got, []string{"a"}) {
 		t.Errorf("dead %v, want [a]: a local that is not a candidate stays", got)
 	}
@@ -126,7 +126,7 @@ func TestDeadStoresKeepNullOppositeSeveralPlaces(t *testing.T) {
 	if err := Verify(m); err != nil {
 		t.Fatal(err)
 	}
-	st := DeadStores(f, []string{"a", "b"}, pureLocals)
+	st := Dead(f, []string{"a", "b"}, pureLocals)
 	if got := keys(st.Dead); !slices.Equal(got, []string{"a"}) {
 		t.Errorf("dead %v, want [a]: a place opposite a null stays", got)
 	}
@@ -163,4 +163,15 @@ func TestRefusesFlat(t *testing.T) {
 	if f := storesFunc(t, []string{"x", "s"}, read("s")); RefusesFlat(f, "", "", nil) {
 		t.Error("a function without entry variables is refused for a read of a local")
 	}
+}
+
+// module declares a log component whose operations record calls, which the functions of the tests
+// call.
+func module() *Module {
+	m := NewModule("test", "budget", "typed")
+	m.AddComponent("log", "The calls made.")
+	m.AddOp(&Op{Name: "log.note", Component: "log", Params: []Param{P("x", TInt)}, Writes: []string{"log"}, Contract: "Records x."})
+	m.AddOp(&Op{Name: "log.charge", Component: "log", Features: []string{"budget"}, Writes: []string{"log"}, Contract: "Records a charge."})
+	m.AddOp(&Op{Name: "log.flag", Component: "log", Results: []Type{TBool}, Writes: []string{"log"}, Contract: "Records a call and returns true."})
+	return m
 }

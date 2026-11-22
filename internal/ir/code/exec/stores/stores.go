@@ -1,13 +1,19 @@
-package codepass
+// Package stores is the analysis of the dead stores of a function of grammar code at the Exec stage
+// (spec/exec-ir/passes.md, "Dead Stores"), which tells a printer which locals it does not declare and
+// which assignments it leaves out, and the check whether a flat rule can run a function, which reads
+// the function as the printers reach it. It changes no function and holds no pass code, so the
+// planning code asks it on a function at the Flow stage and a printer on the function at the Exec
+// stage.
+package stores
 
 import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
 
-// Stores is what DeadStores finds about the locals of a function: which are never read, so that a
+// Result is what Dead finds about the locals of a function: which are never read, so that a
 // backend does not declare them, and which assignments it leaves out.
-type Stores struct {
+type Result struct {
 	// Dead holds the locals that are not declared: nothing that stays reads them and nothing forces
 	// them to stay. A backend prints a place of a dead local as the blank identifier (or the target's
 	// equivalent).
@@ -21,7 +27,7 @@ type Stores struct {
 	Removed map[*code.Set]bool
 }
 
-// DeadStores finds the stores of the function f that nothing reads, among the locals cand.
+// Dead finds the stores of the function f that nothing reads, among the locals cand.
 //
 // Reachability follows the printers: after an Exit, a Break, a Continue or a Return the point is
 // unreachable up to the end of the enclosing block; the point after a block is reachable if its
@@ -38,8 +44,8 @@ type Stores struct {
 // blank. A local stays (is never dead) if it is assigned by the Init of an If or of a loop, which
 // cannot be left out, or opposite a null handle in an assignment of several values, which a
 // backend may not be able to print to the blank identifier.
-func DeadStores(f *code.Func, cand []string, pure func(code.Expr) bool) *Stores {
-	s := &stores{pure: pure, hard: map[string]bool{}, stuck: map[string]bool{}, named: map[string]bool{},
+func Dead(f *code.Func, cand []string, pure func(code.Expr) bool) *Result {
+	s := &finder{pure: pure, hard: map[string]bool{}, stuck: map[string]bool{}, named: map[string]bool{},
 		labels: map[string]bool{}}
 	s.block(f.Body, true)
 	isCand := map[string]bool{}
@@ -79,7 +85,7 @@ func DeadStores(f *code.Func, cand []string, pure func(code.Expr) bool) *Stores 
 		}
 		reads = next
 	}
-	out := &Stores{Dead: map[string]bool{}, Read: reads, Named: s.named, Removed: map[*code.Set]bool{}}
+	out := &Result{Dead: map[string]bool{}, Read: reads, Named: s.named, Removed: map[*code.Set]bool{}}
 	for _, c := range cand {
 		if dead(c) {
 			out.Dead[c] = true
@@ -93,7 +99,7 @@ func DeadStores(f *code.Func, cand []string, pure func(code.Expr) bool) *Stores 
 	return out
 }
 
-type stores struct {
+type finder struct {
 	pure func(code.Expr) bool
 	// hard holds the locals read by statements that stay whatever is removed, named those read by
 	// any reachable statement, and stuck those that stay declared.
@@ -111,7 +117,7 @@ type store struct {
 }
 
 // reads records the locals that x reads into the set into, and into named.
-func (s *stores) reads(x code.Expr, into map[string]bool) {
+func (s *finder) reads(x code.Expr, into map[string]bool) {
 	if x == nil {
 		return
 	}
@@ -124,7 +130,7 @@ func (s *stores) reads(x code.Expr, into map[string]bool) {
 }
 
 // header records the reads and the assignments of the Init or Post of a loop or an If.
-func (s *stores) header(st *code.Set) {
+func (s *finder) header(st *code.Set) {
 	if st == nil {
 		return
 	}
@@ -140,7 +146,7 @@ func (s *stores) header(st *code.Set) {
 
 // block walks the statements of b, the first of which is reachable if live, and reports whether
 // the point after b is reachable.
-func (s *stores) block(b *code.Block, live bool) bool {
+func (s *finder) block(b *code.Block, live bool) bool {
 	for _, st := range b.Stmts {
 		live = s.stmt(st, live)
 	}
@@ -151,7 +157,7 @@ func (s *stores) block(b *code.Block, live bool) bool {
 }
 
 // stmt walks the statement st, reachable if live, and reports whether the point after it is.
-func (s *stores) stmt(st code.Stmt, live bool) bool {
+func (s *finder) stmt(st code.Stmt, live bool) bool {
 	switch st := st.(type) {
 	case *code.Block:
 		return s.block(st, live)
@@ -242,13 +248,13 @@ func (s *stores) stmt(st code.Stmt, live bool) bool {
 
 // RefusesFlat reports whether a flat rule cannot run the lowered function f, whose entry position and
 // action context are the locals start and ctx (empty where it has none) and whose variables are vars:
-// a statement of f that is reachable as the printers reach it (DeadStores) reads start or ctx, which
+// a statement of f that is reachable as the printers reach it (Dead) reads start or ctx, which
 // a flat rule has no parameters for, or a variable holds a value, which a value-free flat rule does
 // not keep. It reads only the function and the locals it is given, so it decides the same on the
 // function at the Flow stage, as the plan lowered it, and at the Exec stage, in the forms that the
 // passes of a target chose.
 func RefusesFlat(f *code.Func, start, ctx string, vars []code.Param) bool {
-	reads := DeadStores(f, nil, func(code.Expr) bool { return false }).Named
+	reads := Dead(f, nil, func(code.Expr) bool { return false }).Named
 	if start != "" && reads[start] || ctx != "" && reads[ctx] {
 		return true
 	}

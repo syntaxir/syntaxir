@@ -1,7 +1,7 @@
 package print
 
 import (
-	"syntaxir.dev/sxir/internal/middleend/codepass"
+	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
 
@@ -23,7 +23,7 @@ const LibImportPath = libImportPath
 // whose text is text and whose locals dead are not declared.
 func ExecVarsError(text string, dead ...string) error {
 	g := &Generator{}
-	res := &BodyResult{Text: text, Stores: &codepass.Stores{Dead: map[string]bool{}}}
+	res := &BodyResult{Text: text, Stores: &stores.Result{Dead: map[string]bool{}}}
 	for _, v := range dead {
 		res.Stores.Dead[v] = true
 	}

@@ -79,6 +79,7 @@ var layout = []place{
 	// prim holds the data of grammar code that the Flow operations and their primitives share.
 	{pkg: "internal/ir/code/exec/prim", target: "internal/ir/code/exec/prim"},
 	{pkg: "internal/ir/code/exec/ref", target: "internal/ir/code/exec/ref"},
+	{pkg: "internal/ir/code/exec/stores", target: "internal/ir/code/exec/stores"},
 	{pkg: "internal/ir/code/exec/spectest", target: "internal/ir/code/exec/spectest"},
 
 	// Middle end.
@@ -300,6 +301,10 @@ func dialect(a, b string) string {
 		if b != code && !under(b, "internal/ir/core") {
 			return "within internal/ir, code/exec/prim imports only code and ir/core"
 		}
+	case a == code+"/exec/stores":
+		if b != code && b != code+"/exec/prim" {
+			return "within internal/ir, code/exec/stores imports only code and code/exec/prim"
+		}
 	case a == code+"/exec":
 		if b != code {
 			return "within internal/ir, code/exec imports only code"
@@ -431,9 +436,11 @@ func layerImports(a, b layer) bool {
 
 // dialectOf returns the Code IR dialect of the package at the layout path t, or "". code/exec/prim
 // is of no dialect: the immediates, registers and types it declares are those of the Flow operations
-// and of their primitives alike, so the packages of either stage import it.
+// and of their primitives alike, so the packages of either stage import it. Nor is code/exec/stores,
+// the analysis of the stores of a function over those types, which the plan asks on a Flow function
+// and a printer on the Exec function.
 func dialectOf(t string) string {
-	if t == "internal/ir/code/exec/prim" {
+	if t == "internal/ir/code/exec/prim" || t == "internal/ir/code/exec/stores" {
 		return ""
 	}
 	for _, d := range []string{"flow", "action", "exec"} {
