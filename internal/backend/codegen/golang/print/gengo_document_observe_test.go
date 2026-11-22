@@ -248,8 +248,11 @@ func observedLib(t *testing.T) string {
 	patch, check := libPatchFromEnv(t, func(name, src string) string {
 		switch name {
 		case "document.go", "typed_document.go":
-			return replace(src, "p.Observation = newObservation(&o.observe, &p.Silent)\n\tdefer p.releaseObservation()",
-				"p.Observation = newObservation(&o.observe, &p.Silent)\n\tif ProbeHook != nil {\n\t\tProbeHook(p.Observation)\n\t}\n\tdefer p.releaseObservation()", 1)
+			// The probe sees the observation that the parse and its budget control hold, between its
+			// creation and the release that must clear it (released).
+			const wiring = "p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent))\n"
+			return replace(src, wiring+"\tdefer p.releaseObservation()",
+				wiring+"\tif ProbeHook != nil {\n\t\tProbeHook(p.Observation)\n\t}\n\tdefer p.releaseObservation()", 1)
 		case "call_exec.go":
 			// The printed calls name the stored entry entry and the reused entry e.
 			// The node store records the examined input in a Document and in an observed parse from
