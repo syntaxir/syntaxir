@@ -1,6 +1,6 @@
 package complexity
 
-import "syntaxir.dev/sxir/pkg/grammar/ast"
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // leftMode says what may come before a left call of the unit that starts with it: in leftExamine,
 // nothing that examines the input, and in leftConsume, nothing that consumes input.
@@ -18,45 +18,43 @@ const (
 // alternative {true} S "q" in S = R "z" / {true} S "q" / "y" drops the result of R (condition 5).
 var leadingPassOn = true
 
-// startsWithLeftCall reports whether e can evaluate a call of a rule of the cycle of rule before
+// startsWithLeftCall reports whether n can evaluate a call of a rule of the cycle of rule before
 // it examines the input (leftExamine) or consumes input (leftConsume). Before such a call may come
 // predicates, cuts, anchors and calls of rules off the cycle that can match without examining or
 // consuming input; for leftConsume also parts that can match without consuming input, as an
 // option does, and lookaheads. The decision errs toward the call: a part that might go on
 // without examining or consuming input is looked through.
-func (k *classifier) startsWithLeftCall(rule string, e ast.Expr, mode leftMode) bool {
-	found, _ := k.leftScan(rule, e, mode, 0)
+func (k *classifier) startsWithLeftCall(rule string, n core.Node, mode leftMode) bool {
+	found, _ := k.leftScan(rule, n, mode, 0)
 	return found
 }
 
-// leftScan returns whether e can evaluate such a call, and whether e can complete before it
-// examines (leftExamine) or consumes (leftConsume) input, so that what follows e is reached too.
-func (k *classifier) leftScan(rule string, e ast.Expr, mode leftMode, depth int) (found, through bool) {
+// leftScan returns whether n can evaluate such a call, and whether n can complete before it
+// examines (leftExamine) or consumes (leftConsume) input, so that what follows n is reached too.
+// The scan stops at attributes: it reports neither for @error, @diagnostic, #recover, #missing and
+// #stream.
+func (k *classifier) leftScan(rule string, n core.Node, mode leftMode, depth int) (found, through bool) {
 	k.control.Poll()
 	if depth > 64 {
 		return false, false
 	}
-	switch e := e.(type) {
+	switch n := n.(type) {
 	case nil:
 		return false, true
-	case *ast.Ref:
-		if k.an.Cyclic[e.Name] && k.sameCycle(rule, e.Name) && e.Level == "" {
+	case *core.Call:
+		if callee := k.rules[n.Rule].Name; plainCall(n) && k.an.Cyclic[callee] && k.sameCycle(rule, callee) {
 			return true, false
 		}
-		return false, leadingPassOn && k.passesBefore(e, mode)
-	case *ast.Group:
-		return k.leftScan(rule, e.Expr, mode, depth+1)
-	case *ast.Capture:
-		return k.leftScan(rule, e.Expr, mode, depth+1)
-	case *ast.Discard:
-		return k.leftScan(rule, e.Expr, mode, depth+1)
-	case *ast.Atomic:
-		return k.leftScan(rule, e.Expr, mode, depth+1)
-	case *ast.Stream:
-		return k.leftScan(rule, e.Expr, mode, depth+1)
-	case *ast.Seq:
+		return false, leadingPassOn && k.passesBefore(n, mode)
+	case *core.Capture:
+		return k.leftScan(rule, n.Body, mode, depth+1)
+	case *core.Drop:
+		return k.leftScan(rule, n.Body, mode, depth+1)
+	case *core.Text:
+		return k.leftScan(rule, n.Body, mode, depth+1)
+	case *core.Seq:
 		through = true
-		for _, it := range e.Items {
+		for _, it := range n.Items {
 			f, t := k.leftScan(rule, it, mode, depth+1)
 			found = found || f
 			if !t {
@@ -64,39 +62,46 @@ func (k *classifier) leftScan(rule string, e ast.Expr, mode leftMode, depth int)
 			}
 		}
 		return found, through
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			f, t := k.leftScan(rule, alt, mode, depth+1)
+	case *core.Choice:
+		for _, alt := range n.Alts {
+			f, t := k.leftScan(rule, alt.Body, mode, depth+1)
 			found, through = found || f, through || t
 		}
 		return found, through
-	case *ast.Optional:
-		f, _ := k.leftScan(rule, e.Expr, mode, depth+1)
+	case *core.Opt:
+		f, _ := k.leftScan(rule, n.Body, mode, depth+1)
 		return f, mode == leftConsume
-	case *ast.Repeat:
-		f, t := k.leftScan(rule, e.Expr, mode, depth+1)
-		return f, mode == leftConsume && (e.Min == 0 || e.Max == 0 || t)
-	case *ast.And, *ast.Not:
+	case *core.Repeat:
+		f, t := k.leftScan(rule, n.Body, mode, depth+1)
+		return f, mode == leftConsume && (n.Min == 0 || n.Max == 0 || t)
+	case *core.Look:
 		return false, mode == leftConsume
-	case *ast.Predicate, *ast.Cut, *ast.Top, *ast.BeginInput, *ast.EndInput,
-		*ast.BeginLine, *ast.EndLine:
+	case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.Anchor:
 		return false, leadingPassOn
-	case *ast.Literal:
-		return false, e.Value == ""
+	case *core.Lit:
+		return false, n.Text == ""
 	}
 	return false, false
 }
 
-// passesBefore reports whether a call of a rule that is not on the cycle can match without
-// examining the input (leftExamine) or consuming input (leftConsume).
-func (k *classifier) passesBefore(e *ast.Ref, mode leftMode) bool {
-	if e.Level != "" || k.byName[e.Name] == nil {
+// plainCall reports whether the call c applies its rule as the rule's body does: it restricts no
+// level of an Operators Rule.
+func plainCall(c *core.Call) bool { return c.Level == 0 }
+
+// passesBefore reports whether n, a call of a rule that is not on the cycle, can match without
+// examining the input (leftExamine) or consuming input (leftConsume). A call that restricts the
+// levels of an Operators Rule, and a right operand of one (isRightOperand), are not looked
+// through.
+func (k *classifier) passesBefore(n core.Node, mode leftMode) bool {
+	c, ok := n.(*core.Call)
+	if !ok || !plainCall(c) {
 		return false
 	}
+	name := k.rules[c.Rule].Name
 	if mode == leftConsume {
-		return k.nullRule[e.Name]
+		return k.nullRule[name]
 	}
-	return k.examinesNothing(e.Name, map[string]bool{}, false)
+	return k.examinesNothing(name, map[string]bool{}, false)
 }
 
 // examinesNothing reports whether the rule can match without examining the input: some path of
@@ -109,42 +114,39 @@ func (k *classifier) examinesNothing(name string, seen map[string]bool, every bo
 	}
 	seen[name] = true
 	defer delete(seen, name)
-	var nothing func(e ast.Expr) bool
-	nothing = func(e ast.Expr) bool {
-		switch e := e.(type) {
+	var nothing func(n core.Node) bool
+	nothing = func(n core.Node) bool {
+		switch n := n.(type) {
 		case nil:
 			return true
-		case *ast.Ref:
-			return e.Level == "" && k.examinesNothing(e.Name, seen, every)
-		case *ast.Group:
-			return nothing(e.Expr)
-		case *ast.Capture:
-			return nothing(e.Expr)
-		case *ast.Discard:
-			return nothing(e.Expr)
-		case *ast.Atomic:
-			return nothing(e.Expr)
-		case *ast.Seq:
-			for _, it := range e.Items {
+		case *core.Call:
+			return plainCall(n) && k.examinesNothing(k.rules[n.Rule].Name, seen, every)
+		case *core.Capture:
+			return nothing(n.Body)
+		case *core.Drop:
+			return nothing(n.Body)
+		case *core.Text:
+			return nothing(n.Body)
+		case *core.Seq:
+			for _, it := range n.Items {
 				if !nothing(it) {
 					return false
 				}
 			}
 			return true
-		case *ast.Choice:
-			for _, alt := range e.Alts {
-				if nothing(alt) != every {
+		case *core.Choice:
+			for _, alt := range n.Alts {
+				if nothing(alt.Body) != every {
 					return !every
 				}
 			}
 			return every
-		case *ast.Predicate, *ast.Cut, *ast.Top, *ast.BeginInput, *ast.EndInput,
-			*ast.BeginLine, *ast.EndLine:
+		case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.Anchor:
 			return true
-		case *ast.Literal:
-			return e.Value == ""
+		case *core.Lit:
+			return n.Text == ""
 		}
 		return false
 	}
-	return nothing(r.Expr)
+	return nothing(k.ruleBody(name))
 }

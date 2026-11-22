@@ -294,7 +294,7 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 				}
 				growing := false
 				if k.an.Cyclic[c.rule] && c.mayStart {
-					growing = k.startsWithLeftCall(c.rule, alt, leftExamine)
+					growing = k.startsWithLeftCall(c.rule, k.nodeOf(alt), leftExamine)
 				}
 				if s, cut := topCut(alt); cutPrefixesOn && !growing && len(conts) > 0 && cut > 0 {
 					prefix := s.Items[:cut]
@@ -371,7 +371,7 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 // analyzes growing units only as alternatives.
 func (k *classifier) leftUnit(u *unit, c wctx, e ast.Expr) {
 	if k.an.Cyclic[c.rule] && c.mayStart {
-		if k.startsWithLeftCall(c.rule, e, leftExamine) {
+		if k.startsWithLeftCall(c.rule, k.nodeOf(e), leftExamine) {
 			u.unsupported = u.kind.String() + " begins with a left call"
 		}
 	}
@@ -1684,7 +1684,7 @@ func (k *classifier) leftPathsOf(start *cont, cycle int, grower string, member b
 				p = rest
 			case *ast.Ref:
 				if !k.an.Cyclic[e.Name] || k.an.Cycle[e.Name] != cycle || e.Level != "" {
-					if len(rest.items) > 0 && k.passesBefore(e, leftExamine) {
+					if len(rest.items) > 0 && k.passesBefore(k.nodeOf(e), leftExamine) {
 						// A call that can match without examining the input: what follows it
 						// can start a growth, and the call may also examine input first.
 						if !k.examinesNothing(e.Name, map[string]bool{}, true) {
@@ -1761,7 +1761,7 @@ func (k *classifier) checkGrowingUnit(u *unit) {
 	}
 	var conts []contSpec
 	for _, later := range u.choice.Alts[u.index+1:] {
-		if !k.startsWithLeftCall(u.rule, later, leftExamine) {
+		if !k.startsWithLeftCall(u.rule, k.nodeOf(later), leftExamine) {
 			continue
 		}
 		paths, _, ok := k.leftPaths(u.after.then(later), u.cycle, "")

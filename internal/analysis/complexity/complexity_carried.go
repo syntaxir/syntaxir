@@ -66,7 +66,7 @@ func (k *classifier) dropsResult(s *site) bool {
 			return true
 		case unitAlt:
 			for _, later := range u.choice.Alts[u.index+1:] {
-				if k.startsWithLeftCall(s.caller, later, leftConsume) {
+				if k.startsWithLeftCall(s.caller, k.nodeOf(later), leftConsume) {
 					return true
 				}
 			}
