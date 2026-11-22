@@ -72,6 +72,9 @@ func TestStreamCommitDropsRecordsBeforeItsPosition(t *testing.T) {
 // list not at all. With a diagnostic limit the errors themselves are counted as well, as the
 // commit moves them from the count of errors built.
 func TestStreamCommitCountsWhatMemoHolds(t *testing.T) {
+	if !BudgetControlsEnabled {
+		t.Skip("counts memory with the budget controls, which the reference build leaves out")
+	}
 	for _, limit := range []int{0, 4} {
 		p := NewControlledStreamParser(&SharedProgram{}, strings.NewReader(strings.Repeat("a", 4096)), input.CodePoints,
 			NewBudgetControl(nil, runtime.Limits{Compute: 1 << 40, Memory: 1 << 40}))
@@ -154,6 +157,9 @@ func TestStreamCommitCountsWhatMemoHolds(t *testing.T) {
 // entry that remains can reference them: an entry stored before the commit at a position the prune
 // keeps (a lookahead past the end of the element) holds them for another window.
 func TestStreamCommitKeepsChunksMemoReferences(t *testing.T) {
+	if !BudgetControlsEnabled {
+		t.Skip("counts memory with the budget controls, which the reference build leaves out")
+	}
 	p := NewControlledStreamParser(&SharedProgram{}, strings.NewReader(strings.Repeat("a", 4096)), input.CodePoints,
 		NewBudgetControl(nil, runtime.Limits{Compute: 1 << 40, Memory: 1 << 40}))
 	p.Fill(4096)

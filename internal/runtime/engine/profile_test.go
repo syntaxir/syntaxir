@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
@@ -205,6 +206,9 @@ rule line = [a-z]* #atomic "\n"`)
 // TestLimitHotspot checks that a compute limit error names the rule that the profile of the parse
 // ranks first, on each backend, and that a parse without a profile leaves it empty.
 func TestLimitHotspot(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("stops parses at a compute limit, which the reference build leaves out")
+	}
 	t.Parallel()
 	prog := mustCompile(t, `rule main = y / x "a" / x "b" / x "c"
 rule y = "x"+ "!"

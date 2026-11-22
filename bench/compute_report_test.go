@@ -20,9 +20,19 @@ import (
 	gminilangdoc "syntaxir.dev/sxir/internal/bench/parsers/minilangdoc"
 	gxml "syntaxir.dev/sxir/internal/bench/parsers/xml"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
+
+// skipWithoutEngineControls skips a test that reads the engine's compute report: the reference build of
+// the budget controls leaves the controls out of the engine, which then refuses the report.
+func skipWithoutEngineControls(t *testing.T) {
+	t.Helper()
+	if !state.BudgetControlsEnabled {
+		t.Skip("reads the engine's compute report, which the budget-control reference build leaves out")
+	}
+}
 
 // WithComputeReport on the engine (on every backend) and on generated Go parsers with limit
 // controls: the same units on success, on failure and when a limit stops the parse; a Compute
@@ -80,6 +90,7 @@ func (c reportCase) funcs(t *testing.T) map[string]func(string, ...sxirruntime.P
 // (design record 076), so the #310 commit that moves the VM to the logical units turns this check
 // into a cross-backend equality check of the reports.
 func TestComputeReport(t *testing.T) {
+	skipWithoutEngineControls(t)
 	for _, c := range reportCases() {
 		for name, f := range c.funcs(t) {
 			for un, unit := range logicalUnitsOf {
@@ -146,6 +157,7 @@ func TestComputeReportChangesNothing(t *testing.T) {
 
 // A stream and a Document report the units of their parse, on the engine and in generated parsers.
 func TestComputeReportStreamAndDocument(t *testing.T) {
+	skipWithoutEngineControls(t)
 	csvIn := inputs.CSVInput(40)
 	var gs, es uint64
 	err := gcsvstream.ParseStream(strings.NewReader(csvIn), func(*value.Node) error { return nil }, sxirruntime.WithComputeReport(&gs))
@@ -188,6 +200,7 @@ func TestComputeReportStreamAndDocument(t *testing.T) {
 // WithContext, given after or before WithComputeReport, does not drop the report: the report is a
 // field of the options, not something a context carries.
 func TestComputeReportSurvivesContext(t *testing.T) {
+	skipWithoutEngineControls(t)
 	in := inputs.JSONInput(1 << 10)
 	for _, c := range reportCases()[:1] {
 		for name, f := range c.funcs(t) {
@@ -240,6 +253,7 @@ func TestMemoReportNotPublic(t *testing.T) {
 // report is the units used, as for every parse. A limit at the report accepts the reparse, and a
 // limit that stops it gives an error whose Used equals the report.
 func TestComputeReportDocumentManyEdits(t *testing.T) {
+	skipWithoutEngineControls(t)
 	mini := load(t, "../examples/minilang/minilang.sxir")
 	text := inputs.MinilangInput(5, 0)
 	type doc struct {
@@ -299,6 +313,7 @@ func TestComputeReportDocumentManyEdits(t *testing.T) {
 // Snapshot of a Document reports the units of its parse and capture. Both pass the option to the
 // parse they run, so it is honoured, not rejected.
 func TestComputeReportIterateAndSnapshot(t *testing.T) {
+	skipWithoutEngineControls(t)
 	csvIn := inputs.CSVInput(40)
 	p := load(t, "../testdata/grammars/csv/csv.sxir")
 	iterators := map[string]func(...sxirruntime.ParseOption) (*sxirruntime.StreamIterator, error){
