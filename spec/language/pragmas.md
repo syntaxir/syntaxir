@@ -41,9 +41,11 @@ rule select = "select"i
 
 The pragma is lexical. It reaches the literals of `e` at any depth: under a
 sequence, a choice, a repetition, a lookahead (`!` and `&`) or a capture, and in
-the expression arguments of other pragmas. It does not reach a rule that `e`
-calls, and it does not change a character class, which is already a set of
-characters. Folding is ASCII only, as for the suffix:
+the expression arguments of other pragmas, and in the expression of an
+[inline action](actions.md#inline-value-actions) written in `e`, though an inline
+action is otherwise a call. It does not reach a rule that `e` calls, including
+a rule that the expression of such an inline action calls, and it does not
+change a character class, which is already a set of characters. Folding is ASCII only, as for the suffix:
 `"é" #ignorecase` matches `é` and not `É`.
 
 The pragma takes no arguments. Its expectations show each case-insensitive

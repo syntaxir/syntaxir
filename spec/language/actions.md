@@ -48,7 +48,10 @@ as a call of a hidden rule whose body is `expression` and whose
 whole-rule Value Action is `action`, written at that position:
 `(e => A)` in a rule `r` means the same as a call of the hidden rule `_r_n = e => A`,
 and with `rule a = _ => A` and `rule b = a => B`, the rule `b` is the same as
-`rule b = (_ => A) => B`. Every property below follows from that.
+`rule b = (_ => A) => B`. Every property below follows from that. A lexical
+pragma written around the inline action is the one exception: its expression is
+written inside the pragma, so [`#ignorecase`](pragmas.md#ignorecase) reaches the
+literals of `expression`, while it does not reach the body of a rule called by name.
 
 - **Scope.** The captures made inside `expression` are visible to `action`, as in a rule body, and
   nothing else is: the captures of the enclosing rule are not. The captures made inside

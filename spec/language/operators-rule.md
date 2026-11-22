@@ -191,6 +191,9 @@ infix left _ // application    f x (empty operator part)
   [cut](parser-expressions.md#cut) (`#cut`), the whole Operators Rule fails
   instead. If no prefix operator part matches and any candidate failed after
   passing a cut, the whole expression also fails instead of trying operands.
+  Likewise, if no infix or postfix operator part matches after an operand and
+  any of those candidates failed after passing a cut, the whole expression fails
+  instead of ending before them.
   The `operand` items are an [ordered choice](#operand), so an item that fails
   after passing a cut commits that choice: the later items are not tried and
   no operand matches there.
