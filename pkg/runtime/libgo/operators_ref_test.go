@@ -356,7 +356,7 @@ func TestOperatorsRuleMatchesReference(t *testing.T) {
 				tr.log = nil
 				p := &Parser{MaxDepth: 12}
 				if controlled {
-					p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+					p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 				}
 				var v *sxirvalue.Node
 				var ok bool

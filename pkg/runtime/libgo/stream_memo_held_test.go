@@ -17,7 +17,7 @@ func TestStreamMemoHeldAcrossCommit(t *testing.T) {
 	for _, limit := range []int{0, 4} {
 		p := &Parser{Stream: &streamInput{baseLine: 1, baseCol: 1}}
 		p.Stream.tail.limit = limit
-		p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+		p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 		built := func(pos ...int) []*sxirvalue.SyntaxError {
 			var errs []*sxirvalue.SyntaxError
 			for _, n := range pos {
@@ -103,7 +103,7 @@ func TestStreamMemoHeldAcrossCommit(t *testing.T) {
 // keeps (a lookahead past the end of the element) holds them for another window.
 func TestStreamKeepsChunksMemoReferences(t *testing.T) {
 	p := &Parser{Stream: &streamInput{baseLine: 1, baseCol: 1}}
-	p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+	p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 	c := p.Control
 	// An entry stored at 1500, by a lookahead of the element that ends at 500, before its commit.
 	c.noteStored(1500)

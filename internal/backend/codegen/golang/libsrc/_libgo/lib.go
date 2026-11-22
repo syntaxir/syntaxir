@@ -682,7 +682,7 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 			l.Compute = defaultBudget(n)
 		}
 		o.unitsLimit, o.unitsAdaptive, o.unitsCtx = l.Compute, adaptive, o.context
-		o.control = newBudgetControl(l)
+		o.control = parseControl(l, o.computeOut, o.context)
 	}
 	o.control.Check()
 	if o.unitsCtx != nil {
@@ -757,7 +757,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	defer p.release()
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
-	p.Control = o.control
+	p.setControl(o.control)
 	o.control.attachMemory(p)
 	p.Observation = newObservation(&o.observe, &p.Silent, nil)
 	p.setTracking()
@@ -851,7 +851,11 @@ const (
 
 // Parser is for generated parsers; not a stable API.
 type Parser struct {
+	// Control is the control of the parse, nil when it runs without limit controls (BudgetControl).
 	Control *BudgetControl
+	// memoryLimited is set when Control has a finite memory limit, whose control counts the memory
+	// the parse holds: the gate of that accounting (countsMemory). setControl sets both.
+	memoryLimited bool
 	// Units counts the logical compute units of a parser generated with them, and UnitsCheck is the
 	// count above which a check of the counter must look at the limit and the context (units.go).
 	Units, UnitsCheck uint64
@@ -1296,7 +1300,7 @@ func (p *Parser) envValues(slots []int) []any {
 // key only compares them, so the slice is shared instead of allocated for each call. The key of a
 // rule that only a Document memoizes holds the bindings of the variables (memoBindings).
 func (p *Parser) memoEnv(r *Rule) []any {
-	if p.Env != nil && p.Env == p.g.initEnv && r.initVals != nil && p.Control == nil {
+	if p.Env != nil && p.Env == p.g.initEnv && r.initVals != nil && !p.countsMemory() {
 		return r.initVals
 	}
 	p.chargeMemoHeld(uint64(len(r.varSlots)) * anyBytes)

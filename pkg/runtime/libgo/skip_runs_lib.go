@@ -85,7 +85,7 @@ func (p *Parser) mutateSkipRecord(*skipRecord, int) {}
 
 // noteStored records that a skip record starts at pos, for the memory limit of a budget.
 func (p *Parser) noteStored(pos int) {
-	if p.Control != nil {
+	if p.countsMemory() {
 		p.Control.noteStored(pos)
 	}
 }

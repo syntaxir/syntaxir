@@ -40,7 +40,7 @@ func TestMemoIndexMatchesChain(t *testing.T) {
 			rng := rand.New(rand.NewSource(1))
 			p := &Parser{}
 			if k.budgeted {
-				p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+				p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 			}
 			tp := &TParser{Parser: p}
 			var table *memoTable = &p.memo
@@ -111,14 +111,14 @@ func TestMemoIndexMatchesChain(t *testing.T) {
 }
 
 func (t *memoTable) getAny(p *Parser, rule, pos, min int, env []any) *memoEntry {
-	if p.Control != nil {
+	if p.countsMemory() {
 		return p.memoGetControlled(rule, pos, min, env, false)
 	}
 	return t.get(rule, pos, min, env)
 }
 
 func (t *memoTable) putAny(p *Parser, rule, pos, min int, env []any, e *memoEntry) {
-	if p.Control != nil {
+	if p.countsMemory() {
 		p.memoPutControlled(rule, pos, min, env, false, e)
 		return
 	}
@@ -155,7 +155,8 @@ func TestMemoIndexStreamPrune(t *testing.T) {
 func TestDocOnlyLookupComparesAssignments(t *testing.T) {
 	big := strings.Repeat("x", 1<<16)
 	clone := strings.Clone(big)
-	p := &Parser{Control: newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})}
+	p := &Parser{}
+	p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 	e := p.memo.alloc()
 	p.memoPutControlled(1, 0, 0, []any{assigned{s: big, stamp: 1}}, true, e)
 	if got := p.memoGetControlled(1, 0, 0, []any{assigned{s: clone, stamp: 1}}, true); got != e {
@@ -175,7 +176,8 @@ func TestDocOnlyLookupComparesAssignments(t *testing.T) {
 	// The lookup of any other rule finds the key, for a string of any length as for a value that is
 	// not a string.
 	for _, key := range []any{int64(7), "x", big} {
-		q := &Parser{Control: newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})}
+		q := &Parser{}
+		q.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 		x := q.memo.alloc()
 		q.memoPutControlled(1, 0, 0, []any{key}, false, x)
 		if got := q.memoGetControlled(1, 0, 0, []any{key}, false); got != x {

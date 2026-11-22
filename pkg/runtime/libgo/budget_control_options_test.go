@@ -25,21 +25,22 @@ func (c *pollCounter) Err() error {
 	return nil
 }
 
-// A control holds a memory limit alone; a context, cancelable or not, and a compute limit go to the
-// counter of the parse. A cancelable context without limits is observed by the checks of the counter
-// at the interval: a parse that counts units sees the cancellation within an interval of its
-// observation, though no limit is ever reached.
+// A compute limit or a cancelable context makes the parse controlled, but only a memory limit gives
+// the control memory accounting; the compute limit and the context are checked by the counter of
+// the parse. A cancelable context without limits is observed by the checks of the counter at the
+// interval: a parse that counts units sees the cancellation within an interval of its observation,
+// though no limit is ever reached.
 func TestUnitsObserveContextWithoutLimits(t *testing.T) {
 	if c := newBudgetControl(sxirruntime.Limits{}); c != nil {
 		t.Fatal("no limit made a control")
 	}
-	if c := newBudgetControl(sxirruntime.Limits{Compute: 1 << 20}); c != nil {
-		t.Fatal("a compute limit made a control")
+	if c := newBudgetControl(sxirruntime.Limits{Compute: 1 << 20}); c == nil || c.memoryControl() != nil {
+		t.Fatal("a compute limit made no control, or one that counts memory")
 	}
 	ctx := &pollCounter{Context: context.Background(), done: make(chan struct{}), cancelAt: 3}
 	o := prepareOptions(parseOptions{controls: true, context: ctx, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 0, false)
-	if o.control != nil {
-		t.Fatal("a context made a control")
+	if o.control == nil || o.control.memoryControl() != nil {
+		t.Fatal("a cancelable context made no control, or one that counts memory")
 	}
 	p := &Parser{}
 	p.startUnits(o)

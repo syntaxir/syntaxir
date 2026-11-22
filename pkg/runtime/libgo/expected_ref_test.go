@@ -96,7 +96,7 @@ func (p *Parser) refKeep(ids []ExpID) []ExpID {
 // refEqualExpected is the comparison of refKeep: it charges each compared entry in a parse with
 // budget controls.
 func (p *Parser) refEqualExpected(a, b []ExpID) bool {
-	if p.Control == nil {
+	if !p.countsMemory() {
 		return slices.Equal(a, b)
 	}
 	if len(a) != len(b) {
@@ -122,7 +122,7 @@ func TestKeepMatchesReference(t *testing.T) {
 			newP := func() *Parser {
 				p := &Parser{}
 				if controlled {
-					p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+					p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 				}
 				return p
 			}
@@ -182,7 +182,7 @@ func TestExpectRecordMatchesReference(t *testing.T) {
 							p.Document, p.track = &documentState{}, true
 						}
 						if controlled {
-							p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+							p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 						}
 						return p
 					}
@@ -295,7 +295,7 @@ func TestNonRecordingRecordHoldsOnePlaceholder(t *testing.T) {
 		for round := 0; round < 400; round++ {
 			p := &Parser{}
 			if controlled {
-				p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})
+				p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 40}))
 			}
 			var marks []ExpMark
 			for step := 0; step < 80; step++ {

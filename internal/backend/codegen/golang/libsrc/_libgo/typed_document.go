@@ -74,7 +74,8 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 			d.State.dropTypedMemo()
 		}
 	}()
-	p := &TParser{Parser: &Parser{Control: o.control, Document: d.State}, TypedDocument: cache, memoSlots: cache.slots, memoGap: cache.memoGap}
+	p := &TParser{Parser: &Parser{Document: d.State}, TypedDocument: cache, memoSlots: cache.slots, memoGap: cache.memoGap}
+	p.setControl(o.control)
 	p.edits, p.gen = d.State.edits, uint32(len(d.State.edits))
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.attachTypedMemory(p, a)
@@ -85,7 +86,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	p.Observation = newObservation(&o.observe, &p.Silent, &d.State.stats.Resumed)
 	defer p.releaseObservation()
 	// Do not recycle p: memo values and expectations may refer into its arenas.
-	a.SetBudgetControl(o.control)
+	a.SetBudgetControl(o.control.memoryControl())
 	defer a.SetBudgetControl(nil)
 	d.State.stats = documentStats{}
 	v, parseErr := p.run(root, d.State.text, o, a)

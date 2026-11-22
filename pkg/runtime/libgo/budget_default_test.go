@@ -1,6 +1,7 @@
 package libgo
 
 import (
+	"context"
 	"math"
 	"strings"
 	"testing"
@@ -30,15 +31,28 @@ func TestDefaultBudget(t *testing.T) {
 
 // A zero budget resolves per unit of input when the parser has controls; Unlimited leaves no limit, and
 // a stream starts at the floor and follows what the parser demands. The counter of the parse holds the
-// compute limit; only a memory limit makes a control.
+// compute limit; a parse has a control when it has a limit control (a compute or memory limit, a
+// compute report or a context that can be cancelled), as in the TypeScript library.
 func TestPrepareOptionsDefault(t *testing.T) {
 	o := prepareOptions(parseOptions{controls: true}, 5000, false)
-	if o.unitsLimit != 5000*1024 || o.control != nil {
+	// The default compute limit is a limit control: the parse has a control, which counts no memory.
+	if o.unitsLimit != 5000*1024 || o.control == nil || o.control.limits.Memory != 0 {
 		t.Fatalf("default: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 5000, false)
 	if o.unitsLimit != 0 || o.control != nil {
 		t.Fatalf("Unlimited: limit %d, control %+v", o.unitsLimit, o.control)
+	}
+	var used uint64
+	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}, computeOut: &used}, 5000, false)
+	if o.control == nil {
+		t.Fatalf("Unlimited with a compute report: no control")
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}, context: ctx}, 5000, false)
+	if o.control == nil {
+		t.Fatalf("Unlimited with a context: no control")
 	}
 	o = prepareOptions(parseOptions{limits: sxirruntime.Limits{Compute: sxirruntime.Unlimited}}, 5000, false)
 	if o.unitsLimit != 0 || o.control != nil {
@@ -49,7 +63,7 @@ func TestPrepareOptionsDefault(t *testing.T) {
 		t.Fatalf("a parser without controls got a default: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 9}}, 5000, false)
-	if o.unitsLimit != 9 || o.control != nil {
+	if o.unitsLimit != 9 || o.control == nil || o.control.limits.Memory != 0 {
 		t.Fatalf("explicit: limit %d, control %+v", o.unitsLimit, o.control)
 	}
 	o = prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Memory: 7}}, 5000, false)

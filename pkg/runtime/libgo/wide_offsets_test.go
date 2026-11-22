@@ -25,7 +25,7 @@ func TestTextOfSourceBeyondInt32Offsets(t *testing.T) {
 		}{{"valid", valid, true}, {"invalid", invalid, false}} {
 			p := &Parser{unit: sxirinput.CodePoints}
 			if controlled {
-				p.Control = newBudgetControl(sxirruntime.Limits{Memory: 1 << 30})
+				p.setControl(newBudgetControl(sxirruntime.Limits{Memory: 1 << 30}))
 			}
 			p.setSource(tc.source)
 			if p.offs != nil {

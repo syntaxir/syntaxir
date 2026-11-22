@@ -62,9 +62,7 @@ func (p *Parser) startUnits(o parseOptions) {
 	}
 	p.Units = 0
 	p.units = unitsState{on: true, limit: o.unitsLimit, adaptive: o.unitsAdaptive, ctx: o.unitsCtx, obsAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
-	if c := p.Control; c != nil && c.limits.Memory != 0 {
-		p.units.mem = c
-	}
+	p.units.mem = p.Control.memoryControl()
 	if p.units.ctx != nil {
 		if p.units.ctx.Done() == nil {
 			p.units.ctx = nil

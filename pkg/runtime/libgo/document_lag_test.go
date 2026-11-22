@@ -36,7 +36,7 @@ func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 		t.Errorf("%d entries left in the chain, want 2", n)
 	}
 
-	tp := &TParser{Parser: &Parser{edits: log, gen: epoch, Control: p.Control}}
+	tp := &TParser{Parser: &Parser{edits: log, gen: epoch, Control: p.Control, memoryLimited: p.memoryLimited}}
 	tp.memoSlots = make([]*tmemoEntry, 4)
 	for i, s := range seen {
 		e := &tmemoEntry{rule: int32(i), from: 3, examined: 3, vgen: s}

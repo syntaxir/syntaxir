@@ -115,7 +115,7 @@ func (m *memoryCounts) releaseRetired(pos int) {
 // chargeMemoHeld charges n bytes that memo entries or the record of recovered errors keep: a list
 // of recovered errors or the key of a memo entry (memoryCounts.memoHeld).
 func (p *Parser) chargeMemoHeld(n uint64) {
-	if p.controlled() {
+	if p.countsMemory() {
 		p.Control.memoHeld = saturatingAdd(p.Control.memoHeld, n)
 	}
 }
@@ -124,7 +124,7 @@ func (p *Parser) chargeMemoHeld(n uint64) {
 // bytes that commits let go of and no remaining holder reaches (releaseRetired), and recounts what the
 // holders keep (recountMemoHeld, over the memo that each parser provides and the skip tables).
 func (p *Parser) releaseAtPrune(pos int) {
-	if p.controlled() {
+	if p.countsMemory() {
 		p.Control.releaseRetired(pos)
 	}
 	p.recountMemoHeld()
@@ -133,14 +133,14 @@ func (p *Parser) releaseAtPrune(pos int) {
 // chargeValueBytes charges n bytes of a value that only the controlled path builds
 // (BudgetControl.values).
 func (p *Parser) chargeValueBytes(n int) {
-	if p.controlled() {
+	if p.countsMemory() {
 		p.Control.values = saturatingAdd(p.Control.values, uint64(n))
 	}
 }
 
 // chargeError charges the syntax error e (BudgetControl.errs).
 func (p *Parser) chargeError(e *sxirvalue.SyntaxError) {
-	if p.controlled() {
+	if p.countsMemory() {
 		p.Control.errs = saturatingAdd(p.Control.errs, syntaxErrorSize(e))
 	}
 }

@@ -94,7 +94,7 @@ func TestPublicationControls(t *testing.T) {
  input:=&types.Box{First:&types.Token{Text:"private"},Items:make([]*types.Token,1000)}
  // A compute limit gives the copy no control (the copy is Document work that no limit counts), and
  // a memory limit far above the copy does not interrupt it.
- if sxirrt.X_newBudgetControl(Limits{Compute:1})!=nil {t.Fatal("a compute limit made a control")}
+ if sxirrt.X_newBudgetControl(Limits{Compute:1}).X_memoryControl()!=nil {t.Fatal("a compute limit gave the copy a control")}
  c:=&typedDocumentClone{TypedDocumentCloneBase: sxirrt.TypedDocumentCloneBase{Control: sxirrt.X_newBudgetControl(Limits{Compute:1,Memory:1<<40})}}
  if output,err:=cloneWithControl(input,c);output==nil || err!=nil {t.Fatalf("a memory limit above the copy interrupted it: %v %v",output,err)}
  // The control of a conversion carries the context of the parse, which the copy observes.

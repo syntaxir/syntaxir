@@ -13,7 +13,7 @@ package libgo
 // of the lists, and the compute total is the same with or without a memory limit. The sets it
 // builds are working space that the check does not count.
 func (p *Parser) recountMemoHeld() {
-	if !p.controlled() || p.Control.memoryLimit() == 0 || p.Control.memoHeld == 0 {
+	if !p.countsMemory() || p.Control.memoryLimit() == 0 || p.Control.memoHeld == 0 {
 		return
 	}
 	r := errReach{withErrors: p.diagnosticLimited()}

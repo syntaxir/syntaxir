@@ -65,9 +65,13 @@ func nonzero(v, def uint64) uint64 {
 // of the memory count (PollUnits).
 const budgetCheckInterval = uint64(256)
 
-// BudgetControl is the memory limit of a single parser invocation: the memory the parse counts
-// (memoryCounts) and the parser state the memory check reads. The compute limit and the context of a
-// parse are its counter of logical units (unitsState), which observes the memory count at its polls.
+// BudgetControl is the control of a single parser invocation that has limit controls: a compute limit,
+// a compute report, a context or a memory limit, so that a parse without one has none (Parser.Control
+// is nil exactly when the parse runs without limit controls, as in the TypeScript library). With a
+// finite memory limit it counts the memory of the parse (memoryCounts) and holds the parser state the
+// memory check reads; the parser then counts memory (Parser.countsMemory). The compute limit and the
+// context of a parse are its counter of logical units (unitsState), which observes the memory count
+// at its polls.
 // The conversion of a result to typed values runs outside that counter: its control carries the
 // context of the parse as well (conversionControl), which Check observes.
 //
@@ -88,12 +92,42 @@ type BudgetControl struct {
 	memExt memoryCounter
 }
 
-// newBudgetControl returns the control of a finite memory limit, or nil when limits sets none.
+// newBudgetControl returns the control of the resolved limits, or nil when they set no compute or
+// memory limit.
 func newBudgetControl(limits sxirruntime.Limits) *BudgetControl {
-	if limits.Memory == 0 {
+	if limits.Compute == 0 && limits.Memory == 0 {
 		return nil
 	}
 	return &BudgetControl{limits: limits}
+}
+
+// parseControl returns the control of a parse with the resolved limits, the compute report out and
+// the context ctx, or nil when the parse has no limit control: no compute or memory limit, no report
+// and no context that can be cancelled.
+func parseControl(limits sxirruntime.Limits, out *uint64, ctx context.Context) *BudgetControl {
+	if c := newBudgetControl(limits); c != nil {
+		return c
+	}
+	if out != nil || ctx != nil && ctx.Done() != nil {
+		return &BudgetControl{limits: limits}
+	}
+	return nil
+}
+
+// setControl makes c the control of the parse, and sets memoryLimited when c has a finite memory
+// limit, once, so that the gate of the memory accounting (countsMemory) reads one field.
+func (p *Parser) setControl(c *BudgetControl) {
+	p.Control, p.memoryLimited = c, c != nil && c.limits.Memory != 0
+}
+
+// memoryControl returns c if it has a finite memory limit, and nil otherwise: the control that the
+// steps of a conversion to typed values observe, which only a memory limit (or the context, which
+// conversionControl adds) gives work to.
+func (c *BudgetControl) memoryControl() *BudgetControl {
+	if c == nil || c.limits.Memory == 0 {
+		return nil
+	}
+	return c
 }
 
 // contextPanic attributes a panic to caller-owned context code rather than VM
@@ -136,6 +170,7 @@ func (c *BudgetControl) Check() {
 // done ends the conversion: c forgets the context, so that a later parse with the same control
 // observes its own.
 func conversionControl(ctx context.Context, c *BudgetControl) (_ *BudgetControl, done func()) {
+	c = c.memoryControl()
 	if ctx == nil || ctx.Done() == nil {
 		return c, func() {}
 	}
@@ -146,9 +181,9 @@ func conversionControl(ctx context.Context, c *BudgetControl) (_ *BudgetControl,
 	return c, func() { c.ctx = nil }
 }
 
-// controlled reports whether the parse has a memory limit, whose control counts the memory of the
-// values it builds.
-func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p.Control != nil }
+// countsMemory reports whether the parse counts the memory of the values it builds: whether it has a
+// finite memory limit (memoryLimited), whose control holds the count.
+func (p *Parser) countsMemory() bool { return usedFeatures&featureBudget != 0 && p.memoryLimited }
 
 // memoControlled reports whether the memo of the parse takes the lookups and stores of a parse with
 // controls (memoGetControlled, memoPutControlled), as the engine's memo does whenever the parse has
@@ -157,7 +192,7 @@ func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p
 // (identEqual) and in the first docOnlyScan entries of a chain, so that its hits, and with them the
 // units the parse counts, are those of the engine.
 func (p *Parser) memoControlled() bool {
-	return usedFeatures&featureBudget != 0 && (p.Control != nil || p.units.on)
+	return p.countsMemory() || usedFeatures&featureBudget != 0 && p.units.on
 }
 
 // The members of the shared mechanisms (core.go) that charge their steps: in the library, as in the
@@ -440,7 +475,7 @@ func (p *Parser) hashMemoKey(rule, min int32, env []any) uint64 {
 // (joinStored), and returns the entry it keeps.
 func (p *Parser) memoPut(rule, pos, min int, key []any, docOnly bool, e *memoEntry) *memoEntry {
 	if p.Stream != nil {
-		if usedFeatures&featureBudget != 0 && p.Control != nil {
+		if p.countsMemory() {
 			p.Control.noteStored(pos)
 		}
 		if pos -= p.Stream.memoBase; pos < 0 {

@@ -159,7 +159,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	p := &Parser{unit: o.unit, MaxDepth: o.maxDepth}
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
-	p.Control = o.control
+	p.setControl(o.control)
 	p.startUnits(o)
 	if p.units.on && p.units.observes() {
 		reader = &unitsReader{reader: reader, p: p}
@@ -278,7 +278,7 @@ func (p *Parser) streamRelease() {
 		// for them: their bytes are returned, except those of the expectation chunk in use and
 		// the frame chunk kept.
 		p.memUsed = uint64(cap(p.arena))*expIDBytes + uint64(cap(p.frameSlab))*frameBytes
-		if usedFeatures&featureBudget != 0 && p.Control != nil {
+		if p.countsMemory() {
 			// The text snapshot in use stays held; the values before it were delivered.
 			letGo += p.Control.values
 			p.Control.values = 0
@@ -287,9 +287,7 @@ func (p *Parser) streamRelease() {
 			}
 			// A memo entry or skip record keeps the nodes, text and strings of the elements it was
 			// built in until it is pruned, so the bytes stay counted until then (retire).
-			if p.Control.limits.Memory != 0 {
-				p.Control.retire(letGo - min(letGo, p.memUsed+p.Control.values))
-			}
+			p.Control.retire(letGo - min(letGo, p.memUsed+p.Control.values))
 		}
 	}
 }
@@ -319,7 +317,7 @@ func (p *Parser) streamSettleErrors() {
 		p.Recovered = nil
 	}
 	p.diagnosed, p.diagnosedSkip, p.diagnosedList = 0, 0, nil
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.countsMemory() {
 		// With a diagnostic limit, the tail counts the errors it keeps, and only memo entries
 		// may still hold the originals, until the next prune recounts them (recountMemoHeld);
 		// without one, Recovered keeps the errors and errs keeps counting them.
@@ -876,7 +874,7 @@ func (p *Parser) streamText(start, end int) string {
 		*c = snap
 		return snap.source[:end-start]
 	}
-	if usedFeatures&featureBudget != 0 && p.Control != nil {
+	if p.countsMemory() {
 		// An interruption while filling must not leave partial offsets in
 		// the snapshot in use, so a controlled parse fills separate storage.
 		snap.offsets = make([]int32, snap.end-snap.base+1)

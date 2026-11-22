@@ -52,7 +52,7 @@ func checkedTextSize(size, width int) int {
 // copySpend copies src to dst. The callers use disjoint storage; overlapping moves need their own
 // direction-aware implementation rather than a chunked forward copy.
 func copySpend[T any](p *Parser, dst, src []T) {
-	if p.controlled() {
+	if p.countsMemory() {
 		copyBudgetControlled(p, dst, src)
 		return
 	}
@@ -70,7 +70,7 @@ func copyBudgetControlled[T any](p *Parser, dst, src []T) {
 
 // appendSpend appends src to dst.
 func appendSpend[T any](p *Parser, dst, src []T) []T {
-	if p.controlled() {
+	if p.countsMemory() {
 		return appendBudgetControlled(p, dst, src)
 	}
 	return append(dst, src...)
@@ -88,7 +88,7 @@ func appendBudgetControlled[T any](p *Parser, dst, src []T) []T {
 
 // clearSpend clears values.
 func clearSpend[T any](p *Parser, values []T) {
-	if p.controlled() {
+	if p.countsMemory() {
 		clearBudgetControlled(p, values)
 		return
 	}

@@ -208,7 +208,7 @@ func conformUnits(p *Parser, limit uint64) {
 // conformMemory gives p a memory limit that no case reaches, before conformUnits starts its units, so
 // that the operations take the paths that count the memory of what they make.
 func conformMemory(p *Parser) {
-	p.Control = newBudgetControl(sxirruntime.Limits{Memory: math.MaxInt64})
+	p.setControl(newBudgetControl(sxirruntime.Limits{Memory: math.MaxInt64}))
 }
 
 func (m meteredRT) Used() uint64 { return m.p.Units }

@@ -53,7 +53,8 @@ func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *D
 	o = prepareText(o, text)
 	// Construction performs the same input decoding and budget checks as a parse,
 	// but its counters do not carry into subsequent invocations.
-	p := &Parser{unit: o.unit, Control: o.control}
+	p := &Parser{unit: o.unit}
+	p.setControl(o.control)
 	p.setGrammar(root.g)
 	p.Expectations = o.expectations
 	o.control.attachMemory(p)
@@ -580,7 +581,8 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		// ResetHistory.
 		d.resetHistory()
 	}
-	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth, Control: o.control}
+	p := &Parser{unit: d.unit, MaxDepth: o.maxDepth}
+	p.setControl(o.control)
 	p.setGrammar(d.root.g)
 	p.Expectations = o.expectations
 	p.Observation = newObservation(&o.observe, &p.Silent, &d.stats.Resumed)

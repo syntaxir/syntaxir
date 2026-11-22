@@ -95,7 +95,7 @@ func setSpan(n *sxirvalue.Node, start, end int) { D(n).Start, D(n).End = int32(s
 func (p *Parser) strAdd(l, r any) any {
 	ls, rs := l.(string), r.(string)
 	p.valueUnits(len(ls) + len(rs))
-	if !p.controlled() {
+	if !p.countsMemory() {
 		return ls + rs
 	}
 	size := checkedTextSize(len(ls), len(rs))
