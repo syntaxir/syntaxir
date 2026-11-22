@@ -367,7 +367,7 @@ func CheckCanonical(canon *Canonical, opts check.Options, flags []check.RuleFlag
 		}
 	}
 	if flags == nil {
-		CheckTypesControlled(prog, &c.errs, control)
+		check.CheckTypesControlled(prog.Checker(), &c.errs, control)
 		control.Check()
 		if len(c.errs) > 0 {
 			return nil, c.errs

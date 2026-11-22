@@ -49,7 +49,7 @@ func TestDuplicateCaptureTypes(t *testing.T) {
 				t.Fatal(err)
 			}
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(entry.Checked(p).Program, &errs)
+			check.CheckTypes(entry.Checked(p).Checker(), &errs)
 			got, ok := captureType(p, "main", "x")
 			if tc.action {
 				got, ok = inferredType(p, "main")
@@ -121,7 +121,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 			b.ResetTimer()
 			for range b.N {
 				var errs diagnostic.ErrorList
-				compile.CheckTypes(entry.Checked(p).Program, &errs)
+				check.CheckTypes(entry.Checked(p).Checker(), &errs)
 				if len(errs) != 0 {
 					b.Fatal(errs)
 				}
@@ -139,7 +139,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 				b.ResetTimer()
 				for range b.N {
 					var errs diagnostic.ErrorList
-					compile.CheckTypes(entry.Checked(p).Program, &errs)
+					check.CheckTypes(entry.Checked(p).Checker(), &errs)
 					if len(errs) != 0 {
 						b.Fatal(errs)
 					}
@@ -156,7 +156,7 @@ func BenchmarkCaptureChecking(b *testing.B) {
 		b.ResetTimer()
 		for range b.N {
 			var errs diagnostic.ErrorList
-			compile.CheckTypes(entry.Checked(p).Program, &errs)
+			check.CheckTypes(entry.Checked(p).Checker(), &errs)
 			if len(errs) != 0 {
 				b.Fatal(errs)
 			}
