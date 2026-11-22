@@ -215,13 +215,47 @@ recovered errors are completed outcomes and keep their reusable caches.
 
 ### Reuse
 
-Reuse is a performance property, not a result property. An implementation MAY
-retain, shift, drop or recompute any intermediate result, provided that every
-parse returns what a parse of the current text from scratch returns. Reuse is
-observable only through the statistics. A lookup that finds a memo entry
-applies the edits since the entry was stored or last found, and counts one unit of Compute
-for each edit it applies, against an explicit `Compute` limit only
-([Default Limits](parsing.md#default-limits)). An entry that lags behind by more than 128
+Reuse never changes a result: every parse returns what a parse of the current
+text from scratch returns. It does change the
+[compute units](parsing.md#compute-units) of a parse. A later parse counts
+only the events that it performs: a result that it reuses counts one call, and
+its key if the rule is memoized, and a result that it evaluates again counts
+the events of its evaluation. Which results a parse reuses is therefore
+normative, and the same on every backend:
+
+- the results that a parse stores, under the rules of
+  [Evaluations of Rules](parsing.md#evaluations-of-rules) and the transient
+  rules that only a Document memoizes ([Reuse Model](#reuse-model));
+- the examined range that each entry records, as [Reuse Model](#reuse-model)
+  defines it;
+- what each edit does to an entry: keep it, shift it or drop it
+  ([Reuse Model](#reuse-model));
+- the entries that a lookup treats as absent: one that lags behind by more
+  than 128 edits, and every entry after the edit that finds 65,536 edits in the
+  log or after a batch ([Edits](#edits));
+- the results that never reach a later parse: those that read the growing
+  result of a left recursion, and every result of a parse that does not
+  complete;
+- that a store never narrows the calls that the entry it finds answers;
+- the run records: which runs a parse records, with at least 16 iterations,
+  and which recorded iterations a repetition resumes, at most once for each
+  record in a parse ([Reuse Model](#reuse-model)).
+
+These decisions are the whole of the reuse policy. They depend on the text, the
+edits and the parses since the Document was created, never on the backend,
+the storage or the order in which a backend does its work, so a parse of the
+same Document after the same operations counts the same total on every
+backend. How a backend carries them out is free and counts nothing
+([Work of a Document Parse](#work-of-a-document-parse)): it may apply an edit
+to an entry at once or when a lookup finds it, move a reused value or copy it,
+index a chain or walk it, and unlink an entry that a lookup treats as absent
+whenever it meets it. Reuse is observable through the statistics and the
+compute units, not through results.
+
+A lookup that finds a memo entry
+applies the edits since the entry was stored or last found, one unit of work
+for each edit it applies, which no `Compute` limit counts
+([Work of a Document Parse](#work-of-a-document-parse)). An entry that lags behind by more than 128
 edits is treated as absent and the call evaluates again, so a lookup applies at most 128 edits and the
 [linear cost proof](../proofs/linear-cost.md#setting) bounds their work by that
 constant. An edit applies itself at once only to the entries at the positions it replaced
@@ -272,9 +306,10 @@ range [p, p). For an evaluation at p, l ≤ p ≤ h. Every failure that an
 evaluation records is at a slot that it examined. The range is sound: every
 slot whose content can change the outcome of the evaluation lies in it, so
 an edit that changes only slots outside it leaves that outcome as it was.
-A Document may record a smaller l; that only drops more entries and resumes
-fewer iterations. Every Document records h exactly,
-one past the greatest examined slot.
+Every Document records l and h exactly, except that a call at p that reuses
+a result kept in a left-recursion context records p − 1 as examined when that
+result examined a slot before p, instead of the slots it examined there: those
+slots lie inside the growth that made the result, which the call examines too.
 
 **Position-free evaluations.** An evaluation is **position-free** when no
 action or predicate in it, or in a call within it, reads a position (the
@@ -291,10 +326,10 @@ length of the text by δ, a memo entry with recorded range [l, h) is:
   and its evaluation was position-free;
 - dropped otherwise.
 
-A backend may drop an entry that these rules would shift: the typed memo of a
-generated Go parser (`ParseValue`) drops one whose value holds a value other
-than a basic value, which it cannot move. The values of `Parse` are nodes and
-basic values, which every backend moves.
+The values of `Parse` are nodes and basic values, which every backend moves.
+`Document.ParseValue`, which only a generated Go parser has, keeps a typed memo
+whose values it cannot move unless they are basic values; it drops an entry
+whose value holds any other value where these rules would shift it.
 
 Edits are applied to an entry in order, either all at once or when the entry is
 next looked up. Every backend applies them to an entry when a lookup finds it, and
@@ -319,8 +354,8 @@ publishes no partial table.
 
 **Runs.** A **run record** of a repetition at p holds, for each iteration
 that matched, its start, its end, its examined range, its value, and its
-farthest failure with its expected items. A Document may record only runs of
-at least a minimum number of iterations.
+farthest failure with its expected items. A Document records only runs of
+at least 16 iterations.
 
 - *Recording.* A run is recorded for a repetition that matched outside a
   lookahead and a `skip`, whose element has no predicate, calls no rule that
@@ -414,8 +449,8 @@ narrows the calls that the entry it finds answers
 computed outside a lookahead and the new one inside one, it keeps that entry and
 links nothing. In the reference implementation it first
 applies to that entry the edits that it does not account for, as a lookup does;
-an entry that cannot take them is replaced, and so is an entry whose value an
-edit shifted and the generated typed Go code cannot move. A store at a position
+an entry that cannot take them is replaced, and so is an entry whose value
+an edit would shift but the memo cannot move ([Reuse Model](#reuse-model)). A store at a position
 beyond the slots of the memo table grows them, which counts nothing, as in any
 parse ([Cost](parsing.md#cost)).
 
