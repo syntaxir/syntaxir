@@ -312,14 +312,14 @@ control. Controlled row-count, reference/focus and boundary tests cover these re
 distinguishes equivalent small-tree work from wide-tree display reduction; real browser checks cover DOM/WASM wiring.
 
 The same-source budget-control reference build compiles and tests the engine packages without core budget-control
-instrumentation. After changing test files of `internal/runtime/engine` or `engine`, check that both builds compile
-with `go vet ./internal/runtime/engine/... ./engine` and
-`go vet -tags sxir_budget_controls_reference ./internal/runtime/engine/... ./engine`; test files that use helpers
+instrumentation. After changing test files of `internal/runtime/engine`, check that both builds compile
+with `go vet ./internal/runtime/engine/...` and
+`go vet -tags sxir_budget_controls_reference ./internal/runtime/engine/...`; test files that use helpers
 defined in untagged files keep both builds compiling.
 The other reference tags (`sxir_reference_*` and `sxir_snapshot_*_reference`) likewise select the simpler or the
 former form of an optimized mechanism. The candidate tag `sxir_snapshot_position_overlays` instead selects an opt-in
 representation that the default build has not adopted. `hack/test-reference-tags.sh [tag...]` vets and tests
-with `-short` the engine packages, `engine` and every package with a file constrained by a tag, under
+with `-short` the engine packages and every package with a file constrained by a tag, under
 every tag of the tree or the tags it is given; it rejects a tag that no build constraint names. A test whose
 feature a tag removes skips under that tag. Its tags run four at a time (`TAG_JOBS`), each with its output under its own heading, and any failed tag fails the run. The run takes tens of minutes: run it after changing budget-control
 code, a reference variant or the tests of the engine packages; a landing batch runs it when it touches such code.
