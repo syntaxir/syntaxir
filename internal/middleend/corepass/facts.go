@@ -372,7 +372,7 @@ func (c *computer) leftCalls(n core.Node, acc []int, ins bool) []int {
 	case *core.Seq:
 		for _, it := range n.Items {
 			acc = c.leftCalls(it, acc, ins)
-			if at := it.Attrs(); !at.Nullable && !(ins && at.NullableIns) { // NullableIns holds every Nullable node
+			if !c.nullable(it, ins) {
 				break
 			}
 		}

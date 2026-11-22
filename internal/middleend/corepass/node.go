@@ -50,10 +50,24 @@ func LooseCut(n core.Node) bool { return looseCut(n) }
 // Nullable reports that n can succeed without consuming input when no token is inserted, by the
 // rules of core.Analyze, with the nullability of the rules it calls. It answers for a node that
 // Analyze did not see, such as one a rewrite builds, whose attributes are zero.
-func (f *Facts) Nullable(n core.Node) bool {
-	switch n := n.(type) {
-	case nil:
+func (f *Facts) Nullable(n core.Node) bool { return f.c.nullable(n, false) }
+
+// NullableIns reports that n can succeed without consuming input when token insertion is enabled
+// (core.Attrs.NullableIns): as Nullable, except that a #missing literal can be inserted. It answers
+// for any node, as Nullable does.
+func (f *Facts) NullableIns(n core.Node) bool { return f.c.nullable(n, true) }
+
+// nullable reports that n can succeed without consuming input, with token insertion enabled if
+// ins, by the rules of core.Analyze and the nullability of the rules it calls. A node that Analyze
+// numbered and saw (a nonzero ID) has its nullability as attributes; any other is computed.
+func (c *computer) nullable(n core.Node, ins bool) bool {
+	if n == nil {
 		return true
+	}
+	if at := n.Attrs(); at.ID != 0 {
+		return at.Nullable || ins && at.NullableIns
+	}
+	switch n := n.(type) {
 	case *core.Lit:
 		return n.Text == ""
 	case *core.Scan:
@@ -64,47 +78,49 @@ func (f *Facts) Nullable(n core.Node) bool {
 		return true
 	case *core.Seq:
 		for _, it := range n.Items {
-			if !f.Nullable(it) {
+			if !c.nullable(it, ins) {
 				return false
 			}
 		}
 		return true
 	case *core.Choice:
 		for _, alt := range n.Alts {
-			if f.Nullable(alt.Body) {
+			if c.nullable(alt.Body, ins) {
 				return true
 			}
 		}
 		return false
 	case *core.Repeat:
-		return n.Min == 0 || n.Min == 1 && f.Nullable(n.Body)
+		return n.Min == 0 || n.Min == 1 && c.nullable(n.Body, ins)
 	case *core.Call:
-		return f.Rules[n.Rule].Nullable
+		r := &c.rules[c.canon[n.Rule]]
+		return r.Nullable || ins && r.NullableIns
 	case *core.OperatorsRule:
 		for _, l := range n.Operands {
-			if f.Nullable(l.Body) {
+			if c.nullable(l.Body, ins) {
 				return true
 			}
 		}
 		return false
 	case *core.Missing:
-		return f.Nullable(n.Lit)
+		// An insertion consumes no input.
+		return ins || c.nullable(n.Lit, false)
 	case *core.Stream:
-		return f.Nullable(n.Repeat)
+		return c.nullable(n.Repeat, ins)
 	case *core.Nest:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Text:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Drop:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Capture:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Label:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Recover:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	case *core.Terminal:
-		return f.Nullable(n.Body)
+		return c.nullable(n.Body, ins)
 	}
 	panic(fmt.Sprintf("corepass: nullability of %T", n))
 }
