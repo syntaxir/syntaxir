@@ -30,7 +30,6 @@ func (p *Parser) refExpect(pos int, id ExpID) {
 	bit := uint64(1) << (uint32(id) * 0x9e3779b1 >> 26)
 	if p.expBits&bit != 0 {
 		for _, e := range p.exp[p.expBase:] {
-			p.Spend()
 			if e == id {
 				return
 			}
@@ -71,7 +70,6 @@ func (p *Parser) refExpectOrdinarySlow(pos int, id ExpID) {
 // refMergeExpected is MergeExpected over refExpect.
 func (p *Parser) refMergeExpected(far int, ids []ExpID) {
 	for _, x := range ids {
-		p.Spend()
 		p.refExpect(far, x)
 	}
 }
@@ -105,7 +103,6 @@ func (p *Parser) refEqualExpected(a, b []ExpID) bool {
 		return false
 	}
 	for i, x := range a {
-		p.Spend()
 		if x != b[i] {
 			return false
 		}

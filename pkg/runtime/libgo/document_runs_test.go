@@ -55,7 +55,6 @@ func runTestRulesOf(started func(), alts []string, max int) *Rule {
 					continue
 				}
 			}
-			p.Spend()
 			m := p.Mark()
 			if on {
 				p.ResumeBegin(r)
@@ -74,7 +73,6 @@ func runTestRulesOf(started func(), alts []string, max int) *Rule {
 			p.ResumeFinish(r)
 		}
 		for max >= 0 {
-			p.Spend()
 			m := p.Mark()
 			v, ok := p.Call(item, 0)
 			if !ok {

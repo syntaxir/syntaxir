@@ -38,7 +38,6 @@ func (p *Parser) refSkipTrivia(pr *OperatorsRule) {
 func (p *Parser) refLongest(ops []*OperatorsRuleOp) (best operatorsRuleAttempt, cutFailed bool) {
 	m0 := p.Mark()
 	for _, op := range ops {
-		p.Spend()
 		prevFrame, prevCut := p.Frame, p.Cut
 		f := p.NewFrame(len(op.Line.Scope))
 		p.Frame, p.Cut = f, false
@@ -178,7 +177,6 @@ func (p *Parser) refOperatorsRuleNud(r *Rule) (*sxirvalue.Node, int, bool) {
 		return nil, 0, false
 	}
 	for _, o := range pr.Operands {
-		p.Spend()
 		prevFrame, prevCut := p.Frame, p.Cut
 		f := p.NewFrame(len(o.Scope))
 		p.Frame, p.Cut = f, false

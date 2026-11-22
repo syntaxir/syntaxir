@@ -1,4 +1,4 @@
-protocol 33
+protocol 34
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -238,7 +238,6 @@ method (*Parser) SkipKids() []*syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) SkipUnits(uint64)
 method (*Parser) SkipValue(*syntaxir.dev/sxir/pkg/runtime/value.Node)
 method (*Parser) SkipVisit()
-method (*Parser) Spend()
 method (*Parser) StreamStart()
 method (*Parser) StreamsIn(int, bool) bool
 method (*Parser) Text(int, int) string

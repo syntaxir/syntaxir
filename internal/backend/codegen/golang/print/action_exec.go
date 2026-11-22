@@ -126,14 +126,7 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			case action.OpActionName:
 				return strconv.Quote(c.Imm.(string))
 			case action.OpActionField:
-				// The name is cut from the name of the member, as ActCtx.Member cuts it: compareTextControlled
-				// charges a constant for the same string data, and a literal of the bare name would share its
-				// data with the names of the captures, so a member would charge less here than in the library.
-				f := c.Imm.(action.Field)
-				if cut := len(f.Name) - len(f.Field); cut > 0 {
-					return fmt.Sprintf("%s[%d:]", strconv.Quote(f.Name), cut)
-				}
-				return strconv.Quote(f.Field)
+				return strconv.Quote(c.Imm.(action.Field).Field)
 			case action.OpActionNodeType:
 				if g.Table == "trules" {
 					return g.nodeTypeID(c.Imm.(string))

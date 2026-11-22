@@ -9,10 +9,11 @@ import (
 )
 
 // The charges of the work on values. Strings and lists can come from actions without referring to
-// the input, so the work of copying, clearing and comparing them is charged by itself, in chunks of
+// the input, so the work of copying and clearing them is charged by itself, in chunks of
 // spendValueChunk elements, so that a limit or a cancellation is seen between them. Allocation,
-// buffer growth and the garbage collector remain nonpreemptible. Each operation has an uncontrolled
-// fast path, which a parse without a budget (p.controlled) takes, and a controlled path of its own.
+// buffer growth and the garbage collector remain nonpreemptible. Each such operation has an
+// uncontrolled fast path, which a parse without a budget (p.controlled) takes, and a controlled path
+// of its own. A comparison of strings counts the compute units of its values only (compareText).
 
 // spendValueChunk is the number of elements of a value that one charge covers.
 const spendValueChunk = 128
@@ -27,14 +28,11 @@ func (p *Parser) chargeValues(n int) {
 	}
 }
 
-// compareText compares two strings bytewise, as strings.Compare does, malformed UTF-8 included.
+// compareText compares two strings bytewise, as strings.Compare does, malformed UTF-8 included. A parse
+// that counts compute units counts the length in bytes of the shorter string, whatever the strings
+// share (spec/runtime/parsing.md, Cost).
 func (p *Parser) compareText(l, r string) int {
-	if p.valueUnits(min(len(l), len(r))) {
-		return strings.Compare(l, r)
-	}
-	if p.controlled() {
-		return p.compareTextControlled(l, r)
-	}
+	p.valueUnits(min(len(l), len(r)))
 	return strings.Compare(l, r)
 }
 
@@ -43,39 +41,11 @@ func sameData(l, r string) bool {
 	return len(l) == len(r) && (len(l) == 0 || unsafe.StringData(l) == unsafe.StringData(r))
 }
 
-func (p *Parser) compareTextControlled(l, r string) int {
-	if len(l) > 0 && sameData(l, r) {
-		// The same bytes: the comparison reads none of them, so it costs a constant.
-		p.Spend()
-		return 0
-	}
-	for off, end := 0, min(len(l), len(r)); off < end; {
-		n := min(spendValueChunk, end-off)
-		p.spendValue(2 * n)
-		if order := strings.Compare(l[off:off+n], r[off:off+n]); order != 0 {
-			return order
-		}
-		off += n
-	}
-	if len(l) < len(r) {
-		return -1
-	}
-	if len(l) > len(r) {
-		return 1
-	}
-	return 0
-}
-
-// TextEqual reports whether two strings are equal (the operation str.eq). Under a budget it charges
-// the comparison of their bytes, which strings of different lengths skip.
+// TextEqual reports whether two strings are equal (the operation str.eq). A parse that counts compute
+// units counts the length in bytes of the shorter string, as compareText does.
 func (p *Parser) TextEqual(l, r string) bool {
-	if p.valueUnits(min(len(l), len(r))) {
-		return l == r
-	}
-	if !p.controlled() {
-		return l == r
-	}
-	return len(l) == len(r) && p.compareTextControlled(l, r) == 0
+	p.valueUnits(min(len(l), len(r)))
+	return l == r
 }
 
 // checkedTextSize returns size+width, the size of a text that grows by width bytes, and ends the

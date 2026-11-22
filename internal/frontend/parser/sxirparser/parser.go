@@ -3973,7 +3973,7 @@ L13:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$d", "$d"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$d", "d")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -4244,7 +4244,7 @@ L28:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "a")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -4269,7 +4269,7 @@ L28:
 				c.P.Units++
 				tp18 := ta15
 				tp19 := c.P.ActionItemAt(ti14, tj16, false)
-				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
+				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "gap")
 				if tf21 != nil {
 					c.ActionRaise(tf21)
 				}
@@ -7072,7 +7072,7 @@ L62:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "$a"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$a", "a")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -7097,7 +7097,7 @@ L62:
 				c.P.Units++
 				tp18 := ta15
 				tp19 := c.P.ActionItemAt(ti14, tj16, false)
-				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "$gap"[1:])
+				tv21, tf21 := c.P.ActionMember(c, rt.MemberCapture, (tp19), "$gap", "gap")
 				if tf21 != nil {
 					c.ActionRaise(tf21)
 				}
@@ -10114,7 +10114,7 @@ L28:
 			for ; tj5 < len(ti4); tj5++ {
 				c.P.Units++
 				tp7 := c.P.ActionItemAt(ti4, tj5, false)
-				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$a", "$a"[1:])
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$a", "a")
 				if tf9 != nil {
 					c.ActionRaise(tf9)
 				}
@@ -10961,7 +10961,7 @@ L35:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$i", "$i"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$i", "i")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -11515,7 +11515,7 @@ L43:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$o", "$o"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$o", "o")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -17839,7 +17839,7 @@ func i225(p *rt.TParser) (any, bool) {
 			for ; tj4 < len(ti3); tj4++ {
 				c.P.Units++
 				tp6 := c.P.ActionItemAt(ti3, tj4, false)
-				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
+				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "c")
 				if tf8 != nil {
 					c.ActionRaise(tf8)
 				}
@@ -19148,7 +19148,7 @@ L49:
 			for ; tj7 < len(ti6); tj7++ {
 				c.P.Units++
 				tp9 := c.P.ActionItemAt(ti6, tj7, false)
-				tv11, tf11 := c.P.ActionMember(c, rt.MemberCapture, (tp9), "$c", "$c"[1:])
+				tv11, tf11 := c.P.ActionMember(c, rt.MemberCapture, (tp9), "$c", "c")
 				if tf11 != nil {
 					c.ActionRaise(tf11)
 				}
@@ -19520,7 +19520,7 @@ func i252(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp6 := ta3
 				tp7 := c.P.ActionItemAt(ti2, tj4, false)
-				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$c", "$c"[1:])
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$c", "c")
 				if tf9 != nil {
 					c.ActionRaise(tf9)
 				}
@@ -19763,7 +19763,7 @@ func i254(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp6 := ta3
 				tp7 := c.P.ActionItemAt(ti2, tj4, false)
-				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$line", "$line"[1:])
+				tv9, tf9 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$line", "line")
 				if tf9 != nil {
 					c.ActionRaise(tf9)
 				}
@@ -19775,7 +19775,7 @@ func i254(p *rt.TParser) (any, bool) {
 				if tf11 != nil {
 					c.ActionRaise(tf11)
 				}
-				tv12, tf12 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$body", "$body"[1:])
+				tv12, tf12 := c.P.ActionMember(c, rt.MemberCapture, (tp7), "$body", "body")
 				if tf12 != nil {
 					c.ActionRaise(tf12)
 				}
@@ -19886,7 +19886,7 @@ func i256(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp5 := ta2
 				tp6 := c.P.ActionItemAt(ti1, tj3, false)
-				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "$c"[1:])
+				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$c", "c")
 				if tf8 != nil {
 					c.ActionRaise(tf8)
 				}
@@ -20341,7 +20341,7 @@ L7:
 			for ; tj18 < len(ti17); tj18++ {
 				c.P.Units++
 				tp20 := c.P.ActionItemAt(ti17, tj18, false)
-				tv22, tf22 := c.P.ActionMember(c, rt.MemberCapture, (tp20), "$g", "$g"[1:])
+				tv22, tf22 := c.P.ActionMember(c, rt.MemberCapture, (tp20), "$g", "g")
 				if tf22 != nil {
 					c.ActionRaise(tf22)
 				}
@@ -28216,4 +28216,4 @@ fail:
 
 const _ = types.SXIRSchema_eab920e581fbb899
 
-const _ = rt.Protocol33
+const _ = rt.Protocol34

@@ -169,12 +169,6 @@ func (p *Parser) spendValue(int) {}
 // spendMemo is a step of the work of the dependency memo of left recursion (context_table.go).
 func (p *Parser) spendMemo() {}
 
-// Spend is a step of the comparison of strings of a parse that counts no units (value_spend.go),
-// which a library parse never makes: one that counts no units has no memory limit either.
-//
-// Spend is for the shared mechanisms; not a stable API.
-func (p *Parser) Spend() {}
-
 // abortParse ends the parse with the error err.
 func abortParse(err error) { panic(fatal{err: err}) }
 

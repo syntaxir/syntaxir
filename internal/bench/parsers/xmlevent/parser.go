@@ -1130,7 +1130,7 @@ func init() {
 		for ; tj3 < len(ti2); tj3++ {
 			c.P.Units++
 			tp5 := c.P.ActionItemAt(ti2, tj3, false)
-			tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp5), "$n", "$n"[1:])
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp5), "$n", "n")
 			if tf7 != nil {
 				return nil, tf7
 			}
@@ -8399,7 +8399,7 @@ L19:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$n", "$n"[1:])
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$n", "n")
 				if tf7 != nil {
 					c.ActionRaise(tf7)
 				}
@@ -11559,4 +11559,4 @@ fail:
 
 const _ = types.SXIRSchema_cfc3c49431d16ac3
 
-const _ = rt.Protocol33
+const _ = rt.Protocol34

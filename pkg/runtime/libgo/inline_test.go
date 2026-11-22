@@ -32,7 +32,6 @@ var hotInline = []string{
 	"(*Parser).PushRecovered",
 	"(*Parser).Restore",
 	"(*Parser).SetCapture",
-	"(*Parser).Spend",
 	"(*Node).End",
 	"(*Node).Rule",
 	"(*Node).Start",
