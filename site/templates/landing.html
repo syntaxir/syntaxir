@@ -269,46 +269,7 @@ sxir lsp</code></pre>
         <p>Cost analysis proves linear time for grammars that meet its conditions and flags super-linear rules before you ship. Compute and nesting limits, on by default, stop hostile input.</p>
       </article>
 
-      <article class="lp-case lp-case-half">
-        <figure class="lp-case-figure lp-switch">
-          <svg class="lp-wide" viewBox="0 0 460 96" role="img" aria-label="Source code with indentation, operator precedence and a syntax error becomes a typed tree: context and indentation for languages such as Python and YAML, the operators rule with precedence and left recursion, and a tree that survives errors through declared recovery.">
-            <rect class="d-box" x="2" y="10" width="166" height="76" rx="6"/>
-            <text class="d-code d-fill-accent" x="14" y="30">def</text>
-            <text class="d-code d-fill-ink" x="40" y="30">calc(x):</text>
-            <line class="d-line s-orange d-dotted" x1="20" y1="38" x2="20" y2="76"/>
-            <text class="d-code d-fill-ink" x="28" y="52">return x * 2 ^ 3</text>
-            <text class="d-code d-fill-error" x="28" y="72">x + *  # recovers</text>
-            <line class="d-arrow" x1="176" y1="48" x2="206" y2="48"/>
-            <polygon class="d-fill-ink" points="206,44 214,48 206,52"/>
-            <rect class="d-chip s-orange" x="222" y="8" width="234" height="24" rx="4"/>
-            <text class="d-label-strong d-small" x="234" y="24">Context &amp; indentation (Python, YAML)</text>
-            <rect class="d-chip d-stroke-accent" x="222" y="36" width="234" height="24" rx="4"/>
-            <text class="d-label-strong d-small" x="234" y="52">#operators precedence &amp; left recursion</text>
-            <rect class="d-chip s-green" x="222" y="64" width="234" height="24" rx="4"/>
-            <text class="d-label-strong d-small" x="234" y="80">A tree through errors with #recover</text>
-          </svg>
-          <svg class="lp-narrow" viewBox="0 0 320 180" role="img" aria-label="Source code with indentation, operator precedence and a syntax error becomes a typed tree: context and indentation for languages such as Python and YAML, the operators rule with precedence and left recursion, and a tree that survives errors through declared recovery.">
-            <rect class="d-box" x="2" y="2" width="316" height="72" rx="6"/>
-            <text class="d-code d-fill-accent" x="14" y="22">def</text>
-            <text class="d-code d-fill-ink" x="40" y="22">calc(x):</text>
-            <line class="d-line s-orange d-dotted" x1="20" y1="30" x2="20" y2="66"/>
-            <text class="d-code d-fill-ink" x="28" y="44">return x * 2 ^ 3</text>
-            <text class="d-code d-fill-error" x="28" y="64">x + *  # recovers</text>
-            <line class="d-arrow" x1="160" y1="76" x2="160" y2="88"/>
-            <polygon class="d-fill-ink" points="156,88 160,96 164,88"/>
-            <rect class="d-chip s-orange" x="2" y="100" width="316" height="24" rx="4"/>
-            <text class="d-label-strong d-small" x="14" y="116">Context &amp; indentation (Python, YAML)</text>
-            <rect class="d-chip d-stroke-accent" x="2" y="128" width="316" height="24" rx="4"/>
-            <text class="d-label-strong d-small" x="14" y="144">#operators precedence &amp; left recursion</text>
-            <rect class="d-chip s-green" x="2" y="156" width="316" height="22" rx="4"/>
-            <text class="d-label-strong d-small" x="14" y="171">A tree through errors with #recover</text>
-          </svg>
-        </figure>
-        <h3>Develop real programming languages</h3>
-        <p>Express indentation-sensitive blocks, whole operator precedence tables and left recursion directly. The ready-made parsers for Go 1.27, Python 3.14, TypeScript 5.9 and DuckDB SQL are written this way.</p>
-      </article>
-
-      <article class="lp-case lp-case-half">
+      <article class="lp-case">
         <figure class="lp-case-figure lp-switch">
           <svg class="lp-wide" viewBox="0 0 460 96" role="img" aria-label="Chunks from a reader flow through a #stream repetition, which delivers typed records one at a time while holding memory for one element, not for the whole input.">
             <rect class="d-box" x="2" y="30" width="52" height="36" rx="5"/>
@@ -347,6 +308,70 @@ sxir lsp</code></pre>
         </figure>
         <h3>Stream large logs and datasets</h3>
         <p>Parse CSV, NDJSON or structured logs record by record as bytes arrive from an <code>io.Reader</code>. Memory follows the size of one record, not of the input.</p>
+      </article>
+
+      <article class="lp-case lp-case-wide">
+        <figure class="lp-case-figure lp-switch lp-toolchain">
+          <svg class="lp-wide" viewBox="0 0 640 196" role="img" aria-label="One grammar, lang.sxir, at the center of its toolchain: a language server for diagnostics, completion, hover, go to definition, references, rename and formatting; lint with complexity classification; the formatter and schema diff; trace, profile and explain for every parse; grammar testing with fixture tests, sampled inputs and edit fuzzing; and parsers for every target through gen and compile.">
+            <rect class="d-core" x="250" y="70" width="140" height="56" rx="8"/>
+            <text class="d-title" x="320" y="103" text-anchor="middle">lang.sxir</text>
+            <path class="d-line s-blue" d="M 250 98 C 235 98, 235 28, 220 28"/>
+            <path class="d-line s-orange" d="M 250 98 C 235 98, 235 98, 220 98"/>
+            <path class="d-line s-teal" d="M 250 98 C 235 98, 235 168, 220 168"/>
+            <path class="d-line s-magenta" d="M 390 98 C 405 98, 405 28, 420 28"/>
+            <path class="d-line s-green" d="M 390 98 C 405 98, 405 98, 420 98"/>
+            <path class="d-line d-stroke-accent" d="M 390 98 C 405 98, 405 168, 420 168"/>
+            <rect class="d-panel s-blue" x="0" y="0" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="14" y="23">Language server</text>
+            <text class="d-code" x="14" y="43">lsp</text>
+            <rect class="d-panel s-orange" x="0" y="70" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="14" y="93">Lint and cost analysis</text>
+            <text class="d-code" x="14" y="113">lint -classify</text>
+            <rect class="d-panel s-teal" x="0" y="140" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="14" y="163">Format and schema diff</text>
+            <text class="d-code" x="14" y="183">fmt · schema diff</text>
+            <rect class="d-panel s-magenta" x="420" y="0" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="434" y="23">Observe each parse</text>
+            <text class="d-code" x="434" y="43">trace · profile · explain</text>
+            <rect class="d-panel s-green" x="420" y="70" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="434" y="93">Grammar testing</text>
+            <text class="d-code" x="434" y="113">test · sample · edit-fuzz</text>
+            <rect class="d-panel d-stroke-accent" x="420" y="140" width="220" height="56" rx="6"/>
+            <text class="d-label-strong" x="434" y="163">Parsers for every target</text>
+            <text class="d-code" x="434" y="183">gen · compile</text>
+          </svg>
+          <svg class="lp-narrow" viewBox="0 0 320 402" role="img" aria-label="One grammar, lang.sxir, at the center of its toolchain: a language server for diagnostics, completion, hover, go to definition, references, rename and formatting; lint with complexity classification; the formatter and schema diff; trace, profile and explain for every parse; grammar testing with fixture tests, sampled inputs and edit fuzzing; and parsers for every target through gen and compile.">
+            <path class="d-line-soft" d="M 20 22 H 8 V 376"/>
+            <path class="d-line s-blue" d="M 8 86 H 20"/>
+            <path class="d-line s-orange" d="M 8 144 H 20"/>
+            <path class="d-line s-teal" d="M 8 202 H 20"/>
+            <path class="d-line s-magenta" d="M 8 260 H 20"/>
+            <path class="d-line s-green" d="M 8 318 H 20"/>
+            <path class="d-line d-stroke-accent" d="M 8 376 H 20"/>
+            <rect class="d-core" x="20" y="0" width="298" height="44" rx="8"/>
+            <text class="d-title" x="169" y="28" text-anchor="middle">lang.sxir</text>
+            <rect class="d-panel s-blue" x="20" y="62" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="82">Language server</text>
+            <text class="d-code" x="34" y="100">lsp</text>
+            <rect class="d-panel s-orange" x="20" y="120" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="140">Lint and cost analysis</text>
+            <text class="d-code" x="34" y="158">lint -classify</text>
+            <rect class="d-panel s-teal" x="20" y="178" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="198">Format and schema diff</text>
+            <text class="d-code" x="34" y="216">fmt · schema diff</text>
+            <rect class="d-panel s-magenta" x="20" y="236" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="256">Observe each parse</text>
+            <text class="d-code" x="34" y="274">trace · profile · explain</text>
+            <rect class="d-panel s-green" x="20" y="294" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="314">Grammar testing</text>
+            <text class="d-code" x="34" y="332">test · sample · edit-fuzz</text>
+            <rect class="d-panel d-stroke-accent" x="20" y="352" width="298" height="48" rx="6"/>
+            <text class="d-label-strong" x="34" y="372">Parsers for every target</text>
+            <text class="d-code" x="34" y="390">gen · compile</text>
+          </svg>
+        </figure>
+        <h3>Develop real programming languages</h3>
+        <p>Express indentation-sensitive blocks, whole operator precedence tables, left recursion and recovery from syntax errors directly in the grammar, then build the language with the toolchain around it: a language server with diagnostics, completion, hover, go to definition, references, rename and formatting; lint and complexity classification; trace, profile and explain for every rule call, its cost and the cause of an error; and sampled inputs, fixture tests and edit fuzzing against fresh parses. The ready-made parsers for Go 1.27, Python 3.14, TypeScript 5.9 and DuckDB SQL are written this way.</p>
       </article>
     </div>
   </div>
