@@ -1308,7 +1308,8 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
       const d = new DocumentParser(g, input, u, seen, maxDepth, control);
       d.memoState = document;
       d.slots = document.slots;
-      document.pending = 0;
+      d.gap = document.gap;
+      d.gapLen = document.gapLen;
       p = d;
     } else if (observed) {
       p = new ObservedParser(g, input, u, seen, maxDepth, control);
@@ -1420,13 +1421,17 @@ function mergeOptions(defaults: ParseOptions | undefined, invocation: ParseOptio
   return out as ParseOptions;
 }
 
-// pendingEditLimit is the number of edits between two parses after which the next parse starts
-// without the memo, and the number of edits after which an entry that no parse found or stored is
-// removed: keeping up with more edits costs more than parsing again.
+// pendingEditLimit is the number of edits that a lookup applies to an entry at most: an entry that
+// lags behind more edits is absent (DocumentMemo.advanceEntry), since keeping up with them costs
+// more than evaluating the call again.
 const pendingEditLimit = 128;
 
-// DocumentEdit is an edit as the memo sees it (DocumentMemo.splice): the input [start, end) is
-// replaced with input delta units longer, and the input after end decodes as before.
+// maxDocumentEdits bounds the edit log of a Document: the edit that finds it full drops the memo and
+// starts the log again, so that a parse finds at most this many pending edits.
+const maxDocumentEdits = 1 << 16;
+
+// DocumentEdit is an edit of a Document as the memo sees it: the positions [start, end) were replaced
+// by end - start + delta positions, and the input after end decodes as before.
 interface DocumentEdit {
   start: number;
   end: number;
@@ -1434,123 +1439,114 @@ interface DocumentEdit {
 }
 
 /**
- * DocumentMemo is the memo that a Document keeps from one parse to the next. An edit splices it:
- * results that examined only input before the edit stay, results that examined only input after it
- * move by the edit's change of length, and the others are removed. A parse that ends with an
- * exception leaves it empty.
+ * DocumentMemo is the memo that a Document keeps from one parse to the next, with the log of the edits
+ * since it was last dropped. Its slots are a gap buffer: an edit moves the gap to the edited positions,
+ * takes them into it and gives the new positions from it, so that it costs the distance to the gap,
+ * and decides at once only the entries at the edited positions. Every other entry takes the edits of
+ * the log when a lookup finds it (DocumentParser.memoAdvance): an entry that examined only input before
+ * an edit stays, one that examined only input after it moves by the edit's change of length, unless it
+ * is pinned or holds recovered errors, and any other is invalid. A parse that ends with an exception
+ * leaves it empty.
  */
 export class DocumentMemo {
+  // slots holds the entries at the positions: position i is at slot i before the gap and at slot
+  // i + gapLen from it on. It is empty until a parse stores an entry, and then has a slot for every
+  // position of the text.
   slots: (MemoEntry | null | undefined)[] = [];
-  // shifts holds, for each entry that edits moved, the shift that its value still has to take
-  // (DocumentParser.documentMove), or is null when no entry has one.
-  shifts: Map<MemoEntry, number> | null = null;
-  // epoch counts the edits of the Document (MemoEntry.seen), pending those since the last parse.
-  epoch = 0;
-  pending = 0;
+  gap = 0;
+  gapLen = 0;
+  // edits is the log of the edits since the memo was last dropped; an entry accounts for the first
+  // MemoEntry.vgen of them.
+  edits: DocumentEdit[] = [];
   // evaluated and reused are the statistics of the last parse.
   evaluated = 0;
   reused = 0;
 
   clear(): void {
     this.slots = [];
-    this.shifts = null;
+    this.gap = 0;
+    this.gapLen = 0;
+    this.edits = [];
   }
 
-  // edit applies an edit to the memo: after more than pendingEditLimit edits since the last parse,
-  // the next parse starts without it.
+  // edit applies an edit to the memo and records it in the log. It charges nothing: a lookup charges
+  // the edits it applies to an entry.
   edit(ed: DocumentEdit): void {
-    this.pending++;
-    this.epoch++;
-    if (this.pending > pendingEditLimit) {
+    if (this.edits.length === maxDocumentEdits) {
       this.clear();
       return;
     }
-    this.splice(ed);
+    this.edits.push(ed);
+    if (this.slots.length !== 0) this.splice(ed);
   }
 
-  // splice copies the entries that the edit keeps into new slots: those that examined only input
-  // before the edit stay; those that examined only input after it, with no recovered errors and not
-  // pinned, move by its delta, with what their values must move recorded in shifts; the others are
-  // removed, with those that more than pendingEditLimit edits have passed since a parse stored them
-  // or found them.
+  // splice moves the gap to the edit: the entries at the positions [start, end] take the edits now
+  // (advanceEntry), those that stay valid are kept at their new positions and the others removed;
+  // the entries elsewhere move with their slots.
   splice(ed: DocumentEdit): void {
-    const slots: (MemoEntry | null | undefined)[] = [];
-    let shifts: Map<MemoEntry, number> | null = null;
-    for (let pos = 0; pos < this.slots.length; pos++) {
-      for (let e = this.slots[pos] || null; e !== null; e = e.next) {
-        let to = pos;
-        const from = e.from === fromBefore ? pos - 1 : pos;
-        if (e.from === noRecord || this.epoch - e.seen > pendingEditLimit) {
-          continue;
-        } else if (e.examined <= ed.start) {
-          // Before the edit.
-        } else if (from >= ed.end && !e.pinned && e.errs === noErrs) {
-          to = pos + ed.delta;
-        } else {
-          continue;
+    const slots = this.slots;
+    const { start, end, delta } = ed;
+    // Detach the entries at [start, end] and keep the valid ones.
+    let stay: MemoEntry | null = null;
+    for (let pos = start; pos <= end; pos++) {
+      const i = pos < this.gap ? pos : pos + this.gapLen;
+      if (i >= slots.length) break;
+      for (let e = slots[i] || null; e !== null;) {
+        const next = e.next;
+        if (this.advanceEntry(e, this.edits)) {
+          e.next = stay;
+          stay = e;
         }
-        const c: MemoEntry = { ...e, next: null };
-        let shift = this.shifts?.get(e) ?? 0;
-        if (to !== pos) {
-          c.end += ed.delta;
-          c.examined += ed.delta;
-          c.far += ed.delta;
-          shift += ed.delta;
-        }
-        // A result without a node holds no positions.
-        if (shift !== 0 && c.node) {
-          if (shifts === null) shifts = new Map();
-          shifts.set(c, shift);
-        }
-        c.next = slots[to] || null;
-        slots[to] = c;
+        e = next;
       }
+      slots[i] = null;
     }
-    this.slots = slots;
-    this.shifts = shifts;
+    // Move the gap to start, take [start, end) into it, and give the new positions from it.
+    if (end + this.gapLen >= slots.length) {
+      // Room for position end, where an entry kept at start may go.
+      for (let k = slots.length; k <= end + this.gapLen; k++) slots.push(null);
+    }
+    if (this.gap > start) {
+      slots.copyWithin(start + this.gapLen, start, this.gap);
+      slots.fill(null, start, Math.min(this.gap, start + this.gapLen));
+    } else if (this.gap < start) {
+      slots.copyWithin(this.gap, this.gap + this.gapLen, start + this.gapLen);
+      slots.fill(null, Math.max(start, this.gap + this.gapLen), start + this.gapLen);
+    }
+    this.gap = start;
+    this.gapLen += end - start;
+    const n = end - start + delta;
+    if (n > this.gapLen) {
+      // Widen the gap, with room for later insertions.
+      const more = n - this.gapLen + Math.max(1024, slots.length >> 4);
+      const tail = slots.length - (this.gap + this.gapLen);
+      const grown: (MemoEntry | null | undefined)[] = new Array(slots.length + more).fill(null);
+      for (let k = 0; k < this.gap; k++) grown[k] = slots[k];
+      for (let k = 0; k < tail; k++) grown[grown.length - tail + k] = slots[this.gap + this.gapLen + k];
+      this.slots = grown;
+      this.gapLen += more;
+    }
+    this.gap += n;
+    this.gapLen -= n;
+    for (let e = stay; e !== null;) {
+      const next = e.next;
+      const i = e.pos < this.gap ? e.pos : e.pos + this.gapLen;
+      e.next = this.slots[i] || null;
+      this.slots[i] = e;
+      e = next;
+    }
+  }
+
+  // advanceEntry is DocumentParser.memoAdvance without charges, for an edit and for a store that
+  // joins with an entry of an earlier parse.
+  advanceEntry(e: MemoEntry, log: DocumentEdit[]): boolean {
+    throw new Error("the printed method replaces this one");
   }
 }
 
 // basicValue reports whether v holds no positions: null, a boolean, a number or a string.
 function basicValue(v: unknown): boolean {
   return v === null || v === undefined || typeof v === "boolean" || typeof v === "number" || typeof v === "bigint" || typeof v === "string";
-}
-
-// movable reports whether moveNode can move n: its fields and box hold only nodes and basic values.
-// visited holds the nodes already checked.
-function movable(n: Node | null, visited: Set<Node>): boolean {
-  if (n === null || visited.has(n)) return true;
-  visited.add(n);
-  if (!basicValue(n.box)) return false;
-  for (const c of n.children) {
-    if (!movable(c, visited)) return false;
-  }
-  for (const f of n.fields) {
-    if (f.value instanceof Node) {
-      if (!movable(f.value, visited)) return false;
-    } else if (!basicValue(f.value)) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// moveNode returns a copy of the movable node n with its positions and those of its descendants moved
-// by shift. moved maps the nodes copied so far to their copies, so that a node that occurs more than
-// once is copied once and its copies are shared as it was.
-function moveNode(n: Node | null, shift: number, moved: Map<Node, Node>): Node | null {
-  if (n === null) return null;
-  const done = moved.get(n);
-  if (done !== undefined) return done;
-  const c: Node = Object.assign(Object.create(Object.getPrototypeOf(n)), n);
-  moved.set(n, c);
-  c.start += shift;
-  c.end += shift;
-  if (n.children.length !== 0) c.children = n.children.map(k => moveNode(k, shift, moved));
-  if (n.fields.length !== 0) {
-    c.fields = n.fields.map(f => (f.value instanceof Node ? { name: f.name, value: moveNode(f.value, shift, moved) } : f));
-  }
-  return c;
 }
 
 /** DocumentStats are the statistics of the last parse of a Document. */
@@ -2100,24 +2096,23 @@ export interface MemoEntry {
   // present is the set of leaders (Rule.leaderBit) that grew at the position when the result of a
   // rule of a cycle was evaluated; it answers a call where no other leader grows (memoAllows).
   present: number;
-  // examined is the end of the input that the call examined in a Document or observed parse, and
-  // from where that input starts: noRecord outside a Document parse, fromPos at the position of the
-  // entry, fromBefore one unit before it. pinned means an edit before the entry removes it.
+  // examined is the end of the input that the call examined in a Document or observed parse, and, in
+  // a Document parse, from its start: the position of the entry, or the unit before it when the call
+  // examined that unit. pinned means that the result depends on positions, so an edit before the entry
+  // removes it.
   examined: number;
   from: number;
   pinned: boolean;
-  // seen is the edit count of the Document (DocumentMemo.epoch) when a parse last stored the entry or
-  // found it to answer a lookup.
-  seen: number;
+  // pos is the position of the entry, and vgen the number of edits of the Document's log that pos,
+  // end, examined, from and far account for (DocumentParser.memoAdvance); shift is how far those edits
+  // moved the entry since its value was last moved (DocumentParser.documentMove).
+  pos: number;
+  vgen: number;
+  shift: number;
 }
 
-// The starts of the input that a call of a Document parse examined (MemoEntry.from).
-const noRecord = 0;
-const fromPos = 1;
-const fromBefore = 2;
-
 export function newEntry(node: R, ok: boolean, end: number, silent: boolean, errs: Errs): MemoEntry {
-  return { node, errs, expected: noExp, next: null, env: null, end, far: 0, rule: 0, min: 0, ok, silent, present: 0, examined: 0, from: noRecord, pinned: false, seen: 0 };
+  return { node, errs, expected: noExp, next: null, env: null, end, far: 0, rule: 0, min: 0, ok, silent, present: 0, examined: 0, from: 0, pinned: false, pos: 0, vgen: 0, shift: 0 };
 }
 
 export const noExp: number[] = [];
@@ -2792,8 +2787,12 @@ export class Parser {
   trail: { f: Frame; slot: number; old: Node | null }[] = [];
   cut = false;
 
-  // The memo: entries per position, chained.
+  // The memo: entries per position, chained. Position i is at slot i before the gap and at slot
+  // i + gapLen from it on: a Document's memo (DocumentMemo) keeps a gap where its edits were; the memo
+  // of any other parse has none.
   slots: (MemoEntry | null | undefined)[] = [];
+  gap = 0;
+  gapLen = 0;
   // seen is a bit set of the (position, rule) pairs called once (firstCall), with stride bits per
   // position.
   seen: Int32Array = new Int32Array(0);
@@ -2880,6 +2879,17 @@ export class Parser {
   spend(n = 1): void { this.control?.charge(n); }
   // spendUnits charges n units as n calls of spend() do (BudgetControl.chargeUnits).
   spendUnits(n: number): void { this.control?.chargeUnits(n); }
+
+  // freeBegin and freeEnd bracket work that only a Document parse does (BudgetControl.freeBegin). The
+  // printed methods hold the mark as an unsigned 64-bit integer, whose largest value marks no region.
+  freeBegin(on: boolean): bigint {
+    const mark = this.control === null ? noFreeRegion : this.control.freeBegin(on);
+    return mark === noFreeRegion ? noFreeMark : BigInt(mark);
+  }
+
+  freeEnd(mark: bigint): void {
+    if (mark !== noFreeMark) this.control?.freeEnd(Number(mark));
+  }
   // alloc counts n bytes of storage taken into use for the memory limit; only a controlled parse counts.
   alloc(n: number): void { const c = this.control; if (c !== null) c.mem += n; }
   // counted returns n, a node the generated code constructs, counting bytes for the memory limit.
@@ -3205,7 +3215,7 @@ export class Parser {
   // it costs the size of its key and not the length of the chain. It charges nothing: the call paid
   // for the lookup of its key (chargeKey).
   memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
-    let e = this.slots[pos] || null;
+    let e = this.slots[pos < this.gap ? pos : pos + this.gapLen] || null;
     for (let n = 0; e && n < memoScan; e = e.next, n++) {
       if (e.rule === rule && e.min === min && sameValues(e.env, env)) {
         return e;
@@ -3245,7 +3255,7 @@ export class Parser {
     if (ix === undefined) {
       ix = new Map();
       this.alloc(2 * mapEntryBytes + mapBytes);
-      for (let e = this.slots[pos] || null; e; e = e.next) {
+      for (let e = this.slots[pos < this.gap ? pos : pos + this.gapLen] || null; e; e = e.next) {
         this.memoProbe(ix, memoKeyHash(e.rule, e.min, e.env, null), () => false);
         ix.set(this.memoSlot, e);
         this.alloc(mapEntryBytes);
@@ -3261,8 +3271,9 @@ export class Parser {
   memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
     this.alloc(entryBytes);
     const same = (x: MemoEntry): boolean => x === e || (x.rule === rule && x.min === min && sameValues(x.env, env));
+    const i = pos < this.gap ? pos : pos + this.gapLen;
     let prev: MemoEntry | null = null;
-    let x = this.slots[pos] || null;
+    let x = this.slots[i] || null;
     let replaced: MemoEntry | null = null;
     for (let n = 0; x && n < memoScan; prev = x, x = x.next, n++) {
       if (same(x)) {
@@ -3279,7 +3290,7 @@ export class Parser {
       ixSlot = this.memoSlot;
       if (replaced !== null) {
         prev = null;
-        for (let y = this.slots[pos] || null; y !== replaced; prev = y, y = y!.next) {
+        for (let y = this.slots[i] || null; y !== replaced; prev = y, y = y!.next) {
           // (the walk finds the link of the entry)
         }
       }
@@ -3296,6 +3307,7 @@ export class Parser {
     e.rule = rule;
     e.min = min;
     e.env = env;
+    e.pos = pos;
     if (ix !== undefined) {
       if (replaced === null) this.alloc(mapEntryBytes);
       ix.set(ixSlot, e);
@@ -3303,7 +3315,7 @@ export class Parser {
     if (replaced !== null) {
       e.next = replaced.next;
       if (prev === null) {
-        this.slots[pos] = e;
+        this.slots[i] = e;
       } else {
         prev.next = e;
       }
@@ -3319,8 +3331,8 @@ export class Parser {
       }
       this.slots = slots;
     }
-    e.next = this.slots[pos] || null;
-    this.slots[pos] = e;
+    e.next = this.slots[i] || null;
+    this.slots[i] = e;
     return e;
   }
 
@@ -6133,30 +6145,130 @@ export class DocumentParser extends TrackedParser {
     if (from < this.docLow) this.docLow = from;
   }
 
-  // A lookup or a store stamps the entry as current in the text of this parse (MemoEntry.seen).
-  override memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
-    const e = super.memoGet(rule, pos, min, env);
-    if (e !== null) e.seen = this.memoState.epoch;
-    return e;
+  // memoAdvance applies to the entry e the edits of log that it does not account for yet, charging one
+  // unit for each, and reports whether e is still valid (DocumentMemo).
+  memoAdvance(e: MemoEntry, log: DocumentEdit[]): boolean {
+    throw new Error("the printed method replaces this one");
   }
 
+  // lagged reports whether a lookup treats e as absent: it lags behind more than pendingEditLimit edits
+  // of the log (memoAdvance).
+  lagged(e: MemoEntry): boolean {
+    return this.memoState.edits.length - e.vgen > pendingEditLimit;
+  }
+
+  // unlinkLagged removes from the chain at pos the entries that lag behind (lagged) among the first
+  // limit entries that do not, or among all of them if limit is negative. Removing an entry charges
+  // nothing, as the walk does not: each entry is removed once, after the counted call that stored it.
+  // The index of the position, if there is one, no longer matches the chain and is dropped.
+  unlinkLagged(pos: number, limit: number): void {
+    const i = pos < this.gap ? pos : pos + this.gapLen;
+    let prev: MemoEntry | null = null;
+    for (let e = this.slots[i] || null, kept = 0; e !== null && kept !== limit;) {
+      const next = e.next;
+      if (!this.lagged(e)) {
+        prev = e;
+        kept++;
+      } else {
+        if (prev === null) this.slots[i] = next;
+        else prev.next = next;
+        this.memoIndex?.delete(pos);
+      }
+      e = next;
+    }
+  }
+
+  // A lookup walks the chain past the entries that lag behind, which it removes, and applies the
+  // pending edits to the entry it finds where the printed call reads it (memo.lookup).
+  override memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
+    this.unlinkLagged(pos, memoScan);
+    return super.memoGet(rule, pos, min, env);
+  }
+
+  // A chain that the index answers for has no entry that lags behind.
+  override memoIndexAt(pos: number): Map<number, MemoEntry> {
+    this.unlinkLagged(pos, -1);
+    return super.memoIndexAt(pos);
+  }
+
+  // A store records that the entry accounts for every edit of the log.
   override memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
-    e.seen = this.memoState.epoch;
+    e.vgen = this.memoState.edits.length;
+    e.shift = 0;
+    this.unlinkLagged(pos, memoScan);
     return super.memoPut(rule, pos, min, env, e);
   }
 
-  // documentMove moves the nodes of the value of e by the shift that edits gave e (DocumentMemo.splice),
-  // in copies, since the value may be part of a result already returned, and reports whether it
-  // could: a value that holds a host value other than a node or a basic value is not moved.
+  // An entry of an earlier parse that cannot take the edits since is not current: e replaces it. The
+  // store charges nothing, so the edits are applied without charges.
+  override joinStored(x: MemoEntry, e: MemoEntry): MemoEntry {
+    const log = this.memoState.edits;
+    if (x !== e && x.vgen !== log.length && !this.memoState.advanceEntry(x, log)) return e;
+    return super.joinStored(x, e);
+  }
+
+  // documentMove moves the nodes of the value of e by the shift that edits gave e (memoAdvance), in
+  // copies, since the value may be part of a result already returned, and reports whether it could: a
+  // value that holds a host value other than a node or a basic value is not moved. Moving the value is
+  // work of the Document that a parse from scratch does not do: a check of the value, one unit for each
+  // node it holds and one for each child and field, and a copy, which charges the same.
   documentMove(e: MemoEntry): boolean {
-    const shifts = this.memoState.shifts;
-    if (shifts === null) return true;
-    const shift = shifts.get(e);
-    if (shift === undefined) return true;
-    if (!movable(e.node!, new Set())) return false;
-    e.node = moveNode(e.node!, shift, new Map());
-    shifts.delete(e);
+    const n = e.node;
+    if (e.shift === 0) return true;
+    if (n === null || n === undefined) {
+      // A result without a node holds no positions.
+      e.shift = 0;
+      return true;
+    }
+    const fm = this.freeBegin(true);
+    try {
+      if (!this.movable(n, new Set())) return false;
+      e.node = this.moveNode(n, e.shift, new Map());
+      e.shift = 0;
+      return true;
+    } finally {
+      this.freeEnd(fm);
+    }
+  }
+
+  // movable reports whether moveNode can move n: its fields and box hold only nodes and basic values.
+  // visited holds the nodes already checked; each is charged once.
+  movable(n: Node | null, visited: Set<Node>): boolean {
+    if (n === null || visited.has(n)) return true;
+    visited.add(n);
+    this.spendUnits(1 + n.children.length + n.fields.length);
+    if (!basicValue(n.box)) return false;
+    for (const c of n.children) {
+      if (!this.movable(c, visited)) return false;
+    }
+    for (const f of n.fields) {
+      if (f.value instanceof Node) {
+        if (!this.movable(f.value, visited)) return false;
+      } else if (!basicValue(f.value)) {
+        return false;
+      }
+    }
     return true;
+  }
+
+  // moveNode returns a copy of the movable node n with its positions and those of its descendants
+  // moved by shift, charging each copy as movable charges its check. moved maps the nodes copied so far
+  // to their copies, so that a node that occurs more than once is copied once and its copies are
+  // shared as it was.
+  moveNode(n: Node | null, shift: number, moved: Map<Node, Node>): Node | null {
+    if (n === null) return null;
+    const done = moved.get(n);
+    if (done !== undefined) return done;
+    this.spendUnits(1 + n.children.length + n.fields.length);
+    const c: Node = Object.assign(Object.create(Object.getPrototypeOf(n)), n);
+    moved.set(n, c);
+    c.start += shift;
+    c.end += shift;
+    if (n.children.length !== 0) c.children = n.children.map(k => this.moveNode(k, shift, moved));
+    if (n.fields.length !== 0) {
+      c.fields = n.fields.map(f => (f.value instanceof Node ? { name: f.name, value: this.moveNode(f.value, shift, moved) } : f));
+    }
+    return c;
   }
 
   // callDocument is a rule call in a Document parse, which memoizes the rules that the Document reuses

@@ -159,7 +159,7 @@ row includes what its backends print into packages of their own.
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
 | unmemoized | `[]` |  |  | `[]` |
-| memoized | `[budget, document, observe]` |  |  | `[document, observe]` |
+| memoized | `[budget, document, observe]` |  |  | `[budget, document, observe]` `[document, observe]` |
 | document | `[budget, document]` |  |  | `[document]` |
 | typedDocument |  | `[budget, document, observe, typed]` |  |  |
 | callBegin |  |  | `[budget, document, missing]` |  |
@@ -199,7 +199,7 @@ row includes what its backends print into packages of their own.
 | exprLoop |  |  | `[budget, missing]` |  |
 | exprLed |  |  | `[budget, missing]` |  |
 | exprRhs |  |  | `[budget, missing]` |  |
-| memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` |  |
+| memoAdvance | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` | `[budget, document]` `[document]` |
 | runStart | `[budget, document]` |  | `[budget, document]` |  |
 | runMore | `[budget, document]` |  | `[budget, document]` |  |
 | runReuse | `[budget, document]` |  | `[budget, document]` |  |

@@ -303,10 +303,11 @@ console.log("stats " + JSON.stringify({ evaluated, reused, full, again }));
 	}
 	for _, m := range documentMutants {
 		mutate := func(src string) string {
-			if strings.Count(src, m.old) != 1 {
-				t.Fatalf("mutant %q: the library has %d copies of %q, want 1", m.name, strings.Count(src, m.old), m.old)
+			want := max(m.copies, 1)
+			if strings.Count(src, m.old) != want {
+				t.Fatalf("mutant %q: the library has %d copies of %q, want %d", m.name, strings.Count(src, m.old), m.old, want)
 			}
-			return strings.Replace(src, m.old, m.new, 1)
+			return strings.ReplaceAll(src, m.old, m.new)
 		}
 		if run(mutate) == nil {
 			t.Errorf("mutant %q passes the comparison", m.name)
@@ -315,20 +316,26 @@ console.log("stats " + JSON.stringify({ evaluated, reused, full, again }));
 }
 
 // documentMutants are the broken edits of the negative control of TestTSDocumentMatchesFreshParse:
-// each replaces old in the library with new.
-var documentMutants = []struct{ name, old, new string }{
+// each replaces old in the library with new, in each of its copies (one unless copies says more: the
+// printed memoAdvance and its form without charges, advanceEntry, are two).
+var documentMutants = []struct {
+	name, old, new string
+	copies         int
+}{
 	// The replacement is dropped: the edit only deletes the range.
-	{"dropped splice", "out.set(r, startByte);", ""},
+	{"dropped splice", "out.set(r, startByte);", "", 1},
 	// A position in code points is taken as one byte per character after the start.
-	{"mis-mapped unit offset", "endByte = documentByteOffset(b, end);", "endByte = startByte + (end - start);"},
+	{"mis-mapped unit offset", "endByte = documentByteOffset(b, end);", "endByte = startByte + (end - start);", 1},
 	// No result is kept between parses.
-	{"memo not kept", "d.slots = document.slots;", ""},
-	// A result whose examined input reaches into the edit is kept in place.
-	{"edit ignores examined input", "} else if (e.examined <= ed.start) {", "} else if (e.from !== noRecord) {"},
-	// A result after the edit is kept at its old position.
-	{"result not moved", "to = pos + ed.delta;", ""},
+	{"memo not kept", "d.slots = document.slots;", "", 1},
+	// A result whose examined input reaches into an edit is kept as it is.
+	{"edit ignores examined input", "if (examined <= log[i]!.start) {", "if (true) {", 2},
+	// A result after an edit keeps its old end.
+	{"result not moved", "e!.end += shift;", "", 2},
+	// The entries at the edited positions are kept without the edit.
+	{"edited entries kept", "if (this.advanceEntry(e, this.edits)) {", "if (true) {", 1},
 	// The value of a moved result keeps its old positions.
-	{"value not moved", "if (shift === undefined) return true;", "return true;"},
+	{"value not moved", "if (e.shift === 0) return true;", "return true;", 1},
 }
 
 // TestTSDocumentReuseRecordsExamined checks that a result reused inside a rule that is evaluated
@@ -363,12 +370,12 @@ for (const [s, e, r] of [[0, 1, "s"], [4, 5, "x"]]) {
 	if got := run(nil); got != want {
 		t.Fatalf("got\n%s\nwant\n%s", got, want)
 	}
-	const old = "this.documentTouch(e!.examined);\n      if (e!.from === fromBefore) {"
+	const old = "this.documentTouch(e!.examined);\n      if (e!.from < e!.pos) {"
 	got := run(func(src string) string {
 		if strings.Count(src, old) != 1 {
 			t.Fatalf("the library has %d copies of %q, want 1", strings.Count(src, old), old)
 		}
-		return strings.Replace(src, old, "if (e!.from === fromBefore) {", 1)
+		return strings.Replace(src, old, "if (e!.from < e!.pos) {", 1)
 	})
 	if got == want {
 		t.Error("the library that does not record what a reused result examined passes")

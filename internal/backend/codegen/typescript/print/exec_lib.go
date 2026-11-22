@@ -22,9 +22,14 @@ type tsMethod struct {
 // no streams. The batch Parser's callBody observes nothing: the parsers of observed and Document
 // parses override call. The methods of tsDocClass belong to the DocumentParser class, the
 // parser of a Document parse: its call takes callDocument, which memoizes the rules that the Document
-// memoizes and records the input that each call examined. Its parses charge Document work like any
-// other work (no free regions): the call forms are specialized without budget controls, and the
-// expectation forms with the charges of the batch forms. callTracked, of tsObsClass, is the
+// memoizes and records the input that each call examined. callMemo is specialized with budget
+// controls, which bracket the memo protocol of a rule that only a Document memoizes as Document work
+// (Parser.freeBegin); the other call forms without them, and the expectation forms with the charges of
+// the batch forms. memoAdvance applies
+// the pending edits of the Document to an entry that a lookup finds, charging one unit for each in a
+// region of Document work (Parser.freeBegin); advanceEntry, its form without charges, belongs to the
+// DocumentMemo class, which applies the edits to the entries at an edit and to an entry that a store
+// joins. callTracked, of tsObsClass, is the
 // memoized call of the ObservedParser class, which records how far each call examined the input
 // without a Document; callUnmemoized belongs to TrackedParser, the class of both.
 var tsSpecs = []struct {
@@ -37,8 +42,10 @@ var tsSpecs = []struct {
 	{fn: "firstCall", name: "firstCall"},
 	{fn: "document", on: []string{exec.Document}, name: "callDocument", target: tsDocClass},
 	{fn: "unmemoized", name: "callUnmemoized", target: tsDocClass},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe}, name: "callMemo", target: tsDocClass},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Budget}, name: "callMemo", target: tsDocClass},
 	{fn: "memoized", on: []string{exec.Document, exec.Observe}, name: "callTracked", target: tsObsClass},
+	{fn: "memoAdvance", on: []string{exec.Document, exec.Budget}, name: "memoAdvance", target: tsDocClass},
+	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", target: tsDocClass},
 	{fn: "grow", name: "grow"},
 	{fn: "expect", on: []string{exec.Budget}, name: "expect"},
 	{fn: "mergeKept", on: []string{exec.Budget}, name: "mergeKept"},
@@ -231,7 +238,7 @@ var tsTarget = &Target{
 	Handle: func(name string) string {
 		return map[string]string{
 			exec.Rule: "Rule", exec.Value: "R", exec.Entry: "MemoEntry | null", exec.Values: "Value[] | null",
-			exec.Errs: "Errs", exec.Kept: "number[]", exec.ExpID: "number",
+			exec.Errs: "Errs", exec.Kept: "number[]", exec.ExpID: "number", exec.EditLog: "DocumentEdit[]",
 			exec.Ctx: "CtxCall", exec.Res: "CtxResult | null", exec.Grow: "GrowState",
 			exec.Frame: "Frame", exec.Scope: "Env | null", exec.Operators: "OperatorsRuleOp[]", exec.Operator: "OperatorsRuleOp",
 			exec.Line: "OperatorsRuleLine", exec.Attempt: "OperatorsRuleAttempt | null",
@@ -693,11 +700,38 @@ var tsDocTarget = func() *Target {
 		case "memo.examined":
 			return a[0] + "!.examined"
 		case "memo.before":
-			return a[0] + "!.from === fromBefore"
+			return a[0] + "!.from < " + a[0] + "!.pos"
 		case "memo.pin":
 			return a[0] + ".pinned = true"
 		case "memo.examine":
-			return fmt.Sprintf("%[1]s.examined = %[3]s;\n%[1]s.from = %[2]s ? fromBefore : fromPos;\n%[1]s.pinned = false", a[0], a[1], a[2])
+			// The entry records the start of the examined input, the low end that memo.before compares
+			// with its position: a call examines at most the unit before its position, so the start is
+			// the position or the unit before it.
+			return fmt.Sprintf("%[1]s.examined = %[2]s;\n%[1]s.from = this.docLow;\n%[1]s.pinned = false", a[0], a[2])
+		case "memo.seed":
+			// The memo of a Document holds no seed: a growth keeps its seed in its own state.
+			return "false"
+		case "memo.from", "memo.pinned", "memo.errs":
+			// The functions that take an entry as a parameter (memoAdvance) read it without a test.
+			return a[0] + "!." + strings.TrimPrefix(c.Callee, "memo.")
+		case "memo.shifted":
+			// The value of an entry moves by the sum of the changes of length that moved the entry
+			// (MemoEntry.shift), so it has to move when that sum is not zero.
+			return a[0] + "!.shift !== 0"
+		case "memo.applied":
+			return a[0] + "!.vgen"
+		case "memo.advance":
+			// The shifted argument is not stored: memo.shifted reads it from the shift of the value.
+			return fmt.Sprintf("%[1]s!.pos += %[4]s;\n%[1]s!.end += %[4]s;\n%[1]s!.from = %[2]s;\n%[1]s!.examined = %[3]s;\n%[1]s!.far += %[4]s;\n%[1]s!.shift += %[4]s;\n%[1]s!.vgen = %[5]s",
+				a[0], a[1], a[2], a[3], a[5])
+		case "edit.count":
+			return a[0] + ".length"
+		case "edit.start", "edit.end", "edit.delta":
+			return a[0] + "[" + a[1] + "]!." + strings.TrimPrefix(c.Callee, "edit.")
+		case "budget.freeBegin":
+			return "this.freeBegin(" + a[0] + ")"
+		case "budget.freeEnd":
+			return "this.freeEnd(" + a[0] + ")"
 		}
 		return tsTarget.Op(c, a)
 	}
@@ -707,6 +741,19 @@ var tsDocTarget = func() *Target {
 			return fmt.Sprintf("%[1]s %[2]s = this.docExamined;\n%[1]s %[3]s = this.docLow;\nthis.docExamined = %[4]s;\nthis.docLow = %[4]s;", decl, dst[0], dst[1], a[0]), true
 		case "doc.leave":
 			return fmt.Sprintf("this.docExamined = Math.max(%s, this.docExamined);\nif (%s < this.docLow) {\n  this.docLow = %[2]s;\n}", a[0], a[1]), true
+		case "memo.lookup":
+			// A lookup applies the pending edits of the Document to the entry it finds (memoAdvance):
+			// one that cannot take them is not found.
+			e, found := dst[0], dst[1]
+			if found == "_" {
+				panic("tsgen: the Document's memo.lookup needs its found result")
+			}
+			s, _ := tsTarget.Stmt(c, a, []string{e, "_"}, decl)
+			lhs := found
+			if decl != "" {
+				lhs = decl + " " + found
+			}
+			return s + fmt.Sprintf("\n%s = %s !== null && (%[2]s.vgen === this.memoState.edits.length || this.memoAdvance(%[2]s, this.memoState.edits));", lhs, e), true
 		}
 		return tsTarget.Stmt(c, a, dst, decl)
 	}
@@ -723,10 +770,19 @@ var tsObsTarget = func() *Target {
 			return "false"
 		case "memo.examine":
 			return fmt.Sprintf("%s.examined = %s", a[0], a[2])
-		case "doc.touchFrom", "doc.low", "doc.reused", "doc.evaluated", "doc.move", "memo.before", "memo.pin":
+		case "doc.touchFrom", "doc.low", "doc.reused", "doc.evaluated", "doc.move", "memo.before", "memo.pin",
+			"memo.seed", "memo.from", "memo.pinned", "memo.shifted", "memo.applied", "memo.advance",
+			"edit.count", "edit.start", "edit.end", "edit.delta", "budget.freeBegin", "budget.freeEnd":
 			panic("tsgen: the Document operation " + c.Callee + " in a method of an observed parse")
 		}
 		return tsDocTarget.Op(c, a)
+	}
+	// An observed parse without a Document has no edits to apply to the entries it finds.
+	t.Stmt = func(c *code.Call, a []string, dst []string, decl string) (string, bool) {
+		if c.Callee == "memo.lookup" {
+			return tsTarget.Stmt(c, a, dst, decl)
+		}
+		return tsDocTarget.Stmt(c, a, dst, decl)
 	}
 	return &t
 }()

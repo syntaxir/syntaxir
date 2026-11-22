@@ -366,9 +366,7 @@ count, as they count the steps of any parse. Each bound is an upper bound: an
 operation may do less. The bounds are what keeps the time of a Document parse
 proportional to what the parse counts, plus the bound of each operation, even
 though no limit counts the work. The generated runtimes keep no runs
-([Reuse](#reuse)); a run's work is not covered for them until they resume runs. The generated
-TypeScript runtime still counts its Document work against an explicit `Compute` limit until it
-leaves that work out as the engine and the generated Go runtime do.
+([Reuse](#reuse)); a run's work is not covered for them until they resume runs.
 
 The work is a function of the logical state, as for every parse: the same
 Document after the same operations does the same work for its next parse.

@@ -18,7 +18,7 @@ import (
 // third records itself and the fourth, the rule last, takes the record. A walk matches the a
 // characters, each iteration also reading the two characters after the one it matches, so that it
 // examines two positions past the character where it ends. The entry of last must record that end,
-// and an edit of the position before it must drop the entry.
+// and an edit of the position before it must make the entry invalid.
 const documentScanTypeScriptTest = `
 
 let dsHit = false;
@@ -63,9 +63,13 @@ dsMain.body = (p: Parser) => {
   return v;
 };
 
-function dsExamined(d: any, rule: number): number | null {
-  for (let e = d.memo.slots[0] ?? null; e; e = e.next) if (e.rule === rule) return e.examined;
+function dsEntry(d: any, rule: number): any {
+  for (let e = d.memo.slots[0] ?? null; e; e = e.next) if (e.rule === rule) return e;
   return null;
+}
+
+function dsExamined(d: any, rule: number): number | null {
+  return dsEntry(d, rule)?.examined ?? null;
 }
 
 const runLen = 20;
@@ -83,7 +87,9 @@ for (const unit of [CodePoints, Bytes]) {
   const got = dsExamined(d, 2);
   if (got !== want) throw new Error("unit " + unit + ": the entry examined " + got + ", want " + want);
   if (d.edit(runLen + 1, runLen + 2, "x") !== null) throw new Error("edit failed");
-  if (dsExamined(d, 2) !== null) throw new Error("unit " + unit + ": the entry survived an edit inside its examined range");
+  // The entry stays in its slot until a lookup or a store finds it, and is not valid then.
+  const stale = dsEntry(d, 2);
+  if (stale !== null && d.memo.advanceEntry(stale, d.memo.edits)) throw new Error("unit " + unit + ": the entry is valid after an edit inside its examined range");
   const again = d.parse();
   const fresh = new DocumentBase(g, dsMain, 0, encodeUTF8(d.text()), { unit }, o).parse();
   if (marshal(again.node) !== marshal(fresh.node) || String(again.error) !== String(fresh.error)) throw new Error("unit " + unit + ": the edited parse differs from a fresh one");

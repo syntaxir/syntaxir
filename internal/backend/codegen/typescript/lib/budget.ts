@@ -65,12 +65,28 @@ export class SignalPanic {
   constructor(value: unknown) { this.value = value; }
 }
 
+// noFreeRegion is the mark of freeBegin that opened no region.
+export const noFreeRegion = -1;
+
+// noFreeMark is noFreeRegion as the printed methods hold a mark (Parser.freeBegin).
+export const noFreeMark = 0xffffffffffffffffn;
+
 export class BudgetControl {
   private signal: CancellationSignal | null;
-  private readonly budget: number;
+  private budget: number;
   private budgetUsed = 0;
   /** Whether the units are added up: with a compute limit or a report; an unlimited spend needs no number that could lose precision. */
   private readonly counting: boolean;
+  // freeing is set in a region of Document work (freeBegin); freed holds the budget that the region
+  // lifted, and freeMark the units used when it began.
+  private freeing = false;
+  private freed = 0;
+  private freeMark = 0;
+  // doc is the units that regions of Document work charged: that work is no event of the parse, so no
+  // Compute limit, the default or an explicit one, counts it, and the used units that an interruption
+  // and a report give leave it out. The units still advance sinceCheck, so that cancellation and memory
+  // keep their polls inside Document work.
+  private doc = 0;
   private sinceCheck = 0;
   private readonly memory: number;
   private readonly profile: Profile | null;
@@ -88,10 +104,33 @@ export class BudgetControl {
     this.profile = o.profiles[0] ?? null;
   }
 
+  // freeBegin opens a region in which every charge is work that only a Document parse does, and returns
+  // the mark for freeEnd. The region lifts the budget until freeEnd, which restores it raised by the units
+  // charged in the region, so that they leave the room that counted work has, whichever limit it is; an
+  // unlimited control has no limit to raise. When on is false, or in a region, it opens none and
+  // returns noFreeRegion.
+  freeBegin(on: boolean): number {
+    if (!on || this.freeing) return noFreeRegion;
+    this.freeing = true;
+    this.freed = this.budget;
+    this.budget = 0;
+    this.freeMark = this.budgetUsed;
+    return this.budgetUsed;
+  }
+
+  // freeEnd ends the region that freeBegin opened with mark, if it opened one.
+  freeEnd(mark: number): void {
+    if (mark === noFreeRegion || !this.freeing) return;
+    const n = this.budgetUsed - this.freeMark;
+    this.doc += n;
+    this.budget = this.freed === 0 ? 0 : Math.min(this.freed + n, Number.MAX_SAFE_INTEGER);
+    this.freeing = false;
+  }
+
   release(): void { this.signal = null; }
 
-  /** used returns the compute units spent so far; it counts only with a compute limit or a report. */
-  used(): number { return this.budgetUsed; }
+  /** used returns the compute units that a Compute limit counts so far, Document work left out; it counts only with a compute limit or a report. */
+  used(): number { return this.budgetUsed - this.doc; }
 
   // check is the poll: the signal first, then the memory count. Memory is counted where storage is
   // taken into use and checked here, not reserved before an allocation, so the count can pass the
@@ -129,7 +168,7 @@ export class BudgetControl {
     }
     if (this.budget !== 0 && n > this.budget - this.budgetUsed) {
       this.check();
-      throw new Fatal(new ParseInterruptionError("compute-limit", this.budget, this.budgetUsed, n, undefined, this.profile === null ? "" : hotspotOf(this.profile)));
+      throw new Fatal(new ParseInterruptionError("compute-limit", this.budget - this.doc, this.budgetUsed - this.doc, n, undefined, this.profile === null ? "" : hotspotOf(this.profile)));
     }
     // Unlimited spend needs no cumulative number that could lose safe-integer precision.
     if (this.counting) this.budgetUsed += n;
