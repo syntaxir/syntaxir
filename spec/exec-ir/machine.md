@@ -21,6 +21,7 @@ operation that belongs to features exists only in builds that have all of them.
 | `missing` | Has missing-token insertion |
 | `stream` | Can parse a stream, delivering the elements of a `#stream` repetition as they complete |
 | `typed` | Makes typed values, as a typed parser does, instead of nodes |
+| `units` | Counts logical compute units: the events of the [Compute Units](../runtime/parsing.md#compute-units) table, checked at the points of [Checks and Interruptions](../runtime/parsing.md#checks-and-interruptions), in place of the charges of `budget` |
 
 ## State
 
@@ -33,7 +34,7 @@ has the following components.
 |:--|:--|
 | `memo` | The memo table: results of rule calls by key. A key is a rule, a position, a binding level and the values of the rule's variables. |
 | `seen` | The record of deferred memoization: which rules were called at which positions, and per rule the counts that decide when it is memoized eagerly. It is created with the number of rules whose memoization is deferred. |
-| `budget` | The work budget of the parse: the units charged so far and the limit, zero for none. |
+| `budget` | The work budget of the parse: the units charged or counted so far and the limit, zero for none. |
 | `depth` | The nesting depth of rule calls and its limit. |
 | `env` | The variable environment: one current value for each declared variable, in a slot that the grammar fixes. An environment is persistent: a binding makes a new one and changes none that a backtracking point holds. Values handles stand for the values of a rule's variables, compared by the host's value equality. |
 | `host` | The host: values and nodes, which the abstract machine passes on without reading. |

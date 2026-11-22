@@ -146,6 +146,7 @@ time: for it the operation reports false and clears the mark that says so.`})
 		{"rule.docOnlyMemo", "Reports whether a Document parse memoizes the rule and a parse from scratch does not; never for a rule that can insert a missing token in a parse in the missing-token mode."},
 		{"rule.docPlain", "Reports whether a parse from scratch calls the plain body of the rule directly, at a call site, without the call protocol."},
 		{"rule.positional", "Reports whether the results of the rule may depend on positions, not only on the input they examine."},
+		{"rule.cyclic", "Reports whether the rule is on a cycle of the call graph, so that a parse that counts compute units checks them at the entry of each call of the rule."},
 	} {
 		m.AddOp(&code.Op{Name: a.name, Component: Rules, Params: ruleArg, Results: []code.Type{code.TBool}, Contract: a.doc})
 	}

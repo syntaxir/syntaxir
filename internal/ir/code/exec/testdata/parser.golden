@@ -1,5 +1,5 @@
 module parser
-features budget, document, observe, missing, stream, typed
+features budget, document, observe, missing, stream, typed, units
 
 component memo
   // The memo table: results of rule calls by key. A key is a rule, a position,
@@ -11,8 +11,8 @@ component seen
   // rules whose memoization is deferred.
 
 component budget
-  // The work budget of the parse: the units charged so far and the limit, zero for
-  // none.
+  // The work budget of the parse: the units charged or counted so far and the limit, zero
+  // for none.
 
 component depth
   // The nesting depth of rule calls and its limit.
@@ -467,6 +467,42 @@ op budget.freeEnd(mark u64)
   contract:
     // Ends the region that budget.freeBegin opened with mark, if it opened one. It charges nothing.
 
+op units.count(n u64)
+  component budget
+  reads budget
+  writes budget
+  features units
+  cost <= 0
+  contract:
+    // Counts n logical compute units: adds n to the units counted so far, without comparing them with
+    // the limit. A count never runs ahead of the events it counts.
+
+op units.check()
+  component budget
+  reads budget
+  writes budget
+  features units
+  noreturn
+  cost <= 0
+  contract:
+    // Checks the units counted so far. When the limit is not zero and they exceed it, the parse ends with a
+    // limit interruption that reports the limit and the units counted, and no units requested. The check also
+    // observes cancellation, and then the memory count, once at least 256 units have been counted since they were
+    // last observed, and ends the parse with their interruption first. The parse adds the units of the events
+    // performed so far before it checks, so that the count compared is exactly their sum.
+
+op units.key(r Rule)
+  component budget
+  reads budget, env, rules
+  writes budget
+  features units
+  noreturn
+  cost <= 0
+  contract:
+    // Counts the key of a call of the rule, a sized event: one unit for each variable that the rule reads
+    // and one for each byte of the UTF-8 encoding of each string value that such a variable holds, and checks
+    // the counter as units.check does when it counts any. A rule that reads no variable counts nothing.
+
 op depth.enter()
   component depth
   reads depth
@@ -555,6 +591,16 @@ op rec.push(e Err)
   cost <= 0
   contract:
     // Records e after the recovered errors, as one entry.
+
+op rec.entries(mark int) int
+  component recovered
+  reads recovered
+  cost <= 0
+  contract:
+    // Returns the number of entries after the mark: those that rec.since takes as its list.
+  requires:
+    // mark is a mark of the list: a result of rec.mark at most its current length, and no
+    // rec.since with a smaller mark has run since rec.mark returned it.
 
 op rec.truncate(mark int)
   component recovered
@@ -670,6 +716,12 @@ op rule.positional(r Rule) bool
   cost <= 0
   contract:
     // Reports whether the results of the rule may depend on positions, not only on the input they examine.
+
+op rule.cyclic(r Rule) bool
+  component rules
+  cost <= 0
+  contract:
+    // Reports whether the rule is on a cycle of the call graph, so that a parse that counts compute units checks them at the entry of each call of the rule.
 
 op rule.id(r Rule) int
   component rules

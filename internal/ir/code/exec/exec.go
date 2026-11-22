@@ -19,6 +19,10 @@ const (
 	Missing  = "missing"
 	Stream   = "stream"
 	Typed    = "typed"
+	// Units is the feature of a parse that counts logical compute units (spec/runtime/parsing.md,
+	// Compute Units): the compositions count the events of the call protocol and check the counter
+	// at the points that the specification lists. It replaces Budget, whose charges it does not make.
+	Units = "units"
 )
 
 // State components.
@@ -113,14 +117,14 @@ func Parser() *code.Module {
 // functions: the memo table, deferred memoization, the budget, the nesting depth, the variable
 // environment and the recovered errors, with the host and the rules they refer to.
 func memoizedCall() *code.Module {
-	m := code.NewModule("parser", Budget, Document, Observe, Missing, Stream, Typed)
+	m := code.NewModule("parser", Budget, Document, Observe, Missing, Stream, Typed, Units)
 	m.AddComponent(Memo, `The memo table: results of rule calls by key. A key is a rule, a position,
 a binding level and the values of the rule's variables.`)
 	m.AddComponent(Seen, `The record of deferred memoization: which rules were called at which positions,
 and per rule the counts that decide when it is memoized eagerly. It is created with the number of
 rules whose memoization is deferred.`)
-	m.AddComponent(Bud, `The work budget of the parse: the units charged so far and the limit, zero for
-none.`)
+	m.AddComponent(Bud, `The work budget of the parse: the units charged or counted so far and the limit, zero
+for none.`)
 	m.AddComponent(Depth, `The nesting depth of rule calls and its limit.`)
 	m.AddComponent(Env, `The variable environment: one current value for each declared variable, in a slot
 that the grammar fixes. An environment is persistent: a binding makes a new one and changes none that a
@@ -291,6 +295,23 @@ region does not nest. When on is false, it opens no region and charges nothing.`
 		Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Budget, Document}, NoReturn: true,
 		Contract: `Ends the region that budget.freeBegin opened with mark, if it opened one. It charges nothing.`})
 
+	m.AddOp(&code.Op{Name: "units.count", Component: Bud, Params: []code.Param{code.P("n", code.TU64)},
+		Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Units},
+		Contract: `Counts n logical compute units: adds n to the units counted so far, without comparing them with
+the limit. A count never runs ahead of the events it counts.`})
+	m.AddOp(&code.Op{Name: "units.check", Component: Bud, Reads: []string{Bud}, Writes: []string{Bud}, Features: []string{Units},
+		NoReturn: true,
+		Contract: `Checks the units counted so far. When the limit is not zero and they exceed it, the parse ends with a
+limit interruption that reports the limit and the units counted, and no units requested. The check also
+observes cancellation, and then the memory count, once at least 256 units have been counted since they were
+last observed, and ends the parse with their interruption first. The parse adds the units of the events
+performed so far before it checks, so that the count compared is exactly their sum.`})
+	m.AddOp(&code.Op{Name: "units.key", Component: Bud, Params: []code.Param{code.P("r", rule)},
+		Reads: []string{Bud, Env, Rules}, Writes: []string{Bud}, Features: []string{Units}, NoReturn: true,
+		Contract: `Counts the key of a call of the rule, a sized event: one unit for each variable that the rule reads
+and one for each byte of the UTF-8 encoding of each string value that such a variable holds, and checks
+the counter as units.check does when it counts any. A rule that reads no variable counts nothing.`})
+
 	m.AddOp(&code.Op{Name: "depth.enter", Component: Depth, Reads: []string{Depth}, Writes: []string{Depth}, NoReturn: true,
 		Contract: `Enters a rule call: adds one to the depth. When the depth then exceeds the limit, the parse
 ends with a nesting interruption.`})
@@ -322,6 +343,8 @@ rec.since with a smaller mark has run since rec.mark returned it.`
 		Contract: `Returns the number of entries of the list, which rec.truncate and rec.since take.`})
 	m.AddOp(&code.Op{Name: "rec.push", Component: Rec, Params: []code.Param{code.P("e", err)}, Writes: []string{Rec},
 		Contract: `Records e after the recovered errors, as one entry.`})
+	m.AddOp(&code.Op{Name: "rec.entries", Component: Rec, Params: mark, Results: []code.Type{code.TInt}, Reads: []string{Rec},
+		Contract: `Returns the number of entries after the mark: those that rec.since takes as its list.`, Requires: atMost})
 	m.AddOp(&code.Op{Name: "rec.truncate", Component: Rec, Params: mark, Writes: []string{Rec},
 		Contract: `Drops the entries after the mark, and with them their errors.`, Requires: atMost})
 	m.AddOp(&code.Op{Name: "rec.since", Component: Rec, Params: mark, Results: []code.Type{errs}, Reads: []string{Rec},

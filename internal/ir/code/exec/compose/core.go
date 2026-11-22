@@ -42,6 +42,16 @@ const (
 // streamPruneWindow is the number of positions that a stream commits between prunings of the memo.
 const streamPruneWindow = 1024
 
+// takeEntries counts the entries of recovered errors after mark that rec.since takes as the list of
+// a stored result, one unit for each (spec/runtime/parsing.md, Compute Units), and checks the counter
+// after them as after a sized event. It is for functions specialized for exec.Units.
+func takeEntries(b *Builder, mark Expr) {
+	b.If(Bin(">", C("rec.entries", mark), Int(0)), func(b *Builder) {
+		b.Do("units.count", Conv(TU64, C("rec.entries", mark)))
+		b.Do("units.check")
+	})
+}
+
 // Build returns the module of the operations and the compositions, verified.
 func Build() *Module {
 	m := exec.Parser()
@@ -64,6 +74,10 @@ func Build() *Module {
 	// enter charges a call of r: one unit, and the lookup of its memo key when a parse from scratch
 	// memoizes the rule (budget.chargeKey), whether or not this call looks it up. Deferring the
 	// memoization of a first call, and memoizing a rule that only a Document memoizes, change no unit.
+	//
+	// A parse that counts compute units (exec.Units) counts the call as one unit and checks the
+	// counter at the entry of a rule on a cycle of the call graph, then counts the key of a rule that a
+	// parse from scratch memoizes as a sized event (units.key).
 	enter := func(b *Builder) {
 		b.If(F(exec.Budget), func(b *Builder) {
 			b.Do("budget.charge", U64(1))
@@ -71,6 +85,19 @@ func Build() *Module {
 				b.Do("budget.chargeKey", r)
 			})
 		})
+		b.If(F(exec.Units), func(b *Builder) {
+			b.Do("units.count", U64(1))
+			b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("units.check") })
+			b.If(Bin("||", C("rule.leader", r), And(C("rule.memo", r), Not(C("rule.docOnlyMemo", r)))), func(b *Builder) {
+				b.Do("units.key", r)
+			})
+		})
+	}
+	// take counts, in a parse that counts compute units, the entries of recovered errors after the
+	// mark rec that rec.since takes where a result is stored: one unit for each, checked as a sized
+	// event.
+	take := func(b *Builder, rec Expr) {
+		b.If(F(exec.Units), func(b *Builder) { takeEntries(b, rec) })
 	}
 
 	// leave returns the result of the call c from the call protocol.
@@ -291,12 +318,14 @@ func Build() *Module {
 		b.IfElse(Eq(L("store"), C("ctx.storeMemo")), func(b *Builder) {
 			// The store keeps an entry computed outside a lookahead that a result computed inside one
 			// would narrow; the present set of the context joins that of the entry kept either way.
+			take(b, L("rec"))
 			entry := b.Let("entry", C("memo.store", id, L("start"), level, L("env"), L("ok"), R(exec.Pos), silent,
 				L("v"), C("rec.since", L("rec")), C("rule.docOnlyMemo", r)))
 			b.Do("memo.setPresent", entry, c)
 			b.If(Bin("||", Not(silent), C("memo.silent", entry)), func(b *Builder) { recordEntry(b, entry, doc) })
 		}, func(b *Builder) {
 			b.If(Eq(L("store"), C("ctx.storeCtx")), func(b *Builder) {
+				take(b, L("rec"))
 				b.Do("ctx.keep", c, r, L("start"), level, L("env"), L("ok"), R(exec.Pos), silent, L("v"),
 					C("rec.since", L("rec")), L("far"), L("kept"))
 			})
@@ -363,7 +392,7 @@ variable environments do work that the memo does not share. A parse that memoize
 rule without a seen index and an eager rule are memoized at once.`
 
 	call := m.AddFunc("call", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			tracked(b, L("min"), Null(THandle(exec.Body)))
 			enter(b)
@@ -380,7 +409,7 @@ parses first hands a Document parse to its tracked path (typedDocument for typed
 nodes an observed parse too (tracked).`
 
 	callMemo := m.AddFunc("callMemo", []Param{P("r", rule), P("inv", THandle(exec.Body))}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Typed, exec.Units}, func(b *Builder) {
 			locals(b)
 			tracked(b, Int(0), L("inv"))
 			b.Let("start", R(exec.Pos))
@@ -391,13 +420,22 @@ nodes an observed parse too (tracked).`
 	callMemo.Doc = `callMemo is the memoized part of a rule call, for the rule r at binding level 0 invoked by inv:
 the rule is called at the position again, or its memoization is no longer deferred.`
 
+	// step counts, in a parse that counts compute units, a step of a growth: one unit, checked.
+	step := func(b *Builder) {
+		b.If(F(exec.Units), func(b *Builder) {
+			b.Do("units.count", U64(1))
+			b.Do("units.check")
+		})
+	}
 	// steps takes the steps of the growth g outside a context: it evaluates the body until a step does
 	// not match more than the seed, and adopts each step that does with the errors it recovered after
 	// the mark rec, dropping them from the record before the next step, and calling reset after.
 	steps := func(b *Builder, g Expr, reset func(b *Builder)) {
 		b.Loop("m", func(b *Builder) {
+			step(b)
 			b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
 			b.If(Not(C("grow.longer", g, L("ok"))), func(b *Builder) { b.Break("m") })
+			take(b, L("rec"))
 			b.Do("grow.adopt", g, L("v"), C("rec.since", L("rec")))
 			b.Do("rec.truncate", L("rec"))
 			reset(b)
@@ -415,9 +453,11 @@ the rule is called at the position again, or its memoization is no longer deferr
 			b.Loop("l", func(b *Builder) {
 				b.If(C("ctx.found", C("grow.memoStep", g)), func(b *Builder) { b.Break("l") })
 				b.Do("grow.isolate", g)
+				step(b)
 				b.LetN([]string{"v", "ok"}, C("rule.invoke", r, L("min")))
 				// A step that failed holds no errors: the ones it recovered are dropped first.
 				b.If(Not(L("ok")), func(b *Builder) { b.Do("rec.truncate", L("rec")) })
+				take(b, L("rec"))
 				s := b.Let("s", C("grow.keepStep", g, L("v"), L("ok"), C("rec.since", L("rec"))))
 				b.Do("rec.truncate", L("rec"))
 				b.If(Not(C("grow.grew", g, s)), func(b *Builder) { b.Break("l") })
@@ -437,7 +477,7 @@ the rule is called at the position again, or its memoization is no longer deferr
 		b.Set("bok", C("ctx.ok", best))
 	}
 	grow := m.AddFunc("grow", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Typed, exec.Missing}, func(b *Builder) {
+		[]string{exec.Typed, exec.Missing, exec.Units}, func(b *Builder) {
 			b.Var("bv", value)
 			b.Var("bok", TBool)
 			b.Let("rec", C("rec.mark"))
@@ -490,7 +530,7 @@ rule's memoization is deferred: its expectations need no isolation, and a failur
 position and the recovered errors.`
 
 	memoized := m.AddFunc("memoized", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Document, exec.Observe, exec.Budget}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			b.Var("fm", TU64)
 			b.Let("start", R(exec.Pos))
@@ -505,7 +545,7 @@ memoization is no longer deferred, with the observation of a reuse and, in a Doc
 bookkeeping of how far each call examined the input.`
 
 	document := m.AddFunc("document", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Document, exec.Budget}, func(b *Builder) {
+		[]string{exec.Document, exec.Budget, exec.Units}, func(b *Builder) {
 			b.LetN([]string{"oldExamined", "oldLow"}, C("doc.enter", R(exec.Pos)))
 			b.Protect(func(b *Builder) {
 				b.If(Not(C("rule.docMemo", r)), func(b *Builder) {
@@ -529,7 +569,7 @@ start from otherwise.`
 		}, invoke)
 	}
 	typedDocument := m.AddFunc("typedDocument", []Param{P("r", rule), P("min", TInt), P("inv", THandle(exec.Body))}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			b.Var("fm", TU64)
 			enter(b)
@@ -561,7 +601,7 @@ in document, the enclosing call's examined input is restored however the call en
 	// between them in a record that the caller keeps (call.state), so that a target that does not
 	// recurse runs the rule body, or the growth of a leader, between them. engineCall is the
 	// recursive call over them.
-	engine := []string{exec.Document, exec.Observe, exec.Missing, exec.Budget}
+	engine := []string{exec.Document, exec.Observe, exec.Missing, exec.Budget, exec.Units}
 	st := L("st")
 	callBegin := m.AddFunc("callBegin", []Param{P("r", rule), P("min", TInt), P("st", THandle(exec.CallState))},
 		[]Type{value, TBool, TBool}, engine, func(b *Builder) {
@@ -666,7 +706,7 @@ Document work and no Compute limit counts it: the memo
 protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
 not memoize.`
 
-	body := m.AddFunc("body", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Document, exec.Budget}, func(b *Builder) {
+	body := m.AddFunc("body", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Document, exec.Budget, exec.Units}, func(b *Builder) {
 		enter(b)
 		b.If(And(F(exec.Document), C("doc.active")), func(b *Builder) { ret2(b, C("document", r, L("min"))) })
 		b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)), func(b *Builder) {
@@ -701,11 +741,16 @@ and otherwise the call without observation.`
 is discarded (the preceding unit stays for detecting line starts), the memory the committed elements
 held is released, and the memo and the records before pos are pruned once at least a window of
 input was committed since the last pruning.`
-	streamEmit := m.AddFunc("streamEmit", []Param{P("v", value), P("end", TInt)}, nil, []string{exec.Stream}, func(b *Builder) {
+	streamEmit := m.AddFunc("streamEmit", []Param{P("v", value), P("end", TInt)}, nil, []string{exec.Stream, exec.Units}, func(b *Builder) {
+		// A parse that counts compute units checks them before each delivery: the recovered errors and
+		// the element, which the report and the delivery hand over with no event between them, and the
+		// commit.
+		b.If(F(exec.Units), func(b *Builder) { b.Do("units.check") })
 		b.Do("stream.check")
 		b.Do("stream.report")
 		b.Do("stream.deliver", L("v"))
 		b.Do("stream.check")
+		b.If(F(exec.Units), func(b *Builder) { b.Do("units.check") })
 		b.Do("streamCommit", L("end"))
 	})
 	streamEmit.Doc = `streamEmit passes a committed element v of the start rule's #stream repetition to the caller and

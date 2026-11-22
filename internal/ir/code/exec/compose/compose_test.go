@@ -27,8 +27,10 @@ import (
 type trule struct {
 	id                   int64
 	memo, leader, defer_ bool
-	body                 func(m *machine) (any, bool)
-	runs                 int // the evaluations of the body
+	// cyclic tells whether the rule is on a cycle of the call graph (rule.cyclic).
+	cyclic bool
+	body   func(m *machine) (any, bool)
+	runs   int // the evaluations of the body
 }
 
 // action expression is an action expression of the model: what it evaluates to and what it leaves on the machine.
@@ -57,6 +59,9 @@ type machine struct {
 	// exps holds the expectations of each entry (memo.setExpected).
 	exps                   map[*ref.Entry]record
 	spends, steps, memoHit int
+	// units counts the compute units that units.count and units.key counted, and checks the checks
+	// (units.check), of the forms specialized for exec.Units.
+	units, checks int
 	// kids and created count what action expressions left (Apply of an action expression), binds the bindings they made (env.bind).
 	kids, created, binds int
 	// ctx is what the context operations answer (exec.Growth): the context state of every call.
@@ -232,6 +237,19 @@ func (m *machine) Call(o *code.Op, args []any) []any {
 	case "budget.charge":
 		m.spends += int(args[0].(uint64))
 		return nil
+	case "units.count":
+		m.units += int(args[0].(uint64))
+		return nil
+	case "units.check":
+		m.checks++
+		return nil
+	case "units.key":
+		// The rules of the model read no variable: their keys count nothing.
+		return nil
+	case "rule.cyclic":
+		return []any{args[0].(*trule).cyclic}
+	case "rec.entries":
+		return []any{int64(len(m.rec)) - args[0].(int64)}
 	case "seen.defers":
 		return []any{true}
 	case "rule.seen":
@@ -1328,6 +1346,89 @@ func TestActions(t *testing.T) {
 					t.Errorf("%s made %d bindings", fn, m.binds)
 				}
 			}
+		})
+	}
+}
+
+// unitsForms are the specializations of the rule calls for a parse that counts compute units: the
+// call of the generated runtimes and the engine's call.
+var unitsForms = []struct {
+	name, fn string
+	on       []string
+}{
+	{"call", "call", []string{exec.Units}},
+	{"engine", "engineCall", []string{exec.Document, exec.Missing, exec.Units}},
+}
+
+// TestCallUnits checks the compute units that the call protocol counts (spec/runtime/parsing.md,
+// Compute Units): one for every call, a reused one and an unmemoized one included, one for each step
+// of a growth and one for each entry of recovered errors taken where a result is stored. It charges
+// no budget, and it checks the counter at the entry of a rule on a cycle of the call graph, at each
+// step of a growth and after the entries it takes, and nowhere else.
+func TestCallUnits(t *testing.T) {
+	for _, c := range unitsForms {
+		t.Run(c.name, func(t *testing.T) {
+			mod := Build()
+			f := composition(t, mod, c.fn, c.on...)
+			t.Run("calls", func(t *testing.T) {
+				m := newMachine()
+				r := &trule{id: 1, memo: true, defer_: true, cyclic: true, body: func(m *machine) (any, bool) {
+					m.advance(2)
+					return nil, false
+				}}
+				// Unmemoized while deferred, evaluated through the memo, then reused.
+				for range 3 {
+					callAt(t, mod, m, f, r, 3)
+				}
+				if m.units != 3 || m.checks != 3 || m.spends != 0 || r.runs != 2 {
+					t.Errorf("units %d, checks %d, charges %d, evaluations %d; want 3, 3, 0, 2", m.units, m.checks, m.spends, r.runs)
+				}
+			})
+			t.Run("acyclic", func(t *testing.T) {
+				m := newMachine()
+				r := &trule{id: 1, body: func(m *machine) (any, bool) { return nil, false }}
+				callAt(t, mod, m, f, r, 0)
+				if m.units != 1 || m.checks != 0 {
+					t.Errorf("units %d, checks %d; want 1 and 0", m.units, m.checks)
+				}
+			})
+			t.Run("entries", func(t *testing.T) {
+				m := newMachine()
+				r := &trule{id: 1, memo: true, body: func(m *machine) (any, bool) {
+					m.recover("a")
+					m.recover("b")
+					m.advance(1)
+					return "v", true
+				}}
+				// The stored entry takes the two errors; its reuse records them as one entry and counts
+				// only the call.
+				callAt(t, mod, m, f, r, 0)
+				if m.units != 3 || m.checks != 1 {
+					t.Errorf("after the evaluation: units %d, checks %d; want 3 and 1", m.units, m.checks)
+				}
+				callAt(t, mod, m, f, r, 0)
+				if m.units != 4 || r.runs != 1 {
+					t.Errorf("after the reuse: units %d, evaluations %d; want 4 and 1", m.units, r.runs)
+				}
+			})
+			t.Run("growth", func(t *testing.T) {
+				m := newMachine()
+				lens := []int64{1, 3}
+				n := 0
+				r := &trule{id: 2, memo: true, leader: true, body: func(m *machine) (any, bool) {
+					if n >= len(lens) {
+						return nil, false
+					}
+					m.advance(lens[n])
+					n++
+					return fmt.Sprint("v", n), true
+				}}
+				callAt(t, mod, m, f, r, 2)
+				// The call, and three steps: two longer matches and the step that ends the growth.
+				if m.units != 4 || m.checks != 3 || r.runs != 3 {
+					t.Errorf("units %d, checks %d, evaluations %d; want 4, 3, 3", m.units, m.checks, r.runs)
+				}
+			})
 		})
 	}
 }

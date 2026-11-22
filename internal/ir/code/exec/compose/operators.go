@@ -31,6 +31,11 @@ func addOperators(m *Module) {
 	chargeLines := func(b *Builder, l Expr) {
 		b.If(F(exec.Budget), func(b *Builder) { b.Do("budget.charge", Conv(TU64, C("opr.count", l))) })
 	}
+	// check is the check of the compute units at the back-edge of a loop of an Operators Rule, in a
+	// parse that counts them.
+	check := func(b *Builder) {
+		b.If(F(exec.Units), func(b *Builder) { b.Do("units.check") })
+	}
 	fail := func(b *Builder, typed bool) {
 		if typed {
 			b.Return(Null(value), Int(0), BoolC(false))
@@ -113,11 +118,12 @@ lookahead does.`
 
 	// candidate settles the operator op of a longest match after its line ran, with the value and
 	// success in the locals v and ok and the cut flag in cut.
-	longestFeats := []string{exec.Budget, exec.Missing}
+	longestFeats := []string{exec.Budget, exec.Missing, exec.Units}
 	candidate := func(b *Builder, op, m0, start, f, best Expr, setBest func(*Builder, Expr), setFailed func(*Builder)) {
 		// An empty prefix or postfix match could be applied forever.
 		b.Let("matched", And(L("ok"), Not(And(Eq(R(exec.Pos), start), Not(C("opr.infix", op))))))
 		b.If(And(L("matched"), Bin("||", Not(C("opr.found", best)), Bin(">", R(exec.Pos), C("opr.end", best)))), func(b *Builder) {
+			b.If(F(exec.Units), func(b *Builder) { takeEntries(b, C("frame.markRec", m0)) })
 			errs := C("rec.since", C("frame.markRec", m0))
 			b.IfElse(F(exec.Missing), func(b *Builder) {
 				setBest(b, C("opr.attemptMissing", op, f, L("v"), start, L("cut"), errs, C("frame.markMissing", m0)))
@@ -141,6 +147,7 @@ lookahead does.`
 		b.Var("i", TInt)
 		chargeLines(b, L("l"))
 		b.For("each", Assign("i", Int(0)), Lt(L("i"), C("opr.count", L("l"))), Assign("i", Add(L("i"), Int(1))), func(b *Builder) {
+			check(b)
 			op := b.Let("op", C("opr.at", L("l"), L("i")))
 			framed(b, C("opr.line", op), "ok")
 			candidate(b, op, L("m0"), start, L("f"), L("best"), func(b *Builder, x Expr) { b.Set("best", x) },
@@ -246,10 +253,10 @@ position, with the captures of each candidate in its frame.`
 	}
 
 	for _, typed := range []bool{false, true} {
-		suffix, feats := "", []string{exec.Budget, exec.Missing}
+		suffix, feats := "", []string{exec.Budget, exec.Missing, exec.Units}
 		results := []Type{value, TBool}
 		if typed {
-			suffix, feats = "Typed", []string{exec.Budget, exec.Missing, exec.Typed}
+			suffix, feats = "Typed", []string{exec.Budget, exec.Missing, exec.Typed, exec.Units}
 		}
 		parseName, exprName, nudName := "operatorsParse"+suffix, "operatorsExpr"+suffix, "operatorsNud"+suffix
 		// build binds lhs, and lstart for typed values, to the application of the operator of a.
@@ -286,6 +293,7 @@ operator) counts against the nesting limit, like the entry of a recursive rule.`
 			b.Let("lastNone", Int(-1))
 			b.Let("bound", C("opr.nudBound"))
 			b.Loop("loop", func(b *Builder) {
+				check(b)
 				b.Let("m0", C("frame.mark"))
 				start := b.Let("start", C("frame.markPos", L("m0")))
 				b.Do("skipTrivia", r)
@@ -335,6 +343,7 @@ ends the loop: its right operand refused it, so it cannot apply to the operator 
 			b.Var("i", TInt)
 			b.For("each", Assign("i", Int(0)), Lt(L("i"), C("opr.operands", r)), Assign("i", Add(L("i"), Int(1))), func(b *Builder) {
 				charge(b)
+				check(b)
 				o := b.Let("o", C("opr.operand", r, L("i")))
 				framed(b, o, "ok")
 				operandEnd(b, L("m0"), func(b *Builder) {
@@ -389,6 +398,7 @@ operators l at the position, in the empty record st.`, func(b *Builder) {
 			b.Do("opr.setCutFailed", lg("cutFailed"))
 			b.Return(Null(line), BoolC(false))
 		})
+		check(b)
 		op := b.Let("nextOp", C("opr.at", lg("l"), lg("i")))
 		enterLine(b, C("opr.line", op))
 		saveLine(b, "oprLongest")
@@ -440,6 +450,7 @@ returns the result of the start, and otherwise the parse goes on with the operan
 which the caller runs and passes to nudOperand, and false after the last one, when the start fails.`, func(b *Builder) {
 		b.If(Eq(nd("i"), C("opr.operands", r)), func(b *Builder) { b.Return(Null(line), BoolC(false)) })
 		charge(b)
+		check(b)
 		o := b.Let("o", C("opr.operand", r, nd("i")))
 		enterLine(b, o)
 		saveLine(b, "oprNud")
@@ -484,6 +495,7 @@ follow it.`, func(b *Builder) {
 	})
 	split("exprLoop", []Param{exprSt}, nil, `exprLoop begins an iteration of the loop of the expression st; the caller
 then skips the trivia and runs the longest match of the operators into the record.`, func(b *Builder) {
+		check(b)
 		b.Do("oprExpr.setM0", st, C("frame.mark"))
 	})
 	split("exprLed", []Param{P("r", rule), exprSt}, []Type{TBool, TBool, TInt}, `exprLed settles the longest match in the record
