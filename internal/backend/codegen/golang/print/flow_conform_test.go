@@ -259,7 +259,7 @@ var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpI
 	flow.OpExpect, flow.OpSetFrame, flow.OpSetEnv, flow.OpSetCapture, flow.OpFrameVal,
 	flow.OpScanReach, flow.OpScanKids, flow.OpCtxFinish, flow.OpFreshNode,
 	flow.OpDropCreated, flow.OpUnfresh, flow.OpShapeSingle, flow.OpShapeCapture, flow.OpScopeValue, flow.OpAttachCaptures,
-	flow.OpAttachFrame}
+	flow.OpAttachFrame, flow.OpClearVals, flow.OpDropTrail, flow.OpFreeFrame, flow.OpEmitStream}
 
 func (pr *flowProbe) add(c *code.Call) int {
 	pr.mu.Lock()
@@ -382,6 +382,19 @@ var flowOps = sync.OnceValue(func() map[string]*code.Op {
 // flowEvent is a call that a probe recorded (testdata/flowconform/probe.go).
 type flowEvent struct {
 	ArgFrameSet         bool
+	ArgFrameSetAfter    bool
+	ResultFrameSet      bool
+	ArgFrameLen         int
+	Trail, TrailAfter   int
+	Streaming           bool
+	Depth               int
+	Emits, EmitsAfter   int
+	EmitLast            any
+	EmitLastAfter       any
+	MemKept             uint64
+	MemKeptAfter        uint64
+	MemUsed             uint64
+	MemUsedAfter        uint64
 	K                   int
 	Pos, PosAfter       int
 	Used, UsedAfter     uint64
@@ -759,6 +772,17 @@ func markPos(x any) (int, bool) {
 	}
 	var n int
 	_, err := fmt.Sscanf(s, "mark:%d", &n)
+	return n, err == nil
+}
+
+// markTrail returns the length of the trail that the mark x (confVal) is at.
+func markTrail(x any) (int, bool) {
+	s, ok := x.(string)
+	if !ok {
+		return 0, false
+	}
+	var pos, n int
+	_, err := fmt.Sscanf(s, "mark:%d:%d", &pos, &n)
 	return n, err == nil
 }
 
@@ -1271,12 +1295,62 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned the frame %s, the current one is %s", got, e.Frame)
 		}
 	},
+	flow.OpClearVals: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if e.ArgFrameSetAfter {
+			fail("left a slot of the frame set")
+		}
+	},
+	flow.OpDropTrail: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if want, ok := markTrail(e.Args[0]); ok && e.TrailAfter != want {
+			fail("left a trail of %d entries for a mark at %d (it was %d)", e.TrailAfter, want, e.Trail)
+		}
+	},
+	flow.OpFreeFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if idOf(e.Args[0]) == e.Frame {
+			fail("freed the current frame %s", e.Frame)
+		}
+	},
+	flow.OpStreamOn: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		got, known := resBool(e, 0)
+		switch {
+		case !known:
+		case got && !e.Streaming:
+			fail("reported delivery in a parse that has no callback")
+		case !got && e.Streaming && e.Depth <= 1:
+			fail("reported no delivery at the top call of a stream parse")
+		}
+	},
+	flow.OpStreamStart: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		checkOnlyAction(e, fail)
+		if !e.Streaming {
+			fail("began a stream in a parse that has no callback")
+		}
+		if e.MemKeptAfter+e.MemUsedAfter != e.MemKept+e.MemUsed || e.MemUsedAfter != 0 {
+			fail("accounted %d+%d bytes after %d+%d (the bytes in use are kept for the stream)", e.MemKeptAfter, e.MemUsedAfter, e.MemKept, e.MemUsed)
+		}
+	},
+	flow.OpEmitStream: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+		if e.PosAfter != e.Pos {
+			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
+		}
+		if e.EmitsAfter != e.Emits+1 {
+			fail("delivered %d elements, not 1", e.EmitsAfter-e.Emits)
+		} else if fmt.Sprint(e.EmitLastAfter) != fmt.Sprint(e.Args[0]) {
+			fail("delivered %v, not %v", e.EmitLastAfter, e.Args[0])
+		}
+	},
 	flow.OpNewFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
 		if got := idOf(firstResult(e)); got == "nil" || got == e.Frame {
 			fail("returned the frame %s, not a new one (the current one is %s)", got, e.Frame)
 		}
 		if e.FrameAfter != e.Frame {
 			fail("changed the current frame to %s", e.FrameAfter)
+		}
+		if e.ResultFrameSet {
+			fail("returned a frame with a slot set")
 		}
 	},
 	flow.OpSetEnv: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {

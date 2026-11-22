@@ -34,6 +34,22 @@ type ConfEvent struct {
 	// Created is the number of structs that the action being evaluated has made (the length of the
 	// parser's list of them), and Fresh whether the first argument, if a node, is still owned by its
 	// maker ("true" or "false", "" for any other value).
+	// Trail is the length of the capture trail; Streaming whether the parse delivers the elements of
+	// its #stream repetition (a stream parse with a callback) and Depth the depth of the rule calls;
+	// Emits the number of elements delivered to the callback so far and EmitLast the last one;
+	// MemKept and MemUsed the bytes the allocators account for.
+	Trail, TrailAfter       int
+	Streaming               bool
+	Depth                   int
+	Emits, EmitsAfter       int
+	EmitLast, EmitLastAfter any
+	MemKept, MemKeptAfter   uint64
+	MemUsed, MemUsedAfter   uint64
+	// ArgFrameLen is the number of slots of the frame argument, and ArgFrameSetAfter whether one is
+	// set after the call; ResultFrameSet whether a frame the call returns has a slot set.
+	ArgFrameLen           int
+	ArgFrameSetAfter      bool
+	ResultFrameSet        bool
 	Created, CreatedAfter int
 	Fresh, FreshAfter     string
 	Args                  map[int]any
@@ -42,6 +58,7 @@ type ConfEvent struct {
 	Parent                int
 	p                     any
 	first                 any
+	argFrame              any
 }
 
 // ConfEvents are the calls in the order they began; ConfReset clears them.
@@ -51,7 +68,17 @@ var (
 )
 
 // ConfReset clears the record for a new parse.
-func ConfReset() { ConfEvents, confStack = nil, nil }
+func ConfReset() {
+	ConfEvents, confStack = nil, nil
+	confEmits, confEmitLast, confEmitting = 0, nil, nil
+}
+
+// The elements delivered to the callback of a stream parse: confState wraps the callback once.
+var (
+	confEmits    int
+	confEmitLast any
+	confEmitting *streamInput
+)
 
 // confSnap is the state of the parser that a probe records around a call.
 type confSnap struct {
@@ -63,6 +90,13 @@ type confSnap struct {
 	frame, env string
 	vals       []any
 	created    int
+	trail      int
+	streaming  bool
+	depth      int
+	emits      int
+	emitLast   any
+	memKept    uint64
+	memUsed    uint64
 }
 
 func confPtr(x any) string {
@@ -77,6 +111,7 @@ func confState(p any) (s confSnap) {
 	switch x := p.(type) {
 	case *Parser:
 		q, s.kids, s.created = x, len(x.KidStack), len(x.created)
+		s.trail = len(x.Trail)
 		s.frame = confPtr(x.Frame)
 		if x.Frame != nil {
 			for _, v := range x.Frame.Vals {
@@ -85,6 +120,7 @@ func confState(p any) (s confSnap) {
 		}
 	case *TParser:
 		q, s.kids, s.created = x.Parser, len(x.KidStack), len(x.Created)
+		s.trail = len(x.Trail)
 		s.frame = confPtr(x.Frame)
 		if x.Frame != nil {
 			for _, v := range x.Frame.Vals {
@@ -97,6 +133,19 @@ func confState(p any) (s confSnap) {
 	if q.Control != nil {
 		s.used = q.Control.budgetUsed()
 	}
+	if q.Stream != nil && q.Stream.Emit != nil {
+		s.streaming = true
+		if confEmitting != q.Stream {
+			confEmitting = q.Stream
+			orig := q.Stream.Emit
+			q.Stream.Emit = func(v *sxirvalue.Node, c *BudgetControl) error {
+				confEmits++
+				confEmitLast = confVal(v)
+				return orig(v, c)
+			}
+		}
+	}
+	s.depth, s.emits, s.emitLast, s.memKept, s.memUsed = q.Depth, confEmits, confEmitLast, q.memKept, q.memUsed
 	s.pos, s.rec, s.silent = q.Pos, len(q.Recovered), q.Silent
 	s.far, s.exps = q.farthest, len(q.exp)-q.expBase
 	s.env = confPtr(q.Env)
@@ -110,6 +159,7 @@ func ConfPre[P any](p P, k int) P {
 	e.Pos, e.Used, e.Kids, e.Rec, e.Silent = s.pos, s.used, s.kids, s.rec, s.silent
 	e.Far, e.Exps, e.Frame, e.Env, e.Vals = s.far, s.exps, s.frame, s.env, s.vals
 	e.Created = s.created
+	e.Trail, e.Streaming, e.Depth, e.Emits, e.EmitLast, e.MemKept, e.MemUsed = s.trail, s.streaming, s.depth, s.emits, s.emitLast, s.memKept, s.memUsed
 	if n := len(confStack); n > 0 {
 		e.Parent = confStack[n-1].K
 	}
@@ -122,21 +172,8 @@ func ConfPre[P any](p P, k int) P {
 func ConfArg[T any](i int, x T) T {
 	e := confStack[len(confStack)-1]
 	e.Args[i] = confVal(x)
-	switch f := any(x).(type) {
-	case *CaptureFrame:
-		if f == nil {
-			break
-		}
-		for _, v := range f.Vals {
-			e.ArgFrameSet = e.ArgFrameSet || v != nil
-		}
-	case *TCaptureFrame:
-		if f == nil {
-			break
-		}
-		for _, v := range f.Vals {
-			e.ArgFrameSet = e.ArgFrameSet || v != nil
-		}
+	if set, n, ok := confFrame(x); ok {
+		e.ArgFrameSet, e.ArgFrameLen, e.argFrame = e.ArgFrameSet || set, n, x
 	}
 	if i == 0 {
 		e.first, e.Fresh = x, confFresh(x)
@@ -153,11 +190,18 @@ func ConfPost(xs ...any) {
 	e.PosAfter, e.UsedAfter, e.KidsAfter, e.RecAfter, e.SilentAfter = s.pos, s.used, s.kids, s.rec, s.silent
 	e.FarAfter, e.ExpsAfter, e.FrameAfter, e.EnvAfter, e.ValsAfter = s.far, s.exps, s.frame, s.env, s.vals
 	e.CreatedAfter = s.created
+	e.TrailAfter, e.EmitsAfter, e.EmitLastAfter, e.MemKeptAfter, e.MemUsedAfter = s.trail, s.emits, s.emitLast, s.memKept, s.memUsed
+	if e.argFrame != nil {
+		e.ArgFrameSetAfter, _, _ = confFrame(e.argFrame)
+	}
 	if e.first != nil {
 		e.FreshAfter = confFresh(e.first)
 	}
 	for _, x := range xs {
 		e.Results = append(e.Results, confVal(x))
+		if set, _, ok := confFrame(x); ok && set {
+			e.ResultFrameSet = true
+		}
 	}
 	e.Done = true
 	if n > 0 {
@@ -187,6 +231,35 @@ func ConfPop3[A, B, C any](a A, b B, c C) (A, B, C) {
 	ConfPost(a, b, c)
 	return a, b, c
 }
+
+// confFrame reports, for a capture frame x, whether a slot of it is set and its number of slots.
+func confFrame(x any) (set bool, n int, ok bool) {
+	switch f := x.(type) {
+	case *CaptureFrame:
+		if f == nil {
+			return false, 0, false
+		}
+		for _, v := range f.Vals {
+			set = set || v != nil
+		}
+		return set, len(f.Vals), true
+	case *TCaptureFrame:
+		if f == nil {
+			return false, 0, false
+		}
+		for _, v := range f.Vals {
+			set = set || v != nil
+		}
+		return set, len(f.Vals), true
+	}
+	return false, 0, false
+}
+
+// ConfNoClear stands for clear in a mutant of the printed code, which does not clear.
+func ConfNoClear(any) {}
+
+// ConfNoDrop stands for DropTrail in a mutant of the printed code, which keeps the trail.
+func (p *TParser) ConfNoDrop(int) {}
 
 // confFresh reports whether the node x is still owned by its maker, as "true" or "false"; "" for a
 // value that is not a node.
@@ -226,7 +299,7 @@ func confVal(x any) any {
 	case string:
 		return "s:" + v
 	case Mark:
-		return fmt.Sprintf("mark:%d", v.Pos)
+		return fmt.Sprintf("mark:%d:%d", v.Pos, v.Trail)
 	case *CaptureFrame:
 		return confPtr(v)
 	case *TCaptureFrame:
