@@ -1298,7 +1298,7 @@ func (k *classifier) reaches(b *binding, strict bool) (string, bool) {
 		frames = frames[b.c.strictFrom:]
 	}
 	for _, f := range frames {
-		for _, later := range k.nodeOf(f.seq).(*core.Seq).Items[f.index+1:] {
+		for _, later := range f.seq.Items[f.index+1:] {
 			if r := k.reachingCall(later, b.rule, strict); r != nil {
 				callee, _ := k.calledRule(r)
 				return "the call " + callee + " at " + at(b.rule, exprPos(k.exprOf(r))), true
@@ -1447,7 +1447,7 @@ func (k *classifier) canHoldNonEmpty(b *binding) bool {
 	}
 	before := func(frames []seqFrame) bool {
 		for _, f := range frames {
-			for _, it := range k.nodeOf(f.seq).(*core.Seq).Items[:f.index] {
+			for _, it := range f.seq.Items[:f.index] {
 				if k.bindsNonEmpty(it, v) {
 					return true
 				}

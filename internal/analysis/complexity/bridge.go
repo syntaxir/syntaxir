@@ -91,14 +91,15 @@ func (k *classifier) callOf(rule string) *ast.Ref {
 	return built(k, &ast.Ref{Name: rule}, core.Node(&core.Call{Rule: k.ruleIDs[rule]}))
 }
 
-// rightOperand returns the expression that stands for a right operand of an operator part of the
+// rightOperand returns the node that stands for a right operand of an operator part of the
 // Operators Rule of rule. The runtime parses it with the loop of the Operators Rule at a new
 // position, in the scope of a call but without the memo: the node is the inlined call of the rule
 // whose body is the Operators Rule (core.Nest). The classifier tells no level of operators apart,
 // so it stands for what the right operand of any operator part parses.
-func (k *classifier) rightOperand(rule string) *ast.Ref {
+func (k *classifier) rightOperand(rule string) *core.Nest {
 	n := &core.Nest{Rule: k.ruleIDs[rule], Body: k.nodeOf(k.operators(rule))}
-	return built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(n))
+	built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(n))
+	return n
 }
 
 // isRightOperand reports whether the node n stands for a right operand of an operator part: an
@@ -112,14 +113,18 @@ func isRightOperand(n core.Node) bool {
 	return ok
 }
 
-// prefixOf returns the sequence of the first items prefix of the sequence s, which stands for the
-// sequence of their nodes.
-func (k *classifier) prefixOf(s *ast.Seq, prefix []ast.Expr) *ast.Seq {
-	items := make([]core.Node, len(prefix))
-	for i, it := range prefix {
-		items[i] = k.nodeOf(it)
+// prefixOf returns the sequence of the items of s before index cut, which stands for the
+// sequence of their expressions.
+func (k *classifier) prefixOf(s *core.Seq, cut int) *core.Seq {
+	items := s.Items[:cut:cut]
+	exprs := make([]ast.Expr, cut)
+	for i, it := range items {
+		exprs[i] = k.exprOf(it)
 	}
-	return built(k, &ast.Seq{SourceInfo: s.SourceInfo, Items: prefix}, core.Node(&core.Seq{Items: items}))
+	e := k.exprOf(s).(*ast.Seq)
+	n := &core.Seq{Items: items}
+	built(k, &ast.Seq{SourceInfo: e.SourceInfo, Items: exprs}, core.Node(n))
+	return n
 }
 
 // succeeds reports a proof that the expression e cannot fail (corepass.Facts.Succeeds).

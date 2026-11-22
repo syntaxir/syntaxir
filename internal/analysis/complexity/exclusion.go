@@ -481,7 +481,7 @@ func (x excl) contPaths(c *cont, depth int) ([][]sym, bool) {
 	paths := [][]sym{nil}
 	for ; c != nil; c = c.next {
 		for _, it := range c.items {
-			ps, ok := x.paths(x.k.nodeOf(it), 0)
+			ps, ok := x.paths(it, 0)
 			if !ok {
 				return nil, false
 			}

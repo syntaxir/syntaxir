@@ -324,7 +324,7 @@ func (d *intDomain) inputs(b *binding) valueSet {
 	frames := b.c.seqs[b.c.strictFrom:]
 	var items []core.Node
 	for _, f := range frames {
-		items = d.k.nodeOf(f.seq).(*core.Seq).Items
+		items = f.seq.Items
 		for _, it := range items[:f.index] {
 			x = d.after(it, x)
 		}

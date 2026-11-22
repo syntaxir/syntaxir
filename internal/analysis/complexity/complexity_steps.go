@@ -39,7 +39,7 @@ func (k *classifier) addStepUnits() {
 		}
 		cycle := k.an.Cycle[r.Name]
 		tails, ok := k.memberStarts(r.Name, &cont{end: endRule, rule: r.Name}, cycle)
-		u := &unit{id: len(k.units), kind: unitStep, rule: r.Name, expr: r.Expr, pos: exprPos(r.Expr),
+		u := &unit{id: len(k.units), kind: unitStep, rule: r.Name, expr: k.ruleBody(r.Name), pos: k.posOf(k.ruleBody(r.Name)),
 			self: tails, calls: map[string]bool{}, cycle: cycle}
 		if !ok {
 			// Without the tails nothing bounds what a dropped step examines; report it when a
@@ -69,7 +69,7 @@ func (k *classifier) addStepUnits() {
 			for c := t; c != nil; c = c.next {
 				for _, it := range c.items {
 					if it != nil {
-						walkNodes(k.nodeOf(it), func(x core.Node) {
+						walkNodes(it, func(x core.Node) {
 							k.control.Poll()
 							if rule, ok := k.calledRule(x); ok {
 								u.calls[rule] = true
@@ -92,7 +92,7 @@ func (k *classifier) tailFailsAfterSource(t *cont) *source {
 	for c := t; c != nil; c = c.next {
 		for _, it := range c.items {
 			if it != nil {
-				items = append(items, k.nodeOf(it))
+				items = append(items, it)
 			}
 		}
 	}
@@ -143,7 +143,7 @@ func (k *classifier) walkedAt(n core.Node) *source {
 	pos := exprPos(e)
 	for _, r := range k.rules {
 		for _, s := range k.walked[r.Name] {
-			if s.pos == pos && (s.scan == nil || s.scan == e) {
+			if s.pos == pos && (s.scan == nil || s.scan == n) {
 				return s
 			}
 		}

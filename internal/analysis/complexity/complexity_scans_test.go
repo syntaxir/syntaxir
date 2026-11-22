@@ -66,7 +66,7 @@ func boundedScans(t *testing.T, src string) map[string]bool {
 	for _, r := range k.rules {
 		if r.Name != "main" {
 			astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
-				if x, ok := e.(*ast.Repeat); ok && k.srcExprs[x] && k.again[x] != nil {
+				if x, ok := e.(*ast.Repeat); ok && k.srcExprs[x] && k.again[k.repeatOf(x)] != nil {
 					scans = append(scans, x)
 				}
 			})
@@ -77,7 +77,7 @@ func boundedScans(t *testing.T, src string) map[string]bool {
 	for _, r := range scans {
 		if !k.srcExprs[r] {
 			out[syntaxfmt.FormatExpr(r)] = true
-			if k.srcExprs[k.again[r]] {
+			if k.srcExprs[k.exprOf(k.again[k.repeatOf(r)])] {
 				t.Errorf("the later iterations of %s stay a scanning source", syntaxfmt.FormatExpr(r))
 			}
 		}

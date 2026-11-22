@@ -99,7 +99,7 @@ func (k *classifier) adjacentStatements(b *binding) (after, before []ast.ActionE
 		return after, before
 	}
 	f := b.c.seqs[len(b.c.seqs)-1]
-	items := k.nodeOf(f.seq).(*core.Seq).Items
+	items := f.seq.Items
 	if predicateOf(items[f.index]) != b.p {
 		return after, before
 	}

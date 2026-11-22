@@ -1,9 +1,6 @@
 package complexity
 
-import (
-	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
-)
+import "syntaxir.dev/sxir/internal/ir/core"
 
 // --- Growth that carries a growing result ---
 
@@ -69,7 +66,7 @@ func (k *classifier) dropsResult(s *site) bool {
 			return true
 		case unitAlt:
 			for _, later := range u.choice.Alts[u.index+1:] {
-				if k.startsWithLeftCall(s.caller, k.nodeOf(later), leftConsume) {
+				if k.startsWithLeftCall(s.caller, later.Body, leftConsume) {
 					return true
 				}
 			}
@@ -97,21 +94,21 @@ func (k *classifier) carryPaths(r, s string, cycle int) (paths []*cont, ok bool)
 				return
 			}
 			rest := p.rest()
-			switch n := k.nodeOf(p.items[0]).(type) {
+			switch n := p.items[0].(type) {
 			case *core.Capture:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Drop:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Text:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Opt:
-				visit(rest.then(k.exprOf(n.Body)), depth)
+				visit(rest.then(n.Body), depth)
 				p = rest
 			case *core.Seq:
-				p = rest.then(k.exprsOf(n.Items)...)
+				p = rest.then(n.Items...)
 			case *core.Choice:
 				for _, alt := range n.Alts {
-					visit(rest.then(k.exprOf(alt.Body)), depth)
+					visit(rest.then(alt.Body), depth)
 				}
 				return
 			case *core.Call:
@@ -126,11 +123,11 @@ func (k *classifier) carryPaths(r, s string, cycle int) (paths []*cont, ok bool)
 				if k.an.Leaders[name] || depth > len(k.rules) {
 					return
 				}
-				p = rest.then(k.byName[name].Expr)
+				p = rest.then(k.ruleBody(name))
 				depth++
 			default:
 				// A right operand is a call that restricts the levels of its Operators Rule.
-				if !isRightOperand(n) && k.consumesNothing(k.exprOf(n)) {
+				if !isRightOperand(n) && k.consumesNothing(n) {
 					p = rest
 					continue
 				}
@@ -138,7 +135,7 @@ func (k *classifier) carryPaths(r, s string, cycle int) (paths []*cont, ok bool)
 			}
 		}
 	}
-	visit(&cont{items: []ast.Expr{k.byName[r].Expr}, end: endRule, rule: r}, 0)
+	visit(&cont{items: []core.Node{k.ruleBody(r)}, end: endRule, rule: r}, 0)
 	return paths, ok
 }
 

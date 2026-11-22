@@ -546,10 +546,13 @@ func (k *classifier) computeBoundedScans() {
 	k.scanRun = map[*core.Repeat]int{}
 	for e := range k.srcExprs {
 		rep, ok := e.(*ast.Repeat)
-		if !ok || k.again[rep] == nil {
+		if !ok {
 			continue
 		}
 		n := k.repeatOf(rep)
+		if k.again[n] == nil {
+			continue
+		}
 		x := k.consumed(n.Body, alphabet)
 		key := fmt.Sprint(x)
 		r := runs[key]
@@ -593,7 +596,9 @@ func (k *classifier) computeBoundedScans() {
 		}
 		if n := k.repeatOf(rep); k.firstBound(n) && k.scanCounted[n] {
 			delete(k.srcExprs, rep)
-			delete(k.srcExprs, k.again[rep])
+			if a := k.again[n]; a != nil {
+				delete(k.srcExprs, k.exprOf(a))
+			}
 		}
 	}
 }

@@ -67,18 +67,18 @@ func (k *classifier) unitWords(u []*cont) ([]word, bool) {
 				continue
 			}
 			rest := p.rest()
-			switch n := k.nodeOf(p.items[0]).(type) {
+			switch n := p.items[0].(type) {
 			case *core.Capture:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Drop:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Text:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Seq:
-				p = rest.then(k.exprsOf(n.Items)...)
+				p = rest.then(n.Items...)
 			case *core.Choice:
 				for _, alt := range n.Alts {
-					visit(rest.then(k.exprOf(alt.Body)))
+					visit(rest.then(alt.Body))
 				}
 				return
 			case *core.Call:
@@ -86,7 +86,7 @@ func (k *classifier) unitWords(u []*cont) ([]word, bool) {
 					ok = false
 					return
 				}
-				p = rest.then(k.rules[n.Rule].Expr)
+				p = rest.then(k.ruleBody(k.rules[n.Rule].Name))
 			case *core.Lit:
 				if n.Text == "" || n.Fold {
 					ok = false
@@ -108,15 +108,6 @@ func (k *classifier) unitWords(u []*cont) ([]word, bool) {
 	return words, ok && len(words) > 0
 }
 
-// exprsOf returns the expressions that the nodes ns stand for (exprOf).
-func (k *classifier) exprsOf(ns []core.Node) []ast.Expr {
-	es := make([]ast.Expr, len(ns))
-	for i, n := range ns {
-		es[i] = k.exprOf(n)
-	}
-	return es
-}
-
 // notAfter returns the characters of a negative lookahead of one character class that the path p
 // evaluates before anything else, if it does.
 func (k *classifier) notAfter(p *cont) (charset, bool) {
@@ -128,9 +119,9 @@ func (k *classifier) notAfter(p *cont) (charset, bool) {
 			p = p.next
 			continue
 		}
-		switch n := k.nodeOf(p.items[0]).(type) {
+		switch n := p.items[0].(type) {
 		case *core.Seq:
-			p = p.rest().then(k.exprsOf(n.Items)...)
+			p = p.rest().then(n.Items...)
 		case *core.Look:
 			if !n.Neg {
 				return nil, false
@@ -216,8 +207,8 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 				return
 			}
 			rest := p.rest()
-			it := p.items[0]
-			if it == nil {
+			n := p.items[0]
+			if n == nil {
 				p = rest
 				continue
 			}
@@ -229,7 +220,6 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 			// An item that cannot examine the next character of the text neither consumes input
 			// here nor examines more than that character: it fails, or it continues at the same
 			// position.
-			n := k.nodeOf(it)
 			if !k.firstOf(n).intersects(charOf(w.text[at])) {
 				if !k.nullableOf(n) {
 					return
@@ -239,28 +229,28 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 			}
 			switch n := n.(type) {
 			case *core.Capture:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Drop:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Text:
-				p = rest.then(k.exprOf(n.Body))
+				p = rest.then(n.Body)
 			case *core.Seq:
-				p = rest.then(k.exprsOf(n.Items)...)
+				p = rest.then(n.Items...)
 			case *core.Label, *core.Recover, *core.Missing, *core.Stream:
 				// A #recover or a #missing can match other input than its operand does.
-				operand, recovers := attributeOperand(n)
-				if recovers {
+				operand, rec, missing := attributes(n)
+				if rec != nil || missing {
 					live = true
 					return
 				}
-				p = rest.then(k.exprOf(operand))
+				p = rest.then(operand)
 			case *core.Choice:
 				for _, alt := range n.Alts {
-					visit(rest.then(k.exprOf(alt.Body)), at)
+					visit(rest.then(alt.Body), at)
 				}
 				return
 			case *core.Opt:
-				visit(rest.then(k.exprOf(n.Body)), at)
+				visit(rest.then(n.Body), at)
 				visit(rest, at)
 				return
 			case *core.Repeat:
@@ -268,8 +258,7 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 					p = rest
 					continue
 				}
-				again := k.againOf(k.exprOf(n).(*ast.Repeat))
-				visit(rest.then(k.exprOf(n.Body), again), at)
+				visit(rest.then(n.Body, k.againOf(n)), at)
 				if n.Min == 0 {
 					visit(rest, at)
 				}
@@ -311,7 +300,7 @@ func (k *classifier) wordExcludes(paths []*cont, w word) bool {
 					k.operatorsLeads(pr, name, func(c *cont) { visit(c, at) })
 					return
 				}
-				p = rest.then(k.byName[name].Expr)
+				p = rest.then(k.ruleBody(name))
 			default:
 				live = true
 				return

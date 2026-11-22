@@ -101,8 +101,8 @@ func (k *classifier) failsAfterSource(n core.Node) bool {
 		// A #recover can fail after its skip examined input, and a #missing after the input it
 		// examined before it inserted its literal: the expression of either fails after a
 		// source it contains. Other attributes fail as their operand does.
-		operand, recovers := attributeOperand(x)
-		if recovers {
+		operand, rec, missing := attributes(x)
+		if rec != nil || missing {
 			return k.containsSource(x)
 		}
 		return k.failsAfterSource(operand)
@@ -121,26 +121,6 @@ func (k *classifier) failsAfterSource(n core.Node) bool {
 	return k.containsSource(n)
 }
 
-// attributeOperand returns the operand of the attribute nodes from n down, the nodes of
-// @error, @diagnostic, #recover, #missing and #stream that are built one into another, and whether
-// one of them is a #recover or a #missing.
-func attributeOperand(n core.Node) (operand core.Node, recovers bool) {
-	for {
-		switch x := n.(type) {
-		case *core.Label:
-			n = x.Body
-		case *core.Recover:
-			n, recovers = x.Body, true
-		case *core.Missing:
-			n, recovers = x.Body, true
-		case *core.Stream:
-			n = x.Repeat
-		default:
-			return n, recovers
-		}
-	}
-}
-
 // unitFailsAfterSource reports whether the unit can fail after a scanning source inside it
 // examined input. Lookaheads are abandoned whether they match or not, and the units of an Operators
 // Rule and growing units are not refined.
@@ -150,11 +130,11 @@ func (k *classifier) unitFailsAfterSource(u *unit) bool {
 		if u.growing {
 			return true
 		}
-		return k.failsAfterSource(k.nodeOf(u.expr))
+		return k.failsAfterSource(u.expr)
 	case unitIteration:
-		return k.failsAfterSource(k.nodeOf(u.expr).(*core.Repeat).Body)
+		return k.failsAfterSource(u.expr.(*core.Repeat).Body)
 	case unitOption:
-		return k.failsAfterSource(k.nodeOf(u.expr).(*core.Opt).Body)
+		return k.failsAfterSource(u.expr.(*core.Opt).Body)
 	}
 	return true
 }

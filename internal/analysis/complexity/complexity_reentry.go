@@ -40,7 +40,7 @@ func (k *classifier) withoutReentry(u *unit) []contSpec {
 		return u.conts
 	}
 	cycle := k.an.Cycle[u.rule]
-	if !k.fixedMemoized(cycle) || !k.memoOnly(k.nodeOf(u.self[0].items[0]), cycle) {
+	if !k.fixedMemoized(cycle) || !k.memoOnly(u.self[0].items[0], cycle) {
 		return u.conts
 	}
 	out := make([]contSpec, 0, len(u.conts))
@@ -189,11 +189,10 @@ func (k *classifier) restBounded(paths []*cont) bool {
 			if budget--; budget < 0 {
 				return false
 			}
-			for _, it := range p.items {
-				if it == nil {
+			for _, n := range p.items {
+				if n == nil {
 					continue
 				}
-				n := k.nodeOf(it)
 				if a, ok := n.(*core.Anchor); ok && a.Kind == core.EndInput {
 					return true
 				}

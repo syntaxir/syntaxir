@@ -1,6 +1,9 @@
 package complexity
 
-import "syntaxir.dev/sxir/internal/ir/core"
+import (
+	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
+)
 
 // The helpers that the classifier's walks of Core IR nodes share.
 
@@ -59,3 +62,13 @@ func (k *classifier) succeedsOf(n core.Node) bool { return k.facts.source.Facts.
 // looseCutOf reports whether n has a cut that commits the choice, option or repetition around it
 // (corepass.Facts.LooseCut).
 func (k *classifier) looseCutOf(n core.Node) bool { return k.facts.source.Facts.LooseCut(n) }
+
+// posOf returns the position of the node n: that of the grammar expression it stands for.
+func (k *classifier) posOf(n core.Node) ast.Pos { return exprPos(k.exprOf(n)) }
+
+// showOf returns the text of the node n for messages: that of the grammar expression it stands for.
+func (k *classifier) showOf(n core.Node) string { return k.show(k.exprOf(n)) }
+
+// predicateOf returns the predicate that the node n of a predicate or a binding stands for, whose
+// action expression the walk of action expressions reads (walkAction).
+func (k *classifier) predicateOf(n core.Node) *ast.Predicate { return k.exprOf(n).(*ast.Predicate) }

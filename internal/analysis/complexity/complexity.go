@@ -390,7 +390,7 @@ type classifier struct {
 	failRule        map[string]bool   // rules that can fail after a scanning source examined input
 	srcMemo         map[ast.Expr]bool
 	scanOnlyRules   map[string]bool                  // the rules for which scanOnly holds, once computed
-	again           map[*ast.Repeat]*ast.Repeat      // the rest of each repetition (againOf)
+	again           map[*core.Repeat]*core.Repeat    // the rest of each repetition (againOf)
 	captures        map[string]map[string][]ast.Expr // captured expressions by rule and name
 
 	scanRun     map[*core.Repeat]int  // the longest run before each repetition (computeBoundedScans)
@@ -442,7 +442,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 		ruleSrc: map[string]*source{}, follow: map[string]charset{}, growing: map[int]map[string]charset{},
 		captures: map[string]map[string][]ast.Expr{}, sourceIndex: map[sourceKey]*source{},
 		predicateSource: map[*ast.Predicate]*source{}, actionSource: map[string]bool{}, includesMemo: map[sizeKey]bool{}, feedsMemo: map[feedKey]bool{}, heldMemo: map[sizeKey][]sizeKey{},
-		srcExprs: map[ast.Expr]bool{}, srcMemo: map[ast.Expr]bool{}, again: map[*ast.Repeat]*ast.Repeat{}}
+		srcExprs: map[ast.Expr]bool{}, srcMemo: map[ast.Expr]bool{}, again: map[*core.Repeat]*core.Repeat{}}
 	k.ruleIDs = map[string]int{}
 	for i, r := range rules {
 		k.byName[r.Name] = r

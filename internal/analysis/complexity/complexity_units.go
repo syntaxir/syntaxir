@@ -23,10 +23,10 @@ const (
 	endOps
 )
 
-// cont is a continuation: the expressions that an evaluation evaluates next, in order. After its
-// items it continues with next, or, when next is nil, as end says.
+// cont is a continuation: the nodes that an evaluation evaluates next, in order. After its items
+// it continues with next, or, when next is nil, as end says.
 type cont struct {
-	items []ast.Expr
+	items []core.Node
 	next  *cont
 	// end and rule mark the end of the body of rule after items. With a next, the path goes on
 	// after the call of rule with next (bodyThen), and the walkers pass the mark; without one, it
@@ -40,7 +40,7 @@ type cont struct {
 }
 
 // then returns the continuation that evaluates items and then c.
-func (c *cont) then(items ...ast.Expr) *cont { return &cont{items: items, next: c} }
+func (c *cont) then(items ...core.Node) *cont { return &cont{items: items, next: c} }
 
 // rest returns the continuation after the first item of c.
 func (c *cont) rest() *cont {
@@ -53,7 +53,7 @@ type source struct {
 	pos  ast.Pos
 	what string
 	kind ComplexityCauseKind // the pattern of a cause that restarts the source
-	scan *ast.Repeat         // the repetition that is the source, if one is
+	scan *core.Repeat        // the repetition that is the source, if one is
 }
 
 func (s *source) String() string { return fmt.Sprintf("%s at %s", s.what, at(s.rule, s.pos)) }
@@ -101,7 +101,7 @@ type unit struct {
 	id    int
 	kind  unitKind
 	rule  string
-	expr  ast.Expr // the expression that holds the unit, for its position
+	expr  core.Node // the node that holds the unit, for its position
 	pos   ast.Pos
 	self  []*cont
 	conts []contSpec
@@ -113,7 +113,7 @@ type unit struct {
 	// afterInput marks a growing unit that the expressions before it can reach after consuming
 	// input, where its left call is an ordinary call and nothing grows.
 	afterInput bool
-	choice     *ast.Choice
+	choice     *core.Choice
 	index      int
 	after      *cont // what follows the choice
 	cycle      int
@@ -141,32 +141,34 @@ type wctx struct {
 	seqs                []seqFrame // the sequences around the expression, for bindings
 	inRepeat            bool       // inside the element of a repetition of the rule, with no negative lookahead between
 	ops                 bool       // inside an Operators Rule, with no negative lookahead between
-	// strictFrom is the first of seqs that the expression is in through groups, options,
-	// choices, captures, discards and atomic expressions only, for the growing-variable check.
+	// strictFrom is the first of seqs that the node is in through options, choices, captures,
+	// discards, atomic expressions, calls, predicates and positive lookaheads only, for the
+	// growing-variable check.
 	strictFrom int
 }
 
 type seqFrame struct {
-	seq   *ast.Seq
+	seq   *core.Seq
 	index int
 }
 
 func (c wctx) with(cn *cont) wctx { c.cont = cn; return c }
 
-// againOf returns the repetition that stands, in a path, for the iterations of e after one: e
-// again, without a minimum. It is a scanning source when e is one, so a path that has entered an
+// againOf returns the repetition that stands, in a path, for the iterations of n after one: n
+// again, without a minimum. It is a scanning source when n is one, so a path that has entered an
 // iteration of a scanning repetition still contains the source. Each repetition has one. The
-// walk marks e as a source before it first calls againOf(e), and leads and wordExcludes run after
+// walk marks n as a source before it first calls againOf(n), and leads and wordExcludes run after
 // every rule is walked, so the mark is never missed.
-func (k *classifier) againOf(e *ast.Repeat) *ast.Repeat {
-	a := k.again[e]
+func (k *classifier) againOf(n *core.Repeat) *core.Repeat {
+	e := k.exprOf(n).(*ast.Repeat)
+	a := k.again[n]
 	if a == nil {
-		a = built(k, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1},
-			core.Node(&core.Repeat{Body: k.nodeOf(e.Expr), Min: 0, Max: -1}))
-		k.again[e] = a
+		a = &core.Repeat{Body: n.Body, Min: 0, Max: -1}
+		built(k, &ast.Repeat{SourceInfo: e.SourceInfo, Expr: e.Expr, Min: 0, Max: -1}, core.Node(a))
+		k.again[n] = a
 	}
 	if k.srcExprs[e] {
-		k.srcExprs[a] = true
+		k.srcExprs[k.exprOf(a)] = true
 	}
 	return a
 }
@@ -175,7 +177,7 @@ func (k *classifier) againOf(e *ast.Repeat) *ast.Repeat {
 // sources, units, bindings and copying operations.
 func (k *classifier) walkRule(r *ast.RuleDef) {
 	c := wctx{rule: r.Name, cont: &cont{end: endRule, rule: r.Name}, mayStart: true, mustStart: true}
-	k.walk(r.Expr, c)
+	k.walk(k.ruleBody(r.Name), c)
 	if r.Action != nil {
 		k.walkAction(r.Action, actionCtx{rule: r.Name, c: c, action: true, value: true})
 	}
@@ -206,7 +208,7 @@ func (k *classifier) addSource(c wctx, pos ast.Pos, kind ComplexityCauseKind, wh
 func (k *classifier) settleSources() {
 	live := func(ss []*source) *source {
 		for _, s := range ss {
-			if s.scan == nil || k.srcExprs[s.scan] {
+			if s.scan == nil || k.srcExprs[k.exprOf(s.scan)] {
 				return s
 			}
 		}
@@ -224,8 +226,8 @@ func (k *classifier) settleSources() {
 	}
 }
 
-func (k *classifier) newUnit(kind unitKind, c wctx, e ast.Expr, self []*cont, conts []contSpec) *unit {
-	u := &unit{id: len(k.units), kind: kind, rule: c.rule, expr: e, pos: exprPos(e), self: self, conts: conts,
+func (k *classifier) newUnit(kind unitKind, c wctx, n core.Node, self []*cont, conts []contSpec) *unit {
+	u := &unit{id: len(k.units), kind: kind, rule: c.rule, expr: n, pos: k.posOf(n), self: self, conts: conts,
 		repeated: c.repeated, calls: map[string]bool{}}
 	for _, o := range c.open {
 		o.inner = append(o.inner, u)
@@ -239,18 +241,15 @@ func (c wctx) push(u *unit) wctx {
 	return c
 }
 
-// consumesNothing reports whether e never consumes input.
-func (k *classifier) consumesNothing(e ast.Expr) bool {
-	switch e := e.(type) {
-	case *ast.Predicate, *ast.Cut, *ast.Top, *ast.Bottom, *ast.BeginInput, *ast.EndInput,
-		*ast.BeginLine, *ast.EndLine, *ast.And, *ast.Not:
+// consumesNothing reports whether n never consumes input.
+func (k *classifier) consumesNothing(n core.Node) bool {
+	switch n := n.(type) {
+	case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.FailNode, *core.Anchor, *core.Look:
 		return true
-	case *ast.Literal:
-		return e.Value == ""
-	case *ast.Group:
-		return k.consumesNothing(e.Expr)
-	case *ast.Seq:
-		for _, it := range e.Items {
+	case *core.Lit:
+		return n.Text == ""
+	case *core.Seq:
+		for _, it := range n.Items {
 			if !k.consumesNothing(it) {
 				return false
 			}
@@ -260,52 +259,56 @@ func (k *classifier) consumesNothing(e ast.Expr) bool {
 	return false
 }
 
-func (k *classifier) walk(e ast.Expr, c wctx) {
+func (k *classifier) walk(n core.Node, c wctx) {
 	k.control.Poll()
-	switch e.(type) {
-	case *ast.Seq, *ast.Choice, *ast.Group, *ast.Optional, *ast.Capture, *ast.Discard,
-		*ast.Atomic, *ast.Ref, *ast.Predicate, *ast.And:
+	switch n := n.(type) {
+	case *core.Seq, *core.Choice, *core.Opt, *core.Capture, *core.Drop, *core.Text, *core.Call,
+		*core.Pred, *core.BindNode:
+	case *core.Look:
+		if n.Neg {
+			c.strictFrom = len(c.seqs)
+		}
 	default:
 		c.strictFrom = len(c.seqs)
 	}
-	switch e := e.(type) {
-	case *ast.Ref:
-		k.walkRef(e, c)
-	case *ast.Seq:
+	switch n := n.(type) {
+	case *core.Call:
+		k.walkRef(n, c)
+	case *core.Seq:
 		may, must := c.mayStart, c.mustStart
-		for i, it := range e.Items {
-			cc := c.with(c.cont.then(e.Items[i+1:]...))
+		for i, it := range n.Items {
+			cc := c.with(c.cont.then(n.Items[i+1:]...))
 			cc.mayStart, cc.mustStart = may, must
-			cc.seqs = append(c.seqs[:len(c.seqs):len(c.seqs)], seqFrame{e, i})
+			cc.seqs = append(c.seqs[:len(c.seqs):len(c.seqs)], seqFrame{n, i})
 			k.walk(it, cc)
-			may = may && k.nullable(it)
+			may = may && k.nullableOf(it)
 			must = must && k.consumesNothing(it)
 		}
-	case *ast.Choice:
-		for i, alt := range e.Alts {
+	case *core.Choice:
+		for i, a := range n.Alts {
+			alt := a.Body
 			cc := c
-			if i < len(e.Alts)-1 {
+			if i < len(n.Alts)-1 {
 				var conts []contSpec
 				if !k.cutCommits(alt) {
-					for _, later := range e.Alts[i+1:] {
-						conts = append(conts, contSpec{paths: []*cont{c.cont.then(later)},
-							what: fmt.Sprintf("the later alternative %s at %s", k.show(later), at(c.rule, exprPos(later)))})
+					for _, later := range n.Alts[i+1:] {
+						conts = append(conts, contSpec{paths: []*cont{c.cont.then(later.Body)},
+							what: fmt.Sprintf("the later alternative %s at %s", k.showOf(later.Body), at(c.rule, k.posOf(later.Body)))})
 					}
 				}
 				growing := false
 				if k.an.Cyclic[c.rule] && c.mayStart {
-					growing = k.startsWithLeftCall(c.rule, k.nodeOf(alt), leftExamine)
+					growing = k.startsWithLeftCall(c.rule, alt, leftExamine)
 				}
 				if s, cut := topCut(alt); cutPrefixesOn && !growing && len(conts) > 0 && cut > 0 {
-					prefix := s.Items[:cut]
-					u := k.newUnit(unitAlt, c, k.prefixOf(s, prefix),
-						[]*cont{{items: prefix}}, conts)
-					u.choice, u.index, u.after = e, i, c.cont
+					prefix := k.prefixOf(s, cut)
+					u := k.newUnit(unitAlt, c, prefix, []*cont{{items: prefix.Items}}, conts)
+					u.choice, u.index, u.after = n, i, c.cont
 					k.walkCutSeq(s, c, u, cut)
 					continue
 				}
-				u := k.newUnit(unitAlt, c, alt, []*cont{{items: []ast.Expr{alt}}}, conts)
-				u.choice, u.index, u.after = e, i, c.cont
+				u := k.newUnit(unitAlt, c, alt, []*cont{{items: []core.Node{alt}}}, conts)
+				u.choice, u.index, u.after = n, i, c.cont
 				if growing {
 					u.growing, u.cycle = true, k.an.Cycle[c.rule]
 					u.afterInput = !c.mustStart
@@ -314,64 +317,81 @@ func (k *classifier) walk(e ast.Expr, c wctx) {
 			}
 			k.walk(alt, cc)
 		}
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Repeat:
+		if n.Max == 0 {
 			return
 		}
-		if e.Max < 0 && !c.skipSites && !k.runSite(e) {
-			k.addSource(c, exprPos(e), CauseRestartedRepetition, "the repetition "+k.show(e)).scan = e
-			k.srcExprs[e] = true
+		if n.Max < 0 && !c.skipSites && !k.runSiteOf(n) {
+			k.addSource(c, k.posOf(n), CauseRestartedRepetition, "the repetition "+k.showOf(n)).scan = n
+			k.srcExprs[k.exprOf(n)] = true
 		}
-		u := k.newUnit(unitIteration, c, e, []*cont{{items: []ast.Expr{e.Expr}}},
-			[]contSpec{{paths: []*cont{c.cont}, what: "what follows the repetition " + k.show(e)}})
-		k.leftUnit(u, c, e.Expr)
-		again := k.againOf(e)
+		u := k.newUnit(unitIteration, c, n, []*cont{{items: []core.Node{n.Body}}},
+			[]contSpec{{paths: []*cont{c.cont}, what: "what follows the repetition " + k.showOf(n)}})
+		k.leftUnit(u, c, n.Body)
+		again := k.againOf(n)
 		cc := c.push(u).with(c.cont.then(again))
 		cc.mustStart = false
 		cc.inRepeat = true
-		if e.Max < 0 || e.Max > 1 {
-			cc.repeated = "the repetition " + k.show(e) + " at " + at(c.rule, exprPos(e))
+		if n.Max < 0 || n.Max > 1 {
+			cc.repeated = "the repetition " + k.showOf(n) + " at " + at(c.rule, k.posOf(n))
 		}
-		k.walk(e.Expr, cc)
-	case *ast.Optional:
-		u := k.newUnit(unitOption, c, e, []*cont{{items: []ast.Expr{e.Expr}}},
-			[]contSpec{{paths: []*cont{c.cont}, what: "what follows the option " + k.show(e)}})
-		k.leftUnit(u, c, e.Expr)
-		k.walk(e.Expr, c.push(u))
-	case *ast.And:
-		k.walkLookahead(e, e.Expr, c, false)
-	case *ast.Not:
-		k.walkLookahead(e, e.Expr, c, true)
-	case *ast.Recovery:
-		k.walkRecovery(e, e.Expr, e.Skip, c)
-	case *ast.Attributed:
-		if skip := astfacts.RecoverSkip(e); skip != nil {
-			k.walkRecovery(e, e.Expr, skip, c)
+		k.walk(n.Body, cc)
+	case *core.Opt:
+		u := k.newUnit(unitOption, c, n, []*cont{{items: []core.Node{n.Body}}},
+			[]contSpec{{paths: []*cont{c.cont}, what: "what follows the option " + k.showOf(n)}})
+		k.leftUnit(u, c, n.Body)
+		k.walk(n.Body, c.push(u))
+	case *core.Look:
+		k.walkLookahead(n, n.Body, c, n.Neg)
+	case *core.Label, *core.Recover, *core.Missing, *core.Stream:
+		operand, rec, _ := attributes(n)
+		if rec != nil {
+			k.walkRecovery(n, operand, rec.Skip, c)
 			return
 		}
-		k.walk(e.Expr, c)
-	case *ast.Group:
-		k.walk(e.Expr, c)
-	case *ast.Capture:
-		k.walk(e.Expr, c)
-	case *ast.Discard:
-		k.walk(e.Expr, c)
-	case *ast.Atomic:
-		k.walk(e.Expr, c)
-	case *ast.Stream:
-		k.walk(e.Expr, c)
-	case *ast.Predicate:
-		k.walkAction(e.Action, actionCtx{rule: c.rule, c: c, pred: e})
-	case *ast.OperatorsRule:
-		k.walkOperators(e, c)
+		k.walk(operand, c)
+	case *core.Capture:
+		k.walk(n.Body, c)
+	case *core.Drop:
+		k.walk(n.Body, c)
+	case *core.Text:
+		k.walk(n.Body, c)
+	case *core.Pred, *core.BindNode:
+		pred := k.predicateOf(n)
+		k.walkAction(pred.Action, actionCtx{rule: c.rule, c: c, pred: pred})
+	case *core.OperatorsRule:
+		k.walkOperators(n, c)
+	}
+}
+
+// attributes returns the operand of the attribute nodes from n down: the nodes of @error,
+// @diagnostic, #recover, #missing and #stream, which the module builds one into another, the last
+// attribute outermost, for the attributes of one expression. The front end writes attributes
+// written around an expression of attributes as attributes of that expression, so the nodes from n
+// down are those of one expression. It returns the innermost #recover among them, the one that
+// recovers the operand, and whether one is a #missing. For a node of no attribute it returns n.
+func attributes(n core.Node) (operand core.Node, rec *core.Recover, missing bool) {
+	for {
+		switch x := n.(type) {
+		case *core.Label:
+			n = x.Body
+		case *core.Recover:
+			n, rec = x.Body, x
+		case *core.Missing:
+			n, missing = x.Body, true
+		case *core.Stream:
+			n = x.Repeat
+		default:
+			return n, rec, missing
+		}
 	}
 }
 
 // leftUnit marks a unit other than an alternative that begins with a left call: the classifier
 // analyzes growing units only as alternatives.
-func (k *classifier) leftUnit(u *unit, c wctx, e ast.Expr) {
+func (k *classifier) leftUnit(u *unit, c wctx, n core.Node) {
 	if k.an.Cyclic[c.rule] && c.mayStart {
-		if k.startsWithLeftCall(c.rule, k.nodeOf(e), leftExamine) {
+		if k.startsWithLeftCall(c.rule, n, leftExamine) {
 			u.unsupported = u.kind.String() + " begins with a left call"
 		}
 	}
@@ -383,9 +403,9 @@ func (k *classifier) leftUnit(u *unit, c wctx, e ast.Expr) {
 // r = (&({x := x + x}) "y" v:r => $v) / ("z" => x) linear given an environment bound.
 var lookaheadBindsOn = true
 
-func (k *classifier) walkLookahead(e, body ast.Expr, c wctx, not bool) {
-	u := k.newUnit(unitLookahead, c, e, []*cont{{items: []ast.Expr{body}}},
-		[]contSpec{{paths: []*cont{c.cont}, what: "what follows the lookahead " + k.show(e)}})
+func (k *classifier) walkLookahead(n, body core.Node, c wctx, not bool) {
+	u := k.newUnit(unitLookahead, c, n, []*cont{{items: []core.Node{body}}},
+		[]contSpec{{paths: []*cont{c.cont}, what: "what follows the lookahead " + k.showOf(n)}})
 	k.leftUnit(u, c, body)
 	cc := c.push(u).with(&cont{})
 	cc.inNot = c.inNot || not
@@ -400,14 +420,16 @@ func (k *classifier) walkLookahead(e, body ast.Expr, c wctx, not bool) {
 	k.walk(body, cc)
 }
 
-func (k *classifier) walkRecovery(e, base, skip ast.Expr, c wctx) {
-	shared := k.reused(k.nodeOf(skip))
+// walkRecovery walks n, the outermost node of an expression with a #recover, whose operand is base
+// and whose skip is skip.
+func (k *classifier) walkRecovery(n, base, skip core.Node, c wctx) {
+	shared := k.reused(skip)
 	if !shared {
-		k.addSource(c, exprPos(e), CauseRecoverySkip, "the skip expression "+k.show(skip)+" of #recover")
-		k.srcExprs[e] = true
+		k.addSource(c, k.posOf(n), CauseRecoverySkip, "the skip expression "+k.showOf(skip)+" of #recover")
+		k.srcExprs[k.exprOf(n)] = true
 	}
-	u := k.newUnit(unitRecover, c, e, []*cont{{items: []ast.Expr{base}}},
-		[]contSpec{{paths: []*cont{c.cont.then(skip)}, what: "the skip expression " + k.show(skip)}})
+	u := k.newUnit(unitRecover, c, n, []*cont{{items: []core.Node{base}}},
+		[]contSpec{{paths: []*cont{c.cont.then(skip)}, what: "the skip expression " + k.showOf(skip)}})
 	k.leftUnit(u, c, base)
 	k.walk(base, c.push(u))
 	if shared {
@@ -422,40 +444,42 @@ func (k *classifier) walkRecovery(e, base, skip ast.Expr, c wctx) {
 // left calls, which classified main = (S "b")* $$; S = R "z" / "a"; R = R [ab] / S "b" linear.
 var leaderSourceOn = true
 
-func (k *classifier) walkRef(e *ast.Ref, c wctx) {
-	if k.byName[e.Name] == nil {
+func (k *classifier) walkRef(n *core.Call, c wctx) {
+	name := k.rules[n.Rule].Name
+	if k.byName[name] == nil {
 		return
 	}
 	for _, u := range c.open {
-		u.calls[e.Name] = true
+		u.calls[name] = true
 	}
-	k.sites = append(k.sites, &site{caller: c.rule, callee: e.Name, ref: e, cont: c.cont, mayStart: c.mayStart,
+	e := k.exprOf(n).(*ast.Ref)
+	k.sites = append(k.sites, &site{caller: c.rule, callee: name, ref: e, cont: c.cont, mayStart: c.mayStart,
 		mustStart: c.mustStart, repeated: c.repeated, seqs: c.seqs, units: c.open})
 	// A growth of the callee's cycle at the position of the call encloses the evaluation of the
 	// caller, so the caller is on the cycle and the call is a left call of its body.
-	if !k.sameCycle(c.rule, e.Name) || !c.mayStart {
+	if !k.sameCycle(c.rule, name) || !c.mayStart {
 		k.outside[e] = true
 	}
 	// The growth of a cycle is a scanning source at every call of its rules other than a left call,
 	// and at a call of a leader in the body of another rule: the growth that starts at a left call
 	// in a rule of the cycle that is not a leader, or in a step of another leader, goes on past
 	// what the unit around it keeps.
-	if k.an.Cyclic[e.Name] && (!k.sameCycle(c.rule, e.Name) || !c.mustStart ||
-		(leaderSourceOn && k.an.Leaders[e.Name] && c.rule != e.Name)) {
-		k.addSource(c, exprPos(e), CauseRegrowth, "the growth of the left-recursive rule "+e.Name+" at a new position")
+	if k.an.Cyclic[name] && (!k.sameCycle(c.rule, name) || !c.mustStart ||
+		(leaderSourceOn && k.an.Leaders[name] && c.rule != name)) {
+		k.addSource(c, k.posOf(n), CauseRegrowth, "the growth of the left-recursive rule "+name+" at a new position")
 		k.srcExprs[e] = true
 	}
 }
 
 // topCut returns the top-level sequence of an alternative and the index of the first #cut in it,
 // or 0.
-func topCut(alt ast.Expr) (*ast.Seq, int) {
-	s, ok := ungroup(alt).(*ast.Seq)
+func topCut(alt core.Node) (*core.Seq, int) {
+	s, ok := alt.(*core.Seq)
 	if !ok {
 		return nil, 0
 	}
 	for i, it := range s.Items {
-		if _, ok := it.(*ast.Cut); ok {
+		if _, ok := it.(*core.Cut); ok {
 			return s, i
 		}
 	}
@@ -465,66 +489,39 @@ func topCut(alt ast.Expr) (*ast.Seq, int) {
 // walkCutSeq walks the top-level sequence of an alternative with a #cut at index cut: the items
 // before the cut are in the unit u, and the items after it are not, as a failure after the cut
 // fails the choice.
-func (k *classifier) walkCutSeq(e *ast.Seq, c wctx, u *unit, cut int) {
+func (k *classifier) walkCutSeq(s *core.Seq, c wctx, u *unit, cut int) {
 	may, must := c.mayStart, c.mustStart
 	inside := c.push(u)
-	for i, it := range e.Items {
+	for i, it := range s.Items {
 		base := c
 		if i < cut {
 			base = inside
 		}
-		cc := base.with(c.cont.then(e.Items[i+1:]...))
+		cc := base.with(c.cont.then(s.Items[i+1:]...))
 		cc.mayStart, cc.mustStart = may, must
-		cc.seqs = append(c.seqs[:len(c.seqs):len(c.seqs)], seqFrame{e, i})
+		cc.seqs = append(c.seqs[:len(c.seqs):len(c.seqs)], seqFrame{s, i})
 		k.walk(it, cc)
-		may = may && k.nullable(it)
+		may = may && k.nullableOf(it)
 		must = must && k.consumesNothing(it)
 	}
 }
 
 // cutCommits reports whether every way in which the alternative can fail lies after a #cut in it,
 // so that the later alternatives are not tried after it fails.
-func (k *classifier) cutCommits(alt ast.Expr) bool {
-	s, ok := ungroup(alt).(*ast.Seq)
+func (k *classifier) cutCommits(alt core.Node) bool {
+	s, ok := alt.(*core.Seq)
 	if !ok {
 		return false
 	}
 	for _, it := range s.Items {
-		if _, ok := it.(*ast.Cut); ok {
+		if _, ok := it.(*core.Cut); ok {
 			return true
 		}
-		if !k.succeeds(it) {
+		if !k.succeedsOf(it) {
 			return false
 		}
 	}
 	return false
-}
-
-// firstEvaluated returns the call that e evaluates before anything else, or nil.
-func (k *classifier) firstEvaluated(e ast.Expr) *ast.Ref {
-	for {
-		switch x := e.(type) {
-		case *ast.Ref:
-			return x
-		case *ast.Group:
-			e = x.Expr
-		case *ast.Capture:
-			e = x.Expr
-		case *ast.Discard:
-			e = x.Expr
-		case *ast.Atomic:
-			e = x.Expr
-		case *ast.Stream:
-			e = x.Expr
-		case *ast.Seq:
-			if len(x.Items) == 0 {
-				return nil
-			}
-			e = x.Items[0]
-		default:
-			return nil
-		}
-	}
 }
 
 // walkOperators walks an Operators Rule. The rule applies operators, which is a scanning source;
@@ -533,14 +530,11 @@ func (k *classifier) firstEvaluated(e ast.Expr) *ast.Ref {
 // rule can try at the same position, and by what follows the Operators Rule expression. Each of
 // those other items or parts goes on with its right operand, the operator parts and what follows
 // the rule.
-func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
-	hasOps := false
-	for _, l := range pr.Levels {
-		hasOps = hasOps || len(l.Operators) > 0
-	}
+func (k *classifier) walkOperators(pr *core.OperatorsRule, c wctx) {
+	hasOps := len(pr.Ops) > 0
 	if hasOps {
-		k.addSource(c, exprPos(pr), CauseRegrowth, "the operators that the Operators Rule applies")
-		k.srcExprs[pr] = true
+		k.addSource(c, k.posOf(pr), CauseRegrowth, "the operators that the Operators Rule applies")
+		k.srcExprs[k.exprOf(pr)] = true
 	}
 	end := &cont{end: endOps, rule: c.rule}
 	inside := c.with(end)
@@ -548,19 +542,19 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 	inside.ops = true
 	inside.seqs, inside.strictFrom = nil, 0
 	if hasOps {
-		inside.repeated = "the Operators Rule at " + at(c.rule, exprPos(pr))
+		inside.repeated = "the Operators Rule at " + at(c.rule, k.posOf(pr))
 	}
-	withSkip := func(e ast.Expr, more ...ast.Expr) *cont {
-		items := []ast.Expr{}
+	withSkip := func(n core.Node, more ...core.Node) *cont {
+		items := []core.Node{}
 		if pr.Skip != nil {
 			items = append(items, k.skipItem(pr))
 		}
-		return &cont{items: append(append(items, e), more...)}
+		return &cont{items: append(append(items, n), more...)}
 	}
 	// instead is a path that the rule tries in place of a failed operand or operator part: after
 	// it, the rule goes on with its operator parts and then with what follows it, as end says.
-	instead := func(e ast.Expr, more ...ast.Expr) *cont {
-		c := withSkip(e, more...)
+	instead := func(n core.Node, more ...core.Node) *cont {
+		c := withSkip(n, more...)
 		c.next = end
 		return c
 	}
@@ -570,10 +564,12 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 	rhs := k.rightOperand(c.rule)
 	skipCalls := map[string]bool{}
 	if pr.Skip != nil {
-		for _, n := range astfacts.AllCalls(pr.Skip, nil) {
-			skipCalls[n] = true
-		}
-		k.walk(pr.Skip, inside)
+		walkNodes(pr.Skip.Body, func(x core.Node) {
+			if name, ok := k.calledRule(x); ok {
+				skipCalls[name] = true
+			}
+		})
+		k.walk(pr.Skip.Body, inside)
 	}
 	enter := func(u *unit) wctx {
 		for n := range skipCalls {
@@ -581,29 +577,31 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 		}
 		return inside.push(u)
 	}
-	skipSource := pr.Skip != nil && (k.containsSourceSyntactic(pr.Skip))
+	skipSource := pr.Skip != nil && k.containsSourceSyntactic(pr.Skip.Body)
 	var operandUnits []*unit
 	operandCalls := map[string]bool{}
 	for i, o := range pr.Operands {
-		for _, n := range astfacts.AllCalls(o.Expr, nil) {
-			operandCalls[n] = true
-		}
+		walkNodes(o.Body, func(x core.Node) {
+			if name, ok := k.calledRule(x); ok {
+				operandCalls[name] = true
+			}
+		})
 		cc := inside
 		if i < len(pr.Operands)-1 {
 			var conts []contSpec
 			for _, later := range pr.Operands[i+1:] {
-				conts = append(conts, contSpec{paths: []*cont{instead(later.Expr)},
-					what: fmt.Sprintf("the later operand %s at %s", k.show(later.Expr), at(c.rule, exprPos(later.Expr)))})
+				conts = append(conts, contSpec{paths: []*cont{instead(later.Body)},
+					what: fmt.Sprintf("the later operand %s at %s", k.showOf(later.Body), at(c.rule, k.posOf(later.Body)))})
 			}
-			u := k.newUnit(unitOperand, c, o.Expr, []*cont{withSkip(o.Expr)}, append(conts, follow))
+			u := k.newUnit(unitOperand, c, o.Body, []*cont{withSkip(o.Body)}, append(conts, follow))
 			if skipSource {
-				u.src = &source{rule: c.rule, pos: exprPos(pr.Skip), what: "the skip expression " + k.show(pr.Skip)}
+				u.src = &source{rule: c.rule, pos: k.posOf(pr.Skip.Body), what: "the skip expression " + k.showOf(pr.Skip.Body)}
 			}
 			cc = enter(u)
 		}
 		cc.mayStart = c.mayStart
 		before := len(k.units)
-		k.walk(o.Expr, cc)
+		k.walk(o.Body, cc)
 		for _, v := range k.units[before:] {
 			if v.rule == c.rule {
 				operandUnits = append(operandUnits, v)
@@ -612,32 +610,24 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 		if i < len(pr.Operands)-1 {
 			operandUnits = append(operandUnits, k.units[before-1])
 		}
-		if o.Action != nil {
-			k.walkAction(o.Action, actionCtx{rule: c.rule, c: inside, action: true, value: true})
+		if a := k.operandAction(pr, i); a != nil {
+			k.walkAction(a, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
-	type part struct {
-		level int
-		op    *ast.OperatorsRuleOperator
-	}
-	var parts []part
 	prefixes := false
-	for li, l := range pr.Levels {
-		for _, op := range l.Operators {
-			parts = append(parts, part{li, op})
-			prefixes = prefixes || op.Kind == ast.Prefix
-		}
+	for _, op := range pr.Ops {
+		prefixes = prefixes || op.Kind == ast.Prefix
 	}
-	for _, p := range parts {
+	for _, p := range pr.Ops {
 		var self *cont
-		if p.op.Kind == ast.Postfix {
-			self = withSkip(p.op.Expr)
+		if p.Kind == ast.Postfix {
+			self = withSkip(p.Line.Body)
 		} else {
-			self = withSkip(p.op.Expr, rhs)
+			self = withSkip(p.Line.Body, rhs)
 		}
 		var conts []contSpec
-		for _, q := range parts {
-			if q.op == p.op || (q.op.Kind == ast.Prefix) != (p.op.Kind == ast.Prefix) {
+		for _, q := range pr.Ops {
+			if q == p || (q.Kind == ast.Prefix) != (p.Kind == ast.Prefix) {
 				continue
 			}
 			// A sibling that succeeds is followed by its right operand and then by the operator
@@ -645,36 +635,36 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 			// failed part examined, even when no call nests: with `postfix "[" R "x"` and
 			// `postfix "["`, R scans again after each "[". So the sibling is continued as far as
 			// the rule goes, then with what follows the rule.
-			sibling := instead(q.op.Expr, rhs)
-			if q.op.Kind == ast.Postfix {
-				sibling = instead(q.op.Expr)
+			sibling := instead(q.Line.Body, rhs)
+			if q.Kind == ast.Postfix {
+				sibling = instead(q.Line.Body)
 			}
 			conts = append(conts, contSpec{paths: []*cont{sibling},
-				what: fmt.Sprintf("the operator part %s at %s", k.show(q.op.Expr), at(c.rule, exprPos(q.op.Expr)))})
+				what: fmt.Sprintf("the operator part %s at %s", k.showOf(q.Line.Body), at(c.rule, k.posOf(q.Line.Body)))})
 		}
-		if p.op.Kind == ast.Prefix {
+		if p.Kind == ast.Prefix {
 			for _, o := range pr.Operands {
-				conts = append(conts, contSpec{paths: []*cont{instead(o.Expr)},
-					what: fmt.Sprintf("the operand %s at %s", k.show(o.Expr), at(c.rule, exprPos(o.Expr)))})
+				conts = append(conts, contSpec{paths: []*cont{instead(o.Body)},
+					what: fmt.Sprintf("the operand %s at %s", k.showOf(o.Body), at(c.rule, k.posOf(o.Body)))})
 			}
 		}
-		u := k.newUnit(unitOperator, c, p.op.Expr, []*cont{self}, append(conts, follow))
-		if p.op.Kind != ast.Prefix {
+		u := k.newUnit(unitOperator, c, p.Line.Body, []*cont{self}, append(conts, follow))
+		if p.Kind != ast.Prefix {
 			k.retried = append(k.retried, retriedPart{u, c.rule, end})
 		}
 		applies := false
-		switch p.op.Kind {
+		switch p.Kind {
 		case ast.Prefix:
 			applies = true
 		case ast.Infix:
 			applies = prefixes
-			for _, q := range parts {
-				if q.op.Kind != ast.Prefix && (q.level > p.level || q.level == p.level && p.op.Assoc == ast.AssocRight) {
+			for _, q := range pr.Ops {
+				if q.Kind != ast.Prefix && (q.Level > p.Level || q.Level == p.Level && p.Assoc == ast.AssocRight) {
 					applies = true
 				}
 			}
 		}
-		if p.op.Kind != ast.Postfix {
+		if p.Kind != ast.Postfix {
 			// The right operand parses operands again, and operators too when it can apply them.
 			if applies {
 				u.calls[c.rule] = true
@@ -686,33 +676,53 @@ func (k *classifier) walkOperators(pr *ast.OperatorsRule, c wctx) {
 			}
 		}
 		if applies {
-			u.src = &source{rule: c.rule, pos: exprPos(p.op.Expr), kind: CauseRegrowth, what: "the right operand of the operator part " + k.show(p.op.Expr) + ", which can apply operators"}
+			u.src = &source{rule: c.rule, pos: k.posOf(p.Line.Body), kind: CauseRegrowth, what: "the right operand of the operator part " + k.showOf(p.Line.Body) + ", which can apply operators"}
 		} else if skipSource {
-			u.src = &source{rule: c.rule, pos: exprPos(pr.Skip), what: "the skip expression " + k.show(pr.Skip)}
+			u.src = &source{rule: c.rule, pos: k.posOf(pr.Skip.Body), what: "the skip expression " + k.showOf(pr.Skip.Body)}
 		}
 		cc := enter(u)
-		cc.mayStart = c.mayStart && (p.op.Kind == ast.Prefix || k.operandsNullable(c.rule))
-		if p.op.Kind == ast.Postfix {
+		cc.mayStart = c.mayStart && (p.Kind == ast.Prefix || k.operandsNullable(c.rule))
+		if p.Kind == ast.Postfix {
 			cc.cont = end
 		} else {
 			cc.cont = end.then(rhs)
 		}
-		k.walk(p.op.Expr, cc)
-		if p.op.Action != nil {
-			k.walkAction(p.op.Action, actionCtx{rule: c.rule, c: inside, action: true, value: true})
+		k.walk(p.Line.Body, cc)
+		if a := k.operatorAction(pr, p); a != nil {
+			k.walkAction(a, actionCtx{rule: c.rule, c: inside, action: true, value: true})
 		}
 	}
 }
 
-// containsSourceSyntactic reports whether e has a repetition without an upper bound, a #recover
+// operandAction returns the action of operand i of the Operators Rule pr, or nil: the action as
+// the grammar writes it, which the walk of action expressions reads (walkAction).
+func (k *classifier) operandAction(pr *core.OperatorsRule, i int) ast.ActionExpr {
+	return k.exprOf(pr).(*ast.OperatorsRule).Operands[i].Action
+}
+
+// operatorAction returns the action of the operator part op of the Operators Rule pr, or nil: the
+// action as the grammar writes it, which the walk of action expressions reads (walkAction). The module numbers
+// the operator parts by ID in the order the grammar writes them, level by level.
+func (k *classifier) operatorAction(pr *core.OperatorsRule, op *core.Operator) ast.ActionExpr {
+	id := op.ID
+	for _, l := range k.exprOf(pr).(*ast.OperatorsRule).Levels {
+		if id < len(l.Operators) {
+			return l.Operators[id].Action
+		}
+		id -= len(l.Operators)
+	}
+	panic(fmt.Sprintf("complexity: no operator part %d in the Operators Rule", op.ID))
+}
+
+// containsSourceSyntactic reports whether n has a repetition without an upper bound, a #recover
 // or an Operators Rule in it, without following calls.
-func (k *classifier) containsSourceSyntactic(e ast.Expr) bool {
+func (k *classifier) containsSourceSyntactic(n core.Node) bool {
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
+	walkNodes(n, func(x core.Node) {
 		switch x := x.(type) {
-		case *ast.Repeat:
+		case *core.Repeat:
 			found = found || x.Max < 0
-		case *ast.Recovery, *ast.OperatorsRule:
+		case *core.Recover, *core.OperatorsRule:
 			found = true
 		}
 	})
@@ -758,37 +768,35 @@ func (k *classifier) computeRuleSources() {
 // opsAfter is the first characters of the operator parts of the Operators Rule of rule, which
 // can follow an operand.
 func (k *classifier) opsAfter(rule string) charset {
-	pr := k.operators(rule)
+	pr := k.operatorsOf(rule)
 	if pr == nil {
 		return nil
 	}
 	var s charset
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Prefix {
-				continue
-			}
-			items := []ast.Expr{k.skipItem(pr), op.Expr}
-			if op.Kind == ast.Infix {
-				items = append(items, k.rightOperand(rule))
-			}
-			t, _ := k.firstItems(items)
-			s = s.union(t)
+	for _, op := range pr.Ops {
+		if op.Kind == ast.Prefix {
+			continue
 		}
+		items := []core.Node{k.skipItem(pr), op.Line.Body}
+		if op.Kind == ast.Infix {
+			items = append(items, k.rightOperand(rule))
+		}
+		t, _ := k.firstItems(items)
+		s = s.union(t)
 	}
 	return s
 }
 
 // firstItems returns the first characters of the items in sequence and whether all can match
 // without consuming input.
-func (k *classifier) firstItems(items []ast.Expr) (charset, bool) {
+func (k *classifier) firstItems(items []core.Node) (charset, bool) {
 	var s charset
 	for _, it := range items {
 		if it == nil {
 			continue
 		}
-		s = s.union(k.first(it))
-		if !k.nullable(it) {
+		s = s.union(k.firstOf(it))
+		if !k.nullableOf(it) {
 			return s, false
 		}
 	}
@@ -918,7 +926,7 @@ func (k *classifier) followFor(cycle int, growth bool) func(string) charset {
 // a lead that is done examines nothing more.
 type lead struct {
 	call *ast.Ref
-	lit  *ast.Literal
+	lit  *core.Lit
 	rest *cont
 	done bool
 	// up: the path reaches the lead after the end of a rule body, in what follows a call whose
@@ -1035,85 +1043,91 @@ func (k *classifier) leads(paths []*cont, from []lead, only *string, seen map[st
 				return
 			}
 			rest := p.rest()
-			switch e := p.items[0].(type) {
+			switch n := p.items[0].(type) {
 			case nil:
 				p = rest
-			case *ast.Group:
-				p = rest.then(e.Expr)
-			case *ast.Capture:
-				p = rest.then(e.Expr)
-			case *ast.Discard:
-				p = rest.then(e.Expr)
-			case *ast.Atomic:
-				p = rest.then(e.Expr)
-			case *ast.Stream:
-				p = rest.then(e.Expr)
-			case *ast.InlineAction:
-				p = rest.then(e.Expr)
-			case *ast.Seq:
-				p = rest.then(e.Items...)
-			case *ast.Attributed:
-				if astfacts.RecoverSkip(e) != nil || astfacts.HasPragma(e, "missing") {
+			case *core.Capture:
+				p = rest.then(n.Body)
+			case *core.Drop:
+				p = rest.then(n.Body)
+			case *core.Text:
+				p = rest.then(n.Body)
+			case *core.Seq:
+				p = rest.then(n.Items...)
+			case *core.Label, *core.Recover, *core.Missing, *core.Stream:
+				operand, rec, missing := attributes(n)
+				if rec != nil || missing {
 					out = append(out, lead{})
 					return
 				}
-				p = rest.then(e.Expr)
-			case *ast.Predicate, *ast.Cut, *ast.Top, *ast.BeginInput, *ast.BeginLine:
+				p = rest.then(operand)
+			case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed:
 				p = rest
-			case *ast.EndInput:
-				// At the end of the input nothing more is examined.
-				out = append(out, lead{done: true, up: up, via: st.via, left: st.left})
-				return
-			case *ast.Literal:
-				if e.Value != "" {
+			case *core.Anchor:
+				switch n.Kind {
+				case core.BeginInput, core.BeginLine:
+					p = rest
+				case core.EndInput:
+					// At the end of the input nothing more is examined.
+					out = append(out, lead{done: true, up: up, via: st.via, left: st.left})
+					return
+				default:
+					out = append(out, lead{})
+					return
+				}
+			case *core.Lit:
+				if n.Text != "" {
 					if only == nil {
-						out = append(out, lead{lit: e, rest: rest, up: up, via: st.via, left: st.left})
+						out = append(out, lead{lit: n, rest: rest, up: up, via: st.via, left: st.left})
 					} else {
 						out = append(out, lead{})
 					}
 					return
 				}
 				p = rest
-			case *ast.Choice:
-				for _, alt := range e.Alts {
-					visit(rest.then(alt), st)
+			case *core.Choice:
+				for _, alt := range n.Alts {
+					visit(rest.then(alt.Body), st)
 				}
 				return
-			case *ast.Optional:
-				visit(rest.then(e.Expr), st)
+			case *core.Opt:
+				visit(rest.then(n.Body), st)
 				visit(rest, st)
 				return
-			case *ast.Repeat:
-				if e.Max == 0 {
+			case *core.Repeat:
+				if n.Max == 0 {
 					p = rest
 					continue
 				}
-				again := k.againOf(e)
-				visit(rest.then(e.Expr, again), st)
-				if e.Min == 0 {
+				again := k.againOf(n)
+				visit(rest.then(n.Body, again), st)
+				if n.Min == 0 {
 					visit(rest, st)
 				}
 				return
-			case *ast.Ref:
-				if k.byName[e.Name] == nil || e.Level == rhsLevel {
+			case *core.Call:
+				name := k.rules[n.Rule].Name
+				if k.byName[name] == nil {
 					out = append(out, lead{})
 					return
 				}
-				share := k.shareable(e) && k.sameGrowths(e.Name, st.via, st.left)
-				if share && (only == nil || *only == e.Name) {
+				e := k.exprOf(n).(*ast.Ref)
+				share := k.shareable(e) && k.sameGrowths(name, st.via, st.left)
+				if share && (only == nil || *only == name) {
 					out = append(out, lead{call: e, rest: rest, up: up, via: st.via, left: st.left})
 					return
 				}
 				if share && seen != nil {
-					seen[e.Name] = true
+					seen[name] = true
 				}
 				st.via = &refList{e, st.via}
-				if pr := k.operatorsBody(e.Name); pr != nil {
-					k.operatorsLeads(pr, e.Name, func(c *cont) { visit(c, st) })
+				if pr := k.operatorsBody(name); pr != nil {
+					k.operatorsLeads(pr, name, func(c *cont) { visit(c, st) })
 					return
 				}
-				p = rest.then(k.byName[e.Name].Expr)
+				p = rest.then(k.ruleBody(name))
 			default:
+				// A right operand of an operator part (isRightOperand) is not followed.
 				out = append(out, lead{})
 				return
 			}
@@ -1212,7 +1226,7 @@ func retriedWhat(rule string) string {
 // spec/runtime/parsing.md, "Expressions That Repeat Cost"). Then what they repeat is the skip and
 // the expressions of those parts (repeatCost).
 func (k *classifier) retriedCost(rule string) retriedRepeat {
-	pr := k.operators(rule)
+	pr := k.operatorsOf(rule)
 	if pr == nil {
 		return retriedRepeat{cheap: true}
 	}
@@ -1220,16 +1234,14 @@ func (k *classifier) retriedCost(rule string) retriedRepeat {
 		return retriedRepeat{}
 	}
 	if pr.Skip != nil {
-		if s := k.repeatCost(pr.Skip); s != nil {
+		if s := k.repeatCost(pr.Skip.Body); s != nil {
 			return retriedRepeat{src: s}
 		}
 	}
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind != ast.Prefix {
-				if s := k.repeatCost(op.Expr); s != nil {
-					return retriedRepeat{src: s}
-				}
+	for _, op := range pr.Ops {
+		if op.Kind != ast.Prefix {
+			if s := k.repeatCost(op.Line.Body); s != nil {
+				return retriedRepeat{src: s}
 			}
 		}
 	}
@@ -1244,30 +1256,27 @@ func (k *classifier) retriedCost(rule string) retriedRepeat {
 // it then tries the part, and its right operand, again at the same position. Levels are numbered
 // from the loosest; a right operand admits the parts above its minimum: the level of its prefix
 // or non-right-associative infix part, or one less for a right-associative infix part.
-func prefixAdmitsMore(pr *ast.OperatorsRule) bool {
-	prefixMin, rhsMax, hasPrefix := len(pr.Levels), -1, false
-	for i, l := range pr.Levels {
-		for _, op := range l.Operators {
-			rhs := i
-			switch {
-			case op.Kind == ast.Prefix:
-				prefixMin, hasPrefix = min(prefixMin, i), true
-			case op.Kind == ast.Infix && op.Assoc == ast.AssocRight:
-				rhs = i - 1
-			case op.Kind != ast.Infix:
-				continue
-			}
-			rhsMax = max(rhsMax, rhs)
+func prefixAdmitsMore(pr *core.OperatorsRule) bool {
+	prefixMin, rhsMax, hasPrefix := len(pr.Ops), -1, false
+	for _, op := range pr.Ops {
+		i := op.Level - 1
+		rhs := i
+		switch {
+		case op.Kind == ast.Prefix:
+			prefixMin, hasPrefix = min(prefixMin, i), true
+		case op.Kind == ast.Infix && op.Assoc == ast.AssocRight:
+			rhs = i - 1
+		case op.Kind != ast.Infix:
+			continue
 		}
+		rhsMax = max(rhsMax, rhs)
 	}
 	if !hasPrefix {
 		return false
 	}
-	for i, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Infix && i > prefixMin && i <= rhsMax {
-				return true
-			}
+	for _, op := range pr.Ops {
+		if i := op.Level - 1; op.Kind == ast.Infix && i > prefixMin && i <= rhsMax {
+			return true
 		}
 	}
 	return false
@@ -1278,26 +1287,28 @@ func prefixAdmitsMore(pr *ast.OperatorsRule) bool {
 // inside calls that read no variable and that the memo answers, or whose rules are scanOnly, so
 // that the records of their scan sites answer the repeated walks. The source of a call is the
 // first one in the body of its rule, where it has one.
-func (k *classifier) repeatCost(e ast.Expr) *source {
+func (k *classifier) repeatCost(n core.Node) *source {
 	var found *source
-	astfacts.WalkExprWithPoll(e, func(x ast.Expr) {
+	walkNodes(n, func(x core.Node) {
+		k.control.Poll()
 		if found != nil {
 			return
 		}
-		if r, call := x.(*ast.Ref); call {
-			if (k.srcExprs[r] || k.ruleSrc[r.Name] != nil) && !(k.memoAt(r) && len(k.vars[r.Name]) == 0) && !k.scanOnly(r.Name) {
-				if found = k.local[r.Name]; found == nil {
-					found = k.sourceIn(k.nodeOf(r))
+		if c, call := x.(*core.Call); call {
+			name := k.rules[c.Rule].Name
+			if (k.srcExprs[k.exprOf(c)] || k.ruleSrc[name] != nil) && !(k.memoAtOf(c) && len(k.vars[name]) == 0) && !k.scanOnly(name) {
+				if found = k.local[name]; found == nil {
+					found = k.sourceIn(c)
 				}
 			}
 			return
 		}
-		if k.srcExprs[x] {
-			if found = k.walkedAt(k.nodeOf(x)); found == nil {
-				found = k.sourceIn(k.nodeOf(x))
+		if k.srcExprs[k.exprOf(x)] {
+			if found = k.walkedAt(x); found == nil {
+				found = k.sourceIn(x)
 			}
 		}
-	}, k.control.Poll)
+	})
 	return found
 }
 
@@ -1308,15 +1319,13 @@ func (k *classifier) repeatCost(e ast.Expr) *source {
 // operator part that ends with a call that nests at one end (nestsAt), directly or through other
 // rules, parses the rule again at its end.
 func (k *classifier) nestsOps(rule string) bool {
-	pr := k.operators(rule)
+	pr := k.operatorsOf(rule)
 	if pr == nil {
 		return false
 	}
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Prefix || op.Kind == ast.Infix && op.Assoc == ast.AssocRight {
-				return true
-			}
+	for _, op := range pr.Ops {
+		if op.Kind == ast.Prefix || op.Kind == ast.Infix && op.Assoc == ast.AssocRight {
+			return true
 		}
 	}
 	for _, s := range k.sites {
@@ -1330,49 +1339,59 @@ func (k *classifier) nestsOps(rule string) bool {
 // opsLeads continues a path after an operand of the Operators Rule of rule, with its operator
 // parts. inner tells that the path looked into the rule through a call (cont.inner).
 func (k *classifier) opsLeads(rule string, inner bool, visit func(*cont)) {
-	pr := k.operators(rule)
+	pr := k.operatorsOf(rule)
 	if pr == nil {
 		return
 	}
 	end := &cont{end: endOps, rule: rule, inner: inner}
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Prefix {
-				continue
-			}
-			items := []ast.Expr{k.skipItem(pr), op.Expr}
-			if op.Kind == ast.Infix {
-				items = append(items, k.rightOperand(rule))
-			}
-			visit(&cont{items: items, next: end})
+	for _, op := range pr.Ops {
+		if op.Kind == ast.Prefix {
+			continue
 		}
+		items := []core.Node{k.skipItem(pr), op.Line.Body}
+		if op.Kind == ast.Infix {
+			items = append(items, k.rightOperand(rule))
+		}
+		visit(&cont{items: items, next: end})
 	}
 }
 
 // operatorsBody returns the Operators Rule that is the body of rule, alone or under attributes
 // that change neither what it evaluates first nor where the parser continues after it fails, or
 // nil.
-func (k *classifier) operatorsBody(rule string) *ast.OperatorsRule {
-	body := ungroup(k.byName[rule].Expr)
-	if a, ok := body.(*ast.Attributed); ok {
-		if astfacts.RecoverSkip(a) != nil || astfacts.HasPragma(a, "missing") {
-			return nil
-		}
-		body = ungroup(a.Expr)
+func (k *classifier) operatorsBody(rule string) *core.OperatorsRule {
+	body, rec, missing := attributes(k.ruleBody(rule))
+	if rec != nil || missing {
+		return nil
 	}
-	pr, _ := body.(*ast.OperatorsRule)
+	pr, _ := body.(*core.OperatorsRule)
 	return pr
+}
+
+// operatorsOf returns the Operators Rule that is the body of rule, alone or under attributes, or
+// nil (operators).
+func (k *classifier) operatorsOf(rule string) *core.OperatorsRule {
+	if pr := k.operators(rule); pr != nil {
+		return k.nodeOf(pr).(*core.OperatorsRule)
+	}
+	return nil
 }
 
 // skipItem is the skip of pr as an item of a path. The rule evaluates its skip before each operand
 // and operator part, and continues at the same position when the skip does not match, so a skip
 // that can match nothing stands for itself, and the first call that it evaluates is a call that the
-// path evaluates first; any other skip is optional.
-func (k *classifier) skipItem(pr *ast.OperatorsRule) ast.Expr {
-	if pr.Skip == nil || k.nullable(pr.Skip) {
-		return pr.Skip
+// path evaluates first; any other skip is optional. It is nil when pr has no skip.
+func (k *classifier) skipItem(pr *core.OperatorsRule) core.Node {
+	if pr.Skip == nil {
+		return nil
 	}
-	return built(k, &ast.Optional{Expr: pr.Skip}, core.Node(&core.Opt{Body: k.nodeOf(pr.Skip)}))
+	skip := pr.Skip.Body
+	if k.nullableOf(skip) {
+		return skip
+	}
+	opt := &core.Opt{Body: skip}
+	built(k, &ast.Optional{Expr: k.exprOf(skip)}, core.Node(opt))
+	return opt
 }
 
 // operatorsLeads continues a path into the body of rule, the Operators Rule pr. The rule begins
@@ -1380,23 +1399,21 @@ func (k *classifier) skipItem(pr *ast.OperatorsRule) ast.Expr {
 // what every path through it evaluates first. After its operand the rule tries its operator
 // parts, then continues as after its calls: the path continues at the end of the rule body, which
 // includes the path that called it.
-func (k *classifier) operatorsLeads(pr *ast.OperatorsRule, rule string, visit func(*cont)) {
+func (k *classifier) operatorsLeads(pr *core.OperatorsRule, rule string, visit func(*cont)) {
 	end := &cont{end: endOps, rule: rule, inner: true}
-	start := func(e ast.Expr, more ...ast.Expr) {
-		items := []ast.Expr{}
+	start := func(n core.Node, more ...core.Node) {
+		items := []core.Node{}
 		if pr.Skip != nil {
 			items = append(items, k.skipItem(pr))
 		}
-		visit(&cont{items: append(append(items, e), more...), next: end})
+		visit(&cont{items: append(append(items, n), more...), next: end})
 	}
 	for _, o := range pr.Operands {
-		start(o.Expr)
+		start(o.Body)
 	}
-	for _, l := range pr.Levels {
-		for _, op := range l.Operators {
-			if op.Kind == ast.Prefix {
-				start(op.Expr, k.rightOperand(rule))
-			}
+	for _, op := range pr.Ops {
+		if op.Kind == ast.Prefix {
+			start(op.Line.Body, k.rightOperand(rule))
 		}
 	}
 }
@@ -1495,7 +1512,7 @@ func sameLead(a, b *lead) bool {
 	if a.call != nil || b.call != nil {
 		return a.call != nil && b.call != nil && a.call.Name == b.call.Name && a.call.Level == b.call.Level
 	}
-	return a.lit.Value == b.lit.Value && a.lit.IgnoreCase == b.lit.IgnoreCase
+	return a.lit.Text == b.lit.Text && a.lit.Fold == b.lit.Fold
 }
 
 // rests returns the paths after the leads that examine input, and those leads.
@@ -1652,42 +1669,42 @@ func (k *classifier) leftPathsOf(start *cont, cycle int, grower string, member b
 				return
 			}
 			rest := p.rest()
-			switch e := p.items[0].(type) {
-			case *ast.Group:
-				p = rest.then(e.Expr)
-			case *ast.Capture:
-				p = rest.then(e.Expr)
-			case *ast.Discard:
-				p = rest.then(e.Expr)
-			case *ast.Atomic:
-				p = rest.then(e.Expr)
-			case *ast.Stream:
-				p = rest.then(e.Expr)
-			case *ast.Seq:
-				if len(e.Items) == 0 {
+			switch n := p.items[0].(type) {
+			case *core.Capture:
+				p = rest.then(n.Body)
+			case *core.Drop:
+				p = rest.then(n.Body)
+			case *core.Text:
+				p = rest.then(n.Body)
+			case *core.Seq:
+				if len(n.Items) == 0 {
 					first = append(first, rest)
 					return
 				}
-				p = rest.then(e.Items...)
-			case *ast.Choice:
-				for _, alt := range e.Alts {
-					visit(rest.then(alt), depth)
+				p = rest.then(n.Items...)
+			case *core.Choice:
+				for _, alt := range n.Alts {
+					visit(rest.then(alt.Body), depth)
 				}
 				return
-			case *ast.Predicate, *ast.Cut, *ast.Top, *ast.BeginInput, *ast.EndInput,
-				*ast.BeginLine, *ast.EndLine:
+			case *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.Anchor:
 				// Nothing is examined before a left call that follows: the growth goes on there.
 				if len(rest.items) == 0 {
 					first = append(first, rest)
 					return
 				}
 				p = rest
-			case *ast.Ref:
-				if !k.an.Cyclic[e.Name] || k.an.Cycle[e.Name] != cycle || e.Level != "" {
-					if len(rest.items) > 0 && k.passesBefore(k.nodeOf(e), leftExamine) {
+			case *core.Call, *core.Nest:
+				name, ok := k.calledRule(n)
+				if !ok {
+					first = append(first, p)
+					return
+				}
+				if _, plain := k.plainCall(n); !k.an.Cyclic[name] || k.an.Cycle[name] != cycle || !plain {
+					if len(rest.items) > 0 && k.passesBefore(n, leftExamine) {
 						// A call that can match without examining the input: what follows it
 						// can start a growth, and the call may also examine input first.
-						if !k.examinesNothing(e.Name, map[string]bool{}, true) {
+						if !k.examinesNothing(name, map[string]bool{}, true) {
 							first = append(first, p)
 						}
 						p = rest
@@ -1696,9 +1713,9 @@ func (k *classifier) leftPathsOf(start *cont, cycle int, grower string, member b
 					first = append(first, p)
 					return
 				}
-				if k.an.Leaders[e.Name] {
+				if k.an.Leaders[name] {
 					paths = append(paths, rest)
-					if grower != "" && e.Name != grower || others {
+					if grower != "" && name != grower || others {
 						first = append(first, p)
 					}
 					return
@@ -1707,7 +1724,7 @@ func (k *classifier) leftPathsOf(start *cont, cycle int, grower string, member b
 					ok = false
 					return
 				}
-				p = rest.then(k.byName[e.Name].Expr)
+				p = rest.then(k.ruleBody(name))
 				depth++
 			default:
 				first = append(first, p)
@@ -1760,8 +1777,9 @@ func (k *classifier) checkGrowingUnit(u *unit) {
 		return
 	}
 	var conts []contSpec
-	for _, later := range u.choice.Alts[u.index+1:] {
-		if !k.startsWithLeftCall(u.rule, k.nodeOf(later), leftExamine) {
+	for _, alt := range u.choice.Alts[u.index+1:] {
+		later := alt.Body
+		if !k.startsWithLeftCall(u.rule, later, leftExamine) {
 			continue
 		}
 		paths, _, ok := k.leftPaths(u.after.then(later), u.cycle, "")
@@ -1774,7 +1792,7 @@ func (k *classifier) checkGrowingUnit(u *unit) {
 		// next step reads it as the seed: past the end of the rule body it continues after the
 		// seed reads too, so it reads the FOLLOW sets with them.
 		conts = append(conts, contSpec{paths: paths,
-			what: fmt.Sprintf("the later growing alternative %s at %s", k.show(later), at(u.rule, exprPos(later)))})
+			what: fmt.Sprintf("the later growing alternative %s at %s", k.showOf(later), at(u.rule, k.posOf(later)))})
 	}
 	starts, ok := k.growthStarts(u.cycle)
 	if !ok {
@@ -1893,9 +1911,9 @@ func (k *classifier) growthStarts(cycle int) ([]contSpec, bool) {
 func (k *classifier) memberStarts(rule string, after *cont, cycle int) (paths []*cont, ok bool) {
 	ok = true
 	budget := leadBudget
-	inCycle := func(e ast.Expr) bool {
-		for _, n := range k.leftCalls(e) {
-			if k.an.Cyclic[n] && k.an.Cycle[n] == cycle {
+	inCycle := func(n core.Node) bool {
+		for _, id := range k.facts.source.Facts.LeftCalls(n, false) {
+			if name := k.rules[id].Name; k.an.Cyclic[name] && k.an.Cycle[name] == cycle {
 				return true
 			}
 		}
@@ -1918,57 +1936,51 @@ func (k *classifier) memberStarts(rule string, after *cont, cycle int) (paths []
 				continue
 			}
 			rest := p.rest()
-			switch e := p.items[0].(type) {
-			case *ast.Group:
-				p = rest.then(e.Expr)
-			case *ast.Capture:
-				p = rest.then(e.Expr)
-			case *ast.Discard:
-				p = rest.then(e.Expr)
-			case *ast.Atomic:
-				p = rest.then(e.Expr)
-			case *ast.Stream:
-				p = rest.then(e.Expr)
-			case *ast.InlineAction:
-				p = rest.then(e.Expr)
-			case *ast.Seq:
-				p = rest.then(e.Items...)
-			case *ast.Choice:
-				for _, alt := range e.Alts {
-					visit(rest.then(alt), depth)
+			switch n := p.items[0].(type) {
+			case *core.Capture:
+				p = rest.then(n.Body)
+			case *core.Drop:
+				p = rest.then(n.Body)
+			case *core.Text:
+				p = rest.then(n.Body)
+			case *core.Seq:
+				p = rest.then(n.Items...)
+			case *core.Choice:
+				for _, alt := range n.Alts {
+					visit(rest.then(alt.Body), depth)
 				}
 				return
-			case *ast.Optional:
-				visit(rest.then(e.Expr), depth)
+			case *core.Opt:
+				visit(rest.then(n.Body), depth)
 				p = rest
-			case *ast.Ref:
-				if k.an.Cyclic[e.Name] && k.an.Cycle[e.Name] == cycle {
-					if e.Level != "" {
+			case *core.Call, *core.Nest:
+				if name, call := k.calledRule(n); call && k.an.Cyclic[name] && k.an.Cycle[name] == cycle {
+					if _, plain := k.plainCall(n); !plain {
 						ok = false
 						return
 					}
-					if k.an.Leaders[e.Name] {
+					if k.an.Leaders[name] {
 						paths = append(paths, rest)
 						return
 					}
-					p = bodyThen(k.byName[e.Name], rest)
+					p = k.bodyThen(name, rest)
 					depth++
 					continue
 				}
-				if inCycle(e) {
+				if inCycle(n) {
 					ok = false
 					return
 				}
-				if !k.nullable(e) {
+				if !k.nullableOf(n) {
 					return
 				}
 				p = rest
 			default:
-				if inCycle(e) {
+				if inCycle(n) {
 					ok = false
 					return
 				}
-				if !k.nullable(e) {
+				if !k.nullableOf(n) {
 					return
 				}
 				p = rest
@@ -1977,19 +1989,19 @@ func (k *classifier) memberStarts(rule string, after *cont, cycle int) (paths []
 	}
 	// after marks the end of the body itself when it is the end of rule (the step tails of a
 	// leader, or the start rule); otherwise the path marks it.
-	start := &cont{items: []ast.Expr{k.byName[rule].Expr}, next: after}
+	start := &cont{items: []core.Node{k.ruleBody(rule)}, next: after}
 	if after.next != nil || after.end != endRule || after.rule != rule {
-		start = bodyThen(k.byName[rule], after)
+		start = k.bodyThen(rule, after)
 	}
 	visit(start, 0)
 	return paths, ok
 }
 
-// bodyThen returns the path that evaluates the body of r and then after, which follows the call
-// of r. The path marks the end of the body (cont.end and cont.rule with a next), which the walkers
-// of paths pass, so that bodyEnds can tell in whose body a path is.
-func bodyThen(r *ast.RuleDef, after *cont) *cont {
-	return &cont{items: []ast.Expr{r.Expr}, next: after, end: endRule, rule: r.Name}
+// bodyThen returns the path that evaluates the body of rule and then after, which follows the call
+// of rule. The path marks the end of the body (cont.end and cont.rule with a next), which the
+// walkers of paths pass, so that bodyEnds can tell in whose body a path is.
+func (k *classifier) bodyThen(rule string, after *cont) *cont {
+	return &cont{items: []core.Node{k.ruleBody(rule)}, next: after, end: endRule, rule: rule}
 }
 
 // checkGrowth checks condition 3: no scanning source is evaluated at the position where a
@@ -2003,7 +2015,7 @@ func (k *classifier) checkGrowth() {
 			continue
 		}
 		cycle := k.an.Cycle[r.Name]
-		var visit func(e ast.Expr) bool // returns whether e can match without consuming input
+		var visit func(n core.Node) bool // returns whether n can match without consuming input
 		report := func(s *source) {
 			if seen[s] {
 				return
@@ -2012,102 +2024,92 @@ func (k *classifier) checkGrowth() {
 			k.cause(CauseRegrowth, ClassPoly, 2, s.rule, s.pos, "%s: %s is evaluated in each step of the growth of the left-recursive rule %s, at the position where it grows",
 				degreeText(ClassPoly, 2), s, r.Name)
 		}
-		visit = func(e ast.Expr) bool {
+		visit = func(n core.Node) bool {
 			k.control.Poll()
-			switch e := e.(type) {
-			case *ast.Ref:
-				if k.byName[e.Name] == nil {
+			switch n := n.(type) {
+			case *core.Call:
+				name := k.rules[n.Rule].Name
+				if k.byName[name] == nil {
 					return true
 				}
-				if k.an.Cyclic[e.Name] && k.an.Cycle[e.Name] == cycle {
-					return k.nullable(e)
+				if k.an.Cyclic[name] && k.an.Cycle[name] == cycle {
+					return k.nullableOf(n)
 				}
-				if !k.memoAt(e) {
-					if s := k.ruleSrc[e.Name]; s != nil {
+				if !k.memoAtOf(n) {
+					if s := k.ruleSrc[name]; s != nil {
 						report(s)
 					}
 				}
-				return k.nullable(e)
-			case *ast.Seq:
-				for _, it := range e.Items {
+				return k.nullableOf(n)
+			case *core.Seq:
+				for _, it := range n.Items {
 					if !visit(it) {
 						return false
 					}
 				}
 				return true
-			case *ast.Choice:
+			case *core.Choice:
 				null := false
-				for _, alt := range e.Alts {
-					null = visit(alt) || null
+				for _, alt := range n.Alts {
+					null = visit(alt.Body) || null
 				}
 				return null
-			case *ast.Repeat:
-				if e.Max == 0 {
+			case *core.Repeat:
+				if n.Max == 0 {
 					return true
 				}
-				if e.Max < 0 && !k.runSite(e) {
-					report(k.sourceAt(r.Name, e, CauseRestartedRepetition, "the repetition "+k.show(e)))
-					for _, c := range astfacts.AllCallsControlled(e.Expr, nil, k.control) {
-						maps.Copy(k.stepRules, k.reachable(c))
-					}
+				if n.Max < 0 && !k.runSiteOf(n) {
+					report(k.sourceAt(r.Name, n, CauseRestartedRepetition, "the repetition "+k.showOf(n)))
+					walkNodes(n.Body, func(x core.Node) {
+						k.control.Poll()
+						if c, ok := k.calledRule(x); ok {
+							maps.Copy(k.stepRules, k.reachable(c))
+						}
+					})
 				}
-				visit(e.Expr)
-				return k.nullable(e)
-			case *ast.Optional:
-				visit(e.Expr)
+				visit(n.Body)
+				return k.nullableOf(n)
+			case *core.Opt:
+				visit(n.Body)
 				return true
-			case *ast.And:
-				visit(e.Expr)
+			case *core.Look:
+				visit(n.Body)
 				return true
-			case *ast.Not:
-				visit(e.Expr)
-				return true
-			case *ast.Group:
-				return visit(e.Expr)
-			case *ast.Capture:
-				return visit(e.Expr)
-			case *ast.Discard:
-				return visit(e.Expr)
-			case *ast.Atomic:
-				return visit(e.Expr)
-			case *ast.Stream:
-				return visit(e.Expr)
-			case *ast.InlineAction:
-				return visit(e.Expr)
-			case *ast.Recovery:
-				if !k.reused(k.nodeOf(e.Skip)) {
-					report(k.sourceAt(r.Name, e, CauseRecoverySkip, "the skip expression "+k.show(e.Skip)+" of #recover"))
+			case *core.Capture:
+				return visit(n.Body)
+			case *core.Drop:
+				return visit(n.Body)
+			case *core.Text:
+				return visit(n.Body)
+			case *core.Label, *core.Recover, *core.Missing, *core.Stream:
+				operand, rec, _ := attributes(n)
+				if rec != nil && !k.reused(rec.Skip) {
+					report(k.sourceAt(r.Name, n, CauseRecoverySkip, "the skip expression "+k.showOf(rec.Skip)+" of #recover"))
 				}
-				visit(e.Expr)
-				return k.nullable(e)
-			case *ast.Attributed:
-				if skip := astfacts.RecoverSkip(e); skip != nil && !k.reused(k.nodeOf(skip)) {
-					report(k.sourceAt(r.Name, e, CauseRecoverySkip, "the skip expression "+k.show(skip)+" of #recover"))
-				}
-				visit(e.Expr)
-				return k.nullable(e)
-			case *ast.OperatorsRule:
-				report(k.sourceAt(r.Name, e, CauseRegrowth, "the operators that the Operators Rule applies"))
-				return k.nullable(e)
-			case *ast.Predicate:
-				if s := k.predicateSource[e]; s != nil {
+				visit(operand)
+				return k.nullableOf(n)
+			case *core.OperatorsRule:
+				report(k.sourceAt(r.Name, n, CauseRegrowth, "the operators that the Operators Rule applies"))
+				return k.nullableOf(n)
+			case *core.Pred, *core.BindNode:
+				if s := k.predicateSource[k.predicateOf(n)]; s != nil {
 					report(s)
 				}
 				return true
 			}
-			return k.nullable(e)
+			return k.nullableOf(n)
 		}
-		visit(r.Expr)
+		visit(k.ruleBody(r.Name))
 	}
 }
 
-// sourceAt returns the source recorded at e, so that one cause is reported once.
-func (k *classifier) sourceAt(rule string, e ast.Expr, kind ComplexityCauseKind, what string) *source {
-	key := sourceKey{rule, exprPos(e), what}
+// sourceAt returns the source recorded at n, so that one cause is reported once.
+func (k *classifier) sourceAt(rule string, n core.Node, kind ComplexityCauseKind, what string) *source {
+	key := sourceKey{rule, k.posOf(n), what}
 	if s := k.sourceIndex[key]; s != nil {
 		return s
 	}
-	s := &source{rule: rule, pos: exprPos(e), what: what, kind: kind}
+	s := &source{rule: rule, pos: k.posOf(n), what: what, kind: kind}
 	k.sourceIndex[key] = s
 	return s
 }
@@ -2325,10 +2327,10 @@ func (k *classifier) pathsContainSource(paths []*cont) bool {
 				if it == nil {
 					continue
 				}
-				if r, ok := it.(*ast.Ref); ok && r.Level == rhsLevel {
+				if isRightOperand(it) {
 					return true
 				}
-				if k.containsSource(k.nodeOf(it)) {
+				if k.containsSource(it) {
 					return true
 				}
 			}
