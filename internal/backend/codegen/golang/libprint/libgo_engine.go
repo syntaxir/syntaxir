@@ -96,6 +96,7 @@ var engineDocumentSpecs = []goSpec{
 	{fn: "runPrefix", on: runOn, name: "RunPrefix"},
 	{fn: "runResync", on: runOn, name: "RunResync"},
 	{fn: "runTail", on: runOn, name: "RunTail"},
+	{fn: "runNext", on: runOn, name: "RunNext"},
 	{fn: "runBegin", on: runOn, name: "RunBegin"},
 	{fn: "runEnd", on: runOn, name: "RunEnd"},
 	{fn: "runFinish", on: runOn, name: "RunFinish"},

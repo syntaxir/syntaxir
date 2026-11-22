@@ -64,6 +64,7 @@ type RunElem struct {
 type RunState struct {
 	Min, Max                      int
 	Shiftable, Done, Moved        bool
+	Prefixed                      bool
 	Count                         int
 	EditStart, EditEnd, EditDelta int
 	// The run is Old[:K], then the new elements Mid, then Old[J:J+T] (the elements after the edit,
@@ -183,17 +184,10 @@ func (p *Parser) ResumeRepeat(rs *RunSite) (*value.Node, bool) {
 	if rs.Build {
 		p.KidStack = slices.Grow(p.KidStack, len(r.Old))
 	}
-	for v, ok := p.RunPrefix(&r); ok; v, ok = p.RunPrefix(&r) {
-		if rs.Build {
-			p.KidStack = append(p.KidStack, v)
-		}
-	}
 	for p.RunMore(&r) {
-		if p.RunResync(&r) {
-			for v, ok := p.RunTail(&r); ok; v, ok = p.RunTail(&r) {
-				if rs.Build {
-					p.KidStack = append(p.KidStack, v)
-				}
+		if v, ok := p.RunNext(&r); ok {
+			if rs.Build {
+				p.KidStack = append(p.KidStack, v)
 			}
 			continue
 		}

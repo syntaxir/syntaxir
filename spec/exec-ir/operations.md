@@ -410,6 +410,8 @@ The operations of the component `runs`.
 | `host op run.setEditEnd(r Run, x int) [document]` | reads runs; writes runs | `0` | Sets the field editEnd of the run r to x. |
 | `host op run.editDelta(r Run) int [document]` | reads runs | `0` | Returns the field editDelta of the run r: How many units longer the replacement of the edit is than what it replaced; 0 when the old run is of this text. |
 | `host op run.setEditDelta(r Run, x int) [document]` | reads runs; writes runs | `0` | Sets the field editDelta of the run r to x. |
+| `host op run.prefixed(r Run) bool [document]` | reads runs | `0` | Returns the field prefixed of the run r: Whether the run is past its reused prefix (runNext). |
+| `host op run.setPrefixed(r Run, x bool) [document]` | reads runs; writes runs | `0` | Sets the field prefixed of the run r to x. |
 | `host op run.k(r Run) int [document]` | reads runs | `0` | Returns the field k of the run r: The number of old elements before the edit that the run reused. |
 | `host op run.setK(r Run, x int) [document]` | reads runs; writes runs | `0` | Sets the field k of the run r to x. |
 | `host op run.j(r Run) int [document]` | reads runs | `0` | Returns the field j of the run r: The index of the first old element after the edit that the run reuses, or -1 before the run is back in step. |

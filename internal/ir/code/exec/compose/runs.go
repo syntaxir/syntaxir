@@ -12,12 +12,8 @@ import (
 // repetition itself and calls them around its element expression:
 //
 //	runStart(r, ...)
-//	for v, ok := runPrefix(r); ok; v, ok = runPrefix(r) { keep v }
 //	for runMore(r) {
-//		if runResync(r) {
-//			for v, ok := runTail(r); ok; v, ok = runTail(r) { keep v }
-//			continue
-//		}
+//		if v, ok := runNext(r); ok { keep v; continue }
 //		charge the iteration; runBegin(r); evaluate the element; runEnd(r, ok, v)
 //		stop as a repetition does
 //	}
@@ -178,6 +174,21 @@ reuses them.`
 	tail.Doc = `runTail reuses the next old element after the edit that runResync found the run r in step with, moved by
 the edit, and returns its value and true; it returns false at the end of the old run or when the run may
 take no more elements.`
+
+	next := m.AddFunc("runNext", []Param{P("r", run)}, []Type{value, TBool}, feats, func(b *Builder) {
+		b.If(Not(field("prefixed")), func(b *Builder) {
+			b.LetN([]string{"pv", "pok"}, C("runPrefix", r))
+			b.If(L("pok"), func(b *Builder) { b.Return(L("pv"), BoolC(true)) })
+			set(b, "prefixed", BoolC(true))
+		})
+		b.If(And(Lt(field("j"), Int(0)), Not(C("runResync", r))), func(b *Builder) { b.Return(Null(value), BoolC(false)) })
+		b.LetN([]string{"tv", "tok"}, C("runTail", r))
+		b.Return(L("tv"), L("tok"))
+	})
+	next.Doc = `runNext reuses the next element of the run r that the old run supplies, when runMore(r) holds, and returns
+its value and true: first the reused prefix (runPrefix), then, once the run is back in step with the old
+run after the edit (runResync), the old elements after it (runTail). It returns false when the
+repetition evaluates its next element instead.`
 
 	begin := m.AddFunc("runBegin", []Param{P("r", run)}, nil, feats, func(b *Builder) {
 		set(b, "elemStart", R(exec.Pos))

@@ -116,6 +116,7 @@ func RunFields() []RunField {
 		f("editStart", code.TInt, "The start of the input that the one edit since the old run replaced; the greatest int when the old run is of this text."),
 		f("editEnd", code.TInt, "The end of the input that the edit replaced; the greatest int when the old run is of this text."),
 		f("editDelta", code.TInt, "How many units longer the replacement of the edit is than what it replaced; 0 when the old run is of this text."),
+		f("prefixed", code.TBool, "Whether the run is past its reused prefix (runNext)."),
 		f("k", code.TInt, "The number of old elements before the edit that the run reused."),
 		f("j", code.TInt, "The index of the first old element after the edit that the run reuses, or -1 before the run is back in step."),
 		f("t", code.TInt, "The number of old elements from j on that the run reused."),
@@ -129,8 +130,8 @@ func RunFields() []RunField {
 }
 
 // documentRuns adds to m the host operations of the repetition runs of a Document (spec/runtime/documents.md,
-// "Runs"). A backend calls the compositions of the runs (runStart, runPrefix, runResync, runTail, runBegin,
-// runEnd, runFinish) where a repetition of a Document parse starts, reuses elements and evaluates its
+// "Runs"). A backend calls the compositions of the runs (runStart, runMore, runNext, runBegin, runEnd,
+// runFinish) where a repetition of a Document parse starts, reuses elements and evaluates its
 // element expression, which it runs itself, so that no operation runs grammar code. The operations hold
 // the records of runs and their elements; which record a run takes over, which elements it reuses, and
 // what it records are decided by the compositions. They charge nothing: what a run reuses is not an

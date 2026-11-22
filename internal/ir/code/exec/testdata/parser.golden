@@ -1925,6 +1925,23 @@ host op run.setEditDelta(r Run, x int)
   contract:
     // Sets the field editDelta of the run r to x.
 
+host op run.prefixed(r Run) bool
+  component runs
+  reads runs
+  features document
+  cost <= 0
+  contract:
+    // Returns the field prefixed of the run r: Whether the run is past its reused prefix (runNext).
+
+host op run.setPrefixed(r Run, x bool)
+  component runs
+  reads runs
+  writes runs
+  features document
+  cost <= 0
+  contract:
+    // Sets the field prefixed of the run r to x.
+
 host op run.k(r Run) int
   component runs
   reads runs

@@ -251,6 +251,27 @@ func (p *Parser) RunTail(r *RunState) (*sxirvalue.Node, bool) {
 	return v, true
 }
 
+// RunNext reuses the next element of the run r that the old run supplies, when runMore(r) holds, and returns
+// its value and true: first the reused prefix (runPrefix), then, once the run is back in step with the old
+// run after the edit (runResync), the old elements after it (runTail). It returns false when the
+// repetition evaluates its next element instead.
+//
+// Printed from Exec IR function runNext of internal/ir/code/exec/compose, specialized for document, budget.
+func (p *Parser) RunNext(r *RunState) (*sxirvalue.Node, bool) {
+	if !r.Prefixed {
+		pv, pok := p.RunPrefix(r)
+		if pok {
+			return pv, true
+		}
+		r.Prefixed = true
+	}
+	if r.J < 0 && !p.RunResync(r) {
+		return nil, false
+	}
+	tv, tok := p.RunTail(r)
+	return tv, tok
+}
+
 // RunBegin starts evaluating an element of the run r: its examined input and its expectations are recorded
 // apart from those of the enclosing call, so that the run can record them with the element.
 //

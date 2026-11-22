@@ -48,10 +48,8 @@ type Program struct {
 }
 
 // vmRunSite is a repetition that a Document can resume (state/resume.go): the REPEAT at ip, whose ITER
-// follows it, with NEXT just before the ENDREPEAT at end.
+// follows it, with NEXT just before its ENDREPEAT.
 type vmRunSite struct {
-	end       int  // the ENDREPEAT
-	keep      bool // the elements push values
 	shiftable bool // the elements' values contain no position values
 }
 
@@ -67,7 +65,7 @@ func (vm *Program) runSite(ip int) *vmRunSite {
 	if end <= ip+2 || end >= len(code) || code[end].Op != bytecode.OpEndRepeat || code[end-1].Op != bytecode.OpNext {
 		return nil
 	}
-	site := &vmRunSite{end: end, keep: code[end-1].B != 0, shiftable: true}
+	site := &vmRunSite{shiftable: true}
 	for _, in := range code[ip+2 : end-1] {
 		switch in.Op {
 		case bytecode.OpPred, bytecode.OpBind:
@@ -776,18 +774,7 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 					// A Document parse: resume the run of the previous parse (state/resume.go).
 					r := mc.newRunState()
 					p.RunStart(r, ip, min, max, site.shiftable)
-					rep := &mc.reps[len(mc.reps)-1]
-					rep.run = r
-					for v, ok := p.RunPrefix(r); ok; v, ok = p.RunPrefix(r) {
-						if site.keep {
-							mc.push(v)
-						}
-					}
-					rep.count = r.Count
-					if !p.RunMore(r) {
-						ip = site.end
-						continue
-					}
+					mc.reps[len(mc.reps)-1].run = r
 				}
 			}
 		case bytecode.OpSkipRepeat:
@@ -844,20 +831,26 @@ func (mc *Machine) step(vm *Program, b *vmBody, resume, rok bool, rv *value.Node
 				continue
 			}
 			if rep.run != nil {
-				// The elements of the old run after the edit, reused when the run is back in step
-				// with it, charge no unit (state.ResumeRepeat).
-				r := rep.run
-				if p.RunResync(r) {
-					for v, ok := p.RunTail(r); ok; v, ok = p.RunTail(r) {
-						if m.Code[in.A-1].B != 0 { // NEXT keeps values
-							mc.push(v)
-						}
-					}
-					rep.count = r.Count
+				// The elements that the run reuses charge no unit (state.ResumeRepeat): the iteration
+				// takes them until the run ends or the element is evaluated.
+				r, done := rep.run, false
+				for {
 					if !p.RunMore(r) {
-						ip = int(in.A)
-						continue
+						done = true
+						break
 					}
+					v, ok := p.RunNext(r)
+					if !ok {
+						break
+					}
+					if m.Code[in.A-1].B != 0 { // NEXT keeps values
+						mc.push(v)
+					}
+				}
+				rep.count = r.Count
+				if done {
+					ip = int(in.A)
+					continue
 				}
 			}
 			// One unit for the iteration, before its element (spec/runtime/parsing.md#cost): an

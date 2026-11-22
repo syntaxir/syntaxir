@@ -104,6 +104,7 @@ specialized for a budget do the bookkeeping of the expectations in a free region
 | `func runPrefix(r Run) (Value, bool) [document, budget]` | Reuses the next old element of the run r if it examined only input before the edit since the old run, whatever the edit's change in length, and returns its value and true; it returns false when the reused prefix ends: at an element that examined input at or after the start of the edit, at the end of the old run, after an element that ended the run, or at once when the old run is the one that the edit moved here. |
 | `func runResync(r Run) bool [document, budget]` | Reports whether the run r is back in step with its old run after the edit: an old element starts where the next element would, moved by the edit, and it and every old element after it examined only input after the edit; their values move with the edit only if the run is shiftable. runTail then reuses them. |
 | `func runTail(r Run) (Value, bool) [document, budget]` | Reuses the next old element after the edit that runResync found the run r in step with, moved by the edit, and returns its value and true; it returns false at the end of the old run or when the run may take no more elements. |
+| `func runNext(r Run) (Value, bool) [document, budget]` | Reuses the next element of the run r that the old run supplies, when runMore(r) holds, and returns its value and true: first the reused prefix (runPrefix), then, once the run is back in step with the old run after the edit (runResync), the old elements after it (runTail). It returns false when the repetition evaluates its next element instead. |
 | `func runBegin(r Run) [document, budget]` | Starts evaluating an element of the run r: its examined input and its expectations are recorded apart from those of the enclosing call, so that the run can record them with the element. |
 | `func runEnd(r Run, ok bool, v Value) [document, budget]` | Ends evaluating an element of the run r, with its success ok and value v, before the parse resets its state if it failed: it adds the element's examined input and expectations to those of the enclosing call, and records the element if it matched. |
 | `func runFinish(r Run) [document, budget]` | Records the run r of a repetition that matched, for the rest of this parse and the next one, unless it has fewer elements than the least a Document records, a recovered error remains, or a call in it read the current result of a growth. |
@@ -205,6 +206,7 @@ row includes what its backends print into packages of their own.
 | runPrefix |  |  | `[budget, document]` |  |
 | runResync |  |  | `[budget, document]` |  |
 | runTail |  |  | `[budget, document]` |  |
+| runNext |  |  | `[budget, document]` |  |
 | runBegin |  |  | `[budget, document]` |  |
 | runEnd |  |  | `[budget, document]` |  |
 | runFinish |  |  | `[budget, document]` |  |
