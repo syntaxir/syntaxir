@@ -1,7 +1,7 @@
 package complexity
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -40,7 +40,7 @@ func (k *classifier) withoutReentry(u *unit) []contSpec {
 		return u.conts
 	}
 	cycle := k.an.Cycle[u.rule]
-	if !k.fixedMemoized(cycle) || !k.memoOnly(u.self[0].items[0], cycle) {
+	if !k.fixedMemoized(cycle) || !k.memoOnly(k.nodeOf(u.self[0].items[0]), cycle) {
 		return u.conts
 	}
 	out := make([]contSpec, 0, len(u.conts))
@@ -78,7 +78,7 @@ func (k *classifier) fixedMemoized(cycle int) bool {
 	ok := true
 	for _, r := range k.rules {
 		if ok && k.reach[r.Name] && k.an.Cyclic[r.Name] && k.an.Cycle[r.Name] == cycle {
-			k.visitFixed(r.Expr, cycle, true, &ok)
+			k.visitFixed(k.ruleBody(r.Name), cycle, true, &ok)
 		}
 	}
 	if k.fixed == nil {
@@ -88,102 +88,89 @@ func (k *classifier) fixedMemoized(cycle int) bool {
 	return ok
 }
 
-// memoOnly reports whether e evaluates its scanning sources only inside calls that are memoized
+// memoOnly reports whether n evaluates its scanning sources only inside calls that are memoized
 // at the call and read no variable, and makes no left call of the cycle.
-func (k *classifier) memoOnly(e ast.Expr, cycle int) bool {
+func (k *classifier) memoOnly(n core.Node, cycle int) bool {
 	ok := true
-	k.visitFixed(e, cycle, false, &ok)
+	k.visitFixed(n, cycle, false, &ok)
 	return ok
 }
 
-// visitFixed clears ok when e evaluates a scanning source outside a call that is memoized at the
+// visitFixed clears ok when n evaluates a scanning source outside a call that is memoized at the
 // call and reads no variable. With leaders set, a left call of a leader of the cycle ends what it
-// checks, and it returns whether e always evaluates one; without it, a left call of the cycle
-// clears ok.
-func (k *classifier) visitFixed(e ast.Expr, cycle int, leaders bool, ok *bool) bool {
+// checks, and it returns whether n always evaluates one; without it, a left call of the cycle
+// clears ok. A right operand (isRightOperand) is checked as the call of its rule it stands for.
+func (k *classifier) visitFixed(n core.Node, cycle int, leaders bool, ok *bool) bool {
 	k.control.Poll()
 	if !*ok {
 		return false
 	}
-	memoized := func(r *ast.Ref) bool { return k.memoAt(r) && len(k.vars[r.Name]) == 0 }
-	switch e := e.(type) {
-	case *ast.Ref:
-		if k.byName[e.Name] == nil {
-			return false
-		}
-		if k.an.Cyclic[e.Name] && k.an.Cycle[e.Name] == cycle && !k.outside[e] {
+	if rule, isCall := k.calledRule(n); isCall {
+		r := k.exprOf(n).(*ast.Ref)
+		if k.an.Cyclic[rule] && k.an.Cycle[rule] == cycle && !k.outside[r] {
 			if !leaders {
 				*ok = false
 				return false
 			}
-			return k.an.Leaders[e.Name]
+			return k.an.Leaders[rule]
 		}
-		if (k.srcExprs[e] || k.ruleSrc[e.Name] != nil) && !memoized(e) {
+		if (k.srcExprs[r] || k.ruleSrc[rule] != nil) && !(k.memoAt(r) && len(k.vars[rule]) == 0) {
 			*ok = false
 		}
 		return false
 	}
-	if k.srcExprs[e] {
+	if k.srcExprs[k.exprOf(n)] {
 		*ok = false
 		return false
 	}
-	switch e := e.(type) {
-	case *ast.Seq:
-		for _, it := range e.Items {
+	switch n := n.(type) {
+	case *core.Seq:
+		for _, it := range n.Items {
 			if k.visitFixed(it, cycle, leaders, ok) {
 				return true
 			}
 		}
 		return false
-	case *ast.Choice:
-		all := len(e.Alts) > 0
-		for _, alt := range e.Alts {
-			all = k.visitFixed(alt, cycle, leaders, ok) && all
+	case *core.Choice:
+		all := len(n.Alts) > 0
+		for _, alt := range n.Alts {
+			all = k.visitFixed(alt.Body, cycle, leaders, ok) && all
 		}
 		return all
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Repeat:
+		if n.Max == 0 {
 			return false
 		}
-		read := k.visitFixed(e.Expr, cycle, leaders, ok)
-		return read && e.Min > 0
-	case *ast.Optional:
-		k.visitFixed(e.Expr, cycle, leaders, ok)
+		read := k.visitFixed(n.Body, cycle, leaders, ok)
+		return read && n.Min > 0
+	case *core.Opt:
+		k.visitFixed(n.Body, cycle, leaders, ok)
 		return false
-	case *ast.And:
-		k.visitFixed(e.Expr, cycle, leaders, ok)
+	case *core.Look:
+		k.visitFixed(n.Body, cycle, leaders, ok)
 		return false
-	case *ast.Not:
-		k.visitFixed(e.Expr, cycle, leaders, ok)
+	case *core.Capture:
+		return k.visitFixed(n.Body, cycle, leaders, ok)
+	case *core.Drop:
+		return k.visitFixed(n.Body, cycle, leaders, ok)
+	case *core.Text:
+		return k.visitFixed(n.Body, cycle, leaders, ok)
+	case *core.Label:
+		return k.visitFixed(n.Body, cycle, leaders, ok)
+	case *core.Missing:
+		return k.visitFixed(n.Body, cycle, leaders, ok)
+	case *core.Stream:
+		return k.visitFixed(n.Repeat, cycle, leaders, ok)
+	case *core.Recover:
+		// The skip runs where the body failed, so what the body reads is not certain to be read.
+		k.visitFixed(n.Body, cycle, leaders, ok)
+		k.visitFixed(n.Skip, cycle, false, ok)
 		return false
-	case *ast.Group:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.Capture:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.Discard:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.Atomic:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.Stream:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.InlineAction:
-		return k.visitFixed(e.Expr, cycle, leaders, ok)
-	case *ast.Recovery:
-		read := k.visitFixed(e.Expr, cycle, leaders, ok)
-		k.visitFixed(e.Skip, cycle, false, ok)
-		return read
-	case *ast.Attributed:
-		read := k.visitFixed(e.Expr, cycle, leaders, ok)
-		if skip := astfacts.RecoverSkip(e); skip != nil {
-			k.visitFixed(skip, cycle, false, ok)
-			return false
-		}
-		return read
-	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Predicate, *ast.Cut,
-		*ast.Top, *ast.BeginInput, *ast.BeginLine, *ast.EndInput:
+	case *core.Lit, *core.ClassNode, *core.Any, *core.Pred, *core.BindNode, *core.Cut,
+		*core.Succeed, *core.FailNode, *core.Anchor:
 		return false
 	}
-	if k.containsSource(k.nodeOf(e)) {
+	if k.containsSource(n) {
 		*ok = false
 	}
 	return false
@@ -206,10 +193,11 @@ func (k *classifier) restBounded(paths []*cont) bool {
 				if it == nil {
 					continue
 				}
-				if _, ok := it.(*ast.EndInput); ok {
+				n := k.nodeOf(it)
+				if a, ok := n.(*core.Anchor); ok && a.Kind == core.EndInput {
 					return true
 				}
-				if r, ok := it.(*ast.Ref); ok && r.Level == rhsLevel || k.containsSource(k.nodeOf(it)) {
+				if isRightOperand(n) || k.containsSource(n) {
 					return false
 				}
 			}
