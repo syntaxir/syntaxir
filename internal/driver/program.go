@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -36,13 +37,15 @@ func (p *Program) Options() common.CompileOptions { return p.opts }
 func (p *Program) Start() *common.Rule { return p.start }
 
 // compilation is the input of the pipeline of a target: the program, the target with its options
-// completed from the program and the call, the options of the call, and the target as its printer
-// reads it (common.TargetFeature), which the pipeline of the target provides.
+// completed from the program and the call, the options of the call, the target as its printer
+// reads it (common.TargetFeature), and the reach of the plan that the fallback of planning gives
+// (plandata.ReachFeature), nil for none; the assembled pipeline provides both.
 type compilation struct {
 	p      *Program
 	t      Target
 	o      Options
 	target common.Target
+	reach  map[plandata.Entry]bool
 }
 
 // compilationIR is the kind program: the input of a compilation.

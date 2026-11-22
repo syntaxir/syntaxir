@@ -57,7 +57,32 @@ func GoWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 // selects (Passes), and lib.ts with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.TSLib = tsLib
-	return tsprint.Generate(g, compileForGenerator, Passes(o, Hooks{}), o)
+	return TypeScriptWith(compileForGenerator, g, o, driver.Options{})
+}
+
+// TypeScriptWith is TypeScript with the compiler c, which checks the grammar, the library o.TSLib,
+// and the edits and observers of x (tests); the settings and the debugging settings of x come from o.
+func TypeScriptWith(c common.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options) ([]common.GeneratedFile, error) {
+	if o.Lib == common.LibOnly {
+		return tsprint.LibFiles(o.TSLib)
+	}
+	o, err := tsprint.Validate(o)
+	if err != nil {
+		return nil, err
+	}
+	if x.Settings, err = Settings(o); err != nil {
+		return nil, err
+	}
+	x.Debug = o.Debug
+	p, err := driver.CheckWith(c, g, common.CompileOptions{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}, o.Start)
+	if err != nil {
+		return nil, err
+	}
+	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.TypeScript, Gen: o})
+	if err != nil {
+		return nil, err
+	}
+	return out[0].(*result.Files).Files, nil
 }
 
 // compileForGenerator is the common.Compiler that the generators compile grammars with: it gives

@@ -149,6 +149,13 @@ func (d *Driver) drop() {
 	}
 }
 
+// restart forgets what the observers collected of a run, its dumps, statistics and times, for a
+// run that replaces it (Compile).
+func (d *Driver) restart() {
+	d.drop()
+	d.watch = nil
+}
+
 // programLabel labels the dumps of the steps that run on the whole program.
 const programLabel = "program"
 
@@ -516,7 +523,7 @@ func pipeError(err error, required ...string) error {
 // Plan runs the step that plans the program c (flowplan.Planning) and returns its plan, which is
 // dumped, labeled "program", only if PrintAfter names the step. A failure is an internal error.
 func (d *Driver) Plan(c *plandata.Cores) (*plandata.Program, error) {
-	p, err := pipe.Execute(context.Background(), d.pipeRun("program", true), pipe.Of(flowplan.Planning), c)
+	p, err := pipe.Execute(context.Background(), d.pipeRun("program", true), pipe.WithConst(plandata.ReachFeature, nil, pipe.Of(flowplan.Planning)), c)
 	if err != nil {
 		return nil, pipeError(err)
 	}

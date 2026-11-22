@@ -13,24 +13,27 @@ import (
 // PlanName is the name of the step that plans a program (Planning).
 const PlanName = "plan"
 
-// Planning is the step that plans a program from the Core IR of its tables (PlanProgram). Its facts
-// are those of the whole program, which no table decides alone: a call in one table's rule reaches
-// rules that only the program's entry points make reachable.
+// Planning is the step that plans a program from the Core IR of its tables (PlanProgram), with the
+// reach that the compilation gives, if any (plandata.ReachFeature). Its facts are those of the whole
+// program, which no table decides alone: a call in one table's rule reaches rules that only the
+// program's entry points make reachable.
 var Planning = pipe.New(pipe.Def[*plandata.Cores, *plandata.Program]{
-	Decl: pipe.Decl{Name: PlanName, Required: true, Obligation: "The plan holds the route of every call and the rules that the entry points of the program reach."},
-	In:   plandata.CoresIR, Out: plandata.ProgramIR,
-	Run: func(_ *pipe.Ctx[*plandata.Cores], c *plandata.Cores) (*plandata.Program, pass.PreservedSet, error) {
+	Decl: pipe.Decl{Name: PlanName, Required: true, Obligation: "The plan holds the route of every call and the rules that the entry points of the program reach.",
+		Features: []pipe.FeatureID{plandata.ReachFeature.ID()}},
+	In: plandata.CoresIR, Out: plandata.ProgramIR,
+	Run: func(x *pipe.Ctx[*plandata.Cores], c *plandata.Cores) (*plandata.Program, pass.PreservedSet, error) {
 		// The manager verifies what a step makes, so the step checks what it is given.
 		if err := plandata.CoresIR.Verify(c); err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		return PlanProgram(c), pass.PreserveNone(), nil
+		return PlanProgram(c, pipe.Feature(x, plandata.ReachFeature)), pass.PreserveNone(), nil
 	},
 })
 
 // PlanProgram plans the program c: the route of a call of each rule (CallsWrapper), the rules that
-// the entry points of c reach through those routes (Reach) and the tables of its units (planUnits).
-func PlanProgram(c *plandata.Cores) *plandata.Program {
+// the entry points of c reach through those routes (Reach), or reach if it is not nil, and the tables
+// of its units (planUnits).
+func PlanProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Program {
 	// An entry point that the program enters in several ways (a typed start rule that several entry
 	// points run) is one root of the plan.
 	p := &plandata.Program{Cores: c}
@@ -47,7 +50,10 @@ func PlanProgram(c *plandata.Cores) *plandata.Program {
 		}
 		p.Tables = append(p.Tables, r)
 	}
-	p.Reach = Reach(c, p, p.Roots)
+	p.Reach = reach
+	if p.Reach == nil {
+		p.Reach = Reach(c, p, p.Roots)
+	}
 	planUnits(c, p)
 	return p
 }

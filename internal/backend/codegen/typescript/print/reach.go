@@ -7,6 +7,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -80,6 +81,40 @@ func reachFrom(prog, rec *common.Program, start *common.Rule, document bool, mod
 		})
 	}
 	return l, nil
+}
+
+// liveOf returns the rules that the plan p reaches, in the ways it reaches them, for each of its tables.
+func liveOf(p *plandata.Program) *tsLive {
+	l := &tsLive{reach: map[string][]core.Entry{}}
+	for _, t := range p.Tables {
+		entries := make([]core.Entry, len(t.Names))
+		for id := range entries {
+			if p.Reach[plandata.Entry{Table: t.Table, ID: id}] {
+				entries[id] |= core.EnterSlot
+			}
+			if p.Reach[plandata.Entry{Table: t.Table, ID: id, Wrapper: true}] {
+				entries[id] |= core.EnterWrapper
+			}
+		}
+		l.reach[t.Table] = entries
+	}
+	return l
+}
+
+// entries returns the reach of l as the reach of a plan (plandata.Program.Reach).
+func (l *tsLive) entries() map[plandata.Entry]bool {
+	r := map[plandata.Entry]bool{}
+	for table, entries := range l.reach {
+		for id, e := range entries {
+			if e&core.EnterSlot != 0 {
+				r[plandata.Entry{Table: table, ID: id}] = true
+			}
+			if e&core.EnterWrapper != 0 {
+				r[plandata.Entry{Table: table, ID: id, Wrapper: true}] = true
+			}
+		}
+	}
+	return r
 }
 
 // equal reports whether l and o enter the same rules in the same ways.

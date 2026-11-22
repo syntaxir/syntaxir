@@ -8,7 +8,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -114,7 +113,7 @@ func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFi
 	}
 	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
-	return tsprint.Generate(g, Compile, Passes(opts), opts)
+	return generate.TypeScriptWith(Compile, g, opts, driver.Options{})
 }
 
 // Passes returns the passes that the driver resolves from opts (generate.Passes), as the generators of

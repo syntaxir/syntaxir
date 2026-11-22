@@ -3,6 +3,7 @@ package plandata
 import (
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -86,6 +87,54 @@ func (p *Program) Wrapper(table string, rule int) bool {
 		}
 	}
 	return false
+}
+
+// ReachFeature is the reach of the plan of a program when the compilation gives it, the reach of the
+// code that a printer printed in an earlier run (the fallback for planning): the planning takes it
+// instead of following the calls of the Core IR. Nil, written none, has the planning compute it.
+var ReachFeature = pipe.NewFeature("reach", formatReach, parseReach)
+
+// formatReach writes the reach r as the entries it holds, sorted and separated by spaces, each as
+// table.id or, for the entry of a wrapper, table.id/wrapper, or none for nil.
+func formatReach(r map[Entry]bool) string {
+	if r == nil {
+		return "none"
+	}
+	var es []string
+	for e, ok := range r {
+		if ok {
+			s := e.Table + "." + strconv.Itoa(e.ID)
+			if e.Wrapper {
+				s += "/wrapper"
+			}
+			es = append(es, s)
+		}
+	}
+	slices.Sort(es)
+	return strings.Join(es, " ")
+}
+
+// parseReach reads the reach that formatReach writes.
+func parseReach(s string) (map[Entry]bool, error) {
+	if s == "none" {
+		return nil, nil
+	}
+	r := map[Entry]bool{}
+	for _, f := range strings.Fields(s) {
+		var e Entry
+		f, e.Wrapper = strings.CutSuffix(f, "/wrapper")
+		i := strings.LastIndexByte(f, '.')
+		if i <= 0 {
+			return nil, fmt.Errorf("reach entry %q is not table.id", f)
+		}
+		id, err := strconv.Atoi(f[i+1:])
+		if err != nil || id < 0 {
+			return nil, fmt.Errorf("reach entry %q has no rule ID", f)
+		}
+		e.Table, e.ID = f[:i], id
+		r[e] = true
+	}
+	return r, nil
 }
 
 // CoresIR is the kind of the input of the planning of a program, and ProgramIR that of its plan. The

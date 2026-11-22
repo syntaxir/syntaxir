@@ -11,10 +11,12 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -80,26 +82,51 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
 	t.Gen.Debug = o.Debug
 	c := &compilation{p: p, t: t, o: o}
-	a, err := assemble(c)
-	if err != nil {
-		return nil, err
-	}
-	pl, err := pipe.Apply(a.pipeline, o.Edits...)
-	if err != nil {
+	if err := c.decide(); err != nil {
 		return nil, err
 	}
 	d := debugger(o)
-	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers("")}, pl, c)
+	out, err := c.run(ctx, d)
+	if r, ok := out.(*common.Replan); ok && err == nil {
+		// The fallback of planning: the printed code enters other rules than the plan reaches, so
+		// the compilation runs again with the reach of the printed code, and what the observers of
+		// the debugging settings collected of the first run is dropped.
+		d.restart()
+		c.reach = r.Reach
+		if out, err = c.run(ctx, d); err == nil {
+			if _, again := out.(*common.Replan); again {
+				err = fmt.Errorf("internal error: the %s printer asks again for another reach than the one it printed", t.Backend)
+			}
+		}
+	}
 	// The dumps are written also on an error, whose dumps show what led to it; the reports only
 	// after a build.
 	if ferr := d.flush(); ferr != nil && err == nil {
 		err = ferr
 	}
 	if err != nil {
-		return nil, a.error(err)
+		return nil, err
 	}
 	d.Report()
 	return []Output{out}, nil
+}
+
+// run executes the pipeline of the compilation c once, with the observers of the debugging settings
+// and of the call that d runs.
+func (c *compilation) run(ctx context.Context, d *Driver) (Output, error) {
+	a, err := c.assemble()
+	if err != nil {
+		return nil, err
+	}
+	pl, err := pipe.Apply(a.pipeline, c.o.Edits...)
+	if err != nil {
+		return nil, err
+	}
+	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers("")}, pl, c)
+	if err != nil {
+		return nil, a.error(err)
+	}
+	return out, nil
 }
 
 // debugger returns the driver whose observers write what the debugging settings of the call o select
@@ -120,21 +147,50 @@ type assembled struct {
 	steps []string
 }
 
-// assemble returns the pipeline of the target of the compilation c, from the program to its output,
-// with the target as its printer reads it (common.TargetFeature).
-func assemble(c *compilation) (assembled, error) {
+// decide checks the options of the target of the compilation c that do not depend on the grammar,
+// completing them, and sets the target as its printer reads it (common.TargetFeature).
+func (c *compilation) decide() error {
+	p := c.p
 	switch c.t.Backend {
 	case result.Go:
 		opts, err := goprint.Validate(c.t.Gen)
 		if err != nil {
-			return assembled{}, err
+			return err
 		}
 		c.t.Gen = opts
-		p := c.p
 		c.target = goprint.NewGoTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings)
-		return goPipeline(c)
+		return nil
+	case result.TypeScript:
+		opts, err := tsprint.Validate(c.t.Gen)
+		if err != nil {
+			return err
+		}
+		c.t.Gen = opts
+		c.target = tsprint.NewTSTarget(p.View(), p.Recognizer, p.Start(), opts, c.o.Settings)
+		return nil
 	}
-	return assembled{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
+	return fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
+}
+
+// assemble returns the pipeline of the target of the compilation c, from the program to its output,
+// with the target as its printer reads it (common.TargetFeature) and the reach of the plan that the
+// compilation gives (plandata.ReachFeature).
+func (c *compilation) assemble() (assembled, error) {
+	var a assembled
+	var err error
+	switch c.t.Backend {
+	case result.Go:
+		a, err = goPipeline(c)
+	case result.TypeScript:
+		a, err = tsPipeline(c)
+	default:
+		err = fmt.Errorf("internal error: no pipeline is assembled for the backend %s", c.t.Backend)
+	}
+	if err != nil {
+		return assembled{}, err
+	}
+	a.pipeline = pipe.WithConst(common.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, c.reach, a.pipeline))
+	return a, nil
 }
 
 // error returns the failure err of a run of the pipeline: the failure of one of the steps a.steps as

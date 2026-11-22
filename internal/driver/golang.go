@@ -72,13 +72,12 @@ func (c *compilation) goDecision() (*goprint.Decision, error) {
 
 // goPipeline returns the pipeline of the Go target of the compilation c.
 func goPipeline(c *compilation) (assembled, error) {
-	t, err := c.goTarget()
-	if err != nil {
+	if _, err := c.goTarget(); err != nil {
 		return assembled{}, err
 	}
-	p := pipe.WithConst(common.TargetFeature, common.Target(t), pipe.Then3(
+	p := pipe.Then3(
 		pipe.Then(pipe.Each(goTables, coreConfig()), pipe.Of(flowplan.Planning)),
 		pipe.Each(plannedTables, lowering(goprint.FlowTarget, gopass.Pipeline)),
-		pipe.Of(goprint.Printing)))
+		pipe.Of(goprint.Printing))
 	return assembled{pipeline: p, steps: []string{Elaborate, "each go-tables", goprint.Printing.Name()}}, nil
 }

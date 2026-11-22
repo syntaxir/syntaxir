@@ -1,8 +1,11 @@
 package driver
 
 import (
+	"slices"
+
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -88,7 +91,7 @@ func lowering(flowTarget flowpass.Target, target TargetPipeline) pipe.Pipeline[p
 // the functions it leaves out, labeled with flowplan.UnreachableSuffix, which only the numbering
 // reads.
 var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, plandata.ExecTable, common.TablesIR, &pipe.Split[*plandata.Program, plandata.Planned, *plandata.Table[code.Exec], *common.Tables]{
-	Name: "planned-tables", Labels: plannedLabels(goprint.TableLabels),
+	Name: "planned-tables", Labels: plannedLabels(goprint.TableLabels, tsprint.TableLabels),
 	Parts: func(p *plandata.Program) ([]plandata.Planned, []string, error) {
 		units, labels := make([]plandata.Planned, len(p.Units)), make([]string, len(p.Units))
 		for i, u := range p.Units {
@@ -99,14 +102,22 @@ var plannedTables = pipe.RegisterSplit(plandata.ProgramIR, plandata.PlannedIR, p
 	Join: common.JoinTables,
 })
 
-// plannedLabels returns the labels of the planned tables of a backend whose tables are labeled labels:
-// each label, and each with flowplan.UnreachableSuffix.
+// plannedLabels returns the labels of the planned tables of the backends whose tables are labeled
+// labels: each label, and each with flowplan.UnreachableSuffix, once, in the order of their first
+// use.
 func plannedLabels(labels ...[]string) []string {
 	var out []string
+	add := func(n string) {
+		if !slices.Contains(out, n) {
+			out = append(out, n)
+		}
+	}
 	for _, l := range labels {
-		out = append(out, l...)
 		for _, n := range l {
-			out = append(out, n+flowplan.UnreachableSuffix)
+			add(n)
+		}
+		for _, n := range l {
+			add(n + flowplan.UnreachableSuffix)
 		}
 	}
 	return out

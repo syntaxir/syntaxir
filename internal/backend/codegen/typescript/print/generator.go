@@ -62,22 +62,8 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	if opts.Lib == common.LibOnly {
 		return LibFiles(opts.TSLib)
 	}
-	if opts.Lib == common.LibImport && opts.LibModule == "" {
-		return nil, fmt.Errorf("the TypeScript library module (the specifier the parser imports the library from) is required with the import library mode")
-	}
-	if opts.Lib != common.LibImport && opts.LibModule != "" {
-		return nil, fmt.Errorf("the TypeScript library module can only be set with the import library mode")
-	}
-	if opts.Stream {
-		return nil, fmt.Errorf("stream generation is only supported for Go")
-	}
-	if opts.TypedOnly {
-		return nil, fmt.Errorf("typed-only generation is only supported for Go")
-	}
-	if err := opts.ValidateMaxDepth(true); err != nil {
-		return nil, err
-	}
-	if err := opts.ValidateDefaultValue(); err != nil {
+	opts, err := Validate(opts)
+	if err != nil {
 		return nil, err
 	}
 	// The settings that decide the output are read from the generator (Generator.Opt); this only
@@ -115,37 +101,14 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 	var dumped *bytes.Buffer
 	newGen := func(live *tsLive) (*Generator, error) {
 		dumped = &bytes.Buffer{}
-		tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document, TypeScript: true}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
-		tsg.NoBudget = opts.NoLimitControls
+		tsg := newGenerator(prog, opts, live)
 		var dumps io.Writer
 		if opts.Debug.Output != nil {
 			dumps = dumped
 		}
 		tsg.Runner = p.Runner(dumps)
-		tsg.optionsType = "ParseOptions"
-		if opts.NoLimitControls {
-			tsg.optionsType = "PlainParseOptions"
-		}
-		tsg.Desc(core.FixedDescs[0]) // the fixed expectations come first
-		tsg.rules()
-		tsg.runKeys()
-		if tsg.FlowErr != nil {
-			return nil, tsg.FlowErr
-		}
-		if tsg.reachErr != nil {
-			return nil, tsg.reachErr
-		}
-		if rec != nil {
-			tsg.Prog, tsg.Table = rec, "recRules"
-			tsg.rules()
-			tsg.runKeys()
-			tsg.Prog, tsg.Table = prog, "rules"
-			if tsg.FlowErr != nil {
-				return nil, tsg.FlowErr
-			}
-			if tsg.reachErr != nil {
-				return nil, tsg.reachErr
-			}
+		if err := tsg.generate(rec); err != nil {
+			return nil, err
 		}
 		return tsg, nil
 	}
@@ -176,7 +139,77 @@ func GenerateParser(g *ast.Grammar, c common.Compiler, p common.Passes, opts com
 			return nil, err
 		}
 	}
+	return tsg.print(opts, rec, start)
+}
 
+// Validate checks the options of a TypeScript parser that do not depend on the grammar, other than
+// those of the library alone (common.LibOnly), which the caller handles, and returns them.
+func Validate(opts common.GenOptions) (common.GenOptions, error) {
+	if opts.Lib == common.LibImport && opts.LibModule == "" {
+		return opts, fmt.Errorf("the TypeScript library module (the specifier the parser imports the library from) is required with the import library mode")
+	}
+	if opts.Lib != common.LibImport && opts.LibModule != "" {
+		return opts, fmt.Errorf("the TypeScript library module can only be set with the import library mode")
+	}
+	if opts.Stream {
+		return opts, fmt.Errorf("stream generation is only supported for Go")
+	}
+	if opts.TypedOnly {
+		return opts, fmt.Errorf("typed-only generation is only supported for Go")
+	}
+	if err := opts.ValidateMaxDepth(true); err != nil {
+		return opts, err
+	}
+	if err := opts.ValidateDefaultValue(); err != nil {
+		return opts, err
+	}
+	return opts, nil
+}
+
+// newGenerator returns the generator of the TypeScript parser of prog with the options opts, which
+// prints the rules that live holds, starting with the Node table.
+func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
+	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document, TypeScript: true}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
+	tsg.NoBudget = opts.NoLimitControls
+	tsg.optionsType = "ParseOptions"
+	if opts.NoLimitControls {
+		tsg.optionsType = "PlainParseOptions"
+	}
+	return tsg
+}
+
+// generate generates the rules of the Node table and, if rec is not nil, of the recognizer rec, and
+// returns the first error of their generation.
+func (tsg *Generator) generate(rec *common.Program) error {
+	tsg.Desc(core.FixedDescs[0]) // the fixed expectations come first
+	tsg.rules()
+	tsg.runKeys()
+	if tsg.FlowErr != nil {
+		return tsg.FlowErr
+	}
+	if tsg.reachErr != nil {
+		return tsg.reachErr
+	}
+	if rec != nil {
+		prog := tsg.Prog
+		tsg.Prog, tsg.Table = rec, "recRules"
+		tsg.rules()
+		tsg.runKeys()
+		tsg.Prog, tsg.Table = prog, "rules"
+		if tsg.FlowErr != nil {
+			return tsg.FlowErr
+		}
+		if tsg.reachErr != nil {
+			return tsg.reachErr
+		}
+	}
+	return nil
+}
+
+// print returns the files of the parser whose rules tsg generated, with the options opts, the
+// recognizer rec (nil if there is none) and the start rule start.
+func (tsg *Generator) print(opts common.GenOptions, rec *common.Program, start *common.Rule) ([]common.GeneratedFile, error) {
+	prog := tsg.Prog
 	var out strings.Builder
 	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), common.UseSparseMemo(tsg.Opt(), prog, rec), opts.Observability, !opts.NoLimitControls)
 	fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
@@ -247,6 +280,7 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	var types string
 	if opts.Types {
 		var typed string
+		var err error
 		if types, typed, err = tsg.typedTS(start); err != nil {
 			return nil, err
 		}
@@ -350,7 +384,10 @@ type Generator struct {
 	live *tsLive
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
 	// functions the printer prints; nil if its Core IR or its lowering failed (FlowErr).
-	table    *plandata.Table[code.Exec]
+	table *plandata.Table[code.Exec]
+	// tables are the tables of the compilation at the Exec stage that the printer prints, or nil for a
+	// generator that lowers its tables itself.
+	tables   *common.Tables
 	reachErr error
 	// printed holds, for each table, the rules that the printed code of each rule calls (by ID).
 	printed map[string]map[int][]int

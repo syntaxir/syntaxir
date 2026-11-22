@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -38,6 +39,20 @@ type Target interface {
 // Its text names the backend; a pipeline text cannot provide it as a constant, since the target holds
 // the program.
 var TargetFeature = pipe.NewFeature("target", Target.Backend, nil)
+
+// Replan is the output of a printer whose printed code enters other rules than the plan of the
+// program reaches (plandata.Program.Reach), in place of its files: Reach is the reach of the printed
+// code. Printing can leave out calls that the Core IR has, such as a call after an expression that
+// never matches, so the plan reaches rules that nothing printed enters. The driver then runs the
+// compilation again with Reach as the reach of the plan (plandata.ReachFeature), which is the fallback
+// for planning, and returns the output of that run.
+type Replan struct {
+	Lang  result.Backend
+	Reach map[plandata.Entry]bool
+}
+
+// Backend returns the backend of the printer.
+func (r *Replan) Backend() result.Backend { return r.Lang }
 
 // TableSource is the unit table: the build of the Core IR of one table of a program, which the step
 // elaborate runs, and the key of the build, which is the same for the tables whose builds make the

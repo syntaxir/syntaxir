@@ -1,35 +1,45 @@
 package print
 
 import (
+	"context"
 	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
-	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
+	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
+	"syntaxir.dev/sxir/internal/middleend/flowpass"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
-// testGenerator returns a generator whose settings are opt and whose runner runs the pipelines with
-// them, as the driver makes it for a generation (common.Passes).
+// testGenerator returns a generator of tables lowered with the settings opt.
 func testGenerator(opt pass.Settings) *Generator {
-	return &Generator{Generator: common.Generator{Runner: &driver.Driver{Opt: opt}}}
+	return &Generator{Generator: common.Generator{Settings: opt}}
 }
 
 // printModule prints the one function of the module f at the Flow stage as printTSFlowExec prints a
-// function of the table: converted to the Exec stage with the TypeScript passes, as the lowering of
-// the table converts it.
+// function of the table: converted to the Exec stage with the Exec passes and the TypeScript passes
+// under the settings of g, as the lowering of a table converts it. f is consumed.
 func (g *Generator) printModule(t *testing.T, f *code.Module) (string, []string, []tsDecl) {
 	t.Helper()
-	x, err := g.Runner.Exec("rules", f, tspass.Pipeline, false)
+	// The module is at the Flow stage and no plan holds its functions.
+	in, err := plandata.NewTable(nil, nil, code.At[code.Flow]{}.With(f))
 	if err != nil {
 		t.Fatal(err)
 	}
-	return g.printTSFlowExec(execlower.View(x, 0))
+	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule,
+		pipe.WithConst(flowpass.ObserveFeature, false, pipe.Then(codepass.Pipeline(), pipe.PerFunc(execlower.LoweredFuncs, tspass.Pipeline)))))
+	x, err := pipe.Execute(context.Background(), &pipe.Run{Settings: g.Opt()}, exec, in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return g.printTSFlowExec(execlower.View(x.Module.Module(), 0))
 }
 
 // markInIfFunc returns a framed function whose mark of the parser state is set in the body of an If

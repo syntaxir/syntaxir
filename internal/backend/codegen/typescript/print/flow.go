@@ -32,11 +32,24 @@ import (
 // generation then fails.
 type tsFlowUnsupported string
 
-// startTSFlow builds the Core IR of the table being generated and lowers its planned functions to the
-// Exec stage (lowerTable) for printing its rules. It reports whether the table was lowered; if not,
+// startTSFlow starts printing the rules of the table being generated: from its table at the Exec stage
+// among the tables of the compilation, or, without them, by building its Core IR and lowering its
+// planned functions to the Exec stage (lowerTable). It reports whether the table was lowered; if not,
 // the generation fails with the error it records.
 func (g *Generator) startTSFlow() bool {
 	g.Flow, g.table = nil, nil
+	if g.tables != nil {
+		t := g.tables.Table(g.IRTable())
+		if t == nil {
+			if g.FlowErr == nil {
+				g.FlowErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
+			}
+			return false
+		}
+		g.Flow = &common.FlowState{TableIR: t.IR, Rules: append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)}
+		g.table = t
+		return true
+	}
 	err := g.StartRecFlow(g.Prog)
 	if err == nil {
 		g.table, err = g.lowerTable()
