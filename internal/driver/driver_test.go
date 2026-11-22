@@ -374,7 +374,8 @@ func TestDriverFlow(t *testing.T) {
 	}
 	// The real pipeline prints the function after each pass that applies: for a framed function
 	// of a target that has every form and no observability, every pass but terminals (local
-	// functions only) and class-tables (a number, off at its default 0), and flow-finish.
+	// functions only) and class-tables (a number, off at its default 0), then canonicalize, which
+	// applies to every function, and flow-finish.
 	all := flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 	dump.Reset()
 	if _, err := (&Driver{PrintAfter: []string{PrintAll}, Output: &dump}).Flow("typed", framed(), false, all); err != nil {
@@ -386,7 +387,7 @@ func TestDriverFlow(t *testing.T) {
 			printed = append(printed, strings.TrimSuffix(strings.TrimSuffix(strings.TrimSuffix(name, " --"), " [typed]"), " [typed/r]"))
 		}
 	}
-	if want := []string{flowlower.Name, flowpass.PassGuardedClasses, flowpass.PassClassRuns, flowpass.PassInlineLiterals, flowpass.FinishName}; !slices.Equal(printed, want) {
+	if want := []string{flowlower.Name, flowpass.PassGuardedClasses, flowpass.PassClassRuns, flowpass.PassInlineLiterals, codepass.PassCanonicalize, flowpass.FinishName}; !slices.Equal(printed, want) {
 		t.Errorf("all printed %v, want %v:\n%s", printed, want, dump.String())
 	}
 }
@@ -662,21 +663,25 @@ func TestDriverExecFailureKeepsTheLoweredFunction(t *testing.T) {
 	}
 }
 
-// seqRecorder records the numbers of the decided runs of optional passes (pipe.Event.Seq).
+// seqRecorder records the numbers of the decided runs of optional passes (pipe.Event.Seq) when they
+// are decided, before each run: a pattern of canonicalize is decided, and numbered, while its pass
+// runs, so its After comes before that of the pass.
 type seqRecorder struct{ seqs []int }
 
-func (*seqRecorder) Needs() pipe.Needs                       { return pipe.Needs{} }
-func (*seqRecorder) Before(pipe.Event, func(io.Writer)) bool { return true }
-func (r *seqRecorder) After(e pipe.Event, _ *pipe.Result) {
+func (*seqRecorder) Needs() pipe.Needs { return pipe.Needs{} }
+func (r *seqRecorder) Before(e pipe.Event, _ func(io.Writer)) bool {
 	if e.Seq != 0 {
 		r.seqs = append(r.seqs, e.Seq)
 	}
+	return true
 }
+func (*seqRecorder) After(pipe.Event, *pipe.Result) {}
 
 // One compilation numbers the decided runs of the optional passes once, in the order they run: the
 // Core, Flow and Exec stages of two tables, run through one driver, give one strictly increasing
-// numbering, which no stage restarts. The Flow and Exec stages run a test pass each, since no pass of
-// theirs applies to the functions of table.
+// numbering, which no stage restarts, in the order the runs are decided: a run of canonicalize takes
+// its number before those of the patterns it applies. The Flow and Exec stages also run a test pass
+// each.
 func TestDriverNumbersTheCompilationOnce(t *testing.T) {
 	rec := &seqRecorder{}
 	d := &Driver{Hooks: Hooks{Observers: []pipe.Observer{rec}, FlowPipeline: withTestFlowPass(t),
