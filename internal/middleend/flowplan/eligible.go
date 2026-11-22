@@ -1,7 +1,7 @@
 package flowplan
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -21,7 +21,7 @@ func RecEligible(r *plandata.Rule) bool {
 		return false
 	}
 	ok := true
-	astfacts.WalkExpr(r.Body, func(e ast.Expr) {
+	astinspect.WalkExpr(r.Body, func(e ast.Expr) {
 		if _, predicate := e.(*ast.Predicate); predicate {
 			ok = false
 		}

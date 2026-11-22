@@ -28,7 +28,7 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/types"
@@ -633,7 +633,7 @@ func (b *coreBuilder) node(e ast.Expr, s *coreScope, build bool) (core.Node, err
 // nil.
 func firstStream(body ast.Expr) ast.Expr {
 	var first ast.Expr
-	astfacts.WalkExpr(body, func(e ast.Expr) {
+	astinspect.WalkExpr(body, func(e ast.Expr) {
 		if first == nil && check.IsStream(e) {
 			first = e
 		}

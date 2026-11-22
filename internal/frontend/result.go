@@ -2,7 +2,7 @@ package frontend
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/types"
@@ -79,7 +79,7 @@ func (r *Result) Resumable(e ast.Expr) bool { return r.resumable(e, nil) }
 
 func (r *Result) resumable(e ast.Expr, control *cancel.Control) bool {
 	ok := check.ElementScopedControlled(e, control) || !anyCapture(e, control)
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.Predicate:
 			ok = false
@@ -96,7 +96,7 @@ func (r *Result) resumable(e ast.Expr, control *cancel.Control) bool {
 func anyCapture(e ast.Expr, control *cancel.Control) bool {
 	control.Poll()
 	found := false
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if _, ok := x.(*ast.Capture); ok {
 			found = true
 		}
@@ -109,7 +109,7 @@ func (r *Result) Positional(e ast.Expr) bool { return r.positional(e, nil) }
 
 func (r *Result) positional(e ast.Expr, control *cancel.Control) bool {
 	found := false
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if x, ok := x.(*ast.Ref); ok {
 			if rule := r.ByName[x.Name]; rule == nil || rule.Positional {
 				found = true

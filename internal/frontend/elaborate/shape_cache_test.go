@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/factstest"
@@ -34,7 +34,7 @@ func TestShapeCacheFacts(t *testing.T) {
 		chk := prog.Checker()
 		var exprs []ast.Expr
 		for _, r := range prog.RuleList {
-			astfacts.WalkExpr(r.Def.Expr, func(e ast.Expr) { exprs = append(exprs, e) })
+			astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) { exprs = append(exprs, e) })
 		}
 		if len(exprs) == 0 {
 			t.Fatalf("%s: no expressions", name)

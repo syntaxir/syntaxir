@@ -2,7 +2,7 @@ package desugar
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,7 +14,7 @@ func predicateBlock(e *ast.Predicate, block *ast.Block, control *cancel.Control)
 	control.Check()
 	if len(block.Statements) == 1 {
 		copy := *e
-		copy.Action = astfacts.UngroupActionWithPoll(block.Statements[0], poll)
+		copy.Action = astinspect.UngroupActionWithPoll(block.Statements[0], poll)
 		return &copy
 	}
 	items := make([]ast.Expr, len(block.Statements))
@@ -22,7 +22,7 @@ func predicateBlock(e *ast.Predicate, block *ast.Block, control *cancel.Control)
 		control.Poll()
 		items[i] = &ast.Predicate{
 			SourceInfo: *statement.(ast.SourceNode).Source(),
-			Action:     astfacts.UngroupActionWithPoll(statement, poll),
+			Action:     astinspect.UngroupActionWithPoll(statement, poll),
 		}
 	}
 	return &ast.Seq{

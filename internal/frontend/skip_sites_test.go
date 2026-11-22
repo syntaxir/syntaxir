@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -49,7 +49,7 @@ func TestSkipSites(t *testing.T) {
 			var got []string
 			n := 0
 			for _, r := range prog.RuleList {
-				astfacts.WalkExpr(r.Def.Expr, func(x ast.Expr) {
+				astinspect.WalkExpr(r.Def.Expr, func(x ast.Expr) {
 					if rep, ok := x.(*ast.Repeat); ok {
 						if site := prog.SkipSite(rep); site != 0 {
 							n++

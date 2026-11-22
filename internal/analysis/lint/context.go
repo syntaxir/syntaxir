@@ -5,7 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -131,9 +131,9 @@ func (c *lintControl) formatExpr(e ast.Expr) string {
 
 func (c *lintControl) formatActionExpr(t ast.ActionExpr) string {
 	if c == nil {
-		return fmt.FormatActionExpr(astfacts.UngroupAction(t))
+		return fmt.FormatActionExpr(astinspect.UngroupAction(t))
 	}
-	t = astfacts.UngroupActionWithPoll(t, c.poll)
+	t = astinspect.UngroupActionWithPoll(t, c.poll)
 	result, err := fmt.FormatActionExprContext(c.ctx, t)
 	if err != nil {
 		panic(lintCancellation{err})

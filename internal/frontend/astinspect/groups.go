@@ -1,4 +1,4 @@
-package astfacts
+package astinspect
 
 import "syntaxir.dev/sxir/pkg/grammar/ast"
 

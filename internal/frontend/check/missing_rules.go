@@ -2,7 +2,7 @@ package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
@@ -74,7 +74,7 @@ func (m *Model) markMissingRules(control *cancel.Control) {
 		if usesMissingType(r.Def.Type) {
 			m.HasMissing = true
 		}
-		astfacts.WalkExprControlled(r.Def.Expr, func(e ast.Expr) {
+		astinspect.WalkExprControlled(r.Def.Expr, func(e ast.Expr) {
 			control.Poll()
 			switch e := e.(type) {
 			case *ast.Attributed:

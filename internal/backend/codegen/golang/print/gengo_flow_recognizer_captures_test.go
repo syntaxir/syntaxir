@@ -7,14 +7,14 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // hasCaptureOfRepeat reports a capture of a repetition in e, the shape that Core IR projects in the Node table.
 func hasCaptureOfRepeat(e ast.Expr) (capture, repeated bool) {
-	astfacts.WalkExpr(e, func(e ast.Expr) {
+	astinspect.WalkExpr(e, func(e ast.Expr) {
 		if c, ok := e.(*ast.Capture); ok {
 			capture = true
 			if _, ok := c.Expr.(*ast.Repeat); ok {

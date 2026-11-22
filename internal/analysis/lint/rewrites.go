@@ -6,7 +6,7 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -207,7 +207,7 @@ func (l *linter) seqItem(pos ast.Pos, e ast.Expr) bool {
 	found := false
 	for _, r := range control.rules(l.source) {
 		control.poll()
-		astfacts.WalkExprWithPoll(r.Expr, func(x ast.Expr) {
+		astinspect.WalkExprWithPoll(r.Expr, func(x ast.Expr) {
 			control.poll()
 			if seq, ok := x.(*ast.Seq); ok && len(seq.Items) >= 3 {
 				found = found || slices.ContainsFunc(seq.Items, func(it ast.Expr) bool {

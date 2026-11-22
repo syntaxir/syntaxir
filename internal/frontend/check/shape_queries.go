@@ -2,7 +2,7 @@ package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -29,7 +29,7 @@ func predicatesReadCaptures(e ast.Expr, control *cancel.Control) bool {
 	found := false
 	walkExprControlled(e, func(x ast.Expr) {
 		if p, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
+			astinspect.WalkAction(p.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if _, ok := t.(*ast.CaptureRef); ok {
 					found = true
@@ -154,12 +154,12 @@ func SeeThrough(e ast.Expr) ast.Expr {
 // reads stay dependencies of the result around it.
 func LookKeepsState(e ast.Expr) bool {
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
+	astinspect.WalkExpr(e, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.Capture:
 			found = true
 		case *ast.Predicate:
-			astfacts.WalkAction(x.Action, func(t ast.ActionExpr) {
+			astinspect.WalkAction(x.Action, func(t ast.ActionExpr) {
 				if _, ok := t.(*ast.Bind); ok {
 					found = true
 				}

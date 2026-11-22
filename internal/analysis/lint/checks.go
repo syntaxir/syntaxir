@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -1157,7 +1157,7 @@ func positionRead(r *ast.RuleDef, control *lintControl) (ast.Pos, bool) {
 	for _, t := range exprs {
 		control.poll()
 		var found *ast.FieldAccess
-		astfacts.WalkAction(t, func(x ast.ActionExpr) {
+		astinspect.WalkAction(t, func(x ast.ActionExpr) {
 			control.poll()
 			if m, ok := x.(*ast.FieldAccess); ok && (m.Name == "Start" || m.Name == "End") && found == nil {
 				found = m

@@ -6,7 +6,7 @@ import (
 	"sync"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/factstest"
@@ -45,13 +45,13 @@ func builtTexts(t *testing.T, src string, opts Options) map[string]string {
 	orig := map[ast.Expr]bool{}
 	got := map[string]string{}
 	for _, r := range source {
-		astfacts.WalkExpr(r.Expr, func(x ast.Expr) { orig[x] = true })
+		astinspect.WalkExpr(r.Expr, func(x ast.Expr) { orig[x] = true })
 	}
 	for _, r := range rules {
 		if r.Name != "main" {
 			continue
 		}
-		astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
+		astinspect.WalkExpr(r.Expr, func(x ast.Expr) {
 			if !orig[x] {
 				got[fmt.FormatExpr(x)] = text[x]
 			}
@@ -175,9 +175,9 @@ func TestNormalViewText(t *testing.T) {
 		t.Run(c.body, func(t *testing.T) {
 			_, source, rules, text := testView(t, "rule main = "+c.body+"\n", Options{})
 			orig := map[ast.Expr]bool{}
-			astfacts.WalkExpr(source[0].Expr, func(x ast.Expr) { orig[x] = true })
+			astinspect.WalkExpr(source[0].Expr, func(x ast.Expr) { orig[x] = true })
 			got := map[string]string{}
-			astfacts.WalkExpr(rules[0].Expr, func(x ast.Expr) {
+			astinspect.WalkExpr(rules[0].Expr, func(x ast.Expr) {
 				if orig[x] {
 					return
 				}
@@ -206,7 +206,7 @@ func TestNormalViewCutKeepsTuple(t *testing.T) {
 			_, _, rules, _ := testView(t, c.src, Options{})
 			got := 0
 			for _, r := range rules {
-				astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
+				astinspect.WalkExpr(r.Expr, func(x ast.Expr) {
 					if s, ok := x.(*ast.Seq); ok && len(s.Items) == 1 {
 						got++
 					}

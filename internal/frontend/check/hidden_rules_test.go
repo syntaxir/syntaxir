@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -28,7 +28,7 @@ func TestDefaultValueAcceptsWhatItDropsWithInlineActions(t *testing.T) {
 			if rd.Action != nil {
 				rd.Action = bad
 			}
-			astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+			astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 				if a, ok := e.(*ast.InlineAction); ok {
 					a.Action = bad
 				}
@@ -67,7 +67,7 @@ func TestDefaultValueValidationReportsTheGrammarAsWritten(t *testing.T) {
 			rules := g.Rules()
 			repeats := 0
 			for _, rd := range rules {
-				astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+				astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 					if r, ok := e.(*ast.Repeat); ok {
 						r.Min = -1
 						repeats++

@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -23,7 +23,7 @@ func skipOf(e ast.Expr) ast.Expr {
 	case *ast.Recovery:
 		return e.Skip
 	case *ast.Attributed:
-		return astfacts.RecoverSkip(e)
+		return astinspect.RecoverSkip(e)
 	}
 	return nil
 }

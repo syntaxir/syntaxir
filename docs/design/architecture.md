@@ -258,7 +258,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/frontend/desugar` | Rewriting into a smaller language |
 | `internal/frontend/check` | Name resolution, the checks of the value model and the walk of rule bodies that decides the static facts of the rules: the semantic model and its checker |
 | `internal/frontend/types` | The type model |
-| `internal/frontend/astfacts` | The walks of grammar expressions and of a rule's calls, action expressions and attributes, and syntactic queries on them, shared by the front end and the analyses; matching facts are computed on Core IR |
+| `internal/frontend/astinspect` | The walks of grammar expressions and of a rule's calls, action expressions and attributes, and syntactic queries on them, shared by the front end and the analyses; matching facts are computed on Core IR |
 | `internal/frontend/elaborate` | Semantic model to Core IR |
 | `internal/frontend/schemaexport` | Export of the output schema |
 | `internal/middleend/corepass` | Core rewrites and the analyses of facts |

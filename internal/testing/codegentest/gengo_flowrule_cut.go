@@ -1,7 +1,7 @@
 package codegentest
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -53,7 +53,7 @@ rule main Doc = (&probe:("a" #cut "b") #atomic v:"abx" #atomic / v:"aby" #atomic
 // DirectCuts reports whether the expression contains a cut.
 func DirectCuts(e ast.Expr) bool {
 	found := false
-	astfacts.WalkExpr(e, func(e ast.Expr) {
+	astinspect.WalkExpr(e, func(e ast.Expr) {
 		if _, ok := e.(*ast.Cut); ok {
 			found = true
 		}

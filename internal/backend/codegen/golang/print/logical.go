@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -47,7 +47,7 @@ func ruleFeaturesOf(r *common.Rule) string {
 		return "Operators Rules"
 	}
 	found := ""
-	astfacts.WalkExpr(r.Def.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Recovery:
 			found = "recovery"

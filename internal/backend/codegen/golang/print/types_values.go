@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -238,7 +238,7 @@ func (t *TypedGen) typedHelpers(b *strings.Builder, done *int) bool {
 // streamValue returns the value type of the elements of the #stream repetition of the rule rd.
 func streamValue(p *common.Program, rd *ast.RuleDef) (types.Ty, bool) {
 	var rep *ast.Repeat
-	astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 		if a, ok := e.(*ast.Attributed); ok {
 			for _, at := range a.Attrs {
 				if r, ok := check.SeeThrough(a.Expr).(*ast.Repeat); ok && at.Name == "stream" {

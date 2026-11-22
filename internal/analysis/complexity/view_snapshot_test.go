@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -83,7 +83,7 @@ func viewSnapshot(source, rules []*ast.RuleDef, text map[ast.Expr]string, applie
 	b.WriteString("\n")
 	src := map[ast.Expr]bool{}
 	for _, r := range source {
-		astfacts.WalkExpr(r.Expr, func(x ast.Expr) { src[x] = true })
+		astinspect.WalkExpr(r.Expr, func(x ast.Expr) { src[x] = true })
 	}
 	for i, r := range rules {
 		if r.Expr == source[i].Expr {
@@ -91,7 +91,7 @@ func viewSnapshot(source, rules []*ast.RuleDef, text map[ast.Expr]string, applie
 		}
 		fmt.Fprintf(&b, "rule %s = %s\n", r.Name, syntaxfmt.FormatExpr(r.Expr))
 		var built []string
-		astfacts.WalkExpr(r.Expr, func(x ast.Expr) {
+		astinspect.WalkExpr(r.Expr, func(x ast.Expr) {
 			if src[x] {
 				return
 			}

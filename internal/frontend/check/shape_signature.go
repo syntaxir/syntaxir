@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -27,7 +27,7 @@ func (m *Model) ShapeSignature(name string, poll func()) (string, bool) {
 	}
 	// The subexpressions of lookaheads are left out.
 	inside := map[ast.Expr]bool{}
-	astfacts.WalkExpr(r.Def.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) {
 		step()
 		var body ast.Expr
 		switch x := e.(type) {
@@ -38,11 +38,11 @@ func (m *Model) ShapeSignature(name string, poll func()) (string, bool) {
 		}
 		if body != nil {
 			inside[e] = true
-			astfacts.WalkExpr(body, func(x ast.Expr) { step(); inside[x] = true })
+			astinspect.WalkExpr(body, func(x ast.Expr) { step(); inside[x] = true })
 		}
 	})
 	var b strings.Builder
-	astfacts.WalkExpr(r.Def.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) {
 		step()
 		if inside[e] {
 			return

@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -24,7 +24,7 @@ func TestCompileMetadataCollectionCancellation(t *testing.T) {
 	}{
 		{"rules", func(c *cancel.Control) { c.Rules(g) }},
 		{"types", func(c *cancel.Control) { c.Types(g) }},
-		{"call-walk", func(c *cancel.Control) { astfacts.AllCallsControlled(expr, nil, c) }},
+		{"call-walk", func(c *cancel.Control) { astinspect.AllCallsControlled(expr, nil, c) }},
 		{"type-check-arguments", func(c *cancel.Control) {
 			(&ValueInference{control: c}).predicates(expr, &valueEnv{})
 		}},

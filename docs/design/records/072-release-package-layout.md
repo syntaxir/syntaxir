@@ -154,7 +154,7 @@ flowchart TD
   cmd --> fixture["fixture suites of sxir test"] --> pub
   driver --> backend["internal/backend: closure, vmlower, llvm (future), codegen: common and one package per host language"]
   driver --> middle["internal/middleend: corepass, checkfacts, flowlower, flowpass, execlower, codepass"]
-  driver --> front["internal/frontend: parser, desugar, check, types, astfacts, elaborate, schemaexport"]
+  driver --> front["internal/frontend: parser, desugar, check, types, astinspect, elaborate, schemaexport"]
   middle --> ir["IR packages: core, code with flow, action and exec dialects"]
   backend --> ir
   front --> ir

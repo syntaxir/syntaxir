@@ -12,7 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/analysis/lint"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
@@ -159,7 +159,7 @@ func LintRewritesOf(ctx context.Context, res *FrontResult, g *ast.Grammar, findi
 // ExpressionArgsWithPoll returns the expression arguments of an attribute in order, calling poll
 // as it goes so that an analysis can stop it; a panic of poll passes unchanged.
 func ExpressionArgsWithPoll(a *ast.Attribute, poll func()) []ast.Expr {
-	return astfacts.ExpressionArgsWithPoll(a, poll)
+	return astinspect.ExpressionArgsWithPoll(a, poll)
 }
 
 // InlineActionNames maps the hidden rules that LowerInlineActions generates to the inline actions

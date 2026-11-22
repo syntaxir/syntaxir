@@ -3,7 +3,7 @@ package frontend
 import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/diagnostic"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -66,7 +66,7 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 		unsupported = append(unsupported, &diagnostic.Error{Pos: comment.Pos, Msg: "comments are not allowed inside statement headers"})
 	}
 	checkBlocks := func(actionExpr ast.ActionExpr) {
-		astfacts.WalkAction(actionExpr, func(t ast.ActionExpr) {
+		astinspect.WalkAction(actionExpr, func(t ast.ActionExpr) {
 			control.Poll()
 			if block, ok := t.(*ast.Block); ok {
 				unsupported = append(unsupported, &diagnostic.Error{Pos: block.Diagnostic(), Msg: "action statement blocks are not implemented"})
@@ -76,7 +76,7 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 	for _, rd := range control.Rules(g) {
 		control.Poll()
 		checkBlocks(rd.Action)
-		astfacts.WalkExprControlled(rd.Expr, func(e ast.Expr) {
+		astinspect.WalkExprControlled(rd.Expr, func(e ast.Expr) {
 			control.Poll()
 			switch e := e.(type) {
 			case *ast.Predicate:

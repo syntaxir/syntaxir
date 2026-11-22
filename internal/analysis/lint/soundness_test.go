@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
@@ -298,7 +298,7 @@ func applyFinding(g *ast.Grammar, a *analysis, f Finding, fix bool) bool {
 func altLooseCut(a *analysis, pos ast.Pos) bool {
 	for _, r := range a.order {
 		var alt ast.Expr
-		astfacts.WalkExpr(r.Expr, func(e ast.Expr) {
+		astinspect.WalkExpr(r.Expr, func(e ast.Expr) {
 			if c, ok := e.(*ast.Choice); ok && alt == nil {
 				for _, x := range c.Alts[1:] {
 					if posOf(x) == pos {

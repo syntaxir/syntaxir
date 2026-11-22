@@ -5,7 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/diagnostic"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -137,7 +137,7 @@ func CheckCanonical(g, source *ast.Grammar, starts []string, defaultStart string
 	c.errs = append(c.errs, redeclared...)
 	for _, rd := range rules {
 		control.Poll()
-		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: NewScope(), Action: rd.Action, Splice: astfacts.SpliceRule(rd)}
+		r := &Rule{ID: len(prog.RuleList), Name: rd.Name, Def: rd, Scope: NewScope(), Action: rd.Action, Splice: astinspect.SpliceRule(rd)}
 		if r.Splice && rd.Type != nil {
 			c.errorf(rd.Diagnostic(), "rule %s makes no node of its own, so it cannot have a result type", rd.Name)
 		}
@@ -332,7 +332,7 @@ func ValueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 			return
 		}
 		needed[name] = true
-		for _, callee := range astfacts.AllCallsControlled(byName[name].Expr, nil, control) {
+		for _, callee := range astinspect.AllCallsControlled(byName[name].Expr, nil, control) {
 			control.Poll()
 			mark(callee)
 		}
@@ -343,7 +343,7 @@ func ValueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 			mark(rd.Name)
 		}
 		for cp := range predicateCaptures(rd.Expr, control).Read {
-			for _, callee := range astfacts.AllCallsControlled(cp.Expr, nil, control) {
+			for _, callee := range astinspect.AllCallsControlled(cp.Expr, nil, control) {
 				control.Poll()
 				mark(callee)
 			}
@@ -356,7 +356,7 @@ func ValueNeededRules(rules []*ast.RuleDef, control *cancel.Control, streams boo
 func hasStream(e ast.Expr, control *cancel.Control) bool {
 	control.Poll()
 	found := false
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if IsStream(x) {
 			found = true
 		}
@@ -368,7 +368,7 @@ func hasStream(e ast.Expr, control *cancel.Control) bool {
 func (c *Compiler) noCaptures(e ast.Expr) {
 	control := c.Control
 	c.Control.Poll()
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if cp, ok := x.(*ast.Capture); ok {
 			c.errorf(cp.Diagnostic(), "capture %s inside #atomic, -, or ! has no effect", cp.Name)
 		}
@@ -388,12 +388,12 @@ func (c *Compiler) noRecoveringCaptures(e ast.Expr) {
 	c.Control.Poll()
 	// A nested positive lookahead checks its own captures.
 	nested := map[ast.Expr]bool{}
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if a, ok := x.(*ast.And); ok {
-			astfacts.WalkExprControlled(a.Expr, func(y ast.Expr) { nested[y] = true }, control)
+			astinspect.WalkExprControlled(a.Expr, func(y ast.Expr) { nested[y] = true }, control)
 		}
 	}, control)
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		cp, ok := x.(*ast.Capture)
 		if !ok || nested[x] {
 			return
@@ -463,7 +463,7 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 	control := c.Control
 	top := StreamTops(body)
 	n := 0
-	astfacts.WalkExprControlled(body, func(e ast.Expr) {
+	astinspect.WalkExprControlled(body, func(e ast.Expr) {
 		if !IsStream(e) {
 			return
 		}

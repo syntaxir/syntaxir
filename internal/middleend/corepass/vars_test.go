@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -70,12 +70,12 @@ func ruleVariablesDFS(rules []*ast.RuleDef) map[string][]string {
 	calls := map[string][]string{}
 	for _, r := range rules {
 		set := map[string]bool{}
-		astfacts.WalkRuleActions(r, func(t ast.ActionExpr) {
+		astinspect.WalkRuleActions(r, func(t ast.ActionExpr) {
 			if v, ok := t.(*ast.VarRef); ok {
 				set[v.Name] = true
 			}
 		})
-		direct[r.Name], calls[r.Name] = set, astfacts.AllCalls(r.Expr, nil)
+		direct[r.Name], calls[r.Name] = set, astinspect.AllCalls(r.Expr, nil)
 	}
 	out := map[string][]string{}
 	for _, r := range rules {

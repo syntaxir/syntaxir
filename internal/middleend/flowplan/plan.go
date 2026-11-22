@@ -16,7 +16,7 @@ import (
 	"fmt"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -78,7 +78,7 @@ func TypedFrameOK(r *plandata.Rule) bool {
 // Recovers reports whether the expression e has a #recover attribute.
 func Recovers(e ast.Expr) bool {
 	found := false
-	astfacts.WalkExpr(e, func(e ast.Expr) {
+	astinspect.WalkExpr(e, func(e ast.Expr) {
 		if e, ok := e.(*ast.Attributed); ok {
 			for _, a := range e.Attrs {
 				if a.Name == "recover" {

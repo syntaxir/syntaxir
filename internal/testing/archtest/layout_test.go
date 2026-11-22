@@ -58,7 +58,7 @@ var layout = []place{
 	{pkg: "internal/syntax/fmt", target: "internal/syntax/fmt"},
 	{pkg: "internal/frontend/check", target: "internal/frontend/check"},
 	{pkg: "internal/frontend/types", target: "internal/frontend/types"},
-	{pkg: "internal/frontend/astfacts", target: "internal/frontend/astfacts"},
+	{pkg: "internal/frontend/astinspect", target: "internal/frontend/astinspect"},
 	{pkg: "internal/frontend/elaborate", target: "internal/frontend/elaborate"},
 	{pkg: "internal/frontend/schemaexport", target: "internal/frontend/schemaexport"},
 

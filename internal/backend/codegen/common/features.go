@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass"
@@ -136,7 +136,7 @@ func ruleFeatures(r *Rule) Feature {
 	if _, ok := r.Def.Expr.(*ast.OperatorsRule); ok {
 		f |= FeatureOperators
 	}
-	astfacts.WalkExpr(r.Def.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(r.Def.Expr, func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Recovery:
 			f |= FeatureRecovery

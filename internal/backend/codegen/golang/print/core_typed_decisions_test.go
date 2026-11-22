@@ -15,7 +15,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -155,7 +155,7 @@ func typedDecisionsWalk(r *common.Rule) ([]ast.Expr, map[ast.Expr]int) {
 	var exprs []ast.Expr
 	idx := map[ast.Expr]int{}
 	if e := r.BodyExpr(); e != nil {
-		astfacts.WalkExpr(e, func(x ast.Expr) {
+		astinspect.WalkExpr(e, func(x ast.Expr) {
 			if _, ok := idx[x]; !ok {
 				idx[x] = len(exprs)
 			}

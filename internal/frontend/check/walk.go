@@ -2,7 +2,7 @@ package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,9 +14,9 @@ import (
 func valueRecovery(e ast.Expr, control *cancel.Control) (bool, []string) {
 	silent := map[ast.Expr]bool{}
 	mark := func(x ast.Expr) {
-		astfacts.WalkExprControlled(x, func(y ast.Expr) { silent[y] = true }, control)
+		astinspect.WalkExprControlled(x, func(y ast.Expr) { silent[y] = true }, control)
 	}
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.And:
 			mark(x.Expr)
@@ -28,7 +28,7 @@ func valueRecovery(e ast.Expr, control *cancel.Control) (bool, []string) {
 	}, control)
 	found := false
 	var calls []string
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if silent[x] {
 			return
 		}

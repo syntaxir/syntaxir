@@ -2,7 +2,7 @@ package check
 
 import (
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -68,12 +68,12 @@ func ruleProjectionsControlled(prog *Model, r *Rule, control *cancel.Control) ma
 		return nil
 	}
 	count := map[string]int{}
-	astfacts.WalkExprControlled(r.Def.Expr, func(x ast.Expr) {
+	astinspect.WalkExprControlled(r.Def.Expr, func(x ast.Expr) {
 		switch x := x.(type) {
 		case *ast.Capture:
 			count[x.Name]++
 		case *ast.Predicate:
-			astfacts.WalkAction(x.Action, func(t ast.ActionExpr) {
+			astinspect.WalkAction(x.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if c, ok := t.(*ast.CaptureRef); ok {
 					delete(cands, c.Name)

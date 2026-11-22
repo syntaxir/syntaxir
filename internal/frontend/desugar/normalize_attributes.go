@@ -5,7 +5,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/diagnostic"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -57,8 +57,8 @@ func (n *attributeNormalizer) decl(decl ast.Decl) ast.Decl {
 	switch rd := decl.(type) {
 	case *ast.RuleDef:
 		expr := n.expr(rd.Expr)
-		typ := astfacts.UngroupTypeWithPoll(rd.Type, n.poll)
-		action := astfacts.UngroupActionWithPoll(rd.Action, n.poll)
+		typ := astinspect.UngroupTypeWithPoll(rd.Type, n.poll)
+		action := astinspect.UngroupActionWithPoll(rd.Action, n.poll)
 		if !n.eager && expr == rd.Expr && typ == rd.Type && action == rd.Action {
 			return rd
 		}
@@ -252,7 +252,7 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 		return n.expr(e.Expr)
 	case *ast.InlineAction:
 		child := n.expr(e.Expr)
-		actionExpr := astfacts.UngroupActionWithPoll(e.Action, n.poll)
+		actionExpr := astinspect.UngroupActionWithPoll(e.Action, n.poll)
 		if !n.eager && child == e.Expr && actionExpr == e.Action {
 			return e
 		}
@@ -264,7 +264,7 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 		if block, ok := actionExpr.(*ast.Block); ok && len(block.Statements) > 0 {
 			return predicateBlock(e, block, n.control)
 		}
-		actionExpr = astfacts.UngroupActionWithPoll(actionExpr, n.poll)
+		actionExpr = astinspect.UngroupActionWithPoll(actionExpr, n.poll)
 		if !n.eager && actionExpr == e.Action {
 			return e
 		}
@@ -425,7 +425,7 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 }
 
 func (n *attributeNormalizer) operand(o *ast.OperatorsRuleOperand) *ast.OperatorsRuleOperand {
-	expr, action := n.expr(o.Expr), astfacts.UngroupActionWithPoll(o.Action, n.poll)
+	expr, action := n.expr(o.Expr), astinspect.UngroupActionWithPoll(o.Action, n.poll)
 	if !n.eager && expr == o.Expr && action == o.Action {
 		return o
 	}
@@ -445,7 +445,7 @@ func (n *attributeNormalizer) level(l *ast.OperatorsRuleLevel) *ast.OperatorsRul
 }
 
 func (n *attributeNormalizer) operator(o *ast.OperatorsRuleOperator) *ast.OperatorsRuleOperator {
-	expr, action := n.expr(o.Expr), astfacts.UngroupActionWithPoll(o.Action, n.poll)
+	expr, action := n.expr(o.Expr), astinspect.UngroupActionWithPoll(o.Action, n.poll)
 	if !n.eager && expr == o.Expr && action == o.Action {
 		return o
 	}
@@ -489,7 +489,7 @@ func (n *attributeNormalizer) wrap(e ast.Expr, a *ast.Attribute) ast.Expr {
 func (n *attributeNormalizer) typeDecl(td ast.TypeDecl) ast.TypeDecl {
 	switch s := td.(type) {
 	case *ast.TypeAlias:
-		child := astfacts.UngroupTypeWithPoll(s.Type, n.poll)
+		child := astinspect.UngroupTypeWithPoll(s.Type, n.poll)
 		if child != s.Type {
 			v := *s
 			v.Type = child
@@ -501,7 +501,7 @@ func (n *attributeNormalizer) typeDecl(td ast.TypeDecl) ast.TypeDecl {
 			if s.Type == nil {
 				return td
 			}
-			if child := astfacts.UngroupTypeWithPoll(s.Type, n.poll); child != s.Type {
+			if child := astinspect.UngroupTypeWithPoll(s.Type, n.poll); child != s.Type {
 				v := *s
 				v.Type = child
 				return &v
@@ -511,7 +511,7 @@ func (n *attributeNormalizer) typeDecl(td ast.TypeDecl) ast.TypeDecl {
 		var fields []*ast.Field
 		for i, f := range st.Fields {
 			n.control.Poll()
-			child := astfacts.UngroupTypeWithPoll(f.Type, n.poll)
+			child := astinspect.UngroupTypeWithPoll(f.Type, n.poll)
 			if child == f.Type {
 				continue
 			}

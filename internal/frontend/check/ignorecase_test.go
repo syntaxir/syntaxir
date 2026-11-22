@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -14,7 +14,7 @@ func TestIgnoreCasePragmaReachesArguments(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, `rule main = ("ab" #recover(skip="x")) #ignorecase`)
 	found := map[string]bool{}
-	astfacts.WalkExpr(prog.ByName["main"].Def.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(prog.ByName["main"].Def.Expr, func(e ast.Expr) {
 		if l, ok := e.(*ast.Literal); ok {
 			found[l.Value] = l.IgnoreCase
 		}

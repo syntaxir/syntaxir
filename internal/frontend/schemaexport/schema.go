@@ -7,7 +7,7 @@ import (
 	"slices"
 	"sort"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -129,7 +129,7 @@ func Export(p Source, start string, allRules bool) (*schema.Output, error) {
 			return nil, fmt.Errorf("unresolved schema rule %q", name)
 		}
 		rd := r.Def
-		astfacts.WalkExpr(rd.Expr, func(x ast.Expr) {
+		astinspect.WalkExpr(rd.Expr, func(x ast.Expr) {
 			if r, ok := x.(*ast.Ref); ok && !selected[r.Name] {
 				todo = append(todo, r.Name)
 			}

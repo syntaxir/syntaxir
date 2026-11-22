@@ -15,7 +15,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
 	"syntaxir.dev/sxir/internal/driver/entry"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -410,7 +410,7 @@ func countFound(rules []string, found map[string]*calledAt) int {
 // nothing.
 func literalInputs(rd *ast.RuleDef) []string {
 	var lits []string
-	astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 		if l, ok := e.(*ast.Literal); ok && l.Value != "" {
 			lits = append(lits, l.Value)
 		}
@@ -428,7 +428,7 @@ func literalInputs(rd *ast.RuleDef) []string {
 // literals returns the distinct literals that rd writes, up to equivLiterals of them.
 func literals(rd *ast.RuleDef) []string {
 	var lits []string
-	astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+	astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 		if l, ok := e.(*ast.Literal); ok && l.Value != "" && len(lits) < equivLiterals && !slices.Contains(lits, l.Value) {
 			lits = append(lits, l.Value)
 		}

@@ -13,7 +13,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -541,8 +541,8 @@ func (g *Generator) recovers() bool {
 	}
 	for _, rs := range [][]*common.Rule{g.Prog.RuleList, g.Prog.Twins} {
 		for _, r := range rs {
-			astfacts.WalkExpr(r.Def.Expr, check)
-			astfacts.WalkExpr(r.BodyExpr(), check)
+			astinspect.WalkExpr(r.Def.Expr, check)
+			astinspect.WalkExpr(r.BodyExpr(), check)
 		}
 	}
 	if g.recoveryProg == nil {

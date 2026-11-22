@@ -7,7 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -818,12 +818,12 @@ func hasPredicate(e ast.Expr, control *lintControl) bool {
 
 // walkExpr visits the expression and its subexpressions in preorder, including attribute
 // arguments and the parts of Operators Rule expressions, polling control, which may be nil
-// (astfacts.WalkExprWithPoll). The checks walk only the rules of the grammar that the front end
+// (astinspect.WalkExprWithPoll). The checks walk only the rules of the grammar that the front end
 // checked (frontend.Result), which is canonical: its inline actions are lowered to hidden rules,
 // so an expression of it holds no inline action and each inline action is a rule the checks read
 // on its own.
 func walkExpr(e ast.Expr, f func(ast.Expr), control *lintControl) {
-	astfacts.WalkExprWithPoll(e, f, control.pollFunc())
+	astinspect.WalkExprWithPoll(e, f, control.pollFunc())
 }
 
 // calls returns the rules that e calls, in order of appearance.

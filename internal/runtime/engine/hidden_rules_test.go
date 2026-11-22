@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -55,7 +55,7 @@ rule _b = "b"`
 			if strings.HasPrefix(rd.Name, "_main") {
 				t.Errorf("%+v: the grammar as written has the generated rule %s", opts, rd.Name)
 			}
-			astfacts.WalkExpr(rd.Expr, func(e ast.Expr) {
+			astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
 				if _, ok := e.(*ast.InlineAction); ok {
 					inline++
 				}

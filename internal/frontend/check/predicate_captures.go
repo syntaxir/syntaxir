@@ -4,7 +4,7 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/cancel"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -17,9 +17,9 @@ import (
 func predicateCaptures(e ast.Expr, control *cancel.Control) *PredicateCaptures {
 	control.Poll()
 	p := &PredicateCaptures{Read: map[*ast.Capture]bool{}, Names: map[string]bool{}}
-	astfacts.WalkExprControlled(e, func(x ast.Expr) {
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
 		if pr, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkAction(pr.Action, func(t ast.ActionExpr) {
+			astinspect.WalkAction(pr.Action, func(t ast.ActionExpr) {
 				control.Poll()
 				if cr, ok := t.(*ast.CaptureRef); ok && !cr.Param {
 					p.Names[cr.Name] = true
@@ -84,7 +84,7 @@ func reachingCaptures(e ast.Expr, before captureSet, read map[*ast.Capture]bool,
 	case nil:
 		return before
 	case *ast.Predicate:
-		astfacts.WalkAction(e.Action, func(t ast.ActionExpr) {
+		astinspect.WalkAction(e.Action, func(t ast.ActionExpr) {
 			control.Poll()
 			if cr, ok := t.(*ast.CaptureRef); ok && !cr.Param {
 				for _, c := range before[cr.Name] {
@@ -137,7 +137,7 @@ func reachingCaptures(e ast.Expr, before captureSet, read map[*ast.Capture]bool,
 	case *ast.Attributed:
 		after := reachingCaptures(e.Expr, before, read, control)
 		for _, at := range e.Attrs {
-			for _, arg := range astfacts.ExpressionArgsWithPoll(at, control.Poll) {
+			for _, arg := range astinspect.ExpressionArgsWithPoll(at, control.Poll) {
 				after = after.union(reachingCaptures(arg, before.union(after), read, control))
 			}
 		}

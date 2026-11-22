@@ -4,7 +4,7 @@ import (
 	"slices"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -49,7 +49,7 @@ func TestPredicateCaptures(t *testing.T) {
 		}
 		body := g.Rules()[0].Expr
 		var all []*ast.Capture
-		astfacts.WalkExprControlled(body, func(x ast.Expr) {
+		astinspect.WalkExprControlled(body, func(x ast.Expr) {
 			if cp, ok := x.(*ast.Capture); ok {
 				all = append(all, cp)
 			}

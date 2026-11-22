@@ -1,7 +1,7 @@
 package flowlower
 
 import (
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -13,7 +13,7 @@ import (
 // and a recovery attribute if recovery is set; an Operators Rule never is.
 func BodyOK(expr ast.Expr, cuts, recovery bool) bool {
 	ok := true
-	astfacts.WalkExpr(expr, func(e ast.Expr) {
+	astinspect.WalkExpr(expr, func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Cut:
 			if !cuts {

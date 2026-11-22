@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -1133,7 +1133,7 @@ func (t *TypedGen) transfers() map[*ast.FieldAccess]bool {
 		}
 	}
 	for _, actionExpr := range t.actionExprs() {
-		astfacts.WalkAction(actionExpr, func(y ast.ActionExpr) {
+		astinspect.WalkAction(actionExpr, func(y ast.ActionExpr) {
 			n, ok := y.(*ast.Constructor)
 			if !ok {
 				return
@@ -1208,7 +1208,7 @@ func (t *TypedGen) fieldReadMembers() []*ast.FieldAccess {
 	}
 	var out []*ast.FieldAccess
 	for _, x := range t.actionExprs() {
-		astfacts.WalkAction(x, func(y ast.ActionExpr) {
+		astinspect.WalkAction(x, func(y ast.ActionExpr) {
 			if m, ok := y.(*ast.FieldAccess); ok && fields[m.Name] && !t.nodeMember(m) {
 				out = append(out, m)
 			}
@@ -1222,7 +1222,7 @@ func (t *TypedGen) actionExprs() []ast.ActionExpr {
 	var actionExprs []ast.ActionExpr
 	var expr func(e ast.Expr)
 	expr = func(e ast.Expr) {
-		astfacts.WalkExpr(e, func(x ast.Expr) {
+		astinspect.WalkExpr(e, func(x ast.Expr) {
 			switch x := x.(type) {
 			case *ast.Predicate:
 				actionExprs = append(actionExprs, x.Action)
