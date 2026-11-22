@@ -9,7 +9,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -182,31 +181,30 @@ func GrowingBindingsCheckedControlled(res *frontend.Result, start string, contro
 }
 
 // classifierInput is what the classifier reads of a grammar that the front end checked: the
-// structural module of its canonical rules with the facts of the module, the value types of its
-// action expressions, and the hidden rules of its inline actions.
+// structural module of its canonical rules with the facts of the module, and the hidden rules of
+// its inline actions. The module carries the checked types of the grammar if its types check, and
+// none if not; then only the operand of len, which may be a string value or not, is sized as a
+// string.
 type classifierInput struct {
 	structural *frontend.Structural
-	// types are nil if the grammar does not type check; only the operand of len, which may be a
-	// string value or not, is then sized as a string.
-	types *check.ValueRecord
-	names desugar.InlineNames
+	names      desugar.InlineNames
 }
 
 // checkedInput checks g with the front end and returns what the classifier reads of it. A grammar
-// that the compiler rejects is classified without the types of its action expressions, if its structural module
-// is built.
+// that the compiler rejects is classified without the types of its action expressions, if its
+// structural module is built.
 func checkedInput(g *ast.Grammar, control *cancel.Control) (*classifierInput, error) {
 	names := desugar.InlineNames{}
-	st, types, err := frontend.CheckDefault(g, names, checkfacts.Source{}, control)
+	st, err := frontend.CheckDefault(g, names, checkfacts.Source{}, control)
 	if st == nil {
 		return nil, err
 	}
-	return &classifierInput{structural: st, types: types, names: names}, nil
+	return &classifierInput{structural: st, names: names}, nil
 }
 
 // resultInput returns what the classifier reads of the grammar whose front-end result is res.
 func resultInput(res *frontend.Result) *classifierInput {
-	return &classifierInput{structural: res.Structural, types: res.Model.Checker().ValueRecord(), names: res.InlineNames}
+	return &classifierInput{structural: res.Structural, names: res.InlineNames}
 }
 
 func (in *classifierInput) classify(start string, control *cancel.Control) (*Complexity, error) {
@@ -246,7 +244,6 @@ func (in *classifierInput) classifier(start string, control *cancel.Control, bui
 	}
 	rf := sourceFacts(&Source{Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module).WithControl(control)}, rules, control)
 	k := build(st.Canonical.Grammar, rf, start, control)
-	k.types = in.types
 	k.inlineNames = in.names
 	return k, nil
 }
@@ -324,8 +321,7 @@ type classifier struct {
 	byName map[string]*core.Rule
 	start  string
 	an     *ruleAnalysis
-	facts  *ruleFacts         // the rule facts of the grammar, of which an is part
-	types  *check.ValueRecord // the value types of the action expressions, or nil if they are unknown
+	facts  *ruleFacts // the rule facts of the grammar, of which an is part
 	// combinations is the product of the sizes of the value sets of the variables with finite
 	// values, which checkValues computes.
 	combinations int

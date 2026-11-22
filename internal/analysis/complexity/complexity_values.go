@@ -306,12 +306,9 @@ func heldArg(fn string, i int) bool {
 }
 
 // mayBeString reports whether the value of t may be a string value rather than a node, a list or
-// a tuple. Without the type of t it may.
+// a tuple. Without the checked type of t (core.TypeOf) it may.
 func (k *classifier) mayBeString(t core.ActionExpr) bool {
-	if k.types == nil {
-		return true
-	}
-	ty, ok := k.types.ActionExprs[k.actionOrigin(t)]
+	ty, ok := core.TypeOf(t).(types.Ty)
 	return !ok || k.stringIn(ty, map[string]bool{})
 }
 
@@ -335,8 +332,12 @@ func (k *classifier) stringIn(t types.Ty, seen map[string]bool) bool {
 			return false
 		}
 		seen[t.Name] = true
-		r, ok := k.types.Rules[t.Name]
-		return !ok || k.stringIn(r, seen)
+		r := k.byName[t.Name]
+		if r == nil {
+			return true
+		}
+		ty, ok := r.Type.(types.Ty)
+		return !ok || k.stringIn(ty, seen)
 	case types.BasicTy:
 		return t == types.TyString || t == types.TyTop || t == types.TyAny
 	}
@@ -536,8 +537,9 @@ func (k *classifier) isInt(t core.ActionExpr, tc actionCtx) bool {
 	case *core.VarRef:
 		return k.varType[t.Name] == "int"
 	case *core.Cast:
-		// The checked type of a cast is not in the module that the classifier reads, which is
-		// untyped, so the classifier reads the type that the grammar writes.
+		// The module carries the checked type of a cast only when the grammar's types check, and
+		// the classifier also classifies a grammar whose types do not, so it reads the type that
+		// the grammar writes: a declaration, as the types of the variables are.
 		if c, ok := k.actionOrigin(t).(*ast.Cast); ok {
 			if r, ok := c.Type.(*ast.TypeRef); ok {
 				return r.Name == "int"

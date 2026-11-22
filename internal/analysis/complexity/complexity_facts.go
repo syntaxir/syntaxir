@@ -7,7 +7,7 @@ import (
 )
 
 // ruleFacts are the rule facts that the classifier reads, by rule name. They are the facts of the
-// untyped Core IR module of the rules (internal/middleend/corepass), as a parse without token insertion
+// structural Core IR module of the rules (internal/middleend/corepass), as a parse without token insertion
 // has them, except nullable, which counts an insertion.
 type ruleFacts struct {
 	// an holds the nullable and always-succeeding rules, the left-recursion cycles and their
@@ -26,7 +26,7 @@ type ruleFacts struct {
 	// declared are the rules whose declarations keep them from being pure scan rules
 	// (desugar.DeclaredBeyondScan): declarations stay with the grammar, not its module.
 	declared map[string]bool
-	// source is the untyped Core IR module of the rules that the facts are of, which the cost view
+	// source is the structural Core IR module of the rules that the facts are of, which the cost view
 	// is built from.
 	source *Source
 }

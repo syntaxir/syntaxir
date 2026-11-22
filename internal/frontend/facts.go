@@ -124,18 +124,15 @@ func recordTypes(m *core.Module, rec *check.ValueRecord, set func(core.ActionExp
 
 // CheckDefault is CheckStructural with the default options and no rule flags, for an analysis of
 // the structure of g, such as the complexity classifier, which reads the structural module of g
-// also when the compiler rejects g. It returns the value types of the action expressions of g (nil if the
-// compiler rejects g) in place of the program. The module is nil only with an error, and it is nil
-// when g declares a rule twice: the module holds the first declaration only, so it is not g.
-func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Structural, *check.ValueRecord, error) {
-	prog, st, err := CheckStructural(g, check.Options{}, nil, names, facts, control)
-	if err != nil {
-		if st != nil && (st.Module == nil || st.redeclared) {
-			st = nil
-		}
-		return st, nil, err
+// also when the compiler rejects g. The module carries the checked types of g only if the compiler
+// accepts g. The module is nil only with an error, and it is nil when g declares a rule twice: the
+// module holds the first declaration only, so it is not g.
+func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Structural, error) {
+	_, st, err := CheckStructural(g, check.Options{}, nil, names, facts, control)
+	if err != nil && st != nil && (st.Module == nil || st.redeclared) {
+		st = nil
 	}
-	return st, prog.Checker().ValueRecord(), nil
+	return st, err
 }
 
 // structuralOf builds the structural module of the rules of prog, a program that the compiler

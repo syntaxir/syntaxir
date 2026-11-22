@@ -569,7 +569,8 @@ func (k *classifier) itemLen(it core.Node, seen map[string]bool) (int, bool) {
 }
 
 // isSeqOf reports whether n is a sequence, through labels and calls of splice rules, whose items
-// a sequence around it splices into its tuple (check.IsSeqOf). A recovery makes one element.
+// a sequence around it splices into its tuple (the Tuple row of spec/runtime/nodes.md, Node Model).
+// A recovery makes one element.
 func (k *classifier) isSeqOf(n core.Node) bool {
 	var seen map[string]bool
 	for {
@@ -596,7 +597,7 @@ func (k *classifier) isSeqOf(n core.Node) bool {
 	}
 }
 
-// spliceBody returns the body of the rule name if it is a splice rule (check.Checker.SpliceBody).
+// spliceBody returns the body of the rule name if it is a splice rule (core.Policy.Splice).
 func (k *classifier) spliceBody(name string) (core.Node, bool) {
 	if r := k.byName[name]; r != nil && r.Policy.Splice {
 		return k.ruleBody(name), true
