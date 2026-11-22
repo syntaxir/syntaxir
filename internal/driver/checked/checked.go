@@ -16,6 +16,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/closure"
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -49,6 +50,11 @@ type Options struct {
 type Source struct {
 	prog     *frontend.Result
 	settings pass.Settings
+	// role is which program of its grammar prog is, and parser the options that the grammar's parser
+	// was checked with (driver.ProgramOf); program is prog wrapped once for the driver.
+	role    driver.Role
+	parser  check.Options
+	program func() *driver.Program
 
 	moduleOnce sync.Once
 	module     *bytecode.Module
@@ -107,12 +113,21 @@ func Check(g *ast.Grammar, opts Options, flags []check.RuleFlags, control *cance
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}
-	return &Source{prog: prog, settings: opts.Settings}, nil
+	return newSource(prog, opts.Settings, driver.Parser, opts.Compile), nil
 }
 
-// Of returns the Source of the checked program prog, which its backends build with the settings.
+// Of returns the Source of the checked program prog, a parser, which its backends build with the
+// settings.
 func Of(prog *frontend.Result, settings pass.Settings) *Source {
-	return &Source{prog: prog, settings: settings}
+	return newSource(prog, settings, driver.Parser, prog.Opts)
+}
+
+// newSource returns the Source of prog, the program of the role among the programs of a grammar
+// whose parser was checked with the options parser, which its backends build with the settings.
+func newSource(prog *frontend.Result, settings pass.Settings, role driver.Role, parser check.Options) *Source {
+	s := &Source{prog: prog, settings: settings, role: role, parser: parser}
+	s.program = sync.OnceValue(func() *driver.Program { return driver.ProgramOf(prog, role, parser) })
+	return s
 }
 
 // Checked returns the checked program, which the generators, the analyses and the output schema
@@ -121,6 +136,10 @@ func (s *Source) Checked() *frontend.Result { return s.prog }
 
 // Settings returns the optimization settings that the backends build the program with.
 func (s *Source) Settings() pass.Settings { return s.settings }
+
+// Program returns the program for the driver (driver.ProgramOf), which it wraps once, on the first
+// call, and checks nothing again for.
+func (s *Source) Program() *driver.Program { return s.program() }
 
 // Schema returns the checked grammar that the output schema is exported from.
 func (s *Source) Schema() schemaexport.Source {
@@ -234,22 +253,27 @@ func (s *Source) Family(core any, f state.Family) ([]*state.Rule, error) {
 // Recognizer compiles the grammar again as a program that builds no tree, with the rule flags of
 // this one.
 func (s *Source) Recognizer() (state.Source, error) {
-	return s.again(func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
+	return s.again(driver.Recognizer, func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
 }
 
 // Insertion compiles the grammar again with the rule flags of missing-token insertion.
 func (s *Source) Insertion() (state.Source, error) {
-	return s.again(func(*check.Options) {}, s.prog.InsertionFlags)
+	return s.again(driver.Insertion, func(*check.Options) {}, s.prog.InsertionFlags)
 }
 
-// again compiles the grammar again with the rule flags and the options the program was compiled
-// with, changed by derive for what the build is for, and with the program's settings. This is the
-// one place that makes them, so no option or setting is dropped from a program built again
-// (TestLazyProgramsCarryEveryOption).
-func (s *Source) again(derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
+// again compiles the grammar again as the program of the role, with the rule flags and the options
+// the program was compiled with, changed by derive for what the build is for, and with the
+// program's settings. This is the one place that makes them, so no option or setting is dropped from
+// a program built again (TestLazyProgramsCarryEveryOption), and a derived program keeps the options
+// of the parser it is derived from.
+func (s *Source) again(role driver.Role, derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
-	return Check(s.Grammar(), Options{Compile: o, Settings: s.settings}, flags, nil)
+	d, err := Check(s.Grammar(), Options{Compile: o, Settings: s.settings}, flags, nil)
+	if err != nil {
+		return nil, err
+	}
+	return newSource(d.prog, s.settings, role, s.parser), nil
 }
 
 // RuleType is check.Checker.RuleType.

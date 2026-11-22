@@ -353,6 +353,9 @@ type assembly struct {
 // decide checks the options of the target t of p that do not depend on the grammar, completing
 // them, and returns the target as its printer reads it (codegen.TargetFeature).
 func decide(p *Program, t Target) (target, error) {
+	if p.Start() == nil && (t.Backend == result.Go || t.Backend == result.TypeScript) {
+		return target{}, fmt.Errorf("the %s program of a run-time build generates no parser: it has no start rule", p.Role())
+	}
 	switch t.Backend {
 	case result.Go:
 		opts, err := goprint.Validate(t.Gen)
@@ -477,7 +480,7 @@ func checkTarget(p *Program, o Options, t Target) error {
 		return fmt.Errorf("target %s: %s differs from the value of the compilation", t.Backend, field)
 	}
 	switch {
-	case g.Start != "" && g.Start != p.Start().Name:
+	case g.Start != "" && (p.Start() == nil || g.Start != p.Start().Name):
 		return bad("Start")
 	case g.SourceInfo && !po.SourceInfo:
 		return bad("SourceInfo")
