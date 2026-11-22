@@ -10,6 +10,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/core"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -62,7 +63,27 @@ type binding struct {
 	rule string
 	b    *ast.Bind
 	c    wctx
-	p    *ast.Predicate // the predicate that holds the binding
+	p    core.Node // the node of the predicate that holds the binding: a core.Pred or core.BindNode
+}
+
+// predicateAction returns the action expression of the predicate node n, a core.Pred or core.BindNode:
+// that of the predicate that n is written from, a *ast.Bind for a binding. The classifier reads
+// the action expressions as the grammar writes them.
+func (k *classifier) predicateAction(n core.Node) ast.ActionExpr {
+	return k.exprOf(n).(*ast.Predicate).Action
+}
+
+// captured returns the nodes of the expressions that rule captures as name.
+func (k *classifier) captured(rule, name string) []core.Node {
+	exprs := k.captures[rule][name]
+	if exprs == nil {
+		return nil
+	}
+	nodes := make([]core.Node, len(exprs))
+	for i, e := range exprs {
+		nodes[i] = k.nodeOf(e)
+	}
+	return nodes
 }
 
 // content describes what a value can hold, for the copying operations that copy it.
@@ -201,7 +222,11 @@ func (k *classifier) walkAction(t ast.ActionExpr, tc actionCtx) {
 			k.walkAction(s, tc.part(false))
 		}
 	case *ast.Bind:
-		k.binds = append(k.binds, &binding{rule: tc.rule, b: t, c: tc.c, p: tc.pred})
+		b := &binding{rule: tc.rule, b: t, c: tc.c}
+		if tc.pred != nil {
+			b.p = k.nodeOf(tc.pred)
+		}
+		k.binds = append(k.binds, b)
 		k.walkAction(t.Value, tc.part(false))
 	case *ast.FieldAccess:
 		k.walkAction(t.X, tc.part(false))

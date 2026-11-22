@@ -12,6 +12,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -842,7 +843,7 @@ func TestSplicedLen(t *testing.T) {
 			}
 			c := k.byName["main"].Expr.(*ast.Seq).Items[0].(*ast.Capture)
 			seq := check.UngroupExpr(c.Expr).(*ast.Seq)
-			got, ok := k.splicedLen(seq, map[string]bool{})
+			got, ok := k.splicedLen(k.nodeOf(seq).(*core.Seq), map[string]bool{})
 			if ok != tc.bounded || got != tc.want {
 				t.Errorf("splicedLen = %d, %v; want %d, %v", got, ok, tc.want, tc.bounded)
 			}

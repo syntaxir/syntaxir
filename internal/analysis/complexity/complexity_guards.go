@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -48,7 +49,7 @@ func (g guard) passes(v string, y int) bool {
 //
 // A test of a conjunction bounds the value by each of its comparisons that has the form; a
 // single comparison bounds one side, which the range of e (see actionRange) can bound on the other.
-func guardOf(b *binding) guard {
+func (k *classifier) guardOf(b *binding) guard {
 	g := guard{bounds: fullRange}
 	v, e := b.b.Name, check.UngroupActionExpr(b.b.Value)
 	isVar := func(t ast.ActionExpr) bool {
@@ -57,7 +58,7 @@ func guardOf(b *binding) guard {
 	}
 	text := fmt.FormatActionExpr(e)
 	isValue := func(t ast.ActionExpr) bool { return fmt.FormatActionExpr(check.UngroupActionExpr(t)) == text }
-	after, before := adjacentStatements(b)
+	after, before := k.adjacentStatements(b)
 	for _, s := range after {
 		if bd, ok := s.(*ast.Bind); ok && bd.Name == v {
 			break
@@ -79,13 +80,13 @@ func guardOf(b *binding) guard {
 // adjacentStatements returns the statements of the predicates that run right after the binding b
 // and right before it, each list in the order of evaluation away from b: the other statements of
 // its block, then those of the predicates next to the predicate of b in the sequence that holds
-// it, up to the first element on either side that is not a predicate. A predicate with attributes
-// counts when they are all @ attributes, which do not change matching.
-func adjacentStatements(b *binding) (after, before []ast.ActionExpr) {
+// it, up to the first element on either side that is not a predicate. A predicate under labels
+// counts, since labels do not change matching.
+func (k *classifier) adjacentStatements(b *binding) (after, before []ast.ActionExpr) {
 	if b.p == nil {
 		return nil, nil
 	}
-	own := statements(b.p.Action)
+	own := statements(k.predicateAction(b.p))
 	i := slices.Index(own, ast.ActionExpr(b.b))
 	if i < 0 {
 		return nil, nil
@@ -98,22 +99,23 @@ func adjacentStatements(b *binding) (after, before []ast.ActionExpr) {
 		return after, before
 	}
 	f := b.c.seqs[len(b.c.seqs)-1]
-	if predicateOf(f.seq.Items[f.index]) != b.p {
+	items := k.nodeOf(f.seq).(*core.Seq).Items
+	if predicateOf(items[f.index]) != b.p {
 		return after, before
 	}
-	for _, it := range f.seq.Items[f.index+1:] {
+	for _, it := range items[f.index+1:] {
 		q := predicateOf(it)
 		if q == nil {
 			break
 		}
-		after = append(after, statements(q.Action)...)
+		after = append(after, statements(k.predicateAction(q))...)
 	}
 	for j := f.index - 1; j >= 0; j-- {
-		q := predicateOf(f.seq.Items[j])
+		q := predicateOf(items[j])
 		if q == nil {
 			break
 		}
-		s := statements(q.Action)
+		s := statements(k.predicateAction(q))
 		for m := len(s) - 1; m >= 0; m-- {
 			before = append(before, s[m])
 		}
@@ -121,32 +123,20 @@ func adjacentStatements(b *binding) (after, before []ast.ActionExpr) {
 	return after, before
 }
 
-// predicateOf returns the predicate that e is, through @ attributes, or nil.
-func predicateOf(e ast.Expr) *ast.Predicate {
+// predicateOf returns the predicate node, a core.Pred or core.BindNode, that n is through labels
+// (@error and @diagnostic, which change diagnostics, not matching, backtracking or bindings), or
+// nil.
+func predicateOf(n core.Node) core.Node {
 	for {
-		switch x := e.(type) {
-		case *ast.Predicate:
+		switch x := n.(type) {
+		case *core.Pred, *core.BindNode:
 			return x
-		case *ast.Attributed:
-			if !labelsOnly(x) {
-				return nil
-			}
-			e = x.Expr
+		case *core.Label:
+			n = x.Body
 		default:
 			return nil
 		}
 	}
-}
-
-// labelsOnly reports whether every attribute of e is an @ attribute, as @error and @diagnostic
-// are: they change diagnostics, not matching, backtracking or bindings.
-func labelsOnly(e *ast.Attributed) bool {
-	for _, a := range e.Attrs {
-		if a.Pragma {
-			return false
-		}
-	}
-	return true
 }
 
 // statements returns the statements of a predicate action expression: those of a block, or the action expression itself.

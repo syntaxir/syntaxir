@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -180,7 +181,7 @@ func (k *classifier) finiteInt(v *ast.VarDef, binds []*binding) (int, bool) {
 	for _, b := range binds {
 		ops, ok := k.lenOperands(b)
 		d.lens[b], d.opaque[b] = ops, !ok
-		d.guards[b] = guardOf(b)
+		d.guards[b] = k.guardOf(b)
 		d.binds[b.b] = b
 	}
 	// Each pass evaluates the bindings only from the values that the previous pass added: what
@@ -292,7 +293,7 @@ func (k *classifier) lenOperands(b *binding) ([]lenOperand, bool) {
 		if !isRef || r.Param {
 			return false
 		}
-		exprs := k.captures[b.rule][r.Name]
+		exprs := k.captured(b.rule, r.Name)
 		if len(exprs) == 0 {
 			return false
 		}
@@ -321,16 +322,17 @@ func (k *classifier) lenOperands(b *binding) ([]lenOperand, bool) {
 func (d *intDomain) inputs(b *binding) valueSet {
 	x := d.base
 	frames := b.c.seqs[b.c.strictFrom:]
+	var items []core.Node
 	for _, f := range frames {
-		for _, it := range f.seq.Items[:f.index] {
+		items = d.k.nodeOf(f.seq).(*core.Seq).Items
+		for _, it := range items[:f.index] {
 			x = d.after(it, x)
 		}
 	}
 	if len(frames) == 0 {
 		return x
 	}
-	f := frames[len(frames)-1]
-	stmts, found := blockBefore(f.seq.Items[f.index], b.b)
+	stmts, found := d.blockBefore(items[frames[len(frames)-1].index], b.b)
 	if !found {
 		// b lies deeper in the action expressions of a predicate than a statement of its block.
 		return d.base
@@ -341,21 +343,26 @@ func (d *intDomain) inputs(b *binding) valueSet {
 	return x
 }
 
-// blockBefore returns the statements before the binding b in the block of the predicate in e that
-// holds it as a statement or as its action expression, and whether e has such a predicate.
-func blockBefore(e ast.Expr, b *ast.Bind) ([]ast.ActionExpr, bool) {
+// blockBefore returns the statements before the binding b in the block of the predicate in n that
+// holds it as a statement or as its action expression, and whether n has such a predicate.
+func (d *intDomain) blockBefore(n core.Node, b *ast.Bind) ([]ast.ActionExpr, bool) {
 	var out []ast.ActionExpr
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
-		p, ok := x.(*ast.Predicate)
-		if !ok || found {
+	walkNodes(n, func(x core.Node) {
+		if found {
 			return
 		}
-		if p.Action == ast.ActionExpr(b) {
+		switch x.(type) {
+		case *core.Pred, *core.BindNode:
+		default:
+			return
+		}
+		t := d.k.predicateAction(x)
+		if t == ast.ActionExpr(b) {
 			found = true
 			return
 		}
-		if blk, ok := p.Action.(*ast.Block); ok {
+		if blk, ok := t.(*ast.Block); ok {
 			if i := slices.Index(blk.Statements, ast.ActionExpr(b)); i >= 0 {
 				out, found = blk.Statements[:i], true
 			}
@@ -364,58 +371,57 @@ func blockBefore(e ast.Expr, b *ast.Bind) ([]ast.ActionExpr, bool) {
 	return out, found
 }
 
-// after returns the values that the variable can hold after e matches when it holds a value of x
-// before. A binding applies, a test filters, a choice or an option joins its paths, @ attributes
-// change nothing, and a call or a terminal keeps the values, since bindings in a called rule are
-// not visible to its caller. Any other expression that binds the variable can leave it with any
-// value of the set.
-func (d *intDomain) after(e ast.Expr, x valueSet) valueSet {
-	switch e := e.(type) {
-	case *ast.Predicate:
-		return d.afterAction(e.Action, x)
-	case *ast.Group:
-		return d.after(e.Expr, x)
-	case *ast.Capture:
-		return d.after(e.Expr, x)
-	case *ast.Discard:
-		return d.after(e.Expr, x)
-	case *ast.Atomic:
-		return d.after(e.Expr, x)
-	case *ast.Attributed:
-		if labelsOnly(e) {
-			return d.after(e.Expr, x)
-		}
-	case *ast.Seq:
-		for _, it := range e.Items {
+// after returns the values that the variable can hold after n matches when it holds a value of x
+// before. A binding applies, a test filters, a choice or an option joins its paths, labels change
+// nothing, and a call or a terminal keeps the values, since bindings in a called rule are not
+// visible to its caller. Any other node that binds the variable can leave it with any value of
+// the set.
+func (d *intDomain) after(n core.Node, x valueSet) valueSet {
+	switch n := n.(type) {
+	case *core.Pred, *core.BindNode:
+		return d.afterAction(d.k.predicateAction(n), x)
+	case *core.Capture:
+		return d.after(n.Body, x)
+	case *core.Drop:
+		return d.after(n.Body, x)
+	case *core.Text:
+		return d.after(n.Body, x)
+	case *core.Label:
+		return d.after(n.Body, x)
+	case *core.Seq:
+		for _, it := range n.Items {
 			x = d.after(it, x)
 		}
 		return x
-	case *ast.Choice:
+	case *core.Choice:
 		out := valueSet{}
-		for _, alt := range e.Alts {
-			maps.Copy(out, d.after(alt, x))
+		for _, alt := range n.Alts {
+			maps.Copy(out, d.after(alt.Body, x))
 		}
 		return out
-	case *ast.Optional:
+	case *core.Opt:
 		out := maps.Clone(x)
-		maps.Copy(out, d.after(e.Expr, x))
+		maps.Copy(out, d.after(n.Body, x))
 		return out
-	case *ast.Not:
-		// A negative lookahead undoes its bindings.
-		return x
+	case *core.Look:
+		if n.Neg {
+			// A negative lookahead undoes its bindings.
+			return x
+		}
 	}
-	if d.bindsVar(e) {
+	if d.bindsVar(n) {
 		return d.base
 	}
 	return x
 }
 
-// bindsVar reports whether e binds the variable in its own body, outside the rules that it calls.
-func (d *intDomain) bindsVar(e ast.Expr) bool {
+// bindsVar reports whether n binds the variable in its own body, outside the rules that it calls.
+func (d *intDomain) bindsVar(n core.Node) bool {
 	found := false
-	astfacts.WalkExpr(e, func(x ast.Expr) {
-		if p, ok := x.(*ast.Predicate); ok {
-			astfacts.WalkAction(p.Action, func(t ast.ActionExpr) {
+	walkNodes(n, func(x core.Node) {
+		switch x.(type) {
+		case *core.Pred, *core.BindNode:
+			astfacts.WalkAction(d.k.predicateAction(x), func(t ast.ActionExpr) {
 				if bd, ok := t.(*ast.Bind); ok && bd.Name == d.v {
 					found = true
 				}
@@ -456,83 +462,85 @@ func (d *intDomain) afterAction(t ast.ActionExpr, x valueSet) valueSet {
 	return out
 }
 
-// valueLen returns a bound on what len gives for the value of the captured expression e, and
-// whether it finds one: the length of the matched text in any position unit for a string node,
-// the number of elements for a tuple or list node or a list value, and 0 for nil.
-func (k *classifier) valueLen(e ast.Expr, seen map[string]bool) (int, bool) {
-	switch e := e.(type) {
-	case *ast.Literal, *ast.CharClass, *ast.Any:
-		return textLen(e, k, seen)
-	case *ast.Group:
-		return k.valueLen(e.Expr, seen)
-	case *ast.Capture:
-		return k.valueLen(e.Expr, seen)
-	case *ast.Optional:
-		return k.valueLen(e.Expr, seen)
-	case *ast.And:
-		return k.valueLen(e.Expr, seen)
-	case *ast.Atomic:
-		return textLen(e.Expr, k, seen)
-	case *ast.Repeat:
-		if e.Max >= 0 {
-			return e.Max, true
+// valueLen returns a bound on what len gives for the value of the captured node n, and whether it
+// finds one: the length of the matched text in any position unit for a string node, the number
+// of elements for a tuple or list node or a list value, and 0 for nil.
+func (k *classifier) valueLen(n core.Node, seen map[string]bool) (int, bool) {
+	switch n := n.(type) {
+	case *core.Lit, *core.ClassNode, *core.Any:
+		return textLen(n, k, seen)
+	case *core.Capture:
+		return k.valueLen(n.Body, seen)
+	case *core.Opt:
+		return k.valueLen(n.Body, seen)
+	case *core.Look:
+		if n.Neg {
+			return 0, true
 		}
-	case *ast.Choice:
+		return k.valueLen(n.Body, seen)
+	case *core.Text:
+		return textLen(n.Body, k, seen)
+	case *core.Repeat:
+		if n.Max >= 0 {
+			return n.Max, true
+		}
+	case *core.Choice:
 		m := 0
-		for _, alt := range e.Alts {
-			n, ok := k.valueLen(alt, seen)
+		for _, alt := range n.Alts {
+			l, ok := k.valueLen(alt.Body, seen)
 			if !ok {
 				return 0, false
 			}
-			m = max(m, n)
+			m = max(m, l)
 		}
 		return m, true
-	case *ast.Seq:
+	case *core.Seq:
 		// A tuple with at most one element for each item, where a plain group of a sequence
 		// and a call of a splice rule splice their elements into the tuple, or the value of a
 		// single item.
-		m, ok := k.splicedLen(e, map[string]bool{})
+		m, ok := k.splicedLen(n, map[string]bool{})
 		if !ok {
 			return 0, false
 		}
-		for _, it := range e.Items {
-			n, ok := k.valueLen(it, seen)
+		for _, it := range n.Items {
+			l, ok := k.valueLen(it, seen)
 			if !ok {
 				return 0, false
 			}
-			m = max(m, n)
+			m = max(m, l)
 		}
 		return m, true
-	case *ast.Discard, *ast.Predicate, *ast.Not:
+	case *core.Drop, *core.Pred, *core.BindNode:
 		return 0, true
-	case *ast.Ref:
+	}
+	if name, ok := k.calledRule(n); ok {
 		// A rule on a recursion can have a bounded value, as one whose action reads only a
 		// bounded capture; a value that reaches its own rule again has no bound.
-		r := k.byName[e.Name]
-		if r == nil || seen[e.Name] {
+		r := k.byName[name]
+		if r == nil || seen[name] {
 			return 0, false
 		}
-		seen[e.Name] = true
-		defer delete(seen, e.Name)
+		seen[name] = true
+		defer delete(seen, name)
 		if r.Action != nil {
-			return k.actionLen(r.Action, e.Name, seen)
+			return k.actionLen(r.Action, name, seen)
 		}
 		if isOperators(r.Expr) {
 			return 0, false
 		}
-		return k.valueLen(r.Expr, seen)
+		return k.valueLen(k.ruleBody(name), seen)
 	}
 	return 0, false
 }
 
-// splicedLen returns the number of items of the tuple of the sequence e: a plain group of a
+// splicedLen returns the number of items of the tuple of the sequence s: a plain group of a
 // sequence adds its own items, a call of a splice rule whose body is a sequence adds the items of
 // that body, and every other item, such as a capture, an option, a choice, a repetition or any
 // other call, adds one. It reports false if the items have no bound: a splice rule that calls
 // itself among its own items.
-func (k *classifier) splicedLen(e *ast.Seq, seen map[string]bool) (int, bool) {
+func (k *classifier) splicedLen(s *core.Seq, seen map[string]bool) (int, bool) {
 	n := 0
-	for _, it := range e.Items {
+	for _, it := range s.Items {
 		m, ok := k.itemLen(it, seen)
 		if !ok {
 			return 0, false
@@ -543,40 +551,66 @@ func (k *classifier) splicedLen(e *ast.Seq, seen map[string]bool) (int, bool) {
 }
 
 // itemLen returns the number of tuple items that the sequence item it adds, as splicedLen counts.
-func (k *classifier) itemLen(it ast.Expr, seen map[string]bool) (int, bool) {
+func (k *classifier) itemLen(it core.Node, seen map[string]bool) (int, bool) {
 	for {
-		switch x := check.UngroupExpr(it).(type) {
-		case *ast.Seq:
+		switch x := it.(type) {
+		case *core.Seq:
 			return k.splicedLen(x, seen)
-		case *ast.Attributed:
-			// An attribute other than recovery only labels its expression (isSeqOf).
-			if check.Recovers(x) {
+		case *core.Label:
+			// A label only labels its expression (isSeqOf).
+			it = x.Body
+		default:
+			name, isCall := k.calledRule(x)
+			if !isCall {
 				return 1, true
 			}
-			it = x.Expr
-		case *ast.Ref:
-			if !check.IsSeqOf(k.spliceBody, x) {
+			if !k.isSeqOf(x) {
 				return 1, true
 			}
-			if seen[x.Name] {
+			if seen[name] {
 				return 0, false
 			}
-			body, _ := k.spliceBody(x.Name)
-			seen[x.Name] = true
+			body, _ := k.spliceBody(name)
+			seen[name] = true
 			n, ok := k.itemLen(body, seen)
-			delete(seen, x.Name)
+			delete(seen, name)
 			return n, ok
-		default:
-			return 1, true
 		}
 	}
 }
 
-// spliceBody returns the body of the rule name if it is a splice rule (Program.SpliceBody), as the
-// grammar writes it.
-func (k *classifier) spliceBody(name string) (ast.Expr, bool) {
+// isSeqOf reports whether n is a sequence, through labels and calls of splice rules, whose items
+// a sequence around it splices into its tuple (check.IsSeqOf). A recovery makes one element.
+func (k *classifier) isSeqOf(n core.Node) bool {
+	var seen map[string]bool
+	for {
+		switch x := n.(type) {
+		case *core.Seq:
+			return true
+		case *core.Label:
+			n = x.Body
+		default:
+			name, isCall := k.calledRule(x)
+			if !isCall {
+				return false
+			}
+			body, ok := k.spliceBody(name)
+			if !ok || seen[name] {
+				return false
+			}
+			if seen == nil {
+				seen = map[string]bool{}
+			}
+			seen[name] = true
+			n = body
+		}
+	}
+}
+
+// spliceBody returns the body of the rule name if it is a splice rule (Program.SpliceBody).
+func (k *classifier) spliceBody(name string) (core.Node, bool) {
 	if rd := k.byName[name]; rd != nil && astfacts.SpliceRule(rd) {
-		return rd.Expr, true
+		return k.ruleBody(name), true
 	}
 	return nil, false
 }
@@ -591,7 +625,7 @@ func (k *classifier) actionLen(t ast.ActionExpr, rule string, seen map[string]bo
 	case *ast.NilLit:
 		return 0, true
 	case *ast.CaptureRef:
-		exprs := k.captures[rule][t.Name]
+		exprs := k.captured(rule, t.Name)
 		if t.Param || len(exprs) == 0 {
 			return 0, false
 		}
@@ -612,63 +646,62 @@ func (k *classifier) actionLen(t ast.ActionExpr, rule string, seen map[string]bo
 	return 0, false
 }
 
-// textLen bounds the length of the text that e matches, in any position unit: no unit counts more
-// positions for a character than the bytes of its UTF-8 encoding.
-func textLen(e ast.Expr, k *classifier, seen map[string]bool) (int, bool) {
-	switch e := e.(type) {
-	case *ast.Literal:
-		if e.IgnoreCase {
-			return utf8.UTFMax * utf8.RuneCountInString(e.Value), true
+// textLen bounds the length of the text that n matches, in any position unit: no unit counts more
+// positions for a character than the bytes of its UTF-8 encoding. The text of a literal is the
+// text that the node matches (core.Lit.Text).
+func textLen(n core.Node, k *classifier, seen map[string]bool) (int, bool) {
+	switch n := n.(type) {
+	case *core.Lit:
+		if n.Fold {
+			return utf8.UTFMax * utf8.RuneCountInString(n.Text), true
 		}
-		return len(e.Value), true
-	case *ast.CharClass, *ast.Any:
+		return len(n.Text), true
+	case *core.ClassNode, *core.Any:
 		return utf8.UTFMax, true
-	case *ast.Predicate, *ast.And, *ast.Not, *ast.Cut, *ast.BeginInput, *ast.EndInput,
-		*ast.BeginLine, *ast.EndLine:
+	case *core.Pred, *core.BindNode, *core.Look, *core.Cut, *core.Anchor:
 		return 0, true
-	case *ast.Group:
-		return textLen(e.Expr, k, seen)
-	case *ast.Capture:
-		return textLen(e.Expr, k, seen)
-	case *ast.Discard:
-		return textLen(e.Expr, k, seen)
-	case *ast.Atomic:
-		return textLen(e.Expr, k, seen)
-	case *ast.Optional:
-		return textLen(e.Expr, k, seen)
-	case *ast.Repeat:
-		if e.Max >= 0 {
-			n, ok := textLen(e.Expr, k, seen)
-			return e.Max * n, ok
+	case *core.Capture:
+		return textLen(n.Body, k, seen)
+	case *core.Drop:
+		return textLen(n.Body, k, seen)
+	case *core.Text:
+		return textLen(n.Body, k, seen)
+	case *core.Opt:
+		return textLen(n.Body, k, seen)
+	case *core.Repeat:
+		if n.Max >= 0 {
+			l, ok := textLen(n.Body, k, seen)
+			return n.Max * l, ok
 		}
-	case *ast.Seq:
+	case *core.Seq:
 		sum := 0
-		for _, it := range e.Items {
-			n, ok := textLen(it, k, seen)
+		for _, it := range n.Items {
+			l, ok := textLen(it, k, seen)
 			if !ok {
 				return 0, false
 			}
-			sum += n
+			sum += l
 		}
 		return sum, true
-	case *ast.Choice:
+	case *core.Choice:
 		m := 0
-		for _, alt := range e.Alts {
-			n, ok := textLen(alt, k, seen)
+		for _, alt := range n.Alts {
+			l, ok := textLen(alt.Body, k, seen)
 			if !ok {
 				return 0, false
 			}
-			m = max(m, n)
+			m = max(m, l)
 		}
 		return m, true
-	case *ast.Ref:
-		r := k.byName[e.Name]
-		if r == nil || seen[e.Name] || k.recursive[e.Name] || isOperators(r.Expr) {
+	}
+	if name, ok := k.calledRule(n); ok {
+		r := k.byName[name]
+		if r == nil || seen[name] || k.recursive[name] || isOperators(r.Expr) {
 			return 0, false
 		}
-		seen[e.Name] = true
-		defer delete(seen, e.Name)
-		return textLen(r.Expr, k, seen)
+		seen[name] = true
+		defer delete(seen, name)
+		return textLen(k.ruleBody(name), k, seen)
 	}
 	return 0, false
 }
