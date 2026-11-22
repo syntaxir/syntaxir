@@ -1201,7 +1201,7 @@ export type PlainLimits = Omit<Limits, "compute" | "memory">;
 
 /**
  * The options of a parser generated without limit controls: those of ParseOptions except the
- * cancellation signal and the compute limit.
+ * cancellation signal, the compute report and the compute and memory limits.
  */
 export type PlainParseOptions = Omit<ParseOptions, "signal" | "computeReport" | "limits"> & { limits?: PlainLimits };
 

@@ -127,14 +127,15 @@ Commands:
       parsing and Documents, and TypeScript batch parsing, including typed
       entry points.
       Generated parsers have limit controls by default: they support
-      WithContext and finite Compute and Memory limits (signal and the
-      compute limit in TypeScript) and apply the default limits to a parse
+      WithContext, WithComputeReport and finite Compute and Memory limits
+      (in TypeScript the signal and computeReport options and finite
+      compute and memory limits) and apply the default limits to a parse
       that sets none. -no-limits generates the ordinary form instead: it
       is smaller and faster, WithContext is not exported, the generated
-      code does not spend budget, and a parse that passes a context or a
-      finite Compute or Memory limit fails. The Input and Depth limits work
-      either way. A parser has one form only: generate a second parser with
-      the other setting to have both.
+      code does not spend budget, and a parse that passes any of those
+      options fails. The Input and Depth limits work either way. A
+      parser has one form only: generate a second parser with the other
+      setting to have both.
       -typed-only generates only the typed entry points (ParseValue and its
       siblings), without Parse and ParseRule. It needs -types and cannot be
       combined with -document, -stream or -lang ts. -recognize-only generates
@@ -757,7 +758,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	observability := fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
 	expectations := fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
 	chargeUnits := fs.String("charge-units", "", "")
-	noLimitControls := fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context or a finite Compute or Memory limit (signal and the compute limit in TypeScript) fails")
+	noLimitControls := fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context, a compute report or a finite Compute or Memory limit (in TypeScript a signal, a computeReport or a finite compute or memory limit) fails")
 	typedOnly := fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
 	recognizeOnly := fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
 	recognize := fs.Bool("recognize", false, "also generate Recognize, which checks input without building a tree")
