@@ -7,7 +7,7 @@ unaffected-entry checks until lookup.
 ## Mechanism and Invariants
 
 `memoTable.splice` updates the edited positions and gap. Entries record the edit
-generation they account for; `advanceEntry` replays later edits in order when
+generation they account for; the Exec IR composition `memoAdvance` replays later edits in order when
 looked up, invalidating examined-overlap results or shifting eligible positions.
 Positional results, recovered errors and unfinished seed dependencies retain
 conservative invalidation. Unused entries need no immediate result-tree walk.
@@ -35,7 +35,7 @@ Evidence records: [020](../020-splicing-the-memo-table-on-document-edits.md),
 [056](../056-applying-a-document-edit-to-memo-entries-when-they-are-looked-up.md).
 
 Source owners: [`memoTable.splice`](../../../internal/runtime/state/memo.go),
-[`advanceEntry`](../../../internal/runtime/state/budget_document_checkpoints.go), [`callBegin edit
+[`memoAdvance`](../../../spec/exec-ir/compositions.md#documents), [`callBegin edit
 advancement`](../../../internal/runtime/state/runtime.go).
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)

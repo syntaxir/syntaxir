@@ -279,7 +279,6 @@ docs/design/records/066-limits-by-purpose.md	gofile	pkg/runtime/libgo/typed.go	1
 docs/design/records/066-limits-by-purpose.md	unexport	appendSpend	1
 docs/design/records/066-limits-by-purpose.md	unexport	chargeSlow	1
 docs/design/records/066-limits-by-purpose.md	unexport	chargeValueBytes	1
-docs/design/records/066-limits-by-purpose.md	unexport	controlledFirstCallPrepare	1
 docs/design/records/066-limits-by-purpose.md	unexport	copySpend	2
 docs/design/records/066-limits-by-purpose.md	unexport	ctxTable	1
 docs/design/records/066-limits-by-purpose.md	unexport	heldBytes	1
@@ -370,7 +369,6 @@ docs/optimizations/121-inactive-budget-control-checks.md	gofile	term_exec.go	1
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	appendSpend	2
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	clearSpend	2
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	compareText	1
-docs/optimizations/121-inactive-budget-control-checks.md	unexport	controlledFirstCallPrepare	1
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	copySpend	2
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	memoEnv	1
 docs/optimizations/121-inactive-budget-control-checks.md	unexport	memoGet	2
@@ -819,10 +817,8 @@ docs/optimizations/mechanisms/R050-bounded-variable-bindings.md	gofile	internal/
 docs/optimizations/mechanisms/R050-bounded-variable-bindings.md	gofile	pkg/runtime/libgo/lib.go	1
 docs/optimizations/mechanisms/R060-chunked-document-input.md	codelink	internal/runtime/state/input_pieces.go	2
 docs/optimizations/mechanisms/R060-chunked-document-input.md	gofile	internal/runtime/state/input_pieces.go	2
-docs/optimizations/mechanisms/R070-document-memo-edits.md	codelink	internal/runtime/state/budget_document_checkpoints.go	1
 docs/optimizations/mechanisms/R070-document-memo-edits.md	codelink	internal/runtime/state/memo.go	1
 docs/optimizations/mechanisms/R070-document-memo-edits.md	codelink	internal/runtime/state/runtime.go	1
-docs/optimizations/mechanisms/R070-document-memo-edits.md	gofile	internal/runtime/state/budget_document_checkpoints.go	1
 docs/optimizations/mechanisms/R070-document-memo-edits.md	gofile	internal/runtime/state/memo.go	1
 docs/optimizations/mechanisms/R070-document-memo-edits.md	gofile	internal/runtime/state/runtime.go	1
 docs/optimizations/mechanisms/R070-document-memo-edits.md	unexport	memoTable	2
