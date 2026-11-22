@@ -100,8 +100,8 @@ func WithOptimize(o Optimize) Option { return func(opts *options) { opts.optimiz
 // Debug is the debugging setting of the compiler: it observes and checks the pass pipeline that
 // makes an artifact, and changes the artifact only under a bisection limit. Each field is a flag of
 // sxir gen: PrintBefore is -print-before, PrintAfter -print-after, PrintChanged -print-changed,
-// VerifyEach -verify-each, Stats -stats, TimePasses -time-passes and OptBisectLimit
-// -opt-bisect-limit; Output has no flag, as the command writes to standard error. The pass and counter
+// VerifyEach -verify-each, Stats -stats, TimePasses -time-passes, OptBisectLimit -opt-bisect-limit
+// and PrintPipeline -print-pipeline; Output has no flag, as the command writes to standard error. The pass and counter
 // names and the text written to Output are a debugging aid: their form is not stable and may change
 // in any version.
 type Debug struct {
@@ -135,6 +135,10 @@ type Debug struct {
 	// Output with its number, the pass and the unit. Under a limit the generators generate once, so
 	// the output may keep rules that it would otherwise leave out. A negative limit is an error.
 	OptBisectLimit *int
+	// PrintPipeline writes, before the build, the pass pipeline of the build as text: its steps in
+	// order, the required ones marked with !, the patterns of each pass, and headers with the options
+	// of the build.
+	PrintPipeline bool
 	// Output receives everything above. It is required when any of it is set.
 	Output io.Writer
 }
@@ -147,7 +151,7 @@ func WithDebug(d Debug) Option { return func(o *options) { o.debug = d } }
 
 // internal returns the debugging setting of the generators.
 func (d Debug) internal() common.Debug {
-	return common.Debug{PrintAfter: d.PrintAfter, PrintBefore: d.PrintBefore, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, OptBisectLimit: d.OptBisectLimit, Output: d.Output}
+	return common.Debug{PrintAfter: d.PrintAfter, PrintBefore: d.PrintBefore, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, OptBisectLimit: d.OptBisectLimit, PrintPipeline: d.PrintPipeline, Output: d.Output}
 }
 
 // check reports an invalid optimization or debugging setting.

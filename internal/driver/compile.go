@@ -17,6 +17,7 @@ import (
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/library"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -60,6 +61,13 @@ type Options struct {
 	// a table at the Exec stage. It is the one way for a test to read the units of a compilation;
 	// production callers leave it nil.
 	Observers []pipe.Observer
+	// Pipeline, if not empty, is a pipeline text (internal: tests and the development tool) whose
+	// body replaces the assembled pipeline. pipe.Resolve holds it to the skeleton of the assembled
+	// one, so it can reorder, repeat, insert or remove optional passes and set their parameters only,
+	// and it takes the target and the reach of the plan from the assembled one. Its headers, which
+	// give the options of the build, are read by the reader of the text (generate.Read); Compile
+	// does not read them. A call sets Pipeline or Edits, not both.
+	Pipeline string
 }
 
 // The slots of the assembled pipelines, for Edits: the Core passes of a table, the Flow and the Exec
@@ -84,29 +92,25 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 	if p == nil {
 		return compileLibrary(ctx, o, t)
 	}
-	if err := checkTarget(p, o, t); err != nil {
+	c, err := newCompilation(p, o, t)
+	if err != nil {
 		return nil, err
 	}
-	if err := CheckDebug(o.Debug); err != nil {
-		return nil, err
-	}
-	// The target's options that the program and the call hold are theirs.
-	po := p.Options()
-	t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
-	t.Gen.Debug = o.Debug
-	c := &compilation{p: p, t: t, o: o}
-	if err := c.decide(); err != nil {
+	a, err := c.pipeline()
+	if err != nil {
 		return nil, err
 	}
 	d := newDebugger(o)
-	out, err := c.run(ctx, d)
+	out, err := c.run(ctx, d, a)
 	if r, ok := out.(*common.Replan); ok && err == nil {
 		// The fallback of planning: the printed code enters other rules than the plan reaches, so
 		// the compilation runs again with the reach of the printed code, and what the observers of
 		// the debugging settings collected of the first run is dropped.
 		d.restart()
-		c.reach = r.Reach
-		if out, err = c.run(ctx, d); err == nil {
+		if a.pipeline, err = pipe.Apply(a.pipeline, pipe.SetConst(plandata.ReachFeature, r.Reach)); err != nil {
+			return nil, fmt.Errorf("internal error: %w", err)
+		}
+		if out, err = c.run(ctx, d, a); err == nil {
 			if _, again := out.(*common.Replan); again {
 				err = fmt.Errorf("internal error: the %s printer asks again for another reach than the one it printed", t.Backend)
 			}
@@ -127,22 +131,11 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 // compileLibrary compiles the target t without a program: the TypeScript library alone
 // (common.LibOnly), whose pipeline starts at the library (tsLibraryPipeline).
 func compileLibrary(ctx context.Context, o Options, t Target) ([]Output, error) {
-	if t.Backend != result.TypeScript || t.Gen.Lib != common.LibOnly {
-		return nil, fmt.Errorf("target %s: a compilation without a program compiles only the TypeScript library alone (LibOnly)", t.Backend)
-	}
-	if t.GoHooks != nil || t.TSHooks != nil {
-		return nil, fmt.Errorf("target %s: the library alone has no printer hooks", t.Backend)
-	}
-	if err := CheckDebug(o.Debug); err != nil {
-		return nil, err
-	}
-	t.Gen.Debug = o.Debug
-	src, err := tsbackend.LibrarySource()
+	a, pl, err := libraryCompilation(o, t)
 	if err != nil {
 		return nil, err
 	}
-	a := tsLibraryPipeline(t)
-	pl, err := pipe.Apply(a.pipeline, o.Edits...)
+	src, err := tsbackend.LibrarySource()
 	if err != nil {
 		return nil, err
 	}
@@ -161,18 +154,107 @@ func compileLibrary(ctx context.Context, o Options, t Target) ([]Output, error) 
 	return []Output{out}, nil
 }
 
-// run executes the pipeline of the compilation c once, with the observers of the debugging settings
-// and of the call that d runs.
-func (c *compilation) run(ctx context.Context, d *debugger) (Output, error) {
+// Describe returns the pipeline that Compile runs for the target of p under o, as text without
+// headers, which the reader of the build writes (generate.Describe): the assembled pipeline with the
+// edits of o, or the pipeline of the text of o. A nil program describes the TypeScript library
+// alone. Until the pipelines of several targets are forked (record 074, migration step 9), it takes
+// exactly one target. The pipeline is that of the first run: the reach of the plan is none, and
+// the fallback of planning, which a run of the text repeats, gives the second run its reach.
+func Describe(p *Program, o Options, targets ...Target) (*pipe.Description, error) {
+	if len(targets) != 1 {
+		return nil, fmt.Errorf("a compilation takes one target, not %d", len(targets))
+	}
+	t := targets[0]
+	if p == nil {
+		_, pl, err := libraryCompilation(o, t)
+		if err != nil {
+			return nil, err
+		}
+		return pipe.Describe(pl), nil
+	}
+	c, err := newCompilation(p, o, t)
+	if err != nil {
+		return nil, err
+	}
+	a, err := c.pipeline()
+	if err != nil {
+		return nil, err
+	}
+	return pipe.Describe(a.pipeline), nil
+}
+
+// newCompilation checks the target t of p under o and returns its compilation, with the options of
+// the target that the program and the call hold set to theirs.
+func newCompilation(p *Program, o Options, t Target) (*compilation, error) {
+	if err := checkTarget(p, o, t); err != nil {
+		return nil, err
+	}
+	if err := CheckDebug(o.Debug); err != nil {
+		return nil, err
+	}
+	po := p.Options()
+	t.Gen.SourceInfo, t.Gen.DefaultValue, t.Gen.LeftRecursionBindings = po.SourceInfo, po.DefaultValue, po.LeftRecursionBindings
+	t.Gen.Debug = o.Debug
+	return &compilation{p: p, t: t, o: o}, nil
+}
+
+// libraryCompilation checks the target t of a compilation without a program under o, which compiles
+// only the TypeScript library alone (common.LibOnly), and returns its pipeline as assembled and as
+// the call runs it.
+func libraryCompilation(o Options, t Target) (libraryPipeline, pipe.Pipeline[*library.Library, Output], error) {
+	var none pipe.Pipeline[*library.Library, Output]
+	if t.Backend != result.TypeScript || t.Gen.Lib != common.LibOnly {
+		return libraryPipeline{}, none, fmt.Errorf("target %s: a compilation without a program compiles only the TypeScript library alone (LibOnly)", t.Backend)
+	}
+	if t.GoHooks != nil || t.TSHooks != nil {
+		return libraryPipeline{}, none, fmt.Errorf("target %s: the library alone has no printer hooks", t.Backend)
+	}
+	if err := CheckDebug(o.Debug); err != nil {
+		return libraryPipeline{}, none, err
+	}
+	t.Gen.Debug = o.Debug
+	a := tsLibraryPipeline(t)
+	pl, err := callPipeline(a.pipeline, o)
+	return a, pl, err
+}
+
+// pipeline decides the target of the compilation c and returns the pipeline that its first run
+// runs: the assembled one with the edits of the call, or the one of its pipeline text.
+func (c *compilation) pipeline() (assembled, error) {
+	if err := c.decide(); err != nil {
+		return assembled{}, err
+	}
 	a, err := c.assemble()
 	if err != nil {
-		return nil, err
+		return assembled{}, err
 	}
-	pl, err := pipe.Apply(a.pipeline, c.o.Edits...)
+	if a.pipeline, err = callPipeline(a.pipeline, c.o); err != nil {
+		return assembled{}, err
+	}
+	return a, nil
+}
+
+// callPipeline returns the pipeline that the call o runs in place of the assembled pipeline ref: ref
+// with the edits of o, or the pipeline of the text of o, which must take and return what ref does
+// and have its skeleton (pipe.Resolve).
+func callPipeline[I, O any](ref pipe.Pipeline[I, O], o Options) (pipe.Pipeline[I, O], error) {
+	if o.Pipeline == "" {
+		return pipe.Apply(ref, o.Edits...)
+	}
+	if len(o.Edits) > 0 {
+		return ref, fmt.Errorf("a compilation takes a pipeline text or edits of the assembled pipeline, not both")
+	}
+	d, err := pipe.Parse(o.Pipeline)
 	if err != nil {
-		return nil, err
+		return ref, err
 	}
-	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}, pl, c)
+	return pipe.Resolve(d, ref)
+}
+
+// run executes the pipeline a of the compilation c once, with the observers of the debugging
+// settings and of the call that d runs.
+func (c *compilation) run(ctx context.Context, d *debugger, a assembled) (Output, error) {
+	out, err := execute(ctx, d, &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}, a.pipeline, c)
 	if err != nil {
 		return nil, a.error(err)
 	}
@@ -224,8 +306,8 @@ func (c *compilation) decide() error {
 }
 
 // assemble returns the pipeline of the target of the compilation c, from the program to its output,
-// with the target as its printer reads it (codegen.TargetFeature) and the reach of the plan that the
-// compilation gives (plandata.ReachFeature).
+// with the target as its printer reads it (codegen.TargetFeature) and no reach of the plan
+// (plandata.ReachFeature), which the fallback of planning sets for a second run.
 func (c *compilation) assemble() (assembled, error) {
 	var a assembled
 	var err error
@@ -240,7 +322,7 @@ func (c *compilation) assemble() (assembled, error) {
 	if err != nil {
 		return assembled{}, err
 	}
-	a.pipeline = pipe.WithConst(codegen.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, c.reach, a.pipeline))
+	a.pipeline = pipe.WithConst(codegen.TargetFeature, c.target, pipe.WithConst(plandata.ReachFeature, map[plandata.Entry]bool(nil), a.pipeline))
 	return a, nil
 }
 

@@ -452,8 +452,11 @@ overrides of individual flags.
   transform received it, as `-- before <pass> [<unit>] --`, so the first change has something to compare against. A
   lowering makes a unit of another stage rather than changing one, so it is not dumped. A pass that `-print-after`
   selects too is dumped once.
-- `-print-pipeline` prints the pipeline that the driver assembled for the build, as the names of its passes in order,
-  with the required passes marked and the patterns of `canonicalize` listed under it.
+- `-print-pipeline` prints, before the build, the pipeline that the driver assembled for it in the text form of
+  [Textual Pipelines](#textual-pipelines): headers with every option of the build, then the steps in order in the blocks
+  that run them, the required ones marked with `!` and the patterns of a pass, such as those of `canonicalize`, listed
+  after it. It prints the first run; the fallback of planning, which gives a second run the reach of the printed code,
+  is repeated by a build from the text.
 - `-stats` prints, after the build, a `-- stats --` block: one line for each pass instance that ran, required steps
   included, in the order in which each first ran, with its counters summed over the units. The manager keeps three
   kinds for every pass: the units it ran on (`runs`), the runs that reported a change (`changed`), and the applied and
@@ -478,10 +481,9 @@ These settings do not change the parser that is built, bisection apart, so they 
 are a value of `Debug`, given with `WithDebug`, whose fields mirror the flags one to one: the passes to print before
 (`-print-before`) and after (`-print-after`), printing after a change (`-print-changed`), verification after each
 transform (`-verify-each`), the statistics (`-stats`), the timing (`-time-passes`) and the bisection limit
-(`-opt-bisect-limit`). The writer the output goes to has no flag: the command writes to standard error. The command
-builds its `Debug` value from its flags in one place, so a test and the command line see the same pipeline and the
-same dumps. `-print-pipeline` is not implemented yet; it adds its field when it lands, for eight fields that mirror
-flags.
+(`-opt-bisect-limit`) and the pipeline text (`-print-pipeline`), eight fields. The writer the output goes to has no
+flag: the command writes to standard error. The command builds its `Debug` value from its flags in one place, so a test
+and the command line see the same pipeline and the same dumps.
 
 The text these settings write is a debugging aid. Its form, the pass names and the counter names are not stable and may
 change in any version; the flags and the fields are the interface.
@@ -520,7 +522,15 @@ neither the public API nor the public command line.
 The typed combinators and the text build the same step tree. How the combinators group the steps (`Then` over `Seq`, or
 a body of one pass) means nothing, so a pipeline and its text verify at the same points and give the same run. Each
 option of a build has exactly one header word, and a test holds the header scheme to the generation options, so a new
-option cannot be left out of the text.
+option cannot be left out of the text. The reader of the generation reads the headers into the options of the build,
+assembles the pipeline for them and runs the text in its place; a build from the text writes the same files, dumps and
+statistics as the build that printed it.
+
+A pass registered at several kinds, such as `canonicalize` at the Flow and the Exec stage, has one name in the text, and
+the reader takes its registration at the kind of the place it stands. A feature whose value has no text form, such as
+the target that the driver builds from the checked program, prints a label, and the reader takes its value from the
+assembled pipeline at the same place, whose label must be the same. The fallback of planning gives the second run its
+reach by replacing the constant `reach` of the pipeline that ran first, whether the driver assembled it or read it.
 
 ## Related Topics
 

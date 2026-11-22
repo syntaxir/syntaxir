@@ -274,7 +274,8 @@ The debugging flags write to standard error and change no generated file: `-prin
 Core IR, Code IR at the Flow or Exec stage, or the plan of the parser (`plan`) after the named steps and passes,
 `-print-before <pass>[,<pass>]` before
 the named passes, `-print-changed` after each pass that changed it, `-verify-each` verifies it after every pass, and
-`-stats` and `-time-passes` write the statistics and the times of the passes after the build.
+`-stats` and `-time-passes` write the statistics and the times of the passes after the build, and `-print-pipeline`
+writes the pass pipeline of the build before it.
 `-opt-bisect-limit <n>` runs only the first `n` runs of optional passes and writes each decision, to find the pass that
 breaks a parser; it generates once, so its files can keep rules that a build leaves out (see
 [Debugging the generator](code-generation.md#debugging-the-generator)). Their output is not stable and may change in

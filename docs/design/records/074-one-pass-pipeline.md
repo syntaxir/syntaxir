@@ -807,7 +807,8 @@ that one execution numbers every decision: the Go target keeps every rule, and t
 reach that the plan computed. The observers of `Options.Observers`, which only tests set, see both runs. (Amended: the
 fallback was first a Go-only first run with `reach` unset, whose files the second run replaced.)
 `-print-pipeline` prints the second run with `with reach` as a derived provider, whose value a reader recomputes by the
-first run.
+first run. (Amended at step 8: it prints the first run, with the constant `reach` that the second run replaces, and a
+build from the text repeats the fallback.)
 
 **The VM** pipeline before the switch is the production route, run through the manager:
 
@@ -1256,6 +1257,14 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    expressions once in the pipeline, which comes next and makes the ban total.
 8. **The text form:** the printer, the reader and the resolver with the skeleton and kind checks, the headers with their
    reflection tests and per-target dumps, `-print-pipeline`, and the internal reader for tests and a development tool.
+   (Amended: `-print-pipeline` and the reader land for one target per call; the per-target dumps come with the fork of
+   step 9. The driver's `Describe` returns the description of the pipeline without headers, and an error for options
+   that the target rejects; the generation writes the headers, since the header scheme sits in its package, and reads a
+   text back into the options of the build, whose pipeline text replaces the assembled one. A feature without a text
+   form, such as the target, takes its value from the assembled pipeline at the same place, whose printed value must be
+   the same, instead of making the text unreadable; the resolver takes a pass registered at several kinds, such as
+   `canonicalize`, at the kind of its place; and the fallback of planning replaces the constant `reach` of the pipeline
+   of the first run, so `-print-pipeline` prints the first run, which a build from the text repeats with its fallback.)
 9. **Sharing, `Fork` and the `output` kind**, `Compile` over several targets, and the sharing of Core IR between a table
    and its traced copy.
 10. **The Go library route**, with the library text door and `print-libgo`; the library printer joins the import rules.

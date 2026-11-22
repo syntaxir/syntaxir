@@ -193,7 +193,7 @@ func TestOnlyTheDriverExecutesPipelines(t *testing.T) {
 // API, the slot keys of its edits and the vocabulary of the settings. A new export fails the test.
 var driverExports = []string{
 	// The compilation API.
-	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "FlowTable",
+	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "FlowTable",
 	"Options", "Output", "Program", "Target", "View",
 	// The slot keys.
 	"CoreSlot", "ExecSlot", "FlowSlot", "TargetSlot",

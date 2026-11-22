@@ -170,13 +170,17 @@ type Debug struct {
 	// generator keeps the unreachable rules (GenOptions.KeepUnreachable), and the TypeScript generator
 	// does not generate again without the rules that only its unprinted calls reach.
 	OptBisectLimit *int
+	// PrintPipeline writes, before the build, the pipeline of the build as text with the options of
+	// the build in its headers, from which the reader of the text (internal/driver/generate: Read)
+	// repeats the build.
+	PrintPipeline bool
 	// Output receives everything above. It is required when any of it is set.
 	Output io.Writer
 }
 
 // Writes reports whether d writes anything to Output.
 func (d Debug) Writes() bool {
-	return len(d.PrintAfter) > 0 || len(d.PrintBefore) > 0 || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil
+	return len(d.PrintAfter) > 0 || len(d.PrintBefore) > 0 || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil || d.PrintPipeline
 }
 
 // ValidateDefaultValue rejects typed output with default values: the types come from the actions and

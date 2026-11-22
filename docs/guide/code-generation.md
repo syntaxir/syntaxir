@@ -172,8 +172,8 @@ The output is exactly what the engine prints for the same grammar and input.
 ## The `sxir gen` Command
 
 ```bash
-sxir gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-no-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
-sxir gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-no-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -g <grammar> -module <import path> -o <directory> [-lang go] [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-no-limits] [-source-info] [-default-value] [-nodoc] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>] [-print-pipeline]
+sxir gen -lang ts -g <grammar> -o <directory> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types] [-recognize] [-expectations] [-observability] [-no-limits] [-source-info] [-default-value] [-max-depth <n>] [-optimize speed|memory|size] [-opt <name[=count],...>] [-no-opt <name,...>] [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>] [-print-pipeline]
 sxir gen -lib only -o <directory> [-lang go|ts]
 ```
 
@@ -209,6 +209,7 @@ sxir gen -lib only -o <directory> [-lang go|ts]
 | `-verify-each` | off | Verify the intermediate representation after every pass and step, so that an internal error names the first pass that broke it |
 | `-stats` | off | Write the statistics of each pass that ran to standard error after the build |
 | `-time-passes` | off | Write the time of each pass and step that ran to standard error after the build |
+| `-print-pipeline` | off | Write the pass pipeline of the build to standard error before the build, as text: headers with the options of the build, then its steps in order, the required ones marked with `!` (see [Debugging the generator](#debugging-the-generator)) |
 | `-opt-bisect-limit` | none | Run only the runs of optional passes, and the applications of their patterns, numbered up to the count in pipeline order, skip the later ones and write each decision to standard error; the required steps always run. The generator generates once, so the files can keep rules that it otherwise leaves out (see [Debugging the generator](#debugging-the-generator)). A negative count is an error |
 
 Details:
@@ -411,6 +412,34 @@ units, with its share of the total, the time of the pass manager outside them, a
   plan             runs 1  changed 1
   flowlower        runs 1  changed 1
   ...
+```
+
+`-print-pipeline` writes, before the build, the pipeline that the generator runs: a line with the version of the text
+format and one with the version of sxir, header lines with the options of the build (`options`, `settings`, `debug` and
+`target`), then the steps from the program to the files, one per line, nested in the blocks that run them on each table
+or function. A required step ends with `!`, a pass that applies patterns lists them in brackets, and a second instance
+of a pass is numbered, as in `canonicalize#2`. The steps are those of the first run of the build; when the TypeScript
+generator runs the pipeline again with the reach of its printed code, the steps are the same.
+
+```text
+pipeline program -> output {
+  with target=go {
+    with reach=none {
+      each go-tables {
+        shared core-config {
+          elaborate!
+          slot core-passes {
+            guards
+            scans
+          }
+        }
+      }
+      plan!
+      ...
+      print-go!
+    }
+  }
+}
 ```
 
 `-opt-bisect-limit <n>` finds the pass that breaks a parser. The generator numbers the runs of optional passes in the

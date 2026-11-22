@@ -64,7 +64,7 @@ func TestGenDebug(t *testing.T) {
 	api := func(lang string, d compiler.Debug) string {
 		t.Helper()
 		var diag bytes.Buffer
-		if d.PrintAfter != nil || d.PrintBefore != nil || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil {
+		if d.PrintAfter != nil || d.PrintBefore != nil || d.PrintChanged || d.Stats || d.TimePasses || d.OptBisectLimit != nil || d.PrintPipeline {
 			d.Output = &diag
 		}
 		var err error
@@ -95,6 +95,7 @@ func TestGenDebug(t *testing.T) {
 				{[]string{"-verify-each"}, compiler.Debug{VerifyEach: true}, ""},
 				{[]string{"-stats"}, compiler.Debug{Stats: true}, "-- stats --\n"},
 				{[]string{"-time-passes"}, compiler.Debug{TimePasses: true}, "-- time-passes --\n"},
+				{[]string{"-print-pipeline"}, compiler.Debug{PrintPipeline: true}, "sxir-pipeline 1.0\n"},
 			} {
 				files, diag := gen(lang, c.flags...)
 				if len(files) != len(plain) {
@@ -161,7 +162,7 @@ func TestGenDebug(t *testing.T) {
 		}
 	}
 	// The debugging flags do not apply to the library alone.
-	for _, args := range [][]string{{"-print-changed"}, {"-verify-each"}, {"-stats"}, {"-time-passes"}, {"-print-before", "guards"}, {"-opt-bisect-limit", "3"}} {
+	for _, args := range [][]string{{"-print-changed"}, {"-verify-each"}, {"-stats"}, {"-time-passes"}, {"-print-before", "guards"}, {"-opt-bisect-limit", "3"}, {"-print-pipeline"}} {
 		name := strings.Join(args, " ")
 		_, err := runCLI(t, "", append([]string{"gen", "-lib", "only", "-o", t.TempDir()}, args...)...)
 		if err == nil || !strings.Contains(err.Error(), "cannot be combined with -lib only") {

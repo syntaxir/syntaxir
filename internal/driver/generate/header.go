@@ -33,6 +33,7 @@ var Header = &pipe.Header[common.GenOptions]{
 		{Word: "debug", Fields: []pipe.HeaderField{
 			{Field: "Debug.VerifyEach"}, {Field: "Debug.OptBisectLimit"}, {Field: "Debug.PrintAfter"},
 			{Field: "Debug.PrintChanged"}, {Field: "Debug.Stats"}, {Field: "Debug.TimePasses"}, {Field: "Debug.PrintBefore"},
+			{Field: "Debug.PrintPipeline"},
 		}},
 		{Word: "target", Fields: []pipe.HeaderField{
 			{Field: "TypedOnly"}, {Field: "RecognizeOnly"}, {Field: "NoLimitControls", Key: "no-limits"},

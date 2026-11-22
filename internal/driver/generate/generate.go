@@ -47,7 +47,11 @@ func GoWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 	if err != nil {
 		return nil, err
 	}
-	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.Go, Gen: o, GoHooks: h})
+	t := driver.Target{Backend: result.Go, Gen: o, GoHooks: h}
+	if err := writePipeline(p, x, t); err != nil {
+		return nil, err
+	}
+	out, err := driver.Compile(context.Background(), p, x, t)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +71,11 @@ func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, er
 func TypeScriptWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Options, h *tsprint.Hooks) ([]common.GeneratedFile, error) {
 	if o.Lib == common.LibOnly {
 		x.Debug = o.Debug
-		out, err := driver.Compile(context.Background(), nil, x, driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h})
+		t := driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h}
+		if err := writePipeline(nil, x, t); err != nil {
+			return nil, err
+		}
+		out, err := driver.Compile(context.Background(), nil, x, t)
 		if err != nil {
 			return nil, err
 		}
@@ -85,7 +93,11 @@ func TypeScriptWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x dr
 	if err != nil {
 		return nil, err
 	}
-	out, err := driver.Compile(context.Background(), p, x, driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h})
+	t := driver.Target{Backend: result.TypeScript, Gen: o, TSHooks: h}
+	if err := writePipeline(p, x, t); err != nil {
+		return nil, err
+	}
+	out, err := driver.Compile(context.Background(), p, x, t)
 	if err != nil {
 		return nil, err
 	}
