@@ -128,22 +128,25 @@ func TestFeatureWitness(t *testing.T) {
 
 // TestAnalyzeFeatures checks the features that the analysis finds for small grammars: none of the
 // grammar's for a grammar without memoized, recursive-left, recovering or Operators rules, and those of
-// the options; and that the library declares the features with the analysis's values.
+// the options, of which the limit controls are on unless NoLimitControls turns them off; and that the
+// library declares the features with the analysis's values.
 func TestAnalyzeFeatures(t *testing.T) {
 	t.Parallel()
+	const budget = common.FeatureBudget
 	for _, tc := range []struct {
 		src  string
 		opts common.GenOptions
 		want common.FeatureSet
 	}{
-		{src: `rule main = "a" "b"* $$`},
+		{src: `rule main = "a" "b"* $$`, want: common.FeatureSet(budget)},
+		{src: `rule main = "a" "b"* $$`, opts: common.GenOptions{NoLimitControls: true}},
 		{src: `rule main = "a" $$`, opts: common.GenOptions{Document: true, Stream: false, Observability: true},
-			want: common.FeatureSet(common.FeatureDocument | common.FeatureObserve | common.FeatureBudget)},
-		{src: "rule main = e $$\nrule e = e \"+\" n / n\nrule n = [0-9]+", want: common.FeatureSet(common.FeatureMemo | common.FeatureLeftRecursion | common.FeatureScanSites)},
+			want: common.FeatureSet(common.FeatureDocument | common.FeatureObserve | budget)},
+		{src: "rule main = e $$\nrule e = e \"+\" n / n\nrule n = [0-9]+", want: common.FeatureSet(budget | common.FeatureMemo | common.FeatureLeftRecursion | common.FeatureScanSites)},
 		// The repetitions in the skip of the Operators Rule are run sites.
-		{src: codegentest.Arith, want: common.FeatureSet(common.FeatureOperators | common.FeatureSkipRuns)},
+		{src: codegentest.Arith, want: common.FeatureSet(budget | common.FeatureOperators | common.FeatureSkipRuns)},
 		// A rule that no entry point reaches adds nothing.
-		{src: "@start\nrule main = \"a\" $$\nrule unused = (\"q\" #recover(skip=\"z\")) e\nrule e = e \"+\" / \"n\""},
+		{src: "@start\nrule main = \"a\" $$\nrule unused = (\"q\" #recover(skip=\"z\")) e\nrule e = e \"+\" / \"n\"", opts: common.GenOptions{NoLimitControls: true}},
 	} {
 		g, err := compiletest.Parse(tc.src)
 		if err != nil {
