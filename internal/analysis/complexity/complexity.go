@@ -289,7 +289,7 @@ func newViewClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, star
 		// Every node the view builds has a grammar spelling; an error is a defect of the view.
 		panic("compile: cost view: " + err.Error())
 	}
-	k := newClassifierOf(g, w.rules, rules, w.nodes, rf, start, control)
+	k := newClassifierOf(g, w.rules, rules, nodeMap{nodes: w.nodes, exprs: w.exprs}, rf, start, control)
 	k.viewText = w.text
 	return k
 }
@@ -425,8 +425,12 @@ type classifier struct {
 	viewText map[ast.Expr]string
 	// nodes gives, for each expression of rules, the Core IR node that it stands for: a node of
 	// the view when rules are a view, else of the module of the rules (originNodes). An expression
-	// that the classifier builds stands for a node that it builds with it (nodeOf).
+	// that the classifier builds stands for a node that it builds with it (nodeOf). exprs gives
+	// each such node the expression back (exprOf).
 	nodes map[ast.Expr]core.Node
+	exprs map[core.Node]ast.Expr
+	// operandCalls holds the calls that stand for right operands (rightOperand).
+	operandCalls map[*core.Call]bool
 	// ruleIDs numbers the rules by name, as the rules of the module are numbered.
 	ruleIDs map[string]int
 }
@@ -436,10 +440,10 @@ func newClassifier(g *ast.Grammar, rules []*ast.RuleDef, rf *ruleFacts, start st
 }
 
 // newClassifierOf returns a classifier of the bodies of rules, which are those of base or a view
-// of them, whose expressions stand for the Core IR nodes that nodes gives (classifier.nodes). The
+// of them, whose expressions stand for the Core IR nodes that nm gives (classifier.nodes). The
 // rule facts rf of base stand for the grammar: its analysis, its variables, its memoization and
 // its nullable rules.
-func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nodes map[ast.Expr]core.Node, rf *ruleFacts, start string, control *cancel.Control) *classifier {
+func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf *ruleFacts, start string, control *cancel.Control) *classifier {
 	k := &classifier{control: control, g: g, rules: rules, start: start, byName: map[string]*ast.RuleDef{},
 		calls: map[string][]string{}, scc: map[string]int{}, recursive: map[string]bool{}, memo: map[string]bool{},
 		varType: map[string]string{}, nullRule: rf.nullable, firstRule: map[string]charset{},
@@ -453,7 +457,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nodes map[ast.E
 		k.byName[r.Name] = r
 		k.ruleIDs[r.Name] = i
 	}
-	k.nodes = nodes
+	k.nodes, k.exprs = nm.nodes, nm.exprs
 	k.an, k.facts = rf.an, rf
 	k.vars = rf.vars
 	k.memo, k.members = maps.Clone(rf.memo), rf.members

@@ -79,7 +79,7 @@ func Build(src *Source, opts Options, control *cancel.Control) *View {
 	m := *src.Module
 	m.Rules = make([]*core.Rule, len(src.Module.Rules))
 	v := &View{Module: &m, Text: map[core.Node]string{}, Applied: map[Law]int{},
-		replaces: map[core.Node]core.Node{}, chains: attrChains(src), at: map[core.Node]core.Node{}}
+		replaces: map[core.Node]core.Node{}, chains: attrChains(src.Module), at: map[core.Node]core.Node{}}
 	b := &builder{src: src, opts: opts, control: control, view: v, orig: map[core.Node]bool{},
 		values: valueReaders(src.Module)}
 	for _, r := range src.Module.Rules {

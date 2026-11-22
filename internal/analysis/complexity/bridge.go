@@ -7,29 +7,46 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The classifier walks the rules it classifies as grammar expressions, and reads the facts of
-// their Core IR nodes: each expression of the rules stands for the node of the view, or of the
-// module, that it is written from (classifier.nodes), and each expression that the classifier
-// builds itself, such as the repetition that stands for the later iterations of another, stands
-// for a node built with it.
+// The classifier walks the rules it classifies, part as grammar expressions and part as their
+// Core IR nodes, and reads the facts of the nodes: each expression of the rules stands for the
+// node of the view, or of the module, that it is written from (classifier.nodes), and each such
+// node for the expression (classifier.exprs). Each expression that the classifier builds itself,
+// such as the repetition that stands for the later iterations of another, stands for a node built
+// with it, and the node for it.
 
-// originNodes returns, for each grammar expression that a node of m is built from, the outermost
-// such node (core.Module.Origin).
-func originNodes(m *core.Module) map[ast.Expr]core.Node {
-	nodes := map[ast.Expr]core.Node{}
+// nodeMap maps the expressions of rules to the Core IR nodes they stand for and back.
+type nodeMap struct {
+	nodes map[ast.Expr]core.Node
+	exprs map[core.Node]ast.Expr
+}
+
+// originNodes maps each grammar expression that a node of m is built from to the outermost such
+// node, and each node with an origin to it (core.Module.Origin). A node of an attribute below the
+// outermost of an expression of several attributes, which has no origin, and the expression of
+// the attributes up to it map to each other (chainLink.innerExpr).
+func originNodes(m *core.Module) nodeMap {
+	nm := nodeMap{nodes: map[ast.Expr]core.Node{}, exprs: map[core.Node]ast.Expr{}}
+	chains := attrChains(m)
 	for _, r := range m.Rules {
 		if r == nil {
 			continue
 		}
 		core.Walk(r.Body, func(n core.Node) {
-			if e := m.Origin.Of(n); e != nil {
-				if _, seen := nodes[e]; !seen {
-					nodes[e] = n
+			e := m.Origin.Of(n)
+			if e == nil {
+				l, ok := chains[n]
+				if !ok {
+					return
 				}
+				e = l.innerExpr()
 			}
+			if _, seen := nm.nodes[e]; !seen {
+				nm.nodes[e] = n
+			}
+			nm.exprs[n] = e
 		})
 	}
-	return nodes
+	return nm
 }
 
 // nodeOf returns the Core IR node that the expression e stands for. Every expression of the rules
@@ -45,13 +62,27 @@ func (k *classifier) nodeOf(e ast.Expr) core.Node {
 	return n
 }
 
-// built records that the expression e, which the classifier builds, stands for the node n, and
-// returns e.
+// exprOf returns the grammar expression that the Core IR node n stands for. Every node that an
+// expression of the rules is written from, and every node that the classifier builds, stands for
+// one; nil stands for nil.
+func (k *classifier) exprOf(n core.Node) ast.Expr {
+	if n == nil {
+		return nil
+	}
+	e, ok := k.exprs[n]
+	if !ok {
+		panic(fmt.Sprintf("complexity: no grammar expression for %T", n))
+	}
+	return e
+}
+
+// built records that the expression e, which the classifier builds, stands for the node n, and n
+// for e, and returns e.
 func built[E ast.Expr](k *classifier, e E, n core.Node) E {
 	if k.nodes == nil {
-		k.nodes = map[ast.Expr]core.Node{}
+		k.nodes, k.exprs = map[ast.Expr]core.Node{}, map[core.Node]ast.Expr{}
 	}
-	k.nodes[e] = n
+	k.nodes[e], k.exprs[n] = n, e
 	return e
 }
 
@@ -65,8 +96,17 @@ func (k *classifier) callOf(rule string) *ast.Ref {
 // operators apart, so the call applies every operator (core.Call.Level 0): it parses what the
 // right operand of any operator part parses.
 func (k *classifier) rightOperand(rule string) *ast.Ref {
-	return built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(&core.Call{Rule: k.ruleIDs[rule]}))
+	n := &core.Call{Rule: k.ruleIDs[rule]}
+	if k.operandCalls == nil {
+		k.operandCalls = map[*core.Call]bool{}
+	}
+	k.operandCalls[n] = true
+	return built(k, &ast.Ref{Name: rule, Level: rhsLevel}, core.Node(n))
 }
+
+// isRightOperand reports whether the call n stands for the right operand of an operator part
+// (rightOperand), which the classifier reads apart from a call of the rule.
+func (k *classifier) isRightOperand(n *core.Call) bool { return k.operandCalls[n] }
 
 // prefixOf returns the sequence of the first items prefix of the sequence s, which stands for the
 // sequence of their nodes.

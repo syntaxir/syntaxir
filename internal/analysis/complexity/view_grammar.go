@@ -39,6 +39,9 @@ type writtenView struct {
 	// an expression that several nodes are written from, as an expression of several attributes,
 	// the outermost of them.
 	nodes map[ast.Expr]core.Node
+	// exprs gives, for each node of the view that an expression of rules is written from, that
+	// expression: the expression the node was built from, or the one the writer wrote for it.
+	exprs map[core.Node]ast.Expr
 }
 
 // written writes the view as grammar rules: rules are the rules the source module is built from.
@@ -46,7 +49,7 @@ func (v *View) written(rules []*ast.RuleDef) (*writtenView, error) {
 	if len(rules) != len(v.Module.Rules) {
 		return nil, fmt.Errorf("%d rules for a module of %d", len(rules), len(v.Module.Rules))
 	}
-	w := &writer{View: v, text: map[ast.Expr]string{}, nodes: map[ast.Expr]core.Node{}}
+	w := &writer{View: v, text: map[ast.Expr]string{}, nodes: map[ast.Expr]core.Node{}, exprs: map[core.Node]ast.Expr{}}
 	out := make([]*ast.RuleDef, len(rules))
 	for i, rd := range rules {
 		body, err := w.expr(v.Module.Rules[i].Body)
@@ -57,9 +60,9 @@ func (v *View) written(rules []*ast.RuleDef) (*writtenView, error) {
 		// rewrites, is a node that the view shares with the module.
 		core.Walk(v.Module.Rules[i].Body, func(n core.Node) {
 			if x, ok := v.origin(n); ok {
-				if _, seen := w.nodes[x]; !seen {
-					w.nodes[x] = n
-				}
+				w.record(x, n)
+			} else if l, ok := v.chains[n]; ok {
+				w.record(l.innerExpr(), n)
 			}
 		})
 		if body == rd.Expr {
@@ -70,7 +73,7 @@ func (v *View) written(rules []*ast.RuleDef) (*writtenView, error) {
 		cp.Expr = body
 		out[i] = &cp
 	}
-	return &writtenView{rules: out, text: w.text, nodes: w.nodes}, nil
+	return &writtenView{rules: out, text: w.text, nodes: w.nodes, exprs: w.exprs}, nil
 }
 
 // writer writes nodes of a view as grammar expressions and records the source text of each
@@ -79,6 +82,18 @@ type writer struct {
 	*View
 	text  map[ast.Expr]string
 	nodes map[ast.Expr]core.Node
+	exprs map[core.Node]ast.Expr
+}
+
+// record records that the expression x was built from the node n: x stands for n unless it
+// already stands for a node outside n, and n for x unless the writer wrote it.
+func (v *writer) record(x ast.Expr, n core.Node) {
+	if _, seen := v.nodes[x]; !seen {
+		v.nodes[x] = n
+	}
+	if _, seen := v.exprs[n]; !seen {
+		v.exprs[n] = x
+	}
 }
 
 // expr returns the grammar expression of the node n of the view.
@@ -94,12 +109,12 @@ func (v *writer) expr(n core.Node) (ast.Expr, error) {
 			// below e stands for the outermost node built from it.
 			core.Walk(n, func(d core.Node) {
 				if x, ok := v.origin(d); ok {
-					if _, seen := v.nodes[x]; !seen {
-						v.nodes[x] = d
-					}
+					v.record(x, d)
+				} else if l, ok := v.chains[d]; ok {
+					v.record(l.innerExpr(), d)
 				}
 			})
-			v.nodes[e] = n
+			v.nodes[e], v.exprs[n] = n, e
 		}
 		return e, nil
 	}
@@ -115,7 +130,7 @@ func (v *writer) expr(n core.Node) (ast.Expr, error) {
 	if v.nodes != nil {
 		// The parts of n are written first, so an expression that n shares with a part, as the
 		// operand of an expression of attributes that the view drops, stands for n.
-		v.nodes[e] = n
+		v.nodes[e], v.exprs[n] = n, e
 	}
 	return e, nil
 }
@@ -354,11 +369,11 @@ type chainLink struct {
 
 // attrChains returns the place of each node of the module of src that an attribute of an
 // expression of several attributes is built into.
-func attrChains(src *Source) map[core.Node]chainLink {
+func attrChains(m *core.Module) map[core.Node]chainLink {
 	links := map[core.Node]chainLink{}
-	for _, r := range src.Module.Rules {
+	for _, r := range m.Rules {
 		core.Walk(r.Body, func(n core.Node) {
-			e, ok := src.Module.Origin.Of(n).(*ast.Attributed)
+			e, ok := m.Origin.Of(n).(*ast.Attributed)
 			if !ok || len(e.Attrs) < 2 {
 				return
 			}
@@ -390,6 +405,14 @@ func attrChains(src *Source) map[core.Node]chainLink {
 		})
 	}
 	return links
+}
+
+// innerExpr returns the expression that the node at an inner place of the chain stands for, below
+// the outermost: the attributes up to the one at it, around the operand.
+func (l chainLink) innerExpr() *ast.Attributed {
+	c := *l.chain.e
+	c.Attrs, c.Breaks = c.Attrs[:l.at+1], nil
+	return &c
 }
 
 // attrNode reports whether n is of the kind that the attribute name is built into.
@@ -465,9 +488,11 @@ func (v *View) chainParts(n core.Node, l chainLink) (keep []bool, parts []core.N
 }
 
 // chainExpr returns the expression of the node n of the view at l: the expression of the
-// attributes whose nodes the view keeps from n down, around the expression of their operand.
+// attributes whose nodes the view keeps from n down, around the expression of their operand. Each
+// kept node below n stands for the expression of the attributes from it down around the same
+// operand, which the rules do not hold but the classifier can read it by.
 func (v *writer) chainExpr(n core.Node, l chainLink) (ast.Expr, error) {
-	keep, _, body := v.chainParts(n, l)
+	_, parts, body := v.chainParts(n, l)
 	if body == nil {
 		return nil, fmt.Errorf("a built %T without an operand", n)
 	}
@@ -475,6 +500,24 @@ func (v *writer) chainExpr(n core.Node, l chainLink) (ast.Expr, error) {
 	if err != nil {
 		return nil, err
 	}
+	if v.nodes != nil {
+		for _, p := range parts[1:] {
+			if lp, ok := v.chainOf(p); ok {
+				pe := v.chainOver(p, lp, x)
+				if _, seen := v.nodes[pe]; !seen {
+					v.nodes[pe] = p
+				}
+				v.exprs[p] = pe
+			}
+		}
+	}
+	return v.chainOver(n, l, x), nil
+}
+
+// chainOver returns the expression of the attributes whose nodes the view keeps from the node n
+// at l down, around x, the expression of their operand.
+func (v *writer) chainOver(n core.Node, l chainLink, x ast.Expr) ast.Expr {
+	keep, _, _ := v.chainParts(n, l)
 	e := l.chain.e
 	var attrs []*ast.Attribute
 	for i, a := range e.Attrs {
@@ -483,12 +526,12 @@ func (v *writer) chainExpr(n core.Node, l chainLink) (ast.Expr, error) {
 		}
 	}
 	if len(attrs) == 0 {
-		return x, nil
+		return x
 	}
 	if x == e.Expr && len(attrs) == len(e.Attrs) {
-		return e, nil
+		return e
 	}
 	c := *e
 	c.Expr, c.Attrs, c.Breaks = x, attrs, nil
-	return &c, nil
+	return &c
 }

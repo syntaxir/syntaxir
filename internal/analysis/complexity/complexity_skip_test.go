@@ -72,7 +72,7 @@ func TestReusedSkipSites(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			nodes := originNodes(st.Module)
+			nodes := originNodes(st.Module).nodes
 			looseCut := func(e ast.Expr) bool {
 				n, ok := nodes[e]
 				if !ok {
