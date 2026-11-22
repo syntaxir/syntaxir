@@ -56,26 +56,34 @@ func TestGeneratedStorePolicyReferenceCounts(t *testing.T) {
 func TestGeneratedStorePolicyMutantsFail(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	const dense = "\t\tfirst = t.markSeen(pos, s)\n"
+	// The record of first calls (memo_first.go) marks a call in the dense seen table or in the
+	// sparse one; the seen.first calls of the node and typed parsers (call_exec.go) give it the
+	// position, which the record keys on, and only they see whether the call is inside a lookahead.
+	const dense = "\t\tfirst = f.markSeen(pos, r)\n"
 	const sparse = "\t\tfirst = markSeenPage(page, pos)\n"
+	const seenFirst = "\treturn p.memo.first(p.Pos, s)\n"
 	const noStream = "\tp.deferMemo = p.Stream == nil && p.Document == nil\n"
 	const document = "\tv, ok := p.callMemo(r, min)\n\treturn v, ok\n}\n\n// callUnmemoized"
-	type edit struct{ old, new string }
+	// An edit replaces old, which the library has copies of (one if zero).
+	type edit struct {
+		old, new string
+		copies   int
+	}
 	mutants := []struct {
 		name    string
 		edits   []edit
 		failing string
 	}{
-		{"a first call per lookahead state", []edit{{dense,
-			"\t\tpp := pos\n\t\tif p.Silent > 0 {\n\t\t\tpp += 1 << 12\n\t\t}\n\t\tfirst = t.markSeen(pp, s)\n"}}, "inside first"},
+		{"a first call per lookahead state", []edit{{seenFirst,
+			"\tpos := p.Pos\n\tif p.Silent > 0 {\n\t\tpos += 1 << 12\n\t}\n\treturn p.memo.first(pos, s)\n", 2}}, "inside first"},
 		{"a second call deferred as well, dense", []edit{{dense,
-			"\t\tfirst = t.markSeen(pos, s) || t.markSeen(pos+1<<12, s)\n"}}, "outside only"},
+			"\t\tfirst = f.markSeen(pos, r) || f.markSeen(pos+1<<12, r)\n", 0}}, "outside only"},
 		{"a second call deferred as well, sparse", []edit{{sparse,
-			"\t\tfirst = markSeenPage(page, pos) || t.markSparseSeen(pos+1<<12, s)\n"}}, "inside first, sparse"},
-		{"a stream defers a first call and a second", []edit{{noStream, "\tp.deferMemo = p.Document == nil\n"}, {dense,
-			"\t\tfirst = t.markSeen(pos, s) || t.markSeen(pos+1<<12, s)\n"}}, "outside only, stream"},
+			"\t\tfirst = markSeenPage(page, pos) || f.markSparseSeen(pos+1<<12, r)\n", 0}}, "inside first, sparse"},
+		{"a stream defers a first call and a second", []edit{{noStream, "\tp.deferMemo = p.Document == nil\n", 0}, {dense,
+			"\t\tfirst = f.markSeen(pos, r) || f.markSeen(pos+1<<12, r)\n", 0}}, "outside only, stream"},
 		{"a Document stores no result computed inside a lookahead", []edit{{document,
-			"\tif p.Silent > 0 {\n\t\tv, ok := p.callUnmemoized(r, min)\n\t\treturn v, ok\n\t}\n" + document}}, "alternating"},
+			"\tif p.Silent > 0 {\n\t\tv, ok := p.callUnmemoized(r, min)\n\t\treturn v, ok\n\t}\n" + document, 0}}, "alternating"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
@@ -84,19 +92,17 @@ func TestGeneratedStorePolicyMutantsFail(t *testing.T) {
 				applied := make([]int, len(m.edits))
 				lib := codegentest.LibCopyWith(t, func(name, src string) string {
 					for i, e := range m.edits {
-						if n := strings.Count(src, e.old); name != "lib.go" && name != "call_exec.go" || n == 0 {
+						if name != "lib.go" && name != "call_exec.go" && name != "memo_first.go" {
 							continue
-						} else if n != 1 {
-							t.Fatalf("%s has %d copies of %q, not one", name, n, e.old)
 						}
-						src = strings.Replace(src, e.old, e.new, 1)
-						applied[i]++
+						applied[i] += strings.Count(src, e.old)
+						src = strings.ReplaceAll(src, e.old, e.new)
 					}
 					return src
 				}, nil)
 				for i, e := range m.edits {
-					if applied[i] != 1 {
-						t.Fatalf("the library has %d copies of %q, not one", applied[i], e.old)
+					if want := max(e.copies, 1); applied[i] != want {
+						t.Fatalf("the library has %d copies of %q, not %d", applied[i], e.old, want)
 					}
 				}
 				bad := storePolicyEnvelope(generatedStorePolicyCounts(t, lib))
