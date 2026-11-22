@@ -89,6 +89,40 @@ func (p *Program) Wrapper(table string, rule int) bool {
 	return false
 }
 
+// Reached returns the entries that roots reach in the tables that the program was planned from
+// (Cores), following the calls of the Core IR of each table (core.Module.Reach) through the routes of
+// the plan.
+func (p *Program) Reached(roots []Entry) map[Entry]bool {
+	reach := map[Entry]bool{}
+	for _, t := range p.Cores.Tables {
+		var rs []core.Root
+		for _, k := range roots {
+			if k.Table == t.Name {
+				e := core.EnterSlot
+				if k.Wrapper {
+					e = core.EnterWrapper
+				}
+				rs = append(rs, core.Root{Rule: k.ID, Entry: e})
+			}
+		}
+		entries := t.M.Reach(rs, func(id int) core.Entry {
+			if p.Wrapper(t.Name, id) {
+				return core.EnterWrapper
+			}
+			return core.EnterSlot
+		})
+		for id, e := range entries {
+			if e&core.EnterSlot != 0 {
+				reach[Entry{Table: t.Name, ID: id}] = true
+			}
+			if e&core.EnterWrapper != 0 {
+				reach[Entry{Table: t.Name, ID: id, Wrapper: true}] = true
+			}
+		}
+	}
+	return reach
+}
+
 // ReachFeature is the reach of the plan of a program when the compilation gives it, the reach of the
 // code that a printer printed in an earlier run (the fallback for planning): the planning takes it
 // instead of following the calls of the Core IR. Nil, written none, has the planning compute it.

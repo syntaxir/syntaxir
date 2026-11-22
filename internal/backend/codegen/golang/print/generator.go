@@ -112,7 +112,7 @@ func printTables(d *Decision, settings pass.Settings, t *execdata.Tables, h Hook
 	}
 	genGo.program = t.Plan
 	if !opts.KeepUnreachable {
-		genGo.live = &liveRules{Roots: t.Plan.Roots, Reach: t.Plan.Reach, cores: t.Plan.Cores, plan: t.Plan}
+		genGo.live = &liveRules{Roots: t.Plan.Roots, Reach: t.Plan.Reach, plan: t.Plan}
 	}
 	if h.Reach != nil && genGo.live != nil {
 		h.Reach(genGo.live)

@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/middleend/flowplan"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 )
 
@@ -46,13 +45,12 @@ type ruleKey = plandata.Entry
 type liveRules struct {
 	Roots []ruleKey // the start rules of the tables and the entries of the typed table
 	Reach map[ruleKey]bool
-	cores *plandata.Cores   // what the program was planned from
 	plan  *plandata.Program // the plan, whose routes reachFrom follows
 }
 
-// reachFrom sets l.Reach to the rules that the roots reach in the plan (flowplan.Reach).
+// reachFrom sets l.Reach to the rules that the roots reach in the plan (plandata.Program.Reached).
 func (l *liveRules) reachFrom(roots []ruleKey) {
-	l.Reach = flowplan.Reach(l.cores, l.plan, roots)
+	l.Reach = l.plan.Reached(roots)
 }
 
 // missingBodies returns the rules of the table that are reachable but have no printed Body.

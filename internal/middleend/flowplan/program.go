@@ -3,7 +3,6 @@ package flowplan
 import (
 	"slices"
 
-	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -52,7 +51,7 @@ func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Pro
 	}
 	p.Reach = reach
 	if p.Reach == nil {
-		p.Reach = Reach(c, p, p.Roots)
+		p.Reach = p.Reached(p.Roots)
 	}
 	planUnits(c, p)
 	return p
@@ -118,37 +117,4 @@ func planUnits(c *plandata.Cores, p *plandata.Program) {
 // runs, or every call of the table enters the slot (CoreTable.Slots).
 func CallsWrapper(t plandata.CoreTable, r plandata.CallRule) bool {
 	return !t.Slots && !r.Operators && (r.Plain || t.Typed && !r.Leader)
-}
-
-// Reach returns the entries that roots reach in the tables of c, following the calls of the Core IR of
-// each table (core.Module.Reach) through the routes of the plan p.
-func Reach(c *plandata.Cores, p *plandata.Program, roots []plandata.Entry) map[plandata.Entry]bool {
-	reach := map[plandata.Entry]bool{}
-	for _, t := range c.Tables {
-		var rs []core.Root
-		for _, k := range roots {
-			if k.Table == t.Name {
-				e := core.EnterSlot
-				if k.Wrapper {
-					e = core.EnterWrapper
-				}
-				rs = append(rs, core.Root{Rule: k.ID, Entry: e})
-			}
-		}
-		entries := t.M.Reach(rs, func(id int) core.Entry {
-			if p.Wrapper(t.Name, id) {
-				return core.EnterWrapper
-			}
-			return core.EnterSlot
-		})
-		for id, e := range entries {
-			if e&core.EnterSlot != 0 {
-				reach[plandata.Entry{Table: t.Name, ID: id}] = true
-			}
-			if e&core.EnterWrapper != 0 {
-				reach[plandata.Entry{Table: t.Name, ID: id, Wrapper: true}] = true
-			}
-		}
-	}
-	return reach
 }
