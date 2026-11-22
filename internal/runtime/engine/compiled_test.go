@@ -15,6 +15,7 @@ import (
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
@@ -209,7 +210,9 @@ func TestCompiledEarlierInstructionSet(t *testing.T) {
 }
 
 // TestCompiledCorruptionDoesNotPanic checks that loading corrupted data (with a valid checksum)
-// does not panic.
+// does not panic, and that a parse of what loads ends. It corrupts with many random sources: a Flow
+// body with a cycle that charged no step, which ran forever, came from the seventh source and from
+// none of the corruptions of the first.
 func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 	t.Parallel()
 	var seeds [][]byte
@@ -228,7 +231,19 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 		srcs = append(srcs, c.Src)
 	}
 	seeds = append(seeds, flowSeeds(t, srcs)...)
-	rng := rand.New(rand.NewSource(1))
+	for source := int64(1); source <= corruptionSources; source++ {
+		corruptSeeds(t, seeds, rand.New(rand.NewSource(source)))
+	}
+}
+
+// corruptionSources is the number of random sources that TestCompiledCorruptionDoesNotPanic
+// corrupts the compiled grammars with, 3000 corruptions each.
+const corruptionSources = 64
+
+// corruptSeeds loads 3000 corruptions of the compiled grammars seeds, drawn from rng, and parses
+// with each one that loads when the build has budget controls.
+func corruptSeeds(t *testing.T, seeds [][]byte, rng *rand.Rand) {
+	t.Helper()
 	for i := 0; i < 3000; i++ {
 		seed := seeds[rng.Intn(len(seeds))]
 		b := append([]byte(nil), seed[:len(seed)-4]...)
@@ -247,9 +262,11 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 				}
 			}()
 			prog, start, err := LoadProgram(b)
-			if err == nil && start != "" {
-				// Non-terminating recursion, for example from corrupted left-recursion marks, fails at the
-				// nesting depth limit.
+			// Non-terminating recursion, for example from corrupted left-recursion marks, fails at the
+			// nesting depth limit, and a loop of a Flow body, which charges a step, at the default
+			// compute limit. A build without budget controls has no compute limit, so such a loop
+			// would not end there: it only loads.
+			if err == nil && start != "" && state.BudgetControlsEnabled {
 				for _, b := range []Backend{Default, Bytecode, BytecodeIterative} {
 					for _, mode := range allModes {
 						prog.ParseWith(start, "1+2", servedBy(mode, ParseOptions{Backend: b, Limits: runtime.Limits{Depth: 1000}}))
