@@ -1,7 +1,6 @@
 # 077. Observability Contract
 
-- **Status**: Partially Implemented: the contract, its producers and the reference evaluator of the examined-end oracle
-  have landed; the perturbation and stream high-water parts of the oracle have not
+- **Status**: Implemented
 - **Author**: @ornew
 - **Date**: 2026-11-21
 
@@ -94,6 +93,14 @@ pays for the profile's counts, not for the event delivery.
   code: `TestExaminedOracle` for the engine, `TestObservedExaminedEndsAreExact` for generated Go and
   `TestTSObservedExaminedEndsAreExact` for generated TypeScript compare each exit with the reference evaluator, on the
   generated corpus and on shapes chosen for the reference in the `codegentest` package.
+- `TestEnginePerturbation`, `TestGeneratedPerturbationAndHighWater` and `TestTSPerturbation` check the examined ends of
+  the producers by perturbation, and `TestEngineStreamHighWater` and `TestGeneratedPerturbationAndHighWater` by the
+  stream high-water mark. The default tier runs the engine's on the shapes of the `codegentest` package; the long tier
+  runs all of them on those shapes and a representative part of the generated corpus.
+- `TestEngineExaminedMutants` checks that the oracle fails on examined ends that are one slot too small and one slot
+  too large in the engine, the generated Go library and the generated TypeScript library (the TypeScript end that is
+  too large by the comparison with the reference), and that perturbation and the high-water mark fail on broken checks
+  of their own.
 
 ## Examined Oracle
 
@@ -179,7 +186,8 @@ a shape that the oracle passes without it, so that a shape on which a producer d
 breaking changes only the shape of a value, such as the associativity of an operator, has no mutant: no exit carries
 that shape.
 
-The reference evaluates the action language itself, from `spec/language/actions.md` and `spec/language/types.md`.
+The reference evaluates the whole action language itself, from `spec/language/actions.md` and
+`spec/language/types.md`, rather than only the values that matching determines.
 The producers' evaluator of actions runs on the state of a parser: it needs the capture frames of a compiled program, the
 parser's variables, node arena and budget, and terms lowered through the middle end. Reusing it would tie the
 reference to that state through an adapter that is itself a second interpreter boundary. Action values are not the
@@ -200,9 +208,10 @@ Limits of the claim: the frontend is outside it.
 
 ## Limitations and Open Work
 
-- **Partially Implemented:** the perturbation and stream high-water parts of the oracle are not yet written. Until they
-  are, the examined ends rest on the reference evaluator alone, and the input that a stream parse reads on the agreement
-  tests in Testing.
+- Perturbation leaves out the calls that depend on more than the input from their position on (variables, and calls of
+  a cycle inside its growth). Their exits rest on the comparison with the reference evaluator alone.
+- Only the engine and generated Go parsers have stream parses, so the stream high-water mark checks those two; an
+  examined end of the generated TypeScript parsers that is too large rests on the comparison with the reference.
 - The reference evaluates the values of Value Actions as well as the values that matching determines
   (the values of the `examinedref` package), so a grammar whose predicates read action values is compared like any
   other.
