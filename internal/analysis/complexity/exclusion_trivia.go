@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -41,29 +41,22 @@ var (
 // repetition X* or an atomic X*, where X cannot match without consuming input. The unrolled form
 // X* (Y X*)* is the repetition (X / Y)* in the normal view (N11). After the repetition, X fails
 // where the last iteration stopped, so a second evaluation matches nothing as well.
-func (k *classifier) triviaParts(e ast.Expr) []ast.Expr {
-	e = triviaUnwrap(e)
-	if !star(e) || k.nullable(e.(*ast.Repeat).Expr) {
+func (k *classifier) triviaParts(n core.Node) []core.Node {
+	r, ok := triviaUnwrap(n).(*core.Repeat)
+	if !ok || r.Min != 0 || r.Max >= 0 || k.nullableOf(r.Body) {
 		return nil
 	}
-	return []ast.Expr{e.(*ast.Repeat).Expr}
+	return []core.Node{r.Body}
 }
 
-func star(e ast.Expr) bool {
-	r, ok := e.(*ast.Repeat)
-	return ok && r.Min == 0 && r.Max < 0
-}
-
-func triviaUnwrap(e ast.Expr) ast.Expr {
+// triviaUnwrap returns n without the atomic groups around it.
+func triviaUnwrap(n core.Node) core.Node {
 	for {
-		switch x := e.(type) {
-		case *ast.Group:
-			e = x.Expr
-		case *ast.Atomic:
-			e = x.Expr
-		default:
-			return e
+		t, ok := n.(*core.Text)
+		if !ok {
+			return n
 		}
+		n = t.Body
 	}
 }
 
@@ -92,17 +85,15 @@ func (k *classifier) triviaWhy(name string) string {
 	for _, v := range k.vars[name] {
 		reads[v] = true
 	}
-	astfacts.WalkExpr(def.Expr, func(e ast.Expr) {
-		switch e := e.(type) {
-		case *ast.Cut:
+	walkNodes(k.ruleBody(name), func(n core.Node) {
+		switch n := n.(type) {
+		case *core.Cut:
 			// A cut of the body itself can commit the repetition, which then fails.
 			note("#cut", name)
-		case *ast.Predicate:
-			astfacts.WalkAction(e.Action, func(t ast.ActionExpr) {
-				if b, ok := t.(*ast.Bind); ok && reads[b.Name] {
-					note("binds a variable that it reads", name)
-				}
-			})
+		case *core.BindNode:
+			if reads[n.Var] {
+				note("binds a variable that it reads", name)
+			}
 		}
 	})
 	for _, n := range slices.Sorted(maps.Keys(k.reachable(name))) {
@@ -113,21 +104,22 @@ func (k *classifier) triviaWhy(name string) string {
 		if k.an.Cyclic[n] {
 			note("left recursion", n)
 		}
-		astfacts.WalkExpr(d.Expr, func(e ast.Expr) {
-			switch e := e.(type) {
-			case *ast.InlineAction:
-				note("action", n)
-			case *ast.Attributed, *ast.Recovery, *ast.Stream, *ast.OperatorsRule:
+		walkNodes(k.ruleBody(n), func(x core.Node) {
+			// The lowering of inline actions has made them rules with actions (d.Action).
+			switch x := x.(type) {
+			case *core.Label, *core.Recover, *core.Missing, *core.Stream, *core.OperatorsRule:
 				note("attributed, recovery, stream or Operators Rule", n)
-			case *ast.Ref:
-				if e.Level != "" {
+			case *core.Call:
+				if x.Level != 0 {
 					note("operator level call", n)
 				}
+			case *core.Nest:
+				note("operator level call", n)
 			}
 		})
 	}
 	var whys []string
-	if k.triviaParts(def.Expr) == nil {
+	if k.triviaParts(k.ruleBody(name)) == nil {
 		whys = append(whys, "body is not X*")
 	}
 	for _, why := range order {
@@ -138,26 +130,33 @@ func (k *classifier) triviaWhy(name string) string {
 	return strings.Join(whys, "; ")
 }
 
-// isTrivia reports whether r calls a trivia rule that the hooks enable.
-func (k *classifier) isTrivia(r *ast.Ref) bool {
-	if !triviaOn && !triviaMemo || r.Level != "" || triviaOnly != nil && !triviaOnly[r.Name] {
+// isTrivia reports whether name is a trivia rule that the hooks enable.
+func (k *classifier) isTrivia(name string) bool {
+	if !triviaOn && !triviaMemo || triviaOnly != nil && !triviaOnly[name] {
 		return false
 	}
 	if k.trivia == nil {
 		k.trivia = map[string]bool{}
 	}
-	v, ok := k.trivia[r.Name]
+	v, ok := k.trivia[name]
 	if !ok {
-		v = k.triviaWhy(r.Name) == ""
-		k.trivia[r.Name] = v
+		v = k.triviaWhy(name) == ""
+		k.trivia[name] = v
 	}
 	return v
 }
 
-// triviaCall reports whether s is a call of a trivia rule that the analysis relies on.
+// triviaCall reports whether s is a call of a trivia rule that the analysis relies on: a call
+// that names no level of it.
 func (x excl) triviaCall(s sym) bool {
-	r, ok := s.e.(*ast.Ref)
-	return triviaOn && ok && s.kind == symMatch && x.k.isTrivia(r)
+	if !triviaOn || s.kind != symMatch {
+		return false
+	}
+	if _, ok := s.e.(*ast.Ref); !ok {
+		return false
+	}
+	c, ok := x.k.nodeOf(s.e).(*core.Call)
+	return ok && c.Level == 0 && x.k.isTrivia(x.k.rules[c.Rule].Name)
 }
 
 // triviaSettles reports whether a call of the trivia rule of s, where a call of it ended, costs a
@@ -165,8 +164,8 @@ func (x excl) triviaCall(s sym) bool {
 // contain no scanning source, so Lemma 1 bounds them. A part that scans, such as a comment, can
 // scan an unterminated comment again before it fails.
 func (x excl) triviaSettles(s sym) bool {
-	for _, part := range x.k.triviaParts(x.k.byName[s.e.(*ast.Ref).Name].Expr) {
-		if x.k.containsSource(part) {
+	for _, part := range x.k.triviaParts(x.k.ruleBody(s.e.(*ast.Ref).Name)) {
+		if x.k.containsSource(x.k.exprOf(part)) {
 			return false
 		}
 	}

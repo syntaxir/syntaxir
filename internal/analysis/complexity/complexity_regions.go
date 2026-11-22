@@ -5,7 +5,6 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/frontend/astfacts"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -38,11 +37,12 @@ func (k *classifier) regionScans() map[*core.Repeat]bool {
 	regions := map[string]bool{} // the region rules; true for a trivia rule
 	for _, r := range k.rules {
 		k.control.Poll()
-		if !k.reach[r.Name] || r.Name == k.start || k.triviaParts(r.Expr) == nil || !k.regionFree(r.Name) {
+		body := k.ruleBody(r.Name)
+		if !k.reach[r.Name] || r.Name == k.start || k.triviaParts(body) == nil || !k.regionFree(r.Name) {
 			continue
 		}
-		sigma := triviaUnwrap(r.Expr).(*ast.Repeat)
-		if d, ok := k.scanRun[k.repeatOf(sigma)]; ok && d >= runOpen && k.srcExprs[sigma] {
+		sigma := triviaUnwrap(body).(*core.Repeat)
+		if d, ok := k.scanRun[sigma]; ok && d >= runOpen && k.srcExprs[k.exprOf(sigma)] {
 			regions[r.Name] = true
 		}
 	}
@@ -64,7 +64,7 @@ func (k *classifier) regionScans() map[*core.Repeat]bool {
 	out := map[*core.Repeat]bool{}
 	for n, trivia := range regions {
 		if trivia {
-			out[k.repeatOf(triviaUnwrap(k.byName[n].Expr).(*ast.Repeat))] = true
+			out[triviaUnwrap(k.ruleBody(n)).(*core.Repeat)] = true
 		}
 	}
 	return out
@@ -92,15 +92,15 @@ func (k *classifier) regionFree(name string) bool {
 			return false
 		}
 		free := true
-		astfacts.WalkExpr(d.Expr, func(e ast.Expr) {
-			// Attribute normalization has made `#recover` and `#stream` attributed expressions, and
-			// the lowering of inline actions has made them rules with actions, so no recovery,
-			// stream or inline action node is left here.
-			switch e := e.(type) {
-			case *ast.Predicate, *ast.Attributed, *ast.OperatorsRule:
+		walkNodes(k.ruleBody(n), func(x core.Node) {
+			// The lowering of inline actions has made them rules with actions, so no inline action
+			// is left here.
+			switch x := x.(type) {
+			case *core.Pred, *core.BindNode, *core.Label, *core.Recover, *core.Missing, *core.Stream,
+				*core.OperatorsRule, *core.Nest:
 				free = false
-			case *ast.Ref:
-				if e.Level != "" {
+			case *core.Call:
+				if x.Level != 0 {
 					free = false
 				}
 			}
@@ -267,8 +267,8 @@ func (b bitset) each(f func(int)) {
 // rule that two places call joins what follows both, which only adds paths.
 type prefixNFA struct {
 	k      *classifier
-	chars  []charset        // the characters of each position
-	lits   map[ast.Expr]int // the first position of each terminal
+	chars  []charset         // the characters of each position
+	lits   map[core.Node]int // the first position of each terminal
 	rules  map[string]nfaInfo
 	next   []bitset
 	start  map[string]bitset  // the first positions of the body of each region
@@ -283,7 +283,7 @@ type nfaInfo struct {
 
 // regionNFA builds the automaton of the bodies of the regions names and the rules they reach.
 func (k *classifier) regionNFA(names []string, inner map[string]map[string]bool) *prefixNFA {
-	n := &prefixNFA{k: k, lits: map[ast.Expr]int{}, rules: map[string]nfaInfo{}, start: map[string]bitset{}, opener: map[string]charset{}}
+	n := &prefixNFA{k: k, lits: map[core.Node]int{}, rules: map[string]nfaInfo{}, start: map[string]bitset{}, opener: map[string]charset{}}
 	var rules []string
 	seen := map[string]bool{}
 	for _, r := range names {
@@ -298,7 +298,7 @@ func (k *classifier) regionNFA(names []string, inner map[string]map[string]bool)
 	// any characters in any order.
 	n.chars = append(n.chars, allChars)
 	for _, r := range rules {
-		n.number(k.byName[r].Expr)
+		n.number(k.ruleBody(r))
 	}
 	n.size = len(n.chars)
 	for _, r := range rules {
@@ -308,7 +308,7 @@ func (k *classifier) regionNFA(names []string, inner map[string]map[string]bool)
 		changed = false
 		for _, r := range rules {
 			k.control.Poll()
-			info := n.info(k.byName[r].Expr, false)
+			info := n.info(k.ruleBody(r), false)
 			old := n.rules[r]
 			c := old.first.or(info.first)
 			c = old.last.or(info.last) || c
@@ -325,7 +325,7 @@ func (k *classifier) regionNFA(names []string, inner map[string]map[string]bool)
 	}
 	n.next[0].set(0)
 	for _, r := range rules {
-		n.info(k.byName[r].Expr, true)
+		n.info(k.ruleBody(r), true)
 	}
 	for _, r := range names {
 		s := n.rules[r].first
@@ -337,62 +337,61 @@ func (k *classifier) regionNFA(names []string, inner map[string]map[string]bool)
 	return n
 }
 
-// number gives a position to each character of each terminal of e outside lookaheads.
-func (n *prefixNFA) number(e ast.Expr) {
-	switch e := e.(type) {
-	case *ast.Literal:
-		n.lits[e] = len(n.chars)
-		for _, c := range e.Value {
-			n.chars = append(n.chars, literalChar(e, c))
+// number gives a position to each character of each terminal of n outside lookaheads.
+func (n *prefixNFA) number(x core.Node) {
+	switch x := x.(type) {
+	case *core.Lit:
+		n.lits[x] = len(n.chars)
+		for _, c := range x.Text {
+			n.chars = append(n.chars, litChar(x, c))
 		}
-	case *ast.CharClass:
-		n.lits[e] = len(n.chars)
-		n.chars = append(n.chars, classChars(e))
-	case *ast.Any:
-		n.lits[e] = len(n.chars)
+	case *core.ClassNode:
+		n.lits[x] = len(n.chars)
+		n.chars = append(n.chars, coreClassChars(x.Class))
+	case *core.Any:
+		n.lits[x] = len(n.chars)
 		n.chars = append(n.chars, allChars)
-	case *ast.And, *ast.Not, *ast.Predicate:
+	case *core.Look, *core.Pred, *core.BindNode:
 	default:
-		eachChild(e, n.number)
+		eachChild(x, n.number)
 	}
 }
 
-// eachChild calls f on the expressions directly inside e that it evaluates as parts of its match.
-func eachChild(e ast.Expr, f func(ast.Expr)) {
-	switch e := e.(type) {
-	case *ast.Seq:
-		for _, it := range e.Items {
+// eachChild calls f on the nodes directly inside n that it evaluates as parts of its match.
+func eachChild(n core.Node, f func(core.Node)) {
+	switch n := n.(type) {
+	case *core.Seq:
+		for _, it := range n.Items {
 			f(it)
 		}
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			f(alt)
+	case *core.Choice:
+		for _, alt := range n.Alts {
+			f(alt.Body)
 		}
-	case *ast.Repeat:
-		f(e.Expr)
-	case *ast.Optional:
-		f(e.Expr)
-	case *ast.Group:
-		f(e.Expr)
-	case *ast.Capture:
-		f(e.Expr)
-	case *ast.Discard:
-		f(e.Expr)
-	case *ast.Atomic:
-		f(e.Expr)
+	case *core.Repeat:
+		f(n.Body)
+	case *core.Opt:
+		f(n.Body)
+	case *core.Capture:
+		f(n.Body)
+	case *core.Drop:
+		f(n.Body)
+	case *core.Text:
+		f(n.Body)
 	}
 }
 
-func literalChar(l *ast.Literal, c rune) charset {
-	if l.IgnoreCase {
+// litChar is the characters that the character c of the literal l matches.
+func litChar(l *core.Lit, c rune) charset {
+	if l.Fold {
 		return asciiFold(c)
 	}
 	return charOf(c)
 }
 
-// info returns the first and last positions of e and whether it can match the empty string; with
-// edges, it also adds the edges inside e.
-func (n *prefixNFA) info(e ast.Expr, edges bool) nfaInfo {
+// info returns the first and last positions of x and whether it can match the empty string; with
+// edges, it also adds the edges inside x.
+func (n *prefixNFA) info(x core.Node, edges bool) nfaInfo {
 	k := n.k
 	k.control.Poll()
 	empty := nfaInfo{newBitset(n.size), newBitset(n.size), true}
@@ -402,13 +401,19 @@ func (n *prefixNFA) info(e ast.Expr, edges bool) nfaInfo {
 		i.last.set(p)
 		return i
 	}
-	switch e := e.(type) {
-	case *ast.Literal:
-		if e.Value == "" {
+	if rule, ok := k.calledRule(x); ok {
+		if r, ok := n.rules[rule]; ok {
+			return r
+		}
+		return n.any()
+	}
+	switch x := x.(type) {
+	case *core.Lit:
+		if x.Text == "" {
 			return empty
 		}
-		p := n.lits[e]
-		m := utf8.RuneCountInString(e.Value)
+		p := n.lits[x]
+		m := utf8.RuneCountInString(x.Text)
 		if edges {
 			for i := p; i+1 < p+m; i++ {
 				n.next[i].set(i + 1)
@@ -418,21 +423,13 @@ func (n *prefixNFA) info(e ast.Expr, edges bool) nfaInfo {
 		i.last = newBitset(n.size)
 		i.last.set(p + m - 1)
 		return i
-	case *ast.CharClass, *ast.Any:
-		return one(n.lits[e])
-	case *ast.Ref:
-		if r, ok := n.rules[e.Name]; ok {
-			return r
-		}
-		if k.byName[e.Name] == nil {
-			return empty
-		}
-		return n.any()
-	case *ast.Seq:
+	case *core.ClassNode, *core.Any:
+		return one(n.lits[x])
+	case *core.Seq:
 		out := empty
 		out.first, out.last = newBitset(n.size), newBitset(n.size)
 		last := newBitset(n.size)
-		for _, it := range e.Items {
+		for _, it := range x.Items {
 			i := n.info(it, edges)
 			if edges {
 				last.each(func(p int) { n.next[p].or(i.first) })
@@ -449,37 +446,34 @@ func (n *prefixNFA) info(e ast.Expr, edges bool) nfaInfo {
 		}
 		out.last = last
 		return out
-	case *ast.Choice:
+	case *core.Choice:
 		out := nfaInfo{newBitset(n.size), newBitset(n.size), false}
-		for _, alt := range e.Alts {
-			i := n.info(alt, edges)
+		for _, alt := range x.Alts {
+			i := n.info(alt.Body, edges)
 			out.first.or(i.first)
 			out.last.or(i.last)
 			out.null = out.null || i.null
 		}
 		return out
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Repeat:
+		if x.Max == 0 {
 			return empty
 		}
-		i := n.info(e.Expr, edges)
-		if edges && e.Max != 1 {
+		i := n.info(x.Body, edges)
+		if edges && x.Max != 1 {
 			i.last.each(func(p int) { n.next[p].or(i.first) })
 		}
-		return nfaInfo{i.first, i.last, e.Min == 0 || i.null}
-	case *ast.Optional:
-		i := n.info(e.Expr, edges)
+		return nfaInfo{i.first, i.last, x.Min == 0 || i.null}
+	case *core.Opt:
+		i := n.info(x.Body, edges)
 		return nfaInfo{i.first, i.last, true}
-	case *ast.Group:
-		return n.info(e.Expr, edges)
-	case *ast.Capture:
-		return n.info(e.Expr, edges)
-	case *ast.Discard:
-		return n.info(e.Expr, edges)
-	case *ast.Atomic:
-		return n.info(e.Expr, edges)
-	case *ast.And, *ast.Not, *ast.Predicate, *ast.Cut, *ast.Top, *ast.Bottom,
-		*ast.BeginInput, *ast.EndInput, *ast.BeginLine, *ast.EndLine:
+	case *core.Capture:
+		return n.info(x.Body, edges)
+	case *core.Drop:
+		return n.info(x.Body, edges)
+	case *core.Text:
+		return n.info(x.Body, edges)
+	case *core.Look, *core.Pred, *core.BindNode, *core.Cut, *core.Succeed, *core.FailNode, *core.Anchor:
 		return empty
 	}
 	// What (D) keeps out of a region: any characters.
@@ -525,17 +519,17 @@ func (n *prefixNFA) succ(s bitset) bitset {
 }
 
 // terminalChars returns the characters that a terminal consumes, one set for each character.
-func terminalChars(e ast.Expr) []charset {
-	switch e := e.(type) {
-	case *ast.Literal:
+func terminalChars(n core.Node) []charset {
+	switch n := n.(type) {
+	case *core.Lit:
 		var out []charset
-		for _, c := range e.Value {
-			out = append(out, literalChar(e, c))
+		for _, c := range n.Text {
+			out = append(out, litChar(n, c))
 		}
 		return out
-	case *ast.CharClass:
-		return []charset{classChars(e)}
-	case *ast.Any:
+	case *core.ClassNode:
+		return []charset{coreClassChars(n.Class)}
+	case *core.Any:
 		return []charset{allChars}
 	}
 	return nil
@@ -585,7 +579,7 @@ func (k *classifier) regionGuards(regions map[string]bool, names []string, outer
 	for g.changed = true; g.changed; {
 		g.changed = false
 		g.each(func(r *ast.RuleDef) {
-			if out := g.walk(r.Expr, g.entry[r.Name], nil).and(g.exit[r.Name]); !slices.Equal(out, g.exit[r.Name]) {
+			if out := g.walk(g.k.ruleBody(r.Name), g.entry[r.Name], nil).and(g.exit[r.Name]); !slices.Equal(out, g.exit[r.Name]) {
 				g.exit[r.Name] = out
 				g.changed = true
 			}
@@ -594,7 +588,7 @@ func (k *classifier) regionGuards(regions map[string]bool, names []string, outer
 	g.checking = true
 	g.each(func(r *ast.RuleDef) {
 		g.rule = r.Name
-		g.walk(r.Expr, g.entry[r.Name], nil)
+		g.walk(g.k.ruleBody(r.Name), g.entry[r.Name], nil)
 	})
 	return g
 }
@@ -619,18 +613,17 @@ func (g *guardPass) top() bitset {
 	return b
 }
 
-// isCheck reports whether e is a check: a negative lookahead of an expression of terminals that
+// isCheck reports whether n is a check: a negative lookahead of an expression of terminals that
 // calls no rule. A check is evaluated where it stands and examines a bounded amount of input.
-func isCheck(e ast.Expr) bool {
-	n, ok := ungroup(e).(*ast.Not)
-	if !ok {
+func isCheck(n core.Node) bool {
+	l, ok := n.(*core.Look)
+	if !ok || !l.Neg {
 		return false
 	}
 	pure := true
-	astfacts.WalkExpr(n.Expr, func(x ast.Expr) {
+	walkNodes(l.Body, func(x core.Node) {
 		switch x.(type) {
-		case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Seq, *ast.Choice, *ast.Group,
-			*ast.Optional, *ast.Repeat:
+		case *core.Lit, *core.ClassNode, *core.Any, *core.Seq, *core.Choice, *core.Opt, *core.Repeat:
 		default:
 			pure = false
 		}
@@ -638,42 +631,40 @@ func isCheck(e ast.Expr) bool {
 	return pure
 }
 
-// walk carries the state in through e and returns the state after it. next is the check that
-// follows e when e ends where the check is evaluated, or nil.
-func (g *guardPass) walk(e ast.Expr, in bitset, next *ast.Not) bitset {
+// walk carries the state in through n and returns the state after it. next is the check that
+// follows n when n ends where the check is evaluated, or nil.
+func (g *guardPass) walk(n core.Node, in bitset, next *core.Look) bitset {
 	k := g.k
 	k.control.Poll()
-	switch e := e.(type) {
-	case *ast.Literal, *ast.CharClass, *ast.Any:
-		if g.checking {
-			g.cross(e, in, next)
-		}
-		if l, ok := e.(*ast.Literal); ok && l.Value == "" {
-			return in
-		}
-		return g.none()
-	case *ast.Ref:
-		if trivia, ok := g.regions[e.Name]; ok {
+	if rule, ok := k.calledRule(n); ok {
+		if trivia, ok := g.regions[rule]; ok {
 			out := g.none()
 			if trivia {
-				out.set(g.index[e.Name])
+				out.set(g.index[rule])
 			}
 			return out
 		}
-		if k.byName[e.Name] == nil {
-			return in
-		}
-		if old := g.entry[e.Name]; !slices.Equal(old.and(in), old) {
-			g.entry[e.Name] = old.and(in)
+		if old := g.entry[rule]; !slices.Equal(old.and(in), old) {
+			g.entry[rule] = old.and(in)
 			g.changed = true
 		}
-		return g.exit[e.Name]
-	case *ast.Seq:
-		for i, it := range e.Items {
-			var nx *ast.Not
-			if i+1 < len(e.Items) {
-				if isCheck(e.Items[i+1]) {
-					nx = ungroup(e.Items[i+1]).(*ast.Not)
+		return g.exit[rule]
+	}
+	switch n := n.(type) {
+	case *core.Lit, *core.ClassNode, *core.Any:
+		if g.checking {
+			g.cross(n, in, next)
+		}
+		if l, ok := n.(*core.Lit); ok && l.Text == "" {
+			return in
+		}
+		return g.none()
+	case *core.Seq:
+		for i, it := range n.Items {
+			var nx *core.Look
+			if i+1 < len(n.Items) {
+				if isCheck(n.Items[i+1]) {
+					nx = n.Items[i+1].(*core.Look)
 				}
 			} else {
 				nx = next
@@ -681,16 +672,16 @@ func (g *guardPass) walk(e ast.Expr, in bitset, next *ast.Not) bitset {
 			in = g.walk(it, in, nx)
 		}
 		return in
-	case *ast.Choice:
+	case *core.Choice:
 		out := g.top()
-		for _, alt := range e.Alts {
-			out = out.and(g.walk(alt, in, next))
+		for _, alt := range n.Alts {
+			out = out.and(g.walk(alt.Body, in, next))
 		}
 		return out
-	case *ast.Optional:
-		return in.and(g.walk(e.Expr, in, next))
-	case *ast.Repeat:
-		if e.Max == 0 {
+	case *core.Opt:
+		return in.and(g.walk(n.Body, in, next))
+	case *core.Repeat:
+		if n.Max == 0 {
 			return in
 		}
 		// The state at the start of an iteration holds on every iteration, so the crossings are
@@ -699,7 +690,7 @@ func (g *guardPass) walk(e ast.Expr, in bitset, next *ast.Not) bitset {
 		g.checking = false
 		s := in
 		for {
-			t := s.and(g.walk(e.Expr, s, nil))
+			t := s.and(g.walk(n.Body, s, nil))
 			if slices.Equal(t, s) {
 				break
 			}
@@ -707,52 +698,40 @@ func (g *guardPass) walk(e ast.Expr, in bitset, next *ast.Not) bitset {
 		}
 		g.checking = checking
 		if checking {
-			g.walk(e.Expr, s, nil)
+			g.walk(n.Body, s, nil)
 		}
 		return s
-	case *ast.Group:
-		return g.walk(e.Expr, in, next)
-	case *ast.Capture:
-		return g.walk(e.Expr, in, next)
-	case *ast.Discard:
-		return g.walk(e.Expr, in, next)
-	case *ast.Atomic:
-		return g.walk(e.Expr, in, next)
-	case *ast.InlineAction:
-		return g.walk(e.Expr, in, next)
-	case *ast.And:
-		g.walk(e.Expr, in, nil)
-		return in
-	case *ast.Not:
-		if !isCheck(e) {
-			g.walk(e.Expr, in, nil)
+	case *core.Capture:
+		return g.walk(n.Body, in, next)
+	case *core.Drop:
+		return g.walk(n.Body, in, next)
+	case *core.Text:
+		return g.walk(n.Body, in, next)
+	case *core.Nest:
+		return g.walk(n.Body, in, next)
+	case *core.Look:
+		if n.Neg && isCheck(n) {
+			return in
 		}
+		g.walk(n.Body, in, nil)
 		return in
-	case *ast.Attributed:
-		g.walk(e.Expr, in, nil)
-		for _, at := range e.Attrs {
-			for _, arg := range at.ExpressionArgs() {
-				g.walk(arg, in, nil)
-			}
-		}
+	case *core.Label:
+		g.walk(n.Body, in, nil)
 		return g.none()
-	case *ast.Recovery:
-		g.walk(e.Expr, in, nil)
-		g.walk(e.Skip, in, nil)
+	case *core.Missing:
+		g.walk(n.Body, in, nil)
 		return g.none()
-	case *ast.Stream:
-		g.walk(e.Expr, g.none(), nil)
+	case *core.Recover:
+		g.walk(n.Body, in, nil)
+		g.walk(n.Skip, in, nil)
 		return g.none()
-	case *ast.OperatorsRule:
+	case *core.Stream:
+		g.walk(n.Repeat, in, nil)
+		return g.none()
+	case *core.OperatorsRule:
 		// Its parts follow one another in an order that the pass does not follow.
-		g.walk(e.Skip, g.none(), nil)
-		for _, o := range e.Operands {
-			g.walk(o.Expr, g.none(), nil)
-		}
-		for _, l := range e.Levels {
-			for _, op := range l.Operators {
-				g.walk(op.Expr, g.none(), nil)
-			}
+		for _, l := range n.Lines() {
+			g.walk(l.Body, g.none(), nil)
 		}
 		return g.none()
 	}
@@ -764,7 +743,7 @@ func (g *guardPass) walk(e ast.Expr, in bitset, next *ast.Not) bitset {
 // region: (G1) a character of the opening characters of a region only as its first character, and
 // (G2) a first character of the region only where the region ended, or where the next character
 // cannot go on with the match of the region, or before a check that fails wherever it can.
-func (g *guardPass) cross(t ast.Expr, in bitset, next *ast.Not) {
+func (g *guardPass) cross(t core.Node, in bitset, next *core.Look) {
 	cs := terminalChars(t)
 	if len(cs) == 0 {
 		return
@@ -781,7 +760,7 @@ func (g *guardPass) cross(t ast.Expr, in bitset, next *ast.Not) {
 			ok = g.regions[r] && in.has(g.index[r])
 			if !ok {
 				f := g.nfa.follow(r, cs)
-				ok = len(f) == 0 || next != nil && g.k.subset(f, g.k.sure(g.k.nodeOf(next.Expr)))
+				ok = len(f) == 0 || next != nil && g.k.subset(f, g.k.sure(next.Body))
 			}
 		}
 		if v := (regionViolation{r, g.rule}); !ok && !g.seen[v] {

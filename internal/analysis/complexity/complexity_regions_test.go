@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/testing/starttest"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // regionCredit classifies src and reports whether the body of the trivia rule ws has the region
@@ -27,8 +27,8 @@ func regionCredit(t *testing.T, src string) bool {
 	if ws == nil {
 		t.Fatal("no rule ws")
 	}
-	rep, ok := triviaUnwrap(ws.Expr).(*ast.Repeat)
-	return ok && k.regionScan[k.repeatOf(rep)]
+	rep, ok := triviaUnwrap(k.ruleBody(ws.Name)).(*core.Repeat)
+	return ok && k.regionScan[rep]
 }
 
 // regionSource is a grammar of sums whose blanks hold comments: the lookahead !(ws ".") fails

@@ -480,7 +480,7 @@ func newClassifierOf(g *ast.Grammar, rules, base []*ast.RuleDef, nm nodeMap, rf 
 	}
 	if triviaMemo {
 		for _, r := range rules {
-			if k.isTrivia(k.callOf(r.Name)) {
+			if k.isTrivia(r.Name) {
 				k.memo[r.Name] = true
 			}
 		}

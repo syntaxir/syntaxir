@@ -666,7 +666,7 @@ func TestExclusionReport(t *testing.T) {
 			if s.h.trivia {
 				var rules []string
 				for _, r := range k.rules {
-					if k.reach[r.Name] && k.isTrivia(&ast.Ref{Name: r.Name}) {
+					if k.reach[r.Name] && k.isTrivia(r.Name) {
 						rules = append(rules, r.Name)
 					}
 				}
