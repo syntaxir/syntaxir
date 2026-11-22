@@ -325,19 +325,58 @@ func TestReferenceExaminedByHand(t *testing.T) {
 	}
 }
 
-// TestReferenceRejectsActionValues checks that a predicate reading the value of a user action makes
-// the input fall outside the reference, naming the rule.
-func TestReferenceRejectsActionValues(t *testing.T) {
-	g, err := enginetest.ParseGrammar("rule main = x:n { $x == 1 } \"a\"\nrule n int = [0-9] => 1")
-	if err != nil {
-		t.Fatalf("parse: %v", err)
+// TestReferenceActionValues checks the values of Value Actions that predicates read: scalars, structs
+// with unset fields, casts to struct types and joins, named node conversions, Operators Rule actions,
+// and a runtime error of an action, which makes the parse fail.
+func TestReferenceActionValues(t *testing.T) {
+	const dyn = "type A = { N int }\ntype B = { S string }\ntype U ~ A | B\n" +
+		"rule dyn _ = (\"x\" => A{N: 1}) / (\"y\" => B{S: \"s\"})\n"
+	const sum = "rule expr int = #operators {\n operand d:[0-9] => len(text($d))\n" +
+		" level { infix left \"+\" => $lhs + $rhs }\n level { prefix \"-\" => 0 - $rhs }\n}\n"
+	tests := []struct {
+		name, src, input string
+		want             examinedref.Result
+	}{
+		{"a scalar value decides a predicate", "rule main = x:n { $x == 1 } \"a\"\nrule n int = [0-9] => 1", "1a",
+			examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"a scalar value fails a predicate", "rule main = x:n { $x == 2 } \"a\"\nrule n int = [0-9] => 1", "1a",
+			examinedref.Result{Matched: false, End: 0, Examined: 1}},
+		{"an unset field reads as its zero value", "type P = { X int; Y string; Z []int }\n" +
+			"rule main = p:q { $p.Y == \"\" && $p.X == 3 && len($p.Z) == 0 } \"a\"\nrule q P = [0-9] => P{X: 3}", "1a",
+			examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"a cast to a struct type admits its values", dyn + "rule main = d:dyn { $d.(A).N == 1 } \"a\" / \"y\" \"b\"", "xa",
+			examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"a failed cast fails the predicate", dyn + "rule main = d:dyn { $d.(A).N == 1 } \"a\" / \"y\" \"b\"", "yb",
+			examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"a cast to an alias of a join admits its members", dyn + "rule main = d:dyn { $d.(U) != nil } \"a\"", "ya",
+			examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"a conversion names the node", "type N = node[string]\nrule main = x:n { $x.(N) != nil } \"a\"\n" +
+			"rule n = t:[0-9] => N{$t}", "1a", examinedref.Result{Matched: true, End: 2, Examined: 2}},
+		{"an Operators Rule action reads its operands", "rule main = e:expr { $e == 3 } \"!\"\n" + sum, "1+1+1!",
+			examinedref.Result{Matched: true, End: 6, Examined: 6}},
+		{"a prefix action reads its operand", "rule main = e:expr { $e == -1 } \"!\"\n" + sum, "-1!",
+			examinedref.Result{Matched: true, End: 3, Examined: 3}},
+		{"an Operators Rule's own action reads the folded value", "rule main = e:ex { $e == 4 } \"!\"\n" +
+			"rule ex int = #operators {\n operand [0-9] => 2\n level { infix left \"+\" => $lhs + $rhs }\n} => $value.(int)", "1+1!",
+			examinedref.Result{Matched: true, End: 4, Examined: 4}},
+		{"a lambda reads a capture of a repetition element", "rule main = rs:(r:[a-z] \";\")* { map($rs, (e) => e.$r)[1].Start == 2 } $$", "a;b;",
+			examinedref.Result{Matched: true, End: 4, Examined: 5}},
+		{"a runtime error of an action fails the parse", "var z int\nrule main = n \"a\"\nrule n int = [0-9] => 1 / z", "1a",
+			examinedref.Result{Matched: true, End: 2, Examined: 2, ActionFailed: true}},
 	}
-	_, _, err = examinedref.Evaluate(g, "main", "1a")
-	uns, ok := err.(*examinedref.UnsupportedError)
-	if !ok {
-		t.Fatalf("got %v (%T), want *UnsupportedError", err, err)
-	}
-	if want := "a predicate that reads the value of the action of rule n"; uns.Construct != want {
-		t.Fatalf("construct %q, want %q", uns.Construct, want)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			g, err := enginetest.ParseGrammar(tc.src)
+			if err != nil {
+				t.Fatalf("parse: %v", err)
+			}
+			got, _, err := examinedref.Evaluate(g, "main", tc.input)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tc.want {
+				t.Fatalf("got %+v, want %+v", got, tc.want)
+			}
+		})
 	}
 }

@@ -53,12 +53,13 @@ type opsResult struct {
 }
 
 // attempt is the longest match of operator parts at a position: the part, the state after it, its
-// value and whether it passed a cut.
+// value, its captures and whether it passed a cut.
 type attempt struct {
 	part  *opPart
 	start int
 	after state
 	val   value
+	caps  *capture
 	cut   bool
 }
 
@@ -116,7 +117,7 @@ func (x *opsRun) longest(parts []opPart, st state) (best *attempt, cutFailed boo
 		matched := o.matched && !(o.end == st.pos && p.op.Kind != ast.Infix)
 		if matched && (best == nil || o.end > best.after.pos) {
 			after := advance(line, o)
-			best = &attempt{part: p, start: st.pos, after: after, val: x.ev.single(o, line), cut: o.cut}
+			best = &attempt{part: p, start: st.pos, after: after, val: x.ev.single(o, line), caps: o.caps, cut: o.cut}
 			if !x.ev.valued(p.op.Expr) {
 				best.val = &node{kind: tupleNode, start: st.pos, end: o.end, caps: o.caps}
 			}
@@ -159,7 +160,7 @@ func (x *opsRun) nud(st state) (opsResult, int) {
 			var v value
 			switch {
 			case operand.Action != nil && !operand.DefaultAction:
-				v = &opaque{rule: x.r.name}
+				v = x.ev.actionValue(operand.Action, o.vars, o.caps)
 			case x.ev.valued(operand.Expr):
 				v = x.ev.single(o, line)
 			default:
@@ -239,17 +240,15 @@ func (x *opsRun) expr(min int, st state, afterEmpty bool) opsResult {
 	return lhs
 }
 
-// build is the value of an operator application: opaque for an operator with an action, and otherwise
-// the tuple node of the left operand, the operator part and the right operand that it has, captured
-// as lhs, op and rhs; with a declared named node type and no whole-rule action, it has that type.
+// build is the value of an operator application: the tuple node of the left operand, the operator
+// part and the right operand that it has, captured as lhs, op and rhs, or the value of the operator's
+// action, which reads them as $lhs, $op and $rhs besides the captures of the operator part. With a
+// declared named node type and no whole-rule action, the value is converted to that type.
 func (x *opsRun) build(a *attempt, lhs *opsResult, rhs opsResult, start int) value {
 	op := a.part.op
-	if op.Action != nil && !op.DefaultAction {
-		return &opaque{rule: x.r.name}
-	}
-	end := a.after.pos
+	end, vars := a.after.pos, a.after.vars
 	if rhs.ok {
-		end = rhs.st.pos
+		end, vars = rhs.st.pos, rhs.st.vars
 	}
 	n := &node{kind: tupleNode, start: start, end: end}
 	if lhs != nil {
@@ -262,8 +261,18 @@ func (x *opsRun) build(a *attempt, lhs *opsResult, rhs opsResult, start int) val
 		n.elems = append(n.elems, rhs.val)
 		n.caps = &capture{name: "rhs", val: rhs.val, next: n.caps}
 	}
-	if x.r.nodeType != "" && !x.r.action {
-		n.name = x.r.nodeType
+	var v value = n
+	if op.Action != nil && !op.DefaultAction {
+		caps := a.caps
+		for c := n.caps; c != nil; c = c.next {
+			caps = &capture{name: c.name, val: c.val, next: caps}
+		}
+		v = x.ev.actionValue(op.Action, vars, caps)
 	}
-	return n
+	if m, ok := v.(*node); ok && x.r.nodeType != "" && x.r.act == nil {
+		c := *m
+		c.name = x.r.nodeType
+		v = &c
+	}
+	return v
 }

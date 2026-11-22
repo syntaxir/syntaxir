@@ -1,8 +1,10 @@
 package codegentest
 
 // ExaminedShapes are the shapes on which every producer's examined ends are checked against the
-// independent reference (package examinedref), besides the generated corpus: growths of left recursion, Operators Rules, recovery, token insertion, predicates and
-// variables, #ignorecase, inline actions and input that is not valid UTF-8.
+// independent reference (package examinedref), besides the generated corpus: growths of left
+// recursion, Operators Rules, recovery, token insertion, predicates and variables, values of actions,
+// #ignorecase, inline actions, input that is not valid UTF-8 and the bytes that literals and anchors
+// examine. Each mutant of the reference must fail one of them.
 func ExaminedShapes() []Case {
 	const ops = "rule e = #operators {\n skip \" \"*\n operand [0-9]+ #atomic\n operand \"(\" e \" \"* \")\"\n" +
 		" level add { infix left \"+\" / \"-\" }\n level cmp { infix none \"<\" }\n level neg { prefix \"-\" }\n" +
@@ -55,18 +57,19 @@ func ExaminedShapes() []Case {
 			Inputs: []string{"", "y", "z", "yz", "x"}},
 		{Name: "decoding ends the examined range", Src: "rule main = [a-z]* $$",
 			Inputs: []string{"\xe2\x82A", "a\xe2\x82", "\xf0\x9f\x98A", "\xc3A"}},
+		{Name: "struct values and casts in predicates", Src: "type A = { N int; S string }\ntype B = { S string }\ntype U ~ A | B\nvar z int\n" +
+			"rule main = item* $$\n" +
+			"rule item = d:dyn { $d.(A) != nil } \"!\" / d:dyn { $d.(A).S == \"\" && $d.(A).N == 1 } \"&\" / d:dyn { $d.(U) != nil } \"?\" / \"/\" div\n" +
+			"rule dyn _ = (\"x\" => A{N: 1}) / (\"y\" => B{S: \"s\"})\nrule div int = [0-9] => 1 / z",
+			Inputs: []string{"x!", "y?", "x?", "y!", "x&", "y&", "x!y?x&", "/1", "x!/1"}},
+		{Name: "named node conversions", Src: "type N = node[string]\nrule main = (x:n { $x.(N) != nil } \";\")* $$\nrule n = t:[a-z] => N{$t}",
+			Inputs: []string{"a;", "a;b;", "a"}},
+		{Name: "Operators Rule actions", Src: "rule main = (e:expr { $e == 3 } \"!\" / expr \"?\") $$\nrule expr int = #operators {\n" +
+			" operand d:[0-9] => len(text($d))\n level { infix left \"+\" => $lhs + $rhs }\n level { prefix \"-\" => 0 - $rhs }\n}",
+			Inputs: []string{"1+1+1!", "1+1!", "1+1?", "-1+1+1+1+1!", "-1!"}},
+		{Name: "lambdas over a captured repetition", Src: "rule main = rs:(r:[a-z] \";\")* { len(filter(map($rs, (e) => e.$r), (c) => text(c) == \"a\")) == 1 } $$",
+			Inputs: []string{"a;b;", "a;a;", "b;", ""}},
 		{Name: "literal choices in bytes", Src: "rule main = atom* $$\nrule atom = \"-x\" / \"a\" / \"é\"",
 			Inputs: []string{"¬", "\xc2", "a¬", "é", "-x"}},
 	}
-}
-
-// ExaminedOutsideReference names the grammars of GenCorpus and ExaminedShapes with inputs whose
-// predicates read the value of a user action, which the independent reference does not compute.
-var ExaminedOutsideReference = map[string]bool{
-	"a cast binding in an Operators Rule operand":            true,
-	"a failed cast in a binding backtracks":                  true,
-	"bindings of a cast value":                               true,
-	"initial values key the memo like bound ones":            true,
-	"memo entries are keyed by the variables the rule reads": true,
-	"nested captured repetitions":                            true,
 }

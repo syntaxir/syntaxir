@@ -5,7 +5,6 @@ package print_test
 import (
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -125,7 +124,6 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 		bytes bool
 	}
 	refs := map[key]refRun{}
-	outside := map[int]bool{}
 	compared := map[string]int{}
 	shown := map[string]int{}
 	for _, l := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
@@ -149,11 +147,6 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 			ref.res, ref.exits, ref.err = examinedref.EvaluateWith(g, "main", in, o)
 			refs[k] = ref
 		}
-		var uns *examinedref.UnsupportedError
-		if errors.As(ref.err, &uns) {
-			outside[r.Case] = true
-			continue
-		}
 		if ref.err != nil {
 			t.Fatalf("%s %q: reference: %v", c.Name, in, ref.err)
 		}
@@ -163,12 +156,12 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 				calls = append(calls, o)
 			}
 		}
-		diffs := examinedref.CompareCalls(ref.exits, calls)
-		if !r.Aborted {
-			diffs = append(diffs, examinedref.CompareStart(ref.res, "main", calls)...)
-		}
+		diffs := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted)
 		compared[r.Entry] += len(calls)
 		for _, d := range diffs {
+			if r.Aborted {
+				d += fmt.Sprintf(" (aborted by %s)", r.Err)
+			}
 			if shown[r.Entry]++; shown[r.Entry] <= 20 {
 				t.Errorf("%s %q bytes=%v %s: %s", c.Name, in, r.Bytes, r.Entry, d)
 			}
@@ -177,11 +170,6 @@ func TestTSObservedExaminedEndsAreExact(t *testing.T) {
 	for entry, n := range shown {
 		if n > 20 {
 			t.Errorf("%d more differences of %s", n-20, entry)
-		}
-	}
-	for i, c := range cases {
-		if listed := codegentest.ExaminedOutsideReference[c.Name]; listed != outside[i] {
-			t.Errorf("%s: outside the reference %v, listed in codegentest.ExaminedOutsideReference %v", c.Name, outside[i], listed)
 		}
 	}
 	t.Logf("calls compared by entry: %v", compared)

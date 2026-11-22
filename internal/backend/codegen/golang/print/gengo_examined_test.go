@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -83,6 +82,7 @@ func main() {
 							events = append(events, ev)
 						}
 					}))
+					var one *sxirvalue.SyntaxError
 					var errs sxirvalue.SyntaxErrors
 					var truncated *sxirvalue.TruncatedSyntaxErrors
 					b, _ := json.Marshal(struct {
@@ -93,7 +93,7 @@ func main() {
 						Err         string
 						Aborted     bool
 					}{i, j, unit == sxirinput.Bytes, e.name, events, fmt.Sprint(err),
-						err != nil && !errors.As(err, &errs) && !errors.As(err, &truncated)})
+						err != nil && !errors.As(err, &one) && !errors.As(err, &errs) && !errors.As(err, &truncated)})
 					fmt.Println(string(b))
 				}
 			}
@@ -229,9 +229,7 @@ func runExaminedProbes(t *testing.T, cases []codegentest.Case, lib string, mutat
 }
 
 // examinedMismatches checks the reports against the reference (see the comment at the top of the
-// file), and returns the number of calls compared and the differences, both by entry. An input whose
-// predicates read the value of a user action is outside the reference and not compared; the grammars
-// with such inputs must be those codegentest.ExaminedOutsideReference names.
+// file), and returns the number of calls compared and the differences, both by entry.
 func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examinedReport) (compared map[string]int, diffs map[string][]string) {
 	t.Helper()
 	compared, diffs = map[string]int{}, map[string][]string{}
@@ -246,7 +244,6 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 	}
 	refs := map[key]refRun{}
 	grammars := map[int]*ast.Grammar{}
-	outside := map[int]bool{}
 	for _, r := range reports {
 		c := cases[r.Case]
 		in := c.Inputs[r.Input]
@@ -268,11 +265,6 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 			ref.res, ref.exits, ref.err = examinedref.EvaluateWith(g, "main", in, o)
 			refs[k] = ref
 		}
-		var uns *examinedref.UnsupportedError
-		if errors.As(ref.err, &uns) {
-			outside[r.Case] = true
-			continue
-		}
 		if ref.err != nil {
 			t.Fatalf("%s %q: reference: %v", c.Name, in, ref.err)
 		}
@@ -282,18 +274,13 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 				calls = append(calls, o)
 			}
 		}
-		d := examinedref.CompareCalls(ref.exits, calls)
-		if !r.Aborted {
-			d = append(d, examinedref.CompareStart(ref.res, "main", calls)...)
-		}
+		d := examinedref.CompareParse(ref.res, ref.exits, "main", calls, r.Aborted)
 		compared[r.Entry] += len(calls)
 		for _, msg := range d {
+			if r.Aborted {
+				msg += fmt.Sprintf(" (aborted by %s)", r.Err)
+			}
 			diffs[r.Entry] = append(diffs[r.Entry], fmt.Sprintf("%s %q bytes=%v %s: %s", c.Name, in, r.Bytes, r.Entry, msg))
-		}
-	}
-	for i, c := range cases {
-		if listed := codegentest.ExaminedOutsideReference[c.Name]; listed != outside[i] {
-			t.Errorf("%s: outside the reference %v, listed in codegentest.ExaminedOutsideReference %v", c.Name, outside[i], listed)
 		}
 	}
 	return compared, diffs

@@ -54,12 +54,30 @@ var referenceMutants = []referenceMutant{
 	{name: "the last rule of a cycle leads it", file: "facts.go", run: "oracle",
 		old: "\t\t\tif onCycle[name] {\n\t\t\t\tcandidate = name\n\t\t\t\tbreak\n\t\t\t}",
 		new: "\t\t\tif onCycle[name] {\n\t\t\t\tcandidate = name\n\t\t\t}"},
+	{name: "a rule's action is not run", file: "values.go", run: "oracle",
+		old: "\tv, err := (&actionEnv{ev: ev, vars: vars, caps: caps}).eval(act)\n", new: "\tvar v value\n\tvar err error\n"},
+	{name: "an unset field reads as nil", file: "values.go", run: "oracle",
+		old: "\t\t\treturn a.ev.zeroValue(t)\n", new: "\t\t\t_ = t\n\t\t\treturn nil, nil\n"},
+	{name: "a cast to a struct type admits every struct", file: "values.go", run: "oracle",
+		old: "return ok && sv.typ == t.Name, nil", new: "return ok || sv == nil, nil"},
+	{name: "a cast does not resolve a type alias", file: "values.go", run: "oracle",
+		old: "\t\tif alias, ok := a.ev.aliases[t.Name]; ok {\n\t\t\treturn a.fits(v, alias)", new: "\t\tif alias, ok := a.ev.aliases[t.Name]; ok && false {\n\t\t\treturn a.fits(v, alias)"},
+	{name: "a conversion keeps the node's name", file: "values.go", run: "oracle",
+		old: "\tc.name = x.Type\n", new: "\t_ = x.Type\n"},
+	{name: "an operator's action does not read its operands", file: "operators.go", run: "oracle",
+		old: "\t\tfor c := n.caps; c != nil; c = c.next {", new: "\t\tfor c := n.caps; c != nil && false; c = c.next {"},
+	{name: "a lambda parameter is read as a capture", file: "values.go", run: "oracle",
+		old: "\t\tif x.Param {\n", new: "\t\tif x.Param && false {\n"},
+	{name: "a runtime error of an action goes unrecorded", file: "values.go", run: "oracle",
+		old: "\t\tev.actionFailed = true\n", new: "\t\t_ = ev\n"},
 	{name: "the comparison ignores the examined end", file: "compare.go", run: "compare",
 		old: "case !want[outcomeOf{o.Matched, o.End, o.Examined}]:", new: "case !want[outcomeOf{o.Matched, o.End, 0}] && false:"},
 	{name: "the comparison accepts calls the reference does not make", file: "compare.go", run: "compare",
 		old: "\t\tcase !ok:\n\t\t\tdiffs = append(", new: "\t\tcase !ok:\n\t\t\tcontinue\n\t\t\tdiffs = append("},
 	{name: "the comparison accepts any skipped call", file: "compare.go", run: "compare",
 		old: "\t\t\tif !failing {", new: "\t\t\tif false {"},
+	{name: "the comparison accepts any abort", file: "compare.go", run: "compare",
+		old: "\tcase !res.ActionFailed:\n", new: "\tcase false:\n"},
 	{name: "the start call is not compared", file: "compare.go", run: "compare",
 		old: "if o.Matched != res.Matched || o.End != res.End || o.Examined != res.Examined {", new: "if false {"},
 }
@@ -101,9 +119,9 @@ func TestReferenceMutants(t *testing.T) {
 				t.Fatal(err)
 			}
 			if m.run == "compare" {
-				out, err := runMutantTests(dir, overlayFile, "^TestCompareCalls$")
-				if err == nil || !strings.Contains(string(out), "--- FAIL: TestCompareCalls") {
-					t.Fatalf("TestCompareCalls does not fail:\n%s", mutantTail(out))
+				out, err := runMutantTests(dir, overlayFile, "^TestCompare(Calls|Parse)$")
+				if err == nil || !strings.Contains(string(out), "--- FAIL: TestCompare") {
+					t.Fatalf("the comparison's tests do not fail:\n%s", mutantTail(out))
 				}
 				return
 			}

@@ -116,6 +116,21 @@ func CompareStart(res Result, start string, observed []Observed) []string {
 	return []string{fmt.Sprintf("start call: no exit of %s reported", start)}
 }
 
+// CompareParse checks the calls of one observed parse against the reference's evaluation of its input
+// (CompareCalls) and, unless the parse aborted, the start call (CompareStart). A parse aborts on an
+// error that is not a syntax error; the parse of an input without limits aborts only on a runtime
+// error of a Value Action, so the reference must report that one of its actions fails.
+func CompareParse(res Result, exits []Exit, start string, observed []Observed, aborted bool) []string {
+	diffs := CompareCalls(exits, observed)
+	switch {
+	case !aborted:
+		diffs = append(diffs, CompareStart(res, start, observed)...)
+	case !res.ActionFailed:
+		diffs = append(diffs, "the parse aborted, but no Value Action of the reference fails")
+	}
+	return diffs
+}
+
 func describe(o Observed) string {
 	call := fmt.Sprintf("%s@%d", o.Rule, o.Pos)
 	if o.Level != 0 {

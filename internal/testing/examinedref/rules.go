@@ -11,9 +11,9 @@ import (
 type rule struct {
 	name string
 	body ast.Expr
-	// action reports a Value Action other than the default `=> ...`: the rule's value is that of a
-	// user action, which the reference does not compute.
-	action bool
+	// act is the Value Action of the rule other than the default `=> ...`, nil without one: the rule's
+	// value is the value of act. In an Operators Rule it runs once per call on the folded value.
+	act ast.ActionExpr
 	// ownNode reports a rule that makes a node of its own: a rule that is not hidden, or a hidden
 	// rule with an action, including the default action of an inline action.
 	ownNode bool
@@ -58,7 +58,7 @@ func newRuleSet(g *ast.Grammar) (*ruleSet, error) {
 		r := &rule{
 			name:    d.Name,
 			body:    body,
-			action:  d.Action != nil && !d.DefaultAction,
+			act:     userAction(d.Action, d.DefaultAction),
 			ownNode: !hidden(d.Name) || d.Action != nil || d.DefaultAction,
 			typed:   d.Type != nil,
 		}
@@ -81,6 +81,14 @@ func (rs *ruleSet) add(r *rule) {
 }
 
 func hidden(name string) bool { return strings.HasPrefix(name, "_") }
+
+// userAction is the action of a declaration, or nil for none and for the default action `=> ...`.
+func userAction(a ast.ActionExpr, isDefault bool) ast.ActionExpr {
+	if isDefault {
+		return nil
+	}
+	return a
+}
 
 // operatorsOf returns the Operators Rule of a rule body and whether #ignorecase follows it.
 func operatorsOf(body ast.Expr) (*ast.OperatorsRule, bool) {
@@ -128,7 +136,7 @@ func (l *inlineLowering) expr(e ast.Expr) ast.Expr {
 		l.hidden = append(l.hidden, &rule{
 			name:    name,
 			body:    body,
-			action:  e.Action != nil && !e.DefaultAction,
+			act:     userAction(e.Action, e.DefaultAction),
 			ownNode: true,
 		})
 		return &ast.Ref{SourceInfo: e.SourceInfo, Name: name}

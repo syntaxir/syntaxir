@@ -4,6 +4,7 @@ package examinedref_test
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -188,14 +189,15 @@ func (r *referenceRuns) get(text string, o examinedref.Options) referenceRun {
 }
 
 // aborted reports an error that ends a parse before the start call returns: one that is not a syntax
-// error, such as a runtime error of a user action, which the reference does not run.
+// error, which without limits is a runtime error of a Value Action.
 func aborted(err error) bool {
 	if err == nil {
 		return false
 	}
+	var one *value.SyntaxError
 	var errs value.SyntaxErrors
 	var truncated *value.TruncatedSyntaxErrors
-	return !errors.As(err, &errs) && !errors.As(err, &truncated)
+	return !errors.As(err, &one) && !errors.As(err, &errs) && !errors.As(err, &truncated)
 }
 
 // shapesOnly is the environment variable that limits TestExaminedOracle to codegentest.ExaminedShapes,
@@ -220,7 +222,6 @@ func TestExaminedOracle(t *testing.T) {
 
 	var mu sync.Mutex
 	compared := map[string]int{}
-	var outside []string
 	t.Run("cases", func(t *testing.T) {
 		for _, c := range cases {
 			t.Run(c.name, func(t *testing.T) {
@@ -238,26 +239,17 @@ func TestExaminedOracle(t *testing.T) {
 					t.Fatalf("compile: %v", err)
 				}
 				refs := &referenceRuns{g: g, runs: map[examinedref.Options]map[string]referenceRun{}}
-				unsupported := false
 				for _, in := range c.inputs {
 					for _, u := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 						for _, r := range routes() {
 							for _, op := range r.run(p, in, u) {
 								ref := refs.get(op.text, examinedref.Options{Unit: u, MissingTokens: op.missing})
-								var uns *examinedref.UnsupportedError
-								if errors.As(ref.err, &uns) {
-									if !unsupported {
-										t.Logf("%q: %v", op.text, uns)
-									}
-									unsupported = true
-									continue
-								}
 								if ref.err != nil {
 									t.Fatalf("%q: reference: %v", op.text, ref.err)
 								}
-								diffs := examinedref.CompareCalls(ref.exits, op.calls)
-								if !aborted(op.err) {
-									diffs = append(diffs, examinedref.CompareStart(ref.res, "main", op.calls)...)
+								diffs := examinedref.CompareParse(ref.res, ref.exits, "main", op.calls, aborted(op.err))
+								if len(diffs) > 0 && aborted(op.err) {
+									diffs = append(diffs, fmt.Sprintf("aborted by %v", op.err))
 								}
 								for i, d := range diffs {
 									if i == 5 {
@@ -273,23 +265,11 @@ func TestExaminedOracle(t *testing.T) {
 						}
 					}
 				}
-				if unsupported != codegentest.ExaminedOutsideReference[c.name] {
-					if unsupported {
-						t.Errorf("outside the reference, but not listed in codegentest.ExaminedOutsideReference")
-					} else {
-						t.Errorf("listed in codegentest.ExaminedOutsideReference, but the reference evaluates every input")
-					}
-				}
-				if unsupported {
-					mu.Lock()
-					outside = append(outside, c.name)
-					mu.Unlock()
-				}
 			})
 		}
 	})
 	documentErrors.Range(func(k, _ any) bool { t.Logf("NewDocument: %v", k); return true })
-	t.Logf("parses compared by route: %v; grammars outside the reference: %q", compared, outside)
+	t.Logf("parses compared by route: %v", compared)
 	for _, r := range routes() {
 		if compared[r.name] == 0 {
 			t.Errorf("no parse of %s compared", r.name)

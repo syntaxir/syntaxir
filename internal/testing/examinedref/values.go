@@ -10,16 +10,14 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// The values that predicates read. Predicates decide matches, so the reference evaluates them, but
-// only on the values that matching determines (spec/language/parser-expressions.md, Values and the
-// Concrete Syntax Tree): nodes of matched text, tuples and lists of them, recovered values, and the
-// int, string and bool values of variables and of the action language's operators and built-in
-// functions (spec/language/actions.md). The value of a user action is outside the oracle (record 077):
-// it is an opaque value, and a predicate that reads one makes Evaluate return an *UnsupportedError
-// naming the rule.
+// The values of the action language (spec/language/actions.md and types.md). Predicates decide
+// matches, and they read the values that matching determines (spec/language/parser-expressions.md,
+// Values and the Concrete Syntax Tree) and the values of Value Actions, so the reference evaluates
+// both by the specification. It does not use the producers' evaluator of actions, which runs on the
+// state of a parser.
 
 // value is nil, an int64, a string, a bool, a *node, a list (a list value), a tuple (the value of a
-// tuple node), a *lambda or an opaque.
+// tuple node), a *structValue or a *lambda.
 type value any
 
 type list []value
@@ -47,14 +45,12 @@ type node struct {
 	expected   string // the inserted text of a missing node
 }
 
-// structValue is a struct value that a constructor in a predicate makes.
+// structValue is a value of a struct type: the fields that its constructor sets. A field that it
+// does not set reads as the zero value of its declared type.
 type structValue struct {
 	typ    string
 	fields map[string]value
 }
-
-// opaque is the value of a user action.
-type opaque struct{ rule string }
 
 // lambda is a function argument of foldl, foldr, map or filter.
 type lambda struct {
@@ -107,11 +103,12 @@ func (c *capture) since(base *capture) *capture {
 	return r
 }
 
-// errAction is a run-time action error: it fails the predicate that raised it.
+// errAction is a run-time action error: it fails the predicate that raised it, and it makes a parse
+// that runs a Value Action that raises it fail.
 var errAction = errors.New("action error")
 
-// actionEnv is what a predicate reads: the variables, the captures of its scope and the lambda
-// parameters.
+// actionEnv is what an action expression reads: the variables, the captures of its scope and the
+// lambda parameters.
 type actionEnv struct {
 	ev     *evaluator
 	vars   *binding
@@ -119,7 +116,7 @@ type actionEnv struct {
 	params *binding
 }
 
-// evalAction evaluates an action expression of a predicate.
+// eval evaluates an action expression.
 func (a *actionEnv) eval(x ast.ActionExpr) (value, error) {
 	switch x := x.(type) {
 	case *ast.ActionGroup:
@@ -133,6 +130,14 @@ func (a *actionEnv) eval(x ast.ActionExpr) (value, error) {
 	case *ast.NilLit:
 		return nil, nil
 	case *ast.CaptureRef:
+		if x.Param {
+			// A lambda parameter, written without $.
+			v, ok := a.params.lookup(x.Name)
+			if !ok {
+				return nil, fmt.Errorf("examinedref: lambda parameter %s is not bound", x.Name)
+			}
+			return v, nil
+		}
 		v, _ := a.caps.lookup(x.Name)
 		return v, nil
 	case *ast.VarRef:
@@ -192,7 +197,7 @@ func (a *actionEnv) eval(x ast.ActionExpr) (value, error) {
 		return t, nil
 	case *ast.Constructor:
 		if len(x.Args) > 0 {
-			return nil, &UnsupportedError{Construct: "a constructor with arguments in a predicate"}
+			return a.convertTo(x)
 		}
 		sv := &structValue{typ: x.Type, fields: map[string]value{}}
 		for _, f := range x.Fields {
@@ -214,15 +219,7 @@ func (a *actionEnv) eval(x ast.ActionExpr) (value, error) {
 		}
 		return l, nil
 	}
-	return nil, &UnsupportedError{Construct: fmt.Sprintf("%T in a predicate", x)}
-}
-
-// opaqueErr reports a predicate that reads the value of a user action.
-func opaqueErr(v value) error {
-	if o, ok := v.(*opaque); ok {
-		return &UnsupportedError{Construct: "a predicate that reads the value of the action of rule " + o.rule}
-	}
-	return nil
+	return nil, &UnsupportedError{Construct: fmt.Sprintf("%T in an action", x)}
 }
 
 func (a *actionEnv) binary(x *ast.Binary) (value, error) {
@@ -234,9 +231,6 @@ func (a *actionEnv) binary(x *ast.Binary) (value, error) {
 	case "&&", "||":
 		b, ok := l.(bool)
 		if !ok {
-			if err := opaqueErr(l); err != nil {
-				return nil, err
-			}
 			return nil, errAction
 		}
 		if (x.Op == "&&") != b {
@@ -249,19 +243,10 @@ func (a *actionEnv) binary(x *ast.Binary) (value, error) {
 		if rb, ok := r.(bool); ok {
 			return rb, nil
 		}
-		if err := opaqueErr(r); err != nil {
-			return nil, err
-		}
 		return nil, errAction
 	}
 	r, err := a.eval(x.R)
 	if err != nil {
-		return nil, err
-	}
-	if err := opaqueErr(l); err != nil {
-		return nil, err
-	}
-	if err := opaqueErr(r); err != nil {
 		return nil, err
 	}
 	switch x.Op {
@@ -355,7 +340,7 @@ func (a *actionEnv) binary(x *ast.Binary) (value, error) {
 		}
 		return li % ri, nil
 	}
-	return nil, &UnsupportedError{Construct: "operator " + x.Op + " in a predicate"}
+	return nil, &UnsupportedError{Construct: "operator " + x.Op + " in an action"}
 }
 
 func compareInt(a, b int64) int {
@@ -394,10 +379,12 @@ func (a *actionEnv) member(v value, name string) (value, error) {
 		if f, ok := sv.fields[name]; ok {
 			return f, nil
 		}
-		return nil, &UnsupportedError{Construct: "field " + name + " of " + sv.typ + " in a predicate"}
-	}
-	if err := opaqueErr(v); err != nil {
-		return nil, err
+		// An unset field reads as the zero value of its declared type; a field that the type does not
+		// declare, or a capture, is a runtime action error.
+		if t, ok := a.ev.structFields[sv.typ][name]; ok {
+			return a.ev.zeroValue(t)
+		}
+		return nil, errAction
 	}
 	n, ok := v.(*node)
 	if !ok {
@@ -424,7 +411,7 @@ func (a *actionEnv) member(v value, name string) (value, error) {
 		}
 	case "message":
 		if n.kind == missingNode {
-			return nil, &UnsupportedError{Construct: "the message of a missing token in a predicate"}
+			return nil, &UnsupportedError{Construct: "the message of a missing token in an action"}
 		}
 	}
 	capName := strings.TrimPrefix(name, "$")
@@ -432,14 +419,11 @@ func (a *actionEnv) member(v value, name string) (value, error) {
 		c, _ := n.caps.lookup(capName)
 		return c, nil
 	}
-	return nil, &UnsupportedError{Construct: "field " + name + " in a predicate"}
+	return nil, &UnsupportedError{Construct: "field " + name + " in an action"}
 }
 
 // cast checks v against a type that matching determines.
 func (a *actionEnv) cast(v value, t ast.TypeExpr) (value, error) {
-	if err := opaqueErr(v); err != nil {
-		return nil, err
-	}
 	ok, err := a.fits(v, t)
 	if err != nil {
 		return nil, err
@@ -467,6 +451,25 @@ func (a *actionEnv) fits(v value, t ast.TypeExpr) (bool, error) {
 			return true, nil
 		}
 		return a.fits(v, t.Elem)
+	case *ast.MeetType:
+		for _, m := range t.Types {
+			ok, err := a.fits(v, m)
+			if err != nil || !ok {
+				return ok, err
+			}
+		}
+		return true, nil
+	case *ast.TupleType:
+		tv, ok := v.(tuple)
+		if !ok || len(tv) != len(t.Types) {
+			return false, nil
+		}
+		for i, e := range tv {
+			if ok, err := a.fits(e, t.Types[i]); err != nil || !ok {
+				return ok, err
+			}
+		}
+		return true, nil
 	case *ast.ListType:
 		l, ok := v.(list)
 		if !ok {
@@ -511,12 +514,18 @@ func (a *actionEnv) fits(v value, t ast.TypeExpr) (bool, error) {
 			n, ok := v.(*node)
 			return ok && n.name == t.Name, nil
 		}
-		if a.ev.structTypes[t.Name] {
-			// No value that matching determines is a struct.
-			return false, nil
+		if _, ok := a.ev.structFields[t.Name]; ok {
+			sv, ok := v.(*structValue)
+			return ok && sv.typ == t.Name, nil
+		}
+		if alias, ok := a.ev.aliases[t.Name]; ok {
+			return a.fits(v, alias)
+		}
+		if t.Name == "any" {
+			return true, nil
 		}
 	}
-	return false, &UnsupportedError{Construct: fmt.Sprintf("a cast to %T in a predicate", t)}
+	return false, &UnsupportedError{Construct: fmt.Sprintf("a cast to %T in an action", t)}
 }
 
 // underlyingFits checks the value of a node against U of node[U].
@@ -529,8 +538,11 @@ func (a *actionEnv) underlyingFits(n *node, u ast.TypeExpr) (bool, error) {
 		return a.fits(n.str, u)
 	case listNode:
 		return a.fits(list(n.elems), u)
+	case tupleNode:
+		return a.fits(tuple(n.elems), u)
 	}
-	return false, &UnsupportedError{Construct: "a cast of a tuple node in a predicate"}
+	// A recovered value has no value.
+	return false, nil
 }
 
 // call evaluates a built-in function.
@@ -539,9 +551,6 @@ func (a *actionEnv) call(x *ast.Call) (value, error) {
 	for i, e := range x.Args {
 		v, err := a.eval(e)
 		if err != nil {
-			return nil, err
-		}
-		if err := opaqueErr(v); err != nil {
 			return nil, err
 		}
 		args[i] = v
@@ -648,7 +657,7 @@ func (a *actionEnv) call(x *ast.Call) (value, error) {
 		}
 		return acc, nil
 	}
-	return nil, &UnsupportedError{Construct: "function " + x.Func + " in a predicate"}
+	return nil, &UnsupportedError{Construct: "function " + x.Func + " in an action"}
 }
 
 // elements returns the elements of a list value, a list or tuple node, or nothing for nil and a
@@ -680,8 +689,79 @@ func (a *actionEnv) apply(f *lambda, args ...value) (value, error) {
 	if err != nil {
 		return nil, err
 	}
-	if err := opaqueErr(v); err != nil {
+	return v, nil
+}
+
+// actionValue is the value of a Value Action with the variables vars and the captures caps. A runtime
+// error makes the parse fail; the reference records it and goes on with nil.
+func (ev *evaluator) actionValue(act ast.ActionExpr, vars *binding, caps *capture) value {
+	v, err := (&actionEnv{ev: ev, vars: vars, caps: caps}).eval(act)
+	var uns *UnsupportedError
+	switch {
+	case errors.As(err, &uns):
+		ev.fail(err)
+	case err != nil:
+		ev.actionFailed = true
+	}
+	return v
+}
+
+// convertTo evaluates N{x}, the conversion of the node x to the named node type N: the node keeps its
+// range and content and takes the name N (spec/language/types.md, Named Node Types).
+func (a *actionEnv) convertTo(x *ast.Constructor) (value, error) {
+	if len(x.Args) != 1 || len(x.Fields) > 0 {
+		return nil, fmt.Errorf("examinedref: constructor %s takes one positional argument", x.Type)
+	}
+	v, err := a.eval(x.Args[0])
+	if err != nil {
 		return nil, err
 	}
-	return v, nil
+	n, ok := v.(*node)
+	if !ok || n.kind == errorNode || n.kind == missingNode {
+		return nil, errAction
+	}
+	c := *n
+	c.name = x.Type
+	return &c, nil
+}
+
+// zeroValue is the zero value of the type t (spec/language/types.md, Zero Values). The zero value of
+// a struct is the struct with no field set.
+func (ev *evaluator) zeroValue(t ast.TypeExpr) (value, error) {
+	switch t := t.(type) {
+	case *ast.TypeGroup:
+		return ev.zeroValue(t.Type)
+	case *ast.ListType:
+		return list{}, nil
+	case *ast.OptionalType:
+		return nil, nil
+	case *ast.TupleType:
+		out := tuple{}
+		for _, e := range t.Types {
+			v, err := ev.zeroValue(e)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, v)
+		}
+		return out, nil
+	case *ast.TypeRef:
+		switch t.Name {
+		case "int":
+			return int64(0), nil
+		case "string":
+			return "", nil
+		case "bool":
+			return false, nil
+		case "_":
+			return nil, nil
+		}
+		if _, ok := ev.structFields[t.Name]; ok {
+			return &structValue{typ: t.Name, fields: map[string]value{}}, nil
+		}
+		if alias, ok := ev.aliases[t.Name]; ok {
+			return ev.zeroValue(alias)
+		}
+	}
+	return nil, fmt.Errorf("examinedref: type %T has no zero value", t)
 }

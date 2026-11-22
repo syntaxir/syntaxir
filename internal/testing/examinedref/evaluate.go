@@ -41,6 +41,11 @@ type Result struct {
 	Matched  bool
 	End      int
 	Examined int
+	// ActionFailed reports that a Value Action of the evaluation raised a runtime error, which makes a
+	// parse that runs that action fail (spec/language/actions.md, Types and Errors). The reference
+	// goes on with nil for the action's value and reports every exit, so a producer that aborts the
+	// parse reports a prefix of what the reference reports.
+	ActionFailed bool
 }
 
 // Options select the parse that the reference evaluates.
@@ -84,24 +89,34 @@ func EvaluateWith(g *ast.Grammar, start, in string, o Options) (Result, []Exit, 
 		return Result{}, nil, err
 	}
 	ev := &evaluator{
-		rules:       rs.byName,
-		leaders:     facts.leaders,
-		opts:        o,
-		in:          newText(in, o.Unit),
-		growths:     map[growthKey]*growth{},
-		initial:     map[string]value{},
-		nodeTypes:   map[string]bool{},
-		structTypes: map[string]bool{},
-		valuedMemo:  map[ast.Expr]int8{},
-		bottomRules: bottomRules(rs),
+		rules:        rs.byName,
+		leaders:      facts.leaders,
+		opts:         o,
+		in:           newText(in, o.Unit),
+		growths:      map[growthKey]*growth{},
+		initial:      map[string]value{},
+		nodeTypes:    map[string]bool{},
+		structFields: map[string]map[string]ast.TypeExpr{},
+		aliases:      map[string]ast.TypeExpr{},
+		valuedMemo:   map[ast.Expr]int8{},
+		bottomRules:  bottomRules(rs),
 	}
 	for _, d := range g.Types() {
-		if td, ok := d.(*ast.TypeDef); ok {
+		switch td := d.(type) {
+		case *ast.TypeDef:
 			if td.NodeValue() != nil {
 				ev.nodeTypes[td.Name] = true
-			} else {
-				ev.structTypes[td.Name] = true
+				continue
 			}
+			fields := map[string]ast.TypeExpr{}
+			if st, ok := td.Type.(*ast.StructType); ok {
+				for _, f := range st.Fields {
+					fields[f.Name] = f.Type
+				}
+			}
+			ev.structFields[td.Name] = fields
+		case *ast.TypeAlias:
+			ev.aliases[td.Name] = td.Type
 		}
 	}
 	for _, v := range g.Vars() {
@@ -118,7 +133,7 @@ func EvaluateWith(g *ast.Grammar, start, in string, o Options) (Result, []Exit, 
 	if ev.err != nil {
 		return Result{}, nil, ev.err
 	}
-	return Result{Matched: r.matched, End: r.end, Examined: r.h}, ev.exits, nil
+	return Result{Matched: r.matched, End: r.end, Examined: r.h, ActionFailed: ev.actionFailed}, ev.exits, nil
 }
 
 // initialValue is the value a variable starts with (spec/language/predicates.md, Variables): its
@@ -205,19 +220,23 @@ type growth struct {
 }
 
 type evaluator struct {
-	rules       map[string]*rule
-	leaders     map[string]bool
-	opts        Options
-	in          *text
-	exits       []Exit
-	growths     map[growthKey]*growth
-	initial     map[string]value
-	nodeTypes   map[string]bool
-	structTypes map[string]bool
-	valuedMemo  map[ast.Expr]int8
-	bottomRules map[string]bool
-	steps       int
-	err         error
+	rules     map[string]*rule
+	leaders   map[string]bool
+	opts      Options
+	in        *text
+	exits     []Exit
+	growths   map[growthKey]*growth
+	initial   map[string]value
+	nodeTypes map[string]bool
+	// structFields are the declared fields of each struct type, and aliases the types that type
+	// aliases name.
+	structFields map[string]map[string]ast.TypeExpr
+	aliases      map[string]ast.TypeExpr
+	actionFailed bool
+	valuedMemo   map[ast.Expr]int8
+	bottomRules  map[string]bool
+	steps        int
+	err          error
 }
 
 func maxInt(a, b int) int {
@@ -315,8 +334,8 @@ func (ev *evaluator) body(r *rule, level int, st state) outcome {
 // ruleOutcome turns the outcome of the body of r at st into the outcome of the call: the caller's
 // variables, the path of the body, and the value of the rule (spec/language/parser-expressions.md,
 // Values and the Concrete Syntax Tree). A hidden rule without an action contributes what its body
-// contributes, as a group written in its place; the value of an action is opaque; any other rule
-// contributes one value.
+// contributes, as a group written in its place; a rule with an action contributes the action's value;
+// any other rule contributes one value.
 func (ev *evaluator) ruleOutcome(r *rule, st state, body outcome) outcome {
 	o := outcome{matched: body.matched, end: st.pos, h: body.h, path: st.path}
 	if !body.matched {
@@ -324,8 +343,11 @@ func (ev *evaluator) ruleOutcome(r *rule, st state, body outcome) outcome {
 	}
 	o.end, o.path = body.end, body.path
 	switch {
-	case r.action:
-		o.vals = []value{&opaque{rule: r.name}}
+	case r.act != nil && r.ops != nil:
+		// The action of an Operators Rule reads the folded value as $value.
+		o.vals = []value{ev.actionValue(r.act, body.vars, &capture{name: "value", val: body.vals[0]})}
+	case r.act != nil:
+		o.vals = []value{ev.convert(r, ev.actionValue(r.act, body.vars, body.caps.since(st.caps)))}
 	case !r.ownNode:
 		o.vals, o.seq = body.vals, body.seq
 	default:
@@ -354,10 +376,16 @@ func (ev *evaluator) ruleValue(r *rule, st state, body outcome) value {
 	default:
 		v = body.vals[0]
 	}
+	return ev.convert(r, v)
+}
+
+// convert converts the value of r to the named node type that r declares, if it declares one
+// (spec/language/types.md, Named Node Types).
+func (ev *evaluator) convert(r *rule, v value) value {
 	if n, ok := v.(*node); ok && r.nodeType != "" {
 		c := *n
 		c.name = r.nodeType
-		v = &c
+		return &c
 	}
 	return v
 }

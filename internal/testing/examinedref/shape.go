@@ -124,7 +124,7 @@ func bottomRules(rs *ruleSet) map[string]bool {
 	set := map[string]bool{}
 	for _, name := range rs.order {
 		r := rs.byName[name]
-		if !r.action && !r.typed && r.ops == nil {
+		if r.act == nil && !r.typed && r.ops == nil {
 			set[name] = true
 		}
 	}

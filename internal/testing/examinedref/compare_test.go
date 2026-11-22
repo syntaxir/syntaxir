@@ -78,3 +78,29 @@ func TestRecorder(t *testing.T) {
 		t.Fatalf("calls after Reset: %+v", r.Calls)
 	}
 }
+
+// TestCompareParse checks the comparison of a whole parse: the start call unless the parse aborted,
+// and an abort only where an action of the reference fails.
+func TestCompareParse(t *testing.T) {
+	exits := []examinedref.Exit{{Rule: "n", End: 1, Examined: 1, Matched: true}}
+	prefix := []examinedref.Observed{{Exit: exits[0], Depth: 2}}
+	ok := examinedref.Result{Matched: true, End: 1, Examined: 1}
+	failing := examinedref.Result{Matched: true, End: 1, Examined: 1, ActionFailed: true}
+	tests := []struct {
+		name    string
+		res     examinedref.Result
+		aborted bool
+		diffs   int
+	}{
+		{"a parse that ends without its start call differs", ok, false, 1},
+		{"an abort where an action of the reference fails is a prefix", failing, true, 0},
+		{"an abort where no action of the reference fails differs", ok, true, 1},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if d := examinedref.CompareParse(tc.res, exits, "main", prefix, tc.aborted); len(d) != tc.diffs {
+				t.Fatalf("differences %q, want %d", d, tc.diffs)
+			}
+		})
+	}
+}
