@@ -14,6 +14,9 @@ import (
 	"strings"
 
 	. "syntaxir.dev/sxir/internal/ir/code"
+	// The module is a unit of the Exec stage, whose patterns its dialect declares: Build specializes
+	// a function, which canonicalizes it with them.
+	_ "syntaxir.dev/sxir/internal/ir/code/exec"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 )
 
