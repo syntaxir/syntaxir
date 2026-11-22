@@ -119,6 +119,13 @@ func (m *Module) Disassemble() string {
 		}
 		m.disassembleFlow(&b, name, f, str)
 	}
+	for _, rule := range slices.Sorted(maps.Keys(m.Streams)) {
+		name := fmt.Sprintf("rule%d", rule)
+		if rule >= 0 && rule < len(m.Rules) {
+			name = m.Strings[m.Rules[rule].Name]
+		}
+		m.disassembleFlow(&b, name+".stream", m.Streams[rule], str)
+	}
 	for i := range m.OperatorsRules {
 		p := &m.OperatorsRules[i]
 		if p.SkipFlow != nil {
@@ -200,6 +207,8 @@ func (m *Module) flowImm(k FlowImm, v any, str func(int) string) string {
 			parts = append(parts, fmt.Sprintf("site=%d", x))
 		case k == FlowImmAction:
 			parts = append(parts, fmt.Sprintf("action=%d", x))
+		case k == FlowImmRule && x >= 0 && x < len(m.Rules):
+			parts = append(parts, m.Strings[m.Rules[x].Name])
 		case k == FlowImmScope && x >= 0 && x < len(m.Scopes):
 			ns := make([]string, len(m.Scopes[x]))
 			for i, id := range m.Scopes[x] {

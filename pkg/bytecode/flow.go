@@ -251,6 +251,20 @@ const (
 	// FlowCallJump calls the rule of the immediate FlowCallOf as FlowCall does, with its results in
 	// Dst[0] and Dst[1], and continues at Target if the call fails.
 	FlowCallJump
+
+	// The operations of a stream body (Module.Streams).
+
+	// FlowStreamOn sets Dst[0] to whether the call of the rule of the immediate delivers the elements
+	// of its #stream repetition: the parse is a stream parse with a callback, the rule is its start
+	// rule, and the call is its top call if the rule is recursive (flow.streamOn).
+	FlowStreamOn
+	// FlowStreamStart begins the stream: the repetition that delivers its elements is about to run, and
+	// the nodes of the elements are allocated apart from those of the prefix (flow.streamStart).
+	FlowStreamStart
+	// FlowEmitStream delivers the element Args[0], a node or nil for a value-free repetition, to the
+	// callback of the stream parse, which has consumed the input up to the position, and commits it
+	// (flow.emitStream).
+	FlowEmitStream
 )
 
 // FlowImm is the kind of immediate of an operation.
@@ -308,6 +322,8 @@ const (
 	FlowImmLitGuardTest
 	// FlowImmAnchorTest is a FlowAnchorTestOf.
 	FlowImmAnchorTest
+	// FlowImmRule is a rule: an int index of Module.Rules.
+	FlowImmRule
 )
 
 // FlowShape is what the instructions of an operation hold: the number of destination and argument
@@ -406,6 +422,9 @@ var FlowShapes = [...]FlowShape{
 	FlowAssertJump:    {Name: "ASSERTJUMP", Target: true, Imm: FlowImmAnchorTest},
 	FlowMatchLitJump:  {Name: "MATCHLITJUMP", Dst: 2, Target: true, Imm: FlowImmLit},
 	FlowCallJump:      {Name: "CALLJUMP", Dst: 2, Target: true, Imm: FlowImmCall},
+	FlowStreamOn:      {Name: "STREAMON", Dst: 1, Imm: FlowImmRule},
+	FlowStreamStart:   {Name: "STREAMSTART"},
+	FlowEmitStream:    {Name: "EMITSTREAM", Args: 1},
 }
 
 // Shape returns the shape of o; ok is false for an operation that does not exist.

@@ -106,6 +106,9 @@ func flowModule() *bytecode.Module {
 		{Op: bytecode.FlowAssertJump, Target: 17, Imm: bytecode.FlowAnchorTestOf{Anchor: 2, Expect: bytecode.FlowExpectOf{Exp: 3}}},
 		{Op: bytecode.FlowMatchLitJump, Dst: []int{0, 2}, Target: 17, Imm: bytecode.FlowLitOf{Str: 1, Exp: bytecode.FixedExps + 1}},
 		{Op: bytecode.FlowCallJump, Dst: []int{0, 7}, Target: 17, Imm: bytecode.FlowCallOf{Rule: 0, Level: 1}},
+		{Op: bytecode.FlowStreamOn, Dst: []int{2}, Imm: 1},
+		{Op: bytecode.FlowStreamStart},
+		{Op: bytecode.FlowEmitStream, Args: []int{0}},
 		{Op: bytecode.FlowReturn, Args: []int{0, 3}},
 	}}
 	return &bytecode.Module{
@@ -136,7 +139,7 @@ func noFieldTypes(string) error { return nil }
 // TestFlowBodyEncoding checks that a Flow body survives writing and reading with every operation
 // and kind of immediate, that the loaded module validates, and that reading rejects an unknown
 // operation, a constant of an unknown kind or a value its kind does not have, and a rule with two
-// bodies.
+// bodies. The module has no stream body; TestStreamBodyEncoding checks those.
 func TestFlowBodyEncoding(t *testing.T) {
 	m := flowModule()
 	if err := bytecode.ValidateModule(m, noFieldTypes); err != nil {
@@ -157,11 +160,12 @@ func TestFlowBodyEncoding(t *testing.T) {
 	if err := bytecode.ValidateModule(got, noFieldTypes); err != nil {
 		t.Fatal(err)
 	}
-	// The body is written last: one body, rule 1 (zigzag 2), 8 registers, then its instructions;
-	// the last is RETURN with the arguments 0 and 3 (zigzag 0 and 6).
-	ret := []byte{byte(bytecode.FlowReturn), 0, 6}
-	if !bytes.HasSuffix(data, ret) {
-		t.Fatalf("the module does not end with the RETURN of the body: % x", data[len(data)-3:])
+	// The body is written last but for the count of stream bodies, 0: one body, rule 1 (zigzag 2),
+	// 8 registers, then its instructions; the last is RETURN with the arguments 0 and 3 (zigzag 0
+	// and 6).
+	end := []byte{byte(bytecode.FlowReturn), 0, 6, 0}
+	if !bytes.HasSuffix(data, end) {
+		t.Fatalf("the module does not end with the RETURN of the body and no stream body: % x", data[len(data)-4:])
 	}
 	head := bytes.LastIndex(data, []byte{1, 2, 8, byte(len(m.Flows[1].Code))})
 	if head < 0 {
@@ -172,9 +176,11 @@ func TestFlowBodyEncoding(t *testing.T) {
 	one := func(in ...byte) []byte {
 		return append(append(bytes.Clone(data[:head]), 1, 2, 8, 1), in...)
 	}
+	body := data[head+1 : len(data)-1]
 	two := append(bytes.Clone(data[:head]), 2)
-	two = append(two, data[head+1:]...)
-	two = append(two, data[head+1:]...)
+	two = append(two, body...)
+	two = append(two, body...)
+	two = append(two, 0)
 	for _, c := range []struct {
 		name string
 		data []byte
@@ -190,6 +196,64 @@ func TestFlowBodyEncoding(t *testing.T) {
 		r.ReadModule()
 		if r.Err == nil || !strings.Contains(r.Err.Error(), c.want) {
 			t.Errorf("%s: error %v, want %q", c.name, r.Err, c.want)
+		}
+	}
+}
+
+// TestStreamBodyEncoding checks that a stream body (Module.Streams) survives writing and reading
+// beside the Flow body of its rule, that the loaded module validates, and that reading rejects a
+// rule with two stream bodies and loading a stream body of a rule out of range or one that is not
+// valid.
+func TestStreamBodyEncoding(t *testing.T) {
+	m := flowModule()
+	m.Streams = map[int]*bytecode.Flow{1: m.Flows[1]}
+	if err := bytecode.ValidateModule(m, noFieldTypes); err != nil {
+		t.Fatal(err)
+	}
+	data := writeModule(m)
+	r := &bytecode.Decoder{Data: data, Strs: m.Strings}
+	got := r.ReadModule()
+	if r.Err != nil {
+		t.Fatal(r.Err)
+	}
+	if !reflect.DeepEqual(got.Flows, m.Flows) || !reflect.DeepEqual(got.Streams, m.Streams) {
+		t.Fatalf("bodies read back as %+v and %+v", got.Flows, got.Streams)
+	}
+	if err := bytecode.ValidateModule(got, noFieldTypes); err != nil {
+		t.Fatal(err)
+	}
+	// The stream bodies come last: one body of rule 1, written as the Flow body before them is.
+	head := bytes.LastIndex(data, []byte{1, 2, 8, byte(len(m.Flows[1].Code))})
+	two := append(bytes.Clone(data[:head]), 2)
+	two = append(two, data[head+1:]...)
+	two = append(two, data[head+1:]...)
+	r = &bytecode.Decoder{Data: two, Strs: m.Strings}
+	if r.ReadModule(); r.Err == nil || !strings.Contains(r.Err.Error(), "has two stream bodies") {
+		t.Errorf("two stream bodies: error %v", r.Err)
+	}
+	if d := m.Disassemble(); !strings.Contains(d, "flow b.stream regs=8:\n") {
+		t.Errorf("disassembly has no stream body:\n%s", d)
+	}
+	for _, c := range []struct {
+		name string
+		edit func(m *bytecode.Module)
+		want string
+	}{
+		{"rule", func(m *bytecode.Module) { m.Streams = map[int]*bytecode.Flow{2: m.Flows[1]} }, "stream body of rule 2 out of range"},
+		{"body", func(m *bytecode.Module) {
+			f := *m.Flows[1]
+			f.Code = f.Code[:17]
+			m.Streams = map[int]*bytecode.Flow{1: &f}
+		}, "stream body of rule b: the body does not end with JUMP or RETURN"},
+		{"streamed rule", func(m *bytecode.Module) {
+			m.Streams = map[int]*bytecode.Flow{1: m.Flows[1]}
+			m.Flows[1].Code[len(m.Flows[1].Code)-4].Imm = 2
+		}, "rule 2 out of range"},
+	} {
+		m := flowModule()
+		c.edit(m)
+		if err := bytecode.ValidateModule(m, noFieldTypes); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: error %v, want %q", c.name, err, c.want)
 		}
 	}
 }
@@ -367,6 +431,9 @@ func TestFlowBodyDisassembly(t *testing.T) {
 		"    77  NEWERRORNODE r0 = r1 r7\n",
 		"    78  RECLEN     r1 =\n",
 		"    79  RESTORE    r1 r1\n",
+		"    87  STREAMON   r2 = b\n",
+		"    88  STREAMSTART \n",
+		"    89  EMITSTREAM r0\n",
 	} {
 		if !strings.Contains(got, want) {
 			t.Errorf("disassembly has no %q:\n%s", want, got)

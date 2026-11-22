@@ -34,9 +34,10 @@ func CoreOf(p elaborate.Program) (*ir.Module, error) {
 
 // SelectFlows sets in bc, a module that Compile emitted from prog, the Flow bodies of the functions
 // of funcs (the Flow module of each planned function of the Node table by its key,
-// checked.FlowTable.Funcs): the body of a rule, and the skip and the lines of an Operators Rule. m is
-// the Core IR of the table and plan its plan: a rule body runs in the rule frame of the VM, whose
-// slots must be the capture layout that the plan gave the rule (plandata.Plan.CheckLayout), a line in
+// checked.FlowTable.Funcs): the body of a rule, its stream body, and the skip and the lines of an
+// Operators Rule. m is the Core IR of the table and plan its plan: a rule body or stream body runs in
+// the rule frame of the VM, whose slots must be the capture layout that the plan gave the rule
+// (plandata.Plan.CheckLayout), a line in
 // the frame of the line's scope, whose slots must be those of the planned function, and a skip in
 // the frame it is run in, without slots of its own. A function that uses an operation that the
 // bytecode Flow bodies do not have is an error, and the module keeps no body of it and no action
@@ -73,6 +74,17 @@ func SelectFlows(bc *bytecode.Module, in Input, m *ir.Module, plan *plandata.Pla
 					bc.Flows = map[int]*bytecode.Flow{}
 				}
 				bc.Flows[k.Rule] = f
+			}
+		case plandata.StreamBody:
+			// The stream body runs in place of the rule body, in its frame.
+			if err := plan.CheckLayout(k.Rule, fn.Name, c.strNames(bc.Rules[k.Rule].Scope)); err != nil {
+				return nil, err
+			}
+			set = func(f *bytecode.Flow) {
+				if bc.Streams == nil {
+					bc.Streams = map[int]*bytecode.Flow{}
+				}
+				bc.Streams[k.Rule] = f
 			}
 		case plandata.OperatorsSkip, plandata.OperatorsLine:
 			var err error
@@ -151,7 +163,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	if a.Rule == nil || a.Rule.ID != rule {
 		return nil, fmt.Errorf("the function is not the body of rule %d", rule)
 	}
-	s := &flowSel{c: c, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
+	s := &flowSel{c: c, rule: rule, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
 	// The locals have registers of their own, below the temporaries of the statements, which each
 	// statement reuses (stmt).
 	code.Walk(fn.Body, func(st code.Stmt) {
@@ -254,6 +266,7 @@ func zeroOf(t code.Type) (any, error) {
 // wait for the next iteration of each loop they continue.
 type flowSel struct {
 	c      *compiler
+	rule   int // the rule the function belongs to
 	f      *bytecode.Flow
 	regs   map[string]int
 	labels map[string][]int

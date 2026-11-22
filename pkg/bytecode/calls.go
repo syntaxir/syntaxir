@@ -159,8 +159,8 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 	for i := range m.Rules {
 		mark(m.Rules[i].Entry)
 	}
-	// flowCalls calls f with the rule of each call of the Flow bodies of rule i: its own, and those of
-	// the lines and the skip of its Operators Rule.
+	// flowCalls calls f with the rule of each call of the Flow bodies of rule i: its own, its stream
+	// body, and those of the lines and the skip of its Operators Rule.
 	flowCalls := func(i int, f func(rule int)) {
 		calls := func(fl *Flow) {
 			if fl == nil {
@@ -173,6 +173,7 @@ func newCallGraph(m *Module, sc *recScratch) callGraph {
 			}
 		}
 		calls(m.Flows[i])
+		calls(m.Streams[i])
 		if o := m.Rules[i].OperatorsRule; o >= 0 && o < len(m.OperatorsRules) {
 			flowLines(&m.OperatorsRules[o], calls)
 		}

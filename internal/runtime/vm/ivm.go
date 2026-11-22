@@ -18,7 +18,7 @@ func NewIterative(m *bytecode.Module, actionExprs []*state.ActionProgram, f stat
 func iterateBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min int) (*value.Node, bool) {
 	return func(p *state.Parser, min int) (*value.Node, bool) {
 		mc := ivmMachineOf(p)
-		mc.flows = vm.flows
+		mc.flows, mc.streams = vm.flows, vm.streams
 		res := mc.iterate(vm, mc.ruleBodyFrame(r, min))
 		return res.v, res.ok
 	}
@@ -40,6 +40,7 @@ type ivmMachine struct {
 	pool    framePool                  // frames of the iterative-model VM
 	attempt state.OperatorsRuleAttempt // result of the longestFrame that just finished
 	flows   []*bytecode.Flow           // the Flow bodies of the program (Program.flows)
+	streams []*bytecode.Flow           // the stream bodies of the program (Program.streams)
 }
 
 // ivmMachineOf returns the iterative-model VM state of the parse that p runs, making it on first
@@ -216,7 +217,7 @@ func (mc *ivmMachine) callChild(r *state.Rule, min int) iframe {
 func (mc *ivmMachine) plainCallFrame(r *state.Rule, min int) iframe {
 	p := mc.p
 	p.Spend()
-	if f := mc.flows[r.ID]; f != nil {
+	if f := mc.ruleFlow(r); f != nil {
 		ff := mc.flowFrame(r, f)
 		ff.call = true
 		ff.plain.begin(p, r)
@@ -231,10 +232,18 @@ func (mc *ivmMachine) plainCallFrame(r *state.Rule, min int) iframe {
 // ruleBodyFrame returns the frame that runs the body of r: its Flow body if it has one, otherwise
 // its match code.
 func (mc *ivmMachine) ruleBodyFrame(r *state.Rule, min int) iframe {
-	if f := mc.flows[r.ID]; f != nil {
+	if f := mc.ruleFlow(r); f != nil {
 		return mc.flowFrame(r, f)
 	}
 	return mc.bodyFrame(r.Entry, r, min, false)
+}
+
+// ruleFlow returns the Flow body that a call of r runs, as Program.ruleFlow does.
+func (mc *ivmMachine) ruleFlow(r *state.Rule) *bytecode.Flow {
+	if f := mc.streams[r.ID]; f != nil && mc.p.StreamsIn(r.ID, r.Rec) {
+		return f
+	}
+	return mc.flows[r.ID]
 }
 
 // flowFrame returns a frame that runs the Flow body f of r, with its registers pushed on the

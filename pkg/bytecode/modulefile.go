@@ -136,11 +136,18 @@ func (w *Encoder) WriteModule(m *Module) {
 		w.ints(k.Vars)
 		w.ints(k.Bind)
 	}
-	rules := slices.Sorted(maps.Keys(m.Flows))
+	w.flows(m.Flows)
+	w.flows(m.Streams)
+}
+
+// flows writes the Flow bodies fs by increasing rule index: their number, then each rule index and
+// its body.
+func (w *Encoder) flows(fs map[int]*Flow) {
+	rules := slices.Sorted(maps.Keys(fs))
 	w.Uint(len(rules))
 	for _, rule := range rules {
 		w.Int(rule)
-		w.flow(m.Flows[rule])
+		w.flow(fs[rule])
 	}
 }
 
@@ -292,7 +299,7 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 		w.Int(int(x.Rune))
 		w.Bool(x.Fold)
 		w.Int(x.Depth)
-	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction:
+	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction, FlowImmRule:
 		x, ok := v.(int)
 		if !ok {
 			bad()
@@ -521,23 +528,32 @@ func (r *Decoder) ReadModule() *Module {
 	for i := 0; i < n && r.Err == nil; i++ {
 		m.RunKeys = append(m.RunKeys, RunKeyInfo{Site: int(r.int32()), Vars: r.ints(), Bind: r.ints()})
 	}
-	n = r.Count()
+	m.Flows = r.flows("Flow bodies")
+	m.Streams = r.flows("stream bodies")
+	return m
+}
+
+// flows reads the Flow bodies that Encoder.flows wrote, nil if there are none; what names them in an
+// error.
+func (r *Decoder) flows(what string) map[int]*Flow {
+	var fs map[int]*Flow
+	n := r.Count()
 	for i := 0; i < n && r.Err == nil; i++ {
 		rule := int(r.int32())
 		f := r.flow()
 		if r.Err != nil {
 			break
 		}
-		if _, dup := m.Flows[rule]; dup {
-			r.Fail("rule %d has two Flow bodies", rule)
+		if _, dup := fs[rule]; dup {
+			r.Fail("rule %d has two %s", rule, what)
 			break
 		}
-		if m.Flows == nil {
-			m.Flows = map[int]*Flow{}
+		if fs == nil {
+			fs = map[int]*Flow{}
 		}
-		m.Flows[rule] = f
+		fs[rule] = f
 	}
-	return m
+	return fs
 }
 
 // flow reads a Flow body. The operation of each instruction says how many registers it names and
@@ -625,7 +641,7 @@ func (r *Decoder) flowImm(k FlowImm) any {
 		return FlowRunWalkOf{Site: int(r.int32()), Build: r.Bool(), KeyEnv: r.Bool()}
 	case FlowImmBind:
 		return FlowBindOf{Var: int(r.int32()), Action: int(r.int32())}
-	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction:
+	case FlowImmCount, FlowImmStr, FlowImmSlot, FlowImmScope, FlowImmRunSite, FlowImmScanSite, FlowImmAction, FlowImmRule:
 		return int(r.int32())
 	case FlowImmShape:
 		x := FlowShapeOf{Elems: r.Bool(), Shared: r.Bool(), Tuple: r.Bool()}
@@ -1150,7 +1166,8 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 	return validateRec(m)
 }
 
-// validateFlows checks the Flow bodies of m: each belongs to a rule of the rule table; each
+// validateFlows checks the Flow bodies of m, its stream bodies among them: each belongs to a rule of
+// the rule table; each
 // instruction has a known operation with the registers, target and immediate of its shape; every
 // register is within the frame (a destination may be -1, which discards); every target is an
 // instruction of the body; every immediate refers to a class, rule, expectation or scope in range,
@@ -1159,13 +1176,17 @@ func ValidateModule(m *Module, fieldType func(text string) error) error {
 // end. As for match code, a runtime does not check that registers hold what an instruction reads;
 // it checks that a slot is in the frame it indexes.
 func validateFlows(m *Module) error {
-	for _, rule := range slices.Sorted(maps.Keys(m.Flows)) {
-		f := m.Flows[rule]
-		if rule < 0 || rule >= len(m.Rules) {
-			return fmt.Errorf("flow body of rule %d out of range", rule)
-		}
-		if err := validateFlow(m, len(m.Rules[rule].Scope), f); err != nil {
-			return fmt.Errorf("flow body of rule %s: %w", m.Strings[m.Rules[rule].Name], err)
+	for _, fs := range []struct {
+		what string
+		m    map[int]*Flow
+	}{{"flow body", m.Flows}, {"stream body", m.Streams}} {
+		for _, rule := range slices.Sorted(maps.Keys(fs.m)) {
+			if rule < 0 || rule >= len(m.Rules) {
+				return fmt.Errorf("%s of rule %d out of range", fs.what, rule)
+			}
+			if err := validateFlow(m, len(m.Rules[rule].Scope), fs.m[rule]); err != nil {
+				return fmt.Errorf("%s of rule %s: %w", fs.what, m.Strings[m.Rules[rule].Name], err)
+			}
 		}
 	}
 	// A line runs in the frame of its scope, and a skip in a frame without slots.
@@ -1335,6 +1356,11 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		var x int
 		if x, ok = v.(int); ok && (x < 0 || x >= len(m.Actions)) {
 			return fmt.Errorf("action %d out of range", x)
+		}
+	case FlowImmRule:
+		var x int
+		if x, ok = v.(int); ok && (x < 0 || x >= len(m.Rules)) {
+			return fmt.Errorf("rule %d out of range", x)
 		}
 	case FlowImmBind:
 		var x FlowBindOf

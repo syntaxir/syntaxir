@@ -44,6 +44,11 @@ type Module struct {
 	RunKeys []RunKeyInfo
 	// Flows holds the bodies of the rules that run from Flow IR, by rule index.
 	Flows map[int]*Flow
+	// Streams holds the stream bodies of the rules whose body has a #stream repetition, by rule
+	// index: the body that a stream parse runs at the top call of its start rule
+	// (FlowStreamOn), whose repetition delivers its elements to the callback instead of collecting
+	// them.
+	Streams map[int]*Flow
 }
 
 // RunKeyInfo is the key of the records of a run site that is not free of the environment: the
@@ -55,11 +60,14 @@ type RunKeyInfo struct {
 	Vars, Bind []int
 }
 
-// RuleStreams reports whether the rule body that starts at entry passes values to the stream:
-// whether an instruction that passes a value to the stream (Instr.StreamsValue) comes
-// before its RETURN.
-func (m *Module) RuleStreams(entry int) bool {
-	for _, in := range m.Code[entry:] {
+// RuleStreams reports whether rule i can start a stream parse: whether it has a stream body
+// (Module.Streams), or its match code passes values to the stream: an instruction that does
+// (Instr.StreamsValue) comes before the RETURN of its body.
+func (m *Module) RuleStreams(i int) bool {
+	if m.Streams[i] != nil {
+		return true
+	}
+	for _, in := range m.Code[m.Rules[i].Entry:] {
 		switch {
 		case in.Op == OpReturn:
 			return false

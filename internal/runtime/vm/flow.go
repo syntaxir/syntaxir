@@ -17,25 +17,28 @@ import (
 // model: the same entry and result as the match code's body, with the operations of f in place of
 // the instructions, and each call of a rule a host call, as the match code's calls are.
 func flowBody(vm *Program, f *bytecode.Flow) func(p *state.Parser, min int) (*value.Node, bool) {
-	return func(p *state.Parser, min int) (*value.Node, bool) {
-		regs := &machineOf(p).regs
-		mark := regs.mark()
-		fr := flowRun{f: f, regs: regs.push(f.Regs)}
-		for {
-			if !vm.runFlow(p, &fr) {
-				regs.release(mark)
-				return fr.v, fr.ok
-			}
-			x := fr.call()
-			var v *value.Node
-			var ok bool
-			if r := vm.rules[x.Rule]; vm.direct[x.Rule] {
-				v, ok = p.CallPlain(r, x.Level) // what the call of the match code does for such a rule
-			} else {
-				v, ok = p.Call(r, x.Level)
-			}
-			fr.resume(v, ok)
+	return func(p *state.Parser, min int) (*value.Node, bool) { return execFlow(vm, p, f) }
+}
+
+// execFlow runs the Flow body f in p with the recursive model.
+func execFlow(vm *Program, p *state.Parser, f *bytecode.Flow) (*value.Node, bool) {
+	regs := &machineOf(p).regs
+	mark := regs.mark()
+	fr := flowRun{f: f, regs: regs.push(f.Regs)}
+	for {
+		if !vm.runFlow(p, &fr) {
+			regs.release(mark)
+			return fr.v, fr.ok
 		}
+		x := fr.call()
+		var v *value.Node
+		var ok bool
+		if r := vm.rules[x.Rule]; vm.direct[x.Rule] {
+			v, ok = p.CallPlain(r, x.Level) // what the call of the match code does for such a rule
+		} else {
+			v, ok = p.Call(r, x.Level)
+		}
+		fr.resume(v, ok)
 	}
 }
 
@@ -411,6 +414,16 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			// As the Go library's Restore.
 			p.Pos = regs[in.Args[0]].(int)
 			p.Recovered = p.Recovered[:regs[in.Args[1]].(int)]
+		case bytecode.FlowStreamOn:
+			r := vm.rules[in.Imm.(int)]
+			fr.set(in.Dst[0], p.StreamsIn(r.ID, r.Rec))
+		case bytecode.FlowStreamStart:
+			// As the match code's REPEAT of a #stream repetition.
+			if state.StreamPrefixIsolation {
+				p.StartStreamChunks()
+			}
+		case bytecode.FlowEmitStream:
+			p.EmitStream(asNode(regs[in.Args[0]]), p.Pos)
 		default:
 			panic(fmt.Sprintf("internal error: vm: flow operation %d", in.Op))
 		}

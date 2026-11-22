@@ -111,9 +111,9 @@ func (prog *Program) preflightRule(b Backend, name string, stream bool) (bool, e
 		return r.Stream, nil
 	}
 	if prog.Bytecode != nil {
-		for _, ri := range prog.Bytecode.Rules {
+		for i, ri := range prog.Bytecode.Rules {
 			if prog.Bytecode.Strings[ri.Name] == name {
-				return stream && prog.Bytecode.RuleStreams(ri.Entry), nil
+				return stream && prog.Bytecode.RuleStreams(i), nil
 			}
 		}
 	}

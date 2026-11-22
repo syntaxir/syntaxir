@@ -302,6 +302,15 @@ func init() {
 		{Op: flowpkg.OpNewErrorNode, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowNewErrorNode, c, dst, nil)
 		}},
+		{Op: flowpkg.OpStreamOn, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowStreamOn, c, dst, s.rule)
+		}},
+		{Op: flowpkg.OpStreamStart, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowStreamStart, c, dst, nil)
+		}},
+		{Op: flowpkg.OpEmitStream, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowEmitStream, c, dst, nil)
+		}},
 		{Op: flowpkg.OpDeclareNames, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			// It does nothing to the state: the names are those of the frame's scope.
 			return nil

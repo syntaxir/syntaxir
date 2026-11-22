@@ -13,21 +13,23 @@ import (
 )
 
 // FlowTable is the Node table of a program as the bytecode VM runs it from Flow IR: the table's Core
-// IR and lowering options, its plan, and the Flow function of each rule body that the plan holds.
+// IR and lowering options, its plan, and the Flow functions that the plan holds.
 type FlowTable struct {
 	IR *plandata.TableIR
 	// Plan is the plan of the table with the decisions of its lowering taken.
 	Plan *plandata.Plan
 	// Funcs maps the key of each function of the plan to a module of the function alone
 	// (code.Module.FuncUnit), after the Flow passes: the body of a rule, the rule's flat function or
-	// its framed body as the plan decides, and the skip and the lines of an Operators Rule.
+	// its framed body as the plan decides, its stream body, and the skip and the lines of an
+	// Operators Rule.
 	Funcs map[plandata.Key]*code.Module
 }
 
 // FlowTable builds the Node table of the program the way the generated Go parser with budget
 // controls builds its Node table, so that the VM runs the same functions: the same Core IR and
 // lowering options (flowplan.BuildTable), the same plan, with its decisions (flowplan.Plan,
-// flowplan.Unit), and the Core step and the Flow steps of the driver on the table at the default
+// flowplan.Unit), with the stream body of each rule that has a #stream repetition
+// (flowplan.Stream), since any such rule may start a stream parse, and the Core step and the Flow steps of the driver on the table at the default
 // optimizations, for the VM's target (flowpass.Bytecode).
 func (s *Source) FlowTable() (*FlowTable, error) {
 	p := s.prog
@@ -39,7 +41,14 @@ func (s *Source) FlowTable() (*FlowTable, error) {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
 	rules := append(append([]*check.Rule(nil), p.RuleList...), p.Twins...)
-	plan := flowplan.Plan(t, planRules(rules), nil)
+	planned := planRules(rules)
+	plan := flowplan.Plan(t, planned, nil)
+	for i, r := range p.RuleList {
+		// Any rule with a #stream repetition may start a stream parse, which runs its stream body.
+		if r.Stream && !flowplan.Stream(plan, t, planned[i]) {
+			return nil, fmt.Errorf("internal error: rule %s has no stream body", r.Name)
+		}
+	}
 	lt, err := d.LowerFlowTable("rules", flowplan.Unit(plan, t, nil), false, flowpass.Bytecode)
 	if err != nil {
 		return nil, fmt.Errorf("table rules: %w", err)

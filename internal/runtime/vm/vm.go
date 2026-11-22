@@ -45,6 +45,10 @@ type Program struct {
 	// flows holds, by rule ID, the Flow body that the rule runs in place of its match code
 	// (Module.Flows), nil for a rule that runs its match code.
 	flows []*bytecode.Flow
+	// streams holds, by rule ID, the stream body of the rule (Module.Streams), which a call that
+	// delivers the elements of the rule's #stream repetition (state.Parser.StreamsIn) runs in place of
+	// its body; nil for a rule without one.
+	streams []*bytecode.Flow
 	// lines holds the code of each line and skip of the Operators Rules, which the iterative model
 	// runs: state.OperatorsRuleLine.Entry and state.OperatorsRule.SkipEntry index it.
 	lines []lineCode
@@ -139,8 +143,18 @@ func (vm *Program) Descs() []string { return vm.descs }
 func (vm *Program) NumSeen() int { return vm.nseen }
 
 // execBody runs a rule body with the recursive model: each call recurses into exec, or into the
-// Flow body of a rule that has one.
+// Flow body of a rule that has one (Program.ruleFlow).
 func execBody(vm *Program, r *state.Rule, entry int) func(p *state.Parser, min int) (*value.Node, bool) {
+	if vm.streams[r.ID] != nil {
+		// Which body a call runs depends on whether it delivers the elements of the stream.
+		return func(p *state.Parser, min int) (*value.Node, bool) {
+			if f := vm.ruleFlow(p, r); f != nil {
+				return execFlow(vm, p, f)
+			}
+			v, ok, _ := machineOf(p).exec(vm, entry, r, min)
+			return v, ok
+		}
+	}
 	if f := vm.flows[r.ID]; f != nil {
 		return flowBody(vm, f)
 	}
@@ -241,6 +255,10 @@ func buildVMProgram(m *bytecode.Module, actionExprs []*state.ActionProgram, f st
 	for i, f := range m.Flows {
 		vm.flows[i] = f
 	}
+	vm.streams = make([]*bytecode.Flow, len(vm.rules))
+	for i, f := range m.Streams {
+		vm.streams[i] = f
+	}
 	vm.direct = make([]bool, len(vm.rules))
 	for i, r := range vm.rules {
 		r.Plain = !r.Leader && (!r.Memo || r.Transient) && len(r.Scope.Names) == 0
@@ -253,15 +271,20 @@ func buildVMProgram(m *bytecode.Module, actionExprs []*state.ActionProgram, f st
 		}
 		entry := ri.Entry
 		r.Entry = entry
-		r.Stream = vm.streams(entry)
+		r.Stream = m.RuleStreams(i)
 		r.Body = bodies(vm, r, entry)
 	}
 	return vm
 }
 
-// streams reports whether the rule body (from entry to RETURN) has a #stream repetition.
-func (vm *Program) streams(entry int) bool {
-	return vm.m.RuleStreams(entry)
+// ruleFlow returns the Flow body that a call of r runs in p: its stream body if the call delivers the
+// elements of its #stream repetition, otherwise its Flow body; nil for a rule that runs its match
+// code.
+func (vm *Program) ruleFlow(p *state.Parser, r *state.Rule) *bytecode.Flow {
+	if f := vm.streams[r.ID]; f != nil && p.StreamsIn(r.ID, r.Rec) {
+		return f
+	}
+	return vm.flows[r.ID]
 }
 
 func (vm *Program) names(ids []int) []string {

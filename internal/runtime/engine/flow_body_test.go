@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -443,5 +444,73 @@ rule item X = "x"`,
 		if !ops[op] {
 			t.Errorf("no Flow body runs %v", op)
 		}
+	}
+}
+
+// streamElements runs a stream parse of input from the start rule of prog on the backend b and
+// returns the elements it delivers, one per line, and the error.
+func streamElements(t *testing.T, prog *Program, input string, b Backend) (string, string) {
+	t.Helper()
+	var out strings.Builder
+	err := prog.ParseStreamWith(prog.ResolveStart(""), strings.NewReader(input), func(n *value.Node) error {
+		if n == nil {
+			out.WriteString("<nil>\n")
+		} else {
+			out.WriteString(n.String() + "\n")
+		}
+		return nil
+	}, ParseOptions{Backend: b})
+	msg := "<nil>"
+	if err != nil {
+		msg = err.Error()
+	}
+	return out.String(), msg
+}
+
+// TestFlowBodyStreams runs stream parses of grammars whose start rule has a #stream repetition through
+// both VM models, with the start rule's stream body selected from its Flow form: the delivered
+// elements and the errors must be those of the match code, and a batch parse, which runs the rule
+// body instead, must be unchanged.
+func TestFlowBodyStreams(t *testing.T) {
+	csv, err := os.ReadFile("../../../testdata/grammars/csv/csv.sxir")
+	if err != nil {
+		t.Fatal(err)
+	}
+	grammars := []struct {
+		name, src string
+		inputs    []string
+	}{
+		{"csv", string(csv), append(grammarCorpus(t, "../../../testdata/grammars/csv/csv.sxir"), "", "a,b\r\n", "a,\"b\r\n")},
+		// The elements discard their text.
+		{"lines", "rule main = line* #stream $$\nrule line = -[a-z]+ -\"\\n\"\n", []string{"", "ab\n", "ab\ncd\n", "ab\ncd", "a\n\n"}},
+	}
+	for _, g := range grammars {
+		t.Run(g.name, func(t *testing.T) {
+			old, flows, _ := flowProgramsOf(t, g.src, func(string) bool { return true }, nil)
+			m := flows.Module()
+			start := -1
+			for i, ri := range m.Rules {
+				if m.Strings[ri.Name] == flows.ResolveStart("") {
+					start = i
+				}
+			}
+			if start < 0 || m.Streams[start] == nil {
+				t.Fatalf("the start rule has no stream body (streams %v)", slices.Collect(maps.Keys(m.Streams)))
+			}
+			for _, in := range g.inputs {
+				for _, b := range []Backend{Bytecode, BytecodeIterative} {
+					oe, oerr := streamElements(t, old, in, b)
+					fe, ferr := streamElements(t, flows, in, b)
+					if oe != fe || oerr != ferr {
+						t.Errorf("%v, input %q: match code elements\n%s err %s; flow elements\n%s err %s", b, in, oe, oerr, fe, ferr)
+					}
+					ot, oerr, _ := parseChargedWith(t, old, in, b)
+					ft, ferr, _ := parseChargedWith(t, flows, in, b)
+					if ot != ft || oerr != ferr {
+						t.Errorf("%v, batch input %q: match code err %s; flow err %s; trees equal: %v", b, in, oerr, ferr, ot == ft)
+					}
+				}
+			}
+		})
 	}
 }
