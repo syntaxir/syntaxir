@@ -26,7 +26,7 @@ type ValueElem struct {
 // referred to from an action is known when the action is checked. The rules of a cycle of
 // references are computed together as the least fixed point of their values.
 type ValueInference struct {
-	Prog    *Checker
+	Checker *Checker
 	control *cancel.Control
 	Rules   map[string]*ast.RuleDef
 	Out     map[string]Ty
@@ -94,19 +94,19 @@ func (v *ValueInference) scope(e ast.Expr, caps []CapIndex) {
 
 // ValueTypes returns the value type of each rule of a type-checked program. It is computed on
 // demand: nothing uses it for compilation yet.
-func (p *Checker) ValueTypes() map[string]Ty {
-	if p.Typed == nil {
+func (c *Checker) ValueTypes() map[string]Ty {
+	if c.Typed == nil {
 		return nil
 	}
-	p.Typed.valuesOnce.Do(func() {
-		p.Typed.Values, p.Typed.valueErrs = ValueTypes(p, nil)
+	c.Typed.valuesOnce.Do(func() {
+		c.Typed.Values, c.Typed.valueErrs = ValueTypes(c, nil)
 	})
-	return p.Typed.Values
+	return c.Typed.Values
 }
 
 // ValueType is ValueType.
-func (p *Checker) ValueType(name string) (string, bool) {
-	t, ok := p.ValueTypes()[name]
+func (c *Checker) ValueType(name string) (string, bool) {
+	t, ok := c.ValueTypes()[name]
 	if !ok {
 		return "", false
 	}
@@ -114,11 +114,11 @@ func (p *Checker) ValueType(name string) (string, bool) {
 }
 
 // valueErrors returns the errors of actions in the value model of a type-checked program.
-func (p *Checker) ValueErrors() diagnostic.ErrorList {
-	if p.ValueTypes() == nil {
+func (c *Checker) ValueErrors() diagnostic.ErrorList {
+	if c.ValueTypes() == nil {
 		return nil
 	}
-	return p.Typed.valueErrs
+	return c.Typed.valueErrs
 }
 
 // ValueTypes returns the value type of each rule, and the errors of the actions.
@@ -129,7 +129,7 @@ func ValueTypes(p *Checker, control *cancel.Control) (map[string]Ty, diagnostic.
 // valueTypesChecked is valueTypes recording the node member accesses in nodeMembers and the
 // types of the program's parts in rec, each if not nil.
 func valueTypesChecked(p *Checker, control *cancel.Control, nodeMembers map[*ast.FieldAccess]bool, rec *ValueRecord) (map[string]Ty, diagnostic.ErrorList) {
-	v := &ValueInference{Prog: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
+	v := &ValueInference{Checker: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
 	rules := p.Grammar.Rules()
 	for _, rd := range rules {
 		v.Rules[rd.Name] = rd
@@ -338,7 +338,7 @@ func (v *ValueInference) ruleDef(rd *ast.RuleDef) Ty {
 	env := &valueEnv{caps: tupleNode(v.elems(rd.Expr)).Caps}
 	v.scope(rd.Expr, env.caps)
 	v.predicates(rd.Expr, env)
-	if _, ok := v.Prog.SpliceBody(rd.Name); ok {
+	if _, ok := v.Checker.SpliceBody(rd.Name); ok {
 		// The value of a rule that makes no node of its own is its one element, as a call takes it.
 		if v.spliced == nil {
 			v.spliced = map[string]bool{}
@@ -377,7 +377,7 @@ func (v *ValueInference) predicates(e ast.Expr, env *valueEnv) {
 	case *ast.Predicate:
 		if a, ok := e.Action.(*ast.Bind); ok {
 			t := v.actionExpr(a.Value, env)
-			if d := v.Prog.Vars.Lookup(a.Name); d != nil {
+			if d := v.Checker.Vars.Lookup(a.Name); d != nil {
 				switch {
 				case !v.assignable(t, d.Typ):
 					v.errorf(a.Diagnostic(), "cannot use %s as %s in the binding of variable %s%s", v.display(t), d.Typ, a.Name, v.castHint(t, d.Typ))
@@ -518,7 +518,7 @@ func (v *ValueInference) isSeq(e ast.Expr) bool {
 			}
 			e = x.Expr
 		case *ast.Ref:
-			body, ok := v.Prog.SpliceBody(x.Name)
+			body, ok := v.Checker.SpliceBody(x.Name)
 			if !ok || v.spliced[x.Name] || seen[x.Name] {
 				return false
 			}
@@ -561,7 +561,7 @@ func (v *ValueInference) exprElems(e ast.Expr) []ValueElem {
 	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Atomic:
 		return []ValueElem{{t: TyStringNode}}
 	case *ast.Ref:
-		if body, ok := v.Prog.SpliceBody(e.Name); ok && !v.spliced[e.Name] {
+		if body, ok := v.Checker.SpliceBody(e.Name); ok && !v.spliced[e.Name] {
 			return v.spliceElems(e.Name, body)
 		}
 		return []ValueElem{{t: RuleTy{Name: e.Name}}}
@@ -739,7 +739,7 @@ func (v *ValueInference) bottomRule(name string) bool {
 	if v.bottoms != nil {
 		return v.bottoms[name]
 	}
-	return v.Prog.bottomRules(v.control)[name]
+	return v.Checker.bottomRules(v.control)[name]
 }
 
 // bottomRules returns the rules of type _|_: those without an action or a declared type, whose
@@ -747,25 +747,25 @@ func (v *ValueInference) bottomRule(name string) bool {
 // with the others, as the greatest set of rules whose bodies have the type _|_ when the calls of
 // the rules of the set do: a rule that only calls itself, as r = "a" r, never matches. The set is
 // computed once, from the rules that the program has when it is first asked.
-func (p *Checker) bottomRules(control *cancel.Control) map[string]bool {
-	if p == nil {
+func (c *Checker) bottomRules(control *cancel.Control) map[string]bool {
+	if c == nil {
 		return nil
 	}
-	p.bottomsOnce.Do(func() {
+	c.bottomsOnce.Do(func() {
 		set := map[string]bool{}
 		var names []string
-		for name, r := range p.ByName {
+		for name, r := range c.ByName {
 			if r.Def != nil && r.Def.Action == nil && r.Def.Type == nil {
 				set[name] = true
 				names = append(names, name)
 			}
 		}
 		sort.Strings(names)
-		w := &ValueInference{Prog: p, control: control, bottoms: set}
+		w := &ValueInference{Checker: c, control: control, bottoms: set}
 		for changed := true; changed; {
 			changed = false
 			for _, name := range names {
-				if set[name] && !w.bottom(p.ByName[name].Def.Expr) {
+				if set[name] && !w.bottom(c.ByName[name].Def.Expr) {
 					set[name], changed = false, true
 				}
 			}
@@ -775,9 +775,9 @@ func (p *Checker) bottomRules(control *cancel.Control) map[string]bool {
 				delete(set, name)
 			}
 		}
-		p.bottoms = set
+		c.bottoms = set
 	})
-	return p.bottoms
+	return c.bottoms
 }
 
 // neverMade returns the captures caps of an expression that never matches: they are never made, so
@@ -850,7 +850,7 @@ func (v *ValueInference) operatorsRule(rd *ast.RuleDef, pr *ast.OperatorsRule) T
 	if rd.Type != nil {
 		// Each line that does not fit is reported on its own.
 		d, bad := v.resolve(rd.Type), false
-		dn, converts := v.Prog.OperatorsNodeType(rd)
+		dn, converts := v.Checker.OperatorsNodeType(rd)
 		for i, t := range ts {
 			if converts && operators[i] {
 				// The node of an operator is converted to the named node type.

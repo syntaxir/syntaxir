@@ -39,11 +39,11 @@ type Checker struct {
 }
 
 // typeDecls returns the type declarations of the model by name.
-func (p *Checker) typeDecls() map[string]ast.TypeDecl {
-	if p.typeReads != nil {
-		p.typeReads()
+func (c *Checker) typeDecls() map[string]ast.TypeDecl {
+	if c.typeReads != nil {
+		c.typeReads()
 	}
-	return p.Types
+	return c.Types
 }
 
 // NewChecker returns the checker of the model m.
@@ -51,20 +51,20 @@ func NewChecker(m *Model) *Checker { return &Checker{Model: m} }
 
 // MarkUnsupported records that the unsupported type syntax t was reported and returns true the
 // first time, so that a type reached from several places is reported once.
-func (p *Checker) MarkUnsupported(t ast.TypeExpr) (first bool) {
-	if p.unsupportedSeen[t] {
+func (c *Checker) MarkUnsupported(t ast.TypeExpr) (first bool) {
+	if c.unsupportedSeen[t] {
 		return false
 	}
-	if p.unsupportedSeen == nil {
-		p.unsupportedSeen = map[ast.TypeExpr]bool{}
+	if c.unsupportedSeen == nil {
+		c.unsupportedSeen = map[ast.TypeExpr]bool{}
 	}
-	p.unsupportedSeen[t] = true
+	c.unsupportedSeen[t] = true
 	return true
 }
 
 // SetShapeControl sets the cancellation control that the shape analysis of rule bodies polls, nil
 // outside a compilation.
-func (p *Checker) SetShapeControl(control *cancel.Control) { p.shapeControl = control }
+func (c *Checker) SetShapeControl(control *cancel.Control) { c.shapeControl = control }
 
 // ShapeControl returns the control set by SetShapeControl.
-func (p *Checker) ShapeControl() *cancel.Control { return p.shapeControl }
+func (c *Checker) ShapeControl() *cancel.Control { return c.shapeControl }

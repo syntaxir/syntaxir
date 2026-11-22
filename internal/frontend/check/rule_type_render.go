@@ -10,15 +10,15 @@ import (
 // RuleTypeWithPoll returns the type of the rule name as the editor shows it, calling poll, when
 // not nil, as it renders the type; a nil poll uses Checker.RuleType. It reports false if the model
 // has no such rule or its types were not checked.
-func (p *Model) RuleTypeWithPoll(name string, poll func()) (string, bool) {
+func (m *Model) RuleTypeWithPoll(name string, poll func()) (string, bool) {
 	if poll == nil {
-		return p.Checker().RuleType(name)
+		return m.Checker().RuleType(name)
 	}
 	poll()
-	if p.Typed == nil {
+	if m.Typed == nil {
 		return "", false
 	}
-	t, ok := p.Typed.Shown(name)
+	t, ok := m.Typed.Shown(name)
 	if !ok {
 		return "", false
 	}

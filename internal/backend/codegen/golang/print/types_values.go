@@ -250,7 +250,7 @@ func streamValue(p *common.Program, rd *ast.RuleDef) (types.Ty, bool) {
 	if rep == nil {
 		return nil, false
 	}
-	v := &check.ValueInference{Prog: p.Checker(), Rules: map[string]*ast.RuleDef{}, Out: map[string]types.Ty{}, Approx: map[string]types.Ty{}, Computing: map[string]bool{}, Quiet: true, Rule: rd}
+	v := &check.ValueInference{Checker: p.Checker(), Rules: map[string]*ast.RuleDef{}, Out: map[string]types.Ty{}, Approx: map[string]types.Ty{}, Computing: map[string]bool{}, Quiet: true, Rule: rd}
 	for _, r := range p.Grammar.Rules() {
 		v.Rules[r.Name] = r
 	}

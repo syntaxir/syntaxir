@@ -37,7 +37,7 @@ func CheckTypes(prog *Checker, errs *diagnostic.ErrorList) {
 // cancels.
 func CheckTypesControlled(prog *Checker, errs *diagnostic.ErrorList, control *cancel.Control) {
 	defer dropRepeatedErrors(errs, len(*errs))
-	k := &TypeResolver{control: control, Prog: prog, errs: errs, report: true}
+	k := &TypeResolver{control: control, Checker: prog, errs: errs, report: true}
 	k.checkTypeDefinitions()
 	rules := control.Rules(prog.Grammar)
 	for _, rd := range rules {
@@ -99,24 +99,24 @@ type TypeInfo struct {
 // ValueRecord returns the types the value inference gives the parts of the type-checked program
 // (valueRecord), or nil if its types were not checked. The type check records them; type
 // information made without it records them by a run of the inference on first use.
-func (p *Checker) ValueRecord() *ValueRecord {
-	if p.Typed == nil {
+func (c *Checker) ValueRecord() *ValueRecord {
+	if c.Typed == nil {
 		return nil
 	}
-	p.Typed.recOnce.Do(func() {
+	c.Typed.recOnce.Do(func() {
 		rec := newValueRecord()
-		valueTypesChecked(p, nil, nil, rec)
-		p.Typed.rec = rec
+		valueTypesChecked(c, nil, nil, rec)
+		c.Typed.rec = rec
 	})
-	return p.Typed.rec
+	return c.Typed.rec
 }
 
 // RuleType is RuleType.
-func (p *Checker) RuleType(name string) (string, bool) {
-	if p.Typed == nil {
+func (c *Checker) RuleType(name string) (string, bool) {
+	if c.Typed == nil {
 		return "", false
 	}
-	t, ok := p.Typed.shown[name]
+	t, ok := c.Typed.shown[name]
 	if !ok {
 		return "", false
 	}
@@ -130,16 +130,16 @@ type typedField struct {
 
 // ConcreteType resolves aliases and normalized singleton joins to their node type.
 // It does not report errors; validation still uses the type expression as written.
-func (prog *Checker) ConcreteType(t ast.TypeExpr) (string, ast.TypeDecl) {
+func (c *Checker) ConcreteType(t ast.TypeExpr) (string, ast.TypeDecl) {
 	if ref, ok := t.(*ast.TypeRef); ok {
-		switch spec := prog.typeDecls()[ref.Name].(type) {
+		switch spec := c.typeDecls()[ref.Name].(type) {
 		case *ast.TypeDef:
 			return ref.Name, spec
 		}
 	}
-	k := &TypeResolver{Prog: prog}
+	k := &TypeResolver{Checker: c}
 	if n, ok := k.Resolve(t).(NamedTy); ok && n.Kind == 's' {
-		return n.Name, prog.typeDecls()[n.Name]
+		return n.Name, c.typeDecls()[n.Name]
 	}
 	return "", nil
 }
@@ -147,8 +147,8 @@ func (prog *Checker) ConcreteType(t ast.TypeExpr) (string, ast.TypeDecl) {
 // StructType returns the struct type definition that the type named name denotes, following
 // aliases, with the name of that definition; it returns "" and nil when name denotes no struct
 // type.
-func (prog *Checker) StructType(name string) (string, *ast.TypeDef) {
-	switch spec := prog.typeDecls()[name].(type) {
+func (c *Checker) StructType(name string) (string, *ast.TypeDef) {
+	switch spec := c.typeDecls()[name].(type) {
 	case *ast.TypeDef:
 		return name, spec
 	case *ast.TypeAlias:
@@ -156,7 +156,7 @@ func (prog *Checker) StructType(name string) (string, *ast.TypeDef) {
 	default:
 		return "", nil
 	}
-	canonical, spec := prog.ConcreteType(&ast.TypeRef{Name: name})
+	canonical, spec := c.ConcreteType(&ast.TypeRef{Name: name})
 	st, _ := spec.(*ast.TypeDef)
 	return canonical, st
 }

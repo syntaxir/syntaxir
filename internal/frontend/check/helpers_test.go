@@ -104,7 +104,7 @@ func inferredType(p *Model, name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &ValueInference{Prog: p.Checker(), Out: p.Typed.Values}
+	v := &ValueInference{Checker: p.Checker(), Out: p.Typed.Values}
 	return v.Expand(t).String(), true
 }
 

@@ -34,10 +34,10 @@ func (c *Compiler) declareVars(g *ast.Grammar) {
 		if !ok {
 			continue
 		}
-		if c.Prog.Vars == nil {
-			c.Prog.Vars = NewVarTable()
+		if c.Model.Vars == nil {
+			c.Model.Vars = NewVarTable()
 		}
-		if c.Prog.Vars.Lookup(vd.Name) != nil {
+		if c.Model.Vars.Lookup(vd.Name) != nil {
 			c.errorf(vd.Diagnostic(), "variable %s is already defined", vd.Name)
 			continue
 		}
@@ -46,7 +46,7 @@ func (c *Compiler) declareVars(g *ast.Grammar) {
 			// Keep the name declared, so that its uses do not add errors of their own.
 			decl = &VarDecl{Name: vd.Name, Typ: types.TyInt, Init: 0}
 		}
-		c.Prog.Vars.Add(decl)
+		c.Model.Vars.Add(decl)
 	}
 }
 

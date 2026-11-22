@@ -14,9 +14,9 @@ import (
 // every field has a zero value. Every other type has none: a node type, error, missing, a join, a
 // meet, _|_, and a struct that leads back to itself through its fields and tuple elements, but not
 // through a list or an optional type.
-func (p *Checker) HasZero(t Ty) bool { return p.hasZero(t, map[string]bool{}) }
+func (c *Checker) HasZero(t Ty) bool { return c.hasZero(t, map[string]bool{}) }
 
-func (p *Checker) hasZero(t Ty, visiting map[string]bool) bool {
+func (c *Checker) hasZero(t Ty, visiting map[string]bool) bool {
 	switch t := t.(type) {
 	case BasicTy:
 		switch t {
@@ -31,31 +31,31 @@ func (p *Checker) hasZero(t Ty, visiting map[string]bool) bool {
 		// too, for a type found without a zero value because it reached a type that is being visited
 		// is on a cycle through that type, so it has none itself. Without it the same type is visited
 		// once for every path that leads to it, which grows exponentially with the depth of the types.
-		if zero, ok := p.structHasZero.Load(t.Name); ok {
+		if zero, ok := c.structHasZero.Load(t.Name); ok {
 			return zero.(bool)
 		}
 		if visiting[t.Name] {
 			return false
 		}
-		_, st := p.StructType(t.Name)
+		_, st := c.StructType(t.Name)
 		if st == nil {
 			return false
 		}
 		visiting[t.Name] = true
 		defer delete(visiting, t.Name)
-		k := &TypeResolver{Prog: p}
+		k := &TypeResolver{Checker: c}
 		zero := true
 		for _, f := range DefFields(st) {
-			if !p.hasZero(k.Resolve(f.Type), visiting) {
+			if !c.hasZero(k.Resolve(f.Type), visiting) {
 				zero = false
 				break
 			}
 		}
-		p.structHasZero.Store(t.Name, zero)
+		c.structHasZero.Store(t.Name, zero)
 		return zero
 	case TupleTy:
 		for _, e := range t.Elems {
-			if !p.hasZero(e, visiting) {
+			if !c.hasZero(e, visiting) {
 				return false
 			}
 		}
@@ -64,7 +64,7 @@ func (p *Checker) hasZero(t Ty, visiting map[string]bool) bool {
 		return true
 	case RecordTy:
 		for _, f := range t.Fields {
-			if !p.hasZero(f, visiting) {
+			if !c.hasZero(f, visiting) {
 				return false
 			}
 		}
@@ -94,7 +94,7 @@ func (v *ValueInference) unsetFields(t *ast.Constructor, st *ast.TypeDef) {
 			continue
 		}
 		ft := v.resolve(f.Type)
-		if ft == TyBottom || v.Prog.HasZero(ft) {
+		if ft == TyBottom || v.Checker.HasZero(ft) {
 			continue
 		}
 		text := fmt.FormatType(f.Type)
@@ -114,21 +114,21 @@ const NoZeroDesc = "-"
 
 // StructZeroOf returns the zero descriptors of the fields of the struct type name, or nil if name is
 // not a struct type. The result is shared and must not be changed.
-func (p *Checker) StructZeroOf(name string) *StructZero {
-	if z, ok := p.structZeros.Load(name); ok {
+func (c *Checker) StructZeroOf(name string) *StructZero {
+	if z, ok := c.structZeros.Load(name); ok {
 		return z.(*StructZero)
 	}
-	_, st := p.StructType(name)
+	_, st := c.StructType(name)
 	if st == nil {
 		return nil
 	}
-	k := &TypeResolver{Prog: p}
+	k := &TypeResolver{Checker: c}
 	z := &StructZero{Zeros: map[string]string{}}
 	for _, f := range DefFields(st) {
 		z.Names = append(z.Names, f.Name)
-		z.Zeros[f.Name] = p.ZeroDesc(k.Resolve(f.Type))
+		z.Zeros[f.Name] = c.ZeroDesc(k.Resolve(f.Type))
 	}
-	actual, _ := p.structZeros.LoadOrStore(name, z)
+	actual, _ := c.structZeros.LoadOrStore(name, z)
 	return actual.(*StructZero)
 }
 
@@ -137,8 +137,8 @@ func (p *Checker) StructZeroOf(name string) *StructZero {
 // tuple of the zero values of the elements, written one after the other; {Name} for the struct type
 // Name with no field set (a runtime does not build the zero values of its fields, which a read of one of
 // them builds from the descriptor of the field); and NoZeroDesc for a type that has none (HasZero).
-func (p *Checker) ZeroDesc(t Ty) string {
-	if !p.HasZero(t) {
+func (c *Checker) ZeroDesc(t Ty) string {
+	if !c.HasZero(t) {
 		return NoZeroDesc
 	}
 	switch t := t.(type) {
@@ -158,7 +158,7 @@ func (p *Checker) ZeroDesc(t Ty) string {
 		var b strings.Builder
 		b.WriteByte('(')
 		for _, e := range t.Elems {
-			b.WriteString(p.ZeroDesc(e))
+			b.WriteString(c.ZeroDesc(e))
 		}
 		b.WriteByte(')')
 		return b.String()

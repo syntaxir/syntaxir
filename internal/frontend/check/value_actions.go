@@ -59,7 +59,7 @@ func (v *ValueInference) shown(t Ty) Ty {
 }
 
 func (v *ValueInference) shownSeen(t Ty, seen map[string]bool) Ty {
-	if v.Prog == nil {
+	if v.Checker == nil {
 		return t
 	}
 	return types.MapTy(t, func(u Ty) (Ty, bool) {
@@ -67,7 +67,7 @@ func (v *ValueInference) shownSeen(t Ty, seen map[string]bool) Ty {
 		if !ok || seen[r.Name] {
 			return nil, false
 		}
-		if rl := v.Prog.ByName[r.Name]; rl == nil || rl.Where == "" {
+		if rl := v.Checker.ByName[r.Name]; rl == nil || rl.Where == "" {
 			return nil, false
 		}
 		next := maps.Clone(seen)
@@ -81,7 +81,7 @@ func (v *ValueInference) shownSeen(t Ty, seen map[string]bool) Ty {
 
 // resolve maps a type expression of the grammar to the value model.
 func (v *ValueInference) resolve(t ast.TypeExpr) Ty {
-	k := &TypeResolver{Prog: v.Prog}
+	k := &TypeResolver{Checker: v.Checker}
 	return k.Resolve(t)
 }
 
@@ -164,7 +164,7 @@ func (v *ValueInference) checkResult(key any, rd *ast.RuleDef, t Ty) {
 		return
 	}
 	d := v.resolve(rd.Type)
-	if dn, ok := v.Prog.convertsResult(key, rd); ok {
+	if dn, ok := v.Checker.convertsResult(key, rd); ok {
 		d = dn.Underlying() // checked before it is converted
 	}
 	if NewFieldType(d) == nil || !v.needsCast(t, d) {
@@ -184,7 +184,7 @@ func (v *ValueInference) declared(rd *ast.RuleDef, t Ty) Ty {
 		return t
 	}
 	d := v.resolve(rd.Type)
-	if dn, ok := v.Prog.RuleNodeType(rd); ok {
+	if dn, ok := v.Checker.RuleNodeType(rd); ok {
 		// The rule converts its value to its named node type.
 		if !v.convertible(t, dn) {
 			v.errorf(rd.Diagnostic(), "rule %s produces %s, which cannot be converted to %s", rd.Name, v.display(t), dn)
@@ -409,14 +409,14 @@ func (v *ValueInference) convertible(s Ty, d NodeTy) bool {
 // nodeValue returns the type of the value of a node of type n. The value of a named node type is
 // read from its definition, which also gives the value of the type where it occurs inside itself.
 func (v *ValueInference) nodeValue(n NodeTy) Ty {
-	return v.Prog.nodeValueOf(n)
+	return v.Checker.nodeValueOf(n)
 }
 
 // nodeValueOf returns the type of the value of a node of type n, reading the value of a named
 // node type from its definition.
-func (prog *Checker) nodeValueOf(n NodeTy) Ty {
+func (c *Checker) nodeValueOf(n NodeTy) Ty {
 	if n.Name != "" {
-		if d, ok := prog.NodeTypeOf(n.Name); ok {
+		if d, ok := c.NodeTypeOf(n.Name); ok {
 			return d.Value
 		}
 	}
@@ -425,23 +425,23 @@ func (prog *Checker) nodeValueOf(n NodeTy) Ty {
 
 // NodeTypeOf returns the named node type that the type name names, through aliases. Its value is
 // resolved once and cached.
-func (prog *Checker) NodeTypeOf(name string) (NodeTy, bool) {
-	switch prog.typeDecls()[name].(type) {
+func (c *Checker) NodeTypeOf(name string) (NodeTy, bool) {
+	switch c.typeDecls()[name].(type) {
 	case *ast.TypeDef, *ast.TypeAlias:
 	default:
 		return NodeTy{}, false
 	}
-	if c, ok := prog.nodeTypeCache.Load(name); ok {
+	if c, ok := c.nodeTypeCache.Load(name); ok {
 		n, ok := c.(NodeTy)
 		return n, ok
 	}
-	k := &TypeResolver{Prog: prog}
+	k := &TypeResolver{Checker: c}
 	n, ok := k.ResolveNamed(name, ast.Pos{}).(NodeTy)
 	if !ok || n.Name == "" {
-		prog.nodeTypeCache.Store(name, false)
+		c.nodeTypeCache.Store(name, false)
 		return NodeTy{}, false
 	}
-	prog.nodeTypeCache.Store(name, n)
+	c.nodeTypeCache.Store(name, n)
 	return n, true
 }
 
@@ -449,31 +449,31 @@ func (prog *Checker) NodeTypeOf(name string) (NodeTy, bool) {
 // type, through aliases, when that is exactly a named node type. An Operators Rule without a
 // whole-rule action converts the nodes of its operators instead (OperatorsNodeType), never its
 // value as a whole; with one, it converts the action's result, as an ordinary rule does.
-func (prog *Checker) RuleNodeType(rd *ast.RuleDef) (NodeTy, bool) {
+func (c *Checker) RuleNodeType(rd *ast.RuleDef) (NodeTy, bool) {
 	if _, ok := rd.Expr.(*ast.OperatorsRule); ok && rd.Action == nil {
 		return NodeTy{}, false
 	}
-	return prog.declaredNodeType(rd)
+	return c.declaredNodeType(rd)
 }
 
 // OperatorsNodeType returns the named node type that every operator node of the Operators Rule
 // rd is converted to: the rule's declared type, through aliases, when that is exactly a named node
 // type and the rule has no whole-rule action, whose result the declared type describes instead.
 // The values of its operand lines are not converted.
-func (prog *Checker) OperatorsNodeType(rd *ast.RuleDef) (NodeTy, bool) {
+func (c *Checker) OperatorsNodeType(rd *ast.RuleDef) (NodeTy, bool) {
 	if _, ok := rd.Expr.(*ast.OperatorsRule); !ok || rd.Action != nil {
 		return NodeTy{}, false
 	}
-	return prog.declaredNodeType(rd)
+	return c.declaredNodeType(rd)
 }
 
 // declaredNodeType returns the named node type that is the declared type of rule rd, through
 // aliases.
-func (prog *Checker) declaredNodeType(rd *ast.RuleDef) (NodeTy, bool) {
+func (c *Checker) declaredNodeType(rd *ast.RuleDef) (NodeTy, bool) {
 	if rd.Type == nil {
 		return NodeTy{}, false
 	}
-	k := &TypeResolver{Prog: prog}
+	k := &TypeResolver{Checker: c}
 	n, ok := k.Resolve(rd.Type).(NodeTy)
 	return n, ok && n.Name != ""
 }
@@ -481,14 +481,14 @@ func (prog *Checker) declaredNodeType(rd *ast.RuleDef) (NodeTy, bool) {
 // convertsResult reports whether the value that key produces (see checkInfo.results) is converted
 // to a named node type, which its run-time check then sees converted: a rule's value, or the value
 // of an operator of an Operators Rule.
-func (prog *Checker) convertsResult(key any, rd *ast.RuleDef) (NodeTy, bool) {
+func (c *Checker) convertsResult(key any, rd *ast.RuleDef) (NodeTy, bool) {
 	switch key.(type) {
 	case *ast.RuleDef:
 		if key == any(rd) {
-			return prog.RuleNodeType(rd)
+			return c.RuleNodeType(rd)
 		}
 	case *ast.OperatorsRuleOperator:
-		return prog.OperatorsNodeType(rd)
+		return c.OperatorsNodeType(rd)
 	}
 	return NodeTy{}, false
 }
@@ -526,20 +526,20 @@ func (v *ValueInference) actionExprType(t ast.ActionExpr, env *valueEnv) Ty {
 		v.errorf(t.Diagnostic(), "$%s has no value in its scope", t.Name)
 		return TyAny
 	case *ast.VarRef:
-		if d := v.Prog.Vars.Lookup(t.Name); d != nil {
+		if d := v.Checker.Vars.Lookup(t.Name); d != nil {
 			return d.Typ
 		}
 		return TyAny // an undeclared variable was reported when names were resolved
 	case *ast.FieldAccess:
 		return v.member(v.actionExpr(t.X, env), t)
 	case *ast.Constructor:
-		if nt, ok := v.Prog.NodeTypeOf(t.Type); ok {
+		if nt, ok := v.Checker.NodeTypeOf(t.Type); ok {
 			return v.convertNew(t, nt, env)
 		}
 		for _, x := range t.Args {
 			v.actionExpr(x, env)
 		}
-		name, st := v.Prog.StructType(t.Type)
+		name, st := v.Checker.StructType(t.Type)
 		for _, fi := range t.Fields {
 			vt := v.actionExpr(fi.Value, env)
 			if st == nil {
@@ -845,7 +845,7 @@ func (v *ValueInference) member(x Ty, m *ast.FieldAccess) Ty {
 			if a == TyMissing {
 				found = append(found, recoveredMember(m.Name, true)...)
 			}
-			if st, ok := v.Prog.typeDecls()[a.Name].(*ast.TypeDef); ok {
+			if st, ok := v.Checker.typeDecls()[a.Name].(*ast.TypeDef); ok {
 				if f := FieldOf(st, m.Name); f != nil {
 					found = append(found, v.resolve(f.Type))
 				}

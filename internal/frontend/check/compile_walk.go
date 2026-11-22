@@ -24,7 +24,7 @@ func (c *walker) compileRule(r *Rule) {
 	body := r.BodyExpr()
 	r.Stream = c.checkStream(body)
 	r.Lean = r.Novalue || leanBody(r)
-	c.proj = ruleProjectionsControlled(c.Prog, r, control)
+	c.proj = ruleProjectionsControlled(c.Model, r, control)
 	c.Expr(body, r.Scope, !r.Lean)
 	c.proj = nil
 	if r.Action != nil {
@@ -46,7 +46,7 @@ func (c *walker) Expr(e ast.Expr, s *Scope, build bool) {
 	case *ast.Any:
 
 	case *ast.Ref:
-		r := c.Prog.ByName[e.Name]
+		r := c.Model.ByName[e.Name]
 		if r == nil {
 			c.errorf(e.Diagnostic(), "undefined rule %s", e.Name)
 			return
@@ -140,7 +140,7 @@ func (c *walker) repeat(e *ast.Repeat, s *Scope, build bool) {
 // predicate checks a Predicate Action { ... } and walks it.
 func (c *walker) predicate(e *ast.Predicate, s *Scope) {
 	if a, ok := e.Action.(*ast.Bind); ok {
-		if c.Prog.Vars.Lookup(a.Name) == nil {
+		if c.Model.Vars.Lookup(a.Name) == nil {
 			c.errorf(a.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", a.Name, a.Name)
 		}
 		c.CheckActionExpr(a.Value, s, nil)

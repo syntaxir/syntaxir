@@ -127,7 +127,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				for range 1024 {
 					elem = &ast.ListType{Elem: elem}
 				}
-				c := &fcheck.Compiler{Prog: entry.Checked(p).Model, Control: control}
+				c := &fcheck.Compiler{Model: entry.Checked(p).Model, Control: control}
 				c.CheckActionExpr(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
 			case "core-build":
 				_, _ = corebuild.CoreControlled(entry.Checked(p), control)

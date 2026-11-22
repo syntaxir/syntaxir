@@ -29,6 +29,6 @@ func inferredType(p *engine.Program, name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &check.ValueInference{Prog: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
+	v := &check.ValueInference{Checker: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
 	return v.Expand(t).String(), true
 }

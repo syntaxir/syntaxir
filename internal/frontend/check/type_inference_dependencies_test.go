@@ -99,7 +99,7 @@ func inferredType(p *engine.Program, name string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &fcheck.ValueInference{Prog: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
+	v := &fcheck.ValueInference{Checker: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
 	return v.Expand(t).String(), true
 }
 
@@ -110,7 +110,7 @@ func captureType(p *engine.Program, name, cap string) (string, bool) {
 	if !ok {
 		return "", false
 	}
-	v := &fcheck.ValueInference{Prog: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
+	v := &fcheck.ValueInference{Checker: entry.Checked(p).Checker(), Out: entry.Checked(p).Typed.Values}
 	n, ok := v.Expand(t).(types.NodeTy)
 	if !ok {
 		return "", false

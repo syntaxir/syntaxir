@@ -12,11 +12,11 @@ import (
 // of the rule name contributes to the tuple of its scope, in preorder, leaving out the lookaheads
 // and what they hold. It reports false if the model has no such rule or its types were not
 // checked. poll, when not nil, is called at every subexpression.
-func (p *Model) ShapeSignature(name string, poll func()) (string, bool) {
-	if p == nil || p.Typed == nil {
+func (m *Model) ShapeSignature(name string, poll func()) (string, bool) {
+	if m == nil || m.Typed == nil {
 		return "", false
 	}
-	r := p.ByName[name]
+	r := m.ByName[name]
 	if r == nil || r.Def == nil {
 		return "", false
 	}
@@ -48,7 +48,7 @@ func (p *Model) ShapeSignature(name string, poll func()) (string, bool) {
 			return
 		}
 		fmt.Fprintf(&b, "%T{", e)
-		for _, el := range ShapeElems(p.Checker(), e) {
+		for _, el := range ShapeElems(m.Checker(), e) {
 			step()
 			if el.Type() != nil {
 				b.WriteString(el.Type().String())

@@ -34,7 +34,7 @@ var builtins = map[string]int{
 // ActionExprChecker checks the value expressions of one program, reporting to Errs.
 type ActionExprChecker struct {
 	Control *cancel.Control
-	Prog    *Checker
+	Checker *Checker
 	Errs    *diagnostic.ErrorList
 }
 
@@ -67,7 +67,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 			c.errorf(t.Diagnostic(), "undefined capture $%s", t.Name)
 		}
 	case *ast.VarRef:
-		if c.Prog.Vars.Lookup(t.Name) == nil {
+		if c.Checker.Vars.Lookup(t.Name) == nil {
 			c.errorf(t.Diagnostic(), "undefined variable %s; declare it with var %s at the top level", t.Name, t.Name)
 		}
 	case *ast.FieldAccess:
@@ -76,7 +76,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 		for _, x := range t.Args {
 			c.CheckActionExpr(x, s, locals)
 		}
-		if _, ok := c.Prog.NodeTypeOf(t.Type); ok {
+		if _, ok := c.Checker.NodeTypeOf(t.Type); ok {
 			if len(t.Fields) != 0 || len(t.Args) != 1 {
 				c.errorf(t.Diagnostic(), "a node type constructor takes one value: write %s{x}", t.Type)
 			}
@@ -85,7 +85,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 			}
 			return
 		}
-		_, st := c.Prog.StructType(t.Type)
+		_, st := c.Checker.StructType(t.Type)
 		if st == nil {
 			c.errorf(t.Diagnostic(), "%s is not a struct type or a node type", t.Type)
 		} else if len(t.Args) != 0 {
@@ -107,7 +107,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 			c.CheckActionExpr(fi.Value, s, locals)
 		}
 	case *ast.ListConstructor:
-		k := &TypeResolver{control: c.Control, Prog: c.Prog, errs: c.Errs, report: true}
+		k := &TypeResolver{control: c.Control, Checker: c.Checker, errs: c.Errs, report: true}
 		reported := len(*c.Errs)
 		elem := k.Resolve(t.Elem)
 		if len(*c.Errs) > reported || k.sawUnsupported {
@@ -142,7 +142,7 @@ func (c *ActionExprChecker) CheckActionExpr(t ast.ActionExpr, s *Scope, locals [
 	case *ast.Unary:
 		c.CheckActionExpr(t.X, s, locals)
 	case *ast.Cast:
-		k := &TypeResolver{control: c.Control, Prog: c.Prog, errs: c.Errs, report: true}
+		k := &TypeResolver{control: c.Control, Checker: c.Checker, errs: c.Errs, report: true}
 		k.resolveLocation(t.Type, t.Diagnostic(), "the cast")
 		c.CheckActionExpr(t.X, s, locals)
 	case *ast.Bind:

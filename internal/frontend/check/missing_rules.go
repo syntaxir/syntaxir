@@ -9,7 +9,7 @@ import (
 
 // markMissingRules records transitive insertion dependencies before matchers or
 // value-free twins are compiled. Unrelated rules retain completed memo reuse.
-func (prog *Model) markMissingRules(control *cancel.Control) {
+func (m *Model) markMissingRules(control *cancel.Control) {
 	var usesMissingType func(ast.TypeExpr) bool
 	usesMissingType = func(t ast.TypeExpr) bool {
 		control.Poll()
@@ -55,24 +55,24 @@ func (prog *Model) markMissingRules(control *cancel.Control) {
 		}
 		return false
 	}
-	for _, td := range control.Types(prog.Grammar) {
+	for _, td := range control.Types(m.Grammar) {
 		switch t := td.(type) {
 		case *ast.TypeDef:
 			for _, f := range DefFields(t) {
 				if usesMissingType(f.Type) {
-					prog.HasMissing = true
+					m.HasMissing = true
 				}
 			}
 		case *ast.TypeAlias:
 			if usesMissingType(t.Type) {
-				prog.HasMissing = true
+				m.HasMissing = true
 			}
 		}
 	}
 	refs := make(map[*Rule][]string)
-	for _, r := range prog.RuleList {
+	for _, r := range m.RuleList {
 		if usesMissingType(r.Def.Type) {
-			prog.HasMissing = true
+			m.HasMissing = true
 		}
 		astfacts.WalkExprControlled(r.Def.Expr, func(e ast.Expr) {
 			control.Poll()
@@ -81,7 +81,7 @@ func (prog *Model) markMissingRules(control *cancel.Control) {
 				for _, a := range e.Attrs {
 					if a.Name == "missing" {
 						r.Missing = true
-						prog.HasMissing = true
+						m.HasMissing = true
 					}
 				}
 			case *ast.Ref:
@@ -91,14 +91,14 @@ func (prog *Model) markMissingRules(control *cancel.Control) {
 	}
 	for changed := true; changed; {
 		changed = false
-		for _, r := range prog.RuleList {
+		for _, r := range m.RuleList {
 			control.Poll()
 			if r.Missing {
 				continue
 			}
 			for _, name := range refs[r] {
 				control.Poll()
-				if callee := prog.ByName[name]; callee != nil && callee.Missing {
+				if callee := m.ByName[name]; callee != nil && callee.Missing {
 					r.Missing = true
 					changed = true
 					break

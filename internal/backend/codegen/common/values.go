@@ -48,7 +48,7 @@ func NewValueResolver(p *Program, ownType func(types.Ty) bool) ValueResolver {
 func (t *ValueResolver) RuleRef(name string) types.Ty {
 	var legacy types.Ty = types.TyAny
 	if def := t.ruleDefs[name]; def != nil && def.Type != nil {
-		legacy = (&check.TypeResolver{Prog: t.Prog.Checker()}).Resolve(def.Type)
+		legacy = (&check.TypeResolver{Checker: t.Prog.Checker()}).Resolve(def.Type)
 	}
 	if !t.usesValue(name, legacy) {
 		return legacy

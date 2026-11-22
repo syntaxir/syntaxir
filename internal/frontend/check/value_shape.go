@@ -16,16 +16,16 @@ func ShapeElems(p *Checker, e ast.Expr) []ValueElem {
 	if p != nil {
 		control = p.shapeControl
 	}
-	return (&ValueInference{Prog: p, control: control}).elems(e)
+	return (&ValueInference{Checker: p, control: control}).elems(e)
 }
 
 // SpliceBody returns the body of the rule name if it is a splice rule: a rule that makes no node of
 // its own, so that a call of it contributes what its body does, as a group (Rule.Splice).
-func (p *Checker) SpliceBody(name string) (ast.Expr, bool) {
-	if p == nil {
+func (c *Checker) SpliceBody(name string) (ast.Expr, bool) {
+	if c == nil {
 		return nil, false
 	}
-	if r := p.ByName[name]; r != nil && r.Splice {
+	if r := c.ByName[name]; r != nil && r.Splice {
 		return r.Def.Expr, true
 	}
 	return nil, false
@@ -173,7 +173,7 @@ func NewShapeCache(p *Checker) *ShapeCache {
 
 // Facts returns ShapeFacts(p, e) for the program p of c.
 func (c *ShapeCache) Facts(e ast.Expr) (k int, mode SingleMode, tuple bool) {
-	v := &ValueInference{Prog: c.p, control: c.p.shapeControl, memo: c.elems}
+	v := &ValueInference{Checker: c.p, control: c.p.shapeControl, memo: c.elems}
 	return shapeFacts(c.p, v.elems(e), e)
 }
 

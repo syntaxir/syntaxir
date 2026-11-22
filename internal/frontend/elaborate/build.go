@@ -104,7 +104,7 @@ func coreModule(prog Program, origin, project bool, control *cancel.Control) (*c
 	if b.rec != nil {
 		b.m.Typed = true
 		b.m.Types = map[string]core.Type{}
-		k := &check.TypeResolver{Prog: b.chk}
+		k := &check.TypeResolver{Checker: b.chk}
 		for name := range in.Types {
 			b.m.Types[name] = k.ResolveNamed(name, ast.Pos{})
 		}

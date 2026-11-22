@@ -28,16 +28,16 @@ func (k *Kinds) TypeKind(typ string) *valueimpl.Kind {
 // Kinds returns the run-time kinds of the program's types, made on the first call that completes,
 // which must come after the types are checked; poll, if not nil, is called for each type and may
 // cancel the call with a panic.
-func (p *Checker) Kinds(poll func()) *Kinds {
-	p.kindsMu.Lock()
-	defer p.kindsMu.Unlock()
-	if p.kinds == nil {
+func (c *Checker) Kinds(poll func()) *Kinds {
+	c.kindsMu.Lock()
+	defer c.kindsMu.Unlock()
+	if c.kinds == nil {
 		k := &Kinds{Types: map[string]*valueimpl.Kind{}, Nodes: map[string]*nodes.NodeTypeKinds{}}
-		for name, spec := range p.typeDecls() {
+		for name, spec := range c.typeDecls() {
 			if poll != nil {
 				poll()
 			}
-			if n, ok := p.NodeTypeOf(name); ok {
+			if n, ok := c.NodeTypeOf(name); ok {
 				if k.Nodes[n.Name] == nil {
 					k.Nodes[n.Name] = nodes.NewNodeTypeKinds(n.Name)
 				}
@@ -46,24 +46,24 @@ func (p *Checker) Kinds(poll func()) *Kinds {
 			}
 			canonical := name
 			if _, alias := spec.(*ast.TypeAlias); alias {
-				if resolved, concrete := p.ConcreteType(&ast.TypeRef{Name: name}); concrete != nil {
+				if resolved, concrete := c.ConcreteType(&ast.TypeRef{Name: name}); concrete != nil {
 					canonical = resolved
 				}
 			}
 			k.Types[name] = valueimpl.KindOf(canonical, "")
 		}
-		p.kinds = k
+		c.kinds = k
 	}
-	return p.kinds
+	return c.kinds
 }
 
 // ResolveCheck resolves the type of a cast, as a value type. It returns nil for _, which every value
 // fits.
-func (p *Checker) ResolveCheck(t ast.TypeExpr) types.Ty {
+func (c *Checker) ResolveCheck(t ast.TypeExpr) types.Ty {
 	if t == nil {
 		return nil
 	}
-	if r := (&TypeResolver{Prog: p}).Resolve(t); types.NewFieldType(r) != nil {
+	if r := (&TypeResolver{Checker: c}).Resolve(t); types.NewFieldType(r) != nil {
 		return r
 	}
 	return nil
@@ -71,14 +71,14 @@ func (p *Checker) ResolveCheck(t ast.TypeExpr) types.Ty {
 
 // CastType returns the type the cast t checks its value against, or nil if every value fits it. The
 // type of each cast is resolved once.
-func (p *Checker) CastType(t *ast.Cast) *types.FieldType {
-	if v, ok := p.castTypes.Load(t); ok {
+func (c *Checker) CastType(t *ast.Cast) *types.FieldType {
+	if v, ok := c.castTypes.Load(t); ok {
 		return v.(*types.FieldType)
 	}
 	var ft *types.FieldType
-	if r := p.ResolveCheck(t.Type); r != nil {
+	if r := c.ResolveCheck(t.Type); r != nil {
 		ft = types.NewFieldType(r)
 	}
-	v, _ := p.castTypes.LoadOrStore(t, ft)
+	v, _ := c.castTypes.LoadOrStore(t, ft)
 	return v.(*types.FieldType)
 }

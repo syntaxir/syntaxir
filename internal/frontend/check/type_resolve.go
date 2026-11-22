@@ -16,7 +16,7 @@ import (
 // aliases that refer to themselves and type syntax that is not supported yet.
 type TypeResolver struct {
 	control *cancel.Control
-	Prog    *Checker
+	Checker *Checker
 	errs    *diagnostic.ErrorList
 	report  bool
 	// sawUnsupported records that a resolved type used syntax that is not supported yet, whether
@@ -212,7 +212,7 @@ func valueAlternatives(t Ty) []Ty {
 // unsupported reports type syntax t that is not supported yet, once.
 func (k *TypeResolver) unsupported(t ast.TypeExpr, pos ast.Pos, format string, args ...any) {
 	k.sawUnsupported = true
-	if !k.report || !k.Prog.MarkUnsupported(t) {
+	if !k.report || !k.Checker.MarkUnsupported(t) {
 		return
 	}
 	report := k.report
@@ -223,10 +223,10 @@ func (k *TypeResolver) unsupported(t ast.TypeExpr, pos ast.Pos, format string, a
 
 // defined reports whether name is a built-in or declared type.
 func (k *TypeResolver) defined(name string) bool {
-	if _, ok := k.Prog.typeDecls()[name]; ok {
+	if _, ok := k.Checker.typeDecls()[name]; ok {
 		return true
 	}
-	r := &TypeResolver{Prog: k.Prog, errs: &diagnostic.ErrorList{}, report: true}
+	r := &TypeResolver{Checker: k.Checker, errs: &diagnostic.ErrorList{}, report: true}
 	r.ResolveNamed(name, ast.Pos{})
 	return len(*r.errs) == 0
 }
@@ -265,7 +265,7 @@ func (k *TypeResolver) ResolveNamed(name string, pos ast.Pos) Ty {
 	case "error": // the value of recovery: a recovered error or a missing token
 		return TyErr
 	}
-	switch spec := k.Prog.typeDecls()[name].(type) {
+	switch spec := k.Checker.typeDecls()[name].(type) {
 	case *ast.TypeDef:
 		val := spec.NodeValue()
 		if val == nil {
@@ -332,7 +332,7 @@ func DefFields(spec *ast.TypeDef) []*ast.Field {
 // that do not start with an uppercase letter, and types that do not resolve (undefined names,
 // aliases that refer to themselves, unsupported syntax and fields of type _|_).
 func (k *TypeResolver) checkTypeDefinitions() {
-	for _, td := range k.control.Types(k.Prog.Grammar) {
+	for _, td := range k.control.Types(k.Checker.Grammar) {
 		k.control.Poll()
 		switch spec := td.(type) {
 		case *ast.TypeDef:

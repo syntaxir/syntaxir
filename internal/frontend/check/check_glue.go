@@ -13,7 +13,7 @@ func (m *Model) Checker() *Checker {
 
 // CheckActionExpr is ActionExprChecker.CheckActionExpr over the compiler's errors.
 func (c *Compiler) CheckActionExpr(t ast.ActionExpr, s *Scope, locals []string) {
-	(&ActionExprChecker{Control: c.Control, Prog: c.Prog.Checker(), Errs: &c.errs}).CheckActionExpr(t, s, locals)
+	(&ActionExprChecker{Control: c.Control, Checker: c.Model.Checker(), Errs: &c.errs}).CheckActionExpr(t, s, locals)
 }
 
 // checkerOf returns the checker of p, nil for a nil model.

@@ -11,7 +11,7 @@ import (
 // declared type is that type. A reference to a rule without one keeps the rule's name, which
 // keeps recursive and large values short.
 func shownRuleTypes(prog *Checker, rules []*ast.RuleDef, values map[string]Ty, control *cancel.Control) map[string]Ty {
-	k := &TypeResolver{Prog: prog}
+	k := &TypeResolver{Checker: prog}
 	declared := map[string]Ty{}
 	for _, rd := range rules {
 		control.Poll()

@@ -24,7 +24,7 @@ var builtinTypes = map[string]bool{
 // A nil Control never cancels.
 type Compiler struct {
 	Control *cancel.Control
-	Prog    *Model
+	Model   *Model
 	proj    map[string]string // projected captures of the rule being compiled (ruleProjections)
 	// facts are the rule facts the program is checked with, or nil if the rules take the flags of
 	// a compiled grammar, which was checked when it was compiled.
@@ -49,8 +49,8 @@ func (c *Compiler) desc(s string) program.ExpID {
 			return id
 		}
 	}
-	id := program.ExpID(len(c.Prog.DescTable))
-	c.Prog.DescTable = append(c.Prog.DescTable, s)
+	id := program.ExpID(len(c.Model.DescTable))
+	c.Model.DescTable = append(c.Model.DescTable, s)
 	c.descIDs[s] = id
 	return id
 }
@@ -61,9 +61,9 @@ func (c *Compiler) errorf(pos ast.Pos, format string, args ...any) {
 
 // Flags returns the rule flags of the model's rules, with which a variant of the program (its
 // recognizer) is checked again from its grammar so that its rules keep them.
-func (p *Model) Flags() []RuleFlags {
-	flags := make([]RuleFlags, len(p.RuleList))
-	for i, r := range p.RuleList {
+func (m *Model) Flags() []RuleFlags {
+	flags := make([]RuleFlags, len(m.RuleList))
+	for i, r := range m.RuleList {
 		flags[i] = RuleFlags{Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, Positional: r.Positional, Twin: r.TwinOK}
 	}
 	return flags
@@ -103,7 +103,7 @@ func insertionFlags(prog *Model, facts *RuleFacts, opts Options, control *cancel
 func CheckCanonical(g, source *ast.Grammar, starts []string, defaultStart string, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Model, error) {
 	prog := NewModel(g, source)
 	prog.DescTable = append([]string(nil), core.FixedDescs...)
-	c := &Compiler{Control: control, Prog: prog, opts: opts}
+	c := &Compiler{Control: control, Model: prog, opts: opts}
 	if control != nil {
 		prog.Checker().SetShapeControl(control)
 		defer func() {
@@ -298,18 +298,18 @@ func NumberLeaders(rules []*Rule) {
 }
 
 // defsByName returns the rule definitions of the program by name.
-func (p *Model) defsByName() map[string]*ast.RuleDef {
-	m := make(map[string]*ast.RuleDef, len(p.RuleList))
-	for _, r := range p.RuleList {
-		m[r.Name] = r.Def
+func (m *Model) defsByName() map[string]*ast.RuleDef {
+	defs := make(map[string]*ast.RuleDef, len(m.RuleList))
+	for _, r := range m.RuleList {
+		defs[r.Name] = r.Def
 	}
-	return m
+	return defs
 }
 
 // twinOf returns the value-free twin of rule r (creating it if needed; it is assembled later).
 func (c *Compiler) twinOf(r *Rule) *Rule {
 	if r.Twin == nil {
-		prog := c.Prog
+		prog := c.Model
 		r.Twin = &Rule{ID: len(prog.RuleList) + len(prog.Twins), Name: r.Name, Def: r.Def, Scope: NewScope(),
 			Memo: r.Memo, Missing: r.Missing, Transient: r.Transient, Rec: r.Rec, Vars: r.Vars, Positional: r.Positional, Novalue: true}
 		prog.Twins = append(prog.Twins, r.Twin)
@@ -408,7 +408,7 @@ func (c *Compiler) noRecoveringCaptures(e ast.Expr) {
 		}
 		for _, name := range calls {
 			var w string
-			if r := c.Prog.ByName[name]; r != nil {
+			if r := c.Model.ByName[name]; r != nil {
 				w = c.facts.Rules[r.ID].Recovering
 			}
 			switch w {
@@ -490,8 +490,8 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 }
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.
-func (prog *Model) TypeKind(typ string) *valueimpl.Kind {
-	if k := prog.TypeKinds[typ]; k != nil {
+func (m *Model) TypeKind(typ string) *valueimpl.Kind {
+	if k := m.TypeKinds[typ]; k != nil {
 		return k
 	}
 	return valueimpl.KindOf(typ, "")
