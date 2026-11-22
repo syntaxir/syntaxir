@@ -15,8 +15,9 @@
 
 </div>
 
-SyntaxIR turns one grammar into every parser you need: generated code or a VM, fast, safe on any input and ready for
-your editor. Never write a parser again.
+**Never write a parser again.** Describe your language once as a typed grammar, and SyntaxIR builds every parser you
+need: generated code or a VM, fast, safe on any input and ready for your editor. Here a whole operator precedence table,
+associativity included, is one rule:
 
 ```sxir
 // calc.sxir
@@ -71,6 +72,9 @@ sxir: 1:5: syntax error: expected "(", [0-9]
   keystrokes.
 - **Safe on any input.** SyntaxIR analyzes your grammar to bound the time and memory a parse can take, and built-in
   compute and depth limits mean hostile input can never hang the parser or blow its stack.
+- **A grammar anyone can write.** A grammar is short enough to review, so you can even let an LLM write it. Lint and
+  cost classification report problems at their positions, and sampling and edit fuzzing exercise the parser, so
+  mistakes surface before any parser ships.
 - **Complete support for building your language.** A built-in language server brings completion, diagnostics,
   navigation and formatting to any editor. Trace, profile, lint and debug show exactly what the parser does, so you
   never have to guess.
