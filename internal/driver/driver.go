@@ -3,15 +3,18 @@ package driver
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"slices"
+	"sync"
 	"text/tabwriter"
 	"time"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	tspass "syntaxir.dev/sxir/internal/backend/codegen/typescript/pass"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
@@ -166,8 +169,14 @@ var coreKey = pipe.RegisterKey(tableIR, &pipe.Key[common.TableSource]{Name: "cor
 var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
 	In:   tableIR, Out: corepass.IR,
-	Run: func(_ *pipe.Ctx[common.TableSource], src common.TableSource) (*core.Module, pass.PreservedSet, error) {
-		m, err := src.Build()
+	Run: func(c *pipe.Ctx[common.TableSource], src common.TableSource) (*core.Module, pass.PreservedSet, error) {
+		// The build and the Core passes poll the control of the context of the compilation, which
+		// the module keeps, and none when the context cannot end.
+		var control *cancel.Control
+		if ctx := c.Context(); ctx.Done() != nil {
+			control = &cancel.Control{Ctx: ctx}
+		}
+		m, err := src.Build(control)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
@@ -202,15 +211,57 @@ func (d *debugger) observers() []pipe.Observer {
 }
 
 // execute runs the pipeline p on in with r (pipe.Execute) and adds the time it took to the total of
-// the times that report writes.
+// the times that report writes. The failure of a step that found the context ended before it ran
+// is the cancellation of the step (cancelled).
 func execute[I, O any](ctx context.Context, d *debugger, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, error) {
+	w := &watchedContext{Context: ctx}
 	if d.Output == nil || !d.TimePasses {
-		return pipe.Execute(ctx, r, p, in)
+		out, err := pipe.Execute(w, r, p, in)
+		return out, w.cancelled(err)
 	}
 	start := time.Now()
-	out, err := pipe.Execute(ctx, r, p, in)
+	out, err := pipe.Execute(w, r, p, in)
 	d.watch.total += time.Since(start)
-	return out, err
+	return out, w.cancelled(err)
+}
+
+// watchedContext is the context of a run that keeps the first error its Err returned, the error
+// that the pass manager fails a step with when it finds the context ended before the step ran.
+type watchedContext struct {
+	context.Context
+	mu  sync.Mutex
+	err error
+}
+
+func (c *watchedContext) Err() error {
+	err := c.Context.Err()
+	if err != nil {
+		c.mu.Lock()
+		if c.err == nil {
+			c.err = err
+		}
+		c.mu.Unlock()
+	}
+	return err
+}
+
+// cancelled marks the failure err of the run as a cancellation (cancel.Cancellation) when it is the
+// failure of a step with the error that the context returned, so that a caller tells it apart from a
+// failure of the work, as it does the cancellation panic of a step (recoverCancellation). It reads
+// the error the run saw and does not ask the context again, which a caller's context may answer
+// otherwise, or count.
+func (c *watchedContext) cancelled(err error) error {
+	var se *pipe.StepError
+	if err == nil || !errors.As(err, &se) || errors.As(se.Err, new(cancel.Cancellation)) {
+		return err
+	}
+	c.mu.Lock()
+	seen := c.err
+	c.mu.Unlock()
+	if seen != nil && errors.Is(se.Err, seen) {
+		se.Err = cancel.Cancellation{Err: se.Err}
+	}
+	return err
 }
 
 // pipeObserver writes the dumps of PrintBefore, PrintAfter and PrintChanged for the steps of the run.

@@ -1,6 +1,7 @@
 package common
 
 import (
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -29,8 +30,10 @@ func (r *Replan) Backend() result.Backend { return r.Lang }
 
 // TableSource is the unit table: the build of the Core IR of one table of a program, which the step
 // elaborate runs, and the key of the build, which is the same for the tables whose builds make the
-// same module, so that they share one run of the Core part of the pipeline.
+// same module, so that they share one run of the Core part of the pipeline. Build polls control (nil
+// for none), which the module keeps (core.Module.Control), and unwinds as cancel.Cancellation when
+// its context ends.
 type TableSource struct {
-	Build func() (*core.Module, error)
+	Build func(control *cancel.Control) (*core.Module, error)
 	Key   string
 }

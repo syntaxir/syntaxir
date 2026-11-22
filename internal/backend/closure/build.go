@@ -5,7 +5,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/frontend/check"
 	ir "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -13,28 +12,12 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// Core optimizes the Core IR m of a program, as the elaboration built it with the attributes of its
-// nodes computed (core.Analyze), with the closure pipeline
-// (guards and scans), for Build. It runs when a parse first needs a family, outside the
-// compilation: the passes poll the control of m (ir.Module.Control), the parse's (nil for none),
-// and a cancellation unwinds as cancel.Cancellation. Core consumes m, as the passes do: it returns m
-// as they changed it, without the control, and copies nothing. A failure is an internal error: the
-// program compiled, so its passes run.
-func Core(m *ir.Module) (*ir.Module, error) {
-	m, _, err := corepass.Run(m, corepass.RunOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("internal error: %w", err)
-	}
-	m.Control = nil
-	return m, nil
-}
-
-// Build builds the closure backend's form of the run-time program prog from its Core IR m (Core),
-// and returns the rules of the family f that the parser runs, by ID; c resolves the types of the
-// action expressions (actionlower.Env). Build only reads m, so the families of a program can be
-// built from the same module, at different times. A failure is an internal error: the program
-// compiled, so its action expressions build. The build runs when a parse first needs the family, outside the
-// compilation, so no control interrupts it.
+// Build builds the closure backend's form of the run-time program prog from its Core IR m (the
+// output of a closure target, Module), and returns the rules of the family f that the parser runs,
+// by ID; c resolves the types of the action expressions (actionlower.Env). Build only reads m, so
+// the families of a program can be built from the same module, at different times. A failure is an
+// internal error: the program compiled, so its action expressions build. The build runs when a
+// parse first needs the family, outside the compilation, so no control interrupts it.
 func Build(prog *program.Program, c *check.Checker, m *ir.Module, f state.Family) ([]*state.Rule, error) {
 	b, err := newBuilder(prog, c, m)
 	if err != nil {

@@ -8,6 +8,7 @@ package checked
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"sync"
@@ -21,7 +22,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
-	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
@@ -187,36 +187,27 @@ func (s *Source) Module() (*bytecode.Module, error) {
 // so a caller observes whether a program is still cold.
 func (s *Source) BuiltModule() *bytecode.Module { return s.built.Load() }
 
-// Core builds the Core IR of the program for the closures (elaborate.CoreControlled, then
-// closure.Core), polling ctx (nil for none): an ended context returns a state.BuildCancelled.
-func (s *Source) Core(ctx context.Context) (m any, err error) {
-	if ctx == nil {
-		return closureCore(s.prog, nil)
+// Core builds the Core module that the closures of the program are built from, with the closure
+// target of the driver under the settings of the program, polling ctx (nil for none) wrapped so that
+// a panic of its methods is attributed to it (attributedContext): a failure that a cancellation
+// caused, by the manager's check of the context before a step or by a poll of the build or the
+// Core passes, returns a state.BuildCancelled with the context's error, and a panic of a method of
+// ctx unwinds as state.ContextPanic. Any other failure is an internal error: the program compiled,
+// so its Core IR builds.
+func (s *Source) Core(ctx context.Context) (any, error) {
+	run := context.Background()
+	if ctx != nil {
+		run = attributedContext{ctx}
 	}
-	defer func() {
-		if x := recover(); x != nil {
-			cancelled, ok := x.(cancel.Cancellation)
-			if !ok {
-				panic(x)
-			}
-			m, err = nil, state.BuildCancelled{Err: cancelled.Err}
-		}
-	}()
-	return closureCore(s.prog, &cancel.Control{Ctx: attributedContext{ctx}})
-}
-
-// closureCore builds the Core IR of the program prog, computes the attributes of its nodes
-// (core.Analyze) and optimizes it for the closures (closure.Core). The build and the passes poll control (nil for none), and a cancellation unwinds
-// as cancel.Cancellation. A failure is an internal error: the program compiled, so its Core IR
-// builds.
-func closureCore(prog *frontend.Result, control *cancel.Control) (*ir.Module, error) {
-	m, err := elaborate.CoreControlled(prog, control)
+	outs, err := driver.Compile(run, s.Program(), driver.Options{Settings: s.settings}, driver.Target{Backend: result.Closure})
 	if err != nil {
+		var c cancel.Cancellation
+		if errors.As(err, &c) {
+			return nil, state.BuildCancelled{Err: c.Err}
+		}
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
-	// The Core passes take a Core module with the attributes of its nodes computed.
-	ir.Analyze(m)
-	return closure.Core(m)
+	return outs[0].(*closure.Module).Core, nil
 }
 
 // attributedContext is a parse's context whose Err attributes a panic to the caller's context

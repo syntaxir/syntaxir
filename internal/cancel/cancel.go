@@ -13,8 +13,16 @@ import (
 
 // Cancellation is the panic value that unwinds cancelled work with its error. Only the entry
 // points that start the work catch it; unrelated panics keep their behavior. A control is local
-// to one piece of work.
+// to one piece of work. As an error, it is the failure of work whose context ended, with the
+// context's error: a compilation fails the step that finds it so, and a caller tells a
+// cancellation apart from a failure of the work with errors.As.
 type Cancellation struct{ Err error }
+
+// Error returns the message of the context's error.
+func (c Cancellation) Error() string { return c.Err.Error() }
+
+// Unwrap returns the context's error.
+func (c Cancellation) Unwrap() error { return c.Err }
 
 // PollStride is the number of steps between context checks. A step is a visit of one
 // expression, type or rule element; the heaviest, type-value inference, takes a few

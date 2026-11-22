@@ -16,6 +16,7 @@ import (
 	goprint "syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	tsbackend "syntaxir.dev/sxir/internal/backend/codegen/typescript"
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/library"
@@ -157,7 +158,7 @@ func compileLibrary(ctx context.Context, o Options, t Target) ([]Output, error) 
 		return nil, err
 	}
 	d := newDebugger(o)
-	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers()}, pl, src)
+	out, err := execute(ctx, d, &pipe.Run{Settings: o.Settings, VerifyEach: o.Debug.VerifyEach, Observers: d.observers(), Recover: recoverCancellation}, pl, src)
 	if err != nil {
 		err = a.error(err)
 	}
@@ -305,7 +306,7 @@ func callPipeline[I, O any](ref pipe.Pipeline[I, O], o Options) (pipe.Pipeline[I
 // run executes the pipeline a of the compilation c once, with the observers of the debugging
 // settings and of the call that d runs, and returns the output of each target in order.
 func (c *compilation) run(ctx context.Context, d *debugger, a assembly) ([]Output, error) {
-	r := &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers()}
+	r := &pipe.Run{Settings: c.o.Settings, VerifyEach: c.o.Debug.VerifyEach, Observers: d.observers(), Recover: recoverCancellation}
 	if !a.forked {
 		out, err := execute(ctx, d, r, a.one, c.p)
 		if err != nil {
@@ -376,6 +377,11 @@ func decide(p *Program, t Target) (target, error) {
 			return target{}, err
 		}
 		return target{t: t, target: &vmTarget{prog: p.prog}}, nil
+	case result.Closure:
+		if err := runTimeGen(t); err != nil {
+			return target{}, err
+		}
+		return target{t: t, target: &closureTarget{prog: p.prog}}, nil
 	}
 	return target{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", t.Backend)
 }
@@ -408,6 +414,8 @@ func (c *compilation) assemble() assembly {
 			t = tsPipeline()
 		case result.VM:
 			t = vmPipeline()
+		case result.Closure:
+			t = closurePipeline()
 		}
 		pl := pipe.WithConst(codegen.TargetFeature, x.target, pipe.WithConst(plandata.ReachFeature, map[plandata.Entry]bool(nil), t.pipeline))
 		for _, s := range t.steps {
@@ -480,14 +488,28 @@ func (a assembly) forkError(err error) error {
 }
 
 // error returns the failure err of a run of the pipeline: the failure of one of the steps a.steps as
-// the *pass.StepError that names it, with the message of the step, and any other failure (a pass, a
+// the *pass.StepError that names it, with the message of the step, a cancellation (the context of
+// the compilation ended) as it is, naming the step that saw it, and any other failure (a pass, a
 // verification, a join, an invalid pipeline) as an internal error.
 func (a assembled) error(err error) error {
 	var se *pipe.StepError
 	if errors.As(err, &se) && slices.Contains(a.steps, se.Step) {
 		return &pass.StepError{Step: pass.Step{Name: se.Step, Required: true}, Err: se.Err}
 	}
+	if errors.As(err, new(cancel.Cancellation)) {
+		return err
+	}
 	return fmt.Errorf("internal error: %w", err)
+}
+
+// recoverCancellation is the recovery of a compilation (pipe.Run.Recover): the cancellation panic of
+// a step (cancel.Cancellation), which the Core build and the Core passes raise when the context of
+// the compilation ends, becomes the failure of the step; any other value panics again.
+func recoverCancellation(x any) error {
+	if c, ok := x.(cancel.Cancellation); ok {
+		return c
+	}
+	panic(x)
 }
 
 // checkTarget reports a field of the options of t that Program or the call holds and that is neither

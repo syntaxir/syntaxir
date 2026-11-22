@@ -46,12 +46,11 @@ func CoreFrom(prog Program, origin bool) (*core.Module, error) {
 	return CoreProjecting(prog, origin, true)
 }
 
-// CoreControlled is CoreFrom under the control of the work that builds it: the build polls control
-// for each expression it builds, and the module keeps it (core.Module.Control) for the passes that
-// follow.
-// A cancellation unwinds as cancel.Cancellation.
-func CoreControlled(prog Program, control *cancel.Control) (*core.Module, error) {
-	return coreModule(prog, false, true, control)
+// CoreControlled is CoreProjecting under the control of the work that builds it (nil for none): the
+// build polls control for each expression it builds, and the module keeps it (core.Module.Control)
+// for the passes that follow. A cancellation unwinds as cancel.Cancellation.
+func CoreControlled(prog Program, origin, project bool, control *cancel.Control) (*core.Module, error) {
+	return coreModule(prog, origin, project, control)
 }
 
 // CoreProjecting is CoreFrom; if project is false, no repetition gathers the values of a

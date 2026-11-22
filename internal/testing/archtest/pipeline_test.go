@@ -185,9 +185,10 @@ func isQualified(e ast.Expr, names map[string]string, path, name string) bool {
 // pipelineExecutors are the packages outside the driver that execute a pipeline today, each with
 // the step of record 074 that removes it. The list must match exactly, so it only shrinks.
 var pipelineExecutors = map[string]string{
-	// corepass.Run runs the Core passes for the VM's and the closure backend's builds (vmlower,
-	// closure) until migration step 12 compiles them through the driver, and for the tests.
-	"internal/middleend/corepass": "step 12",
+	// corepass.Run runs the Core passes on a module for the tests of the Core passes and of what
+	// reads their output, which have no compilation to run them in. It stays in the package for the
+	// reason flowpass.Run does: the package's own internal tests use it.
+	"internal/middleend/corepass": "tests",
 	// flowpass.Run runs the Flow passes on a module for the tests of the Flow passes and of the
 	// lowering, which have no compilation to run them in. It stays in the package because the
 	// package's own internal tests use it, and a shared helper in test support would import

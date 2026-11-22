@@ -12,8 +12,8 @@ import (
 
 // BenchmarkRuntimeBackendCompile measures what a program compiled at run time costs its backends
 // on first use, for each grammar of testdata/grammars: the bytecode module (Source.Module, which
-// runs the VM pipeline of the driver) and the Core IR of the closures (closureCore). Parsing and
-// checking the grammar are out.
+// runs the VM pipeline of the driver) and the Core module of the closures (Source.Core, which runs the
+// closure pipeline). Parsing and checking the grammar are out.
 func BenchmarkRuntimeBackendCompile(b *testing.B) {
 	files, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(files) == 0 {
@@ -40,7 +40,7 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 		b.Run(name+"/closure", func(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
-				if _, err := closureCore(p, nil); err != nil {
+				if _, err := Of(p, pass.Settings{}).Core(nil); err != nil {
 					b.Fatal(err)
 				}
 			}

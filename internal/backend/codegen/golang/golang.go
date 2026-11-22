@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -177,7 +178,7 @@ func (d *Decision) Sources() []common.TableSource {
 		if t.table == "recRules" {
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "recognizer"}
 		} else {
-			s[i] = common.TableSource{Build: func() (*core.Module, error) { return elaborate.CoreFrom(t.elab, true) }, Key: "program"}
+			s[i] = common.TableSource{Build: func(control *cancel.Control) (*core.Module, error) { return elaborate.CoreControlled(t.elab, true, true, control) }, Key: "program"}
 		}
 	}
 	return s

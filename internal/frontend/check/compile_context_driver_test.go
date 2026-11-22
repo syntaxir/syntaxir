@@ -131,7 +131,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				c := &fcheck.Compiler{Model: entry.Checked(p).Model, Control: control}
 				c.CheckActionExpr(&ast.ListConstructor{Elem: elem}, fcheck.NewScope(), nil)
 			case "core-build":
-				_, _ = corebuild.CoreControlled(entry.Checked(p), control)
+				_, _ = corebuild.CoreControlled(entry.Checked(p), false, true, control)
 			case "core-analysis", "core-passes", "core-pass-guards", "core-pass-scans", "core-verify":
 				m, err := corebuild.CoreFrom(entry.Checked(p), false)
 				if err != nil {

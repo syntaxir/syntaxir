@@ -61,8 +61,7 @@ func TestPipelineAppliesByFlag(t *testing.T) {
 	}
 }
 
-// A run consumes its module, as the run-time backends (closure.Core, vmlower.Compile) hand it over:
-// the passes that ran changed it in place, and the run returns it, not a copy. Under VerifyEach each
+// A run consumes its module: the passes that ran changed it in place, and the run returns it, not a copy. Under VerifyEach each
 // pass takes a copy, so the module is returned unchanged in another one.
 func TestRunTakesItsModule(t *testing.T) {
 	build := func() *core.Module {

@@ -15,10 +15,11 @@ import (
 	"weak"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
-	irbuild "syntaxir.dev/sxir/internal/frontend/elaborate"
 	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -305,12 +306,11 @@ func TestMeteredProgramSharesTheCoreIR(t *testing.T) {
 // buildClosureCore builds the Core IR of the program prog for the closures, as the parse that first
 // needs a family does (checked.Source.Core).
 func buildClosureCore(prog *frontend.Result) (*ir.Module, error) {
-	m, err := irbuild.CoreControlled(prog, nil)
+	m, err := checked.Of(prog, pass.Settings{}).Core(nil)
 	if err != nil {
 		return nil, err
 	}
-	ir.Analyze(m)
-	return closure.Core(m)
+	return m.(*ir.Module), nil
 }
 
 // inCoreBuild reports whether the calling goroutine is inside the build of the Core IR of the

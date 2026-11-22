@@ -9,6 +9,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -100,7 +101,7 @@ func runTables[U, V any](t *testing.T, r testRun, s *pipe.Split[[]testPart[U], U
 // that build makes, as r says, and returns the module after it.
 func runCoreTable(t *testing.T, r testRun, label string, build func() (*core.Module, error)) (*core.Module, error) {
 	t.Helper()
-	out, err := runTables(t, r, testCoreTables, corePart(), testPart[common.TableSource]{label, common.TableSource{Build: build}})
+	out, err := runTables(t, r, testCoreTables, corePart(), testPart[common.TableSource]{label, common.TableSource{Build: func(*cancel.Control) (*core.Module, error) { return build() }}})
 	if len(out) == 0 {
 		return nil, err
 	}

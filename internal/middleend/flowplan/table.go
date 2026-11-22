@@ -1,6 +1,7 @@
 package flowplan
 
 import (
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
@@ -10,8 +11,10 @@ import (
 
 // TableBuild returns the build of the Core IR of the Node or recognizer table of the program prog, as
 // c selects: the elaboration of the table, whose rules build values only if c.Values is set.
-func TableBuild(prog elaborate.Program, c plandata.TableConfig) func() (*core.Module, error) {
-	return func() (*core.Module, error) { return elaborate.CoreProjecting(prog, true, c.Values) }
+func TableBuild(prog elaborate.Program, c plandata.TableConfig) func(*cancel.Control) (*core.Module, error) {
+	return func(control *cancel.Control) (*core.Module, error) {
+		return elaborate.CoreControlled(prog, true, c.Values, control)
+	}
 }
 
 // TableOf returns the Node or recognizer table whose Core IR m the Core passes made of the build of
