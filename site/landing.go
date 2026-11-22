@@ -12,11 +12,12 @@ import (
 	"github.com/yuin/goldmark/ast"
 )
 
-// The landing page is site/templates/landing.html. It shares two things with README.md, so that the
-// site and the repository make the same promise with the same example: the tagline (the bold or
-// emphasized line under the README's title) and the grammar of the live example (the README's first
-// sxir code block, with the -i input of its first bash block as the example's default input). The
-// example runs on the playground's WebAssembly build of the engine (site/static/assets/landing.js).
+// The landing page is site/templates/landing.html. It and README.md make the same promise with the
+// same example, in both directions. The page takes the tagline (the bold or emphasized line under the
+// README's title) and the grammar of the live example (the README's first sxir code block, with the -i
+// input of its first bash block as the example's default input) from the README; the example runs on
+// the playground's WebAssembly build of the engine (site/static/assets/landing.js). The README takes
+// the page's architecture diagram, generated from this template by site/readme.go.
 
 // landingDescription is the lead of the landing page and its meta description.
 const landingDescription = "Write one typed grammar. SyntaxIR compiles it through a multi-stage IR into a parser for any " +
@@ -32,6 +33,16 @@ type landingData struct {
 	Input       string       // its default input
 	Tools       []string     // the tools of the comparison, SyntaxIR first
 	Compare     []compareRow // the rows of the comparison
+}
+
+// newLandingData returns the landing data that does not come from README.md: everything but the
+// tagline and the live example.
+func newLandingData() landingData {
+	return landingData{
+		Description: landingDescription,
+		Tools:       compareTools,
+		Compare:     compareRows,
+	}
 }
 
 // A compareRow is a capability in the comparison table, with one cell per tool.
@@ -145,7 +156,7 @@ func (s *Site) renderLanding() error {
 		return err
 	}
 	m := s.parseMarkdown(p, src)
-	d := landingData{Description: landingDescription, Tools: compareTools, Compare: compareRows}
+	d := newLandingData()
 	for n := m.doc.FirstChild(); n != nil; n = n.NextSibling() {
 		if h, ok := n.(*ast.Heading); ok && h.Level == 2 {
 			break // the tagline and the example come before the first section
@@ -178,6 +189,20 @@ func (s *Site) renderLanding() error {
 	}
 	d.Phrases = taglinePhrases(d.Tagline)
 
+	body, err := executeLanding(d)
+	if err != nil {
+		return err
+	}
+	p.Title = "SyntaxIR: " + d.Tagline
+	p.Description = d.Description
+	p.Body = template.HTML(body)
+	p.Styles = []string{"assets/diagram.css", "assets/landing.css"}
+	p.Scripts = []string{"assets/landing.js"}
+	return nil
+}
+
+// executeLanding renders the landing template with d.
+func executeLanding(d landingData) ([]byte, error) {
 	tmpl, err := template.New("landing.html").Funcs(template.FuncMap{
 		// ratingSlots lists the five icons of a rating: true for each one that is on.
 		"ratingSlots": func(n int) []bool {
@@ -189,18 +214,13 @@ func (s *Site) renderLanding() error {
 		},
 	}).ParseFS(templateFS, "templates/landing.html")
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var b bytes.Buffer
 	if err := tmpl.Execute(&b, d); err != nil {
-		return err
+		return nil, err
 	}
-	p.Title = "SyntaxIR: " + d.Tagline
-	p.Description = d.Description
-	p.Body = template.HTML(b.String())
-	p.Styles = []string{"assets/landing.css"}
-	p.Scripts = []string{"assets/landing.js"}
-	return nil
+	return b.Bytes(), nil
 }
 
 // taglinePhrases splits a tagline after each comma or sentence, so that "One Grammar, Every Parser."

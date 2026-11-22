@@ -61,6 +61,15 @@ sxir: 1:5: syntax error: expected "(", [0-9]
 > parsers, and closing that gap is the current work. [Why SyntaxIR](docs/why-syntaxir.md) has every
 > measured number, the current limits and how SyntaxIR compares with other tools.
 
+<!-- BEGIN landing:diagram (generated from site/templates/landing.html: run go generate in site, do not edit) -->
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="site/readme/architecture-dark.svg">
+  <img src="site/readme/architecture-light.svg" alt="One grammar, a .sxir file, enters the SyntaxIR core, which checks its cost and safety, optimizes it through a multi-stage IR into typed, incremental and streaming parsers, and provides a full toolchain: a language server, lint, trace, profile and fuzzing. It compiles to generated Go, generated TypeScript, the bytecode VM and WebAssembly in the browser; more targets are on the roadmap." width="960">
+</picture>
+
+<!-- END landing:diagram -->
+
 ## Why SyntaxIR
 
 - **Runs anywhere, any way.** Any target language, any engine, any optimization. One grammar becomes generated code,

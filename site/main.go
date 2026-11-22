@@ -28,6 +28,12 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "readme" {
+		if err := readmeCmd(os.Args[2:]); err != nil {
+			log.Fatal(err)
+		}
+		return
+	}
 	var cfg Config
 	previous, deploy := deploymentURLs(os.Getenv)
 	flag.StringVar(&cfg.Repo, "repo", "..", "root of the SyntaxIR repository")

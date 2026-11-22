@@ -1,0 +1,50 @@
+/* SyntaxIR site: the primitives of the landing page's diagrams (templates/landing.html). They use the
+   tokens of site.css. The README's copies of the diagrams are standalone SVG files that embed this
+   sheet with the tokens resolved for each color scheme (site/readme.go), so the rules here must stay
+   plain CSS over the diagram's own elements. */
+
+/* A spectrum class (s-*) sets the color that strokes, marks and tints use. */
+.s-red { --c: var(--spectrum-red); }
+.s-orange { --c: var(--spectrum-orange); }
+.s-green, .d-stroke-green { --c: var(--spectrum-green); }
+.s-teal { --c: var(--spectrum-teal); }
+.s-blue { --c: var(--spectrum-blue); }
+.s-magenta { --c: var(--spectrum-magenta); }
+.d-stroke-accent { --c: var(--accent); }
+
+.d-box { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; }
+.d-core { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+.d-panel { fill: var(--bg); stroke: var(--c, var(--line-strong)); stroke-width: 1.5; }
+.d-panel-accent { stroke: var(--accent); }
+.d-chip { fill: color-mix(in srgb, var(--c, var(--accent)) 10%, var(--bg)); stroke: var(--c, var(--accent)); stroke-width: 1.5; }
+.d-target-box { fill: color-mix(in srgb, var(--c) 8%, var(--bg)); stroke: var(--c); stroke-width: 1.5; }
+
+.d-icon, .d-icon-ink, .d-icon-accent, .d-icon-muted { fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.d-icon { stroke: var(--c); }
+.d-icon-ink { stroke: var(--ink); }
+.d-icon-accent { stroke: var(--accent); }
+.d-icon-muted { stroke: var(--ink-faint); }
+.d-dot { fill: var(--c); stroke: none; }
+
+.d-line, .d-line-bold { fill: none; stroke: var(--c, var(--ink-faint)); stroke-width: 2; stroke-linecap: round; }
+.d-line-bold { stroke-width: 3; }
+.d-line-soft { fill: none; stroke: var(--line-strong); stroke-width: 1.5; }
+.d-arrow { stroke: var(--ink-faint); stroke-width: 1.5; }
+.d-dashed { stroke-dasharray: 7 5; }
+.d-dotted { stroke-dasharray: 2 4; }
+.d-path { fill: none; stroke: var(--c); stroke-width: 2.5; }
+
+.d-node-root { fill: var(--ink); }
+.d-node-reused { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+
+.d-title, .d-stat, .d-target-name { font-family: var(--font-display); fill: var(--ink); }
+.d-title { font-size: 16px; font-weight: 700; }
+.d-stat { font-size: 14px; font-weight: 700; }
+.d-target-name { font-size: 15px; font-weight: 600; }
+.d-label, .d-label-strong { font-family: var(--font-body); font-size: 12.5px; fill: var(--ink-muted); }
+.d-label-strong { font-size: 13px; font-weight: 600; fill: var(--ink); }
+.d-small { font-size: 11.5px; }
+.d-code { font-family: var(--font-mono); font-size: 12px; fill: var(--ink-muted); font-variant-ligatures: none; }
+.d-fill-ink { fill: var(--ink); }
+.d-fill-accent { fill: var(--accent); }
+.d-fill-error { fill: var(--error); }
