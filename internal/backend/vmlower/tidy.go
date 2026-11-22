@@ -162,3 +162,77 @@ func compact(f *bytecode.Flow, keep []bool) {
 	}
 	f.Code = out
 }
+
+// threadJumps rewrites the jumps of the body f once it is selected: a jump to a JUMP goes to where
+// that JUMP goes, a conditional jump over a JUMP jumps on the opposite condition to where that JUMP
+// goes, and the instructions that no path reaches and the JUMPs to the next instruction are
+// removed. The control of a Flow function becomes jumps block by block, so an exit from nested blocks
+// jumps to the end of each block in turn, and a block that ends in a jump leaves a jump to the next
+// instruction behind it; a run of the body then takes one jump where the selection wrote a chain. It
+// changes no path's operations, only the jumps a path takes.
+func threadJumps(f *bytecode.Flow) {
+	code := f.Code
+	final := func(t int) int {
+		// A chain of JUMPs ends within len(code) hops unless it is a cycle of JUMPs alone, which
+		// the jumps keep as they are.
+		for range len(code) {
+			if t >= len(code) || code[t].Op != bytecode.FlowJump {
+				return t
+			}
+			t = code[t].Target
+		}
+		return t
+	}
+	for i := range code {
+		if sh, _ := code[i].Op.Shape(); sh.Target {
+			code[i].Target = final(code[i].Target)
+		}
+	}
+	// A conditional jump over a JUMP that no other jump goes to becomes the opposite conditional
+	// jump to where the JUMP goes, which the reachability below then removes.
+	targets := make(map[int]bool)
+	for _, in := range code {
+		if sh, _ := in.Op.Shape(); sh.Target {
+			targets[in.Target] = true
+		}
+	}
+	opposite := map[bytecode.FlowOp]bytecode.FlowOp{bytecode.FlowJumpFalse: bytecode.FlowJumpTrue, bytecode.FlowJumpTrue: bytecode.FlowJumpFalse}
+	skipped := make([]bool, len(code)) // the JUMPs that such a conditional jump no longer passes over
+	for i := 0; i+2 < len(code); i++ {
+		in, j := &code[i], code[i+1]
+		if op, ok := opposite[in.Op]; ok && in.Target == i+2 && j.Op == bytecode.FlowJump && !targets[i+1] && !skipped[i] {
+			in.Op, in.Target = op, j.Target
+			skipped[i+1] = true
+		}
+	}
+	keep := make([]bool, len(code)) // first whether a path reaches the instruction
+	seen := make([]bool, len(code))
+	work := []int{0}
+	for len(work) > 0 {
+		i := work[len(work)-1]
+		work = work[:len(work)-1]
+		if i >= len(code) || seen[i] {
+			continue
+		}
+		seen[i] = true
+		if skipped[i] {
+			work = append(work, i+1)
+			continue
+		}
+		keep[i] = true
+		work = append(work, successors(code, i)...)
+	}
+	// A JUMP to the next instruction that stays goes; from the end, so that a run of them goes.
+	next := len(code)
+	for i := len(code) - 1; i >= 0; i-- {
+		if !keep[i] {
+			continue
+		}
+		if code[i].Op == bytecode.FlowJump && code[i].Target == next {
+			keep[i] = false
+			continue
+		}
+		next = i
+	}
+	compact(f, keep)
+}

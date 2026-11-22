@@ -115,3 +115,56 @@ func TestValuesAreSelectedIntoLocals(t *testing.T) {
 		}
 	}
 }
+
+// TestJumpsAreThreaded requires the bodies of the testdata grammars to take one jump where the
+// selection wrote a chain: no jump goes to a JUMP, no JUMP goes to the next instruction, no
+// conditional jump only passes over a JUMP, and every instruction is reached.
+func TestJumpsAreThreaded(t *testing.T) {
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
+	if err != nil || len(paths) == 0 {
+		t.Fatalf("no grammars: %v", err)
+	}
+	for _, path := range paths {
+		_, bc, _ := compileGrammar(t, grammarProgram(t, path))
+		for rule, f := range bc.Flows {
+			name := bc.Strings[bc.Rules[rule].Name]
+			code := f.Code
+			targets := map[int]bool{}
+			for _, in := range code {
+				if sh, _ := in.Op.Shape(); sh.Target {
+					targets[in.Target] = true
+				}
+			}
+			reached := make([]bool, len(code))
+			work := []int{0}
+			for len(work) > 0 {
+				i := work[len(work)-1]
+				work = work[:len(work)-1]
+				if i >= len(code) || reached[i] {
+					continue
+				}
+				reached[i] = true
+				in := code[i]
+				if sh, _ := in.Op.Shape(); sh.Target {
+					work = append(work, in.Target)
+				}
+				if in.Op != bytecode.FlowJump && in.Op != bytecode.FlowReturn {
+					work = append(work, i+1)
+				}
+			}
+			for i, in := range code {
+				sh, _ := in.Op.Shape()
+				switch {
+				case !reached[i]:
+					t.Errorf("%s: rule %s: %v at %d is not reached", path, name, in.Op, i)
+				case sh.Target && code[in.Target].Op == bytecode.FlowJump:
+					t.Errorf("%s: rule %s: %v at %d goes to the JUMP at %d", path, name, in.Op, i, in.Target)
+				case in.Op == bytecode.FlowJump && in.Target == i+1:
+					t.Errorf("%s: rule %s: JUMP at %d goes to the next instruction", path, name, i)
+				case (in.Op == bytecode.FlowJumpFalse || in.Op == bytecode.FlowJumpTrue) && in.Target == i+2 && code[i+1].Op == bytecode.FlowJump && !targets[i+1]:
+					t.Errorf("%s: rule %s: %v at %d only passes over a JUMP", path, name, in.Op, i)
+				}
+			}
+		}
+	}
+}

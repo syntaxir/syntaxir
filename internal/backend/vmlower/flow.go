@@ -183,6 +183,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 			return nil, fmt.Errorf("an exit to a block that does not enclose it")
 		}
 		coalesceCopies(s.f)
+		threadJumps(s.f)
 		return s.f, s.zeroLocals(zeros)
 	}
 	// The body of a local function is the block of the fail label: running to its end succeeds with
@@ -207,6 +208,7 @@ func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 		return nil, fmt.Errorf("an exit to a block that does not enclose it")
 	}
 	coalesceCopies(s.f)
+	threadJumps(s.f)
 	return s.f, s.zeroLocals(zeros)
 }
 

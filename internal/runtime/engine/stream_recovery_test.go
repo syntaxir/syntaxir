@@ -14,13 +14,14 @@ import (
 )
 
 // skipStreamRemark returns the program of src, a grammar whose start rule main has one stream body,
-// with the jumps that end an evaluated element retargeted past the marks each element saves after
-// its STEP, instead of to the loop back: the next element then restores, when a choice or a
-// recovery backtracks, the state the previous element saved before it was emitted. The loop back
-// is the jump from past the STEP to an instruction between the STREAMSTART and the STEP, where a
-// Document parse reuses the elements of the previous parse; the reuse still goes through the marks.
+// with the jumps that end an element retargeted past the marks each element saves after its STEP,
+// instead of back to the start of the loop: the next element then restores, when a choice or a
+// recovery backtracks, the state the previous element saved before it was emitted. A jump back is a
+// jump from past the STEP to an instruction between the STREAMSTART and the STEP, where a Document
+// parse reuses the elements of the previous parse.
 func skipStreamRemark(t *testing.T, src string) *Program {
 	t.Helper()
+	jumps := func(op bytecode.FlowOp) bool { sh, _ := op.Shape(); return sh.Target }
 	p := mustCompile(t, src)
 	m := p.Module()
 	if len(m.Streams) != 1 {
@@ -41,14 +42,9 @@ func skipStreamRemark(t *testing.T, src string) *Program {
 		for past < len(f.Code) && (f.Code[past].Op == bytecode.FlowMark || f.Code[past].Op == bytecode.FlowMove) {
 			past++
 		}
-		loop, back := -1, 0
+		back := 0
 		for pc := step + 1; step >= 0 && pc < len(f.Code); pc++ {
-			if in := f.Code[pc]; in.Op == bytecode.FlowJump && in.Target > start && in.Target <= step {
-				loop = pc
-			}
-		}
-		for pc := step + 1; loop >= 0 && pc < len(f.Code); pc++ {
-			if in := &f.Code[pc]; in.Op == bytecode.FlowJump && in.Target == loop {
+			if in := &f.Code[pc]; jumps(in.Op) && in.Target > start && in.Target <= step {
 				in.Target = past
 				back++
 			}
