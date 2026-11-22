@@ -3,6 +3,7 @@
 package document
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
@@ -38,7 +39,11 @@ func TestSnapshotSharedStringComparisonRespectsBudgetLimit(t *testing.T) {
 	}
 }
 
-func TestSnapshotChildRunCopyRespectsBudgetLimit(t *testing.T) {
+// TestSnapshotChildRunCopyRespectsCancellation pins that the copy of a changed run of children
+// reserves its elements before it copies them, so that it polls the context: the context is canceled
+// once the scan of the runs has counted its 1025 elements, and only the reservation of the changed
+// run's 256 elements reaches the next poll.
+func TestSnapshotChildRunCopyRespectsCancellation(t *testing.T) {
 	if !snapshotChildChunksEnabled || !state.BudgetControlsEnabled {
 		t.Skip("child run or budget control reference")
 	}
@@ -53,11 +58,10 @@ func TestSnapshotChildRunCopyRespectsBudgetLimit(t *testing.T) {
 	changed[512] = 9999
 	next := snapshotRecord{children: changed}
 	graph := snapshotGraph{nodes: []snapshotRecord{old}}
-	p := &state.Parser{Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1170})}
+	p := cancelAfter(1025)
 	err := catchFatal(t, func() { shareSnapshotChildren(p, &graph, &graph.nodes[0], &next) })
-	var limit *runtime.LimitError
-	if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
-		t.Fatal("copy escaped compute limit", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal("copy escaped cancellation", err)
 	}
 	if next.childChunked || len(next.children) != 1025 || next.children[512] != 9999 {
 		t.Fatal("interrupted copy changed the source record")

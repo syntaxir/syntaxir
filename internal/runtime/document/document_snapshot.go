@@ -422,18 +422,6 @@ func (d *Document) snapshotWith(o state.ParseOptions, legacy **sxirvalue.Node) (
 	return result, err
 }
 
-func snapshotStrings(p *state.Parser, in []string) []string {
-	if in == nil {
-		return nil
-	}
-	out := make([]string, len(in))
-	if p == nil {
-		copy(out, in)
-	} else {
-		state.CopySpend(p, out, in)
-	}
-	return out
-}
 func copySnapshotError(p *state.Parser, err error) error {
 	syntax := func(e *sxirvalue.SyntaxError) *sxirvalue.SyntaxError {
 		if e == nil {
@@ -443,7 +431,7 @@ func copySnapshotError(p *state.Parser, err error) error {
 			p.Spend()
 		}
 		out := *e
-		out.Expected, out.Messages = snapshotStrings(p, e.Expected), snapshotStrings(p, e.Messages)
+		out.Expected, out.Messages = copyStrings(p, e.Expected), copyStrings(p, e.Messages)
 		return &out
 	}
 	switch e := err.(type) {
@@ -629,7 +617,7 @@ func (d *Document) shareWithPrevious(p *state.Parser, next snapshotGraph) snapsh
 	if d.previousRoot != next.root {
 		return next
 	}
-	p.SpendValue(snapshotSharingCharge(&next))
+	p.SpendN(uint64(snapshotSharingCharge(&next)))
 	p.Control.Check()
 	previous := d.previousSnapshot.Value()
 	if previous == nil {
@@ -796,7 +784,7 @@ func shareSnapshotChildren(p *state.Parser, previousGraph *snapshotGraph, previo
 	for i := range equal {
 		start := i * snapshotChildChunkSize
 		end := min(start+snapshotChildChunkSize, len(next.children))
-		p.SpendValue(end - start)
+		p.SpendN(uint64(end - start))
 		old := previousGraph.childChunk(previous, i, end-start)
 		if len(old) != 0 && slices.Equal(old, next.children[start:end]) {
 			equal[i] = true
@@ -814,8 +802,8 @@ func shareSnapshotChildren(p *state.Parser, previousGraph *snapshotGraph, previo
 		if equal[i] {
 			chunks[i] = previousGraph.childChunk(previous, i, end-start)
 		} else {
-			chunks[i] = make([]int, end-start)
-			state.CopySpend(p, chunks[i], next.children[start:end])
+			p.SpendN(uint64(end - start))
+			chunks[i] = append(make([]int, 0, end-start), next.children[start:end]...)
 		}
 	}
 	length := len(next.children)
@@ -866,7 +854,7 @@ func sameFlatSnapshotRecord(p *state.Parser, a, b *snapshotRecord) bool {
 	}
 	for offset := 0; offset < len(a.children); offset += 4096 {
 		end := min(offset+4096, len(a.children))
-		p.SpendValue(end - offset)
+		p.SpendN(uint64(end - offset))
 		if !slices.Equal(a.children[offset:end], b.children[offset:end]) {
 			return false
 		}
@@ -886,7 +874,7 @@ func sameSnapshotChildren(p *state.Parser, ag *snapshotGraph, a *snapshotRecord,
 	if !a.childChunked && !b.childChunked {
 		for offset := 0; offset < count; offset += 4096 {
 			end := min(offset+4096, count)
-			p.SpendValue(end - offset)
+			p.SpendN(uint64(end - offset))
 			if !slices.Equal(a.children[offset:end], b.children[offset:end]) {
 				return false
 			}
@@ -895,7 +883,7 @@ func sameSnapshotChildren(p *state.Parser, ag *snapshotGraph, a *snapshotRecord,
 	}
 	for offset := 0; offset < count; offset += snapshotChildChunkSize {
 		end := min(offset+snapshotChildChunkSize, count)
-		p.SpendValue(end - offset)
+		p.SpendN(uint64(end - offset))
 		if !slices.Equal(ag.childChunk(a, offset/snapshotChildChunkSize, end-offset), bg.childChunk(b, offset/snapshotChildChunkSize, end-offset)) {
 			return false
 		}

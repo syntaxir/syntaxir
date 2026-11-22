@@ -3,6 +3,7 @@
 package document
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -87,7 +88,7 @@ func TestSnapshotPositionOverlayCyclesAndTypedNil(t *testing.T) {
 	}
 }
 
-func TestSnapshotPositionOverlayBudgetAndRetry(t *testing.T) {
+func TestSnapshotPositionOverlayCancellationAndRetry(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget control reference")
 	}
@@ -96,11 +97,13 @@ func TestSnapshotPositionOverlayBudgetAndRetry(t *testing.T) {
 	for i := range next.nodes {
 		next.nodes[i] = snapshotRecord{start: 3, end: 5, gen: 1}
 	}
-	p := &state.Parser{Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 264})}
+	// Sharing runs with the limit lifted, so the copy of the positions must observe cancellation: the
+	// context is canceled once the comparisons have counted their units, at most 264, and only the
+	// copy's reservations of 3 units for each of its 128 positions reach a later poll.
+	p := cancelAfter(264)
 	err := catchFatal(t, func() { shareSnapshotGraph(p, &previous, next) })
-	var limit *runtime.LimitError
-	if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute || limit.Requested != 3 {
-		t.Fatal("overlay metadata copy escaped compute limit", err)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatal("overlay metadata copy escaped cancellation", err)
 	}
 	if previous.positions != nil || next.positions != nil || previous.nodes[0].start != 0 || next.nodes[0].start != 3 {
 		t.Fatal("interrupted copy changed the input graphs")

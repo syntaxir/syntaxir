@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"slices"
-	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/document"
@@ -18,8 +17,9 @@ import (
 // countedSweep parses a new Document of text, and, if edit is set, applies it after that parse and
 // parses again. The last parse runs under the default compute limit once for each l from 1 up, with
 // the limit lowered at its first trace event so that the units that a parse from scratch counts may
-// reach only l. It returns the Used and Requested of each limit error, as "Used+Requested", and the
-// least l at which the parse succeeds.
+// reach only l. It returns the Used of each limit error, which it requires to report no Requested
+// units (spec/runtime/parsing.md#checks-and-interruptions), as "Used/Limit", and the least l at which
+// the parse succeeds.
 func countedSweep(t *testing.T, prog *Program, text string, edit func(*document.Document) error, b Backend) (errs []string, total uint64) {
 	t.Helper()
 	for l := uint64(1); l < 5000; l++ {
@@ -47,8 +47,10 @@ func countedSweep(t *testing.T, prog *Program, text string, edit func(*document.
 			return errs, l
 		} else if le := (*runtime.LimitError)(nil); !errors.As(err, &le) || le.Kind != runtime.LimitCompute {
 			t.Fatalf("limit %d: %v", l, err)
+		} else if le.Requested != 0 {
+			t.Fatalf("limit %d: the error requests %d units, want 0", l, le.Requested)
 		} else {
-			errs = append(errs, fmt.Sprintf("%d+%d", le.Used, le.Requested))
+			errs = append(errs, fmt.Sprintf("%d/%d", le.Used, le.Limit))
 		}
 	}
 	t.Fatal("the parse does not succeed within 5000 units")
@@ -61,9 +63,10 @@ func countedSweep(t *testing.T, prog *Program, text string, edit func(*document.
 // and Compute Limits), and that taking the elements of the list of the second alternative off is free
 // as well: values the parse builds are not an item of the cost (spec/runtime/parsing.md#cost). The first
 // alternative of each grammar fails, below its minimum or at a cut, after gathering elements, and the
-// second makes the list, so every reservation is a single unit. For the runs that fail below their
-// minimum, the closure backend's resumed runs and the bytecode machine's runs charge the same units in
-// the same order, so every limit fails with the same Used and Requested on every backend.
+// second makes the list, so every count is of a single unit and every limit error reports one unit
+// past its limit. For the runs that fail below their minimum, the closure backend's resumed runs and
+// the bytecode machine's runs count the same units in the same order, so every limit fails with the
+// same Used on every backend.
 func TestBudgetDocumentFailedRunDropsItsElements(t *testing.T) {
 	trim := func(d *document.Document) error { return d.Edit(4, 5, "") } // "abcde" to "abcd"
 	for _, c := range []struct {
@@ -86,12 +89,16 @@ func TestBudgetDocumentFailedRunDropsItsElements(t *testing.T) {
 				errs, _ := countedSweep(t, prog, c.text, c.edit, b)
 				var multi []string
 				for _, e := range errs {
-					if !slices.Contains(multi, e) && !strings.HasSuffix(e, "+1") {
+					var used, limit uint64
+					if _, err := fmt.Sscanf(e, "%d/%d", &used, &limit); err != nil {
+						t.Fatal(err)
+					}
+					if used != limit+1 && !slices.Contains(multi, e) {
 						multi = append(multi, e)
 					}
 				}
 				if len(multi) != 0 {
-					t.Errorf("%s: reservations of more than one unit %v, want none", b, multi)
+					t.Errorf("%s: counts of more than one unit past the limit %v, want none", b, multi)
 				}
 				if first == nil {
 					first = errs

@@ -46,6 +46,12 @@ rule item = "a"`)
 					cancel()
 				}
 				if phase == "steps" {
+					// An unedited Document reuses its result for the unit of the call of main, which a
+					// limit of 1 does not exceed. An edit that keeps the text makes the parse evaluate
+					// the items again, which counts more.
+					if err := d.Edit(1, 2, "a"); err != nil {
+						t.Fatal(err)
+					}
 					o.Limits.Compute = 1
 				}
 				if phase == "enter" || phase == "exit" {
