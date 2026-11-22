@@ -24,6 +24,7 @@ func TestDeclarationHeaderCommentsJSON(t *testing.T) {
 		{"alias", "type U /* ha */ ~ /* hb */ int\nrule r = \"a\"\n", []string{"/* ha */", "/* hb */"}},
 		{"node type", "type N /* hn */ = /* ho */ node[string]\nrule r = \"a\"\n", []string{"/* hn */", "/* ho */"}},
 		{"var", "var /* hv */ v /* hw */ int = 1\nrule r = \"a\"\n", []string{"/* hv */", "/* hw */"}},
+		{"var before =", "var v /* hx */ = 1\nvar w int /* hy */ = 2\nrule r = \"a\"\n", []string{"/* hx */", "/* hy */"}},
 		{"field", "type T = { A /* hf */ /* hg */ int ; B /* hh */ string }\nrule r = \"a\"\n", []string{"/* hf */", "/* hg */", "/* hh */"}},
 		{"multi-line field", "type T = {\n\tA /* hf */ int\n\tB /* hg */ string\n}\nrule r = \"a\"\n", []string{"/* hf */", "/* hg */"}},
 	}

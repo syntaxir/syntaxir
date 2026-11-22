@@ -515,11 +515,15 @@ func (c *canonical) decl(d types.Decl) ast.Decl {
 		v := &ast.VarDef{Name: c.name(d.Name)}
 		name := d.Name
 		v.HeaderComments = c.header(d.SourceSpan.Start+len("var"), name.Start)
+		last := name.End
 		if !isNil(d.Type) {
 			v.HeaderComments = append(v.HeaderComments, c.header(name.End, start(d.Type.(ranged)))...)
 			v.Type = c.typ(d.Type)
+			last = end(d.Type.(ranged))
 		}
 		if !isNil(d.Value) {
+			// The header ends at the "="; the value owns the comments after it.
+			v.HeaderComments = append(v.HeaderComments, c.header(last, c.nextToken(last))...)
 			v.Value = c.action(d.Value)
 		}
 		c.statement(&v.SourceInfo, d.SourceSpan, sep, false)

@@ -355,7 +355,6 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 			typ(s.Type)
 		case *VarDef:
 			add(s.Break)
-			cs = appendMetadata(cs, s.HeaderTokens, control)
 			if s.Type != nil {
 				typ(s.Type)
 			}

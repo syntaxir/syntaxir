@@ -101,9 +101,9 @@ func (lc *layoutCursor) appendComments(dst, comments []*ast.Comment) []*ast.Comm
 	return append(dst, comments...)
 }
 
-// headerGap returns the normalized contents of the comments before the current token, a gap
-// in the header of a variable declaration that the declaration owns. No node starting at the
-// token owns them (see commentBoundary.ownByHeader).
+// headerGap returns the normalized contents of the comments before the current token, the gap
+// between the name and the type of a struct field, which the field owns. No node starting at
+// the token owns them (see commentBoundary.ownByHeader).
 func (lc *layoutCursor) headerGap() []string {
 	t := lc.toks[lc.i]
 	t.source.ownByHeader()
@@ -117,9 +117,8 @@ func (lc *layoutCursor) headerGap() []string {
 	return out
 }
 
-// takeHeaderGap is headerGap for the gap between the name and the type of a struct field or
-// a variable declaration, which the formatter writes before the type: it also returns the comment tokens, which leave
-// the token.
+// takeHeaderGap is headerGap that also returns the comment tokens, which leave the token: the
+// formatter writes them between the name and the type of the field.
 func (lc *layoutCursor) takeHeaderGap() ([]string, []*ast.Comment) {
 	out := lc.headerGap()
 	t := &lc.toks[lc.i]
@@ -130,6 +129,25 @@ func (lc *layoutCursor) takeHeaderGap() ([]string, []*ast.Comment) {
 	tokens = append(tokens, t.comments...)
 	t.lineComment, t.comments = nil, nil
 	return out, tokens
+}
+
+// headerBefore records the comments before the current token as header comments of the
+// declaration at pos, as if the token were read inside its header, and returns their
+// normalized contents. The comments leave the token, so the node starting at it does not own
+// them: they are the gap between the name and the type of a variable declaration.
+func (lc *layoutCursor) headerBefore(pos ast.Pos) []string {
+	from := len(lc.headerComments)
+	header, headerPos := lc.header, lc.headerPos
+	lc.header, lc.headerPos = true, pos
+	t := &lc.toks[lc.i]
+	lc.collectHeader(*t)
+	lc.header, lc.headerPos = header, headerPos
+	t.lineComment, t.comments = nil, nil
+	out := make([]string, 0, len(lc.headerComments)-from)
+	for _, c := range lc.headerComments[from:] {
+		out = append(out, c.Content)
+	}
+	return out
 }
 
 // takeRun returns the comment c at the end of the line of the token before t, together with the

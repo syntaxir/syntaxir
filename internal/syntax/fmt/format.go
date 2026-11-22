@@ -305,8 +305,8 @@ func fieldComments(f *ast.Field) string {
 	return headerTokens(f.HeaderTokens)
 }
 
-// headerTokens returns the comment tokens at the end of a header, before the
-// type that follows it, each written as an inline comment.
+// headerTokens returns the comment tokens between the name and the type of a
+// field, each written as an inline comment before the type.
 func headerTokens(tokens []*ast.Comment) string {
 	var out strings.Builder
 	for _, c := range tokens {
@@ -443,15 +443,10 @@ func (p *printer) structBody(fields []*ast.Field, closeBreak *ast.LineBreak, one
 
 func (p *printer) varDef(v *ast.VarDef) {
 	pollFormat(p.control)
-	owned := v.HeaderComments
-	if len(v.HeaderTokens) > 0 {
-		// A parsed declaration keeps the tokens of its header comments.
-		owned = nil
-	}
-	p.header("var", v.Pos, owned)
+	p.header("var", v.Pos, v.HeaderComments)
 	p.write(" " + v.Name)
 	if v.Type != nil {
-		p.write(" " + headerTokens(v.HeaderTokens) + formatType(v.Type, p.control))
+		p.write(" " + formatType(v.Type, p.control))
 	}
 	if v.Value != nil {
 		lead := ""

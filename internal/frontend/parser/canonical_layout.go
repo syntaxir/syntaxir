@@ -159,10 +159,11 @@ func (r *layoutReplay) varDef(d *ast.VarDef) {
 	lc.next() // var
 	r.header(d.Pos, func() { lc.next() })
 	if d.Type != nil {
-		_, d.HeaderTokens = lc.takeHeaderGap()
+		lc.headerBefore(d.Pos)
 		r.typ(d.Type)
 	}
 	if d.Value != nil {
+		lc.headerBefore(d.Pos)
 		lc.next() // =
 		r.actionExpr(d.Value)
 	}

@@ -267,11 +267,15 @@ func (s *shaper) decl(d *value.Node) {
 	case "VarDef":
 		name := fieldNode(d, "Name")
 		s.header(span.Start()+len("var"), name.Start())
+		last := name.End()
 		if t := fieldNode(d, "Type"); t != nil {
 			s.header(name.End(), t.Start())
 			s.typ(t)
+			last = t.End()
 		}
 		if v := fieldNode(d, "Value"); v != nil {
+			// The header ends at the "="; the value owns the comments after it.
+			s.header(last, nextToken(s.src, last))
 			s.action(v)
 		}
 		s.statement("VarDef", d, sep)

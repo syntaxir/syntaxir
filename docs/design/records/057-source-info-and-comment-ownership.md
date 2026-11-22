@@ -112,9 +112,10 @@ declaration keeps ownership predictable, and the body is a node that can own
 them; a header that also took the gap after `=` would differ between rules,
 whose body is an expression, and types. A struct field owns the comments
 between its name and its type in the same way, and keeps their tokens in
-`Field.HeaderTokens` for the formatter; a variable declaration keeps those
-before its type, the end of its header, in `VarDef.HeaderTokens`, so they stay
-accepted, unlike the header comments that `File.HeaderComments` keeps. The
+`Field.HeaderTokens` for the formatter. A variable declaration has no such
+gap: the comments between its name and its type, or before its `=`, are in its
+header, kept in `File.HeaderComments` and rejected like those of every other
+declaration header. The
 comments inside the `#operators {` that opens an Operators Rule, or inside the
 parentheses of a level call, lie inside a span and have no owner; the rule
 keeps their tokens in `OperatorsRule.OpenComments` and the call in

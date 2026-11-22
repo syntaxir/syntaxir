@@ -247,10 +247,6 @@ type VarDef struct {
 
 	// Break holds the comments before the declaration, as for TypeDef.
 	Break *LineBreak `json:"-"`
-	// HeaderTokens are the comment tokens of the end of HeaderComments, those
-	// between the name and the type, in a parsed grammar. Format writes them
-	// before the type, as for Field, and HeaderComments only without them.
-	HeaderTokens []*Comment `json:"-"`
 }
 
 func (d *TypeDef) DeclName() string   { return d.Name }

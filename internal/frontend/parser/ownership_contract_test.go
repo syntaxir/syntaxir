@@ -277,6 +277,8 @@ var ownershipCases = []ownershipCase{
 	{"node type owns the gap after =", "package p\n\ntype T = /* a */ node[string]\n", []string{".File.Decls[0].Type detached \" a \""}},
 	{"alias type owns the gap after ~", "package p\n\ntype T /* a */ ~ /* b */ int\n", []string{".File.Decls[0] HeaderComments \" a \"", ".File.Decls[0].Type detached \" b \""}},
 	{"var header and value", "package p\n\nvar /* a */ v /* b */ int = /* c */ 1\n", []string{".File.Decls[0] HeaderComments \" a \"", ".File.Decls[0] HeaderComments \" b \"", ".File.Decls[0].Value detached \" c \""}},
+	{"var header ends at =", "package p\n\nvar v /* a */ = /* b */ 1\n", []string{".File.Decls[0] HeaderComments \" a \"", ".File.Decls[0].Value detached \" b \""}},
+	{"var type and = in the header", "package p\n\nvar v int /* a */ = 1\n", []string{".File.Decls[0] HeaderComments \" a \""}},
 	{"field header", "package p\n\ntype T = { A /* a */ []int }\n", []string{".File.Decls[0].Type.Fields[0] HeaderComments \" a \""}},
 	{"field leads and trails", "package p\n\ntype T = {\n    // a\n    A int // b\n}\n", []string{".File.Decls[0].Type.Fields[0] leading \" a\\n\"", ".File.Decls[0].Type.Fields[0] trailing \" b\\n\""}},
 	{"keyword comments after attributes", "package p\n\n@inline\n// a\nrule r = \"x\"\n", []string{".File.Decls[0] KeywordComments \" a\\n\""}},

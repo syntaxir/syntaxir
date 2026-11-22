@@ -10,7 +10,8 @@ import (
 // must not add a second one. The output must also format to itself.
 func TestFormatCommentAfterSeparator(t *testing.T) {
 	for _, tc := range []struct{ src, want string }{
-		{"var x int /* a */ = /* b */ 1\n", "/* a */\nvar x int = /* b */ 1\n"},
+		// A comment before "=" is in the header, written after the keyword.
+		{"var x int /* a */ = /* b */ 1\n", "var /* a */ x int = /* b */ 1\n"},
 		{"var x = /* b */ 1\n", "var x = /* b */ 1\n"},
 		{"var x int = 1\n", "var x int = 1\n"},
 		{"rule a = b => /* c */ 1\n", "rule a = b => /* c */ 1\n"},

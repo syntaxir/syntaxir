@@ -297,8 +297,7 @@ formatted comment. Edit the raw layout tokens or reparse the source to
 resynchronize them. Layout is one of several places that keep comment tokens:
 statements, struct fields and operators lines keep theirs in `LineBreak`
 values, declaration headers in `File.HeaderComments`, the comments between
-the name and the type of a field or a variable declaration in
-`Field.HeaderTokens` and `VarDef.HeaderTokens`, those inside the `#operators {`
+the name and the type of a field in `Field.HeaderTokens`, those inside the `#operators {`
 of an Operators Rule in `OperatorsRule.OpenComments`, and those inside the
 parentheses of a level call in `Ref.LevelGaps`. Every comment of a parsed
 source is kept once among them, and `Grammar.AllComments` returns each once,

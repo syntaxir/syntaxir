@@ -674,11 +674,12 @@ func (p *parser) varDef() (sourceResult *ast.VarDef) {
 	p.header = false
 	vd := &ast.VarDef{SourceInfo: ast.SourceInfo{Pos: pos}, Name: name.text, HeaderComments: p.headerContents(headerFrom), Break: br}
 	if !p.boundary() && p.tok().kind != tEOF && !p.is("=") && !p.is(";") {
-		gap, tokens := p.takeHeaderGap()
-		vd.HeaderComments, vd.HeaderTokens = append(vd.HeaderComments, gap...), tokens
+		vd.HeaderComments = append(vd.HeaderComments, p.headerBefore(pos)...)
 		vd.Type = p.typeExpr()
 	}
 	if !p.boundary() && p.is("=") {
+		// The header ends at the "="; the value owns the comments after it.
+		vd.HeaderComments = append(vd.HeaderComments, p.headerBefore(pos)...)
 		p.next()
 		if p.boundary() {
 			p.errorf("expected the initial value on the same statement, found %s", p.tok())

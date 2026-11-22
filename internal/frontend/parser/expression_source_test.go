@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/syntax/fmt"
@@ -99,6 +100,8 @@ func TestExpressionSourceHeaderComments(t *testing.T) {
 		`rule /*header*/ main = "a"`,
 		`type /*header*/ A = { Text string }; rule main = "a"`,
 		`package /*header*/ demo; rule main = "a"`,
+		`var /*header*/ x int; rule main = "a"`,
+		`var x /*header*/ int; rule main = "a"`,
 		`rule main = #operators { operand "a"; level /*header*/ { infix left "+" } }`,
 		`rule main = #operators { operand "a"; level { infix /*header*/ left "+" } }`,
 	} {
@@ -143,6 +146,42 @@ rule main = v1:"a" "b" {x := 1} => N{Value: len($v1)} /*after action*/`
 	}
 	if _, err := entry.Compile(starttest.MarkAll(g), entry.Options{}); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestVariableHeaderCommentRejected checks that a comment in the header of a
+// variable declaration after its name, before its type or its "=", is a header
+// comment on each frontend: the compiler rejects it at its own position with
+// the header diagnostic.
+func TestVariableHeaderCommentRejected(t *testing.T) {
+	for _, tt := range []struct {
+		src       string
+		line, col int
+	}{
+		{"var x /* c */ int\nrule main = \"a\"\n", 1, 7},
+		{"var x /* c */ = 1\nrule main = \"a\"\n", 1, 7},
+		{"var x int /* c */ = 1\nrule main = \"a\"\n", 1, 11},
+		{"var x /* c */ int = 1\nrule main = \"a\"\n", 1, 7},
+		{"var x /* c */ (int)\nrule main = \"a\"\n", 1, 7},
+	} {
+		for _, frontend := range []struct {
+			name  string
+			parse func(string) (*ast.Grammar, error)
+		}{{"generated", parser.Parse}, {"reference", parser.ParseReference}} {
+			g, err := frontend.parse(tt.src)
+			if err != nil {
+				t.Errorf("%s %q: %v", frontend.name, tt.src, err)
+				continue
+			}
+			if n := len(g.File.HeaderComments); n != 1 {
+				t.Errorf("%s %q: %d header comments", frontend.name, tt.src, n)
+			}
+			_, err = entry.Compile(starttest.MarkAll(g), entry.Options{})
+			want := (&diagnostic.Error{Pos: ast.Pos{Line: tt.line, Col: tt.col}, Msg: "comments are not allowed inside statement headers"}).Error()
+			if err == nil || !strings.Contains(err.Error(), want) {
+				t.Errorf("%s %q: want %q, got %v", frontend.name, tt.src, want, err)
+			}
+		}
 	}
 }
 

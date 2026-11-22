@@ -104,9 +104,10 @@ declaration as `headerComments`, one normalized string per comment in source
 order, and no node inside the header owns them. The header runs from the keyword
 to the `=` or `~` that ends it: the comments before the name, between the name
 and the `=` or `~`, and around the tokens of a rule's result type (`rule /* c */
-main /* d */ T /* e */ = ...`), and before the package name of a package clause
-and the type of a variable declaration. The comments after the `=` or `~` are not
-in the header: the body that follows, the type of a type declaration, the
+main /* d */ T /* e */ = ...`) or a variable's type (`var /* c */ x /* d */ int
+/* e */ = 1`), and before the package name of a package clause. The header of a
+variable declaration without a value ends after its name and type. The comments
+after the `=` or `~` are not in the header: the body that follows, the type of a type declaration, the
 expression of a rule or the value of a variable, owns them like any node owns the
 comments before it. A struct field owns the comments between its name and its
 type the same way as `headerComments`. They are written after the keyword, or
@@ -188,8 +189,7 @@ layout of the expression. The comments of statements, struct fields, the
 lines of an operators rule and the end of the file are kept in the `LineBreak`
 values of those nodes, the comments of a declaration header in
 `File.HeaderComments`, those between the name and the type of a struct
-field or a variable declaration in `Field.HeaderTokens` and
-`VarDef.HeaderTokens`, and those inside the `#operators {` that opens
+field in `Field.HeaderTokens`, and those inside the `#operators {` that opens
 an Operators Rule in `OperatorsRule.OpenComments`. Every comment of a parsed source is kept as
 exactly one comment token in one of these places, and `Grammar.AllComments`
 returns each of them once.
@@ -430,8 +430,8 @@ Expressions and Action Expressions, including predicates and function arguments.
 The parser
 records comment trivia and may accept it syntactically. Semantic analysis
 rejects comments in Declaration Statement and Operators Rule statement headers with a
-positioned diagnostic; affected headers include package, type, rule, level,
-infix-kind and associativity headers. The comments between the delimiters of a
+positioned diagnostic; affected headers include package, type, variable, rule,
+level, infix-kind and associativity headers. The comments between the delimiters of a
 tuple type, a type application or a parenthesized type in such a header are
 ordinary comments of the type, not comments of the header.
 
