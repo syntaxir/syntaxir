@@ -27,7 +27,7 @@ type Expr ~ Bin | Num
 
 @start
 rule main Expr = #operators {
-    skip " "*
+    skip ws
     operand num
     operand "(" e:main ")" => $e
     level additive { infix left "+" / "-" => Bin{Left: $lhs, Op: $op, Right: $rhs} }
@@ -36,6 +36,7 @@ rule main Expr = #operators {
 }
 
 rule num Num = ([0-9]+) #atomic
+rule ws = [ ]*
 ```
 
 ```bash
