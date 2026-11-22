@@ -542,7 +542,10 @@ type parseOptions struct {
 	// go to the parser's counter, not to the control.
 	logical    bool
 	unitsLimit uint64
-	unitsCtx   context.Context
+	// unitsAdaptive is set for a stream under its default compute limit, which rises with the
+	// furthest position the parse demands.
+	unitsAdaptive bool
+	unitsCtx      context.Context
 	// computeOut receives the units that the parse spent (WithComputeReport).
 	computeOut *uint64
 	// observe selects the observation of the parse (trace.go).
@@ -683,9 +686,12 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 			l.Compute = defaultBudget(n)
 		}
 		ctx := o.context
-		if o.logical && !stream {
-			o.unitsLimit, o.unitsCtx = l.Compute, o.context
-			l.Compute, ctx = 0, nil
+		if o.logical {
+			// The counter of the parse holds the compute limit, which a stream under its default
+			// raises with each demand (unitsDemand), and the context; the control holds the memory
+			// limit only.
+			o.unitsLimit, o.unitsAdaptive, o.unitsCtx = l.Compute, adaptive, o.context
+			l.Compute, ctx, adaptive = 0, nil, false
 		}
 		if ctx != nil || l != (sxirruntime.Limits{}) {
 			o.control = newBudgetControl(ctx, l)
@@ -693,7 +699,7 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 				o.control.adaptive = adaptive
 			}
 		}
-		if o.control == nil && o.computeOut != nil && !(o.logical && !stream) {
+		if o.control == nil && o.computeOut != nil && !o.logical {
 			// The parse only counts its units: a control with no bound.
 			o.control = newCountingControl(nil, sxirruntime.Limits{})
 		}
@@ -710,10 +716,9 @@ func prepareOptions(o parseOptions, n uint64, stream bool) parseOptions {
 }
 
 // reportSpent stores in the report of o, if it has one, the units that its control has reserved. A
-// parse with logical units reports through its counter instead (unitsState.out), except a stream,
-// which does not count them.
-func (o parseOptions) reportSpent(stream bool) {
-	if o.computeOut == nil || o.logical && !stream {
+// parse with logical units reports through its counter instead (unitsState.out).
+func (o parseOptions) reportSpent() {
+	if o.computeOut == nil || o.logical {
 		return
 	}
 	if o.control == nil {
@@ -779,7 +784,7 @@ func RunParseResolved(r *Rule, input string, o parseOptions) (n *sxirvalue.Node,
 // from an ordinary nil result without inspecting caller-owned error values.
 func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Node, err error) {
 	o = prepareText(o, input)
-	defer o.reportSpent(false)
+	defer o.reportSpent()
 	p, _ := ppool.Get().(*Parser)
 	if p == nil {
 		p = &Parser{}

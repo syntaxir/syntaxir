@@ -6,10 +6,12 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io"
 	"io/fs"
 	"os"
 	"strings"
 	"testing"
+	"testing/iotest"
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
 	gcalc "syntaxir.dev/sxir/internal/bench/parsers/calc"
@@ -156,8 +158,8 @@ func TestComputeReportChangesNothing(t *testing.T) {
 	}
 }
 
-// A stream and a Document report the units of their parse, on the engine and in generated parsers; a
-// Document reports the same units on both.
+// A stream and a Document report the units of their parse, on the engine and in generated parsers,
+// and each reports the same units on both.
 func TestComputeReportStreamAndDocument(t *testing.T) {
 	skipWithoutEngineControls(t)
 	csvIn := inputs.CSVInput(40)
@@ -170,10 +172,10 @@ func TestComputeReportStreamAndDocument(t *testing.T) {
 	if err := p.ParseStream(strings.NewReader(csvIn), func(*value.Node) error { return nil }, engine.Use(sxirruntime.WithComputeReport(&es))); err != nil {
 		t.Fatal(err)
 	}
-	if gs == 0 || es == 0 {
+	// A stream counts the same logical units on every backend.
+	if gs == 0 || gs != es {
 		t.Errorf("stream: generated parser %d units, engine %d", gs, es)
 	}
-	t.Logf("stream: generated parser %d units, engine %d", gs, es)
 	mini := load(t, "../examples/minilang/minilang.sxir")
 	text := inputs.MinilangInput(5, 0)
 	var gd, ed uint64
@@ -235,6 +237,46 @@ func TestComputeReportDocumentBuildAgreesWithEngine(t *testing.T) {
 			t.Errorf("Document parse: generated parser %d units (%v), engine %d (%v)", gd, gerr, ed, eerr)
 		}
 		t.Logf("valid %v: plain %d units, Document %d", gerr == nil, gp, gd)
+	}
+}
+
+// A Compute limit stops a stream on the engine and in a generated parser alike, whatever the chunks of
+// the reader: both accept the stream at its total and stop it below, with Used past the limit and at most
+// the total, and Requested 0.
+func TestComputeLimitStreamAgreesWithEngine(t *testing.T) {
+	skipWithoutEngineControls(t)
+	csvIn := inputs.CSVInput(40)
+	p := load(t, "../testdata/grammars/csv/csv.sxir")
+	streams := map[string]func(r io.Reader, o ...sxirruntime.ParseOption) error{
+		"generated": func(r io.Reader, o ...sxirruntime.ParseOption) error {
+			return gcsvstream.ParseStream(r, func(*value.Node) error { return nil }, o...)
+		},
+		"engine": func(r io.Reader, o ...sxirruntime.ParseOption) error {
+			return p.ParseStream(r, func(*value.Node) error { return nil }, engine.Use(o...))
+		},
+	}
+	readers := map[string]func() io.Reader{
+		"whole":    func() io.Reader { return strings.NewReader(csvIn) },
+		"one byte": func() io.Reader { return iotest.OneByteReader(strings.NewReader(csvIn)) },
+	}
+	var total uint64
+	if err := streams["engine"](strings.NewReader(csvIn), sxirruntime.WithComputeReport(&total)); err != nil || total == 0 {
+		t.Fatalf("engine: %d units, %v", total, err)
+	}
+	for name, run := range streams {
+		for rn, reader := range readers {
+			label := name + "/" + rn
+			if err := run(reader(), sxirruntime.WithLimits(sxirruntime.Limits{Compute: total})); err != nil {
+				t.Errorf("%s: rejected at the total %d: %v", label, total, err)
+			}
+			for _, limit := range []uint64{total - 1, total / 2, 1} {
+				err := run(reader(), sxirruntime.WithLimits(sxirruntime.Limits{Compute: limit}))
+				var le *sxirruntime.LimitError
+				if !errors.As(err, &le) || le.Kind != sxirruntime.LimitCompute || le.Used <= limit || le.Used > total || le.Requested != 0 {
+					t.Errorf("%s: limit %d of %d: %v", label, limit, total, err)
+				}
+			}
+		}
 	}
 }
 

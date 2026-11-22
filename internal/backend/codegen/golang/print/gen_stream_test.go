@@ -1342,10 +1342,21 @@ func TestTraceAndProfile(t *testing.T) {
 }
 
 func TestBudgetControls(t *testing.T) {
+	// A Compute limit of half the units of the whole stream stops it after some elements and before
+	// the last, past the limit and within the overshoot of the coarse checks.
+	long := strings.Repeat(input, 1000)
+	var total uint64
+	if err := ParseStream(strings.NewReader(long), func(*Node) error { return nil }, sxirruntime.WithComputeReport(&total)); err != nil {
+		t.Fatal(err)
+	}
+	half := total / 2
+	if half <= 2*4096 {
+		t.Fatalf("a stream of %d units does not exceed half its units by the overshoot", total)
+	}
 	var limit *LimitError
 	n := 0
-	err := ParseStream(strings.NewReader(strings.Repeat(input, 1000)), func(*Node) error { n++; return nil }, WithLimits(Limits{Compute: 20000}))
-	if !errors.As(err, &limit) || n == 0 || n >= 3000 {
+	err := ParseStream(strings.NewReader(long), func(*Node) error { n++; return nil }, WithLimits(Limits{Compute: half}))
+	if !errors.As(err, &limit) || n == 0 || n >= 3000 || limit.Used <= half || limit.Used > half+2*4096 || limit.Requested != 0 {
 		t.Fatal(err, n)
 	}
 	ctx, cancel := context.WithCancel(context.Background())

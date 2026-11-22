@@ -104,7 +104,7 @@ func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), st
 	}
 	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
 	if opts.LogicalVariant != "" && !opts.LogicalUnits() {
-		return nil, fmt.Errorf("the variant %q of logical units needs limit controls outside streams", opts.LogicalVariant)
+		return nil, fmt.Errorf("the variant %q of logical units needs limit controls", opts.LogicalVariant)
 	}
 	switch opts.LogicalVariant {
 	case "":

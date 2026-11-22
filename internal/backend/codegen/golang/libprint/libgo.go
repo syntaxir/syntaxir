@@ -659,7 +659,7 @@ func goTarget(s goSpec) *print.Target {
 		case "stream.start":
 			return "p.Stream.start"
 		case "stream.check":
-			return "p.Control.Check()"
+			return "p.streamCheck()"
 		case "stream.report":
 			return "p.streamReport()"
 		case "stream.deliver":

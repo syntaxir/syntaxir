@@ -559,7 +559,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 		return res, fmt.Errorf("document start rule is missing")
 	}
 	o = prepareText(o, d.text)
-	defer o.reportSpent(false)
+	defer o.reportSpent()
 	if o.control != nil && o.control.limits.Memory != 0 && saturatingAdd(d.memo.chargedBytes(), runBytes(d.runs)) > o.control.limits.Memory {
 		// The retained memo and runs alone exceed the limit: the parse starts without them.
 		d.dropMemo()

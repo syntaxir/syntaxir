@@ -26,7 +26,10 @@ import (
 type unitsState struct {
 	on    bool
 	limit uint64 // the resolved compute limit; 0 sets none
-	ctx   context.Context
+	// adaptive is set for a stream under its default limit, which rises with the furthest position
+	// the parse demands (unitsDemand).
+	adaptive bool
+	ctx      context.Context
 	// mem is the control that holds a finite memory limit, nil for none.
 	mem *BudgetControl
 	// obsAt is the count at which the next check observes the context and the memory count.
@@ -58,7 +61,7 @@ func (p *Parser) startUnits(o parseOptions) {
 		return
 	}
 	p.Units = 0
-	p.units = unitsState{on: true, limit: o.unitsLimit, ctx: o.unitsCtx, obsAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
+	p.units = unitsState{on: true, limit: o.unitsLimit, adaptive: o.unitsAdaptive, ctx: o.unitsCtx, obsAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
 	if c := p.Control; c != nil && c.limits.Memory != 0 {
 		p.units.mem = c
 	}
@@ -166,6 +169,37 @@ func (p *Parser) endUnits(failed bool) {
 	p.unitsExceeded()
 }
 
+// unitsDemand is the check of a stream under its default limit before it demands the input up to
+// the position n (spec/runtime/parsing.md, Checks and Interruptions, check 5): it compares the
+// events counted so far with the limit before the demand, then raises the limit to the default of n
+// units (defaultBudget). The counter holds every event before the demand: a terminal counts the input
+// it advances over once it has matched, before it demands more, and a literal is one event when it
+// has matched, so the demands inside it come before it. Under any other limit a demand checks
+// nothing.
+func (p *Parser) unitsDemand(n int) {
+	if !p.units.adaptive || n <= 0 {
+		return
+	}
+	if p.Units > p.UnitsCheck {
+		p.PollUnits()
+	}
+	if b := defaultBudget(uint64(n)); b > p.units.limit {
+		p.units.limit = b
+		p.setUnitsCheck()
+	}
+}
+
+// unitsObserve observes the context, then the memory count, whatever the units counted since they
+// were last observed, as a stream does around the delivery of an element and before a read of its
+// reader, and starts the interval to the next observation again.
+func (p *Parser) unitsObserve() {
+	if p.units.out != nil {
+		*p.units.out = p.Units
+	}
+	p.observeUnits()
+	p.setUnitsCheck()
+}
+
 // unitsSized counts a sized event of n units and checks the counter, before the work it covers.
 func (p *Parser) unitsSized(n int) {
 	if !p.units.on {
@@ -225,7 +259,7 @@ func (p *Parser) SkipCalls(exp ExpID, rules ...*Rule) {
 // and the calls it would make are not made; otherwise the rest of the calls run in a record of
 // their own, and the call stores the failure entry with that record's expectations, after those of
 // the calls inside it. The failing terminal records exp. The calls are outside every left-recursion
-// context and Document, which logical units do not cover.
+// context, and outside Documents: a Document's guards skip no call of a rule that it memoizes.
 func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
 	if len(rules) == 0 {
 		p.ExpectOrdinary(p.Pos, exp)
@@ -334,17 +368,17 @@ func (p *Parser) KeyUnits(r *Rule) {
 }
 
 // The matchers of logical units below count the input they advance over. A parse that tracks the
-// examined input (an observed parse, which runs the traced bodies) matches with the form that records
-// it; any other parse with the ordinary form.
+// examined input (a Document, or an observed parse, which runs the traced bodies) matches with the
+// traced form, which records it also on a stream; any other parse with the ordinary form.
 
-// MatchLiteralLogical is MatchLiteralOrdinary, or MatchLiteral in a parse that tracks the examined
-// input, that counts the input it advances over.
+// MatchLiteralLogical is MatchLiteralOrdinary, or MatchLiteralTraced in a parse that tracks the
+// examined input, that counts the input it advances over.
 //
 // MatchLiteralLogical is for generated parsers; not a stable API.
 func (p *Parser) MatchLiteralLogical(rs []rune, text string, desc ExpID, build bool) (v *sxirvalue.Node, ok bool) {
 	start := p.Pos
 	if p.track {
-		v, ok = p.MatchLiteral(rs, text, desc, build)
+		v, ok = p.MatchLiteralTraced(rs, text, desc, build)
 	} else {
 		v, ok = p.MatchLiteralOrdinary(rs, text, desc, build)
 	}
@@ -354,14 +388,14 @@ func (p *Parser) MatchLiteralLogical(rs []rune, text string, desc ExpID, build b
 	return v, ok
 }
 
-// MatchLiteralFoldLogical is MatchLiteralFoldOrdinary, or MatchLiteralFold in a parse that tracks
-// the examined input, that counts the input it advances over.
+// MatchLiteralFoldLogical is MatchLiteralFoldOrdinary, or MatchLiteralFoldTraced in a parse that
+// tracks the examined input, that counts the input it advances over.
 //
 // MatchLiteralFoldLogical is for generated parsers; not a stable API.
 func (p *Parser) MatchLiteralFoldLogical(rs []rune, desc ExpID, build bool) (v *sxirvalue.Node, ok bool) {
 	start := p.Pos
 	if p.track {
-		v, ok = p.MatchLiteralFold(rs, desc, build)
+		v, ok = p.MatchLiteralFoldTraced(rs, desc, build)
 	} else {
 		v, ok = p.MatchLiteralFoldOrdinary(rs, desc, build)
 	}

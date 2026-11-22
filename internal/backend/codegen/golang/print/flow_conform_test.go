@@ -641,7 +641,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits || c.opts.Stream) {
+				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e, c.noLimits) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}

@@ -587,19 +587,18 @@ number that does not grow with the input.
 Pass `runtime.WithContext(ctx)` to interrupt engine execution cooperatively, or
 `runtime.WithLimits(runtime.Limits{Compute: ...})` to bound
 one invocation. A zero budget selects the default, which is `max(2^20, 1024 * d)` for the furthest position `d` that the parser has
-asked the stream for, however the reader chunks the input; `runtime.Unlimited` disables the limit. `Limits.Input` bounds the length of the stream: with a finite value the stream fails with `runtime.LimitInput` when the parser asks for a unit beyond it and the stream has one, whichever way the reader chunks the input. `Limits.Memory` bounds the bytes the stream holds at once, not its length: delivering an element returns what was built for it ([Bounding Memory](cancellation-and-limits.md#bounding-memory)). Budget counts depend on the backend,
-position unit and implementation; reused or copied storage also consumes budget.
+asked the stream for, however the reader chunks the input; `runtime.Unlimited` disables the limit. `Limits.Input` bounds the length of the stream: with a finite value the stream fails with `runtime.LimitInput` when the parser asks for a unit beyond it and the stream has one, whichever way the reader chunks the input. `Limits.Memory` bounds the bytes the stream holds at once, not its length: delivering an element returns what was built for it ([Bounding Memory](cancellation-and-limits.md#bounding-memory)). `Compute` counts the
+[compute units](../../spec/runtime/parsing.md#compute-units) of the stream, the logical events of its parse, so the
+engine and generated parsers count the same number for the same input and position unit, however the reader chunks
+it. Reading the reader, committing an element and discarding input count nothing; the text of a node counts one unit
+for each position unit of its result. Under the default limit the parser compares its count with the limit before it
+asks the stream for more input, so the decision does not depend on the chunks either.
 Exhaustion matches `runtime.ErrLimit` through `errors.Is`.
-Text materialization also consumes budget, including building a cached stream
-snapshot and its CodePoints position table. Reading an already cached substring
-requires no additional materialization work; snapshot creation never reads ahead.
+Reading an already cached substring requires no additional materialization work;
+snapshot creation never reads ahead. Bytes consumed by read-ahead do not count
+as examined input until the parser examines them.
 
-Each underlying reader call consumes one compute unit before entering the reader,
-including empty reads, EOF and retries for incomplete characters. When no work
-remains, that next call is prevented. Bytes consumed by read-ahead do not count
-as examined input until the engine examines them.
-
-The engine checks immediately before and after each underlying reader and emit
+The parser observes the context immediately before and after each underlying reader and emit
 call, including reader retries for empty reads or incomplete characters. An emit
 error or a reader's non-EOF error wins over cancellation first observed after
 that same call, including a reader returning data together with an error.

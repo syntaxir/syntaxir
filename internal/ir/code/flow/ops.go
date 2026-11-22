@@ -630,8 +630,7 @@ type Attrs struct {
 	// Entered reports a function lowered with budget controls, whose entry the generator charges: the
 	// method that holds the function begins with one Spend, for the body of a rule, of a frame and of a
 	// line or the skip of an Operators Rule alike. The function charges nothing for its entry and the
-	// verifier takes the entry as its first charge; TestGeneratedRuleEntryCharge checks the methods of
-	// the checked-in parsers.
+	// verifier takes the entry as its first charge.
 	Entered bool
 	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finishing
 	// removes them.

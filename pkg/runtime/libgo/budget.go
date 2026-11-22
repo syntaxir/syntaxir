@@ -627,7 +627,7 @@ func (p *Parser) hasLiteralPrefix(text string) bool {
 func RunParseConverted[T any](r *Rule, input string, o parseOptions, conv func(*sxirvalue.Node, *BudgetControl, error) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
-	defer o.reportSpent(false)
+	defer o.reportSpent()
 	n, err := parseConversionInput(r, input, o)
 	o.control.Check()
 	res = conv(n, o.control, err)

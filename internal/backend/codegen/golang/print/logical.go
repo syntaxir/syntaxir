@@ -9,7 +9,7 @@ import (
 )
 
 // Logical compute units (spec/runtime/parsing.md, Compute Units): the form of the functions under
-// limit controls, outside streams. It is the form of the functions without budget charges (the
+// limit controls. It is the form of the functions without budget charges (the
 // ordinary form, or a Document's) with a counter that each logical event adds to, and checks of the
 // counter on cycles.
 

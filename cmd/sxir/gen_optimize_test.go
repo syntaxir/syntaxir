@@ -68,7 +68,7 @@ func TestGenOptimize(t *testing.T) {
 func TestGenPrintAfter(t *testing.T) {
 	g := writeFile(t, "opt.sxir", optimizeGrammar)
 	// The passes that the lean form lets run are printed with -no-limits. A parser with limit
-	// controls, the default, is the same form with a counter of compute units outside streams; a
+	// controls, the default, is the same form with a counter of compute units; a
 	// Document records the input it examines, which the lean passes do not preserve.
 	gen := func(list string, args ...string) string {
 		t.Helper()

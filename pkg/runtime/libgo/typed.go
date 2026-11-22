@@ -670,7 +670,7 @@ func TParse[T any](r *TRule, input string, opts []sxirruntime.ParseOption, ext a
 func TParseResolved[T any](r *TRule, input string, o parseOptions, ext any, conv func(any) T) (res T, err error) {
 	defer recoverParse(&res, &err)
 	o = prepareText(o, input)
-	defer o.reportSpent(false)
+	defer o.reportSpent()
 	p, _ := tpool.Get().(*TParser)
 	if p == nil {
 		p = &TParser{Parser: &Parser{}}

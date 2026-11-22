@@ -14,10 +14,10 @@ func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
 	if p.Units > p.UnitsCheck {
 		p.PollUnits()
 	}
-	p.Control.Check()
+	p.streamCheck()
 	p.streamReport()
 	p.streamDeliver(v)
-	p.Control.Check()
+	p.streamCheck()
 	if p.Units > p.UnitsCheck {
 		p.PollUnits()
 	}

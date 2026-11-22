@@ -486,11 +486,11 @@ func (p *Parser) ActionText(x any) (string, any) {
 	}
 	n, ok := nodeOf(x)
 	if ok {
-		t, held := D(n).Text, D(n).Terminal
+		t, held := p.heldText(n)
 		if held && int(shape(n)) != 3 {
 			return t, nil
 		}
-		return p.Text(int(D(n).Start), int(D(n).End)), nil
+		return p.rangeText(int(D(n).Start), int(D(n).End)), nil
 	}
 	return "", p.actionError(14, x, nil, 0, 0)
 }

@@ -24,7 +24,7 @@ type Generator struct {
 	// no control exists to charge: the statements, and the closures that only held one.
 	NoBudget bool
 	// Logical counts logical compute units in the form without budget charges (the ordinary form, or
-	// a Document's), which a parser with limit controls outside streams does: loops keep their step,
+	// a Document's), which a parser with limit controls does: loops keep their step,
 	// which the printer prints as a check of the counter.
 	Logical bool
 	// Ordinary prints the bodies in their ordinary form (no budget controls and no Documents): the

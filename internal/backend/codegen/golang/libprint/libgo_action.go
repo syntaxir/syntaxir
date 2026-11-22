@@ -287,12 +287,13 @@ func goValueOp(callee string, a []string, typed bool) (string, bool) {
 		if typed {
 			return a[0] + ".TText()", true
 		}
-		return "D(" + a[0] + ").Text, D(" + a[0] + ").Terminal", true
+		// The text of a node in a stream is an event (Parser.heldText, Parser.rangeText).
+		return "p.heldText(" + a[0] + ")", true
 	case "node.rangeText":
 		if typed {
 			return "p.Text(" + a[0] + ".TSpan())", true
 		}
-		return fmt.Sprintf("p.Text(int(D(%[1]s).Start), int(D(%[1]s).End))", a[0]), true
+		return fmt.Sprintf("p.rangeText(int(D(%[1]s).Start), int(D(%[1]s).End))", a[0]), true
 	case "str.len":
 		return "any(p.unitLen(" + a[0] + ".(string)))", true
 	case "str.of":

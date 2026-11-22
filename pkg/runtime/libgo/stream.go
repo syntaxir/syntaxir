@@ -118,6 +118,33 @@ func (r *streamReader) Read(dst []byte) (int, error) {
 	return n, err
 }
 
+// unitsReader is the reader of a stream whose parse counts logical compute units and observes a
+// context or a memory limit. A read of the caller's reader is no event: it counts no unit. Before the
+// read it observes the context, then the memory count; after it, the context again, where an error
+// other than the end of the input that the read returned with its data wins over a cancellation
+// first observed then (spec/runtime/parsing.md, Checks and Interruptions).
+type unitsReader struct {
+	reader io.Reader
+	p      *Parser
+}
+
+func (r *unitsReader) Read(dst []byte) (int, error) {
+	p := r.p
+	p.unitsObserve()
+	n, err := r.reader.Read(dst)
+	if ctx := p.units.ctx; ctx != nil {
+		if cerr := contextErr(ctx); cerr != nil {
+			if err != nil && err != io.EOF {
+				cerr = err
+			}
+			panic(fatal{err: cerr})
+		}
+		p.units.obsAt = p.Units + budgetCheckInterval
+		p.setUnitsCheck()
+	}
+	return n, err
+}
+
 // RunParseStream parses the input read from reader with rule r, passing each
 // committed element of the rule's #stream repetition to emit.
 //
@@ -152,14 +179,18 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	var n *sxirvalue.Node
 	defer recoverParse(&n, &err)
 	o = prepareOptions(o, 0, true)
-	defer o.reportSpent(true)
-	if o.control != nil {
-		reader = &streamReader{reader: reader, control: o.control}
-	}
+	defer o.reportSpent()
 	p := &Parser{unit: o.unit, MaxDepth: o.maxDepth}
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.Control = o.control
+	p.startUnits(o)
+	switch {
+	case p.units.on && p.units.observes():
+		reader = &unitsReader{reader: reader, p: p}
+	case !p.units.on && o.control != nil:
+		reader = &streamReader{reader: reader, control: o.control}
+	}
 	p.Observation = o.control.observe(newObservation(&o.observe, &p.Silent, nil))
 	if usedFeatures&featureObserve != 0 && p.Observation != nil {
 		defer p.releaseObservation()
@@ -173,7 +204,9 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	p.Control.Check()
 	_, ok := p.Call(r.forParse(p), 0)
 	p.Control.Check()
-	if ok && p.streamAtEnd() {
+	atEnd := ok && p.streamAtEnd()
+	p.endUnits(!atEnd)
+	if atEnd {
 		// Recoveries in the successful suffix are reported before the result.
 		if err := p.reportRecovered(); err != nil {
 			return err
@@ -216,6 +249,17 @@ func (p *Parser) streamReport() {
 	if err := p.reportRecovered(); err != nil {
 		panic(fatal{err})
 	}
+}
+
+// streamCheck observes the context, then the memory count, around the delivery of an element: before
+// the report and the delivery, and after the callback returns (spec/runtime/parsing.md, Checks and
+// Interruptions, Streams).
+func (p *Parser) streamCheck() {
+	if p.units.on {
+		p.unitsObserve()
+		return
+	}
+	p.Control.Check()
 }
 
 // streamDeliver passes the element v to the callback of the stream parse; v is final from then on,
@@ -563,7 +607,11 @@ func (s *streamInput) loaded() int {
 // it is available. Once the required amount has been read, it reads only what
 // is already buffered and does not wait for more.
 func (p *Parser) streamFill(n int) bool {
-	p.Control.demand(n)
+	if p.units.on {
+		p.unitsDemand(n)
+	} else {
+		p.Control.demand(n)
+	}
 	ok := p.streamFillTo(n)
 	if max := p.Stream.maxInput; max > 0 && n > max && p.Stream.loaded() > max {
 		// The outcome does not depend on how the reader chunks the stream: the parser needed the
@@ -819,6 +867,27 @@ func (p *Parser) streamAtLineStart() bool {
 func (p *Parser) streamAtEnd() bool {
 	p.SpendRead(1)
 	return !p.streamFill(p.Pos + 1)
+}
+
+// rangeText is node.rangeText: the input of the range [start, end) of a node. In a stream whose parse
+// counts logical compute units, the text of a node is an event of one unit for each position unit of
+// its result (spec/runtime/parsing.md, Compute Units), which it counts before it makes the text.
+func (p *Parser) rangeText(start, end int) string {
+	if p.Stream != nil && p.units.on {
+		p.unitsSized(end - start)
+	}
+	return p.Text(start, end)
+}
+
+// heldText is node.heldText: the text that the terminal node n holds, and whether it holds one. In a
+// stream, the text that text takes from a string node is the event that rangeText counts, of the
+// width of the node's range; an error node, whose text is the input of its range, counts there.
+func (p *Parser) heldText(n *sxirvalue.Node) (string, bool) {
+	d := D(n)
+	if d.Terminal && p.Stream != nil && p.units.on && shape(n) != valueimpl.ShapeError {
+		p.unitsSized(int(d.End - d.Start))
+	}
+	return d.Text, d.Terminal
 }
 
 // streamText returns owned text between start and end. The part already
