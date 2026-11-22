@@ -95,7 +95,7 @@ func TestGeneratorsReadNoCheckedProgramControl(t *testing.T) {
 	if !slices.ContainsFunc(msgs, func(m string) bool {
 		return strings.Contains(m, "internal/backend/codegen/golang/print reaches the checked program: "+from+" -> "+via+" -> ")
 	}) {
-		t.Errorf("a generator that imports checkfacts passes the check: %q", msgs)
+		t.Errorf("a generator that imports internal/driver/checked passes the check: %q", msgs)
 	}
 }
 
