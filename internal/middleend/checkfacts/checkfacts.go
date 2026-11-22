@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/compile"
 	"syntaxir.dev/sxir/internal/diagnostic"
+	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
@@ -75,7 +76,7 @@ func (Source) Errors(am *pass.AnalysisManager[*core.Module], m *core.Module, def
 func (Source) Sites(m *core.Module, prog *compile.Program, control *cancel.Control) compile.Sites {
 	rules := make([]corepass.SiteRule, len(prog.RuleList))
 	for i, r := range prog.RuleList {
-		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: compile.DeclaredBeyondScan(r.Def)}
+		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}
 	}
 	s := corepass.ComputeSites(m, rules, control)
 	key := func(in map[*core.Repeat]int) map[*ast.Repeat]int {

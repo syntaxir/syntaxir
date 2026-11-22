@@ -75,7 +75,7 @@ func TestReusedSkipSites(t *testing.T) {
 			// does (checkfacts.Source.Sites), on the module's own repetitions.
 			flags := make([]corepass.SiteRule, len(prog.RuleList))
 			for i, r := range prog.RuleList {
-				flags[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: compile.DeclaredBeyondScan(r.Def)}
+				flags[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}
 			}
 			skipSites := corepass.ComputeSites(st.Module, flags, nil).Skip
 			var marked []*core.Repeat

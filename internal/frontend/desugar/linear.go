@@ -18,6 +18,21 @@ const LinearAttribute = "linear"
 // it.
 func IsLinear(a *ast.Attribute) bool { return !a.Pragma && a.Name == LinearAttribute }
 
+// DeclaredBeyondScan reports whether the declaration of rd keeps it from being a pure scan rule
+// (corepass.SiteRule.Declared): it has a type, an action, or an attribute or pragma other than
+// @start and @linear, which only add checks.
+func DeclaredBeyondScan(rd *ast.RuleDef) bool {
+	if rd.Type != nil || rd.Action != nil {
+		return true
+	}
+	for _, a := range rd.Attrs {
+		if (a.Pragma || a.Name != "start") && !IsLinear(a) {
+			return true
+		}
+	}
+	return false
+}
+
 // LinearDeclarations reads the @linear declaration attributes of g. It returns whether the
 // package clause declares the whole grammar linear and the rules that declare themselves linear,
 // in declaration order. @linear takes no arguments and appears at most once on a declaration;

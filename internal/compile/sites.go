@@ -1,9 +1,6 @@
 package compile
 
-import (
-	"syntaxir.dev/sxir/internal/frontend/desugar"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
-)
+import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // Sites numbers the skip-run, run and scan sites of a program's repetitions: the repetitions whose
 // walks a parser records (see "Skip Runs", "Run Sites" and "Scan Sites" in
@@ -66,18 +63,3 @@ func (prog *Program) RunKey(site int) RunKey { return prog.sites.RunKeys[site] }
 
 // RunKeys returns the keys of the run sites that are not free of the environment, by site.
 func (prog *Program) RunKeys() map[int]RunKey { return prog.sites.RunKeys }
-
-// DeclaredBeyondScan reports whether the declaration of rd keeps it from being a pure scan rule
-// (corepass.SiteRule.Declared): it has a type, an action, or an attribute or pragma other than
-// @start and @linear, which only add checks.
-func DeclaredBeyondScan(rd *ast.RuleDef) bool {
-	if rd.Type != nil || rd.Action != nil {
-		return true
-	}
-	for _, a := range rd.Attrs {
-		if (a.Pragma || a.Name != "start") && !desugar.IsLinear(a) {
-			return true
-		}
-	}
-	return false
-}
