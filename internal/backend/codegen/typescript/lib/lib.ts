@@ -2888,6 +2888,12 @@ function newSlot(e: CtxResult | null, id: number, env: Binding[] | null): CtxSlo
   return { e, id, far: 0, exp: noExp, examined: 0, from: 0, silent: false, env, deps: noSdeps, next: null };
 }
 
+// The storage of a slot, of a result, and of a growth in progress (its record, its state and its seed)
+// for the memory limit.
+const ctxSlotBytes = objectBytes(10);
+const ctxResultBytes = objectBytes(9);
+const growHeldBytes = objectBytes(8) + objectBytes(14) + ctxResultBytes;
+
 // JumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
 // seed, with what those steps recorded.
 interface JumpRec {
@@ -2914,6 +2920,9 @@ interface CtxTable {
   heads: Map<string, CtxSet[]>;
   jumps: Map<string, JumpRec[]> | null;
   canon: Map<string, { e: CtxResult; id: number }> | null;
+  // bytes counts the storage of the table and of what it holds, for the memory limit: the table is
+  // held while the growth that made it is in progress (heldBytes).
+  bytes: number;
 }
 
 // GrowState is the state of the growth of a leader: its key, start and recovered errors, its index
@@ -3159,13 +3168,17 @@ export class Parser {
   // counted returns n, a node the generated code constructs, counting bytes for the memory limit.
   counted(n: Node, bytes: number): Node { this.allocValue(bytes); return n; }
   // heldBytes returns the bytes of the slots of the working stacks, by their lengths now: what the
-  // records on them hold is counted where they are made, except the visits of the walks in progress,
-  // which a walk drops when it ends (skipHeld).
+  // records on them hold is counted where they are made, except what only the stacks of a growth or a
+  // walk in progress hold, which goes when it ends: the records of the growths with their states and
+  // seeds, the dependency frames, the context tables and what they hold (CtxTable.bytes), and the
+  // visits of the walks (skipHeld).
   heldBytes(): number {
     const slots = this.kidStack.length + this.saved.length + this.trail.length + this.exp.length + this.isoStack.length +
       this.recovered.length + this.gamma.length + this.depFrames.length + this.deps.length + this.popped.length +
       this.ctxs.length + this.looks.length + this.lookExamined.length + this.lookFrom.length + this.obsGuard.length + this.scanCold.length + this.runCold.length;
-    return 8 * slots + this.skipHeld();
+    let n = 8 * slots + this.skipHeld() + this.gamma.length * growHeldBytes + this.depFrames.length * objectBytes(4);
+    for (const t of this.ctxs) n += t.bytes;
+    return n;
   }
   // retyped is the operation node.convert: retypeNode, counting the copy it makes.
   retyped(v: Node, typ: string): Node { const n = retypeNode(v, typ); this.allocRetyped(v, n); return n; }
@@ -4687,8 +4700,8 @@ export class Parser {
   // env in the table of the context c, with the dependencies that ctxPop ended.
   ctxKeep(c: CtxCall, rule: number, start: number, min: number, env: Binding[] | null, res: CtxResult): void {
     const sd = this.stored(this.popped);
-    this.alloc(objectBytes(10));
-    this.ctxStore(start, c.gp, headKey(ctxCallKind, rule, min, c.present), sd, newSlot(res, 0, env));
+    // The result may be a seed, which the table then holds past its growth.
+    this.ctxStore(start, c.gp, headKey(ctxCallKind, rule, min, c.present), sd, newSlot(res, 0, env), ctxResultBytes);
   }
 
   // ctxDone passes the dependencies that ctxPop ended to the enclosing frame.
@@ -4702,7 +4715,6 @@ export class Parser {
   // pushFrame starts recording the dependencies of an evaluation at pos, in the context of the
   // growths gamma[gp:] there.
   pushFrame(pos: number, gp: number): void {
-    this.alloc(objectBytes(4));
     this.depFrames.push({ pos, gp, depth: this.gamma.length, base: this.deps.length });
   }
 
@@ -4772,7 +4784,6 @@ export class Parser {
         out.push({ kind: depObs, rule: 0, min: 0, site: d.idx, val: d.val });
       } else {
         const g = this.gamma[d.idx]!;
-        this.alloc(objectBytes(5) + 8);
         out.push({ kind: d.kind, rule: g.rule, min: g.min, site: 0, val: d.val });
       }
     }
@@ -4847,8 +4858,7 @@ export class Parser {
     if (!create) {
       return null;
     }
-    this.alloc(objectBytes(5) + mapBytes);
-    const t: CtxTable = { pos, depth: gp, heads: new Map(), jumps: null, canon: null };
+    const t: CtxTable = { pos, depth: gp, heads: new Map(), jumps: null, canon: null, bytes: objectBytes(6) + mapBytes };
     this.ctxs.push(t);
     return t;
   }
@@ -4950,8 +4960,8 @@ export class Parser {
   }
 
   // ctxStore stores slot as the result of head h in the table of the growths gamma[gp:] at pos, with
-  // the stored dependencies ds.
-  ctxStore(pos: number, gp: number, h: string, ds: Sdep[], slot: CtxSlot): void {
+  // the stored dependencies ds, counting them and extra bytes that the slot holds in the table.
+  ctxStore(pos: number, gp: number, h: string, ds: Sdep[], slot: CtxSlot, extra: number): void {
     const seeds: number[] = [];
     const obs: number[] = [];
     for (const d of ds) {
@@ -4973,10 +4983,11 @@ export class Parser {
       if (d.kind === depObs) k += d.val + ",";
     }
     const t = this.table(pos, gp, true)!;
+    t.bytes += ctxSlotBytes + (ds === noSdeps ? 0 : arrayBytes(ds.length) + ds.length * objectBytes(5)) + extra;
     let sets = t.heads.get(h);
     if (sets === undefined) {
       sets = [];
-      this.alloc(arrayBytes(0) + mapEntryBytes);
+      t.bytes += arrayBytes(0) + mapEntryBytes;
       t.heads.set(h, sets);
     }
     let set: CtxSet | null = null;
@@ -4988,7 +4999,7 @@ export class Parser {
     }
     if (set === null) {
       set = { seeds, obs, vals: new Map() };
-      this.alloc(objectBytes(3) + mapBytes + 8);
+      t.bytes += objectBytes(3) + mapBytes + 8;
       sets.push(set);
     }
     slot.deps = ds;
@@ -5004,7 +5015,7 @@ export class Parser {
       }
     }
     slot.next = link;
-    this.alloc(mapEntryBytes);
+    t.bytes += mapEntryBytes;
     set.vals.set(k, slot);
   }
 
@@ -5112,8 +5123,7 @@ export class Parser {
     const val = this.obsOutcome(ok, f.pos, examined, from);
     const present = this.presentOf(f.gp);
     const sd = this.stored(ds);
-    this.alloc(objectBytes(10));
-    this.ctxStore(f.pos, f.gp, headKey(ctxLookKind, site, 0, present), sd, newSlot(null, val, null));
+    this.ctxStore(f.pos, f.gp, headKey(ctxLookKind, site, 0, present), sd, newSlot(null, val, null), 0);
     const out: Dep[] = [{ kind: depObs, idx: site, d: f.depth, val }];
     for (const d of ds) {
       out.push(d.kind === depSeed ? { kind: depShadow, idx: d.idx, d: f.depth, val: d.val } : d);
@@ -5130,7 +5140,6 @@ export class Parser {
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
     const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, savedFrom: 0, exp: 0, run: [], pendID: 0, pendStep: null };
-    this.alloc(objectBytes(7) + objectBytes(8));
     this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow(), start), id: failSeed });
     if (gp < gi) {
       // The present set of the steps includes the leader's own growth.
@@ -5204,7 +5213,6 @@ export class Parser {
   // drops the errors after the growth's mark.
   growAdopt(g: GrowState, v: R, errs: Errs): void {
     const rec = this.gamma[g.gi]!;
-    this.alloc(objectBytes(9));
     rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow(), this.fromNow());
     rec.id = this.nextSeedID();
     this.pos = g.start;
@@ -5226,19 +5234,17 @@ export class Parser {
       this.docExamined = Math.max(g.savedExamined, this.docExamined);
       this.docLow = Math.min(g.savedFrom, this.docLow);
     }
-    this.alloc(objectBytes(9));
     let res = newCtxResult(v, ok, ok ? this.pos : g.start, this.silent > 0, ok ? errs : noErrs, 0, noExp, examined, from);
     const c = this.canonicalSeed(g, res);
     res = c.e;
     const sd = this.stored(ds);
-    this.alloc(objectBytes(10));
     const slot = newSlot(res, c.id, null);
     slot.far = far;
     slot.exp = exp;
     slot.examined = examined;
     slot.from = from;
     slot.silent = this.silent > 0;
-    this.ctxStore(g.start, g.gp, headKey(ctxStepKind, g.rule, g.min, g.present), sd, slot);
+    this.ctxStore(g.start, g.gp, headKey(ctxStepKind, g.rule, g.min, g.present), sd, slot, ctxResultBytes);
     this.mergeDeps(ds);
     g.pendID = c.id;
     g.pendStep = { seed: id, far, exp, examined, from, silent: this.silent > 0, deps: sd };
@@ -5330,11 +5336,10 @@ export class Parser {
     }
     const t = this.table(g.start, g.gp, true)!;
     if (t.jumps === null) {
-      this.alloc(mapBytes);
+      t.bytes += mapBytes;
       t.jumps = new Map();
     }
     const cur = this.gamma[g.gi]!;
-    this.alloc(objectBytes(8));
     let acc: JumpRec = { end: cur.seed, id: cur.id, far: -1, exp: noExp, examined: g.start, from: g.start, silent: false, deps: noSdeps };
     for (let i = g.run.length - 1; i >= 0; i--) {
       const s = g.run[i]!;
@@ -5352,10 +5357,10 @@ export class Parser {
       const k = jumpKey(g, s.seed);
       const js = t.jumps.get(k);
       if (js === undefined) {
-        this.alloc(mapEntryBytes + arrayBytes(1));
+        t.bytes += mapEntryBytes + arrayBytes(1) + objectBytes(8);
         t.jumps.set(k, [acc]);
       } else if (!this.jumpShadowed(js, acc)) {
-        this.alloc(8);
+        t.bytes += 8 + objectBytes(8);
         js.push(acc);
       }
     }
@@ -5437,7 +5442,7 @@ export class Parser {
     }
     const t = this.table(g.start, g.gp, true)!;
     if (t.canon === null) {
-      this.alloc(mapBytes);
+      t.bytes += mapBytes;
       t.canon = new Map();
     }
     const ck = g.rule + "," + g.min + "," + e.end;
@@ -5449,7 +5454,7 @@ export class Parser {
       }
     }
     const rec = { e, id };
-    this.alloc(objectBytes(2) + mapEntryBytes + stringBytes(ck.length));
+    t.bytes += objectBytes(2) + mapEntryBytes + stringBytes(ck.length);
     t.canon.set(ck, rec);
     return rec;
   }

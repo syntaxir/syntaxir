@@ -20,9 +20,9 @@ import (
 
 // streamMemoryCases are the grammars of the memory test, each with a function that returns an input of
 // n elements: elements whose actions build nodes and copy text out of the input, memoized rules whose
-// entries a call outside a lookahead replaces, recovery skips whose walks keep skip records, lookaheads
-// past the end of an element, and recovered errors with and without a diagnostic limit (limit, 0 for
-// none), also held by memo entries.
+// entries a call outside a lookahead replaces, recovery skips whose walks keep skip records, left
+// recursion, also in a context, lookaheads past the end of an element, and recovered errors with and
+// without a diagnostic limit (limit, 0 for none), also held by memo entries.
 var streamMemoryCases = []struct {
 	name, src string
 	input     func(n int) string
@@ -53,6 +53,19 @@ rule item = x / .
 rule x = ("b" #recover(skip=(word / [a-z ])*)) "c"
 rule word = [a-z]+ !"="
 `, func(n int) string { return strings.Repeat("bab abc cxbaa a!c", n) }, 1, false},
+	{"left recursion", `@start
+rule main = item* #stream !.
+rule item = e ";"
+rule e = e "+" t / e "-" t / t
+rule t = t "*" n / n
+rule n = [0-9]+ / "(" e ")"
+`, func(n int) string { return strings.Repeat("1+2*3-(4+5)*6;", n) }, 0, false},
+	{"left recursion in a context", `@start
+rule main = item* #stream !.
+rule item = a ";"
+rule a = b "x" / a "y" / "z"
+rule b = a "w" / b "v" / "u"
+`, func(n int) string { return strings.Repeat("zyy;uvx;zwx;", n) }, 0, false},
 	{"past end", streamPastEndGrammar, func(n int) string { return strings.Repeat("12;", n) }, 0, false},
 	{"recover memo", streamRecoverMemoGrammar, func(n int) string { return strings.Repeat("a=1;b;", n) }, 1, false},
 	{"recover", `@start
@@ -215,6 +228,10 @@ func TestStreamMemoryWindowMutants(t *testing.T) {
 		{"memo held", "c.mem += bytes - this.memoHeld;", ""},
 		// The visits of a walk are held only while the walk is in progress.
 		{"skip visits", "    w.visits.push(", "    this.alloc(objectBytes(9));\n    w.visits.push("},
+		// The seeds of a growth are held only while the growth is in progress.
+		{"growth seeds", "    rec.seed = newCtxResult(v, true,", "    this.alloc(ctxResultBytes);\n    rec.seed = newCtxResult(v, true,"},
+		// The tables of a context are held only while the growth that made them is in progress.
+		{"context tables", "t.bytes += ctxSlotBytes +", "this.alloc(ctxSlotBytes); t.bytes +="},
 		// A memo prune returns the entries and slots it drops.
 		{"memo prune", "if (c !== null && drop > 0) c.mem -=", "if (c === null && drop > 0) c.mem -="},
 		// The memo's slots cover the window, not the stream from its start.
