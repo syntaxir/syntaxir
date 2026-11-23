@@ -13,5 +13,4 @@ type (
 	DocumentChange  = document.DocumentChange
 	Snapshot        = document.Snapshot
 	SnapshotNode    = document.SnapshotNode
-	SnapshotField   = document.SnapshotField
 )

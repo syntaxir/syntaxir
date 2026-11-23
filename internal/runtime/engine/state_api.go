@@ -4,7 +4,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
-// The parse options, results, errors and trace events are declared in the state package, which
+// The backends, parse options and trace events are declared in the state package, which
 // every backend shares. The engine re-exports them under the same names for the package engine.
 
 type (
@@ -13,11 +13,6 @@ type (
 	TraceSelection = state.TraceSelection
 	TraceKind      = state.TraceKind
 	TraceEvent     = state.TraceEvent
-	GNode          = state.GNode
-	Tuple          = state.Tuple
-	List           = state.List
-	Struct         = state.Struct
-	ErrorValue     = state.ErrorValue
 )
 
 const (
