@@ -357,7 +357,7 @@ other instructions does, a test of the input that leaves the block when it fails
 | 22 | `SILENT` | 0 | 0 | `flow.silent` of the lookahead of the immediate: entering (1) or leaving (-1) it, its site, the Core IR site of the lookahead, or -1 for a lookahead that is no observation, and on leaving whether its expression matched. |
 | 23 | `ADVANCE` | 0 | 1 | `flow.advance` by the integer argument. |
 | 24 | `INCLASS` | 1 | 1 | `flow.inClass` of the class of the immediate, an index of the character class table, for the character argument. |
-| 25 | `ATANCHOR` | 1 | 0 | `flow.atAnchor` of the anchor of the immediate: 0 the beginning of the input, 1 its end, 2 the beginning of a line, 3 the end of a line. |
+| 25 | `ATANCHOR` | 1 | 0 | `flow.atAnchor` and `flow.atEnd` of the anchor of the immediate: 0 the beginning of the input, 1 its end, 2 the beginning of a line, 3 the end of a line. |
 | 26 | `MATCHLIT` | 2 | 0 | `flow.matchLit` of the literal of the immediate: the null value and whether it matched. |
 | 27 | `ISOLATE` | 1 | 0 | `flow.isolate`. |
 | 28 | `UNISOLATE` | 2 | 1 | `flow.unisolate`: the farthest failure and the expectations. |

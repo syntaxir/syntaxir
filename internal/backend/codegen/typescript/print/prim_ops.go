@@ -319,7 +319,7 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		return fmt.Sprintf("p.matchChar(%d, %t) < 0 && %s", guard.Rune, guard.Fold, tsDepthLimit(guard.Depth))
 	case prim.OpInClass:
 		return tsClassIn(p.class(c.Imm.(prim.ClassID)), args()[0])
-	case prim.OpAtAnchor:
+	case prim.OpAtAnchor, prim.OpAtEnd:
 		switch c.Imm.(prim.Anchor) {
 		case prim.BeginInput:
 			return "p.pos === 0"

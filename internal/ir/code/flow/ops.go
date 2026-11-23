@@ -164,6 +164,7 @@ const (
 	OpGuardFails      = "flow.guardFails"
 	OpGuardLitFails   = "flow.guardLitFails"
 	OpAtAnchor        = "flow.atAnchor"
+	OpAtEnd           = "flow.atEnd"
 	OpSkipTerminal    = "flow.skipTerminal"
 	OpSkipClasses     = "flow.skipClasses"
 	OpCallRule        = "flow.callRule"
@@ -488,7 +489,9 @@ guard counts no compute unit: it examines the next character without advancing, 
 (spec/runtime/parsing.md#compute-units).`}),
 		"the guard (prim.Guard)", immOf[prim.Guard]())
 	withImm(op(&code.Op{Name: OpAtAnchor, NoReturn: true, Results: []code.Type{b}, Reads: pos, Cost: unit,
-		Contract: "Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (prim.Anchor)", immOf[prim.Anchor]())
+		Contract: "Reports whether the position is at a beginning anchor. It counts no compute unit: it examines the input before the position, without advancing.", Laws: []string{pure}}), "the anchor (prim.Anchor)", immOf[prim.Anchor]())
+	withImm(op(&code.Op{Name: OpAtEnd, NoReturn: true, Results: []code.Type{b}, Reads: pos, Cost: unit,
+		Contract: "Reports whether the position is at an end anchor. It reads the character at the position, to tell the end of the input or of a line, and counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (prim.Anchor)", immOf[prim.Anchor]())
 	withImm(op(&code.Op{Name: OpSkipTerminal, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QTerminal),
 		Contract: "Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. It counts the position units that each of its terminals advances over, again after the program backtracks (spec/runtime/parsing.md#compute-units)."}),
 		"the terminal program of the region (TerminalProgram)", immOf[prim.TerminalProgram]())
@@ -632,11 +635,12 @@ is how the input arrives, and a stream charges what the batch parse of the same 
 }
 
 // readsInput names the operations that read characters of the input at or after the position. An
-// operation that reads only input before the position (flow.atAnchor) is not one of them: a stream keeps
-// the unit before its commit point (streamCommit), so a look-behind needs no demand.
+// operation that reads only input before the position (flow.atAnchor, a beginning anchor) is not one of them: a
+// stream keeps the unit before its commit point (streamCommit), so a look-behind needs no demand. An end anchor
+// (flow.atEnd) reads at the position, so it is one of them.
 var readsInput = map[string]bool{
 	OpPeek: true, OpHasLit: true, OpMatchLit: true, OpMatchClass: true, OpGuardLitFails: true,
-	OpSkipTerminal: true, OpSkipClasses: true, OpSkipVisit: true, OpScanReach: true,
+	OpSkipTerminal: true, OpSkipClasses: true, OpSkipVisit: true, OpScanReach: true, OpAtEnd: true,
 }
 
 // Attrs are the attributes of a function of grammar code at the Flow stage, which code.Func.Attrs

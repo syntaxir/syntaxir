@@ -130,6 +130,10 @@ func init() {
 			s.emit(bytecode.FlowInstr{Op: bytecode.FlowAtAnchor, Dst: dst, Imm: int(c.Imm.(prim.Anchor))})
 			return nil
 		}},
+		{Op: flowpkg.OpAtEnd, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowAtAnchor, Dst: dst, Imm: int(c.Imm.(prim.Anchor))})
+			return nil
+		}},
 		{Op: flowpkg.OpMatchLit, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLit, Dst: dst, Imm: s.litOf(c.Imm.(prim.Lit))})
 			return nil

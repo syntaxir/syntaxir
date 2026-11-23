@@ -389,6 +389,9 @@ func assertJump(s *flowSel, list []code.Stmt) (int, func() error) {
 	}
 	a := callOf(not(test.Cond), flowpkg.OpAtAnchor)
 	if a == nil {
+		a = callOf(not(test.Cond), flowpkg.OpAtEnd)
+	}
+	if a == nil {
 		return 0, nil
 	}
 	exp, label, cont, ok := expectJump(test.Then)

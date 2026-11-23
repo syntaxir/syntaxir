@@ -1,6 +1,7 @@
 package flowlower
 
 import (
+	"slices"
 	"strings"
 	"testing"
 
@@ -588,5 +589,51 @@ func TestLowerWithoutInsertion(t *testing.T) {
 	}
 	if !strings.Contains(got, flow.OpMatchLit) {
 		t.Errorf("no %s in\n%s", flow.OpMatchLit, got)
+	}
+}
+
+// TestLowerSuspendEndAnchors checks the anchors of a suspended stream at a buffer's boundary: an end anchor reads the
+// character at the position, so the lowering demands it before the read, and the function's reads are covered (the
+// checker of flow.UncoveredReads), while a beginning anchor reads only the input before the position and needs no
+// demand.
+func TestLowerSuspendEndAnchors(t *testing.T) {
+	for _, c := range []struct {
+		name string
+		kind core.AnchorKind
+		end  bool
+	}{{"the end of the input", core.EndInput, true}, {"the end of a line", core.EndLine, true},
+		{"the beginning of the input", core.BeginInput, false}, {"the beginning of a line", core.BeginLine, false}} {
+		t.Run(c.name, func(t *testing.T) {
+			m := &core.Module{Rules: []*core.Rule{nil}, Exps: append(slices.Clone(core.FixedDescs), `"a"`)}
+			body := &core.Seq{Items: []core.Node{&core.Lit{Text: "a"}, &core.Anchor{Kind: c.kind}}}
+			r := &core.Rule{Name: "main", Body: body}
+			m.Rules[0] = r
+			f, err := verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true}, lowerdata.Options{Node: true, Suspend: true}))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := flow.VerifyModule(f); err != nil {
+				t.Fatal(err)
+			}
+			if reads := flow.UncoveredReads(flow.FuncOf(f)); len(reads) > 0 {
+				t.Errorf("the suspended lowering reads its input with no demand: %v", reads)
+			}
+			text := code.FuncStringIn(f, flow.FuncOf(f))
+			anchor := flow.OpAtAnchor
+			if c.end {
+				anchor = flow.OpAtEnd
+			}
+			if !strings.Contains(text, anchor+"(") {
+				t.Fatalf("the lowering has no %s:\n%s", anchor, text)
+			}
+			// The demand of the anchor's read is the one character before it, for each end anchor and no beginning one.
+			demands := strings.Count(text, flow.OpInputDemand+"(")
+			if c.end && demands != 2 {
+				t.Errorf("an end anchor has %d demands, want the literal's and the anchor's:\n%s", demands, text)
+			}
+			if !c.end && demands != 1 {
+				t.Errorf("a beginning anchor has %d demands, want the literal's only:\n%s", demands, text)
+			}
+		})
 	}
 }

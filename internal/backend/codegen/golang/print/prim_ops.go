@@ -318,7 +318,7 @@ func (p *primPrinter) hasLit(lit prim.Lit) string {
 func (p *primPrinter) negate(c *code.Call, args []string) string {
 	g := p.g
 	switch c.Callee {
-	case prim.OpAtAnchor:
+	case prim.OpAtAnchor, prim.OpAtEnd:
 		switch c.Imm.(prim.Anchor) {
 		case prim.BeginInput:
 			return "p.Pos != 0"

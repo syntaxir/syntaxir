@@ -46,7 +46,7 @@ var printed = map[string]bool{
 	prim.OpRunHot: true, prim.OpSkipKids: true, prim.OpScanReach: true, prim.OpScanKids: true,
 	prim.OpResumeOn: true, prim.OpResumeStart: true, prim.OpResumeMore: true, prim.OpResumeNext: true,
 	prim.OpPeek: true, prim.OpMatchLit: true, prim.OpGuardFails: true, prim.OpGuardLitFails: true,
-	prim.OpInClass: true, prim.OpAtAnchor: true, prim.OpCallRule: true, prim.OpCallOutline: true,
+	prim.OpInClass: true, prim.OpAtAnchor: true, prim.OpAtEnd: true, prim.OpCallRule: true, prim.OpCallOutline: true,
 	prim.OpIsolate: true, prim.OpUnisolate: true, prim.OpKeep: true, prim.OpMakeError: true,
 	prim.OpNewErrorNode: true, prim.OpText: true, prim.OpLiteralText: true, prim.OpStr: true,
 	prim.OpNewTerminalNode: true, prim.OpNewBranchNode: true, prim.OpNewVals: true, prim.OpKids: true,

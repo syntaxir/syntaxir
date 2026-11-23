@@ -72,6 +72,7 @@ const (
 	OpGuardFails      = "runtime.guardFails"
 	OpGuardLitFails   = "runtime.guardLitFails"
 	OpAtAnchor        = "runtime.atAnchor"
+	OpAtEnd           = "runtime.atEnd"
 	OpSkipTerminal    = "runtime.skipTerminal"
 	OpSkipClasses     = "runtime.skipClasses"
 	OpCallRule        = "runtime.callRule"
@@ -178,6 +179,7 @@ var imms = map[string]reflect.Type{
 	OpGuardFails:      reflect.TypeFor[Guard](),
 	OpGuardLitFails:   reflect.TypeFor[Guard](),
 	OpAtAnchor:        reflect.TypeFor[Anchor](),
+	OpAtEnd:           reflect.TypeFor[Anchor](),
 	OpSkipTerminal:    reflect.TypeFor[TerminalProgram](),
 	OpSkipClasses:     reflect.TypeFor[ClassRun](),
 	OpCallRule:        reflect.TypeFor[RuleCall](),

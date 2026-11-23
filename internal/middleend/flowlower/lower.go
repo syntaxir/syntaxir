@@ -743,7 +743,14 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		}
 		return null()
 	case *core.Anchor:
-		l.failIf(nil, code.Not(call(flow.OpAtAnchor, anchors[n.Kind].a)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchors[n.Kind].exp}, pos()))
+		op := flow.OpAtAnchor
+		if n.Kind == core.EndInput || n.Kind == core.EndLine {
+			// An end anchor reads the character at the position, which a suspended stream demands first: the end
+			// of the input is known when the stream is final, and a line's end when the next character is.
+			op = flow.OpAtEnd
+			l.demandChar()
+		}
+		l.failIf(nil, code.Not(call(op, anchors[n.Kind].a)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchors[n.Kind].exp}, pos()))
 		return null()
 	case *core.Pred:
 		c, args := l.actionCaps(n.Action, s)
