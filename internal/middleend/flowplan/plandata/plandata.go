@@ -69,6 +69,9 @@ type TableConfig struct {
 	// Resume lowers the repetitions that a Document parse resumes with the operations of their runs
 	// (lowerdata.Options.Resume): set for a parser with Documents.
 	Resume bool
+	// Suspend lowers the reads of a stream parse with flow.inputDemand, so that a backend can suspend
+	// where it needs input (lowerdata.Options.Suspend): set for the TypeScript -stream parser only.
+	Suspend bool
 	// Traced selects the traced bodies.
 	Traced bool
 	// Inserts lowers the #missing sites with their insertions (lowerdata.Options.Inserts), for a

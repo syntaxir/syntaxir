@@ -26,6 +26,6 @@ func TableBuild(prog elaborate.Program, c plandata.TableConfig) func(*cancel.Con
 // pass outline chooses the outlined nodes of a backend that runs it (Outlining).
 func TableOf(m *core.Module, c plandata.TableConfig) *plandata.TableIR {
 	opts := lowerdata.Options{Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Inserts: c.Inserts && flowlower.Inserts(m), Observe: c.Observe, Node: true,
-		Document: c.Document, Resume: c.Resume, Traced: c.Traced}
+		Document: c.Document, Resume: c.Resume, Traced: c.Traced, Suspend: c.Suspend}
 	return &plandata.TableIR{M: m, Values: c.Values, Opts: opts}
 }

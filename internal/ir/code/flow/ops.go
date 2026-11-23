@@ -619,7 +619,22 @@ is how the input arrives, and a stream charges what the batch parse of the same 
 		"the action site of the rule and its captures (Action)", immOf[prim.Action]())
 	op(&code.Op{Name: OpCtxFinish, NoReturn: true, Params: []code.Param{P("c", ctx), P("x", value)}, Results: []code.Type{value}, Writes: []string{State}, Cost: per(QMade),
 		Contract: "Returns the value x of an action finished in the context c: a struct that c made takes the range of the rule, and the values that c made are forgotten. It searches the values that c made for x, and charges one unit for each it compares with x."})
+	// The operations that read characters of the input at or after the position carry ReadsInput, the fact
+	// that UncoveredReads checks against the demands of a suspended stream.
+	for _, o := range ops {
+		if readsInput[o.Name] {
+			o.Laws = append(o.Laws, ReadsInput)
+		}
+	}
 	return ops
+}
+
+// readsInput names the operations that read characters of the input at or after the position. An
+// operation that reads only input before the position (flow.atAnchor) is not one of them: a stream keeps
+// the unit before its commit point (streamCommit), so a look-behind needs no demand.
+var readsInput = map[string]bool{
+	OpPeek: true, OpHasLit: true, OpMatchLit: true, OpMatchClass: true, OpGuardLitFails: true,
+	OpSkipTerminal: true, OpSkipClasses: true, OpSkipVisit: true, OpScanReach: true,
 }
 
 // Attrs are the attributes of a function of grammar code at the Flow stage, which code.Func.Attrs
