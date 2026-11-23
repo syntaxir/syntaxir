@@ -672,6 +672,10 @@ type Attrs struct {
 	// input in it records how far the parse examined, so VerifyModule rejects each operation that reads
 	// in place (hasLit, matchClass, skipTerminal, skipClasses), with or without a recording alternative.
 	Traced bool
+	// Resumable reports a function that a suspended stream (lowerdata.Options.Suspend) runs as a resumable
+	// function, which suspends where it demands input: it demands input (flow.inputDemand), or calls a
+	// resumable function of its table. flowplan.Resumable sets it; no other lowering does.
+	Resumable bool
 	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finishing
 	// removes them.
 	Forms *Forms

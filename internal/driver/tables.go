@@ -65,6 +65,13 @@ var tableConfig = pipe.RegisterDerive(plandata.PlannedIR, &pipe.Derive[plandata.
 	Of: func(p plandata.Planned) bool { return p.IR.Opts.Observe },
 })
 
+// suspendConfig derives whether the table is lowered for a suspended stream (flowplan.SuspendFeature), which
+// the options of its lowering say.
+var suspendConfig = pipe.RegisterDerive(plandata.PlannedIR, &pipe.Derive[plandata.Planned, bool]{
+	Name: "table-suspend", Key: flowplan.SuspendFeature,
+	Of: func(p plandata.Planned) bool { return p.IR.Opts.Suspend },
+})
+
 // lowering returns the pipeline of a planned table from its lowering to the Exec stage, for a backend
 // that prints the forms flowTarget of the Flow passes and runs the Exec passes target on each lowered
 // function.
@@ -85,7 +92,8 @@ func lowering(flowTarget flowpass.Target, target targetPipeline) pipe.Pipeline[p
 	exec := pipe.Then(pipe.Of(execlower.Lowering), pipe.Within(plandata.ExecModule, pipe.Then(
 		pipe.PerFunc(code.ExecFuncs, pipe.Slot(ExecSlot, pipe.Seq(code.ExecStage, codepass.Passes...))),
 		pipe.PerFunc(execdata.LoweredFuncs, pipe.Slot(TargetSlot, target)))))
-	return pipe.WithDerived(tableConfig, pipe.Then3(pipe.Of(flowlower.Lowering), flowStage(flowTarget), exec))
+	lower := pipe.Then(pipe.Of(flowlower.Lowering), pipe.Of(flowplan.Resumable))
+	return pipe.WithDerived(tableConfig, pipe.WithDerived(suspendConfig, pipe.Then3(lower, flowStage(flowTarget), exec)))
 }
 
 // flowStage returns the Flow stage of the pipeline of a planned table after its lowering, for a backend
