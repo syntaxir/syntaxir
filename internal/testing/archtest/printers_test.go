@@ -50,7 +50,7 @@ func bannedForPrinters(r string) string {
 		return "the driver"
 	case r == "internal/backend/codegen", r == "internal/backend/codegen/golang", r == "internal/backend/codegen/typescript":
 		return "a backend package, which declares the printing steps"
-	case under("internal/middleend/corepass"), under("internal/middleend/flowpass"), under("internal/middleend/codepass"),
+	case under("internal/middleend/corepass"), under("internal/middleend/actionpass"), under("internal/middleend/flowpass"), under("internal/middleend/codepass"),
 		under("internal/backend/codegen/golang/pass"), under("internal/backend/codegen/typescript/pass"):
 		return "a pass package"
 	case under("internal/middleend/flowlower"), under("internal/middleend/actionlower"), under("internal/middleend/execlower"), under("internal/backend/vmlower"),

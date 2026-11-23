@@ -6,8 +6,10 @@
 package plandata
 
 import (
+	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Use is what a planned function is in its table.
@@ -71,12 +73,19 @@ type TableConfig struct {
 	Traced bool
 }
 
-// TableIR is the Core IR of a Node or recognizer table after its Core passes, and the options that
-// every function of the table is lowered with.
+// TableIR is the Core IR of a Node or recognizer table after its Core passes, the options that
+// every function of the table is lowered with, and the Action module of the table.
 type TableIR struct {
 	// M is built with its origin map (core.Module.Origin), which the passes keep.
 	M *core.Module
 	// Values says that the actions of M build values (TableConfig.Values).
 	Values bool
 	Opts   lowerdata.Options
+	// Actions is the Action module of M: the functions that evaluate the action expressions of its
+	// sites (action.Site), as the Action segment of the pipeline lowered them; no module before it.
+	Actions code.At[code.Action]
 }
+
+// TableCoreIR is the kind of a table as the Action segment lowers it: its Core IR with the options of
+// the table.
+var TableCoreIR = pipe.RegisterIR(&pipe.IR[*TableIR]{Name: "table@core"})

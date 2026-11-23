@@ -46,7 +46,7 @@ func TestGenOptimize(t *testing.T) {
 		{[]string{"-optimize", "nosuch"}, `-optimize: unknown optimization profile "nosuch" (valid: speed, memory, size)`},
 		{[]string{"-no-opt", "nosuch"}, `-no-opt: unknown optimization "nosuch" (valid: dispatch, guards, outline, scans, field-compare,`},
 		{[]string{"-no-opt", "guards,nosuch"}, `unknown optimization "nosuch"`},
-		{[]string{"-print-after", "nosuch"}, `-print-after: unknown pass or step "nosuch" to print after (valid: elaborate, guards, scans, dispatch, outline, plan, flowlower, terminals,`},
+		{[]string{"-print-after", "nosuch"}, `-print-after: unknown pass or step "nosuch" to print after (valid: elaborate, guards, scans, actionlower, text-dispatch, field-compare, go-struct-call, go-in-place, action-finish, dispatch, outline, plan, flowlower, terminals,`},
 	} {
 		_, err := runGenGo(t, append([]string{"-g", g}, c.args...)...)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

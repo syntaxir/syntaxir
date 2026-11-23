@@ -17,6 +17,22 @@ pipeline program -> output {
           }
         }
       }
+      each closure-actions {
+        with action-config {
+          actionlower!
+          func funcs@action {
+            slot action-passes {
+            }
+          }
+          func funcs@action {
+            slot action-target-passes {
+            }
+          }
+          func funcs@action {
+            action-finish!
+          }
+        }
+      }
       closure-core!
     }
   }

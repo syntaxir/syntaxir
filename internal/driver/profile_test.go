@@ -155,10 +155,11 @@ func TestParsePrintAfter(t *testing.T) {
 	if _, err := ParsePrintAfter("guards,nonsense"); err == nil || !strings.Contains(err.Error(), "unknown pass") {
 		t.Errorf("unknown: %v", err)
 	}
-	// The names follow the order the steps run in: the elaboration and the Core passes, outline and the
-	// plan of the program, then the Flow lowering, passes and finish, then the Exec lowering and passes and the Exec
+	// The names follow the order the steps run in: the elaboration and the Core passes, the Action
+	// lowering, passes and finish, dispatch, outline and the plan of the program, then the Flow lowering, passes and finish, then the Exec lowering and passes and the Exec
 	// passes of the targets.
 	want := append([]string{"elaborate"}, corepass.Names()...)
+	want = append(want, "actionlower", "text-dispatch", "field-compare", "go-struct-call", "go-in-place", "action-finish")
 	want = append(append(want, "dispatch", "outline", "plan", "flowlower"), flowpass.Names()...)
 	want = append(append(want, "flow-finish", "execlower"), codepass.Names()...)
 	for _, p := range append(slices.Clone(gopass.Passes), tspass.Passes...) {

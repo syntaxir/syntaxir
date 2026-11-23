@@ -27,6 +27,7 @@ import (
 //	  each vm-tables {
 //	    core-config { ... }
 //	  }
+//	  each action-tables { ... }
 //	  dispatch
 //	  plan!
 //	  each vm-planned-tables {
@@ -39,7 +40,8 @@ import (
 //	}
 //
 // vm-tables gives the one table that the VM runs, the Node table labeled rules, and its join gives
-// what the program is planned from (vmCores). The pass dispatch chooses the guards that the table
+// what the program is planned from (vmCores). action-tables lowers the actions of the table into its Action module (actions),
+// the pass dispatch chooses the guards that the table
 // keeps (flowplan.Dispatching), plan! plans it, and vm-planned-tables lowers the
 // planned table to the end of the Flow stage, for the forms of the bytecode (flowpass.Bytecode), and
 // joins it with the program into vm-input, which vmlower! lowers to the bytecode module.
@@ -164,7 +166,7 @@ func planRules(rules []*check.Rule) []*plandata.Rule {
 // vmPipeline returns the pipeline of a VM target.
 func vmPipeline() assembled {
 	p := pipe.Then3(
-		pipe.Then3(pipe.Each(vmTables, coreConfig()), pipe.Of(flowplan.Dispatching), pipe.Of(flowplan.Planning)),
+		pipe.Then3(pipe.Each(vmTables, coreConfig()), pipe.Then(actions(vmActions), pipe.Of(flowplan.Dispatching)), pipe.Of(flowplan.Planning)),
 		pipe.Each(vmPlannedTables, flowLowering(flowpass.Bytecode)),
 		pipe.Of(vmlower.Lowering))
 	return assembled{pipeline: p, steps: []string{Elaborate, flowlower.Name, vmlower.Name}}

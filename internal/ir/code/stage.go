@@ -25,8 +25,13 @@ type Flow struct{}
 // Exec is the Exec stage: the module of a table as execlower makes it.
 type Exec struct{}
 
-func (Flow) stage() string { return "flow" }
-func (Exec) stage() string { return "exec" }
+// Action is the stage of the Action module of a table: the functions that evaluate the action
+// expressions of its sites, as actionlower makes them, with the compositions that they call.
+type Action struct{}
+
+func (Flow) stage() string   { return "flow" }
+func (Exec) stage() string   { return "exec" }
+func (Action) stage() string { return "action" }
 
 // stageName returns the run-time name of the stage S (Module.Stage).
 func stageName[S Stage]() string {
@@ -74,6 +79,9 @@ func EnterFlow(m *Module) At[Flow] { return enter[Flow](m) }
 // EnterExec makes m a unit at the Exec stage. Only execlower calls it.
 func EnterExec(m *Module) At[Exec] { return enter[Exec](m) }
 
+// EnterAction makes m a unit at the Action stage. Only actionlower calls it.
+func EnterAction(m *Module) At[Action] { return enter[Action](m) }
+
 // stageChecks holds, by stage, the invariants of a module at the stage beyond Verify, which the
 // package that declares the functions of the stage registers (RegisterStageCheck).
 var stageChecks = map[string]func(*Module) error{}
@@ -93,6 +101,11 @@ func RegisterStageCheck[S Stage](check func(*Module) error) {
 // stageIR declares the kind of a module at the stage S: verified by Verify, the stage of the module
 // and the stage's own check, printed as the listing of each function, and copied by Clone.
 func stageIR[S Stage](name string) *pipe.IR[At[S]] {
+	return stageIRListing[S](name, func(w io.Writer, m *Module) { PrintFuncs(w, m) })
+}
+
+// stageIRListing is stageIR with the dump print.
+func stageIRListing[S Stage](name string, print func(w io.Writer, m *Module)) *pipe.IR[At[S]] {
 	stage := stageName[S]()
 	return pipe.RegisterIR(&pipe.IR[At[S]]{
 		Name: name,
@@ -109,7 +122,7 @@ func stageIR[S Stage](name string) *pipe.IR[At[S]] {
 			}
 			return nil
 		},
-		Print: func(w io.Writer, a At[S]) { PrintFuncs(w, a.m) },
+		Print: func(w io.Writer, a At[S]) { print(w, a.m) },
 		Copy:  func(a At[S]) At[S] { return At[S]{a.m.Clone()} },
 	})
 }
@@ -119,6 +132,26 @@ var (
 	FlowStage = stageIR[Flow]("code@flow")
 	ExecStage = stageIR[Exec]("code@exec")
 )
+
+// ActionStage is the unit kind of an Action module. The functions of its sites have the attributes
+// of the Action dialect; the compositions that they call, which the module declares as they are,
+// have none. Its dump lists the functions of the sites.
+var ActionStage = stageIRListing[Action]("code@action", func(w io.Writer, m *Module) {
+	for _, i := range attributed(m) {
+		fmt.Fprintf(w, "%s\n", FuncStringIn(m, m.Funcs[i]))
+	}
+})
+
+// attributed returns the indices of the functions of m that have attributes.
+func attributed(m *Module) []int {
+	var out []int
+	for i, f := range m.Funcs {
+		if f.Attrs != nil {
+			out = append(out, i)
+		}
+	}
+	return out
+}
 
 // stageFuncs declares the view of a module at the stage S as its functions, each a module at the
 // stage that declares what the module declares and holds that function alone (FuncUnit), for the
@@ -140,3 +173,51 @@ var (
 	FlowFuncs = stageFuncs("funcs@flow", FlowStage)
 	ExecFuncs = stageFuncs("funcs@exec", ExecStage)
 )
+
+// ActionFuncs views an Action module as the functions of its sites (ActionStage). The unit of a site
+// declares what the module declares and holds the function of the site first, then the compositions
+// of the module, which the function may call and which no pass changes (actionUnit).
+var ActionFuncs = pipe.RegisterFuncs(ActionStage, ActionStage, &pipe.Funcs[At[Action], At[Action]]{
+	Name: "funcs@action",
+	Len:  func(a At[Action]) int { return len(attributed(a.m)) },
+	Func: func(a At[Action], i int) string { return a.m.Funcs[attributed(a.m)[i]].Name },
+	Get:  func(a At[Action], i int) At[Action] { return At[Action]{actionUnit(a.m, attributed(a.m)[i])} },
+	Put: func(a At[Action], i int, u At[Action]) (At[Action], error) {
+		return a, putActionUnit(a.m, attributed(a.m)[i], u.m)
+	},
+})
+
+// actionUnit returns the unit of the function i of the Action module m: FuncUnit(i) followed by the
+// functions of m without attributes, the compositions.
+func actionUnit(m *Module, i int) *Module {
+	u := m.FuncUnit(i)
+	for _, f := range m.Funcs {
+		if f.Attrs == nil {
+			u.Funcs = append(u.Funcs, f)
+		}
+	}
+	return u
+}
+
+// putActionUnit puts the function of u, a unit that actionUnit(m, i) made and that passes may have
+// changed, in place of the function i of m (PutFuncUnit). A unit whose compositions are not those of m
+// is an error, and m is left as it was.
+func putActionUnit(m *Module, i int, u *Module) error {
+	var comps []string
+	for _, f := range m.Funcs {
+		if f.Attrs == nil {
+			comps = append(comps, f.Name)
+		}
+	}
+	if len(u.Funcs) != 1+len(comps) {
+		return fmt.Errorf("a pass on the function %s of %s added or removed functions: its unit holds %d functions", m.Funcs[i].Name, m.Name, len(u.Funcs))
+	}
+	for j, f := range u.Funcs[1:] {
+		if f.Attrs != nil || f.Name != comps[j] {
+			return fmt.Errorf("a pass on the function %s of %s replaced the composition %s", m.Funcs[i].Name, m.Name, comps[j])
+		}
+	}
+	site := *u
+	site.Funcs = u.Funcs[:1]
+	return m.PutFuncUnit(i, &site)
+}

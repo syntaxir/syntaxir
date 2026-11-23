@@ -16,6 +16,26 @@ pipeline program -> output {
           }
         }
       }
+      each action-tables {
+        with action-config {
+          actionlower!
+          func funcs@action {
+            slot action-passes {
+              text-dispatch
+            }
+          }
+          func funcs@action {
+            slot action-target-passes {
+              field-compare
+              go-struct-call!
+            }
+          }
+          go-in-place!
+          func funcs@action {
+            action-finish!
+          }
+        }
+      }
       dispatch
       plan!
       each planned-tables {

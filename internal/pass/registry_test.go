@@ -18,7 +18,7 @@ func init() {
 	)
 	Register(
 		Flag{Name: "t-exec", Kind: KindExecPass, Default: 1, Doc: "an exec pass"},
-		Flag{Name: "t-count", Kind: KindLowering, Int: true, Default: 4, Doc: "a count"},
+		Flag{Name: "t-count", Kind: KindActionPass, Int: true, Default: 4, Doc: "a count"},
 		Flag{Name: "t-flow", Kind: KindFlowPass, Default: 1, Doc: "a flow pass"},
 		Flag{Name: "t-ablation", Kind: KindCorePass, Default: 1, Doc: "a pass named before guards"},
 		Flag{Name: "t-pattern", Kind: KindPattern, Default: 1, Doc: "a pattern"},
@@ -41,7 +41,7 @@ func TestRegistryOrder(t *testing.T) {
 	if !slices.IsSorted(kinds) {
 		t.Errorf("kinds out of order: %v", kinds)
 	}
-	if got := []string{KindCorePass.String(), KindLowering.String(), KindFlowPass.String(), KindExecPass.String(), KindCodePass.String(), KindPattern.String(), KindPrinter.String(), KindStorage.String()}; !slices.Equal(got, []string{"pass", "lowering", "flow pass", "exec pass", "code pass", "pattern", "printer", "storage"}) {
+	if got := []string{KindCorePass.String(), KindActionPass.String(), KindFlowPass.String(), KindExecPass.String(), KindCodePass.String(), KindPattern.String(), KindPrinter.String(), KindStorage.String()}; !slices.Equal(got, []string{"pass", "action pass", "flow pass", "exec pass", "code pass", "pattern", "printer", "storage"}) {
 		t.Errorf("kind names %v", got)
 	}
 	// Sorting is a function of the set alone.
@@ -52,7 +52,7 @@ func TestRegistryOrder(t *testing.T) {
 	if !slices.Equal(a, b) {
 		t.Errorf("sorting a reversed list gives %v", b)
 	}
-	if got := Summaries(); !strings.HasPrefix(got, "t-ablation (pass, on), t-guards (pass, on), t-count (lowering, 4; count), ") {
+	if got := Summaries(); !strings.HasPrefix(got, "t-ablation (pass, on), t-guards (pass, on), t-count (action pass, 4; count), ") {
 		t.Errorf("Summaries() = %q", got)
 	}
 }
@@ -160,8 +160,8 @@ func TestFlagSummaries(t *testing.T) {
 		f    Flag
 		want string
 	}{
-		{Flag{Name: "class-tables", Kind: KindLowering, Int: true}, "class-tables (lowering, off; count)"},
-		{Flag{Name: "inline-literals", Kind: KindLowering, Int: true, Default: 4}, "inline-literals (lowering, 4; count)"},
+		{Flag{Name: "class-tables", Kind: KindFlowPass, Int: true}, "class-tables (flow pass, off; count)"},
+		{Flag{Name: "inline-literals", Kind: KindFlowPass, Int: true, Default: 4}, "inline-literals (flow pass, 4; count)"},
 		{Flag{Name: "guards", Kind: KindCorePass, Default: 1}, "guards (pass, on)"},
 		{Flag{Name: "ts-literal-sharing", Kind: KindPrinter}, "ts-literal-sharing (printer, off)"},
 		{Flag{Name: "sparse-memo", Kind: KindStorage, Default: 1}, "sparse-memo (storage, on)"},

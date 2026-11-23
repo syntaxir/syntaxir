@@ -5,15 +5,18 @@ import (
 	"io"
 
 	"syntaxir.dev/sxir/internal/driver/result"
+	"syntaxir.dev/sxir/internal/ir/code"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
 // Input is what the last step of a closure target takes: the Core module of the program after the
-// Core passes, from which every family of closures is built.
+// Core passes, from which every family of closures is built, and its Action module, which the Action
+// segment of the pipeline lowered.
 type Input struct {
-	Module *ir.Module
+	Module  *ir.Module
+	Actions code.At[code.Action]
 }
 
 // InputIR is the kind closure-input, which the join of the table of a closure target gives. It

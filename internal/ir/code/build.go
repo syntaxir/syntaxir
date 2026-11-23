@@ -61,6 +61,14 @@ type Builder struct {
 
 func (b *Builder) add(s Stmt) { b.block.Stmts = append(b.block.Stmts, s) }
 
+// Stmts returns the statements that body appends, for a pass that adds them to the function f, into
+// which Var declares.
+func Stmts(f *Func, body func(b *Builder)) []Stmt {
+	blk := &Block{}
+	body(&Builder{f: f, block: blk})
+	return blk.Stmts
+}
+
 func (b *Builder) nested(label string, body func(b *Builder)) *Block {
 	blk := &Block{Label: label}
 	body(&Builder{f: b.f, block: blk})

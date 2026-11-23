@@ -61,6 +61,6 @@ var closureTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, closure.
 
 // closurePipeline returns the pipeline of a closure target.
 func closurePipeline() assembled {
-	p := pipe.Then(pipe.Each(closureTables, coreConfig()), pipe.Of(closure.Core))
+	p := pipe.Then3(pipe.Each(closureTables, coreConfig()), pipe.Each(closureActions, actionSegment(vmActions)), pipe.Of(closure.Core))
 	return assembled{pipeline: p, steps: []string{Elaborate, closure.CoreName}}
 }

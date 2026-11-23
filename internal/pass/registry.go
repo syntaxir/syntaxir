@@ -23,8 +23,8 @@ type Kind int
 const (
 	// KindCorePass is a pass over Core IR, or a variant of one.
 	KindCorePass Kind = iota
-	// KindLowering is an option of a lowering.
-	KindLowering
+	// KindActionPass is a pass over the Action module of a table.
+	KindActionPass
 	// KindFlowPass is a pass over Flow IR.
 	KindFlowPass
 	// KindExecPass is a pass over Exec IR.
@@ -46,8 +46,8 @@ func (k Kind) String() string {
 	switch k {
 	case KindCorePass:
 		return "pass"
-	case KindLowering:
-		return "lowering"
+	case KindActionPass:
+		return "action pass"
 	case KindFlowPass:
 		return "flow pass"
 	case KindExecPass:
@@ -93,7 +93,7 @@ func (f Flag) DefaultText() string {
 	return "off"
 }
 
-// Summary is the name of the flag with its kind and default, as `class-tables (lowering, off; count)`:
+// Summary is the name of the flag with its kind and default, as `class-tables (flow pass, off; count)`:
 // a flag with a count says so, and one that changes the output says that.
 func (f Flag) Summary() string {
 	s := f.Name + " (" + f.Kind.String() + ", " + f.DefaultText()

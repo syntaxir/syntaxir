@@ -203,7 +203,7 @@ sxir gen -lib only -o <directory> [-lang go|ts]
 | `-optimize` | `speed` | The optimization profile (see [Optimizations](#optimizations)). `speed`, `memory` or `size`; any other name is an error that lists the valid ones |
 | `-opt` | none | Optimizations to give a value after the profile is applied and before `-no-opt`, separated by commas, as `name` or `name=count`: a name alone turns on an optimization that the profile leaves off (`-opt ts-literal-sharing`), a count sets an integer one (`-opt class-tables=3`), and `0` turns one off. An unknown name, a count that is not a number, or a value that the optimization does not take is an error, and so is a required step (`elaborate`, `flowlower`, `flow-finish`, `execlower`), which always runs |
 | `-no-opt` | none | Optimizations to turn off after the profile is applied, separated by commas (names in [Optimizations](#optimizations)). A name that is unknown or a required step is an error; a known name that does not apply to the parser being generated does nothing |
-| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `plan`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all`, which selects every step but `plan` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing (see [Debugging the generator](#debugging-the-generator)) |
+| `-print-after` | none | Write the intermediate representation that the generator builds to standard error, as text, after the named steps and passes, separated by commas: the steps `elaborate`, `actionlower`, `go-struct-call`, `go-in-place`, `action-finish`, `plan`, `flowlower`, `flow-finish` and `execlower`, a pass name, or `all`, which selects every step but `plan` (see [Optimizations](#optimizations)); a pass that does not apply to the parser prints nothing (see [Debugging the generator](#debugging-the-generator)) |
 | `-print-before` | none | Write the intermediate representation that the named passes receive to standard error, before each of their runs, as `-print-after` writes it: pass names separated by commas, or `all`. The required steps are not passes to print before; their input is the dump after the step before them |
 | `-print-changed` | off | Write the intermediate representation to standard error after each pass that changed it, and, before the first such dump of a unit, the unit that the pass received |
 | `-verify-each` | off | Verify the intermediate representation after every pass and step, so that an internal error names the first pass that broke it |
@@ -314,8 +314,8 @@ the table, is always an opt-in, and is never part of a profile. Two uses of the 
 - To isolate a miscompilation: generate with `-no-opt` and one name and see whether the output changes.
 - To measure an optimization with the same generator on both sides.
 
-The kind says what the optimization changes: a `pass` rewrites the parser before it is lowered, a `lowering` is an
-option of the lowering to the code, a `flow pass` replaces the form in which the lowered code matches a construct with
+The kind says what the optimization changes: a `pass` rewrites the parser before it is lowered, an `action pass`
+chooses the form of the lowered action expressions, a `flow pass` replaces the form in which the lowered code matches a construct with
 another where the target language prints it, an `exec pass` replaces operations of the lowered code with a form
 that one target prints more compactly, a `code pass` rewrites the lowered code before and after it is converted for
 the target, a `pattern` is one local rewrite of such a pass, a `printer` is a choice of what the Go and TypeScript printers emit, and a `storage`
@@ -328,8 +328,8 @@ table changes output yet:
 | `guards` | pass | on | Skip an alternative when the next character cannot start it. One read of the next character per choice against the attempts of alternatives that cannot match, and a little more code per choice |
 | `outline` | pass | on | Large and repeated parts of a rule run as functions of their own (TypeScript). Smaller functions that the JavaScript engine compiles faster, and equal parts share one function, against a call per outlined part |
 | `scans` | pass | on | A value-free repetition of a class or of any character runs as a scan. A loop against the general repetition |
-| `field-compare` | lowering | on | Typed Go compares fields in the actions and predicates of typed rules without boxing string fields. Fewer allocations, no cost |
-| `text-dispatch` | lowering | on | A predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls. One test of the literals against a chain of comparisons, and the text is computed once |
+| `field-compare` | action pass | on | Typed Go compares fields in the actions and predicates of typed rules without boxing string fields. Fewer allocations, no cost |
+| `text-dispatch` | action pass | on | A predicate that compares the text of a capture with literals tests them at once when the parse runs without limit controls. One test of the literals against a chain of comparisons, and the text is computed once |
 | `class-runs` | flow pass | on | Consecutive classes of a value-free sequence run as one (lean typed Go). One run against one test and call per class |
 | `class-tables` | flow pass | off | Match a class of at least this many ranges through a membership table (lean typed Go); `-opt class-tables=5` is the measured choice, and 0 turns the tables off. Table data against code: about 3% smaller source, and about 1% slower parsing on the language grammars (3.7% on TypeScript). It is an opt-in |
 | `guarded-classes` | flow pass | on | A leading class of a guarded alternative consumes the character its guard read (ordinary Go parsers). Saves a second read and test of that character |
@@ -380,7 +380,13 @@ untyped and recognizer tables; a pass that runs on one function at a time names 
 `-- after <pass> [<table>/<function>] --`. The rules of the untyped and recognizer tables that the parser leaves out
 are lowered as tables of their own, `rulesUnreachable` and `recRulesUnreachable`, so that the expectation table keeps
 their rows. The dumps of each table are written together, in the order of its steps. `-print-after elaborate` shows the Core IR of each rule table as built, with the attributes of its nodes, and
-each Core pass prints it under its own name. `-print-after plan` shows the plan of the parser's program, under
+each Core pass prints it under its own name. `-print-after actionlower` shows the action expressions of each table as
+lowered, once per table, under `-- after actionlower [<table>] --`: a function for each action site of the table, in the
+order of the sites, as a listing of Code IR at the Action stage. The Action passes (`text-dispatch`, and in Go
+`field-compare`), the Go step `go-struct-call` and `action-finish`, which ends each function, print each function they
+run on under their own names, `-- after <pass> [<table>/site<n>] --`. The Go step `go-in-place` prints the functions of
+the table after it adds, for the action of each rule, the function `site<n>_result` that Go prints in place of the
+action. `-print-after plan` shows the plan of the parser's program, under
 `-- after plan [program] --`, before the dumps of the tables: the entry points, then for each table every rule by ID with the route of a call of it
 (`call=slot` through the rule table, `call=wrapper` through the rule's own function) and the ways the entry points reach
 it (`reach=slot`, `reach=wrapper`, both, or `reach=none` for a rule whose body the parser leaves out). The plan is

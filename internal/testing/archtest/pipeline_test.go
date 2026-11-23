@@ -226,7 +226,7 @@ var driverExports = []string{
 	// The roles of the run-time programs of a grammar (ProgramOf).
 	"Insertion", "Parser", "Recognizer", "Role",
 	// The slot keys.
-	"CoreSlot", "ExecSlot", "FlowSlot", "TargetSlot",
+	"ActionSlot", "ActionTargetSlot", "CoreSlot", "ExecSlot", "FlowSlot", "TargetSlot",
 	// The settings: profiles, their documentation and values, the parsing of overrides and dump
 	// selections, the names of the steps, and the check of the registry against them.
 	"CheckDebug", "CheckOptimizable", "CheckPrintAfter", "CheckPrintBefore", "CheckRegistry", "Elaborate",

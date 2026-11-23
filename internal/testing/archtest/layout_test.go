@@ -91,6 +91,7 @@ var layout = []place{
 	{pkg: "internal/middleend/flowlower", target: "internal/middleend/flowlower"},
 	{pkg: "internal/middleend/flowlower/lowerdata", target: "internal/middleend/flowlower/lowerdata"},
 	{pkg: "internal/middleend/actionlower", target: "internal/middleend/actionlower"},
+	{pkg: "internal/middleend/actionpass", target: "internal/middleend/actionpass"},
 	{pkg: "internal/middleend/flowpass", target: "internal/middleend/flowpass"},
 	{pkg: "internal/middleend/flowplan", target: "internal/middleend/flowplan"},
 	{pkg: "internal/middleend/flowplan/plandata", target: "internal/middleend/flowplan/plandata"},

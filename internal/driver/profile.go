@@ -17,6 +17,9 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
+	"syntaxir.dev/sxir/internal/middleend/actionpass"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
@@ -209,6 +212,7 @@ func CheckOptimizable(names ...string) error {
 func PrintNames() []string {
 	out := []string{Elaborate}
 	out = append(out, corepass.Names()...)
+	out = append(out, actionlower.PassLower, actionpass.PassTextDispatch, gopass.PassFieldCompare, gopass.PassStructCall, gopass.PassInPlace, actionpass.PassFinish)
 	out = append(out, flowplan.PassDispatch, flowplan.PassOutline, flowplan.PlanName, flowlower.Name)
 	out = append(out, flowpass.Names()...)
 	out = append(out, flowpass.FinishName, execlower.Name)
@@ -229,7 +233,7 @@ func PrintNames() []string {
 
 // stageSteps maps the names of the stages, which select no dump, to the step that makes the unit
 // of the stage, for the hint of an error.
-var stageSteps = map[string]string{"core": Elaborate, "flow": flowlower.Name, "exec": execlower.Name}
+var stageSteps = map[string]string{"core": Elaborate, "action": actionlower.PassLower, "flow": flowlower.Name, "exec": execlower.Name}
 
 // ParsePrintAfter validates a comma-separated list of step and pass names for printing, as
 // -print-after takes it, and returns the names in order, without the spaces around them. The empty

@@ -20,6 +20,23 @@ pipeline program -> []output {
               }
             }
           }
+          each action-tables {
+            with action-config {
+              actionlower!
+              func funcs@action {
+                slot action-passes {
+                }
+              }
+              func funcs@action {
+                slot action-target-passes {
+                }
+              }
+              func funcs@action {
+                action-finish!
+              }
+            }
+          }
+          dispatch
           plan!
           each vm-planned-tables {
             with table-config {
@@ -54,6 +71,22 @@ pipeline program -> []output {
               slot core-passes {
                 guards
                 scans
+              }
+            }
+          }
+          each closure-actions {
+            with action-config {
+              actionlower!
+              func funcs@action {
+                slot action-passes {
+                }
+              }
+              func funcs@action {
+                slot action-target-passes {
+                }
+              }
+              func funcs@action {
+                action-finish!
               }
             }
           }

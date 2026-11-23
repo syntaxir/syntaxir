@@ -271,6 +271,7 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |
 | `internal/middleend/flowlower/lowerdata` | The data that the lowering to the Flow stage takes, without pass code: the functions of a table, their forms and options |
 | `internal/middleend/actionlower` | Action expressions of Core IR (actions, predicates and binding values) to functions of the Action dialect; every backend lowers its action expressions with it |
+| `internal/middleend/actionpass` | The Action passes that every target that prints predicates runs on the Action module of a table (text-dispatch), and the step action-finish that ends each function of a site |
 | `internal/middleend/flowpass` | The Flow passes |
 | `internal/middleend/execlower` | Complete conversion from the Flow stage to the Exec stage |
 | `internal/middleend/codepass` | Dialect-independent passes of Code IR |

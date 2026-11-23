@@ -115,6 +115,14 @@ var (
 	SpliceBlocks = newPattern("splice-blocks", "a block without a label that declares no local is spliced into its parent", spliceBlocks)
 )
 
+// EachList calls fn with each statement list of b, the lists nested in a statement before the list
+// that holds it, and replaces the list by what fn returns: the rewriting of statements of a pass.
+func EachList(b *Block, fn func([]Stmt) []Stmt) { eachList(b, fn) }
+
+// RewriteExprs replaces each expression of b in place by what fn returns for it, after its
+// subexpressions are replaced; fn returns a *Call for a call: the rewriting of expressions of a pass.
+func RewriteExprs(b *Block, fn func(Expr) Expr) { rewriteExprs(b, fn) }
+
 // eachList calls fn with each statement list of b, the lists nested in a statement before the list
 // that holds it, and replaces the list by what fn returns.
 func eachList(b *Block, fn func([]Stmt) []Stmt) {

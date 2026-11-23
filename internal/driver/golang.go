@@ -20,6 +20,7 @@ import (
 //	  each go-tables {
 //	    core-config { ... }
 //	  }
+//	  each action-tables { ... }
 //	  dispatch
 //	  plan!
 //	  each planned-tables {
@@ -31,7 +32,8 @@ import (
 // go-tables splits the program into the tables that the Go parser of the target has (gobackend.Decide): the
 // Node table, the recognizer, the typed table and their traced copies, each labeled as its dumps
 // are. Its join gives the Core modules of the tables with what the program and its tables are planned
-// from (cores). The pass dispatch chooses the guards that the tables keep (flowplan.Dispatching), and
+// from (cores). action-tables lowers the actions of each table into its Action module (actions),
+// the pass dispatch chooses the guards that the tables keep (flowplan.Dispatching), and
 // plan! plans them. planned-tables splits the plan into the planned tables and joins
 // them, at the Exec stage, into tables@exec, numbering the expectation table of the Node and
 // recognizer tables. print-go prints the parser of the target from them.
@@ -70,7 +72,7 @@ func goDecision(x pipe.SplitCtx) (*gobackend.Decision, error) {
 // goPipeline returns the pipeline of a Go target.
 func goPipeline() assembled {
 	p := pipe.Then3(
-		pipe.Then3(pipe.Each(goTables, coreConfig()), pipe.Of(flowplan.Dispatching), pipe.Of(flowplan.Planning)),
+		pipe.Then3(pipe.Each(goTables, coreConfig()), pipe.Then(actions(goActions), pipe.Of(flowplan.Dispatching)), pipe.Of(flowplan.Planning)),
 		pipe.Each(plannedTables, lowering(gobackend.FlowTarget, gopass.Pipeline)),
 		pipe.Of(gobackend.Printing))
 	return assembled{pipeline: p, steps: []string{Elaborate, "each go-tables", gobackend.Printing.Name()}}

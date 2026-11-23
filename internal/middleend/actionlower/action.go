@@ -87,14 +87,28 @@ type Options struct {
 // is not the function argument of map, filter, foldl or foldr, or a parameter read outside the body
 // of its lambda.
 func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
-	if !wellFormed(t) {
-		return nil, fmt.Errorf("lower: an action expression that the front end does not build: %s", ir.ActionExprString(t))
-	}
 	m, err := actionModule()
 	if err != nil {
 		return nil, err
 	}
 	nOps, nFuncs := len(m.Ops), len(m.Funcs)
+	fn, _, err := lowerFunc(m, "action", t, o)
+	if err != nil {
+		return nil, err
+	}
+	// The module the action expression extends was checked once when it was built.
+	if err := code.VerifyExtension(m, nOps, nFuncs); err != nil {
+		return nil, fmt.Errorf("lower action expression: %w", err)
+	}
+	return &Lowered{Module: m, Func: fn, Result: o.Result}, nil
+}
+
+// lowerFunc adds to m the function name that evaluates the action expression t with the options o, and
+// returns it with its lowerer, which holds the facts of the lowering.
+func lowerFunc(m *code.Module, name string, t ir.ActionExpr, o Options) (*code.Func, *actionLowerer, error) {
+	if !wellFormed(t) {
+		return nil, nil, fmt.Errorf("lower: an action expression that the front end does not build: %s", ir.ActionExprString(t))
+	}
 	datum, failT := code.THandle(exec.Datum), code.THandle(action.Fail)
 	var results []code.Type
 	if o.Result == "" {
@@ -102,21 +116,24 @@ func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
 	}
 	l := &actionLowerer{m: m, structCall: o.StructCall, visits: o.Visits, proj: o.Proj,
 		params: map[*ir.Lambda][]code.Expr{}, inPlace: o.Result != "", fieldCompare: o.FieldCompare}
-	fn := m.AddFunc("action", []code.Param{code.P(CtxParam, code.THandle(action.Act))}, results, nil, func(b *code.Builder) {
+	fn := m.AddFunc(name, []code.Param{code.P(CtxParam, code.THandle(action.Act))}, results, nil, func(b *code.Builder) {
 		var res code.Expr
 		if o.Result != "" {
 			res = b.Var(o.Result, datum)
 		}
-		if x, lits, ok := textMembership(t); ok && o.TextDispatch && res == nil {
-			b.If(code.C(action.OpActionUncontrolled), func(b *code.Builder) {
-				s := l.fallible(b, "ts", code.C("text", imm(action.OpActionRead, readOf(x))))
-				var in code.Expr = &code.Call{Callee: action.OpActionTextIn, Args: []code.Expr{s}, Imm: lits}
-				if len(lits) > 1 {
-					// A target may print the binding as one switch; one literal stays an equality.
-					in = b.Let(l.local("tin"), in)
-				}
-				b.Return(code.C("val.fromBool", in), code.Null(failT))
-			})
+		if x, lits, ok := textMembership(t); ok {
+			l.membership = &action.Membership{Read: readOf(x), Lits: lits}
+			if o.TextDispatch && res == nil {
+				b.If(code.C(action.OpActionUncontrolled), func(b *code.Builder) {
+					s := l.fallible(b, "ts", code.C("text", imm(action.OpActionRead, readOf(x))))
+					var in code.Expr = &code.Call{Callee: action.OpActionTextIn, Args: []code.Expr{s}, Imm: lits}
+					if len(lits) > 1 {
+						// A target may print the binding as one switch; one literal stays an equality.
+						in = b.Let(l.local("tin"), in)
+					}
+					b.Return(code.C("val.fromBool", in), code.Null(failT))
+				})
+			}
 		}
 		v := l.value(b, t)
 		if res != nil {
@@ -125,16 +142,12 @@ func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
 			b.Return(v, code.Null(failT))
 		}
 	})
-	// The module the action expression extends was checked once when it was built.
-	if err := code.VerifyExtension(m, nOps, nFuncs); err != nil {
-		return nil, fmt.Errorf("lower action expression: %w", err)
-	}
 	if o.Result == "" {
 		if err := checkActionSignature(m, fn); err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 	}
-	return &Lowered{Module: m, Func: fn, Result: o.Result}, nil
+	return fn, l, nil
 }
 
 // checkActionSignature reports an error unless the parameters and results of f are those of the callable
@@ -294,6 +307,9 @@ type actionLowerer struct {
 	// inPlace is set when the action expression is evaluated in place of an action (Options.Result).
 	inPlace      bool
 	fieldCompare bool
+	// membership and structs are the facts of the lowering (action.Site.Membership, Structs).
+	membership *action.Membership
+	structs    []action.StructLit
 }
 
 // raise ends the evaluation of the action expression with the failure f: the function returns it, or, in place of
@@ -656,10 +672,12 @@ func (l *actionLowerer) structLiteral(b *code.Builder, t *ir.New) code.Expr {
 	// the fields after it.
 	let := !l.structCall || !inDeclaredOrder(t)
 	vals := make([]code.Expr, len(t.Fields))
+	lets := make([]string, len(t.Fields))
 	for i, f := range t.Fields {
 		vals[i] = l.value(b, f.Value)
 		if let && !settled(vals[i]) {
-			vals[i] = b.Let(l.local("tf"), vals[i])
+			lets[i] = l.local("tf")
+			vals[i] = b.Let(lets[i], vals[i])
 		}
 	}
 	if l.structCall {
@@ -678,7 +696,9 @@ func (l *actionLowerer) structLiteral(b *code.Builder, t *ir.New) code.Expr {
 		}
 		return b.Let(l.local("tv"), &code.Call{Callee: name, Args: args, Imm: newOf(t)})
 	}
-	n := b.Let(l.local("tn"), &code.Call{Callee: action.OpActionStruct, Imm: newOf(t)})
+	node := l.local("tn")
+	n := b.Let(node, &code.Call{Callee: action.OpActionStruct, Imm: newOf(t)})
+	l.structs = append(l.structs, action.StructLit{Node: node, Declared: slices.Clone(t.Declared), Lets: lets})
 	first := l.local("tfirst")
 	b.Let(first, code.BoolC(true))
 	for i, f := range t.Fields {
