@@ -327,7 +327,7 @@ func TestLowerNodeValues(t *testing.T) {
 func TestLowerVerifies(t *testing.T) {
 	newLowerer := func() *lowerer {
 		m, _ := valueFree(&core.Succeed{})
-		return newLowerer(m, lowerdata.Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
+		return newLowerer(m, core.ActionSitesOf(m), lowerdata.Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
 	}
 	l := newLowerer()
 	l.at.Node = true
@@ -350,7 +350,7 @@ func TestLowerStream(t *testing.T) {
 	r := &core.Rule{Name: "main", Body: body}
 	m.Rules[0] = r
 	lower := func(stream bool) string {
-		f, err := verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, lowerdata.Options{Node: true}))
+		f, err := verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, lowerdata.Options{Node: true}))
 		if err != nil {
 			t.Fatal(err)
 		}

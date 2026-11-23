@@ -299,7 +299,7 @@ func init() {
 			if !x.Frame {
 				return fmt.Errorf("a predicate whose captures are arguments has no bytecode Flow form")
 			}
-			t, err := s.actionExpr(x.Node.Action, x.Names)
+			t, err := s.actionExpr(s.c.sites.Sites[x.Action].Action, x.Names)
 			if err != nil {
 				return err
 			}
@@ -310,11 +310,11 @@ func init() {
 			if !x.Frame {
 				return fmt.Errorf("a binding whose captures are arguments has no bytecode Flow form")
 			}
-			t, err := s.actionExpr(x.Node.Action, x.Names)
+			t, err := s.actionExpr(s.c.sites.Sites[x.Action].Action, x.Names)
 			if err != nil {
 				return err
 			}
-			return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Run.Vars.Index(x.Node.Var), Action: t})
+			return s.op(bytecode.FlowBind, c, dst, bytecode.FlowBindOf{Var: s.c.in.Run.Vars.Index(x.Var), Action: t})
 		}},
 		{Op: flowpkg.OpSkipBegin, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			// A walk of a skip-run site begins without values, keyed by the variables unless the site

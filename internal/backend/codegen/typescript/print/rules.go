@@ -13,7 +13,6 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Rules of the TypeScript parser printed from Code IR.
@@ -320,16 +319,6 @@ func (p *tsPrimPrinter) scopeNames(n *prim.Names) string {
 	p.names[n] = name
 	p.decl(name, fmt.Sprintf("const %s: string[] = %s;\n", name, TsStrings(n.List)))
 	return name
-}
-
-// grammarAction returns the action expression of the grammar predicate that the node n is built from, for the name
-// of the variable that a binding sets.
-func (p *tsPrimPrinter) grammarAction(n core.Node) ast.ActionExpr {
-	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
-	if !ok {
-		panic(fmt.Sprintf("tsgen: no grammar predicate for %T", n))
-	}
-	return e.Action
 }
 
 // lineFunc prints the line k of the Operators Rule g.cur, whose Core IR is l, as a function and

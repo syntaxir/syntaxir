@@ -45,10 +45,13 @@ type Generator struct {
 	Params Params
 	// Exec is the table being printed, at the Exec stage, or nil: its plan, its module and the Core
 	// IR it was lowered from, which holds the rules, the expectations and the origin map (Core).
-	Exec  *plandata.Table[code.Exec]
-	Prog  *Program
-	Table string // the rule table being generated: rules, or recRules for Recognize
-	Cur   *Rule  // the rule being generated
+	Exec *plandata.Table[code.Exec]
+	// sites numbers the action sites of sitesOf, the Core IR of the table last printed (ActionSite).
+	sites   *core.ActionSites
+	sitesOf *core.Module
+	Prog    *Program
+	Table   string // the rule table being generated: rules, or recRules for Recognize
+	Cur     *Rule  // the rule being generated
 	// Proj holds the projected repetition captures of the rule being generated (Projections).
 	Proj    map[string]string
 	Vars    strings.Builder
@@ -175,6 +178,15 @@ func (g *Generator) Projections(r *Rule) map[string]string {
 
 // Core returns the Core IR that the table being printed (Exec) was lowered from.
 func (g *Generator) Core() *core.Module { return g.Exec.IR.M }
+
+// ActionSite returns the action site numbered i in the Core IR of the table being printed, which
+// the operations of predicates, bindings and actions name (core.ActionSites).
+func (g *Generator) ActionSite(i int) core.ActionSite {
+	if m := g.Core(); g.sitesOf != m {
+		g.sites, g.sitesOf = core.ActionSitesOf(m), m
+	}
+	return g.sites.Sites[i]
+}
 
 // RuleOf returns the rule of the program with the ID id, value-free twins included.
 func (g *Generator) RuleOf(id int) *Rule {

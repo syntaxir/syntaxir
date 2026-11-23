@@ -570,13 +570,13 @@ and the key of a memoized rule, as the composition call does (spec/runtime/parsi
 		Contract: "Returns a new context for the action of the rule entered at start."})
 	withImm(op(&code.Op{Name: OpPred, Params: []code.Param{P("caps", value)}, Variadic: true, Results: []code.Type{b}, Reads: all, Writes: []string{State}, NoReturn: true, Cost: per(QBody),
 		Contract: "Evaluates the predicate with the captures caps (or the current frame) and reports whether it holds."}),
-		"the predicate and its captures (Predicate)", immOf[prim.Predicate]())
+		"the action site of the predicate and its captures (Predicate)", immOf[prim.Predicate]())
 	withImm(op(&code.Op{Name: OpBind, Params: []code.Param{P("caps", value)}, Variadic: true, Results: []code.Type{b}, Reads: all, Writes: []string{State}, NoReturn: true, Cost: per(QBody),
 		Contract: "Binds the variable of the binding to the value of its expression, evaluated with the captures caps (or the current frame), and reports whether the evaluation succeeded."}),
-		"the binding and its captures (Binding)", immOf[prim.Binding]())
+		"the variable and the action site of the binding, and its captures (Binding)", immOf[prim.Binding]())
 	withImm(op(&code.Op{Name: OpEval, Params: []code.Param{P("c", ctx), P("caps", value)}, Variadic: true, Results: []code.Type{value}, Reads: all, Writes: []string{State}, NoReturn: true, Cost: per(QBody),
 		Contract: "Returns the value of the action of the function's rule, evaluated in the context c with the captures caps (or the current frame)."}),
-		"the action and its captures (Action)", immOf[prim.Action]())
+		"the action site of the rule and its captures (Action)", immOf[prim.Action]())
 	op(&code.Op{Name: OpCtxFinish, NoReturn: true, Params: []code.Param{P("c", ctx), P("x", value)}, Results: []code.Type{value}, Writes: []string{State}, Cost: per(QMade),
 		Contract: "Returns the value x of an action finished in the context c: a struct that c made takes the range of the rule, and the values that c made are forgotten. It searches the values that c made for x, and charges one unit for each it compares with x."})
 	return ops

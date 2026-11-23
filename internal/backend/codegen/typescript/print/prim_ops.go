@@ -386,23 +386,19 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		if p.dry {
 			return "p.predicate(a)"
 		}
-		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Node.Action, common.FrameScope(x.Names)))
+		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(p.g.ActionSite(x.Action).Action, common.FrameScope(x.Names)))
 	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
 			admitted("a bind that reads variables")
-		}
-		b, ok := p.grammarAction(x.Node).(*ast.Bind)
-		if !ok {
-			panic("tsgen: a bind without a grammar bind")
 		}
 		if p.dry {
 			return "p.bind(a)"
 		}
 		// The function is declared only if the rule keeps the printed text.
 		name := p.g.Name("a")
-		p.decl(name, p.g.actionFunc(name, x.Node.Action, common.FrameScope(x.Names), nil))
-		return fmt.Sprintf("p.bind(%d, %s)", p.g.Prog.Vars.Index(b.Name), name)
+		p.decl(name, p.g.actionFunc(name, p.g.ActionSite(x.Action).Action, common.FrameScope(x.Names), nil))
+		return fmt.Sprintf("p.bind(%d, %s)", p.g.Prog.Vars.Index(x.Var), name)
 	case prim.OpCallOutline:
 		return p.outline(c)
 	case prim.OpMarkPos:

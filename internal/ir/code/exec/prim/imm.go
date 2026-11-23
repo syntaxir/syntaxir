@@ -106,21 +106,25 @@ type Capture struct {
 	Frame bool
 }
 
-// Predicate is the immediate of pred.
+// Predicate is the immediate of pred: the number of the predicate's action site in the Core module
+// of the function's table (core.ActionSites).
 type Predicate struct {
-	Node *core.Pred
+	Action int
 	Capture
 }
 
-// Binding is the immediate of bind.
+// Binding is the immediate of bind: the variable the binding binds and the number of the binding's
+// action site in the Core module of the function's table (core.ActionSites).
 type Binding struct {
-	Node *core.BindNode
+	Var    string
+	Action int
 	Capture
 }
 
-// Action is the immediate of eval: the action of the function's rule.
+// Action is the immediate of eval: the number of the action site of the function's rule in the Core
+// module of the function's table (core.ActionSites).
 type Action struct {
-	Action core.ActionExpr
+	Action int
 	Capture
 }
 
@@ -210,11 +214,11 @@ func ImmString(imm any) string {
 		}
 		return fmt.Sprintf("rule %d", x.Rule)
 	case Predicate:
-		return core.ActionExprString(x.Node.Action) + capture(x.Capture)
+		return fmt.Sprintf("action %d", x.Action) + capture(x.Capture)
 	case Binding:
-		return x.Node.Var + " = " + core.ActionExprString(x.Node.Action) + capture(x.Capture)
+		return fmt.Sprintf("%s = action %d", x.Var, x.Action) + capture(x.Capture)
 	case Action:
-		return core.ActionExprString(x.Action) + capture(x.Capture)
+		return fmt.Sprintf("action %d", x.Action) + capture(x.Capture)
 	case *Names:
 		s := names(x)
 		if x.Declared {

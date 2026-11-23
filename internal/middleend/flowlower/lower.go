@@ -89,7 +89,7 @@ func FramedBody(n core.Node) bool {
 // framed function name of the rule r: the body of a left-recursion leader or of a rule that
 // recovers, or a line of an Operators Rule of r. Analyze must have run on m.
 func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
 // Outlinable reports whether a node can run as a function of its own (LowerOutline): it is a framed
@@ -112,14 +112,14 @@ func Outlinable(n core.Node) bool {
 // name. The function belongs to the rule of its caller, which charged the entry of the rule: it
 // charges only the repetitions below n. Analyze must have run on m.
 func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
-func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts lowerdata.Options) (*code.Module, error) {
+func lowerFrameBody(m *core.Module, sites *core.ActionSites, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
-	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Document: opts.Document,
+	l := newLowerer(m, sites, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Document: opts.Document,
 		Traced: opts.Traced, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
 	l.frame = true
 	l.stream = stream
@@ -145,14 +145,14 @@ func lowerFrameBody(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot
 // run on m. The terminal regions of the rule (corepass.TerminalRegions) are forms of the function
 // (flow.Forms), which the terminals pass may match as one program.
 func Lower(m *core.Module, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, lowerdata.Func{Form: lowerdata.Flat, Rule: r, Name: name}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Flat, Rule: r, Name: name}, opts))
 }
 
-func lowerFlat(m *core.Module, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
+func lowerFlat(m *core.Module, sites *core.ActionSites, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !LocalRule(r) {
 		return nil, fmt.Errorf("rule %s is not lowered to a local function", r.Name)
 	}
-	l := newLowerer(m, opts, name, &flow.Attrs{Rule: r, Start: "start", Result: "v", Ctx: "c",
+	l := newLowerer(m, sites, opts, name, &flow.Attrs{Rule: r, Start: "start", Result: "v", Ctx: "c",
 		Node:     opts.Node,
 		Document: opts.Document,
 		Traced:   opts.Traced,
@@ -173,9 +173,12 @@ func lowerFlat(m *core.Module, r *core.Rule, name string, opts lowerdata.Options
 
 type lowerer struct {
 	// top is the root of a framed function, which stays in it.
-	top  core.Node
-	m    *core.Module
-	opts lowerdata.Options
+	top core.Node
+	m   *core.Module
+	// sites numbers the action sites of m, which the operations of predicates, bindings and actions
+	// name.
+	sites *core.ActionSites
+	opts  lowerdata.Options
 	// fn is the function being lowered and at its attributes; body is the block that the body
 	// leaves on failure (Attrs.Fail).
 	fn   *code.Func
@@ -217,10 +220,10 @@ type lowerer struct {
 
 // newLowerer returns a lowerer of the function name with the attributes at, whose body is the block
 // that it leaves on failure.
-func newLowerer(m *core.Module, opts lowerdata.Options, name string, at *flow.Attrs) *lowerer {
+func newLowerer(m *core.Module, sites *core.ActionSites, opts lowerdata.Options, name string, at *flow.Attrs) *lowerer {
 	at.Fail = "fail"
 	at.Forms = &flow.Forms{}
-	l := &lowerer{m: m, opts: opts, at: at, fn: &code.Func{Name: name, Attrs: at}, body: &code.Block{Label: at.Fail},
+	l := &lowerer{m: m, sites: sites, opts: opts, at: at, fn: &code.Func{Name: name, Attrs: at}, body: &code.Block{Label: at.Fail},
 		used: map[string]bool{}, loops: map[string]bool{}, forms: at.Forms}
 	l.stack = []*[]code.Stmt{&l.body.Stmts}
 	return l
@@ -696,11 +699,11 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		return null()
 	case *core.Pred:
 		c, args := l.actionCaps(n.Action, s)
-		l.failIf(nil, code.Not(call(flow.OpPred, prim.Predicate{Node: n, Capture: c}, args...)), fail)
+		l.failIf(nil, code.Not(call(flow.OpPred, prim.Predicate{Action: l.sites.Of(n), Capture: c}, args...)), fail)
 		return null()
 	case *core.BindNode:
 		c, args := l.actionCaps(n.Action, s)
-		l.failIf(nil, code.Not(call(flow.OpBind, prim.Binding{Node: n, Capture: c}, args...)), fail)
+		l.failIf(nil, code.Not(call(flow.OpBind, prim.Binding{Var: n.Var, Action: l.sites.Of(n), Capture: c}, args...)), fail)
 		return null()
 	case *core.Label:
 		return l.label_(n, s, build, fail)
@@ -1562,7 +1565,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 		args := append([]code.Expr{use(f.Ctx)}, capArgs(r.Finish.Action, s)...)
 		l.set(f.Ctx, call(flow.OpUseCtx, nil, use(f.Start)))
 		l.emit(do(flow.OpSetWhere, prim.Chars(r.Where)))
-		l.set(f.Result, call(flow.OpEval, prim.Action{Action: r.Finish.Action, Capture: c}, args...))
+		l.set(f.Result, call(flow.OpEval, prim.Action{Action: l.sites.OfRule(r.ID), Capture: c}, args...))
 		switch r.Finish.Action.(type) {
 		case *core.New, *core.Convert:
 			// A struct made with the rule's range; structs made inside it are dropped.

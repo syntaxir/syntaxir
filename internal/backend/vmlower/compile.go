@@ -27,7 +27,7 @@ func compile(in Input) (*bytecode.Module, map[string]int, error) {
 	if in.Elab.MissingTokens() {
 		return nil, nil, program.MissingUnsupported("bytecode module construction")
 	}
-	c := &compiler{in: in, core: in.Table.IR.M, m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
+	c := &compiler{in: in, core: in.Table.IR.M, sites: ir.ActionSitesOf(in.Table.IR.M), m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
 		strs: map[string]int{}, counts: map[string]int{}}
 	c.compile()
 	if c.err != nil {
@@ -103,8 +103,10 @@ func (c *compiler) actionCode(s actionSite) (bytecode.Action, error) {
 type compiler struct {
 	in   Input
 	core *ir.Module
-	m    *bytecode.Module
-	strs map[string]int
+	// sites numbers the action sites of core, which the operations of predicates and bindings name.
+	sites *ir.ActionSites
+	m     *bytecode.Module
+	strs  map[string]int
 	// action expressions are the action expressions of the tables, by index of Module.Actions, whose code Compile makes once
 	// the tables are built.
 	actionExprs []actionSite

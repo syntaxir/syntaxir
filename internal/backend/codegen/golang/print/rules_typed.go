@@ -304,12 +304,3 @@ func (p *primPrinter) reject(c *core.Class, ch string) string {
 func (p *primPrinter) shaper(sh core.Shape) string {
 	return p.g.shaperOf(fmt.Sprintf("Shaper{Elems: %v, K: %d, Mode: %d, Tuple: %v, Shared: %v}", sh.Elems, sh.K, sh.Mode, sh.Tuple, sh.Shared))
 }
-
-// action expression returns the action expression of the grammar predicate that the node n is built from.
-func (p *primPrinter) actionExpr(n core.Node) ast.ActionExpr {
-	e, ok := p.g.Core().Origin.Of(n).(*ast.Predicate)
-	if !ok {
-		panic(fmt.Sprintf("primitive printer: no grammar predicate for %T", n))
-	}
-	return e.Action
-}
