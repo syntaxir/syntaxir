@@ -3001,6 +3001,9 @@ export class Parser {
   cps: Int32Array; // code points (CodePoints)
   bs: Uint8Array; // the input (Bytes)
   n: number; // input length in units
+  // base is the position of the first unit that cps and bs hold: 0 for a parse of the whole input, and
+  // in a stream (StreamParser) the position before which it discarded the input.
+  base = 0;
   // src is the input as a string (with U+FFFD for invalid UTF-8), and offs maps positions to
   // offsets in src (null when they are the same).
   src: string;
@@ -3087,8 +3090,8 @@ export class Parser {
   skipN = 0;
   runCold: RunCold[] = [];
   // track reports a parse that records how far each call examined the input: a Document parse
-  // (DocumentParser) or an observed one (ObservedParser), whose parsers read through the primitives
-  // of TrackedParser.
+  // (DocumentParser) or an observed one (ObservedParser, ObservedStreamParser), whose parsers read
+  // through the primitives of trackedLayer.
   track = false;
   // docExamined is the end of the input that the active rule call examined in a parse that tracks it;
   // docLow is the start of that input in a Document parse. Other parses read neither.
@@ -3596,7 +3599,7 @@ export class Parser {
     this.skipCallsFrom(rules, 0, exp);
   }
 
-  private skipCallsFrom(rules: (Rule | boolean)[], i: number, exp: number): void {
+  skipCallsFrom(rules: (Rule | boolean)[], i: number, exp: number): void {
     if (i === rules.length) {
       this.expect(this.pos, exp);
       return;
@@ -6221,8 +6224,6 @@ export class StreamParser extends Parser {
   bodyGens: readonly (BodyGen | null)[] = [];
   // streamStartRule is the ID of the start rule, whose #stream repetition streams (stream.start).
   readonly streamStartRule: number;
-  // base is the position of the first unit that the buffer holds; the input before it was discarded.
-  base = 0;
   // baseLine and baseCol are the line and column of base; nlStarts holds the positions after each line
   // feed in [base, nlScanned), which errorLine has scanned.
   baseLine = 1;
@@ -6302,7 +6303,7 @@ export class StreamParser extends Parser {
 
   // decode appends the characters of b to the buffer of code points, up to the first incomplete one
   // unless the input is final, and keeps the bytes from there pending.
-  private decode(b: Uint8Array): void {
+  decode(b: Uint8Array): void {
     const have = this.n - this.base;
     this.cps = this.room(this.cps, have, b.length) as Int32Array;
     let j = have;
@@ -6319,7 +6320,7 @@ export class StreamParser extends Parser {
 
   // room returns buf, or a larger copy of its first have units, with room for k more. The memory
   // count holds the buffer in use: a larger copy replaces the bytes of buf.
-  private room(buf: Uint8Array | Int32Array, have: number, k: number): Uint8Array | Int32Array {
+  room(buf: Uint8Array | Int32Array, have: number, k: number): Uint8Array | Int32Array {
     if (have + k <= buf.length) return buf;
     const size = Math.max(have + k, 2 * buf.length, 64);
     const grown = buf instanceof Uint8Array ? new Uint8Array(size) : new Int32Array(size);
@@ -6433,9 +6434,11 @@ export class StreamParser extends Parser {
       const b = i < this.n ? this.bs[i - this.base]! : -1;
       const e = n === 1 ? want : utf8Byte(want, n, k);
       if (b !== e && !(n === 1 && fold && b >= 0 && foldASCII(b) === want)) {
+        this.documentTouch(i + 1);
         return -1;
       }
     }
+    this.documentTouch(this.pos + n);
     return n;
   }
 
@@ -6452,6 +6455,7 @@ export class StreamParser extends Parser {
 
   override atLineEnd(): boolean {
     this.demanded(this.pos + 1);
+    this.documentTouch(this.pos + 1);
     if (this.pos >= this.n) {
       return true;
     }
@@ -7111,181 +7115,203 @@ export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen:
   return { stream: new Stream<E>(p, start, o), error: null };
 }
 
+// ParserClass is a class of parsers that a layer of the parser extends (trackedLayer, observedLayer).
+type ParserClass<P extends Parser = Parser> = new (...args: any[]) => P;
+
 /**
- * TrackedParser is the parser of a parse that records how far each rule call examined the input
- * (Parser.track): its terminals record exactly what they examine in docExamined. The parsers of
- * Document parses (DocumentParser) and of observed parses (ObservedParser) extend it; the batch Parser
- * stays without this bookkeeping.
+ * trackedLayer extends a class of parsers, Parser or StreamParser, to the parser of a parse that
+ * records how far each rule call examined the input (Parser.track): its terminals record exactly what
+ * they examine in docExamined. The parsers of Document parses (DocumentParser) and of observed parses
+ * (ObservedParser, ObservedStreamParser) extend the class it makes; the batch Parser and the
+ * StreamParser stay without this bookkeeping. The terminals read the buffer from base, as a stream's do.
  */
-export class TrackedParser extends Parser {
-  override track = true;
+export function trackedLayer<B extends ParserClass>(Base: B) {
+  class Tracked extends Base {
+    override track = true;
 
-  override documentTouch(end: number): void {
-    if (end > this.docExamined) this.docExamined = end;
-  }
+    override documentTouch(end: number): void {
+      if (end > this.docExamined) this.docExamined = end;
+    }
 
-  // docExaminedBegin starts measuring how far an observed call examines the input: the call's examined
-  // end starts at the position. It returns the enclosing call's examined end, for docExaminedEnd.
-  docExaminedBegin(): number {
-    const enclosing = this.docExamined;
-    this.docExamined = this.pos;
-    return enclosing;
-  }
+    // docExaminedBegin starts measuring how far an observed call examines the input: the call's examined
+    // end starts at the position. It returns the enclosing call's examined end, for docExaminedEnd.
+    docExaminedBegin(): number {
+      const enclosing = this.docExamined;
+      this.docExamined = this.pos;
+      return enclosing;
+    }
 
-  // docExaminedEnd ends measuring the examined end of an observed call, whose docExaminedBegin returned
-  // enclosing, and merges it into the enclosing call's; it returns the call's examined end.
-  docExaminedEnd(enclosing: number): number {
-    const examined = this.docExamined;
-    this.docExamined = Math.max(enclosing, examined);
-    return examined;
-  }
+    // docExaminedEnd ends measuring the examined end of an observed call, whose docExaminedBegin returned
+    // enclosing, and merges it into the enclosing call's; it returns the call's examined end.
+    docExaminedEnd(enclosing: number): number {
+      const examined = this.docExamined;
+      this.docExamined = Math.max(enclosing, examined);
+      return examined;
+    }
 
-  // scanExamined is the examined end of the enclosing call while the rest of a scan walk that records
-  // itself runs (scanExaminedBegin).
-  scanExamined = 0;
+    // scanExamined is the examined end of the enclosing call while the rest of a scan walk that records
+    // itself runs (scanExaminedBegin).
+    scanExamined = 0;
 
-  override scanExaminedBegin(): void {
-    this.scanExamined = this.docExamined;
-    this.docExamined = this.pos;
-  }
+    override scanExaminedBegin(): void {
+      this.scanExamined = this.docExamined;
+      this.docExamined = this.pos;
+    }
 
-  override scanExaminedEnd(): number {
-    const x = this.docExamined;
-    this.docExamined = Math.max(this.scanExamined, x);
-    return x;
-  }
+    override scanExaminedEnd(): number {
+      const x = this.docExamined;
+      this.docExamined = Math.max(this.scanExamined, x);
+      return x;
+    }
 
-  // The terminals record exactly the input they examine: the units that decoding a character
-  // examined, a literal up to its first unit that differs, the unit before a line start, and the end
-  // of the input, counted as the unit at its position.
-  override peek(): number {
-    const c = super.peek();
-    if (c < 0) {
+    // The terminals record exactly the input they examine: the units that decoding a character
+    // examined, a literal up to its first unit that differs, the unit before a line start, and the end
+    // of the input, counted as the unit at its position.
+    override peek(): number {
+      const c = super.peek();
+      if (c < 0) {
+        this.documentTouch(this.pos + 1);
+      } else if (this.unit === Bytes && c >= 0x80) {
+        this.documentTouch(this.base + decodedEnd(this.bs, this.pos - this.base, this.n - this.base, this.psize));
+      } else {
+        this.documentTouch(this.pos + this.psize);
+      }
+      return c;
+    }
+
+    override matchLiteral(lit: Lit, desc: number, build: boolean): R {
+      const start = this.pos;
+      const v = super.matchLiteral(lit, desc, build);
+      if (v !== undefined) {
+        this.documentTouch(this.pos);
+        return v;
+      }
+      // A mismatch examined the literal up to its first unit that differs, or the end of the input.
+      let k = 0;
+      const i = start - this.base;
+      if (this.unit === Bytes) {
+        const b = lit.bytes;
+        while (k < b.length && start + k < this.n && this.bs[i + k] === b[k]) k++;
+      } else {
+        const cps = lit.cps;
+        while (k < cps.length && start + k < this.n && this.cps[i + k] === cps[k]) k++;
+      }
+      this.documentTouch(start + k + 1);
+      return v;
+    }
+
+    // documentTouchLine records that a line start test at the position examined the unit before it.
+    documentTouchLine(): void {
+      if (this.pos > this.docExamined) this.docExamined = this.pos;
+      this.documentTouchFrom(this.pos - 1);
+    }
+
+    override atLineStart(): boolean {
+      this.documentTouchLine();
+      return super.atLineStart();
+    }
+
+    override atEnd(): boolean {
       this.documentTouch(this.pos + 1);
-    } else if (this.unit === Bytes && c >= 0x80) {
-      this.documentTouch(decodedEnd(this.bs, this.pos, this.n, this.psize));
-    } else {
-      this.documentTouch(this.pos + this.psize);
+      return super.atEnd();
     }
-    return c;
-  }
 
-  override matchLiteral(lit: Lit, desc: number, build: boolean): R {
-    const start = this.pos;
-    const v = super.matchLiteral(lit, desc, build);
-    if (v !== undefined) {
-      this.documentTouch(this.pos);
+    // callUnmemoized calls rule r at binding level min without memo bookkeeping, as call does while the
+    // rule's memoization is deferred: its expectations need no isolation, and a failure restores the
+    // position and the recovered errors.
+    callUnmemoized(r: Rule, min: number): R {
+      let v: R = null;
+      const start = this.pos;
+      if (r.scope.length === 0) {
+        v = this.invokePlainBody(r, min);
+        return v;
+      }
+      const rec = this.recovered.length;
+      v = this.invoke(r, min);
+      if (v === undefined) {
+        this.pos = start;
+        this.recovered.length = rec;
+      }
       return v;
     }
-    // A mismatch examined the literal up to its first unit that differs, or the end of the input.
-    let k = 0;
-    if (this.unit === Bytes) {
-      const b = lit.bytes;
-      while (k < b.length && start + k < this.n && this.bs[start + k] === b[k]) k++;
-    } else {
-      const cps = lit.cps;
-      while (k < cps.length && start + k < this.n && this.cps[start + k] === cps[k]) k++;
-    }
-    this.documentTouch(start + k + 1);
-    return v;
   }
-
-  // documentTouchLine records that a line start test at the position examined the unit before it.
-  documentTouchLine(): void {
-    if (this.pos > this.docExamined) this.docExamined = this.pos;
-    this.documentTouchFrom(this.pos - 1);
-  }
-
-  override atLineStart(): boolean {
-    this.documentTouchLine();
-    return super.atLineStart();
-  }
-
-  override atEnd(): boolean {
-    this.documentTouch(this.pos + 1);
-    return super.atEnd();
-  }
-
-  // callUnmemoized calls rule r at binding level min without memo bookkeeping, as call does while the
-  // rule's memoization is deferred: its expectations need no isolation, and a failure restores the
-  // position and the recovered errors.
-  callUnmemoized(r: Rule, min: number): R {
-    let v: R = null;
-    const start = this.pos;
-    if (r.scope.length === 0) {
-      v = this.invokePlainBody(r, min);
-      return v;
-    }
-    const rec = this.recovered.length;
-    v = this.invoke(r, min);
-    if (v === undefined) {
-      this.pos = start;
-      this.recovered.length = rec;
-    }
-    return v;
-  }
+  return Tracked;
 }
+
+/** TrackedParser is the parser of a batch parse that records how far each rule call examined the input (trackedLayer). */
+export class TrackedParser extends trackedLayer(Parser) {}
+
+// TrackedClass is a class of parsers that trackedLayer made.
+type TrackedClass = ParserClass<InstanceType<ReturnType<typeof trackedLayer>>>;
 
 /**
- * ObservedParser is the parser of an observed parse that reads no Document: every rule call reports
- * to the observation with the end of the input it examined, which the parse tracks, and a reused
- * result reports the end stored with it.
+ * observedLayer extends a class of parsers that trackedLayer made to the parser of an observed parse
+ * that reads no Document: every rule call reports to the observation with the end of the input it
+ * examined, which the parse tracks, and a reused result reports the end stored with it.
+ * ObservedParser is the layer over TrackedParser, and ObservedStreamParser, the parser of an observed
+ * stream, the layer over the tracked StreamParser.
  */
-export class ObservedParser extends TrackedParser {
-  // A call's examined input starts empty, and the enclosing call's examined end then includes the
-  // call's: the call reports what it examined itself.
-  override call(r: Rule, min: number): R {
-    const o = this.observation!;
-    o.enter(r.name, this.pos, min);
-    const enclosing = this.docExaminedBegin();
-    this.enterCall(r);
-    const v = !r.memo && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
-    const examined = this.docExaminedEnd(enclosing);
-    o.exit(v !== undefined, this.pos, examined);
-    return v;
-  }
+export function observedLayer<B extends TrackedClass>(Base: B) {
+  class Observed extends Base {
+    // A call's examined input starts empty, and the enclosing call's examined end then includes the
+    // call's: the call reports what it examined itself.
+    override call(r: Rule, min: number): R {
+      const o = this.observation!;
+      o.enter(r.name, this.pos, min);
+      const enclosing = this.docExaminedBegin();
+      this.enterCall(r);
+      const v = !r.memo && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
+      const examined = this.docExaminedEnd(enclosing);
+      o.exit(v !== undefined, this.pos, examined);
+      return v;
+    }
 
-  override invokePlain(r: Rule, min: number): R {
-    const o = this.observation!;
-    o.enter(r.name, this.pos, min);
-    const enclosing = this.docExaminedBegin();
-    this.callUnit(r.rec);
-    const v = this.invokePlainBody(r, min);
-    const examined = this.docExaminedEnd(enclosing);
-    o.exit(v !== undefined, this.pos, examined);
-    return v;
-  }
+    override invokePlain(r: Rule, min: number): R {
+      const o = this.observation!;
+      o.enter(r.name, this.pos, min);
+      const enclosing = this.docExaminedBegin();
+      this.callUnit(r.rec);
+      const v = this.invokePlainBody(r, min);
+      const examined = this.docExaminedEnd(enclosing);
+      o.exit(v !== undefined, this.pos, examined);
+      return v;
+    }
 
-  // observePlain is the observed call of the plain function body of the rule name, which generated
-  // code calls directly in a parse without observation.
-  observePlain(name: string, body: (p: Parser) => R): R {
-    const o = this.observation!;
-    o.enter(name, this.pos, 0);
-    o.evaluated();
-    const enclosing = this.docExaminedBegin();
-    const v = body(this);
-    const examined = this.docExaminedEnd(enclosing);
-    o.exit(v !== undefined, this.pos, examined);
-    return v;
-  }
+    // observePlain is the observed call of the plain function body of the rule name, which generated
+    // code calls directly in a parse without observation.
+    observePlain(name: string, body: (p: Parser) => R): R {
+      const o = this.observation!;
+      o.enter(name, this.pos, 0);
+      o.evaluated();
+      const enclosing = this.docExaminedBegin();
+      const v = body(this);
+      const examined = this.docExaminedEnd(enclosing);
+      o.exit(v !== undefined, this.pos, examined);
+      return v;
+    }
 
-  override invoke(r: Rule, min: number): R {
-    this.observation!.evaluated();
-    return super.invoke(r, min);
-  }
+    override invoke(r: Rule, min: number): R {
+      this.observation!.evaluated();
+      return super.invoke(r, min);
+    }
 
-  override invokePlainBody(r: Rule, min: number): R {
-    this.observation!.evaluated();
-    return super.invokePlainBody(r, min);
-  }
+    override invokePlainBody(r: Rule, min: number): R {
+      this.observation!.evaluated();
+      return super.invokePlainBody(r, min);
+    }
 
-  // callTracked calls rule r at binding level min through the memo, as call does once the rule's
-  // memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the
-  // bookkeeping of how far each call examined the input.
-  callTracked(r: Rule, min: number): R {
-    throw new Error("the printed method replaces this one");
+    // callTracked calls rule r at binding level min through the memo, as call does once the rule's
+    // memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the
+    // bookkeeping of how far each call examined the input.
+    callTracked(r: Rule, min: number): R {
+      throw new Error("the printed method replaces this one");
+    }
   }
+  return Observed;
 }
+
+/** ObservedParser is the parser of an observed batch parse (observedLayer). */
+export class ObservedParser extends observedLayer(TrackedParser) {}
 
 /**
  * DocumentParser is the parser of a Document parse: every rule call takes callDocument, which

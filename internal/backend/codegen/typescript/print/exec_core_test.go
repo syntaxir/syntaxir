@@ -36,23 +36,36 @@ func TestSubstituteMethods(t *testing.T) {
 	}
 	got := substituteMethods(readLib(t, tsLibFileName), ms)
 	want := readLib(t, tsLibFileName)
+	nested := 0
 	for _, m := range ms {
-		if strings.Count(got, m.Text) != 1 {
+		// A method of a class that a layer of the parser declares in its function is indented one
+		// level more, with its printed text.
+		indent, text := "  ", m.Text
+		if !strings.Contains(want, "\n  "+m.Name+"(") && strings.Contains(want, "\n    "+m.Name+"(") {
+			indent = "    "
+			text = "  " + strings.ReplaceAll(strings.TrimSuffix(m.Text, "\n"), "\n", "\n  ") + "\n"
+			text = strings.ReplaceAll(text, "\n  \n", "\n\n")
+			nested++
+		}
+		if strings.Count(got, text) != 1 {
 			t.Fatalf("the printed method %s is not in the library once", m.Name)
 		}
-		got = strings.Replace(got, m.Text, "<"+m.Name+">", 1)
+		got = strings.Replace(got, text, "<"+m.Name+">", 1)
 		// The hand-written method: its comment lines, its first line and its closing brace.
-		i := strings.Index(want, "\n  "+m.Name+"(") + 1
+		i := strings.Index(want, "\n"+indent+m.Name+"(") + 1
 		start := i
 		for {
 			j := strings.LastIndex(want[:start-1], "\n") + 1
-			if !strings.HasPrefix(want[j:], "  // ") {
+			if !strings.HasPrefix(want[j:], indent+"// ") {
 				break
 			}
 			start = j
 		}
-		end := i + strings.Index(want[i:], "\n  }\n") + len("\n  }\n")
+		end := i + strings.Index(want[i:], "\n"+indent+"}\n") + len("\n"+indent+"}\n")
 		want = want[:start] + "<" + m.Name + ">" + want[end:]
+	}
+	if nested == 0 {
+		t.Error("no printed method belongs to a class of a layer of the parser")
 	}
 	if got != want {
 		t.Error("the substitution changed the library outside the replaced methods")
@@ -70,6 +83,7 @@ func TestSubstituteMethodsRefusesMalformedLib(t *testing.T) {
 		"missing":          "class P {\n  other() {\n  }\n}\n",
 		"twice":            "class P {\n  grow() {\n  }\n  grow() {\n  }\n}\n",
 		"no closing brace": "class P {\n  grow() {\n    return 1;\n}\n",
+		"twice, nested":    "class P {\n  grow() {\n  }\n}\nfunction f() {\n  class Q {\n    grow() {\n    }\n  }\n}\n",
 	} {
 		t.Run(name, func(t *testing.T) {
 			defer func() {

@@ -43,30 +43,51 @@ var tsPublicControls = strings.Fields(`CancellationSignal ComputeReport`)
 // generated with -stream.
 var tsPublicStream = strings.Fields(`Stream StreamResult StreamState StreamOptions TruncatedSyntaxErrors`)
 
-// substituteMethods replaces methods of the Parser class in the library source src by the printed
-// methods ms: each method, with the comment lines before it, from its first line at the class
-// body's indentation to the closing brace at that indentation.
+// substituteMethods replaces methods of the library's classes in the library source src by the
+// printed methods ms: each method, with the comment lines before it, from its first line at the class
+// body's indentation to the closing brace at that indentation. The printed methods are indented for a
+// class declared at the top level; a class that a layer of the parser declares in its function
+// (trackedLayer, observedLayer) is indented one level more, and so are its printed methods.
 func substituteMethods(src string, ms []tsMethod) string {
 	for _, m := range ms {
-		head := "\n  " + m.Name + "("
-		i := strings.Index(src, head)
-		if i < 0 || strings.Count(src, head) != 1 {
+		indent, i := "", -1
+		for _, in := range []string{"  ", "    "} {
+			head := "\n" + in + m.Name + "("
+			if j := strings.Index(src, head); j >= 0 {
+				if i >= 0 || strings.Count(src, head) != 1 {
+					panic("tsgen: the library has not exactly one method " + m.Name)
+				}
+				indent, i = in, j
+			}
+		}
+		if i < 0 {
 			panic("tsgen: the library has not exactly one method " + m.Name)
 		}
 		start := i + 1
 		for {
 			j := strings.LastIndex(src[:start-1], "\n") + 1
-			if !strings.HasPrefix(src[j:start-1], "  //") {
+			if !strings.HasPrefix(src[j:start-1], indent+"//") {
 				break
 			}
 			start = j
 		}
-		k := strings.Index(src[i:], "\n  }\n")
+		closing := "\n" + indent + "}\n"
+		k := strings.Index(src[i:], closing)
 		if k < 0 {
 			panic("tsgen: the method " + m.Name + " of the library has no closing brace at the class body's indentation")
 		}
-		end := i + k + len("\n  }\n")
-		src = src[:start] + m.Text + src[end:]
+		end := i + k + len(closing)
+		text := m.Text
+		if extra := indent[2:]; extra != "" {
+			lines := strings.Split(text, "\n")
+			for n, l := range lines {
+				if l != "" {
+					lines[n] = extra + l
+				}
+			}
+			text = strings.Join(lines, "\n")
+		}
+		src = src[:start] + text + src[end:]
 	}
 	return src
 }

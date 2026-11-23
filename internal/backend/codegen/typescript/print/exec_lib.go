@@ -30,9 +30,9 @@ type tsMethod struct {
 // finds; advanceEntry, the same form, belongs to the DocumentMemo class, which applies the edits to
 // the entries at an edit and to an entry that a store joins. callTracked, of tsObsClass, is the
 // memoized call of the ObservedParser class, which records how far each call examined the input
-// without a Document; callUnmemoized belongs to TrackedParser, the class of both. streamEmit,
-// streamCommit and streamsIn, of tsStreamClass, belong to the StreamParser class: they deliver and
-// commit the elements of the start rule's #stream repetition, as the Go stream does.
+// without a Document; callUnmemoized belongs to the class that trackedLayer makes, which both extend.
+// streamEmit, streamCommit and streamsIn, of tsStreamClass, belong to the StreamParser class: they
+// deliver and commit the elements of the start rule's #stream repetition, as the Go stream does.
 var tsSpecs = []struct {
 	fn     string
 	on     []string

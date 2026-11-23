@@ -123,7 +123,7 @@ var engineObservationMutants = []engineObservationMutant{
 		old: "this.documentTouch(this.pos + this.psize);", new: "void this.psize;",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "examined end of")}},
 	{name: "typescript unrecorded literal match", file: "internal/backend/codegen/typescript/lib/lib.ts",
-		old: "    if (v !== undefined) {\n      this.documentTouch(this.pos);\n      return v;", new: "    if (v !== undefined) {\n      return v;",
+		old: "      if (v !== undefined) {\n        this.documentTouch(this.pos);\n        return v;", new: "      if (v !== undefined) {\n        return v;",
 		runs: []engineObservationRun{expecting(tsAgreementRun, "examined end of")}},
 	{name: "typescript memo hit records nothing", file: "internal/ir/code/exec/compose/core.go",
 		old: "\t\t\t\tb.Do(\"doc.touch\", C(\"memo.examined\", e))\n", new: "",
