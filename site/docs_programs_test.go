@@ -50,7 +50,6 @@ var deferredProgramPages = map[string]string{
 	"docs/guide/sampling-and-fuzzing.md":    "its fuzzing runs in the repository and prints times",
 	"docs/guide/streaming.md":               "its programs print memory of this machine",
 	"docs/guide/testing-grammars.md":        "its fuzzing runs in a module that the page does not create and prints times",
-	"docs/guide/typescript.md":              "its grammar block names no file, so the generated module is missing",
 	"docs/tutorial/getting-started.md":      "its program runs in a module that the page does not create",
 	"docs/tutorial/typed-trees.md":          "its program runs in a module that the page does not create",
 }

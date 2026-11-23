@@ -47,6 +47,7 @@ the other side would have built.
 The grammar, `pairs.sxir`, is the one of the Go guide:
 
 ```sxir
+// pairs.sxir
 type Pair = { Key node[string]; Value node[string] }
 
 @start(default)
@@ -102,8 +103,11 @@ console.log(JSON.stringify(k.node));
 ```
 
 ```bash
-node main.ts   # Node.js 22.18+, or Deno, Bun, tsx
+node main.ts
 ```
+
+Node.js 22.18 and later run the TypeScript as it is; tsx, Deno and Bun run the same file (see
+[Running It](#running-it)).
 
 ```text
 [Pair{Key: "abc", Value: "12"} Pair{Key: "あい", Value: "3"}]
@@ -112,7 +116,7 @@ Pair "あい" at 8-10
 8
 "abc" null
 rule nope is not defined
-1 5 [ '[0-9]' ] 1:5: syntax error: expected [0-9]
+1 5 [] 1:5: syntax error
 {"start":0,"end":3,"value":"abc"}
 {"start":0,"end":3,"value":"abc"}
 ```
@@ -269,6 +273,7 @@ parsing is outside this API.
 For a variant of the quick-start grammar whose fields are strings, generate and consume typed values:
 
 ```sxir
+// pairs.sxir
 type Pair = { Key string; Value string }
 
 @start
@@ -283,19 +288,20 @@ rule ws = [ \t\n]*
 sxir gen -lang ts -types -g pairs.sxir -o pairs
 ```
 
+<!-- example: program values.ts -->
 ```ts
 import { parseValue, parseValueWithOptions, Bytes } from "./pairs/parser.ts";
 import type { Pair } from "./pairs/parser.ts";
 
 const { value, error } = parseValue("abc=12; あい=3");
 if (error !== null) throw error;
-for (const pair of value ?? []) {
+for (const pair of value?.value ?? []) { // value is a ListNode of the pairs
   const p: Pair | null = pair;
   if (p === null) continue;
   console.log(p.type, p.Key, p.Value, p.start, p.end);
 }
 const bytes = parseValueWithOptions("あい=3", { unit: Bytes, limits: { depth: 0 } });
-console.log(bytes.value?.[0]?.end);
+console.log(bytes.value?.value?.[0]?.end);
 ```
 
 ```text
@@ -449,20 +455,28 @@ The errors are those of the engine, with the same messages:
 | Too deep nesting | more than the configured nested recursive rule-call limit (100,000 by default) | `ParseInterruptionError` of kind `"depth-limit"`: `nesting too deep: more than 100000 nested recursive rule calls` |
 | JavaScript stack exhausted | before the limit, see below | `Error`: `nesting too deep: the JavaScript stack overflowed at N nested recursive rule calls` |
 
-With the grammar `rec.sxir` of the Go guide, generated with `-recognize` into the directory `recparser`:
+With the grammar `rec.sxir` of the [Go API guide](generated-go-api.md#the-generated-api), generated with `-recognize` and
+`-expectations` into the directory `recparser`, and parsed with `expectations: true`:
 
+<!-- example: use docs/guide/generated-go-api.md -->
+
+```bash
+sxir gen -lang ts -recognize -expectations -g rec.sxir -o recparser
+```
+
+<!-- example: program errors.ts -->
 ```ts
-import { parse, recognize, SyntaxErrors } from "./recparser/parser.ts";
+import { parseWithOptions, recognizeWithOptions, SyntaxErrors } from "./recparser/parser.ts";
 
-const { node, error } = parse("let a;let 1;let b;");
+const { node, error } = parseWithOptions("let a;let 1;let b;", { expectations: true });
 console.log(String(node));
 if (error instanceof SyntaxErrors) {
   for (const e of error.errors) {
     console.log(e.line, e.col, e.reason());
   }
 }
-console.log(recognize("let a;let 1;let b;")?.message);
-console.log(recognize("let a;"));
+console.log(recognizeWithOptions("let a;let 1;let b;", { expectations: true })?.message);
+console.log(recognizeWithOptions("let a;"));
 ```
 
 ```text

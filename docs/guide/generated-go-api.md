@@ -70,6 +70,7 @@ Compared with the engine's API:
   With this grammar, `rec.sxir`:
 
   ```sxir
+  // rec.sxir
   @start
   rule main =  stmt* $$
   rule stmt =  s:("let" " " name ";") #recover(skip=[^;]* ";") => $s
@@ -78,7 +79,19 @@ Compared with the engine's API:
 
   generated into a package `recparser` with `-expectations` and parsed with `WithExpectations()`, the node is returned together with the recovered errors:
 
+  ```bash
+  sxir gen -g rec.sxir -module example.com/app/recparser -expectations -o recparser
+  ```
+
+  <!-- example: program main.go module example.com/app -->
   ```go
+  import (
+  	"errors"
+  	"fmt"
+
+  	"example.com/app/recparser"
+  )
+
   node, err := recparser.Parse("let a;let 1;let b;", recparser.WithExpectations())
   fmt.Println(node)
   var errs recparser.SyntaxErrors

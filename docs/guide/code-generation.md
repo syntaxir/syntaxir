@@ -73,10 +73,11 @@ example.com/pairs
     └── internal/libgo/   # and, with -types, types/types.go
 ```
 
-Record `sxir` as a tool dependency of the module, so that `go generate` runs the pinned version and nobody needs a
-separate install:
+Create the module and record `sxir` as a tool dependency of it, so that `go generate` runs the pinned version and
+nobody needs a separate install:
 
 ```bash
+go mod init example.com/pairs
 go get -tool syntaxir.dev/sxir/cmd/sxir
 ```
 
@@ -156,6 +157,10 @@ func main() {
 }
 ```
 
+```bash
+go run .
+```
+
 ```text
 [Pair{Key: "abc", Value: "12"} Pair{Key: "あい", Value: "3"}]
 Pair "abc" at 0-3
@@ -163,11 +168,13 @@ Pair "あい" at 8-10
 8
 "abc" <nil>
 rule nope is not defined
-true 1 5 [[0-9]] 1:5: syntax error: expected [0-9]
+true 1 5 [] 1:5: syntax error
 {"start":0,"end":3,"value":"abc"}
 ```
 
-The output is exactly what the engine prints for the same grammar and input.
+The output is what the engine prints for the same grammar and input, except that the syntax error lists no expected
+items: a generated parser records them only when it is generated with `-expectations` and called with
+`WithExpectations()` (see [recording expectations](error-messages.md#recording-expectations)).
 
 ## The `sxir gen` Command
 
