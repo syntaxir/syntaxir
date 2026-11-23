@@ -158,17 +158,30 @@ Outcomes:
 | Outcome | Result |
 |:--|:--|
 | The rule matches | The `PrefixResult` and a nil error |
-| The rule matches after `#recover` | The `PrefixResult` and `SyntaxErrors`, as a whole-input parse returns a node with recovered errors |
-| Syntax failure, including a failure after an earlier recovery, or a fatal error | The zero `PrefixResult` and the error. No speculative endpoint is exposed |
+| The rule matches after `#recover` or after inserting missing tokens | The `PrefixResult` and `SyntaxErrors`, as a whole-input parse returns a node with recovered errors |
+| Syntax failure, including a failure after an earlier recovery, or a fatal error, including an exhausted missing-token limit | The zero `PrefixResult` and the error. No speculative endpoint is exposed |
 
 A zero result alone cannot distinguish failure from a successful zero-width rule
 that returns nil; the error does.
 
 `ParsePrefix` accepts position units, backends, recognition, tracing, nesting
-limits, context and compute limits. Stream diagnostic options are rejected, as for
-`Parse`. A grammar that contains `#missing` is rejected, even if insertion is not
-enabled; a positive `WithMissingTokens` limit is rejected for every grammar. Zero
-keeps strict prefix matching. Options resolve in order. An explicit `$$` sees the
+limits, context and compute limits, and missing-token insertion. Stream diagnostic
+options are rejected, as for `Parse`. Options resolve in order.
+
+With a positive `WithMissingTokens` limit, a prefix parse inserts missing tokens
+by the rules of a whole-input parse
+([`#missing`](../language/pragmas.md#missing)): it is the evaluation of the rule
+that a whole-input parse makes, without the implicit end-of-input check. The
+limit is one budget for the call. An insertion consumes no input, so `Consumed`
+is the cursor after the rule, insertions included or not; each insertion is a
+recovered error of the `SyntaxErrors` the call returns, in encounter order. The
+compute units are those of the same evaluation in a whole-input parse, which
+counts nothing for its end-of-input check. A rule that ends in an insertable
+literal therefore inserts it where the input does not continue with it, also at
+the end of a fragment: `rule stmt = name ";" #missing` parses `ab` as a prefix
+of two characters with an inserted `;`, where strict prefix matching fails. A
+zero or omitted limit keeps strict prefix matching for every grammar, including
+one that contains `#missing`. An explicit `$$` sees the
 actual end of the entire supplied string, so a fragment is confined by slicing
 both its beginning and its end. Cuts and left recursion keep their ordinary
 meaning. Prefix parsing shares no memo entries with a `Document`, does not

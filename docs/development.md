@@ -406,7 +406,7 @@ Regenerate committed generated files with `go run ./cmd/sxir` or `go generate`, 
 | Done | | Predicate Actions (`{ ... }`) |
 | Done | | Attributes (`@...`) and behavioral pragmas (`#...`) |
 | Done | | Consuming skip recovery (`#recover`) and error messages (`@error`) |
-| Partial | | Opt-in nonempty-literal insertion ([`#missing`](../spec/language/pragmas.md#missing)): whole-input parsing, recognition, streams and Documents on every engine backend and in compiled grammars; generated parsers are unsupported |
+| Partial | | Opt-in nonempty-literal insertion ([`#missing`](../spec/language/pragmas.md#missing)): whole-input parsing, recognition, prefix parsing, streams and Documents on every engine backend and in compiled grammars; generated parsers are unsupported |
 | Done | Actions | Predicate Actions (`{expr}`, `{name := expr}` and multi-statement blocks `{a; b}`) and Value Actions (`=> expr`) on ordinary rules and on whole Operators Rules, where the action runs once per call on the folded value `$value` |
 | Not implemented | | Braced Value Actions (`=> { ... }`) parse/format/AST only; compilation rejects them |
 | Done | | Inline Value Actions (`(expression => expr)`, a hidden rule at its position; braced inline blocks are rejected) |

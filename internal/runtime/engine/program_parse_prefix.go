@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -14,16 +13,14 @@ type PrefixResult struct {
 }
 
 // ParsePrefixWith parses a named rule without an implicit whole-input check.
-// Recovered success returns consumption and SyntaxErrors; unrecovered failures
-// and fatal errors return a zero result. Explicit EOF assertions still see the
-// entire supplied input.
+// Recovered success, including success after missing-token insertion, returns
+// consumption and SyntaxErrors; unrecovered failures and fatal errors, among them
+// an exhausted missing-token limit, return a zero result. Explicit EOF assertions
+// still see the entire supplied input.
 func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (result PrefixResult, err error) {
 	reportCompute(o, nil)
 	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
 		return PrefixResult{}, err
-	}
-	if prog.HasMissing || o.MissingTokens > 0 {
-		return PrefixResult{}, program.MissingUnsupported("prefix parsing")
 	}
 	defer func() {
 		if x := recover(); x != nil {
@@ -54,6 +51,9 @@ func (prog *Program) ParsePrefixWith(start, input string, o ParseOptions) (resul
 	p.Expectations = o.Expectations
 	p.DeferMemo = true
 	p.SetTuning(o.Tune)
+	if o.MissingTokens > 0 && active.HasMissing {
+		p.Missing, p.MissingLen = &state.MissingTokenState{Limit: o.MissingTokens}, 0
+	}
 	if o.Traced() {
 		p.SetTrace(o.Trace, o.Profiles)
 		p.SelectTrace(o.TraceSelection)

@@ -257,7 +257,7 @@ encounter order; recognition returns the same diagnostics with no tree. A failed
 whole-input parse returns only its final ordinary syntax error. Each invocation
 has fresh insertion state, including concurrent and reentrant invocations.
 
-Whole-input Node parsing, recognition, Documents and stream parses insert
+Whole-input Node parsing, recognition, prefix parsing, Documents and stream parses insert
 tokens on the Closure and on both bytecode VMs, with the same results,
 diagnostics and compute units, and a compiled grammar keeps the insertions of
 its mode. A Document fixes the limit at construction and gives each parse the
@@ -265,12 +265,13 @@ whole limit; it keeps no result that contains an insertion, so each parse
 returns what a parse of its text from scratch returns
 ([Missing Tokens](../runtime/documents.md#missing-tokens)). A stream parse has
 one limit for the whole stream and inserts what the batch parse of its input
-does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). Prefix parsing
-and generated Go/TypeScript parsers reject grammars containing
-`#missing` or references to `missing`, even when insertion is disabled. Positive insertion options also fail
-on unsupported parse entry points, including `ParsePrefix`, even when the
-grammar contains no `#missing` annotation. Zero preserves strict
-prefix matching for grammars without `#missing`. Grammar AST JSON and formatting
+does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). A prefix parse is
+the evaluation of a whole-input parse without its end-of-input check, so a rule
+that ends in an insertable literal inserts it at the end of a fragment
+([Prefix Parsing](../runtime/parsing.md#prefix-parsing)). Generated Go/TypeScript
+parsers reject grammars containing
+`#missing` or references to `missing`, even when insertion is disabled, and positive insertion options,
+even when the grammar contains no `#missing` annotation. Grammar AST JSON and formatting
 preserve the annotation. `missing` is a built-in type, a kind of `error`: the
 annotated literal infers `node[string] | missing`, and `missing` is assignable to
 `error`. Declare a join or keep the Node tree when

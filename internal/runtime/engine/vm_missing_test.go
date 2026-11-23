@@ -67,9 +67,9 @@ func TestBackendsMatchOnInsertion(t *testing.T) {
 }
 
 // TestCompiledInsertion checks that a compiled grammar with #missing carries the module that the
-// parses inserting missing tokens run, in each mode: the loaded program parses as the program it
-// was saved from on both VMs, with the same results, errors and compute units, with and without
-// insertion; it saves again to the same bytes; and a file whose insertion part is missing, or
+// parses inserting missing tokens run, in each mode: the loaded program parses, whole-input and as
+// a prefix, as the program it was saved from on both VMs, with the same results, consumption, errors
+// and compute units, with and without insertion; it saves again to the same bytes; and a file whose insertion part is missing, or
 // present for a grammar without #missing, does not load.
 func TestCompiledInsertion(t *testing.T) {
 	t.Parallel()
@@ -95,9 +95,11 @@ func TestCompiledInsertion(t *testing.T) {
 					for _, limit := range []int{0, 1, 2, 64} {
 						for _, b := range vmBackends {
 							run := func(p *Program) string {
-								var units uint64
+								var units, prefixUnits uint64
 								n, err := p.ParseWith("main", in, servedBy(mode, ParseOptions{Backend: b, Expectations: true, MissingTokens: limit, ComputeReport: &units}))
-								return fmt.Sprintf("%s units=%d", codegentest.ResultJSON(n, err), units)
+								r, perr := p.ParsePrefixWith("main", in, servedBy(mode, ParseOptions{Backend: b, Expectations: true, MissingTokens: limit, ComputeReport: &prefixUnits}))
+								return fmt.Sprintf("%s units=%d prefix %s consumed=%d,%d units=%d", codegentest.ResultJSON(n, err), units,
+									codegentest.ResultJSON(r.Node, perr), r.Consumed, r.ConsumedBytes, prefixUnits)
 							}
 							if want, got := run(prog), run(loaded); got != want {
 								t.Errorf("%s mode %v: input %q limit %d\n source %s\n loaded %s", mode, b, in, limit, want, got)

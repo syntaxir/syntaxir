@@ -71,10 +71,10 @@ func (l Limits) merge(o Limits) Limits {
 }
 
 // WithMissingTokens bounds attempted #missing literal insertions in one parse. Zero disables
-// insertion; negative limits are invalid. Whole-input parsing, recognition, stream parsing and
-// Documents support insertion on the parsers of package compiler: a stream has one limit, and a
-// Document fixes the limit at construction and gives each parse the whole limit. Positive limits
-// are invalid with prefix parsing, even without #missing in the grammar, and on generated
+// insertion; negative limits are invalid. Whole-input parsing, recognition, prefix parsing, stream
+// parsing and Documents support insertion on the parsers of package compiler: a prefix parse has
+// one limit for the call, a stream one for the whole stream, and a Document fixes the limit at
+// construction and gives each parse the whole limit. Positive limits are invalid on generated
 // parsers. Options resolve in order.
 func WithMissingTokens(limit int) ParseOption {
 	return func(o *ParseOptions) { o.MissingTokens = limit }

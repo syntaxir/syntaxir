@@ -83,8 +83,11 @@ default:
 }
 ```
 
-This snippet needs the standard `errors` package. A failure after an earlier
-recovery still returns a zero result. No speculative endpoint is exposed on
+This snippet needs the standard `errors` package. With `WithMissingTokens`, an
+insertion of a `#missing` literal is a recovered error in the same way, and the
+consumption fields stop before it, since an insertion consumes no input. A
+failure after an earlier recovery still returns a zero result, and so does a
+parse that exhausts the missing-token limit. No speculative endpoint is exposed on
 failure. A zero result by itself cannot distinguish failure from a successful
 zero-width rule returning nil; use the error.
 
@@ -96,7 +99,9 @@ catch people out:
 
 - An explicit `$$` still sees the end of the entire string you supplied. To confine it to a fragment, slice both the
   beginning and the end of the fragment before calling `ParsePrefix`.
-- Grammars that contain `#missing` are not supported, and neither is a positive `WithMissingTokens` limit.
+- With a positive `WithMissingTokens` limit, a rule that ends in a `#missing` literal inserts it where the fragment
+  ends: `rule stmt = name ";" #missing` takes `ab` as a statement with an inserted `;` instead of failing. Leave the
+  limit at zero when the end of the input must not complete a construct.
 
 The complete rules are in [Prefix Parsing](../../spec/runtime/parsing.md#prefix-parsing).
 
