@@ -70,8 +70,8 @@ var tsRunSiteMutations = map[string][][2]string{
 	}},
 	// A lookup steps through every record of the site before it takes the one of its key.
 	"scan keys": {{
-		"    const r = w.slots?.get(this.pos, this.walkKey());\n",
-		"    for (const m of w.slots?.recs.values() ?? []) {\n      this.units += m.size;\n    }\n    const r = w.slots?.get(this.pos, this.walkKey());\n",
+		"    const r = w.slots?.get(this.pos, k);\n",
+		"    for (const m of w.slots?.recs.values() ?? []) {\n      this.units += m.size;\n    }\n    const r = w.slots?.get(this.pos, k);\n",
 	}},
 	"any list": {{
 		"if (r === undefined || (w.build && !r.list)) {",

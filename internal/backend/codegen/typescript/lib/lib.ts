@@ -3894,6 +3894,27 @@ export class Parser {
   // records, null for a site free of the environment (SkipWalk.key).
   runBegin(site: number, build: boolean, key: RunKey | null): void {
     this.walkBegin(site, build, key);
+    if (key !== null && key.bind.length === 0) {
+      // The element binds no variable of the key, so the key keeps its values for the whole walk:
+      // it is counted once, when the walk starts (spec/runtime/parsing.md, Compute Units).
+      this.walkKeyUnits(this.envValues(key.vars));
+    }
+  }
+
+  // walkKeyUnits counts the units of a walk's key with the values vals: one for each variable, and
+  // one for each byte of the UTF-8 encoding of each string value among them. A parse without limit
+  // controls counts nothing.
+  walkKeyUnits(vals: Value[] | null): void {
+    if (this.control === null || vals === null) {
+      return;
+    }
+    let n = vals.length;
+    for (const v of vals) {
+      if (typeof v === "string") {
+        n += utf8Len(v);
+      }
+    }
+    this.unitsSized(n);
   }
 
   walkBegin(site: number, build: boolean, key: RunKey | null): void {
@@ -3973,7 +3994,13 @@ export class Parser {
     }
     const w = this.walk();
     this.skipClose();
-    const r = w.slots?.get(this.pos, this.walkKey());
+    const k = this.walkKey();
+    if (w.key !== null && w.key.bind.length > 0) {
+      // The element binds variables of the key, whose values may differ at each position: the key
+      // is counted at each lookup (spec/runtime/parsing.md, Compute Units).
+      this.walkKeyUnits(k.vals);
+    }
+    const r = w.slots?.get(this.pos, k);
     if (r === undefined || (w.build && !r.list)) {
       return false;
     }
