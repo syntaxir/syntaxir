@@ -15,6 +15,7 @@ var (
 	demand  = &code.Do{Call: &code.Call{Callee: flow.OpInputDemand}}
 	advance = &code.Do{Call: &code.Call{Callee: flow.OpMatchLit}}
 	peek    = &code.Do{Call: &code.Call{Callee: flow.OpPeek}}
+	restore = &code.Do{Call: &code.Call{Callee: flow.OpRestore}}
 )
 
 func test() code.Expr { return &code.Call{Callee: "flow.test"} }
@@ -52,6 +53,10 @@ func TestUncoveredReadsCoverage(t *testing.T) {
 		{"a break to an outer loop", []code.Stmt{demand, loop("O", loop("I", advance, iff(blk("", &code.Break{Label: "O"}), nil), demand)), peek}, []string{flow.OpPeek}},
 		// A restore of the position uncovers the reads after it, as a move does.
 		{"a set of the position", []code.Stmt{demand, &code.Set{Dst: []code.Place{{Name: prim.Pos, Reg: true}}, Values: []code.Expr{test()}}, peek}, []string{flow.OpPeek}},
+		// A restore of a backtracking point moves the position back, so a read of the next alternative needs its own
+		// demand: the one before the restore covers nothing after it.
+		{"a restore uncovers the reads after it", []code.Stmt{demand, restore, peek}, []string{flow.OpPeek}},
+		{"a demand after a restore covers its read", []code.Stmt{demand, restore, demand, peek}, nil},
 		// The arguments of a call are evaluated before its read: the move of the argument uncovers the call's read.
 		{"arguments before the call", []code.Stmt{demand, &code.Do{Call: &code.Call{Callee: flow.OpPeek, Args: []code.Expr{&code.Call{Callee: flow.OpMatchLit}}}}}, []string{flow.OpPeek}},
 		// A return ends the path: the join with it keeps the coverage of the other path.
