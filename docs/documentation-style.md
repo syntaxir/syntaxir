@@ -156,7 +156,7 @@ Every example is run, and its output is pasted from that run. An example that a 
   `// pairs.sxir (changed rules)` replaces the rules of that name in the file that the page saved before. A block with
   `@start` is a complete grammar. `TestDocumentationExamples` compiles every complete grammar and runs every command
   block (lines that start with `sxir`) against the output that follows it, in a directory per page, with the files of the
-  page saved in the order of the page. It takes about 7 seconds. A file that is not a grammar is saved from a `cat NAME`
+  page saved in the order of the page. It takes under 20 seconds. A file that is not a grammar is saved from a `cat NAME`
   block with the text block after it, or from a `cat > NAME <<'EOF'` block. In a shown output, a line of only `...`
   stands for any number of lines. A command may show its standard output alone.
 - The test also builds and runs the Go and TypeScript programs that call generated parsers. Name a program file in the
