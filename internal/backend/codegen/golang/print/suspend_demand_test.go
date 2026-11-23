@@ -13,11 +13,6 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
 )
 
-// suspendGaps are the input-reading operations that the lowering of a suspended stream does not demand
-// yet, each with the change that removes it. The list shrinks to nothing as the demands land; the test
-// fails both for an uncovered read that is not listed and for a listed operation with no uncovered read.
-var suspendGaps = map[string]string{}
-
 // TestSuspendedLoweringDemandsItsReads lowers every table of the generator's decision with
 // lowerdata.Options.Suspend, as the TypeScript -stream parser does, and checks every function with
 // flow.UncoveredReads: each read of input must be dominated by a demand (flow.inputDemand) with no change
@@ -97,14 +92,7 @@ func TestSuspendedLoweringDemandsItsReads(t *testing.T) {
 	}
 	sort.Strings(names)
 	for _, n := range names {
-		if _, ok := suspendGaps[n]; !ok {
-			t.Errorf("%s: %d reads of input with no dominating demand", n, found[n])
-		}
-	}
-	for n, why := range suspendGaps {
-		if found[n] == 0 {
-			t.Errorf("%s is listed as a gap (%s) but no read of it is uncovered: remove the entry", n, why)
-		}
+		t.Errorf("%s: %d reads of input with no dominating demand", n, found[n])
 	}
 	t.Logf("uncovered reads by operation: %s", strings.Join(names, " "))
 }
