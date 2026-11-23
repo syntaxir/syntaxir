@@ -223,11 +223,19 @@ func GeneratedParsersOutputs(t *testing.T, goBin string, cases []Case, opts comm
 // (NeedsBudgetControls); opts.Document is not supported.
 func GeneratedParsersUnitsMismatches(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
 	t.Helper()
+	return GeneratedParsersUnitsMismatchesWithLib(t, goBin, LibCopy(), cases, opts, mutate)
+}
+
+// GeneratedParsersUnitsMismatchesWithLib is GeneratedParsersUnitsMismatches with the parsers built
+// against the copy of the library in the module directory lib (LibCopyWith), for negative controls
+// that change what the library counts.
+func GeneratedParsersUnitsMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
+	t.Helper()
 	if opts.Document || opts.NoLimitControls {
 		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
 	}
 	opts.Types = true
-	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, true)
+	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, true)
 	return outputMismatches(cases, got, want)
 }
 
@@ -248,6 +256,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 	write("go.mod", GoModAt("codegentest", lib))
 	var imports, parsers, recognizers, viewers, counters strings.Builder
 	streams := make([]bool, len(cases)) // the cases parsed as streams too (units)
+	anyStream := false                  // whether main.go parses a stream, and so imports testing/iotest
 	var inputs [][]string
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
@@ -320,6 +329,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			// read one byte at a time, for a stream grammar.
 			stream := ""
 			if streams[i] {
+				anyStream = true
 				stream = fmt.Sprintf("var st uint64; g%d.ParseStream(iotest.OneByteReader(strings.NewReader(s)), nil, g%[1]d.WithUnit(u), sxirruntime.WithComputeReport(&st)); out += fmt.Sprintf(\" stream: %%d\", st); ", i)
 			}
 			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)); out := fmt.Sprintf(\" units: %%d/%%d\", n, v); %[4]sreturn out },\n", i, i, i, stream)
@@ -361,7 +371,11 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		}
 	}
 	if units {
-		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n\t\"testing/iotest\"\n")
+		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n")
+	}
+	if anyStream {
+		// Only a stream parse reads its input one byte at a time.
+		imports.WriteString("\t\"testing/iotest\"\n")
 	}
 	write("main.go", `package main
 
