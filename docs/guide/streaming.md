@@ -70,9 +70,15 @@ printf 'a=1\nbb=22\nccc=x\n' | sxir parse -g kv.sxir -stream
 sxir: 3:5: syntax error: expected [0-9]
 ```
 
-From Go (in a module that requires `syntaxir.dev/sxir`):
+From Go, in a module that requires `syntaxir.dev/sxir`:
+
+```bash
+go mod init example.com/streams
+go get syntaxir.dev/sxir
+```
 
 ```go
+// main.go
 package main
 
 import (
@@ -488,6 +494,7 @@ collection. This program does that for two grammars over the same input: one who
 builds a tuple node, and one whose element rule has an action:
 
 ```go
+// mem/main.go
 package main
 
 import (
@@ -498,7 +505,6 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
-	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -561,10 +567,10 @@ go run ./mem cst
 ```
 
 ```text
-cst:  100000 records,    0 MiB live
-cst:  200000 records,    0 MiB live
-cst:  300000 records,    0 MiB live
-cst:  400000 records,    0 MiB live
+cst:  100000 records,    ... MiB live
+cst:  200000 records,    ... MiB live
+cst:  300000 records,    ... MiB live
+cst:  400000 records,    ... MiB live
 ```
 
 ```bash
@@ -572,13 +578,13 @@ go run ./mem action
 ```
 
 ```text
-action:  100000 records,    0 MiB live
-action:  200000 records,    0 MiB live
-action:  300000 records,    0 MiB live
-action:  400000 records,    0 MiB live
+action:  100000 records,    ... MiB live
+action:  200000 records,    ... MiB live
+action:  300000 records,    ... MiB live
+action:  400000 records,    ... MiB live
 ```
 
-Both stay flat: what is reachable is the parser's working set, not the elements already delivered. If you stream
+Both stay flat, at a megabyte or less from run to run: what is reachable is the parser's working set, not the elements already delivered. If you stream
 gigabytes, measuring your own grammar with a helper like the one above is still worthwhile; what it should show is a
 number that does not grow with the input.
 

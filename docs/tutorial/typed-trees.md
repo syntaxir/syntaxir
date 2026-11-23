@@ -105,10 +105,18 @@ sxir: bad-field.sxir:22:69: Entry has no field Valu
 
 ### Using the Tree From Go
 
-The typed tree is what your program consumes. Put `config.sxir` and an `example.conf` next to this `main.go`, which
-embeds the grammar and prints the entries:
+The typed tree is what your program consumes. In a module of its own, as in
+[the first lesson](getting-started.md#from-go):
+
+```bash
+go mod init example.com/config
+go get syntaxir.dev/sxir
+```
+
+put `config.sxir` and an `example.conf` next to this `main.go`, which embeds the grammar and prints the entries:
 
 ```go
+// main.go
 package main
 
 import (

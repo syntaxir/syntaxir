@@ -7,7 +7,12 @@ that your tests did not think of.
 Write the specification as a grammar, and let SyntaxIR generate inputs from it: inputs the grammar accepts, and inputs that
 are one mutation away from one and that the grammar rejects. The function must say yes to the first and no to the
 second. This is the grammar of [Ship a parser and keep it up to date](ship-a-parser.md), and the function is a regular
-expression:
+expression, in a module of its own:
+
+```bash
+go mod init example.com/fuzz
+go get syntaxir.dev/sxir
+```
 
 ```sxir
 // version.sxir
@@ -118,21 +123,32 @@ go test .
 ```
 
 ```text
---- FAIL: TestValidMatchesGrammar (0.01s)
-    version_test.go:44: Valid("01757.0.0") = true; the grammar rejects it (insert "0" at 0 of "1757.0.0": 1:2: syntax error: expected ".")
-    version_test.go:44: Valid("11.00.1633") = true; the grammar rejects it (insert "0" at 3 of "11.0.1633": 1:5: syntax error: expected ".")
-    version_test.go:44: Valid("00.48.9") = true; the grammar rejects it (duplicate "0" at 0 of "0.48.9": 1:2: syntax error: expected ".")
-    version_test.go:44: Valid("0.1.00") = true; the grammar rejects it (duplicate "0" at 4 of "0.1.0": 1:6: syntax error: expected end of input, "-")
+--- FAIL: TestValidMatchesGrammar (...)
+    version_test.go:47: Valid("01757.0.0") = true; the grammar rejects it (insert "0" at 0 of "1757.0.0": 1:2: syntax error: expected ".")
+    version_test.go:47: Valid("11.00.1633") = true; the grammar rejects it (insert "0" at 3 of "11.0.1633": 1:5: syntax error: expected ".")
+    version_test.go:47: Valid("00.48.9") = true; the grammar rejects it (duplicate "0" at 0 of "0.48.9": 1:2: syntax error: expected ".")
+    version_test.go:47: Valid("0.1.00") = true; the grammar rejects it (duplicate "0" at 4 of "0.1.0": 1:6: syntax error: expected end of input, "-")
     ...
 FAIL
-FAIL	example.com/fuzz	0.552s
+FAIL	example.com/fuzz	...
+FAIL
 ```
 
 (The output continues with five more lines like these.) Each message names the input, the mutation and the valid
 input it came from, and the error the grammar reports. Fix the regular expression:
 
 ```go
+// version.go
+package version
+
+import "regexp"
+
 var versionRe = regexp.MustCompile(`^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[a-z0-9.]+)?$`)
+
+// Valid reports whether s is a version such as 1.2.3 or 1.2.3-rc.1.
+func Valid(s string) bool {
+	return versionRe.MatchString(s)
+}
 ```
 
 ```bash
@@ -141,13 +157,14 @@ go test -v -run TestValid .
 
 ```text
 === RUN   TestValidMatchesGrammar
---- PASS: TestValidMatchesGrammar (0.02s)
+--- PASS: TestValidMatchesGrammar (...)
 PASS
-ok  	example.com/fuzz	0.375s
+ok  	example.com/fuzz	...
 ```
 
 `go test` also runs `FuzzValid` on its seed corpus, the generated inputs. To let the fuzzer mutate them, name it:
 
+<!-- example: skip: five seconds of fuzzing on every core; testing-grammars.md runs a fuzz target -->
 ```bash
 go test -run '^$' -fuzz FuzzValid -fuzztime 5s .
 ```

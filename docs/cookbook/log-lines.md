@@ -47,13 +47,16 @@ rule status Status = ([0-9] #repeat(3)) #atomic
 rule millis Millis = ([0-9]+) #atomic
 ```
 
-Generate the parser with `-types` (Go types for the grammar's types and `ParseValue`) and `-recognize` (`Recognize`).
-The tool is recorded in the module with `go get -tool syntaxir.dev/sxir/cmd/sxir`, and `sxir gen` creates the output
-directory:
+Create the module and record the tool in it:
 
 ```bash
-go generate ./...
+go mod init example.com/logs
+go get -tool syntaxir.dev/sxir/cmd/sxir
 ```
+
+The program's `go:generate` line generates the parser with `-types` (Go types for the grammar's types, in the package
+`logparser/types`, and `ParseValue`), `-recognize` (`Recognize`) and `-expectations` (error messages that say what was
+expected); `sxir gen` creates the output directory:
 
 ```go
 // main.go
@@ -66,9 +69,10 @@ import (
 	"strconv"
 
 	"example.com/logs/logparser"
+	"example.com/logs/logparser/types"
 )
 
-//go:generate go tool sxir gen -g logs.sxir -module example.com/logs/logparser -types -recognize -o logparser
+//go:generate go tool sxir gen -g logs.sxir -module example.com/logs/logparser -types -recognize -expectations -o logparser
 
 func main() {
 	data, err := io.ReadAll(os.Stdin)
@@ -76,14 +80,14 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	log, err := logparser.ParseValue(string(data))
+	log, err := logparser.ParseValue(string(data), logparser.WithExpectations())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err) // for example 3:12: syntax error: expected ...
 		os.Exit(1)
 	}
 
 	count := map[string]int{}
-	var slowest *logparser.Line
+	var slowest *types.Line
 	slowestMs := -1
 	for _, l := range log.Lines {
 		count[l.Level.Value]++
@@ -103,6 +107,7 @@ func main() {
 
 With this `sample.log`:
 
+<!-- example: file sample.log -->
 ```text
 2026-10-09T11:12:41Z INFO api GET /users/42 200 12ms
 2026-10-09T11:12:41Z INFO api POST /users 201 48ms
@@ -112,6 +117,7 @@ With this `sample.log`:
 ```
 
 ```bash
+go generate ./...
 go run . < sample.log
 ```
 

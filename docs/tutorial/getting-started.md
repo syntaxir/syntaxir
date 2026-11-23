@@ -141,6 +141,7 @@ go get syntaxir.dev/sxir
 ```
 
 ```go
+// main.go
 package main
 
 import (
@@ -150,6 +151,7 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 const src = `@start
@@ -175,7 +177,7 @@ func main() {
 	data, _ := json.Marshal(node)
 	fmt.Println(string(data))
 
-	_, err = p.Parse("hello there")
+	_, err = p.Parse("hello there", runtime.WithExpectations()) // record what was expected
 	fmt.Println(err)
 }
 ```
@@ -201,7 +203,8 @@ tuple 0 11
   range, `Text()` is the text of a string node, and `Elems()` iterates over the elements of a tuple or list. Nodes encode
   to JSON as shown.
 - When the input does not match, `Parse` returns a `*value.SyntaxError` from the package
-  `syntaxir.dev/sxir/pkg/runtime/value` (see [Reporting Errors](errors.md)).
+  `syntaxir.dev/sxir/pkg/runtime/value` (see [Reporting Errors](errors.md)). With `runtime.WithExpectations()` the
+  error says what was expected; without it, the message ends at `syntax error`.
 
 ## Next Steps
 

@@ -26,7 +26,12 @@ The lines are those of [Parse log lines fast](log-lines.md). This grammar keeps 
 other fields with `-token`. The program counts the errors and adds up the times. To have a big file without a big file
 on disk, `logFile` is an `io.Reader` that makes the lines as they are read; with a real file, pass the `*os.File`
 (or a `bufio.Reader`, or `os.Stdin`) to `ParseStream` instead. With `-whole` the program reads everything and calls
-`Parse`, for comparison.
+`Parse`, for comparison. In a module of its own:
+
+```bash
+go mod init example.com/biglogs
+go get syntaxir.dev/sxir
+```
 
 ```go
 // main.go
@@ -43,7 +48,6 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
-	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -127,21 +131,22 @@ go run . -n 1000000
 
 ```text
 1000000 lines, 166666 errors, 499500000 ms in total
-memory obtained from the system: 18 MiB
+memory obtained from the system: ... MiB
 ```
 
+<!-- example: skip: holds a gigabyte of input and tree in memory -->
 ```bash
 go run . -n 1000000 -whole
 ```
 
 ```text
 1000000 lines, 166666 errors, 499500000 ms in total
-memory obtained from the system: 1045 MiB
+memory obtained from the system: ... MiB
 ```
 
 With five million lines (290 MB) the streaming program still needs 25 MiB. For one million lines it took 1.6 seconds and
-the whole-input program 1.0 second: streaming trades some time for memory that does not grow with the input. (The
-memory figures vary by a few MiB from run to run.)
+the whole-input program 1.0 second: streaming trades some time for memory that does not grow with the input. The memory
+was 18 MiB streaming and 1045 MiB for the whole input; it varies by a few MiB from run to run.
 
 ## How It Works
 

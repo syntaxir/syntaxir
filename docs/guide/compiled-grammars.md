@@ -248,8 +248,14 @@ example.com/pairs
 └── compiled_test.go
 ```
 
-Record `sxir` as a tool of the module (`go get -tool syntaxir.dev/sxir/cmd/sxir`), so that `go generate` runs the
-pinned version, and declare the step:
+Record `sxir` as a tool of the module, so that `go generate` runs the pinned version:
+
+```bash
+go mod init example.com/pairs
+go get -tool syntaxir.dev/sxir/cmd/sxir
+```
+
+and declare the step:
 
 ```go
 // generate.go
@@ -341,6 +347,14 @@ func TestCompiledIsUpToDate(t *testing.T) {
 		t.Error("pairs.sxirc is out of date; run go generate ./...")
 	}
 }
+```
+
+```bash
+go test .
+```
+
+```text
+ok  	example.com/pairs	...
 ```
 
 After changing `pairs.sxir` (here: `rule value =  [0-9a-f]+ #atomic `) without running `go generate`, the test fails:

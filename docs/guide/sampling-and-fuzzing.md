@@ -466,6 +466,7 @@ func FuzzCalculator(f *testing.F) {
 `go test` runs this fuzz target on its seeds only,
 which makes it an ordinary test of the generated inputs; `-fuzz` starts fuzzing:
 
+<!-- example: skip: fuzzes a test of the repository's own package, not a program of the page -->
 ```bash
 go test ./pkg/sample -run '^$' -fuzz=FuzzCalculator -fuzztime=3s -parallel=1
 ```

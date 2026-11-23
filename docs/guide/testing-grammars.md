@@ -58,12 +58,20 @@ example.com/pairs
 ├── golden_test.go
 ├── properties_test.go
 ├── sample_test.go
+├── fuzz_test.go
 ├── document_test.go
 ├── compiled_test.go
 └── testdata/
     ├── basic.txt        basic.golden
     ├── blank-lines.txt  blank-lines.golden
     └── error.txt        error.golden
+```
+
+Create the module with:
+
+```bash
+go mod init example.com/pairs
+go get syntaxir.dev/sxir
 ```
 
 ## Examples: What Is Accepted and Rejected
@@ -73,6 +81,7 @@ Start with a table of inputs and what they should produce. For the inputs that m
 was expected there when the message matters:
 
 ```go
+// pairs_test.go
 package pairs_test
 
 import (
@@ -105,7 +114,7 @@ func TestAccepts(t *testing.T) {
 		{"abc=12; あい=3", `[Pair{Key: "abc", Value: "12"} Pair{Key: "あい", Value: "3"}]`},
 		{" \n a=1 \n b=2", `[Pair{Key: "a", Value: "1"} Pair{Key: "b", Value: "2"}]`},
 	} {
-		node, err := parser.Parse(tc.in)
+		node, err := parser.Parse(tc.in, runtime.WithExpectations())
 		if err != nil {
 			t.Errorf("%q: unexpected error: %v", tc.in, err)
 			continue
@@ -127,7 +136,7 @@ func TestRejects(t *testing.T) {
 		{"a=", 1, 3, []string{"[0-9]"}},
 		{"a=1\nb=x", 2, 3, []string{"[0-9]"}},
 	} {
-		_, err := parser.Parse(tc.in)
+		_, err := parser.Parse(tc.in, runtime.WithExpectations()) // record what was expected
 		var se *value.SyntaxError
 		if !errors.As(err, &se) {
 			t.Errorf("%q: got %v, want a syntax error", tc.in, err)
@@ -149,8 +158,8 @@ Some advice on choosing the cases:
   characters a class allows (`a`, `z`, and the character before and after them).
 - **What must not match.** Test the things a lookahead or an ordered choice is there to exclude, such as a keyword that
   must not be read as an identifier.
-- **Errors.** `SyntaxError` has `Line`, `Col`, `Pos` and `Expected`; the [error messages guide](error-messages.md) shows how
-  to shape them. Asserting on `Expected` ties the test to the grammar's details (the first case above includes the
+- **Errors.** `SyntaxError` has `Line`, `Col`, `Pos` and `Expected` (recorded with `runtime.WithExpectations()`); the
+  [error messages guide](error-messages.md) shows how to shape them. Asserting on `Expected` ties the test to the grammar's details (the first case above includes the
   whitespace class, because `ws` comes first), so do it for the errors you took care to make good, and check only the
   position for the rest.
 - **Positions.** A tree test that ignores `Start` and `End` misses a whole class of mistakes; see
@@ -173,6 +182,7 @@ result with a file next to it: the tree, or the error. When the result changes o
 flag and review the diff in version control, as you would any other change:
 
 ```go
+// golden_test.go
 package pairs_test
 
 import (
@@ -181,6 +191,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden files")
@@ -198,7 +210,7 @@ func TestGolden(t *testing.T) {
 				t.Fatal(err)
 			}
 			var got string
-			if node, err := parser.Parse(string(in)); err != nil {
+			if node, err := parser.Parse(string(in), runtime.WithExpectations()); err != nil {
 				got = "error: " + err.Error() + "\n"
 			} else {
 				got = node.String() + "\n"
@@ -222,8 +234,32 @@ func TestGolden(t *testing.T) {
 }
 ```
 
+For example, with three inputs:
+
+<!-- example: file testdata/basic.txt -->
+```text
+abc=12; あい=3
+```
+
+<!-- example: file testdata/blank-lines.txt -->
+```text
+a=1
+
+
+b=2
+```
+
+<!-- example: file testdata/error.txt -->
+```text
+a=1
+b=x
+```
+
 ```bash
 go test -run TestGolden -update .   # create or rewrite the golden files
+```
+
+```bash
 cat testdata/basic.golden testdata/error.golden
 ```
 
@@ -334,6 +370,7 @@ Some things should be true of every input, whether or not it is in your tests. W
 takes an input and fails the test if one of them does not hold, and call it from every layer below:
 
 ```go
+// properties_test.go
 package pairs_test
 
 import (
@@ -435,6 +472,7 @@ near misses that it rejects ([sampling and fuzzing](sampling-and-fuzzing.md) cov
 suite as well: if a generated corpus misses an alternative, so will most of your tests.
 
 ```go
+// sample_test.go
 package pairs_test
 
 import (
@@ -512,6 +550,15 @@ Go's fuzzer mutates the inputs of a seed corpus and keeps those that reach new c
 starts from realistic documents instead of random bytes. Run the property function on every input it produces:
 
 ```go
+// fuzz_test.go
+package pairs_test
+
+import (
+	"testing"
+
+	"syntaxir.dev/sxir/pkg/sample"
+)
+
 func FuzzParse(f *testing.F) {
 	sample.Seed(f, parser, 20, sample.WithMaxLen(64)) // adds up to 20 generated inputs to the corpus
 	f.Add("a=")
@@ -527,13 +574,14 @@ go test -run '^$' -fuzz=FuzzParse -fuzztime=3s -parallel=1 .
 ```
 
 ```text
-fuzz: elapsed: 0s, gathering baseline coverage: 0/22 completed
-fuzz: elapsed: 0s, gathering baseline coverage: 22/22 completed, now fuzzing with 1 workers
-fuzz: elapsed: 3s, execs: 27275 (9089/sec), new interesting: 28 (total: 50)
-fuzz: elapsed: 4s, execs: 27275 (0/sec), new interesting: 28 (total: 50)
+fuzz: elapsed: ..., gathering baseline coverage: 0/... completed
+fuzz: elapsed: ..., gathering baseline coverage: .../... completed, now fuzzing with 1 workers
+...
 PASS
+ok  	example.com/pairs	...
 ```
 
+The corpus also holds what earlier runs found (Go keeps it in its build cache), so the counts grow from run to run.
 When the fuzzer finds an input that fails, it saves it in `testdata/fuzz/FuzzParse/` and every later `go test` runs it:
 commit the file, as a regression test. The fuzzer works best with short inputs: bound the seeds with `WithMaxLen`.
 
@@ -572,6 +620,7 @@ corpus: the generated inputs, the golden inputs and what the fuzzer found.
 generated inputs at random and compare ([incremental parsing](incremental.md)):
 
 ```go
+// document_test.go
 package pairs_test
 
 import (
@@ -623,6 +672,7 @@ and unit, and save a failing edit sequence as a file that replays it ([fuzzing e
 test saves the parse mode, which serves `Parse` on the bytecode backends:
 
 ```go
+// compiled_test.go
 package pairs_test
 
 import (

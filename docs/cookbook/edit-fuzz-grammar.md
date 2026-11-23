@@ -45,10 +45,10 @@ rule eol = "\n" / $$
 rule blank = [ \t]* "\n"
 ```
 
-The files that the edits start from are real inputs of the format:
+The files that the edits start from are real inputs of the format, such as `testdata/corpus/settings.txt`:
 
+<!-- example: file testdata/corpus/settings.txt -->
 ```text
-// testdata/corpus/settings.txt
 server:
   host: example.com
   port: 8080
@@ -61,7 +61,12 @@ name: demo
 ```
 
 The test fuzzes every backend in both position units, replays the failures that were saved earlier, and replays one
-case written by hand:
+case written by hand. It lives in a module of its own:
+
+```bash
+go mod init example.com/nested
+go get syntaxir.dev/sxir
+```
 
 ```go
 // edits_test.go
@@ -181,19 +186,19 @@ go test -v
 === RUN   TestEditsMatchFreshParses/bytecode/bytes
 === RUN   TestEditsMatchFreshParses/bytecode-iterative/codepoints
 === RUN   TestEditsMatchFreshParses/bytecode-iterative/bytes
---- PASS: TestEditsMatchFreshParses (2.03s)
-    --- PASS: TestEditsMatchFreshParses/closure/codepoints (0.33s)
-    --- PASS: TestEditsMatchFreshParses/closure/bytes (0.30s)
-    --- PASS: TestEditsMatchFreshParses/bytecode/codepoints (0.36s)
-    --- PASS: TestEditsMatchFreshParses/bytecode/bytes (0.33s)
-    --- PASS: TestEditsMatchFreshParses/bytecode-iterative/codepoints (0.36s)
-    --- PASS: TestEditsMatchFreshParses/bytecode-iterative/bytes (0.34s)
+--- PASS: TestEditsMatchFreshParses (...)
+    --- PASS: TestEditsMatchFreshParses/closure/codepoints (...)
+    --- PASS: TestEditsMatchFreshParses/closure/bytes (...)
+    --- PASS: TestEditsMatchFreshParses/bytecode/codepoints (...)
+    --- PASS: TestEditsMatchFreshParses/bytecode/bytes (...)
+    --- PASS: TestEditsMatchFreshParses/bytecode-iterative/codepoints (...)
+    --- PASS: TestEditsMatchFreshParses/bytecode-iterative/bytes (...)
 === RUN   TestSavedSequences
---- PASS: TestSavedSequences (0.00s)
+--- PASS: TestSavedSequences (...)
 === RUN   TestDedent
---- PASS: TestDedent (0.00s)
+--- PASS: TestDedent (...)
 PASS
-ok  	example.com/nested	2.282s
+ok  	example.com/nested	...
 ```
 
 Nothing was saved, because nothing failed: `testdata/editfuzz` is created only when a sequence fails. The times differ

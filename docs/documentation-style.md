@@ -156,19 +156,22 @@ Every example is run, and its output is pasted from that run. An example that a 
   `// pairs.sxir (changed rules)` replaces the rules of that name in the file that the page saved before. A block with
   `@start` is a complete grammar. `TestDocumentationExamples` compiles every complete grammar and runs every command
   block (lines that start with `sxir`) against the output that follows it, in a directory per page, with the files of the
-  page saved in the order of the page. It takes under 20 seconds. A file that is not a grammar is saved from a `cat NAME`
+  page saved in the order of the page. It takes about 25 seconds. A file that is not a grammar is saved from a `cat NAME`
   block with the text block after it, or from a `cat > NAME <<'EOF'` block. In a shown output, a line of only `...`
   stands for any number of lines. A command may show its standard output alone.
 - The test also builds and runs the Go and TypeScript programs that call generated parsers. Name a program file in the
   first line of its block, `// main.go` or `// main.ts`, and run it from a command block of `go mod init`, `go get`,
-  `go generate`, `go run`, `go build`, `go test`, `go vet`, `go tool` or `node` lines, with its output after it. Run
-  TypeScript with `node main.ts` (Node.js 22.18 or later strips the types; mention other runtimes such as tsx, Deno or Bun in
-  a sentence). The module of the page requires SyntaxIR from the checkout, offline. A short program with no command
+  `go generate`, `go run`, `go build`, `go test`, `go vet`, `go tool` or `node` lines, with its output after it (a
+  text block, or a json block for JSON). Show the steps that a reader takes, from `go mod init` on; a `cat` line in
+  such a block shows a file that the commands wrote. Run TypeScript with `node main.ts` (Node.js 22.18 or later strips
+  the types; mention other runtimes such as tsx, Deno or Bun in a sentence). The module of the page requires SyntaxIR from the checkout, offline. A short program with no command
   block of its own is marked `<!-- example: program NAME [module PATH] -->`: it runs with `go run NAME` (a Go
   fragment without a package clause becomes the body of `main`, in a module PATH, `example.com/app` by default) or
   `node NAME`, and its output is the text block after it or, without one, the trailing `// ` comments of its lines,
-  where `...` inside a line stands for any text. A page whose programs cannot run yet is listed in
-  `deferredProgramPages` (`site/docs_programs_test.go`) with the reason.
+  where `...` inside a line stands for any text, as it does in every shown output: write times and memory sizes as
+  `...` and give the measured values in the prose. A page whose programs run from the root of the repository is
+  marked `<!-- example: repository -->`: they run in a module that stands in for it, with the paths of the
+  repository that the commands name.
 - Mark what the test cannot know with an HTML comment on the line before the fence, which readers do not see:
   `<!-- example: error -->` for a grammar that is rejected on purpose (it must not compile),
   `<!-- example: file NAME -->` for any block that is a file to save (a JSON input, a text input),

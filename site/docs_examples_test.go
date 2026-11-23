@@ -37,6 +37,7 @@ import (
 //	<!-- example: file <name> -->     the block is a file to save under that name (any language)
 //	<!-- example: skip: <reason> -->  the block is not run, for the reason given
 //	<!-- example: use <page.md> -->   anywhere on a page: the files that page saves are available here
+//	<!-- example: repository -->     anywhere on a page: its programs run in the repository
 //	<!-- example: program <name> [module <path>] -->
 //	                                  a go or ts block is a program to run (docs_programs_test.go)
 //
@@ -50,6 +51,7 @@ var (
 	exampleFileRe    = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.sxir)(\s+\(changed rules\))?\s*$`)
 	exampleSourceRe  = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:go|ts))\s*$`)
 	exampleUseRe     = regexp.MustCompile(`^<!--\s*example:\s*use\s+(\S+\.md)\s*-->$`)
+	exampleRepoRe    = regexp.MustCompile(`^<!--\s*example:\s*repository\s*-->$`)
 	exampleCatRe     = regexp.MustCompile(`^cat\s+([A-Za-z0-9_][A-Za-z0-9_./-]*)$`)
 	exampleHereRe    = regexp.MustCompile(`^cat\s*>\s*([A-Za-z0-9_][A-Za-z0-9_./-]*)\s*<<\s*'?(\w+)'?$`)
 	exampleCommandRe = regexp.MustCompile(`^(printf '[^']*' \| )?sxir [a-z]`)
@@ -247,7 +249,8 @@ func runExampleCommand(bin, dir, command string, withStderr bool) (string, error
 }
 
 // outputMatches reports whether got is the output that want shows. A line of want that holds
-// only "..." stands for any number of lines (including none), as pages use it to cut a long output.
+// only "..." stands for any number of lines (including none), as pages use it to cut a long output,
+// and "..." inside a line stands for any text, as pages use it for a time or a size of memory.
 func outputMatches(got, want string) bool {
 	if got == want {
 		return true
@@ -266,19 +269,19 @@ func outputMatches(got, want string) bool {
 		cur = append(cur, l)
 	}
 	if !elided {
-		return false
+		return linesMatch(strings.Split(got, "\n"), wl)
 	}
 	segs = append(segs, cur)
 	gl := strings.Split(got, "\n")
 	first, last := segs[0], segs[len(segs)-1]
-	if len(gl) < len(first)+len(last) || !slices.Equal(gl[:len(first)], first) || !slices.Equal(gl[len(gl)-len(last):], last) {
+	if len(gl) < len(first)+len(last) || !linesMatch(gl[:len(first)], first) || !linesMatch(gl[len(gl)-len(last):], last) {
 		return false
 	}
 	rest := gl[len(first) : len(gl)-len(last)]
 	for _, seg := range segs[1 : len(segs)-1] {
 		at := -1
 		for i := 0; i+len(seg) <= len(rest); i++ {
-			if slices.Equal(rest[i:i+len(seg)], seg) {
+			if linesMatch(rest[i:i+len(seg)], seg) {
 				at = i
 				break
 			}
@@ -287,6 +290,20 @@ func outputMatches(got, want string) bool {
 			return false
 		}
 		rest = rest[at+len(seg):]
+	}
+	return true
+}
+
+// linesMatch reports whether the lines got are the lines want, where "..." inside a line of want
+// stands for any text (lineMatches).
+func linesMatch(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range want {
+		if !lineMatches(got[i], want[i]) {
+			return false
+		}
 	}
 	return true
 }
@@ -305,8 +322,8 @@ func trimOutput(s string) string {
 var deferredPages = map[string]string{}
 
 // exampleStats counts what TestDocumentationExamples did, for the log. Programs counts the program
-// command blocks and programs that ran, and Deferred those of deferredProgramPages.
-type exampleStats struct{ Compiled, Rejected, Commands, Programs, Deferred, Skipped int }
+// command blocks and programs that ran.
+type exampleStats struct{ Compiled, Rejected, Commands, Programs, Skipped int }
 
 // isCommandBlock reports whether every line of a bash block is an sxir command.
 func isCommandBlock(body []string) bool {
@@ -411,8 +428,7 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 			saveExampleFile(t, dir, name, text)
 		}
 	}
-	_, deferPrograms := deferredProgramPages[rel]
-	runPrograms := !deferPrograms
+	inRepository := pageInRepository(t, rel)
 	files := map[string]string{}
 	for i, b := range blocks {
 		at := fmt.Sprintf("%s:%d", rel, b.Line)
@@ -473,30 +489,29 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 			checkShownOutput(t, at, command, got, blocks, i, func() (string, error) {
 				return runExampleCommand(bin, dir, command, false)
 			})
-		case b.Lang == "bash" && isProgramBlock(b.Body):
+		case b.Lang == "bash" && name == "" && isProgramBlock(b.Body): // not a `cat NAME` that saves a file
 			if skip {
 				st.Skipped++
 				continue
 			}
-			if !runPrograms {
-				st.Deferred++
-				continue
-			}
 			command := strings.Join(b.Body, "\n")
+			if err := exampleCommandPaths(dir, command); err != nil {
+				t.Fatal(err)
+			}
+			if inRepository {
+				repositoryModule(t, bin, dir)
+			}
 			got, err := runProgramCommands(t, bin, dir, b.Body)
 			if err != nil {
 				t.Errorf("%s: %s: %v", at, command, err)
 				continue
 			}
 			st.Programs++
-			if i+1 < len(blocks) && blocks[i+1].Lang == "text" {
+			// A program that prints JSON may show it as a json block.
+			if i+1 < len(blocks) && (blocks[i+1].Lang == "text" || blocks[i+1].Lang == "json") {
 				checkShownOutput(t, at, command, got, blocks, i, nil)
 			}
 		case strings.HasPrefix(b.Marker, "program "):
-			if !runPrograms {
-				st.Deferred++
-				continue
-			}
 			st.Programs++
 			checkProgram(t, bin, dir, at, b, blocks, i)
 		}
@@ -556,8 +571,8 @@ func TestDocumentationExamples(t *testing.T) {
 	var mu sync.Mutex
 	var total exampleStats
 	t.Cleanup(func() {
-		t.Logf("compiled %d grammars, %d rejected on purpose, ran %d commands and %d programs, deferred %d programs, skipped %d marked blocks",
-			total.Compiled, total.Rejected, total.Commands, total.Programs, total.Deferred, total.Skipped)
+		t.Logf("compiled %d grammars, %d rejected on purpose, ran %d commands and %d programs, skipped %d marked blocks",
+			total.Compiled, total.Rejected, total.Commands, total.Programs, total.Skipped)
 	})
 	for _, rel := range exampleDocs(t) {
 		t.Run(rel, func(t *testing.T) {
@@ -572,7 +587,6 @@ func TestDocumentationExamples(t *testing.T) {
 			total.Rejected += st.Rejected
 			total.Commands += st.Commands
 			total.Programs += st.Programs
-			total.Deferred += st.Deferred
 			total.Skipped += st.Skipped
 			mu.Unlock()
 		})

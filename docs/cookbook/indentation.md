@@ -40,6 +40,13 @@ rule eol = "\n" / $$
 rule blank = [ \t]* "\n"
 ```
 
+The program reads a file, parses it and prints the maps as JSON. In a module of its own:
+
+```bash
+go mod init example.com/nested
+go get syntaxir.dev/sxir
+```
+
 ```go
 // main.go
 package main
@@ -53,6 +60,7 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
+	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -85,7 +93,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	tree, err := p.Parse(string(src))
+	tree, err := p.Parse(string(src), runtime.WithExpectations()) // with the message of @error
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -96,6 +104,7 @@ func main() {
 
 With this `app.yml`:
 
+<!-- example: file app.yml -->
 ```text
 server:
   host: localhost
@@ -129,6 +138,7 @@ go run . app.yml
 
 A line that is indented to a depth that no enclosing block has, in `bad.yml`:
 
+<!-- example: file bad.yml -->
 ```text
 server:
     host: localhost

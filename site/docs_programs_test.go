@@ -20,8 +20,9 @@ import (
 //
 //   - A file block (`// main.go` or `// main.ts` on its first line, or a `file` marker) and a bash
 //     block of program commands after it: lines that start with `go mod init`, `go get`,
-//     `go generate`, `go run`, `go build`, `go test`, `go vet`, `go tool` or `node`. The text block
-//     after the commands is their output.
+//     `go generate`, `go run`, `go build`, `go test`, `go vet`, `go tool`, `node` or `cat` (of a
+//     file that the commands wrote), after an optional `printf '...' | ` that gives the input. The
+//     text block after the commands is their output.
 //   - A block marked `<!-- example: program <name> [module <path>] -->`, saved under name and run
 //     (`go run` or `node`). A Go block without a package clause is a fragment: its import lines
 //     stay imports, its other lines become the body of main, and "fmt" is imported if it is used.
@@ -36,27 +37,10 @@ import (
 // and a run of the binary, so that the exit status line of go run is not part of the output. The
 // TypeScript runs on node with its type stripping; pages write `node main.ts`.
 
-// deferredProgramPages are pages whose programs are not run yet, with the reason; their grammars and
-// sxir commands are still run. A page leaves this list when its programs run as the page shows them.
-var deferredProgramPages = map[string]string{
-	"docs/cookbook/big-files.md":            "its programs print times and memory of this machine",
-	"docs/cookbook/edit-fuzz-grammar.md":    "its test runs in a module that the page does not create",
-	"docs/cookbook/indentation.md":          "its program runs in a module that the page does not create",
-	"docs/cookbook/log-lines.md":            "its program runs in a module that the page does not create",
-	"docs/cookbook/test-with-samples.md":    "its tests run in a module that the page does not create",
-	"docs/guide/compiled-grammars.md":       "its program runs in a module that the page does not create",
-	"docs/guide/incremental-performance.md": "its program prints times of this machine",
-	"docs/guide/sampling-and-fuzzing.md":    "its fuzzing runs in the repository and prints times",
-	"docs/guide/streaming.md":               "its programs print memory of this machine",
-	"docs/guide/testing-grammars.md":        "its fuzzing runs in a module that the page does not create and prints times",
-	"docs/tutorial/getting-started.md":      "its program runs in a module that the page does not create",
-	"docs/tutorial/typed-trees.md":          "its program runs in a module that the page does not create",
-}
-
 var (
-	exampleProgramLineRe = regexp.MustCompile(`^(go (mod init|get|generate|run|build|test|vet|tool) |node )`)
+	exampleProgramLineRe = regexp.MustCompile(`^(printf '[^']*' \| )?(go (mod init|get|generate|run|build|test|vet|tool) |node |cat [^<>|&;]*$)`)
 	exampleGoModInitRe   = regexp.MustCompile(`^go mod init\s`)
-	exampleGoRunRe       = regexp.MustCompile(`^go run\s+(\S+)(.*)$`)
+	exampleGoRunRe       = regexp.MustCompile(`^(printf '[^']*' \| )?go run\s+(\S+)(.*)$`)
 	examplePackageRe     = regexp.MustCompile(`^package\s+\w+`)
 	exampleImportRe      = regexp.MustCompile(`^import\s+(\(|"[^"]*"|\w+\s+"[^"]*")`)
 )
@@ -245,14 +229,14 @@ func runProgramCommands(t *testing.T, bin, dir string, lines []string) (string, 
 	for _, line := range lines {
 		if m := exampleGoRunRe.FindStringSubmatch(line); m != nil {
 			prog := filepath.Join(t.TempDir(), "program")
-			build, err := runProgramLine(env, dir, "go build -o '"+prog+"' "+m[1])
+			build, err := runProgramLine(env, dir, "go build -o '"+prog+"' "+m[2])
 			if err != nil {
 				return out.String(), err
 			}
 			if _, err := os.Stat(prog); err != nil {
 				return out.String() + build, nil // the build failed; its errors are the output
 			}
-			line = "'" + prog + "'" + m[2]
+			line = m[1] + "'" + prog + "'" + m[3]
 		}
 		got, err := runProgramLine(env, dir, line)
 		out.WriteString(got)
@@ -329,6 +313,12 @@ func TestIsProgramBlock(t *testing.T) {
 		{[]string{"go install syntaxir.dev/sxir/cmd/sxir@latest"}, false},
 		{[]string{"go run . 1", "sxir parse -g a.sxir"}, false},
 		{[]string{"nodemon main.ts"}, false},
+		{[]string{`printf 'a=1\n' | go run .`}, true},
+		{[]string{`printf 'a=1\n' | sxir parse -g a.sxir`}, false},
+		{[]string{"cat testdata/basic.golden"}, true},
+		{[]string{"go test -update .", "cat testdata/basic.golden"}, true},
+		{[]string{"catalog x"}, false},
+		{[]string{"cat > a.txt <<'EOF'", "a", "EOF"}, false},
 		{nil, false},
 	} {
 		if got := isProgramBlock(c.body); got != c.ok {
@@ -410,11 +400,35 @@ func TestCommentOutput(t *testing.T) {
 	}
 }
 
-func TestDeferredProgramPagesExist(t *testing.T) {
-	pages := exampleDocs(t)
-	for rel := range deferredProgramPages {
-		if !slices.Contains(pages, rel) {
-			t.Errorf("deferredProgramPages lists %s, which is not a page whose examples are run", rel)
-		}
+// pageInRepository reports whether the page marks its programs as run in the repository, with
+// `<!-- example: repository -->` anywhere on it.
+func pageInRepository(t *testing.T, rel string) bool {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("..", rel))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return slices.ContainsFunc(strings.Split(string(data), "\n"), func(l string) bool {
+		return exampleRepoRe.MatchString(strings.TrimSpace(l))
+	})
+}
+
+// repositoryModule stands in for the repository in dir, for a page whose programs run in the
+// repository: a module that requires syntaxir.dev/sxir from the checkout. The paths of the
+// repository that a command names are linked by exampleCommandPaths.
+func repositoryModule(t *testing.T, bin, dir string) {
+	t.Helper()
+	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+		return
+	}
+	env, err := programEnv(bin, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out, err := runProgramLine(env, dir, "go mod init example.com/repository"); err != nil {
+		t.Fatalf("go mod init: %v %s", err, out)
+	}
+	if err := requireWorktree(env, dir); err != nil {
+		t.Fatal(err)
 	}
 }

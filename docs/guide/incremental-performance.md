@@ -190,10 +190,13 @@ settings, everything in one rule
 A real grammar, [alpha-parsers/json](../../testdata/grammars/json/json.sxir), on an array of 5,000 objects (283 KB). Run it from the
 root of the repository:
 
+<!-- example: repository -->
+
 <details>
 <summary>The program</summary>
 
 ```go
+// jsondoc/main.go
 package main
 
 import (
@@ -271,13 +274,18 @@ go run ./jsondoc testdata/grammars/json/json.sxir
 
 ```text
 282783 bytes
-Parse:                16ms
-first Document.Parse: 31ms {235006 10001}
-Edit:                 60µs
-reparse:              1.2ms {11 15016}
+Parse:                ...
+first Document.Parse: ... {315007 10001 10001 0}
+Edit:                 ...
+reparse:              ... {11 15020 15020 0}
 ```
 
-The full parse evaluates 235,006 rule bodies; after the edit 11 run and 15,016 results are reused.
+The times vary with the machine and the run: about 16 ms for `Parse`, 31 ms for the first `Document.Parse`, 60 µs for
+the edit and 1.2 ms for the reparse on the machine above.
+
+The numbers in braces are the `ParseStats` of the Document: evaluated, reused, memo hits and resumed repetition
+elements. The full parse evaluates 315,007 rule bodies; after the edit 11 run and 15,020 results are reused, all of
+them from the memo table.
 
 ## Limits
 
