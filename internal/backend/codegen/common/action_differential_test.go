@@ -224,7 +224,7 @@ func testActionFixedGeneratedTargets(t *testing.T) {
 func TestActionDifferentialDetectsBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	codegentest.OneMode(t, testActionDifferentialDetectsBrokenTargets)
+	codegentest.EachMode(t, testActionDifferentialDetectsBrokenTargets)
 }
 
 func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
@@ -312,7 +312,7 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 func TestActionConstructorsDetectBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	codegentest.OneMode(t, testActionConstructorsDetectBrokenTargets)
+	codegentest.EachMode(t, testActionConstructorsDetectBrokenTargets)
 }
 
 func testActionConstructorsDetectBrokenTargets(t *testing.T) {
@@ -445,7 +445,7 @@ func mutateEitherForm(code, from, to string) (string, bool) {
 func TestActionIterationsDetectBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	codegentest.OneMode(t, testActionIterationsDetectBrokenTargets)
+	codegentest.EachMode(t, testActionIterationsDetectBrokenTargets)
 }
 
 // iterMutantHelpers are the functions that the mutants of TestActionIterationsDetectBrokenTargets call in
@@ -570,7 +570,7 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 func TestActionPassesDetectBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	codegentest.OneMode(t, testActionPassesDetectBrokenTargets)
+	codegentest.EachMode(t, testActionPassesDetectBrokenTargets)
 }
 
 func testActionPassesDetectBrokenTargets(t *testing.T) {
