@@ -139,6 +139,8 @@ type excl struct {
 	// opsR holds the paths that opsEnd returned, which every operator part and operand item of
 	// an Operators Rule reaches as the end of its continuation.
 	opsR map[opsKey]opsPaths
+	// endR holds the paths that ruleEnd returned, by key (see ruleEndKey); the copies of x share it.
+	endR map[ruleEndKey]ruleEndResult
 	work *int // the steps left of exclBudget, shared by the copies of x
 	// owner, when set, is the unit whose continuations the comparison reads: the paths of a
 	// continuation mark the end of the body of its rule (exitMark), and the comparison records the
@@ -187,6 +189,23 @@ type opsKey struct {
 	env, up       bool
 }
 
+// A ruleEndKey is what the paths of ruleEnd depend on besides the grammar and the classifier: the
+// rule, the depth and the follow limit that bound the recursion, and env and up, which the paths
+// read through cheap and through the marks of symUp. strict and whether the unit has an owner
+// (which decides the exitMark of exited) are fixed for each excl, whose endR is not shared with
+// another. The limits exclPaths and exclLen are applied by the callers to the returned paths, so
+// the result does not depend on them beyond what the callers add.
+type ruleEndKey struct {
+	rule          string
+	depth, follow int
+	env, up       bool
+}
+
+type ruleEndResult struct {
+	ps [][]sym
+	ok bool
+}
+
 type opsPaths struct {
 	paths [][]sym
 	ok    bool
@@ -194,7 +213,7 @@ type opsPaths struct {
 
 func newExcl(k *classifier, strict bool, maxK int) excl {
 	work := exclBudget
-	return excl{k: k, strict: strict, maxK: maxK, follow: exclFollow, cheapR: map[cheapKey]int8{}, opsR: map[opsKey]opsPaths{}, work: &work, last: new(string)}
+	return excl{k: k, strict: strict, maxK: maxK, follow: exclFollow, cheapR: map[cheapKey]int8{}, opsR: map[opsKey]opsPaths{}, endR: map[ruleEndKey]ruleEndResult{}, work: &work, last: new(string)}
 }
 
 // spend charges n steps to the budget and reports whether the budget is exhausted. The first time
@@ -543,6 +562,23 @@ func (x excl) followPaths(c *cont) ([][]sym, bool) {
 // ruleEnd returns the paths of what follows the end of rule: what follows each of its calls, and
 // for the start rule the end of the parse.
 func (x excl) ruleEnd(rule string, depth int) ([][]sym, bool) {
+	key := ruleEndKey{rule, depth, x.follow, x.env, x.up}
+	r, ok := x.endR[key]
+	if !ok {
+		ps, pok := x.ruleEndPaths(rule, depth)
+		r = ruleEndResult{ps, pok}
+		x.endR[key] = r
+	}
+	// The callers extend the paths in place, so each caller gets its own copy.
+	ps := make([][]sym, len(r.ps))
+	for i, p := range r.ps {
+		ps[i] = slices.Clone(p)
+	}
+	return ps, r.ok
+}
+
+// ruleEndPaths is ruleEnd without the memo.
+func (x excl) ruleEndPaths(rule string, depth int) ([][]sym, bool) {
 	var after [][]sym
 	if rule == x.k.start {
 		// The parse ends once, so an action of the start rule that copies runs there once.
