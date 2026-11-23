@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -110,6 +111,17 @@ func GenerateTSRaw(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFi
 	opts.Debug.VerifyEach = true
 	opts = WithLib(opts)
 	return generate.TypeScriptWith(Compile, g, opts, driver.Options{}, nil)
+}
+
+// GenerateTSStream is GenerateTSRaw for a parser printed as with -stream (print.Hooks.Stream), which
+// the options of a TypeScript parser cannot select yet.
+func GenerateTSStream(g *ast.Grammar, opts common.GenOptions) ([]common.GeneratedFile, error) {
+	if Compile == nil {
+		panic("codegentest.Compile is not set: the test package must set it before generating")
+	}
+	opts.Debug.VerifyEach = true
+	opts = WithLib(opts)
+	return generate.TypeScriptWith(Compile, g, opts, driver.Options{}, &print.Hooks{Stream: true})
 }
 
 // NoOptIf returns the optimizations to turn off (common.GenOptions.NoOpt) if cond holds, and none

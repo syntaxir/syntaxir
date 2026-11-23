@@ -48,6 +48,10 @@ const maxLeaderBits = 31
 type Hooks struct {
 	// Generator, if not nil, is called with the generator once it has printed the parser.
 	Generator func(*Generator)
+	// Stream prints the parser as with -stream (common.GenOptions.Stream), which Validate refuses for
+	// TypeScript until the parser has its stream driver: the table of the stream and the resumable
+	// functions of its parse, printed as generators after the batch code.
+	Stream bool
 }
 
 // Validate checks the options of a TypeScript parser that do not depend on the grammar, other than
@@ -92,7 +96,8 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 // newGenerator returns the generator of the TypeScript parser of prog with the options opts, which
 // prints the rules that live holds, starting with the Node table.
 func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
-	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}, recognizeOnly: opts.RecognizeOnly, parseEntries: !opts.RecognizeOnly && !opts.TypedOnly}
+	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}, recognizeOnly: opts.RecognizeOnly, parseEntries: !opts.RecognizeOnly && !opts.TypedOnly,
+		streamParser: opts.Stream, plainGenUsed: map[*common.Rule]bool{}, genBodies: map[*common.Rule]string{}}
 	// Limit controls count logical compute units (spec/runtime/parsing.md, Compute Units) in every
 	// form of the functions, a Document's included: no form charges a budget.
 	tsg.limits = !opts.NoLimitControls
@@ -115,6 +120,12 @@ func (tsg *Generator) generate(rec *common.Program) error {
 	}
 	if tsg.reachErr != nil {
 		return tsg.reachErr
+	}
+	if tsg.streamParser {
+		tsg.streamRules()
+		if tsg.PrintErr != nil {
+			return tsg.PrintErr
+		}
 	}
 	if rec != nil {
 		prog := tsg.Prog
@@ -314,6 +325,13 @@ type Generator struct {
 	common.Generator
 	// plainUsed holds the plain rules whose function (plainCall) is called.
 	plainUsed map[*common.Rule]bool
+	// streamParser reports a -stream parser, which prints the resumable functions of its stream after
+	// the batch code (streamRules); stream reports that the printer prints them.
+	streamParser, stream bool
+	// plainGenUsed holds the plain rules whose resumable function (plainGenCall) is called, and
+	// genBodies the resumable functions of the bodies of the rules of the stream, by rule.
+	plainGenUsed map[*common.Rule]bool
+	genBodies    map[*common.Rule]string
 	// keyUsed holds the run sites of the rule table being generated whose key constant
 	// (runKeyName) the emitted code refers to; runKeys writes only those.
 	keyUsed map[int]bool

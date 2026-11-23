@@ -19,7 +19,7 @@ import (
 // shakenClasses are the classes of the library whose methods are kept only when kept text names
 // them: the parsing machine, which users of a parser never see. The methods of every other class
 // stay with their class, as users may call them.
-var shakenClasses = map[string]bool{"Parser": true, "DocumentParser": true}
+var shakenClasses = map[string]bool{"Parser": true, "DocumentParser": true, "StreamParser": true}
 
 // implicitMembers are the methods that JavaScript calls without naming them.
 var implicitMembers = map[string]bool{"constructor": true, "toString": true, "toJSON": true, "valueOf": true}

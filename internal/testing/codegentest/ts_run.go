@@ -65,6 +65,15 @@ func GenerateTSBundleRaw(g *ast.Grammar, opts common.GenOptions) ([]byte, error)
 	return bundleTS(files), nil
 }
 
+// GenerateTSStreamBundle is GenerateTSBundleRaw for a parser printed as with -stream (GenerateTSStream).
+func GenerateTSStreamBundle(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
+	files, err := GenerateTSStream(g, opts)
+	if err != nil {
+		return nil, err
+	}
+	return bundleTS(files), nil
+}
+
 // bundleTS joins the generated files into one module.
 func bundleTS(files []common.GeneratedFile) []byte {
 	contents := map[string]string{}

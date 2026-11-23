@@ -32,8 +32,9 @@ import (
 var FlowTarget = flowpass.Target{}
 
 // TableLabels are the names of the tables that a TypeScript parser can have, in the order in which
-// they are built: the Node table and the recognizer.
-var TableLabels = []string{"rules", "recRules"}
+// they are built: the Node table and the recognizer, and the table of the stream, which is the Node
+// table lowered for a suspended stream (print.StreamTable).
+var TableLabels = []string{"rules", "recRules", print.StreamTable}
 
 // Target is the TypeScript target of a compilation (common.Target), which print-ts reads: the
 // program, the build of its recognizer, the start rule, the options of the target, which
@@ -52,6 +53,9 @@ type Target struct {
 // start rule start, the options opts, which print.Validate checked, and the hooks of a test, which
 // production leaves nil.
 func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+	if hooks != nil && hooks.Stream {
+		opts.Stream = true
+	}
 	t := &Target{Prog: prog, Start: start, Opts: opts, hooks: hooks}
 	t.rec = sync.OnceValues(func() (*codegen.Checked, error) {
 		if !opts.Recognize || opts.RecognizeOnly {
@@ -114,6 +118,7 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 	if rec != nil {
 		progs = append(progs, rec.View)
 	}
+	var stream plandata.Unit
 	for i, pr := range progs[:len(mods)] {
 		table := TableLabels[i]
 		all := append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...)
@@ -130,6 +135,17 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		}
 		c.Tables = append(c.Tables, ct)
 		c.Units = append(c.Units, u)
+		if o.Stream && table == "rules" {
+			// The stream parses with the Node table lowered for a suspended stream, whose functions
+			// demand their input; it numbers no expectation, as the batch table numbers them all.
+			cfg.Suspend = true
+			s := u
+			s.Label, s.IR = print.StreamTable, flowplan.TableOf(mods[i], cfg)
+			stream = s
+		}
+	}
+	if stream.Label != "" {
+		c.Units = append(c.Units, stream)
 	}
 	return c, nil
 }

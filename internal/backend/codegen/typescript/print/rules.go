@@ -35,10 +35,14 @@ func admitted(what string) {
 // generation fails with the error it records.
 func (g *Generator) startTSTable() bool {
 	g.Exec, g.table = nil, nil
-	t := g.tables.Table(g.IRTable())
+	name := g.IRTable()
+	if g.stream {
+		name = StreamTable
+	}
+	t := g.tables.Table(name)
 	if t == nil {
 		if g.PrintErr == nil {
-			g.PrintErr = fmt.Errorf("internal error: the table %s is not lowered", g.IRTable())
+			g.PrintErr = fmt.Errorf("internal error: the table %s is not lowered", name)
 		}
 		return false
 	}
@@ -74,9 +78,21 @@ func (g *Generator) noFunction(what string) {
 
 // funcCall prints the lowered function l, whose capture scope has the slots if it is framed, as a
 // function of its own and returns the call expression that runs it, and sets scope to the capture
-// scope of a framed l. The comment describes the function.
+// scope of a framed l. The comment describes the function. The call of a resumable function of the
+// stream is a yield* of it, which only a resumable function makes.
 func (g *Generator) funcCall(l *execdata.Lowered, slots []string, scope *check.Scope, comment string) string {
+	name, gen := g.funcName(l, slots, scope, comment)
+	if gen {
+		return "(yield* " + name + "(p))"
+	}
+	return name + "(p)"
+}
+
+// funcName is funcCall, returning the name of the printed function and whether it is a resumable
+// function of the stream, which is printed as a generator (function*).
+func (g *Generator) funcName(l *execdata.Lowered, slots []string, scope *check.Scope, comment string) (string, bool) {
 	frame := prim.AttrsOf(l.Func).Frame
+	gen := g.stream && prim.AttrsOf(l.Func).Resumable
 	var body string
 	var vars []string
 	var decls []tsDecl
@@ -92,7 +108,11 @@ func (g *Generator) funcCall(l *execdata.Lowered, slots []string, scope *check.S
 			scope.Slot(sl)
 		}
 	}
-	name, shared := g.MethodName("Parser/R", tsSharedKey(b.String(), decls))
+	key := tsSharedKey(b.String(), decls)
+	if gen {
+		key = "function*\n" + key
+	}
+	name, shared := g.MethodName("Parser/R", key)
 	if !shared {
 		for _, d := range decls {
 			if tsNamesIdentifier(b.String(), d.name) {
@@ -103,9 +123,13 @@ func (g *Generator) funcCall(l *execdata.Lowered, slots []string, scope *check.S
 		if !strings.Contains(b.String(), "p.") && !strings.Contains(b.String(), "(p)") {
 			param = "_p"
 		}
-		fmt.Fprintf(&g.Methods, "// %s\nfunction %s(%s: Parser): R {\n%s}\n\n", comment, name, param, b.String())
+		if gen {
+			fmt.Fprintf(&g.Methods, "// %s\nfunction* %s%s {\n%s}\n\n", comment, name, strings.Replace(tsGenSignature, "p:", param+":", 1), b.String())
+		} else {
+			fmt.Fprintf(&g.Methods, "// %s\nfunction %s(%s: Parser): R {\n%s}\n\n", comment, name, param, b.String())
+		}
 	}
-	return name + "(p)"
+	return name, gen
 }
 
 var (
@@ -266,6 +290,14 @@ func (p *tsPrimPrinter) decl(name, s string) {
 func (p *tsPrimPrinter) call(r *common.Rule, min int) string {
 	g := p.g
 	g.checkCall(r)
+	if p.gen && g.resumableRule(r) {
+		if !callsPlain(r, g.Document) {
+			g.printErr(fmt.Errorf("internal error: the TypeScript stream has no resumable call of the rule %s", r.Name))
+			return "undefined"
+		}
+		g.plainGenUsed[r] = true
+		return "(yield* " + g.plainGenName(r) + "(p))"
+	}
 	switch {
 	case callsPlain(r, g.Document):
 		g.plainUsed[r] = true

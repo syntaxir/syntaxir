@@ -25,6 +25,8 @@ import (
 type tsPrimPrinter struct {
 	g *Generator
 	b strings.Builder
+	// gen reports that the function being printed is a resumable function of the stream, a generator.
+	gen bool
 	// dead reports that the current point is unreachable.
 	dead bool
 	// reads holds the locals and the parts of marks read at reachable points, by the pass before (nil
@@ -122,6 +124,8 @@ func tsPure(x code.Expr) bool { return Pure(x, tsPrimPure) }
 // stmtOp writes the call c of a primitive without results, whose printed arguments args returns.
 func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	switch c.Callee {
+	case prim.OpInputDemand:
+		p.demand(c.Imm.(prim.Demand))
 	case prim.OpStep:
 		// The check of the counter at a loop's iteration (logical units only lower steps).
 		p.write(tsUnitsCheck)
@@ -283,24 +287,12 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		return fmt.Sprintf("p.resumeNext(%s)", args()[0])
 	case prim.OpMatchLit:
 		lit := c.Imm.(prim.Lit)
-		if lit.Fold {
-			folded := string(common.FoldedRunes([]rune(lit.Text)))
-			if p.dry {
-				return ""
-			}
-			v, shared := g.LiteralName(folded)
-			if !shared {
-				p.decl(v, fmt.Sprintf("const %s: Lit = { text: %s, cps: %s, bytes: %s };\n", v, TsString(folded), TsInts([]rune(folded)), TsInts([]byte(folded))))
-			}
-			return fmt.Sprintf("p.matchLiteralFold(%s, %d, false)", v, p.desc(lit.Exp))
-		}
 		if p.dry {
 			return ""
 		}
-		val := nodes.LiteralValue(lit.Text)
-		v, shared := g.LiteralName(val)
-		if !shared {
-			p.decl(v, fmt.Sprintf("const %s: Lit = { text: %s, cps: %s, bytes: %s };\n", v, TsString(val), TsInts([]rune(val)), TsInts([]byte(val))))
+		v := p.litConst(lit)
+		if lit.Fold {
+			return fmt.Sprintf("p.matchLiteralFold(%s, %d, false)", v, p.desc(lit.Exp))
 		}
 		var desc rprogram.ExpID
 		if lit.Text == "" {
@@ -660,4 +652,27 @@ func tsDepthLimit(depth int) string {
 		return "p.depth <= p.maxDepth"
 	}
 	return fmt.Sprintf("p.depth + %d <= p.maxDepth", depth)
+}
+
+// litConst returns the constant of the literal lit that the library matches (a Lit), declaring it on
+// first use: its text, folded if it is case-insensitive, with its code points and bytes.
+func (p *tsPrimPrinter) litConst(lit prim.Lit) string {
+	if p.dry {
+		return "lit"
+	}
+	val := litText(lit)
+	v, shared := p.g.LiteralName(val)
+	if !shared {
+		p.decl(v, fmt.Sprintf("const %s: Lit = { text: %s, cps: %s, bytes: %s };\n", v, TsString(val), TsInts([]rune(val)), TsInts([]byte(val))))
+	}
+	return v
+}
+
+// litText returns the text of the literal lit that the library matches: its value, folded if it is
+// case-insensitive.
+func litText(lit prim.Lit) string {
+	if lit.Fold {
+		return string(common.FoldedRunes([]rune(lit.Text)))
+	}
+	return nodes.LiteralValue(lit.Text)
 }

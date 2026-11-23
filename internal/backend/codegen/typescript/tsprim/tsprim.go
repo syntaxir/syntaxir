@@ -28,9 +28,9 @@ func TwoResults(name string) bool {
 
 // printed holds the primitives that the TypeScript printer prints: the primitives of the Exec stage
 // that a TypeScript table calls and the operations of the TypeScript passes. The others come from
-// the typed table, from the forms of the Flow passes that only Go prints, or from streaming, which
-// TypeScript does not generate. The analysis ts-printable rejects a table that calls another; the
-// printer's tests tie its dispatch to this set in both directions.
+// the typed table, from the forms of the Flow passes that only Go prints, or from the Go stream. The
+// analysis ts-printable rejects a table that calls another; the printer's tests tie its dispatch to
+// this set in both directions.
 var printed = map[string]bool{
 	// Effects.
 	prim.OpStep: true, prim.OpSilent: true, prim.OpAdvance: true, prim.OpExpect: true, prim.OpRestore: true,
@@ -41,6 +41,8 @@ var printed = map[string]bool{
 	prim.OpSkipEnd: true, prim.OpRunWalked: true, prim.OpScanEnd: true, prim.OpResumeBegin: true,
 	prim.OpResumeEnd: true, prim.OpResumeFinish: true, prim.OpObserveSkip: true, prim.OpSetEnv: true,
 	prim.OpSetFrame: true, prim.OpSkippedCalls: true,
+	// The demands of the table of a stream, which its resumable functions print as yields.
+	prim.OpInputDemand: true,
 	// Values.
 	prim.OpEnv: true, prim.OpFrame: true, prim.OpRecLen: true, prim.OpKidsLen: true, prim.OpSkipHit: true,
 	prim.OpRunHot: true, prim.OpSkipKids: true, prim.OpScanReach: true, prim.OpScanKids: true,

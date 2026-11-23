@@ -51,7 +51,7 @@ func (g *Generator) printTSFunc(l *execdata.Lowered) (string, []string, []tsDecl
 		for v := range partReads {
 			r[v] = true
 		}
-		return &tsPrimPrinter{g: g, parts: parts, dry: dry, reads: r, next: map[string]bool{}, labels: map[string]string{}}
+		return &tsPrimPrinter{g: g, parts: parts, dry: dry, reads: r, next: map[string]bool{}, labels: map[string]string{}, gen: g.stream && a.Resumable}
 	}
 	partsRead := func(p *tsPrimPrinter) map[string]bool {
 		out := map[string]bool{}

@@ -6077,6 +6077,49 @@ export class Parser {
 }
 
 /**
+ * BodyGen is the resumable body of a rule in the parse of a stream (StreamParser): a generator that
+ * yields the number of units of input that it lacks where it demands input and returns the result of
+ * the body.
+ */
+export type BodyGen = (p: StreamParser, min: number) => Generator<number, R, void>;
+
+/**
+ * StreamParser is the parser of the parse of a stream, whose input arrives in chunks: the input
+ * holds the chunks fed so far (n grows as they arrive and nothing of it changes) and final is set
+ * with the last. The resumable functions of the parse (generators) demand the input that a read
+ * needs before the read (runtime.inputDemand) and suspend while the input lacks it; the caller
+ * resumes them when more input or the end of the input arrives. A demand charges nothing and moves
+ * no position, so a parse that suspends does what the batch parse of the whole input does.
+ */
+export class StreamParser extends Parser {
+  // final reports that the input is complete: no chunk follows the input that n holds.
+  final = false;
+  // bodyGens are the resumable bodies of the rules of the Node table by ID, null for a rule whose
+  // body never suspends (its body is Rule.body).
+  bodyGens: readonly (BodyGen | null)[] = [];
+
+  // demandUnits returns the number of the k units past the position that a read needs, those of a
+  // literal, that the input lacks: 0 if the input holds them or is final.
+  demandUnits(k: number): number {
+    if (this.final) return 0;
+    const m = this.pos + k - this.n;
+    return m > 0 ? m : 0;
+  }
+
+  // demandChar returns the number of units of the character at the position that the input lacks:
+  // 0 if the input holds the character, which in bytes means every byte that its decoding examines,
+  // or is final.
+  demandChar(): number {
+    if (this.final) return 0;
+    if (this.pos >= this.n) return 1;
+    if (this.unit !== Bytes) return 0;
+    decodeRune(this.bs, this.pos, this.n);
+    const end = decodedEnd(this.bs, this.pos, this.n, decodedSize);
+    return end > this.n ? end - this.n : 0;
+  }
+}
+
+/**
  * TrackedParser is the parser of a parse that records how far each rule call examined the input
  * (Parser.track): its terminals record exactly what they examine in docExamined. The parsers of
  * Document parses (DocumentParser) and of observed parses (ObservedParser) extend it; the batch Parser
