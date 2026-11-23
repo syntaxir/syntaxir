@@ -81,7 +81,7 @@ func TestTerminalProgramGeneration(t *testing.T) {
 			t.Fatal(err)
 		}
 		// The frame body of a left-recursive rule keeps straight-line code.
-		if got, want := strings.Contains(string(code), "p.SkipTerminal(term"), !strings.Contains(c.Name, "left recursion"); got != want {
+		if got, want := strings.Contains(string(code), "p.SkipTerminal(terminal"), !strings.Contains(c.Name, "left recursion"); got != want {
 			t.Errorf("%s: terminal program %v, want %v", c.Name, got, want)
 		}
 		reference, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "terminal", Start: "main", Types: true, TypedOnly: true, NoOpt: []string{"terminals"}})
@@ -126,7 +126,7 @@ func TestLiteralExpectedTextTerminalProgram(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if !strings.Contains(string(code), "p.SkipTerminal(term") {
+		if !strings.Contains(string(code), "p.SkipTerminal(terminal") {
 			t.Error("the case builds no terminal program")
 		}
 		return
@@ -202,7 +202,7 @@ func TestTerminalProgramEligibility(t *testing.T) {
 		if got := strings.Contains(code, "SkipTerminal("); got != c.want {
 			t.Errorf("%s: lowered %v, want %v", c.name, got, c.want)
 		}
-		if c.want && !regexp.MustCompile(`(?m)^var (term\d+)Data = \w+\.TerminalProgram\{Code: .*\n^var (term\d+) = (term\d+)Data\.Prepare\(\)$`).MatchString(code) {
+		if c.want && !regexp.MustCompile(`(?m)^var (terminal\d+)Data = \w+\.TerminalProgram\{Code: .*\n^var (terminal\d+) = (terminal\d+)Data\.Prepare\(\)$`).MatchString(code) {
 			t.Errorf("%s: the program is not static data prepared at initialization", c.name)
 		}
 		if opts.Observability {

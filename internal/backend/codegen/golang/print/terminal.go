@@ -74,11 +74,11 @@ func (g *Generator) terminalTable(p prim.TerminalProgram) (string, bool) {
 		body += fmt.Sprintf(", Literals: []TerminalText{%s}", strings.Join(litItems, ", "))
 	}
 	body += "}"
-	key := "term" + body
+	key := "terminal" + body
 	if name := g.varNames[key]; name != "" {
 		return name, true
 	}
-	name := g.Name("term")
+	name := g.Name("terminal")
 	g.varNames[key] = name
 	// The program is static data; Prepare builds its dispatch tables at initialization.
 	fmt.Fprintf(&g.Vars, "var %sData = TerminalProgram%s\nvar %[1]s = %[1]sData.Prepare()\n", name, body)

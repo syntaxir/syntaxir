@@ -50,7 +50,7 @@ character, the alternatives whose guards admit it, in order. The table is built 
 same `Class.Has` that the guards use, so it cannot disagree with them. A table indexes its
 entries with 16-bit offsets; a choice whose table would have more than 65,535 entries gets
 none and tests its guards in turn. The generated code declares
-`termNData = TerminalProgram{...}` and `termN = termNData.Prepare()`.
+`terminalNData = TerminalProgram{...}` and `terminalN = terminalNData.Prepare()`.
 
 **Correctness.** `SkipTerminal` consumes the same input as the straight-line code and
 records the same expectations at the same positions. It departs from the straight-line
