@@ -332,7 +332,7 @@ choice among several jumps recorded for one seed. A step taken from the table, s
 unit: only a step that evaluates the body counts, in the composition, so the operations of the steps count none
 and the controlled suites hold them to none. Their declared costs bound their work, which no charge measures, and
 the model does not compute them.
-The operations of the steps and `grow.end` are not transitional; keeping the result of a call in a context is modelled and passes the success of the
+The operations of the steps and `grow.end` have reference models and conformance cases; keeping the result of a call in a context is modelled and passes the success of the
 result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model allows only after the end of its growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
 cases. One target charges for converting the dependencies that a frame ended into stored ones when the frame ends
 and the other when the result is kept, so both `ctx.pop` and `ctx.keep` declare that cost. *Shared*: what a result depends on and when it is reused, the seed identities, the present sets, the
@@ -736,7 +736,7 @@ before the next begins, and a release can be cut after any completed stage. Mech
 through **transitional operations**: an existing hand-written runtime function declared as an operation with its
 current behavior and no conformance cases, removed by the stage that migrates its mechanism. They let grammar code
 move to Exec IR at once while mechanisms move one at a time. The last of them, the grammar operations of the
-Operators Rule, were bound to their models on generated Go, and the kind was removed.
+Operators Rule, were bound to their models on generated Go, and the kind was removed in d57cd682e.
 
 1. **Foundation.** Exec IR, builders, the verifier, the listing and the interpreter; the declarations of the pilot's
    operations, the reference models of their components and the conformance harness, with the generated Go runtime
@@ -800,7 +800,7 @@ Operators Rule, were bound to their models on generated Go, and the kind was rem
    The stage has five parts, each accepted on its own:
    1. the call protocol, deferred memoization and left-recursion growth, with the `missing` feature in the call
       composition; the dependency memo and the growth steps stay transitional operations, as in the generated
-      runtimes;
+      runtimes (the kind was removed in d57cd682e, so this is the plan as it was written);
    2. the expectation record and the variable environment;
    3. the Operators Rule loop, with a split form for the iterative VM;
    4. stream commitment;
@@ -1065,7 +1065,7 @@ The migration is complete when every mechanism of the parser VM runs on one comp
 a change to a mechanism's policy is an edit of a composition, or of the contract of an operation that each target
 implements. That definition does not make each operation's implementation shared, and it holds today: every
 operation has a reference model and conformance cases, or is a host operation or a primitive, and no transitional
-operation remains.
+operation remains: the transitional kind is gone, and an operation without a contract is a verifier error.
 
 These are implemented by hand on each target, each declared with its contract and cost bound:
 
@@ -1094,11 +1094,11 @@ budget controls, Documents, streams or observation:
 - the memo table, deferred memoization and their operations, with conformance suites and reference models;
 - the call protocol of a memoized rule outside Documents and left-recursion growth as compositions.
 
-Expected sets, recovery lists, environments and frames start as transitional operations.
+Expected sets, recovery lists, environments and frames start as transitional operations (the kind was removed in d57cd682e, so this is the plan as it was written).
 
 **Work.**
 
-1. Write the passes, the backends and their printer tests, and the transitional operations the compositions call.
+1. Write the passes, the backends and their printer tests, and the transitional operations the compositions call (the kind was removed in d57cd682e; the plan is kept as written).
 2. Build the Go and TypeScript operation libraries for them from the current hand-written code, which passes the
    suite before anything else changes.
 3. Write the compositions with builders, lower Flow IR into Exec IR, and print both with the switch selecting the new
@@ -1163,7 +1163,7 @@ These are settled.
     against which randomized operation sequences are compared on every target. It finds what handwritten cases miss
     (counter overflow, page boundaries) and is never printed or optimized, so it does not become another copy to tune.
 11. **The Flow IR printers of structure are removed after stage 3**, once every mode of grammar code prints through
-    Exec IR. Each language has one backend early; transitional operations live until their mechanism migrates, and
+    Exec IR. Each language has one backend early; transitional operations live until their mechanism migrates (the kind was removed in d57cd682e), and
     each target still writes the code of the primitive that each `flow.` operation holds.
 12. **A slowdown counts only when a second interleaved run reproduces it.** With hundreds of benchmark rows some cross
     p < 0.05 by chance; a reproduced slowdown fails the stage.
