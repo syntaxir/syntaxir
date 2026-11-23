@@ -121,3 +121,40 @@ func TestStreamValue(t *testing.T) {
 		})
 	}
 }
+
+// tsStreamValueInterrupt cancels a typed stream while it converts an element: the signal reports
+// aborted only when the conversion reads it (astConvert observes the signal every 256 steps), so the
+// parse runs to the element, whose conversion takes more steps than that, and the interruption fails
+// the stream after the elements before it, as one during the parse does. createStream, which converts
+// nothing, never reads the signal from a conversion and parses the input.
+const tsStreamValueInterrupt = `
+import { createStream, createStreamValue, ParseInterruptionError } from "./parser.ts";
+
+const signal = {
+  get aborted(): boolean { return (new Error().stack ?? "").includes("astConvert"); },
+  reason: "converting",
+} as unknown as AbortSignal;
+const input = new TextEncoder().encode("ab;" + "x".repeat(600) + ";cd;");
+const { stream } = createStreamValue({ signal });
+const r = stream!.feed(input, true);
+const e = r.error;
+console.log(r.state, r.elements.length, e instanceof ParseInterruptionError ? e.kind + " " + String(e.cause) : String(e));
+console.log(stream!.feed(new Uint8Array(0), true).error?.message);
+const nodes = createStream({ signal }).stream!.feed(input, true);
+console.log(nodes.state, nodes.elements.length, nodes.error);
+`
+
+// TestStreamValueInterrupted checks that an interruption during the conversion of a typed element
+// fails the stream with it, after the elements converted before.
+func TestStreamValueInterrupted(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest("@start\nrule main = item* #stream\nrule item = xs:[a-z]* \";\" => $xs\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := codegentest.RunTSGrammarScriptBundle(t, g, tsStreamValueInterrupt, common.GenOptions{Start: "main", Types: true}, codegentest.GenerateTSStreamBundle)
+	want := "failed 1 canceled converting\nstream already failed\ndone 3 null\n"
+	if out != want {
+		t.Fatalf("got\n%s\nwant\n%s", out, want)
+	}
+}
