@@ -39,6 +39,12 @@ type Attrs struct {
 	// Traced reports a function of the traced copies that an observed parse runs, every read of which
 	// records how far the parse examined the input.
 	Traced bool
+	// Suspend reports a function lowered for a suspended stream: each of its reads of the input is demanded
+	// first (flow.Attrs.Suspend).
+	Suspend bool
+	// Resumable reports a function that a suspended stream runs as a resumable function, which suspends where
+	// it demands input (flow.Attrs.Resumable).
+	Resumable bool
 }
 
 // AttrsOf returns the Exec-stage attributes of f, or nil.

@@ -145,6 +145,6 @@ func attrs(f *code.Func) (*prim.Attrs, error) {
 	return &prim.Attrs{
 		Rule: a.Rule, Vars: a.Vars, Start: a.Start, Result: a.Result, Ctx: a.Ctx, Fail: a.Fail, Cut: a.Cut,
 		Binds: a.Binds, Frame: a.Frame, Node: a.Node, Document: a.Document,
-		Traced: a.Traced,
+		Traced: a.Traced, Suspend: a.Suspend, Resumable: a.Resumable,
 	}, nil
 }
