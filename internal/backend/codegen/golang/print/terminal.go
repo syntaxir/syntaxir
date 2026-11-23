@@ -6,8 +6,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/runtime/nodes"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -30,58 +29,13 @@ import (
 // which the library builds a dispatch table instead of testing the guards in turn.
 const minTerminalTable = 4
 
-// terminalLeaves returns the number of literals and classes of e, and whether e is a terminal
-// expression containing a choice. It returns ok false for any other expression.
-func terminalLeaves(e ast.Expr) (leaves int, choice, ok bool) {
-	switch e := e.(type) {
-	case *ast.Literal:
-		if e.IgnoreCase {
-			// Terminal programs compare exact literals only; a folded literal takes the general path.
-			return 0, false, false
-		}
-		return 1, false, true
-	case *ast.CharClass:
-		return 1, false, true
-	case *ast.Seq:
-		for _, it := range e.Items {
-			n, c, ok := terminalLeaves(it)
-			if !ok {
-				return 0, false, false
-			}
-			leaves, choice = leaves+n, choice || c
-		}
-		return leaves, choice, true
-	case *ast.Choice:
-		for _, alt := range e.Alts {
-			n, _, ok := terminalLeaves(alt)
-			if !ok {
-				return 0, false, false
-			}
-			leaves += n
-		}
-		return leaves, true, true
-	case *ast.Optional:
-		return terminalLeaves(e.Expr)
-	case *ast.Not:
-		return terminalLeaves(e.Expr)
-	case *ast.Discard:
-		return terminalLeaves(e.Expr)
-	case *ast.Atomic:
-		return terminalLeaves(e.Expr)
-	}
-	return 0, false, false
-}
-
-// terminalTable returns the package variable that holds e lowered to a TerminalProgram, declaring it
-// on first use: e is the expression of a terminal region, which the passes chose (Core IR's
-// TerminalRegions and the Flow form of the region). It returns false if e is no terminal
-// expression or its program does not fit the operands of the program.
-func (g *Generator) terminalTable(e ast.Expr) (string, bool) {
-	if _, _, ok := terminalLeaves(e); !ok {
-		return "", false
-	}
-	t := &terminalProgram{g: g, classes: map[string]int{}, literals: map[string]int{}}
-	t.emit(e)
+// terminalTable returns the package variable that holds the terminal expression x lowered to a
+// TerminalProgram, declaring it on first use: x is the immediate of skipTerminal, the expression of a
+// terminal region that the passes chose (Core IR's TerminalRegions and the Flow form of the region).
+// It returns false if its program does not fit the operands of the program.
+func (g *Generator) terminalTable(x prim.Terminal) (string, bool) {
+	t := &terminalProgram{g: g, tab: g.Tables(), classes: map[string]int{}, literals: map[string]int{}}
+	t.emit(&x)
 	if t.overflow {
 		return "", false
 	}
@@ -123,6 +77,7 @@ const terminalNoTable = 0xffff
 // terminalProgram assembles the code of a rt.TerminalProgram.
 type terminalProgram struct {
 	g                 *Generator
+	tab               *prim.Tables
 	code              []uint16
 	classes, literals map[string]int
 	classNames        []string
@@ -164,12 +119,24 @@ func (t *terminalProgram) class(e *ast.CharClass) int {
 	return t.classes[name]
 }
 
-// emit appends the operation of e.
-func (t *terminalProgram) emit(e ast.Expr) {
+// emptyLitDesc is the expectation text of the empty literal, which the program records for it though
+// the literal cannot fail and Code IR gives it no expectation.
+const emptyLitDesc = `""`
+
+// litDesc returns the ID of the expectation of the literal l.
+func (t *terminalProgram) litDesc(l prim.Lit) rprogram.ExpID {
+	if l.Text == "" {
+		return t.g.Desc(emptyLitDesc)
+	}
+	return t.g.Desc(t.tab.Exp(l.Exp))
+}
+
+// emit appends the operation of x.
+func (t *terminalProgram) emit(x *prim.Terminal) {
 	g := t.g
-	switch e := e.(type) {
-	case *ast.Literal:
-		val := nodes.LiteralValue(e.Value)
+	switch x.Kind {
+	case prim.TerminalLit:
+		val := x.Lit.Text
 		i, ok := t.literals[val]
 		if !ok {
 			i = len(t.literalItems)
@@ -178,22 +145,23 @@ func (t *terminalProgram) emit(e ast.Expr) {
 		}
 		t.code = append(t.code, terminalLiteral, 4)
 		t.word(i)
-		t.word(int(g.Desc(core.LiteralDesc(e))))
-	case *ast.CharClass:
+		t.word(int(t.litDesc(x.Lit)))
+	case prim.TerminalClass:
+		c := t.tab.Class(x.Class)
 		t.code = append(t.code, terminalClass, 4)
-		t.word(t.class(e))
-		t.word(int(g.Desc(core.CharClassString(e))))
-	case *ast.Seq:
+		t.word(t.class(grammarClass(c)))
+		t.word(int(g.Desc(t.tab.Exp(c.Exp))))
+	case prim.TerminalSeq:
 		at := t.open(terminalSeq)
-		for _, it := range e.Items {
-			t.emit(it)
+		for i := range x.Items {
+			t.emit(&x.Items[i])
 		}
 		t.close(at)
-	case *ast.Choice:
+	case prim.TerminalChoice:
 		at := t.open(terminalChoice)
 		run := 0
-		for run < len(e.Alts) {
-			if _, _, ok := t.first(e.Alts[run]); !ok {
+		for run < len(x.Items) {
+			if _, _, _, ok := t.first(&x.Items[run]); !ok {
 				break
 			}
 			run++
@@ -204,10 +172,11 @@ func (t *terminalProgram) emit(e ast.Expr) {
 		} else {
 			t.word(terminalNoTable)
 		}
-		for _, alt := range e.Alts {
+		for i := range x.Items {
+			alt := &x.Items[i]
 			// Each alternative gets the guard that first gives it.
-			if first, id, ok := t.first(alt); ok {
-				if class, rest, ok := leadingClass(alt); ok && class == first {
+			if first, id, from, ok := t.first(alt); ok {
+				if class, rest, ok := leadingClass(alt); ok && class == from {
 					// The guard tests the class that the alternative begins with.
 					guard := t.open(terminalGuardClass)
 					t.word(t.class(first))
@@ -228,67 +197,57 @@ func (t *terminalProgram) emit(e ast.Expr) {
 			t.emit(alt)
 		}
 		t.close(at)
-	case *ast.Optional:
+	case prim.TerminalOpt:
 		at := t.open(terminalOptional)
-		t.emit(e.Expr)
+		t.emit(&x.Items[0])
 		t.close(at)
-	case *ast.Not:
+	case prim.TerminalNot:
 		at := t.open(terminalNot)
-		t.emit(e.Expr)
+		t.emit(&x.Items[0])
 		t.close(at)
-	case *ast.Discard:
-		t.emit(e.Expr)
-	case *ast.Atomic:
-		t.emit(e.Expr)
 	default:
-		panic(fmt.Sprintf("terminalProgram.emit: %T", e))
+		panic(fmt.Sprintf("terminalProgram.emit: kind %d", x.Kind))
 	}
 }
 
-// first returns the class and expectation of the guard of an alternative of a terminal expression:
-// the first literal or class that the alternative must match first, a literal standing for its first
-// code point. It is the first terminal of Core IR (Attrs.First) of the alternative, except that a
-// literal matched without case gives no guard.
-func (t *terminalProgram) first(e ast.Expr) (*ast.CharClass, rprogram.ExpID, bool) {
-	g := t.g
-	switch e := e.(type) {
-	case *ast.Literal:
-		if e.Value == "" || e.IgnoreCase {
+// first returns the class and expectation of the guard of an alternative of a terminal expression,
+// with the literal or the class it comes from: the first literal or class that the alternative must
+// match first, a literal standing for its first code point. It is the first terminal of Core IR
+// (Attrs.First) of the alternative.
+func (t *terminalProgram) first(x *prim.Terminal) (*ast.CharClass, rprogram.ExpID, *prim.Terminal, bool) {
+	switch x.Kind {
+	case prim.TerminalLit:
+		if x.Lit.Text == "" {
 			break
 		}
-		r, _ := utf8.DecodeRuneInString(e.Value)
-		return &ast.CharClass{Ranges: []ast.CharRange{{Lo: r, Hi: r}}}, g.Desc(core.LiteralDesc(e)), true
-	case *ast.CharClass:
-		return e, g.Desc(core.CharClassString(e)), true
-	case *ast.Seq:
-		if len(e.Items) > 0 {
-			return t.first(e.Items[0])
+		r, _ := utf8.DecodeRuneInString(x.Lit.Text)
+		return &ast.CharClass{Ranges: []ast.CharRange{{Lo: r, Hi: r}}}, t.litDesc(x.Lit), x, true
+	case prim.TerminalClass:
+		c := t.tab.Class(x.Class)
+		return grammarClass(c), t.g.Desc(t.tab.Exp(c.Exp)), x, true
+	case prim.TerminalSeq:
+		if len(x.Items) > 0 {
+			return t.first(&x.Items[0])
 		}
-	case *ast.Atomic:
-		return t.first(e.Expr)
-	case *ast.Discard:
-		return t.first(e.Expr)
 	}
-	return nil, 0, false
+	return nil, 0, nil, false
 }
 
-// leadingClass returns the character class that e matches first and the expressions it then
-// matches in turn, if e is a class or a sequence that begins with one (through discards and
-// atomic groups, which match as their expressions in a terminal expression).
-func leadingClass(e ast.Expr) (*ast.CharClass, []ast.Expr, bool) {
-	switch e := e.(type) {
-	case *ast.CharClass:
-		return e, nil, true
-	case *ast.Seq:
-		if len(e.Items) > 0 {
-			if c, rest, ok := leadingClass(e.Items[0]); ok {
-				return c, append(rest[:len(rest):len(rest)], e.Items[1:]...), true
+// leadingClass returns the class that x matches first and the expressions it then matches in turn,
+// if x is a class or a sequence that begins with one.
+func leadingClass(x *prim.Terminal) (*prim.Terminal, []*prim.Terminal, bool) {
+	switch x.Kind {
+	case prim.TerminalClass:
+		return x, nil, true
+	case prim.TerminalSeq:
+		if len(x.Items) > 0 {
+			if c, rest, ok := leadingClass(&x.Items[0]); ok {
+				for i := range x.Items[1:] {
+					rest = append(rest, &x.Items[1+i])
+				}
+				return c, rest, true
 			}
 		}
-	case *ast.Atomic:
-		return leadingClass(e.Expr)
-	case *ast.Discard:
-		return leadingClass(e.Expr)
 	}
 	return nil, nil, false
 }

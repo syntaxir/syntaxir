@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Immediate operands of the primitives, which their Flow operations have too.
@@ -255,7 +253,7 @@ func ImmString(imm any) string {
 		return fmt.Sprintf("guard exp %d depth %d", x.Exp, x.Depth)
 	case Anchor:
 		return [...]string{"begin input", "end input", "begin line", "end line"}[x]
-	case *core.Terminal:
+	case Terminal:
 		return "terminal"
 	case ClassRun:
 		return fmt.Sprintf("%d classes", len(x))

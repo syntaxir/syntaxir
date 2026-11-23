@@ -194,9 +194,10 @@ immediates of the terminals are values of Code IR's own, not nodes of Core IR: a
 expectation; a class or an expectation is an index into the **tables** of the module, which the lowering fills from the
 Core module in its order and every function of the module shares, so that a printer or the VM reads the strings and
 ranges from the module it prints. The call of an outlined node is a number that the lowering gives each distinct call
-and the plan of the table resolves to the function that runs it, and the alternative that an observed guard skips is
-named by the rule call it begins with, as the grammar writes it. At the Exec stage each Flow operation is a **primitive** that each target prints in place. The conformance of a target is
-checked for each Flow operation: probes around every printed primitive call check that the position moves as the
+and the plan of the table resolves to the function that runs it, a terminal region that runs as one program is its
+expression of literals and classes, and the alternative that an observed guard skips is named by the rule call it
+begins with, as the grammar writes it. At the Exec stage each Flow operation is a **primitive** that each target prints
+in place. The conformance of a target is checked for each Flow operation: probes around every printed primitive call check that the position moves as the
 contract says, that it counts the compute units that the specification's event table assigns to its events and, for
 reads of the input, that the result agrees with a model of the input. A backend that implements a Flow operation natively, as the VM does, is held to the same contract.
 

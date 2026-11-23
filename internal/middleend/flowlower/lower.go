@@ -524,6 +524,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 	}
 	if l.regions[n] {
 		form := l.openForm(flow.FormRegion, n, build, fail)
+		form.Terminal = l.tab.terminal(n)
 		delete(l.regions, n) // the region's root is lowered as itself inside its form
 		v := l.node(n, s, build, fail)
 		l.regions[n] = true

@@ -157,7 +157,8 @@ name without the package. The immediates are the following; a listing prints eac
 - `anchor`: the kind of an anchor: the beginning or the end of the input or of a line.
 - `classrun`: a run of single characters of classes, as the classes in turn.
 - `shape`: the static shape of a value.
-- `terminal`: a value-free terminal region, as a node of Core IR, that the operation matches.
+- `terminal`: the value-free terminal expression of a terminal region that the operation matches: case-sensitive
+  literals and classes, as `lit` and `classid` name them, in sequences, choices, options and negative lookaheads.
 
 ## Quantities
 

@@ -339,7 +339,7 @@ func (p *primPrinter) negate(c *code.Call, args []string) string {
 	case prim.OpInClass:
 		return p.reject(p.class(c.Imm.(prim.ClassID)), args[0])
 	case prim.OpSkipTerminal:
-		table, ok := g.terminalTable(g.Core().Origin.Of(c.Imm.(*core.Terminal).Body))
+		table, ok := g.terminalTable(c.Imm.(prim.Terminal))
 		if !ok {
 			panic("primitive printer: terminal region without a terminal program")
 		}

@@ -4,8 +4,6 @@ import (
 	"maps"
 	"reflect"
 	"slices"
-
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Component is the state component of the primitives: the state of the runtime that each target
@@ -172,7 +170,7 @@ var imms = map[string]reflect.Type{
 	OpGuardFails:      reflect.TypeFor[Guard](),
 	OpGuardLitFails:   reflect.TypeFor[Guard](),
 	OpAtAnchor:        reflect.TypeFor[Anchor](),
-	OpSkipTerminal:    reflect.TypeFor[*core.Terminal](),
+	OpSkipTerminal:    reflect.TypeFor[Terminal](),
 	OpSkipClasses:     reflect.TypeFor[ClassRun](),
 	OpCallRule:        reflect.TypeFor[RuleCall](),
 	OpCallOutline:     reflect.TypeFor[Outline](),

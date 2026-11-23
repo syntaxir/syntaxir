@@ -67,6 +67,8 @@ type Form struct {
 	Node core.Node
 	// Class is the class of a class form (prim.Tables).
 	Class prim.ClassID
+	// Terminal is the expression of a region, which skipTerminal can match.
+	Terminal prim.Terminal
 	// Build reports that the form builds the node's value.
 	Build bool
 	// Fail is the label the form leaves on failure, and Loop reports that it is a loop's (left by

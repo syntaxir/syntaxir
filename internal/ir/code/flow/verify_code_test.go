@@ -6,7 +6,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // TestVerifyModule checks that VerifyModule accepts a well-formed function and rejects, for each
@@ -139,7 +138,7 @@ func TestVerifyModule(t *testing.T) {
 		{"guarded in-place literal read in a traced function", fn{attrs: func(a *Attrs) { a.Document, a.Traced = true, true }, vars: []code.Param{ok},
 			body: guarded()}, "an in-place literal read in a traced function"},
 		{"terminal program in a traced function", fn{attrs: func(a *Attrs) { a.Traced = true }, vars: []code.Param{ok},
-			body: []code.Stmt{code.Assign("ok", &code.Unary{Op: "!", X: call(OpSkipTerminal, (*core.Terminal)(nil))})}}, "a terminal program in a traced function"},
+			body: []code.Stmt{code.Assign("ok", &code.Unary{Op: "!", X: call(OpSkipTerminal, prim.Terminal{Kind: prim.TerminalSeq})})}}, "a terminal program in a traced function"},
 		{"class run in a traced function", fn{attrs: func(a *Attrs) { a.Traced = true }, vars: []code.Param{ok},
 			body: []code.Stmt{code.Assign("ok", call(OpSkipClasses, prim.ClassRun{0}))}}, "a class run in a traced function"},
 	} {

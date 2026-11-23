@@ -7,7 +7,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
-	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
@@ -148,8 +147,7 @@ func terminals(fn *code.Func, a *flow.Attrs) {
 		if !r.Live() || r.Build {
 			continue
 		}
-		t := &core.Terminal{Body: r.Node}
-		r.Block.Stmts = []code.Stmt{failIf(r, code.Not(&code.Call{Callee: flow.OpSkipTerminal, Imm: t}))}
+		r.Block.Stmts = []code.Stmt{failIf(r, code.Not(&code.Call{Callee: flow.OpSkipTerminal, Imm: r.Terminal}))}
 		r.By = PassTerminals
 	}
 }

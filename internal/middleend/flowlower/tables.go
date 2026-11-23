@@ -102,3 +102,45 @@ func (tb *tables) outline(n core.Node, slots []core.Slot, build bool) int {
 	tb.outlines = append(tb.outlines, outlineCall{n, slots, build})
 	return len(tb.outlines) - 1
 }
+
+// terminal returns the terminal expression of the terminal region n (corepass.TerminalLeaves): its
+// literals, classes, sequences, choices, options and negative lookaheads, without the Text and Drop
+// nodes, which match as their bodies.
+func (tb *tables) terminal(n core.Node) prim.Terminal {
+	switch n := n.(type) {
+	case *core.Lit:
+		if n.Fold {
+			panic("flowlower: a case-insensitive literal in a terminal region")
+		}
+		return prim.Terminal{Kind: prim.TerminalLit, Lit: lit(n)}
+	case *core.ClassNode:
+		return prim.Terminal{Kind: prim.TerminalClass, Class: tb.class(n.Class)}
+	case *core.Seq:
+		return prim.Terminal{Kind: prim.TerminalSeq, Items: tb.terminals(n.Items)}
+	case *core.Choice:
+		alts := make([]prim.Terminal, len(n.Alts))
+		for i, a := range n.Alts {
+			alts[i] = tb.terminal(a.Body)
+		}
+		return prim.Terminal{Kind: prim.TerminalChoice, Items: alts}
+	case *core.Opt:
+		return prim.Terminal{Kind: prim.TerminalOpt, Items: []prim.Terminal{tb.terminal(n.Body)}}
+	case *core.Look:
+		if n.Neg {
+			return prim.Terminal{Kind: prim.TerminalNot, Items: []prim.Terminal{tb.terminal(n.Body)}}
+		}
+	case *core.Drop:
+		return tb.terminal(n.Body)
+	case *core.Text:
+		return tb.terminal(n.Body)
+	}
+	panic(fmt.Sprintf("flowlower: a %T in a terminal region", n))
+}
+
+func (tb *tables) terminals(ns []core.Node) []prim.Terminal {
+	out := make([]prim.Terminal, len(ns))
+	for i, n := range ns {
+		out[i] = tb.terminal(n)
+	}
+	return out
+}
