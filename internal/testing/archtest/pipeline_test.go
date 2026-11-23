@@ -224,7 +224,7 @@ var driverExports = []string{
 	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "DescribeGoLibrary",
 	"GoLibrary", "Options", "Output", "Program", "ProgramOf", "Target", "View",
 	// The roles of the run-time programs of a grammar (ProgramOf).
-	"Insertion", "Parser", "Recognizer", "Role",
+	"Insertion", "InsertionRecognizer", "Parser", "Recognizer", "Role",
 	// The slot keys.
 	"ActionSlot", "ActionTargetSlot", "CoreSlot", "ExecSlot", "FlowSlot", "TargetSlot",
 	// The settings: profiles, their documentation and values, the parsing of overrides and dump

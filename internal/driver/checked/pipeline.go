@@ -39,7 +39,7 @@ type ProgramLine struct {
 // generation, to the options of the check (check.Options): each is written by exactly one of them.
 var ProgramHeader = &pipe.Header[ProgramLine]{
 	Words: []pipe.HeaderWord{{Word: "program", Fields: []pipe.HeaderField{
-		{Field: "Role", Codec: enumCodec("role", []driver.Role{driver.Parser, driver.Recognizer, driver.Insertion}, driver.Role.String)},
+		{Field: "Role", Codec: enumCodec("role", []driver.Role{driver.Parser, driver.Recognizer, driver.Insertion, driver.InsertionRecognizer}, driver.Role.String)},
 		{Field: "Recognition", Codec: enumCodec("recognition", []check.Recognition{check.BuildValues, check.Recognize, check.RecognizeWithStreamValues},
 			func(r check.Recognition) string { return recognitionNames[r] })},
 		{Field: "DisableMemo"}, {Field: "NoProjections"}, {Field: "EagerAttributeCopies"},
@@ -236,6 +236,10 @@ func (b *Build) Source(g *ast.Grammar) (*Source, error) {
 		derived, err = s.Recognizer()
 	case driver.Insertion:
 		derived, err = s.Insertion()
+	case driver.InsertionRecognizer:
+		if derived, err = s.Insertion(); err == nil {
+			derived, err = derived.(*Source).Recognizer()
+		}
 	default:
 		return nil, fmt.Errorf("the role %s is no program of a grammar", b.Role)
 	}

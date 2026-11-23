@@ -296,9 +296,13 @@ func (s *Source) Family(core any, f state.Family) ([]*state.Rule, error) {
 }
 
 // Recognizer compiles the grammar again as a program that builds no tree, with the rule flags of
-// this one.
+// this one: the recognizer of the parser, or of the insertion program for an insertion program.
 func (s *Source) Recognizer() (state.Source, error) {
-	return s.again(driver.Recognizer, func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
+	role := driver.Recognizer
+	if s.role == driver.Insertion {
+		role = driver.InsertionRecognizer
+	}
+	return s.again(role, func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
 }
 
 // Insertion compiles the grammar again as the program of the parses with missing-token insertion

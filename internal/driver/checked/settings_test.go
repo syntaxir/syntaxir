@@ -57,8 +57,8 @@ func TestDerivedProgramsHoldTheSettings(t *testing.T) {
 }
 
 // A source wraps its program for the driver once, as the program of its role with the options of
-// the grammar's parser: the parser itself, and the recognizer and the insertion program derived from
-// it.
+// the grammar's parser: the parser itself, the recognizer and the insertion program derived from it,
+// and the recognizer derived from the insertion program.
 func TestProgramsCarryTheirRole(t *testing.T) {
 	t.Parallel()
 	g, err := parser.Parse(statetest.InsertionCycle)
@@ -84,17 +84,23 @@ func TestProgramsCarryTheirRole(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	insRec, err := ins.Recognizer()
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, c := range []struct {
 		src  *Source
 		role driver.Role
-	}{{s, driver.Parser}, {rec.(*Source), driver.Recognizer}, {ins.(*Source), driver.Insertion}} {
+	}{{s, driver.Parser}, {rec.(*Source), driver.Recognizer}, {ins.(*Source), driver.Insertion}, {insRec.(*Source), driver.InsertionRecognizer}} {
 		p := c.src.Program()
 		if p.Role() != c.role || p.ParserOptions() != opts || p.Start() != nil {
 			t.Errorf("%s: role %s, parser options %+v, start %v; want %s, %+v and no start rule", c.role, p.Role(), p.ParserOptions(), p.Start(), c.role, opts)
 		}
 	}
-	if got := rec.(*Source).Checked().Opts.Recognition; got != check.Recognize {
-		t.Errorf("the recognizer is checked with recognition %v", got)
+	for _, r := range []state.Source{rec, insRec} {
+		if got := r.(*Source).Checked().Opts.Recognition; got != check.Recognize {
+			t.Errorf("the recognizer is checked with recognition %v", got)
+		}
 	}
 }
 

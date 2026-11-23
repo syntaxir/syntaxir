@@ -40,12 +40,14 @@ type Program struct {
 type Role uint8
 
 const (
-	Parser     Role = iota // the program of the grammar
-	Recognizer             // derived for recognition: no rule builds a value
-	Insertion              // derived for missing-token insertion
+	Parser              Role = iota // the program of the grammar
+	Recognizer                      // derived for recognition: no rule builds a value
+	Insertion                       // derived for missing-token insertion
+	InsertionRecognizer             // derived from the insertion program for recognition
 )
 
-// String returns the name of the role in a pipeline text: parser, recognizer or insertion.
+// String returns the name of the role in a pipeline text: parser, recognizer, insertion or
+// insertion-recognizer.
 func (r Role) String() string {
 	switch r {
 	case Parser:
@@ -54,6 +56,8 @@ func (r Role) String() string {
 		return "recognizer"
 	case Insertion:
 		return "insertion"
+	case InsertionRecognizer:
+		return "insertion-recognizer"
 	}
 	return fmt.Sprintf("Role(%d)", uint8(r))
 }

@@ -142,7 +142,8 @@ func TestRunTimePipelineTextRepeatsTheBuild(t *testing.T) {
 	}{
 		{plain, driver.Parser, both},
 		{plain, driver.Recognizer, both},
-		{runTimeGrammar(t), driver.Insertion, []result.Backend{result.Closure}},
+		{runTimeGrammar(t), driver.Insertion, both},
+		{runTimeGrammar(t), driver.InsertionRecognizer, both},
 	} {
 		s, err := Check(c.g, Options{Compile: parserOpts, Settings: settings}, nil, nil)
 		if err != nil {
@@ -156,12 +157,18 @@ func TestRunTimePipelineTextRepeatsTheBuild(t *testing.T) {
 				t.Fatal(err)
 			}
 			src = d.(*Source)
-		case driver.Insertion:
+		case driver.Insertion, driver.InsertionRecognizer:
 			d, err := s.Insertion()
 			if err != nil {
 				t.Fatal(err)
 			}
 			src = d.(*Source)
+			if c.role == driver.InsertionRecognizer {
+				if d, err = src.Recognizer(); err != nil {
+					t.Fatal(err)
+				}
+				src = d.(*Source)
+			}
 		}
 		role := c.role
 		text, err := Describe(src, common.Debug{}, c.backends...)
@@ -239,7 +246,7 @@ func TestRunTimePipelineTextIsNoGeneration(t *testing.T) {
 	for _, c := range []struct{ name, from, to, want string }{
 		{"unknown word", "\nprogram ", "\nprogrammed ", "a run-time build has no header programmed"},
 		{"generation target", "target vm", "target go", `"go" is no target of a run-time build`},
-		{"unknown role", "role=parser", "role=lexer", `"lexer" is no role (parser, recognizer, insertion)`},
+		{"unknown role", "role=parser", "role=lexer", `"lexer" is no role (parser, recognizer, insertion, insertion-recognizer)`},
 		{"unknown recognition", "recognition=build-values", "recognition=none", `"none" is no recognition`},
 	} {
 		if !strings.Contains(text, c.from) {
