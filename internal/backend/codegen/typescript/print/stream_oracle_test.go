@@ -34,14 +34,16 @@ type streamOutcome struct {
 // FailAt is positive, and the compute, input and memory limits Compute, Input and Memory (zero for the
 // default). Memory counts depend on the backend (spec/runtime/parsing.md, Memory Limit), so the runs
 // set a memory limit that no stream reaches: the streams count their memory, and the oracle checks that
-// the count changes no outcome; TestStreamMemoryWindow checks the count itself.
+// the count changes no outcome; TestStreamMemoryWindow checks the count itself. Observable generates
+// the parser with observability.
 type streamOptions struct {
-	Limit    *int   `json:"limit"`
-	Callback bool   `json:"callback"`
-	FailAt   int    `json:"failAt"`
-	Compute  uint64 `json:"compute"`
-	Input    uint64 `json:"input"`
-	Memory   uint64 `json:"memory"`
+	Limit      *int   `json:"limit"`
+	Callback   bool   `json:"callback"`
+	FailAt     int    `json:"failAt"`
+	Compute    uint64 `json:"compute"`
+	Input      uint64 `json:"input"`
+	Memory     uint64 `json:"memory"`
+	Observable bool   `json:"observable"`
 }
 
 // interruptionText describes the interruption of a parse by a limit in the same words for the engine
@@ -258,7 +260,7 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamO
 	opts, _ := json.Marshal(d)
 	quotedOpts, _ := json.Marshal(string(opts))
 	script = strings.Replace(script, "OPTIONS", string(quotedOpts), 1)
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true, Observability: d.Observable}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 		b, err := codegentest.GenerateTSStreamBundle(g, opts)
 		if err != nil || mutate == nil {
 			return b, err
@@ -534,6 +536,23 @@ func TestStreamOracle(t *testing.T) {
 				for _, m := range streamOracleMismatches(t, c.src, c.inputs, d, nil) {
 					t.Error(m)
 				}
+			}
+		})
+	}
+}
+
+// TestStreamOracleObservable checks the streams of parsers generated with observability against the
+// engine on the oracle cases: their stream table is lowered for observation, and a stream that is not
+// observed parses as the stream of a parser without it.
+func TestStreamOracleObservable(t *testing.T) {
+	t.Parallel()
+	for _, c := range streamOracleCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			d := runsOf(c.runs)[0]
+			d.Observable = true
+			for _, m := range streamOracleMismatches(t, c.src, c.inputs, d, nil) {
+				t.Error(m)
 			}
 		})
 	}

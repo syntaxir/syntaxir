@@ -34,14 +34,10 @@ const tsGenSignature = "(p: StreamParser): Generator<number, R, void>"
 
 // streamRules prints the resumable functions of the stream after the batch code: the body of each
 // rule of the Node table that reaches a demand, the functions that these call, and the table of the
-// rules' resumable bodies (bodyGens). A Document or observed parse has no stream.
+// rules' resumable bodies (bodyGens). A Document parse has no stream.
 func (g *Generator) streamRules() {
-	switch {
-	case g.Document:
+	if g.Document {
 		g.printErr(fmt.Errorf("a TypeScript stream does not parse with Documents"))
-		return
-	case g.Observability:
-		g.printErr(fmt.Errorf("a TypeScript stream is not observed"))
 		return
 	}
 	g.stream = true

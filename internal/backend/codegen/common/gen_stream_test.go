@@ -50,10 +50,11 @@ rule other = "b"`)
 	if _, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "other", Stream: true}); err == nil || !strings.Contains(err.Error(), "needs a #stream repetition") {
 		t.Errorf("a TypeScript stream of a start rule without #stream: %v", err)
 	}
-	for _, o := range []common.GenOptions{{Start: "main", Stream: true, Document: true}, {Start: "main", Stream: true, Observability: true}} {
-		if _, err := codegentest.GenerateTSBundle(g, o); err == nil || !strings.Contains(err.Error(), "stream generation cannot be combined with") {
-			t.Errorf("TypeScript stream with %+v: %v", o, err)
-		}
+	if _, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Stream: true, Document: true}); err == nil || !strings.Contains(err.Error(), "stream generation cannot be combined with document generation") {
+		t.Errorf("a TypeScript stream with Documents: %v", err)
+	}
+	if ts, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Stream: true, Observability: true}); err != nil || !strings.Contains(string(ts), "export function createStream(") {
+		t.Errorf("an observed TypeScript stream: %v", err)
 	}
 	typed, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "fixture", Start: "main", Stream: true, Types: true})
 	if err != nil || !strings.Contains(string(typed), "func ParseStreamValue(") || !strings.Contains(string(typed), "type StreamValue = ") {

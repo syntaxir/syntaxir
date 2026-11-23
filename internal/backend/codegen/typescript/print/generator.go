@@ -66,9 +66,6 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 	if opts.Stream && opts.Document {
 		return opts, fmt.Errorf("stream generation cannot be combined with document generation in TypeScript")
 	}
-	if opts.Stream && opts.Observability {
-		return opts, fmt.Errorf("stream generation cannot be combined with observability in TypeScript")
-	}
 	if opts.RecognizeOnly {
 		switch {
 		case opts.Types || opts.TypedOnly || opts.Document || opts.Stream:
