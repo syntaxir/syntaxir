@@ -13,8 +13,10 @@ immutable under reuse.
 
 ## Scope and State
 
-Default engine stream prefix ownership in closure and both VMs.
-Generated/TypeScript parsers have no stream path.
+Default engine stream prefix ownership in closure and both VMs. Generated Go
+streams give the prefix and the elements separate chunks in the runtime
+library, which this control does not select; generated TypeScript streams keep
+no slabs and leave their storage to the JavaScript garbage collector.
 
 ## Reference Control
 

@@ -13,8 +13,10 @@ behavior.
 
 ## Scope and State
 
-Default engine streaming in closure and both VMs. Generated parsers and
-TypeScript have no streaming API.
+Default engine streaming in closure and both VMs. Generated Go streams reuse
+their own capture frames in the runtime library, which this control does not
+select; generated TypeScript streams keep no frame slabs and leave their
+storage to the JavaScript garbage collector.
 
 ## Reference Control
 

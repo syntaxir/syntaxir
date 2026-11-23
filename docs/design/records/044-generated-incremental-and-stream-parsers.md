@@ -11,8 +11,9 @@ The opt-in generated Go `Document` supports Node parsing and direct typed increm
 eligible grammars as batch typed parsing; other typed results use Node conversion. The opt-in generated Go
 `ParseStream` reads Node streams from an `io.Reader`, and with typed values `ParseStreamValue` passes the elements
 as typed values. Ordinary batch parsing remains available and unchanged by default. The generated TypeScript
-`createDocument` has the Document API and reuses memo results as the Go Node `Document` does. Repetition resumption
-and TypeScript streams are not implemented.
+`createDocument` has the Document API and reuses memo results as the Go Node `Document` does, and the generated
+TypeScript `createStream` is a push stream that suspends where it needs input and delivers what the Go `ParseStream`
+delivers, with typed elements through `createStreamValue`. Repetition resumption is not implemented.
 
 ## Existing Contracts and Goals
 
@@ -20,8 +21,9 @@ and TypeScript streams are not implemented.
 [resume.go](../../../internal/runtime/state/resume.go), and [stream pragma](../../../spec/language/pragmas.md#stream) define the
 engine reference. The current generated Go path supports a Node `Document` with an optional typed `ParseValue`, and a
 Node Reader stream. Generated TS uses synchronous recursive expression functions
-([design 013](013-typescript-generation.md)); it has a Document but no stream API, as a push stream needs a
-parse that can suspend. Retaining a runtime's input and
+([design 013](013-typescript-generation.md)); a push stream needs a parse that can suspend, which
+[TypeScript Stream Suspension](#typescript-stream-suspension) adds as generator copies of the functions that read
+input. Retaining a runtime's input and
 memo across calls alone does not implement edit invalidation or suspension.
 
 Documents must match fresh-parse semantic results after every legal edit, including diagnostics and action values,
@@ -44,9 +46,10 @@ retains the batch source path. A generated `Document` is a mutable parse view, n
 
 The current Go Node stream is opt-in through `codegen.Go{Stream: true}` or the `-stream` CLI option. Generation fails
 unless the configured start rule has a `#stream` repetition at its top level; batch `Parse` still treats `#stream`
-as an ordinary repetition. Combined with typed values it also adds `ParseStreamValue`; stream generation cannot yet be
-combined with TypeScript, which fails explicitly. Observability is supported. Documents select the configured start rule initially; generic
-named batch parsing remains separate. The remaining APIs in this section are proposals.
+as an ordinary repetition. Combined with typed values it also adds `ParseStreamValue`; with TypeScript it adds
+`createStream` (and `createStreamValue` with typed values), described below. Observability is supported in both.
+Generating a TypeScript package with both `-document` and `-stream` fails, while a Go package can have both. Documents select the configured start rule initially; generic
+named batch parsing remains separate.
 
 ### Current Generated Go Node Document
 
@@ -220,8 +223,9 @@ In Bytes, propose `bytes(): Uint8Array` returning a copy for lossless invalid in
 surrogateescape representation. Replacements accept the same string/byte types. Preserve both units, number|bigint
 scalar mapping and existing string/lone-surrogate normalization. TS `Node.clone()` provides the analogous copy.
 
-A portable push stream needs generated continuations, not a blocking Reader translated to JS. Propose a separate
-`createStream(options?)` construction result and synchronous `stream.feed(chunk: Uint8Array, final?: boolean)`:
+A portable push stream needs generated continuations, not a blocking Reader translated to JS. The stream is a
+separate `createStream(options?)` construction result with a synchronous
+`stream.feed(chunk: Uint8Array, final?: boolean)`:
 
 ```ts
 interface StreamResult {
@@ -263,9 +267,37 @@ depend only on the input, not on how it is chunked (record 076). Suspension is e
    release, drop records, diagnostic ring and limit). `feed` copies the chunk, resumes the generator until it suspends or
    ends, and returns the elements committed since the last feed.
 
-The names `createStream`, `stream.feed` and `StreamResult` above are the decided API of issue #315. The conformance rule is the Go `ParseStream` comparison for every chunking of short inputs
-and random chunkings of long ones, element by element, error by error and charge by charge. Throughput is measured
-after the optimization phase.
+The names `createStream`, `stream.feed` and `StreamResult` above are the decided API of issue #315. The conformance
+rule is the Go `ParseStream` comparison for every chunking of short inputs and random chunkings of long ones, element
+by element, error by error and charge by charge. Throughput is measured after the optimization phase.
+
+All four steps are implemented. The rest of the stream follows the Go runtime where the Go stream defines a behavior:
+
+- **Memory.** The memory count of a stream bounds its window as the Go runtime's does
+  ([Streaming](../../../spec/runtime/streaming.md#memory)). A commit parks the values it lets go of with the highest
+  position of any memo entry or skip record stored by then, and a memo prune returns them once it has discarded
+  every such holder; the prune also recounts the memo keys and recovered-error lists the remaining entries hold.
+  The records, states and seeds of left recursion count while a growth holds them. The sizes are the TypeScript
+  library's model of a 64-bit JavaScript engine, so the bytes differ from Go's while the window they bound is the
+  same.
+- **Text.** With the `Bytes` unit the text of the start rule can begin inside a character, after the stream
+  discarded the bytes before the one it keeps; the text holds the remaining bytes as invalid input bytes are held.
+- **Observation.** The tracking of examined input and the observation are layers, class factories over any parser
+  class: the batch `ObservedParser` stacks them over `Parser` and the `ObservedStreamParser` over `StreamParser`, so
+  one implementation serves both and the library has no copy of the tracked parser. The resumable forms of the
+  layers' calls are printed from Exec IR next to the batch forms, and a plain rule that a stream calls directly gets
+  an observed generator wrapper. A stream is observed as one parse from `createStream` to its end, and a profile
+  forgets the positions the stream discarded, as the Go profile does.
+- **Cancellation.** The signal is polled as in a batch parse and cancels the feed that observes it; a value thrown
+  from a callback, a trace function or a signal getter leaves the feed and fails the stream.
+
+The tests compare the TypeScript stream with the engine's `ParseStream` on every backend: elements, errors and
+compute units for every split of a short input and every chunk size up to 16 and some larger ones, in both units;
+the store policy and the limits; and the trace events and profiles of a stream fed one byte at a time, as the batch
+and Document observations are compared. Others check the typed elements against those of `createStream` and the
+batch `parseValue`, and that the memory count of a long stream stays within its window. Negative controls mutate
+the stream mechanisms, the memory count and the observation in the library and fail these tests. No TypeScript
+stream throughput has been measured.
 
 ## Runtime Invariants
 
@@ -308,7 +340,7 @@ values; no pooled parser or conversion arena is shared between concurrent invoca
 | Closure and both engine VMs | Existing Document/Reader stream oracle; both position units |
 | Generated Go Node | Current opt-in prefix-memo Document and Reader stream with pull iteration and diagnostic controls |
 | Generated typed Go | Direct typed `Document.ParseValue` for batch-eligible grammars; Node conversion fallback otherwise; streams convert committed elements |
-| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; streams are proposed and require the suspension plan above |
+| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; push streams with typed elements, diagnostic controls, limits, tracing and profiling, by the suspension plan above; not both in one package |
 | Recognition | Continue rejecting Document/stream mode; batch recognition is unaffected |
 
 This source-generation feature needs no .sxirc or ISA change by itself. If continuation tables are instead stored
@@ -320,8 +352,10 @@ for colliding grammar declarations; generating helper methods must not alter exi
 
 The current implementation adds the generated Go Node Document with prefix-only memo reuse, plus direct typed
 matching for batch-eligible grammars and per-call Node conversion for other typed results, and the Go Node Reader
-stream with its typed elements, pull iteration and diagnostic controls, and the generated TypeScript Document with the
-same memo reuse, tracing and profiling. Remaining work is the TS push stream, which needs continuations.
+stream with its typed elements, pull iteration and diagnostic controls, the generated TypeScript Document with the
+same memo reuse, tracing and profiling, and the TypeScript push stream with its typed elements, diagnostic controls,
+limits, tracing and profiling. Not implemented are repetition resumption in Documents and a TypeScript package with
+both a Document and a stream.
 Snapshot/versioned-tree work is a
 separate dependency only if immutable views are exposed; do not block the mutable Document compatibility path on it.
 Chunked input storage is a separate measured experiment: start with the current contiguous edit contract.

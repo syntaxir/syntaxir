@@ -39,7 +39,7 @@ the other side would have built.
 | Recognition (no tree) | `Recognize` | `Recognize` | `recognize`, with `-recognize` |
 | Typed values (`-types`) | — | Yes | Yes: Node conversion |
 | Incremental Documents | Yes | Yes, with `-document` | Yes, with `-document` |
-| Streaming | Yes | Yes, with `-stream` | No |
+| Streaming | Yes | Yes, with `-stream` | Push stream, with `-stream` |
 | [Backend](backends.md) choice | Yes | No | No |
 
 ## Quick Start
@@ -127,7 +127,7 @@ prints for the same grammar and inputs.
 ## The Command
 
 ```bash
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-typed-only] [-recognize] [-recognize-only] [-expectations] [-observability]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-typed-only] [-document] [-stream] [-recognize] [-recognize-only] [-expectations] [-observability]
 ```
 
 | Flag | Default | Meaning |
@@ -139,9 +139,11 @@ sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|onl
 | `-lib` | `embed` | `embed` writes `lib.ts` next to `parser.ts`; `import` imports the library from `-lib-module` and writes no copy; `only` writes just `lib.ts`, the whole library, which parsers of any grammar can import (no `-g`) |
 | `-lib-module` | (required with `-lib import`) | The module specifier `parser.ts` and `types.ts` import the library from, for example `../shared/lib.ts`. Several parsers share one library this way: generate it once with `-lib only` |
 | `-types` | off | Write `types.ts` with the grammar's interfaces and aliases (also exported from `parser.ts`), and add the configured-start `parseValue`/`parseValueWithOptions` and the named-start `parseRuleValue`/`parseRuleValueWithOptions` |
-| `-typed-only` | off | Generate only the typed entry points, `parseValue`, `parseValueWithOptions`, `parseRuleValue` and `parseRuleValueWithOptions`: no `parse`, `parseRule` or `parseWithOptions`. It needs `-types`, and `recognize` stays with `-recognize`. It is rejected with `-document` and `-recognize-only`. The typed entry points run the Node rules of the start rule, which are kept |
+| `-typed-only` | off | Generate only the typed entry points, `parseValue`, `parseValueWithOptions`, `parseRuleValue` and `parseRuleValueWithOptions`: no `parse`, `parseRule` or `parseWithOptions`. It needs `-types`, and `recognize` stays with `-recognize`. It is rejected with `-document`, `-stream` and `-recognize-only`. The typed entry points run the Node rules of the start rule, which are kept |
+| `-document` | off | Also generate `createDocument`, an incremental Document (see [TypeScript Documents](generated-documents.md#typescript-documents)) |
+| `-stream` | off | Also generate the push stream `createStream`, and `createStreamValue` with `-types` (see [TypeScript streams](generated-streams.md#typescript-streams)); the start rule must have a `#stream` repetition, and it cannot be combined with `-document` |
 | `-recognize` | off | Also generate `recognize` and `recognizeWithOptions`, which check input without building a tree |
-| `-recognize-only` | off | Generate only `recognize` and `recognizeWithOptions`: no `parse`, `parseRule` or `parseWithOptions`, so the parser is the recognizer alone. It is rejected with `-types` and `-document` |
+| `-recognize-only` | off | Generate only `recognize` and `recognizeWithOptions`: no `parse`, `parseRule` or `parseWithOptions`, so the parser is the recognizer alone. It is rejected with `-types`, `-document` and `-stream` |
 | `-expectations` | off | Allow a parse to record what a syntax error expects: the `expected` list and the `messages` of `@error` (see [recording expectations](error-messages.md#recording-expectations)). A parse records only with `parseWithOptions(input, { expectations: true })`; otherwise the errors have the farthest position, an empty `expected` and `messages`, and the message `syntax error`. Without the flag the option is rejected |
 | `-observability` | off | Accept the trace and profile options (see [debugging](debugging.md#generated-typescript-traces)); without it they are rejected |
 | `-max-depth` | `0` | Generated nested rule-call default; zero selects 100,000, otherwise a positive safe integer |
@@ -574,7 +576,7 @@ The parity tests parse in a worker with a 1 GB stack, so that they also check th
 Generated TypeScript supports every feature of the grammar language: Rule Expressions, Operators Rules, left recursion, Predicates and variables, actions, built-in functions, `@error` and
 `#recover`. It adds `parseRule` for another start rule, a `unit` argument for the position unit, `recognize` (with
 `-recognize`) for matching without a tree, and `limits.input` and `limits.depth`, and, unless generated with `-no-limits`, `signal` and the compute limit, in the options-aware
-entry points. With `-document` it adds [`createDocument`](generated-documents.md#typescript-documents), a Document that reuses the results of earlier parses as the Go `Document` does. It has no `#stream` and `ParseStream`: `#stream` is an ordinary repetition, as in Go.
+entry points. With `-document` it adds [`createDocument`](generated-documents.md#typescript-documents), a Document that reuses the results of earlier parses as the Go `Document` does. With `-stream` it adds the push stream [`createStream`](generated-streams.md#typescript-streams), which the caller feeds chunk by chunk; the other entry points treat `#stream` as an ordinary repetition, as in Go.
 Typed values (`-types`) give interfaces and aliases, `parseValue`/`parseValueWithOptions` for the configured start rule and `parseRuleValue`/`parseRuleValueWithOptions` for a named one,
 while `parse` still returns Nodes. The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has
 the complete table of what each target supports.

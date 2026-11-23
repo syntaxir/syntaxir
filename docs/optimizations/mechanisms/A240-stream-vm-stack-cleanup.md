@@ -12,8 +12,8 @@ from the cleared stack retained by a Document across reparses.
 
 ## Scope and State
 
-Default recursive and iterative VM streaming only. Closure has no VM operand
-stack; generated Go/TypeScript have no streaming API.
+Default recursive and iterative VM streaming only. Closure and the generated Go
+and TypeScript streams have no VM operand stack.
 
 ## Reference Control
 

@@ -120,7 +120,7 @@ discarded input only after captures, diagnostic text and inserted values are det
 | Generated Go Node and typed direct/conversion | Same option, ledger, progress and conversion contracts |
 | Generated TS Node and typed conversion | Both units, string/Uint8Array inputs, exact option validation |
 | Current engine Document and streams | Fresh per-run insertion state; reader EOF and commit tests |
-| Generated Document/streams | Supported only when their separately proposed APIs land |
+| Generated Go and TypeScript Document/streams | The APIs exist; insertion waits for generated-parser support, and until then generation refuses a grammar with `#missing` as for every generated parser |
 
 Add syntax/JSON AST validation, formatting, typing and lint checks together. Saved AST records need a compatible
 new file-format version for the new construct. VM support needs a new instruction-set version with a specified

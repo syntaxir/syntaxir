@@ -201,11 +201,17 @@ that returns `nil` delivers `nil` to the caller. Variable values, active rollbac
 points and memoization keys keep their own data alive.
 
 The [memory limit](parsing.md#memory-limit) of a stream follows the same window.
-When an element is delivered, the count returns the storage of the nodes, lists,
-copied text, concatenated strings, variable environments and memo keys built
-since the previous element, and the memo slots the stream releases; it keeps
-counting the input buffer, the memo entries and the working stacks the stream
-holds. A finite `Memory` therefore bounds the largest window, not the length of
+The count returns what the stream lets go of once nothing it still holds can
+reach it. The nodes, lists, copied text, concatenated strings and variable
+environments built since the previous element are let go of when an element is
+delivered, but a memo entry or skip record stored by then, such as one of a
+lookahead past the element, can still reach them: the count returns them when
+the stream prunes its memo past every such entry and record. A prune also
+returns the memo entries, slots and skip records it discards, and recounts the
+memo keys and the lists of recovered errors that the remaining entries hold.
+What the start rule built before its `#stream` repetition stays counted for the
+whole stream. The count keeps the input buffer, the memo entries and the working
+stacks the stream holds. A finite `Memory` therefore bounds the largest window, not the length of
 the stream, with one exception: recovered errors. Without a diagnostic limit
 they are retained for the result, so the count grows with every recovered error
 of the stream, whether or not a diagnostic callback receives them. With a
@@ -219,7 +225,7 @@ provide `ParseStream` and `Iterate` when generated with streaming enabled, and
 typed variants with typed values. Generated TypeScript parsers provide the push
 stream `createStream`, which the caller feeds chunk by chunk and which delivers the
 elements, the error and the compute units of the Go `ParseStream` of the same input
-whatever the chunks; see [Generated Parsers](generated-parsers.md#streaming). Their
+whatever the chunks, and, with observability, its trace events; see [Generated Parsers](generated-parsers.md#streaming). Their
 other entry points treat `#stream` as an ordinary repetition. A `Document` is always
 parsed as a whole and does not stream.
 

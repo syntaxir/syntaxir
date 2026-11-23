@@ -15,8 +15,9 @@ the stream policy; result callbacks can still retain arbitrary output.
 
 Default engine streaming in closure and both VMs, and generated Go `-stream`
 parsers, whose typed `ParseStreamValue` converts the elements the Node stream
-commits. TypeScript exposes no streaming API. This bounds particular input/memo owners,
-not total process heap.
+commits, and generated TypeScript `-stream` push streams, which discard the input,
+memo entries and skip records before the committed position as the Go stream
+does. This bounds particular input/memo owners, not total process heap.
 
 ## Reference Control
 

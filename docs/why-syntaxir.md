@@ -37,7 +37,7 @@ competitors, it is checked against the versions listed under [Sources](#sources)
 | A small Go grammar whose types are the grammar | participle | The grammar is struct tags on your Go types, with no generated parser |
 | An existing grammar for a mainstream language, or many target languages | ANTLR 4 | A large grammar library, ten runtime targets (the Go runtime is pure Go) and automatic error recovery |
 | A parser for a language you own (a DSL, configuration, query or policy language), with typed values, declared recovery and no cgo | SyntaxIR | One grammar gives typed values in Go or TypeScript, `#recover`, a default depth cap and a generated parser that needs no engine. Compute limits are on by default (`-no-limits` opts out); set them per call |
-| The same parser in a Go backend and in a browser or Node | SyntaxIR, ANTLR (Go, JavaScript and TypeScript targets) or tree-sitter (Go binding or gotreesitter, plus `web-tree-sitter`) | SyntaxIR's generated Go and TypeScript need no engine at run time and are tested against one engine. Its TypeScript has no incremental parsing or streaming, counts positions in code points or UTF-8 bytes (not UTF-16), and reaches a few hundred to a few thousand nested recursive rule calls on Node's default stack. The repository tests run it under Node; Deno, Bun and browsers are documented but not exercised by the tests |
+| The same parser in a Go backend and in a browser or Node | SyntaxIR, ANTLR (Go, JavaScript and TypeScript targets) or tree-sitter (Go binding or gotreesitter, plus `web-tree-sitter`) | SyntaxIR's generated Go and TypeScript need no engine at run time and are tested against one engine. Its TypeScript has the incremental `Document` subset and push streams, though not both in one package, counts positions in code points or UTF-8 bytes (not UTF-16), and reaches a few hundred to a few thousand nested recursive rule calls on Node's default stack. The repository tests run it under Node; Deno, Bun and browsers are documented but not exercised by the tests |
 | A Go tool that reparses a grammar you write after small edits, on inputs that usually parse | SyntaxIR | `Document` reuses rule results with no grammar annotations. Recovery must be declared: an unclosed construct that no `#recover` rule covers yields an error, not a tree. There is no language server for your language |
 | Highlighting and structural editing for many existing languages | tree-sitter, or gotreesitter in pure Go | Hundreds of community grammars with highlight and injection queries, a tree for every input, and editors that load them |
 | Language support inside CodeMirror 6 | Lezer | It is CodeMirror's parser system, with incremental parsing, recovery and step-wise parsing built for the editor |
@@ -289,7 +289,8 @@ planned to reach them.
     parse outcomes, but there is no changed-range API.
   - There is no language server, highlighting, formatter or UTF-16 position map for a language defined with SyntaxIR; the
     language server and the VS Code extension serve `.sxir` grammar sources.
-- **Backend gaps.** Generated TypeScript has no streaming and no `Document`; generated Go has a `Document` subset;
+- **Backend gaps.** Generated Go and TypeScript have a `Document` subset, and a TypeScript package cannot have both a
+  `Document` and a stream;
   generated parsers do not run `#missing`
   ([Compatibility and Support](../spec/runtime/generated-parsers.md#compatibility-and-support)).
 - **Language gaps.** No imports or multi-file grammars; case-insensitive matching folds ASCII only.
@@ -324,7 +325,7 @@ tables describe documented behavior; they are not benchmarks.
 
 | Tool | Targets | Go and browser from one grammar | From Go without cgo | Stated worst case | Built-in resource controls | Editor tooling from the grammar |
 |:--|:--|:--|:--|:--|:--|:--|
-| SyntaxIR (pre-release) | Two languages: Go (engine and generated) and TypeScript (generated); bytecode run by the Go VMs | Yes (generated TypeScript; no `Document` or streaming) | Yes | No polynomial bound for every grammar; classes of growth specified | Depth cap (default on); compute limits and cancellation (on by default, `-no-limits` opts out); optional memory and input-length caps | None for your language; language server for `.sxir` sources |
+| SyntaxIR (pre-release) | Two languages: Go (engine and generated) and TypeScript (generated); bytecode run by the Go VMs | Yes (generated TypeScript; a package has a `Document` or a stream, not both) | Yes | No polynomial bound for every grammar; classes of growth specified | Depth cap (default on); compute limits and cancellation (on by default, `-no-limits` opts out); optional memory and input-length caps | None for your language; language server for `.sxir` sources |
 | tree-sitter 0.27.1 | C runtime with bindings (Go, Rust, Node, Wasm and others) | Yes (Go binding and `web-tree-sitter`) | No (Go bindings use cgo) | Not documented | Progress callback for cancellation | Highlight, injection and tag queries |
 | gotreesitter 0.56.0 | Go, WebAssembly | Yes (Wasm runtime) | Yes | Not documented | Deterministic compute limits (iterations, stack depth, nodes), on by default with thresholds derived from the input; per-parse memory budget (on by default) and a process-heap ceiling; timeout; cancellation flag | tree-sitter queries, highlighting, tags; UTF-16 coordinates |
 | Lezer 1.4.11 | JavaScript | No Go runtime | Not applicable | Not documented | Step-wise `PartialParse.advance()` and `stopAt`; the caller bounds time | CodeMirror highlighting and folding |

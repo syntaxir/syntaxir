@@ -125,7 +125,9 @@ Document graph. See the [incremental parsing guide](guide/incremental.md) and
 [design 044](design/records/044-generated-incremental-and-stream-parsers.md).
 
 Generated Go `-stream` adds a Node `ParseStream` that follows the engine's Reader stream contract, and with
-`-types` a `ParseStreamValue` that converts each element; it cannot yet be combined with TypeScript.
+`-types` a `ParseStreamValue` that converts each element. With TypeScript it adds the push stream `createStream`, whose
+tests in `internal/backend/codegen/typescript/print` compare it with the engine's stream (`TestStreamOracle` and the
+tests beside it).
 `TestGeneratedTypedStreamMatchesBatch` compares the typed elements with batch `ParseValue`. Stream packages also have
 `Iterate` and the diagnostic options, which the engine differential test runs as well. `TestGeneratedStreamMatchesEngine` compares emitted elements, errors and reader
 call counts with the engine across chunkings, units, controls, observability and Document generation; changes to
