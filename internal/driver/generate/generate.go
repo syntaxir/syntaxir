@@ -15,10 +15,6 @@ import (
 	tsprint "syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/result"
-	"syntaxir.dev/sxir/internal/frontend"
-	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/frontend/desugar"
-	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -26,7 +22,7 @@ import (
 // and the embedded copy of the Go library (pkg/runtime/libgo) with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func Go(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.LibGo = libGo
-	return GoWith(checkForGenerator, g, o, driver.Options{}, nil)
+	return GoWith(driver.CheckForGenerator, g, o, driver.Options{}, nil)
 }
 
 // GoWith is Go with the compiler c, which checks the grammar, the library o.LibGo, the edits and
@@ -40,7 +36,7 @@ func GoWith(c driver.Compiler, g *ast.Grammar, o common.GenOptions, x driver.Opt
 // selects (Settings), and lib.ts with LibEmbed and LibOnly. g is not read with LibOnly and may be nil.
 func TypeScript(g *ast.Grammar, o common.GenOptions) ([]common.GeneratedFile, error) {
 	o.TSLib = tsLib
-	return TypeScriptWith(checkForGenerator, g, o, driver.Options{}, nil)
+	return TypeScriptWith(driver.CheckForGenerator, g, o, driver.Options{}, nil)
 }
 
 // TypeScriptWith is TypeScript with the compiler c, which checks the grammar, the library o.TSLib,
@@ -69,7 +65,7 @@ func Targets(g *ast.Grammar, targets ...driver.Target) ([][]common.GeneratedFile
 	for i := range targets {
 		targets[i].Gen.LibGo, targets[i].Gen.TSLib = libGo, tsLib
 	}
-	return TargetsWith(checkForGenerator, g, driver.Options{}, targets...)
+	return TargetsWith(driver.CheckForGenerator, g, driver.Options{}, targets...)
 }
 
 // TargetsWith is Targets with the compiler c, which checks the grammar, the libraries of the
@@ -167,37 +163,6 @@ func libraries(x driver.Options, targets []driver.Target) ([][]common.GeneratedF
 		files = append(files, fs)
 	}
 	return files, nil
-}
-
-// checkForGenerator checks g to its semantic model and sites, which is all a generator reads, and checks
-// the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
-// backend of the engine is built.
-func checkForGenerator(g *ast.Grammar, opts checkpkg.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
-	prog, err := check(g, opts, nil)
-	if err != nil {
-		return nil, nil, err
-	}
-	recognizer := func() (*frontend.Result, error) {
-		source := prog.Grammar
-		if prog.Source != nil {
-			source = prog.Source
-		}
-		o := prog.Opts
-		o.Recognition = checkpkg.Recognize
-		return check(source, o, prog.Flags())
-	}
-	return prog, recognizer, nil
-}
-
-// check checks g with opts and, if not nil, the rule flags flags, naming the hidden rules of
-// inline actions in errors as written.
-func check(g *ast.Grammar, opts checkpkg.Options, flags []checkpkg.RuleFlags) (*frontend.Result, error) {
-	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, nil)
-	if err != nil {
-		return nil, names.Rewrite(err)
-	}
-	return prog, nil
 }
 
 // libGo and tsLib are the libraries of generated parsers: Go generation copies the Go library

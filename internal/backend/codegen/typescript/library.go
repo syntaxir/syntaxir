@@ -74,7 +74,7 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		if rec != nil {
 			recView = rec.View
 		}
-		fs, err := common.ParserFeatures(target.Prog.View, recView, target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0}, t.Plan)
+		fs, err := common.ParserFeatures(common.Tables(target.Prog.View, recView), target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0}, t.Plan)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

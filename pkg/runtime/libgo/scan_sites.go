@@ -60,6 +60,10 @@ type scanWalk struct {
 
 // scanHot reports whether the site keeps records for the walk at the position.
 func (p *Parser) scanHot(site int) bool {
+	if p.inserting() {
+		// The missing-token mode keeps no records of walks, as the reference parser does (skipOn).
+		return false
+	}
 	i := 2 * site
 	if p.Silent > 0 {
 		i++

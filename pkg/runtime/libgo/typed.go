@@ -405,6 +405,7 @@ const (
 	RuleSplice
 	RuleRec
 	RulePositional
+	RuleMissing
 )
 
 // RuleExtra holds the fields of the Rule with the Id that are rarely set.
@@ -450,7 +451,7 @@ func NewRules[S ~struct {
 		}
 		r.Memo, r.Leader, r.Novalue = s.Flags&RuleMemo != 0, s.Flags&RuleLeader != 0, s.Flags&RuleNovalue != 0
 		r.DocMemo, r.Splice, r.Rec = s.Flags&RuleDocMemo != 0, s.Flags&RuleSplice != 0, s.Flags&RuleRec != 0
-		r.Positional = s.Flags&RulePositional != 0
+		r.Positional, r.Missing = s.Flags&RulePositional != 0, s.Flags&RuleMissing != 0
 		r.Scope, r.Vars = strs[s.Scope], strs[s.Vars]
 	}
 	for _, extra := range extras {
@@ -696,6 +697,7 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	}
 	p.setTracking()
 	p.setDeferMemo()
+	p.startMissing(o)
 	r = r.forParse(p.Parser)
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	defer func() {
@@ -887,7 +889,7 @@ type tundo struct {
 }
 
 func (p *TParser) Mark() Mark {
-	return Mark{Pos: p.Pos, env: p.Env, Trail: len(p.Trail), recovered: len(p.Recovered)}
+	return Mark{Pos: p.Pos, env: p.Env, Trail: len(p.Trail), recovered: len(p.Recovered), missing: p.MissingLen()}
 }
 
 // DropTrail discards undo history whose effects are already restored or whose
@@ -1365,7 +1367,7 @@ func (p *TParser) invokePlainBody(r *TRule, min int) (any, bool) {
 	if p.TypedDocument != nil {
 		p.Document.stats.Evaluated++
 	}
-	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
+	start, rec, trail, mm := p.Pos, len(p.Recovered), len(p.Trail), p.MissingLen()
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
 	if r.Rec {
@@ -1383,6 +1385,7 @@ func (p *TParser) invokePlainBody(r *TRule, min int) (any, bool) {
 	} else {
 		p.Pos = start
 		p.Recovered = p.Recovered[:rec]
+		p.ResetMissing(mm)
 	}
 	p.Env = prevEnv
 	return v, ok
@@ -2006,6 +2009,8 @@ type toperatorsRuleAttempt struct {
 	env        *Env
 	cut        bool
 	errs       recEntry
+	// ins is the insertions of the match in the missing-token mode, which selecting it records again.
+	ins missingSeed
 }
 
 func (p *TParser) lineResult(r *TRule, l *TOperatorsRuleLine, f *TCaptureFrame, v any, start int) any {

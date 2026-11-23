@@ -3,6 +3,7 @@
 package engine_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -163,8 +164,13 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if fmt.Sprint(n) != fmt.Sprint(want) || fmt.Sprint(err) != fmt.Sprint(wantErr) {
 		t.Fatal("loaded", n, err, "want", want, wantErr)
 	}
-	if _, err := gensrc.Go(entry.Grammar(p.Program()), common.GenOptions{Module: "example", Start: "main"}); err == nil {
-		t.Fatal("Go generator silently discarded #missing")
+	// A generated Go parser runs its parses with insertion on the tables of the insertion program.
+	files, err := gensrc.Go(entry.Grammar(p.Program()), common.GenOptions{Module: "example", Start: "main"})
+	if err != nil {
+		t.Fatal("Go generator refused #missing:", err)
+	}
+	if f := files[0]; f.Path != "parser.go" || !bytes.Contains(f.Content, []byte("insRules")) {
+		t.Fatalf("the generated Go parser %s has no insertion table", f.Path)
 	}
 	if _, err := gensrc.TypeScript(entry.Grammar(p.Program()), common.GenOptions{Start: "main"}); err == nil {
 		t.Fatal("TS generator silently discarded #missing")

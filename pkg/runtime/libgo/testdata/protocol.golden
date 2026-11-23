@@ -1,4 +1,4 @@
-protocol 34
+protocol 35
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -31,6 +31,7 @@ const OpSub untyped int = 1
 const RuleDocMemo uint8 = 8
 const RuleLeader uint8 = 2
 const RuleMemo uint8 = 1
+const RuleMissing uint8 = 128
 const RuleNovalue uint8 = 4
 const RulePositional uint8 = 64
 const RuleRec uint8 = 32
@@ -71,6 +72,7 @@ func RunParseConverted[T any](*Rule, string, parseOptions, func(*syntaxir.dev/sx
 func RunParseResolved(*Rule, string, parseOptions) (*syntaxir.dev/sxir/pkg/runtime/value.Node, error)
 func RunParseStream(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node) error, []syntaxir.dev/sxir/pkg/runtime.ParseOption) error
 func RunParseStreamWithBudget(*Rule, io.Reader, func(*syntaxir.dev/sxir/pkg/runtime/value.Node, *BudgetControl) error, []syntaxir.dev/sxir/pkg/runtime.ParseOption) error
+func SetInsertion([]*Rule, []*Rule)
 func SetMemoReport(*string)
 func SetNodeElems(*syntaxir.dev/sxir/pkg/runtime/value.Node, []*syntaxir.dev/sxir/pkg/runtime/value.Node)
 func SetNodeField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
@@ -166,6 +168,8 @@ method (*Parser) FirstCall(*Rule) bool
 method (*Parser) HasChar(rune, bool) bool
 method (*Parser) HasCharOrdinary(rune, bool) bool
 method (*Parser) HasCharTraced(rune, bool) bool
+method (*Parser) InsertMissing(int, []ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError, bool)
+method (*Parser) InsertMissingLogical(int, []ExpID) (*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError, bool)
 method (*Parser) InvokePlain(*Rule, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Isolate(int) ExpMark
 method (*Parser) Keep([]ExpID) []ExpID
@@ -191,10 +195,14 @@ method (*Parser) MatchLiteralLogical([]rune, string, ExpID, bool) (*syntaxir.dev
 method (*Parser) MatchLiteralOrdinary([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MatchLiteralTraced([]rune, string, ExpID, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) MergeExpected(int, []ExpID)
+method (*Parser) MissingLen() int
+method (*Parser) MissingScope(ExpID) int
+method (*Parser) MissingScopeEnd(int)
 method (*Parser) NewBranch(*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind, int, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewBranchOrdinary(*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind, int, []*syntaxir.dev/sxir/pkg/runtime/value.Node) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewErrorNode(int, *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewFrame(int) *CaptureFrame
+method (*Parser) NewMissingNode(int, string, *syntaxir.dev/sxir/pkg/runtime/value.SyntaxError) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewNode(Data) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewNodeOrdinary(Data) *syntaxir.dev/sxir/pkg/runtime/value.Node
 method (*Parser) NewTerminal(int, string) *syntaxir.dev/sxir/pkg/runtime/value.Node
@@ -210,7 +218,9 @@ method (*Parser) Predicate(func(*ActCtx) (any, any)) bool
 method (*Parser) PushRecovered(*syntaxir.dev/sxir/pkg/runtime/value.SyntaxError)
 method (*Parser) RecoverAttr(matcher, matcher, bool) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 method (*Parser) Reset(Mark)
+method (*Parser) ResetMissing(int)
 method (*Parser) Restore(int, int)
+method (*Parser) RestoreMissing(int, int, int)
 method (*Parser) ResumeBegin(*RunState)
 method (*Parser) ResumeEnd(*RunState, bool, *syntaxir.dev/sxir/pkg/runtime/value.Node)
 method (*Parser) ResumeFinish(*RunState)
@@ -398,7 +408,7 @@ type OperatorsRule struct{Skip matcher; Operands []*OperatorsRuleLine; Prefix []
 type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (any, any); Value Shaper}
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
 type Parser struct{Control *BudgetControl; Units uint64; UnitsCheck uint64; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
-type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
+type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Missing bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}
 type RunState struct{Min int; Max int; Shiftable bool; Done bool; Moved bool; Prefixed bool; Count int; EditStart int; EditEnd int; EditDelta int; K int; J int; T int; Seek int; Barred int; ElemStart int; OuterExamined int; OuterLow int; Mark ExpMark}
@@ -425,7 +435,7 @@ type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; S
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}
 type documentState struct{}
-type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool}
+type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool; HasMissing bool}
 type matcher = func(*Parser) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 type nodeTypeKinds [3]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 type observation struct{}

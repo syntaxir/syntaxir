@@ -23,8 +23,8 @@ rule a = "(" #missing a "x" / "y"`)
 }
 
 // TestMissingTokensStreamRejected checks that a stream, alone or beside a Document, is refused for
-// a grammar with #missing like every other generated parser: generated parsers do not insert missing
-// tokens, so the insertion operations of the stream table are never printed.
+// a grammar with #missing like every other generated TypeScript parser: generated TypeScript parsers
+// do not insert missing tokens, so the insertion operations of the stream table are never printed.
 func TestMissingTokensStreamRejected(t *testing.T) {
 	t.Parallel()
 	g, err := parseTest(`rule main = item* #stream $$
@@ -37,7 +37,7 @@ rule item = "a" #missing ";"`)
 		{Start: "main", Stream: true, Document: true},
 		{Start: "main", Stream: true, Types: true, Observability: true},
 	} {
-		if _, err := generateTS(g, opts, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated parsers") {
+		if _, err := generateTS(g, opts, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated TypeScript parsers") {
 			t.Errorf("%+v: generated a stream parser for the grammar: %v", opts, err)
 		}
 	}

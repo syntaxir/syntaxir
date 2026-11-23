@@ -115,7 +115,7 @@ func (g *Generator) finishReach() error {
 	if g.reachErr != nil {
 		return g.reachErr
 	}
-	for _, table := range []string{"rules", "recRules"} {
+	for _, table := range []string{"rules", "recRules", "insRules", "insRecRules"} {
 		if g.keepTableRules && table == "rules" {
 			continue // the Node rules are all kept
 		}

@@ -205,7 +205,7 @@ func TestTSDocumentMatchesFreshParse(t *testing.T) {
 					}
 				}
 				dc.Edits = append(dc.Edits, ed)
-				n, err := ref(text, bytes, false, nil)
+				n, err := ref(text, bytes, false, 0, nil)
 				failed = err != nil
 				wants = append(wants, fmt.Sprintf("%s %s", base64.StdEncoding.EncodeToString([]byte(text)), codegentest.DeepResultJSON(t, n, err)))
 			}

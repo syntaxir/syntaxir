@@ -211,7 +211,7 @@ func (p *primPrinter) declare(n *prim.Names) {
 }
 
 // untyped reports whether the printer writes the Node library's code (the Node and recognizer tables).
-func (p *primPrinter) untyped() bool { return p.g.Table == "recRules" || p.g.Table == "rules" }
+func (p *primPrinter) untyped() bool { return p.g.Table != "trules" }
 
 // matcher returns the parser whose methods match literals: the embedded Node parser of a typed
 // parser, or the Node parser itself.

@@ -49,6 +49,11 @@ func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *D
 	if err != nil {
 		return nil, err
 	}
+	if root.g.HasMissing || o.missingTokens != 0 {
+		// A Document of a grammar with #missing is refused whatever the limit, as the reference
+		// parser refuses it.
+		return nil, missingUnsupported("Document parsing")
+	}
 	defer recoverParse(&d, &err)
 	o = prepareText(o, text)
 	// Construction performs the same input decoding and budget checks as a parse,
@@ -116,6 +121,9 @@ func (d *Document) ResolveParseOptions(opts []sxirruntime.ParseOption) (parseOpt
 	}
 	if err := o.validateObservation(d.State.root.g); err != nil {
 		return o, err
+	}
+	if o.missingTokens != 0 {
+		return o, missingUnsupported("Document parsing")
 	}
 	if o.computeOut != nil {
 		*o.computeOut = 0

@@ -111,7 +111,7 @@ func (a libraryPipeline) error(err error) error { return assembled{steps: a.step
 
 // tsLibraryPipeline returns the pipeline of the TypeScript library alone for the target t.
 func tsLibraryPipeline(t Target) libraryPipeline {
-	target := tsbackend.NewTarget(codegen.Checked{}, nil, nil, t.Gen, nil)
+	target := tsbackend.NewTarget(codegen.Checked{}, codegen.Derived{}, nil, t.Gen, nil)
 	p := pipe.WithConst(codegen.TargetFeature, common.Target(target),
 		pipe.Then(pipe.Of(codepass.Specialization), pipe.Of(tsbackend.LibraryPrinting)))
 	return libraryPipeline{pipeline: p, steps: []string{codepass.PassSpecialize, tsbackend.LibraryPrinting.Name()}}

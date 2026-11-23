@@ -372,7 +372,7 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 				if units {
 					report = &used
 				}
-				n, err := prog(s, bytes, false, report)
+				n, err := prog(s, bytes, false, 0, report)
 				w := want{out: DeepResultJSON(t, n, err)}
 				if units {
 					w.units = fmt.Sprintf("%d/%d", used, used)
@@ -383,7 +383,7 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 				if n != nil {
 					w.str = n.String()
 				}
-				_, err = prog(s, bytes, true, nil)
+				_, err = prog(s, bytes, true, 0, nil)
 				w.rec = fmt.Sprint(err)
 				wants = append(wants, w)
 			}

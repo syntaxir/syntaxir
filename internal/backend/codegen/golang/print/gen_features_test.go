@@ -39,6 +39,8 @@ var featureCases = []featureCase{
 	// after RunHotSpan characters of it): the entry that marks the feature must be on this path too.
 	{name: "run_sites", f: common.FeatureSkipRuns, src: codegentest.RunSiteGrammars[0].Src, parse: `Parse(strings.Repeat("x", 300) + "z")`},
 	{name: "scan_sites", f: common.FeatureScanSites, src: codegentest.ScanSiteGrammars[0].Src, parse: `Parse(strings.Repeat("ab", 200) + "w" + strings.Repeat("ab", 200) + "!")`},
+	{name: "missing", f: common.FeatureMissing, src: `rule main = "(" [a-z]* ")" #missing ";" #missing $$`,
+		parse: `Parse("(a", WithMissingTokens(2))`},
 	{name: "stream", f: common.FeatureStream, src: codegentest.Records, opts: common.GenOptions{Stream: true},
 		parse: `ParseStream(strings.NewReader("#records\na=1\n"), func(*Node) error { return nil })`},
 	{name: "document", f: common.FeatureDocument, src: "rule main = \"a\"+ $$", opts: common.GenOptions{Document: true},

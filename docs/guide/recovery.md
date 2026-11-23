@@ -388,12 +388,13 @@ the message of an inserted token and nothing for a string node.
 
 The limit counts abandoned attempts too. Exhaustion returns
 `*runtime.MissingTokenLimitError` with no tree. The closure backend, both
-bytecode VMs and compiled grammars insert alike; generated parsers do not support
-this initial feature. A `Document` takes the limit at construction and gives each
-`Parse` the whole limit: after an edit it returns the tree, insertions and errors
-of a parse from scratch, and when a parse exhausts the limit the snapshot taken
-before stays the latest. A stream parse has one limit for the whole stream and
-delivers the elements of the whole-input parse. The budget includes abandoned attempts and left-recursion seed
+bytecode VMs, compiled grammars and generated Go parsers insert alike; generated
+typed Go values, generated Go Documents and streams and generated TypeScript
+parsers do not support this initial feature. A `Document` takes the limit at
+construction and gives each `Parse` the whole limit: after an edit it returns the
+tree, insertions and errors of a parse from scratch, and when a parse exhausts
+the limit the snapshot taken before stays the latest. A stream parse has one
+limit for the whole stream and delivers the elements of the whole-input parse. The budget includes abandoned attempts and left-recursion seed
 replay, so a limit of 16 does not guarantee acceptance of a tree with 16 missing
 nodes. An inserted literal consumes no input, so a rule such as
 `rule a = "(" #missing a "x" / "y"` is left-recursive when insertion is enabled

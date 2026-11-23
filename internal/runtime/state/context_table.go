@@ -256,7 +256,7 @@ type ctxHeadKey struct {
 }
 
 type growKey struct {
-	ms        missingBit // first, so that it adds no padding where it takes no space
+	ms        missingBit
 	rule, min int32
 }
 

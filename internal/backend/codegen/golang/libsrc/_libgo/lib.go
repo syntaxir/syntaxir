@@ -219,6 +219,13 @@ type Rule struct {
 	Memo bool
 	// Leader is the leader of a left-recursive cycle; its results are always memoized.
 	Leader bool
+	// Missing means the rule or a rule it calls contains #missing: in the missing-token mode its results
+	// depend on the insertions before them, and are evaluated again at every call (insertsRule).
+	Missing bool
+	// ins is the rule of the same name in the table of the insertion program, which a parse with
+	// missing-token insertion enabled runs instead (SetInsertion, forMissing); nil for a grammar
+	// without #missing and in the table of the insertion program itself.
+	ins *Rule
 	// Rec means the rule is on a cycle of calls: its entries count against the nesting limit.
 	Rec bool
 	// Cycle numbers the left-recursion cycle of a leader or a member of one from 1, and is 0 for
@@ -339,6 +346,9 @@ type grammar struct {
 	// NoBudgetControls reports that the parser was generated without limit controls, so that a parse
 	// asking for them fails.
 	NoBudgetControls bool
+	// HasMissing reports that the grammar has #missing sites, which insert missing tokens in a parse with
+	// a positive limit of them (WithMissingTokens).
+	HasMissing bool
 	// MaxDepth is the default maximum nesting of recursive rule calls.
 	maxDepth int
 	// features are the features the generator found for the parser, with featureWitnessed, when the
@@ -552,19 +562,22 @@ type parseOptions struct {
 	diagnostic         func(*sxirvalue.SyntaxError) error
 	diagnosticLimit    int
 	diagnosticLimitSet bool
+	// missingTokens is the limit of missing tokens that a parse may insert (WithMissingTokens); zero
+	// disables insertion.
+	missingTokens int
 }
 
 // applyOptions applies opts, in order, over the settings of o and derives the fields of o from
-// them. A generated parser implements the settings of the options of package runtime except
-// MissingTokens, which only the reference parser supports.
+// them. A generated parser implements the settings of the options of package runtime.
 func (o *parseOptions) applyOptions(opts []sxirruntime.ParseOption) error {
 	for _, opt := range opts {
 		opt(&o.user)
 	}
 	u := &o.user
-	if u.MissingTokens != 0 {
-		return fmt.Errorf("a generated parser does not support WithMissingTokens: only the reference parser inserts missing tokens")
+	if u.MissingTokens < 0 {
+		return fmt.Errorf("missing token limit must be nonnegative")
 	}
+	o.missingTokens = u.MissingTokens
 	o.unit, o.limits, o.expectations = u.Unit, u.Limits, u.Expectations
 	o.context, o.computeOut = u.Context, u.ComputeReport
 	o.diagnostic, o.diagnosticLimit, o.diagnosticLimitSet = u.DiagnosticCallback, u.DiagnosticLimit, u.DiagnosticLimitSet
@@ -583,6 +596,11 @@ func ResolveOptions(g *grammar, opts []sxirruntime.ParseOption) (parseOptions, e
 // alone accept the diagnostic options.
 func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming bool) (parseOptions, error) {
 	o := parseOptions{controls: !g.NoBudgetControls, streaming: streaming}
+	if streaming && g.HasMissing {
+		// A stream of a grammar with #missing is refused whatever the limit, as the reference parser
+		// refuses it.
+		return o, missingUnsupported("stream parsing")
+	}
 	if len(opts) == 0 {
 		o.maxDepth = g.maxDepth
 		return o, nil
@@ -606,6 +624,9 @@ func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming b
 	}
 	if err := o.validateObservation(g); err != nil {
 		return o, err
+	}
+	if streaming && o.missingTokens > 0 {
+		return o, missingUnsupported("stream parsing")
 	}
 	if witnessFeatures {
 		if o.observe.trace != nil || o.observe.profile != nil {
@@ -755,6 +776,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 		p = &Parser{}
 	}
 	defer p.release()
+	r = r.forMissing(o)
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.setControl(o.control)
@@ -762,6 +784,7 @@ func parseResolvedSpend(r *Rule, input string, o parseOptions) (n *sxirvalue.Nod
 	p.Observation = newObservation(&o.observe, &p.Silent, nil)
 	p.setTracking()
 	p.setDeferMemo()
+	p.startMissing(o)
 	p.MaxDepth = o.maxDepth
 	if o.unit == sxirinput.Bytes {
 		p.unit, p.bs, p.n = sxirinput.Bytes, input, len(input)
@@ -947,6 +970,9 @@ type Parser struct {
 	// arena holds expectation sets kept by memo entries and recoveries (append-only chunks).
 	arena    []ExpID
 	lastKept []ExpID
+
+	// missing is the state of the missing-token mode, nil outside it (missing.go).
+	missing *missingState
 
 	// core is the state of the mechanisms the library shares with the engine (core.go): the
 	// record of recovered errors and the stream's progress in delivering them.
@@ -1763,11 +1789,13 @@ func (p *Parser) variable(slot int) any {
 // Mark is for generated parsers; not a stable API.
 type Mark struct {
 	Pos, Trail, recovered int
-	env                   *Env
+	// missing is the number of insertions on the path of the missing-token mode (MissingLen).
+	missing int
+	env     *Env
 }
 
 func (p *Parser) Mark() Mark {
-	return Mark{Pos: p.Pos, env: p.Env, Trail: len(p.Trail), recovered: len(p.Recovered)}
+	return Mark{Pos: p.Pos, env: p.Env, Trail: len(p.Trail), recovered: len(p.Recovered), missing: p.MissingLen()}
 }
 
 func (p *Parser) SetCapture(slot int, v *sxirvalue.Node) {
@@ -2231,7 +2259,7 @@ func (p *Parser) invokePlainBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if p.Document != nil || p.Observation != nil {
 		p.evaluating()
 	}
-	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
+	start, rec, trail, mm := p.Pos, len(p.Recovered), len(p.Trail), p.MissingLen()
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
 	if r.Rec {
@@ -2248,6 +2276,7 @@ func (p *Parser) invokePlainBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 	} else {
 		p.Pos = start
 		p.Recovered = p.Recovered[:rec]
+		p.ResetMissing(mm)
 	}
 	p.Env = prevEnv
 	return v, ok
@@ -2278,6 +2307,15 @@ func (p *Parser) Enter() {
 
 // Restore goes back to the position pos and to the recovered errors of the first rec, as a failed
 // alternative does.
+// RestoreMissing is Restore that also drops the insertions of the missing-token mode after the first mm,
+// for the backtracking points of a parser whose grammar has #missing.
+//
+// RestoreMissing is for generated parsers; not a stable API.
+func (p *Parser) RestoreMissing(pos, rec, mm int) {
+	p.Restore(pos, rec)
+	p.ResetMissing(mm)
+}
+
 func (p *Parser) Restore(pos, rec int) {
 	p.Pos = pos
 	p.Recovered = p.Recovered[:rec]
@@ -3055,6 +3093,8 @@ type operatorsRuleAttempt struct {
 	env        *Env
 	cut        bool
 	errs       recEntry
+	// ins is the insertions of the match in the missing-token mode, which selecting it records again.
+	ins missingSeed
 }
 
 func (p *Parser) lineResult(r *Rule, l *OperatorsRuleLine, f *CaptureFrame, v *sxirvalue.Node, start int) *sxirvalue.Node {

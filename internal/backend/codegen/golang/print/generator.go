@@ -96,10 +96,13 @@ type Hooks struct {
 // A Parser is a Go parser of a program as the Go backend decided it before its tables were built:
 // the options as the program completes them, the program, the recognizer and the start rule.
 type Parser struct {
-	Opts  common.GenOptions
-	Prog  *common.Program
-	Rec   *common.Program // the recognizer, or nil
-	Start *common.Rule
+	Opts common.GenOptions
+	Prog *common.Program
+	Rec  *common.Program // the recognizer, or nil
+	// Ins is the insertion program of a grammar that uses #missing, whose tables the parses with
+	// missing-token insertion enabled run, and InsRec its recognizer with Recognize; nil otherwise.
+	Ins, InsRec *common.Program
+	Start       *common.Rule
 }
 
 // Params are the values of the parameters of the step print-go that the Go printer reads: those of
@@ -153,6 +156,7 @@ func Print(p *Parser, params Params, t *execdata.Tables, h Hooks) ([]common.Gene
 // parameters params and the hooks h of a test, and returns them with the generator that printed them.
 func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files []common.GeneratedFile, genGo *Generator, err error) {
 	opts, prog, rec, start := p.Opts, p.Prog, p.Rec, p.Start
+	insertion := p.insertionTables()
 	info, err := loadLib(opts)
 	if err != nil {
 		return nil, nil, err
@@ -218,15 +222,29 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 			return nil, nil, genGo.PrintErr
 		}
 	}
+	for _, t := range insertion {
+		// The tables of the insertion program, which the parses with missing-token insertion enabled
+		// run (SetInsertion).
+		genGo.Prog, genGo.Table = t.prog, t.table
+		if err := genGo.useTable(); err != nil {
+			return nil, nil, err
+		}
+		genGo.rules()
+		genGo.Exec = nil
+		genGo.Prog, genGo.Table = prog, "rules"
+		if err := cmp.Or(genGo.tableErr, genGo.PrintErr); err != nil {
+			return nil, nil, err
+		}
+	}
 	if h.Printed != nil {
 		h.Printed(append([]string(nil), genGo.Descs...))
 	}
 	if len(genGo.Descs) != numbered {
-		return nil, nil, fmt.Errorf("internal error: the Node and recognizer tables record the expectation %q, which the numbering of their lowered tables does not", genGo.Descs[numbered])
+		return nil, nil, fmt.Errorf("internal error: the Node, recognizer and insertion tables record the expectation %q, which the numbering of their lowered tables does not", genGo.Descs[numbered])
 	}
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.Starts = %s\n", goStrings(prog.StartRules))
 	fmt.Fprintf(&genGo.Init, "\tsxirGrammar.DefaultStart = %q\n", prog.DefaultStartRule)
-	features, err := common.ParserFeatures(prog, rec, opts, genGo.Params, t.Plan)
+	features, err := common.ParserFeatures(p.ruleTables(), opts, genGo.Params, t.Plan)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -249,6 +267,9 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	if prog.Run.RecordsSourceInfo {
 		genGo.Init.WriteString("\tsxirGrammar.SourceInfo = true\n")
 	}
+	if prog.Run.HasMissing {
+		genGo.Init.WriteString("\tsxirGrammar.HasMissing = true\n")
+	}
 	if t := prog.Vars; t != nil {
 		var names, vals []string
 		for _, d := range t.List {
@@ -262,6 +283,11 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	if rec != nil && !opts.TypedOnly {
 		genGo.Init.WriteString("\tsxirRecGrammar.Share(sxirGrammar)\n")
 		writeRunKeys(&genGo.Init, "sxirRecGrammar", rec)
+	}
+	for _, t := range insertion {
+		fmt.Fprintf(&genGo.Init, "\t%s.Share(sxirGrammar)\n", t.grammar)
+		writeRunKeys(&genGo.Init, t.grammar, t.prog)
+		fmt.Fprintf(&genGo.Init, "\tSetInsertion(%s, %s)\n", t.of, t.table)
 	}
 
 	var out strings.Builder
@@ -302,6 +328,9 @@ func Iterate(r io.Reader, opts ...ParseOption) (*StreamIterator, error) {
 		fmt.Fprintf(&out, "// recRules is the rule table of Recognize, and sxirRecGrammar its grammar.\nvar recRules []*Rule\nvar sxirRecGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
 	}
 	fmt.Fprintf(&out, "// rules is the rule table, and sxirGrammar its grammar.\nvar rules []*Rule\nvar sxirGrammar = NewGrammar(%d)\n\n", common.GeneratedMaxDepth(opts))
+	for _, t := range insertion {
+		fmt.Fprintf(&out, "// %s is the rule table of the insertion program that the parses of %s with missing tokens\n// enabled run, and %s its grammar.\nvar %[1]s []*Rule\nvar %[3]s = NewGrammar(%[4]d)\n\n", t.table, t.of, t.grammar, common.GeneratedMaxDepth(opts))
+	}
 	if !opts.TypedOnly && !opts.RecognizeOnly {
 		out.WriteString(`// ParseRule parses the whole input with the start rule name, a rule marked @start; an empty
 // name selects the grammar's default start rule.
@@ -346,7 +375,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	// traced copies of the tables, generated last.
 	var tracedInit string
 	if opts.Observability {
-		if tracedInit, err = genGo.tracedTables(prog, rec); err != nil {
+		if tracedInit, err = genGo.tracedTables(prog, rec, insertion); err != nil {
 			return nil, nil, err
 		}
 	}
@@ -403,7 +432,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 			return nil, nil, fmt.Errorf("generated code does not compile: %w", err)
 		}
 	}
-	api, err := apiSource(opts, info)
+	api, err := apiSource(opts, len(p.insertionTables()) > 0, info)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -466,10 +495,10 @@ type Generator struct {
 	varNames     map[string]string
 	shaperNames  map[string]string
 	shaperKeys   []string
-	recoveryProg map[*common.Program]bool // whether a program can recover from errors
-	tableErr     error                    // the rule table does not fit the form of the library's RuleSpec
-	hooks        Hooks                    // the zero value changes nothing
-	tables       *execdata.Tables         // the tables being printed, at the Exec stage
+	recoveryProg map[*common.Program]recoveryFacts // whether a program can recover from errors or insert missing tokens
+	tableErr     error                             // the rule table does not fit the form of the library's RuleSpec
+	hooks        Hooks                             // the zero value changes nothing
+	tables       *execdata.Tables                  // the tables being printed, at the Exec stage
 	// chunksInLib is set when the typed values take their storage from the library (Chunk).
 	chunksInLib    bool
 	ruleTypesDone  bool // the types of the rule table entries are written
@@ -549,46 +578,75 @@ func ruleTableLimits(nstrs, nseen int) error {
 	return nil
 }
 
-// saveRec returns the variables that a backtracking point saves, start and, if the program can
-// recover, rec, followed by more; saveRecValues their values. restoreRec returns the statement that
-// goes back to them.
+// saveRec returns the variables that a backtracking point saves, start, rec if the program can
+// recover, and mm if it can insert missing tokens, followed by more; saveRecValues their values.
+// restoreRec returns the statement that goes back to them.
 func (g *Generator) saveRec(more string) string {
-	if g.recovers() {
+	switch {
+	case g.inserts():
+		return "start, rec, mm" + more
+	case g.recovers():
 		return "start, rec" + more
 	}
 	return "start" + more
 }
 
 func (g *Generator) saveRecValues(more string) string {
-	if g.recovers() {
+	switch {
+	case g.inserts():
+		return "p.Pos, len(p.Recovered), p.MissingLen()" + more
+	case g.recovers():
 		return "p.Pos, len(p.Recovered)" + more
 	}
 	return "p.Pos" + more
 }
 
 func (g *Generator) restoreRec(pos, rec string) string {
-	if g.recovers() {
+	switch {
+	case g.inserts():
+		return fmt.Sprintf("p.RestoreMissing(%s, %s, mm)", pos, rec)
+	case g.recovers():
 		return fmt.Sprintf("p.Restore(%s, %s)", pos, rec)
 	}
 	return fmt.Sprintf("p.Pos = %s", pos)
 }
 
-// recovers reports whether a parse of the program being generated can append to p.Recovered: only
-// recovery (#recover) does. Without it p.Recovered stays empty, so
-// the positions that backtracking restores need no saved length of it.
-func (g *Generator) recovers() bool {
+// recoveryFacts are what the rules of a program can append to p.Recovered with: a recovery
+// (#recover), and a #missing site, which inserts in the tables of the insertion program only.
+type recoveryFacts struct {
+	recovers, missing bool
+}
+
+// recovers reports whether a parse of the table being generated can append to p.Recovered: only
+// recovery (#recover) and the insertion of a missing token (#missing) in a table of the insertion
+// program do. Without them p.Recovered stays empty, so the positions that backtracking restores need
+// no saved length of it.
+func (g *Generator) recovers() bool { return g.recoveryFacts().recovers || g.inserts() }
+
+// inserts reports whether the table being generated inserts missing tokens: a table of the insertion
+// program (insertionTable) of a program with a #missing site, which it lowers with their insertions
+// (flowlower.Inserts). Its backtracking points also go back to the insertions on the path they saw
+// (MissingLen).
+func (g *Generator) inserts() bool {
+	return (g.Table == "insRules" || g.Table == "insRecRules") && g.recoveryFacts().missing
+}
+
+func (g *Generator) recoveryFacts() recoveryFacts {
 	if v, ok := g.recoveryProg[g.Prog]; ok {
 		return v
 	}
-	found := false
+	var found recoveryFacts
 	check := func(e ast.Expr) {
 		switch e := e.(type) {
 		case *ast.Recovery:
-			found = true
+			found.recovers = true
 		case *ast.Attributed:
 			for _, a := range e.Attrs {
-				if a.Name == "recover" {
-					found = true
+				switch a.Name {
+				case "recover":
+					found.recovers = true
+				case "missing":
+					found.missing = true
 				}
 			}
 		}
@@ -600,7 +658,7 @@ func (g *Generator) recovers() bool {
 		}
 	}
 	if g.recoveryProg == nil {
-		g.recoveryProg = map[*common.Program]bool{}
+		g.recoveryProg = map[*common.Program]recoveryFacts{}
 	}
 	g.recoveryProg[g.Prog] = found
 	return found
@@ -758,6 +816,9 @@ func (g *Generator) rules() {
 			}
 			if r.Rec {
 				flags = append(flags, "RuleRec")
+			}
+			if r.Missing {
+				flags = append(flags, "RuleMissing")
 			}
 			flagsLit := "0"
 			if len(flags) > 0 {
@@ -1102,7 +1163,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 // tracedTables prints the traced copies of the rule tables that the generator printed (Traced), which an
 // observed parse runs, and returns the statements of the init function that makes them. It runs after
 // the tables, whose bodies stay those of a parser without observability.
-func (g *Generator) tracedTables(prog, rec *common.Program) (string, error) {
+func (g *Generator) tracedTables(prog, rec *common.Program, insertion []insertionTable) (string, error) {
 	init, descs, ordinary := g.Init.String(), len(g.Descs), g.Ordinary
 	g.Init.Reset()
 	g.Traced, g.Observability, g.Ordinary = true, true, false
@@ -1128,6 +1189,11 @@ func (g *Generator) tracedTables(prog, rec *common.Program) (string, error) {
 	}
 	if g.typedTable {
 		if err := pass(prog, "trules", g.useTable); err != nil {
+			return "", err
+		}
+	}
+	for _, t := range insertion {
+		if err := pass(t.prog, t.table, g.useTable); err != nil {
 			return "", err
 		}
 	}
@@ -1174,6 +1240,10 @@ func (g *Generator) plainPrefix() string {
 		return "r"
 	case "trules":
 		return "s"
+	case "insRules":
+		return "ir"
+	case "insRecRules":
+		return "iq"
 	}
 	return "q"
 }
@@ -1205,10 +1275,45 @@ func (g *Generator) rt() string       { return g.pick("rt", "trt") }
 
 // grammarVar returns the generated grammar of the rule table being generated.
 func (g *Generator) grammarVar() string {
-	if g.Table == "rules" {
+	switch g.Table {
+	case "rules":
 		return "sxirGrammar"
+	case "insRules":
+		return "sxirInsGrammar"
+	case "insRecRules":
+		return "sxirInsRecGrammar"
 	}
 	return "sxirRecGrammar"
+}
+
+// insertionTable is a rule table of the insertion program of a grammar that uses #missing: the program,
+// the table, its grammar, and the table whose parses with missing-token insertion enabled run it.
+type insertionTable struct {
+	prog               *common.Program
+	table, grammar, of string
+}
+
+// insertionTables returns the rule tables of the insertion program of p: none for a grammar without
+// #missing, the Node table, and with Recognize the recognizer.
+func (p *Parser) insertionTables() []insertionTable {
+	var t []insertionTable
+	if p.Ins != nil {
+		t = append(t, insertionTable{p.Ins, "insRules", "sxirInsGrammar", "rules"})
+	}
+	if p.InsRec != nil {
+		t = append(t, insertionTable{p.InsRec, "insRecRules", "sxirInsRecGrammar", "recRules"})
+	}
+	return t
+}
+
+// ruleTables returns the rule tables of the Node library that p has, for the feature analysis: the
+// Node table, the recognizer and the tables of the insertion program, which insert missing tokens.
+func (p *Parser) ruleTables() []common.RuleTable {
+	t := common.Tables(p.Prog, p.Rec)
+	for _, ins := range p.insertionTables() {
+		t = append(t, common.RuleTable{Prog: ins.prog, Name: ins.table, Inserts: true})
+	}
+	return t
 }
 
 // Method emits a method with the given body and returns its name.

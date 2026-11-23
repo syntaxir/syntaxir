@@ -239,7 +239,7 @@ func (b *Build) Generate(g *ast.Grammar, x driver.Options, out io.Writer) ([][]c
 		targets[i].Gen.LibGo, targets[i].Gen.TSLib = libGo, tsLib
 	}
 	x.Pipeline = b.Pipeline
-	return TargetsWith(checkForGenerator, g, x, targets...)
+	return TargetsWith(driver.CheckForGenerator, g, x, targets...)
 }
 
 // GoLibrary generates the files of the Go library of the build b, a text of the Go library, with the

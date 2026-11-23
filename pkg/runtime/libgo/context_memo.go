@@ -53,10 +53,10 @@ const maxLeaderBits = 31
 // identity. The engine holds the same sets in words of 64 bits.
 type presentSet = uint32
 
-// missingBit is the missing-silent bit of a key in the engine's parses with missing-token insertion
-// (MemoKey.MissingSilent there). The library inserts no tokens, so its keys hold no such bit: the
-// type has no values but its zero and takes no space.
-type missingBit = struct{}
+// missingBit is the missing-silent bit of a key: the key of a seed of a lookahead in the
+// missing-token mode, where no site inserts (missingSilent), as MemoKey.MissingSilent is the
+// engine's.
+type missingBit = bool
 
 // ctxResult is a result that a context keeps: a seed, the result of a growth step, or the result of
 // a call that read a seed. It holds a node (Parser) or a typed value (TParser).
@@ -76,6 +76,8 @@ type ctxResult struct {
 	from     int // the examined start of a Document parse (Parser.docLow)
 	ok       bool
 	silent   bool
+	// ins is the insertions of a seed of a growth in the missing-token mode (missingSeed).
+	ins missingSeed
 }
 
 // growRec is a growth in progress: the leader's key, its cycle and index (Rule.leaderIndex), its
@@ -86,9 +88,12 @@ type growRec struct {
 	pos       int
 	cycle     int32
 	idx       int32
-	seed      *ctxResult
-	id        uint64
-	inl       ctxResult
+	// ms reports a growth in a lookahead of the missing-token mode, whose seeds are its own
+	// (missingSilent).
+	ms   bool
+	seed *ctxResult
+	id   uint64
+	inl  ctxResult
 }
 
 // ctxCallState is the context of a memoized call of a rule of a cycle (ctxEnter).
@@ -197,7 +202,7 @@ func (p *Parser) sameResult(a, b *ctxResult, budget *int) bool {
 }
 
 // gkey returns the key of the growth's leader.
-func (g *growRec) gkey() growKey { return growKey{rule: g.rule, min: g.min} }
+func (g *growRec) gkey() growKey { return growKey{rule: g.rule, min: g.min, ms: g.ms} }
 
 // at returns the position of the growth.
 func (g *growRec) at() int { return g.pos }
@@ -213,10 +218,14 @@ func (p *Parser) ctxEnter(c *ctxCallState, r *Rule, min int) *ctxResult {
 		return nil
 	}
 	if r.Leader {
-		if i := p.gammaFind(gp, growKey{rule: int32(r.Id), min: int32(min)}); i >= 0 {
+		if i := p.gammaFind(gp, growKey{rule: int32(r.Id), min: int32(min), ms: p.missingSilent(r)}); i >= 0 {
 			p.noteSeedRead(i)
 			return p.seedAt(i)
 		}
+	}
+	if p.insertsRule(r) {
+		// Its results depend on the insertions before them: none is kept in the context.
+		return nil
 	}
 	c.ctx = true
 	c.present = p.present(gp)
@@ -320,9 +329,14 @@ func (p *Parser) LookEnd(ok bool) {
 // growState is the state of the growth of a leader.
 type growState struct {
 	rule, min int32
-	start     int
-	gi        int // the index of the growth in gamma
-	gp        int // the index in gamma of the first growth of the leader's cycle at the position
+	// ms reports a growth in a lookahead of the missing-token mode (growRec.ms).
+	ms    bool
+	start int
+	// missing is the number of insertions on the path when the growth began, after which the insertions
+	// of a step are its seed's (missingSince).
+	missing int
+	gi      int // the index of the growth in gamma
+	gp      int // the index in gamma of the first growth of the leader's cycle at the position
 	// ctx reports a growth in a context, whose steps are memoized with the present set present.
 	ctx     bool
 	present uint32
@@ -342,7 +356,7 @@ type growState struct {
 	pendStep runStep
 }
 
-func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min} }
+func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min, ms: g.ms} }
 
 // growBegin starts the growth of the leader r at level min at the current position from a failure.
 // A growth in a context, where another leader of its cycle grows, memoizes its steps (growMemoStep, growKeepStep);
@@ -351,8 +365,11 @@ func (g *growState) growKey() growKey { return growKey{rule: g.rule, min: g.min}
 func (p *Parser) growBegin(r *Rule, min int) growState {
 	p.use(featureLeftRecursion)
 	// One compute unit before each evaluation of the body, the seed's included.
-	g := growState{rule: int32(r.Id), min: int32(min), start: p.Pos, gi: len(p.gamma)}
+	g := growState{rule: int32(r.Id), min: int32(min), ms: p.missingSilent(r), start: p.Pos, gi: len(p.gamma), missing: p.MissingLen()}
 	g.gp = p.gammaAt(p.Pos, r.Cycle)
+	// A growth of a rule that inserts takes its steps outside a context: none of its results is kept in
+	// one.
+	ctx := g.gp < g.gi && !p.insertsRule(r)
 	// The record is written in place: a growth is pushed for every call of a leader that misses.
 	if g.gi < cap(p.gamma) {
 		p.gamma = p.gamma[:g.gi+1]
@@ -360,8 +377,8 @@ func (p *Parser) growBegin(r *Rule, min int) growState {
 		p.gamma = append(p.gamma, growRec{})
 	}
 	rec := &p.gamma[g.gi]
-	rec.rule, rec.min, rec.pos, rec.cycle, rec.idx, rec.id = g.rule, g.min, g.start, r.Cycle, r.leaderIndex, failSeed
-	if g.gp < g.gi {
+	rec.rule, rec.min, rec.ms, rec.pos, rec.cycle, rec.idx, rec.id = g.rule, g.min, g.ms, g.start, r.Cycle, r.leaderIndex, failSeed
+	if ctx {
 		// The seeds of a growth in a context can be shared by equal results (canonicalSeed).
 		rec.seed = &ctxResult{end: g.start, examined: p.examinedNow(), from: g.start}
 		rec.inl = ctxResult{}
@@ -370,7 +387,7 @@ func (p *Parser) growBegin(r *Rule, min int) growState {
 		rec.seed = nil
 		rec.inl = ctxResult{end: g.start, examined: p.examinedNow(), from: g.start}
 	}
-	if g.gp < g.gi {
+	if ctx {
 		// The present set of the steps includes the leader's own growth.
 		g.present, g.ctx = p.present(g.gp), true
 	}
@@ -388,7 +405,8 @@ func (p *Parser) growLonger(g *growState, ok bool) bool {
 // with the errors errs that it recovered, as its seed, and returns to the start of the growth. The
 // caller drops the errors after the growth's mark.
 func (p *Parser) growAdopt(g *growState, node *sxirvalue.Node, val any, errs recEntry) {
-	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), errs: errs}
+	p.gamma[g.gi].inl = ctxResult{node: node, val: val, ok: true, end: p.Pos, examined: p.examinedNow(), from: p.fromNow(), errs: errs,
+		ins: p.missingSeedOf(g.missing)}
 	p.gamma[g.gi].id = p.nextSeedID()
 	p.Pos = g.start
 }

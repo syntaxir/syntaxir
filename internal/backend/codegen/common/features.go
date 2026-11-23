@@ -45,13 +45,16 @@ const (
 	FeatureSkipRuns
 	// FeatureScanSites is the scan records: the program has scan sites.
 	FeatureScanSites
+	// FeatureMissing is the missing-token mode: a reached rule of a table of the insertion program
+	// contains #missing.
+	FeatureMissing
 
 	// AllFeatures is every feature: the set of a parser that the analysis does not narrow.
 	AllFeatures = 1<<iota - 1
 )
 
 // featureNames are the names of the features, by bit, as FeatureSet.String writes them.
-var featureNames = []string{"document", "stream", "observe", "budget", "memo", "leftRecursion", "recovery", "operators", "vars", "skipRuns", "scanSites"}
+var featureNames = []string{"document", "stream", "observe", "budget", "memo", "leftRecursion", "recovery", "operators", "vars", "skipRuns", "scanSites", "missing"}
 
 // FeatureNames returns the names of the features, by bit.
 func FeatureNames() []string { return append([]string(nil), featureNames...) }
@@ -73,13 +76,30 @@ func (s FeatureSet) String() string {
 	return strings.Join(names, ",")
 }
 
-// Analyze returns the features of the parser generated with opts from prog and, if the parser has
-// Recognize, from the recognizer rec (nil otherwise), whose tables the program was planned as plan
-// (plandata.Program). The rules considered are those that the start rules (ParseRule, the start rule
-// of opts and the typed entry points name only start rules) can enter, in the Node table of prog and
-// in the recognizer table of rec, value-free twins included, followed through the calls of the Core
-// IR that the plan was made from (plandata.Program.Reached); no Core IR is built for the analysis.
-func Analyze(prog, rec *Program, opts GenOptions, plan *plandata.Program) (FeatureSet, error) {
+// RuleTable is a rule table of a generated parser as the feature analysis reads it: its program, its
+// name in the plan, and whether it inserts missing tokens, as the tables of the insertion program do.
+type RuleTable struct {
+	Prog    *Program
+	Name    string
+	Inserts bool
+}
+
+// Tables returns the rule tables of a parser of prog without insertion tables: the Node table and,
+// with Recognize, the recognizer table of rec (nil otherwise).
+func Tables(prog, rec *Program) []RuleTable {
+	t := []RuleTable{{Prog: prog, Name: "rules"}}
+	if rec != nil {
+		t = append(t, RuleTable{Prog: rec, Name: "recRules"})
+	}
+	return t
+}
+
+// Analyze returns the features of the parser generated with opts from its rule tables tables, which
+// the program was planned as plan (plandata.Program). The rules considered are those that the start
+// rules (ParseRule, the start rule of opts and the typed entry points name only start rules) can
+// enter in each table, value-free twins included, followed through the calls of the Core IR that the
+// plan was made from (plandata.Program.Reached); no Core IR is built for the analysis.
+func Analyze(tables []RuleTable, opts GenOptions, plan *plandata.Program) (FeatureSet, error) {
 	var f Feature
 	if opts.Document {
 		f |= FeatureDocument
@@ -93,27 +113,26 @@ func Analyze(prog, rec *Program, opts GenOptions, plan *plandata.Program) (Featu
 	if !opts.NoLimitControls {
 		f |= FeatureBudget
 	}
-	for _, t := range []struct {
-		p     *Program
-		table string
-	}{{prog, "rules"}, {rec, "recRules"}} {
-		if t.p == nil {
-			continue
-		}
-		reached, err := reachedRules(t.p, t.table, plan)
+	for _, t := range tables {
+		reached, err := reachedRules(t.Prog, t.Name, plan)
 		if err != nil {
 			return 0, err
 		}
 		for _, r := range reached {
 			f |= ruleFeatures(r)
+			if t.Inserts && r.Missing {
+				// The rule or a rule it calls contains #missing, which the table lowers with its
+				// insertion: each insertion is a recovered error.
+				f |= FeatureMissing | FeatureRecovery
+			}
 		}
-		if t.p.Vars != nil {
+		if t.Prog.Vars != nil {
 			f |= FeatureVars
 		}
-		if t.p.Run.NumSkipSites+t.p.Run.NumRunSites > 0 {
+		if t.Prog.Run.NumSkipSites+t.Prog.Run.NumRunSites > 0 {
 			f |= FeatureSkipRuns
 		}
-		if t.p.Run.NumScanSites > 0 {
+		if t.Prog.Run.NumScanSites > 0 {
 			f |= FeatureScanSites
 		}
 	}
@@ -173,9 +192,9 @@ func reachedRules(p *Program, table string, plan *plandata.Program) ([]*Rule, er
 
 // ParserFeatures returns the features of the parser generated with opts and the parameters p from
 // the tables planned as plan: those Analyze finds, or AllFeatures with the parameter UsedFeatures off.
-func ParserFeatures(prog, rec *Program, opts GenOptions, p Params, plan *plandata.Program) (FeatureSet, error) {
+func ParserFeatures(tables []RuleTable, opts GenOptions, p Params, plan *plandata.Program) (FeatureSet, error) {
 	if !p.UsedFeatures {
 		return FeatureSet(AllFeatures), nil
 	}
-	return Analyze(prog, rec, opts, plan)
+	return Analyze(tables, opts, plan)
 }

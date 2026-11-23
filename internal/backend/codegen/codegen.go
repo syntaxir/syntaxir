@@ -21,6 +21,14 @@ type Checked struct {
 	Elab elaborate.Program
 }
 
+// Derived builds the programs that a generator derives from the checked program of a grammar, as the
+// engine derives them, each checked on its first call: the recognizer, in which no rule builds a
+// value; the insertion program, which the parses with missing-token insertion enabled run, with the
+// rule flags of insertion; and the recognizer of the insertion program.
+type Derived struct {
+	Recognizer, Insertion, InsertionRecognizer func() (Checked, error)
+}
+
 // TargetFeature is the target of the pipeline of a backend (with target=go), which its printing step
 // reads. Its text names the backend; a pipeline text cannot provide it as a constant, since the
 // target holds the program.

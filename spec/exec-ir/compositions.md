@@ -21,22 +21,22 @@ Document's own work count nothing. The loops of an Operators Rule check the coun
 | Declaration | Meaning |
 |:--|:--|
 | `func firstCall(r Rule) bool` | Records a call of the memoized rule r at the position and reports whether its memoization is deferred, so that the call is not memoized: in a parse that defers memoization (seen.defers), for a rule with a seen index (rule.seen), as seen.first decides. A result is reused only when a rule is called again at a position, which is rare, so deferring memoization to the second call saves a memo entry for each position where the rule is called once, and evaluates the body of a rule at most twice per position, binding level and combination of variable values. |
-| `func call(r Rule, min int) (Value, bool) [document, observe, typed, budget, units]` | Calls rule r at binding level min: unmemoized while its memoization is deferred, and otherwise through the memo and the dependency memo of left-recursion contexts, growing the seed of a left-recursion leader. A call that is also the entry of Document parses first hands a Document parse to its tracked path (typedDocument for typed values), and for nodes an observed parse too (tracked). |
-| `func callMemo(r Rule, inv Body) (Value, bool) [document, observe, typed, units]` | The memoized part of a rule call, for the rule r at binding level 0 invoked by inv: the rule is called at the position again, or its memoization is no longer deferred. |
+| `func call(r Rule, min int) (Value, bool) [document, observe, missing, typed, budget, units]` | Calls rule r at binding level min: unmemoized while its memoization is deferred, and otherwise through the memo and the dependency memo of left-recursion contexts, growing the seed of a left-recursion leader. A call that is also the entry of Document parses first hands a Document parse to its tracked path (typedDocument for typed values), and for nodes an observed parse too (tracked). |
+| `func callMemo(r Rule, inv Body) (Value, bool) [document, observe, missing, typed, units]` | The memoized part of a rule call, for the rule r at binding level 0 invoked by inv: the rule is called at the position again, or its memoization is no longer deferred. |
 | `func grow(r Rule, min int) (Value, bool) [typed, missing, units]` | Grows the seed of a left-recursive leader from a failure: it evaluates the body again while the match gets longer, and returns the last longer result. A growth in a context takes its steps through the context, which may give them without evaluating the body. Outside a context, the form specialized for missing also drops the tokens that each adopted step inserted. |
 | `func observed(r Rule, min int) (Value, bool) [document, observe, typed]` | A rule call in an observed parse: it reports the call to the observation, with how far it examined the input, which an observed parse tracks (doc.tracking), around the call without observation: the typed call, which observes nothing itself, or the node call of the tracked path without observation. |
 | `func observedPlain(r Rule, min int) (Value, bool) [document, observe]` | The plain invocation of a rule in an observed parse: it reports the invocation to the observation as observed reports a call. |
 | `func invokePlain(r Rule, min int) (Value, bool) [units]` | Runs the body of rule r, which has no captures, at binding level min, and returns the rule's value: what rule.invokePlain does outside the missing-token mode. Specialized for units, it counts the unit of the call, checked for a rule on a cycle of calls, before the rule takes a nesting level; it runs the body in the caller's frame with the cut flag cleared, and restores the flag, the trail and the variable environment; a failure restores the position and drops the errors the body recovered. A target may print it for one rule, with the body of that rule in place of rule.body. |
 | `func invoke(r Rule, min int) (Value, bool)` | Runs the body of rule r at binding level min in a frame of its own and returns the rule's value: what rule.invoke does after the unit of the call, outside Document parses and the missing-token mode. The rule takes a nesting level while the body runs with the cut flag cleared, and the caller's frame, cut flag, trail and variable environment are restored after it; on failure the position is unspecified, as for rule.invoke. |
-| `func unmemoized(r Rule, min int) (Value, bool)` | Calls rule r at binding level min without memo bookkeeping, as call does while the rule's memoization is deferred: its expectations need no isolation, and a failure restores the position and the recovered errors. |
-| `func memoized(r Rule, min int) (Value, bool) [document, observe, budget, units]` | Calls rule r at binding level min through the memo, as call does once the rule's memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the bookkeeping of how far each call examined the input. |
+| `func unmemoized(r Rule, min int) (Value, bool) [missing]` | Calls rule r at binding level min without memo bookkeeping, as call does while the rule's memoization is deferred: its expectations need no isolation, and a failure restores the position and the recovered errors. |
+| `func memoized(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | Calls rule r at binding level min through the memo, as call does once the rule's memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the bookkeeping of how far each call examined the input. |
 | `func document(r Rule, min int) (Value, bool) [document, budget, units]` | A rule call in a Document parse, which memoizes the rules that the Document reuses and records the input each call examined. The enclosing call's examined input is restored however the call ends, an interruption included, so that a parse after it starts from the state it would start from otherwise. |
 | `func typedDocument(r Rule, min int, inv Body) (Value, bool) [document, observe, typed, budget, units]` | A typed rule call in a Document parse, for the rule r at binding level min, invoked by inv when a generated call passes it: unmemoized for a rule that the Document does not memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As in document, the enclosing call's examined input is restored however the call ends. |
 | `func callBegin(r Rule, min int, st CallState) (Value, bool, bool) [document, observe, missing, budget, units]` | Begins a memoized call of rule r at binding level min, with the engine's bookkeeping of the input each call examines: it returns hit set with a result that the call reuses, and otherwise saves in st what the end of the call needs. |
 | `func callEnd(r Rule, st CallState, v Value, ok bool) (Value, bool) [document, observe, missing, budget, units]` | Ends the memoized call of rule r whose state its begin saved in st with the value v and success ok of its body, or of the growth of a leader: it records the result where its dependencies send it, and restores the state from before the call. |
 | `func engineCall(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | Calls rule r at binding level min in the engine: unmemoized while its memoization is deferred, and otherwise between the begin and the end of the split call protocol, growing the seed of a left-recursion leader. A parse that reads a Document makes the call of `engineCallDoc` instead, which is decided by one test of a field that the parse sets once. |
 | `func engineCallDoc(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | `engineCall` for a parse that reads a Document. Under the default limit, what a parse from scratch does not do is Document work and leaves the count against the limit: the memo protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does not memoize. |
-| `func body(r Rule, min int) (Value, bool) [document, budget, units]` | A rule call on the tracked path without observation: the Document call in a Document parse, and otherwise the unmemoized call while the rule's memoization is deferred and the memoized call after. |
+| `func body(r Rule, min int) (Value, bool) [document, missing, budget, units]` | A rule call on the tracked path without observation: the Document call in a Document parse, and otherwise the unmemoized call while the rule's memoization is deferred and the memoized call after. |
 | `func tracked(r Rule, min int) (Value, bool) [document, observe]` | A rule call in an observed or Document parse: the observed call in an observed parse, and otherwise the call without observation. |
 
 ## Expectations
@@ -163,22 +163,22 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[document, observe, units]` | `[document, observe, typed, units]` |  | `[units]` |
+| call | `[document, observe, missing, units]` | `[document, observe, typed, units]` |  | `[units]` |
 | callMemo |  | `[document, observe, typed, units]` |  |  |
-| grow | `[units]` | `[typed, units]` | `[missing, units]` | `[units]` |
+| grow | `[missing, units]` | `[typed, units]` | `[missing, units]` | `[units]` |
 | invoke |  |  |  | `[]` |
 | invokePlain |  |  |  | `[]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
-| unmemoized | `[]` |  |  | `[]` |
-| memoized | `[document, observe, units]` |  |  | `[document, observe, units]` |
+| unmemoized | `[missing]` |  |  | `[]` |
+| memoized | `[document, observe, missing, units]` |  |  | `[document, observe, units]` |
 | document | `[document, units]` |  |  | `[document]` |
 | typedDocument |  | `[document, observe, typed, units]` |  |  |
 | callBegin |  |  | `[document, missing, units]` |  |
 | callEnd |  |  | `[document, missing, units]` |  |
 | engineCallDoc |  |  | `[document, missing, units]` |  |
 | engineCall |  |  | `[document, missing, units]` |  |
-| body | `[document, units]` |  |  |  |
+| body | `[document, missing, units]` |  |  |  |
 | tracked | `[document, observe]` |  |  |  |
 | streamCommit | `[stream]` |  | `[stream]` | `[stream]` |
 | streamEmit | `[stream, units]` |  | `[stream]` | `[stream, units]` |
@@ -187,12 +187,12 @@ row includes what its backends print into packages of their own.
 | mergeKept |  |  |  | `[]` |
 | mergeExpected | `[units]` |  | `[units]` | `[]` |
 | keep | `[units]` |  | `[units]` | `[]` |
-| reset | `[]` | `[]` | `[missing]` | `[]` |
-| skipTrivia | `[]` | `[]` | `[missing]` | `[]` |
-| longest | `[units]` | `[units]` | `[missing, units]` | `[units]` |
-| operatorsParse | `[units]` |  | `[missing, units]` | `[units]` |
-| operatorsExpr | `[units]` |  | `[missing, units]` | `[units]` |
-| operatorsNud | `[units]` |  | `[missing, units]` | `[units]` |
+| reset | `[missing]` | `[]` | `[missing]` | `[]` |
+| skipTrivia | `[missing]` | `[]` | `[missing]` | `[]` |
+| longest | `[missing, units]` | `[units]` | `[missing, units]` | `[units]` |
+| operatorsParse | `[missing, units]` |  | `[missing, units]` | `[units]` |
+| operatorsExpr | `[missing, units]` |  | `[missing, units]` | `[units]` |
+| operatorsNud | `[missing, units]` |  | `[missing, units]` | `[units]` |
 | operatorsParseTyped |  | `[typed, units]` |  |  |
 | operatorsExprTyped |  | `[typed, units]` |  |  |
 | operatorsNudTyped |  | `[typed, units]` |  |  |

@@ -6,7 +6,9 @@ package entry
 
 import (
 	"context"
+	"fmt"
 
+	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/parser"
@@ -100,4 +102,32 @@ func SchemaSource(p *engine.Program, start string) (schemaexport.Source, error) 
 		return schemaexport.Source{}, program.ErrSchemaNeedsSource
 	}
 	return s.Schema(), nil
+}
+
+// Derive checks the program of the derived role (driver.Recognizer, driver.Insertion or
+// driver.InsertionRecognizer) from the compiler side of p, as p derives the program of that role
+// when a parse needs it, and returns its checked program (driver.Compiler).
+func Derive(p *engine.Program, role driver.Role) (*frontend.Result, error) {
+	s := Source(p)
+	if s == nil {
+		return nil, fmt.Errorf("a program loaded from a compiled grammar derives no %s program", role)
+	}
+	var derived any
+	var err error
+	switch role {
+	case driver.Recognizer:
+		derived, err = s.Recognizer()
+	case driver.Insertion:
+		derived, err = s.Insertion()
+	case driver.InsertionRecognizer:
+		if derived, err = s.Insertion(); err == nil {
+			derived, err = derived.(*checked.Source).Recognizer()
+		}
+	default:
+		return nil, fmt.Errorf("internal error: the role %s is not derived from a program", role)
+	}
+	if err != nil {
+		return nil, err
+	}
+	return derived.(*checked.Source).Checked(), nil
 }

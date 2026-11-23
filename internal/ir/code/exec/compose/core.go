@@ -39,6 +39,11 @@ const (
 	engineDoc
 )
 
+// inserts reports whether a call with the bookkeeping doc can run in the missing-token mode, which
+// evaluates again the calls that can insert and records the tokens a reused result inserted: every
+// call but that of a Document parse (typedDoc): a Document of a grammar with #missing is refused.
+func (doc docMode) inserts() bool { return doc != typedDoc }
+
 // streamPruneWindow is the number of positions that a stream commits between prunings of the memo.
 const streamPruneWindow = 1024
 
@@ -197,7 +202,7 @@ func Build() *Module {
 		}
 		b.If(Not(C("ctx.ok", s)), func(b *Builder) { exit(b, Null(value), BoolC(false)) })
 		b.SetReg(exec.Pos, C("ctx.end", s))
-		if doc == engineDoc {
+		if doc.inserts() {
 			b.IfElse(And(F(exec.Missing), C("missing.active")), func(b *Builder) { b.Do("missing.replayResult", s) },
 				func(b *Builder) { b.Do("rec.add", C("ctx.errs", s)) })
 		} else {
@@ -234,7 +239,9 @@ func Build() *Module {
 			reusable = And(reusable, Bin("||", Not(C("doc.active")), C("doc.move", e)))
 		case typedDoc:
 			reusable = And(reusable, C("doc.move", e))
-		case engineDoc:
+		}
+		if doc.inserts() {
+			// In the missing-token mode, a result of a rule that can insert is evaluated again.
 			reusable = And(reusable, Not(And(F(exec.Missing), C("missing.recompute", r))))
 		}
 		b.If(reusable, func(b *Builder) {
@@ -255,6 +262,8 @@ func Build() *Module {
 			}
 			b.If(Not(C("memo.ok", e)), func(b *Builder) { exit(b, Null(value), BoolC(false)) })
 			b.SetReg(exec.Pos, C("memo.end", e))
+			// A reused entry is of a rule that cannot insert (missing.recompute), so it holds no insertion,
+			// but the engine replays the entry through its record of seeds.
 			if doc == engineDoc {
 				b.IfElse(And(F(exec.Missing), C("missing.active")), func(b *Builder) { b.Do("missing.replay", e) },
 					func(b *Builder) { b.Do("rec.add", C("memo.errs", e)) })
@@ -356,38 +365,54 @@ func Build() *Module {
 		ret(b)
 	}
 
+	// undoing runs body, which evaluates the call, and fail if the call failed; in the missing-token mode
+	// a failure also drops the tokens that body inserted.
+	undoing := func(b *Builder, inserts bool, body, fail func(b *Builder)) {
+		if !inserts {
+			body(b)
+			b.If(Not(L("ok")), fail)
+			return
+		}
+		b.IfElse(F(exec.Missing), func(b *Builder) {
+			mm := b.Let("mm", C("missing.mark"))
+			body(b)
+			b.If(Not(L("ok")), func(b *Builder) {
+				fail(b)
+				b.Do("missing.reset", mm)
+			})
+		}, func(b *Builder) {
+			body(b)
+			b.If(Not(L("ok")), fail)
+		})
+	}
 	// unmemoized is a call without memo bookkeeping, whose expectations need no isolation, from start.
-	// With missing, a failure also drops the missing tokens that the call inserted, from the mark that
-	// the local mm holds.
-	unmemoized := func(b *Builder, missing bool) {
+	unmemoized := func(b *Builder) {
 		b.If(C("rule.plain", r), func(b *Builder) {
 			b.SetN(pair, C("rule.invokePlain", r, L("min")))
 			ret(b)
 		})
 		b.Let("rec", C("rec.mark"))
-		if missing {
-			b.If(F(exec.Missing), func(b *Builder) { b.Set("mm", C("missing.mark")) })
-		}
-		b.SetN(pair, C("rule.invoke", r, L("min")))
-		b.If(Not(L("ok")), func(b *Builder) {
+		undoing(b, true, func(b *Builder) { b.SetN(pair, C("rule.invoke", r, L("min"))) }, func(b *Builder) {
 			b.SetReg(exec.Pos, L("start"))
 			b.Do("rec.truncate", L("rec"))
-			if missing {
-				b.If(F(exec.Missing), func(b *Builder) { b.Do("missing.reset", L("mm")) })
-			}
 		})
 		ret(b)
 	}
 
 	// evaluate evaluates the call after reuse found nothing to reuse: it grows a leader's seed, and
-	// otherwise evaluates the body with run, dropping the errors recovered by a failure.
-	evaluate := func(b *Builder, level Expr, run func(b *Builder)) {
+	// otherwise evaluates the body with run, dropping the errors recovered, and in the missing-token mode
+	// the tokens inserted, by a failure.
+	evaluate := func(b *Builder, level Expr, doc docMode, run func(b *Builder)) {
 		b.IfElse(C("rule.leader", r), func(b *Builder) {
 			b.SetN(pair, C("grow", r, level))
 		}, func(b *Builder) {
-			run(b)
-			b.If(Not(L("ok")), func(b *Builder) { b.Do("rec.truncate", L("rec")) })
+			undoing(b, doc.inserts(), run, func(b *Builder) { b.Do("rec.truncate", L("rec")) })
 		})
+	}
+	// direct is the condition of a call that runs unmemoized: the rule is not memoized, or in the
+	// missing-token mode can insert, and is not a leader; or its memoization is deferred.
+	direct := func() Expr {
+		return Bin("||", And(Bin("||", Not(C("rule.memo", r)), And(F(exec.Missing), C("missing.recompute", r))), Not(C("rule.leader", r))), C("firstCall", r))
 	}
 	invoke := func(b *Builder) { b.SetN(pair, C("rule.invoke", r, L("min"))) }
 
@@ -406,14 +431,14 @@ variable environments do work that the memo does not share. A parse that memoize
 rule without a seen index and an eager rule are memoized at once.`
 
 	call := m.AddFunc("call", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			tracked(b, L("min"), Null(THandle(exec.Body)))
 			enter(b)
 			b.Let("start", R(exec.Pos))
-			b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)), func(b *Builder) { unmemoized(b, false) })
+			b.If(direct(), func(b *Builder) { unmemoized(b) })
 			reuse(b, L("min"), typedTrack, exit)
-			evaluate(b, L("min"), invoke)
+			evaluate(b, L("min"), typedTrack, invoke)
 			finish(b, L("min"), typedTrack)
 		})
 	call.Doc = `call calls rule r at binding level min: unmemoized while its memoization is deferred, and
@@ -423,12 +448,12 @@ parses first hands a Document parse to its tracked path (typedDocument for typed
 nodes an observed parse too (tracked).`
 
 	callMemo := m.AddFunc("callMemo", []Param{P("r", rule), P("inv", THandle(exec.Body))}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed, exec.Units}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Units}, func(b *Builder) {
 			locals(b)
 			tracked(b, Int(0), L("inv"))
 			b.Let("start", R(exec.Pos))
 			reuse(b, Int(0), typedTrack, exit)
-			evaluate(b, Int(0), func(b *Builder) { b.SetN(pair, C("rule.run", L("inv"))) })
+			evaluate(b, Int(0), typedTrack, func(b *Builder) { b.SetN(pair, C("rule.run", L("inv"))) })
 			finish(b, Int(0), typedTrack)
 		})
 	callMemo.Doc = `callMemo is the memoized part of a rule call, for the rule r at binding level 0 invoked by inv:
@@ -534,25 +559,25 @@ itself, or the node call of the tracked path without observation.`
 	observedPlain.Doc = `observedPlain is the plain invocation of rule r at binding level min in an observed parse: it
 reports the invocation to the observation as observed reports a call.`
 	addInvoke(m)
-	callUnmemoized := m.AddFunc("unmemoized", []Param{P("r", rule), P("min", TInt)}, result, nil, func(b *Builder) {
+	callUnmemoized := m.AddFunc("unmemoized", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Missing}, func(b *Builder) {
 		b.Var("v", value)
 		b.Var("ok", TBool)
 		b.Let("start", R(exec.Pos))
-		unmemoized(b, false)
+		unmemoized(b)
 	})
 	callUnmemoized.Doc = `unmemoized calls rule r at binding level min without memo bookkeeping, as call does while the
 rule's memoization is deferred: its expectations need no isolation, and a failure restores the
 position and the recovered errors.`
 
 	memoized := m.AddFunc("memoized", []Param{P("r", rule), P("min", TInt)}, result,
-		[]string{exec.Document, exec.Observe, exec.Budget, exec.Units}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Missing, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			b.Var("fm", TU64)
 			b.Let("start", R(exec.Pos))
 			docOpen(b, nodeDoc)
 			reuse(b, L("min"), nodeDoc, func(b *Builder, v, ok Expr) { docClose(b); exit(b, v, ok) })
 			docClose(b)
-			evaluate(b, L("min"), invoke)
+			evaluate(b, L("min"), nodeDoc, invoke)
 			finish(b, L("min"), nodeDoc)
 		})
 	memoized.Doc = `memoized calls rule r at binding level min through the memo, as call does once the rule's
@@ -603,7 +628,7 @@ start from otherwise.`
 				docOpen(b, typedDoc)
 				reuse(b, L("min"), typedDoc, func(b *Builder, v, ok Expr) { docClose(b); exit(b, v, ok) })
 				docClose(b)
-				evaluate(b, L("min"), run)
+				evaluate(b, L("min"), typedDoc, run)
 				finish(b, L("min"), typedDoc)
 			}, func(b *Builder) { b.Do("doc.leave", L("oldExamined"), L("oldLow")) })
 		})
@@ -671,7 +696,6 @@ dependencies send it, and restores the state from before the call.`
 		return func(b *Builder) {
 			locals(b)
 			b.Var("hit", TBool)
-			b.Var("mm", TInt)
 			b.Var("direct", TBool)
 			work := func(b *Builder, on Expr, body func(b *Builder)) { body(b) }
 			if doc {
@@ -696,7 +720,7 @@ dependencies send it, and restores the state from before the call.`
 				b.Set("direct", Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)))
 			})
 			b.If(L("direct"), func(b *Builder) {
-				unmemoized(b, true)
+				unmemoized(b)
 			})
 			b.Let("st", C("call.state"))
 			work(b, C("rule.docOnlyMemo", r), func(b *Builder) {
@@ -721,10 +745,10 @@ Document work and no Compute limit counts it: the memo
 protocol (its deferral, the begin and the end of the call) of a rule that a parse from scratch does
 not memoize.`
 
-	body := m.AddFunc("body", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Document, exec.Budget, exec.Units}, func(b *Builder) {
+	body := m.AddFunc("body", []Param{P("r", rule), P("min", TInt)}, result, []string{exec.Document, exec.Missing, exec.Budget, exec.Units}, func(b *Builder) {
 		enter(b)
 		b.If(And(F(exec.Document), C("doc.active")), func(b *Builder) { ret2(b, C("document", r, L("min"))) })
-		b.If(Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r)), func(b *Builder) {
+		b.If(direct(), func(b *Builder) {
 			ret2(b, C("unmemoized", r, L("min")))
 		})
 		ret2(b, C("memoized", r, L("min")))

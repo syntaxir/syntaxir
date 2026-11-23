@@ -20,7 +20,7 @@ const minRecordedRun = 16
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, units.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, missing, units.
 func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -38,16 +38,20 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		p.KeyUnits(r)
 	}
 	start := p.Pos
-	if !r.Memo && !r.Leader || p.FirstCall(r) {
+	if (!r.Memo || p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
 		if len(r.Scope) == 0 {
 			v, ok = p.invokePlainBody(r, min)
 			return v, ok
 		}
 		rec := len(p.Recovered)
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Pos = start
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Pos = start
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 		return v, ok
 	}
@@ -62,7 +66,11 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			return nil, false
 		}
 		p.Pos = seed.end
-		p.recAdd(seed.errs)
+		if p.inserting() {
+			p.replayMissing(seed.ins, seed.errs, true)
+		} else {
+			p.recAdd(seed.errs)
+		}
 		return seed.node, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
@@ -70,7 +78,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
 	}
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r) {
 		p.MergeExpected(e.far, e.expected)
 		if !e.ok {
 			return nil, false
@@ -87,7 +95,11 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 				return nil, false
 			}
 			p.Pos = held.end
-			p.recAdd(held.errs)
+			if p.inserting() {
+				p.replayMissing(held.ins, held.errs, true)
+			} else {
+				p.recAdd(held.errs)
+			}
 			return held.node, true
 		}
 	}
@@ -97,9 +109,13 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 	}
 	far, inner := p.Unisolate(m)
@@ -179,12 +195,13 @@ func (p *TParser) firstCall(r *TRule) bool {
 // recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
 // of its last result in place of the entries recorded since it began.
 //
-// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for units.
+// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for missing, units.
 func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var bv *sxirvalue.Node
 	var bok bool
 	rec := len(p.Recovered)
 	{
+		mm := p.MissingLen()
 		g := p.growBegin(r, min)
 		if g.ctx {
 			for {
@@ -231,11 +248,17 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 				}
 				p.growAdopt(&g, v, nil, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
 			}
 		}
 		best := p.growEnd(&g)
 		p.Recovered = p.Recovered[:rec]
-		p.recAdd(best.errs)
+		p.ResetMissing(mm)
+		if p.inserting() {
+			p.replayMissing(best.ins, best.errs, true)
+		} else {
+			p.recAdd(best.errs)
+		}
 		bv = best.node
 		bok = best.ok
 	}
@@ -756,7 +779,7 @@ func (p *Parser) callDocument(r *Rule, min int) (*sxirvalue.Node, bool) {
 // rule's memoization is deferred: its expectations need no isolation, and a failure restores the
 // position and the recovered errors.
 //
-// Printed from Exec IR function unmemoized of internal/ir/code/exec/compose.
+// Printed from Exec IR function unmemoized of internal/ir/code/exec/compose, specialized for missing.
 func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -766,10 +789,14 @@ func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
 		return v, ok
 	}
 	rec := len(p.Recovered)
-	v, ok = p.invoke(r, min)
-	if !ok {
-		p.Pos = start
-		p.Recovered = p.Recovered[:rec]
+	{
+		mm := p.MissingLen()
+		v, ok = p.invoke(r, min)
+		if !ok {
+			p.Pos = start
+			p.Recovered = p.Recovered[:rec]
+			p.ResetMissing(mm)
+		}
 	}
 	return v, ok
 }
@@ -778,7 +805,7 @@ func (p *Parser) callUnmemoized(r *Rule, min int) (*sxirvalue.Node, bool) {
 // memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the
 // bookkeeping of how far each call examined the input.
 //
-// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, units.
+// Printed from Exec IR function memoized of internal/ir/code/exec/compose, specialized for document, observe, missing, units.
 func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
@@ -806,7 +833,11 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			return nil, false
 		}
 		p.Pos = seed.end
-		p.recAdd(seed.errs)
+		if p.inserting() {
+			p.replayMissing(seed.ins, seed.errs, true)
+		} else {
+			p.recAdd(seed.errs)
+		}
 		return seed.node, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
@@ -814,7 +845,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
 	}
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && (!(p.Document != nil) || p.documentMove(e)) {
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && (!(p.Document != nil) || p.documentMove(e)) && !p.insertsRule(r) {
 		p.Observation.memoHit()
 		if p.track {
 			p.documentTouch(e.examined)
@@ -851,7 +882,11 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 				return nil, false
 			}
 			p.Pos = held.end
-			p.recAdd(held.errs)
+			if p.inserting() {
+				p.replayMissing(held.ins, held.errs, true)
+			} else {
+				p.recAdd(held.errs)
+			}
 			return held.node, true
 		}
 	}
@@ -861,9 +896,13 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 	}
 	far, inner := p.Unisolate(m)
@@ -918,7 +957,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 // parse, and otherwise the unmemoized call while the rule's memoization is deferred and the memoized
 // call after.
 //
-// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, units.
+// Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 	p.Units++
 	if r.Rec {
@@ -933,7 +972,7 @@ func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 		v, ok := p.callDocument(r, min)
 		return v, ok
 	}
-	if !r.Memo && !r.Leader || p.FirstCall(r) {
+	if (!r.Memo || p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
 		v, ok := p.callUnmemoized(r, min)
 		return v, ok
 	}

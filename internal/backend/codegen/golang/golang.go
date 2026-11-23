@@ -23,6 +23,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
+	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -34,28 +35,30 @@ import (
 var FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 
 // TableLabels are the names of the tables that a Go parser can have, in the order in which they are
-// built: the Node table, the recognizer, the typed table and their traced copies.
-var TableLabels = []string{"rules", "recRules", "typed", "rulesTraced", "recRulesTraced", "typedTraced"}
+// built: the Node table, the recognizer, the typed table, the Node table and the recognizer of the
+// insertion program, and their traced copies.
+var TableLabels = []string{"rules", "recRules", "typed", "insRules", "insRecRules", "rulesTraced", "recRulesTraced", "typedTraced", "insRulesTraced", "insRecRulesTraced"}
 
 // Target is the Go target of a compilation (common.Target), which print-go reads: the program, the
-// build of its recognizer, the start rule and the options of the target, which print.Validate
-// completed. The tables of its parser are decided once from them (Decision).
+// builds of the programs derived from it, the start rule and the options of the target, which
+// print.Validate completed. The tables of its parser are decided once from them (Decision).
 type Target struct {
-	Prog       codegen.Checked
-	Recognizer func() (codegen.Checked, error)
-	Start      *common.Rule
-	Opts       common.GenOptions
+	Prog    codegen.Checked
+	Derived codegen.Derived
+	Start   *common.Rule
+	Opts    common.GenOptions
 	// hooks are the hooks of a test, or nil (print.Hooks).
 	hooks  *print.Hooks
 	decide func() (*Decision, error)
 }
 
-// NewTarget returns the Go target of the program prog with its recognizer, the start rule start, the
-// options opts, which print.Validate completed, and the hooks of a test, which production leaves nil.
-func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
-	t := &Target{Prog: prog, Recognizer: recognizer, Start: start, Opts: opts, hooks: hooks}
+// NewTarget returns the Go target of the program prog with the builds of the programs derived from it,
+// the start rule start, the options opts, which print.Validate completed, and the hooks of a test,
+// which production leaves nil.
+func NewTarget(prog codegen.Checked, derived codegen.Derived, start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+	t := &Target{Prog: prog, Derived: derived, Start: start, Opts: opts, hooks: hooks}
 	t.decide = sync.OnceValues(func() (*Decision, error) {
-		d, err := Decide(prog, recognizer, start, opts)
+		d, err := Decide(prog, derived, start, opts)
 		if err == nil && hooks != nil {
 			d.refuse = hooks.RefuseRecRule
 		}
@@ -71,8 +74,8 @@ func (*Target) Backend() string { return "go" }
 func (t *Target) Decision() (*Decision, error) { return t.decide() }
 
 // tableSpec is one table of a Go parser: its name in the dumps (print.Generator.IRTable), the rule table it
-// fills (rules, recRules or trules), the program of its rules, the input of the elaboration of the
-// program, and whether it is a traced copy.
+// fills (rules, recRules, trules, insRules or insRecRules), the program of its rules, the input of the
+// elaboration of the program, and whether it is a traced copy.
 type tableSpec struct {
 	name, table string
 	prog        *common.Program
@@ -81,8 +84,8 @@ type tableSpec struct {
 }
 
 // A Decision is what a Go parser of a program is made of, decided from the program and the options
-// before any table is built: the options as the program completes them, the recognizer, the typed
-// entry points and the tables.
+// before any table is built: the options as the program completes them, the recognizer, the
+// insertion program and its recognizer, the typed entry points and the tables.
 type Decision struct {
 	print.Parser
 	// roots are the typed rules that the typed entry points enter.
@@ -96,11 +99,24 @@ type Decision struct {
 
 // Decide decides the Go parser of prog that starts at start with the options opts, which Validate
 // completed: the typed entry points, and with them whether the typed table is built and whether a
-// typed-only parser keeps its Node rules (common.GenOptions.KeepNodes), and the recognizer, which
-// recognizer checks.
-func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions) (*Decision, error) {
+// typed-only parser keeps its Node rules (common.GenOptions.KeepNodes), and the derived programs that
+// derived checks: the recognizer, and for a grammar that uses #missing the insertion program, whose
+// tables the parses with missing-token insertion enabled run, with its recognizer.
+func Decide(prog codegen.Checked, derived codegen.Derived, start *common.Rule, opts common.GenOptions) (*Decision, error) {
 	if opts.Stream && !start.Stream {
 		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
+	}
+	// The parses that insert missing tokens are those of the whole input; a Document and a stream refuse
+	// a grammar with #missing on every backend, and generated typed values do not represent the missing type.
+	if prog.View.Run.HasMissing {
+		switch {
+		case opts.Types:
+			return nil, rprogram.MissingUnsupported("generated typed Go parsers")
+		case opts.Document:
+			return nil, rprogram.MissingUnsupported("generated Go Documents")
+		case opts.Stream:
+			return nil, rprogram.MissingUnsupported("generated Go streams")
+		}
 	}
 	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
 	if opts.LogicalVariant != "" && !opts.LogicalUnits() {
@@ -127,18 +143,37 @@ func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), st
 			// A typed entry point converts the Node result of its rule, so the Node rule functions
 			// are needed; generate with them.
 			opts.KeepNodes = true
-			return Decide(prog, recognizer, start, opts)
+			return Decide(prog, derived, start, opts)
 		}
 		typed, d.roots = needTyped, roots
 	}
-	var rec codegen.Checked
+	var rec, ins, insRec codegen.Checked
 	if opts.Recognize {
 		// The recognizer: the program in which no rule builds a value, in a rule table of its own.
 		var err error
-		if rec, err = recognizer(); err != nil {
+		if rec, err = derived.Recognizer(); err != nil {
 			return nil, err
 		}
 		d.Rec = rec.View
+	}
+	if prog.View.Run.HasMissing {
+		// The parses with missing-token insertion enabled run the insertion program, as on every
+		// backend: its tables lower the #missing sites with their insertions and keep no guard, so
+		// that the tables of the parses without insertion stay as they are without #missing. A
+		// recognize-only parser, which has no Parse, needs only the recognizer of the program.
+		var err error
+		if !opts.RecognizeOnly {
+			if ins, err = derived.Insertion(); err != nil {
+				return nil, err
+			}
+			d.Ins = ins.View
+		}
+		if opts.Recognize {
+			if insRec, err = derived.InsertionRecognizer(); err != nil {
+				return nil, err
+			}
+			d.InsRec = insRec.View
+		}
 	}
 	add := func(traced bool, suffix string) {
 		if !traced || !print.NoNodeRules(opts) {
@@ -149,6 +184,12 @@ func Decide(prog codegen.Checked, recognizer func() (codegen.Checked, error), st
 		}
 		if typed {
 			d.specs = append(d.specs, tableSpec{"typed" + suffix, "trules", prog.View, prog.Elab, traced})
+		}
+		if d.Ins != nil {
+			d.specs = append(d.specs, tableSpec{"insRules" + suffix, "insRules", ins.View, ins.Elab, traced})
+		}
+		if d.InsRec != nil {
+			d.specs = append(d.specs, tableSpec{"insRecRules" + suffix, "insRecRules", insRec.View, insRec.Elab, traced})
 		}
 	}
 	add(false, "")
@@ -169,14 +210,20 @@ func (d *Decision) Labels() []string {
 }
 
 // Sources returns the builds of the Core IR of the tables, in the order of Labels. The Node table,
-// the typed table and the traced copies of both build the same module from the program, and the
-// recognizer and its traced copy theirs from the recognizer, which the key of the build says.
+// the typed table and the traced copies of both build the same module from the program, the
+// recognizer and its traced copy theirs from the recognizer, and the tables of the insertion program
+// and of its recognizer theirs from those programs, which the key of the build says.
 func (d *Decision) Sources() []common.TableSource {
 	s := make([]common.TableSource, len(d.specs))
 	for i, t := range d.specs {
-		if t.table == "recRules" {
+		switch t.table {
+		case "recRules":
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "recognizer", Origin: true}
-		} else {
+		case "insRules":
+			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{Values: true}), Key: "insertion", Origin: true}
+		case "insRecRules":
+			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "insertion-recognizer", Origin: true}
+		default:
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{Values: true}), Key: "program", Origin: true}
 		}
 	}
@@ -217,6 +264,12 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 		if d.Rec != nil {
 			c.Roots = append(c.Roots, plandata.Entry{Table: "recRules", ID: d.Rec.ByName[name].ID})
 		}
+		if d.Ins != nil {
+			c.Roots = append(c.Roots, plandata.Entry{Table: "insRules", ID: d.Ins.ByName[name].ID})
+		}
+		if d.InsRec != nil {
+			c.Roots = append(c.Roots, plandata.Entry{Table: "insRecRules", ID: d.InsRec.ByName[name].ID})
+		}
 	}
 	c.Roots = append(c.Roots, d.roots...)
 	add := func(table string, pr *common.Program) {
@@ -233,6 +286,12 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 	}
 	if d.Opts.Types {
 		add("trules", d.Prog)
+	}
+	if d.Ins != nil {
+		add("insRules", d.Ins)
+	}
+	if d.InsRec != nil {
+		add("insRecRules", d.InsRec)
 	}
 	nodes := print.NoNodeRules(d.Opts)
 	for i, s := range d.specs {
@@ -264,12 +323,21 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	examined := o.Document || s.traced
 	if s.table == "trules" {
 		// Node is false: a function lowered with the options of one runtime is never printed for the other.
-		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Inserts: flowlower.Inserts(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+	}
+	if s.table == "insRules" || s.table == "insRecRules" {
+		// The tables of the insertion program, which only parses inserting missing tokens run: they
+		// lower the #missing sites with their insertions and keep no guard (lowerdata.GuardsNone), as
+		// the insertion modules of the VMs do. No Document parse runs them, since a Document refuses
+		// insertion, so they resume no runs; an observed parse records the examined input.
+		return flowplan.TableOf(m, plandata.TableConfig{Values: s.table == "insRules", Logical: o.LogicalUnits(), Guards: lowerdata.GuardsNone, Observe: s.traced, Document: s.traced,
+			Traced: s.traced, Inserts: true})
 	}
 	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
-		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
-		Resume: o.Document, Traced: s.traced, Inserts: true})
+		// examined input (Document) but keeps no runs (lowerdata.Options.Resume). Its #missing sites
+		// lower as their literals, so that the parses without insertion pay nothing for them.
+		Resume: o.Document, Traced: s.traced})
 }
 
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline

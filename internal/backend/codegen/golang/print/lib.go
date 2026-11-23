@@ -570,8 +570,8 @@ func declaredNames(src string) ([]string, error) {
 var qualifyRuntime = regexp.MustCompile(`\b(?:input|value|instrument)\.`)
 
 // apiNames returns the library names that the generated package re-exports for its users, in
-// declaration order by group.
-func apiNames(opts common.GenOptions) []string {
+// declaration order by group; WithMissingTokens if the parser inserts missing tokens.
+func apiNames(opts common.GenOptions, inserts bool) []string {
 	names := []string{
 		"Node", "NodeKind", "KindString", "KindTuple", "KindList", "KindError", "KindStruct",
 		"KindTupleValue", "KindListValue", "KindValue", "SyntaxError", "SyntaxErrors", "PositionUnit", "CodePoints", "Bytes",
@@ -579,6 +579,9 @@ func apiNames(opts common.GenOptions) []string {
 		"LimitDepth", "LimitMemory", "Unlimited",
 		"Cursor", "CycleError", "WalkAction", "WalkContinue", "WalkSkip", "WalkStop", "WalkVisit", "WalkEdge", "WalkEdgeKind",
 		"WalkRoot", "WalkChild", "WalkField", "WalkListElement", "Walk",
+	}
+	if inserts {
+		names = append(names, "WithMissingTokens")
 	}
 	if opts.Expectations {
 		names = append(names, "WithExpectations")
@@ -606,9 +609,9 @@ func apiNames(opts common.GenOptions) []string {
 // apiSource returns the source of the file of the generated package that re-exports the names of
 // the library and of core that apiNames lists. Types, constants and variables are aliases;
 // functions are wrappers that the compiler inlines.
-func apiSource(opts common.GenOptions, info *libInfo) (string, error) {
+func apiSource(opts common.GenOptions, inserts bool, info *libInfo) (string, error) {
 	var b strings.Builder
-	for _, name := range apiNames(opts) {
+	for _, name := range apiNames(opts, inserts) {
 		d := info.Decls[name]
 		if d == nil {
 			return "", fmt.Errorf("internal error: the library has no %s", name)

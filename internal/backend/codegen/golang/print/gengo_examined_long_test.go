@@ -42,8 +42,8 @@ var examinedMutants = []examinedMutant{
 	// record the same field, so each mutant names the condition of its hit: the Node hit moves the
 	// entry of a Document, the typed hits of a parse without a Document do not.
 	{name: "a Node memo hit records nothing", file: "call_exec.go", copies: 1,
-		old:     "p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\tp.documentTouch(e.examined)\n",
-		new:     "p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\tp.documentTouch(0)\n",
+		old:     "p.documentMove(e)) && !p.insertsRule(r) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\tp.documentTouch(e.examined)\n",
+		new:     "p.documentMove(e)) && !p.insertsRule(r) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\tp.documentTouch(0)\n",
 		entries: []string{"parse", "recognize"}},
 	{name: "a typed memo hit records nothing", file: "call_exec.go", copies: 2,
 		old:     "(!e.silent || p.Silent > 0) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\tp.documentTouch(e.examined)\n",

@@ -266,7 +266,7 @@ func observedLib(t *testing.T) string {
 				"\t\t\tentry.examined, entry.from, entry.pinned = p.docExamined, p.docLow, false\n\t\t\tif r.Positional"}
 			// The node runtime's hit is the one that moves the entry in a Document (documentMove); the typed
 			// runtime's is the one that moves its value (typedMove).
-			hits := []string{"p.documentMove(e)) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "typedMove(e) {\n\t\tp.Observation.memoHit()\n\t\t"}
+			hits := []string{"p.documentMove(e)) && !p.insertsRule(r) {\n\t\tp.Observation.memoHit()\n\t\tif p.track {\n\t\t\t", "typedMove(e) {\n\t\tp.Observation.memoHit()\n\t\t"}
 			keep := "ExaminedHook(r.Name, start, min, p.docExamined, false); "
 			for _, old := range stores {
 				at := strings.Index(old, "entry.")

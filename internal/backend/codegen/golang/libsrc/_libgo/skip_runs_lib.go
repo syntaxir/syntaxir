@@ -74,8 +74,9 @@ func (w *skipWalk) valEnd() {
 	w.vals.tvals.vals, w.vals.tvals.buf = w.vals.tvals.vals[:0], nil
 }
 
-// skipOn reports whether the parse records skip runs: the library always does.
-func (p *Parser) skipOn() bool { return true }
+// skipOn reports whether the parse records skip runs: the library does outside the missing-token
+// mode, whose walks depend on the insertions before them, as the reference parser does.
+func (p *Parser) skipOn() bool { return !p.inserting() }
 
 // skipMut reports whether the parse breaks the part of the records that k names: the library breaks none.
 func (p *Parser) skipMut(int) bool { return false }

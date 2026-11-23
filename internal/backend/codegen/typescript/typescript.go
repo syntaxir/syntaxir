@@ -20,6 +20,7 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
+	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -49,10 +50,10 @@ type Target struct {
 	hooks *print.Hooks
 }
 
-// NewTarget returns the TypeScript target of the program prog with the build of its recognizer, the
-// start rule start, the options opts, which print.Validate checked, and the hooks of a test, which
-// production leaves nil.
-func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
+// NewTarget returns the TypeScript target of the program prog with the builds of the programs derived
+// from it, of which it reads the recognizer, the start rule start, the options opts, which
+// print.Validate checked, and the hooks of a test, which production leaves nil.
+func NewTarget(prog codegen.Checked, derived codegen.Derived, start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
 	if hooks != nil && hooks.Stream {
 		opts.Stream = true
 	}
@@ -62,7 +63,7 @@ func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error),
 			// A recognize-only parser is the recognizer itself, the program it was given.
 			return nil, nil
 		}
-		rec, err := recognizer()
+		rec, err := derived.Recognizer()
 		if err != nil {
 			return nil, err
 		}
@@ -77,6 +78,9 @@ func (*Target) Backend() string { return "ts" }
 // Sources returns the builds of the Core IR of the tables of the parser and their labels: the Node
 // table and, with Recognize, the recognizer.
 func (t *Target) Sources() ([]common.TableSource, []string, error) {
+	if t.Prog.View.Run.HasMissing {
+		return nil, nil, rprogram.MissingUnsupported("generated TypeScript parsers")
+	}
 	rec, err := t.rec()
 	if err != nil {
 		return nil, nil, err

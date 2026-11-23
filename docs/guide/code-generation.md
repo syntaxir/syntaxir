@@ -282,8 +282,8 @@ Details:
   `sxir`): the generated code imports the packages of `syntaxir.dev/sxir/pkg/runtime` with either `-lib` mode, and with `-lib import` also
   `syntaxir.dev/sxir/pkg/runtime/libgo`. Both refer to the library protocol they were generated for, so a mismatched
   version fails the build on that line instead of misbehaving. With `-lib import`, `parser.go` declares
-  `const _ = rt.Protocol34`, and a library that does not implement the protocol fails with
-  `undefined: rt.Protocol34`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
+  `const _ = rt.Protocol35`, and a library that does not implement the protocol fails with
+  `undefined: rt.Protocol35`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
   not serve the node representation of that protocol fails with `undefined: valueimpl.Protocol15`. Regenerate the
   parser with the `sxir` of the required version, or require a version of `syntaxir.dev/sxir` that implements the
   protocol.
@@ -536,8 +536,9 @@ machinery, which the generated code only has when you ask for it:
   [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support).
 - There is no choice of backend, because the generated code is a backend of its own, and no `Parser.Grammar()`, saving
   or loading, because the grammar is gone at run time.
-- `#missing` works in the runtime parser (the closure backend and both bytecode VMs, and compiled grammars) for
-  whole-input parsing and recognition, and the generator rejects grammars that use it.
+- `#missing` works for whole-input parsing and recognition in the runtime parser (the closure backend, both bytecode
+  VMs and compiled grammars) and in generated Go parsers, which insert with the same results, diagnostics and compute
+  units. The generator rejects grammars that use it with `-types`, `-document` or `-stream`, and with `-lang ts`.
 
 The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has the complete table.
 

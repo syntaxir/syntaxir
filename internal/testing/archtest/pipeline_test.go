@@ -222,7 +222,7 @@ func TestOnlyTheDriverExecutesPipelines(t *testing.T) {
 var driverExports = []string{
 	// The compilation API.
 	"Backend", "Check", "CheckWith", "Compile", "CompileOptions", "Compiler", "Describe", "DescribeGoLibrary",
-	"GoLibrary", "Options", "Output", "Program", "ProgramOf", "Target", "View",
+	"CheckForGenerator", "GoLibrary", "Options", "Output", "Program", "ProgramOf", "Target", "View",
 	// The roles of the run-time programs of a grammar (ProgramOf).
 	"Insertion", "InsertionRecognizer", "Parser", "Recognizer", "Role",
 	// The slot keys.

@@ -52,7 +52,8 @@ export const featureOperators = 1 << 7;
 export const featureVars = 1 << 8;
 export const featureSkipRuns = 1 << 9;
 export const featureScanSites = 1 << 10;
-export const allFeatures = (1 << 11) - 1;
+export const featureMissing = 1 << 11;
+export const allFeatures = (1 << 12) - 1;
 // usedFeatures is the features of this copy of the library.
 export const usedFeatures: number = allFeatures;
 

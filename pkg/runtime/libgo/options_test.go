@@ -9,8 +9,8 @@ import (
 )
 
 // TestResolveRuntimeOptions checks that the library takes the options of package runtime, the one
-// definition of them: each option sets what the library reads, in order, and the option that only
-// the reference parser supports is an error.
+// definition of them: each option sets what the library reads, in order, and a negative limit of
+// missing tokens is an error.
 func TestResolveRuntimeOptions(t *testing.T) {
 	g := NewGrammar(100)
 	o, err := ResolveOptions(g, []sxirruntime.ParseOption{
@@ -25,11 +25,11 @@ func TestResolveRuntimeOptions(t *testing.T) {
 	if o.unit != sxirinput.Bytes || o.limits.Compute != 9 || o.limits.Depth != 7 || o.maxDepth != 7 {
 		t.Errorf("resolved unit %v, limits %+v, depth %d", o.unit, o.limits, o.maxDepth)
 	}
-	for _, limit := range []int{1, -1} {
-		_, err := ResolveOptions(g, []sxirruntime.ParseOption{sxirruntime.WithMissingTokens(limit)})
-		if err == nil || !strings.Contains(err.Error(), "WithMissingTokens") {
-			t.Errorf("WithMissingTokens(%d): %v", limit, err)
-		}
+	if o, err := ResolveOptions(g, []sxirruntime.ParseOption{sxirruntime.WithMissingTokens(3)}); err != nil || o.missingTokens != 3 {
+		t.Errorf("WithMissingTokens(3): limit %d, %v", o.missingTokens, err)
+	}
+	if _, err := ResolveOptions(g, []sxirruntime.ParseOption{sxirruntime.WithMissingTokens(-1)}); err == nil || !strings.Contains(err.Error(), "missing token limit") {
+		t.Errorf("WithMissingTokens(-1): %v", err)
 	}
 	// The diagnostic options belong to the entry points of a stream.
 	diag := []sxirruntime.ParseOption{sxirruntime.WithDiagnosticLimit(0)}

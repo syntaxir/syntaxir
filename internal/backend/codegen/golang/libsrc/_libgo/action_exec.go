@@ -639,7 +639,7 @@ func (p *Parser) ActionConforms(t *FieldType, v any) bool {
 		return shape == 3
 	}
 	if kt == 77 {
-		return shape == 3 && false
+		return shape == 3 && (n.Type() == valueimpl.TypeMissing)
 	}
 	// A struct type or a named node type takes the values that have its name.
 	if kt == 78 {

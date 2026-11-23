@@ -396,24 +396,24 @@ func decide(p *Program, t Target, withOrigin bool) (target, error) {
 			return target{}, err
 		}
 		t.Gen = opts
-		return target{t: t, target: gobackend.NewTarget(p.checked(), p.recognizer, p.Start(), opts, t.GoHooks)}, nil
+		return target{t: t, target: gobackend.NewTarget(p.checked(), p.derived, p.Start(), opts, t.GoHooks)}, nil
 	case result.TypeScript:
 		opts, err := tsprint.Validate(t.Gen)
 		if err != nil {
 			return target{}, err
 		}
 		t.Gen = opts
-		prog, start, recognizer := p.checked(), p.Start(), p.recognizer
+		prog, start := p.checked(), p.Start()
 		if opts.RecognizeOnly {
 			// A recognize-only parser is the recognizer of the program: the program in which no rule
 			// builds a value, printed as the parser of its start rule.
-			rec, err := p.recognizer()
+			rec, err := p.derived.Recognizer()
 			if err != nil {
 				return target{}, err
 			}
-			prog, start, recognizer = rec, rec.View.ByName[start.Name], nil
+			prog, start = rec, rec.View.ByName[start.Name]
 		}
-		return target{t: t, target: tsbackend.NewTarget(prog, recognizer, start, opts, t.TSHooks)}, nil
+		return target{t: t, target: tsbackend.NewTarget(prog, p.derived, start, opts, t.TSHooks)}, nil
 	case result.VM:
 		if err := runTimeGen(t); err != nil {
 			return target{}, err

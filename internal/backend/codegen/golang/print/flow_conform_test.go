@@ -169,6 +169,19 @@ rule main = (item ";")* #stream $$
 rule item = [a-z]+
 `, opts: common.GenOptions{Stream: true}, inputs: []string{"ab;c;", "a;b", ""},
 		entries: []string{flowConformParse, "err = ParseStream(strings.NewReader(in), func(*Node) error { return nil }, opts...)"}},
+	// Insertions of missing tokens, which the parses with a limit run on the tables of the insertion
+	// program: under an @error label, backtracked past by an alternative, in a repetition, a lookahead and
+	// left recursion, where w grows only through its insertion and reuses a result whose insertion its
+	// round made again; the parses without a limit run the parser's tables, which insert nothing.
+	{name: "missing", src: `@start
+rule main = item* $$
+rule item = ("(" [a-z]* ")" #missing) @error("close") ";" #missing / "x" ";" #missing "y" / "x" !(";" #missing) "z" / sum / w
+rule sum = sum "+" #missing d / d
+rule d = [0-9]
+rule w = "<" #missing w ">" / "v"
+`, opts: common.GenOptions{Recognize: true}, inputs: []string{"(a;", "(a", "x;y", "xy", "xz", "1+2", "12", "(", "", "v>", "v>>"},
+		entries: []string{flowConformParse, "_, err = Parse(in, append(opts, sxirruntime.WithMissingTokens(4))...)",
+			"err = Recognize(in, append(opts, sxirruntime.WithMissingTokens(4))...)", "_, err = Parse(in, append(ordinary, sxirruntime.WithMissingTokens(4))...)"}},
 	// Actions that make structs inside the value they return, or return a struct they made inside
 	// another, so that flow.ctxFinish searches the values the context made.
 	{name: "made", src: `type In = { N int }
@@ -314,16 +327,9 @@ rule name = [a-z]+
 // flowOtherTargets are the operations that the Go printer never prints, with the reason; the test
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
+	flow.OpInserting:   "the Go tables that insert guard no call (lowerdata.GuardsNone), and the others never insert",
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
-	// Generated Go refuses grammars with #missing until its runtime inserts missing tokens.
-	flow.OpInserting:       "generated Go does not insert missing tokens yet",
-	flow.OpInsertMissing:   "generated Go does not insert missing tokens yet",
-	flow.OpNewMissingNode:  "generated Go does not insert missing tokens yet",
-	flow.OpMissingScope:    "generated Go does not insert missing tokens yet",
-	flow.OpMissingScopeEnd: "generated Go does not insert missing tokens yet",
-	flow.OpMissingLen:      "generated Go does not insert missing tokens yet",
-	flow.OpResetMissing:    "generated Go does not insert missing tokens yet",
-	flow.OpInputDemand:     "only a suspended stream demands input; the Go stream blocks in its reader and lowers without Suspend",
+	flow.OpInputDemand: "only a suspended stream demands input; the Go stream blocks in its reader and lowers without Suspend",
 }
 
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.
@@ -770,7 +776,8 @@ func TestFlowOperationsConform(t *testing.T) {
 // flowFactsCovered are the facts that flowFactHookList records, each under an operation that the
 // cases must make it count units under: the operation, then the kind of the fact.
 var flowFactsCovered = []string{
-	flow.OpCallRule + ":key", flow.OpCallRule + ":step", flow.OpCallRule + ":taken",
+	flow.OpCallRule + ":key", flow.OpCallRule + ":step", flow.OpCallRule + ":taken", flow.OpCallRule + ":insertion",
+	flow.OpCallRule + ":replayedError",
 	flow.OpSkippedCalls + ":call", flow.OpSkippedCalls + ":key",
 	flow.OpRunBegin + ":walkStart", flow.OpSkipHit + ":walkLookup", flow.OpSkipKids + ":suffix",
 }
@@ -873,6 +880,12 @@ var flowFactHookList = []flowFactHook{
 		"\t\tw.key = p.runKeyOf(site)\n\t\tconfFact(\"walkStart\", confBool(len(w.key.bind) > 0), p.envSlotValues(w.key.vars))\n", 1},
 	{"the key of a walk's lookup", "skip_walks.go", "\tk := p.walkKey()\n",
 		"\tk := p.walkKey()\n\tif w.key != nil {\n\t\tconfFact(\"walkLookup\", confBool(len(w.key.bind) > 0), p.envSlotValues(w.key.vars))\n\t}\n", 1},
+	{"a copy of the insertions of a result", "missing.go", "\treturn missingSeed(append([]missingToken(nil), s.path[n:]...))\n",
+		"\tconfFact(\"insertion\", len(s.path)-n, nil)\n\treturn missingSeed(append([]missingToken(nil), s.path[n:]...))\n", 1},
+	{"the insertions that a reused result records again", "missing.go", "\tfor _, t := range seed {\n\t\tif !p.installMissing(t, charge) {\n",
+		"\tconfFact(\"insertion\", len(seed), nil)\n\tfor _, t := range seed {\n\t\tif !p.installMissing(t, charge) {\n", 1},
+	{"the errors that a reused result records one by one", "missing.go", "\tall := appendRecErrors(nil, []recEntry{errs})\n",
+		"\tall := appendRecErrors(nil, []recEntry{errs})\n\tconfFact(\"replayedError\", len(all), nil)\n", 1},
 }
 
 // flowFactHooks adds the hooks of flowFactHookList to the library file name, and records the entries a
@@ -921,7 +934,7 @@ func flowFactUnits(e *flowEvent) int {
 			if f.N == 1 {
 				n += flowKeyUnits(f.Vals)
 			}
-		case "taken", "step", "call", "suffix":
+		case "taken", "step", "call", "suffix", "insertion", "replayedError":
 			n += f.N
 		default:
 			panic("flow probe: fact " + f.Kind)
@@ -941,10 +954,13 @@ const flowUnbounded = 1 << 30
 //
 //   - a terminal (flow.advance, flow.matchLit, flow.matchClass, flow.skipTerminal and
 //     flow.skipClasses) counts the position units it advances over, none when it fails;
-//   - flow.makeError counts the syntax error that it builds for a recovery, one unit;
+//   - flow.makeError counts the syntax error that it builds for a recovery, one unit, and so does
+//     flow.insertMissing for the error of an insertion, where it inserts or the limit of missing
+//     tokens ends the parse;
 //   - flow.callRule counts its call, one unit, and the facts of the protocol of the call: the key of
-//     a memoized rule, the steps of a growing left-recursive rule and the entries of recovered errors
-//     that a stored result takes;
+//     a memoized rule, the steps of a growing left-recursive rule, the entries of recovered errors
+//     that a stored result takes, the insertions that it copies and that a reused result records
+//     again, and the errors that a reused result records one by one;
 //   - flow.skippedCalls counts the calls that the skip makes, and their keys;
 //   - flow.runBegin, flow.skipHit and flow.skipKids count the keys and the suffix copies of run walks;
 //   - every other operation makes no event and counts nothing.
@@ -961,6 +977,12 @@ func flowUnits(o *code.Op, e *flowEvent) (lo, hi int) {
 		n += e.PosAfter - e.Pos
 	case flow.OpMakeError, flow.OpCallRule:
 		n++
+	case flow.OpInsertMissing:
+		// The error counts where the call inserts, and where the limit of missing tokens, which it
+		// checks after the count, ends the parse: the panic unwinds the call with no results.
+		if ok, known := resBool(e, 1); ok || !known {
+			n++
+		}
 	case flow.OpPred, flow.OpBind, flow.OpEval:
 		return n, flowUnbounded
 	}

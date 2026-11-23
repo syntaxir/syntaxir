@@ -251,6 +251,20 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		// Under logical units the syntax error that a recovery builds is an event of one compute unit,
 		// which the operation that builds it counts (flow.makeError).
 		return fmt.Sprintf("p.%s(%s, %s)", g.pickLogical("MakeError"), args[0], args[1])
+	case prim.OpInsertMissing:
+		// Under logical units the syntax error of an insertion is an event of one compute unit, which
+		// the operation that builds it counts (flow.insertMissing).
+		return fmt.Sprintf("p.%s(%d, %s)", g.pickLogical("InsertMissing"), c.Imm.(prim.Insertion).Site, args[0])
+	case prim.OpNewMissingNode:
+		return fmt.Sprintf("p.NewMissingNode(%s, %q, %s)", args[0], c.Imm.(prim.Insertion).Lit.Text, args[1])
+	case prim.OpMissingScope:
+		return fmt.Sprintf("p.MissingScope(MsgBit|%d)", p.desc(c.Imm.(prim.ExpID)))
+	case prim.OpMissingScopeEnd:
+		return fmt.Sprintf("p.MissingScopeEnd(%s)", args[0])
+	case prim.OpMissingLen:
+		return "p.MissingLen()"
+	case prim.OpResetMissing:
+		return fmt.Sprintf("p.ResetMissing(%s)", args[0])
 	case prim.OpErrorValue:
 		return fmt.Sprintf("NewTError(%s, p.Pos, %s.Error())", args[0], args[1])
 	case prim.OpNewErrorNode:

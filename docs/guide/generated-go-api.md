@@ -50,9 +50,9 @@ Compared with the engine's API:
   [recording expectations](error-messages.md#recording-expectations)). A parser generated without the flag has no
   `WithExpectations`.
 - **The options are those of package `runtime`.** A function of the generated package takes `runtime.ParseOption`, so
-  `runtime.WithLimits` and the `With` functions that `api.go` repeats are the same options. A generated parser does not
-  insert missing tokens, so `runtime.WithMissingTokens` with a nonzero limit returns an error; only the reference parser
-  supports it. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
+  `runtime.WithLimits` and the `With` functions that `api.go` repeats are the same options. A parser generated from a
+  grammar with `#missing` exports `WithMissingTokens` and inserts missing tokens in `Parse`, `ParseRule` and
+  `Recognize`, as the engine does. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
 - **`Parse` and `ParseRule` replace `Parser.Parse`.** Position units and rule-call limits use
   functional options (`Parse(input, pairsparser.WithUnit(pairsparser.Bytes))`), like the engine. `ParseRule(name, input)` plays the role of
   `Parser.WithStart(name).Parse(input)`, and like it accepts only rules marked `@start`: another rule is an error,

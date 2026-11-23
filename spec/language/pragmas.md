@@ -260,7 +260,8 @@ has fresh insertion state, including concurrent and reentrant invocations.
 Whole-input Node parsing, recognition, prefix parsing, Documents and stream parses insert
 tokens on the Closure and on both bytecode VMs, with the same results,
 diagnostics and compute units, and a compiled grammar keeps the insertions of
-its mode. A Document fixes the limit at construction and gives each parse the
+its mode; generated Go parsers insert in whole-input Node parsing and
+recognition with the same results, diagnostics and compute units. A Document fixes the limit at construction and gives each parse the
 whole limit; it keeps no result that contains an insertion, so each parse
 returns what a parse of its text from scratch returns
 ([Missing Tokens](../runtime/documents.md#missing-tokens)). A stream parse has
@@ -268,10 +269,11 @@ one limit for the whole stream and inserts what the batch parse of its input
 does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). A prefix parse is
 the evaluation of a whole-input parse without its end-of-input check, so a rule
 that ends in an insertable literal inserts it at the end of a fragment
-([Prefix Parsing](../runtime/parsing.md#prefix-parsing)). Generated Go/TypeScript
-parsers reject grammars containing
-`#missing` or references to `missing`, even when insertion is disabled, and positive insertion options,
-even when the grammar contains no `#missing` annotation. Grammar AST JSON and formatting
+([Prefix Parsing](../runtime/parsing.md#prefix-parsing)). Generated Go typed
+values, Documents and streams, and generated TypeScript parsers, reject grammars
+containing `#missing` or references to `missing`, even when insertion is disabled,
+and positive insertion options, even when the grammar contains no `#missing`
+annotation. Grammar AST JSON and formatting
 preserve the annotation. `missing` is a built-in type, a kind of `error`: the
 annotated literal infers `node[string] | missing`, and `missing` is assignable to
 `error`. Declare a join or keep the Node tree when

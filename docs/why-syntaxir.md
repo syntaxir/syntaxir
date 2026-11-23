@@ -128,7 +128,7 @@ conversion ([Generated Typed Values](guide/generated-typed-values.md)). The engi
 values.
 
 **Recovery is declared in the grammar.** `#recover(skip=e)` resumes after a broken construct and leaves an error value
-in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses, streams and `Document`s on every backend of the engine
+in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses, streams and `Document`s on every backend of the engine, and in whole-input parses of generated Go
 ([Recovering From Errors](guide/recovery.md)). Recovery is not automatic: when no `#recover` rule covers an error,
 the parse fails with no tree.
 
@@ -166,7 +166,7 @@ Status is per backend. "Engine" covers the closure backend and the two bytecode 
 | Incremental `Document` | Shipped | Partial (`-document`: no long-repetition resumption, batches or snapshots) | Not available |
 | Streaming (`#stream`) | Shipped | Shipped (`-stream`) | Not available |
 | Recovery with `#recover` | Shipped | Shipped | Shipped |
-| Missing-literal insertion (`#missing`) | Opt-in, on every backend, in whole-input parses, streams and `Document`s | Not available | Not available |
+| Missing-literal insertion (`#missing`) | Opt-in, on every backend, in whole-input parses, streams and `Document`s | Opt-in, in whole-input parses; no typed values, streams or `Document` | Not available |
 | Nesting limit, on by default | 100,000 calls (iterative VM: 10,000,000) | 100,000 calls, `-max-depth` | 100,000 calls; on Node's default stack, a few hundred to a few thousand calls (an error, not a crash) |
 | Cancellation and compute limits, on by default | Shipped | Shipped (`-no-limits` opts out) | Shipped (`-no-limits` opts out) |
 | Tracing and profiling | Shipped | Shipped (`-observability`) | Batch parsers (`-observability`) |
@@ -290,7 +290,7 @@ planned to reach them.
   - There is no language server, highlighting, formatter or UTF-16 position map for a language defined with SyntaxIR; the
     language server and the VS Code extension serve `.sxir` grammar sources.
 - **Backend gaps.** Generated Go and TypeScript have a `Document` subset;
-  generated parsers do not run `#missing`
+  generated Go runs `#missing` in whole-input parses only, and generated TypeScript not at all
   ([Compatibility and Support](../spec/runtime/generated-parsers.md#compatibility-and-support)).
 - **Language gaps.** No imports or multi-file grammars; case-insensitive matching folds ASCII only.
 - **Evidence base.** Benchmarks come from one machine (Apple M3 Max) and compare only with the Go standard library.

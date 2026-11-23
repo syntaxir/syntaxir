@@ -74,8 +74,9 @@ func (l Limits) merge(o Limits) Limits {
 // insertion; negative limits are invalid. Whole-input parsing, recognition, prefix parsing, stream
 // parsing and Documents support insertion on the parsers of package compiler: a prefix parse has
 // one limit for the call, a stream one for the whole stream, and a Document fixes the limit at
-// construction and gives each parse the whole limit. Positive limits are invalid on generated
-// parsers. Options resolve in order.
+// construction and gives each parse the whole limit. Generated Go parsers insert in whole-input
+// parsing and recognition. Positive limits are invalid on the other generated parsers and entry
+// points. Options resolve in order.
 func WithMissingTokens(limit int) ParseOption {
 	return func(o *ParseOptions) { o.MissingTokens = limit }
 }

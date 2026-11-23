@@ -14,7 +14,6 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
 	var hit bool
-	var mm int
 	var direct bool
 	if p.MemoAll {
 		v, ok = p.callDoc(r, min)
@@ -39,13 +38,15 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			return v, ok
 		}
 		rec := len(p.Recovered)
-		mm = p.missingMark()
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Pos = start
-			p.Recovered = p.Recovered[:rec]
-			if p.Missing != nil {
-				p.ResetMissing(mm)
+		{
+			mm := p.missingMark()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Pos = start
+				p.Recovered = p.Recovered[:rec]
+				if p.Missing != nil {
+					p.ResetMissing(mm)
+				}
 			}
 		}
 		return v, ok
@@ -92,7 +93,6 @@ func (p *Parser) callDoc(r *Rule, min int) (*sxirvalue.Node, bool) {
 	var v *sxirvalue.Node
 	var ok bool
 	var hit bool
-	var mm int
 	var direct bool
 	var fm uint64
 	if p.Tr != nil && p.tracing() {
@@ -116,13 +116,15 @@ func (p *Parser) callDoc(r *Rule, min int) (*sxirvalue.Node, bool) {
 			return v, ok
 		}
 		rec := len(p.Recovered)
-		mm = p.missingMark()
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Pos = start
-			p.Recovered = p.Recovered[:rec]
-			if p.Missing != nil {
-				p.ResetMissing(mm)
+		{
+			mm := p.missingMark()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Pos = start
+				p.Recovered = p.Recovered[:rec]
+				if p.Missing != nil {
+					p.ResetMissing(mm)
+				}
 			}
 		}
 		return v, ok

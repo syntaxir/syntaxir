@@ -11,7 +11,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/pass/pipe"
-	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -21,10 +20,11 @@ import (
 type Program struct {
 	// prog is the checked program, and view its view for the generators (View), which a run-time
 	// program makes on first use only, since only a generating backend reads it.
-	prog       *frontend.Result
-	view       func() *common.Program
-	recognizer func() (codegen.Checked, error)
-	opts       common.CompileOptions
+	prog *frontend.Result
+	view func() *common.Program
+	// derived builds the programs that the generators derive from it (codegen.Derived).
+	derived codegen.Derived
+	opts    common.CompileOptions
 	// start is the start rule of a generation; nil for a run-time program, which starts at any of
 	// its start rules.
 	start *common.Rule
@@ -65,13 +65,16 @@ func (r Role) String() string {
 // ProgramOf returns the Program of p, a run-time program checked elsewhere, with rule flags and a
 // cancel control: role is which program of its grammar p is, and parser the options that the
 // grammar's parser was checked with, which the program header writes. It checks nothing again. A
-// run-time program has no start rule of its own and no recognizer view, since the compiler side of
-// the program derives its recognizer as a program of its own.
+// run-time program has no start rule of its own and no views of derived programs, since the compiler
+// side of the program derives each of them as a program of its own.
 func ProgramOf(p *frontend.Result, role Role, parser check.Options) *Program {
-	recognizer := func() (codegen.Checked, error) {
-		return codegen.Checked{}, fmt.Errorf("internal error: the %s program of a run-time build has no recognizer view", role)
+	none := func(derived Role) func() (codegen.Checked, error) {
+		return func() (codegen.Checked, error) {
+			return codegen.Checked{}, fmt.Errorf("internal error: the %s program of a run-time build has no %s view", role, derived)
+		}
 	}
-	return &Program{prog: p, view: sync.OnceValue(func() *common.Program { return View(p) }), recognizer: recognizer,
+	derived := codegen.Derived{Recognizer: none(Recognizer), Insertion: none(Insertion), InsertionRecognizer: none(InsertionRecognizer)}
+	return &Program{prog: p, view: sync.OnceValue(func() *common.Program { return View(p) }), derived: derived,
 		opts: common.CompileOptions{SourceInfo: p.Opts.SourceInfo, DefaultValue: p.Opts.DefaultValue, LeftRecursionBindings: p.Opts.LeftRecursionBindings},
 		role: role, parser: parser}
 }
@@ -85,7 +88,7 @@ func (p *Program) checked() codegen.Checked { return codegen.Checked{View: p.vie
 // Recognizer returns the view of the recognizer of the program, the program in which no rule builds
 // a value, which it checks on the first call.
 func (p *Program) Recognizer() (*common.Program, error) {
-	r, err := p.recognizer()
+	r, err := p.derived.Recognizer()
 	return r.View, err
 }
 
@@ -109,42 +112,41 @@ func (p *Program) ParserOptions() check.Options { return p.parser }
 var programIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "program"})
 
 // Compiler checks a grammar for a generator with the options opts. It returns the checked program
-// and a function that returns that of its recognizer (the program in which no rule builds a value),
-// which it checks on first use.
-type Compiler func(g *ast.Grammar, opts check.Options) (prog *frontend.Result, recognizer func() (*frontend.Result, error), err error)
+// and a function that checks the program of a derived role (Recognizer, Insertion or
+// InsertionRecognizer) from it, as the engine derives it; the caller calls it at most once per role.
+type Compiler func(g *ast.Grammar, opts check.Options) (prog *frontend.Result, derive func(Role) (*frontend.Result, error), err error)
 
 // Check checks the grammar g for generation with the options o, and start, the start rule of the
-// generated Parse function ("" for the grammar's default start rule). The recognizer of the program
-// is checked when a target first needs it. A grammar whose parser could insert missing tokens is an
-// error, since no generated parser supports them.
+// generated Parse function ("" for the grammar's default start rule). Each derived program
+// (codegen.Derived) is checked when a target first needs it.
 func Check(g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	return CheckWith(checkForGenerator, g, o, start)
+	return CheckWith(CheckForGenerator, g, o, start)
 }
 
 // CheckWith is Check with the compiler c, for the tests whose checker builds the programs as the
 // engine does. The generators read the views of the checked programs (View), and the steps that build
 // the Core IR of their tables the checked programs themselves.
 func CheckWith(c Compiler, g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	prog, rec, err := c(g, CompileOptions(o))
+	prog, derive, err := c(g, CompileOptions(o))
 	if err != nil {
 		return nil, err
 	}
 	checked := codegen.Checked{View: View(prog), Elab: prog}
-	if checked.View.Run.HasMissing {
-		return nil, rprogram.MissingUnsupported("generated parsers")
-	}
 	r, err := checked.View.StartRule(start)
 	if err != nil {
 		return nil, err
 	}
-	recognizer := func() (codegen.Checked, error) {
-		p, err := rec()
-		if err != nil {
-			return codegen.Checked{}, err
-		}
-		return codegen.Checked{View: View(p), Elab: p}, nil
+	of := func(role Role) func() (codegen.Checked, error) {
+		return sync.OnceValues(func() (codegen.Checked, error) {
+			p, err := derive(role)
+			if err != nil {
+				return codegen.Checked{}, err
+			}
+			return codegen.Checked{View: View(p), Elab: p}, nil
+		})
 	}
-	return &Program{prog: prog, view: func() *common.Program { return checked.View }, recognizer: sync.OnceValues(recognizer), opts: o, start: r, parser: prog.Opts}, nil
+	derived := codegen.Derived{Recognizer: of(Recognizer), Insertion: of(Insertion), InsertionRecognizer: of(InsertionRecognizer)}
+	return &Program{prog: prog, view: func() *common.Program { return checked.View }, derived: derived, opts: o, start: r, parser: prog.Opts}, nil
 }
 
 // CompileOptions returns the options of the compiler that the choices o of a generator stand for.
@@ -184,24 +186,49 @@ func View(p *frontend.Result) *common.Program {
 	return v
 }
 
-// checkForGenerator checks g to its semantic model and sites, which is all a generator reads, and checks
-// the recognizer of the program (as the engine's Program.Recognizer makes it) on first use. No
-// backend of the engine is built.
-func checkForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
+// CheckForGenerator checks g to its semantic model and sites, which is all a generator reads, and
+// checks the programs derived from it on first use as the engine's checked sources derive them
+// (checked.Source): the recognizer and the insertion program with the rule flags of the program, or
+// those of insertion when insertion forms left-recursion cycles of its own
+// (check.Model.InsertionFlags), and the recognizer of the insertion program with its flags. No
+// backend of the engine is built. It is the Compiler of the generators.
+func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func(Role) (*frontend.Result, error), error) {
 	prog, err := checkGrammar(g, opts, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	recognizer := func() (*frontend.Result, error) {
-		source := prog.Grammar
-		if prog.Source != nil {
-			source = prog.Source
-		}
-		o := prog.Opts
-		o.Recognition = check.Recognize
-		return checkGrammar(source, o, prog.Flags())
+	source := prog.Grammar
+	if prog.Source != nil {
+		source = prog.Source
 	}
-	return prog, recognizer, nil
+	recognizer := func(p *frontend.Result) (*frontend.Result, error) {
+		o := p.Opts
+		o.Recognition = check.Recognize
+		return checkGrammar(source, o, p.Flags())
+	}
+	insertion := sync.OnceValues(func() (*frontend.Result, error) {
+		flags := prog.InsertionFlags
+		if flags == nil {
+			flags = prog.Flags()
+		}
+		return checkGrammar(source, prog.Opts, flags)
+	})
+	derive := func(role Role) (*frontend.Result, error) {
+		switch role {
+		case Recognizer:
+			return recognizer(prog)
+		case Insertion:
+			return insertion()
+		case InsertionRecognizer:
+			ins, err := insertion()
+			if err != nil {
+				return nil, err
+			}
+			return recognizer(ins)
+		}
+		return nil, fmt.Errorf("internal error: no program of the role %s is derived for a generator", role)
+	}
+	return prog, derive, nil
 }
 
 // checkGrammar checks g with opts and, if not nil, the rule flags flags, naming the hidden rules of

@@ -165,6 +165,12 @@ func (p *Parser) heldBytes() uint64 {
 			n += uint64(len(s.recs)) * (intBytes + uint64(unsafe.Sizeof(skipRecord{})))
 		}
 	}
+	if p.inserting() {
+		// The insertions on the path, the sites they installed and the insertions that seeds hold.
+		m := p.missing
+		n += uint64(cap(m.path))*missingTokenBytes + m.seedBytes
+		n += uint64(len(m.installed)) * uint64(unsafe.Sizeof(missingSite{})+1)
+	}
 	return n
 }
 

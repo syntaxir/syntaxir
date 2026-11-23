@@ -36,18 +36,12 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 		t.Skip("go command not found")
 	}
 	// The generator and the comparison compile with the engine, as the tests of the generator do.
-	codegentest.Compile = driver.Compiler(func(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
+	codegentest.Compile = driver.Compiler(func(g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
 		prog, err := entry.Compile(g, entry.Options{Compile: opts})
 		if err != nil {
 			return nil, nil, err
 		}
-		return entry.Checked(prog), func() (*frontend.Result, error) {
-			rec, err := prog.Recognizer()
-			if err != nil {
-				return nil, err
-			}
-			return entry.Checked(rec), nil
-		}, nil
+		return entry.Checked(prog), func(role driver.Role) (*frontend.Result, error) { return entry.Derive(prog, role) }, nil
 	})
 	codegentest.Reference = func(t *testing.T, src string, opts check.Options) codegentest.ReferenceParse {
 		g, err := compiletest.Parse(src)
@@ -58,12 +52,12 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		return func(input string, bytes, recognize bool, units *uint64) (*value.Node, error) {
+		return func(input string, bytes, recognize bool, missing int, units *uint64) (*value.Node, error) {
 			unit := sxirinput.CodePoints
 			if bytes {
 				unit = sxirinput.Bytes
 			}
-			return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, ComputeReport: units})
+			return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, MissingTokens: missing, ComputeReport: units})
 		}
 	}
 	_, self := sourceGrammar(t)

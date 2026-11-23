@@ -18,10 +18,10 @@ import (
 )
 
 // ReferenceParse parses input with a program compiled for Reference: with positions in bytes if
-// bytes is set, otherwise in code points, and as a recognition (no tree) if recognize is set. It
-// returns the tree and the error, and stores the compute units of the parse in *units when units is
-// not nil.
-type ReferenceParse func(input string, bytes, recognize bool, units *uint64) (*value.Node, error)
+// bytes is set, otherwise in code points, as a recognition (no tree) if recognize is set, and with
+// the limit of missing tokens missing (WithMissingTokens). It returns the tree and the error, and
+// stores the compute units of the parse in *units when units is not nil.
+type ReferenceParse func(input string, bytes, recognize bool, missing int, units *uint64) (*value.Node, error)
 
 // Reference compiles src with opts for the comparisons of generated parsers with the engine and
 // returns the parse function of its rule main. The test package sets it, as it sets Compile: this
@@ -174,7 +174,20 @@ func GeneratedParsersMismatches(t *testing.T, goBin string, cases []Case, opts c
 // the copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
 func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) []string {
 	t.Helper()
-	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, false)
+	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, false, 0)
+	return outputMismatches(cases, got, want)
+}
+
+// GeneratedParsersInsertionMismatches is GeneratedParsersMismatches for parses with the limit of
+// missing tokens missing (WithMissingTokens), which the generated parsers and the engine both take,
+// and with the compute units of the node parse compared too when the fixtures have limit controls
+// (FixtureBudgetControls).
+func GeneratedParsersInsertionMismatches(t *testing.T, goBin string, cases []Case, opts common.GenOptions, missing int, mutate func([]byte) []byte) []string {
+	t.Helper()
+	if opts.Document || opts.Types {
+		t.Fatal("parses with missing tokens are compared on node parses from scratch")
+	}
+	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, FixtureBudgetControls(t), missing)
 	return outputMismatches(cases, got, want)
 }
 
@@ -183,7 +196,7 @@ func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []
 // with comments and the limit controls of the fixtures.
 func GeneratedParsersEmbedCorpus(t *testing.T, goBin string, cases []Case, opts common.GenOptions) {
 	t.Helper()
-	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, nil, true, false)
+	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, nil, true, false, 0)
 	for _, m := range outputMismatches(cases, got, want) {
 		t.Error(m)
 	}
@@ -213,7 +226,7 @@ func outputMismatches(cases []Case, got, want []string) []string {
 // error.
 func GeneratedParsersOutputs(t *testing.T, goBin string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte) (got, want []string) {
 	t.Helper()
-	return generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, false)
+	return generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, false, 0)
 }
 
 // GeneratedParsersUnitsMismatches is GeneratedParsersMismatches that also compares the compute units of
@@ -235,15 +248,16 @@ func GeneratedParsersUnitsMismatchesWithLib(t *testing.T, goBin, lib string, cas
 		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
 	}
 	opts.Types = true
-	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, true)
+	got, want := generatedParsersOutputs(t, goBin, lib, cases, opts, mutate, false, true, 0)
 	return outputMismatches(cases, got, want)
 }
 
 // generatedParsersOutputs is GeneratedParsersOutputs, with packages that carry their own copy of
 // the library if embed is set, and otherwise import the copy of the library in the module
 // directory lib. With units, each line ends with the compute units of the node parse and of the typed
-// parse, "units: N/M", which the engine's line gives as those of its parse (GeneratedParsersUnitsMismatches).
-func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed, units bool) (got, want []string) {
+// parse, "units: N/M", which the engine's line gives as those of its parse (GeneratedParsersUnitsMismatches);
+// without types, of the node parse alone. Every parse has the limit of missing tokens missing.
+func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts common.GenOptions, mutate func([]byte) []byte, embed, units bool, missing int) (got, want []string) {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
@@ -258,6 +272,11 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 	streams := make([]bool, len(cases)) // the cases parsed as streams too (units)
 	anyStream := false                  // whether main.go parses a stream, and so imports testing/iotest
 	var inputs [][]string
+	// missingOpt is the option of the limit of missing tokens that every generated parse takes.
+	missingOpt := ""
+	if missing != 0 {
+		missingOpt = fmt.Sprintf(", sxirruntime.WithMissingTokens(%d)", missing)
+	}
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
 		if err != nil {
@@ -319,12 +338,15 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 		fmt.Fprintf(&imports, "\tg%d \"codegentest/g%d\"\n", i, i)
 		if opts.Document {
 			// The Document route: parse the text of a new Document, as an editor does before its first edit.
-			fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; d, err := g%d.NewDocument(s, g%[3]d.WithUnit(u)); if err != nil { return nil, err }; n, err := d.Parse(); return n, err },\n", i, i, i)
+			fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; d, err := g%d.NewDocument(s, g%[3]d.WithUnit(u)%[4]s); if err != nil { return nil, err }; n, err := d.Parse(); return n, err },\n", i, i, i, missingOpt)
 		} else {
-			fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; n, err := g%d.Parse(s, g%[3]d.WithUnit(u)); return n, err },\n", i, i, i)
+			fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; n, err := g%d.Parse(s, g%[3]d.WithUnit(u)%[4]s); return n, err },\n", i, i, i, missingOpt)
 		}
-		fmt.Fprintf(&recognizers, "\tfunc(s string, b bool) error { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.Recognize(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
-		if units {
+		fmt.Fprintf(&recognizers, "\tfunc(s string, b bool) error { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.Recognize(s, g%[3]d.WithUnit(u)%[4]s) },\n", i, i, i, missingOpt)
+		if units && !opts.Types {
+			// The units of the node parse alone, which the engine's line repeats.
+			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)%[4]s); return fmt.Sprintf(\" units: %%d/%%d\", n, n) },\n", i, i, i, missingOpt)
+		} else if units {
 			// The units of the node parse and of the typed parse of the input, and of its stream parse,
 			// read one byte at a time, for a stream grammar.
 			stream := ""
@@ -354,9 +376,9 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 				if units {
 					report = &used
 				}
-				n, err := prog(in, bytes, false, report)
+				n, err := prog(in, bytes, false, missing, report)
 				out := ResultJSON(n, err) + " views: " + strconv.Quote(NodeViews(n))
-				_, err = prog(in, bytes, true, nil)
+				_, err = prog(in, bytes, true, missing, nil)
 				out += " recognize: " + strconv.Quote(fmt.Sprint(err))
 				if units {
 					out += fmt.Sprintf(" units: %d/%d", used, used)
@@ -370,7 +392,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			}
 		}
 	}
-	if units {
+	if units || missing != 0 {
 		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n")
 	}
 	if anyStream {
@@ -504,7 +526,7 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 		inputs = append(inputs, c.Inputs)
 		prog := refProgram(t, c.Src, check.Options{SourceInfo: true})
 		for _, in := range c.Inputs {
-			n, err := prog(in, false, false, nil)
+			n, err := prog(in, false, false, 0, nil)
 			wantErr = append(wantErr, fmt.Sprint(err))
 			accepted = append(accepted, n != nil)
 			var val any

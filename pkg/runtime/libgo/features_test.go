@@ -18,7 +18,7 @@ func TestFeaturesMatchAnalysis(t *testing.T) {
 		{featureMemo, common.FeatureMemo}, {featureLeftRecursion, common.FeatureLeftRecursion},
 		{featureRecovery, common.FeatureRecovery}, {featureOperators, common.FeatureOperators},
 		{featureVars, common.FeatureVars}, {featureSkipRuns, common.FeatureSkipRuns},
-		{featureScanSites, common.FeatureScanSites},
+		{featureScanSites, common.FeatureScanSites}, {featureMissing, common.FeatureMissing},
 	}
 	if len(pairs) != len(common.FeatureNames()) {
 		t.Fatalf("the library declares %d features, the analysis %d", len(pairs), len(common.FeatureNames()))

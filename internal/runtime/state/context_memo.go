@@ -167,8 +167,7 @@ const maxLeaderBits = program.MaxLeaderBits
 type presentSet = uint64
 
 // missingBit is the missing-silent bit of a key (MemoKey.MissingSilent): the key of a seed of a
-// lookahead where missing-token insertion is off. The Go library inserts no tokens and gives the
-// bit a type that takes no space.
+// lookahead where missing-token insertion is off. The Go library has the same bit.
 type missingBit = bool
 
 // recordsIn reports whether evaluations in a context with the present set present record their

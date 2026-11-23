@@ -20,6 +20,7 @@ const (
 	featureVars
 	featureSkipRuns
 	featureScanSites
+	featureMissing
 
 	// allFeatures is every feature.
 	allFeatures = 1<<iota - 1

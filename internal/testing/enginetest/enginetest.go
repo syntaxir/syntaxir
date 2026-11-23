@@ -131,12 +131,12 @@ func CompileMessage(t testing.TB, src string, opts ...check.Options) string {
 func Reference(t *testing.T, src string, opts check.Options) codegentest.ReferenceParse {
 	t.Helper()
 	prog := CompileBare(t, src, opts)
-	return func(input string, bytes, recognize bool, units *uint64) (*value.Node, error) {
+	return func(input string, bytes, recognize bool, missing int, units *uint64) (*value.Node, error) {
 		unit := sxirinput.CodePoints
 		if bytes {
 			unit = sxirinput.Bytes
 		}
-		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, ComputeReport: units})
+		return prog.ParseWith("main", input, engine.ParseOptions{Unit: unit, Recognize: recognize, Expectations: true, MissingTokens: missing, ComputeReport: units})
 	}
 }
 
@@ -158,20 +158,13 @@ func ReferenceStream(t *testing.T, src string, opts check.Options) codegentest.R
 var CompileForGenerator driver.Compiler = compileForGenerator
 
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
-// returns that of its recognizer.
-func compileForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func() (*frontend.Result, error), error) {
+// checks the programs derived from it as the engine derives them.
+func compileForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
 	prog, err := entry.Compile(g, entry.Options{Compile: opts})
 	if err != nil {
 		return nil, nil, err
 	}
-	recognizer := func() (*frontend.Result, error) {
-		rec, err := prog.Recognizer()
-		if err != nil {
-			return nil, err
-		}
-		return entry.Checked(rec), nil
-	}
-	return entry.Checked(prog), recognizer, nil
+	return entry.Checked(prog), func(role driver.Role) (*frontend.Result, error) { return entry.Derive(prog, role) }, nil
 }
 
 // OutputSchema exports the output schema of p for start, as Parser.OutputSchema does.
@@ -226,8 +219,7 @@ func CompileSource(src, start string, opts ...CompileOption) (*engine.Parser, er
 	return Compile(g, start, opts...)
 }
 
-// CorpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile or
-// that generated parsers refuse (#missing).
+// CorpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile.
 func CorpusProgram(t testing.TB, c codegentest.Case) (*engine.Program, bool) {
 	t.Helper()
 	g, err := Parse(c.Src)
@@ -235,7 +227,7 @@ func CorpusProgram(t testing.TB, c codegentest.Case) (*engine.Program, bool) {
 		return nil, false
 	}
 	prog, err := entry.Compile(g, entry.Options{})
-	if err != nil || prog.HasMissing {
+	if err != nil {
 		return nil, false
 	}
 	return prog, true

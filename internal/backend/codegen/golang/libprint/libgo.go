@@ -44,12 +44,12 @@ type goSpec struct {
 var goSpecs = []goSpec{
 	// Parser.Call hands observed and Document parses to the tracked path, so it neither observes nor
 	// reads a Document itself beyond that test.
-	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Units}, name: "Call"},
+	{fn: "call", on: []string{exec.Document, exec.Observe, exec.Missing, exec.Units}, name: "Call"},
 	// The deferral of memoization: the node library's is the one that generated parsers call, also for
 	// the typed library's rules; the typed library's compositions call their own, of a typed rule.
 	{fn: "firstCall", name: "FirstCall"},
 	{fn: "firstCall", typed: true, name: "firstCall"},
-	{fn: "grow", on: []string{exec.Units}, name: "grow"},
+	{fn: "grow", on: []string{exec.Missing, exec.Units}, name: "grow"},
 	// The expectation record, whose guard inlines into the generated code: no form of a parse counts a
 	// unit for it.
 	{fn: "expect", on: []string{exec.Units}, name: "Expect", cold: "expectSlow"},
@@ -67,9 +67,9 @@ var goSpecs = []goSpec{
 	// The tracked path of the node library: the rule call of a Document parse, the unmemoized and
 	// memoized calls, the call without observation, and the entry of the path.
 	{fn: "document", on: []string{exec.Document, exec.Units}, name: "callDocument"},
-	{fn: "unmemoized", name: "callUnmemoized"},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callMemo"},
-	{fn: "body", on: []string{exec.Document, exec.Units}, name: "callBody"},
+	{fn: "unmemoized", on: []string{exec.Missing}, name: "callUnmemoized"},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Missing, exec.Units}, name: "callMemo"},
+	{fn: "body", on: []string{exec.Document, exec.Missing, exec.Units}, name: "callBody"},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
 	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "DocumentCall"},
@@ -115,12 +115,12 @@ var goStreamSpecs = []goSpec{
 // goOperatorSpecs are the functions of the Operators Rule loop that the compositions replace, in the
 // node and the typed library.
 var goOperatorSpecs = []goSpec{
-	{fn: "operatorsParse", on: []string{exec.Units}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExpr", on: []string{exec.Units}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNud", on: []string{exec.Units}, name: "operatorsRuleNud"},
-	{fn: "longest", on: []string{exec.Units}, name: "longest"},
-	{fn: "skipTrivia", name: "skipTrivia"},
-	{fn: "reset", name: "Reset"},
+	{fn: "operatorsParse", on: []string{exec.Missing, exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExpr", on: []string{exec.Missing, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNud", on: []string{exec.Missing, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", on: []string{exec.Missing, exec.Units}, name: "longest"},
+	{fn: "skipTrivia", on: []string{exec.Missing}, name: "skipTrivia"},
+	{fn: "reset", on: []string{exec.Missing}, name: "Reset"},
 	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
 	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
 	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleNud"},
@@ -448,6 +448,27 @@ func goTarget(s goSpec) *print.Target {
 			return "p.memo.first(" + a[1] + ", " + a[0] + ")"
 		case "rule.memo":
 			return a[0] + ".Memo"
+		// The missing-token mode (missing.go). Only a seed of a growth, a context result, holds insertions:
+		// a memo entry that a call in the mode reuses is one of a rule that cannot insert.
+		case "missing.active":
+			return "p.inserting()"
+		case "missing.recompute":
+			return "p.insertsRule(" + rule(a[0]) + ")"
+		case "missing.mark":
+			return "p.MissingLen()"
+		case "missing.reset":
+			return "p.ResetMissing(" + a[0] + ")"
+		case "missing.replayResult":
+			return fmt.Sprintf("p.replayMissing(%s.ins, %[1]s.errs, true)", a[0])
+		case "frame.markMissing":
+			return a[0] + ".missing"
+		case "opr.attemptMissing":
+			return fmt.Sprintf("%s{op: %s, frame: %s, v: %s, start: %s, end: p.Pos, env: p.Env, cut: %s, errs: %s, ins: p.missingSince(%s)}",
+				attemptType, a[0], a[1], a[2], a[3], a[4], a[5], a[6])
+		case "opr.replay":
+			// Outside the missing-token mode a candidate holds no insertion: its errors are recorded as
+			// rec.add records them.
+			return fmt.Sprintf("if p.inserting() {\np.replayMissing(%s.ins, %[1]s.errs, false)\n} else if !%[1]s.errs.none() {\np.recAdd(%[1]s.errs)\n}", a[0])
 		case "rule.leader":
 			return a[0] + ".Leader"
 		case "rule.plain":
