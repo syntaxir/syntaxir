@@ -43,7 +43,6 @@ var deferredProgramPages = map[string]string{
 	"docs/cookbook/edit-fuzz-grammar.md":    "its test runs in a module that the page does not create",
 	"docs/cookbook/indentation.md":          "its program runs in a module that the page does not create",
 	"docs/cookbook/log-lines.md":            "its program runs in a module that the page does not create",
-	"docs/cookbook/ship-a-parser.md":        "its error output lacks the expected items that a parser generated without -expectations omits",
 	"docs/cookbook/test-with-samples.md":    "its tests run in a module that the page does not create",
 	"docs/guide/compiled-grammars.md":       "its program runs in a module that the page does not create",
 	"docs/guide/incremental-performance.md": "its program prints times of this machine",

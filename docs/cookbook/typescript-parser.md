@@ -33,14 +33,14 @@ rule ws = (&[ \t\r\n] .)*
 Generate the module next to the tool. The `sxir` command comes from `go install syntaxir.dev/sxir/cmd/sxir@latest`:
 
 ```bash
-sxir gen -lang ts -types -g settings.sxir -o settings
+sxir gen -lang ts -types -expectations -g settings.sxir -o settings
 ```
 
 The tool reads the text, reports the syntax errors, and checks the limits of the settings that were read:
 
 ```ts
 // check.ts
-import { parseValue, SyntaxErrors } from "./settings/parser.ts";
+import { parseValueWithOptions, SyntaxErrors } from "./settings/parser.ts";
 import type { Setting } from "./settings/types.ts";
 
 const limits: Record<string, number> = { port: 65535, workers: 64 };
@@ -61,7 +61,8 @@ function lineCol(text: string, pos: number): string {
   return `${line}:${col}`;
 }
 
-const { value, error } = parseValue(source);
+// expectations: true records the messages of @error (the module is generated with -expectations).
+const { value, error } = parseValueWithOptions(source, { expectations: true });
 let problems = 0;
 
 if (error instanceof SyntaxErrors) {
@@ -89,11 +90,11 @@ const read = (value?.Settings ?? []).filter((s) => s !== null && s.type === "Set
 console.log(`${problems} problems, ${read} settings read`);
 ```
 
-The generated files import each other as `./lib.ts`, which Node.js, Deno, Bun and `tsx` run as it is
-(see [running it](../guide/typescript.md#running-it) for `tsc` settings):
+The generated files import each other as `./lib.ts`, so Node.js 22.18 and later run the tool as it is, and so do
+`tsx`, Deno and Bun (see [running it](../guide/typescript.md#running-it) for `tsc` settings):
 
 ```bash
-npx tsx check.ts
+node check.ts
 ```
 
 ## Expected Output
@@ -111,7 +112,7 @@ found in a setting that parsed. Four settings were read, and the two that could 
 
 ## How It Works
 
-- `parseValue` returns `{ value, error }` instead of throwing. When `#recover` skipped something, `error` is a
+- `parseValueWithOptions` returns `{ value, error }` instead of throwing. When `#recover` skipped something, `error` is a
   `SyntaxErrors` and `value` is still the tree of what was read, so the tool can report both the syntax errors and its
   own findings in one run. Any other `error` is a failure with no tree.
 - `-types` gives every grammar type an interface (`Setting`, `File`), so `setting.Key.value` is checked by the compiler.

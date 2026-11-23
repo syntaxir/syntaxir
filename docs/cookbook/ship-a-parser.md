@@ -88,8 +88,11 @@ go run . 01.2.3
 ```text
 major 1, minor 2, patch 3, pre-release rc.1
 major 1, minor 2, patch 3
-1:2: syntax error: expected "."
+1:2: syntax error
 ```
+
+The error names no expected items: a generated parser records them only when it is generated with `-expectations`
+and called with `WithExpectations()` (see [recording expectations](../guide/error-messages.md#recording-expectations)).
 
 A test keeps the generated files honest. It generates the package again in memory, with the options of the
 `go:generate` line, and compares every file with the one on disk:
