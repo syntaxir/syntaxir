@@ -430,7 +430,9 @@ Document parse reports its calls as
 defines, and so does its `Examined`. A stream reports the events of the Go
 `ParseStream` of the same input, whatever its chunks: its trace functions
 receive them during the feeds that make the calls, and its profiles record the
-stream as one parse, which ends when the stream is done or fails. A value that a
+stream as one parse, which ends when the stream is done or fails, and forget
+the positions that the stream has discarded, as in
+[Engine Profiling](#engine-profiling). A value that a
 trace function throws leaves `feed` and fails the stream.
 
 The generated module exports `Profile` and the types `ProfileSnapshot`,

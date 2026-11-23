@@ -112,6 +112,16 @@ export class ProfileRecorder {
     this.scope = scope;
   }
 
+  // discard forgets the positions before pos, which a stream has discarded: no rule is evaluated there
+  // again, so that the evaluation counts of a long stream stay bounded (instrument.ProfileRecorder.Discard).
+  discard(pos: number): void {
+    for (const positions of this.seen.values()) {
+      for (const at of positions.keys()) {
+        if (at < pos) positions.delete(at);
+      }
+    }
+  }
+
   close(): void {
     this.data = null;
     this.clock = null;

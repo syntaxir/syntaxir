@@ -79,6 +79,11 @@ export class Observation {
     this.maxDepth = o.traceMaxDepth;
   }
 
+  // discard tells the profiles that a stream discarded the input before pos.
+  discard(pos: number): void {
+    if (this.recorders !== null) for (const r of this.recorders) r.discard(pos);
+  }
+
   release(): void {
     if (this.recorders !== null) for (const r of this.recorders) r.close();
     this.traces = null;

@@ -6774,7 +6774,8 @@ export class StreamParser extends Parser {
 
   // streamDropRecords is stream.dropRecords: it drops the records of the walks of skip-run, run and
   // scan sites that start before pos, which no later call reads, and the marks of the skip slots
-  // before it, and returns their bytes to the memory count (spec/runtime/streaming.md, Memory).
+  // before it, and returns their bytes to the memory count (spec/runtime/streaming.md, Memory). The
+  // profiles of an observed stream forget the positions before pos as well.
   streamDropRecords(pos: number): void {
     let freed = 0;
     for (const t of this.scanTables) {
@@ -6810,6 +6811,7 @@ export class StreamParser extends Parser {
     }
     const c = this.control;
     if (c !== null) c.mem -= freed;
+    this.observation?.discard(pos);
   }
 
   // streamTail is stream.tail: whether the stream retains the tail of its recovered errors (a positive

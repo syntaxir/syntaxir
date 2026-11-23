@@ -700,6 +700,35 @@ Error: stream already failed 1 2
 	}
 }
 
+// TestStreamObservedProfileBounded checks that the profile of a long stream forgets the positions that
+// the stream discarded (spec/runtime/observability.md, Engine Profiling): the evaluation counts that
+// its recorder keeps by position stay within the window that the stream holds, and the profile
+// counts every call: the start rule, the 4000 items and the item that fails at the end. It reads the recorder, which the library does not export.
+func TestStreamObservedProfileBounded(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest("@start\nrule main = item* #stream !.\nrule item = [a-z]+ \";\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import { createStream, Profile } from "./parser.ts";
+const p = new Profile();
+const s = createStream({ profile: p }).stream!;
+const item = new TextEncoder().encode("ab;");
+let most = 0;
+for (let k = 0; k < 4000; k++) {
+  s.feed(item);
+  let n = 0;
+  for (const positions of (s as any).p.observation.recorders[0].seen.values()) n += positions.size;
+  most = Math.max(most, n);
+}
+console.log(s.feed(new Uint8Array(0), true).state, p.snapshot().calls, most <= 2048 ? "bounded" : "kept " + most);
+`
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Observability: true}, codegentest.GenerateTSStreamBundle)
+	if want := "done 4002 bounded\n"; out != want {
+		t.Errorf("got %q, want %q", out, want)
+	}
+}
+
 // TestStreamSignal checks the cancellation of a stream: an aborted signal fails createStream, a feed
 // after the signal aborts fails the stream with the reason, a feed whose signal aborts while it parses
 // returns the elements committed before, a signal getter that throws propagates from the feed and fails
