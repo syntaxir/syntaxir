@@ -138,12 +138,66 @@ func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charg
 // grammars retain the existing errorAttr path, without scope/defer machinery.
 func MissingErrorScope(m Matcher, msg ExpID) Matcher {
 	return func(p *Parser) (*value.Node, bool) {
-		if p.Expectations && p.Missing != nil && p.Missing.label == 0 {
-			p.Missing.label = msg
-			defer func() { p.Missing.label = 0 }()
-		}
+		prev := p.EnterMissingScope(msg)
+		defer p.LeaveMissingScope(prev)
 		return m(p)
 	}
+}
+
+// Inserting reports that the parse inserts missing tokens (flow.inserting).
+func (p *Parser) Inserting() bool { return p.Missing != nil }
+
+// EnterMissingScope enters an @error label whose message msg (an ExpID with MsgBit) the insertions
+// inside take as their expectation, in a parse that inserts missing tokens and records
+// expectations, where no label is entered. It returns the label entered before, which
+// LeaveMissingScope restores (flow.missingScope).
+func (p *Parser) EnterMissingScope(msg ExpID) ExpID {
+	if p.Missing == nil {
+		return 0
+	}
+	prev := p.Missing.label
+	if p.Expectations && prev == 0 {
+		p.Missing.label = msg
+	}
+	return prev
+}
+
+// LeaveMissingScope restores the label prev that EnterMissingScope returned (flow.missingScopeEnd).
+func (p *Parser) LeaveMissingScope(prev ExpID) {
+	if p.Missing != nil {
+		p.Missing.label = prev
+	}
+}
+
+// InsertMissingAt inserts the literal of the #missing site at the position, where it did not
+// match with the expectations exp (flow.insertMissing). In a parse that inserts missing tokens,
+// outside a lookahead, where the site has not inserted at the position on the current path, it
+// builds the syntax error of the insertion with exp, or with the label that EnterMissingScope
+// entered, which counts and checks a compute unit; takes an attempt, which ends the parse with a
+// MissingTokenLimitError where none remains; puts the insertion on the path; records the error as
+// a recovered error; and returns it and true. Otherwise it returns false and changes nothing.
+func (p *Parser) InsertMissingAt(site int, exp []ExpID) (*value.SyntaxError, bool) {
+	if p.Missing == nil || p.Silent > 0 {
+		return nil, false
+	}
+	key := MissingTokenSite{site, p.Pos}
+	if p.Missing.installed[key] {
+		return nil, false
+	}
+	if p.Missing.label != 0 {
+		exp = []ExpID{p.Missing.label}
+	}
+	e := p.RecoveryError(p.Pos, exp)
+	p.InsertMissing(MissingTokenEvent{key, e})
+	p.PushRecovered(e)
+	return e, true
+}
+
+// MissingNode returns the missing node of the insertion whose error is e at start, for a literal
+// whose text is expected (flow.newMissingNode).
+func (p *Parser) MissingNode(start int, expected string, e *value.SyntaxError) *value.Node {
+	return p.NewNode(nodes.Data{Kind: valueimpl.MissingKind, Start: int32(start), End: int32(start),
+		Fields: valueimpl.Fields{{Name: "expected", Value: expected}, {Name: "message", Value: p.RecoveryErrorText(e)}}, Terminal: true, Fresh: true})
 }
 
 // MissingLiteral preserves the entire ordinary literal match before trying an
@@ -160,21 +214,14 @@ func MissingLiteral(literal Matcher, site int, expected string, build bool) Matc
 			return v, true
 		}
 		p.Reset(m0)
-		key := MissingTokenSite{site, m0.Pos}
-		if p.Missing.installed[key] {
+		e, ok := p.InsertMissingAt(site, exp)
+		if !ok {
 			p.MergeExpected(far, exp)
 			return nil, false
 		}
-		if p.Missing.label != 0 {
-			exp = []ExpID{p.Missing.label}
-		}
-		e := p.RecoveryError(m0.Pos, exp)
-		p.InsertMissing(MissingTokenEvent{key, e})
-		p.PushRecovered(e)
 		if !build {
 			return nil, true
 		}
-		return p.NewNode(nodes.Data{Kind: valueimpl.MissingKind, Start: int32(m0.Pos), End: int32(m0.Pos),
-			Fields: valueimpl.Fields{{Name: "expected", Value: expected}, {Name: "message", Value: p.RecoveryErrorText(e)}}, Terminal: true, Fresh: true}), true
+		return p.MissingNode(m0.Pos, expected, e), true
 	}
 }

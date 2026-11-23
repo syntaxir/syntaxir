@@ -15,17 +15,17 @@ import (
 )
 
 // recoveredMutants each give a recovered value a wrong field or a wrong range in a struct: the engine's fields
-// of a missing token, in MissingLiteral or MissingErrorScope of internal/runtime/state/missing_token.go and in
+// of a missing token, in MissingNode or EnterMissingScope of internal/runtime/state/missing_token.go and in
 // the literal that the closure builder passes to it, and the ranges of the reference model, in
 // internal/ir/code/exec/ref/action.go.
 var recoveredMutants = []struct{ name, file, fn, old, new string }{
-	{"expected holds the message", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: p.RecoveryErrorText(e)}`},
-	{"expected is quoted", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: "\"" + expected + "\""}`},
+	{"expected holds the message", "internal/runtime/state/missing_token.go", "MissingNode", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: p.RecoveryErrorText(e)}`},
+	{"expected is quoted", "internal/runtime/state/missing_token.go", "MissingNode", `{Name: "expected", Value: expected}`, `{Name: "expected", Value: "\"" + expected + "\""}`},
 	{"expected is the spelling in the grammar", "internal/backend/closure/build.go", "node", "n.Lit.Text, want)",
 		`fmt.Sprintf("%+q", n.Lit.Text)[1:len(fmt.Sprintf("%+q", n.Lit.Text))-1], want)`},
-	{"message holds the literal", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: expected}`},
-	{"message has no position", "internal/runtime/state/missing_token.go", "MissingLiteral", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: e.Message()}`},
-	{"message ignores @error", "internal/runtime/state/missing_token.go", "MissingErrorScope", "if p.Expectations && p.Missing != nil && p.Missing.label == 0 {", "if false {"},
+	{"message holds the literal", "internal/runtime/state/missing_token.go", "MissingNode", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: expected}`},
+	{"message has no position", "internal/runtime/state/missing_token.go", "MissingNode", `{Name: "message", Value: p.RecoveryErrorText(e)}`, `{Name: "message", Value: e.Message()}`},
+	{"message ignores @error", "internal/runtime/state/missing_token.go", "EnterMissingScope", "if p.Expectations && prev == 0 {", "if false {"},
 	{"a recovered field does not cover", "internal/ir/code/exec/ref/action.go", "structRange", " && x.Kind != KError {", " {"},
 	{"a recovered element has the range of the rule", "internal/ir/code/exec/ref/action.go", "nodeRange", "case KNode, KError:", "case KNode:"},
 	{"a recovered value encodes no message", "internal/ir/code/exec/ref/action.go", "plain", `"error": v.Fields["message"].S}`, `"error": ""}`},
