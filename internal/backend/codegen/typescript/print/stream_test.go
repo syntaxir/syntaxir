@@ -4,6 +4,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -262,6 +264,58 @@ console.log(streamLines(["1", "1+2", "1 + 2*3", "-1!", "2**3**4", "(1+2)*3", " (
 `
 	if out != want {
 		t.Fatalf("the stream differs from its parse of the whole input or from the batch parse, or suspends elsewhere:\n%s\nwant:\n%s", out, want)
+	}
+}
+
+// TestStreamGenFormsStayInTheStream checks that the batch parse never reads the resumable forms of an Operators
+// Rule's skip and lines (ResumableOperatorsRule.skipGen, ResumableLine.mGen), which the stream sets on the
+// Operators Rule that the batch parse of the same module shares. The types of the batch parse
+// (OperatorsRule, OperatorsRuleLine) have no such fields, so a read casts to the resumable types; the test
+// checks that each line of the printed bundle that names a field is the declaration of a resumable type, an
+// assignment of the stream's initialization, or a line of a generator method of StreamParser.
+func TestStreamGenFormsStayInTheStream(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest(tsStreamOperatorsGrammar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := codegentest.GenerateTSStreamBundle(g, common.GenOptions{Start: "top"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	field := regexp.MustCompile(`\b(skipGen|mGen)\b`)
+	decl := regexp.MustCompile(`^  (skipGen|mGen)\?: LineGen;$`)
+	set := regexp.MustCompile(`^\(R\d+\.operatorsRule!.* as Resumable(OperatorsRule|Line)\)\.(skipGen|mGen) = \w+;$`)
+	class := regexp.MustCompile(`^(export )?(abstract )?class (\w+)`)
+	member := regexp.MustCompile(`^  (\*)?\w+\(`)
+	top := regexp.MustCompile(`^\S`)
+	cls, gen := "", false
+	reads, sets := 0, 0
+	for i, line := range strings.Split(string(b), "\n") {
+		switch m := class.FindStringSubmatch(line); {
+		case m != nil:
+			cls, gen = m[3], false
+		case member.MatchString(line):
+			gen = strings.HasPrefix(line, "  *")
+		case top.MatchString(line) && line != "}":
+			cls, gen = "", false
+		}
+		trim := strings.TrimSpace(line)
+		if !field.MatchString(line) || strings.HasPrefix(trim, "*") || strings.HasPrefix(trim, "//") || strings.HasPrefix(trim, "/**") {
+			continue
+		}
+		switch {
+		case decl.MatchString(line):
+		case set.MatchString(line):
+			sets++
+		case cls == "StreamParser" && gen:
+			reads++
+		default:
+			t.Errorf("line %d names a resumable form outside the stream: %s", i+1, line)
+		}
+	}
+	if reads == 0 || sets == 0 {
+		t.Errorf("the bundle reads %d and sets %d resumable forms: the test checks nothing", reads, sets)
 	}
 }
 

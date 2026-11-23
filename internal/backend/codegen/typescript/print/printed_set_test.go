@@ -143,6 +143,27 @@ func TestPrinterPanicsOnUnprintedPrimitives(t *testing.T) {
 	}
 }
 
+// A demand of input prints only in a resumable function, the generator that can suspend: in another
+// function, which the resumable analysis (prim.Attrs.Resumable) found reaches no demand, it reaches the
+// panic of an admitted construct, and in a resumable function it prints the loop that yields.
+func TestPrinterDemandsOnlyInResumableFunctions(t *testing.T) {
+	for _, d := range []prim.Demand{{Char: true}, {Lit: prim.Lit{Text: "aé"}}} {
+		c := &code.Call{Callee: prim.OpInputDemand, Imm: d}
+		p := &tsPrimPrinter{}
+		want := "tsgen: the analysis admitted a demand of input outside a resumable function"
+		if got := admittedPanic(func() { p.stmtOp(c, func() []string { return nil }) }); got != want {
+			t.Errorf("a demand %+v outside a resumable function panics %q, want %q", d, got, want)
+		}
+		r := &tsPrimPrinter{gen: true}
+		if got := admittedPanic(func() { r.stmtOp(c, func() []string { return nil }) }); got != "" {
+			t.Errorf("a demand %+v in a resumable function panics %q", d, got)
+		}
+		if out := r.b.String(); !strings.Contains(out, "yield lacks;") {
+			t.Errorf("a demand %+v in a resumable function prints %q, which does not yield", d, out)
+		}
+	}
+}
+
 // The printer declares a variable of each declared type but a mark, which it declares as the four
 // variables of its parts (printTSFunc), and of no other type.
 func TestPrinterDeclaresTheDeclaredTypes(t *testing.T) {
