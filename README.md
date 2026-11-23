@@ -76,6 +76,7 @@ sxir gen -g calc.sxir -module example.com/app/calc -o calc
 sxir gen -lang ts -g calc.sxir -o calc-ts
 ```
 
+<!-- example: program main.go module example.com/app -->
 ```go
 import "example.com/app/calc"
 
@@ -83,6 +84,7 @@ node, err := calc.Parse("1 + 2 * 3 ^ 2")
 fmt.Println(node, err) // Bin{Left: Num("1"), Op: "+", Right: Bin{...}} <nil>
 ```
 
+<!-- example: program main.ts -->
 ```ts
 import { parse } from "./calc-ts/parser.ts";
 
