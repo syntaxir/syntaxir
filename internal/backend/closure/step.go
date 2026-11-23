@@ -36,25 +36,31 @@ var InputIR = pipe.RegisterIR(&pipe.IR[Input]{
 const CoreName = "closure-core"
 
 // Core is the step CoreName, the last step of the pipeline of a closure target: it returns the Core
-// module of the program for the builds of its families (Module), without the cancel control of the
-// compilation, which the module that the engine keeps must not poll after the parse that built it.
+// module of the program and its Action module for the builds of its families (Module), the Core
+// module without the cancel control of the compilation, which the module that the engine keeps must
+// not poll after the parse that built it.
 // It changes nothing in its input, which may be the kept result of a shared Core part: its result is
 // a shallow copy of the module header that shares the rules, which the builds of the families only
 // read (Build).
 var Core = pipe.New(pipe.Def[Input, result.Output]{
-	Decl: pipe.Decl{Name: CoreName, Required: true, Obligation: "The module is the optimized Core module of the program, without a cancel control."},
+	Decl: pipe.Decl{Name: CoreName, Required: true, Obligation: "The module is the optimized Core module of the program, without a cancel control, with its Action module."},
 	In:   InputIR, Out: result.IR,
 	Run: func(_ *pipe.Ctx[Input], in Input) (result.Output, pass.PreservedSet, error) {
+		if in.Actions.Module() == nil {
+			return nil, pass.PreserveNone(), fmt.Errorf("internal error: the input of closure-core has no Action module")
+		}
 		m := *in.Module
 		m.Control = nil
-		return &Module{Core: &m}, pass.PreserveNone(), nil
+		return &Module{Core: &m, Actions: in.Actions}, pass.PreserveNone(), nil
 	},
 })
 
-// Module is the output of a closure target: the optimized Core module of the program, which every
-// family of its closures is built from (Build).
+// Module is the output of a closure target, which every family of its closures is built from
+// (Build): the optimized Core module of the program and its Action module, whose functions are the
+// programs of its action sites.
 type Module struct {
-	Core *ir.Module
+	Core    *ir.Module
+	Actions code.At[code.Action]
 }
 
 // Backend returns result.Closure.

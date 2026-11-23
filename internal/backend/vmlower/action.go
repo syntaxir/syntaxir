@@ -1,9 +1,4 @@
-// Package actionlower lowers the action expressions of a checked program, the predicates and the
-// values of bindings to the action programs that the runtime evaluates (state.ActionProgram): it lowers
-// a Core IR action expression to Exec IR (internal/middleend/actionlower) and translates the function into the instructions of the
-// register machine of action expressions. The closure backend and the bytecode compiler (vmlower) call it when
-// they build a program; the runtime only runs the result.
-package actionlower
+package vmlower
 
 import (
 	"fmt"
@@ -12,24 +7,27 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	ir "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Env is what the leaves of an action expression resolve against when it is compiled.
-type Env struct {
+// Action programs.
+//
+// The action expressions of a table, its predicates and the values of its bindings run as the action
+// programs of the runtime (state.ActionProgram): the bytecode module holds them in its action table
+// and the closures call them. Each is the translation of the function of its site in the table's
+// Action module (code.ActionStage), which the Action segment of the pipeline lowered, into the
+// instructions of the register machine of action expressions.
+
+// ActionEnv is what the leaves of an action function resolve against when it is translated.
+type ActionEnv struct {
 	// Checker resolves the types of the program: the kinds of the values that action expressions make and the
 	// types that casts check. Vars holds the program's declared variables (check.Model.Vars).
 	Checker *check.Checker
 	Vars    *check.VarTable
 	// Scope holds the capture slots of the frame the action expression reads.
 	Scope *program.Scope
-	// Proj are the projected captures of the rule whose action the action expression is (Options.Proj of internal/middleend/actionlower),
-	// nil for every other action expression.
-	Proj map[string]string
 }
 
 // The register files.
@@ -45,32 +43,29 @@ type actionReg struct {
 	r    int32
 }
 
-// Compile compiles the Core IR action expression t, which reads the frame of env.Scope: it lowers t to Exec IR
-// and translates the function into the instructions of a state.ActionProgram. An error is an internal
-// error: an action expression that the front end does not build, or a lowering this translation does not know.
+// ActionProgram translates the function f of the Action module m, which returns the value of its
+// site and reads the frame of env.Scope, into the instructions of a state.ActionProgram. An error is an
+// internal error: a function that this translation does not know.
 //
-// The action expression counts logical compute units (spec/runtime/parsing.md#compute-units): the elements that
-// map, filter and the folds visit (seq.step), and the values that the plain evaluation builds and
-// the lowering does not (units.add, units.items, units.since), but no step of its own evaluation.
-func Compile(t ir.ActionExpr, env Env) (*state.ActionProgram, error) {
-	l, err := actionlower.Lower(t, actionlower.Options{Visits: true, Proj: env.Proj})
-	if err != nil {
-		return nil, err
-	}
-	c := &actionCompiler{env: env, m: l.Module, locals: map[string]actionReg{}, prog: &state.ActionProgram{}}
-	for _, p := range l.Func.Locals {
+// The program counts logical compute units (spec/runtime/parsing.md#compute-units) as the function
+// does: the elements that map, filter and the folds visit (seq.step), and the values that the plain
+// evaluation builds and the lowering does not (units.add, units.items, units.since), but no step of
+// its own evaluation.
+func ActionProgram(m *code.Module, f *code.Func, env ActionEnv) (*state.ActionProgram, error) {
+	c := &actionCompiler{env: env, m: m, locals: map[string]actionReg{}, prog: &state.ActionProgram{}}
+	for _, p := range f.Locals {
 		if _, err := c.declare(p.Name, p.Type); err != nil {
-			return nil, fmt.Errorf("core: action %s: %w", ir.ActionExprString(t), err)
+			return nil, fmt.Errorf("action %s: %w", f.Name, err)
 		}
 	}
-	if err := c.block(l.Func.Body); err != nil {
-		return nil, fmt.Errorf("core: action %s: %w", ir.ActionExprString(t), err)
+	if err := c.block(f.Body); err != nil {
+		return nil, fmt.Errorf("action %s: %w", f.Name, err)
 	}
 	return c.prog, nil
 }
 
 type actionCompiler struct {
-	env    Env
+	env    ActionEnv
 	m      *code.Module
 	prog   *state.ActionProgram
 	locals map[string]actionReg
@@ -372,11 +367,6 @@ func raises(s code.Stmt, fail string) bool {
 	}
 	r, ok := f.Then.Stmts[0].(*code.Return)
 	return ok && len(r.Values) == 2 && isNull(r.Values[0]) && isLocal(r.Values[1], fail)
-}
-
-func isLocal(e code.Expr, name string) bool {
-	l, ok := e.(*code.Local)
-	return ok && l.Name == name
 }
 
 // typeOf returns the type of the expression e of one value.

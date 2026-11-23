@@ -50,17 +50,17 @@ type Generator struct {
 	// sites numbers the action sites of sitesOf, the Core IR of the table last printed (ActionSite).
 	sites   *core.ActionSites
 	sitesOf *core.Module
-	// funcs indexes the functions of the sites of funcsOf, the Action module of the table last printed
-	// (SiteFunc).
-	funcs   map[siteForm]*code.Func
-	funcsOf *code.Module
-	Prog    *Program
-	Table   string // the rule table being generated: rules, or recRules for Recognize
-	Cur     *Rule  // the rule being generated
-	Vars    strings.Builder
-	Init    strings.Builder
-	Methods strings.Builder
-	n       int
+	// funcs and inPlace index the functions of the sites of funcsOf, the Action module of the table
+	// last printed (SiteFunc, action.SiteFuncs).
+	funcs, inPlace map[int]*code.Func
+	funcsOf        *code.Module
+	Prog           *Program
+	Table          string // the rule table being generated: rules, or recRules for Recognize
+	Cur            *Rule  // the rule being generated
+	Vars           strings.Builder
+	Init           strings.Builder
+	Methods        strings.Builder
+	n              int
 	// Descs is the expectation table of the generated parser (descs in runtime); descIDs maps a
 	// description to its ID.
 	Descs   []string
@@ -229,24 +229,17 @@ func (g *Generator) SiteFunc(i int, inPlace bool) (*code.Module, *code.Func) {
 		panic(fmt.Errorf("internal error: the table %s has no Action module", g.Table))
 	}
 	if g.funcsOf != m {
-		g.funcs, g.funcsOf = map[siteForm]*code.Func{}, m
-		for _, f := range m.Funcs {
-			if s := action.SiteOf(f); s != nil {
-				g.funcs[siteForm{s.Site, s.Result != ""}] = f
-			}
-		}
+		g.funcs, g.inPlace = action.SiteFuncs(m)
+		g.funcsOf = m
 	}
-	f := g.funcs[siteForm{i, inPlace}]
+	f := g.funcs[i]
+	if inPlace {
+		f = g.inPlace[i]
+	}
 	if f == nil {
 		panic(fmt.Errorf("internal error: rule %s: no function of the action site %d (in place: %t)", g.Cur.Name, i, inPlace))
 	}
 	return m, f
-}
-
-// siteForm is a function of an Action module: its site, and whether it evaluates the site in place.
-type siteForm struct {
-	site    int
-	inPlace bool
 }
 
 // Unprintable records that the printer does not print a part of a table, which fails the generation: every

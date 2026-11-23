@@ -18,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/frontend"
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -132,8 +133,8 @@ func TestClosureFamiliesBuiltOnFirstUse(t *testing.T) {
 }
 
 // TestClosureFamiliesLeaveModuleUnchanged checks that building the closures of both families only
-// reads the Core IR module that they share: the module prints the same, with its attributes, before
-// and after the builds of every grammar of the corpus.
+// reads the Core IR and Action modules that they share: the modules print the same, the Core module
+// with its attributes, before and after the builds of every grammar of the corpus.
 func TestClosureFamiliesLeaveModuleUnchanged(t *testing.T) {
 	t.Parallel()
 	for _, c := range codegentest.GenCorpus(t) {
@@ -143,12 +144,13 @@ func TestClosureFamiliesLeaveModuleUnchanged(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			before := ir.Print(m, true)
+			print := func() string { return ir.Print(m.Core, true) + code.String(m.Actions.Module()) }
+			before := print()
 			for _, f := range []state.Family{state.Inlined, state.CallPreserving} {
 				if _, err := closure.Build(sp.Runtime(), sp.Checker(), m, f); err != nil {
 					t.Fatal(err)
 				}
-				if after := ir.Print(m, true); after != before {
+				if after := print(); after != before {
 					t.Fatalf("family %d: the build changed the module:\n%s\nbefore:\n%s", f, after, before)
 				}
 			}
@@ -222,7 +224,7 @@ rule item = "a" / "b"`)
 	if prog.core.m == nil {
 		t.Fatal("the first family did not build the Core IR")
 	}
-	module := weak.Make(prog.core.m.(*ir.Module))
+	module := weak.Make(prog.core.m.(*closure.Module))
 	if prog.core.m == nil {
 		t.Fatal("the Core IR was dropped while the call-preserving family was not built")
 	}
@@ -258,14 +260,14 @@ func TestMeteredProgramSharesTheCoreIR(t *testing.T) {
 	if metered.Static() != prog.Static() || metered.core != prog.core {
 		t.Fatal("the metered program does not share the static program and the Core IR")
 	}
-	var m *ir.Module
+	var m *closure.Module
 	for _, q := range []*Program{prog, metered} {
 		for _, f := range []state.Family{state.Inlined, state.CallPreserving} {
 			if m == nil {
 				if _, err := q.familyRules(f, nil); err != nil {
 					t.Fatal(err)
 				}
-				m = prog.core.m.(*ir.Module)
+				m = prog.core.m.(*closure.Module)
 				continue
 			}
 			if q == metered && f == state.CallPreserving {
@@ -303,14 +305,14 @@ func TestMeteredProgramSharesTheCoreIR(t *testing.T) {
 	}
 }
 
-// buildClosureCore builds the Core IR of the program prog for the closures, as the parse that first
+// buildClosureCore builds the module of the program prog for the closures, as the parse that first
 // needs a family does (checked.Source.Core).
-func buildClosureCore(prog *frontend.Result) (*ir.Module, error) {
+func buildClosureCore(prog *frontend.Result) (*closure.Module, error) {
 	m, err := checked.Of(prog, pass.Settings{}).Core(nil)
 	if err != nil {
 		return nil, err
 	}
-	return m.(*ir.Module), nil
+	return m.(*closure.Module), nil
 }
 
 // inCoreBuild reports whether the calling goroutine is inside the build of the Core IR of the

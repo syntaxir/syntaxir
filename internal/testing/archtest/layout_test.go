@@ -116,9 +116,6 @@ var layout = []place{
 	{pkg: "internal/backend/codegen/typescript/pass", target: "internal/backend/codegen/typescript/pass"},
 	{pkg: "internal/backend/closure", target: "internal/backend/closure"},
 	{pkg: "internal/backend/vmlower", target: "internal/backend/vmlower"},
-	// The lowering of action expressions to the action programs that the runtime runs, which closure
-	// and vmlower call.
-	{pkg: "internal/backend/actionlower", target: "internal/backend/actionlower"},
 
 	// Driver: the optimization profiles and the driving of the pipelines. The flags are registered
 	// beside each part of the pipeline, in the registry of internal/pass.

@@ -206,7 +206,7 @@ func TestRunTimePipelineTextRepeatsTheBuild(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got, want := ir.Print(out.Core, true), ir.Print(core.(*ir.Module), true); got != want {
+				if got, want := ir.Print(out.Core, true), ir.Print(core.(*closure.Module).Core, true); got != want {
 					t.Errorf("%s: the Core module of the text is\n%s\nwant\n%s", role, got, want)
 				}
 			default:

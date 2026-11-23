@@ -3,11 +3,12 @@ package state_test
 import (
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/actionlower"
+	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	ir "syntaxir.dev/sxir/internal/ir/core"
+	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
@@ -81,7 +82,11 @@ func iterate(c *state.EvalCtx, cp *frontend.Result, call string, x any) (any, er
 		f, _ := lambda("e")
 		actionExpr = &ir.Builtin{Func: conform.CallFilter, Args: []ir.ActionExpr{op("x"), f}}
 	}
-	prog, err := actionlower.Compile(actionExpr, actionlower.Env{Checker: cp.Checker(), Vars: cp.Vars, Scope: &program.Scope{}})
+	l, err := actionlower.Lower(actionExpr, actionlower.Options{Visits: true})
+	if err != nil {
+		panic(err)
+	}
+	prog, err := vmlower.ActionProgram(l.Module, l.Func, vmlower.ActionEnv{Checker: cp.Checker(), Vars: cp.Vars, Scope: &program.Scope{}})
 	if err != nil {
 		panic(err)
 	}

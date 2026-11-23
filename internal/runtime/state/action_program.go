@@ -8,11 +8,11 @@ import (
 
 // Action expressions of the engine lowered from Exec IR.
 //
-// The engine evaluates an action, a predicate or the value of a binding as the function of Exec IR
-// that lower.Action makes of its Core IR action expression, as generated parsers do: the same compositions of the
+// The engine evaluates an action, a predicate or the value of a binding as the function of its site
+// in the Action module of its table, as generated parsers do: the same compositions of the
 // operators of action expressions (action_exec.go), in the same order, with the same failures. The compiler
-// translates the function once, when the program is built, into the instructions of a ActionProgram
-// (internal/backend/actionlower), which ActionProgram.Eval runs; a compiled grammar file holds them
+// translates the function once, when the program is built, into the instructions of an ActionProgram
+// (vmlower.ActionProgram), which ActionProgram.Eval runs; a compiled grammar file holds them
 // (Export, LoadAction). Instructions read and write registers of four files, by the Exec IR type
 // of the local they hold: values (Datum, Obj), integers (int and bool), element slices (Seq) and
 // strings (Str), so that no integer, slice or string is boxed to be held.

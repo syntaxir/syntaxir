@@ -5,9 +5,10 @@ import (
 	"maps"
 	"slices"
 
-	"syntaxir.dev/sxir/internal/backend/actionlower"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -27,14 +28,20 @@ func compile(in Input) (*bytecode.Module, map[string]int, error) {
 	if in.Elab.MissingTokens() {
 		return nil, nil, program.MissingUnsupported("bytecode module construction")
 	}
-	c := &compiler{in: in, core: in.Table.IR.M, sites: ir.ActionSitesOf(in.Table.IR.M), m: &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
+	actions := in.Table.IR.Actions.Module()
+	if actions == nil {
+		return nil, nil, fmt.Errorf("internal error: the table of the bytecode module has no Action module")
+	}
+	funcs, _ := action.SiteFuncs(actions)
+	c := &compiler{in: in, core: in.Table.IR.M, sites: ir.ActionSitesOf(in.Table.IR.M), actions: actions, funcs: funcs,
+		m:    &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
 		strs: map[string]int{}, counts: map[string]int{}}
 	c.compile()
 	if c.err != nil {
 		return nil, nil, c.err
 	}
-	// The action expressions of the tables come first, so the strings they add follow those of the tables.
-	for i, s := range c.actionExprs {
+	// The action sites of the tables come first, so the strings they add follow those of the tables.
+	for i, s := range c.actionSites {
 		var err error
 		if c.m.Actions[i], err = c.actionCode(s); err != nil {
 			return nil, nil, err
@@ -85,9 +92,14 @@ func (c *compiler) complete() error {
 	return nil
 }
 
-// actionCode returns the action code of the action expression of s, adding the strings it uses to the module.
+// actionCode returns the action code of the site of s, translated from its function of the table's
+// Action module, adding the strings it uses to the module.
 func (c *compiler) actionCode(s actionSite) (bytecode.Action, error) {
-	tp, err := actionlower.Compile(s.actionExpr, actionlower.Env{Checker: c.in.Elab.Checker(), Vars: c.in.Elab.Checker().Vars, Scope: scopeOf(s.scope), Proj: s.proj})
+	f := c.funcs[s.site]
+	if f == nil {
+		return bytecode.Action{}, fmt.Errorf("internal error: the Action module has no function of the action site %d", s.site)
+	}
+	tp, err := ActionProgram(c.actions, f, ActionEnv{Checker: c.in.Elab.Checker(), Vars: c.in.Elab.Checker().Vars, Scope: scopeOf(s.scope)})
 	if err != nil {
 		return bytecode.Action{}, fmt.Errorf("internal error: %w", err)
 	}
@@ -105,12 +117,15 @@ type compiler struct {
 	core *ir.Module
 	// sites numbers the action sites of core, which the operations of predicates and bindings name.
 	sites *ir.ActionSites
-	m     *bytecode.Module
-	strs  map[string]int
-	// action expressions are the action expressions of the tables, by index of Module.Actions, whose code Compile makes once
-	// the tables are built.
-	actionExprs []actionSite
-	// scope holds the capture slots of the frame of the action expression being added (actionExpr).
+	// actions is the Action module of the table, and funcs its function of each site by number.
+	actions *code.Module
+	funcs   map[int]*code.Func
+	m       *bytecode.Module
+	strs    map[string]int
+	// actionSites are the action sites of the tables, by index of Module.Actions, whose code Compile
+	// makes once the tables are built.
+	actionSites []actionSite
+	// scope holds the capture slots of the frame of the action site being added (actionSite).
 	scope []ir.Slot
 	err   error
 	// counts holds the number of matches of each pattern of statements of the selection table, by
@@ -118,12 +133,11 @@ type compiler struct {
 	counts map[string]int
 }
 
-// actionSite is an action expression of the module: the Core IR action expression, the slots of the frame it reads, and the
-// projected captures of the rule whose action it is (nil for every other action expression).
+// actionSite is an action site of the module: its number among the action sites of the table's Core
+// IR and the slots of the frame it reads.
 type actionSite struct {
-	actionExpr ir.ActionExpr
-	scope      []ir.Slot
-	proj       map[string]string
+	site  int
+	scope []ir.Slot
 }
 
 // scopeOf returns the capture scope of the Core IR slots s.
@@ -255,34 +269,15 @@ func (c *compiler) compile() {
 			ri.Value = &sh
 		}
 		if cr.Finish.Kind == ir.FinishAction {
-			var proj map[string]string
-			if !ok {
-				proj = projections(cr.Body)
-			}
-			ri.Action = c.actionExpr(cr.Finish.Action, proj)
+			ri.Action = c.actionSite(c.sites.OfRule(cr.ID))
 		}
 	}
 }
 
-// projections returns the projected captures of a rule body, mapped to the field each gathers
-// (ir.Capture.Project): the action reads the list of such a capture as the values of that field.
-func projections(body ir.Node) map[string]string {
-	var proj map[string]string
-	ir.Walk(body, func(n ir.Node) {
-		if c, ok := n.(*ir.Capture); ok && c.Project != "" {
-			if proj == nil {
-				proj = map[string]string{}
-			}
-			proj[c.Name] = c.Project
-		}
-	})
-	return proj
-}
-
-// action expression adds the action expression t, which reads the frame of the current scope, to the module and returns its
-// index; proj are the projected captures of the rule whose action t is.
-func (c *compiler) actionExpr(t ir.ActionExpr, proj map[string]string) int {
-	c.actionExprs = append(c.actionExprs, actionSite{actionExpr: t, scope: c.scope, proj: proj})
+// actionSite adds the action site i, which reads the frame of the current scope, to the module and
+// returns its index.
+func (c *compiler) actionSite(i int) int {
+	c.actionSites = append(c.actionSites, actionSite{site: i, scope: c.scope})
 	c.m.Actions = append(c.m.Actions, bytecode.Action{})
 	return len(c.m.Actions) - 1
 }
@@ -340,13 +335,13 @@ func (c *compiler) operatorsRule(o *ir.OperatorsRule) int {
 	return len(c.m.OperatorsRules) - 1
 }
 
-// line returns the table entry of a line of an Operators Rule: its scope and the action expression of its action.
+// line returns the table entry of a line of an Operators Rule: its scope and the action site of its action.
 func (c *compiler) line(l *ir.OpLine) bytecode.LineInfo {
 	c.scope = l.Scope
 	li := bytecode.LineInfo{Action: -1}
 	li.Scope = c.strList(ir.SlotNames(l.Scope))
 	if l.Action != nil {
-		li.Action = c.actionExpr(l.Action, nil)
+		li.Action = c.actionSite(c.sites.Of(l))
 	}
 	return li
 }

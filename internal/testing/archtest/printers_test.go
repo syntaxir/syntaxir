@@ -47,8 +47,7 @@ func bannedForPrinters(r string) string {
 	case under("internal/middleend/corepass"), under("internal/middleend/actionpass"), under("internal/middleend/flowpass"), under("internal/middleend/codepass"),
 		under("internal/backend/codegen/golang/pass"), under("internal/backend/codegen/typescript/pass"):
 		return "a pass package"
-	case under("internal/middleend/flowlower"), under("internal/middleend/actionlower"), under("internal/middleend/execlower"), under("internal/backend/vmlower"),
-		under("internal/backend/actionlower"):
+	case under("internal/middleend/flowlower"), under("internal/middleend/actionlower"), under("internal/middleend/execlower"), under("internal/backend/vmlower"):
 		return "a lowering"
 	case under("internal/middleend/flowplan"):
 		return "the planning code"

@@ -114,7 +114,7 @@ func runTimeBuilds(t *testing.T, s *Source, bytecode bool) (string, string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return module, ir.Print(core.(*ir.Module), true)
+	return module, ir.Print(core.(*closure.Module).Core, true)
 }
 
 // The settings of a program reach both of its run-time builds: turning a Core pass off changes the

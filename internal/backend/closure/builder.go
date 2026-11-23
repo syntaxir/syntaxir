@@ -2,6 +2,7 @@ package closure
 
 import (
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -15,9 +16,14 @@ import (
 // node, and the bodies, values and actions of the rules.
 type Builder struct {
 	prog *program.Program
-	// checker resolves the types of the action expressions (actionlower.Env).
+	// checker resolves the types of the action programs (vmlower.ActionEnv).
 	checker *check.Checker
 	m       *ir.Module
+	// sites numbers the action sites of m; actions is the Action module of m, and funcs its
+	// function of each site by number (action.SiteFuncs).
+	sites   *ir.ActionSites
+	actions *code.Module
+	funcs   map[int]*code.Func
 	// family is the rule set being built, which decides how the call sites call plain rules.
 	family state.Family
 	// static holds the static rules of the program, by ID: the rules and then their twins.
@@ -60,28 +66,13 @@ func (b *Builder) ruleBody(sr *program.Rule, cr *ir.Rule, m state.Matcher) error
 	}
 	r.Body = func(p *state.Parser, _ int) (*value.Node, bool) { return m(p) }
 	if cr.Finish.Kind == ir.FinishAction {
-		t, err := b.actionExpr(cr.Finish.Action, projections(cr.Body))
+		t, err := b.actionProgram(b.sites.OfRule(cr.ID))
 		if err != nil {
 			return err
 		}
 		r.Act = t.Eval
 	}
 	return nil
-}
-
-// projections returns the projected captures of a rule body, mapped to the field each gathers
-// (ir.Capture.Project): the action reads the list of such a capture as the values of that field.
-func projections(body ir.Node) map[string]string {
-	var proj map[string]string
-	ir.Walk(body, func(n ir.Node) {
-		if c, ok := n.(*ir.Capture); ok && c.Project != "" {
-			if proj == nil {
-				proj = map[string]string{}
-			}
-			proj[c.Name] = c.Project
-		}
-	})
-	return proj
 }
 
 // operatorsRule completes the Operators Rule sr, whose Core IR is cr, with its lines.
@@ -119,7 +110,7 @@ func (b *Builder) operatorsRule(sr *program.Rule, cr *ir.Rule, o *ir.OperatorsRu
 	if cr.Finish.Kind == ir.FinishAction {
 		// The whole-rule action runs once per call, after the fold (state.Parser.Finish).
 		b.scope = scopeOf(nil)
-		t, err := b.actionExpr(cr.Finish.Action, nil)
+		t, err := b.actionProgram(b.sites.OfRule(cr.ID))
 		if err != nil {
 			return err
 		}
@@ -134,7 +125,7 @@ func (b *Builder) line(l *ir.OpLine) (*state.OperatorsRuleLine, error) {
 	pl := &state.OperatorsRuleLine{Scope: b.scope, M: b.node(l.Body), Key: l}
 	pl.Value, pl.Single, pl.Shape = scopeValueOf(l.Shape), check.SingleMode(l.Shape.Mode), shaper(l.Shape)
 	if l.Action != nil {
-		t, err := b.actionExpr(l.Action, nil)
+		t, err := b.actionProgram(b.sites.Of(l))
 		if err != nil {
 			return nil, err
 		}

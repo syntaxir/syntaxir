@@ -23,7 +23,6 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
-	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/checkfacts"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -187,8 +186,9 @@ func (s *Source) Module() (*bytecode.Module, error) {
 // so a caller observes whether a program is still cold.
 func (s *Source) BuiltModule() *bytecode.Module { return s.built.Load() }
 
-// Core builds the Core module that the closures of the program are built from, with the closure
-// target of the driver under the settings of the program, polling ctx (nil for none) wrapped so that
+// Core builds the module that the closures of the program are built from (closure.Module: its Core
+// and Action modules), with the closure target of the driver under the settings of the program,
+// polling ctx (nil for none) wrapped so that
 // a panic of its methods is attributed to it (attributedContext): a failure that a cancellation
 // caused, by the manager's check of the context before a step or by a poll of the build or the
 // Core passes, returns a state.BuildCancelled with the context's error, and a panic of a method of
@@ -207,7 +207,7 @@ func (s *Source) Core(ctx context.Context) (any, error) {
 		}
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
-	return outs[0].(*closure.Module).Core, nil
+	return outs[0].(*closure.Module), nil
 }
 
 // attributedContext is a parse's context whose Err attributes a panic to the caller's context
@@ -228,9 +228,9 @@ func (c attributedContext) Err() error {
 	return c.Context.Err()
 }
 
-// Family builds the closures of the family f from the Core IR core (closure.Build).
+// Family builds the closures of the family f from the module core that Core built (closure.Build).
 func (s *Source) Family(core any, f state.Family) ([]*state.Rule, error) {
-	return closure.Build(s.prog.Runtime(), s.prog.Checker(), core.(*ir.Module), f)
+	return closure.Build(s.prog.Runtime(), s.prog.Checker(), core.(*closure.Module), f)
 }
 
 // Recognizer compiles the grammar again as a program that builds no tree, with the rule flags of

@@ -13,21 +13,30 @@ import (
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
+	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
-// closure-core returns the module of its input without the control of the compilation, and leaves
-// the input, which may be the kept result of a shared Core part, as it was.
+// closure-core returns the module of its input without the control of the compilation, with the
+// Action module of its input, and leaves the input, which may be the kept result of a shared Core
+// part, as it was; an input without an Action module is an internal error.
 func TestClosureCoreKeepsItsInput(t *testing.T) {
 	t.Parallel()
 	control := &cancel.Control{Ctx: context.Background()}
 	rules := []*core.Rule{{Name: "a"}}
 	in := &core.Module{Rules: rules, Control: control}
-	out, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(closure.Core), closure.Input{Module: in})
+	if _, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(closure.Core), closure.Input{Module: in}); err == nil {
+		t.Error("closure-core took an input without an Action module")
+	}
+	actions := code.EnterAction(&code.Module{})
+	out, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(closure.Core), closure.Input{Module: in, Actions: actions})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if out.(*closure.Module).Actions.Module() != actions.Module() {
+		t.Error("closure-core dropped the Action module of its input")
 	}
 	m := out.(*closure.Module).Core
 	if m == in || m.Control != nil || len(m.Rules) != 1 || m.Rules[0] != rules[0] {

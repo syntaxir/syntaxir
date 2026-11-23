@@ -81,6 +81,23 @@ func SiteOf(f *code.Func) *Site {
 	return s
 }
 
+// SiteFuncs indexes the functions of the sites of the Action module m by the number of their site:
+// funcs holds those that return the value and the failure, inPlace those in place of a rule's action
+// (Site.Result).
+func SiteFuncs(m *code.Module) (funcs, inPlace map[int]*code.Func) {
+	funcs, inPlace = map[int]*code.Func{}, map[int]*code.Func{}
+	for _, f := range m.Funcs {
+		if s := SiteOf(f); s != nil {
+			if s.Result == "" {
+				funcs[s.Site] = f
+			} else {
+				inPlace[s.Site] = f
+			}
+		}
+	}
+	return funcs, inPlace
+}
+
 func init() { code.RegisterStageCheck[code.Action](verifySites) }
 
 // verifySites checks the functions of an Action module beyond Verify: every function with attributes

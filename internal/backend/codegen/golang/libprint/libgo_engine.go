@@ -126,7 +126,7 @@ func printEngineDocument(u file) (string, error) { return printEngineSpecs(u, en
 // printEngineClosureActions returns the Go file of the action expression compositions for the closure backend, which
 // holds an action expression as a site of its matcher with the action expression's program (state.ActionProgram).
 func printEngineClosureActions(u file) (string, error) {
-	return engineActions(u, "closure", &print.Target{Params: "p *state.Parser"}, "*actionSite", func(t, ctx string) string { return t + ".actionExpr.Eval(" + ctx + ")" })
+	return engineActions(u, "closure", &print.Target{Params: "p *state.Parser"}, "*actionSite", func(t, ctx string) string { return t + ".prog.Eval(" + ctx + ")" })
 }
 
 // printEngineVMActions returns the Go file of the action expression compositions for the bytecode VM, which holds an action expression

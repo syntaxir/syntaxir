@@ -813,14 +813,14 @@ func (s *flowSel) op(op bytecode.FlowOp, c *code.Call, dst []int, imm any) error
 	return nil
 }
 
-// action expression adds the action code of t to the module's action table, compiled for the frame whose slots are
-// names, the scope the predicate or binding runs in, and returns its index.
-func (s *flowSel) actionExpr(t ir.ActionExpr, names []string) (int, error) {
+// actionSite adds the action code of the action site i to the module's action table, translated for
+// the frame whose slots are names, the scope the predicate or binding runs in, and returns its index.
+func (s *flowSel) actionSite(i int, names []string) (int, error) {
 	slots := make([]ir.Slot, len(names))
-	for i, n := range names {
-		slots[i] = ir.Slot{Name: n}
+	for j, n := range names {
+		slots[j] = ir.Slot{Name: n}
 	}
-	code, err := s.c.actionCode(actionSite{actionExpr: t, scope: slots})
+	code, err := s.c.actionCode(actionSite{site: i, scope: slots})
 	if err != nil {
 		return 0, err
 	}

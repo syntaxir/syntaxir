@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/frontend/check"
+	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/program"
@@ -12,14 +14,16 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-// Build builds the closure backend's form of the run-time program prog from its Core IR m (the
-// output of a closure target, Module), and returns the rules of the family f that the parser runs,
-// by ID; c resolves the types of the action expressions (actionlower.Env). Build only reads m, so
-// the families of a program can be built from the same module, at different times. A failure is an
+// Build builds the closure backend's form of the run-time program prog from the output of a closure
+// target, mod: its Core IR and its Action module, whose functions are the action programs. It returns
+// the rules of the family f that the parser runs, by ID; c resolves the types of the action programs
+// (vmlower.ActionEnv). Build only reads mod, so the families of a program can be built from the same
+// module, at different times. A failure is an
 // internal error: the program compiled, so its action expressions build. The build runs when a
 // parse first needs the family, outside the compilation, so no control interrupts it.
-func Build(prog *program.Program, c *check.Checker, m *ir.Module, f state.Family) ([]*state.Rule, error) {
-	b, err := newBuilder(prog, c, m)
+func Build(prog *program.Program, c *check.Checker, mod *Module, f state.Family) ([]*state.Rule, error) {
+	m := mod.Core
+	b, err := newBuilder(prog, c, m, mod.Actions.Module())
 	if err != nil {
 		return nil, err
 	}
@@ -59,9 +63,13 @@ func Build(prog *program.Program, c *check.Checker, m *ir.Module, f state.Family
 }
 
 // newBuilder returns the builder of the closure form of the module m of the run-time program prog,
-// whose types c resolves.
-func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module) (*Builder, error) {
-	b := &Builder{prog: prog, checker: c, m: m, accepts: map[*ir.Class]func(*state.Parser, rune) bool{}}
+// whose types c resolves, with actions, the Action module of m (nil for none, which has no action
+// site).
+func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module, actions *code.Module) (*Builder, error) {
+	b := &Builder{prog: prog, checker: c, m: m, sites: ir.ActionSitesOf(m), actions: actions, accepts: map[*ir.Class]func(*state.Parser, rune) bool{}}
+	if actions != nil {
+		b.funcs, _ = action.SiteFuncs(actions)
+	}
 	b.static = append(append([]*program.Rule(nil), prog.RuleList...), prog.Twins...)
 	ids := make(map[string]state.ExpID, len(prog.DescTable))
 	for i, d := range prog.DescTable {
@@ -80,10 +88,10 @@ func newBuilder(prog *program.Program, c *check.Checker, m *ir.Module) (*Builder
 }
 
 // Matcher returns the matcher of the node n, in the capture scope scope, of the Core IR module m
-// of the run-time program prog, whose types c resolves, in the inlined family. It is for the tests
-// of package engine, which check single closures.
+// of the run-time program prog, whose types c resolves, in the inlined family. n has no action site:
+// m has no Action module. It is for the tests of package engine, which check single closures.
 func Matcher(prog *program.Program, c *check.Checker, m *ir.Module, n ir.Node, scope []ir.Slot) (state.Matcher, error) {
-	b, err := newBuilder(prog, c, m)
+	b, err := newBuilder(prog, c, m, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -208,10 +216,10 @@ func (b *Builder) node(n ir.Node) state.Matcher {
 		}
 		return b.anchor(n.Kind, program.IDEndLine)
 	case *ir.Pred:
-		t := b.actionSite(n.Action)
+		t := b.actionSite(b.sites.Of(n))
 		return func(p *state.Parser) (*value.Node, bool) { return nil, predicate(p, t) }
 	case *ir.BindNode:
-		slot, t := b.prog.Vars.Index(n.Var), b.actionSite(n.Action)
+		slot, t := b.prog.Vars.Index(n.Var), b.actionSite(b.sites.Of(n))
 		return func(p *state.Parser) (*value.Node, bool) { return nil, bind(p, slot, t) }
 	case *ir.Label:
 		m := b.node(n.Body)
@@ -232,16 +240,16 @@ func (b *Builder) node(n ir.Node) state.Matcher {
 	return b.failf("Core IR node %T in a closure program", n)
 }
 
-// actionSite makes the action program of a predicate or binding.
-func (b *Builder) actionSite(t ir.ActionExpr) *actionSite {
-	prog, err := b.actionExpr(t, nil)
+// actionSite makes the action program of the action site i, a predicate or binding.
+func (b *Builder) actionSite(i int) *actionSite {
+	prog, err := b.actionProgram(i)
 	if err != nil {
 		if b.err == nil {
 			b.err = err
 		}
 		return &actionSite{}
 	}
-	return &actionSite{actionExpr: prog}
+	return &actionSite{prog: prog}
 }
 
 // repeatNode builds the repetition n; stream reports that it delivers stream elements.

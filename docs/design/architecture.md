@@ -270,14 +270,13 @@ in [Package Layering](layering.md), and the public packages are described in [Th
 | `internal/middleend/flowplan/plandata` | The data of planning, without pass code: a table's configuration and Core IR, its plan, and the table unit that carries the plan and the module of the table through its pipeline |
 | `internal/middleend/flowlower` | Core IR to Code IR at the Flow stage |
 | `internal/middleend/flowlower/lowerdata` | The data that the lowering to the Flow stage takes, without pass code: the functions of a table, their forms and options |
-| `internal/middleend/actionlower` | Action expressions of Core IR (actions, predicates and binding values) to functions of the Action dialect; every backend lowers its action expressions with it |
+| `internal/middleend/actionlower` | Action expressions of Core IR (actions, predicates and binding values) to the Action module of a table, one function of the Action dialect for each action site, which every backend takes |
 | `internal/middleend/actionpass` | The Action passes that every target that prints predicates runs on the Action module of a table (text-dispatch), and the step action-finish that ends each function of a site |
 | `internal/middleend/flowpass` | The Flow passes |
 | `internal/middleend/execlower` | Complete conversion from the Flow stage to the Exec stage |
 | `internal/middleend/codepass` | Dialect-independent passes of Code IR |
-| `internal/backend/closure` | The reference parser, built from Core IR |
-| `internal/backend/actionlower` | Lowers the action expressions of a checked program (predicates and binding values) to the term programs that the runtime evaluates; the closure backend and `vmlower` call it |
-| `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode |
+| `internal/backend/closure` | The reference parser, built from Core IR and the Action module of its table |
+| `internal/backend/vmlower` | Instruction selection from the Flow stage to bytecode, and the translation of the functions of an Action module to the action programs that the runtime evaluates, which the closures also run |
 | `internal/backend/llvm` | The future native-code backend |
 | `internal/backend/codegen` | What the generating backends declare alike: the checked program as a backend reads it (the printers' view and the input of the elaboration of its tables), the target of the pipeline, and the parameters that both printers read, which each printing step gives its printer as data |
 | `internal/backend/codegen/common` | Options and parts shared by the host languages, the view of a checked grammar that the generators read (`Program`, which `internal/driver/checked` builds from the semantic model, the checker and the runtime program); see [Code Generation for Host Languages](host-code-generation.md) |

@@ -299,7 +299,7 @@ func init() {
 			if !x.Frame {
 				return fmt.Errorf("a predicate whose captures are arguments has no bytecode Flow form")
 			}
-			t, err := s.actionExpr(s.c.sites.Sites[x.Action].Action, x.Names)
+			t, err := s.actionSite(x.Action, x.Names)
 			if err != nil {
 				return err
 			}
@@ -310,7 +310,7 @@ func init() {
 			if !x.Frame {
 				return fmt.Errorf("a binding whose captures are arguments has no bytecode Flow form")
 			}
-			t, err := s.actionExpr(s.c.sites.Sites[x.Action].Action, x.Names)
+			t, err := s.actionSite(x.Action, x.Names)
 			if err != nil {
 				return err
 			}

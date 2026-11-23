@@ -42,7 +42,6 @@ func TestRuntimeReadsNoCheckedProgram(t *testing.T) {
 // semantic model (check.Model), its checker and the facts of its Core IR, not through the checked
 // program, which only the drivers read.
 var modelReaders = []string{
-	"internal/backend/actionlower",
 	"internal/backend/closure",
 	"internal/frontend/schemaexport",
 }

@@ -12,7 +12,7 @@ func predicate(p *state.Parser, t *actionSite) bool {
 	created := len(p.Created)
 	kids := len(p.KidStack)
 	ctx := p.UseCtx(state.EvalCtx{P: p, Frame: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})
-	v, f := t.actionExpr.Eval(ctx)
+	v, f := t.prog.Eval(ctx)
 	if f != nil {
 		p.DropKids(kids)
 		if len(p.Created) > created {
@@ -35,7 +35,7 @@ func bind(p *state.Parser, slot int, t *actionSite) bool {
 	created := len(p.Created)
 	kids := len(p.KidStack)
 	ctx := p.UseCtx(state.EvalCtx{P: p, Frame: p.Frame, Start: p.Pos, End: p.Pos, Cbase: len(p.Created)})
-	v, f := t.actionExpr.Eval(ctx)
+	v, f := t.prog.Eval(ctx)
 	if f != nil {
 		p.DropKids(kids)
 		if len(p.Created) > created {
