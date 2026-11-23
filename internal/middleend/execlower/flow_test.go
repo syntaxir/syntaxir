@@ -5,17 +5,18 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // flowModule returns a module at the Flow stage whose function matches a literal and advances.
 func flowModule() *code.Module {
 	m := code.EnterFlow(flow.NewModule("t")).Module()
+	m.Attrs = &prim.Tables{Exps: []string{`"a"`}}
 	ok := "ok"
 	m.Funcs = append(m.Funcs, &code.Func{Name: "f", Locals: []code.Param{code.P(ok, code.TBool)}, Body: &code.Block{Label: "fail", Stmts: []code.Stmt{
 		&code.Do{Call: &code.Call{Callee: flow.OpStep}},
-		&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{&code.Call{Callee: flow.OpMatchLit, Imm: &core.Lit{Text: "a"}}}},
+		&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{&code.Call{Callee: flow.OpMatchLit, Imm: prim.Lit{Text: "a"}}}},
 		&code.If{Cond: &code.Unary{Op: "!", X: code.L(ok)}, Then: &code.Block{Stmts: []code.Stmt{&code.Exit{Label: "fail"}}}},
 		&code.Do{Call: &code.Call{Callee: flow.OpAdvance, Args: []code.Expr{code.Int(1)}}},
 	}}})

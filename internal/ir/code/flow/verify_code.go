@@ -30,7 +30,9 @@ import (
 //     branch whose alternative records the read (matchLit);
 //   - the operations of the runs that a Document parse resumes are in Node functions lowered for
 //     Documents only, and a run starts at a positive site;
-//   - flow.inDocument is in functions lowered for Documents only.
+//   - flow.inDocument is in functions lowered for Documents only;
+//   - the module's attributes are its tables (prim.Tables) or none, and each immediate that indexes
+//     them indexes an entry (prim.VerifyTables).
 func VerifyModule(m *code.Module) error {
 	if err := code.Verify(m); err != nil {
 		return err
@@ -39,14 +41,15 @@ func VerifyModule(m *code.Module) error {
 }
 
 // verifyFuncs checks the invariants of the Flow dialect on each function of m, which code.Verify
-// has verified: the check of the Flow stage (code.RegisterStageCheck).
+// has verified, and the tables of m (prim.VerifyTables): the check of the Flow stage
+// (code.RegisterStageCheck).
 func verifyFuncs(m *code.Module) error {
 	for _, fn := range m.Funcs {
 		if err := verifyFunc(fn); err != nil {
 			return fmt.Errorf("%s: %w", fn.Name, err)
 		}
 	}
-	return nil
+	return prim.VerifyTables(m)
 }
 
 func init() { code.RegisterStageCheck[code.Flow](verifyFuncs) }

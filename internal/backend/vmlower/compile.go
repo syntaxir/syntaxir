@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -34,6 +35,7 @@ func compile(in Input) (*bytecode.Module, map[string]int, error) {
 	}
 	funcs, _ := action.SiteFuncs(actions)
 	c := &compiler{in: in, core: in.Table.IR.M, sites: ir.ActionSitesOf(in.Table.IR.M), actions: actions, funcs: funcs,
+		tab:  prim.TablesOf(in.Table.Module.Module()),
 		m:    &bytecode.Module{SourceInfo: in.Run.RecordsSourceInfo, DefaultValue: in.Run.MakesDefaultValue},
 		strs: map[string]int{}, counts: map[string]int{}}
 	c.compile()
@@ -120,8 +122,10 @@ type compiler struct {
 	// actions is the Action module of the table, and funcs its function of each site by number.
 	actions *code.Module
 	funcs   map[int]*code.Func
-	m       *bytecode.Module
-	strs    map[string]int
+	// tab holds the tables of the Flow module of the table, which its immediates index.
+	tab  *prim.Tables
+	m    *bytecode.Module
+	strs map[string]int
 	// actionSites are the action sites of the tables, by index of Module.Actions, whose code Compile
 	// makes once the tables are built.
 	actionSites []actionSite
@@ -173,8 +177,8 @@ func (c *compiler) strList(names []string) []int {
 	return out
 }
 
-// exp returns the string of the expectation id of the Core IR module.
-func (c *compiler) exp(id ir.ExpID) int32 { return c.str(c.core.Exps[id]) }
+// exp returns the string of the expectation id of the module.
+func (c *compiler) exp(id prim.ExpID) int32 { return c.str(c.tab.Exp(id)) }
 
 func b2i(b bool) int32 {
 	if b {
@@ -265,7 +269,7 @@ func (c *compiler) compile() {
 		if cr.Finish.Kind == ir.FinishScope && !ok && !ri.Splice && !ri.ValueFreeTwin {
 			// The Flow bodies of the rule are its framed bodies, which leave the rule's value to the
 			// call, as the generated parsers' rule tables do.
-			sh := shapeOf(cr.Finish.Shape)
+			sh := coreShapeOf(cr.Finish.Shape)
 			ri.Value = &sh
 		}
 		if cr.Finish.Kind == ir.FinishAction {
@@ -282,8 +286,10 @@ func (c *compiler) actionSite(i int) int {
 	return len(c.m.Actions) - 1
 }
 
-// class adds the character class to the character class table and returns its index.
-func (c *compiler) class(cl *ir.Class) int32 {
+// class adds the character class id of the module to the character class table and returns its
+// index.
+func (c *compiler) class(id prim.ClassID) int32 {
+	cl := c.tab.Class(id)
 	bc := bytecode.Class{Negated: cl.Negated, Expectation: int(c.exp(cl.Exp))}
 	for _, r := range cl.Ranges {
 		bc.Ranges = append(bc.Ranges, r.Lo, r.Hi)
@@ -293,8 +299,8 @@ func (c *compiler) class(cl *ir.Class) int32 {
 }
 
 // litDesc returns the string of the expectation of the literal n. The empty literal, which
-// cannot fail, records none in Core IR; its operand is the quoted empty text.
-func (c *compiler) litDesc(n *ir.Lit) int32 {
+// cannot fail, records none; its operand is the quoted empty text.
+func (c *compiler) litDesc(n prim.Lit) int32 {
 	if n.Text == "" {
 		return c.str(ir.LiteralDesc(&ast.Literal{}))
 	}

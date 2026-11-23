@@ -217,18 +217,21 @@ var tsFixedExpNames = []string{"idAny", "idBeginInput", "idEndInput", "idBeginLi
 
 // exp returns the TypeScript expression of the expectation id: the name of a fixed one, otherwise its
 // ID in the parser's table.
-func (p *tsPrimPrinter) exp(id core.ExpID) string {
+func (p *tsPrimPrinter) exp(id prim.ExpID) string {
 	if int(id) < len(tsFixedExpNames) {
 		return tsFixedExpNames[id]
 	}
 	return strconv.Itoa(int(p.desc(id)))
 }
 
-func (p *tsPrimPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
+func (p *tsPrimPrinter) desc(id prim.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Tables().Exp(id)) }
+
+// class returns the class id of the module.
+func (p *tsPrimPrinter) class(id prim.ClassID) prim.Class { return p.g.Tables().Class(id) }
 
 // classIn returns the condition that the code point in ch is in the class c (false at the end of the
 // input is the caller's check).
-func tsClassIn(c *core.Class, ch string) string {
+func tsClassIn(c prim.Class, ch string) string {
 	var in []string
 	for _, r := range c.Ranges {
 		if r.Lo == r.Hi {
@@ -290,7 +293,7 @@ func tsNamesIdentifier(code, name string) bool {
 }
 
 // tsShape packs a shape as the library's Shaper (tsShaper).
-func tsShape(sh core.Shape) int {
+func tsShape(sh prim.Shape) int {
 	s := int(sh.Mode)<<2 | sh.K<<5
 	if sh.Elems {
 		s |= 1

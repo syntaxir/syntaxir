@@ -137,10 +137,7 @@ func goNodeTable(t *testing.T, g *ast.Grammar) (routes map[int]bool, gen *print.
 	opts := common.GenOptions{Package: "p", Module: "example.com/p", Document: true, LogicalVariant: "event", NoOpt: []string{flowpass.PassInlineLiterals}}
 	record := finished("rules", func(m *code.Module, fn *code.Func) {
 		a := flow.AttrsOf(fn)
-		f := loweredFunc{rule: -1, text: code.FuncStringIn(m, fn), flat: !a.Frame}
-		if a.Rule != nil {
-			f.rule = a.Rule.ID
-		}
+		f := loweredFunc{rule: a.Rule, text: code.FuncStringIn(m, fn), flat: !a.Frame}
 		mu.Lock()
 		defer mu.Unlock()
 		if old, ok := funcs[fn.Name]; ok && old != f {

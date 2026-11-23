@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 )
 
@@ -64,6 +65,8 @@ type Form struct {
 	Block *code.Block
 	// Node is the Core node: the *core.ClassNode of a class, the root of a region.
 	Node core.Node
+	// Class is the class of a class form (prim.Tables).
+	Class prim.ClassID
 	// Build reports that the form builds the node's value.
 	Build bool
 	// Fail is the label the form leaves on failure, and Loop reports that it is a loop's (left by

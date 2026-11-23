@@ -189,7 +189,11 @@ The preconditions of the operations that take marks (truncating the recovered er
 input, ending the innermost isolation of expectations and the like) are checks of the verifier.
 
 Every Flow operation states its contract, its cost, the features it needs and its laws, and an **immediate operand** of a
-declared type that holds its static data (a literal, a class, a rule), while its dynamic operands are arguments. At the
+declared type that holds its static data (a literal, a class, a rule), while its dynamic operands are arguments. The
+immediates of the terminals are values of Code IR's own, not nodes of Core IR: a literal is its text, case folding and
+expectation; a class or an expectation is an index into the **tables** of the module, which the lowering fills from the Core module in
+its order and every function of the module shares, so that a printer or the VM reads the strings and ranges from the
+module it prints. At the
 Exec stage each Flow operation is a **primitive** that each target prints in place. The conformance of a target is
 checked for each Flow operation: probes around every printed primitive call check that the position moves as the
 contract says, that it counts the compute units that the specification's event table assigns to its events and, for

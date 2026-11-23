@@ -62,7 +62,7 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpMergeExpected:
 		return fmt.Sprintf("p.MergeExpected(%s, %s)", args[0], args[1])
 	case prim.OpMergeRenamed:
-		return fmt.Sprintf("p.MergeExpected(%s, RenamedExpected(%s, %s, %d))", args[0], p.matcher(), args[1], p.desc(c.Imm.(core.ExpID)))
+		return fmt.Sprintf("p.MergeExpected(%s, RenamedExpected(%s, %s, %d))", args[0], p.matcher(), args[1], p.desc(c.Imm.(prim.ExpID)))
 	case prim.OpPushKid:
 		if p.frame {
 			return fmt.Sprintf("p.KidStack = append(p.KidStack, %s)", args[0])
@@ -165,9 +165,9 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpResumeNext:
 		return fmt.Sprintf("p.ResumeNext(%s)", args[0])
 	case prim.OpHasLit:
-		return p.hasLit(c.Imm.(*core.Lit))
+		return p.hasLit(c.Imm.(prim.Lit))
 	case prim.OpMatchLit:
-		lit := c.Imm.(*core.Lit)
+		lit := c.Imm.(prim.Lit)
 		if lit.Fold {
 			return fmt.Sprintf("%s.%s(%s, %d, false)", p.matcher(), p.helper("MatchLiteralFold"), g.literal(string(common.FoldedRunes([]rune(lit.Text)))), p.desc(lit.Exp))
 		}
@@ -180,11 +180,11 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		}
 		return fmt.Sprintf("%s.%s(%s, %q, %d, false)", p.matcher(), p.helper("MatchLiteral"), name, lit.Text, desc)
 	case prim.OpGuardFails:
-		guard := c.Imm.(*core.First)
-		cond := NegateCondition(classReject(grammarClass(guard.Class)))
+		guard := c.Imm.(prim.Guard)
+		cond := NegateCondition(classReject(grammarClass(p.class(guard.Class))))
 		return fmt.Sprintf("!(%s && (%s)) && %s", args[1], chIdent.ReplaceAllString(cond, args[0]), depthLimit(guard.Depth))
 	case prim.OpGuardLitFails:
-		guard := c.Imm.(*core.First)
+		guard := c.Imm.(prim.Guard)
 		return fmt.Sprintf("!p.%s(%d, %t) && %s", g.helper("HasChar"), guard.Rune, guard.Fold, depthLimit(guard.Depth))
 	case prim.OpCallRule:
 		x := c.Imm.(prim.RuleCall)
@@ -223,11 +223,11 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpKids:
 		return fmt.Sprintf("p.Kids(%s)", args[0])
 	case prim.OpShapeSingle:
-		return fmt.Sprintf("p.ShapeSingle(%s, %s, %s)", p.shaper(c.Imm.(core.Shape)), args[0], args[1])
+		return fmt.Sprintf("p.ShapeSingle(%s, %s, %s)", p.shaper(c.Imm.(prim.Shape)), args[0], args[1])
 	case prim.OpShapeCapture:
-		return fmt.Sprintf("p.ShapeCapture(%s, %s, %s)", p.shaper(c.Imm.(core.Shape)), args[0], args[1])
+		return fmt.Sprintf("p.ShapeCapture(%s, %s, %s)", p.shaper(c.Imm.(prim.Shape)), args[0], args[1])
 	case prim.OpScopeValue:
-		return fmt.Sprintf("p.ScopeValue(%s, %s, %s)", p.shaper(c.Imm.(core.Shape)), args[0], args[1])
+		return fmt.Sprintf("p.ScopeValue(%s, %s, %s)", p.shaper(c.Imm.(prim.Shape)), args[0], args[1])
 	case prim.OpAttachFrame:
 		names := p.scopeNames(c.Imm.(prim.Attach).Names)
 		if p.untyped() {
@@ -292,7 +292,7 @@ func (p *primPrinter) appendText(c *code.Call, args []string) string {
 }
 
 // hasLit returns the condition that the input at the position begins with the literal, read in place.
-func (p *primPrinter) hasLit(lit *core.Lit) string {
+func (p *primPrinter) hasLit(lit prim.Lit) string {
 	g := p.g
 	if g.Traced {
 		panic("internal error: an in-place read of a literal in a traced body")
@@ -320,25 +320,25 @@ func (p *primPrinter) negate(c *code.Call, args []string) string {
 	g := p.g
 	switch c.Callee {
 	case prim.OpAtAnchor:
-		switch c.Imm.(core.AnchorKind) {
-		case core.BeginInput:
+		switch c.Imm.(prim.Anchor) {
+		case prim.BeginInput:
 			return "p.Pos != 0"
-		case core.EndInput:
+		case prim.EndInput:
 			return "!p." + g.atEnd() + "()"
-		case core.BeginLine:
+		case prim.BeginLine:
 			return "!p." + g.atLineStart() + "()"
 		default:
 			return "!p." + g.helper("AtLineEnd") + "()"
 		}
 	case prim.OpMatchClass:
-		class := c.Imm.(*core.Class)
+		class := p.class(c.Imm.(prim.ClassID))
 		table := g.classTable(grammarClass(class))
 		if g.Logical {
 			return fmt.Sprintf("!p.ClassFastLogical(&%s) && !p.ClassSkipLogical(&%s, %d)", table, table, p.desc(class.Exp))
 		}
 		return fmt.Sprintf("!p.ClassFast(&%s) && !p.ClassSkip(&%s, %d)", table, table, p.desc(class.Exp))
 	case prim.OpInClass:
-		return p.reject(c.Imm.(*core.Class), args[0])
+		return p.reject(p.class(c.Imm.(prim.ClassID)), args[0])
 	case prim.OpSkipTerminal:
 		table, ok := g.terminalTable(g.Core().Origin.Of(c.Imm.(*core.Terminal).Body))
 		if !ok {
@@ -346,10 +346,10 @@ func (p *primPrinter) negate(c *code.Call, args []string) string {
 		}
 		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("SkipTerminal"), table)
 	case prim.OpSkipClasses:
-		run := c.Imm.(*core.ClassRun)
-		items := make([]ast.Expr, len(run.Classes))
-		for i, cl := range run.Classes {
-			items[i] = grammarClass(cl)
+		run := c.Imm.(prim.ClassRun)
+		items := make([]ast.Expr, len(run))
+		for i, cl := range run {
+			items[i] = grammarClass(p.class(cl))
 		}
 		return fmt.Sprintf("!p.%s(%s)", g.pickLogical("ClassesSkip"), g.classSteps(items))
 	case prim.OpPred:

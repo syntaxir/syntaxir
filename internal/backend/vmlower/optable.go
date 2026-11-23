@@ -6,7 +6,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
-	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
@@ -46,7 +45,7 @@ func init() {
 			if err != nil {
 				return err
 			}
-			g, err := s.guardOf(c.Imm.(*ir.First))
+			g, err := s.guardOf(c.Imm.(prim.Guard))
 			if err != nil {
 				return err
 			}
@@ -54,7 +53,7 @@ func init() {
 			return nil
 		}},
 		{Op: flowpkg.OpGuardLitFails, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			g, err := litGuardOf(c.Imm.(*ir.First))
+			g, err := litGuardOf(c.Imm.(prim.Guard))
 			if err != nil {
 				return err
 			}
@@ -124,15 +123,15 @@ func init() {
 			if err != nil {
 				return err
 			}
-			s.emit(bytecode.FlowInstr{Op: bytecode.FlowInClass, Dst: dst, Args: a, Imm: int(s.c.class(c.Imm.(*ir.Class)))})
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowInClass, Dst: dst, Args: a, Imm: int(s.c.class(c.Imm.(prim.ClassID)))})
 			return nil
 		}},
 		{Op: flowpkg.OpAtAnchor, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			s.emit(bytecode.FlowInstr{Op: bytecode.FlowAtAnchor, Dst: dst, Imm: int(c.Imm.(ir.AnchorKind))})
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowAtAnchor, Dst: dst, Imm: int(c.Imm.(prim.Anchor))})
 			return nil
 		}},
 		{Op: flowpkg.OpMatchLit, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLit, Dst: dst, Imm: s.litOf(c.Imm.(*ir.Lit))})
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLit, Dst: dst, Imm: s.litOf(c.Imm.(prim.Lit))})
 			return nil
 		}},
 		{Op: flowpkg.OpIsolate, Sel: func(s *flowSel, c *code.Call, dst []int) error {
@@ -160,7 +159,7 @@ func init() {
 			if err != nil {
 				return err
 			}
-			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMergeRenamed, Args: a, Imm: bytecode.FlowExpectOf{Exp: s.expID(c.Imm.(ir.ExpID))}})
+			s.emit(bytecode.FlowInstr{Op: bytecode.FlowMergeRenamed, Args: a, Imm: bytecode.FlowExpectOf{Exp: s.expID(c.Imm.(prim.ExpID))}})
 			return nil
 		}},
 		{Op: flowpkg.OpNewTerminalNode, Sel: func(s *flowSel, c *code.Call, dst []int) error {
@@ -205,13 +204,13 @@ func init() {
 			return s.op(bytecode.FlowPushKid, c, dst, nil)
 		}},
 		{Op: flowpkg.OpShapeSingle, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			return s.op(bytecode.FlowShapeSingle, c, dst, shapeOf(c.Imm.(ir.Shape)))
+			return s.op(bytecode.FlowShapeSingle, c, dst, shapeOf(c.Imm.(prim.Shape)))
 		}},
 		{Op: flowpkg.OpScopeValue, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			return s.op(bytecode.FlowScopeValue, c, dst, shapeOf(c.Imm.(ir.Shape)))
+			return s.op(bytecode.FlowScopeValue, c, dst, shapeOf(c.Imm.(prim.Shape)))
 		}},
 		{Op: flowpkg.OpShapeCapture, Sel: func(s *flowSel, c *code.Call, dst []int) error {
-			return s.op(bytecode.FlowShapeCapture, c, dst, shapeOf(c.Imm.(ir.Shape)))
+			return s.op(bytecode.FlowShapeCapture, c, dst, shapeOf(c.Imm.(prim.Shape)))
 		}},
 		{Op: flowpkg.OpSetCapture, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowSetCapture, c, dst, int(c.Imm.(prim.Slot)))
@@ -364,7 +363,7 @@ func init() {
 }
 
 // guardOf returns the immediate of the guard g of a class (flow.guardFails).
-func (s *flowSel) guardOf(g *ir.First) (bytecode.FlowGuardOf, error) {
+func (s *flowSel) guardOf(g prim.Guard) (bytecode.FlowGuardOf, error) {
 	if g.Lit {
 		return bytecode.FlowGuardOf{}, fmt.Errorf("flow.guardFails with the guard of a literal")
 	}
@@ -372,7 +371,7 @@ func (s *flowSel) guardOf(g *ir.First) (bytecode.FlowGuardOf, error) {
 }
 
 // litGuardOf returns the immediate of the guard g of a literal (flow.guardLitFails).
-func litGuardOf(g *ir.First) (bytecode.FlowLitGuardOf, error) {
+func litGuardOf(g prim.Guard) (bytecode.FlowLitGuardOf, error) {
 	if !g.Lit {
 		return bytecode.FlowLitGuardOf{}, fmt.Errorf("flow.guardLitFails with the guard of a class")
 	}
@@ -397,7 +396,7 @@ func (s *flowSel) ruleCallOf(c *code.Call) (bytecode.FlowCallOf, error) {
 
 // litOf returns the immediate of the literal lit. Its operands are interned in a fixed order:
 // the text, then the expectation.
-func (s *flowSel) litOf(lit *ir.Lit) bytecode.FlowLitOf {
+func (s *flowSel) litOf(lit prim.Lit) bytecode.FlowLitOf {
 	of := bytecode.FlowLitOf{Fold: lit.Fold}
 	if lit.Fold {
 		of.Str = int(s.c.str(foldedRunes(lit.Text)))

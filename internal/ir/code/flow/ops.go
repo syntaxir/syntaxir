@@ -62,8 +62,8 @@ const (
 	// in a table of the line starts, and, at the first error of a parse of a whole input, one unit for
 	// each code point of the input, which builds that table (spec/runtime/parsing.md#cost).
 	QError = "error"
-	// QRanges is the number of ranges of the operation's class: of the immediate *core.Class, or of
-	// the class of the immediate *core.First, 0 for a literal.
+	// QRanges is the number of ranges of the operation's class: of the immediate prim.ClassID, or of
+	// the class of the immediate prim.Guard, 0 for a literal.
 	QRanges = "ranges"
 	// QStream is the units of the work of a stream parse at the call: loading the input into its buffer,
 	// compacting the buffer and scanning it for line starts (stream_scan of the Exec stage), and for a
@@ -299,7 +299,7 @@ counts no compute unit: examining input without advancing is no event (spec/runt
 		Contract: "Merges the expectations exps, recorded at far, into the enclosing expectation scope, as the composition mergeExpected does (spec/exec-ir/compositions.md#expectations)."})
 	withImm(op(&code.Op{Name: OpMergeRenamed, NoReturn: true, Params: []code.Param{P("far", i), P("exps", expids)}, Writes: []string{State}, Cost: per(QMerge),
 		Contract: "Merges the expectations exps, recorded at far, into the enclosing scope, renamed to the expectation of the immediate (@diagnostic), as the composition expect does for it (spec/exec-ir/compositions.md#expectations)."}),
-		"the expectation (core.ExpID)", immOf[core.ExpID]())
+		"the expectation (prim.ExpID)", immOf[prim.ExpID]())
 	op(&code.Op{Name: OpPushKid, Params: []code.Param{P("x", value)}, Writes: []string{State},
 		Contract: "Pushes x on the stack of gathered values. It charges nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost)."})
 	op(&code.Op{Name: OpDropKids, Params: []code.Param{P("base", i)}, Writes: []string{State},
@@ -454,21 +454,21 @@ fails drops its run without a call.`})
 	withImm(op(&code.Op{Name: OpHasLit, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: per(QLit),
 		Contract: `Reports that the input at the position begins with the literal, read in place without recording
 anything; false where the input cannot be read in place.`, Laws: []string{"implies flow.matchLit: where it holds, flow.matchLit of the literal matches."}}),
-		"the literal (*core.Lit)", immOf[*core.Lit]())
+		"the literal (prim.Lit)", immOf[prim.Lit]())
 	withImm(op(&code.Op{Name: OpMatchLit, Results: []code.Type{value, b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: plus(per(QLit), QMerge),
 		Contract: `Matches the literal at the position and moves past it, recording its expectation on failure as the
 composition expect does. Its results are its value (not used) and whether it matched; on failure the position
 is unchanged. It counts the position units it
 advances over, none on failure (spec/runtime/parsing.md#compute-units).`}),
-		"the literal (*core.Lit)", immOf[*core.Lit]())
+		"the literal (prim.Lit)", immOf[prim.Lit]())
 	withImm(op(&code.Op{Name: OpMatchClass, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: plus(unit, QMerge),
 		Contract: "Matches one character of the class through its membership table and moves past it, recording the class's expectation on failure as the composition expect does; reports whether it matched. It counts the position units of the character it advances over, none on failure (spec/runtime/parsing.md#compute-units)."}),
-		"the class (*core.Class)", immOf[*core.Class]())
+		"the class (prim.ClassID)", immOf[prim.ClassID]())
 	withImm(op(&code.Op{Name: OpInClass, NoReturn: true, Params: []code.Param{P("ch", runeT)}, Results: []code.Type{b}, Cost: per(QRanges),
-		Contract: "Reports whether the code point ch is in the class. It counts no compute unit: the test examines a character without advancing.", Laws: []string{pure}}), "the class (*core.Class)", immOf[*core.Class]())
+		Contract: "Reports whether the code point ch is in the class. It counts no compute unit: the test examines a character without advancing.", Laws: []string{pure}}), "the class (prim.ClassID)", immOf[prim.ClassID]())
 	withImm(op(&code.Op{Name: OpGuardFails, NoReturn: true, Params: []code.Param{P("ch", runeT), P("more", b)}, Results: []code.Type{b}, Cost: per(QRanges),
 		Contract: "Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. A guard counts no compute unit: it examines the next character without advancing, which is no event (spec/runtime/parsing.md#compute-units).",
-		Laws:     []string{pure}}), "the guard (*core.First)", immOf[*core.First]())
+		Laws:     []string{pure}}), "the guard (prim.Guard)", immOf[prim.Guard]())
 	withImm(op(&code.Op{Name: OpGuardLitFails, Results: []code.Type{b}, Reads: pos, Writes: []string{State}, NoReturn: true, Cost: plus(unit, QStream),
 		Contract: `Reports that the guard of a literal skips its alternative: the input at the position does not begin with
 the literal's first character, and the nesting limit allows the guard's depth of calls. It compares the character
@@ -479,9 +479,9 @@ ASCII letter in either case. It reads no further input than it examines. In a st
 loading the input costs; in a Document parse it records how far the parse examined the input. A
 guard counts no compute unit: it examines the next character without advancing, which is no event
 (spec/runtime/parsing.md#compute-units).`}),
-		"the guard (*core.First)", immOf[*core.First]())
+		"the guard (prim.Guard)", immOf[prim.Guard]())
 	withImm(op(&code.Op{Name: OpAtAnchor, NoReturn: true, Results: []code.Type{b}, Reads: pos, Cost: unit,
-		Contract: "Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (core.AnchorKind)", immOf[core.AnchorKind]())
+		Contract: "Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (prim.Anchor)", immOf[prim.Anchor]())
 	withImm(op(&code.Op{Name: OpSkipTerminal, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QTerminal),
 		Contract: "Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. It counts the position units that each of its terminals advances over, again after the program backtracks (spec/runtime/parsing.md#compute-units)."}),
 		"the terminal region (*core.Terminal)", immOf[*core.Terminal]())
@@ -490,7 +490,7 @@ guard counts no compute unit: it examines the next character without advancing, 
 On failure the position is past the classes that matched, at the one that did not, whose expectation it records
 there; the code that fails returns to its mark. It counts the position units of each character it advances
 over, those before a class that fails included (spec/runtime/parsing.md#compute-units).`}),
-		"the class run (*core.ClassRun)", immOf[*core.ClassRun]())
+		"the class run (prim.ClassRun)", immOf[prim.ClassRun]())
 	withImm(op(&code.Op{Name: OpCallRule, Results: []code.Type{value, b}, Reads: all, Writes: all, NoReturn: true,
 		Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QBody}, {Coef: 1, Quantity: QCall}}},
 		Contract: `Calls the rule from the Operators Rule level through the composition call
@@ -529,13 +529,13 @@ and the key of a memoized rule, as the composition call does (spec/runtime/parsi
 		Contract: "Returns the list of the values gathered above base, which it removes from the stack. It charges nothing: the values that the parse gathers are not an item of the cost (spec/runtime/parsing.md#cost)."})
 	withImm(op(&code.Op{Name: OpShapeSingle, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value, b}, Reads: pos, Writes: []string{State},
 		Contract: "Returns the value of x, matched from start by an expression of the shape, where it takes one element, and whether it is a single element (not used)."}),
-		"the shape (core.Shape)", immOf[core.Shape]())
+		"the shape (prim.Shape)", immOf[prim.Shape]())
 	withImm(op(&code.Op{Name: OpShapeCapture, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns the value of x, matched from start by an expression of the shape, where it is captured."}),
-		"the shape (core.Shape)", immOf[core.Shape]())
+		"the shape (prim.Shape)", immOf[prim.Shape]())
 	withImm(op(&code.Op{Name: OpScopeValue, Params: []code.Param{P("x", value), P("start", i)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns the value of a scope whose body, of the shape, matched x from start, building a tuple for it if the shape needs one."}),
-		"the shape (core.Shape)", immOf[core.Shape]())
+		"the shape (prim.Shape)", immOf[prim.Shape]())
 	withImm(op(&code.Op{Name: OpAttachCaptures, Params: []code.Param{P("x", value), P("start", i), P("caps", value)}, Variadic: true,
 		Results: []code.Type{value}, Reads: pos, Writes: []string{State},
 		Contract: "Returns x, matched from start, with the captures of the scope attached: the values caps of the scope's slots."}),
@@ -585,8 +585,8 @@ and the key of a memoized rule, as the composition call does (spec/runtime/parsi
 // Attrs are the attributes of a function of grammar code at the Flow stage, which code.Func.Attrs
 // holds.
 type Attrs struct {
-	// Rule is the rule whose body, or part of it, the function matches.
-	Rule *core.Rule
+	// Rule is the ID of the rule whose body, or part of it, the function matches.
+	Rule int
 	// Vars are the locals that are variables of the function, in the order they were made; the
 	// other locals are its entry variables Start, Result and Ctx (empty where it has none), which
 	// the caller declares: the position at which the rule was entered, the rule's value, and the

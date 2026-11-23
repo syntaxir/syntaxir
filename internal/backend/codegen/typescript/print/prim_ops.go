@@ -164,7 +164,7 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	case prim.OpMergeRenamed:
 		p.read(c.Args...)
 		a := args()
-		p.write(fmt.Sprintf("p.mergeKept(%s, p.renameExpected(%s, %d));\n", a[0], a[1], p.desc(c.Imm.(core.ExpID))))
+		p.write(fmt.Sprintf("p.mergeKept(%s, p.renameExpected(%s, %d));\n", a[0], a[1], p.desc(c.Imm.(prim.ExpID))))
 	case prim.OpAppendError:
 		p.read(c.Args...)
 		if p.g.Logical {
@@ -282,7 +282,7 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpResumeNext:
 		return fmt.Sprintf("p.resumeNext(%s)", args()[0])
 	case prim.OpMatchLit:
-		lit := c.Imm.(*core.Lit)
+		lit := c.Imm.(prim.Lit)
 		if lit.Fold {
 			folded := string(common.FoldedRunes([]rune(lit.Text)))
 			if p.dry {
@@ -310,22 +310,22 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		}
 		return fmt.Sprintf("p.matchLiteral(%s, %d, false)", v, desc)
 	case prim.OpGuardFails:
-		guard := c.Imm.(*core.First)
+		guard := c.Imm.(prim.Guard)
 		a := args()
 		ch, more := a[0], a[1]
-		return fmt.Sprintf("!(%s && (%s)) && %s", more, tsClassIn(guard.Class, ch), tsDepthLimit(guard.Depth))
+		return fmt.Sprintf("!(%s && (%s)) && %s", more, tsClassIn(p.class(guard.Class), ch), tsDepthLimit(guard.Depth))
 	case prim.OpGuardLitFails:
-		guard := c.Imm.(*core.First)
+		guard := c.Imm.(prim.Guard)
 		return fmt.Sprintf("p.matchChar(%d, %t) < 0 && %s", guard.Rune, guard.Fold, tsDepthLimit(guard.Depth))
 	case prim.OpInClass:
-		return tsClassIn(c.Imm.(*core.Class), args()[0])
+		return tsClassIn(p.class(c.Imm.(prim.ClassID)), args()[0])
 	case prim.OpAtAnchor:
-		switch c.Imm.(core.AnchorKind) {
-		case core.BeginInput:
+		switch c.Imm.(prim.Anchor) {
+		case prim.BeginInput:
 			return "p.pos === 0"
-		case core.EndInput:
+		case prim.EndInput:
 			return "p.atEnd()"
-		case core.BeginLine:
+		case prim.BeginLine:
 			return "p.atLineStart()"
 		default:
 			return "p.atLineEnd()"
@@ -367,13 +367,13 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		return fmt.Sprintf("p.kids(%s)", args()[0])
 	case prim.OpShapeSingle:
 		a := args()
-		return fmt.Sprintf("p.shapeSingle(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
+		return fmt.Sprintf("p.shapeSingle(%d, %s, %s)", tsShape(c.Imm.(prim.Shape)), a[0], a[1])
 	case prim.OpShapeCapture:
 		a := args()
-		return fmt.Sprintf("p.shapeCapture(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
+		return fmt.Sprintf("p.shapeCapture(%d, %s, %s)", tsShape(c.Imm.(prim.Shape)), a[0], a[1])
 	case prim.OpScopeValue:
 		a := args()
-		return fmt.Sprintf("p.scopeValue(%d, %s, %s)", tsShape(c.Imm.(core.Shape)), a[0], a[1])
+		return fmt.Sprintf("p.scopeValue(%d, %s, %s)", tsShape(c.Imm.(prim.Shape)), a[0], a[1])
 	case prim.OpAttachFrame:
 		a := args()
 		return fmt.Sprintf("p.attachCaptures(%s, %s, %s, %s, p.pos)", a[0], p.scopeNames(c.Imm.(prim.Attach).Names), a[2], a[1])

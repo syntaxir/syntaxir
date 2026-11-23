@@ -31,6 +31,11 @@ violation it finds in a function, naming the function. Every function that lower
 - DropTrail and FreeFrame appear only in a typed function.
 - The site of a SkipBegin is positive.
 
+## Tables
+
+Every immediate that names an expectation or a class names an entry of the module's [tables](functions.md#tables), and
+the expectation of each class of the tables is an entry of them.
+
 ## Documents
 
 In a function lowered for a build with Documents, a read of the input in place, HasLit, is the whole condition of an

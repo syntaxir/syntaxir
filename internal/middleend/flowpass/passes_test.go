@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
@@ -292,7 +293,7 @@ func TestClassRunsGuarded(t *testing.T) {
 		if st, ok := s.(*code.If); ok {
 			if n, ok := st.Cond.(*code.Unary); ok {
 				if c, ok := n.X.(*code.Call); ok && c.Callee == flow.OpSkipClasses {
-					runs = append(runs, fmt.Sprint(len(c.Imm.(*core.ClassRun).Classes)))
+					runs = append(runs, fmt.Sprint(len(c.Imm.(prim.ClassRun))))
 				}
 			}
 		}

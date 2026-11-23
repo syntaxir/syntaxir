@@ -20,7 +20,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
-	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
@@ -309,6 +308,8 @@ var flowOtherTargets = map[string]string{
 type flowProbe struct {
 	mu    sync.Mutex
 	calls []*code.Call
+	// tables are the tables of the module of each call, which its immediate indexes.
+	tables []*prim.Tables
 	// printed are the operations whose Go form is nothing.
 	empty map[string]bool
 	// mutate changes the printed form of an operation (a negative control), if set.
@@ -333,14 +334,15 @@ var flowArgOps = []string{flow.OpRestore, flow.OpDropKids, flow.OpKids, flow.OpI
 	flow.OpDropCreated, flow.OpUnfresh, flow.OpShapeSingle, flow.OpShapeCapture, flow.OpScopeValue, flow.OpAttachCaptures,
 	flow.OpAttachFrame, flow.OpClearVals, flow.OpDropTrail, flow.OpFreeFrame, flow.OpEmitStream}
 
-func (pr *flowProbe) add(c *code.Call) int {
+func (pr *flowProbe) add(c *code.Call, tab *prim.Tables) int {
 	pr.mu.Lock()
 	defer pr.mu.Unlock()
 	pr.calls = append(pr.calls, c)
+	pr.tables = append(pr.tables, tab)
 	return len(pr.calls) - 1
 }
 
-func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
+func (pr *flowProbe) target(t *print.Target, tab *prim.Tables, pre *string) *print.Target {
 	w := *t
 	ops := flowOps()
 	wrapArgs := func(c *code.Call, args []string) []string {
@@ -364,7 +366,7 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 		if o == nil {
 			return t.Op(c, args)
 		}
-		k := pr.add(c)
+		k := pr.add(c, tab)
 		mark := len(*pre)
 		s := t.Op(c, wrapArgs(c, args))
 		if pr.mutate != nil {
@@ -401,7 +403,7 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 			}
 			return t.Negate(c, args)
 		}
-		k := pr.add(c)
+		k := pr.add(c, tab)
 		s, ok := t.Negate(c, wrapArgs(c, args))
 		if !ok {
 			return "", false
@@ -415,7 +417,7 @@ func (pr *flowProbe) target(t *print.Target, pre *string) *print.Target {
 			}
 			return t.Stmt(c, args, dst, define)
 		}
-		k := pr.add(c)
+		k := pr.add(c, tab)
 		stmtArgs := wrapArgs(c, args)
 		pre := ""
 		if execlower.FlowOp(c.Callee) == flow.OpAppend {
@@ -678,7 +680,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, flowOps()[name], call, &e) {
+				for _, msg := range checkFlowCall(in, pr.tables[e.K], flowOps()[name], call, &e) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}
@@ -869,7 +871,7 @@ func flowUnits(o *code.Op, e *flowEvent) (lo, hi int) {
 }
 
 // checkFlowCall returns what the recorded call e of the operation o, the call c, breaks.
-func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) []string {
+func checkFlowCall(in *ref.Input, tab *prim.Tables, o *code.Op, c *code.Call, e *flowEvent) []string {
 	var errs []string
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Sprintf(format, args...)) }
 	if !slices.Contains(o.Writes, prim.Pos) && e.PosAfter != e.Pos {
@@ -883,7 +885,7 @@ func checkFlowCall(in *ref.Input, o *code.Op, c *code.Call, e *flowEvent) []stri
 		fail("counted %d compute units, outside %d to %d", self, lo, hi)
 	}
 	if check := flowConformChecks[o.Name]; check != nil {
-		check(in, c, e, fail)
+		check(in, flowCall{c, tab}, e, fail)
 	}
 	return errs
 }
@@ -940,7 +942,14 @@ func listLen(x any) (int, bool) {
 	return n, err == nil
 }
 
-func classOf(c *core.Class) ref.Ranges {
+// flowCall is a call of a Flow operation with the tables of its module, which its immediate indexes.
+type flowCall struct {
+	*code.Call
+	tab *prim.Tables
+}
+
+func classOf(tab *prim.Tables, id prim.ClassID) ref.Ranges {
+	c := tab.Class(id)
 	r := ref.Ranges{Negated: c.Negated}
 	for _, x := range c.Ranges {
 		r.Ranges = append(r.Ranges, [2]rune{x.Lo, x.Hi})
@@ -952,12 +961,12 @@ type failFunc func(format string, args ...any)
 
 // flowConformChecks are the checks of the Flow operations beyond their position and charges, by
 // operation.
-var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc){
-	flow.OpShapeSingle: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+var flowConformChecks = map[string]func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc){
+	flow.OpShapeSingle: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
-		sh := c.Imm.(core.Shape)
+		sh := c.Imm.(prim.Shape)
 		ok, known := resBool(e, 1)
-		if known && ok != (sh.Mode != core.SingleNone) {
+		if known && ok != (sh.Mode != prim.SingleNone) {
 			fail("reported %v for a shape of mode %d", ok, sh.Mode)
 		}
 		if known && ok {
@@ -966,10 +975,10 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned %v where the expression has no value", e.Results[0])
 		}
 	},
-	flow.OpShapeCapture: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpShapeCapture: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
-		sh := c.Imm.(core.Shape)
-		if sh.Mode == core.SingleNone {
+		sh := c.Imm.(prim.Shape)
+		if sh.Mode == prim.SingleNone {
 			// The unit node of the range matched.
 			start, ok := argInt(e, 1)
 			if v, isNode := valOf(firstResult(e)); isNode && ok && (!isTuple(v) || v.Start != start || v.End != e.Pos || v.Kids != 0) {
@@ -981,11 +990,11 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		checkShapeValue(e, fail, sh, false)
 	},
-	flow.OpScopeValue: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpScopeValue: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
-		checkShapeValue(e, fail, c.Imm.(core.Shape), true)
+		checkShapeValue(e, fail, c.Imm.(prim.Shape), true)
 	},
-	flow.OpAttachCaptures: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpAttachCaptures: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		attached := false
 		for i := 2; i < len(e.Args); i++ {
@@ -995,13 +1004,13 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		checkAttached(e, fail, attached)
 	},
-	flow.OpAttachFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpAttachFrame: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		// The captures are the values of the frame argument.
 		attached := e.ArgFrameSet
 		checkAttached(e, fail, attached)
 	},
-	flow.OpDropCreated: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpDropCreated: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		var base int
 		if _, err := fmt.Sscanf(fmt.Sprint(e.Args[0]), "ctx:%d", &base); err != nil {
@@ -1011,13 +1020,13 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("left %d made structs, not the %d of before the context", e.CreatedAfter, base)
 		}
 	},
-	flow.OpUnfresh: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpUnfresh: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if e.Fresh != "" && e.FreshAfter != "false" {
 			fail("left the node owned by its maker (%s)", e.FreshAfter)
 		}
 	},
-	flow.OpAppend: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpAppend: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		before, ok1 := listLen(e.Args[0])
 		after, ok2 := listLen(firstResult(e))
@@ -1036,7 +1045,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("appended %d elements to the list of %d, to make %d, not %d", after-before, before, after, before+want)
 		}
 	},
-	flow.OpCtxFinish: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpCtxFinish: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		arg, res := e.Args[1], firstResult(e)
 		if (arg == nil) != (res == nil) {
@@ -1058,22 +1067,22 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("changed the span of the value from %d-%d to %d-%d, which does not end at the position %d", a.Start, a.End, r.Start, r.End, e.Pos)
 		}
 	},
-	flow.OpFreshNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpFreshNode: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if res := firstResult(e); res != nil && fmt.Sprint(res) != fmt.Sprint(e.Args[0]) {
 			fail("returned %v, neither the node %v nor nil", res, e.Args[0])
 		}
 	},
-	flow.OpPred:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpBind:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpEval:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpUseCtx:        func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpSetWhere:      func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpDeclareNames:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpStep:          func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpObserveSkip:   func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpConvertResult: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
-	flow.OpSkipHit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpPred:          func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpBind:          func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpEval:          func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpUseCtx:        func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpSetWhere:      func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpDeclareNames:  func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpStep:          func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpObserveSkip:   func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpConvertResult: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkOnlyAction(e, fail) },
+	flow.OpSkipHit: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		hit, known := resBool(e, 0)
 		switch {
 		case !known:
@@ -1085,7 +1094,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("took a record that moved the position from %d to %d and the farthest failure from %d to %d", e.Pos, e.PosAfter, e.Far, e.FarAfter)
 		}
 	},
-	flow.OpRunHot: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpRunHot: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if _, known := resBool(e, 0); !known && len(e.Results) != 0 {
 			fail("returned %v, not a bool", e.Results[0])
 		}
@@ -1093,7 +1102,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("changed the state (%v), it is pure", flowChanged(e))
 		}
 	},
-	flow.OpSkipKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSkipKids: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if _, ok := listLen(firstResult(e)); !ok {
 			fail("returned %v, not a list", firstResult(e))
 		}
@@ -1101,7 +1110,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
 		}
 	},
-	flow.OpScanReach: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpScanReach: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		start, ok1 := argInt(e, 0)
 		count, ok2 := argInt(e, 1)
 		reach, ok3 := firstResult(e).(float64)
@@ -1117,7 +1126,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned the count and moved the position from %d to %d", e.Pos, e.PosAfter)
 		}
 	},
-	flow.OpScanKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpScanKids: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		base, ok := argInt(e, 1)
 		if _, isList := listLen(firstResult(e)); !isList {
 			fail("returned %v, not a list", firstResult(e))
@@ -1136,7 +1145,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 	flow.OpSkipEnd:   checkWalkOnly,
 	flow.OpRunWalked: checkWalkOnly,
 	flow.OpScanEnd:   checkWalkOnly,
-	flow.OpPeek: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpPeek: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		r, size, ok := in.At(e.Pos)
 		if got, known := resBool(e, 2); known && got != ok {
 			fail("reports a code point %v, the input %v", got, ok)
@@ -1151,8 +1160,8 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("read size %d, want %d", got, size)
 		}
 	},
-	flow.OpMatchLit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		lit := c.Imm.(*core.Lit)
+	flow.OpMatchLit: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		lit := c.Imm.(prim.Lit)
 		want := in.HasPrefix(e.Pos, lit.Text, lit.Fold)
 		if got, known := resBool(e, 1); known && got != want {
 			fail("matched %v, the input %v", got, want)
@@ -1165,14 +1174,14 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("ended at %d, want %d", e.PosAfter, end)
 		}
 	},
-	flow.OpHasLit: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		lit := c.Imm.(*core.Lit)
+	flow.OpHasLit: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		lit := c.Imm.(prim.Lit)
 		if got, known := resBool(e, 0); known && got && !in.HasPrefix(e.Pos, lit.Text, lit.Fold) {
 			fail("holds where the input does not begin with %q", lit.Text)
 		}
 	},
-	flow.OpMatchClass: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		want := in.MatchClass(e.Pos, classOf(c.Imm.(*core.Class)))
+	flow.OpMatchClass: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		want := in.MatchClass(e.Pos, classOf(c.tab, c.Imm.(prim.ClassID)))
 		if got, known := resBool(e, 0); known && got != want {
 			fail("matched %v, the input %v", got, want)
 		}
@@ -1184,15 +1193,15 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("ended at %d, want %d", e.PosAfter, end)
 		}
 	},
-	flow.OpInClass: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpInClass: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		ch, ok := argInt(e, 0)
 		got, known := resBool(e, 0)
-		if ok && known && got != classOf(c.Imm.(*core.Class)).Contains(rune(ch)) {
+		if ok && known && got != classOf(c.tab, c.Imm.(prim.ClassID)).Contains(rune(ch)) {
 			fail("reports %v for %q", got, rune(ch))
 		}
 	},
-	flow.OpGuardFails: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		g := c.Imm.(*core.First)
+	flow.OpGuardFails: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		g := c.Imm.(prim.Guard)
 		got, known := resBool(e, 0)
 		more, mok := e.Args[1].(bool)
 		if !known || !mok {
@@ -1200,7 +1209,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 		}
 		admits := false
 		if ch, ok := argInt(e, 0); more && ok {
-			admits = classOf(g.Class).Contains(rune(ch))
+			admits = classOf(c.tab, g.Class).Contains(rune(ch))
 		} else if more {
 			return
 		}
@@ -1211,8 +1220,8 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("keeps an alternative that the character cannot begin")
 		}
 	},
-	flow.OpGuardLitFails: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		g := c.Imm.(*core.First)
+	flow.OpGuardLitFails: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		g := c.Imm.(prim.Guard)
 		got, known := resBool(e, 0)
 		if !known {
 			return
@@ -1228,19 +1237,19 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
 		}
 	},
-	flow.OpAtAnchor: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		want := in.AtAnchor(e.Pos, int(c.Imm.(core.AnchorKind)))
+	flow.OpAtAnchor: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		want := in.AtAnchor(e.Pos, int(c.Imm.(prim.Anchor)))
 		if got, known := resBool(e, 0); known && got != want {
 			fail("reports %v, the input %v", got, want)
 		}
 	},
-	flow.OpSkipClasses: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
-		run := c.Imm.(*core.ClassRun)
+	flow.OpSkipClasses: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
+		run := c.Imm.(prim.ClassRun)
 		matched := 0
-		for matched < len(run.Classes) && in.MatchClass(e.Pos+matched, classOf(run.Classes[matched])) {
+		for matched < len(run) && in.MatchClass(e.Pos+matched, classOf(c.tab, run[matched])) {
 			matched++
 		}
-		want := matched == len(run.Classes)
+		want := matched == len(run)
 		if got, known := resBool(e, 0); known && got != want {
 			fail("matched %v, the input %v", got, want)
 		}
@@ -1250,7 +1259,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("ended at %d, want %d", e.PosAfter, end)
 		}
 	},
-	flow.OpSkipTerminal: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSkipTerminal: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if ok, known := resBool(e, 0); known && !ok && e.PosAfter != e.Pos {
 			fail("failed and moved the position")
 		}
@@ -1259,24 +1268,24 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("charged %d units for a match of %d", self, e.PosAfter-e.Pos)
 		}
 	},
-	flow.OpText: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpText: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		start, ok := argInt(e, 0)
 		if s, isStr := firstString(e); ok && isStr && s != in.Slice(start, e.Pos) {
 			fail("returned %q, the input %q", s, in.Slice(start, e.Pos))
 		}
 	},
-	flow.OpLiteralText: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpLiteralText: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		start, ok := argInt(e, 0)
 		if s, isStr := firstString(e); ok && isStr && s != in.Slice(start, e.Pos) {
 			fail("returned %q, the input %q", s, in.Slice(start, e.Pos))
 		}
 	},
-	flow.OpStr: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpStr: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if s, isStr := firstString(e); isStr && s != string(c.Imm.(prim.Chars)) {
 			fail("returned %q", s)
 		}
 	},
-	flow.OpAdvance: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpAdvance: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if n, ok := c.Args[0].(*code.Const); ok && e.PosAfter-e.Pos != int(n.Value.(int64)) {
 			fail("moved by %d, not %v", e.PosAfter-e.Pos, n.Value)
 		}
@@ -1284,7 +1293,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("moved to %d", e.PosAfter)
 		}
 	},
-	flow.OpRestore: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpRestore: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if pos, ok := argInt(e, 0); ok && e.PosAfter != pos {
 			fail("moved to %d, not %d", e.PosAfter, pos)
 		}
@@ -1292,40 +1301,40 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("kept %d recovered errors of %d, not the first %d", e.RecAfter, e.Rec, rec)
 		}
 	},
-	flow.OpMarkState: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpMarkState: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if len(e.Results) > 0 {
 			if pos, ok := markPos(e.Results[0]); ok && pos != e.Pos {
 				fail("marked %d", pos)
 			}
 		}
 	},
-	flow.OpMarkPos: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpMarkPos: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		pos, ok := markPos(e.Args[0])
 		if got, known := resInt(e, 0); ok && known && got != pos {
 			fail("returned %d for a mark at %d", got, pos)
 		}
 	},
-	flow.OpReset: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpReset: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if pos, ok := markPos(e.Args[0]); ok && e.PosAfter != pos {
 			fail("returned to %d for a mark at %d", e.PosAfter, pos)
 		}
 	},
-	flow.OpPushKid: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpPushKid: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if e.KidsAfter != e.Kids+1 {
 			fail("left %d gathered values of %d", e.KidsAfter, e.Kids)
 		}
 	},
-	flow.OpDropKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpDropKids: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if base, ok := argInt(e, 0); ok && e.KidsAfter != base {
 			fail("left %d gathered values, not %d", e.KidsAfter, base)
 		}
 	},
-	flow.OpKidsLen: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpKidsLen: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if got, known := resInt(e, 0); known && got != e.Kids {
 			fail("returned %d of %d", got, e.Kids)
 		}
 	},
-	flow.OpKids: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpKids: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		base, ok := argInt(e, 0)
 		if !ok {
 			return
@@ -1337,59 +1346,59 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned %d values of %d above %d", n, e.Kids, base)
 		}
 	},
-	flow.OpNewVals: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewVals: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if n, ok := listLen(firstResult(e)); ok && n != 0 {
 			fail("returned %d values", n)
 		}
 	},
-	flow.OpRecLen: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpRecLen: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if got, known := resInt(e, 0); known && got != e.Rec {
 			fail("returned %d of %d", got, e.Rec)
 		}
 	},
-	flow.OpAppendError: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpAppendError: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if e.RecAfter != e.Rec+1 {
 			fail("left %d recovered errors of %d", e.RecAfter, e.Rec)
 		}
 	},
-	flow.OpSilent: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSilent: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if d := c.Imm.(prim.Silence).Delta; e.SilentAfter-e.Silent != d {
 			fail("changed the silent depth by %d, not %d", e.SilentAfter-e.Silent, d)
 		}
 	},
-	flow.OpNewMatch: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewMatch: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if v, ok := checkNodeBuilt(e, fail); ok {
 			if s, isStr := e.Args[1].(string); isStr && strings.HasPrefix(s, "s:") && v.Text != s[2:] {
 				fail("built a match with the text %q, not %q", v.Text, s[2:])
 			}
 		}
 	},
-	flow.OpNewTerminalNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewTerminalNode: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if v, ok := checkNodeBuilt(e, fail); ok {
 			if s, isStr := e.Args[1].(string); isStr && strings.HasPrefix(s, "s:") && v.Text != s[2:] {
 				fail("built a terminal with the text %q, not %q", v.Text, s[2:])
 			}
 		}
 	},
-	flow.OpNewBranchNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewBranchNode: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		v, ok := checkNodeBuilt(e, fail)
 		if n, isLen := listLen(e.Args[1]); ok && isLen && v.Kids != n {
 			fail("built a branch of %d children from a list of %d", v.Kids, n)
 		}
 	},
-	flow.OpNewNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewNode: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		v, ok := checkNodeBuilt(e, fail)
 		if n, isLen := listLen(e.Args[1]); ok && isLen && v.Kids != n {
 			fail("built a node of %d children from a list of %d", v.Kids, n)
 		}
 	},
-	flow.OpErrorValue: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpErrorValue: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkNodeBuilt(e, fail, "error")
 	},
-	flow.OpNewErrorNode: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewErrorNode: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkNodeBuilt(e, fail, "error")
 	},
-	flow.OpExpect: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpExpect: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		at, ok := argInt(e, 0)
 		if !ok {
 			return
@@ -1409,14 +1418,14 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			}
 		}
 	},
-	flow.OpMergeExpected: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
-	flow.OpMergeRenamed:  func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
-	flow.OpIsolate: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpMergeExpected: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
+	flow.OpMergeRenamed:  func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) { checkMerge(e, fail) },
+	flow.OpIsolate: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if e.ExpsAfter != 0 || e.FarAfter != e.Pos {
 			fail("began a record at %d with %d expectations, not an empty one at the position %d", e.FarAfter, e.ExpsAfter, e.Pos)
 		}
 	},
-	flow.OpUnisolate: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpUnisolate: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if far, ok := resInt(e, 0); ok && far != e.Far {
 			fail("returned the farthest failure %d of a record at %d", far, e.Far)
 		}
@@ -1427,7 +1436,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned %d expectations of a record of %d", n, e.Exps)
 		}
 	},
-	flow.OpKeep: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpKeep: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		n, ok := listLen(e.Args[0])
 		if !ok || n == 0 {
 			return
@@ -1436,40 +1445,40 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("kept %v of %d expectations", firstResult(e), n)
 		}
 	},
-	flow.OpMakeError: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpMakeError: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if firstResult(e) == nil {
 			fail("returned no error")
 		}
 	},
-	flow.OpSetFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSetFrame: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if want := idOf(e.Args[0]); e.FrameAfter != want {
 			fail("made %s the current frame, not %s", e.FrameAfter, want)
 		}
 	},
-	flow.OpFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpFrame: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if got := idOf(firstResult(e)); got != e.Frame {
 			fail("returned the frame %s, the current one is %s", got, e.Frame)
 		}
 	},
-	flow.OpClearVals: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpClearVals: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if e.ArgFrameSetAfter {
 			fail("left a slot of the frame set")
 		}
 	},
-	flow.OpDropTrail: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpDropTrail: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if want, ok := markTrail(e.Args[0]); ok && e.TrailAfter != want {
 			fail("left a trail of %d entries for a mark at %d (it was %d)", e.TrailAfter, want, e.Trail)
 		}
 	},
-	flow.OpFreeFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpFreeFrame: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if idOf(e.Args[0]) == e.Frame {
 			fail("freed the current frame %s", e.Frame)
 		}
 	},
-	flow.OpStreamOn: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpStreamOn: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		got, known := resBool(e, 0)
 		switch {
 		case !known:
@@ -1479,7 +1488,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("reported no delivery at the top call of a stream parse")
 		}
 	},
-	flow.OpStreamStart: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpStreamStart: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		checkOnlyAction(e, fail)
 		if !e.Streaming {
 			fail("began a stream in a parse that has no callback")
@@ -1488,7 +1497,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("accounted %d+%d bytes after %d+%d (the bytes in use are kept for the stream)", e.MemKeptAfter, e.MemUsedAfter, e.MemKept, e.MemUsed)
 		}
 	},
-	flow.OpEmitStream: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpEmitStream: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if e.PosAfter != e.Pos {
 			fail("moved the position from %d to %d", e.Pos, e.PosAfter)
 		}
@@ -1498,7 +1507,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("delivered %v, not %v", e.EmitLastAfter, e.Args[0])
 		}
 	},
-	flow.OpNewFrame: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpNewFrame: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if got := idOf(firstResult(e)); got == "nil" || got == e.Frame {
 			fail("returned the frame %s, not a new one (the current one is %s)", got, e.Frame)
 		}
@@ -1509,17 +1518,17 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned a frame with a slot set")
 		}
 	},
-	flow.OpSetEnv: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSetEnv: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if want := idOf(e.Args[0]); e.EnvAfter != want {
 			fail("made %s the environment, not %s", e.EnvAfter, want)
 		}
 	},
-	flow.OpEnv: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpEnv: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if got := idOf(firstResult(e)); got != e.Env {
 			fail("returned the environment %s, the current one is %s", got, e.Env)
 		}
 	},
-	flow.OpSetCapture: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpSetCapture: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		slot := int(c.Imm.(prim.Slot))
 		if slot >= len(e.Vals) || len(e.ValsAfter) != len(e.Vals) {
 			fail("the frame has %d slots before and %d after, for slot %d", len(e.Vals), len(e.ValsAfter), slot)
@@ -1534,7 +1543,7 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			}
 		}
 	},
-	flow.OpFrameVal: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpFrameVal: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		slot := int(c.Imm.(prim.Slot))
 		if idOf(e.Args[0]) != e.Frame || slot >= len(e.Vals) {
 			return
@@ -1543,12 +1552,12 @@ var flowConformChecks = map[string]func(in *ref.Input, c *code.Call, e *flowEven
 			fail("returned %s for slot %d, the frame holds %s", got, slot, want)
 		}
 	},
-	flow.OpCallRule: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpCallRule: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if ok, known := resBool(e, 1); known && !ok && e.PosAfter != e.Pos {
 			fail("failed and moved the position")
 		}
 	},
-	flow.OpCallOutline: func(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+	flow.OpCallOutline: func(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 		if ok, known := resBool(e, 1); known && !ok && e.PosAfter != e.Pos {
 			fail("failed and moved the position")
 		}
@@ -1611,8 +1620,8 @@ func isTuple(v flowVal) bool { return strings.Trim(v.Type, "()") == "tuple" }
 // true): the tuple node of the elements, or the element itself. It compares what is strictly
 // comparable on the recorded values: the kind of the value and, for a tuple that the operation makes,
 // its range and number of children.
-func checkShapeValue(e *flowEvent, fail failFunc, sh core.Shape, scope bool) {
-	tuple := sh.Mode == core.SingleTuple
+func checkShapeValue(e *flowEvent, fail failFunc, sh prim.Shape, scope bool) {
+	tuple := sh.Mode == prim.SingleTuple
 	if scope {
 		tuple = sh.Tuple
 	}
@@ -1660,7 +1669,7 @@ func checkOnlyAction(e *flowEvent, fail failFunc) {
 
 // checkWalkOnly checks an operation of a walk of a run or scan site, which writes only the state of
 // the walk: it leaves the position, the gathered values and the recovered errors as they were.
-func checkWalkOnly(in *ref.Input, c *code.Call, e *flowEvent, fail failFunc) {
+func checkWalkOnly(in *ref.Input, c flowCall, e *flowEvent, fail failFunc) {
 	if e.PosAfter != e.Pos {
 		fail("moved the position from %d to %d", e.Pos, e.PosAfter)
 	}

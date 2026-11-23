@@ -67,6 +67,7 @@ func lower(m *code.Module) (*code.Module, error) {
 	out := code.NewModule(m.Name, m.Features...)
 	out.Dialects = []string{Dialect, "action"}
 	code.EnterExec(out)
+	out.Attrs = m.Attrs
 	out.AddComponent(prim.Component, "The state of the runtime that the target implements.")
 	out.Registers = m.Registers
 	for _, h := range m.Handles {

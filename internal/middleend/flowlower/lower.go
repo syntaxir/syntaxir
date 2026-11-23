@@ -89,7 +89,7 @@ func FramedBody(n core.Node) bool {
 // framed function name of the rule r: the body of a left-recursion leader or of a rule that
 // recovers, or a line of an Operators Rule of r. Analyze must have run on m.
 func LowerFrame(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
 // Outlinable reports whether a node can run as a function of its own (LowerOutline): it is a framed
@@ -112,14 +112,14 @@ func Outlinable(n core.Node) bool {
 // name. The function belongs to the rule of its caller, which charged the entry of the rule: it
 // charges only the repetitions below n. Analyze must have run on m.
 func LowerOutline(m *core.Module, r *core.Rule, n core.Node, slots []core.Slot, build bool, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Outline, Rule: r, Name: name, Body: n, Slots: slots, Build: build}, opts))
 }
 
-func lowerFrameBody(m *core.Module, sites *core.ActionSites, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts lowerdata.Options) (*code.Module, error) {
+func lowerFrameBody(m *core.Module, sites *core.ActionSites, tb *tables, r *core.Rule, n core.Node, slots []core.Slot, build, stream bool, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !FramedBody(n) {
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
-	l := newLowerer(m, sites, opts, name, &flow.Attrs{Rule: r, Frame: true, Node: opts.Node, Document: opts.Document,
+	l := newLowerer(m, sites, tb, opts, name, &flow.Attrs{Rule: r.ID, Frame: true, Node: opts.Node, Document: opts.Document,
 		Traced: opts.Traced, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
 	l.frame = true
 	l.stream = stream
@@ -145,14 +145,14 @@ func lowerFrameBody(m *core.Module, sites *core.ActionSites, r *core.Rule, n cor
 // run on m. The terminal regions of the rule (corepass.TerminalRegions) are forms of the function
 // (flow.Forms), which the terminals pass may match as one program.
 func Lower(m *core.Module, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
-	return verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Flat, Rule: r, Name: name}, opts))
+	return verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Flat, Rule: r, Name: name}, opts))
 }
 
-func lowerFlat(m *core.Module, sites *core.ActionSites, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
+func lowerFlat(m *core.Module, sites *core.ActionSites, tb *tables, r *core.Rule, name string, opts lowerdata.Options) (*code.Module, error) {
 	if !LocalRule(r) {
 		return nil, fmt.Errorf("rule %s is not lowered to a local function", r.Name)
 	}
-	l := newLowerer(m, sites, opts, name, &flow.Attrs{Rule: r, Start: "start", Result: "v", Ctx: "c",
+	l := newLowerer(m, sites, tb, opts, name, &flow.Attrs{Rule: r.ID, Start: "start", Result: "v", Ctx: "c",
 		Node:     opts.Node,
 		Document: opts.Document,
 		Traced:   opts.Traced,
@@ -178,7 +178,9 @@ type lowerer struct {
 	// sites numbers the action sites of m, which the operations of predicates, bindings and actions
 	// name.
 	sites *core.ActionSites
-	opts  lowerdata.Options
+	// tab holds the tables of m, which the module of the function carries.
+	tab  *tables
+	opts lowerdata.Options
 	// fn is the function being lowered and at its attributes; body is the block that the body
 	// leaves on failure (Attrs.Fail).
 	fn   *code.Func
@@ -220,10 +222,10 @@ type lowerer struct {
 
 // newLowerer returns a lowerer of the function name with the attributes at, whose body is the block
 // that it leaves on failure.
-func newLowerer(m *core.Module, sites *core.ActionSites, opts lowerdata.Options, name string, at *flow.Attrs) *lowerer {
+func newLowerer(m *core.Module, sites *core.ActionSites, tb *tables, opts lowerdata.Options, name string, at *flow.Attrs) *lowerer {
 	at.Fail = "fail"
 	at.Forms = &flow.Forms{}
-	l := &lowerer{m: m, sites: sites, opts: opts, at: at, fn: &code.Func{Name: name, Attrs: at}, body: &code.Block{Label: at.Fail},
+	l := &lowerer{m: m, sites: sites, tab: tb, opts: opts, at: at, fn: &code.Func{Name: name, Attrs: at}, body: &code.Block{Label: at.Fail},
 		used: map[string]bool{}, loops: map[string]bool{}, forms: at.Forms}
 	l.stack = []*[]code.Stmt{&l.body.Stmts}
 	return l
@@ -269,6 +271,7 @@ func (l *lowerer) module(value code.Expr) (*code.Module, error) {
 	unshare(fn.Body)
 	at.Forms.Named, at.Forms.Order = flow.NamedVars(fn.Body), append([]string(nil), at.Vars...)
 	m := code.EnterFlow(flow.NewModule("flow " + fn.Name)).Module()
+	m.Attrs = l.tab.t
 	m.Funcs = append(m.Funcs, fn)
 	return m, nil
 }
@@ -506,8 +509,6 @@ func (l *lowerer) cutFail(cut string, fail string, cleanup ...code.Stmt) {
 	}
 }
 
-var anchorExps = map[core.AnchorKind]core.ExpID{core.BeginInput: 1, core.EndInput: 2, core.BeginLine: 3, core.EndLine: 4}
-
 // node lowers n, leaving fail when it fails, and returns its value: nil unless build.
 func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr {
 	if l.dead {
@@ -535,14 +536,15 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		return l.node(n.Body, s, build, fail)
 	case *core.ClassNode:
 		form := l.openForm(flow.FormClass, n, build, fail)
+		form.Class = l.tab.class(n.Class)
 		if n == l.guarded {
 			form.Guard = l.guardedChoice
 		}
 		l.forms.Classes = append(l.forms.Classes, form)
 		ch, size, ok := l.shared("ch", prim.TypeRune), l.shared("size", prim.TypeInt), l.ok()
 		l.emit(peek(ch, size, ok))
-		l.failIf(nil, code.Bin("||", code.Not(use(ok)), code.Not(call(flow.OpInClass, n.Class, use(ch)))), fail,
-			do(flow.OpExpect, prim.Expectation{Exp: n.Class.Exp}, pos()))
+		l.failIf(nil, code.Bin("||", code.Not(use(ok)), code.Not(call(flow.OpInClass, form.Class, use(ch)))), fail,
+			do(flow.OpExpect, prim.Expectation{Exp: prim.ExpID(n.Class.Exp)}, pos()))
 		v := l.single(size, build)
 		l.closeForm(form)
 		return v
@@ -695,7 +697,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		}
 		return null()
 	case *core.Anchor:
-		l.failIf(nil, code.Not(call(flow.OpAtAnchor, n.Kind)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchorExps[n.Kind]}, pos()))
+		l.failIf(nil, code.Not(call(flow.OpAtAnchor, anchors[n.Kind].a)), fail, do(flow.OpExpect, prim.Expectation{Exp: anchors[n.Kind].exp}, pos()))
 		return null()
 	case *core.Pred:
 		c, args := l.actionCaps(n.Action, s)
@@ -723,7 +725,7 @@ func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 		l.set(start, pos())
 	}
 	ok := l.ok()
-	l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{call(flow.OpMatchLit, n)}}, code.Not(use(ok)), fail)
+	l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{call(flow.OpMatchLit, lit(n))}}, code.Not(use(ok)), fail)
 	if !build {
 		return null()
 	}
@@ -859,18 +861,18 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			}
 			skip := l.label()
 			bs = l.open(skip)
-			pre := []code.Stmt{do(flow.OpExpect, prim.Expectation{Exp: a.Guard.Exp}, pos())}
+			pre := []code.Stmt{do(flow.OpExpect, prim.Expectation{Exp: prim.ExpID(a.Guard.Exp)}, pos())}
 			if len(skipped) > 0 {
-				pre = append(pre, do(flow.OpSkippedCalls, prim.SkippedCalls{Rules: skipped, Exp: a.Guard.Exp}))
+				pre = append(pre, do(flow.OpSkippedCalls, prim.SkippedCalls{Rules: skipped, Exp: prim.ExpID(a.Guard.Exp)}))
 			}
 			if l.opts.Observe {
 				pre = append(pre, do(flow.OpObserveSkip, a.Body))
 			}
 			var fails code.Expr
 			if a.Guard.Lit {
-				fails = call(flow.OpGuardLitFails, a.Guard)
+				fails = call(flow.OpGuardLitFails, l.tab.guard(a.Guard))
 			} else {
-				fails = call(flow.OpGuardFails, a.Guard, use(ch), use(more))
+				fails = call(flow.OpGuardFails, l.tab.guard(a.Guard), use(ch), use(more))
 			}
 			if outside {
 				// A Document parse evaluates the alternative without the guard (docMemoized).
@@ -910,9 +912,9 @@ func (l *lowerer) shapeOne(n core.Node, x code.Expr, start code.Expr, capture bo
 	}
 	v := l.decl("v", prim.TypeValue)
 	if capture {
-		l.set(v, call(flow.OpShapeCapture, sh, x, start))
+		l.set(v, call(flow.OpShapeCapture, shape(sh), x, start))
 	} else {
-		l.emit(&code.Set{Dst: []code.Place{{Name: v}, {}}, Values: []code.Expr{call(flow.OpShapeSingle, sh, x, start)}})
+		l.emit(&code.Set{Dst: []code.Place{{Name: v}, {}}, Values: []code.Expr{call(flow.OpShapeSingle, shape(sh), x, start)}})
 	}
 	return use(v)
 }
@@ -975,7 +977,7 @@ func (l *lowerer) repeat(n *core.Repeat, s *scope, build bool, fail string) code
 	v, cut := l.cutNode(n.Body, es, build, f)
 	if build {
 		sv := l.decl("v", prim.TypeValue)
-		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, use(m.pos)))
+		l.set(sv, call(flow.OpScopeValue, shape(n.Body.Attrs().Shape), v, use(m.pos)))
 		v = use(sv)
 	}
 	if own && build {
@@ -1237,7 +1239,7 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 	v, cut := l.cutNode(n.Body, s, build, f)
 	if build {
 		sv := l.decl("v", prim.TypeValue)
-		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, m.at()))
+		l.set(sv, call(flow.OpScopeValue, shape(n.Body.Attrs().Shape), v, m.at()))
 		rr.end(l, true, use(sv))
 		l.emit(do(flow.OpPushKid, nil, use(sv)))
 	} else {
@@ -1413,10 +1415,10 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 	l.step()
 	l.emit(peek(ch, size, ok))
 	var stop code.Expr = code.Not(use(ok))
-	exp := core.ExpID(0)
+	exp := prim.ExpID(0)
 	if n.Class != nil {
-		stop = code.Bin("||", stop, code.Not(call(flow.OpInClass, n.Class, use(ch))))
-		exp = n.Class.Exp
+		stop = code.Bin("||", stop, code.Not(call(flow.OpInClass, l.tab.class(n.Class), use(ch))))
+		exp = prim.ExpID(n.Class.Exp)
 	}
 	l.emit(&code.If{Cond: stop, Then: &code.Block{Stmts: []code.Stmt{do(flow.OpExpect, prim.Expectation{Exp: exp}, pos()), l.jump(lp.Label)}}})
 	l.emit(do(flow.OpAdvance, nil, use(size)))
@@ -1533,9 +1535,9 @@ func (l *lowerer) label_(n *core.Label, s *scope, build bool, fail string) code.
 		l.close(bf)
 		l.emit(&code.Set{Dst: []code.Place{{Name: far}, {Name: exps}}, Values: []code.Expr{call(flow.OpUnisolate, nil, use(mk))}})
 		if n.Diagnostic {
-			l.emit(do(flow.OpMergeRenamed, n.Exp, use(far), use(exps)))
+			l.emit(do(flow.OpMergeRenamed, prim.ExpID(n.Exp), use(far), use(exps)))
 		} else {
-			l.emit(do(flow.OpExpect, prim.Expectation{Exp: n.Exp, Message: true}, use(far)))
+			l.emit(do(flow.OpExpect, prim.Expectation{Exp: prim.ExpID(n.Exp), Message: true}, use(far)))
 		}
 		l.exit(fail)
 		l.close(bd)
@@ -1586,7 +1588,7 @@ func (l *lowerer) finish(r *core.Rule, s *scope, body code.Expr) {
 		l.set(f.Result, body)
 		l.emit(do(flow.OpUnfresh, nil, use(f.Result)))
 	case core.FinishScope:
-		l.set(f.Result, call(flow.OpScopeValue, r.Finish.Shape, body, use(f.Start)))
+		l.set(f.Result, call(flow.OpScopeValue, shape(r.Finish.Shape), body, use(f.Start)))
 		if len(s.slots) > 0 {
 			l.set(f.Result, attach(use(f.Result), use(f.Start), &prim.Names{List: core.SlotNames(s.slots)}, l.scopeVals(s)))
 		}
@@ -1672,7 +1674,7 @@ func (l *lowerer) frameRepeat(n *core.Repeat, s *scope, build bool, fail string)
 	v, cut := l.cutNode(n.Body, es, build && field == "", f)
 	if build && field == "" {
 		sv := l.decl("v", prim.TypeValue)
-		l.set(sv, call(flow.OpScopeValue, n.Body.Attrs().Shape, v, m.at()))
+		l.set(sv, call(flow.OpScopeValue, shape(n.Body.Attrs().Shape), v, m.at()))
 		v = use(sv)
 	}
 	if own {

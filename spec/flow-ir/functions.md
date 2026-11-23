@@ -9,7 +9,7 @@ attributes of the function.
 | Part | Meaning |
 |:--|:--|
 | Name | The function's name |
-| Rule | The rule of Core IR it is the body of |
+| Rule | The ID of the rule of Core IR it is the body of |
 | Variables | Its variables, which are the locals of the function, each with a name unique in the function and a type, in the order they were made |
 | Body | Its statements. Running to the end of the body is success; an exit to the failure label is failure |
 | Failure label | The label that an exit takes to fail |
@@ -20,6 +20,14 @@ attributes of the function.
 | Cut | The cut flag of the outermost scope of a framed function, a variable, which it reads from the register of the cut flag on entry |
 | Node | The function builds the values of the node runtime, and none of the typed runtime |
 | Document | The function is lowered for a build with Documents, and reads input in place only as [Invariants](invariants.md#documents) allows |
+
+## Tables
+
+A module of grammar code holds tables that the immediates of its operations index: the expectations of the grammar and
+its character classes, each class with its ranges of code points, whether it is negated and its expectation. They hold
+the expectations and the classes of the Core IR module that the functions are lowered from, in its order, so that an
+expectation or a class has the same index in both, and the functions of one module share them. The conversion to the
+Exec stage keeps them.
 
 ## Local and Framed Functions
 

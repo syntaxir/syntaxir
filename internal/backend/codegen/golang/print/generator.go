@@ -17,6 +17,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
@@ -87,8 +88,9 @@ type Hooks struct {
 	// PrimTarget replaces the Go implementation of the primitive operations of grammar code at the Exec
 	// stage (primPrinter.execTarget), given the printer's own and the address of the statements that the
 	// expression printed last needs before it (those of the action expression of an Eval), so that the conformance
-	// test of the Flow operations wraps each call in a probe of its own.
-	PrimTarget func(t *Target, pre *string) *Target
+	// test of the Flow operations wraps each call in a probe of its own; tables are the tables of the
+	// module, which the immediates of the calls index.
+	PrimTarget func(t *Target, tables *prim.Tables, pre *string) *Target
 }
 
 // A Parser is a Go parser of a program as the Go backend decided it before its tables were built:

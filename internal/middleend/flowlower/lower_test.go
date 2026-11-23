@@ -327,7 +327,7 @@ func TestLowerNodeValues(t *testing.T) {
 func TestLowerVerifies(t *testing.T) {
 	newLowerer := func() *lowerer {
 		m, _ := valueFree(&core.Succeed{})
-		return newLowerer(m, core.ActionSitesOf(m), lowerdata.Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
+		return newLowerer(m, core.ActionSitesOf(m), newTables(m), lowerdata.Options{}, "f", &flow.Attrs{Start: "start", Result: "v", Ctx: "c"})
 	}
 	l := newLowerer()
 	l.at.Node = true
@@ -344,13 +344,13 @@ func TestLowerVerifies(t *testing.T) {
 // it starts the stream and delivers each element instead of gathering it, guarded by StreamOn; without the
 // option it is the batch repetition, which has none of these operations.
 func TestLowerStream(t *testing.T) {
-	m := &core.Module{Rules: []*core.Rule{nil}}
+	m := &core.Module{Rules: []*core.Rule{nil}, Exps: []string{`"a"`}}
 	rep := &core.Repeat{Min: 0, Max: -1, Body: &core.Lit{Text: "a"}}
 	body := &core.Stream{Repeat: rep}
 	r := &core.Rule{Name: "main", Body: body}
 	m.Rules[0] = r
 	lower := func(stream bool) string {
-		f, err := verified(lowerFunc(m, core.ActionSitesOf(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, lowerdata.Options{Node: true}))
+		f, err := verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true, Stream: stream}, lowerdata.Options{Node: true}))
 		if err != nil {
 			t.Fatal(err)
 		}

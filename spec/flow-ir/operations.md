@@ -72,11 +72,11 @@ or a suffix copy, and nothing else.
 | `flow.resumeFinish` | r run |  |  | Records the run r of a repetition that matched, before its value is built (runFinish). A repetition that fails drops its run without a call. |
 | `flow.hasLit` |  | bool | `lit` | Reports that the input at the position begins with the literal, read in place without recording anything; false where the input cannot be read in place. |
 | `flow.matchLit` |  | value, bool | `lit` | Matches the literal at the position and moves past it, recording its expectation on failure. Its results are its value (not used) and whether it matched; on failure the position is unchanged. It counts the position units it advances over, none on failure. |
-| `flow.matchClass` |  | bool | `class` | Matches one character of the class through its membership table and moves past it, recording the class's expectation on failure; reports whether it matched. It counts the position units of the character it advances over, none on failure. |
-| `flow.inClass` | ch rune | bool | `class` | Reports whether the code point ch is in the class. It counts no compute unit: the test examines a character without advancing. |
-| `flow.guardFails` | ch rune, more bool | bool | `first` | Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
-| `flow.guardLitFails` |  | bool | `first` | Reports that the guard of a literal skips its alternative: the input at the position does not begin with the literal's first character, and the nesting limit allows the guard's depth of calls. It compares the character as the literal does and examines what the literal would ([Slots](../runtime/documents.md#reuse-model)): in code points the character at the position; in bytes the UTF-8 encoding of the character byte by byte, up to the first byte that differs, or the end of the input, except U+FFFD, which also matches one invalid byte and so decodes the character; a folded character matches an ASCII letter in either case. It reads no further input than it examines. In a stream parse the read costs what loading the input costs; in a Document parse it records how far the parse examined the input. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
-| `flow.atAnchor` |  | bool | `anchorkind` | Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing. |
+| `flow.matchClass` |  | bool | `classid` | Matches one character of the class through its membership table and moves past it, recording the class's expectation on failure; reports whether it matched. It counts the position units of the character it advances over, none on failure. |
+| `flow.inClass` | ch rune | bool | `classid` | Reports whether the code point ch is in the class. It counts no compute unit: the test examines a character without advancing. |
+| `flow.guardFails` | ch rune, more bool | bool | `guard` | Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
+| `flow.guardLitFails` |  | bool | `guard` | Reports that the guard of a literal skips its alternative: the input at the position does not begin with the literal's first character, and the nesting limit allows the guard's depth of calls. It compares the character as the literal does and examines what the literal would ([Slots](../runtime/documents.md#reuse-model)): in code points the character at the position; in bytes the UTF-8 encoding of the character byte by byte, up to the first byte that differs, or the end of the input, except U+FFFD, which also matches one invalid byte and so decodes the character; a folded character matches an ASCII letter in either case. It reads no further input than it examines. In a stream parse the read costs what loading the input costs; in a Document parse it records how far the parse examined the input. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
+| `flow.atAnchor` |  | bool | `anchor` | Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing. |
 | `flow.skipTerminal` |  | bool | `terminal` | Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. Its guards may decode the character at the position where `flow.guardLitFails` compares bytes: it runs only in functions that record no examined input, charge nothing and read no stream, and decoding admits the same characters. It counts the position units that each of its terminals advances over, again after the program backtracks. |
 | `flow.skipClasses` |  | bool | `classrun` | Matches the classes of the run in turn and reports whether they matched; on a match the position moves past them. On failure the position is past the classes that matched, at the one that did not, whose expectation it records there; the code that fails returns to its mark. It counts the position units of each character it advances over, those before a class that fails included. |
 | `flow.callRule` |  | value, bool | `rulecall` | Calls the rule from the Operators Rule level. Its results are the rule's value and whether it matched; on a match the position is the end of the rule's match, on failure it is unchanged. The call counts its unit and the key of a memoized rule, as the composition call does. |
@@ -128,7 +128,8 @@ name without the package. The immediates are the following; a listing prints eac
   variables of the site's key rather than by the position alone.
 - `slot`: a capture slot of a frame.
 - `expectation`: an expectation of the grammar, and whether it is the message of a failed `@error`.
-- `expid`: the identifier of an expectation of the grammar.
+- `expid`: an expectation of the grammar, by its index in the expectations of the module's
+  [tables](functions.md#tables). The other immediates name an expectation the same way.
 - `spread`: whether the children of a tuple node are appended instead of the node.
 - `rulecall`: the rule that a call names and the level of the Operators Rule it is called from.
 - `outline`: the node that a function of its own holds, the slots of the capture scope of the current frame, and whether
@@ -145,10 +146,15 @@ name without the package. The immediates are the following; a listing prints eac
   rule in the Action module of the table ([Action Expressions](../exec-ir/lowering.md#action-expressions)), the
   variable that a binding binds, and the captures that the function of the site reads, which are the slot names of the
   scope or the current frame.
-- `lit`, `class`, `first`, `anchorkind`, `terminal`, `classrun`, `shape` and `node`: a node or a datum of Core IR that
-  the operation matches or builds: a literal, a character class, the terminal that a guard tests first, the kind of an
-  anchor, a value-free terminal region, a run of single characters of classes, the static shape of a value and a node of
-  the grammar.
+- `lit`: a literal: its text, whether it is case-insensitive, and its expectation, which the empty literal has none of.
+- `classid`: a character class, by its index in the classes of the module's [tables](functions.md#tables).
+- `guard`: the terminal that a guard tests first: the first code point of a literal and whether it is
+  case-insensitive, or a class; its expectation; and the depth of calls that the guard adds.
+- `anchor`: the kind of an anchor: the beginning or the end of the input or of a line.
+- `classrun`: a run of single characters of classes, as the classes in turn.
+- `shape`: the static shape of a value.
+- `terminal` and `node`: a node of Core IR that the operation matches or names: a value-free terminal region and a node
+  of the grammar.
 
 ## Quantities
 

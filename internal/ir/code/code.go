@@ -104,6 +104,10 @@ type Module struct {
 	Handles    []*HandleType
 	Ops        []*Op
 	Funcs      []*Func
+	// Attrs holds the attributes that a dialect gives the module, such as the tables that the
+	// immediates of grammar code index (prim.Tables). No pass changes them, so a copy of the module
+	// (Clone) shares them.
+	Attrs any
 }
 
 // Component is a part of the abstract state that only the operations declaring it may write.

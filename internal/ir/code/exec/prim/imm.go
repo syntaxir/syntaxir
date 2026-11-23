@@ -44,7 +44,7 @@ type Slot int
 // Expectation is the immediate of expect: the expectation, and whether it is the message of a
 // failed @error.
 type Expectation struct {
-	Exp     core.ExpID
+	Exp     ExpID
 	Message bool
 }
 
@@ -53,7 +53,7 @@ type Expectation struct {
 // expectation of that terminal, the guard's.
 type SkippedCalls struct {
 	Rules []int
-	Exp   core.ExpID
+	Exp   ExpID
 }
 
 // Spread is the immediate of append: whether the children of a tuple node are appended
@@ -225,25 +225,25 @@ func ImmString(imm any) string {
 			s += " declared"
 		}
 		return s
-	case core.ExpID:
+	case ExpID:
 		return fmt.Sprintf("exp %d", x)
-	case *core.Lit:
+	case Lit:
 		s := strconv.Quote(x.Text)
 		if x.Fold {
 			s += "i"
 		}
 		return s
-	case *core.Class:
-		return fmt.Sprintf("class exp %d", x.Exp)
-	case *core.First:
+	case ClassID:
+		return fmt.Sprintf("class %d", x)
+	case Guard:
 		return fmt.Sprintf("guard exp %d depth %d", x.Exp, x.Depth)
-	case core.AnchorKind:
+	case Anchor:
 		return [...]string{"begin input", "end input", "begin line", "end line"}[x]
 	case *core.Terminal:
 		return "terminal"
-	case *core.ClassRun:
-		return fmt.Sprintf("%d classes", len(x.Classes))
-	case core.Shape:
+	case ClassRun:
+		return fmt.Sprintf("%d classes", len(x))
+	case Shape:
 		return fmt.Sprintf("%+v", x)
 	case core.Node:
 		return nodeKind(x)

@@ -84,7 +84,7 @@ func TestLowerConvertsTheAttributes(t *testing.T) {
 	}
 
 	// Every field holds a value other than its zero value, so a field the conversion drops fails.
-	in := &flow.Attrs{Rule: &core.Rule{Name: "r"}, Vars: []string{"ok"}, Start: "s", Result: "v", Ctx: "c",
+	in := &flow.Attrs{Rule: 1, Vars: []string{"ok"}, Start: "s", Result: "v", Ctx: "c",
 		Fail: "fail", Cut: "k", Binds: true, Frame: true, Node: true, Document: true, Traced: true}
 	iv := reflect.ValueOf(in).Elem()
 	for i := range iv.NumField() {

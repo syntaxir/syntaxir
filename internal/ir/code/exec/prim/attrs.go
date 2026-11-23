@@ -5,15 +5,14 @@ import (
 	"slices"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Attrs are the attributes of a function of grammar code at the Exec stage, which code.Func.Attrs
 // holds. execlower converts the attributes of each function at the Flow stage into them: every
 // attribute except the record of the forms, which the end of the Flow passes consumes.
 type Attrs struct {
-	// Rule is the rule whose body, or part of it, the function matches.
-	Rule *core.Rule
+	// Rule is the ID of the rule whose body, or part of it, the function matches.
+	Rule int
 	// Vars are the locals that are variables of the function, in the order they were made; the
 	// other locals are its entry variables Start, Result and Ctx (empty where it has none), which
 	// the caller declares: the position at which the rule was entered, the rule's value, and the
@@ -64,7 +63,7 @@ func VarsOf(f *code.Func) []code.Param {
 }
 
 // CloneAttrs returns a copy of a for the copy of its function, so that a pass that changes the
-// attributes of the copy leaves those of the original. The rule is shared.
+// attributes of the copy leaves those of the original.
 func (a *Attrs) CloneAttrs(*code.Cloner) any {
 	out := *a
 	out.Vars = slices.Clone(a.Vars)
@@ -72,8 +71,8 @@ func (a *Attrs) CloneAttrs(*code.Cloner) any {
 }
 
 // verifyFuncs checks that each function of m, a module at the Exec stage that code.Verify has
-// verified, has the Exec-stage attributes or none: the check of the Exec stage
-// (code.RegisterStageCheck). An attribute of an earlier stage, such as the Flow attributes, is an
+// verified, has the Exec-stage attributes or none, and the tables of m (verifyTables): the check of
+// the Exec stage (code.RegisterStageCheck). An attribute of an earlier stage, such as the Flow attributes, is an
 // error, as a call of a Flow operation is.
 func verifyFuncs(m *code.Module) error {
 	for _, fn := range m.Funcs {
@@ -87,7 +86,7 @@ func verifyFuncs(m *code.Module) error {
 			return fmt.Errorf("%s: %w", fn.Name, err)
 		}
 	}
-	return nil
+	return verifyTables(m)
 }
 
 // verifyMarks checks the marks of the whole parser state in the function fn of grammar code: in the
@@ -126,7 +125,7 @@ func verifyMarks(fn *code.Func) error {
 func init() { code.RegisterStageCheck[code.Exec](verifyFuncs) }
 
 // VerifyModule checks m, a module at the Exec stage, as the kind of the Exec stage does: the
-// verifier of Code IR, then the attributes of each function.
+// verifier of Code IR, then the attributes of each function and the tables.
 func VerifyModule(m *code.Module) error {
 	if err := code.Verify(m); err != nil {
 		return err

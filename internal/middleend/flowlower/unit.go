@@ -27,14 +27,14 @@ import (
 // the functions that u.Refuse refuses, each in the place of the function it replaces. It does not
 // verify the module: Verify, the postcondition of the lowering, does.
 func LowerUnit(u lowerdata.Unit) (*code.Module, error) {
-	return lowerUnit(u, core.ActionSitesOf(u.Module))
+	return lowerUnit(u, core.ActionSitesOf(u.Module), newTables(u.Module))
 }
 
-// lowerUnit is LowerUnit with the action sites of u.Module.
-func lowerUnit(u lowerdata.Unit, sites *core.ActionSites) (*code.Module, error) {
+// lowerUnit is LowerUnit with the action sites and the tables tb of u.Module.
+func lowerUnit(u lowerdata.Unit, sites *core.ActionSites, tb *tables) (*code.Module, error) {
 	var out *code.Module
 	for i, f := range u.Funcs {
-		m, err := lowerFunc(u.Module, sites, f, u.Opts)
+		m, err := lowerFunc(u.Module, sites, tb, f, u.Opts)
 		if err != nil {
 			return nil, err
 		}
@@ -42,7 +42,7 @@ func lowerUnit(u lowerdata.Unit, sites *core.ActionSites) (*code.Module, error) 
 			if f.Fallback == nil {
 				continue
 			}
-			if m, err = lowerFunc(u.Module, sites, *f.Fallback, u.Opts); err != nil {
+			if m, err = lowerFunc(u.Module, sites, tb, *f.Fallback, u.Opts); err != nil {
 				return nil, err
 			}
 		}
@@ -54,18 +54,19 @@ func lowerUnit(u lowerdata.Unit, sites *core.ActionSites) (*code.Module, error) 
 	}
 	if out == nil {
 		out = code.EnterFlow(flow.NewModule("flow")).Module()
+		out.Attrs = tb.t
 	}
 	return out, nil
 }
 
-// lowerFunc lowers the function f of the Core module m, whose action sites are sites, with the options
-// opts to a module of one function.
-func lowerFunc(m *core.Module, sites *core.ActionSites, f lowerdata.Func, opts lowerdata.Options) (*code.Module, error) {
+// lowerFunc lowers the function f of the Core module m, whose action sites are sites and tables tb,
+// with the options opts to a module of one function.
+func lowerFunc(m *core.Module, sites *core.ActionSites, tb *tables, f lowerdata.Func, opts lowerdata.Options) (*code.Module, error) {
 	switch f.Form {
 	case lowerdata.Flat:
-		return lowerFlat(m, sites, f.Rule, f.Name, opts)
+		return lowerFlat(m, sites, tb, f.Rule, f.Name, opts)
 	case lowerdata.Frame, lowerdata.Outline:
-		return lowerFrameBody(m, sites, f.Rule, f.Body, f.Slots, f.Build, f.Stream, f.Name, opts)
+		return lowerFrameBody(m, sites, tb, f.Rule, f.Body, f.Slots, f.Build, f.Stream, f.Name, opts)
 	}
 	return nil, fmt.Errorf("rule %s: no lowering of the form %d", f.Rule.Name, f.Form)
 }
@@ -131,12 +132,13 @@ func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 		}
 	}
 	sites := core.ActionSitesOf(p.IR.M)
-	m, err := lowerUnit(u, sites)
+	tb := newTables(p.IR.M)
+	m, err := lowerUnit(u, sites, tb)
 	if err != nil {
 		return nil, err
 	}
 	plan := p.Plan.Refusing(refused)
-	outlined, err := lowerOutlined(plan, p.IR, sites, m)
+	outlined, err := lowerOutlined(plan, p.IR, sites, tb, m)
 	if err != nil {
 		return nil, err
 	}
@@ -146,10 +148,11 @@ func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 // lowerOutlined lowers the nodes that the functions of the module m, which holds the functions of the
 // plan in order, run as functions of their own (flow.CallOutline), and appends them to m: the nodes
 // of each function in the order of its code, after the functions of the plan, and the nodes that
-// those call after them in turn, the action sites of the table's module being sites. A node is lowered once for each frame and building of its calls. It
+// those call after them in turn, with the action sites sites and the tables tb of the table's
+// module. A node is lowered once for each frame and building of its calls. It
 // returns the functions it added, each with the Core rule of the function that calls it, keyed with
 // the use plandata.Outlined and named after that function.
-func lowerOutlined(plan *plandata.Plan, ir *plandata.TableIR, sites *core.ActionSites, m *code.Module) ([]*plandata.FuncSpec, error) {
+func lowerOutlined(plan *plandata.Plan, ir *plandata.TableIR, sites *core.ActionSites, tb *tables, m *code.Module) ([]*plandata.FuncSpec, error) {
 	if len(ir.Opts.Outlined) == 0 {
 		return nil, nil
 	}
@@ -182,7 +185,7 @@ func lowerOutlined(plan *plandata.Plan, ir *plandata.TableIR, sites *core.Action
 			s := &plandata.FuncSpec{Key: k, Func: lowerdata.Func{Form: lowerdata.Outline, Rule: caller.Rule,
 				Name: fmt.Sprintf("%s/outline%d", caller.Name, n), Body: o.Node, Slots: o.Slots, Build: o.Build}}
 			n++
-			f, err := lowerFunc(ir.M, sites, s.Func, ir.Opts)
+			f, err := lowerFunc(ir.M, sites, tb, s.Func, ir.Opts)
 			if err != nil {
 				return nil, err
 			}

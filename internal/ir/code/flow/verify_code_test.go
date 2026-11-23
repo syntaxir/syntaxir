@@ -21,6 +21,7 @@ func TestVerifyModule(t *testing.T) {
 	}
 	build := func(f fn) *code.Module {
 		m := NewModule("t")
+		m.Attrs = &prim.Tables{Exps: []string{`"a"`}, Classes: []prim.Class{{}}}
 		a := &Attrs{Start: "start", Result: "v", Ctx: "c", Fail: "fail"}
 		if f.attrs != nil {
 			f.attrs(a)
@@ -44,8 +45,8 @@ func TestVerifyModule(t *testing.T) {
 	do := func(name string, imm any, args ...code.Expr) code.Stmt {
 		return &code.Do{Call: call(name, imm, args...)}
 	}
-	lit := (*core.Lit)(nil)
-	class := (*core.Class)(nil)
+	lit := prim.Lit{Text: "a"}
+	class := prim.ClassID(0)
 	ok := code.P("ok", b)
 	peek := []code.Param{code.P("ch", h(prim.TRune)), code.P("n", i), ok}
 	peekSet := func(okName string) code.Stmt {
@@ -124,7 +125,7 @@ func TestVerifyModule(t *testing.T) {
 		{"typed node nested in a Node function", fn{attrs: setNode, vars: []code.Param{code.P("ks", h(prim.TVals))}, body: []code.Stmt{
 			do(OpPushKid, nil, call(OpNewNode, prim.List(false), code.L("start"), code.L("ks")))}}, "typed node in a Node function"},
 		{"Node branch nested in a typed function", fn{vars: []code.Param{code.P("ks", h(prim.TVals))}, body: []code.Stmt{
-			code.Assign("v", call(OpScopeValue, core.Shape{}, call(OpNewBranchNode, prim.List(false), code.L("start"), code.L("ks")), code.L("start")))}},
+			code.Assign("v", call(OpScopeValue, prim.Shape{}, call(OpNewBranchNode, prim.List(false), code.L("start"), code.L("ks")), code.L("start")))}},
 			"Node branch in a typed function"},
 		{"local capture values in a Node function", fn{attrs: setNode, body: []code.Stmt{
 			code.Assign("v", call(OpAttachCaptures, prim.Attach{Names: &prim.Names{}}, code.L("v"), code.L("start")))}},
@@ -140,7 +141,7 @@ func TestVerifyModule(t *testing.T) {
 		{"terminal program in a traced function", fn{attrs: func(a *Attrs) { a.Traced = true }, vars: []code.Param{ok},
 			body: []code.Stmt{code.Assign("ok", &code.Unary{Op: "!", X: call(OpSkipTerminal, (*core.Terminal)(nil))})}}, "a terminal program in a traced function"},
 		{"class run in a traced function", fn{attrs: func(a *Attrs) { a.Traced = true }, vars: []code.Param{ok},
-			body: []code.Stmt{code.Assign("ok", call(OpSkipClasses, (*core.ClassRun)(nil)))}}, "a class run in a traced function"},
+			body: []code.Stmt{code.Assign("ok", call(OpSkipClasses, prim.ClassRun{0}))}}, "a class run in a traced function"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := VerifyModule(build(c.f))

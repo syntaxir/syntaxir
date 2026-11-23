@@ -157,7 +157,7 @@ func (rec *flowRecord) core(e pipe.Event, r *pipe.Result) {
 // unreachable (flowplan.UnreachableSuffix) are not printed, so the decisions leave them out.
 func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
 	a := flow.AttrsOf(flow.FuncOf(m))
-	if a == nil || a.Forms == nil || a.Rule == nil || strings.HasSuffix(l.Table, flowplan.UnreachableSuffix) {
+	if a == nil || a.Forms == nil || strings.HasSuffix(l.Table, flowplan.UnreachableSuffix) {
 		return
 	}
 	label := l.Table
@@ -180,7 +180,7 @@ func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
 		d = newFlowDecisions()
 		rec.by[scope] = d
 	}
-	id := a.Rule.ID
+	id := a.Rule
 	for _, r := range a.Forms.Regions {
 		if r.By != flowpass.PassTerminals {
 			continue

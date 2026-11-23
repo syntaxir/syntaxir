@@ -95,7 +95,10 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Applies: func(c *pipe.Ctx[Unit]) bool {
 			return pipe.Feature(c, TargetFeature).ClassTables && c.Value(PassClassTables) > 0 && funcIs(c, leanTyped)
 		},
-		Run: run(func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, c.Value(PassClassTables)) }),
+		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
+			t := prim.TablesOf(u.Module())
+			return run(func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, t, c.Value(PassClassTables)) })(c, u)
+		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -196,9 +199,9 @@ func classRuns(fn *code.Func, a *flow.Attrs) {
 			if n < 2 {
 				continue
 			}
-			run := &core.ClassRun{}
+			run := make(prim.ClassRun, 0, n)
 			for _, cl := range s.Items[i : i+n] {
-				run.Classes = append(run.Classes, cl.Node.(*core.ClassNode).Class)
+				run = append(run, cl.Class)
 				cl.Block.Stmts = nil
 				cl.By = PassClassRuns
 			}
@@ -210,14 +213,13 @@ func classRuns(fn *code.Func, a *flow.Attrs) {
 }
 
 // classTables matches each class of at least the pass's number of ranges through its membership
-// table, in a function of typed rules in the ordinary form.
-func classTables(fn *code.Func, a *flow.Attrs, min int) {
+// table, in a function of typed rules in the ordinary form; t are the tables of its module.
+func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int) {
 	for _, cl := range a.Forms.Classes {
-		class := cl.Node.(*core.ClassNode).Class
-		if !cl.Live() || len(class.Ranges) < min {
+		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min {
 			continue
 		}
-		match := failIf(cl, code.Not(&code.Call{Callee: flow.OpMatchClass, Imm: class}))
+		match := failIf(cl, code.Not(&code.Call{Callee: flow.OpMatchClass, Imm: cl.Class}))
 		st := cl.Block.Stmts
 		if cl.Build {
 			// peek, test, start = pos, advance, value: the start is taken before the match.
@@ -249,7 +251,7 @@ func inlineLiterals(fn *code.Func, max int) {
 				block(st.Body)
 				block(st.Finally)
 			case *code.If:
-				if lit, k := inlineLiteral(st, max); lit != nil {
+				if lit, k := inlineLiteral(st, max); k > 0 {
 					list[i] = &code.If{Cond: &code.Call{Callee: flow.OpHasLit, Imm: lit},
 						Then: &code.Block{Stmts: []code.Stmt{&code.Do{Call: &code.Call{Callee: flow.OpAdvance, Args: []code.Expr{code.Int(int64(k))}}}}},
 						Else: &code.Block{Stmts: []code.Stmt{st}}}
@@ -265,23 +267,23 @@ func inlineLiterals(fn *code.Func, max int) {
 
 // inlineLiteral returns the literal that the If st matches, as the lowering writes a literal
 // (if _, ok = matchLit(lit); !ok { fail }), and its number of code points, if it is exact and has at
-// most max of them.
-func inlineLiteral(st *code.If, max int) (*core.Lit, int) {
+// most max of them; otherwise the number is 0.
+func inlineLiteral(st *code.If, max int) (lit prim.Lit, k int) {
 	if st.Init == nil || len(st.Init.Values) != 1 || st.Else != nil {
-		return nil, 0
+		return lit, 0
 	}
 	c, ok := st.Init.Values[0].(*code.Call)
 	if !ok || c.Callee != flow.OpMatchLit {
-		return nil, 0
+		return lit, 0
 	}
-	lit, ok := c.Imm.(*core.Lit)
+	lit, ok = c.Imm.(prim.Lit)
 	if !ok || lit.Fold {
-		return nil, 0
+		return lit, 0
 	}
 	if k := len([]rune(lit.Text)); k > 0 && k <= max {
 		return lit, k
 	}
-	return nil, 0
+	return lit, 0
 }
 
 // newVar makes a variable of the type t that the lowering would have made at the event at, had it

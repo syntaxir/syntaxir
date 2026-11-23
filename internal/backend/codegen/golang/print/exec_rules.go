@@ -140,7 +140,7 @@ func otherReads(b *code.Block) map[string]bool {
 func (p *primPrinter) execTarget() *Target {
 	t := p.target()
 	if h := p.g.hooks.PrimTarget; h != nil {
-		return h(t, &p.pre)
+		return h(t, p.g.Tables(), &p.pre)
 	}
 	return t
 }

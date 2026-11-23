@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/limits"
@@ -186,6 +187,10 @@ func (g *Generator) actionSites() {
 		g.sites, g.sitesOf = core.ActionSitesOf(m), m
 	}
 }
+
+// Tables returns the tables of the module of the table being printed (Exec), which the immediates
+// of its operations index: its expectations and its classes.
+func (g *Generator) Tables() *prim.Tables { return prim.TablesOf(g.Exec.Module.Module()) }
 
 // RuleOf returns the rule of the program with the ID id, value-free twins included.
 func (g *Generator) RuleOf(id int) *Rule {

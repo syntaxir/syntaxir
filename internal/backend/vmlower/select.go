@@ -6,7 +6,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	flowpkg "syntaxir.dev/sxir/internal/ir/code/flow"
-	ir "syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
@@ -45,7 +44,7 @@ var statementPatterns = []pattern{
 	{Name: "guardLitJump", Ops: 2, Saved: 3, Stmts: guardLitJump},
 	{Name: "assertJump", Ops: 2, Saved: 3, Stmts: assertJump},
 	{Name: "matchLitJump", Ops: 1, Saved: 1, Stmts: func(s *flowSel, list []code.Stmt) (int, func() error) {
-		return testedJump(s, list, flowpkg.OpMatchLit, bytecode.FlowMatchLitJump, func(c *code.Call) (any, error) { return s.litOf(c.Imm.(*ir.Lit)), nil })
+		return testedJump(s, list, flowpkg.OpMatchLit, bytecode.FlowMatchLitJump, func(c *code.Call) (any, error) { return s.litOf(c.Imm.(prim.Lit)), nil })
 	}},
 	{Name: "callJump", Ops: 1, Saved: 1, Stmts: func(s *flowSel, list []code.Stmt) (int, func() error) {
 		return testedJump(s, list, flowpkg.OpCallRule, bytecode.FlowCallJump, func(c *code.Call) (any, error) { return s.ruleCallOf(c) })
@@ -222,7 +221,7 @@ func classTestOf(s *flowSel, list []code.Stmt) (classTest, bool) {
 
 // imm returns the immediate of the test t, as FlowMatchClass takes it.
 func (t classTest) imm(s *flowSel) bytecode.FlowClassTestOf {
-	return bytecode.FlowClassTestOf{Class: int(s.c.class(t.in.Imm.(*ir.Class))), Expect: s.expectOf(t.exp)}
+	return bytecode.FlowClassTestOf{Class: int(s.c.class(t.in.Imm.(prim.ClassID))), Expect: s.expectOf(t.exp)}
 }
 
 // matchClass matches the test of one character of a class (classTestOf).
@@ -343,7 +342,7 @@ func guardJump(s *flowSel, list []code.Stmt) (int, func() error) {
 		if err != nil {
 			return err
 		}
-		guard, err := s.guardOf(g.Imm.(*ir.First))
+		guard, err := s.guardOf(g.Imm.(prim.Guard))
 		if err != nil {
 			return err
 		}
@@ -370,7 +369,7 @@ func guardLitJump(s *flowSel, list []code.Stmt) (int, func() error) {
 		return 0, nil
 	}
 	return 1, func() error {
-		guard, err := litGuardOf(g.Imm.(*ir.First))
+		guard, err := litGuardOf(g.Imm.(prim.Guard))
 		if err != nil {
 			return err
 		}
@@ -397,7 +396,7 @@ func assertJump(s *flowSel, list []code.Stmt) (int, func() error) {
 		return 0, nil
 	}
 	return 1, func() error {
-		imm := bytecode.FlowAnchorTestOf{Anchor: int(a.Imm.(ir.AnchorKind)), Expect: s.expectOf(exp)}
+		imm := bytecode.FlowAnchorTestOf{Anchor: int(a.Imm.(prim.Anchor)), Expect: s.expectOf(exp)}
 		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowAssertJump, Imm: imm}), label, cont)
 		return nil
 	}
@@ -540,7 +539,7 @@ func matchLitNode(s *flowSel, list []code.Stmt) (int, func() error) {
 		return 0, nil
 	}
 	return 3, func() error {
-		imm := bytecode.FlowLitNodeOf{Lit: s.litOf(t.call.Imm.(*ir.Lit)), Text: int(s.c.str(string(str.Imm.(prim.Chars))))}
+		imm := bytecode.FlowLitNodeOf{Lit: s.litOf(t.call.Imm.(prim.Lit)), Text: int(s.c.str(string(str.Imm.(prim.Chars))))}
 		dst := append([]int{x}, append(slices.Clone(t.dst), n)...)
 		s.jumpTo(s.emit(bytecode.FlowInstr{Op: bytecode.FlowMatchLitNode, Dst: dst, Imm: imm}), t.label, t.cont)
 		return nil

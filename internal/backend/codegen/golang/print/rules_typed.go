@@ -265,7 +265,7 @@ var fixedExpNames = []string{"IdAny", "IdBeginInput", "IdEndInput", "IdBeginLine
 
 // exp returns the Go expression of the expectation id: the name of a fixed one, otherwise its ID
 // in the parser's table.
-func (p *primPrinter) exp(id core.ExpID) string {
+func (p *primPrinter) exp(id prim.ExpID) string {
 	if int(id) < len(fixedExpNames) {
 		return fixedExpNames[id]
 	}
@@ -273,10 +273,13 @@ func (p *primPrinter) exp(id core.ExpID) string {
 }
 
 // desc returns the ID in the parser's table of the expectation id of the module.
-func (p *primPrinter) desc(id core.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Core().Exps[id]) }
+func (p *primPrinter) desc(id prim.ExpID) rprogram.ExpID { return p.g.Desc(p.g.Tables().Exp(id)) }
+
+// class returns the class id of the module.
+func (p *primPrinter) class(id prim.ClassID) prim.Class { return p.g.Tables().Class(id) }
 
 // grammarClass returns the character class expression of the class c.
-func grammarClass(c *core.Class) *ast.CharClass {
+func grammarClass(c prim.Class) *ast.CharClass {
 	e := &ast.CharClass{Negated: c.Negated}
 	for _, r := range c.Ranges {
 		e.Ranges = append(e.Ranges, ast.CharRange{Lo: r.Lo, Hi: r.Hi})
@@ -285,7 +288,7 @@ func grammarClass(c *core.Class) *ast.CharClass {
 }
 
 // reject returns the condition under which the code point in the variable ch is not in the class.
-func (p *primPrinter) reject(c *core.Class, ch string) string {
+func (p *primPrinter) reject(c prim.Class, ch string) string {
 	cond := classReject(grammarClass(c))
 	if ch != "ch" {
 		cond = chIdent.ReplaceAllString(cond, ch)
@@ -294,6 +297,6 @@ func (p *primPrinter) reject(c *core.Class, ch string) string {
 }
 
 // shaper returns the package variable that holds the shaper of the shape.
-func (p *primPrinter) shaper(sh core.Shape) string {
+func (p *primPrinter) shaper(sh prim.Shape) string {
 	return p.g.shaperOf(fmt.Sprintf("Shaper{Elems: %v, K: %d, Mode: %d, Tuple: %v, Shared: %v}", sh.Elems, sh.K, sh.Mode, sh.Tuple, sh.Shared))
 }

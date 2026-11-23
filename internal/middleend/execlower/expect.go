@@ -29,7 +29,8 @@ import (
 func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
 	srcs := make([]funcSource, len(tables))
 	for i, t := range tables {
-		srcs[i] = funcSource{t.IR.M.Exps, t.Module.Module().Funcs}
+		m := t.Module.Module()
+		srcs[i] = funcSource{prim.TablesOf(m), m.Funcs}
 	}
 	return number(srcs)
 }
@@ -50,7 +51,7 @@ func NumberedExpectations(p *plandata.Program, tables []*plandata.Table[code.Exe
 		if err != nil {
 			return nil, err
 		}
-		srcs[i] = funcSource{parts[0].IR.M.Exps, fs}
+		srcs[i] = funcSource{prim.TablesOf(parts[0].Module.Module()), fs}
 	}
 	return number(srcs)
 }
@@ -117,9 +118,10 @@ func merged(full *plandata.Plan, parts []*plandata.Table[code.Exec]) ([]*code.Fu
 	return out, nil
 }
 
-// funcSource is the functions of a table in order and the expectations of its Core IR by ExpID.
+// funcSource is the functions of a table in order and the tables of its module, which the parts of a
+// numbered table share as the lowering of one Core module.
 type funcSource struct {
-	exps  []string
+	t     *prim.Tables
 	funcs []*code.Func
 }
 
@@ -137,7 +139,7 @@ func number(srcs []funcSource) ([]string, error) {
 		}
 	}
 	for _, src := range srcs {
-		exps := src.exps
+		t := src.t
 		var err error
 		var expr func(code.Expr)
 		expr = func(e code.Expr) {
@@ -157,21 +159,21 @@ func number(srcs []funcSource) ([]string, error) {
 				switch FlowOp(e.Callee) {
 				case flow.OpExpect:
 					if x := e.Imm.(prim.Expectation); x.Message || int(x.Exp) >= len(core.FixedDescs) {
-						add(exps[x.Exp])
+						add(t.Exp(x.Exp))
 					}
 				case flow.OpMergeRenamed:
-					add(exps[e.Imm.(core.ExpID)])
+					add(t.Exp(e.Imm.(prim.ExpID)))
 				case flow.OpMatchLit:
-					if lit := e.Imm.(*core.Lit); lit.Text == "" && !lit.Fold {
+					if lit := e.Imm.(prim.Lit); lit.Text == "" && !lit.Fold {
 						add(strconv.Quote(""))
 					} else {
-						add(exps[lit.Exp])
+						add(t.Exp(lit.Exp))
 					}
 				case flow.OpMatchClass:
-					add(exps[e.Imm.(*core.Class).Exp])
+					add(t.Exp(t.Class(e.Imm.(prim.ClassID)).Exp))
 				case flow.OpSkipClasses:
-					for _, c := range e.Imm.(*core.ClassRun).Classes {
-						add(exps[c.Exp])
+					for _, c := range e.Imm.(prim.ClassRun) {
+						add(t.Exp(t.Class(c).Exp))
 					}
 				case flow.OpSkipTerminal:
 					if err == nil {

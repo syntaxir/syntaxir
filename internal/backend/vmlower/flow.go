@@ -134,13 +134,13 @@ func (c *compiler) operatorsLine(k plandata.Key, name string, plan *plandata.Pla
 	if got := c.strNames(line.Scope); !slices.Equal(got, slots) && (len(got) != 0 || len(slots) != 0) {
 		return nil, fmt.Errorf("internal error: the frame of %s has slots %v, not the planned %v", name, got, slots)
 	}
-	return func(f *bytecode.Flow) { line.Flow, line.Shape = f, shapeOf(shape) }, nil
+	return func(f *bytecode.Flow) { line.Flow, line.Shape = f, coreShapeOf(shape) }, nil
 }
 
 // flow returns the Flow body of the function fn, the flow form of rule index rule.
 func (c *compiler) flow(fn *code.Func, rule int) (*bytecode.Flow, error) {
 	a := flowpkg.AttrsOf(fn)
-	if a.Rule == nil || a.Rule.ID != rule {
+	if a.Rule != rule {
 		return nil, fmt.Errorf("the function is not the body of rule %d", rule)
 	}
 	s := &flowSel{c: c, rule: rule, f: &bytecode.Flow{}, regs: map[string]int{}, labels: map[string][]int{}, conts: map[string][]int{}, scopes: map[*prim.Names]int{}}
@@ -829,14 +829,20 @@ func (s *flowSel) actionSite(i int, names []string) (int, error) {
 }
 
 // shapeOf returns the immediate of the shape sh.
-func shapeOf(sh ir.Shape) bytecode.FlowShapeOf {
+func shapeOf(sh prim.Shape) bytecode.FlowShapeOf {
 	return bytecode.FlowShapeOf{Elems: sh.Elems, Shared: sh.Shared, Tuple: sh.Tuple, K: sh.K, Mode: int(sh.Mode)}
 }
 
-// expID returns the parser's ID of the expectation id of the Core IR: the fixed expectations keep
-// their IDs, and the others are the strings of the module after the fixed table.
-func (s *flowSel) expID(id ir.ExpID) int {
-	if id <= ir.ExpID(program.IDEndLine) {
+// coreShapeOf returns the immediate of the shape sh of Core IR, that of a rule or a line of an
+// Operators Rule, which the tables of the module take from the Core module.
+func coreShapeOf(sh ir.Shape) bytecode.FlowShapeOf {
+	return shapeOf(prim.Shape{Elems: sh.Elems, K: sh.K, Mode: prim.SingleMode(sh.Mode), Tuple: sh.Tuple, Shared: sh.Shared})
+}
+
+// expID returns the parser's ID of the expectation id of the Flow module: the fixed expectations
+// keep their IDs, and the others are the strings of the bytecode module after the fixed table.
+func (s *flowSel) expID(id prim.ExpID) int {
+	if id <= prim.ExpID(program.IDEndLine) {
 		return int(id)
 	}
 	return int(program.NumFixedDescs) + int(s.c.exp(id))
