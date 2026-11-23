@@ -193,8 +193,8 @@ type libSeg struct {
 // declKeywords start a top-level declaration, after export, declare or abstract.
 var declKeywords = map[string]bool{"class": true, "function": true, "const": true, "let": true, "var": true, "interface": true, "type": true, "enum": true}
 
-// methodModifiers may precede the name of a class member.
-var methodModifiers = map[string]bool{"private": true, "protected": true, "public": true, "static": true, "readonly": true, "override": true, "async": true, "abstract": true, "declare": true}
+// methodModifiers may precede the name of a class member; * makes a method a generator.
+var methodModifiers = map[string]bool{"*": true, "private": true, "protected": true, "public": true, "static": true, "readonly": true, "override": true, "async": true, "abstract": true, "declare": true}
 
 // libSegs splits src into its segments. A segment starts at a line whose first token begins a
 // top-level statement or a member of a class body (the comment lines before it included) and ends

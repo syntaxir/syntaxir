@@ -74,6 +74,13 @@ type Target struct {
 	// stand for them, which the printed code reads in their place: a composition printed for one value
 	// of a parameter, such as the invocation of one rule (a template), reads that value.
 	Bind map[string]string
+	// Generator prints the function as a generator method (function*) that yields numbers and
+	// returns its result: the resumable form of a function, which yields what the functions it
+	// resumes (Yields) yield.
+	Generator bool
+	// Yields, if not nil, reports whether the function name of the module, called by a generator
+	// (Generator), is a generator too: the call prints as a yield* of it.
+	Yields func(name string) bool
 }
 
 // Part is a part of a value that a target holds in several locals (Target.Parts): the suffix of the
@@ -303,7 +310,11 @@ func (p *printer) fn() error {
 		}
 		params[i] = x.Name + ": " + p.typ(x.Type)
 	}
-	p.line("%s(%s): %s {", p.name(f.Name), strings.Join(params, ", "), p.resultType())
+	if p.t.Generator {
+		p.line("*%s(%s): Generator<number, %s, void> {", p.name(f.Name), strings.Join(params, ", "), p.resultType())
+	} else {
+		p.line("%s(%s): %s {", p.name(f.Name), strings.Join(params, ", "), p.resultType())
+	}
 	p.depth++
 	for _, l := range f.Locals {
 		if _, ok := p.partner[l.Name]; ok {
@@ -996,7 +1007,11 @@ func (p *printer) expr(x code.Expr, outer int) string {
 		if p.t.Self != "" {
 			self = p.t.Self
 		}
-		return self + "." + p.name(x.Callee) + "(" + strings.Join(args, ", ") + ")"
+		call := self + "." + p.name(x.Callee) + "(" + strings.Join(args, ", ") + ")"
+		if p.t.Generator && p.t.Yields != nil && p.t.Yields(x.Callee) {
+			return "(yield* " + call + ")"
+		}
+		return call
 	}
 	panic(fmt.Sprintf("tsgen: expression %T", x))
 }

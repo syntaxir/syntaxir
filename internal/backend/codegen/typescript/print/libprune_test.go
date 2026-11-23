@@ -38,8 +38,8 @@ func TestLexTS(t *testing.T) {
 	}
 }
 
-// shakeSrc is a library in miniature: a shaken class with methods of each kind, a public class,
-// a declaration only a dropped method names and one only a type names.
+// shakeSrc is a library in miniature: a shaken class with methods of each kind, generators among
+// them, a public class, a declaration only a dropped method names and one only a type names.
 const shakeSrc = `// A header comment.
 
 export type Value = Node | number;
@@ -59,7 +59,16 @@ export class Parser {
     return this.step();
   }
   private step(): Value {
-    return helper(this.pos);
+    return helper(this.pos) + (yieldsAll(this.walkGen()) as number);
+  }
+  // walkGen is a generator that step calls.
+  *walkGen(): Generator<number, Value, void> {
+    yield this.pos;
+    return 0;
+  }
+  // droppedGen is a generator that nothing calls.
+  *droppedGen(): Generator<number, Value, void> {
+    return onlyDropped(2);
   }
   // dropped is called by nothing.
   dropped(): void {
@@ -77,6 +86,13 @@ function helper(n: number): Value {
   return n;
 }
 
+function yieldsAll(g: Generator<number, Value, void>): Value {
+  for (;;) {
+    const r = g.next();
+    if (r.done === true) return r.value;
+  }
+}
+
 export function onlyDropped(n: number): void {
   console.log(n);
 }
@@ -89,12 +105,12 @@ func TestShakeLib(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"// A header comment.", "export type Value", "export class Node", "unused(): void {}", "pos = 0;", "constructor(", "// run is called", "run(): Value", "private step()", "export interface Grammar", "function helper", "void [helper];"} {
+	for _, want := range []string{"// A header comment.", "export type Value", "export class Node", "unused(): void {}", "pos = 0;", "constructor(", "// run is called", "run(): Value", "private step()", "*walkGen()", "function yieldsAll", "export interface Grammar", "function helper", "void [helper];"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("the shaken library lacks %q:\n%s", want, out)
 		}
 	}
-	for _, gone := range []string{"dropped", "onlyDropped"} {
+	for _, gone := range []string{"dropped", "onlyDropped", "droppedGen"} {
 		if strings.Contains(out, gone) {
 			t.Errorf("the shaken library keeps %q:\n%s", gone, out)
 		}

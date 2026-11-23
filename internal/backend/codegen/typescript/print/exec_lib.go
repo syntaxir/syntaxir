@@ -17,8 +17,9 @@ type tsMethod struct {
 	Name, Text string
 }
 
-// tsSpecs are the methods of the TypeScript library that the compositions replace. The library has
-// no streams. A parser with limit controls counts logical compute units (exec.Units): the call
+// tsSpecs are the methods of the TypeScript library that the compositions replace. The methods of the
+// Parser class that run rule bodies have resumable forms too, which the StreamParser class, the parser
+// of a stream, takes (tsGenMethods). A parser with limit controls counts logical compute units (exec.Units): the call
 // protocol counts the calls, their keys, the steps of growths and the entries of recovered errors it
 // takes. The batch Parser's callBody observes nothing: the parsers of observed and Document parses
 // override call, and count the entry of the call there (Parser.enterCall). The methods of tsDocClass
@@ -58,6 +59,9 @@ var tsSpecs = []struct {
 	{fn: "runEnd", on: tsRunOn, name: "runElemEnd", target: tsDocClass},
 	{fn: "runFinish", on: tsRunOn, name: "runFinish", target: tsDocClass},
 	{fn: "grow", on: []string{exec.Units}, name: "grow"},
+	// The invocation of a rule's body (rule.invoke and rule.invokePlain), whose units the caller counts.
+	{fn: "invoke", name: "invoke"},
+	{fn: "invokePlain", name: "invokePlainBody"},
 	{fn: "expect", name: "expect"},
 	{fn: "mergeKept", name: "mergeKept"},
 	{fn: "mergeExpected", name: "mergeExpected"},
@@ -182,9 +186,115 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 		}
 		out = append(out, tsMethod{Name: s.name, Text: src})
 	}
+	gens, err := tsGenMethods(lib)
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, gens...)
 	kind, name := tsMemberKind()
 	out = append(out, tsMethod{Name: "actionError", Text: tsActionError()}, tsMethod{Name: "memberKind", Text: kind},
 		tsMethod{Name: "memberName", Text: name})
+	return out, nil
+}
+
+// tsResumeOps are the operations that run the body of a rule, which suspends in the parse of a stream
+// where it demands input that has not arrived: a function of the call protocol that reaches one of them
+// has a resumable form.
+var tsResumeOps = map[string]bool{"rule.invoke": true, "rule.invokePlain": true, "rule.body": true}
+
+// tsResuming returns the compositions of the methods of the library's Parser class (tsBatchClass) that
+// reach the body of a rule (tsResumeOps), directly or through another such composition, specialized as
+// the methods are: those with a resumable form. Only the parse of a stream, which is neither a Document
+// nor an observed parse, takes the resumable forms, so the other classes have none.
+func tsResuming(lib *library.Library) (map[string]bool, error) {
+	calls := map[string][]string{}
+	for i, s := range tsSpecs {
+		if s.target != tsBatchClass {
+			continue
+		}
+		if _, ok := calls[s.fn]; ok {
+			return nil, fmt.Errorf("tslib: the composition %s has two methods in the Parser class", s.fn)
+		}
+		cs := []string{}
+		code.Walk(lib.Funcs[i].Body, nil, func(e code.Expr) {
+			if c, ok := e.(*code.Call); ok && c.Fn == nil {
+				cs = append(cs, c.Callee)
+			}
+		})
+		calls[s.fn] = cs
+	}
+	res := map[string]bool{}
+	for changed := true; changed; {
+		changed = false
+		for fn, cs := range calls {
+			if res[fn] {
+				continue
+			}
+			for _, c := range cs {
+				if tsResumeOps[c] || res[c] {
+					res[fn], changed = true, true
+					break
+				}
+			}
+		}
+	}
+	// A resumable method calls the resumable forms of the compositions that reach a body, which only
+	// the methods of the Parser class have.
+	for fn := range res {
+		for _, c := range calls[fn] {
+			if _, ok := calls[c]; !ok && lib.Module.Op(c) == nil {
+				return nil, fmt.Errorf("tslib: the resumable method of %s calls %s, which is no method of the Parser class", fn, c)
+			}
+		}
+	}
+	return res, nil
+}
+
+// tsGenMethods returns the resumable forms of the methods of the library's Parser class that reach the
+// body of a rule (tsResuming), printed from the same specialized compositions under the method's name
+// with the suffix Gen as generator methods of the StreamParser class: each runs the resumable body of a
+// rule (StreamParser.bodyGens) and the resumable forms of the methods it calls with yield*, and so
+// yields the units of input that they lack; every other operation is the method's own.
+func tsGenMethods(lib *library.Library) ([]tsMethod, error) {
+	res, err := tsResuming(lib)
+	if err != nil {
+		return nil, err
+	}
+	t := *tsTarget
+	t.Generator = true
+	t.Yields = func(name string) bool { return res[name] }
+	t.FuncName = func(name string) string {
+		if res[name] {
+			return tsTarget.FuncName(name) + "Gen"
+		}
+		return tsTarget.FuncName(name)
+	}
+	t.Op = func(c *code.Call, a []string) string {
+		switch c.Callee {
+		case "rule.invoke":
+			return fmt.Sprintf("(yield* this.invokeGen(%s, %s))", a[0], a[1])
+		case "rule.invokePlain":
+			return fmt.Sprintf("(yield* this.invokePlainBodyGen(%s, %s))", a[0], a[1])
+		case "rule.body":
+			// The rules that a resumable form calls are those whose bodies suspend, which have one.
+			return fmt.Sprintf("(yield* this.bodyGens[%s.id]!(this, %s))", a[0], a[1])
+		}
+		return tsTarget.Op(c, a)
+	}
+	var out []tsMethod
+	for i, s := range tsSpecs {
+		if s.target != tsBatchClass || !res[s.fn] {
+			continue
+		}
+		f := *lib.Funcs[i]
+		f.Name = s.fn
+		f.Doc = strings.TrimSpace(f.Doc) + "\nThis is its resumable form, which yields the units of input that the bodies it runs lack."
+		src, err := Method(lib.Module, &f, &t)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, tsMethod{Name: "*" + s.name + "Gen", Text: src})
+	}
 	return out, nil
 }
 
@@ -504,9 +614,11 @@ var tsTarget = &Target{
 		case "rec.entries":
 			return "this.recovered.length - " + a[0]
 		case "seen.defers":
-			return "true" // the Parser parses neither streams nor Documents (DocumentParser takes callDocument)
+			return "this.deferMemo"
 		case "seen.first":
 			return "this.seenFirst(" + a[0] + ", " + a[1] + ")"
+		case "rule.slots":
+			return a[0] + ".scope.length"
 		case "rule.memo", "rule.leader", "rule.id", "rule.seen":
 			return a[0] + "." + strings.TrimPrefix(c.Callee, "rule.")
 		case "rule.docOnlyMemo":

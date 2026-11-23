@@ -736,6 +736,12 @@ op rule.id(r Rule) int
   contract:
     // Returns the rule's index, the rule of its memo keys.
 
+op rule.slots(r Rule) int
+  component rules
+  cost <= 0
+  contract:
+    // Returns the number of the capture slots of the rule's body: the slots of the frame that its invocation opens.
+
 op rule.seen(r Rule) int
   component rules
   cost <= 0

@@ -925,9 +925,9 @@ binding and binds nothing. The compiler has checked that the value fits the vari
 function.`
 }
 
-// addInvoke adds the compositions of the invocation of a rule's body (rule.invokePlain): what surrounds
-// the body (rule.body), which a target either calls through the rule or splices in, specialized for one
-// rule, where it prints the invocation of that rule alone.
+// addInvoke adds the compositions of the invocation of a rule's body (rule.invoke and
+// rule.invokePlain): what surrounds the body (rule.body), which a target either calls through the rule
+// or splices in, specialized for one rule, where it prints the invocation of that rule alone.
 func addInvoke(m *Module) {
 	rule, value := THandle(exec.Rule), THandle(exec.Value)
 	r := L("r")
@@ -959,10 +959,34 @@ func addInvoke(m *Module) {
 		b.Do("env.restore", env)
 		b.Return(L("v"), L("ok"))
 	})
+	invoke := m.AddFunc("invoke", []Param{P("r", rule), P("min", TInt)}, []Type{value, TBool}, nil, func(b *Builder) {
+		f := b.Let("f", C("frame.open", C("rule.slots", r)))
+		frame := b.Let("prevFrame", C("frame.current"))
+		env := b.Let("prevEnv", C("env.scope"))
+		cut := b.Let("prevCut", R(exec.Cut))
+		trail := b.Let("trail", C("frame.trail"))
+		b.Do("frame.use", f)
+		b.SetReg(exec.Cut, BoolC(false))
+		b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("depth.enter") })
+		start := b.Let("start", R(exec.Pos))
+		b.LetN([]string{"v", "ok"}, C("rule.body", r, L("min")))
+		b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("depth.exit") })
+		b.Do("frame.use", frame)
+		b.SetReg(exec.Cut, cut)
+		b.Do("frame.drop", trail)
+		b.If(L("ok"), func(b *Builder) { b.Set("v", C("rule.finish", r, f, L("v"), start)) })
+		b.Do("env.restore", env)
+		b.Return(L("v"), L("ok"))
+	})
+	invoke.Doc = `invoke runs the body of rule r at binding level min in a frame of its own and returns the rule's
+value: what rule.invoke does after the unit of the call, outside Document parses and the missing-token
+mode. The rule takes a nesting level while the body runs with the cut flag cleared, and the caller's
+frame, cut flag, trail and variable environment are restored after it; on failure the position is
+unspecified, as for rule.invoke.`
 	invokePlain.Doc = `invokePlain runs the body of rule r, which has no captures, at binding level min, and returns the
-rule's value: what rule.invokePlain does outside the missing-token mode. It counts the unit of the call,
-checked for a rule on a cycle of calls, before the rule takes a nesting level, runs the body in the
-caller's frame with the cut flag cleared, and restores the flag, the trail and the variable
-environment; a failure restores the position and drops the errors the body recovered. A target may
-print it for one rule, with the body of that rule in place of rule.body.`
+rule's value: what rule.invokePlain does outside the missing-token mode. Specialized for units, it
+counts the unit of the call, checked for a rule on a cycle of calls, before the rule takes a nesting
+level; it runs the body in the caller's frame with the cut flag cleared, and restores the flag, the
+trail and the variable environment; a failure restores the position and drops the errors the body
+recovered. A target may print it for one rule, with the body of that rule in place of rule.body.`
 }

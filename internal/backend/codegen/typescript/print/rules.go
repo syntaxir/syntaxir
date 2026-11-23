@@ -291,12 +291,17 @@ func (p *tsPrimPrinter) call(r *common.Rule, min int) string {
 	g := p.g
 	g.checkCall(r)
 	if p.gen && g.resumableRule(r) {
-		if !callsPlain(r, g.Document) {
+		// The call of a rule whose body suspends is the resumable form of its call.
+		switch {
+		case callsPlain(r, g.Document):
+			g.plainGenUsed[r] = true
+			return "(yield* " + g.plainGenName(r) + "(p))"
+		case r.Plain && !g.Document:
+			// An Operators Rule, which the stream has no resumable form of (streamRules).
 			g.printErr(fmt.Errorf("internal error: the TypeScript stream has no resumable call of the rule %s", r.Name))
 			return "undefined"
 		}
-		g.plainGenUsed[r] = true
-		return "(yield* " + g.plainGenName(r) + "(p))"
+		return fmt.Sprintf("(yield* p.callBodyGen(%s, %d))", g.ruleVar(r), min)
 	}
 	switch {
 	case callsPlain(r, g.Document):

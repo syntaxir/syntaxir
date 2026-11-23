@@ -2903,6 +2903,10 @@ export class Parser {
   // inDocument is flow.inDocument: whether the parse is a Document's (DocumentParser), whose memo a
   // dispatch guard must not skip past.
   readonly inDocument: boolean = false;
+  // deferMemo is seen.defers: whether the parse defers the memoization of a rule at a position to the
+  // rule's second call there (firstCall). The parse of a whole input does; a stream (StreamParser) and
+  // a Document parse (DocumentParser) memoize on the first call.
+  readonly deferMemo: boolean = true;
   readonly g: Grammar;
   readonly sourceInfo: boolean; // g.sourceInfo, read on every node
   unit: Unit;
@@ -5369,29 +5373,10 @@ export class Parser {
     return true;
   }
 
-  // invoke evaluates the body of r and makes the rule's value.
+  // invoke evaluates the body of r in a frame of its own and makes the rule's value.
+  // Its text is printed from Exec IR (internal/ir/code/exec/compose).
   invoke(r: Rule, min: number): R {
-    const f = this.newFrame(r.scope.length);
-    const prevFrame = this.frame;
-    const prevEnv = this.env;
-    const prevCut = this.cut;
-    const trail = this.trail.length;
-    this.frame = f;
-    this.cut = false;
-    if (r.rec && ++this.depth > this.maxDepth) {
-      this.tooDeep();
-    }
-    const start = this.pos;
-    let v = r.body(this, min);
-    if (r.rec) this.depth--;
-    this.frame = prevFrame;
-    this.cut = prevCut;
-    this.trail.length = trail;
-    if (v !== undefined) {
-      v = this.finish(r, f, v, start);
-    }
-    this.env = prevEnv;
-    return v;
+    throw new Error("the printed method replaces this one");
   }
 
   // invokePlain is an unmemoized call of a rule without captures: invoke without the capture
@@ -5403,28 +5388,9 @@ export class Parser {
   }
 
   // invokePlainBody is invokePlain without the unit of the call, which the caller counts.
+  // Its text is printed from Exec IR (internal/ir/code/exec/compose).
   invokePlainBody(r: Rule, min: number): R {
-    const start = this.pos;
-    const rec = this.recovered.length;
-    const trail = this.trail.length;
-    const prevEnv = this.env;
-    const prevCut = this.cut;
-    this.cut = false;
-    if (r.rec && ++this.depth > this.maxDepth) {
-      this.tooDeep();
-    }
-    let v = r.body(this, min);
-    if (r.rec) this.depth--;
-    this.cut = prevCut;
-    this.trail.length = trail;
-    if (v !== undefined) {
-      v = this.finish(r, emptyFrame, v, start);
-    } else {
-      this.pos = start;
-      this.recovered.length = rec;
-    }
-    this.env = prevEnv;
-    return v;
+    throw new Error("the printed method replaces this one");
   }
 
   // tooDeep fails the parse for exceeding the nesting limit.
@@ -6089,9 +6055,11 @@ export type BodyGen = (p: StreamParser, min: number) => Generator<number, R, voi
  * with the last. The resumable functions of the parse (generators) demand the input that a read
  * needs before the read (runtime.inputDemand) and suspend while the input lacks it; the caller
  * resumes them when more input or the end of the input arrives. A demand charges nothing and moves
- * no position, so a parse that suspends does what the batch parse of the whole input does.
+ * no position, so a parse that suspends does what the parse of the whole input in one chunk does,
+ * however the input is split. A stream memoizes a rule on its first call at a position (deferMemo).
  */
 export class StreamParser extends Parser {
+  override readonly deferMemo: boolean = false;
   // final reports that the input is complete: no chunk follows the input that n holds.
   final = false;
   // bodyGens are the resumable bodies of the rules of the Node table by ID, null for a rule whose
@@ -6116,6 +6084,25 @@ export class StreamParser extends Parser {
     decodeRune(this.bs, this.pos, this.n);
     const end = decodedEnd(this.bs, this.pos, this.n, decodedSize);
     return end > this.n ? end - this.n : 0;
+  }
+
+  // The resumable forms of the call protocol, which call the resumable bodies of the rules (bodyGens)
+  // and yield what they yield. Their text is printed from Exec IR (internal/ir/code/exec/compose).
+
+  *callBodyGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *growGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *invokeGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *invokePlainBodyGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
   }
 }
 
@@ -6302,6 +6289,7 @@ export class ObservedParser extends TrackedParser {
  */
 export class DocumentParser extends TrackedParser {
   override readonly inDocument: boolean = true;
+  override readonly deferMemo: boolean = false;
   // memoState is the memo that the Document keeps between parses, with what edits did to it.
   memoState: DocumentMemo = new DocumentMemo();
   // evaluated and reused count the rule evaluations and the reused results of the parse, and resumed

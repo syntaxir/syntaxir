@@ -153,6 +153,8 @@ time: for it the operation reports false and clears the mark that says so.`})
 	}
 	m.AddOp(&code.Op{Name: "rule.id", Component: Rules, Params: ruleArg, Results: []code.Type{code.TInt},
 		Contract: `Returns the rule's index, the rule of its memo keys.`})
+	m.AddOp(&code.Op{Name: "rule.slots", Component: Rules, Params: ruleArg, Results: []code.Type{code.TInt},
+		Contract: `Returns the number of the capture slots of the rule's body: the slots of the frame that its invocation opens.`})
 	m.AddOp(&code.Op{Name: "rule.seen", Component: Rules, Params: ruleArg, Results: []code.Type{code.TInt},
 		Contract: `Returns the rule's index among the rules whose memoization a parse may defer to their second
 call at a position (seen.first), or -1 for a rule without one: a rule that a parse from scratch
