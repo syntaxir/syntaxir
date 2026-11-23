@@ -47,7 +47,7 @@ var shapeCases = []struct {
 // TestFormatKeepsShapeOfViewRoundTrip checks that the cost view of a grammar, printed as grammar
 // text and read back, has the value shape and the cost of the view itself, on inputs that succeed
 // and inputs that fail. The cost is the units of each backend; the specification's Cost
-// (spec/runtime/parsing.md) has no term for `_` and `_|_`, so the units must be equal.
+// (spec/runtime/parsing.md) has no cost term for `_` and `_|_`, so the units must be equal.
 func TestFormatKeepsShapeOfViewRoundTrip(t *testing.T) {
 	for _, c := range shapeCases {
 		t.Run(c.name, func(t *testing.T) {

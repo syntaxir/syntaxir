@@ -24,7 +24,7 @@ func ExaminedChars() []ExaminedChar {
 		// C2 differs from '-', 'a' and the C3 of é at byte 0: every guard rejects there.
 		{"guards reject at the first byte (decode)", `"-x" / "a" / "é"`, "¬", true, false, 1},
 		{"guards reject a truncated character (decode)", `"-x" / "a" / "é"`, "\xc2", true, false, 1},
-		{"guarded choice in an atomic term (decode)", `t:("-x" / "a" / "é") #atomic`, "¬", true, false, 1},
+		{"guarded choice in an atomic expression (decode)", `t:("-x" / "a" / "é") #atomic`, "¬", true, false, 1},
 		// ì is C3 AC: é's guard compares C3 and rejects at AC.
 		{"guard rejects at the second byte", `"-x" / "a" / "é"`, "ì", true, false, 2},
 		{"guarded alternative matches", `"-x" / "a" / "é"`, "é", true, true, 2},
