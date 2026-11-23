@@ -1847,10 +1847,33 @@ func (l *lowerer) branch(list bool, start, kids code.Expr) code.Expr {
 	return call(flow.OpNewNode, prim.List(list), start, kids)
 }
 
+// callLevel returns the minimum binding level of the call that the reference e writes, as
+// core.Call.Level counts it: the index of the level of the Operators Rule that e names, the number of
+// levels looser than it, or 0 if e names none.
+func (l *lowerer) callLevel(e *ast.Ref) int {
+	if e.Level == "" {
+		return 0
+	}
+	for _, r := range l.m.Rules {
+		if r.Name != e.Name {
+			continue
+		}
+		if o, ok := l.m.Origin.Of(r.Body).(*ast.OperatorsRule); ok {
+			for i, lv := range o.Levels {
+				if lv.Name == e.Level {
+					return i
+				}
+			}
+		}
+	}
+	panic(fmt.Sprintf("flow: rule %s has no Operators Rule level %s", e.Name, e.Level))
+}
+
 // observedSkip returns the rule call that the alternative a, which a guard skips, begins with, as the
 // grammar that the module was built from writes it (core.Module.Origin): the first item of a sequence,
-// through captures, atomic groups and discards, if it is a rule reference. It reports false if the
-// alternative begins with no reference, or the module has no origin.
+// through captures, atomic groups and discards, if it is a rule reference, with the minimum binding
+// level of the call (callLevel). It reports false if the alternative begins with no reference, or the
+// module has no origin.
 func (l *lowerer) observedSkip(a core.Node) (prim.ObservedSkip, bool) {
 	expr := l.m.Origin.Of(a)
 	for {
@@ -1867,7 +1890,7 @@ func (l *lowerer) observedSkip(a core.Node) (prim.ObservedSkip, bool) {
 		case *ast.Discard:
 			expr = e.Expr
 		case *ast.Ref:
-			return prim.ObservedSkip{Rule: e.Name, Level: e.Level}, true
+			return prim.ObservedSkip{Rule: e.Name, Level: l.callLevel(e)}, true
 		default:
 			return prim.ObservedSkip{}, false
 		}

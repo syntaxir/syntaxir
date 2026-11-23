@@ -137,7 +137,8 @@ name without the package. The immediates are the following; a listing prints eac
   these slots, building or not) from 0 in the order it makes them; the plan of the module's table finds the function
   that runs the node of each by its number.
 - `observedskip`: the rule call that the alternative a guard skips begins with, as the grammar writes it: the name of
-  the rule and the level of the Operators Rule that the reference names, if any.
+  the rule and the level of the skipped call, its minimum binding level as `rulecall` and a trace event count it (0
+  for a call that names no level).
 - `chars`: a string: the text of a literal, a string or the name of a rule.
 - `list`: whether a node is a list, rather than a tuple.
 - `room`: the room of a new list of values.

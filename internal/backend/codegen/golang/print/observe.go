@@ -39,5 +39,5 @@ func (g *Generator) traceSkip(x prim.ObservedSkip) string {
 	if !g.Observability {
 		return ""
 	}
-	return fmt.Sprintf("p.Observation.Skipped(%q, p.Pos, 0)", x.Rule)
+	return fmt.Sprintf("p.Observation.Skipped(%q, p.Pos, %d)", x.Rule, x.Level)
 }

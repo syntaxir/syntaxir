@@ -74,11 +74,11 @@ type Outline struct {
 }
 
 // ObservedSkip is the immediate of observeSkip: the rule call that the alternative a guard skips
-// begins with, as the grammar writes it: the rule's name and the level of the Operators Rule that the
-// reference names, or "" if it names none.
+// begins with, as the grammar writes it: the rule's name and the minimum binding level of the call, as
+// RuleCall.Level and the Level of a trace event count it, 0 for a call that names no level.
 type ObservedSkip struct {
 	Rule  string
-	Level string
+	Level int
 }
 
 // Chars is the immediate of literalText, str and setWhere: a string.
@@ -192,8 +192,8 @@ func ImmString(imm any) string {
 		}
 		return s
 	case ObservedSkip:
-		if x.Level != "" {
-			return fmt.Sprintf("%s.%s", x.Rule, x.Level)
+		if x.Level != 0 {
+			return fmt.Sprintf("%s level %d", x.Rule, x.Level)
 		}
 		return x.Rule
 	case Chars:
