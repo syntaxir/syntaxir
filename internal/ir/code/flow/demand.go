@@ -260,7 +260,9 @@ func (c *demandCheck) loop(l *code.Loop, covered bool) bool {
 	var atCond bool
 	inner := c.isolate(func() { atCond, _ = c.iteration(l, head, entry) })
 	// The loop leaves by its break, and by the condition failing at the head.
-	exit := take(inner, jumpKey(jumpBreak, l.Label)) && (l.Cond == nil || atCond)
+	// An exit to the loop's label leaves the loop too, as a break does.
+	exit := take(inner, jumpKey(jumpBreak, l.Label))
+	exit = take(inner, jumpKey(jumpExit, l.Label)) && exit && (l.Cond == nil || atCond)
 	c.absorb(inner)
 	return exit
 }

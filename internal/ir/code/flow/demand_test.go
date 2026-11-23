@@ -49,6 +49,8 @@ func TestUncoveredReadsCoverage(t *testing.T) {
 			[]string{flow.OpPeek, flow.OpMatchLit}},
 		// The exit leaves the labeled block with the advance's uncovered position.
 		{"an exit leaves an uncovered state", []code.Stmt{demand, blk("B", advance, iff(blk("", &code.Exit{Label: "B"}), nil), demand), peek}, []string{flow.OpPeek}},
+		// An exit to the loop's own label leaves the loop uncovered, as a break does.
+		{"an exit to a loop leaves an uncovered state", []code.Stmt{demand, loop("L", advance, iff(blk("", &code.Exit{Label: "L"}), nil), demand), peek}, []string{flow.OpPeek}},
 		// A break from an inner loop to the outer label leaves the outer loop uncovered.
 		{"a break to an outer loop", []code.Stmt{demand, loop("O", loop("I", advance, iff(blk("", &code.Break{Label: "O"}), nil), demand)), peek}, []string{flow.OpPeek}},
 		// A restore of the position uncovers the reads after it, as a move does.
