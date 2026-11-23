@@ -352,3 +352,14 @@ func TestCanonicalizeRunsLast(t *testing.T) {
 		t.Errorf("empty target: ran %v", plain.ran)
 	}
 }
+
+// TestGuardsFlagNamesTheCorePass checks that the flag that guarded-classes reads is that of the Core
+// pass guards, registered under that name.
+func TestGuardsFlagNamesTheCorePass(t *testing.T) {
+	if guardsFlag != corepass.PassGuards {
+		t.Errorf("guarded-classes reads the flag %q, the Core pass guards is %q", guardsFlag, corepass.PassGuards)
+	}
+	if _, ok := pass.Lookup(guardsFlag); !ok {
+		t.Errorf("no flag %q is registered", guardsFlag)
+	}
+}

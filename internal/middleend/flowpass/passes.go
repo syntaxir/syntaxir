@@ -8,7 +8,6 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/codepass"
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
@@ -22,6 +21,11 @@ const (
 	PassClassTables    = "class-tables"
 	PassInlineLiterals = "inline-literals"
 )
+
+// guardsFlag is the registry flag of the Core pass guards (corepass.PassGuards), which guarded-classes
+// reads: the guards of the alternatives are those of that pass, when it runs. The Flow passes read the
+// flag by its name in the registry rather than import the Core passes, which would link Core IR.
+const guardsFlag = "guards"
 
 // ordinary reports a function printed in the ordinary form: without Documents or the records of a
 // traced parse, each of which records the input a read examines.
@@ -63,11 +67,11 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			Obligation: "The class that begins a guarded alternative consumes the character that the guard's peek read and tested with the class's own test.",
 			Features:   []pipe.FeatureID{TargetFeature.ID()},
 			// The guards of the alternatives are those of the Core pass guards, when it runs.
-			Params: []string{corepass.PassGuards},
+			Params: []string{guardsFlag},
 		},
 		In: code.FlowStage, Out: code.FlowStage,
 		Applies: func(c *pipe.Ctx[Unit]) bool {
-			return pipe.Feature(c, TargetFeature).GuardedClasses && c.Value(corepass.PassGuards) != 0 && funcIs(c, ordinary)
+			return pipe.Feature(c, TargetFeature).GuardedClasses && c.Value(guardsFlag) != 0 && funcIs(c, ordinary)
 		},
 		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { guardedClasses(fn, a) }),
 	}),
