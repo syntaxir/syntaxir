@@ -5,15 +5,18 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
-func TestMissingTokensTypeOnlyGrammarCannotBeLowered(t *testing.T) {
+// TestMissingTokensTypeOnlyGrammar checks that a grammar that only names the type missing parses,
+// keeps the reference in a compiled grammar, and is refused by the generators.
+func TestMissingTokensTypeOnlyGrammar(t *testing.T) {
 	t.Parallel()
-	codegentest.EachMode(t, testMissingTokensTypeOnlyGrammarCannotBeLowered)
+	codegentest.EachMode(t, testMissingTokensTypeOnlyGrammar)
 }
 
-func testMissingTokensTypeOnlyGrammarCannotBeLowered(t *testing.T) {
+func testMissingTokensTypeOnlyGrammar(t *testing.T) {
 	prog := mustCompile(t, `type Item ~ missing
 rule main = "a"`)
 	if n, err := prog.Parse("main", "a"); n == nil || err != nil {
@@ -22,8 +25,20 @@ rule main = "a"`)
 	if !prog.HasMissing {
 		t.Fatal("reserved Missing reference was not recorded")
 	}
-	if _, err := prog.MarshalBinary("main"); err == nil {
-		t.Fatal("saved a reserved type without a supported binary representation")
+	// A compiled grammar keeps the reference: the loaded program parses as the source does.
+	data, err := prog.MarshalBinary("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, _, err := engine.LoadProgram(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !loaded.HasMissing {
+		t.Fatal("the loaded program lost the reference to missing")
+	}
+	if n, err := loaded.ParseWith("main", "a", engine.ParseOptions{Backend: engine.Bytecode, MissingTokens: 1}); n == nil || err != nil {
+		t.Fatal("loaded", n, err)
 	}
 	if _, err := codegentest.GenerateCode(t, entry.Checked(prog).Grammar, common.GenOptions{Package: "example", Start: "main"}); err == nil {
 		t.Fatal("generated unsupported Missing type")

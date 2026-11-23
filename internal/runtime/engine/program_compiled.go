@@ -254,15 +254,17 @@ func LoadProgram(data []byte) (*Program, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	if inserts := moduleInserts(m); (ins != nil) != inserts {
-		return nil, "", fmt.Errorf("invalid compiled grammar: a grammar with #missing has an insertion module, and only such a grammar (#missing: %v, insertion module: %v)", inserts, ins != nil)
+	// The insertion module marks a grammar that uses #missing or the type missing; a grammar that
+	// names only the type has nothing to insert, and its insertion module neither.
+	if moduleInserts(m) && ins == nil {
+		return nil, "", errors.New("invalid compiled grammar: a grammar with #missing has no insertion module")
 	}
 	if ins != nil {
 		p, err := loadModule(ins, mode)
 		if err != nil {
 			return nil, "", err
 		}
-		if !moduleInserts(ins) || !sameStarts(m, ins) {
+		if moduleInserts(ins) != moduleInserts(m) || !sameStarts(m, ins) {
 			return nil, "", errors.New("invalid compiled grammar: the insertion module does not match the module of the grammar")
 		}
 		p.insertion, p.HasMissing = true, true

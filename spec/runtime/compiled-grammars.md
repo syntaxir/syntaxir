@@ -118,8 +118,8 @@ version.
 Loading checks the magic number, the format version, a CRC-32 checksum, the mode,
 the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
-rule of the module, a grammar with `#missing` has its insertion module and only
-such a grammar has one, and no bytes trail the module). It also rejects a recovery
+rule of the module, a grammar with `#missing` has its insertion module, which
+inserts exactly where the module does, and no bytes trail the module). It also rejects a recovery
 region that encloses a streaming commitment, including files that were made with
 `#recover` on the `#stream` repetition, and a body with a cycle that passes
 through no step that requires progress and reuses no element of a run it leaves
