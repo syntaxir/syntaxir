@@ -897,6 +897,28 @@ export class SyntaxErrors extends Error {
 }
 
 /**
+ * TruncatedSyntaxErrors is the incomplete result of a stream with a positive diagnosticLimit that
+ * recovered from more errors than the limit: errors holds the latest ones, in the order they occurred.
+ * total counts every recovered error and dropped those left out; with countsSaturated set both stopped
+ * at Number.MAX_SAFE_INTEGER and are lower bounds, while errors stays exact. It is SyntaxErrors, so
+ * a caller that handles the recovered errors handles the retained ones.
+ */
+export class TruncatedSyntaxErrors extends SyntaxErrors {
+  total: number;
+  dropped: number;
+  countsSaturated: boolean;
+
+  constructor(errors: SyntaxError[], total: number, dropped: number, countsSaturated: boolean) {
+    super(errors);
+    this.message = `recovered syntax errors truncated (total ${total}, dropped ${dropped}):\n${this.message}`;
+    this.name = "TruncatedSyntaxErrors";
+    this.total = total;
+    this.dropped = dropped;
+    this.countsSaturated = countsSaturated;
+  }
+}
+
+/**
  * The result of a parse. A failed parse has a null node and an error: a SyntaxError, or an Error for
  * a runtime error in an action or too deep nesting. A parse that recovered from errors with #recover
  * has both the node and SyntaxErrors.
@@ -1146,6 +1168,27 @@ export interface ParseOptions {
   limits?: Limits;
 }
 
+/**
+ * The options of a stream (createStream): those of a parse, which a stream takes except the trace and
+ * profile options, and the diagnostic options, which only a stream takes.
+ */
+export interface StreamOptions extends ParseOptions {
+  /**
+   * Receives each recovered error (#recover) once it is committed, before the element that follows it
+   * and, for the errors after the last element, before the stream ends; recoveries in alternatives
+   * that the parse abandons are never reported. The callback receives a copy of its own. A returned
+   * Error fails the stream with it, without the element; a thrown value propagates from feed unchanged
+   * and fails the stream.
+   */
+  diagnostic?: ((e: SyntaxError) => Error | null | void) | null;
+  /**
+   * Retains only the latest diagnosticLimit recovered errors for the result of the stream when positive;
+   * zero retains every error. When errors are left out, the stream ends with TruncatedSyntaxErrors
+   * instead of SyntaxErrors.
+   */
+  diagnosticLimit?: number;
+}
+
 /** The value of a limit that disables it. */
 export const Unlimited = Number.MAX_SAFE_INTEGER;
 
@@ -1204,13 +1247,17 @@ export type PlainLimits = Omit<Limits, "compute" | "memory">;
  */
 export type PlainParseOptions = Omit<ParseOptions, "signal" | "computeReport" | "limits"> & { limits?: PlainLimits };
 
+/** The options of a stream of a parser generated without limit controls (see PlainParseOptions). */
+export type PlainStreamOptions = Omit<StreamOptions, "signal" | "computeReport" | "limits"> & { limits?: PlainLimits };
+
 // parseOptionKeys and limitKeys are the keys of ParseOptions and Limits.
-const parseOptionKeys = new Set(["unit", "expectations", "signal", "computeReport", "limits", "trace", "traceRules", "traceMaxDepth", "profile"]);
+const parseOptionKeys = new Set(["unit", "expectations", "signal", "computeReport", "limits", "trace", "traceRules", "traceMaxDepth", "profile", "diagnostic", "diagnosticLimit"]);
 const limitKeys = new Set(["compute", "memory", "input", "depth"]);
 
-// resolveOptions validates options for a parse of input. A zero compute limit of a parser generated with
-// limit controls resolves to the default budget of the input, and Unlimited resolves to no budget (zero).
-export function resolveOptions(g: Grammar, options: ParseOptions | undefined, input: string | Uint8Array): ResolvedParseOptions | Error {
+// resolveOptions validates options for a parse of input, a stream if stream is set: only a stream takes
+// the diagnostic options. A zero compute limit of a parser generated with limit controls resolves to the
+// default budget of the input, and Unlimited resolves to no budget (zero).
+export function resolveOptions(g: Grammar, options: StreamOptions | undefined, input: string | Uint8Array, stream = false): ResolvedParseOptions | Error {
   // An option that is not one is an error rather than ignored, so that a misspelled limit cannot
   // leave a parse unbounded. Listing the keys reads no option.
   if (options != null) {
@@ -1227,6 +1274,8 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
   if (!g.controlled && (options?.signal != null || options?.computeReport != null || ((limits?.compute ?? 0) !== 0 && limits?.compute !== Unlimited) || ((limits?.memory ?? 0) !== 0 && limits?.memory !== Unlimited))) {
     return new Error("this parser was generated without limit controls (-no-limits; generate it without that option to use signal, computeReport and the compute and memory limits)");
   }
+  const diagnostics = diagnosticOptions(options, stream);
+  if (diagnostics !== null) return diagnostics;
   if (!g.observable && (options?.profile != null || options?.trace != null || options?.traceRules !== undefined || options?.traceMaxDepth !== undefined)) {
     return new Error("trace and profile options are only supported by a parser generated with observability");
   }
@@ -1274,6 +1323,20 @@ export function resolveOptions(g: Grammar, options: ParseOptions | undefined, in
   }
   const budget = requested === Unlimited ? 0 : requested !== 0 ? requested : g.controlled ? defaultBudget(inputUnits(input, unit)) : 0;
   return { unit, maxDepth: depth === 0 ? g.maxDepth : depth, expectations: options?.expectations === true, signal, report, budget, memory: memory === Unlimited ? 0 : memory, traces, traceRules, traceMaxDepth, profiles, profileClock };
+}
+
+// diagnosticOptions returns the error of the diagnostic options of options, a stream's if stream is set,
+// or null if they are valid: a nonnegative limit and a callback, each given only to a stream.
+function diagnosticOptions(o: StreamOptions | undefined, stream: boolean): Error | null {
+  if (o == null) return null;
+  const limit = o.diagnosticLimit;
+  if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 0)) {
+    return new Error(`diagnostic limit must be a non-negative safe integer: ${limit}`);
+  }
+  const callback = o.diagnostic;
+  if (callback != null && typeof callback !== "function") return new Error("diagnostic must be a function");
+  if (!stream && (callback != null || limit !== undefined)) return new Error("diagnostic options are only supported for stream parsing");
+  return null;
 }
 
 // noProfiles and noTraces are the observers of an invocation that observes nothing.
@@ -6124,6 +6187,15 @@ export class StreamParser extends Parser {
   // stream, which rises with the furthest position that the parse demands (demanded).
   maxInput = 0;
   adaptive = false;
+  // diagnostic receives the committed recovered errors (StreamOptions.diagnostic), and tail retains the
+  // latest of them under a positive diagnostic limit. diagnosed counts the entries of recovered that were
+  // reported. The entries before it stay as they are until a commit forgets them (streamSettleErrors) or
+  // a failure drops them: a list of recovered errors (recSince) takes the place of the entries after the
+  // mark of a call that ends, and the only call active at a report, the start rule's first call, which
+  // runs the stream body, lists none before the stream ends.
+  diagnostic: ((e: SyntaxError) => Error | null | void) | null = null;
+  tail: DiagnosticTail | null = null;
+  diagnosed = 0;
 
   constructor(g: Grammar, unit: Unit, stride: number, maxDepth: number, control: BudgetControl | null, start: number) {
     super(g, new Uint8Array(0), unit, stride, maxDepth, control);
@@ -6400,8 +6472,44 @@ export class StreamParser extends Parser {
     this.unitsCheck = c.unitsCheck();
   }
 
-  // streamReport is stream.report: it delivers the recovered errors committed since the last report.
-  streamReport(): void {}
+  // streamReport is stream.report: it delivers the recovered errors committed since the last report; an
+  // error of the diagnostic callback ends the parse with it, before the element is delivered.
+  streamReport(): void {
+    const err = this.reportRecovered();
+    if (err !== null) throw new Fatal(err);
+  }
+
+  // reportRecovered delivers the recovered errors committed since the last report to the diagnostic
+  // callback and the tail, in order, and returns the error of the callback that stops it, or null. It
+  // runs only at the boundaries of the stream, which recoveries in abandoned alternatives never reach.
+  reportRecovered(): Error | null {
+    if (this.diagnostic === null && this.tail === null) return null;
+    if (this.diagnosed > this.recovered.length) this.diagnosed = this.recovered.length;
+    while (this.diagnosed < this.recovered.length) {
+      const e = this.recovered[this.diagnosed]!;
+      for (const x of e instanceof ErrList ? recoveredErrors([e]) : [e]) {
+        const err = this.reportError(x);
+        if (err !== null) return err;
+      }
+      this.diagnosed++;
+    }
+    return null;
+  }
+
+  // reportError delivers the recovered error e to the diagnostic callback, as a copy that the callback
+  // owns, and to the tail; it returns the error of the callback, or null.
+  reportError(e: SyntaxError): Error | null {
+    this.control?.check();
+    const callback = this.diagnostic;
+    if (callback !== null) {
+      const r = callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()));
+      if (r != null) return r instanceof Error ? r : new Error("the diagnostic callback returned a value that is not an Error");
+    }
+    this.tail?.add(e);
+    this.control?.check();
+    return null;
+  }
+
 
   // streamDeliver is stream.deliver: the element v is final from now on.
   streamDeliver(v: R): void {
@@ -6458,14 +6566,18 @@ export class StreamParser extends Parser {
     }
   }
 
-  // streamTail is stream.tail: whether the stream retains the tail of its recovered errors.
+  // streamTail is stream.tail: whether the stream retains the tail of its recovered errors (a positive
+  // diagnostic limit).
   streamTail(): boolean {
-    return false;
+    return this.tail !== null;
   }
 
-  // streamSettleErrors is stream.settleErrors: the recovered errors delivered so far are forgotten.
+  // streamSettleErrors is stream.settleErrors: the recovered errors before the boundary were reported
+  // and retained by the tail, and no active call restores a longer prefix of them (the start rule's call
+  // saved an empty one), so the record forgets them. Memo entries keep their own lists.
   streamSettleErrors(): void {
     this.recovered.length = 0;
+    this.diagnosed = 0;
   }
 
   // The methods that the compositions print (internal/ir/code/exec/compose): the delivery of an
@@ -6520,6 +6632,46 @@ export class StreamParser extends Parser {
 
   *skipTriviaGen(r: Rule): Generator<number, void, void> {
     throw new Error("the printed method replaces this one");
+  }
+}
+
+// DiagnosticTail retains the latest limit recovered errors of a stream, in a ring, and counts them all;
+// the counts saturate at Number.MAX_SAFE_INTEGER.
+class DiagnosticTail {
+  private readonly limit: number;
+  private readonly errors: SyntaxError[] = [];
+  private head = 0;
+  private total = 0;
+  private dropped = 0;
+  private truncated = false;
+  private countsSaturated = false;
+
+  constructor(limit: number) {
+    this.limit = limit;
+  }
+
+  add(e: SyntaxError): void {
+    if (this.total === Number.MAX_SAFE_INTEGER) this.countsSaturated = true;
+    else this.total++;
+    if (this.errors.length < this.limit) {
+      this.errors.push(e);
+      return;
+    }
+    this.truncated = true;
+    if (this.dropped === Number.MAX_SAFE_INTEGER) this.countsSaturated = true;
+    else this.dropped++;
+    this.errors[this.head] = e;
+    this.head++;
+    if (this.head === this.limit) this.head = 0;
+  }
+
+  // result returns the retained errors in order: null for none, SyntaxErrors when none was left out,
+  // and TruncatedSyntaxErrors otherwise.
+  result(): SyntaxErrors | null {
+    if (this.errors.length === 0) return null;
+    if (!this.truncated) return new SyntaxErrors(this.errors.slice());
+    const ordered = [...this.errors.slice(this.head), ...this.errors.slice(0, this.head)];
+    return new TruncatedSyntaxErrors(ordered, this.total, this.dropped, this.countsSaturated);
   }
 }
 
@@ -6605,7 +6757,14 @@ export class Stream {
       const v = step.value;
       // The end of the input is a demand past the position, as the Go stream reads it (streamAtEnd).
       const ok = v !== undefined && p.atEnd();
-      return this.end(this.finish(v, ok), null);
+      const error = this.finish(v, ok);
+      if (ok) {
+        // Recoveries after the last element are reported before the result.
+        const err = p.reportRecovered();
+        if (err !== null) return this.end(null, err);
+        if (p.tail !== null) return this.end(p.tail.result(), null);
+      }
+      return this.end(error, null);
     } catch (x) {
       if (x instanceof SignalPanic) {
         this.end(null, null);
@@ -6645,12 +6804,12 @@ export class Stream {
 // createStreamBase makes the stream of the grammar g with the start rule start, whose #stream body is
 // the resumable body of the rule in bodyGens, with the options options, after their check at the
 // start; a stream rejects the options of an observed parse. It is for generated parsers.
-export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: ParseOptions | undefined): { stream: Stream | null; error: Error | null } {
-  const snapshot = optionsSnapshot(options);
+export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: StreamOptions | undefined): { stream: Stream | null; error: Error | null } {
+  const snapshot: StreamOptions | undefined = optionsSnapshot(options);
   if (snapshot?.trace != null || snapshot?.profile != null || snapshot?.traceRules !== undefined || snapshot?.traceMaxDepth !== undefined) {
     return { stream: null, error: new Error("a stream is not observed: it takes no trace or profile options") };
   }
-  const o = resolveOptions(g, snapshot, "");
+  const o = resolveOptions(g, snapshot, "", true);
   if (o instanceof Error) return { stream: null, error: o };
   const requested = snapshot?.limits?.compute ?? 0;
   let control: BudgetControl | null = null;
@@ -6674,6 +6833,9 @@ export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens
   // A stream under the default compute limit starts at its floor, which rises with the input that the
   // parse demands (StreamParser.demanded).
   p.adaptive = control !== null && g.controlled && requested === 0;
+  p.diagnostic = snapshot?.diagnostic ?? null;
+  const limit = snapshot?.diagnosticLimit ?? 0;
+  if (limit > 0) p.tail = new DiagnosticTail(limit);
   return { stream: new Stream(p, start, o), error: null };
 }
 

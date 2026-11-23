@@ -433,7 +433,7 @@ for (const edit of [null, [3, 5, "xy"]]) {
 // TestTSDocumentOptions checks the options of a Document: invocation options apply after the
 // defaults, an invocation cannot change the unit or the expectations (which the test parsers record
 // by default), an invalid default fails
-// construction, the input is copied, and a parse or an edit from a trace callback of a parse fails.
+// construction, the diagnostic options of a stream are rejected, the input is copied, and a parse or an edit from a trace callback of a parse fails.
 func TestTSDocumentOptions(t *testing.T) {
 	g, err := parseTest(`rule main = [a-z]+ "!"`)
 	if err != nil {
@@ -450,6 +450,8 @@ console.log(String(d.parse({ expectations: false }).error));
 console.log(String(d.parse({ limits: { input: 2 } }).error));
 console.log(String(createDocument("abc!", { limits: { input: 2 } }).error));
 console.log(String(createDocument("abc!", { bogus: 1 }).error));
+console.log(String(createDocument("abc!", { diagnosticLimit: 0 }).error));
+console.log(String(d.parse({ diagnostic: () => null }).error));
 let inner = null;
 const traced = d.parse({ trace: () => { if (inner === null) inner = [String(d.parse().error), String(d.edit(0, 0, "x"))]; } });
 console.log(traced.error === null, inner.join(" | "), d.text());
@@ -462,6 +464,8 @@ Error: document parse cannot change expectations
 ParseInterruptionError: input-limit exceeded: limit 2, length 3
 ParseInterruptionError: input-limit exceeded: limit 2, length 4
 Error: unknown parse option: bogus
+Error: diagnostic options are only supported for stream parsing
+Error: diagnostic options are only supported for stream parsing
 true Error: document is already parsing | Error: document is already parsing ab!
 Error: invalid range [0,9) for text of length 3 ab!
 `

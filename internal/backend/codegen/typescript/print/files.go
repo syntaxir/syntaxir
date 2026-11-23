@@ -41,7 +41,7 @@ var tsPublicControls = strings.Fields(`CancellationSignal ComputeReport`)
 
 // tsPublicStream lists the library declarations of the push stream that parser.ts re-exports when
 // generated with -stream.
-var tsPublicStream = strings.Fields(`Stream StreamResult StreamState`)
+var tsPublicStream = strings.Fields(`Stream StreamResult StreamState StreamOptions TruncatedSyntaxErrors`)
 
 // substituteMethods replaces methods of the Parser class in the library source src by the printed
 // methods ms: each method, with the comment lines before it, from its first line at the class
@@ -128,7 +128,7 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specializ
 	}
 	for _, name := range public {
 		export := name
-		if opts.NoLimitControls && (name == "ParseOptions" || name == "Limits") {
+		if opts.NoLimitControls && (name == "ParseOptions" || name == "StreamOptions" || name == "Limits") {
 			// Without limit controls the options have no cancellation, and the limits no compute limit.
 			export = "Plain" + name + " as " + name
 			name = "Plain" + name

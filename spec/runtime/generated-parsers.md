@@ -357,8 +357,9 @@ its own when it is committed, so the value stays valid after the callback return
 The conversion charges no compute units, as [converting a result](parsing.md#cost)
 does not, and observes the context.
 
-With `-stream`, the TypeScript `parser.ts` gains `createStream(options?)`, which
-returns `{ stream, error }`, and exports `Stream`, `StreamResult` and `StreamState`.
+With `-stream`, the TypeScript `parser.ts` gains `createStream(options?: StreamOptions)`, which
+returns `{ stream, error }`, and exports `Stream`, `StreamResult`, `StreamState`,
+`StreamOptions` and `TruncatedSyntaxErrors`.
 A `Stream` is a push stream: `stream.feed(chunk: Uint8Array, final = false)` copies
 the chunk, runs the parse until it needs input that has not arrived or ends, and
 returns a `StreamResult`, `{ elements, state, error }`, with the elements committed
@@ -368,13 +369,25 @@ the contract of [Streaming](streaming.md), with these differences:
 - `createStream` reads the options once and makes the check at the start; `stream`
   is null, with the error, when they are invalid. A stream takes no trace or profile
   options. The options apply to the whole stream, over all its feeds.
+- `StreamOptions` are `ParseOptions` with the diagnostic options of
+  [Streaming](streaming.md#recovered-errors): `diagnostic?: (e: SyntaxError) => Error | null | void`
+  and `diagnosticLimit?: number`. The callback receives each committed recovered
+  error, a copy of its own, during the feed that commits it, before the element that
+  follows it; a returned `Error` fails the stream with it, without that element, and
+  a thrown value propagates from `feed` and fails the stream. With a positive limit, a
+  done stream that left errors out ends with `TruncatedSyntaxErrors`, a `SyntaxErrors`
+  of the retained errors with `total`, `dropped` and `countsSaturated` (the counts
+  stop at `Number.MAX_SAFE_INTEGER`). The other entry points (`parseWithOptions`,
+  `parseRuleWithOptions`, `recognizeWithOptions`, `createDocument` and the methods of
+  a Document) reject the diagnostic options.
 - The parse runs inside `feed`. It suspends where a read needs input that has not
   arrived, and the next feed resumes it: nothing is evaluated again, so the elements,
   their positions, the error and the compute units are those of the Go `ParseStream`
   of the same input, however it is split into chunks. An incomplete UTF-8 sequence at
   the end of a chunk waits for the next chunk or the end of the input.
 - `final` marks the last chunk. `error` is null while the stream waits; with
-  `"done"` it is null or the recovered `SyntaxErrors`, and with `"failed"` the
+  `"done"` it is null or the recovered `SyntaxErrors` (`TruncatedSyntaxErrors` when
+  the limit left errors out), and with `"failed"` the
   syntax error or the interruption. A failed feed returns the elements committed
   before its error, and no element is delivered twice.
 - An empty chunk that is not final leaves the stream waiting. A feed after the stream

@@ -786,8 +786,13 @@ export function createDocument(input: string | Uint8Array, options?: %[1]s): { d
 }
 
 // streamEntry writes createStream, which makes the push stream of the start rule, whose #stream
-// repetition delivers its elements as they are committed.
+// repetition delivers its elements as they are committed. It takes the stream options of the
+// library, without the limit controls when the options of the parse have none.
 func (g *Generator) streamEntry(out *strings.Builder, start *common.Rule) {
+	options := "StreamOptions"
+	if g.optionsType == "PlainParseOptions" {
+		options = "PlainStreamOptions"
+	}
 	fmt.Fprintf(out, `/**
  * createStream makes a push stream of the start rule %[1]s, whose #stream repetition delivers each
  * element as it is committed: feed adds the chunks of the input, the last one final, and returns the
@@ -797,7 +802,7 @@ export function createStream(options?: %[2]s): { stream: Stream | null; error: E
   return createStreamBase(G, R%[3]d, nseen, bodyGens, options);
 }
 
-`, start.Name, g.optionsType, start.ID)
+`, start.Name, options, start.ID)
 }
 
 // runKeys writes the constants of the keys of the run sites of the program being generated that are

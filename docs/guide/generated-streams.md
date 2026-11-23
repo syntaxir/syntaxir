@@ -109,6 +109,20 @@ the error and the compute units are those of the Go `ParseStream` of the same in
 of `createStream` (`unit`, `expectations`, `limits`, `signal`, `computeReport`) apply to the whole stream; a signal
 cancels the feed that observes it. A feed after the end returns an error and changes nothing.
 
+The diagnostic options of a stream report recovered errors (`#recover`) as they are committed, as
+`WithDiagnosticCallback` and `WithDiagnosticLimit` do in Go:
+
+```ts
+const { stream } = createStream({
+  diagnostic: (e) => { log(e.message); return null; }, // return an Error to fail the stream
+  diagnosticLimit: 100, // keep only the latest 100 errors for the result
+});
+```
+
+The callback runs during the feed that commits the error, before the element after it. With a positive
+`diagnosticLimit`, a stream that recovered from more errors ends with `TruncatedSyntaxErrors`, the retained errors
+with the `total` and `dropped` counts.
+
 ## Related Topics
 
 - [Streaming](streaming.md): the stream contract, shared by the engine and the generated parsers.
