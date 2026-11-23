@@ -56,10 +56,10 @@ func TestTypeScriptConformanceRuleDetectsMutants(t *testing.T) {
 	// Not here: a body that leaves its frame, its environment or its trail behind, and a value that stays
 	// fresh: no operation of the rules reads them, so no case of this family can tell.
 	mutants := []tsMutant{
-		{name: "an invocation keeps the nesting level of a rule on a cycle", sig: "invoke(r: Rule, min: number", old: "if (r.rec) this.depth--;", new: ""},
+		{name: "an invocation keeps the nesting level of a rule on a cycle", sig: "invoke(r: Rule, min: number", old: "this.depth--;", new: ""},
 		{name: "a plain failure keeps the errors it recovered", sig: "invokePlainBody(r: Rule", old: "this.recovered.length = rec;", new: ""},
 		{name: "a plain failure leaves the position where the body stopped", sig: "invokePlainBody(r: Rule", old: "this.pos = start;", new: ""},
-		{name: "a plain invocation does not check the nesting limit", sig: "invokePlainBody(r: Rule", old: "if (r.rec && ++this.depth > this.maxDepth) {", new: "if (r.rec && ++this.depth < 0) {"},
+		{name: "a plain invocation does not check the nesting limit", sig: "invokePlainBody(r: Rule", old: "if (++this.depth > this.maxDepth) {", new: "if (++this.depth < 0) {"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {

@@ -203,7 +203,7 @@ func TestTypeScriptConformanceMemoInput(t *testing.T) {
 // Go state engine (actionlower.go); rule.docMemo, rule.positional and the doc operations only by the
 // DocumentParser and ObservedParser targets, since the batch Parser reads no Document and tracks nothing;
 // obs.active, obs.enter and obs.exit have no printed form of their own (the printer emits the observation
-// hooks inside the printed rule code); env.scope, env.lookup, rec.push and budget.used are support
+// hooks inside the printed rule code); env.lookup, rec.push and budget.used are support
 // operations of the cases, and budget.charge and budget.chargeKey too: the TypeScript parser has no
 // budget form, and the harness counts their units in the parser's counter of compute units. An observed parse without a Document keeps no start of the examined input and
 // no statistics.
@@ -216,7 +216,7 @@ func TestTypeScriptConformancePrintedOps(t *testing.T) {
 		name, reason string
 		want         []string
 	}{
-		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.charge", "budget.chargeKey", "budget.used", "env.lookup", "env.scope", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "action.elemsAbove", "action.keep"}, tsconformtest.DocOps...)},
+		{"PrintedParser", "no TypeScript implementation", append([]string{"budget.charge", "budget.chargeKey", "budget.used", "env.lookup", "obs.active", "obs.enter", "obs.exit", "rec.push", "rule.docMemo", "rule.positional", "action.elemsAbove", "action.keep"}, tsconformtest.DocOps...)},
 		{"PrintedDocumentParser", "", nil},
 		{"PrintedObservedParser", "the Document operation", []string{"doc.evaluated", "doc.low", "doc.reused", "doc.touchFrom"}},
 	}
