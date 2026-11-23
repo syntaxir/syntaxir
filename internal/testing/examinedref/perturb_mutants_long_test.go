@@ -63,8 +63,8 @@ var producerMutants = []producerMutant{
 	{name: "a literal compared with the input of a stream records nothing (unrecorded stream read)",
 		edits: []producerEdit{
 			{mutantStateInput, "\t\t\tp.touch(p.Pos + 1)\n\t\t\tc, ok := p.byteAt(p.Pos)\n", "\t\t\tc, ok := p.byteAt(p.Pos)\n"},
-			{mutantStateInput, "\t\tp.spendRead(1)\n\t\tp.touch(p.Pos + 1)\n\t\tif p.Pos < p.Base || !p.Fill(p.Pos+1) || p.In[p.Pos-p.Base] != r {\n",
-				"\t\tp.spendRead(1)\n\t\tif p.Pos < p.Base || !p.Fill(p.Pos+1) || p.In[p.Pos-p.Base] != r {\n"},
+			{mutantStateInput, "\t\tp.touch(p.Pos + 1)\n\t\tif p.Pos < p.Base || !p.Fill(p.Pos+1) || p.In[p.Pos-p.Base] != r {\n",
+				"\t\tif p.Pos < p.Base || !p.Fill(p.Pos+1) || p.In[p.Pos-p.Base] != r {\n"},
 		},
 		tests: []string{"TestEngineStreamHighWater"}, catchers: []string{"TestEngineStreamHighWater"}, backends: producerBackends},
 	{name: "a stream reads one unit beyond what the parse asks for (unrecorded stream read)",
