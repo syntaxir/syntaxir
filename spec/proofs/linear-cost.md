@@ -365,6 +365,13 @@ position, whatever the parse answers from entries of an earlier parse,
 resumes or answers from records. So the $K$ of a
 [Document](../runtime/documents.md) parse is the $K$ of a parse of its text
 from scratch; $K_R$ above and $L$ of the theorem remain the parse's own.
+$\mathcal{R}$ memoizes nothing, so it compares no examined ranges, and $K$ does
+not depend on them. A Document parse compares the examined ranges of growing results and
+lookahead outcomes in contexts of growths, which a parse that reads no Document does not
+([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)); that only makes
+it reuse less (*Reuse in a context* in Lemma 5), and every call that it makes is still the counterpart of
+a call of $\mathcal{R}$, so its $K$ is at most $K$ and a Document reparse keeps the bound of the
+theorem.
 
 $K$ is the $K$ of the parse wherever each call of $\mathcal{R}$ repeats, at
 its position and with its values, a call of the parse. It does inside a call
@@ -9681,9 +9688,9 @@ context, stores there a result that read no growing result, and reuses a kept
 result or step when every growing result that it read is equal to the one
 there now and every lookahead that it observed has the same outcome. A parse
 may compare two results by their structure only up to a bound and take results
-that it has not shown equal as different, and where it records the input that
-evaluations examine, it takes results with different examined ranges as
-different too, and evaluates again what it could have reused. The bounds of
+that it has not shown equal as different, and a parse of a
+[Document](../runtime/documents.md), which compares examined ranges in contexts of growths, takes results
+with different examined ranges as different too, and evaluates again what it could have reused. The bounds of
 this lemma on the evaluations, from *Calls in a context of growths* to
 *Growths inside a step*, apart from *Open parts of the kept steps*, hold in
 every parse, whatever it answers in
