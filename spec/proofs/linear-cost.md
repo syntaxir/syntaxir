@@ -67,7 +67,7 @@ Lemma 14 bounds the work of the recovered errors, which $C$ does not count, by a
 constant times $C$, and Lemma 16 bounds the number of the recovered errors of an
 outcome by a constant times the input, so that listing them outside a Document
 takes at most a constant times $C$.
-[Correspondence](#correspondence) maps the conditions and terms of the
+[Correspondence](#correspondence) maps the conditions and definitions of the
 specification to the lemmas that use them. Lemmas 4 and 5 are given as
 outlines: each states its claim, the conditions it uses, and the steps that its
 proof must still make precise, listed under [Open Steps](#open-steps). Lemma 4
@@ -1128,7 +1128,7 @@ the recorded sites as of the others. Their counts are needed only for the
 
 In this proof, as in the [Setting](#setting) and Lemmas 1 and 2, a bounded scan
 is a scanning source: its iterations are activations. The conditions and the
-terms of the specification leave it out, so where this lemma says that a unit
+definitions of the specification leave it out, so where this lemma says that a unit
 or an expression has no scanning source, it can hold bounded scans, whose
 activations Lemma 13 has counted wherever they occur.
 
@@ -13710,14 +13710,14 @@ does not cover it.
 
 ## Correspondence
 
-The classifier decides the conditions and terms of
+The classifier decides the conditions and definitions of
 [Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost) on the
 [cost view](../runtime/parsing.md#cost-view), over-approximating where it cannot
 be exact ([Classification](../runtime/parsing.md#classification)). Each entry
-names a term or condition of the specification and the lemmas that use it.
+names a definition or condition of the specification and the lemmas that use it.
 
 - The expressions whose matches are bounded in length and those that can match
-  without consuming input, which the terms scanning source, bounded list and
+  without consuming input, which the definitions of scanning source, bounded list and
   growing unit read: Lemmas 1, 2, 4, 6 and 11. The first characters: Lemma 4.
 - Scanning sources, units and what contains a source: Lemmas 1, 2 and 4.
 - [Run sites](../runtime/parsing.md#run-sites), their conditions, the sites
@@ -13780,7 +13780,7 @@ names a term or condition of the specification and the lemmas that use it.
   of [Classification](../runtime/parsing.md#classification): no lemma, since
   those classes carry no promise.
 
-Every condition and term above is decided by the classifier. Three parts of
+Every condition and definition above is decided by the classifier. Three parts of
 the proof are no condition and need no check: the factors $K$ and $L$, which
 are quantities of a parse that the classes carry, the three evaluations at a
 position for each variant of a rule that the memo of
