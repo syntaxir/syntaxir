@@ -301,9 +301,15 @@ func (s *Source) Recognizer() (state.Source, error) {
 	return s.again(driver.Recognizer, func(o *check.Options) { o.Recognition = check.Recognize }, s.prog.Flags())
 }
 
-// Insertion compiles the grammar again with the rule flags of missing-token insertion.
+// Insertion compiles the grammar again as the program of the parses with missing-token insertion
+// enabled, with the rule flags of insertion: those of the program itself when insertion forms no
+// left-recursion cycle of its own (check.Model.InsertionFlags is nil).
 func (s *Source) Insertion() (state.Source, error) {
-	return s.again(driver.Insertion, func(*check.Options) {}, s.prog.InsertionFlags)
+	flags := s.prog.InsertionFlags
+	if flags == nil {
+		flags = s.prog.Flags()
+	}
+	return s.again(driver.Insertion, func(*check.Options) {}, flags)
 }
 
 // again compiles the grammar again as the program of the role, with the rule flags and the options

@@ -30,8 +30,8 @@ type Source interface {
 	Core(ctx context.Context) (any, error)
 	// Family builds the rules of the closure family f from core, by ID.
 	Family(core any, f Family) ([]*Rule, error)
-	// Recognizer compiles the grammar again as a program that builds no tree, and Insertion with
-	// the rule flags of missing-token insertion (program.Program.InsertionCycles).
+	// Recognizer compiles the grammar again as a program that builds no tree, and Insertion as the
+	// program of the parses with missing-token insertion enabled, with the rule flags of insertion.
 	Recognizer() (Source, error)
 	Insertion() (Source, error)
 	// RuleType, RuleTypeWithPoll, ShapeSignature and ValueType describe the types of the rules

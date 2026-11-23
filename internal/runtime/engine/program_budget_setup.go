@@ -17,7 +17,7 @@ func (prog *Program) admitParse(start string, o ParseOptions, f state.Family, st
 	if err := prog.admitMissing(o, stream); err != nil {
 		return nil, nil, nil, err
 	}
-	if o.MissingTokens > 0 && prog.InsertionCycles {
+	if o.MissingTokens > 0 && prog.HasMissing && !prog.insertion {
 		ins, err := prog.insertionProgram()
 		if err != nil {
 			return nil, nil, nil, err

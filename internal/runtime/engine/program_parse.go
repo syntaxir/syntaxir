@@ -113,10 +113,11 @@ func (prog *Program) Recognizer() (*Program, error) {
 }
 
 // insertionProgram returns the program that the parses with missing-token insertion enabled run
-// when prog's grammar has left recursion through an insertion: the grammar built with the rule
-// flags of insertion (check.Model.InsertionFlags), whose leaders grow the cycles that exist
-// only with insertion. It is built on first use. The parses without insertion keep running prog,
-// so they neither grow those rules nor lose the memoization of their members.
+// when prog's grammar uses #missing: the grammar built with the rule flags of insertion
+// (check.Model.InsertionFlags), whose leaders grow the cycles that exist only with insertion, and
+// whose modules the bytecode VMs lower for insertion. It is built on first use. The parses without
+// insertion keep running prog, so they neither grow those rules, lose the memoization of their
+// members nor run the insertion form of the bytecode.
 func (prog *Program) insertionProgram() (*Program, error) {
 	prog.insOnce.Do(func() {
 		src, err := prog.src.Insertion()
@@ -125,6 +126,7 @@ func (prog *Program) insertionProgram() (*Program, error) {
 			return
 		}
 		prog.ins = New(src)
+		prog.ins.insertion = true
 	})
 	return prog.ins, prog.insErr
 }

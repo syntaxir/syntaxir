@@ -161,7 +161,6 @@ func (r *Result) newRuntime() *program.Program {
 		NumScanSites:      r.sites.NumScan,
 		EnvFreeSites:      r.sites.EnvFree,
 		RunKeys:           r.sites.RunKeys,
-		InsertionCycles:   p.InsertionFlags != nil,
 		StructZero: func(name string) *program.StructZero {
 			if z := p.Checker().StructZeroOf(name); z != nil {
 				return &program.StructZero{Names: z.Names, Zeros: z.Zeros}

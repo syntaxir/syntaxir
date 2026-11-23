@@ -50,10 +50,12 @@ type Program struct {
 	loaded bool
 	mode   CompiledMode
 	// ins is the program that the parses with missing-token insertion enabled run when the
-	// grammar has left recursion through an insertion (InsertionCycles); it is built on first use.
-	insOnce sync.Once
-	ins     *Program
-	insErr  error
+	// grammar uses #missing (insertionProgram); it is built on first use. insertion reports that
+	// the program is such a program, which runs its insertion parses itself.
+	insOnce   sync.Once
+	ins       *Program
+	insErr    error
+	insertion bool
 }
 
 // closureFamily holds the rules of a closure family once a parse needs them. The build runs under

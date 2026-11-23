@@ -52,9 +52,6 @@ type Program struct {
 	// Bytecode is the module of a program loaded from a compiled grammar, nil for a program that
 	// the compiler built.
 	Bytecode *bytecode.Module
-	// InsertionCycles reports that missing-token insertion forms left-recursion cycles of its own:
-	// the parses with insertion enabled run a program compiled with the rule flags of insertion.
-	InsertionCycles bool
 	// StructZero returns the zero descriptors of the fields of the struct type name, or nil.
 	StructZero func(name string) *StructZero
 }
