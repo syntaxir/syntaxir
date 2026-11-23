@@ -50,7 +50,7 @@ rule other = "b"`)
 	if _, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "other", Stream: true}); err == nil || !strings.Contains(err.Error(), "needs a #stream repetition") {
 		t.Errorf("a TypeScript stream of a start rule without #stream: %v", err)
 	}
-	if _, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Stream: true, Document: true}); err == nil || !strings.Contains(err.Error(), "stream generation cannot be combined with document generation") {
+	if ts, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Stream: true, Document: true}); err != nil || !strings.Contains(string(ts), "export function createStream(") || !strings.Contains(string(ts), "export function createDocument(") {
 		t.Errorf("a TypeScript stream with Documents: %v", err)
 	}
 	if ts, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", Stream: true, Observability: true}); err != nil || !strings.Contains(string(ts), "export function createStream(") {

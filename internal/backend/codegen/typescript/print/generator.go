@@ -63,9 +63,6 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 	if opts.Lib != common.LibImport && opts.LibModule != "" {
 		return opts, fmt.Errorf("the TypeScript library module can only be set with the import library mode")
 	}
-	if opts.Stream && opts.Document {
-		return opts, fmt.Errorf("stream generation cannot be combined with document generation in TypeScript")
-	}
 	if opts.RecognizeOnly {
 		switch {
 		case opts.Types || opts.TypedOnly || opts.Document || opts.Stream:

@@ -807,7 +807,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	fs.Bool("types", false, "also generate typed values and ParseValue (parseValue in TypeScript)")
 	fs.Bool("document", false, "also generate an incremental Document (typed ParseValue with -types)")
 	fs.Bool("stream", false, "also generate the stream of the start rule's #stream repetition: Go ParseStream and Iterate (and their typed forms with -types), TypeScript createStream")
-	fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
+	fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go and TypeScript batch parsing, Documents and streams, including typed entry points")
 	fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
 	fs.String("charge-units", "", "")
 	fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context, a compute report or a finite Compute or Memory limit (in TypeScript a signal, a computeReport or a finite compute or memory limit) fails")

@@ -36,10 +36,6 @@ const tsGenSignature = "(p: StreamParser): Generator<number, R, void>"
 // rule of the Node table that reaches a demand, the functions that these call, and the table of the
 // rules' resumable bodies (bodyGens). A Document parse has no stream.
 func (g *Generator) streamRules() {
-	if g.Document {
-		g.printErr(fmt.Errorf("a TypeScript stream does not parse with Documents"))
-		return
-	}
 	g.stream = true
 	defer func() { g.stream = false }()
 	if !g.startTSTable() {

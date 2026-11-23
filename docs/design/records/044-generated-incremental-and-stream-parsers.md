@@ -13,7 +13,7 @@ eligible grammars as batch typed parsing; other typed results use Node conversio
 as typed values. Ordinary batch parsing remains available and unchanged by default. The generated TypeScript
 `createDocument` has the Document API and reuses memo results as the Go Node `Document` does, and the generated
 TypeScript `createStream` is a push stream that suspends where it needs input and delivers what the Go `ParseStream`
-delivers, with typed elements through `createStreamValue`. Repetition resumption is not implemented.
+delivers, with typed elements through `createStreamValue`.
 
 ## Existing Contracts and Goals
 
@@ -48,7 +48,8 @@ The current Go Node stream is opt-in through `codegen.Go{Stream: true}` or the `
 unless the configured start rule has a `#stream` repetition at its top level; batch `Parse` still treats `#stream`
 as an ordinary repetition. Combined with typed values it also adds `ParseStreamValue`; with TypeScript it adds
 `createStream` (and `createStreamValue` with typed values), described below. Observability is supported in both.
-Generating a TypeScript package with both `-document` and `-stream` fails, while a Go package can have both. Documents select the configured start rule initially; generic
+A package of either language can have both, each entry point with its own parser class; the TypeScript stream's
+table is lowered without the examined ends and repetition runs of a Document, which it never parses. Documents select the configured start rule initially; generic
 named batch parsing remains separate.
 
 ### Current Generated Go Node Document
@@ -314,7 +315,8 @@ An edit keeps the completed memo entries that examined only input before it and 
 after it, except results of rules that read positions and results with recovered errors; the others are dropped.
 The Node Document copies the kept entries and moves the Nodes of a moved result, in copies, when it is reused; the
 typed Document relinks its entries and moves only basic values. The TypeScript Document keeps and moves entries as the
-Node Document does. None resumes repetitions. Any broader reuse must retain the exact
+Node Document does. The Node Documents of both languages also resume the runs of repetitions, by the rules of
+the engine's `Document`; the typed Go Document resumes none. Any broader reuse must retain the exact
 restrictions for predicates/variable reads, enclosing capture writes, recovered errors, provisional LR seeds and
 positional values on length-changing edits. Every empty successful iteration counts once and stops. Preserve
 repetition finite maxima/minima, cut scope, Operators Rule candidate-local diagnostics, and lookahead expectations.
@@ -340,7 +342,7 @@ values; no pooled parser or conversion arena is shared between concurrent invoca
 | Closure and both engine VMs | Existing Document/Reader stream oracle; both position units |
 | Generated Go Node | Current opt-in prefix-memo Document and Reader stream with pull iteration and diagnostic controls |
 | Generated typed Go | Direct typed `Document.ParseValue` for batch-eligible grammars; Node conversion fallback otherwise; streams convert committed elements |
-| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; push streams with typed elements, diagnostic controls, limits, tracing and profiling, by the suspension plan above; not both in one package |
+| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; push streams with typed elements, diagnostic controls, limits, tracing and profiling, by the suspension plan above; a package can have both |
 | Recognition | Continue rejecting Document/stream mode; batch recognition is unaffected |
 
 This source-generation feature needs no .sxirc or ISA change by itself. If continuation tables are instead stored
@@ -354,8 +356,7 @@ The current implementation adds the generated Go Node Document with prefix-only 
 matching for batch-eligible grammars and per-call Node conversion for other typed results, and the Go Node Reader
 stream with its typed elements, pull iteration and diagnostic controls, the generated TypeScript Document with the
 same memo reuse, tracing and profiling, and the TypeScript push stream with its typed elements, diagnostic controls,
-limits, tracing and profiling. Not implemented are repetition resumption in Documents and a TypeScript package with
-both a Document and a stream.
+limits, tracing and profiling; a package of either language can have both.
 Snapshot/versioned-tree work is a
 separate dependency only if immutable views are exposed; do not block the mutable Document compatibility path on it.
 Chunked input storage is a separate measured experiment: start with the current contiguous edit contract.

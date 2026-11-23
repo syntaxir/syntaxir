@@ -140,8 +140,11 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		c.Units = append(c.Units, u)
 		if o.Stream && table == "rules" {
 			// The stream parses with the Node table lowered for a suspended stream, whose functions
-			// demand their input; it numbers no expectation, as the batch table numbers them all.
+			// demand their input; it numbers no expectation, as the batch table numbers them all. A
+			// stream never parses a Document, so its table is lowered without the examined ends and
+			// the repetition runs of a Document, which the batch table of a package with both has.
 			cfg.Suspend = true
+			cfg.Document, cfg.Resume = false, false
 			s := u
 			s.Label, s.IR = print.StreamTable, flowplan.TableOf(mods[i], cfg)
 			// The body of the start rule that the stream runs delivers the elements of its #stream

@@ -35,7 +35,7 @@ type streamOutcome struct {
 // default). Memory counts depend on the backend (spec/runtime/parsing.md, Memory Limit), so the runs
 // set a memory limit that no stream reaches: the streams count their memory, and the oracle checks that
 // the count changes no outcome; TestStreamMemoryWindow checks the count itself. Observable generates
-// the parser with observability.
+// the parser with observability, and Document generates it with a Document as well.
 type streamOptions struct {
 	Limit      *int   `json:"limit"`
 	Callback   bool   `json:"callback"`
@@ -44,6 +44,7 @@ type streamOptions struct {
 	Input      uint64 `json:"input"`
 	Memory     uint64 `json:"memory"`
 	Observable bool   `json:"observable"`
+	Document   bool   `json:"document"`
 }
 
 // interruptionText describes the interruption of a parse by a limit in the same words for the engine
@@ -260,7 +261,7 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamO
 	opts, _ := json.Marshal(d)
 	quotedOpts, _ := json.Marshal(string(opts))
 	script = strings.Replace(script, "OPTIONS", string(quotedOpts), 1)
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true, Observability: d.Observable}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true, Observability: d.Observable, Document: d.Document}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 		b, err := codegentest.GenerateTSStreamBundle(g, opts)
 		if err != nil || mutate == nil {
 			return b, err
@@ -553,6 +554,25 @@ func TestStreamOracleObservable(t *testing.T) {
 			d.Observable = true
 			for _, m := range streamOracleMismatches(t, c.src, c.inputs, d, nil) {
 				t.Error(m)
+			}
+		})
+	}
+}
+
+// TestStreamOracleDocument checks the streams of parsers generated with a Document as well against the
+// engine on the oracle cases, observed and not: a package has both, as a Go package does, and its
+// stream parses as the stream of a package without a Document.
+func TestStreamOracleDocument(t *testing.T) {
+	t.Parallel()
+	for _, c := range streamOracleCases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			for _, observable := range []bool{false, true} {
+				d := runsOf(c.runs)[0]
+				d.Document, d.Observable = true, observable
+				for _, m := range streamOracleMismatches(t, c.src, c.inputs, d, nil) {
+					t.Error(m)
+				}
 			}
 		})
 	}
