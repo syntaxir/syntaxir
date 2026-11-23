@@ -12116,8 +12116,8 @@ a constant, to $K$.
 $v$ that succeeds binds its constant value, which is in $S_v$, or is one whose
 value is not constant, in which case $S_v$ holds both values; so every value
 that $v$ holds is in $S_v$. For a variable bound only to constants, each
-constant term evaluates to one value or is an error and binds nothing, so the
-distinct terms, with the initial value, bound the values that it holds. For an
+constant action expression evaluates to one value or is an error and binds nothing, so the
+distinct action expressions, with the initial value, bound the values that it holds. For an
 `int`, by induction on the steps of the parse. By
 [Variables](../language/predicates.md#variables), the parse starts with $v$
 bound to its initial value, which is in $S_v$, and afterwards a lookup of $v$
@@ -12135,7 +12135,7 @@ could turn the failure into a success that keeps $b$, which is why a test
 under a pragma is not part of a guard; `@` attributes change only diagnostics.
 A test before $b$ that evaluates the value $e$ of $b$, written alike, reads the
 same variables and captures as $b$, since no binding lies between them and
-predicates capture nothing, and every term of the action language is a
+predicates capture nothing, and every action expression of the action language is a
 function of the values that it reads, so it evaluates $e$ to the value that
 $b$ binds. So a value that $b$ leaves bound at a call or a binding is one on
 which every test of its guard succeeds, which lies within the bounds of the
@@ -12388,9 +12388,9 @@ a scalar, the empty list, nil, a struct with no field set, or a tuple of such
 values, and it depends on the declared type alone, so its size is at most the
 number of components of that type, a constant of the grammar, and it holds no
 input: making one costs that constant whatever the value that it is read from
-holds. So a component that one term builds has
+holds. So a component that one action expression builds has
 top size at most a constant $r$ times the largest top size of the
-components that it reads, and the terms of one action nest to a depth that is
+components that it reads, and the action expressions of one action nest to a depth that is
 a constant of the grammar, the lambdas over bounded lists repeating them a
 constant number of times by Lemma 7.
 
@@ -12400,14 +12400,14 @@ each element, but each run builds its components from the element, from values
 that are not copied, and from constants: by condition 4 it copies nothing from
 outside it that is not bounded by a constant. A fold over a list that is not
 bounded passes its first parameter on from step to step, but no copying
-operation copies it, though a term such as `list(s)` may read it, so the
+operation copies it, though an action expression such as `list(s)` may read it, so the
 components of the first parameter are components of the initial value, of the
-elements, of values read from outside, or built in one step by terms that copy
+elements, of values read from outside, or built in one step by action expressions that copy
 none of them, and their top sizes do not grow from step to step. Over a bounded
 list, a fold may copy its first parameter, and Lemma 7 bounds it by a constant
 multiple. A recursion passes the values of its calls up from level to level, but
 no copying operation copies the value of a call on a recursion with its rule,
-nor a part of it that holds such a call; other terms, such as `list($w)`, read
+nor a part of it that holds such a call; other action expressions, such as `list($w)`, read
 such a value without copying it. A copy reads only parts of such values that
 hold none, through members: the value of a capture inside the match of the call,
 which is a node, a list of a repetition, or a value of a rule outside the
@@ -12420,10 +12420,10 @@ the components below a component $\mathcal{S}$, as $C_h(|m'| + 1)$ for their
 matches $m'$. In an evaluation of a rule of $\mathcal{S}$ with match $m$, a
 copying operation reads components of the captures and calls that hold no call
 on $\mathcal{S}$, of the parts of calls on $\mathcal{S}$ that hold none, and
-constants, each of top size at most $\max(C_h, 1)(|m| + 1)$; the other terms
+constants, each of top size at most $\max(C_h, 1)(|m| + 1)$; the other action expressions
 build a value of constant top size or pass a component on. So a component that
 the evaluation builds has top size at most $r^{t}\max(C_h, 1)(|m| + 1)$, with
-$t$ the largest depth of the terms, and a component that it passes on from a
+$t$ the largest depth of the action expressions, and a component that it passes on from a
 call on $\mathcal{S}$ has the bound of the match of that call, inside $m$, by
 the induction on nesting. The constant does not compound over the levels of the
 recursion, since a level copies no value of the level below.
@@ -12562,7 +12562,7 @@ constant times $\hat{n}$.
 
 *Moves.* Between the evaluation that builds a result of a copy chain and the
 one that copies it, the result moves unchanged: inside the evaluation of a
-term, as an element or a member of a value built around it; into the value of
+action expression, as an element or a member of a value built around it; into the value of
 an evaluation of a rule, which the evaluation that called it reads through a
 capture or passes on; through a binding and the reads of its variable; and,
 inside one evaluation of an Operators Rule, from the value of a part to a
@@ -12588,17 +12588,17 @@ evaluation of the route nested in the fewest others, its **top**, has all the
 others nested in it.
 
 *Reads.* Condition 1 follows a graph with an edge from each variable to the
-**variables of the term** of each of its bindings: the variables that the term
+**variables of the action expression** of each of its bindings: the variables that the action expression
 of the binding reads, and those that the rules of the captures it reads read,
-directly or through their callees. If the evaluation of a term reads a value
+directly or through their callees. If the evaluation of an action expression reads a value
 built from the value of a call $C$, or from a value that a binding of a variable
 $y$ bound, then the variables that the rule of $C$ reads, or $y$, lie in
-the variables of the term or are reached from them in the graph, and for a
-term that reads `$lhs`, `$rhs` or `$value`, in the variables that the rule of
-the term reads or reached from them. By induction on the order of evaluation:
-the value enters the evaluation of the term through a capture, whose rule reads
+the variables of the action expression or are reached from them in the graph, and for a
+action expression that reads `$lhs`, `$rhs` or `$value`, in the variables that the rule of
+the action expression reads or reached from them. By induction on the order of evaluation:
+the value enters the evaluation of the action expression through a capture, whose rule reads
 every variable that the evaluations nested in its call read; through a read of
-a variable $z$, whose value a binding of $z$ built from what its own term read;
+a variable $z$, whose value a binding of $z$ built from what its own action expression read;
 or through `$lhs`, `$rhs` or `$value`, whose value the actions of the parts of
 the same evaluation of the rule built from their captures and the variables
 they read, all of which the rule reads. A binding does not read `$lhs`, `$rhs`
@@ -12606,7 +12606,7 @@ or `$value`.
 
 *Feedback.* Let $\kappa$ and $\kappa'$ be two evaluations of one building copy
 $o$ of a rule $R$ on a copy chain, $\kappa$ before $\kappa'$, in two
-evaluations of the term of $o$, which lie in evaluations $E$ and $E'$ of $R$,
+evaluations of the action expression of $o$, which lie in evaluations $E$ and $E'$ of $R$,
 and let $T$ be the top of the route between them. Then $E$ and $E'$ are
 nested in two calls $C$ and $G$ of $T$, $C$ before $G$; the route passes a
 binding evaluated in $T$; and the rule of $G$ does not reach the rule of $T$.
@@ -12636,31 +12636,31 @@ result would move on only through values of parts, `$lhs`, `$rhs`, `$value`
 and the value of $T$, which the route does not leave, so $\kappa'$ would lie in
 the action of a part of $T$, not in the whole-rule action, which $T$ evaluates
 once, after its last part, since $\kappa$ and $\kappa'$ lie in two evaluations
-of the term of $o$ and $E$ is not nested in $E'$. The first building copy on
+of the action expression of $o$ and $E$ is not nested in $E'$. The first building copy on
 the route after the read of `$lhs`
 or `$rhs`, $\kappa'$ at the latest, would then lie in the action of a part of
 $T$ too, since after the whole-rule action the result moves only into the
 value of $T$, and copy a value that includes `$lhs` or `$rhs`, which condition
 4 excludes as it excludes a copy of the value of a call on a recursion.
 Let $b$ be the last binding evaluated in $T$ before the route enters the
-evaluation of the term of $\kappa'$, or the call $G$ of $T$ in which it is
+evaluation of the action expression of $\kappa'$, or the call $G$ of $T$ in which it is
 nested. Its variable has no finite values, since it holds the result of a copy,
 which is not a literal. And $b$ reads its variable's own earlier value through
-a chain of bindings, captures and rule values, as condition 1 puts it: its term
+a chain of bindings, captures and rule values, as condition 1 puts it: its action expression
 reads a value built from the result of $\kappa$, which lies in a
-binding of $T$ whose term holds $o$ when $T = E$, and otherwise comes up through
+binding of $T$ whose action expression holds $o$ when $T = E$, and otherwise comes up through
 the call $C$ of $T$ in which $E$ is nested, whose rule reaches $R$ and so reads
 every variable that $R$ reads; and $\kappa'$ reads a value built from the value
 of $b$, so by *Reads* the variable of $b$ is reached in the graph from a
-variable that $R$ reads, and from the term of $b$. So condition 1 requires that
+variable that $R$ reads, and from the action expression of $b$. So condition 1 requires that
 the value of $b$ reach no later evaluation of $b$, which it decides from the
 place of $b$ in $T$. Then neither $\kappa'$ nor a call of $T$ that it is
 nested in lies in a later iteration of a repetition, or a later application of
 an operator part, around $b$ with no negative lookahead between, which
-condition 1 counts as reaching a later evaluation. Two evaluations of one term
+condition 1 counts as reaching a later evaluation. Two evaluations of one action expression
 in one evaluation of a rule
 lie in different iterations of a repetition, or applications of an operator
-part, around the term, and the binding that carries the result from the one to
+part, around the action expression, and the binding that carries the result from the one to
 the other lies in that repetition or operator part; so $\kappa'$ is not in $T$
 itself, but nested in a call $G$ of $T$ at any depth of a later element, a
 negative lookahead included, of a sequence around $b$ inside the nearest
@@ -12679,13 +12679,13 @@ part around $b$ with no negative lookahead between, which condition 1 counts as
 reaching a later evaluation. $\square$
 
 Now fix a copy chain and a building copy $o$. The evaluations of $o$ on the
-chain inside one evaluation of its term are at most a constant $\lambda$: they
-lie in the lambdas of the term, and a lambda over a list that is not bounded
+chain inside one evaluation of its action expression are at most a constant $\lambda$: they
+lie in the lambdas of the action expression, and a lambda over a list that is not bounded
 passes no result of $o$ from one of its evaluations to a later one, since by
 condition 4 it copies neither a fold accumulator nor a part of one, nor a value
 from outside it beyond a constant, while a lambda over a bounded list runs a
 constant number of times by Lemma 7. Call two consecutive evaluations of $o$ on
-the chain in different evaluations of its term a **pair**, and a run of
+the chain in different evaluations of its action expression a **pair**, and a run of
 consecutive pairs a **stretch**, whose top is the top of the route from its
 first evaluation to its last.
 
