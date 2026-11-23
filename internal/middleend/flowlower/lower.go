@@ -767,7 +767,7 @@ func (l *lowerer) seq(n *core.Seq, s *scope, build bool, fail string) code.Expr 
 	// The value is the tuple node of the elements, flattened through nested sequences.
 	var seq *flow.SeqForm
 	if !build && !n.Attrs().Want {
-		seq = &flow.SeqForm{Node: n, Items: make([]*flow.Form, len(n.Items)), Outer: l.outer()}
+		seq = &flow.SeqForm{ID: int32(n.Attrs().ID), Items: make([]*flow.Form, len(n.Items)), Outer: l.outer()}
 	}
 	classes := 0
 	for i, it := range n.Items {
@@ -827,7 +827,7 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 	var form *flow.ChoiceForm
 	for _, a := range n.Alts {
 		if leadingClass(a.Body) != nil {
-			form = &flow.ChoiceForm{Node: n, Event: &flow.Event{Vars: len(l.at.Vars), Outer: l.outer()}, Outer: l.outer()}
+			form = &flow.ChoiceForm{ID: int32(n.Attrs().ID), Event: &flow.Event{Vars: len(l.at.Vars), Outer: l.outer()}, Outer: l.outer()}
 			l.forms.Events = append(l.forms.Events, form.Event)
 			l.forms.Choices = append(l.forms.Choices, form)
 			break
@@ -1919,7 +1919,7 @@ func attach(x, start code.Expr, names *prim.Names, vals []string) code.Expr {
 // openForm begins a form of the node n in the current statement list, which leaves fail
 // on failure; closeForm ends it.
 func (l *lowerer) openForm(kind flow.FormKind, n core.Node, build bool, fail string) *flow.Form {
-	form := &flow.Form{Kind: kind, Node: n, Build: build, Fail: fail, Loop: l.loops[fail], Outer: l.outer()}
+	form := &flow.Form{Kind: kind, ID: int32(n.Attrs().ID), Build: build, Fail: fail, Loop: l.loops[fail], Outer: l.outer()}
 	if kind == flow.FormRegion {
 		l.forms.Regions = append(l.forms.Regions, form)
 	}

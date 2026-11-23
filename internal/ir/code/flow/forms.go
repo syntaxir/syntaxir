@@ -6,16 +6,16 @@ import (
 
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
-	"syntaxir.dev/sxir/internal/ir/core"
 )
 
 // Forms record where the lowering from Core IR wrote the forms that a Flow pass may replace, with
-// the Core nodes they come from (Attrs.Forms). The lowering writes one form of each construct: a
-// class as a peek, a test and an advance, a choice with guards that only peek, and a terminal region
-// as its literals and classes. The passes of internal/middleend/flowpass choose another form where
-// the target and the function allow it, and use the record to find the statements and the facts of
-// Core IR that the choice depends on. The record is provenance: the statements of the function stay
-// what the verifier checks and the printers print.
+// the IDs of the Core nodes they come from (Attrs.Forms). The lowering writes one form of each
+// construct: a class as a peek, a test and an advance, a choice with guards that only peek, and a
+// terminal region as its literals and classes. The passes of internal/middleend/flowpass choose
+// another form where the target and the function allow it, and use the record to find the
+// statements and the facts that the choice depends on, which the lowering recorded with each form.
+// The record is provenance: the statements of the function stay what the verifier checks and the
+// printers print.
 //
 // A form holds its statements in a block of its own, labeled form<N> as every Flow block has a label
 // and left by no exit, which flowpass.Finishing splices into the enclosing statement list after the
@@ -63,8 +63,9 @@ type Form struct {
 	Kind FormKind
 	// Block is the block of its own that holds the statements of the form.
 	Block *code.Block
-	// Node is the Core node: the *core.ClassNode of a class, the root of a region.
-	Node core.Node
+	// ID is the ID of the Core node of the form (core.Attrs.ID), 0 if it has none: the class of a
+	// class, the root of a region. It is provenance only: no pass reads it.
+	ID int32
 	// Class is the class of a class form (prim.Tables).
 	Class prim.ClassID
 	// Terminal is the expression of a region, which skipTerminal can match.
@@ -108,7 +109,8 @@ func (s *Form) FailJump() code.Stmt {
 
 // SeqForm is a value-free sequence (core.Seq) with at least two classes among its items.
 type SeqForm struct {
-	Node *core.Seq
+	// ID is the ID of the Core sequence (Form.ID).
+	ID int32
 	// Items holds the form of each item that is a class, in the order of the items, and nil for
 	// the others.
 	Items []*Form
@@ -127,7 +129,8 @@ func (s *SeqForm) Live() bool {
 
 // ChoiceForm is a choice (core.Choice) with an alternative that begins with a class.
 type ChoiceForm struct {
-	Node *core.Choice
+	// ID is the ID of the Core choice (Form.ID).
+	ID int32
 	// Peeks are the peeks of the choice's guards: one before the first alternative with the guard of
 	// a class; none if no alternative has one.
 	Peeks []*code.Set
@@ -216,7 +219,7 @@ func (f *Forms) clone(c *code.Cloner) *Forms {
 	out.Classes = k.formList(f.Classes)
 	out.Regions = k.formList(f.Regions)
 	for _, s := range f.Seqs {
-		out.Seqs = append(out.Seqs, &SeqForm{Node: s.Node, Items: k.formList(s.Items), Outer: k.formList(s.Outer)})
+		out.Seqs = append(out.Seqs, &SeqForm{ID: s.ID, Items: k.formList(s.Items), Outer: k.formList(s.Outer)})
 	}
 	for _, ch := range f.Choices {
 		out.Choices = append(out.Choices, k.choice(ch))

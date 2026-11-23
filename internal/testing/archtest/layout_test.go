@@ -289,22 +289,27 @@ func layer2(a, b string) []string {
 // internal/ir, breaks, or "".
 func dialect(a, b string) string {
 	const code = "internal/ir/code"
+	// Code IR imports no Core IR: it holds values of its own, which the lowering from Core IR
+	// resolves (prim.Tables and the immediates). Each clause leaves ir/core out.
 	switch {
 	case a == code:
 		if under(b, code) {
 			return "internal/ir/code imports no dialect"
 		}
+		if under(b, "internal/ir/core") {
+			return "within internal/ir, code imports no ir/core"
+		}
 	case under(a, code+"/flow"):
-		if b != code && !under(b, "internal/ir/core") && !under(b, code+"/flow") && b != code+"/exec/prim" {
-			return "within internal/ir, code/flow imports only code, ir/core and code/exec/prim"
+		if b != code && !under(b, code+"/flow") && b != code+"/exec/prim" {
+			return "within internal/ir, code/flow imports only code and code/exec/prim"
 		}
 	case under(a, code+"/action"):
 		if b != code && !under(b, code+"/action") {
 			return "within internal/ir, code/action imports only code"
 		}
 	case a == code+"/exec/prim":
-		if b != code && !under(b, "internal/ir/core") {
-			return "within internal/ir, code/exec/prim imports only code and ir/core"
+		if b != code {
+			return "within internal/ir, code/exec/prim imports only code"
 		}
 	case a == code+"/exec/stores":
 		if b != code && b != code+"/exec/prim" {

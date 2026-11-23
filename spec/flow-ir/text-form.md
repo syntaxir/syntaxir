@@ -13,8 +13,8 @@ A block prints as `block` and its label in braces, a loop as `loop` and its labe
 branches in braces. An `exit` and a `continue` print with their labels, and an assignment as its places, `=` and its
 values, a discard as `_`. A call of an operation prints as its name, its immediate operand in brackets, if the call has
 one, before its arguments, and its arguments in parentheses, such as `flow.advance(1)` and `flow.expect([exp 5], $pos)`.
-The immediate prints as the operation's declaration formats it, without the addresses of the nodes of Core IR it refers
-to, so that the listing of a function is the same in every run. The registers print with a `$`, as `$pos`. A `return`
+The immediate prints as the operation's declaration formats it, a value that holds no address, so that the listing of a
+function is the same in every run. The registers print with a `$`, as `$pos`. A `return`
 prints its values, and `null(` the type `)` is the null handle of a type.
 
 The listing below is the function of the rule `"a" / "b"`, lowered for a recognizer with no limit controls, no Document

@@ -169,6 +169,7 @@ func TestNegativeControls(t *testing.T) {
 	addEdge(mod("internal/ir/code/exec"), mod("internal/ir/code/exec/compose")) // code/exec
 	addEdge(mod("internal/ir/code/exec/compose"), mod("internal/ir/core"))      // the packages under code/exec
 	addEdge(mod("internal/ir/code/exec/prim"), mod("internal/ir/code/exec"))    // code/exec/prim
+	addEdge(mod("internal/ir/code"), mod("internal/ir/core"))                   // internal/ir/code
 	addEdge(mod("bench/report"), mod("internal/lsp/sxirls"))                    // internal/lsp
 	addEdge(mod("internal/analysis/lint"), mod("internal/testing/starttest"))   // internal/testing
 	addEdge(mod("pkg/grammar/ast"), mod("internal/diagnostic"))                 // the utilities are above the grammar AST
@@ -239,7 +240,8 @@ func TestNegativeControls(t *testing.T) {
 		{"rule 2: internal/analysis/lint -> dialects exec, flow", []string{"only the conversions of the middle end and the back end and test support import the dialects of more than one stage (internal/analysis/lint)"}},
 		{"rule 2: internal/pass -> internal/ir/core", []string{"internal/pass imports nothing of the module (internal/pass -> internal/ir/core)"}},
 		{"rule 2: internal/ir/core -> internal/diagnostic", []string{"internal/ir/** imports only internal/ir/**, internal/pass, internal/cancel and pkg/grammar/ast (internal/ir/core -> internal/diagnostic)"}},
-		{"rule 2: internal/ir/code/flow -> internal/ir/code/exec", []string{"within internal/ir, code/flow imports only code, ir/core and code/exec/prim (internal/ir/code/flow -> internal/ir/code/exec)"}},
+		{"rule 2: internal/ir/code/flow -> internal/ir/code/exec", []string{"within internal/ir, code/flow imports only code and code/exec/prim (internal/ir/code/flow -> internal/ir/code/exec)"}},
+		{"rule 2: internal/ir/code -> internal/ir/core", []string{"within internal/ir, code imports no ir/core (internal/ir/code -> internal/ir/core)"}},
 		{"rule 2: internal/ir/code/exec -> internal/ir/code/exec/compose", []string{"within internal/ir, code/exec imports only code (internal/ir/code/exec -> internal/ir/code/exec/compose)"}},
 		{"rule 2: internal/ir/code/exec/compose -> internal/ir/core", []string{"within internal/ir, the packages under code/exec import only code, code/exec and code/action (internal/ir/code/exec/compose -> internal/ir/core)"}},
 		{"rule 2: bench/report -> internal/lsp/sxirls", []string{"only cmd/** and internal/testing/** import internal/lsp/** (bench/report -> internal/lsp/sxirls)"}},
@@ -252,8 +254,8 @@ func TestNegativeControls(t *testing.T) {
 		{"rule 2: internal/backend/closure -> internal/analysis/lint", []string{"the back end layer does not import the analysis layer"}},
 		{"rule 1a: pkg/runtime/libgo -> internal/fakevm", []string{"pkg/runtime/libgo imports only pkg/runtime and its input, value, value/impl, instrument and schema packages, not pkg/runtime/vm"}},
 		{"rule 2: internal/ir/code/exec -> internal/fakeaction", []string{"within internal/ir, code/exec imports only code (internal/ir/code/exec -> internal/ir/code/action)"}},
-		{"rule 2: internal/ir/code/flow -> internal/fakeaction", []string{"within internal/ir, code/flow imports only code, ir/core and code/exec/prim"}},
-		{"rule 2: internal/ir/code/exec/prim -> internal/ir/code/exec", []string{"within internal/ir, code/exec/prim imports only code and ir/core (internal/ir/code/exec/prim -> internal/ir/code/exec)"}},
+		{"rule 2: internal/ir/code/flow -> internal/fakeaction", []string{"within internal/ir, code/flow imports only code and code/exec/prim"}},
+		{"rule 2: internal/ir/code/exec/prim -> internal/ir/code/exec", []string{"within internal/ir, code/exec/prim imports only code (internal/ir/code/exec/prim -> internal/ir/code/exec)"}},
 		{"rule 2: internal/ir/code/flow -> dialects action, exec, flow", []string{"only the conversions of the middle end and the back end and test support import the dialects of more than one stage (internal/ir/code/flow)"}},
 		{"rule 2: internal/backend/codegen/golang/libprint -> dialects action, exec, flow", []string{"only the conversions of the middle end and the back end and test support import the dialects of more than one stage (internal/backend/codegen/golang/libprint)"}},
 		{"rule 2: internal/backend/codegen/golang/print -> internal/driver", []string{"the back end layer does not import the driver layer"}},

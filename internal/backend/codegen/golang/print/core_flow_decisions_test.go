@@ -68,8 +68,8 @@ type flowScope struct {
 	traced bool
 }
 
-// flowRecord holds the decisions of the Flow passes in one generation, with the origins of the Core
-// modules of its tables, by their labels, which the decisions are keyed by.
+// flowRecord holds the decisions of the Flow passes in one generation, with the origins and the nodes
+// by ID of the Core modules of its tables, by their labels, which the decisions are keyed by.
 type flowRecord struct {
 	mu  sync.Mutex
 	gen *print.Generator
@@ -78,6 +78,7 @@ type flowRecord struct {
 	settings pass.Settings
 	checked  *frontend.Result
 	origins  map[string]core.Origin
+	nodes    map[string]map[core.NodeID]core.Node
 	by       map[flowScope]*flowDecisions
 }
 
@@ -137,7 +138,8 @@ func (rec *flowRecord) hooks() *print.Hooks {
 	return &print.Hooks{Generator: func(x *print.Generator) { rec.gen = x }}
 }
 
-// core keeps the origin of the Core module of the table of the event, after each Core step.
+// core keeps the origin and the nodes of the Core module of the table of the event, after each Core
+// step.
 func (rec *flowRecord) core(e pipe.Event, r *pipe.Result) {
 	m, ok := r.Unit.(*core.Module)
 	if !ok || r.Err != nil {
@@ -146,9 +148,35 @@ func (rec *flowRecord) core(e pipe.Event, r *pipe.Result) {
 	rec.mu.Lock()
 	defer rec.mu.Unlock()
 	if rec.origins == nil {
-		rec.origins = map[string]core.Origin{}
+		rec.origins, rec.nodes = map[string]core.Origin{}, map[string]map[core.NodeID]core.Node{}
 	}
 	rec.origins[e.Label.Table] = m.Origin
+	rec.nodes[e.Label.Table] = nodesByID(m)
+}
+
+// nodesByID returns the nodes of the rules of m that have an ID, by their IDs, the lines of Operators
+// Rules included.
+func nodesByID(m *core.Module) map[core.NodeID]core.Node {
+	out := map[core.NodeID]core.Node{}
+	var walk func(n core.Node)
+	walk = func(n core.Node) {
+		core.Walk(n, func(x core.Node) {
+			if id := x.Attrs().ID; id != 0 {
+				out[id] = x
+			}
+			if o, ok := x.(*core.OperatorsRule); ok {
+				for _, l := range o.Lines() {
+					walk(l.Body)
+				}
+			}
+		})
+	}
+	for _, r := range m.Rules {
+		if r != nil {
+			walk(r.Body)
+		}
+	}
+	return out
 }
 
 // record adds the decisions of the passes on the function of m, of the planned table labeled l.Table,
@@ -171,6 +199,7 @@ func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
 	if !ok {
 		return
 	}
+	nodes := rec.nodes[label]
 	if rec.by == nil {
 		rec.by = map[flowScope]*flowDecisions{}
 	}
@@ -185,12 +214,12 @@ func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
 		if r.By != flowpass.PassTerminals {
 			continue
 		}
-		if e, ok := origin.Exprs[r.Node.Attrs().ID]; ok {
+		if e, ok := origin.Exprs[core.NodeID(r.ID)]; ok {
 			d.terminals[flowKey{id, e}] = true
 		}
 	}
 	for _, s := range a.Forms.Seqs {
-		e, ok := origin.Exprs[s.Node.Attrs().ID]
+		e, ok := origin.Exprs[core.NodeID(s.ID)]
 		if !ok {
 			continue
 		}
@@ -213,9 +242,12 @@ func (rec *flowRecord) record(l pipe.Label, m *code.Module) {
 		if cl.By != flowpass.PassGuardedClasses || cl.Guard == nil {
 			continue
 		}
-		x := cl.Guard.Node
+		x, ok := nodes[core.NodeID(cl.Guard.ID)].(*core.Choice)
+		if !ok {
+			continue
+		}
 		for i, alt := range x.Alts {
-			if leadingClass(alt.Body) != cl.Node {
+			if c := leadingClass(alt.Body); c == nil || cl.ID == 0 || int32(c.Attrs().ID) != cl.ID {
 				continue
 			}
 			if e, ok := altOriginIn(origin, x, i); ok {

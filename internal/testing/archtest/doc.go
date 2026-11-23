@@ -20,11 +20,11 @@
 //     graph (benchmarks, examples, the specification's tests) may import any layer except the
 //     LSP, and only test support imports test support outside tests.
 //     internal/pass imports nothing of the module; internal/ir/** imports only internal/ir/**,
-//     internal/pass, internal/cancel and pkg/grammar/ast, and within it internal/ir/code imports no
-//     dialect, code/flow imports only code, ir/core and code/exec/prim, code/exec/prim only code and
-//     ir/core, code/exec/stores only code and code/exec/prim, code/action and code/exec import only
-//     code, and the packages of a dialect's subtree also each other and, under code/exec,
-//     code/action. Only the conversions (flowlower, execlower, vmlower) and test support import
+//     internal/pass, internal/cancel and pkg/grammar/ast, and within it Code IR (code/**) imports no
+//     ir/core: internal/ir/code imports no dialect, code/flow imports only code and code/exec/prim,
+//     code/exec/prim only code, code/exec/stores only code and code/exec/prim, code/action and
+//     code/exec import only code, and the packages of a dialect's subtree also each other and,
+//     under code/exec, code/action. Only the conversions (flowlower, execlower, vmlower) and test support import
 //     the dialects of more than one stage: the dialects of one stage (Flow and Action, or Exec and
 //     Action) count as one, and code/exec/prim, the data that the Flow operations and their
 //     primitives share, and code/exec/stores, the analysis of the stores of a function at either
