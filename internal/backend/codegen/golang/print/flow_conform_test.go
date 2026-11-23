@@ -69,6 +69,11 @@ type flowConformCase struct {
 const (
 	flowConformParse    = "_, err = Parse(in, opts...)"
 	flowConformOrdinary = "_, err = Parse(in, ordinary...)"
+	// flowConformObserved parses as flowConformParse does, observed by a trace function that records
+	// the skipped calls it is told of. Observation runs the traced functions, whose probes nest in
+	// those of the tracing, so a call's own units are not checked there; the parse counts the units in
+	// total that flowConformParse, the case's first entry, counts.
+	flowConformObserved = "_, err = Parse(in, append(opts, observe)...)"
 )
 
 // flowConformDocument parses in as a Document, then again after an edit in its middle that adds a
@@ -273,12 +278,13 @@ rule kw = "if" / "else"
 rule id = [a-z]+ ";"
 `, opts: common.GenOptions{Observability: true}, inputs: []string{"if;else", "abc;if"}},
 	// The guard of the alternative kw skips it where the next character cannot begin "if", and the
-	// traced functions report the call of kw it skips (flowPrintedOnly).
+	// traced functions report the call of kw it skips to the observation.
 	{name: "observeskip", src: `@start
 rule main = (kw / id)* $$
 rule kw = "if" ";"
 rule id = [a-z]+ ";"
-`, opts: common.GenOptions{Observability: true}, inputs: []string{"if;abc;", "abc;if;", "ab"}},
+`, opts: common.GenOptions{Observability: true}, inputs: []string{"if;abc;", "abc;if;", "ab"},
+		entries: []string{flowConformParse, flowConformObserved}},
 	// A memoized rule whose body recovers: the result that the call stores takes the recovered errors
 	// of the body.
 	{name: "recmemo", src: `@start
@@ -309,13 +315,6 @@ rule name = [a-z]+
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
-}
-
-// flowPrintedOnly are the operations that the Go printer prints only in the functions that run when
-// a parse is observed, which the probed parses are not, with the reason; the test checks that a case
-// prints them.
-var flowPrintedOnly = map[string]string{
-	flow.OpObserveSkip: "the guards of the traced functions report the calls they skip to the observation",
 }
 
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.
@@ -511,6 +510,14 @@ type flowRun struct {
 	Input  string
 	Err    string
 	Events []flowEvent
+	// Skips are the skipped calls that the trace function of flowConformObserved was told of.
+	Skips []flowSkip
+}
+
+// flowSkip is a skipped call that a trace reports: the rule and the position.
+type flowSkip struct {
+	Rule string
+	Pos  int
 }
 
 // flowMutation breaks the code under test: lib changes the source of a file of the library copy by
@@ -592,6 +599,7 @@ import (
 
 	rt "syntaxir.dev/sxir/pkg/runtime/libgo"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+	sxirinstrument "syntaxir.dev/sxir/pkg/runtime/instrument"
 )
 
 func TestProbe(t *testing.T) {
@@ -599,28 +607,40 @@ func TestProbe(t *testing.T) {
 	if err := json.Unmarshal([]byte(%q), &inputs); err != nil {
 		t.Fatal(err)
 	}
+	type skip struct {
+		Rule string
+		Pos  int
+	}
 	type run struct {
 		Input  string
 		Err    string
 		Events []*rt.ConfEvent
+		Skips  []skip
 	}
 	var runs []run
+	var skips []skip
 	opts := []ParseOption{sxirruntime.WithExpectations(), sxirruntime.WithLimits(sxirruntime.Limits{Compute: 1 << 40})}
 	ordinary := []ParseOption{sxirruntime.WithExpectations()}
+	observe := sxirruntime.WithTrace(func(e sxirinstrument.TraceEvent) {
+		if e.Kind == sxirinstrument.TraceSkipped {
+			skips = append(skips, skip{e.Rule, e.Pos})
+		}
+	})
 	for _, in := range inputs {
 		for entry := range %d {
 			rt.ConfReset()
+			skips = nil
 			var err error
 			switch entry {
 %s			}
-			r := run{Input: in, Events: rt.ConfEvents}
+			r := run{Input: in, Events: rt.ConfEvents, Skips: skips}
 			if err != nil {
 				r.Err = err.Error()
 			}
 			runs = append(runs, r)
 		}
 	}
-	_, _, _ = strings.NewReader, opts, ordinary
+	_, _, _, _ = strings.NewReader, opts, ordinary, observe
 	data, err := json.Marshal(runs)
 	if err != nil {
 		t.Fatal(err)
@@ -646,7 +666,7 @@ func TestProbe(t *testing.T) {
 			covered[name]++
 		}
 		for _, call := range pr.calls {
-			if name := execlower.FlowOp(call.Callee); flowOtherTargets[name] != "" || flowPrintedOnly[name] != "" {
+			if name := execlower.FlowOp(call.Callee); flowOtherTargets[name] != "" {
 				covered[name]++
 			}
 		}
@@ -658,9 +678,17 @@ func TestProbe(t *testing.T) {
 		if err := json.Unmarshal(data, &runs); err != nil {
 			t.Fatal(err)
 		}
-		for _, r := range runs {
+		entries := c.entries
+		if entries == nil {
+			entries = []string{flowConformParse}
+		}
+		for i, r := range runs {
 			in := ref.NewInput(r.Input)
 			var isolated []flowEvent
+			observed := entries[i%len(entries)] == flowConformObserved
+			if observed {
+				msgs = append(msgs, checkObserved(c.name, pr, runs[i-i%len(entries)], r, entries[0])...)
+			}
 			flowBodyUnits(r.Events)
 			for _, e := range r.Events {
 				if e.K < 0 {
@@ -694,7 +722,7 @@ func TestProbe(t *testing.T) {
 						isolated = isolated[:n-1]
 					}
 				}
-				for _, msg := range checkFlowCall(in, pr.tables[e.K], flowOps()[name], call, &e) {
+				for _, msg := range checkFlowCall(in, pr.tables[e.K], flowOps()[name], call, &e, !observed) {
 					msgs = append(msgs, fmt.Sprintf("%s %q: %s at %d: %s", c.name, r.Input, name, e.Pos, msg))
 				}
 			}
@@ -736,6 +764,52 @@ var flowFactsCovered = []string{
 	flow.OpCallRule + ":key", flow.OpCallRule + ":step", flow.OpCallRule + ":taken",
 	flow.OpSkippedCalls + ":call", flow.OpSkippedCalls + ":key",
 	flow.OpRunBegin + ":walkStart", flow.OpSkipHit + ":walkLookup", flow.OpSkipKids + ":suffix",
+}
+
+// checkObserved returns what the observed parse r of the case name breaks, given the parse plain of the
+// same input through first, the case's first entry: the observed parse fails or succeeds as plain does
+// and counts the compute units in total that it counts, and the trace is told of a skipped call for
+// each flow.observeSkip that the parse runs, in order, with its rule and position.
+func checkObserved(name string, pr *flowProbe, plain, r flowRun, first string) []string {
+	var msgs []string
+	fail := func(format string, args ...any) {
+		msgs = append(msgs, fmt.Sprintf("%s %q observed: ", name, r.Input)+fmt.Sprintf(format, args...))
+	}
+	if first != flowConformParse {
+		fail("the first entry of the case is %q, not the parse that the observed parse is compared with", first)
+		return msgs
+	}
+	if r.Err != plain.Err {
+		fail("ended with %q, the parse that is not observed with %q", r.Err, plain.Err)
+	}
+	if got, want := flowTotalUnits(r.Events), flowTotalUnits(plain.Events); got != want {
+		fail("counted %d compute units, the parse that is not observed %d", got, want)
+	}
+	var skips []flowSkip
+	for _, e := range r.Events {
+		if e.K < 0 || !e.Done {
+			continue
+		}
+		if c := pr.calls[e.K]; execlower.FlowOp(c.Callee) == flow.OpObserveSkip {
+			skips = append(skips, flowSkip{Rule: c.Imm.(prim.ObservedSkip).Rule, Pos: e.Pos})
+		}
+	}
+	if len(skips) == 0 {
+		fail("ran no %s", flow.OpObserveSkip)
+	}
+	if !slices.Equal(skips, r.Skips) {
+		fail("ran %s for %v, but the trace was told of %v", flow.OpObserveSkip, skips, r.Skips)
+	}
+	return msgs
+}
+
+// flowTotalUnits returns the compute units that a parse counted, as its recorded calls saw the count.
+func flowTotalUnits(events []flowEvent) uint64 {
+	var n uint64
+	for _, e := range events {
+		n = max(n, e.Used, e.UsedAfter)
+	}
+	return n
 }
 
 // flowBodyUnits gives the units that the body of a rule, a frame, a line or an outlined node counts
@@ -884,8 +958,9 @@ func flowUnits(o *code.Op, e *flowEvent) (lo, hi int) {
 	return n, n
 }
 
-// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks.
-func checkFlowCall(in *ref.Input, tab *prim.Tables, o *code.Op, c *code.Call, e *flowEvent) []string {
+// checkFlowCall returns what the recorded call e of the operation o, the call c, breaks; with units,
+// also the compute units it counts itself.
+func checkFlowCall(in *ref.Input, tab *prim.Tables, o *code.Op, c *code.Call, e *flowEvent, units bool) []string {
 	var errs []string
 	fail := func(format string, args ...any) { errs = append(errs, fmt.Sprintf(format, args...)) }
 	if !slices.Contains(o.Writes, prim.Pos) && e.PosAfter != e.Pos {
@@ -893,6 +968,7 @@ func checkFlowCall(in *ref.Input, tab *prim.Tables, o *code.Op, c *code.Call, e 
 	}
 	self := int(e.UsedAfter-e.Used) - int(e.Nested)
 	switch lo, hi := flowUnits(o, e); {
+	case !units:
 	case lo == hi && self != lo:
 		fail("counted %d compute units, not %d", self, lo)
 	case self < lo || self > hi:
