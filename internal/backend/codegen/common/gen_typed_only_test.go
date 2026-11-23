@@ -76,8 +76,12 @@ func TestGeneratedTypedOnly(t *testing.T) {
 	if _, _, err := generate(common.GenOptions{Types: true, TypedOnly: true, Recognize: true}); err != nil {
 		t.Errorf("typed-only with Recognize: %v", err)
 	}
-	if _, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", TypedOnly: true}); err == nil || err.Error() != "typed-only generation is only supported for Go" {
-		t.Errorf("TypeScript: error %v", err)
+	// TypeScript has the typed-only form too: its typed entry points, without the parse entry points.
+	if _, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Types: true, TypedOnly: true}); err != nil {
+		t.Errorf("TypeScript typed-only: %v", err)
+	}
+	if _, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", TypedOnly: true}); err == nil || err.Error() != "typed-only output needs typed output (-types)" {
+		t.Errorf("TypeScript without types: error %v", err)
 	}
 
 	if testing.Short() {

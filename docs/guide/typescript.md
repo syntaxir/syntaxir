@@ -127,7 +127,7 @@ prints for the same grammar and inputs.
 ## The Command
 
 ```bash
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-recognize-only] [-expectations] [-observability]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-typed-only] [-recognize] [-recognize-only] [-expectations] [-observability]
 ```
 
 | Flag | Default | Meaning |
@@ -139,6 +139,7 @@ sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|onl
 | `-lib` | `embed` | `embed` writes `lib.ts` next to `parser.ts`; `import` imports the library from `-lib-module` and writes no copy; `only` writes just `lib.ts`, the whole library, which parsers of any grammar can import (no `-g`) |
 | `-lib-module` | (required with `-lib import`) | The module specifier `parser.ts` and `types.ts` import the library from, for example `../shared/lib.ts`. Several parsers share one library this way: generate it once with `-lib only` |
 | `-types` | off | Write `types.ts` with the grammar's interfaces and aliases (also exported from `parser.ts`), and add the configured-start `parseValue`/`parseValueWithOptions` |
+| `-typed-only` | off | Generate only the typed entry points, `parseValue` and `parseValueWithOptions`: no `parse`, `parseRule` or `parseWithOptions`. It needs `-types`, and `recognize` stays with `-recognize`. It is rejected with `-document` and `-recognize-only`. The typed entry points run the Node rules of the start rule, which are kept |
 | `-recognize` | off | Also generate `recognize` and `recognizeWithOptions`, which check input without building a tree |
 | `-recognize-only` | off | Generate only `recognize` and `recognizeWithOptions`: no `parse`, `parseRule` or `parseWithOptions`, so the parser is the recognizer alone. It is rejected with `-types` and `-document` |
 | `-expectations` | off | Allow a parse to record what a syntax error expects: the `expected` list and the `messages` of `@error` (see [recording expectations](error-messages.md#recording-expectations)). A parse records only with `parseWithOptions(input, { expectations: true })`; otherwise the errors have the farthest position, an empty `expected` and `messages`, and the message `syntax error`. Without the flag the option is rejected |

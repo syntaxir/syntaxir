@@ -34,7 +34,7 @@ where `<version>` names the generator: a release tag (`v0.1.0`) for a release, a
 ```text
 sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package>]
          [-lib embed|import|only] [-s <rule>] [-o <path>]
-         [-types] [-document] [-stream] [-recognize] [-recognize-only] [-expectations] [-observability]
+         [-types] [-typed-only] [-document] [-stream] [-recognize] [-recognize-only] [-expectations] [-observability]
          [-source-info] [-default-value] [-nodoc] [-max-depth <n>]
          [-optimize <profile>] [-opt <name[=count],...>] [-no-opt <name,...>]
          [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each]
@@ -56,7 +56,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 | `-stream` | `Stream` | Generate `ParseStream` (Go only; the start rule MUST contain a `#stream` repetition) |
 | `-recognize` | `Recognize` | Generate recognition without a tree |
 | `-recognize-only` | `RecognizeOnly` | Go and TypeScript. Generate only recognition: no `Parse`, `ParseRule` or typed entry point (TypeScript: no `parse`, `parseRule`, `parseWithOptions` or `parseRuleWithOptions`). The parser is the smallest one that checks input. Rejected with `-types`, `-typed-only`, `-document` and `-stream` |
-| `-typed-only` | `TypedOnly` | Go only; needs `-types`. Generate only the typed entry points (`ParseValue`, `ParseRuleValue` and their options); there is no `Parse`, `ParseRule` or `Recognize`. Rejected with `-recognize`, `-document`, `-stream` and `-lang ts`. A typed entry point that converts the Node of its rule keeps the unexported Node rule functions it runs |
+| `-typed-only` | `TypedOnly` | Go and TypeScript; needs `-types`. Generate only the typed entry points: Go `ParseValue`, `ParseRuleValue` and their options; TypeScript `parseValue` and `parseValueWithOptions`. There is no `Parse` or `ParseRule`, and `Recognize` stays with `-recognize`. Rejected with `-document`, `-stream` (Go only) and `-recognize-only`. A typed entry point that converts the Node of its rule keeps the unexported Node rule functions it runs (TypeScript: the Node rules that the start rule reaches) |
 | `-expectations` | `Expectations` | Let a parse [record expectations](parsing.md#recording-expectations): what a syntax error expects and the messages of `@error`. The parser then has the table of expectations and a parse option `WithExpectations` (Go) or `expectations` (TypeScript); a parse records only when it passes the option, and otherwise a syntax error has the farthest position, an empty `Expected`, no `Messages` and the message `syntax error`. Without the flag the parser has no table and no option. A `Document` fixes the choice when it is created. It applies to every entry point, including the typed, `Document` and stream forms |
 | `-observability` | `Observability` | Generate tracing and profiling, specified in [Observability](observability.md) |
 | `-source-info` | the option `compiler.WithSourceInfo` | Make the parser record [source information](nodes.md#source-information): the rule of each node and the names of captures. Without it, `Node.Rule`, `Node.Field` and `Node.Fields` of a parsed node are empty and the outputs omit them |

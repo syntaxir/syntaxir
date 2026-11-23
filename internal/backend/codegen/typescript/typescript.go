@@ -86,8 +86,8 @@ func (t *Target) Sources() ([]common.TableSource, []string, error) {
 
 // Cores returns what the program is planned from (flowplan.Planning), given the Core modules mods of
 // the tables in the order of Sources: the Node table and the recognizer, if the parser has one; the
-// entry points: every start rule of the Node table, which parseRule can name, and the start rule
-// that parse and recognize run; and the tables as the units that the planning plans, each leaving
+// entry points: every start rule of the Node table, which parseRule can name (none for a parser
+// without parseRule), and the start rule that parse, parseValue and recognize run; and the tables as the units that the planning plans, each leaving
 // out the rules that the plan does not reach. A parser with a Document enters every rule through
 // its slot (plandata.CoreTable.Slots), since a Document parse memoizes plain rules too. The
 // expectation table is numbered as the rules are printed, so no unit is numbered.
@@ -99,8 +99,11 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 	o := t.Opts
 	c := &plandata.Cores{}
 	prog := t.Prog.View
-	for _, name := range prog.StartRules {
-		c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: prog.ByName[name].ID})
+	// Only parseRule enters the other start rules, so a parser without parse entry points has no such roots.
+	if !o.RecognizeOnly && !o.TypedOnly {
+		for _, name := range prog.StartRules {
+			c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: prog.ByName[name].ID})
+		}
 	}
 	c.Roots = append(c.Roots, plandata.Entry{Table: "rules", ID: t.Start.ID})
 	if rec != nil {

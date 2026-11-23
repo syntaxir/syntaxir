@@ -209,6 +209,10 @@ type TSConfig struct {
 	// Recognize also generates recognize, which checks the input against the start rule without
 	// building a tree, like runtime.Parser.Recognize.
 	Recognize bool
+	// TypedOnly generates only the typed entry points: parseValue and parseValueWithOptions, with no
+	// parse, parseRule or parseWithOptions. It needs Types and cannot be combined with Document.
+	// Recognize may be added, and the generated module keeps the Node rules that parseValue runs.
+	TypedOnly bool
 	// RecognizeOnly generates only recognize, which checks the input against the start rule: no
 	// parse, parseRule or typed entry point. The generated module is the smallest. It implies
 	// Recognize and cannot be combined with Types or Document.
@@ -252,6 +256,7 @@ func (c TSConfig) target(o options) (driver.Target, error) {
 		NoLimitControls: c.NoLimitControls,
 		Expectations:    c.Expectations,
 		Recognize:       c.Recognize,
+		TypedOnly:       c.TypedOnly,
 		RecognizeOnly:   c.RecognizeOnly,
 		Document:        c.Document,
 		MaxDepth:        c.MaxDepth,

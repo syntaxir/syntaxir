@@ -104,7 +104,7 @@ func TestGenSeveralLanguagesErrors(t *testing.T) {
 		want string
 	}{
 		{[]string{"-lang", "go,ts", "-module", "example.com/kv", "-stream"}, "-stream is not supported with -lang ts; use -go.stream"},
-		{[]string{"-lang", "go,ts", "-module", "example.com/kv", "-typed-only"}, "use -go.typed-only"},
+		{[]string{"-lang", "go,ts", "-module", "example.com/kv", "-typed-only"}, "typed-only output needs typed output (-types)"},
 		{[]string{"-lang", "go", "-module", "example.com/kv", "-ts.types"}, "-ts.types is a flag of the ts target, and -lang does not list ts"},
 		{[]string{"-lang", "go,go", "-module", "example.com/kv"}, "-lang lists go twice"},
 		{[]string{"-lang", "go,ts", "-lib", "import", "-module", "example.com/kv"}, "target ts: -lib-module"},

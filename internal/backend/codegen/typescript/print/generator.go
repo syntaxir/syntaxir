@@ -70,7 +70,12 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 		opts.Recognize = true
 	}
 	if opts.TypedOnly {
-		return opts, fmt.Errorf("typed-only generation is only supported for Go")
+		switch {
+		case !opts.Types:
+			return opts, fmt.Errorf("typed-only output needs typed output (-types)")
+		case opts.Document:
+			return opts, fmt.Errorf("typed-only output cannot have a Document, which uses the untyped Node (Recognize is allowed)")
+		}
 	}
 	if opts.LogicalVariant != "" {
 		return opts, fmt.Errorf("the variants of logical units are only supported for Go")
@@ -87,7 +92,7 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 // newGenerator returns the generator of the TypeScript parser of prog with the options opts, which
 // prints the rules that live holds, starting with the Node table.
 func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
-	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}, recognizeOnly: opts.RecognizeOnly}
+	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}, recognizeOnly: opts.RecognizeOnly, parseEntries: !opts.RecognizeOnly && !opts.TypedOnly}
 	// Limit controls count logical compute units (spec/runtime/parsing.md, Compute Units) in every
 	// form of the functions, a Document's included: no form charges a budget.
 	tsg.limits = !opts.NoLimitControls
@@ -133,12 +138,12 @@ func (tsg *Generator) print(opts common.GenOptions, rec *common.Program, start *
 	prog := tsg.Prog
 	var out strings.Builder
 	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), tsg.useSparseMemo(prog, rec), opts.Observability, !opts.NoLimitControls)
-	fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
-	out.WriteString(" * A string is parsed as its UTF-8 encoding would be (lone surrogates as U+FFFD), and bytes are\n")
-	out.WriteString(" * decoded as UTF-8 (invalid sequences as U+FFFD, one per byte). If the parse recovered from errors\n")
-	out.WriteString(" * with #recover, the result has both the node and SyntaxErrors.\n */\n")
-	// A recognize-only parser has no parse entry points: it prints Recognize alone.
-	if !tsg.recognizeOnly {
+	// A recognize-only or typed-only parser has no parse entry points: it prints only the entries it keeps.
+	if tsg.parseEntries {
+		fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
+		out.WriteString(" * A string is parsed as its UTF-8 encoding would be (lone surrogates as U+FFFD), and bytes are\n")
+		out.WriteString(" * decoded as UTF-8 (invalid sequences as U+FFFD, one per byte). If the parse recovered from errors\n")
+		out.WriteString(" * with #recover, the result has both the node and SyntaxErrors.\n */\n")
 		// With limit controls every parse is controlled: the entry points without options use the default
 		// compute limit of the input, as parseWithOptions does with no limits.
 		parseBody, ruleBody := fmt.Sprintf("run(G, R%d, nseen, input, unit)", start.ID), "run(G, r, nseen, input, unit)"
@@ -175,7 +180,7 @@ export function parseRule(name: string, input: string | Uint8Array, unit?: Unit)
 		}
 		fmt.Fprintf(&out, "export function recognize(input: string | Uint8Array, unit?: Unit): Error | null {\n  return %s;\n}\n\n", recBody)
 	}
-	if !tsg.recognizeOnly {
+	if tsg.parseEntries {
 		fmt.Fprintf(&out, `/** Parses with invocation-local position and depth options. */
 export function parseWithOptions(input: string | Uint8Array, options?: %[1]s): ParseResult {
   const o = resolveOptions(G, options, input);
@@ -325,6 +330,9 @@ type Generator struct {
 	// recognizeOnly is the option RecognizeOnly: the program printed is the recognizer itself, and
 	// the parser has no parse entry point.
 	recognizeOnly bool
+	// parseEntries is false for a parser with no parse entry point (RecognizeOnly or TypedOnly): it
+	// prints no parse, parseRule or parseWithOptions, and no rule table for parseRule.
+	parseEntries bool
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
 	// functions the printer prints; nil if its Core IR or its lowering failed (PrintErr).
 	table *plandata.Table[code.Exec]
@@ -528,8 +536,8 @@ func (g *Generator) rules() {
 			fmt.Fprintf(init, "%s.opNodeType = %s;\n", g.ruleVar(r), TsString(r.OpNodeType))
 		}
 	}
-	if g.Table == "rules" && !g.recognizeOnly {
-		// The table and the start rules, for parseRule (the recognizer has none).
+	if g.Table == "rules" && g.parseEntries {
+		// The table and the start rules, for parseRule (a recognize-only or typed-only parser has none).
 		fmt.Fprintf(init, "const rules: Rule[] = [%s];\n", strings.Join(vars, ", "))
 		var names []string
 		for _, r := range g.Prog.RuleList {

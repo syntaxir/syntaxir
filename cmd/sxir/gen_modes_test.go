@@ -467,3 +467,38 @@ func TestGenTypeScriptRecognizeOnly(t *testing.T) {
 		}
 	}
 }
+
+// TestGenTypeScriptTypedOnly checks that -typed-only generates a TypeScript parser with parseValue and
+// parseValueWithOptions and no parse entry point, keeps recognize with -recognize, and refuses the flags it
+// cannot take with the TypeScript messages.
+func TestGenTypeScriptTypedOnly(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", dir, "-g", g, "-types", "-typed-only", "-recognize"); err != nil {
+		t.Fatal(err)
+	}
+	data := readTS(t, dir, "parser.ts")
+	for _, entry := range []string{"export function parseValue(", "export function parseValueWithOptions(", "export function recognize("} {
+		if !strings.Contains(data, entry) {
+			t.Errorf("typed-only parser has no %s:\n%.400s", entry, data)
+		}
+	}
+	for _, entry := range []string{"export function parse(", "export function parseRule(", "export function parseWithOptions(", "export function parseRuleWithOptions("} {
+		if strings.Contains(data, entry) {
+			t.Errorf("typed-only parser has %s", entry)
+		}
+	}
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"-typed-only"}, "typed-only output needs typed output (-types)"},
+		{[]string{"-types", "-typed-only", "-document"}, "typed-only output cannot have a Document"},
+		{[]string{"-types", "-typed-only", "-recognize-only"}, "recognize-only output generates only Recognize"},
+	} {
+		_, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", t.TempDir(), "-g", g}, c.args...)...)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("-lang ts %v: error %v, want %q", c.args, err, c.want)
+		}
+	}
+}
