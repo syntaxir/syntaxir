@@ -619,12 +619,22 @@ caller, as a call of a rule that is not memoized: the call, and the evaluation
 of the body when $P$ makes it. Let $D$ be the lookups and stores of these calls,
 which a parse from scratch does not make.
 
+$P$ also compares examined ranges in contexts of growths, which a parse from
+scratch does not ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)):
+it may evaluate again a call or a step that the parse from scratch takes as
+equal to an earlier result. Let $G^\rho$ and $V^\rho$ be the parses of $G$
+and of $V$ from scratch that compare them as $P$ does, and $C^\rho_V$ the cost
+of $V^\rho$. The proof above uses of the comparison only that a parse makes
+the same one in every growth run, so that the own cost of a growth run is a
+function of its key; it holds of $G^\rho$ and $V^\rho$ as it holds of the
+parses of $G$ and $V$.
+
 By the [Documents](documents.md#theorem-document-parses-equal-fresh-parses)
 theorem and its proof, $P$ evaluates the expressions of the reference parse of
 $G$ on its text at the same states, less those inside the calls that the memo or
 a carried entry answers and the iterations that a repetition reuses from a
 recorded run. So outside $D$ the keyed evaluation, growth run or start of $P$
-with a key makes the steps of the one of the parse of $G$ from scratch with that
+with a key makes the steps of the one of $G^\rho$ with that
 key, by (F1) and (A1), with three differences, each of which only removes cost:
 a call of a rule that both memoize can be answered in one and evaluated in the
 other, and costs the same either way; a call of a rule that only a Document
@@ -632,17 +642,21 @@ memoizes can be answered by an entry, which leaves out the evaluation of its
 body; and a repetition can resume a recorded run, which leaves out the
 evaluation of the iterations that it reuses, whose operations are Document units
 ([Lemma 12](linear-cost.md#lemma-12-document-units)). So the own cost in $P$
-outside $D$ is at most the own cost in $G$ from scratch with the same key, which
-the proof above bounds by $A$ times that of $V$.
+outside $D$ is at most the own cost in $G^\rho$ with the same key, which
+the proof above bounds by $A$ times that of $V^\rho$.
 
 The calls of $P$ have the keys of calls of that reference parse, which the proof
-of Lemma 4 gives to the parse of $V$. Lemma 3 of the Linear Cost proof counts
+of Lemma 4 gives to $V^\rho$. Lemma 3 of the Linear Cost proof counts
 the parse itself, and the proof of Lemma 12 applies it to a Document parse: at
 most three keyed evaluations with one key. No leader is memoized only by a
 Document, and a carried entry holds no result that read a
 growing result, so a growth run with a key is started at most once in each
 lookahead state, as above. The count above gives
-$C'_P - D \le 3A \cdot C_V$, with $C_V$ of the parse of $V$ from scratch.
+$C'_P - D \le 3A \cdot C^\rho_V$. The bounds of the
+[Linear Cost](linear-cost.md#lemma-5-growth) proof on the view hold in every
+parse, whatever it answers in contexts of growths (*Reuse in a context* in its
+Lemma 5), so they bound $C^\rho_V$ as they bound the cost of the parse of $V$
+from scratch.
 
 $D$ is Document work, and it charges no unit: a call of a rule that only a
 Document memoizes pays its unit and no key, and its lookups and stores charge

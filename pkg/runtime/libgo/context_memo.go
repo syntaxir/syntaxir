@@ -185,8 +185,10 @@ func (e *ctxResult) errFree() bool { return e.errs.none() }
 func (e *ctxResult) examinedEnd() int  { return e.examined }
 func (e *ctxResult) examinedFrom() int { return e.from }
 
-// rangeKept reports whether results record the range of input they examined: in a Document parse.
-func (p *Parser) rangeKept() bool { return p.track }
+// rangeKept reports whether two results that examined different ranges differ: in a Document parse,
+// whose reuse after an edit depends on the ranges. Other parses, observed ones included, compare
+// growing results and outcomes without their ranges (spec/runtime/parsing.md, Evaluations of Rules).
+func (p *Parser) rangeKept() bool { return usedFeatures&featureDocument != 0 && p.Document != nil }
 
 // sameResult reports whether two results are equal, comparing at most *budget pairs of distinct
 // nodes and values (nodesEqual, valuesEqual).

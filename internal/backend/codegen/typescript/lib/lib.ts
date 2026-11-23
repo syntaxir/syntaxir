@@ -4875,8 +4875,16 @@ export class Parser {
     return this.track ? this.docLow : 0;
   }
 
+  // rangeKept reports whether two results that examined different ranges differ: in a Document parse
+  // (inDocument), whose reuse after an edit depends on the ranges. Other parses, observed ones
+  // included, compare growing results and outcomes without their ranges (spec/runtime/parsing.md,
+  // Evaluations of Rules).
+  rangeKept(): boolean {
+    return this.inDocument;
+  }
+
   // obsOutcome encodes the outcome of a lookahead at pos whose expression matched if ok and whose
-  // examined range is [from, examined) (pos in a parse that does not track it): equal values are
+  // examined range is [from, examined) (pos in a parse that does not compare ranges, rangeKept): equal values are
   // equal outcomes with equal examined ranges. An outcome whose range reaches 2^30 units or more from
   // pos, or that does not hold pos, gets an interned number, as in the Go runtime; so does one that
   // reaches 2^22 units or more before pos, whose encoding would not fit in a safe integer. Interned outcomes are negative and below obsNone.
@@ -4930,8 +4938,10 @@ export class Parser {
     let examined = f.pos;
     let from = f.pos;
     if (this.track) {
-      examined = this.docExamined;
-      from = this.docLow;
+      if (this.rangeKept()) {
+        examined = this.docExamined;
+        from = this.docLow;
+      }
       this.docExamined = Math.max(this.lookExamined.pop()!, this.docExamined);
       this.docLow = Math.min(this.lookFrom.pop()!, this.docLow);
     }
@@ -5264,7 +5274,9 @@ export class Parser {
   }
 
   // canonicalSeed returns the identity of the result e of a growth step, the same as an earlier
-  // equal result's of the leader at the position, whose result it then returns instead of e.
+  // equal result's of the leader at the position, whose result it then returns instead of e. Results
+  // are equal when they examined the same range (where the parse compares ranges, rangeKept) and
+  // nodesEqual shows them equal.
   canonicalSeed(g: GrowState, e: CtxResult): { e: CtxResult; id: number } {
     const id = this.nextSeedID();
     if (!e.ok || e.errs !== null) {
@@ -5279,7 +5291,7 @@ export class Parser {
     const c = t.canon.get(ck);
     if (c !== undefined) {
       const budget = { n: 64 };
-      if (c.e.examined === e.examined && c.e.from === e.from && c.e.errs === null && this.nodesEqual(c.e.node ?? null, e.node ?? null, budget)) {
+      if ((!this.rangeKept() || c.e.examined === e.examined && c.e.from === e.from) && c.e.errs === null && this.nodesEqual(c.e.node ?? null, e.node ?? null, budget)) {
         return c;
       }
     }

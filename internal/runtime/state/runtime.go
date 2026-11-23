@@ -187,11 +187,10 @@ type Parser struct {
 	// ContextMemoOff evaluates again every call of a rule of a left-recursion cycle in a context
 	// and every step of a growth there, instead of reusing a result (ParseOptions.ContextMemoOff).
 	ContextMemoOff bool
-	// ContextMemoUnexamined leaves the examined range out of the identities of growth steps and the
-	// outcomes of lookaheads in a context, as the generated runtimes do in parses that track no
-	// examined input, neither a Document's nor an observed one (ParseOptions.ContextMemoUnexamined).
-	// The trace then reports examined ranges that a reused step or outcome may not match.
-	ContextMemoUnexamined bool
+	// ContextMemoExamined puts the examined range into the identities of growth steps and the
+	// outcomes of lookaheads in a context of a parse that reads no Document, as a Document parse
+	// does (ParseOptions.ContextMemoExamined, rangeKept).
+	ContextMemoExamined bool
 	// keptSeedResults are the results that read a seed, for CtxKeepSeedResults.
 	keptSeedResults []keptSeedResult
 	Resumed         int // elements reused by ResumeRepeat (for tests)

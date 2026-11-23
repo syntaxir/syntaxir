@@ -65,11 +65,10 @@ type ParseOptions struct {
 	// Tune holds the test-only settings of the parse (Tuning). Only tests set it, and
 	// the zero value selects the defaults.
 	Tune Tuning
-	// ContextMemoUnexamined leaves the examined range out of the identities of growth steps and the
-	// outcomes of lookaheads in a context (Parser.ContextMemoUnexamined): the reference that tests
-	// compare the traces of generated parsers with, which record no examined range outside a
-	// Document parse.
-	ContextMemoUnexamined bool
+	// ContextMemoExamined puts the examined range into the identities of growth steps and the
+	// outcomes of lookaheads in a context, as a Document parse does (Parser.ContextMemoExamined): with
+	// it, tests check the dependency memo of a parse that compares ranges without a Document.
+	ContextMemoExamined bool
 }
 
 // TraceSelection selects the events of a parse that the trace function receives

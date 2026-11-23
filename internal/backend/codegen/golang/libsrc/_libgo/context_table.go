@@ -757,7 +757,7 @@ func (p *Parser) nextSeedID() uint64 {
 // canonicalSeed returns the identity of the result e of a growth step of the leader g at pos, in the
 // context of the growths gamma[gp:] there: the same as an earlier equal result's, whose result it
 // then returns instead of e. Only a successful result without errors is shared; results are equal
-// when they examined the same range (where results record it, rangeKept) and sameResult shows
+// when they examined the same range (where the parse compares ranges, rangeKept) and sameResult shows
 // them equal.
 func (p *Parser) canonicalSeed(pos, gp int, g growKey, e *ctxRes) (*ctxRes, uint64) {
 	id := p.nextSeedID()

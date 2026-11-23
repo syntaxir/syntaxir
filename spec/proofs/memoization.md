@@ -121,14 +121,13 @@ $\mathcal{M}$. A test of equality of two current results that only ever
 claims equality for equal results, such as one that compares identities given
 to equal results, is an instance too: it can only make $\mathcal{M}$ reuse less.
 
-**Parses that record no range.** Examined ranges matter only where a parse
-records them, as [Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)
-lists: in every parse of the engine, whose traces report them, and in a
-[Document](../runtime/documents.md) parse or an
-[observed](../runtime/observability.md) parse of a generated Go or TypeScript parser. A parse
-that records no range may, in (D), take two observations to be the same when the
-expressions of both lookaheads matched or both failed, and two current results
-to be equal whatever their ranges. Lemma 4 asks nothing of ranges and gives
+**Parses that compare no range.** Examined ranges enter the comparisons of
+(D) only in a [Document](../runtime/documents.md) parse, as
+[Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules) states.
+Every other parse, on every backend and whether it is
+[observed](../runtime/observability.md) or not, may in (D) take two
+observations to be the same when the expressions of both lookaheads matched
+or both failed, and two current results to be equal whatever their ranges. Lemma 4 asks nothing of ranges and gives
 $y$ its outcome all the same: an observed lookahead leaves nothing
 after it but whether its expression matched, and its range enters only the
 range of the call around it. For such a parse the proof below holds

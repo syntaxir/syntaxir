@@ -623,9 +623,12 @@ exceptions are these.
   context; a call outside every context does not look at the leaders.
   Otherwise it reuses a result computed in a context of the same growths only
   if every growing result that it read is equal to the one there now and every
-  such lookahead has the same outcome. Equal growing results and equal
-  outcomes also need equal examined ranges, in every parse and on every
-  backend. A
+  such lookahead has the same outcome. In a parse of a
+  [Document](documents.md), whose reuse after an edit depends on them, equal
+  growing results and equal outcomes also need equal examined ranges, on
+  every backend; every other parse, an observed one included, compares them
+  without their ranges, so observing a parse changes neither what it reuses
+  nor its compute units. A
   result that read a growing result is kept only until the first growth of
   its context ends, and never enters the memo of a later parse.
   A lookahead counts as observed by its outcome only if nothing else of it
@@ -677,9 +680,9 @@ exceptions are these.
   If the two are equal, the result of the step is the recorded result, the
   same growing result; otherwise the result of the step becomes the result
   recorded for its end. A step that fails or recovers an error is equal to no
-  other result. Two results with the same end are equal when they have the
-  same examined range and their values are equal, which the comparison
-  decides by visiting pairs of values depth first:
+  other result. Two results with the same end are equal when their values
+  are equal and, in a parse of a Document, they have the same examined range;
+  the comparison of values decides by visiting pairs of values depth first:
 
   - two values that are one value, built once and held by both results, are
     equal, and the comparison does not look inside them;

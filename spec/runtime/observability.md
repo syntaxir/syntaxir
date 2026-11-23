@@ -419,9 +419,11 @@ does: `kind` is `"enter"`, `"exit"` or `"skipped"`, and `skipReason` is
 selected unit. Each trace function receives a copy of its own, which it may
 keep or change without changing the parse or later events. Every exit event
 MUST report in `examined` the call's exact examined end, as
-[Engine Tracing](#engine-tracing) defines it, in the selected unit; an observed
-parse therefore compares examined ranges where
-[Evaluations of Rules](parsing.md#evaluations-of-rules) requires them. A
+[Engine Tracing](#engine-tracing) defines it, in the selected unit. Like an
+unobserved parse, an observed parse that reads no Document compares growing
+results and lookahead outcomes without their examined ranges
+([Evaluations of Rules](parsing.md#evaluations-of-rules)), so a call that
+reuses one reports the end stored with it. A
 Document parse reports its calls as
 [Generated Go Document Tracing and Profiling](#generated-go-document-tracing-and-profiling)
 defines, and so does its `Examined`.

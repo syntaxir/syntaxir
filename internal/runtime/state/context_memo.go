@@ -136,10 +136,12 @@ func (e *MemoEntry) errFree() bool { return e.Errs.None() }
 func (e *MemoEntry) examinedEnd() int  { return e.Examined }
 func (e *MemoEntry) examinedFrom() int { return e.From }
 
-// rangeKept reports whether results record the range of input they examined, so that two results
-// that examined different ranges differ (ContextMemoUnexamined turns it off for the tests that
-// show the records are needed).
-func (p *Parser) rangeKept() bool { return !p.ContextMemoUnexamined }
+// rangeKept reports whether two results that examined different ranges differ: in a Document parse
+// (MemoAll), whose reuse after an edit depends on the ranges, and in a parse with
+// ContextMemoExamined, which tests check the dependency memo with. Other parses, observed ones
+// included, compare growing results and outcomes without their ranges (spec/runtime/parsing.md,
+// Evaluations of Rules).
+func (p *Parser) rangeKept() bool { return p.MemoAll || p.ContextMemoExamined }
 
 // sameResult reports whether two results are equal, comparing at most *budget pairs of nodes
 // (nodesEqual).

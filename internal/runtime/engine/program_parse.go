@@ -62,7 +62,7 @@ func (prog *Program) ParseWith(start, input string, o ParseOptions) (n *value.No
 	p.DeferMemo = true
 	p.ContextMemoOff = o.ContextMemoOff
 	p.SetTuning(o.Tune)
-	p.ContextMemoUnexamined = o.ContextMemoUnexamined
+	p.ContextMemoExamined = o.ContextMemoExamined
 	if o.MissingTokens > 0 && active.HasMissing {
 		p.Missing, p.MissingLen = &state.MissingTokenState{Limit: o.MissingTokens}, 0
 	}

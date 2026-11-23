@@ -194,13 +194,12 @@ that passed on the seed identities that its lookaheads read where it was made, i
 result around it be kept under identities it did not read: random recovering cycle grammar 2964 then rejects
 `baabcac` where generated parsers and the engine without examined ranges must accept it.
 
-The engine records the input that every evaluation examines, because its traces report it, so equal step results
-and equal lookahead outcomes also need equal examined ranges there. Generated Go and TypeScript parsers record it only
-in Document parses and observed parses, whose traces report it; elsewhere they take a step or reuse an outcome that
-differs only in its examined range, which the engine evaluates again. The results are the same, and those parses report
-no traces whose evaluation counts could differ. The tests that compare the traces of generated parsers with the engine's
-therefore compare them with the engine as it is. A test option of the engine leaves examined ranges out, as an
-unobserved generated parse does, to check that the results do not depend on them.
+Equal step results and equal lookahead outcomes also need equal examined ranges only in a Document parse, whose reuse
+after an edit depends on them. Every other parse, on every implementation, takes a step or reuses an outcome that
+differs only in its examined range, so an observed parse reuses what an unobserved one reuses and counts the same
+compute units. The results are the same either way. A
+test option of the engine compares examined ranges in a parse that reads no Document, as a Document parse does, to
+check the dependency memo with them.
 
 A differential test compares every engine backend with the engine's reference that evaluates every call in a
 context again, on the random grammars of 800 seeds: for each seed, a grammar of cycles with several leaders and
@@ -214,8 +213,9 @@ the identities they had there, one that passes on those seeds with their current
 the current outcomes of its observations read, and an observation of a lookahead that recovered errors. The grammars
 above are among the compared grammars on every implementation. The grammars of the first 120 seeds detect every
 broken check but the second broken replay, which only the grammar of the reused observation above detects. The
-engine detects the first broken replay with the test option that leaves examined ranges out, as generated parsers
-do, and the second only with that option. A wider sweep, run once, found no difference: the grammars of seeds 800 to 3,999 on
+engine detects the first broken replay without examined ranges, as every parse but a Document's compares, and the
+second only without them; it detects the other broken checks with the test option that compares them. A wider sweep,
+run once, found no difference: the grammars of seeds 800 to 3,999 on
 every engine backend, with and without examined ranges (9,173 grammars), and the grammars of the first 600 seeds with
 generated Go and generated TypeScript (1,734 grammars, 103,812 TypeScript results).
 
