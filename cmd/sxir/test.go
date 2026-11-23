@@ -19,6 +19,7 @@ func testCmd(args []string, stdout io.Writer) error {
 	backendNames := fs.String("backend", "", "comma-separated execution backends (default: those in the suite)")
 	equivalence := fs.Bool("equivalence", false, "compare selected backends independently of fixture expectations")
 	update := fs.Bool("update", false, "update node and location goldens for one selected backend")
+	optFlags := registerOptimizeFlags(fs)
 	var lim limitFlags
 	lim.register(fs)
 	if err := fs.Parse(args); err != nil {
@@ -46,11 +47,19 @@ func testCmd(args []string, stdout io.Writer) error {
 	if *update && len(backends) != 1 {
 		return errors.New("test: -update requires exactly one explicit -backend")
 	}
+	flags, err := compileFlags{}.withOptimize(optFlags)
+	if err != nil {
+		return err
+	}
+	compile, err := flags.options()
+	if err != nil {
+		return err
+	}
 	suite, err := fixture.Load(*path)
 	if err != nil {
 		return err
 	}
-	options := fixture.RunOptions{Backends: backends, Limits: lim.limits()}
+	options := fixture.RunOptions{Backends: backends, Limits: lim.limits(), Settings: compile.Settings}
 	if isFlagSet(fs, "equivalence") {
 		options.Equivalence = equivalence
 	}

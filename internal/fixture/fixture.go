@@ -18,6 +18,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -190,12 +191,15 @@ func (e *ErrorLocation) UnmarshalJSON(data []byte) error {
 }
 
 // RunOptions overrides a suite's selected backends and equivalence setting,
-// and supplies invocation-local cancellation and compute limits.
+// and supplies invocation-local cancellation and compute limits, and the
+// optimization settings that the suite's grammar compiles under (the zero
+// value is the default profile).
 type RunOptions struct {
 	Backends    []string
 	Equivalence *bool
 	Context     context.Context
 	Limits      runtime.Limits
+	Settings    pass.Settings
 }
 
 // Outcome describes whether parsing matched cleanly, recovered, or rejected input.
@@ -398,7 +402,7 @@ func Run(suite *Suite, opts RunOptions) (Report, error) {
 	}
 	parsers := make(map[string]*engine.Parser, len(backends))
 	for _, backend := range backends {
-		p, err := entry.CompileParser(suite.grammar, suite.Start, entry.Options{})
+		p, err := entry.CompileParser(suite.grammar, suite.Start, entry.Options{Settings: opts.Settings})
 		if err != nil {
 			return Report{}, fmt.Errorf("compile grammar: %w", err)
 		}

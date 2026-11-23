@@ -16,13 +16,14 @@ import (
 
 // debugFlags are the flags that select the grammar, the input and how to parse it.
 type debugFlags struct {
-	fs      *flag.FlagSet
-	grammar *string
-	start   *string
-	input   *string
-	unit    *string
-	backend *string
-	limits  limitFlags
+	fs       *flag.FlagSet
+	grammar  *string
+	start    *string
+	input    *string
+	unit     *string
+	backend  *string
+	limits   limitFlags
+	optimize optimizeFlags
 }
 
 func newDebugFlags(name string) *debugFlags {
@@ -35,6 +36,7 @@ func newDebugFlags(name string) *debugFlags {
 		unit:    fs.String("unit", "codepoints", "unit of positions: codepoints or bytes"),
 		backend: fs.String("backend", "", "execution backend: closure, bytecode, or bytecode-iterative (default: chosen for the grammar)"),
 	}
+	f.optimize = registerOptimizeFlags(fs)
 	f.limits.register(fs)
 	return f
 }
@@ -72,7 +74,11 @@ func (f *debugFlags) load(args []string, stdin io.Reader) (*engine.Parser, strin
 		return nil, "", nil, fmt.Errorf("unknown backend %q", *f.backend)
 	}
 	opts = append(opts, f.limits.option())
-	p, err := loadParser(*f.grammar, *f.start, compileFlags{})
+	flags, err := compileFlags{}.withOptimize(f.optimize)
+	if err != nil {
+		return nil, "", nil, err
+	}
+	p, err := loadParser(*f.grammar, *f.start, flags)
 	if err != nil {
 		return nil, "", nil, err
 	}

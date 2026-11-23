@@ -2,17 +2,17 @@
 //
 // Usage:
 //
-//	sxir parse -g grammar.sxir [-s main] [-i input] [-f json|sexpr] [-stream] [-unit u] [-backend b] [-source-info] [-default-value] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
-//	sxir test -f suite.json [-format text|json] [-backend closure,bytecode] [-equivalence] [-update] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
+//	sxir parse -g grammar.sxir [-s main] [-i input] [-f json|sexpr] [-stream] [-unit u] [-backend b] [-source-info] [-default-value] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
+//	sxir test -f suite.json [-format text|json] [-backend closure,bytecode] [-equivalence] [-update] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir fmt [-w] [-l] [-check] [-syntax] [grammar.sxir ...]
 //	sxir convert [-to sxir|json] [-o output] grammar.sxir|grammar.json
 //	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-no-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
 //	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-no-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
 //	sxir gen -lang go,ts -g grammar.sxir -o dir [-go.o dir] [-ts.o dir] [-go.flag value] [-ts.flag value] [flags of both targets]
-//	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] -o grammar.sxirc
-//	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
-//	sxir profile -g grammar.sxir [-s main] [-i input] [-sort column] [-n rows] [-f text|json] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
-//	sxir explain -g grammar.sxir [-s main] [-i input] [-n calls] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
+//	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] [-optimize profile] [-opt names] [-no-opt names] -o grammar.sxirc
+//	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
+//	sxir profile -g grammar.sxir [-s main] [-i input] [-sort column] [-n rows] [-f text|json] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
+//	sxir explain -g grammar.sxir [-s main] [-i input] [-n calls] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
 //	sxir lint -g grammar.sxir [-s main] [-f text|json] [-disable checks] [-strict] [-classify] [-list]
 //	sxir sample -g grammar.sxir [-s main] [-n 10] [-seed N] [-max-depth D] [-max-repeat R] [-max-len L] [-budget B]
 //	            [-coverage] [-invalid] [-f lines|json]
@@ -32,7 +32,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -41,8 +40,8 @@ import (
 	igen "syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/frontend/parser"
-	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	syntaxfmt "syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/pkg/compiler"
@@ -58,7 +57,8 @@ Commands:
 
   parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recognize]
         [-unit codepoints|bytes] [-backend closure|bytecode|bytecode-iterative] [-source-info]
-        [-default-value] [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
+        [-default-value] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
+        [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
       Parse the input with a grammar and print the syntax tree. Without -i,
       the input is read from standard input. -source-info also prints the
       rule of each node and the names of captures. -default-value drops
@@ -68,7 +68,7 @@ Commands:
       -max-memory, -max-input and -max-depth bound the parse: see Limits below.
 
   test -f <suite.json> [-format text|json] [-backend <names>] [-equivalence] [-update]
-       [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
+       [-optimize <profile>] [-opt <names>] [-no-opt <names>] [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
       Run a versioned JSON fixture suite. Outcomes distinguish accepted,
       recovered, and rejected parses; selected backend equivalence is reported
       separately. -update refreshes node and location goldens for one backend.
@@ -183,7 +183,8 @@ Commands:
       rules that a build would leave out. Their output is not stable and
       may change in any version.
 
-  compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value] -o <file.sxirc>
+  compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value]
+          [-optimize <profile>] [-opt <names>] [-no-opt <names>] -o <file.sxirc>
       Compile a grammar and save the bytecode of one mode. The result runs
       on the bytecode backends as the <grammar> of parse, trace, profile
       and explain, for the parses of its mode only: parse (the default)
@@ -197,18 +198,20 @@ Commands:
       run), so its parses return the default node tree.
 
   trace -g <grammar> [-s <rule>] [-i <input>] [-show-depth <n>] [-rule <name>]
-        [-failures] [-f text|json] [-unit u] [-backend b] [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
+        [-failures] [-f text|json] [-unit u] [-backend b] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
+        [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
       Parse the input and print every rule call as an indented call tree
       with positions, results and memo hits (-f json: one event per line).
       -show-depth hides calls nested deeper than n below the top call shown.
 
   profile -g <grammar> [-s <rule>] [-i <input>] [-sort <column>] [-n <rows>]
-        [-f text|json] [-unit u] [-backend b] [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
+        [-f text|json] [-unit u] [-backend b] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
+        [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
       Parse the input and print the cost of each rule, with hints on where
       the grammar does more work than it needs to.
 
   explain -g <grammar> [-s <rule>] [-i <input>] [-n <calls>] [-unit u] [-backend b]
-          [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
+          [-optimize <profile>] [-opt <names>] [-no-opt <names>] [-max-compute <n>] [-max-memory <n>] [-max-input <n>] [-max-depth <n>]
       Parse the input and, for a syntax error, print the rule calls that
       recorded what it says was expected, each with the calls it was
       nested in.
@@ -256,6 +259,12 @@ Commands:
       Run a Language Server Protocol server for .sxir files on standard
       input and output, for editors: diagnostics, formatting, go to
       definition, references, hover, rename and completion.
+
+Optimization: gen, parse, test, compile, trace, profile and explain take
+-optimize, -opt and -no-opt, with the same meaning: the optimization profile
+and single optimizations that the grammar is compiled under. No setting
+changes what a parser returns. A compiled grammar (.sxirc) holds the bytecode
+that its own setting built, so a command given one takes none of them.
 
 Limits: parse, test, trace, profile, explain and edit-fuzz take -max-compute,
 -max-memory, -max-input and -max-depth. -max-compute bounds the cost of a parse in
@@ -650,6 +659,7 @@ func runParse(args []string, stdin io.Reader, stdout io.Writer) error {
 	backendName := fs.String("backend", "", "execution backend: closure, bytecode, or bytecode-iterative (default: chosen for the grammar)")
 	sourceInfo := fs.Bool("source-info", false, "record the rule of each node and the names of captures, and print them")
 	defaultValue := fs.Bool("default-value", false, "drop value actions and declared rule types, and print the default node tree (predicates still run)")
+	optFlags := registerOptimizeFlags(fs)
 	var lim limitFlags
 	lim.register(fs)
 	if err := fs.Parse(args); err != nil {
@@ -661,7 +671,11 @@ func runParse(args []string, stdin io.Reader, stdout io.Writer) error {
 	if *grammarPath == "" {
 		return fmt.Errorf("-g is required")
 	}
-	p, err := loadParser(*grammarPath, *start, compileFlags{sourceInfo: *sourceInfo, defaultValue: *defaultValue})
+	flags, err := compileFlags{sourceInfo: *sourceInfo, defaultValue: *defaultValue}.withOptimize(optFlags)
+	if err != nil {
+		return err
+	}
+	p, err := loadParser(*grammarPath, *start, flags)
 	if err != nil {
 		return err
 	}
@@ -743,13 +757,31 @@ func runParse(args []string, stdin io.Reader, stdout io.Writer) error {
 // compileFlags are the flags that choose how a grammar is compiled.
 type compileFlags struct {
 	sourceInfo, defaultValue bool
+	// optimize is the optimization setting, and optimizeGiven reports that the command line set it.
+	optimize      compiler.Optimize
+	optimizeGiven bool
 }
 
-// options returns the compile options of the flags, at the default optimization settings.
-func (f compileFlags) options() entry.Options {
+// withOptimize returns f with the optimization setting of the flags o.
+func (f compileFlags) withOptimize(o optimizeFlags) (compileFlags, error) {
+	s, err := o.setting()
+	if err != nil {
+		return compileFlags{}, err
+	}
+	f.optimize, f.optimizeGiven = s, o.given()
+	return f, nil
+}
+
+// options returns the compile options of the flags.
+func (f compileFlags) options() (entry.Options, error) {
 	var o entry.Options
 	o.Compile.SourceInfo, o.Compile.DefaultValue = f.sourceInfo, f.defaultValue
-	return o
+	s, err := generate.Settings(igen.GenOptions{Optimize: f.optimize.Profile, Opt: f.optimize.Values, NoOpt: f.optimize.Off})
+	if err != nil {
+		return entry.Options{}, err
+	}
+	o.Settings = s
+	return o, nil
 }
 
 func isFlagSet(fs *flag.FlagSet, name string) bool {
@@ -785,9 +817,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	fs.Bool("nodoc", false, "leave out the package comment (Go)")
 	sourceInfo := fs.Bool("source-info", false, "make the generated parser record the rule of each node and the names of captures")
 	defaultValue := fs.Bool("default-value", false, "make the generated parser drop value actions and declared rule types and return the default node tree (incompatible with -types)")
-	optimize := fs.String("optimize", "", "optimization profile: "+profileHelp()+"; no profile changes what the parser returns")
-	opt := fs.String("opt", "", "optimizations to give a value, separated by commas, as name or name=count: a name alone turns on an optimization that the profile leaves off, and 0 turns one off; applied after the profile and before -no-opt; the optimizations, with kind and default: "+pass.Summaries())
-	noOpt := fs.String("no-opt", "", "optimizations to turn off after the profile is applied, separated by commas, for isolating a miscompilation or measuring one optimization; the optimizations, with kind and default: "+pass.Summaries())
+	optFlags := registerOptimizeFlags(fs)
 	printAfter := fs.String("print-after", "", "write the IR to standard error after the named steps and passes, separated by commas: elaborate and the Core passes print the Core IR of each table, flowlower, the Flow passes and flow-finish each function printed from Flow IR, execlower and the Exec passes each function printed from Exec IR; a pass that does not apply to the parser prints nothing: "+strings.Join(driver.PrintNames(), ", "))
 	printBefore := fs.String("print-before", "", "write the IR to standard error before the runs of the named passes, separated by commas, as -print-after writes it; the required steps are no passes to print before: "+strings.Join(driver.PrintBeforeNames(), ", "))
 	printChanged := fs.Bool("print-changed", false, "write the IR to standard error after each pass that changed it, and once before the first change of each unit what the pass received")
@@ -853,31 +883,9 @@ func genCmd(args []string, stdout io.Writer) error {
 			return fmt.Errorf("-lib only writes the library of every listed language or of none")
 		}
 	}
-	var noOptNames []string
-	if *noOpt != "" {
-		noOptNames = strings.Split(*noOpt, ",")
-	}
-	profile, err := driver.Profile(*optimize)
+	optimize, err := optFlags.setting()
 	if err != nil {
-		return fmt.Errorf("-optimize: %w", err)
-	}
-	optValues, err := driver.ParseValues(*opt)
-	if err == nil {
-		err = driver.CheckOptimizable(slices.Sorted(maps.Keys(optValues))...)
-	}
-	if err != nil {
-		return fmt.Errorf("-opt: %w", err)
-	}
-	if err := driver.CheckOptimizable(noOptNames...); err != nil {
-		return fmt.Errorf("-no-opt: %w", err)
-	}
-	for _, n := range slices.Sorted(maps.Keys(optValues)) {
-		if profile, err = profile.With(n, optValues[n]); err != nil {
-			return fmt.Errorf("-opt: %w", err)
-		}
-	}
-	if _, err := profile.Without(noOptNames...); err != nil {
-		return fmt.Errorf("-no-opt: %w", err)
+		return err
 	}
 	printAfterNames, err := driver.ParsePrintAfter(*printAfter)
 	if err != nil {
@@ -915,7 +923,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	}
 	opts := []compiler.Option{
 		compiler.WithStart(*start),
-		compiler.WithOptimize(compiler.Optimize{Profile: *optimize, Values: optValues, Off: noOptNames}),
+		compiler.WithOptimize(optimize),
 		compiler.WithDebug(debug),
 	}
 	if *defaultValue {
@@ -1349,6 +1357,9 @@ func loadParser(path, start string, flags compileFlags) (*engine.Parser, error) 
 		if flags.defaultValue && !p.DefaultValue() {
 			return nil, fmt.Errorf("%s: the compiled grammar does not produce default values; compile it with -default-value", path)
 		}
+		if flags.optimizeGiven {
+			return nil, fmt.Errorf("%s: the compiled grammar holds the bytecode that its optimization settings built; pass -optimize, -opt and -no-opt to sxir compile with the grammar source", path)
+		}
 		if start == "" {
 			return p, nil
 		}
@@ -1358,7 +1369,11 @@ func loadParser(path, start string, flags compileFlags) (*engine.Parser, error) 
 	if err != nil {
 		return nil, err
 	}
-	p, err := entry.CompileParser(g, start, flags.options())
+	opts, err := flags.options()
+	if err != nil {
+		return nil, err
+	}
+	p, err := entry.CompileParser(g, start, opts)
 	if err != nil {
 		return nil, fileError(path, err)
 	}
@@ -1373,6 +1388,7 @@ func compileCmd(args []string) error {
 	modeName := fs.String("mode", "parse", "the parses the result serves: parse, recognize (parse -recognize) or document (Documents, trace, profile)")
 	sourceInfo := fs.Bool("source-info", false, "record the rule of each node and the names of captures in parse results")
 	defaultValue := fs.Bool("default-value", false, "drop value actions and declared rule types, so parses return the default node tree")
+	optFlags := registerOptimizeFlags(fs)
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -1384,7 +1400,11 @@ func compileCmd(args []string) error {
 		return fmt.Errorf("compile: %w", err)
 	}
 	mode := engine.CompiledMode(m)
-	p, err := loadParser(*grammarPath, *start, compileFlags{sourceInfo: *sourceInfo, defaultValue: *defaultValue})
+	flags, err := compileFlags{sourceInfo: *sourceInfo, defaultValue: *defaultValue}.withOptimize(optFlags)
+	if err != nil {
+		return err
+	}
+	p, err := loadParser(*grammarPath, *start, flags)
 	if err != nil {
 		return err
 	}
