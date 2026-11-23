@@ -172,8 +172,10 @@ const (
 // Def is the typed definition of a pass, given once to New. Its Run stays in the declaring package.
 type Def[I, O any] struct {
 	Decl
-	In      *IR[I]
-	Out     *IR[O]
+	In  *IR[I]
+	Out *IR[O]
+	// Applies, if set, decides whether an optional pass runs on a unit; a required pass has none,
+	// and New panics on one.
 	Applies func(c *Ctx[I]) bool
 	Run     func(c *Ctx[I], in I) (O, pass.PreservedSet, error)
 	// Post, if set, is the postcondition this conversion establishes, checked at its own output in
@@ -224,6 +226,10 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 	}
 	if d.Required && d.Test {
 		panic(fmt.Sprintf("pipe: pass %q is both required and a test pass", d.Name))
+	}
+	if d.Required && d.Applies != nil {
+		// A required step always runs; what it does with a unit is its run function's choice.
+		panic(fmt.Sprintf("pipe: required pass %q has an Applies, which only an optional pass has", d.Name))
 	}
 	for i, c := range d.Counters {
 		if c == "" || c == CounterRuns || c == CounterChanged || slices.Contains(d.Counters[:i], c) {

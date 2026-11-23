@@ -210,7 +210,7 @@ type Def[I, O any] struct {
 	Decl
 	In      *IR[I]
 	Out     *IR[O]
-	Applies func(c *Ctx[I]) bool
+	Applies func(c *Ctx[I]) bool // decides whether an optional pass runs; New rejects it on a required pass
 	Run     func(c *Ctx[I], in I) (O, Preserved, error)
 	// Post, if set, is the postcondition this conversion establishes, checked at its own output in
 	// place of the verifier of its output kind. Only a conversion (In other than Out) has one.

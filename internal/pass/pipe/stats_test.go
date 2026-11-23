@@ -51,6 +51,18 @@ func TestNewRejectsCountersThatTheManagerKeepsOrThatRepeat(t *testing.T) {
 	}
 }
 
+// A required pass always runs, so New rejects one that declares Applies.
+func TestNewRejectsAppliesOnARequiredPass(t *testing.T) {
+	defer func() {
+		if r := recover(); r == nil || !strings.Contains(fmt.Sprint(r), "required pass \"t-required-applies\" has an Applies") {
+			t.Errorf("recover() = %v", r)
+		}
+	}()
+	New(Def[*mod, *mod]{Decl: Decl{Name: "t-required-applies", Required: true}, In: modIR, Out: modIR,
+		Applies: func(*Ctx[*mod]) bool { return false },
+		Run:     func(_ *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) { return m, pass.PreserveAll(), nil }})
+}
+
 // Stats sums each instance over its units: the runs, the runs that reported a change, and the
 // declared counters in the order of their declaration. A pass that did not run is not listed.
 func TestStatsSumsRunsChangesAndCountersInDeclarationOrder(t *testing.T) {
