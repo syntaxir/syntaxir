@@ -290,7 +290,12 @@ func (p *tsPrimPrinter) decl(name, s string) {
 func (p *tsPrimPrinter) call(r *common.Rule, min int) string {
 	g := p.g
 	g.checkCall(r)
-	if p.gen && g.resumableRule(r) {
+	resumable := g.resumableRule(r)
+	if !p.gen && resumable {
+		// A function that calls a rule whose body suspends is resumable itself (prim.Attrs.Resumable).
+		admitted("a call of the resumable rule " + r.Name + " outside a resumable function")
+	}
+	if resumable {
 		// The call of a rule whose body suspends is the resumable form of its call.
 		switch {
 		case callsPlain(r, g.Document):

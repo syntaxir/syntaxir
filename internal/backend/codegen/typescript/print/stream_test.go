@@ -9,6 +9,9 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/driver"
+	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -316,6 +319,35 @@ func TestStreamGenFormsStayInTheStream(t *testing.T) {
 	}
 	if reads == 0 || sets == 0 {
 		t.Errorf("the bundle reads %d and sets %d resumable forms: the test checks nothing", reads, sets)
+	}
+}
+
+// TestStreamCallsResumableOnlyInGenerators checks that a call of a rule whose body suspends prints only in
+// a resumable function: in a function of the stream that is not resumable, which the resumable analysis
+// (prim.Attrs.Resumable) found calls no such rule, it reaches the panic of an admitted construct, and a
+// call of a rule that never suspends prints there.
+func TestStreamCallsResumableOnlyInGenerators(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest(`@start
+rule main = word ("," word)* !.
+rule word = [a-z]+
+rule never = ""
+@start(default)
+rule top = main* #stream
+`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var panics map[string]string
+	hooks := &print.Hooks{Stream: true, Generator: func(g *print.Generator) { panics = print.StreamCallPanics(g) }}
+	if _, err := generate.TypeScriptWith(codegentest.Compile, g, codegentest.WithLib(common.GenOptions{Start: "top"}), driver.Options{}, hooks); err != nil {
+		t.Fatal(err)
+	}
+	if want := "tsgen: the analysis admitted a call of the resumable rule word outside a resumable function"; panics["word"] != want {
+		t.Errorf("a call of word outside a resumable function panics %q, want %q", panics["word"], want)
+	}
+	if got := panics["never"]; got != "" {
+		t.Errorf("a call of never, which does not suspend, panics %q", got)
 	}
 }
 

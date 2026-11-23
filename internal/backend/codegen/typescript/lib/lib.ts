@@ -2443,6 +2443,17 @@ class SkipSlots {
   // not its values.
   more: Map<number, Map<number, SkipRecord[]>> | null = null;
 
+  // drop drops the words of marks wholly before pos, which no later walk reads, and returns their number.
+  drop(pos: number): number {
+    const k = Math.min(Math.floor((pos - this.base) / 32), this.marks.length);
+    if (k <= 0) {
+      return 0;
+    }
+    this.marks.splice(0, k);
+    this.base += 32 * k;
+    return k;
+  }
+
   // marked reports whether the slot of pos is not fresh.
   marked(pos: number): boolean {
     const i = pos - this.base;
@@ -3129,8 +3140,14 @@ export class Parser {
   }
   // alloc counts n bytes of storage taken into use for the memory limit; only a controlled parse counts.
   alloc(n: number): void { const c = this.control; if (c !== null) c.mem += n; }
+  // values counts the bytes of the values counted since a stream last released them (allocValue).
+  values = 0;
+  // allocValue is alloc for the storage of a value: a node, a list, copied text, a variable
+  // environment, a memo key or a capture frame. A stream returns it when it delivers the element it
+  // was built for (StreamParser.streamRelease); the memory count of a stream bounds its window.
+  allocValue(n: number): void { const c = this.control; if (c !== null) { c.mem += n; this.values += n; } }
   // counted returns n, a node the generated code constructs, counting bytes for the memory limit.
-  counted(n: Node, bytes: number): Node { const c = this.control; if (c !== null) c.mem += bytes; return n; }
+  counted(n: Node, bytes: number): Node { this.allocValue(bytes); return n; }
   // heldBytes returns the bytes of the slots of the working stacks, by their lengths now: what the
   // records on them hold is counted where they are made.
   heldBytes(): number {
@@ -3144,7 +3161,7 @@ export class Parser {
   // allocRetyped counts n when it is a copy that retypeNode made of the node v.
   allocRetyped(v: Value, n: Value): void {
     if (this.control !== null && n instanceof Node && n !== v && v instanceof Node) {
-      this.control.mem += nodeBytes + 8 + (v.fresh ? arrayBytes(v.children.length) : 0) + arrayBytes(v.fields.length);
+      this.allocValue(nodeBytes + 8 + (v.fresh ? arrayBytes(v.children.length) : 0) + arrayBytes(v.fields.length));
     }
   }
 
@@ -3400,6 +3417,12 @@ export class Parser {
   // follows the evaluation of a body that counted, and its walk costs what memoGet's does. The store of
   // a rule that only a Document memoizes (docOnly) replaces only an entry among the first memoScan, as
   // its lookup finds no other.
+  // memoSlotCount returns the number of slots that the first store makes: one for each position of the
+  // input.
+  memoSlotCount(): number {
+    return this.n + 1;
+  }
+
   memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
     this.alloc(entryBytes);
     const same = (x: MemoEntry): boolean => x === e || (x.rule === rule && x.min === min && sameValues(x.env, env));
@@ -3456,7 +3479,7 @@ export class Parser {
     if (this.slots.length === 0) {
       // One slot per position, allocated at once: writes far beyond the end of an array would
       // make it a slow dictionary. Filling them counts no units: the memo is no event of the parse.
-      const slots: (MemoEntry | null)[] = new Array(this.n + 1).fill(null);
+      const slots: (MemoEntry | null)[] = new Array(this.memoSlotCount()).fill(null);
       if (this.control !== null) {
         this.alloc(arrayBytes(slots.length));
       }
@@ -3496,7 +3519,7 @@ export class Parser {
       return null;
     }
     const vals: Value[] = new Array(slots.length);
-    this.alloc(arrayBytes(slots.length));
+    this.allocValue(arrayBytes(slots.length));
     for (let i = 0; i < slots.length; i++) {
       vals[i] = envGet(this.env!, slots[i]!, this.envDepth);
     }
@@ -3599,7 +3622,7 @@ export class Parser {
       return null;
     }
     const vals: Value[] = new Array(slots.length);
-    this.alloc(arrayBytes(slots.length));
+    this.allocValue(arrayBytes(slots.length));
     for (let i = 0; i < slots.length; i++) {
       vals[i] = this.variable(slots[i]!);
     }
@@ -3616,7 +3639,7 @@ export class Parser {
       return emptyFrame; // never written, so shared
     }
     const f: Frame = new Array(n);
-    this.alloc(arrayBytes(n));
+    this.allocValue(arrayBytes(n));
     // Opening a frame counts no units: captures are no event of the parse.
     f.fill(null);
     return f;
@@ -3625,8 +3648,7 @@ export class Parser {
   // kids returns kidStack[base:] as a child list and pops it. It counts no units: gathering the values
   // of a parse is no event (spec/runtime/parsing.md#compute-units).
   kids(base: number): (Node | null)[] {
-    const c = this.control;
-    if (c !== null) c.mem += arrayBytes(this.kidStack.length - base);
+    this.allocValue(arrayBytes(this.kidStack.length - base));
     const ks = this.kidStack.slice(base);
     this.kidStack.length = base;
     return ks;
@@ -3658,7 +3680,7 @@ export class Parser {
   }
 
   setCapture(slot: number, v: Node | null): void {
-    this.alloc(objectBytes(3));
+    this.allocValue(objectBytes(3));
     this.trail.push({ f: this.frame, slot, old: this.frame[slot]! });
     this.frame[slot] = v;
   }
@@ -3777,7 +3799,7 @@ export class Parser {
     if (from === to) {
       this.isoIds = noExp;
     } else {
-      this.alloc(arrayBytes(to - from));
+      this.allocValue(arrayBytes(to - from));
       this.isoIds = this.exp.slice(from, to);
     }
     this.expTop = from;
@@ -4162,7 +4184,7 @@ export class Parser {
       const b = w.buf!;
       kids = w.lo === 0 ? b.a : b.a.slice(w.lo);
     } else {
-      this.alloc(arrayBytes(n));
+      this.allocValue(arrayBytes(n));
       kids = w.vals.slice();
     }
     w.vals.length = 0;
@@ -4261,7 +4283,7 @@ export class Parser {
     }
     const slack = tl > 0 ? n + tl : 0;
     const a: (Node | null)[] = new Array<Node | null>(slack + n + tl).fill(null);
-    this.alloc(arrayBytes(a.length));
+    this.allocValue(arrayBytes(a.length));
     for (let k = 0; k < n; k++) a[slack + k] = vals[k]!;
     if (tl > 0) {
       this.unitsSized(tl); // a suffix copy (spec/runtime/parsing.md, Compute Units)
@@ -4298,7 +4320,7 @@ export class Parser {
   text(start: number, end: number): string {
     const from = this.offs === null ? start : this.offs[start]!;
     const to = this.offs === null ? end : this.offs[end]!;
-    this.alloc(sliceBytes(to - from));
+    this.allocValue(sliceBytes(to - from));
     return this.src.slice(from, to);
   }
 
@@ -4335,8 +4357,7 @@ export class Parser {
     const line = this.errorLine(pos);
     const col = this.errorCol;
     const error = bare ? bareSyntaxError(pos, line, col, exp, msgs) : new SyntaxError(pos, line, col, exp, msgs);
-    // The error object with its message, and its lists of expectations and messages.
-    this.alloc(objectBytes(8) + stringBytes(error.message.length) + arrayBytes(exp.length) + arrayBytes(msgs.length));
+    this.alloc(syntaxErrorBytes(error));
     return error;
   }
 
@@ -4506,7 +4527,7 @@ export class Parser {
       return this.recovered[rec]!;
     }
     const l = new ErrList(this.recovered.slice(rec));
-    this.alloc(objectBytes(1));
+    this.allocValue(objectBytes(1));
     this.recovered.length = rec;
     this.recovered.push(l);
     return l;
@@ -5555,7 +5576,7 @@ export class Parser {
     }
     let n = v as Node;
     if (wrap) {
-      this.alloc(nodeBytes + arrayBytes(1));
+      this.allocValue(nodeBytes + arrayBytes(1));
       n = new Node("tuple", "", start, end, "", [v], noFields, true, false);
     }
     n.labeled = this.sourceInfo;
@@ -5578,12 +5599,12 @@ export class Parser {
   shapeTuple(s: Shaper, v: Node | null, start: number): Node {
     if ((s & shaperElems) !== 0) {
       if ((s & shaperShared) !== 0 && v !== null) {
-        this.alloc(nodeBytes);
+        this.allocValue(nodeBytes);
         return new Node("tuple", "", v.start, v.end, "", v.children, noFields, true, false);
       }
       return v as Node;
     }
-    this.alloc(nodeBytes + arrayBytes(s >> 5 === 1 ? 1 : 0));
+    this.allocValue(nodeBytes + arrayBytes(s >> 5 === 1 ? 1 : 0));
     return new Node("tuple", "", start, this.pos, "", s >> 5 === 1 ? [v] : [], noFields, true, false);
   }
 
@@ -5603,7 +5624,7 @@ export class Parser {
   // node of the range matched when the expression has no value.
   shapeCapture(s: Shaper, v: Node | null, start: number): Node | null {
     if (((s >> 2) & 3) === singleNone) {
-      this.alloc(nodeBytes + arrayBytes(0));
+      this.allocValue(nodeBytes + arrayBytes(0));
       return new Node("tuple", "", start, this.pos, "", [], noFields, true, false);
     }
     return this.shapeSingle(s, v, start);
@@ -5623,7 +5644,7 @@ export class Parser {
     if (n.terminal) {
       return n.text;
     }
-    this.alloc(nodeBytes);
+    this.allocValue(nodeBytes);
     return new Node(nodeShape(n) === shapeList ? typeListValue : typeTupleValue, "", n.start, n.end, "", n.children, noFields, false, false);
   }
 
@@ -5661,7 +5682,7 @@ export class Parser {
     if (!build) {
       return null;
     }
-    this.alloc(nodeBytes);
+    this.allocValue(nodeBytes);
     return new Node("string", "", start, this.pos, lit.text, noNodes, noFields, true, true);
   }
 
@@ -5683,7 +5704,7 @@ export class Parser {
     if (!build) {
       return null;
     }
-    this.alloc(nodeBytes);
+    this.allocValue(nodeBytes);
     return new Node("string", "", start, this.pos, this.text(start, this.pos), noNodes, noFields, true, true);
   }
 
@@ -5707,7 +5728,7 @@ export class Parser {
     if (!build) {
       return null;
     }
-    this.alloc(nodeBytes);
+    this.allocValue(nodeBytes);
     return new Node("string", "", start, this.pos, this.text(start, this.pos), noNodes, noFields, true, true);
   }
 
@@ -5970,7 +5991,7 @@ export class Parser {
     // Variables are checked scalar values; an equal binding has no effect.
     if (old === val) return;
     // envSet copies one array of at most envWidth slots on each level.
-    this.alloc((this.envDepth + 1) * arrayBytes(envWidth));
+    this.allocValue((this.envDepth + 1) * arrayBytes(envWidth));
     this.env = envSet(this.env!, slot, this.envDepth, this.binding(val));
   }
 
@@ -6065,7 +6086,7 @@ export class Parser {
     // captures.
     let opv: Node | null;
     if (((l.value >> 2) & 3) === singleNone) {
-      this.alloc(nodeBytes + arrayBytes(0));
+      this.allocValue(nodeBytes + arrayBytes(0));
       opv = new Node("tuple", "", a.start, a.end, "", [], noFields, false, false);
     } else {
       opv = this.shapeSingle(l.value, a.v, a.start);
@@ -6102,7 +6123,7 @@ export class Parser {
         fields = [{ name: "lhs", value: lhs }, { name: "op", value: opv }, { name: "rhs", value: rhs }];
     }
     // The node, its child list and its fields, each field an object of two fields.
-    this.alloc(nodeBytes + (r.opNodeType !== "" ? 8 : 0) + 2 * arrayBytes(kids.length) + kids.length * objectBytes(2));
+    this.allocValue(nodeBytes + (r.opNodeType !== "" ? 8 : 0) + 2 * arrayBytes(kids.length) + kids.length * objectBytes(2));
     if (r.opNodeType !== "") {
       // The node of the operators' named node type, built without the tuple node it converts from.
       const t = new TypedNode(r.opNodeType, start, end, "", kids, fields, false, shapeTuple);
@@ -6262,13 +6283,14 @@ export class StreamParser extends Parser {
     this.pending = i === b.length ? new Uint8Array(0) : b.slice(i);
   }
 
-  // room returns buf, or a larger copy of its first have units, with room for k more.
+  // room returns buf, or a larger copy of its first have units, with room for k more. The memory
+  // count holds the buffer in use: a larger copy replaces the bytes of buf.
   private room(buf: Uint8Array | Int32Array, have: number, k: number): Uint8Array | Int32Array {
     if (have + k <= buf.length) return buf;
     const size = Math.max(have + k, 2 * buf.length, 64);
     const grown = buf instanceof Uint8Array ? new Uint8Array(size) : new Int32Array(size);
     grown.set(buf.subarray(0, have));
-    this.alloc(typedBytes(grown.byteLength));
+    this.alloc(typedBytes(grown.byteLength) - (buf.byteLength === 0 ? 0 : typedBytes(buf.byteLength)));
     return grown;
   }
 
@@ -6361,7 +6383,7 @@ export class StreamParser extends Parser {
     if (!build) {
       return null;
     }
-    this.alloc(nodeBytes);
+    this.allocValue(nodeBytes);
     return new Node("string", "", start, this.pos, lit.text, noNodes, noFields, true, true);
   }
 
@@ -6416,7 +6438,7 @@ export class StreamParser extends Parser {
     end = Math.max(end, this.base);
     if (start >= end) return "";
     const s = this.unit === Bytes ? documentText(this.bs.subarray(start - this.base, end - this.base), Bytes) : codePointsString(this.cps.subarray(start - this.base, end - this.base));
-    this.alloc(sliceBytes(s.length));
+    this.allocValue(sliceBytes(s.length));
     return s;
   }
 
@@ -6467,8 +6489,30 @@ export class StreamParser extends Parser {
     return pos < this.memoFloor ? null : super.memoGet(rule, pos, min, env, docOnly);
   }
 
+  // memoSlotCount is the number of slots of the positions of the window: from the memo floor to the end
+  // of the input held.
+  override memoSlotCount(): number {
+    return this.n + 1 + this.gapLen;
+  }
+
+  // memoPut stores e as Parser.memoPut does, at a position from the floor on; below it, it stores nothing.
+  // A store that adds no entry to the memo replaced the entry under its key or kept it, so the memo
+  // holds one entry for the key: the count returns the bytes of the one it no longer holds, which
+  // memoPrune would never find (spec/runtime/streaming.md, Memory).
   override memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
-    return pos < this.memoFloor ? e : super.memoPut(rule, pos, min, env, e, docOnly);
+    if (pos < this.memoFloor) return e;
+    // The slots hold the positions from the memo floor on (the gap is at 0, gapLen is -memoFloor), and
+    // grow to the positions that the input has reached since they were made.
+    const slots = this.slots;
+    const need = pos + this.gapLen + 1;
+    if (slots.length > 0 && need > slots.length) {
+      this.alloc(8 * (need - slots.length));
+      while (slots.length < need) slots.push(null);
+    }
+    const entries = this.memoEntries;
+    const kept = super.memoPut(rule, pos, min, env, e, docOnly);
+    if (this.memoEntries === entries && this.control !== null) this.control.mem -= entryBytes;
+    return kept;
   }
 
   // memoPrune is memo.prune: it drops the entries before pos and raises the floor to pos.
@@ -6477,9 +6521,14 @@ export class StreamParser extends Parser {
     if (k <= 0) return;
     const slots = this.slots;
     const drop = Math.min(k, slots.length);
+    let entries = 0;
     for (let i = 0; i < drop; i++) {
-      for (let e = slots[i] || null; e; e = e.next) this.memoEntries--;
+      for (let e = slots[i] || null; e; e = e.next) entries++;
     }
+    this.memoEntries -= entries;
+    // The count returns the entries and the slots the prune releases (spec/runtime/streaming.md, Memory).
+    const c = this.control;
+    if (c !== null && drop > 0) c.mem -= entries * entryBytes + arrayBytes(slots.length) - arrayBytes(slots.length - drop);
     slots.copyWithin(0, drop);
     slots.length -= drop;
     if (this.memoIndex !== null) {
@@ -6537,7 +6586,9 @@ export class StreamParser extends Parser {
       const r = callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()));
       if (r != null) return r instanceof Error ? r : new Error("the diagnostic callback returned a value that is not an Error");
     }
-    this.tail?.add(e);
+    const dropped = this.tail?.add(e) ?? null;
+    // An error that the tail no longer retains is returned to the memory count.
+    if (dropped !== null && this.control !== null) this.control.mem -= syntaxErrorBytes(dropped);
     this.control?.check();
     return null;
   }
@@ -6570,32 +6621,51 @@ export class StreamParser extends Parser {
   // backtracking reaches the trail entries they made.
   streamRelease(): void {
     this.trail.length = 0;
+    // The values built since the last release belong to the elements delivered since: a stream hands
+    // them over, and the memory count returns them (spec/runtime/streaming.md, Memory).
+    const c = this.control;
+    if (c !== null) c.mem -= this.values;
+    this.values = 0;
   }
 
   // streamDropRecords is stream.dropRecords: it drops the records of the walks of skip-run, run and
-  // scan sites that start before pos, which no later call reads.
+  // scan sites that start before pos, which no later call reads, and the marks of the skip slots
+  // before it, and returns their bytes to the memory count (spec/runtime/streaming.md, Memory).
   streamDropRecords(pos: number): void {
+    let freed = 0;
     for (const t of this.scanTables) {
       if (t === undefined) continue;
       for (const at of t.keys()) {
-        if (at < pos) t.delete(at);
+        if (at < pos) {
+          t.delete(at);
+          freed += objectBytes(3) + mapEntryBytes;
+        }
       }
     }
     for (const s of this.skipTables) {
       if (s === undefined) continue;
+      freed += 8 * s.drop(pos);
       for (const recs of s.recs.values()) {
         for (const at of recs.keys()) {
-          if (at < pos) recs.delete(at);
+          if (at < pos) {
+            recs.delete(at);
+            freed += objectBytes(10) + mapEntryBytes;
+          }
         }
       }
       if (s.more !== null) {
         for (const more of s.more.values()) {
-          for (const at of more.keys()) {
-            if (at < pos) more.delete(at);
+          for (const [at, rs] of more) {
+            if (at < pos) {
+              more.delete(at);
+              freed += rs.length * (objectBytes(10) + mapEntryBytes);
+            }
           }
         }
       }
     }
+    const c = this.control;
+    if (c !== null) c.mem -= freed;
   }
 
   // streamTail is stream.tail: whether the stream retains the tail of its recovered errors (a positive
@@ -6682,19 +6752,22 @@ class DiagnosticTail {
     this.limit = limit;
   }
 
-  add(e: SyntaxError): void {
+  // add retains e, and returns the error it no longer retains for it, or null.
+  add(e: SyntaxError): SyntaxError | null {
     if (this.total === Number.MAX_SAFE_INTEGER) this.countsSaturated = true;
     else this.total++;
     if (this.errors.length < this.limit) {
       this.errors.push(e);
-      return;
+      return null;
     }
     this.truncated = true;
     if (this.dropped === Number.MAX_SAFE_INTEGER) this.countsSaturated = true;
     else this.dropped++;
+    const out = this.errors[this.head]!;
     this.errors[this.head] = e;
     this.head++;
     if (this.head === this.limit) this.head = 0;
+    return out;
   }
 
   // result returns the retained errors in order: null for none, SyntaxErrors when none was left out,
@@ -6705,6 +6778,12 @@ class DiagnosticTail {
     const ordered = [...this.errors.slice(this.head), ...this.errors.slice(0, this.head)];
     return new TruncatedSyntaxErrors(ordered, this.total, this.dropped, this.countsSaturated);
   }
+}
+
+// syntaxErrorBytes is the storage of the syntax error e for the memory limit: the error object with its
+// message, and its lists of expectations and messages.
+function syntaxErrorBytes(e: SyntaxError): number {
+  return objectBytes(8) + stringBytes(e.message.length) + arrayBytes(e.expected.length) + arrayBytes(e.messages.length);
 }
 
 /** The state of a stream after a feed: waiting for more input, or ended with a result or an error. */
@@ -7190,7 +7269,7 @@ export class DocumentParser extends TrackedParser {
   override memoKey(r: Rule): Binding[] | null {
     if (!r.docMemo || r.memo || r.leader || r.vars.length === 0) return super.memoKey(r);
     const vals: Binding[] = new Array(r.vars.length);
-    this.alloc(arrayBytes(r.vars.length));
+    this.allocValue(arrayBytes(r.vars.length));
     for (let i = 0; i < r.vars.length; i++) {
       vals[i] = envBinding(this.env!, r.vars[i]!, this.envDepth);
     }
@@ -7525,7 +7604,7 @@ export class Actx {
       }
       if (!(v instanceof Node)) {
         // A value other than a node travels boxed, with the range of the action's input.
-        this.p.alloc(nodeBytes);
+        this.p.allocValue(nodeBytes);
         const b = new Node(typeBox, "", this.start, this.end, "", noNodes, noFields, false, false);
         b.box = v;
         return b;
@@ -7563,7 +7642,7 @@ export class Actx {
   // actionStruct returns a new struct of the type typ with no field set and an empty range: the
   // operation action.struct of an action expression that makes a struct.
   actionStruct(typ: string): Node {
-    this.p.alloc(nodeBytes);
+    this.p.allocValue(nodeBytes);
     return new Node(typ, "", 0, 0, "", noNodes, noFields, false, false);
   }
 
@@ -7571,7 +7650,7 @@ export class Actx {
   // action.setField.
   actionSetField(n: Node, name: string, v: Value): void {
     // The field record and its slot; the first field also makes the array.
-    this.p.alloc((n.fields === noFields ? arrayBytes(0) + 16 : 0) + 8 + objectBytes(2));
+    this.p.allocValue((n.fields === noFields ? arrayBytes(0) + 16 : 0) + 8 + objectBytes(2));
     setField(n, name, v);
   }
 
@@ -7638,7 +7717,7 @@ export class Actx {
   // box is the operation val.box: x boxed with the range of the input, as the result of an action
   // travels.
   box(x: Value): Node {
-    this.p.alloc(nodeBytes);
+    this.p.allocValue(nodeBytes);
     const b = new Node(typeBox, "", this.start, this.end, "", noNodes, noFields, false, false);
     b.box = x;
     return b;
