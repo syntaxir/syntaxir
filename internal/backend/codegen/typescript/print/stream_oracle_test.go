@@ -350,6 +350,14 @@ rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;}]* ";")
 rule main = item* #stream !.
 rule item = (&([a-z]* ";") [a-z])* ";"
 `, adaptiveInputs(), nil},
+	{"trailing literal", `@start
+rule main = item* #stream "!"
+rule item = [a-z]+ ";"
+`, []string{"a;!b", "a;!!", "a;!", "!", "a;b;", "a;b;!", strings.Repeat("ab;", 200) + "!x"}, limitRuns},
+	{"open end", `@start
+rule main = item* #stream
+rule item = [a-z]+ ";"
+`, []string{"", "a;b;", "a;b", "a;;", strings.Repeat("ab;", 200)}, nil},
 	{"text", `@start
 rule main = item* #stream !.
 rule item = k:key o:("=" / ":==") v:val ";" {text($k) != "x" && text($o) != "" && text($v) != "0"}
@@ -719,6 +727,8 @@ func TestStreamOracleMutants(t *testing.T) {
 		{"range text", "if (this.control !== null) this.unitsSized(end - start);\n    return this.text(start, end);", "return this.text(start, end);"},
 		// So does the text that a string node holds.
 		{"held text", "if (n.terminal && this.control !== null && nodeShape(n) !== shapeError) this.unitsSized(n.end - n.start);", ""},
+		// The stream ends only when the input does: the end check after the start rule waits for it.
+		{"end wait", "while (!p.final && p.pos >= p.n) yield 1;", ""},
 		// The callback receives a copy of its own.
 		{"copy", "callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()))", "callback(e)"},
 	} {

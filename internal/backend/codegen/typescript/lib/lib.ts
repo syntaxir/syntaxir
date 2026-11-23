@@ -6770,6 +6770,18 @@ export class Stream<E = Node | null> {
     }
   }
 
+  // body runs the start rule. The end of the input is a demand past the position, as the Go stream
+  // reads it (streamAtEnd): once the start rule matched, it waits there until a chunk arrives or the
+  // input ends, so that the stream ends only when the input does.
+  private *body(): Generator<number, R, void> {
+    const p = this.p;
+    const v = yield* p.callBodyGen(this.start, 0);
+    if (v !== undefined) {
+      while (!p.final && p.pos >= p.n) yield 1;
+    }
+    return v;
+  }
+
   // run resumes the parse and returns the result of the feed.
   private run(final: boolean): StreamResult<E> {
     const p = this.p;
@@ -6781,7 +6793,7 @@ export class Stream<E = Node | null> {
         control.observeNow(p.units);
         p.unitsCheck = control.unitsCheck();
       }
-      if (this.gen === null) this.gen = p.callBodyGen(this.start, 0);
+      if (this.gen === null) this.gen = this.body();
       const step = this.gen.next();
       if (!step.done) {
         if (final) throw new Error("internal error: the stream suspended at the end of its input");
@@ -6789,7 +6801,7 @@ export class Stream<E = Node | null> {
       }
       control?.check();
       const v = step.value;
-      // The end of the input is a demand past the position, as the Go stream reads it (streamAtEnd).
+      // The input has ended or holds a unit at the position (body).
       const ok = v !== undefined && p.atEnd();
       const error = this.finish(v, ok);
       if (ok) {
