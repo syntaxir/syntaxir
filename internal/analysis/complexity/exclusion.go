@@ -217,7 +217,7 @@ func newExcl(k *classifier, strict bool, maxK int) excl {
 }
 
 // spend charges n steps to the budget and reports whether the budget is exhausted. The first time
-// it is, the classifier counts the comparison in exclOverBudget.
+// it is, the classifier counts the step that exhausted it in exclOverBudget.
 func (x excl) spend(n int) bool {
 	if *x.work <= 0 {
 		return true
@@ -392,7 +392,7 @@ func (x excl) pathsOf(n core.Node, item int) (paths [][]sym, ok bool) {
 			if !ok {
 				return nil, false
 			}
-			if paths, ok = concatPaths(paths, ps); !ok {
+			if paths, ok = x.concat(paths, ps); !ok {
 				return nil, false
 			}
 		}
@@ -462,6 +462,16 @@ func (x excl) body(s sym) ([][]sym, bool) {
 	return stopped(ps, s.item)
 }
 
+// concat is concatPaths charged to the budget: the paths it builds are steps of the enumeration.
+// It fails when the budget is exhausted, as it fails when there are more than exclPaths paths.
+func (x excl) concat(ps, qs [][]sym) ([][]sym, bool) {
+	next, ok := concatPaths(ps, qs)
+	if !ok || x.spend(len(next)) {
+		return nil, false
+	}
+	return next, true
+}
+
 // concatPaths returns every path of ps followed by a path of qs; a path that ends with a stop or a
 // dead symbol, or has exclLen symbols, is not extended.
 func concatPaths(ps, qs [][]sym) ([][]sym, bool) {
@@ -503,7 +513,7 @@ func (x excl) contPaths(c *cont, depth int) ([][]sym, bool) {
 			if !ok {
 				return nil, false
 			}
-			if paths, ok = concatPaths(paths, ps); !ok {
+			if paths, ok = x.concat(paths, ps); !ok {
 				return nil, false
 			}
 		}
@@ -523,7 +533,7 @@ func (x excl) contPaths(c *cont, depth int) ([][]sym, bool) {
 		if !ok {
 			return nil, false
 		}
-		return concatPaths(paths, after)
+		return x.concat(paths, after)
 	}
 	return paths, true
 }
@@ -617,6 +627,9 @@ func (x excl) ruleEndPaths(rule string, depth int) ([][]sym, bool) {
 	}
 	if len(after) == 0 {
 		after = append(after, x.exited([][]sym{{{kind: symStop}}}, rule, "")...)
+	}
+	if x.spend(len(after)) {
+		return nil, false
 	}
 	return after, len(after) <= exclPaths
 }
@@ -1434,7 +1447,7 @@ func (k *classifier) decideAlt(ch *core.Choice, i, maxK int) altDecision {
 		if !ok {
 			return d
 		}
-		if ps, ok = concatPaths(ps, ips); !ok {
+		if ps, ok = x.concat(ps, ips); !ok {
 			return d
 		}
 	}
@@ -1458,6 +1471,16 @@ func (k *classifier) decideAlt(ch *core.Choice, i, maxK int) altDecision {
 	return d
 }
 
+// enumerationWhy is the reason that a unit whose paths did not enumerate is not decided: the
+// analysis ran out of exclBudget, which is a limit of the analysis rather than a property of the
+// unit. It is empty when the enumeration failed for another reason (exclPaths).
+func (x excl) enumerationWhy() string {
+	if *x.work <= 0 {
+		return "the analysis ran out of its step budget (exclBudget) before the paths were enumerated"
+	}
+	return ""
+}
+
 // unitDecided reports whether the strict analysis decides the unit against each of its
 // continuations within decidedUnitsK symbols, or finds that the unit evaluates nothing but
 // symbols that the continuation evaluates alike and cheap ones. The continuation then evaluates
@@ -1475,7 +1498,7 @@ func (k *classifier) unitDecided(u *unit, conts []contSpec) (ok bool, why string
 	for _, c := range u.self {
 		p, ok := x.followPaths(c)
 		if !ok {
-			return false, ""
+			return false, x.enumerationWhy()
 		}
 		ps = append(ps, p...)
 	}
@@ -1485,7 +1508,10 @@ func (k *classifier) unitDecided(u *unit, conts []contSpec) (ok bool, why string
 	for _, cs := range conts {
 		for _, c := range cs.paths {
 			qs, ok := x.followPaths(c)
-			if !ok || emptyUndecidedOn && len(qs) == 0 {
+			if !ok {
+				return false, x.enumerationWhy()
+			}
+			if emptyUndecidedOn && len(qs) == 0 {
 				return false, ""
 			}
 			for _, p := range ps {

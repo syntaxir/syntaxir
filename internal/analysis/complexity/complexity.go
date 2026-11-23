@@ -394,8 +394,8 @@ type classifier struct {
 	rigidRule   map[string]bool       // what rigid has found for the body of each rule
 
 	trivia map[string]bool // the trivia rules among the rules asked about (isTrivia)
-	// exclOverBudget counts the comparisons of the exclusion analysis that exceeded exclBudget
-	// and were left undecided.
+	// exclOverBudget counts the steps of the exclusion analysis (comparisons and path
+	// enumerations) that exhausted exclBudget; the analysis then leaves the rest undecided.
 	exclOverBudget int
 	// actionSource holds the rules whose action, or an action of whose Operators Rule, has a
 	// copying operation that is a scanning source: the action runs where an evaluation of the
