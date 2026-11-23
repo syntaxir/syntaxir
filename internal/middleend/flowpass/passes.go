@@ -1,6 +1,7 @@
 package flowpass
 
 import (
+	"fmt"
 	"slices"
 	"strconv"
 
@@ -57,7 +58,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Frame && leanTyped(a) })
 		},
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
-			return run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a, prim.TablesOf(u.Module())) })(c, u)
+			return run(PassTerminals, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a, prim.TablesOf(u.Module())) })(c, u)
 		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
@@ -73,7 +74,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Applies: func(c *pipe.Ctx[Unit]) bool {
 			return pipe.Feature(c, TargetFeature).GuardedClasses && c.Value(guardsFlag) != 0 && funcIs(c, ordinary)
 		},
-		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { guardedClasses(fn, a) }),
+		Run: run(PassGuardedClasses, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { guardedClasses(fn, a) }),
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -86,7 +87,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Applies: func(c *pipe.Ctx[Unit]) bool {
 			return pipe.Feature(c, TargetFeature).ClassRuns && funcIs(c, leanTyped)
 		},
-		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { classRuns(fn, a) }),
+		Run: run(PassClassRuns, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { classRuns(fn, a) }),
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -102,7 +103,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		},
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 			t := prim.TablesOf(u.Module())
-			return run(func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, t, c.Value(PassClassTables)) })(c, u)
+			return run(PassClassTables, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, t, c.Value(PassClassTables)) })(c, u)
 		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
@@ -117,7 +118,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			return pipe.Feature(c, TargetFeature).InlineLiterals && c.Value(PassInlineLiterals) > 0 &&
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Traced })
 		},
-		Run: run(func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) { inlineLiterals(fn, c.Value(PassInlineLiterals)) }),
+		Run: run(PassInlineLiterals, func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) { inlineLiterals(fn, c.Value(PassInlineLiterals)) }),
 	}),
 }
 
@@ -128,13 +129,18 @@ func funcIs(c *pipe.Ctx[Unit], p func(*flow.Attrs) bool) bool {
 	return err == nil && a != nil && p(a)
 }
 
-// run adapts a pass over the function of a unit, which it changes in place.
-func run(f func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit])) func(*pipe.Ctx[Unit], Unit) (Unit, pass.PreservedSet, error) {
+// run adapts the pass name over the function of a unit, which it changes in place. A function of a
+// suspended stream is refused: a form pass replaces the statements of its forms, which carry the
+// demands of the reads (flow.inputDemand), and no form pass keeps them yet.
+func run(name string, f func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit])) func(*pipe.Ctx[Unit], Unit) (Unit, pass.PreservedSet, error) {
 	return func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 		fn := flow.FuncOf(u.Module())
 		a := flow.AttrsOf(fn)
 		if a == nil || a.Forms == nil {
 			return u, pass.PreserveAll(), nil
+		}
+		if a.Suspend {
+			return u, pass.PreserveNone(), fmt.Errorf("flowpass: pass %s is not demand-aware and cannot change function %s of a suspended stream", name, fn.Name)
 		}
 		f(fn, a, c)
 		return u, pass.PreserveNone(), nil

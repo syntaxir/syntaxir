@@ -161,6 +161,11 @@ var Finishing = pipe.New(pipe.Def[Unit, Unit]{
 	In:   code.FlowStage, Out: code.FlowStage,
 	Run: func(_ *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 		finishModule(u.Module())
+		for _, fn := range u.Module().Funcs {
+			if err := flow.VerifyDemands(fn); err != nil {
+				return u, pass.PreserveNone(), err
+			}
+		}
 		return u, pass.PreserveNone(), nil
 	},
 })
