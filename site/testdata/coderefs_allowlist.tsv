@@ -191,7 +191,6 @@ docs/design/records/062-backend-independent-optimization-ir.md	unexport	growBegi
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	growEnd	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	prepareControlledProgram	2
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	qualifyLib	2
-docs/design/records/062-backend-independent-optimization-ir.md	unexport	terminalProgram	2
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	terminalTable	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	topNodes	1
 docs/design/records/062-backend-independent-optimization-ir.md	unexport	traceSkip	1
