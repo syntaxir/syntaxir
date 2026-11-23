@@ -108,12 +108,12 @@ func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
 	if len(goLines) != len(tsLines) || len(goLines) == 0 {
 		t.Fatalf("the transcripts have %d Go and %d TypeScript lines", len(goLines), len(tsLines))
 	}
+	for _, d := range ruleValueDifferences(t, goLines, tsLines) {
+		t.Error(d)
+	}
 	values, units := 0, 0
-	for i := range goLines {
-		goLine, tsLine := normalizeRuleValueLine(t, goLines[i]), normalizeRuleValueLine(t, tsLines[i])
-		if !reflect.DeepEqual(goLine, tsLine) {
-			t.Errorf("line %d differs:\nGo         %v\nTypeScript %v", i, goLines[i], tsLines[i])
-		}
+	for _, l := range goLines {
+		goLine := normalizeRuleValueLine(t, l)
 		if goLine["value"] != nil {
 			values++
 		}
@@ -126,6 +126,147 @@ func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
 		t.Fatalf("the transcripts have %d values and %d charged parses: the comparison cannot fail", values, units)
 	}
 	t.Logf("%d lines compared: %d with a value, %d charged", len(goLines), values, units)
+	// The normalizer must detect perturbed results: each mutant of the TypeScript transcript, which differs from the Go
+	// one in a unit, a value or an error, has to be reported as a difference.
+	for name, mutant := range ruleValueMutants(t, tsLines) {
+		if diffs := ruleValueDifferences(t, goLines, mutant); len(diffs) == 0 {
+			t.Errorf("the comparison does not detect the %s mutant", name)
+		}
+	}
+}
+
+// ruleValueDifferences describes each line where the normalized Go and TypeScript transcripts differ.
+func ruleValueDifferences(t *testing.T, goLines, tsLines []string) []string {
+	t.Helper()
+	var diffs []string
+	if len(goLines) != len(tsLines) {
+		return []string{fmt.Sprintf("the transcripts have %d Go and %d TypeScript lines", len(goLines), len(tsLines))}
+	}
+	for i := range goLines {
+		goLine, tsLine := normalizeRuleValueLine(t, goLines[i]), normalizeRuleValueLine(t, tsLines[i])
+		if !reflect.DeepEqual(goLine, tsLine) {
+			diffs = append(diffs, fmt.Sprintf("line %d differs:\nGo         %v\nTypeScript %v", i, goLines[i], tsLines[i]))
+		}
+	}
+	return diffs
+}
+
+// ruleValueMutants returns the TypeScript transcript with one perturbed unit, one perturbed value and one perturbed
+// error, each the only change to the transcript, keyed by its kind.
+func ruleValueMutants(t *testing.T, tsLines []string) map[string][]string {
+	t.Helper()
+	mutants := map[string][]string{}
+	perturb := func(kind string, change func(m map[string]any) bool) {
+		out := make([]string, len(tsLines))
+		done := false
+		for i, l := range tsLines {
+			var m map[string]any
+			if err := json.Unmarshal([]byte(l), &m); err != nil {
+				t.Fatalf("transcript line %q: %v", l, err)
+			}
+			if !done && change(m) {
+				done = true
+				data, err := json.Marshal(m)
+				if err != nil {
+					t.Fatal(err)
+				}
+				out[i] = string(data)
+			} else {
+				out[i] = l
+			}
+		}
+		if !done {
+			t.Fatalf("no line to perturb for the %s mutant", kind)
+		}
+		mutants[kind] = out
+	}
+	perturb("unit", func(m map[string]any) bool {
+		u, ok := m["units"].(float64)
+		if ok {
+			m["units"] = u + 1
+		}
+		return ok
+	})
+	perturb("value", func(m map[string]any) bool {
+		if m["value"] == nil {
+			return false
+		}
+		// A value without positions, such as a string, is replaced.
+		if !bumpFirstStart(m["value"]) {
+			m["value"] = "mutant value"
+		}
+		return true
+	})
+	perturb("error", func(m map[string]any) bool {
+		if m["error"] == nil {
+			m["error"] = "mutant error"
+		} else {
+			m["error"] = nil
+		}
+		return true
+	})
+	return mutants
+}
+
+// bumpFirstStart adds one to the first "start" position found in v, depth first, and reports whether it found one.
+func bumpFirstStart(v any) bool {
+	switch v := v.(type) {
+	case map[string]any:
+		if p, ok := v["start"].(float64); ok {
+			v["start"] = p + 1
+			return true
+		}
+		for _, x := range v {
+			if bumpFirstStart(x) {
+				return true
+			}
+		}
+	case []any:
+		for _, x := range v {
+			if bumpFirstStart(x) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// TestGeneratedTSRuleValueNarrowsByName checks under the strict options that a name written as a literal gives the value
+// type of its rule, that a value of another rule's type is rejected, and that a name held in a variable gives unknown.
+func TestGeneratedTSRuleValueNarrowsByName(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("runs the TypeScript compiler")
+	}
+	tsc := tooltest.RequireTSC(t)
+	g, err := parseTest(startAllRules(codegentest.OrdinaryOnlyTyped))
+	if err != nil {
+		t.Fatal(err)
+	}
+	files, err := codegentest.GenerateTS(g, common.GenOptions{Start: "main", Types: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	dir := t.TempDir()
+	writeTSFiles(t, dir, files)
+	consumer := `import * as p from "./parser.ts";
+import type * as Types from "./types.ts";
+export const sum: Types.S | null = p.parseRuleValue("sum", "a+a").value;
+export const a: Types.A | null = p.parseRuleValue("a", "a").value;
+export const whole: Types.E | null = p.parseRuleValue("", "a").value;
+export const withOptions: Types.S | null = p.parseRuleValueWithOptions("sum", "a+a", {}).value;
+// @ts-expect-error the value of sum is an S, not an A
+export const wrong: Types.A | null = p.parseRuleValue("sum", "a+a").value;
+export const dynamic: unknown = p.parseRuleValue(sum === null ? "a" : "sum", "a").value;
+`
+	if err := os.WriteFile(filepath.Join(dir, "consumer.ts"), []byte(consumer), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(tsc, append(append([]string{}, strictTSArgs...), "parser.ts", "consumer.ts")...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("strict TypeScript narrowing consumer: %v\n%s", err, out)
+	}
 }
 
 // startAllRules marks every rule of the grammar src as a start rule, so that each one can be named. The rule main,

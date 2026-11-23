@@ -271,9 +271,9 @@ and alias (`parser.ts` exports them too, so it stays the one module to import), 
 configured start rule once, then convert its completed Node result. `parseRuleValue`
 and `parseRuleValueWithOptions` take the name of a start rule, as Go's `ParseRuleValue`
 does, and an empty name selects the default start rule; an unknown name, or a name that
-is not a start rule, is an error with no value. Their value has the type of the named
-rule, which the static type leaves `unknown` (as Go returns `any`), so narrow it by that
-type. `parse`, `parseRule`, recognition and `marshal` retain their existing APIs.
+is not a start rule, is an error with no value. A name written as a string literal gives the
+value the type of its rule, checked statically. Any other name gives `unknown`, as Go
+returns `any`, so narrow it by the rule's type. `parse`, `parseRule`, recognition and `marshal` retain their existing APIs.
 
 For a variant of the quick-start grammar whose fields are strings, generate and consume typed values:
 
