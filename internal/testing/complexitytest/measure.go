@@ -59,10 +59,34 @@ type Cost struct {
 	ParseErr error
 }
 
-// parses reports whether the parse of input finishes within budget, with or without a syntax
-// error. It returns the error of a parse that finished; an exhausted budget is not one.
-func parses(p *engine.Parser, input string, b engine.Backend, budget uint64) (bool, error) {
-	_, err := p.Parse(input, engine.WithBackend(b), engine.WithLimits(runtime.Limits{Compute: budget}))
+// parseFunc parses an input under a compute limit of budget units.
+type parseFunc func(budget uint64) error
+
+// ordinary is the ordinary parse of input on b.
+func ordinary(p *engine.Parser, input string, b engine.Backend) parseFunc {
+	return func(budget uint64) error {
+		_, err := p.Parse(input, engine.WithBackend(b), engine.WithLimits(runtime.Limits{Compute: budget}))
+		return err
+	}
+}
+
+// document is the first parse of a new Document of input on b: a parse from scratch that memoizes
+// as a Document does and compares the examined ranges of results in left-recursion contexts.
+func document(p *engine.Parser, input string, b engine.Backend) parseFunc {
+	return func(budget uint64) error {
+		d, err := p.NewDocument(input, engine.WithBackend(b))
+		if err != nil {
+			return err
+		}
+		_, err = d.Parse(engine.WithLimits(runtime.Limits{Compute: budget}))
+		return err
+	}
+}
+
+// parses reports whether parse finishes within budget, with or without a syntax error. It
+// returns the error of a parse that finished; an exhausted budget is not one.
+func parses(parse parseFunc, budget uint64) (bool, error) {
+	err := parse(budget)
 	var le *runtime.LimitError
 	if errors.As(err, &le) && le.Kind == runtime.LimitCompute {
 		return false, nil
@@ -77,12 +101,12 @@ func parses(p *engine.Parser, input string, b engine.Backend, budget uint64) (bo
 // The search stops when the interval is within 0.4% of the result, which moves a slope by less
 // than 0.01. ExactSteps searches to the unit.
 func Steps(p *engine.Parser, input string, b engine.Backend, cap uint64) (Cost, error) {
-	return strict(steps(p, input, b, cap, 256))
+	return strict(steps(ordinary(p, input, b), cap, 256))
 }
 
 // ExactSteps is Steps with a search to the unit.
 func ExactSteps(p *engine.Parser, input string, b engine.Backend, cap uint64) (Cost, error) {
-	return strict(steps(p, input, b, cap, 0))
+	return strict(steps(ordinary(p, input, b), cap, 0))
 }
 
 // StepsLenient is Steps for an input that the grammar reports syntax errors for, such as one
@@ -90,7 +114,15 @@ func ExactSteps(p *engine.Parser, input string, b engine.Backend, cap uint64) (C
 // the error in Cost.ParseErr instead of failing. Only a *value.SyntaxError or value.SyntaxErrors
 // is accepted; any other error is returned.
 func StepsLenient(p *engine.Parser, input string, b engine.Backend, cap uint64) (Cost, error) {
-	return steps(p, input, b, cap, 256)
+	return steps(ordinary(p, input, b), cap, 256)
+}
+
+// DocumentStepsLenient is StepsLenient for the first parse of a new Document of input, which
+// reuses nothing. It measures what only a Document parse does: it memoizes the rules that an
+// ordinary parse leaves unmemoized and compares the examined ranges of growing results and
+// lookahead outcomes in left-recursion contexts (spec/runtime/parsing.md, Evaluations of Rules).
+func DocumentStepsLenient(p *engine.Parser, input string, b engine.Backend, cap uint64) (Cost, error) {
+	return steps(document(p, input, b), cap, 256)
 }
 
 // isSyntaxError reports whether err is a syntax error of the input or the list of errors that a
@@ -108,8 +140,8 @@ func strict(c Cost, err error) (Cost, error) {
 	return c, err
 }
 
-func steps(p *engine.Parser, input string, b engine.Backend, cap, tolDiv uint64) (Cost, error) {
-	ok, parseErr := parses(p, input, b, cap)
+func steps(parse parseFunc, cap, tolDiv uint64) (Cost, error) {
+	ok, parseErr := parses(parse, cap)
 	if !ok {
 		return Cost{Steps: cap, Capped: true}, nil
 	}
@@ -118,7 +150,7 @@ func steps(p *engine.Parser, input string, b engine.Backend, cap, tolDiv uint64)
 	}
 	lo, hi := uint64(0), cap // budget lo fails (or is zero), budget hi finishes
 	for step := uint64(1024); step < hi; step *= 4 {
-		if ok, _ := parses(p, input, b, step); ok {
+		if ok, _ := parses(parse, step); ok {
 			hi = step
 			break
 		}
@@ -126,7 +158,7 @@ func steps(p *engine.Parser, input string, b engine.Backend, cap, tolDiv uint64)
 	}
 	for hi-lo > 1 && (tolDiv == 0 || hi-lo > hi/tolDiv) {
 		mid := lo + (hi-lo)/2
-		if ok, _ := parses(p, input, b, mid); ok {
+		if ok, _ := parses(parse, mid); ok {
 			hi = mid
 		} else {
 			lo = mid

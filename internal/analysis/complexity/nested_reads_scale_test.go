@@ -27,7 +27,10 @@ import (
 // evaluate, and the check of that alternative of T against R "k" refuses it. The control is the
 // cut that condition 5 excludes in a cycle with more than one leader: a cut passed after a left
 // call of R makes a later step of R reach S "x", which its first step did not, so each step of S
-// grows R over the b characters again, and its cost grows as n^2. The grammar
+// grows R over the b characters again, and its cost grows as n^2 in a Document parse, which
+// compares the examined ranges of growing results in a context: a parse that compares none merges
+// the steps that differ only in their ranges and stays linear on these inputs, so the control is
+// measured on the first parse of a Document. The grammar
 // T = T "w" / R !"y" "x" / "t" "y" is left out because the inputs tried fail early, and a
 // positive lookahead with a left call of T before the read, which condition 5 also excludes, is
 // left out as a control because it measured linear. The reference build has no compute limit, so
@@ -39,31 +42,33 @@ func TestNestedGrowthReadsScale(t *testing.T) {
 		input     func(n int) string
 		order     complexitytest.Order
 		linear    bool
+		// document measures the first parse of a Document instead of an ordinary parse.
+		document bool
 		// reason, when set, is part of a reason for the class unknown that the case must have.
 		reason string
 	}{
 		{"baseline: T reads nothing of R",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / \"t\"\n",
-			func(n int) string { return "t" + strings.Repeat("w", n) + "r" + strings.Repeat("z", n) }, complexitytest.Linear, true, ""},
+			func(n int) string { return "t" + strings.Repeat("w", n) + "r" + strings.Repeat("z", n) }, complexitytest.Linear, true, false, ""},
 		{"read under an option before a literal",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / (R \"x\"? / \"\") \"t\" / \"t\" \"t\" \"y\"\n",
-			func(n int) string { return strings.Repeat("tr", n) }, complexitytest.Linear, false, ""},
+			func(n int) string { return strings.Repeat("tr", n) }, complexitytest.Linear, false, false, ""},
 		{"read before a literal",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / R \"x\" / \"t\"\n",
-			func(n int) string { return "tr" + strings.Repeat("xr", n) }, complexitytest.Linear, false, ""},
+			func(n int) string { return "tr" + strings.Repeat("xr", n) }, complexitytest.Linear, false, false, ""},
 		{"read before two literals",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / R \"x\" \"x\" / \"t\"\n",
-			func(n int) string { return "tr" + strings.Repeat("xxr", n) }, complexitytest.Linear, false, ""},
+			func(n int) string { return "tr" + strings.Repeat("xxr", n) }, complexitytest.Linear, false, false, ""},
 		{"read before a literal with a later alternative",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / R \"x\" / \"t\" / \"q\" \"y\"\n",
-			func(n int) string { return "tr" + strings.Repeat("xr", n) }, complexitytest.Linear, false, ""},
+			func(n int) string { return "tr" + strings.Repeat("xr", n) }, complexitytest.Linear, false, false, ""},
 		{"late read after a unit that read the seed",
 			"@start\nrule main = R $$\n" + r + "rule T = T \"w\" / (T \"x\"? / \"\") \"t\" / R \"k\"\n",
-			func(n int) string { return "t" + strings.Repeat("rk", n) + "r" }, complexitytest.Linear, false,
+			func(n int) string { return "t" + strings.Repeat("rk", n) + "r" }, complexitytest.Linear, false, false,
 			`the alternative at 4:18 in rule T is not committing against the later alternative R "k"`},
 		{"control: a cut passed after a left call",
 			"@start\nrule main = S $$\nrule S = S \"w\" / R \"z\"\nrule R = (R #cut \"b\" / S \"y\" / \"c\") / S \"x\"\n",
-			func(n int) string { return "c" + strings.Repeat("b", n) + "z" + strings.Repeat("xz", n) }, complexitytest.Poly(2), false, ""},
+			func(n int) string { return "c" + strings.Repeat("b", n) + "z" + strings.Repeat("xz", n) }, complexitytest.Poly(2), false, true, ""},
 	}
 	for _, c := range cases {
 		g, err := enginetest.ParseGrammar(c.src)
@@ -91,7 +96,11 @@ func TestNestedGrowthReadsScale(t *testing.T) {
 		for _, b := range complexitytest.Backends {
 			s := complexitytest.Series{Sizes: []int{125, 250, 500}}
 			for _, n := range s.Sizes {
-				cost, err := complexitytest.StepsLenient(p, c.input(n), b, complexitytest.Cap)
+				measure := complexitytest.StepsLenient
+				if c.document {
+					measure = complexitytest.DocumentStepsLenient
+				}
+				cost, err := measure(p, c.input(n), b, complexitytest.Cap)
 				if err != nil {
 					t.Fatalf("%s: %s: size %d: %v", c.name, complexitytest.BackendName(b), n, err)
 				}
