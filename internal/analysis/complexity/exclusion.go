@@ -589,6 +589,7 @@ func (x excl) ruleEnd(rule string, depth int) ([][]sym, bool) {
 
 // ruleEndPaths is ruleEnd without the memo.
 func (x excl) ruleEndPaths(rule string, depth int) ([][]sym, bool) {
+	x.k.ruleEndRuns++
 	var after [][]sym
 	if rule == x.k.start {
 		// The parse ends once, so an action of the start rule that copies runs there once.

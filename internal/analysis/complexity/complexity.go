@@ -397,6 +397,9 @@ type classifier struct {
 	// exclOverBudget counts the steps of the exclusion analysis (comparisons and path
 	// enumerations) that exhausted exclBudget; the analysis then leaves the rest undecided.
 	exclOverBudget int
+	// ruleEndRuns counts the computations of ruleEndPaths, the rule ends that the memo did not
+	// answer: a deterministic measure of the enumeration work of the strict analysis.
+	ruleEndRuns int
 	// actionSource holds the rules whose action, or an action of whose Operators Rule, has a
 	// copying operation that is a scanning source: the action runs where an evaluation of the
 	// body, or of an operand or operator part, ends.

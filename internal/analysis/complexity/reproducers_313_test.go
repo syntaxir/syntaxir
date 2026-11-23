@@ -12,12 +12,22 @@ import (
 	"syntaxir.dev/sxir/internal/testing/starttest"
 )
 
-// TestClassifyReproducers313 classifies the ten grammars of testdata/classify313, which took 9 s
-// to more than 20 s each before the exclusion analysis memoized its rule ends (#313). Each stays
-// unknown with its reasons, which the classifier gives without exhausting a budget: the counted
-// bound is that no comparison or enumeration of the strict analysis runs out of exclBudget, so the
-// result does not depend on the speed of the machine. The context is only a safety net against a
-// regression to the old cost, and does not decide the result.
+// reproducerRuleEndBound is the most computations of rule ends (ruleEndRuns) that each grammar of
+// testdata/classify313 may take with the memo on, about twice the count measured at the memoized
+// analysis. With the memo off the same grammars take 21 000 to 53 000 computations and exhaust
+// exclBudget, so each bound is exceeded by more than an order of magnitude without the memo.
+var reproducerRuleEndBound = map[string]int{
+	"r00.sxir": 620, "r01.sxir": 284, "r02.sxir": 288, "r03.sxir": 236,
+	"r04.sxir": 476, "r05.sxir": 434, "r06.sxir": 592, "r07.sxir": 210,
+	"r08.sxir": 380, "r09.sxir": 1764, "r10.sxir": 160,
+}
+
+// TestClassifyReproducers313 classifies the grammars of testdata/classify313: the issue's grammar
+// (r00) and the ten random ones, which took 9 s to more than 20 s each before the exclusion
+// analysis memoized its rule ends (#313). Each stays unknown with its reasons. The counted checks
+// are that the computations of rule ends stay within reproducerRuleEndBound and that no step of
+// the strict analysis exhausts exclBudget. The 60 s context is only a safety net, and does not
+// decide the result.
 //
 // The grammars are the first ten of 2400 random left-recursive bodies of rule l, drawn from
 // seed 313 by testdata/classify313/generate.py (python3 generate.py 313 2400 <dir>), each
@@ -28,8 +38,8 @@ func TestClassifyReproducers313(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 10 {
-		t.Fatalf("got %d reproducers, want 10", len(files))
+	if len(files) != len(reproducerRuleEndBound) {
+		t.Fatalf("got %d reproducers, want %d", len(files), len(reproducerRuleEndBound))
 	}
 	for _, f := range files {
 		src, err := os.ReadFile(f)
@@ -57,6 +67,13 @@ func TestClassifyReproducers313(t *testing.T) {
 		}
 		if len(c.Reasons) == 0 {
 			t.Errorf("%s: no reasons for the unknown class", f)
+		}
+		bound, ok := reproducerRuleEndBound[filepath.Base(f)]
+		if !ok {
+			t.Fatalf("%s: no rule-end bound", f)
+		}
+		if k.ruleEndRuns > bound {
+			t.Errorf("%s: %d rule-end computations, want at most %d", f, k.ruleEndRuns, bound)
 		}
 		if k.exclOverBudget != 0 {
 			t.Errorf("%s: %d comparisons over exclBudget, want 0", f, k.exclOverBudget)
