@@ -240,11 +240,31 @@ An empty nonfinal chunk leaves the parser waiting without repeating actions. Cop
 so caller mutation cannot alter suspended input. No string chunks initially: independently encoding halves of a
 UTF-16 surrogate pair changes input. An optional whole-string adapter can encode once outside the stream.
 
-`stream.abort(reason: Error)` terminally stops and releases suspended state without further execution; feed cannot
-resume it. Reject reentrant feed/abort while executing. The array holds all emissions for that feed, so a caller
+There is no separate abort call: a running feed is cancelled through the signal option, and a stream the caller
+stops feeding is dropped without further calls. Reject reentrant feed while executing. The array holds all emissions for that feed, so a caller
 feeding a huge chunk can itself request a huge result; input discard does not bound caller-owned results. Async
 Iterable, browser/Node readers, network blocking and async backpressure adapters are separate explicit utilities;
 this proposal makes no implicit promise about closing or interrupting their underlying sources.
+
+### TypeScript Stream Suspension
+
+The TypeScript stream parses each element once, with suspension rather than re-execution: the charges of a stream
+depend only on the input, not on how it is chunked (record 076). Suspension is explicit in the IR:
+
+1. A demand operation `input.demand(n)` states that the next read needs `n` units past the position. The Flow IR
+   lowering emits it before each terminal under the stream feature only; batch and Document code of every target
+   is unchanged. A demand the buffer meets is a comparison; one it does not meet suspends unless the input is final.
+2. A pipeline pass computes which functions reach a demand and marks them resumable. Other functions print as they do
+   today.
+3. The TypeScript printer prints a resumable function as a generator (`function*`, calls through `yield*`, a demand as
+   `yield`). Only `-stream` packages receive these copies, generated after the batch code.
+4. The stream driver is the Go stream's commit protocol on the same Exec operations (stream start, deliver, discard,
+   release, drop records, diagnostic ring and limit). `feed` copies the chunk, resumes the generator until it suspends or
+   ends, and returns the elements committed since the last feed.
+
+The names `createStream`, `stream.feed` and `StreamResult` above are the decided API of issue #315. The conformance rule is the Go `ParseStream` comparison for every chunking of short inputs
+and random chunkings of long ones, element by element, error by error and charge by charge. Throughput is measured
+after the optimization phase.
 
 ## Runtime Invariants
 
@@ -287,7 +307,7 @@ values; no pooled parser or conversion arena is shared between concurrent invoca
 | Closure and both engine VMs | Existing Document/Reader stream oracle; both position units |
 | Generated Go Node | Current opt-in prefix-memo Document and Reader stream with pull iteration and diagnostic controls |
 | Generated typed Go | Direct typed `Document.ParseValue` for batch-eligible grammars; Node conversion fallback otherwise; streams convert committed elements |
-| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; streams remain proposed and require continuation lowering |
+| Generated TS Node/typed conversion | Documents with memo reuse as the Go Node Document, tracing and profiling; streams are proposed and require the suspension plan above |
 | Recognition | Continue rejecting Document/stream mode; batch recognition is unaffected |
 
 This source-generation feature needs no .sxirc or ISA change by itself. If continuation tables are instead stored
