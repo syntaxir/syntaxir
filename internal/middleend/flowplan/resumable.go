@@ -20,22 +20,21 @@ var SuspendFeature = pipe.NewFeature("suspend", strconv.FormatBool, strconv.Pars
 // PassResumable is the name of the pass Resumable.
 const PassResumable = "resumable"
 
-func init() {
-	pass.Register(pass.Flag{Name: PassResumable, Kind: pass.KindFlowPass, Default: 1,
-		Doc: "functions of a suspended stream that demand input, and the functions that call them, run as resumable generators (TypeScript -stream)"})
-}
-
 // Resumable marks the resumable functions of a table lowered for a suspended stream (SuspendFeature):
 // a function is resumable when it demands input (flow.inputDemand) or calls a resumable function of the table,
 // a rule through its body and an outlined node through its outlined function (Plan.Outlined). The functions
 // get the flag as flow.Attrs.Resumable, which the TypeScript printer reads to print them as generators. The pass
 // runs right after the lowering, before the Flow passes, so that it sees the demands the lowering emitted.
 var Resumable = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[code.Flow]]{
-	Decl: pipe.Decl{Name: PassResumable, Obligation: "A function is resumable exactly when it demands input or calls a resumable function of its table.",
+	Decl: pipe.Decl{Name: PassResumable, Required: true, Obligation: "A function is resumable exactly when it demands input or calls a resumable function of its table.",
 		Features: []pipe.FeatureID{SuspendFeature.ID()}},
 	In: plandata.FlowTable, Out: plandata.FlowTable,
-	Applies: func(c *pipe.Ctx[*plandata.Table[code.Flow]]) bool { return pipe.Feature(c, SuspendFeature) },
-	Run: func(_ *pipe.Ctx[*plandata.Table[code.Flow]], t *plandata.Table[code.Flow]) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
+	// The pass is required, so it runs whenever the table is lowered, and marks nothing for a table that is not
+	// suspended: a required pass has no flag and no Applies.
+	Run: func(c *pipe.Ctx[*plandata.Table[code.Flow]], t *plandata.Table[code.Flow]) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
+		if !pipe.Feature(c, SuspendFeature) {
+			return t, pass.PreserveAll(), nil
+		}
 		if err := markResumable(t); err != nil {
 			return nil, pass.PreserveNone(), err
 		}

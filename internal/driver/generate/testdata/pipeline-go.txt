@@ -42,7 +42,7 @@ pipeline program -> output {
         with table-config {
           with table-suspend {
             flowlower!
-            resumable
+            resumable!
             within module@flow {
               with flow-target=terminals,class-runs,class-tables,guarded-classes,inline-literals {
                 func funcs@flow {
