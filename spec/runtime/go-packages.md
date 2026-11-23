@@ -84,7 +84,7 @@ parser in every artifact:
 | `compiler.WithStart(name)` | The [start rule](parsing.md#start-rule); an empty name selects the default start rule |
 | `compiler.WithSourceInfo()` | Record [source information](nodes.md#source-information) |
 | `compiler.WithDefaultValue()` | Return [default values](../language/actions.md#default-values) |
-| `compiler.WithOptimize(o)` | The [optimization setting](generated-parsers.md#optimization-settings): the profile `o.Profile` (`compiler.Speed`, `compiler.Memory` or `compiler.Size`), then the values `o.Values`, then the optimizations `o.Off` turned off. No setting changes what a parser returns. Every compile function takes it, and which backends apply it is stated in [Optimization Settings](generated-parsers.md#optimization-settings). An unknown profile or optimization, or a value that an optimization does not take, is an error of every function |
+| `compiler.WithOptimize(o)` | The [optimization setting](optimization-settings.md): the profile `o.Profile` (`compiler.Speed`, `compiler.Memory` or `compiler.Size`), then the values `o.Values`, then the optimizations `o.Off` turned off. No setting changes what a parser returns. Every compile function takes it, and which backends apply it is stated in [Optimization Settings](optimization-settings.md). An unknown profile or optimization, or a value that an optimization does not take, is an error of every function |
 
 A grammar source that does not load gives the errors of `grammar.Load`, among them `grammar.SyntaxErrors` for grammar
 syntax. A grammar that loads but does not check, such as one that refers to a rule that it does not define, gives

@@ -55,6 +55,7 @@ definition and the place where the term is defined.
 | operand, operator | The parts of an Operators Rule: an operand is the leading element of an expression, an operator is a prefix, infix or postfix form. See [Operators Rule](language/operators-rule.md). |
 | operation | A transition of the abstract state of a parse that a dialect of Code IR declares, with a contract and a cost bound. See [The Module](code-ir/module.md#operations). |
 | Operators Rule | A rule declaration that declares operators by precedence and associativity. See [Operators Rule](language/operators-rule.md). |
+| optimization setting | The profile and the values of named optimizations that a compilation builds under, the same for every backend; it never changes what a parser returns. See [Optimization Settings](runtime/optimization-settings.md). |
 | output schema | The description of the values a grammar can produce: its declared types and the inferred value shape of each rule, exported without parsing input. See [Output Schemas](runtime/schemas-and-queries.md#output-schemas). |
 | position | A number that identifies a place between two characters of the input, counted in the position unit. See [Input and positions](runtime/parsing.md#input-and-positions). |
 | position unit | The unit in which positions and lengths in the input are measured: code points or bytes. See [Input and positions](runtime/parsing.md#input-and-positions). |

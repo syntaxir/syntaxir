@@ -47,6 +47,7 @@ rule ws = [ \t\n]*
 ```bash
 sxir parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-recognize]
            [-unit codepoints|bytes] [-backend closure|bytecode|bytecode-iterative] [-source-info] [-default-value]
+           [-optimize <profile>] [-opt <names>] [-no-opt <names>]
            [-max-compute <n|unlimited>] [-max-memory <n|unlimited>] [-max-input <n|unlimited>] [-max-depth <n|unlimited>]
 ```
 
@@ -62,6 +63,7 @@ sxir parse -g <grammar> [-s <rule>] [-i <input>] [-f json|sexpr] [-stream] [-rec
 | `-source-info` | off | Record the rule of each node and the names of captures, and print them |
 | `-default-value` | off | Drop value actions and declared rule types, so the parse returns the default node tree; predicates still run (see [Default Values](../../spec/language/actions.md#default-values)) |
 | `-stream` | off | Print each `#stream` element as soon as it matches, one per line (see [streaming.md](streaming.md)) |
+| `-optimize`, `-opt`, `-no-opt` | the `speed` profile | The [optimization settings](../../spec/runtime/optimization-settings.md) that the grammar is compiled under, as in `gen`. None changes what the parse returns. Not accepted with a compiled grammar (`.sxirc`), which holds the bytecode that its own settings built |
 | `-max-compute` | `0` | `Limits.Compute`: the cost a parse may spend, in compute units. `0` selects the default and `unlimited` disables the limit |
 | `-max-memory` | `0` | `Limits.Memory`: the bytes of storage a parse may take into use. `0` and `unlimited` disable the limit |
 | `-max-input` | `0` | `Limits.Input`: the longest input accepted, in the position unit. `0` and `unlimited` accept any length |
@@ -235,13 +237,15 @@ sxir parse -g pairs.json -f sexpr -i 'abc=12'      # JSON grammars work everywhe
 ## `compile`
 
 ```bash
-sxir compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value] -o <file.sxirc>
+sxir compile -g <grammar> [-s <rule>] [-mode parse|recognize|document] [-source-info] [-default-value]
+             [-optimize <profile>] [-opt <names>] [-no-opt <names>] -o <file.sxirc>
 ```
 
 Saves a compiled grammar; see [compiled grammars](compiled-grammars.md). `-s` sets the default start rule stored in
 the file, `-mode` chooses the parses the file serves, `-source-info` makes the parser record the rule of each node and
-the names of captures, and `-default-value` makes it return default values (the flag is stored in the file). Both `-g`
-and `-o` are required.
+the names of captures, and `-default-value` makes it return default values (the flag is stored in the file).
+`-optimize`, `-opt` and `-no-opt` choose the optimization settings that the saved bytecode is built under; a compiled
+grammar given as `-g` keeps its own. Both `-g` and `-o` are required.
 
 | `-mode` | The file serves |
 |:--|:--|
@@ -265,7 +269,7 @@ Generates a standalone Go parser (see [code-generation.md](code-generation.md)) 
 parser (see [typescript.md](typescript.md)). `-g` is required (except with `-lib only`), and for Go `-o`, the output directory, and `-module`, the import path of the package (with `-lib import`, `-pkg` is enough). The Go output is `parser.go`, `api.go` and, with `-lib embed`, a copy of the library in `internal/libgo`; `sxir gen` refuses to replace a file in the directory that it did not generate. TypeScript needs `-o` as well and writes `parser.ts`, `lib.ts` and, with `-types`, `types.ts`; `-lib import` imports the library from `-lib-module` instead of writing `lib.ts`. `-source-info` makes the generated Go parser record the rule of each node and the names of captures.
 `-default-value` makes the generated parser return default values; it cannot be combined with `-types`, because the
 types come from the dropped actions.
-The optimization settings are not specific to generation (see [Optimization Settings](../../spec/runtime/generated-parsers.md#optimization-settings)).
+The optimization settings are not specific to generation (see [Optimization Settings](../../spec/runtime/optimization-settings.md)): `parse`, `test`, `compile`, `trace`, `profile` and `explain` take the same three flags, and a compiled grammar (`.sxirc`) takes none, since it holds the bytecode that its own settings built.
 `-optimize <profile>` selects an optimization profile (`speed`, the default, `memory` or `size`), `-opt <name>[=<count>][,...]`
 turns on an optimization that the profile leaves off or sets a count, `-no-opt <name>[,<name>]`
 turns named optimizations off. None of them changes what the generated parser returns; the names are in
@@ -341,7 +345,7 @@ sxir trace -g <grammar> [-s <rule>] [-i <input>] [-show-depth <n>] [-rule <name>
 sxir profile -g <grammar> [-s <rule>] [-i <input>] [-sort <column>] [-n <rows>] [-f text|json]
 ```
 
-Debugging tools; all three also take `-unit`, `-backend`, `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` (as in `parse`), and all read the input from standard input without `-i`. The `-show-depth` of `trace` selects the calls it shows; `-max-depth` is the depth limit of the parse.
+Debugging tools; all three also take `-unit`, `-backend`, `-optimize`, `-opt`, `-no-opt`, `-max-compute`, `-max-memory`, `-max-input` and `-max-depth` (as in `parse`), and all read the input from standard input without `-i`. The `-show-depth` of `trace` selects the calls it shows; `-max-depth` is the depth limit of the parse.
 `explain` shows which rule calls recorded what a syntax error says was expected, `trace` prints every rule call of a
 parse as an indented tree, and `profile` prints the cost of each rule with hints. In Go, the same information comes
 from `runtime.WithTrace` and `runtime.WithProfile`. A parse that reaches a limit ends the trace or profile at that point; `profile` prints the limit error as its `result`. See [debugging.md](debugging.md).

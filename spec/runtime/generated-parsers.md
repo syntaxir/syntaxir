@@ -60,7 +60,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 | `-observability` | `Observability` | Generate tracing and profiling, specified in [Observability](observability.md) |
 | `-source-info` | the option `compiler.WithSourceInfo` | Make the parser record [source information](nodes.md#source-information): the rule of each node and the names of captures. Without it, `Node.Rule`, `Node.Field` and `Node.Fields` of a parsed node are empty and the outputs omit them |
 | `-default-value` | the option `compiler.WithDefaultValue` | Make the parser return default values, as [Default Values](../language/actions.md#default-values) describes. Cannot be combined with `-types`, because the types come from the dropped actions |
-| `-optimize` | `Profile` of the `compiler.Optimize` of the option `compiler.WithOptimize` | The [optimization profile](#optimization-settings): `speed` (default, also the empty name), `memory` or `size`. An unknown profile is an error that lists the valid names. Rejected with `-lib only` |
+| `-optimize` | `Profile` of the `compiler.Optimize` of the option `compiler.WithOptimize` | The [optimization profile](optimization-settings.md): `speed` (default, also the empty name), `memory` or `size`. An unknown profile is an error that lists the valid names. Rejected with `-lib only` |
 | `-opt` | `Values` of `compiler.Optimize` (a map from name to value) | Gives single optimizations a value, as `name` or `name=count`. Rejected with `-lib only` |
 | `-no-opt` | `Off` of `compiler.Optimize` | Turns the named optimizations off. Rejected with `-lib only` |
 | `-print-after` | `PrintAfter` of the `compiler.Debug` of the option `compiler.WithDebug` | Writes the intermediate representation to standard error after the named steps and passes. Rejected with `-lib only` |
@@ -99,45 +99,17 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
   namespace with `parser.go` and `api.go`: a grammar type may be named `Node`,
   `Parser`, `Walk`, `ParseOption` or like any other export of the library.
 
-### Optimization Settings
+### Optimization and Debugging Flags
 
-The optimization settings are a profile and the values of named optimizations. They belong to the compilation of a
-grammar, not to one generator: the settings are the same for every backend (the Go and TypeScript generators, the
-closure engine and the bytecode VMs), and each backend applies the optimizations that concern it. The closure engine,
-which runs the reference parser, and the bytecode VMs build their parsers under the Core passes (kind `pass`) of the
-setting, so turning one off changes how they parse, and the bytecode VMs also run the Flow passes for the forms of their
-bytecode. The recognizer and the missing-token insertion program that a parser derives build under its setting.
+`-optimize`, `-opt` and `-no-opt` select the [optimization setting](optimization-settings.md) of the generation,
+with the meaning and checks that every command that compiles a grammar gives them; no setting changes what the
+generated parser returns. The debugging flags observe the pass pipeline of the generation:
 
-The settings are not part of the grammar's meaning: an optimization changes the code a parser is generated as, and the memory and
-time it needs, but not what it returns. It is either on or off, or it has a count where `0` is off.
-Each optimization has a kind: `pass` (a transformation of the Core IR, the first intermediate
-representation built from the grammar), `action pass` (a transformation of the lowered action expressions of a
-table), `flow pass` and `exec pass` (a transformation of Code IR at the Flow
-stage and at the Exec stage that is converted from it), `code pass` (a transformation of Code IR at both stages),
-`pattern` (a local rewrite that a code pass applies, each application on its own), `printer` (a choice of what the Go and TypeScript printers emit) or
-`runtime` (a control of the runtime structures that the printers emit). `sxir gen -h` lists every optimization with its kind, its default and whether it takes a
-count.
-
-- **No option changes what a parser returns.** For every accepted combination of `-optimize`, `-opt` and
-  `-no-opt`, the generated parser accepts and rejects the same inputs and returns the same trees, typed
-  values, syntax errors and recovered errors, and the same trace and profile events, as one generated with
-  the defaults. Options change only the generated source, its size and the time and memory of a parse.
-  The debugging flags (`-print-before`, `-print-after`, `-print-changed`, `-verify-each`, `-stats`,
-  `-time-passes`) write diagnostics to standard error, or fail on an internal error, and change neither the
-  files nor the parser. `-opt-bisect-limit` changes the files: it skips optional passes and generates once,
-  which can keep rules that are otherwise left out, and the parser behaves the same unless a skipped pass
-  is wrong, which is what the flag finds.
-- **Profiles.** A profile is a fixed set of values and has no behavior of its own. `speed` is the default
-  and sets every optimization to its default value. `memory` allocates typed values one by one instead of in
-  slabs (fewer bytes and less live heap, more allocations). `size` produces smaller generated Go source
-  and binaries for a little parse time.
-- **Order.** The settings are the profile's, then the values of `-opt` replace them, then `-no-opt` turns
-  optimizations off. `-no-opt` therefore wins over `-opt` for the same name.
-- **Values.** `-opt name` is `name=1`. An optimization without a count takes `0` or `1`; one with a count
-  takes `0` or a positive number. A name that is not an optimization, a value that the optimization does not
-  take, a count that is not a decimal number, an empty item and a name given twice in `-opt` are errors, and generation fails before it writes a file.
-- **Backends and languages.** An optimization that concerns only one backend or language, such as the slabs of
-  typed Go values, has no effect on another, and naming it is not an error.
+- **The debugging flags change no generated file.** `-print-before`, `-print-after`, `-print-changed`,
+  `-verify-each`, `-stats`, `-time-passes` and `-print-pipeline` write diagnostics to standard error, or fail on an
+  internal error, and change neither the files nor the parser. `-opt-bisect-limit` changes the files: it skips
+  optional passes and generates once, which can keep rules that are otherwise left out, and the parser behaves the
+  same unless a skipped pass is wrong, which is what the flag finds.
 - **`-print-after`** takes the steps `elaborate` (the Core IR of each rule table as built), `plan` (for Go, the entry
   points of the program, and the route of a call of each rule and how the entry points reach it), `flowlower` (each function as
   the Code IR listing at the Flow stage, as lowered from Core IR), `flow-finish` (the same listing after the Flow stage of

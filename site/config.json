@@ -382,6 +382,7 @@
           "match": [
             "spec/runtime/observability.md",
             "spec/runtime/compiled-grammars.md",
+            "spec/runtime/optimization-settings.md",
             "spec/runtime/generated-parsers.md",
             "spec/runtime/schemas-and-queries.md",
             "spec/runtime/lint.md",
@@ -393,6 +394,7 @@
           "first": [
             "spec/runtime/observability.md",
             "spec/runtime/compiled-grammars.md",
+            "spec/runtime/optimization-settings.md",
             "spec/runtime/generated-parsers.md",
             "spec/runtime/schemas-and-queries.md",
             "spec/runtime/lint.md",

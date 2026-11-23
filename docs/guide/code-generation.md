@@ -304,7 +304,7 @@ whole library for the grammars of the repository.
 
 ### Optimizations
 
-The generator optimizes what it emits. The optimization settings belong to the compilation and are the same for every backend; the contract of the optimization settings (the order in which they apply, their values, and the guarantee that none changes what a parser returns) is in [Optimization Settings](../../spec/runtime/generated-parsers.md#optimization-settings); this section lists the optimizations. Each optimization is a flag with a name. A profile is a preset: a name for fixed
+The generator optimizes what it emits. The optimization settings belong to the compilation and are the same for every backend; the contract of the optimization settings (the order in which they apply, their values, and the guarantee that none changes what a parser returns) is in [Optimization Settings](../../spec/runtime/optimization-settings.md); this section lists the optimizations. Each optimization is a flag with a name. A profile is a preset: a name for fixed
 values of flags, with no logic of its own. The `speed` profile, the default, has every flag on except the opt-ins named
 below (`ts-literal-sharing` and `class-tables`). `-opt` sets a flag, and `-no-opt` turns flags off after the profile and `-opt` are applied, so `-no-opt` wins.
 A flag keeps what the parser returns, the same results, errors and events, and changes the code, the speed and the size.

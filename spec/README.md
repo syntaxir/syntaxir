@@ -15,7 +15,7 @@ they link to nothing else.
 | Specification | Defines |
 |:--|:--|
 | [Grammar Language](language/README.md) | The syntax and meaning of `.sxir` grammar files: lexical structure, types, rule expressions, Operators Rules, predicates, actions, attributes, pragmas and the checks the compiler applies |
-| [Parser and Runtime](runtime/README.md) | Parsing input with a grammar: positions, results, errors, the node model, Documents, streaming, tracing and profiling, compiled grammars, generated parsers, output schemas, the linter, input generation, edit fuzzing and the Go packages |
+| [Parser and Runtime](runtime/README.md) | Parsing input with a grammar: positions, results, errors, the node model, Documents, streaming, tracing and profiling, compiled grammars, optimization settings, generated parsers, output schemas, the linter, input generation, edit fuzzing and the Go packages |
 | [Core IR](core-ir/README.md) | The intermediate representation of a checked grammar: its modules, nodes, action expressions, effects, invariants and text form |
 | [Code IR](code-ir/README.md) | The base of the form that a grammar is compiled to: modules, functions of structured code, dialects and stages, invariants and text form |
 | [Flow Dialect](flow-ir/README.md) | The operations that say how a parser runs a rule, at the Flow stage of Code IR: functions, operations, invariants and passes |

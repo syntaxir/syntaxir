@@ -298,6 +298,10 @@ the expected outcome and goldens: the suite field `"equivalence": true` enables 
 outcome, whether a runtime error occurred, the node, the root span and the syntax-error locations; the report lists
 the fields that differ. `-update` compares one backend only, so it cannot be combined with `-equivalence`. The suite may select a `start` rule (by default, the grammar's default start rule) and a `unit` (`codepoints` or `bytes`). Expectations
 may additionally include node JSON, root `start`/`end` positions, and ordered syntax-error locations.
+`-optimize`, `-opt` and `-no-opt` compile the suite's grammar under other [optimization
+settings](../../spec/runtime/optimization-settings.md), as `sxir gen` takes them; since no setting changes what a parser
+returns, a suite that passes under the default passes under every setting, and running it with an optimization off
+checks that optimization.
 
 To refresh observed node and location goldens for one backend, select it explicitly:
 

@@ -714,7 +714,7 @@ func TestNavigation(t *testing.T) {
 	for _, tc := range []struct{ page, label, nav string }{
 		{"docs/tutorial/structured-input", "Lesson 2 of 10", "2. Parsing Structured Input"},
 		{"spec/language/parser-expressions", "Chapter 5", "5. Rule Expressions"},
-		{"spec/runtime/lint", "Chapter 9", "9. Grammar Lint"},
+		{"spec/runtime/lint", "Chapter 10", "10. Grammar Lint"},
 		{"spec/core-ir/invariants", "Chapter 5", "5. Invariants"},
 		{"spec/flow-ir/invariants", "Chapter 3", "3. Invariants"},
 		{"spec/exec-ir/lowering", "Chapter 7", "7. Lowering From the Flow Stage"},
