@@ -23,8 +23,8 @@ import (
 // first may leave no result in the memo. So a parse, a recognition and the first parse of a Document,
 // for each case of codegentest.StorePolicyCases, evaluate the rule at least as often as a memo
 // storing every first call and at most as often as one deferring each. The stream cases are left out:
-// the stream oracle (TestStreamOracle) compares the compute units of TypeScript streams, which follow
-// their evaluations, with the engine's.
+// TestStreamOracleStorePolicy compares the compute units of TypeScript streams, which follow their
+// evaluations, with the engine's.
 func TestGeneratedTSStorePolicy(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {

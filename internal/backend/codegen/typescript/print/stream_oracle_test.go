@@ -539,6 +539,62 @@ func TestStreamOracle(t *testing.T) {
 	}
 }
 
+// storePolicyStreams returns the stream cases of the store policy (codegentest.StorePolicyCases), whose
+// start rule is renamed main, as the oracle starts streams there.
+func storePolicyStreams() []codegentest.StorePolicyCase {
+	var out []codegentest.StorePolicyCase
+	for _, c := range codegentest.StorePolicyCases() {
+		if c.Stream {
+			c.Src = strings.Replace(c.Src, "rule "+c.Start+" = ", "rule main = ", 1)
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// TestStreamOracleStorePolicy runs the stream cases of the store policy of "Evaluations of Rules" in
+// spec/runtime/parsing.md through the oracle: a stream memoizes a rule on its first call at a position,
+// as the engine's stream does, so its compute units, which count each evaluation of the rule's body,
+// are the engine's in every chunking, with and without a compute limit.
+func TestStreamOracleStorePolicy(t *testing.T) {
+	t.Parallel()
+	cases := storePolicyStreams()
+	if len(cases) == 0 {
+		t.Fatal("no stream cases of the store policy")
+	}
+	for _, c := range cases {
+		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
+			for _, d := range []streamOptions{{}, {Compute: 20}} {
+				for _, m := range streamOracleMismatches(t, c.Src, []string{c.Input, c.Input + c.Input[:1]}, d, nil) {
+					t.Error(m)
+				}
+			}
+		})
+	}
+}
+
+// TestStreamOracleStorePolicyMutant is the negative control of TestStreamOracleStorePolicy: a stream
+// that defers the memoization of a first call, as a parse of the whole input does, evaluates rules
+// that the engine's stream reuses.
+func TestStreamOracleStorePolicyMutant(t *testing.T) {
+	t.Parallel()
+	const old = "export class StreamParser extends Parser {\n  override readonly deferMemo: boolean = false;"
+	mutate := func(src string) string {
+		if n := strings.Count(src, old); n != 1 {
+			t.Fatalf("the parser has %d occurrences of %q, want 1", n, old)
+		}
+		return strings.Replace(src, old, "export class StreamParser extends Parser {\n  override readonly deferMemo: boolean = true;", 1)
+	}
+	found := 0
+	for _, c := range storePolicyStreams() {
+		found += len(streamOracleMismatches(t, c.Src, []string{c.Input}, streamOptions{}, mutate))
+	}
+	if found == 0 {
+		t.Error("a stream that defers first calls matches the engine on every store-policy case")
+	}
+}
+
 // TestStreamOptions checks the options of a stream: it rejects the options of an observed parse and
 // invalid diagnostic options, and a parse of the whole input rejects the diagnostic options, which
 // only a stream takes.
