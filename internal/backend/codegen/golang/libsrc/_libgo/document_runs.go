@@ -14,8 +14,9 @@ import (
 // element, its positions, the input it examined, its expectations and its value. When the repetition
 // runs again, the printed compositions of the runs (call_exec.go, from internal/ir/code/exec/compose)
 // decide which recorded elements it reuses, as they decide it for the engine, so that both reuse the
-// same elements and count the same units. The values of the node runtime are nodes and basic values
-// (term and action values are nil, int, string, bool or a node), so every recorded value can move.
+// same elements and count the same units. A recorded value is nil or a node of the value model, whose
+// kinds are the string, tuple, list and error nodes of the grammar and the struct, tuple, list and
+// basic values that an action builds (such as an int or a bool), so every recorded value can move.
 
 // runKey is a repetition site and the position of a run of it.
 type runKey struct{ site, start int }
