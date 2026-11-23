@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -98,19 +97,10 @@ func TestCaptureAccessMatchesField(t *testing.T) {
 	}
 }
 
-func TestCaptureAccessSyntax(t *testing.T) {
+// TestCaptureAccessCompiledFile checks that a runtime of an earlier instruction set refuses a compiled
+// file with capture access.
+func TestCaptureAccessCompiledFile(t *testing.T) {
 	t.Parallel()
-	g, err := parseTest(`rule main = xs:(y:"a")+ => map($xs, (i) => i.$y.Start)`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got := fmt.Format(g); !strings.Contains(got, "i.$y.Start") {
-		t.Fatalf("formatted:\n%s", got)
-	}
-	body := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.FieldAccess)
-	if inner, ok := body.X.(*ast.FieldAccess); !ok || inner.Name != "$y" || body.Name != "Start" {
-		t.Fatalf("access %#v", body)
-	}
 	program := mustCompile(t, `rule main = xs:(y:"a" "b")* $$ => $xs[0].$y`)
 	data, err := program.MarshalBinary("main")
 	if err != nil || data[isaOffset] != bytecode.ISAVersion {

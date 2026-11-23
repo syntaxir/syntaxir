@@ -1,4 +1,4 @@
-package engine_test
+package fmt_test
 
 import (
 	"fmt"
@@ -11,6 +11,9 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
+// TestFormatNativeMinimumRoundTrip checks that the formatted minimum native integer, alone and in
+// arithmetic, parses back to the same text and computes the same value on every backend, from the
+// grammar, its JSON AST and its formatted source, compiled and loaded.
 func TestFormatNativeMinimumRoundTrip(t *testing.T) {
 	max := int(^uint(0) >> 1)
 	minimum := &ast.IntLit{Value: -max - 1}

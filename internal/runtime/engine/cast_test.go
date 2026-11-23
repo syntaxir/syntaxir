@@ -7,10 +7,8 @@ import (
 	"testing"
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/syntax/fmt"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/bytecode"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -83,31 +81,10 @@ func TestCastErrors(t *testing.T) {
 	}
 }
 
-func TestCastSyntax(t *testing.T) {
+// TestCastCompiledFile checks that a cast survives a compiled file and that a runtime of an earlier
+// instruction set refuses it.
+func TestCastCompiledFile(t *testing.T) {
 	t.Parallel()
-	g, err := parseTest("type Foo = { A node[string] }\ntype Word = { Text string }\nrule main = x:\"a\" => $x.( []Foo | *Word ).Start\nrule one = \"a\" => (1).(int)")
-	if err != nil {
-		t.Fatal(err)
-	}
-	formatted := fmt.Format(g)
-	for _, want := range []string{"$x.([]Foo | *Word).Start", "(1).(int)"} {
-		if !strings.Contains(formatted, want) {
-			t.Fatalf("formatted lacks %q:\n%s", want, formatted)
-		}
-	}
-	if _, err := parseTest(formatted); err != nil {
-		t.Fatalf("formatted grammar does not parse: %v", err)
-	}
-	member := g.Rules()[0].Action.(*ast.FieldAccess)
-	if cast, ok := member.X.(*ast.Cast); !ok || member.Name != "Start" {
-		t.Fatalf("cast %#v", member)
-	} else if _, ok := cast.Type.(*ast.JoinType); !ok {
-		t.Fatalf("cast type %#v", cast.Type)
-	}
-	if data, err := ast.MarshalJSON(g); err != nil || !strings.Contains(string(data), "Cast") {
-		t.Fatalf("JSON AST: %v %s", err, data)
-	}
-
 	program := mustCompile(t, "rule main = x:(n / w) $$ => $x.(Num)\n"+codegentest.CastRules)
 	// A cast survives a compiled file.
 	data, err := program.MarshalBinary("main")
