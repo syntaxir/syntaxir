@@ -7,7 +7,7 @@
 //	sxir fmt [-w] [-l] [-check] [-syntax] [grammar.sxir ...]
 //	sxir convert [-to sxir|json] [-o output] grammar.sxir|grammar.json
 //	sxir gen -g grammar.sxir -module path -o dir [-pkg name] [-lib embed|import|only] [-s main] [-types] [-document] [-stream] [-recognize] [-observability] [-no-limits] [-typed-only] [-recognize-only] [-nodoc] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
-//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-observability] [-no-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
+//	sxir gen -lang ts -g grammar.sxir -o dir [-lib embed|import|only] [-lib-module specifier] [-s main] [-types] [-recognize] [-recognize-only] [-observability] [-no-limits] [-max-depth n] [-source-info] [-default-value] [-expectations] [-optimize profile] [-opt names] [-no-opt names] [-print-before passes] [-print-after passes] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit n] [-print-pipeline]
 //	sxir gen -lang go,ts -g grammar.sxir -o dir [-go.o dir] [-ts.o dir] [-go.flag value] [-ts.flag value] [flags of both targets]
 //	sxir compile -g grammar.sxir [-s main] [-mode parse|recognize|document] [-source-info] [-default-value] [-optimize profile] [-opt names] [-no-opt names] -o grammar.sxirc
 //	sxir trace -g grammar.sxir [-s main] [-i input] [-show-depth n] [-rule name] [-failures] [-f text|json] [-optimize profile] [-opt names] [-no-opt names] [-max-compute n] [-max-memory n] [-max-input n] [-max-depth n]
@@ -92,7 +92,7 @@ Commands:
         [-time-passes] [-opt-bisect-limit <n>] [-print-pipeline]
   gen -lib only -o <dir>
   gen -lang ts -g <grammar> -o <dir> [-lib embed|import|only] [-lib-module <specifier>] [-s <rule>] [-types]
-        [-recognize] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value]
+        [-recognize] [-recognize-only] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value]
         [-expectations] [-optimize <profile>] [-opt <names>] [-no-opt <names>]
         [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats]
         [-time-passes] [-opt-bisect-limit <n>] [-print-pipeline]
@@ -155,11 +155,12 @@ Commands:
       siblings), without Parse and ParseRule. It needs -types and cannot be
       combined with -document, -stream or -lang ts. -recognize-only generates
       only Recognize, without Parse, ParseRule or typed entry points; it
-      cannot be combined with -types, -typed-only, -document, -stream or
-      -lang ts. With -recognize, Recognize (recognize in TypeScript) checks
+      cannot be combined with -types, -typed-only, -document or -stream.
+      With -recognize, Recognize (recognize in TypeScript) checks
       input without building a tree.
       -nodoc leaves out the package comment
-      of the Go code, for a package documented in another file. -max-depth
+      of the Go code, for a package documented in another file; TypeScript
+      output has no package comment, so it is rejected with -lang ts. -max-depth
       sets the generated default nested recursive rule-call limit (0 selects 100000).
       -source-info makes the parser record the rule of each node and the
       names of captures. -default-value drops value actions and declared
@@ -811,7 +812,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	fs.String("charge-units", "", "")
 	fs.Bool("no-limits", false, "generate the ordinary form of the parser, without limit controls: it is smaller and faster, and a parse that passes a context, a compute report or a finite Compute or Memory limit (in TypeScript a signal, a computeReport or a finite compute or memory limit) fails")
 	fs.Bool("typed-only", false, "generate only the typed entry points (ParseValue and siblings), without Parse, ParseRule and Recognize (needs -types)")
-	fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (Go only; not with -types, -typed-only, -document or -stream)")
+	fs.Bool("recognize-only", false, "generate only Recognize, without Parse, ParseRule or typed entry points (not with -types, -typed-only, -document or -stream)")
 	fs.Bool("recognize", false, "also generate Recognize, which checks input without building a tree")
 	fs.Int("max-depth", 0, "generated default nested recursive rule-call limit (0 selects 100000)")
 	fs.Bool("nodoc", false, "leave out the package comment (Go)")
@@ -852,7 +853,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	// The flags of one language apply to it when it is listed with others; the flags that a listed
 	// language does not support are errors that name their qualified form.
 	if several {
-		for _, name := range []string{"stream", "typed-only", "recognize-only"} {
+		for _, name := range []string{"stream", "typed-only"} {
 			if isFlagSet(fs, name) {
 				return fmt.Errorf("-%s is not supported with -lang ts; use -go.%s for the Go target", name, name)
 			}
@@ -954,7 +955,7 @@ func genCmd(args []string, stdout io.Writer) error {
 var genLangFlags = map[string][]string{
 	"go": {"o", "lib", "types", "document", "stream", "observability", "expectations", "charge-units", "no-limits",
 		"typed-only", "recognize-only", "recognize", "max-depth", "module", "pkg", "nodoc"},
-	"ts": {"o", "lib", "types", "document", "observability", "expectations", "no-limits", "recognize", "max-depth", "lib-module"},
+	"ts": {"o", "lib", "types", "document", "observability", "expectations", "no-limits", "recognize", "recognize-only", "max-depth", "lib-module"},
 }
 
 // qualify defines the flag -<lang>.<name> of fs, of the type and default of the flag -name.
@@ -1019,8 +1020,10 @@ func (t genTarget) set(fs *flag.FlagSet, name string) bool {
 func (t genTarget) check(fs *flag.FlagSet, several bool) error {
 	switch {
 	case several:
-	case t.lang == "ts" && (isFlagSet(fs, "pkg") || isFlagSet(fs, "module") || isFlagSet(fs, "nodoc") || isFlagSet(fs, "stream") || isFlagSet(fs, "typed-only") || isFlagSet(fs, "recognize-only")):
-		return fmt.Errorf("-pkg, -module, -nodoc, -stream, -typed-only and -recognize-only are not supported with -lang ts")
+	case t.lang == "ts" && isFlagSet(fs, "nodoc"):
+		return fmt.Errorf("-nodoc leaves out the package comment of Go code; TypeScript output has no package comment, so -nodoc is not supported with -lang ts")
+	case t.lang == "ts" && (isFlagSet(fs, "pkg") || isFlagSet(fs, "module") || isFlagSet(fs, "stream") || isFlagSet(fs, "typed-only")):
+		return fmt.Errorf("-pkg, -module, -stream and -typed-only are not supported with -lang ts")
 	case t.lang == "go" && t.str("lib-module") != "":
 		return fmt.Errorf("-lib-module is only supported with -lang ts")
 	}
@@ -1058,7 +1061,7 @@ func (t genTarget) check(fs *flag.FlagSet, several bool) error {
 	case "ts":
 		switch t.mode {
 		case libOnly:
-			for _, name := range []string{"g", "s", "types", "observability", "no-limits", "recognize", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
+			for _, name := range []string{"g", "s", "types", "observability", "no-limits", "recognize", "recognize-only", "max-depth", "source-info", "default-value", "lib-module", "optimize", "opt", "no-opt", "print-before", "print-after", "print-changed", "verify-each", "stats", "time-passes", "opt-bisect-limit", "print-pipeline"} {
 				if t.set(fs, name) {
 					return fmt.Errorf("-%s cannot be combined with -lib only, which writes just the library", name)
 				}
@@ -1093,6 +1096,7 @@ func (t genTarget) config() (compiler.Target, error) {
 			NoLimitControls: t.on("no-limits"),
 			Expectations:    t.on("expectations"),
 			Recognize:       t.on("recognize"),
+			RecognizeOnly:   t.on("recognize-only"),
 			Document:        t.on("document"),
 			MaxDepth:        t.v("max-depth").(int),
 		}, nil

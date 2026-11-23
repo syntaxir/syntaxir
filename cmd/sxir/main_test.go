@@ -375,8 +375,8 @@ func TestGen(t *testing.T) {
 	if _, err := runGenGo(t, "-g", g, "-pkg", "kv", "-recognize-only", "-types"); err == nil || !strings.Contains(err.Error(), "recognize-only") {
 		t.Errorf("-recognize-only with -types: error %v", err)
 	}
-	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-g", g, "-recognize-only"); err == nil || !strings.Contains(err.Error(), "-recognize-only") {
-		t.Errorf("-recognize-only with -lang ts: error %v", err)
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-g", g, "-o", t.TempDir(), "-recognize-only", "-types"); err == nil || !strings.Contains(err.Error(), "recognize-only") {
+		t.Errorf("-recognize-only with -types and -lang ts: error %v", err)
 	}
 	if !strings.Contains(out, "// Package kv is a parser generated from a SyntaxIR grammar.") {
 		t.Error("no package comment")

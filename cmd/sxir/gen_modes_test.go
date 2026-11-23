@@ -443,3 +443,27 @@ func TestGenIsReproducible(t *testing.T) {
 		}
 	}
 }
+
+// TestGenTypeScriptRecognizeOnly checks that -recognize-only generates a TypeScript parser with
+// recognize alone, and that the flags it does not take are refused with the TypeScript refusal.
+func TestGenTypeScriptRecognizeOnly(t *testing.T) {
+	g := writeFile(t, "kv.sxir", kv)
+	dir := t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", dir, "-g", g, "-recognize-only"); err != nil {
+		t.Fatal(err)
+	}
+	data := readTS(t, dir, "parser.ts")
+	if !strings.Contains(data, "export function recognize(") {
+		t.Fatalf("recognize-only parser has no recognize:\n%.400s", data)
+	}
+	for _, entry := range []string{"export function parse(", "export function parseRule(", "export function parseWithOptions(", "export function parseRuleWithOptions("} {
+		if strings.Contains(data, entry) {
+			t.Errorf("recognize-only parser has %s", entry)
+		}
+	}
+	for _, args := range [][]string{{"-types"}, {"-document"}, {"-stream"}, {"-nodoc"}, {"-pkg", "p"}} {
+		if _, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", t.TempDir(), "-g", g, "-recognize-only"}, args...)...); err == nil {
+			t.Errorf("-recognize-only with %v: no error", args)
+		}
+	}
+}

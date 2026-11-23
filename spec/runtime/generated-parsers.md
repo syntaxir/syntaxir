@@ -34,7 +34,7 @@ where `<version>` names the generator: a release tag (`v0.1.0`) for a release, a
 ```text
 sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package>]
          [-lib embed|import|only] [-s <rule>] [-o <path>]
-         [-types] [-document] [-stream] [-recognize] [-expectations] [-observability]
+         [-types] [-document] [-stream] [-recognize] [-recognize-only] [-expectations] [-observability]
          [-source-info] [-default-value] [-nodoc] [-max-depth <n>]
          [-optimize <profile>] [-opt <name[=count],...>] [-no-opt <name,...>]
          [-print-before <pass,...>] [-print-after <pass,...>] [-print-changed] [-verify-each]
@@ -55,6 +55,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 | `-document` | `Document` | Generate the `Document` (`createDocument` in TypeScript) |
 | `-stream` | `Stream` | Generate `ParseStream` (Go only; the start rule MUST contain a `#stream` repetition) |
 | `-recognize` | `Recognize` | Generate recognition without a tree |
+| `-recognize-only` | `RecognizeOnly` | Go and TypeScript. Generate only recognition: no `Parse`, `ParseRule` or typed entry point (TypeScript: no `parse`, `parseRule`, `parseWithOptions` or `parseRuleWithOptions`). The parser is the smallest one that checks input. Rejected with `-types`, `-typed-only`, `-document` and `-stream` |
 | `-typed-only` | `TypedOnly` | Go only; needs `-types`. Generate only the typed entry points (`ParseValue`, `ParseRuleValue` and their options); there is no `Parse`, `ParseRule` or `Recognize`. Rejected with `-recognize`, `-document`, `-stream` and `-lang ts`. A typed entry point that converts the Node of its rule keeps the unexported Node rule functions it runs |
 | `-expectations` | `Expectations` | Let a parse [record expectations](parsing.md#recording-expectations): what a syntax error expects and the messages of `@error`. The parser then has the table of expectations and a parse option `WithExpectations` (Go) or `expectations` (TypeScript); a parse records only when it passes the option, and otherwise a syntax error has the farthest position, an empty `Expected`, no `Messages` and the message `syntax error`. Without the flag the parser has no table and no option. A `Document` fixes the choice when it is created. It applies to every entry point, including the typed, `Document` and stream forms |
 | `-observability` | `Observability` | Generate tracing and profiling, specified in [Observability](observability.md) |
@@ -70,7 +71,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 | `-stats` | `Stats` of `compiler.Debug` | Writes the statistics of the passes to standard error after the build. Rejected with `-lib only` |
 | `-time-passes` | `TimePasses` of `compiler.Debug` | Writes the times of the passes to standard error after the build. Rejected with `-lib only` |
 | `-opt-bisect-limit` | `OptBisectLimit` of `compiler.Debug` (nil: no limit) | Runs only the runs of optional passes numbered up to the count, skips the later ones and writes each decision to standard error; generates once. Rejected with `-lib only` |
-| `-nodoc` | `OmitPackageDoc` | Omit the package comment (Go only; rejected with `-lang ts`) |
+| `-nodoc` | `OmitPackageDoc` | Omit the package comment (Go only: TypeScript output has no package comment, so `-lang ts` rejects it) |
 | `-max-depth` | `MaxDepth` | The default nested recursive rule-call limit; zero selects 100,000, a positive value overrides it, a negative value fails generation. TypeScript also requires a safe integer |
 
 - The output is deterministic: generating twice yields identical bytes for the same grammar, options and

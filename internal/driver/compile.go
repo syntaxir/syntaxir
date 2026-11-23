@@ -400,7 +400,17 @@ func decide(p *Program, t Target, withOrigin bool) (target, error) {
 			return target{}, err
 		}
 		t.Gen = opts
-		return target{t: t, target: tsbackend.NewTarget(p.checked(), p.recognizer, p.Start(), opts, t.TSHooks)}, nil
+		prog, start, recognizer := p.checked(), p.Start(), p.recognizer
+		if opts.RecognizeOnly {
+			// A recognize-only parser is the recognizer of the program: the program in which no rule
+			// builds a value, printed as the parser of its start rule.
+			rec, err := p.recognizer()
+			if err != nil {
+				return target{}, err
+			}
+			prog, start, recognizer = rec, rec.View.ByName[start.Name], nil
+		}
+		return target{t: t, target: tsbackend.NewTarget(prog, recognizer, start, opts, t.TSHooks)}, nil
 	case result.VM:
 		if err := runTimeGen(t); err != nil {
 			return target{}, err

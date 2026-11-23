@@ -261,7 +261,7 @@ writes no output. To save another mode, compile the grammar source.
 
 ```bash
 sxir gen -g <grammar> -module <import path> [-pkg <package>] [-lib embed|import|only] [-s <rule>] [-o <directory>] [-types] [-document] [-stream] [-recognize] [-typed-only] [-recognize-only] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-nodoc] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-recognize-only] [-expectations] [-observability] [-no-limits] [-max-depth <n>] [-source-info] [-default-value] [-optimize <profile>] [-opt <name[=count]>] [-no-opt <names>] [-print-before <passes>] [-print-after <passes>] [-print-changed] [-verify-each] [-stats] [-time-passes] [-opt-bisect-limit <n>]
 sxir gen -lang go,ts -g <grammar> -o <directory> [-go.o <directory>] [-ts.o <directory>] [-go.<flag> <value>] [-ts.<flag> <value>] [the flags above]
 ```
 
@@ -299,7 +299,7 @@ With several languages, `-o` is a parent directory, and each language writes to 
 of the generated code, such as `-types` or `-lib`, applies to every listed language, and its qualified form
 (`-go.types`, `-ts.lib`) applies to one language and wins over the unqualified flag. `-module`, `-pkg` and `-nodoc` apply
 to Go and `-lib-module` to TypeScript. A flag that a listed language does not support is an error naming its qualified
-form: `-stream`, `-typed-only` and `-recognize-only` with `ts` listed must be written `-go.stream` and so on. The files
+form: `-stream` and `-typed-only` with `ts` listed must be written `-go.stream` and so on. The files
 of each language equal those of a run with that language alone, and when any target fails, for example because its
 directory holds a file that `sxir gen` did not generate, no target writes a file. `-lib only` with several languages
 writes the library of each.

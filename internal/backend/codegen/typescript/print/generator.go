@@ -62,6 +62,13 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 	if opts.Stream {
 		return opts, fmt.Errorf("stream generation is only supported for Go")
 	}
+	if opts.RecognizeOnly {
+		switch {
+		case opts.Types || opts.TypedOnly || opts.Document:
+			return opts, fmt.Errorf("recognize-only output generates only Recognize: it cannot have typed output, typed-only output or a Document")
+		}
+		opts.Recognize = true
+	}
 	if opts.TypedOnly {
 		return opts, fmt.Errorf("typed-only generation is only supported for Go")
 	}
@@ -80,7 +87,7 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 // newGenerator returns the generator of the TypeScript parser of prog with the options opts, which
 // prints the rules that live holds, starting with the Node table.
 func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *Generator {
-	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}}
+	tsg := &Generator{Generator: common.Generator{Prog: prog, Table: "rules", Observability: opts.Observability, Document: opts.Document}, plainUsed: map[*common.Rule]bool{}, live: live, printed: map[string]map[int][]int{}, recognizeOnly: opts.RecognizeOnly}
 	// Limit controls count logical compute units (spec/runtime/parsing.md, Compute Units) in every
 	// form of the functions, a Document's included: no form charges a budget.
 	tsg.limits = !opts.NoLimitControls
@@ -130,22 +137,24 @@ func (tsg *Generator) print(opts common.GenOptions, rec *common.Program, start *
 	out.WriteString(" * A string is parsed as its UTF-8 encoding would be (lone surrogates as U+FFFD), and bytes are\n")
 	out.WriteString(" * decoded as UTF-8 (invalid sequences as U+FFFD, one per byte). If the parse recovered from errors\n")
 	out.WriteString(" * with #recover, the result has both the node and SyntaxErrors.\n */\n")
-	// With limit controls every parse is controlled: the entry points without options use the default
-	// compute limit of the input, as parseWithOptions does with no limits.
-	parseBody, ruleBody := fmt.Sprintf("run(G, R%d, nseen, input, unit)", start.ID), "run(G, r, nseen, input, unit)"
-	if !opts.NoLimitControls {
-		parseBody, ruleBody = "parseWithOptions(input, { unit: unit ?? CodePoints })", "parseRuleWithOptions(name, input, { unit: unit ?? CodePoints })"
-	}
-	fmt.Fprintf(&out, "export function parse(input: string | Uint8Array, unit?: Unit): ParseResult {\n  return %s;\n}\n\n", parseBody)
-	if !opts.NoLimitControls {
-		fmt.Fprintf(&out, `/** Parses the whole input with the start rule name, a rule marked @start; "" selects the default start rule. */
+	// A recognize-only parser has no parse entry points: it prints Recognize alone.
+	if !tsg.recognizeOnly {
+		// With limit controls every parse is controlled: the entry points without options use the default
+		// compute limit of the input, as parseWithOptions does with no limits.
+		parseBody, ruleBody := fmt.Sprintf("run(G, R%d, nseen, input, unit)", start.ID), "run(G, r, nseen, input, unit)"
+		if !opts.NoLimitControls {
+			parseBody, ruleBody = "parseWithOptions(input, { unit: unit ?? CodePoints })", "parseRuleWithOptions(name, input, { unit: unit ?? CodePoints })"
+		}
+		fmt.Fprintf(&out, "export function parse(input: string | Uint8Array, unit?: Unit): ParseResult {\n  return %s;\n}\n\n", parseBody)
+		if !opts.NoLimitControls {
+			fmt.Fprintf(&out, `/** Parses the whole input with the start rule name, a rule marked @start; "" selects the default start rule. */
 export function parseRule(name: string, input: string | Uint8Array, unit?: Unit): ParseResult {
   return %s;
 }
 
 `, ruleBody)
-	} else {
-		fmt.Fprintf(&out, `/** Parses the whole input with the start rule name, a rule marked @start; "" selects the default start rule. */
+		} else {
+			fmt.Fprintf(&out, `/** Parses the whole input with the start rule name, a rule marked @start; "" selects the default start rule. */
 export function parseRule(name: string, input: string | Uint8Array, unit?: Unit): ParseResult {
   const r = startIn(rules, ruleNames, starts, defaultStart, name);
   if (r instanceof Error) return { node: null, error: r };
@@ -153,18 +162,21 @@ export function parseRule(name: string, input: string | Uint8Array, unit?: Unit)
 }
 
 `, ruleBody)
+		}
 	}
-	if rec != nil {
+	if rec != nil || tsg.recognizeOnly {
+		ref, seen := tsg.recognizerEntry(rec, start)
 		fmt.Fprintf(&out, "/**\n * Checks that the whole input matches the rule %s without building a tree, and returns the syntax\n", start.Name)
 		out.WriteString(" * error parse would return (SyntaxErrors for errors recovered with #recover), or null. Actions needed by\n")
 		out.WriteString(" * predicates are evaluated and can report runtime errors; other actions are skipped.\n */\n")
-		recBody := fmt.Sprintf("run(G, Q%d, recNseen, input, unit).error", rec.ByName[start.Name].ID)
+		recBody := fmt.Sprintf("run(G, %s, %s, input, unit).error", ref, seen)
 		if !opts.NoLimitControls {
 			recBody = "recognizeWithOptions(input, { unit: unit ?? CodePoints })"
 		}
 		fmt.Fprintf(&out, "export function recognize(input: string | Uint8Array, unit?: Unit): Error | null {\n  return %s;\n}\n\n", recBody)
 	}
-	fmt.Fprintf(&out, `/** Parses with invocation-local position and depth options. */
+	if !tsg.recognizeOnly {
+		fmt.Fprintf(&out, `/** Parses with invocation-local position and depth options. */
 export function parseWithOptions(input: string | Uint8Array, options?: %[1]s): ParseResult {
   const o = resolveOptions(G, options, input);
   if (o instanceof Error) return { node: null, error: o };
@@ -181,15 +193,17 @@ export function parseRuleWithOptions(name: string, input: string | Uint8Array, o
 }
 
 `, tsg.optionsType, start.ID)
-	if rec != nil {
+	}
+	if rec != nil || tsg.recognizeOnly {
+		ref, seen := tsg.recognizerEntry(rec, start)
 		fmt.Fprintf(&out, `/** Recognizes with invocation-local options; predicate-dependent actions may run. */
 export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s): Error | null {
   const o = resolveOptions(G, options, input);
   if (o instanceof Error) return o;
-  return withObservedOptions<Error | null>(o, control => run(G, Q%[2]d, recNseen, input, o.unit, o.maxDepth, control, o).error, error => error);
+  return withObservedOptions<Error | null>(o, control => run(G, %[2]s, %[3]s, input, o.unit, o.maxDepth, control, o).error, error => error);
 }
 
-`, tsg.optionsType, rec.ByName[start.Name].ID)
+`, tsg.optionsType, ref, seen)
 	}
 	var types string
 	if opts.Types {
@@ -308,6 +322,9 @@ type Generator struct {
 	sparseMemo bool
 	// live holds the rules that a parse can enter (reach.go).
 	live *tsLive
+	// recognizeOnly is the option RecognizeOnly: the program printed is the recognizer itself, and
+	// the parser has no parse entry point.
+	recognizeOnly bool
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
 	// functions the printer prints; nil if its Core IR or its lowering failed (PrintErr).
 	table *plandata.Table[code.Exec]
@@ -356,6 +373,15 @@ func tsJoinCondition(parts []string, op string) string {
 	}
 	mid := len(parts) / 2
 	return "(" + tsJoinCondition(parts[:mid], op) + op + tsJoinCondition(parts[mid:], op) + ")"
+}
+
+// recognizerEntry returns the constant of the rule that Recognize runs and the seen count of its
+// table: the recognizer rec's rule of start, or, for a recognize-only parser, the rule of its own table.
+func (g *Generator) recognizerEntry(rec *common.Program, start *common.Rule) (ref, seen string) {
+	if g.recognizeOnly {
+		return fmt.Sprintf("R%d", start.ID), "nseen"
+	}
+	return fmt.Sprintf("Q%d", rec.ByName[start.Name].ID), "recNseen"
 }
 
 func (g *Generator) seenVar() string {
@@ -502,7 +528,7 @@ func (g *Generator) rules() {
 			fmt.Fprintf(init, "%s.opNodeType = %s;\n", g.ruleVar(r), TsString(r.OpNodeType))
 		}
 	}
-	if g.Table == "rules" {
+	if g.Table == "rules" && !g.recognizeOnly {
 		// The table and the start rules, for parseRule (the recognizer has none).
 		fmt.Fprintf(init, "const rules: Rule[] = [%s];\n", strings.Join(vars, ", "))
 		var names []string

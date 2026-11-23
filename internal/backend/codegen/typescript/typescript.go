@@ -54,7 +54,8 @@ type Target struct {
 func NewTarget(prog codegen.Checked, recognizer func() (codegen.Checked, error), start *common.Rule, opts common.GenOptions, hooks *print.Hooks) *Target {
 	t := &Target{Prog: prog, Start: start, Opts: opts, hooks: hooks}
 	t.rec = sync.OnceValues(func() (*codegen.Checked, error) {
-		if !opts.Recognize {
+		if !opts.Recognize || opts.RecognizeOnly {
+			// A recognize-only parser is the recognizer itself, the program it was given.
 			return nil, nil
 		}
 		rec, err := recognizer()
@@ -76,7 +77,7 @@ func (t *Target) Sources() ([]common.TableSource, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	s := []common.TableSource{{Build: flowplan.TableBuild(t.Prog.Elab, plandata.TableConfig{Values: true}), Key: "program", Origin: true}}
+	s := []common.TableSource{{Build: flowplan.TableBuild(t.Prog.Elab, plandata.TableConfig{Values: !t.Opts.RecognizeOnly}), Key: "program", Origin: true}}
 	if rec != nil {
 		s = append(s, common.TableSource{Build: flowplan.TableBuild(rec.Elab, plandata.TableConfig{}), Key: "recognizer", Origin: true})
 	}
@@ -116,7 +117,7 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		// A parser with limit controls counts logical compute units, with the exact guards
 		// (lowerdata.GuardsExact); a parser with Documents resumes the runs of its repetitions
 		// (lowerdata.Options.Resume).
-		cfg := plandata.TableConfig{Values: pr == prog, Logical: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document}
+		cfg := plandata.TableConfig{Values: pr == prog && !o.RecognizeOnly, Logical: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document}
 		u := plandata.Unit{Label: table, Table: table, Rules: make([]*plandata.Rule, len(all)), Prune: true, IR: flowplan.TableOf(mods[i], cfg)}
 		for j, r := range all {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)

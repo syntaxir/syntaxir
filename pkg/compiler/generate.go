@@ -209,6 +209,10 @@ type TSConfig struct {
 	// Recognize also generates recognize, which checks the input against the start rule without
 	// building a tree, like runtime.Parser.Recognize.
 	Recognize bool
+	// RecognizeOnly generates only recognize, which checks the input against the start rule: no
+	// parse, parseRule or typed entry point. The generated module is the smallest. It implies
+	// Recognize and cannot be combined with Types or Document.
+	RecognizeOnly bool
 	// Document also generates createDocument, which makes a mutable Document of the start rule:
 	// edit changes its text, and parse returns what parse of the whole current text returns, as
 	// the Go Document does. With Types, the Document also has parseValue.
@@ -248,6 +252,7 @@ func (c TSConfig) target(o options) (driver.Target, error) {
 		NoLimitControls: c.NoLimitControls,
 		Expectations:    c.Expectations,
 		Recognize:       c.Recognize,
+		RecognizeOnly:   c.RecognizeOnly,
 		Document:        c.Document,
 		MaxDepth:        c.MaxDepth,
 	})}, nil

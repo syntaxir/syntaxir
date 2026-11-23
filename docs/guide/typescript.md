@@ -127,7 +127,7 @@ prints for the same grammar and inputs.
 ## The Command
 
 ```bash
-sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-expectations] [-observability]
+sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|only] [-lib-module <specifier>] [-types] [-recognize] [-recognize-only] [-expectations] [-observability]
 ```
 
 | Flag | Default | Meaning |
@@ -140,11 +140,12 @@ sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|onl
 | `-lib-module` | (required with `-lib import`) | The module specifier `parser.ts` and `types.ts` import the library from, for example `../shared/lib.ts`. Several parsers share one library this way: generate it once with `-lib only` |
 | `-types` | off | Write `types.ts` with the grammar's interfaces and aliases (also exported from `parser.ts`), and add the configured-start `parseValue`/`parseValueWithOptions` |
 | `-recognize` | off | Also generate `recognize` and `recognizeWithOptions`, which check input without building a tree |
+| `-recognize-only` | off | Generate only `recognize` and `recognizeWithOptions`: no `parse`, `parseRule` or `parseWithOptions`, so the parser is the recognizer alone. It is rejected with `-types` and `-document` |
 | `-expectations` | off | Allow a parse to record what a syntax error expects: the `expected` list and the `messages` of `@error` (see [recording expectations](error-messages.md#recording-expectations)). A parse records only with `parseWithOptions(input, { expectations: true })`; otherwise the errors have the farthest position, an empty `expected` and `messages`, and the message `syntax error`. Without the flag the option is rejected |
 | `-observability` | off | Accept the trace and profile options (see [debugging](debugging.md#generated-typescript-traces)); without it they are rejected |
 | `-max-depth` | `0` | Generated nested rule-call default; zero selects 100,000, otherwise a positive safe integer |
 
-`-pkg` and `-nodoc` are for Go and are rejected with `-lang ts`. As for Go, the output is deterministic (generating
+`-pkg` is for Go, and `-nodoc` leaves out the Go package comment, which TypeScript output does not have: both are rejected with `-lang ts`. As for Go, the output is deterministic (generating
 twice gives identical files), and grammar errors are reported with positions before any file is written.
 
 The same generator is available from Go, in package `syntaxir.dev/sxir/pkg/compiler`, for build tools:
