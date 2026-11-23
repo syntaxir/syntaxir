@@ -1,6 +1,9 @@
 package flow
 
 import (
+	"fmt"
+	"strings"
+
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
@@ -37,6 +40,19 @@ func UncoveredReads(f *code.Func) []string {
 		c.block(f.Body, false)
 	}
 	return c.out
+}
+
+// VerifyDemands returns an error naming the reads of f without a dominating demand, if f is a function of a
+// suspended stream (Attrs.Suspend) and UncoveredReads finds any. It verifies a function after its passes, when
+// its forms are finished.
+func VerifyDemands(f *code.Func) error {
+	if a := AttrsOf(f); a == nil || !a.Suspend {
+		return nil
+	}
+	if reads := UncoveredReads(f); len(reads) > 0 {
+		return fmt.Errorf("flow: function %s reads its input with no dominating demand (flow.inputDemand): %s", f.Name, strings.Join(reads, " "))
+	}
+	return nil
 }
 
 func slicesContains(xs []string, x string) bool {

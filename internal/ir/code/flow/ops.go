@@ -676,6 +676,10 @@ type Attrs struct {
 	// function, which suspends where it demands input: it demands input (flow.inputDemand), or calls a
 	// resumable function of its table. flowplan.Resumable sets it; no other lowering does.
 	Resumable bool
+	// Suspend reports a function lowered for a suspended stream (lowerdata.Options.Suspend): each of its reads
+	// of the input is demanded on every path to it (flow.inputDemand), and the Flow passes keep that, or refuse
+	// the function (flowpass). VerifyDemands checks it after the passes.
+	Suspend bool
 	// Forms record the forms of the lowering that a Flow pass may replace, until flowpass.Finishing
 	// removes them.
 	Forms *Forms

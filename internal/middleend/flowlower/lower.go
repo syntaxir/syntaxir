@@ -137,7 +137,7 @@ func lowerFrameBody(m *core.Module, sites *core.ActionSites, tb *tables, r *core
 		return nil, fmt.Errorf("a body of rule %s is not lowered to a framed function", r.Name)
 	}
 	l := newLowerer(m, sites, tb, opts, name, &flow.Attrs{Rule: r.ID, Frame: true, Node: opts.Node, Document: opts.Document,
-		Traced: opts.Traced, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
+		Traced: opts.Traced, Suspend: opts.Suspend, Binds: n.Attrs().Eff.Set&core.EffBind != 0})
 	l.frame = true
 	l.stream = stream
 	l.top = n
@@ -173,6 +173,7 @@ func lowerFlat(m *core.Module, sites *core.ActionSites, tb *tables, r *core.Rule
 		Node:     opts.Node,
 		Document: opts.Document,
 		Traced:   opts.Traced,
+		Suspend:  opts.Suspend,
 		Binds:    r.Body.Attrs().Eff.Set&core.EffBind != 0})
 	core.Walk(r.Body, func(n core.Node) {
 		if _, ok := n.(*core.Cut); ok {

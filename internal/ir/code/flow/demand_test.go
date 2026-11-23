@@ -73,3 +73,21 @@ func TestUncoveredReadsCoverage(t *testing.T) {
 		})
 	}
 }
+
+// TestVerifyDemandsChecksSuspendedFunctions checks that VerifyDemands rejects a read without a demand in a
+// suspended function, and accepts the same read in a function that is not suspended, which has no demands.
+func TestVerifyDemandsChecksSuspendedFunctions(t *testing.T) {
+	body := func() *code.Block { return blk("", advance) }
+	bad := &code.Func{Name: "f", Body: body(), Attrs: &flow.Attrs{Suspend: true}}
+	if err := flow.VerifyDemands(bad); err == nil {
+		t.Error("a suspended function reads with no demand, and VerifyDemands accepted it")
+	}
+	ok := &code.Func{Name: "g", Body: blk("", demand, advance), Attrs: &flow.Attrs{Suspend: true}}
+	if err := flow.VerifyDemands(ok); err != nil {
+		t.Errorf("a demanded read is rejected: %v", err)
+	}
+	plain := &code.Func{Name: "h", Body: body(), Attrs: &flow.Attrs{}}
+	if err := flow.VerifyDemands(plain); err != nil {
+		t.Errorf("a function that is not suspended is checked: %v", err)
+	}
+}
