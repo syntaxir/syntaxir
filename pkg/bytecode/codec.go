@@ -50,13 +50,22 @@ func (w *Encoder) Str(s string) {
 
 // Finish writes the string table and the body to out and appends the checksum.
 func (w *Encoder) Finish(out *bytes.Buffer) {
+	w.writeTo(out)
+	out.Write(binary.LittleEndian.AppendUint32(nil, crc32.ChecksumIEEE(out.Bytes())))
+}
+
+// Part writes p, the encoder of a self-contained part of the file, to the body: the string table of
+// p and then its body, which references only that table (Decoder.Part reads it).
+func (w *Encoder) Part(p *Encoder) { p.writeTo(&w.Body) }
+
+// writeTo writes the string table and the body to out.
+func (w *Encoder) writeTo(out *bytes.Buffer) {
 	out.Write(binary.AppendUvarint(nil, uint64(len(w.List))))
 	for _, s := range w.List {
 		out.Write(binary.AppendUvarint(nil, uint64(len(s))))
 		out.WriteString(s)
 	}
 	out.Write(w.Body.Bytes())
-	out.Write(binary.LittleEndian.AppendUint32(nil, crc32.ChecksumIEEE(out.Bytes())))
 }
 
 // Decoder reads a compiled grammar. On invalid data it does not panic but records the first
@@ -165,4 +174,17 @@ func (r *Decoder) Strings() {
 		r.Strs = append(r.Strs, string(r.Data[r.Pos:r.Pos+l]))
 		r.Pos += l
 	}
+}
+
+// Part reads a self-contained part of the file that Encoder.Part wrote: its string table, then what
+// read reads with a decoder of that table. Reading continues after the part, and an error of the part
+// is the decoder's.
+func (r *Decoder) Part(read func(*Decoder)) {
+	if r.Err != nil {
+		return
+	}
+	p := &Decoder{Data: r.Data, Pos: r.Pos}
+	p.Strings()
+	read(p)
+	r.Pos, r.Err = p.Pos, p.Err
 }

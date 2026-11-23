@@ -59,8 +59,8 @@ grammar and input.
 Across both units, the recursive bytecode VM takes <!-- fig:bytecode-vs-closure -->1.13–1.35×<!-- /fig --> the time of the reference parser in the benchmarks and the
 iterative VM <!-- fig:iterative-vs-closure -->1.33–1.76×<!-- /fig -->; you pay that for portability (the same bytecode is specified for other runtimes in
 [bytecode.md](../../spec/bytecode/README.md)) and, for the iterative VM, for the independence from the Go stack. The
-reference parser keeps the grammar AST and closures for each rule, and it is the parser that inserts missing tokens
-(`runtime.WithMissingTokens`).
+reference parser keeps the grammar AST and closures for each rule. All three insert missing tokens
+(`runtime.WithMissingTokens`) with the same results, diagnostics and compute units.
 
 ### Deep Nesting and the Depth Limit
 

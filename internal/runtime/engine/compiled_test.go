@@ -226,6 +226,17 @@ func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
 			seeds = append(seeds, data)
 		}
 	}
+	// The grammars with #missing add their insertion modules, which the parses below run.
+	for _, c := range codegentest.InsertionCorpus() {
+		prog := mustCompile(t, c.Src)
+		for _, mode := range allModes {
+			data, err := prog.Marshal("main", mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			seeds = append(seeds, data)
+		}
+	}
 	var srcs []string
 	for _, c := range codegentest.GenCorpus(t) {
 		srcs = append(srcs, c.Src)
@@ -369,7 +380,7 @@ func corruptSeeds(t *testing.T, seeds [][]byte, rng *rand.Rand) {
 			if err == nil && start != "" && state.BudgetControlsEnabled {
 				for _, b := range []Backend{Default, Bytecode, BytecodeIterative} {
 					for _, mode := range allModes {
-						prog.ParseWith(start, "1+2", servedBy(mode, ParseOptions{Backend: b, Limits: runtime.Limits{Depth: 1000}}))
+						prog.ParseWith(start, "1+2", servedBy(mode, ParseOptions{Backend: b, MissingTokens: 2, Limits: runtime.Limits{Depth: 1000}}))
 					}
 				}
 			}

@@ -1,10 +1,13 @@
 package engine
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/bytecode"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -60,5 +63,67 @@ func TestBackendsMatchOnInsertion(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// TestCompiledInsertion checks that a compiled grammar with #missing carries the module that the
+// parses inserting missing tokens run, in each mode: the loaded program parses as the program it
+// was saved from on both VMs, with the same results, errors and compute units, with and without
+// insertion; it saves again to the same bytes; and a file whose insertion part is missing, or
+// present for a grammar without #missing, does not load.
+func TestCompiledInsertion(t *testing.T) {
+	t.Parallel()
+	for _, c := range codegentest.InsertionCorpus() {
+		t.Run(c.Name, func(t *testing.T) {
+			prog := mustCompile(t, c.Src)
+			for _, mode := range allModes {
+				data, err := prog.Marshal("main", mode)
+				if err != nil {
+					t.Fatalf("%s mode: %v", mode, err)
+				}
+				loaded, _, err := LoadProgram(data)
+				if err != nil {
+					t.Fatalf("%s mode: %v", mode, err)
+				}
+				if !loaded.HasMissing {
+					t.Errorf("%s mode: the loaded program has no #missing", mode)
+				}
+				if again, err := loaded.Marshal("main", mode); err != nil || !bytes.Equal(again, data) {
+					t.Errorf("%s mode: saved again, the data differs (%v)", mode, err)
+				}
+				for _, in := range c.Inputs {
+					for _, limit := range []int{0, 1, 2, 64} {
+						for _, b := range vmBackends {
+							run := func(p *Program) string {
+								var units uint64
+								n, err := p.ParseWith("main", in, servedBy(mode, ParseOptions{Backend: b, Expectations: true, MissingTokens: limit, ComputeReport: &units}))
+								return fmt.Sprintf("%s units=%d", codegentest.ResultJSON(n, err), units)
+							}
+							if want, got := run(prog), run(loaded); got != want {
+								t.Errorf("%s mode %v: input %q limit %d\n source %s\n loaded %s", mode, b, in, limit, want, got)
+							}
+						}
+					}
+				}
+			}
+		})
+	}
+	// The insertion module comes with #missing, and only with it.
+	withMissing, strict := mustCompile(t, `rule main = "a" ";" #missing`), mustCompile(t, `rule main = "a" ";"`)
+	ins, err := withMissing.insertionProgram()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []struct {
+		name    string
+		m, part *bytecode.Module
+	}{
+		{"a grammar with #missing without its insertion module", withMissing.Module(), nil},
+		{"a grammar without #missing with an insertion module", strict.Module(), ins.Module()},
+		{"an insertion module without #missing", withMissing.Module(), strict.Module()},
+	} {
+		if _, _, err := LoadProgram(encodeCompiled("main", CompiledParse, bad.m, bad.part)); err == nil || !strings.Contains(err.Error(), "insertion module") {
+			t.Errorf("%s: loaded (%v)", bad.name, err)
+		}
 	}
 }

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/statetest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -107,16 +108,30 @@ func TestMissingTokensInsertionOnlyLeftRecursionLimits(t *testing.T) {
 
 // TestMissingTokensInsertionOnlyLeftRecursionRejected checks that the entry points without
 // missing-token insertion keep rejecting a grammar whose left recursion exists only through an
-// insertion, and that the bytecode VMs parse it as the closure engine does with insertion off.
+// insertion, and that the bytecode VMs, and the compiled grammar loaded on them, parse it as the
+// closure engine does, with insertion off and on.
 func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, statetest.InsertionCycle)
+	data, err := prog.MarshalBinary("main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, _, err := LoadProgram(data)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, in := range []string{"y", "(yx", "x"} {
 		checkBackends(t, prog, "main", in)
-	}
-	for _, b := range []Backend{Bytecode, BytecodeIterative} {
-		if _, err := prog.ParseWith("main", "y", ParseOptions{Backend: b, MissingTokens: 1}); err == nil || !strings.Contains(err.Error(), "missing") {
-			t.Fatalf("backend %v: %v", b, err)
+		for _, limit := range []int{0, 1, 2} {
+			want := codegentest.ResultJSON(prog.ParseWith("main", in, ParseOptions{Backend: Closure, Expectations: true, MissingTokens: limit}))
+			for _, b := range vmBackends {
+				for _, p := range []*Program{prog, loaded} {
+					if got := codegentest.ResultJSON(p.ParseWith("main", in, ParseOptions{Backend: b, Expectations: true, MissingTokens: limit})); got != want {
+						t.Errorf("%q limit %d %v (loaded %t): %s, want %s", in, limit, b, p == loaded, got, want)
+					}
+				}
+			}
 		}
 	}
 	if err := prog.ParseStream("main", strings.NewReader("y"), func(*value.Node) error { return nil }); err == nil {
@@ -124,8 +139,5 @@ func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
 	}
 	if _, err := prog.NewDocument("main", "y"); err == nil {
 		t.Fatal("documents accepted the grammar")
-	}
-	if _, err := prog.MarshalBinary("main"); err == nil {
-		t.Fatal("saved the grammar as a compiled grammar")
 	}
 }

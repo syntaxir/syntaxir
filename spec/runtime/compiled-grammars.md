@@ -22,7 +22,10 @@ schema. The mode is chosen when the grammar is saved and recorded in the file.
 | `document` | `vm.CompiledDocument` | `NewDocument`; `Parse`, `ParsePrefix`, `ParseStream` and `Iterate` with `WithTrace` or `WithProfile` and without `Recognize`; `sxir trace`, `sxir profile` and `sxir explain` |
 
 A parse-mode and a document-mode file of the same grammar MAY hold the same
-module; a recognize-mode file holds the module of the grammar's recognizer.
+module; a recognize-mode file holds the module of the grammar's recognizer. A
+file of a grammar with [`#missing`](../language/pragmas.md#missing) also holds
+the module of its mode that the parses inserting missing tokens run, so a loaded
+parser inserts them as the parser it was saved from does.
 
 ## Contract
 
@@ -93,11 +96,11 @@ version.
 
 | Number | Current value | Meaning |
 |:--|--:|:--|
-| Format version | 8 | The outer frame of the file: its header and the order of its sections. A runtime loads only version 8 and refuses any other version |
+| Format version | 9 | The outer frame of the file: its header and the order of its sections. A runtime loads only version 9 and refuses any other version |
 | Instruction-set version | 41 | The encoding of the module's contents, its action code included. Every module declares it |
 
 - A runtime refuses a file of another format version with
-  `unsupported compiled grammar version N (want 8): compile the grammar again`.
+  `unsupported compiled grammar version N (want 9): compile the grammar again`.
 - A runtime refuses a module of an earlier instruction set, whose contents it does
   not decode. The error asks for the grammar to be compiled again. A file that requires a newer instruction set is refused with
   `unsupported instruction set version N`.
@@ -115,7 +118,8 @@ version.
 Loading checks the magic number, the format version, a CRC-32 checksum, the mode,
 the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
-rule of the module, and no bytes trail the module). It also rejects a recovery
+rule of the module, a grammar with `#missing` has its insertion module and only
+such a grammar has one, and no bytes trail the module). It also rejects a recovery
 region that encloses a streaming commitment, including files that were made with
 `#recover` on the `#stream` repetition, and a body with a cycle that passes
 through no step that requires progress and reuses no element of a run it leaves
@@ -142,7 +146,7 @@ is up to the program.
 | Message | Cause |
 |:--|:--|
 | `not a compiled SyntaxIR grammar` | The data does not start with the magic number |
-| `unsupported compiled grammar version N (want 8): compile the grammar again` | The format version is not 8 |
+| `unsupported compiled grammar version N (want 9): compile the grammar again` | The format version is not 9 |
 | `unsupported instruction set version N: the file was compiled by an older sxir; compile the grammar again` | The file was compiled for an earlier instruction set |
 | `unsupported instruction set version N` | The file requires a newer instruction set |
 | `invalid compiled grammar: checksum mismatch` | The file is truncated or changed |

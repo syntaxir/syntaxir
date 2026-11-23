@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"hash/crc32"
+	"slices"
 
 	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/vm"
@@ -13,21 +14,25 @@ import (
 )
 
 // The compiled grammar format (.sxirc), specified in the File format section of
-// spec/bytecode/README.md. A file holds one execution-only compile result: the module of one mode.
+// spec/bytecode/README.md. A file holds one execution-only compile result: the module of one mode,
+// and for a grammar with #missing the module of that mode that the parses inserting missing tokens
+// run (insertionProgram).
 //
 //	magic    "SXC\x00"
 //	version  1 byte (compiledVersion)
 //	mode     1 byte (CompiledMode)
-//	payload  instruction set version, string table, start rule, module
+//	payload  instruction set version, string table, start rule, module, insertion part
 //	crc32    CRC-32 of magic through payload (IEEE, 4 bytes little-endian)
 //
-// Integers are variable-length (signed ones zigzag-encoded), and strings are referenced by their
-// index in the string table, which begins with the module's string table. Loading skips parsing,
-// static analysis, type checking, and compilation to bytecode.
+// The insertion part is a boolean, then, if it is true, a string table of its own and the
+// insertion module. Integers are variable-length (signed ones zigzag-encoded), and strings are
+// referenced by their index in the string table that precedes them, which begins with the string
+// table of the module that follows it. Loading skips parsing, static analysis, type checking, and
+// compilation to bytecode.
 
 const (
 	compiledMagic   = bytecode.FileMagic
-	compiledVersion = 8
+	compiledVersion = 9
 )
 
 // CompiledMode is the mode of a compiled grammar file: the one kind of parse its module serves.
@@ -135,9 +140,6 @@ func (prog *Program) Marshal(start string, mode CompiledMode) ([]byte, error) {
 	if int(mode) >= len(compiledModeNames) {
 		return nil, fmt.Errorf("unknown compiled grammar mode %d", mode)
 	}
-	if prog.HasMissing {
-		return nil, program.MissingUnsupported("compiled grammar serialization")
-	}
 	if start != "" {
 		if err := prog.CheckStart(start); err != nil {
 			return nil, err
@@ -146,31 +148,66 @@ func (prog *Program) Marshal(start string, mode CompiledMode) ([]byte, error) {
 	if prog.loaded && mode != prog.mode {
 		return nil, fmt.Errorf("the compiled grammar is in %s mode and is saved only in that mode; compile the grammar from source to save it in %s mode", prog.mode, mode)
 	}
-	var m *bytecode.Module
-	switch {
-	case prog.loaded || mode != CompiledRecognize:
-		m = prog.Module()
-	default:
-		rec, err := prog.Recognizer()
+	m, err := prog.modeModule(mode)
+	if err != nil {
+		return nil, err
+	}
+	var ins *bytecode.Module
+	if prog.HasMissing {
+		p, err := prog.insertionProgram()
 		if err != nil {
 			return nil, err
 		}
-		m = rec.Module()
+		if ins, err = p.modeModule(mode); err != nil {
+			return nil, err
+		}
 	}
-	w := &bytecode.Encoder{Strs: map[string]int{}}
-	for i, s := range m.Strings { // put the module's string table first
-		w.Strs[s] = i
-		w.List = append(w.List, s)
-	}
+	return encodeCompiled(start, mode, m, ins), nil
+}
+
+// encodeCompiled returns the compiled grammar of mode with the start rule start, the module m and
+// the insertion module ins, or none if ins is nil.
+func encodeCompiled(start string, mode CompiledMode, m, ins *bytecode.Module) []byte {
+	w := moduleEncoder(m)
 	w.Str(start)
 	w.WriteModule(m)
+	w.Bool(ins != nil)
+	if ins != nil {
+		iw := moduleEncoder(ins)
+		iw.WriteModule(ins)
+		w.Part(iw)
+	}
 	var out bytes.Buffer
 	out.WriteString(compiledMagic)
 	out.WriteByte(compiledVersion)
 	out.WriteByte(byte(mode))
 	out.Write(binary.AppendUvarint(nil, uint64(m.InstructionSetVersion())))
 	w.Finish(&out)
-	return out.Bytes(), nil
+	return out.Bytes()
+}
+
+// modeModule returns the module of prog that serves the parses of mode: its own for a loaded
+// program, which is in that mode (Marshal), and its recognizer's for recognize mode.
+func (prog *Program) modeModule(mode CompiledMode) (*bytecode.Module, error) {
+	if prog.loaded || mode != CompiledRecognize {
+		return prog.Module(), nil
+	}
+	rec, err := prog.Recognizer()
+	if err != nil {
+		return nil, err
+	}
+	return rec.Module(), nil
+}
+
+// moduleEncoder returns an encoder whose string table begins with the string table of m, as a
+// module's strings must.
+func moduleEncoder(m *bytecode.Module) *bytecode.Encoder {
+	w := &bytecode.Encoder{Strs: map[string]int{}}
+	for i, s := range m.Strings {
+		w.Strs[s] = i
+		w.List = append(w.List, s)
+	}
+	return w
 }
 
 // LoadProgram loads a compiled grammar. It also returns the saved start rule (empty for the
@@ -203,28 +240,73 @@ func LoadProgram(data []byte) (*Program, string, error) {
 	r.Strings()
 	start := r.Str()
 	m := r.ReadModule()
+	var ins *bytecode.Module
+	if r.Bool() {
+		r.Part(func(p *bytecode.Decoder) { ins = p.ReadModule() })
+	}
 	if r.Err == nil && r.Pos != len(r.Data) {
 		r.Fail("%d trailing bytes", len(r.Data)-r.Pos)
 	}
 	if r.Err != nil {
 		return nil, "", r.Err
 	}
-	if err := program.ValidateModule(m); err != nil {
-		return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
-	}
-	actionExprs, err := vm.LoadActions(m)
+	prog, err := loadModule(m, mode)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
+		return nil, "", err
 	}
-	prog := moduleProgram(m)
-	prog.vmActionsOnce.Do(func() { prog.vmActions = actionExprs })
-	prog.loaded, prog.mode = true, mode
+	if inserts := moduleInserts(m); (ins != nil) != inserts {
+		return nil, "", fmt.Errorf("invalid compiled grammar: a grammar with #missing has an insertion module, and only such a grammar (#missing: %v, insertion module: %v)", inserts, ins != nil)
+	}
+	if ins != nil {
+		p, err := loadModule(ins, mode)
+		if err != nil {
+			return nil, "", err
+		}
+		if !moduleInserts(ins) || !sameStarts(m, ins) {
+			return nil, "", errors.New("invalid compiled grammar: the insertion module does not match the module of the grammar")
+		}
+		p.insertion, p.HasMissing = true, true
+		prog.HasMissing = true
+		prog.insOnce.Do(func() { prog.ins = p })
+	}
 	if start != "" {
 		if err := prog.CheckStart(start); err != nil {
 			return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
 		}
 	}
 	return prog, start, nil
+}
+
+// loadModule returns the program of the module m, of a compiled grammar in mode, after validating
+// it.
+func loadModule(m *bytecode.Module, mode CompiledMode) (*Program, error) {
+	if err := program.ValidateModule(m); err != nil {
+		return nil, fmt.Errorf("invalid compiled grammar: %w", err)
+	}
+	actionExprs, err := vm.LoadActions(m)
+	if err != nil {
+		return nil, fmt.Errorf("invalid compiled grammar: %w", err)
+	}
+	prog := moduleProgram(m)
+	prog.vmActionsOnce.Do(func() { prog.vmActions = actionExprs })
+	prog.loaded, prog.mode = true, mode
+	return prog, nil
+}
+
+// moduleInserts reports whether a rule of the validated module m contains #missing.
+func moduleInserts(m *bytecode.Module) bool {
+	for _, r := range m.Rules {
+		if r.Missing {
+			return true
+		}
+	}
+	return false
+}
+
+// sameStarts reports whether the validated modules a and b have the same start rules and default
+// start rule.
+func sameStarts(a, b *bytecode.Module) bool {
+	return slices.Equal(moduleStarts(a), moduleStarts(b)) && moduleDefaultStart(a) == moduleDefaultStart(b)
 }
 
 // moduleNames returns the strings of the string table indices xs of a validated module.

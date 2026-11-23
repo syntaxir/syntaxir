@@ -136,8 +136,18 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if d, err := p.NewDocument(";", engine.WithMissingTokens(2)); d != nil || err == nil {
 		t.Fatal(d, err)
 	}
-	if _, err := p.MarshalBinary(); err == nil {
-		t.Fatal("binary serialization silently discarded #missing")
+	// A compiled grammar keeps #missing: the loaded parser inserts as the source does.
+	data, err := p.MarshalBinary()
+	if err != nil {
+		t.Fatal(err)
+	}
+	loaded, err := engine.LoadParser(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	n, err := loaded.Parse(";", engine.WithMissingTokens(2))
+	if fmt.Sprint(n) != fmt.Sprint(want) || fmt.Sprint(err) != fmt.Sprint(wantErr) {
+		t.Fatal("loaded", n, err, "want", want, wantErr)
 	}
 	if _, err := gensrc.Go(entry.Grammar(p.Program()), common.GenOptions{Module: "example", Start: "main"}); err == nil {
 		t.Fatal("Go generator silently discarded #missing")

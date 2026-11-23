@@ -14,7 +14,6 @@ import (
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/schemaexport"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
-	"syntaxir.dev/sxir/pkg/bytecode"
 )
 
 // schemaJSON exports the schema of p for start, or every rule with allRules, as canonical JSON.
@@ -117,25 +116,13 @@ func TestCompiledSchemaBackendAgreement(t *testing.T) {
 	}
 }
 
-// marshalWithTrailing writes a compiled grammar in parse mode with section after the module, where
-// the format has nothing more, for the tests of data after the module.
+// marshalWithTrailing writes a compiled grammar in parse mode of prog's module, which may have been
+// edited, with section after the payload, where the format has nothing more, for the tests of data
+// after it. prog's grammar has no #missing, so the payload ends with the absent insertion part.
 func marshalWithTrailing(prog *Program, start string, section []byte) []byte {
-	m := prog.Module()
-	w := &bytecode.Encoder{Strs: map[string]int{}}
-	for i, s := range m.Strings {
-		w.Strs[s] = i
-		w.List = append(w.List, s)
-	}
-	w.Str(start)
-	w.WriteModule(m)
-	w.Body.Write(section)
-	var out bytes.Buffer
-	out.WriteString(compiledMagic)
-	out.WriteByte(compiledVersion)
-	out.WriteByte(byte(CompiledParse))
-	out.Write(binary.AppendUvarint(nil, uint64(m.InstructionSetVersion())))
-	w.Finish(&out)
-	return out.Bytes()
+	data := encodeCompiled(start, CompiledParse, prog.Module(), nil)
+	payload := append(data[:len(data)-4:len(data)-4], section...)
+	return binary.LittleEndian.AppendUint32(payload, crc32.ChecksumIEEE(payload))
 }
 
 // TestCompiledSchemaSectionErrors checks that a compiled grammar has no place for a schema: a schema

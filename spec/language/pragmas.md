@@ -257,12 +257,11 @@ encounter order; recognition returns the same diagnostics with no tree. A failed
 whole-input parse returns only its final ordinary syntax error. Each invocation
 has fresh insertion state, including concurrent and reentrant invocations.
 
-Only Closure whole-input Node parsing and recognition currently insert tokens.
-The bytecode VMs parse and recognize grammars containing `#missing` with
-insertion disabled, where the annotated literal is strict, and reject a positive
-limit. Prefix parsing, Document/streams, generated Go/TypeScript parsers and
-binary serialization reject grammars containing `#missing` or references to
-`missing`, even when insertion is disabled. Positive insertion options also fail
+Whole-input Node parsing and recognition insert tokens on the Closure and on
+both bytecode VMs, with the same results, diagnostics and compute units, and a
+compiled grammar keeps the insertions of its mode. Prefix parsing,
+Document/streams and generated Go/TypeScript parsers reject grammars containing
+`#missing` or references to `missing`, even when insertion is disabled. Positive insertion options also fail
 on unsupported parse entry points, including `ParsePrefix`, even when the
 grammar contains no `#missing` annotation. Zero preserves strict
 prefix matching for grammars without `#missing`. Grammar AST JSON and formatting

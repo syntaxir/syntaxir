@@ -371,7 +371,7 @@ to match at the delimiter that closes the list the element is in.
 ## Inserting a Missing Literal
 
 Use `#missing` on a nonempty literal when an editor needs a tree even though that
-token is absent. In a Closure whole-input parse, `runtime.WithMissingTokens(n)`
+token is absent. In a whole-input parse on any backend, `runtime.WithMissingTokens(n)`
 enables up to `n` insertion attempts for that call. Without the option, the
 literal remains strict. For example, `rule main = "name" ";" #missing $$`
 parses `name` with a zero-width `missing` value at EOF and returns a recovered
@@ -386,9 +386,9 @@ semicolon was read;
 the message of an inserted token and nothing for a string node.
 
 The limit counts abandoned attempts too. Exhaustion returns
-`*runtime.MissingTokenLimitError` with no tree. VM backends, generated parsers,
-Document, streams and compiled grammar serialization do not support this
-initial feature. The budget includes abandoned attempts and left-recursion seed
+`*runtime.MissingTokenLimitError` with no tree. The closure backend, both
+bytecode VMs and compiled grammars insert alike; generated parsers, Document and
+streams do not support this initial feature. The budget includes abandoned attempts and left-recursion seed
 replay, so a limit of 16 does not guarantee acceptance of a tree with 16 missing
 nodes. An inserted literal consumes no input, so a rule such as
 `rule a = "(" #missing a "x" / "y"` is left-recursive when insertion is enabled

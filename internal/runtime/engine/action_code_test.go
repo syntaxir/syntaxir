@@ -319,6 +319,7 @@ func TestActionCodeValidation(t *testing.T) {
 			}
 			w.Str("main")
 			w.WriteModule(&m)
+			w.Bool(false) // no insertion module
 			file := recompose(t, data[:isaOffset+1], w)
 			if _, _, err := LoadProgram(file); err == nil || !strings.Contains(err.Error(), tc.want) {
 				t.Fatalf("got %v, want %q", err, tc.want)
