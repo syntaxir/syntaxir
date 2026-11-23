@@ -38,13 +38,15 @@ func (r *oneByte) Read(b []byte) (int, error) {
 	return 1, nil
 }
 
-// observedParse is one parse of a route: the text parsed, the calls reported, the error and whether
-// tokens were inserted.
+// observedParse is one parse of a route: the text parsed, the calls reported, the error, whether
+// tokens were inserted and, for a prefix parse, the cursor it reported.
 type observedParse struct {
-	text    string
-	calls   []examinedref.Observed
-	err     error
-	missing bool
+	text     string
+	calls    []examinedref.Observed
+	err      error
+	missing  bool
+	prefix   bool
+	consumed int
 }
 
 // route is a way to run an observed parse. refusal is the start of the error with which the route
@@ -65,9 +67,9 @@ func once(text string, rec *examinedref.Recorder, err error, missing bool) []obs
 	return []observedParse{{text: text, calls: append([]examinedref.Observed(nil), rec.Calls...), err: err, missing: missing}}
 }
 
-// routes are the routes of every backend: Parse with expectations, Recognize, ParseStream and a
-// Document parsed before and after edits, and Parse, ParseStream and the Document with token
-// insertion.
+// routes are the routes of every backend: Parse with expectations, Recognize, ParseStream, a
+// Document parsed before and after edits and ParsePrefix, and each of Parse, ParseStream, the
+// Document and ParsePrefix with token insertion.
 func routes() []route {
 	var out []route
 	every := func(grammarUses) string { return "" }
@@ -112,9 +114,31 @@ func routes() []route {
 			route{name + "/document-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return documentParses(p.OnBackend(b), in, u, true)
 			}, every, examinedref.EveryAction},
+			route{name + "/prefix", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+				return prefixParse(p.OnBackend(b), in, u, false)
+			}, every, examinedref.EveryAction},
+			route{name + "/prefix-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+				return prefixParse(p.OnBackend(b), in, u, true)
+			}, every, examinedref.EveryAction},
 		)
 	}
 	return out
+}
+
+// prefixParse parses a prefix of in with main, with expectations, or with token insertion when
+// missing, which the reference evaluates without expectations.
+func prefixParse(p *engine.Parser, in string, u input.PositionUnit, missing bool) []observedParse {
+	var rec examinedref.Recorder
+	opts := traced(&rec, u)
+	if missing {
+		opts = append(opts, engine.WithMissingTokens(missingLimit))
+	} else {
+		opts = append(opts, engine.WithExpectations())
+	}
+	r, err := p.ParsePrefix("main", in, opts...)
+	op := once(in, &rec, err, missing)
+	op[0].prefix, op[0].consumed = true, r.Consumed
+	return op
 }
 
 // documentParses parses a Document of in with its middle character removed, inserts it, inserts a
@@ -274,6 +298,14 @@ func TestExaminedOracle(t *testing.T) {
 									t.Fatalf("%q: reference: %v", op.text, ref.err)
 								}
 								diffs := examinedref.CompareParse(ref.res, ref.exits, "main", op.calls, aborted(op.err), r.actions)
+								// A prefix parse reports the end of the start call, or nothing when it fails.
+								if op.prefix && !aborted(op.err) {
+									if want := ref.res.End; ref.res.Matched && op.consumed != want {
+										diffs = append(diffs, fmt.Sprintf("consumed %d: reference end %d", op.consumed, want))
+									} else if !ref.res.Matched && op.consumed != 0 {
+										diffs = append(diffs, fmt.Sprintf("consumed %d: reference fails", op.consumed))
+									}
+								}
 								if len(diffs) > 0 && aborted(op.err) {
 									diffs = append(diffs, fmt.Sprintf("aborted by %v", op.err))
 								}
