@@ -37,7 +37,8 @@ package bench
 //go:generate go run ../cmd/sxir gen -g ../testdata/grammars/xml/xml.sxir -module syntaxir.dev/sxir/internal/bench/parsers/xmlkeepguards -lib import -types -charge-units=keep-guards -o ../internal/bench/parsers/xmlkeepguards
 //go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policylogical -lib import -types -o ../internal/bench/parsers/policylogical
 //go:generate go run ../cmd/sxir gen -g grammars/logical_policy.sxir -module syntaxir.dev/sxir/internal/bench/parsers/policyevent -lib import -types -charge-units=event -o ../internal/bench/parsers/policyevent
-//go:generate go run ../cmd/sxir gen -g grammars/budget_recover.sxir -module syntaxir.dev/sxir/internal/bench/parsers/recoverplain -lib import -types -o ../internal/bench/parsers/recoverplain
+//go:generate go run ../cmd/sxir gen -g grammars/budget_recover.sxir -module syntaxir.dev/sxir/internal/bench/parsers/recoverlogical -lib import -types -o ../internal/bench/parsers/recoverlogical
+//go:generate go run ../cmd/sxir gen -g grammars/budget_recover.sxir -module syntaxir.dev/sxir/internal/bench/parsers/recoverevent -lib import -types -charge-units=event -o ../internal/bench/parsers/recoverevent
 //go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainlogical -lib import -types -o ../internal/bench/parsers/chainlogical
 //go:generate go run ../cmd/sxir gen -g grammars/logical_chain.sxir -module syntaxir.dev/sxir/internal/bench/parsers/chainevent -lib import -types -charge-units=event -o ../internal/bench/parsers/chainevent
 //go:generate go run ../cmd/sxir gen -g grammars/logical_keyed.sxir -module syntaxir.dev/sxir/internal/bench/parsers/keyedlogical -lib import -types -o ../internal/bench/parsers/keyedlogical

@@ -16,6 +16,8 @@ import (
 	gkeyedlogical "syntaxir.dev/sxir/internal/bench/parsers/keyedlogical"
 	gpolicyevent "syntaxir.dev/sxir/internal/bench/parsers/policyevent"
 	gpolicylogical "syntaxir.dev/sxir/internal/bench/parsers/policylogical"
+	grecoverevent "syntaxir.dev/sxir/internal/bench/parsers/recoverevent"
+	grecoverlogical "syntaxir.dev/sxir/internal/bench/parsers/recoverlogical"
 	gxmlevent "syntaxir.dev/sxir/internal/bench/parsers/xmlevent"
 	gxmllogical "syntaxir.dev/sxir/internal/bench/parsers/xmllogical"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
@@ -99,7 +101,38 @@ func exactCases() []exactCase {
 					_, err := gkeyedevent.ParseValue(s, o...)
 					return err
 				})},
+		{"recover", recoverInputs(1 << 10),
+			ps(func(s string, o ...sxirruntime.ParseOption) error {
+				_, err := grecoverlogical.Parse(s, o...)
+				return err
+			},
+				func(s string, o ...sxirruntime.ParseOption) error {
+					_, err := grecoverlogical.ParseValue(s, o...)
+					return err
+				}),
+			ps(func(s string, o ...sxirruntime.ParseOption) error { _, err := grecoverevent.Parse(s, o...); return err },
+				func(s string, o ...sxirruntime.ParseOption) error {
+					_, err := grecoverevent.ParseValue(s, o...)
+					return err
+				})},
 	}
+}
+
+// recoverInputs returns inputs of bench/grammars/budget_recover.sxir: lines that all recover, lines
+// that recover after a long prefix, a mix, valid lines and damaged inputs, each line repeated in a
+// ladder of sizes up to 64 KiB, of which those longer than max bytes are left out. Every line that does not match builds a syntax error, and the
+// stores of the memo take the entries of recovered errors.
+func recoverInputs(max int) []string {
+	var in []string
+	for _, line := range []string{"ab=cd;", "1;", "a=;", "1234567;", "a;1;b=c;;", ";", "abcdefghijklmnop=", "a=b;c=d"} {
+		for _, n := range []int{1, 2, 16, 256, 4096, 65536 / len(line)} {
+			if n*len(line) > max {
+				continue
+			}
+			in = append(in, strings.Repeat(line, n))
+		}
+	}
+	return append(in, "", ";;;", "é;", "a=é;\n;", strings.Repeat("é", 300)+";")
 }
 
 // policyInputs returns inputs of bench/grammars/logical_policy.sxir where the guards skip calls of

@@ -22,11 +22,12 @@ import (
 // engineGrammars maps the cases of exactCases to the grammars their parsers were generated from,
 // with the start rule of the parsers.
 var engineGrammars = map[string]struct{ path, start string }{
-	"JSON":   {"../testdata/grammars/json/json.sxir", "main"},
-	"XML":    {"../testdata/grammars/xml/xml.sxir", "main"},
-	"policy": {"grammars/logical_policy.sxir", "doc"},
-	"chain":  {"grammars/logical_chain.sxir", "doc"},
-	"keyed":  {"grammars/logical_keyed.sxir", "doc"},
+	"JSON":    {"../testdata/grammars/json/json.sxir", "main"},
+	"XML":     {"../testdata/grammars/xml/xml.sxir", "main"},
+	"policy":  {"grammars/logical_policy.sxir", "doc"},
+	"chain":   {"grammars/logical_chain.sxir", "doc"},
+	"keyed":   {"grammars/logical_keyed.sxir", "doc"},
+	"recover": {"grammars/budget_recover.sxir", "doc"},
 }
 
 // loadStart compiles the grammar at path for the engine with the start rule start.

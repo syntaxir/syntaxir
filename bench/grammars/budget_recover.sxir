@@ -1,12 +1,13 @@
 // Recoveries under the derived compute budget (design record 079). Each line is an item and ";". A line
-// that does not match is skipped up to its ";" and recovered, which builds a syntax error and
-// records it as an entry of recovered errors that the stores of the memo take, and the memoized
-// rule item is called at the start of every line.
+// that does not match is skipped up to its ";" and recovered, which builds a syntax error. The rule
+// line is called at two places: the first alternative of doc fails after the line, where no "!"
+// follows, the store of the memo takes the entries of the errors recovered in the line, and the
+// second call reuses the result and records its list of errors.
 
 package recover
 
 @start
-rule doc = line* $$
+rule doc = (line "!" / line)* $$
 rule line = (item ";") #recover(skip=[^;]* ";")
 rule item = word ("=" word)? ws
 rule word = [a-z]+

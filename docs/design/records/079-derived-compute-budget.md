@@ -149,19 +149,17 @@ The measured soundness of the bound (below) stays as a test after the switch.
 - The bound is at least the measured units of the Linear grammars of the logical-unit corpus on generated Go, in the
   units of record 076 (the benchmark package's soundness test): valid, truncated and damaged inputs, at several sizes, in both
   position units, for `Parse` and `ParseValue`. XML (unknown), chain (polynomial) and keyed (linear-env) have no budget.
-  The test logs the largest ratio of measured units to the bound. The recover grammar has no logical-unit build yet
-  (generated Go does not count logical units for a recovery), so it is measured in the units of the generated code's
-  own charges, which are at least the events; the bound that holds for them holds for the events:
+  The test logs the largest ratio of measured units to the bound. The recover grammar recovers errors that the stores
+  of the memo take and that reused results record; its units are those of the per-event reference and of the engine's
+  backends on the same inputs (the logical-unit exactness tests):
 
   | Grammar | Bound | Inputs | Largest measured / bound |
   | --- | --- | --- | --- |
   | JSON | `634 * n + 636` | 68 | 0.019 |
   | policy | `54 * n + 56` | 5 | 0.055 |
-  | recover | `120 * n + 122` | 53 | 0.794 |
+  | recover | `136 * n + 138` | 53 | 0.058 |
 
-  Without the recovery terms the recover grammar's bound is `92 * n + 94`, and 3 of its inputs exceed it (largest
-  ratio 1.037). The bound is 18 to 53 times the largest count on JSON and policy, and 1.3 times on the recover grammar
-  in the proxy units. A bound with half the constants still holds on this corpus, so the
+  The bound is 17 to 53 times the largest count. A bound with half the constants still holds on this corpus, so the
   mutant divides them by 64 and must be exceeded by some parse of each grammar; this also fails a derivation that grows
   looser than that.
 - The lint package's test of missing-token insertion classifies the grammar above as Linear, checks that the units
