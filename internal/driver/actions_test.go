@@ -2,6 +2,7 @@ package driver_test
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"strings"
 	"testing"
@@ -17,6 +18,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/middleend/actionlower"
 	"syntaxir.dev/sxir/internal/middleend/actionpass"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
@@ -101,5 +103,66 @@ func TestActionSitesLoweredOncePerMode(t *testing.T) {
 	want := map[string]int{"go/rules": 1, "go/typed": 1, "ts/rules": 1, "vm/rules": 1, "closure/rules": 1}
 	if !maps.Equal(runs, want) {
 		t.Errorf("actionlower ran %v times per table, want %v", runs, want)
+	}
+}
+
+// testActionUndeclaredCall is a broken Action pass of the tests: it makes the function of each site
+// call an operation that its module does not declare, which the verifier of the Action stage rejects.
+var testActionUndeclaredCall = pipe.New(pipe.Def[actionpass.Unit, actionpass.Unit]{
+	Decl: pipe.Decl{Name: "test-action-undeclared-call", Test: true, Obligation: "none: it breaks the function"},
+	In:   code.ActionStage, Out: code.ActionStage,
+	Run: func(_ *pipe.Ctx[actionpass.Unit], u actionpass.Unit) (actionpass.Unit, pass.PreservedSet, error) {
+		f := u.Module().Funcs[0]
+		f.Body.Stmts = append([]code.Stmt{&code.Do{Call: &code.Call{Callee: "test.undeclared"}}}, f.Body.Stmts...)
+		return u, pass.PreserveNone(), nil
+	},
+})
+
+// The verification and the bisection limit cover the Action segment: under VerifyEach a broken Action
+// pass is reported by name, and the bisection limit numbers the runs of the Action passes of each
+// site with the others, runs those up to the limit and skips the later ones.
+func TestActionSegmentVerifiedAndBisected(t *testing.T) {
+	t.Parallel()
+	g, err := parser.Parse("type R = { A string }\n@start\nrule main R = x:\"a\" {text($x) == \"a\" || text($x) == \"b\"} $$ => R{A: text($x)}\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := driver.Check(g, common.CompileOptions{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flags, err := driver.GenSettings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := driver.Target{Backend: result.Go, Gen: common.GenOptions{Module: "example.com/p", Lib: common.LibImport, LibGo: libsrc.FS, Types: true}}
+
+	broken := pipe.Fill(driver.ActionSlot, "", pipe.Seq(code.ActionStage, testActionUndeclaredCall))
+	_, err = driver.Compile(context.Background(), p, driver.Options{Settings: flags, Debug: common.Debug{VerifyEach: true}, Edits: []pipe.Edit{broken}}, target)
+	if err == nil || !strings.Contains(err.Error(), "test-action-undeclared-call") {
+		t.Errorf("VerifyEach: the broken Action pass gives %v, want an error that names it", err)
+	}
+
+	var all strings.Builder
+	limit := 1 << 20
+	if _, err := driver.Compile(context.Background(), p, driver.Options{Settings: flags, Debug: common.Debug{OptBisectLimit: &limit, Output: &all}}, target); err != nil {
+		t.Fatal(err)
+	}
+	var first int
+	for _, line := range strings.Split(all.String(), "\n") {
+		if _, err := fmt.Sscanf(line, "opt-bisect: %d run "+actionpass.PassTextDispatch+" [typed/site0]", &first); err == nil {
+			break
+		}
+	}
+	if first == 0 {
+		t.Fatalf("the bisection numbers no run of %s on a site:\n%s", actionpass.PassTextDispatch, all.String())
+	}
+	var cut strings.Builder
+	limit = first - 1
+	if _, err := driver.Compile(context.Background(), p, driver.Options{Settings: flags, Debug: common.Debug{OptBisectLimit: &limit, Output: &cut}}, target); err != nil {
+		t.Fatal(err)
+	}
+	if want := fmt.Sprintf("opt-bisect: %d skip %s [typed/site0]\n", first, actionpass.PassTextDispatch); !strings.Contains(cut.String(), want) {
+		t.Errorf("limit %d does not skip the run %d of %s:\n%s", limit, first, actionpass.PassTextDispatch, cut.String())
 	}
 }
