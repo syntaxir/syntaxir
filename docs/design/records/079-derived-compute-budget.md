@@ -10,8 +10,9 @@ For a start rule that the classifier classifies as Linear, the classifier derive
 parse, `c * n + k`, from the structure of the grammar, in the logical events of [record 076](076-logical-compute-units.md).
 `sxir lint -classify` and `lint.Classify` report it. The default of `Limits.Compute` stays `max(2^20, 1024 * n)`
 until the linear-cost proof confirms the constants of the derivation; then the derived bound, with a stated safety
-factor, replaces the default for a Linear grammar. A parse that exceeds its compute limit names the rule that was
-being evaluated when the limit was found exceeded.
+factor, replaces the default for a Linear grammar. A parse that exceeds its compute limit names its hotspot
+([record 078](078-limit-error-hotspot.md)); it does not name the rule that was being evaluated when the limit was found
+exceeded, which record 078 plans as `LimitError.Rule`.
 
 ## Motivation
 
