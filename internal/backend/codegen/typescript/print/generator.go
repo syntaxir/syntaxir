@@ -331,7 +331,8 @@ type Generator struct {
 	// the parser has no parse entry point.
 	recognizeOnly bool
 	// parseEntries is false for a parser with no parse entry point (RecognizeOnly or TypedOnly): it
-	// prints no parse, parseRule or parseWithOptions, and no rule table for parseRule.
+	// prints no parse, parseRule or parseWithOptions. The rule table stays for parseRuleValue, unless
+	// the parser is recognize-only.
 	parseEntries bool
 	// table is the table being generated, planned and lowered to the Exec stage (lowerTable), whose
 	// functions the printer prints; nil if its Core IR or its lowering failed (PrintErr).
@@ -536,8 +537,8 @@ func (g *Generator) rules() {
 			fmt.Fprintf(init, "%s.opNodeType = %s;\n", g.ruleVar(r), TsString(r.OpNodeType))
 		}
 	}
-	if g.Table == "rules" && g.parseEntries {
-		// The table and the start rules, for parseRule (a recognize-only or typed-only parser has none).
+	if g.Table == "rules" && !g.recognizeOnly {
+		// The table and the start rules, for parseRule and parseRuleValue (a recognize-only parser has none).
 		fmt.Fprintf(init, "const rules: Rule[] = [%s];\n", strings.Join(vars, ", "))
 		var names []string
 		for _, r := range g.Prog.RuleList {

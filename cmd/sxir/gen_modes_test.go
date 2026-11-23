@@ -468,9 +468,9 @@ func TestGenTypeScriptRecognizeOnly(t *testing.T) {
 	}
 }
 
-// TestGenTypeScriptTypedOnly checks that -typed-only generates a TypeScript parser with parseValue and
-// parseValueWithOptions and no parse entry point, keeps recognize with -recognize, and refuses the flags it
-// cannot take with the TypeScript messages.
+// TestGenTypeScriptTypedOnly checks that -typed-only generates a TypeScript parser with parseValue,
+// parseValueWithOptions, parseRuleValue and parseRuleValueWithOptions and no parse entry point, keeps recognize
+// with -recognize, and refuses the flags it cannot take with the TypeScript messages.
 func TestGenTypeScriptTypedOnly(t *testing.T) {
 	g := writeFile(t, "kv.sxir", kv)
 	dir := t.TempDir()
@@ -478,7 +478,7 @@ func TestGenTypeScriptTypedOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	data := readTS(t, dir, "parser.ts")
-	for _, entry := range []string{"export function parseValue(", "export function parseValueWithOptions(", "export function recognize("} {
+	for _, entry := range []string{"export function parseValue(", "export function parseValueWithOptions(", "export function parseRuleValue(", "export function parseRuleValueWithOptions(", "export function recognize("} {
 		if !strings.Contains(data, entry) {
 			t.Errorf("typed-only parser has no %s:\n%.400s", entry, data)
 		}

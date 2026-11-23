@@ -108,6 +108,17 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 		astBody = "parseValueWithOptions(input, { unit: unit ?? CodePoints })"
 	}
 	fmt.Fprintf(&b, tsTypedAPI, stType, start.ID, repr, g.optionsType, astBody)
+	// parseRuleValue converts a result by the type of its start rule, selected by the rule's ID as in Go.
+	var cases strings.Builder
+	for _, name := range g.Prog.StartRules {
+		rt := t.RuleRef(name)
+		fmt.Fprintf(&cases, "    case %d: return astResult<%s>(parsed, %d, control);\n", g.Prog.ByName[name].ID, qualifyTypes(t.tsType(rt)), t.recipe(rt))
+	}
+	ruleBody := "const r = startIn(rules, ruleNames, starts, defaultStart, name);\n  if (r instanceof Error) return { value: null, error: r };\n  return convertRule(r.id, run(G, r, nseen, input, unit));"
+	if g.limits {
+		ruleBody = "return parseRuleValueWithOptions(name, input, { unit: unit ?? CodePoints });"
+	}
+	fmt.Fprintf(&b, tsTypedRuleAPI, g.optionsType, ruleBody, cases.String())
 	b.WriteString(tsTypedLib)
 	// recipe() reserves an ID before visiting child types, so recursive fields
 	// reference the same representation. Write the table after all registration.
@@ -485,6 +496,36 @@ export function parseValueWithOptions(input: string | Uint8Array, options?: %[4]
   return withObservedOptions<Types.TypedParseResult<%[1]s>>(o,
     control => astResult<%[1]s>(run(G, R%[2]d, nseen, input, o.unit, o.maxDepth, control, o), %[3]d, control),
     error => ({ value: null, error }));
+}
+
+`
+
+// tsTypedRuleAPI takes the options type, the body of parseRuleValue and the cases of convertRule.
+const tsTypedRuleAPI = `/** Parses the whole input with the start rule name, a rule marked @start; "" selects the default start rule.
+ * The value converts as parseValue does, to the type of the named rule, which the static type leaves unknown
+ * (as Go returns any): narrow it by that type. Unknown names and rules that are not
+ * start rules are errors without a value.
+ */
+export function parseRuleValue(name: string, input: string | Uint8Array, unit?: Unit): Types.TypedParseResult<unknown> {
+  %[2]s
+}
+
+/** Typed parsing of a start rule with options read and validated once. */
+export function parseRuleValueWithOptions(name: string, input: string | Uint8Array, options?: %[1]s): Types.TypedParseResult<unknown> {
+  const o = resolveOptions(G, options, input);
+  if (o instanceof Error) return { value: null, error: o };
+  const r = startIn(rules, ruleNames, starts, defaultStart, name);
+  if (r instanceof Error) return { value: null, error: r };
+  return withObservedOptions<Types.TypedParseResult<unknown>>(o,
+    control => convertRule(r.id, run(G, r, nseen, input, o.unit, o.maxDepth, control, o), control),
+    error => ({ value: null, error }));
+}
+
+// convertRule converts the result of the start rule with the ID id by the type of that rule.
+function convertRule(id: number, parsed: ParseResult, control: BudgetControl | null = null): Types.TypedParseResult<unknown> {
+  switch (id) {
+%[3]s    default: throw new Error("rule " + id + " is not a start rule");
+  }
 }
 
 `

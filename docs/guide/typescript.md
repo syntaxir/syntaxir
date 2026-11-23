@@ -138,8 +138,8 @@ sxir gen -lang ts -g <grammar> -o <directory> [-s <rule>] [-lib embed|import|onl
 | `-o` | (required) | The output directory (it is created). Generated files that the new run does not write again are removed, except that `-lib import` leaves `lib.ts` alone; a file that sxir did not generate is never removed or overwritten |
 | `-lib` | `embed` | `embed` writes `lib.ts` next to `parser.ts`; `import` imports the library from `-lib-module` and writes no copy; `only` writes just `lib.ts`, the whole library, which parsers of any grammar can import (no `-g`) |
 | `-lib-module` | (required with `-lib import`) | The module specifier `parser.ts` and `types.ts` import the library from, for example `../shared/lib.ts`. Several parsers share one library this way: generate it once with `-lib only` |
-| `-types` | off | Write `types.ts` with the grammar's interfaces and aliases (also exported from `parser.ts`), and add the configured-start `parseValue`/`parseValueWithOptions` |
-| `-typed-only` | off | Generate only the typed entry points, `parseValue` and `parseValueWithOptions`: no `parse`, `parseRule` or `parseWithOptions`. It needs `-types`, and `recognize` stays with `-recognize`. It is rejected with `-document` and `-recognize-only`. The typed entry points run the Node rules of the start rule, which are kept |
+| `-types` | off | Write `types.ts` with the grammar's interfaces and aliases (also exported from `parser.ts`), and add the configured-start `parseValue`/`parseValueWithOptions` and the named-start `parseRuleValue`/`parseRuleValueWithOptions` |
+| `-typed-only` | off | Generate only the typed entry points, `parseValue`, `parseValueWithOptions`, `parseRuleValue` and `parseRuleValueWithOptions`: no `parse`, `parseRule` or `parseWithOptions`. It needs `-types`, and `recognize` stays with `-recognize`. It is rejected with `-document` and `-recognize-only`. The typed entry points run the Node rules of the start rule, which are kept |
 | `-recognize` | off | Also generate `recognize` and `recognizeWithOptions`, which check input without building a tree |
 | `-recognize-only` | off | Generate only `recognize` and `recognizeWithOptions`: no `parse`, `parseRule` or `parseWithOptions`, so the parser is the recognizer alone. It is rejected with `-types` and `-document` |
 | `-expectations` | off | Allow a parse to record what a syntax error expects: the `expected` list and the `messages` of `@error` (see [recording expectations](error-messages.md#recording-expectations)). A parse records only with `parseWithOptions(input, { expectations: true })`; otherwise the errors have the farthest position, an empty `expected` and `messages`, and the message `syntax error`. Without the flag the option is rejected |
@@ -268,9 +268,12 @@ project settings. Exclude it from linters and formatters: it starts with `/* esl
 
 Add `-types` to generation to write `types.ts` with a declaration for every grammar struct
 and alias (`parser.ts` exports them too, so it stays the one module to import), plus `parseValue` and `parseValueWithOptions`. They parse the
-configured start rule once, then convert its completed Node result. `parse`,
-`parseRule`, recognition and `marshal` retain their existing APIs. Named typed
-parsing is outside this API.
+configured start rule once, then convert its completed Node result. `parseRuleValue`
+and `parseRuleValueWithOptions` take the name of a start rule, as Go's `ParseRuleValue`
+does, and an empty name selects the default start rule; an unknown name, or a name that
+is not a start rule, is an error with no value. Their value has the type of the named
+rule, which the static type leaves `unknown` (as Go returns `any`), so narrow it by that
+type. `parse`, `parseRule`, recognition and `marshal` retain their existing APIs.
 
 For a variant of the quick-start grammar whose fields are strings, generate and consume typed values:
 
@@ -572,7 +575,7 @@ Generated TypeScript supports every feature of the grammar language: Rule Expres
 `#recover`. It adds `parseRule` for another start rule, a `unit` argument for the position unit, `recognize` (with
 `-recognize`) for matching without a tree, and `limits.input` and `limits.depth`, and, unless generated with `-no-limits`, `signal` and the compute limit, in the options-aware
 entry points. With `-document` it adds [`createDocument`](generated-documents.md#typescript-documents), a Document that reuses the results of earlier parses as the Go `Document` does. It has no `#stream` and `ParseStream`: `#stream` is an ordinary repetition, as in Go.
-Typed values (`-types`) give interfaces and aliases and `parseValue`/`parseValueWithOptions` for the configured start rule,
+Typed values (`-types`) give interfaces and aliases, `parseValue`/`parseValueWithOptions` for the configured start rule and `parseRuleValue`/`parseRuleValueWithOptions` for a named one,
 while `parse` still returns Nodes. The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has
 the complete table of what each target supports.
 

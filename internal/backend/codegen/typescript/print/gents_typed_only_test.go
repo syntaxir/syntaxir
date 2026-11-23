@@ -15,8 +15,9 @@ import (
 
 // TestGeneratedTSTypedOnlyMatchesFullBuild checks that a typed-only TypeScript parser returns the same typed values,
 // the same recognition with Recognize, and the same compute units as the full build, on the typed grammars of the
-// generator corpus (the long tier runs the larger typed corpus). The typed-only parser has no parse, parseRule or
-// parseWithOptions, and it compiles under the strict options of the typed consumers.
+// generator corpus (the long tier runs the larger typed corpus). Every rule is a start rule, so the typed values of
+// parseRuleValue are compared for each rule too. The typed-only parser has no parse, parseRule or parseWithOptions,
+// and it compiles under the strict options of the typed consumers.
 func TestGeneratedTSTypedOnlyMatchesFullBuild(t *testing.T) {
 	t.Parallel()
 	ordinary := codegentest.Case{Name: "ordinary-typed", Src: codegentest.OrdinaryOnlyTyped, Inputs: codegentest.OrdinaryOnlyTypedInputs}
@@ -42,7 +43,10 @@ func checkTypedOnly(t *testing.T, cases []codegentest.Case) {
 
 // checkTypedOnlyCase checks the typed-only parser of one case against the full build.
 func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
-	g, err := parseTest(c.Src)
+	// Every rule is a start rule, so that parseRuleValue can name each of them in both builds.
+	src := startAllRules(c.Src)
+	names := append(grammarRuleNames(src), "", "nope")
+	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,6 +76,21 @@ func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
 			}
 		}
 	}
+	// The typed entry points, which the full build has too, are the ones a typed-only parser must have.
+	for _, built := range []struct {
+		name  string
+		files []common.GeneratedFile
+	}{{"typed-only", only}, {"typed-only with Recognize", onlyRec}} {
+		var text strings.Builder
+		for _, f := range built.files {
+			text.Write(f.Content)
+		}
+		for _, entry := range []string{"export function parseValue(", "export function parseValueWithOptions(", "export function parseRuleValue(", "export function parseRuleValueWithOptions("} {
+			if !strings.Contains(text.String(), entry) {
+				t.Fatalf("%s parser has no %s", built.name, entry)
+			}
+		}
+	}
 	dir := t.TempDir()
 	writeTSFiles(t, filepath.Join(dir, "full"), full)
 	writeTSFiles(t, filepath.Join(dir, "only"), only)
@@ -84,7 +103,8 @@ func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
 		}
 		inputs = append(inputs, string(quoted))
 	}
-	if err := os.WriteFile(filepath.Join(dir, "consumer.ts"), []byte(strings.ReplaceAll(tsTypedOnlyConsumer, "INPUTS", "["+strings.Join(inputs, ",")+"]")), 0o644); err != nil {
+	consumer := strings.NewReplacer("INPUTS", "["+strings.Join(inputs, ",")+"]", "NAMES", tsStringList(names)).Replace(tsTypedOnlyConsumer)
+	if err := os.WriteFile(filepath.Join(dir, "consumer.ts"), []byte(consumer), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	args := []string{"--target", "es2020", "--lib", "es2020", "--strict", "--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch", "--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess", "--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax", "--allowImportingTsExtensions", "--noEmit", "full/parser.ts", "only/parser.ts", "onlyrec/parser.ts", "consumer.ts"}
@@ -108,6 +128,7 @@ const tsTypedOnlyConsumer = `import * as full from "./full/parser.ts";
 import * as only from "./only/parser.ts";
 import * as onlyRec from "./onlyrec/parser.ts";
 const inputs: string[] = INPUTS;
+const names: string[] = NAMES;
 const stable = (x: unknown): string => JSON.stringify(x, (_key, v: unknown) => typeof v === "bigint" ? "int:" + v : v);
 const report = (e: unknown): string => e === null ? "ok" : String((e as Error).name) + ":" + String((e as Error).message) + stable(e);
 const typed = (r: { value: unknown; error: unknown }): string => stable(r.value) + "|" + report(r.error);
@@ -129,6 +150,16 @@ for (const unit of [full.CodePoints, full.Bytes]) {
     const [fu, fat] = units(l => typed(full.parseValueWithOptions(input, { unit, limits: { compute: l } })));
     const [ou, oat] = units(l => typed(only.parseValueWithOptions(input, { unit, limits: { compute: l } })));
     if (fu !== ou || fat !== oat) failures.push("unit " + unit + " input " + i + ": full parse charges " + fu + " units, typed-only " + ou + "\nfull at limits below:  " + fat + "\ntyped-only at limits below: " + oat);
+    for (const name of names) {
+      const vf = typed(full.parseRuleValue(name, input, unit));
+      const vo = typed(only.parseRuleValue(name, input, unit));
+      if (vf !== vo) failures.push("unit " + unit + " input " + i + ": parseRuleValue " + name + " " + vf + ", typed-only " + vo);
+      const cf = { units: 0 };
+      const co = { units: 0 };
+      full.parseRuleValueWithOptions(name, input, { unit, computeReport: cf });
+      only.parseRuleValueWithOptions(name, input, { unit, computeReport: co });
+      if (cf.units !== co.units) failures.push("unit " + unit + " input " + i + ": parseRuleValueWithOptions " + name + " charges " + cf.units + " units, typed-only " + co.units);
+    }
     const ra = report(full.recognize(input, unit));
     const rb = report(onlyRec.recognize(input, unit));
     if (ra !== rb) failures.push("unit " + unit + " input " + i + ": recognize " + ra + ", typed-only with Recognize " + rb);
