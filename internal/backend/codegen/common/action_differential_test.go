@@ -258,10 +258,9 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.GeneratedParsersMismatches(t, goBin, list, common.GenOptions{}, func(code []byte) []byte {
-			s := string(code)
-			if n := strings.Count(s, m.from); n > 0 {
+			s, hit := mutateEitherForm(string(code), m.from, m.to)
+			if hit {
 				hits++
-				s = strings.ReplaceAll(s, m.from, m.to)
 			}
 			return []byte(s)
 		})
@@ -289,9 +288,9 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
-			if strings.Contains(code, m.from) {
+			code, hit := mutateEitherForm(code, m.from, m.to)
+			if hit {
 				hits++
-				code = strings.ReplaceAll(code, m.from, m.to)
 			}
 			return code
 		})
@@ -344,9 +343,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
 	for _, m := range []mutant{
-		{"control: unchanged", `c.P.ActionHullLogical(c, `, `c.P.ActionHullLogical(c, `},
-		{"a tuple becomes a list", `c.P.ActionHullLogical(c, true, `, `c.P.ActionHullLogical(c, false, `},
-		{"a list becomes a tuple", `c.P.ActionHullLogical(c, false, `, `c.P.ActionHullLogical(c, true, `},
+		{"control: unchanged", `c.P.ActionHull(c, `, `c.P.ActionHull(c, `},
+		{"a tuple becomes a list", `c.P.ActionHull(c, true, `, `c.P.ActionHull(c, false, `},
+		{"a list becomes a tuple", `c.P.ActionHull(c, false, `, `c.P.ActionHull(c, true, `},
 		{"concat pushes no elements", `c.P.ActionPushItems(c, "concat", `, `c.P.ActionPushItems(c, "concat", any(nil)); _ = (`},
 		{"an element is pushed as nil", `c.P.ActionPush(c, "list", `, `c.P.ActionPush(c, "list", any(nil)); _ = (`},
 		{"a field is set to nil", `c.ActionSetField(`, `c.ActionSetFieldNil(`},
@@ -354,10 +353,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.GeneratedParsersMismatches(t, goBin, list, common.GenOptions{}, func(code []byte) []byte {
-			s := string(code)
-			if strings.Contains(s, m.from) {
+			s, hit := mutateEitherForm(string(code), m.from, m.to)
+			if hit {
 				hits++
-				s = strings.ReplaceAll(s, m.from, m.to)
 				if strings.Contains(m.to, "ActionSetFieldNil") {
 					s += "\nfunc tsfNil(c *rt.ActCtx, n *Node, name string, _ any) { c.ActionSetField(n, name, nil) }\n"
 					s = strings.ReplaceAll(s, "c.ActionSetFieldNil(", "tsfNil(c, ")
@@ -373,9 +371,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	}
 	// Typed Go: the typed parsers against the parsers that convert their nodes and against the engine.
 	for _, m := range []mutant{
-		{"control: unchanged", `c.P.ActionHullLogical(c, `, `c.P.ActionHullLogical(c, `},
-		{"a tuple becomes a list", `c.P.ActionHullLogical(c, true, `, `c.P.ActionHullLogical(c, false, `},
-		{"a list becomes a tuple", `c.P.ActionHullLogical(c, false, `, `c.P.ActionHullLogical(c, true, `},
+		{"control: unchanged", `c.P.ActionHull(c, `, `c.P.ActionHull(c, `},
+		{"a tuple becomes a list", `c.P.ActionHull(c, true, `, `c.P.ActionHull(c, false, `},
+		{"a list becomes a tuple", `c.P.ActionHull(c, false, `, `c.P.ActionHull(c, true, `},
 		{"concat pushes no elements", `c.P.ActionPushItems(c, "concat", `, `c.P.ActionPushItems(c, "concat", any(nil)); _ = (`},
 		{"an element is pushed as nil", `c.P.ActionPush(c, "list", `, `c.P.ActionPush(c, "list", any(nil)); _ = (`},
 		// The constructor takes its first two fields in the other order, as a call that passed them
@@ -385,10 +383,9 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.GeneratedTypesMismatches(t, goBin, list, common.GenOptions{ConvertTypes: true}, func(code []byte) []byte {
-			s := string(code)
-			if strings.Contains(s, m.from) {
+			s, hit := mutateEitherForm(string(code), m.from, m.to)
+			if hit {
 				hits++
-				s = strings.ReplaceAll(s, m.from, m.to)
 			}
 			return []byte(s)
 		}, 0)
@@ -406,14 +403,38 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
-			if strings.Contains(code, m.from) {
+			code, hit := mutateEitherForm(code, m.from, m.to)
+			if hit {
 				hits++
-				code = strings.ReplaceAll(code, m.from, m.to)
 			}
 			return code
 		})
 		check("TypeScript", m, hits, got)
 	}
+}
+
+// logicalCalls are the library calls that a generated parser that counts logical compute units makes under
+// the name with the suffix Logical (design record 076): the hull of a list or tuple, the list that map makes
+// of a projection and, in Go, the equality of two texts. The form of the fixtures decides whether a parser
+// counts them, so a mutant of such a call must change it under either name.
+var logicalCalls = []string{"c.P.ActionHull(", "c.p.actionHull(", "c.NewList(", "c.newList(", "c.P.TextEqual("}
+
+// mutateEitherForm returns code with from replaced by to, and whether code has from. If from makes one of
+// logicalCalls, the call under its Logical name, with to making the same call under that name, counts as
+// from as well.
+func mutateEitherForm(code, from, to string) (string, bool) {
+	pairs := []string{from, to}
+	for _, call := range logicalCalls {
+		if strings.Contains(from, call) {
+			logical := strings.TrimSuffix(call, "(") + "Logical("
+			pairs = append(pairs, strings.Replace(from, call, logical, 1), strings.Replace(to, call, logical, 1))
+		}
+	}
+	hit := false
+	for i := 0; i < len(pairs); i += 2 {
+		hit = hit || strings.Contains(code, pairs[i])
+	}
+	return strings.NewReplacer(pairs...).Replace(code), hit
 }
 
 // TestActionIterationsDetectBrokenTargets is the negative control of TestActionFixedGeneratedTargets for the
@@ -484,14 +505,14 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 	}
 	// The map of a projected repetition makes a list of no elements. A typed parser holds node and typed
 	// actions, which print the call as any(c.NewList(...)) and (c.NewList(...)), of the elements in a local
-	// named ti.
+	// named ti; a parser that counts logical compute units calls it as c.NewListLogical (logicalCalls).
 	noList := mutant{"the map of a projected repetition makes no elements", `c.NewList(ti`, `newListNone(c, ti`}
 	mutateGo := func(m mutant, hits *int) func(code []byte) []byte {
 		if m != noList {
 			return mutate(m, hits)
 		}
 		return func(code []byte) []byte {
-			s := string(code)
+			s := strings.ReplaceAll(string(code), `c.NewListLogical(ti`, m.from)
 			if strings.Contains(s, m.from) {
 				*hits++
 				s = strings.ReplaceAll(s, "any("+m.from, "any("+m.to)
@@ -526,9 +547,9 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 	} {
 		hits := 0
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
-			if strings.Contains(code, m.from) {
+			code, hit := mutateEitherForm(code, m.from, m.to)
+			if hit {
 				hits++
-				code = strings.ReplaceAll(code, m.from, m.to)
 			}
 			return code
 		})
