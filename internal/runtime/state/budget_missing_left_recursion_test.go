@@ -43,11 +43,10 @@ func leastLimit(t *testing.T, with func(n uint64) runtime.Limits, parseFn func(r
 // TestBudgetUnrecordedContextCalls pins the compute and memory of a parse whose left-recursive
 // calls run in a context that records no dependencies, as for rules that contain #missing with
 // missing tokens, or without the context memo: their results go to no table, so such a call
-// allocates no entry and copies no recovered errors. It covers missing tokens in the Closure parse and recognition, and the parse
-// without the context memo on every backend.
+// allocates no entry and copies no recovered errors. It covers missing tokens in the parse on every
+// backend and in recognition, and the parse without the context memo on every backend.
 func TestBudgetUnrecordedContextCalls(t *testing.T) {
 	t.Parallel()
-	// The bytecode backends do not run grammars with missing tokens: only the Closure runs have h.
 	const grammar = `rule e = f "+" "a" / f "-" "a" / "a" g
 rule f = e ("x" / "y" / "z")?
 rule g = ";" / "x" #recover(skip=[b]+)`
@@ -61,11 +60,14 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 	}
 	type usage struct{ compute, memory uint64 }
 	want := map[run]usage{
-		{engine.Closure, false, 10, false}:         {43, 80532},
-		{engine.Closure, true, 10, false}:          {43, 45676},
-		{engine.Closure, false, 0, true}:           {43, 82084},
-		{engine.Bytecode, false, 0, true}:          {43, 106660},
-		{engine.BytecodeIterative, false, 0, true}: {43, 108308},
+		{engine.Closure, false, 10, false}:           {43, 80532},
+		{engine.Closure, true, 10, false}:            {43, 45676},
+		{engine.Closure, false, 0, true}:             {43, 82084},
+		{engine.Bytecode, false, 0, true}:            {43, 106660},
+		{engine.BytecodeIterative, false, 0, true}:   {43, 108308},
+		{engine.Bytecode, false, 10, false}:          {43, 105108},
+		{engine.BytecodeIterative, false, 10, false}: {43, 106156},
+		{engine.Bytecode, true, 10, false}:           {43, 70252},
 	}
 	for r, w := range want {
 		p := prog

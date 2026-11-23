@@ -72,6 +72,10 @@ const (
 	// GuardsKeep keeps every guard and makes none of the effects of the calls it skips. It is not
 	// exact, and measures what the effects cost.
 	GuardsKeep
+	// GuardsNone keeps no guard: the lowering of a module that only parses inserting missing tokens
+	// run, where a literal that may insert its text matches where the next character cannot begin
+	// it, so that no guard holds (Inserts).
+	GuardsNone
 )
 
 // Options selects the forms the lowering writes.

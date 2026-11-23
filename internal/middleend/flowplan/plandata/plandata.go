@@ -71,6 +71,9 @@ type TableConfig struct {
 	Resume bool
 	// Traced selects the traced bodies.
 	Traced bool
+	// Inserts lowers the #missing sites with their insertions (lowerdata.Options.Inserts), for a
+	// module that parses inserting missing tokens run; without it they lower as their literals.
+	Inserts bool
 }
 
 // TableIR is the Core IR of a Node or recognizer table after its Core passes, the options that

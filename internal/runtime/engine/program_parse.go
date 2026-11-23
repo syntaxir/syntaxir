@@ -515,9 +515,6 @@ func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
 	if stream && (prog.HasMissing || o.MissingTokens > 0) {
 		return program.MissingUnsupported("stream parsing")
 	}
-	if prog.backend(o.Backend) != Closure && o.MissingTokens > 0 {
-		return program.MissingUnsupported("bytecode backends")
-	}
 	return nil
 }
 

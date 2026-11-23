@@ -40,17 +40,18 @@ import (
 //	}
 //
 // vm-tables gives the one table that the VM runs, the Node table labeled rules, and its join gives
-// what the program is planned from (vmCores). action-tables lowers the actions of the table into its Action module (actions),
+// what the program is planned from (vmTarget.cores). action-tables lowers the actions of the table into its Action module (actions),
 // the pass dispatch chooses the guards that the table
 // keeps (flowplan.Dispatching), plan! plans it, and vm-planned-tables lowers the
 // planned table to the end of the Flow stage, for the forms of the bytecode (flowpass.Bytecode), and
 // joins it with the program into vm-input, which vmlower! lowers to the bytecode module.
 
 // vmTarget is a VM target as its splits read it (codegen.TargetFeature): the checked program whose
-// bytecode it builds, and whether its Core module records the origin map, as the compilation decides
-// (origin).
+// bytecode it builds, the role of that program, and whether its Core module records the origin map, as
+// the compilation decides (origin).
 type vmTarget struct {
 	prog   *frontend.Result
+	role   Role
 	origin bool
 }
 
@@ -65,8 +66,20 @@ const vmTable = "rules"
 // functions: the same Core IR and lowering options, values and logical units, lowered for Document
 // parses, which resume runs. Its guards are those whose skip makes no call (lowerdata.GuardsEvent):
 // the VM does not make the effects of skipped calls (flow.skippedCalls), so it tries an alternative
-// whose evaluation calls rules, and every call counts where it happens.
+// whose evaluation calls rules, and every call counts where it happens. Its #missing sites lower as
+// their literals, so that the parses without insertion pay nothing for them (vmTarget.tableConfig).
 var vmTableConfig = plandata.TableConfig{Values: true, Logical: true, Guards: lowerdata.GuardsEvent, Document: true, Resume: true}
+
+// tableConfig is the table of the VM target: vmTableConfig, except for the insertion program and its
+// recognizer, which only parses inserting missing tokens run. They lower the #missing sites with
+// their insertions and keep no guard (lowerdata.GuardsNone).
+func (t *vmTarget) tableConfig() plandata.TableConfig {
+	c := vmTableConfig
+	if t.role == Insertion || t.role == InsertionRecognizer {
+		c.Inserts, c.Guards = true, lowerdata.GuardsNone
+	}
+	return c
+}
 
 // vmTargetOf returns the VM target of the scope of x, for the split split.
 func vmTargetOf(x pipe.SplitCtx, split string) (*vmTarget, error) {
@@ -80,7 +93,7 @@ func vmTargetOf(x pipe.SplitCtx, split string) (*vmTarget, error) {
 
 // vmTables is the split vm-tables: the one table of the VM target of the scope it runs in, built as
 // the Node table of a generated parser is (key "program"), and joined into what its program is
-// planned from (vmCores).
+// planned from (vmTarget.cores).
 var vmTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, plandata.CoresIR, &pipe.Split[*Program, common.TableSource, *core.Module, *plandata.Cores]{
 	Name: "vm-tables", Labels: []string{vmTable}, Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
 	Parts: func(x pipe.SplitCtx, _ *Program) ([]common.TableSource, []string, error) {
@@ -88,7 +101,7 @@ var vmTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, plandata.Core
 		if err != nil {
 			return nil, nil, err
 		}
-		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, vmTableConfig), Key: "program", Origin: t.origin}}, []string{vmTable}, nil
+		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, t.tableConfig()), Key: "program", Origin: t.origin}}, []string{vmTable}, nil
 	},
 	Join: func(x pipe.SplitCtx, _ *Program, mods []*core.Module) (*plandata.Cores, error) {
 		t, err := vmTargetOf(x, "vm-tables")
@@ -98,23 +111,24 @@ var vmTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, plandata.Core
 		if len(mods) != 1 {
 			return nil, fmt.Errorf("the VM builds one table, not %d", len(mods))
 		}
-		return vmCores(t.prog, mods[0]), nil
+		return t.cores(mods[0]), nil
 	},
 })
 
-// vmCores returns what the program prog, whose Node table after the Core passes is m, is planned from
+// cores returns what the program of the target, whose Node table after the Core passes is m, is planned from
 // for the VM: the Node table, whose calls all enter the slots of their rules, which memoize every rule
 // for Documents; its start rules as the entry points; and the table as the one unit, with every rule,
 // since one module serves every start rule, and the stream body of each rule that has a #stream
 // repetition, since any such rule may start a stream parse.
-func vmCores(prog *frontend.Result, m *core.Module) *plandata.Cores {
+func (t *vmTarget) cores(m *core.Module) *plandata.Cores {
+	prog := t.prog
 	rules := append(append([]*check.Rule(nil), prog.RuleList...), prog.Twins...)
 	c := &plandata.Cores{}
-	t := plandata.CoreTable{Name: vmTable, M: m, Slots: true}
-	u := plandata.Unit{Label: vmTable, Table: vmTable, IR: flowplan.TableOf(m, vmTableConfig), Rules: planRules(rules)}
+	ct := plandata.CoreTable{Name: vmTable, M: m, Slots: true}
+	u := plandata.Unit{Label: vmTable, Table: vmTable, IR: flowplan.TableOf(m, t.tableConfig()), Rules: planRules(rules)}
 	for i, r := range rules {
 		_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
-		t.Rules = append(t.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
+		ct.Rules = append(ct.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
 		if i < len(prog.RuleList) && r.Stream {
 			u.Streams = append(u.Streams, u.Rules[i])
 		}
@@ -123,7 +137,7 @@ func vmCores(prog *frontend.Result, m *core.Module) *plandata.Cores {
 	for _, name := range run.StartRules {
 		c.Roots = append(c.Roots, plandata.Entry{Table: vmTable, ID: run.ByName[name].ID})
 	}
-	c.Tables, c.Units = []plandata.CoreTable{t}, []plandata.Unit{u}
+	c.Tables, c.Units = []plandata.CoreTable{ct}, []plandata.Unit{u}
 	return c
 }
 

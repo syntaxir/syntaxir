@@ -121,7 +121,7 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		// A parser with limit controls counts logical compute units, with the exact guards
 		// (lowerdata.GuardsExact); a parser with Documents resumes the runs of its repetitions
 		// (lowerdata.Options.Resume).
-		cfg := plandata.TableConfig{Values: pr == prog && !o.RecognizeOnly, Logical: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document}
+		cfg := plandata.TableConfig{Values: pr == prog && !o.RecognizeOnly, Logical: !o.NoLimitControls, Observe: o.Observability, Document: o.Document, Resume: o.Document, Inserts: true}
 		u := plandata.Unit{Label: table, Table: table, Rules: make([]*plandata.Rule, len(all)), Prune: true, IR: flowplan.TableOf(mods[i], cfg)}
 		for j, r := range all {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)

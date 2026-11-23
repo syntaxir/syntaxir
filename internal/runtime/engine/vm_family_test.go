@@ -14,8 +14,6 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-var vmBackends = []Backend{Bytecode, BytecodeIterative}
-
 // TestVMFamiliesMatchOnCorpus checks that the two families of each VM give the same results,
 // errors, expectations, recovered errors, positions and statistics on every grammar and input of
 // the corpus, when no tracer observes the calls.

@@ -269,7 +269,7 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the
 		// examined input (Document) but keeps no runs (lowerdata.Options.Resume).
-		Resume: o.Document, Traced: s.traced})
+		Resume: o.Document, Traced: s.traced, Inserts: true})
 }
 
 // Printing is the step print-go: it prints the files of the Go parser of the target of the pipeline

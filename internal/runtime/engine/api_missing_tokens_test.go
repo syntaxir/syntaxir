@@ -5,6 +5,7 @@ package engine_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -110,12 +111,16 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A parse of the whole input inserts on every backend, as the Closure does; only the stream
+	// paths below refuse insertion.
+	want, wantErr := p.Parse(";", engine.WithMissingTokens(2))
 	for _, backend := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
 		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(0)); n == nil || err != nil {
 			t.Fatal(backend, n, err)
 		}
-		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(2)); n != nil || err == nil || !strings.Contains(err.Error(), "not supported") {
-			t.Fatal(backend, n, err)
+		n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(2))
+		if fmt.Sprint(n) != fmt.Sprint(want) || fmt.Sprint(err) != fmt.Sprint(wantErr) {
+			t.Fatal(backend, n, err, "want", want, wantErr)
 		}
 	}
 	r := &missingUnusableReader{}
@@ -144,8 +149,11 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := strict.Parse(";", engine.WithBackend(engine.Bytecode), engine.WithMissingTokens(1)); err == nil {
-		t.Fatal("unsupported VM enabled mode accepted")
+	// A grammar without #missing has nothing to insert: a limit changes no backend's parse.
+	for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+		if n, err := strict.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(1)); n == nil || err != nil {
+			t.Fatal(backend, "limit on a grammar without #missing", n, err)
+		}
 	}
 	d, err := strict.NewDocument(";")
 	if err != nil {

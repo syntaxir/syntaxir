@@ -22,6 +22,9 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
+// vmBackends are the bytecode VM families, which tests compare with each other and with the closure.
+var vmBackends = []Backend{Bytecode, BytecodeIterative}
+
 // parseTest parses SyntaxIR source for a test whose subject is not start rules: unless the source
 // has declaration attributes, every rule becomes a start rule, the first one the default.
 func parseTest(src string) (*ast.Grammar, error) {

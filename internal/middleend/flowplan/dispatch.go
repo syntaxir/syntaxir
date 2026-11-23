@@ -70,6 +70,7 @@ func dispatch(ir *plandata.TableIR) *plandata.TableIR {
 // Guarded returns the alternatives of the module m that keep their guard when m is lowered with the
 // options o, with what the skip of each makes:
 //
+//   - With lowerdata.GuardsNone, no guard is kept.
 //   - With logical units and lowerdata.GuardsKeep, every guard is kept, and the skip makes none of
 //     the effects of the calls it passes over.
 //   - Without logical units and without Documents, every guard is kept: the skip makes nothing that
@@ -101,7 +102,7 @@ func Guarded(m *core.Module, o lowerdata.Options) map[*core.Alt]lowerdata.Guard 
 // guardOf reports whether the alternative a keeps its guard in a lowering with the options o, and what
 // its skip makes (Guarded).
 func guardOf(m *core.Module, o lowerdata.Options, a *core.Alt) (lowerdata.Guard, bool) {
-	if a.Guard == nil {
+	if a.Guard == nil || o.Guards == lowerdata.GuardsNone {
 		return lowerdata.Guard{}, false
 	}
 	if o.Logical && o.Guards == lowerdata.GuardsKeep || !o.Logical && !o.Document {

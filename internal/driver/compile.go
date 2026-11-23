@@ -418,7 +418,7 @@ func decide(p *Program, t Target, withOrigin bool) (target, error) {
 		if err := runTimeGen(t); err != nil {
 			return target{}, err
 		}
-		return target{t: t, target: &vmTarget{prog: p.prog, origin: withOrigin}}, nil
+		return target{t: t, target: &vmTarget{prog: p.prog, role: p.role, origin: withOrigin}}, nil
 	case result.Closure:
 		if err := runTimeGen(t); err != nil {
 			return target{}, err
