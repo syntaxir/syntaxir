@@ -9,7 +9,6 @@ import (
 
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
-	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
@@ -30,10 +29,8 @@ func TestDocumentChangesComparisonInterruptionPublication(t *testing.T) {
 			t.Fatal(err)
 		}
 		d.DrainChanges()
-		// Force interruption during the shared parse/capture/comparison invocation.
-		limited := o
-		limited.Limits = runtime.Limits{Compute: 1}
-		if s, err := d.SnapshotWith(limited); s != nil || !errors.Is(err, runtime.ErrLimit) {
+		// Interrupt the capture and comparison that follow the parse.
+		if s, err := d.SnapshotWith(cancelDuringCapture(o)); s != nil || !errors.Is(err, context.Canceled) {
 			t.Fatal(s, err)
 		}
 		events := d.DrainChanges()

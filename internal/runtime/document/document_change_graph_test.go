@@ -70,14 +70,16 @@ func TestDocumentChangesConservativeGraphEquality(t *testing.T) {
 	}
 }
 
-func TestDocumentChangesComparisonUsesCumulativeBudget(t *testing.T) {
+// TestDocumentChangesComparisonObservesCancellation pins that the comparison of two outputs, Document
+// work that no Compute limit counts, polls the context as it compares long strings, from the count of
+// the invocation that it continues.
+func TestDocumentChangesComparisonObservesCancellation(t *testing.T) {
 	leaf := nodes.Ptr(nodes.Data{Kind: valueimpl.KindOf("Leaf", "leaf"), Terminal: true, Text: strings.Repeat("x", 8192)})
 	a, b := changeGraphSnapshot(t, leaf), changeGraphSnapshot(t, leaf.Clone())
-	control := state.NewBudgetControl(nil, runtime.Limits{Compute: 8192})
-	control.Charge(4096) // Budget already spent by parsing/capture in this invocation.
-	p := &state.Parser{Control: control}
-	if err := catchFatal(t, func() { equalChangeSnapshotsControlled(p, a, b) }); !errors.Is(err, runtime.ErrLimit) {
-		t.Fatal("comparison escaped cumulative spend", err)
+	p := cancelAfter(4096)
+	p.Control.Charge(4096) // The units of the parse and the capture before the comparison.
+	if err := catchFatal(t, func() { equalChangeSnapshotsControlled(p, a, b) }); !errors.Is(err, context.Canceled) {
+		t.Fatal("comparison escaped cancellation", err)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

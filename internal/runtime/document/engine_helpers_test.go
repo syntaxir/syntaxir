@@ -417,6 +417,28 @@ func (c *snapshotPhaseContext) Err() error {
 
 func (c *budgetContextAccessorContext) Done() <-chan struct{} { return c.done }
 
+// cancelDuringCapture returns o with a context that is canceled once the parse has counted more
+// than 64 units past the exit of the start rule main: the end of the parse does not observe it, and
+// only the polls of the capture that follows, a snapshot's freezing and comparison, can.
+func cancelDuringCapture(o ParseOptions) ParseOptions {
+	var observed *state.Parser
+	var exit uint64
+	ctx := &budgetContextAccessorContext{Context: context.Background(), done: make(chan struct{})}
+	ctx.fn = func() error {
+		if observed != nil && observed.Control != nil && observed.Control.Used > exit+64 {
+			return context.Canceled
+		}
+		return nil
+	}
+	o.Context = ctx
+	o.Trace = func(e TraceEvent) {
+		if e.Kind == TraceExit && e.Rule == "main" {
+			observed, exit = state.TraceParser(e), state.TraceParser(e).Control.Used
+		}
+	}
+	return o
+}
+
 func (c *budgetContextAccessorContext) Err() error {
 	if c.fn != nil {
 		return c.fn()

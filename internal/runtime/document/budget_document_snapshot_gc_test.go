@@ -57,7 +57,8 @@ func minSecondSnapshotCompute(t *testing.T, prog *Program, text string, keep boo
 }
 
 // The Compute that a snapshot charges is a function of the document's logical state: it does not
-// depend on whether the collector has released the previous snapshot.
+// depend on whether the collector has released the previous snapshot. Sharing with a snapshot that
+// is still alive is Document work, which no Compute limit counts.
 func TestBudgetSnapshotChargeIndependentOfCollection(t *testing.T) {
 	prog := mustCompile(t, `rule main = item* $$
 rule item = [a-z]`)

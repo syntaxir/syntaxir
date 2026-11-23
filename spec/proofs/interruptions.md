@@ -95,7 +95,9 @@ It never shrinks, and it depends on the input and the grammar, not on how the
 reader splits the input. A Document parse leaves out,
 under every budget, the work that only a Document does (its **Document units**: the application of
 pending edits, the moves of reused values, the recorded runs, the extra units
-of decoding the characters of its text, and the copy of the diagnostics): the
+of decoding the characters of its text, the copy of the diagnostics, and the
+capture and comparison of the output of a `Snapshot` or of a `Parse` with
+change notifications): the
 reservation of $d$ Document units raises $B$ by $d$ before it is made, and a
 limit error reports $B - \delta$ and $u - \delta$ for the $\delta$ Document units reserved so
 far. So for a

@@ -338,7 +338,9 @@ func (c *snapshotContext) Err() error {
 }
 
 // SnapshotWith parses and freezes the current text with fully resolved options.
-// Cancellation and compute limits cover both phases; interruption returns nil.
+// Cancellation and the memory limit cover both phases and the compute limit the
+// parse: freezing is Document work, which no Compute limit counts. Interruption
+// returns nil.
 func (d *Document) SnapshotWith(o state.ParseOptions) (*Snapshot, error) {
 	return d.snapshotWith(o, nil)
 }
@@ -609,10 +611,10 @@ func snapshotFieldPath(p *state.Parser, stack []snapshotFrame, edge snapshotEdge
 
 // shareWithPrevious reuses the records of the previous snapshot's graph where it is still alive.
 // Reuse only saves memory, and the collector decides whether the previous graph is alive, so the
-// parse is charged for the reuse as a function of the new graph alone, whenever a previous snapshot
-// of the same root was taken: the charge never depends on collection, or on what the previous
-// snapshot held. The reuse itself then runs unmetered, within what was charged, and still observes
-// cancellation.
+// capture reserves the Document units of the reuse as a function of the new graph alone, whenever a
+// previous snapshot of the same root was taken: the units never depend on collection, or on what
+// the previous snapshot held. The reuse itself then runs unmetered, within what was reserved, and
+// still observes cancellation.
 func (d *Document) shareWithPrevious(p *state.Parser, next snapshotGraph) snapshotGraph {
 	if d.previousRoot != next.root {
 		return next

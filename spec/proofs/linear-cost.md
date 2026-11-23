@@ -13223,7 +13223,7 @@ its creation, and so are their charges
 the Document units of Lemma 12 that the parse reserves in regions
 of Document work: the edits that a lookup applies, the moves of reused values with the cleanup
 that ends them, the operations of recorded runs, the extra units that decoding a piece of the
-text costs, and the copy of the diagnostics that the parse publishes. The other Document units of
+text costs, the copy of the diagnostics that the parse publishes, and the capture below. The other Document units of
 Lemma 12, the walks, removals, hashing and probing of chains and the growth of the slots, charge
 no unit in any parse. Every other unit is counted: the unit that opens a call, the key of each
 call of a rule that a parse from scratch memoizes, the evaluation of the body of a rule, the
@@ -13260,6 +13260,25 @@ completes and expect a Document parse to complete with a constant factor of its 
 whose cost is high only in work that is left out of the count (the walks of the chains, the
 growth of the table, the edits, the moves, and the retained state of step 6) is not stopped by
 the default in proportion to that work. $\square$
+
+*Capture.* A `Snapshot`, and a `Parse` of a Document with change notifications,
+also capture the output of the parse once it completes
+([Snapshots](../runtime/documents.md#snapshots)): they copy the text, freeze the
+graph that the result reaches, copy the diagnostics, share records with the
+previous snapshot and compare the output with the previous one. That work runs
+in a region of Document work of its own, so no Compute limit counts it, and the
+polls for cancellation and memory count its steps. Let $N$ be the length of the
+text in bytes, $D$ the number of the diagnostics and of their strings, and $V$
+the size of the frozen graph: one plus the number of children and fields of
+each of its nodes, plus the bytes of its texts, field names and string values.
+Freezing visits each node, child and field once; sharing reserves two units for
+each record and each byte of its strings and one for each child and field, as a
+function of the new graph alone, and runs within them; the comparison stops at
+the first difference and reads each record and string of the new graph a
+constant number of times; and the copies of the text and of the diagnostics
+take one unit for each byte, error and string. So the capture comes to at most
+a constant times $N + V + D$. No lemma bounds $V$ by the counted units: the
+graph includes the values that the Document reused.
 
 A node counts in $W$ whichever text it was built for, and whether or not a call
 of the parse reaches it. No lemma bounds $W$, $B$, $G$ or $Q$ by $n$, $K$ and $L$: see step 6 of

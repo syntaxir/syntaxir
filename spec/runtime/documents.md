@@ -147,13 +147,16 @@ and allocator overhead; it is neither process heap use nor a limit.
 `doc.Snapshot(opts...)` captures the current text revision, parse outcome and
 value graph in one immutable `Snapshot`. It resolves invocation overrides once
 over the construction defaults, with the same variable and fixed options as
-`Parse`. Parsing and freezing use the same cancellation context and the same
-cumulative spend counter. Copying the text, freezing
-nodes and fields and copying diagnostics are part of that invocation. A snapshot
-MAY share immutable records with the previous one of the same document; whether
-it does is not observable except in memory, and the Compute it charges is the
-same whether or not the previous snapshot is still alive: it is a function of the
-document and of the new graph alone.
+`Parse`. Parsing and freezing use the same cancellation context and memory
+limit. Copying the text, freezing nodes and fields, copying diagnostics and
+comparing the output with the previous one are
+[work of the Document](#work-of-a-document-parse) that a parse from scratch does
+not do: no `Compute` limit counts it, and the polls for cancellation and the
+memory limit count its steps, so the compute limit stops only the parse. A
+snapshot MAY share immutable records with the previous one of the same document;
+whether it does is not observable except in memory, and the work it reserves for
+sharing is the same whether or not the previous snapshot is still alive: it is a
+function of the document and of the new graph alone.
 
 A normally returned parse outcome produces a snapshot, including an ordinary
 syntax error and a recovered error. For an ordinary syntax failure the snapshot
@@ -161,8 +164,8 @@ keeps the text and version, has a zero root as `Document.Parse` does, and expose
 a defensive copy of the `SyntaxError`. A recovered outcome keeps its root and
 `SyntaxErrors`. A parse that nests deeper than the depth limit is a normally returned
 outcome too: the snapshot keeps a copy of its `LimitError` of kind `LimitDepth`.
-Cancellation or an exhausted compute or memory limit during parsing or
-freezing returns a nil snapshot and a fatal interruption error, which grammar
+Cancellation or an exhausted memory limit during parsing or freezing, or an
+exhausted compute limit during parsing, returns a nil snapshot and a fatal interruption error, which grammar
 choice, predicates and recovery cannot absorb. No partial graph, text or
 diagnostics are published. If execution began, reusable execution state is
 cleared before retry; completed input tables MAY remain and partial tables are
@@ -389,7 +392,9 @@ A Document parse, on every backend, does work that a parse of the same text
 from scratch does not: it applies pending edits, walks and indexes the chains of
 memo entries that earlier parses left, moves or copies the values it reuses,
 works through the records of runs, grows the memo table, copies diagnostics and
-decodes the characters of its text. None of this work is an event of the parse
+decodes the characters of its text. A `Snapshot`, and a `Parse` with
+[change notifications](#change-notifications), also capture and compare the
+output, as [Snapshots](#snapshots) describes. None of this work is an event of the parse
 ([Cost](parsing.md#cost)): no `Compute` limit, the default or an explicit one,
 counts it, and it does not change the units that a parse reports, so a parse
 reaches the same decision on the same limit whichever way a backend does it:
@@ -563,9 +568,10 @@ count as changes; this is a refresh policy and not language value equality.
 Unknown non-syntax diagnostic types count as changed. Source text and parse
 statistics are not part of output equality.
 
-With tracking enabled, both `Parse` and `Snapshot` capture and compare, using the
-invocation's cumulative context and compute limits. A cancellation or compute limit
-interruption returns nil and emits `OutputUnavailable`, which clears comparison
+With tracking enabled, both `Parse` and `Snapshot` capture and compare under the
+invocation's context and memory limit; the capture and the comparison are
+[work of the Document](#work-of-a-document-parse), which no `Compute` limit counts.
+A cancellation, a memory limit, or a compute limit during the parse returns nil and emits `OutputUnavailable`, which clears comparison
 continuity: the next successful capture reports `OutputMayHaveChanged`. Completed
 syntax failures stay comparable. Unsupported captures also report unavailable.
 
@@ -586,7 +592,7 @@ edit: edits that follow an outcome are not part of it.
 | `EditBatch` with a foreign or stale version, unordered or overlapping edits, repeated starts or invalid ranges | The whole batch is rejected |
 | Parse option that changes unit, backend, start rule or mode | Error before execution; caches and statistics kept |
 | Cancellation, or a compute or memory limit, during `Parse` | Error and no result; execution state cleared |
-| Cancellation, or a compute or memory limit, during `Snapshot` | Nil snapshot and a fatal error |
+| Cancellation or a memory limit during `Snapshot`, or a compute limit during its parse | Nil snapshot and a fatal error |
 | Unsupported field value type while freezing | Nil snapshot and `*SnapshotCaptureError` |
 | `EnableChanges` twice | Error |
 | Stream diagnostic options (`WithDiagnosticCallback`, `WithDiagnosticLimit`) | Rejected |

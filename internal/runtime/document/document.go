@@ -218,7 +218,12 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 		}
 	}
 	if capture != nil {
+		// The capture and the comparison of a snapshot are work that a parse from scratch does not do:
+		// Document units, which no Compute limit counts and which keep the polls for cancellation and
+		// memory (spec/runtime/documents.md#change-notifications).
+		m := p.FreeBegin(true)
 		err = capture(p, n, err)
+		p.FreeEnd(m)
 	}
 	return n, err
 }

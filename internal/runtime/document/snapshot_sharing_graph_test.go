@@ -14,7 +14,9 @@ import (
 	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
-func TestSnapshotSharedStringComparisonRespectsBudgetLimit(t *testing.T) {
+// TestSnapshotSharedStringComparisonObservesCancellation pins that sharing, which runs within the
+// Document units reserved for it, polls the context as it compares long strings.
+func TestSnapshotSharedStringComparisonObservesCancellation(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls reference")
 	}
@@ -29,11 +31,10 @@ func TestSnapshotSharedStringComparisonRespectsBudgetLimit(t *testing.T) {
 		{"field value", snapshotRecord{fields: valueimpl.Fields{{Name: "x", Value: long}}}, snapshotRecord{fields: valueimpl.Fields{{Name: "x", Value: strings.Clone(long)}}}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p := &state.Parser{Control: state.NewBudgetControl(nil, runtime.Limits{Compute: 1024})}
+			p := cancelAfter(0)
 			err := catchFatal(t, func() { sameSnapshotRecord(p, &snapshotGraph{}, &tc.a, &snapshotGraph{}, &tc.b) })
-			var limit *runtime.LimitError
-			if !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
-				t.Fatal("string comparison escaped compute limit", err)
+			if !errors.Is(err, context.Canceled) {
+				t.Fatal("string comparison escaped cancellation", err)
 			}
 		})
 	}

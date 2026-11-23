@@ -14,7 +14,7 @@ import (
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
-func TestSnapshotControlledFreezeBudgetAndRetry(t *testing.T) {
+func TestSnapshotControlledFreezeCancellationAndRetry(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls reference")
 	}
@@ -24,37 +24,27 @@ func TestSnapshotControlledFreezeBudgetAndRetry(t *testing.T) {
 		if _, err := d.ParseWith(o); err != nil {
 			t.Fatal(err)
 		}
-		// A memo-hit parse succeeds with this allowance. Capturing its
-		// existing graph and text must still consume the same invocation.
+		// A memo-hit parse succeeds with this allowance, and so does the capture of its existing graph
+		// and text: freezing is Document work, which no Compute limit counts.
 		o.Limits = runtime.Limits{Compute: 100}
 		if _, err := d.ParseWith(o); err != nil {
 			t.Fatal("memo-hit fixture", err)
 		}
-		s, err := d.SnapshotWith(o)
-		if s != nil || !errors.Is(err, runtime.ErrLimit) || d.Memo().Len() != 0 || d.Runs() != nil || d.Kids() != nil || d.Machine() != nil {
+		if s, err := d.SnapshotWith(o); s == nil || err != nil || s.Text() != d.Text() {
+			t.Fatal("freeze under a compute limit", s, err)
+		}
+		// Cancellation still interrupts the freezing, which polls the context.
+		o.Limits = runtime.Limits{}
+		s, err := d.SnapshotWith(cancelDuringCapture(o))
+		if s != nil || !errors.Is(err, context.Canceled) || d.Memo().Len() != 0 || d.Runs() != nil || d.Kids() != nil || d.Machine() != nil {
 			t.Fatal("freeze interruption", s, err)
 		}
-		o.Limits = runtime.Limits{}
 		s, err = d.SnapshotWith(o)
 		if s == nil || err != nil || s.Text() != d.Text() {
 			t.Fatal("retry", err)
 		}
 		if resultJSON(s.Materialize(), s.Error()) != resultJSON(prog.ParseWith("main", d.Text(), o)) {
 			t.Fatal("fresh mismatch")
-		}
-		// A cached parse fits, but copying all 8192 input bytes does not.
-		o.Limits = runtime.Limits{Compute: 4096}
-		if _, err := d.ParseWith(o); err != nil {
-			t.Fatal("compute limit memo-hit fixture", err)
-		}
-		s, err = d.SnapshotWith(o)
-		var limit *runtime.LimitError
-		if s != nil || !errors.As(err, &limit) || limit.Kind != runtime.LimitCompute {
-			t.Fatal("text-freeze compute limit", s, err)
-		}
-		o.Limits = runtime.Limits{}
-		if s, err = d.SnapshotWith(o); s == nil || err != nil {
-			t.Fatal("compute limit retry", err)
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
