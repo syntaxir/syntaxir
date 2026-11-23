@@ -39,25 +39,51 @@ func dumpsOf(text string) map[string]string {
 }
 
 // parses parses input with p and returns what it returns as text.
-func parses(p runtime.Parser, input string) string {
-	n, err := p.Parse(input)
+func parses(p runtime.Parser, input string, opts ...runtime.ParseOption) string {
+	n, err := p.Parse(input, opts...)
 	return fmt.Sprint(n, err)
 }
+
+// missingDebugGrammar is debugGrammar with a #missing literal, whose parses with a missing-token
+// limit run the insertion program derived from the call's build.
+var missingDebugGrammar = grammar.FromString("missing.sxir", `@start
+rule main = (word / num / -" ")* $$
+rule word = "if" / "else" / [a-z]+ / "(" [a-z]* ")" #missing
+rule num = [0-9]+
+`)
 
 // WithDebug writes the dumps of the run-time builds during the call: Compile those of the bytecode,
 // which the recursive and the iterative VM both run, NewReferenceParser those of the closures' Core
 // module, each labeled with its backend; a parse afterwards, on either VM or with the closures that
-// build their module again, writes nothing more. Where the stages coincide, the Core IR of the
-// table, the dumps agree with each other and with those of a generated Go parser with Documents,
-// whose Node table the run-time backends build.
+// build their module again, writes nothing more, also one that inserts missing tokens and so runs
+// the insertion program. Where the stages coincide, the Core IR of the table, the dumps agree with
+// each other and, for a grammar without #missing, with those of a generated Go parser with
+// Documents, whose Node table the run-time backends build.
 func TestDebugRunTimeBuilds(t *testing.T) {
+	for _, c := range []struct {
+		name    string
+		g       grammar.Source
+		inputs  []string
+		missing bool
+	}{
+		{"without #missing", debugGrammar, []string{"if x 12 else"}, false},
+		{"with #missing", missingDebugGrammar, []string{"if x 12 else", "if (x 12", "(x) (y"}, true},
+	} {
+		t.Run(c.name, func(t *testing.T) { checkDebugRunTimeBuilds(t, c.g, c.inputs, c.missing) })
+	}
+}
+
+func checkDebugRunTimeBuilds(t *testing.T, g grammar.Source, inputs []string, missing bool) {
 	all := func(w *bytes.Buffer) compiler.Option {
 		return compiler.WithDebug(compiler.Debug{PrintAfter: []string{"all"}, Output: w})
 	}
-	const input = "if x 12 else"
+	var opts []runtime.ParseOption
+	if missing {
+		opts = append(opts, runtime.WithMissingTokens(4))
+	}
 
 	var vmOut bytes.Buffer
-	p, err := compiler.Compile(debugGrammar, all(&vmOut))
+	p, err := compiler.Compile(g, all(&vmOut))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,16 +99,23 @@ func TestDebugRunTimeBuilds(t *testing.T) {
 			t.Errorf("the dump %q of Compile does not name the backend vm", label)
 		}
 	}
-	recursive, iterative := parses(p, input), parses(p.(*vm.Parser).Iterative(), input)
-	if recursive != iterative {
-		t.Errorf("the VMs parse differently: %s and %s", recursive, iterative)
+	var recursive []string
+	for _, input := range inputs {
+		r, i := parses(p, input, opts...), parses(p.(*vm.Parser).Iterative(), input, opts...)
+		if r != i {
+			t.Errorf("the VMs parse %q differently: %s and %s", input, r, i)
+		}
+		recursive = append(recursive, r)
 	}
 	if vmOut.Len() != written {
 		t.Errorf("the parses on the VMs wrote %q", vmOut.String()[written:])
 	}
+	if missing && !strings.Contains(strings.Join(recursive, "\n"), "syntax error") {
+		t.Errorf("no parse inserted a missing token: %q", recursive)
+	}
 
 	var clOut bytes.Buffer
-	ref, err := compiler.NewReferenceParser(debugGrammar, all(&clOut))
+	ref, err := compiler.NewReferenceParser(g, all(&clOut))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -96,25 +129,36 @@ func TestDebugRunTimeBuilds(t *testing.T) {
 			t.Errorf("the dump %q of NewReferenceParser does not name the backend closure", label)
 		}
 	}
-	if got := parses(ref, input); got != recursive {
-		t.Errorf("the closures parse %s, the VM %s", got, recursive)
-	}
-	if err := ref.Recognize(input); err != nil {
-		t.Errorf("Recognize: %v", err)
+	for i, input := range inputs {
+		if got := parses(ref, input, opts...); got != recursive[i] {
+			t.Errorf("the closures parse %q as %s, the VM as %s", input, got, recursive[i])
+		}
+		// Recognition returns the errors of the parse, the recovered ones of insertions included.
+		_, perr := ref.Parse(input, opts...)
+		if err := ref.Recognize(input, opts...); fmt.Sprint(err) != fmt.Sprint(perr) {
+			t.Errorf("Recognize %q: %v, the parse %v", input, err, perr)
+		}
 	}
 	if clOut.Len() != written {
 		t.Errorf("the parses on the closures wrote %q", clOut.String()[written:])
 	}
 
+	for _, step := range []string{"elaborate", "guards", "scans"} {
+		if v, c := vmDumps[step+" [vm/rules]"], clDumps[step+" [closure/rules]"]; v == "" || v != c {
+			t.Errorf("the dumps after %s differ: vm %d bytes, closure %d", step, len(v), len(c))
+		}
+	}
+	if missing {
+		return // generated parsers do not run #missing
+	}
 	var genOut bytes.Buffer
-	if _, err := compiler.GenerateGo(debugGrammar, compiler.GoConfig{Module: "example.com/m", Lib: compiler.LibImport, Document: true}, all(&genOut)); err != nil {
+	if _, err := compiler.GenerateGo(g, compiler.GoConfig{Module: "example.com/m", Lib: compiler.LibImport, Document: true}, all(&genOut)); err != nil {
 		t.Fatal(err)
 	}
 	genDumps := dumpsOf(genOut.String())
 	for _, step := range []string{"elaborate", "guards", "scans"} {
-		v, c, g := vmDumps[step+" [vm/rules]"], clDumps[step+" [closure/rules]"], genDumps[step+" [rules]"]
-		if v == "" || v != c || v != g {
-			t.Errorf("the dumps after %s differ: vm %d bytes, closure %d, generated Go %d", step, len(v), len(c), len(g))
+		if v, g := vmDumps[step+" [vm/rules]"], genDumps[step+" [rules]"]; v != g {
+			t.Errorf("the dumps after %s differ: vm %d bytes, generated Go %d", step, len(v), len(g))
 		}
 	}
 }

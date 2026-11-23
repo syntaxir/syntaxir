@@ -244,14 +244,9 @@ func NewReferenceParser(src grammar.Source, opts ...Option) (runtime.Parser, err
 }
 
 // prepare builds what the parser p runs on the backend b during the call when its debugging setting
-// writes something (checked.Source.Prepare). A grammar that uses #missing has no bytecode, so its
-// VM parser builds nothing: the parses of that backend report the grammar.
+// writes something (checked.Source.Prepare).
 func prepare(p *engine.Parser, b result.Backend) error {
-	prog := p.Program()
-	if b == result.VM && prog.HasMissing {
-		return nil
-	}
-	return entry.Source(prog).Prepare(b)
+	return entry.Source(p.Program()).Prepare(b)
 }
 
 // Marshal compiles the grammar src and encodes it in the .sxirc format in mode: the bytecode that
