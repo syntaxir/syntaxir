@@ -148,9 +148,9 @@ func TestValidateCyclesAndSharing(t *testing.T) {
 	groupType := &TypeGroup{}
 	groupType.Type = groupType
 	assertValidationError(t, Validate(typeGrammar(groupType)), "$.file.decls[0].type.type")
-	groupTerm := &ActionGroup{}
-	groupTerm.Action = groupTerm
-	assertValidationError(t, Validate(actionGrammar(groupTerm)), "$.file.decls[0].action.action")
+	groupAction := &ActionGroup{}
+	groupAction.Action = groupAction
+	assertValidationError(t, Validate(actionGrammar(groupAction)), "$.file.decls[0].action.action")
 	shared := &Optional{Expr: &Literal{Value: "a"}}
 	g := expressionGrammar(&Seq{Items: []Expr{shared, shared}})
 	before, err := MarshalJSON(g)
