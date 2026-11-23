@@ -4,10 +4,11 @@ import "testing"
 
 // TestObsOutcomeWide checks that outcomes whose examined range does not fit in a word get identities
 // that tell equal outcomes from others, and that such an outcome is stored and found in the table of
-// its context, as an outcome of a short range is.
+// its context, as an outcome of a short range is. The parse compares ranges (rangeKept), as a
+// Document's does.
 func TestObsOutcomeWide(t *testing.T) {
 	const pos = 1 << 41
-	p := &Parser{}
+	p := &Parser{ContextMemoExamined: true}
 	type outcome struct {
 		ok             bool
 		examined, from int
@@ -43,7 +44,7 @@ func TestObsOutcomeWide(t *testing.T) {
 // TestObsOutcomeWideControl checks that TestObsOutcomeWide detects outcomes that are not stored when
 // their range does not fit in a word.
 func TestObsOutcomeWideControl(t *testing.T) {
-	p := &Parser{}
+	p := &Parser{ContextMemoExamined: true}
 	p.SetTuning(Tuning{MemoMut: CtxNarrowOutcome})
 	if lookaheadStoredAt(p, 1<<41, 1<<41+1<<31, 1<<41-1<<40) {
 		t.Error("CtxNarrowOutcome not detected")
