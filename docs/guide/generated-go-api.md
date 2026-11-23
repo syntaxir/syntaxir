@@ -8,7 +8,7 @@ and streams have their own guides:
 |:--|:--|
 | `-types` | [Typed Values in Generated Go](generated-typed-values.md) |
 | `-document` | [Incremental Documents in Generated Parsers](generated-documents.md) |
-| `-stream` | [Streams in Generated Go](generated-streams.md) |
+| `-stream` | [Streams in Generated Parsers](generated-streams.md) |
 | `-recognize` | [Recognition](#recognition--recognize), below |
 
 It assumes you have generated a parser as in the [quick start](code-generation.md#quick-start).

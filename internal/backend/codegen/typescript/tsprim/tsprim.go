@@ -28,7 +28,7 @@ func TwoResults(name string) bool {
 
 // printed holds the primitives that the TypeScript printer prints: the primitives of the Exec stage
 // that a TypeScript table calls and the operations of the TypeScript passes. The others come from
-// the typed table, from the forms of the Flow passes that only Go prints, or from the Go stream. The
+// the typed table or from the forms of the Flow passes that only Go prints. The
 // analysis ts-printable rejects a table that calls another; the printer's tests tie its dispatch to
 // this set in both directions.
 var printed = map[string]bool{
@@ -41,8 +41,9 @@ var printed = map[string]bool{
 	prim.OpSkipEnd: true, prim.OpRunWalked: true, prim.OpScanEnd: true, prim.OpResumeBegin: true,
 	prim.OpResumeEnd: true, prim.OpResumeFinish: true, prim.OpObserveSkip: true, prim.OpSetEnv: true,
 	prim.OpSetFrame: true, prim.OpSkippedCalls: true,
-	// The demands of the table of a stream, which its resumable functions print as yields.
-	prim.OpInputDemand: true,
+	// The demands of the table of a stream, which its resumable functions print as yields, and the
+	// delivery of the elements of its #stream repetition.
+	prim.OpInputDemand: true, prim.OpStreamStart: true, prim.OpEmitStream: true,
 	// Values.
 	prim.OpEnv: true, prim.OpFrame: true, prim.OpRecLen: true, prim.OpKidsLen: true, prim.OpSkipHit: true,
 	prim.OpRunHot: true, prim.OpSkipKids: true, prim.OpScanReach: true, prim.OpScanKids: true,
@@ -54,7 +55,7 @@ var printed = map[string]bool{
 	prim.OpNewTerminalNode: true, prim.OpNewBranchNode: true, prim.OpNewVals: true, prim.OpKids: true,
 	prim.OpShapeSingle: true, prim.OpShapeCapture: true, prim.OpScopeValue: true, prim.OpAttachFrame: true,
 	prim.OpMarkState: true, prim.OpMarkPos: true, prim.OpNewFrame: true, prim.OpFrameVal: true,
-	prim.OpPred: true, prim.OpBind: true, prim.OpInDocument: true,
+	prim.OpPred: true, prim.OpBind: true, prim.OpInDocument: true, prim.OpStreamOn: true,
 	// The operations of the TypeScript passes.
 	MergeOp: true, FailedOp: true,
 }

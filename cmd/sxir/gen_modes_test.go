@@ -494,7 +494,9 @@ func TestGenTypeScriptTypedOnly(t *testing.T) {
 	}{
 		{[]string{"-typed-only"}, "typed-only output needs typed output (-types)"},
 		{[]string{"-types", "-typed-only", "-document"}, "typed-only output cannot have a Document"},
+		{[]string{"-types", "-typed-only", "-stream"}, "typed-only output cannot have a Document or a stream"},
 		{[]string{"-types", "-typed-only", "-recognize-only"}, "recognize-only output generates only Recognize"},
+		{[]string{"-recognize-only", "-stream"}, "recognize-only output generates only Recognize"},
 	} {
 		_, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", t.TempDir(), "-g", g}, c.args...)...)
 		if err == nil || !strings.Contains(err.Error(), c.want) {

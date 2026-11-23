@@ -126,6 +126,11 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 	switch c.Callee {
 	case prim.OpInputDemand:
 		p.demand(c.Imm.(prim.Demand))
+	case prim.OpStreamStart:
+		p.write(p.streamParser() + ".streamStart();\n")
+	case prim.OpEmitStream:
+		p.read(c.Args...)
+		p.write(fmt.Sprintf("%s.streamEmit(%s, p.pos);\n", p.streamParser(), args()[0]))
 	case prim.OpStep:
 		// The check of the counter at a loop's iteration (logical units only lower steps).
 		p.write(tsUnitsCheck)
@@ -264,6 +269,8 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		return "p.inDocument"
 	case prim.OpKidsLen:
 		return "p.kidStack.length"
+	case prim.OpStreamOn:
+		return fmt.Sprintf("%s.streamsIn(%d, %t)", p.streamParser(), g.Cur.ID, g.Cur.Rec)
 	case prim.OpSkipHit:
 		return "p.skipHit()"
 	case prim.OpRunHot:

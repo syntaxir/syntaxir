@@ -222,6 +222,11 @@ type TSConfig struct {
 	// edit changes its text, and parse returns what parse of the whole current text returns, as
 	// the Go Document does. With Types, the Document also has parseValue.
 	Document bool
+	// Stream also generates createStream, which makes a push stream of the start rule: feed adds
+	// the chunks of the input and returns the elements of the start rule's #stream repetition
+	// committed during the feed, as the Go ParseStream delivers them. The start rule must have a
+	// #stream repetition.
+	Stream bool
 	// MaxDepth is the generated parser's default nested rule-call limit. Zero selects 100,000;
 	// negative values and values that are not exact JavaScript integers fail generation.
 	// Individual invocations may override it with limits.depth.
@@ -260,6 +265,7 @@ func (c TSConfig) target(o options) (driver.Target, error) {
 		TypedOnly:       c.TypedOnly,
 		RecognizeOnly:   c.RecognizeOnly,
 		Document:        c.Document,
+		Stream:          c.Stream,
 		MaxDepth:        c.MaxDepth,
 	})}, nil
 }

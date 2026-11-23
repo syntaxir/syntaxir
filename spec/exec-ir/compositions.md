@@ -180,9 +180,9 @@ row includes what its backends print into packages of their own.
 | engineCall |  |  | `[document, missing, units]` |  |
 | body | `[document, units]` |  |  |  |
 | tracked | `[document, observe]` |  |  |  |
-| streamCommit | `[stream]` |  | `[stream]` |  |
-| streamEmit | `[stream, units]` |  | `[stream]` |  |
-| streamsIn | `[stream]` |  | `[stream]` |  |
+| streamCommit | `[stream]` |  | `[stream]` | `[stream]` |
+| streamEmit | `[stream, units]` |  | `[stream]` | `[stream, units]` |
+| streamsIn | `[stream]` |  | `[stream]` | `[stream]` |
 | expect | `[units]` |  | `[units]` | `[]` |
 | mergeKept |  |  |  | `[]` |
 | mergeExpected | `[units]` |  | `[units]` | `[]` |

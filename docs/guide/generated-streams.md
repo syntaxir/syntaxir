@@ -1,8 +1,9 @@
-# Streams in Generated Go
+# Streams in Generated Parsers
 
 Generate with `sxir gen -g grammar.sxir -module example.com/parser -stream -o parser`, or set `Stream: true` in
 `compiler.GoConfig`. The start rule must have a [`#stream`](../../spec/language/pragmas.md#stream) repetition; otherwise generation
 fails. This adds a Go `ParseStream` beside the ordinary `Parse`, which still treats `#stream` as a plain repetition.
+In TypeScript, `-stream` adds the push stream `createStream`; see [TypeScript streams](#typescript-streams).
 
 ## Parsing a Stream
 
@@ -20,7 +21,7 @@ parse and is returned unchanged; a non-EOF reader error ends it as well. A nil c
 handing elements over. Recovered diagnostics are returned together as `SyntaxErrors` at the end, and positions and
 lines stay absolute. `WithLimits` (its `Compute` unless generated with `-no-limits`), `WithContext` unless generated with `-no-limits` and, with `-observability`, tracing and profiling
 apply to the whole invocation; a cancelled or limited stream checks between reads and elements, and a reader blocked
-in `Read` is not interrupted. `-stream` cannot be combined with `-lang ts`. The measurements are in
+in `Read` is not interrupted. The measurements are in
 [design record 044](../design/records/044-generated-incremental-and-stream-parsers.md#local-measurements-for-generated-go-node-streams).
 
 ## Pull Iteration and Diagnostic Controls
@@ -80,6 +81,33 @@ err := parser.ParseStreamValue(r, func(p *parser.Pair) error {
 
 Each element is converted on its own once it is committed, so values stay valid after the callback returns and share
 nothing with later elements. The conversion charges no compute units and observes `WithContext`.
+
+## TypeScript Streams
+
+`sxir gen -lang ts -g grammar.sxir -stream -o parser`, or `Stream: true` in `compiler.TSConfig`, adds
+`createStream` to `parser.ts`. JavaScript cannot block in a read, so the TypeScript stream is pushed: the caller
+feeds the input chunk by chunk, and each feed returns the elements committed while it ran.
+
+```ts
+import { createStream, Bytes } from "./parser/parser.ts";
+
+const { stream, error } = createStream({ unit: Bytes });
+if (stream === null) throw error; // invalid options
+for await (const chunk of source) { // Uint8Array chunks, such as those of a Node.js readable stream
+  const r = stream.feed(chunk);
+  for (const n of r.elements) use(n);
+  if (r.state === "failed") throw r.error;
+}
+const r = stream.feed(new Uint8Array(0), true); // the end of the input
+for (const n of r.elements) use(n);
+if (r.error !== null) throw r.error; // a syntax error, or the recovered SyntaxErrors of a done stream
+```
+
+`feed` copies the chunk and parses until it needs input that has not arrived (`"waiting"`) or the parse ends
+(`"done"` or `"failed"`). The parse suspends and resumes rather than starting again, so the elements, their positions,
+the error and the compute units are those of the Go `ParseStream` of the same input, whatever the chunks. The options
+of `createStream` (`unit`, `expectations`, `limits`, `signal`, `computeReport`) apply to the whole stream; a signal
+cancels the feed that observes it. A feed after the end returns an error and changes nothing.
 
 ## Related Topics
 

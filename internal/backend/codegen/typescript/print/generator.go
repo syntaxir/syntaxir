@@ -48,9 +48,9 @@ const maxLeaderBits = 31
 type Hooks struct {
 	// Generator, if not nil, is called with the generator once it has printed the parser.
 	Generator func(*Generator)
-	// Stream prints the parser as with -stream (common.GenOptions.Stream), which Validate refuses for
-	// TypeScript until the parser has its stream driver: the table of the stream and the resumable
-	// functions of its parse, printed as generators after the batch code.
+	// Stream prints the parser as with -stream (common.GenOptions.Stream), for the tests that
+	// generate through a target without the option: the table of the stream and the resumable
+	// functions of its parse, printed as generators after the batch code, and createStream.
 	Stream bool
 }
 
@@ -63,13 +63,16 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 	if opts.Lib != common.LibImport && opts.LibModule != "" {
 		return opts, fmt.Errorf("the TypeScript library module can only be set with the import library mode")
 	}
-	if opts.Stream {
-		return opts, fmt.Errorf("stream generation is only supported for Go")
+	if opts.Stream && opts.Document {
+		return opts, fmt.Errorf("stream generation cannot be combined with document generation in TypeScript")
+	}
+	if opts.Stream && opts.Observability {
+		return opts, fmt.Errorf("stream generation cannot be combined with observability in TypeScript")
 	}
 	if opts.RecognizeOnly {
 		switch {
-		case opts.Types || opts.TypedOnly || opts.Document:
-			return opts, fmt.Errorf("recognize-only output generates only Recognize: it cannot have typed output, typed-only output or a Document")
+		case opts.Types || opts.TypedOnly || opts.Document || opts.Stream:
+			return opts, fmt.Errorf("recognize-only output generates only Recognize: it cannot have typed output, typed-only output, a Document or a stream")
 		}
 		opts.Recognize = true
 	}
@@ -77,8 +80,8 @@ func Validate(opts common.GenOptions) (common.GenOptions, error) {
 		switch {
 		case !opts.Types:
 			return opts, fmt.Errorf("typed-only output needs typed output (-types)")
-		case opts.Document:
-			return opts, fmt.Errorf("typed-only output cannot have a Document, which uses the untyped Node (Recognize is allowed)")
+		case opts.Document || opts.Stream:
+			return opts, fmt.Errorf("typed-only output cannot have a Document or a stream, which use the untyped Node (Recognize is allowed)")
 		}
 	}
 	if opts.LogicalVariant != "" {
@@ -232,6 +235,9 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	}
 	if opts.Document {
 		tsg.document(&out, start, opts.Types)
+	}
+	if opts.Stream {
+		tsg.streamEntry(&out, start)
 	}
 	if len(tsg.FieldTypes) > 0 {
 		out.WriteString(tsg.fieldCheckSource())
@@ -777,6 +783,21 @@ export function createDocument(input: string | Uint8Array, options?: %[1]s): { d
 }
 
 `, g.optionsType, start.ID)
+}
+
+// streamEntry writes createStream, which makes the push stream of the start rule, whose #stream
+// repetition delivers its elements as they are committed.
+func (g *Generator) streamEntry(out *strings.Builder, start *common.Rule) {
+	fmt.Fprintf(out, `/**
+ * createStream makes a push stream of the start rule %[1]s, whose #stream repetition delivers each
+ * element as it is committed: feed adds the chunks of the input, the last one final, and returns the
+ * elements committed during the feed. stream is null when the options are invalid, with the error.
+ */
+export function createStream(options?: %[2]s): { stream: Stream | null; error: Error | null } {
+  return createStreamBase(G, R%[3]d, nseen, bodyGens, options);
+}
+
+`, start.Name, g.optionsType, start.ID)
 }
 
 // runKeys writes the constants of the keys of the run sites of the program being generated that are

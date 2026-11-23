@@ -30,7 +30,9 @@ type tsMethod struct {
 // finds; advanceEntry, the same form, belongs to the DocumentMemo class, which applies the edits to
 // the entries at an edit and to an entry that a store joins. callTracked, of tsObsClass, is the
 // memoized call of the ObservedParser class, which records how far each call examined the input
-// without a Document; callUnmemoized belongs to TrackedParser, the class of both.
+// without a Document; callUnmemoized belongs to TrackedParser, the class of both. streamEmit,
+// streamCommit and streamsIn, of tsStreamClass, belong to the StreamParser class: they deliver and
+// commit the elements of the start rule's #stream repetition, as the Go stream does.
 var tsSpecs = []struct {
 	fn     string
 	on     []string
@@ -98,25 +100,31 @@ var tsSpecs = []struct {
 	{fn: "valueConforms", name: "valueConforms"},
 	{fn: "elemsConform", name: "elemsConform"},
 	{fn: "tupleConform", name: "tupleConform"},
+	{fn: "streamEmit", on: []string{exec.Stream, exec.Units}, name: "streamEmit", target: tsStreamClass},
+	{fn: "streamCommit", on: []string{exec.Stream}, name: "streamCommit", target: tsStreamClass},
+	{fn: "streamsIn", on: []string{exec.Stream}, name: "streamsIn", target: tsStreamClass},
 }
 
 // tsRunOn are the features of the methods of the repetition runs of a Document. Their work counts no
 // units; under exec.Units a reused element is a step at which a cancellation is observed (budget.poll).
 var tsRunOn = []string{exec.Document, exec.Units}
 
-// tsClass selects the target that prints a method of the library (tsSpecs): tsTarget, tsDocTarget or
-// tsObsTarget.
+// tsClass selects the target that prints a method of the library (tsSpecs): tsTarget, tsDocTarget,
+// tsObsTarget or tsStreamTarget.
 type tsClass int
 
 const (
 	tsBatchClass tsClass = iota
 	tsDocClass
 	tsObsClass
+	// tsStreamClass is the StreamParser class, the parser of a stream: its methods deliver and commit
+	// the elements of the #stream repetition (tsStreamTarget).
+	tsStreamClass
 )
 
 // specFeatures maps the features of the compositions that the library's methods are specialized
 // for to the features of a parser: a parser with limit controls counts logical compute units.
-var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Units: common.FeatureBudget}
+var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Units: common.FeatureBudget, exec.Stream: common.FeatureStream}
 
 // LibraryRequests returns the specializations that the TypeScript library of a parser with the
 // features fs requests of the compositions (library.Request), one per method of tsSpecs, in its
@@ -167,6 +175,8 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 			t = tsDocTarget
 		case tsObsClass:
 			t = tsObsTarget
+		case tsStreamClass:
+			t = tsStreamTarget
 		}
 		src, err := Method(m, &f, t)
 		if err != nil {
@@ -965,6 +975,45 @@ var tsObsTarget = func() *Target {
 			return tsTarget.Stmt(c, a, dst, decl)
 		}
 		return tsDocTarget.Stmt(c, a, dst, decl)
+	}
+	return &t
+}()
+
+// tsStreamTarget is tsTarget in the methods of the StreamParser class, the parser of a stream, whose
+// host operations deliver its elements and recovered errors, discard the input before a commit and
+// release what the committed elements held, as the Go stream's do (spec/exec-ir/operations.md).
+var tsStreamTarget = func() *Target {
+	t := *tsTarget
+	t.Op = func(c *code.Call, a []string) string {
+		switch c.Callee {
+		case "stream.emits":
+			return "true" // a stream parse delivers its elements to the feed that runs it
+		case "stream.start":
+			return "this.streamStartRule"
+		case "stream.check":
+			return "this.streamCheck()"
+		case "stream.report":
+			return "this.streamReport()"
+		case "stream.deliver":
+			return "this.streamDeliver(" + a[0] + ")"
+		case "stream.discard":
+			return "this.streamDiscard(" + a[0] + ")"
+		case "stream.release":
+			return "this.streamRelease()"
+		case "stream.dropRecords":
+			return "this.streamDropRecords(" + a[0] + ")"
+		case "stream.tail":
+			return "this.streamTail()"
+		case "stream.settleErrors":
+			return "this.streamSettleErrors()"
+		case "memo.prune":
+			return "this.memoPrune(" + a[0] + ")"
+		case "memo.floor":
+			return "this.memoFloor"
+		case "depth.current":
+			return "this.depth"
+		}
+		return tsTarget.Op(c, a)
 	}
 	return &t
 }()

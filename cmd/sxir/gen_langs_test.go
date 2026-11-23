@@ -94,6 +94,30 @@ func TestGenSeveralLanguagesLibOnly(t *testing.T) {
 	}
 }
 
+// sxir gen -stream generates the stream of each listed language: Go ParseStream and TypeScript
+// createStream, as each language generated alone.
+func TestGenStreamSeveralLanguages(t *testing.T) {
+	g := writeFile(t, "items.sxir", "@start\nrule main = item* #stream $$\nrule item = [a-z]+ \",\"\n")
+	dir := t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-lang", "go,ts", "-o", dir, "-module", "example.com/items", "-g", g, "-stream"); err != nil {
+		t.Fatal(err)
+	}
+	goAlone := genTree(t, "-module", "example.com/items", "-g", g, "-stream")
+	tsAlone := genTree(t, "-lang", "ts", "-g", g, "-stream")
+	if got := readTree(t, filepath.Join(dir, "go")); !maps.Equal(got, goAlone) {
+		t.Errorf("DIR/go differs from the Go run alone: %v and %v", slicesOf(got), slicesOf(goAlone))
+	}
+	if got := readTree(t, filepath.Join(dir, "ts")); !maps.Equal(got, tsAlone) {
+		t.Errorf("DIR/ts differs from the TypeScript run alone: %v and %v", slicesOf(got), slicesOf(tsAlone))
+	}
+	if !strings.Contains(tsAlone["parser.ts"], "export function createStream(") {
+		t.Error("the TypeScript parser has no createStream")
+	}
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", t.TempDir(), "-g", writeFile(t, "kv.sxir", kv), "-stream"); err == nil || !strings.Contains(err.Error(), "needs a #stream repetition") {
+		t.Errorf("a TypeScript stream without #stream: %v", err)
+	}
+}
+
 // The errors of several languages: a flag that a listed language does not support names its
 // qualified form, a qualified flag needs its language listed, a language is listed once, and a
 // target that cannot write makes the command write nothing for any target.
@@ -103,7 +127,6 @@ func TestGenSeveralLanguagesErrors(t *testing.T) {
 		args []string
 		want string
 	}{
-		{[]string{"-lang", "go,ts", "-module", "example.com/kv", "-stream"}, "-stream is not supported with -lang ts; use -go.stream"},
 		{[]string{"-lang", "go,ts", "-module", "example.com/kv", "-typed-only"}, "typed-only output needs typed output (-types)"},
 		{[]string{"-lang", "go", "-module", "example.com/kv", "-ts.types"}, "-ts.types is a flag of the ts target, and -lang does not list ts"},
 		{[]string{"-lang", "go,go", "-module", "example.com/kv"}, "-lang lists go twice"},

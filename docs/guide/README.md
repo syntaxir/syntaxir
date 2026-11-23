@@ -57,7 +57,7 @@ complete, runnable examples, and points to the [specification](../../spec/README
 | [The Generated Go API](generated-go-api.md) | The Go package `sxir gen` writes: `Parse`, `ParseRule`, nodes and errors, recognition, call options, cancellation and compute limits |
 | [Typed Values in Generated Go](generated-typed-values.md) | `-types`: a Go type for each grammar type, `ParseValue`, the type mapping, speed and named rules |
 | [Incremental Documents in Generated Parsers](generated-documents.md) | `-document`: the generated `Document`, `Edit` and reparse, what is kept, diagnostics and limits |
-| [Streams in Generated Go](generated-streams.md) | `-stream`: `ParseStream`, `Iterate`, diagnostic controls and typed elements |
+| [Streams in Generated Parsers](generated-streams.md) | `-stream`: `ParseStream`, `Iterate`, diagnostic controls and typed elements; TypeScript `createStream` |
 | [Generated TypeScript Parsers](typescript.md) | Standalone TypeScript modules with `sxir gen -lang ts`: the generated API, positions, strings and ints in JavaScript, errors, deep nesting and the JavaScript stack |
 | [Using the Ready-Made Parsers](ready-made-parsers.md) | The parsers of `alpha-parsers/` (CEL, CSV, CUE, DuckDB SQL, Go, JSON, Python, TypeScript, XML, YAML) in a program: the API they share, choosing an entry point, typed trees, positions and units, errors, conformance and limits |
 

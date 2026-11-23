@@ -77,7 +77,7 @@ func TestCompileChecksTheTargets(t *testing.T) {
 	}{
 		{"no target", nil, "at least one target"},
 		{"two targets", []Target{{Backend: result.TypeScript}, {Backend: result.Go}}, "target go: module path is required"},
-		{"second of a backend", []Target{{Backend: result.TypeScript}, {Backend: result.TypeScript, Gen: common.GenOptions{Stream: true}}}, "target ts#2: stream generation is only supported for Go"},
+		{"second of a backend", []Target{{Backend: result.TypeScript}, {Backend: result.TypeScript, Gen: common.GenOptions{TypedOnly: true}}}, "target ts#2: typed-only output needs typed output (-types)"},
 		{"start", []Target{{Backend: result.Go, Gen: common.GenOptions{Start: "B"}}}, "target go: Start"},
 		{"source info", []Target{{Backend: result.Go, Gen: common.GenOptions{SourceInfo: true}}}, "target go: SourceInfo"},
 		{"verify", []Target{{Backend: result.Go, Gen: common.GenOptions{Debug: common.Debug{VerifyEach: true}}}}, "target go: Debug"},

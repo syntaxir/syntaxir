@@ -298,8 +298,7 @@ With several languages, `-o` is a parent directory, and each language writes to 
 `-source-info`, `-default-value`, the optimization flags and the debugging flags belong to the whole generation. A flag
 of the generated code, such as `-types` or `-lib`, applies to every listed language, and its qualified form
 (`-go.types`, `-ts.lib`) applies to one language and wins over the unqualified flag. `-module`, `-pkg` and `-nodoc` apply
-to Go and `-lib-module` to TypeScript. A flag that a listed language does not support is an error naming its qualified
-form: `-stream` with `ts` listed must be written `-go.stream`. The files
+to Go and `-lib-module` to TypeScript. The files
 of each language equal those of a run with that language alone, and when any target fails, for example because its
 directory holds a file that `sxir gen` did not generate, no target writes a file. `-lib only` with several languages
 writes the library of each.

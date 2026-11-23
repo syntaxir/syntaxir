@@ -52,7 +52,35 @@ func (g *Generator) streamRules() {
 	plain := maps.Clone(g.plainUsed)
 	all := append(append([]*common.Rule(nil), g.Prog.RuleList...), g.Prog.Twins...)
 	gens := make([]string, len(all))
+	// The start rule of the stream runs its stream body, which delivers the elements of its #stream
+	// repetition where the stream runs it at the top (streamsIn) and is the rule's body elsewhere: it
+	// is the rule's resumable body, and the rule has no other.
+	streams := 0
 	for i, r := range all {
+		l, ok := execdata.Func(g.table, plandata.Key{Use: plandata.StreamBody, Rule: r.ID})
+		if !ok {
+			continue
+		}
+		streams++
+		g.Cur = r
+		name, gen := g.funcName(l, nil, check.NewScope(), r.Name+" (stream body)")
+		if !gen {
+			// A stream body that demands no input still runs as the driver runs every body.
+			wrapped := name + "Gen"
+			fmt.Fprintf(&g.Methods, "// %s (stream body), which never suspends\nfunction* %s%s {\n  return %s(p);\n}\n\n", r.Name, wrapped, tsGenSignature, name)
+			name = wrapped
+		}
+		gens[i] = name
+		g.genBodies[r] = name
+	}
+	if streams != 1 {
+		g.printErr(fmt.Errorf("internal error: the stream has %d stream bodies, not that of its start rule", streams))
+		return
+	}
+	for i, r := range all {
+		if gens[i] != "" {
+			continue
+		}
 		gens[i] = "null"
 		if g.pruned(r) {
 			continue
@@ -217,4 +245,14 @@ func (p *tsPrimPrinter) demand(d prim.Demand) {
 		lacks = "p.demandUnits(" + k + ")"
 	}
 	p.write(fmt.Sprintf("for (let lacks = %s; lacks > 0; lacks = %s) yield lacks;\n", lacks, lacks))
+}
+
+// streamParser returns the parser of the stream in the function being printed: p in a resumable
+// function, whose parameter is the StreamParser, and p cast to it in another function of the stream,
+// which the batch code's signature types as a Parser.
+func (p *tsPrimPrinter) streamParser() string {
+	if p.gen {
+		return "p"
+	}
+	return "(p as StreamParser)"
 }

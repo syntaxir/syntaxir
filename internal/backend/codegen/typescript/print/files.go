@@ -39,6 +39,10 @@ var tsPublicLib = strings.Fields(`
 // unless generated with -no-limits.
 var tsPublicControls = strings.Fields(`CancellationSignal ComputeReport`)
 
+// tsPublicStream lists the library declarations of the push stream that parser.ts re-exports when
+// generated with -stream.
+var tsPublicStream = strings.Fields(`Stream StreamResult StreamState`)
+
 // substituteMethods replaces methods of the Parser class in the library source src by the printed
 // methods ms: each method, with the comment lines before it, from its first line at the class
 // body's indentation to the closing brace at that indentation.
@@ -118,6 +122,9 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specializ
 	public := slices.Clone(tsPublicLib)
 	if !opts.NoLimitControls {
 		public = append(public, tsPublicControls...)
+	}
+	if opts.Stream {
+		public = append(public, tsPublicStream...)
 	}
 	for _, name := range public {
 		export := name

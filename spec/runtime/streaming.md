@@ -210,9 +210,12 @@ delivered, and the count holds only the `n` errors of the retained tail.
 
 Streaming is supported by the engine on all three backends. Generated Go parsers
 provide `ParseStream` and `Iterate` when generated with streaming enabled, and
-typed variants with typed values; see [Generated Parsers](generated-parsers.md).
-Generated TypeScript parsers have no stream entry point and treat `#stream` as an
-ordinary repetition. A `Document` is always parsed as a whole and does not stream.
+typed variants with typed values. Generated TypeScript parsers provide the push
+stream `createStream`, which the caller feeds chunk by chunk and which delivers the
+elements, the error and the compute units of the Go `ParseStream` of the same input
+whatever the chunks; see [Generated Parsers](generated-parsers.md#streaming). Their
+other entry points treat `#stream` as an ordinary repetition. A `Document` is always
+parsed as a whole and does not stream.
 
 ## Conformance
 

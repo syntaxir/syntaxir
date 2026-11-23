@@ -102,6 +102,9 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 		return nil, err
 	}
 	o := t.Opts
+	if o.Stream && !t.Start.Stream {
+		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", t.Start.Name)
+	}
 	c := &plandata.Cores{}
 	prog := t.Prog.View
 	// parseRule and parseRuleValue enter the other start rules, so only a recognize-only parser has no such roots.
@@ -141,6 +144,9 @@ func (t *Target) Cores(mods []*core.Module) (*plandata.Cores, error) {
 			cfg.Suspend = true
 			s := u
 			s.Label, s.IR = print.StreamTable, flowplan.TableOf(mods[i], cfg)
+			// The body of the start rule that the stream runs delivers the elements of its #stream
+			// repetition (plandata.StreamBody).
+			s.Streams = []*plandata.Rule{t.Start.PlanRule()}
 			stream = s
 		}
 	}

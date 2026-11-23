@@ -14,10 +14,11 @@ import (
 
 // tsStreamDriver is a minimal driver of the resumable functions of a stream, appended to the bundle of
 // a parser printed as with -stream. drive runs the resumable body of the rule name (bodyGens) on a
-// StreamParser whose input holds the whole input but whose n grows by step units at each suspension
-// (the whole input at once for step 0), and returns its result and position, its compute units and
-// the number of suspensions. batch runs the batch body of the rule (Rule.body) on a Parser of the
-// whole input and returns the same.
+// StreamParser to which it appends the input step units at a time, at the start and at each
+// suspension (the whole input at once for step 0), and returns its result and position, its compute
+// units and the number of suspensions. In code points a unit is the bytes of a character, which the
+// parser decodes once the bytes after it tell where it ends. batch runs the batch body of the rule
+// (Rule.body) on a Parser of the whole input and returns the same.
 const tsStreamDriver = `
 const show = (v: R, p: Parser) => (v === undefined ? "fail" : v === null ? "null" : v.toString()) + " @" + p.pos;
 export function batch(name: string, input: string | Uint8Array, unit: Unit): { result: string; units: number } {
@@ -27,20 +28,35 @@ export function batch(name: string, input: string | Uint8Array, unit: Unit): { r
 }
 export function drive(name: string, input: string | Uint8Array, unit: Unit, step: number): { result: string; units: number; yields: number } {
   const start = rules.find(r => r.name === name)!;
-  const p = new StreamParser(G, input, unit, nseen, 10000);
+  const bytes = typeof input === "string" ? encodeUTF8(input) : input;
+  // ends holds the end of each unit in the bytes.
+  const ends = [0];
+  for (let i = 0; i < bytes.length; ends.push(i)) {
+    if (unit === Bytes) i++;
+    else {
+      decodeRune(bytes, i, bytes.length);
+      i += decodedSize;
+    }
+  }
+  const total = ends.length - 1;
+  const p = new StreamParser(G, unit, nseen, 10000, null, start.id);
   p.bodyGens = bodyGens;
-  const total = p.n;
   if (step <= 0) step = total;
-  p.n = Math.min(step, total);
-  p.final = p.n === total;
+  let at = 0;
+  const feed = () => {
+    const to = Math.min(at + step, total);
+    p.append(bytes.subarray(ends[at]!, ends[to]!));
+    at = to;
+    if (at === total) p.end();
+  };
+  feed();
   const gen = bodyGens[start.id]!(p, 0);
   let yields = 0;
   for (let r = gen.next(); ; r = gen.next()) {
     if (r.done === true) return { result: show(r.value, p), units: p.units, yields };
     if (r.value <= 0 || p.final) throw new Error("a demand of " + r.value + " units with the input at " + p.n + " of " + total + (p.final ? ", final" : ""));
     yields++;
-    p.n = Math.min(p.n + step, total);
-    p.final = p.n === total;
+    feed();
   }
 }
 
@@ -67,7 +83,9 @@ export function streamLines(inputs: (string | Uint8Array)[], max: number): strin
 }
 `
 
-// tsStreamBundle returns the bundle of the parser of g printed as with -stream, with the driver.
+// tsStreamBundle returns the bundle of the parser of g printed as with -stream, with the driver. The
+// grammars of the tests that drive the rule main have a start rule top for the stream, whose #stream
+// repetition repeats main.
 func tsStreamBundle(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 	b, err := codegentest.GenerateTSStreamBundle(g, opts)
 	if err != nil {
@@ -80,6 +98,8 @@ func tsStreamBundle(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 const tsStreamPlainGrammar = `@start
 rule main = word ("," word)* !.
 rule word = [a-z€]+ "é!"?
+@start(default)
+rule top = main* #stream
 `
 
 // TestStreamPlainResumable runs the resumable functions of a stream whose rules are plain on inputs fed
@@ -96,9 +116,11 @@ func TestStreamPlainResumable(t *testing.T) {
 	script := `import { streamLines } from "./parser.ts";
 console.log(streamLines(["ab,cd", "ab,cdé!,e", "ab,,", "x", "", "ab,cdé", "a€b,€", new Uint8Array([0x61, 0x2c, 0x62, 0xc3]), new Uint8Array([0x61, 0xe2, 0x82, 0x2c])], 12));
 `
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, tsStreamBundle)
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "top"}, tsStreamBundle)
 	// Each line is the result of an input in a unit (0 code points, 1 bytes), the units of the batch
-	// parse and of the stream, and the suspensions of the stream fed one unit at a time.
+	// parse and of the stream, and the suspensions of the stream fed one unit at a time. In code
+	// points the bytes 226, 130 decode as two characters once the byte after them arrives, so the
+	// stream suspends for each of them as it does in bytes.
 	want := `"ab,cd" 0: ((["a" "b"] nil) [("," (["c" "d"] nil))]) @5 units 7/7, suspended 4
 "ab,cd" 1: ((["a" "b"] nil) [("," (["c" "d"] nil))]) @5 units 7/7, suspended 4
 "ab,cdé!,e" 0: ((["a" "b"] nil) [("," (["c" "d"] "é!")) ("," (["e"] nil))]) @9 units 12/12, suspended 8
@@ -115,7 +137,7 @@ console.log(streamLines(["ab,cd", "ab,cdé!,e", "ab,,", "x", "", "ab,cdé", "a�
 "a€b,€" 1: ((["a" "€" "b"] nil) [("," (["€"] nil))]) @9 units 11/11, suspended 8
 "97,44,98,195" 0: fail @3 units 6/6, suspended 3
 "97,44,98,195" 1: fail @3 units 6/6, suspended 3
-"97,226,130,44" 0: fail @1 units 3/3, suspended 2
+"97,226,130,44" 0: fail @1 units 3/3, suspended 3
 "97,226,130,44" 1: fail @1 units 3/3, suspended 3
 `
 	if out != want {
@@ -132,6 +154,8 @@ rule list = list "," item / item
 rule item = p:pair ";" { $p } / pair / word
 rule pair = k:word "=" v:word
 rule word = [a-z€]+ "é!"?
+@start(default)
+rule top = main* #stream
 `
 
 // TestStreamCallResumable runs the resumable functions of a stream whose rules are called through the
@@ -149,7 +173,7 @@ func TestStreamCallResumable(t *testing.T) {
 	script := `import { streamLines } from "./parser.ts";
 console.log(streamLines(["a", "a,b", "a=b", "a=b;,c,d=e", "a=b,c=é", "ab=cé!;,€=x", "a,", "a=", "a=b;;", ""], 16));
 `
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, tsStreamBundle)
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "top"}, tsStreamBundle)
 	// Each line is the result of an input in a unit (0 code points, 1 bytes), the units of the batch
 	// parse and of the stream, and the suspensions of the stream fed one unit at a time.
 	want := `"a" 0: (((["a"] nil))) @1 units 19/13, suspended 0
@@ -193,6 +217,8 @@ rule expr = #operators {
 }
 rule num = [0-9]+ "é"?
 rule ws = " "*
+@start(default)
+rule top = main* #stream
 `
 
 // TestStreamOperatorsResumable runs the resumable functions of a stream with an Operators Rule on inputs
@@ -206,7 +232,7 @@ func TestStreamOperatorsResumable(t *testing.T) {
 	script := `import { streamLines } from "./parser.ts";
 console.log(streamLines(["1", "1+2", "1 + 2*3", "-1!", "2**3**4", "(1+2)*3", " ( 1é + -2 ) ! ** 3 ", "1+", "1*(2", "(", "1 2", ""], 20));
 `
-	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, tsStreamBundle)
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "top"}, tsStreamBundle)
 	// Each line is the result of an input in a unit (0 code points, 1 bytes), the units of the batch
 	// parse and of the stream, and the suspensions of the stream fed one unit at a time.
 	want := `"1" 0: ((["1"] nil) []) @1 units 6/6, suspended 0
@@ -240,7 +266,8 @@ console.log(streamLines(["1", "1+2", "1 + 2*3", "-1!", "2**3**4", "(1+2)*3", " (
 }
 
 // TestStreamPrintedTypes checks the parsers printed as with -stream for the grammars of the stream tests,
-// with the driver, under the strictest checks of tsc.
+// with the driver, and the files generated for the grammars of the stream oracle, under the strictest
+// checks of tsc.
 func TestStreamPrintedTypes(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -252,7 +279,7 @@ func TestStreamPrintedTypes(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		b, err := tsStreamBundle(g, common.GenOptions{Start: "main"})
+		b, err := tsStreamBundle(g, common.GenOptions{Start: "top"})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -264,6 +291,31 @@ func TestStreamPrintedTypes(t *testing.T) {
 		cmd.Dir = dir
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("tsc: %v\n%s\nthe grammar:\n%s", err, out, src)
+		}
+	}
+	// The files of the streams of the oracle grammars, as generated, with and without limit controls
+	// and types: createStream reads every declaration of the stream, so that nothing is unused.
+	for i, c := range streamOracleCases {
+		g, err := parseTest(c.src)
+		if err != nil {
+			t.Fatal(err)
+		}
+		files, err := codegentest.GenerateTSStream(g, common.GenOptions{Start: "main", Expectations: true, NoLimitControls: i%2 == 1, Types: i%3 == 0})
+		if err != nil {
+			t.Fatal(err)
+		}
+		dir := t.TempDir()
+		var names []string
+		for _, f := range files {
+			if err := os.WriteFile(filepath.Join(dir, f.Path), f.Content, 0o644); err != nil {
+				t.Fatal(err)
+			}
+			names = append(names, f.Path)
+		}
+		cmd := exec.Command(tsc, append(append([]string{"--noEmit", "--allowImportingTsExtensions"}, tsStrictFlags...), names...)...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("tsc: %v\n%s\nthe grammar:\n%s", err, out, c.src)
 		}
 	}
 }

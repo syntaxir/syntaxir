@@ -80,8 +80,9 @@ const unitsCheckInterval = 256;
  */
 export class BudgetControl {
   private signal: CancellationSignal | null;
-  // limit is the resolved compute limit; 0 sets none.
-  private readonly limit: number;
+  // limit is the resolved compute limit; 0 sets none. The default limit of a stream rises with the
+  // input that its parse demands (raise).
+  private limit: number;
   private readonly memory: number;
   private readonly profile: Profile | null;
   // obsAt is the count at which the next check observes the signal and the memory count.
@@ -169,6 +170,19 @@ export class BudgetControl {
   private observe(units: number): void {
     this.check();
     this.obsAt = units + unitsCheckInterval;
+  }
+
+  // observeNow observes the signal, then the memory count, whatever the units counted since the last
+  // observation, as a stream does around the delivery of an element, and starts the interval to the
+  // next observation again.
+  observeNow(units: number): void { this.observe(units); }
+
+  // raise raises the compute limit to limit if that is higher, for the default limit of a stream, and
+  // reports whether it did.
+  raise(limit: number): boolean {
+    if (limit <= this.limit) return false;
+    this.limit = limit;
+    return true;
   }
 
   // exceeded ends the parse if the count units exceeds the compute limit.

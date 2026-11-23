@@ -4257,6 +4257,19 @@ export class Parser {
       }
     }
     exp.sort(compareExpected);
+    const line = this.errorLine(pos);
+    const col = this.errorCol;
+    const error = bare ? bareSyntaxError(pos, line, col, exp, msgs) : new SyntaxError(pos, line, col, exp, msgs);
+    // The error object with its message, and its lists of expectations and messages.
+    this.alloc(objectBytes(8) + stringBytes(error.message.length) + arrayBytes(exp.length) + arrayBytes(msgs.length));
+    return error;
+  }
+
+  // errorCol is the column of the position whose line errorLine returned last.
+  errorCol = 0;
+
+  // errorLine returns the line of an error at pos and leaves its column in errorCol.
+  errorLine(pos: number): number {
     // Look the line up in a table of line starts, built on the first error, instead of scanning
     // from the start of the input for each error.
     if (this.lines === null) {
@@ -4282,11 +4295,8 @@ export class Parser {
         hi = mid;
       }
     }
-    const col = pos - this.lines[lo - 1]! + 1;
-    const error = bare ? bareSyntaxError(pos, lo, col, exp, msgs) : new SyntaxError(pos, lo, col, exp, msgs);
-    // The error object with its message, and its lists of expectations and messages.
-    this.alloc(objectBytes(8) + stringBytes(error.message.length) + arrayBytes(exp.length) + arrayBytes(msgs.length));
-    return error;
+    this.errorCol = pos - this.lines[lo - 1]! + 1;
+    return lo;
   }
 
   markSeen(pos: number, s: number): boolean {
@@ -6073,24 +6083,127 @@ export interface ResumableLine extends OperatorsRuleLine {
 }
 
 /**
- * StreamParser is the parser of the parse of a stream, whose input arrives in chunks: the input
- * holds the chunks fed so far (n grows as they arrive and nothing of it changes) and final is set
- * with the last. The resumable functions of the parse (generators) demand the input that a read
- * needs before the read (runtime.inputDemand) and suspend while the input lacks it; the caller
- * resumes them when more input or the end of the input arrives. A demand charges nothing and moves
- * no position, so a parse that suspends does what the parse of the whole input in one chunk does,
+ * StreamParser is the parser of the parse of a stream, whose input arrives in chunks (Stream.feed).
+ * Positions are absolute; the buffer holds the input from base on (bs in Bytes, cps in CodePoints),
+ * and n is the end of the input fed so far, which grows as chunks arrive while nothing before it
+ * changes; final is set with the last chunk. The resumable functions of the parse (generators) demand
+ * the input that a read needs before the read (runtime.inputDemand) and suspend while the input lacks
+ * it; the feed that brings more input or its end resumes them. A demand charges nothing and moves no
+ * position, so a parse that suspends does what the parse of the whole input in one chunk does,
  * however the input is split. A stream memoizes a rule on its first call at a position (deferMemo).
+ * Each committed element of the start rule's #stream repetition is delivered to the feed that runs it
+ * (streamEmit), and the input, the memo and the records before it are discarded as the Go stream
+ * discards them (spec/runtime/streaming.md).
  */
 export class StreamParser extends Parser {
   override readonly deferMemo: boolean = false;
   // final reports that the input is complete: no chunk follows the input that n holds.
   final = false;
   // bodyGens are the resumable bodies of the rules of the Node table by ID, null for a rule whose
-  // body never suspends (its body is Rule.body).
+  // body never suspends (its body is Rule.body); the start rule's is its stream body.
   bodyGens: readonly (BodyGen | null)[] = [];
+  // streamStartRule is the ID of the start rule, whose #stream repetition streams (stream.start).
+  readonly streamStartRule: number;
+  // base is the position of the first unit that the buffer holds; the input before it was discarded.
+  base = 0;
+  // baseLine and baseCol are the line and column of base; nlStarts holds the positions after each line
+  // feed in [base, nlScanned), which errorLine has scanned.
+  baseLine = 1;
+  baseCol = 1;
+  nlStarts: number[] = [];
+  nlScanned = 0;
+  // pending holds the bytes at the end of the input fed so far that do not complete a character yet
+  // (CodePoints): the next chunk or the end of the input decides how they decode.
+  pending: Uint8Array = new Uint8Array(0);
+  // memoFloor is the floor of the memo (memo.floor): the memo keeps nothing before it. The memo's slot
+  // of a position is its distance from the floor (gapLen is -memoFloor, with no gap).
+  memoFloor = 0;
+  // delivered holds the elements delivered since the feed that runs the parse began (stream.deliver).
+  delivered: (Node | null)[] = [];
+  // maxInput is the input limit, 0 for none; adaptive says that the compute limit is the default of a
+  // stream, which rises with the furthest position that the parse demands (demanded).
+  maxInput = 0;
+  adaptive = false;
+
+  constructor(g: Grammar, unit: Unit, stride: number, maxDepth: number, control: BudgetControl | null, start: number) {
+    super(g, new Uint8Array(0), unit, stride, maxDepth, control);
+    this.streamStartRule = start;
+  }
+
+  // --- The input ---
+
+  // append adds a copy of the chunk to the input: its bytes in Bytes, and in CodePoints the characters
+  // that it completes, keeping the bytes of an incomplete one pending.
+  append(chunk: Uint8Array): void {
+    if (this.unit === Bytes) {
+      const have = this.n - this.base;
+      this.bs = this.room(this.bs, have, chunk.length) as Uint8Array;
+      this.bs.set(chunk, have);
+      this.n += chunk.length;
+      return;
+    }
+    let b = chunk;
+    if (this.pending.length !== 0) {
+      b = new Uint8Array(this.pending.length + chunk.length);
+      b.set(this.pending);
+      b.set(chunk, this.pending.length);
+    }
+    this.decode(b);
+  }
+
+  // end marks the input complete, decoding the pending bytes as the end of the input decodes them.
+  end(): void {
+    this.final = true;
+    if (this.unit !== Bytes && this.pending.length !== 0) this.decode(this.pending);
+  }
+
+  // decode appends the characters of b to the buffer of code points, up to the first incomplete one
+  // unless the input is final, and keeps the bytes from there pending.
+  private decode(b: Uint8Array): void {
+    const have = this.n - this.base;
+    this.cps = this.room(this.cps, have, b.length) as Int32Array;
+    let j = have;
+    let i = 0;
+    while (i < b.length) {
+      const c = decodeRune(b, i, b.length);
+      if (!this.final && decodedEnd(b, i, b.length, decodedSize) > b.length) break;
+      this.cps[j++] = c;
+      i += decodedSize;
+    }
+    this.n += j - have;
+    this.pending = i === b.length ? new Uint8Array(0) : b.slice(i);
+  }
+
+  // room returns buf, or a larger copy of its first have units, with room for k more.
+  private room(buf: Uint8Array | Int32Array, have: number, k: number): Uint8Array | Int32Array {
+    if (have + k <= buf.length) return buf;
+    const size = Math.max(have + k, 2 * buf.length, 64);
+    const grown = buf instanceof Uint8Array ? new Uint8Array(size) : new Int32Array(size);
+    grown.set(buf.subarray(0, have));
+    this.alloc(typedBytes(grown.byteLength));
+    return grown;
+  }
+
+  // demanded is the demand of a read for the input up to the position d, as the stream reads of the Go
+  // runtime make it (streamFill): each read demands the unit it examines, so a literal demands its
+  // units one by one up to the first that differs. Under the default compute limit of a stream the
+  // limit rises to that of d after a check of the units counted before the demand; past a finite input
+  // limit, with the unit at d - 1 fed, the parse fails. The demand suspended the parse until the input
+  // held the unit or ended (demandUnits, demandChar), so the input holds d units unless it ended.
+  demanded(d: number): void {
+    const c = this.control;
+    if (this.adaptive && c !== null) {
+      if (this.units > this.unitsCheck) this.pollUnits();
+      if (c.raise(defaultBudget(d))) this.unitsCheck = c.unitsCheck();
+    }
+    if (this.maxInput > 0 && d > this.maxInput && this.n > this.maxInput) {
+      throw new Fatal(new ParseInterruptionError("input-limit", this.maxInput, 0, Math.min(d, this.n)));
+    }
+  }
 
   // demandUnits returns the number of the k units past the position that a read needs, those of a
-  // literal, that the input lacks: 0 if the input holds them or is final.
+  // literal, that the input lacks: 0 if the input holds them or is final. It suspends the parse for
+  // them; the reads make the demands (demanded).
   demandUnits(k: number): number {
     if (this.final) return 0;
     const m = this.pos + k - this.n;
@@ -6104,9 +6217,270 @@ export class StreamParser extends Parser {
     if (this.final) return 0;
     if (this.pos >= this.n) return 1;
     if (this.unit !== Bytes) return 0;
-    decodeRune(this.bs, this.pos, this.n);
-    const end = decodedEnd(this.bs, this.pos, this.n, decodedSize);
-    return end > this.n ? end - this.n : 0;
+    const i = this.pos - this.base;
+    const n = this.n - this.base;
+    decodeRune(this.bs, i, n);
+    const end = decodedEnd(this.bs, i, n, decodedSize);
+    return end > n ? end - n : 0;
+  }
+
+  // The terminals read the buffer, whose first unit is the one at base.
+
+  override peek(): number {
+    this.demanded(this.pos + 1);
+    if (this.pos >= this.n) {
+      return -1;
+    }
+    const i = this.pos - this.base;
+    if (this.unit === Bytes) {
+      const c = this.bs[i]!;
+      if (c < 0x80) {
+        this.psize = 1;
+        return c;
+      }
+      const r = decodeRune(this.bs, i, this.n - this.base);
+      this.psize = decodedSize;
+      return r;
+    }
+    this.psize = 1;
+    return this.cps[i]!;
+  }
+
+  override matchLiteral(lit: Lit, desc: number, build: boolean): R {
+    const start = this.pos;
+    const i = start - this.base;
+    if (this.unit === Bytes) {
+      const b = lit.bytes;
+      for (let k = 0; k < b.length; k++) {
+        this.demanded(start + k + 1);
+        if (start + k >= this.n || this.bs[i + k] !== b[k]) {
+          return this.matchReplacementLiteral(lit, desc, build);
+        }
+      }
+      this.pos += b.length;
+    } else {
+      for (const r of lit.cps) {
+        this.demanded(this.pos + 1);
+        if (this.pos >= this.n || this.cps[this.pos - this.base] !== r) {
+          this.pos = start;
+          this.expect(start, desc);
+          return undefined;
+        }
+        this.pos++;
+      }
+    }
+    this.units += this.pos - start;
+    if (!build) {
+      return null;
+    }
+    this.alloc(nodeBytes);
+    return new Node("string", "", start, this.pos, lit.text, noNodes, noFields, true, true);
+  }
+
+  override matchChar(want: number, fold: boolean): number {
+    if (this.unit !== Bytes || want === 0xfffd) {
+      const got = this.peek();
+      return got >= 0 && (got === want || (fold && foldASCII(got) === want)) ? this.psize : -1;
+    }
+    const n = want < 0x80 ? 1 : want < 0x800 ? 2 : want < 0x10000 ? 3 : 4;
+    for (let k = 0; k < n; k++) {
+      const i = this.pos + k;
+      this.demanded(i + 1);
+      const b = i < this.n ? this.bs[i - this.base]! : -1;
+      const e = n === 1 ? want : utf8Byte(want, n, k);
+      if (b !== e && !(n === 1 && fold && b >= 0 && foldASCII(b) === want)) {
+        return -1;
+      }
+    }
+    return n;
+  }
+
+  // atLineStart reads the unit before the position, which a commit keeps (streamCommit).
+  override atLineStart(): boolean {
+    if (this.pos === 0) {
+      return true;
+    }
+    const i = this.pos - 1 - this.base;
+    if (i < 0) return false;
+    this.demanded(this.pos);
+    return (this.unit === Bytes ? this.bs[i] : this.cps[i]) === 0x0a;
+  }
+
+  override atLineEnd(): boolean {
+    this.demanded(this.pos + 1);
+    if (this.pos >= this.n) {
+      return true;
+    }
+    const i = this.pos - this.base;
+    const c = this.unit === Bytes ? this.bs[i]! : this.cps[i]!;
+    return c === 0x0a || c === 0x0d;
+  }
+
+  override atEnd(): boolean {
+    this.demanded(this.pos + 1);
+    return this.pos >= this.n;
+  }
+
+  // text returns the text of [start, end) that the buffer still holds: the part before base was
+  // discarded.
+  override text(start: number, end: number): string {
+    start = Math.max(start, this.base);
+    end = Math.max(end, this.base);
+    if (start >= end) return "";
+    const s = this.unit === Bytes ? documentText(this.bs.subarray(start - this.base, end - this.base), Bytes) : codePointsString(this.cps.subarray(start - this.base, end - this.base));
+    this.alloc(sliceBytes(s.length));
+    return s;
+  }
+
+  // errorLine counts the lines from base, whose line and column the discard kept: each unit of the
+  // buffer is scanned once, whatever the order of the queries.
+  override errorLine(pos: number): number {
+    pos = Math.max(Math.min(pos, this.n), this.base);
+    this.nlScanned = Math.max(this.nlScanned, this.base);
+    for (; this.nlScanned < pos; this.nlScanned++) {
+      const i = this.nlScanned - this.base;
+      if ((this.unit === Bytes ? this.bs[i] : this.cps[i]) === 0x0a) this.nlStarts.push(this.nlScanned + 1);
+    }
+    // k is the number of line starts at or before pos.
+    let k = 0;
+    let hi = this.nlStarts.length;
+    while (k < hi) {
+      const mid = (k + hi) >>> 1;
+      if (this.nlStarts[mid]! <= pos) k = mid + 1;
+      else hi = mid;
+    }
+    if (k === 0) {
+      this.errorCol = this.baseCol + pos - this.base;
+      return this.baseLine;
+    }
+    this.errorCol = pos - this.nlStarts[k - 1]! + 1;
+    return this.baseLine + k;
+  }
+
+  // --- The memo below the floor ---
+
+  override memoGet(rule: number, pos: number, min: number, env: Binding[] | null, docOnly = false): MemoEntry | null {
+    return pos < this.memoFloor ? null : super.memoGet(rule, pos, min, env, docOnly);
+  }
+
+  override memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
+    return pos < this.memoFloor ? e : super.memoPut(rule, pos, min, env, e, docOnly);
+  }
+
+  // memoPrune is memo.prune: it drops the entries before pos and raises the floor to pos.
+  memoPrune(pos: number): void {
+    const k = pos - this.memoFloor;
+    if (k <= 0) return;
+    const slots = this.slots;
+    const drop = Math.min(k, slots.length);
+    for (let i = 0; i < drop; i++) {
+      for (let e = slots[i] || null; e; e = e.next) this.memoEntries--;
+    }
+    slots.copyWithin(0, drop);
+    slots.length -= drop;
+    if (this.memoIndex !== null) {
+      for (const at of this.memoIndex.keys()) {
+        if (at < pos) this.memoIndex.delete(at);
+      }
+    }
+    this.memoFloor = pos;
+    this.gapLen = -pos;
+  }
+
+  // --- Delivery and commitment (the host operations of streamEmit and streamCommit) ---
+
+  // streamStart is flow.streamStart: the #stream repetition of the start rule begins.
+  streamStart(): void {}
+
+  // streamCheck is stream.check: it observes the signal, then the memory count, around a delivery.
+  streamCheck(): void {
+    const c = this.control;
+    if (c === null) return;
+    c.observeNow(this.units);
+    this.unitsCheck = c.unitsCheck();
+  }
+
+  // streamReport is stream.report: it delivers the recovered errors committed since the last report.
+  streamReport(): void {}
+
+  // streamDeliver is stream.deliver: the element v is final from now on.
+  streamDeliver(v: R): void {
+    if (v === undefined) throw new Error("internal error: the stream delivered a failed element");
+    if (v !== null) v.fresh = false;
+    this.delivered.push(v);
+  }
+
+  // streamDiscard is stream.discard: it discards the input before keep, once at least half of the
+  // buffer can go, keeping the line and column of the new base.
+  streamDiscard(keep: number): void {
+    const k = keep - this.base;
+    const have = this.n - this.base;
+    if (k <= 0 || 2 * k < have) return;
+    this.baseLine = this.errorLine(keep);
+    this.baseCol = this.errorCol;
+    let drop = 0;
+    while (drop < this.nlStarts.length && this.nlStarts[drop]! <= keep) drop++;
+    this.nlStarts.splice(0, drop);
+    if (this.unit === Bytes) this.bs.copyWithin(0, k, have);
+    else this.cps.copyWithin(0, k, have);
+    this.base = keep;
+  }
+
+  // streamRelease is stream.release: the calls of the committed elements have returned, and no later
+  // backtracking reaches the trail entries they made.
+  streamRelease(): void {
+    this.trail.length = 0;
+  }
+
+  // streamDropRecords is stream.dropRecords: it drops the records of the walks of skip-run, run and
+  // scan sites that start before pos, which no later call reads.
+  streamDropRecords(pos: number): void {
+    for (const t of this.scanTables) {
+      if (t === undefined) continue;
+      for (const at of t.keys()) {
+        if (at < pos) t.delete(at);
+      }
+    }
+    for (const s of this.skipTables) {
+      if (s === undefined) continue;
+      for (const recs of s.recs.values()) {
+        for (const at of recs.keys()) {
+          if (at < pos) recs.delete(at);
+        }
+      }
+      if (s.more !== null) {
+        for (const more of s.more.values()) {
+          for (const at of more.keys()) {
+            if (at < pos) more.delete(at);
+          }
+        }
+      }
+    }
+  }
+
+  // streamTail is stream.tail: whether the stream retains the tail of its recovered errors.
+  streamTail(): boolean {
+    return false;
+  }
+
+  // streamSettleErrors is stream.settleErrors: the recovered errors delivered so far are forgotten.
+  streamSettleErrors(): void {
+    this.recovered.length = 0;
+  }
+
+  // The methods that the compositions print (internal/ir/code/exec/compose): the delivery of an
+  // element and the commit after it, and whether the #stream repetition of a rule streams.
+
+  streamEmit(v: R, end: number): void {
+    throw new Error("the printed method replaces this one");
+  }
+
+  streamCommit(pos: number): void {
+    throw new Error("the printed method replaces this one");
+  }
+
+  streamsIn(id: number, rec: boolean): boolean {
+    throw new Error("the printed method replaces this one");
   }
 
   // The resumable forms of the call protocol, which call the resumable bodies of the rules (bodyGens)
@@ -6147,6 +6521,160 @@ export class StreamParser extends Parser {
   *skipTriviaGen(r: Rule): Generator<number, void, void> {
     throw new Error("the printed method replaces this one");
   }
+}
+
+/** The state of a stream after a feed: waiting for more input, or ended with a result or an error. */
+export type StreamState = "waiting" | "done" | "failed";
+
+/**
+ * StreamResult is the result of a feed of a stream: the elements of the start rule's #stream
+ * repetition committed during the feed, in order, and the state of the stream after it. error is null
+ * while the stream waits, the recovered SyntaxErrors or null when it is done, and the error of the
+ * parse or its interruption when it failed. A failed feed still returns the elements committed before
+ * its error, and no element is delivered twice or retracted.
+ */
+export interface StreamResult {
+  readonly elements: readonly (Node | null)[];
+  readonly state: StreamState;
+  readonly error: Error | null;
+}
+
+// streamBusyMessage is the error of a feed of a stream that is already feeding, which only a callback
+// of that feed, such as a signal getter, can make.
+const streamBusyMessage = "stream is already feeding";
+
+/**
+ * Stream is a push stream: the parse of an input that arrives in chunks (feed) with the start rule
+ * of the parser, whose #stream repetition delivers each element once it is committed
+ * (spec/runtime/streaming.md). The parse runs synchronously inside feed, and suspends when a read
+ * needs input that has not arrived; the feed that brings it resumes the parse. The elements, the
+ * error and the compute units of the parse do not depend on how the input is split into chunks.
+ */
+export class Stream {
+  private readonly p: StreamParser;
+  private readonly start: Rule;
+  private readonly o: ResolvedParseOptions;
+  private gen: Generator<number, R, void> | null = null;
+  private state: StreamState = "waiting";
+  private feeding = false;
+
+  /** @internal It is for generated parsers: createStream makes a stream. */
+  constructor(p: StreamParser, start: Rule, o: ResolvedParseOptions) {
+    this.p = p;
+    this.start = start;
+    this.o = o;
+  }
+
+  /**
+   * feed adds a copy of chunk to the input, final with the last chunk, and runs the parse until it
+   * needs more input or ends. A feed after the stream ended returns an error and changes nothing.
+   */
+  feed(chunk: Uint8Array, final = false): StreamResult {
+    if (this.feeding) return { elements: [], state: "failed", error: new Error(streamBusyMessage) };
+    if (this.state !== "waiting") return { elements: [], state: this.state, error: new Error(`stream already ${this.state === "done" ? "ended" : "failed"}`) };
+    this.feeding = true;
+    const p = this.p;
+    try {
+      p.append(chunk);
+      if (final) p.end();
+      return this.run(final);
+    } finally {
+      this.feeding = false;
+      p.delivered = [];
+    }
+  }
+
+  // run resumes the parse and returns the result of the feed.
+  private run(final: boolean): StreamResult {
+    const p = this.p;
+    const control = p.control;
+    try {
+      // A feed observes the signal and the memory count before the parse resumes, as the Go stream
+      // does before each read of its reader.
+      if (control !== null) {
+        control.observeNow(p.units);
+        p.unitsCheck = control.unitsCheck();
+      }
+      if (this.gen === null) this.gen = p.callBodyGen(this.start, 0);
+      const step = this.gen.next();
+      if (!step.done) {
+        if (final) throw new Error("internal error: the stream suspended at the end of its input");
+        return { elements: p.delivered, state: "waiting", error: null };
+      }
+      control?.check();
+      const v = step.value;
+      // The end of the input is a demand past the position, as the Go stream reads it (streamAtEnd).
+      const ok = v !== undefined && p.atEnd();
+      return this.end(this.finish(v, ok), null);
+    } catch (x) {
+      if (x instanceof SignalPanic) {
+        this.end(null, null);
+        throw x.value;
+      }
+      if (x instanceof Fatal) return this.end(null, x.err);
+      if (isStackOverflow(x)) return this.end(null, new Error(`nesting too deep: the JavaScript stack overflowed at ${p.depth} nested recursive rule calls`));
+      this.end(null, null);
+      throw x;
+    }
+  }
+
+  // finish returns the error of a parse whose start rule returned v, ok if the input ends after it:
+  // the recovered errors or null on success, the syntax error otherwise.
+  private finish(v: R, ok: boolean): Error | null {
+    const p = this.p;
+    p.endUnits(!ok);
+    if (ok) return p.recovered.length > 0 ? new SyntaxErrors(recoveredErrors(p.recovered)) : null;
+    if (v !== undefined) p.expect(p.pos, idEndInput);
+    return p.makeError(p.farthest, p.exp.slice(p.expBase, p.expTop));
+  }
+
+  // end ends the stream with the error of the parse, or with fatal if an interruption ended it, and
+  // returns the result of the feed. It reports the compute units and releases the controls.
+  private end(error: Error | null, fatal: Error | null): StreamResult {
+    const p = this.p;
+    const failed = fatal !== null || (error !== null && !(error instanceof SyntaxErrors));
+    this.state = failed ? "failed" : "done";
+    this.gen = null;
+    p.control?.release();
+    const report = this.o.report;
+    if (report !== null) report.units = p.control?.counted?.() ?? 0;
+    return { elements: p.delivered, state: this.state, error: fatal ?? error };
+  }
+}
+
+// createStreamBase makes the stream of the grammar g with the start rule start, whose #stream body is
+// the resumable body of the rule in bodyGens, with the options options, after their check at the
+// start; a stream rejects the options of an observed parse. It is for generated parsers.
+export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: ParseOptions | undefined): { stream: Stream | null; error: Error | null } {
+  const snapshot = optionsSnapshot(options);
+  if (snapshot?.trace != null || snapshot?.profile != null || snapshot?.traceRules !== undefined || snapshot?.traceMaxDepth !== undefined) {
+    return { stream: null, error: new Error("a stream is not observed: it takes no trace or profile options") };
+  }
+  const o = resolveOptions(g, snapshot, "");
+  if (o instanceof Error) return { stream: null, error: o };
+  const requested = snapshot?.limits?.compute ?? 0;
+  let control: BudgetControl | null = null;
+  if (o.signal !== null || o.budget !== 0 || o.memory !== 0 || o.report !== null) {
+    control = new BudgetControl(o);
+    o.signal = null;
+    try {
+      control.check();
+    } catch (x) {
+      control.release();
+      if (x instanceof SignalPanic) throw x.value;
+      if (x instanceof Fatal) return { stream: null, error: x.err };
+      throw x;
+    }
+  }
+  const p = new StreamParser(g, o.unit, seen, o.maxDepth, control, start.id);
+  p.expectations = o.expectations;
+  p.bodyGens = bodyGens;
+  const maxInput = snapshot?.limits?.input ?? 0;
+  p.maxInput = maxInput === Unlimited ? 0 : maxInput;
+  // A stream under the default compute limit starts at its floor, which rises with the input that the
+  // parse demands (StreamParser.demanded).
+  p.adaptive = control !== null && g.controlled && requested === 0;
+  return { stream: new Stream(p, start, o), error: null };
 }
 
 /**

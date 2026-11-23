@@ -806,7 +806,7 @@ func genCmd(args []string, stdout io.Writer) error {
 	fs.String("o", "", "output directory")
 	fs.Bool("types", false, "also generate typed values and ParseValue (parseValue in TypeScript)")
 	fs.Bool("document", false, "also generate an incremental Document (typed ParseValue with -types)")
-	fs.Bool("stream", false, "also generate Go ParseStream and Iterate for the start rule's #stream repetition (and their typed forms with -types; incompatible with -lang ts)")
+	fs.Bool("stream", false, "also generate the stream of the start rule's #stream repetition: Go ParseStream and Iterate (and their typed forms with -types), TypeScript createStream")
 	fs.Bool("observability", false, "emit opt-in rule tracing and profiling for Go batch/Documents and TypeScript batch parsing, including typed entry points")
 	fs.Bool("expectations", false, "generate a parser that records what a syntax error expects (the expected list and @error messages); without it the error reports only the farthest failure position")
 	fs.String("charge-units", "", "")
@@ -850,15 +850,6 @@ func genCmd(args []string, stdout io.Writer) error {
 		return unlisted
 	}
 	several := len(langs) > 1
-	// The flags of one language apply to it when it is listed with others; the flags that a listed
-	// language does not support are errors that name their qualified form.
-	if several {
-		for _, name := range []string{"stream"} {
-			if isFlagSet(fs, name) {
-				return fmt.Errorf("-%s is not supported with -lang ts; use -go.%s for the Go target", name, name)
-			}
-		}
-	}
 	targets := make([]genTarget, len(langs))
 	for i, l := range langs {
 		t := genTarget{lang: l, v: func(name string) any { return genFlag(fs, l, name) }}
@@ -955,7 +946,7 @@ func genCmd(args []string, stdout io.Writer) error {
 var genLangFlags = map[string][]string{
 	"go": {"o", "lib", "types", "document", "stream", "observability", "expectations", "charge-units", "no-limits",
 		"typed-only", "recognize-only", "recognize", "max-depth", "module", "pkg", "nodoc"},
-	"ts": {"o", "lib", "types", "document", "observability", "expectations", "no-limits", "typed-only", "recognize", "recognize-only", "max-depth", "lib-module"},
+	"ts": {"o", "lib", "types", "document", "stream", "observability", "expectations", "no-limits", "typed-only", "recognize", "recognize-only", "max-depth", "lib-module"},
 }
 
 // qualify defines the flag -<lang>.<name> of fs, of the type and default of the flag -name.
@@ -1022,8 +1013,8 @@ func (t genTarget) check(fs *flag.FlagSet, several bool) error {
 	case several:
 	case t.lang == "ts" && isFlagSet(fs, "nodoc"):
 		return fmt.Errorf("-nodoc leaves out the package comment of Go code; TypeScript output has no package comment, so -nodoc is not supported with -lang ts")
-	case t.lang == "ts" && (isFlagSet(fs, "pkg") || isFlagSet(fs, "module") || isFlagSet(fs, "stream")):
-		return fmt.Errorf("-pkg, -module and -stream are not supported with -lang ts")
+	case t.lang == "ts" && (isFlagSet(fs, "pkg") || isFlagSet(fs, "module")):
+		return fmt.Errorf("-pkg and -module are not supported with -lang ts")
 	case t.lang == "go" && t.str("lib-module") != "":
 		return fmt.Errorf("-lib-module is only supported with -lang ts")
 	}
@@ -1099,6 +1090,7 @@ func (t genTarget) config() (compiler.Target, error) {
 			TypedOnly:       t.on("typed-only"),
 			RecognizeOnly:   t.on("recognize-only"),
 			Document:        t.on("document"),
+			Stream:          t.on("stream"),
 			MaxDepth:        t.v("max-depth").(int),
 		}, nil
 	}
