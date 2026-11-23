@@ -212,6 +212,9 @@ type Def[I, O any] struct {
 	Out     *IR[O]
 	Applies func(c *Ctx[I]) bool
 	Run     func(c *Ctx[I], in I) (O, Preserved, error)
+	// Post, if set, is the postcondition this conversion establishes, checked at its own output in
+	// place of the verifier of its output kind. Only a conversion (In other than Out) has one.
+	Post func(out O) error
 }
 
 // Pass is a sealed step from units of I to units of O. Only the manager runs it.
@@ -397,9 +400,12 @@ name; `-print-after`, `-print-before` and the reports accept a name, which selec
 errors and reports print the instance.
 
 **Verification** follows record 072 and the pass-pipeline design. The output kind's verifier runs right after every pass
-that changes the kind, as its postcondition, and an error names the pass. Where a run of transforms of one kind ends,
-which is the end of a stage, the unit is verified once if an optional pass of that run ran; for a `PerFunc` segment this
-is each function at the end of the segment, so the Flow passes' segment verifies its own functions before `flow-finish`.
+that changes the kind, as its postcondition, and an error names the pass. A conversion that makes part of the
+invariants of its output kind by construction declares the rest as its postcondition (`Def.Post`), which replaces the
+kind's verifier there and only there: Elaborate computes the attributes of its Core module with `Analyze`, so its
+postcondition is the structural Core verifier, and the attributes are compared where the Core passes end. Where a run
+of transforms of one kind ends, which is the end of a stage, the unit is verified once if an optional pass of that run
+ran; for a `PerFunc` segment this is each function at the end of the segment, so the Flow passes' segment verifies its own functions before `flow-finish`.
 Outside `-verify-each` the manager therefore verifies only where the stages before it did, at the stage boundary:
 required transforms are trusted, and a run of them only, such as the required steps after that segment, is not verified
 after it, since verification exists to catch the optional passes, whose rollback depends on it. Under `-verify-each`

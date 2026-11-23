@@ -176,6 +176,12 @@ type Def[I, O any] struct {
 	Out     *IR[O]
 	Applies func(c *Ctx[I]) bool
 	Run     func(c *Ctx[I], in I) (O, pass.PreservedSet, error)
+	// Post, if set, is the postcondition this conversion establishes, checked at its own output in
+	// place of the verifier of its output kind: a conversion that makes part of the invariants of the
+	// kind by construction checks only the rest. The checks of the unit where a run of transforms
+	// ends, and after each pass under Run.VerifyEach, stay the kind's. Only a conversion (In other
+	// than Out) has one.
+	Post func(out O) error
 }
 
 // Pass is a sealed step from units of I to units of O. Only the manager runs it.
@@ -186,6 +192,8 @@ type passDesc struct {
 	in, out *kind
 	applies func(*ctxState) bool
 	run     func(*ctxState, any) (any, pass.PreservedSet, error)
+	// check is the check of the output of the step: Def.Post, else the verifier of the output kind.
+	check func(any) error
 }
 
 // passes holds the registered passes by name: the declaration of a pass registered at several kinds
@@ -223,6 +231,14 @@ func New[I, O any](d Def[I, O]) *Pass[I, O] {
 		}
 	}
 	pd := &passDesc{Decl: d.Decl, in: kindOf(d.In), out: kindOf(d.Out)}
+	pd.check = pd.out.verify
+	if d.Post != nil {
+		if pd.in == pd.out {
+			panic(fmt.Sprintf("pipe: pass %q is a transform with a postcondition of its own", d.Name))
+		}
+		post := d.Post
+		pd.check = func(u any) error { return post(u.(O)) }
+	}
 	run := d.Run
 	pd.run = func(c *ctxState, in any) (any, pass.PreservedSet, error) { return run(ctxOf[I](c), in.(I)) }
 	if d.Applies != nil {

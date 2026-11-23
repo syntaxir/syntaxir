@@ -488,3 +488,67 @@ func TestGroupingMeansNothing(t *testing.T) {
 		t.Errorf("a body of one pass: %v %v, %v %v; want both verified and rolled back", o1, e1, o2, e2)
 	}
 }
+
+// posts counts the runs of the postcondition of postBuild; postBad makes it fail.
+var (
+	posts   int
+	postBad bool
+)
+
+// build-post! is build! with a postcondition of its own, which checks less than the verifier of
+// t-mod: the invariants it makes by construction.
+var postBuild = New(Def[table, *mod]{Decl: Decl{Name: "t-build-post", Required: true, Obligation: "lowers a table"},
+	In: tableIR, Out: modIR,
+	Run: func(_ *Ctx[table], t table) (*mod, pass.PreservedSet, error) {
+		return &mod{fns: []*fn{{t.name + "1", "x"}}}, pass.PreserveNone(), nil
+	},
+	Post: func(*mod) error {
+		posts++
+		if postBad {
+			return errors.New("not as built")
+		}
+		return nil
+	}})
+
+// A conversion's postcondition replaces the verifier of its output kind at its own output, and only
+// there: the end of the run of transforms after it, and every pass under -verify-each, are checked
+// by the kind's verifier.
+func TestConversionPostconditionReplacesTheKindVerifierAtItsOutput(t *testing.T) {
+	in := func() *prog { return &prog{tables: []string{"a"}} }
+	posts, verifies, postBad = 0, 0, false
+	if _, err := run(t, &Run{}, tablePipe(Seq(modIR, upper)), in()); err != nil || verifies != 2 {
+		t.Fatalf("without a postcondition: %v, %d verifications, want 2 (the conversion and the stage end)", err, verifies)
+	}
+	posts, verifies = 0, 0
+	if _, err := run(t, &Run{}, Each(tablesSplit, Then(Of(postBuild), Seq(modIR, upper))), in()); err != nil || posts != 1 || verifies != 1 {
+		t.Errorf("with a postcondition: %v, %d postconditions and %d verifications, want 1 and 1", err, posts, verifies)
+	}
+	posts, verifies = 0, 0
+	if _, err := run(t, &Run{VerifyEach: true}, Each(tablesSplit, Then(Of(postBuild), Seq(modIR, upper))), in()); err != nil || posts != 1 || verifies != 1 {
+		t.Errorf("under -verify-each: %v, %d postconditions and %d verifications, want 1 and 1", err, posts, verifies)
+	}
+	// The kind's verifier still checks the unit where the transforms after the conversion end.
+	_, err := run(t, &Run{}, Each(tablesSplit, Then(Of(postBuild), Seq(modIR, breaker))), in())
+	var se *StepError
+	if !errors.As(err, &se) || se.Step != "verify t-mod" {
+		t.Errorf("a transform that breaks the unit after the conversion: %v", err)
+	}
+	// A failing postcondition names the conversion.
+	postBad = true
+	defer func() { postBad = false }()
+	_, err = run(t, &Run{}, Each(tablesSplit, Then(Of(postBuild), Seq(modIR, upper))), in())
+	if !errors.As(err, &se) || se.Step != "t-build-post" {
+		t.Errorf("a failing postcondition: %v, want it to name the conversion", err)
+	}
+}
+
+func TestTransformWithPostconditionPanics(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Error("a transform with a postcondition of its own was registered")
+		}
+	}()
+	New(Def[*mod, *mod]{Decl: Decl{Name: "t-post-transform", Test: true}, In: modIR, Out: modIR,
+		Run:  func(_ *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) { return m, pass.PreserveNone(), nil },
+		Post: func(*mod) error { return nil }})
+}

@@ -218,6 +218,34 @@ func TestDriverElaborateComputesTheAttributes(t *testing.T) {
 	}
 }
 
+// The postcondition of elaborate is the structural Core verifier: a module that breaks it is the
+// failure of the step elaborate. Its attributes are core.Analyze's by construction, so they are
+// compared where the Core passes end: a pass that leaves them stale is caught there.
+func TestDriverElaborateVerifiesStructureAndPassesTheAttributes(t *testing.T) {
+	lit := func(finish core.FinishKind) func() (*core.Module, error) {
+		return func() (*core.Module, error) {
+			m := &core.Module{Exps: []string{`"a"`}}
+			m.Rules = []*core.Rule{{Name: "r", Body: &core.Lit{Text: "a"}, Policy: core.Policy{Seen: -1}, Finish: core.Finish{Kind: finish}}}
+			core.CallGraph(m)
+			return m, nil
+		}
+	}
+	if _, err := runCoreTable(t, testRun{}, "rules", lit(core.FinishAction)); !isStep(err, Elaborate) || !strings.Contains(err.Error(), "action finish without action") {
+		t.Errorf("a module that breaks the structure of Core IR: %v, want the failure of elaborate", err)
+	}
+	stale := pipe.New(pipe.Def[*core.Module, *core.Module]{
+		Decl: pipe.Decl{Name: "test-core-stale", Test: true, Obligation: "none: it leaves an attribute stale"},
+		In:   corepass.IR, Out: corepass.IR,
+		Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+			m.Rules[0].Body.Attrs().Eff.Set &^= core.EffConsume
+			return m, pass.PreserveNone(), nil
+		}})
+	_, err := runCoreTable(t, testRun{edits: []pipe.Edit{pipe.Fill(CoreSlot, "", pipe.Seq(corepass.IR, stale))}}, "rules", lit(core.FinishNone))
+	if err == nil || !strings.Contains(err.Error(), "verify core") || strings.Contains(err.Error(), "test-core-stale") {
+		t.Errorf("a pass that leaves an attribute stale: %v, want the verification where the Core passes end", err)
+	}
+}
+
 // empty builds an empty Core module, as the step elaborate of a program without rules does.
 func empty() (*core.Module, error) { return &core.Module{}, nil }
 

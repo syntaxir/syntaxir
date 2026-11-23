@@ -147,7 +147,10 @@ declarations.
 
 A lowering is a pass whose result is in another dialect or another IR. It declares its input stage and its output stage,
 preserves no analysis, and has a postcondition: the verifier of its output stage, which always runs right after the
-lowering, so that an error names the lowering. After `execlower`, for example, no Flow operation remains, which verification at the Exec stage checks because a module at a stage declares only operations of the dialects legal at it. A lowering is
+lowering, so that an error names the lowering. After `execlower`, for example, no Flow operation remains, which verification at the Exec stage checks because a module at a stage declares only operations of the dialects legal at it. A
+lowering that makes part of the invariants of its output by construction checks only the rest: Elaborate computes
+the attributes of its Core module with `Analyze`, so its postcondition is the structural Core verifier, and the
+attributes are compared where the Core passes end. A lowering is
 a required pass: it has a name in the registry and the dumps can name it, but no flag or profile turns it off, because
 the stages after it need its output. Making it a pass gives it the registry, the dumps and the verification that every
 other step of the compiler has, and keeps the order of the whole compilation in one pipeline.
@@ -435,7 +438,8 @@ Each stage has a verifier: for Core IR, the checks listed in
 structure, the variables, one runtime per function, recorded reads under a Document and no
 in-place reads in a traced parse; for the Exec stage, among its checks, that no Flow operation remains. The verifier of
 a lowering's output stage is its postcondition, and it always runs right after the lowering, so an error names the
-lowering. The other runs of the verifiers are where the pipeline leaves a stage. That tells a user that a transform
+lowering; a lowering narrows it to what it does not establish by construction, as Elaborate does. The other runs of
+the verifiers are where the pipeline leaves a stage. That tells a user that a transform
 broke something, and not which one, so a run can verify after **every** transform, with `-verify-each`: the error then
 names the first pass that left the module invalid. Under `-verify-each` the pipeline also checks what each transform
 claims to preserve: a pass that declares that it preserves every analysis must leave the text form of the unit

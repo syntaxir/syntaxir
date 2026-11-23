@@ -702,8 +702,8 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 	if observed {
 		el = time.Since(start)
 	}
-	if err == nil && (rs.r.VerifyEach || !transform) && d.out.verify != nil {
-		err = d.out.verify(res)
+	if err == nil && (rs.r.VerifyEach || !transform) && d.check != nil {
+		err = d.check(res)
 	}
 	var after string
 	outText := err == nil && transform && inText && (rs.needs.TextChanged || rs.r.VerifyEach)

@@ -165,7 +165,10 @@ var coreKey = pipe.RegisterKey(tableIR, &pipe.Key[common.TableSource]{Name: "cor
 
 // elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
 // computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
-// with its attributes, as the Core passes and the Core verifier read it.
+// with its attributes, as the Core passes and the Core verifier read it. Its postcondition is the
+// structural verifier (core.Verify), which reads the attributes: they are what core.Analyze computes
+// by construction, so recomputing them to compare (core.CheckAttributes, the rest of the verifier of
+// Core IR) could only find them equal. The checks where the Core passes end compare them.
 var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
 	In:   tableIR, Out: corepass.IR,
@@ -183,6 +186,7 @@ var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 		core.Analyze(m)
 		return m, pass.PreserveNone(), nil
 	},
+	Post: core.Verify,
 })
 
 // observers returns the observers of the debugging settings and then those of the call, which watch
