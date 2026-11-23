@@ -34,6 +34,12 @@ func valueFree(body core.Node) (*core.Module, *core.Rule) {
 	return m, r
 }
 
+// missingLit returns the #missing site of the literal text, numbered site.
+func missingLit(site int, text string) *core.Missing {
+	l := &core.Lit{Text: text}
+	return &core.Missing{Lit: l, Body: l, Site: site}
+}
+
 func alts(bodies ...core.Node) *core.Choice {
 	c := &core.Choice{}
 	for _, b := range bodies {
@@ -113,6 +119,78 @@ func r() {
   }
   if (x1 < 1) {
     exit fail
+  }
+  v = null(value)
+}
+`},
+		{"insertions under a label in a repetition", &core.Repeat{Min: 0, Max: -1, Body: &core.Label{Exp: 1, MissingScope: true,
+			Body: missingLit(1, "a")}}, lowerdata.Options{Recovers: true, Inserts: true}, `
+func r() {
+  var x1 int
+  var x2 int
+  var x3 int
+  var x4 int
+  var x6 int
+  var x7 expmark
+  var x8 int
+  var x9 expids
+  var x12 int
+  var x13 expmark
+  var x14 int
+  var x15 expids
+  var ok bool
+  var x18 error
+  var x19 bool
+  var start int
+  var v value
+  var c ctx
+  x1 = 0
+  loop loop.1 {
+    x2, x3 = $pos, flow.recLen()
+    x4 = flow.missingLen()
+    block L5 {
+      x6 = flow.missingScope([exp 1])
+      x7 = flow.isolate()
+      block L11 {
+        block L10 {
+          x12 = $pos
+          x13 = flow.isolate()
+          block L17 {
+            block L16 {
+              if _, ok = flow.matchLit(["a"]); !ok {
+                exit L16
+              }
+              x14, x15 = flow.unisolate(x13)
+              flow.mergeExpected(x14, x15)
+              exit L17
+            }
+            x14, x15 = flow.unisolate(x13)
+            $pos = x12
+            x18, x19 = flow.insertMissing([site 1 "a"], x15)
+            if !x19 {
+              flow.mergeExpected(x14, x15)
+              exit L10
+            }
+          }
+          x8, x9 = flow.unisolate(x7)
+          flow.mergeExpected(x8, x9)
+          flow.missingScopeEnd(x6)
+          exit L11
+        }
+        x8, x9 = flow.unisolate(x7)
+        flow.missingScopeEnd(x6)
+        flow.expect([exp 1 message], x8)
+        exit L5
+      }
+      x1 = (x1 + 1)
+      if ($pos == x2) {
+        break loop.1
+      }
+      continue loop.1
+    }
+    flow.restore(x2, x3)
+    flow.resetMissing(x4)
+    break loop.1
   }
   v = null(value)
 }
@@ -437,3 +515,42 @@ func TestVerifyDocumentReads(t *testing.T) {
 
 // dump returns the listing of the function of the module m.
 func dump(m *code.Module) string { return code.FuncStringIn(m, flow.FuncOf(m)) }
+
+// TestLowerInsertionFrame checks a framed Node function with an insertion inside a recovery: its
+// marks save the path of insertions with the recovered errors, and the insertion builds the missing
+// node of the Node runtime.
+func TestLowerInsertionFrame(t *testing.T) {
+	m, r := valueFree(&core.Recover{Body: missingLit(1, "a"), Skip: &core.Any{}})
+	f, err := LowerFrame(m, r, r.Body, nil, true, "r", lowerdata.Options{Node: true, Recovers: true, Inserts: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := flow.VerifyModule(f); err != nil {
+		t.Fatal(err)
+	}
+	got := code.FuncStringIn(f, flow.FuncOf(f))
+	for _, want := range []string{"flow.markState([state pos rec missing])", "flow.insertMissing([site 1 \"a\"]", "flow.newMissingNode([site 1 \"a\"]"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("no %s in\n%s", want, got)
+		}
+	}
+}
+
+// TestLowerWithoutInsertion checks that a lowering for parses that never insert lowers a #missing site
+// under a label as its literal, with none of the operations of insertion.
+func TestLowerWithoutInsertion(t *testing.T) {
+	m, r := valueFree(&core.Label{Exp: 1, MissingScope: true, Body: missingLit(1, "a")})
+	f, err := LowerFrame(m, r, r.Body, nil, true, "r", lowerdata.Options{Node: true, Recovers: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := code.FuncStringIn(f, flow.FuncOf(f))
+	for _, op := range []string{flow.OpInserting, flow.OpInsertMissing, flow.OpNewMissingNode, flow.OpMissingScope, flow.OpMissingLen, flow.OpResetMissing, "missing]"} {
+		if strings.Contains(got, op) {
+			t.Errorf("%s in\n%s", op, got)
+		}
+	}
+	if !strings.Contains(got, flow.OpMatchLit) {
+		t.Errorf("no %s in\n%s", flow.OpMatchLit, got)
+	}
+}

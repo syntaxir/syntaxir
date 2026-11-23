@@ -48,6 +48,13 @@ type Lit struct {
 	Exp  ExpID
 }
 
+// Insertion is the immediate of insertMissing and newMissingNode: a #missing site, numbered from 1
+// among those of the module, and the literal that it inserts.
+type Insertion struct {
+	Site int
+	Lit  Lit
+}
+
 // Guard is the immediate of guardFails and guardLitFails: what the next character must be for an
 // alternative to begin. Lit reports a literal, whose first code point is Rune (Fold: Rune is an ASCII
 // lower-case letter, and its upper-case form matches too); otherwise Class is the class. Exp is the

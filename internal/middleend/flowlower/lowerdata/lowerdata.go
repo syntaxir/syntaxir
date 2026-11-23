@@ -85,6 +85,11 @@ type Options struct {
 	// Recovers reports that the module can append recovered errors (flowlower.Recovers), so backtracking
 	// points save their number.
 	Recovers bool
+	// Inserts lowers the #missing sites of the module (flowlower.Inserts) with their insertions: the
+	// backtracking points that may undo an insertion save the length of the path of insertions, and the
+	// guards of choices skip only in a parse that does not insert missing tokens. Without it a #missing
+	// site lowers as its literal, for a module that only parses without insertion run.
+	Inserts bool
 	// Observe reports the alternatives that the guards of choices skip (ObserveSkip).
 	Observe bool
 	// Node builds the values of the Node runtime (NewTerminalNode, NewBranchNode) in place of the typed

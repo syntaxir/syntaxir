@@ -264,7 +264,7 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	examined := o.Document || s.traced
 	if s.table == "trules" {
 		// Node is false: a function lowered with the options of one runtime is never printed for the other.
-		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Inserts: flowlower.Inserts(m), Observe: s.traced, Document: examined, Traced: s.traced}}
 	}
 	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the

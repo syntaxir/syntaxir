@@ -99,7 +99,7 @@ type Attach struct {
 
 // StateMark is the immediate of markState: which parts of the state besides the position the
 // code between the mark and its reset may change.
-type StateMark struct{ Env, Trail, Rec bool }
+type StateMark struct{ Env, Trail, Rec, Missing bool }
 
 // Conversion is the immediate of convertResult: the rule, and whether the fresh node of the
 // body is passed to convert in place.
@@ -216,7 +216,7 @@ func ImmString(imm any) string {
 		for _, p := range []struct {
 			on   bool
 			name string
-		}{{x.Env, "env"}, {x.Trail, "trail"}, {x.Rec, "rec"}} {
+		}{{x.Env, "env"}, {x.Trail, "trail"}, {x.Rec, "rec"}, {x.Missing, "missing"}} {
 			if p.on {
 				parts = append(parts, p.name)
 			}
@@ -241,6 +241,8 @@ func ImmString(imm any) string {
 		return s
 	case ExpID:
 		return fmt.Sprintf("exp %d", x)
+	case Insertion:
+		return fmt.Sprintf("site %d %s", x.Site, ImmString(x.Lit))
 	case Lit:
 		s := strconv.Quote(x.Text)
 		if x.Fold {

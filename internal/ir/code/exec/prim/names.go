@@ -98,6 +98,13 @@ const (
 	OpFrameVal        = "runtime.frameVal"
 	OpKeep            = "runtime.keep"
 	OpMakeError       = "runtime.makeError"
+	OpInserting       = "runtime.inserting"
+	OpInsertMissing   = "runtime.insertMissing"
+	OpNewMissingNode  = "runtime.newMissingNode"
+	OpMissingScope    = "runtime.missingScope"
+	OpMissingScopeEnd = "runtime.missingScopeEnd"
+	OpMissingLen      = "runtime.missingLen"
+	OpResetMissing    = "runtime.resetMissing"
 	OpErrorValue      = "runtime.errorValue"
 	OpNewErrorNode    = "runtime.newErrorNode"
 	OpFreshNode       = "runtime.freshNode"
@@ -196,6 +203,13 @@ var imms = map[string]reflect.Type{
 	OpFrameVal:        reflect.TypeFor[Slot](),
 	OpKeep:            nil,
 	OpMakeError:       nil,
+	OpInserting:       nil,
+	OpInsertMissing:   reflect.TypeFor[Insertion](),
+	OpNewMissingNode:  reflect.TypeFor[Insertion](),
+	OpMissingScope:    reflect.TypeFor[ExpID](),
+	OpMissingScopeEnd: nil,
+	OpMissingLen:      nil,
+	OpResetMissing:    nil,
 	OpErrorValue:      nil,
 	OpNewErrorNode:    nil,
 	OpFreshNode:       nil,

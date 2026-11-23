@@ -190,6 +190,13 @@ const (
 	OpFrameVal        = "flow.frameVal"
 	OpKeep            = "flow.keep"
 	OpMakeError       = "flow.makeError"
+	OpInserting       = "flow.inserting"
+	OpInsertMissing   = "flow.insertMissing"
+	OpNewMissingNode  = "flow.newMissingNode"
+	OpMissingScope    = "flow.missingScope"
+	OpMissingScopeEnd = "flow.missingScopeEnd"
+	OpMissingLen      = "flow.missingLen"
+	OpResetMissing    = "flow.resetMissing"
 	OpErrorValue      = "flow.errorValue"
 	OpNewErrorNode    = "flow.newErrorNode"
 	OpFreshNode       = "flow.freshNode"
@@ -544,7 +551,7 @@ and the key of a memoized rule, as the composition call does (spec/runtime/parsi
 		Contract: "Returns x, matched from start, with the captures of the scope attached: the values of the frame f."}),
 		"the names, with Frame set (Attach)", immOf[prim.Attach]())
 	withImm(op(&code.Op{Name: OpMarkState, Results: []code.Type{mark}, Reads: all, Writes: []string{State},
-		Contract: "Returns a mark of the parser state, which flow.reset returns to: the position, and the variable environment, the capture trail and the recovered errors as the immediate names them."}),
+		Contract: "Returns a mark of the parser state, which flow.reset returns to: the position, and the variable environment, the capture trail, the recovered errors and the insertions on the current path as the immediate names them."}),
 		"the parts the mark restores (StateMark)", immOf[prim.StateMark]())
 	op(&code.Op{Name: OpMarkPos, Params: []code.Param{P("m", mark)}, Results: []code.Type{i},
 		Contract: "Returns the position of the mark m.", Laws: []string{pure}})
@@ -556,6 +563,31 @@ and the key of a memoized rule, as the composition call does (spec/runtime/parsi
 		Contract: "Returns the expectations exps, kept beyond the scope that recorded them, as the composition keep does (spec/exec-ir/compositions.md#expectations)."})
 	op(&code.Op{Name: OpMakeError, NoReturn: true, Params: []code.Param{P("far", i), P("exps", expids)}, Results: []code.Type{errT}, Writes: []string{State}, Cost: per(QError),
 		Contract: "Returns the syntax error at far with the expectations exps, which a recovery builds: one compute unit, a syntax error built (spec/runtime/parsing.md#compute-units). The cost bound is the work of building it (spec/runtime/parsing.md#cost)."})
+	// Missing-token insertion (spec/language/pragmas.md#missing).
+	op(&code.Op{Name: OpInserting, Results: []code.Type{b}, Laws: []string{pure},
+		Contract: "Reports that the parse inserts missing tokens: a parse with a positive limit of missing tokens of a grammar with #missing. A guard of a choice skips an alternative only where it does not, since a literal that may insert its text matches where the next character cannot begin it. It counts no event and charges nothing."})
+	withImm(op(&code.Op{Name: OpInsertMissing, NoReturn: true, Params: []code.Param{P("exps", expids)}, Results: []code.Type{errT, b}, Reads: pos, Writes: []string{State}, Cost: per(QError),
+		Contract: `Inserts the literal of the #missing site of the immediate where it did not match, at the position. In a
+parse that inserts missing tokens, outside a lookahead, where the site has not inserted at the position on the current
+path, it builds the syntax error of the insertion at the position, with the expectations exps or, inside an @error
+label that flow.missingScope entered in a parse that records expectations, with that label's message alone: one
+compute unit, a syntax error built (spec/runtime/parsing.md#compute-units), which it counts and checks first. It then
+takes an attempt of the limit of missing tokens, which ends the parse with a MissingTokenLimitError where none remains,
+puts the insertion on the current path, records the error as a recovered error, and returns it and true. Otherwise it
+returns false and changes nothing.`}),
+		"the #missing site and its literal (Insertion)", immOf[prim.Insertion]())
+	withImm(op(&code.Op{Name: OpNewMissingNode, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Writes: []string{State}, Cost: plus(value1, QErrorText),
+		Contract: "Returns the missing node of the insertion whose error is x, at start, in the Node runtime: an empty terminal of type missing with the fields expected, the text the literal of the immediate inserts, and message, the text of x. Its fields are values that the parse builds, which count nothing (spec/runtime/parsing.md#compute-units); the cost bound is the work of building them."}),
+		"the #missing site and its literal (Insertion)", immOf[prim.Insertion]())
+	withImm(op(&code.Op{Name: OpMissingScope, NoReturn: true, Results: []code.Type{i}, Writes: []string{State},
+		Contract: "Enters an @error label around #missing sites: in a parse that inserts missing tokens and records expectations, where no label is entered, the message of the immediate becomes the expectation of the insertions inside. Returns the label entered before, which flow.missingScopeEnd restores. It counts no event and charges nothing."}),
+		"the message of the label (ExpID)", immOf[prim.ExpID]())
+	op(&code.Op{Name: OpMissingScopeEnd, Params: []code.Param{P("prev", i)}, Writes: []string{State},
+		Contract: "Leaves the @error label that flow.missingScope entered, restoring the label prev that it returned. It counts no event and charges nothing."})
+	op(&code.Op{Name: OpMissingLen, Results: []code.Type{i}, Laws: []string{pure},
+		Contract: "Returns the number of insertions on the current path, 0 in a parse that does not insert missing tokens."})
+	op(&code.Op{Name: OpResetMissing, Params: []code.Param{P("n", i)}, Writes: []string{State},
+		Contract: "Drops the insertions on the current path after the first n, so that their sites may insert at their positions again; the attempts they took stay taken. It counts no event: the insertions it drops were counted where they were made or restored."})
 	op(&code.Op{Name: OpErrorValue, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: plus(value1, QErrorText),
 		Contract: "Returns the value of the recovered error x over the input from start to the position. Its message is a value that the parse builds, which counts nothing (spec/runtime/parsing.md#compute-units); the cost bound is the work of building it."})
 	op(&code.Op{Name: OpNewErrorNode, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: plus(value1, QErrorText),

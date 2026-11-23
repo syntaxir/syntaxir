@@ -315,6 +315,14 @@ rule name = [a-z]+
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
+	// Generated Go refuses grammars with #missing until its runtime inserts missing tokens.
+	flow.OpInserting:       "generated Go does not insert missing tokens yet",
+	flow.OpInsertMissing:   "generated Go does not insert missing tokens yet",
+	flow.OpNewMissingNode:  "generated Go does not insert missing tokens yet",
+	flow.OpMissingScope:    "generated Go does not insert missing tokens yet",
+	flow.OpMissingScopeEnd: "generated Go does not insert missing tokens yet",
+	flow.OpMissingLen:      "generated Go does not insert missing tokens yet",
+	flow.OpResetMissing:    "generated Go does not insert missing tokens yet",
 }
 
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.

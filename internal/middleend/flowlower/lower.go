@@ -38,13 +38,29 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// Recovers reports whether the module has a Recover, which appends recovered errors.
+// Recovers reports whether the module has a Recover or a #missing site, which append recovered errors.
 func Recovers(m *core.Module) bool {
+	return has(m, func(n core.Node) bool {
+		switch n.(type) {
+		case *core.Recover, *core.Missing:
+			return true
+		}
+		return false
+	})
+}
+
+// Inserts reports whether the module m has a #missing site (lowerdata.Options.Inserts).
+func Inserts(m *core.Module) bool {
+	return has(m, func(n core.Node) bool { _, ok := n.(*core.Missing); return ok })
+}
+
+// has reports whether a node of a rule of m satisfies f.
+func has(m *core.Module, f func(core.Node) bool) bool {
 	found := false
 	for _, r := range m.Rules {
-		if r != nil {
+		if r != nil && !found {
 			core.Walk(r.Body, func(n core.Node) {
-				if _, ok := n.(*core.Recover); ok {
+				if f(n) {
 					found = true
 				}
 			})
@@ -421,8 +437,10 @@ func (l *lowerer) capVar(s *scope, slot int) string {
 // whole parser state.
 type mark struct {
 	pos, rec, env string
-	saves         [][2]string // capture variable, saved value
-	state         string
+	// missing is the length of the path of insertions, saved where the code after the mark may insert.
+	missing string
+	saves   [][2]string // capture variable, saved value
+	state   string
 }
 
 // at is the position of the mark.
@@ -438,7 +456,8 @@ func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 	if l.frame {
 		m := mark{state: l.decl("x", prim.TypeMark)}
 		eff := n.Attrs().Eff
-		st := prim.StateMark{Env: eff.Set&core.EffBind != 0, Rec: eff.Set&core.EffRecover != 0}
+		rec := eff.Set&core.EffRecover != 0
+		st := prim.StateMark{Env: eff.Set&core.EffBind != 0, Rec: rec, Missing: rec && l.opts.Inserts}
 		core.Walk(n, func(n core.Node) {
 			if _, ok := n.(*core.Capture); ok {
 				st.Trail = true
@@ -455,6 +474,7 @@ func (l *lowerer) mark(s *scope, n core.Node, saves bool) mark {
 		l.set(m.pos, pos())
 	}
 	eff := n.Attrs().Eff
+	m.missing = l.missingMark(eff)
 	if eff.Set&core.EffBind != 0 {
 		m.env = l.decl("x", prim.TypeEnv)
 		l.set(m.env, call(flow.OpEnv, nil))
@@ -481,11 +501,30 @@ func (l *lowerer) reset(m mark) {
 	} else {
 		l.emit(do(flow.OpRestore, nil, use(m.pos), use(m.rec)))
 	}
+	l.resetMissing(m.missing)
 	if m.env != "" {
 		l.setEnv(use(m.env))
 	}
 	for _, kv := range m.saves {
 		l.set(kv[0], use(kv[1]))
+	}
+}
+
+// missingMark saves the length of the path of insertions before code of the effects eff, if that code
+// may insert (lowerdata.Options.Inserts), and returns its variable, or "".
+func (l *lowerer) missingMark(eff core.Effects) string {
+	if !l.opts.Inserts || eff.Set&core.EffRecover == 0 {
+		return ""
+	}
+	v := l.decl("x", prim.TypeInt)
+	l.set(v, call(flow.OpMissingLen, nil))
+	return v
+}
+
+// resetMissing drops the insertions made after missingMark saved v, if it saved one.
+func (l *lowerer) resetMissing(v string) {
+	if v != "" {
+		l.emit(do(flow.OpResetMissing, nil, use(v)))
 	}
 }
 
@@ -535,7 +574,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 	case *core.Lit:
 		return l.lit(n, build, fail)
 	case *core.Missing:
-		return l.node(n.Body, s, build, fail)
+		return l.missing(n, s, build, fail)
 	case *core.ClassNode:
 		form := l.openForm(flow.FormClass, n, build, fail)
 		form.Class = l.tab.class(n.Class)
@@ -625,12 +664,14 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		} else {
 			l.set(start, pos())
 		}
+		missing := l.missingMark(n.Body.Attrs().Eff)
 		back := func() {
 			if rec == "" {
 				l.setPos(use(start))
 			} else {
 				l.emit(do(flow.OpRestore, nil, use(start), use(rec)))
 			}
+			l.resetMissing(missing)
 		}
 		l.emit(do(flow.OpSilent, prim.Silence{Delta: 1, Site: n.Site}))
 		f, done := l.label(), l.label()
@@ -741,6 +782,51 @@ func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 		text = call(flow.OpLiteralText, prim.Chars(n.Text), use(start))
 	}
 	l.set(v, l.match(use(start), text))
+	return use(v)
+}
+
+// missing lowers a #missing site: its body, the literal, and where the literal does not match, the
+// insertion of its text. Without lowerdata.Options.Inserts it lowers the literal alone. The expectations of the literal are recorded in a scope of their own: they are
+// those of the error that an insertion builds, which the insertion keeps out of the enclosing record.
+func (l *lowerer) missing(n *core.Missing, s *scope, build bool, fail string) code.Expr {
+	if !l.opts.Inserts {
+		// A lowering for parses that never insert matches the literal alone (lowerdata.Options.Inserts).
+		return l.node(n.Body, s, build, fail)
+	}
+	if build && !l.opts.Node {
+		panic("flow: no typed value of an insertion of #missing is defined")
+	}
+	start := l.decl("x", prim.TypeInt)
+	l.set(start, pos())
+	mk, far, exps := l.decl("x", prim.TypeExpMark), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeExpIDs)
+	l.set(mk, call(flow.OpIsolate, nil))
+	var v string
+	if build {
+		v = l.decl("v", prim.TypeValue)
+	}
+	f, done := l.label(), l.label()
+	bd := l.open(done)
+	bf := l.open(f)
+	x := l.node(n.Body, s, build, f)
+	l.emit(&code.Set{Dst: []code.Place{{Name: far}, {Name: exps}}, Values: []code.Expr{call(flow.OpUnisolate, nil, use(mk))}})
+	l.emit(do(flow.OpMergeExpected, nil, use(far), use(exps)))
+	if build {
+		l.set(v, x)
+	}
+	l.exit(done)
+	l.close(bf)
+	l.emit(&code.Set{Dst: []code.Place{{Name: far}, {Name: exps}}, Values: []code.Expr{call(flow.OpUnisolate, nil, use(mk))}})
+	l.setPos(use(start))
+	err, ok := l.decl("x", prim.TypeError), l.decl("x", prim.TypeBool)
+	l.emit(&code.Set{Dst: []code.Place{{Name: err}, {Name: ok}}, Values: []code.Expr{call(flow.OpInsertMissing, insertion(n), use(exps))}})
+	l.failIf(nil, code.Not(use(ok)), fail, do(flow.OpMergeExpected, nil, use(far), use(exps)))
+	if build {
+		l.set(v, call(flow.OpNewMissingNode, insertion(n), use(start), use(err)))
+	}
+	l.close(bd)
+	if !build {
+		return null()
+	}
 	return use(v)
 }
 
@@ -881,6 +967,10 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			if outside {
 				// A Document parse evaluates the alternative without the guard (docMemoized).
 				fails = code.And(code.Not(call(flow.OpInDocument, nil)), fails)
+			}
+			if l.opts.Inserts {
+				// A literal that may insert its text matches where the next character cannot begin it.
+				fails = code.And(code.Not(call(flow.OpInserting, nil)), fails)
 			}
 			l.failIf(nil, fails, skip, pre...)
 		}
@@ -1525,6 +1615,12 @@ func capArgs(t core.ActionExpr, s *scope) []code.Expr {
 // label_ lowers @error and @diagnostic: the expectations recorded inside are isolated, so that
 // the label changes only those of a failed body.
 func (l *lowerer) label_(n *core.Label, s *scope, build bool, fail string) code.Expr {
+	var scope string
+	if n.MissingScope && l.opts.Inserts {
+		// The label is the message of the insertions inside it, unless an outer label is.
+		scope = l.decl("x", prim.TypeInt)
+		l.set(scope, call(flow.OpMissingScope, prim.ExpID(n.Exp)))
+	}
 	mk, far, exps := l.decl("x", prim.TypeExpMark), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeExpIDs)
 	l.set(mk, call(flow.OpIsolate, nil))
 	f, done := l.label(), l.label()
@@ -1534,10 +1630,16 @@ func (l *lowerer) label_(n *core.Label, s *scope, build bool, fail string) code.
 	unisolate := &code.Set{Dst: []code.Place{{Name: far}, {Name: exps}}, Values: []code.Expr{call(flow.OpUnisolate, nil, use(mk))}}
 	l.emit(unisolate)
 	l.emit(do(flow.OpMergeExpected, nil, use(far), use(exps)))
+	if scope != "" {
+		l.emit(do(flow.OpMissingScopeEnd, nil, use(scope)))
+	}
 	if l.used[f] {
 		l.exit(done)
 		l.close(bf)
 		l.emit(&code.Set{Dst: []code.Place{{Name: far}, {Name: exps}}, Values: []code.Expr{call(flow.OpUnisolate, nil, use(mk))}})
+		if scope != "" {
+			l.emit(do(flow.OpMissingScopeEnd, nil, use(scope)))
+		}
 		if n.Diagnostic {
 			l.emit(do(flow.OpMergeRenamed, prim.ExpID(n.Exp), use(far), use(exps)))
 		} else {

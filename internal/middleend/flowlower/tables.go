@@ -76,6 +76,9 @@ func (tb *tables) guard(f *core.First) prim.Guard {
 // lit returns the immediate of the literal n.
 func lit(n *core.Lit) prim.Lit { return prim.Lit{Text: n.Text, Fold: n.Fold, Exp: prim.ExpID(n.Exp)} }
 
+// insertion returns the immediate of the #missing site n.
+func insertion(n *core.Missing) prim.Insertion { return prim.Insertion{Site: n.Site, Lit: lit(n.Lit)} }
+
 // shape returns the immediate of the shape s.
 func shape(s core.Shape) prim.Shape {
 	return prim.Shape{Elems: s.Elems, K: s.K, Mode: prim.SingleMode(s.Mode), Tuple: s.Tuple, Shared: s.Shared}

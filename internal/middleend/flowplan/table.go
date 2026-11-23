@@ -25,7 +25,7 @@ func TableBuild(prog elaborate.Program, c plandata.TableConfig) func(*cancel.Con
 // that only typed rules print are the Flow passes' (flowpass.Target). The table outlines no node; the
 // pass outline chooses the outlined nodes of a backend that runs it (Outlining).
 func TableOf(m *core.Module, c plandata.TableConfig) *plandata.TableIR {
-	opts := lowerdata.Options{Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Observe: c.Observe, Node: true,
+	opts := lowerdata.Options{Logical: c.Logical, Guards: c.Guards, Recovers: flowlower.Recovers(m), Inserts: flowlower.Inserts(m), Observe: c.Observe, Node: true,
 		Document: c.Document, Resume: c.Resume, Traced: c.Traced}
 	return &plandata.TableIR{M: m, Values: c.Values, Opts: opts}
 }

@@ -64,7 +64,7 @@ var (
 		// variables are the typed runtime's form.
 		OpAttachCaptures: "capture values of local variables"}
 	// opsNode are the operations of the Node runtime: a typed function has none.
-	opsNode = map[string]string{OpNewTerminalNode: "terminal", OpNewBranchNode: "branch", OpNewErrorNode: "error node"}
+	opsNode = map[string]string{OpNewTerminalNode: "terminal", OpNewBranchNode: "branch", OpNewErrorNode: "error node", OpNewMissingNode: "missing node"}
 	// opsInPlace read the input in place: a traced function has none.
 	opsInPlace = map[string]string{OpHasLit: "an in-place literal read", OpMatchClass: "a class table read",
 		OpSkipTerminal: "a terminal program", OpSkipClasses: "a class run"}
