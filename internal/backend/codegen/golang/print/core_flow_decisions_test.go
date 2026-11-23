@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowpass"
 	"syntaxir.dev/sxir/internal/middleend/flowplan"
+	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -80,6 +81,9 @@ type flowRecord struct {
 	origins  map[string]core.Origin
 	nodes    map[string]map[core.NodeID]core.Node
 	by       map[flowScope]*flowDecisions
+	// cores is the planned tables of the generation: the Go decision's tables, each with the Core IR
+	// that the Core passes made and the lowering options the generator gives it (plandata.Cores).
+	cores *plandata.Cores
 }
 
 // decisions returns the decisions recorded for the table, in the copies a case of gen reads: the
@@ -117,6 +121,16 @@ func checkedOf(gen *print.Generator) *frontend.Result {
 	return rec.checked
 }
 
+// coresOf returns the tables of the generation of gen, as the Go decision made them, or nil.
+func coresOf(gen *print.Generator) *plandata.Cores {
+	if rec := flowRecordOf(gen); rec != nil {
+		rec.mu.Lock()
+		defer rec.mu.Unlock()
+		return rec.cores
+	}
+	return nil
+}
+
 // flowRecordOf returns the record of the generation of gen, or nil.
 func flowRecordOf(gen *print.Generator) *flowRecord {
 	r, _ := flowRecords.Load(gen)
@@ -141,6 +155,12 @@ func (rec *flowRecord) hooks() *print.Hooks {
 // core keeps the origin and the nodes of the Core module of the table of the event, after each Core
 // step.
 func (rec *flowRecord) core(e pipe.Event, r *pipe.Result) {
+	if c, ok := r.Unit.(*plandata.Cores); ok && r.Err == nil && e.Label.Table == "" {
+		rec.mu.Lock()
+		defer rec.mu.Unlock()
+		rec.cores = c
+		return
+	}
 	m, ok := r.Unit.(*core.Module)
 	if !ok || r.Err != nil {
 		return
