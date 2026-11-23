@@ -110,7 +110,7 @@ or a suffix copy, and nothing else.
 | `flow.missingScopeEnd` | prev int |  |  | Leaves the `@error` label that flow.missingScope entered, restoring the label prev that it returned. |
 | `flow.missingLen` |  | int |  | Returns the number of insertions on the current path, 0 in a parse that does not insert missing tokens. |
 | `flow.resetMissing` | n int |  |  | Drops the insertions on the current path after the first n, so that their sites may insert at their positions again; the attempts they took stay taken. It counts no event: the insertions it drops were counted where they were made or restored. |
-| `flow.inputDemand` |  |  | `lit` | Demands the input that the literal needs past the position: a suspended stream waits for it, a complete input does nothing. It charges nothing. Only lowerings with `Suspend` emit it. |
+| `flow.inputDemand` |  |  | `demand` | Demands the input of a read past the position, as the literal's bytes or one complete character at the position: a suspended stream waits for it, a complete input does nothing. It charges nothing. Only lowerings with `Suspend` emit it. |
 | `flow.errorValue` | start int, x error | value |  | Returns the value of the recovered error x over the input from start to the position. |
 | `flow.newErrorNode` | start int, x error | value |  | Returns the error node of the recovered error x in the Node runtime, over the input from start to the position. |
 | `flow.freshNode` | x value | value |  | Returns x if it is a node its maker still owns, or nil. |

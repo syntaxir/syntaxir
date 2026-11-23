@@ -42,6 +42,15 @@ type ClassRun []ClassID
 // case-insensitive (each ASCII letter of the input matches either case of the same letter in Text),
 // and the expectation it records on failure, which the empty literal, which cannot fail, has none
 // of.
+// Demand is the immediate of inputDemand: the input that a read needs past the position. The Lit form
+// demands the bytes of a literal, in the position units. The Char form demands one complete character at the
+// position: one code point in code points, and in bytes enough bytes to decode one UTF-8 character, or the
+// final flag. The runtime resolves each form in its unit, so no backend guesses the amount.
+type Demand struct {
+	Lit  Lit
+	Char bool
+}
+
 type Lit struct {
 	Text string
 	Fold bool

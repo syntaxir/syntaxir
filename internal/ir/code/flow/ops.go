@@ -590,13 +590,15 @@ returns false and changes nothing.`}),
 	op(&code.Op{Name: OpResetMissing, Params: []code.Param{P("n", i)}, Writes: []string{State},
 		Contract: "Drops the insertions on the current path after the first n, so that their sites may insert at their positions again; the attempts they took stay taken. It counts no event: the insertions it drops were counted where they were made or restored."})
 	withImm(op(&code.Op{Name: OpInputDemand, Reads: pos, Writes: []string{State}, NoReturn: true,
-		Contract: `Demands the input that the literal needs past the position, in the position units. A backend whose input
+		Contract: `Demands the input of a read past the position, in one of two forms: the literal (the bytes that the literal
+needs, in the position units) or one complete character at the position (one code point in code points; in bytes
+enough bytes to decode one UTF-8 character, or the final flag). The runtime resolves each form in its unit. A backend whose input
 arrives in chunks (the suspended stream of a TypeScript -stream parser) suspends here until the buffer holds it or the
 input is final, and resumes after; a backend whose input is complete does nothing. It charges nothing: the suspension
 is how the input arrives, and a stream charges what the batch parse of the same input charges (record 044, record
 076). Only lowerings with lowerdata.Options.Suspend emit it.`,
 		Requires: "the literal is matched at the position right after it."}),
-		"the literal (prim.Lit)", immOf[prim.Lit]())
+		"the demand (prim.Demand)", immOf[prim.Demand]())
 	op(&code.Op{Name: OpErrorValue, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: plus(value1, QErrorText),
 		Contract: "Returns the value of the recovered error x over the input from start to the position. Its message is a value that the parse builds, which counts nothing (spec/runtime/parsing.md#compute-units); the cost bound is the work of building it."})
 	op(&code.Op{Name: OpNewErrorNode, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Reads: pos, Writes: []string{State}, Cost: plus(value1, QErrorText),

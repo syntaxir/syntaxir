@@ -211,7 +211,7 @@ var imms = map[string]reflect.Type{
 	OpMissingScopeEnd: nil,
 	OpMissingLen:      nil,
 	OpResetMissing:    nil,
-	OpInputDemand:     reflect.TypeFor[Lit](),
+	OpInputDemand:     reflect.TypeFor[Demand](),
 	OpErrorValue:      nil,
 	OpNewErrorNode:    nil,
 	OpFreshNode:       nil,

@@ -583,6 +583,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		}
 		l.forms.Classes = append(l.forms.Classes, form)
 		ch, size, ok := l.shared("ch", prim.TypeRune), l.shared("size", prim.TypeInt), l.ok()
+		l.demandChar()
 		l.emit(peek(ch, size, ok))
 		l.failIf(nil, code.Bin("||", code.Not(use(ok)), code.Not(call(flow.OpInClass, form.Class, use(ch)))), fail,
 			do(flow.OpExpect, prim.Expectation{Exp: prim.ExpID(n.Class.Exp)}, pos()))
@@ -591,6 +592,7 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 		return v
 	case *core.Any:
 		size, ok := l.shared("size", prim.TypeInt), l.ok()
+		l.demandChar()
 		l.emit(peek("", size, ok))
 		l.failIf(nil, code.Not(use(ok)), fail, do(flow.OpExpect, prim.Expectation{Exp: 0}, pos()))
 		return l.single(size, build)
@@ -760,6 +762,14 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 	panic(fmt.Sprintf("flow: cannot lower %T", n))
 }
 
+// demandChar emits the demand of one character at the position before a read of it, for a suspended stream
+// (lowerdata.Options.Suspend).
+func (l *lowerer) demandChar() {
+	if l.opts.Suspend {
+		l.emit(do(flow.OpInputDemand, prim.Demand{Char: true}))
+	}
+}
+
 // lit lowers a literal.
 func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 	var start string
@@ -769,7 +779,7 @@ func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 	}
 	ok := l.ok()
 	if l.opts.Suspend {
-		l.emit(do(flow.OpInputDemand, lit(n)))
+		l.emit(do(flow.OpInputDemand, prim.Demand{Lit: lit(n)}))
 	}
 	l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{call(flow.OpMatchLit, lit(n))}}, code.Not(use(ok)), fail)
 	if !build {
@@ -945,6 +955,7 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 				if form != nil {
 					form.Peeks = append(form.Peeks, p.(*code.Set))
 				}
+				l.demandChar()
 				l.emit(p)
 			}
 			if a.GuardedClass {
@@ -974,6 +985,10 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 			if l.opts.Inserts {
 				// A literal that may insert its text matches where the next character cannot begin it.
 				fails = code.And(code.Not(call(flow.OpInserting, nil)), fails)
+			}
+			if a.Guard.Lit {
+				// The guard of a literal reads the character that the literal begins with, at the choice.
+				l.demandChar()
 			}
 			l.failIf(nil, fails, skip, pre...)
 		}
@@ -1510,6 +1525,7 @@ func (l *lowerer) scan(n *core.Scan, fail string) code.Expr {
 	}
 	l.loop(lp)
 	l.step()
+	l.demandChar()
 	l.emit(peek(ch, size, ok))
 	var stop code.Expr = code.Not(use(ok))
 	exp := prim.ExpID(0)

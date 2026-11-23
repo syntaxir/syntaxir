@@ -18,8 +18,6 @@ import (
 // in C2 before they can be listed or removed. The list shrinks to nothing as the demands land; the test fails
 // both for an uncovered read that is not listed and for a listed operation with no uncovered read.
 var suspendGaps = map[string]string{
-	flow.OpPeek:          "C1: one-character demand (flow.inputDemand, character form) before peek",
-	flow.OpGuardLitFails: "C1: guard of a literal, demand before it",
 	flow.OpSkipVisit:     "C3: skip walk, demand per character inside the loop",
 	flow.OpScanReach:     "C3: scan walk, demand per character inside the loop",
 }
