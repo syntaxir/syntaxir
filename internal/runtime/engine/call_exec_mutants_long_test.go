@@ -505,7 +505,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"\tif StreamUndoCleanup {\n\t\tclear(p.Trail[:cap(p.Trail)])\n\t}\n", ""}}, storage, vm},
 		{"the inactive stack stays",
 			[]printedEdit{{"\tif StreamStackCleanup && p.Backend != nil {\n\t\tp.Backend.ClearInactive()\n\t}\n", ""}}, storage, vm},
-		{"the skip records stay", []printedEdit{{"\tp.pruneSkipRecords(pos)\n", ""}}, records, inCore},
+		{"the skip records stay", []printedEdit{{"\tp.PruneSkipRecords(pos)\n", ""}}, records, inCore},
 		{"a traced parse reuses the scratch", []printedEdit{{reuse, "if cap(p.Recovered) <= streamRecoveryScratchMax {"}}, scratch, inCore},
 		{"a large scratch is kept", []printedEdit{{reuse, "if p.Tr == nil {"}}, bounds, inCore},
 		{"the scratch is never reused", []printedEdit{{reuse, "if false {"}}, scratch, inCore},
