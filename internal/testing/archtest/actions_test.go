@@ -99,12 +99,13 @@ func codeOps() map[string]*code.Op {
 	return ops
 }
 
-// actionValuesIn returns the paths in the type t to the action values of Core IR that a value of t
-// holds: a core.ActionExpr, or a value of a type of Core IR that is one. The search follows the
-// elements of pointers, slices, arrays and maps and the fields of structs, but not interfaces, whose
-// values it cannot see.
-func actionValuesIn(t reflect.Type) []string {
+// coreValuesIn returns the paths in the type t to the values of Core IR that a value of t holds: a
+// value of a type declared in Core IR (an action expression, a node, a shape, an expectation ID), or
+// of another type that is a core.ActionExpr. The search follows the elements of pointers, slices,
+// arrays and maps and the fields of structs, but not interfaces, whose values it cannot see.
+func coreValuesIn(t reflect.Type) []string {
 	actionExpr := reflect.TypeFor[core.ActionExpr]()
+	corePkg := actionExpr.PkgPath()
 	var out []string
 	seen := map[reflect.Type]bool{}
 	var walk func(t reflect.Type, path string)
@@ -113,7 +114,8 @@ func actionValuesIn(t reflect.Type) []string {
 			return
 		}
 		seen[t] = true
-		if t == actionExpr || (t.Kind() != reflect.Interface && (t.Implements(actionExpr) || reflect.PointerTo(t).Implements(actionExpr))) {
+		if t.PkgPath() == corePkg || t == actionExpr ||
+			(t.Kind() != reflect.Interface && (t.Implements(actionExpr) || reflect.PointerTo(t).Implements(actionExpr))) {
 			out = append(out, path+" ("+t.String()+")")
 			return
 		}
@@ -133,19 +135,19 @@ func actionValuesIn(t reflect.Type) []string {
 	return out
 }
 
-// TestCodeOpsCarryNoActionValues checks that no operation of Code IR, the primitives of the Exec stage
-// (prim.OpNames) included, has an immediate operand that holds an action value of Core IR: an
-// operation names an action site by its number in the Action module of its table (prim.Predicate,
-// prim.Binding, prim.Action), whose functions evaluate the action expressions.
+// TestCodeOpsCarryNoCoreValues checks that no operation of Code IR, the primitives of the Exec stage
+// (prim.OpNames) included, has an immediate operand that holds a value of Core IR. An operation
+// names an action site by its number in the Action module of its table (prim.Predicate,
+// prim.Binding, prim.Action), whose functions evaluate the action expressions; the terminals,
+// classes, first sets, anchors, shapes and expectations of the Flow and Exec operations are values
+// of Code IR (internal/ir/code/exec/prim), and an observed skip or an outlined call names what it
+// reports or runs. The import rules keep Code IR from importing Core IR; this test also covers the
+// immediates of the operations that compose.Build, action.DeclareLeaves and flow.Ops declare.
 //
-// The check covers the action values alone. The immediates of the Flow and Exec operations still
-// hold other values of Core IR, which the backends read in place: the matched node of observeSkip
-// (core.Node), the literal of hasLit and matchLit (*core.Lit), the class of matchClass and inClass
-// (*core.Class), the first sets of the guards (*core.First), the anchor kind of atAnchor, the
-// terminal of skipTerminal (*core.Terminal), the class runs of skipClasses (*core.ClassRun), the
-// shapes of the value operations (core.Shape) and the expectation of mergeRenamed (core.ExpID).
-// The interfaces among them are not searched.
-func TestCodeOpsCarryNoActionValues(t *testing.T) {
+// The interfaces among the immediates are not searched: the checked type and the key of a cast
+// (action.Cast.Check and Key), which the front end gives, and the constant of action.const
+// (action.Const.Value), an int, a string, a bool or nil.
+func TestCodeOpsCarryNoCoreValues(t *testing.T) {
 	imms := map[string]reflect.Type{}
 	for name, o := range codeOps() {
 		imms[name] = o.ImmType
@@ -155,16 +157,17 @@ func TestCodeOpsCarryNoActionValues(t *testing.T) {
 	}
 	for _, name := range slices.Sorted(maps.Keys(imms)) {
 		if imm := imms[name]; imm != nil {
-			for _, p := range actionValuesIn(imm) {
-				t.Errorf("the immediate of %s holds an action value of Core IR: %s", name, p)
+			for _, p := range coreValuesIn(imm) {
+				t.Errorf("the immediate of %s holds a value of Core IR: %s", name, p)
 			}
 		}
 	}
 }
 
-// The negative control of TestCodeOpsCarryNoActionValues: action values held directly, through a
-// pointer, a slice, a map and a struct field are found; a type without one and an interface are not.
-func TestCodeOpsCarryNoActionValuesNegativeControl(t *testing.T) {
+// The negative control of TestCodeOpsCarryNoCoreValues: values of Core IR held directly, through a
+// pointer, a slice, a map and a struct field are found, action expressions and other values alike; a
+// type without one and an interface are not.
+func TestCodeOpsCarryNoCoreValuesNegativeControl(t *testing.T) {
 	type holder struct {
 		Name string
 		Pred *core.Pred
@@ -178,15 +181,20 @@ func TestCodeOpsCarryNoActionValuesNegativeControl(t *testing.T) {
 		{reflect.TypeFor[[]core.ActionExpr](), 1},
 		{reflect.TypeFor[map[string]*core.Const](), 1},
 		{reflect.TypeFor[holder](), 1},
+		{reflect.TypeFor[core.Node](), 1},
+		{reflect.TypeFor[*core.Lit](), 1},
+		{reflect.TypeFor[[]core.ClassRun](), 1},
+		{reflect.TypeFor[core.Shape](), 1},
+		{reflect.TypeFor[map[core.ExpID]bool](), 1},
 		{reflect.TypeFor[prim.Predicate](), 0},
-		{reflect.TypeFor[core.Node](), 0},
+		{reflect.TypeFor[action.Cast](), 0},
 		{reflect.TypeFor[any](), 0},
 	} {
-		if got := actionValuesIn(c.t); len(got) != c.want {
+		if got := coreValuesIn(c.t); len(got) != c.want {
 			t.Errorf("%s: found %q, want %d", c.t, got, c.want)
 		}
 	}
-	if got := strings.Join(actionValuesIn(reflect.TypeFor[holder]()), ""); !strings.Contains(got, ".Pred[].Action") {
-		t.Errorf("the path of the action of a predicate is %q", got)
+	if got := strings.Join(coreValuesIn(reflect.TypeFor[holder]()), ""); !strings.Contains(got, ".Pred[] (core.Pred)") {
+		t.Errorf("the path of the predicate is %q", got)
 	}
 }
