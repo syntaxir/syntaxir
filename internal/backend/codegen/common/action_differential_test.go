@@ -686,15 +686,22 @@ func referenceAction(t *testing.T, c codegentest.ActionCase) ast.ActionExpr {
 	return found
 }
 
-// TestActionReferenceEvaluator checks the engine's closure backend against the reference evaluator of
-// action expressions (internal/ir/code/exec/ref), which states the semantics of an action expression on naive tagged values: the same
-// value or the same error for every generated action expression, in both position units. A predicate case compares
-// whether the predicate held, by whether the input "ab" parses.
+// TestActionReferenceEvaluator checks the engine's backends against the reference evaluator of action
+// expressions (internal/ir/code/exec/ref), which states the semantics of an action expression on naive
+// tagged values: the same value or the same error for every generated action expression, in both
+// position units. A predicate case compares whether the predicate held, by whether the input "ab"
+// parses. The closure backend runs every case; the bytecode VM and its iterative form run the cases of
+// the seeds that TestActionEngineBackends reads, so that each runs the action programs of the Action
+// module against the reference directly.
 func TestActionReferenceEvaluator(t *testing.T) {
 	t.Parallel()
 	checked := 0
 	for seed := uint64(1); seed <= 2*actionProcessSeeds; seed++ {
 		cases, _ := actionSeedCases(t, seed, actionProcessSeeds, true)
+		backends := []engine.Backend{engine.Closure}
+		if half := (seed-1)%actionProcessSeeds + 1; half <= actionBackendSeeds {
+			backends = append(backends, engine.Bytecode, engine.BytecodeIterative)
+		}
 		for _, c := range cases {
 			g, _ := parseTest(c.Src)
 			prog, err := entry.Compile(g, entry.Options{})
@@ -713,7 +720,7 @@ func TestActionReferenceEvaluator(t *testing.T) {
 				if c.Kind == codegentest.PredicateAction {
 					in += "b"
 				}
-				checkReference(t, c, prog, actionExpr, env, unit, in, false, engine.Closure)
+				checkReference(t, c, prog, actionExpr, env, unit, in, false, backends...)
 				checked++
 			}
 		}
@@ -731,6 +738,16 @@ func TestActionReferenceEvaluator(t *testing.T) {
 func checkReference(t *testing.T, c codegentest.ActionCase, prog *engine.Program, actionExpr ast.ActionExpr, env *ref.ActionEnv, unit input.PositionUnit, in string,
 	expectations bool, backends ...engine.Backend) {
 	t.Helper()
+	for _, m := range referenceMismatches(c, prog, actionExpr, env, unit, in, expectations, backends...) {
+		t.Error(m)
+	}
+}
+
+// referenceMismatches returns the mismatches that checkReference reports, one for each backend that
+// does not give what the reference evaluator gives.
+func referenceMismatches(c codegentest.ActionCase, prog *engine.Program, actionExpr ast.ActionExpr, env *ref.ActionEnv, unit input.PositionUnit, in string,
+	expectations bool, backends ...engine.Backend) []string {
+	var out []string
 	v, msg := env.Eval(actionExpr)
 	missing := 0
 	if c.MissingTokens {
@@ -745,7 +762,7 @@ func checkReference(t *testing.T, c codegentest.ActionCase, prog *engine.Program
 		if c.Kind == codegentest.PredicateAction {
 			held := err == nil && n != nil
 			if want := !strings.HasSuffix(in, "b") || ref.Holds(v, msg); held != want {
-				t.Errorf("%s: input %q unit %d backend %d: the engine parses: %v, the reference evaluator: %v (%s)", c.Name, in, unit, b, held, want, msg)
+				out = append(out, fmt.Sprintf("%s: input %q unit %d backend %d: the engine parses: %v, the reference evaluator: %v (%s)", c.Name, in, unit, b, held, want, msg))
 			}
 			continue
 		}
@@ -759,10 +776,11 @@ func checkReference(t *testing.T, c codegentest.ActionCase, prog *engine.Program
 		got := codegentest.ResultJSON(n, err)
 		var gotAny, wantAny any
 		if json.Unmarshal([]byte(got), &gotAny) != nil || json.Unmarshal(wantJSON, &wantAny) != nil || !reflect.DeepEqual(gotAny, wantAny) {
-			t.Errorf("%s: input %q unit %d expectations %v backend %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit,
-				expectations, b, got, wantJSON)
+			out = append(out, fmt.Sprintf("%s: input %q unit %d expectations %v backend %d: the engine gives\n %s\nthe reference evaluator\n %s", c.Name, in, unit,
+				expectations, b, got, wantJSON))
 		}
 	}
+	return out
 }
 
 // fixedActionCases returns the fixed action expression sets of codegentest other than the members, which
