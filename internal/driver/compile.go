@@ -223,11 +223,22 @@ type target struct {
 // it rolls back, and reports the first error after its required steps have run.
 func (c *compilation) consuming() bool {
 	for _, t := range c.targets {
-		if t.t.Backend != result.VM && t.t.Backend != result.Closure {
+		if !runTime(t.t.Backend) {
 			return false
 		}
 	}
 	return true
+}
+
+// runTime reports whether b is a run-time backend, which runs the program that it builds instead of
+// printing a parser.
+func runTime(b result.Backend) bool { return b == result.VM || b == result.Closure }
+
+// origin reports whether the Core modules of a compilation of targets record their origin map
+// (core.Module.Origin): only the printers of the generating backends read it, and the tables of all
+// targets of one compilation that build the same module share it (common.TableSource.Origin).
+func origin(targets []Target) bool {
+	return slices.ContainsFunc(targets, func(t Target) bool { return !runTime(t.Backend) })
 }
 
 // newCompilation checks the targets of p under o and returns their compilation, with the options of
@@ -242,6 +253,7 @@ func newCompilation(p *Program, o Options, targets []Target) (*compilation, erro
 		return nil, err
 	}
 	c := &compilation{p: p, o: o}
+	withOrigin := origin(targets)
 	seen := map[Backend]int{}
 	po := p.Options()
 	for _, t := range targets {
@@ -252,7 +264,7 @@ func newCompilation(p *Program, o Options, targets []Target) (*compilation, erro
 		if n := seen[t.Backend]; n > 1 {
 			branch += "#" + strconv.Itoa(n)
 		}
-		x, err := decide(p, t)
+		x, err := decide(p, t, withOrigin)
 		if err != nil {
 			if len(targets) > 1 {
 				err = fmt.Errorf("target %s: %w", branch, err)
@@ -367,8 +379,10 @@ type assembly struct {
 }
 
 // decide checks the options of the target t of p that do not depend on the grammar, completing
-// them, and returns the target as its printer reads it (codegen.TargetFeature).
-func decide(p *Program, t Target) (target, error) {
+// them, and returns the target as its printer reads it (codegen.TargetFeature). The Core module of a
+// run-time target records its origin map if withOrigin, as the compilation decides (origin); that of
+// a generating target always does.
+func decide(p *Program, t Target, withOrigin bool) (target, error) {
 	if p.Start() == nil && (t.Backend == result.Go || t.Backend == result.TypeScript) {
 		return target{}, fmt.Errorf("the %s program of a run-time build generates no parser: it has no start rule", p.Role())
 	}
@@ -391,12 +405,12 @@ func decide(p *Program, t Target) (target, error) {
 		if err := runTimeGen(t); err != nil {
 			return target{}, err
 		}
-		return target{t: t, target: &vmTarget{prog: p.prog}}, nil
+		return target{t: t, target: &vmTarget{prog: p.prog, origin: withOrigin}}, nil
 	case result.Closure:
 		if err := runTimeGen(t); err != nil {
 			return target{}, err
 		}
-		return target{t: t, target: &closureTarget{prog: p.prog}}, nil
+		return target{t: t, target: &closureTarget{prog: p.prog, origin: withOrigin}}, nil
 	}
 	return target{}, fmt.Errorf("internal error: no pipeline is assembled for the backend %s", t.Backend)
 }

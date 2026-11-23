@@ -495,6 +495,10 @@ context, whose counters are allocated on the first count.
   turn sharing off: unit hooks and bisection, whose decisions could differ between two uses.
 - **Errors.** A reuse reports the error of the first run again, relabeled with the current backend and table, so each
   target reports what it would report without sharing.
+- **Agreement.** A key may check that a later input agrees with the first on what its value does not spell but the
+  result depends on (`Key.Agree`); one that disagrees fails the run, naming the key. The Core key of the driver checks
+  that the tables of one build agree on the origin map, which a compilation decides once: it builds the map only when
+  a target generates code, since only the printers read it.
 
 Sharing pays inside one backend: the Core IR of a table depends only on whether it builds values, so the Node table and
 its traced copy share elaboration and the Core passes in every Go build. Across backends it pays when several are built

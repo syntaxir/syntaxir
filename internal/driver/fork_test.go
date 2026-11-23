@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
 	tslib "syntaxir.dev/sxir/internal/backend/codegen/typescript/lib"
 	"syntaxir.dev/sxir/internal/driver/result"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/testing/pipetest"
 )
@@ -324,5 +325,54 @@ func TestCompileForkDumpsEachTargetAsAlone(t *testing.T) {
 	}
 	if len(got[""]) != 0 {
 		t.Errorf("sections without a backend: %q", got[""])
+	}
+}
+
+// A compilation decides once whether its Core modules record the origin map, which only the printers
+// of the generating backends read: a run-time compilation builds them without it, and one with a
+// generating target builds the module that its run-time targets share with it.
+func TestCompileDecidesTheOriginMapOnce(t *testing.T) {
+	t.Parallel()
+	speed, err := GenSettings(common.GenOptions{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	p, err := checkSource(t, forkGrammars[0], common.CompileOptions{}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	elaborated := func(targets ...Target) map[string]*core.Module {
+		t.Helper()
+		mods := map[string]*core.Module{}
+		watch := &pipetest.Watch{Units: true, Fn: func(e pipe.Event, r *pipe.Result) {
+			if m, ok := r.Unit.(*core.Module); ok && r.Ran && e.Step.Instance == Elaborate && e.Label.Table == vmTable {
+				mods[e.Label.Backend] = m
+			}
+		}}
+		if _, err := Compile(context.Background(), p, Options{Settings: speed, Observers: []pipe.Observer{watch}}, targets...); err != nil {
+			t.Fatal(err)
+		}
+		return mods
+	}
+	for b, m := range elaborated(Target{Backend: result.VM}, Target{Backend: result.Closure}) {
+		if len(m.Origin.Exprs) != 0 || len(m.Origin.ActionExprs) != 0 {
+			t.Errorf("the run-time compilation built the module of %s with an origin map", b)
+		}
+	}
+	mods := elaborated(Target{Backend: result.VM}, goOut(common.GenOptions{}))
+	if len(mods) != 2 {
+		t.Fatalf("modules of %d targets, want 2", len(mods))
+	}
+	for b, m := range mods {
+		if len(m.Origin.Exprs) == 0 {
+			t.Errorf("the compilation with a Go target built the module of %s without the origin map", b)
+		}
+	}
+	var seen []string
+	if _, err := Compile(context.Background(), p, Options{Settings: speed, Observers: []pipe.Observer{forkEvents{&seen}}}, Target{Backend: result.VM}, goOut(common.GenOptions{})); err != nil {
+		t.Fatal(err)
+	}
+	if text := strings.Join(seen, "\n") + "\n"; !strings.Contains(text, "vm/rules elaborate\n") || !strings.Contains(text, "go/rules elaborate replayed\n") {
+		t.Errorf("the VM and the Go target do not share one build:\n%s", text)
 	}
 }

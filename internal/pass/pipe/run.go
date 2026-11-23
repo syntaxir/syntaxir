@@ -137,6 +137,7 @@ type recorded struct {
 
 type sharedEntry struct {
 	label  Label // the label of the use that ran the body
+	in     any   // the input of that use, which Key.Agree compares a later one with
 	out    any
 	err    error
 	broken bool
@@ -1111,6 +1112,13 @@ func (rs *runner) sharedRun(x *sharedNode, in any, e *env, sc *scope) any {
 	}
 	k := rs.sharedKey(x, in, e, sc.err != nil)
 	if h := rs.shared[k]; h != nil {
+		if x.key.agree != nil {
+			if err := x.key.agree(h.in, in); err != nil {
+				sc.fail(&StepError{Step: "key " + x.key.name, Label: e.label, Err: err})
+				sc.broken = true
+				return nil
+			}
+		}
 		for _, rec := range h.events {
 			ev := rec.e
 			ev.Replayed = true
@@ -1143,7 +1151,7 @@ func (rs *runner) sharedRun(x *sharedNode, in any, e *env, sc *scope) any {
 	inner := &scope{err: sc.err, keep: sc.keep}
 	out := rs.exec(x.body, in, e, inner)
 	rs.recs = rs.recs[:len(rs.recs)-1]
-	h := &sharedEntry{out: out, broken: inner.broken, events: evs, label: e.label}
+	h := &sharedEntry{in: in, out: out, broken: inner.broken, events: evs, label: e.label}
 	if inner.err != sc.err {
 		h.err = inner.err
 	}

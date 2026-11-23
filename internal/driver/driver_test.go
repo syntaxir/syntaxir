@@ -101,7 +101,7 @@ func runTables[U, V any](t *testing.T, r testRun, s *pipe.Split[[]testPart[U], U
 // that build makes, as r says, and returns the module after it.
 func runCoreTable(t *testing.T, r testRun, label string, build func() (*core.Module, error)) (*core.Module, error) {
 	t.Helper()
-	out, err := runTables(t, r, testCoreTables, corePart(), testPart[common.TableSource]{label, common.TableSource{Build: func(*cancel.Control) (*core.Module, error) { return build() }}})
+	out, err := runTables(t, r, testCoreTables, corePart(), testPart[common.TableSource]{label, common.TableSource{Build: func(*cancel.Control, bool) (*core.Module, error) { return build() }}})
 	if len(out) == 0 {
 		return nil, err
 	}
@@ -803,5 +803,20 @@ func TestDriverNumbersTheCompilationOnce(t *testing.T) {
 		if seqs[i] != i+1 {
 			t.Fatalf("the runs are numbered %v, want 1 to %d in order", seqs, len(seqs))
 		}
+	}
+}
+
+// The tables of one build key share one module, so they must agree on the origin map: a table that
+// disagrees fails the compilation as an internal error that names the key.
+func TestDriverTablesOfAKeyAgreeOnTheOrigin(t *testing.T) {
+	src := func(origin bool) common.TableSource {
+		return common.TableSource{Key: "k", Origin: origin, Build: func(*cancel.Control, bool) (*core.Module, error) { return oneRule() }}
+	}
+	if _, err := runTables(t, testRun{}, testCoreTables, coreConfig(), testPart[common.TableSource]{"rules", src(true)}, testPart[common.TableSource]{"typed", src(true)}); err != nil {
+		t.Fatalf("tables that agree: %v", err)
+	}
+	_, err := runTables(t, testRun{}, testCoreTables, coreConfig(), testPart[common.TableSource]{"rules", src(true)}, testPart[common.TableSource]{"typed", src(false)})
+	if err == nil || !strings.HasPrefix(err.Error(), "internal error: key core-config [typed]: ") || !strings.Contains(err.Error(), `the tables of the build "k" disagree on the origin map`) {
+		t.Errorf("tables that disagree: %v", err)
 	}
 }

@@ -10,10 +10,11 @@ import (
 )
 
 // TableBuild returns the build of the Core IR of the Node or recognizer table of the program prog, as
-// c selects: the elaboration of the table, whose rules build values only if c.Values is set.
-func TableBuild(prog elaborate.Program, c plandata.TableConfig) func(*cancel.Control) (*core.Module, error) {
-	return func(control *cancel.Control) (*core.Module, error) {
-		return elaborate.CoreControlled(prog, true, c.Values, control)
+// c selects: the elaboration of the table, whose rules build values only if c.Values is set, with its
+// origin map if origin (common.TableSource).
+func TableBuild(prog elaborate.Program, c plandata.TableConfig) func(*cancel.Control, bool) (*core.Module, error) {
+	return func(control *cancel.Control, origin bool) (*core.Module, error) {
+		return elaborate.CoreControlled(prog, origin, c.Values, control)
 	}
 }
 

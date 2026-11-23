@@ -32,8 +32,14 @@ func (r *Replan) Backend() result.Backend { return r.Lang }
 // elaborate runs, and the key of the build, which is the same for the tables whose builds make the
 // same module, so that they share one run of the Core part of the pipeline. Build polls control (nil
 // for none), which the module keeps (core.Module.Control), and unwinds as cancel.Cancellation when
-// its context ends.
+// its context ends; it records the origin map of the module (core.Module.Origin) if origin.
+//
+// Origin says whether the module of the table records its origin map, which only the printers of the
+// generating backends read; elaborate builds it so. A compilation decides it once, for all its tables,
+// because the tables of one key share one build, and the driver rejects tables of one key that
+// disagree on it.
 type TableSource struct {
-	Build func(control *cancel.Control) (*core.Module, error)
-	Key   string
+	Build  func(control *cancel.Control, origin bool) (*core.Module, error)
+	Key    string
+	Origin bool
 }

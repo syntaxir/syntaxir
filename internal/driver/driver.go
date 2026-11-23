@@ -160,8 +160,17 @@ const Elaborate = "elaborate"
 var tableIR = pipe.RegisterIR(&pipe.IR[common.TableSource]{Name: "table"})
 
 // coreKey keys the Core part of the pipeline of a table on the key of its build, so that the tables
-// whose builds make the same module share one run of it (pipe.Shared).
-var coreKey = pipe.RegisterKey(tableIR, &pipe.Key[common.TableSource]{Name: "core-config", Of: func(s common.TableSource) string { return s.Key }})
+// whose builds make the same module share one run of it (pipe.Shared). The tables of one key agree on
+// the origin map, which the compilation decides once (common.TableSource.Origin): one that does not
+// would get a module built for another, which fails the compilation as an internal error.
+var coreKey = pipe.RegisterKey(tableIR, &pipe.Key[common.TableSource]{Name: "core-config",
+	Of: func(s common.TableSource) string { return s.Key },
+	Agree: func(first, later common.TableSource) error {
+		if first.Origin != later.Origin {
+			return fmt.Errorf("the tables of the build %q disagree on the origin map", first.Key)
+		}
+		return nil
+	}})
 
 // elaborating is the step Elaborate: it runs the build of the Core IR module that it is given and
 // computes the attributes of its nodes (core.Analyze), so that the module it returns is a Core module
@@ -179,7 +188,7 @@ var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 		if ctx := c.Context(); ctx.Done() != nil {
 			control = &cancel.Control{Ctx: ctx}
 		}
-		m, err := src.Build(control)
+		m, err := src.Build(control, src.Origin)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

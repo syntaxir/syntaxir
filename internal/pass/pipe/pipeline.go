@@ -248,19 +248,30 @@ func Within[W, V, P, Q any](l *Lens[W, V, P, Q], p Pipeline[P, Q]) Pipeline[W, V
 type Key[I any] struct {
 	Name string
 	Of   func(in I) string
+	// Agree, if set, checks that a later input with the key of an earlier one agrees with it on
+	// what the key does not spell but the shared result depends on: a later use gets the result of
+	// the earlier input, so an input that disagrees is an error of whoever made it, which fails the
+	// run (StepError "key <name>"). first is the input of the use that ran the body; Agree reads only
+	// what the body does not change.
+	Agree func(first, later I) error
 }
 
 type keyDesc struct {
-	name string
-	k    *kind
-	of   func(any) string
+	name  string
+	k     *kind
+	of    func(any) string
+	agree func(first, later any) error
 }
 
 var keys = map[string]*keyDesc{}
 
 // RegisterKey registers a Shared key by name.
 func RegisterKey[I any](ir *IR[I], k *Key[I]) *Key[I] {
-	register(keys, k.Name, &keyDesc{name: k.Name, k: kindOf(ir), of: func(x any) string { return k.Of(x.(I)) }})
+	d := &keyDesc{name: k.Name, k: kindOf(ir), of: func(x any) string { return k.Of(x.(I)) }}
+	if k.Agree != nil {
+		d.agree = func(first, later any) error { return k.Agree(first.(I), later.(I)) }
+	}
+	register(keys, k.Name, d)
 	return k
 }
 

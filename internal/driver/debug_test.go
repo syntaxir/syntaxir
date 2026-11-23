@@ -65,7 +65,7 @@ func runCore(d *debugger, passes pipe.Pipeline[*core.Module, *core.Module], tabl
 	}
 	ps := make([]testPart[common.TableSource], len(tables))
 	for i, l := range tables {
-		ps[i] = testPart[common.TableSource]{l, common.TableSource{Build: func(*cancel.Control) (*core.Module, error) { return oneRule() }}}
+		ps[i] = testPart[common.TableSource]{l, common.TableSource{Build: func(*cancel.Control, bool) (*core.Module, error) { return oneRule() }}}
 	}
 	p := pipe.Each(testCoreTables, pipe.Then(pipe.Of(elaborating), passes))
 	out, err := execute(context.Background(), d, &pipe.Run{Observers: d.observers()}, p, ps)

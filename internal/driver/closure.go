@@ -29,9 +29,11 @@ import (
 // the module without the control of the compilation (closure.Core).
 
 // closureTarget is a closure target as its split reads it (codegen.TargetFeature): the checked
-// program whose Core module it builds.
+// program whose Core module it builds, and whether that module records the origin map, as the
+// compilation decides (origin).
 type closureTarget struct {
-	prog *frontend.Result
+	prog   *frontend.Result
+	origin bool
 }
 
 // Backend returns the name of the closure backend.
@@ -47,7 +49,7 @@ var closureTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, closure.
 		if !ok {
 			return nil, nil, fmt.Errorf("the split closure-tables runs for the target %s", target.Backend())
 		}
-		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, vmTableConfig), Key: "program"}}, []string{vmTable}, nil
+		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, vmTableConfig), Key: "program", Origin: t.origin}}, []string{vmTable}, nil
 	},
 	Join: func(_ pipe.SplitCtx, _ *Program, mods []*core.Module) (closure.Input, error) {
 		if len(mods) != 1 {

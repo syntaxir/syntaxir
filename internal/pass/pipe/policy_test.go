@@ -552,3 +552,31 @@ func TestTransformWithPostconditionPanics(t *testing.T) {
 		Run:  func(_ *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) { return m, pass.PreserveNone(), nil },
 		Post: func(*mod) error { return nil }})
 }
+
+// agreeKey keys every table alike; the table c disagrees with any other.
+var agreeKey = RegisterKey(tableIR, &Key[table]{Name: "t-agree-key", Of: func(table) string { return "one" },
+	Agree: func(first, later table) error {
+		if first.name == "c" || later.name == "c" {
+			return fmt.Errorf("the tables %s and %s disagree", first.name, later.name)
+		}
+		return nil
+	}})
+
+// A later use of a Shared key gets the result of the earlier input only if the key's Agree accepts
+// it; an input that disagrees fails the run and names the key.
+func TestSharedKeyAgreement(t *testing.T) {
+	p := Each(tablesSplit, Shared(agreeKey, Of(build)))
+	builds = 0
+	if out, err := run(t, &Run{}, p, &prog{tables: []string{"a", "b"}}); err != nil || builds != 1 || out.String() != "[a]\na1: x\na2: y\n[b]\na1: x\na2: y\n" {
+		t.Errorf("tables that agree: %v, %d builds, %q; want one build that both get", err, builds, out)
+	}
+	_, err := run(t, &Run{}, p, &prog{tables: []string{"a", "c"}})
+	var se *StepError
+	if !errors.As(err, &se) || se.Step != "key t-agree-key" || se.Label.Table != "c" || !strings.Contains(err.Error(), "the tables a and c disagree") {
+		t.Errorf("tables that disagree: %v", err)
+	}
+	// Without sharing every use runs the body on its own input: there is nothing to agree on.
+	if _, err := run(t, &Run{NoShare: true}, p, &prog{tables: []string{"a", "c"}}); err != nil {
+		t.Errorf("without sharing: %v", err)
+	}
+}

@@ -76,9 +76,9 @@ func (t *Target) Sources() ([]common.TableSource, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	s := []common.TableSource{{Build: flowplan.TableBuild(t.Prog.Elab, plandata.TableConfig{Values: true}), Key: "program"}}
+	s := []common.TableSource{{Build: flowplan.TableBuild(t.Prog.Elab, plandata.TableConfig{Values: true}), Key: "program", Origin: true}}
 	if rec != nil {
-		s = append(s, common.TableSource{Build: flowplan.TableBuild(rec.Elab, plandata.TableConfig{}), Key: "recognizer"})
+		s = append(s, common.TableSource{Build: flowplan.TableBuild(rec.Elab, plandata.TableConfig{}), Key: "recognizer", Origin: true})
 	}
 	return s, TableLabels[:len(s)], nil
 }

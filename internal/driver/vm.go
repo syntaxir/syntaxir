@@ -45,9 +45,11 @@ import (
 // joins it with the program into vm-input, which vmlower! lowers to the bytecode module.
 
 // vmTarget is a VM target as its splits read it (codegen.TargetFeature): the checked program whose
-// bytecode it builds.
+// bytecode it builds, and whether its Core module records the origin map, as the compilation decides
+// (origin).
 type vmTarget struct {
-	prog *frontend.Result
+	prog   *frontend.Result
+	origin bool
 }
 
 // Backend returns the name of the VM backend.
@@ -84,7 +86,7 @@ var vmTables = pipe.RegisterSplit(programIR, tableIR, corepass.IR, plandata.Core
 		if err != nil {
 			return nil, nil, err
 		}
-		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, vmTableConfig), Key: "program"}}, []string{vmTable}, nil
+		return []common.TableSource{{Build: flowplan.TableBuild(t.prog, vmTableConfig), Key: "program", Origin: t.origin}}, []string{vmTable}, nil
 	},
 	Join: func(x pipe.SplitCtx, _ *Program, mods []*core.Module) (*plandata.Cores, error) {
 		t, err := vmTargetOf(x, "vm-tables")
