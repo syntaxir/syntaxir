@@ -60,7 +60,7 @@ func (g *Generator) ruleBodyCall(r *common.Rule, scope *check.Scope) (call strin
 	if !ok {
 		return "", false
 	}
-	return g.funcCall(l, g.Core().Rules[r.ID].Scope, scope, common.Describe(r.BodyExpr())), true
+	return g.funcCall(l, core.SlotNames(g.Core().Rules[r.ID].Scope), scope, common.Describe(r.BodyExpr())), true
 }
 
 // noFunction records that the table being printed has no function of what, which the plan of a table
@@ -75,7 +75,7 @@ func (g *Generator) noFunction(what string) {
 // funcCall prints the lowered function l, whose capture scope has the slots if it is framed, as a
 // function of its own and returns the call expression that runs it, and sets scope to the capture
 // scope of a framed l. The comment describes the function.
-func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *check.Scope, comment string) string {
+func (g *Generator) funcCall(l *execdata.Lowered, slots []string, scope *check.Scope, comment string) string {
 	frame := prim.AttrsOf(l.Func).Frame
 	var body string
 	var vars []string
@@ -89,7 +89,7 @@ func (g *Generator) funcCall(l *execdata.Lowered, slots []core.Slot, scope *chec
 	if frame {
 		*scope = *check.NewScope()
 		for _, sl := range slots {
-			scope.Slot(sl.Name)
+			scope.Slot(sl)
 		}
 	}
 	name, shared := g.MethodName("Parser/R", tsSharedKey(b.String(), decls))
@@ -336,5 +336,5 @@ func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	if !ok {
 		return "", false
 	}
-	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)"), true
+	return g.funcCall(x, core.SlotNames(l.Scope), scope, g.Cur.Name+" (OperatorsRule line)"), true
 }

@@ -64,12 +64,23 @@ type Spread bool
 // from.
 type RuleCall struct{ Rule, Level int }
 
-// Outline is the immediate of callOutline: the node that a function of its own lowers, the
-// slots of the capture scope of the current frame, and whether the call builds the node's value.
+// Outline is the immediate of callOutline: the outlined call, the slots of the capture scope of the
+// current frame, and whether the call builds the node's value. Call numbers the distinct outlined
+// calls (a node under a frame with these slots, building or not) that the lowering of the module
+// makes, from 0 in the order it makes them; the plan of the module's table finds the function that
+// runs it by the number.
 type Outline struct {
-	Node  core.Node
-	Slots []core.Slot
+	Call  int
+	Slots []string
 	Build bool
+}
+
+// ObservedSkip is the immediate of observeSkip: the rule call that the alternative a guard skips
+// begins with, as the grammar writes it: the rule's name and the level of the Operators Rule that the
+// reference names, or "" if it names none.
+type ObservedSkip struct {
+	Rule  string
+	Level string
 }
 
 // Chars is the immediate of literalText, str and setWhere: a string.
@@ -177,11 +188,16 @@ func ImmString(imm any) string {
 	case RuleCall:
 		return fmt.Sprintf("rule %d level %d", x.Rule, x.Level)
 	case Outline:
-		s := fmt.Sprintf("%s slots %v", nodeKind(x.Node), core.SlotNames(x.Slots))
+		s := fmt.Sprintf("call %d slots %v", x.Call, x.Slots)
 		if x.Build {
 			s += " build"
 		}
 		return s
+	case ObservedSkip:
+		if x.Level != "" {
+			return fmt.Sprintf("%s.%s", x.Rule, x.Level)
+		}
+		return x.Rule
 	case Chars:
 		return strconv.Quote(string(x))
 	case List:
@@ -245,15 +261,8 @@ func ImmString(imm any) string {
 		return fmt.Sprintf("%d classes", len(x))
 	case Shape:
 		return fmt.Sprintf("%+v", x)
-	case core.Node:
-		return nodeKind(x)
 	}
 	return fmt.Sprintf("%T", imm)
-}
-
-// nodeKind names the kind of the Core node n.
-func nodeKind(n core.Node) string {
-	return strings.TrimPrefix(fmt.Sprintf("%T", n), "*core.")
 }
 
 func names(n *Names) string {

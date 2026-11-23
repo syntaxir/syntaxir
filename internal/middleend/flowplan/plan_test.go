@@ -489,8 +489,9 @@ rule set = "b" {x := 1}
 
 // TestLowerTableOutlines checks that the lowering of a table whose options outline nodes adds a
 // function of each outlined call after the planned functions, nested calls included, keyed with the
-// use Outlined, numbered per rule, named after a function that calls it and found by the call
-// (plandata.Plan.Outlined); and that a table that outlines nothing adds none.
+// use Outlined, numbered per rule, named after a function that calls it and found by the number of the
+// call (plandata.Plan.Outlined) with the call's slots and building; and that a table that outlines
+// nothing adds none.
 func TestLowerTableOutlines(t *testing.T) {
 	for _, outline := range []bool{false, true} {
 		ir, rules := tableIR(t, grammar, check.BuildValues)
@@ -513,14 +514,13 @@ func TestLowerTableOutlines(t *testing.T) {
 		}
 		m := tbl.Module.Module()
 		var added []*plandata.FuncSpec
+		byKey := map[plandata.Key]*plandata.FuncSpec{}
 		for _, s := range tbl.Plan.Funcs {
 			if s.Key.Use != plandata.Outlined {
 				continue
 			}
 			added = append(added, s)
-			if k, ok := tbl.Plan.Outlined(s.Body, s.Slots, s.Build); !ok || k != s.Key {
-				t.Errorf("outlined function %s is found under %+v, %v, want %+v", s.Name, k, ok, s.Key)
-			}
+			byKey[s.Key] = s
 		}
 		if !outline {
 			if len(added) > 0 {
@@ -540,10 +540,14 @@ func TestLowerTableOutlines(t *testing.T) {
 			code.Walk(f.Body, nil, func(e code.Expr) {
 				if c, ok := e.(*code.Call); ok && c.Callee == flow.OpCallOutline {
 					o := c.Imm.(prim.Outline)
-					k, ok := tbl.Plan.Outlined(o.Node, o.Slots, o.Build)
+					k, ok := tbl.Plan.Outlined(o.Call)
 					if !ok {
 						t.Errorf("function %s calls an outlined node that the table has no function of", f.Name)
 						return
+					}
+					// The function found by the call runs it: under its slots, building as it does.
+					if s := byKey[k]; s == nil || !slices.Equal(core.SlotNames(s.Slots), o.Slots) || s.Build != o.Build {
+						t.Errorf("function %s: outlined call %+v is found as %+v", f.Name, o, s)
 					}
 					if callers[k] == nil {
 						callers[k] = map[string]bool{}

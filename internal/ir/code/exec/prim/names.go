@@ -120,7 +120,7 @@ var imms = map[string]reflect.Type{
 	OpExpect:          reflect.TypeFor[Expectation](),
 	OpSkippedCalls:    reflect.TypeFor[SkippedCalls](),
 	OpInDocument:      nil,
-	OpObserveSkip:     reflect.TypeFor[core.Node](),
+	OpObserveSkip:     reflect.TypeFor[ObservedSkip](),
 	OpRestore:         nil,
 	OpMergeExpected:   nil,
 	OpMergeRenamed:    reflect.TypeFor[ExpID](),

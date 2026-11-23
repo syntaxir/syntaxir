@@ -35,6 +35,7 @@ import (
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
+	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Recovers reports whether the module has a Recover, which appends recovered errors.
@@ -866,7 +867,9 @@ func (l *lowerer) choice(n *core.Choice, s *scope, build bool, fail string) code
 				pre = append(pre, do(flow.OpSkippedCalls, prim.SkippedCalls{Rules: skipped, Exp: prim.ExpID(a.Guard.Exp)}))
 			}
 			if l.opts.Observe {
-				pre = append(pre, do(flow.OpObserveSkip, a.Body))
+				if o, ok := l.observedSkip(a.Body); ok {
+					pre = append(pre, do(flow.OpObserveSkip, o))
+				}
 			}
 			var fails code.Expr
 			if a.Guard.Lit {
@@ -1843,6 +1846,33 @@ func (l *lowerer) branch(list bool, start, kids code.Expr) code.Expr {
 	return call(flow.OpNewNode, prim.List(list), start, kids)
 }
 
+// observedSkip returns the rule call that the alternative a, which a guard skips, begins with, as the
+// grammar that the module was built from writes it (core.Module.Origin): the first item of a sequence,
+// through captures, atomic groups and discards, if it is a rule reference. It reports false if the
+// alternative begins with no reference, or the module has no origin.
+func (l *lowerer) observedSkip(a core.Node) (prim.ObservedSkip, bool) {
+	expr := l.m.Origin.Of(a)
+	for {
+		switch e := expr.(type) {
+		case *ast.Seq:
+			if len(e.Items) == 0 {
+				return prim.ObservedSkip{}, false
+			}
+			expr = e.Items[0]
+		case *ast.Capture:
+			expr = e.Expr
+		case *ast.Atomic:
+			expr = e.Expr
+		case *ast.Discard:
+			expr = e.Expr
+		case *ast.Ref:
+			return prim.ObservedSkip{Rule: e.Name, Level: e.Level}, true
+		default:
+			return prim.ObservedSkip{}, false
+		}
+	}
+}
+
 // outlines reports whether the node n runs as a function of its own.
 func (l *lowerer) outlines(n core.Node) bool {
 	return l.opts.Outlined[n] && n != l.top && !l.opts.Observe && l.streaming == nil &&
@@ -1865,7 +1895,7 @@ func noCaptures(n core.Node) bool {
 // outlined lowers the node n to a call of its function.
 func (l *lowerer) outlined(n core.Node, s *scope, build bool, fail string) code.Expr {
 	ok := l.ok()
-	rc := call(flow.OpCallOutline, prim.Outline{Node: n, Slots: s.slots, Build: build})
+	rc := call(flow.OpCallOutline, prim.Outline{Call: l.tab.outline(n, s.slots, build), Slots: core.SlotNames(s.slots), Build: build})
 	if !build {
 		l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{rc}}, code.Not(use(ok)), fail)
 		return null()

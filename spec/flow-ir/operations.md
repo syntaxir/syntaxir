@@ -23,7 +23,7 @@ or a suffix copy, and nothing else.
 | `flow.peek` |  | rune, int, bool |  | Returns the code point at the position, its size and whether there is one, without consuming it. In a Document parse the read records how far the parse examined the input. It counts no [compute unit](../runtime/parsing.md#compute-units): examining input without advancing is no event. |
 | `flow.advance` | n int |  |  | Moves the position forward by n. In a function lowered with logical units it counts n [compute units](../runtime/parsing.md#compute-units), the input that a terminal advances over. |
 | `flow.expect` | at int |  | `expectation` | Records the expectation at the position at, unless the silent depth is positive. |
-| `flow.observeSkip` |  |  | `node` | Reports to the observation of the parse that the guard of a choice skips the alternative. |
+| `flow.observeSkip` |  |  | `observedskip` | Reports to the observation of the parse that the guard of a choice skips the alternative, which begins with the rule call that the immediate names. |
 | `flow.skippedCalls` |  |  | `skippedcalls` | Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. Only a lowering with logical units makes the call. |
 | `flow.inDocument` |  | bool |  | Reports that the parse is a Document's. A guard whose skip passes over a call of a rule that a Document memoizes skips only outside Documents: a Document parse evaluates the alternative, where the memo records how far each entry examined the input and what later parses reuse ([Reuse](../runtime/documents.md#reuse)). It counts no event and charges nothing. |
 | `flow.restore` | pos int, rec int |  |  | Moves the position back to pos and drops the recovered errors after the first rec. |
@@ -80,7 +80,7 @@ or a suffix copy, and nothing else.
 | `flow.skipTerminal` |  | bool | `terminal` | Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. Its guards may decode the character at the position where `flow.guardLitFails` compares bytes: it runs only in functions that record no examined input, charge nothing and read no stream, and decoding admits the same characters. It counts the position units that each of its terminals advances over, again after the program backtracks. |
 | `flow.skipClasses` |  | bool | `classrun` | Matches the classes of the run in turn and reports whether they matched; on a match the position moves past them. On failure the position is past the classes that matched, at the one that did not, whose expectation it records there; the code that fails returns to its mark. It counts the position units of each character it advances over, those before a class that fails included. |
 | `flow.callRule` |  | value, bool | `rulecall` | Calls the rule from the Operators Rule level. Its results are the rule's value and whether it matched; on a match the position is the end of the rule's match, on failure it is unchanged. The call counts its unit and the key of a memoized rule, as the composition call does. |
-| `flow.callOutline` |  | value, bool | `outline` | Runs the node, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched. |
+| `flow.callOutline` |  | value, bool | `outline` | Runs the node of the outlined call, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched. |
 | `flow.isolate` |  | expmark |  | Begins an expectation scope at the position and returns its mark. |
 | `flow.unisolate` | m expmark | int, expids |  | Ends the expectation scope m. Its results are the farthest failure inside it and its expectations. It charges nothing, as `exp.unisolate` (the [Exec operations](../exec-ir/operations.md)): each expectation was charged when it was recorded, and a merge of them charges each again. |
 | `flow.text` | start int | value |  | Returns the input from start to the position. |
@@ -132,8 +132,12 @@ name without the package. The immediates are the following; a listing prints eac
   [tables](functions.md#tables). The other immediates name an expectation the same way.
 - `spread`: whether the children of a tuple node are appended instead of the node.
 - `rulecall`: the rule that a call names and the level of the Operators Rule it is called from.
-- `outline`: the node that a function of its own holds, the slots of the capture scope of the current frame, and whether
-  the call builds the node's value.
+- `outline`: an outlined call, by its number, the slots of the capture scope of the current frame, and whether the call
+  builds the node's value. The lowering of a module numbers the distinct outlined calls (a node, run under a frame with
+  these slots, building or not) from 0 in the order it makes them; the plan of the module's table finds the function
+  that runs the node of each by its number.
+- `observedskip`: the rule call that the alternative a guard skips begins with, as the grammar writes it: the name of
+  the rule and the level of the Operators Rule that the reference names, if any.
 - `chars`: a string: the text of a literal, a string or the name of a rule.
 - `list`: whether a node is a list, rather than a tuple.
 - `room`: the room of a new list of values.
@@ -153,8 +157,7 @@ name without the package. The immediates are the following; a listing prints eac
 - `anchor`: the kind of an anchor: the beginning or the end of the input or of a line.
 - `classrun`: a run of single characters of classes, as the classes in turn.
 - `shape`: the static shape of a value.
-- `terminal` and `node`: a node of Core IR that the operation matches or names: a value-free terminal region and a node
-  of the grammar.
+- `terminal`: a value-free terminal region, as a node of Core IR, that the operation matches.
 
 ## Quantities
 

@@ -286,8 +286,8 @@ counts no compute unit: examining input without advancing is no event (spec/runt
 		Contract: "Records the expectation at the position at, unless the silent depth is positive, as the composition expect does (spec/exec-ir/compositions.md#expectations)."}),
 		"the expectation (Expectation)", immOf[prim.Expectation]())
 	withImm(op(&code.Op{Name: OpObserveSkip, Writes: []string{State}, NoReturn: true,
-		Contract: "Reports to the observation of the parse that the guard of a choice skips the alternative."}),
-		"the alternative (core.Node)", immOf[core.Node]())
+		Contract: "Reports to the observation of the parse that the guard of a choice skips the alternative, which begins with the rule call that the immediate names."}),
+		"the skipped call (ObservedSkip)", immOf[prim.ObservedSkip]())
 	withImm(op(&code.Op{Name: OpSkippedCalls, Writes: []string{State}, NoReturn: true,
 		Contract: "Makes the effects of the calls that the alternative a guard skips would make under logical compute units, as the evaluation of the alternative makes them: one unit for each call and the units of the key of each memoized rule, the seen mark and policy counts of each memoized call, and the failure entry that a call stores when its memoization is not deferred, with the expectation of the terminal. A call that a stored entry answers ends the calls, as it ends the evaluation. It checks the counter. Only a lowering with logical units makes the call."}),
 		"the calls (SkippedCalls)", immOf[prim.SkippedCalls]())
@@ -499,8 +499,8 @@ position is the end of the rule's match, on failure it is unchanged. Under logic
 and the key of a memoized rule, as the composition call does (spec/runtime/parsing.md#compute-units).`}),
 		"the rule and the level (RuleCall)", immOf[prim.RuleCall]())
 	withImm(op(&code.Op{Name: OpCallOutline, Results: []code.Type{value, b}, Reads: all, Writes: all, NoReturn: true, Cost: per(QBody),
-		Contract: "Runs the node, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched."}),
-		"the outlined node (Outline)", immOf[prim.Outline]())
+		Contract: "Runs the node of the outlined call, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched."}),
+		"the outlined call (Outline)", immOf[prim.Outline]())
 	op(&code.Op{Name: OpIsolate, Results: []code.Type{expmark}, Reads: pos, Writes: []string{State},
 		Contract: "Begins an expectation scope at the position and returns its mark."})
 	op(&code.Op{Name: OpUnisolate, Params: []code.Param{P("m", expmark)}, Results: []code.Type{i, expids}, Writes: []string{State},

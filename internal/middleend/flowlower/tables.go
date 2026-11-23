@@ -3,6 +3,7 @@ package flowlower
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -12,9 +13,31 @@ import (
 // lowered from the module shares as the attributes of its module, with the ID of each class of the
 // Core module. The expectations and the classes keep the order of the Core module, so that an
 // expectation or a class is the same number in both IRs.
+//
+// They also number the outlined calls of the module's functions (prim.Outline.Call), which no table
+// of the module holds: the lowering of the outlined nodes (lowerOutlined) finds the node of each by its
+// number, and the plan of the table the function that runs it.
 type tables struct {
 	t       *prim.Tables
 	classes map[*core.Class]prim.ClassID
+	// outlines holds the outlined calls by number, and calls their numbers.
+	outlines []outlineCall
+	calls    map[outlineKey]int
+}
+
+// outlineCall is an outlined call: the node that a function of its own runs, the capture slots of
+// the frame it runs under and whether it builds the node's value.
+type outlineCall struct {
+	node  core.Node
+	slots []core.Slot
+	build bool
+}
+
+// outlineKey identifies an outlined call by its node, the names of its slots and its building.
+type outlineKey struct {
+	node  core.Node
+	slots string
+	build bool
 }
 
 // newTables returns the tables of the Core module m.
@@ -64,3 +87,18 @@ var anchors = map[core.AnchorKind]struct {
 	a   prim.Anchor
 	exp prim.ExpID
 }{core.BeginInput: {prim.BeginInput, 1}, core.EndInput: {prim.EndInput, 2}, core.BeginLine: {prim.BeginLine, 3}, core.EndLine: {prim.EndLine, 4}}
+
+// outline returns the number of the outlined call of the node n under a frame with the slots,
+// building its value if build: the number of the same call made before, or the next number.
+func (tb *tables) outline(n core.Node, slots []core.Slot, build bool) int {
+	k := outlineKey{n, strings.Join(core.SlotNames(slots), "\x00"), build}
+	if i, ok := tb.calls[k]; ok {
+		return i
+	}
+	if tb.calls == nil {
+		tb.calls = map[outlineKey]int{}
+	}
+	tb.calls[k] = len(tb.outlines)
+	tb.outlines = append(tb.outlines, outlineCall{n, slots, build})
+	return len(tb.outlines) - 1
+}

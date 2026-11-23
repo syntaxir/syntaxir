@@ -272,6 +272,13 @@ rule main = (kw / id)* $$
 rule kw = "if" / "else"
 rule id = [a-z]+ ";"
 `, opts: common.GenOptions{Observability: true}, inputs: []string{"if;else", "abc;if"}},
+	// The guard of the alternative kw skips it where the next character cannot begin "if", and the
+	// traced functions report the call of kw it skips (flowPrintedOnly).
+	{name: "observeskip", src: `@start
+rule main = (kw / id)* $$
+rule kw = "if" ";"
+rule id = [a-z]+ ";"
+`, opts: common.GenOptions{Observability: true}, inputs: []string{"if;abc;", "abc;if;", "ab"}},
 	// A memoized rule whose body recovers: the result that the call stores takes the recovered errors
 	// of the body.
 	{name: "recmemo", src: `@start
@@ -302,6 +309,13 @@ rule name = [a-z]+
 // checks that none of its cases prints them.
 var flowOtherTargets = map[string]string{
 	flow.OpCallOutline: "only the TypeScript generator outlines nodes (lowerdata.Options.Outlined)",
+}
+
+// flowPrintedOnly are the operations that the Go printer prints only in the functions that run when
+// a parse is observed, which the probed parses are not, with the reason; the test checks that a case
+// prints them.
+var flowPrintedOnly = map[string]string{
+	flow.OpObserveSkip: "the guards of the traced functions report the calls they skip to the observation",
 }
 
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.
@@ -632,7 +646,7 @@ func TestProbe(t *testing.T) {
 			covered[name]++
 		}
 		for _, call := range pr.calls {
-			if name := execlower.FlowOp(call.Callee); flowOtherTargets[name] != "" {
+			if name := execlower.FlowOp(call.Callee); flowOtherTargets[name] != "" || flowPrintedOnly[name] != "" {
 				covered[name]++
 			}
 		}

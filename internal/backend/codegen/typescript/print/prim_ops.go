@@ -238,7 +238,7 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 		if p.dead || p.dry {
 			return
 		}
-		trace := p.g.traceSkipped(p.g.Core().Origin.Of(c.Imm.(core.Node)))
+		trace := p.g.traceSkipped(c.Imm.(prim.ObservedSkip))
 		p.b.WriteString(strings.TrimLeft(trace, " "))
 	default:
 		admitted("the operation " + c.Callee)
@@ -638,7 +638,7 @@ func (p *tsPrimPrinter) outline(c *code.Call) string {
 	}
 	x := c.Imm.(prim.Outline)
 	g := p.g
-	k, ok := g.table.Plan.Outlined(x.Node, x.Slots, x.Build)
+	k, ok := g.table.Plan.Outlined(x.Call)
 	var l *execdata.Lowered
 	if ok {
 		l, ok = execdata.Func(g.table, k)

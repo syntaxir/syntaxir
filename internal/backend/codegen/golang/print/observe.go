@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 )
 
 func (g *Generator) tracePlainWrapper(r *common.Rule, name string) string {
@@ -32,29 +32,12 @@ func %[1]s(p *%[2]s) (%[3]s, bool) {
 	return body
 }
 
-// A guard may suppress a whole sequence or a chain of rule references. Report
-// only its first identifiable rule call site, without inventing nested calls.
-func (g *Generator) traceSkip(expr ast.Expr) string {
+// traceSkip returns the report that the guard of a choice skips the alternative that begins with the
+// rule call x. A guard may suppress a whole sequence or a chain of rule references; the report names
+// only its first rule call site, without inventing nested calls.
+func (g *Generator) traceSkip(x prim.ObservedSkip) string {
 	if !g.Observability {
 		return ""
 	}
-	for {
-		switch e := expr.(type) {
-		case *ast.Seq:
-			if len(e.Items) == 0 {
-				return ""
-			}
-			expr = e.Items[0]
-		case *ast.Capture:
-			expr = e.Expr
-		case *ast.Atomic:
-			expr = e.Expr
-		case *ast.Discard:
-			expr = e.Expr
-		case *ast.Ref:
-			return fmt.Sprintf("\np.Observation.Skipped(%q, p.Pos, 0)\n", e.Name)
-		default:
-			return ""
-		}
-	}
+	return fmt.Sprintf("p.Observation.Skipped(%q, p.Pos, 0)", x.Rule)
 }

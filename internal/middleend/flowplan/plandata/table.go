@@ -5,10 +5,8 @@ import (
 	"io"
 	"maps"
 	"slices"
-	"strings"
 
 	"syntaxir.dev/sxir/internal/ir/code"
-	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
@@ -28,26 +26,15 @@ type Plan struct {
 	// refused.
 	Typed bool
 	byKey map[Key]*FuncSpec
-	// outlined finds the function of an outlined node by the node and its call (Outlined).
-	outlined map[outlineCall]Key
-}
-
-// outlineCall identifies the call of an outlined node: the node, the capture slots of the frame it
-// runs under and whether it builds values (prim.Outline).
-type outlineCall struct {
-	node  core.Node
-	slots string
-	build bool
-}
-
-func outlineCallOf(node core.Node, slots []core.Slot, build bool) outlineCall {
-	return outlineCall{node, strings.Join(core.SlotNames(slots), "\x00"), build}
+	// outlined finds the function of an outlined call by its number (Outlined).
+	outlined map[int]Key
 }
 
 // Outlining returns the plan p with the functions of the outlined nodes added after its functions,
 // as the lowering of the table makes them: each is a function of the form lowerdata.Outline, keyed
-// with the use Outlined. p is unchanged, and is returned if outlined is empty.
-func (p *Plan) Outlining(outlined []*FuncSpec) *Plan {
+// with the use Outlined, and runs the outlined call whose number (prim.Outline.Call) calls holds at
+// its index. p is unchanged, and is returned if outlined is empty.
+func (p *Plan) Outlining(outlined []*FuncSpec, calls []int) *Plan {
 	if len(outlined) == 0 {
 		return p
 	}
@@ -56,24 +43,23 @@ func (p *Plan) Outlining(outlined []*FuncSpec) *Plan {
 		out.byKey = map[Key]*FuncSpec{}
 	}
 	if out.outlined == nil {
-		out.outlined = map[outlineCall]Key{}
+		out.outlined = map[int]Key{}
 	}
-	for _, s := range outlined {
+	for i, s := range outlined {
 		out.Funcs = append(out.Funcs, s)
 		out.byKey[s.Key] = s
-		out.outlined[outlineCallOf(s.Body, s.Slots, s.Build)] = s.Key
+		out.outlined[calls[i]] = s.Key
 	}
 	return out
 }
 
-// Outlined returns the key of the function that runs the outlined node under a frame with the
-// slots, building values if build is set (prim.Outline), or false if the lowering of the table made
-// none.
-func (p *Plan) Outlined(node core.Node, slots []core.Slot, build bool) (Key, bool) {
+// Outlined returns the key of the function that runs the outlined call with the number call
+// (prim.Outline.Call), or false if the lowering of the table made none.
+func (p *Plan) Outlined(call int) (Key, bool) {
 	if p == nil {
 		return Key{}, false
 	}
-	k, ok := p.outlined[outlineCallOf(node, slots, build)]
+	k, ok := p.outlined[call]
 	return k, ok
 }
 

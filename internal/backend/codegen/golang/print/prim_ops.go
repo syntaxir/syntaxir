@@ -121,8 +121,7 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		p.declare(n)
 		return ""
 	case prim.OpObserveSkip:
-		// The alternative's expression begins with the call it skips, if any.
-		return strings.TrimSuffix(strings.TrimPrefix(g.traceSkip(g.Core().Origin.Of(c.Imm.(core.Node))), "\n"), "\n")
+		return g.traceSkip(c.Imm.(prim.ObservedSkip))
 	case prim.OpSkippedCalls:
 		return p.skippedCalls(c.Imm.(prim.SkippedCalls))
 	case prim.OpSetEnv:
