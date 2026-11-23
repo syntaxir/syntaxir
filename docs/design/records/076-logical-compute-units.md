@@ -1,6 +1,6 @@
 # 076. Compute Units as Logical Events
 
-- **Status**: Proposed
+- **Status**: Implemented
 - **Author**: @ornew
 - **Date**: 2026-11-21
 
