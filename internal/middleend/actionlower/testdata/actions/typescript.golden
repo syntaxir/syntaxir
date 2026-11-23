@@ -3,7 +3,7 @@ main action #1	5	753ab0265e
 main binding ctx #1	5	c0697a3888
 main binding ctx #2	5	50800447c9
 main binding ctx #3	10	68456bb4d7
-sourceFile action #1	37	770305ab2c
+sourceFile action #1	34	5d0ce80cff
 otherTopLevelStatement action #1	5	de6ab9b759
 otherTopLevelStatement predicate #1	18	e7bdefe7cb
 awaitFreeTopLevelStatement action #1	5	103d9db282
@@ -15,284 +15,284 @@ plainFunctionDeclaration action #1	5	c837459a2e
 plainClassDeclaration action #1	5	7127a5dc6a
 decoratedDeclaration action #1	5	66e43d5488
 contextualDeclaration action #1	5	942a968168
-block action #1	33	e0a36e4dd6
-variableStatement action #1	12	fd53179556
-ifStatement action #1	20	04884d214e
-doStatement action #1	16	ab54f7bbd2
-whileStatement action #1	16	654d56e182
-withStatement action #1	16	7da17d562b
-forOfStatement action #1	24	0f874980b7
-forInStatement action #1	20	687d0d2d9e
-forClassicStatement action #1	24	23a6287d8a
+block action #1	31	50fbaa827b
+variableStatement action #1	11	45fd81ec10
+ifStatement action #1	17	a0a1b7c6be
+doStatement action #1	14	74700a94fe
+whileStatement action #1	14	e4f48d06a8
+withStatement action #1	14	7c35683a64
+forOfStatement action #1	20	2394748ec1
+forInStatement action #1	17	5df171a274
+forClassicStatement action #1	20	793a74248d
 forInitializer action #1	5	eefa3ee212
 forInitializer binding ctx #1	27	727fb264da
 forDeclarationList action #1	5	527a8eaf0e
-continueStatement action #1	12	f10cc3a7f9
-breakStatement action #1	12	b73319f73c
-returnStatement action #1	12	17f21d48ea
-throwStatement action #1	12	f18e68e469
+continueStatement action #1	11	cf319b792e
+breakStatement action #1	11	aea989fb23
+returnStatement action #1	11	da6e845693
+throwStatement action #1	11	dc72aebec1
 throwStatement predicate #1	13	3b83c04b48
-switchStatement action #1	16	831e9a3d21
-caseBlock action #1	33	2f8fb0d6d8
-caseClause action #1	37	154c584568
-defaultClause action #1	33	f562f69279
+switchStatement action #1	14	17035b8ebf
+caseBlock action #1	31	e1588c3156
+caseClause action #1	34	2769e8c5b0
+defaultClause action #1	31	5f46e60973
 clauseStatement action #1	5	7dba96d8f6
-tryStatement action #1	20	48515fcf14
+tryStatement action #1	17	e8063fe16e
 tryStatement predicate #1	25	5d8e0c84f0
-catchClause action #1	16	22636fd6f6
+catchClause action #1	14	1730767739
 expressionOrLabeledStatement action #1	5	c160552d3e
-labeledStatement action #1	16	858c19c013
-expressionStatement action #1	12	d012c75e52
-declareStatement action #1	12	d760e6a914
+labeledStatement action #1	14	3905357d4f
+expressionStatement action #1	11	7cca87fefc
+declareStatement action #1	11	54c8b25efa
 declareStatement predicate #1	13	b36243a120
-variableStatementWithModifiers action #1	16	b62c3eff4d
-variableDeclarationList action #1	28	2a108be6bc
-variableDeclarations action #1	31	20f83be48c
-variableDeclaration action #1	24	4b53138824
+variableStatementWithModifiers action #1	14	8a4b999095
+variableDeclarationList action #1	25	3c74a72ddc
+variableDeclarations action #1	29	5db746cc58
+variableDeclaration action #1	20	fa8fb4bc17
 variableDeclaration predicate #1	18	4ad3d36836
 initializer action #1	5	ba4c118edd
 typeAnnotation action #1	5	a3248efe61
-objectBindingPattern action #1	20	79de240de0
+objectBindingPattern action #1	18	efd3cc8159
 objectBindingPattern binding ctx #1	23	cd12e16441
-bindingElementWithPropertyName action #1	24	3bd479748f
-bindingElementShorthand action #1	20	fb79df4643
-arrayBindingPattern action #1	20	884330311a
+bindingElementWithPropertyName action #1	20	f69c2db0ac
+bindingElementShorthand action #1	17	bfc96211ae
+arrayBindingPattern action #1	18	e5dd340c52
 arrayBindingPattern binding ctx #1	23	41a52f2ce7
-functionDeclaration action #1	44	2a8359257f
+functionDeclaration action #1	36	f9523547c6
 functionDeclaration predicate #1	25	3f6afccce9
 functionDeclaration binding ctx #1	39	ce5a4c42a2
 defaultModifierScan action #1	5	fff0d97976
 asyncModifierScan action #1	5	a2fcdbca16
-parameterList action #1	13	fcf9e4ca37
-parameters action #1	31	5932bac29a
-thisParameter action #1	16	3a0cb08fef
-regularParameter action #1	32	f7fe4d086a
+parameterList action #1	12	eef08bd308
+parameters action #1	29	ce953ca6f6
+thisParameter action #1	14	496e592239
+regularParameter action #1	26	a34b1724ca
 returnType action #1	5	40403469f4
 returnType binding ctx #1	23	72c4a698ef
-classDeclaration action #1	44	22e5367234
-classExpression action #1	44	3f7929d7c7
+classDeclaration action #1	37	802ef2527e
+classExpression action #1	37	a3c53eea81
 className action #1	5	8abb27bffe
-heritageClauses action #1	31	6f81ddcb8e
-heritageClause action #1	28	999d65b82e
-heritageTypes action #1	31	c32a6f79c1
-expressionWithTypeArguments action #1	24	0f44df23e8
-classMembers action #1	26	ff7044e1c9
+heritageClauses action #1	29	9805d34abe
+heritageClause action #1	25	22c9c96124
+heritageTypes action #1	29	926f15cd7a
+expressionWithTypeArguments action #1	21	94c4abc376
+classMembers action #1	25	81f372237e
 classAccessor action #1	5	999f2c85e2
 classMemberNotAccessor action #1	5	f3d1cc0867
-classStaticBlock action #1	16	37da92109b
+classStaticBlock action #1	14	2ea4317e48
 classStaticBlock binding ctx #1	19	0e673145fb
-getAccessor action #1	40	2484f2cadf
+getAccessor action #1	33	fd61be51d8
 getAccessor binding ctx #1	15	9f06391991
-setAccessor action #1	40	34cb957ded
+setAccessor action #1	33	7f131406cb
 setAccessor binding ctx #1	15	f9dcc9819d
-constructorDeclaration action #1	36	8194f985e2
+constructorDeclaration action #1	30	32f93309e9
 constructorDeclaration binding ctx #1	15	d40d8269a0
-classIndexSignature action #1	28	90e55c298b
-methodDeclaration action #1	48	7c71b139cf
+classIndexSignature action #1	24	7de5275e64
+methodDeclaration action #1	39	6bd2685392
 methodDeclaration predicate #1	9	0972ae4fbd
 methodDeclaration binding ctx #1	39	101c6a5a04
-propertyDeclaration action #1	32	37d52acaf1
+propertyDeclaration action #1	26	e0b92d0bf2
 propertyDeclaration binding ctx #1	15	0bd8cba517
-interfaceDeclaration action #1	44	c927e8acd7
-typeAliasDeclaration action #1	32	9485473455
-enumDeclaration action #1	28	e288adf2e5
+interfaceDeclaration action #1	37	70c3192781
+typeAliasDeclaration action #1	27	9df51408b6
+enumDeclaration action #1	24	0c8c342490
 enumDeclaration binding ctx #1	15	a1d3a5b5c8
-enumMember action #1	16	a3bc557a36
-namespaceDeclaration action #1	20	0ebedbcad8
+enumMember action #1	14	c591e6c0a8
+namespaceDeclaration action #1	17	d14aa8a2df
 namespaceBody action #1	5	a3f55edaa0
-nestedNamespace action #1	16	ec8cb45635
-externalModuleDeclaration action #1	20	a4f9f762bb
-globalDeclaration action #1	20	4a3580954b
-moduleBlock action #1	33	c648e34edd
-importEqualsDeclaration action #1	27	cf9f2db275
-externalModuleReference action #1	12	54ea653824
-importDeclaration action #1	24	b8353d44b3
-importClause action #1	24	bf3b65fa4c
-namespaceImport action #1	12	ce935e2b87
-namedImports action #1	20	e57e36d091
-importSpecifierTypeAsAs action #1	19	d40ab32f11
-importSpecifierTypeAsName action #1	16	540c6ac6df
-importSpecifierTypeAs action #1	15	ff576ac24a
-importSpecifierType action #1	19	3a310c9850
-importSpecifierPlain action #1	16	2d676cb212
-importAttributes action #1	20	ef0dd21a51
-importAttributesBraces action #1	13	6d0247eb60
-importAttribute action #1	16	004dda60e4
-exportAssignment action #1	27	d44b08dc87
+nestedNamespace action #1	14	ff10a45c62
+externalModuleDeclaration action #1	17	321d6904ba
+globalDeclaration action #1	17	e673f3ce5c
+moduleBlock action #1	31	7878bd6cd4
+importEqualsDeclaration action #1	23	0c14fad46c
+externalModuleReference action #1	11	309b77d3d0
+importDeclaration action #1	20	5ca7cba8bf
+importClause action #1	21	a176da89f0
+namespaceImport action #1	11	4fc5d07d2d
+namedImports action #1	18	4d49334560
+importSpecifierTypeAsAs action #1	16	132109e41a
+importSpecifierTypeAsName action #1	14	2a9f24beb5
+importSpecifierTypeAs action #1	13	1bff6f0582
+importSpecifierType action #1	16	d3f03a7920
+importSpecifierPlain action #1	14	d587107bde
+importAttributes action #1	18	d123a0133f
+importAttributesBraces action #1	12	66c333e850
+importAttribute action #1	14	f3e6da105a
+exportAssignment action #1	24	63800ae142
 exportAssignment binding ctx #1	27	e66bd676c4
-namespaceExportDeclaration action #1	16	127b2db693
-exportStarDeclaration action #1	31	6ccfb36441
+namespaceExportDeclaration action #1	14	68c9b832ab
+exportStarDeclaration action #1	26	f8248202a0
 exportStarDeclaration binding ctx #1	27	bdda04a8ea
-exportNamedDeclaration action #1	31	5453db2012
+exportNamedDeclaration action #1	26	716d3ca3f7
 exportNamedDeclaration binding ctx #1	27	9b970c1d1d
-namespaceExport action #1	12	4e0deaaacd
-namedExports action #1	20	01af2bc5c6
-exportSpecifierTypeAsAs action #1	19	60ef9ec5cf
-exportSpecifierTypeAsName action #1	16	86a2091686
-exportSpecifierTypeAs action #1	15	80c90a0a34
-exportSpecifierType action #1	19	626fe69a9a
-exportSpecifierPlain action #1	16	77b67aa7de
-modifiers action #1	28	4ce658b114
+namespaceExport action #1	11	5c54b3ef7b
+namedExports action #1	18	3c1b9a26f2
+exportSpecifierTypeAsAs action #1	16	02ee3331a6
+exportSpecifierTypeAsName action #1	14	d65d610e00
+exportSpecifierTypeAs action #1	13	6d7a300ed6
+exportSpecifierType action #1	16	090f7dd023
+exportSpecifierPlain action #1	14	4676a17928
+modifiers action #1	24	b0a10e746e
 modifiers predicate #1	13	97c3e7456b
-decoratorList action #1	26	4bed157c6d
-modifierList action #1	65	d9eb096db5
+decoratorList action #1	25	11f32c9364
+modifierList action #1	60	43fb479559
 modifierList predicate #1	33	851d52ceeb
-staticModifierList action #1	13	c7e9313809
-classModifiers action #1	28	7e3d57782b
+staticModifierList action #1	12	cf7887812d
+classModifiers action #1	24	07ca384ebc
 classModifiers predicate #1	13	b48cc8e23b
-classModifierList action #1	65	b68880f8cd
+classModifierList action #1	60	d7ed220444
 classModifierList predicate #1	33	2956123856
-classStaticModifierList action #1	13	a142d00104
-typeMemberModifiers action #1	13	04bbfdb5a6
-typeParameterModifiers action #1	65	78b15b901e
-decorator action #1	12	f8c3f178f1
+classStaticModifierList action #1	12	e8b58837d3
+typeMemberModifiers action #1	12	f13008a4ae
+typeParameterModifiers action #1	60	17c12acb72
+decorator action #1	11	14fc974bdb
 decorator binding ctx #1	27	81bf384f47
 expression action #1	5	77159d527c
 expression binding ctx #1	23	7abc35b1b2
 expressionAllowIn action #1	5	6edcdd47cf
 expressionAllowIn binding ctx #1	23	324a516238
-commaExpression action #1	39	83696e78b3
+commaExpression action #1	35	7673d9774c
 assignmentExpression action #1	5	71bfdff8d8
 assignmentExpression binding ctx #1	23	da70f63951
 assignmentExpressionAllowIn action #1	5	35614a8efc
 assignmentExpressionAllowIn binding ctx #1	23	ebeb8137c1
 assignmentExpressionInner action #1	5	cbc419abb3
-yieldExpression action #1	16	f6e85ce389
+yieldExpression action #1	14	c88b56db79
 yieldExpression predicate #1	14	2597c12ae7
-assignment action #1	20	8479283e46
-conditionalOrBinaryExpression action #1	53	22d67d9bac
+assignment action #1	17	38cfa57a50
+conditionalOrBinaryExpression action #1	47	576e094551
 conditionalWhenTrue action #1	5	ee822f7643
 conditionalWhenTrue binding ctx #1	27	53a07da478
 conditionalWhenFalse action #1	5	a1a60cf923
-arrowFunction action #1	48	5448c1bfa6
+arrowFunction action #1	40	ed9ae8af55
 arrowFunction binding ctx #1	27	812288ae55
 arrowFunction predicate #1	18	04d746aaf9
 arrowFunction predicate #2	9	56bc6e99c6
-arrowAsyncModifier action #1	13	3c308606a7
+arrowAsyncModifier action #1	12	947063de9f
 arrowTypeParameters action #1	5	5023f37c46
 arrowTypeParameters predicate #1	10	8b27adc03f
 arrowParenthesisIsNotParameterList predicate #1	14	6fc645aaa5
 arrowParenthesisIsNotParameterList predicate #2	18	36eaacdf7a
-simpleArrowFunction action #1	28	1b283270ed
+simpleArrowFunction action #1	24	53ccd12560
 simpleArrowFunction binding ctx #1	15	e23a0f48b1
-simpleArrowParameter action #1	12	a5d765402c
-asyncSimpleArrowFunction action #1	40	e9ab7ce39a
+simpleArrowParameter action #1	11	c3c9930946
+asyncSimpleArrowFunction action #1	34	7c613159c9
 asyncSimpleArrowFunction binding ctx #1	19	8bb618c489
-binaryExpression line 2 #1	20	ce2e4ef413
-binaryExpression line 3 #1	20	ffff0850cb
-binaryExpression line 4 #1	20	3b2533cad4
-binaryExpression line 5 #1	20	79ea10c6e8
-binaryExpression line 6 #1	20	7e409f9ace
-binaryExpression line 7 #1	20	23764a6464
-binaryExpression line 8 #1	20	c4fa726754
-binaryExpression line 9 #1	16	cd1f76daf6
-binaryExpression line 10 #1	16	d45fe8a298
-binaryExpression line 11 #1	20	6245731638
-binaryExpression line 12 #1	20	1205a62140
-binaryExpression line 13 #1	20	2efd90d9eb
-binaryExpression line 14 #1	20	f0e226b1ad
+binaryExpression line 2 #1	17	4552e585e2
+binaryExpression line 3 #1	17	cfee14e5eb
+binaryExpression line 4 #1	17	36c954d4c9
+binaryExpression line 5 #1	17	7d276233bd
+binaryExpression line 6 #1	17	0f3284c802
+binaryExpression line 7 #1	17	7804ffed98
+binaryExpression line 8 #1	17	82609b55e8
+binaryExpression line 9 #1	14	ba0f2bf885
+binaryExpression line 10 #1	14	94d1f93995
+binaryExpression line 11 #1	17	f807e02855
+binaryExpression line 12 #1	17	e52310fb76
+binaryExpression line 13 #1	17	082b94eb41
+binaryExpression line 14 #1	17	9c15ea08c7
 relationalToken predicate #1	10	4ddb0616cf
 relationalToken predicate #2	18	f5e8112d76
 unaryExpression action #1	5	bc7151f942
 unaryOperatorStart predicate #1	10	dbf0a2d293
-prefixUnaryExpression action #1	20	a99bce2984
-deleteExpression action #1	12	9c5cfd1a41
-typeOfExpression action #1	12	a1fd36dd2b
-voidExpression action #1	12	89fe80d571
-awaitExpression action #1	12	611c0525ff
+prefixUnaryExpression action #1	18	1bff797529
+deleteExpression action #1	11	65c3a9e52c
+typeOfExpression action #1	11	ef2b398287
+voidExpression action #1	11	69c052babf
+awaitExpression action #1	11	435a100e99
 awaitExpression predicate #1	18	91ddd4843a
-typeAssertion action #1	16	12ce7125bb
+typeAssertion action #1	14	a9406c50dd
 typeAssertion predicate #1	10	01feb46b3c
 jsxUnaryExpression action #1	5	2201b45db6
 jsxUnaryExpression predicate #1	10	e8a2021c06
 updateExpression action #1	5	266bb5f6d3
 updateExpression predicate #1	10	1f2dff9072
-postfixOrLeftHandSideExpression action #1	37	2c5b9189f7
+postfixOrLeftHandSideExpression action #1	34	f746b65634
 postfixOrLeftHandSideExpression predicate #1	13	52f8ff82d4
-prefixUpdateExpression action #1	20	13475a76e1
+prefixUpdateExpression action #1	18	0137e7e360
 jsxPrimaryExpression action #1	5	16b21959cc
 jsxPrimaryExpression predicate #1	10	aa29892922
-leftHandSideExpression line 5 #1	16	4694ab9076
-leftHandSideExpression line 6 #1	20	5b2cdf2bdc
-leftHandSideExpression line 7 #1	16	d938d9e1c5
-leftHandSideExpression line 8 #1	20	d408360a75
-leftHandSideExpression line 9 #1	28	95ce8e4db7
-leftHandSideExpression line 10 #1	32	38e0b63b8f
-leftHandSideExpression line 11 #1	12	a4a8e21bc3
-leftHandSideExpression line 12 #1	16	308263be0b
-leftHandSideExpression line 13 #1	28	120790c3ae
-leftHandSideExpression line 14 #1	32	46668c5120
+leftHandSideExpression line 5 #1	14	6a8c03ac26
+leftHandSideExpression line 6 #1	17	32a8d772a1
+leftHandSideExpression line 7 #1	14	b1e3cf6a37
+leftHandSideExpression line 8 #1	17	349a3b656e
+leftHandSideExpression line 9 #1	24	bdb71edbb8
+leftHandSideExpression line 10 #1	27	292bdf338e
+leftHandSideExpression line 11 #1	11	39651d0b18
+leftHandSideExpression line 12 #1	14	87222422c7
+leftHandSideExpression line 13 #1	24	9c39de149e
+leftHandSideExpression line 14 #1	27	5ee92d38e4
 leftHandSideExpression predicate #1	18	6cc7bd6c4a
-heritageExpression line 5 #1	16	43d7852772
-heritageExpression line 6 #1	20	729a439280
-heritageExpression line 7 #1	16	8cd7f02d33
-heritageExpression line 8 #1	20	e4dba2b4b3
-heritageExpression line 9 #1	28	a9b2e4a915
-heritageExpression line 10 #1	32	2b178ecb51
-heritageExpression line 11 #1	12	d163e12ecd
-heritageExpression line 12 #1	28	43980fff05
-heritageExpression line 13 #1	32	0b7d1666b8
+heritageExpression line 5 #1	14	ce63b18607
+heritageExpression line 6 #1	17	aa174e2489
+heritageExpression line 7 #1	14	7a7c263a7a
+heritageExpression line 8 #1	17	53fac5ea92
+heritageExpression line 9 #1	24	c6f47a0628
+heritageExpression line 10 #1	27	1b6301720b
+heritageExpression line 11 #1	11	e3ddac0a95
+heritageExpression line 12 #1	24	e361333245
+heritageExpression line 13 #1	27	96bd0f6c27
 heritageExpression predicate #1	18	62dc956608
-newTarget line 3 #1	16	39bacb8377
-newTarget line 4 #1	16	2816a64a9b
-newTarget line 5 #1	28	63b0cfd738
-newTarget line 6 #1	12	333e81895b
+newTarget line 3 #1	14	085d2642d7
+newTarget line 4 #1	14	bd2b349540
+newTarget line 5 #1	24	6261a74db9
+newTarget line 6 #1	11	cfebb58220
 newTarget predicate #1	18	043c6f9694
-typeArgumentsInExpression action #1	13	27135a9517
+typeArgumentsInExpression action #1	12	f76a4d1b79
 typeArgumentsInExpression binding ctx #1	15	36d2716402
-arguments action #1	13	639440e9a1
+arguments action #1	12	672d5b1f84
 arguments binding ctx #1	23	73a6d0359b
-argumentList action #1	31	121a419e58
-spreadElement action #1	12	d930a26d4e
-importMetaProperty action #1	15	031f8d9c55
+argumentList action #1	29	8af8c8e115
+spreadElement action #1	11	7b8c4cf196
+importMetaProperty action #1	13	cf317bdc81
 primaryExpression action #1	5	9d81878029
 wordPrimary action #1	5	1921c56854
 numericOrBigIntLiteral action #1	5	76e8bf8e99
-parenthesizedExpression action #1	12	49155985b7
-arrayLiteralExpression action #1	20	b52d0fad8a
+parenthesizedExpression action #1	11	c1ef33ae74
+arrayLiteralExpression action #1	18	044a2496ce
 arrayLiteralExpression binding ctx #1	23	fa23d73a52
-objectLiteralExpression action #1	20	431ff4844c
+objectLiteralExpression action #1	18	63f5973c36
 objectAccessor action #1	5	7b5b3eb450
 objectMemberNotAccessor action #1	5	c6a9b55498
-spreadAssignment action #1	12	8da397e32b
-objectGetAccessor action #1	40	0a03852cd7
+spreadAssignment action #1	11	648dec3320
+objectGetAccessor action #1	33	4c7a1c8d41
 objectGetAccessor binding ctx #1	15	a50e835cad
-objectSetAccessor action #1	40	6b9194262b
+objectSetAccessor action #1	33	a8ca9cf6d0
 objectSetAccessor binding ctx #1	15	9fef5d3e5f
-objectMethod action #1	52	0995487bdc
+objectMethod action #1	42	802ae4e69d
 objectMethod predicate #1	9	202b7b9b86
 objectMethod binding ctx #1	39	93894e5828
-shorthandPropertyAssignment action #1	32	f83b217e4f
+shorthandPropertyAssignment action #1	26	d13540e3cc
 shorthandPropertyAssignment binding ctx #1	23	e30c813c01
-propertyAssignment action #1	28	242193cef2
+propertyAssignment action #1	23	e60e818088
 propertyAssignment binding ctx #1	23	bb7af319e0
-functionExpression action #1	52	ccf735ba05
+functionExpression action #1	43	171c79a612
 functionExpression binding ctx #1	35	445f86e4d1
-asyncFunctionModifier action #1	13	444ea63654
+asyncFunctionModifier action #1	12	23e8ef5217
 classExpressionPrimary action #1	5	0fdbd93224
-newTargetMetaProperty action #1	15	08691b1440
-newExpressionWithTarget action #1	28	62dfa1ca33
-templateExpression action #1	16	b653e068c9
-templateSpans action #1	31	3c56c05a4e
-templateSpanMiddle action #1	16	c20364ad10
-templateSpanTail action #1	16	c94414fb7a
-rawTemplateExpression action #1	16	cbb7a0a05f
-rawTemplateSpans action #1	31	1e7f0850a2
-rawTemplateSpanMiddle action #1	16	94fe1335bb
-rawTemplateSpanTail action #1	16	82984e223d
-jsxSelfClosingElement action #1	28	edc136dc83
-jsxElement action #1	23	747451dfd6
+newTargetMetaProperty action #1	13	4a43b2b462
+newExpressionWithTarget action #1	24	defbc7b44b
+templateExpression action #1	14	7cbda176fc
+templateSpans action #1	29	03a2241065
+templateSpanMiddle action #1	14	72d8b5991b
+templateSpanTail action #1	14	3533e5d95e
+rawTemplateExpression action #1	14	cd5a91dcf0
+rawTemplateSpans action #1	29	b5c30f3b96
+rawTemplateSpanMiddle action #1	14	3b5ed1d156
+rawTemplateSpanTail action #1	14	0fb82f7fc0
+jsxSelfClosingElement action #1	24	943fefd917
+jsxElement action #1	20	44a77d59ce
 jsxElement predicate #1	13	d5d62f1faf
-jsxOpeningElement action #1	28	e08403221f
-jsxClosingElement action #1	12	22f7a1cdd2
-jsxFragment action #1	23	02ab30449f
-jsxMemberName action #1	32	d508cadca7
-jsxNamespacedName action #1	16	10b2c15bcd
-jsxAttributes action #1	20	6e4a1e68b4
-jsxAttribute action #1	16	23b746be5c
-jsxAttributeExpression action #1	12	676ab8676e
-jsxSpreadAttribute action #1	12	f20575089d
-jsxChildExpression action #1	16	f35296d8c9
+jsxOpeningElement action #1	24	7fdc735ba7
+jsxClosingElement action #1	11	5c9083ca9c
+jsxFragment action #1	20	9b3f624efc
+jsxMemberName action #1	29	51e574660d
+jsxNamespacedName action #1	14	086b7634d1
+jsxAttributes action #1	18	9c0fbdcbd8
+jsxAttribute action #1	14	ceb4d75619
+jsxAttributeExpression action #1	11	03f73a52d0
+jsxSpreadAttribute action #1	11	49daed91b6
+jsxChildExpression action #1	14	5c69952835
 jsxChildElement action #1	5	e0dda13f0f
 typeNode action #1	5	ba979d6a54
 typeNode binding ctx #1	15	ac6f448c2c
@@ -300,98 +300,98 @@ typeNoConditional action #1	5	660943f157
 typeNoConditional binding ctx #1	27	304f903010
 typeAllowConditional action #1	5	ab3a6327d6
 typeAllowConditional binding ctx #1	23	a5187e58f5
-conditionalOrHigher action #1	46	c7455d2d1f
+conditionalOrHigher action #1	41	4b725eabee
 conditionalOrHigher predicate #1	18	21dfdf90cf
-typePredicate action #1	16	bead27122a
-functionType action #1	28	fd178f438b
-constructorType action #1	40	3a99c2ca36
-abstractModifier action #1	13	3bd2ee8e58
+typePredicate action #1	14	bfeb178de8
+functionType action #1	24	f10f24fd07
+constructorType action #1	34	ccfa41020c
+abstractModifier action #1	12	d1db0e7ba9
 returnTypeOfType action #1	5	6999a31f3d
 returnTypeOfType binding ctx #1	23	cf40bda197
 unionOrHigher action #1	5	f0708955a8
-leadingUnionType action #1	38	e03fcf58ec
-plainOrUnionType action #1	55	1e358fc5c4
+leadingUnionType action #1	35	cd67a7ee5f
+plainOrUnionType action #1	51	88e814de88
 intersectionOrHigher action #1	5	863335f866
-leadingIntersectionType action #1	38	560231510c
-plainOrIntersectionType action #1	55	15cf13d5ed
+leadingIntersectionType action #1	35	e4c22ac92e
+plainOrIntersectionType action #1	51	854b79e813
 typeOperatorOrHigher action #1	5	36553c8a8e
 postfixTypeAllowConditional action #1	5	10f4e8bd01
 postfixTypeAllowConditional binding ctx #1	23	c9e309a394
-typeOperator action #1	20	17d11a4765
-inferType action #1	12	a2c776f965
-inferTypeParameter action #1	16	6781e5fa05
+typeOperator action #1	18	249a3b704f
+inferType action #1	11	78acadcfc0
+inferTypeParameter action #1	14	bedfd819ff
 inferTypeParameter predicate #1	18	07bc03b98b
-postfixType line 2 #1	12	642324bf56
-postfixType line 3 #1	16	6e1c6d5eef
-postfixType line 4 #1	15	2c5b4fa6f6
-postfixType line 5 #1	15	af198c8358
-postfixTypeNoQuestion line 2 #1	12	948a147c39
-postfixTypeNoQuestion line 3 #1	16	60c4e0a1f0
-postfixTypeNoQuestion line 4 #1	15	1dd121bcd1
+postfixType line 2 #1	11	64a183a3e5
+postfixType line 3 #1	14	8bcecf9123
+postfixType line 4 #1	13	3bbfd66483
+postfixType line 5 #1	13	9e0d517657
+postfixTypeNoQuestion line 2 #1	11	98dd6d9821
+postfixTypeNoQuestion line 3 #1	14	1c56302dfa
+postfixTypeNoQuestion line 4 #1	13	1aff6a5abc
 nonArrayType action #1	5	708d7fee71
 wordType action #1	5	ccc513d2a2
-literalType action #1	12	8e576cb398
-negativeLiteral action #1	15	895df641e2
-thisTypePredicate action #1	16	be3d8204d0
-assertsTypePredicate action #1	20	3453741752
-typeQuery action #1	24	c1d57d9297
-importType action #1	39	4f386153e2
-importTypeAttributes action #1	15	56e24ee0a0
-typeReference action #1	24	27d0d7225d
-functionTypeReference action #1	12	337ef7b377
-parenthesizedType action #1	12	5107e99167
-templateLiteralType action #1	16	8ea66e36e8
-templateTypeSpans action #1	31	e657f2f163
-templateTypeSpanMiddle action #1	16	d0f41fab26
-templateTypeSpanTail action #1	16	71ff6717d4
-jsdocNullableType action #1	12	f4681b9b37
-jsdocNonNullableType action #1	12	22be9326ee
-jsdocFunctionType action #1	24	fce96a9d07
-jsdocParameter action #1	16	50cb8d3b8c
-entityName action #1	32	d454ec4066
-entityNameAllowReserved action #1	32	3f28792db3
-typeArguments action #1	13	821c16887b
-typeList action #1	31	f35633763b
-typeParameters action #1	13	b4c8bd3698
-typeParameter action #1	28	56c05153d3
-tupleType action #1	20	916f5b1aed
-namedTupleMember action #1	24	f86c548998
-restType action #1	12	26c266eec1
-optionalType action #1	12	25de44784b
-typeLiteral action #1	12	b933487282
-objectTypeMembers action #1	26	2866babb8b
-mappedType action #1	53	e85b2bbb40
-mappedTypeParameter action #1	16	fcaeb34620
+literalType action #1	11	f54c4d875f
+negativeLiteral action #1	13	3936bc6c77
+thisTypePredicate action #1	14	a1a4ddc8b0
+assertsTypePredicate action #1	17	e666bf8d26
+typeQuery action #1	21	a16c7eec14
+importType action #1	33	5ab842675d
+importTypeAttributes action #1	13	107258d0a9
+typeReference action #1	21	deae773234
+functionTypeReference action #1	11	ccd09dd44b
+parenthesizedType action #1	11	ba186ce43f
+templateLiteralType action #1	14	c5dba49988
+templateTypeSpans action #1	29	a65a1489ff
+templateTypeSpanMiddle action #1	14	647301d91c
+templateTypeSpanTail action #1	14	692232763c
+jsdocNullableType action #1	11	40bb9ccd14
+jsdocNonNullableType action #1	11	b2aefc7056
+jsdocFunctionType action #1	21	0600cda7d2
+jsdocParameter action #1	14	7766cb70c1
+entityName action #1	29	17bd1a358a
+entityNameAllowReserved action #1	29	a1c77c7653
+typeArguments action #1	12	463af4d4fd
+typeList action #1	29	f8f5cedf8e
+typeParameters action #1	12	657e737c7d
+typeParameter action #1	23	4f83423538
+tupleType action #1	18	8767a9e973
+namedTupleMember action #1	20	18b6aa8992
+restType action #1	11	ac7e5bef30
+optionalType action #1	11	ebd3b817ff
+typeLiteral action #1	11	84b112c70a
+objectTypeMembers action #1	25	3cfc97541d
+mappedType action #1	46	660bf7ae1c
+mappedTypeParameter action #1	14	02daedcbfb
 mappedReadonlyToken action #1	5	60581483f4
 mappedPlusMinusReadonly action #1	5	dbff0b7c42
 mappedQuestionToken action #1	5	fa6bcdc297
 mappedPlusMinusQuestion action #1	5	5d3bc37c18
 typeAccessor action #1	5	3fcab3de86
 typeMemberNotAccessor action #1	5	a1bbb06c38
-callSignature action #1	28	c5b70b136f
-constructSignature action #1	28	320194a339
-typeGetAccessor action #1	40	88626ec4fc
-typeSetAccessor action #1	40	8806284f64
-typeIndexSignature action #1	28	afc398c3bc
-methodSignature action #1	40	3529aa5845
-propertySignature action #1	28	0e8fc51eea
-computedPropertyName action #1	12	066b32f0b5
+callSignature action #1	24	f0cc8ef767
+constructSignature action #1	24	d85b39fa7c
+typeGetAccessor action #1	33	d5b41124df
+typeSetAccessor action #1	33	202f21d252
+typeIndexSignature action #1	24	cff2df0148
+methodSignature action #1	33	56d6540701
+propertySignature action #1	23	ffb537b0e7
+computedPropertyName action #1	11	90e8223e0f
 identifier action #1	5	37bd67566b
 identifier predicate #1	14	a481dfd1cb
 identifier predicate #2	18	6755413126
 bindingIdentifier action #1	5	fb47c5794e
-arrayBindingElementList action #1	31	73d4faca3f
-arrayElementList action #1	31	b82cbb3091
-bindingElementList action #1	31	39b192b13f
-enumMemberList action #1	31	07ee5ec356
-exportSpecifierList action #1	31	ffba364ac3
-importAttributeList action #1	31	5f8daaa865
-importSpecifierList action #1	31	d1ba94e212
-jsdocParameterList action #1	31	d442eb18a6
-jsxAttributeLikeList action #1	31	cfb54a7f89
-objectLiteralElementList action #1	31	e2702c038c
-tupleElementList action #1	31	33609dd213
-typeParameterList action #1	31	a3258dbaa1
+arrayBindingElementList action #1	29	667f688e18
+arrayElementList action #1	29	cc8cf54b2a
+bindingElementList action #1	29	46982678f0
+enumMemberList action #1	29	a9d4aa9140
+exportSpecifierList action #1	29	fdc8416e48
+importAttributeList action #1	29	4522fb3b84
+importSpecifierList action #1	29	04b10f7d99
+jsdocParameterList action #1	29	f935b9849b
+jsxAttributeLikeList action #1	29	2fda9643c4
+objectLiteralElementList action #1	29	294b55985e
+tupleElementList action #1	29	5ac45745e2
+typeParameterList action #1	29	5900cd82a1
 arrowParenthesisIsNotParameterList predicate #3	14	6fc645aaa5
 arrowParenthesisIsNotParameterList predicate #4	18	36eaacdf7a
 unaryOperatorStart predicate #2	10	dbf0a2d293

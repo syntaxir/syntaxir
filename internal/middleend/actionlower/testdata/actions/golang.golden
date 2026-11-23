@@ -1,227 +1,227 @@
 # digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
-main action #1	55	547e4e5eef
-importDecl action #1	15	09acf2dd00
-importOne action #1	13	cf32b14f6b
-importGroup action #1	26	765d1d4330
-importSpec action #1	16	28c9f9fa97
+main action #1	51	1a891d2719
+importDecl action #1	13	3cce0ca21d
+importOne action #1	12	62d44e7155
+importGroup action #1	25	125764ee16
+importSpec action #1	14	65433b68b1
 importName action #1	5	d3dcb30536
-constDecl action #1	15	7b0ee07bb5
-constOne action #1	13	3bcd9e887d
-constGroup action #1	26	767e7f0e8e
-constSpec action #1	28	5486f0d989
+constDecl action #1	13	ddba2dd0d5
+constOne action #1	12	6de702b028
+constGroup action #1	25	9870339149
+constSpec action #1	24	94b602c678
 typeSp action #1	5	0ad7592c9e
-identList action #1	31	5e88d92e9d
+identList action #1	29	ba5542b9ab
 valuesSp action #1	5	46e0063460
-varDecl action #1	15	f8a770e3e4
-varOne action #1	13	f37ddfed17
-varGroup action #1	26	3123399346
-varSpecTyped action #1	28	29fd6c4ae8
-varSpecUntyped action #1	16	a6440ae884
-typeDecl action #1	15	dea2c74680
-typeOne action #1	13	375ee3f270
-typeGroup action #1	26	830eb66314
-typeSpecGeneric action #1	24	46acbf9049
-typeSpecArray action #1	16	beee484388
-typeSpecPlain action #1	20	17be77ae37
+varDecl action #1	13	693de8f1c6
+varOne action #1	12	ee7dba787c
+varGroup action #1	25	6d9cfb244c
+varSpecTyped action #1	24	88fcddb7ee
+varSpecUntyped action #1	14	5060f81c46
+typeDecl action #1	13	487afda4da
+typeOne action #1	12	96ba65c3cb
+typeGroup action #1	25	15d621e5df
+typeSpecGeneric action #1	20	0e121e0078
+typeSpecArray action #1	14	888826221a
+typeSpecPlain action #1	17	a286fb9fb5
 aliasEq action #1	5	d1abee2203
 genericParams action #1	5	bd1b28e838
-splitParams action #1	57	7abad3231f
-splitType action #1	35	b41e690005
-splitStar action #1	12	be886a4be3
-splitParen action #1	12	9445ad3936
-funcDecl action #1	39	df267c06c7
+splitParams action #1	51	34b3a8fbfa
+splitType action #1	31	1c75081a2d
+splitStar action #1	11	8913ec4be9
+splitParen action #1	11	2e9433db4a
+funcDecl action #1	32	63c026f41a
 funcDecl predicate #1	9	2ae0637caf
 recvSp action #1	5	9c75b20f1f
 typeParamsSp action #1	5	e2308818a1
 bodySp action #1	5	d92f5a3653
-params action #1	20	a1ad084986
-namedParams action #1	31	b843c1f867
+params action #1	18	759dbd4ac6
+namedParams action #1	29	0929e03f4e
 paramGroup action #1	5	1e261ed273
-variadicGroup action #1	24	472e14e2ee
-namedGroup action #1	16	c85ddba719
+variadicGroup action #1	21	a409d44bf9
+namedGroup action #1	14	65a15d53b2
 namedParamType action #1	5	9a72419af1
-variadicType action #1	12	4aaef2481e
-unnamedParams action #1	31	4f4c8addc5
-unnamedParam action #1	12	6d07da851b
+variadicType action #1	11	ebe22de4d1
+unnamedParams action #1	29	6085edf1e0
+unnamedParam action #1	11	9ec13b1dc5
 unnamedType action #1	5	05ed33b040
 resultsSp action #1	5	89a9f47b3c
-resultType action #1	27	a2c9ccac34
-resultParams action #1	20	702f10f90b
-namedResults action #1	31	0ac158aabf
-unnamedResults action #1	31	b14febb537
-unnamedResult action #1	12	de3727b2b8
-typeParams action #1	38	00c2cc1a96
-typeParam action #1	16	d77d291651
-constraint action #1	35	8f7468b353
+resultType action #1	24	d0eb3f60da
+resultParams action #1	18	2425dc8aa4
+namedResults action #1	29	e90d24158b
+unnamedResults action #1	29	2600200213
+unnamedResult action #1	11	623d225e3a
+typeParams action #1	35	d7921224ce
+typeParam action #1	14	cf6b6b4422
+constraint action #1	31	ff5be5d5f4
 constraintFirst action #1	5	5a576b65c9
-tildeTerm action #1	15	f9dfc71d71
-arrayFieldType action #1	16	94d4e091d8
+tildeTerm action #1	13	a900b3bc0d
+arrayFieldType action #1	14	a8154086c9
 exprSp action #1	5	15cd6c96be
-identIndex action #1	16	f48c1102c1
-identIndexList action #1	42	4b4c9c6dbf
+identIndex action #1	14	25d4c82f8a
+identIndexList action #1	38	192d6b1b0a
 typ action #1	5	46e620423e
-parenType action #1	12	eed765e394
-pointerType action #1	12	48e7bd1e35
+parenType action #1	11	39d985825b
+pointerType action #1	11	4c9904c313
 typeName action #1	5	c7c203de77
-typeInstance action #1	16	697c385eaa
-typeInstanceList action #1	42	4b7a5d4fa9
+typeInstance action #1	14	4260c72006
+typeInstanceList action #1	38	5bf9075a09
 qualifiedIdent action #1	5	ad558589bc
-selectorIdent action #1	16	5d3afb4eca
-arrayType action #1	16	f23919e9f3
+selectorIdent action #1	14	8ae728e08b
+arrayType action #1	14	c0c9708ae6
 arrayLen action #1	5	f7cf06bacf
 ellipsisLen action #1	8	e613397e25
-mapType action #1	16	d3d81671ca
-sendChanType action #1	15	c43d318b3a
-bothChanType action #1	15	c9d9035270
-recvChanTypeT action #1	15	b726a95bba
-funcType action #1	16	99f349199f
+mapType action #1	14	ed46570ad9
+sendChanType action #1	13	b22e10a158
+bothChanType action #1	13	7e48cd7609
+recvChanTypeT action #1	13	9dc6fef1c7
+funcType action #1	14	a6b9f8c690
 funcType predicate #1	9	6976ecfe1d
-structType action #1	12	3040797f1c
-fieldBlock action #1	33	b78adb2fa2
-embeddedField action #1	16	20e60b300c
-starField action #1	16	a171722236
-starEmbedded action #1	12	70a8282233
-multiNameField action #1	46	a0e7cbdb49
-arrayNameField action #1	28	2636452776
-oneNameField action #1	28	3bd5180b9d
-instanceField action #1	16	f405054905
+structType action #1	11	3ceca1392d
+fieldBlock action #1	31	09a6ae6601
+embeddedField action #1	14	ac610ac0d1
+starField action #1	14	ae4577b302
+starEmbedded action #1	11	db2b7ba2ec
+multiNameField action #1	41	16b1b25d6c
+arrayNameField action #1	24	00d4395921
+oneNameField action #1	24	df4929ffae
+instanceField action #1	14	5bdb1cdf43
 tagSp action #1	5	7f73dcb525
-interfaceType action #1	12	bdfa870769
-methodBlock action #1	33	f673d50dec
-methodSpec action #1	24	4e37f9f1bd
-signature action #1	16	279ae80918
+interfaceType action #1	11	94a42a07bd
+methodBlock action #1	31	ee5abe8cef
+methodSpec action #1	21	b901486ac5
+signature action #1	14	61f8a21686
 signature predicate #1	9	802e207b06
-embeddedElem action #1	41	c197b5b498
-embeddedIndex action #1	16	6cfa06b672
-embeddedIndexList action #1	42	ec2e232957
-block action #1	33	197748733e
+embeddedElem action #1	36	6cb29ebea3
+embeddedIndex action #1	14	49c2fbb480
+embeddedIndexList action #1	38	60ea556fec
+block action #1	31	2d87c14591
 terminatedStmt action #1	5	631ee664dc
 emptyStmt action #1	8	424ea47144
 implicitEmpty action #1	8	b3ddbf2ae2
-labeledEmpty action #1	16	b75bb02d3f
-labeledStmt action #1	16	7adeced3e2
-clauseBody action #1	39	620d77a4b0
+labeledEmpty action #1	14	6e1e8405d6
+labeledStmt action #1	14	2e804b905a
+clauseBody action #1	36	1cecdc29ad
 clauseStmt action #1	5	9c81200d03
 clauseTerminated action #1	5	6246cb9ee4
-lastClauseStmt action #1	13	94e3abba65
+lastClauseStmt action #1	12	3f6aec87b6
 lastClauseTerminated action #1	5	75ae16cc00
 plainStmt action #1	5	be19221951
-declStmt action #1	12	980a8ca5b0
-assignStmt action #1	24	f61c8fad30
-sendStmt action #1	16	52c6697a20
-incDecStmt action #1	20	cace572aad
-exprStmt action #1	12	0ba9d8f0a0
-hassignStmt action #1	24	e580588a21
-hsendStmt action #1	16	e07358f90e
-hincDecStmt action #1	20	0bdd1da78e
-hexprStmt action #1	12	e66bf01c86
-goStmt action #1	12	c5972c21ef
-deferStmt action #1	12	803158e9b7
-goCallEmpty action #1	12	32e7e5437a
-goCallArgs action #1	20	e6928d1dc0
+declStmt action #1	11	d29a7f77d2
+assignStmt action #1	21	5ce9efa858
+sendStmt action #1	14	f3d8904993
+incDecStmt action #1	18	94a7fcfd8a
+exprStmt action #1	11	1f5e1c4563
+hassignStmt action #1	21	b3b1c05f2d
+hsendStmt action #1	14	b28a32eb37
+hincDecStmt action #1	18	770dd69492
+hexprStmt action #1	11	e17124a76a
+goStmt action #1	11	233e46bb06
+deferStmt action #1	11	82bfa0fa55
+goCallEmpty action #1	11	d5563cae4e
+goCallArgs action #1	17	0df370b3a8
 dotsWs action #1	5	e3a8ee0f4f
-returnStmt action #1	20	cbf031bbd2
+returnStmt action #1	18	c2046f0871
 returnValues action #1	5	1a3000c643
-breakStmt action #1	15	7ac762318b
-continueStmt action #1	15	980aba68fe
-gotoStmt action #1	15	457b4e5a2c
-fallthroughStmt action #1	11	1747da0845
+breakStmt action #1	13	8002af6afc
+continueStmt action #1	13	a1c844f6b1
+gotoStmt action #1	13	4e856e6ebd
+fallthroughStmt action #1	10	8006b5e701
 labelSp action #1	5	2b0eab45ef
-ifStmt action #1	24	4f0de4e080
+ifStmt action #1	20	ee688cd6fb
 hsimpleSemi action #1	5	0270ba29ed
 elseSp action #1	5	d1e541e502
 switchInit action #1	5	3750cef259
-exprSwitchStmt action #1	20	d859ef3720
-typeSwitchStmt action #1	20	6cbe2cfc3a
-guardAssign action #1	35	0644e6e031
-guardExpr action #1	12	782e674150
-guardAssert action #1	12	250b1fb924
-caseBlock action #1	33	c034ba198d
-caseClauseList action #1	16	bc4a5302a6
-caseClauseDefault action #1	12	fb3b76dbdd
-selectStmt action #1	12	0c1f7ccfc0
-commBlock action #1	33	2fe7c7ac8f
-commClauseCase action #1	16	d3921d8e09
-commClauseDefault action #1	12	82e12729b1
-commRecv action #1	58	f1877bb1ff
-forInfinite action #1	12	85c06382bf
-forCond action #1	16	b079f575ec
-forClause action #1	24	bcceb35a62
-forRange action #1	32	4ecd373160
+exprSwitchStmt action #1	17	e5e755dd61
+typeSwitchStmt action #1	17	2d9a5c3556
+guardAssign action #1	30	6d6d127dd0
+guardExpr action #1	11	80ca097fc6
+guardAssert action #1	11	bcfea9e8fc
+caseBlock action #1	31	350dedd456
+caseClauseList action #1	14	f2fd8bdc68
+caseClauseDefault action #1	11	eb901f60f7
+selectStmt action #1	11	1e13134983
+commBlock action #1	31	760eefbbc6
+commClauseCase action #1	14	39029758c6
+commClauseDefault action #1	11	510b7ca0a1
+commRecv action #1	52	dffa2a3b6b
+forInfinite action #1	11	5f91a913ce
+forCond action #1	14	f5b9fb5903
+forClause action #1	20	b59a978db1
+forRange action #1	27	db766d41d0
 rangeValue action #1	5	162e366d6b
 expr action #1	5	e9d43eaa36
-exprList action #1	31	041f273bef
-orExpr action #1	44	2b3a0cc1ad
-andExpr action #1	44	cf8d432da1
-cmpExpr action #1	44	af346ac7cb
-addExpr action #1	44	722fe86086
-mulExpr action #1	44	e8e160d78e
+exprList action #1	29	0cc46186d4
+orExpr action #1	40	139aac442e
+andExpr action #1	40	c1ca98e873
+cmpExpr action #1	40	7a025e0d60
+addExpr action #1	40	4e2c218aad
+mulExpr action #1	40	9dcda70373
 unaryExpr action #1	5	edd69e372b
 recvChanType action #1	5	758c7d089b
-recvExpr action #1	15	25f50ec316
-unaryOpExpr action #1	20	f862fec8a9
-starExpr action #1	12	d34b71bf44
+recvExpr action #1	13	3f248c3f10
+unaryOpExpr action #1	18	08b497cede
+starExpr action #1	11	34898e97f4
 primaryExpr action #1	5	74d11488cf
-operatorsExpr line 2 #1	16	254b74b07a
-operatorsExpr line 3 #1	12	5c632d0d75
-operatorsExpr line 4 #1	16	5d779d2563
-operatorsExpr line 5 #1	16	2f65a3e7ff
-operatorsExpr line 6 #1	16	727a5ec6bc
-operatorsExpr line 7 #1	20	cd76f23e99
-operatorsExpr line 8 #1	24	b4e711d582
-operatorsExpr line 9 #1	12	5e79f6860d
-operatorsExpr line 10 #1	20	ab170f30a6
-operatorsExpr line 11 #1	16	910efe212b
+operatorsExpr line 2 #1	14	0105129362
+operatorsExpr line 3 #1	11	5d8a058cc4
+operatorsExpr line 4 #1	14	1d2eb96499
+operatorsExpr line 5 #1	14	7ca5d8df39
+operatorsExpr line 6 #1	14	eca2ca9bbe
+operatorsExpr line 7 #1	17	935b572776
+operatorsExpr line 8 #1	20	15fc8538a0
+operatorsExpr line 9 #1	11	5fc98cec0a
+operatorsExpr line 10 #1	17	5df1a3727f
+operatorsExpr line 11 #1	14	1d0636044c
 primaryOperand action #1	5	9421f0d2ce
-indexList action #1	31	2d3d2eeb7a
-parenExpr action #1	12	53fec5a254
-funcLit action #1	16	48d846b3e5
-litValue action #1	13	850227f3d2
-elements action #1	31	596e4d1306
-keyValue action #1	16	a3decf31fd
-elidedLit action #1	12	d42d031b54
-goPrimary line 2 #1	16	fb1cd3106d
-goPrimary line 3 #1	12	5a8e17531e
-goPrimary line 4 #1	16	7ca3a972a5
-goPrimary line 5 #1	16	ed370bad27
-goPrimary line 6 #1	16	a20e0605fc
-goPrimary line 7 #1	20	9df346abd3
-goPrimary line 8 #1	24	011a723135
-goPrimary line 9 #1	12	702f1a5d3b
-goPrimary line 10 #1	20	5e0773946c
-goPrimary line 11 #1	16	5fb9a606f5
+indexList action #1	29	9b8bde5ee7
+parenExpr action #1	11	a91127de97
+funcLit action #1	14	9e37fd142e
+litValue action #1	12	666dfee0a0
+elements action #1	29	a6a6adc2ce
+keyValue action #1	14	b5ea03b268
+elidedLit action #1	11	9f1d19c32b
+goPrimary line 2 #1	14	36477c98f1
+goPrimary line 3 #1	11	b300f4faf7
+goPrimary line 4 #1	14	7bb26edf19
+goPrimary line 5 #1	14	cfeb85067d
+goPrimary line 6 #1	14	9f9d9f1ba8
+goPrimary line 7 #1	17	8ebaa4ad2c
+goPrimary line 8 #1	20	25f0b2cb12
+goPrimary line 9 #1	11	def96bb5f6
+goPrimary line 10 #1	17	46ec91c76b
+goPrimary line 11 #1	14	3eed7658b6
 hexpr action #1	5	ceba444df5
-hexprList action #1	31	8eab647496
-horExpr action #1	44	8189086a9c
-handExpr action #1	44	b0b422c7e4
-hcmpExpr action #1	44	dd359d23cd
-haddExpr action #1	44	cdc68616d3
-hmulExpr action #1	44	497d34f26e
+hexprList action #1	29	834ae32c3c
+horExpr action #1	40	ab2100c326
+handExpr action #1	40	8111055899
+hcmpExpr action #1	40	45bb3a421a
+haddExpr action #1	40	69c5e75a29
+hmulExpr action #1	40	d3e797e18a
 hunaryExpr action #1	5	8d529f174a
-hrecvExpr action #1	15	11900c7e53
-hunaryOpExpr action #1	20	9984a8ddc2
-hstarExpr action #1	12	912491937e
+hrecvExpr action #1	13	fed15103de
+hunaryOpExpr action #1	18	62f87f9f03
+hstarExpr action #1	11	4dc6294f80
 hprimaryExpr action #1	5	c6500b3f90
-hoperatorsExpr line 2 #1	16	00cc79058f
-hoperatorsExpr line 3 #1	12	1aef403984
-hoperatorsExpr line 4 #1	16	c9132534b3
-hoperatorsExpr line 5 #1	16	eba7f92f1c
-hoperatorsExpr line 6 #1	16	4c8dcdbe9e
-hoperatorsExpr line 7 #1	20	c9f9232a71
-hoperatorsExpr line 8 #1	24	62da4ceeaa
-hoperatorsExpr line 9 #1	12	43729fb4c6
-hoperatorsExpr line 10 #1	20	56d25d3a04
+hoperatorsExpr line 2 #1	14	125295efc9
+hoperatorsExpr line 3 #1	11	6cc36e2b81
+hoperatorsExpr line 4 #1	14	ad459f0623
+hoperatorsExpr line 5 #1	14	8193c9208f
+hoperatorsExpr line 6 #1	14	d4388ef5b1
+hoperatorsExpr line 7 #1	17	849aed9791
+hoperatorsExpr line 8 #1	20	aa943be8b8
+hoperatorsExpr line 9 #1	11	1cd71a08f7
+hoperatorsExpr line 10 #1	17	58b9face6d
 hoperand action #1	5	3b2a9783bf
-compositeLitH action #1	16	953cce6b0c
-guardPrimary line 2 #1	16	a376214f0a
-guardPrimary line 3 #1	12	0d475c34e4
-guardPrimary line 4 #1	16	1a2376aefe
-guardPrimary line 5 #1	16	9dfdc31976
-guardPrimary line 6 #1	16	526b029d87
-guardPrimary line 7 #1	20	c786a2f21c
-guardPrimary line 8 #1	24	da89854c2e
-guardPrimary line 9 #1	12	5faee56b2d
-guardPrimary line 10 #1	20	c8d7500077
+compositeLitH action #1	14	5849eeaf57
+guardPrimary line 2 #1	14	b5974e3d63
+guardPrimary line 3 #1	11	8a67ed2d73
+guardPrimary line 4 #1	14	9dafad412c
+guardPrimary line 5 #1	14	314763d9e4
+guardPrimary line 6 #1	14	8a878f5dee
+guardPrimary line 7 #1	17	4fddc14492
+guardPrimary line 8 #1	20	171e33a506
+guardPrimary line 9 #1	11	fa3f0d3431
+guardPrimary line 10 #1	17	d37b9c80fe
 sp predicate #1	13	12e0880f46
 sp predicate #2	13	ead62a69a9
 sp predicate #3	13	70fc1b1b1f

@@ -6,7 +6,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tn2 = action.struct([File])
   let tfirst3 = true
-  seq.step()
   action.setField([Records], tn2, tv1)
   tfirst3 = cover(tn2, tv1, tfirst3)
   made(c, tn2, tfirst3)
@@ -16,7 +15,6 @@ func action(c Act) (Datum, Fail) {
 ## record action
 func action(c Act) (Datum, Fail) {
   let tm1 = action.kids()
-  seq.step()
   let tf2 = push(c, action.name([list]), action.read([$first]))
   if (tf2 != null(Fail)) {
     return null(Datum), tf2
@@ -27,7 +25,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$f]), action.field([f of $f]))
     if (tf8 != null(Fail)) {
@@ -44,7 +41,6 @@ func action(c Act) (Datum, Fail) {
   let tf12 = action.fromObj(tn11)
   let tn13 = action.struct([Record])
   let tfirst14 = true
-  seq.step()
   action.setField([Fields], tn13, tf12)
   tfirst14 = cover(tn13, tf12, tfirst14)
   made(c, tn13, tfirst14)

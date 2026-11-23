@@ -1,228 +1,228 @@
 # digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
-main action #1	20	682befc3bd
+main action #1	18	5ddd5aefe5
 main binding ind #1	5	9fe5ae84eb
 main binding lv #1	5	961bc99087
 first_stmts action #1	5	f7873e651a
-first_stmts predicate #1	123	948ac675f7
-stmts action #1	31	1ff87bd38f
-stmt_sep predicate #1	124	4601c9c600
+first_stmts predicate #1	121	4f95b4621f
+stmts action #1	29	00893265cd
+stmt_sep predicate #1	122	949c59ab68
 block action #1	5	5f76d189fa
 indented_block action #1	5	434063d961
-indented_block predicate #1	137	190a3fe1fb
+indented_block predicate #1	135	fde85b5a31
 indented_block predicate #2	18	86ebed471a
-indented_block binding ind #1	136	8dc14ef59a
-simple_stmts action #1	31	c3bf3e7603
-clause_sep predicate #1	124	f975d375f5
+indented_block binding ind #1	134	ecd95ea3f7
+simple_stmts action #1	29	f79fa5d0af
+clause_sep predicate #1	122	3b047d900e
 ws predicate #1	14	707ac9b47e
-expr_stmt action #1	12	81085237ac
-ann_simple action #1	23	238fb7e57f
-ann_complex action #1	23	c22903a480
-assign_one action #1	24	96201e57c6
-assign_chain action #1	37	fe6a19768c
-aug_assign action #1	20	5ed06292d3
+expr_stmt action #1	11	e567e29b20
+ann_simple action #1	19	c5d6363ad6
+ann_complex action #1	19	54e5884e3c
+assign_one action #1	21	d19ba16268
+assign_chain action #1	34	508c1cff20
+aug_assign action #1	17	5c4507e90a
 pass_stmt action #1	8	592b308cee
 break_stmt action #1	8	bcf158cb1a
 continue_stmt action #1	8	f9e9c67c6c
-return_stmt action #1	12	1ffd43085c
-raise_stmt action #1	16	50e1345b29
-global_stmt action #1	38	5bbc1f80fb
-nonlocal_stmt action #1	38	81c27785e4
-del_stmt action #1	38	3241a89d70
-assert_stmt action #1	16	ca6aa01721
-yield_stmt action #1	12	8c64060b2a
-type_alias action #1	28	9d6980b6c5
-import_stmt action #1	38	31b8dcc997
-dotted_as_name action #1	60	63ed75c2ad
-from_stmt action #1	84	6347184729
+return_stmt action #1	11	57f15062e0
+raise_stmt action #1	14	ab0da8a56d
+global_stmt action #1	35	473e0711fd
+nonlocal_stmt action #1	35	6cf755058b
+del_stmt action #1	35	b0d4e38ec1
+assert_stmt action #1	14	2442daf8ad
+yield_stmt action #1	11	03be064bb4
+type_alias action #1	24	c40e797c4f
+import_stmt action #1	35	98a3bd28ec
+dotted_as_name action #1	57	46e6e99f93
+from_stmt action #1	79	90d5a12612
 from_stmt predicate #1	33	1bb01c1360
-paren_import_names action #1	31	c24ef0a849
+paren_import_names action #1	29	785648fdf7
 paren_import_names predicate #1	14	61a4b05f50
 paren_import_names binding lv #1	18	f18086d4e4
-plain_import_names action #1	31	7e59ff7f9d
-star_import action #1	13	a975b3f8b3
-star_alias action #1	11	eb20269c93
-import_from_as_name action #1	24	167c166a1e
-if_stmt action #1	28	1f764468a1
-elif_part action #1	13	1655e52877
-elif_stmt action #1	28	76fdd5264f
+plain_import_names action #1	29	b22a4531c9
+star_import action #1	12	5c3c112d23
+star_alias action #1	10	e870981746
+import_from_as_name action #1	22	dff1de377d
+if_stmt action #1	24	980c6ffde8
+elif_part action #1	12	964733d3a2
+elif_stmt action #1	24	f569a90974
 else_part action #1	5	8f584f7e0b
-while_stmt action #1	28	37c6fd257a
-for_stmt action #1	32	d7ea9a42f2
-async_for action #1	32	fef720c6cc
-with_stmt action #1	16	a99255546c
-async_with action #1	16	a0279518c0
-paren_with_items action #1	31	1de35e3dec
+while_stmt action #1	24	259fb186a5
+for_stmt action #1	27	f098ddb07f
+async_for action #1	27	9e8a75d090
+with_stmt action #1	14	c493fda60d
+async_with action #1	14	64d67d8d0d
+paren_with_items action #1	29	31b0479b27
 paren_with_items predicate #1	14	6c5b2ecb8b
 paren_with_items binding lv #1	18	f27ebb28fa
-plain_with_items action #1	31	11aa66e72f
-with_item_as action #1	16	780d807017
-with_item_plain action #1	12	e968530f6c
-try_stmt action #1	130	b77ace00de
+plain_with_items action #1	29	0ab41d2547
+with_item_as action #1	14	3b384d512d
+with_item_plain action #1	11	38940e64d3
+try_stmt action #1	115	b148217c1b
 try_stmt predicate #1	33	00eccb1dea
 try_stmt predicate #2	53	28f71ed333
 finally_part action #1	5	e586e387aa
-except_as action #1	24	5f825b5987
-except_plain action #1	16	0833982a89
-except_bare action #1	12	206bcf13c3
-except_star_as action #1	24	043a4e8cd0
-except_star_plain action #1	16	2a4467e2fc
-decorators action #1	26	967b325c91
-dec_sep predicate #1	124	8c3d92628d
-funcdef action #1	44	5cd5fb4631
-async_funcdef action #1	44	cef05537a9
+except_as action #1	21	ef3788892f
+except_plain action #1	14	37f4a9be55
+except_bare action #1	11	273d3e9871
+except_star_as action #1	21	0b87b8eef5
+except_star_plain action #1	14	5500c2d8c1
+decorators action #1	25	b080d0eebf
+dec_sep predicate #1	122	18d50961ca
+funcdef action #1	37	b167e78f90
+async_funcdef action #1	37	06119e6d21
 def_params action #1	5	d1ec4fbbff
 def_params predicate #1	14	272a051fac
 def_params binding lv #1	18	8c404d3e24
-classdef_args action #1	194	82ff5c427c
-classdef_plain action #1	36	c0cb8e9067
-match_stmt action #1	16	c7cbb2ddf0
-subject_tuple action #1	59	c859624e77
-case_blocks action #1	31	db31e9d325
-case_blocks predicate #1	137	563f46e69c
+classdef_args action #1	175	4e95b9ecf6
+classdef_plain action #1	31	3aa6af2592
+match_stmt action #1	14	9d520620b8
+subject_tuple action #1	54	eed1ee28d9
+case_blocks action #1	29	340b3c9eab
+case_blocks predicate #1	135	61b91368a4
 case_blocks predicate #2	18	115695df6f
-case_blocks binding ind #1	136	5bcc81db09
-case_block action #1	20	0cbb70e688
-open_sequence_pattern action #1	68	ca6ca430bb
-as_pattern action #1	20	8a465f55ec
-or_pattern action #1	55	140bd8234f
-signed_number_pattern action #1	12	bcdbeb35c3
-complex_pattern action #1	12	d721c217a7
-string_pattern action #1	12	b3fb475ca9
-singleton_pattern action #1	12	8baf1ebe81
+case_blocks binding ind #1	134	4af90736bf
+case_block action #1	17	e31b3d7f29
+open_sequence_pattern action #1	64	ae59708e8a
+as_pattern action #1	18	3880512a24
+or_pattern action #1	51	19524234da
+signed_number_pattern action #1	11	7c057d664c
+complex_pattern action #1	11	6c316d9f76
+string_pattern action #1	11	3f9a12ba1f
+singleton_pattern action #1	11	fb48b61088
 signed_number_lit action #1	5	5b99e33e2e
-neg_number action #1	16	a2d23f17ee
-complex_number action #1	20	51446a0be7
-neg_real_number action #1	16	ac82b7ceb4
-capture_pattern action #1	16	e0ddce0282
+neg_number action #1	14	6a40942566
+complex_number action #1	17	fd66a814dc
+neg_real_number action #1	14	bf08a32c57
+capture_pattern action #1	15	0fd164991a
 capture_name action #1	5	358fd79931
 wildcard_pattern action #1	8	6d8118ac42
-value_pattern action #1	12	8f202b7a7a
-attr action #1	40	ed7863f539
+value_pattern action #1	11	b709a155f7
+attr action #1	36	4704fc3c36
 group_pattern action #1	5	9ddded9236
 group_pattern predicate #1	14	8bf797c0b3
 group_pattern binding lv #1	18	57083e2080
 empty_tuple_pattern action #1	8	035ceb1eb7
 empty_tuple_pattern predicate #1	14	346389d718
 empty_tuple_pattern binding lv #1	18	b4effce1fe
-list_pattern action #1	20	eb8e573c45
+list_pattern action #1	18	a229f298f9
 list_pattern predicate #1	14	65bdf156a5
 list_pattern binding lv #1	18	c5c1803f4f
-star_patterns action #1	31	602eac4682
-tuple_pattern action #1	68	a9a6db202c
+star_patterns action #1	29	64599d0a94
+tuple_pattern action #1	64	04724c57d7
 tuple_pattern predicate #1	14	7130edc471
 tuple_pattern binding lv #1	18	96cbd68924
-star_pattern action #1	16	3b75ef9aa1
-mapping_pattern action #1	66	05a78cb0dc
+star_pattern action #1	15	c46e0ccc11
+mapping_pattern action #1	61	a0d55cb370
 mapping_pattern predicate #1	14	a2a51339b2
 mapping_pattern binding lv #1	18	9147733c37
-kv_patterns action #1	31	eab601ad66
-class_pattern action #1	74	55fb4520d6
+kv_patterns action #1	29	3557e7e2ca
+class_pattern action #1	67	00a30a4fc9
 class_pattern predicate #1	14	108d17d4ee
 class_pattern binding lv #1	18	5c86e60436
-positional_patterns action #1	31	b8d8138d03
-keyword_patterns action #1	31	30de0dc8c5
-type_params action #1	31	f13df82139
+positional_patterns action #1	29	0202891752
+keyword_patterns action #1	29	1ad707697f
+type_params action #1	29	a00aeed15d
 type_params predicate #1	14	beeba480a6
 type_params binding lv #1	18	f07e9911d5
-type_var action #1	24	4904acad6b
-type_var_tuple action #1	20	f6c47288fd
-param_spec action #1	20	c6be0ea2d9
-params action #1	269	110266bba3
+type_var action #1	21	3a67e6c3af
+type_var_tuple action #1	18	488916f415
+param_spec action #1	18	54729f2b10
+params action #1	246	b7d0a39e5a
 params predicate #1	41	ec955ce487
 params predicate #2	41	c708e1bc6a
 params predicate #3	33	845c27792f
 param_nd action #1	5	9eb0856243
 star_etc predicate #1	29	d3ecf88c1a
 kwds action #1	5	ef689add20
-param action #1	20	7a14a51800
-vararg_param action #1	20	f37652fc06
-expressions action #1	58	051ad5d278
-star_expressions action #1	58	7f71ac238b
-starred_bitor action #1	15	e55a989fd1
-starred_expression action #1	15	05dc37870f
+param action #1	18	077378d268
+vararg_param action #1	18	8c62193a3e
+expressions action #1	53	51391f5ff8
+star_expressions action #1	53	67b2216de2
+starred_bitor action #1	13	05592eb78a
+starred_expression action #1	13	b2a8aece14
 plain_named_expression action #1	5	d581f54d18
-walrus action #1	16	b109d7d31b
-conditional action #1	39	383ca44d00
-lambdef action #1	16	b49a2a8980
+walrus action #1	14	e9506d10ba
+conditional action #1	35	dec2d1ebbc
+lambdef action #1	14	5b79f72041
 lambdef predicate #1	14	da96aa3b50
-lambda_params action #1	269	51aa041c25
+lambda_params action #1	246	7584524c0f
 lambda_params predicate #1	41	b8c5b36191
 lambda_params predicate #2	41	4217de1abc
 lambda_params predicate #3	33	358129758a
 lparam_nd action #1	5	c222ef7126
 lstar_etc predicate #1	29	ea59883fb7
 lkwds action #1	5	00e0d3f693
-lparam action #1	16	6bc4e3286d
-yield_from action #1	12	11927adc11
-yield_plain action #1	12	8aca3f6d7f
-disjunction action #1	71	5ad3e367e2
-conjunction action #1	71	ea76e22bd1
-not_expr action #1	16	037e000eff
-comparison action #1	83	f90263d57e
-bitwise_or line 3 #1	20	9a106f637a
-bitwise_or line 4 #1	20	621b0b4d17
-bitwise_or line 5 #1	20	20dbf283fb
-bitwise_or line 6 #1	20	95233f8b35
-bitwise_or line 7 #1	20	22ea6728f8
-bitwise_or line 8 #1	20	fb0e490056
-bitwise_or line 9 #1	16	369ed37f4d
-bitwise_or line 10 #1	20	36d935dee7
-await_expr action #1	12	f30812c4df
+lparam action #1	15	81f7e6d308
+yield_from action #1	11	10a156a4b2
+yield_plain action #1	11	96bcb4978a
+disjunction action #1	65	6e5e2025d3
+conjunction action #1	65	0edf07f184
+not_expr action #1	14	73281ad1d4
+comparison action #1	77	55aed2b598
+bitwise_or line 3 #1	17	9364d90f02
+bitwise_or line 4 #1	17	f088d8636b
+bitwise_or line 5 #1	17	7776265e99
+bitwise_or line 6 #1	17	63154d70a8
+bitwise_or line 7 #1	17	6b8ecd85f9
+bitwise_or line 8 #1	17	7e37d23d22
+bitwise_or line 9 #1	14	1cefb064cd
+bitwise_or line 10 #1	17	c7771b7ef2
+await_expr action #1	11	2e946c36b0
 atom_only action #1	5	61d9926182
-primary_chain line 2 #1	23	16cc16801f
-primary_chain line 3 #1	24	bdbd9fc88a
-primary_chain line 4 #1	170	3118c5d167
-primary_chain line 5 #1	19	fd97961c08
+primary_chain line 2 #1	20	87fc5f257e
+primary_chain line 3 #1	21	eed4003ba1
+primary_chain line 4 #1	155	6be875fa5f
+primary_chain line 5 #1	16	e7d126b863
 call_args predicate #1	14	0cc76f3644
 call_args binding lv #1	18	aec15c9923
 positional_named action #1	5	e47793fd60
-kwarg_list action #1	13	76f767aa62
-starred_list action #1	13	358736a088
-kwarg action #1	20	f08fd55c10
-dstar_arg action #1	12	9df9383e72
-genexp action #1	16	d5a6cba972
+kwarg_list action #1	12	1226daa36d
+starred_list action #1	12	9bca0d8408
+kwarg action #1	18	9637a44836
+dstar_arg action #1	11	9f0f134ce8
+genexp action #1	14	bad7d785e4
 genexp predicate #1	14	46fa926780
 genexp binding lv #1	18	29ce5fb7dd
 subscript action #1	5	23cf2b5423
 subscript predicate #1	14	e0bdc54f16
 subscript binding lv #1	18	3beb91cfe7
-star_first_slices action #1	41	092d815f2f
-plain_slices action #1	58	9304eaa2de
-slice_colon action #1	20	857599c44d
-for_if_clauses action #1	31	8900b36f4b
-for_if_clause action #1	48	d13f40b7e0
-name action #1	19	22ee0da081
-empty_tuple action #1	11	a9a3afa56f
+star_first_slices action #1	37	aa1b7a8331
+plain_slices action #1	53	2056a4a901
+slice_colon action #1	17	6d5d07c3b1
+for_if_clauses action #1	29	2918674ee2
+for_if_clause action #1	43	1cc83c7ec5
+name action #1	17	9b2ca2c0bc
+empty_tuple action #1	10	383450302f
 empty_tuple predicate #1	14	96f3452f81
 empty_tuple binding lv #1	18	d5466b9ff4
 yield_group action #1	5	e2b8f2ad53
 yield_group predicate #1	14	46c349c3fa
 yield_group binding lv #1	18	a0ab5b8ae1
-star_first_tuple action #1	41	fe30cd9407
+star_first_tuple action #1	37	dc636601d1
 star_first_tuple predicate #1	14	4101e800ac
 star_first_tuple binding lv #1	18	1daf467958
 star_first_tuple predicate #2	29	3fdec31b96
-paren_named action #1	85	0de152e3f7
+paren_named action #1	77	4f285f6f3c
 paren_named predicate #1	14	d8720bcad2
 paren_named binding lv #1	18	9a0305644a
 paren_named predicate #2	21	ae84da43b4
-empty_list action #1	11	5dd50f7d08
+empty_list action #1	10	9990515f8a
 empty_list predicate #1	14	40b363136a
 empty_list binding lv #1	18	dcae0afb75
-list_items action #1	68	49b4ca533b
+list_items action #1	61	b50e3b3c9d
 list_items predicate #1	14	7f51f6daaf
 list_items binding lv #1	18	9166c1a633
 list_items predicate #2	65	75e367f80c
 empty_dict action #1	8	74f1fb2436
 empty_dict predicate #1	14	d9c6eae24c
 empty_dict binding lv #1	18	ce30a20510
-dict_unpack_first action #1	68	054cc15cad
+dict_unpack_first action #1	62	61c3938b40
 dict_unpack_first predicate #1	14	84088063a9
 dict_unpack_first binding lv #1	18	db452f781d
-set_star_first action #1	38	fac5f5491a
+set_star_first action #1	35	f6d967d047
 set_star_first predicate #1	14	bc441ace61
 set_star_first binding lv #1	18	dc32e20b6e
-brace_items action #1	179	9b5279f0e2
+brace_items action #1	162	b14f1f98be
 brace_items predicate #1	14	3e597c5492
 brace_items binding lv #1	18	8481e63f68
 brace_items binding isdict #1	13	93de011ffc
@@ -230,52 +230,52 @@ brace_items predicate #2	26	d54d270ebd
 brace_items predicate #3	6	880aa29e69
 brace_items predicate #4	10	c8fd92513e
 brace_items predicate #5	57	d1549623c8
-star_targets action #1	58	fd5dac4ffc
-starred_target action #1	15	d5d7ce9b98
-attr_target action #1	23	f247ae9c86
-subscript_target action #1	19	28e279fd7c
+star_targets action #1	53	548b1eb6eb
+starred_target action #1	13	1101681cfb
+attr_target action #1	20	2ac691f973
+subscript_target action #1	16	0a7ececf03
 paren_target action #1	5	03441ae59b
 paren_target predicate #1	14	5a42419466
 paren_target binding lv #1	18	df43738c03
-empty_tuple_target action #1	11	e0e52474b4
+empty_tuple_target action #1	10	146c464759
 empty_tuple_target predicate #1	14	6b9e515ac5
 empty_tuple_target binding lv #1	18	4e9b01c9e8
-star_tuple_target action #1	41	8b5b9e0872
+star_tuple_target action #1	37	0697a96c50
 star_tuple_target predicate #1	14	1674bbf0f4
 star_tuple_target binding lv #1	18	3aebeaf99e
 star_tuple_target predicate #2	29	33b61fb8f6
-empty_list_target action #1	11	dd207deb32
+empty_list_target action #1	10	a6519d46e8
 empty_list_target predicate #1	14	a6796e791e
 empty_list_target binding lv #1	18	1dbc5cb483
-star_list_target action #1	41	3d9086ef82
+star_list_target action #1	37	fff179f9c2
 star_list_target predicate #1	14	ade78171fb
 star_list_target binding lv #1	18	42a3428525
 paren_single_target action #1	5	914311da95
 paren_single_target predicate #1	14	16dbd5ca1f
 paren_single_target binding lv #1	18	e58058b232
-store_name action #1	19	d2b80fb80b
+store_name action #1	17	6c818f5637
 t_primary line 1 #1	5	eddb10d0cd
-t_primary line 2 #1	23	348204b1f2
-t_primary line 3 #1	24	e6e3b90a08
-t_primary line 4 #1	170	9c3d099926
-t_primary line 5 #1	19	1c77b047c9
-del_attr action #1	23	adb43ed339
-del_subscript action #1	19	a86484d853
-del_name action #1	19	9314cf1e0c
+t_primary line 2 #1	20	ef78634e91
+t_primary line 3 #1	21	8e9e5f887e
+t_primary line 4 #1	155	604dc99243
+t_primary line 5 #1	16	7e302a9206
+del_attr action #1	20	c9dbc21288
+del_subscript action #1	16	7c12eb4790
+del_name action #1	17	906134ffcb
 paren_del_target action #1	5	ef500a0680
 paren_del_target predicate #1	14	dbf56a4950
 paren_del_target binding lv #1	18	4356234d2a
-del_tuple action #1	23	74e4020d2d
+del_tuple action #1	20	2e6c50e829
 del_tuple predicate #1	14	cc96a90e4a
 del_tuple binding lv #1	18	90430b9345
-del_list action #1	23	954802c47a
+del_list action #1	20	670e4e6dc4
 del_list predicate #1	14	38a073de37
 del_list binding lv #1	18	aa7b22044f
-del_targets action #1	31	d1c0aa0974
+del_targets action #1	29	a1696b5060
 strings action #1	5	465e60a007
-fjoined action #1	41	8086064b3e
-str_part action #1	13	13da7eeb42
-tstrings action #1	41	d3a9676fb5
+fjoined action #1	37	2d1a57d00c
+str_part action #1	12	9a25da9593
+tstrings action #1	37	9eca9ab52e
 fstring action #1	9	22fef8f409
 fstring binding lv #1	14	33d3557fef
 fstring binding lv #2	14	33d3557fef
@@ -302,24 +302,24 @@ fquote predicate #1	18	6e42bbd4cf
 fquote predicate #2	18	83427af471
 fquote predicate #3	18	1f1b5d38cf
 fquote predicate #4	18	e2e944e031
-ffield action #1	40	62151bc260
+ffield action #1	35	ca303bd855
 ffield predicate #1	14	c61918349c
 ffield binding lv #1	18	67d7f8ad09
 ffield predicate #2	14	54200c5cc4
-tfield action #1	40	61042f13e4
+tfield action #1	35	e2bc751c6a
 tfield predicate #1	14	0560b31b06
 tfield binding lv #1	18	3c4f1aa741
 tfield predicate #2	14	5209ae4805
 fconv action #1	5	1315c7b8db
-fspec action #1	15	d7227090e3
+fspec action #1	14	a403f062a6
 fspec binding lv #1	10	a77ec1a306
 fspec predicate #1	14	831ffb9b82
 fspec_text predicate #1	18	741722da8b
 fspec_raw_text predicate #1	18	046ae9c96e
 ws predicate #2	14	707ac9b47e
-stmt_sep predicate #2	124	4601c9c600
-clause_sep predicate #2	124	f975d375f5
-dec_sep predicate #2	124	8c3d92628d
+stmt_sep predicate #2	122	949c59ab68
+clause_sep predicate #2	122	3b047d900e
+dec_sep predicate #2	122	18d50961ca
 fclose predicate #5	18	7c480804da
 fclose predicate #6	18	675d762016
 fclose predicate #7	18	30d6a68faf

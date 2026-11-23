@@ -29,7 +29,6 @@ const (
 	OpActionCastError    = "action.castError"
 	OpActionTextEqual    = "action.textEqual"
 	OpActionFromStr      = "action.fromStr"
-	OpActionSpend        = "action.spend"
 	OpActionStruct       = "action.struct"
 	OpActionSetField     = "action.setField"
 	OpActionFromObj      = "action.fromObj"
@@ -144,8 +143,6 @@ func DeclareLeaves(m *code.Module) {
 		Imm: "the cast (Cast)", Contract: "Returns the failure of the cast in Imm of the value v."})
 	op(&code.Op{Name: OpActionTextEqual, ImmType: immTypes[OpActionTextEqual], Params: []code.Param{code.P("l", str), code.P("r", str)}, Results: []code.Type{code.TBool},
 		Reads: reads, Writes: reads, Contract: "Returns whether the strings l and r are equal, comparing them as == compares two strings."})
-	op(&code.Op{Name: OpActionSpend, ImmType: immTypes[OpActionSpend], Reads: reads, Writes: reads, NoReturn: true, Cost: code.Cost{Const: 1},
-		Contract: "Charges one step of the budget for a subexpression in a target that bounds the work (the budget feature); it is no event of the compute units."})
 	op(&code.Op{Name: OpActionFromStr, ImmType: immTypes[OpActionFromStr], Params: []code.Param{code.P("s", str)}, Results: []code.Type{datum},
 		Contract: "Returns the string s as a value."})
 	obj, seq := code.THandle(Obj), code.THandle(Seq)

@@ -50,7 +50,7 @@ func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]
 	if t == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := actionlower.Lower(t, actionlower.Options{Result: result, StructCall: g.Table == "trules", Unbounded: true, Visits: g.Logical, Proj: g.Proj,
+	l, err := actionlower.Lower(t, actionlower.Options{Result: result, StructCall: g.Table == "trules", Visits: g.Logical, Proj: g.Proj,
 		FieldCompare: g.Table == "trules" && g.params.FieldCompare, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))

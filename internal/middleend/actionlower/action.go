@@ -14,8 +14,9 @@
 // immediate operand, that the target prints in place.
 //
 // A built-in function that takes a function (map, filter, foldl, foldr) is a loop over the elements of
-// its list argument: each step charges the step of the element (seq.step), binds the parameters of the
-// lambda to locals of the loop and evaluates its body in place.
+// its list argument: each step counts the visit of the element (seq.step) when the target counts
+// compute units (Options.Visits), binds the parameters of the lambda to locals of the loop and evaluates
+// its body in place.
 package actionlower
 
 import (
@@ -58,19 +59,13 @@ type Options struct {
 	// the value and the failure. A printer that prints the body without the function, in place of an
 	// action, declares the local around it.
 	Result string
-	// Steps charges one step of the budget for each subexpression, before its operands, as the target's
-	// evaluation of action expressions does under budget controls (action.spend).
-	Steps bool
 	// StructCall makes a struct literal one call of the target's constructor of its type (action.newN),
 	// with the field values evaluated in the order written and passed in declaration order, nil for a
 	// field not given. Otherwise the struct is made of its fields by action.struct, action.setField, cover
 	// and made.
 	StructCall bool
-	// Unbounded leaves out the steps that elements charge (seq.step), for a target whose parser
-	// does not bound the work and prints no charge.
-	Unbounded bool
-	// Visits keeps the step of each element that a loop of map, filter or a fold visits, even when
-	// Unbounded: the visit is a logical compute unit (design record 076).
+	// Visits counts the step of each element that a loop of map, filter or a fold visits (seq.step):
+	// the visit is a logical compute unit (design record 076).
 	Visits bool
 	// FieldCompare makes a comparison (==, !=, <, <=, >, >=) of which an operand reads a field a call
 	// of action.compare on operands, reading such a field with action.fieldOperand, so that a string field
@@ -105,7 +100,7 @@ func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
 	if o.Result == "" {
 		results = []code.Type{datum, failT}
 	}
-	l := &actionLowerer{m: m, steps: o.Steps, structCall: o.StructCall, unbounded: o.Unbounded, visits: o.Visits, proj: o.Proj,
+	l := &actionLowerer{m: m, structCall: o.StructCall, visits: o.Visits, proj: o.Proj,
 		params: map[*ir.Lambda][]code.Expr{}, inPlace: o.Result != "", fieldCompare: o.FieldCompare}
 	fn := m.AddFunc("action", []code.Param{code.P(CtxParam, code.THandle(action.Act))}, results, nil, func(b *code.Builder) {
 		var res code.Expr
@@ -291,9 +286,7 @@ func actionModule() (*code.Module, error) {
 type actionLowerer struct {
 	m          *code.Module
 	n          int
-	steps      bool
 	structCall bool
-	unbounded  bool
 	visits     bool
 	proj       map[string]string
 	// params holds the values of the parameters of each lambda whose body is being lowered.
@@ -311,13 +304,6 @@ func (l *actionLowerer) raise(b *code.Builder, f code.Expr) {
 		return
 	}
 	b.Return(code.Null(code.THandle(exec.Datum)), f)
-}
-
-// step charges the step of an element (seq.step).
-func (l *actionLowerer) step(b *code.Builder) {
-	if !l.unbounded {
-		b.Do("seq.step")
-	}
 }
 
 // local returns a fresh name of a local with the prefix p.
@@ -349,9 +335,6 @@ func opCode(list []string, sym string) code.Expr {
 // value lowers t, appending the statements that compute its operands to b, and returns its value: a
 // local or the call of a leaf.
 func (l *actionLowerer) value(b *code.Builder, t ir.ActionExpr) code.Expr {
-	if l.steps {
-		b.Do(action.OpActionSpend)
-	}
 	switch t := t.(type) {
 	case *ir.Const:
 		return imm(action.OpActionConst, action.Const{Value: t.Value})
@@ -420,10 +403,6 @@ func (l *actionLowerer) value(b *code.Builder, t ir.ActionExpr) code.Expr {
 			vals := l.values(b, t.Args)
 			base := b.Let(l.local("tm"), code.C(action.OpActionKids))
 			for _, v := range vals {
-				l.step(b)
-				if l.steps {
-					b.Do(action.OpActionSpend)
-				}
 				l.check(b, code.C("pushItems", code.L(CtxParam), imm(action.OpActionName, "concat"), v))
 			}
 			return l.hull(b, false, base)
@@ -497,23 +476,16 @@ func (l *actionLowerer) check(b *code.Builder, c *code.Call) {
 }
 
 // sequence makes the tuple value, if tuple, or the list value of vals, the values of the elements that
-// the literal or the built-in function fn gives: it pushes each, taking a step (seq.step) for it, and the hull
-// takes them over.
+// the literal or the built-in function fn gives: it pushes each, and the hull takes them over.
 func (l *actionLowerer) sequence(b *code.Builder, tuple bool, fn string, vals []code.Expr) code.Expr {
 	base := b.Let(l.local("tm"), code.C(action.OpActionKids))
 	l.pushes(b, fn, vals)
 	return l.hull(b, tuple, base)
 }
 
-// pushes pushes vals as elements of the list or the tuple that fn makes, taking a step (seq.step) for
-// each. Under Steps, a step is taken before them, as the target's evaluation of action expressions takes one for
-// gathering them.
+// pushes pushes vals as elements of the list or the tuple that fn makes.
 func (l *actionLowerer) pushes(b *code.Builder, fn string, vals []code.Expr) {
-	if l.steps {
-		b.Do(action.OpActionSpend)
-	}
 	for _, v := range vals {
-		l.step(b)
 		l.check(b, code.C("push", code.L(CtxParam), imm(action.OpActionName, fn), v))
 	}
 }
@@ -542,9 +514,6 @@ func (l *actionLowerer) concatParts(b *code.Builder, t *ir.Builtin) {
 			if x, ok := l.projected(call); ok {
 				// The elements of the projected capture are pushed as concat pushes those of an argument.
 				v := l.value(b, x)
-				if l.steps {
-					b.Do(action.OpActionSpend)
-				}
 				if l.visits {
 					// Logical units: the elements that map would visit and the list it would build.
 					b.Do("units.items", v, code.Int(2))
@@ -585,8 +554,7 @@ func fusable(t *ir.Builtin) bool {
 }
 
 // mapPush pushes the values that the lambda f returns for the elements of list as the elements of the
-// list that map makes. Under Steps, a step is charged before the elements are read, as the target's
-// map charges one.
+// list that map makes.
 func (l *actionLowerer) mapPush(b *code.Builder, list code.Expr, f *ir.Lambda) {
 	l.mapPushFused(b, list, f, false)
 }
@@ -594,9 +562,6 @@ func (l *actionLowerer) mapPush(b *code.Builder, list code.Expr, f *ir.Lambda) {
 // mapPushFused is mapPush, for the part of a fused concat if fused: under logical units, each element
 // also counts the element of the list that map would build.
 func (l *actionLowerer) mapPushFused(b *code.Builder, list code.Expr, f *ir.Lambda, fused bool) {
-	if l.steps {
-		b.Do(action.OpActionSpend)
-	}
 	items := l.fallible(b, "ti", code.C("items", imm(action.OpActionName, "map"), list))
 	l.loop(b, items, func(b *code.Builder, i code.Expr) {
 		v := l.call(b, f, code.C("itemAt", items, i, code.BoolC(false)))
@@ -615,8 +580,6 @@ func (l *actionLowerer) loop(b *code.Builder, items code.Expr, body func(b *code
 	b.For(l.local("each"), nil, code.Lt(code.L(i), code.C("seq.len", items)), code.Assign(i, code.Add(code.L(i), code.Int(1))), func(b *code.Builder) {
 		if l.visits {
 			b.Do("seq.step")
-		} else {
-			l.step(b)
 		}
 		body(b, code.L(i))
 	})
@@ -714,7 +677,6 @@ func (l *actionLowerer) structLiteral(b *code.Builder, t *ir.New) code.Expr {
 	first := l.local("tfirst")
 	b.Let(first, code.BoolC(true))
 	for i, f := range t.Fields {
-		l.step(b)
 		b.Append(&code.Do{Call: &code.Call{Callee: action.OpActionSetField, Args: []code.Expr{n, vals[i]}, Imm: f.Name}})
 		b.Set(first, code.C("cover", n, vals[i], code.L(first)))
 	}
@@ -772,9 +734,6 @@ func fieldRead(t ir.ActionExpr) bool {
 func (l *actionLowerer) operand(b *code.Builder, t ir.ActionExpr) code.Expr {
 	if !fieldRead(t) {
 		return code.C(action.OpActionOperand, l.value(b, t))
-	}
-	if l.steps {
-		b.Do(action.OpActionSpend)
 	}
 	m := t.(*ir.Member)
 	x := l.value(b, m.X)

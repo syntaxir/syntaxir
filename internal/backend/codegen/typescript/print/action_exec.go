@@ -27,7 +27,7 @@ func (g *Generator) actionStmts(ct irc.ActionExpr, s *check.Scope, locals map[st
 	if ct == nil {
 		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
 	}
-	l, err := actionlower.Lower(ct, actionlower.Options{Unbounded: true, Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
+	l, err := actionlower.Lower(ct, actionlower.Options{Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
 	}

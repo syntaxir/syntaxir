@@ -53,7 +53,7 @@ type actionReg struct {
 // map, filter and the folds visit (seq.step), and the values that the plain evaluation builds and
 // the lowering does not (units.add, units.items, units.since), but no step of its own evaluation.
 func Compile(t ir.ActionExpr, env Env) (*state.ActionProgram, error) {
-	l, err := actionlower.Lower(t, actionlower.Options{Unbounded: true, Visits: true, Proj: env.Proj})
+	l, err := actionlower.Lower(t, actionlower.Options{Visits: true, Proj: env.Proj})
 	if err != nil {
 		return nil, err
 	}

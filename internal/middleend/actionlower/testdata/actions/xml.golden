@@ -2,12 +2,10 @@
 func action(c Act) (Datum, Fail) {
   let tf1 = action.read([$d])
   let tm2 = action.kids()
-  seq.step()
   let tf3 = pushItems(c, action.name([concat]), action.read([$p1]))
   if (tf3 != null(Fail)) {
     return null(Datum), tf3
   }
-  seq.step()
   let tf4 = pushItems(c, action.name([concat]), action.read([$p2]))
   if (tf4 != null(Fail)) {
     return null(Datum), tf4
@@ -20,19 +18,14 @@ func action(c Act) (Datum, Fail) {
   let tf10 = action.read([$e])
   let tn11 = action.struct([Document])
   let tfirst12 = true
-  seq.step()
   action.setField([Decl], tn11, tf1)
   tfirst12 = cover(tn11, tf1, tfirst12)
-  seq.step()
   action.setField([Prolog], tn11, tf7)
   tfirst12 = cover(tn11, tf7, tfirst12)
-  seq.step()
   action.setField([Doctype], tn11, tf8)
   tfirst12 = cover(tn11, tf8, tfirst12)
-  seq.step()
   action.setField([Root], tn11, tf9)
   tfirst12 = cover(tn11, tf9, tfirst12)
-  seq.step()
   action.setField([Epilog], tn11, tf10)
   tfirst12 = cover(tn11, tf10, tfirst12)
   made(c, tn11, tfirst12)
@@ -48,7 +41,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj3 = 0
   loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
-    seq.step()
     let tp5 = itemAt(ti2, tj3, false)
     let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$m]), action.field([m of $m]))
     if (tf7 != null(Fail)) {
@@ -72,13 +64,10 @@ func action(c Act) (Datum, Fail) {
   let tf3 = action.read([$sd])
   let tn4 = action.struct([XMLDecl])
   let tfirst5 = true
-  seq.step()
   action.setField([Version], tn4, tf1)
   tfirst5 = cover(tn4, tf1, tfirst5)
-  seq.step()
   action.setField([Encoding], tn4, tf2)
   tfirst5 = cover(tn4, tf2, tfirst5)
-  seq.step()
   action.setField([Standalone], tn4, tf3)
   tfirst5 = cover(tn4, tf3, tfirst5)
   made(c, tn4, tfirst5)
@@ -111,10 +100,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$d])
   let tn3 = action.struct([PI])
   let tfirst4 = true
-  seq.step()
   action.setField([Target], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([Data], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -279,7 +266,6 @@ func action(c Act) (Datum, Fail) {
   let tf1 = action.read([$n])
   let tf2 = action.read([$x])
   let tm3 = action.kids()
-  seq.step()
   let tf4 = pushItems(c, action.name([concat]), action.read([$ds]))
   if (tf4 != null(Fail)) {
     return null(Datum), tf4
@@ -289,13 +275,10 @@ func action(c Act) (Datum, Fail) {
   let tf7 = action.fromObj(tn6)
   let tn8 = action.struct([Doctype])
   let tfirst9 = true
-  seq.step()
   action.setField([Name], tn8, tf1)
   tfirst9 = cover(tn8, tf1, tfirst9)
-  seq.step()
   action.setField([ExternalID], tn8, tf2)
   tfirst9 = cover(tn8, tf2, tfirst9)
-  seq.step()
   action.setField([Subset], tn8, tf7)
   tfirst9 = cover(tn8, tf7, tfirst9)
   made(c, tn8, tfirst9)
@@ -311,7 +294,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj3 = 0
   loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
-    seq.step()
     let tp5 = itemAt(ti2, tj3, false)
     let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$d]), action.field([d of $d]))
     if (tf7 != null(Fail)) {
@@ -333,7 +315,6 @@ func action(c Act) (Datum, Fail) {
   let tf1 = action.read([$l])
   let tn2 = action.struct([ExternalID])
   let tfirst3 = true
-  seq.step()
   action.setField([System], tn2, tf1)
   tfirst3 = cover(tn2, tf1, tfirst3)
   made(c, tn2, tfirst3)
@@ -346,10 +327,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$l])
   let tn3 = action.struct([ExternalID])
   let tfirst4 = true
-  seq.step()
   action.setField([Public], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([System], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -372,10 +351,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$c])
   let tn3 = action.struct([ElementDecl])
   let tfirst4 = true
-  seq.step()
   action.setField([Name], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([Content], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -391,7 +368,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj3 = 0
   loop each4 while (tj3 < seq.len(ti2)); post tj3 = (tj3 + 1) {
-    seq.step()
     let tp5 = itemAt(ti2, tj3, false)
     let tv7, tf7 = member(c, 4, val.unbox(tp5), action.name([$n]), action.field([n of $n]))
     if (tf7 != null(Fail)) {
@@ -408,7 +384,6 @@ func action(c Act) (Datum, Fail) {
   let tf11 = action.fromObj(tn10)
   let tn12 = action.struct([Mixed])
   let tfirst13 = true
-  seq.step()
   action.setField([Names], tn12, tf11)
   tfirst13 = cover(tn12, tf11, tfirst13)
   made(c, tn12, tfirst13)
@@ -431,7 +406,6 @@ func action(c Act) (Datum, Fail) {
 ## choice action
 func action(c Act) (Datum, Fail) {
   let tm1 = action.kids()
-  seq.step()
   let tf2 = push(c, action.name([list]), action.read([$f]))
   if (tf2 != null(Fail)) {
     return null(Datum), tf2
@@ -442,7 +416,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$c]), action.field([c of $c]))
     if (tf8 != null(Fail)) {
@@ -460,10 +433,8 @@ func action(c Act) (Datum, Fail) {
   let tf13 = action.read([$o])
   let tn14 = action.struct([Choice])
   let tfirst15 = true
-  seq.step()
   action.setField([Items], tn14, tf12)
   tfirst15 = cover(tn14, tf12, tfirst15)
-  seq.step()
   action.setField([Occur], tn14, tf13)
   tfirst15 = cover(tn14, tf13, tfirst15)
   made(c, tn14, tfirst15)
@@ -473,7 +444,6 @@ func action(c Act) (Datum, Fail) {
 ## sequence action
 func action(c Act) (Datum, Fail) {
   let tm1 = action.kids()
-  seq.step()
   let tf2 = push(c, action.name([list]), action.read([$f]))
   if (tf2 != null(Fail)) {
     return null(Datum), tf2
@@ -484,7 +454,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$c]), action.field([c of $c]))
     if (tf8 != null(Fail)) {
@@ -502,10 +471,8 @@ func action(c Act) (Datum, Fail) {
   let tf13 = action.read([$o])
   let tn14 = action.struct([Sequence])
   let tfirst15 = true
-  seq.step()
   action.setField([Items], tn14, tf12)
   tfirst15 = cover(tn14, tf12, tfirst15)
-  seq.step()
   action.setField([Occur], tn14, tf13)
   tfirst15 = cover(tn14, tf13, tfirst15)
   made(c, tn14, tfirst15)
@@ -518,10 +485,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$o])
   let tn3 = action.struct([NameParticle])
   let tfirst4 = true
-  seq.step()
   action.setField([Name], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([Occur], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -538,7 +503,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$d]), action.field([d of $d]))
     if (tf8 != null(Fail)) {
@@ -555,10 +519,8 @@ func action(c Act) (Datum, Fail) {
   let tf12 = action.fromObj(tn11)
   let tn13 = action.struct([AttlistDecl])
   let tfirst14 = true
-  seq.step()
   action.setField([Name], tn13, tf1)
   tfirst14 = cover(tn13, tf1, tfirst14)
-  seq.step()
   action.setField([Defs], tn13, tf12)
   tfirst14 = cover(tn13, tf12, tfirst14)
   made(c, tn13, tfirst14)
@@ -573,16 +535,12 @@ func action(c Act) (Datum, Fail) {
   let tf4 = action.read([$v])
   let tn5 = action.struct([AttDef])
   let tfirst6 = true
-  seq.step()
   action.setField([Name], tn5, tf1)
   tfirst6 = cover(tn5, tf1, tfirst6)
-  seq.step()
   action.setField([Type], tn5, tf2)
   tfirst6 = cover(tn5, tf2, tfirst6)
-  seq.step()
   action.setField([Default], tn5, tf3)
   tfirst6 = cover(tn5, tf3, tfirst6)
-  seq.step()
   action.setField([Value], tn5, tf4)
   tfirst6 = cover(tn5, tf4, tfirst6)
   made(c, tn5, tfirst6)
@@ -592,7 +550,6 @@ func action(c Act) (Datum, Fail) {
 ## notation_type action
 func action(c Act) (Datum, Fail) {
   let tm1 = action.kids()
-  seq.step()
   let tf2 = push(c, action.name([list]), action.read([$f]))
   if (tf2 != null(Fail)) {
     return null(Datum), tf2
@@ -603,7 +560,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$n]), action.field([n of $n]))
     if (tf8 != null(Fail)) {
@@ -620,7 +576,6 @@ func action(c Act) (Datum, Fail) {
   let tf12 = action.fromObj(tn11)
   let tn13 = action.struct([NotationType])
   let tfirst14 = true
-  seq.step()
   action.setField([Names], tn13, tf12)
   tfirst14 = cover(tn13, tf12, tfirst14)
   made(c, tn13, tfirst14)
@@ -630,7 +585,6 @@ func action(c Act) (Datum, Fail) {
 ## enumeration action
 func action(c Act) (Datum, Fail) {
   let tm1 = action.kids()
-  seq.step()
   let tf2 = push(c, action.name([list]), action.read([$f]))
   if (tf2 != null(Fail)) {
     return null(Datum), tf2
@@ -641,7 +595,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$n]), action.field([n of $n]))
     if (tf8 != null(Fail)) {
@@ -658,7 +611,6 @@ func action(c Act) (Datum, Fail) {
   let tf12 = action.fromObj(tn11)
   let tn13 = action.struct([Enumeration])
   let tfirst14 = true
-  seq.step()
   action.setField([Values], tn13, tf12)
   tfirst14 = cover(tn13, tf12, tfirst14)
   made(c, tn13, tfirst14)
@@ -673,19 +625,14 @@ func action(c Act) (Datum, Fail) {
   let tf4 = action.read([$nd])
   let tn5 = action.struct([EntityDecl])
   let tfirst6 = true
-  seq.step()
   action.setField([Parameter], tn5, action.const([false]))
   tfirst6 = cover(tn5, action.const([false]), tfirst6)
-  seq.step()
   action.setField([Name], tn5, tf1)
   tfirst6 = cover(tn5, tf1, tfirst6)
-  seq.step()
   action.setField([Value], tn5, tf2)
   tfirst6 = cover(tn5, tf2, tfirst6)
-  seq.step()
   action.setField([ExternalID], tn5, tf3)
   tfirst6 = cover(tn5, tf3, tfirst6)
-  seq.step()
   action.setField([NData], tn5, tf4)
   tfirst6 = cover(tn5, tf4, tfirst6)
   made(c, tn5, tfirst6)
@@ -699,16 +646,12 @@ func action(c Act) (Datum, Fail) {
   let tf3 = action.read([$x])
   let tn4 = action.struct([EntityDecl])
   let tfirst5 = true
-  seq.step()
   action.setField([Parameter], tn4, action.const([true]))
   tfirst5 = cover(tn4, action.const([true]), tfirst5)
-  seq.step()
   action.setField([Name], tn4, tf1)
   tfirst5 = cover(tn4, tf1, tfirst5)
-  seq.step()
   action.setField([Value], tn4, tf2)
   tfirst5 = cover(tn4, tf2, tfirst5)
-  seq.step()
   action.setField([ExternalID], tn4, tf3)
   tfirst5 = cover(tn4, tf3, tfirst5)
   made(c, tn4, tfirst5)
@@ -726,10 +669,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$x])
   let tn3 = action.struct([NotationDecl])
   let tfirst4 = true
-  seq.step()
   action.setField([Name], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([ExternalID], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -742,10 +683,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$l])
   let tn3 = action.struct([ExternalID])
   let tfirst4 = true
-  seq.step()
   action.setField([Public], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([System], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
@@ -762,7 +701,6 @@ func action(c Act) (Datum, Fail) {
   }
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
-    seq.step()
     let tp6 = itemAt(ti3, tj4, false)
     let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$a]), action.field([a of $a]))
     if (tf8 != null(Fail)) {
@@ -778,7 +716,6 @@ func action(c Act) (Datum, Fail) {
   let tn11 = hull(c, false, tk10)
   let tf12 = action.fromObj(tn11)
   let tm13 = action.kids()
-  seq.step()
   let tf14 = pushItems(c, action.name([concat]), action.read([$cs]))
   if (tf14 != null(Fail)) {
     return null(Datum), tf14
@@ -788,13 +725,10 @@ func action(c Act) (Datum, Fail) {
   let tf17 = action.fromObj(tn16)
   let tn18 = action.struct([Element])
   let tfirst19 = true
-  seq.step()
   action.setField([Name], tn18, tf1)
   tfirst19 = cover(tn18, tf1, tfirst19)
-  seq.step()
   action.setField([Attrs], tn18, tf12)
   tfirst19 = cover(tn18, tf12, tfirst19)
-  seq.step()
   action.setField([Content], tn18, tf17)
   tfirst19 = cover(tn18, tf17, tfirst19)
   made(c, tn18, tfirst19)
@@ -820,10 +754,8 @@ func action(c Act) (Datum, Fail) {
   let tf2 = action.read([$v])
   let tn3 = action.struct([Attribute])
   let tfirst4 = true
-  seq.step()
   action.setField([Name], tn3, tf1)
   tfirst4 = cover(tn3, tf1, tfirst4)
-  seq.step()
   action.setField([Value], tn3, tf2)
   tfirst4 = cover(tn3, tf2, tfirst4)
   made(c, tn3, tfirst4)
