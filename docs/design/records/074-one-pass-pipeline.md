@@ -1365,8 +1365,10 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
     under the key `program`, so one compilation of both shares it. A compilation of run-time targets only runs with
     `Stop`. A cancellation is a failure of its own: the step that finds the context ended
     fails with it, and the compiler side of the program turns it into the parse's cancelled build. The `program`
-    header writes the settings as the default profile with its overrides, and the run-time builds take no debugging
-    settings, so their text is for tests.) Implemented: the commands that build a parser for the engine take the
+    header writes the settings as the default profile with its overrides. The run-time builds take the call-wide
+    debugging settings of `WithDebug`, like the generators: a call whose settings write builds its parser's artifact
+    during the call, the dumps of a single run-time target are labeled with its backend (`vm/rules`), and every later
+    build of the program runs under the settings' verification and bisection limit without writing.) Implemented: the commands that build a parser for the engine take the
     optimization flags of `sxir gen`, and [Optimization Settings](../../../spec/runtime/optimization-settings.md)
     states the settings for every backend.
 13. **Gates and documentation:** the generation-time gate, the run-time compile benchmark, the determinism and allocation

@@ -62,6 +62,11 @@ type debugger struct {
 	// groups, if not nil, keeps what the observers write of each table apart until flush writes it
 	// (Compile).
 	groups *groups
+	// backend, if not empty, is the backend that labels the steps outside a branch of a Fork: that
+	// of a compilation of one run-time target, whose dumps and reports name it as those of a branch
+	// do, since the debugging settings of a call that builds a parser write the builds of its
+	// backends (checked.Source).
+	backend string
 }
 
 // groups holds what the observers of a compilation write of each table of each target: the dumps of
@@ -309,7 +314,7 @@ func (o pipeObserver) After(e pipe.Event, r *pipe.Result) {
 		return
 	}
 	table := tableOf(e)
-	l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
+	l := o.d.qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
 	w := o.d.out(e.Label.Backend, table)
 	before := !e.Step.Required && o.d.printsBefore(e.Step.Name) && o.d.watch.input != nil
 	if before {
@@ -371,7 +376,7 @@ func (b bisector) Before(e pipe.Event, _ func(io.Writer)) bool {
 			verdict = "run"
 		}
 		table := tableOf(e)
-		l := qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
+		l := b.d.qualified(e.Label.Backend, pass.Label{Table: table, Func: e.Label.Func}.String())
 		fmt.Fprintf(b.d.out(e.Label.Backend, table), "opt-bisect: %d %s %s [%s]\n", e.Seq, verdict, e.Step.Instance, l)
 	}
 	return run
@@ -430,7 +435,7 @@ func (t *timer) After(e pipe.Event, r *pipe.Result) {
 // ran with its time in milliseconds and its share of the total, a manager line with the time of the
 // runs of the manager outside the steps (verification, copies, dumps and the other observers), and a
 // total line with the time of the runs of the manager. A step outside a branch of a Fork has no
-// backend in its line.
+// backend in its line, but in a compilation of one run-time target (debugger.backend).
 func (d *debugger) report() {
 	if d.Output == nil || d.watch == nil {
 		return
@@ -439,7 +444,7 @@ func (d *debugger) report() {
 		fmt.Fprintln(d.Output, "-- stats --")
 		tw := tabwriter.NewWriter(d.Output, 0, 0, 2, ' ', 0)
 		for _, st := range d.watch.stats.Instances() {
-			fmt.Fprintf(tw, "  %s\truns %d\tchanged %d", qualified(st.Backend, st.Instance), st.Runs, st.Changed)
+			fmt.Fprintf(tw, "  %s\truns %d\tchanged %d", d.qualified(st.Backend, st.Instance), st.Runs, st.Changed)
 			for _, c := range st.Counters {
 				fmt.Fprintf(tw, "\t%s %d", c.Name, c.Value)
 			}
@@ -462,7 +467,7 @@ func (d *debugger) report() {
 			fmt.Fprintf(tw, "  %s\t%10.3fms\t%5.1f%%\n", name, float64(el)/float64(time.Millisecond), share)
 		}
 		for _, tm := range d.watch.times {
-			line(qualified(tm.backend, tm.instance), tm.elapsed)
+			line(d.qualified(tm.backend, tm.instance), tm.elapsed)
 			steps += tm.elapsed
 		}
 		line("manager", max(total-steps, 0))
@@ -472,7 +477,15 @@ func (d *debugger) report() {
 }
 
 // qualified returns the name of an instance or a unit in a dump or a report: with its backend before
-// a slash, if any.
+// a slash, if any, which is the backend of the debugger outside a branch of a Fork.
+func (d *debugger) qualified(backend, instance string) string {
+	if backend == "" {
+		backend = d.backend
+	}
+	return qualified(backend, instance)
+}
+
+// qualified returns the name of an instance or a unit: with its backend before a slash, if any.
 func qualified(backend, instance string) string {
 	if backend == "" {
 		return instance

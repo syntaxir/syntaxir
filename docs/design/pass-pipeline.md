@@ -573,6 +573,16 @@ transform (`-verify-each`), the statistics (`-stats`), the timing (`-time-passes
 flag: the command writes to standard error. The command builds its `Debug` value from its flags in one place, so a test
 and the command line see the same pipeline and the same dumps.
 
+The setting belongs to the call, whatever it builds. The parsers of `Compile` and `NewReferenceParser` and the files of
+`Marshal` are run-time builds (the bytecode of the VMs, the Core module of the closures), which the compiler side of
+the program (`internal/driver/checked`) makes through the driver under the call's `Debug`. They are otherwise built
+when a parse first needs them, so a call whose setting writes builds its backend's artifact before it returns, and the
+output belongs to the call, not to a later parse. A compilation of one run-time target labels its dumps and reports
+with the backend, as a branch of several targets is labeled: `-- after core-config [vm/rules] --`, `closure/rules`.
+Every later build of the program, the closures' Core module made again on demand or the other backend's artifact,
+runs under the verification and bisection limit of the setting, so it makes the same artifact, and writes nothing; so
+do the recognizer and the insertion program that a parse derives. `OutputSchema` builds no pipeline.
+
 The text these settings write is a debugging aid. Its form, the pass names and the counter names are not stable and may
 change in any version; the flags and the fields are the interface.
 

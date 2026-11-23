@@ -10,11 +10,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"slices"
 	"sync"
 	"sync/atomic"
 
 	"syntaxir.dev/sxir/internal/backend/closure"
+	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/vmlower"
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver"
@@ -40,6 +42,13 @@ type Options struct {
 	// Settings are the optimization settings that the VM and the closure backend build the program
 	// with. The zero settings are the speed profile, in which every Core pass is on.
 	Settings pass.Settings
+	// Debug are the debugging settings of the call that compiles the program, which apply to the
+	// builds of its backends (Source.Module, Source.Core): the first build of each backend writes
+	// what they select to their Output, labeled with the backend, and every build runs under their
+	// verification and bisection limit, so that every build of a backend makes the same artifact.
+	// The programs compiled again for recognition and for missing-token insertion take them as the
+	// program holds them (Source.again).
+	Debug common.Debug
 }
 
 // Source is the compiler side of a checked program (state.Source). It holds the checked program
@@ -61,6 +70,11 @@ type Source struct {
 	moduleErr  error
 	// built is module once Module has made it, for BuiltModule.
 	built atomic.Pointer[bytecode.Module]
+
+	// debug are the debugging settings that the backends build under (Options.Debug); Prepare
+	// keeps only their verification and bisection limit once the build of the call has written
+	// what they select (quiet).
+	debug common.Debug
 }
 
 var _ state.Source = (*Source)(nil)
@@ -113,7 +127,9 @@ func Check(g *ast.Grammar, opts Options, flags []check.RuleFlags, control *cance
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}
-	return newSource(prog, opts.Settings, driver.Parser, opts.Compile), nil
+	s := newSource(prog, opts.Settings, driver.Parser, opts.Compile)
+	s.debug = opts.Debug
+	return s, nil
 }
 
 // Of returns the Source of the checked program prog, a parser, which its backends build with the
@@ -171,7 +187,7 @@ func (s *Source) DefaultStart() string { return s.Runtime().DefaultStartRule }
 // under, and its build is not cancelled.
 func (s *Source) Module() (*bytecode.Module, error) {
 	s.moduleOnce.Do(func() {
-		outs, err := driver.Compile(context.Background(), s.Program(), driver.Options{Settings: s.settings}, driver.Target{Backend: result.VM})
+		outs, err := s.build(context.Background(), result.VM, s.debug)
 		if err != nil {
 			s.moduleErr = err
 			return
@@ -199,7 +215,7 @@ func (s *Source) Core(ctx context.Context) (any, error) {
 	if ctx != nil {
 		run = attributedContext{ctx}
 	}
-	outs, err := driver.Compile(run, s.Program(), driver.Options{Settings: s.settings}, driver.Target{Backend: result.Closure})
+	outs, err := s.build(run, result.Closure, s.debug)
 	if err != nil {
 		var c cancel.Cancellation
 		if errors.As(err, &c) {
@@ -208,6 +224,52 @@ func (s *Source) Core(ctx context.Context) (any, error) {
 		return nil, fmt.Errorf("internal error: Core IR: %w", err)
 	}
 	return outs[0].(*closure.Module), nil
+}
+
+// build runs the compilation of the program of s for the run-time backend b under the debugging
+// settings d: it writes the pipeline text of the build first if d asks for it (Describe), and the
+// driver writes the dumps and reports of d labeled with b.
+func (s *Source) build(ctx context.Context, b result.Backend, d common.Debug) ([]driver.Output, error) {
+	if d.PrintPipeline {
+		text, err := Describe(s, d, b)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := io.WriteString(d.Output, text); err != nil {
+			return nil, err
+		}
+	}
+	return driver.Compile(ctx, s.Program(), driver.Options{Settings: s.settings, Debug: d}, driver.Target{Backend: b})
+}
+
+// quiet returns the debugging settings d without what they write: a build again under them makes
+// the artifact of the first build, under its verification and bisection limit, and writes nothing.
+func quiet(d common.Debug) common.Debug {
+	return common.Debug{VerifyEach: d.VerifyEach, OptBisectLimit: d.OptBisectLimit}
+}
+
+// Prepare builds the artifact of the program of s that the run-time backend b runs (Module for the
+// VMs, Core for the closures) when the debugging settings of its compilation write something, so
+// that their output belongs to the call that compiled the program rather than to its first parse,
+// and then keeps only what makes the artifact (quiet): the closures build their Core module again
+// on demand, and a parse may build the other backend's artifact, without writing again. Without
+// such settings it builds nothing, and the backends build on first use. The caller calls it before
+// the program is shared.
+func (s *Source) Prepare(b result.Backend) error {
+	if !s.debug.Writes() {
+		return nil
+	}
+	var err error
+	switch b {
+	case result.VM:
+		_, err = s.Module()
+	case result.Closure:
+		_, err = s.Core(nil)
+	default:
+		return fmt.Errorf("the backend %s builds no run-time program (vm, closure)", b)
+	}
+	s.debug = quiet(s.debug)
+	return err
 }
 
 // attributedContext is a parse's context whose Err attributes a panic to the caller's context
@@ -248,11 +310,13 @@ func (s *Source) Insertion() (state.Source, error) {
 // the program was compiled with, changed by derive for what the build is for, and with the
 // program's settings. This is the one place that makes them, so no option or setting is dropped from
 // a program built again (TestLazyProgramsCarryEveryOption), and a derived program keeps the options
-// of the parser it is derived from.
+// of the parser it is derived from. It also takes the program's debugging settings as they are
+// (Prepare): a derived program that the call itself builds, such as the recognizer that Marshal
+// saves, writes what they select, and one that a parse builds later builds quietly.
 func (s *Source) again(role driver.Role, derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
-	d, err := Check(s.Grammar(), Options{Compile: o, Settings: s.settings}, flags, nil)
+	d, err := Check(s.Grammar(), Options{Compile: o, Settings: s.settings, Debug: s.debug}, flags, nil)
 	if err != nil {
 		return nil, err
 	}

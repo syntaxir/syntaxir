@@ -21,6 +21,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -70,7 +71,7 @@ func (o options) entry() (entry.Options, error) {
 	if err != nil {
 		return entry.Options{}, err
 	}
-	e.Settings = s
+	e.Settings, e.Debug = s, o.debug.internal()
 	return e, nil
 }
 
@@ -165,12 +166,19 @@ type Debug struct {
 }
 
 // WithDebug selects the debugging setting. A name that PrintAfter or PrintBefore does not know, a
-// negative OptBisectLimit, or a setting that writes without an Output, is an error of every function. The setting takes effect in the
-// functions that run the pass pipeline, the generators today; for the others it is checked and has
-// no further effect.
+// negative OptBisectLimit, or a setting that writes without an Output, is an error of every function.
+// The setting applies to the whole call: every function that builds an artifact writes, during the
+// call, what it selects of the pipeline that builds it. The generators write the pipeline of each
+// target; Compile and CompileGrammar that of the bytecode, which the recursive and the iterative VM
+// both run; NewReferenceParser that of the Core module of the closures; Marshal that of the bytecode
+// it saves, the recognizer's in the recognize mode. The dumps and reports of those parsers name
+// their backend (vm, closure) in their labels, as those of several generated targets do. Whatever a
+// parser builds later, again or for recognition and missing-token insertion, it builds under the
+// setting's verification and bisection limit and writes nothing. OutputSchema builds no pipeline
+// and writes nothing.
 func WithDebug(d Debug) Option { return func(o *options) { o.debug = d } }
 
-// internal returns the debugging setting of the generators.
+// internal returns the debugging setting of the driver.
 func (d Debug) internal() common.Debug {
 	return common.Debug{PrintAfter: d.PrintAfter, PrintBefore: d.PrintBefore, PrintChanged: d.PrintChanged, VerifyEach: d.VerifyEach, Stats: d.Stats, TimePasses: d.TimePasses, OptBisectLimit: d.OptBisectLimit, PrintPipeline: d.PrintPipeline, Output: d.Output}
 }
@@ -202,6 +210,9 @@ func Compile(src grammar.Source, opts ...Option) (runtime.Parser, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := prepare(p, result.VM); err != nil {
+		return nil, err
+	}
 	return engine.VMParser(p), nil
 }
 
@@ -210,6 +221,9 @@ func Compile(src grammar.Source, opts ...Option) (runtime.Parser, error) {
 func CompileGrammar(g *ast.Grammar, opts ...Option) (runtime.Parser, error) {
 	p, err := build(g, newOptions(opts))
 	if err != nil {
+		return nil, err
+	}
+	if err := prepare(p, result.VM); err != nil {
 		return nil, err
 	}
 	return engine.VMParser(p), nil
@@ -224,7 +238,21 @@ func NewReferenceParser(src grammar.Source, opts ...Option) (runtime.Parser, err
 	if err != nil {
 		return nil, err
 	}
+	if err := prepare(p, result.Closure); err != nil {
+		return nil, err
+	}
 	return engine.Reference(p), nil
+}
+
+// prepare builds what the parser p runs on the backend b during the call when its debugging setting
+// writes something (checked.Source.Prepare). A grammar that uses #missing has no bytecode, so its
+// VM parser builds nothing: the parses of that backend report the grammar.
+func prepare(p *engine.Parser, b result.Backend) error {
+	prog := p.Program()
+	if b == result.VM && prog.HasMissing {
+		return nil
+	}
+	return entry.Source(prog).Prepare(b)
 }
 
 // Marshal compiles the grammar src and encodes it in the .sxirc format in mode: the bytecode that

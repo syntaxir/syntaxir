@@ -107,6 +107,9 @@ func Compile(ctx context.Context, p *Program, o Options, targets ...Target) ([]O
 		return nil, err
 	}
 	d := newDebugger(o)
+	if len(c.targets) == 1 && runTime(c.targets[0].t.Backend) {
+		d.backend = c.targets[0].branch
+	}
 	outs, err := c.run(ctx, d, a)
 	if err == nil {
 		// The fallback of planning: the printed code of a target enters other rules than the plan
