@@ -53,7 +53,8 @@ var LibraryLens = pipe.RegisterLens(execdata.TablesIR, execdata.TablesIR, librar
 // Library is the step ts-library: it sets the library of the tables to the compositions with the
 // requests of the TypeScript library for the features of the parser of the target, as the plan's
 // used-features analysis reports them (common.ParserFeatures); with used-features off, for every
-// feature.
+// feature. The requests of the templates that the parser's code prints (print.TemplateRequests)
+// follow them.
 var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 	Decl: pipe.Decl{Name: "ts-library", Required: true,
 		Obligation: "The library of the tables requests the TypeScript library's compositions for the features of the parser.",
@@ -81,6 +82,7 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
+		rs = append(rs, print.TemplateRequests(!target.Opts.NoLimitControls)...)
 		out := *t
 		out.Library = &library.Library{Module: compositions(), Requests: rs}
 		return &out, pass.PreserveNone(), nil

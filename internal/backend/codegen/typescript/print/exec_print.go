@@ -70,6 +70,10 @@ type Target struct {
 	// Zero, if not nil, returns the TypeScript value that a variable of the handle type name starts
 	// with, or "" for null, which the type of the handle then includes (Handle).
 	Zero func(name string) string
+	// Bind, if not nil, maps parameters of the printed function to the TypeScript expressions that
+	// stand for them, which the printed code reads in their place: a composition printed for one value
+	// of a parameter, such as the invocation of one rule (a template), reads that value.
+	Bind map[string]string
 }
 
 // Part is a part of a value that a target holds in several locals (Target.Parts): the suffix of the
@@ -910,6 +914,9 @@ func (p *printer) expr(x code.Expr, outer int) string {
 	case *code.Local:
 		if h, ok := p.partner[x.Name]; ok {
 			return paren(h+" !== undefined", 6, outer)
+		}
+		if v, ok := p.t.Bind[x.Name]; ok {
+			return v
 		}
 		return x.Name
 	case *code.Reg:

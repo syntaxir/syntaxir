@@ -86,6 +86,13 @@ null attempt is no match.`)
 every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
 them costs nothing: each write was made by a step that was counted.`,
 		Requires: `trail is at most the length of the trail.`})
+	m.AddOp(&code.Op{Name: "frame.trail", Component: Frames, Results: []code.Type{code.TInt}, Reads: []string{Frames},
+		Contract: `Returns the length of the trail.`})
+	m.AddOp(&code.Op{Name: "frame.drop", Component: Frames, Params: []code.Param{code.P("trail", code.TInt)}, Writes: []string{Frames},
+		Contract: `Drops the writes of the trail after its first trail writes without undoing them, as a rule's call
+does when it ends: the slots they wrote belong to the frames of the calls that wrote them, which no
+reset reaches any more. Dropping them costs nothing.`,
+		Requires: `trail is at most the length of the trail.`})
 	m.AddOp(&code.Op{Name: "frame.current", Component: Frames, Results: []code.Type{frame}, Reads: []string{Frames},
 		Contract: `Returns the frame that captures write to.`})
 	m.AddOp(&code.Op{Name: "frame.use", Component: Frames, Params: f, Writes: []string{Frames},

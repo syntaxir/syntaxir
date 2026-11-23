@@ -533,6 +533,7 @@ itself, or the node call of the tracked path without observation.`
 		[]string{exec.Document, exec.Observe}, observe(func(b *Builder) { b.SetN(pair, C("rule.invokePlain", r, L("min"))) }))
 	observedPlain.Doc = `observedPlain is the plain invocation of rule r at binding level min in an observed parse: it
 reports the invocation to the observation as observed reports a call.`
+	addInvoke(m)
 	callUnmemoized := m.AddFunc("unmemoized", []Param{P("r", rule), P("min", TInt)}, result, nil, func(b *Builder) {
 		b.Var("v", value)
 		b.Var("ok", TBool)
@@ -922,4 +923,46 @@ false and on an action expression that fails, and holds on every other value. Th
 	bind.Doc = `bind binds the value of the action expression of a binding to the variable in slot. An action expression that fails fails the
 binding and binds nothing. The compiler has checked that the value fits the variable. The value of an action expression is never a
 function.`
+}
+
+// addInvoke adds the compositions of the invocation of a rule's body (rule.invokePlain): what surrounds
+// the body (rule.body), which a target either calls through the rule or splices in, specialized for one
+// rule, where it prints the invocation of that rule alone.
+func addInvoke(m *Module) {
+	rule, value := THandle(exec.Rule), THandle(exec.Value)
+	r := L("r")
+	invokePlain := m.AddFunc("invokePlain", []Param{P("r", rule), P("min", TInt)}, []Type{value, TBool}, []string{exec.Units}, func(b *Builder) {
+		// The unit of the call comes before the nesting level, as in rule.invoke.
+		b.If(F(exec.Units), func(b *Builder) {
+			b.Do("units.count", U64(1))
+			b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("units.check") })
+		})
+		start := b.Let("start", R(exec.Pos))
+		rec := b.Let("rec", C("rec.mark"))
+		trail := b.Let("trail", C("frame.trail"))
+		env := b.Let("prevEnv", C("env.scope"))
+		cut := b.Let("prevCut", R(exec.Cut))
+		b.SetReg(exec.Cut, BoolC(false))
+		b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("depth.enter") })
+		b.LetN([]string{"v", "ok"}, C("rule.body", r, L("min")))
+		b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("depth.exit") })
+		b.SetReg(exec.Cut, cut)
+		b.Do("frame.drop", trail)
+		// The body has no captures and writes no frame, so the rule's value is made with the empty one.
+		b.IfElse(L("ok"), func(b *Builder) {
+			b.IfElse(C("rule.novalue", r), func(b *Builder) { b.Set("v", Null(value)) },
+				func(b *Builder) { b.Set("v", C("rule.finish", r, C("frame.open", Int(0)), L("v"), start)) })
+		}, func(b *Builder) {
+			b.SetReg(exec.Pos, start)
+			b.Do("rec.truncate", rec)
+		})
+		b.Do("env.restore", env)
+		b.Return(L("v"), L("ok"))
+	})
+	invokePlain.Doc = `invokePlain runs the body of rule r, which has no captures, at binding level min, and returns the
+rule's value: what rule.invokePlain does outside the missing-token mode. It counts the unit of the call,
+checked for a rule on a cycle of calls, before the rule takes a nesting level, runs the body in the
+caller's frame with the cut flag cleared, and restores the flag, the trail and the variable
+environment; a failure restores the position and drops the errors the body recovered. A target may
+print it for one rule, with the body of that rule in place of rule.body.`
 }

@@ -1,0 +1,250 @@
+=== limits
+// item, called as by invokePlain
+function r2(p: Parser): R {
+  p.units++;
+  if (p.units > p.unitsCheck) {
+    p.pollUnits();
+  }
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  if (++p.depth > p.maxDepth) {
+    p.tooDeep();
+  }
+  let v = e6(p);
+  p.depth--;
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R2, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// word, called as by invokePlain
+function r3(p: Parser): R {
+  p.units++;
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  let v = e9(p);
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R3, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+=== no limits
+// item, called as by invokePlain
+function r2(p: Parser): R {
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  if (++p.depth > p.maxDepth) {
+    p.tooDeep();
+  }
+  let v = e6(p);
+  p.depth--;
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R2, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// word, called as by invokePlain
+function r3(p: Parser): R {
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  let v = e9(p);
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R3, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+=== observability
+// item, called as by invokePlain
+function r2ObservedBody(p: Parser): R {
+  p.units++;
+  if (p.units > p.unitsCheck) {
+    p.pollUnits();
+  }
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  if (++p.depth > p.maxDepth) {
+    p.tooDeep();
+  }
+  let v = e6(p);
+  p.depth--;
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R2, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// word, called as by invokePlain
+function r3ObservedBody(p: Parser): R {
+  p.units++;
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  let v = e8(p);
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R3, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+=== recognize
+// item, called as by invokePlain
+function r2(p: Parser): R {
+  p.units++;
+  if (p.units > p.unitsCheck) {
+    p.pollUnits();
+  }
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  if (++p.depth > p.maxDepth) {
+    p.tooDeep();
+  }
+  let v = e6(p);
+  p.depth--;
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R2, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// word, called as by invokePlain
+function r3(p: Parser): R {
+  p.units++;
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  let v = e9(p);
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = p.finish(R3, emptyFrame, v, start);
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// item, called as by invokePlain
+function q2(p: Parser): R {
+  p.units++;
+  if (p.units > p.unitsCheck) {
+    p.pollUnits();
+  }
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  if (++p.depth > p.maxDepth) {
+    p.tooDeep();
+  }
+  let v = e15(p);
+  p.depth--;
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = null;
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}
+
+// word, called as by invokePlain
+function q3(p: Parser): R {
+  p.units++;
+  const start = p.pos;
+  const rec = p.recovered.length;
+  const trail = p.trail.length;
+  const prevEnv = p.env;
+  const prevCut = p.cut;
+  p.cut = false;
+  let v = e17(p);
+  p.cut = prevCut;
+  p.trail.length = trail;
+  if (v !== undefined) {
+    v = null;
+  } else {
+    p.pos = start;
+    p.recovered.length = rec;
+  }
+  p.env = prevEnv;
+  return v;
+}

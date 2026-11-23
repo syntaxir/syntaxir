@@ -76,7 +76,13 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specializ
 	if err != nil {
 		return nil, err
 	}
-	if specialized == nil || !slices.EqualFunc(want, specialized.Requests, func(a, b library.Request) bool {
+	var methods []library.Request
+	if specialized != nil {
+		if methods, _, err = libraryFuncs(specialized); err != nil {
+			return nil, err
+		}
+	}
+	if specialized == nil || !slices.EqualFunc(want, methods, func(a, b library.Request) bool {
 		return a.Fn == b.Fn && a.Name == b.Name && slices.Equal(a.On, b.On)
 	}) {
 		return nil, fmt.Errorf("internal error: the TypeScript library is not specialized for the features of the parser")

@@ -724,6 +724,12 @@ op rule.cyclic(r Rule) bool
   contract:
     // Reports whether the rule is on a cycle of the call graph, so that a parse that counts compute units checks them at the entry of each call of the rule.
 
+op rule.novalue(r Rule) bool
+  component rules
+  cost <= 0
+  contract:
+    // Reports whether the rule makes no value: its calls return the null value.
+
 op rule.id(r Rule) int
   component rules
   cost <= 0
@@ -763,6 +769,30 @@ op rule.invokePlain(r Rule, min int) (Value, bool)
     // the unit of the call comes before the nesting level, as in rule.invoke.
   requires:
     // rule.plain is true of r.
+
+op rule.body(r Rule, min int) (Value, bool)
+  component rules
+  writes rules, pos, silent
+  noreturn
+  cost <= 0 + 1*body
+  contract:
+    // Runs the rule's body at the binding level min in the current frame and returns the value of the
+    // body, from which rule.finish makes the rule's value; on failure the position is unspecified. It
+    // counts no unit of the call and takes no nesting level: the invocation around it does, as rule.invoke
+    // does.
+
+op rule.finish(r Rule, f Frame, v Value, start int) Value
+  component rules
+  reads frames, pos
+  writes rules
+  noreturn
+  cost <= 0 + 1*body
+  contract:
+    // Returns the rule's value made from the value v of its body, which matched from start to the
+    // position with the captures of f: the value of its action, or v shaped as the rule's value, converted to
+    // the rule's node type if it has one. Making the value charges what its action charges.
+  requires:
+    // v is the value of a successful evaluation of the body of r, whose captures f holds.
 
 op rule.run(inv Body) (Value, bool)
   component rules
@@ -2372,6 +2402,24 @@ op frame.undo(trail int)
     // Undoes the writes of the trail after its first trail writes, in reverse order, and drops them:
     // every slot they wrote has the value it had before. Captures are not an item of the cost, so undoing
     // them costs nothing: each write was made by a step that was counted.
+  requires:
+    // trail is at most the length of the trail.
+
+op frame.trail() int
+  component frames
+  reads frames
+  cost <= 0
+  contract:
+    // Returns the length of the trail.
+
+op frame.drop(trail int)
+  component frames
+  writes frames
+  cost <= 0
+  contract:
+    // Drops the writes of the trail after its first trail writes without undoing them, as a rule's call
+    // does when it ends: the slots they wrote belong to the frames of the calls that wrote them, which no
+    // reset reaches any more. Dropping them costs nothing.
   requires:
     // trail is at most the length of the trail.
 

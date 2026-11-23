@@ -140,7 +140,11 @@ func LibraryRequests(fs common.FeatureSet) ([]library.Request, error) {
 // tsMethodsFor returns the printed methods of the TypeScript library from lib, the specialized
 // compositions of the requests of LibraryRequests.
 func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
-	if lib == nil || len(lib.Funcs) != len(tsSpecs) || len(lib.Requests) != len(tsSpecs) {
+	methods, _, err := libraryFuncs(lib)
+	if err != nil {
+		return nil, err
+	}
+	if len(methods) != len(tsSpecs) {
 		return nil, fmt.Errorf("tslib: the library holds no specialized method for each request of the TypeScript library")
 	}
 	m := lib.Module
@@ -409,9 +413,19 @@ var tsTarget = &Target{
 		case "frame.close":
 			return ""
 		case "frame.open":
+			if k, ok := c.Args[0].(*code.Const); ok && k.Value == int64(0) {
+				// A frame of no slots is never written: every such frame is the library's one.
+				return "emptyFrame"
+			}
 			return "this.newFrame(" + a[0] + ")"
+		case "frame.trail":
+			return "this.trail.length"
+		case "frame.drop":
+			return "this.trail.length = " + a[0]
 		case "frame.slots":
 			return a[0] + ".length"
+		case "env.scope":
+			return "this.env"
 		case "env.restore":
 			return "this.env = " + a[0]
 		case "env.bind":
@@ -503,6 +517,12 @@ var tsTarget = &Target{
 			return fmt.Sprintf("this.invoke(%s, %s)", a[0], a[1])
 		case "rule.invokePlain":
 			return fmt.Sprintf("this.invokePlainBody(%s, %s)", a[0], a[1])
+		case "rule.novalue":
+			return a[0] + ".novalue"
+		case "rule.body":
+			return fmt.Sprintf("%s.body(this, %s)", a[0], a[1])
+		case "rule.finish":
+			return fmt.Sprintf("this.finish(%s, %s, %s, %s)", a[0], a[1], a[2], a[3])
 		case "env.key":
 			return "this.memoKey(" + a[0] + ")"
 		case "rec.mark":

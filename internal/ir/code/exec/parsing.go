@@ -147,6 +147,7 @@ time: for it the operation reports false and clears the mark that says so.`})
 		{"rule.docPlain", "Reports whether a parse from scratch calls the plain body of the rule directly, at a call site, without the call protocol."},
 		{"rule.positional", "Reports whether the results of the rule may depend on positions, not only on the input they examine."},
 		{"rule.cyclic", "Reports whether the rule is on a cycle of the call graph, so that a parse that counts compute units checks them at the entry of each call of the rule."},
+		{"rule.novalue", "Reports whether the rule makes no value: its calls return the null value."},
 	} {
 		m.AddOp(&code.Op{Name: a.name, Component: Rules, Params: ruleArg, Results: []code.Type{code.TBool}, Contract: a.doc})
 	}
@@ -171,6 +172,19 @@ position and without the errors it recovered on failure; in the missing-token mo
 removes the missing tokens that the body inserted, as missing.reset does. The evaluation counts, and
 the unit of the call comes before the nesting level, as in rule.invoke.`,
 		Requires: `rule.plain is true of r.`})
+	m.AddOp(&code.Op{Name: "rule.body", Component: Rules, Params: call, Results: result, Writes: append([]string{Rules}, regs...),
+		NoReturn: true, Cost: body,
+		Contract: `Runs the rule's body at the binding level min in the current frame and returns the value of the
+body, from which rule.finish makes the rule's value; on failure the position is unspecified. It
+counts no unit of the call and takes no nesting level: the invocation around it does, as rule.invoke
+does.`})
+	m.AddOp(&code.Op{Name: "rule.finish", Component: Rules, Params: []code.Param{code.P("r", rule), code.P("f", code.THandle(Frame)),
+		code.P("v", value), code.P("start", code.TInt)}, Results: []code.Type{value}, Reads: []string{Frames, Pos}, Writes: []string{Rules},
+		NoReturn: true, Cost: body,
+		Contract: `Returns the rule's value made from the value v of its body, which matched from start to the
+position with the captures of f: the value of its action, or v shaped as the rule's value, converted to
+the rule's node type if it has one. Making the value charges what its action charges.`,
+		Requires: `v is the value of a successful evaluation of the body of r, whose captures f holds.`})
 	m.AddOp(&code.Op{Name: "rule.run", Component: Rules, Params: []code.Param{code.P("inv", bodyH)}, Results: result,
 		Writes: append([]string{Rules}, regs...), NoReturn: true, Cost: body,
 		Contract: `Runs the invocation inv of a rule at binding level 0 and returns its result; on failure the

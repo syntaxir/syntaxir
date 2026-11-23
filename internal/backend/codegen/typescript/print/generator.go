@@ -595,50 +595,28 @@ func (g *Generator) rules() {
 }
 
 // plainCall writes the function r<id>, which does what invokePlain does for the rule r (a rule never
-// memoized and without captures) with a direct call of its body.
+// memoized and without captures) with a direct call of its body: the template invokePlain (tsTemplates)
+// printed for r.
 func (g *Generator) plainCall(r *common.Rule, body string) {
-	m := &g.Methods
+	f, err := g.template("invokePlain")
+	if err != nil {
+		g.printErr(err)
+		return
+	}
+	text, err := Statements(g.tables.Library.Module, f, tsTemplateTarget(g.ruleVar(r), body, r.Rec, r.Novalue), 1)
+	if err != nil {
+		g.printErr(err)
+		return
+	}
 	name := g.tracePlainCall(r, fmt.Sprintf("%s%d", g.plainPrefix(), r.ID))
-	fmt.Fprintf(m, "// %s, called as by invokePlain\nfunction %s(p: Parser): R {\n", r.Name, name)
-	if g.Logical {
-		// The unit of the call, checked if the rule is on a cycle of the call graph (Parser.callUnit).
-		m.WriteString("  p.units++;\n")
-		if r.Rec {
-			m.WriteString("  if (p.units > p.unitsCheck) {\n    p.pollUnits();\n  }\n")
-		}
-	}
-	m.WriteString(`  const start = p.pos;
-  const rec = p.recovered.length;
-  const trail = p.trail.length;
-  const prevEnv = p.env;
-  const prevCut = p.cut;
-  p.cut = false;
-`)
-	if r.Rec {
-		m.WriteString("  if (++p.depth > p.maxDepth) {\n    p.tooDeep();\n  }\n")
-	}
-	fmt.Fprintf(m, "  let v = %s;\n", body)
-	if r.Rec {
-		m.WriteString("  p.depth--;\n")
-	}
-	m.WriteString(`  p.cut = prevCut;
-  p.trail.length = trail;
-  if (v !== undefined) {
-`)
-	if r.Novalue {
-		m.WriteString("    v = null;\n")
-	} else {
-		fmt.Fprintf(m, "    v = p.finish(%s, emptyFrame, v, start);\n", g.ruleVar(r))
-	}
-	m.WriteString(`  } else {
-    p.pos = start;
-    p.recovered.length = rec;
-  }
-  p.env = prevEnv;
-  return v;
+	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunction %s(p: Parser): R {\n%s}\n\n", r.Name, name, text)
 }
 
-`)
+// printErr records err as the error of the generation, unless one is recorded already.
+func (g *Generator) printErr(err error) {
+	if g.PrintErr == nil {
+		g.PrintErr = err
+	}
 }
 
 // tsShaper returns the library shaper of the expression e, its static shape (internal/frontend/check/value_shape.go), packed
