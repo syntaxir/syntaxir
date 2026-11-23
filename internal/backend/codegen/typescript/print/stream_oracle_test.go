@@ -365,7 +365,7 @@ rule fin = "!" #recover(skip=[^!]* "!")
 rule main = stmt* #stream fin
 rule stmt = "(" main ")" / ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;!()]* ";")
 rule fin = "!" #recover(skip=[^!()]* "!") / ""
-`, []string{"", "(a=1;b;)", "a;(b;(c=1;d;)e;)f;", "(a;(b;!)c;)", "x;(y;!z!)!", "(a=1;b;" , longNested(60)}, recoverDiagnostics},
+`, []string{"", "(a=1;b;)", "a;(b;(c=1;d;)e;)f;", "(a;(b;!)c;)", "x;(y;!z!)!", "(a=1;b;", longNested(60)}, recoverDiagnostics},
 }
 
 // limitRuns are the options of the oracle cases without recoveries: the default limits, compute limits
