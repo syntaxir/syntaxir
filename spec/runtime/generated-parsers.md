@@ -367,8 +367,9 @@ during the feed and the state `"waiting"`, `"done"` or `"failed"`. The stream fo
 the contract of [Streaming](streaming.md), with these differences:
 
 - `createStream` reads the options once and makes the check at the start; `stream`
-  is null, with the error, when they are invalid. A stream takes no trace or profile
-  options. The options apply to the whole stream, over all its feeds.
+  is null, with the error, when they are invalid. The options apply to the whole
+  stream, over all its feeds; with observability, so do the trace and profile options
+  ([Generated TypeScript Tracing and Profiling](observability.md#generated-typescript-tracing-and-profiling)).
 - `StreamOptions` are `ParseOptions` with the diagnostic options of
   [Streaming](streaming.md#recovered-errors): `diagnostic?: (e: SyntaxError) => Error | null | void`
   and `diagnosticLimit?: number`. The callback receives each committed recovered

@@ -1169,8 +1169,8 @@ export interface ParseOptions {
 }
 
 /**
- * The options of a stream (createStream): those of a parse, which a stream takes except the trace and
- * profile options, and the diagnostic options, which only a stream takes.
+ * The options of a stream (createStream): those of a parse, and the diagnostic options, which only a
+ * stream takes. The trace functions and profiles observe the stream until it ends.
  */
 export interface StreamOptions extends ParseOptions {
   /**
@@ -7043,6 +7043,11 @@ export class Stream<E = Node | null> {
         this.end(null, null, true);
         throw x.value;
       }
+      // What a trace function or the clock of a profile threw leaves the feed unchanged.
+      if (x instanceof TraceFailure && x.scope === this.o) {
+        this.end(null, null, true);
+        throw x.value;
+      }
       if (x instanceof Fatal) return this.end(null, x.err);
       if (isStackOverflow(x)) return this.end(null, new Error(`nesting too deep: the JavaScript stack overflowed at ${p.depth} nested recursive rule calls`));
       this.end(null, null, true);
@@ -7062,13 +7067,21 @@ export class Stream<E = Node | null> {
 
   // end ends the stream with the error of the parse, or with fatal if an interruption ended it, and
   // returns the result of the feed; thrown says that a value thrown from a callback ended it, which
-  // fails the stream as well. It reports the compute units and releases the controls.
+  // fails the stream as well. It reports the compute units and releases the controls and the
+  // observation, with the trace functions and profiles of the options.
   private end(error: Error | null, fatal: Error | null, thrown = false): StreamResult<E> {
     const p = this.p;
     const failed = thrown || fatal !== null || (error !== null && !(error instanceof SyntaxErrors));
     this.state = failed ? "failed" : "done";
     this.gen = null;
     p.control?.release();
+    p.observation?.release();
+    p.observation = null;
+    const o = this.o;
+    o.profiles = noProfiles;
+    o.profileClock = null;
+    o.traces = noTraces;
+    o.traceRules = [];
     const report = this.o.report;
     if (report !== null) report.units = p.control?.counted?.() ?? 0;
     return { elements: p.delivered as E[], state: this.state, error: fatal ?? error };
@@ -7077,13 +7090,12 @@ export class Stream<E = Node | null> {
 
 // createStreamBase makes the stream of the grammar g with the start rule start, whose #stream body is
 // the resumable body of the rule in bodyGens, with the options options, after their check at the
-// start; a stream rejects the options of an observed parse. convert, if not null, converts each element
-// as it is delivered, under the control of the parse. It is for generated parsers.
+// start. With trace functions or profiles, the stream parses with the parser of an observed stream
+// (ObservedStreamParser), and its observation lasts until the stream ends. convert, if not null,
+// converts each element as it is delivered, under the control of the parse. It is for generated
+// parsers.
 export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: StreamOptions | undefined, convert: ((n: Node | null, control: BudgetControl | null) => E) | null = null): { stream: Stream<E> | null; error: Error | null } {
   const snapshot: StreamOptions | undefined = optionsSnapshot(options);
-  if (snapshot?.trace != null || snapshot?.profile != null || snapshot?.traceRules !== undefined || snapshot?.traceMaxDepth !== undefined) {
-    return { stream: null, error: new Error("a stream is not observed: it takes no trace or profile options") };
-  }
   const o = resolveOptions(g, snapshot, "", true);
   if (o instanceof Error) return { stream: null, error: o };
   const requested = snapshot?.limits?.compute ?? 0;
@@ -7100,7 +7112,13 @@ export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen:
       throw x;
     }
   }
-  const p = new StreamParser(g, o.unit, seen, o.maxDepth, control, start.id);
+  let p: StreamParser;
+  if ((usedFeatures & featureObserve) !== 0 && (o.traces.length !== 0 || o.profiles.length !== 0)) {
+    p = new ObservedStreamParser(g, o.unit, seen, o.maxDepth, control, start.id);
+    p.observation = new Observation(o, p);
+  } else {
+    p = new StreamParser(g, o.unit, seen, o.maxDepth, control, start.id);
+  }
   p.expectations = o.expectations;
   p.bodyGens = bodyGens;
   const maxInput = snapshot?.limits?.input ?? 0;
@@ -7312,6 +7330,60 @@ export function observedLayer<B extends TrackedClass>(Base: B) {
 
 /** ObservedParser is the parser of an observed batch parse (observedLayer). */
 export class ObservedParser extends observedLayer(TrackedParser) {}
+
+/**
+ * ObservedStreamParser is the parser of an observed stream: the layers of an observed parse
+ * (observedLayer over trackedLayer) over the StreamParser. Its resumable calls report to the
+ * observation as the calls of ObservedParser do: callBodyGen is the resumable form of its call, and
+ * observePlainGen of observePlain.
+ */
+export class ObservedStreamParser extends observedLayer(trackedLayer(StreamParser)) {
+  // callBodyGen is the resumable form of call: the call reports its entry and its exit, with the end
+  // of the input it examined.
+  override *callBodyGen(r: Rule, min: number): Generator<number, R, void> {
+    const o = this.observation!;
+    o.enter(r.name, this.pos, min);
+    const enclosing = this.docExaminedBegin();
+    this.enterCall(r);
+    const v = !r.memo && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min) : yield* this.callTrackedGen(r, min);
+    const examined = this.docExaminedEnd(enclosing);
+    o.exit(v !== undefined, this.pos, examined);
+    return v;
+  }
+
+  override *invokeGen(r: Rule, min: number): Generator<number, R, void> {
+    this.observation!.evaluated();
+    return yield* super.invokeGen(r, min);
+  }
+
+  override *invokePlainBodyGen(r: Rule, min: number): Generator<number, R, void> {
+    this.observation!.evaluated();
+    return yield* super.invokePlainBodyGen(r, min);
+  }
+
+  // observePlainGen is the resumable form of observePlain: the observed call of the resumable function
+  // body of the plain rule name, which generated code calls directly in a stream without observation.
+  *observePlainGen(name: string, body: (p: StreamParser) => Generator<number, R, void>): Generator<number, R, void> {
+    const o = this.observation!;
+    o.enter(name, this.pos, 0);
+    o.evaluated();
+    const enclosing = this.docExaminedBegin();
+    const v = yield* body(this);
+    const examined = this.docExaminedEnd(enclosing);
+    o.exit(v !== undefined, this.pos, examined);
+    return v;
+  }
+
+  // The resumable forms of the calls of the layers, printed from Exec IR (internal/ir/code/exec/compose).
+
+  *callUnmemoizedGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *callTrackedGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+}
 
 /**
  * DocumentParser is the parser of a Document parse: every rule call takes callDocument, which

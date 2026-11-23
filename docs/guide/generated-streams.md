@@ -106,8 +106,9 @@ if (r.error !== null) throw r.error; // a syntax error, or the recovered SyntaxE
 `feed` copies the chunk and parses until it needs input that has not arrived (`"waiting"`) or the parse ends
 (`"done"` or `"failed"`). The parse suspends and resumes rather than starting again, so the elements, their positions,
 the error and the compute units are those of the Go `ParseStream` of the same input, whatever the chunks. The options
-of `createStream` (`unit`, `expectations`, `limits`, `signal`, `computeReport`) apply to the whole stream; a signal
-cancels the feed that observes it, and a value thrown from a callback or a signal leaves `feed` and fails the
+of `createStream` (`unit`, `expectations`, `limits`, `signal`, `computeReport` and, with `-observability`, `trace`,
+`profile`, `traceRules` and `traceMaxDepth`) apply to the whole stream; a signal
+cancels the feed that observes it, and a value thrown from a callback, a trace function or a signal leaves `feed` and fails the
 stream. A feed after the end returns an error and changes nothing.
 
 The diagnostic options of a stream report recovered errors (`#recover`) as they are committed, as

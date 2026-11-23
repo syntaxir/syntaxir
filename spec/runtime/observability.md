@@ -388,7 +388,8 @@ The observation options are fields of `ParseOptions`, accepted by
 `parseWithOptions`, `parseRuleWithOptions` and, when generated,
 `recognizeWithOptions`, by `parseValueWithOptions` with `-types`, and by
 `createDocument` (as defaults) and a Document's `parse` and `parseValue` (for
-one parse) with `-document`. The positional-unit APIs do not accept them, and
+one parse) with `-document`, and by `createStream` and, with `-types`,
+`createStreamValue` with `-stream`, for the whole stream. The positional-unit APIs do not accept them, and
 TypeScript has no named typed-rule entry point. A parser generated without
 observability returns an error for any of these options instead of parsing.
 
@@ -426,7 +427,11 @@ results and lookahead outcomes without their examined ranges
 reuses one reports the end stored with it. A
 Document parse reports its calls as
 [Generated Go Document Tracing and Profiling](#generated-go-document-tracing-and-profiling)
-defines, and so does its `Examined`.
+defines, and so does its `Examined`. A stream reports the events of the Go
+`ParseStream` of the same input, whatever its chunks: its trace functions
+receive them during the feeds that make the calls, and its profiles record the
+stream as one parse, which ends when the stream is done or fails. A value that a
+trace function throws leaves `feed` and fails the stream.
 
 The generated module exports `Profile` and the types `ProfileSnapshot`,
 `RuleProfile`, `CallSite` and `SkipReasonCount`. A `Profile`, made with

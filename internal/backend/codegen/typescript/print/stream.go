@@ -216,7 +216,8 @@ func (g *Generator) plainGenCall(r *common.Rule) {
 		g.printErr(err)
 		return
 	}
-	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunction* %s%s {\n%s}\n\n", r.Name, g.plainGenName(r), tsGenSignature, text)
+	name := g.tracePlainGenCall(r, g.plainGenName(r))
+	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunction* %s%s {\n%s}\n\n", r.Name, name, tsGenSignature, text)
 }
 
 // plainGenName returns the name of the resumable function of the plain rule r (plainGenCall).

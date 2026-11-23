@@ -690,6 +690,11 @@ as defaults and a Document's `parse(options)` accepts them for one parse, with
 the rules of Go Documents: trace functions and profiles add to the defaults,
 and a trace filter or depth limit replaces the default for that parse only.
 
+With `-stream`, `createStream(options)` and, with `-types`, `createStreamValue(options)` take the observation
+options for the whole stream. The trace functions receive the events of the Go `ParseStream` of the same input
+during the feeds that make the calls, whatever the chunks, and a profile records the stream as one parse that
+ends when the stream is done or fails.
+
 #### Profiling Generated TypeScript Batch Parsers
 
 Generate with `-observability` to accept profiles: `Profile` and `ProfileSnapshot` are exported by every parser, but a

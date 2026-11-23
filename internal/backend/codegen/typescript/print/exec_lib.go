@@ -264,20 +264,77 @@ func tsResuming(lib *library.Library) (map[string]bool, error) {
 // body of a rule (tsResuming), printed from the same specialized compositions under the method's name
 // with the suffix Gen as generator methods of the StreamParser class: each runs the resumable body of a
 // rule (StreamParser.bodyGens) and the resumable forms of the methods it calls with yield*, and so
-// yields the units of input that they lack; every other operation is the method's own.
+// yields the units of input that they lack; every other operation is the method's own. The parser of
+// an observed stream, ObservedStreamParser, calls rules as the parser of an observed parse does: it
+// has the resumable forms of the calls of that parser (tsObservedGens), printed for its classes.
 func tsGenMethods(lib *library.Library) ([]tsMethod, error) {
 	res, err := tsResuming(lib)
 	if err != nil {
 		return nil, err
 	}
-	t := *tsTarget
+	var out []tsMethod
+	for i, s := range tsSpecs {
+		base := tsTarget
+		switch {
+		case s.target == tsBatchClass && res[s.fn]:
+		case tsObservedGens[s.name]:
+			base = tsDocTarget
+			if s.target == tsObsClass {
+				base = tsObsTarget
+			}
+			reaches := false
+			code.Walk(lib.Funcs[i].Body, nil, func(e code.Expr) {
+				if c, ok := e.(*code.Call); ok && c.Fn == nil && (tsResumeOps[c.Callee] || res[c.Callee]) {
+					reaches = true
+				}
+			})
+			if !reaches {
+				return nil, fmt.Errorf("tslib: the method %s of an observed parse reaches no rule body, so it has no resumable form", s.name)
+			}
+		default:
+			continue
+		}
+		f := *lib.Funcs[i]
+		f.Name = s.fn
+		f.Doc = strings.TrimSpace(f.Doc) + "\nThis is its resumable form, which yields the units of input that the bodies it runs lack."
+		t := tsGenTarget(base, res)
+		src, err := Method(lib.Module, &f, t)
+		if err != nil {
+			return nil, err
+		}
+		if printed := t.FuncName(s.fn); printed != s.name+"Gen" {
+			// The method is printed under the name that calls of fn take; this form has its own.
+			head := "\n  *" + printed + "("
+			if strings.Count(src, head) != 1 {
+				return nil, fmt.Errorf("tslib: the printed method %sGen has %d heads %q", s.name, strings.Count(src, head), head)
+			}
+			src = strings.Replace(src, head, "\n  *"+s.name+"Gen(", 1)
+			if doc := "  // " + printed + " "; strings.HasPrefix(src, doc) {
+				src = "  // " + s.name + "Gen " + src[len(doc):]
+			}
+		}
+		out = append(out, tsMethod{Name: "*" + s.name + "Gen", Text: src})
+	}
+	return out, nil
+}
+
+// tsObservedGens are the methods of the parsers of observed parses whose resumable forms the parser
+// of an observed stream (ObservedStreamParser) takes: the unmemoized call of TrackedParser and the
+// memoized call of ObservedParser (callTracked), which ObservedStreamParser.callBodyGen runs.
+var tsObservedGens = map[string]bool{"callUnmemoized": true, "callTracked": true}
+
+// tsGenTarget returns the target that prints the resumable form of a method that base prints: the
+// compositions of res and the operations that run a body (tsResumeOps) are the resumable forms, which
+// yield what they yield.
+func tsGenTarget(base *Target, res map[string]bool) *Target {
+	t := *base
 	t.Generator = true
 	t.Yields = func(name string) bool { return res[name] }
 	t.FuncName = func(name string) string {
 		if res[name] {
-			return tsTarget.FuncName(name) + "Gen"
+			return base.FuncName(name) + "Gen"
 		}
-		return tsTarget.FuncName(name)
+		return base.FuncName(name)
 	}
 	t.Op = func(c *code.Call, a []string) string {
 		switch c.Callee {
@@ -296,23 +353,9 @@ func tsGenMethods(lib *library.Library) ([]tsMethod, error) {
 			o := "(" + a[0] + ".operatorsRule! as ResumableOperatorsRule)"
 			return fmt.Sprintf("(%s.skipGen === undefined ? %s.skip!(this) : (yield* %s.skipGen!(this))) !== undefined", o, o, o)
 		}
-		return tsTarget.Op(c, a)
+		return base.Op(c, a)
 	}
-	var out []tsMethod
-	for i, s := range tsSpecs {
-		if s.target != tsBatchClass || !res[s.fn] {
-			continue
-		}
-		f := *lib.Funcs[i]
-		f.Name = s.fn
-		f.Doc = strings.TrimSpace(f.Doc) + "\nThis is its resumable form, which yields the units of input that the bodies it runs lack."
-		src, err := Method(lib.Module, &f, &t)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, tsMethod{Name: "*" + s.name + "Gen", Text: src})
-	}
-	return out, nil
+	return &t
 }
 
 // tsOpTable returns the TypeScript array of the names of the operators that the failure code indexes.

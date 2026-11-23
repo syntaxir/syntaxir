@@ -614,9 +614,10 @@ func TestStreamOracleStorePolicyMutant(t *testing.T) {
 	}
 }
 
-// TestStreamOptions checks the options of a stream: it rejects the options of an observed parse and
-// invalid diagnostic options, and a parse of the whole input rejects the diagnostic options, which
-// only a stream takes.
+// TestStreamOptions checks the options of a stream: a stream of a parser generated without
+// observability rejects the options of an observed parse, as a parse of the whole input does, a stream
+// rejects invalid diagnostic options, and a parse of the whole input rejects the diagnostic options,
+// which only a stream takes.
 func TestStreamOptions(t *testing.T) {
 	t.Parallel()
 	g, err := parseTest("@start\nrule main = item* #stream !.\nrule item = [a-z]+ \";\"\n")
@@ -639,8 +640,8 @@ console.log(String(parseWithOptions("a;", { diagnosticLimit: 0 } as never).error
 console.log(String(parseWithOptions("a;", { diagnostic: null } as never).error));
 `
 	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, codegentest.GenerateTSStreamBundle)
-	want := `Error: a stream is not observed: it takes no trace or profile options
-Error: a stream is not observed: it takes no trace or profile options
+	want := `Error: trace and profile options are only supported by a parser generated with observability
+Error: trace and profile options are only supported by a parser generated with observability
 Error: diagnostic limit must be a non-negative safe integer: -1
 Error: diagnostic limit must be a non-negative safe integer: 1.5
 Error: diagnostic must be a function
@@ -649,6 +650,50 @@ null
 Error: diagnostic options are only supported for stream parsing
 Error: diagnostic options are only supported for stream parsing
 null
+`
+	if out != want {
+		t.Errorf("got\n%s\nwant\n%s", out, want)
+	}
+}
+
+// TestStreamObserved checks the lifetime of the observation of a stream: a profile records the stream as
+// one parse over all its feeds, trace functions and profiles may be arrays, a value that a trace function
+// throws leaves the feed unchanged and fails the stream, and the observation ends with the stream, so that
+// a profile records nothing of the feeds after it.
+func TestStreamObserved(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest("@start\nrule main = item* #stream !.\nrule item = [a-z]+ \";\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import { createStream, Profile } from "./parser.ts";
+const enc = (s: string) => new TextEncoder().encode(s);
+const calls = (p: Profile) => p.snapshot().parses + " " + p.snapshot().calls;
+
+const p = new Profile(), q = new Profile();
+const kinds: string[] = [];
+const a = createStream({ trace: [(e) => { kinds.push(e.kind); }, null], profile: [p, q] }).stream!;
+console.log(a.feed(enc("ab;c")).state, calls(p), calls(q));
+console.log(a.feed(enc("d;"), true).state, calls(p), calls(q), kinds.length);
+a.feed(enc(""), true);
+console.log(calls(p));
+
+const r = new Profile();
+let n = 0;
+const b = createStream({ trace: (e) => { if (e.kind === "exit" && e.rule === "item" && ++n === 2) throw "boom"; }, profile: r }).stream!;
+console.log(b.feed(enc("ab;")).state);
+try { b.feed(enc("cd;")); } catch (x) { console.log("thrown", x); }
+console.log(String(b.feed(enc("e;")).error), calls(r));
+`
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Observability: true}, codegentest.GenerateTSStreamBundle)
+	// A profile counts a call at its exit: after "ab;c" one item has exited, and the trace function
+	// throws on the exit of the second item, which the profile has recorded before.
+	want := `waiting 1 1 1 1
+done 1 4 1 4 8
+1 4
+waiting
+thrown boom
+Error: stream already failed 1 2
 `
 	if out != want {
 		t.Errorf("got\n%s\nwant\n%s", out, want)
