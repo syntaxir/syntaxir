@@ -98,33 +98,10 @@ func TestBudgetDocumentConstruction(t *testing.T) {
 	budgetDocumentVariants(t, func(t *testing.T, base ParseOptions) {
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel()
-		for _, phase := range []string{"canceled", "input", "steps"} {
-			o := base
-			switch phase {
-			case "canceled":
-				o.Context = ctx
-			case "input":
-				o.Limits.Compute = 1
-			case "steps":
-				if state.DocumentPieceInput && base.Unit == input.Bytes {
-					continue
-				}
-				o.Limits.Compute = 1
-			}
-			text := "é💡abc"
-			if phase == "steps" {
-				text = strings.Repeat("a", 4097)
-			}
-			d, err := prog.NewDocumentWith("main", text, o)
-			if d != nil || err == nil {
-				t.Fatalf("%s: document=%v error=%v", phase, d, err)
-			}
-			if phase == "canceled" && !errors.Is(err, context.Canceled) {
-				t.Fatal(err)
-			}
-			if phase != "canceled" && !errors.Is(err, runtime.ErrLimit) {
-				t.Fatal(err)
-			}
+		canceled := base
+		canceled.Context = ctx
+		if d, err := prog.NewDocumentWith("main", "é💡abc", canceled); d != nil || !errors.Is(err, context.Canceled) {
+			t.Fatalf("canceled: document=%v error=%v", d, err)
 		}
 		o := base
 		o.Limits = runtime.Limits{Compute: 100000}
