@@ -481,7 +481,8 @@ bounds the work charges for the box it makes.`,
 		Contract: `Returns the number of elements or children of n as an int.`})
 	pure(&code.Op{Name: "node.heldText", Params: []code.Param{n}, Results: []code.Type{code.THandle(Str), code.TBool},
 		Contract: `Returns the text that n holds and true if n is a string node or an error, and false otherwise. The
-text is meaningful only for a string node.`})
+text is meaningful only for a string node. In a stream, a parse that counts compute units counts one unit
+for each position unit of the range of a string node.`})
 	pure(&code.Op{Name: "node.rangeText", Params: []code.Param{n}, Results: []code.Type{code.THandle(Str)},
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
 		Contract: `Returns the input of the range of n. In a stream, a parse that counts compute units counts one unit for

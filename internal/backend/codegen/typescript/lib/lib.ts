@@ -4302,6 +4302,18 @@ export class Parser {
     return this.src.slice(from, to);
   }
 
+  // rangeText is node.rangeText: the input of the range [start, end) of a node. A stream counts it
+  // (StreamParser.rangeText).
+  rangeText(start: number, end: number): string {
+    return this.text(start, end);
+  }
+
+  // heldText is the text of node.heldText: the text that the node n holds, meaningful for a string node.
+  // A stream counts it (StreamParser.heldText).
+  heldText(n: Node): string {
+    return n.text;
+  }
+
   // recoveredError is makeError for an error that #recover records and never throws: it leaves out the
   // stack trace, which costs more than the rest of the recovery and keeps the caller's frames alive.
   recoveredError(pos: number, expected: number[]): SyntaxError {
@@ -6402,6 +6414,22 @@ export class StreamParser extends Parser {
     const s = this.unit === Bytes ? documentText(this.bs.subarray(start - this.base, end - this.base), Bytes) : codePointsString(this.cps.subarray(start - this.base, end - this.base));
     this.alloc(sliceBytes(s.length));
     return s;
+  }
+
+  // rangeText is node.rangeText. In a stream whose parse counts logical compute units, the text of a
+  // node is an event of one unit for each position unit of its result (spec/runtime/parsing.md,
+  // Compute Units), which it counts before it makes the text.
+  override rangeText(start: number, end: number): string {
+    if (this.control !== null) this.unitsSized(end - start);
+    return this.text(start, end);
+  }
+
+  // heldText is the text of node.heldText. The text that text takes from a string node is the event
+  // that rangeText counts, of the width of the node's range; an error node, whose text is the input
+  // of its range, counts there.
+  override heldText(n: Node): string {
+    if (n.terminal && this.control !== null && nodeShape(n) !== shapeError) this.unitsSized(n.end - n.start);
+    return n.text;
   }
 
   // errorLine counts the lines from base, whose line and column the discard kept: each unit of the

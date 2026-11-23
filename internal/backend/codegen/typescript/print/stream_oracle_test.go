@@ -350,6 +350,12 @@ rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;}]* ";")
 rule main = item* #stream !.
 rule item = (&([a-z]* ";") [a-z])* ";"
 `, adaptiveInputs(), nil},
+	{"text", `@start
+rule main = item* #stream !.
+rule item = k:key o:("=" / ":==") v:val ";" {text($k) != "x" && text($o) != "" && text($v) != "0"}
+rule key = [a-z]+
+rule val = [0-9]+ ("," [0-9]+)*
+`, []string{"", "a=1;", "ab:==12,3;x=1;c=4;", "a=0;", "abc=1,22,333;" + strings.Repeat("key:==12,34,56;", 120)}, limitRuns},
 	{"trailing recover", `@start
 rule main = stmt* #stream fin !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;!]* ";")
@@ -387,6 +393,10 @@ var recoverDiagnostics = []streamOptions{
 	{Callback: true, FailAt: 3},
 	{Callback: true, Compute: 300},
 }
+
+// mutantCases names the one oracle case that a mutant runs on, for a mutant of a method that only the
+// parsers of that case include.
+var mutantCases = map[string]string{"range text": "text", "held text": "text"}
 
 func ptr[T any](v T) *T { return &v }
 
@@ -705,6 +715,10 @@ func TestStreamOracleMutants(t *testing.T) {
 		{"adaptive raise", "if (c.raise(defaultBudget(d))) this.unitsCheck = c.unitsCheck();", ""},
 		// The input limit fails a stream that demands a unit past it.
 		{"input limit", "d > this.maxInput && this.n > this.maxInput", "d > this.maxInput + 1 && this.n > this.maxInput + 1"},
+		// In a stream the text of a node counts a unit for each position of its range.
+		{"range text", "if (this.control !== null) this.unitsSized(end - start);\n    return this.text(start, end);", "return this.text(start, end);"},
+		// So does the text that a string node holds.
+		{"held text", "if (n.terminal && this.control !== null && nodeShape(n) !== shapeError) this.unitsSized(n.end - n.start);", ""},
 		// The callback receives a copy of its own.
 		{"copy", "callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()))", "callback(e)"},
 	} {
@@ -718,6 +732,9 @@ func TestStreamOracleMutants(t *testing.T) {
 			}
 			found := 0
 			for _, c := range streamOracleCases {
+				if only, ok := mutantCases[m.name]; ok && c.name != only {
+					continue
+				}
 				for _, d := range runsOf(c.runs) {
 					found += len(streamOracleMismatches(t, c.src, c.inputs, d, mutate))
 				}

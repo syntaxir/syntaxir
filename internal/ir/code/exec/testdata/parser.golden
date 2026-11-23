@@ -3387,7 +3387,8 @@ op node.heldText(n Obj) (Str, bool)
   cost <= 0
   contract:
     // Returns the text that n holds and true if n is a string node or an error, and false otherwise. The
-    // text is meaningful only for a string node.
+    // text is meaningful only for a string node. In a stream, a parse that counts compute units counts one unit
+    // for each position unit of the range of a string node.
 
 host op node.rangeText(n Obj) Str
   component value

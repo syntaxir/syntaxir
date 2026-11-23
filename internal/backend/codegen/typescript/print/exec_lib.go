@@ -476,7 +476,8 @@ var tsTarget = &Target{
 		case "node.count":
 			return a[0] + ".children.length"
 		case "node.rangeText":
-			return "this.text(" + a[0] + ".start, " + a[0] + ".end)"
+			// The text of a node in a stream is an event (Parser.heldText, Parser.rangeText).
+			return "this.rangeText(" + a[0] + ".start, " + a[0] + ".end)"
 		case "str.len":
 			return "this.unitLen(" + a[0] + " as string)"
 		case "str.of":
@@ -784,7 +785,7 @@ var tsTarget = &Target{
 		case "node.heldText":
 			var lines []string
 			if dst[0] != "_" {
-				lines = append(lines, fmt.Sprintf("%s = %s.text;", lhs(dst[0]), a[0]))
+				lines = append(lines, fmt.Sprintf("%s = this.heldText(%s);", lhs(dst[0]), a[0]))
 			}
 			if dst[1] != "_" {
 				lines = append(lines, fmt.Sprintf("%s = %s.terminal;", lhs(dst[1]), a[0]))
