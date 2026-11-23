@@ -1,0 +1,6 @@
+@start
+rule s = (l / "+{" / "}")* $$
+rule l = l l? ("a" w* z z / "ab" w? l / "+{"? &l) ("x" "x"* z / !w l k? / w "+{" l "") (""* / "ab"? "a" "a" / "b"* "a" ""* "a") / l (z* / "+" l "+"? "q" / !z !z)* "q" k (""* w? / w "x"? "+") / w "b" w* z? / l "{" l? w / w / "{" "}" "}"?
+rule k = "a"
+rule w = z?
+rule z = "b" "+" "{" [ab+{]* "}" "!"
