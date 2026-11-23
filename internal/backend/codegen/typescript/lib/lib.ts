@@ -2623,6 +2623,11 @@ export class ErrList {
   }
 }
 
+// errListBytes is the storage of the list l for the memory limit: the list and its entries.
+function errListBytes(l: ErrList): number {
+  return objectBytes(1) + arrayBytes(l.entries.length);
+}
+
 // RecEntry is an entry of the record of recovered errors: an error or a shared list.
 export type RecEntry = SyntaxError | ErrList;
 
@@ -3143,18 +3148,24 @@ export class Parser {
   // values counts the bytes of the values counted since a stream last released them (allocValue).
   values = 0;
   // allocValue is alloc for the storage of a value: a node, a list, copied text, a variable
-  // environment, a memo key or a capture frame. A stream returns it when it delivers the element it
-  // was built for (StreamParser.streamRelease); the memory count of a stream bounds its window.
+  // environment or a capture frame. A stream returns it once no memo entry or skip record can
+  // reference the element it was built for (StreamParser.streamRelease and memoPrune); the memory
+  // count of a stream bounds its window.
   allocValue(n: number): void { const c = this.control; if (c !== null) { c.mem += n; this.values += n; } }
+  // chargeHeld is alloc for the storage that memo entries, skip records and the record of recovered
+  // errors share: a list of recovered errors or the key of a memo entry. A stream recounts it at a
+  // memo prune (StreamParser.recountMemoHeld).
+  chargeHeld(n: number): void { this.alloc(n); }
   // counted returns n, a node the generated code constructs, counting bytes for the memory limit.
   counted(n: Node, bytes: number): Node { this.allocValue(bytes); return n; }
   // heldBytes returns the bytes of the slots of the working stacks, by their lengths now: what the
-  // records on them hold is counted where they are made.
+  // records on them hold is counted where they are made, except the visits of the walks in progress,
+  // which a walk drops when it ends (skipHeld).
   heldBytes(): number {
     const slots = this.kidStack.length + this.saved.length + this.trail.length + this.exp.length + this.isoStack.length +
       this.recovered.length + this.gamma.length + this.depFrames.length + this.deps.length + this.popped.length +
-      this.ctxs.length + this.looks.length + this.lookExamined.length + this.lookFrom.length + this.obsGuard.length + this.skipHeld() + this.scanCold.length + this.runCold.length;
-    return 8 * slots;
+      this.ctxs.length + this.looks.length + this.lookExamined.length + this.lookFrom.length + this.obsGuard.length + this.scanCold.length + this.runCold.length;
+    return 8 * slots + this.skipHeld();
   }
   // retyped is the operation node.convert: retypeNode, counting the copy it makes.
   retyped(v: Node, typ: string): Node { const n = retypeNode(v, typ); this.allocRetyped(v, n); return n; }
@@ -3519,7 +3530,7 @@ export class Parser {
       return null;
     }
     const vals: Value[] = new Array(slots.length);
-    this.allocValue(arrayBytes(slots.length));
+    this.chargeHeld(arrayBytes(slots.length));
     for (let i = 0; i < slots.length; i++) {
       vals[i] = envGet(this.env!, slots[i]!, this.envDepth);
     }
@@ -3947,11 +3958,16 @@ export class Parser {
     return this.skips[this.skipN - 1]!;
   }
 
-  // skipHeld returns the number of slots that the walks in progress hold.
+  // skipHeld returns the bytes that the walks in progress hold: a slot for each walk, visit and value,
+  // and the record of each visit.
   skipHeld(): number {
-    let n = this.skips.length;
-    for (const w of this.skips) n += w.visits.length + w.vals.length;
-    return n;
+    let slots = this.skips.length;
+    let visits = 0;
+    for (const w of this.skips) {
+      slots += w.visits.length + w.vals.length;
+      visits += w.visits.length;
+    }
+    return 8 * slots + visits * objectBytes(9);
   }
 
   // runHot reports whether the walks of the run site keep records. A walk of a site that is not hot
@@ -4118,7 +4134,6 @@ export class Parser {
       return;
     }
     this.skipClose();
-    this.alloc(objectBytes(9));
     w.visits.push({ pos: this.pos, key: this.walkKey(), vi: w.vals.length, e0: this.recovered.length, far: 0, exp: noExp, from: 0, examined: 0, errs: null });
     w.open = true;
     // The visit measures the input it examines from its position on.
@@ -4248,8 +4263,9 @@ export class Parser {
       // The list of an iteration's errors and the rest's: a hit records the rest of the walk as one
       // entry, and each list holds an error of its own iteration, so listing k errors still visits
       // at most 2k lists.
-      r.errs = new ErrList([v.errs, rest]);
-      this.alloc(objectBytes(1) + arrayBytes(2));
+      const l = new ErrList([v.errs, rest]);
+      r.errs = l;
+      this.chargeHeld(errListBytes(l));
     }
   }
 
@@ -4527,7 +4543,7 @@ export class Parser {
       return this.recovered[rec]!;
     }
     const l = new ErrList(this.recovered.slice(rec));
-    this.allocValue(objectBytes(1));
+    this.chargeHeld(errListBytes(l));
     this.recovered.length = rec;
     this.recovered.push(l);
     return l;
@@ -6233,6 +6249,19 @@ export class StreamParser extends Parser {
   diagnostic: ((e: SyntaxError) => Error | null | void) | null = null;
   tail: DiagnosticTail | null = null;
   diagnosed = 0;
+  // The memory count of a stream returns storage only once nothing that the parse keeps references it
+  // (spec/runtime/streaming.md, Memory). errs counts the syntax errors built since the last settling of
+  // the recovered errors (streamSettleErrors). memoHeld counts what memo entries, skip records and the
+  // record of recovered errors share beyond a commit: the lists of recovered errors, the keys of memo
+  // entries, and the errors once a settling moved them from errs; a memo prune replaces it with what
+  // the holders that remain reach (recountMemoHeld). retired lists, oldest first, the values that a
+  // commit let go of with the highest position of any memo entry or skip record stored by then
+  // (memoHigh): an entry or record that starts there may reference them, so memoPrune returns them
+  // only once it has discarded every holder stored by then.
+  errs = 0;
+  memoHeld = 0;
+  memoHigh = 0;
+  retired: { bytes: number; high: number }[] = [];
 
   constructor(g: Grammar, unit: Unit, stride: number, maxDepth: number, control: BudgetControl | null, start: number) {
     super(g, new Uint8Array(0), unit, stride, maxDepth, control);
@@ -6501,6 +6530,7 @@ export class StreamParser extends Parser {
   // memoPrune would never find (spec/runtime/streaming.md, Memory).
   override memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
     if (pos < this.memoFloor) return e;
+    if (pos > this.memoHigh) this.memoHigh = pos;
     // The slots hold the positions from the memo floor on (the gap is at 0, gapLen is -memoFloor), and
     // grow to the positions that the input has reached since they were made.
     const slots = this.slots;
@@ -6538,12 +6568,112 @@ export class StreamParser extends Parser {
     }
     this.memoFloor = pos;
     this.gapLen = -pos;
+    if (c !== null) {
+      this.releaseRetired(pos);
+      this.recountMemoHeld();
+    }
+  }
+
+  // skipSlot records the position of a skip record for the values it may reference (memoHigh).
+  override skipSlot(pos: number, k: WalkKey, r: SkipRecord | null): void {
+    if (r !== null && pos > this.memoHigh) this.memoHigh = pos;
+    super.skipSlot(pos, k, r);
+  }
+
+  // releaseRetired returns, at a prune that discards the memo entries and skip records before pos,
+  // the values of the commits that no remaining holder can reference. A holder that remains starts at
+  // pos or later, and the values that a commit let go of were built before it, so a remaining holder
+  // reaches them only if it was stored by then, which no holder was if the highest position stored by
+  // then is below pos. Commits are in order and the highest position never falls, so the commits to
+  // return are the oldest ones.
+  releaseRetired(pos: number): void {
+    const c = this.control!;
+    let n = 0;
+    while (n < this.retired.length && this.retired[n]!.high < pos) {
+      c.mem -= this.retired[n]!.bytes;
+      n++;
+    }
+    this.retired.splice(0, n);
+  }
+
+  // recountMemoHeld replaces memoHeld, at a memo prune, with the bytes that the holders that remain
+  // reach: the keys of the memo entries, and the lists of recovered errors of the entries, the skip
+  // records and the record, with, under a diagnostic limit, the errors themselves, which errs counts
+  // otherwise. Each shared key, list and error counts once. It runs only under a memory limit and only
+  // if something was charged.
+  recountMemoHeld(): void {
+    const c = this.control!;
+    if (!c.memoryLimited() || this.memoHeld === 0) return;
+    const withErrors = this.tail !== null;
+    const met = new Set<object>();
+    const stack: RecEntry[] = [];
+    let bytes = 0;
+    const add = (x: Errs): void => {
+      if (x === null) return;
+      stack.push(x);
+      while (stack.length !== 0) {
+        const y = stack.pop()!;
+        if (met.has(y)) continue;
+        if (y instanceof ErrList) {
+          met.add(y);
+          bytes += errListBytes(y);
+          for (const z of y.entries) stack.push(z);
+        } else if (withErrors) {
+          met.add(y);
+          bytes += syntaxErrorBytes(y);
+        }
+      }
+    };
+    for (const head of this.slots) {
+      for (let e = head || null; e; e = e.next) {
+        add(e.errs);
+        if (e.env !== null && e.env.length > 0 && !met.has(e.env)) {
+          met.add(e.env);
+          bytes += arrayBytes(e.env.length);
+        }
+      }
+    }
+    for (const s of this.skipTables) {
+      if (s === undefined) continue;
+      for (const recs of s.recs.values()) {
+        for (const r of recs.values()) add(r.errs);
+      }
+      if (s.more !== null) {
+        for (const more of s.more.values()) {
+          for (const rs of more.values()) {
+            for (const r of rs) add(r.errs);
+          }
+        }
+      }
+    }
+    for (const x of this.recovered) add(x);
+    c.mem += bytes - this.memoHeld;
+    this.memoHeld = bytes;
+  }
+
+  // chargeHeld counts n bytes in memoHeld as well, which a memo prune recounts.
+  override chargeHeld(n: number): void {
+    const c = this.control;
+    if (c === null) return;
+    c.mem += n;
+    this.memoHeld += n;
+  }
+
+  // makeError counts the error in errs as well, which a settling moves to memoHeld.
+  override makeError(pos: number, expected: number[], bare = false): SyntaxError {
+    const e = super.makeError(pos, expected, bare);
+    if (this.control !== null) this.errs += syntaxErrorBytes(e);
+    return e;
   }
 
   // --- Delivery and commitment (the host operations of streamEmit and streamCommit) ---
 
-  // streamStart is flow.streamStart: the #stream repetition of the start rule begins.
-  streamStart(): void {}
+  // streamStart is flow.streamStart: the #stream repetition of the start rule begins. The values built
+  // before it belong to the start rule's call, which stays active for the whole stream, so the count
+  // keeps them and no release returns them.
+  streamStart(): void {
+    this.values = 0;
+  }
 
   // streamCheck is stream.check: it observes the signal, then the memory count, around a delivery.
   streamCheck(): void {
@@ -6586,9 +6716,14 @@ export class StreamParser extends Parser {
       const r = callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()));
       if (r != null) return r instanceof Error ? r : new Error("the diagnostic callback returned a value that is not an Error");
     }
-    const dropped = this.tail?.add(e) ?? null;
-    // An error that the tail no longer retains is returned to the memory count.
-    if (dropped !== null && this.control !== null) this.control.mem -= syntaxErrorBytes(dropped);
+    const tail = this.tail;
+    if (tail !== null) {
+      const dropped = tail.add(e);
+      // The tail counts the errors it retains: memo entries may still hold the error, which their
+      // count keeps (memoHeld), and the tail returns only its own count of one it no longer retains.
+      const c = this.control;
+      if (c !== null) c.mem += syntaxErrorBytes(e) - (dropped === null ? 0 : syntaxErrorBytes(dropped));
+    }
     this.control?.check();
     return null;
   }
@@ -6622,9 +6757,9 @@ export class StreamParser extends Parser {
   streamRelease(): void {
     this.trail.length = 0;
     // The values built since the last release belong to the elements delivered since: a stream hands
-    // them over, and the memory count returns them (spec/runtime/streaming.md, Memory).
-    const c = this.control;
-    if (c !== null) c.mem -= this.values;
+    // them over, but a memo entry or skip record that a prune keeps may still reference them, so the
+    // count keeps them until a prune discards every holder stored by now (releaseRetired).
+    if (this.values > 0) this.retired.push({ bytes: this.values, high: this.memoHigh });
     this.values = 0;
   }
 
@@ -6680,6 +6815,10 @@ export class StreamParser extends Parser {
   streamSettleErrors(): void {
     this.recovered.length = 0;
     this.diagnosed = 0;
+    // The tail counts the errors it retains, and only memo entries and skip records may still hold
+    // the originals, until the next prune recounts them (recountMemoHeld).
+    this.memoHeld += this.errs;
+    this.errs = 0;
   }
 
   // The methods that the compositions print (internal/ir/code/exec/compose): the delivery of an
@@ -7269,7 +7408,7 @@ export class DocumentParser extends TrackedParser {
   override memoKey(r: Rule): Binding[] | null {
     if (!r.docMemo || r.memo || r.leader || r.vars.length === 0) return super.memoKey(r);
     const vals: Binding[] = new Array(r.vars.length);
-    this.allocValue(arrayBytes(r.vars.length));
+    this.chargeHeld(arrayBytes(r.vars.length));
     for (let i = 0; i < r.vars.length; i++) {
       vals[i] = envBinding(this.env!, r.vars[i]!, this.envDepth);
     }

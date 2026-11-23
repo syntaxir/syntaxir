@@ -20,8 +20,9 @@ import (
 
 // streamMemoryCases are the grammars of the memory test, each with a function that returns an input of
 // n elements: elements whose actions build nodes and copy text out of the input, memoized rules whose
-// entries a call outside a lookahead replaces, and recovered errors with and without a diagnostic limit
-// (limit, 0 for none).
+// entries a call outside a lookahead replaces, recovery skips whose walks keep skip records, lookaheads
+// past the end of an element, and recovered errors with and without a diagnostic limit (limit, 0 for
+// none), also held by memo entries.
 var streamMemoryCases = []struct {
 	name, src string
 	input     func(n int) string
@@ -46,6 +47,14 @@ rule word = [a-z]+ "!"?
 rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
 `, func(n int) string { return strings.Repeat("a=1;b;", n) }, 2, false},
+	{"skip records", `@start
+rule main = item* #stream !.
+rule item = x / .
+rule x = ("b" #recover(skip=(word / [a-z ])*)) "c"
+rule word = [a-z]+ !"="
+`, func(n int) string { return strings.Repeat("bab abc cxbaa a!c", n) }, 1, false},
+	{"past end", streamPastEndGrammar, func(n int) string { return strings.Repeat("12;", n) }, 0, false},
+	{"recover memo", streamRecoverMemoGrammar, func(n int) string { return strings.Repeat("a=1;b;", n) }, 1, false},
 	{"recover", `@start
 rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
@@ -200,25 +209,34 @@ func TestStreamMemoryWindowMutants(t *testing.T) {
 		t.Skip("runs generated TypeScript")
 	}
 	for _, m := range []struct{ name, old, new string }{
-		// A delivered element returns the values built for it.
-		{"values", "if (c !== null) c.mem -= this.values;", ""},
+		// A prune returns the values of the elements that no remaining holder references.
+		{"values", "c.mem -= this.retired[n]!.bytes;", ""},
+		// A prune returns the recovered errors and lists that no remaining holder references.
+		{"memo held", "c.mem += bytes - this.memoHeld;", ""},
+		// The visits of a walk are held only while the walk is in progress.
+		{"skip visits", "    w.visits.push(", "    this.alloc(objectBytes(9));\n    w.visits.push("},
 		// A memo prune returns the entries and slots it drops.
 		{"memo prune", "if (c !== null && drop > 0) c.mem -=", "if (c === null && drop > 0) c.mem -="},
 		// The memo's slots cover the window, not the stream from its start.
 		{"memo slots", "return this.n + 1 + this.gapLen;", "return this.n + 1;"},
 		// A store that replaces an entry holds one entry for its key.
 		{"memo replace", "if (this.memoEntries === entries && this.control !== null) this.control.mem -= entryBytes;", ""},
-		// An error that the diagnostic tail drops is no longer held.
-		{"tail", "if (dropped !== null && this.control !== null) this.control.mem -= syntaxErrorBytes(dropped);", ""},
+		// An error that the diagnostic tail drops is no longer held by it.
+		{"tail", " - (dropped === null ? 0 : syntaxErrorBytes(dropped))", ""},
 		// A commit returns the skip marks and records before it.
 		{"skip records", "if (c !== null) c.mem -= freed;", ""},
 	} {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
+			// The library of a parser leaves out what its grammar does not use, so a mutant changes only
+			// the parsers that keep its text.
+			changed := false
 			mutate := func(src string) string {
-				if n := strings.Count(src, m.old); n != 1 {
-					t.Fatalf("the parser has %d occurrences of %q, want 1", n, m.old)
+				n := strings.Count(src, m.old)
+				if n > 1 {
+					t.Fatalf("the parser has %d occurrences of %q, want at most 1", n, m.old)
 				}
+				changed = changed || n == 1
 				return strings.Replace(src, m.old, m.new, 1)
 			}
 			found := 0
@@ -227,6 +245,9 @@ func TestStreamMemoryWindowMutants(t *testing.T) {
 					continue
 				}
 				found += len(streamMemoryProblems(t, i, [2]uint64{}, mutate))
+			}
+			if !changed {
+				t.Fatalf("no parser has %q", m.old)
 			}
 			if found == 0 {
 				t.Error("the mutant keeps the window of every stream")

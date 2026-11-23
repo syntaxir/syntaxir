@@ -144,6 +144,9 @@ export class BudgetControl {
     return true;
   }
 
+  /** memoryLimited reports whether a memory limit is set. */
+  memoryLimited(): boolean { return this.memory !== 0; }
+
   /** memoryUsed returns the count the memory limit checks: the allocated bytes and the peak of the working stacks. */
   memoryUsed(): number {
     if (this.held !== null) {
