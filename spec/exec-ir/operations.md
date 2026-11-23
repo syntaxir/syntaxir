@@ -3,7 +3,7 @@
 This chapter lists the operations on the state of a parse, by the state component they belong to; [Values](values.md)
 lists those on the values of action expressions. Each entry gives the declaration on one line, as the [text form](printing.md#catalog-entries)
 writes it, the components and registers the operation reads and writes, its cost bound (see
-[Costs](../code-ir/module.md#costs)) and its contract, with its precondition and its laws where it has them.
+[Costs](../code-ir/module.md#costs)) and its contract, with its precondition and its laws where it has them. The cost of an operation that counts no compute unit (a free operation of the conformance suites) is its work bound, not a charge: it charges nothing, and the compositions count the events around it.
 
 ## Memo Table
 
