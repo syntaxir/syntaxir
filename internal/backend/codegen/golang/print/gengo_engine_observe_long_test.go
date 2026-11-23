@@ -43,8 +43,10 @@ var (
 )
 
 // lookaheadOutcomeKill is the difference that a lookahead outcome identified without its examined end
-// makes on the case of examinedExtras made for it.
-const lookaheadOutcomeKill = `lookahead outcomes of a growth that differ only in their examined ends "a" bytes=false parse closure: the first producer has enter of r2@0`
+// makes on the case of examinedExtras made for it. Only a Document parse compares the examined ranges
+// of outcomes in a context (spec/runtime/parsing.md, Evaluations of Rules), so the difference shows in
+// the Document entry.
+const lookaheadOutcomeKill = `lookahead outcomes of a growth that differ only in their examined ends "a" bytes=false document closure: the first producer has enter of r2@0`
 
 func expecting(r engineObservationRun, want string) engineObservationRun { r.want = want; return r }
 

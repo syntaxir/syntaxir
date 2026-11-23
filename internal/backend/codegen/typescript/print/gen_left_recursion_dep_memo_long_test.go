@@ -34,7 +34,7 @@ var depMemoTSMutations = map[string][][2]string{
 		{"return !c.ctx || (c.present & ~present) === 0;\n", "return true;\n"},
 	},
 	"canonical seeds": {
-		{"if (c.e.examined === e.examined && c.e.from === e.from && c.e.errs === null && this.nodesEqual(", "if (true || this.nodesEqual("},
+		{"if ((!this.rangeKept() || c.e.examined === e.examined && c.e.from === e.from) && c.e.errs === null && this.nodesEqual(", "if (true || this.nodesEqual("},
 	},
 	"jumps over observations of the growing seed": {
 		{"if (o.v !== d.val || !o.free) {", "if (o.v !== d.val) {"},
