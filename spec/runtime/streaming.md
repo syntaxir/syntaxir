@@ -99,13 +99,19 @@ part. The position unit option changes all of them to bytes.
 The parser keeps no text for the caller. String nodes (literals, classes,
 `(...) #atomic`) carry their text in `Node.Text`; tuple and list nodes do not. `text(...)` in an action of the start rule, which runs after elements have
 been discarded, returns only the part of the node's input that is still held,
-possibly the empty string. A text in a stream costs its length, so the cost
+possibly the empty string. With the `Bytes` unit that part can begin inside a
+character, since the stream keeps one unit before an element: its text then
+holds the bytes that remain, as text holds invalid input bytes (a generated
+TypeScript parser represents each byte that does not begin a valid sequence by
+the lone surrogate U+DC00 plus the byte, see
+[Input and Positions in TypeScript](generated-parsers.md#input-and-positions-in-typescript)).
+A text in a stream costs its length, so the cost
 classes of a grammar promise for a stream their bound plus the total length of
 the texts (see [Classification](parsing.md#classification)).
 
 After an element is delivered, the input before it is discarded except for the one
-character before it, so `^` (beginning of line) still holds at the start of the next
-element. No construct of the language looks further back.
+unit before it (a byte with the `Bytes` unit), so `^` (beginning of line) still holds
+at the start of the next element. No construct of the language looks further back.
 
 ### Options
 
