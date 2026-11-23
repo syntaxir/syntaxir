@@ -250,9 +250,6 @@ func (prog *Program) rule(b Backend, name string, f state.Family, c *state.Budge
 	if err := program.EntryError(name); err != nil {
 		return nil, err
 	}
-	if prog.HasMissing && prog.backend(b) != Closure {
-		return nil, program.MissingUnsupported("bytecode backends")
-	}
 	var r *state.Rule
 	switch prog.backend(b) {
 	case Bytecode, BytecodeIterative:
@@ -516,7 +513,7 @@ func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
 	if stream && (prog.HasMissing || o.MissingTokens > 0) {
 		return program.MissingUnsupported("stream parsing")
 	}
-	if prog.backend(o.Backend) != Closure && (prog.HasMissing || o.MissingTokens > 0) {
+	if prog.backend(o.Backend) != Closure && o.MissingTokens > 0 {
 		return program.MissingUnsupported("bytecode backends")
 	}
 	return nil

@@ -94,12 +94,12 @@ rule e = #operators {
 	}
 }
 
-// TestMissingTokensModuleGuard checks that a grammar that uses #missing has no bytecode form.
-func TestMissingTokensModuleGuard(t *testing.T) {
+// TestMissingTokensModule checks that a grammar that uses #missing has a bytecode module.
+func TestMissingTokensModule(t *testing.T) {
 	t.Parallel()
 	prog := compiletest.Program(t, `rule main = ";" #missing`, check.Options{SourceInfo: true})
-	if _, err := checked.Of(prog, pass.Settings{}).Module(); err == nil || !strings.Contains(err.Error(), "bytecode module construction") {
-		t.Fatal("silent bytecode lowering", err)
+	if m, err := checked.Of(prog, pass.Settings{}).Module(); m == nil || err != nil {
+		t.Fatal(m, err)
 	}
 }
 

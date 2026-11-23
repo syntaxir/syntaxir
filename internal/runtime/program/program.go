@@ -28,7 +28,7 @@ type Program struct {
 	// StartRules holds the start rules in declaration order and DefaultStartRule the default one.
 	StartRules       []string
 	DefaultStartRule string
-	// HasMissing reports that the grammar uses #missing, which has no bytecode form.
+	// HasMissing reports that the grammar uses #missing.
 	HasMissing bool
 	// RecordsSourceInfo reports that nodes record source information.
 	RecordsSourceInfo bool

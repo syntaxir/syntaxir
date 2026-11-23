@@ -23,12 +23,8 @@ import (
 // Every rule runs its Flow body, except a rule whose body is the expression of its Operators Rule,
 // whose skip and lines run theirs. It returns the module and the number of matches of each pattern
 // of statements of the selection table by name, which depends only on the bodies. A failure is an internal
-// error: the grammar checked, so its table builds and every function of it has a Flow body. A
-// grammar that uses #missing has no bytecode form.
+// error: the grammar checked, so its table builds and every function of it has a Flow body.
 func compile(in Input) (*bytecode.Module, map[string]int, error) {
-	if in.Elab.MissingTokens() {
-		return nil, nil, program.MissingUnsupported("bytecode module construction")
-	}
 	actions := in.Table.IR.Actions.Module()
 	if actions == nil {
 		return nil, nil, fmt.Errorf("internal error: the table of the bytecode module has no Action module")

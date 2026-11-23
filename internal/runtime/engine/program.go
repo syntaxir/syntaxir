@@ -174,12 +174,8 @@ func (prog *Program) CheckStart(name string) error { return prog.Runtime().Check
 
 // Module returns the bytecode module of the program: the module of a program loaded from a
 // compiled grammar, or the compilation of a program compiled from a grammar (Source.Module), which
-// the source makes once and reuses. It panics for a program whose grammar uses #missing, which has no bytecode form,
-// and on an internal error.
+// the source makes once and reuses. It panics on an internal error.
 func (prog *Program) Module() *bytecode.Module {
-	if prog.HasMissing {
-		panic(program.MissingUnsupported("bytecode module construction"))
-	}
 	if prog.src == nil {
 		return prog.Bytecode
 	}

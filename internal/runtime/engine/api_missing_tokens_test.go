@@ -111,10 +111,11 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, backend := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
-		for _, limit := range []int{0, 2} {
-			if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(limit)); n != nil || err == nil || !strings.Contains(err.Error(), "not supported") {
-				t.Fatal(n, err)
-			}
+		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(0)); n == nil || err != nil {
+			t.Fatal(backend, n, err)
+		}
+		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(2)); n != nil || err == nil || !strings.Contains(err.Error(), "not supported") {
+			t.Fatal(backend, n, err)
 		}
 	}
 	r := &missingUnusableReader{}

@@ -257,12 +257,14 @@ encounter order; recognition returns the same diagnostics with no tree. A failed
 whole-input parse returns only its final ordinary syntax error. Each invocation
 has fresh insertion state, including concurrent and reentrant invocations.
 
-Only Closure whole-input Node parsing and recognition currently support this
-pragma. Prefix parsing, Document/streams, bytecode VMs, generated Go/TypeScript
-parsers and binary serialization reject grammars containing `#missing` or
-references to `missing`, even when insertion is disabled. Positive insertion
-options also fail on unsupported parse entry points, including `ParsePrefix`,
-even when the grammar contains no `#missing` annotation. Zero preserves strict
+Only Closure whole-input Node parsing and recognition currently insert tokens.
+The bytecode VMs parse and recognize grammars containing `#missing` with
+insertion disabled, where the annotated literal is strict, and reject a positive
+limit. Prefix parsing, Document/streams, generated Go/TypeScript parsers and
+binary serialization reject grammars containing `#missing` or references to
+`missing`, even when insertion is disabled. Positive insertion options also fail
+on unsupported parse entry points, including `ParsePrefix`, even when the
+grammar contains no `#missing` annotation. Zero preserves strict
 prefix matching for grammars without `#missing`. Grammar AST JSON and formatting
 preserve the annotation. `missing` is a built-in type, a kind of `error`: the
 annotated literal infers `node[string] | missing`, and `missing` is assignable to

@@ -117,9 +117,6 @@ func TestRunTimeBuildIsDeterministic(t *testing.T) {
 				t.Fatal(err)
 			}
 			backends := []result.Backend{result.VM, result.Closure}
-			if s.Runtime().HasMissing {
-				backends = backends[1:]
-			}
 			runtime.GOMAXPROCS(1)
 			one := observedRunTimeBuild(t, s, backends)
 			runtime.GOMAXPROCS(n)

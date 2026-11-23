@@ -122,7 +122,7 @@ const (
 	// FtNode is node[_], a node whose value is a string, a tuple or a list.
 	FtNode = 'n'
 	// FtStringNode is node[string], FtError error, the error value of recovery, and FtMissing the error value
-	// of a missing token, which only the closure backend of the engine makes.
+	// of a missing token.
 	FtStringNode = 'S'
 	FtError      = 'E'
 	FtMissing    = 'M'

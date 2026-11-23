@@ -24,8 +24,7 @@ const (
 	FtNode   = 'n'
 	FtNamed  = 'N' // a struct type or a named node type
 	// FtStringNode is node[string], FtError error, the error value of recovery, and FtMissing
-	// missing, the error value of a missing token. Grammars that refer to missing run only on the
-	// Closure backend, so generated runtimes and the bytecode type text have no FtMissing.
+	// missing, the error value of a missing token.
 	FtStringNode = 'S'
 	FtError      = 'E'
 	FtMissing    = 'M'
@@ -41,7 +40,7 @@ const (
 )
 
 // ParseFieldType reads the text of a type as ty.String writes it, resolving names against the
-// declared types (types, the set of their names); node[string], node[_] and error name
+// declared types (types, the set of their names); node[string], node[_], error and missing name
 // the kinds of node. Bytecode carries field types this way.
 func ParseFieldType(text string, types map[string]bool) (*FieldType, error) {
 	r := fieldTypeReader{text: text, types: types}
@@ -175,6 +174,8 @@ func (r *fieldTypeReader) actionExpr() (*FieldType, error) {
 			}
 		case "error":
 			t = &FieldType{Kind: FtError}
+		case "missing":
+			t = &FieldType{Kind: FtMissing}
 		case "_":
 			t = &FieldType{Kind: FtTop}
 		default:

@@ -72,12 +72,8 @@ func routes() []route {
 	var out []route
 	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		name := b.String()
-		// The bytecode backends have no form of #missing; the closure backend parses and recognizes
-		// grammars that use it.
-		wholeInput := refusesMissing
-		if b == engine.Closure {
-			wholeInput = func(grammarUses) string { return "" }
-		}
+		// Every backend parses and recognizes grammars that use #missing.
+		wholeInput := func(grammarUses) string { return "" }
 		out = append(out,
 			route{name + "/parse", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder

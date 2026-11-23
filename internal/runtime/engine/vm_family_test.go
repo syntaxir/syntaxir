@@ -25,9 +25,6 @@ func TestVMFamiliesMatchOnCorpus(t *testing.T) {
 		t.Run(c.Name, func(t *testing.T) {
 			for _, o := range []checkpkg.Options{{}, {DisableMemo: true}} {
 				prog := mustCompile(t, c.Src, o)
-				if prog.HasMissing {
-					continue
-				}
 				for _, b := range vmBackends {
 					for _, in := range c.Inputs {
 						for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {

@@ -105,14 +105,17 @@ func TestMissingTokensInsertionOnlyLeftRecursionLimits(t *testing.T) {
 	}
 }
 
-// TestMissingTokensInsertionOnlyLeftRecursionRejected checks that the backends without
+// TestMissingTokensInsertionOnlyLeftRecursionRejected checks that the entry points without
 // missing-token insertion keep rejecting a grammar whose left recursion exists only through an
-// insertion.
+// insertion, and that the bytecode VMs parse it as the closure engine does with insertion off.
 func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, statetest.InsertionCycle)
+	for _, in := range []string{"y", "(yx", "x"} {
+		checkBackends(t, prog, "main", in)
+	}
 	for _, b := range []Backend{Bytecode, BytecodeIterative} {
-		if _, err := prog.ParseWith("main", "y", ParseOptions{Backend: b}); err == nil || !strings.Contains(err.Error(), "missing") {
+		if _, err := prog.ParseWith("main", "y", ParseOptions{Backend: b, MissingTokens: 1}); err == nil || !strings.Contains(err.Error(), "missing") {
 			t.Fatalf("backend %v: %v", b, err)
 		}
 	}
