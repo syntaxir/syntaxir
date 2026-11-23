@@ -19,7 +19,7 @@ import (
 // ParseOptions holds per-parse settings.
 type ParseOptions struct {
 	// MissingTokens bounds attempted #missing insertions. Zero disables insertion.
-	// Only Closure whole-input parsing and recognition support a positive limit.
+	// Prefix parsing rejects a positive limit.
 	MissingTokens int
 	// Context cooperatively interrupts this invocation. Nil means no cancellation.
 	Context context.Context

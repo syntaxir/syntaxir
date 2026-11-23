@@ -20,8 +20,9 @@ one edit in this sense for the text, and it clears all reuse state
 ([Edits](../runtime/documents.md#edits)). Keys, lookahead states, outcomes,
 growths, the parses $\mathcal{R}$ and $\mathcal{M}$, soundness and the
 scope and assumptions are as in the [memoization proof](memoization.md#setting),
-on the text at hand. A Document does not support `#missing`
-([Construction and Ownership](../runtime/documents.md#construction-and-ownership)).
+on the text at hand, outside the missing-token mode: a Document with a
+missing-token limit keeps no result that depends on insertions
+([Missing Tokens](../runtime/documents.md#missing-tokens)).
 
 **Slots, examined ranges and position-free evaluations** are those of
 [Reuse Model](../runtime/documents.md#reuse-model). In particular, for an

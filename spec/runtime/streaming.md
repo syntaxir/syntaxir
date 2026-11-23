@@ -118,6 +118,17 @@ element. No construct of the language looks further back.
 
 A `Parser` supports any number of concurrent stream parses; each has its own state.
 
+### Missing Tokens
+
+With a positive `WithMissingTokens(n)`, a stream parse inserts missing tokens for
+[`#missing`](../language/pragmas.md#missing) as the batch parse of its input
+does: it delivers the elements of the batch result, with the same insertions and
+recovered errors, and fails where the batch parse fails. The limit `n` holds for
+the whole stream, not for each element. A delivered element fixes the insertions
+before its end, which no backtracking reaches; a parse that exhausts the limit
+returns a `*MissingTokenLimitError`, and the elements delivered before stay
+delivered.
+
 ## Validation and Errors
 
 The following are compile-time errors for `#stream`. A grammar can report more
@@ -202,7 +213,6 @@ provide `ParseStream` and `Iterate` when generated with streaming enabled, and
 typed variants with typed values; see [Generated Parsers](generated-parsers.md).
 Generated TypeScript parsers have no stream entry point and treat `#stream` as an
 ordinary repetition. A `Document` is always parsed as a whole and does not stream.
-Grammars that use `#missing` cannot be used in a stream parse.
 
 ## Conformance
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/runtime/document"
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 )
 
@@ -17,9 +16,6 @@ func (prog *Program) NewDocument(start, text string) (*document.Document, error)
 // NewDocumentWith creates a Document with options such as the position unit. Positions passed
 // to Edit use the same unit.
 func (prog *Program) NewDocumentWith(start, text string, o ParseOptions) (d *document.Document, err error) {
-	if prog.HasMissing || o.MissingTokens != 0 {
-		return nil, program.MissingUnsupported("Document parsing")
-	}
 	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
 		return nil, err
 	}
@@ -41,7 +37,9 @@ func (prog *Program) NewDocumentWith(start, text string, o ParseOptions) (d *doc
 	if err := prog.checkMode(o, true); err != nil {
 		return nil, err
 	}
-	_, _, c, err := prog.admitParse(start, o, state.CallPreserving, false, text)
+	// With a missing-token limit, active is the insertion program, which every parse of the
+	// Document runs: the limit is fixed at construction.
+	active, _, c, err := prog.admitParse(start, o, state.CallPreserving, false, text)
 	if err != nil {
 		return nil, err
 	}
@@ -49,7 +47,7 @@ func (prog *Program) NewDocumentWith(start, text string, o ParseOptions) (d *doc
 	in := state.NewControlledDocumentInput(text, o.Unit, c)
 	c.Check()
 	in.Control = nil // construction counters never become parse defaults
-	return document.New(prog, start, prog.backend(o.Backend), o, in), nil
+	return document.New(active, start, prog.backend(o.Backend), o, in), nil
 }
 
 // NewChangeDocumentWith creates a Document with NewDocumentWith and enables its

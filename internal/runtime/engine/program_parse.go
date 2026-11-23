@@ -437,14 +437,19 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 	if err := prog.checkMode(o, false); err != nil {
 		return err
 	}
-	_, rule, control, err := prog.admitParse(start, o, optionsFamily(o), true, "")
+	active, rule, control, err := prog.admitParse(start, o, optionsFamily(o), true, "")
 	if err != nil {
 		return err
 	}
 	defer reportCompute(o, control)
 	control.Check()
-	p := state.NewControlledStreamParser(&prog.sharedProgram, r, o.Unit, control)
+	p := state.NewControlledStreamParser(&active.sharedProgram, r, o.Unit, control)
 	p.SetTuning(o.Tune)
+	if o.MissingTokens > 0 && active.HasMissing {
+		// One limit for the whole stream. The insertions before a committed element stay on the
+		// path, as no backtracking reaches them, so the stream inserts what the batch parse does.
+		p.Missing, p.MissingLen = &state.MissingTokenState{Limit: o.MissingTokens}, 0
+	}
 	control.AttachMemory(p)
 	// A limit beyond math.MaxInt bounds no stream.
 	if lim := o.Limits.Input; lim != 0 && lim != sxirruntime.Unlimited && lim <= math.MaxInt {
@@ -461,10 +466,17 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 		// A diagnostic-only stream still needs element commit boundaries.
 		p.Emit = func(*value.Node) error { return nil }
 	}
+	if p.Missing != nil && o.Tune.MissingMut == state.MissingLimitPerElement {
+		emit := p.Emit
+		p.Emit = func(n *value.Node) error {
+			p.Missing.Attempts = 0
+			return emit(n)
+		}
+	}
 	if state.StreamPrefixIsolation && p.Emit == nil {
 		p.NodeChunks = 0 // No callback: collect the ordinary repetition instead.
 	}
-	p.Descs = prog.descs(o.Backend, optionsFamily(o))
+	p.Descs = active.descs(o.Backend, optionsFamily(o))
 	if o.Traced() {
 		p.SetTrace(o.Trace, o.Profiles)
 		p.SelectTrace(o.TraceSelection)
@@ -480,7 +492,7 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 			}
 			panic(x)
 		}
-		recoverParse(x, prog.backend(o.Backend), &err)
+		recoverParse(x, active.backend(o.Backend), &err)
 	}()
 	control.Check()
 	p.SeedVars()
@@ -508,12 +520,10 @@ func (prog *Program) ParseStreamWith(start string, r io.Reader, emit func(*value
 	return err
 }
 
-func (prog *Program) admitMissing(o ParseOptions, stream bool) error {
+// admitMissing rejects a negative missing-token limit.
+func admitMissing(o ParseOptions) error {
 	if o.MissingTokens < 0 {
 		return fmt.Errorf("missing token limit must be nonnegative")
-	}
-	if stream && (prog.HasMissing || o.MissingTokens > 0) {
-		return program.MissingUnsupported("stream parsing")
 	}
 	return nil
 }

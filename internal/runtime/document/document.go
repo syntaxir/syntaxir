@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"weak"
 
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -107,14 +106,8 @@ func (d *Document) ParseWith(o state.ParseOptions) (*value.Node, error) {
 // parseWithCapture keeps parsing and result capture inside one interruption and
 // cleanup boundary. capture uses the same controller as the parser.
 func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Parser, *value.Node, error) error) (n *value.Node, err error) {
-	if d.runner.Shared().HasMissing || o.MissingTokens != 0 {
-		return nil, program.MissingUnsupported("Document parsing")
-	}
-	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
+	if err := d.checkOptions(o); err != nil {
 		return nil, err
-	}
-	if o.Unit != d.in.Unit || d.runner.SelectBackend(o.Backend) != d.back || o.Recognize || o.Expectations != d.defaults.Expectations {
-		return nil, fmt.Errorf("document parse cannot change unit, backend, recognition mode or expectations")
 	}
 	if o.ComputeReport != nil {
 		*o.ComputeReport = 0
@@ -187,6 +180,12 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 		Runs: runs, LastRuns: lastRuns, KidStack: d.kids}
 	p.Control = c
 	p.SetTuning(o.Tune)
+	if o.MissingTokens > 0 && p.Prog.HasMissing {
+		// Each parse has the whole limit, as a parse from scratch of the text has. The memo keeps
+		// no result of a rule that can insert and the runs keep no element that reached an
+		// insertion, so a later parse reuses no insertion and no attempt of this one.
+		p.Missing = &state.MissingTokenState{Limit: o.MissingTokens}
+	}
 	if c != nil && lim.Memory != 0 {
 		c.SetRetained(d.historyBytes())
 		c.AttachMemory(p)
@@ -226,6 +225,19 @@ func (d *Document) parseWithCapture(o state.ParseOptions, capture func(*state.Pa
 		p.FreeEnd(m)
 	}
 	return n, err
+}
+
+// checkOptions rejects the options of a parse that the Document cannot run: stream diagnostics, and a
+// unit, backend, recognition mode, expectations mode or missing-token limit other than those of its
+// construction. A rejected parse changes nothing, not even the change notifications.
+func (d *Document) checkOptions(o state.ParseOptions) error {
+	if err := state.ValidateStreamDiagnostics(o, false); err != nil {
+		return err
+	}
+	if o.Unit != d.in.Unit || d.runner.SelectBackend(o.Backend) != d.back || o.Recognize || o.Expectations != d.defaults.Expectations || o.MissingTokens != d.defaults.MissingTokens {
+		return fmt.Errorf("document parse cannot change unit, backend, recognition mode, expectations or missing-token limit")
+	}
+	return nil
 }
 
 // finishParse transfers reusable state before any traced parser is detached.

@@ -65,34 +65,30 @@ func once(text string, rec *examinedref.Recorder, err error, missing bool) []obs
 	return []observedParse{{text: text, calls: append([]examinedref.Observed(nil), rec.Calls...), err: err, missing: missing}}
 }
 
-// routes are the routes of every backend: Parse with expectations, Recognize, ParseStream, a Document
-// parsed before and after edits, and Parse with token insertion, which only the closure backend
-// supports.
+// routes are the routes of every backend: Parse with expectations, Recognize, ParseStream and a
+// Document parsed before and after edits, which run every grammar, and Parse with token insertion,
+// which the closure backend checks.
 func routes() []route {
 	var out []route
 	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		name := b.String()
-		// Every backend parses and recognizes grammars that use #missing.
-		wholeInput := func(grammarUses) string { return "" }
+		every := func(grammarUses) string { return "" }
 		out = append(out,
 			route{name + "/parse", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				_, err := p.OnBackend(b).Parse(in, append(traced(&rec, u), engine.WithExpectations())...)
 				return once(in, &rec, err, false)
-			}, wholeInput, examinedref.EveryAction},
+			}, every, examinedref.EveryAction},
 			route{name + "/recognize", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).Recognize(in, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}, wholeInput, examinedref.ReadActions},
+			}, every, examinedref.ReadActions},
 			route{name + "/stream", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, traced(&rec, u)...)
 				return once(in, &rec, err, false)
 			}, func(uses grammarUses) string {
-				if r := refusesMissing(uses); r != "" {
-					return r
-				}
 				if !uses.stream {
 					return "rule main has no #stream repetition"
 				}
@@ -100,7 +96,7 @@ func routes() []route {
 			}, examinedref.EveryAction},
 			route{name + "/document", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return documentParses(p.OnBackend(b), in, u)
-			}, refusesMissing, examinedref.EveryAction},
+			}, every, examinedref.EveryAction},
 		)
 	}
 	out = append(out, route{"closure/insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {

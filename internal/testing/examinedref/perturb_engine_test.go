@@ -14,8 +14,8 @@ import (
 
 // perturbProgram is a compiled case of the engine tests.
 type perturbProgram struct {
-	name, alpha     string
-	stream, missing bool
+	name, alpha string
+	stream      bool
 	// dep is the dependence of a parse without token insertion, and insertDep of one with it.
 	dep, insertDep examinedref.Dependence
 	parser         *engine.Parser
@@ -50,7 +50,7 @@ func perturbPrograms(t *testing.T) []perturbProgram {
 			dep[i] = examinedref.Dependence{Variables: vars, Cycles: cycles}
 		}
 		out = append(out, perturbProgram{name: c.Name, alpha: examinedref.GrammarAlphabet(g), stream: uses.stream,
-			missing: uses.missing, dep: dep[0], insertDep: dep[1], parser: p, inputs: c.Inputs})
+			dep: dep[0], insertDep: dep[1], parser: p, inputs: c.Inputs})
 	}
 	return out
 }
@@ -58,9 +58,8 @@ func perturbPrograms(t *testing.T) []perturbProgram {
 // perturbRoute is a route of an observed engine parse. run parses the text s on backend b in unit u for
 // the change point change and returns its trace, or false when the route cannot run that parse (an edit
 // that the Document refuses). Every route but edit parses s alone and ignores change. runs reports
-// whether the route runs a grammar on the backend: the routes refuse grammars with #missing outside the
-// closure backend's whole-input parses, and a stream parse needs #stream in the start rule
-// (TestExaminedOracle checks those refusals).
+// whether the route runs a grammar on the backend: a stream parse needs #stream in the start rule
+// (TestExaminedOracle checks that refusal).
 type perturbRoute struct {
 	name string
 	run  func(p *engine.Parser, b engine.Backend, u input.PositionUnit, base string, change int, s string) ([]examinedref.Event, bool)
@@ -72,31 +71,29 @@ func tracing(tr *[]examinedref.Event, u input.PositionUnit) []engine.ParseOption
 	return []engine.ParseOption{engine.WithUnit(u), engine.WithTrace(func(e engine.TraceEvent) { *tr = append(*tr, traceEventOf(e)) })}
 }
 
-// wholeInputRuns is the refusal of the whole-input parses: only the closure backend runs #missing.
-func wholeInputRuns(p perturbProgram, b engine.Backend) bool {
-	return !p.missing || b == engine.Closure
-}
+// everyGrammar runs every grammar on every backend.
+func everyGrammar(perturbProgram, engine.Backend) bool { return true }
 
 // perturbRoutes are the routes of TestExaminedOracle: Parse with expectations, Recognize, ParseStream, the
-// first parse of a Document, the parse of a Document after an edit, and Parse with token insertion,
-// which only the closure backend supports. The result and the error of a parse are not compared: the
-// trace has every call that the result depends on.
+// first parse of a Document, the parse of a Document after an edit, and Parse with token insertion.
+// The result and the error of a parse are not compared: the trace has every call that the result
+// depends on.
 var perturbRoutes = []perturbRoute{
 	{"parse", func(p *engine.Parser, b engine.Backend, u input.PositionUnit, _ string, _ int, s string) ([]examinedref.Event, bool) {
 		var tr []examinedref.Event
 		_, _ = p.OnBackend(b).Parse(s, append(tracing(&tr, u), engine.WithExpectations())...)
 		return tr, true
-	}, wholeInputRuns},
+	}, everyGrammar},
 	{"recognize", func(p *engine.Parser, b engine.Backend, u input.PositionUnit, _ string, _ int, s string) ([]examinedref.Event, bool) {
 		var tr []examinedref.Event
 		_ = p.OnBackend(b).Recognize(s, tracing(&tr, u)...)
 		return tr, true
-	}, wholeInputRuns},
+	}, everyGrammar},
 	{"stream", func(p *engine.Parser, b engine.Backend, u input.PositionUnit, _ string, _ int, s string) ([]examinedref.Event, bool) {
 		var tr []examinedref.Event
 		_ = p.OnBackend(b).ParseStream(strings.NewReader(s), func(*value.Node) error { return nil }, append(tracing(&tr, u), engine.WithExpectations())...)
 		return tr, true
-	}, func(p perturbProgram, _ engine.Backend) bool { return p.stream && !p.missing }},
+	}, func(p perturbProgram, _ engine.Backend) bool { return p.stream }},
 	{"document", func(p *engine.Parser, b engine.Backend, u input.PositionUnit, _ string, _ int, s string) ([]examinedref.Event, bool) {
 		var tr []examinedref.Event
 		d, err := p.OnBackend(b).NewDocument(s, engine.WithUnit(u), engine.WithExpectations())
@@ -104,7 +101,7 @@ var perturbRoutes = []perturbRoute{
 			_, _ = d.Parse(tracing(&tr, u)...)
 		}
 		return tr, true
-	}, func(p perturbProgram, _ engine.Backend) bool { return !p.missing }},
+	}, everyGrammar},
 	// The reparse of a Document of base after the edit that replaces base from the change point on with
 	// the rest of s, which Perturbations keeps equal to base before the change point: the original's
 	// own text and each perturbation's are put there into a Document of the original, so that the edits
@@ -123,12 +120,12 @@ var perturbRoutes = []perturbRoute{
 		var tr []examinedref.Event
 		_, _ = d.Parse(tracing(&tr, u)...)
 		return tr, true
-	}, func(p perturbProgram, _ engine.Backend) bool { return !p.missing }},
+	}, everyGrammar},
 	{"insertion", func(p *engine.Parser, b engine.Backend, u input.PositionUnit, _ string, _ int, s string) ([]examinedref.Event, bool) {
 		var tr []examinedref.Event
 		_, _ = p.OnBackend(b).Parse(s, append(tracing(&tr, u), engine.WithMissingTokens(missingLimit))...)
 		return tr, true
-	}, func(_ perturbProgram, b engine.Backend) bool { return b == engine.Closure }},
+	}, everyGrammar},
 }
 
 // TestEnginePerturbation checks the examined ends of the engine by perturbation (examinedref.Perturb and,
@@ -189,9 +186,7 @@ func TestEnginePerturbation(t *testing.T) {
 				for _, route := range perturbRoutes {
 					r := totals[route.name]
 					if r == nil {
-						if route.name != "insertion" || b == engine.Closure {
-							t.Errorf("%s %s %s: no case runs the route", b, u.name, route.name)
-						}
+						t.Errorf("%s %s %s: no case runs the route", b, u.name, route.name)
 						continue
 					}
 					t.Logf("%s %s: %d inputs (%d too long), %d perturbations (%d dropped, %d refused): %d identical, %d diverged in a call (%d exits checked, %d exempt, %d growing), %d diverged outside calls",

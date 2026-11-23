@@ -23,6 +23,10 @@ type MissingTokenState struct {
 	installed       map[MissingTokenSite]bool
 	Seeds           map[*MemoEntry][]MissingTokenEvent // no slice added to every ordinary memo entry
 	label           ExpID                              // outermost enclosing @error, or zero
+	// Reached counts the arrivals at an insertion site outside a lookahead and the insertions
+	// replayed: what the parse did depends on the insertions while it changes, so a Document
+	// keeps no run of the repetition elements in which it changed (runClean).
+	Reached int
 	// seedBytes counts the events of the seeds recorded, for the memory limit.
 	seedBytes uint64
 }
@@ -119,6 +123,7 @@ func (p *Parser) ReplayMissing(events []MissingTokenEvent, errs RecEntry) {
 // records the errors one by one, one for each of errs (spec/runtime/parsing.md#compute-units).
 func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charge bool) {
 	p.countUnits(len(events))
+	p.Missing.Reached += len(events)
 	var duplicate map[*value.SyntaxError]bool
 	for _, event := range events {
 		if p.Missing.installed[event.Site] {
@@ -190,6 +195,7 @@ func (p *Parser) InsertMissingAt(site int, exp []ExpID) (*value.SyntaxError, boo
 	if p.Missing == nil || p.Silent > 0 {
 		return nil, false
 	}
+	p.Missing.Reached++
 	key := MissingTokenSite{site, p.Pos}
 	if p.Missing.installed[key] {
 		return nil, false

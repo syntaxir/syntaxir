@@ -41,13 +41,20 @@ type Tuning struct {
 	// SkipMut, when not 0, breaks the records: a reused record leaves out one part of what it
 	// records (SkipKeepPos and the other Skip constants), or walks never record (SkipNeverRecord).
 	SkipMut int
-	// RunMut, when not 0, breaks the condition on seed reads under which a run is recorded
-	// (RunOpenGrowthsOnly).
+	// RunMut, when not 0, breaks the condition on seed reads (RunOpenGrowthsOnly) or on insertions
+	// (RunIgnoresInsertions) under which a run is recorded.
 	RunMut int
 	// MemoMut, when not 0, breaks one check of the dependency memo (the Ctx constants name the
 	// checks).
 	MemoMut int
+	// MissingMut, when not 0, breaks the missing-token limit of a stream parse
+	// (MissingLimitPerElement).
+	MissingMut int
 }
+
+// MissingLimitPerElement gives each element of a stream the whole missing-token limit, rather
+// than the stream one limit (Tuning.MissingMut).
+const MissingLimitPerElement = 1
 
 // RunHotSpan returns the run-site hot span of the parse; that of the zero value is the charge
 // model's.

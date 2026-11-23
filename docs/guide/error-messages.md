@@ -213,8 +213,7 @@ Things to keep in mind:
 - `SyntaxErrors` is a slice type, so `errors.As` needs a variable of that type, not a pointer type.
 - The message of an `error` value (`Node.Text()`) is the formatted string `line:col: text`. The structured data (`Line`, `Col`,
   `Expected`) is only in the `SyntaxErrors` that `Parse` returns.
-- `Parser.ParseStream` and `Document.Parse` report consuming recovery errors in the same way; `#missing` is not supported
-  by those entry points. With the `Recognize` option there is no
+- `Parser.ParseStream` and `Document.Parse` report consuming recovery errors and `#missing` insertions in the same way. With the `Recognize` option there is no
   tree, so a recovering parse returns a nil node together with the `SyntaxErrors`.
 
 ## Writing Readable Messages

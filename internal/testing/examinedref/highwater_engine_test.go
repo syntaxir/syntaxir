@@ -24,7 +24,7 @@ func TestEngineStreamHighWater(t *testing.T) {
 			for _, u := range perturbUnits {
 				parses, ended := 0, 0
 				for _, p := range progs {
-					if !p.stream || p.missing {
+					if !p.stream {
 						continue
 					}
 					for _, in := range p.inputs {

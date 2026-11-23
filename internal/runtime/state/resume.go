@@ -25,9 +25,9 @@ import (
 //
 // An element's result must depend only on the input it examined, as for a memo result: repetitions
 // whose elements have predicates or call rules that read variables are not resumed, nor is a run
-// that recovered errors or read the seed of a growing left recursion, even of a growth that started
-// and ended within the run (readSeedIn). Elements are
-// moved past an edit only if their values contain no position values.
+// that recovered errors, reached a #missing insertion site (reachedInsertionIn) or read the seed of
+// a growing left recursion, even of a growth that started and ended within the run (readSeedIn).
+// Elements are moved past an edit only if their values contain no position values.
 
 // RunSite is a repetition that can be resumed (compiler.repeat).
 type RunSite struct {
@@ -80,6 +80,7 @@ type RunState struct {
 	Old                     []RunElem // the run that this one takes over, updated in place
 	Mid, Post               []RunElem
 	rec0, seedReads0        int
+	reached0                int // the insertion sites reached at the start (MissingTokenState.Reached)
 	gamma0, log0            int // for RunOpenGrowthsOnly: the growths open and the reads logged at the start
 }
 
@@ -90,6 +91,9 @@ func (p *Parser) RunInit(r *RunState, site, min, max int, shiftable bool) {
 	*r = RunState{Key: RunKey{site, p.Pos}, Min: min, Max: max, Shiftable: shiftable, J: -1,
 		EditStart: maxInt, EditEnd: maxInt, rec0: len(p.Recovered), seedReads0: p.SeedReads,
 		gamma0: len(p.gamma), log0: len(p.seedReadLog), Mid: r.Mid[:0], Post: r.Post[:0]}
+	if p.Missing != nil {
+		r.reached0 = p.Missing.Reached
+	}
 }
 
 // runTakeHere is run.takeHere.
@@ -140,7 +144,18 @@ func (p *Parser) runAdd(r *RunState, after bool, start, end, from, examined, far
 
 // runClean is run.clean.
 func (p *Parser) runClean(r *RunState) bool {
-	return len(p.Recovered) == r.rec0 && !p.readSeedIn(r)
+	return len(p.Recovered) == r.rec0 && !p.readSeedIn(r) && !p.reachedInsertionIn(r)
+}
+
+// RunIgnoresInsertions records a run whose elements reached an insertion site (Tuning.RunMut).
+const RunIgnoresInsertions = 2
+
+// reachedInsertionIn reports whether an element of the run r reached an insertion site or replayed
+// an insertion. Such an element depends on the insertions before it and takes the attempts of the
+// limit, both of which a later parse has anew, even where it recovered no error: its insertion
+// backtracked, or the site had inserted at the position already.
+func (p *Parser) reachedInsertionIn(r *RunState) bool {
+	return p.Missing != nil && p.Missing.Reached != r.reached0 && p.tune.RunMut != RunIgnoresInsertions
 }
 
 // runRecord is run.record.

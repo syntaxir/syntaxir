@@ -11,7 +11,6 @@ import (
 	"weak"
 
 	value "syntaxir.dev/sxir/internal/runtime/nodes"
-	"syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -346,16 +345,18 @@ func (d *Document) SnapshotWith(o state.ParseOptions) (*Snapshot, error) {
 }
 
 // interruptsSnapshot reports whether err is an exhausted limit of the invocation, which publishes no
-// snapshot. The depth limit is not one: a parse nested too deeply is a run-time error of the parse, which
-// a snapshot records as it records the error of an action.
+// snapshot: a resource limit, or the missing-token limit, so that the snapshot published before stays
+// the last one. The depth limit is not one: a parse nested too deeply is a run-time error of the
+// parse, which a snapshot records as it records the error of an action.
 func interruptsSnapshot(err error) bool {
 	var le *runtime.LimitError
-	return errors.As(err, &le) && le.Kind != runtime.LimitDepth
+	var me *runtime.MissingTokenLimitError
+	return errors.As(err, &le) && le.Kind != runtime.LimitDepth || errors.As(err, &me)
 }
 
 func (d *Document) snapshotWith(o state.ParseOptions, legacy **sxirvalue.Node) (*Snapshot, error) {
-	if d.runner.Shared().HasMissing || o.MissingTokens != 0 {
-		return nil, program.MissingUnsupported("Document parsing")
+	if err := d.checkOptions(o); err != nil {
+		return nil, err
 	}
 	var observed *snapshotContext
 	if o.Context != nil {

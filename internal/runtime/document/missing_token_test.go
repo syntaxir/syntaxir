@@ -25,10 +25,10 @@ func TestMissingTokensDocumentChangesRejectionPreservesBaseline(t *testing.T) {
 		t.Fatal("missing comparison baseline")
 	}
 	if n, err := d.ParseWith(ParseOptions{MissingTokens: 1}); n != nil || err == nil {
-		t.Fatal("tracked parse accepted unsupported option", n, err)
+		t.Fatal("tracked parse changed the missing-token limit", n, err)
 	}
 	if s, err := d.SnapshotWith(ParseOptions{MissingTokens: 1}); s != nil || err == nil {
-		t.Fatal("snapshot accepted unsupported option", s, err)
+		t.Fatal("snapshot changed the missing-token limit", s, err)
 	}
 	if events := d.DrainChanges(); len(events) != 0 || d.ChangeBaseline() != baseline {
 		t.Fatal("rejected option changed notifications or baseline", events)

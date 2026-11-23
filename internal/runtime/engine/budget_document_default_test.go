@@ -427,18 +427,30 @@ func TestBudgetDocumentWorkWithinFactorOfFresh(t *testing.T) {
 	}
 }
 
-// The missing-token mode is not available to a Document parse, so no rule is excluded from the
-// memoization of a Document by it (docOnlyMemo tests the mode only for the sake of completeness, and
-// the unit test of docOnlyMemo covers it).
-func TestDocumentRejectsMissingTokens(t *testing.T) {
+// TestDocumentMissingTokensUnderDefaultLimits checks that a Document parse with missing-token
+// insertion runs under the default limits on every backend and returns what a parse of its text
+// from scratch returns, before and after an edit that takes the separators away: the rules that
+// contain #missing are evaluated again, and the rest reused.
+func TestDocumentMissingTokensUnderDefaultLimits(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, "rule main = item* $$\nrule item = word sep\nrule word = \"a\"+ #atomic\nrule sep = \";\" #missing")
-	o := ParseOptions{Backend: Closure, MissingTokens: 10}
-	d, err := prog.NewDocumentWith("main", "aa;a;", o)
-	if err == nil {
-		_, err = d.ParseWith(o)
-	}
-	if err == nil || !strings.Contains(err.Error(), "not supported for Document parsing") {
-		t.Fatalf("a Document parse with missing tokens: got %v", err)
+	for _, back := range []Backend{Closure, Bytecode, BytecodeIterative} {
+		o := ParseOptions{Backend: back, MissingTokens: 10}
+		d, err := prog.NewDocumentWith("main", strings.Repeat("aa;a;", 100), o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, edit := range []int{-1, 2, 7} {
+			if edit >= 0 {
+				if err := d.Edit(edit, edit+1, ""); err != nil {
+					t.Fatal(err)
+				}
+			}
+			n, err := d.ParseWith(o)
+			got, want := codegentest.ResultJSON(n, err), codegentest.ResultJSON(prog.ParseWith("main", d.Text(), o))
+			if got != want {
+				t.Fatalf("%v, parse %d: %s, want %s", back, i, got, want)
+			}
+		}
 	}
 }

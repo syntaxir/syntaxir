@@ -231,8 +231,7 @@ func CompileGrammar(g *ast.Grammar, opts ...Option) (runtime.Parser, error) {
 
 // NewReferenceParser compiles the grammar src to the reference parser, which runs the grammar's
 // Core IR as Go closures. It is the parser that the other backends are tested against; it is
-// slower than the parser of Compile, and the only one that inserts missing tokens
-// (runtime.WithMissingTokens). Its Documents have only the methods of runtime.Document.
+// slower than the parser of Compile. Its Documents have only the methods of runtime.Document.
 func NewReferenceParser(src grammar.Source, opts ...Option) (runtime.Parser, error) {
 	p, err := load(src, newOptions(opts))
 	if err != nil {

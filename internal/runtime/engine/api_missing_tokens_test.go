@@ -99,20 +99,13 @@ func TestMissingTokensConcurrentReentrantAndRetry(t *testing.T) {
 	}
 }
 
-type missingUnusableReader struct{ calls int }
-
-func (r *missingUnusableReader) Read([]byte) (int, error) {
-	r.calls++
-	panic("unsupported entry read input")
-}
-
 func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	p, err := compileTestSource(`rule main = (";" #missing)* #stream $$`, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A parse of the whole input inserts on every backend, as the Closure does; only the stream
-	// paths below refuse insertion.
+	// A parse of the whole input inserts on every backend, as the Closure does; only the generators
+	// below refuse #missing.
 	want, wantErr := p.Parse(";", engine.WithMissingTokens(2))
 	for _, backend := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
 		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(0)); n == nil || err != nil {
@@ -123,18 +116,39 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 			t.Fatal(backend, n, err, "want", want, wantErr)
 		}
 	}
-	r := &missingUnusableReader{}
-	if err := p.ParseStream(r, func(*value.Node) error { t.Fatal("unsupported stream emitted"); return nil }, engine.WithMissingTokens(2)); err == nil {
-		t.Fatal("stream accepted insertion")
+	// Stream parses, iterators and Documents insert as the parse of the whole input does.
+	var streamed []string
+	streamErr := p.ParseStream(strings.NewReader(";"), func(n *value.Node) error {
+		streamed = append(streamed, fmt.Sprint(n))
+		return nil
+	}, engine.WithMissingTokens(2))
+	if fmt.Sprint(streamErr) != fmt.Sprint(wantErr) || len(streamed) == 0 {
+		t.Fatal("stream", streamed, streamErr, "want", wantErr)
 	}
-	if it, err := p.Iterate(r, engine.WithMissingTokens(2)); it != nil || err == nil {
-		t.Fatal(it, err)
+	it, err := p.Iterate(strings.NewReader(";"), engine.WithMissingTokens(2))
+	if err != nil {
+		t.Fatal(err)
 	}
-	if r.calls != 0 {
-		t.Fatal("rejected stream touched reader")
+	var iterated []string
+	for {
+		n, ok, err := it.Next()
+		if !ok {
+			if fmt.Sprint(err) != fmt.Sprint(wantErr) {
+				t.Fatal("iterator", err, "want", wantErr)
+			}
+			break
+		}
+		iterated = append(iterated, fmt.Sprint(n))
 	}
-	if d, err := p.NewDocument(";", engine.WithMissingTokens(2)); d != nil || err == nil {
-		t.Fatal(d, err)
+	if fmt.Sprint(iterated) != fmt.Sprint(streamed) {
+		t.Fatal("iterator", iterated, "stream", streamed)
+	}
+	doc, err := p.NewDocument(";", engine.WithMissingTokens(2))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n, err := doc.Parse(); fmt.Sprint(n) != fmt.Sprint(want) || fmt.Sprint(err) != fmt.Sprint(wantErr) {
+		t.Fatal("document", n, err, "want", want, wantErr)
 	}
 	// A compiled grammar keeps #missing: the loaded parser inserts as the source does.
 	data, err := p.MarshalBinary()
@@ -169,7 +183,8 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// A Document fixes the limit at construction.
 	if n, err := d.Parse(engine.WithMissingTokens(1)); n != nil || err == nil {
-		t.Fatal("existing Document enabled insertion", n, err)
+		t.Fatal("existing Document changed its missing-token limit", n, err)
 	}
 }

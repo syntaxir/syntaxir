@@ -66,7 +66,7 @@ not narrow what SyntaxIR is for.
 | Segment | What they need | Incumbents | Switching cost | SyntaxIR today |
 |:--|:--|:--|:--|:--|
 | Go teams that own a DSL, configuration, query or policy language | Typed values, good errors, bounded cost, plain `go build` | Hand-written parsers, goyacc, pigeon, pointlander/peg, participle, ANTLR Go runtime; embedding CEL (cel-go) or Expr where an expression language fits | Low to medium: a grammar rewrite per language | Partial fit: typed generated Go, declared recovery, a default depth cap, stdlib only. Compute limits must be generated in and enabled (1.30–1.47× slower on generated Go); no memory or input-size cap; no grammar classifier |
-| Go developer tools for a custom language (linters, formatters, servers) | Incremental trees that tolerate errors, in pure Go | tree-sitter through cgo, gotreesitter, gpeg, hand-written | Medium: tree-sitter grammars and queries are reusable assets | Partial: engine `Document` and declared recovery ship. A `Document` has no `#missing`, so an unclosed construct with no `#recover` path yields no tree. There is no language server for user grammars and no UTF-16 position map |
+| Go developer tools for a custom language (linters, formatters, servers) | Incremental trees that tolerate errors, in pure Go | tree-sitter through cgo, gotreesitter, gpeg, hand-written | Medium: tree-sitter grammars and queries are reusable assets | Partial: engine `Document` and declared recovery, `#missing` included, ship; an unclosed construct with no `#recover` or `#missing` path yields no tree. There is no language server for user grammars and no UTF-16 position map |
 | The same parser in a Go backend and in TypeScript | Identical results on both sides | ANTLR (Go, JavaScript and TypeScript targets), tree-sitter (Go binding or gotreesitter, plus `web-tree-sitter`), two hand-written parsers | Medium | Partial: generated TypeScript has no `Document` or streaming, positions are not UTF-16, and nesting is limited by Node's stack |
 | Stream and log processing of grammar-defined record formats | Bounded memory, throughput | Hand-written scanners, format-specific decoders | Low | Partial: memory is bounded; CSV streaming is <!-- fig:stream-vs-std -->11.5×<!-- /fig --> slower than `encoding/csv` |
 | Editors needing highlighting for many languages | Grammar corpus, queries, editor embedding | tree-sitter, gotreesitter, Lezer, TextMate grammars | High: corpora, queries and editor integrations | Weak: no highlighting output, no corpus |
@@ -581,13 +581,12 @@ for untrusted input; the goals below make it so.
   - `#recover` on every backend.
   - A language server and VS Code extension for `.sxir` sources.
 - **Not editor-grade yet.**
-  - A `Document` returns a tree only if the grammar's `#recover` rules handle each error. `#missing` is unavailable in
-    a `Document`.
+  - A `Document` returns a tree only if the grammar's `#recover` and `#missing` annotations handle each error.
   - Edit application grows with document size, and memory is 5.6× the tree.
   - There is no changed-range API, no language server or highlighting for user grammars, and no UTF-16 position map.
   - SyntaxIR is therefore not recommended for reparsing on every keystroke without these qualifiers.
-- **Goal: editor-grade error tolerance.** A tree for every buffer state in a `Document`, through `#missing` in
-  `Document`s and on every backend, or through recovery that needs fewer annotations. Further goals: a language
+- **Goal: editor-grade error tolerance.** A tree for every buffer state in a `Document`, through `#missing`, which
+  engine `Document`s run and generated parsers do not yet, or through recovery that needs fewer annotations. Further goals: a language
   server for a user grammar, a public position map including UTF-16, an action-free concrete-tree mode, measured
   recovery quality and an end-to-end edit-latency benchmark.
 

@@ -31,8 +31,8 @@ the document is created; see [Positions](parsing.md#positions).
 
 A `Document` has one owner and is not safe for concurrent use; a `Parser` is safe
 for concurrent use. A document is always parsed as a whole: `#stream` has no
-effect on it and it is not a stream parse. Grammars that use `#missing` are
-rejected.
+effect on it and it is not a stream parse. `WithMissingTokens` fixes the
+missing-token limit of every parse ([Missing Tokens](#missing-tokens)).
 
 For `Bytes`, construction can charge no budget, because a large immutable
 input need not be scanned or copied. For `CodePoints`, initialization decodes and
@@ -89,8 +89,9 @@ replacement never joins with the text around it.
 `doc.Parse(opts...)` parses the current text using the construction defaults
 overridden by the options of the call; `WithLimits` overrides only the nonzero
 fields it sets ([Default Limits](parsing.md#default-limits)). Context, limits and
-tracing MAY vary per call; the unit, backend, start rule and non-recognition mode
-MUST NOT, and an option that tries to change them is an error. Counters reset on
+tracing MAY vary per call; the unit, backend, start rule, non-recognition mode
+and missing-token limit MUST NOT, and an option that tries to change them is an
+error. Counters reset on
 each call. Results and errors are those of `Parser.Parse`, including recovered
 `SyntaxErrors`.
 
@@ -218,6 +219,24 @@ tables MAY be retained; incomplete tables are never published. The text and
 options stay available for retry or editing. A retry with fresh controls MUST
 produce the result of parsing the current text from scratch. Syntax errors and
 recovered errors are completed outcomes and keep their reusable caches.
+
+### Missing Tokens
+
+With a positive `WithMissingTokens(n)` at construction, every parse of a
+Document inserts missing tokens for [`#missing`](../language/pragmas.md#missing)
+as a parse of its text from scratch with that limit does: each `Parse` and
+`Snapshot` has the whole limit `n`, and attempts of earlier parses do not count.
+No result that depends on insertions reaches a later parse. A parse with
+insertion memoizes no rule that contains `#missing`, directly or through the
+rules it calls ([Evaluations of Rules](parsing.md#evaluations-of-rules)), and
+records no run during which an iteration reached a `#missing` literal outside a
+lookahead or restored an insertion ([Reuse Model](#reuse-model)); so a result
+that a later parse reuses has neither inserted a token nor taken an attempt. A
+parse that exhausts the limit returns a `*MissingTokenLimitError` and no result,
+and clears the memo and the runs as an [interruption](#interruption) does;
+`Snapshot` returns a nil snapshot, so the snapshot published before stays the
+latest. A grammar that uses `#missing` parses with strict literals when the
+limit is zero.
 
 ### Reuse
 
@@ -378,7 +397,9 @@ at least 16 iterations.
   current result of a growth, directly or through an entry stored by a call
   that did, even of a growth that started and ended within the run, nor
   reused a result that read one; a run during which such a read or reuse
-  happened is not recorded.
+  happened is not recorded. In a parse with missing-token insertion, no
+  iteration reached a `#missing` literal outside a lookahead or restored an
+  insertion ([Missing Tokens](#missing-tokens)).
 - *Resuming.* A repetition resumes a record only outside a lookahead and a
   `skip`, in one of two ways. **Whole**: the record of the same repetition at
   the same position, stored earlier in the same parse, or by an earlier parse
@@ -596,10 +617,11 @@ edit: edits that follow an outcome are not part of it.
 | Condition | Result |
 |:--|:--|
 | `NewDocument` with `Recognize`, an unavailable backend or an unknown start rule | Error; no document |
-| A grammar that uses `#missing`, or a `WithMissingTokens` limit other than zero, in `NewDocument` or `Parse` | Error; no document or result |
+| A negative `WithMissingTokens` limit in `NewDocument` | Error; no document |
 | `Edit` range outside the text, or inside a character in `Bytes` | Error; text and version unchanged |
 | `EditBatch` with a foreign or stale version, unordered or overlapping edits, repeated starts or invalid ranges | The whole batch is rejected |
-| Parse option that changes unit, backend, start rule or mode | Error before execution; caches and statistics kept |
+| Parse option that changes unit, backend, start rule, mode or missing-token limit | Error before execution; caches and statistics kept |
+| Missing-token limit exhausted during `Parse` or `Snapshot` | `*MissingTokenLimitError`, no result and a nil snapshot; execution state cleared ([Missing Tokens](#missing-tokens)) |
 | Cancellation, or a compute or memory limit, during `Parse` | Error and no result; execution state cleared |
 | Cancellation or a memory limit during `Snapshot`, or a compute limit during its parse | Nil snapshot and a fatal error |
 | Unsupported field value type while freezing | Nil snapshot and `*SnapshotCaptureError` |

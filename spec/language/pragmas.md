@@ -197,8 +197,8 @@ not accepted.
 
 ## `#missing`
 
-`#missing` takes no arguments and may annotate only a nonempty literal. In
-Closure whole-input parsing or recognition, a positive `WithMissingTokens(n)`
+`#missing` takes no arguments and may annotate only a nonempty literal. In a
+parse that supports insertion, a positive `WithMissingTokens(n)`
 allows that literal to insert its entire expected string when the ordinary
 match fails. Omission or zero disables insertion. A negative effective limit
 is a configuration error; parse options resolve once in order, last value wins.
@@ -257,10 +257,16 @@ encounter order; recognition returns the same diagnostics with no tree. A failed
 whole-input parse returns only its final ordinary syntax error. Each invocation
 has fresh insertion state, including concurrent and reentrant invocations.
 
-Whole-input Node parsing and recognition insert tokens on the Closure and on
-both bytecode VMs, with the same results, diagnostics and compute units, and a
-compiled grammar keeps the insertions of its mode. Prefix parsing,
-Document/streams and generated Go/TypeScript parsers reject grammars containing
+Whole-input Node parsing, recognition, Documents and stream parses insert
+tokens on the Closure and on both bytecode VMs, with the same results,
+diagnostics and compute units, and a compiled grammar keeps the insertions of
+its mode. A Document fixes the limit at construction and gives each parse the
+whole limit; it keeps no result that contains an insertion, so each parse
+returns what a parse of its text from scratch returns
+([Missing Tokens](../runtime/documents.md#missing-tokens)). A stream parse has
+one limit for the whole stream and inserts what the batch parse of its input
+does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). Prefix parsing
+and generated Go/TypeScript parsers reject grammars containing
 `#missing` or references to `missing`, even when insertion is disabled. Positive insertion options also fail
 on unsupported parse entry points, including `ParsePrefix`, even when the
 grammar contains no `#missing` annotation. Zero preserves strict

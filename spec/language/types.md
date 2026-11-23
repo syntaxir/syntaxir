@@ -166,7 +166,7 @@ kind:
 | `tuple` | Tuple nodes: values of sequences, and of [Operators Rule operators](operators-rule.md#concrete-syntax-tree) without an action, unless the rule is declared with a [named node type](operators-rule.md#named-node-types) | `node[(T1, T2, ...)]` |
 | `list` | List nodes: values of repetitions | `node[[]T]` |
 | `error` | Error values: ranges skipped by [error recovery](pragmas.md#recover) | `error` |
-| `missing` | Opt-in literal insertions with empty text/range and `expected`/`message` string fields; Closure whole-input parsing only | `missing` |
+| `missing` | Opt-in literal insertions ([`#missing`](pragmas.md#missing)) with empty text/range and `expected`/`message` string fields | `missing` |
 
 The kind names in the first column are names of node kinds, not types:
 diagnostics name these values by the types in the third column, which are as

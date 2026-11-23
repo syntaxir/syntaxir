@@ -128,7 +128,7 @@ conversion ([Generated Typed Values](guide/generated-typed-values.md)). The engi
 values.
 
 **Recovery is declared in the grammar.** `#recover(skip=e)` resumes after a broken construct and leaves an error value
-in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses on the closure backend
+in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses, streams and `Document`s on every backend of the engine
 ([Recovering From Errors](guide/recovery.md)). Recovery is not automatic: when no `#recover` rule covers an error,
 the parse fails with no tree.
 
@@ -166,7 +166,7 @@ Status is per backend. "Engine" covers the closure backend and the two bytecode 
 | Incremental `Document` | Shipped | Partial (`-document`: no long-repetition resumption, batches or snapshots) | Not available |
 | Streaming (`#stream`) | Shipped | Shipped (`-stream`) | Not available |
 | Recovery with `#recover` | Shipped | Shipped | Shipped |
-| Missing-literal insertion (`#missing`) | Closure whole-input parses only, opt-in; not in a `Document` | Not available | Not available |
+| Missing-literal insertion (`#missing`) | Opt-in, on every backend, in whole-input parses, streams and `Document`s | Not available | Not available |
 | Nesting limit, on by default | 100,000 calls (iterative VM: 10,000,000) | 100,000 calls, `-max-depth` | 100,000 calls; on Node's default stack, a few hundred to a few thousand calls (an error, not a crash) |
 | Cancellation and compute limits, on by default | Shipped | Shipped (`-no-limits` opts out) | Shipped (`-no-limits` opts out) |
 | Tracing and profiling | Shipped | Shipped (`-observability`) | Batch parsers (`-observability`) |
@@ -277,8 +277,8 @@ planned to reach them.
 - **Two targets and one engine language.** Parsers are generated for Go and TypeScript only, and only the Go VMs
   implement the bytecode.
 - **Not yet editor-grade.**
-  - A `Document` returns a tree only if the grammar's `#recover` rules handle each error. `#missing` is not available
-    in a `Document`, so a buffer with an unclosed construct that no `#recover` rule covers gets an error, not a tree.
+  - A `Document` returns a tree only if the grammar's `#recover` and `#missing` annotations handle each error, so a
+    buffer with an unclosed construct that neither covers gets an error, not a tree.
   - Applying an `Edit` takes time that grows with the document. At 100,000 lines, replacing one digit takes about
     0.33–0.36 ms, mostly copying the text (Apple silicon, Go 1.27.1, guide program). A length-changing edit also
     shifts the reused entries after it; that cost is not measured separately.
@@ -290,7 +290,7 @@ planned to reach them.
   - There is no language server, highlighting, formatter or UTF-16 position map for a language defined with SyntaxIR; the
     language server and the VS Code extension serve `.sxir` grammar sources.
 - **Backend gaps.** Generated TypeScript has no streaming and no `Document`; generated Go has a `Document` subset;
-  `#missing` runs only on the closure backend
+  generated parsers do not run `#missing`
   ([Compatibility and Support](../spec/runtime/generated-parsers.md#compatibility-and-support)).
 - **Language gaps.** No imports or multi-file grammars; case-insensitive matching folds ASCII only.
 - **Evidence base.** Benchmarks come from one machine (Apple M3 Max) and compare only with the Go standard library.
@@ -306,7 +306,7 @@ tables describe documented behavior; they are not benchmarks.
 
 | Tool | Model | Incremental reparse | Error recovery | Streaming input | Typed output |
 |:--|:--|:--|:--|:--|:--|
-| SyntaxIR (pre-release) | PEG-based, packrat memoization, left recursion, Operators Rule, predicates | No annotations; reuse depends on rule structure; result stated equal to a fresh parse and fuzz-tested (engine; generated Go subset) | Declared: `#recover` skip; `#missing` in closure whole-input parses | `#stream` elements, bounded working set | Go structs, `TNode[T]`, sealed interfaces; TypeScript interfaces |
+| SyntaxIR (pre-release) | PEG-based, packrat memoization, left recursion, Operators Rule, predicates | No annotations; reuse depends on rule structure; result stated equal to a fresh parse and fuzz-tested (engine; generated Go subset) | Declared: `#recover` skip; `#missing` insertion (engine) | `#stream` elements, bounded working set | Go structs, `TNode[T]`, sealed interfaces; TypeScript interfaces |
 | tree-sitter 0.27.1 | LR(1) with GLR for declared conflicts | Subtree reuse, any grammar; changed ranges; `tree-sitter fuzz` tests random edits | Automatic, grammar-independent; a tree for every input | Input read in chunks; whole tree built | Dynamic nodes; `node-types.json` for code generators |
 | gotreesitter 0.56.0 | tree-sitter parse tables, pure-Go runtime | Subtree reuse; equality with fresh parses is a requirement of its v1 design plan | tree-sitter's automatic recovery; partial trees on early stops | Not documented | Typed Go structs for query matches (`cmd/tsquery`); dynamic nodes |
 | Lezer (`@lezer/lr` 1.4.11) | LR with opt-in GLR | Fragment reuse, any grammar | Automatic | Chunked input; whole tree built | Untyped nodes by design |

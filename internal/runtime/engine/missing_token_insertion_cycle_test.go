@@ -106,11 +106,10 @@ func TestMissingTokensInsertionOnlyLeftRecursionLimits(t *testing.T) {
 	}
 }
 
-// TestMissingTokensInsertionOnlyLeftRecursionRejected checks that the entry points without
-// missing-token insertion keep rejecting a grammar whose left recursion exists only through an
-// insertion, and that the bytecode VMs, and the compiled grammar loaded on them, parse it as the
-// closure engine does, with insertion off and on.
-func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
+// TestMissingTokensInsertionOnlyLeftRecursionBackends checks that the bytecode VMs, the compiled grammar
+// loaded on them and Documents parse a grammar whose left recursion exists only through an
+// insertion as the closure engine does, with insertion off and on.
+func TestMissingTokensInsertionOnlyLeftRecursionBackends(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, statetest.InsertionCycle)
 	data, err := prog.MarshalBinary("main")
@@ -134,10 +133,23 @@ func TestMissingTokensInsertionOnlyLeftRecursionRejected(t *testing.T) {
 			}
 		}
 	}
-	if err := prog.ParseStream("main", strings.NewReader("y"), func(*value.Node) error { return nil }); err == nil {
-		t.Fatal("stream parsing accepted the grammar")
-	}
-	if _, err := prog.NewDocument("main", "y"); err == nil {
-		t.Fatal("documents accepted the grammar")
+	// A Document grows the cycle as the parse from scratch does, on every backend.
+	for _, b := range append([]Backend{Closure}, vmBackends...) {
+		for _, limit := range []int{0, 1, 2} {
+			o := ParseOptions{Backend: b, Expectations: true, MissingTokens: limit}
+			d, err := prog.NewDocumentWith("main", "y", o)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, in := range []string{"y", "(yx", "x"} {
+				if err := d.Edit(0, len([]rune(d.Text())), in); err != nil {
+					t.Fatal(err)
+				}
+				n, err := d.ParseWith(o)
+				if got, want := codegentest.ResultJSON(n, err), codegentest.ResultJSON(prog.ParseWith("main", in, o)); got != want {
+					t.Errorf("document %q limit %d %v: %s, want %s", in, limit, b, got, want)
+				}
+			}
+		}
 	}
 }
