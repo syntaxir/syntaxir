@@ -170,7 +170,7 @@ var imms = map[string]reflect.Type{
 	OpGuardFails:      reflect.TypeFor[Guard](),
 	OpGuardLitFails:   reflect.TypeFor[Guard](),
 	OpAtAnchor:        reflect.TypeFor[Anchor](),
-	OpSkipTerminal:    reflect.TypeFor[Terminal](),
+	OpSkipTerminal:    reflect.TypeFor[TerminalProgram](),
 	OpSkipClasses:     reflect.TypeFor[ClassRun](),
 	OpCallRule:        reflect.TypeFor[RuleCall](),
 	OpCallOutline:     reflect.TypeFor[Outline](),

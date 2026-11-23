@@ -23,10 +23,9 @@ import (
 //
 // The operations that record expectations are flow.expect (a message, or an expectation that is
 // not fixed), flow.mergeRenamed, flow.matchLit (the empty literal records the quoted empty text),
-// flow.matchClass and flow.skipClasses. A terminal program (flow.skipTerminal) numbers the
-// expectations of its grammar expression as it is printed, so a table that runs one is not numbered
-// here and Expectations returns an error.
-func Expectations(tables ...*plandata.Table[code.Exec]) ([]string, error) {
+// flow.matchClass, flow.skipClasses and flow.skipTerminal, whose terminal program records its
+// expectations in the order of its Exps (prim.TerminalProgram).
+func Expectations(tables ...*plandata.Table[code.Exec]) []string {
 	srcs := make([]funcSource, len(tables))
 	for i, t := range tables {
 		m := t.Module.Module()
@@ -53,7 +52,7 @@ func NumberedExpectations(p *plandata.Program, tables []*plandata.Table[code.Exe
 		}
 		srcs[i] = funcSource{prim.TablesOf(parts[0].Module.Module()), fs}
 	}
-	return number(srcs)
+	return number(srcs), nil
 }
 
 // merged returns the functions of the parts, whose plans hold disjoint parts of the functions of the
@@ -126,7 +125,7 @@ type funcSource struct {
 }
 
 // number numbers the expectation table of the functions srcs, in order (Expectations).
-func number(srcs []funcSource) ([]string, error) {
+func number(srcs []funcSource) []string {
 	descs := append([]string(nil), core.FixedDescs...)
 	seen := make(map[string]bool, len(descs))
 	for _, d := range descs {
@@ -140,7 +139,6 @@ func number(srcs []funcSource) ([]string, error) {
 	}
 	for _, src := range srcs {
 		t := src.t
-		var err error
 		var expr func(code.Expr)
 		expr = func(e code.Expr) {
 			switch e := e.(type) {
@@ -176,8 +174,12 @@ func number(srcs []funcSource) ([]string, error) {
 						add(t.Exp(t.Class(c).Exp))
 					}
 				case flow.OpSkipTerminal:
-					if err == nil {
-						err = fmt.Errorf("internal error: the expectations of a terminal program are numbered as it is printed")
+					for _, x := range e.Imm.(prim.TerminalProgram).Exps {
+						if x == prim.TerminalEmptyLit {
+							add(strconv.Quote(""))
+						} else {
+							add(t.Exp(x))
+						}
 					}
 				}
 			}
@@ -229,9 +231,6 @@ func number(srcs []funcSource) ([]string, error) {
 		for _, f := range src.funcs {
 			block(f.Body)
 		}
-		if err != nil {
-			return nil, err
-		}
 	}
-	return descs, nil
+	return descs
 }

@@ -77,7 +77,7 @@ or a suffix copy, and nothing else.
 | `flow.guardFails` | ch rune, more bool | bool | `guard` | Reports that the guard of a class skips its alternative: the character that more (there is one) and ch describe is not in the class, and the nesting limit allows the guard's depth of calls. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
 | `flow.guardLitFails` |  | bool | `guard` | Reports that the guard of a literal skips its alternative: the input at the position does not begin with the literal's first character, and the nesting limit allows the guard's depth of calls. It compares the character as the literal does and examines what the literal would ([Slots](../runtime/documents.md#reuse-model)): in code points the character at the position; in bytes the UTF-8 encoding of the character byte by byte, up to the first byte that differs, or the end of the input, except U+FFFD, which also matches one invalid byte and so decodes the character; a folded character matches an ASCII letter in either case. It reads no further input than it examines. In a stream parse the read costs what loading the input costs; in a Document parse it records how far the parse examined the input. A guard counts no [compute unit](../runtime/parsing.md#compute-units): it examines the next character without advancing. |
 | `flow.atAnchor` |  | bool | `anchor` | Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing. |
-| `flow.skipTerminal` |  | bool | `terminal` | Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. Its guards may decode the character at the position where `flow.guardLitFails` compares bytes: it runs only in functions that record no examined input, charge nothing and read no stream, and decoding admits the same characters. It counts the position units that each of its terminals advances over, again after the program backtracks. |
+| `flow.skipTerminal` |  | bool | `terminalprogram` | Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. Its guards may decode the character at the position where `flow.guardLitFails` compares bytes: it runs only in functions that record no examined input, charge nothing and read no stream, and decoding admits the same characters. It counts the position units that each of its terminals advances over, again after the program backtracks. |
 | `flow.skipClasses` |  | bool | `classrun` | Matches the classes of the run in turn and reports whether they matched; on a match the position moves past them. On failure the position is past the classes that matched, at the one that did not, whose expectation it records there; the code that fails returns to its mark. It counts the position units of each character it advances over, those before a class that fails included. |
 | `flow.callRule` |  | value, bool | `rulecall` | Calls the rule from the Operators Rule level. Its results are the rule's value and whether it matched; on a match the position is the end of the rule's match, on failure it is unchanged. The call counts its unit and the key of a memoized rule, as the composition call does. |
 | `flow.callOutline` |  | value, bool | `outline` | Runs the node of the outlined call, which a function of its own lowers, under the current frame. Its results are the value of the node, built if Build, and whether it matched. |
@@ -157,8 +157,13 @@ name without the package. The immediates are the following; a listing prints eac
 - `anchor`: the kind of an anchor: the beginning or the end of the input or of a line.
 - `classrun`: a run of single characters of classes, as the classes in turn.
 - `shape`: the static shape of a value.
-- `terminal`: the value-free terminal expression of a terminal region that the operation matches: case-sensitive
-  literals and classes, as `lit` and `classid` name them, in sequences, choices, options and negative lookaheads.
+- `terminalprogram`: the program of the value-free terminal expression of a terminal region that the operation
+  matches, made of case-sensitive literals and classes in sequences, choices, options and negative lookaheads. The pass
+  that writes the operation assembles the expression into the operations of the runtime's terminal program, with a
+  guard on each alternative of a choice that begins with a literal or a class. The program holds its classes as ranges
+  and its literals as text, and its expectations as `expid` names them, in the order in which it first records them;
+  the empty literal's is its quoted text, `""`. A printer only numbers those expectations in its parser and names the
+  classes and literals.
 
 ## Quantities
 

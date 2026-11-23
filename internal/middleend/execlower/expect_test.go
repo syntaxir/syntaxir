@@ -76,10 +76,7 @@ func TestNumberedExpectationsMergeTheParts(t *testing.T) {
 	unreachable := table(entry{b, "B"}, entry{d, "D"},
 		entry{outlined(1, 0, "B/outline0", "n2"), "n2"}, entry{outlined(1, 1, "B/outline1", "n5"), "n5"},
 		entry{outlined(3, 0, "D/outline0", "n4"), "n4"}, entry{outlined(1, 2, "B/outline0/outline0", "n3"), "n3"})
-	want, err := Expectations(whole)
-	if err != nil {
-		t.Fatal(err)
-	}
+	want := Expectations(whole)
 	p := &plandata.Program{Numbered: []plandata.Numbered{{Full: full, Parts: []int{0, 1}}}}
 	got, err := NumberedExpectations(p, []*plandata.Table[code.Exec]{printed, unreachable})
 	if err != nil {
@@ -91,11 +88,29 @@ func TestNumberedExpectationsMergeTheParts(t *testing.T) {
 	if !slices.Equal(want[len(core.FixedDescs):], []string{"A", "B", "C", "D", "n1", "n2", "n5", "n4", "n3"}) {
 		t.Errorf("the full table numbers %q", want)
 	}
-	concat, err := Expectations(printed, unreachable)
+	concat := Expectations(printed, unreachable)
+	if slices.Equal(concat, want) {
+		t.Error("the parts numbered one after the other give the order of the full table, which leaves the merge untested")
+	}
+}
+
+// TestExpectationsOfATerminalProgram checks that a terminal program records its expectations in the
+// order of its Exps, the empty literal's as its quoted text, after those that come before it.
+func TestExpectationsOfATerminalProgram(t *testing.T) {
+	exps := []string{"a", "b", "c"}
+	m := &code.Module{Name: "t", Stage: Stage, Attrs: &prim.Tables{Exps: exps}}
+	m.Funcs = []*code.Func{{Name: "f", Body: &code.Block{Stmts: []code.Stmt{
+		&code.Do{Call: &code.Call{Callee: Prim(flow.OpMatchLit), Imm: prim.Lit{Text: "b", Exp: 1}}},
+		&code.Do{Call: &code.Call{Callee: Prim(flow.OpSkipTerminal), Imm: prim.TerminalProgram{Exps: []prim.ExpID{2, prim.TerminalEmptyLit, 1, 0}}}},
+	}}}}
+	plan := &plandata.Plan{}
+	plan.Add(&plandata.FuncSpec{Key: plandata.Key{Use: plandata.RuleBody}, Func: lowerdata.Func{Form: lowerdata.Frame, Name: "f"}})
+	x, err := plandata.NewTable(plan, &plandata.TableIR{M: &core.Module{Exps: exps}}, code.At[code.Exec]{}.With(m))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if slices.Equal(concat, want) {
-		t.Error("the parts numbered one after the other give the order of the full table, which leaves the merge untested")
+	got := Expectations(x)[len(core.FixedDescs):]
+	if want := []string{"b", "c", `""`, "a"}; !slices.Equal(got, want) {
+		t.Errorf("numbered %q, want %q", got, want)
 	}
 }

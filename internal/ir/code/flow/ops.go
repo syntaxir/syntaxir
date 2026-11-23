@@ -483,7 +483,7 @@ guard counts no compute unit: it examines the next character without advancing, 
 		Contract: "Reports whether the position is at the anchor. It counts no compute unit: it examines input without advancing.", Laws: []string{pure}}), "the anchor (prim.Anchor)", immOf[prim.Anchor]())
 	withImm(op(&code.Op{Name: OpSkipTerminal, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QTerminal),
 		Contract: "Runs the terminal region as one program from the position and reports whether it matched; on a match the position moves past it. It counts the position units that each of its terminals advances over, again after the program backtracks (spec/runtime/parsing.md#compute-units)."}),
-		"the terminal region (Terminal)", immOf[prim.Terminal]())
+		"the terminal program of the region (TerminalProgram)", immOf[prim.TerminalProgram]())
 	withImm(op(&code.Op{Name: OpSkipClasses, Results: []code.Type{b}, Reads: pos, Writes: []string{State, prim.Pos}, NoReturn: true, Cost: per(QClasses),
 		Contract: `Matches the classes of the run in turn and reports whether they matched; on a match the position moves past them.
 On failure the position is past the classes that matched, at the one that did not, whose expectation it records

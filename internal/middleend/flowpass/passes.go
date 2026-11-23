@@ -52,7 +52,9 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			return pipe.Feature(c, TargetFeature).Terminals && !pipe.Feature(c, ObserveFeature) &&
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Frame && leanTyped(a) })
 		},
-		Run: run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a) }),
+		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
+			return run(func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a, prim.TablesOf(u.Module())) })(c, u)
+		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -141,13 +143,18 @@ func failIf(form *flow.Form, cond code.Expr) code.Stmt {
 }
 
 // terminals matches each terminal region of a local function of typed rules in the ordinary form as
-// one program.
-func terminals(fn *code.Func, a *flow.Attrs) {
+// one program, the region's expression assembled with the tables t (prim.Assemble). A region whose
+// program does not fit the words of its code keeps its statements.
+func terminals(fn *code.Func, a *flow.Attrs, t *prim.Tables) {
 	for _, r := range a.Forms.Regions {
 		if !r.Live() || r.Build {
 			continue
 		}
-		r.Block.Stmts = []code.Stmt{failIf(r, code.Not(&code.Call{Callee: flow.OpSkipTerminal, Imm: r.Terminal}))}
+		p, ok := prim.Assemble(r.Terminal, t)
+		if !ok {
+			continue
+		}
+		r.Block.Stmts = []code.Stmt{failIf(r, code.Not(&code.Call{Callee: flow.OpSkipTerminal, Imm: p}))}
 		r.By = PassTerminals
 	}
 }

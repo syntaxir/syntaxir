@@ -164,8 +164,14 @@ func (t *Tables) imm(x any) error {
 				return err
 			}
 		}
-	case Terminal:
-		return t.terminal(x)
+	case TerminalProgram:
+		for _, e := range x.Exps {
+			if e != TerminalEmptyLit {
+				if err := t.exp(e); err != nil {
+					return err
+				}
+			}
+		}
 	case Guard:
 		if !x.Lit {
 			if err := t.class(x.Class); err != nil {
@@ -173,22 +179,6 @@ func (t *Tables) imm(x any) error {
 			}
 		}
 		return t.exp(x.Exp)
-	}
-	return nil
-}
-
-// terminal checks that the literals and the classes of the terminal expression x index entries of t.
-func (t *Tables) terminal(x Terminal) error {
-	switch x.Kind {
-	case TerminalLit:
-		return t.imm(x.Lit)
-	case TerminalClass:
-		return t.class(x.Class)
-	}
-	for _, it := range x.Items {
-		if err := t.terminal(it); err != nil {
-			return err
-		}
 	}
 	return nil
 }

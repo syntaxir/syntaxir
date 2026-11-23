@@ -68,7 +68,8 @@ type Form struct {
 	ID int32
 	// Class is the class of a class form (prim.Tables).
 	Class prim.ClassID
-	// Terminal is the expression of a region, which skipTerminal can match.
+	// Terminal is the expression of a region, which a pass may assemble into the program of a
+	// skipTerminal (prim.Assemble).
 	Terminal prim.Terminal
 	// Build reports that the form builds the node's value.
 	Build bool
