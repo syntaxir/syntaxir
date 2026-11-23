@@ -80,27 +80,27 @@ func TestBudgetDocumentCountsMemoKeyWork(t *testing.T) {
 	}
 }
 
-// identityMissGrammar binds s to a string that each alternative allocates anew, with the same content,
-// and calls the rule u under it at the same position in both. A parse from scratch finds the second
-// call in the memo if it memoizes u; a Document finds no entry for a rule that only it memoizes unless
-// the string is the same bytes, and evaluates u again.
-const identityMissGrammar = "var s string\nrule main = line* $$\n" +
+// assignmentMissGrammar binds s in each alternative to a string with the same content, and calls the
+// rule u under it at the same position in both. A parse from scratch finds the second call in the memo
+// if it memoizes u; a Document finds no entry for a rule that only it memoizes unless the same
+// assignment bound the string, and evaluates u again.
+const assignmentMissGrammar = "var s string\nrule main = line* $$\n" +
 	"rule line = h:head { s := text($h) + \"x\" } u \"!\" / h:head { s := text($h) + \"x\" } u \"\\n\"\n" +
 	"rule head = \"a\"* #atomic\nrule u = { s == \"aax\" } \"b\""
 
-// sameBytesGrammar is identityMissGrammar with the string of s taken from the text, which both
-// alternatives bind as the same bytes.
-const sameBytesGrammar = "var s string\nrule main = line* $$\n" +
-	"rule line = h:head { s := text($h) } u \"!\" / h:head { s := text($h) } u \"\\n\"\n" +
-	"rule head = \"a\"* #atomic\nrule u = { s == \"aa\" } \"b\""
+// sameAssignmentGrammar is assignmentMissGrammar with s bound once, before the alternatives, so that
+// both call u under the same assignment.
+const sameAssignmentGrammar = "var s string\nrule main = line* $$\n" +
+	"rule line = h:head { s := text($h) + \"x\" } (u \"!\" / u \"\\n\")\n" +
+	"rule head = \"a\"* #atomic\nrule u = { s == \"aax\" } \"b\""
 
-// A value that equals the key of an entry but is not the same bytes is a miss for a rule that only a
-// Document memoizes, and a miss gives the result of a parse from scratch for the work that the rule
-// takes: the Document parse returns the tree of the parse from scratch and does a constant factor of
-// its work.
-func TestBudgetDocumentIdentityMissIsSound(t *testing.T) {
+// A string that equals the one in the key of an entry but that another assignment bound is a miss for
+// a rule that only a Document memoizes, and a miss gives the result of a parse from scratch for the
+// work that the rule takes: the Document parse returns the tree of the parse from scratch and does a
+// constant factor of its work. A lookup that compared the values would find the entry.
+func TestBudgetDocumentAssignmentMissIsSound(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, identityMissGrammar)
+	prog := mustCompile(t, assignmentMissGrammar)
 	text := strings.Repeat("aab\n", 3000)
 	for _, back := range []Backend{Closure, Bytecode, BytecodeIterative} {
 		t.Run(fmt.Sprint(back), func(t *testing.T) {
@@ -125,18 +125,19 @@ func TestBudgetDocumentIdentityMissIsSound(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			// The second call of u under the same bytes is found in the memo, and under equal bytes
-			// that are not the same memory it is not: one miss for each line.
-			same, err := mustCompile(t, sameBytesGrammar).NewDocumentWith("main", text, o)
+			// The second call of u under the same assignment is found in the memo, and under an equal
+			// string that another assignment bound it is evaluated again: one evaluation more for each
+			// line.
+			same, err := mustCompile(t, sameAssignmentGrammar).NewDocumentWith("main", text, o)
 			if err != nil {
 				t.Fatal(err)
 			}
 			if _, err := same.ParseWith(o); err != nil {
 				t.Fatal(err)
 			}
-			if lines := 3000; same.Stats().MemoHits-d.Stats().MemoHits < lines {
-				t.Errorf("the Document finds %d entries where the string is the same bytes and %d where it is only equal: want at least %d fewer",
-					same.Stats().MemoHits, d.Stats().MemoHits, lines)
+			if lines := 3000; d.Stats().Evaluated-same.Stats().Evaluated < lines {
+				t.Errorf("the Document evaluates %d rules where the same assignment bound the string and %d where it is only equal: want at least %d more",
+					same.Stats().Evaluated, d.Stats().Evaluated, lines)
 			}
 			w, _ := json.Marshal(want)
 			g, _ := json.Marshal(got)

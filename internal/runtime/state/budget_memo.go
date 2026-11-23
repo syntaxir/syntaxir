@@ -11,13 +11,20 @@ func (p *Parser) rawValueEqual(l, r any) bool {
 	return l == r
 }
 
-// identEqual compares two key values for a lookup of a rule that only a Document parse memoizes: strings
-// are equal if they are the same bytes of the same memory, which costs a constant; a value that is not
-// identical is a miss, and a miss is sound, since the rule is then evaluated and that work counts.
+// identEqual compares two key values for a lookup of a rule that only a Document parse memoizes
+// (memoBindings): two strings are equal if the same assignment bound them, the stamps of the
+// assignments being equal, which costs a constant, or if no assignment bound either and they are equal,
+// as the initial values of a variable are, which the grammar bounds. A string that another assignment
+// bound, even an equal one, is a miss, and a miss is sound, since the rule is then evaluated and that
+// work counts.
 func (p *Parser) identEqual(l, r any) bool {
-	if s, ok := l.(string); ok {
-		t, ok := r.(string)
-		return ok && sameData(s, t)
+	switch l := l.(type) {
+	case assigned:
+		m, ok := r.(assigned)
+		return ok && l.stamp == m.stamp
+	case string:
+		m, ok := r.(string)
+		return ok && l == m
 	}
 	return l == r
 }
@@ -37,7 +44,8 @@ func (p *Parser) memoKeyIdentical(l, r []any) bool {
 
 // keyMatches compares a memo key under the lookup that ident selects. The comparison charges nothing:
 // the call paid for the lookup of its key (ChargeKey), which the size of the key bounds. A lookup of a
-// rule that only a Document memoizes compares by identity, which costs a constant per variable.
+// rule that only a Document memoizes compares the assignments of strings (identEqual), which costs a
+// constant per variable.
 func (p *Parser) keyMatches(l, r []any, ident bool) bool {
 	if ident {
 		return p.memoKeyIdentical(l, r)
@@ -118,7 +126,7 @@ func (p *Parser) bindControlled(slot int, val any) {
 		return
 	}
 	// Saved environments are immutable; only publish a completed path.
-	p.Env = p.Env.Set(slot, p.envLevels, val)
+	p.Env = p.Env.Set(slot, p.envLevels, p.binding(val))
 	p.chargeValueBytes(int(uint64(p.envLevels+1) * envNodeBytes))
 }
 

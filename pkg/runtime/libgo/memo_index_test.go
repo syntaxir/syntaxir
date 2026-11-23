@@ -148,17 +148,29 @@ func TestMemoIndexStreamPrune(t *testing.T) {
 	}
 }
 
-// TestDocOnlyLookupComparesByIdentity checks the lookup of a rule that only a Document parse memoizes: a
-// key whose string has the same bytes in other memory is a miss, and a key with the same memory is a
-// hit. The lookup of any other rule finds the equal string.
-func TestDocOnlyLookupComparesByIdentity(t *testing.T) {
+// TestDocOnlyLookupComparesAssignments checks the lookup of a rule that only a Document parse memoizes:
+// a key whose string the same assignment bound is a hit, in other memory too, and one that another
+// assignment bound is a miss, with the same bytes too; initial values, which no assignment bound, are
+// compared as values. The lookup of any other rule finds the equal string.
+func TestDocOnlyLookupComparesAssignments(t *testing.T) {
 	big := strings.Repeat("x", 1<<16)
 	clone := strings.Clone(big)
 	p := &Parser{Control: newBudgetControl(sxirruntime.Limits{Memory: 1 << 40})}
 	e := p.memo.alloc()
-	p.memoPutControlled(1, 0, 0, []any{big}, true, e)
-	if got := p.memoGetControlled(1, 0, 0, []any{big}, true); got != e {
-		t.Errorf("the same memory: entry %v, want the entry", got == e)
+	p.memoPutControlled(1, 0, 0, []any{assigned{s: big, stamp: 1}}, true, e)
+	if got := p.memoGetControlled(1, 0, 0, []any{assigned{s: clone, stamp: 1}}, true); got != e {
+		t.Errorf("the same assignment: entry %v, want the entry", got == e)
+	}
+	if got := p.memoGetControlled(1, 0, 0, []any{assigned{s: big, stamp: 2}}, true); got != nil {
+		t.Errorf("another assignment of the same bytes: found %v, want a miss", got != nil)
+	}
+	if got := p.memoGetControlled(1, 0, 0, []any{big}, true); got != nil {
+		t.Errorf("the initial value against an assignment: found %v, want a miss", got != nil)
+	}
+	initial := p.memo.alloc()
+	p.memoPutControlled(2, 0, 0, []any{big}, true, initial)
+	if got := p.memoGetControlled(2, 0, 0, []any{clone}, true); got != initial {
+		t.Errorf("equal initial values: entry %v, want the entry", got == initial)
 	}
 	// The lookup of any other rule finds the key, for a string of any length as for a value that is
 	// not a string.
@@ -170,10 +182,9 @@ func TestDocOnlyLookupComparesByIdentity(t *testing.T) {
 			t.Errorf("key %T: entry %v, want the entry", key, got == x)
 		}
 	}
-	if got := p.memoGetControlled(1, 0, 0, []any{clone}, true); got != nil {
-		t.Errorf("equal bytes in other memory: found %v, want a miss", got != nil)
-	}
-	if got := p.memoGetControlled(1, 0, 0, []any{clone}, false); got != e {
-		t.Errorf("a rule a fresh parse memoizes: found %v, want the entry", got == e)
+	other := p.memo.alloc()
+	p.memoPutControlled(3, 0, 0, []any{big}, false, other)
+	if got := p.memoGetControlled(3, 0, 0, []any{clone}, false); got != other {
+		t.Errorf("a rule a fresh parse memoizes: found %v, want the entry", got == other)
 	}
 }

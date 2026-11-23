@@ -13,6 +13,18 @@ rule main = x:"a"* #atomic => I{
     Big: 9223372036854775807 - len($x),
 }`
 
+// DocumentAssignmentGrammar reaches late at 3 twice in a Document parse under the same value of v,
+// which two assignments bound to the same text of the input: q, which reads d, is called at 0 by p
+// and then by main under different values of d. late, which only a Document memoizes, misses the
+// memo the second time, since another assignment bound v.
+const DocumentAssignmentGrammar = `var d int
+var v string
+rule main = {d := 1} p? {d := 2} q "!"? $$
+rule p = q "%"
+rule q = "[" n:name {v := text($n)} "]" {d > 0} late
+rule late = "~" name {v != ""}
+rule name = [a-z]+ #atomic`
+
 const ActionEnvironmentGrammar = `type Item = { Depth int; Tag string; Size int; Name node[string]; Note *node[string] }
 type Out = { Items []Item; Count int; Sum int; Tag string }
 var depth int

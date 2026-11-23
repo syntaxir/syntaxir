@@ -45,6 +45,16 @@ func NewEnv(vals []any, levels int) *Env {
 
 // Get returns the value of the variable in slot i.
 func (e *Env) Get(i, levels int) any {
+	v := e.binding(i, levels)
+	if a, ok := v.(assigned); ok {
+		return a.s
+	}
+	return v
+}
+
+// binding returns what slot i holds: the value of the variable, or for a string that an assignment of a
+// Document parse bound, the value with the stamp of that assignment (assigned).
+func (e *Env) binding(i, levels int) any {
 	for l := levels; l > 0; l-- {
 		e = e.vals[i>>(envBits*l)&envMask].(*Env)
 	}

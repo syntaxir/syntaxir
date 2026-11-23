@@ -16,7 +16,7 @@ corpus/0/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
 corpus/0/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/0/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/0/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
-corpus/0/action environments	453b54f0e77e1b6e4f8779a6
+corpus/0/action environments	807b3bca961f2fd1768286bc
 corpus/0/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/0/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/0/alias terminal	4103c6040af4ed997227c531
@@ -380,7 +380,7 @@ corpus/1/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
 corpus/1/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/1/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/1/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
-corpus/1/action environments	98b92a84988f2c16d3a3afec
+corpus/1/action environments	32156264d873b7d99e1731ec
 corpus/1/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/1/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/1/alias terminal	4103c6040af4ed997227c531
@@ -740,7 +740,7 @@ grammars/0/json	6e207994414aebee12b252ee
 grammars/0/python	5f74e1709aa7da9b978dada3
 grammars/0/typescript	aa7bd39fd079f3ca2c81bba9
 grammars/0/xml	be9017e64d65823bee09cee0
-grammars/0/yaml	a026079a4511adc16c356d98
+grammars/0/yaml	d72e058f4df7839edb662ab8
 grammars/1/cel	5d2da573527d49ebd5db0228
 grammars/1/csv	783759e61a8e6ee45d0d1516
 grammars/1/cue	9b145d5954a089c5503b4f52
@@ -750,4 +750,4 @@ grammars/1/json	6e207994414aebee12b252ee
 grammars/1/python	7f4e5501550c9eff80bef75c
 grammars/1/typescript	82c49d1097caf274053d0aaa
 grammars/1/xml	be9017e64d65823bee09cee0
-grammars/1/yaml	f6aec6fc66d46d01762f9aa3
+grammars/1/yaml	7921aa55c91ca39a63db87eb

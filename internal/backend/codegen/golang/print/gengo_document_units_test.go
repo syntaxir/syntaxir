@@ -15,18 +15,35 @@ import (
 )
 
 // A rule that only a Document memoizes, called again at a position under equal values of its key that
-// the parse built apart, misses the memo of the engine's Document, which looks such a rule up by the
-// identity of its key, and is evaluated again. A generated Document that counts logical compute units
-// looks it up the same way, so its total is the engine's: a lookup by the values would hit the entry of
-// the first call and leave out the units of the second evaluation. In ActionEnvironmentGrammar, peek
-// and then main call item at 0 under different depths, and both reach late at 3 under equal values of
-// last and tag: on "#x:~a" the second call of late advances over "~a" again.
+// two assignments of the parse bound, misses the memo of the engine's Document, which looks such a rule
+// up by the assignments of the strings of its key, and is evaluated again. A generated Document that
+// counts logical compute units looks it up the same way, so its total is the engine's: a lookup by the
+// values would hit the entry of the first call and leave out the units of the second evaluation. In
+// ActionEnvironmentGrammar, peek and then main call item at 0 under different depths, and both reach
+// late at 3 under equal values of last and tag: on "#x:~a" the second call of late advances over "~a"
+// again. DocumentAssignmentGrammar binds equal texts of the input, which a lookup by the identity of
+// the bytes would find equal.
 func TestGeneratedDocumentUnitsAgreeWithEngineOnDocumentMemo(t *testing.T) {
 	t.Parallel()
 	goBin := skipRunsGoBin(t)
 	codegentest.NeedsBudgetControls(t)
-	src := codegentest.ActionEnvironmentGrammar
-	inputs := []string{"#x:~a", "#x:(~ab)", "#x:a", "~a"}
+	for _, c := range []struct {
+		name, src string
+		inputs    []string
+	}{
+		{"action environments", codegentest.ActionEnvironmentGrammar, []string{"#x:~a", "#x:(~ab)", "#x:a", "~a"}},
+		{"assigned texts", codegentest.DocumentAssignmentGrammar, []string{"[a]~b", "[ab]~bc!", "[a]~b%"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			documentUnitsAgree(t, goBin, c.src, c.inputs)
+		})
+	}
+}
+
+// documentUnitsAgree builds a Document parser for src and holds the compute units of its first parse
+// of each input to the engine's Document.
+func documentUnitsAgree(t *testing.T, goBin, src string, inputs []string) {
 	g, err := parseTest(src)
 	if err != nil {
 		t.Fatal(err)

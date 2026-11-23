@@ -1008,7 +1008,11 @@ type documentState struct {
 	// expectations is the recording mode of the Document, fixed at its construction.
 	expectations bool
 	memo         memoTable
-	stats        documentStats
+	// assignments counts the assignments of string variables that the parses of the Document made,
+	// which stamp them (Parser.binding): over the life of the Document, so that no two assignments
+	// whose bindings the memo's keys hold share a stamp.
+	assignments uint64
+	stats       documentStats
 	// moves numbers the moves of values after edits (documentMove) over the life of the memo, not of
 	// a parse: the nodes that the memo keeps carry the number of the last move that visited them from
 	// one parse to the next, so a number is not used twice while the memo holds entries (parse).
@@ -1289,13 +1293,37 @@ func (p *Parser) envValues(slots []int) []any {
 
 // memoEnv returns the values of the variables the memoized rule r reads, for its memo key. While
 // nothing has been bound since the parse began they are the initial values, computed once: the
-// key only compares them, so the slice is shared instead of allocated for each call.
+// key only compares them, so the slice is shared instead of allocated for each call. The key of a
+// rule that only a Document memoizes holds the bindings of the variables (memoBindings).
 func (p *Parser) memoEnv(r *Rule) []any {
 	if p.Env != nil && p.Env == p.g.initEnv && r.initVals != nil && p.Control == nil {
 		return r.initVals
 	}
 	p.chargeMemoHeld(uint64(len(r.varSlots)) * anyBytes)
+	if usedFeatures&featureDocument != 0 && p.Document != nil && r.DocMemo && !r.Memo && !r.Leader {
+		return p.memoBindings(r.varSlots)
+	}
 	return p.keyValues(r.varSlots)
+}
+
+// memoBindings is keyValues for the key of a rule that only a Document memoizes: a string that an
+// assignment of the parse bound is held with the stamp of the assignment (assigned), so that a lookup
+// compares the assignments instead of the bytes (identEqual).
+func (p *Parser) memoBindings(slots []int) []any {
+	if len(slots) == 0 {
+		return nil
+	}
+	p.use(featureVars)
+	if p.Env == nil && len(slots) <= len(noVals) {
+		return noVals[:len(slots):len(slots)]
+	}
+	vals := make([]any, len(slots))
+	for i, slot := range slots {
+		if slot >= 0 {
+			vals[i] = p.Env.binding(slot, p.envDepth)
+		}
+	}
+	return vals
 }
 
 // keyValues is envValues for a memo key, without charges: the call paid for its key (keySize).
@@ -1614,10 +1642,31 @@ func newEnv(vals []any, levels int) *Env {
 
 // get returns the value of the variable in slot i.
 func (e *Env) get(i, levels int) any {
+	v := e.binding(i, levels)
+	if a, ok := v.(assigned); ok {
+		return a.s
+	}
+	return v
+}
+
+// binding returns what slot i holds: the value of the variable, or for a string that an assignment of a
+// Document parse bound, the value with the stamp of that assignment (assigned).
+func (e *Env) binding(i, levels int) any {
 	for l := levels; l > 0; l-- {
 		e = e.vals[i>>(envBits*l)&envMask].(*Env)
 	}
 	return e.vals[i&envMask]
+}
+
+// assigned is what the slot of a string variable holds once an assignment of a Document parse bound
+// it: the value, and the stamp of the assignment, which no other assignment of the Document shares
+// (documentState.assignments). The key of a rule that only a Document memoizes holds it, so that a
+// lookup finds an entry only under the values of the same assignments, at a constant cost per variable
+// (identEqual). Reading the variable reads the value (Env.get); a slot that holds a plain string holds
+// the initial value of the variable.
+type assigned struct {
+	s     string
+	stamp uint64
 }
 
 // set returns the environment that differs from e in the value of slot i. The copied nodes are
@@ -1683,9 +1732,22 @@ func (p *Parser) bind(slot int, val any) {
 	if p.Env.get(slot, p.envDepth) == val {
 		return
 	}
-	p.Env = p.Env.set(slot, p.envDepth, val)
+	p.Env = p.Env.set(slot, p.envDepth, p.binding(val))
 	// The rebind copies the levels+1 nodes on the path to the slot.
 	p.chargeValueBytes(int(uint64(p.envDepth+1) * envNodeBytes))
+}
+
+// binding returns what a slot holds once the assignment of val binds it: in a Document parse, a string
+// with the stamp of the assignment (assigned), which the key of a rule that only a Document memoizes
+// holds in its place; otherwise val.
+func (p *Parser) binding(val any) any {
+	if usedFeatures&featureDocument != 0 && p.Document != nil {
+		if s, ok := val.(string); ok {
+			p.Document.assignments++
+			return assigned{s: s, stamp: p.Document.assignments}
+		}
+	}
+	return val
 }
 
 // variable returns the value of the variable in slot i.

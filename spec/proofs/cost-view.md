@@ -648,8 +648,8 @@ $D$ is Document work, and it charges no unit: a call of a rule that only a
 Document memoizes pays its unit and no key, and its lookups and stores charge
 nothing ([Lemma 12](linear-cost.md#lemma-12-document-units), *The units that
 the default budget counts*). Each such lookup belongs to a call that $C'_P - D$
-counts and compares the strings of its key by identity, at a constant for each
-variable, and a key has at most the variables of $G$, so the work of $D$ is at
+counts and compares the string variables of its key by the assignments that
+bound their values, at a constant for each variable, and a key has at most the variables of $G$, so the work of $D$ is at
 most a constant of $G$ for each unit of $C'_P - D$. The other
 Document units are those of Lemma 12, which bounds them in terms of the parse
 itself; this proof adds nothing to them. $\square$

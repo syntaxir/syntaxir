@@ -257,8 +257,8 @@ type MemoKey struct {
 	Rule, Pos, Min int
 	MissingSilent  bool // insertion-disabled lookahead has its own LR seeds
 	// DocOnly is set for the key of a rule that only a Document parse memoizes (rule.docOnlyMemo): a
-	// controlled lookup of it finds an entry only if the values of the key are the same values as the
-	// entry's (the same bytes for a string), and none beyond the first docOnlyScan entries of a chain.
+	// controlled lookup of it finds an entry only if the values of the key are the entry's, a string
+	// bound by the same assignment (identEqual), and none beyond the first docOnlyScan entries of a chain.
 	// It shares a word with MissingSilent, so it adds nothing to the memory a key holds.
 	DocOnly bool
 	// Env holds the values of the variables the rule reads (rule.vars) when it is called, or nil.
@@ -353,7 +353,17 @@ func (p *Parser) Bind(slot int, val any) {
 	if p.Env.Get(slot, p.envLevels) == val {
 		return
 	}
-	p.Env = p.Env.Set(slot, p.envLevels, val)
+	p.Env = p.Env.Set(slot, p.envLevels, p.binding(val))
+}
+
+// binding returns what a slot holds once the assignment of val binds it: in a Document parse, a string
+// with the stamp of the assignment (assigned), which the key of a rule that only a Document memoizes
+// holds in its place; otherwise val.
+func (p *Parser) binding(val any) any {
+	if s, ok := val.(string); ok && p.MemoAll {
+		return assigned{s: s, stamp: p.Memo.assign()}
+	}
+	return val
 }
 
 // Mark is the state restored on backtracking.
@@ -460,13 +470,33 @@ func (p *Parser) EnvValues(slots []int) []any {
 
 // memoEnv returns the values of the variables the memoized rule r reads, for its memo key. While
 // nothing has been bound since the parse began they are the initial values, computed once: the
-// key only compares them, so the slice is shared instead of allocated for each call.
+// key only compares them, so the slice is shared instead of allocated for each call. The key of a
+// rule that only a Document memoizes holds the bindings of the variables (memoBindings).
 func (p *Parser) memoEnv(r *Rule) []any {
 	if p.Env == p.initEnv && r.InitVals != nil && (!BudgetControlsEnabled || p.Control == nil) {
 		return r.InitVals
 	}
 	p.chargeMemoHeld(uint64(len(r.VarSlots)) * anyBytes)
+	if p.docOnlyMemo(r) {
+		return p.memoBindings(r.VarSlots)
+	}
 	return p.keyValues(r.VarSlots)
+}
+
+// memoBindings is keyValues for the key of a rule that only a Document memoizes: a string that an
+// assignment of the parse bound is held with the stamp of the assignment (assigned), so that a lookup
+// compares the assignments instead of the bytes (identEqual).
+func (p *Parser) memoBindings(slots []int) []any {
+	if p.Env == nil && len(slots) <= len(noVals) {
+		return noVals[:len(slots):len(slots)]
+	}
+	vals := make([]any, len(slots))
+	for i, slot := range slots {
+		if slot >= 0 {
+			vals[i] = p.Env.binding(slot, p.envLevels)
+		}
+	}
+	return vals
 }
 
 // keyValues is EnvValues for a memo key, without charges: the call paid for its key (ChargeKey).

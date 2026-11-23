@@ -5,7 +5,6 @@ package state
 import (
 	"fmt"
 	"strings"
-	"unsafe"
 )
 
 // The charges of the work on values. Strings and lists can come from actions without referring to
@@ -34,11 +33,6 @@ func (p *Parser) chargeValues(n int) {
 func (p *Parser) compareText(l, r string) int {
 	p.valueUnits(min(len(l), len(r)))
 	return strings.Compare(l, r)
-}
-
-// sameData reports whether two strings are the same bytes of the same memory.
-func sameData(l, r string) bool {
-	return len(l) == len(r) && (len(l) == 0 || unsafe.StringData(l) == unsafe.StringData(r))
 }
 
 // TextEqual reports whether two strings are equal (the operation str.eq). A parse that counts compute

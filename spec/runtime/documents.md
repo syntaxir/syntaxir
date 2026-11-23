@@ -351,7 +351,15 @@ every entry and run ([Edits](#edits)).
 [Evaluations of Rules](parsing.md#evaluations-of-rules), except that it also
 memoizes the rules that the first exception there leaves unmemoized in an
 ordinary parse (the transient rules); since a leader is memoized in every
-case, no leader is memoized only by a Document. A result that read the
+case, no leader is memoized only by a Document. The key of a transient rule
+holds, for each string variable that the rule reads, the assignment that bound
+its value: each assignment of a string that changes the variable is one of its
+own over the life of the Document, and backtracking restores the assignments of
+the variables with their values. A lookup of a transient rule finds an entry
+only where each such variable holds the value of the same assignment, or the
+initial value of the variable on both sides, at a constant cost for each
+variable; an equal string that another assignment bound, in the same parse or
+an earlier one, is a miss, and the rule is evaluated again. A result that read the
 growing result of a left recursion is dropped within the parse and never
 reaches a later one. A parse that does not complete, because it is
 [interrupted](#interruption) or aborted by a run-time error of an action, the
@@ -428,10 +436,11 @@ paid for the lookup of its key ([Cost](parsing.md#cost)), whatever the lookup
 compares. The work of a lookup stays bounded by that payment:
 
 - it passes the entries of the chain, compares the keys of the entries of the
-  same rule (a lookup of a rule that only a Document memoizes compares strings by
-  identity), and removes each lagging entry that it meets from the chain without
-  comparing it; each entry is removed once, after the counted call that stored
-  it;
+  same rule (a lookup of a rule that only a Document memoizes compares a string
+  variable by the assignment that bound its value, so another assignment of an
+  equal string is a miss), and removes each lagging entry that it meets from
+  the chain without comparing it; each entry is removed once, after the counted
+  call that stored it;
 - it compares at most 32 entries that do not lag; on a chain that holds more, a
   lookup of a rule that a parse from scratch memoizes too then removes every
   lagging entry of the chain, builds the index of the position if it has none,

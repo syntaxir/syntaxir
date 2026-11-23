@@ -1487,6 +1487,10 @@ export class DocumentMemo {
   evaluated = 0;
   reused = 0;
   resumed = 0;
+  // assignments counts the assignments of string variables that the parses of the Document made, which
+  // stamp them (DocumentParser.binding): over the life of the Document, so that no two assignments
+  // whose bindings the memo's keys hold share a stamp.
+  assignments = 0;
 
   clear(): void {
     this.slots = [];
@@ -2189,15 +2193,41 @@ export function newEnv(vals: Value[], depth: number): Env | null {
   return kids;
 }
 
+// Assigned is what the slot of a string variable holds once an assignment of a Document parse bound it:
+// the value, and the stamp of the assignment, which no other assignment of the Document shares
+// (DocumentMemo.assignments). The key of a rule that only a Document memoizes holds it, so that a lookup
+// finds an entry only under the values of the same assignments, at a constant cost per variable: one
+// Assigned is made for each assignment, so the comparison of keys (sameValues) compares the stamps by
+// identity. Reading the variable reads the value (envGet); a slot that holds a plain string holds the
+// initial value of the variable.
+export class Assigned {
+  readonly s: string;
+  readonly stamp: number;
+  constructor(s: string, stamp: number) {
+    this.s = s;
+    this.stamp = stamp;
+  }
+}
+
+// Binding is what the slot of a variable holds, and what the key of a call holds for it.
+export type Binding = Value | Assigned;
+
 // envGet returns the value of the variable in slot i.
 export function envGet(e: Env, i: number, depth: number): Value {
+  const v = envBinding(e, i, depth);
+  return v instanceof Assigned ? v.s : v;
+}
+
+// envBinding returns what slot i holds: the value of the variable, or for a string that an assignment
+// of a Document parse bound, the value with the stamp of that assignment (Assigned).
+export function envBinding(e: Env, i: number, depth: number): Binding {
   for (let l = depth; l > 0; l--) e = e[Math.floor(i / 2 ** (envBits * l)) & envMask] as Env;
-  return e[i & envMask] as Value;
+  return e[i & envMask] as Binding;
 }
 
 // envSet returns the environment that differs from e in the value of slot i. The copied arrays
 // are those on the path to the slot: depth+1 of them.
-export function envSet(e: Env, i: number, depth: number, v: Value): Env {
+export function envSet(e: Env, i: number, depth: number, v: Binding): Env {
   const out = e.slice();
   if (depth === 0) {
     out[i] = v;
@@ -2213,7 +2243,7 @@ export interface MemoEntry {
   errs: Errs; // errors recovered in this call, recorded again on reuse
   expected: number[]; // expectations at far, recorded again on reuse
   next: MemoEntry | null; // next entry at the same position
-  env: Value[] | null; // values of the rule's variables at the call (memo key)
+  env: Binding[] | null; // values of the rule's variables at the call (memo key)
   end: number;
   far: number;
   rule: number;
@@ -2562,7 +2592,7 @@ const memoScan = 32;
  * memoKeyHash hashes a memo key deterministically, so that the work of a parse does not vary between
  * runs. Values that are not hashed (nodes) all hash alike and are told apart by the key comparison.
  */
-function memoKeyHash(rule: number, min: number, env: Value[] | null): number {
+function memoKeyHash(rule: number, min: number, env: Binding[] | null): number {
   let h = 0x811c9dc5;
   const mix = (x: number): void => {
     h = Math.imul(h ^ x, 0x01000193);
@@ -2594,7 +2624,7 @@ function memoKeyHash(rule: number, min: number, env: Value[] | null): number {
 }
 
 // sameValues reports whether two lists of variable values are equal.
-export function sameValues(a: Value[] | null, b: Value[] | null): boolean {
+export function sameValues(a: Binding[] | null, b: Binding[] | null): boolean {
   if (a === null || b === null) {
     return (a === null ? 0 : a.length) === (b === null ? 0 : b.length);
   }
@@ -2770,12 +2800,12 @@ interface CtxSlot {
   examined: number;
   from: number;
   silent: boolean;
-  env: Value[] | null;
+  env: Binding[] | null;
   deps: Sdep[];
   next: CtxSlot | null;
 }
 
-function newSlot(e: CtxResult | null, id: number, env: Value[] | null): CtxSlot {
+function newSlot(e: CtxResult | null, id: number, env: Binding[] | null): CtxSlot {
   return { e, id, far: 0, exp: noExp, examined: 0, from: 0, silent: false, env, deps: noSdeps, next: null };
 }
 
@@ -3241,15 +3271,17 @@ export class Parser {
   // memoGet returns the entry for the rule, position, level and variable values. A lookup walks the
   // first memoScan entries of the position's chain and then asks the position's hash index, so
   // it costs the size of its key and not the length of the chain. It counts no units: the call counted
-  // its key (keyUnits).
-  memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
+  // its key (keyUnits). The lookup of a rule that only a Document memoizes (docOnly), whose key holds
+  // the assignments of its strings (memoKey), finds no entry beyond the first memoScan: a miss is
+  // sound, since the rule is then evaluated.
+  memoGet(rule: number, pos: number, min: number, env: Binding[] | null, docOnly = false): MemoEntry | null {
     let e = this.slots[pos < this.gap ? pos : pos + this.gapLen] || null;
     for (let n = 0; e && n < memoScan; e = e.next, n++) {
       if (e.rule === rule && e.min === min && sameValues(e.env, env)) {
         return e;
       }
     }
-    if (!e) {
+    if (!e || docOnly) {
       return null;
     }
     const ix = this.memoIndexAt(pos);
@@ -3297,8 +3329,10 @@ export class Parser {
 
   // memoPut stores e under the key, replacing an entry with the same key unless the join of the two
   // keeps that entry (joinStored), and returns the entry it keeps. The store counts no units: it
-  // follows the evaluation of a body that counted, and its walk costs what memoGet's does.
-  memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
+  // follows the evaluation of a body that counted, and its walk costs what memoGet's does. The store of
+  // a rule that only a Document memoizes (docOnly) replaces only an entry among the first memoScan, as
+  // its lookup finds no other.
+  memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
     this.alloc(entryBytes);
     const same = (x: MemoEntry): boolean => x === e || (x.rule === rule && x.min === min && sameValues(x.env, env));
     const i = pos < this.gap ? pos : pos + this.gapLen;
@@ -3313,7 +3347,7 @@ export class Parser {
     }
     let ix: Map<number, MemoEntry> | undefined;
     let ixSlot = 0;
-    if (replaced === null && x) {
+    if (replaced === null && x && !docOnly) {
       // A long chain: the index finds the entry to replace.
       ix = this.memoIndexAt(pos);
       replaced = this.memoProbe(ix, memoKeyHash(rule, min, env), same);
@@ -3379,6 +3413,13 @@ export class Parser {
     if (!x.silent && e.silent) return x;
     e.present = x.present;
     return e;
+  }
+
+  // memoKey returns the memo key of a call of r (env.key): the values of the variables r reads
+  // (keyValues). A Document parse keys a rule that only it memoizes by the bindings instead
+  // (DocumentParser.memoKey).
+  memoKey(r: Rule): Binding[] | null {
+    return this.keyValues(r.vars);
   }
 
   // keyValues is envValues for a memo key: the call counted its units (keyUnits).
@@ -4448,7 +4489,7 @@ export class Parser {
 
   // ctxLookup returns the result kept in the context c for a call of rule at level min with the
   // variable values env, or null.
-  ctxLookup(c: CtxCall, rule: number, min: number, env: Value[] | null): CtxResult | null {
+  ctxLookup(c: CtxCall, rule: number, min: number, env: Binding[] | null): CtxResult | null {
     if (!c.ctx) {
       return null;
     }
@@ -4490,7 +4531,7 @@ export class Parser {
 
   // ctxKeep keeps the result res of a call of rule at start and level min with the variable values
   // env in the table of the context c, with the dependencies that ctxPop ended.
-  ctxKeep(c: CtxCall, rule: number, start: number, min: number, env: Value[] | null, res: CtxResult): void {
+  ctxKeep(c: CtxCall, rule: number, start: number, min: number, env: Binding[] | null, res: CtxResult): void {
     const sd = this.stored(this.popped);
     this.alloc(objectBytes(10));
     this.ctxStore(start, c.gp, headKey(ctxCallKind, rule, min, c.present), sd, newSlot(res, 0, env));
@@ -4719,7 +4760,7 @@ export class Parser {
 
   // ctxFind looks up a result of head h, whose present set is present, in the table of the growths
   // gamma[gp:] at pos for the current context, and leaves its set in foundSet.
-  ctxFind(pos: number, gp: number, h: string, present: number, env: Value[] | null): CtxSlot | null {
+  ctxFind(pos: number, gp: number, h: string, present: number, env: Binding[] | null): CtxSlot | null {
     const t = this.table(pos, gp, false);
     if (t === null) {
       return null;
@@ -5839,7 +5880,13 @@ export class Parser {
     if (old === val) return;
     // envSet copies one array of at most envWidth slots on each level.
     this.alloc((this.envDepth + 1) * arrayBytes(envWidth));
-    this.env = envSet(this.env!, slot, this.envDepth, val);
+    this.env = envSet(this.env!, slot, this.envDepth, this.binding(val));
+  }
+
+  // binding returns what a slot holds once the assignment of val binds it: val, and in a Document parse
+  // a string with the stamp of the assignment (DocumentParser.binding).
+  binding(val: Value): Binding {
+    return val;
   }
 
   // --- OperatorsRule expressions ---
@@ -6260,9 +6307,9 @@ export class DocumentParser extends TrackedParser {
 
   // A lookup walks the chain past the entries that lag behind, which it removes, and applies the
   // pending edits to the entry it finds where the printed call reads it (memo.lookup).
-  override memoGet(rule: number, pos: number, min: number, env: Value[] | null): MemoEntry | null {
+  override memoGet(rule: number, pos: number, min: number, env: Binding[] | null, docOnly = false): MemoEntry | null {
     this.unlinkLagged(pos, memoScan);
-    return super.memoGet(rule, pos, min, env);
+    return super.memoGet(rule, pos, min, env, docOnly);
   }
 
   // A chain that the index answers for has no entry that lags behind.
@@ -6272,11 +6319,29 @@ export class DocumentParser extends TrackedParser {
   }
 
   // A store records that the entry accounts for every edit of the log.
-  override memoPut(rule: number, pos: number, min: number, env: Value[] | null, e: MemoEntry): MemoEntry {
+  override memoPut(rule: number, pos: number, min: number, env: Binding[] | null, e: MemoEntry, docOnly = false): MemoEntry {
     e.vgen = this.memoState.edits.length;
     e.shift = 0;
     this.unlinkLagged(pos, memoScan);
-    return super.memoPut(rule, pos, min, env, e);
+    return super.memoPut(rule, pos, min, env, e, docOnly);
+  }
+
+  // An assignment of a string binds it with a stamp of its own (Assigned).
+  override binding(val: Value): Binding {
+    return typeof val === "string" ? new Assigned(val, ++this.memoState.assignments) : val;
+  }
+
+  // The key of a rule that only a Document memoizes holds the bindings of its variables, so that its
+  // lookup compares the assignments of strings instead of their bytes, at a constant cost: another
+  // assignment of an equal string is a miss. The key of any other rule holds the values.
+  override memoKey(r: Rule): Binding[] | null {
+    if (!r.docMemo || r.memo || r.leader || r.vars.length === 0) return super.memoKey(r);
+    const vals: Binding[] = new Array(r.vars.length);
+    this.alloc(arrayBytes(r.vars.length));
+    for (let i = 0; i < r.vars.length; i++) {
+      vals[i] = envBinding(this.env!, r.vars[i]!, this.envDepth);
+    }
+    return vals;
   }
 
   // An entry of an earlier parse that cannot take the edits since is not current: e replaces it.

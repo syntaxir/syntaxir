@@ -29,6 +29,16 @@ type MemoTable struct {
 	Index map[int]memoIndex[MemoEntry]
 	// IndexBytes counts the bytes of the indexes in Index, for the memory limit (ChargedBytes).
 	IndexBytes uint64
+	// assignments counts the assignments of string variables that the Document parses of the table
+	// made (assign); Reset, which drops every entry, clears it.
+	assignments uint64
+}
+
+// assign returns the stamp of an assignment of a string variable in a Document parse: one that no other
+// assignment that an entry of the table may hold in its key has.
+func (t *MemoTable) assign() uint64 {
+	t.assignments++
+	return t.assignments
 }
 
 // sparseMemo enables the sparse first-call record (firstCalls.sparse); the reference build

@@ -1046,8 +1046,8 @@ func tentryHash(e *tmemoEntry) uint64 { return keyHash(e.rule, e.min, e.env) }
 // memoGetControlled is memoGet under a memory limit. As in Parser.memoGetControlled, the lookup
 // charges nothing: the call paid for the lookup of its key (keySize).
 func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *tmemoEntry {
-	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
-	// walks docOnlyScan entries (see there).
+	// ident is set for a rule that only a Document parse memoizes: the lookup compares the assignments of
+	// the strings of keys (identEqual) and walks docOnlyScan entries (see there).
 	// The walk unlinks the entries that lag behind (unlinkLagged), as Parser.memoGetControlled does.
 	i := p.memoGap.slot(pos)
 	if i >= len(p.memoSlots) {

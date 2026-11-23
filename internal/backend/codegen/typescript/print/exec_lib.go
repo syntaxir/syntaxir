@@ -500,7 +500,7 @@ var tsTarget = &Target{
 		case "rule.invokePlain":
 			return fmt.Sprintf("this.invokePlainBody(%s, %s)", a[0], a[1])
 		case "env.key":
-			return "this.keyValues(" + a[0] + ".vars)"
+			return "this.memoKey(" + a[0] + ")"
 		case "rec.mark":
 			return "this.recovered.length"
 		case "rec.truncate":
@@ -608,7 +608,7 @@ var tsTarget = &Target{
 		}
 		key := func() string { return strings.Join(a[:4], ", ") }
 		entry := func(e, node, ok, end, silent, errs string) string {
-			return fmt.Sprintf("%s = this.memoPut(%s, newEntry(%s, %s, %s, %s, %s));", lhs(e), key(), node, ok, end, silent, errs)
+			return fmt.Sprintf("%s = this.memoPut(%s, newEntry(%s, %s, %s, %s, %s), %s);", lhs(e), key(), node, ok, end, silent, errs, a[9])
 		}
 		// absent prints an operation whose result is undefined where it has none as its two results.
 		absent := func(call string) string {
@@ -674,7 +674,7 @@ var tsTarget = &Target{
 		case "frame.restore":
 			return fmt.Sprintf("for (let t = 0; t < %s.length; t++) {\n  %[1]s[t] = this.saved[t]!;\n}", a[0]), true
 		case "memo.lookup":
-			s := fmt.Sprintf("%s = this.memoGet(%s);", lhs(dst[0]), key())
+			s := fmt.Sprintf("%s = this.memoGet(%s, %s);", lhs(dst[0]), key(), a[4])
 			if dst[1] != "_" {
 				s += fmt.Sprintf("\n%s = %s !== null;", lhs(dst[1]), dst[0])
 			}

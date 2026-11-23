@@ -14,7 +14,7 @@ func TestEnvironmentMutantsFail(t *testing.T) {
 		const equal = "\tif p.rawValueEqual(p.Env.Get(slot, p.envLevels), val) {\n\t\treturn\n\t}\n"
 		runPrintedMutants(t, "internal/runtime/state/budget_memo.go", []printedMutant{
 			{"an equal binding makes a new environment", []printedEdit{{equal, ""}}, conformance, core},
-			{"a rebind binds nothing", []printedEdit{{"\tp.Env = p.Env.Set(slot, p.envLevels, val)\n\tp.chargeValueBytes", "\tp.chargeValueBytes"}},
+			{"a rebind binds nothing", []printedEdit{{"\tp.Env = p.Env.Set(slot, p.envLevels, p.binding(val))\n\tp.chargeValueBytes", "\tp.chargeValueBytes"}},
 				conformance, core},
 		})
 	})

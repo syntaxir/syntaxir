@@ -153,7 +153,8 @@ func (p *Parser) controlled() bool { return usedFeatures&featureBudget != 0 && p
 // memoControlled reports whether the memo of the parse takes the lookups and stores of a parse with
 // controls (memoGetControlled, memoPutControlled), as the engine's memo does whenever the parse has
 // a control: one with a memory limit, or one that counts logical compute units. A rule that only a
-// Document memoizes is then looked up by the identity of its key, so that its hits, and with them the
+// Document memoizes is then looked up by the assignments of the strings of its key at a constant cost
+// (identEqual) and in the first docOnlyScan entries of a chain, so that its hits, and with them the
 // units the parse counts, are those of the engine.
 func (p *Parser) memoControlled() bool {
 	return usedFeatures&featureBudget != 0 && (p.Control != nil || p.units.on)
@@ -250,13 +251,20 @@ func (p *Parser) rawValueEqual(l, r any) bool {
 	return l == r
 }
 
-// identEqual compares two key values for a lookup of a rule that only a Document parse memoizes: strings
-// are equal if they are the same bytes of the same memory, which costs a constant; a value that is not
-// identical is a miss, and a miss is sound, since the rule is then evaluated and that work counts.
+// identEqual compares two key values for a lookup of a rule that only a Document parse memoizes
+// (memoBindings): two strings are equal if the same assignment bound them, the stamps of the
+// assignments being equal, which costs a constant, or if no assignment bound either and they are equal,
+// as the initial values of a variable are, which the grammar bounds. A string that another assignment
+// bound, even an equal one, is a miss, and a miss is sound, since the rule is then evaluated and that
+// work counts.
 func (p *Parser) identEqual(l, r any) bool {
-	if s, ok := l.(string); ok {
-		t, ok := r.(string)
-		return ok && sameData(s, t)
+	switch l := l.(type) {
+	case assigned:
+		m, ok := r.(assigned)
+		return ok && l.stamp == m.stamp
+	case string:
+		m, ok := r.(string)
+		return ok && l == m
 	}
 	return l == r
 }
@@ -276,7 +284,8 @@ func (p *Parser) memoKeyIdentical(l, r []any) bool {
 
 // keyMatches compares a memo key under the lookup that ident selects. The comparison charges nothing:
 // the call paid for the lookup of its key (keySize), which the size of the key bounds. A lookup of a
-// rule that only a Document memoizes compares by identity, which costs a constant per variable.
+// rule that only a Document memoizes compares the assignments of strings (identEqual), which costs a
+// constant per variable.
 func (p *Parser) keyMatches(l, r []any, ident bool) bool {
 	if ident {
 		return p.memoKeyIdentical(l, r)
@@ -333,8 +342,8 @@ func (p *Parser) memoGet(rule, pos, min int, key []any, docOnly bool) *memoEntry
 // the lookup of its key (keySize). The walk compares at most memoScan entries and then probes the
 // index of the position, so it costs at most a constant plus the size of the key.
 func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *memoEntry {
-	// ident is set for a rule that only a Document parse memoizes: the lookup compares keys by identity and
-	// walks docOnlyScan entries (see there).
+	// ident is set for a rule that only a Document parse memoizes: the lookup compares the assignments of
+	// the strings of keys (identEqual) and walks docOnlyScan entries (see there).
 	t := &p.memo
 	i := t.slot(pos)
 	if i >= len(t.slots) {

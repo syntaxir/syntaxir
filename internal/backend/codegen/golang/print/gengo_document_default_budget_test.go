@@ -100,14 +100,14 @@ func TestGeneratedTypedDocumentLeftoverEntriesAreNotCounted(t *testing.T) {
 	runDocumentBudgetFixtureWith(t, common.GenOptions{Package: "fixture", Start: "main", Types: true, Document: true}, grammar, typed)
 }
 
-// A value that equals the key of an entry but is not the same bytes is a miss for a rule that only a
-// generated Document memoizes, and a miss gives the result of a parse from scratch for the work that
-// the rule takes.
-func TestGeneratedDocumentIdentityMissIsSound(t *testing.T) {
+// A string that equals the one in the key of an entry but that another assignment bound is a miss for
+// a rule that only a generated Document memoizes, and a miss gives the result of a parse from scratch
+// for the work that the rule takes.
+func TestGeneratedDocumentAssignmentMissIsSound(t *testing.T) {
 	t.Parallel()
 	runDocumentBudgetFixture(t, "var s string\nrule main = line* $$\n"+
 		"rule line = h:head { s := text($h) + \"x\" } u \"!\" / h:head { s := text($h) + \"x\" } u \"\\n\"\n"+
-		"rule head = \"a\"* #atomic\nrule u = { s == \"aax\" } \"b\"", fixtureIdentityMiss)
+		"rule head = \"a\"* #atomic\nrule u = { s == \"aax\" } \"b\"", fixtureAssignmentMiss)
 }
 
 // A typed generated Document parse stores an entry at the first call of a rule, where a typed parse from
@@ -553,14 +553,14 @@ func TestLeftoverEntriesAreNotCounted(t *testing.T) {
 }
 `
 
-const fixtureIdentityMiss = `package fixture
+const fixtureAssignmentMiss = `package fixture
 import (
   "encoding/json"
   "errors"
   "strings"
   "testing"
 )
-func TestIdentityMissIsSound(t *testing.T) {
+func TestAssignmentMissIsSound(t *testing.T) {
   text := strings.Repeat("aab\n", 3000)
   want, err := Parse(text)
   if err != nil { t.Fatal(err) }

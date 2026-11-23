@@ -13230,9 +13230,10 @@ call of a rule that a parse from scratch memoizes, the evaluation of the body of
 examination of the input, the values that the parse builds, and the operations on the recovered
 errors of an entry, which Lemma 14 bounds by a constant times $C$. A call of a transient rule,
 whose results only a Document stores (a parse from scratch memoizes none of them), pays no key,
-as in a parse from scratch; its lookup compares the strings of the key by identity only, and a
-string that is equal but not identical is a miss, which is sound, since the rule is then
-evaluated and that work counts as a parse from scratch counts it. So the counted units of a
+as in a parse from scratch; its lookup compares each string variable of the key by the
+assignment that bound its value, at a constant cost, and a string that another assignment bound
+is a miss even when it is equal, which is sound, since the rule is then evaluated and that work
+counts as a parse from scratch counts it. So the counted units of a
 Document parse depend on the grammar and the text, not on what the Document retains: the
 comparisons with the entries of earlier texts charge nothing, and their work is bounded by the
 window of 128 edits (step 6 of [Open Steps](#open-steps)). The claim that the counted units of a
