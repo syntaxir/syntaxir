@@ -12,6 +12,8 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
@@ -597,5 +599,40 @@ func TestBackendSpecificUpdateDoesNotCopySharedAcceptance(t *testing.T) {
 	}
 	if string(updatedBackendNode) != string(actualNode) {
 		t.Fatalf("backend target golden was not updated: got %s, want %s", updatedBackendNode, actualNode)
+	}
+}
+
+// TestRunOptionsSettingsReachTheBuild checks that every backend's parser is built under the
+// optimization settings of RunOptions, and under the default settings without them.
+func TestRunOptionsSettingsReachTheBuild(t *testing.T) {
+	dir := t.TempDir()
+	writeFixtureFile(t, dir, "grammar.sxir", "@start\nrule main = (a / b)* $$\nrule a = \"x\" \"y\"\nrule b = \"x\" \"z\" / \"q\"\n")
+	suite, err := Load(writeFixtureFile(t, dir, "suite.json", `{"version":1,"grammar":"grammar.sxir","cases":[{"name":"one","input":"xyq","expect":{"outcome":"accepted"}}]}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noGuards, err := pass.Settings{}.Without("guards")
+	if err != nil {
+		t.Fatal(err)
+	}
+	backends := []string{"closure", "bytecode", "bytecode-iterative"}
+	for _, tc := range []struct {
+		settings pass.Settings
+		guards   bool
+	}{{pass.Settings{}, true}, {noGuards, false}} {
+		parsers, err := compileParsers(suite, backends, RunOptions{Settings: tc.settings})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, backend := range backends {
+			got := entry.Source(parsers[backend].Program()).Settings()
+			if !got.Equal(tc.settings) || got.On("guards") != tc.guards {
+				t.Errorf("%s: guards on %v, want %v", backend, got.On("guards"), tc.guards)
+			}
+		}
+		report, err := Run(suite, RunOptions{Backends: backends, Settings: tc.settings})
+		if err != nil || !report.Passed {
+			t.Errorf("run with guards %v: %+v, %v", tc.guards, report, err)
+		}
 	}
 }

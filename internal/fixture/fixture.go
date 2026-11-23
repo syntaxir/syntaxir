@@ -400,13 +400,9 @@ func Run(suite *Suite, opts RunOptions) (Report, error) {
 	if suite.Unit == "bytes" {
 		unit = sxirinput.Bytes
 	}
-	parsers := make(map[string]*engine.Parser, len(backends))
-	for _, backend := range backends {
-		p, err := entry.CompileParser(suite.grammar, suite.Start, entry.Options{Settings: opts.Settings})
-		if err != nil {
-			return Report{}, fmt.Errorf("compile grammar: %w", err)
-		}
-		parsers[backend] = p
+	parsers, err := compileParsers(suite, backends, opts)
+	if err != nil {
+		return Report{}, err
 	}
 	for _, c := range suite.Cases {
 		actuals := make([]Actual, len(backends))
@@ -445,6 +441,20 @@ func Run(suite *Suite, opts RunOptions) (Report, error) {
 		report.Passed = report.Passed && result.Passed
 	}
 	return report, nil
+}
+
+// compileParsers builds the parser of each backend from the suite's grammar under the optimization
+// settings of opts.
+func compileParsers(suite *Suite, backends []string, opts RunOptions) (map[string]*engine.Parser, error) {
+	parsers := make(map[string]*engine.Parser, len(backends))
+	for _, backend := range backends {
+		p, err := entry.CompileParser(suite.grammar, suite.Start, entry.Options{Settings: opts.Settings})
+		if err != nil {
+			return nil, fmt.Errorf("compile grammar: %w", err)
+		}
+		parsers[backend] = p
+	}
+	return parsers, nil
 }
 
 // UpdateGoldens refreshes only node JSON and locations for a selected backend.
