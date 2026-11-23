@@ -646,7 +646,7 @@ func (p *parser) tupleType(g *ast.TypeGroup, first ast.TypeExpr) ast.TypeExpr {
 
 // typeElem parses an element of a list of types with the comments before it.
 func (p *parser) typeElem() ast.TypeExpr {
-	layout := p.takeTermLayout()
+	layout := p.takeActionLayout()
 	x := p.typeExpr()
 	if layout != nil {
 		x.(ast.SourceNode).Source().Layout = layout
@@ -1561,7 +1561,7 @@ func (p *parser) attribute() (sourceResult *ast.Attribute) {
 	for {
 		var layout *ast.SourceLayout
 		if len(list.Elems) > 0 {
-			layout = p.takeTermLayout()
+			layout = p.takeActionLayout()
 		}
 		if p.is(",") {
 			p.errorf("expected an attribute argument, found ','")
@@ -1904,7 +1904,7 @@ func (p *parser) tryLambda() (sourceResult ast.ActionExpr) {
 	if t := p.peek(k + 1); t.kind != tPunct || t.text != "=>" {
 		return nil
 	}
-	layout = p.takeTermLayout()
+	layout = p.takeActionLayout()
 	p.next() // "("
 	cur := p.cur
 	list := &ast.ListLayout{}
@@ -1912,7 +1912,7 @@ func (p *parser) tryLambda() (sourceResult ast.ActionExpr) {
 	for i := range params {
 		var elem *ast.SourceLayout
 		if i > 0 {
-			elem = p.takeTermLayout()
+			elem = p.takeActionLayout()
 		}
 		if t := p.tok(); t.kind == tIdent && (t.text == "true" || t.text == "false" || t.text == "nil") {
 			p.errs.addRange(t.pos, t.end, fmt.Sprintf("%s cannot name a lambda parameter", t.text))
@@ -1975,7 +1975,7 @@ func (p *parser) binary(level int) (sourceResult ast.ActionExpr) {
 
 func (p *parser) unary() (sourceResult ast.ActionExpr) {
 	sourceStart := p.i
-	layout := p.takeTermLayout()
+	layout := p.takeActionLayout()
 	defer func() {
 		if sourceResult != nil {
 			p.sourceNode(sourceResult, sourceStart)
@@ -2198,7 +2198,7 @@ func (p *parser) newActionExpr() (sourceResult ast.ActionExpr) {
 	trailing := false
 	for !p.is("}") {
 		fieldStart := p.i
-		layout := p.takeTermLayout()
+		layout := p.takeActionLayout()
 		name := p.ident()
 		p.expect(":")
 		field := &ast.FieldInit{SourceInfo: ast.SourceInfo{Pos: name.pos}, Name: name.text, Value: p.actionExpr()}

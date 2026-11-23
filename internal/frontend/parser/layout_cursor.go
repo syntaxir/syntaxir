@@ -402,7 +402,7 @@ func (lc *layoutCursor) takeInlineGap() []*ast.Comment {
 // delimitedGap takes the comments before the current token inside a choice that does not
 // record line breaks, such as one inside delimiters, where they may end a line or stand on lines
 // of their own: before a pragma, an attribute or an item of a sequence after the operand or the
-// item before it. An inline gap (see takeInlineGap) is left to the term layout.
+// item before it. An inline gap (see takeInlineGap) is left to the action layout.
 func (lc *layoutCursor) delimitedGap() *ast.Gap {
 	if lc.nest == 0 || lc.inlineGap() {
 		return nil
@@ -554,9 +554,9 @@ func (lc *layoutCursor) takeGap() ast.RepeatGap {
 	return g
 }
 
-// takeTermLayout keeps trivia at an expression boundary rather than promoting
+// takeActionLayout keeps trivia at an expression boundary rather than promoting
 // it to the current statement's line break. Normalized ownership is independent.
-func (lc *layoutCursor) takeTermLayout() *ast.SourceLayout {
+func (lc *layoutCursor) takeActionLayout() *ast.SourceLayout {
 	if lc.header {
 		return nil
 	}

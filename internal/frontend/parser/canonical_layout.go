@@ -268,7 +268,7 @@ func (r *layoutReplay) attribute(a *ast.Attribute) {
 	for i, v := range values {
 		var layout *ast.SourceLayout
 		if len(list.Elems) > 0 {
-			layout = lc.takeTermLayout()
+			layout = lc.takeActionLayout()
 		}
 		if i >= len(a.Args) {
 			lc.next() // the name
@@ -347,7 +347,7 @@ func (r *layoutReplay) typ(t ast.TypeExpr) {
 		t.BodyBreak = lc.lineBreak()
 		for i, u := range t.Types {
 			if i > 0 {
-				u.(ast.SourceNode).Source().Layout = lc.takeTermLayout()
+				u.(ast.SourceNode).Source().Layout = lc.takeActionLayout()
 			}
 			r.typ(u)
 			lc.takeAfterLayout(u)
@@ -372,7 +372,7 @@ func (r *layoutReplay) typ(t ast.TypeExpr) {
 		lc.header = false
 		t.OpenBreak, t.BodyBreak = lc.openList()
 		for _, u := range t.Args {
-			layout := lc.takeTermLayout()
+			layout := lc.takeActionLayout()
 			r.typ(u)
 			if layout != nil {
 				u.(ast.SourceNode).Source().Layout = layout

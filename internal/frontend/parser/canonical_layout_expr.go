@@ -508,7 +508,7 @@ func (r *layoutReplay) actionExpr(t ast.ActionExpr) {
 
 func (r *layoutReplay) lambda(l *ast.Lambda) {
 	lc := r.lc
-	layout := lc.takeTermLayout()
+	layout := lc.takeActionLayout()
 	lc.next() // (
 	cur := lc.cur
 	list := &ast.ListLayout{}
@@ -516,7 +516,7 @@ func (r *layoutReplay) lambda(l *ast.Lambda) {
 	for i := range l.Params {
 		var elem *ast.SourceLayout
 		if i > 0 {
-			elem = lc.takeTermLayout()
+			elem = lc.takeActionLayout()
 		}
 		lc.next() // the parameter
 		lc.takeAfter(&elem)
@@ -587,7 +587,7 @@ func (r *layoutReplay) binary(level int, t ast.ActionExpr) {
 
 func (r *layoutReplay) unary(t ast.ActionExpr) {
 	lc := r.lc
-	layout := lc.takeTermLayout()
+	layout := lc.takeActionLayout()
 	if u, ok := t.(*ast.Unary); ok {
 		lc.next() // - or !
 		r.unary(u.X)
@@ -724,7 +724,7 @@ func (r *layoutReplay) newActionExpr(n *ast.Constructor) {
 		trailing = r.listItems(n.Args, "}")
 	} else {
 		for _, field := range n.Fields {
-			layout := lc.takeTermLayout()
+			layout := lc.takeActionLayout()
 			lc.next() // the name
 			lc.next() // :
 			r.actionExpr(field.Value)
