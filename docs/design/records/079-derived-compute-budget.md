@@ -10,7 +10,8 @@ For a start rule that the classifier classifies as Linear, the classifier derive
 parse, `c * n + k`, from the structure of the grammar, in the logical events of [record 076](076-logical-compute-units.md).
 `sxir lint -classify` and `lint.Classify` report it. The default of `Limits.Compute` stays `max(2^20, 1024 * n)`
 until the linear-cost proof confirms the constants of the derivation; then the derived bound, with a stated safety
-factor, replaces the default for a Linear grammar. A parse that exceeds its compute limit names its hotspot
+factor, replaces the default for a Linear grammar. A parse with missing-token insertion is outside the classes, has no
+such bound and keeps the default. A parse that exceeds its compute limit names its hotspot
 ([record 078](078-limit-error-hotspot.md)); it does not name the rule that was being evaluated when the limit was found
 exceeded, which record 078 plans as `LimitError.Rule`.
 
@@ -110,6 +111,29 @@ All three are absent for a class other than Linear. They state that the bound is
 The default stays `max(2^20, 1024 * n)`. When the proof confirms the constants, the default of a parse of a grammar
 that is Linear becomes the derived bound times a documented safety factor, and a grammar that is not Linear keeps
 `max(2^20, 1024 * n)` with the class reported by `sxir lint -classify`. `Unlimited` disables the bound as it does today.
+
+A parse with [missing-token insertion](../../../spec/language/pragmas.md#missing) keeps `max(2^20, 1024 * n)` whatever
+the class of its grammar. Such a parse evaluates again, at every call, each rule that contains `#missing` directly or
+through the rules it calls, and is outside the classes ([Classification](../../../spec/runtime/parsing.md#classification)),
+so no bound of the form `c * n + k` holds for it. In the Linear grammar
+
+```text
+rule main = e $$
+rule e = t "+" e / t
+rule t = "(" e ")" #missing / "x"
+```
+
+whose derived bound is `70 * n + 72`, a parse of `d` nested parentheses around `x` with an insertion limit of 1 inserts
+no token, and its units double with each level of `d`:
+
+| d | Bound | Units without insertion | Units with insertion |
+| --- | --- | --- | --- |
+| 4 | 702 | 46 | 186 |
+| 8 | 1,262 | 86 | 3,066 |
+| 12 | 1,822 | 126 | 49,146 |
+| 16 | 2,382 | 166 | 786,426 |
+
+Without insertion a `#missing` literal is an ordinary literal, and the bound covers it.
 The measured soundness of the bound (below) stays as a test after the switch.
 
 ## Alternatives
@@ -140,6 +164,9 @@ The measured soundness of the bound (below) stays as a test after the switch.
   in the proxy units. A bound with half the constants still holds on this corpus, so the
   mutant divides them by 64 and must be exceeded by some parse of each grammar; this also fails a derivation that grows
   looser than that.
+- The lint package's test of missing-token insertion classifies the grammar above as Linear, checks that the units
+  without insertion stay within the bound and that those with insertion grow by at least 15 times for four more levels
+  and pass the bound.
 - The proof's confirmation of each constant is the gate of the default.
 
 ## Limitations
