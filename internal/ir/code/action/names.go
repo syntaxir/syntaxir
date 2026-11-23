@@ -96,13 +96,20 @@ func Renumber(f *code.Func) {
 			define(s.Label)
 		}
 	}, nil)
-	seen := map[*code.Local]bool{}
+	Rename(f, rename)
+}
+
+// Rename renames, by rename, the locals and the loops and blocks of f wherever they are defined,
+// assigned, read or named: a name that rename does not map keeps it.
+func Rename(f *code.Func, rename map[string]string) {
 	to := func(name string) string {
 		if r, ok := rename[name]; ok {
 			return r
 		}
 		return name
 	}
+	// The lowering uses one Local node wherever it reads the local, so each node is renamed once.
+	seen := map[*code.Local]bool{}
 	code.Walk(f.Body, func(s code.Stmt) {
 		switch s := s.(type) {
 		case *code.Let:
@@ -127,7 +134,6 @@ func Renumber(f *code.Func) {
 			s.Label = to(s.Label)
 		}
 	}, func(e code.Expr) {
-		// The lowering uses one Local node wherever it reads the local, so each node is renamed once.
 		if l, ok := e.(*code.Local); ok && !seen[l] {
 			seen[l] = true
 			l.Name = to(l.Name)

@@ -43,8 +43,7 @@ func (g *Generator) typedRuleFunc(r *common.Rule) *flatRule {
 		return nil
 	}
 	l := g.planned(spec.Key)
-	g.Cur, g.Proj = r, g.Projections(r)
-	defer func() { g.Proj = nil }()
+	g.Cur = r
 	return g.execFlatRule(newPrimPrinter(g, false, l), l)
 }
 
@@ -63,8 +62,7 @@ func (g *Generator) frameBody(r *common.Rule, scope *check.Scope) string {
 	if prim.AttrsOf(l.Func).Node {
 		panic("internal error: a typed rule is lowered with the options of the Node tables")
 	}
-	g.Cur, g.Proj = r, g.Projections(r)
-	defer func() { g.Proj = nil }()
+	g.Cur = r
 	return g.framedFunc(l, spec.Slots, scope, r.Name+" ("+typedFrameComment(r)+")", true)
 }
 
@@ -77,8 +75,7 @@ func (g *Generator) nodeFrameBody(r *common.Rule, spec *plandata.FuncSpec, scope
 	if !prim.AttrsOf(l.Func).Node {
 		panic("internal error: a Node rule is lowered with the options of the typed table")
 	}
-	g.Cur, g.Proj = r, g.Projections(r)
-	defer func() { g.Proj = nil }()
+	g.Cur = r
 	return g.framedFunc(l, spec.Slots, scope, r.Name+" (Node body inlined)", true)
 }
 
@@ -92,8 +89,7 @@ func (g *Generator) streamBodyFunc(r *common.Rule, scope *check.Scope) string {
 		return ""
 	}
 	l := g.planned(spec.Key)
-	g.Cur, g.Proj = r, g.Projections(r)
-	defer func() { g.Proj = nil }()
+	g.Cur = r
 	return g.framedFunc(l, spec.Slots, scope, r.Name+" (stream body)", true)
 }
 
@@ -114,9 +110,6 @@ func (g *Generator) operatorsRuleBody(k plandata.Key, scope *check.Scope, build 
 		g.PrintErr = fmt.Errorf("internal error: a line of Operators Rule %s is planned with build %v, not %v", g.Cur.Name, spec.Build, build)
 	}
 	l := g.planned(k)
-	prev := g.Proj
-	g.Proj = nil // the actions of the lines use no projections of the rule
-	defer func() { g.Proj = prev }()
 	comment := " (typed OperatorsRule body inlined)"
 	if g.Table != "trules" {
 		comment = " (OperatorsRule body inlined)"

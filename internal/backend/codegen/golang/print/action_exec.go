@@ -10,15 +10,13 @@ import (
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
-	irc "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/actionlower"
 )
 
 // Action expressions printed from Exec IR.
 //
-// Every action expression is lowered by actionlower.Lower and printed from Exec IR: the calls of the compositions of the
-// library (ActionBinary, ...) with the failure of each checked after it, and the leaves, which read
-// the captures and variables of the action.
+// Every action expression is printed from its function in the Action module of the table, which the Action segment of
+// the pipeline lowered and transformed: the calls of the compositions of the library (ActionBinary, ...) with the
+// failure of each checked after it, and the leaves, which read the captures and variables of the action.
 
 // The library methods that print the operations action.nodeType (of the Node library) and
 // action.castError.
@@ -29,48 +27,31 @@ const (
 	rtActionSetField   = "ActionSetField"
 )
 
-// loweredBody returns the body of a function that returns the value of the action expression t of Core IR and its
-// failure, printed from Exec IR. The scope s and the locals resolve the leaves (leaf).
-func (g *Generator) loweredBody(t irc.ActionExpr, s *check.Scope, locals map[string]string) string {
-	return g.lowered(t, s, locals, "", false)
+// actionBody returns the body of a function that returns the value of the action expression of the action
+// site i and its failure, printed from its function in the Action module of the table. The scope s and the locals
+// resolve the leaves (leaf).
+func (g *Generator) actionBody(i int, s *check.Scope, locals map[string]string) string {
+	m, f := g.SiteFunc(i, false)
+	return g.siteBody(m, f, s, locals)
 }
 
-// loweredStmts returns the statements that compute the value of the action expression t into a local that they
-// declare, and the name of the local, as loweredBody does. The locals of the computation are scoped
-// to a block.
-func (g *Generator) loweredStmts(t irc.ActionExpr, s *check.Scope, locals map[string]string) (string, string) {
+// actionStmts returns the statements that compute the value of the action of the rule at the action site i into a
+// local that they declare, and the name of the local, printed from the function in place of the action
+// (action.Site.Result), whose failure ends the parse. The locals of the computation are scoped to a block.
+func (g *Generator) actionStmts(i int, s *check.Scope, locals map[string]string) (string, string) {
+	m, f := g.SiteFunc(i, true)
 	res := fmt.Sprintf("tr%d", g.LoweredActions)
-	text := g.lowered(t, s, locals, res, false)
-	return fmt.Sprintf("var %s any\n{\n%s}\n", res, text), res
+	// One function prints the actions of several flat rules in place: each assigns a local of its own.
+	f = code.CloneFunc(f)
+	action.Rename(f, map[string]string{action.SiteOf(f).Result: res})
+	return fmt.Sprintf("var %s any\n{\n%s}\n", res, g.siteBody(m, f, s, locals)), res
 }
 
-// lowered prints the action expression t from Exec IR, into the local result if it is not empty; dispatch makes a
-// predicate that compares the text of a capture with literals test them at once (text-dispatch).
-func (g *Generator) lowered(t irc.ActionExpr, s *check.Scope, locals map[string]string, result string, dispatch bool) string {
-	if t == nil {
-		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
-	}
-	l, err := actionlower.Lower(t, actionlower.Options{Result: result, StructCall: g.Table == "trules", Visits: g.Logical, Proj: g.Proj,
-		FieldCompare: g.Table == "trules" && g.params.FieldCompare, TextDispatch: dispatch})
-	if err != nil {
-		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
-	}
-	res := Body(l.Module, l.Func, g.actionTarget(s, locals), nil)
+// siteBody prints the body of the function f of the Action module m.
+func (g *Generator) siteBody(m *code.Module, f *code.Func, s *check.Scope, locals map[string]string) string {
+	res := Body(m, f, g.actionTarget(s, locals), nil)
 	g.LoweredActions++
 	return res.Text
-}
-
-// actionBody returns the body of a function that returns the value of the action expression ct of Core IR and its
-// failure.
-func (g *Generator) actionBody(ct irc.ActionExpr, s *check.Scope, locals map[string]string) string {
-	return g.loweredBody(ct, s, locals)
-}
-
-// predicate returns the body of the function of a predicate with the action expression ct of Core IR: a
-// membership of a captured text in literals tests them at once without limit controls
-// (text-dispatch).
-func (g *Generator) predicate(ct irc.ActionExpr, s *check.Scope) string {
-	return g.lowered(ct, s, nil, "", g.Params.TextDispatch)
 }
 
 // leaf returns the expression that reads the capture (or, if variable is set, the variable) name of

@@ -27,15 +27,9 @@ var printPackages = []string{
 }
 
 // printerImportExceptions are the uses of a banned package that the printers still make, as
-// "<file>: <package name>.<identifier>": the action lowering, which the printers call for each action
-// expression until the action lowering of the pipeline lowers them as a step, and the import ban
-// becomes total. Each entry must be used: a use that goes must leave the list.
-var printerImportExceptions = []string{
-	"internal/backend/codegen/golang/print/action_exec.go: actionlower.Lower",
-	"internal/backend/codegen/golang/print/action_exec.go: actionlower.Options",
-	"internal/backend/codegen/typescript/print/action_exec.go: actionlower.Lower",
-	"internal/backend/codegen/typescript/print/action_exec.go: actionlower.Options",
-}
+// "<file>: <package name>.<identifier>". It is empty: the printers print the action sites from the
+// Action module and call no lowering. Each entry must be used: a use that goes must leave the list.
+var printerImportExceptions = []string{}
 
 // bannedForPrinters reports why a printer may not import the package at the module path r, or "".
 func bannedForPrinters(r string) string {

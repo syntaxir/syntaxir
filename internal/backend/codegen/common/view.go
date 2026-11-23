@@ -67,10 +67,6 @@ type Rule struct {
 	// Twin is the view of the value-free twin of the rule, if it has one. Copied: only the checked
 	// program links a rule to its twin.
 	Twin *Rule
-	// Projections maps the captures of repetitions that the action reads only as map($x, (e) => e.$f)
-	// to the capture f, nil if there are none (check.RuleProjections). Copied: only the checked
-	// program computes them.
-	Projections map[string]string
 }
 
 // BodyExpr returns the expression the rule's body matches.

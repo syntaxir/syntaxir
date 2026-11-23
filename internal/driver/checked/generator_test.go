@@ -1,7 +1,6 @@
 package checked
 
 import (
-	"maps"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -12,8 +11,8 @@ import (
 // TestGeneratorViewPointsToTheOwners checks the view that the generators read (Source.Generator)
 // against the checked program it is built from: the model, the checker and the run-time program are
 // the program's own, every rule view embeds the run-time rule of its ID and points to the rule's
-// definition, action and capture scope, and the facts it copies (Lean, the twin and the projections)
-// are the checked program's. The grammar has a twin and a projected repetition.
+// definition, action and capture scope, and the facts it copies (Lean and the twin) are the checked
+// program's. The grammar has a twin.
 func TestGeneratorViewPointsToTheOwners(t *testing.T) {
 	g, err := compiletest.Parse(`
 @start
@@ -48,11 +47,8 @@ rule item = [a-z]+
 		if vr.BodyExpr() != r.BodyExpr() {
 			t.Errorf("rule %s (%d): body differs", r.Name, r.ID)
 		}
-		if !maps.Equal(vr.Projections, check.RuleProjections(p.Model, r)) {
-			t.Errorf("rule %s (%d): projections %v, want %v", r.Name, r.ID, vr.Projections, check.RuleProjections(p.Model, r))
-		}
 	}
-	projected, twins := false, 0
+	twins := 0
 	for i, r := range p.RuleList {
 		vr := v.RuleList[i]
 		check(vr, r, &common.Rule{Rule: run.RuleList[i]})
@@ -67,12 +63,11 @@ rule item = [a-z]+
 		case r.Twin != nil:
 			twins++
 		}
-		projected = projected || len(vr.Projections) > 0
 	}
 	for i, r := range p.Twins {
 		check(v.Twins[i], r, &common.Rule{Rule: run.Twins[i]})
 	}
-	if twins == 0 || !projected {
-		t.Fatalf("the grammar makes %d twins and projections %v: the test needs both", twins, projected)
+	if twins == 0 {
+		t.Fatal("the grammar makes no twin: the test needs one")
 	}
 }

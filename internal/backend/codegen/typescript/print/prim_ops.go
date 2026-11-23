@@ -386,7 +386,7 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		if p.dry {
 			return "p.predicate(a)"
 		}
-		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(p.g.ActionSite(x.Action).Action, common.FrameScope(x.Names)))
+		return fmt.Sprintf("p.predicate(%s)", p.g.predicateFunc(x.Action, common.FrameScope(x.Names)))
 	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if !x.Frame {
@@ -397,7 +397,7 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 		}
 		// The function is declared only if the rule keeps the printed text.
 		name := p.g.Name("a")
-		p.decl(name, p.g.actionFunc(name, p.g.ActionSite(x.Action).Action, common.FrameScope(x.Names), nil))
+		p.decl(name, p.g.actionFunc(name, x.Action, common.FrameScope(x.Names), nil))
 		return fmt.Sprintf("p.bind(%d, %s)", p.g.Prog.Vars.Index(x.Var), name)
 	case prim.OpCallOutline:
 		return p.outline(c)

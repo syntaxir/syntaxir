@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
+	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/runtime/limits"
@@ -49,11 +50,13 @@ type Generator struct {
 	// sites numbers the action sites of sitesOf, the Core IR of the table last printed (ActionSite).
 	sites   *core.ActionSites
 	sitesOf *core.Module
+	// funcs indexes the functions of the sites of funcsOf, the Action module of the table last printed
+	// (SiteFunc).
+	funcs   map[siteForm]*code.Func
+	funcsOf *code.Module
 	Prog    *Program
 	Table   string // the rule table being generated: rules, or recRules for Recognize
 	Cur     *Rule  // the rule being generated
-	// Proj holds the projected repetition captures of the rule being generated (Projections).
-	Proj    map[string]string
 	Vars    strings.Builder
 	Init    strings.Builder
 	Methods strings.Builder
@@ -167,25 +170,21 @@ func (g *Generator) Name(prefix string) string {
 	return fmt.Sprintf("%s%d", prefix, g.n)
 }
 
-// Projections returns the projected repetition captures of the rule r (see ruleProjections), none
-// in the recognizer.
-func (g *Generator) Projections(r *Rule) map[string]string {
-	if g.Table == "recRules" {
-		return nil
-	}
-	return r.Projections
-}
-
 // Core returns the Core IR that the table being printed (Exec) was lowered from.
 func (g *Generator) Core() *core.Module { return g.Exec.IR.M }
 
 // ActionSite returns the action site numbered i in the Core IR of the table being printed, which
 // the operations of predicates, bindings and actions name (core.ActionSites).
 func (g *Generator) ActionSite(i int) core.ActionSite {
+	g.actionSites()
+	return g.sites.Sites[i]
+}
+
+// actionSites numbers the action sites of the Core IR of the table being printed (sites).
+func (g *Generator) actionSites() {
 	if m := g.Core(); g.sitesOf != m {
 		g.sites, g.sitesOf = core.ActionSitesOf(m), m
 	}
-	return g.sites.Sites[i]
 }
 
 // RuleOf returns the rule of the program with the ID id, value-free twins included.
@@ -196,17 +195,58 @@ func (g *Generator) RuleOf(id int) *Rule {
 	return g.Prog.Twins[id-len(g.Prog.RuleList)]
 }
 
-// CoreAction returns the action of Core IR of the rule r, the action expression that its value is made of, or nil
-// if it has none or the table has no Core IR.
-func (g *Generator) CoreAction(r *Rule) core.ActionExpr {
+// RuleSite returns the number of the action site of the action of the rule r, the action expression
+// that its value is made of, or -1 if it has none or the table has no Core IR.
+func (g *Generator) RuleSite(r *Rule) int {
 	if g.Exec == nil || r.ID >= len(g.Core().Rules) {
-		return nil
+		return -1
 	}
 	cr := g.Core().Rules[r.ID]
 	if cr == nil || cr.Finish.Kind != core.FinishAction {
-		return nil
+		return -1
 	}
-	return cr.Finish.Action
+	g.actionSites()
+	return g.sites.OfRule(r.ID)
+}
+
+// LineSite returns the number of the action site of the action of the line l of an Operators Rule, or
+// -1 if l is nil.
+func (g *Generator) LineSite(l *core.OpLine) int {
+	if l == nil {
+		return -1
+	}
+	g.actionSites()
+	return g.sites.Of(l)
+}
+
+// SiteFunc returns the Action module of the table being printed (plandata.TableIR.Actions) and the
+// function of its action site i: the function that returns the value and the failure, or, if
+// inPlace, the function in place of a rule's action (action.Site.Result). A site without the function,
+// a negative one included, is an internal error.
+func (g *Generator) SiteFunc(i int, inPlace bool) (*code.Module, *code.Func) {
+	m := g.Exec.IR.Actions.Module()
+	if m == nil {
+		panic(fmt.Errorf("internal error: the table %s has no Action module", g.Table))
+	}
+	if g.funcsOf != m {
+		g.funcs, g.funcsOf = map[siteForm]*code.Func{}, m
+		for _, f := range m.Funcs {
+			if s := action.SiteOf(f); s != nil {
+				g.funcs[siteForm{s.Site, s.Result != ""}] = f
+			}
+		}
+	}
+	f := g.funcs[siteForm{i, inPlace}]
+	if f == nil {
+		panic(fmt.Errorf("internal error: rule %s: no function of the action site %d (in place: %t)", g.Cur.Name, i, inPlace))
+	}
+	return m, f
+}
+
+// siteForm is a function of an Action module: its site, and whether it evaluates the site in place.
+type siteForm struct {
+	site    int
+	inPlace bool
 }
 
 // Unprintable records that the printer does not print a part of a table, which fails the generation: every

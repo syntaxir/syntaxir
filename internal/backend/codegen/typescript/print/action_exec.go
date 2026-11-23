@@ -8,30 +8,21 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
-	irc "syntaxir.dev/sxir/internal/ir/core"
-	"syntaxir.dev/sxir/internal/middleend/actionlower"
 )
 
-// Action expressions printed from Exec IR.
+// Action expressions printed from the Action module.
 //
-// Every action expression is lowered by actionlower.Lower and printed from Exec IR as the statements of a function: the
-// calls of the compositions of the library's Parser (actionBinary, ...) with the failure of each checked
-// after it, the logical compute units of the values it builds and the elements it visits under limit
-// controls, and the leaves, which read the captures and variables of the action.
+// Every action site is printed from its function of the table's Action module (plandata.TableIR.Actions),
+// which the Action segment lowered and optimized, as the statements of a function: the calls of the
+// compositions of the library's Parser (actionBinary, ...) with the failure of each checked after it,
+// the logical compute units of the values it builds and the elements it visits under limit controls,
+// and the leaves, which read the captures and variables of the action.
 
-// actionStmts returns the statements of a function that returns the value of the action expression ct of Core IR,
-// printed from Exec IR. The scope s and the locals resolve the leaves (leaf). A predicate that
-// compares the text of a capture with literals tests them at once without limit controls if
-// dispatch is set (text-dispatch).
-func (g *Generator) actionStmts(ct irc.ActionExpr, s *check.Scope, locals map[string]string, dispatch bool) string {
-	if ct == nil {
-		panic(fmt.Errorf("rule %s: an action expression without Core IR", g.Cur.Name))
-	}
-	l, err := actionlower.Lower(ct, actionlower.Options{Visits: g.Logical, Proj: g.Proj, TextDispatch: dispatch})
-	if err != nil {
-		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
-	}
-	text, err := Statements(l.Module, l.Func, g.actionTarget(s, locals), 1)
+// actionStmts returns the statements of a function that returns the value of the action site i,
+// printed from its function of the Action module. The scope s and the locals resolve the leaves (leaf).
+func (g *Generator) actionStmts(i int, s *check.Scope, locals map[string]string) string {
+	m, f := g.SiteFunc(i, false)
+	text, err := Statements(m, f, g.actionTarget(s, locals), 1)
 	if err != nil {
 		panic(fmt.Errorf("rule %s: %w", g.Cur.Name, err))
 	}
@@ -39,16 +30,15 @@ func (g *Generator) actionStmts(ct irc.ActionExpr, s *check.Scope, locals map[st
 	return text
 }
 
-// actionFunc returns the function that evaluates the action expression ct of Core IR, declared with the name name.
-func (g *Generator) actionFunc(name string, ct irc.ActionExpr, s *check.Scope, locals map[string]string) string {
-	body := g.actionStmts(ct, s, locals, false)
+// actionFunc returns the function that evaluates the action site i, declared with the name name.
+func (g *Generator) actionFunc(name string, i int, s *check.Scope, locals map[string]string) string {
+	body := g.actionStmts(i, s, locals)
 	return fmt.Sprintf("function %s(%s: Actx): [Value, Value] {\n%s}\n\n", name, tsActxParam(body), body)
 }
 
-// predicateFunc returns the arrow function of a predicate with the action expression ct of Core IR: a membership
-// of a captured text in literals tests them at once without limit controls (text-dispatch).
-func (g *Generator) predicateFunc(ct irc.ActionExpr, s *check.Scope) string {
-	body := g.actionStmts(ct, s, nil, g.Params.TextDispatch)
+// predicateFunc returns the arrow function of the predicate of the action site i.
+func (g *Generator) predicateFunc(i int, s *check.Scope) string {
+	body := g.actionStmts(i, s, nil)
 	return fmt.Sprintf("(%s): [Value, Value] => {\n%s}", tsActxParam(body), body)
 }
 

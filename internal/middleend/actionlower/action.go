@@ -34,7 +34,7 @@ import (
 )
 
 // CtxParam is the parameter of a lowered action expression: the context the action expression is applied to. An action expression's results are those of
-// the callable type Action (action.Action) unless the action expression is evaluated in place of an action (Options.Result).
+// the callable type Action (action.Action).
 const CtxParam = "c"
 
 // Compositions are the compositions of the parser VM that lowered action expressions call.
@@ -47,37 +47,15 @@ type Lowered struct {
 	// and the operations of the leaves.
 	Module *code.Module
 	Func   *code.Func
-	// Result is the local of Func (Func.Locals) that holds the action expression's value at the end of Func's body,
-	// or "" if the body returns it.
-	Result string
 }
 
 // Options configures Lower.
 type Options struct {
-	// Result, if not empty, names a local of the lowered function (Func.Locals) that its body assigns
-	// the action expression's value to last, and a failure ends the parse by action.raise; otherwise the body returns
-	// the value and the failure. A printer that prints the body without the function, in place of an
-	// action, declares the local around it.
-	Result string
-	// StructCall makes a struct literal one call of the target's constructor of its type (action.newN),
-	// with the field values evaluated in the order written and passed in declaration order, nil for a
-	// field not given. Otherwise the struct is made of its fields by action.struct, action.setField, cover
-	// and made.
-	StructCall bool
 	// Visits counts the step of each element that a loop of map, filter or a fold visits (seq.step):
 	// the visit is a logical compute unit (design record 076).
 	Visits bool
-	// FieldCompare makes a comparison (==, !=, <, <=, >, >=) of which an operand reads a field a call
-	// of action.compare on operands, reading such a field with action.fieldOperand, so that a string field
-	// is compared without making a value of it.
-	FieldCompare bool
-	// TextDispatch makes a predicate that compares the text of one capture with string literals,
-	// text($x) == "a" || text($x) == "b" ..., test the text against the literals at once with
-	// action.textIn when the parse runs without limit controls, and evaluate the action expression as written
-	// otherwise. It applies to an action expression that the function returns (Result is empty).
-	TextDispatch bool
 	// Proj are the projected captures of the rule of the action expression, by name, with the capture of an element
-	// that each stands for (the projections of the rule's view, common.Rule.Projections). A call map($x, (e) => e.$f) of a projected capture
+	// that each stands for (ir.Capture.Project). A call map($x, (e) => e.$f) of a projected capture
 	// x whose elements stand for f takes the elements of x as they are (action.copyList).
 	Proj map[string]string
 }
@@ -100,7 +78,7 @@ func Lower(t ir.ActionExpr, o Options) (*Lowered, error) {
 	if err := code.VerifyExtension(m, nOps, nFuncs); err != nil {
 		return nil, fmt.Errorf("lower action expression: %w", err)
 	}
-	return &Lowered{Module: m, Func: fn, Result: o.Result}, nil
+	return &Lowered{Module: m, Func: fn}, nil
 }
 
 // lowerFunc adds to m the function name that evaluates the action expression t with the options o, and
@@ -110,42 +88,15 @@ func lowerFunc(m *code.Module, name string, t ir.ActionExpr, o Options) (*code.F
 		return nil, nil, fmt.Errorf("lower: an action expression that the front end does not build: %s", ir.ActionExprString(t))
 	}
 	datum, failT := code.THandle(exec.Datum), code.THandle(action.Fail)
-	var results []code.Type
-	if o.Result == "" {
-		results = []code.Type{datum, failT}
-	}
-	l := &actionLowerer{m: m, structCall: o.StructCall, visits: o.Visits, proj: o.Proj,
-		params: map[*ir.Lambda][]code.Expr{}, inPlace: o.Result != "", fieldCompare: o.FieldCompare}
-	fn := m.AddFunc(name, []code.Param{code.P(CtxParam, code.THandle(action.Act))}, results, nil, func(b *code.Builder) {
-		var res code.Expr
-		if o.Result != "" {
-			res = b.Var(o.Result, datum)
-		}
+	l := &actionLowerer{m: m, visits: o.Visits, proj: o.Proj, params: map[*ir.Lambda][]code.Expr{}}
+	fn := m.AddFunc(name, []code.Param{code.P(CtxParam, code.THandle(action.Act))}, []code.Type{datum, failT}, nil, func(b *code.Builder) {
 		if x, lits, ok := textMembership(t); ok {
 			l.membership = &action.Membership{Read: readOf(x), Lits: lits}
-			if o.TextDispatch && res == nil {
-				b.If(code.C(action.OpActionUncontrolled), func(b *code.Builder) {
-					s := l.fallible(b, "ts", code.C("text", imm(action.OpActionRead, readOf(x))))
-					var in code.Expr = &code.Call{Callee: action.OpActionTextIn, Args: []code.Expr{s}, Imm: lits}
-					if len(lits) > 1 {
-						// A target may print the binding as one switch; one literal stays an equality.
-						in = b.Let(l.local("tin"), in)
-					}
-					b.Return(code.C("val.fromBool", in), code.Null(failT))
-				})
-			}
 		}
-		v := l.value(b, t)
-		if res != nil {
-			b.Set(o.Result, v)
-		} else {
-			b.Return(v, code.Null(failT))
-		}
+		b.Return(l.value(b, t), code.Null(failT))
 	})
-	if o.Result == "" {
-		if err := checkActionSignature(m, fn); err != nil {
-			return nil, nil, err
-		}
+	if err := checkActionSignature(m, fn); err != nil {
+		return nil, nil, err
 	}
 	return fn, l, nil
 }
@@ -297,28 +248,19 @@ func actionModule() (*code.Module, error) {
 }
 
 type actionLowerer struct {
-	m          *code.Module
-	n          int
-	structCall bool
-	visits     bool
-	proj       map[string]string
+	m      *code.Module
+	n      int
+	visits bool
+	proj   map[string]string
 	// params holds the values of the parameters of each lambda whose body is being lowered.
 	params map[*ir.Lambda][]code.Expr
-	// inPlace is set when the action expression is evaluated in place of an action (Options.Result).
-	inPlace      bool
-	fieldCompare bool
 	// membership and structs are the facts of the lowering (action.Site.Membership, Structs).
 	membership *action.Membership
 	structs    []action.StructLit
 }
 
-// raise ends the evaluation of the action expression with the failure f: the function returns it, or, in place of
-// an action, action.raise ends the parse.
+// raise ends the evaluation of the action expression with the failure f: the function returns it.
 func (l *actionLowerer) raise(b *code.Builder, f code.Expr) {
-	if l.inPlace {
-		b.Do(action.OpActionRaise, f)
-		return
-	}
 	b.Return(code.Null(code.THandle(exec.Datum)), f)
 }
 
@@ -393,11 +335,6 @@ func (l *actionLowerer) value(b *code.Builder, t ir.ActionExpr) code.Expr {
 					return code.C("val.fromBool", eq)
 				}
 			}
-		}
-		if l.fieldCompare && comparison(t.Op) && (fieldRead(t.L) || fieldRead(t.R)) {
-			x := l.operand(b, t.L)
-			y := l.operand(b, t.R)
-			return l.fallible(b, "tv", &code.Call{Callee: action.OpActionCompare, Args: []code.Expr{x, y}, Imm: t.Op})
 		}
 		x := l.value(b, t.L)
 		y := l.value(b, t.R)
@@ -643,58 +580,22 @@ func (l *actionLowerer) projected(t *ir.Builtin) (*ir.SlotRef, bool) {
 	return x, m.Field == l.proj[x.Name]
 }
 
-// inDeclaredOrder reports whether the struct literal t gives its fields in the order its type declares
-// them.
-func inDeclaredOrder(t *ir.New) bool {
-	next := 0
-	for _, f := range t.Fields {
-		for next < len(t.Declared) && t.Declared[next] != f.Name {
-			next++
-		}
-		if next == len(t.Declared) {
-			return false
-		}
-		next++
-	}
-	return true
-}
-
-// structLiteral lowers the struct literal t. The field values are evaluated in the order written. The
-// struct is then one call of the constructor of its type (StructCall), or made of its fields in that
-// order: a step charged for each, the field set and its value covered by the range of the struct.
+// structLiteral lowers the struct literal t. The field values are evaluated in the order written; the
+// struct is then made of its fields in that order: a step charged for each, the field set and its
+// value covered by the range of the struct. The fact of the literal (action.StructLit) lets a target's
+// pass make it one call of the constructor of its type.
 func (l *actionLowerer) structLiteral(b *code.Builder, t *ir.New) code.Expr {
-	// A value that is not a local or a constant is let before the next one is evaluated when the
-	// constructor call takes the values in another order than written, since the call evaluates its
-	// arguments in the order declared. Without the constructor, each value is used twice (set and
-	// covered), so such a value is let once: a read is then made, and charged, once, as the action expression
-	// reads it. A local or a constant is evaluated already and is used as it is. Otherwise the values are
-	// used as they are; what a field leaves for its use to evaluate (a read, a constant) does not depend on
-	// the fields after it.
-	let := !l.structCall || !inDeclaredOrder(t)
+	// Each value is used twice (set and covered), so a value that is not a local or a constant is let
+	// once: a read is then made, and charged, once, as the action expression reads it. A local or a
+	// constant is evaluated already and is used as it is.
 	vals := make([]code.Expr, len(t.Fields))
 	lets := make([]string, len(t.Fields))
 	for i, f := range t.Fields {
 		vals[i] = l.value(b, f.Value)
-		if let && !settled(vals[i]) {
+		if !settled(vals[i]) {
 			lets[i] = l.local("tf")
 			vals[i] = b.Let(lets[i], vals[i])
 		}
-	}
-	if l.structCall {
-		name := action.OpActionNew + strconv.Itoa(len(t.Declared))
-		if l.m.Op(name) == nil {
-			l.m.AddOp(action.NewOp(len(t.Declared)))
-		}
-		args := make([]code.Expr, len(t.Declared))
-		for i, d := range t.Declared {
-			args[i] = imm(action.OpActionConst, action.Const{Value: nil})
-			for j, f := range t.Fields {
-				if f.Name == d {
-					args[i] = vals[j]
-				}
-			}
-		}
-		return b.Let(l.local("tv"), &code.Call{Callee: name, Args: args, Imm: newOf(t)})
 	}
 	node := l.local("tn")
 	n := b.Let(node, &code.Call{Callee: action.OpActionStruct, Imm: newOf(t)})
@@ -737,32 +638,6 @@ func (l *actionLowerer) logic(b *code.Builder, t *ir.Binary) code.Expr {
 		b.Set(r.(*code.Local).Name, code.C("val.fromBool", right))
 	})
 	return r
-}
-
-// comparison reports whether op is a comparison operator.
-func comparison(op string) bool {
-	switch op {
-	case "==", "!=", "<", "<=", ">", ">=":
-		return true
-	}
-	return false
-}
-
-// fieldRead reports whether t reads a field of a value, x.F, not a capture.
-func fieldRead(t ir.ActionExpr) bool {
-	m, ok := t.(*ir.Member)
-	return ok && (m.Name == "" || m.Name[0] != '$')
-}
-
-// operand lowers t, an operand of a comparison (FieldCompare): a field read is read by
-// action.fieldOperand, any other action expression is a value.
-func (l *actionLowerer) operand(b *code.Builder, t ir.ActionExpr) code.Expr {
-	if !fieldRead(t) {
-		return code.C(action.OpActionOperand, l.value(b, t))
-	}
-	m := t.(*ir.Member)
-	x := l.value(b, m.X)
-	return l.fallible(b, "to", &code.Call{Callee: action.OpActionFieldOperand, Args: []code.Expr{x}, Imm: m.Name})
 }
 
 // textMembership reports whether t compares the text of one capture with string literals,

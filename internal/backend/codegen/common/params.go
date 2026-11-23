@@ -11,7 +11,4 @@ type Params struct {
 	// UsedFeatures narrows the library of a parser to the features that the analysis finds
 	// (ParserFeatures).
 	UsedFeatures bool
-	// TextDispatch is the action lowering's: a predicate that compares the text of a capture with
-	// literals tests them at once when the parse runs without limit controls.
-	TextDispatch bool
 }

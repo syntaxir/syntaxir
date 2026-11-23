@@ -150,22 +150,9 @@ func fieldCompare(f *code.Func) int {
 		n++
 	}, nil)
 	if n > 0 {
-		renameLocals(f, rename)
+		action.Rename(f, rename)
 	}
 	return n
-}
-
-// renameLocals renames the reads of the locals of f by rename, once for each Local node.
-func renameLocals(f *code.Func, rename map[string]string) {
-	seen := map[*code.Local]bool{}
-	code.Walk(f.Body, nil, func(e code.Expr) {
-		if l, ok := e.(*code.Local); ok && !seen[l] {
-			seen[l] = true
-			if r, ok := rename[l.Name]; ok {
-				l.Name = r
-			}
-		}
-	})
 }
 
 // StructCall is the step go-struct-call: in the typed table, a struct literal that the lowering made of

@@ -11,7 +11,6 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	gopass "syntaxir.dev/sxir/internal/backend/codegen/golang/pass"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
@@ -278,7 +277,7 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 // values of the step's parameters (print.Params).
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
-		Params: append(slices.Clone(codegen.Params), gopass.PassFieldCompare, TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap)},
+		Params: append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap)},
 	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
@@ -293,8 +292,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if target.hooks != nil {
 			h = *target.hooks
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), FieldCompare: c.Value(gopass.PassFieldCompare) != 0,
-			TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0}
+		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0}
 		files, err := print.Print(&d.Parser, params, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err

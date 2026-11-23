@@ -333,8 +333,5 @@ func (g *Generator) lineFunc(k plandata.Key, l *core.OpLine, scope *check.Scope)
 	if !ok {
 		return "", false
 	}
-	prev := g.Proj
-	g.Proj = nil // the actions of the lines use no projections of the rule
-	defer func() { g.Proj = prev }()
 	return g.funcCall(x, l.Scope, scope, g.Cur.Name+" (OperatorsRule line)"), true
 }

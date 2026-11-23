@@ -104,9 +104,6 @@ type Parser struct {
 // both printers and the Go printer's own.
 type Params struct {
 	common.Params
-	// FieldCompare is the action lowering's: typed Go compares fields in the actions and predicates of
-	// typed rules without boxing string fields.
-	FieldCompare bool
 	// TypedObjectSlabs and TypedListSlabs allocate typed objects and lists in slabs, and
 	// TypedOutputBootstrap sizes the first slab of the typed output from the input.
 	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap bool
@@ -823,7 +820,7 @@ func (g *Generator) rules() {
 				if g.Table == "trules" {
 				}
 				locals := map[string]string{rprogram.OperatorsRuleValue: "c.Value"}
-				fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.CoreAction(r), check.NewScope(), locals))
+				fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.RuleSite(r), check.NewScope(), locals))
 			}
 			continue
 		}
@@ -839,14 +836,10 @@ func (g *Generator) rules() {
 			// A traced copy has the action of its row.
 		} else if r.Action != nil && g.Table == "trules" {
 			// A function of its own, which typedCall calls directly.
-			g.Proj = g.Projections(r)
-			fmt.Fprintf(&g.Methods, "// The action of %s.\nfunc ta%d(c *TActCtx) (any, any) { %s }\n\n", r.Name, r.ID, g.actionBody(g.CoreAction(r), scopes[r], nil))
-			g.Proj = nil
+			fmt.Fprintf(&g.Methods, "// The action of %s.\nfunc ta%d(c *TActCtx) (any, any) { %s }\n\n", r.Name, r.ID, g.actionBody(g.RuleSite(r), scopes[r], nil))
 			fmt.Fprintf(init, "\ttrules[%d].Action = ta%d\n", r.ID, r.ID)
 		} else if r.Action != nil {
-			g.Proj = g.Projections(r)
-			fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.CoreAction(r), scopes[r], nil))
-			g.Proj = nil
+			fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.RuleSite(r), scopes[r], nil))
 		}
 		if g.Table == "trules" {
 			g.typedCall(r, bodies[r], scopes[r], nil)
@@ -1421,11 +1414,7 @@ func (g *Generator) operatorsRuleLine(k plandata.Key, e ast.Expr, action ast.Act
 		if operator {
 			locals = map[string]string{"lhs": "c.Lhs", "rhs": "c.Rhs", "op": "c.Op"}
 		}
-		var ct core.ActionExpr
-		if l != nil {
-			ct = l.Action
-		}
-		act = fmt.Sprintf("func(c *%s) (any, any) { %s }", g.ctxType(), g.actionBody(ct, s, locals))
+		act = fmt.Sprintf("func(c *%s) (any, any) { %s }", g.ctxType(), g.actionBody(g.LineSite(l), s, locals))
 	}
 	return fmt.Sprintf("&%s{Scope: %s, M: %s, Action: %s, Value: %s}", g.pick("OperatorsRuleLine", "TOperatorsRuleLine"), goStrings(s.Names), m, act, g.shaper(e))
 }

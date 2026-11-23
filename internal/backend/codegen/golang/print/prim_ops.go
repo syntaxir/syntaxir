@@ -269,7 +269,7 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpEval:
 		x := c.Imm.(prim.Action)
 		defer p.caps(x.Names, args[1:])()
-		stmts, res := g.loweredStmts(g.ActionSite(x.Action).Action, check.NewScope(), nil)
+		stmts, res := g.actionStmts(x.Action, check.NewScope(), nil)
 		p.pre += stmts
 		return res
 	case prim.OpCtxFinish:
@@ -356,17 +356,17 @@ func (p *primPrinter) negate(c *code.Call, args []string) string {
 		x := c.Imm.(prim.Predicate)
 		if x.Frame {
 			// The action expression reads the current frame.
-			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.predicate(g.ActionSite(x.Action).Action, common.FrameScope(x.Names)))
+			return fmt.Sprintf("!p.Predicate(func(c *%s) (any, any) { %s })", g.ctxType(), g.actionBody(x.Action, common.FrameScope(x.Names), nil))
 		}
 		defer p.caps(x.Names, args)()
-		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.predicate(g.ActionSite(x.Action).Action, check.NewScope()))
+		return fmt.Sprintf("!p.Predicate(func(c *TActCtx) (any, any) { %s })", g.actionBody(x.Action, check.NewScope(), nil))
 	case prim.OpBind:
 		x := c.Imm.(prim.Binding)
 		if x.Frame {
-			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(x.Var), g.ctxType(), g.actionBody(g.ActionSite(x.Action).Action, common.FrameScope(x.Names), nil))
+			return fmt.Sprintf("!p.Bind(%d, func(c *%s) (any, any) { %s })", g.Prog.Vars.Index(x.Var), g.ctxType(), g.actionBody(x.Action, common.FrameScope(x.Names), nil))
 		}
 		defer p.caps(x.Names, args)()
-		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(x.Var), g.actionBody(g.ActionSite(x.Action).Action, check.NewScope(), nil))
+		return fmt.Sprintf("!p.Bind(%d, func(c *TActCtx) (any, any) { %s })", g.Prog.Vars.Index(x.Var), g.actionBody(x.Action, check.NewScope(), nil))
 	}
 	return "!" + p.op(c, args)
 }

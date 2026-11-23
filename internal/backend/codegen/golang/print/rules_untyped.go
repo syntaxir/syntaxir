@@ -19,8 +19,7 @@ import (
 // execRecRule, if the printed form breaks the plan's decision.
 func (g *Generator) recRuleFunc(r *common.Rule, spec *plandata.FuncSpec) *flatRule {
 	l := g.planned(spec.Key)
-	g.Cur, g.Proj = r, g.Projections(r)
-	defer func() { g.Proj = nil }()
+	g.Cur = r
 	return g.execRecRule(newPrimPrinter(g, false, l), l)
 }
 
