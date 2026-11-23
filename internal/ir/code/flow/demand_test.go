@@ -12,11 +12,21 @@ import (
 // The statements of the coverage tests. demand demands the input, advance reads it and moves the position, peek
 // reads it, and test is a condition that reads nothing.
 var (
-	demand  = &code.Do{Call: &code.Call{Callee: flow.OpInputDemand}}
-	advance = &code.Do{Call: &code.Call{Callee: flow.OpMatchLit}}
+	demand  = &code.Do{Call: &code.Call{Callee: flow.OpInputDemand, Imm: prim.Demand{Char: true}}}
+	advance = matchLit("a")
 	peek    = &code.Do{Call: &code.Call{Callee: flow.OpPeek}}
 	restore = &code.Do{Call: &code.Call{Callee: flow.OpRestore}}
 )
+
+// matchLit is the statement that matches the literal text, which moves the position past it.
+func matchLit(text string) *code.Do {
+	return &code.Do{Call: &code.Call{Callee: flow.OpMatchLit, Imm: prim.Lit{Text: text}}}
+}
+
+// demandLit is the statement that demands the input of the literal text.
+func demandLit(text string) *code.Do {
+	return &code.Do{Call: &code.Call{Callee: flow.OpInputDemand, Imm: prim.Demand{Lit: prim.Lit{Text: text}}}}
+}
 
 func test() code.Expr { return &code.Call{Callee: "flow.test"} }
 
@@ -59,6 +69,14 @@ func TestUncoveredReadsCoverage(t *testing.T) {
 		// demand: the one before the restore covers nothing after it.
 		{"a restore uncovers the reads after it", []code.Stmt{demand, restore, peek}, []string{flow.OpPeek}},
 		{"a demand after a restore covers its read", []code.Stmt{demand, restore, demand, peek}, nil},
+		// A demand of one character covers a read of one character, but not a literal of two.
+		{"a character demand does not cover a longer literal", []code.Stmt{demand, matchLit("ab")}, []string{flow.OpMatchLit}},
+		// A demand of a literal covers a read of the literal, and of any shorter literal.
+		{"a literal demand covers the literal", []code.Stmt{demandLit("ab"), matchLit("ab")}, nil},
+		{"a literal demand covers a shorter literal", []code.Stmt{demandLit("ab"), matchLit("a")}, nil},
+		// A literal demand of one character does not cover a longer literal.
+		{"a literal demand does not cover a longer literal", []code.Stmt{demandLit("a"), matchLit("ab")}, []string{flow.OpMatchLit}},
+		{"a literal demand covers a multi-byte literal", []code.Stmt{demandLit("é"), matchLit("é")}, nil},
 		// The arguments of a call are evaluated before its read: the move of the argument uncovers the call's read.
 		{"arguments before the call", []code.Stmt{demand, &code.Do{Call: &code.Call{Callee: flow.OpPeek, Args: []code.Expr{&code.Call{Callee: flow.OpMatchLit}}}}}, []string{flow.OpPeek}},
 		// A return ends the path: the join with it keeps the coverage of the other path.
