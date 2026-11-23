@@ -143,6 +143,10 @@ type RuleInfo struct {
 	// Splice reports that the rule makes no node of its own: the elements of its value are the
 	// elements of the sequence that calls it (a hidden rule without an action).
 	Splice bool
+	// Missing reports that the rule or a rule it calls contains #missing: while missing tokens
+	// are inserted, its results depend on the insertions made before it, so they are not memoized
+	// and its memo keys carry the insertion state.
+	Missing bool
 	// Value is the shape of the value that the rule makes from the value of its body, as
 	// FlowScopeValue makes it with the start of the call, before the captures are attached; nil if
 	// the value of the body is the rule's value: a rule with an action, a splice, an Operators Rule
@@ -198,4 +202,4 @@ const (
 // ISAVersion is the instruction set of the value model, the only one supported. Earlier
 // versions built the previous syntax trees, so their files are not loaded and need to be
 // compiled again.
-const ISAVersion = 40
+const ISAVersion = 41

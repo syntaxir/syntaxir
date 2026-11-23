@@ -228,7 +228,7 @@ func (c *compiler) compile() {
 	for _, r := range all {
 		ri := bytecode.RuleInfo{Name: int(c.str(r.Name)), Action: -1, NodeType: -1, OperatorsRule: -1,
 			Memo: r.Memo, Leader: r.Leader, Member: r.Member, Cycle: r.Cycle, PositionDependent: r.Positional, ValueFreeTwin: r.Novalue,
-			Transient: r.Transient, Rec: r.Rec, Where: -1, Splice: r.Splice, Vars: c.strList(r.Vars)}
+			Transient: r.Transient, Rec: r.Rec, Where: -1, Splice: r.Splice, Missing: r.Missing, Vars: c.strList(r.Vars)}
 		if r.Where != "" && r.Where != r.Name {
 			ri.Where = int(c.str(r.Where))
 		}

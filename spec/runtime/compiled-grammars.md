@@ -94,7 +94,7 @@ version.
 | Number | Current value | Meaning |
 |:--|--:|:--|
 | Format version | 8 | The outer frame of the file: its header and the order of its sections. A runtime loads only version 8 and refuses any other version |
-| Instruction-set version | 40 | The encoding of the module's contents, its action code included. Every module declares it |
+| Instruction-set version | 41 | The encoding of the module's contents, its action code included. Every module declares it |
 
 - A runtime refuses a file of another format version with
   `unsupported compiled grammar version N (want 8): compile the grammar again`.

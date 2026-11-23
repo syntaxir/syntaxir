@@ -561,6 +561,24 @@ func (vm *Program) runFlow(p *state.Parser, fr *flowRun) (call bool) {
 			fr.set(in.Dst[0], errorNode(p, regs[in.Args[0]].(int), regs[in.Args[1]].(*value.SyntaxError)))
 		case bytecode.FlowRecLen:
 			fr.set(in.Dst[0], len(p.Recovered))
+		case bytecode.FlowInserting:
+			fr.set(in.Dst[0], p.Inserting())
+		case bytecode.FlowInsertMissing:
+			exps, _ := regs[in.Args[0]].([]state.ExpID)
+			e, ok := p.InsertMissingAt(in.Imm.(bytecode.FlowInsertionOf).Site, exps)
+			fr.set(in.Dst[0], e)
+			fr.set(in.Dst[1], ok)
+		case bytecode.FlowNewMissingNode:
+			x := in.Imm.(bytecode.FlowInsertionOf)
+			fr.set(in.Dst[0], p.MissingNode(regs[in.Args[0]].(int), vm.m.Strings[x.Text], regs[in.Args[1]].(*value.SyntaxError)))
+		case bytecode.FlowMissingScope:
+			fr.set(in.Dst[0], int(p.EnterMissingScope(expID(in.Imm.(bytecode.FlowExpectOf)))))
+		case bytecode.FlowMissingScopeEnd:
+			p.LeaveMissingScope(state.ExpID(regs[in.Args[0]].(int)))
+		case bytecode.FlowMissingLen:
+			fr.set(in.Dst[0], p.MissingLen)
+		case bytecode.FlowResetMissing:
+			p.ResetMissing(regs[in.Args[0]].(int))
 		case bytecode.FlowRestore:
 			// As the Go library's Restore.
 			p.Pos = regs[in.Args[0]].(int)

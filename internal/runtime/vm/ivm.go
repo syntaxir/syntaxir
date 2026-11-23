@@ -106,13 +106,14 @@ func (mc *ivmMachine) iterate(vm *Program, root iframe) iresult {
 // plainCall is the state of an unmemoized call of a rule without captures whose steps
 // (InvokePlain) the frame that runs the rule's body does: begin before the body and end after it.
 type plainCall struct {
-	inv state.InvokeState // the state saved by the call
-	rec int               // recovered errors before the call
+	inv     state.InvokeState // the state saved by the call
+	rec     int               // recovered errors before the call
+	missing int               // insertions on the path before the call
 }
 
 // begin does the start of InvokePlain for a call of r.
 func (c *plainCall) begin(p *state.Parser, r *state.Rule) {
-	*c = plainCall{inv: state.InvokeState{PrevEnv: p.Env, PrevCut: p.Cut, Trail: len(p.Trail), Start: p.Pos}, rec: len(p.Recovered)}
+	*c = plainCall{inv: state.InvokeState{PrevEnv: p.Env, PrevCut: p.Cut, Trail: len(p.Trail), Start: p.Pos}, rec: len(p.Recovered), missing: p.MissingLen}
 	p.Cut = false
 	if r.Rec {
 		p.Enter()
@@ -133,6 +134,7 @@ func (c *plainCall) end(p *state.Parser, r *state.Rule, v *value.Node, ok bool) 
 	} else {
 		p.Pos = c.inv.Start
 		p.Recovered = p.Recovered[:c.rec]
+		p.ResetMissing(c.missing)
 	}
 	p.Env = c.inv.PrevEnv
 	return v
@@ -366,11 +368,11 @@ type callFrame struct {
 	state int
 	// memoized is set for a memoized call (CallBegin and CallEnd); otherwise the call is not
 	// memoized (unmemoized calls of rules without captures use plainCallFrame instead).
-	memoized   bool
-	st         state.CallState
-	g          state.GrowState
-	inv        state.InvokeState
-	start, rec int // unmemoized calls: state to restore on failure
+	memoized            bool
+	st                  state.CallState
+	g                   state.GrowState
+	inv                 state.InvokeState
+	start, rec, missing int // unmemoized calls: state to restore on failure
 }
 
 const (
@@ -385,7 +387,7 @@ func (f *callFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 	case cBegin:
 		p.CallCharge(r) // the charge of Parser.Call
 		if !f.memoized {
-			f.start, f.rec = p.Pos, len(p.Recovered)
+			f.start, f.rec, f.missing = p.Pos, len(p.Recovered), p.MissingLen
 			return f.invoke(mc), iresult{}, false
 		}
 		var v *value.Node
@@ -417,6 +419,7 @@ func (f *callFrame) next(mc *ivmMachine, vm *Program, res iresult) (iframe, ires
 			if !ok {
 				p.Pos = f.start
 				p.Recovered = p.Recovered[:f.rec]
+				p.ResetMissing(f.missing)
 			}
 			return nil, iresult{v: v, ok: ok}, true
 		}

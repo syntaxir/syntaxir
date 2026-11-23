@@ -325,6 +325,28 @@ func init() {
 		{Op: flowpkg.OpRecLen, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowRecLen, c, dst, nil)
 		}},
+		{Op: flowpkg.OpInserting, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowInserting, c, dst, nil)
+		}},
+		{Op: flowpkg.OpInsertMissing, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowInsertMissing, c, dst, s.insertionOf(c.Imm.(prim.Insertion)))
+		}},
+		{Op: flowpkg.OpNewMissingNode, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowNewMissingNode, c, dst, s.insertionOf(c.Imm.(prim.Insertion)))
+		}},
+		{Op: flowpkg.OpMissingScope, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			// The label is a message, as the expectation of an @error label is.
+			return s.op(bytecode.FlowMissingScope, c, dst, bytecode.FlowExpectOf{Exp: s.expID(c.Imm.(prim.ExpID)), Message: true})
+		}},
+		{Op: flowpkg.OpMissingScopeEnd, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowMissingScopeEnd, c, dst, nil)
+		}},
+		{Op: flowpkg.OpMissingLen, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowMissingLen, c, dst, nil)
+		}},
+		{Op: flowpkg.OpResetMissing, Sel: func(s *flowSel, c *code.Call, dst []int) error {
+			return s.op(bytecode.FlowResetMissing, c, dst, nil)
+		}},
 		{Op: flowpkg.OpRestore, Sel: func(s *flowSel, c *code.Call, dst []int) error {
 			return s.op(bytecode.FlowRestore, c, dst, nil)
 		}},
@@ -405,4 +427,10 @@ func (s *flowSel) litOf(lit prim.Lit) bytecode.FlowLitOf {
 	}
 	of.Exp = int(program.NumFixedDescs) + int(s.c.litDesc(lit))
 	return of
+}
+
+// insertionOf returns the immediate of the insertion x: its site and the text that its literal
+// inserts, as written in the grammar.
+func (s *flowSel) insertionOf(x prim.Insertion) bytecode.FlowInsertionOf {
+	return bytecode.FlowInsertionOf{Site: x.Site, Text: int(s.c.str(x.Lit.Text))}
 }

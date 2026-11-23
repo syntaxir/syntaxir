@@ -1,12 +1,13 @@
 package bytecode
 
 // RestoreAcrossCommit returns the first instruction of f, in instruction order, that may restore
-// the parse to a state saved before an EMITSTREAM that ran since: a RESET, SETPOS or RESTORE that
-// reads, on some path, a register that held a mark, a position or a number of recovered errors
-// (MARK, POS or RECLEN, or a MOVE, MARKPOS, ADD or SUB of one) when an EMITSTREAM ran. ok is false if
-// there is none. EMITSTREAM commits the input and the recovered errors before the position, so
-// nothing after it may go back before it; a loaded module has no such instruction
-// (ValidateModule), on any path, whether a choice, a loop or a recovery takes it.
+// the parse to a state saved before an EMITSTREAM that ran since: a RESET, SETPOS, RESTORE or
+// RESETMISSING that reads, on some path, a register that held a mark, a position, a number of
+// recovered errors or a number of insertions (MARK, POS, RECLEN or MISSINGLEN, or a MOVE, MARKPOS,
+// ADD or SUB of one) when an EMITSTREAM ran. ok is false if there is none. EMITSTREAM commits the
+// input and the recovered errors before the position, so nothing after it may go back before it; a
+// loaded module has no such instruction (ValidateModule), on any path, whether a choice, a loop or
+// a recovery takes it.
 //
 // An instruction continues at the next one unless it is JUMP or RETURN, and at its target if its
 // operation has one (FlowShape.Target). The operations, registers and targets must be in range.
@@ -69,7 +70,7 @@ func (f *Flow) RestoreAcrossCommit() (pc int, ok bool) {
 			for i := range st {
 				st[i] |= sv[i]
 			}
-		case FlowMark, FlowPos, FlowRecLen:
+		case FlowMark, FlowPos, FlowRecLen, FlowMissingLen:
 			if d := in.Dst[0]; d >= 0 {
 				put(sv, d, true)
 				put(st, d, false)
@@ -104,7 +105,7 @@ func (f *Flow) RestoreAcrossCommit() (pc int, ok bool) {
 			continue
 		}
 		switch in.Op {
-		case FlowReset, FlowSetPos, FlowRestore:
+		case FlowReset, FlowSetPos, FlowRestore, FlowResetMissing:
 			t := stale[pc*words : (pc+1)*words]
 			for _, a := range in.Args {
 				if has(t, a) {

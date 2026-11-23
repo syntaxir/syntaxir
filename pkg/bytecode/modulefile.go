@@ -82,6 +82,7 @@ func (w *Encoder) WriteModule(m *Module) {
 		w.Bool(r.Rec)
 		w.Int(r.Where)
 		w.Bool(r.Splice)
+		w.Bool(r.Missing)
 		w.Bool(r.Value != nil)
 		if r.Value != nil {
 			w.flowImm(FlowImmShape, *r.Value)
@@ -251,6 +252,13 @@ func (w *Encoder) flowImm(k FlowImm, v any) {
 			bad()
 		}
 		w.flowImm(FlowImmLit, x.Lit)
+		w.flowImm(FlowImmStr, x.Text)
+	case FlowImmInsertion:
+		x, ok := v.(FlowInsertionOf)
+		if !ok {
+			bad()
+		}
+		w.Int(x.Site)
 		w.flowImm(FlowImmStr, x.Text)
 	case FlowImmGuardTest:
 		x, ok := v.(FlowGuardTestOf)
@@ -484,7 +492,7 @@ func (r *Decoder) ReadModule() *Module {
 		ri := RuleInfo{
 			Name: int(r.int32()), Scope: r.ints(), Action: int(r.int32()),
 			NodeType: int(r.int32()),
-			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(),
+			Memo:     r.Bool(), Leader: r.Bool(), Member: r.Bool(), Cycle: int(r.int32()), PositionDependent: r.Bool(), OperatorsRule: int(r.int32()), ValueFreeTwin: r.Bool(), Transient: r.Bool(), Rec: r.Bool(), Where: int(r.int32()), Splice: r.Bool(), Missing: r.Bool(),
 		}
 		if r.Bool() && r.Err == nil {
 			if x, ok := r.flowImm(FlowImmShape).(FlowShapeOf); ok {
@@ -627,6 +635,10 @@ func (r *Decoder) flowImm(k FlowImm) any {
 		return x
 	case FlowImmLitNode:
 		x := FlowLitNodeOf{Lit: r.flowImm(FlowImmLit).(FlowLitOf)}
+		x.Text = r.flowImm(FlowImmStr).(int)
+		return x
+	case FlowImmInsertion:
+		x := FlowInsertionOf{Site: int(r.int32())}
 		x.Text = r.flowImm(FlowImmStr).(int)
 		return x
 	case FlowImmGuardTest:
@@ -1260,6 +1272,15 @@ func validateFlowImm(m *Module, slots int, k FlowImm, v any) error {
 		}
 		if err := validateFlowImm(m, slots, FlowImmLit, x.Lit); err != nil {
 			return err
+		}
+		return validateFlowImm(m, slots, FlowImmStr, x.Text)
+	case FlowImmInsertion:
+		var x FlowInsertionOf
+		if x, ok = v.(FlowInsertionOf); !ok {
+			break
+		}
+		if x.Site < 1 {
+			return fmt.Errorf("invalid #missing site %d", x.Site)
 		}
 		return validateFlowImm(m, slots, FlowImmStr, x.Text)
 	case FlowImmGuardTest:
