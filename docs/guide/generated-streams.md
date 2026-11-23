@@ -107,7 +107,8 @@ if (r.error !== null) throw r.error; // a syntax error, or the recovered SyntaxE
 (`"done"` or `"failed"`). The parse suspends and resumes rather than starting again, so the elements, their positions,
 the error and the compute units are those of the Go `ParseStream` of the same input, whatever the chunks. The options
 of `createStream` (`unit`, `expectations`, `limits`, `signal`, `computeReport`) apply to the whole stream; a signal
-cancels the feed that observes it. A feed after the end returns an error and changes nothing.
+cancels the feed that observes it, and a value thrown from a callback or a signal leaves `feed` and fails the
+stream. A feed after the end returns an error and changes nothing.
 
 The diagnostic options of a stream report recovered errors (`#recover`) as they are committed, as
 `WithDiagnosticCallback` and `WithDiagnosticLimit` do in Go:

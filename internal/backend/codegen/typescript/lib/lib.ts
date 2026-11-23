@@ -6767,12 +6767,12 @@ export class Stream {
       return this.end(error, null);
     } catch (x) {
       if (x instanceof SignalPanic) {
-        this.end(null, null);
+        this.end(null, null, true);
         throw x.value;
       }
       if (x instanceof Fatal) return this.end(null, x.err);
       if (isStackOverflow(x)) return this.end(null, new Error(`nesting too deep: the JavaScript stack overflowed at ${p.depth} nested recursive rule calls`));
-      this.end(null, null);
+      this.end(null, null, true);
       throw x;
     }
   }
@@ -6788,10 +6788,11 @@ export class Stream {
   }
 
   // end ends the stream with the error of the parse, or with fatal if an interruption ended it, and
-  // returns the result of the feed. It reports the compute units and releases the controls.
-  private end(error: Error | null, fatal: Error | null): StreamResult {
+  // returns the result of the feed; thrown says that a value thrown from a callback ended it, which
+  // fails the stream as well. It reports the compute units and releases the controls.
+  private end(error: Error | null, fatal: Error | null, thrown = false): StreamResult {
     const p = this.p;
-    const failed = fatal !== null || (error !== null && !(error instanceof SyntaxErrors));
+    const failed = thrown || fatal !== null || (error !== null && !(error instanceof SyntaxErrors));
     this.state = failed ? "failed" : "done";
     this.gen = null;
     p.control?.release();

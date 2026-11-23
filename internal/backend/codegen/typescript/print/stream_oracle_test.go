@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
+	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -28,13 +29,27 @@ type streamOutcome struct {
 	Recovered   []string `json:"recovered"`
 }
 
-// streamDiagnostics are the diagnostic options of the streams of an oracle run: a diagnostic limit if
-// Limit is not nil, and a diagnostic callback if Callback is set, which returns an error at its
-// FailAt-th error if FailAt is positive.
-type streamDiagnostics struct {
-	Limit    *int `json:"limit"`
-	Callback bool `json:"callback"`
-	FailAt   int  `json:"failAt"`
+// streamOptions are the options of the streams of an oracle run: a diagnostic limit if Limit is not
+// nil, a diagnostic callback if Callback is set, which returns an error at its FailAt-th error if
+// FailAt is positive, and the compute and input limits Compute and Input (zero for the default).
+type streamOptions struct {
+	Limit    *int   `json:"limit"`
+	Callback bool   `json:"callback"`
+	FailAt   int    `json:"failAt"`
+	Compute  uint64 `json:"compute"`
+	Input    uint64 `json:"input"`
+}
+
+// interruptionText describes the interruption of a parse by a limit in the same words for the engine
+// and the generated TypeScript, whose messages differ: its kind, limit, units used and units requested.
+// The units used at a compute limit are left out: a parse stops at the first check that finds the
+// counter above the limit, and backends place their checks differently (spec/runtime/parsing.md,
+// Overshoot), so only the decision is the same; the engine checks at every unit.
+func interruptionText(kind string, limit, used, requested uint64) string {
+	if kind == "compute" {
+		return fmt.Sprintf("interrupted: compute limit %d, requested %d", limit, requested)
+	}
+	return fmt.Sprintf("interrupted: %s limit %d, used %d, requested %d", kind, limit, used, requested)
 }
 
 // diagnosticJSON is the JSON of a recovered error that a diagnostic callback receives.
@@ -50,10 +65,11 @@ func diagnosticJSON(e *value.SyntaxError) string {
 }
 
 // engineStream returns the outcome of the engine's stream parse of in from the rule main of the
-// program prog, in the position unit, with expectations and the diagnostic options d.
-func engineStream(prog *engine.Program, in string, unit input.PositionUnit, d streamDiagnostics) streamOutcome {
+// program prog, in the position unit, with expectations and the options d.
+func engineStream(prog *engine.Program, in string, unit input.PositionUnit, d streamOptions) streamOutcome {
 	out := streamOutcome{Diagnostics: []string{}, Recovered: []string{}}
 	o := engine.ParseOptions{Unit: unit, Expectations: true, ComputeReport: &out.Units}
+	o.Limits.Compute, o.Limits.Input = d.Compute, d.Input
 	if d.Limit != nil {
 		o.DiagnosticLimit, o.DiagnosticLimitSet = *d.Limit, true
 	}
@@ -79,6 +95,11 @@ func engineStream(prog *engine.Program, in string, unit input.PositionUnit, d st
 	if err != nil {
 		out.Error = err.Error()
 	}
+	var limit *runtime.LimitError
+	if errors.As(err, &limit) {
+		kind := map[runtime.LimitKind]string{runtime.LimitCompute: "compute", runtime.LimitInput: "input", runtime.LimitDepth: "depth", runtime.LimitMemory: "memory"}[limit.Kind]
+		out.Error = interruptionText(kind, limit.Limit, limit.Used, limit.Requested)
+	}
 	var recovered value.SyntaxErrors
 	if errors.As(err, &recovered) {
 		for _, e := range recovered {
@@ -93,11 +114,11 @@ func engineStream(prog *engine.Program, in string, unit input.PositionUnit, d st
 // of the first chunking (the whole input in one final chunk), and the problems of the others: an
 // outcome that differs from it, or a feed that breaks the protocol of StreamResult.
 const tsStreamOracle = `
-import { createStream, marshal, CodePoints, Bytes, SyntaxErrors } from "./parser.ts";
+import { createStream, marshal, CodePoints, Bytes, SyntaxErrors, ParseInterruptionError } from "./parser.ts";
 import type { Unit, StreamResult, StreamOptions } from "./parser.ts";
 
 const inputs: string[] = JSON.parse(INPUTS);
-const diag: { limit: number | null; callback: boolean; failAt: number } = JSON.parse(DIAG);
+const opts: { limit: number | null; callback: boolean; failAt: number; compute: number; input: number } = JSON.parse(OPTIONS);
 
 // chunkings returns the chunkings of n bytes, each a list of chunk ends, final on the last: the whole
 // input, every chunk size up to 16 and some larger ones, and every split of a short input.
@@ -127,14 +148,14 @@ function chunkings(n: number): number[][] {
 function run(bytes: Uint8Array, unit: Unit, ends: number[], empties: boolean, late: boolean): { outcome: string; problems: string[] } {
   const report = { units: 0 };
   const diagnostics: string[] = [];
-  const options: StreamOptions = { unit, expectations: true, computeReport: report };
-  if (diag.limit !== null) options.diagnosticLimit = diag.limit;
-  if (diag.callback) {
+  const options: StreamOptions = { unit, expectations: true, computeReport: report, limits: { compute: opts.compute, input: opts.input } };
+  if (opts.limit !== null) options.diagnosticLimit = opts.limit;
+  if (opts.callback) {
     options.diagnostic = (e) => {
       diagnostics.push(JSON.stringify({ pos: e.pos, line: e.line, col: e.col, expected: e.expected, messages: e.messages }));
       // The callback owns its copy: changing it changes nothing.
       e.expected.push("changed");
-      return diagnostics.length === diag.failAt ? new Error("stop at " + diag.failAt) : null;
+      return diagnostics.length === opts.failAt ? new Error("stop at " + opts.failAt) : null;
     };
   }
   const { stream, error } = createStream(options);
@@ -169,8 +190,17 @@ function run(bytes: Uint8Array, unit: Unit, ends: number[], empties: boolean, la
   // A feed after the end changes nothing.
   feed(new Uint8Array([0x61]), true);
   const err = last === null ? null : (last as StreamResult).error;
+  const kinds: { [k: string]: string } = { "compute-limit": "compute", "input-limit": "input", "depth-limit": "depth", "memory-limit": "memory" };
+  let message = err === null ? "" : err.message;
+  if (err instanceof ParseInterruptionError && err.kind === "compute-limit") {
+    // The units used are past the limit, and counted as the compute units of the stream (see interruptionText).
+    if (err.used <= err.limit || err.used !== report.units) problems.push("interrupted at " + err.used + " units of a limit of " + err.limit + ", " + report.units + " reported");
+    message = "interrupted: compute limit " + err.limit + ", requested " + err.requested;
+  } else if (err instanceof ParseInterruptionError && err.kind in kinds) {
+    message = "interrupted: " + kinds[err.kind] + " limit " + err.limit + ", used " + err.used + ", requested " + err.requested;
+  }
   const recovered = err instanceof SyntaxErrors ? err.errors.map((e) => JSON.stringify({ pos: e.pos, line: e.line, col: e.col, expected: e.expected, messages: e.messages })) : [];
-  return { outcome: JSON.stringify({ elements, error: err === null ? "" : err.message, units: report.units, diagnostics, recovered }), problems };
+  return { outcome: JSON.stringify({ elements, error: message, units: report.units, diagnostics, recovered }), problems };
 }
 
 // guarded is run that returns what a run throws as its outcome.
@@ -203,11 +233,11 @@ console.log(lines.join("\n"));
 
 // streamOracleMismatches generates the TypeScript stream of the grammar src, whose stream start rule
 // is main, with expectations, changes its bundle with mutate if not nil, and returns how its outcomes
-// on the inputs, in every chunking and in both position units, with the diagnostic options d, differ
+// on the inputs, in every chunking and in both position units, with the options d, differ
 // from the engine's stream parse (ParseStream) of each input: in the elements, their positions, the
 // error with its position, the compute units or the errors that the diagnostic callback receives. It
 // also returns the feeds that break the protocol of StreamResult.
-func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamDiagnostics, mutate func(string) string) []string {
+func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamOptions, mutate func(string) string) []string {
 	t.Helper()
 	g, err := parseTest(src)
 	if err != nil {
@@ -221,9 +251,9 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamD
 	data, _ := json.Marshal(encoded)
 	quoted, _ := json.Marshal(string(data))
 	script := strings.Replace(tsStreamOracle, "INPUTS", string(quoted), 1)
-	diag, _ := json.Marshal(d)
-	quotedDiag, _ := json.Marshal(string(diag))
-	script = strings.Replace(script, "DIAG", string(quotedDiag), 1)
+	opts, _ := json.Marshal(d)
+	quotedOpts, _ := json.Marshal(string(opts))
+	script = strings.Replace(script, "OPTIONS", string(quotedOpts), 1)
 	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main", Expectations: true}, func(g *ast.Grammar, opts common.GenOptions) ([]byte, error) {
 		b, err := codegentest.GenerateTSStreamBundle(g, opts)
 		if err != nil || mutate == nil {
@@ -256,7 +286,7 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamD
 				t.Fatalf("%v: %s", err, got.Outcome)
 			}
 			want := engineStream(prog, in, unit, d)
-			name := fmt.Sprintf("input %q (%v, %s)", codegentest.Clip(in, 0), unit, diag)
+			name := fmt.Sprintf("input %q (%v, %s)", codegentest.Clip(in, 0), unit, opts)
 			if fmt.Sprint(ts.Elements) != fmt.Sprint(want.Elements) {
 				mismatches = append(mismatches, fmt.Sprintf("%s: elements\n generated %v\n engine    %v", name, ts.Elements, want.Elements))
 			}
@@ -269,7 +299,7 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamD
 			if fmt.Sprint(ts.Recovered) != fmt.Sprint(want.Recovered) {
 				mismatches = append(mismatches, fmt.Sprintf("%s: recovered errors\n generated %v\n engine    %v", name, ts.Recovered, want.Recovered))
 			}
-			if ts.Units != want.Units {
+			if ts.Units != want.Units && !strings.HasPrefix(want.Error, "interrupted: compute") {
 				mismatches = append(mismatches, fmt.Sprintf("%s: units: generated %d, engine %d", name, ts.Units, want.Units))
 			}
 			for _, p := range got.Problems {
@@ -288,25 +318,25 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamD
 var streamOracleCases = []struct {
 	name, src string
 	inputs    []string
-	// diags are the diagnostic options of the runs; none is one run without them.
-	diags []streamDiagnostics
+	// runs are the options of the runs; none is one run without them.
+	runs []streamOptions
 }{
 	{"lines", `@start
 rule main = line* #stream !.
 rule line = ^ w:word ("," word)* "\n"
 rule word = [a-zé€]*
-`, []string{"", "\n", "a\n", "a,b\nc\n", "é,€\n\n", "a\nb", "a,\xff\n", "ab\n,", longLines(400, ""), longLines(400, "x;")}, nil},
+`, []string{"", "\n", "a\n", "a,b\nc\n", "é,€\n\n", "a\nb", "a,\xff\n", "ab\n,", longLines(400, ""), longLines(400, "x;")}, limitRuns},
 	{"items", `@start
 rule main = item* #stream !.
 rule item = pair ";" / word ";" / word "."
 rule pair = k:word "=" v:word
 rule word = [a-z€]+ "é!"?
-`, []string{"", "a;", "a=b;", "a=b;c.d=e;", "ab=cé!;€.", "a=", "a;b", "a=b;;", longItems(600, ""), longItems(600, "=;")}, nil},
+`, []string{"", "a;", "a=b;", "a=b;c.d=e;", "ab=cé!;€.", "a=", "a;b", "a=b;;", longItems(600, ""), longItems(600, "=;")}, limitRuns},
 	{"past the end", `@start
 rule main = item* #stream !.
 rule item = w:word ";" (word "!")?
 rule word = [a-z]+ / "<" word ">"
-`, []string{"", "a;", "a;b;", "a;b!", "a;;", "<a>;b!<c>;<", "a;b", longLookahead(2000)}, nil},
+`, []string{"", "a;", "a;b;", "a;b!", "a;;", "<a>;b!<c>;<", "a;b", longLookahead(2000)}, limitRuns},
 	{"recover", `@start
 rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
@@ -316,6 +346,10 @@ rule main = block* #stream !.
 rule block = "{" stmt* "}" / stmt
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;}]* ";")
 `, []string{"", "{a=1;b;}", "{a;b;c=1;}x;", "{a;}{b;}{c;", "y;{a=1;b;", longBlocks(120)}, recoverDiagnostics},
+	{"adaptive", `@start
+rule main = item* #stream !.
+rule item = (&([a-z]* ";") [a-z])* ";"
+`, adaptiveInputs(), nil},
 	{"trailing recover", `@start
 rule main = stmt* #stream fin !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;!]* ";")
@@ -328,10 +362,22 @@ rule fin = "!" #recover(skip=[^!()]* "!") / ""
 `, []string{"", "(a=1;b;)", "a;(b;(c=1;d;)e;)f;", "(a;(b;!)c;)", "x;(y;!z!)!", "(a=1;b;" , longNested(60)}, recoverDiagnostics},
 }
 
+// limitRuns are the options of the oracle cases without recoveries: the default limits, compute limits
+// that interrupt streams at their start, in their middle and near their end, and input limits.
+var limitRuns = []streamOptions{
+	{},
+	{Compute: 40},
+	{Compute: 400},
+	{Compute: 5000},
+	{Input: 3},
+	{Input: 50},
+	{Input: 1500},
+}
+
 // recoverDiagnostics are the diagnostic options of the oracle cases with recoveries: none, a callback,
 // limits that keep fewer errors than a stream recovers, a zero limit, which keeps them all, and
 // callbacks that fail the stream at an error.
-var recoverDiagnostics = []streamDiagnostics{
+var recoverDiagnostics = []streamOptions{
 	{},
 	{Callback: true},
 	{Limit: ptr(1)},
@@ -339,16 +385,17 @@ var recoverDiagnostics = []streamDiagnostics{
 	{Limit: ptr(0)},
 	{Callback: true, FailAt: 1},
 	{Callback: true, FailAt: 3},
+	{Callback: true, Compute: 300},
 }
 
 func ptr[T any](v T) *T { return &v }
 
-// runsOf returns the diagnostic options of the runs of an oracle case whose options are diags.
-func runsOf(diags []streamDiagnostics) []streamDiagnostics {
-	if len(diags) == 0 {
-		return []streamDiagnostics{{}}
+// runsOf returns the options of the runs of an oracle case whose options are runs.
+func runsOf(runs []streamOptions) []streamOptions {
+	if len(runs) == 0 {
+		return []streamOptions{{}}
 	}
-	return diags
+	return runs
 }
 
 // longNested returns n statements, some of them wrong and some nested in parentheses.
@@ -365,6 +412,20 @@ func longNested(n int) string {
 		}
 	}
 	return b.String() + "!"
+}
+
+// adaptiveInputs are the inputs of the adaptive case, whose elements cost units quadratic in their
+// length: elements past the floor of the default compute limit that its rise with the demanded input
+// admits, elements past what it admits, alone and after cheap elements, and an element that it admits
+// only after cheap elements.
+func adaptiveInputs() []string {
+	a := strings.Repeat
+	return []string{
+		a("a", 1500) + ";",
+		a("a", 2100) + ";",
+		a("a;", 300) + a("a", 2600) + ";",
+		a("ab;", 400) + a("a", 2100) + ";",
+	}
 }
 
 // longBlocks returns n blocks of statements, some of them wrong.
@@ -445,7 +506,7 @@ func TestStreamOracle(t *testing.T) {
 	for _, c := range streamOracleCases {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
-			for _, d := range runsOf(c.diags) {
+			for _, d := range runsOf(c.runs) {
 				for _, m := range streamOracleMismatches(t, c.src, c.inputs, d, nil) {
 					t.Error(m)
 				}
@@ -495,31 +556,116 @@ null
 	}
 }
 
-// TestStreamOracleDiagnosticsReach checks that the diagnostic runs of the oracle reach what they compare:
-// on the engine, each case with recoveries reports errors to a callback, ends with a truncated tail and
-// is stopped by its callback, and a list of recovered errors (nested recover) is reported.
-func TestStreamOracleDiagnosticsReach(t *testing.T) {
+// TestStreamSignal checks the cancellation of a stream: an aborted signal fails createStream, a feed
+// after the signal aborts fails the stream with the reason, a feed whose signal aborts while it parses
+// returns the elements committed before, a signal getter that throws propagates from the feed and fails
+// the stream, and a signal getter that feeds the stream gets a busy error.
+func TestStreamSignal(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest("@start\nrule main = item* #stream !.\nrule item = [a-z]+ \";\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import { createStream, ParseInterruptionError } from "./parser.ts";
+import type { Stream } from "./parser.ts";
+const enc = (s: string) => new TextEncoder().encode(s);
+const show = (r: { elements: readonly unknown[]; state: string; error: Error | null }) =>
+  r.elements.length + " " + r.state + " " + (r.error instanceof ParseInterruptionError ? r.error.kind + " " + String(r.error.cause) : String(r.error));
+
+console.log(String(createStream({ signal: { aborted: true, reason: "early" } }).error));
+
+const s1 = { aborted: false, reason: "stop" };
+const a = createStream({ signal: s1 }).stream!;
+console.log(show(a.feed(enc("a;b;c"))));
+s1.aborted = true;
+console.log(show(a.feed(enc("d;"))));
+console.log(show(a.feed(enc("e;"), true)));
+
+let reads = 0;
+const s2 = { get aborted() { return ++reads > 6; }, reason: "late" };
+const b = createStream({ signal: s2 }).stream!;
+console.log(show(b.feed(enc("ab;".repeat(400)))));
+
+let thrown = "";
+const s3 = { get aborted(): boolean { throw new Error("getter"); } };
+try { createStream({ signal: s3 }); } catch (x) { thrown = String(x); }
+console.log(thrown);
+
+let inner = "";
+let e: Stream | null = null;
+const s4 = { get aborted() { if (e !== null && inner === "") inner = show(e.feed(enc("x;"))); return false; } };
+e = createStream({ signal: s4 }).stream!;
+console.log(show(e.feed(enc("a;b;"), true)), "|", inner);
+
+let calls = 0;
+const s5 = { get aborted(): boolean { if (++calls === 2) throw new Error("getter " + calls); return false; } };
+const f = createStream({ signal: s5 }).stream!;
+try { f.feed(enc("a;")); } catch (x) { thrown = String(x); }
+console.log(thrown, "|", show(f.feed(enc("b;"), true)));
+`
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, codegentest.GenerateTSStreamBundle)
+	want := `ParseInterruptionError: parse canceled
+2 waiting null
+0 failed canceled stop
+0 failed Error: stream already failed
+2 failed canceled late
+Error: getter
+2 done null | 0 failed Error: stream is already feeding
+Error: getter 2 | 0 failed Error: stream already failed
+`
+	if out != want {
+		t.Errorf("got\n%s\nwant\n%s", out, want)
+	}
+}
+
+// TestStreamOracleReach checks that the runs of the oracle reach what they compare: on the engine, each
+// case with diagnostic runs reports errors to a callback, ends with a truncated tail and is stopped by its
+// callback, and each case with limit runs is interrupted by the compute limit and by the input limit and
+// delivers elements before an interruption.
+func TestStreamOracleReach(t *testing.T) {
 	t.Parallel()
 	for _, c := range streamOracleCases {
-		if c.diags == nil {
-			continue
-		}
 		prog := compileBare(t, c.src, check.Options{NoProjections: true})
-		var reported, truncated, stopped int
-		for _, d := range c.diags {
+		var reported, truncated, stopped, compute, inputs, before int
+		var diagnostics, limits bool
+		for _, d := range c.runs {
+			diagnostics = diagnostics || d.Callback
+			limits = limits || d.Input != 0
 			for _, in := range c.inputs {
 				o := engineStream(prog, in, input.CodePoints, d)
 				reported += len(o.Diagnostics)
-				if strings.HasPrefix(o.Error, "recovered syntax errors truncated") {
+				switch {
+				case strings.HasPrefix(o.Error, "recovered syntax errors truncated"):
 					truncated++
-				}
-				if strings.HasPrefix(o.Error, "stop at") {
+				case strings.HasPrefix(o.Error, "stop at"):
 					stopped++
+				case strings.HasPrefix(o.Error, "interrupted: compute"):
+					compute++
+				case strings.HasPrefix(o.Error, "interrupted: input"):
+					inputs++
+				}
+				if strings.HasPrefix(o.Error, "interrupted") && len(o.Elements) > 0 {
+					before++
 				}
 			}
 		}
-		if reported == 0 || truncated == 0 || stopped == 0 {
+		if diagnostics && (reported == 0 || truncated == 0 || stopped == 0) {
 			t.Errorf("%s: %d reported errors, %d truncated tails, %d stopped streams; want some of each", c.name, reported, truncated, stopped)
+		}
+		if limits && (compute == 0 || inputs == 0 || before == 0) {
+			t.Errorf("%s: %d compute and %d input interruptions, %d after elements; want some of each", c.name, compute, inputs, before)
+		}
+		if c.name == "adaptive" {
+			// The default limit interrupts the second and third inputs, the third after elements, and
+			// admits the first and the last, which spend more than its floor.
+			var got []string
+			for _, in := range c.inputs {
+				o := engineStream(prog, in, input.CodePoints, streamOptions{})
+				got = append(got, fmt.Sprintf("%v %d %v", strings.HasPrefix(o.Error, "interrupted: compute"), len(o.Elements), o.Units > 1<<20))
+			}
+			if want := "[false 1 true true 0 true true 300 true false 401 true]"; fmt.Sprint(got) != want {
+				t.Errorf("adaptive: %v, want %s", got, want)
+			}
 		}
 	}
 }
@@ -555,6 +701,10 @@ func TestStreamOracleMutants(t *testing.T) {
 		{"settle", "this.recovered.length = 0;\n    this.diagnosed = 0;", "this.recovered.length = 0;"},
 		// The recovered errors after the last element are reported before the result.
 		{"final report", "const err = p.reportRecovered();\n        if (err !== null) return this.end(null, err);", ""},
+		// The default compute limit rises with the demanded input.
+		{"adaptive raise", "if (c.raise(defaultBudget(d))) this.unitsCheck = c.unitsCheck();", ""},
+		// The input limit fails a stream that demands a unit past it.
+		{"input limit", "d > this.maxInput && this.n > this.maxInput", "d > this.maxInput + 1 && this.n > this.maxInput + 1"},
 		// The callback receives a copy of its own.
 		{"copy", "callback(bareSyntaxError(e.pos, e.line, e.col, e.expected.slice(), e.messages.slice()))", "callback(e)"},
 	} {
@@ -568,7 +718,7 @@ func TestStreamOracleMutants(t *testing.T) {
 			}
 			found := 0
 			for _, c := range streamOracleCases {
-				for _, d := range runsOf(c.diags) {
+				for _, d := range runsOf(c.runs) {
 					found += len(streamOracleMismatches(t, c.src, c.inputs, d, mutate))
 				}
 			}
