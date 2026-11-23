@@ -4124,25 +4124,21 @@ L15:
 			if tf11 != nil {
 				c.ActionRaise(tf11)
 			}
-			tf12 := tv11
-			tv13, tf13 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
+			tv12, tf12 := c.P.ActionMember(c, rt.MemberField, k4, "Detached", "Detached")
+			if tf12 != nil {
+				c.ActionRaise(tf12)
+			}
+			tv13, tf13 := c.P.ActionMember(c, rt.MemberField, k16, "Trailing", "Trailing")
 			if tf13 != nil {
 				c.ActionRaise(tf13)
 			}
-			tf14 := tv13
-			tv15, tf15 := c.P.ActionMember(c, rt.MemberField, k16, "Trailing", "Trailing")
-			if tf15 != nil {
-				c.ActionRaise(tf15)
+			tv14, tf14 := c.P.ActionMember(c, rt.MemberField, k16, "Next", "Next")
+			if tf14 != nil {
+				c.ActionRaise(tf14)
 			}
-			tf16 := tv15
-			tv17, tf17 := c.P.ActionMember(c, rt.MemberField, k16, "Next", "Next")
-			if tf17 != nil {
-				c.ActionRaise(tf17)
-			}
-			tf18 := tv17
-			tv19 := tmk_SourceMetadata(c, false, tf10, tf12, tf16, tf14, tf18)
-			tv20 := tmk_Pkg(c, true, tv1, tv2, any(tn9), tv19)
-			tr33 = tv20
+			tv15 := tmk_SourceMetadata(c, false, tf10, tv11, tv13, tv12, tv14)
+			tv16 := tmk_Pkg(c, true, tv1, tv2, any(tn9), tv15)
+			tr33 = tv16
 		}
 		v = tr33
 	}

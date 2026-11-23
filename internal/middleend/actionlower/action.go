@@ -647,17 +647,18 @@ func inDeclaredOrder(t *ir.New) bool {
 // struct is then one call of the constructor of its type (StructCall), or made of its fields in that
 // order: a step charged for each, the field set and its value covered by the range of the struct.
 func (l *actionLowerer) structLiteral(b *code.Builder, t *ir.New) code.Expr {
-	// A value is let before the next one is evaluated when the constructor call takes the values in
-	// another order than written: the call evaluates its arguments in the order declared. Without the
-	// constructor, each value is used twice (set and covered), so a value that is not a local or a
-	// constant is let once: a read is then made, and charged, once, as the action expression reads it. Otherwise
-	// the values are used as they are; what a field leaves for its use to evaluate (a read, a
-	// constant) does not depend on the fields after it.
-	let := l.structCall && !inDeclaredOrder(t)
+	// A value that is not a local or a constant is let before the next one is evaluated when the
+	// constructor call takes the values in another order than written, since the call evaluates its
+	// arguments in the order declared. Without the constructor, each value is used twice (set and
+	// covered), so such a value is let once: a read is then made, and charged, once, as the action expression
+	// reads it. A local or a constant is evaluated already and is used as it is. Otherwise the values are
+	// used as they are; what a field leaves for its use to evaluate (a read, a constant) does not depend on
+	// the fields after it.
+	let := !l.structCall || !inDeclaredOrder(t)
 	vals := make([]code.Expr, len(t.Fields))
 	for i, f := range t.Fields {
 		vals[i] = l.value(b, f.Value)
-		if let || !l.structCall && !settled(vals[i]) {
+		if let && !settled(vals[i]) {
 			vals[i] = b.Let(l.local("tf"), vals[i])
 		}
 	}
