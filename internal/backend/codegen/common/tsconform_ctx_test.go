@@ -66,6 +66,7 @@ func TestTypeScriptConformanceCtxDetectsMutants(t *testing.T) {
 		{name: "an adopted seed does not return to the start", sig: "growAdopt(g: GrowState", old: "this.pos = g.start;", new: ""},
 		{name: "a jump replays no dependencies", sig: "growMemoStep(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, j.deps);", new: ""},
 		{name: "a jump merges no expectations", sig: "growMemoStep(g: GrowState", old: "this.mergeKept(j.far, j.exp);", new: ""},
+		{name: "a jump counts a unit", sig: "growMemoStep(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, j.deps);", new: "this.units++;\n        this.replayDeps(g.start, g.gp, g.present, j.deps);", charges: true},
 		{name: "a memoized step replays no dependencies", sig: "growMemoStep(g: GrowState", old: "this.replayDeps(g.start, g.gp, g.present, s.deps);", new: ""},
 		{name: "a memoized step merges no expectations", sig: "growMemoStep(g: GrowState", old: "this.mergeKept(s.far, s.exp);", new: ""},
 		{name: "a growth counts a unit as it begins", sig: "growBegin(r: Rule", old: "const start = this.pos;", new: "this.units++;\n    const start = this.pos;", charges: true},
