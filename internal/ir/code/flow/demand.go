@@ -64,38 +64,52 @@ func VerifyDemands(f *code.Func) error {
 	return nil
 }
 
-// amount is the input past the position that a demand covers, or that a read needs, in two measures: the
-// characters and the bytes. A demand of a literal covers its text, and a demand of a character covers one
-// complete character. A read is covered on a path when the path's coverage has at least the amount the read
-// needs in both measures, so that the check holds in each position unit (prim.Demand).
-type amount struct{ runes, bytes int }
+// amount is the input past the position that a demand covers, or that a read needs, in the measures of the two
+// position units (prim.Demand): the characters, which a demand covers in code points, and the bytes, which it
+// covers in bytes, with the fact that the bytes hold one complete character. A demand of a literal covers its
+// text, and a demand of a character covers one character in code points and, in bytes, at least one byte that
+// starts a complete character. A read is covered on a path when the path's coverage has at least the amount the
+// read needs in each measure, so that the check holds in each position unit. The complete character is a fact of
+// its own because no byte count stands for it: the character's bytes are not known until the input is read, and
+// a count of utf8.UTFMax joined with a literal demand would cover a longer literal than either demand covers.
+type amount struct {
+	runes, bytes int
+	// char reports that the bytes past the position hold one complete character.
+	char bool
+}
 
 var (
 	// none is the coverage after a move of the position, and at the start of a function.
 	none = amount{}
 	// top is the coverage of a path that no read follows: the vacuous coverage of a path that ends in a
 	// return, or of a jump to a target that no jump reaches.
-	top = amount{math.MaxInt, math.MaxInt}
+	top = amount{math.MaxInt, math.MaxInt, true}
 	// oneChar is one complete character of the input: what a demand of a character covers, and what a read
-	// of one character needs. A UTF-8 character takes at most utf8.UTFMax bytes.
-	oneChar = amount{1, utf8.UTFMax}
+	// of one character needs.
+	oneChar = amount{1, 1, true}
 )
 
-// litAmount returns the amount of the text of a literal.
-func litAmount(text string) amount { return amount{utf8.RuneCountInString(text), len(text)} }
+// litAmount returns the amount of the text of a literal. Its bytes hold a complete character when they are
+// at least utf8.UTFMax, the most that a UTF-8 character takes.
+func litAmount(text string) amount {
+	return amount{utf8.RuneCountInString(text), len(text), len(text) >= utf8.UTFMax}
+}
 
 // min returns the amount that both a and b cover.
 func (a amount) min(b amount) amount {
-	return amount{min(a.runes, b.runes), min(a.bytes, b.bytes)}
+	return amount{min(a.runes, b.runes), min(a.bytes, b.bytes), a.char && b.char}
 }
 
-// max returns the amount that either a or b covers.
+// max returns the amount that either a or b covers: both hold at the same position, so each measure is the
+// larger one.
 func (a amount) max(b amount) amount {
-	return amount{max(a.runes, b.runes), max(a.bytes, b.bytes)}
+	return amount{max(a.runes, b.runes), max(a.bytes, b.bytes), a.char || b.char}
 }
 
 // covers reports whether a covers the amount need.
-func (a amount) covers(need amount) bool { return a.runes >= need.runes && a.bytes >= need.bytes }
+func (a amount) covers(need amount) bool {
+	return a.runes >= need.runes && a.bytes >= need.bytes && (a.char || !need.char)
+}
 
 // demanded returns the amount that the flow.inputDemand call c covers: the text of its literal, or one character.
 func demanded(c *code.Call) amount {
