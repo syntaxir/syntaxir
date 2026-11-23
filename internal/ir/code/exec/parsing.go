@@ -363,7 +363,8 @@ adopts every step that matched more than the seed, as grow.adoptStep does. It re
 that did not match more, which ends the growth, or the null result when the table keeps no step from
 the seed, whose evaluation grow.isolate then begins. A jump takes several of the steps at once with
 the same effects as taking them one at a time, so only the seed the steps reach and the step that
-ends them are observable.`,
+ends them are observable. A step taken from the table counts no compute unit: only a step that evaluates
+the body does.`,
 		Requires: `grow.ctx(g) holds, g is the innermost growth, no step of g is being evaluated, and no step that
 grow.keepStep returned is pending: each was adopted by grow.adoptStep or did not grow.`})
 	m.AddOp(&code.Op{Name: "grow.isolate", Component: Growth, Params: []code.Param{growArg},

@@ -19,13 +19,10 @@ import (
 
 func tsCtxSuite(controlled bool) conform.Suite {
 	ops := slices.Clone(tsconformtest.CtxOps)
-	if controlled {
-		// The model declares no cost for the steps of a growth in a context yet (#310).
-		ops = slices.DeleteFunc(ops, func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
-	}
 	s := conform.Suite{Name: fmt.Sprint("typescript ctx (controlled=", controlled, ")"), Ops: append(ops, budgetOps(controlled)...)}
-	// The composition counts each step it evaluates: beginning and adopting count none.
-	s.Free = []string{"grow.begin", "grow.adopt"}
+	// The composition counts each step that evaluates the body: the operations of the growth, a step taken
+	// from the table of a context included, count none.
+	s.Free = []string{"grow.begin", "grow.adopt", "grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end"}
 	return s
 }
 

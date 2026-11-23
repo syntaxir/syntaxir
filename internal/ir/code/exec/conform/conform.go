@@ -82,7 +82,7 @@ type Suite struct {
 	Exact []string
 	// Free are the operations that count no unit in a metered implementation: under logical compute
 	// units (spec/runtime/parsing.md#compute-units) they are no event, and the compositions count the
-	// events around them.
+	// events around them. Their bound is 0, so the model need not measure the work their costs declare.
 	Free []string
 }
 
@@ -384,10 +384,13 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 	var before uint64
 	if metered {
 		// Only a suite that controls charges needs the bound, so the model declares the quantities of the
-		// operations that such a suite runs.
-		bound = int64(o.Cost.Const)
-		for _, t := range o.Cost.Terms {
-			bound += int64(t.Coef) * p.model.Quantity(t.Quantity, o, refArgs)
+		// operations that such a suite runs and charges for. An operation that counts no unit (Free) has
+		// the bound 0, whatever work its declared cost bounds.
+		if !slices.Contains(p.suite.Free, o.Name) {
+			bound = int64(o.Cost.Const)
+			for _, t := range o.Cost.Terms {
+				bound += int64(t.Coef) * p.model.Quantity(t.Quantity, o, refArgs)
+			}
 		}
 		before = meter.Used()
 	}
@@ -408,11 +411,11 @@ func (p *pair) Call(o *code.Op, args []any) []any {
 	}
 	if metered && want.interrupted == "" {
 		used := meter.Used() - before
-		if used > uint64(bound) {
-			panic(mismatch(fmt.Sprintf("charged %d units, more than the bound %s = %d", used, o.Cost, bound)))
-		}
 		if charges && used != 0 && slices.Contains(p.suite.Free, o.Name) {
 			panic(mismatch(fmt.Sprintf("charged %d units, but the operation is no event and counts none", used)))
+		}
+		if used > uint64(bound) {
+			panic(mismatch(fmt.Sprintf("charged %d units, more than the bound %s = %d", used, o.Cost, bound)))
 		}
 		if charges && used != uint64(bound) && slices.Contains(p.suite.Exact, o.Name) {
 			panic(mismatch(fmt.Sprintf("charged %d units, not the exact cost %s = %d", used, o.Cost, bound)))

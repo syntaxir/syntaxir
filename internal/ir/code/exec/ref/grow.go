@@ -21,8 +21,9 @@ import (
 // model compares whether a value is null. It does not model the examined range, which an implementation may
 // compare too.
 
-// The model keeps no cost: a charge for these operations is not declared as a quantity of the model yet.
-// TODO(#310): declare it when the charges count logical events.
+// The model keeps no cost for these operations: they count no compute unit, since only a step that
+// evaluates the body counts, in the composition (spec/runtime/parsing.md#compute-units), and their declared
+// costs bound work that no charge measures.
 
 // canonKey is what the results of equal steps share.
 type canonKey struct {

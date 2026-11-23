@@ -201,8 +201,10 @@ func (c ctxConv) FromImpl(v reflect.Value) (any, bool) {
 }
 
 // ctxFree are the operations of the growth that count no compute unit: the composition counts each
-// step it evaluates (spec/runtime/parsing.md#compute-units).
-var ctxFree = []string{"grow.begin", "grow.adopt"}
+// step that evaluates the body (spec/runtime/parsing.md#compute-units), and a step taken from the table
+// of a context counts none.
+var ctxFree = []string{"grow.begin", "grow.adopt", "grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew",
+	"grow.adoptStep", "grow.end"}
 
 // ctxSuites are the suites of the library's dependency memo, with and without charge controls.
 func ctxSuites() []conform.Suite {
@@ -210,8 +212,6 @@ func ctxSuites() []conform.Suite {
 	for _, controlled := range []bool{false, true} {
 		names := conform.CtxSuiteOps()
 		if controlled {
-			// The model declares no cost for the steps of a growth in a context yet (#310).
-			names = slices.DeleteFunc(names, func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
 			names = append(names, rtBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
@@ -318,7 +318,7 @@ func (c chargedCtx) Call(o *code.Op, args []any) []any {
 }
 
 // TestExecConformanceCtxDetectsCharges is the negative control of the units of the growth: the library
-// with grow.begin or grow.adopt counting a unit fails the controlled suite, and the one that counts none
+// with an operation of ctxFree counting a unit fails the controlled suite, and the one that counts none
 // while they run passes it.
 func TestExecConformanceCtxDetectsCharges(t *testing.T) {
 	for _, op := range ctxFree {

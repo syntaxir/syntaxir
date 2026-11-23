@@ -25,10 +25,6 @@ var CtxOps = []string{
 	"grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end",
 }
 
-// CtxGrowStepOps are the operations of the growth in a context: the model declares no cost for them yet,
-// so a suite that controls charges leaves them out.
-var CtxGrowStepOps = []string{"grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew", "grow.adoptStep", "grow.end"}
-
 // CtxTestOps are the conformance operations that install growths and lookaheads.
 var CtxTestOps = []string{ref.CtxGrowOp, ref.CtxReseedOp, ref.CtxUngrowOp, ref.CtxLookBeginOp, ref.CtxLookEndOp}
 

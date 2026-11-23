@@ -391,7 +391,7 @@ without limit controls counts no units.
 
 | Event | Units |
 |:--|:--|
-| A call of a rule: every call, one that the memo or a growing seed answers included, a call of a value-free twin, the entry of the parse into its start rule and each step of a growing left-recursive rule | 1 |
+| A call of a rule: every call, one that the memo or a growing seed answers included, a call of a value-free twin, the entry of the parse into its start rule and each step of a growing left-recursive rule that evaluates the rule's body | 1 |
 | The key of a call of a rule that an ordinary parse memoizes ([Evaluations of Rules](#evaluations-of-rules)), whether or not the call looks it up, and the key of a walk of a [run site](#run-sites) keyed by variables | 1 for each variable of the key, and 1 for each byte of the UTF-8 encoding of each string value among them |
 | The input that a terminal advances over: a literal, a character class or `.`, inside a lookahead and inside an alternative that later fails too | 1 for each position unit it advances over |
 | A value that an action, a predicate or a binding builds | 1 for each element of a list and each byte of a string that it builds |
@@ -431,8 +431,9 @@ so it counts nothing:
 - the lookups and records of skip runs, run sites and scan sites, other than
   the key of a walk;
 - finding and keeping the results of left-recursion contexts and the steps of
-  growths, with their dependencies, and comparing growing results, outcomes
-  and examined ranges;
+  growths, with their dependencies, taking the steps that a context keeps,
+  one at a time or as a run, instead of evaluating the body, and comparing
+  growing results, outcomes and examined ranges;
 - the values that the parse builds rather than an action: terminals,
   sequences, tuples and lists of the grammar's expressions, the nodes that wrap
   captured values and the values of recovered errors, with their messages;

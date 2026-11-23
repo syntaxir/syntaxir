@@ -734,7 +734,7 @@ func TestExecConformanceDetectsBrokenLib(t *testing.T) {
 		"a lookup reads another slot": {op: "env.lookup", ops: rtEnvOps, call: func(m *rtMachine, args []any) []any {
 			return []any{m.p.variable(0)}
 		}},
-		"a key counts a unit for the call": {op: "env.key", ops: rtEnvOps, free: rtEnvFree, controlled: true, want: "more than the bound", call: func(m *rtMachine, args []any) []any {
+		"a key counts a unit for the call": {op: "env.key", ops: rtEnvOps, free: rtEnvFree, controlled: true, want: "no event", call: func(m *rtMachine, args []any) []any {
 			m.p.unitsSized(1)
 			return envValues(m, m.p.memoEnv(args[0].(*Rule)))
 		}},

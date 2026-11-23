@@ -322,7 +322,10 @@ that omits it (and, on generated TypeScript, by a broken library). Argued by equ
 takes the same steps as the table would give one at a time, which the cases observe through the same results
 and not through the jump taken; the counts of reads of seeds, which only Document parses observe (a broken engine
 that does not count the read of a memoized step is noticed by neither these cases nor the Document tests); and the
-choice among several jumps recorded for one seed. The cost of these operations is not modelled yet.
+choice among several jumps recorded for one seed. A step taken from the table, singly or in a jump, counts no compute
+unit: only a step that evaluates the body counts, in the composition, so the operations of the steps count none
+and the controlled suites hold them to none. Their declared costs bound their work, which no charge measures, and
+the model does not compute them.
 The operations of the steps and `grow.end` are not transitional; keeping the result of a call in a context is modelled and passes the success of the
 result apart from its value, as a result without a value can succeed, except for the keep of a cycle leader, which the model allows only after the end of its growth (`grow.end`); the missing-token mode, in which no result in a context is memoized, and Document parses are outside the
 cases. One target charges for converting the dependencies that a frame ended into stored ones when the frame ends

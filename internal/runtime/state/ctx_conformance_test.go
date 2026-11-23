@@ -202,8 +202,10 @@ func (c ctxConv) FromImpl(v reflect.Value) (any, bool) {
 }
 
 // ctxFree are the operations of the growth that count no compute unit: the composition counts each
-// step it evaluates (spec/runtime/parsing.md#compute-units).
-var ctxFree = []string{"grow.begin", "grow.adopt"}
+// step that evaluates the body (spec/runtime/parsing.md#compute-units), and a step taken from the table
+// of a context counts none.
+var ctxFree = []string{"grow.begin", "grow.adopt", "grow.memoStep", "grow.isolate", "grow.keepStep", "grow.grew",
+	"grow.adoptStep", "grow.end"}
 
 // ctxSuites are the suites of the engine's dependency memo, with and without charge controls.
 func ctxSuites() []conform.Suite {
@@ -211,15 +213,15 @@ func ctxSuites() []conform.Suite {
 	for _, controlled := range []bool{false, true} {
 		names := conform.CtxSuiteOps()
 		if controlled {
-			// The model declares no cost for the steps of a growth in a context yet (#310).
-			names = slices.DeleteFunc(names, func(n string) bool { return slices.Contains(conform.CtxGrowStepOps, n) })
 			names = append(names, engineBudgetOps...)
 		}
 		suites = append(suites, conform.Suite{
 			Name: fmt.Sprintf("engine ctx (controlled=%v)", controlled),
 			Ops:  names,
 			New:  func(c ref.Config) conform.Impl { return newCtxMachine(c, controlled) },
-			Free: exactCharges(ctxFree),
+			// The growth counts nothing in every build, the reference build included, so its operations are
+			// free there too.
+			Free: ctxFree,
 		})
 	}
 	return suites
@@ -357,7 +359,8 @@ func (c chargedCtx) Call(o *code.Op, args []any) []any {
 }
 
 // TestEngineCtxConformanceDetectsCharges is the negative control of the charges of the growth: the engine with
-// grow.begin or grow.adopt charging no unit, or one more, fails the controlled suite.
+// an operation of ctxFree charging a unit fails the controlled suite, and the one that charges none while
+// they run passes it.
 func TestEngineCtxConformanceDetectsCharges(t *testing.T) {
 	if !BudgetControlsEnabled {
 		t.Skip("the mutants change charges, and the reference build charges nothing")
