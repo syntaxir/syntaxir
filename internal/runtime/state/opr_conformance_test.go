@@ -390,9 +390,10 @@ func (c oprConv) FromImpl(v reflect.Value) (any, bool) {
 	return nil, false
 }
 
-// oprFree are the operations of the family that count no compute unit: copying the tokens of an
-// attempt and recording again those of a reused one are no events (spec/runtime/parsing.md#compute-units).
-var oprFree = []string{"opr.attemptMissing", "opr.replay"}
+// oprExact are the operations of the family that count exactly their cost: copying the tokens of an
+// attempt counts one unit for each, and recording again those of a reused one counts one for each
+// and one for each error that it records one by one (spec/runtime/parsing.md#compute-units).
+var oprExact = []string{"opr.attemptMissing", "opr.replay"}
 
 // oprSuiteOps are the operations of the family that the engine binds, with those of the missing-token mode,
 // and the budget's if controlled.
@@ -411,7 +412,7 @@ func oprSuite() conform.Suite {
 
 // oprControlledSuite is oprSuite in a parse that controls charges.
 func oprControlledSuite() conform.Suite {
-	return conform.Suite{Name: "engine opr (controlled)", Ops: oprSuiteOps(true), Free: exactCharges(oprFree),
+	return conform.Suite{Name: "engine opr (controlled)", Ops: oprSuiteOps(true), Exact: exactCharges(oprExact),
 		New: func(c ref.Config) conform.Impl { return newOprMachineControlled(c, true) }}
 }
 
@@ -495,12 +496,13 @@ func (m meteredBrokenOpr) Used() uint64 { return m.p.Control.Used }
 
 // TestEngineOprChargesArePinned is the negative control of the charges: the engine whose
 // opr.attemptMissing or opr.replay charges one unit more or nothing at all fails the controlled suite,
-// so that a change of what they charge for the tokens and the errors fails a test.
+// so that a change of what they charge for the tokens and the errors fails a test. The cases copy and
+// record tokens again, so charging nothing changes what they count.
 func TestEngineOprChargesArePinned(t *testing.T) {
 	if !BudgetControlsEnabled {
 		t.Skip("the build controls no charges")
 	}
-	for _, op := range oprFree {
+	for _, op := range oprExact {
 		for _, change := range []string{"charges nothing", "charges one more"} {
 			t.Run(op+" "+change, func(t *testing.T) {
 				s := oprControlledSuite()
@@ -519,8 +521,7 @@ func TestEngineOprChargesArePinned(t *testing.T) {
 					}
 					return meteredBrokenOpr{brokenOpr{m, op, edit}}
 				}
-				// The operations count nothing, so the variant that charges nothing is the engine itself.
-				if fails, _ := oprConformanceFailures(s, 60, 250); (change == "charges nothing") != (len(fails) == 0) {
+				if fails, _ := oprConformanceFailures(s, 60, 250); len(fails) == 0 {
 					t.Fatalf("%s: %d failures", change, len(fails))
 				}
 			})

@@ -401,6 +401,8 @@ without limit controls counts no units.
 | A suffix copy of a [run site](#run-sites) | 1 for each element it copies |
 | A syntax error built: by a recovery, by missing-token insertion, or as the error of a failed parse | 1 |
 | An entry of recovered errors taken where a result is stored (below) | 1 |
+| An insertion of a missing token copied where a result is stored (a seed of left recursion or an attempt of an Operators Rule), and one recorded again where a result is reused, whether or not it is already on the path | 1 for each |
+| The recovered errors of a reused result whose insertions include one already on the path, which a parse with missing-token insertion therefore records one by one, leaving out the errors of those insertions (below) | 1 for each error of the result, those left out included |
 | A text value in a [stream](streaming.md) (`text` of a node) | 1 for each position unit of its result |
 
 A terminal that fails advances over nothing and counts nothing, and examining

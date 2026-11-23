@@ -121,9 +121,13 @@ func missingConformanceFailures(s conform.Suite, seeds, n int) (fails []error, r
 }
 
 // missingFree are the operations of the mode that count no compute unit: removing the tokens of a
-// failure and recording again those of a reused result are no events
-// (spec/runtime/parsing.md#compute-units).
-var missingFree = []string{"missing.reset", "missing.replay"}
+// failure is no event (spec/runtime/parsing.md#compute-units).
+var missingFree = []string{"missing.reset"}
+
+// missingExact are the operations of the mode that count exactly their cost: recording again the
+// tokens of a reused result counts one unit for each, and one for each error that it records one by
+// one (spec/runtime/parsing.md#compute-units).
+var missingExact = []string{"missing.replay"}
 
 func TestEngineMissingConformance(t *testing.T) {
 	seeds := 300
@@ -135,7 +139,7 @@ func TestEngineMissingConformance(t *testing.T) {
 		if controlled {
 			ops = append(ops, engineBudgetOps...)
 		}
-		s := conform.Suite{Name: fmt.Sprintf("engine missing tokens (controlled=%v)", controlled), Ops: ops, Free: exactCharges(missingFree),
+		s := conform.Suite{Name: fmt.Sprintf("engine missing tokens (controlled=%v)", controlled), Ops: ops, Free: exactCharges(missingFree), Exact: exactCharges(missingExact),
 			New: func(c ref.Config) conform.Impl { return newMissingMachineControlled(c, controlled) }}
 		t.Run(s.Name, func(t *testing.T) {
 			fails, ran := missingConformanceFailures(s, seeds, 150)
@@ -240,13 +244,14 @@ func TestEngineMissingChargesArePinned(t *testing.T) {
 	for name, v := range variants {
 		t.Run(name, func(t *testing.T) {
 			op := strings.Fields(name)[0]
-			s := conform.Suite{Name: name, Ops: ops, Free: missingFree, New: func(c ref.Config) conform.Impl {
+			s := conform.Suite{Name: name, Ops: ops, Free: missingFree, Exact: missingExact, New: func(c ref.Config) conform.Impl {
 				m := newMissingMachineControlled(c, true).(meteredMissing)
 				return meteredBrokenMissing{brokenMissing{m.missingMachine, op, v}}
 			}}
 			fails, _ := missingConformanceFailures(s, 100, 150)
-			// The operations count nothing, so a variant that charges nothing is the engine itself.
-			if same := strings.HasSuffix(name, "charges nothing"); same != (len(fails) == 0) {
+			// missing.reset counts nothing, so its variant that charges nothing is the engine itself;
+			// missing.replay counts its exact cost, which every other variant changes.
+			if same := name == "missing.reset charges nothing"; same != (len(fails) == 0) {
 				t.Fatalf("variant that charges nothing %v, failures %d", same, len(fails))
 			}
 		})

@@ -44,11 +44,16 @@ func (p *Parser) ResetMissing(mark int) {
 	p.MissingLen = mark
 }
 
+// MissingEvents returns a copy of the insertions on the current path after the first mark, which a
+// store keeps: a seed of left recursion (RecordMissingSeed) or an attempt of an Operators Rule. The
+// copy counts one compute unit for each insertion it copies (spec/runtime/parsing.md#compute-units).
 func (p *Parser) MissingEvents(mark int) []MissingTokenEvent {
 	if p.Missing == nil {
 		return nil
 	}
-	return append([]MissingTokenEvent(nil), p.Missing.Path[mark:]...)
+	events := p.Missing.Path[mark:]
+	p.countUnits(len(events))
+	return append([]MissingTokenEvent(nil), events...)
 }
 
 func (p *Parser) InsertMissing(event MissingTokenEvent) bool {
@@ -109,8 +114,11 @@ func (p *Parser) ReplayMissing(events []MissingTokenEvent, errs RecEntry) {
 }
 
 // Selecting an operator candidate restores an already charged synthesis; it is
-// not a memo replay and does not charge that synthesis a second time.
+// not a memo replay and does not take an attempt for that synthesis a second time.
+// Either way, it counts one compute unit for each insertion of events, and, when it
+// records the errors one by one, one for each of errs (spec/runtime/parsing.md#compute-units).
 func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charge bool) {
+	p.countUnits(len(events))
 	var duplicate map[*value.SyntaxError]bool
 	for _, event := range events {
 		if p.Missing.installed[event.Site] {
@@ -127,7 +135,9 @@ func (p *Parser) restoreMissing(events []MissingTokenEvent, errs RecEntry, charg
 		return
 	}
 	// The errors are recorded one by one, without those of the repeated insertions.
-	for _, err := range errs.AppendErrors(nil) {
+	all := errs.AppendErrors(nil)
+	p.countUnits(len(all))
+	for _, err := range all {
 		if !duplicate[err] {
 			p.PushRecovered(err)
 		}
