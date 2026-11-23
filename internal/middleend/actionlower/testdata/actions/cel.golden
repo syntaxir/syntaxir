@@ -116,20 +116,20 @@ func action(c Act) (Datum, Fail) {
   loop each4 while (tj3 < seq.len(ti1)); post tj3 = (tj3 + 1) {
     let tp5 = ta2
     let tp6 = itemAt(ti1, tj3, true)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$o]), action.field([o of $o]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$o]), action.field([o of $o]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tf9 = val.unbox(tp5)
-    let tn10 = action.struct([Unary])
-    let tfirst11 = true
-    action.setField([Op], tn10, tv8)
-    tfirst11 = cover(tn10, tv8, tfirst11)
-    action.setField([X], tn10, tf9)
-    tfirst11 = cover(tn10, tf9, tfirst11)
-    made(c, tn10, tfirst11)
-    let tv7 = action.fromObj(tn10)
-    ta2 = tv7
+    let tf8 = val.unbox(tp5)
+    let tn9 = action.struct([Unary])
+    let tfirst10 = true
+    action.setField([Op], tn9, tv7)
+    tfirst10 = cover(tn9, tv7, tfirst10)
+    action.setField([X], tn9, tf8)
+    tfirst10 = cover(tn9, tf8, tfirst10)
+    made(c, tn9, tfirst10)
+    let tv11 = action.fromObj(tn9)
+    ta2 = tv11
   }
   return ta2, null(Fail)
 }
@@ -145,20 +145,20 @@ func action(c Act) (Datum, Fail) {
   loop each4 while (tj3 < seq.len(ti1)); post tj3 = (tj3 + 1) {
     let tp5 = ta2
     let tp6 = itemAt(ti1, tj3, true)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$o]), action.field([o of $o]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$o]), action.field([o of $o]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tf9 = val.unbox(tp5)
-    let tn10 = action.struct([Unary])
-    let tfirst11 = true
-    action.setField([Op], tn10, tv8)
-    tfirst11 = cover(tn10, tv8, tfirst11)
-    action.setField([X], tn10, tf9)
-    tfirst11 = cover(tn10, tf9, tfirst11)
-    made(c, tn10, tfirst11)
-    let tv7 = action.fromObj(tn10)
-    ta2 = tv7
+    let tf8 = val.unbox(tp5)
+    let tn9 = action.struct([Unary])
+    let tfirst10 = true
+    action.setField([Op], tn9, tv7)
+    tfirst10 = cover(tn9, tv7, tfirst10)
+    action.setField([X], tn9, tf8)
+    tfirst10 = cover(tn9, tf8, tfirst10)
+    made(c, tn9, tfirst10)
+    let tv11 = action.fromObj(tn9)
+    ta2 = tv11
   }
   return ta2, null(Fail)
 }
@@ -298,12 +298,12 @@ func action(c Act) (Datum, Fail) {
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
     let tp6 = itemAt(ti3, tj4, false)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tv7 = tv8
-    let tf9 = push(c, action.name([map]), tv7)
+    let tv8 = tv7
+    let tf9 = push(c, action.name([map]), tv8)
     if (tf9 != null(Fail)) {
       return null(Datum), tf9
     }
@@ -345,12 +345,12 @@ func action(c Act) (Datum, Fail) {
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
     let tp6 = itemAt(ti3, tj4, false)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tv7 = tv8
-    let tf9 = push(c, action.name([map]), tv7)
+    let tv8 = tv7
+    let tf9 = push(c, action.name([map]), tv8)
     if (tf9 != null(Fail)) {
       return null(Datum), tf9
     }
@@ -403,12 +403,12 @@ func action(c Act) (Datum, Fail) {
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
     let tp6 = itemAt(ti3, tj4, false)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tv7 = tv8
-    let tf9 = push(c, action.name([map]), tv7)
+    let tv8 = tv7
+    let tf9 = push(c, action.name([map]), tv8)
     if (tf9 != null(Fail)) {
       return null(Datum), tf9
     }
@@ -485,12 +485,12 @@ func action(c Act) (Datum, Fail) {
   let tj4 = 0
   loop each5 while (tj4 < seq.len(ti3)); post tj4 = (tj4 + 1) {
     let tp6 = itemAt(ti3, tj4, false)
-    let tv8, tf8 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
-    if (tf8 != null(Fail)) {
-      return null(Datum), tf8
+    let tv7, tf7 = member(c, 4, val.unbox(tp6), action.name([$x]), action.field([x of $x]))
+    if (tf7 != null(Fail)) {
+      return null(Datum), tf7
     }
-    let tv7 = tv8
-    let tf9 = push(c, action.name([map]), tv7)
+    let tv8 = tv7
+    let tf9 = push(c, action.name([map]), tv8)
     if (tf9 != null(Fail)) {
       return null(Datum), tf9
     }

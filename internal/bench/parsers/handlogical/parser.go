@@ -118,16 +118,16 @@ func init() {
 		for ; tj8 < len(ti7); tj8++ {
 			c.P.Units++
 			tp10 := c.P.ActionItemAt(ti7, tj8, false)
-			ts12, tf12 := c.P.ActionText(rt.UnboxValue(tp10))
+			ts11, tf11 := c.P.ActionText(rt.UnboxValue(tp10))
+			if tf11 != nil {
+				return nil, tf11
+			}
+			tv12, tf12 := c.P.ActionBinary(rt.OpNe, any(ts11), any("0"))
 			if tf12 != nil {
 				return nil, tf12
 			}
-			tv13, tf13 := c.P.ActionBinary(rt.OpNe, any(ts12), any("0"))
-			if tf13 != nil {
-				return nil, tf13
-			}
-			tv11 := tv13
-			tb14, tf14 := c.P.ActionFilterKeep(tv11)
+			tv13 := tv12
+			tb14, tf14 := c.P.ActionFilterKeep(tv13)
 			if tf14 != nil {
 				return nil, tf14
 			}

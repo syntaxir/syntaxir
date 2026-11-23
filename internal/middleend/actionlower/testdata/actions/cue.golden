@@ -1,16 +1,16 @@
 # digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
 main_fast action #1	5	535d0052ac
-file action #1	114	0ebd630c6e
+file action #1	114	f85a66ab45
 file predicate #1	13	e85ee412e1
 package_clause action #1	11	d6f9b0f6fc
 package_clause predicate #1	81	615ca1ea33
-import_paren action #1	34	4c45bb4616
+import_paren action #1	34	30edb9fef7
 import_single action #1	18	6564b0a639
 import_spec action #1	14	fa84bac04b
 import_name action #1	5	a235eb0272
 import_name predicate #1	125	c25a76ea9f
 import_path action #1	15	b95fb7ab72
-decls action #1	25	b6e35d7606
+decls action #1	25	e5544d9385
 item_normal action #1	5	5a96065ba8
 item_tail action #1	5	3d8a2c9258
 embed_tail action #1	14	734741601e
@@ -30,7 +30,7 @@ expr_nolet action #1	5	af85f2d07a
 nested action #1	18	3f3b2a3ce8
 alias_value action #1	14	406bf52fa8
 alias_value predicate #1	37	5ee71177ad
-attrs action #1	25	d26f765296
+attrs action #1	25	ac93bc5ba5
 postfix_alias_at action #1	5	ed0901ee98
 alias_dual action #1	14	03d79064d6
 alias_paren action #1	11	4c67c72370
@@ -40,7 +40,7 @@ alias_label predicate #1	37	8e8d99f642
 alias_nlabel action #1	14	f01f02af3c
 alias_nlabel predicate #1	37	45af418c24
 comp_single action #1	24	f8466f6958
-comp_multi action #1	41	2d08839052
+comp_multi action #1	41	356a1a458f
 fb_else action #1	5	6ad0c9e3b6
 fb_other action #1	5	dcca48ad05
 else_clause action #1	11	7143f356a4
@@ -55,7 +55,7 @@ if_clause action #1	11	a993a13da0
 try_assign action #1	14	446f7e3ebc
 try_plain action #1	8	b88b50ec5e
 struct_lit action #1	11	82be12c79f
-list_lit action #1	48	791f48ae3f
+list_lit action #1	48	999beba015
 elem_expr action #1	5	994315d370
 alias_elem action #1	14	8648eb0344
 alias_elem predicate #1	37	45e375a7a0
@@ -79,7 +79,7 @@ full_expr line 11 #1	14	9d4897976f
 full_expr line 12 #1	26	b02dfcc0a5
 full_expr line 13 #1	17	0ccc617986
 full_expr line 14 #1	17	093af25a2e
-full_expr line 15 #1	34	e760d53329
+full_expr line 15 #1	34	404dee7a96
 full_expr line 16 #1	14	4d0cf43396
 sel_string action #1	15	5c52ff6e9d
 interp_expr action #1	5	344e9f1adf
@@ -133,7 +133,7 @@ ml_close action #1	5	c3790e9f46
 gml_plain action #1	15	ff9241cc05
 gml_plain binding sv #1	13	b92cf9ef8c
 gml_plain binding sv #2	17	34532f6726
-gml_plain predicate #1	125	d4aebd9108
+gml_plain predicate #1	125	25d348f330
 gml_open action #1	15	93aa52a7ab
 gml_mid action #1	15	b79d9d2845
 gml_end action #1	15	2df353277a

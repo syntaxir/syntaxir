@@ -236,20 +236,20 @@ func init() {
 		for ; tj4 < len(ti3); tj4++ {
 			c.P.Units++
 			tp6 := c.P.ActionItemAt(ti3, tj4, false)
-			tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp6), "$s", "s")
+			tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp6), "$s", "s")
+			if tf7 != nil {
+				return nil, tf7
+			}
+			ts8, tf8 := c.P.ActionText(tv7)
 			if tf8 != nil {
 				return nil, tf8
 			}
-			ts9, tf9 := c.P.ActionText(tv8)
+			tv9, tf9 := c.P.ActionLength(any(ts8))
 			if tf9 != nil {
 				return nil, tf9
 			}
-			tv10, tf10 := c.P.ActionLength(any(ts9))
-			if tf10 != nil {
-				return nil, tf10
-			}
-			tv7 := tv10
-			tf11 := c.P.ActionPush(c, "map", tv7)
+			tv10 := tv9
+			tf11 := c.P.ActionPush(c, "map", tv10)
 			if tf11 != nil {
 				return nil, tf11
 			}
@@ -266,12 +266,12 @@ func init() {
 			c.P.Units++
 			tp18 := ta15
 			tp19 := c.P.ActionItemAt(ti14, tj16, false)
-			tv21, tf21 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp18), rt.UnboxValue(tp19))
-			if tf21 != nil {
-				return nil, tf21
+			tv20, tf20 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp18), rt.UnboxValue(tp19))
+			if tf20 != nil {
+				return nil, tf20
 			}
-			tv20 := tv21
-			ta15 = tv20
+			tv21 := tv20
+			ta15 = tv21
 		}
 		tm22 := len(c.P.KidStack)
 		ti23, tf23 := c.P.ActionItems("map", c.Cap(0))
@@ -282,20 +282,20 @@ func init() {
 		for ; tj24 < len(ti23); tj24++ {
 			c.P.Units++
 			tp26 := c.P.ActionItemAt(ti23, tj24, false)
-			tv28, tf28 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp26), "$s", "s")
+			tv27, tf27 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp26), "$s", "s")
+			if tf27 != nil {
+				return nil, tf27
+			}
+			ts28, tf28 := c.P.ActionText(tv27)
 			if tf28 != nil {
 				return nil, tf28
 			}
-			ts29, tf29 := c.P.ActionText(tv28)
+			tv29, tf29 := c.P.ActionLength(any(ts28))
 			if tf29 != nil {
 				return nil, tf29
 			}
-			tv30, tf30 := c.P.ActionLength(any(ts29))
-			if tf30 != nil {
-				return nil, tf30
-			}
-			tv27 := tv30
-			tf31 := c.P.ActionPush(c, "map", tv27)
+			tv30 := tv29
+			tf31 := c.P.ActionPush(c, "map", tv30)
 			if tf31 != nil {
 				return nil, tf31
 			}
@@ -311,12 +311,12 @@ func init() {
 		for ; tj36 < len(ti35); tj36++ {
 			c.P.Units++
 			tp38 := c.P.ActionItemAt(ti35, tj36, false)
-			tv40, tf40 := c.P.ActionBinary(rt.OpGt, rt.UnboxValue(tp38), any(3))
-			if tf40 != nil {
-				return nil, tf40
+			tv39, tf39 := c.P.ActionBinary(rt.OpGt, rt.UnboxValue(tp38), any(3))
+			if tf39 != nil {
+				return nil, tf39
 			}
-			tv39 := tv40
-			tb41, tf41 := c.P.ActionFilterKeep(tv39)
+			tv40 := tv39
+			tb41, tf41 := c.P.ActionFilterKeep(tv40)
 			if tf41 != nil {
 				return nil, tf41
 			}
@@ -339,16 +339,16 @@ func init() {
 		for ; tj47 < len(ti46); tj47++ {
 			c.P.Units++
 			tp49 := c.P.ActionItemAt(ti46, tj47, false)
-			tv51, tf51 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp49), "$s", "s")
+			tv50, tf50 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp49), "$s", "s")
+			if tf50 != nil {
+				return nil, tf50
+			}
+			ts51, tf51 := c.P.ActionText(tv50)
 			if tf51 != nil {
 				return nil, tf51
 			}
-			ts52, tf52 := c.P.ActionText(tv51)
-			if tf52 != nil {
-				return nil, tf52
-			}
-			tv50 := any(ts52)
-			tf53 := c.P.ActionPush(c, "map", tv50)
+			tv52 := any(ts51)
+			tf53 := c.P.ActionPush(c, "map", tv52)
 			if tf53 != nil {
 				return nil, tf53
 			}
@@ -365,12 +365,12 @@ func init() {
 			c.P.Units++
 			tp60 := ta57
 			tp61 := c.P.ActionItemAt(ti56, tj58, false)
-			tv63, tf63 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp60), rt.UnboxValue(tp61))
-			if tf63 != nil {
-				return nil, tf63
+			tv62, tf62 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp60), rt.UnboxValue(tp61))
+			if tf62 != nil {
+				return nil, tf62
 			}
-			tv62 := tv63
-			ta57 = tv62
+			tv63 := tv62
+			ta57 = tv63
 		}
 		tm64 := len(c.P.KidStack)
 		ti65, tf65 := c.P.ActionItems("map", c.Cap(0))
@@ -381,20 +381,20 @@ func init() {
 		for ; tj66 < len(ti65); tj66++ {
 			c.P.Units++
 			tp68 := c.P.ActionItemAt(ti65, tj66, false)
-			tv70, tf70 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp68), "$s", "s")
+			tv69, tf69 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp68), "$s", "s")
+			if tf69 != nil {
+				return nil, tf69
+			}
+			ts70, tf70 := c.P.ActionText(tv69)
 			if tf70 != nil {
 				return nil, tf70
 			}
-			ts71, tf71 := c.P.ActionText(tv70)
+			tv71, tf71 := c.P.ActionLength(any(ts70))
 			if tf71 != nil {
 				return nil, tf71
 			}
-			tv72, tf72 := c.P.ActionLength(any(ts71))
-			if tf72 != nil {
-				return nil, tf72
-			}
-			tv69 := tv72
-			tf73 := c.P.ActionPush(c, "map", tv69)
+			tv72 := tv71
+			tf73 := c.P.ActionPush(c, "map", tv72)
 			if tf73 != nil {
 				return nil, tf73
 			}
@@ -411,12 +411,12 @@ func init() {
 			c.P.Units++
 			tp80 := ta77
 			tp81 := c.P.ActionItemAt(ti76, tj78, false)
-			tv83, tf83 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp80), rt.UnboxValue(tp81))
-			if tf83 != nil {
-				return nil, tf83
+			tv82, tf82 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp80), rt.UnboxValue(tp81))
+			if tf82 != nil {
+				return nil, tf82
 			}
-			tv82 := tv83
-			ta77 = tv82
+			tv83 := tv82
+			ta77 = tv83
 		}
 		tv84, tf84 := c.P.ActionBinary(rt.OpGt, ta77, any(20))
 		if tf84 != nil {
@@ -928,20 +928,20 @@ func i1(p *rt.TParser) (any, bool) {
 			for ; tj4 < len(ti3); tj4++ {
 				c.P.Units++
 				tp6 := c.P.ActionItemAt(ti3, tj4, false)
-				tv8, tf8 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$s", "s")
+				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$s", "s")
+				if tf7 != nil {
+					c.ActionRaise(tf7)
+				}
+				ts8, tf8 := c.P.ActionText(tv7)
 				if tf8 != nil {
 					c.ActionRaise(tf8)
 				}
-				ts9, tf9 := c.P.ActionText(tv8)
+				tv9, tf9 := c.P.ActionLength(any(ts8))
 				if tf9 != nil {
 					c.ActionRaise(tf9)
 				}
-				tv10, tf10 := c.P.ActionLength(any(ts9))
-				if tf10 != nil {
-					c.ActionRaise(tf10)
-				}
-				tv7 := tv10
-				tf11 := c.P.ActionPush(c, "map", tv7)
+				tv10 := tv9
+				tf11 := c.P.ActionPush(c, "map", tv10)
 				if tf11 != nil {
 					c.ActionRaise(tf11)
 				}
@@ -958,12 +958,12 @@ func i1(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp18 := ta15
 				tp19 := c.P.ActionItemAt(ti14, tj16, false)
-				tv21, tf21 := c.P.ActionBinary(rt.OpAdd, (tp18), (tp19))
-				if tf21 != nil {
-					c.ActionRaise(tf21)
+				tv20, tf20 := c.P.ActionBinary(rt.OpAdd, (tp18), (tp19))
+				if tf20 != nil {
+					c.ActionRaise(tf20)
 				}
-				tv20 := tv21
-				ta15 = tv20
+				tv21 := tv20
+				ta15 = tv21
 			}
 			tm22 := len(c.P.KidStack)
 			ti23, tf23 := c.P.ActionItems("map", k1)
@@ -974,20 +974,20 @@ func i1(p *rt.TParser) (any, bool) {
 			for ; tj24 < len(ti23); tj24++ {
 				c.P.Units++
 				tp26 := c.P.ActionItemAt(ti23, tj24, false)
-				tv28, tf28 := c.P.ActionMember(c, rt.MemberCapture, (tp26), "$s", "s")
+				tv27, tf27 := c.P.ActionMember(c, rt.MemberCapture, (tp26), "$s", "s")
+				if tf27 != nil {
+					c.ActionRaise(tf27)
+				}
+				ts28, tf28 := c.P.ActionText(tv27)
 				if tf28 != nil {
 					c.ActionRaise(tf28)
 				}
-				ts29, tf29 := c.P.ActionText(tv28)
+				tv29, tf29 := c.P.ActionLength(any(ts28))
 				if tf29 != nil {
 					c.ActionRaise(tf29)
 				}
-				tv30, tf30 := c.P.ActionLength(any(ts29))
-				if tf30 != nil {
-					c.ActionRaise(tf30)
-				}
-				tv27 := tv30
-				tf31 := c.P.ActionPush(c, "map", tv27)
+				tv30 := tv29
+				tf31 := c.P.ActionPush(c, "map", tv30)
 				if tf31 != nil {
 					c.ActionRaise(tf31)
 				}
@@ -1003,12 +1003,12 @@ func i1(p *rt.TParser) (any, bool) {
 			for ; tj36 < len(ti35); tj36++ {
 				c.P.Units++
 				tp38 := c.P.ActionItemAt(ti35, tj36, false)
-				tv40, tf40 := c.P.ActionBinary(rt.OpGt, (tp38), any(3))
-				if tf40 != nil {
-					c.ActionRaise(tf40)
+				tv39, tf39 := c.P.ActionBinary(rt.OpGt, (tp38), any(3))
+				if tf39 != nil {
+					c.ActionRaise(tf39)
 				}
-				tv39 := tv40
-				tb41, tf41 := c.P.ActionFilterKeep(tv39)
+				tv40 := tv39
+				tb41, tf41 := c.P.ActionFilterKeep(tv40)
 				if tf41 != nil {
 					c.ActionRaise(tf41)
 				}
@@ -1031,16 +1031,16 @@ func i1(p *rt.TParser) (any, bool) {
 			for ; tj47 < len(ti46); tj47++ {
 				c.P.Units++
 				tp49 := c.P.ActionItemAt(ti46, tj47, false)
-				tv51, tf51 := c.P.ActionMember(c, rt.MemberCapture, (tp49), "$s", "s")
+				tv50, tf50 := c.P.ActionMember(c, rt.MemberCapture, (tp49), "$s", "s")
+				if tf50 != nil {
+					c.ActionRaise(tf50)
+				}
+				ts51, tf51 := c.P.ActionText(tv50)
 				if tf51 != nil {
 					c.ActionRaise(tf51)
 				}
-				ts52, tf52 := c.P.ActionText(tv51)
-				if tf52 != nil {
-					c.ActionRaise(tf52)
-				}
-				tv50 := any(ts52)
-				tf53 := c.P.ActionPush(c, "map", tv50)
+				tv52 := any(ts51)
+				tf53 := c.P.ActionPush(c, "map", tv52)
 				if tf53 != nil {
 					c.ActionRaise(tf53)
 				}
@@ -1057,12 +1057,12 @@ func i1(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp60 := ta57
 				tp61 := c.P.ActionItemAt(ti56, tj58, false)
-				tv63, tf63 := c.P.ActionBinary(rt.OpAdd, (tp60), (tp61))
-				if tf63 != nil {
-					c.ActionRaise(tf63)
+				tv62, tf62 := c.P.ActionBinary(rt.OpAdd, (tp60), (tp61))
+				if tf62 != nil {
+					c.ActionRaise(tf62)
 				}
-				tv62 := tv63
-				ta57 = tv62
+				tv63 := tv62
+				ta57 = tv63
 			}
 			tm64 := len(c.P.KidStack)
 			ti65, tf65 := c.P.ActionItems("map", k1)
@@ -1073,20 +1073,20 @@ func i1(p *rt.TParser) (any, bool) {
 			for ; tj66 < len(ti65); tj66++ {
 				c.P.Units++
 				tp68 := c.P.ActionItemAt(ti65, tj66, false)
-				tv70, tf70 := c.P.ActionMember(c, rt.MemberCapture, (tp68), "$s", "s")
+				tv69, tf69 := c.P.ActionMember(c, rt.MemberCapture, (tp68), "$s", "s")
+				if tf69 != nil {
+					c.ActionRaise(tf69)
+				}
+				ts70, tf70 := c.P.ActionText(tv69)
 				if tf70 != nil {
 					c.ActionRaise(tf70)
 				}
-				ts71, tf71 := c.P.ActionText(tv70)
+				tv71, tf71 := c.P.ActionLength(any(ts70))
 				if tf71 != nil {
 					c.ActionRaise(tf71)
 				}
-				tv72, tf72 := c.P.ActionLength(any(ts71))
-				if tf72 != nil {
-					c.ActionRaise(tf72)
-				}
-				tv69 := tv72
-				tf73 := c.P.ActionPush(c, "map", tv69)
+				tv72 := tv71
+				tf73 := c.P.ActionPush(c, "map", tv72)
 				if tf73 != nil {
 					c.ActionRaise(tf73)
 				}
@@ -1103,12 +1103,12 @@ func i1(p *rt.TParser) (any, bool) {
 				c.P.Units++
 				tp80 := ta77
 				tp81 := c.P.ActionItemAt(ti76, tj78, false)
-				tv83, tf83 := c.P.ActionBinary(rt.OpAdd, (tp80), (tp81))
-				if tf83 != nil {
-					c.ActionRaise(tf83)
+				tv82, tf82 := c.P.ActionBinary(rt.OpAdd, (tp80), (tp81))
+				if tf82 != nil {
+					c.ActionRaise(tf82)
 				}
-				tv82 := tv83
-				ta77 = tv82
+				tv83 := tv82
+				ta77 = tv83
 			}
 			tv84, tf84 := c.P.ActionBinary(rt.OpGt, ta77, any(20))
 			if tf84 != nil {

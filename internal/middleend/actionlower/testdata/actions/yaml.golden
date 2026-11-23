@@ -1,5 +1,5 @@
 # digests: action expression, occurrence, lines, first 10 hex digits of the SHA-256 of the text
-l_yaml_stream action #1	42	e2c99854ea
+l_yaml_stream action #1	42	f8391f9257
 l_directive_document action #1	23	3fd2c119cb
 l_explicit_document action #1	23	fcd4b6e560
 l_bare_document action #1	20	d4f7a7909c
@@ -10,7 +10,7 @@ document_end action #1	5	e8c736f607
 l_directive action #1	5	134a798576
 ns_yaml_directive action #1	21	d93ec8c2f9
 ns_tag_directive action #1	25	68902f4009
-ns_reserved_directive action #1	34	b8605a0387
+ns_reserved_directive action #1	34	1d84a95d90
 c_ns_properties action #1	14	0e321ab52f
 s_l_block_node action #1	5	de75732e01
 s_l_flow_in_block action #1	5	9bbd4d499d
@@ -30,18 +30,18 @@ seq_space action #1	5	b757aec948
 seq_space predicate #1	10	91cd0d82bf
 seq_space binding n #1	10	a04d1ed3f4
 seq_space predicate #2	10	0d58b87f83
-l_block_sequence action #1	25	5ce8339cca
+l_block_sequence action #1	25	1db3e510ad
 l_block_sequence predicate #1	14	12afdf33e7
 l_block_sequence binding n #1	9	b8419dfc03
 c_l_block_seq_entry action #1	5	d168bbe2d8
 c_l_block_seq_entry binding c #1	5	d8e881171d
 compact_collection action #1	5	05235b6f50
 compact_collection binding n #1	18	b36db326d7
-ns_l_compact_sequence action #1	35	17b6961a4e
-l_block_mapping action #1	25	7b485a500f
+ns_l_compact_sequence action #1	35	d3e20af0a7
+l_block_mapping action #1	25	8cd3d5ead9
 l_block_mapping predicate #1	14	022cd69efe
 l_block_mapping binding n #1	9	4d160799e6
-ns_l_compact_mapping action #1	35	4e1351a882
+ns_l_compact_mapping action #1	35	af0e38dd2d
 c_l_block_map_explicit_entry action #1	14	14baae7d8c
 c_l_block_map_explicit_key action #1	5	5d81ad62eb
 c_l_block_map_explicit_key binding c #1	5	5abc9b7af0
@@ -89,13 +89,13 @@ c_flow_sequence predicate #1	27	42a825fab2
 c_flow_sequence predicate #2	10	737d6d9538
 c_flow_sequence binding c #1	5	f7b8f24858
 c_flow_sequence binding c #2	5	309a666d46
-ns_s_flow_seq_entries action #1	29	8c04e1105e
+ns_s_flow_seq_entries action #1	29	7ff0c8891a
 c_flow_mapping action #1	23	159923076d
 c_flow_mapping predicate #1	27	c32e0c5c51
 c_flow_mapping predicate #2	10	245e84f366
 c_flow_mapping binding c #1	5	e81ef11034
 c_flow_mapping binding c #2	5	3a88bc525e
-ns_s_flow_map_entries action #1	29	9727bdf12b
+ns_s_flow_map_entries action #1	29	a190eeb7f4
 flow_map_explicit action #1	5	a913f2bb30
 empty_pair action #1	14	ff5ada905d
 ns_flow_map_yaml_key_entry action #1	14	7cb8a2062a

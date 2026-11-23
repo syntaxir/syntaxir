@@ -306,7 +306,9 @@ func (l *actionLowerer) raise(b *code.Builder, f code.Expr) {
 	b.Return(code.Null(code.THandle(exec.Datum)), f)
 }
 
-// local returns a fresh name of a local with the prefix p.
+// local returns a fresh name of a local with the prefix p. A local is named when the statement that
+// defines it is appended, after the statements that compute its value, so that the numbers of the
+// locals follow the order in which their definitions appear.
 func (l *actionLowerer) local(p string) string {
 	l.n++
 	return p + strconv.Itoa(l.n)
@@ -451,7 +453,8 @@ func (l *actionLowerer) value(b *code.Builder, t ir.ActionExpr) code.Expr {
 			// Every value fits the type.
 			return l.value(b, t.X)
 		}
-		x := b.Let(l.local("tc"), l.value(b, t.X))
+		v := l.value(b, t.X)
+		x := b.Let(l.local("tc"), v)
 		b.If(code.Not(code.C("conforms", imm(action.OpActionCastType, castOf(t)), x)), func(b *code.Builder) {
 			l.raise(b, &code.Call{Callee: action.OpActionCastError, Args: []code.Expr{x}, Imm: castOf(t)})
 		})
@@ -593,7 +596,8 @@ func (l *actionLowerer) call(b *code.Builder, f *ir.Lambda, args ...code.Expr) c
 		vals[i] = b.Let(l.local("tp"), a)
 	}
 	l.params[f] = vals
-	v := b.Let(l.local("tv"), l.value(b, f.Body))
+	body := l.value(b, f.Body)
+	v := b.Let(l.local("tv"), body)
 	delete(l.params, f)
 	return v
 }

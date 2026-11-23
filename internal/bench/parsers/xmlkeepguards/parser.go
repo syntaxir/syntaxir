@@ -1130,12 +1130,12 @@ func init() {
 		for ; tj3 < len(ti2); tj3++ {
 			c.P.Units++
 			tp5 := c.P.ActionItemAt(ti2, tj3, false)
-			tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp5), "$n", "n")
-			if tf7 != nil {
-				return nil, tf7
+			tv6, tf6 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp5), "$n", "n")
+			if tf6 != nil {
+				return nil, tf6
 			}
-			tv6 := tv7
-			tf8 := c.P.ActionPush(c, "map", tv6)
+			tv7 := tv6
+			tf8 := c.P.ActionPush(c, "map", tv7)
 			if tf8 != nil {
 				return nil, tf8
 			}
@@ -8626,12 +8626,12 @@ L19:
 			for ; tj3 < len(ti2); tj3++ {
 				c.P.Units++
 				tp5 := c.P.ActionItemAt(ti2, tj3, false)
-				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$n", "n")
-				if tf7 != nil {
-					c.ActionRaise(tf7)
+				tv6, tf6 := c.P.ActionMember(c, rt.MemberCapture, (tp5), "$n", "n")
+				if tf6 != nil {
+					c.ActionRaise(tf6)
 				}
-				tv6 := tv7
-				tf8 := c.P.ActionPush(c, "map", tv6)
+				tv7 := tv6
+				tf8 := c.P.ActionPush(c, "map", tv7)
 				if tf8 != nil {
 					c.ActionRaise(tf8)
 				}
