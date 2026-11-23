@@ -323,6 +323,7 @@ var flowOtherTargets = map[string]string{
 	flow.OpMissingScopeEnd: "generated Go does not insert missing tokens yet",
 	flow.OpMissingLen:      "generated Go does not insert missing tokens yet",
 	flow.OpResetMissing:    "generated Go does not insert missing tokens yet",
+	flow.OpInputDemand:     "only a suspended stream demands input; the Go stream blocks in its reader and lowers without Suspend",
 }
 
 // flowProbe wraps the calls of primitive operations in probes and records what each one calls.

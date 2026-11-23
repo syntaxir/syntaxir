@@ -768,6 +768,9 @@ func (l *lowerer) lit(n *core.Lit, build bool, fail string) code.Expr {
 		l.set(start, pos())
 	}
 	ok := l.ok()
+	if l.opts.Suspend {
+		l.emit(do(flow.OpInputDemand, lit(n)))
+	}
 	l.failIf(&code.Set{Dst: []code.Place{{}, {Name: ok}}, Values: []code.Expr{call(flow.OpMatchLit, lit(n))}}, code.Not(use(ok)), fail)
 	if !build {
 		return null()

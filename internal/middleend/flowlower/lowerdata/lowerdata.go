@@ -94,6 +94,11 @@ type Options struct {
 	// guards of choices skip only in a parse that does not insert missing tokens. Without it a #missing
 	// site lowers as its literal, for a module that only parses without insertion run.
 	Inserts bool
+	// Suspend lowers the reads of a literal in a stream parse whose input arrives in chunks with flow.inputDemand before
+	// the match, so that a backend can suspend until the input holds the literal (the TypeScript -stream parser). The
+	// lowering emits nothing else for it: the charges and the results of the parse are those of the lowering without it.
+	// Without it the batch and Go stream lowerings are unchanged.
+	Suspend bool
 	// Observe reports the alternatives that the guards of choices skip (ObserveSkip).
 	Observe bool
 	// Node builds the values of the Node runtime (NewTerminalNode, NewBranchNode) in place of the typed

@@ -105,6 +105,7 @@ const (
 	OpMissingScopeEnd = "runtime.missingScopeEnd"
 	OpMissingLen      = "runtime.missingLen"
 	OpResetMissing    = "runtime.resetMissing"
+	OpInputDemand     = "runtime.inputDemand"
 	OpErrorValue      = "runtime.errorValue"
 	OpNewErrorNode    = "runtime.newErrorNode"
 	OpFreshNode       = "runtime.freshNode"
@@ -210,6 +211,7 @@ var imms = map[string]reflect.Type{
 	OpMissingScopeEnd: nil,
 	OpMissingLen:      nil,
 	OpResetMissing:    nil,
+	OpInputDemand:     reflect.TypeFor[Lit](),
 	OpErrorValue:      nil,
 	OpNewErrorNode:    nil,
 	OpFreshNode:       nil,

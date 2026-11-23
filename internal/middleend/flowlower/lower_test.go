@@ -418,6 +418,42 @@ func TestLowerVerifies(t *testing.T) {
 	}
 }
 
+// TestLowerSuspend checks that lowerdata.Options.Suspend adds one flow.inputDemand before each literal match and
+// nothing else: without the option the lowering has no demand, and with it the lowering minus its demand lines is the
+// lowering without the option, so the results and the charges of the parse do not move.
+func TestLowerSuspend(t *testing.T) {
+	m := &core.Module{Rules: []*core.Rule{nil}, Exps: []string{`"a"`, `"b"`}}
+	body := &core.Seq{Items: []core.Node{&core.Lit{Text: "a"}, &core.Lit{Text: "b"}}}
+	r := &core.Rule{Name: "main", Body: body}
+	m.Rules[0] = r
+	lower := func(suspend bool) string {
+		f, err := verified(lowerFunc(m, core.ActionSitesOf(m), newTables(m), lowerdata.Func{Form: lowerdata.Frame, Rule: r, Name: "main", Body: body, Build: true}, lowerdata.Options{Node: true, Suspend: suspend}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := flow.VerifyModule(f); err != nil {
+			t.Fatal(err)
+		}
+		return code.FuncStringIn(f, flow.FuncOf(f))
+	}
+	plain, suspended := lower(false), lower(true)
+	if strings.Contains(plain, flow.OpInputDemand+"(") {
+		t.Errorf("the lowering without Suspend has %q:\n%s", flow.OpInputDemand, plain)
+	}
+	if got := strings.Count(suspended, flow.OpInputDemand+"("); got != 2 {
+		t.Errorf("the suspended lowering has %d demands, want one per literal:\n%s", got, suspended)
+	}
+	var kept []string
+	for _, line := range strings.Split(suspended, "\n") {
+		if !strings.Contains(line, flow.OpInputDemand+"(") {
+			kept = append(kept, line)
+		}
+	}
+	if strings.Join(kept, "\n") != plain {
+		t.Errorf("the suspended lowering differs from the plain one beyond its demands:\n%s\n--- plain:\n%s", suspended, plain)
+	}
+}
+
 // TestLowerStream checks the lowering of a #stream repetition in a framed Node function: with lowerdata.Func.Stream
 // it starts the stream and delivers each element instead of gathering it, guarded by StreamOn; without the
 // option it is the batch repetition, which has none of these operations.
