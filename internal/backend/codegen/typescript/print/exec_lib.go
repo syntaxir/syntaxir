@@ -197,10 +197,10 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 	return out, nil
 }
 
-// tsResumeOps are the operations that run the body of a rule, which suspends in the parse of a stream
-// where it demands input that has not arrived: a function of the call protocol that reaches one of them
-// has a resumable form.
-var tsResumeOps = map[string]bool{"rule.invoke": true, "rule.invokePlain": true, "rule.body": true}
+// tsResumeOps are the operations that run the body of a rule or the skip or a line of an Operators Rule,
+// which suspend in the parse of a stream where they demand input that has not arrived: a method that
+// reaches one of them has a resumable form.
+var tsResumeOps = map[string]bool{"rule.invoke": true, "rule.invokePlain": true, "rule.body": true, "opr.match": true, "opr.skip": true}
 
 // tsResuming returns the compositions of the methods of the library's Parser class (tsBatchClass) that
 // reach the body of a rule (tsResumeOps), directly or through another such composition, specialized as
@@ -278,6 +278,13 @@ func tsGenMethods(lib *library.Library) ([]tsMethod, error) {
 		case "rule.body":
 			// The rules that a resumable form calls are those whose bodies suspend, which have one.
 			return fmt.Sprintf("(yield* this.bodyGens[%s.id]!(this, %s))", a[0], a[1])
+		case "opr.match":
+			// A line that cannot suspend has no resumable form.
+			l := "(" + a[0] + " as ResumableLine)"
+			return fmt.Sprintf("(%s.mGen === undefined ? %s.m(this) : (yield* %s.mGen!(this)))", l, a[0], l)
+		case "opr.skip":
+			o := "(" + a[0] + ".operatorsRule! as ResumableOperatorsRule)"
+			return fmt.Sprintf("(%s.skipGen === undefined ? %s.skip!(this) : (yield* %s.skipGen!(this))) !== undefined", o, o, o)
 		}
 		return tsTarget.Op(c, a)
 	}

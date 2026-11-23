@@ -178,6 +178,67 @@ console.log(streamLines(["a", "a,b", "a=b", "a=b;,c,d=e", "a=b,c=é", "ab=cé!;,
 	}
 }
 
+// tsStreamOperatorsGrammar has an Operators Rule whose skip, operands and operators read the input,
+// which the stream calls as a plain rule.
+const tsStreamOperatorsGrammar = `@start
+rule main = expr ws !.
+rule expr = #operators {
+    skip ws
+    operand num
+    operand "(" e:expr ws ")" => $e
+    level { infix left "+" / "-" }
+    level { infix right "**" / "*" }
+    level { prefix "-" }
+    level { postfix "!" }
+}
+rule num = [0-9]+ "é"?
+rule ws = " "*
+`
+
+// TestStreamOperatorsResumable runs the resumable functions of a stream with an Operators Rule on inputs
+// fed in every chunk size, in code points and in bytes, and checks them as TestStreamCallResumable does.
+func TestStreamOperatorsResumable(t *testing.T) {
+	t.Parallel()
+	g, err := parseTest(tsStreamOperatorsGrammar)
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := `import { streamLines } from "./parser.ts";
+console.log(streamLines(["1", "1+2", "1 + 2*3", "-1!", "2**3**4", "(1+2)*3", " ( 1é + -2 ) ! ** 3 ", "1+", "1*(2", "(", "1 2", ""], 20));
+`
+	out := codegentest.RunTSGrammarScriptBundle(t, g, script, common.GenOptions{Start: "main"}, tsStreamBundle)
+	// Each line is the result of an input in a unit (0 code points, 1 bytes), the units of the batch
+	// parse and of the stream, and the suspensions of the stream fed one unit at a time.
+	want := `"1" 0: ((["1"] nil) []) @1 units 6/6, suspended 0
+"1" 1: ((["1"] nil) []) @1 units 6/6, suspended 0
+"1+2" 0: (((["1"] nil) "+" (["2"] nil)) []) @3 units 12/12, suspended 2
+"1+2" 1: (((["1"] nil) "+" (["2"] nil)) []) @3 units 12/12, suspended 2
+"1 + 2*3" 0: (((["1"] nil) "+" ((["2"] nil) "*" (["3"] nil))) []) @7 units 20/20, suspended 6
+"1 + 2*3" 1: (((["1"] nil) "+" ((["2"] nil) "*" (["3"] nil))) []) @7 units 20/20, suspended 6
+"-1!" 0: (("-" ((["1"] nil) "!")) []) @3 units 11/11, suspended 2
+"-1!" 1: (("-" ((["1"] nil) "!")) []) @3 units 11/11, suspended 2
+"2**3**4" 0: (((["2"] nil) "**" ((["3"] nil) "**" (["4"] nil))) []) @7 units 20/20, suspended 6
+"2**3**4" 1: (((["2"] nil) "**" ((["3"] nil) "**" (["4"] nil))) []) @7 units 20/20, suspended 6
+"(1+2)*3" 0: ((((["1"] nil) "+" (["2"] nil)) "*" (["3"] nil)) []) @7 units 25/25, suspended 6
+"(1+2)*3" 1: ((((["1"] nil) "+" (["2"] nil)) "*" (["3"] nil)) []) @7 units 25/25, suspended 6
+" ( 1é + -2 ) ! ** 3 " 0: (((((["1"] "é") "+" ("-" (["2"] nil))) "!") "**" (["3"] nil)) [" "]) @20 units 46/46, suspended 19
+" ( 1é + -2 ) ! ** 3 " 1: (((((["1"] "é") "+" ("-" (["2"] nil))) "!") "**" (["3"] nil)) [" "]) @21 units 47/47, suspended 20
+"1+" 0: fail @1 units 10/10, suspended 1
+"1+" 1: fail @1 units 10/10, suspended 1
+"1*(2" 0: fail @1 units 17/17, suspended 3
+"1*(2" 1: fail @1 units 17/17, suspended 3
+"(" 0: fail @0 units 7/7, suspended 0
+"(" 1: fail @0 units 7/7, suspended 0
+"1 2" 0: fail @2 units 9/9, suspended 2
+"1 2" 1: fail @2 units 9/9, suspended 2
+"" 0: fail @0 units 3/3, suspended 0
+"" 1: fail @0 units 3/3, suspended 0
+`
+	if out != want {
+		t.Fatalf("the stream differs from its parse of the whole input or from the batch parse, or suspends elsewhere:\n%s\nwant:\n%s", out, want)
+	}
+}
+
 // TestStreamPrintedTypes checks the parsers printed as with -stream for the grammars of the stream tests,
 // with the driver, under the strictest checks of tsc.
 func TestStreamPrintedTypes(t *testing.T) {
@@ -186,7 +247,7 @@ func TestStreamPrintedTypes(t *testing.T) {
 		t.Skip("runs tsc")
 	}
 	tsc := tooltest.RequireTSC(t)
-	for _, src := range []string{tsStreamPlainGrammar, tsStreamCallGrammar} {
+	for _, src := range []string{tsStreamPlainGrammar, tsStreamCallGrammar, tsStreamOperatorsGrammar} {
 		g, err := parseTest(src)
 		if err != nil {
 			t.Fatal(err)

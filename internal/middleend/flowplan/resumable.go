@@ -22,7 +22,8 @@ const PassResumable = "resumable"
 
 // Resumable marks the resumable functions of a table lowered for a suspended stream (SuspendFeature):
 // a function is resumable when it demands input (flow.inputDemand) or calls a resumable function of the table,
-// a rule through its body and an outlined node through its outlined function (Plan.Outlined). The functions
+// a rule through its body, an Operators Rule through the functions of its skip and its lines, and an
+// outlined node through its outlined function (Plan.Outlined). The functions
 // get the flag as flow.Attrs.Resumable, which the TypeScript printer reads to print them as generators. The pass
 // runs right after the lowering, before the Flow passes, so that it sees the demands the lowering emitted.
 var Resumable = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[code.Flow]]{
@@ -48,6 +49,15 @@ func markResumable(t *plandata.Table[code.Flow]) error {
 	fs := t.Module.Module().Funcs
 	seed := make([]bool, len(fs))
 	callees := make([][]int, len(fs))
+	// An Operators Rule has no body function: a call of it runs the functions of its skip and its lines.
+	lines := map[int][]int{}
+	if t.Plan != nil {
+		for i, s := range t.Plan.Funcs {
+			if s.Key.Use == plandata.OperatorsSkip || s.Key.Use == plandata.OperatorsLine {
+				lines[s.Key.Rule] = append(lines[s.Key.Rule], i)
+			}
+		}
+	}
 	for i, fn := range fs {
 		a := flow.AttrsOf(fn)
 		if a == nil {
@@ -65,7 +75,12 @@ func markResumable(t *plandata.Table[code.Flow]) error {
 				seed[i] = true
 				return
 			case flow.OpCallRule:
-				k = plandata.Key{Use: plandata.RuleBody, Rule: c.Imm.(prim.RuleCall).Rule}
+				r := c.Imm.(prim.RuleCall).Rule
+				k = plandata.Key{Use: plandata.RuleBody, Rule: r}
+				if _, ok := t.Index(k); !ok && len(lines[r]) > 0 {
+					callees[i] = append(callees[i], lines[r]...)
+					return
+				}
 			case flow.OpCallOutline:
 				outlined := c.Imm.(prim.Outline).Call
 				var ok bool

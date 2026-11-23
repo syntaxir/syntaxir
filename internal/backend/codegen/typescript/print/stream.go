@@ -9,6 +9,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
+	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -57,9 +58,10 @@ func (g *Generator) streamRules() {
 			continue
 		}
 		g.Cur = r
-		if _, ok := r.Def.Expr.(*ast.OperatorsRule); ok {
-			// Its lines read the input, so the stream needs their resumable form.
-			g.printErr(fmt.Errorf("internal error: the TypeScript stream has no resumable form of the Operators Rule %s", r.Name))
+		if e, ok := r.Def.Expr.(*ast.OperatorsRule); ok {
+			if g.operatorsRuleGens(r, e) && g.slotReached(r) {
+				gens[i] = fmt.Sprintf("(p: StreamParser, min: number) => p.operatorsRuleParseGen(%s, min)", g.ruleVar(r))
+			}
 			continue
 		}
 		l, ok := execdata.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
@@ -95,14 +97,86 @@ func (g *Generator) streamRules() {
 	}
 }
 
+// operatorsRuleGens prints the resumable functions of the skip and the lines of the Operators Rule r of
+// the stream that can suspend, and sets them as the resumable forms of the rule's skip and lines
+// (ResumableOperatorsRule.skipGen, ResumableLine.mGen), which the resumable forms of the Operators Rule loop
+// run in place of the others. It reports whether any can suspend: whether a call of r can.
+func (g *Generator) operatorsRuleGens(r *common.Rule, e *ast.OperatorsRule) bool {
+	co, ok := g.Core().Rules[r.ID].Body.(*core.OperatorsRule)
+	if !ok {
+		g.printErr(fmt.Errorf("internal error: the Operators Rule %s has no Core IR of an Operators Rule", r.Name))
+		return false
+	}
+	suspends := false
+	// gen prints the function of the line k, whose Core IR is l, if it can suspend, and sets it as the
+	// resumable form of the line at place.
+	gen := func(k plandata.Key, l *core.OpLine, place string) {
+		x, ok := execdata.Func(g.table, k)
+		if !ok {
+			g.noFunction(fmt.Sprintf("the line %d of the Operators Rule %s", k.Line, r.Name))
+			return
+		}
+		if !prim.AttrsOf(x.Func).Resumable {
+			return
+		}
+		suspends = true
+		name, _ := g.funcName(x, core.SlotNames(l.Scope), check.NewScope(), r.Name+" (OperatorsRule line)")
+		fmt.Fprintf(&g.Init, "%s = %s;\n", place, name)
+	}
+	if e.Skip != nil {
+		gen(plandata.Key{Use: plandata.OperatorsSkip, Rule: r.ID}, co.Skip, fmt.Sprintf("(%s.operatorsRule! as ResumableOperatorsRule).skipGen", g.ruleVar(r)))
+	}
+	line := func(path string) string {
+		return fmt.Sprintf("(%s.operatorsRule!.%s as ResumableLine).mGen", g.ruleVar(r), path)
+	}
+	for i := range e.Operands {
+		gen(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i}, co.Operands[i], line(fmt.Sprintf("operands[%d]!", i)))
+	}
+	// The operators in the order of their levels, each in the list of its kind (Generator.operatorsRule).
+	id, prefix, led := 0, 0, 0
+	for _, l := range e.Levels {
+		for _, op := range l.Operators {
+			place := line(fmt.Sprintf("led[%d]!.line", led))
+			if op.Kind == ast.Prefix {
+				place = line(fmt.Sprintf("prefix[%d]!.line", prefix))
+				prefix++
+			} else {
+				led++
+			}
+			gen(plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: len(e.Operands) + id}, co.Ops[id].Line, place)
+			id++
+		}
+	}
+	return suspends
+}
+
 // resumableRule reports whether a call of the rule r in the stream can suspend: whether the function
-// of its body in the table of the stream is resumable.
+// of its body in the table of the stream is resumable, or for an Operators Rule a function of its skip
+// or its lines.
 func (g *Generator) resumableRule(r *common.Rule) bool {
 	if !g.stream || g.table == nil {
 		return false
 	}
-	l, ok := execdata.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
-	return ok && prim.AttrsOf(l.Func).Resumable
+	e, ok := r.Def.Expr.(*ast.OperatorsRule)
+	if !ok {
+		l, ok := execdata.Func(g.table, plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
+		return ok && prim.AttrsOf(l.Func).Resumable
+	}
+	// An Operators Rule, which suspends where its skip or a line does.
+	keys := []plandata.Key{{Use: plandata.OperatorsSkip, Rule: r.ID}}
+	n := len(e.Operands)
+	for _, l := range e.Levels {
+		n += len(l.Operators)
+	}
+	for i := range n {
+		keys = append(keys, plandata.Key{Use: plandata.OperatorsLine, Rule: r.ID, Line: i})
+	}
+	for _, k := range keys {
+		if l, ok := execdata.Func(g.table, k); ok && prim.AttrsOf(l.Func).Resumable {
+			return true
+		}
+	}
+	return false
 }
 
 // plainGenCall prints the resumable function of the plain rule r, which a resumable call site calls in

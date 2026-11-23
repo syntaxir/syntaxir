@@ -296,11 +296,10 @@ func (p *tsPrimPrinter) call(r *common.Rule, min int) string {
 		case callsPlain(r, g.Document):
 			g.plainGenUsed[r] = true
 			return "(yield* " + g.plainGenName(r) + "(p))"
-		case r.Plain && !g.Document:
-			// An Operators Rule, which the stream has no resumable form of (streamRules).
-			g.printErr(fmt.Errorf("internal error: the TypeScript stream has no resumable call of the rule %s", r.Name))
-			return "undefined"
 		}
+		// A plain Operators Rule too, which the batch code calls with invokePlain: for a rule that is
+		// neither memoized nor a leader and has no captures, the call protocol counts the unit of the
+		// call as invokePlain does and runs invokePlainBody.
 		return fmt.Sprintf("(yield* p.callBodyGen(%s, %d))", g.ruleVar(r), min)
 	}
 	switch {

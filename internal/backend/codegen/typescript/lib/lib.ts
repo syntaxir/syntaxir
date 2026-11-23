@@ -6050,6 +6050,29 @@ export class Parser {
 export type BodyGen = (p: StreamParser, min: number) => Generator<number, R, void>;
 
 /**
+ * LineGen is the resumable form of the skip or a line of an Operators Rule in the parse of a stream
+ * (ResumableOperatorsRule.skipGen, ResumableLine.mGen), as BodyGen is of a rule's body.
+ */
+export type LineGen = (p: StreamParser) => Generator<number, R, void>;
+
+/**
+ * ResumableOperatorsRule is an Operators Rule of the parse of a stream, whose skip has a resumable form
+ * (skipGen) when it can suspend. The parse of a stream sets it on the rule's OperatorsRule, which the
+ * batch parse shares.
+ */
+export interface ResumableOperatorsRule extends OperatorsRule {
+  skipGen?: LineGen;
+}
+
+/**
+ * ResumableLine is a line of an Operators Rule of the parse of a stream, which has a resumable form
+ * (mGen) when it can suspend, as ResumableOperatorsRule has for the skip.
+ */
+export interface ResumableLine extends OperatorsRuleLine {
+  mGen?: LineGen;
+}
+
+/**
  * StreamParser is the parser of the parse of a stream, whose input arrives in chunks: the input
  * holds the chunks fed so far (n grows as they arrive and nothing of it changes) and final is set
  * with the last. The resumable functions of the parse (generators) demand the input that a read
@@ -6102,6 +6125,26 @@ export class StreamParser extends Parser {
   }
 
   *invokePlainBodyGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *operatorsRuleParseGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *operatorsRuleExprGen(r: Rule, min: number): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *operatorsRuleNudGen(r: Rule): Generator<number, R, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *longestGen(ops: OperatorsRuleOp[]): Generator<number, OperatorsRuleAttempt | null, void> {
+    throw new Error("the printed method replaces this one");
+  }
+
+  *skipTriviaGen(r: Rule): Generator<number, void, void> {
     throw new Error("the printed method replaces this one");
   }
 }

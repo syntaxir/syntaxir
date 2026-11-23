@@ -114,3 +114,27 @@ func TestResumableFollowsOutlinedCalls(t *testing.T) {
 		t.Error("main calls item, which is resumable, but is not resumable")
 	}
 }
+
+// TestResumableFollowsOperatorsRuleCalls checks that a call of an Operators Rule, which has no body function, is
+// resumable when a function of its skip or its lines demands input: the call is an edge of the fixpoint to each.
+func TestResumableFollowsOperatorsRuleCalls(t *testing.T) {
+	const src = "rule main = expr\nrule expr = #operators {\n    skip \" \"*\n    operand [0-9]+\n    level { infix left \"+\" }\n}\n"
+	_, rules := tableIR(t, src, check.BuildValues)
+	tbl := resumableTable(t, src, true, nil)
+	var lines int
+	for _, s := range tbl.Plan.Funcs {
+		if s.Key.Use != plandata.OperatorsLine && s.Key.Use != plandata.OperatorsSkip {
+			continue
+		}
+		lines++
+		if !resumableOf(t, tbl, s.Key) {
+			t.Errorf("line %+v demands input but is not resumable", s.Key)
+		}
+	}
+	if lines != 3 {
+		t.Fatalf("the Operators Rule has %d functions of its skip and lines, want 3", lines)
+	}
+	if !resumableOf(t, tbl, ruleKey(t, rules, "main")) {
+		t.Error("main calls the Operators Rule expr, whose lines demand input, but is not resumable")
+	}
+}
