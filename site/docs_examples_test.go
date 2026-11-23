@@ -24,6 +24,8 @@ import (
 //     first line is `// name.sxir (changed rules)` replaces the rules of the same names in that
 //     file. The files of a page live in one directory, in the order of the page.
 //   - An sxir block that contains `@start` is a complete grammar and must compile.
+//   - A go or ts block whose first line is `// name.go` or `// name.ts` is a program file to save
+//     under that name.
 //   - A bash block of lines that start with `sxir`, followed by a text block, is a command and
 //     its output (standard output and standard error together, or the standard output alone). The command is run in the
 //     directory of the page; a path that the page does not create but the repository has is
@@ -35,6 +37,8 @@ import (
 //	<!-- example: file <name> -->     the block is a file to save under that name (any language)
 //	<!-- example: skip: <reason> -->  the block is not run, for the reason given
 //	<!-- example: use <page.md> -->   anywhere on a page: the files that page saves are available here
+//	<!-- example: program <name> [module <path>] -->
+//	                                  a go or ts block is a program to run (docs_programs_test.go)
 //
 // In a shown output, a line of only "..." stands for any number of lines.
 //
@@ -42,8 +46,9 @@ import (
 // text is the content of the file), and by a bash block that is a `cat > <name> <<'EOF'` here
 // document.
 var (
-	exampleMarkerRe  = regexp.MustCompile(`^<!--\s*example:\s*(error|file\s+[A-Za-z0-9_][A-Za-z0-9_./-]*|skip:\s*\S.*?)\s*-->$`)
+	exampleMarkerRe  = regexp.MustCompile(`^<!--\s*example:\s*(error|file\s+[A-Za-z0-9_][A-Za-z0-9_./-]*|program\s+[A-Za-z0-9_][A-Za-z0-9_./-]*(?:\s+module\s+\S+)?|skip:\s*\S.*?)\s*-->$`)
 	exampleFileRe    = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.sxir)(\s+\(changed rules\))?\s*$`)
+	exampleSourceRe  = regexp.MustCompile(`^//\s*([A-Za-z0-9_][A-Za-z0-9_./-]*\.(?:go|ts))\s*$`)
 	exampleUseRe     = regexp.MustCompile(`^<!--\s*example:\s*use\s+(\S+\.md)\s*-->$`)
 	exampleCatRe     = regexp.MustCompile(`^cat\s+([A-Za-z0-9_][A-Za-z0-9_./-]*)$`)
 	exampleHereRe    = regexp.MustCompile(`^cat\s*>\s*([A-Za-z0-9_][A-Za-z0-9_./-]*)\s*<<\s*'?(\w+)'?$`)
@@ -51,8 +56,8 @@ var (
 	exampleDeclRe    = regexp.MustCompile(`^(rule|type|var|const)\s+([A-Za-z_][A-Za-z0-9_]*)`)
 )
 
-// exampleBlock is one fenced code block of a page. Marker is "error", "file name" or
-// "skip: reason", or empty.
+// exampleBlock is one fenced code block of a page. Marker is "error", "file name",
+// "program name [module path]" or "skip: reason", or empty.
 type exampleBlock struct {
 	Lang   string
 	Body   []string
@@ -299,8 +304,9 @@ func trimOutput(s string) string {
 // list when its examples carry the markers that they need.
 var deferredPages = map[string]string{}
 
-// exampleStats counts what TestDocumentationExamples did, for the log.
-type exampleStats struct{ Compiled, Rejected, Commands, Skipped int }
+// exampleStats counts what TestDocumentationExamples did, for the log. Programs counts the program
+// command blocks and programs that ran, and Deferred those of deferredProgramPages.
+type exampleStats struct{ Compiled, Rejected, Commands, Programs, Deferred, Skipped int }
 
 // isCommandBlock reports whether every line of a bash block is an sxir command.
 func isCommandBlock(body []string) bool {
@@ -323,7 +329,15 @@ func fileOfBlock(blocks []exampleBlock, i int, files map[string]string) (name, t
 	if n, ok := strings.CutPrefix(b.Marker, "file "); ok {
 		return n, text, true
 	}
+	if strings.HasPrefix(b.Marker, "program ") {
+		p := parseProgramMarker(b.Marker)
+		return p.Name, programText(b, p), true
+	}
 	switch {
+	case (b.Lang == "go" || b.Lang == "ts") && len(b.Body) > 0:
+		if m := exampleSourceRe.FindStringSubmatch(b.Body[0]); m != nil {
+			return m[1], text, true
+		}
 	case b.Lang == "sxir" && len(b.Body) > 0:
 		m := exampleFileRe.FindStringSubmatch(b.Body[0])
 		if m == nil {
@@ -397,6 +411,8 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 			saveExampleFile(t, dir, name, text)
 		}
 	}
+	_, deferPrograms := deferredProgramPages[rel]
+	runPrograms := !deferPrograms
 	files := map[string]string{}
 	for i, b := range blocks {
 		at := fmt.Sprintf("%s:%d", rel, b.Line)
@@ -454,23 +470,60 @@ func checkPageExamples(t *testing.T, bin, rel string, st *exampleStats) {
 				continue
 			}
 			st.Commands++
-			// The output is one text block, or two when a page shows the standard output and then
-			// the standard error separately.
-			want := trimOutput(strings.Join(blocks[i+1].Body, "\n"))
-			got = trimOutput(got)
-			if !outputMatches(got, want) && i+2 < len(blocks) && blocks[i+2].Lang == "text" &&
-				outputMatches(got, want+"\n"+trimOutput(strings.Join(blocks[i+2].Body, "\n"))) {
-				want = got
+			checkShownOutput(t, at, command, got, blocks, i, func() (string, error) {
+				return runExampleCommand(bin, dir, command, false)
+			})
+		case b.Lang == "bash" && isProgramBlock(b.Body):
+			if skip {
+				st.Skipped++
+				continue
 			}
-			if !outputMatches(got, want) {
-				// A page may show the standard output alone.
-				if out, err := runExampleCommand(bin, dir, command, false); err == nil && outputMatches(trimOutput(out), want) {
-					continue
-				}
-				t.Errorf("%s: %s\ngot:\n%s\nwant:\n%s", at, command, got, want)
+			if !runPrograms {
+				st.Deferred++
+				continue
 			}
+			command := strings.Join(b.Body, "\n")
+			got, err := runProgramCommands(t, bin, dir, b.Body)
+			if err != nil {
+				t.Errorf("%s: %s: %v", at, command, err)
+				continue
+			}
+			st.Programs++
+			if i+1 < len(blocks) && blocks[i+1].Lang == "text" {
+				checkShownOutput(t, at, command, got, blocks, i, nil)
+			}
+		case strings.HasPrefix(b.Marker, "program "):
+			if !runPrograms {
+				st.Deferred++
+				continue
+			}
+			st.Programs++
+			checkProgram(t, bin, dir, at, b, blocks, i)
 		}
 	}
+}
+
+// checkShownOutput compares the output got of the command of block i with the text block after it.
+// The output is one text block, or two when a page shows the standard output and then the standard
+// error separately. stdout, if not nil, runs the command again for its standard output alone, which
+// a page may show instead.
+func checkShownOutput(t *testing.T, at, command, got string, blocks []exampleBlock, i int, stdout func() (string, error)) {
+	t.Helper()
+	want := trimOutput(strings.Join(blocks[i+1].Body, "\n"))
+	got = trimOutput(got)
+	if !outputMatches(got, want) && i+2 < len(blocks) && blocks[i+2].Lang == "text" &&
+		outputMatches(got, want+"\n"+trimOutput(strings.Join(blocks[i+2].Body, "\n"))) {
+		want = got
+	}
+	if outputMatches(got, want) {
+		return
+	}
+	if stdout != nil {
+		if out, err := stdout(); err == nil && outputMatches(trimOutput(out), want) {
+			return
+		}
+	}
+	t.Errorf("%s: %s\ngot:\n%s\nwant:\n%s", at, command, got, want)
 }
 
 // exampleDocs returns the pages whose examples are run, relative to the repository root.
@@ -503,8 +556,8 @@ func TestDocumentationExamples(t *testing.T) {
 	var mu sync.Mutex
 	var total exampleStats
 	t.Cleanup(func() {
-		t.Logf("compiled %d grammars, %d rejected on purpose, ran %d commands, skipped %d marked blocks",
-			total.Compiled, total.Rejected, total.Commands, total.Skipped)
+		t.Logf("compiled %d grammars, %d rejected on purpose, ran %d commands and %d programs, deferred %d programs, skipped %d marked blocks",
+			total.Compiled, total.Rejected, total.Commands, total.Programs, total.Deferred, total.Skipped)
 	})
 	for _, rel := range exampleDocs(t) {
 		t.Run(rel, func(t *testing.T) {
@@ -518,6 +571,8 @@ func TestDocumentationExamples(t *testing.T) {
 			total.Compiled += st.Compiled
 			total.Rejected += st.Rejected
 			total.Commands += st.Commands
+			total.Programs += st.Programs
+			total.Deferred += st.Deferred
 			total.Skipped += st.Skipped
 			mu.Unlock()
 		})
