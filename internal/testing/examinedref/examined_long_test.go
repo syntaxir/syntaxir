@@ -66,13 +66,20 @@ func once(text string, rec *examinedref.Recorder, err error, missing bool) []obs
 }
 
 // routes are the routes of every backend: Parse with expectations, Recognize, ParseStream and a
-// Document parsed before and after edits, which run every grammar, and Parse with token insertion,
-// which the closure backend checks.
+// Document parsed before and after edits, and Parse, ParseStream and the Document with token
+// insertion.
 func routes() []route {
 	var out []route
+	every := func(grammarUses) string { return "" }
+	streams := func(uses grammarUses) string {
+		if !uses.stream {
+			return "rule main has no #stream repetition"
+		}
+		return ""
+	}
+	insertion := []engine.ParseOption{engine.WithMissingTokens(missingLimit)}
 	for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 		name := b.String()
-		every := func(grammarUses) string { return "" }
 		out = append(out,
 			route{name + "/parse", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
@@ -88,29 +95,33 @@ func routes() []route {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}, func(uses grammarUses) string {
-				if !uses.stream {
-					return "rule main has no #stream repetition"
-				}
-				return ""
-			}, examinedref.EveryAction},
+			}, streams, examinedref.EveryAction},
 			route{name + "/document", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
-				return documentParses(p.OnBackend(b), in, u)
+				return documentParses(p.OnBackend(b), in, u, false)
+			}, every, examinedref.EveryAction},
+			route{name + "/insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+				var rec examinedref.Recorder
+				_, err := p.OnBackend(b).Parse(in, append(traced(&rec, u), insertion...)...)
+				return once(in, &rec, err, true)
+			}, every, examinedref.EveryAction},
+			route{name + "/stream-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+				var rec examinedref.Recorder
+				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, append(traced(&rec, u), insertion...)...)
+				return once(in, &rec, err, true)
+			}, streams, examinedref.EveryAction},
+			route{name + "/document-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+				return documentParses(p.OnBackend(b), in, u, true)
 			}, every, examinedref.EveryAction},
 		)
 	}
-	out = append(out, route{"closure/insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
-		var rec examinedref.Recorder
-		_, err := p.OnBackend(engine.Closure).Parse(in, append(traced(&rec, u), engine.WithMissingTokens(missingLimit))...)
-		return once(in, &rec, err, true)
-	}, func(grammarUses) string { return "" }, examinedref.EveryAction})
 	return out
 }
 
 // documentParses parses a Document of in with its middle character removed, inserts it, inserts a
 // character at the start and removes it again, parsing after each edit, so that the parses after the
-// edits reuse the results of the ones before.
-func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
+// edits reuse the results of the ones before. With missing, the Document inserts missing tokens and
+// records no expectations; without, it records them.
+func documentParses(p *engine.Parser, in string, u input.PositionUnit, missing bool) []observedParse {
 	chars := []string{}
 	if u == input.Bytes {
 		for i := 0; i < len(in); i++ {
@@ -131,7 +142,14 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	if mid < len(chars) {
 		text += strings.Join(chars[mid+1:], "")
 	}
-	d, err := p.NewDocument(text, engine.WithUnit(u), engine.WithExpectations())
+	opts := []engine.ParseOption{engine.WithUnit(u)}
+	if missing {
+		// The reference fixes the message of an insertion as a parse without expectations writes it.
+		opts = append(opts, engine.WithMissingTokens(missingLimit))
+	} else {
+		opts = append(opts, engine.WithExpectations())
+	}
+	d, err := p.NewDocument(text, opts...)
 	if err != nil {
 		// A refusal: a Document makes no calls before its first parse.
 		return []observedParse{{text: text, err: err}}
@@ -140,7 +158,7 @@ func documentParses(p *engine.Parser, in string, u input.PositionUnit) []observe
 	parse := func(text string) bool {
 		var rec examinedref.Recorder
 		_, err := d.Parse(engine.WithTrace(rec.Trace))
-		out = append(out, once(text, &rec, err, false)...)
+		out = append(out, once(text, &rec, err, missing)...)
 		return !aborted(err)
 	}
 	if !parse(text) {

@@ -58,6 +58,8 @@ func ExaminedShapes() []Case {
 			Inputs: []string{"é", "\xc3", "\xe2\x82A", "a\xffb", "\xf0\x9f\x98", "\xf0\x9f\x98\x80"}},
 		{Name: "stream", Src: "rule main = item* #stream\nrule item = [a-z]+ \";\" / \"(\" [a-z]* \")\"",
 			Inputs: []string{"a;bc;", "a;b", "(ab)c;", "(a", ""}},
+		{Name: "stream with token insertion", Src: "rule main = item* #stream $$\nrule item = [a-z]+ \";\" #missing / \"(\" [a-z]* \")\" #missing",
+			Inputs: []string{"a;bc;", "a;b", "ab(c", "(a)b(", "a(b;", ""}},
 		{Name: "line anchors", Src: "rule main = (^ [a-z]+ $ \"\\n\"?)* $$",
 			Inputs: []string{"ab\ncd", "ab\n", "ab cd", "\n\n"}},
 		{Name: "a line end before a multibyte character", Src: "rule main = (\"na\" $ \"\\n\"?)* $$",
