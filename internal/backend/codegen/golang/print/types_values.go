@@ -6,10 +6,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
-	"syntaxir.dev/sxir/internal/frontend/astinspect"
-	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
-	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
 // Typed values of rules in the value model.
@@ -233,28 +230,6 @@ func (t *TypedGen) typedHelpers(b *strings.Builder, done *int) bool {
 		b.WriteString("}\n\n")
 	}
 	return wrote
-}
-
-// streamValue returns the value type of the elements of the #stream repetition of the rule rd.
-func streamValue(p *common.Program, rd *ast.RuleDef) (types.Ty, bool) {
-	var rep *ast.Repeat
-	astinspect.WalkExpr(rd.Expr, func(e ast.Expr) {
-		if a, ok := e.(*ast.Attributed); ok {
-			for _, at := range a.Attrs {
-				if r, ok := check.SeeThrough(a.Expr).(*ast.Repeat); ok && at.Name == "stream" {
-					rep = r
-				}
-			}
-		}
-	})
-	if rep == nil {
-		return nil, false
-	}
-	v := &check.ValueInference{Checker: p.Checker(), Rules: map[string]*ast.RuleDef{}, Out: map[string]types.Ty{}, Approx: map[string]types.Ty{}, Computing: map[string]bool{}, Quiet: true, Rule: rd}
-	for _, r := range p.Grammar.Rules() {
-		v.Rules[r.Name] = r
-	}
-	return v.ScopeValue(rep.Expr), true
 }
 
 // backHelper returns the name of the function converting a value of the value-model type x (a

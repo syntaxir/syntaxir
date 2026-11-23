@@ -124,6 +124,18 @@ The callback runs during the feed that commits the error, before the element aft
 `diagnosticLimit`, a stream that recovered from more errors ends with `TruncatedSyntaxErrors`, the retained errors
 with the `total` and `dropped` counts.
 
+With `-types` as well, `createStreamValue` makes the same stream with typed elements: each feed returns the committed
+elements as `StreamValue`, the type of the repeated element in the [TypeScript types](typescript.md#typed-values), as
+`ParseStreamValue` does in Go:
+
+```ts
+import { createStreamValue } from "./parser/parser.ts";
+
+const { stream } = createStreamValue();
+const r = stream!.feed(new TextEncoder().encode("a=1\nbc=22\n"), true);
+for (const pair of r.elements) use(pair); // StreamValue, here the grammar's Pair
+```
+
 ## Related Topics
 
 - [Streaming](streaming.md): the stream contract, shared by the engine and the generated parsers.

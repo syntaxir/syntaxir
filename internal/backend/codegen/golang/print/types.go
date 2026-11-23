@@ -206,7 +206,7 @@ func (d *Document) ParseValue(opts ...ParseOption) (%s, error) {
 		// Elements are converted from the committed nodes that ParseStream
 		// emits, each with a converter of its own, so that typed values
 		// share nothing with later elements.
-		v, ok := streamValue(g.Prog, r.Def)
+		v, ok := common.StreamValue(g.Prog, r.Def)
 		if !ok {
 			return typedOutput{}, fmt.Errorf("internal error: no element type for the #stream repetition of %s", r.Name)
 		}

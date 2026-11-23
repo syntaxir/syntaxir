@@ -34,8 +34,9 @@ func qualifyTypes(typ string) string {
 	})
 }
 
-// typedTS returns the declarations of types.ts and the code that parser.ts adds for typed values.
-func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err error) {
+// typedTS returns the declarations of types.ts and the code that parser.ts adds for typed values. With
+// stream, it also resolves the type of the elements of the stream of the start rule (streamEntry).
+func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser string, err error) {
 	if g.Prog.Typed == nil {
 		return "", "", fmt.Errorf("typed values need the grammar's types (type checking did not run)")
 	}
@@ -101,6 +102,14 @@ func (g *Generator) typedTS(start *common.Rule) (typesSrc, parser string, err er
 	repr := t.recipe(st)
 	stType := qualifyTypes(t.tsType(st))
 	g.startType, g.startRepr = stType, repr
+	if stream {
+		v, ok := common.StreamValue(g.Prog, start.Def)
+		if !ok {
+			return "", "", fmt.Errorf("internal error: no element type for the #stream repetition of %s", start.Name)
+		}
+		et := t.ResolveValue(v)
+		g.streamType, g.streamRepr = qualifyTypes(t.tsType(et)), t.recipe(et)
+	}
 	b.WriteString("\n// --- Typed values (sxir gen -types) ---\n\n")
 	// With limit controls every parse is controlled, so parseValue takes the path of parseValueWithOptions.
 	astBody := fmt.Sprintf("astResult<%s>(run(G, R%d, nseen, input, unit), %d)", stType, start.ID, repr)

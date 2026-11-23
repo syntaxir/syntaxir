@@ -6193,8 +6193,12 @@ export class StreamParser extends Parser {
   // memoFloor is the floor of the memo (memo.floor): the memo keeps nothing before it. The memo's slot
   // of a position is its distance from the floor (gapLen is -memoFloor, with no gap).
   memoFloor = 0;
-  // delivered holds the elements delivered since the feed that runs the parse began (stream.deliver).
-  delivered: (Node | null)[] = [];
+  // delivered holds the elements delivered since the feed that runs the parse began (stream.deliver),
+  // each converted by convert if the stream has one.
+  delivered: unknown[] = [];
+  // convert converts each delivered element to the value that the feed returns, under the control of
+  // the parse (createStreamValue), and is null for a stream of Nodes.
+  convert: ((n: Node | null, control: BudgetControl | null) => unknown) | null = null;
   // maxInput is the input limit, 0 for none; adaptive says that the compute limit is the default of a
   // stream, which rises with the furthest position that the parse demands (demanded).
   maxInput = 0;
@@ -6543,7 +6547,7 @@ export class StreamParser extends Parser {
   streamDeliver(v: R): void {
     if (v === undefined) throw new Error("internal error: the stream delivered a failed element");
     if (v !== null) v.fresh = false;
-    this.delivered.push(v);
+    this.delivered.push(this.convert === null ? v : this.convert(v, this.control));
   }
 
   // streamDiscard is stream.discard: it discards the input before keep, once at least half of the
@@ -6711,10 +6715,11 @@ export type StreamState = "waiting" | "done" | "failed";
  * repetition committed during the feed, in order, and the state of the stream after it. error is null
  * while the stream waits, the recovered SyntaxErrors or null when it is done, and the error of the
  * parse or its interruption when it failed. A failed feed still returns the elements committed before
- * its error, and no element is delivered twice or retracted.
+ * its error, and no element is delivered twice or retracted. The elements are Nodes (createStream), or
+ * the typed values of the parser's types (createStreamValue).
  */
-export interface StreamResult {
-  readonly elements: readonly (Node | null)[];
+export interface StreamResult<E = Node | null> {
+  readonly elements: readonly E[];
   readonly state: StreamState;
   readonly error: Error | null;
 }
@@ -6728,9 +6733,10 @@ const streamBusyMessage = "stream is already feeding";
  * of the parser, whose #stream repetition delivers each element once it is committed
  * (spec/runtime/streaming.md). The parse runs synchronously inside feed, and suspends when a read
  * needs input that has not arrived; the feed that brings it resumes the parse. The elements, the
- * error and the compute units of the parse do not depend on how the input is split into chunks.
+ * error and the compute units of the parse do not depend on how the input is split into chunks. E is
+ * the type of the elements that a feed returns.
  */
-export class Stream {
+export class Stream<E = Node | null> {
   private readonly p: StreamParser;
   private readonly start: Rule;
   private readonly o: ResolvedParseOptions;
@@ -6749,7 +6755,7 @@ export class Stream {
    * feed adds a copy of chunk to the input, final with the last chunk, and runs the parse until it
    * needs more input or ends. A feed after the stream ended returns an error and changes nothing.
    */
-  feed(chunk: Uint8Array, final = false): StreamResult {
+  feed(chunk: Uint8Array, final = false): StreamResult<E> {
     if (this.feeding) return { elements: [], state: "failed", error: new Error(streamBusyMessage) };
     if (this.state !== "waiting") return { elements: [], state: this.state, error: new Error(`stream already ${this.state === "done" ? "ended" : "failed"}`) };
     this.feeding = true;
@@ -6765,7 +6771,7 @@ export class Stream {
   }
 
   // run resumes the parse and returns the result of the feed.
-  private run(final: boolean): StreamResult {
+  private run(final: boolean): StreamResult<E> {
     const p = this.p;
     const control = p.control;
     try {
@@ -6779,7 +6785,7 @@ export class Stream {
       const step = this.gen.next();
       if (!step.done) {
         if (final) throw new Error("internal error: the stream suspended at the end of its input");
-        return { elements: p.delivered, state: "waiting", error: null };
+        return { elements: p.delivered as E[], state: "waiting", error: null };
       }
       control?.check();
       const v = step.value;
@@ -6818,7 +6824,7 @@ export class Stream {
   // end ends the stream with the error of the parse, or with fatal if an interruption ended it, and
   // returns the result of the feed; thrown says that a value thrown from a callback ended it, which
   // fails the stream as well. It reports the compute units and releases the controls.
-  private end(error: Error | null, fatal: Error | null, thrown = false): StreamResult {
+  private end(error: Error | null, fatal: Error | null, thrown = false): StreamResult<E> {
     const p = this.p;
     const failed = thrown || fatal !== null || (error !== null && !(error instanceof SyntaxErrors));
     this.state = failed ? "failed" : "done";
@@ -6826,14 +6832,15 @@ export class Stream {
     p.control?.release();
     const report = this.o.report;
     if (report !== null) report.units = p.control?.counted?.() ?? 0;
-    return { elements: p.delivered, state: this.state, error: fatal ?? error };
+    return { elements: p.delivered as E[], state: this.state, error: fatal ?? error };
   }
 }
 
 // createStreamBase makes the stream of the grammar g with the start rule start, whose #stream body is
 // the resumable body of the rule in bodyGens, with the options options, after their check at the
-// start; a stream rejects the options of an observed parse. It is for generated parsers.
-export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: StreamOptions | undefined): { stream: Stream | null; error: Error | null } {
+// start; a stream rejects the options of an observed parse. convert, if not null, converts each element
+// as it is delivered, under the control of the parse. It is for generated parsers.
+export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: StreamOptions | undefined, convert: ((n: Node | null, control: BudgetControl | null) => E) | null = null): { stream: Stream<E> | null; error: Error | null } {
   const snapshot: StreamOptions | undefined = optionsSnapshot(options);
   if (snapshot?.trace != null || snapshot?.profile != null || snapshot?.traceRules !== undefined || snapshot?.traceMaxDepth !== undefined) {
     return { stream: null, error: new Error("a stream is not observed: it takes no trace or profile options") };
@@ -6865,7 +6872,8 @@ export function createStreamBase(g: Grammar, start: Rule, seen: number, bodyGens
   p.diagnostic = snapshot?.diagnostic ?? null;
   const limit = snapshot?.diagnosticLimit ?? 0;
   if (limit > 0) p.tail = new DiagnosticTail(limit);
-  return { stream: new Stream(p, start, o), error: null };
+  p.convert = convert;
+  return { stream: new Stream<E>(p, start, o), error: null };
 }
 
 /**

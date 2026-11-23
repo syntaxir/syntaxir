@@ -692,7 +692,7 @@ func TestStreamOracleMutants(t *testing.T) {
 		// A read at the end of the buffer suspends unless the input is final.
 		{"buffer end", "if (this.pos >= this.n) return 1;", "if (this.pos >= this.n) return 0;"},
 		// A feed returns the elements committed during it, once.
-		{"delivery", `return { elements: p.delivered, state: "waiting", error: null };`, `return { elements: [], state: "waiting", error: null };`},
+		{"delivery", `return { elements: p.delivered as E[], state: "waiting", error: null };`, `return { elements: [], state: "waiting", error: null };`},
 		// The memo of a position is found at its distance from the floor, after each prune.
 		{"memo prune", "this.gapLen = -pos;", "this.gapLen = -k;"},
 		// The buffer starts at base after a discard.

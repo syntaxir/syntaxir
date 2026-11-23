@@ -228,7 +228,7 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 	if opts.Types {
 		var typed string
 		var err error
-		if types, typed, err = tsg.typedTS(start); err != nil {
+		if types, typed, err = tsg.typedTS(start, opts.Stream); err != nil {
 			return nil, err
 		}
 		out.WriteString(typed)
@@ -370,6 +370,11 @@ type Generator struct {
 	// recipe that converts it (typedTS).
 	startType string
 	startRepr int
+	// streamType and streamRepr are, with types and a stream, the TypeScript type of the elements of
+	// the start rule's #stream repetition and the recipe that converts them (typedTS); streamType is
+	// empty otherwise.
+	streamType string
+	streamRepr int
 	// ExecFuncs counts the functions printed from Exec IR (execRoute).
 	ExecFuncs int
 	// LoweredActions counts the action expressions printed from Exec IR (actionStmts).
@@ -792,6 +797,23 @@ func (g *Generator) streamEntry(out *strings.Builder, start *common.Rule) {
 	options := "StreamOptions"
 	if g.optionsType == "PlainParseOptions" {
 		options = "PlainStreamOptions"
+	}
+	if g.streamType != "" {
+		// With types, the elements are also converted as they are delivered, each on its own as parseValue
+		// converts a result, so that values share nothing with later elements.
+		fmt.Fprintf(out, `/** StreamValue is the typed value of an element of the #stream repetition of the rule %[1]s. */
+export type StreamValue = %[2]s;
+
+/**
+ * createStreamValue makes a push stream like createStream whose feeds return each committed element as
+ * a typed value, converted as parseValue converts a result, with the absent value of its type for an
+ * element without a value. stream is null when the options are invalid, with the error.
+ */
+export function createStreamValue(options?: %[3]s): { stream: Stream<StreamValue> | null; error: Error | null } {
+  return createStreamBase<StreamValue>(G, R%[4]d, nseen, bodyGens, options, (n, control) => astConvert(unboxNode(n), %[5]d, control) as StreamValue);
+}
+
+`, start.Name, g.streamType, options, start.ID, g.streamRepr)
 	}
 	fmt.Fprintf(out, `/**
  * createStream makes a push stream of the start rule %[1]s, whose #stream repetition delivers each

@@ -526,7 +526,7 @@ machinery, which the generated code only has when you ask for it:
 
 - `-stream`, `-document` and `-recognize` add `ParseStream`, `Document` and `Recognize` (and `-types` their typed
   forms). Without `-stream`, `#stream` is an ordinary repetition. In TypeScript, `-stream` adds the push stream
-  `createStream`, and `-document` `createDocument`.
+  `createStream` (and with `-types` `createStreamValue`), and `-document` `createDocument`.
 - `ParseRule` replaces `WithStart` for another start rule, and `WithUnit` and `Limits.Depth` work as in the engine,
   except that `Depth: Unlimited` is an error; `-max-depth` sets the generated default.
 - Cancellation and the compute limit are `WithContext` and `Limits.Compute` in the engine and in generated Go unless generated with `-no-limits`,

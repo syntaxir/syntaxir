@@ -395,6 +395,15 @@ the contract of [Streaming](streaming.md), with these differences:
   stream feeds, which only a signal getter can make, returns `"failed"` with an
   error and leaves the stream as it is.
 
+With `-types` as well, `parser.ts` gains `StreamValue` and
+`createStreamValue(options?: StreamOptions)`, which returns `{ stream, error }` with a
+`Stream<StreamValue>`. `StreamValue` is the TypeScript type of one element of the
+`#stream` repetition, and its feeds return each element converted as `parseValue`
+converts a result, on its own when it is committed, with the absent value of the type
+for an element without a value. The conversion charges no compute units and observes
+the signal and the memory limit; an interruption during it fails the stream as one
+during the parse does. Otherwise the stream is that of `createStream`.
+
 ### Generated TypeScript API
 
 ```ts
