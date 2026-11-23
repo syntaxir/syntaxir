@@ -1366,7 +1366,9 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
     `Stop`. A cancellation is a failure of its own: the step that finds the context ended
     fails with it, and the compiler side of the program turns it into the parse's cancelled build. The `program`
     header writes the settings as the default profile with its overrides, and the run-time builds take no debugging
-    settings, so their text is for tests.)
+    settings, so their text is for tests.) Implemented: the commands that build a parser for the engine take the
+    optimization flags of `sxir gen`, and [Optimization Settings](../../../spec/runtime/optimization-settings.md)
+    states the settings for every backend.
 13. **Gates and documentation:** the generation-time gate, the run-time compile benchmark, the determinism and allocation
     tests, and the design pages updated for the parts this record implements. (Amended: the generation-time gate is
     the benchmark `BenchmarkGeneration`, over the grammars of `testdata/grammars` with the options of their
