@@ -16,10 +16,7 @@ import (
 // suspendGaps are the input-reading operations that the lowering of a suspended stream does not demand
 // yet, each with the change that removes it. The list shrinks to nothing as the demands land; the test
 // fails both for an uncovered read that is not listed and for a listed operation with no uncovered read.
-var suspendGaps = map[string]string{
-	flow.OpSkipVisit: "C3: skip walk, demand per character inside the loop",
-	flow.OpScanReach: "C3: scan walk, demand per character inside the loop",
-}
+var suspendGaps = map[string]string{}
 
 // TestSuspendedLoweringDemandsItsReads lowers every table of the generator's decision with
 // lowerdata.Options.Suspend, as the TypeScript -stream parser does, and checks every function with

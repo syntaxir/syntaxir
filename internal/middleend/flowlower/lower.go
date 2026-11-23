@@ -765,9 +765,18 @@ func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr
 // demandChar emits the demand of one character at the position before a read of it, for a suspended stream
 // (lowerdata.Options.Suspend).
 func (l *lowerer) demandChar() {
-	if l.opts.Suspend {
-		l.emit(do(flow.OpInputDemand, prim.Demand{Char: true}))
+	for _, st := range l.charDemand() {
+		l.emit(st)
 	}
+}
+
+// charDemand returns the statement that demands one character at the position before a read of it, for a
+// suspended stream (lowerdata.Options.Suspend), or none: for a statement that is emitted in a block of its own.
+func (l *lowerer) charDemand() []code.Stmt {
+	if !l.opts.Suspend {
+		return nil
+	}
+	return []code.Stmt{do(flow.OpInputDemand, prim.Demand{Char: true})}
 }
 
 // lit lowers a literal.
@@ -1268,7 +1277,8 @@ func (r *runSite) visit(l *lowerer, count string, lp *code.Loop) {
 	if r.n.Min > 0 {
 		hit = []code.Stmt{&code.If{Cond: code.Bin(">=", use(count), num(r.n.Min)), Then: &code.Block{Stmts: hit}}}
 	}
-	l.emit(&code.If{Cond: use(r.hot), Then: &code.Block{Stmts: append(hit, do(flow.OpSkipVisit, nil))}})
+	visit := append(hit, l.charDemand()...)
+	l.emit(&code.If{Cond: use(r.hot), Then: &code.Block{Stmts: append(visit, do(flow.OpSkipVisit, nil))}})
 }
 
 // push returns the statement that adds the value v of an iteration: plain, the statement keep.
@@ -1404,9 +1414,8 @@ func (l *lowerer) scanSiteRepeat(n *core.Repeat, s *scope, build bool, fail stri
 // scanReach emits the test of a walk of the scan site that began at start after its count was
 // raised: at ScanHotSpan characters, the walk takes the count from ScanReach.
 func (l *lowerer) scanReach(site int, start, count string, rr *resumeRun) {
-	l.emit(&code.If{Cond: rr.off(code.Bin("==", use(count), num(flow.ScanHotSpan))), Then: &code.Block{Stmts: []code.Stmt{
-		&code.Set{Dst: []code.Place{{Name: count}}, Values: []code.Expr{call(flow.OpScanReach, prim.Site(site), use(start), use(count))}},
-	}}})
+	reach := append(l.charDemand(), &code.Set{Dst: []code.Place{{Name: count}}, Values: []code.Expr{call(flow.OpScanReach, prim.Site(site), use(start), use(count))}})
+	l.emit(&code.If{Cond: rr.off(code.Bin("==", use(count), num(flow.ScanHotSpan))), Then: &code.Block{Stmts: reach}})
 }
 
 // scanEnd emits the end of a value-free walk of the scan site that began at start: a walk that
@@ -1435,6 +1444,7 @@ func (l *lowerer) skipRepeat(n *core.Repeat, s *scope, fail string) code.Expr {
 		for _, st := range hit {
 			l.emit(st)
 		}
+		l.demandChar()
 		l.emit(do(flow.OpSkipVisit, nil))
 	})
 	m := l.mark(s, n.Body, false)
