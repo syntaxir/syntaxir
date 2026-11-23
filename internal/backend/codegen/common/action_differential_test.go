@@ -536,22 +536,23 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 	}
 }
 
-// TestActionLoweringOptionsDetectBrokenTargets is the negative control of the comparisons of generated
-// parsers with the engine for the action expressions that the lowering options change: the action expressions of typed Go rules
-// that compare a field without boxing it (field-compare), the predicates that compare a captured text
-// with literals, whose test of the literals gives way to the action expression as written under limit controls
-// (text-dispatch), and the TypeScript action expressions with a cast to _, which checks nothing. Each mutant changes
+// TestActionPassesDetectBrokenTargets is the negative control of the comparisons of generated parsers
+// with the engine for the action expressions that the Action passes of the targets rewrite: the action
+// expressions of typed Go rules that compare a field without boxing it (field-compare), the predicates
+// that compare a captured text with literals, whose test of the literals gives way to the action
+// expression as written under limit controls (text-dispatch), and the TypeScript action expressions with
+// a cast to _, which checks nothing. Each mutant changes
 // one pattern of the generated code, which must occur, and the comparison must then fail. Whether a parse
 // runs under limit controls depends on the form of the fixtures, so each mutant of one of the two paths also
 // replaces the test of the controls, so that the path it changes runs; a control that only does that, and one
 // that changes nothing, must find no mismatch.
-func TestActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
+func TestActionPassesDetectBrokenTargets(t *testing.T) {
 	mutanttest.SkipUnlessChanged(t, mutanttest.Pipeline...)
 	t.Parallel()
-	codegentest.OneMode(t, testActionLoweringOptionsDetectBrokenTargets)
+	codegentest.OneMode(t, testActionPassesDetectBrokenTargets)
 }
 
-func testActionLoweringOptionsDetectBrokenTargets(t *testing.T) {
+func testActionPassesDetectBrokenTargets(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds generated consumers")
 	}

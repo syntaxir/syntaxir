@@ -113,7 +113,8 @@ fact has one implementation.
 ```mermaid
 flowchart LR
   E[Elaborate Core IR] --> CP[Core passes]
-  CP --> FL[flowlower]
+  CP --> AL[Action segment]
+  AL --> FL[flowlower]
   FL --> FP[Flow passes]
   FP --> VL[vmlower]
   FP --> EL[execlower]
@@ -131,6 +132,8 @@ declarations.
 - **Core passes** rewrite meaning-preserving forms and compute the facts: guard sets, first sets, effects, rule
   policies, normalization, and turning a value-free repetition of a class into a scan. They are independent of the mode,
   and they are the only passes that work on Core IR.
+- **The Action segment** lowers the action expressions of each table to the table's Action module and runs the Action
+  passes on it; it is described below.
 - **`flowlower`** lowers Core IR to Code IR at the Flow stage, in one uniform shape that the Flow passes then refine.
 - **Flow passes** make the control-level decisions, listed below. Their applicability is where the features matter: a
   rewrite is sound for a parser only if the parser does not observe what the rewrite removes. A match form that skips
@@ -170,6 +173,35 @@ is required, and how to dump and verify its output.
 The lowerings are packages of their own, outside the IR packages and apart from the passes of each dialect. That
 placement says where the code lives; in the pipeline, each lowering runs as a pass.
 
+### Lowering the Action Expressions
+
+The action expressions of a table (the actions of its rules and of the lines of its Operators Rules, its predicates
+and the values of its bindings) are lowered once, by the Action segment that every target runs on each of its tables
+before the plan:
+
+- `actionlower`, a required lowering, makes the table's **Action module** from its Core IR: one function for each
+  action site, in the order in which Core IR numbers the sites, each with the attributes of its site, and the
+  compositions that the functions call. The functions are the
+  [lowering of action expressions](../../spec/exec-ir/lowering.md#action-expressions), with the visits of loop elements
+  counted when the table counts logical compute units.
+- The Action passes run on the function of each site, in the slot `action-passes` for every target and the slot
+  `action-target-passes` for those of the target: `text-dispatch` for the targets that print predicates, and on the
+  typed table of a Go parser `field-compare` and the step `go-struct-call`. A Go target then runs `go-in-place`, which
+  adds the function that evaluates a rule's action in place, and every target ends with `action-finish`, which names
+  the locals in order and drops the facts that only the passes read.
+- The join of the split sets the Action module of each table. The Flow and Exec operations that evaluate an action
+  expression name its site by number, so no operation of Code IR holds an action expression of Core IR.
+
+The printers of Go and TypeScript print the functions of the Action module. `vmlower` selects each function into an
+action program, which the bytecode VM and the closures both run, so the run-time backends evaluate action expressions
+with one selection and one executor. The dumps, the verification, the bisection limit and the pipeline text cover the
+segment as every other part of the pipeline, and its functions are listed per site under the label of their table.
+
+Every backend is compared with the reference evaluator of action expressions, which evaluates them from their
+semantics without any lowering, so a mistake of the lowering or of an Action pass shows up as a difference from that
+evaluator rather than as a difference between backends that share it. A test fills `action-passes` with a pass that
+breaks the functions and checks that the comparison finds it.
+
 ### Planning the Functions of a Table
 
 Before `flowlower` runs, a planning step in the middle end (the `flowplan` package) decides which functions each rule
@@ -188,8 +220,8 @@ parser charges and records (logical compute units, observation, Documents, trace
 builds the Node table of a parse with logical compute units, keeping only the guards whose skip makes no call, under the
 settings of the program, and runs the driver's Flow passes for a target of its own, the bytecode target of the Flow
 passes, so its functions are those of a generated Go parser with logical compute units in the forms the VM runs. The
-closure backend takes the same Core module, built under the same key, and builds its closures from it when a parse first
-needs them; a VM and a closure target in one compilation share it. A compilation of run-time targets only stops at its
+closure backend takes the same Core module, built under the same key, with the Action module of its table, and builds
+its closures from them when a parse first needs them; a VM and a closure target in one compilation share it. A compilation of run-time targets only stops at its
 first failure (`Stop`), so it consumes its units and takes no copy.
 The bytecode target declares what the VM prints beyond the forms of every backend: none of the forms of the Flow passes.
 The forms of typed rules do not apply to the Node table, guarded classes apply only to functions outside

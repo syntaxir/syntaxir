@@ -7,6 +7,15 @@
 The [Flow IR specification](../../../spec/flow-ir/README.md) defines the statements, expressions and
 invariants of Flow IR as they stand; this record keeps the decision and its rationale.
 
+> [!NOTE]
+> 2026-11-23: the lowering of terms (action expressions) described here is superseded by the Action segment of
+> [record 074](074-one-pass-pipeline.md#printers-take-exec-stage-units). The action expressions of each table are
+> lowered once in the pipeline, into the table's Action module, and no backend lowers them itself: the Go and
+> TypeScript printers print the functions of that module after the Action passes of their target, and the bytecode VM
+> and the closure backend both run the action programs that `vmlower` selects from it. The closure backend is built
+> from Core IR for its grammar code only; the oracle of action expressions is the reference evaluator
+> (`internal/ir/code/exec/ref`), which every backend is compared with.
+
 ## Summary
 
 Every backend of SyntaxIR lowers the grammar AST (`grammar.Expr`) by itself, so every optimization is written

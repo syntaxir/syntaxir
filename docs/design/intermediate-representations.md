@@ -42,9 +42,13 @@ flowchart TD
 | | Core IR | Code IR at the Flow stage | Code IR at the Exec stage |
 |:--|:--|:--|:--|
 | Question it answers | What does this rule mean? | How does a parser control it? | What must the abstract machine do, and how is that composed? |
-| Operations | A tree of grammar-level expressions, each carrying facts | Flow and Action dialects: matching, mark and restore, expectations, captures, calls under a policy, charges, recovery, action evaluation | Exec and Action dialects: operations of the abstract machine and the compositions over them |
+| Operations | A tree of grammar-level expressions, each carrying facts | Flow dialect: matching, mark and restore, expectations, captures, calls under a policy, charges, recovery, the evaluation of action sites by number | Exec dialect: operations of the abstract machine and the compositions over them |
 | Optimized by | Rewrites that are valid for any backend | Control-level decisions with stated obligations | Behavior-preserving passes: specializing a function for the features of a build, removing what cannot run, legalizing for a language |
 | Knows about | Input consumed, expectations, captures, failure | Parser state, control flow, the features of a build (limit controls, Document, tracing) | The abstract state of the parser (memo table, budget, ...) and the contract of each operation |
+
+The action expressions of a table are lowered once, from Core IR, into a third kind of Code IR module, the table's
+**Action module**: one function of the Action dialect for each action site, which the operations of the two stages name
+by number ([the pass pipeline](pass-pipeline.md#lowering-the-action-expressions)).
 
 Core IR is independent of the mode, of the target and of the layout of parser state. Code IR at the Flow stage is
 independent of how a target stores state or implements an operation, and so is the Exec stage.
@@ -158,7 +162,8 @@ consumes or expects.
 Code IR at the Flow stage holds the body of each rule variant as operations of grammar control with structured
 control: variables for positions and results, labeled blocks and loops, and the operations of the Flow dialect
 (matching, mark and restore for backtracking, expectations, captures, rule calls under a policy, counting compute units,
-recovery), with action expressions as operations of the Action dialect. It holds no host-language text. Its control is structured and
+recovery), with each action expression named by the number of its site in the table's Action module, whose functions
+are made of the operations of the Action dialect. It holds no host-language text. Its control is structured and
 nested: labeled blocks and loops are regions inside the operation that owns them, and the form that is printed and
 verified keeps that nesting. A pass that needs a graph view asks the analysis manager for one.
 
@@ -230,8 +235,10 @@ depend only on the reads and writes that each operation declares, so they are sh
 ## How Targets Use the Result
 
 - **The closure backend** builds one closure for each node of Core IR, after the Core passes of the pipeline, and
-  evaluates action expressions directly. It is built independently of the lowering to Code IR, so that a bug in that
-  lowering shows up as a difference between backends.
+  evaluates action expressions with the action programs that `vmlower` selects from the Action module of its table, as
+  the VM does. Its grammar code is built independently of the lowering to Code IR, so that a bug in that lowering shows
+  up as a difference between backends; the action expressions of every backend are compared with the reference
+  evaluator, which evaluates them without any lowering.
 - **The VM** takes Code IR at the Flow stage: `vmlower` selects instructions almost one for one from Flow operations,
   with superinstructions for calls of compositions and for common match patterns. The compositions are native in the VM
   and checked by the conformance suite.

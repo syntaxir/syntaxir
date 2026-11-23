@@ -65,7 +65,9 @@ There are two intermediate representations.
   - The **Flow** dialect has the operations of grammar control: matching, mark and restore for backtracking,
     expectations, captures, rule calls under a policy, charging for budgets and recovery.
   - The **Action** dialect has the operations that evaluate action expressions: Value Actions, Predicate Actions and
-    bindings. It is valid both at the Flow stage and at the Exec stage.
+    bindings. It is the dialect of the Action module of a table, which `actionlower` makes from Core IR with one
+    function for each action site, and it is valid both at the Flow stage and at the Exec stage; the operations of the
+    Flow and Exec dialects name an action site by number.
   - The **Exec** dialect has the operations of the abstract machine and the compositions built on them.
 
 The terms are fixed. A set of operations is a dialect: the Flow dialect, the Action dialect, the Exec dialect. A state
@@ -79,12 +81,16 @@ flowchart TD
   ast -->|"desugar, resolve, check"| sem["Semantic model: checked GST with names, types and scopes"]
   sem -->|elaborate| core["Core IR: typed, with facts"]
   core -->|"corepass: rewrites that keep meaning"| core
-  core -->|flowlower| flow["Code IR at the Flow stage: Flow and Action dialects"]
+  core -->|"actionlower, Action passes"| actions["Action module of each table: Action dialect"]
+  core -->|flowlower| flow["Code IR at the Flow stage: Flow dialect, action sites by number"]
   flow -->|"flowpass: control-level decisions"| flow
-  flow -->|"execlower: complete conversion"| exec["Code IR at the Exec stage: Exec and Action dialects, with compositions"]
+  flow -->|"execlower: complete conversion"| exec["Code IR at the Exec stage: Exec dialect, with compositions"]
   exec -->|"codepass: passes independent of the dialect"| exec
   flow -->|"vmlower: instruction selection"| sxirc["Bytecode (.sxirc)"] --> vm["Bytecode VM: compositions are native"]
   exec -->|"language passes, then print"| host["Parser source in each host language"]
+  actions -->|print| host
+  actions -->|"vmlower: action programs"| sxirc
+  actions -->|"vmlower: action programs"| closure
   exec -.->|"lower (future)"| llvm["LLVM IR"]
   core -->|build| closure["Closure: the reference parser"]
   core -->|"tables from Core and Exec"| prog["Runtime program"] --> sxirc

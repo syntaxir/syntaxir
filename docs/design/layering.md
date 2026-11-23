@@ -65,6 +65,10 @@ flowchart TD
     belongs to no stage, so the packages of both stages import it. The Action and Exec dialects import only the base;
     the other packages under the Exec dialect may also import the Exec and Action dialects.
   - Only the lowerings of the middle end, and the checks that span dialects, import several dialects at once.
+  - No backend imports the lowering of action expressions (`internal/middleend/actionlower`): the printers, `vmlower`
+    and the closure backend take the code of action expressions only from the Action module of a table, which the
+    pipeline lowers once. The architecture test checks this by import, and checks that no operation of Code IR has an
+    immediate operand that holds an action expression of Core IR.
   - The front end imports no middle end, backend, analysis or language server. The middle end imports no backend,
     analysis or language server. A backend imports no analysis or language server.
   - The utility packages (diagnostics, cancellation, command-line flags) may import the grammar AST, because diagnostics

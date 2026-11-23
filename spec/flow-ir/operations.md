@@ -141,8 +141,10 @@ name without the package. The immediates are the following; a listing prints eac
   environment, the trail of capture writes and the recovered errors.
 - `conversion`: the rule of a result conversion, and whether the fresh node of the body is passed in place.
 - `names`: the slot names of a capture scope, which printers declare once.
-- `predicate`, `binding` and `action`: the predicate, the binding or the action of the rule, as a node of Core IR, with
-  the captures that it reads, which are the slot names of the scope or the current frame.
+- `predicate`, `binding` and `action`: the number of the action site of the predicate, the binding or the action of the
+  rule in the Action module of the table ([Action Expressions](../exec-ir/lowering.md#action-expressions)), the
+  variable that a binding binds, and the captures that the function of the site reads, which are the slot names of the
+  scope or the current frame.
 - `lit`, `class`, `first`, `anchorkind`, `terminal`, `classrun`, `shape` and `node`: a node or a datum of Core IR that
   the operation matches or builds: a literal, a character class, the terminal that a guard tests first, the kind of an
   anchor, a value-free terminal region, a run of single characters of classes, the static shape of a value and a node of

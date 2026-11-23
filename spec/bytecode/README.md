@@ -179,8 +179,12 @@ Actions and predicates may be evaluated with host function calls in either model
 ## Action Code
 
 An action expression of the action language, an action, the action expression of a Predicate Action or the value of a binding, is evaluated by its
-action code: the instructions of the function that the [lowering of action expressions](../exec-ir/lowering.md#action-expressions) makes of the action expression,
-which call the [compositions of action expressions](../exec-ir/compositions.md#action-expressions) in the order the action expression evaluates its operands.
+action code: the instructions selected from the function of its action site in the Action module of the table (the
+[lowering of action expressions](../exec-ir/lowering.md#action-expressions)), which call the
+[compositions of action expressions](../exec-ir/compositions.md#action-expressions) in the order the action expression evaluates its operands.
+Each use of a site in the module, with the capture slots of the frame it is evaluated in, is an entry of the action
+table. The closure backend runs the same action code, selected from the same functions by the same selection, so the
+two backends evaluate an action expression alike.
 A failure of a composition ends the evaluation with that failure. A failure in an action is an error of the whole
 parse (`action in <rule name>: <message>`); in a predicate or a binding it is a failure.
 

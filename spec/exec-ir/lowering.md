@@ -50,25 +50,33 @@ continues after success and after failure. The functions of the Flow dialect are
 
 ## Action Expressions
 
-An action expression of the action language, the action of a rule or of a line of an Operators Rule, the action expression of a predicate or the
-value of a binding, is lowered from Core IR into a function of its own, in a module that declares the abstract machine, the
-compositions of the operators of action expressions ([Values](values.md)) with every function they call, the component `runtime`,
-and the operations of the leaves of action expressions below, which are operations of the Action dialect and legal at both stages. Two optimizations of a target are options of the
-lowering:
+An action expression of the action language, the action of a rule or of a line of an Operators Rule, the action
+expression of a predicate or the value of a binding, is an action site of its table. The action expressions of a table
+are lowered once, from Core IR, before the table is planned, into its **Action module**: one function for each action
+site, in the order in which Core IR numbers the sites of the table (the sites of each rule by rule: its predicates and
+bindings in the order of its body, the actions of the lines of an Operators Rule, then the rule's action). The module
+declares the abstract machine, the compositions of the operators of action expressions ([Values](values.md)) with every
+function they call, the component `runtime`, and the operations of the leaves of action expressions below, which are
+operations of the Action dialect and legal at both stages. No operation of the Flow or the Exec dialect holds an action
+expression: `flow.pred`, `flow.bind` and `flow.eval` name the site by its number, and a target finds its function in
+the Action module of the table.
 
-- With `field-compare` (a typed parser of Go), a comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) of which an operand reads
-  a field is a call of `action.compare` on two operands: a field read is read by `action.fieldOperand`, after the value it
-  reads from, and any other operand is its value made an operand by `action.operand`, in the order written. A string
-  field is then compared without making a value of it.
+The Action passes of a target then rewrite the function of each site, under the obligation that it keeps the value
+and the failure of its action expression; the bytecode VM and the closures run the functions as they are lowered. A
+generated parser of Go or TypeScript runs `text-dispatch`, and the typed table of a Go parser also runs `field-compare`:
+
 - With `text-dispatch`, a predicate that compares the text of one capture with string literals, `text($x) == "a" ||
   text($x) == "b"` and so on, first tests `action.uncontrolled`: without limit controls it takes the text of the capture
   with `text` and tests whether `action.textIn` finds it among the distinct literals; with them it evaluates the
   action expression as written. With two or more distinct literals the result is bound to a local first, which a
   target may print as one switch over the literals; with one distinct literal (repeats collapse) it is returned
   directly, as a plain equality.
+- With `field-compare`, a comparison (`==`, `!=`, `<`, `<=`, `>`, `>=`) of which an operand reads a field is a call of
+  `action.compare` on two operands: a field read is read by `action.fieldOperand`, after the value it reads from, and
+  any other operand is its value made an operand by `action.operand`, in the order written. A string field is then
+  compared without making a value of it.
 
-A cast to a type that every value fits checks nothing; a target that charges a step for each subexpression charges one for it
-too.
+A cast to a type that every value fits checks nothing.
 
 The function evaluates the action expression's operands in the order that the action expression evaluates them and calls one composition for
 each operation of the action expression: `binary` for a binary operator, `unary` for a unary one, `member` for a member read, with
@@ -78,8 +86,9 @@ named node type and `conforms` for a cast. The function returns the action expre
 does not fail, as a composition does. Each composition that can fail is the value of a `Let` of its value and its
 failure, followed by a branch that returns the null value and the failure when there is one. A cast keeps its operand
 in a local and, when `conforms` rejects it, returns the failure that `action.castError` makes of it. The caller handles
-the failure: a predicate or a binding fails, and an action ends the parse with an evaluation error. A target that
-evaluates an action in place, inside the function of its rule, instead of calling the action expression's function, ends the parse
+the failure: a predicate or a binding fails, and an action ends the parse with an evaluation error. A Go parser
+may evaluate the action of a rule in place, inside the function of its rule: its step `go-in-place` adds,
+beside the function of each rule's action, a function that assigns the value instead of returning it and ends the parse
 at each failure with `action.raise`. A logical operator calls `logic` on its left
 operand, and evaluates its right operand and calls `logic` on it only when the left one does not decide the result.
 An equality or inequality of two calls of `text` compares the two strings with `action.textEqual`, without making a
@@ -90,11 +99,11 @@ value of each element with `push`, take the elements gathered above the
 mark with `action.elemsAbove` and make the tuple or list value of them with `hull`. A call of `concat` pushes the
 elements of each argument with `pushItems`; when every argument is a call of `list`
 or such a call of `concat`, the elements of the arguments are pushed as `list` pushes them, without making the lists
-of the arguments; a call of `map` among them pushes its elements as `map` pushes them, below. A struct literal evaluates its field values in the order written. A target whose structs are made of
-their fields makes an empty struct with `action.struct` and, for each field in that order, sets the field with
+of the arguments; a call of `map` among them pushes its elements as `map` pushes them, below. A struct literal evaluates its field values in the order written. The lowering makes
+an empty struct with `action.struct` and, for each field in that order, sets the field with
 `action.setField` and widens the range of the struct with `cover`; `made` then records
-the struct. A target with a constructor for each struct type calls it once, with `action.new` followed by the number
-of fields that the type declares, passing the values in the order the type declares the fields and nil for a field
+the struct. The typed table of a Go parser has a constructor for each struct type: its step `go-struct-call` makes
+each struct literal one call of it, with `action.new` followed by the number of fields that the type declares, passing the values in the order the type declares the fields and nil for a field
 that the literal does not give; a value is kept in a local before the next one is evaluated only when the literal
 gives the fields in another order.
 
@@ -116,8 +125,8 @@ A target that counts compute units calls `seq.step` for each element that a loop
 each visit is an event of one unit. A target that does not count them calls no `seq.step`. A variable is read into a local where the action expression
 reads it, since reading it charges the budget; the other leaves are operands of the calls that read them. The
 function takes the context that the action expression is applied to as its one parameter, which `member`, `push`, `pushItems`, `hull` and
-`made` take. An action expression lowered for its value returns it and has the signature of the callable type `Action`. An action expression that the
-target evaluates in place, which assigns the value as its last statement to a local of the function that the target
+`made` take. An action expression lowered for its value returns it and has the signature of the callable type `Action`. A function in
+place of an action, which assigns the value as its last statement to a local of the function that the target
 declares, has no results and is never a `Action` handle.
 
 The operations of the leaves are primitive operations of the Action dialect, of the component `runtime`, each with an

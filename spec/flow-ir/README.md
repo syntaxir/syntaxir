@@ -5,9 +5,10 @@ state of a parse with structured control. A function at the Flow stage of [Code 
 hold the saved state of backtracking points, the values of captures, intermediate values and flags, a body of the
 base's structured control (labeled blocks and loops, branches, exits and assignments), and other steps that are calls of
 the operations of the dialect, which match terminals, record expectations, call rules, build values, evaluate action expressions and
-count compute units. Action expressions are calls of the operations of the Action dialect (see
-[Values](../exec-ir/values.md)), which are legal at the Flow stage too. A function holds no text of a target language,
-so a backend has little to decide.
+count compute units. An operation that evaluates an action expression names its action site by number; the function of
+the site is in the Action module of the table, made of the operations of the Action dialect (see
+[Action Expressions](../exec-ir/lowering.md#action-expressions)), so no operation of the dialect holds an action
+expression. A function holds no text of a target language, so a backend has little to decide.
 
 A module at the Flow stage is lowered from [Core IR](../core-ir/README.md); that lowering is not specified here, so this
 specification does not say which functions a grammar produces. The module is converted in turn to the Exec stage (see

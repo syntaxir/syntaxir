@@ -16,6 +16,12 @@ compositions as they stand; this record keeps the decision, the measurements and
 > The operations on the values of terms (the `action.*` and `act.*` leaves, `val.*`) belong to the Action dialect, which is
 > legal at the Flow and the Exec stage ([Values](../../../spec/exec-ir/values.md)); their declarations are in
 > `internal/ir/code/action`. The grammar's name for a term is action expression ([Actions](../../../spec/language/actions.md)).
+>
+> 2026-11-23: the [terms](#operations) of this record are superseded by the Action segment of
+> [record 074](074-one-pass-pipeline.md#printers-take-exec-stage-units): the function of a term is the function of
+> its action site in the Action module of its table, lowered once per table in the pipeline and rewritten by the Action
+> passes of each target. The engine's term program is the action program that `vmlower` selects from that function,
+> for the bytecode VM and the closures alike; an operation of Flow or Exec IR names the site by its number.
 
 ## Summary
 

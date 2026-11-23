@@ -956,10 +956,10 @@ stages through the Exec-stage table unit:
 **Lowering leaves the printers.** Each call that lowers or runs passes inside a printer becomes a step: the Core IR of a
 table is `elaborate` and the Core passes of the table's pipeline, and the Core IR that reachability and the used-features
 analysis build is the input of `plan`; the functions of a table are listed by `plan` and lowered by `flowlower` and the
-Flow passes of the table; TypeScript's Exec passes are the table's `execlower!` and its target passes; the action terms
-are listed by `plan` per table, with the options the printers pass, and lowered in the table's pipeline before
-`execlower` into Action-dialect functions of the table's module, which are legal at both stages (whether that lowering
-is part of `flowlower` or of the redesigned action lowering is decided by that redesign; either way it is a step). The
+Flow passes of the table; TypeScript's Exec passes are the table's `execlower!` and its target passes; the action
+expressions of each table are lowered once by the Action segment of the table's pipeline, below, into the table's Action
+module. (Amended: the record first listed the action terms in `plan`, with the options that the printers passed, and
+left open whether `flowlower` lowered them.) The
 specialization of the TypeScript library's compositions for the parser's features is a required step of the TypeScript
 branch on `tables@exec`: the TypeScript backend's required step `ts-library!` sets the unit's `library` to the
 compositions module with the requests of the TypeScript library's specification table, each keeping only the features
@@ -970,6 +970,35 @@ is a library route of the TypeScript target: `Compile` without a program assembl
 specification table for every feature, and `print-ts-lib` is a printing pass of the TypeScript backend package beside
 `print-ts`. (Amended: the record first left the library alone to the printer, which would have run the specialization
 itself.)
+
+**The Action segment.** Every target runs it on each table before the plan; a Go target's is:
+
+```text
+each action-tables {
+  with action-config {
+    actionlower!
+    func funcs@action { slot action-passes { text-dispatch } }
+    func funcs@action { slot action-target-passes { field-compare go-struct-call! } }
+    go-in-place!
+    func funcs@action { action-finish! }
+  }
+}
+```
+
+The split `action-tables` gives the distinct tables of the units of the plan's input, and its join sets the Action
+module of each table; a closure target runs the segment on its one table (`closure-actions`). `actionlower` (the
+package `internal/middleend/actionlower`) lowers the action expressions of the table's Core IR once, into an Action
+module (kind `code@action`): one function for each action site, in the order in which Core IR numbers the sites, with
+the attributes of its site, and the compositions that the functions call. The Action passes run on the function of
+each site: `text-dispatch` (the package `internal/middleend/actionpass`) for every target that prints predicates, and
+the Go passes `field-compare` and `go-struct-call` on the typed table (the feature that `action-config` derives from
+the table) and the step `go-in-place` on the module; the VM and the closures run the functions as the lowering made
+them. `action-finish` renumbers the locals and drops the facts that only the passes read. The Flow and Exec operations
+name a site by its number in their immediates, and no operation of Code IR holds an action expression. The printers
+print the functions of the Action module; `vmlower` selects each function into an action program, which both the
+bytecode module and the closures run. `-print-after`, `-print-pipeline`, `-verify-each` and `-opt-bisect-limit` cover
+the segment as every other part of the pipeline. A test of the pipeline counts that `actionlower` runs once on each
+table of each target and gives one function for each site.
 
 **The Go library is a route of the same pipeline.** `golang/libprint` prints the compositions of the Exec dialect into
 the Go runtime library, the engine state and the conformance bindings, from `go generate`. It goes through the driver and
@@ -1066,10 +1095,10 @@ Detected by architecture tests, because Go cannot restrict callers:
   specialization function: both libraries reach it through the `specialize` pass.
 - `EnterFlow` is called only by `flowlower`, `EnterExec` only by `execlower`.
 - The print packages of every backend, the library printer included, and `internal/backend/codegen/common` import none
-  of `internal/pass`, `internal/driver`, the pass packages, the lowerings, `vmlower` or the planning code. Until the
-  action lowering of the pipeline lowers the action expressions as a step, the two printers' files that print action
-  expressions call the action lowering's entry with its options; the test lists exactly those uses, fails when one
-  of them goes, and the ban becomes total when the action lowering leaves the printers. They may
+  of `internal/pass`, `internal/driver`, the pass packages, the lowerings, `vmlower` or the planning code, with no
+  exception. (Amended: until the Action segment, the two printers' files that printed action expressions called the
+  action lowering's entry, which the test listed as its only exceptions.) No package under `internal/backend` imports
+  the action lowering (`internal/middleend/actionlower`). They may
   import the result and data types: the planning data types, Code IR, Core IR and the lowered function. To make this
   checkable by package, the data types move into packages of their own apart from the code that computes them.
 - The printing passes and the last steps of the run-time backends are declared in the backend packages above the print
@@ -1289,7 +1318,12 @@ the attributes of its nodes computed, since a kind's verifier checks the unit an
    printing-pass kind rule with its negative control, and the import ban of the print packages, which lists the action
    lowering that the printers still call as its one exception; then the renames and the name rules, and the walk for
    Flow-stage units with its negative control. The action lowering leaves the printers in the change that lowers action
-   expressions once in the pipeline, which comes next and makes the ban total.
+   expressions once in the pipeline, which comes next and makes the ban total. (Amended: that change is the Action
+   segment above. It lowers the action expressions of each table once, runs `text-dispatch`, `field-compare` and the
+   Go struct and in-place forms as passes and steps of the segment instead of options of the lowering, moves the
+   selection of the VM and closure action programs into `vmlower`, empties the exceptions of the printers' import ban,
+   and adds the comparison of every backend with the reference evaluator of action expressions, with a broken Action
+   pass as its negative control.)
 8. **The text form:** the printer, the reader and the resolver with the skeleton and kind checks, the headers with their
    reflection tests and per-target dumps, `-print-pipeline`, and the internal reader for tests and a development tool.
    (Amended: `-print-pipeline` and the reader land for one target per call; the per-target dumps come with the fork of
