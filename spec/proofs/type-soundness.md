@@ -50,7 +50,8 @@ The proof cites the following rules, and no other rule about types or values.
   node of the values of its iterations, and an iteration without a value is
   the unit `()`. An optional produces the value of its operand or `nil`. A
   capture produces the value of its operand. A rule call produces the value of
-  the rule. Anchors, the cut, a discard, `_`, `_|_`, a lookahead and a
+  the rule, and a rule whose body has no value produces the unit `()`, the
+  empty tuple node, with the range that it matched. Anchors, the cut, a discard, `_`, `_|_`, a lookahead and a
   predicate have no value
   ([Values and the Concrete Syntax Tree](../language/parser-expressions.md#values-and-the-concrete-syntax-tree),
   [Hidden Rules](../language/actions.md#hidden-rules)).
@@ -347,6 +348,10 @@ survives holds a well-formed value of the type of its operand.
   type `node[string] | missing`.
 - **Calls.** The value of the rule, of the rule's type by the hypothesis; an
   inline action is a call of its hidden rule (M5).
+- **No value in a value position.** A rule whose body has no value, as
+  `rule e = _` or `rule f = -"x"`, produces the unit `()`, a tuple node of no
+  elements, which has type `node[()]`, the type of an expression without
+  elements (T5); a call of it contributes that node as an element (M2).
 - **Never matching.** An expression of type `_|_` never succeeds: `_|_` fails,
   a sequence fails at such an element, a choice of such alternatives fails at
   each, `a+` fails at its first iteration, a capture or an `#atomic` matches
@@ -429,7 +434,10 @@ whenever they did not raise an error.
   struct of one of those types; a set field holds a value of its declared
   type, and an unset one reads the zero value, of that type by Lemma 3. The
   result has the type of the field in that member, which is in the join. A
-  recovered member reads `nil`, which the optional result admits. A receiver
+  recovered member reads `nil`, which the optional result admits. The fields
+  `expected` and `message` are read on a receiver of type `missing`, which is
+  a `missing` value by the relation, and both hold strings (M1), of their type
+  `string`. A receiver
   whose type is not known statically is not accepted by the checker for a
   field access; a capture read `x.y` of a grammar in JSON or a compiled
   grammar has the looser check of [Field Access](../language/actions.md#field-access)
@@ -552,7 +560,7 @@ leaves a check to run time, and Lemma 8 shows that no other case can arise.
 | `/` and `%` | Division by zero | Any divisor |
 | `xs[i]` | The index is outside the list or tuple, or a dynamically typed index is not an `int` | Any index |
 | `==` and `!=` | Two values that cannot be compared, such as two nodes or a node and a string | An operand whose type is not known, or may be `nil` |
-| `filter(xs, f)` | The function's result is not a `bool` | A result whose type is not known |
+| `filter(xs, f)` | The function's result is not a `bool` | A result whose type is not known; the checker of the reference implementation is stricter and rejects a result of any type other than `bool`, so the error does not arise there |
 | `x.Name`, `x.$y` | A struct that lacks the field, a struct read for a capture, or `nil` | A receiver whose type is not known, as in a capture read `x.y` of a grammar in JSON or a compiled grammar |
 
 The value of a rule of unknown type `_` is itself not an error: it is a value
