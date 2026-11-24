@@ -337,7 +337,42 @@ func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
 	}
 }
 
+// tsShardMin is the number of cases that a shard of tsParsersMismatches holds at least, and tsShardMax
+// the number of shards at most: a shard pays for its own tsc and node processes, and the shards run
+// together on the cores of the machine.
+const (
+	tsShardMin = 12
+	tsShardMax = 4
+)
+
+// tsParsersMismatches runs the cases in shards, each in a directory of its own with its own tsc and node
+// processes, as parallel subtests: the cases are independent, the order of the mismatches is that of
+// the cases, and what a shard reports (a failure of tsc or node, a mismatch) is what a run of all the
+// cases would report for its cases.
 func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
+	t.Helper()
+	n := min(tsShardMax, len(cases)/tsShardMin)
+	if n < 2 {
+		return tsParsersShard(t, node, cases, opts, mutate, units, missing)
+	}
+	per := make([][]string, n)
+	t.Run("ts shards", func(t *testing.T) {
+		for i := range n {
+			part := cases[i*len(cases)/n : (i+1)*len(cases)/n]
+			t.Run(fmt.Sprintf("shard %d", i), func(t *testing.T) {
+				t.Parallel()
+				per[i] = tsParsersShard(t, node, part, opts, mutate, units, missing)
+			})
+		}
+	})
+	var all []string
+	for _, m := range per {
+		all = append(all, m...)
+	}
+	return all
+}
+
+func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
