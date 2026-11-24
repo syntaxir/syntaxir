@@ -11,6 +11,7 @@ import osModule from "node:os";
 import eventsModule from "node:events";
 import streamModule from "node:stream";
 import bufferModule from "node:buffer";
+import { createHook } from "node:async_hooks";
 
 const realArgv0 = process.argv[0];
 // The built-ins that the worker itself uses are taken here, before any script runs, so that a script that
@@ -25,6 +26,7 @@ const startsWith = uncurry(String.prototype.startsWith);
 const mapGet = uncurry(Map.prototype.get);
 const mapSet = uncurry(Map.prototype.set);
 const mapHas = uncurry(Map.prototype.has);
+const mapDelete = uncurry(Map.prototype.delete);
 const weakGet = uncurry(WeakMap.prototype.get);
 const weakSet = uncurry(WeakMap.prototype.set);
 const weakHas = uncurry(WeakMap.prototype.has);
@@ -240,27 +242,54 @@ const leftover = (before) => {
 
 // How often the worker looks, while a script's import is pending, whether anything can still finish it.
 const idleCheckMs = 20;
+// The asynchronous resources that a job started and that have not been destroyed, other than promises and the
+// kinds that process.getActiveResourcesInfo lists (timers and immediates). Work that runs on node's thread pool
+// (zlib, crypto's pbkdf2, randomBytes and subtle.digest, file system requests, getaddrinfo) is not in that list
+// while it is pending, so a script that awaits it would look like one that waits for nothing; here it is tracked
+// from the init of its resource to its destroy, which node emits when the request is done. The hook is enabled
+// only while a job runs. Its init is called for every promise too, so it returns at once for them; a microbenchmark of
+// 2 million awaits measured 0.13 s without a hook and 0.9 s with one (about 0.4 us per await), a cost that the
+// scripts of the pool, which await thousands of times, do not feel.
+const pending = new MapOf();
+let pendingCount = 0;
+const untracked = (type) => type === "PROMISE" || type === "TickObject" || type === "Microtask" || type === "Timeout" || type === "Immediate" || type === "TIMERWRAP";
+const asyncHook = createHook({
+  init(id, type) {
+    if (untracked(type) || mapHas(pending, id)) return;
+    mapSet(pending, id, type);
+    pendingCount++;
+  },
+  destroy(id) {
+    if (mapHas(pending, id)) {
+      mapDelete(pending, id);
+      pendingCount--;
+    }
+  },
+});
 // watchIdle reports to the pool, as soon as it is certain, a job whose import is pending and that waits for
 // nothing: a top-level await of a promise that nothing can settle (node itself ends such a script with exit code
 // 13 "unsettled top-level await"). The pool then fails the job at once, whatever the load does to the time.
 //
-// "Waits for nothing" is exact: nothing on the event loop but what was there before the job (the pool's own
-// handles), as process.getActiveResourcesInfo lists it, so no timer, request, child process or socket can run
-// a callback that settles the promise, and no other thread of the script can either. The check runs in a
+// "Waits for nothing" is exact for everything that can run a callback: nothing on the event loop but what was there
+// before the job (the pool's own handles), as process.getActiveResourcesInfo lists it, so no timer, request, child
+// process or socket can run a callback that settles the promise, and nothing the script started on node's thread
+// pool is still pending (the hook above), so no other thread of the script can either. The check runs in a
 // setImmediate callback, which node calls in the check phase after the timers and the I/O callbacks of the
 // round, with the queues of microtasks and of process.nextTick empty: no promise reaction of the script is
 // still to run, which could start a timer or a request, so an empty list cannot be a moment between two
 // steps. A timer, not a repeating immediate, starts each check, so that a script that waits for a long timer
-// does not make the worker busy. It returns the function that ends the watch. What this does not see:
-// work that no listed resource stands for, such as a promise settled from a worker thread or by an
-// asynchronous native job that process.getActiveResourcesInfo does not list; the CPU time and the wall
-// clock limits of the pool still bound a script like that.
+// does not make the worker busy. It returns the function that ends the watch.
+//
+// What this does not see, and the CPU time and wall clock limits of the pool then bound: a resource that stays
+// undestroyed after its work is done (a zlib stream whose destroy waits for the garbage collector), which delays
+// the report, never makes a false one; and work that no async resource stands for, such as Atomics.waitAsync and
+// messages from a worker thread of the script that this worker did not create through a tracked resource.
 const watchIdle = (job, before) => {
   let stopped = false;
   let timer = null;
   const check = () => {
     if (stopped) return;
-    if (leftover(before).length === 0) {
+    if (pendingCount === 0 && leftover(before).length === 0) {
       stopped = true;
       reply(stringify({ id: job.id, idle: "its import is pending and nothing is left on the event loop to settle it" }) + "\n");
       return;
@@ -294,6 +323,9 @@ for await (const line of createInterface({ input: process.stdin })) {
     throw new Exit(exitRequest.code);
   };
   const resources = resourceCounts();
+  pending.clear();
+  pendingCount = 0;
+  asyncHook.enable();
   const unwatch = watchIdle(job, resources);
   try {
     chdir(job.dir);
@@ -305,6 +337,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     if (!(e instanceof Exit)) failure ??= e;
   }
   unwatch();
+  asyncHook.disable();
   // The script has finished when what it started has: node runs a script until nothing is pending (timers,
   // requests), so the output, the throws and the exits of the callbacks belong to it. What still runs after
   // the time that job.drainMs allows is not a finished script, and fails the job.

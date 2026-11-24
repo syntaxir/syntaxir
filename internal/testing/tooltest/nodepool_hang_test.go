@@ -257,6 +257,23 @@ console.log("done");`, []string{fifo}, func() {
 await new Promise((r) => spawn("sleep", ["0.4"]).on("exit", r));
 console.log("done");`, nil, nil)
 	})
+	// Work on node's thread pool is not listed by process.getActiveResourcesInfo while it is pending.
+	t.Run("zlib.gzip", func(t *testing.T) {
+		run(t, `import zlib from "node:zlib";
+const out = await new Promise((r, j) => zlib.gzip(Buffer.alloc(4 << 20, "abc"), (e, b) => (e ? j(e) : r(b))));
+if (out.length === 0) throw new Error("empty");
+console.log("done");`, nil, nil)
+	})
+	t.Run("subtle.digest", func(t *testing.T) {
+		run(t, `const d = await crypto.subtle.digest("SHA-256", new Uint8Array(1 << 24));
+if (d.byteLength !== 32) throw new Error("digest");
+console.log("done");`, nil, nil)
+	})
+	t.Run("pbkdf2", func(t *testing.T) {
+		run(t, `import crypto from "node:crypto";
+await new Promise((r, j) => crypto.pbkdf2("p", "s", 300000, 64, "sha512", (e) => (e ? j(e) : r())));
+console.log("done");`, nil, nil)
+	})
 	t.Run("an await that nothing settles, after them", func(t *testing.T) {
 		dir := poolScript(t, `await new Promise(() => {});`, nil)
 		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
