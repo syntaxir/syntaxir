@@ -446,8 +446,11 @@ func goTarget(s goSpec) *print.Target {
 			return "p.deferMemo"
 		case "seen.first":
 			return "p.memo.first(" + a[1] + ", " + a[0] + ")"
+		// A parse in the missing-token mode memoizes no rule that can insert a missing token (insertsRule),
+		// a Document parse included, except that a leader still grows through its memo: the rule
+		// operations report so, as the engine's do.
 		case "rule.memo":
-			return a[0] + ".Memo"
+			return "(" + a[0] + ".Memo && !p.insertsRule(" + rule(a[0]) + "))"
 		// The missing-token mode (missing.go). Only a seed of a growth, a context result, holds insertions:
 		// a memo entry that a call in the mode reuses is one of a rule that cannot insert.
 		case "missing.active":
@@ -474,9 +477,9 @@ func goTarget(s goSpec) *print.Target {
 		case "rule.plain":
 			return "len(" + a[0] + ".Scope) == 0"
 		case "rule.docMemo":
-			return a[0] + ".DocMemo"
+			return fmt.Sprintf("(%s.DocMemo && (%[1]s.Leader || !p.insertsRule(%s)))", a[0], rule(a[0]))
 		case "rule.docOnlyMemo":
-			return "(" + a[0] + ".DocMemo && !" + a[0] + ".Memo && !" + a[0] + ".Leader)"
+			return fmt.Sprintf("(%s.DocMemo && !%[1]s.Memo && !%[1]s.Leader && !p.insertsRule(%s))", a[0], rule(a[0]))
 		case "rule.positional":
 			return a[0] + ".Positional"
 		case "rule.id":

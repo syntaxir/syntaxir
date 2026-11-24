@@ -596,11 +596,6 @@ func ResolveOptions(g *grammar, opts []sxirruntime.ParseOption) (parseOptions, e
 // alone accept the diagnostic options.
 func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming bool) (parseOptions, error) {
 	o := parseOptions{controls: !g.NoBudgetControls, streaming: streaming}
-	if streaming && g.HasMissing {
-		// A stream of a grammar with #missing is refused whatever the limit, as the reference parser
-		// refuses it.
-		return o, missingUnsupported("stream parsing")
-	}
 	if len(opts) == 0 {
 		o.maxDepth = g.maxDepth
 		return o, nil
@@ -624,9 +619,6 @@ func resolveEntryOptions(g *grammar, opts []sxirruntime.ParseOption, streaming b
 	}
 	if err := o.validateObservation(g); err != nil {
 		return o, err
-	}
-	if streaming && o.missingTokens > 0 {
-		return o, missingUnsupported("stream parsing")
 	}
 	if witnessFeatures {
 		if o.observe.trace != nil || o.observe.profile != nil {

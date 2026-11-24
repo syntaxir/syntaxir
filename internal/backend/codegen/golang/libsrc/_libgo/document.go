@@ -49,11 +49,9 @@ func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *D
 	if err != nil {
 		return nil, err
 	}
-	if root.g.HasMissing || o.missingTokens != 0 {
-		// A Document of a grammar with #missing is refused whatever the limit, as the reference
-		// parser refuses it.
-		return nil, missingUnsupported("Document parsing")
-	}
+	// With a missing-token limit, every parse of the Document runs the insertion table: the limit
+	// is fixed at construction.
+	root = root.forMissing(o)
 	defer recoverParse(&d, &err)
 	o = prepareText(o, text)
 	// Construction performs the same input decoding and budget checks as a parse,
@@ -122,8 +120,9 @@ func (d *Document) ResolveParseOptions(opts []sxirruntime.ParseOption) (parseOpt
 	if err := o.validateObservation(d.State.root.g); err != nil {
 		return o, err
 	}
-	if o.missingTokens != 0 {
-		return o, missingUnsupported("Document parsing")
+	if o.missingTokens != d.defaults.missingTokens {
+		// The Document runs the table that its limit selected at construction.
+		return o, fmt.Errorf("document parse cannot change the missing-token limit")
 	}
 	if o.computeOut != nil {
 		*o.computeOut = 0
@@ -617,6 +616,11 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	}
 	p.setTracking()
 	p.setDeferMemo()
+	// Each parse has the whole limit, as a parse from scratch of the text has. The memo keeps no result
+	// of a rule that can insert and the runs keep no element that reached an insertion site
+	// (runClean), so a later parse reuses no insertion and no attempt of this one. A parse that
+	// reaches the limit panics, which drops the memo and the runs.
+	p.startMissing(o)
 	o.control.attachMemory(p)
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.retained = d.historyBytes()

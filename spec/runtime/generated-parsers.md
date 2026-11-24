@@ -86,7 +86,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
   same form as in other commands. An unknown start rule, an invalid package name,
   a compiled grammar (`gen needs the grammar source`),
   `-stream` without a `#stream` repetition in the start rule and a grammar that
-  contains `#missing` with `-types`, `-document`, `-stream` or `-lang ts` are
+  contains `#missing` with `-types` or `-lang ts` are
   errors.
 - A Go package may contain only one generated parser, because every generated file
   defines the same names. `api.go` re-exports the names the users of the
@@ -168,7 +168,10 @@ const (
 - Every generated Go parser exports `WithLimits`, `Limits`, `LimitKind`, `LimitError`,
   `ErrLimit`, `LimitCompute`, `LimitInput`, `LimitDepth`, `LimitMemory` and `Unlimited`. A parser of a
   grammar with `#missing` also exports `WithMissingTokens`: a positive limit inserts missing tokens in
-  `Parse`, `ParseRule` and `Recognize` with the results, diagnostics and compute units of the engine. A parser is
+  `Parse`, `ParseRule`, `Recognize`, the stream parses and the parses of a Document with the results,
+  diagnostics and compute units of the engine. A Document takes the limit at
+  construction ([Missing Tokens](documents.md#missing-tokens)), and a stream has one limit
+  ([Missing Tokens](streaming.md#missing-tokens)). A parser is
   generated with limit controls unless it opts out (`-no-limits`, `NoLimitControls`), and one generated
   with them also exports `WithContext`. A parser generated with limit controls has the controlled form
   only, and a parse that sets no limit runs it with the [default budget](parsing.md#default-limits):
@@ -566,7 +569,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Condition | Result |
 |:--|:--|
 | Invalid package name, unknown start rule, grammar errors | Error before output |
-| `#missing` in the grammar with `-types`, `-document`, `-stream` or `-lang ts` | Generation fails |
+| `#missing` in the grammar with `-types` or `-lang ts` | Generation fails |
 | `-stream` with `-lang ts` | Generation fails |
 | `-g`, `-s`, `-pkg` or a generation option with `-lib only` | The command fails |
 | `-lib embed` without `-module`; `-lib import` with neither `-module` nor `-pkg` | The command fails |
@@ -585,7 +588,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Predicates, variables, lookahead, cut | Supported | Supported |
 | Actions, types, built-in functions | Supported | Supported |
 | `@error`, `#recover`, `SyntaxErrors` | Supported | Supported |
-| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`; not with `-types`, `-document` or `-stream` | Not supported |
+| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`, stream parses and Documents; not with `-types` | Not supported |
 | Position units | `WithUnit` | `unit` |
 | Another start rule | `ParseRule` | `parseRule` |
 | Recognition | `Recognize` with `-recognize` | `recognize` with `-recognize` |

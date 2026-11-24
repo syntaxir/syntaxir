@@ -20,11 +20,6 @@ import (
 // context of left recursion. Only the seed of a growing leader is reused, as the growth adopted it, with
 // the insertions that it made (missingSeed), which a reuse records again (replayMissing).
 
-// missingUnsupported returns the error of an entry point that does not insert missing tokens, asked to.
-func missingUnsupported(operation string) error {
-	return fmt.Errorf("missing-token recovery is not supported for %s; use whole-input parsing or recognition", operation)
-}
-
 // missingToken is an insertion: the site of the grammar that inserted, the position, and the syntax error
 // it recovered.
 type missingToken struct {
@@ -38,6 +33,10 @@ type missingSite struct{ site, pos int }
 // missingState is the state of a parse in the missing-token mode.
 type missingState struct {
 	limit, attempts int
+	// reached counts the arrivals at an insertion site outside a lookahead and the insertions
+	// replayed: what the parse did depends on the insertions while it changes, so a Document keeps no
+	// run of the repetition elements in which it changed (runClean).
+	reached int
 	// path is the insertions on the current path, in order; installed holds their sites.
 	path      []missingToken
 	installed map[missingSite]bool
@@ -92,6 +91,15 @@ func (p *Parser) startMissing(o parseOptions) {
 		p.use(featureMissing)
 		p.missing = &missingState{limit: o.missingTokens}
 	}
+}
+
+// missingReached returns the insertion sites reached and the insertions replayed so far
+// (missingState.reached), 0 outside the missing-token mode.
+func (p *Parser) missingReached() int {
+	if !p.inserting() {
+		return 0
+	}
+	return p.missing.reached
 }
 
 // MissingLen returns the number of insertions on the current path, 0 outside the missing-token mode.
@@ -168,7 +176,11 @@ func (p *Parser) InsertMissingLogical(site int, exps []ExpID) (*sxirvalue.Syntax
 
 // insertMissing is InsertMissing, which counts the error it builds if logical is set.
 func (p *Parser) insertMissing(site int, exps []ExpID, logical bool) (*sxirvalue.SyntaxError, bool) {
-	if !p.inserting() || p.Silent > 0 || p.missing.installed[missingSite{site, p.Pos}] {
+	if !p.inserting() || p.Silent > 0 {
+		return nil, false
+	}
+	p.missing.reached++
+	if p.missing.installed[missingSite{site, p.Pos}] {
 		return nil, false
 	}
 	if logical {
@@ -259,6 +271,7 @@ func (p *Parser) replayMissing(seed missingSeed, errs recEntry, charge bool) {
 		return
 	}
 	p.unitsSized(len(seed))
+	p.missing.reached += len(seed)
 	var dup map[*sxirvalue.SyntaxError]bool
 	for _, t := range seed {
 		if !p.installMissing(t, charge) {

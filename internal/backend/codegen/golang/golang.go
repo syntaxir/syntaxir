@@ -106,17 +106,9 @@ func Decide(prog codegen.Checked, derived codegen.Derived, start *common.Rule, o
 	if opts.Stream && !start.Stream {
 		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
 	}
-	// The parses that insert missing tokens are those of the whole input; a Document and a stream refuse
-	// a grammar with #missing on every backend, and generated typed values do not represent the missing type.
-	if prog.View.Run.HasMissing {
-		switch {
-		case opts.Types:
-			return nil, rprogram.MissingUnsupported("generated typed Go parsers")
-		case opts.Document:
-			return nil, rprogram.MissingUnsupported("generated Go Documents")
-		case opts.Stream:
-			return nil, rprogram.MissingUnsupported("generated Go streams")
-		}
+	// Generated typed values do not represent the missing type.
+	if prog.View.Run.HasMissing && opts.Types {
+		return nil, rprogram.MissingUnsupported("generated typed Go parsers")
 	}
 	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
 	if opts.LogicalVariant != "" && !opts.LogicalUnits() {
@@ -273,7 +265,7 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 	}
 	c.Roots = append(c.Roots, d.roots...)
 	add := func(table string, pr *common.Program) {
-		t := plandata.CoreTable{Name: table, M: d.module(mods, table), Typed: table == "trules", Slots: table == "rules" && d.Opts.Document}
+		t := plandata.CoreTable{Name: table, M: d.module(mods, table), Typed: table == "trules", Slots: (table == "rules" || table == "insRules") && d.Opts.Document}
 		for _, r := range append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...) {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
 			t.Rules = append(t.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
@@ -304,8 +296,10 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 		for j, r := range all {
 			u.Rules[j] = r.PlanRule()
 		}
-		if d.Opts.Stream && s.table == "rules" {
-			u.Streams = []*plandata.Rule{d.Start.PlanRule()}
+		if d.Opts.Stream && (s.table == "rules" || s.table == "insRules") {
+			// The Node table and the insertion table, which a stream parse with missing-token
+			// insertion enabled runs, each have the body of the start rule that ParseStream runs.
+			u.Streams = []*plandata.Rule{s.prog.ByName[d.Start.Name].PlanRule()}
 		}
 		if d.refuse != nil && !u.Typed {
 			refuse := d.refuse
@@ -328,10 +322,10 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	if s.table == "insRules" || s.table == "insRecRules" {
 		// The tables of the insertion program, which only parses inserting missing tokens run: they
 		// lower the #missing sites with their insertions and keep no guard (lowerdata.GuardsNone), as
-		// the insertion modules of the VMs do. No Document parse runs them, since a Document refuses
-		// insertion, so they resume no runs; an observed parse records the examined input.
-		return flowplan.TableOf(m, plandata.TableConfig{Values: s.table == "insRules", Logical: o.LogicalUnits(), Guards: lowerdata.GuardsNone, Observe: s.traced, Document: s.traced,
-			Traced: s.traced, Inserts: true})
+		// the insertion modules of the VMs do. A Document with a missing-token limit runs them, so with
+		// Documents they resume runs as the other tables do; an observed parse records the examined input.
+		return flowplan.TableOf(m, plandata.TableConfig{Values: s.table == "insRules", Logical: o.LogicalUnits(), Guards: lowerdata.GuardsNone, Observe: s.traced, Document: examined,
+			Resume: o.Document, Traced: s.traced, Inserts: true})
 	}
 	return flowplan.TableOf(m, plandata.TableConfig{Values: s.table != "recRules", Logical: o.LogicalUnits(), Guards: d.guards, Observe: s.traced, Document: examined,
 		// A parser with Documents resumes the runs of its repetitions; an observed parse records the

@@ -153,7 +153,7 @@ var flowConformMutants = []flowConformMutant{
 		from: "\tp.unitsSized(len(s.path) - n)\n", to: "",
 		cases: []string{"missing"}},
 	{name: "a reused result that counts no unit for the insertions it records again", op: flow.OpCallRule, file: "missing.go",
-		from: "\tp.unitsSized(len(seed))\n\tvar dup", to: "\tvar dup",
+		from: "\tp.unitsSized(len(seed))\n\tp.missing.reached", to: "\tp.missing.reached",
 		cases: []string{"missing"}},
 	{name: "a reused result that counts only the errors it records one by one", op: flow.OpCallRule, file: "missing.go",
 		from: "\tp.unitsSized(len(all))\n\tfor _, e := range all {\n\t\tif !dup[e] {\n", to: "\tfor _, e := range all {\n\t\tif !dup[e] {\n\t\t\tp.unitsSized(1)\n",

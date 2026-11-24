@@ -288,6 +288,9 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 		fmt.Fprintf(&genGo.Init, "\t%s.Share(sxirGrammar)\n", t.grammar)
 		writeRunKeys(&genGo.Init, t.grammar, t.prog)
 		fmt.Fprintf(&genGo.Init, "\tSetInsertion(%s, %s)\n", t.of, t.table)
+		if start != nil && opts.Stream && t.table == "insRules" {
+			genGo.Init.WriteString("\tSetInsertion([]*Rule{streamRule}, []*Rule{insStreamRule})\n")
+		}
 	}
 
 	var out strings.Builder
@@ -916,10 +919,13 @@ func (g *Generator) rules() {
 			g.wrappers = append(g.wrappers, wrapperSpan{r: r, start: start, end: g.Methods.Len()})
 		}
 	}
-	if r := g.streamStart; r != nil && g.Table == "rules" {
+	if stream := streamRuleVar(g.Table); g.streamStart != nil && stream != "" {
 		// ParseStream calls a copy of the start rule whose body emits the
 		// #stream elements, generated last so that the batch code is the same
-		// as without streams. Its captures have a layout of their own.
+		// as without streams. Its captures have a layout of their own. The
+		// insertion table has its own copy, which a stream parse with
+		// missing-token insertion enabled runs (SetInsertion).
+		r := g.Prog.ByName[g.streamStart.Name]
 		s := check.NewScope()
 		body := g.streamBodyFunc(r, s)
 		if body != "" {
@@ -934,11 +940,15 @@ func (g *Generator) rules() {
 			g.streamErr = fmt.Errorf("internal error: the stream body of %s has a different capture layout", r.Name)
 		}
 		if g.Traced {
-			fmt.Fprintf(init, "\tstreamRuleTraced = TraceRule(streamRule)\n\tstreamRuleTraced.Body = %s\n", body)
-			g.Methods.WriteString("// streamRuleTraced is the traced copy of streamRule, which an observed parse runs.\nvar streamRuleTraced *Rule\n\n")
+			fmt.Fprintf(init, "\t%[1]sTraced = TraceRule(%[1]s)\n\t%[1]sTraced.Body = %[2]s\n", stream, body)
+			fmt.Fprintf(&g.Methods, "// %[1]sTraced is the traced copy of %[1]s, which an observed parse runs.\nvar %[1]sTraced *Rule\n\n", stream)
 		} else {
-			fmt.Fprintf(init, "\tstreamRule = new(Rule)\n\t*streamRule = *rules[%d]\n\tstreamRule.Scope = %s\n\tstreamRule.Body = %s\n", r.ID, goStrings(s.Names), body)
-			g.Methods.WriteString("// streamRule is the start rule of ParseStream.\nvar streamRule *Rule\n\n")
+			fmt.Fprintf(init, "\t%[1]s = new(Rule)\n\t*%[1]s = *%[2]s[%[3]d]\n\t%[1]s.Scope = %[4]s\n\t%[1]s.Body = %[5]s\n", stream, g.Table, r.ID, goStrings(s.Names), body)
+			if g.Table == "rules" {
+				g.Methods.WriteString("// streamRule is the start rule of ParseStream.\nvar streamRule *Rule\n\n")
+			} else {
+				g.Methods.WriteString("// insStreamRule is the start rule of ParseStream in the insertion table.\nvar insStreamRule *Rule\n\n")
+			}
 		}
 	}
 	g.dropUnusedWrappers()
@@ -1158,6 +1168,18 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 	fmt.Fprintf(m, "\tv, ok := %s(p, 0)\n%s\tp.Frame, p.Cut = prevFrame, prevCut\n\tp.DropTrail(trail)\n\tif ok {\n", body, leaveRec(r))
 	finish("f")
 	m.WriteString("\t}\n\tp.Env = prevEnv\n\tp.FreeFrame(f)\n\treturn v, ok\n}\n\n")
+}
+
+// streamRuleVar names the copy of the start rule that ParseStream runs in the rule table table, or
+// returns "" if the table has none: the Node table and the insertion table have one.
+func streamRuleVar(table string) string {
+	switch table {
+	case "rules":
+		return "streamRule"
+	case "insRules":
+		return "insStreamRule"
+	}
+	return ""
 }
 
 // tracedTables prints the traced copies of the rule tables that the generator printed (Traced), which an

@@ -115,8 +115,7 @@ rule main = "a"`)
 }
 
 // TestMissingTokensGenerationRefused checks that the Go generator refuses a grammar with #missing for
-// the parsers that cannot insert: typed values, a Document and a stream, which refuse such a grammar
-// on every backend.
+// the parsers that cannot insert: typed values.
 func TestMissingTokensGenerationRefused(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testMissingTokensGenerationRefused)
@@ -130,8 +129,6 @@ rule item = [a-z]+`)
 		opts common.GenOptions
 	}{
 		{"typed values", common.GenOptions{Types: true}},
-		{"a Document", common.GenOptions{Document: true}},
-		{"a stream", common.GenOptions{Stream: true}},
 	} {
 		c.opts.Package, c.opts.Start = "example", "main"
 		_, err := codegentest.GenerateCode(t, entry.Checked(prog).Grammar, c.opts)

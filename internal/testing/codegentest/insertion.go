@@ -58,3 +58,16 @@ func InsertionCorpus() []Case {
 		Case{Name: "a missing field", Src: "type P = { M missing }\nrule main = \"a\" m:(\";\" #missing) $$ => P{M: $m.(_).(missing)}", Inputs: []string{"a", "a;"}},
 	)
 }
+
+// IncrementalInsertionCorpus is InsertionCorpus with cases whose repetitions a Document resumes and a
+// stream commits: elements that insert, and elements whose insertion backtracks, which takes an
+// attempt of the limit and records no error.
+func IncrementalInsertionCorpus() []Case {
+	item := func(body string) string { return "rule main = item* $$\nrule item = " + body }
+	return append(InsertionCorpus(),
+		Case{Name: "elements that insert", Src: item(`"a" ";" #missing`),
+			Inputs: []string{"a;a;a;", "a;aa;a", "aaa", "a;a;a;a;a", "a"}},
+		Case{Name: "elements whose insertion backtracks", Src: item(`"a" ";" #missing "!" / "a" "?"`),
+			Inputs: []string{"a?", "a?a?a?", "a;!a?", "a?a?a?a?a?", "a!a?"}},
+	)
+}

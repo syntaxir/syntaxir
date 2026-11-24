@@ -160,6 +160,7 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	defer recoverParse(&n, &err)
 	o = prepareOptions(o, 0, true)
 	p := &Parser{unit: o.unit, MaxDepth: o.maxDepth}
+	r = r.forMissing(o)
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
 	p.setControl(o.control)
@@ -177,6 +178,9 @@ func RunParseStreamWithBudget(r *Rule, reader io.Reader, emit func(*sxirvalue.No
 	p.Stream.tail.limit = o.diagnosticLimit
 	p.Stream.maxInput = o.maxInput
 	p.setDeferMemo()
+	// One limit for the whole stream: the insertions before a delivered element stay on the path, as
+	// no backtracking reaches them, so the stream inserts what the batch parse does.
+	p.startMissing(o)
 	o.control.attachMemory(p)
 	p.Control.Check()
 	_, ok := p.Call(r.forParse(p), 0)

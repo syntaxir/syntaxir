@@ -536,9 +536,10 @@ machinery, which the generated code only has when you ask for it:
   [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support).
 - There is no choice of backend, because the generated code is a backend of its own, and no `Parser.Grammar()`, saving
   or loading, because the grammar is gone at run time.
-- `#missing` works for whole-input parsing and recognition in the runtime parser (the closure backend, both bytecode
-  VMs and compiled grammars) and in generated Go parsers, which insert with the same results, diagnostics and compute
-  units. The generator rejects grammars that use it with `-types`, `-document` or `-stream`, and with `-lang ts`.
+- `#missing` works for whole-input parsing, recognition, streams and Documents in the runtime parser (the closure
+  backend, both bytecode VMs and compiled grammars) and in generated Go parsers, which insert with the same results,
+  diagnostics and compute units. The generator rejects
+  grammars that use it with `-types` and with `-lang ts`.
 
 The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has the complete table.
 

@@ -409,10 +409,11 @@ func Build() *Module {
 			undoing(b, doc.inserts(), run, func(b *Builder) { b.Do("rec.truncate", L("rec")) })
 		})
 	}
-	// direct is the condition of a call that runs unmemoized: the rule is not memoized, or in the
-	// missing-token mode can insert, and is not a leader; or its memoization is deferred.
+	// direct is the condition of a call that runs unmemoized: the rule is not memoized (rule.memo, which
+	// in the missing-token mode excludes a rule that can insert) and is not a leader; or its
+	// memoization is deferred.
 	direct := func() Expr {
-		return Bin("||", And(Bin("||", Not(C("rule.memo", r)), And(F(exec.Missing), C("missing.recompute", r))), Not(C("rule.leader", r))), C("firstCall", r))
+		return Bin("||", And(Not(C("rule.memo", r)), Not(C("rule.leader", r))), C("firstCall", r))
 	}
 	invoke := func(b *Builder) { b.SetN(pair, C("rule.invoke", r, L("min"))) }
 

@@ -60,6 +60,7 @@ type RunState struct {
 	old                     []runElem // the run that this one takes over, updated in place
 	mid, post               []runElem
 	rec0, seedReads0        int
+	reached0                int // the insertion sites reached at the start (missingState.reached)
 }
 
 // ResumeOn reports whether a repetition resumes its run (flow.resumeOn): in a Document parse, outside
@@ -103,7 +104,7 @@ func (p *Parser) runInit(r *RunState, site, min, max int, shiftable bool) {
 	const maxInt = int(^uint(0) >> 1)
 	*r = RunState{key: runKey{site, p.Pos}, Min: min, Max: max, Shiftable: shiftable, J: -1,
 		EditStart: maxInt, EditEnd: maxInt, rec0: len(p.Recovered), seedReads0: p.seedReads,
-		mid: r.mid[:0], post: r.post[:0]}
+		reached0: p.missingReached(), mid: r.mid[:0], post: r.post[:0]}
 }
 
 // runTakeHere is run.takeHere.
@@ -167,10 +168,13 @@ func (p *Parser) runAdd(r *RunState, after bool, start, end, from, examined, far
 	}
 }
 
-// runClean is run.clean: the run recovered no error and read no seed of a growth, directly or by
-// reusing a result that depends on one.
+// runClean is run.clean: the run recovered no error, read no seed of a growth, directly or by
+// reusing a result that depends on one, and reached no insertion site. An element that reached one
+// depends on the insertions before it and takes the attempts of the limit, both of which a later
+// parse has anew, even where it recovered no error: its insertion backtracked, or the site had
+// inserted at the position already.
 func (p *Parser) runClean(r *RunState) bool {
-	return len(p.Recovered) == r.rec0 && p.seedReads == r.seedReads0
+	return len(p.Recovered) == r.rec0 && p.seedReads == r.seedReads0 && p.missingReached() == r.reached0
 }
 
 // runRecord is run.record.

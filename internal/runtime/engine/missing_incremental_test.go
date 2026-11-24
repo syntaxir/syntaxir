@@ -20,19 +20,6 @@ import (
 // reach the limit on some inputs, and the last none.
 var insertionLimits = []int{1, 2, 64}
 
-// incrementalInsertionCases are InsertionCorpus with cases whose repetitions a Document resumes and
-// a stream commits: elements that insert, and elements whose insertion backtracks, which takes an
-// attempt of the limit and records no error.
-func incrementalInsertionCases() []codegentest.Case {
-	item := func(body string) string { return "rule main = item* $$\nrule item = " + body }
-	return append(codegentest.InsertionCorpus(),
-		codegentest.Case{Name: "elements that insert", Src: item(`"a" ";" #missing`),
-			Inputs: []string{"a;a;a;", "a;aa;a", "aaa", "a;a;a;a;a", "a"}},
-		codegentest.Case{Name: "elements whose insertion backtracks", Src: item(`"a" ";" #missing "!" / "a" "?"`),
-			Inputs: []string{"a?", "a?a?a?", "a;!a?", "a?a?a?a?a?", "a!a?"}},
-	)
-}
-
 // TestDocumentInsertionMatchesFromScratch checks that a Document with a missing-token limit parses
 // as a parse from scratch of its text does, on every backend, in both units, at several limits:
 // the same results, errors and insertions after each edit from one input of a case to the next,
@@ -43,7 +30,7 @@ func TestDocumentInsertionMatchesFromScratch(t *testing.T) {
 	t.Parallel()
 	for _, mutant := range []bool{false, true} {
 		differences := 0
-		for _, c := range incrementalInsertionCases() {
+		for _, c := range codegentest.IncrementalInsertionCorpus() {
 			prog := mustCompile(t, c.Src)
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
@@ -193,7 +180,7 @@ func TestStreamInsertionMatchesBatch(t *testing.T) {
 	t.Parallel()
 	for _, mutant := range []bool{false, true} {
 		differences := 0
-		for _, c := range incrementalInsertionCases() {
+		for _, c := range codegentest.IncrementalInsertionCorpus() {
 			prog := mustCompile(t, "rule streamed = items:main* #stream\n"+c.Src)
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
 				for _, u := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {

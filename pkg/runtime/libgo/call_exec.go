@@ -34,11 +34,11 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			p.PollUnits()
 		}
 	}
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+	if r.Leader || (r.Memo && !p.insertsRule(r)) && !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)) {
 		p.KeyUnits(r)
 	}
 	start := p.Pos
-	if (!r.Memo || p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
+	if !(r.Memo && !p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
 		if len(r.Scope) == 0 {
 			v, ok = p.invokePlainBody(r, min)
 			return v, ok
@@ -73,7 +73,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 		return seed.node, true
 	}
-	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
+	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)))
 	found := e != nil
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
@@ -130,7 +130,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 		entry := p.memo.alloc()
 		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
-		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
+		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
@@ -391,11 +391,11 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			p.PollUnits()
 		}
 	}
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+	if r.Leader || (r.Memo && !p.insertsRule(r.Rule)) && !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 		p.KeyUnits(r.Rule)
 	}
 	start := p.Pos
-	if !r.Memo && !r.Leader || p.firstCall(r) {
+	if !(r.Memo && !p.insertsRule(r.Rule)) && !r.Leader || p.firstCall(r) {
 		if len(r.Scope) == 0 {
 			v, ok = p.invokePlainBody(r, min)
 			return v, ok
@@ -426,7 +426,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		p.recAdd(seed.errs)
 		return seed.val, true
 	}
-	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
+	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
 	found := e != nil
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
@@ -483,7 +483,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
-		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
+		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
@@ -538,7 +538,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		p.recAdd(seed.errs)
 		return seed.val, true
 	}
-	e := p.memoGet(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader))
+	e := p.memoGet(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
 	found := e != nil
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
@@ -595,7 +595,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
-		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
+		entry = p.memoPut(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
@@ -767,7 +767,7 @@ func (p *Parser) callDocument(r *Rule, min int) (*sxirvalue.Node, bool) {
 			p.docLow = oldLow
 		}
 	}()
-	if !r.DocMemo {
+	if !(r.DocMemo && (r.Leader || !p.insertsRule(r))) {
 		v, ok := p.callUnmemoized(r, min)
 		return v, ok
 	}
@@ -840,7 +840,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 		return seed.node, true
 	}
-	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
+	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)))
 	found := e != nil
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
@@ -909,7 +909,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
-		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader)) {
+		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r))) {
 			if (len(p.Recovered) - rec) > 0 {
 				p.Units += uint64(len(p.Recovered) - rec)
 				if p.Units > p.UnitsCheck {
@@ -919,7 +919,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 		entry := p.memo.alloc()
 		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
-		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
+		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
@@ -935,7 +935,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 	} else if store == storeCtx {
-		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader)) {
+		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r))) {
 			if (len(p.Recovered) - rec) > 0 {
 				p.Units += uint64(len(p.Recovered) - rec)
 				if p.Units > p.UnitsCheck {
@@ -965,14 +965,14 @@ func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
 			p.PollUnits()
 		}
 	}
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+	if r.Leader || (r.Memo && !p.insertsRule(r)) && !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)) {
 		p.KeyUnits(r)
 	}
 	if p.Document != nil {
 		v, ok := p.callDocument(r, min)
 		return v, ok
 	}
-	if (!r.Memo || p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
+	if !(r.Memo && !p.insertsRule(r)) && !r.Leader || p.FirstCall(r) {
 		v, ok := p.callUnmemoized(r, min)
 		return v, ok
 	}
@@ -1010,7 +1010,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			p.PollUnits()
 		}
 	}
-	if r.Leader || r.Memo && !(r.DocMemo && !r.Memo && !r.Leader) {
+	if r.Leader || (r.Memo && !p.insertsRule(r.Rule)) && !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 		p.KeyUnits(r.Rule)
 	}
 	start := p.Pos
@@ -1022,7 +1022,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			p.docLow = oldLow
 		}
 	}()
-	if !r.DocMemo {
+	if !(r.DocMemo && (r.Leader || !p.insertsRule(r.Rule))) {
 		rec := len(p.Recovered)
 		if inv != nil {
 			p.Document.stats.Evaluated++
@@ -1056,7 +1056,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		p.recAdd(seed.errs)
 		return seed.val, true
 	}
-	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader))
+	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
 	found := e != nil
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
@@ -1114,7 +1114,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	kept := p.Keep(inner)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
-		if !(r.DocMemo && !r.Memo && !r.Leader) {
+		if !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 			if (len(p.Recovered) - rec) > 0 {
 				p.Units += uint64(len(p.Recovered) - rec)
 				if p.Units > p.UnitsCheck {
@@ -1124,7 +1124,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 		}
 		entry := p.memoSlab.one()
 		*entry = tmemoEntry{val: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
-		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader), entry)
+		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
 			entry.far, entry.expected = far, kept
@@ -1134,7 +1134,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			}
 		}
 	} else if store == storeCtx {
-		if !(r.DocMemo && !r.Memo && !r.Leader) {
+		if !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 			if (len(p.Recovered) - rec) > 0 {
 				p.Units += uint64(len(p.Recovered) - rec)
 				if p.Units > p.UnitsCheck {
