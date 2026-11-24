@@ -77,7 +77,7 @@ func TestReusedSkipSites(t *testing.T) {
 			for i, r := range prog.RuleList {
 				flags[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}
 			}
-			skipSites := corepass.ComputeSites(st.Module, flags, nil).Skip
+			skipSites := corepass.ComputeSites(st.Module, flags, corepass.SiteSwitches{}, nil).Skip
 			var marked []*core.Repeat
 			var skipNode core.Node
 			for _, r := range st.Module.Rules {

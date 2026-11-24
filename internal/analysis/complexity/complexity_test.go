@@ -1,6 +1,7 @@
 package complexity
 
 import (
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"fmt"
 	"maps"
 	"os"
@@ -92,11 +93,22 @@ func classDegree(c *Complexity) int {
 
 func classifySource(t *testing.T, src string) *Complexity {
 	t.Helper()
+	return classifySourceWith(t, src, corepass.SiteSwitches{})
+}
+
+// classifySourceWith is classifySource with the compiler's sites numbered under the switches sw.
+func classifySourceWith(t *testing.T, src string, sw corepass.SiteSwitches) *Complexity {
+	t.Helper()
 	g, err := parser.Parse(src)
 	if err != nil {
 		t.Fatal(err)
 	}
-	c, err := ClassifyComplexityControlled(starttest.MarkAll(g), "", nil)
+	in, err := checkedInput(starttest.MarkAll(g), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	in.sites = sw
+	c, err := in.classify("", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

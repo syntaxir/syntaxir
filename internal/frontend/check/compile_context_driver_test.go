@@ -115,7 +115,7 @@ func TestCompileContextPhaseCancellation(t *testing.T) {
 				// checkpoint; no outer analysis loop contributes polling here.
 				corepass.Compute(&ir.Module{}, nil).WithControl(control).Succeeds(node)
 			case "site-numbering":
-				corepass.ComputeSites(structuralModule(t, g), make([]corepass.SiteRule, len(g.Rules())), control)
+				corepass.ComputeSites(structuralModule(t, g), make([]corepass.SiteRule, len(g.Rules())), corepass.SiteSwitches{}, control)
 			case "type-checking":
 				var diagnostics diagnostic.ErrorList
 				fcheck.CheckTypesControlled(entry.Checked(p).Checker(), &diagnostics, control)

@@ -81,7 +81,7 @@ func (Source) Sites(m *core.Module, prog *check.Model, control *cancel.Control) 
 	for i, r := range prog.RuleList {
 		rules[i] = corepass.SiteRule{LeftRec: r.Leader || r.Member, Vars: r.Vars, Declared: desugar.DeclaredBeyondScan(r.Def)}
 	}
-	s := corepass.ComputeSites(m, rules, control)
+	s := corepass.ComputeSites(m, rules, corepass.SiteSwitches{NoRunSites: prog.Opts.NoRunSites, NoScanSites: prog.Opts.NoScanSites}, control)
 	key := func(in map[*core.Repeat]int) map[*ast.Repeat]int {
 		out := make(map[*ast.Repeat]int, len(in))
 		for n, site := range in {

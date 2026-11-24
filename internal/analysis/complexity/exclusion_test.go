@@ -1022,7 +1022,7 @@ func TestCutPrefixes(t *testing.T) {
 // is not memoized by it.
 func TestTriviaMemo(t *testing.T) {
 	defer restoreExclusionDefaults()
-	withoutScanSites(t) // the records of the scan site of ws would answer the levels
+ // the records of the scan site of ws would answer the levels
 	const nest = "rule main = e ws $$\nrule e = \"(\" e? (ws \")\")?\n"
 	for _, c := range []struct {
 		name, ws string
@@ -1037,7 +1037,7 @@ func TestTriviaMemo(t *testing.T) {
 			if on {
 				want = c.on
 			}
-			if got := classifySource(t, nest+c.ws).Class; got != want {
+			if got := classifySourceWith(t, nest+c.ws, noScanSites).Class; got != want {
 				t.Errorf("%s: memo %v: class %v, want %v", c.name, on, got, want)
 			}
 		}

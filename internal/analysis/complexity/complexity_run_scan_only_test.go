@@ -92,9 +92,7 @@ rule sp node[[]node[string]] = ` + sp + "\n"
 // TestScanOnlyRunSitesNegativeControl checks that the run site is what makes the calculator with
 // ws = " "* linear: compiled and classified without run sites, the same grammar is unknown.
 func TestScanOnlyRunSitesNegativeControl(t *testing.T) {
-	corepass.NoRunSites = true
-	t.Cleanup(func() { corepass.NoRunSites = false })
-	c := classifySource(t, calculatorWith(`rule ws = " "*`))
+	c := classifySourceWith(t, calculatorWith(`rule ws = " "*`), corepass.SiteSwitches{NoRunSites: true})
 	if c.Class != ClassUnknown {
 		t.Errorf("class %v without run sites, want unknown", c.Class)
 	}

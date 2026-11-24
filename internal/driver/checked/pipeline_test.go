@@ -29,6 +29,10 @@ import (
 
 var update = flag.Bool("update-pipelines", false, "rewrite the golden pipeline texts")
 
+// testOnlyOptions are the options of the check that only tests set and no header writes: a program
+// without sites, say, cannot be reproduced from the text of its pipeline.
+var testOnlyOptions = map[string]bool{"NoRunSites": true, "NoScanSites": true}
+
 // TestProgramHeaderCoversTheCheckOptions is the reflection test of the options of the check over
 // the options header of a generation and the program header: the program header holds its fields to
 // ProgramLine, and each exported field of check.Options is written by exactly one of the two, and
@@ -49,6 +53,9 @@ func TestProgramHeaderCoversTheCheckOptions(t *testing.T) {
 		written[f.Field] = append(written[f.Field], "program")
 	}
 	for _, f := range reflect.VisibleFields(reflect.TypeFor[check.Options]()) {
+		if testOnlyOptions[f.Name] {
+			continue
+		}
 		if f.IsExported() && len(written[f.Name]) != 1 {
 			t.Errorf("the check option %s is written by %v, want one header", f.Name, written[f.Name])
 		}

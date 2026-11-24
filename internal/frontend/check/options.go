@@ -42,4 +42,8 @@ type Options struct {
 	// reads its variable (checkLeftRecursionBindings), for tests of the runtime's left-recursion
 	// guard, which such a binding reaches with another variable environment.
 	LeftRecursionBindings bool
+	// NoRunSites numbers no run site and no scan site, and NoScanSites no scan site, for tests that
+	// compare parses with and without them. They are not written to the text of a pipeline: a program
+	// without sites is not reproducible from it.
+	NoRunSites, NoScanSites bool
 }

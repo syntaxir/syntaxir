@@ -37,7 +37,7 @@ func (k *classifier) computeScanOnly() {
 }
 
 func (k *classifier) scanOnlyRule(name string) bool {
-	if corepass.NoScanSites || corepass.NoRunSites {
+	if k.siteSwitches.NoScanSites || k.siteSwitches.NoRunSites {
 		return false
 	}
 	body, ok := k.writtenBody(name)

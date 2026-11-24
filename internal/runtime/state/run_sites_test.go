@@ -44,7 +44,7 @@ func runSitesMatchPlainRepetitions(t *testing.T, tune state.Tuning) {
 		if prog.NumRunSites == 0 {
 			t.Errorf("%s: no run sites", g.Name)
 		}
-		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
+		plain := compileWithout(t, g.Src, check.Options{NoRunSites: true})
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rng), codegentest.RunValueInputs[g.Name]...)
 		turns := tune.Stats.RunHotTurns.Load()
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
@@ -75,7 +75,7 @@ func TestRunSitesOfLoadedPrograms(t *testing.T) { statetest.AtHotSpans(t, runSit
 func runSitesOfLoadedPrograms(t *testing.T, tune state.Tuning) {
 	rng := rand.New(rand.NewSource(115))
 	for _, g := range codegentest.RunValueGrammars {
-		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
+		plain := compileWithout(t, g.Src, check.Options{NoRunSites: true})
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rng), codegentest.RunValueInputs[g.Name]...)
 		turns := tune.Stats.RunHotTurns.Load()
 		for _, mode := range []engine.CompiledMode{engine.CompiledParse, engine.CompiledDocument} {
@@ -224,7 +224,7 @@ func TestRunSitesBoundValueControls(t *testing.T) {
 	}
 	for _, c := range cases {
 		prog := enginetest.MustCompile(t, c.Src)
-		plain := compileWithout(t, c.Src, &corepass.NoRunSites)
+		plain := compileWithout(t, c.Src, check.Options{NoRunSites: true})
 		// A loaded program keeps which sites are free of the environment.
 		data, err := prog.Marshal("", engine.CompiledParse)
 		if err != nil {
@@ -373,7 +373,7 @@ func TestRunSitesTurnHotAtTheEngineThreshold(t *testing.T) {
 	for _, g := range append(codegentest.RunSiteGrammars[:2:2], codegentest.RunValueGrammars[0]) {
 		tune := state.Tuning{Stats: new(state.HotStats)}
 		prog := enginetest.MustCompile(t, g.Src)
-		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
+		plain := compileWithout(t, g.Src, check.Options{NoRunSites: true})
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, exp := range []bool{true, false} {
 				o := engine.ParseOptions{Backend: b, Expectations: exp, Tune: tune}
@@ -397,7 +397,7 @@ func TestRunSitesDepthLimit(t *testing.T) {
 	src := "@start\nrule main = (\"(\" b \")!\" / \"(\")+ \"(\"*\nrule b = (\"(\" c \")!\" / \"(\")* $$\nrule c = \"(\" c / \"x\"\n"
 	in := strings.Repeat("(", 300)
 	prog := enginetest.MustCompile(t, src)
-	plain := compileWithout(t, src, &corepass.NoRunSites)
+	plain := compileWithout(t, src, check.Options{NoRunSites: true})
 	tune := state.Tuning{Stats: new(state.HotStats)}
 	turns := tune.Stats.RunHotTurns.Load()
 	for _, depth := range []int{2, 5, 50, 299, 300, 301, 1000} {

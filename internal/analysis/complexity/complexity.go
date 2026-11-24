@@ -188,6 +188,9 @@ func GrowingBindingsCheckedControlled(res *frontend.Result, start string, contro
 type classifierInput struct {
 	structural *frontend.Structural
 	names      desugar.InlineNames
+	// sites are the switches of the site numbering that the classifier reads the compiler's sites
+	// with, which only tests set.
+	sites corepass.SiteSwitches
 }
 
 // checkedInput checks g with the front end and returns what the classifier reads of it. A grammar
@@ -245,6 +248,7 @@ func (in *classifierInput) classifier(start string, control *cancel.Control, bui
 	rf := sourceFacts(&Source{Module: st.Module, Facts: corepass.FactsOf(st.Analyses, st.Module).WithControl(control)}, rules, control)
 	k := build(st.Canonical.Grammar, rf, start, control)
 	k.inlineNames = in.names
+	k.siteSwitches = in.sites
 	return k, nil
 }
 
@@ -371,6 +375,7 @@ type classifier struct {
 	predicateSource map[core.Node]*source
 	repeatedRules   map[string]string
 	numbered        *corepass.Sites // the sites that the compiler numbers (compilerSites)
+	siteSwitches    corepass.SiteSwitches
 	includesMemo    map[sizeKey]bool
 	varBinding      map[string][]varBind // the bindings of each variable (see varBinds)
 	inlineNames     desugar.InlineNames  // the hidden rules of the inline actions of the rules

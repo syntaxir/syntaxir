@@ -53,9 +53,15 @@ import (
 // any character, sequences, choices, options, repetitions and discards, make their other
 // repetitions restartable.
 
-// NoRunSites disables the run sites and the scan sites, and NoScanSites the scan sites, for tests
-// and measurements that compare parses with and without them.
-var NoRunSites, NoScanSites bool
+// SiteSwitches turn site numbering off, for tests and measurements that compare parses with and
+// without sites. They belong to one numbering (ComputeSites), not to the process. The zero value
+// numbers every site.
+type SiteSwitches struct {
+	// NoRunSites disables the run sites and the scan sites.
+	NoRunSites bool
+	// NoScanSites disables the scan sites.
+	NoScanSites bool
+}
 
 // EnvFreeMutation, when not zero, leaves a part out of the test of EnvFree, for the mutation tests
 // of the run-site records.
@@ -123,8 +129,8 @@ func (s *Sites) markEnvFree(site int) {
 
 // ComputeSites numbers the sites of the rules of m, which has no value-free twins; rules[i] is
 // what the numbering reads of rule i. A non-nil control polls for cancellation.
-func ComputeSites(m *core.Module, rules []SiteRule, control *cancel.Control) *Sites {
-	s := &sites{m: m, rules: rules, control: control, calls: make([][]int, len(m.Rules)),
+func ComputeSites(m *core.Module, rules []SiteRule, off SiteSwitches, control *cancel.Control) *Sites {
+	s := &sites{off: off, m: m, rules: rules, control: control, calls: make([][]int, len(m.Rules)),
 		out: &Sites{Skip: map[*core.Repeat]int{}, Run: map[*core.Repeat]int{}, Scan: map[*core.Repeat]int{}, RunKeys: map[int]program.RunKey{}}}
 	for _, r := range m.Rules {
 		control.Poll()
@@ -145,6 +151,7 @@ func ComputeSites(m *core.Module, rules []SiteRule, control *cancel.Control) *Si
 }
 
 type sites struct {
+	off     SiteSwitches
 	m       *core.Module
 	rules   []SiteRule
 	control *cancel.Control
@@ -279,7 +286,7 @@ func IsScan(e *core.Repeat) bool {
 }
 
 func (s *sites) runSites() {
-	if NoRunSites {
+	if s.off.NoRunSites {
 		return
 	}
 	bad := make([]bool, len(s.m.Rules))
@@ -546,7 +553,7 @@ func (s *sites) restartable() map[*core.Repeat]bool {
 
 // scanRules returns the pure scan rules, in order.
 func (s *sites) scanRules() []int {
-	if NoScanSites || NoRunSites {
+	if s.off.NoScanSites || s.off.NoRunSites {
 		return nil
 	}
 	refs := make([]int, len(s.m.Rules))
@@ -578,7 +585,7 @@ func pureScan(n core.Node) bool {
 
 // scanSites numbers the scan sites of the rules that call no rule.
 func (s *sites) scanSites() {
-	if NoScanSites || NoRunSites {
+	if s.off.NoScanSites || s.off.NoRunSites {
 		return
 	}
 	for _, id := range s.order {

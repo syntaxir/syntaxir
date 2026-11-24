@@ -32,7 +32,7 @@ func (k *classifier) compilerSites() *corepass.Sites {
 			rules[i] = corepass.SiteRule{LeftRec: k.an.Cyclic[r.Name], Vars: k.vars[r.Name],
 				Declared: k.facts.declared[r.Name]}
 		}
-		k.numbered = corepass.ComputeSites(m, rules, k.control)
+		k.numbered = corepass.ComputeSites(m, rules, k.siteSwitches, k.control)
 	}
 	return k.numbered
 }

@@ -17,7 +17,7 @@ import (
 // position through calls that it evaluates alike with the unit, which the memo answers. Each level
 // of the nesting then evaluates the scan R at that position again. R is pure or not; either way
 // its repetition is a scan site, whose records answer the levels, so the tests that check the
-// restarts classify them without scan sites (withoutScanSites), as for a scan that is no site.
+// restarts classify them without scan sites (noScanSites), as for a scan that is no site.
 var nestingRestarts = []struct{ name, src string }{
 	// The shared call is the nesting call itself (E3 through t).
 	{"call itself", "rule main = e\nrule e = \"(\" (e R \"x\" / e) / \".\"\nrule R = [ ]*\n"},
@@ -92,7 +92,7 @@ var nestingHooks = []struct {
 // reject the grammars whose units restart a nesting, under each setting of the analyses, and
 // keeps the linear grammars of the same shapes linear. It classifies them without scan sites.
 func TestNestingRestarts(t *testing.T) {
-	withoutScanSites(t)
+
 	calc, err := os.ReadFile("../../../examples/calculator/calc_lr.sxir")
 	if err != nil {
 		t.Fatal(err)
@@ -109,7 +109,7 @@ func TestNestingRestarts(t *testing.T) {
 				if h.hooks.Memo && !strings.Contains(tc.src, "&\"\"") {
 					continue
 				}
-				if c := classifySource(t, "@start\n"+tc.src); c.Class == ClassLinear {
+				if c := classifySourceWith(t, "@start\n"+tc.src, noScanSites); c.Class == ClassLinear {
 					t.Errorf("%s: class linear, want a restart of the nesting found", tc.name)
 				}
 			}
@@ -118,7 +118,7 @@ func TestNestingRestarts(t *testing.T) {
 				if !strings.Contains(src, "@start") {
 					src = "@start\n" + src
 				}
-				if c := classifySource(t, src); c.Class != ClassLinear {
+				if c := classifySourceWith(t, src, noScanSites); c.Class != ClassLinear {
 					t.Errorf("%s: class %v, want linear: %v %v", tc.name, c.Class, c.Reasons, c.Causes)
 				}
 			}
@@ -204,7 +204,7 @@ var nestingGrowths = []struct{ name, src string }{
 // the nested call, or that scan nothing after a seed, linear. It classifies them without scan
 // sites.
 func TestNestingGrowths(t *testing.T) {
-	withoutScanSites(t)
+
 	for _, h := range nestingHooks {
 		t.Run(h.name, func(t *testing.T) {
 			defer h.hooks.Set()()
@@ -213,7 +213,7 @@ func TestNestingGrowths(t *testing.T) {
 				if h.hooks.Memo && !strings.Contains(tc.src, "&\"\"") {
 					continue
 				}
-				if c := classifySource(t, "@start\n"+tc.src); c.Class == ClassLinear {
+				if c := classifySourceWith(t, "@start\n"+tc.src, noScanSites); c.Class == ClassLinear {
 					t.Errorf("%s: class linear, want the growths after the nesting found", tc.name)
 				}
 			}
@@ -225,7 +225,7 @@ func TestNestingGrowths(t *testing.T) {
 				// growth of x scans R again only once.
 				{"nesting in another cycle", "rule main = n \";\" x\nrule n = n \"-\" / \"(\" n / \".\"\nrule x = x R \"+\" t / t\nrule t = \"y\" R \"!\" / \"y\"\nrule R = &\"\" [ ]*\n"},
 			} {
-				if c := classifySource(t, "@start\n"+tc.src); c.Class != ClassLinear {
+				if c := classifySourceWith(t, "@start\n"+tc.src, noScanSites); c.Class != ClassLinear {
 					t.Errorf("%s: class %v, want linear: %v %v", tc.name, c.Class, c.Reasons, c.Causes)
 				}
 			}
@@ -233,12 +233,9 @@ func TestNestingGrowths(t *testing.T) {
 	}
 }
 
-// withoutScanSites makes the test compile and classify without scan sites, as if the repetitions
-// of its grammars were scanning sources that no record answers.
-func withoutScanSites(t *testing.T) {
-	corepass.NoScanSites = true
-	t.Cleanup(func() { corepass.NoScanSites = false })
-}
+// noScanSites makes a classification number the sites of the compiler without scan sites, as if the
+// repetitions of its grammars were scanning sources that no record answers.
+var noScanSites = corepass.SiteSwitches{NoScanSites: true}
 
 // scanOnlyNestingRejected are the grammars of nestingRestarts and nestingGrowths that stay rejected
 // with scan sites, for a reason other than the evaluations of R again at one position: a
@@ -333,10 +330,10 @@ func TestRestartRuleAtGrowthStart(t *testing.T) {
 // calls R at its end. What follows the call of M in C consumes input, so the caller C adds
 // nothing.
 func TestRestartAheadAtGrowthStart(t *testing.T) {
-	withoutScanSites(t)
+
 	src := "@start\nrule main = C $$\nrule C = \"[\" M \"]\"\nrule M = R C2\nrule R = R C2 W \"x\" / M U / \".\"\n" +
 		"rule C2 = \"(\" R\nrule U = \"!\"?\nrule W = [ ]*\n"
-	c := classifySource(t, src)
+	c := classifySourceWith(t, src, noScanSites)
 	if c.Class != ClassUnknown {
 		t.Fatalf("class %v, want unknown: %v", c.Class, c.Reasons)
 	}
