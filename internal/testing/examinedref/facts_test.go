@@ -49,6 +49,21 @@ func TestLeaders(t *testing.T) {
 			src:  "rule a = b \"x\" / \"y\"\nrule b = c \"u\" / a \"z\" / \"w\"\nrule c = b \"v\" / \"t\"",
 			want: []string{"a", "b"},
 		},
+		{
+			name: "after an operand that can match nothing, the postfix calls of an Operators Rule are left calls",
+			src:  "rule e = #operators {\n    operand \"\"\n    level a { postfix x }\n}\nrule x = e \"+\"",
+			want: []string{"e"},
+		},
+		{
+			name: "after an operand that can match nothing, the infix calls of an Operators Rule are left calls",
+			src:  "rule e = #operators {\n    operand \"n\" / \"\"\n    level { infix left y }\n}\nrule y = e \"*\"",
+			want: []string{"e"},
+		},
+		{
+			name: "after an operand that consumes, the postfix calls of an Operators Rule are no left calls",
+			src:  "rule e = #operators {\n    operand \"n\"\n    level a { postfix x }\n}\nrule x = e \"+\"",
+			want: nil,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

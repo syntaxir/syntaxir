@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
@@ -14,7 +15,8 @@ import (
 // left recursion does. Without that clause each parse recursed without end, whatever the input. Every
 // backend returns the pinned result, in both units, with the same compute units; the parses with
 // insertion find the cycle through an operand that only an insertion makes empty, and return a tree
-// with the errors of their insertions.
+// with the errors of their insertions. The reference build counts no units, so there the results are
+// compared.
 func TestOperatorsNullableOperandLeftCalls(t *testing.T) {
 	t.Parallel()
 	for _, c := range []struct {
@@ -46,7 +48,11 @@ func TestOperatorsNullableOperandLeftCalls(t *testing.T) {
 				for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
 					for _, unit := range []sxirinput.PositionUnit{sxirinput.CodePoints, sxirinput.Bytes} {
 						var units uint64
-						n, err := p.ParseWith("main", input, ParseOptions{Backend: backend, Unit: unit, MissingTokens: c.missing, ComputeReport: &units})
+						o := ParseOptions{Backend: backend, Unit: unit, MissingTokens: c.missing}
+						if state.BudgetControlsEnabled {
+							o.ComputeReport = &units
+						}
+						n, err := p.ParseWith("main", input, o)
 						got := codegentest.ResultJSON(n, err)
 						at := fmt.Sprintf("%q on %s in %s", input, backend, unit)
 						if first == "" {

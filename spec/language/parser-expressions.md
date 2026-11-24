@@ -502,7 +502,10 @@ are tried after an operand. When an `operand` item can match the empty string,
 they may run where the rule started, so their calls count as calls before
 consuming input. If the Operators Rule of `e` has the operand `""` and the
 postfix part `x`, and `rule x = e "+"`, then `e` and `x` form a left-recursion
-cycle, and `e` parses `++` as two postfix applications.
+cycle. On `++`, `e` applies `x` once: the `e` that `x` calls at the start of the
+input grows over the first `+` as an application of `x` of its own, and `x` then
+matches the second `+`. The applications nest through `x` rather than chain at
+one level of `e`.
 
 A [`#missing`](pragmas.md#missing) literal consumes no input when it is
 inserted, so with token insertion enabled the calls after it may also run
