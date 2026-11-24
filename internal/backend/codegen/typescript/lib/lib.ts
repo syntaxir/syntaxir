@@ -3112,6 +3112,10 @@ export class Parser {
   scanRec: ScanRecord | null = null;
 
   readonly control: BudgetControl | null;
+  // memControl is the control when it sets a finite memory limit, and null otherwise: the memory counters
+  // (BudgetControl.mem, values, errs, memoHeld) are kept only then, since nothing reads them without a limit.
+  // The limit is fixed when the control is made, so a parse counts either all of its storage or none.
+  readonly memControl: BudgetControl | null;
 
   // units counts the logical compute units of the parse (spec/runtime/parsing.md, Compute Units): the
   // call protocol adds the calls of rules, their keys, the steps of growths and the entries of
@@ -3156,15 +3160,16 @@ export class Parser {
     if (failed) this.units++;
     c.end(this.units);
   }
-  // alloc counts n bytes of storage taken into use for the memory limit; only a controlled parse counts.
-  alloc(n: number): void { const c = this.control; if (c !== null) c.mem += n; }
+  // alloc counts n bytes of storage taken into use for the memory limit; only a parse with a finite memory
+  // limit counts (memControl), so that the default, which leaves memory unlimited, pays for no addition.
+  alloc(n: number): void { const c = this.memControl; if (c !== null) c.mem += n; }
   // values counts the bytes of the values counted since a stream last released them (allocValue).
   values = 0;
   // allocValue is alloc for the storage of a value: a node, a list, copied text, a variable
   // environment or a capture frame. A stream returns it once no memo entry or skip record can
   // reference the element it was built for (StreamParser.streamRelease and memoPrune); the memory
   // count of a stream bounds its window.
-  allocValue(n: number): void { const c = this.control; if (c !== null) { c.mem += n; this.values += n; } }
+  allocValue(n: number): void { const c = this.memControl; if (c !== null) { c.mem += n; this.values += n; } }
   // chargeHeld is alloc for the storage that memo entries, skip records and the record of recovered
   // errors share: a list of recovered errors or the key of a memo entry. A stream recounts it at a
   // memo prune (StreamParser.recountMemoHeld).
@@ -3188,7 +3193,7 @@ export class Parser {
   retyped(v: Node, typ: string): Node { const n = retypeNode(v, typ); this.allocRetyped(v, n); return n; }
   // allocRetyped counts n when it is a copy that retypeNode made of the node v.
   allocRetyped(v: Value, n: Value): void {
-    if (this.control !== null && n instanceof Node && n !== v && v instanceof Node) {
+    if (this.memControl !== null && n instanceof Node && n !== v && v instanceof Node) {
       this.allocValue(nodeBytes + 8 + (v.fresh ? arrayBytes(v.children.length) : 0) + arrayBytes(v.fields.length));
     }
   }
@@ -3197,6 +3202,7 @@ export class Parser {
     this.g = g;
     this.sourceInfo = g.sourceInfo;
     this.control = control;
+    this.memControl = control !== null && control.memoryLimited() ? control : null;
     if (control !== null) {
       control.held = () => this.heldBytes();
       control.counted = () => this.units;
@@ -3508,7 +3514,7 @@ export class Parser {
       // One slot per position, allocated at once: writes far beyond the end of an array would
       // make it a slow dictionary. Filling them counts no units: the memo is no event of the parse.
       const slots: (MemoEntry | null)[] = new Array(this.memoSlotCount()).fill(null);
-      if (this.control !== null) {
+      if (this.memControl !== null) {
         this.alloc(arrayBytes(slots.length));
       }
       this.slots = slots;
@@ -6557,7 +6563,7 @@ export class StreamParser extends Parser {
     }
     const entries = this.memoEntries;
     const kept = super.memoPut(rule, pos, min, env, e, docOnly);
-    if (this.memoEntries === entries && this.control !== null) this.control.mem -= entryBytes;
+    if (this.memoEntries === entries && this.memControl !== null) this.memControl.mem -= entryBytes;
     return kept;
   }
 
@@ -6573,7 +6579,7 @@ export class StreamParser extends Parser {
     }
     this.memoEntries -= entries;
     // The count returns the entries and the slots the prune releases (spec/runtime/streaming.md, Memory).
-    const c = this.control;
+    const c = this.memControl;
     if (c !== null && drop > 0) c.mem -= entries * entryBytes + arrayBytes(slots.length) - arrayBytes(slots.length - drop);
     slots.copyWithin(0, drop);
     slots.length -= drop;
@@ -6669,7 +6675,7 @@ export class StreamParser extends Parser {
 
   // chargeHeld counts n bytes in memoHeld as well, which a memo prune recounts.
   override chargeHeld(n: number): void {
-    const c = this.control;
+    const c = this.memControl;
     if (c === null) return;
     c.mem += n;
     this.memoHeld += n;
@@ -6678,7 +6684,7 @@ export class StreamParser extends Parser {
   // makeError counts the error in errs as well, which a settling moves to memoHeld.
   override makeError(pos: number, expected: number[], bare = false): SyntaxError {
     const e = super.makeError(pos, expected, bare);
-    if (this.control !== null) this.errs += syntaxErrorBytes(e);
+    if (this.memControl !== null) this.errs += syntaxErrorBytes(e);
     return e;
   }
 
@@ -6737,7 +6743,7 @@ export class StreamParser extends Parser {
       const dropped = tail.add(e);
       // The tail counts the errors it retains: memo entries may still hold the error, which their
       // count keeps (memoHeld), and the tail returns only its own count of one it no longer retains.
-      const c = this.control;
+      const c = this.memControl;
       if (c !== null) c.mem += syntaxErrorBytes(e) - (dropped === null ? 0 : syntaxErrorBytes(dropped));
     }
     this.control?.check();
@@ -6816,7 +6822,7 @@ export class StreamParser extends Parser {
         }
       }
     }
-    const c = this.control;
+    const c = this.memControl;
     if (c !== null) c.mem -= freed;
     this.observation?.discard(pos);
   }

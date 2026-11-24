@@ -237,7 +237,7 @@ func TestStreamMemoryWindowMutants(t *testing.T) {
 		// The memo's slots cover the window, not the stream from its start.
 		{"memo slots", "return this.n + 1 + this.gapLen;", "return this.n + 1;"},
 		// A store that replaces an entry holds one entry for its key.
-		{"memo replace", "if (this.memoEntries === entries && this.control !== null) this.control.mem -= entryBytes;", ""},
+		{"memo replace", "if (this.memoEntries === entries && this.memControl !== null) this.memControl.mem -= entryBytes;", ""},
 		// An error that the diagnostic tail drops is no longer held by it.
 		{"tail", " - (dropped === null ? 0 : syntaxErrorBytes(dropped))", ""},
 		// A commit returns the skip marks and records before it.

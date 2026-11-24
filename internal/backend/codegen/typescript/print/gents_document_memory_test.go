@@ -68,6 +68,10 @@ const check = (what: string, d: p.Document): void => {
   if (d.parse().error !== null) fail("the first parse fails");
   if ((d as unknown as { memo: Memo }).memo.runs === null) fail("the parse recorded no run");
   check("after the first parse", d);
+  // A parse counts the storage it takes into use, not only the peak of its working stacks: the least
+  // limit of a first parse is at least what the parse stored in the Document, which the count of a
+  // parse that counted nothing but its stacks would fall below.
+  if (first < kept(d)) fail("a first parse counts " + first + " bytes, below the " + kept(d) + " it stored");
   if (d.edit(4, 8, "x=99;") !== null) fail("edit");
   check("after an edit", d);
   d.parse();
