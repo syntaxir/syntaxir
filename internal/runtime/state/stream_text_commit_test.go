@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
@@ -31,6 +32,7 @@ func (r *streamChunkReader) Read(b []byte) (int, error) {
 // TestStreamTextCutAtCommit checks that a text in a stream is cut at the last commit point: the
 // outcome, the elements and the compute units of each input are the same for every chunking of the
 // reader on every backend, and the predicates of the grammar hold where the cut texts say they do.
+// The reference build counts no units, so there the outcome and the elements are compared.
 func TestStreamTextCutAtCommit(t *testing.T) {
 	t.Parallel()
 	prog := enginetest.MustCompile(t, codegentest.StreamTextCommitGrammar)
@@ -40,11 +42,15 @@ func TestStreamTextCutAtCommit(t *testing.T) {
 			for _, b := range append([]Backend{Closure}, vmBackends...) {
 				for _, size := range codegentest.StreamTextCommitChunks {
 					var units uint64
+					o := ParseOptions{Backend: b, Unit: unit, Expectations: true}
+					if state.BudgetControlsEnabled {
+						o.ComputeReport = &units
+					}
 					n := 0
 					err := prog.ParseStreamWith("main", &streamChunkReader{s: in, size: size}, func(*value.Node) error {
 						n++
 						return nil
-					}, ParseOptions{Backend: b, Unit: unit, Expectations: true, ComputeReport: &units})
+					}, o)
 					got := fmt.Sprintf("%d elements, units %d, error %v", n, units, err)
 					if first == "" {
 						first = got
@@ -66,6 +72,9 @@ func TestStreamTextCutAtCommit(t *testing.T) {
 // operand). Once an element was delivered the text is empty and both are 0; when none was it is the
 // whole head, 3 code points or 4 bytes, compared in 4 bytes; on every backend and chunking.
 func TestStreamTextUnits(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("the reference build counts no compute units")
+	}
 	t.Parallel()
 	texts := enginetest.MustCompile(t, `@start
 rule main = h:head item* #stream ("!" {text($h) == ""} / "?" {text($h) == "hé>"})
