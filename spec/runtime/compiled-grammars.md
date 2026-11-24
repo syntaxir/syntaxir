@@ -43,9 +43,11 @@ parser inserts them as the parser it was saved from does.
 - The start rule is saved with the module. `sxir parse`, `sxir compile` and the
   debugging commands use the saved start rule when `-s` is not given, and `-s`
   overrides it with another start rule of the grammar.
-- The same parser always produces the same bytes for a mode. A parser that was
-  loaded and saved again produces the bytes it was loaded from (see
-  [Re-saving](#re-saving)).
+- The encoding is canonical ([Canonical Encoding](../bytecode/README.md#canonical-encoding)):
+  the same parser always produces the same bytes for a mode, in every run and
+  process, and a parser that was loaded and saved again produces the bytes it
+  was loaded from (see [Re-saving](#re-saving)). A file that the compiler would
+  not write for what it decodes to does not load.
 - `vm.IsCompiled` distinguishes a compiled grammar from other data by its magic
   number.
 - A loaded parser is an ordinary `runtime.Parser`: it is safe for concurrent use,
@@ -119,7 +121,11 @@ Loading checks the magic number, the format version, a CRC-32 checksum, the mode
 the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
 rule of the module, a grammar with `#missing` has its insertion module, which
-inserts exactly where the module does, and no bytes trail the module). It also rejects a recovery
+inserts exactly where the module does, and no bytes trail the module), and that
+the file is in the canonical encoding: an integer longer than its shortest
+encoding, a string table with a string twice, or any other byte the compiler
+would not write for what the file decodes to fails with `invalid compiled
+grammar`. It also rejects a recovery
 region that encloses a streaming commitment, including files that were made with
 `#recover` on the `#stream` repetition, and a body with a cycle that passes
 through no step that requires progress and reuses no element of a run it leaves
