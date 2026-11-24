@@ -57,6 +57,10 @@ func RepresentativeIndex(cases []Case) []int {
 var alwaysRepresentative = map[string]bool{
 	// A generated parser that nests without end on it crashes instead of failing one case.
 	"empty operand and right infix": true,
+	// A generated parser recursed without end on these unless the infix and postfix parts after an
+	// empty operand are left calls.
+	"a postfix part calling its rule after an empty operand": true,
+	"an infix part calling its rule after an empty operand":  true,
 }
 
 func caseFamily(name string) string {

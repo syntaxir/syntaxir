@@ -30,6 +30,9 @@ func TestLeftRecursionBindingErrors(t *testing.T) {
 			`3:19: rule r binds variable k before its left-recursive call of r; the left recursion reads k`},
 		{"block", "var k int\nvar j int\nrule main = R $$\nrule R = {j := 1; k := 2} R \"x\" / \"x\" {k == 0}",
 			`4:19: rule R binds variable k before its left-recursive call of R; the left recursion reads k`},
+		// The postfix part of e runs where e started after the empty operand, which bound k.
+		{"operand before a postfix call", "var k int\nrule main = e $$\nrule e = #operators {\n    operand {k := 1}\n    level { postfix x }\n}\nrule x = e \"+\" {k == 1}",
+			`4:14: rule e binds variable k before its left-recursive call of x; the left recursion reads k`},
 		// R is left-recursive only when "(" can be inserted; a grammar must be valid whether or not
 		// insertion is enabled.
 		{"cycle through an insertion", "var k int\nrule main = R $$\nrule R = {k := 1} \"(\" #missing R \"x\" / \"x\" {k == 1}",

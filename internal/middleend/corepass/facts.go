@@ -362,7 +362,8 @@ func (c *computer) succeeding(cyclic []bool) {
 // if ins); a choice, past an alternative only if it can fail; a
 // recovery's skip runs only if its body can fail; a repetition of at most zero iterations calls
 // nothing. An Operators Rule may call its skip line, its operands up to one that always succeeds and
-// its prefix operators.
+// its prefix operators, and, when some operand is nullable (NullableIns if ins), its infix and postfix
+// operators: an operand that matched empty leaves them to be tried where the rule started.
 func (c *computer) leftCalls(n core.Node, acc []int, ins bool) []int {
 	c.control.Poll()
 	switch n := n.(type) {
@@ -402,8 +403,9 @@ func (c *computer) leftCalls(n core.Node, acc []int, ins bool) []int {
 				break
 			}
 		}
+		nullOperand := slices.ContainsFunc(n.Operands, func(l *core.OpLine) bool { return c.nullable(l.Body, ins) })
 		for _, op := range n.Ops {
-			if op.Kind == "prefix" {
+			if op.Kind == "prefix" || nullOperand {
 				acc = c.leftCalls(op.Line.Body, acc, ins)
 			}
 		}

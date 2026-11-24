@@ -497,6 +497,13 @@ refining the proofs continues until the call graph stabilizes. Unknown paths
 remain in the graph, so removing an alternative whose unreachability is not
 proven by this analysis can still change how an indirect cycle is entered.
 
+In an [Operators Rule](operators-rule.md), the infix and postfix operator parts
+are tried after an operand. When an `operand` item can match the empty string,
+they may run where the rule started, so their calls count as calls before
+consuming input. If the Operators Rule of `e` has the operand `""` and the
+postfix part `x`, and `rule x = e "+"`, then `e` and `x` form a left-recursion
+cycle, and `e` parses `++` as two postfix applications.
+
 A [`#missing`](pragmas.md#missing) literal consumes no input when it is
 inserted, so with token insertion enabled the calls after it may also run
 before consuming input. The analysis is made twice, without and with

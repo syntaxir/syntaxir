@@ -26,6 +26,7 @@ func InsertionCorpus() []Case {
 	ops := func(operand, level string) string {
 		return "rule main = e $$\nrule e = #operators {\n    operand " + operand + "\n    level { " + level + " }\n}"
 	}
+	out = append(out, NullableOperandInsertionCases()...)
 	return append(out,
 		Case{Name: "a literal after a multibyte character", Src: `rule main = "é" ";" #missing $$`, Inputs: []string{"é", "é;", "é;;", "", "\xc3"}},
 		Case{Name: "a partial literal", Src: `rule main = "ab" #missing "a" $$`, Inputs: []string{"a", "aba", "ab", ""}},

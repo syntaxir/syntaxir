@@ -16,12 +16,14 @@ corpus/0/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
 corpus/0/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/0/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/0/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
+corpus/0/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
 corpus/0/action environments	807b3bca961f2fd1768286bc
 corpus/0/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/0/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/0/alias terminal	4103c6040af4ed997227c531
 corpus/0/alias terminal action	a113f64f58d8cb9b76e68a86
 corpus/0/alias terminals in structs	828a0e78348a14dc444e966c
+corpus/0/an infix part calling its rule after an empty operand	c02786b5b32abd325ca9c1e3
 corpus/0/anchors and classes	a3be26cb2f0769908a2ba31e
 corpus/0/any-character lookahead	4189f236dd2535ba25ad2910
 corpus/0/arith	dae66e73cb8a0d9b80355684
@@ -380,12 +382,14 @@ corpus/1/OperatorsRule prefix-part cuts	e7bd490131b152c5216e128b
 corpus/1/a cast binding in an Operators Rule operand	ad4956901b53fee1a2aeeabb
 corpus/1/a failed action leaves nothing it gathered	0caba926c288d08700be3629
 corpus/1/a failed cast in a binding backtracks	c9e2343770075abd45b1339b
+corpus/1/a postfix part calling its rule after an empty operand	fcf95c58149e84e9014dfb45
 corpus/1/action environments	32156264d873b7d99e1731ec
 corpus/1/alias constructors	6a24c16ab7e7fa56afe12caa
 corpus/1/alias singleton unions	307f05f95f60a451bf71e74a
 corpus/1/alias terminal	4103c6040af4ed997227c531
 corpus/1/alias terminal action	a113f64f58d8cb9b76e68a86
 corpus/1/alias terminals in structs	828a0e78348a14dc444e966c
+corpus/1/an infix part calling its rule after an empty operand	c02786b5b32abd325ca9c1e3
 corpus/1/anchors and classes	a3be26cb2f0769908a2ba31e
 corpus/1/any-character lookahead	4189f236dd2535ba25ad2910
 corpus/1/arith	dae66e73cb8a0d9b80355684

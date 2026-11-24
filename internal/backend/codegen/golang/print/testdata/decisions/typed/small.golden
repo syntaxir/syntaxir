@@ -236,6 +236,9 @@ guard	0	2	0	0	0	""	0
 guard	0	7	1	0	0	"\"s\""	33
 guard	1	1	1	0	0	"\"i\""	21
 guard	1	2	1	0	0	"\"s\""	33
+grammar	lean,lean observable,logical,controlled document,lean boxed	"a postfix part calling its rule after an empty operand"
+scope	1	1	
+scope	1	2	
 grammar	lean,lean observable,logical,controlled document,lean boxed	"action environments"
 guard	1	3	0	0	0	""	0
 guard	1	6	0	0	0	""	0
@@ -263,6 +266,12 @@ grammar	lean,lean observable,logical,controlled document,lean boxed	"alias singl
 grammar	lean,lean observable,logical,controlled document,lean boxed	"alias terminal"
 grammar	lean,lean observable,logical,controlled document,lean boxed	"alias terminal action"
 grammar	lean,lean observable,logical,controlled document,lean boxed	"alias terminals in structs"
+grammar	lean,lean observable,logical,controlled document,lean boxed	"an infix part calling its rule after an empty operand"
+guard	1	2	1	0	0	"\"n\""	26
+guard	1	3	0	0	0	""	0
+scope	1	1	
+scope	1	4	
+scope	1	5	
 grammar	lean,lean observable,logical,controlled document,lean boxed	"anchors and classes"
 scan	0	5
 grammar	lean,lean observable,logical,controlled document,lean boxed	"arith"

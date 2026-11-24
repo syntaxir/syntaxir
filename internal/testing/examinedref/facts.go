@@ -201,15 +201,21 @@ func (a *analysis) leftCalls(e ast.Expr) []string {
 		if e.Skip != nil {
 			out = append(out, a.leftCalls(e.Skip)...)
 		}
+		nullOperand := false
+		for _, o := range e.Operands {
+			nullOperand = nullOperand || a.nullableExpr(o.Expr)
+		}
 		for _, o := range e.Operands {
 			out = append(out, a.leftCalls(o.Expr)...)
 			if a.alwaysSucc(o.Expr) {
 				break
 			}
 		}
+		// An operand that matched nothing leaves the infix and postfix parts to be tried where the
+		// rule started.
 		for _, l := range e.Levels {
 			for _, op := range l.Operators {
-				if op.Kind == ast.Prefix {
+				if op.Kind == ast.Prefix || nullOperand {
 					out = append(out, a.leftCalls(op.Expr)...)
 				}
 			}

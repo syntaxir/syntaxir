@@ -66,3 +66,39 @@ rule e Expr = #operators {
         postfix "!" => Postfix{X: $lhs, Op: $op}
     }
 }`
+
+// NullableOperandCases returns Operators Rules whose operand can match nothing, with a rule that an operator
+// part calls and that calls the Operators Rule again: the infix and postfix parts are tried where the rule
+// started, so the rule they call is on a left-recursion cycle with it (Rule Facts in spec/core-ir/attributes.md),
+// by a postfix part and by an infix part.
+func NullableOperandCases() []Case {
+	return []Case{
+		{"a postfix part calling its rule after an empty operand", `rule main = e $$
+rule e = #operators {
+    operand ""
+    level a { postfix x }
+}
+rule x = e "+"`, []string{"+", "++", "+++", "", "x", "+x"}},
+		{"an infix part calling its rule after an empty operand", `rule main = e $$
+rule e = #operators {
+    operand "n" / ""
+    level { infix left y }
+    level { postfix "!" }
+}
+rule y = e "*"`, []string{"*n", "**", "*", "n!", "*n!", "n*n", "n", ""}},
+	}
+}
+
+// NullableOperandInsertionCases returns an Operators Rule whose operand only an insertion makes empty: its
+// postfix part calls the rule where it started in the parses with insertion alone, which find the cycle in
+// their own left calls.
+func NullableOperandInsertionCases() []Case {
+	return []Case{
+		{"a postfix part calling its rule after an inserted operand", `rule main = e $$
+rule e = #operators {
+    operand "a" #missing
+    level { postfix x }
+}
+rule x = e "+"`, []string{"+", "a+", "++", "", "a", "+a"}},
+	}
+}

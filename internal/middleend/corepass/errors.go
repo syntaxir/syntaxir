@@ -167,9 +167,16 @@ func (f *Facts) leftBindings(n core.Node, in []*core.BindNode, ins bool, visit f
 				break
 			}
 		}
+		// The infix and postfix parts are left calls only after an operand that matched nothing,
+		// which may have bound; a prefix part that applied consumed input.
+		afterOperand := out
+		nullOperand := slices.ContainsFunc(n.Operands, func(l *core.OpLine) bool { return nullable(l.Body) })
 		for _, op := range n.Ops {
-			if op.Kind == "prefix" {
+			switch {
+			case op.Kind == "prefix":
 				out = unionBinds(out, f.leftBindings(op.Line.Body, in, ins, visit))
+			case nullOperand:
+				out = unionBinds(out, f.leftBindings(op.Line.Body, afterOperand, ins, visit))
 			}
 		}
 		in = out
