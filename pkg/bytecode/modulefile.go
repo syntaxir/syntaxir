@@ -407,15 +407,10 @@ func (w *Encoder) actionExpr(t *Action) {
 
 // int32 reads an instruction operand.
 func (r *Decoder) int32() int32 {
-	if r.Err != nil {
+	n, ok := r.varint()
+	if !ok {
 		return 0
 	}
-	n, k := binary.Varint(r.Data[r.Pos:])
-	if k <= 0 {
-		r.Fail("invalid integer")
-		return 0
-	}
-	r.Pos += k
 	if n < -1<<31 || n >= 1<<31 {
 		r.Fail("integer %d out of range", n)
 		return 0
@@ -672,15 +667,7 @@ func (r *Decoder) flowImm(k FlowImm) any {
 
 // int64 reads a signed integer of 64 bits.
 func (r *Decoder) int64() int64 {
-	if r.Err != nil {
-		return 0
-	}
-	n, k := binary.Varint(r.Data[r.Pos:])
-	if k <= 0 {
-		r.Fail("invalid integer")
-		return 0
-	}
-	r.Pos += k
+	n, _ := r.varint()
 	return n
 }
 
