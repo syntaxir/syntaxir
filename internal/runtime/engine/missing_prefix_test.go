@@ -6,6 +6,7 @@ import (
 	"testing"
 	"unicode/utf8"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -27,7 +28,7 @@ func unitName(u sxirinput.PositionUnit) string {
 // whole-input parse returns, with the same compute units: the same tree and errors, the whole input
 // consumed when the rule matches, and the zero result with the error when it fails or exhausts the
 // limit. The corpus must reach the limit somewhere, so that the zero result of an exhausted limit is
-// checked.
+// checked. The reference build counts no units, so there the results are compared.
 func TestPrefixInsertionMatchesParse(t *testing.T) {
 	t.Parallel()
 	exhausted := 0
@@ -40,9 +41,13 @@ func TestPrefixInsertionMatchesParse(t *testing.T) {
 						for _, in := range c.Inputs {
 							var parseUnits, prefixUnits uint64
 							o := ParseOptions{Backend: b, Unit: u, Expectations: true, MissingTokens: limit, Recognize: recognize}
-							o.ComputeReport = &parseUnits
+							if state.BudgetControlsEnabled {
+								o.ComputeReport = &parseUnits
+							}
 							n, perr := prog.ParseWith("main", in, o)
-							o.ComputeReport = &prefixUnits
+							if state.BudgetControlsEnabled {
+								o.ComputeReport = &prefixUnits
+							}
 							r, err := prog.ParsePrefixWith("main", in, o)
 							where := fmt.Sprintf("%s %s: %s, limit %d, recognize %v, %q", b, unitName(u), c.Name, limit, recognize, in)
 							if got, want := codegentest.ResultJSON(r.Node, err), codegentest.ResultJSON(n, perr); got != want {
