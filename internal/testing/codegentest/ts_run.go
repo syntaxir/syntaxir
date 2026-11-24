@@ -317,51 +317,31 @@ func TSParsersInsertionMismatches(t *testing.T, node string, cases []Case, opts 
 	return tsParsersMismatches(t, node, cases, opts, mutate, units, missing)
 }
 
-// TSCBatchFiles is the number of files that RunTSC checks in one tsc run. One tsc program over a
-// whole corpus needs more heap than Node's default limit (the run dies with "JavaScript heap out
-// of memory"), while each file is checked the same in a batch: the files are modules, and tsc
-// follows the imports a batch cuts across.
-const TSCBatchFiles = 100
-
-// RunTSC runs tsc with flags over files in dir, TSCBatchFiles at a time, and fails t for each
-// batch whose tsc run fails. Every batch runs, so one failure does not hide the others.
-func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
-	t.Helper()
-	for start := 0; start < len(files); start += TSCBatchFiles {
-		batch := files[start:min(start+TSCBatchFiles, len(files))]
-		cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("tsc (files %d-%d of %d): %v\n%s", start, start+len(batch)-1, len(files), err, out)
-		}
-	}
-}
-
-// tsShardMin is the number of cases that a shard of tsParsersMismatches holds at least, and tsShardMax
-// the number of shards at most: a shard pays for its own tsc and node processes, and the shards run
-// together on the cores of the machine.
+// shardMin is the number of items that a shard of Shards holds at least, and shardMax the number of
+// shards at most: a shard pays for its own tsc and node processes, and the shards run together on
+// the cores of the machine.
 const (
-	tsShardMin = 12
-	tsShardMax = 4
+	shardMin = 12
+	shardMax = 4
 )
 
-// tsParsersMismatches runs the cases in shards, each in a directory of its own with its own tsc and node
-// processes, as parallel subtests: the cases are independent, the order of the mismatches is that of
-// the cases, and what a shard reports (a failure of tsc or node, a mismatch) is what a run of all the
-// cases would report for its cases.
-func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
+// Shards runs run over contiguous parts of items as parallel subtests, each part with its own tsc and
+// node processes: the items are independent, the order of what run returns is that of the items, and
+// what a part reports (a failure of tsc or node, a mismatch) is what a run over all the items would
+// report for its items. Few items run as one part, in t.
+func Shards[T any](t *testing.T, items []T, run func(t *testing.T, part []T) []string) []string {
 	t.Helper()
-	n := min(tsShardMax, len(cases)/tsShardMin)
+	n := min(shardMax, len(items)/shardMin)
 	if n < 2 {
-		return tsParsersShard(t, node, cases, opts, mutate, units, missing)
+		return run(t, items)
 	}
 	per := make([][]string, n)
-	t.Run("ts shards", func(t *testing.T) {
+	t.Run("shards", func(t *testing.T) {
 		for i := range n {
-			part := cases[i*len(cases)/n : (i+1)*len(cases)/n]
+			part := items[i*len(items)/n : (i+1)*len(items)/n]
 			t.Run(fmt.Sprintf("shard %d", i), func(t *testing.T) {
 				t.Parallel()
-				per[i] = tsParsersShard(t, node, part, opts, mutate, units, missing)
+				per[i] = run(t, part)
 			})
 		}
 	})
@@ -370,6 +350,14 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		all = append(all, m...)
 	}
 	return all
+}
+
+// tsParsersMismatches runs the cases in shards (Shards), each in a directory of its own.
+func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
+	t.Helper()
+	return Shards(t, cases, func(t *testing.T, part []Case) []string {
+		return tsParsersShard(t, node, part, opts, mutate, units, missing)
+	})
 }
 
 func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
@@ -470,15 +458,19 @@ func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOpti
 		tsc := tooltest.RequireTSC(t)
 		// The strictest checks there are, so that the code compiles in any project; ES2020 is the
 		// oldest target it supports (bigint).
-		flags := []string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
+		args := append([]string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
 			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
 			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
-			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}
+			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}, files...)
 		if opts.Types {
 			// The generated files import each other by their names (./lib.ts).
-			flags = append(flags, "--allowImportingTsExtensions")
+			args = append(args, "--allowImportingTsExtensions")
 		}
-		RunTSC(t, tsc, dir, flags, files)
+		cmd := exec.Command(tsc, args...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("tsc: %v\n%s", err, out)
+		}
 	}
 
 	args := []string{"harness.mjs", "inputs.json", "out.jsonl"}
@@ -707,4 +699,24 @@ func PatchTSLib(t testing.TB, src []byte) []byte {
 		t.Fatalf("%s: %q occurs %d times in the generated code", TSLibPatchEnv, m.Old, n)
 	}
 	return []byte(strings.Replace(string(src), m.Old, m.New, 1))
+}
+
+// TSCBatchFiles is the number of files that RunTSC checks in one tsc run. One tsc program over a
+// whole corpus needs more heap than Node's default limit (the run dies with "JavaScript heap out
+// of memory"), while each file is checked the same in a batch: the files are modules, and tsc
+// follows the imports a batch cuts across.
+const TSCBatchFiles = 100
+
+// RunTSC runs tsc with flags over files in dir, TSCBatchFiles at a time, and fails t for each
+// batch whose tsc run fails. Every batch runs, so one failure does not hide the others.
+func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
+	t.Helper()
+	for start := 0; start < len(files); start += TSCBatchFiles {
+		batch := files[start:min(start+TSCBatchFiles, len(files))]
+		cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("tsc (files %d-%d of %d): %v\n%s", start, start+len(batch)-1, len(files), err, out)
+		}
+	}
 }
