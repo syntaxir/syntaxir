@@ -8,17 +8,19 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"syntaxir.dev/sxir/internal/bench/stat"
 )
 
 func TestGeomean(t *testing.T) {
-	if got := geomean(nil); got != 1 {
+	if got := stat.Geomean(nil); got != 1 {
 		t.Errorf("geomean of nothing = %v, want 1", got)
 	}
-	if got := geomean([]float64{0.5, 2}); math.Abs(got-1) > 1e-12 {
-		t.Errorf("geomean(0.5, 2) = %v, want 1", got)
+	if got := stat.Geomean([]float64{0.5, 2}); math.Abs(got-1) > 1e-12 {
+		t.Errorf("stat.Geomean(0.5, 2) = %v, want 1", got)
 	}
-	if got := geomean([]float64{4, 9}); math.Abs(got-6) > 1e-12 {
-		t.Errorf("geomean(4, 9) = %v, want 6", got)
+	if got := stat.Geomean([]float64{4, 9}); math.Abs(got-6) > 1e-12 {
+		t.Errorf("stat.Geomean(4, 9) = %v, want 6", got)
 	}
 }
 
@@ -26,7 +28,7 @@ func TestRotateStartsEachVariantOnce(t *testing.T) {
 	v := []string{"a", "b", "c"}
 	first := map[string]int{}
 	for round := 0; round < 6; round++ {
-		r := rotate(v, round)
+		r := stat.Rotate(v, round)
 		if len(r) != 3 {
 			t.Fatalf("round %d: %v", round, r)
 		}
@@ -35,8 +37,8 @@ func TestRotateStartsEachVariantOnce(t *testing.T) {
 	if !reflect.DeepEqual(first, map[string]int{"a": 2, "b": 2, "c": 2}) {
 		t.Errorf("first positions over six rounds = %v", first)
 	}
-	if got := rotate(v, 1); !reflect.DeepEqual(got, []string{"b", "c", "a"}) {
-		t.Errorf("rotate(v, 1) = %v", got)
+	if got := stat.Rotate(v, 1); !reflect.DeepEqual(got, []string{"b", "c", "a"}) {
+		t.Errorf("stat.Rotate(v, 1) = %v", got)
 	}
 	if v[0] != "a" {
 		t.Errorf("rotate changed its argument: %v", v)

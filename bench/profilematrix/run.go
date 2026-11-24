@@ -15,6 +15,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/bench/inputs"
 	"syntaxir.dev/sxir/internal/bench/probe"
+	"syntaxir.dev/sxir/internal/bench/stat"
 )
 
 type variant struct {
@@ -176,7 +177,7 @@ func run(cfg config, out, log io.Writer) error {
 			if err != nil {
 				return err
 			}
-			for _, name := range rotate(names, round) {
+			for _, name := range stat.Rotate(names, round) {
 				if noEffect[g+"\x00"+name] {
 					continue
 				}

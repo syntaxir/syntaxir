@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"slices"
 	"strings"
 	"text/tabwriter"
+
+	"syntaxir.dev/sxir/internal/bench/stat"
 )
 
 // metric is a quantity that a cell records. Smaller is better for all of them.
@@ -59,18 +60,6 @@ func (c cells) ratio(grammar, variant, base, metric string) (float64, bool) {
 	return v / b, true
 }
 
-// geomean returns the geometric mean of the ratios. It is 1 for no ratios.
-func geomean(r []float64) float64 {
-	if len(r) == 0 {
-		return 1
-	}
-	var sum float64
-	for _, x := range r {
-		sum += math.Log(x)
-	}
-	return math.Exp(sum / float64(len(r)))
-}
-
 // summary is the effect of a variant on one metric across the grammars, as ratios to the baseline.
 type summary struct {
 	Ratios  map[string]float64 // by grammar
@@ -97,7 +86,7 @@ func (c cells) summarize(grammars []string, variant, base, metric string, thresh
 			s.Better++
 		}
 	}
-	s.Geomean = geomean(all)
+	s.Geomean = stat.Geomean(all)
 	return s
 }
 
@@ -154,14 +143,4 @@ func formatValue(x float64) string {
 		return fmt.Sprintf("%d", int64(x))
 	}
 	return fmt.Sprintf("%.6g", x)
-}
-
-// rotate returns the variants starting at index round modulo their number, so that each variant is
-// measured in every position over the rounds.
-func rotate(variants []string, round int) []string {
-	if len(variants) == 0 {
-		return nil
-	}
-	k := round % len(variants)
-	return append(slices.Clone(variants[k:]), variants[:k]...)
 }
