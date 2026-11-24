@@ -148,7 +148,8 @@ func TestGeneratedTypedParsersInsertMissingTokens(t *testing.T) {
 // parseRuleValueInsertsMissingTokens checks that ParseRuleValue inserts missing tokens as ParseValue
 // does: for each start rule, the typed value and error of ParseRuleValue equal those of ParseValue
 // of a parser whose default start rule it is, at the limits of missing tokens that insert nothing,
-// some and all. (ParseValue is compared with the engine by TestGeneratedTypedParsersInsertMissingTokens.)
+// some and all, and they count the same compute units. (ParseValue is compared with the engine by
+// TestGeneratedTypedParsersInsertMissingTokens.)
 func parseRuleValueInsertsMissingTokens(t *testing.T, goBin string) {
 	t.Helper()
 	const rules = "rule a Tok = o:\"(\" #missing b \")\" #missing => $o\nrule b = [a-z]* / \"[\" a \"]\" #missing\ntype Tok ~ node[string] | missing\n"
@@ -197,6 +198,15 @@ func main() {
 				if c.got != c.want {
 					fmt.Printf("ParseRuleValue(%q, %q) at limit %d:\n got  %s\n want %s\n", c.name, in, limit, c.got, c.want)
 				}
+			}
+			var got, want uint64
+			pmain.ParseRuleValue("main", in, o, sxirruntime.WithComputeReport(&got))
+			pmain.ParseValue(in, o, sxirruntime.WithComputeReport(&want))
+			var gotA, wantA uint64
+			pmain.ParseRuleValue("a", in, o, sxirruntime.WithComputeReport(&gotA))
+			pa.ParseValue(in, o, sxirruntime.WithComputeReport(&wantA))
+			if got != want || gotA != wantA {
+				fmt.Printf("compute units of ParseRuleValue and ParseValue of %q at limit %d: main %d and %d, a %d and %d\n", in, limit, got, want, gotA, wantA)
 			}
 		}
 	}
