@@ -67,7 +67,7 @@ rule num Num = t:([0-9]+ #atomic) => Num{Text: text($t)}`)
 }
 
 // x.$y reads capture y of node x and projects a repetition. A member x.y, which the source syntax
-// rejects but a JSON grammar can hold, reads a field: on a node it is rejected with a pointer to .$y.
+// rejects, is rejected by grammar validation with a pointer to .$y when the grammar API builds it.
 func TestCaptureAccessMatchesField(t *testing.T) {
 	t.Parallel()
 	access := mustCompile(t, `rule main = xs:(-"," y:[a-z])* $$ => map($xs, (i) => i.$y)`)
@@ -80,7 +80,7 @@ func TestCaptureAccessMatchesField(t *testing.T) {
 	}
 	member := g.Rules()[0].Action.(*ast.Call).Args[1].(*ast.Lambda).Body.(*ast.FieldAccess)
 	member.Name = "y"
-	if _, err := Compile(g, checkpkg.Options{}); err == nil || !strings.Contains(err.Error(), "read the capture with .$y") {
+	if _, err := Compile(g, checkpkg.Options{}); err == nil || !strings.Contains(err.Error(), "a capture is read with .$y") {
 		t.Fatalf("field access on a node: %v", err)
 	}
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {

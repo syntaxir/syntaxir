@@ -91,8 +91,8 @@ rule opt *TYPE = x:val? => $x`
 			}
 		}
 	}
-	// node without a type argument is not a type: the source syntax rejects it, and a grammar
-	// from the grammar API or JSON reaches the checker with it.
+	// node without a type argument is not a type: the source syntax rejects it, and grammar
+	// validation rejects a grammar from the grammar API or JSON that holds it.
 	for _, typ := range []string{"Bare", "*Bare", "[]Bare"} {
 		parsed, err := parseTest(strings.ReplaceAll(src, "TYPE", typ))
 		if err != nil {
@@ -102,11 +102,7 @@ rule opt *TYPE = x:val? => $x`
 		if err != nil {
 			t.Fatal(err)
 		}
-		g, err := ast.DecodeJSON(bytes.ReplaceAll(data, []byte(`"Bare"`), []byte(`"node"`)))
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := Compile(g, checkpkg.Options{}); err == nil || !strings.Contains(err.Error(), "node takes a type argument: write node[T] with the type T of the node's value") {
+		if _, err := ast.DecodeJSON(bytes.ReplaceAll(data, []byte(`"Bare"`), []byte(`"node"`))); err == nil || !strings.Contains(err.Error(), "node takes a type argument: write node[T] with the type T of the node's value") {
 			t.Errorf("%s: got %v", typ, err)
 		}
 	}
