@@ -6,11 +6,13 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"strings"
+	"sync"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/analysis/complexity"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -237,61 +239,82 @@ func linearClaims(t *testing.T, count int, claimsLinear func(*ast.Grammar) bool,
 	cycles := rand.New(rand.NewPCG(13, 17))
 	nested := rand.New(rand.NewPCG(19, 23))
 	shared := SharedContinuationGrammars(SharedContinuationCount(count))
+	// The grammars come from generators that each draw in order, so they are drawn first; checking
+	// them is independent from grammar to grammar and runs in shards.
+	type claim struct {
+		n      int
+		src    string
+		inputs []func(int) string
+	}
+	var claims []claim
 	for n := range count + 2*(count/4) + SharedContinuationCount(count) {
-		var src string
-		inputs := differentialInputs
+		c := claim{n: n, inputs: differentialInputs}
 		switch {
 		case n < count:
-			src = randomCostGrammar(rng)
+			c.src = randomCostGrammar(rng)
 		case n < count+count/4:
-			src = randomStartCycleGrammar(cycles)
+			c.src = randomStartCycleGrammar(cycles)
 		case n < count+2*(count/4):
-			src = randomNestedScanGrammar(nested)
+			c.src = randomNestedScanGrammar(nested)
 		default:
-			src = shared[n-count-2*(count/4)]
-			inputs = SharedContinuationInputs
+			c.src = shared[n-count-2*(count/4)]
+			c.inputs = SharedContinuationInputs
 		}
-		g, err := enginetest.ParseGrammar(src)
-		if err != nil {
-			t.Fatalf("generated grammar %d does not parse: %v\n%s", n, err, src)
-		}
-		g = starttest.MarkAll(g)
-		p, err := enginetest.Compile(g, "main")
-		if err != nil {
-			continue // left recursion without a base case, a repetition of nothing and the like
-		}
-		if !claimsLinear(g) {
-			continue
-		}
-		checked++
-		if n >= count+2*(count/4) {
-			checkedShared++
-		}
-		if !state.BudgetControlsEnabled {
-			continue // the claim is counted, but the reference build cannot measure it
-		}
-	measure:
-		for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode} {
-			for i, build := range inputs {
-				s := Series{Sizes: differentialSizes}
-				for _, size := range differentialSizes {
-					c, err := StepsLenient(p, build(size), backend, differentialCap)
-					if err != nil {
-						t.Fatalf("grammar %d, %v, input %d, size %d: %v\n%s", n, backend, i, size, err, src)
+		claims = append(claims, c)
+	}
+	var mu sync.Mutex
+	failures = codegentest.Shards(t, claims, func(t *testing.T, part []claim) (failures []string) {
+		var partChecked, partShared int
+		defer func() {
+			mu.Lock()
+			checked, checkedShared = checked+partChecked, checkedShared+partShared
+			mu.Unlock()
+		}()
+		for _, c := range part {
+			n, src, inputs := c.n, c.src, c.inputs
+			g, err := enginetest.ParseGrammar(src)
+			if err != nil {
+				t.Fatalf("generated grammar %d does not parse: %v\n%s", n, err, src)
+			}
+			g = starttest.MarkAll(g)
+			p, err := enginetest.Compile(g, "main")
+			if err != nil {
+				continue // left recursion without a base case, a repetition of nothing and the like
+			}
+			if !claimsLinear(g) {
+				continue
+			}
+			partChecked++
+			if n >= count+2*(count/4) {
+				partShared++
+			}
+			if !state.BudgetControlsEnabled {
+				continue // the claim is counted, but the reference build cannot measure it
+			}
+		measure:
+			for _, backend := range []engine.Backend{engine.Closure, engine.Bytecode} {
+				for i, build := range inputs {
+					s := Series{Sizes: differentialSizes}
+					for _, size := range differentialSizes {
+						c, err := StepsLenient(p, build(size), backend, differentialCap)
+						if err != nil {
+							t.Fatalf("grammar %d, %v, input %d, size %d: %v\n%s", n, backend, i, size, err, src)
+						}
+						s.Costs = append(s.Costs, c)
 					}
-					s.Costs = append(s.Costs, c)
-				}
-				if !measuresLinear(s) {
-					failures = append(failures, fmt.Sprintf("grammar %d, %v, input %d: steps %v, slopes %.2f\n%s",
-						n, backend, i, s.Costs, s.Slopes(), src))
-					if firstOnly {
-						return checked, checkedShared, failures
+					if !measuresLinear(s) {
+						failures = append(failures, fmt.Sprintf("grammar %d, %v, input %d: steps %v, slopes %.2f\n%s",
+							n, backend, i, s.Costs, s.Slopes(), src))
+						if firstOnly {
+							return failures
+						}
+						break measure
 					}
-					break measure
 				}
 			}
 		}
-	}
+		return failures
+	})
 	return checked, checkedShared, failures
 }
 
