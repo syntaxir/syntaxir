@@ -74,6 +74,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 	// Control: the generated parser builds the name of a rule from the expression of its body. The
 	// comparison must notice.
 	t.Run("control", func(t *testing.T) {
+		t.Parallel()
 		hits := 0
 		got := codegentest.GeneratedParsersMismatches(t, goBin, cases, common.GenOptions{}, func(code []byte) []byte {
 			changed, n := ruleNameFromExpr(string(code))
@@ -87,8 +88,12 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 			t.Errorf("the comparison does not notice a changed rule name (%d changes)", hits)
 		}
 	})
-	t.Run("values", func(t *testing.T) { codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{}) })
+	t.Run("values", func(t *testing.T) {
+		t.Parallel()
+		codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{})
+	})
 	t.Run("source info", func(t *testing.T) {
+		t.Parallel()
 		codegentest.GeneratedParsersCorpus(t, goBin, cases, common.GenOptions{SourceInfo: true})
 	})
 }

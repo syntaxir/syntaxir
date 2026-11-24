@@ -125,6 +125,8 @@ func sourceCost(t *testing.T, src string) uint64 {
 func TestRecoveryScalesLinearly(t *testing.T) {
 	for _, c := range scaleSources {
 		t.Run(c.name, func(t *testing.T) {
+			// The cost is the compute counter of the parse, so it does not depend on the load.
+			t.Parallel()
 			ratio, ok := scalesLinearly(t, 2000, func(n int) uint64 { return sourceCost(t, c.make(n)) })
 			if !ok {
 				t.Errorf("the cost grows %.1f times for %d times as many brackets (limit %d)", ratio, scaleFactor, scaleLimit)
