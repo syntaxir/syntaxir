@@ -2342,9 +2342,51 @@ func formatAttributeValue(value any, control *formatControl) string {
 	case bool:
 		return strconv.FormatBool(value)
 	case ast.Expr:
+		if leadsWithLiteralName(value, control) {
+			// An argument that begins with true, false or nil is that constant,
+			// so a rule reference of that name needs parentheses.
+			return "(" + formatExpr(value, precChoice, control) + ")"
+		}
 		return formatExpr(value, precChoice, control)
 	}
 	return fmt.Sprintf("<%T>", value)
+}
+
+// leadsWithLiteralName reports whether the text of e may begin with a rule
+// reference named true, false or nil. It follows the operand that an
+// expression writes first, also where the printer puts it in parentheses.
+func leadsWithLiteralName(e ast.Expr, control *formatControl) bool {
+	for {
+		pollFormat(control)
+		switch x := e.(type) {
+		case *ast.Ref:
+			return x.Level == "" && (x.Name == "true" || x.Name == "false" || x.Name == "nil")
+		case *ast.Seq:
+			if len(x.Items) == 0 {
+				return false
+			}
+			e = x.Items[0]
+		case *ast.Choice:
+			if len(x.Alts) == 0 {
+				return false
+			}
+			e = x.Alts[0]
+		case *ast.Repeat:
+			e = x.Expr
+		case *ast.Optional:
+			e = x.Expr
+		case *ast.Stream:
+			e = x.Expr
+		case *ast.Atomic:
+			e = x.Expr
+		case *ast.Recovery:
+			e = x.Expr
+		case *ast.Attributed:
+			e = x.Expr
+		default:
+			return false
+		}
+	}
 }
 
 // quote returns s as a grammar string literal, polling the control before each character.

@@ -744,7 +744,9 @@ the same forms. A string literal argument is a string; with the suffix `i`, as i
 `@custom("q"i)`, it is the expression node of a literal that ignores case, which
 `@error` and `@diagnostic` reject where they need a string. `@custom(2,)` and `@custom(2)` both yield `[2]`: a comma after the last
 argument is a trailing comma, as in other lists. An empty argument is written
-`nil`, as in `@custom(nil, 2)`, which yields `[null, 2]`.
+`nil`, as in `@custom(nil, 2)`, which yields `[null, 2]`. An argument that begins with
+`true`, `false` or `nil` is that constant, so `grammar.Format` writes an expression
+argument that begins with a rule reference of such a name in parentheses.
 Keyword arguments follow positional arguments in source, and strict decoding rejects
 a repeated keyword. Integer constants use the native `int` range; the minimum
 integer is formatted as the single value that [Integer Literals](lexical.md#integer-literals)

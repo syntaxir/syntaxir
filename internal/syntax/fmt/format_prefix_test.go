@@ -143,6 +143,11 @@ func TestFormatKeepsNodes(t *testing.T) {
 			&ast.TypeRef{Name: "_"}, &ast.MeetType{Types: []ast.TypeExpr{&ast.TypeRef{Name: "_"}, &ast.TypeRef{Name: "_"}}}}},
 			Expr: lit("a")}, "",
 			`rule main _ & (_ & _) = "a"`},
+		{"literal-named references in attribute arguments", &ast.RuleDef{Name: "main", Expr: &ast.Attributed{
+			Expr: lit("a"),
+			Attrs: []*ast.Attribute{{Name: "x", Args: []any{&ast.Ref{Name: "nil"}, &ast.Seq{Items: []ast.Expr{&ast.Ref{Name: "false"}, lit("b")}}},
+				KwArgs: map[string]any{"k": &ast.Optional{Expr: &ast.Ref{Name: "true"}}}}}}}, "",
+			`rule main = "a" @x((nil), (false "b"), k=(true?))`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{tc.rule}}}
