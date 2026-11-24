@@ -99,7 +99,7 @@ stars text 42
 | unit `()` | `Unit` |
 | `error` (left by `#recover`) | `*Error`: `Span` and `Message`; in a grammar with `#missing`, `ErrorValue` |
 | `missing` (a token that `#missing` inserted) | `*Missing`: `Span`, `Expected` and `Message` |
-| `error` in a grammar with `#missing` | `ErrorValue`: an interface that only `*Error` and `*Missing` implement, so a type switch tells a skipped range from an inserted token |
+| `error` in a grammar with `#missing` | `ErrorValue`: an interface that only `*Error` and `*Missing` implement, so a type switch tells a skipped range from an inserted token; a struct that embeds `*Error` or `*Missing` satisfies it too, as with any Go interface sealed by a method |
 | join `U ~ A \| B` of struct types, node types, `error` and `missing` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and `*Missing` in a grammar with `#missing`; and by every `*TNode` if a member is an unnamed node type); a node converts to the member of its name, or to the unnamed node member of its kind (string, tuple or list) |
 | join of node types written in place, for example `*(If \| Block)`, `*(Block \| error)` or `*(Item \| node[[]Item])` | an interface named after its members in the order of their first spelling in the file, `IfOrBlock`, `BlockOrError` for one member and `error`, or `ItemOrItemListNode`; it is implemented like the interface of an alias. The same members in any order share it, a join that an alias declares is that alias, and a join with a list or a scalar member, or with no struct or named node type member, stays `any`. Two different sets that get the same name, or a grammar type with that name, are a generation error |
 | `[]T` | a slice; an empty list is an empty slice, not `nil` |
