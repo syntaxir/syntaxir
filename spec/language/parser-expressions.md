@@ -422,14 +422,18 @@ value is not a tuple that the body creates itself (for example, it is the
 value of a called rule, or the value of a capture), the value is first wrapped in a
 tuple of one element, the value. A capture that did not match is `nil`.
 
+A capture of an expression without a value, such as `x:&a`, `x:-a`, `x:#cut`
+or `x:_`, holds the unit `()`, a node of the empty tuple of type `node[()]`,
+with the range that its operand matched. The capture has that value, so it is
+an element of its scope like any other capture: on the input `a`,
+`x:_ "a"` gives `(() "a")`.
+
 The following restrictions apply:
 
 - A capture made in a match that was undone by backtracking does not survive.
 - Captures MUST NOT appear inside `a #atomic`, `-a`, `!a`, the `skip` argument of
   [`#recover`](pragmas.md#recover), or the [`skip`](operators-rule.md#skip) item of a
   Operators Rule.
-- The captured expression MUST have a value: `x:&a`, `x:-a` and `x:#cut` are
-  errors.
 
 ## Rule Calls
 
