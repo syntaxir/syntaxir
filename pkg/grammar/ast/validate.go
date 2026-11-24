@@ -181,6 +181,10 @@ func validate(g *Grammar, control *validationControl) error {
 			path = path[:len(path)-1]
 			continue
 		case *CharClass:
+			if len(n.Ranges) == 0 {
+				// No source text writes an empty class: [] and [^] do not parse.
+				return fail("ranges", "character class must have at least one range")
+			}
 			for start := 0; start < len(n.Ranges); {
 				end := len(n.Ranges)
 				if control != nil {

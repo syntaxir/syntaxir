@@ -36,9 +36,17 @@ func TestValidateUnicodeRanges(t *testing.T) {
 	}
 	g := expressionGrammar(&CharClass{Ranges: []CharRange{{Lo: 'z', Hi: 'a'}}})
 	assertValidationError(t, Validate(g), "$.file.decls[0].expr.ranges[0].hi")
-	// Scalar endpoints can span the surrogate interval. Empty AST classes,
-	// overlapping ranges and negation retain their existing meanings.
-	for _, ranges := range [][]CharRange{nil, {{Lo: 0, Hi: utf8.MaxRune}}, {{Lo: 0xd7ff, Hi: 0xe000}}, {{Lo: 0xfffd, Hi: 0xffff}, {Lo: 0xfffe, Hi: utf8.MaxRune}}} {
+	// A class without ranges has no source text, so validation rejects it,
+	// negated or not.
+	for _, ranges := range [][]CharRange{nil, {}} {
+		for _, negated := range []bool{false, true} {
+			g := expressionGrammar(&CharClass{Ranges: ranges, Negated: negated})
+			assertValidationError(t, Validate(g), "$.file.decls[0].expr.ranges")
+		}
+	}
+	// Scalar endpoints can span the surrogate interval. Overlapping ranges and
+	// negation retain their existing meanings.
+	for _, ranges := range [][]CharRange{{{Lo: 0, Hi: utf8.MaxRune}}, {{Lo: 0xd7ff, Hi: 0xe000}}, {{Lo: 0xfffd, Hi: 0xffff}, {Lo: 0xfffe, Hi: utf8.MaxRune}}} {
 		for _, negated := range []bool{false, true} {
 			g := expressionGrammar(&CharClass{Ranges: ranges, Negated: negated})
 			if err := Validate(g); err != nil {

@@ -710,7 +710,7 @@ message `Msg`.
 | An interface that holds a typed nil pointer; an unsupported embedded node type | |
 | A pointer cycle | |
 | A repetition whose minimum is negative, or whose finite maximum is smaller than the minimum | Any negative maximum, which means unbounded |
-| A character range whose `Lo` or `Hi` is not a Unicode scalar value (0 through 0x10FFFF except 0xD800 to 0xDFFF), or with `Lo > Hi` | A range that spans the surrogate interval; overlapping ranges; an empty class |
+| A character range whose `Lo` or `Hi` is not a Unicode scalar value (0 through 0x10FFFF except 0xD800 to 0xDFFF), or with `Lo > Hi`; a character class without ranges, which no source text can write | A range that spans the surrogate interval; overlapping ranges |
 
 Validation is structural. It does not resolve names, check the types of actions,
 validate attributes or enforce the semantics of an Operators Rule; compilation does.
