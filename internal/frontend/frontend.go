@@ -48,8 +48,8 @@ type Result struct {
 	// checked types of the program. The complexity classifier reads it. It is nil when Module is.
 	Structural *Structural
 	// Input is the grammar that Check was given; a derived program (Derive) has the Input of its
-	// program. Grammar and Source are the compiler's canonical forms, which are not input to Check.
-	// It is nil in a Result of a model without a grammar.
+	// program. Grammar and Normalized are the compiler's canonical forms, which are not input to
+	// Check. It is nil in a Result of a model without a grammar.
 	Input *ast.Grammar
 }
 

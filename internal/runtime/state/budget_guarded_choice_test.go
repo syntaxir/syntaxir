@@ -35,17 +35,27 @@ func budgetGuardedChoiceExpr() *ast.Choice {
 func budgetGuardedChoiceProgram(t *testing.T) (*engine.Program, *ast.Choice) {
 	t.Helper()
 	choice := budgetGuardedChoiceExpr()
-	return budgetGuardedChoiceProgramOf(t, choice, &ast.Seq{Items: []ast.Expr{
+	prog := budgetGuardedChoiceProgramOf(t, choice, &ast.Seq{Items: []ast.Expr{
 		&ast.Not{Expr: choice},
 		&ast.Literal{Value: "z"},
-	}}), choice
+	}})
+	// The program compiled a copy of the grammar; its choice is the one in that copy.
+	first := budgetGuardedChoiceFirst(prog)
+	return prog, first.(*ast.Seq).Items[0].(*ast.Not).Expr.(*ast.Choice)
 }
 
 // budgetGuardedChoiceValueProgram places the choice where it builds the value of main.
 func budgetGuardedChoiceValueProgram(t *testing.T) (*engine.Program, *ast.Choice) {
 	t.Helper()
 	choice := budgetGuardedChoiceExpr()
-	return budgetGuardedChoiceProgramOf(t, choice, choice), choice
+	prog := budgetGuardedChoiceProgramOf(t, choice, choice)
+	return prog, budgetGuardedChoiceFirst(prog).(*ast.Choice)
+}
+
+// budgetGuardedChoiceFirst returns the first alternative of main in the grammar that prog was
+// compiled from, the copy of the grammar that prog keeps.
+func budgetGuardedChoiceFirst(prog *engine.Program) ast.Expr {
+	return entry.Grammar(prog).Rules()[0].Expr.(*ast.Choice).Alts[0]
 }
 
 // budgetGuardedChoiceProgramOf compiles main = first / fallback, where first holds choice.
@@ -175,8 +185,9 @@ func TestBudgetGuardedChoicePassingMatcherCharge(t *testing.T) {
 				if skip {
 					alts = append([]ast.Expr{&ast.Literal{Value: "x"}}, alts...)
 				}
-				choice := &ast.Choice{Alts: alts}
-				prog := compileExprProgram(t, &ast.Not{Expr: choice})
+				prog := compileExprProgram(t, &ast.Not{Expr: &ast.Choice{Alts: alts}})
+				// The program compiled a copy of the grammar; its choice is the one in that copy.
+				choice := entry.Grammar(prog).Rules()[0].Expr.(*ast.Not).Expr
 				m := closureExprMatcher(t, entry.Checked(prog), choice)
 				p := state.NewParser(prog.Shared(), "z", unit, false)
 				p.Control = state.NewBudgetControl(nil, runtime.Limits{Compute: steps})

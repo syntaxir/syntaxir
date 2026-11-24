@@ -120,8 +120,11 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (s *Sourc
 
 // Check compiles the grammar to a checked program without checking its declarations of linear
 // cost. If flags is not nil, it skips the static analysis of the rules and uses flags instead. The
-// errors name the rules as written, not the hidden rules that inline actions are lowered to.
+// errors name the rules as written, not the hidden rules that inline actions are lowered to. The
+// program keeps a copy of g, from which it builds its recognizer and insertion program when a
+// parse first needs them, so a later change to g does not change the program.
 func Check(g *ast.Grammar, opts Options, flags []check.RuleFlags, control *cancel.Control) (*Source, error) {
+	g = g.Clone()
 	names := desugar.InlineNames{}
 	prog, err := frontend.Check(g, opts.Compile, flags, names, checkfacts.Source{}, control)
 	if err != nil {
