@@ -12,28 +12,27 @@ import (
 	"time"
 )
 
-// TestHungDecision checks when the pool calls a job hung: by the CPU time it used, by the wall time
-// without any CPU time, and by the wall clock backstop, and not by the wall time of a job that gets
-// CPU time slowly.
+// TestHungDecision checks when the pool calls a job hung: by the CPU time it used and by the wall clock
+// backstop, and not by the wall time of a job that gets CPU time slowly or none for a long time (a job
+// that the machine swaps out): a job that waits for nothing is the worker's to report.
 func TestHungDecision(t *testing.T) {
 	const timeout, backstop = 10 * time.Second, 100 * time.Second
 	start := time.Unix(1000, 0)
 	at := func(s int) time.Time { return start.Add(time.Duration(s) * time.Second) }
 	for _, c := range []struct {
-		name      string
-		now, prog time.Time
-		cpu       time.Duration
-		hung      bool
+		name string
+		now  time.Time
+		cpu  time.Duration
+		hung bool
 	}{
-		{"computing for the timeout", at(10), at(10), 10 * time.Second, true},
-		{"computing for less, slowly", at(90), at(90), 3 * time.Second, false},
-		{"no CPU time for the timeout", at(10), at(0), 0, true},
-		{"CPU time until a moment ago", at(60), at(59), 2 * time.Second, false},
-		{"idle for less than the timeout", at(9), at(0), 0, false},
-		{"over the backstop", at(100), at(99), time.Second, true},
-		{"under the backstop", at(99), at(98), time.Second, false},
+		{"computing for the timeout", at(10), 10 * time.Second, true},
+		{"computing for less, slowly", at(90), 3 * time.Second, false},
+		{"no CPU time for the timeout", at(10), 0, false},
+		{"no CPU time for long, under the backstop", at(99), 0, false},
+		{"over the backstop", at(100), time.Second, true},
+		{"under the backstop", at(99), time.Second, false},
 	} {
-		if got := hung(timeout, backstop, start, c.now, c.prog, c.cpu) != ""; got != c.hung {
+		if got := hung(timeout, backstop, start, c.now, c.cpu) != ""; got != c.hung {
 			t.Errorf("%s: hung %v, want %v", c.name, got, c.hung)
 		}
 	}
@@ -139,10 +138,15 @@ console.log("done");`, nil)
 	})
 
 	t.Run("await that never settles", func(t *testing.T) {
+		start := time.Now()
 		dir := poolScript(t, `await new Promise(() => {});`, nil)
 		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
-		if err == nil || !strings.Contains(err.Error(), "ran past") || !strings.Contains(err.Error(), "no CPU time") {
-			t.Fatalf("%v; want the await killed for using no CPU time", err)
+		if err == nil || !strings.Contains(err.Error(), "waits for nothing") || strings.Contains(err.Error(), "ran past") {
+			t.Fatalf("%v; want the await reported as waiting for nothing", err)
+		}
+		// Reported by what the script waits for, not by a time: well before the timeout of the job.
+		if took := time.Since(start); took > timeout {
+			t.Errorf("reported after %v, over the %v of the job", took, timeout)
 		}
 	})
 }
@@ -197,4 +201,67 @@ func TestAwaitJobBaseline(t *testing.T) {
 	if _, err := run(0, 1, func(n int) time.Duration { return time.Hour + time.Duration(n)*time.Second }); err == nil {
 		t.Errorf("a loop with a failed first reading was not killed")
 	}
+}
+
+// TestRunNodeScriptWaitsForSomething checks that a script whose top-level await waits for something that
+// will come is not reported as waiting for nothing, however long it takes: a timer (here longer than the
+// timeout of the job), a file read that is pending on a pipe and a child process. Each script finishes with its output, and a script that awaits a promise that nothing
+// settles is still reported at once afterwards in the same worker.
+func TestRunNodeScriptWaitsForSomething(t *testing.T) {
+	node := RequireNode(t)
+	const timeout = time.Second
+	run := func(t *testing.T, src string, args []string, during func()) {
+		t.Helper()
+		dir := poolScript(t, src, nil)
+		done := make(chan struct{})
+		if during != nil {
+			go func() {
+				defer close(done)
+				during()
+			}()
+		} else {
+			close(done)
+		}
+		res, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts", args...)
+		<-done
+		if err != nil || res.Code != 0 || res.Stdout != "done\n" {
+			t.Fatalf("%+v, %v; want the script to finish with its output", res, err)
+		}
+	}
+	t.Run("timer", func(t *testing.T) {
+		// Idle on the CPU and 1.5 times as long as the timeout of the job.
+		run(t, `await new Promise((r) => setTimeout(r, 1500)); console.log("done");`, nil, nil)
+	})
+	t.Run("file read on a pipe", func(t *testing.T) {
+		// The read stays pending until the test opens the pipe for writing, later than a check or two.
+		fifo := filepath.Join(t.TempDir(), "pipe")
+		if err := syscall.Mkfifo(fifo, 0o600); err != nil {
+			t.Skip("no named pipes:", err)
+		}
+		run(t, `import fs from "node:fs";
+const text = await fs.promises.readFile(process.argv[2], "utf8");
+if (text !== "x") throw new Error("read " + text);
+console.log("done");`, []string{fifo}, func() {
+			time.Sleep(300 * time.Millisecond)
+			f, err := os.OpenFile(fifo, os.O_WRONLY, 0)
+			if err != nil {
+				t.Error(err)
+				return
+			}
+			f.WriteString("x")
+			f.Close()
+		})
+	})
+	t.Run("child process", func(t *testing.T) {
+		run(t, `import { spawn } from "node:child_process";
+await new Promise((r) => spawn("sleep", ["0.4"]).on("exit", r));
+console.log("done");`, nil, nil)
+	})
+	t.Run("an await that nothing settles, after them", func(t *testing.T) {
+		dir := poolScript(t, `await new Promise(() => {});`, nil)
+		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
+		if err == nil || !strings.Contains(err.Error(), "waits for nothing") {
+			t.Fatalf("%v; want the await reported as waiting for nothing", err)
+		}
+	})
 }

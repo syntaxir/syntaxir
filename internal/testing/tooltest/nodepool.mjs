@@ -45,6 +45,7 @@ const WeakMapOf = WeakMap;
 const PromiseOf = Promise;
 const setTimer = setTimeout;
 const setNow = setImmediate;
+const clearTimer = clearTimeout;
 const getActive = process.getActiveResourcesInfo.bind(process);
 const umask = process.umask.bind(process);
 const hasCapture = process.hasUncaughtExceptionCaptureCallback.bind(process);
@@ -236,6 +237,45 @@ const leftover = (before) => {
   });
   return names;
 };
+
+// How often the worker looks, while a script's import is pending, whether anything can still finish it.
+const idleCheckMs = 20;
+// watchIdle reports to the pool, as soon as it is certain, a job whose import is pending and that waits for
+// nothing: a top-level await of a promise that nothing can settle (node itself ends such a script with exit code
+// 13 "unsettled top-level await"). The pool then fails the job at once, whatever the load does to the time.
+//
+// "Waits for nothing" is exact: nothing on the event loop but what was there before the job (the pool's own
+// handles), as process.getActiveResourcesInfo lists it, so no timer, request, child process or socket can run
+// a callback that settles the promise, and no other thread of the script can either. The check runs in a
+// setImmediate callback, which node calls in the check phase after the timers and the I/O callbacks of the
+// round, with the queues of microtasks and of process.nextTick empty: no promise reaction of the script is
+// still to run, which could start a timer or a request, so an empty list cannot be a moment between two
+// steps. A timer, not a repeating immediate, starts each check, so that a script that waits for a long timer
+// does not make the worker busy. It returns the function that ends the watch. What this does not see:
+// work that no listed resource stands for, such as a promise settled from a worker thread or by an
+// asynchronous native job that process.getActiveResourcesInfo does not list; the CPU time and the wall
+// clock limits of the pool still bound a script like that.
+const watchIdle = (job, before) => {
+  let stopped = false;
+  let timer = null;
+  const check = () => {
+    if (stopped) return;
+    if (leftover(before).length === 0) {
+      stopped = true;
+      reply(stringify({ id: job.id, idle: "its import is pending and nothing is left on the event loop to settle it" }) + "\n");
+      return;
+    }
+    timer = setTimer(tick, idleCheckMs);
+  };
+  const tick = () => {
+    if (!stopped) setNow(check);
+  };
+  timer = setTimer(tick, idleCheckMs);
+  return () => {
+    stopped = true;
+    clearTimer(timer);
+  };
+};
 const sleep = (ms) => new PromiseOf((r) => setTimer(r, ms));
 
 for await (const line of createInterface({ input: process.stdin })) {
@@ -254,6 +294,7 @@ for await (const line of createInterface({ input: process.stdin })) {
     throw new Exit(exitRequest.code);
   };
   const resources = resourceCounts();
+  const unwatch = watchIdle(job, resources);
   try {
     chdir(job.dir);
     process.argv.length = 0;
@@ -263,6 +304,7 @@ for await (const line of createInterface({ input: process.stdin })) {
   } catch (e) {
     if (!(e instanceof Exit)) failure ??= e;
   }
+  unwatch();
   // The script has finished when what it started has: node runs a script until nothing is pending (timers,
   // requests), so the output, the throws and the exits of the callbacks belong to it. What still runs after
   // the time that job.drainMs allows is not a finished script, and fails the job.

@@ -25,10 +25,11 @@ import (
 var nodePoolWorker string
 
 // NodeJobTimeout is how much work RunNodeScript lets one script do before it kills the worker that runs it
-// and fails the script as hung: this much CPU time, or this much wall time in which the script uses none
-// (an await that never settles), and ten times as much wall time at the very most. The limit is on CPU
-// time and not on the wall clock so that a loaded machine, which makes a script slow but not hung, does
-// not fail it (hung). It is a variable so that the tests of the pool can shorten it.
+// and fails the script as hung: this much CPU time, and ten times as much wall time at the very most. The
+// limit is on CPU time and not on the wall clock so that a loaded machine, which makes a script slow but
+// not hung, does not fail it (hung). A script that waits for nothing, such as a top-level await that no
+// timer, request or process can settle, is not waited for at all: the worker sees that it cannot go on
+// and the pool fails it at once. It is a variable so that the tests of the pool can shorten it.
 var NodeJobTimeout = 3 * time.Minute
 
 // NodeDrainTimeout is how long RunNodeScript lets what a script left running (timers, requests) go on after its
@@ -88,8 +89,8 @@ type NodeResult struct {
 // What still differs from `node script`: the standard output and the error output are collected
 // separately, so NodeCombinedOutput gives the output followed by the error output instead of the two
 // interleaved; an error that no one catches is printed as its stack, without the source excerpt that node
-// prints; the 'exit' listeners of process do not run; a top-level await that never settles runs
-// until it is reported as having run past its time, where node exits with code 13; and a worker that
+// prints; the 'exit' listeners of process do not run; a top-level await that nothing can settle
+// is reported as an error of the pool (waits for nothing), where node exits with code 13; and a worker that
 // crashes is a pool error, not a script exit code.
 func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (NodeResult, error) {
 	t.Helper()
@@ -228,9 +229,16 @@ func (w *nodeWorker) run(t testing.TB, timeout time.Duration, dir, script string
 			Out, Err string
 			Code     int
 			Leak     string
+			Idle     string
 		}
 		if err := json.Unmarshal(text, &r); err != nil || r.ID != id {
 			done <- nodeReply{err: fmt.Errorf("node pool: bad answer %q (%v)", text, err)}
+			return
+		}
+		if r.Idle != "" {
+			// The worker found that the script waits for nothing; its import never ends, so the worker is of no
+			// use any more and the caller replaces it.
+			done <- nodeReply{err: fmt.Errorf("node pool: %s in %s waits for nothing and was stopped: %s", script, dir, r.Idle)}
 			return
 		}
 		done <- nodeReply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code, Leak: r.Leak}}
@@ -301,7 +309,8 @@ type nodeReply struct {
 }
 
 // backstopFactor is how many times the timeout of a job the pool lets it run on the wall clock at most,
-// whatever its CPU time: the backstop of a job that neither computes nor idles by the measures of hung.
+// whatever its CPU time: the backstop of a job that waits for something that never comes, which the
+// worker does not see (see watchIdle in nodepool.mjs).
 const backstopFactor = 10
 
 // wallBackstop returns the longest wall time a job with the timeout may take: backstopFactor times the
@@ -318,22 +327,21 @@ func wallBackstop(t testing.TB, timeout time.Duration) time.Duration {
 }
 
 // hung decides whether a job that began at start is hung at now, from the CPU time that it has used
-// since then (cpu), the last time its CPU time grew (progress) and the wall clock limit. It is hung when
+// since then (cpu) and the wall clock limit. It is hung when
 //
 //   - it has used timeout of CPU time: a loop that never ends computes all the time, wherever the load
 //     puts it; or
-//   - it has not used any CPU time for timeout of wall time: an await that never settles, or a
-//     script that waits for nothing; or
 //   - it has run backstop of wall time.
 //
-// A job that the load starves is none of these while it keeps getting some CPU time: its wall time says
-// nothing about whether it is hung, but its CPU time does. It returns the reason, or "".
-func hung(timeout, backstop time.Duration, start, now, progress time.Time, cpu time.Duration) string {
+// A job that waits for nothing (an await that nothing settles) is not judged here: the worker sees that
+// exactly and reports it (watchIdle in nodepool.mjs), and no length of time without CPU time says it,
+// since a job that the machine is swapping out gets none for minutes. A job that the load starves is
+// neither of the two while it computes less than timeout: its wall time says nothing about whether it
+// is hung, but its CPU time does. It returns the reason, or "".
+func hung(timeout, backstop time.Duration, start, now time.Time, cpu time.Duration) string {
 	switch {
 	case cpu >= timeout:
 		return fmt.Sprintf("it used %v of CPU time", cpu.Round(time.Millisecond))
-	case now.Sub(progress) >= timeout:
-		return fmt.Sprintf("it used no CPU time for %v", now.Sub(progress).Round(time.Millisecond))
 	case now.Sub(start) >= backstop:
 		return fmt.Sprintf("it ran for %v of wall time", now.Sub(start).Round(time.Millisecond))
 	}
@@ -347,12 +355,11 @@ func hung(timeout, backstop time.Duration, start, now, progress time.Time, cpu t
 // that fails must not charge their CPU time to this one. A reading that fails never kills.
 func awaitJob(done <-chan nodeReply, read func() (time.Duration, error), kill func() error, timeout, backstop time.Duration, fail func(why string) error) (NodeResult, error) {
 	start := time.Now()
-	var cpu0, last time.Duration
+	var cpu0 time.Duration
 	based := false
 	if c, err := read(); err == nil {
-		cpu0, last, based = c, c, true
+		cpu0, based = c, true
 	}
-	progress := start
 	tick := time.NewTicker(min(max(timeout/10, 100*time.Millisecond), 2*time.Second))
 	defer tick.Stop()
 	for {
@@ -366,12 +373,9 @@ func awaitJob(done <-chan nodeReply, read func() (time.Duration, error), kill fu
 				continue
 			}
 			if !based {
-				cpu0, last, based = cpu, cpu, true
+				cpu0, based = cpu, true
 			}
-			if cpu > last {
-				progress, last = now, cpu
-			}
-			if why := hung(timeout, backstop, start, now, progress, cpu-cpu0); why != "" {
+			if why := hung(timeout, backstop, start, now, cpu-cpu0); why != "" {
 				kill()
 				return NodeResult{}, fail(why)
 			}
