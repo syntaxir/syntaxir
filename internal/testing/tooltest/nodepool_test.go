@@ -43,6 +43,14 @@ func TestRunNodeScriptOutcomes(t *testing.T) {
 		{"throw", `console.log("before"); throw new Error("boom");`, nil, "before\n", "boom", 1},
 		{"exit", `console.log("x"); process.exit(3);`, nil, "x\n", "", 3},
 		{"rejection", `Promise.reject(new Error("late"));`, nil, "", "late", 1},
+		{"exit code", `process.exitCode = 2;`, nil, "", "", 2},
+		{"bare exit uses the exit code", `process.exitCode = 4; process.exit();`, nil, "", "", 4},
+		{"an exit that the script caught", `try { console.log("checked"); process.exit(3); } catch {} console.log("after");`, nil, "checked\n", "", 3},
+		{"the first exit decides", `try { process.exit(5); } catch {} process.exit(0);`, nil, "", "", 5},
+		{"a late log", `setTimeout(() => console.log("late"), 30); console.log("early");`, nil, "early\nlate\n", "", 0},
+		{"a late throw", `setTimeout(() => { throw new Error("late throw"); }, 20);`, nil, "", "late throw", 1},
+		{"a late rejection", `setTimeout(() => { Promise.reject(new Error("late rejection")); }, 20);`, nil, "", "late rejection", 1},
+		{"a late exit", `setTimeout(() => process.exit(6), 20);`, nil, "", "", 6},
 		{"argv", `console.log(process.argv.slice(2).join(","));`, nil, "p,q\n", "", 0},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -55,6 +63,10 @@ func TestRunNodeScriptOutcomes(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			// The scripts that follow find the exit code and the output of their own.
+			if next, err := RunNodeScript(t, node, poolScript(t, `console.log("next");`, nil), "main.ts"); err != nil || next.Code != 0 || next.Stdout != "next\n" || next.Stderr != "" {
+				t.Errorf("the script after it: %+v, %v", next, err)
+			}
 			if res.Stdout != c.stdout || res.Code != c.code || !strings.Contains(res.Stderr, c.stderr) {
 				t.Errorf("got stdout %q stderr %q code %d; want stdout %q stderr containing %q code %d", res.Stdout, res.Stderr, res.Code, c.stdout, c.stderr, c.code)
 			}
@@ -64,12 +76,9 @@ func TestRunNodeScriptOutcomes(t *testing.T) {
 
 // TestRunNodeScriptIndependence checks that scripts do not affect each other: a script that throws, one that
 // exits and one that hangs, among scripts that succeed, fail alone and leave the others their own output, in
-// the same pool and from many goroutines. The hang is cut at a shortened NodeJobTimeout.
+// the same pool and from many goroutines. The hang alone is cut short (RunNodeScriptWithin).
 func TestRunNodeScriptIndependence(t *testing.T) {
 	node := RequireNode(t)
-	old := NodeJobTimeout
-	NodeJobTimeout = 3 * time.Second
-	defer func() { NodeJobTimeout = old }()
 	const n = 30
 	type outcome struct {
 		res NodeResult
@@ -91,7 +100,13 @@ func TestRunNodeScriptIndependence(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			res, err := RunNodeScript(t, node, dir, "main.ts")
+			// Only the script that hangs on purpose is cut short; the others have the usual time, which a loaded
+			// machine may need to start a worker.
+			timeout := NodeJobTimeout
+			if i%10 == 7 {
+				timeout = 3 * time.Second
+			}
+			res, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
 			got[i] = outcome{res, err}
 		}()
 	}
@@ -132,12 +147,22 @@ console.log(seen.join(","));`
 	}{
 		{"a global", `(globalThis as any).leaked = 1;`, "+globalThis.leaked"},
 		{"a replaced method", `const f = Array.prototype.indexOf; Array.prototype.indexOf = function (this: any, ...a: any[]) { return f.apply(this, a); };`, "Array.prototype.indexOf"},
-		{"a new method of Object.prototype", `Object.defineProperty(Object.prototype, "extra", { value: 1, configurable: true });`, "+Object.prototype.extra"},
+		{"a new method of Object.prototype", `Object.defineProperty(Object.prototype, "extra", { value: 1, configurable: true });`, "+globalThis.Object.prototype.extra"},
 		{"a changed built-in function", `(Math as any).max = () => 0;`, "Math.max"},
-		{"the environment", `process.env.LEAKED = "yes";`, "+env.LEAKED=yes"},
+		{"the environment", `process.env.LEAKED = "yes";`, "+process.env.LEAKED"},
 		{"a frozen prototype", `Object.freeze(Map.prototype);`, "Map.prototype"},
 		{"a listener of process", `process.on("exit", () => {});`, "on exit"},
 		{"a patched module", `import fs from "node:fs"; (fs as any).patched = 1;`, "fs.patched"},
+		{"a replaced console method", `console.log = () => {};`, "globalThis.console.log"},
+		{"a new property of console", `(console as any).extra = 1;`, "+globalThis.console.extra"},
+		{"a patched typed array method", `(Int32Array.prototype as any).fill = function () { return this; };`, "Int32Array.prototype.fill"},
+		{"a patched Atomics function", `(Atomics as any).add = () => 0;`, "globalThis.Atomics.add"},
+		{"a patched DataView method", `(DataView.prototype as any).getInt8 = () => 0;`, "DataView.prototype.getInt8"},
+		{"a patched ArrayBuffer method", `(ArrayBuffer.prototype as any).slice = () => null;`, "ArrayBuffer.prototype.slice"},
+		{"a patched WeakRef method", `(WeakRef.prototype as any).deref = () => 1;`, "WeakRef.prototype.deref"},
+		{"a replaced getter of Intl", `Object.defineProperty(Intl.Collator.prototype, "compare", { get() { return () => 0; }, configurable: true });`, "Intl.Collator.prototype.compare"},
+		{"the process title", `process.title = "changed";`, "process.title"},
+		{"the umask", `const mask = process.umask(0); process.umask(mask === 0o7 ? 0o70 : 0o7);`, "process.umask"},
 		{"a replaced prototype", `Object.setPrototypeOf(Map.prototype, { x: 1 });`, "Map.prototype"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -152,6 +177,27 @@ console.log(seen.join(","));`
 				}
 			}
 		})
+	}
+}
+
+// TestRunNodeScriptLeftoverResources checks that a script that leaves a timer running that does not end
+// fails, and that its worker is replaced; a timer that ends is part of the script.
+func TestRunNodeScriptLeftoverResources(t *testing.T) {
+	node := RequireNode(t)
+	old := NodeDrainTimeout
+	NodeDrainTimeout = 400 * time.Millisecond
+	defer func() { NodeDrainTimeout = old }()
+	for _, src := range []string{`setInterval(() => console.log("tick"), 20);`, `setTimeout(() => console.log("never"), 600000);`} {
+		res, err := RunNodeScript(t, node, poolScript(t, src, nil), "main.ts")
+		if err == nil || !strings.Contains(err.Error(), "left active resources running: Timeout") {
+			t.Fatalf("got %+v, %v; want the leftover timer reported", res, err)
+		}
+		for range 3 {
+			res, err := RunNodeScript(t, node, poolScript(t, `console.log("next");`, nil), "main.ts")
+			if err != nil || res.Stdout != "next\n" {
+				t.Fatalf("a later script: %+v, %v", res, err)
+			}
+		}
 	}
 }
 

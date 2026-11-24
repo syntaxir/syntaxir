@@ -26,6 +26,11 @@ var nodePoolWorker string
 // and fails the script as hung. It is a variable so that the tests of the pool can shorten it.
 var NodeJobTimeout = 3 * time.Minute
 
+// NodeDrainTimeout is how long RunNodeScript lets what a script left running (timers, requests) go on after its
+// top-level code has finished, as node would run it, before it fails the script and replaces the worker. A
+// variable so that the tests of the pool can shorten it.
+var NodeDrainTimeout = 10 * time.Second
+
 // nodeJobsPerWorker is the number of scripts after which a worker is replaced, so that the modules that
 // the scripts loaded do not accumulate in one process.
 const nodeJobsPerWorker = 40
@@ -53,24 +58,47 @@ type NodeResult struct {
 // the others: it runs in a directory of its own, as a module that no other script imports, with its
 // own output and exit code; one that throws or exits fails alone, and one that hangs is killed with its
 // worker, which the pool replaces, without affecting the scripts that run in the other workers. A
-// script must have finished all its output when its top-level code and the macrotasks it queued have
-// run, must import only from its own directory and the built-in modules, must not read its standard
+// script must import only from its own directory and the built-in modules, must not read its standard
 // input, and must not depend on the process (argv, the heap, timing): tests that measure the process run
 // node themselves.
 //
-// A script must leave the worker as it found it. After every script the worker compares the own
-// properties of the global object, of the built-in constructors and prototypes, of process (keys,
-// environment, listeners) and of the modules fs, path, util and os, and the prototype and extensibility of
-// each, with their state at its start; a difference fails the script with an error that lists it, and the
-// worker is replaced, so a script that pollutes a global, or a mutant of the library that does, cannot
-// change what another script sees.
+// A script is finished when what it started is: like node, the pool lets the timers and requests that
+// the script left run, up to NodeDrainTimeout, and their output, throws and exits belong to the script. A
+// script that leaves resources running past that (a setInterval) fails and its worker is replaced. The
+// exit code is the argument of the first call of process.exit, even if the script caught the exception
+// that stops it (the output written after the call is dropped), else process.exitCode, else 1 for a throw
+// or a rejection that nothing handled, else 0.
+//
+// A script must leave the worker as it found it. After every script the worker compares everything that
+// is reachable from the global object, from process and from the modules fs, path, util and os, and the
+// iterator and generator prototypes, through own properties and prototypes (the value or the identity
+// that every property holds, the functions of accessors, the prototype and the extensibility of every
+// object), the title, umask, exit code and listeners of process, and its environment, with their state at the
+// start of the worker; a difference fails the script with an error that lists it, and the worker is
+// replaced, so a script that pollutes a global, or a mutant of the library that does, cannot change what
+// another script sees. The worker takes the built-ins that it uses for this before it runs a script, so
+// a script that replaces them (console.log, Array.prototype.push, JSON.stringify) is detected and does
+// not blind the check.
+//
+// What still differs from `node script`: the standard output and the error output are collected
+// separately, so NodeCombinedOutput gives the output followed by the error output instead of the two
+// interleaved; an error that no one catches is printed as its stack, without the source excerpt that node
+// prints; the 'exit' listeners of process do not run; and a worker that crashes is a pool error, not a
+// script exit code.
 func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (NodeResult, error) {
+	t.Helper()
+	return RunNodeScriptWithin(t, NodeJobTimeout, node, dir, script, args...)
+}
+
+// RunNodeScriptWithin is RunNodeScript with the time after which a script that has not finished is killed
+// and reported as hung (instead of NodeJobTimeout), for the test of a script that hangs on purpose.
+func RunNodeScriptWithin(t testing.TB, timeout time.Duration, node, dir, script string, args ...string) (NodeResult, error) {
 	t.Helper()
 	w, err := nodePool.acquire(node)
 	if err != nil {
 		return NodeResult{}, err
 	}
-	res, err := w.run(dir, script, args)
+	res, err := w.run(timeout, dir, script, args)
 	if err == nil && res.Leak != "" {
 		err = fmt.Errorf("node pool: %s in %s changed the state of the worker, which was replaced:\n%s", script, dir, res.Leak)
 	}
@@ -167,10 +195,10 @@ type nodeWorker struct {
 
 var nodeJobIDs atomic.Uint64
 
-func (w *nodeWorker) run(dir, script string, args []string) (NodeResult, error) {
+func (w *nodeWorker) run(timeout time.Duration, dir, script string, args []string) (NodeResult, error) {
 	w.jobs++
 	id := nodeJobIDs.Add(1)
-	line, err := json.Marshal(map[string]any{"id": id, "dir": dir, "script": script, "args": append([]string{}, args...)})
+	line, err := json.Marshal(map[string]any{"id": id, "dir": dir, "script": script, "drainMs": NodeDrainTimeout.Milliseconds(), "args": append([]string{}, args...)})
 	if err != nil {
 		return NodeResult{}, err
 	}
@@ -203,9 +231,9 @@ func (w *nodeWorker) run(dir, script string, args []string) (NodeResult, error) 
 	select {
 	case r := <-done:
 		return r.res, r.err
-	case <-time.After(NodeJobTimeout):
+	case <-time.After(timeout):
 		w.cmd.Process.Kill()
-		return NodeResult{}, fmt.Errorf("node pool: %s in %s ran past %v and was killed", script, dir, NodeJobTimeout)
+		return NodeResult{}, fmt.Errorf("node pool: %s in %s ran past %v and was killed", script, dir, timeout)
 	}
 }
 

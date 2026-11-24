@@ -2,16 +2,58 @@
 // script of the job in the directory of the job, and answers with one line of JSON. Jobs run one at a time,
 // so a job owns the process, its working directory and its output while it runs.
 import { createInterface } from "node:readline";
-import { join } from "node:path";
+import { join as join_ } from "node:path";
 import { pathToFileURL } from "node:url";
 import fsModule from "node:fs";
 import pathModule from "node:path";
 import utilModule from "node:util";
 import osModule from "node:os";
 
+const realArgv0 = process.argv[0];
+// The built-ins that the worker itself uses are taken here, before any script runs, so that a script that
+// replaces one of them (Array.prototype.push, Reflect.ownKeys, JSON.stringify, console.log...) cannot blind the
+// detector or the protocol: the code below that runs after a script uses these and plain loops, no spread,
+// destructuring or for-of (which read Array.prototype[Symbol.iterator]).
+const uncurry = Function.prototype.bind.bind(Function.prototype.call);
+const push = uncurry(Array.prototype.push);
+const join = uncurry(Array.prototype.join);
+const slice = uncurry(Array.prototype.slice);
+const startsWith = uncurry(String.prototype.startsWith);
+const mapGet = uncurry(Map.prototype.get);
+const mapSet = uncurry(Map.prototype.set);
+const mapHas = uncurry(Map.prototype.has);
+const weakGet = uncurry(WeakMap.prototype.get);
+const weakSet = uncurry(WeakMap.prototype.set);
+const weakHas = uncurry(WeakMap.prototype.has);
+const bufferToString = uncurry(Buffer.prototype.toString);
+const ownKeys = Reflect.ownKeys;
+const getDescriptor = Object.getOwnPropertyDescriptor;
+const getPrototype = Object.getPrototypeOf;
+const isExtensible = Object.isExtensible;
+const isFrozen = Object.isFrozen;
+const bufferFrom = Buffer.from;
+const stringify = JSON.stringify;
+const parse = JSON.parse;
+const now = Date.now;
+const StringOf = String;
+const NumberOf = Number;
+const MapOf = Map;
+const WeakMapOf = WeakMap;
+const PromiseOf = Promise;
+const setTimer = setTimeout;
+const setNow = setImmediate;
+const getActive = process.getActiveResourcesInfo.bind(process);
+const umask = process.umask.bind(process);
+const hasCapture = process.hasUncaughtExceptionCaptureCallback.bind(process);
+const chdir = process.chdir.bind(process);
+const processEventNames = process.eventNames.bind(process);
+const processListenerCount = process.listenerCount.bind(process);
+const processOn = process.on.bind(process);
+
 const reply = process.stdout.write.bind(process.stdout);
-const realErr = process.stderr.write.bind(process.stderr);
-const realExit = process.exit.bind(process);
+const origExit = process.exit;
+const origOutWrite = process.stdout.write;
+const origErrWrite = process.stderr.write;
 
 class Exit {
   constructor(code) {
@@ -22,10 +64,15 @@ class Exit {
 let out = "";
 let err = "";
 let failure = null;
+// The first request to exit decides the exit code of the script, whether the script caught the Exit that
+// process.exit throws or not, and the output written after it is dropped, as the process would have ended.
+let exitRequest = null;
 const collect = (sink) => (chunk, enc, cb) => {
-  const text = typeof chunk === "string" ? chunk : Buffer.from(chunk).toString();
-  if (sink === "out") out += text;
-  else err += text;
+  if (exitRequest === null) {
+    const text = typeof chunk === "string" ? chunk : bufferToString(bufferFrom(chunk));
+    if (sink === "out") out += text;
+    else err += text;
+  }
   const done = typeof enc === "function" ? enc : cb;
   if (typeof done === "function") done();
   return true;
@@ -33,109 +80,201 @@ const collect = (sink) => (chunk, enc, cb) => {
 
 // An error that no job awaits (a rejected promise, a throw in a callback) fails the job that is running.
 const unhandled = (e) => {
-  failure ??= e;
+  if (!(e instanceof Exit)) failure ??= e;
 };
-process.on("uncaughtException", unhandled);
-process.on("unhandledRejection", unhandled);
+processOn("uncaughtException", unhandled);
+processOn("unhandledRejection", unhandled);
 
-// The state that a script could leave to the next one: the own properties of the global object, of the
-// built-in constructors and prototypes, of process and of the built-in modules a script may patch, with
-// what each holds (a primitive by value, anything else by identity), the prototype and the extensibility
-// of each object, and the listeners of process. The worker compares it with the state at its start after
-// every job; a difference fails that job, and the worker is replaced.
-const ids = new WeakMap();
+// The state that a script could leave to the next one: everything that can be reached from the global
+// object, the modules fs, path, util and os, process and the intrinsics that no global names (the iterator
+// and generator prototypes), through own properties and prototypes, with what each property holds (a
+// primitive by value, anything else by identity, an accessor by the identity of its functions), the
+// prototype and extensibility of each object, the values of process that are read through accessors, the
+// environment and the listeners of process. The worker compares it with the state at its start after every
+// job; a difference fails that job, and the worker is replaced. Getters are never called.
+const ids = new WeakMapOf();
 let nextId = 1;
 const ident = (v) => {
-  if (v === null || (typeof v !== "object" && typeof v !== "function")) return typeof v === "symbol" ? String(v) : typeof v + ":" + String(v);
-  if (!ids.has(v)) ids.set(v, nextId++);
-  return "#" + ids.get(v);
+  if (v === null || (typeof v !== "object" && typeof v !== "function")) return typeof v === "symbol" ? StringOf(v) : typeof v + ":" + StringOf(v);
+  if (!weakHas(ids, v)) weakSet(ids, v, nextId++);
+  return "#" + weakGet(ids, v);
 };
-const roots = () => {
-  const typed = Object.getPrototypeOf(Uint8Array);
-  const named = {
-    globalThis, Object, Function, Array, String, Number, Boolean, Symbol, BigInt, Map, Set, WeakMap, Promise, Error,
-    RegExp, Date, JSON, Math, Reflect, Intl, Uint8Array, TextEncoder, TextDecoder, URL, Buffer, typed,
-    arrayIterator: Object.getPrototypeOf([][Symbol.iterator]()),
-    iterator: Object.getPrototypeOf(Object.getPrototypeOf([][Symbol.iterator]())),
-    generator: Object.getPrototypeOf(function* () {}),
-    asyncFunction: Object.getPrototypeOf(async function () {}),
-    fs: fsModule, path: pathModule, util: utilModule, os: osModule,
-  };
-  for (const k of ["Object", "Function", "Array", "String", "Number", "Boolean", "Symbol", "BigInt", "Map", "Set", "WeakMap", "Promise", "Error", "RegExp", "Date", "Uint8Array", "typed"]) {
-    const c = named[k];
-    if (typeof c === "function") named[k + ".prototype"] = c.prototype;
-  }
-  return named;
+const extraRoots = () => {
+  const roots = [];
+  const add = (name, v) => push(roots, [name, v]);
+  add("fs", fsModule);
+  add("path", pathModule);
+  add("util", utilModule);
+  add("os", osModule);
+  const arrayIterator = getPrototype([][Symbol.iterator]());
+  add("%ArrayIterator%", arrayIterator);
+  add("%Iterator%", getPrototype(arrayIterator));
+  add("%MapIterator%", getPrototype(new MapOf()[Symbol.iterator]()));
+  add("%SetIterator%", getPrototype(new Set()[Symbol.iterator]()));
+  add("%StringIterator%", getPrototype(""[Symbol.iterator]()));
+  add("%RegExpStringIterator%", getPrototype(/a/[Symbol.matchAll]("a")));
+  add("%GeneratorFunction%", getPrototype(function* () {}));
+  add("%AsyncFunction%", getPrototype(async function () {}));
+  add("%AsyncGeneratorFunction%", getPrototype(async function* () {}));
+  add("%AsyncIterator%", getPrototype(getPrototype(getPrototype(async function* () {}).prototype)));
+  return roots;
+};
+// The values of process that only accessors and methods give.
+const processState = (lines) => {
+  push(lines, ["process.title", StringOf(process.title)]);
+  push(lines, ["process.exitCode", StringOf(process.exitCode)]);
+  push(lines, ["process.sourceMapsEnabled", StringOf(process.sourceMapsEnabled)]);
+  push(lines, ["process.hasUncaughtExceptionCaptureCallback", StringOf(hasCapture())]);
+  const mask = umask(0);
+  umask(mask);
+  push(lines, ["process.umask", StringOf(mask)]);
+  const names = processEventNames();
+  for (let i = 0; i < names.length; i++) push(lines, ["on " + StringOf(names[i]), StringOf(processListenerCount(names[i]))]);
 };
 const snapshot = () => {
-  const lines = [];
-  for (const [name, obj] of Object.entries(roots())) {
-    if (obj === undefined || obj === null) continue;
-    lines.push(`${name} proto ${ident(Object.getPrototypeOf(obj))} ext ${Object.isExtensible(obj)}`);
-    for (const key of Reflect.ownKeys(obj)) {
-      const d = Object.getOwnPropertyDescriptor(obj, key);
-      const body = "value" in d ? ident(d.value) : `get ${ident(d.get)} set ${ident(d.set)}`;
-      lines.push(`${name}.${String(key)} ${d.enumerable}${d.configurable}${d.writable} ${body}`);
+  const state = new MapOf();
+  const seen = new WeakMapOf();
+  const queue = [];
+  const visit = (name, obj) => {
+    if (obj === null || (typeof obj !== "object" && typeof obj !== "function") || weakHas(seen, obj)) return;
+    weakSet(seen, obj, true);
+    push(queue, [name, obj]);
+  };
+  visit("globalThis", globalThis);
+  visit("process", process);
+  let q = 0;
+  // The roots that no global names come after what the globals reach, so that an object is named by its
+  // path from the global object where it has one.
+  const drain = () => {
+    for (; q < queue.length; q++) {
+      const name = queue[q][0];
+      const obj = queue[q][1];
+      const proto = getPrototype(obj);
+      mapSet(state, name + " #proto", ident(proto) + " ext " + isExtensible(obj) + " frozen " + isFrozen(obj));
+      const keys = ownKeys(obj);
+      for (let k = 0; k < keys.length; k++) {
+        const key = keys[k];
+        const path = name + "." + StringOf(key);
+        // The arguments are set for each script; the list of loaded internal modules grows as node loads them.
+        if (startsWith(path, "process.argv") || startsWith(path, "process.moduleLoadList")) continue;
+        const d = getDescriptor(obj, key);
+        if (d === undefined) continue;
+        let body;
+        if ("value" in d) {
+          body = ident(d.value);
+          visit(path, d.value);
+        } else {
+          body = "get " + ident(d.get) + " set " + ident(d.set);
+          visit(path + "<get>", d.get);
+          visit(path + "<set>", d.set);
+        }
+        mapSet(state, path, (d.enumerable ? "e" : "-") + (d.configurable ? "c" : "-") + (d.writable ? "w" : "-") + " " + body);
+      }
+      // The prototype comes after the own properties, so that an object is named by the shortest path of own properties.
+      visit(name + ".__proto__", proto);
     }
-  }
-  for (const key of Reflect.ownKeys(process)) lines.push(`process.${String(key)}`);
-  for (const key of Object.keys(process.env).sort()) lines.push(`env.${key}=${process.env[key]}`);
-  for (const ev of process.eventNames()) lines.push(`on ${String(ev)} ${process.listenerCount(ev)}`);
-  return lines;
+  };
+  drain();
+  const extras = extraRoots();
+  for (let i = 0; i < extras.length; i++) visit(extras[i][0], extras[i][1]);
+  drain();
+  const lines = [];
+  processState(lines);
+  for (let i = 0; i < lines.length; i++) mapSet(state, lines[i][0], lines[i][1]);
+  return state;
 };
 const differences = (before, after) => {
-  const a = new Set(before);
-  const b = new Set(after);
-  const out = [];
-  for (const l of before) if (!b.has(l)) out.push("-" + l);
-  for (const l of after) if (!a.has(l)) out.push("+" + l);
-  return out;
+  const result = [];
+  const keys = [];
+  before.forEach((_, k) => push(keys, k));
+  after.forEach((_, k) => push(keys, k));
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    const a = mapGet(before, k);
+    const b = mapGet(after, k);
+    if (a === b) continue;
+    if (!mapHas(before, k)) push(result, "+" + k + " " + b);
+    else if (!mapHas(after, k)) push(result, "-" + k + " " + a);
+    else push(result, "~" + k + " " + a + " -> " + b);
+  }
+  return result;
 };
 
-const describe = (e) => (e instanceof Error ? (e.stack ?? String(e)) : String(e));
+const describe = (e) => (e instanceof Error ? (e.stack ?? StringOf(e)) : StringOf(e));
 
 // Node defines some globals lazily, and what they set up (a symbol of undici on the global object) appears when
 // they are first read, so read them all before the state that scripts must leave is taken.
-for (const key of Reflect.ownKeys(globalThis)) {
+const globalKeys = ownKeys(globalThis);
+for (let i = 0; i < globalKeys.length; i++) {
   try {
-    globalThis[key];
+    globalThis[globalKeys[i]];
   } catch {}
 }
 const pristine = snapshot();
 
+const resourceCounts = () => {
+  const counts = new MapOf();
+  const list = getActive();
+  for (let i = 0; i < list.length; i++) mapSet(counts, list[i], (mapHas(counts, list[i]) ? mapGet(counts, list[i]) : 0) + 1);
+  return counts;
+};
+// The resources (timers, handles, requests) that the script left running beyond those it found.
+const leftover = (before) => {
+  const after = resourceCounts();
+  const names = [];
+  after.forEach((n, k) => {
+    if (n > (mapHas(before, k) ? mapGet(before, k) : 0)) push(names, k);
+  });
+  return names;
+};
+const sleep = (ms) => new PromiseOf((r) => setTimer(r, ms));
+
 for await (const line of createInterface({ input: process.stdin })) {
-  const job = JSON.parse(line);
+  const job = parse(line);
   out = "";
   err = "";
   failure = null;
+  exitRequest = null;
   let code = 0;
+  let stuck = "";
   process.stdout.write = collect("out");
   process.stderr.write = collect("err");
+  process.exitCode = undefined;
   process.exit = (c) => {
-    throw new Exit(c ?? 0);
+    exitRequest ??= { code: c === undefined ? (process.exitCode === undefined ? 0 : NumberOf(process.exitCode) | 0) : NumberOf(c) | 0 };
+    throw new Exit(exitRequest.code);
   };
+  const resources = resourceCounts();
   try {
-    process.chdir(job.dir);
-    process.argv = [process.argv[0], join(job.dir, job.script), ...job.args];
-    await import(pathToFileURL(join(job.dir, job.script)).href);
-    // The macrotasks that the script queued run before the job ends.
-    await new Promise((r) => setImmediate(r));
+    chdir(job.dir);
+    process.argv.length = 0;
+    push(process.argv, realArgv0, join_(job.dir, job.script));
+    for (let i = 0; i < job.args.length; i++) push(process.argv, job.args[i]);
+    await import(pathToFileURL(join_(job.dir, job.script)).href);
   } catch (e) {
-    if (e instanceof Exit) code = e.code;
-    else failure ??= e;
+    if (!(e instanceof Exit)) failure ??= e;
   }
-  if (failure instanceof Exit) {
-    code = failure.code;
-    failure = null;
-  }
-  if (failure !== null) {
+  // The script has finished when what it started has: node runs a script until nothing is pending (timers,
+  // requests), so the output, the throws and the exits of the callbacks belong to it. What still runs after
+  // the time that job.drainMs allows is not a finished script, and fails the job.
+  const deadline = now() + job.drainMs;
+  await new PromiseOf((r) => setNow(r));
+  while (leftover(resources).length > 0 && now() < deadline) await sleep(2);
+  await new PromiseOf((r) => setNow(r));
+  await new PromiseOf((r) => setNow(r));
+  const remaining = leftover(resources);
+  if (remaining.length > 0) stuck = "the script left active resources running: " + join(remaining, ", ");
+  if (exitRequest !== null) code = exitRequest.code;
+  else if (failure !== null) {
     err += describe(failure) + "\n";
     code = 1;
-  }
-  process.stdout.write = reply;
-  process.stderr.write = realErr;
-  process.exit = realExit;
+  } else code = process.exitCode === undefined ? 0 : NumberOf(process.exitCode) | 0;
+  process.stdout.write = origOutWrite;
+  process.stderr.write = origErrWrite;
+  process.exit = origExit;
+  process.exitCode = undefined;
   const diff = differences(pristine, snapshot());
-  const leak = diff.length === 0 ? "" : diff.slice(0, 20).join("\n") + (diff.length > 20 ? `\n... ${diff.length - 20} more` : "");
-  reply(JSON.stringify({ id: job.id, out, err, code, leak }) + "\n");
+  if (stuck !== "") push(diff, stuck);
+  const leak = diff.length === 0 ? "" : join(slice(diff, 0, 20), "\n") + (diff.length > 20 ? "\n... " + (diff.length - 20) + " more" : "");
+  reply(stringify({ id: job.id, out, err, code, leak }) + "\n");
 }
