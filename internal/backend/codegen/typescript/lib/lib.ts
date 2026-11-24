@@ -6261,10 +6261,13 @@ export class StreamParser extends Parser {
   diagnosed = 0;
   // The memory count of a stream returns storage only once nothing that the parse keeps references it
   // (spec/runtime/streaming.md, Memory). errs counts the syntax errors built since the last settling of
-  // the recovered errors (streamSettleErrors). memoHeld counts what memo entries, skip records and the
+  // the recovered errors (streamSettleErrors). It is not reduced when a backtrack drops recovered errors
+  // from the record, so it can exceed what the parse still holds: the memory limit sees an overcount,
+  // never an undercount. memoHeld counts what memo entries, skip records and the
   // record of recovered errors share beyond a commit: the lists of recovered errors, the keys of memo
   // entries, and the errors once a settling moved them from errs; a memo prune replaces it with what
-  // the holders that remain reach (recountMemoHeld). retired lists, oldest first, the values that a
+  // the holders that remain reach (recountMemoHeld); a commit does not return it, so between prunes it
+  // can exceed what the parse holds, never fall below it. retired lists, oldest first, the values that a
   // commit let go of with the highest position of any memo entry or skip record stored by then
   // (memoHigh): an entry or record that starts there may reference them, so memoPrune returns them
   // only once it has discarded every holder stored by then.
