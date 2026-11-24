@@ -13,20 +13,21 @@ import (
 // package clause for every start rule of the grammar, on a rule for that rule.
 const LinearAttribute = "linear"
 
-// IsLinear reports whether a is the declaration attribute @linear. The attribute only adds a check
-// of the grammar, so the analyses that treat a rule with declaration attributes apart do not count
+// IsLinear reports whether a, a declaration attribute, is @linear. A declaration holds @
+// attributes only: grammar validation rejects a pragma there. The attribute only adds a check of
+// the grammar, so the analyses that treat a rule with declaration attributes apart do not count
 // it.
-func IsLinear(a *ast.Attribute) bool { return !a.Pragma && a.Name == LinearAttribute }
+func IsLinear(a *ast.Attribute) bool { return a.Name == LinearAttribute }
 
 // DeclaredBeyondScan reports whether the declaration of rd keeps it from being a pure scan rule
-// (corepass.SiteRule.Declared): it has a type, an action, or an attribute or pragma other than
+// (corepass.SiteRule.Declared): it has a type, an action, or an attribute other than
 // @start and @linear, which only add checks.
 func DeclaredBeyondScan(rd *ast.RuleDef) bool {
 	if rd.Type != nil || rd.Action != nil {
 		return true
 	}
 	for _, a := range rd.Attrs {
-		if (a.Pragma || a.Name != "start") && !IsLinear(a) {
+		if a.Name != "start" && !IsLinear(a) {
 			return true
 		}
 	}
@@ -48,7 +49,7 @@ func LinearDeclarations(g *ast.Grammar, control *cancel.Control) (whole bool, ru
 			control.Poll()
 			if !IsLinear(a) {
 				if !others {
-					errorf(a.Diagnostic(), "unknown declaration attribute %s%s of the package clause", AnnotationMarker(a), a.Name)
+					errorf(a.Diagnostic(), "unknown declaration attribute @%s of the package clause", a.Name)
 				}
 				continue
 			}

@@ -31,8 +31,9 @@ func ResolveStarts(rules []*ast.RuleDef, control *cancel.Control) (starts []stri
 			if IsLinear(a) {
 				continue // checked by LinearDeclarations
 			}
-			if a.Pragma || a.Name != "start" {
-				errorf(a.Diagnostic(), "unknown declaration attribute %s%s", AnnotationMarker(a), a.Name)
+			// A declaration holds @ attributes only: grammar validation rejects a pragma there.
+			if a.Name != "start" {
+				errorf(a.Diagnostic(), "unknown declaration attribute @%s", a.Name)
 				continue
 			}
 			if start != nil {
@@ -85,7 +86,7 @@ func ResolveStarts(rules []*ast.RuleDef, control *cancel.Control) (starts []stri
 
 // StartMarked reports whether rd is marked @start, so that a parse may begin at it.
 func StartMarked(rd *ast.RuleDef) bool {
-	return slices.ContainsFunc(rd.Attrs, func(a *ast.Attribute) bool { return !a.Pragma && a.Name == "start" })
+	return slices.ContainsFunc(rd.Attrs, func(a *ast.Attribute) bool { return a.Name == "start" })
 }
 
 // isDefaultArg reports whether the attribute argument is the bare identifier

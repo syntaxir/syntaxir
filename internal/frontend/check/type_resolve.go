@@ -94,8 +94,9 @@ func (k *TypeResolver) Resolve(t ast.TypeExpr) Ty {
 		}
 		return TyAny
 	case *ast.MeetType:
-		m := Ty(TyTop) // the meet of no types
-		for _, x := range t.Types {
+		// Grammar validation holds a meet to two types or more.
+		m := k.Resolve(t.Types[0])
+		for _, x := range t.Types[1:] {
 			m = vmeet(m, k.Resolve(x))
 		}
 		return m

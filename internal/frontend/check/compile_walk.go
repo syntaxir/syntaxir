@@ -149,7 +149,10 @@ func (c *walker) predicate(e *ast.Predicate, s *Scope) {
 	}
 }
 
-// attributed walks an attributed expression and checks its attributes.
+// attributed walks an attributed expression and checks its attributes. The pragmas #stream,
+// #missing and #recover take the arguments of their normalized form (desugar.NormalizeAttributes):
+// grammar validation rejects a pragma with arguments as input, and the normalization gives #recover
+// its skip expression.
 func (c *walker) attributed(e *ast.Attributed, s *Scope, build bool) {
 	c.Expr(e.Expr, s, build)
 	for _, a := range e.Attrs {
@@ -158,17 +161,10 @@ func (c *walker) attributed(e *ast.Attributed, s *Scope, build bool) {
 			if _, ok := e.Expr.(*ast.Repeat); !ok {
 				c.errorf(a.Diagnostic(), "#stream must be attached to a repetition (*, +, or #repeat(...))")
 			}
-			if len(a.Args)+len(a.KwArgs) > 0 {
-				c.errorf(a.Diagnostic(), "#stream takes no arguments")
-			}
 		case "missing":
 			lit, ok := e.Expr.(*ast.Literal)
 			if !ok || lit.Value == "" {
 				c.errorf(a.Diagnostic(), "#missing requires a nonempty literal")
-				continue
-			}
-			if len(a.Args)+len(a.KwArgs) != 0 {
-				c.errorf(a.Diagnostic(), "#missing takes no arguments")
 			}
 		case "error":
 			if msg, ok := c.stringArg(a, "message"); ok {
@@ -179,11 +175,7 @@ func (c *walker) attributed(e *ast.Attributed, s *Scope, build bool) {
 				c.desc(name)
 			}
 		case "recover":
-			skipExpr, ok := a.Arg("skip")
-			if !ok {
-				c.errorf(a.Diagnostic(), "#recover requires a skip argument")
-				continue
-			}
+			skipExpr, _ := a.Arg("skip")
 			c.noCaptures(skipExpr)
 			c.Expr(skipExpr, s, false)
 		default:

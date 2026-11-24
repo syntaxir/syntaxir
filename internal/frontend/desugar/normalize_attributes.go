@@ -204,47 +204,6 @@ func (n *attributeNormalizer) bind(a *ast.Attribute, name string) *ast.Attribute
 	return a
 }
 
-func (n *attributeNormalizer) repeat(e ast.Expr, a *ast.Attribute) ast.Expr {
-	if len(a.KwArgs) != 0 {
-		n.error(a, "accepts only positional arguments")
-		return e
-	}
-	if len(a.Args) != 1 && len(a.Args) != 2 {
-		n.error(a, "requires one or two positional slots")
-		return e
-	}
-	if a.Args[0] == nil && (len(a.Args) == 1 || a.Args[1] == nil) {
-		n.error(a, "requires at least one bound")
-		return e
-	}
-	min := 0
-	if a.Args[0] != nil {
-		value, ok := a.Args[0].(int)
-		if !ok || value < 0 {
-			n.error(a, "minimum must be a nonnegative integer")
-			return e
-		}
-		min = value
-	}
-	max := min
-	if len(a.Args) == 2 {
-		max = -1
-		if a.Args[1] != nil {
-			value, ok := a.Args[1].(int)
-			if !ok || value < 0 {
-				n.error(a, "maximum must be a nonnegative integer")
-				return e
-			}
-			max = value
-		}
-	}
-	if max >= 0 && max < min {
-		n.error(a, "maximum is less than minimum")
-		return e
-	}
-	return &ast.Repeat{SourceInfo: ast.SourceInfo{Pos: a.Diagnostic()}, Expr: e, Min: min, Max: max}
-}
-
 func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 	n.control.Poll()
 	switch e := expr.(type) {
@@ -360,24 +319,10 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 				n.error(a, "is a pragma; use #"+a.Name)
 				continue
 			}
-			if (a.Name == "error" || a.Name == "diagnostic") && a.Pragma {
-				n.error(a, "is an attribute; use @"+a.Name)
-				continue
-			}
+			// The pragmas of a valid grammar are #ignorecase and #missing, without arguments
+			// (ast.Validate); the parser writes the others as the nodes they stand for.
 			switch a.Name {
-			case "repeat":
-				inner = n.repeat(inner, a)
-				continue
-			case "atomic":
-				if len(a.Args)+len(a.KwArgs) != 0 {
-					n.error(a, "takes no arguments")
-				}
-				inner = &ast.Atomic{SourceInfo: ast.SourceInfo{Pos: a.Diagnostic()}, Expr: inner}
-				continue
 			case "ignorecase":
-				if len(a.Args)+len(a.KwArgs) != 0 {
-					n.error(a, "takes no arguments")
-				}
 				inner = foldLiterals(inner)
 				continue
 			case "error":
@@ -398,8 +343,6 @@ func (n *attributeNormalizer) expr(expr ast.Expr) ast.Expr {
 				} else if stringLit.Value == "" || strings.ContainsAny(stringLit.Value, "\r\n\u0085\u2028\u2029") {
 					n.error(a, "name must be nonempty and contain no line separator")
 				}
-			case "recover":
-				a = n.bind(a, "skip")
 			}
 			if old, ok := inner.(*ast.Attributed); ok {
 				copy := *old
