@@ -95,6 +95,9 @@ func timePlanWith(planFile string, out io.Writer, r runner) error {
 		if v := res.Time.Verdict; v == stat.Regression || v == stat.Invalid {
 			bad = append(bad, res.Gate.Name+": "+v.String())
 		}
+		if n := res.detRegressions(); n > 0 {
+			bad = append(bad, fmt.Sprintf("%s: %d allocation regressions (B/op or allocs/op outside the noise range)", res.Gate.Name, n))
+		}
 	}
 	fmt.Fprintf(out, "\ntime of the gate set: %v\n", total.Round(time.Second))
 	if len(bad) > 0 {

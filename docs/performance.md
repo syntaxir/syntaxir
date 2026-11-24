@@ -179,8 +179,10 @@ from 1. The verdict is
 - *improvement* when the upper end is below 1 minus the spread;
 - *within noise* otherwise.
 
-**Stopping.** A gate runs at least 8 rounds and at most `-rounds`. It stops early when the verdict is invalid, or when
-the half-width of the candidate interval is at most 0.5% of its median. That is a precision rule: it depends on the
+**Stopping.** A gate runs at least 8 rounds and at most `-rounds`. It stops early only when
+the half-width of the candidate interval is at most 0.5% of its median; whether the A/A spread is valid is decided when it stops,
+not earlier, because the spread of a few rounds is itself noisy (with 1% scatter per process, about half of the 8-round
+runs of a quiet machine would look invalid). That is a precision rule: it depends on the
 width of the interval and never on where the change lies, so it does not look at significance. Optional stopping
 inflates the false-positive rate of a test that stops once the result looks significant; a rule that stops once the
 estimate is precise enough does not, because for any true effect the stopped estimate is as precise as required
@@ -192,11 +194,12 @@ For each benchmark the median over the rounds of the candidate is compared with 
 base again took over the rounds: a metric counts as changed when the candidate lies outside that range. Allocation
 counts that never move make the range a point, so any difference counts; counts that move in identical code (pools,
 maps, the collector) set their own range. They are printed in their own section, so that a "within noise" time
-verdict never hides an allocation change.
+verdict never hides an allocation change. A metric above the range is an allocation regression and fails the gate set like a
+slowdown; one below it is reported as an improvement.
 
-The exit status is non-zero when any gate is a regression or invalid. A run prints `uptime` and the time of the gate set.
+The exit status is non-zero when any gate is a regression, has an allocation regression, or is invalid. A run prints `uptime` and the time of the gate set.
 
-**Cost.** The old landing rule fixed 20 rounds of the three variants per gate. On a quiet machine the gate stops after 8 rounds (a 2.5× cut). Measured on a loaded machine (load average about 55, shared slot, so both verdicts were *invalid* as they should be): the `runtime-compile` and `generation` gates took 16m25s together, with `generation` at 14m33s for its 8 rounds (about 1.8 min per round), where the fixed rule would have run 20 rounds, about 36 min, for `generation` alone. The time of the whole quick set on an idle machine is not recorded yet.
+**Cost.** The old landing rule fixed 20 rounds of the three variants per gate. The gate stops earlier only when the interval is narrow (see above). Measured on a loaded machine (load average about 55, shared slot, before the quiet-machine protocol below): the `runtime-compile` and `generation` gates took 16m25s together for 8 rounds each, about 1.8 min a round for `generation`; those 8-round stops came from the earlier rule that also stopped on an invalid spread. The time of the quick set on a quiet machine is recorded below once measured.
 
 **A quiet machine.** The benchmark lock alone does not make the machine quiet: the test slots of
 `.agents/scripts/testslot.sh` ran beside it, and a first A/A run at load 55 had a 15% spread. So the two share a

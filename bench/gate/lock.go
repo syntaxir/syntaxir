@@ -35,7 +35,17 @@ func (l execLocker) hold(planFile string) error {
 	cmd := exec.Command(lock, "bench-gate", self)
 	cmd.Env = append(os.Environ(), planEnv+"="+planFile)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
-	return cmd.Run()
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	activeMu.Lock()
+	activeChild = cmd.Process
+	activeMu.Unlock()
+	err = cmd.Wait()
+	activeMu.Lock()
+	activeChild = nil
+	activeMu.Unlock()
+	return err
 }
 
 func fileExists(p string) bool {

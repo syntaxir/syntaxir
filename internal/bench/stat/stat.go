@@ -137,16 +137,17 @@ func Judge(change, aa []float64, maxSpread float64) Judgment {
 const Precision = 0.005
 
 // Enough reports whether the rounds so far suffice. It is a rule on the width of the interval, never on where the
-// change lies: with at least minRounds rounds, it holds when the A/A spread is over maxSpread (the run is
-// invalid and more rounds would not mend it), or when the half-width of the interval of the change, relative to
-// the change, is at most Precision. The rule does not look at whether the change is beyond 1 or the spread, so it
-// is a precision rule and not a significance test that stops when the result happens to look significant: for
-// per-round ratios with similar relative scatter whatever their location, the relative width does not depend on
-// the location, so stopping on it does not bias the verdict toward a change.
+// change lies: with at least minRounds rounds, it holds when the half-width of the interval of the change,
+// relative to the change, is at most Precision. The rule does not look at whether the change is beyond 1 or the
+// spread, so it is a precision rule and not a significance test that stops when the result happens to look
+// significant: for per-round ratios with similar relative scatter whatever their location, the relative width does
+// not depend on the location, so stopping on it does not bias the verdict toward a change. It does not stop on an
+// invalid A/A spread either: the spread of a few rounds is itself noisy (with 1% scatter per process, about half of
+// the 8-round runs of a quiet machine would look invalid), so validity is decided at the end of the rounds.
 func Enough(change, aa []float64, minRounds int, maxSpread float64) bool {
 	if len(change) < minRounds || len(aa) < minRounds {
 		return false
 	}
 	j := Judge(change, aa, maxSpread)
-	return j.Verdict == Invalid || j.CI.HalfWidth()/j.Change <= Precision
+	return j.CI.HalfWidth()/j.Change <= Precision
 }

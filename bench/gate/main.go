@@ -18,9 +18,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
+	"syscall"
 	"time"
 )
 
@@ -112,15 +115,30 @@ func runGates(names []string, baseRev string, lim limits) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(work)
-	same := exec.Command("git", "diff", "--quiet", baseRev, "--").Run() == nil
+	// cleanup removes the temporary base worktree and the work directory, once, whether the run ends or is
+	// interrupted (see stopOnSignal).
+	var cleanOnce sync.Once
 	baseRoot := root
+	cleanup := func() {
+		cleanOnce.Do(func() {
+			if baseRoot != root {
+				exec.Command("git", "-C", root, "worktree", "remove", "--force", baseRoot).Run()
+			}
+			os.RemoveAll(work)
+		})
+	}
+	defer cleanup()
+	defer stopOnSignal(cleanup)()
+	// The candidate is the working tree, untracked files included: it is the base itself only when HEAD is the base
+	// and nothing is modified or untracked.
+	head, _ := git(root, "rev-parse", "HEAD")
+	baseSHA, _ := git(root, "rev-parse", baseRev)
+	same := head == baseSHA && !dirty(root)
 	if !same {
 		baseRoot = filepath.Join(work, "base")
 		if _, err := git(root, "worktree", "add", "--detach", baseRoot, baseRev); err != nil {
 			return err
 		}
-		defer exec.Command("git", "-C", root, "worktree", "remove", "--force", baseRoot).Run()
 	}
 	p := plan{Limits: lim}
 	p.Revs[0], _ = git(root, "rev-parse", "--short", baseRev)
@@ -164,8 +182,42 @@ func runGates(names []string, baseRev string, lim limits) error {
 	return execLocker{root: root}.hold(planFile)
 }
 
+// activeChild is the benchmark-lock script while it runs; a signal is passed on to it.
+var (
+	activeMu    sync.Mutex
+	activeChild *os.Process
+)
+
+// stopOnSignal makes an interrupt or a termination end the run cleanly: it is passed on to the lock script, which
+// stops the timing phase, and this program returns through its deferred cleanup; while no timing phase runs, it
+// cleans up and exits. It returns the function that stops listening.
+func stopOnSignal(cleanup func()) func() {
+	ch := make(chan os.Signal, 1)
+	signal.Notify(ch, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP)
+	go func() {
+		sig, ok := <-ch
+		if !ok {
+			return
+		}
+		activeMu.Lock()
+		child := activeChild
+		activeMu.Unlock()
+		if child != nil {
+			child.Signal(syscall.SIGTERM)
+			return
+		}
+		cleanup()
+		code := 130
+		if sig == syscall.SIGTERM {
+			code = 143
+		}
+		os.Exit(code)
+	}()
+	return func() { signal.Stop(ch); close(ch) }
+}
+
 func dirty(root string) bool {
-	out, _ := git(root, "status", "--porcelain", "--untracked-files=no")
+	out, _ := git(root, "status", "--porcelain")
 	return out != ""
 }
 

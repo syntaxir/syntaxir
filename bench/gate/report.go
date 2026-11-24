@@ -151,14 +151,35 @@ func (r result) write(w io.Writer, lim limits) {
 			fmt.Fprintf(w, "    %-60s %.3f  (%s)\n", row.Name, row.Change, row.Verdict)
 		}
 	}
-	fmt.Fprintf(w, "  deterministic metrics (B/op, allocs/op), judged exactly against the A/A pair:\n")
+	fmt.Fprintf(w, "  deterministic metrics (B/op, allocs/op), changed when the candidate's median is outside the range of the base and the base again over the rounds:\n")
 	if len(r.Det) == 0 {
 		fmt.Fprintf(w, "    no change\n")
 		return
 	}
 	for _, d := range r.Det {
-		fmt.Fprintf(w, "    %-60s %-9s %s -> %s (base again %s)\n", d.Name, d.Metric, num(d.Base), num(d.Cand), num(d.AABase))
+		fmt.Fprintf(w, "    %-60s %-9s %s -> %s (base again %s): %s\n", d.Name, d.Metric, num(d.Base), num(d.Cand), num(d.AABase), d.word())
 	}
+}
+
+// Regression is whether the candidate allocates more than the base: that fails the gate, as a slowdown does.
+func (d detRow) Regression() bool { return d.Cand > d.Base }
+
+func (d detRow) word() string {
+	if d.Regression() {
+		return "regression"
+	}
+	return "improvement"
+}
+
+// detRegressions counts the deterministic metrics that rose.
+func (r result) detRegressions() int {
+	n := 0
+	for _, d := range r.Det {
+		if d.Regression() {
+			n++
+		}
+	}
+	return n
 }
 
 func num(x float64) string {

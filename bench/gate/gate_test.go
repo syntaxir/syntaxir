@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -267,5 +269,75 @@ func TestBusyMachineIsNotJudged(t *testing.T) {
 	out, err = run(9)
 	if err == nil || !strings.Contains(out, "load 9.00 at the start") {
 		t.Errorf("a machine that stayed busy was judged: %v\n%s", err, out)
+	}
+}
+
+// TestAllocationChangeDecidesTheGate checks that more B/op or allocs/op than the noise range fails the gate set
+// even when the time is within noise, and that fewer is reported as an improvement without failing it.
+func TestAllocationChangeDecidesTheGate(t *testing.T) {
+	g, _ := findGate("generation")
+	p := plan{Limits: testLimits, Revs: [2]string{"base", "cand"}, Gates: []planGate{{Gate: g}}}
+	data, _ := json.Marshal(p)
+	file := filepath.Join(t.TempDir(), "plan.json")
+	if err := os.WriteFile(file, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var more bytes.Buffer
+	err := (directLocker{out: &more, run: &fake{slow: 1, ripple: 0.003, allocs: 3}}).hold(file)
+	if err == nil || !strings.Contains(err.Error(), "allocation regressions") || !strings.Contains(more.String(), "time verdict: within noise") {
+		t.Errorf("more allocations did not fail the gate set: %v\n%s", err, more.String())
+	}
+	var fewer bytes.Buffer
+	if err := (directLocker{out: &fewer, run: &fake{slow: 1, ripple: 0.003, allocs: -3}}).hold(file); err != nil {
+		t.Errorf("fewer allocations failed the gate set: %v\n%s", err, fewer.String())
+	}
+	if !strings.Contains(fewer.String(), "improvement") {
+		t.Errorf("fewer allocations are not reported as an improvement:\n%s", fewer.String())
+	}
+}
+
+// TestInvalidDoesNotStopEarly checks that a noisy gate runs to the limit of rounds, where its validity is decided.
+func TestInvalidDoesNotStopEarly(t *testing.T) {
+	res, rounds := judged(t, &fake{slow: 1, ripple: 0.08})
+	if len(rounds) != testLimits.MaxRounds {
+		t.Errorf("a noisy gate stopped at %d rounds, not at the limit %d (%s)", len(rounds), testLimits.MaxRounds, res.Why)
+	}
+	if res.Time.Verdict != stat.Invalid {
+		t.Errorf("verdict %v, want invalid", res.Time.Verdict)
+	}
+}
+
+// TestSignalIsPassedToTheLockScript checks that a termination of the gate reaches the lock script while it runs,
+// and does not run the cleanup, which the returning run does through its defer.
+func TestSignalIsPassedToTheLockScript(t *testing.T) {
+	child := exec.Command("sleep", "30")
+	if err := child.Start(); err != nil {
+		t.Fatal(err)
+	}
+	activeMu.Lock()
+	activeChild = child.Process
+	activeMu.Unlock()
+	cleaned := make(chan struct{}, 1)
+	stop := stopOnSignal(func() { cleaned <- struct{}{} })
+	syscall.Kill(os.Getpid(), syscall.SIGTERM)
+	done := make(chan error, 1)
+	go func() { done <- child.Wait() }()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Error("the child ended without a signal")
+		}
+	case <-time.After(5 * time.Second):
+		child.Process.Kill()
+		t.Error("the signal did not reach the child")
+	}
+	stop()
+	activeMu.Lock()
+	activeChild = nil
+	activeMu.Unlock()
+	select {
+	case <-cleaned:
+		t.Error("cleanup ran in the handler although a child was running")
+	default:
 	}
 }

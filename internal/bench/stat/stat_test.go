@@ -78,8 +78,8 @@ func TestEnough(t *testing.T) {
 	if Enough(series(8, 1.0, 0.02), series(8, 1, 0.01), 8, 0.015) {
 		t.Error("a wide interval around 1 counts as enough")
 	}
-	if !Enough(series(8, 1.0, 0.02), series(8, 1, 0.04), 8, 0.015) {
-		t.Error("an invalid A/A spread does not end the run")
+	if Enough(series(8, 1.0, 0.02), series(8, 1, 0.04), 8, 0.015) {
+		t.Error("an invalid A/A spread of a few rounds ends the run: validity is decided at the end")
 	}
 	// The rule does not look at the location: the same ripple around 1 and around 1.2 gives the same answer.
 	for _, centre := range []float64{1, 1.2} {
