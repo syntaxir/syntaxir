@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -316,6 +317,78 @@ func TestPassesOffAgree(t *testing.T) {
 					t.Errorf("%s: %s: backend %v, input %.40q, %v:\n  default: %v\n  off:     %v", c.Name, v.name, v.backends[i/per], c.Inputs[i%per/len(units2)], units2[i%len(units2)], want[i], got[i])
 				}
 			}
+		}
+	}
+}
+
+// neverApplied lists the canonicalize patterns that no case of the corpus makes apply on the bytecode VM, with
+// the reason. The Flow lowering (internal/middleend/flowlower) writes a condition from variables and calls, never
+// from constants only (fold-constants, fold-branches); it opens every block with a label and a statement list of
+// its own, and an If's Else is empty never (splice-blocks); and it leaves a label unused only where no exit names
+// it, which it does not emit (drop-unused-labels). The patterns serve the Exec stage of generated code and other
+// producers of Flow code, which the codepass tests exercise (TestCanonicalizePatternOff). A pattern that starts to
+// apply fails TestEnginePassesApply until it leaves this list.
+var neverApplied = map[string]bool{"fold-constants": true, "fold-branches": true, "drop-unused-labels": true, "splice-blocks": true}
+
+var appliedRe = regexp.MustCompile(`([a-z-]+) applied (\d+)`)
+var scanRe = regexp.MustCompile(`(scanReachAt|scanEndAt|scanClass) (\d+)`)
+var guardedRe = regexp.MustCompile(`(?m)^\s*vm/(guards|dispatch)\s.*guarded (\d+)`)
+
+// TestEnginePassesApply checks that each optimization that the engine runs does something on the corpus of the
+// tier: the guards and the dispatch guard some alternative, the scans make the VM lower a scan instruction,
+// and each canonicalize pattern applies at least once, except those that neverApplied lists, which must apply
+// nowhere. Without it a pass could be switched off in TestPassesOffAgree and differ from nothing.
+func TestEnginePassesApply(t *testing.T) {
+	t.Parallel()
+	if testing.Short() {
+		t.Skip("compiles the corpus")
+	}
+	codegentest.NeedsBudgetControls(t)
+	applied := map[string]int{}
+	for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {
+		g, err := enginetest.Parse(c.Src)
+		if err != nil {
+			t.Fatalf("%s: %v", c.Name, err)
+		}
+		var buf strings.Builder
+		prog, err := entry.Compile(g, entry.Options{Compile: check.Options{NoProjections: true}, Debug: common.Debug{Stats: true, Output: &buf}})
+		if err != nil {
+			t.Fatalf("%s: %v", c.Name, err)
+		}
+		if _, err := prog.ParseWith("main", c.Inputs[0], engine.ParseOptions{Backend: engine.Bytecode}); err != nil {
+			_ = err // an input that is rejected still builds the program
+		}
+		for _, m := range appliedRe.FindAllStringSubmatch(buf.String(), -1) {
+			var n int
+			fmt.Sscan(m[2], &n)
+			applied[m[1]] += n
+		}
+		for _, m := range guardedRe.FindAllStringSubmatch(buf.String(), -1) {
+			var n int
+			fmt.Sscan(m[2], &n)
+			applied[m[1]+" guarded"] += n
+		}
+		// The scans pass shows in what the VM lowers: a scan instruction.
+		for _, m := range scanRe.FindAllStringSubmatch(buf.String(), -1) {
+			var n int
+			fmt.Sscan(m[2], &n)
+			applied["scans lowered"] += n
+		}
+	}
+	for _, name := range []string{"guards guarded", "dispatch guarded", "scans lowered"} {
+		if applied[name] == 0 {
+			t.Errorf("%s is 0 over the corpus: the pass does nothing there, so switching it off proves nothing", name)
+		}
+	}
+	for _, f := range engineFlags {
+		switch {
+		case f.name == "guards" || f.name == "scans" || f.name == "dispatch" || f.name == "canonicalize":
+		case neverApplied[f.name]:
+			if applied[f.name] != 0 {
+				t.Errorf("the pattern %s applies %d times: take it out of neverApplied", f.name, applied[f.name])
+			}
+		case applied[f.name] == 0:
+			t.Errorf("the pattern %s never applies over the corpus", f.name)
 		}
 	}
 }
