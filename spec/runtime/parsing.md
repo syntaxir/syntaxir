@@ -2707,6 +2707,12 @@ only, whose call stack is on the heap; on a backend that nests rule calls on the
 host stack it is an option error. Every backend reaches the limit at the same
 nesting of the same input.
 
+The limit bounds the nesting of the calls that a parse evaluates. A call that a
+[Document](documents.md#reuse) answers from a result that an earlier parse kept
+does not nest, so a Document parse can complete where a parse of its text from
+scratch exceeds the limit, and return a tree that nests deeper than the limit.
+Code that recurses over a tree must not rely on the limit to bound its own depth.
+
 ## Cancellation and Compute Limits
 
 The reference Go API accepts invocation-local cancellation and a compute limit

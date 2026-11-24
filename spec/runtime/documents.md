@@ -240,8 +240,15 @@ limit is zero.
 
 ### Reuse
 
-Reuse never changes a result: every parse returns what a parse of the current
-text from scratch returns. It does change the
+Reuse never changes a result: every parse that completes returns what a parse
+of the current text from scratch returns, run with no compute, memory or
+nesting limit. The limits bound the work of the Document parse itself, not that
+of the parse from scratch: a result that a parse reuses counts fewer units than
+its evaluation, and a call that a reuse answers does not nest, so a Document
+parse can complete where a parse of its text from scratch is stopped by the
+compute limit or the [nesting limit](parsing.md#limits). Its tree can then nest
+deeper than the nesting limit, so code that recurses over the tree must not rely
+on that limit to bound its own depth. Reuse does change the
 [compute units](parsing.md#compute-units) of a parse. A later parse counts
 only the events that it performs: a result that it reuses counts one call, and
 its key if the rule is memoized, and a result that it evaluates again counts

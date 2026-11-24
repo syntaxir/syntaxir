@@ -14389,11 +14389,9 @@ theorem covers such a parse.
    are at most those of a parse from scratch, which the argument after
    Lemma 12 leaves unproved because the memo entries that a parse stores, the
    evaluations of a key that it keeps and the records and walks of its run
-   sites differ between the two parses; settle how the nesting limit applies,
-   since a call that a reuse answers does not nest, so a Document parse can
-   complete where a parse from scratch of its text exceeds the limit; count the
-   resumed iterations and the publication of reused errors, which are in
-   neither the units nor the moved size; remove the work that the capacity left
+   sites differ between the two parses; count the resumed iterations and the
+   publication of reused errors, which are in neither the units nor the moved
+   size; remove the work that the capacity left
    by earlier parses costs, as the clearing of the whole stack of repetition
    values at the end of a parse does; and account for a text that crosses the
    pieces of an edited text, which can copy the whole text in each parse after
