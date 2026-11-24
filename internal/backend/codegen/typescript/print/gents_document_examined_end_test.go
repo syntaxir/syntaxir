@@ -3,7 +3,6 @@ package print_test
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -170,9 +169,7 @@ func TestTSDocumentExaminedEnds(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command(node, "main.ts")
-		cmd.Dir = dir
-		out, err := cmd.CombinedOutput()
+		out, err := tooltest.NodeCombinedOutput(t, node, dir, "main.ts")
 		return string(out), err == nil
 	}
 	if out, ok := run(nil); !ok || strings.TrimSpace(out) != "ok" {

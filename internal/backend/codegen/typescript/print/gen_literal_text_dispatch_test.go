@@ -101,9 +101,7 @@ process.stdout.write(JSON.stringify(out));
 	if err := os.WriteFile(path, []byte(script), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd = exec.Command(node, path)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
+	out, err := tooltest.NodeCombinedOutput(t, node, filepath.Dir(path), filepath.Base(path))
 	if err != nil {
 		t.Fatalf("Node disabled-route comparison: %v\n%s", err, out)
 	}

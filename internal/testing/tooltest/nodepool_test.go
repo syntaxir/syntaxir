@@ -1,4 +1,4 @@
-package codegentest
+package tooltest
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // poolScript writes the module of one script (main.ts and the extra files) and returns its directory.
@@ -31,7 +29,7 @@ func poolScript(t *testing.T, src string, extra map[string]string) string {
 // TestRunNodeScriptOutcomes checks what a script reports: its output, a file it reads from its own
 // directory, a throw, an exit code and the output it wrote before failing.
 func TestRunNodeScriptOutcomes(t *testing.T) {
-	node := tooltest.RequireNode(t)
+	node := RequireNode(t)
 	for _, c := range []struct {
 		name, src string
 		extra     map[string]string
@@ -68,7 +66,7 @@ func TestRunNodeScriptOutcomes(t *testing.T) {
 // exits and one that hangs, among scripts that succeed, fail alone and leave the others their own output, in
 // the same pool and from many goroutines. The hang is cut at a shortened NodeJobTimeout.
 func TestRunNodeScriptIndependence(t *testing.T) {
-	node := tooltest.RequireNode(t)
+	node := RequireNode(t)
 	old := NodeJobTimeout
 	NodeJobTimeout = 3 * time.Second
 	defer func() { NodeJobTimeout = old }()
@@ -125,7 +123,7 @@ func TestRunNodeScriptIndependence(t *testing.T) {
 // find the worker as a new one: each pollution is followed by scripts that observe it, which would run in
 // the worker of the polluter (the pool reuses the last worker that finished) if it were not replaced.
 func TestRunNodeScriptLeakedState(t *testing.T) {
-	node := tooltest.RequireNode(t)
+	node := RequireNode(t)
 	const observe = `const seen = [typeof (globalThis as any).leaked, String(Array.prototype.indexOf).includes("native code"), typeof (Object.prototype as any).extra, String(Math.max).includes("native code"), String(process.env.LEAKED)];
 console.log(seen.join(","));`
 	const clean = "undefined,true,undefined,true,undefined\n"
@@ -161,7 +159,7 @@ console.log(seen.join(","));`
 // that the harnesses use (modules, JSON, regular expressions, typed arrays, text encoding, Maps, classes,
 // timers, console and process.stdout) are not mistaken for pollution.
 func TestRunNodeScriptCleanScriptsLeaveNoTrace(t *testing.T) {
-	node := tooltest.RequireNode(t)
+	node := RequireNode(t)
 	src := `import { readFileSync } from "node:fs";
 import { join } from "node:path";
 class A { m = new Map<string, number>([["a", 1]]); }

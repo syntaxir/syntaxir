@@ -114,9 +114,7 @@ func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("strict typed-only consumer: %v\n%s", err, out)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...); err != nil {
 		t.Fatalf("typed-only Node consumer: %v\n%s", err, out)
 	}
 }
@@ -265,9 +263,7 @@ func TestGeneratedTSTypedOnlyCombinations(t *testing.T) {
 		if out, err := cmd.CombinedOutput(); err != nil {
 			t.Fatalf("%s: strict typed-only consumer: %v\n%s", c.name, err, out)
 		}
-		cmd = exec.Command(node, codegentest.NodeTSArgs(c.name+"/consumer.ts")...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
+		if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs(c.name+"/consumer.ts")...); err != nil {
 			t.Errorf("%s: typed-only Node consumer: %v\n%s", c.name, err, out)
 		}
 	}

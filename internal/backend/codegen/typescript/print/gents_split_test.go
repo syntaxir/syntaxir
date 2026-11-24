@@ -89,9 +89,7 @@ process.stdout.write("ok\n");
 			t.Fatalf("tsc: %v\n%s", err, out)
 		}
 		// Node.js runs the files as generated, by type stripping, with no resolve hook.
-		cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "ok" {
+		if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...); err != nil || strings.TrimSpace(string(out)) != "ok" {
 			t.Fatalf("node: %v\n%s", err, out)
 		}
 		// A project that compiles to JavaScript emits .js specifiers with the documented settings.
@@ -103,9 +101,7 @@ process.stdout.write("ok\n");
 		if err := os.WriteFile(filepath.Join(dir, "out", "package.json"), []byte(`{"type":"module"}`), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		cmd = exec.Command(node, "consumer.js")
-		cmd.Dir = filepath.Join(dir, "out")
-		if out, err := cmd.CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "ok" {
+		if out, err := tooltest.NodeCombinedOutput(t, node, filepath.Join(dir, "out"), "consumer.js"); err != nil || strings.TrimSpace(string(out)) != "ok" {
 			t.Fatalf("node on the emitted JavaScript: %v\n%s", err, out)
 		}
 	}
@@ -226,9 +222,7 @@ func runTSSplit(t *testing.T, src string, opts common.GenOptions, consumer strin
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("tsc: %v\n%s", err, out)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "ok" {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...); err != nil || strings.TrimSpace(string(out)) != "ok" {
 		t.Fatalf("node: %v\n%s", err, out)
 	}
 }

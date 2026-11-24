@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -108,9 +107,7 @@ console.log("ok");
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "test.mjs")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil || string(out) != "ok\n" {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, "test.mjs"); err != nil || string(out) != "ok\n" {
 		t.Fatalf("%v\n%s", err, out)
 	}
 }

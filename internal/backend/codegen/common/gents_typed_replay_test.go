@@ -179,9 +179,7 @@ rule num Num = t:([0-9]) #atomic => Num{$t}`, Inputs: []string{"", "a1", "a1b2"}
 	if err != nil {
 		t.Fatalf("Go oracle: %v\n%s", err, want)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("replay.mjs")...)
-	cmd.Dir = dir
-	got, err := cmd.CombinedOutput()
+	got, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("replay.mjs")...)
 	if err != nil {
 		t.Fatalf("TS replay: %v\n%s", err, got)
 	}

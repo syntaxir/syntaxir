@@ -74,9 +74,7 @@ func runTypedTSFixtureWithLib(t *testing.T, src, consumer string, opts common.Ge
 	if err != nil || !strings.Contains(string(decl), "export declare function parseValue(") || !strings.Contains(string(decl), "export declare function parseValueWithOptions(") {
 		t.Fatalf("typed declaration exports missing: %v", err)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...); err != nil {
 		t.Fatalf("typed Node consumer: %v\n%s", err, out)
 	}
 }

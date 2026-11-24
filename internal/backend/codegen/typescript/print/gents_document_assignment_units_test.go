@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -85,9 +84,7 @@ func TestTSDocumentUnitsAgreeWithEngineOnAssignments(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				cmd := exec.Command(node, "main.ts")
-				cmd.Dir = dir
-				out, _ := cmd.CombinedOutput()
+				out, _ := tooltest.NodeCombinedOutput(t, node, dir, "main.ts")
 				return strings.TrimSpace(string(out))
 			}
 			w := strings.Join(want, " ")

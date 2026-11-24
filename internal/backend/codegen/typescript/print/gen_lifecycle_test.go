@@ -2,7 +2,6 @@ package print_test
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -66,9 +65,7 @@ for (const unit of [CodePoints, Bytes]) {
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "parser.ts")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, "parser.ts"); err != nil {
 		t.Fatalf("generated TS tracking: %v\n%s", err, out)
 	}
 }
@@ -128,9 +125,7 @@ for (const unit of [CodePoints, Bytes]) {
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "parser.ts")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, "parser.ts"); err != nil {
 		t.Fatalf("generated TS binding state: %v\n%s", err, out)
 	}
 }

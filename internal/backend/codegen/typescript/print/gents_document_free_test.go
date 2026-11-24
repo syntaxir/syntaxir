@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -89,9 +88,7 @@ rule item = "a"`
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command(node, "main.ts")
-		cmd.Dir = dir
-		out, _ := cmd.CombinedOutput()
+		out, _ := tooltest.NodeCombinedOutput(t, node, dir, "main.ts")
 		return strings.TrimSpace(string(out))
 	}
 	if got := run(nil); got != want {
@@ -176,9 +173,7 @@ rule k = "a"`
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command(node, "main.ts")
-		cmd.Dir = dir
-		out, err := cmd.CombinedOutput()
+		out, err := tooltest.NodeCombinedOutput(t, node, dir, "main.ts")
 		if err != nil {
 			t.Fatalf("node: %v\n%s", err, codegentest.Clip(string(out), 0))
 		}

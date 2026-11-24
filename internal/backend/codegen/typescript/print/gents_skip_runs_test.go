@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -114,9 +113,7 @@ console.log(lines.join("\n"));
 	if err := os.WriteFile(filepath.Join(dir, "package.json"), []byte(`{"type":"module"}`), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	b, err := cmd.CombinedOutput()
+	b, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, b)
 	}

@@ -134,9 +134,7 @@ rule part W = t:("input, o.unit, o.maxDepth, control)") #atomic => W{Text: text(
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("strict trace consumers: %v\n%s", err, out)
 	}
-	cmd = exec.Command(node, "harness.mjs")
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, "harness.mjs"); err != nil {
 		t.Fatalf("trace consumers: %v\n%s", err, out)
 	}
 }

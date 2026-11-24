@@ -141,13 +141,11 @@ let depthErrors=0;
 `)
 	path := filepath.Join(dir, "test.mjs")
 	os.WriteFile(path, []byte(script.String()), 0644)
-	cmd := exec.Command(node, path)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, filepath.Dir(path), filepath.Base(path)); err != nil {
 		t.Fatalf("TypeScript depth options: %v\n%s", err, out)
 	}
 	tsc := tooltest.RequireTSC(t)
-	cmd = exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2020", "--module", "ESNext", "--skipLibCheck", "g0.ts", "g1.ts", "g2.ts", "g3.ts", "g4.ts")
+	cmd := exec.Command(tsc, "--noEmit", "--strict", "--target", "ES2020", "--module", "ESNext", "--skipLibCheck", "g0.ts", "g1.ts", "g2.ts", "g3.ts", "g4.ts")
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("TypeScript depth API types: %v\n%s", err, out)

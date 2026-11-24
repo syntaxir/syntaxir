@@ -80,9 +80,7 @@ func checkRecognizeOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) 
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("strict recognize-only consumer: %v\n%s", err, out)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
+	if out, err := tooltest.NodeCombinedOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...); err != nil {
 		t.Fatalf("recognize-only Node consumer: %v\n%s", err, out)
 	}
 }

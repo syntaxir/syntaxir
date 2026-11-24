@@ -97,9 +97,7 @@ func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("strict TypeScript consumer: %v\n%s", err, out)
 	}
-	cmd = exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = tsDir
-	out, err := cmd.Output()
+	out, err := tooltest.NodeOutput(t, node, tsDir, codegentest.NodeTSArgs("consumer.ts")...)
 	if err != nil {
 		t.Fatalf("TypeScript Node consumer: %v\n%s", err, out)
 	}

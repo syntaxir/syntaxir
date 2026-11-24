@@ -2,7 +2,6 @@ package print
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,7 +33,7 @@ func runStreamTextLib(t *testing.T, node string, mutate func(string) string) (st
 	if err := os.WriteFile(path, []byte(lib+streamTextLibTest), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	out, err := exec.Command(node, path).CombinedOutput()
+	out, err := tooltest.NodeCombinedOutput(t, node, filepath.Dir(path), filepath.Base(path))
 	return string(out), err != nil
 }
 

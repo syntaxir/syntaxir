@@ -4,14 +4,15 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
 // runTSTable runs main.ts of the module in dir, which a harness of a table wrote, in a worker of the node
-// pool (codegentest.RunNodeScript), and returns what it printed. A script that fails fails t with its
+// pool (tooltest.RunNodeScript), and returns what it printed. A script that fails fails t with its
 // error output, as the node process that the harnesses started before did.
 func runTSTable(t *testing.T, node, dir string) []byte {
 	t.Helper()
-	res, err := codegentest.RunNodeScript(t, node, dir, "main.ts")
+	res, err := tooltest.RunNodeScript(t, node, dir, "main.ts")
 	if err != nil {
 		t.Fatalf("node: %v", err)
 	}

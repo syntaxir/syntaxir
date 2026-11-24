@@ -256,13 +256,9 @@ func runTSGrammarScript(t *testing.T, g *ast.Grammar, script string, opts common
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "main.ts")
-	cmd.Dir = dir
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
+	out, err := tooltest.NodeOutput(t, node, dir, "main.ts")
 	if err != nil {
-		t.Fatalf("node: %v\n%s", err, Clip(stderr.String(), 0))
+		t.Fatalf("node: %v\n%s", err, Clip(tooltest.NodeStderr(err), 0))
 	}
 	return string(out)
 }

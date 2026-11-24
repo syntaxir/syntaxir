@@ -3,7 +3,6 @@ package print_test
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -134,9 +133,7 @@ func TestTSDocumentRuns(t *testing.T) {
 				t.Fatal(err)
 			}
 		}
-		cmd := exec.Command(node, "main.ts")
-		cmd.Dir = dir
-		out, _ := cmd.CombinedOutput()
+		out, _ := tooltest.NodeCombinedOutput(t, node, dir, "main.ts")
 		return string(out)
 	}
 	var sessions []session

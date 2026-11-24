@@ -1,9 +1,10 @@
-package codegentest
+package tooltest
 
 import (
 	"bufio"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -212,4 +213,53 @@ func (w *nodeWorker) stop() {
 	w.in.Close()
 	w.cmd.Process.Kill()
 	w.cmd.Wait()
+}
+
+// NodeExitError is the error of a script that RunNodeScript ran and that failed: its exit code and error output.
+type NodeExitError struct {
+	Code   int
+	Stderr string
+}
+
+func (e *NodeExitError) Error() string { return fmt.Sprintf("exit status %d", e.Code) }
+
+// NodeOutput runs the script argv[0] of the module in dir, with the arguments argv[1:], like the output of
+// `cd dir && node argv...` (exec.Cmd.Output): it returns what the script printed to standard output, and
+// an error if it failed (a NodeExitError that holds its error output) or the pool failed. See RunNodeScript for
+// what a script must satisfy.
+func NodeOutput(t testing.TB, node, dir string, argv ...string) ([]byte, error) {
+	t.Helper()
+	res, err := RunNodeScript(t, node, dir, argv[0], argv[1:]...)
+	if err != nil {
+		return []byte(res.Stdout), err
+	}
+	if res.Code != 0 {
+		return []byte(res.Stdout), &NodeExitError{Code: res.Code, Stderr: res.Stderr}
+	}
+	return []byte(res.Stdout), nil
+}
+
+// NodeCombinedOutput is NodeOutput that returns the standard output followed by the error output, like
+// exec.Cmd.CombinedOutput without the interleaving of the two.
+func NodeCombinedOutput(t testing.TB, node, dir string, argv ...string) ([]byte, error) {
+	t.Helper()
+	res, err := RunNodeScript(t, node, dir, argv[0], argv[1:]...)
+	out := []byte(res.Stdout + res.Stderr)
+	if err != nil {
+		return out, err
+	}
+	if res.Code != 0 {
+		return out, &NodeExitError{Code: res.Code, Stderr: res.Stderr}
+	}
+	return out, nil
+}
+
+// NodeStderr returns the error output of the script whose failure is err (from NodeOutput or
+// NodeCombinedOutput), or "" if err holds none.
+func NodeStderr(err error) string {
+	var e *NodeExitError
+	if errors.As(err, &e) {
+		return e.Stderr
+	}
+	return ""
 }

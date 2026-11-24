@@ -2,7 +2,6 @@ package print
 
 import (
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -27,7 +26,7 @@ func TestMemoIndex(t *testing.T) {
 	if err := os.WriteFile(path, append(source, []byte(memoIndexTypeScriptTest)...), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if output, err := exec.Command(node, path).CombinedOutput(); err != nil {
+	if output, err := tooltest.NodeCombinedOutput(t, node, filepath.Dir(path), filepath.Base(path)); err != nil {
 		t.Fatalf("node: %v\n%s", err, output)
 	}
 }

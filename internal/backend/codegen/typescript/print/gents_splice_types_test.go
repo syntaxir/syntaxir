@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -71,13 +70,9 @@ console.log(JSON.stringify(rows));
 	if err := os.WriteFile(filepath.Join(dir, "consumer.ts"), []byte(consumer), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command(node, codegentest.NodeTSArgs("consumer.ts")...)
-	cmd.Dir = dir
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	raw, err := cmd.Output()
+	raw, err := tooltest.NodeOutput(t, node, dir, codegentest.NodeTSArgs("consumer.ts")...)
 	if err != nil {
-		t.Fatalf("node: %v\n%s", err, stderr.String())
+		t.Fatalf("node: %v\n%s", err, tooltest.NodeStderr(err))
 	}
 	var rows [][][4]any
 	if err := json.Unmarshal(raw, &rows); err != nil {
