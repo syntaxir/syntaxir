@@ -706,6 +706,10 @@ func unwritable(f, parent, grandparent validationFrame, inScope func(string) boo
 		if len(n.Args) != 0 || len(n.KwArgs) != 0 {
 			return "args", "#" + n.Name + " takes no arguments"
 		}
+	case *Literal:
+		if _, ok := parent.node.(*Attribute); ok && !n.IgnoreCase {
+			return "", "an attribute argument written as a case-sensitive literal is a string: use the string"
+		}
 	case *OperatorsRule:
 		if _, ok := parent.node.(*RuleDef); ok && f.field == "expr" {
 			break

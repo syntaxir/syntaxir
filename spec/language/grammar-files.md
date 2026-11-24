@@ -751,7 +751,10 @@ An attribute (`Attributed`, `Attribute`) holds `args`, an ordered list of intege
 strings, booleans, null slots and expression nodes, and `kwArgs`, which maps names to
 the same forms. A string literal argument is a string; with the suffix `i`, as in
 `@custom("q"i)`, it is the expression node of a literal that ignores case, which
-`@error` and `@diagnostic` reject where they need a string. `@custom(2,)` and `@custom(2)` both yield `[2]`: a comma after the last
+`@error` and `@diagnostic` reject where they need a string. An argument
+that is a case-sensitive `Literal` node has no spelling of its own, since its text
+reads back as a string, so validation rejects it; in parentheses, as in
+`@custom(("q"))`, it is a `Group` around the literal. `@custom(2,)` and `@custom(2)` both yield `[2]`: a comma after the last
 argument is a trailing comma, as in other lists. An empty argument is written
 `nil`, as in `@custom(nil, 2)`, which yields `[null, 2]`. An argument that begins with
 `true`, `false` or `nil` is that constant, so `grammar.Format` writes an expression

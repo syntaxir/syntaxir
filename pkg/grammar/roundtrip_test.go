@@ -30,9 +30,8 @@ type roundTripRun struct {
 // TestFormatRoundTripRandom formats random valid grammar ASTs and parses the text back. The
 // parsed grammar must be the formatted one up to the differences that the syntax does not
 // spell: groups, a one-item sequence (read back as the item and an empty sequence), a
-// one-alternative choice, a negative integer constant (read back as a negation), a literal
-// attribute argument (read back as its string) and a block of one statement as the action of a
-// predicate. Formatting the parsed grammar again must give the same grammar. The runs of the
+// one-alternative choice, a negative integer constant (read back as a negation) and a block of
+// one statement as the action of a predicate. Formatting the parsed grammar again must give the same grammar. The runs of the
 // default tier take a few seconds; the long tier (roundTripRuns in its own file) runs more and
 // deeper grammars.
 func TestFormatRoundTripRandom(t *testing.T) {
@@ -524,25 +523,6 @@ func normalize(v any, formatted bool) any {
 		for k, e := range x {
 			if k != "source" && k != "skipSource" {
 				out[k] = normalize(e, formatted)
-			}
-		}
-		if x["@type"] == nil && x["name"] != nil {
-			// An attribute: a literal argument reads back as its string.
-			literal := func(v any) any {
-				if m, ok := v.(map[string]any); ok && m["@type"] == "Literal" {
-					return m["value"]
-				}
-				return v
-			}
-			if args, ok := out["args"].([]any); ok {
-				for i := range args {
-					args[i] = literal(args[i])
-				}
-			}
-			if kw, ok := out["kwArgs"].(map[string]any); ok {
-				for k := range kw {
-					kw[k] = literal(kw[k])
-				}
 			}
 		}
 		switch out["@type"] {
