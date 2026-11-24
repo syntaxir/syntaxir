@@ -163,6 +163,9 @@ console.log(seen.join(","));`
 		{"a replaced getter of Intl", `Object.defineProperty(Intl.Collator.prototype, "compare", { get() { return () => 0; }, configurable: true });`, "Intl.Collator.prototype.compare"},
 		{"the process title", `process.title = "changed";`, "process.title"},
 		{"the umask", `const mask = process.umask(0); process.umask(mask === 0o7 ? 0o70 : 0o7);`, "process.umask"},
+		{"the default listener limit", `import { EventEmitter } from "node:events"; EventEmitter.defaultMaxListeners = 3;`, "events.defaultMaxListeners"},
+		{"a patched stream method", `import { Readable } from "node:stream"; (Readable.prototype as any).pipe = () => null;`, "Readable"},
+		{"a patched buffer method", `import { Buffer as B } from "node:buffer"; (B as any).alloc = () => null;`, "alloc"},
 		{"a replaced prototype", `Object.setPrototypeOf(Map.prototype, { x: 1 });`, "Map.prototype"},
 	} {
 		t.Run(c.name, func(t *testing.T) {

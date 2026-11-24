@@ -8,6 +8,9 @@ import fsModule from "node:fs";
 import pathModule from "node:path";
 import utilModule from "node:util";
 import osModule from "node:os";
+import eventsModule from "node:events";
+import streamModule from "node:stream";
+import bufferModule from "node:buffer";
 
 const realArgv0 = process.argv[0];
 // The built-ins that the worker itself uses are taken here, before any script runs, so that a script that
@@ -86,7 +89,7 @@ processOn("uncaughtException", unhandled);
 processOn("unhandledRejection", unhandled);
 
 // The state that a script could leave to the next one: everything that can be reached from the global
-// object, the modules fs, path, util and os, process and the intrinsics that no global names (the iterator
+// object, the modules fs, path, util, os, events, stream and buffer, process and the intrinsics that no global names (the iterator
 // and generator prototypes), through own properties and prototypes, with what each property holds (a
 // primitive by value, anything else by identity, an accessor by the identity of its functions), the
 // prototype and extensibility of each object, the values of process that are read through accessors, the
@@ -106,6 +109,9 @@ const extraRoots = () => {
   add("path", pathModule);
   add("util", utilModule);
   add("os", osModule);
+  add("events", eventsModule);
+  add("stream", streamModule);
+  add("buffer", bufferModule);
   const arrayIterator = getPrototype([][Symbol.iterator]());
   add("%ArrayIterator%", arrayIterator);
   add("%Iterator%", getPrototype(arrayIterator));
@@ -125,6 +131,9 @@ const processState = (lines) => {
   push(lines, ["process.exitCode", StringOf(process.exitCode)]);
   push(lines, ["process.sourceMapsEnabled", StringOf(process.sourceMapsEnabled)]);
   push(lines, ["process.hasUncaughtExceptionCaptureCallback", StringOf(hasCapture())]);
+  // The default of every emitter is held in an accessor of the module.
+  push(lines, ["events.defaultMaxListeners", StringOf(eventsModule.defaultMaxListeners)]);
+  push(lines, ["events.captureRejections", StringOf(eventsModule.captureRejections)]);
   const mask = umask(0);
   umask(mask);
   push(lines, ["process.umask", StringOf(mask)]);

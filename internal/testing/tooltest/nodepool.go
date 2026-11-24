@@ -70,10 +70,10 @@ type NodeResult struct {
 // or a rejection that nothing handled, else 0.
 //
 // A script must leave the worker as it found it. After every script the worker compares everything that
-// is reachable from the global object, from process and from the modules fs, path, util and os, and the
+// is reachable from the global object, from process and from the modules fs, path, util, os, events, stream and buffer, and the
 // iterator and generator prototypes, through own properties and prototypes (the value or the identity
 // that every property holds, the functions of accessors, the prototype and the extensibility of every
-// object), the title, umask, exit code and listeners of process, and its environment, with their state at the
+// object), the title, umask, exit code and listeners of process, the default listener limit of events, and its environment, with their state at the
 // start of the worker; a difference fails the script with an error that lists it, and the worker is
 // replaced, so a script that pollutes a global, or a mutant of the library that does, cannot change what
 // another script sees. The worker takes the built-ins that it uses for this before it runs a script, so
@@ -83,15 +83,18 @@ type NodeResult struct {
 // What still differs from `node script`: the standard output and the error output are collected
 // separately, so NodeCombinedOutput gives the output followed by the error output instead of the two
 // interleaved; an error that no one catches is printed as its stack, without the source excerpt that node
-// prints; the 'exit' listeners of process do not run; and a worker that crashes is a pool error, not a
-// script exit code.
+// prints; the 'exit' listeners of process do not run; a top-level await that never settles runs
+// until it is reported as having run past its time, where node exits with code 13; and a worker that
+// crashes is a pool error, not a script exit code.
 func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (NodeResult, error) {
 	t.Helper()
 	return RunNodeScriptWithin(t, NodeJobTimeout, node, dir, script, args...)
 }
 
 // RunNodeScriptWithin is RunNodeScript with the time after which a script that has not finished is killed
-// and reported as hung (instead of NodeJobTimeout), for the test of a script that hangs on purpose.
+// and reported as hung (instead of NodeJobTimeout), for the test of a script that hangs on purpose. A timeout
+// shorter than NodeDrainTimeout also reports a script whose timers have not run out as hung, since the pool waits
+// for them as node does.
 func RunNodeScriptWithin(t testing.TB, timeout time.Duration, node, dir, script string, args ...string) (NodeResult, error) {
 	t.Helper()
 	w, err := nodePool.acquire(node)
