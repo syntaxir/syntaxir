@@ -11,12 +11,12 @@ reports. The types themselves and the relation "assignable" are defined in the
 
 | Rule Expression | Type |
 |:--|:--|
-| Literal, character class, `.`, `a #atomic`, `_` | `node[string]` |
+| Literal, character class, `.`, `a #atomic` | `node[string]` |
 | `a b` | `node[(A, B)]`, a tuple node of the types of the elements; the elements of a group that is not captured are elements of the enclosing sequence |
 | `a / b` | `A \| B`, the join of the types of `a` and `b`; when one of them has no value and the other has one, the choice is `nil` where the one without a value matched, so its type is optional, `*(A \| B)` |
 | `a*`, `a+`, `a #repeat(...)` | `node[[]A]`, a list node of the type of the element |
 | `a?` | `*A`, where `A` is the type of `a` |
-| `&a`, `!a` | `node[()]`, a node of the empty tuple |
+| `&a`, `!a`, `_` | `node[()]`, a node of the empty tuple |
 | Rule call | The declared type of the called rule, or its inferred type |
 
 A node type also records the captures made in the node, which
