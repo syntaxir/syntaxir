@@ -14378,7 +14378,26 @@ theorem covers such a parse.
    [Bound of a Document Parse](../runtime/documents.md#bound-of-a-document-parse):
    the work of a parse at most a constant times the total of a parse of its
    text from scratch, with a constant that depends only on the grammar and the
-   backend. The memory that a Document keeps between parses is not a cost, and
+   backend, and, finer, a constant times its own units, the moved size, the
+   recorded iterations it reuses, the errors it publishes and the text it
+   joins. Reaching it leaves these obligations: bound $V_j$ by a constant times
+   the units of a parse from scratch, against the sharing that values built by
+   different parses lose and the empty nodes copied for each reference; bound
+   $B_j$, $G_j$, $Q_j$ and $\Lambda_j$ by constants of the grammar, or remove
+   the work that they count; replace the factor $E_j$ of the replays by a
+   constant; prove the units claim, that the counted units of a Document parse
+   are at most those of a parse from scratch, which the argument after
+   Lemma 12 leaves unproved because the memo entries that a parse stores, the
+   evaluations of a key that it keeps and the records and walks of its run
+   sites differ between the two parses; settle how the nesting limit applies,
+   since a call that a reuse answers does not nest, so a Document parse can
+   complete where a parse from scratch of its text exceeds the limit; count the
+   resumed iterations and the publication of reused errors, which are in
+   neither the units nor the moved size; remove the work that the capacity left
+   by earlier parses costs, as the clearing of the whole stack of repetition
+   values at the end of a parse does; and account for a text that crosses the
+   pieces of an edited text, which can copy the whole text in each parse after
+   an edit. The memory that a Document keeps between parses is not a cost, and
    this proof does not bound it.
 7. **Values built from reshaped values.** The [Cost View](cost-view.md) proof
    bounds the cost of the written grammar by a constant times that of its view,
