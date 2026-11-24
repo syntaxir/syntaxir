@@ -241,8 +241,16 @@ conformance suite. The reason is that the VM, every host language and a future L
 from one Code IR, so charging and option propagation cannot drift between two lowerings of grammar code. Host-language
 parsers are produced from the Exec stage after language-specific passes that legalize and optimize it for the target,
 then printed, and a printer prints the legalized Exec stage as it is, without carrying transformations as string
-processing or regeneration. The closure backend deliberately does not share this lowering: it is built from Core IR so
-that a bug in the lowering shows up as a difference between backends.
+processing or regeneration. The closure backend deliberately does not share this lowering of grammar code: it is built
+from Core IR so that a bug in the lowering shows up as a difference between backends.
+
+**Action expressions are lowered once, in the pipeline.** The grammar-control lowering above does not cover them. The
+action expressions of a table are lowered by the pipeline's Action segment into the table's Action module, one function
+of the Action dialect for each action site, and no operation of Code IR holds a Core IR value: the Flow and Exec
+operations that evaluate an action name its site by number. The printers print that module, and `vmlower` selects it
+into the action programs that the bytecode VM and the closure both run, so the closure shares the lowering of actions
+and not of grammar code. The oracle of action expressions is the reference evaluator, which evaluates them from their
+semantics without lowering (record 074, Printers Take Exec-Stage Units).
 
 The complexity classifier works on its own Core IR module, the cost view, derived by normalization laws. The proofs
 that the classification is sound speak about the cost view, so it is kept apart from the Core module that the
