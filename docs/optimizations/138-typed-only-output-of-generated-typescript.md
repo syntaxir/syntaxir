@@ -12,9 +12,9 @@ it leaves out and measures it.
 `-typed-only` (`compiler.TSConfig.TypedOnly`) needs `-types`. It generates `parseValue`, `parseValueWithOptions`,
 `parseRuleValue` and `parseRuleValueWithOptions`, and no `parse`, `parseRule`, `parseWithOptions` or
 `parseRuleWithOptions`; `-recognize` still adds `recognize`. It is refused with `-document`, `-stream` and
-`-recognize-only`, which build or are the untyped tree, with `-default-value`, which `-types` already refuses, and for
-a grammar that uses `#missing`, which generated parsers do not support. The flag is off by default, as it is for Go:
-a typed grammar keeps its tree entry points unless the flag is given.
+`-recognize-only`, which build or are the untyped tree, and with `-default-value`, which `-types` already refuses. A
+grammar that uses `#missing` takes it: its typed entry points accept `missingTokens` as those of the full build do.
+The flag is off by default, as it is for Go: a typed grammar keeps its tree entry points unless the flag is given.
 
 A generated TypeScript parser builds a typed value by converting the Node that the Node rules of the rule build.
 Those rules are what the typed entry points run, so `-typed-only` keeps them: it removes the entry points and

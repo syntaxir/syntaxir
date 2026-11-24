@@ -128,7 +128,8 @@ conversion ([Generated Typed Values](guide/generated-typed-values.md)). The engi
 values.
 
 **Recovery is declared in the grammar.** `#recover(skip=e)` resumes after a broken construct and leaves an error value
-in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses, streams and `Document`s on every backend of the engine and in generated Go, except its typed values
+in the tree, on every backend. `#missing` inserts an absent literal in whole-input parses, streams and `Document`s on every backend of the engine and
+in generated Go and TypeScript, typed values included
 ([Recovering From Errors](guide/recovery.md)). Recovery is not automatic: when no `#recover` rule covers an error,
 the parse fails with no tree.
 
@@ -163,10 +164,10 @@ Status is per backend. "Engine" covers the closure backend and the two bytecode 
 | Tree of nodes with positions (code points or UTF-8 bytes) | Shipped | Shipped | Shipped |
 | Typed values (`node[T]`, structs, joins) | Dynamic `Node` only | Shipped (`-types`) | Shipped (`-types`, converted from the tree) |
 | Recognition without a tree | Shipped | Shipped (`-recognize`) | Shipped (`-recognize`) |
-| Incremental `Document` | Shipped | Partial (`-document`: no long-repetition resumption, batches or snapshots) | Not available |
-| Streaming (`#stream`) | Shipped | Shipped (`-stream`) | Not available |
+| Incremental `Document` | Shipped | Partial (`-document`: no batches or snapshots) | Partial (`-document`: no batches or snapshots) |
+| Streaming (`#stream`) | Shipped | Shipped (`-stream`) | Shipped (`-stream`, a push stream) |
 | Recovery with `#recover` | Shipped | Shipped | Shipped |
-| Missing-literal insertion (`#missing`) | Opt-in, on every backend, in whole-input parses, streams and `Document`s | Opt-in, in whole-input parses, streams and `Document`; no typed values | Not available |
+| Missing-literal insertion (`#missing`) | Opt-in, on every backend, in whole-input parses, streams and `Document`s | Opt-in, in whole-input parses, streams and `Document`, typed values included | Opt-in, in whole-input parses, streams and `Document`, typed values included |
 | Nesting limit, on by default | 100,000 calls (iterative VM: 10,000,000) | 100,000 calls, `-max-depth` | 100,000 calls; on Node's default stack, a few hundred to a few thousand calls (an error, not a crash) |
 | Cancellation and compute limits, on by default | Shipped | Shipped (`-no-limits` opts out) | Shipped (`-no-limits` opts out) |
 | Tracing and profiling | Shipped | Shipped (`-observability`) | Batch parsers (`-observability`) |
