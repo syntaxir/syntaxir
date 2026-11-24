@@ -16,15 +16,31 @@ import (
 // as codegentest.RecoverBottomCases states, and agrees with the engine.
 func TestGeneratedRecoverBottom(t *testing.T) {
 	t.Parallel()
+	checkGeneratedRecoverCases(t, codegentest.RecoverBottomCases)
+}
+
+// TestGeneratedRecoveredCaptures checks that in a generated Go parser a capture inside a recovered
+// expression is nil after the recovery, while a capture of the recovery and a name captured again
+// after it are set: each parse succeeds or fails as codegentest.RecoveredCaptureCases states, agrees
+// with the engine, and builds with the capture typed as optional.
+func TestGeneratedRecoveredCaptures(t *testing.T) {
+	t.Parallel()
+	checkGeneratedRecoverCases(t, codegentest.RecoveredCaptureCases)
+}
+
+// checkGeneratedRecoverCases checks that each parse of a generated Go parser of cases, in every mode,
+// succeeds or fails as the case states and gives the engine's result, also with typed values.
+func checkGeneratedRecoverCases(t *testing.T, recoverCases []codegentest.RecoverCase) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("builds generated code")
 	}
 	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
-	cases := codegentest.RecoverBottomGenCases()
+	cases := codegentest.RecoverGenCases(recoverCases)
 	codegentest.EachMode(t, func(t *testing.T) {
 		got, want := codegentest.GeneratedParsersOutputs(t, goBin, cases, common.GenOptions{}, nil)
 		k := 0
-		for _, c := range codegentest.RecoverBottomCases {
+		for _, c := range recoverCases {
 			for i, in := range c.Inputs {
 				for _, unit := range []string{"codepoints", "bytes"} {
 					head, _, _ := strings.Cut(got[k], " views: ")

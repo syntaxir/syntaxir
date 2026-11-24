@@ -74,8 +74,8 @@ type Bool = node[string]
 type Value ~ Number | String | Bool
 
 type Entry = {
-    Key   Key
-    Value Value
+    Key   *Key
+    Value *Value
 }
 
 type Config = {
@@ -106,7 +106,9 @@ printf 'host = "localhost"\nport == 8080\ndebug = tru\n' | sxir parse -g robust.
 Config{Entries: [Entry{Key: Key("host"), Value: String("\"localhost\"")} Entry{Key: nil, Value: nil} Entry{Key: nil, Value: nil}]}
 ```
 
-The tree contains the good entry and one placeholder per skipped entry (their fields are `nil`). The errors go to
+The tree contains the good entry and one placeholder per skipped entry (their fields are `nil`). The fields of `Entry`
+are pointers because a capture inside a recovered expression is not made when the expression fails: `$k` and `$v` have
+the types `*Key` and `*Value`, and the checker rejects them as values of `Key` and `Value` fields. The errors go to
 standard error with exit status 1:
 
 ```text

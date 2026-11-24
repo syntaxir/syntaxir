@@ -26,8 +26,9 @@ value, as in `node[(node[string], num), {"k": 1}]`.
 ### Types of Captures
 
 The type of a capture `name:a` is the type of `a`. If the capture is made only
-in some alternatives of a choice, or inside an optional expression, it may not
-match, and its type is `*T` instead. A name captured more than once in a match
+in some alternatives of a choice, inside an optional expression, or inside an
+expression that [`#recover`](pragmas.md#recover) recovers, it may not match,
+and its type is `*T` instead. A name captured more than once in a match
 has the join of the types of its captures, since the last capture that matches
 gives its value; when at least one of those captures is always made, the join is
 taken without nil, and otherwise each capture that may not be made contributes nil,
@@ -36,6 +37,8 @@ so the type is optional, `*T`.
 ```sxir
 rule r = x:"a"? y:("b" / z:"c") // $x: *node[string], $y: node[string], $z: *node[string]
 rule s = k:num "=" k:("x" "y")  // $k: num | node[(node[string], node[string])]
+rule t = (v:"a" "b") #recover(skip="z") "c"   // $v: *node[string]
+rule u = (v:"a" "b") #recover(skip="z") v:"c" // $v: node[string], the second v is always made
 ```
 
 ## Action Expression Types

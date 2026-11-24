@@ -672,12 +672,23 @@ func (v *ValueInference) exprElems(e ast.Expr) []ValueElem {
 			// token. An expression without a value stays without one: its error is only recorded.
 			// An expression of type _|_ is no exception to the join: its recovery is only the
 			// error, since join(_|_, error) is error, whatever elements it would have if it
-			// matched. Its captures are never made.
+			// matched. Its captures are never made. The captures of an expression that #recover
+			// recovers are not made when it fails, so they may be unset, as in an optional.
 			el, ok := oneElem(elems, v.isSeq(e.Expr))
+			bottom := v.bottom(e.Expr)
 			switch {
-			case v.bottom(e.Expr):
+			case bottom:
 				el = ValueElem{t: TyBottom, caps: neverMade(el.caps)}
-			case !ok:
+			case a.Name == "recover":
+				el.caps = slices.Clone(el.caps)
+				for i := range el.caps {
+					el.caps[i] = maybeCap(el.caps[i])
+				}
+			}
+			if !ok && !bottom {
+				if len(el.caps) > 0 {
+					elems = []ValueElem{{caps: el.caps}}
+				}
 				continue
 			}
 			if a.Name == "missing" {

@@ -223,7 +223,22 @@ func TestRecoverWithValueIsOneElement(t *testing.T) {
 // stays without one: each grammar's predicate sees the elements in the length of a capture.
 func TestRecoverBottomGivesError(t *testing.T) {
 	t.Parallel()
-	for _, c := range codegentest.RecoverBottomCases {
+	checkRecoverCases(t, codegentest.RecoverBottomCases)
+}
+
+// TestRecoveredCapturesUnset checks that a capture inside a recovered expression is nil after the
+// recovery, also when it was made before the expression failed, on every backend, while a capture
+// of the recovery and a name captured again after it are set (codegentest.RecoveredCaptureCases).
+func TestRecoveredCapturesUnset(t *testing.T) {
+	t.Parallel()
+	checkRecoverCases(t, codegentest.RecoveredCaptureCases)
+}
+
+// checkRecoverCases checks that each parse of cases succeeds or fails as the case states, on every
+// backend, and that the backends agree.
+func checkRecoverCases(t *testing.T, cases []codegentest.RecoverCase) {
+	t.Helper()
+	for _, c := range cases {
 		prog := mustCompile(t, c.Src)
 		for i, in := range c.Inputs {
 			for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {

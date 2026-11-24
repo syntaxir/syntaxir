@@ -15,14 +15,30 @@ import (
 // succeeds or fails as codegentest.RecoverBottomCases states, and agrees with the engine.
 func TestGeneratedTSRecoverBottom(t *testing.T) {
 	t.Parallel()
+	checkGeneratedTSRecoverCases(t, codegentest.RecoverBottomCases)
+}
+
+// TestGeneratedTSRecoveredCaptures checks that in a generated TypeScript parser a capture inside a
+// recovered expression is null after the recovery, while a capture of the recovery and a name
+// captured again after it are set: each parse succeeds or fails as
+// codegentest.RecoveredCaptureCases states, and agrees with the engine.
+func TestGeneratedTSRecoveredCaptures(t *testing.T) {
+	t.Parallel()
+	checkGeneratedTSRecoverCases(t, codegentest.RecoveredCaptureCases)
+}
+
+// checkGeneratedTSRecoverCases checks that each parse of a generated TypeScript parser of cases
+// succeeds or fails as the case states and gives the engine's result.
+func checkGeneratedTSRecoverCases(t *testing.T, recoverCases []codegentest.RecoverCase) {
+	t.Helper()
 	if testing.Short() {
 		t.Skip("runs generated code")
 	}
 	node := tooltest.RequireNode(t)
-	cases := codegentest.RecoverBottomGenCases()
+	cases := codegentest.RecoverGenCases(recoverCases)
 	lines := strings.Split(strings.TrimSuffix(codegentest.TSParsersOutputs(t, node, cases, common.GenOptions{}, nil), "\n"), "\n")
 	k := 0
-	for _, c := range codegentest.RecoverBottomCases {
+	for _, c := range recoverCases {
 		for i, in := range c.Inputs {
 			// Each ASCII input runs in code points and bytes, as bytes and as a string.
 			for range 4 {

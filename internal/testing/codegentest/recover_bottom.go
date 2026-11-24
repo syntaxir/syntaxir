@@ -1,10 +1,9 @@
 package codegentest
 
-// RecoverBottomCase is a grammar with #recover on an expression, with the inputs on which its parse
-// succeeds and those on which it fails. A predicate checks the length of the capture x around the
-// recovered expression, so a parse succeeds only if the expression gives the elements that the
-// value model says it gives.
-type RecoverBottomCase struct {
+// RecoverCase is a grammar with #recover on an expression, with the inputs on which its parse
+// succeeds and those on which it fails. A predicate checks a capture around or inside the recovered
+// expression, so a parse succeeds only if the capture holds what the value model says it holds.
+type RecoverCase struct {
 	Case
 	Accept []bool // Accept[i] reports that the parse of Inputs[i] succeeds
 }
@@ -21,8 +20,9 @@ type RecoverBottomCase struct {
 // alternative has a value. Those whose names start with "container" check the
 // types []_|_ and *_|_: an optional expression whose operand has type _|_ is nil, one element as
 // for any optional expression, and a repetition of _|_ matches the empty input and is the empty
-// list; a recovery of either keeps that value.
-var RecoverBottomCases = []RecoverBottomCase{
+// list; a recovery of either keeps that value. The predicates check the length of the capture x
+// around the recovered expression, the number of its elements.
+var RecoverBottomCases = []RecoverCase{
 	{Case{"bottom/bare", `rule main = x:("q" _|_ #recover(skip="z")) {len($x) == 2} $$`, []string{"qz", "q", "qa"}}, []bool{true, false, false}},
 	{Case{"bottom/sequence", `rule main = x:("q" (_|_ -"a") #recover(skip="z")) {len($x) == 2} $$`, []string{"qz", "q", "qa"}}, []bool{true, false, false}},
 	{Case{"bottom/choice", `rule main = x:("q" (_|_ / _|_) #recover(skip="z")) {len($x) == 2} $$`, []string{"qz", "q", "qa"}}, []bool{true, false, false}},
@@ -64,8 +64,13 @@ rule r = y:"b" _|_ => $y`, []string{"qa", "qb"}}, []bool{true, false}},
 
 // RecoverBottomGenCases are the grammars of RecoverBottomCases as Cases.
 func RecoverBottomGenCases() []Case {
-	out := make([]Case, len(RecoverBottomCases))
-	for i, c := range RecoverBottomCases {
+	return RecoverGenCases(RecoverBottomCases)
+}
+
+// RecoverGenCases are the grammars of cases as Cases.
+func RecoverGenCases(cases []RecoverCase) []Case {
+	out := make([]Case, len(cases))
+	for i, c := range cases {
 		out[i] = c.Case
 	}
 	return out

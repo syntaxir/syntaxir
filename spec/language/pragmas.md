@@ -95,6 +95,10 @@ A capture inside a positive lookahead cannot hold a recovered value
 ([Lookahead](parser-expressions.md#lookahead)). A recovered expression's type is the join
 of its original type and `error`, and an error value is assignable only to a type that admits `error`
 (see [Type System](types.md#assignability)).
+A capture inside the annotated expression is not made when the expression fails and is recovered, so
+its type is `*T`, as inside an optional expression ([Types of Captures](type-checking.md#types-of-captures)):
+in `(x:"a" "b") #recover(skip="z")`, `$x` is `*node[string]`, while `x:("a" "b") #recover(skip="z")`
+captures the recovery itself, a tuple node or an error value.
 A recovery of an expression with a value is one element of the sequence around it, the value of the
 expression or the error value, also when the expression is a sequence or a call of a hidden rule whose
 elements would otherwise be elements of that sequence: `"x" ("a" "b") #recover(skip="z")` has two
