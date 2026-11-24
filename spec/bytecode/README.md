@@ -501,7 +501,8 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 The encoding is canonical. A compiler and a saving runtime encode one compile result as exactly one sequence of bytes: equal compile results encode to identical bytes, whatever the run, the process or the iteration order of the compiler's internal tables. Decoding a file and encoding what it decodes to gives back the file, so a program loaded from a file saves to the bytes it was loaded from, and no two files encode the same program. The parts above fix every byte of a file once its module and insertion module are fixed:
 
 - Every integer is in its shortest encoding: the last byte of an integer longer than one byte is not zero.
-- The string table holds no string twice. It is the module's string table followed by the strings that the file refers to outside the module, here the start rule, in the order of their first reference, and holds no other string. The insertion part's string table is the insertion module's string table followed by no other string.
+- The string table holds no string twice. It is the module's string table, followed by the start rule if the module's table does not hold it, and holds no other string. The insertion part's string table is the insertion module's string table and holds no other string.
+- The Flow bodies and the stream bodies are each written in strictly increasing rule order.
 
 The order of the module's own string table, and any string of it that the module does not refer to, are part of the module: a compiler chooses them, and a runtime saving a loaded module keeps them.
 
@@ -510,7 +511,7 @@ The order of the module's own string table, and any string of it that the module
 On load, a runtime checks the following and rejects the file if any check fails:
 
 - The checksum, the version, the mode and the instruction-set version are valid, the start rule is empty or a start rule of the module, and no data remains after the insertion part.
-- The file is in the canonical encoding ([Canonical Encoding](#canonical-encoding)): no integer is longer than its shortest encoding, no string table holds a string twice, and encoding the decoded module, insertion module and start rule again gives the file's bytes, so a string table that holds a string the encoder would not write or orders the strings past the module's otherwise is rejected.
+- The file is in the canonical encoding ([Canonical Encoding](#canonical-encoding)): no integer is longer than its shortest encoding; no string table holds a string twice; the file's string table is the module's string table, followed by the start rule only if the module's table does not hold it, and the insertion part's string table is the insertion module's; and the Flow bodies and the stream bodies are each in strictly increasing rule order. The other parts admit one encoding by their layout (a boolean is 0 or 1, a marked pool is not empty and a marked operand not zero), so a file that passes these checks is the encoding of what it decodes to.
 - There is an insertion module when a rule of the module is marked missing. The insertion module passes every check below on its own, has a rule marked missing exactly when the module has one, and has the start rules and the default start rule of the module.
 - Each variable is named once, has a valid type, and has an initial value that matches its type.
 - Every reference in the tables and instructions (strings, character classes, scopes, rules, Operators Rule tables, action expressions) is in range.

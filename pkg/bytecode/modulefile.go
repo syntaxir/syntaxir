@@ -533,20 +533,23 @@ func (r *Decoder) ReadModule() *Module {
 }
 
 // flows reads the Flow bodies that Encoder.flows wrote, nil if there are none; what names them in an
-// error.
+// error. They are in increasing rule order, the order Encoder.flows writes, so that a rule has one
+// body and the bodies one encoding.
 func (r *Decoder) flows(what string) map[int]*Flow {
 	var fs map[int]*Flow
 	n := r.Count()
+	prev := 0
 	for i := 0; i < n && r.Err == nil; i++ {
 		rule := int(r.int32())
 		f := r.flow()
 		if r.Err != nil {
 			break
 		}
-		if _, dup := fs[rule]; dup {
-			r.Fail("rule %d has two %s", rule, what)
+		if i > 0 && rule <= prev {
+			r.Fail("%s of rule %d after rule %d, not in increasing rule order", what, rule, prev)
 			break
 		}
+		prev = rule
 		if fs == nil {
 			fs = map[int]*Flow{}
 		}
