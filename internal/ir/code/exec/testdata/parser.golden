@@ -698,7 +698,7 @@ op rule.docMemo(r Rule) bool
   component rules
   cost <= 0
   contract:
-    // Reports whether a Document parse memoizes the rule.
+    // Reports whether a Document parse memoizes the rule. A Document parse in the missing-token mode memoizes no rule that can insert a missing token other than a leader, whose growth keeps its seed in the memo.
 
 op rule.docOnlyMemo(r Rule) bool
   component rules

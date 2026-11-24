@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 // libOverlay writes a go build overlay (go help build, -overlay) that adds the tests of
 // testdata/conformance and the conformance bindings that the library's printer prints
 // (libgo.GoExpBindings, libgo.GoTypedExpBindings, libgo.GoDocBindings, libgo.GoRuleBindings, libgo.GoTypedRuleBindings, libgo.GoOprBindings, libgo.GoTypedOprBindings,
-// libgo.GoCtxBindings, libgo.GoFrameBindings, libgo.GoTypedFrameBindings, libgo.GoActionStateBindings,
+// libgo.GoMissingBindings, libgo.GoCtxBindings, libgo.GoFrameBindings, libgo.GoTypedFrameBindings, libgo.GoActionStateBindings,
 // libgo.GoTypedActionStateBindings, libgo.GoObsBindings) to the
 // library package, and returns its path. The tests bind the operations to unexported code of the
 // library, so they belong to package runtime; mutate, if it is not nil, changes the source of a file
@@ -79,6 +79,7 @@ func libOverlay(t *testing.T, mutate func(name, src string) string) string {
 		"tframe_bind_exec_test.go":   libprint.GoTypedFrameBindings,
 		"rule_bind_exec_test.go":     libprint.GoRuleBindings,
 		"trule_bind_exec_test.go":    libprint.GoTypedRuleBindings,
+		"missing_bind_exec_test.go":  libprint.GoMissingBindings,
 		"actions_bind_exec_test.go":  libprint.GoActionStateBindings,
 		"tactions_bind_exec_test.go": libprint.GoTypedActionStateBindings,
 		libprint.GoObsBindingsFile:   libprint.GoObsBindings,

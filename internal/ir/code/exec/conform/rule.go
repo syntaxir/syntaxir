@@ -137,6 +137,18 @@ func RuleCases() []Case {
 		})
 	}
 
+	// A Document parse in the missing-token mode memoizes no rule that can insert a token but a leader,
+	// whose growth keeps its seed in the memo.
+	docMissing := RuleConfig(flags...)
+	docMissing.Document, docMissing.Missing, docMissing.MissingRules = true, true, []bool{true, true, true, false}
+	add("rule_flags_document_missing", docMissing, func(b *code.Builder) {
+		b.Assert(code.C("missing.active"), "the parse is in the missing-token mode")
+		b.Assert(code.Not(code.C("rule.docMemo", rule(0))), "a memoized rule that can insert is not")
+		b.Assert(code.Not(code.C("rule.docMemo", rule(1))), "a rule that only a Document memoizes and that can insert is not")
+		b.Assert(code.C("rule.docMemo", rule(2)), "a leader that can insert is")
+		b.Assert(code.Not(code.C("rule.docMemo", rule(3))), "a rule that no parse memoizes is not")
+	})
+
 	add("rule_invoke", RuleConfig(ref.RuleSpec{Captures: 1, Body: []ref.Eval{ok(3), ok(0), {Len: 2}}}), func(b *code.Builder) {
 		b.LetN([]string{"v1", "ok1"}, code.C("rule.invoke", rule(0), i(0)))
 		b.Assert(code.And(code.L("ok1"), code.Eq(pos, i(3))), "a match moves the position to its end")

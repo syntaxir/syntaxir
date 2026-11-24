@@ -111,7 +111,8 @@ func (m *Model) callRule(o *code.Op, args []any) ([]any, bool) {
 	flag := func(f func(s RuleSpec) bool) ([]any, bool) {
 		return []any{f(m.spec(args[0].(RuleRef).Index))}, true
 	}
-	// A parse in the missing-token mode memoizes none of the rules that insert missing tokens.
+	// A parse in the missing-token mode memoizes none of the rules that insert missing tokens, except
+	// that a Document parse grows a leader through its memo.
 	missing := func() bool {
 		i := args[0].(RuleRef).Index
 		return m.cfg.Missing && int(i) < len(m.cfg.MissingRules) && m.cfg.MissingRules[i]
@@ -126,7 +127,8 @@ func (m *Model) callRule(o *code.Op, args []any) ([]any, bool) {
 	case "rule.plain":
 		return flag(func(s RuleSpec) bool { return s.Captures == 0 })
 	case "rule.docMemo":
-		return flag(func(s RuleSpec) bool { return s.DocMemo })
+		// A leader that can insert still grows through its memo, as rule.memo leaves it to its growth.
+		return flag(func(s RuleSpec) bool { return s.DocMemo && (s.Leader || !missing()) })
 	case "rule.docOnlyMemo":
 		return flag(func(s RuleSpec) bool {
 			only := s.DocMemo && !s.Memo && !s.Leader && !missing()

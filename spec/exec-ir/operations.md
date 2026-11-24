@@ -213,7 +213,7 @@ The operations of the component `rules`.
 | `op rule.memo(r Rule) bool` | none | `0` | Reports whether the rule is memoized. A parse in the missing-token mode memoizes no rule that can insert a missing token. |
 | `op rule.leader(r Rule) bool` | none | `0` | Reports whether the rule leads a left-recursive cycle. |
 | `op rule.plain(r Rule) bool` | none | `0` | Reports whether the rule has no captures, so that its plain body serves its invocation. |
-| `op rule.docMemo(r Rule) bool` | none | `0` | Reports whether a Document parse memoizes the rule. |
+| `op rule.docMemo(r Rule) bool` | none | `0` | Reports whether a Document parse memoizes the rule. A Document parse in the missing-token mode memoizes no rule that can insert a missing token other than a leader, whose growth keeps its seed in the memo. |
 | `op rule.docOnlyMemo(r Rule) bool` | none | `0` | Reports whether a Document parse memoizes the rule and a parse from scratch does not; never for a rule that can insert a missing token in a parse in the missing-token mode. |
 | `op rule.docPlain(r Rule) bool` | none | `0` | Reports whether a parse from scratch calls the plain body of the rule directly, at a call site, without the call protocol. |
 | `op rule.positional(r Rule) bool` | none | `0` | Reports whether the results of the rule may depend on positions, not only on the input they examine. |

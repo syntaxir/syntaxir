@@ -142,7 +142,7 @@ time: for it the operation reports false and clears the mark that says so.`})
 		{"rule.memo", "Reports whether the rule is memoized. A parse in the missing-token mode memoizes no rule that can insert a missing token."},
 		{"rule.leader", "Reports whether the rule leads a left-recursive cycle."},
 		{"rule.plain", "Reports whether the rule has no captures, so that its plain body serves its invocation."},
-		{"rule.docMemo", "Reports whether a Document parse memoizes the rule."},
+		{"rule.docMemo", "Reports whether a Document parse memoizes the rule. A Document parse in the missing-token mode memoizes no rule that can insert a missing token other than a leader, whose growth keeps its seed in the memo."},
 		{"rule.docOnlyMemo", "Reports whether a Document parse memoizes the rule and a parse from scratch does not; never for a rule that can insert a missing token in a parse in the missing-token mode."},
 		{"rule.docPlain", "Reports whether a parse from scratch calls the plain body of the rule directly, at a call site, without the call protocol."},
 		{"rule.positional", "Reports whether the results of the rule may depend on positions, not only on the input they examine."},

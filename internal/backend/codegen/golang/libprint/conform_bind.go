@@ -367,9 +367,19 @@ const engineMissingBindingsFile = "internal/runtime/state/missing_bind_exec_test
 var missingBindingOps = []string{"missing.active", "missing.recompute", "missing.mark", "missing.reset", "missing.replay"}
 
 // printEngineMissingBindings returns the Go test file of the conformance bindings of the missing-token mode
-// for package state of the engine, the only target that has the mode.
+// for package state of the engine.
 func printEngineMissingBindings(u file) (string, error) {
 	return bindingFile(u.module(), "state", missingBindingOps, engineTarget(), "")
+}
+
+// goMissingBindingOps are the operations of the missing-token mode that the cases of the rules in the mode
+// call (conform.RuleMissingOps): the node library's rules run in the mode under the suite of the rules.
+var goMissingBindingOps = []string{"missing.active", "missing.mark"}
+
+// GoMissingBindings returns the Go test file of the conformance bindings of the operations of the
+// missing-token mode that the cases of the rules call, for package libgo, for the node library's Parser.
+func GoMissingBindings() (string, error) {
+	return bindingFile(compose.Build(), "libgo", goMissingBindingOps, goTarget(goSpec{fn: "expect", name: "Expect"}), "")
 }
 
 // engineCallBindingsFile is the file of the engine's conformance bindings of the traced call path,

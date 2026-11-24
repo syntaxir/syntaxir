@@ -50,6 +50,9 @@ func newRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 	}
 	base.p.track = cfg.Document || cfg.Observed
 	base.p.setDeferMemo()
+	if cfg.Missing {
+		base.p.missing = &missingState{limit: 1 << 30}
+	}
 	m := &ruleMachine{docMachine: &docMachine{rtMachine: base}, specs: cfg.RuleSpecs, evals: map[int64]int64{}}
 	scriptRules(base.env.rules, cfg, m.evaluate)
 	if controlled {
@@ -71,6 +74,7 @@ func scriptRules(rules []*Rule, cfg ref.Config, eval func(index int64, p *Parser
 		}
 		r.Id, r.Name = i, ref.RuleName(int64(i))
 		r.Memo, r.DocMemo, r.Leader, r.Positional, r.Rec = s.Memo, s.DocMemo, s.Leader, s.Positional, s.Rec
+		r.Missing = i < len(cfg.MissingRules) && cfg.MissingRules[i]
 		r.Seen = int(ref.SeenIndex(cfg.RuleSpecs, int64(i)))
 		r.Scope = nil
 		for k := range s.Captures {
@@ -102,6 +106,7 @@ func (m *ruleMachine) evaluate(index int64, p *Parser, level int) (*sxirvalue.No
 	for _, id := range e.Errs {
 		m.rtMachine.Call(ruleOps.Op("rec.push"), []any{m.Err(id)})
 	}
+	m.insertScripted(p, e)
 	if e.Touch > 0 {
 		p.confDocTouch(start + int(e.Touch))
 	}
@@ -113,6 +118,22 @@ func (m *ruleMachine) evaluate(index int64, p *Parser, level int) (*sxirvalue.No
 		return nil, false
 	}
 	return nodeOfData(&Data{Fresh: true}), true
+}
+
+// insertScripted inserts the missing tokens of the evaluation e in a parse in the missing-token mode, as
+// the grammar's code of a missing-token literal does, which charges nothing of the body's script: each
+// token whose site has not inserted at its position on the path is put on the path, with its error
+// recovered.
+func (m *rtMachine) insertScripted(p *Parser, e ref.Eval) {
+	if !p.inserting() {
+		return
+	}
+	for _, t := range e.Missing {
+		err := m.Err(t.Err).(*sxirvalue.SyntaxError)
+		if p.installMissing(missingToken{site: int(t.Site), pos: int(t.Pos), err: err}, true) {
+			p.PushRecovered(err)
+		}
+	}
 }
 
 func (m *ruleMachine) spec(index int64) ref.RuleSpec {
@@ -177,6 +198,10 @@ func (m *ruleMachine) Call(o *code.Op, args []any) (res []any) {
 		return nil
 	case "depth.current":
 		return []any{int64(p.Depth)}
+	case "missing.active":
+		return []any{p.confMissingActive()}
+	case "missing.mark":
+		return []any{int64(p.confMissingMark())}
 	}
 	return m.docMachine.Call(o, args)
 }
@@ -184,7 +209,7 @@ func (m *ruleMachine) Call(o *code.Op, args []any) (res []any) {
 // ruleLibOps are the operations of the rules that the library provides, with the doc operations.
 var ruleLibOps = append([]string{"rule.memo", "rule.leader", "rule.plain", "rule.docMemo", "rule.docOnlyMemo",
 	"rule.positional", "rule.id", "rule.seen", "rule.invoke", "rule.invokePlain", "seen.defers", "depth.enter", "depth.exit", "depth.current",
-	"rec.mark", "rec.truncate"}, conform.DocOps...)
+	"rec.mark", "rec.truncate", "missing.active", "missing.mark"}, conform.DocOps...)
 
 // ruleSuites are the suites of the library's operations of the rules. The controlled suite checks the
 // charges against the cost bounds, but not to the unit: the library's call charges the unit of a call
@@ -247,6 +272,11 @@ func TestExecConformanceRuleDetectsBrokenLib(t *testing.T) {
 		"rule.docOnlyMemo counts leaders": func(m *ruleMachine, args []any) []any {
 			r := args[0].(*Rule)
 			return []any{r.DocMemo && !r.Memo}
+		},
+		"rule.memo memoizes in the missing-token mode": func(m *ruleMachine, args []any) []any { return []any{args[0].(*Rule).Memo} },
+		"rule.docOnlyMemo counts the rules that insert tokens": func(m *ruleMachine, args []any) []any {
+			r := args[0].(*Rule)
+			return []any{r.DocMemo && !r.Memo && !r.Leader}
 		},
 		"rule.id is the index of the rule after it": func(m *ruleMachine, args []any) []any {
 			return []any{int64(args[0].(*Rule).Id + 1)}

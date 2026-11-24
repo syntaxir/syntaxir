@@ -53,6 +53,9 @@ func newTypedRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 	}
 	base.p.track = cfg.Document || cfg.Observed
 	base.p.setDeferMemo()
+	if cfg.Missing {
+		base.p.missing = &missingState{limit: 1 << 30}
+	}
 	m := &typedRuleMachine{docMachine: &docMachine{rtMachine: base}, tp: tp, invs: map[int64]*typedInvocation{}, specs: cfg.RuleSpecs,
 		evals: map[int64]int64{}}
 	scriptRules(base.env.rules, cfg, func(int64, *Parser, int) (*sxirvalue.Node, bool) {
@@ -121,6 +124,7 @@ func (m *typedRuleMachine) evaluate(index int64, p *TParser, level int) (any, bo
 	for _, id := range e.Errs {
 		m.rtMachine.Call(ruleOps.Op("rec.push"), []any{m.Err(id)})
 	}
+	m.insertScripted(p.Parser, e)
 	if e.Touch > 0 {
 		p.confDocTouch(start + int(e.Touch))
 	}
@@ -195,6 +199,10 @@ func (m *typedRuleMachine) Call(o *code.Op, args []any) (res []any) {
 		return nil
 	case "depth.current":
 		return []any{int64(p.Depth)}
+	case "missing.active":
+		return []any{p.confMissingActive()}
+	case "missing.mark":
+		return []any{int64(p.confMissingMark())}
 	}
 	return m.docMachine.Call(o, args)
 }
@@ -248,6 +256,11 @@ func TestExecConformanceTypedRuleDetectsBrokenLib(t *testing.T) {
 		"rule.docOnlyMemo counts leaders": func(m *typedRuleMachine, args []any) []any {
 			r := args[0].(*TRule)
 			return []any{r.DocMemo && !r.Memo}
+		},
+		"rule.memo memoizes in the missing-token mode": func(m *typedRuleMachine, args []any) []any { return []any{args[0].(*TRule).Memo} },
+		"rule.docOnlyMemo counts the rules that insert tokens": func(m *typedRuleMachine, args []any) []any {
+			r := args[0].(*TRule)
+			return []any{r.DocMemo && !r.Memo && !r.Leader}
 		},
 		"rule.id is the index of the rule after it": func(m *typedRuleMachine, args []any) []any {
 			return []any{int64(args[0].(*TRule).Id + 1)}
