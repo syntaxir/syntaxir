@@ -27,16 +27,17 @@ func TestFormatSourceGroupOpeningComments(t *testing.T) {
 func TestFormatMinimumInteger(t *testing.T) {
 	max := int(^uint(0) >> 1)
 	minimum := &ast.IntLit{Value: -max - 1}
-	expr := "-" + strconv.Itoa(max) + " - 1"
+	// The minimum is one literal token, which the parser reads back as one.
+	expr := strconv.Itoa(-max - 1)
 	for _, tc := range []struct {
 		actionExpr ast.ActionExpr
 		want       string
 	}{
 		{minimum, expr},
-		{&ast.Unary{Op: "-", X: minimum}, "-(" + expr + ")"},
+		{&ast.Unary{Op: "-", X: minimum}, "- " + expr},
 		{&ast.Binary{Op: "+", L: minimum, R: &ast.IntLit{Value: 1}}, expr + " + 1"},
-		{&ast.Binary{Op: "-", L: &ast.IntLit{Value: 1}, R: minimum}, "1 - (" + expr + ")"},
-		{&ast.Binary{Op: "*", L: minimum, R: &ast.IntLit{Value: 2}}, "(" + expr + ") * 2"},
+		{&ast.Binary{Op: "-", L: &ast.IntLit{Value: 1}, R: minimum}, "1 - " + expr},
+		{&ast.Binary{Op: "*", L: minimum, R: &ast.IntLit{Value: 2}}, expr + " * 2"},
 	} {
 		if got := FormatActionExpr(tc.actionExpr); got != tc.want {
 			t.Errorf("FormatActionExpr: got %q; want %q", got, tc.want)

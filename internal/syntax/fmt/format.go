@@ -2382,6 +2382,13 @@ var actionExprPrec = map[string]int{
 	"*": 5, "/": 5, "%": 5,
 }
 
+// The precedence of a prefix operator and of the postfix forms: a field
+// access, an index and a cast, which bind tighter than any prefix.
+const (
+	actionExprPrecUnary   = 6
+	actionExprPrecPostfix = 7
+)
+
 // FormatActionExpr returns the action expression t in SyntaxIR syntax.
 func FormatActionExpr(t ast.ActionExpr) string { return formatActionExpr(t, 0, nil) }
 
@@ -2511,12 +2518,16 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		p.flush()
 		return strings.TrimSuffix(p.String(), "\n")
 	case *ast.IntLit:
-		if t.Value == -int(^uint(0)>>1)-1 {
-			// The absolute minimum cannot be a positive source token. Use
-			// representable operands and honor the surrounding precedence.
-			return formatActionExpr(&ast.Binary{Op: "-", L: &ast.IntLit{Value: t.Value + 1}, R: &ast.IntLit{Value: 1}}, outer, control)
+		// A negative literal starts with "-", which binds more loosely than a
+		// field access, an index or a cast. The minimum int is written as one
+		// literal: its magnitude alone is not an int, and an expression in its
+		// place would not be a literal where one is required, as in the initial
+		// value of a variable.
+		s := strconv.Itoa(t.Value)
+		if t.Value < 0 && outer > actionExprPrecUnary {
+			return parenActionExpr(s, control)
 		}
-		return strconv.Itoa(t.Value)
+		return s
 	case *ast.StringLit:
 		return quote(t.Value, control)
 	case *ast.BoolLit:
@@ -2531,7 +2542,7 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 	case *ast.VarRef:
 		return t.Name
 	case *ast.FieldAccess:
-		return formatActionExpr(t.X, 7, control) + "." + t.Name
+		return formatActionExpr(t.X, actionExprPrecPostfix, control) + "." + t.Name
 	case *ast.Constructor:
 		elems := make([]listElem, 0, len(t.Fields)+len(t.Args))
 		for _, f := range t.Fields {
@@ -2583,9 +2594,15 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		return s
 	case *ast.Binary:
 		if t.Op == "[]" {
-			l := formatActionExpr(t.L, 7, control)
-			switch t.L.(type) {
-			case *ast.IntLit, *ast.StringLit, *ast.Constructor, *ast.ListConstructor, *ast.Lambda:
+			l := formatActionExpr(t.L, actionExprPrecPostfix, control)
+			switch x := t.L.(type) {
+			case *ast.IntLit:
+				// "[" is an index only directly after a name, a capture, ")" or "]";
+				// a negative literal is already in parentheses.
+				if x.Value >= 0 {
+					l = parenActionExpr(l, control)
+				}
+			case *ast.StringLit, *ast.Constructor, *ast.ListConstructor, *ast.Lambda:
 				// "[" is an index only directly after a name, a capture, ")" or "]".
 				l = parenActionExpr(l, control)
 			}
@@ -2605,10 +2622,15 @@ func formatActionExprNode(t ast.ActionExpr, outer int, control *formatControl) s
 		}
 		return s
 	case *ast.Unary:
-		return joinPrefixTokens(t.Op, formatActionExpr(t.X, 6, control))
+		s := joinPrefixTokens(t.Op, formatActionExpr(t.X, actionExprPrecUnary, control))
+		if outer > actionExprPrecUnary {
+			// The operand of a field access, an index or a cast.
+			return parenActionExpr(s, control)
+		}
+		return s
 	case *ast.Cast:
-		x := formatActionExpr(t.X, 7, control)
-		if _, ok := t.X.(*ast.IntLit); ok {
+		x := formatActionExpr(t.X, actionExprPrecPostfix, control)
+		if lit, ok := t.X.(*ast.IntLit); ok && lit.Value >= 0 {
 			// 1.(int) would read as a number.
 			x = parenActionExpr(x, control)
 		}

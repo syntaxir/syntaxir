@@ -745,9 +745,12 @@ argument is a trailing comma, as in other lists. An empty argument is written
 `nil`, as in `@custom(nil, 2)`, which yields `[null, 2]`.
 Keyword arguments follow positional arguments in source, and strict decoding rejects
 a repeated keyword. Integer constants use the native `int` range; the minimum
-integer is formatted as `-MaxInt - 1`, with parentheses where required, because its
-absolute value cannot be a positive source token, and parsing the result preserves
-the value.
+integer is formatted as the single value that [Integer Literals](lexical.md#integer-literals)
+accepts, such as `-9223372036854775808` for a 64-bit `int`, and a negative
+constant is put in parentheses as the operand of a field access, an index or a
+cast. Parsing the result preserves the value, and the minimum is read back as
+one constant, so it stays a literal where one is required, as in the initial
+value of a variable.
 
 ### Source-Only AST Nodes
 
