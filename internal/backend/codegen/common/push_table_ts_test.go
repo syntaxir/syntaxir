@@ -4,14 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/codegen"
-	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
@@ -73,17 +70,7 @@ console.log(JSON.stringify(calls.map(([fn, v]) => {
 func runTSPushes(t *testing.T, controlled bool, mutate func(string) string) map[[2]string]string {
 	t.Helper()
 	node := tooltest.RequireNode(t)
-	g, err := parseTest("@start\nrule main = \"a\"\n")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The whole library (used-features off): the table calls functions that the parser of this grammar
-	// does not use.
-	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := string(code)
+	src := codegentest.TSTableBundle(t)
 	if mutate != nil {
 		src = mutate(src)
 	}
@@ -100,14 +87,7 @@ func runTSPushes(t *testing.T, controlled bool, mutate func(string) string) map[
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "main.ts")
-	cmd.Dir = dir
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("node: %v\n%s", err, codegentest.Clip(stderr.String(), 0))
-	}
+	out := runTSTable(t, node, dir)
 	var results []string
 	if err := json.Unmarshal(out, &results); err != nil {
 		t.Fatalf("%v: %s", err, out)

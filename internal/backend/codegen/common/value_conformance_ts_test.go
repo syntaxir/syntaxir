@@ -3,15 +3,12 @@ package common_test
 import (
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
 	"strings"
 	"testing"
 
-	"syntaxir.dev/sxir/internal/backend/codegen"
-	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	xexec "syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/conform"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
@@ -170,17 +167,7 @@ func (v tsValues) Call(o *xexec.Op, args []any) []any {
 func runTSValues(t *testing.T, controlled bool, mutate func(string) string) tsValues {
 	t.Helper()
 	node := tooltest.RequireNode(t)
-	g, err := parseTest("@start\nrule main = \"a\"\n")
-	if err != nil {
-		t.Fatal(err)
-	}
-	// The whole library (used-features off): the table calls functions that the parser of this grammar
-	// does not use.
-	code, err := codegentest.GenerateTSBundle(g, common.GenOptions{Start: "main", NoOpt: []string{codegen.UsedFeatures}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	src := string(code)
+	src := codegentest.TSTableBundle(t)
 	if mutate != nil {
 		src = mutate(src)
 	}
@@ -205,14 +192,7 @@ func runTSValues(t *testing.T, controlled bool, mutate func(string) string) tsVa
 			t.Fatal(err)
 		}
 	}
-	cmd := exec.Command(node, "main.ts")
-	cmd.Dir = dir
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-	out, err := cmd.Output()
-	if err != nil {
-		t.Fatalf("node: %v\n%s", err, codegentest.Clip(stderr.String(), 0))
-	}
+	out := runTSTable(t, node, dir)
 	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
 	if len(lines) != 2 {
 		t.Fatalf("node printed %d lines, not 2", len(lines))
