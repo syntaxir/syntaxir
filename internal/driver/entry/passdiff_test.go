@@ -83,19 +83,22 @@ var engineFlags = []struct {
 	{"scans", allEngineBackends},
 	{"dispatch", bytecodeBackends},
 	{"canonicalize", bytecodeBackends},
-	{"fold-constants", bytecodeBackends},
-	{"fold-branches", bytecodeBackends},
 	{"drop-after-exit", bytecodeBackends},
-	{"drop-unused-labels", bytecodeBackends},
-	{"splice-blocks", bytecodeBackends},
 }
 
 // generatedOnlyFlags says for each optimization that no engine backend runs the test that checks a
 // parser generated without it against one generated with it (or against the engine), as a test
 // function and the directory of the package that holds it. The Flow passes terminals, guarded-classes,
-// class-runs, class-tables and inline-literals are among them: the pipeline text of the bytecode VM lists
-// them, but the VM's flow target (flowpass.Bytecode) turns each of them off, since it prints none of their forms.
+// class-runs, class-tables and inline-literals are among them, since the VM's flow target
+// (flowpass.Bytecode) prints none of their forms, and so are the canonicalize patterns of the Exec stage
+// (fold-constants, fold-branches, drop-unused-labels, splice-blocks), which the VM never reaches: its Flow
+// stage has only drop-after-exit. The pipeline text lists exactly the passes that a backend runs
+// (TestDescribeListsWhatRuns).
 var generatedOnlyFlags = map[string]struct{ test, dir string }{
+	"fold-constants":         {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
+	"fold-branches":          {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
+	"drop-unused-labels":     {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
+	"splice-blocks":          {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
 	"terminals":              {"TestTerminalProgramDisabledParity", "internal/backend/codegen/golang/print"},
 	"guarded-classes":        {"TestGuardedClassDisabledParity", "internal/backend/codegen/golang/print"},
 	"class-runs":             {"TestOptimizationDisabledParity", "internal/backend/codegen/golang/print"},
@@ -321,23 +324,13 @@ func TestPassesOffAgree(t *testing.T) {
 	}
 }
 
-// neverApplied lists the canonicalize patterns that no case of the corpus makes apply on the bytecode VM, with
-// the reason. The Flow lowering (internal/middleend/flowlower) writes a condition from variables and calls, never
-// from constants only (fold-constants, fold-branches); it opens every block with a label and a statement list of
-// its own, and an If's Else is empty never (splice-blocks); and it leaves a label unused only where no exit names
-// it, which it does not emit (drop-unused-labels). The patterns serve the Exec stage of generated code and other
-// producers of Flow code, which the codepass tests exercise (TestCanonicalizePatternOff). A pattern that starts to
-// apply fails TestEnginePassesApply until it leaves this list.
-var neverApplied = map[string]bool{"fold-constants": true, "fold-branches": true, "drop-unused-labels": true, "splice-blocks": true}
-
 var appliedRe = regexp.MustCompile(`([a-z-]+) applied (\d+)`)
 var scanRe = regexp.MustCompile(`(scanReachAt|scanEndAt|scanClass) (\d+)`)
 var guardedRe = regexp.MustCompile(`(?m)^\s*vm/(guards|dispatch)\s.*guarded (\d+)`)
 
 // TestEnginePassesApply checks that each optimization that the engine runs does something on the corpus of the
 // tier: the guards and the dispatch guard some alternative, the scans make the VM lower a scan instruction,
-// and each canonicalize pattern applies at least once, except those that neverApplied lists, which must apply
-// nowhere. Without it a pass could be switched off in TestPassesOffAgree and differ from nothing.
+// and each canonicalize pattern of the VM applies at least once. Without it a pass could be switched off in TestPassesOffAgree and differ from nothing.
 func TestEnginePassesApply(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
@@ -380,14 +373,9 @@ func TestEnginePassesApply(t *testing.T) {
 			t.Errorf("%s is 0 over the corpus: the pass does nothing there, so switching it off proves nothing", name)
 		}
 	}
+	// Every pass of the VM's pipeline applies at least once over the corpus: the patterns by their counts.
 	for _, f := range engineFlags {
-		switch {
-		case f.name == "guards" || f.name == "scans" || f.name == "dispatch" || f.name == "canonicalize":
-		case neverApplied[f.name]:
-			if applied[f.name] != 0 {
-				t.Errorf("the pattern %s applies %d times: take it out of neverApplied", f.name, applied[f.name])
-			}
-		case applied[f.name] == 0:
+		if f.name == "drop-after-exit" && applied[f.name] == 0 {
 			t.Errorf("the pattern %s never applies over the corpus", f.name)
 		}
 	}

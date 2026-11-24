@@ -367,11 +367,12 @@ each rewrite measurable and bisectable by itself.
 The patterns of the statements and expressions that every dialect shares are `fold-constants`, `fold-branches`,
 `drop-after-exit`, `drop-unused-labels` and `splice-blocks`, tried in that order. The dialect of each stage declares
 which of them it takes: the Exec stage takes all five, and the Flow stage
-takes the first three, because every block of the Flow stage keeps a label of its own, so removing a label or splicing
-a block would break its invariant. The dialects have no patterns of their own operations yet. Code IR makes every
-pattern, so the pass declares them all without importing a dialect, which only the conversions do for more than one
-stage; at each stage it applies those that the stage's dialect declares. The pass is one pass at both stages: it has
-one name, one flag and one list of patterns, and the manager numbers its runs at the two stages as instances of one pass.
+takes `drop-after-exit` only. Every block of the Flow stage keeps a label of its own, so removing a label or splicing
+a block would break its invariant, and the lowering writes no condition from constants alone, so the patterns that
+fold a constant have no match there. The dialects have no patterns of their own operations yet. Code IR makes every
+pattern, so the pass declares, at each stage, the patterns that the stage's dialect has, without importing the dialect, and a
+pipeline text lists those that run there. The pass is one pass at both stages: it has one name and one flag, and the
+manager numbers its runs at the two stages as instances of one pass.
 The specialization of a composition applies every pattern of the Exec stage to its copy itself, so a composition is the
 same whatever a build turns off.
 

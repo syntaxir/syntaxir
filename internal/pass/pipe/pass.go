@@ -210,14 +210,17 @@ var (
 
 // New seals and registers a pass. A pass that keeps the same declaration may be registered at
 // several input kinds, such as a pass of Code IR at each of its stages: one name, one flag and one
-// set of patterns and counters, with one run function for each kind. A name registered twice at one
+// set of counters, with one run function and one set of patterns for each kind. A name registered twice at one
 // input kind, or with two declarations, panics.
 func New[I, O any](d Def[I, O]) *Pass[I, O] {
 	if d.Name == "" {
 		panic("pipe: a pass has no name")
 	}
 	if prev := passes[d.Name]; prev != nil {
-		if !reflect.DeepEqual(prev.Decl, d.Decl) || slices.Contains(inKinds[d.Name], kindOf(d.In)) {
+		// The patterns of a pass may differ between its kinds: each stage declares the patterns it has.
+		a, b := prev.Decl, d.Decl
+		a.Patterns, b.Patterns = nil, nil
+		if !reflect.DeepEqual(a, b) || slices.Contains(inKinds[d.Name], kindOf(d.In)) {
 			panic(fmt.Sprintf("pipe: pass %q is registered twice at one kind or with two declarations", d.Name))
 		}
 	}

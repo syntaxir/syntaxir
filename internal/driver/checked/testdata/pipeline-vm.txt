@@ -42,7 +42,7 @@ pipeline program -> output {
             with flow-target= {
               func funcs@flow {
                 slot flow-passes {
-                  canonicalize[fold-constants,fold-branches,drop-after-exit,drop-unused-labels,splice-blocks]
+                  canonicalize[drop-after-exit]
                 }
               }
             }

@@ -129,7 +129,7 @@ func TestFlowPatterns(t *testing.T) {
 	for _, p := range PatternsAt[Flow]() {
 		names = append(names, p.Name)
 	}
-	if want := []string{"fold-constants", "fold-branches", "drop-after-exit"}; !slices.Equal(names, want) {
+	if want := []string{"drop-after-exit"}; !slices.Equal(names, want) {
 		t.Errorf("patterns %v, want %v", names, want)
 	}
 }

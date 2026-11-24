@@ -28,22 +28,20 @@ func init() {
 	pass.Register(flags...)
 }
 
-// canonicalizeDecl is the declaration of canonicalize, the same at both stages: one name, one flag,
-// and the patterns of every stage, each of which the pass asks about only at a stage that has it. The
-// pass imports no dialect: it reads the patterns of its stage, which the stage's dialect declares
+// canonicalizeAt declares canonicalize at the stage S, with the patterns that the stage has (names, the
+// patterns of the stage's dialect: a test compares them): it applies the patterns of the stage
+// (code.PatternsAt) to each function of the unit, and each application asks the manager (Ctx.Allow). The pass
+// declares at each stage the patterns that can match there, so that a pipeline text lists the patterns that
+// run. It imports no dialect: it reads the patterns of its stage, which the dialect declares
 // (code.RegisterPatterns), when it runs.
-var canonicalizeDecl = pipe.Decl{
-	Name:       PassCanonicalize,
-	Obligation: "Each pattern keeps the behavior of what it rewrites: the same results, the same calls of operations with the same arguments in the same order, and the same way of ending.",
-	Patterns:   patternNames(),
-}
-
-// canonicalizeAt declares canonicalize at the stage S: it applies the patterns of the stage
-// (code.PatternsAt) to each function of the unit, and each application asks the manager (Ctx.Allow).
-func canonicalizeAt[S code.Stage](k *pipe.IR[code.At[S]]) *pipe.Pass[code.At[S], code.At[S]] {
+func canonicalizeAt[S code.Stage](k *pipe.IR[code.At[S]], names ...string) *pipe.Pass[code.At[S], code.At[S]] {
 	return pipe.New(pipe.Def[code.At[S], code.At[S]]{
-		Decl: canonicalizeDecl,
-		In:   k, Out: k,
+		Decl: pipe.Decl{
+			Name:       PassCanonicalize,
+			Obligation: "Each pattern keeps the behavior of what it rewrites: the same results, the same calls of operations with the same arguments in the same order, and the same way of ending.",
+			Patterns:   names,
+		},
+		In: k, Out: k,
 		Run: func(c *pipe.Ctx[code.At[S]], u code.At[S]) (code.At[S], pass.PreservedSet, error) {
 			ps, changed := code.PatternsAt[S](), false
 			for _, f := range u.Module().Funcs {
@@ -59,10 +57,18 @@ func canonicalizeAt[S code.Stage](k *pipe.IR[code.At[S]]) *pipe.Pass[code.At[S],
 	})
 }
 
-// FlowCanonicalize and ExecCanonicalize are canonicalize at the Flow and at the Exec stage.
+// FlowCanonicalize and ExecCanonicalize are canonicalize at the Flow and at the Exec stage, with the
+// patterns of the stage's dialect (internal/ir/code/flow, internal/ir/code/exec).
 var (
-	FlowCanonicalize = canonicalizeAt[code.Flow](code.FlowStage)
-	ExecCanonicalize = canonicalizeAt[code.Exec](code.ExecStage)
+	FlowCanonicalize = canonicalizeAt[code.Flow](code.FlowStage, flowPatternNames...)
+	ExecCanonicalize = canonicalizeAt[code.Exec](code.ExecStage, execPatternNames...)
+)
+
+// The names of the patterns that each stage's canonicalize declares; TestCanonicalizeDeclaresStagePatterns
+// compares them with the patterns of the dialects.
+var (
+	flowPatternNames = []string{code.DropAfterExit.Name}
+	execPatternNames = []string{code.FoldConstants.Name, code.FoldBranches.Name, code.DropAfterExit.Name, code.DropUnusedLabels.Name, code.SpliceBlocks.Name}
 )
 
 // Canonicalize applies every pattern of the Exec stage to f until none applies, outside a pipeline:

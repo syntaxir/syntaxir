@@ -65,6 +65,13 @@ func (s *Stats) After(e Event, r *Result) {
 	if d == nil {
 		return
 	}
+	// The patterns are those of the registration at the input kind of the step.
+	for _, r := range registrations {
+		if r.Name == e.Step.Name && r.in.name == e.Step.In {
+			d = r
+			break
+		}
+	}
 	k := statsKey{e.Label.Backend, e.Step.Instance}
 	st := s.byKey[k]
 	if st == nil {

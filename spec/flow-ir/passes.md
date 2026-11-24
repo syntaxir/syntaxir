@@ -38,16 +38,10 @@ read examines applies only to a function lowered without a Document or the recor
 The last pass of the stage, `canonicalize`, applies named local patterns to a function until none applies, trying them
 in a fixed order, so that the result is the same on every run. It is the pass of the same name at the Exec stage (see
 [Canonicalization](../exec-ir/passes.md#canonicalization) there), with the patterns that keep the invariants of this
-stage: every block keeps its label, so no label is removed and no block is spliced. The patterns of the stage, in the
-order they are tried:
+stage: every block keeps its label, so no label is removed and no block is spliced; and the lowering writes every
+condition from variables and calls, never from constants alone, so the patterns that fold a constant (`fold-constants`,
+`fold-branches`) have no match at this stage and it has neither. The pattern of the stage:
 
-- `fold-constants`: an operator or a conversion whose operands are constants becomes its value, computed as running it
-  computes it, except a division or a remainder by zero; `!` of a constant becomes its value, and `&&` and `||` with a
-  constant operand that decides them become that constant, or their other operand when the constant does not decide
-  them; an operand that is dropped never holds a call;
-- `fold-branches`: an `If` whose condition is a constant becomes its Init and the statements of the branch that the
-  condition selects, a `Loop` whose condition is the constant false becomes its Init, and the constant true condition
-  of a `Loop` is removed;
 - `drop-after-exit`: the statements after an `Exit`, `Break`, `Continue` or `Return` in the same block are removed.
 
 Each pattern is an optimization with its own name, which turns it off, and each application of a pattern is counted on
