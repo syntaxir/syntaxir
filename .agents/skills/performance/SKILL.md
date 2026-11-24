@@ -24,7 +24,10 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   an A/A copy, with the geomean within the A/A spread. Record `uptime` with each run and
   discard runs whose A/A spread exceeds 1.5%. `go run ./bench/gate` does this: it takes
   the benchmark lock, runs the base, candidate and base again per round, and prints the
-  verdicts; `docs/performance.md` (Benchmark Gates) describes the rule.
+  verdicts; `docs/performance.md` (Benchmark Gates) describes the rule. An exclusive
+  benchlock job also holds back new `testslot.sh` jobs and waits for the running ones, so
+  every `go test`, `go vet` and `go build` of more than a few seconds goes through
+  `testslot.sh`; a gate whose load is above `-max-load` at either end is invalid.
 - New structural or feature work lands reasonably optimized. Profile it before landing and
   fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
   the same unit. File the remaining tuning, with the measured gap, for the performance

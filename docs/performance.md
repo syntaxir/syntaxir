@@ -198,6 +198,26 @@ The exit status is non-zero when any gate is a regression or invalid. A run prin
 
 **Cost.** The old landing rule fixed 20 rounds of the three variants per gate. On a quiet machine the gate stops after 8 rounds (a 2.5× cut). Measured on a loaded machine (load average about 55, shared slot, so both verdicts were *invalid* as they should be): the `runtime-compile` and `generation` gates took 16m25s together, with `generation` at 14m33s for its 8 rounds (about 1.8 min per round), where the fixed rule would have run 20 rounds, about 36 min, for `generation` alone. The time of the whole quick set on an idle machine is not recorded yet.
 
+**A quiet machine.** The benchmark lock alone does not make the machine quiet: the test slots of
+`.agents/scripts/testslot.sh` ran beside it, and a first A/A run at load 55 had a 15% spread. So the two share a
+protocol (`.agents/scripts/lib.sh`):
+- from the moment an exclusive benchmark job is queued, new `testslot.sh` jobs wait and name the job they wait for;
+- once the benchmark holds the lock it waits until the slot jobs that run have finished (`BENCHLOCK_DRAIN` seconds at
+  most, default 1800); the slot check and the slot claim both run under the flock of `slots/.lock`, so no job slips in
+  between;
+- the timing phase of the gate then waits, still holding the lock, up to `-load-wait` (5 minutes) until the one-minute
+  load average is at most `-max-load`, prints the load at the start and at the end, and makes every verdict *invalid*
+  when either is above the limit. The load average lags by about a minute, which is what the wait is for.
+
+What this cannot control: a `go test`, build or benchmark that was started without `testslot.sh` or `benchlock.sh`
+(a shell, an editor, a plain `go test ./...`), and every other process on the machine. Every `go test`, `go vet` and
+`go build` of more than a few seconds goes through `testslot.sh`. Each worktree runs its own copy of the scripts, so a copy
+made before this protocol does not wait for a queued benchmark until its worktree is rebased; the drain still sees its
+slots (the slots directory is shared state), and the load check catches the rest. From protocol version 2, `benchlock.sh`
+stamps the version in `$SXIR_AGENT_STATE/protocol` and a `testslot.sh` that knows an older one refuses to run (status 78),
+so later changes of the protocol do not depend on a rebase. `.agents/scripts/test-lock-protocol.sh` tests the waits and
+the stamp.
+
 **Scoreboard.** [scoreboard.md](scoreboard.md) lists each row of the target table in [strategy](strategy.md#performance-leadership)
 with the standing of the saved results against its Credibility target, and says what is missing for the rows that no
 benchmark measures. `go run ./bench/report -scoreboard` regenerates it from `bench/results*.txt` without running a
