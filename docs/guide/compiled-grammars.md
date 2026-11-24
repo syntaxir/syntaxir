@@ -85,7 +85,8 @@ fmt.Println(node, err) // [Pair{Key: "abc", Value: "12"}] <nil>
 A few more facts:
 
 - The same parser always produces the same bytes for a mode, and a parser that was loaded and saved again produces the
-  bytes it was loaded from. This is what makes the [up-to-date test](#embedding-with-goembed) possible.
+  bytes it was loaded from. The encoding is canonical: a file loads only if it is exactly what the compiler writes for
+  its contents. This is what makes the [up-to-date test](#embedding-with-goembed) possible.
 - `vm.IsCompiled(data)` tells a compiled grammar from other data by its magic number. The commands use it to decide
   whether `-g` names source, JSON or a compiled grammar.
 - A loaded parser is an ordinary `runtime.Parser`: it is safe for concurrent use, `WithStart` of the `*vm.Parser` changes its start rule, and
@@ -415,7 +416,8 @@ mode.
 
 Loading checks the magic number, the format version, a CRC-32 checksum, the mode, the instruction-set version and the
 structure (every index is in range, every jump goes forward except the one that closes a repetition and jumps back, the
-start rule is a start rule of the module, no trailing bytes). It does **not** type-check the grammar again, and it does not
+start rule is a start rule of the module, no trailing bytes) and that the file is in the canonical encoding the compiler
+writes. It does **not** type-check the grammar again, and it does not
 verify that the bytecode uses the VM's stacks correctly. A file made to contain type errors can make actions fail while
 parsing, and made-up bytecode is not guaranteed to terminate. The nesting limit relies on the recursion marks stored in the compiled grammar, so a forged file can remove it; load only files you trust.
 

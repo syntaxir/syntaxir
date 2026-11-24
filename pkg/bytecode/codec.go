@@ -100,16 +100,41 @@ func (r *Decoder) Byte() byte {
 
 // Uint reads a non-negative integer.
 func (r *Decoder) Uint() int {
-	if r.Err != nil {
-		return 0
-	}
-	n, k := binary.Uvarint(r.Data[r.Pos:])
-	if k <= 0 || n > 1<<31 {
+	n, ok := r.uvarint()
+	if ok && n > 1<<31 {
 		r.Fail("invalid integer")
 		return 0
 	}
-	r.Pos += k
 	return int(n)
+}
+
+// uvarint reads an unsigned LEB128 integer in its shortest encoding, the only one Encoder writes:
+// a longer one ends in a zero byte. ok is false on an error, which it records.
+func (r *Decoder) uvarint() (n uint64, ok bool) {
+	if r.Err != nil {
+		return 0, false
+	}
+	n, k := binary.Uvarint(r.Data[r.Pos:])
+	if k <= 0 {
+		r.Fail("invalid integer")
+		return 0, false
+	}
+	if k > 1 && r.Data[r.Pos+k-1] == 0 {
+		r.Fail("integer %d not in its shortest encoding", n)
+		return 0, false
+	}
+	r.Pos += k
+	return n, true
+}
+
+// varint reads a signed integer, zigzag-encoded as an unsigned one, in its shortest encoding.
+func (r *Decoder) varint() (int64, bool) {
+	u, ok := r.uvarint()
+	n := int64(u >> 1)
+	if u&1 != 0 {
+		n = ^n
+	}
+	return n, ok
 }
 
 // Count reads an element count. A count larger than the remaining data is invalid (this prevents
@@ -125,15 +150,7 @@ func (r *Decoder) Count() int {
 
 // Int reads a signed integer.
 func (r *Decoder) Int() int {
-	if r.Err != nil {
-		return 0
-	}
-	n, k := binary.Varint(r.Data[r.Pos:])
-	if k <= 0 {
-		r.Fail("invalid integer")
-		return 0
-	}
-	r.Pos += k
+	n, _ := r.varint()
 	return int(n)
 }
 
@@ -163,15 +180,23 @@ func (r *Decoder) Str() string {
 	return r.Strs[i]
 }
 
-// Strings reads the string table and appends it to Strs.
+// Strings reads the string table and appends it to Strs. The strings of a table are distinct, as
+// Encoder adds each string once.
 func (r *Decoder) Strings() {
 	n := r.Count()
+	seen := make(map[string]bool, n)
 	for i := 0; i < n && r.Err == nil; i++ {
 		l := r.Count()
 		if r.Err != nil {
 			return
 		}
-		r.Strs = append(r.Strs, string(r.Data[r.Pos:r.Pos+l]))
+		s := string(r.Data[r.Pos : r.Pos+l])
+		if seen[s] {
+			r.Fail("string %q twice in the string table", s)
+			return
+		}
+		seen[s] = true
+		r.Strs = append(r.Strs, s)
 		r.Pos += l
 	}
 }

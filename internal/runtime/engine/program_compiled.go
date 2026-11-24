@@ -276,7 +276,23 @@ func LoadProgram(data []byte) (*Program, string, error) {
 			return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
 		}
 	}
+	// The format is canonical: a file loads only if it is the encoding of what it decodes to, so
+	// that saving the loaded program gives back its bytes and no two files encode one program.
+	if again := encodeCompiled(start, mode, m, ins); !bytes.Equal(again, data) {
+		return nil, "", fmt.Errorf("invalid compiled grammar: not in canonical form from byte %d", firstDiff(again, data))
+	}
 	return prog, start, nil
+}
+
+// firstDiff returns the offset of the first byte where a and b differ, or the length of the shorter.
+func firstDiff(a, b []byte) int {
+	n := min(len(a), len(b))
+	for i := range n {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
 }
 
 // loadModule returns the program of the module m, of a compiled grammar in mode, after validating
