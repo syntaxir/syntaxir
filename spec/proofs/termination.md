@@ -504,6 +504,11 @@ each. A Document parse adds the work of the Document, which
 [Work of a Document Parse](../runtime/documents.md#work-of-a-document-parse)
 bounds separately. $\square$
 
+The corollary rests on the guarantee of
+[Compute Units](../runtime/parsing.md#compute-units) that the work between two
+events is at most a constant of the grammar and the backend; this proof takes
+that guarantee from the specification and does not show it.
+
 ## Lemma 9 (Environment of a Growth)
 
 Let a call $C$ of a leader $L$ grow at $p$, and let a call $C'$ of $L$ at $p$
@@ -623,6 +628,11 @@ with insertion. The rules also leave "certainly succeeds there" undefined for a
 negative lookahead; Lemma 2 holds under every reading in which a body that
 certainly succeeds at a position does not fail there, the reading "always
 succeeds" among them.
+
+**Reused results under insertion.** Lemma 11 is about evaluations. That a
+call answered by a reuse fails as its evaluation would follows from the
+Memoization and Documents theorems, which cover parses without insertion; in a
+parse with insertion, the lemma covers only the calls that are evaluated.
 
 **The implementation of the analyses.** The lemmas are about the analyses as
 the specification defines them; that the compiler computes those definitions
