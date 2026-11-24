@@ -3,15 +3,18 @@ package document_test
 import (
 	"context"
 	"errors"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/document"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/value"
+	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
 )
 
 func TestSnapshotControlledFreezeCancellationAndRetry(t *testing.T) {
@@ -263,4 +266,51 @@ rule x = x "a" / "a"`)
 func withExpectations(o ParseOptions) ParseOptions {
 	o.Expectations = true
 	return o
+}
+
+func TestSnapshotUnsupportedLegacyFieldPreservesParseError(t *testing.T) {
+	t.Parallel()
+	prog := mustCompile(t, `rule main = "x"`)
+	d, _ := prog.NewDocument("main", "x")
+	legacy, err := d.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes.D(legacy).Fields = valueimpl.Fields{{Name: "bad", Value: []int{1}}}
+	s, err := d.SnapshotWith(ParseOptions{})
+	var capture *runtime.SnapshotCaptureError
+	if s != nil || !errors.As(err, &capture) || capture.ValueType != reflect.TypeOf([]int{}) || !strings.Contains(capture.Path, "bad") || capture.ParseError != nil {
+		t.Fatal("unsupported legacy field", s, err)
+	}
+	if d.Text() != "x" || d.Version().Sequence() != 1 {
+		t.Fatal("capture failure mutated document")
+	}
+	nodes.D(legacy).Fields = nil
+	if s, err := d.SnapshotWith(ParseOptions{}); s == nil || err != nil {
+		t.Fatal("retry", err)
+	}
+}
+
+// A boxed value of a type that a snapshot cannot hold is rejected like a field of that type, never
+// dropped; a boxed int is kept.
+func TestSnapshotUnsupportedBoxIsRejected(t *testing.T) {
+	t.Parallel()
+	prog := mustCompile(t, `rule main = "x"`)
+	d, _ := prog.NewDocument("main", "x")
+	legacy, err := d.Parse()
+	if err != nil {
+		t.Fatal(err)
+	}
+	nodes.D(legacy).Kind = valueimpl.TupleValueKind
+	nodes.SetNodeElems(legacy, []*value.Node{nodes.NewNode(value.KindValue, 0, 0, "", nil, "", nil, 5)})
+	s, err := d.SnapshotWith(ParseOptions{})
+	if err != nil || s.Root().Child(0).Value() != 5 {
+		t.Fatal("boxed int", s, err)
+	}
+	nodes.SetNodeElems(legacy, []*value.Node{nodes.NewNode(value.KindValue, 0, 0, "", nil, "", nil, []int{1})})
+	s, err = d.SnapshotWith(ParseOptions{})
+	var capture *runtime.SnapshotCaptureError
+	if s != nil || !errors.As(err, &capture) || capture.ValueType != reflect.TypeOf([]int{}) || !strings.Contains(capture.Path, "Children[0]") {
+		t.Fatal("unsupported boxed element", s, err)
+	}
 }
