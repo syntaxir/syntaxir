@@ -80,7 +80,7 @@ func TestRunNodeScriptIndependence(t *testing.T) {
 	got := make([]outcome, n)
 	var wg sync.WaitGroup
 	for i := range n {
-		src := fmt.Sprintf(`globalThis.leak = %d; console.log("job %d", globalThis.leak);`, i, i)
+		src := fmt.Sprintf(`const leak = %d; console.log("job %d", leak);`, i, i)
 		switch i % 10 {
 		case 3:
 			src = `throw new Error("mutant fails")`
@@ -116,6 +116,64 @@ func TestRunNodeScriptIndependence(t *testing.T) {
 			if want := fmt.Sprintf("job %d %d\n", i, i); o.err != nil || o.res.Code != 0 || o.res.Stdout != want {
 				t.Errorf("job %d: %+v, %v; want %q", i, o.res, o.err, want)
 			}
+		}
+	}
+}
+
+// TestRunNodeScriptLeakedState checks that a script that changes the state of its worker, which the next
+// script that runs in it would see, fails with a list of what it changed, and that the scripts that follow
+// find the worker as a new one: each pollution is followed by scripts that observe it, which would run in
+// the worker of the polluter (the pool reuses the last worker that finished) if it were not replaced.
+func TestRunNodeScriptLeakedState(t *testing.T) {
+	node := tooltest.RequireNode(t)
+	const observe = `const seen = [typeof (globalThis as any).leaked, String(Array.prototype.indexOf).includes("native code"), typeof (Object.prototype as any).extra, String(Math.max).includes("native code"), String(process.env.LEAKED)];
+console.log(seen.join(","));`
+	const clean = "undefined,true,undefined,true,undefined\n"
+	for _, c := range []struct {
+		name, src, diff string
+	}{
+		{"a global", `(globalThis as any).leaked = 1;`, "+globalThis.leaked"},
+		{"a replaced method", `const f = Array.prototype.indexOf; Array.prototype.indexOf = function (this: any, ...a: any[]) { return f.apply(this, a); };`, "Array.prototype.indexOf"},
+		{"a new method of Object.prototype", `Object.defineProperty(Object.prototype, "extra", { value: 1, configurable: true });`, "+Object.prototype.extra"},
+		{"a changed built-in function", `(Math as any).max = () => 0;`, "Math.max"},
+		{"the environment", `process.env.LEAKED = "yes";`, "+env.LEAKED=yes"},
+		{"a frozen prototype", `Object.freeze(Map.prototype);`, "Map.prototype"},
+		{"a listener of process", `process.on("exit", () => {});`, "on exit"},
+		{"a patched module", `import fs from "node:fs"; (fs as any).patched = 1;`, "fs.patched"},
+		{"a replaced prototype", `Object.setPrototypeOf(Map.prototype, { x: 1 });`, "Map.prototype"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			res, err := RunNodeScript(t, node, poolScript(t, c.src, nil), "main.ts")
+			if err == nil || !strings.Contains(err.Error(), "changed the state") || !strings.Contains(err.Error(), c.diff) {
+				t.Fatalf("got %+v, %v; want an error that names %q", res, err, c.diff)
+			}
+			for range 4 {
+				res, err := RunNodeScript(t, node, poolScript(t, observe, nil), "main.ts")
+				if err != nil || res.Code != 0 || res.Stdout != clean {
+					t.Fatalf("a later script saw %q (code %d, error %v); want %q", res.Stdout, res.Code, err, clean)
+				}
+			}
+		})
+	}
+}
+
+// TestRunNodeScriptCleanScriptsLeaveNoTrace checks that scripts that use the language and the libraries
+// that the harnesses use (modules, JSON, regular expressions, typed arrays, text encoding, Maps, classes,
+// timers, console and process.stdout) are not mistaken for pollution.
+func TestRunNodeScriptCleanScriptsLeaveNoTrace(t *testing.T) {
+	node := tooltest.RequireNode(t)
+	src := `import { readFileSync } from "node:fs";
+import { join } from "node:path";
+class A { m = new Map<string, number>([["a", 1]]); }
+const enc = new TextEncoder().encode("é"); const dec = new TextDecoder().decode(enc);
+const re = /(\d+)/u.exec("a12"); const big = 10n ** 20n; const buf = Buffer.from("abc").toString("base64");
+await new Promise((r) => setTimeout(r, 1));
+console.log(JSON.stringify([new A().m.get("a"), dec, re?.[1], String(big), buf, join("a", "b"), typeof readFileSync, new Date(0).toISOString(), [3, 1, 2].sort().join()]));
+console.error("e"); process.stdout.write("w\n");`
+	for range 3 {
+		res, err := RunNodeScript(t, node, poolScript(t, src, nil), "main.ts")
+		if err != nil || res.Code != 0 || !strings.HasSuffix(res.Stdout, "w\n") {
+			t.Fatalf("got %+v, %v", res, err)
 		}
 	}
 }

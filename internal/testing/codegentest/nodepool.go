@@ -35,6 +35,10 @@ const nodeJobsPerWorker = 40
 type NodeResult struct {
 	Stdout, Stderr string
 	Code           int
+	// Leak describes the state that the script changed in the worker beyond its own module (globals,
+	// built-in prototypes, process, built-in modules), one difference per line; RunNodeScript reports
+	// it as an error and replaces the worker, so that no other script sees it.
+	Leak string
 }
 
 // RunNodeScript runs the script of the module in dir (script is its file name there, for example
@@ -49,8 +53,16 @@ type NodeResult struct {
 // own output and exit code; one that throws or exits fails alone, and one that hangs is killed with its
 // worker, which the pool replaces, without affecting the scripts that run in the other workers. A
 // script must have finished all its output when its top-level code and the macrotasks it queued have
-// run, must not read its standard input, and must not depend on the process (argv, the heap, timing):
-// tests that measure the process run node themselves.
+// run, must import only from its own directory and the built-in modules, must not read its standard
+// input, and must not depend on the process (argv, the heap, timing): tests that measure the process run
+// node themselves.
+//
+// A script must leave the worker as it found it. After every script the worker compares the own
+// properties of the global object, of the built-in constructors and prototypes, of process (keys,
+// environment, listeners) and of the modules fs, path, util and os, and the prototype and extensibility of
+// each, with their state at its start; a difference fails the script with an error that lists it, and the
+// worker is replaced, so a script that pollutes a global, or a mutant of the library that does, cannot
+// change what another script sees.
 func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (NodeResult, error) {
 	t.Helper()
 	w, err := nodePool.acquire(node)
@@ -58,6 +70,9 @@ func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (Node
 		return NodeResult{}, err
 	}
 	res, err := w.run(dir, script, args)
+	if err == nil && res.Leak != "" {
+		err = fmt.Errorf("node pool: %s in %s changed the state of the worker, which was replaced:\n%s", script, dir, res.Leak)
+	}
 	nodePool.release(w, err != nil)
 	return res, err
 }
@@ -176,12 +191,13 @@ func (w *nodeWorker) run(dir, script string, args []string) (NodeResult, error) 
 			ID       uint64
 			Out, Err string
 			Code     int
+			Leak     string
 		}
 		if err := json.Unmarshal(text, &r); err != nil || r.ID != id {
 			done <- reply{err: fmt.Errorf("node pool: bad answer %q (%v)", text, err)}
 			return
 		}
-		done <- reply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code}}
+		done <- reply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code, Leak: r.Leak}}
 	}()
 	select {
 	case r := <-done:
