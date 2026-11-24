@@ -260,7 +260,8 @@ console.log("done");`, nil, nil)
 	// Work on node's thread pool is not listed by process.getActiveResourcesInfo while it is pending.
 	t.Run("zlib.gzip", func(t *testing.T) {
 		run(t, `import zlib from "node:zlib";
-const out = await new Promise((r, j) => zlib.gzip(Buffer.alloc(4 << 20, "abc"), (e, b) => (e ? j(e) : r(b))));
+import crypto from "node:crypto";
+const out = await new Promise((r, j) => zlib.gzip(crypto.randomBytes(8 << 20), (e, b) => (e ? j(e) : r(b))));
 if (out.length === 0) throw new Error("empty");
 console.log("done");`, nil, nil)
 	})
