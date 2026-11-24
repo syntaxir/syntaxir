@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"runtime"
 	"strings"
-	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 

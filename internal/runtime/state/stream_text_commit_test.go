@@ -3,11 +3,11 @@ package state_test
 import (
 	"fmt"
 	"io"
-	. "syntaxir.dev/sxir/internal/runtime/engine"
-	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"testing"
 
+	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
