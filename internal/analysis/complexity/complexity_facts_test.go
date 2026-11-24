@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/middleend/corepass"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/factstest"
 	"syntaxir.dev/sxir/internal/testing/starttest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -55,10 +56,11 @@ func testClassifierRules(t *testing.T, g *ast.Grammar) (*ast.Grammar, []*ast.Rul
 // which may take rules that the classifier would canonicalize first: the facts are those of the
 // canonical rules of g (testClassifierRules), by name. The view tests also take grammars that the
 // compiler rejects (a predicate that reads a capture out of its scope); of those Core IR cannot be
-// built, and the test fails.
+// built, and the test fails. g may be in the compiler's normalized form, so it is checked in the
+// form the syntax writes (compiletest.Written).
 func testRuleFacts(t *testing.T, g *ast.Grammar, rules []*ast.RuleDef) *ruleFacts {
 	t.Helper()
-	in, err := checkedInput(g, nil)
+	in, err := checkedInput(compiletest.Written(g), nil)
 	if err != nil {
 		t.Fatalf("no Core IR of the rules: %v", err)
 	}

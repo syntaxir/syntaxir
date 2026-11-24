@@ -20,6 +20,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -495,8 +496,10 @@ func (c *equivCheck) check(t *testing.T, opts complexity.Options) {
 // entered returns a copy of g in which every rule that is not hidden is a start rule, so that a
 // test can enter it, and the start rule that g marks, or else its first rule, is the default one.
 // Only the declarations change, not the rules: the views are built from g itself, since they treat
-// start rules apart (N13 inlines no call of one).
+// start rules apart (N13 inlines no call of one). A view is in the compiler's normalized form, so
+// the copy is in the form the syntax writes (compiletest.Written), which the compiler takes.
 func entered(g *ast.Grammar) *ast.Grammar {
+	g = compiletest.Written(g)
 	out := *g
 	out.File.Decls = slices.Clone(g.File.Decls)
 	var marked []*ast.RuleDef
