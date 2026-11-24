@@ -1,6 +1,6 @@
 # Termination
 
-Arata Furukawa · Last revised 2026-11-24
+Arata Furukawa · Last revised 2026-11-25
 
 This proof shows that every parse of a grammar that passes the checks
 terminates on every finite input, as
@@ -145,10 +145,6 @@ analyses.
   always succeeds, its prefix operator lines, and, when some operand line is
   nullable, its infix and postfix operator lines. Under insertion, NullableIns
   takes the place of Nullable ([Rule Facts](../core-ir/attributes.md#rule-facts)).
-  The last clause, on the infix and postfix lines, is the rule that this proof
-  uses; [Rule Facts](../core-ir/attributes.md#rule-facts) does not yet state
-  it, and the implementation does not yet follow it (see
-  [What the Proof Does Not Show](#what-the-proof-does-not-show)).
 - **(CY) Cycles and leaders.** A rule's cycle is its component of the graph of
   left calls when the component has several rules or the rule has a left call
   of itself. While some cycle of left calls among the rules of a component
@@ -610,16 +606,6 @@ so fails as well.
 | Variables | Memo keys | 10 |
 
 ## What the Proof Does Not Show
-
-**The left calls of Operators Rules.** The clause of (LC) on the infix and
-postfix operator lines is the rule that this proof needs and uses.
-[Rule Facts](../core-ir/attributes.md#rule-facts) does not state it yet, and the
-implementation computes the left calls of an Operators Rule from its `skip`
-line, its operand lines and its prefix operator lines only. Until both follow
-it, a grammar such as the one after Lemma 4 is not grown as a left recursion:
-an evaluation of `e` at a position calls itself there without end, and only
-the nesting limit or the compute limit stops it (Corollary). The theorem is
-proved for the left calls of (LC).
 
 **NullableAtEnd and NullableBeforeEnd under insertion.** Lemma 2 shows these
 two facts for parses without insertion only. Their rules count no insertion,
