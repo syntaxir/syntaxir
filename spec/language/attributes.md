@@ -35,7 +35,8 @@ farthest position reached inside it. A message is part of the
 [recorded expectations](../runtime/parsing.md#recording-expectations): a parse that
 does not record them reports `syntax error` without it. It does not alter matching, backtracking,
 recovery, captures, values, or spans. A named form such as
-`@error(message="...")` is equivalent. When several messages apply at one
+`@error(message="...")` is equivalent. The message is a string literal without
+the suffix `i`: `"..."i` is a literal expression, and an error. When several messages apply at one
 position, they are joined with `; `. If the expression succeeds, expectations
 recorded inside it are kept as usual. An opt-in `#missing` insertion has its own
 recovered diagnostic and inherits the outermost enclosing explicit `@error` label.
@@ -48,7 +49,7 @@ rule let = "let" " " name @error("expected a name") ";"
 ## `@diagnostic`
 
 `@diagnostic` takes exactly one named argument, `name`, whose value must be
-a non-empty string literal. The value cannot contain CR, LF, U+0085, U+2028 or
+a non-empty string literal without the suffix `i`. The value cannot contain CR, LF, U+0085, U+2028 or
 U+2029. Duplicate `@diagnostic` attributes on one expression chain are
 invalid.
 

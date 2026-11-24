@@ -21,7 +21,8 @@ func (c *Compiler) stringArg(a *ast.Attribute, name string) (string, bool) {
 		return "", false
 	}
 	lit, ok := v.(*ast.Literal)
-	if !ok {
+	if !ok || lit.IgnoreCase {
+		// "q"i is an expression that matches without regard to case, not a string.
 		c.errorf(a.Diagnostic(), "@%s: %s must be a string", a.Name, name)
 		return "", false
 	}

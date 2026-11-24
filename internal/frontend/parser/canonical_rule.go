@@ -358,6 +358,11 @@ func (c *canonical) attrValue(v types.AttrValue) any {
 		return nil
 	case *types.String:
 		lit := c.literal(v)
+		if lit.IgnoreCase {
+			// "q"i matches without regard to case: it is an expression, not a string.
+			c.span(&lit.SourceInfo, v)
+			return lit
+		}
 		c.span(nil, v)
 		return lit.Value
 	case *types.Error:

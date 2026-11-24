@@ -740,7 +740,9 @@ and does not cause a panic during compilation.
 
 An attribute (`Attributed`, `Attribute`) holds `args`, an ordered list of integers,
 strings, booleans, null slots and expression nodes, and `kwArgs`, which maps names to
-the same forms. `@custom(2,)` and `@custom(2)` both yield `[2]`: a comma after the last
+the same forms. A string literal argument is a string; with the suffix `i`, as in
+`@custom("q"i)`, it is the expression node of a literal that ignores case, which
+`@error` and `@diagnostic` reject where they need a string. `@custom(2,)` and `@custom(2)` both yield `[2]`: a comma after the last
 argument is a trailing comma, as in other lists. An empty argument is written
 `nil`, as in `@custom(nil, 2)`, which yields `[null, 2]`.
 Keyword arguments follow positional arguments in source, and strict decoding rejects

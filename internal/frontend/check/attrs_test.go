@@ -22,6 +22,9 @@ func TestAttributeErrors(t *testing.T) {
 		{`rule main = "a" @error`, `@error requires a message argument`},
 		{`rule main = "a" @error(message=b)
 rule b = "b"`, `@error: message must be a string`},
+		{`rule main = "a" @error("q"i)`, `@error: message must be a string`},
+		{`rule main = "a" @error(message="q"i)`, `@error: message must be a string`},
+		{`rule main = "a" @diagnostic(name="q"i)`, `@diagnostic: name must be a string`},
 		{`rule main = "a" @nope`, `unknown attribute @nope`},
 	} {
 		t.Run(tc.want, func(t *testing.T) {

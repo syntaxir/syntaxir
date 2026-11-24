@@ -1623,7 +1623,8 @@ func (p *parser) attributeValue() any {
 		return -p.next().num
 	}
 	e := p.choice()
-	if literal, ok := e.(*ast.Literal); ok {
+	if literal, ok := e.(*ast.Literal); ok && !literal.IgnoreCase {
+		// "q"i matches without regard to case: it is an expression, not a string.
 		return literal.Value
 	}
 	return e

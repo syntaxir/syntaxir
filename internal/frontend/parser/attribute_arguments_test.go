@@ -250,3 +250,44 @@ func TestAttributeEqualsLiteralIsAnExpressionArgument(t *testing.T) {
 		t.Fatalf("literal: %#v", seq.Items[1])
 	}
 }
+
+// TestIgnoreCaseAttributeArgument checks that a string literal with the
+// suffix i is an expression argument, a literal that ignores case, in both
+// parsers, and that it survives formatting; a literal without the suffix is a
+// string.
+func TestIgnoreCaseAttributeArgument(t *testing.T) {
+	const src = "@start\nrule main = \"a\" @x(\"q\", \"p\"i, k=\"r\"i)\n"
+	for _, p := range []struct {
+		name  string
+		parse func(string) (*ast.Grammar, error)
+	}{{"generated", parser.Parse}, {"reference", parser.ParseReference}} {
+		t.Run(p.name, func(t *testing.T) {
+			check := func(g *ast.Grammar) {
+				t.Helper()
+				a := g.Rules()[0].Expr.(*ast.Attributed).Attrs[0]
+				if a.Args[0] != "q" {
+					t.Fatalf("plain literal: got %#v; want the string", a.Args[0])
+				}
+				for _, v := range []any{a.Args[1], a.KwArgs["k"]} {
+					if lit, ok := v.(*ast.Literal); !ok || !lit.IgnoreCase {
+						t.Fatalf("got %#v; want a literal that ignores case", v)
+					}
+				}
+			}
+			g, err := p.parse(src)
+			if err != nil {
+				t.Fatal(err)
+			}
+			check(g)
+			formatted := fmt.Format(g)
+			if formatted != src {
+				t.Fatalf("Format: got %q; want %q", formatted, src)
+			}
+			again, err := p.parse(formatted)
+			if err != nil {
+				t.Fatal(err)
+			}
+			check(again)
+		})
+	}
+}
