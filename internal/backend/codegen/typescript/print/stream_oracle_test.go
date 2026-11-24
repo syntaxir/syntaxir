@@ -11,6 +11,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -818,6 +819,9 @@ Error: getter 2 | 0 failed Error: stream already failed
 // delivers elements before an interruption.
 func TestStreamOracleReach(t *testing.T) {
 	t.Parallel()
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	for _, c := range streamOracleCases {
 		prog := compileBare(t, c.src, check.Options{NoProjections: true})
 		var reported, truncated, stopped, compute, inputs, before int

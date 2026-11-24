@@ -6,6 +6,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 )
 
@@ -15,6 +16,9 @@ import (
 // of the body does not count it again, so the parse counts the units of the engine's.
 func TestGeneratedTSRuleEntryChargesOneStep(t *testing.T) {
 	t.Parallel()
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	src := `rule main = expr $$
 rule expr = expr "+" "a" / "a"`
 	g, err := parseTest(src)

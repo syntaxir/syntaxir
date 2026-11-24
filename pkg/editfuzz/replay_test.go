@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -428,6 +429,9 @@ func TestGrammarCheckErrors(t *testing.T) {
 // limit fails with a *NothingComparedError instead of passing: preparing a Document is free, so the
 // sequence applies, but no parse completes in one unit.
 func TestReplayComparesNothingAtComputeLimitOne(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	src := testGrammars[1]
 	for _, b := range backends {
 		seq := sequence(src, b, input.CodePoints, "let a=1+2;", edit(0, 0, "let b=3;"), checkpoint)

@@ -7,6 +7,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 )
@@ -151,6 +152,9 @@ func TestGeneratedTypedActionChargesPerValue(t *testing.T) {
 // compute report gives.
 func TestEngineActionChargesPerValue(t *testing.T) {
 	t.Parallel()
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	used := func(src string, b engine.Backend, recognize bool) int64 {
 		prog := compileBare(t, src)
 		var n uint64

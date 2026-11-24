@@ -11,6 +11,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -39,6 +40,9 @@ const documentUnitsScript = `
 // call and leave out the units of the second evaluation. As a negative control, the library whose
 // Document keys such a rule by the values must count other units.
 func TestTSDocumentUnitsAgreeWithEngineOnAssignments(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	node := tooltest.RequireNode(t)
 	for _, c := range []struct {
 		name, src string

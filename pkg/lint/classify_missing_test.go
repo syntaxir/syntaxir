@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
@@ -18,8 +19,11 @@ import (
 // again at every call, so the grammar below backtracks without memoization: on d nested
 // parentheses its cost doubles with each level, although it inserts no token. The class is
 // Linear, and the units with insertion grow as 2^d, so the derived default does not apply to a
-// parse with insertion.
+// parse with insertion. The reference build counts no units, so there the test skips.
 func TestBudgetExcludesMissingTokenInsertion(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	const src = "@start\nrule main = e $$\nrule e = t \"+\" e / t\nrule t = \"(\" e \")\" #missing / \"x\"\n"
 	g, err := enginetest.ParseGrammar(src)
 	if err != nil {

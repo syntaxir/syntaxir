@@ -291,6 +291,7 @@ func slopeCheck(seed uint64, inputs int) string {
 // the grammar must allow for it. Seeds of the gate need not reach such a grammar, so a classifier
 // that claims too little of one fails here first.
 func TestSlopeGateGrowth(t *testing.T) {
+	skipWithoutBudget(t)
 	cases := []struct {
 		name, source string
 		input        func(int) string
