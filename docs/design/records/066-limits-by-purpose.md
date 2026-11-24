@@ -794,6 +794,80 @@ There, with the control at 0.999 to 1.000, Node parsing took 1.009 to 1.021 time
 The cost was the same whether memory was counted or not, so it came from the lost inlining, not from the charge. That
 result led to the counter form. The closure-backend arm stayed within 0.992 to 1.016 even with lost inlining.
 
+#### TypeScript Charges
+
+The generated TypeScript parser charges memory at its allocation sites (`alloc` and `allocValue`). It first charged
+whenever a limit control existed, so a parse with `Memory` unlimited still executed the addition; the measurement below
+found up to about 4 % in it, and the parser now counts only under a finite `Memory` ([After the Change](#after-the-change)).
+The tables and variants below measure the first form. Node 24.13.0 (V8 13.x), Apple M3 Max,
+through the exclusive benchmark lock, `bench/ts-parse.mjs` in fresh processes, six rounds that alternate the variants
+in a rotating order, on the seven workloads of `bench/report` (JSON, CSV, XML, both calculator grammars, Minilang and
+Outline) with the `parse` and `recognize` entry points. The variants, all generated with `-types -recognize`:
+
+- `head`, the default at `bc3f738b3`: limit controls, `Memory` unlimited;
+- `nomem`, `head` with the bodies of `alloc` and `allocValue` emptied in the copy of `lib.ts` that the parser carries,
+  so the additions and the `values` counter are gone and nothing else changes (the arguments of the calls are still
+  computed, so this bounds the addition, not the size computations);
+- `nolimits`, `head` generated with `-no-limits`, without limit controls and so without compute counting either;
+- `base`, the generator before the TypeScript memory limit existed (`5c0da990f`) with `-limits`, the compute-only form,
+  which has no memory charges but also lacks every later change to the library.
+
+Median over the rounds, as a ratio to `head` (below 1 is faster than `head`):
+
+| Workload, entry | `head` (ms) | `nomem` / `head` | `nolimits` / `head` | `base` / `head` |
+|:--|--:|--:|--:|--:|
+| JSON `parse` | 25.2 | 0.986 | 0.938 | 1.105 |
+| JSON `recognize` | 9.59 | 0.992 | 0.899 | 1.324 |
+| CSV `parse` | 11.3 | 0.957 | 0.846 | 1.080 |
+| CSV `recognize` | 3.14 | 1.008 | 0.894 | 1.600 |
+| XML `parse` | 27.1 | 0.984 | 0.981 | 1.111 |
+| XML `recognize` | 14.2 | 0.996 | 0.912 | 1.198 |
+| Arith_OperatorsRule `parse` | 30.2 | 0.999 | 0.985 | 1.104 |
+| Arith_OperatorsRule `recognize` | 19.4 | 0.976 | 0.967 | 1.134 |
+| Arith_LeftRec `parse` | 50.0 | 0.996 | 0.957 | 0.938 |
+| Arith_LeftRec `recognize` | 26.2 | 1.004 | 0.961 | 1.090 |
+| Minilang `parse` | 34.6 | 0.997 | 0.974 | 0.957 |
+| Minilang `recognize` | 21.5 | 1.001 | 0.963 | 1.057 |
+| Outline `parse` | 6.63 | 1.002 | 0.954 | 1.185 |
+| Outline `recognize` | 4.57 | 1.035 | 0.924 | 1.198 |
+
+The charges cost nothing measurable on twelve of the fourteen cases (`nomem` within 0.976 to 1.008 of `head`, paired
+ranges that straddle 1). Two cases sit outside, in opposite directions and with paired ranges of 0.7 to 1.4 that show how
+much a single process varies. CSV `parse`, the grammar with the most small allocations, was the one that pointed to a cost: a
+ten-round rerun with the two variants alternating gave `head` / `nomem` of 1.039 (paired range 1.005 to 1.433), against
+1.003 on JSON (0.930 to 1.147). The addition therefore costs up to about 4 % on an allocation-bound parse and nothing on
+the others.
+
+The default is not slower than before the memory measure. The compute-only form of the base generator takes 0.94 to
+1.60 times `head`, the opposite direction, because the later library changes made parsing faster than that cost (the
+comparison does not isolate the memory charges; `nomem` does). The form without limit controls takes 0.85 to 0.99
+times `head`; that gap is the price of compute counting, polling and the memory additions together, and it is the
+choice `-no-limits` offers.
+
+##### After the Change
+
+The memory counters (`BudgetControl.mem`, and the parser's `values`, `errs` and `memoHeld`) are read only when a memory
+limit is set: the check, the Document's retained bytes and the recount of memo holders all start with a test of the
+limit. A parser therefore keeps `memControl`, the control when its `Memory` is finite and null otherwise, and every site
+that writes a counter tests it instead of the control. The limit is fixed when the control is made, so a parse counts all
+of its storage or none, and a parse with a limit counts exactly as before. The Go library's recount of memo holders is skipped
+without a limit in the same way. The memory limit tests of the printer and the long tier,
+including the mutants of the stream window, pass with it.
+
+The same method, sixteen alternating rounds of `parse` on JSON and CSV with the first form (`head`), `nomem` and the new form
+(`new`), on a machine that other jobs kept at a load of 30 to 40, so the medians carry that noise and the minima are the
+better figures:
+
+| Workload | `head` min / `nomem` min | `new` min / `nomem` min | `head` / `nomem` paired median | `new` / `nomem` paired median |
+|:--|--:|--:|--:|--:|
+| CSV `parse` | 0.996 | 0.936 | 1.094 | 1.009 |
+| JSON `parse` | 0.987 | 0.976 | 1.105 | 1.017 |
+
+The new form is indistinguishable from `nomem`, which has no addition at all, and no slower than `head`. The earlier 4 %
+on CSV did not reproduce in the minima of this loaded run, so it is a bound from the quieter run, not a stable figure.
+The paired medians of the loaded run exaggerate the gap of the first form (1.09 and 1.10, against at most 1.04 on CSV and
+1.003 on JSON in the quiet run) and agree with the quiet run only in direction.
+
 #### Charged Memory and Compute
 
 Charged memory against compute spent, for the generated Node parsers on the benchmark inputs, from the counter-form
@@ -879,7 +953,8 @@ the prototype leaves out, in particular the decoded input, at 8 bytes per input 
 - The counts differ between backends and position units, as compute counts do.
 - The TypeScript count follows a model of V8 on a 64-bit host without pointer compression; it does not model
   two-byte strings, hidden-class transitions or array capacity beyond the length, so it can be below the heap the
-  parse takes. The cost of its charges with memory unlimited is not measured.
+  parse takes. With memory unlimited it counts nothing
+  ([TypeScript Charges](#typescript-charges)).
 - With memory unlimited, the closure backend's ordinary `CodePoints` parses and the generated stream take 1 to 2 %
   longer than without the memory measure, and the profiles attribute it to no function
   ([Implementation](#implementation)).
