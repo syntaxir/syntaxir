@@ -1,6 +1,8 @@
 package frontend
 
 import (
+	"fmt"
+
 	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/diagnostic"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -61,10 +63,31 @@ type Structural struct {
 // that a caller reads them without building the module and computing them again. The module is
 // returned with an error too, unless canonicalization failed.
 func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Result, *Structural, error) {
-	s, err := buildStructural(g, opts, names, control)
+	canon, err := Canonicalize(g, opts, names, control)
 	if err != nil {
 		return nil, nil, err
 	}
+	return checkCanonical(g, structuralFrom(canon, control), opts, flags, names, facts, control)
+}
+
+// Derive checks the program of prog again with opts and the rule flags flags, as a program derived
+// from it, such as its recognizer: from the canonical grammar of prog, which it neither validates
+// nor canonicalizes again. The canonical grammar holds forms that only the compiler writes, so it
+// is not input to Check; and one canonicalization gives the derived programs the rules of prog
+// itself. opts may differ from the options of prog only where they leave the canonical grammar as
+// it is, such as Recognition.
+func Derive(prog *Result, opts check.Options, flags []check.RuleFlags, facts FactSource, control *cancel.Control) (*Result, error) {
+	if opts.DefaultValue != prog.Opts.DefaultValue || opts.EagerAttributeCopies != prog.Opts.EagerAttributeCopies {
+		return nil, fmt.Errorf("internal error: a derived program changes the options that canonicalize the grammar")
+	}
+	canon := &Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules, DefaultStart: prog.DefaultStartRule}
+	r, _, err := checkCanonical(prog.Input, structuralFrom(canon, control), opts, flags, prog.InlineNames, facts, control)
+	return r, err
+}
+
+// checkCanonical checks the structural module s of the canonical grammar of g into its semantic
+// model with the rule facts that facts computes of s.
+func checkCanonical(g *ast.Grammar, s *Structural, opts check.Options, flags []check.RuleFlags, names desugar.InlineNames, facts FactSource, control *cancel.Control) (*Result, *Structural, error) {
 	var ruleFacts *check.RuleFacts
 	if s.Module != nil {
 		ruleFacts = facts.RuleFacts(s.Analyses, s.Module, s.Rules)
@@ -100,9 +123,7 @@ func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags
 	if rec := prog.Checker().ValueRecord(); rec != nil {
 		recordTypes(s.Module, rec, core.SetType)
 	}
-	r := NewResult(prog, facts.Sites(s.Module, prog, control))
-	r.Input = g
-	return r, s, nil
+	return NewResult(prog, g, facts.Sites(s.Module, prog, control)), s, nil
 }
 
 // recordTypes records on the structural module m of a program whose types check the checked types
@@ -153,15 +174,11 @@ func structuralOf(prog *check.Model, control *cancel.Control) (*Structural, erro
 	return &Structural{Canonical: canon, Rules: defs, Module: m, Analyses: newAnalyses(control)}, nil
 }
 
-// buildStructural canonicalizes g and builds the untyped Core IR module of its unique rules. A
-// grammar the compiler rejects may fail to build: the failure, an error or the value of a panic,
-// is kept for CheckStructural to report only if the compiler accepts the grammar. A cancellation
-// is not a failure and unwinds.
-func buildStructural(g *ast.Grammar, opts check.Options, names desugar.InlineNames, control *cancel.Control) (*Structural, error) {
-	canon, err := Canonicalize(g, opts, names, control)
-	if err != nil {
-		return nil, err
-	}
+// structuralFrom builds the untyped Core IR module of the unique rules of the canonical grammar
+// canon. A grammar the compiler rejects may fail to build: the failure, an error or the value of a
+// panic, is kept for CheckStructural to report only if the compiler accepts the grammar. A
+// cancellation is not a failure and unwinds.
+func structuralFrom(canon *Canonical, control *cancel.Control) *Structural {
 	defs, dups := desugar.UniqueRules(canon.Grammar, control)
 	s := &Structural{Canonical: canon, Rules: defs, Analyses: newAnalyses(control), redeclared: len(dups) > 0}
 	func() {
@@ -180,7 +197,7 @@ func buildStructural(g *ast.Grammar, opts check.Options, names desugar.InlineNam
 		}
 		s.Module = m
 	}()
-	return s, nil
+	return s
 }
 
 // newAnalyses returns a manager of the analyses of a module for work under control, which may be

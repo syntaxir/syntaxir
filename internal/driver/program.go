@@ -193,24 +193,21 @@ func View(p *frontend.Result) *common.Program {
 // (check.Model.InsertionFlags), and the recognizer of the insertion program with its flags. No
 // backend of the engine is built. It is the Compiler of the generators.
 func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func(Role) (*frontend.Result, error), error) {
-	prog, err := checkGrammar(g, opts, nil)
+	prog, err := checkGrammar(g, opts)
 	if err != nil {
 		return nil, nil, err
 	}
-	// The derived programs check the grammar as given: the normalized grammar of prog holds
-	// attributes that only the checker writes, which grammar validation rejects.
-	source := g
 	recognizer := func(p *frontend.Result) (*frontend.Result, error) {
 		o := p.Opts
 		o.Recognition = check.Recognize
-		return checkGrammar(source, o, p.Flags())
+		return deriveProgram(p, o, p.Flags())
 	}
 	insertion := sync.OnceValues(func() (*frontend.Result, error) {
 		flags := prog.InsertionFlags
 		if flags == nil {
 			flags = prog.Flags()
 		}
-		return checkGrammar(source, prog.Opts, flags)
+		return deriveProgram(prog, prog.Opts, flags)
 	})
 	derive := func(role Role) (*frontend.Result, error) {
 		switch role {
@@ -230,11 +227,20 @@ func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, fu
 	return prog, derive, nil
 }
 
-// checkGrammar checks g with opts and, if not nil, the rule flags flags, naming the hidden rules of
-// inline actions in errors as written.
-func checkGrammar(g *ast.Grammar, opts check.Options, flags []check.RuleFlags) (*frontend.Result, error) {
+// deriveProgram checks the program derived from prog with opts and the rule flags flags
+// (frontend.Derive), naming the hidden rules of inline actions in errors as written.
+func deriveProgram(prog *frontend.Result, opts check.Options, flags []check.RuleFlags) (*frontend.Result, error) {
+	d, err := frontend.Derive(prog, opts, flags, checkfacts.Source{}, nil)
+	if err != nil {
+		return nil, prog.InlineNames.Rewrite(err)
+	}
+	return d, nil
+}
+
+// checkGrammar checks g with opts, naming the hidden rules of inline actions in errors as written.
+func checkGrammar(g *ast.Grammar, opts check.Options) (*frontend.Result, error) {
 	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, flags, names, checkfacts.Source{}, nil)
+	prog, err := frontend.Check(g, opts, nil, names, checkfacts.Source{}, nil)
 	if err != nil {
 		return nil, names.Rewrite(err)
 	}

@@ -316,9 +316,9 @@ func (s *Source) Insertion() (state.Source, error) {
 	return s.again(driver.Insertion, func(*check.Options) {}, flags)
 }
 
-// again compiles the grammar again as the program of the role, with the rule flags and the options
-// the program was compiled with, changed by derive for what the build is for, and with the
-// program's settings. This is the one place that makes them, so no option or setting is dropped from
+// again checks the program of the role from the canonical grammar of this one (frontend.Derive),
+// with the rule flags and the options the program was compiled with, changed by derive for what
+// the build is for, and with the program's settings. This is the one place that makes them, so no option or setting is dropped from
 // a program built again (TestLazyProgramsCarryEveryOption), and a derived program keeps the options
 // of the parser it is derived from. It also takes the program's debugging settings as they are
 // (Prepare): a derived program that the call itself builds, such as the recognizer that Marshal
@@ -326,17 +326,13 @@ func (s *Source) Insertion() (state.Source, error) {
 func (s *Source) again(role driver.Role, derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
-	// The grammar as given is checked again: the normalized forms that the program holds are
-	// the compiler's own, which structural validation does not accept as input.
-	g := s.prog.Input
-	if g == nil {
-		g = s.Grammar()
-	}
-	d, err := Check(g, Options{Compile: o, Settings: s.settings, Debug: s.debug}, flags, nil)
+	prog, err := frontend.Derive(s.prog, o, flags, checkfacts.Source{}, nil)
 	if err != nil {
-		return nil, err
+		return nil, s.prog.InlineNames.Rewrite(err)
 	}
-	return newSource(d.prog, s.settings, role, s.parser), nil
+	d := newSource(prog, s.settings, role, s.parser)
+	d.debug = s.debug
+	return d, nil
 }
 
 // RuleType is check.Checker.RuleType.

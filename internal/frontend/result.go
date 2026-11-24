@@ -12,11 +12,11 @@ import (
 
 var _ elaborate.Program = (*Result)(nil)
 
-// NewResult returns the Result of the checked model m whose sites are numbered sites, with its
-// run-time program. A Result is not changed after it is made, except by the front end that adds
+// NewResult returns the Result of the checked model m of the grammar input (Result.Input), whose
+// sites are numbered sites, with its run-time program. A Result is not changed after it is made, except by the front end that adds
 // its Core IR module before handing it out.
-func NewResult(m *check.Model, sites check.Sites) *Result {
-	r := &Result{Model: m, sites: sites}
+func NewResult(m *check.Model, input *ast.Grammar, sites check.Sites) *Result {
+	r := &Result{Model: m, Input: input, sites: sites}
 	r.runtime = r.newRuntime()
 	return r
 }

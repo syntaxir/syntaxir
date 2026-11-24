@@ -16,11 +16,11 @@ import (
 // order of Facts.Errors, with the names of the hidden rules that inline actions generate shown as
 // written.
 func structuralErrors(g *ast.Grammar, opts check.Options, names desugar.InlineNames, facts FactSource, control *cancel.Control) diagnostic.ErrorList {
-	s, err := buildStructural(g, opts, names, control)
+	canon, err := Canonicalize(g, opts, names, control)
 	if err != nil {
 		return nil
 	}
-	return s.errors(opts, names, facts)
+	return structuralFrom(canon, control).errors(opts, names, facts)
 }
 
 // errors returns the structural errors of the module (structuralErrors), which facts computes from

@@ -73,7 +73,7 @@ func captureCheckProgram(src string) (*engine.Program, error) {
 	for _, d := range g.Types() {
 		sp.Types[d.DeclName()] = d
 	}
-	return engine.New(checked.Of(frontend.NewResult(sp, check.Sites{}), pass.Settings{})), nil
+	return engine.New(checked.Of(frontend.NewResult(sp, g, check.Sites{}), pass.Settings{})), nil
 }
 
 func captureCheckSource(n int, shape string) string {
