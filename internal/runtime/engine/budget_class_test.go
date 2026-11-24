@@ -167,13 +167,10 @@ func TestBudgetClassInterruptionBypassesChoiceAndRecovery(t *testing.T) {
 	t.Parallel()
 	ranges := budgetClassRanges(budgetClassRangeCount)
 	gap := string(ranges[len(ranges)-1].Lo + 1)
-	recoverClass := &ast.Attributed{
+	// The class with #recover(skip=.*).
+	recoverClass := &ast.Recovery{
 		Expr: &ast.CharClass{Ranges: ranges},
-		Attrs: []*ast.Attribute{{
-			Name:   "recover",
-			Pragma: true,
-			KwArgs: map[string]any{"skip": &ast.Repeat{Expr: &ast.Any{}, Min: 0, Max: -1}},
-		}},
+		Skip: &ast.Repeat{Expr: &ast.Any{}, Min: 0, Max: -1},
 	}
 	p := classMembershipProgram(t, &ast.Choice{Alts: []ast.Expr{
 		recoverClass,
