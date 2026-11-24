@@ -3,6 +3,7 @@ package print
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,6 +19,11 @@ import (
 // TsReservedTypes are the names types.ts declares itself, or imports. A grammar type with one of
 // these names would shadow or redeclare it, so the generator rejects it.
 var TsReservedTypes = []string{"Span", "TNode", "StringNode", "TupleNode", "ListNode", "RecoveredError", "TypedParseResult", "TypedValue", "RuntimeNode"}
+
+// TsMissingReservedTypes are the names types.ts also declares for a grammar with #missing, or one
+// that names the type missing: the missing values (Missing) and the values of type error
+// (ErrorValue). (Missing is also a reserved type name of the grammar language.)
+var TsMissingReservedTypes = []string{"Missing", "ErrorValue"}
 
 // tsTypedNameRef matches the identifiers of a TypeScript type expression of typedTS.
 var tsTypedNameRef = regexp.MustCompile(`[\p{L}_$][\p{L}\p{N}_$]*`)
@@ -40,10 +46,14 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	if g.Prog.Typed == nil {
 		return "", "", fmt.Errorf("typed values need the grammar's types (type checking did not run)")
 	}
-	t := &tsTypedGen{info: g.Prog.Typed, names: map[string]string{}, joins: map[string]bool{}, ids: map[string]int{}}
+	t := &tsTypedGen{info: g.Prog.Typed, names: map[string]string{}, joins: map[string]bool{}, ids: map[string]int{}, missing: g.Prog.Run.HasMissing}
 	t.ValueResolver = common.NewValueResolver(g.Prog, func(x types.Ty) bool { return t.joins[x.String()] })
+	reservedNames := TsReservedTypes
+	if t.missing {
+		reservedNames = append(slices.Clip(reservedNames), TsMissingReservedTypes...)
+	}
 	reserved := map[string]bool{}
-	for _, n := range TsReservedTypes {
+	for _, n := range reservedNames {
 		reserved[n] = true
 	}
 	for name := range g.Prog.Types {
@@ -52,7 +62,7 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	sort.Strings(t.all)
 	for _, name := range t.all {
 		if reserved[name] {
-			return "", "", fmt.Errorf("the grammar type %s cannot be generated for TypeScript: types.ts declares a type with that name (reserved: %s)", name, strings.Join(TsReservedTypes, ", "))
+			return "", "", fmt.Errorf("the grammar type %s cannot be generated for TypeScript: types.ts declares a type with that name (reserved: %s)", name, strings.Join(reservedNames, ", "))
 		}
 		t.names[name] = name
 		if a, ok := t.info.Aliases[name].(types.JoinTy); ok && common.NodeJoin(a) {
@@ -69,6 +79,10 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	var b strings.Builder
 	b.WriteString(tsTypedDeclarations)
 	open := []string{"RuntimeNode", "StringNode", "TNode<unknown>", "TypedValue[]", "RecoveredError", "number", "bigint", "string", "boolean", "null"}
+	if t.missing {
+		b.WriteString(tsMissingDeclarations)
+		open = append(open, "Missing")
+	}
 	for _, name := range t.all {
 		switch spec := g.Prog.Types[name].(type) {
 		case *ast.TypeDef:
@@ -143,6 +157,10 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	// recipe() reserves an ID before visiting child types, so recursive fields
 	// reference the same representation. Write the table after all registration.
 	stringID, errorID := t.recipe(types.TyStringNode), t.recipe(types.TyErr)
+	missingID := -1
+	if t.missing {
+		missingID = t.recipe(types.TyMissing)
+	}
 	openID, elemsID := t.recipe(openNode), t.recipe(types.ListTy{Elem: types.TyAny})
 	b.WriteString(tsTypedRecipeTable)
 	for _, r := range t.recipes {
@@ -150,6 +168,9 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	}
 	b.WriteString(tsTypedNodeRecipeTable)
 	fmt.Fprintf(&b, "  [%s, %d],\n  [%s, %d],\n", TsString(valueimpl.TypeString), stringID, TsString(valueimpl.TypeError), errorID)
+	if missingID >= 0 {
+		fmt.Fprintf(&b, "  [%s, %d],\n", TsString(valueimpl.TypeMissing), missingID)
+	}
 	// Open values: tuple and list nodes become TNode<unknown>, and tuple and list values arrays.
 	for _, name := range []string{valueimpl.TypeTuple, valueimpl.TypeList} {
 		fmt.Fprintf(&b, "  [%s, %d],\n", TsString(name), openID)
@@ -181,6 +202,9 @@ type tsTypedGen struct {
 	joins   map[string]bool
 	ids     map[string]int
 	recipes []string
+	// missing is whether the grammar has #missing or names the type missing: its values of type
+	// error are ErrorValues, a RecoveredError or a Missing, and its missing values are Missings.
+	missing bool
 }
 
 func (t *tsTypedGen) tsType(x types.Ty) string {
@@ -194,6 +218,9 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		case types.TyBool:
 			return "boolean"
 		case types.TyErr:
+			if t.missing {
+				return "ErrorValue | null"
+			}
 			return "RecoveredError | null"
 		}
 	case common.Vrule:
@@ -222,8 +249,8 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		}
 		return "TNode<" + t.tsType(x.Value) + "> | null"
 	case types.NamedTy:
-		if x.Kind == 'c' { // Missing
-			return "TNode<unknown> | null"
+		if x.Kind == 'c' {
+			return "Missing | null"
 		}
 		return t.names[x.Name] + " | null"
 	case types.OptTy:
@@ -237,9 +264,14 @@ func (t *tsTypedGen) tsType(x types.Ty) string {
 		return "TNode<unknown> | null"
 	case types.JoinTy:
 		if t.joins[x.String()] {
+			// A join holds a recovered value, and in a grammar with #missing a missing one, whatever its
+			// members.
 			parts := []string{"RecoveredError", "null"}
+			if t.missing {
+				parts = []string{"RecoveredError", "Missing", "null"}
+			}
 			for _, a := range x.Alts {
-				if a != types.TyErr {
+				if a != types.TyErr && a != types.TyMissing {
 					parts = append(parts, strings.TrimSuffix(t.tsType(a), " | null"))
 				}
 			}
@@ -292,10 +324,10 @@ func (t *tsTypedGen) conversionKey(x types.Ty) string {
 		}
 		return "tnode:" + tnodeMode(x) + ":" + t.conversionKey(x.Value)
 	case types.NamedTy:
-		if x.Kind != 'c' {
-			return "named:" + x.Name
+		if x.Kind == 'c' {
+			return "named:Missing"
 		}
-		return t.conversionKey(openNode)
+		return "named:" + x.Name
 	case types.RecordTy:
 		return t.conversionKey(openNode)
 	case types.OptTy:
@@ -372,8 +404,9 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 			x, _ = t.Prog.Check.NodeTypeOf(a.Name)
 		}
 	case types.NamedTy:
-		if a.Kind == 'c' { // Missing
-			return t.recipe(openNode)
+		if a.Kind == 'c' {
+			kind, key = "missing", t.conversionKey(a)
+			break
 		}
 		kind, key = "struct", "named:"+a.Name
 	case types.OptTy:
@@ -406,8 +439,16 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 	case types.BasicTy:
 		if kind == "error" {
 			r += ", name: " + TsString(valueimpl.TypeError)
+			if t.missing {
+				// A value of type error may be a missing value too.
+				r += ", missing: " + strconv.Itoa(t.recipe(types.TyMissing))
+			}
 		}
 	case types.NamedTy:
+		if a.Kind == 'c' {
+			r += ", name: " + TsString(valueimpl.TypeMissing)
+			break
+		}
 		var fields []string
 		for _, f := range t.info.Fields[a.Name] {
 			fields = append(fields, fmt.Sprintf("{ name: %s, repr: %d }", TsString(f.Name), t.recipe(f.T)))
@@ -437,10 +478,16 @@ func (t *tsTypedGen) recipe(x types.Ty) int {
 			// its kind, also a node of a named node type that is no member; node[_] takes every
 			// other node.
 			members := []string{fmt.Sprintf("[%s, %d]", TsString(valueimpl.TypeError), t.recipe(types.TyErr))}
+			if t.missing {
+				members = append(members, fmt.Sprintf("[%s, %d]", TsString(valueimpl.TypeMissing), t.recipe(types.TyMissing)))
+			}
 			named := map[string]bool{}
 			for _, m := range a.Alts {
 				switch m := m.(type) {
 				case types.NamedTy:
+					if m.Kind == 'c' {
+						continue // a member of every join of the grammar
+					}
 					members = append(members, fmt.Sprintf("[%s, %d]", TsString(m.Name), t.recipe(m)))
 				case types.NodeTy:
 					if m.Name != "" {
@@ -498,6 +545,18 @@ export interface RecoveredError extends Span {
   readonly message: string;
 }
 export interface TypedParseResult<T> { readonly value: T | null; readonly error: Error | null }
+
+`
+
+// tsMissingDeclarations are the declarations types.ts adds for a grammar with #missing.
+const tsMissingDeclarations = `/** A literal that #missing inserted, at an empty range: the literal and the message of its syntax error. */
+export interface Missing extends Span {
+  readonly type: "missing";
+  readonly expected: string;
+  readonly message: string;
+}
+/** A value of type error: input skipped by error recovery or a literal that #missing inserted. */
+export type ErrorValue = RecoveredError | Missing;
 
 `
 
@@ -568,6 +627,7 @@ const tsTypedLib = `interface ValueRecipe {
   readonly type?: string;
   readonly members?: ReadonlyMap<string, number>;
   readonly fallback?: number;
+  readonly missing?: number;
 }
 type ValueObject = { [name: string]: unknown };
 interface ValuePending { readonly node: Node; readonly repr: number; readonly out: ValueObject | unknown[] }
@@ -621,6 +681,13 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
           if (v === null) return null;
           id = recipe.elem!;
           continue;
+        case "error":
+          // A value of type error in a grammar with #missing is also a missing value.
+          if (recipe.missing !== undefined && v instanceof Node && v.type === "missing") {
+            id = recipe.missing;
+            continue;
+          }
+          break;
         case "union": {
           if (!(v instanceof Node)) return null;
           const next = recipe.members!.get(v.type);
@@ -638,7 +705,7 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
         step();
         return recipe.elems!.map(e => get(null, e));
       }
-      if (recipe.kind === "tnode" && (v.type === "error" || v.type === typeTupleValue || v.type === typeListValue)) return null;
+      if (recipe.kind === "tnode" && (v.type === "error" || v.type === "missing" || v.type === typeTupleValue || v.type === typeListValue)) return null;
       let reps = cache.get(v);
       if (reps === undefined) {
         reps = new Map<number, unknown>();
@@ -657,7 +724,11 @@ function astConvert(value: Value, repr: number, control: BudgetControl | null = 
         out = recipe.name === undefined || v.type === recipe.name ? { type: recipe.type ?? v.type, start: v.start, end: v.end, value: null } : null;
       } else if (v.type === recipe.name) {
         const obj: ValueObject = { type: v.type, start: v.start, end: v.end };
-        if (recipe.kind === "error") {
+        if (recipe.kind === "missing") {
+          const expected = v.field("expected");
+          obj["expected"] = typeof expected === "string" ? expected : "";
+        }
+        if (recipe.kind === "error" || recipe.kind === "missing") {
           const msg = v.field("message");
           obj["message"] = typeof msg === "string" ? msg : "";
         }

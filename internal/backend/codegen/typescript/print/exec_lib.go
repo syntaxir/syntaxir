@@ -2,6 +2,7 @@ package print
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -39,12 +40,12 @@ var tsSpecs = []struct {
 	name   string
 	target tsClass
 }{
-	{fn: "call", on: []string{exec.Units}, name: "callBody"},
+	{fn: "call", on: []string{exec.Missing, exec.Units}, name: "callBody"},
 	{fn: "firstCall", name: "firstCall"},
 	{fn: "document", on: []string{exec.Document}, name: "callDocument", target: tsDocClass},
-	{fn: "unmemoized", name: "callUnmemoized", target: tsDocClass},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callMemo", target: tsDocClass},
-	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Units}, name: "callTracked", target: tsObsClass},
+	{fn: "unmemoized", on: []string{exec.Missing}, name: "callUnmemoized", target: tsDocClass},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Missing, exec.Units}, name: "callMemo", target: tsDocClass},
+	{fn: "memoized", on: []string{exec.Document, exec.Observe, exec.Missing, exec.Units}, name: "callTracked", target: tsObsClass},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "memoAdvance", target: tsDocClass},
 	{fn: "memoAdvance", on: []string{exec.Document}, name: "advanceEntry", target: tsDocClass},
 	// The repetition runs of a Document parse, which the rule bodies run through the resume methods of
@@ -60,21 +61,21 @@ var tsSpecs = []struct {
 	{fn: "runBegin", on: tsRunOn, name: "runElemBegin", target: tsDocClass},
 	{fn: "runEnd", on: tsRunOn, name: "runElemEnd", target: tsDocClass},
 	{fn: "runFinish", on: tsRunOn, name: "runFinish", target: tsDocClass},
-	{fn: "grow", on: []string{exec.Units}, name: "grow"},
+	{fn: "grow", on: []string{exec.Missing, exec.Units}, name: "grow"},
 	// The invocation of a rule's body (rule.invoke and rule.invokePlain), whose units the caller counts.
 	{fn: "invoke", name: "invoke"},
-	{fn: "invokePlain", name: "invokePlainBody"},
+	{fn: "invokePlain", on: []string{exec.Missing}, name: "invokePlainBody"},
 	{fn: "expect", name: "expect"},
 	{fn: "mergeKept", name: "mergeKept"},
 	{fn: "mergeExpected", name: "mergeExpected"},
 	{fn: "keep", name: "keep"},
 	// The Operators Rule loop and backtracking.
-	{fn: "operatorsParse", on: []string{exec.Units}, name: "operatorsRuleParse"},
-	{fn: "operatorsExpr", on: []string{exec.Units}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNud", on: []string{exec.Units}, name: "operatorsRuleNud"},
-	{fn: "longest", on: []string{exec.Units}, name: "longest"},
-	{fn: "skipTrivia", name: "skipTrivia"},
-	{fn: "reset", name: "reset"},
+	{fn: "operatorsParse", on: []string{exec.Missing, exec.Units}, name: "operatorsRuleParse"},
+	{fn: "operatorsExpr", on: []string{exec.Missing, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNud", on: []string{exec.Missing, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", on: []string{exec.Missing, exec.Units}, name: "longest"},
+	{fn: "skipTrivia", on: []string{exec.Missing}, name: "skipTrivia"},
+	{fn: "reset", on: []string{exec.Missing}, name: "reset"},
 	// Predicates and bindings.
 	{fn: "predicate", name: "predicate"},
 	{fn: "bind", name: "bind"},
@@ -105,6 +106,24 @@ var tsSpecs = []struct {
 	{fn: "streamsIn", on: []string{exec.Stream}, name: "streamsIn", target: tsStreamClass},
 }
 
+// tsClassTarget returns the target that prints the methods of the class c, in a library specialized for
+// the missing-token mode if missing is set (tsMissingTarget).
+func tsClassTarget(c tsClass, missing bool) *Target {
+	t := tsTarget
+	switch c {
+	case tsDocClass:
+		t = tsDocTarget
+	case tsObsClass:
+		t = tsObsTarget
+	case tsStreamClass:
+		t = tsStreamTarget
+	}
+	if missing {
+		t = tsMissingTarget(t)
+	}
+	return t
+}
+
 // tsRunOn are the features of the methods of the repetition runs of a Document. Their work counts no
 // units; under exec.Units a reused element is a step at which a cancellation is observed (budget.poll).
 var tsRunOn = []string{exec.Document, exec.Units}
@@ -124,7 +143,8 @@ const (
 
 // specFeatures maps the features of the compositions that the library's methods are specialized
 // for to the features of a parser: a parser with limit controls counts logical compute units.
-var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Units: common.FeatureBudget, exec.Stream: common.FeatureStream}
+var specFeatures = map[string]common.Feature{exec.Document: common.FeatureDocument, exec.Observe: common.FeatureObserve, exec.Units: common.FeatureBudget, exec.Stream: common.FeatureStream,
+	exec.Missing: common.FeatureMissing}
 
 // LibraryRequests returns the specializations that the TypeScript library of a parser with the
 // features fs requests of the compositions (library.Request), one per method of tsSpecs, in its
@@ -160,6 +180,7 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 		return nil, fmt.Errorf("tslib: the library holds no specialized method for each request of the TypeScript library")
 	}
 	m := lib.Module
+	missing := libMissing(lib)
 	var out []tsMethod
 	for i, s := range tsSpecs {
 		if f := lib.Funcs[i]; lib.Requests[i].Fn != s.fn || f.Name != s.name {
@@ -169,15 +190,7 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 		// to the name that calls of the composition take (FuncName).
 		f := *lib.Funcs[i]
 		f.Name = s.fn
-		t := tsTarget
-		switch s.target {
-		case tsDocClass:
-			t = tsDocTarget
-		case tsObsClass:
-			t = tsObsTarget
-		case tsStreamClass:
-			t = tsStreamTarget
-		}
+		t := tsClassTarget(s.target, missing)
 		src, err := Method(m, &f, t)
 		if err != nil {
 			return nil, err
@@ -205,6 +218,53 @@ func tsMethodsFor(lib *library.Library) ([]tsMethod, error) {
 	out = append(out, tsMethod{Name: "actionError", Text: tsActionError()}, tsMethod{Name: "memberKind", Text: kind},
 		tsMethod{Name: "memberName", Text: name})
 	return out, nil
+}
+
+// tsFrameMark returns the declarations, with decl, of the parts of the backtracking point m, whose number
+// of insertions is missing.
+func tsFrameMark(decl, m, missing string) string {
+	return fmt.Sprintf("%s %sPos = this.pos;\n%[1]s %[2]sEnv = this.env;\n%[1]s %[2]sTrail = this.trail.length;\n%[1]s %[2]sRec = this.recovered.length;\n%[1]s %[2]sMissing = %[3]s;", decl, m, missing)
+}
+
+// libMissing reports whether the library lib is specialized for the missing-token mode: a request
+// of its methods is specialized for exec.Missing, which LibraryRequests asks for a parser with
+// common.FeatureMissing.
+func libMissing(lib *library.Library) bool {
+	for _, r := range lib.Requests {
+		if slices.Contains(r.On, exec.Missing) {
+			return true
+		}
+	}
+	return false
+}
+
+// tsMissingTarget returns the target that prints the methods of base in a library specialized for the
+// missing-token mode (libMissing). The rule operations exclude a rule that can insert from the memo in
+// the mode, as the Exec IR contracts and the engine do: rule.memo, and rule.docMemo except for a
+// leader, which still grows through its memo; and a backtracking point keeps the number of insertions on
+// the path. Without the mode no rule inserts, so base prints the plain flags and no insertion.
+func tsMissingTarget(base *Target) *Target {
+	t := *base
+	t.Op = func(c *code.Call, a []string) string {
+		s := base.Op(c, a)
+		switch c.Callee {
+		case "rule.memo", "rule.docOnlyMemo":
+			if s == "false" {
+				return s
+			}
+			return "(" + s + " && !this.insertsRule(" + a[0] + "))"
+		case "rule.docMemo":
+			return fmt.Sprintf("(%s && (%s.leader || !this.insertsRule(%[2]s)))", s, a[0])
+		}
+		return s
+	}
+	t.Stmt = func(c *code.Call, a []string, dst []string, decl string) (string, bool) {
+		if c.Callee == "frame.mark" {
+			return tsFrameMark(decl, dst[0], "this.missingLen()"), true
+		}
+		return base.Stmt(c, a, dst, decl)
+	}
+	return &t
 }
 
 // tsResumeOps are the operations that run the body of a rule or the skip or a line of an Operators Rule,
@@ -272,15 +332,17 @@ func tsGenMethods(lib *library.Library) ([]tsMethod, error) {
 	if err != nil {
 		return nil, err
 	}
+	missing := libMissing(lib)
 	var out []tsMethod
 	for i, s := range tsSpecs {
-		base := tsTarget
+		var base *Target
 		switch {
 		case s.target == tsBatchClass && res[s.fn]:
+			base = tsClassTarget(tsBatchClass, missing)
 		case tsObservedGens[s.name]:
-			base = tsDocTarget
+			base = tsClassTarget(tsDocClass, missing)
 			if s.target == tsObsClass {
-				base = tsObsTarget
+				base = tsClassTarget(tsObsClass, missing)
 			}
 			reaches := false
 			code.Walk(lib.Funcs[i].Body, nil, func(e code.Expr) {
@@ -433,10 +495,10 @@ var tsTarget = &Target{
 	Parts: map[string][]Part{
 		// The set of an isolation is the range of the stack of the record that it ended.
 		exec.Set: {{Suffix: "From", Type: "number"}, {Suffix: "To", Type: "number"}},
-		// A backtracking point is the position, the environment, the length of the trail and the
-		// number of recovered errors.
+		// A backtracking point is the position, the environment, the length of the trail, the
+		// number of recovered errors and the number of insertions on the path of the missing-token mode.
 		exec.Backtrack: {{Suffix: "Pos", Type: "number"}, {Suffix: "Env", Type: "Env | null"}, {Suffix: "Trail", Type: "number"},
-			{Suffix: "Rec", Type: "number"}},
+			{Suffix: "Rec", Type: "number"}, {Suffix: "Missing", Type: "number"}},
 		// The mark of an isolation is the farthest position and the base of the record that it set aside.
 		exec.Mark: tsIsolationParts,
 	},
@@ -556,7 +618,7 @@ var tsTarget = &Target{
 		case "node.isType":
 			return "(" + a[0] + ".type === " + a[1] + ".name)"
 		case "node.isMissing":
-			return "false"
+			return "(" + a[0] + `.type === "missing")`
 		case "node.children":
 			return a[0] + ".children"
 		case "seq.step":
@@ -573,7 +635,7 @@ var tsTarget = &Target{
 			return fmt.Sprintf("this.retyped(%s, %s)", a[0], a[1])
 		case "depth.exit":
 			return "this.depth--"
-		case "frame.markPos", "frame.markEnv", "frame.markTrail", "frame.markRec":
+		case "frame.markPos", "frame.markEnv", "frame.markTrail", "frame.markRec", "frame.markMissing":
 			return a[0] + strings.TrimPrefix(c.Callee, "frame.mark")
 		case "frame.current":
 			return "this.frame"
@@ -642,8 +704,28 @@ var tsTarget = &Target{
 		case "opr.build":
 			return fmt.Sprintf("this.operatorsRuleBuild(%s, %s!, %s as Node | null, %s as Node | null)", a[0], a[1], a[2], a[3])
 		case "opr.attempt":
-			return fmt.Sprintf("{ op: %s, frame: %s, v: %s as Node | null, start: %s, end: this.pos, env: this.env, cut: %s, errs: %s }",
+			return fmt.Sprintf("{ op: %s, frame: %s, v: %s as Node | null, start: %s, end: this.pos, env: this.env, cut: %s, errs: %s, ins: null }",
 				a[0], a[1], a[2], a[3], a[4], a[5])
+		case "opr.attemptMissing":
+			// The candidate keeps a copy of the insertions it made, which its selection records again.
+			return fmt.Sprintf("{ op: %s, frame: %s, v: %s as Node | null, start: %s, end: this.pos, env: this.env, cut: %s, errs: %s, ins: this.missingSince(%s) }",
+				a[0], a[1], a[2], a[3], a[4], a[5], a[6])
+		case "opr.replay":
+			// Outside the missing-token mode a candidate holds no insertion: its errors are recorded as
+			// rec.add records them.
+			return fmt.Sprintf("if (this.inserting()) {\n  this.replayMissing(%[1]s!.ins, %[1]s!.errs, false);\n} else if (%[1]s!.errs !== null) {\n  this.recAdd(%[1]s!.errs);\n}", a[0])
+		// The missing-token mode (Parser.missing). Only a seed of a growth, a context result, holds
+		// insertions: a memo entry that a call in the mode reuses is one of a rule that cannot insert.
+		case "missing.active":
+			return "this.inserting()"
+		case "missing.recompute":
+			return "this.insertsRule(" + a[0] + ")"
+		case "missing.mark":
+			return "this.missingLen()"
+		case "missing.reset":
+			return "this.resetMissing(" + a[0] + ")"
+		case "missing.replayResult":
+			return fmt.Sprintf("this.replayMissing(%[1]s!.ins, %[1]s!.errs, true)", a[0])
 		case "opr.found":
 			return a[0] + " !== null"
 		case "opr.op", "opr.end", "opr.cut", "opr.env", "opr.errs":
@@ -862,8 +944,8 @@ var tsTarget = &Target{
 		case "depth.enter":
 			return "if (++this.depth > this.maxDepth) {\n  this.tooDeep();\n}", true
 		case "frame.mark":
-			m := dst[0]
-			return fmt.Sprintf("%s %sPos = this.pos;\n%[1]s %[2]sEnv = this.env;\n%[1]s %[2]sTrail = this.trail.length;\n%[1]s %[2]sRec = this.recovered.length;", decl, m), true
+			// The parser of a library without the missing-token mode has no insertion (tsMissingTarget).
+			return tsFrameMark(decl, dst[0], "0"), true
 		case "frame.undo":
 			return fmt.Sprintf("for (let t = this.trail.length - 1; t >= %s; t--) {\n  const u = this.trail[t]!;\n  u.f[u.slot] = u.old;\n}\nthis.trail.length = %[1]s;", a[0]), true
 		case "frame.save":

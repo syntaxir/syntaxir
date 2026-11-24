@@ -76,11 +76,13 @@ export interface ValueNodeJSON {
   captures?: { [name: string]: unknown };
 }
 
+// An error value of recovery has no expected member; the missing node of an inserted literal (see
+// Node) has the literal.
 export interface ErrorJSON {
   start: number;
   end: number;
   error: unknown;
-  expected?: unknown;
+  expected?: string;
 }
 
 // Kinds of the value model that are not nodes. Their names cannot be type names.
@@ -94,7 +96,11 @@ export const typeListValue = "(list)"; // a list value: the Value of a list node
  * with the members start, end and value, and, with source information, rule and captures.
  */
 export class Node {
-  /** The type name: string, tuple, list or error for the kinds of nodes, or a type of the grammar. */
+  /**
+   * The type name: string, tuple, list or error for the kinds of nodes, missing for the empty node of
+   * a literal that a #missing site inserted (with the fields expected and message), or a type of the
+   * grammar.
+   */
   type: string;
   /** The name of the rule that produced the node, with source information. */
   rule: string;
@@ -199,7 +205,7 @@ export class Node {
         const o: ErrorJSON = { start: this.start, end: this.end, error: this.field("message") };
         const expected = lookupField(this, "expected");
         if (expected !== undefined) {
-          o.expected = expected;
+          o.expected = String(expected);
         }
         return o;
       }
@@ -262,7 +268,7 @@ export function setNodeSpan(n: Node, start: number, end: number): void {
 export const shapeString = 0; // a node whose value is a string (text)
 export const shapeTuple = 1; // a node whose value is a tuple (children)
 export const shapeList = 2; // a node whose value is a list (children)
-export const shapeError = 3; // an error value of recovery
+export const shapeError = 3; // an error value of recovery, or the missing node of an inserted literal
 export const shapeBox = 4; // a box carrying a value other than a node
 export const shapeTupleValue = 5; // a tuple value (children)
 export const shapeListValue = 6; // a list value (children)
@@ -277,6 +283,7 @@ export function nodeShape(n: Node): number {
     case "list":
       return shapeList;
     case "error":
+    case "missing":
       return shapeError;
     case typeBox:
       return shapeBox;
@@ -299,6 +306,7 @@ export function isValueNode(n: Node): boolean {
     case "tuple":
     case "list":
     case "error":
+    case "missing":
       return true;
   }
   return n.terminal || n instanceof TypedNode;
@@ -920,6 +928,59 @@ export class TruncatedSyntaxErrors extends SyntaxErrors {
 }
 
 /**
+ * MissingTokenLimitError ends a parse that needs to insert more missing tokens than the limit that
+ * ParseOptions.missingTokens set: the parse tried to insert at position when it had inserted limit
+ * tokens already, counting the insertions of the alternatives it abandoned. It returns no partial
+ * result.
+ */
+export class MissingTokenLimitError extends Error {
+  readonly limit: number;
+  readonly position: number;
+
+  constructor(limit: number, position: number) {
+    super(`missing token insertion limit ${limit} exceeded at position ${position}`);
+    this.name = "MissingTokenLimitError";
+    this.limit = limit;
+    this.position = position;
+  }
+}
+
+// MissingToken is an insertion of the missing-token mode: the site of the grammar that inserted, the
+// position, and the syntax error it recovered.
+export interface MissingToken {
+  readonly site: number;
+  readonly pos: number;
+  readonly err: SyntaxError;
+}
+
+// missingTokenBytes is the size of an insertion on the path, for the memory limit.
+const missingTokenBytes = 8 + objectBytes(3);
+
+// missingSiteKey is the key of a site at a position, which inserts at most once on the path.
+function missingSiteKey(site: number, pos: number): string {
+  return site + "," + pos;
+}
+
+// MissingState is the state of a parse in the missing-token mode (Parser.missing).
+export interface MissingState {
+  readonly limit: number;
+  attempts: number;
+  // reached counts the arrivals at an insertion site outside a lookahead and the insertions replayed:
+  // what the parse did depends on the insertions while it changes, so a Document keeps no run of the
+  // repetition elements in which it changed (DocumentParser.runClean).
+  reached: number;
+  // path is the insertions on the current path, in order; installed holds the keys of their sites
+  // (missingSiteKey).
+  readonly path: MissingToken[];
+  readonly installed: Set<string>;
+  // label is the message of the outermost @error label entered around #missing sites (missingScope),
+  // or 0 outside one.
+  label: number;
+  // seedBytes counts the bytes of the insertions that seeds hold (missingSeedOf), for the memory limit.
+  seedBytes: number;
+}
+
+/**
  * The result of a parse. A failed parse has a null node and an error: a SyntaxError, or an Error for
  * a runtime error in an action or too deep nesting. A parse that recovered from errors with #recover
  * has both the node and SyntaxErrors.
@@ -956,6 +1017,13 @@ export interface Rule {
   memo: boolean;
   // leader is the leader of a left-recursive cycle; its results are always memoized.
   leader: boolean;
+  // missing means the rule or a rule it calls contains #missing: in the missing-token mode its results
+  // depend on the insertions before them, and are evaluated again at every call (Parser.insertsRule).
+  missing: boolean;
+  // ins is what a parse with missing-token insertion enabled runs for the rule, an entry point:
+  // the rule of the same name in the table of the insertion program (setInsertion); null for a
+  // grammar without #missing, for a rule that is no entry point and in the insertion table itself.
+  ins: Insertion | null;
   // rec means the rule is on a cycle of calls: its entries count against the nesting limit.
   rec: boolean;
   // cycle numbers the left-recursion cycle of a leader or member from 1, or is 0 for a rule on no
@@ -1039,6 +1107,8 @@ export function mkRule(
     value,
     memo,
     leader,
+    missing: false,
+    ins: null,
     rec: false,
     cycle: 0,
     leaderIndex: 0,
@@ -1054,6 +1124,37 @@ export function mkRule(
     docMemo: false,
     positional: false,
   };
+}
+
+// Insertion is the entry point of a rule in the table of the insertion program, which a parse with
+// missing-token insertion enabled runs (Rule.ins): the program compiled again with the insertion flags
+// of its rules, whose #missing sites insert. rule is the rule there, seen the number of its table's
+// rules whose memoization is deferred (Rule.seen), and bodyGens the resumable bodies of its table's
+// stream, or null if the parser has no stream.
+export interface Insertion {
+  readonly rule: Rule;
+  readonly seen: number;
+  readonly bodyGens: readonly (BodyGen | null)[] | null;
+}
+
+// setInsertion makes the entry point r of a table run as the rule ins of the table of the insertion
+// program, with seen and bodyGens of that table (Insertion), in the parses with missing-token insertion
+// enabled (forMissing). It is for generated parsers.
+export function setInsertion(r: Rule, ins: Rule, seen: number, bodyGens: readonly (BodyGen | null)[] | null): void {
+  if (r.name !== ins.name) throw new Error(`internal error: the insertion table has the rule ${ins.name} for ${r.name}`);
+  r.ins = { rule: ins, seen, bodyGens };
+}
+
+// forMissing returns the insertion program's entry point of r (Rule.ins) that a parse with the
+// missing-token limit limit runs instead of r, or null if it runs r: every parse that enables
+// insertion of a grammar that uses #missing runs the insertion program, and the parses without
+// insertion run tables that hold no insertion.
+export function forMissing(r: Rule, limit: number): Insertion | null {
+  if ((usedFeatures & featureMissing) !== 0 && limit > 0) {
+    return r.ins;
+  }
+  void [r, limit];
+  return null;
 }
 
 /**
@@ -1090,6 +1191,9 @@ export interface Grammar {
   // null; l for the empty list; the descriptors of the elements in parentheses for a tuple; {Name}
   // for the struct type Name; and - for a type that has no zero value.
   readonly structFields: Map<string, StructFields>;
+  // hasMissing reports that the grammar has #missing sites, which insert missing tokens in a parse
+  // with a positive limit of them (ParseOptions.missingTokens).
+  hasMissing: boolean;
 }
 
 export interface StructFields {
@@ -1102,7 +1206,7 @@ export function structFieldsOf(pairs: [string, string][]): StructFields {
 }
 
 export function mkGrammar(maxDepth: number, sparse: boolean, observable: boolean, controlled = true): Grammar {
-  return { maxDepth, sparse, observable, controlled, sourceInfo: false, initialVars: [], initEnv: undefined, envDepth: 0, descs: [], expectations: false, structFields: new Map() };
+  return { maxDepth, sparse, observable, controlled, sourceInfo: false, initialVars: [], initEnv: undefined, envDepth: 0, descs: [], expectations: false, structFields: new Map(), hasMissing: false };
 }
 
 function ruleIn(table: Rule[], name: string): Rule | null {
@@ -1167,6 +1271,14 @@ export interface ParseOptions {
   /** Receives the compute units that the parse spent, when it ends; see ComputeReport. Requires a parser generated with limit controls. */
   computeReport?: ComputeReport | null;
   limits?: Limits;
+  /**
+   * Bounds the #missing literals that one parse may try to insert, counting those of the alternatives
+   * it abandons; a parse that needs more fails with a MissingTokenLimitError. Zero, the default,
+   * disables insertion. Only a parser of a grammar with #missing takes a positive limit. A stream has
+   * one limit for the whole stream, and a Document fixes the limit when it is created and gives each
+   * parse the whole limit.
+   */
+  missingTokens?: number;
 }
 
 /**
@@ -1252,7 +1364,7 @@ export type PlainParseOptions = Omit<ParseOptions, "signal" | "computeReport" | 
 export type PlainStreamOptions = Omit<StreamOptions, "signal" | "computeReport" | "limits"> & { limits?: PlainLimits };
 
 // parseOptionKeys and limitKeys are the keys of ParseOptions and Limits.
-const parseOptionKeys = new Set(["unit", "expectations", "signal", "computeReport", "limits", "trace", "traceRules", "traceMaxDepth", "profile", "diagnostic", "diagnosticLimit"]);
+const parseOptionKeys = new Set(["unit", "expectations", "signal", "computeReport", "limits", "trace", "traceRules", "traceMaxDepth", "profile", "diagnostic", "diagnosticLimit", "missingTokens"]);
 const limitKeys = new Set(["compute", "memory", "input", "depth"]);
 
 // resolveOptions validates options for a parse of input, a stream if stream is set: only a stream takes
@@ -1322,8 +1434,15 @@ export function resolveOptions(g: Grammar, options: StreamOptions | undefined, i
     const over = inputOverMax(input, unit, maxInput);
     if (over !== null) return new ParseInterruptionError("input-limit", maxInput, 0, over);
   }
+  const missingTokens = options?.missingTokens ?? 0;
+  if (!Number.isSafeInteger(missingTokens) || missingTokens < 0) {
+    return new Error("missing token limit must be nonnegative");
+  }
+  if (missingTokens > 0 && !g.hasMissing) {
+    return new Error("the grammar of this parser has no #missing: a positive missing token limit needs a grammar that uses #missing");
+  }
   const budget = requested === Unlimited ? 0 : requested !== 0 ? requested : g.controlled ? defaultBudget(inputUnits(input, unit)) : 0;
-  return { unit, maxDepth: depth === 0 ? g.maxDepth : depth, expectations: options?.expectations === true, signal, report, budget, memory: memory === Unlimited ? 0 : memory, traces, traceRules, traceMaxDepth, profiles, profileClock };
+  return { unit, maxDepth: depth === 0 ? g.maxDepth : depth, expectations: options?.expectations === true, signal, report, budget, memory: memory === Unlimited ? 0 : memory, traces, traceRules, traceMaxDepth, profiles, profileClock, missingTokens };
 }
 
 // diagnosticOptions returns the error of the diagnostic options of options, a stream's if stream is set,
@@ -1360,13 +1479,20 @@ function observers<T>(value: T | readonly (T | null)[] | null | undefined, is: (
 
 // run parses the whole input of the grammar g with rule r of a rule table with seen rules that have rule.seen set.
 // With document set, it parses with the parser of a Document parse (DocumentParser); with trace
-// functions or profiles and no document, with the parser of an observed parse (ObservedParser).
+// functions or profiles and no document, with the parser of an observed parse (ObservedParser). With a
+// positive missing-token limit in traceOptions it runs the entry point of r in the table of the
+// insertion program (forMissing) in the missing-token mode.
 export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Array, unit: Unit | undefined, maxDepth = g.maxDepth, control: BudgetControl | null = null, traceOptions: ResolvedParseOptions | null = null, document: DocumentMemo | null = null): ParseResult {
   let p: Parser | null = null;
   try {
     // Made inside the try, so that decoding the input fails as parsing does.
     const u = unit === Bytes ? Bytes : CodePoints;
     const observed = traceOptions !== null && (traceOptions.traces.length !== 0 || traceOptions.profiles.length !== 0);
+    const ins = forMissing(r, traceOptions?.missingTokens ?? 0);
+    if (ins !== null) {
+      r = ins.rule;
+      seen = ins.seen;
+    }
     if ((usedFeatures & featureDocument) !== 0 && document !== null) {
       // Under a memory limit the count starts at what the Document keeps; if that alone passes the
       // limit, the Document drops it and the parse runs from scratch.
@@ -1392,6 +1518,10 @@ export function run(g: Grammar, r: Rule, seen: number, input: string | Uint8Arra
       p = new Parser(g, input, u, seen, maxDepth, control);
     }
     p.expectations = traceOptions?.expectations === true;
+    // A Document parse has the whole limit, as a parse from scratch of the text has: the memo keeps
+    // no result of a rule that can insert and the runs keep no element that reached an insertion
+    // site (DocumentParser.runClean), so a later parse reuses no insertion and no attempt of this one.
+    if (ins !== null) p.startMissing(traceOptions!.missingTokens);
     if (observed) p.observation = new Observation(traceOptions!, p);
     if ((usedFeatures & featureDocument) !== 0 && document !== null) {
       const d = p as DocumentParser;
@@ -1738,6 +1868,8 @@ export class RunState {
   post: RunElem[] = [];
   rec0 = 0;
   seedReads0 = 0;
+  // reached0 is the insertion sites reached at the start (MissingState.reached).
+  reached0 = 0;
 }
 
 // basicValue reports whether v holds no positions: null, a boolean, a number or a string.
@@ -1780,6 +1912,10 @@ export class DocumentBase {
   private readonly seen: number;
   private readonly unit: Unit;
   private readonly expectations: boolean;
+  // missingTokens is the missing-token limit of every parse, fixed at construction: the parses of a
+  // Document with a positive limit run the insertion table (forMissing), and its memo holds that
+  // table's results.
+  private readonly missingTokens: number;
   private readonly defaults: ParseOptions | undefined;
   private input: Uint8Array;
   private parsing = false;
@@ -1793,6 +1929,7 @@ export class DocumentBase {
     this.defaults = defaults;
     this.unit = resolved.unit;
     this.expectations = resolved.expectations;
+    this.missingTokens = resolved.missingTokens;
   }
 
   /**
@@ -1866,7 +2003,8 @@ export class DocumentBase {
 
   /**
    * parse parses the current text with the configured start rule, applying the invocation options
-   * after the defaults of the Document. An invocation cannot change the unit or the expectations.
+   * after the defaults of the Document. An invocation cannot change the unit, the expectations or the
+   * missing-token limit.
    */
   parse(options?: ParseOptions): ParseResult {
     return this.parseWith(options, r => r, error => ({ node: null, error }));
@@ -1885,6 +2023,7 @@ export class DocumentBase {
     if (o instanceof Error) return fail(o);
     if (o.unit !== this.unit) return fail(new Error("document parse cannot change unit"));
     if (o.expectations !== this.expectations) return fail(new Error("document parse cannot change expectations"));
+    if (o.missingTokens !== this.missingTokens) return fail(new Error("document parse cannot change the missing-token limit"));
     this.parsing = true;
     try {
       return withObservedOptions(o, control => convert(run(this.g, this.start, this.seen, input, o.unit, o.maxDepth, control, o, this.memo), control), fail);
@@ -2563,6 +2702,10 @@ interface SkipVisit {
 // sites of their own, so the walks in progress form a stack (Parser.skips), and the innermost one
 // is the one in use.
 class SkipWalk {
+  // on reports that the walk records and reuses records: outside the missing-token mode, whose walks
+  // depend on the insertions before them, as the reference parser does. A walk that is not on is an
+  // ordinary repetition.
+  on = true;
   // key holds the slots of the variables that key the records of the site (RunKey), null for a
   // site whose element reads or binds no variable, directly or in the rules it calls: its records
   // hold for every environment, which a walk keeps. A walk that reuses the record of a keyed site
@@ -2784,10 +2927,13 @@ export interface CtxResult {
   from: number;
   ok: boolean;
   silent: boolean;
+  // ins is the insertions of a seed of a growth in the missing-token mode (Parser.missingSeedOf), or
+  // null: only a seed holds insertions, since a context keeps no result of a rule that can insert.
+  ins: MissingToken[] | null;
 }
 
-export function newCtxResult(node: R, ok: boolean, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number, from: number): CtxResult {
-  return { node, errs, expected, end, far, examined, from, ok, silent };
+export function newCtxResult(node: R, ok: boolean, end: number, silent: boolean, errs: Errs, far: number, expected: number[], examined: number, from: number, ins: MissingToken[] | null = null): CtxResult {
+  return { node, errs, expected, end, far, examined, from, ok, silent, ins };
 }
 
 // CtxCall is the context of a memoized call of a rule of a cycle (Parser.ctxEnter): the index in
@@ -2814,10 +2960,12 @@ export function memoAllows(c: CtxCall, present: number): boolean {
 }
 
 // GrowRec is a growth in progress: the leader's key, its position, cycle, bit and index, its current
-// seed and the seed's identity.
+// seed and the seed's identity. The key holds ms, which reports a growth in a lookahead of the
+// missing-token mode, whose seeds are its own (Parser.missingSilent).
 interface GrowRec {
   rule: number;
   min: number;
+  ms: boolean;
   pos: number;
   cycle: number;
   bit: number;
@@ -2892,8 +3040,8 @@ function newSlot(e: CtxResult | null, id: number, env: Binding[] | null): CtxSlo
 // The storage of a slot, of a result, and of a growth in progress (its record, its state and its seed)
 // for the memory limit.
 const ctxSlotBytes = objectBytes(10);
-const ctxResultBytes = objectBytes(9);
-const growHeldBytes = objectBytes(8) + objectBytes(14) + ctxResultBytes;
+const ctxResultBytes = objectBytes(10);
+const growHeldBytes = objectBytes(9) + objectBytes(16) + ctxResultBytes;
 
 // JumpRec takes a growth from a seed to the seed at the end of a run of steps that read no other
 // seed, with what those steps recorded.
@@ -2935,7 +3083,12 @@ interface CtxTable {
 export interface GrowState {
   rule: number;
   min: number;
+  // ms reports a growth in a lookahead of the missing-token mode (GrowRec.ms).
+  ms: boolean;
   start: number;
+  // missing is the number of insertions on the path when the growth began, after which the insertions
+  // of a step are its seed's (missingSeedOf).
+  missing: number;
   gi: number;
   gp: number;
   ctx: boolean;
@@ -3179,14 +3332,20 @@ export class Parser {
   // heldBytes returns the bytes of the slots of the working stacks, by their lengths now: what the
   // records on them hold is counted where they are made, except what only the stacks of a growth or a
   // walk in progress hold, which goes when it ends: the records of the growths with their states and
-  // seeds, the dependency frames, the context tables and what they hold (CtxTable.bytes), and the
-  // visits of the walks (skipHeld).
+  // seeds, the dependency frames, the context tables and what they hold (CtxTable.bytes), the
+  // visits of the walks (skipHeld), and, in a parse that inserts missing tokens, the insertions on the
+  // path, the sites they installed and the insertions that seeds hold.
   heldBytes(): number {
     const slots = this.kidStack.length + this.saved.length + this.trail.length + this.exp.length + this.isoStack.length +
       this.recovered.length + this.gamma.length + this.depFrames.length + this.deps.length + this.popped.length +
       this.ctxs.length + this.looks.length + this.lookExamined.length + this.lookFrom.length + this.obsGuard.length + this.scanCold.length + this.runCold.length;
     let n = 8 * slots + this.skipHeld() + this.gamma.length * growHeldBytes + this.depFrames.length * objectBytes(4);
     for (const t of this.ctxs) n += t.bytes;
+    const m = this.missing;
+    if (m !== null) {
+      // The insertions on the path, the sites they installed and the insertions that seeds hold.
+      n += m.path.length * missingTokenBytes + m.installed.size * mapEntryBytes + m.seedBytes;
+    }
     return n;
   }
   // retyped is the operation node.convert: retypeNode, counting the copy it makes.
@@ -3580,10 +3739,11 @@ export class Parser {
 
   // enterCall counts the entry of a call of r that the overrides of call make outside the printed
   // call protocol, as its entry counts it: one unit, checked if r is on a cycle of the call graph,
-  // and the key of a rule that a parse from scratch memoizes (keyUnits).
+  // and the key of a rule that a parse from scratch memoizes (keyUnits), which in the missing-token
+  // mode excludes a rule that can insert (insertsRule).
   enterCall(r: Rule): void {
     this.callUnit(r.rec);
-    if (r.leader || r.memo) this.keyUnits(r);
+    if (r.leader || r.memo && !this.insertsRule(r)) this.keyUnits(r);
   }
 
   // skipUnits counts the units of the n calls of rules that the parse does not memoize, which the
@@ -3897,7 +4057,8 @@ export class Parser {
   // records of a site are no event of the parse.
   scanReach(site: number, start: number, count: number): number {
     const i = 2 * site + (this.silent > 0 ? 1 : 0);
-    this.scanHotNow = this.scanCold[i]?.hot === true;
+    // The missing-token mode keeps no records of walks, as the reference parser does (SkipWalk.on).
+    this.scanHotNow = this.scanCold[i]?.hot === true && !this.inserting();
     this.scanHit = false;
     if (!this.scanHotNow) return count;
     const rec = this.scanTables[site]?.get(start);
@@ -4004,7 +4165,9 @@ export class Parser {
   // walks input again, and the site turns hot when it walks RUN_HOT_SPAN of it below that position;
   // shorter walks leave the site as it is.
   runWalked(site: number, start: number): void {
-    if (this.pos - start < RUN_HOT_SPAN) return;
+    // The walks of the missing-token mode depend on the insertions before them: no site turns hot
+    // there (SkipWalk.on).
+    if (this.pos - start < RUN_HOT_SPAN || this.inserting()) return;
     const i = 2 * site + (this.silent > 0 ? 1 : 0);
     while (this.runCold.length <= i) this.runCold.push({ end: 0, hot: false });
     const c = this.runCold[i]!;
@@ -4022,7 +4185,7 @@ export class Parser {
   // records, null for a site free of the environment (SkipWalk.key).
   runBegin(site: number, build: boolean, key: RunKey | null): void {
     this.walkBegin(site, build, key);
-    if (key !== null && key.bind.length === 0) {
+    if (key !== null && key.bind.length === 0 && this.walk().on) {
       // The element binds no variable of the key, so the key keeps its values for the whole walk:
       // it is counted once, when the walk starts (spec/runtime/parsing.md, Compute Units).
       this.walkKeyUnits(this.envValues(key.vars));
@@ -4052,6 +4215,7 @@ export class Parser {
     }
     this.skipN++;
     const w = this.walk();
+    w.on = !this.inserting();
     const i = 2 * site + (this.silent > 0 ? 1 : 0);
     w.table = i;
     w.slots = this.skipTables[i];
@@ -4117,10 +4281,10 @@ export class Parser {
   // recording walk, reports whether the current position has a record, which it then reuses. The
   // walk then stops.
   skipHit(): boolean {
-    if (!this.skipRecords()) {
+    const w = this.walk();
+    if (!w.on || !this.skipRecords()) {
       return false;
     }
-    const w = this.walk();
     this.skipClose();
     const k = this.walkKey();
     if (w.key !== null && w.key.bind.length > 0) {
@@ -4151,6 +4315,9 @@ export class Parser {
   // and isolates this one.
   skipVisit(): void {
     const w = this.walk();
+    if (!w.on) {
+      return;
+    }
     if (!this.skipRecords()) {
       this.skipMarkPrev();
       w.prev = this.pos;
@@ -4235,6 +4402,9 @@ export class Parser {
   // walkEnd ends the walk and records the rest of it from each position it visited recording.
   walkEnd(): void {
     const w = this.walk();
+    if (!w.on) {
+      return;
+    }
     this.skipClose();
     const vs = w.visits;
     let n = vs.length;
@@ -4579,6 +4749,215 @@ export class Parser {
     }
   }
 
+  // The missing-token mode (spec/language/pragmas.md#missing), as in the Go library
+  // (pkg/runtime/libgo/missing.go): a parse with a positive limit of missing tokens
+  // (ParseOptions.missingTokens) of a grammar with #missing inserts the literal of a #missing site where
+  // it does not match, as a recovered error. The insertions on the current path of the parse are a path
+  // that backtracking shortens (resetMissing); the attempts they took stay taken. A site inserts at most
+  // once at a position on the path, so that a repetition or a left-recursive growth cannot insert
+  // forever.
+  //
+  // The results of a rule that can insert (Rule.missing) depend on the insertions before them, so the
+  // missing-token mode evaluates them again at every call instead of reusing them from the memo or from
+  // a context of left recursion. Only the seed of a growing leader is reused, as the growth adopted it,
+  // with the insertions that it made (missingSeedOf), which a reuse records again (replayMissing).
+
+  // missing is the state of the missing-token mode, null outside it.
+  missing: MissingState | null = null;
+
+  // inserting reports whether the parse runs in the missing-token mode (missing.active).
+  inserting(): boolean {
+    return this.missing !== null;
+  }
+
+  // startMissing sets up the missing-token mode of a parse with the limit limit.
+  startMissing(limit: number): void {
+    if ((usedFeatures & featureMissing) !== 0 && limit > 0 && this.g.hasMissing) {
+      this.missing = { limit, attempts: 0, reached: 0, path: [], installed: new Set(), label: 0, seedBytes: 0 };
+    }
+    void limit;
+  }
+
+  // missingReached returns the insertion sites reached and the insertions replayed so far
+  // (MissingState.reached), 0 outside the missing-token mode.
+  missingReached(): number {
+    const s = this.missing;
+    return s === null ? 0 : s.reached;
+  }
+
+  // missingLen returns the number of insertions on the current path, 0 outside the missing-token mode
+  // (missing.mark).
+  missingLen(): number {
+    const s = this.missing;
+    return s === null ? 0 : s.path.length;
+  }
+
+  // resetMissing drops the insertions on the current path after the first n, so that their sites may
+  // insert at their positions again (missing.reset). It does nothing outside the missing-token mode.
+  resetMissing(n: number): void {
+    const s = this.missing;
+    if (s === null || n >= s.path.length) {
+      return;
+    }
+    for (let i = n; i < s.path.length; i++) {
+      const t = s.path[i]!;
+      s.installed.delete(missingSiteKey(t.site, t.pos));
+    }
+    s.path.length = n;
+  }
+
+  // installMissing puts the insertion t on the path, taking an attempt of the limit if charge is set,
+  // and reports false, changing nothing, if its site inserted at its position on the path.
+  installMissing(t: MissingToken, charge: boolean): boolean {
+    const s = this.missing!;
+    const k = missingSiteKey(t.site, t.pos);
+    if (s.installed.has(k)) {
+      return false;
+    }
+    if (charge) {
+      if (s.attempts >= s.limit) {
+        throw new Fatal(new MissingTokenLimitError(s.limit, t.pos));
+      }
+      s.attempts++;
+    }
+    s.installed.add(k);
+    s.path.push(t);
+    return true;
+  }
+
+  // insertMissing inserts the literal of the #missing site where it did not match, at the position,
+  // with the expectations exps of the failed match (flow.insertMissing): in the missing-token mode,
+  // outside a lookahead, where the site has not inserted at the position on the path, it builds the
+  // syntax error of the insertion (with the message of the @error label that missingScope entered in
+  // place of exps, in a parse that records expectations), counting it as an event of one compute unit
+  // if logical is set, takes an attempt of the limit, which ends the parse with a
+  // MissingTokenLimitError where none remains, puts the insertion on the path, records the error as
+  // recovered and returns it. Otherwise it returns null and changes nothing.
+  insertMissing(site: number, exps: number[], logical: boolean): SyntaxError | null {
+    const s = this.missing;
+    if (s === null || this.silent > 0) {
+      return null;
+    }
+    s.reached++;
+    if (s.installed.has(missingSiteKey(site, this.pos))) {
+      return null;
+    }
+    if (logical) {
+      this.unitsSized(1);
+    }
+    if (s.label !== 0) {
+      exps = [s.label];
+    }
+    const e = this.recoveredError(this.pos, exps);
+    this.installMissing({ site, pos: this.pos, err: e }, true);
+    this.recovered.push(e);
+    return e;
+  }
+
+  // missingNode returns the missing node of the insertion of the literal expected whose error is e, at
+  // start: an empty terminal of type missing with the fields expected and message.
+  missingNode(start: number, expected: string, e: SyntaxError): Node {
+    return this.counted(new Node("missing", "", start, start, "", noNodes, [{ name: "expected", value: expected }, { name: "message", value: e.message }], true, true),
+      nodeBytes + arrayBytes(2) + 2 * objectBytes(2));
+  }
+
+  // missingScope enters an @error label around #missing sites with the message msg: in the
+  // missing-token mode of a parse that records expectations, where no label is entered, msg becomes the
+  // expectation of the insertions inside. It returns the label entered before, which missingScopeEnd
+  // restores.
+  missingScope(msg: number): number {
+    const s = this.missing;
+    if (s === null) {
+      return 0;
+    }
+    const prev = s.label;
+    if (this.expectations && prev === 0) {
+      s.label = msg;
+    }
+    return prev;
+  }
+
+  // missingScopeEnd leaves the @error label that missingScope entered, restoring the label prev that it
+  // returned.
+  missingScopeEnd(prev: number): void {
+    const s = this.missing;
+    if (s !== null) {
+      s.label = prev;
+    }
+  }
+
+  // missingSince returns a copy of the insertions on the path after the first n, null if there are
+  // none, counting one compute unit for each insertion it copies before it copies them
+  // (spec/runtime/parsing.md, Compute Units).
+  missingSince(n: number): MissingToken[] | null {
+    const s = this.missing;
+    if (s === null || n >= s.path.length) {
+      return null;
+    }
+    this.unitsSized(s.path.length - n);
+    return s.path.slice(n);
+  }
+
+  // missingSeedOf returns the insertions on the path after the first n as missingSince does, for a seed
+  // of a growth, which the parse keeps: their bytes count against the memory limit.
+  missingSeedOf(n: number): MissingToken[] | null {
+    const seed = this.missingSince(n);
+    if (seed !== null) {
+      this.missing!.seedBytes += arrayBytes(seed.length);
+    }
+    return seed;
+  }
+
+  // replayMissing records again the insertions seed that a reused result made and the errors errs that
+  // it recovered. An insertion whose site already inserted at its position on the path is not put on it
+  // again, and its error is left out: the errors are then recorded one by one. The restore counts one
+  // compute unit per insertion of seed, and under such a duplicate one per error of errs, including
+  // those left out (spec/runtime/parsing.md#compute-units). Recording an insertion again takes an
+  // attempt of the limit if charge is set, as a reuse from the memo does; the selection of an operator
+  // candidate does not, since the candidate's insertions took theirs.
+  replayMissing(seed: MissingToken[] | null, errs: Errs, charge: boolean): void {
+    if (seed === null || seed.length === 0) {
+      this.recAdd(errs);
+      return;
+    }
+    this.unitsSized(seed.length);
+    this.missing!.reached += seed.length;
+    let dup: Set<SyntaxError> | null = null;
+    for (const t of seed) {
+      if (!this.installMissing(t, charge)) {
+        if (dup === null) {
+          dup = new Set();
+        }
+        dup.add(t.err);
+      }
+    }
+    if (dup === null) {
+      this.recAdd(errs);
+      return;
+    }
+    const all = errs === null ? [] : recoveredErrors([errs]);
+    this.unitsSized(all.length);
+    for (const e of all) {
+      if (!dup.has(e)) {
+        this.recovered.push(e);
+      }
+    }
+  }
+
+  // insertsRule reports that the results of r depend on the insertions before them in this parse
+  // (missing.recompute): r contains #missing, directly or through the rules it calls, in the
+  // missing-token mode. Such a rule is evaluated again at every call, in a context of left recursion as
+  // outside one.
+  insertsRule(r: Rule): boolean {
+    return r.missing && this.missing !== null;
+  }
+
+  // missingSilent reports that a call of r runs in a lookahead of the missing-token mode, where no site
+  // inserts: a growth of r there has seeds of its own.
+  missingSilent(r: Rule): boolean {
+    return this.silent > 0 && this.insertsRule(r);
+  }
+
   // gammaAt returns the index of the first growth of the cycle at pos that the innermost growths
   // there are (gamma.length if the innermost growth is not one).
   gammaAt(pos: number, cycle: number): number {
@@ -4589,11 +4968,12 @@ export class Parser {
     return i;
   }
 
-  // gammaFind returns the index of the growth of the leader rule at level min from gp on, or -1.
-  gammaFind(gp: number, rule: number, min: number): number {
+  // gammaFind returns the index of the growth of the leader rule at level min from gp on, in a
+  // lookahead of the missing-token mode if ms is set (GrowRec.ms), or -1.
+  gammaFind(gp: number, rule: number, min: number, ms: boolean): number {
     for (let i = this.gamma.length - 1; i >= gp; i--) {
       const g = this.gamma[i]!;
-      if (g.rule === rule && g.min === min) {
+      if (g.rule === rule && g.min === min && g.ms === ms) {
         return i;
       }
     }
@@ -4653,11 +5033,15 @@ export class Parser {
       return null;
     }
     if (r.leader) {
-      const i = this.gammaFind(gp, r.id, min);
+      const i = this.gammaFind(gp, r.id, min, this.missingSilent(r));
       if (i >= 0) {
         this.noteSeedRead(i);
         return this.gamma[i]!.seed;
       }
+    }
+    if (this.insertsRule(r)) {
+      // Its results depend on the insertions before them: none is kept in the context.
+      return null;
     }
     c.ctx = true;
     c.present = this.presentOf(gp);
@@ -4816,7 +5200,10 @@ export class Parser {
         buf.push({ kind: depObs, idx: d.site, d: depth, val: d.val });
         this.replayObs(buf, pos, gp, present, d.site, depth);
       } else {
-        const i = this.gammaFind(gp, d.rule, d.min);
+        // A context keeps only results of rules that cannot insert (ctxEnter, growBegin), which call no
+        // rule that can: the seeds they read are of growths outside a lookahead of the missing-token
+        // mode, as are those of the sets below.
+        const i = this.gammaFind(gp, d.rule, d.min, false);
         if (i < 0) {
           continue;
         }
@@ -4842,7 +5229,7 @@ export class Parser {
       }
       const set = this.foundSet!;
       for (let j = 0; j < set.seeds.length; j += 2) {
-        const i = this.gammaFind(gp, set.seeds[j]!, set.seeds[j + 1]!);
+        const i = this.gammaFind(gp, set.seeds[j]!, set.seeds[j + 1]!, false);
         if (i >= 0) {
           buf.push({ kind: depShadow, idx: i, d: depth, val: this.gamma[i]!.id });
         }
@@ -4946,7 +5333,7 @@ export class Parser {
     next: for (const s of sets) {
       let k = "";
       for (let j = 0; j < s.seeds.length; j += 2) {
-        const i = this.gammaFind(gp, s.seeds[j]!, s.seeds[j + 1]!);
+        const i = this.gammaFind(gp, s.seeds[j]!, s.seeds[j + 1]!, false);
         if (i < 0) {
           continue next;
         }
@@ -5149,9 +5536,12 @@ export class Parser {
     const start = this.pos;
     const gi = this.gamma.length;
     const gp = this.gammaAt(start, r.cycle);
-    const g: GrowState = { rule: r.id, min, start, gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, savedFrom: 0, exp: 0, run: [], pendID: 0, pendStep: null };
-    this.gamma.push({ rule: r.id, min, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow(), start), id: failSeed });
-    if (gp < gi) {
+    const ms = this.missingSilent(r);
+    const g: GrowState = { rule: r.id, min, ms, start, missing: this.missingLen(), gi, gp, ctx: false, present: 0, evaluated: false, savedExamined: 0, savedFrom: 0, exp: 0, run: [], pendID: 0, pendStep: null };
+    this.gamma.push({ rule: r.id, min, ms, pos: start, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: newCtxResult(undefined, false, start, false, noErrs, 0, noExp, this.examinedNow(), start), id: failSeed });
+    // A growth of a rule that inserts takes its steps outside a context: none of its results is kept
+    // in one.
+    if (gp < gi && !this.insertsRule(r)) {
       // The present set of the steps includes the leader's own growth.
       g.present = this.presentOf(gp);
       g.ctx = true;
@@ -5223,7 +5613,7 @@ export class Parser {
   // drops the errors after the growth's mark.
   growAdopt(g: GrowState, v: R, errs: Errs): void {
     const rec = this.gamma[g.gi]!;
-    rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow(), this.fromNow());
+    rec.seed = newCtxResult(v, true, this.pos, false, errs, 0, noExp, this.examinedNow(), this.fromNow(), this.missingSeedOf(g.missing));
     rec.id = this.nextSeedID();
     this.pos = g.start;
   }
@@ -7107,12 +7497,22 @@ export class Stream<E = Node | null> {
 // the resumable body of the rule in bodyGens, with the options options, after their check at the
 // start. With trace functions or profiles, the stream parses with the parser of an observed stream
 // (ObservedStreamParser), and its observation lasts until the stream ends. convert, if not null,
-// converts each element as it is delivered, under the control of the parse. It is for generated
-// parsers.
+// converts each element as it is delivered, under the control of the parse. With a positive
+// missing-token limit the stream runs the start rule of the insertion table and its resumable bodies
+// (forMissing), with one limit for the whole stream: the insertions before a delivered element stay on
+// the path, as no backtracking reaches them, so the stream inserts what the batch parse does. It is
+// for generated parsers.
 export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen: number, bodyGens: readonly (BodyGen | null)[], options: StreamOptions | undefined, convert: ((n: Node | null, control: BudgetControl | null) => E) | null = null): { stream: Stream<E> | null; error: Error | null } {
   const snapshot: StreamOptions | undefined = optionsSnapshot(options);
   const o = resolveOptions(g, snapshot, "", true);
   if (o instanceof Error) return { stream: null, error: o };
+  const ins = forMissing(start, o.missingTokens);
+  if (ins !== null) {
+    if (ins.bodyGens === null) return { stream: null, error: new Error("internal error: the insertion table has no stream bodies") };
+    start = ins.rule;
+    seen = ins.seen;
+    bodyGens = ins.bodyGens;
+  }
   const requested = snapshot?.limits?.compute ?? 0;
   let control: BudgetControl | null = null;
   if (o.signal !== null || o.budget !== 0 || o.memory !== 0 || o.report !== null) {
@@ -7136,6 +7536,7 @@ export function createStreamBase<E = Node | null>(g: Grammar, start: Rule, seen:
   }
   p.expectations = o.expectations;
   p.bodyGens = bodyGens;
+  if (ins !== null) p.startMissing(o.missingTokens);
   const maxInput = snapshot?.limits?.input ?? 0;
   p.maxInput = maxInput === Unlimited ? 0 : maxInput;
   // A stream under the default compute limit starts at its floor, which rises with the input that the
@@ -7293,7 +7694,7 @@ export function observedLayer<B extends TrackedClass>(Base: B) {
       o.enter(r.name, this.pos, min);
       const enclosing = this.docExaminedBegin();
       this.enterCall(r);
-      const v = !r.memo && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
+      const v = !(r.memo && !this.insertsRule(r)) && !r.leader || this.firstCall(r) ? this.callUnmemoized(r, min) : this.callTracked(r, min);
       const examined = this.docExaminedEnd(enclosing);
       o.exit(v !== undefined, this.pos, examined);
       return v;
@@ -7360,7 +7761,7 @@ export class ObservedStreamParser extends observedLayer(trackedLayer(StreamParse
     o.enter(r.name, this.pos, min);
     const enclosing = this.docExaminedBegin();
     this.enterCall(r);
-    const v = !r.memo && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min) : yield* this.callTrackedGen(r, min);
+    const v = !(r.memo && !this.insertsRule(r)) && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min) : yield* this.callTrackedGen(r, min);
     const examined = this.docExaminedEnd(enclosing);
     o.exit(v !== undefined, this.pos, examined);
     return v;
@@ -7666,6 +8067,7 @@ export class DocumentParser extends TrackedParser {
     r.post.length = 0;
     r.rec0 = this.recovered.length;
     r.seedReads0 = this.seedReads;
+    r.reached0 = this.missingReached();
   }
 
   // runTakeHere is run.takeHere.
@@ -7721,10 +8123,13 @@ export class DocumentParser extends TrackedParser {
     (after ? r.post : r.mid).push({ start, end, from, examined, far, exp, v: v as Node | null });
   }
 
-  // runClean is run.clean: the run recovered no error and read no seed of a growth, directly or by
-  // reusing a result that depends on one.
+  // runClean is run.clean: the run recovered no error, read no seed of a growth, directly or by
+  // reusing a result that depends on one, and reached no insertion site. An element that reached one
+  // depends on the insertions before it and takes the attempts of the limit, both of which a later
+  // parse has anew, even where it recovered no error: its insertion backtracked, or the site had
+  // inserted at the position already.
   runClean(r: RunState): boolean {
-    return this.recovered.length === r.rec0 && this.seedReads === r.seedReads0;
+    return this.recovered.length === r.rec0 && this.seedReads === r.seedReads0 && this.missingReached() === r.reached0;
   }
 
   // runRecord is run.record.
@@ -8197,6 +8602,8 @@ export interface OperatorsRuleAttempt {
   env: Env | null;
   cut: boolean;
   errs: Errs;
+  // ins is the insertions of the match in the missing-token mode, which selecting it records again.
+  ins: MissingToken[] | null;
 }
 
 // Declarations that the code generated for a grammar may not use, read here so that projects

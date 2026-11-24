@@ -943,14 +943,10 @@ function.`
 func addInvoke(m *Module) {
 	rule, value := THandle(exec.Rule), THandle(exec.Value)
 	r := L("r")
-	invokePlain := m.AddFunc("invokePlain", []Param{P("r", rule), P("min", TInt)}, []Type{value, TBool}, []string{exec.Units}, func(b *Builder) {
-		// The unit of the call comes before the nesting level, as in rule.invoke.
-		b.If(F(exec.Units), func(b *Builder) {
-			b.Do("units.count", U64(1))
-			b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("units.check") })
-		})
-		start := b.Let("start", R(exec.Pos))
-		rec := b.Let("rec", C("rec.mark"))
+	// plainBody runs the body of the plain rule r after the unit of the call, with the mark mm of the
+	// insertions taken before it, or nil outside the missing-token mode: a failure drops the tokens that
+	// the body inserted too.
+	plainBody := func(b *Builder, start, rec, mm Expr) {
 		trail := b.Let("trail", C("frame.trail"))
 		env := b.Let("prevEnv", C("env.scope"))
 		cut := b.Let("prevCut", R(exec.Cut))
@@ -967,9 +963,23 @@ func addInvoke(m *Module) {
 		}, func(b *Builder) {
 			b.SetReg(exec.Pos, start)
 			b.Do("rec.truncate", rec)
+			if mm != nil {
+				b.Do("missing.reset", mm)
+			}
 		})
 		b.Do("env.restore", env)
 		b.Return(L("v"), L("ok"))
+	}
+	invokePlain := m.AddFunc("invokePlain", []Param{P("r", rule), P("min", TInt)}, []Type{value, TBool}, []string{exec.Missing, exec.Units}, func(b *Builder) {
+		// The unit of the call comes before the nesting level, as in rule.invoke.
+		b.If(F(exec.Units), func(b *Builder) {
+			b.Do("units.count", U64(1))
+			b.If(C("rule.cyclic", r), func(b *Builder) { b.Do("units.check") })
+		})
+		start := b.Let("start", R(exec.Pos))
+		rec := b.Let("rec", C("rec.mark"))
+		b.IfElse(F(exec.Missing), func(b *Builder) { plainBody(b, start, rec, b.Let("mm", C("missing.mark"))) },
+			func(b *Builder) { plainBody(b, start, rec, nil) })
 	})
 	invoke := m.AddFunc("invoke", []Param{P("r", rule), P("min", TInt)}, []Type{value, TBool}, nil, func(b *Builder) {
 		f := b.Let("f", C("frame.open", C("rule.slots", r)))
@@ -996,9 +1006,10 @@ mode. The rule takes a nesting level while the body runs with the cut flag clear
 frame, cut flag, trail and variable environment are restored after it; on failure the position is
 unspecified, as for rule.invoke.`
 	invokePlain.Doc = `invokePlain runs the body of rule r, which has no captures, at binding level min, and returns the
-rule's value: what rule.invokePlain does outside the missing-token mode. Specialized for units, it
-counts the unit of the call, checked for a rule on a cycle of calls, before the rule takes a nesting
-level; it runs the body in the caller's frame with the cut flag cleared, and restores the flag, the
-trail and the variable environment; a failure restores the position and drops the errors the body
-recovered. A target may print it for one rule, with the body of that rule in place of rule.body.`
+rule's value: what rule.invokePlain does. Specialized for units, it counts the unit of the call,
+checked for a rule on a cycle of calls, before the rule takes a nesting level; it runs the body in the
+caller's frame with the cut flag cleared, and restores the flag, the trail and the variable
+environment; a failure restores the position and drops the errors the body recovered, and, specialized
+for missing, the tokens it inserted. A target may print it for one rule, with the body of that rule in
+place of rule.body.`
 }

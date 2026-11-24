@@ -106,46 +106,57 @@ func newGenerator(prog *common.Program, opts common.GenOptions, live *tsLive) *G
 	return tsg
 }
 
-// generate generates the rules of the Node table and, if rec is not nil, of the recognizer rec, and
-// returns the first error of their generation.
-func (tsg *Generator) generate(rec *common.Program) error {
+// generate generates the rules of the tables of the parser p: the Node table and the recognizer, and
+// the tables of the insertion program and of its recognizer, as far as p has them, with the stream of
+// the Node table and of the insertion table of a -stream parser; and returns the first error of their
+// generation.
+func (tsg *Generator) generate(p *Parser) error {
 	tsg.Desc(core.FixedDescs[0]) // the fixed expectations come first
-	tsg.rules()
-	tsg.runKeys()
-	if tsg.PrintErr != nil {
-		return tsg.PrintErr
-	}
-	if tsg.reachErr != nil {
-		return tsg.reachErr
-	}
-	if tsg.streamParser {
-		tsg.streamRules()
-		if tsg.PrintErr != nil {
-			return tsg.PrintErr
-		}
-	}
-	if rec != nil {
-		prog := tsg.Prog
-		tsg.Prog, tsg.Table = rec, "recRules"
+	prog := tsg.Prog
+	defer func() { tsg.Prog, tsg.Table = prog, "rules" }()
+	for _, t := range p.tables() {
+		tsg.Prog, tsg.Table = t.prog, t.table
 		tsg.rules()
 		tsg.runKeys()
-		tsg.Prog, tsg.Table = prog, "rules"
 		if tsg.PrintErr != nil {
 			return tsg.PrintErr
 		}
 		if tsg.reachErr != nil {
 			return tsg.reachErr
 		}
+		if tsg.streamParser && (t.table == "rules" || t.table == "insRules") {
+			tsg.streamRules()
+			if tsg.PrintErr != nil {
+				return tsg.PrintErr
+			}
+		}
 	}
 	return nil
 }
 
-// print returns the files of the parser whose rules tsg generated, with the options opts, the
-// recognizer rec (nil if there is none) and the start rule start.
-func (tsg *Generator) print(opts common.GenOptions, rec *common.Program, start *common.Rule) ([]common.GeneratedFile, error) {
-	prog := tsg.Prog
+// tsTable is a rule table of a TypeScript parser: its name and its program.
+type tsTable struct {
+	table string
+	prog  *common.Program
+}
+
+// tables returns the rule tables of p in the order in which they are generated: the Node table, the
+// recognizer, the insertion table and the recognizer of the insertion program, as far as p has them.
+func (p *Parser) tables() []tsTable {
+	var out []tsTable
+	for _, t := range []tsTable{{"rules", p.Prog}, {"recRules", p.Rec}, {"insRules", p.Ins}, {"insRecRules", p.InsRec}} {
+		if t.prog != nil {
+			out = append(out, t)
+		}
+	}
+	return out
+}
+
+// print returns the files of the parser p, whose rules tsg generated.
+func (tsg *Generator) print(p *Parser) ([]common.GeneratedFile, error) {
+	prog, rec, opts, start := tsg.Prog, p.Rec, p.Opts, p.Start
 	var out strings.Builder
-	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), tsg.useSparseMemo(prog, rec), opts.Observability, !opts.NoLimitControls)
+	fmt.Fprintf(&out, "const G = mkGrammar(%d, %v, %v, %v);\n\n", common.GeneratedMaxDepth(opts), tsg.useSparseMemo(p), opts.Observability, !opts.NoLimitControls)
 	// A recognize-only or typed-only parser has no parse entry points: it prints only the entries it keeps.
 	if tsg.parseEntries {
 		fmt.Fprintf(&out, "/**\n * Parses the whole input with the rule %s. unit selects the position unit (CodePoints by default).\n", start.Name)
@@ -253,22 +264,61 @@ export function recognizeWithOptions(input: string | Uint8Array, options?: %[1]s
 			fmt.Fprintf(&out, "G.initialVars.push([%s, %v]);\n", TsString(v.Name), x)
 		}
 	}
+	if prog.Run.HasMissing {
+		// A parse may enable missing-token insertion (ParseOptions.missingTokens).
+		out.WriteString("G.hasMissing = true;\n")
+	}
 	out.WriteString("\n")
 	out.WriteString(tsg.Init.String())
+	tsg.insertionLinks(&out, p)
 	out.WriteString("\n")
 	out.WriteString(tsg.Methods.String())
-	features, err := common.ParserFeatures(common.Tables(prog, rec), opts, tsg.Params, tsg.tables.Plan)
+	features, err := common.ParserFeatures(p.Tables(), opts, tsg.Params, tsg.tables.Plan)
 	if err != nil {
 		return nil, err
 	}
-	return tsFiles(opts, features, tsg.Params.UsedFeatures, tsg.tables.Library, out.String(), types)
+	return tsFiles(opts, features, prog.Run.HasMissing, tsg.Params.UsedFeatures, tsg.tables.Library, out.String(), types)
 }
 
 // useSparseMemo reports whether the parser keeps the representation selector of its first-call table:
-// with the parameter SparseMemo on, when one of the rule tables of prog and rec, if not nil, can cross
-// the sparse-storage threshold.
-func (tsg *Generator) useSparseMemo(prog, rec *common.Program) bool {
-	return tsg.sparseMemo && (prog.Run.NSeen > 64 || rec != nil && rec.Run.NSeen > 64)
+// with the parameter SparseMemo on, when one of the rule tables of p can cross the sparse-storage
+// threshold.
+func (tsg *Generator) useSparseMemo(p *Parser) bool {
+	if !tsg.sparseMemo {
+		return false
+	}
+	for _, t := range p.tables() {
+		if t.prog.Run.NSeen > 64 {
+			return true
+		}
+	}
+	return false
+}
+
+// insertionLinks writes the links of the entry points of the parser p to their rules in the tables of
+// the insertion program (setInsertion), which a parse or a recognition with missing-token insertion
+// enabled runs in their place (forMissing): every start rule of the Node table, which parse,
+// parseRule, the typed entry points, a Document and a stream enter, to its rule of the insertion
+// table, with the resumable bodies of the insertion table's stream for the stream's start rule; and
+// the rule that recognize runs to its rule of the recognizer of the insertion program.
+func (tsg *Generator) insertionLinks(out *strings.Builder, p *Parser) {
+	if p.Ins != nil {
+		names := slices.Clone(p.Prog.StartRules)
+		if !slices.Contains(names, p.Start.Name) {
+			names = append(names, p.Start.Name)
+		}
+		for _, name := range names {
+			gens := "null"
+			if tsg.streamParser && name == p.Start.Name {
+				gens = streamBodyGens("insRules")
+			}
+			fmt.Fprintf(out, "setInsertion(R%d, I%d, insNseen, %s);\n", p.Prog.ByName[name].ID, p.Ins.ByName[name].ID, gens)
+		}
+	}
+	if p.InsRec != nil {
+		ref, _ := tsg.recognizerEntry(p.Rec, p.Start)
+		fmt.Fprintf(out, "setInsertion(%s, J%d, insRecNseen, null);\n", ref, p.InsRec.ByName[p.Start.Name].ID)
+	}
 }
 
 // TsPrintRuns returns the code points that strconv.IsPrint accepts, for the library's quoteGo: the
@@ -416,27 +466,28 @@ func (g *Generator) recognizerEntry(rec *common.Program, start *common.Rule) (re
 	return fmt.Sprintf("Q%d", rec.ByName[start.Name].ID), "recNseen"
 }
 
-func (g *Generator) seenVar() string {
-	if g.Table == "rules" {
-		return "nseen"
-	}
-	return "recNseen"
+// tsTableNames are the names that the generated code gives the rules of each table: the prefix of
+// the constants of its rules, the prefix of the functions of its plain rules (plainCall) and the
+// number of its rules whose memoization is deferred.
+var tsTableNames = map[string]struct{ rule, plain, seen string }{
+	"rules":       {"R", "r", "nseen"},
+	"recRules":    {"Q", "q", "recNseen"},
+	"insRules":    {"I", "i", "insNseen"},
+	"insRecRules": {"J", "j", "insRecNseen"},
 }
+
+func (g *Generator) seenVar() string { return tsTableNames[g.Table].seen }
 
 // ruleVar returns the constant that holds the rule r of the table being generated.
 func (g *Generator) ruleVar(r *common.Rule) string {
-	if g.Table == "rules" {
-		return fmt.Sprintf("R%d", r.ID)
-	}
-	return fmt.Sprintf("Q%d", r.ID)
+	return fmt.Sprintf("%s%d", tsTableNames[g.Table].rule, r.ID)
 }
 
-func (g *Generator) plainPrefix() string {
-	if g.Table == "rules" {
-		return "r"
-	}
-	return "q"
-}
+func (g *Generator) plainPrefix() string { return tsTableNames[g.Table].plain }
+
+// insertionTable reports whether the table being generated is one of the insertion program, which
+// only the parses in the missing-token mode run and whose #missing sites insert (Rule.missing).
+func (g *Generator) insertionTable() bool { return g.Table == "insRules" || g.Table == "insRecRules" }
 
 // Method emits a function of an expression with the given body and returns its name.
 //
@@ -535,6 +586,11 @@ func (g *Generator) rules() {
 		if r.Rec {
 			fmt.Fprintf(init, "%s.rec = true;\n", g.ruleVar(r))
 		}
+		if r.Missing && g.insertionTable() {
+			// The rule can insert a missing token: in the missing-token mode its results depend on the
+			// insertions before them (Parser.insertsRule).
+			fmt.Fprintf(init, "%s.missing = true;\n", g.ruleVar(r))
+		}
 		if r.Cycle != 0 {
 			fmt.Fprintf(init, "%s.cycle = %d;\n", g.ruleVar(r), r.Cycle)
 			if r.Leader {
@@ -621,7 +677,7 @@ func (g *Generator) rules() {
 // memoized and without captures) with a direct call of its body: the template invokePlain (tsTemplates)
 // printed for r.
 func (g *Generator) plainCall(r *common.Rule, body string) {
-	f, err := g.template("invokePlain")
+	f, err := g.template(g.plainTemplate(r))
 	if err != nil {
 		g.printErr(err)
 		return
@@ -633,6 +689,16 @@ func (g *Generator) plainCall(r *common.Rule, body string) {
 	}
 	name := g.tracePlainCall(r, fmt.Sprintf("%s%d", g.plainPrefix(), r.ID))
 	fmt.Fprintf(&g.Methods, "// %s, called as by invokePlain\nfunction %s(p: Parser): R {\n%s}\n\n", r.Name, name, text)
+}
+
+// plainTemplate returns the template of the plain function of the rule r (plainCall, plainGenCall):
+// invokePlainMissing for a rule of a table of the insertion program that can insert a missing token,
+// whose failure drops the tokens it inserted, and invokePlain otherwise.
+func (g *Generator) plainTemplate(r *common.Rule) string {
+	if r.Missing && g.insertionTable() {
+		return "invokePlainMissing"
+	}
+	return "invokePlain"
 }
 
 // printErr records err as the error of the generation, unless one is recorded already.

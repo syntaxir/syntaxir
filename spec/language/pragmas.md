@@ -260,9 +260,9 @@ has fresh insertion state, including concurrent and reentrant invocations.
 Whole-input Node parsing, recognition, prefix parsing, Documents and stream parses insert
 tokens on the Closure and on both bytecode VMs, with the same results,
 diagnostics and compute units, and a compiled grammar keeps the insertions of
-its mode; generated Go parsers insert in whole-input Node parsing, recognition,
-Documents and stream parses with the same results, diagnostics and compute
-units, in Node and typed parses alike. A Document fixes the limit at construction and gives each parse the
+its mode; generated Go and TypeScript parsers insert in whole-input Node
+parsing, recognition, Documents and stream parses with the same results,
+diagnostics and compute units, in Node and typed parses alike. A Document fixes the limit at construction and gives each parse the
 whole limit; it keeps no result that contains an insertion, so each parse
 that completes returns what a parse of its text from scratch with no compute,
 memory or nesting limit returns
@@ -271,14 +271,14 @@ one limit for the whole stream and inserts what the batch parse of its input
 does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). A prefix parse is
 the evaluation of a whole-input parse without its end-of-input check, so a rule
 that ends in an insertable literal inserts it at the end of a fragment
-([Prefix Parsing](../runtime/parsing.md#prefix-parsing)). Generated TypeScript
-parsers reject grammars
-containing `#missing` or references to `missing`, even when insertion is disabled,
-and positive insertion options, even when the grammar contains no `#missing`
-annotation. Grammar AST JSON and formatting
+([Prefix Parsing](../runtime/parsing.md#prefix-parsing)). A generated Go parser
+exports `WithMissingTokens` only for a grammar with `#missing`, and a generated
+TypeScript parser returns a configuration error for a positive `missingTokens`
+when its grammar has none. Grammar AST JSON and formatting
 preserve the annotation. `missing` is a built-in type, a kind of `error`: the
 annotated literal infers `node[string] | missing`, and `missing` is assignable to
-`error`. Generated Go typed values keep the missing-token identity: a `missing` is a
-`*Missing`, and in a grammar with `#missing` the Go type of `error` is an interface
-implemented by `*Error` and `*Missing`
+`error`. Generated typed values keep the missing-token identity: a `missing` is a
+`*Missing` in Go and a `Missing` in TypeScript, and in a grammar with `#missing` the type of
+`error` is the Go interface implemented by `*Error` and `*Missing`, or the TypeScript union
+`ErrorValue` of `RecoveredError` and `Missing`
 ([Generated Parsers](../runtime/generated-parsers.md)).

@@ -32,15 +32,15 @@ func cloneActions(ts []bytecode.Action) []bytecode.Action {
 	return out
 }
 
-// corpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile or
-// that generated parsers refuse (#missing); enginetest.CorpusProgram, which this package cannot import.
+// corpusProgram compiles a corpus grammar, or reports false for a grammar that does not compile;
+// enginetest.CorpusProgram, which this package cannot import.
 func corpusProgram(c codegentest.Case) (*Program, bool) {
 	g, err := parseTest(c.Src)
 	if err != nil {
 		return nil, false
 	}
 	prog, err := Compile(g, checkpkg.Options{})
-	if err != nil || prog.HasMissing {
+	if err != nil {
 		return nil, false
 	}
 	return prog, true

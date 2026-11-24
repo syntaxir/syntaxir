@@ -21,11 +21,12 @@ import (
 // units of the Go ParseRuleValue, for every rule of the typed grammars of the default corpus.
 func TestGeneratedTSRuleValueMatchesGo(t *testing.T) {
 	t.Parallel()
-	checkRuleValue(t, []codegentest.Case{{Name: "ordinary-typed", Src: codegentest.OrdinaryOnlyTyped, Inputs: codegentest.OrdinaryOnlyTypedInputs}})
+	checkRuleValue(t, []codegentest.Case{{Name: "ordinary-typed", Src: codegentest.OrdinaryOnlyTyped, Inputs: codegentest.OrdinaryOnlyTypedInputs}}, 0)
 }
 
-// checkRuleValue runs checkRuleValueCase on each case, as subtests.
-func checkRuleValue(t *testing.T, cases []codegentest.Case) {
+// checkRuleValue runs checkRuleValueCase on each case with the limit of missing tokens missing, as
+// subtests.
+func checkRuleValue(t *testing.T, cases []codegentest.Case, missing int) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("builds and runs Go and TypeScript parsers")
@@ -35,7 +36,7 @@ func checkRuleValue(t *testing.T, cases []codegentest.Case) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			t.Parallel()
-			checkRuleValueCase(t, node, tsc, c)
+			checkRuleValueCase(t, node, tsc, c, missing)
 		})
 	}
 }
@@ -43,7 +44,8 @@ func checkRuleValue(t *testing.T, cases []codegentest.Case) {
 // checkRuleValueCase compares, for every rule of the case (each one a start rule), the names "" and "nope", every
 // input as bytes and both position units, the Go and the TypeScript results of ParseRuleValue: the value, the error
 // and the compute units. The Go transcript runs in a module of its own; the TypeScript consumer runs under strict tsc.
-func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
+// Every parse has the limit of missing tokens missing (WithMissingTokens, ParseOptions.missingTokens).
+func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case, missing int) {
 	src := startAllRules(c.Src)
 	g, err := parseTest(src)
 	if err != nil {
@@ -71,7 +73,11 @@ func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
 			t.Fatal(err)
 		}
 	}
-	program := strings.NewReplacer("INPUTS", goStringList(c.Inputs), "NAMES", goStringList(names), "PKG", "rulevalue").Replace(goRuleValueTranscript)
+	missingOption := ""
+	if missing != 0 {
+		missingOption = fmt.Sprintf(", sxirruntime.WithMissingTokens(%d)", missing)
+	}
+	program := strings.NewReplacer("INPUTS", goStringList(c.Inputs), "NAMES", goStringList(names), "PKG", "rulevalue", "MISSING", missingOption).Replace(goRuleValueTranscript)
 	if err := os.WriteFile(filepath.Join(goDir, "rulevalue", "transcript_test.go"), []byte(program), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -87,7 +93,7 @@ func checkRuleValueCase(t *testing.T, node, tsc string, c codegentest.Case) {
 	for _, in := range c.Inputs {
 		hexInputs = append(hexInputs, strconv.Quote(fmt.Sprintf("%x", in)))
 	}
-	consumer := strings.NewReplacer("INPUTS", "["+strings.Join(hexInputs, ",")+"]", "NAMES", tsStringList(names)).Replace(tsRuleValueConsumer)
+	consumer := strings.NewReplacer("INPUTS", "["+strings.Join(hexInputs, ",")+"]", "NAMES", tsStringList(names), "MISSING", fmt.Sprint(missing)).Replace(tsRuleValueConsumer)
 	if err := os.WriteFile(filepath.Join(tsDir, "consumer.ts"), []byte(consumer), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -424,7 +430,7 @@ func TestTranscript(t *testing.T) {
 		}{{"CodePoints", CodePoints}, {"Bytes", Bytes}} {
 			for _, name := range NAMES {
 				var units uint64
-				v, err := ParseRuleValue(name, in, WithUnit(unit.unit), sxirruntime.WithComputeReport(&units))
+				v, err := ParseRuleValue(name, in, WithUnit(unit.unit), sxirruntime.WithComputeReport(&units)MISSING)
 				// A failed parse has no value in TypeScript, where it is null; Go returns the zero value of the type.
 				rv := reflect.ValueOf(v)
 				if err != nil && (!rv.IsValid() || rv.IsZero()) {
@@ -448,8 +454,9 @@ func TestTranscript(t *testing.T) {
 }
 `
 
-// tsRuleValueConsumer prints the same lines as goRuleValueTranscript, from the TypeScript parseRuleValue. The
-// options call must agree with the plain call, and its computeReport gives the units.
+// tsRuleValueConsumer prints the same lines as goRuleValueTranscript, from the TypeScript parseRuleValueWithOptions,
+// whose computeReport gives the units, with the limit of missing tokens MISSING. Without one it must agree with the
+// plain call, parseRuleValue.
 const tsRuleValueConsumer = `import * as p from "./parser.ts";
 declare const console: { log(line: string): void };
 const names: string[] = NAMES;
@@ -458,17 +465,19 @@ const bytes = (hex: string): Uint8Array => Uint8Array.from((hex.match(/../g) ?? 
 const replacer = (_key: string, v: unknown): unknown => typeof v === "bigint" ? Number(v) : v;
 const message = (e: Error | null): string | null => e === null ? null : e.message;
 const units: [string, p.Unit][] = [["CodePoints", p.CodePoints], ["Bytes", p.Bytes]];
+const missing: number = MISSING;
 for (const hex of inputs) {
   const input = bytes(hex);
   for (const [label, unit] of units) {
     for (const name of names) {
       const r = p.parseRuleValue(name, input, unit);
       const report = { units: 0 };
-      const o = p.parseRuleValueWithOptions(name, input, { unit, computeReport: report });
-      if (JSON.stringify(r.value, replacer) !== JSON.stringify(o.value, replacer) || message(r.error) !== message(o.error)) {
+      const o = missing === 0 ? p.parseRuleValueWithOptions(name, input, { unit, computeReport: report })
+        : p.parseRuleValueWithOptions(name, input, { unit, computeReport: report, missingTokens: missing });
+      if (missing === 0 && (JSON.stringify(r.value, replacer) !== JSON.stringify(o.value, replacer) || message(r.error) !== message(o.error))) {
         throw new Error("parseRuleValue and parseRuleValueWithOptions differ for rule " + name);
       }
-      console.log(JSON.stringify({ rule: name, unit: label, input: hex, value: r.value, units: report.units, error: message(r.error) }, replacer));
+      console.log(JSON.stringify({ rule: name, unit: label, input: hex, value: o.value, units: report.units, error: message(o.error) }, replacer));
     }
   }
 }

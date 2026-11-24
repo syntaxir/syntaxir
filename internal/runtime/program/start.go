@@ -44,12 +44,6 @@ func CheckStartName(starts []string, def string, defined func(string) bool, name
 	return fmt.Errorf("rule %s is not defined", name)
 }
 
-// MissingUnsupported returns the error of an operation that does not support missing-token
-// recovery: generated TypeScript parsers.
-func MissingUnsupported(operation string) error {
-	return fmt.Errorf("missing-token recovery is not supported for %s; the engine and generated Go parsers support it", operation)
-}
-
 // ErrSchemaUnavailable reports that the checked grammar metadata an output schema is exported
 // from is unavailable.
 var ErrSchemaUnavailable = runtime.ErrSchemaUnavailable

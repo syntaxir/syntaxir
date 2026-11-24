@@ -43,6 +43,10 @@ var tsPublicControls = strings.Fields(`CancellationSignal ComputeReport`)
 // generated with -stream.
 var tsPublicStream = strings.Fields(`Stream StreamResult StreamState StreamOptions TruncatedSyntaxErrors`)
 
+// tsPublicMissing lists the library declarations of missing-token insertion that parser.ts
+// re-exports for a grammar with #missing, whose parses accept a positive ParseOptions.missingTokens.
+var tsPublicMissing = strings.Fields(`MissingTokenLimitError`)
+
 // substituteMethods replaces methods of the library's classes in the library source src by the
 // printed methods ms: each method, with the comment lines before it, from its first line at the class
 // body's indentation to the closing brace at that indentation. The printed methods are indented for a
@@ -94,9 +98,10 @@ func substituteMethods(src string, ms []tsMethod) string {
 
 // tsFiles assembles the files of a parser with the features fs from the code generated from the
 // grammar (body), the declarations of its types (types, empty without opts.Types) and the library's
-// compositions specialized for fs (specialized, which must hold the requests of LibraryRequests). With
-// shake, the library a LibEmbed parser carries keeps only what the parser's files name (shakeLib).
-func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specialized *library.Library, body, types string) ([]common.GeneratedFile, error) {
+// compositions specialized for fs (specialized, which must hold the requests of LibraryRequests), for a
+// grammar with #missing if missing. With shake, the library a LibEmbed parser carries keeps only what
+// the parser's files name (shakeLib).
+func tsFiles(opts common.GenOptions, fs common.FeatureSet, missing, shake bool, specialized *library.Library, body, types string) ([]common.GeneratedFile, error) {
 	want, err := LibraryRequests(fs)
 	if err != nil {
 		return nil, err
@@ -146,6 +151,9 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, shake bool, specializ
 	}
 	if opts.Stream {
 		public = append(public, tsPublicStream...)
+	}
+	if missing {
+		public = append(public, tsPublicMissing...)
 	}
 	for _, name := range public {
 		export := name

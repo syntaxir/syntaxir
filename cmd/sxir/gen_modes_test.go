@@ -510,9 +510,13 @@ func TestGenTypeScriptTypedOnly(t *testing.T) {
 			}
 		}
 	}
+	// A grammar with #missing gives a typed-only parser that takes a missing-token limit.
 	missing := writeFile(t, "missing.sxir", "@start\nrule main = \"a\" \"b\" #missing $$\n")
-	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", t.TempDir(), "-g", missing, "-types", "-typed-only"); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated TypeScript parsers") {
-		t.Errorf("-types -typed-only with #missing: error %v", err)
+	missingOut := t.TempDir()
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", missingOut, "-g", missing, "-types", "-typed-only"); err != nil {
+		t.Errorf("-types -typed-only with #missing: %v", err)
+	} else if data := readTS(t, missingOut, "parser.ts"); !strings.Contains(data, "MissingTokenLimitError") || strings.Contains(data, "export function parse(") {
+		t.Errorf("-types -typed-only with #missing: no MissingTokenLimitError, or a parse entry point")
 	}
 	for _, c := range []struct {
 		args []string

@@ -7,12 +7,31 @@ import (
 )
 
 // A Parser is a TypeScript parser of a program as the TypeScript backend decided it: the program, the
-// recognizer, the start rule and the options, which Validate checked.
+// recognizer, the insertion program and its recognizer, the start rule and the options, which
+// Validate checked.
 type Parser struct {
-	Prog  *common.Program
-	Rec   *common.Program // the recognizer, or nil
-	Start *common.Rule
-	Opts  common.GenOptions
+	Prog *common.Program
+	Rec  *common.Program // the recognizer, or nil
+	// Ins and InsRec are the insertion program, which the parses with missing-token insertion enabled
+	// run, and its recognizer, which the recognitions with it enabled run, each nil if the parser has
+	// none: only a parser of a grammar with #missing has them, a recognize-only one only InsRec.
+	Ins, InsRec *common.Program
+	Start       *common.Rule
+	Opts        common.GenOptions
+}
+
+// Tables returns the rule tables of the parser as the feature analysis reads them: the Node table,
+// the recognizer, and the tables of the insertion program and of its recognizer, which insert missing
+// tokens.
+func (p *Parser) Tables() []common.RuleTable {
+	t := common.Tables(p.Prog, p.Rec)
+	if p.Ins != nil {
+		t = append(t, common.RuleTable{Prog: p.Ins, Name: "insRules", Inserts: true})
+	}
+	if p.InsRec != nil {
+		t = append(t, common.RuleTable{Prog: p.InsRec, Name: "insRecRules", Inserts: true})
+	}
+	return t
 }
 
 // Params are the values of the parameters of the step print-ts that the TypeScript printer reads: those
@@ -31,16 +50,16 @@ func Print(p *Parser, params Params, tables *execdata.Tables, given bool, hooks 
 	live := liveOf(tables.Plan)
 	tsg := newGenerator(p.Prog, p.Opts, live)
 	tsg.Params, tsg.sparseMemo, tsg.tables = params.Params, params.SparseMemo, tables
-	if err := tsg.generate(p.Rec); err != nil {
+	if err := tsg.generate(p); err != nil {
 		return nil, err
 	}
-	if printed := tsg.printedReach(p.Prog, p.Rec, p.Start); !given && p.Opts.Debug.OptBisectLimit == nil && !printed.equal(live) {
+	if printed := tsg.printedReach(p); !given && p.Opts.Debug.OptBisectLimit == nil && !printed.equal(live) {
 		return &common.Replan{Lang: result.TypeScript, Reach: printed.entries()}, nil
 	}
 	if hooks != nil && hooks.Generator != nil {
 		defer hooks.Generator(tsg)
 	}
-	files, err := tsg.print(p.Opts, p.Rec, p.Start)
+	files, err := tsg.print(p)
 	if err != nil {
 		return nil, err
 	}

@@ -389,8 +389,8 @@ the message of an inserted token and nothing for a string node.
 The limit counts abandoned attempts too. Exhaustion returns
 `*runtime.MissingTokenLimitError` with no tree. The closure backend, both
 bytecode VMs, compiled grammars and generated Go parsers, typed values included,
-insert alike; in generated typed Go values an inserted token is a `*Missing`. Generated
-TypeScript parsers do not support it. A `Document` takes the limit at
+insert alike, and so do generated TypeScript parsers with `missingTokens`; in generated typed
+Go values an inserted token is a `*Missing`, and in typed TypeScript values a `Missing`. A `Document` takes the limit at
 construction and gives each `Parse` the whole limit: after an edit it returns the
 tree, insertions and errors of a parse from scratch, and when a parse exhausts
 the limit the snapshot taken before stays the latest. A stream parse has one

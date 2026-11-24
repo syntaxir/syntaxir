@@ -34,8 +34,9 @@ type streamOutcome struct {
 // FailAt is positive, and the compute, input and memory limits Compute, Input and Memory (zero for the
 // default). Memory counts depend on the backend (spec/runtime/parsing.md, Memory Limit), so the runs
 // set a memory limit that no stream reaches: the streams count their memory, and the oracle checks that
-// the count changes no outcome; TestStreamMemoryWindow checks the count itself. Observable generates
-// the parser with observability, and Document generates it with a Document as well.
+// the count changes no outcome; TestStreamMemoryWindow checks the count itself. Missing is the limit of
+// missing tokens of the streams (zero for none). Observable generates the parser with observability,
+// and Document generates it with a Document as well.
 type streamOptions struct {
 	Limit      *int   `json:"limit"`
 	Callback   bool   `json:"callback"`
@@ -43,6 +44,7 @@ type streamOptions struct {
 	Compute    uint64 `json:"compute"`
 	Input      uint64 `json:"input"`
 	Memory     uint64 `json:"memory"`
+	Missing    int    `json:"missing"`
 	Observable bool   `json:"observable"`
 	Document   bool   `json:"document"`
 }
@@ -75,7 +77,7 @@ func diagnosticJSON(e *value.SyntaxError) string {
 // program prog, in the position unit, with expectations and the options d.
 func engineStream(prog *engine.Program, in string, unit input.PositionUnit, d streamOptions) streamOutcome {
 	out := streamOutcome{Diagnostics: []string{}, Recovered: []string{}}
-	o := engine.ParseOptions{Unit: unit, Expectations: true, ComputeReport: &out.Units}
+	o := engine.ParseOptions{Unit: unit, Expectations: true, ComputeReport: &out.Units, MissingTokens: d.Missing}
 	o.Limits.Compute, o.Limits.Input, o.Limits.Memory = d.Compute, d.Input, d.Memory
 	if d.Limit != nil {
 		o.DiagnosticLimit, o.DiagnosticLimitSet = *d.Limit, true
@@ -125,7 +127,7 @@ import { createStream, marshal, CodePoints, Bytes, SyntaxErrors, ParseInterrupti
 import type { Unit, StreamResult, StreamOptions } from "./parser.ts";
 
 const inputs: string[] = JSON.parse(INPUTS);
-const opts: { limit: number | null; callback: boolean; failAt: number; compute: number; input: number; memory: number } = JSON.parse(OPTIONS);
+const opts: { limit: number | null; callback: boolean; failAt: number; compute: number; input: number; memory: number; missing: number } = JSON.parse(OPTIONS);
 
 // chunkings returns the chunkings of n bytes, each a list of chunk ends, final on the last: the whole
 // input, every chunk size up to 16 and some larger ones, and every split of a short input.
@@ -157,6 +159,7 @@ function run(bytes: Uint8Array, unit: Unit, ends: number[], empties: boolean, la
   const diagnostics: string[] = [];
   const options: StreamOptions = { unit, expectations: true, computeReport: report, limits: { compute: opts.compute, input: opts.input, memory: opts.memory } };
   if (opts.limit !== null) options.diagnosticLimit = opts.limit;
+  if (opts.missing !== 0) options.missingTokens = opts.missing;
   if (opts.callback) {
     options.diagnostic = (e) => {
       diagnostics.push(JSON.stringify({ pos: e.pos, line: e.line, col: e.col, expected: e.expected, messages: e.messages }));

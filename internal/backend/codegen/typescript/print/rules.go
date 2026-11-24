@@ -37,7 +37,7 @@ func (g *Generator) startTSTable() bool {
 	g.Exec, g.table = nil, nil
 	name := g.IRTable()
 	if g.stream {
-		name = StreamTable
+		name = streamTable(g.Table)
 	}
 	t := g.tables.Table(name)
 	if t == nil {
@@ -132,9 +132,14 @@ func (g *Generator) funcName(l *execdata.Lowered, slots []string, scope *check.S
 	return name, gen
 }
 
+// tsMarkLen is the number of variables of a mark of the whole parser state: the position, the
+// environment, the length of the trail, the number of recovered errors and the number of insertions on
+// the path of the missing-token mode, the parts of a backtracking point of the library (Parser.reset).
+const tsMarkLen = 5
+
 var (
-	tsMarkParts = [4]string{"Pos", "Env", "Trail", "Rec"}
-	tsMarkZero  = [4]string{"0", "null as Env | null", "0", "0"}
+	tsMarkParts = [tsMarkLen]string{"Pos", "Env", "Trail", "Rec", "Missing"}
+	tsMarkZero  = [tsMarkLen]string{"0", "null as Env | null", "0", "0", "0"}
 )
 
 func tsPrimType(t prim.Type) string {

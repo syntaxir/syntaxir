@@ -41,7 +41,7 @@ func (g *Generator) printTSFunc(l *execdata.Lowered) (string, []string, []tsDecl
 	}
 	// The parts of the marks that are read: the reads of a pass do not depend on them, but which
 	// parts a mark saves does.
-	parts := map[string]*[4]string{}
+	parts := map[string]*[tsMarkLen]string{}
 	partReads := map[string]bool{}
 	newPrinter := func(dry bool) *tsPrimPrinter {
 		r := map[string]bool{}

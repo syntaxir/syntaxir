@@ -289,8 +289,7 @@ planned to reach them.
     parse outcomes, but there is no changed-range API.
   - There is no language server, highlighting, formatter or UTF-16 position map for a language defined with SyntaxIR; the
     language server and the VS Code extension serve `.sxir` grammar sources.
-- **Backend gaps.** Generated Go and TypeScript have a `Document` subset;
-  generated Go runs `#missing` in Node parses but not in typed values, and generated TypeScript not at all
+- **Backend gaps.** Generated Go and TypeScript have a `Document` subset
   ([Compatibility and Support](../spec/runtime/generated-parsers.md#compatibility-and-support)).
 - **Language gaps.** No imports or multi-file grammars; case-insensitive matching folds ASCII only.
 - **Evidence base.** Benchmarks come from one machine (Apple M3 Max) and compare only with the Go standard library.
@@ -306,7 +305,7 @@ tables describe documented behavior; they are not benchmarks.
 
 | Tool | Model | Incremental reparse | Error recovery | Streaming input | Typed output |
 |:--|:--|:--|:--|:--|:--|
-| SyntaxIR (pre-release) | PEG-based, packrat memoization, left recursion, Operators Rule, predicates | No annotations; reuse depends on rule structure; result stated equal to a fresh parse and fuzz-tested (engine; generated Go subset) | Declared: `#recover` skip; `#missing` insertion (engine) | `#stream` elements, bounded working set | Go structs, `TNode[T]`, sealed interfaces; TypeScript interfaces |
+| SyntaxIR (pre-release) | PEG-based, packrat memoization, left recursion, Operators Rule, predicates | No annotations; reuse depends on rule structure; result stated equal to a fresh parse and fuzz-tested (engine; generated Go subset) | Declared: `#recover` skip; `#missing` insertion (engine, generated Go and TypeScript) | `#stream` elements, bounded working set | Go structs, `TNode[T]`, sealed interfaces; TypeScript interfaces |
 | tree-sitter 0.27.1 | LR(1) with GLR for declared conflicts | Subtree reuse, any grammar; changed ranges; `tree-sitter fuzz` tests random edits | Automatic, grammar-independent; a tree for every input | Input read in chunks; whole tree built | Dynamic nodes; `node-types.json` for code generators |
 | gotreesitter 0.56.0 | tree-sitter parse tables, pure-Go runtime | Subtree reuse; equality with fresh parses is a requirement of its v1 design plan | tree-sitter's automatic recovery; partial trees on early stops | Not documented | Typed Go structs for query matches (`cmd/tsquery`); dynamic nodes |
 | Lezer (`@lezer/lr` 1.4.11) | LR with opt-in GLR | Fragment reuse, any grammar | Automatic | Chunked input; whole tree built | Untyped nodes by design |

@@ -238,7 +238,7 @@ Compared with the Go API:
   anything else of the library; `parser.ts` exports the library's own declaration under such a name, and the type
   stays reachable from `types.ts`. The names `Span`, `TNode`, `StringNode`, `TupleNode`, `ListNode`, `RecoveredError`, `TypedParseResult`,
   `TypedValue` and `RuntimeNode` are declared by `types.ts` itself, and the generator rejects a grammar type with one
-  of them.
+  of them; so are `Missing` and `ErrorValue` in a grammar with `#missing`.
 - A parser keeps no state between calls; it is safe to call from several workers.
 
 ### Running It
@@ -340,7 +340,9 @@ Nodes have `value`: a node of one kind has that kind as its `type` (`StringNode`
 | declared aliases | complete target type, preserving optional, list and node representations |
 | `node[T]` | `TNode<T'>` with `T'` the TypeScript type of `T`, as `StringNode`, `TupleNode<T'>` or `ListNode<T'>` for a node of one kind; `node[_]` is `TNode<unknown>` |
 | tuple `(A, B, ...)` | `readonly [A', B', ...]` |
-| join of node types and `error`, named by an alias or written in place | the members' types plus `RecoveredError` and null, narrowed by `type` |
+| `error` | `RecoveredError` or null; `ErrorValue` (`RecoveredError \| Missing`) or null in a grammar with `#missing` |
+| `missing` | `Missing` or null: `type` `"missing"`, `start`, `end`, `expected` (the inserted literal) and `message` |
+| join of node types and `error`, named by an alias or written in place | the members' types plus `RecoveredError` (and `Missing` in a grammar with `#missing`) and null, narrowed by `type` |
 | join with a member that is no node type, `_` | conservative `TypedValue`, following Go's any-conversion semantics |
 
 A grammar join type `T | U` becomes a TypeScript union of the converted members.
@@ -459,6 +461,7 @@ The errors are those of the engine, with the same messages:
 | Syntax error | The input does not match | `SyntaxError`: `pos`, `line`, `col`, `expected`, `messages` |
 | Recovered errors | `#recover` skipped parts of the input | `SyntaxErrors` (and `node` is set) |
 | Runtime error in an action | e.g. `action in main: division by zero` | `Error` |
+| Missing-token limit exhausted | a parse with a positive `missingTokens` needed more insertions than the limit | `MissingTokenLimitError`: `limit`, `position`; `missing token insertion limit 2 exceeded at position 7` |
 | Too deep nesting | more than the configured nested recursive rule-call limit (100,000 by default) | `ParseInterruptionError` of kind `"depth-limit"`: `nesting too deep: more than 100000 nested recursive rule calls` |
 | JavaScript stack exhausted | before the limit, see below | `Error`: `nesting too deep: the JavaScript stack overflowed at N nested recursive rule calls` |
 
@@ -492,6 +495,17 @@ console.log(recognizeWithOptions("let a;"));
 1:11: syntax error: expected [a-z]
 null
 ```
+
+### Missing Tokens
+
+A parser of a grammar that marks literals with [`#missing`](../../spec/language/pragmas.md#missing) inserts them where
+they are absent when a parse sets a positive `missingTokens` in its options, as `WithMissingTokens` does in Go: each
+insertion is a recovered error in `SyntaxErrors`, the tree holds a missing node whose JSON form has `expected`, and
+typed values hold a `Missing`. Zero, the default, inserts nothing. The limit counts the insertions of abandoned
+alternatives too, and a parse that needs more returns a `MissingTokenLimitError` and no tree. `recognize`, the streams
+and the parses of a Document insert alike; a Document takes the limit when it is created, and a stream has one limit
+for the whole stream. The results, errors and compute units are those of the engine. A positive limit for a grammar
+without `#missing` is an error. See [Inserting a Missing Literal](recovery.md#inserting-a-missing-literal) for how insertion chooses its tokens.
 
 ## Cancellation and Compute Limits
 
@@ -573,9 +587,9 @@ The parity tests parse in a worker with a 1 GB stack, so that they also check th
 
 ## What Is Supported
 
-Generated TypeScript supports every feature of the grammar language: Rule Expressions, Operators Rules, left recursion, Predicates and variables, actions, built-in functions, `@error` and
-`#recover`. It adds `parseRule` for another start rule, a `unit` argument for the position unit, `recognize` (with
-`-recognize`) for matching without a tree, and `limits.input` and `limits.depth`, and, unless generated with `-no-limits`, `signal` and the compute limit, in the options-aware
+Generated TypeScript supports every feature of the grammar language: Rule Expressions, Operators Rules, left recursion, Predicates and variables, actions, built-in functions, `@error`,
+`#recover` and `#missing`. It adds `parseRule` for another start rule, a `unit` argument for the position unit, `recognize` (with
+`-recognize`) for matching without a tree, `limits.input`, `limits.depth` and `missingTokens`, and, unless generated with `-no-limits`, `signal` and the compute limit, in the options-aware
 entry points. With `-document` it adds [`createDocument`](generated-documents.md#typescript-documents), a Document that reuses the results of earlier parses as the Go `Document` does. With `-stream` it adds the push stream [`createStream`](generated-streams.md#typescript-streams), which the caller feeds chunk by chunk; the other entry points treat `#stream` as an ordinary repetition, as in Go.
 Typed values (`-types`) give interfaces and aliases, `parseValue`/`parseValueWithOptions` for the configured start rule and `parseRuleValue`/`parseRuleValueWithOptions` for a named one,
 while `parse` still returns Nodes. The [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support) has

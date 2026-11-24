@@ -12,5 +12,5 @@ import (
 // typed corpus of the generator (the directly cut and the joined typed grammars), which the default tier samples.
 func TestGeneratedTSRuleValueMatchesGoLong(t *testing.T) {
 	t.Parallel()
-	checkRuleValue(t, append(codegentest.TypedFramedCutCases(t), codegentest.TypedJoinMemberCases()...))
+	checkRuleValue(t, append(codegentest.TypedFramedCutCases(t), codegentest.TypedJoinMemberCases()...), 0)
 }

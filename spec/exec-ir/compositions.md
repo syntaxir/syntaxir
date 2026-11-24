@@ -26,7 +26,7 @@ Document's own work count nothing. The loops of an Operators Rule check the coun
 | `func grow(r Rule, min int) (Value, bool) [typed, missing, units]` | Grows the seed of a left-recursive leader from a failure: it evaluates the body again while the match gets longer, and returns the last longer result. A growth in a context takes its steps through the context, which may give them without evaluating the body. Outside a context, the form specialized for missing also drops the tokens that each adopted step inserted. |
 | `func observed(r Rule, min int) (Value, bool) [document, observe, typed]` | A rule call in an observed parse: it reports the call to the observation, with how far it examined the input, which an observed parse tracks (doc.tracking), around the call without observation: the typed call, which observes nothing itself, or the node call of the tracked path without observation. |
 | `func observedPlain(r Rule, min int) (Value, bool) [document, observe]` | The plain invocation of a rule in an observed parse: it reports the invocation to the observation as observed reports a call. |
-| `func invokePlain(r Rule, min int) (Value, bool) [units]` | Runs the body of rule r, which has no captures, at binding level min, and returns the rule's value: what rule.invokePlain does outside the missing-token mode. Specialized for units, it counts the unit of the call, checked for a rule on a cycle of calls, before the rule takes a nesting level; it runs the body in the caller's frame with the cut flag cleared, and restores the flag, the trail and the variable environment; a failure restores the position and drops the errors the body recovered. A target may print it for one rule, with the body of that rule in place of rule.body. |
+| `func invokePlain(r Rule, min int) (Value, bool) [missing, units]` | Runs the body of rule r, which has no captures, at binding level min, and returns the rule's value: what rule.invokePlain does. Specialized for units, it counts the unit of the call, checked for a rule on a cycle of calls, before the rule takes a nesting level; it runs the body in the caller's frame with the cut flag cleared, and restores the flag, the trail and the variable environment; a failure restores the position and drops the errors the body recovered, and, specialized for missing, the tokens it inserted. A target may print it for one rule, with the body of that rule in place of rule.body. |
 | `func invoke(r Rule, min int) (Value, bool)` | Runs the body of rule r at binding level min in a frame of its own and returns the rule's value: what rule.invoke does after the unit of the call, outside Document parses and the missing-token mode. The rule takes a nesting level while the body runs with the cut flag cleared, and the caller's frame, cut flag, trail and variable environment are restored after it; on failure the position is unspecified, as for rule.invoke. |
 | `func unmemoized(r Rule, min int) (Value, bool) [missing]` | Calls rule r at binding level min without memo bookkeeping, as call does while the rule's memoization is deferred: its expectations need no isolation, and a failure restores the position and the recovered errors. |
 | `func memoized(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | Calls rule r at binding level min through the memo, as call does once the rule's memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the bookkeeping of how far each call examined the input. |
@@ -163,15 +163,15 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[document, observe, missing, units]` | `[document, observe, missing, typed, units]` |  | `[units]` |
+| call | `[document, observe, missing, units]` | `[document, observe, missing, typed, units]` |  | `[missing, units]` |
 | callMemo |  | `[document, observe, missing, typed, units]` |  |  |
-| grow | `[missing, units]` | `[missing, typed, units]` | `[missing, units]` | `[units]` |
+| grow | `[missing, units]` | `[missing, typed, units]` | `[missing, units]` | `[missing, units]` |
 | invoke |  |  |  | `[]` |
-| invokePlain |  |  |  | `[]` |
+| invokePlain |  |  |  | `[missing]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
 | observedPlain | `[document, observe]` | `[document, observe]` |  |  |
-| unmemoized | `[missing]` |  |  | `[]` |
-| memoized | `[document, observe, missing, units]` |  |  | `[document, observe, units]` |
+| unmemoized | `[missing]` |  |  | `[missing]` |
+| memoized | `[document, observe, missing, units]` |  |  | `[document, observe, missing, units]` |
 | document | `[document, units]` |  |  | `[document]` |
 | typedDocument |  | `[document, observe, missing, typed, units]` |  |  |
 | callBegin |  |  | `[document, missing, units]` |  |
@@ -187,12 +187,12 @@ row includes what its backends print into packages of their own.
 | mergeKept |  |  |  | `[]` |
 | mergeExpected | `[units]` |  | `[units]` | `[]` |
 | keep | `[units]` |  | `[units]` | `[]` |
-| reset | `[missing]` | `[missing]` | `[missing]` | `[]` |
-| skipTrivia | `[missing]` | `[missing]` | `[missing]` | `[]` |
-| longest | `[missing, units]` | `[missing, units]` | `[missing, units]` | `[units]` |
-| operatorsParse | `[missing, units]` |  | `[missing, units]` | `[units]` |
-| operatorsExpr | `[missing, units]` |  | `[missing, units]` | `[units]` |
-| operatorsNud | `[missing, units]` |  | `[missing, units]` | `[units]` |
+| reset | `[missing]` | `[missing]` | `[missing]` | `[missing]` |
+| skipTrivia | `[missing]` | `[missing]` | `[missing]` | `[missing]` |
+| longest | `[missing, units]` | `[missing, units]` | `[missing, units]` | `[missing, units]` |
+| operatorsParse | `[missing, units]` |  | `[missing, units]` | `[missing, units]` |
+| operatorsExpr | `[missing, units]` |  | `[missing, units]` | `[missing, units]` |
+| operatorsNud | `[missing, units]` |  | `[missing, units]` | `[missing, units]` |
 | operatorsParseTyped |  | `[missing, typed, units]` |  |  |
 | operatorsExprTyped |  | `[missing, typed, units]` |  |  |
 | operatorsNudTyped |  | `[missing, typed, units]` |  |  |

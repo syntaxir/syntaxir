@@ -56,6 +56,8 @@ export interface ResolvedParseOptions {
   readonly memory: number;
   /** The report of the invocation, or null. */
   readonly report: ComputeReport | null;
+  /** The limit of missing tokens that the parse may insert (ParseOptions.missingTokens); zero disables insertion. */
+  readonly missingTokens: number;
 }
 
 // Signal getters are caller code. Keep their thrown identity through the

@@ -66,15 +66,11 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		if !ok {
 			return nil, pass.PreserveNone(), fmt.Errorf("internal error: ts-library runs for the target %s", pipe.Feature(c, codegen.TargetFeature).Backend())
 		}
-		rec, err := target.rec()
+		p, err := target.parser()
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		var recView *common.Program
-		if rec != nil {
-			recView = rec.View
-		}
-		fs, err := common.ParserFeatures(common.Tables(target.Prog.View, recView), target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0}, t.Plan)
+		fs, err := common.ParserFeatures(p.Tables(), target.Opts, common.Params{UsedFeatures: c.Value(codegen.UsedFeatures) != 0}, t.Plan)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
@@ -82,7 +78,7 @@ var Library = pipe.New(pipe.Def[*execdata.Tables, *execdata.Tables]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		rs = append(rs, print.TemplateRequests(!target.Opts.NoLimitControls)...)
+		rs = append(rs, print.TemplateRequests(!target.Opts.NoLimitControls, fs.Has(common.FeatureMissing))...)
 		out := *t
 		out.Library = &library.Library{Module: compositions(), Requests: rs}
 		return &out, pass.PreserveNone(), nil

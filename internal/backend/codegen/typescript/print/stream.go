@@ -26,8 +26,29 @@ import (
 // generator holds the locals of its function only.
 
 // StreamTable is the label of the table of the stream of a -stream parser: the Node table lowered for
-// a suspended stream (plandata.TableConfig.Suspend).
-const StreamTable = "rulesStream"
+// a suspended stream (plandata.TableConfig.Suspend). InsStreamTable is the insertion table lowered so,
+// the table of a stream with missing-token insertion enabled.
+const (
+	StreamTable    = "rulesStream"
+	InsStreamTable = "insRulesStream"
+)
+
+// streamTable returns the label of the table of the stream of the rule table table.
+func streamTable(table string) string {
+	if table == "insRules" {
+		return InsStreamTable
+	}
+	return StreamTable
+}
+
+// streamBodyGens returns the constant of the resumable bodies of the rules of the stream of the rule
+// table table (StreamParser.bodyGens).
+func streamBodyGens(table string) string {
+	if table == "insRules" {
+		return "insBodyGens"
+	}
+	return "bodyGens"
+}
 
 // tsGenSignature is the parameter and the result of a resumable function.
 const tsGenSignature = "(p: StreamParser): Generator<number, R, void>"
@@ -98,7 +119,7 @@ func (g *Generator) streamRules() {
 			gens[i] = name
 		}
 	}
-	fmt.Fprintf(&g.Init, "const bodyGens: (BodyGen | null)[] = [%s];\n", strings.Join(gens, ", "))
+	fmt.Fprintf(&g.Init, "const %s: (BodyGen | null)[] = [%s];\n", streamBodyGens(g.Table), strings.Join(gens, ", "))
 	// The plain functions that the resumable code calls: the generators of the resumable rules, and
 	// those of the other rules that the batch code does not call.
 	for _, r := range all {
@@ -202,7 +223,7 @@ func (g *Generator) resumableRule(r *common.Rule) bool {
 // plainGenCall prints the resumable function of the plain rule r, which a resumable call site calls in
 // place of invokePlain: the template invokePlain with the resumable body of r.
 func (g *Generator) plainGenCall(r *common.Rule) {
-	f, err := g.template("invokePlain")
+	f, err := g.template(g.plainTemplate(r))
 	if err != nil {
 		g.printErr(err)
 		return

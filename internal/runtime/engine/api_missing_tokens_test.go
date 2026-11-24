@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -100,13 +101,15 @@ func TestMissingTokensConcurrentReentrantAndRetry(t *testing.T) {
 	}
 }
 
-func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
+// TestMissingTokensPublicPaths checks that every public path of a parse inserts missing tokens as
+// the parse of the whole input does: every backend, streams, iterators, Documents, compiled grammars
+// and the generated Go and TypeScript parsers, which run the tables of the insertion program.
+func TestMissingTokensPublicPaths(t *testing.T) {
 	p, err := compileTestSource(`rule main = (";" #missing)* #stream $$`, "main")
 	if err != nil {
 		t.Fatal(err)
 	}
-	// A parse of the whole input inserts on every backend, as the Closure does; only the generators
-	// below refuse #missing.
+	// A parse of the whole input inserts on every backend, as the Closure does.
 	want, wantErr := p.Parse(";", engine.WithMissingTokens(2))
 	for _, backend := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
 		if n, err := p.Parse(";", engine.WithBackend(backend), engine.WithMissingTokens(0)); n == nil || err != nil {
@@ -164,7 +167,8 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if fmt.Sprint(n) != fmt.Sprint(want) || fmt.Sprint(err) != fmt.Sprint(wantErr) {
 		t.Fatal("loaded", n, err, "want", want, wantErr)
 	}
-	// A generated Go parser runs its parses with insertion on the tables of the insertion program.
+	// The generated Go and TypeScript parsers run their parses with insertion on the tables of the
+	// insertion program.
 	files, err := gensrc.Go(entry.Grammar(p.Program()), common.GenOptions{Module: "example", Start: "main"})
 	if err != nil {
 		t.Fatal("Go generator refused #missing:", err)
@@ -172,8 +176,14 @@ func TestMissingTokensUnsupportedPublicPaths(t *testing.T) {
 	if f := files[0]; f.Path != "parser.go" || !bytes.Contains(f.Content, []byte("insRules")) {
 		t.Fatalf("the generated Go parser %s has no insertion table", f.Path)
 	}
-	if _, err := gensrc.TypeScript(entry.Grammar(p.Program()), common.GenOptions{Start: "main"}); err == nil {
-		t.Fatal("TS generator silently discarded #missing")
+	tsFiles, err := gensrc.TypeScript(entry.Grammar(p.Program()), common.GenOptions{Start: "main"})
+	if err != nil {
+		t.Fatal("TypeScript generator refused #missing:", err)
+	}
+	if !slices.ContainsFunc(tsFiles, func(f common.GeneratedFile) bool {
+		return f.Path == "parser.ts" && bytes.Contains(f.Content, []byte("setInsertion("))
+	}) {
+		t.Fatal("the generated TypeScript parser has no insertion table")
 	}
 	strict, err := compileTestSource(`rule main = ";" $$`, "main")
 	if err != nil {

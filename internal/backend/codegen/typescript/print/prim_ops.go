@@ -46,14 +46,14 @@ type tsPrimPrinter struct {
 	outlined map[*code.Call]string
 	// parts holds, for each mark local, the names that stand for its position, environment, trail
 	// length and number of recovered errors, so that a mark is declared as far as it is read.
-	parts map[string]*[4]string
+	parts map[string]*[tsMarkLen]string
 }
 
 // part returns the name that stands for the component i of the mark m.
 func (p *tsPrimPrinter) part(m string, i int) string {
 	ps := p.parts[m]
 	if ps == nil {
-		ps = &[4]string{}
+		ps = &[tsMarkLen]string{}
 		for j := range ps {
 			ps[j] = m + tsMarkParts[j]
 		}
@@ -112,7 +112,8 @@ func (p *tsPrimPrinter) isRead(name string) bool {
 func tsPrimPure(c *code.Call) bool {
 	switch c.Callee {
 	case prim.OpEnv, prim.OpFrame, prim.OpRecLen, prim.OpKidsLen, prim.OpNewVals, prim.OpStr, prim.OpMarkPos,
-		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore, prim.OpInDocument:
+		prim.OpFrameVal, prim.OpInClass, prim.OpGuardFails, prim.OpResumeOn, prim.OpResumeMore, prim.OpInDocument,
+		prim.OpMissingLen:
 		return true
 	}
 	return false
@@ -183,6 +184,12 @@ func (p *tsPrimPrinter) stmtOp(c *code.Call, args func() []string) {
 		p.write(fmt.Sprintf("p.recovered.push(%s!);\n", args()[0]))
 	case prim.OpSkippedCalls:
 		p.write(p.skippedCalls(c.Imm.(prim.SkippedCalls)))
+	case prim.OpMissingScopeEnd:
+		p.read(c.Args...)
+		p.write(fmt.Sprintf("p.missingScopeEnd(%s);\n", args()[0]))
+	case prim.OpResetMissing:
+		p.read(c.Args...)
+		p.write(fmt.Sprintf("p.resetMissing(%s);\n", args()[0]))
 	case prim.OpPushKid:
 		p.read(c.Args...)
 		p.write(fmt.Sprintf("p.kidStack.push(%s);\n", args()[0]))
@@ -340,6 +347,13 @@ func (p *tsPrimPrinter) expr(c *code.Call, args func() []string) string {
 	case prim.OpMakeError:
 		a := args()
 		return fmt.Sprintf("p.recoveredError(%s, %s)", a[0], a[1])
+	case prim.OpNewMissingNode:
+		a := args()
+		return fmt.Sprintf("p.missingNode(%s, %s, %s!)", a[0], TsString(c.Imm.(prim.Insertion).Lit.Text), a[1])
+	case prim.OpMissingScope:
+		return fmt.Sprintf("p.missingScope(msgBit | %d)", p.desc(c.Imm.(prim.ExpID)))
+	case prim.OpMissingLen:
+		return "p.missingLen()"
 	case prim.OpNewErrorNode:
 		a := args()
 		return p.counted(fmt.Sprintf("new Node(\"error\", \"\", %s, p.pos, \"\", noNodes, [{ name: \"message\", value: %s!.message }], true, true)", a[0], a[1]), "nodeBytes + arrayBytes(1) + objectBytes(2)")
@@ -470,7 +484,7 @@ func (p *tsPrimPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 			p.marks = map[string]prim.StateMark{}
 		}
 		p.marks[m] = c.Imm.(prim.StateMark)
-		srcs := [4]string{"p.pos", "p.env", "p.trail.length", "p.recovered.length"}
+		srcs := [tsMarkLen]string{"p.pos", "p.env", "p.trail.length", "p.recovered.length", "p.missingLen()"}
 		var parts []string
 		for i, src := range srcs {
 			if p.isRead(p.part(m, i)) {
@@ -503,6 +517,24 @@ func (p *tsPrimPrinter) setText(s *code.Set, expr func(code.Expr) string, stmt b
 			return fmt.Sprintf("%s%s%s = p.isoIds%s", call, stmtSep(stmt), ids, end)
 		}
 		return call + end
+	}
+	if len(s.Dst) == 2 && name == prim.OpInsertMissing {
+		// The syntax error of the insertion, null where the site does not insert, and whether it
+		// inserted. Under logical units the error is an event of one compute unit, which the
+		// operation that builds it counts (flow.insertMissing).
+		p.read(c.Args...)
+		x := fmt.Sprintf("p.insertMissing(%d, %s, %t)", c.Imm.(prim.Insertion).Site, expr(c.Args[0]), p.g.Logical)
+		ev, ov := local(s.Dst[0]), local(s.Dst[1])
+		errRead, okRead := p.isRead(ev), p.isRead(ov)
+		switch {
+		case errRead && okRead:
+			return fmt.Sprintf("%s = %s%s%s = %s !== null%s", ev, x, stmtSep(stmt), ov, ev, end)
+		case errRead:
+			return fmt.Sprintf("%s = %s%s", ev, x, end)
+		case okRead:
+			return fmt.Sprintf("%s = %s !== null%s", ov, x, end)
+		}
+		return x + end
 	}
 	if len(s.Dst) == 2 && tsprim.TwoResults(name) {
 		// A call with two results: the value and whether it matched.
@@ -613,11 +645,18 @@ func (p *tsPrimPrinter) reset(m string) string {
 		panic("tsgen: the verifier admitted a reset of a mark that is not set")
 	}
 	p.readName(p.part(m, 0))
-	if !st.Env && !st.Trail && !st.Rec {
+	if !st.Env && !st.Trail && !st.Rec && !st.Missing {
 		return "p.pos = " + m + "Pos;\n"
 	}
-	args := []string{m + "Pos", "p.env", "p.trail.length", "p.recovered.length"}
-	for i, needed := range [4]bool{true, st.Env, st.Trail, st.Rec} {
+	// A mark that does not keep the insertions on the path goes back to as many as there are: the code
+	// since the mark inserts none. A table outside the insertion program runs only outside the
+	// missing-token mode, where there are none.
+	missing := "0"
+	if p.g.insertionTable() {
+		missing = "p.missingLen()"
+	}
+	args := []string{m + "Pos", "p.env", "p.trail.length", "p.recovered.length", missing}
+	for i, needed := range [tsMarkLen]bool{true, st.Env, st.Trail, st.Rec, st.Missing} {
 		if needed {
 			p.readName(p.part(m, i))
 			args[i] = m + tsMarkParts[i]

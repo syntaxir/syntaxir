@@ -23,11 +23,20 @@ func TestGeneratedTSTypedOnlyMatchesFullBuild(t *testing.T) {
 	t.Parallel()
 	ordinary := codegentest.Case{Name: "ordinary-typed", Src: codegentest.OrdinaryOnlyTyped, Inputs: codegentest.OrdinaryOnlyTypedInputs}
 	// The cases are few, so the default tier runs all of them: codegentest.Representative would sample them by hash.
-	checkTypedOnly(t, append([]codegentest.Case{ordinary}, codegentest.TypedJoinMemberCases()...))
+	checkTypedOnly(t, append([]codegentest.Case{ordinary}, codegentest.TypedJoinMemberCases()...), 0)
 }
 
-// checkTypedOnly runs checkTypedOnlyCase on each case, as subtests.
-func checkTypedOnly(t *testing.T, cases []codegentest.Case) {
+// TestGeneratedTSTypedOnlyInsertsMissingTokens checks that a typed-only TypeScript parser of a grammar with #missing
+// inserts missing tokens as the full build does: the same typed values, recognition and compute units, with and
+// without a missing-token limit, on the typed insertion cases.
+func TestGeneratedTSTypedOnlyInsertsMissingTokens(t *testing.T) {
+	t.Parallel()
+	checkTypedOnly(t, codegentest.TypedInsertionCases(), 2)
+}
+
+// checkTypedOnly runs checkTypedOnlyCase on each case, as subtests. A positive missing also compares the parses
+// with that missing-token limit.
+func checkTypedOnly(t *testing.T, cases []codegentest.Case, missing int) {
 	t.Helper()
 	if testing.Short() {
 		t.Skip("runs generated TypeScript consumers")
@@ -37,13 +46,13 @@ func checkTypedOnly(t *testing.T, cases []codegentest.Case) {
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
 			t.Parallel()
-			checkTypedOnlyCase(t, node, tsc, c)
+			checkTypedOnlyCase(t, node, tsc, c, missing)
 		})
 	}
 }
 
 // checkTypedOnlyCase checks the typed-only parser of one case against the full build.
-func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
+func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case, missing int) {
 	// Every rule is a start rule, so that parseRuleValue can name each of them in both builds.
 	src := startAllRules(c.Src)
 	names := append(grammarRuleNames(src), "", "nope")
@@ -104,7 +113,7 @@ func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
 		}
 		inputs = append(inputs, string(quoted))
 	}
-	consumer := strings.NewReplacer("INPUTS", "["+strings.Join(inputs, ",")+"]", "NAMES", tsStringList(names)).Replace(tsTypedOnlyConsumer)
+	consumer := strings.NewReplacer("INPUTS", "["+strings.Join(inputs, ",")+"]", "NAMES", tsStringList(names), "MISSING", fmt.Sprint(missing)).Replace(tsTypedOnlyConsumer)
 	if err := os.WriteFile(filepath.Join(dir, "consumer.ts"), []byte(consumer), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -122,12 +131,13 @@ func checkTypedOnlyCase(t *testing.T, node, tsc string, c codegentest.Case) {
 // tsTypedOnlyConsumer compares, for each input and unit, the typed result of parseValue of the full build and of the
 // typed-only parser, the recognition of both recognizers, and the compute units that parseValueWithOptions and
 // recognizeWithOptions need under each: the smallest limit under which they succeed, and the used units of the
-// interruption below it.
+// interruption below it. With a positive missing-token limit, the parses with that limit are compared as well.
 const tsTypedOnlyConsumer = `import * as full from "./full/parser.ts";
 import * as only from "./only/parser.ts";
 import * as onlyRec from "./onlyrec/parser.ts";
 const inputs: string[] = INPUTS;
 const names: string[] = NAMES;
+const limits: number[] = MISSING > 0 ? [0, MISSING] : [0];
 const stable = (x: unknown): string => JSON.stringify(x, (_key, v: unknown) => typeof v === "bigint" ? "int:" + v : v);
 const report = (e: unknown): string => e === null ? "ok" : String((e as Error).name) + ":" + String((e as Error).message) + stable(e);
 const typed = (r: { value: unknown; error: unknown }): string => stable(r.value) + "|" + report(r.error);
@@ -141,30 +151,30 @@ const units = (run: (limit: number) => string): [number, string] => {
   return [hi, at.join(",")];
 };
 const failures: string[] = [];
-for (const unit of [full.CodePoints, full.Bytes]) {
+for (const missingTokens of limits) for (const unit of [full.CodePoints, full.Bytes]) {
   inputs.forEach((input, i) => {
-    const a = typed(full.parseValue(input, unit));
-    const b = typed(only.parseValue(input, unit));
-    if (a !== b) failures.push("unit " + unit + " input " + i + ": parseValue " + a + ", typed-only " + b);
-    const [fu, fat] = units(l => typed(full.parseValueWithOptions(input, { unit, limits: { compute: l } })));
-    const [ou, oat] = units(l => typed(only.parseValueWithOptions(input, { unit, limits: { compute: l } })));
-    if (fu !== ou || fat !== oat) failures.push("unit " + unit + " input " + i + ": full parse charges " + fu + " units, typed-only " + ou + "\nfull at limits below:  " + fat + "\ntyped-only at limits below: " + oat);
+    const a = typed(full.parseValueWithOptions(input, { unit, missingTokens }));
+    const b = typed(only.parseValueWithOptions(input, { unit, missingTokens }));
+    if (a !== b) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": parseValue " + a + ", typed-only " + b);
+    const [fu, fat] = units(l => typed(full.parseValueWithOptions(input, { unit, missingTokens, limits: { compute: l } })));
+    const [ou, oat] = units(l => typed(only.parseValueWithOptions(input, { unit, missingTokens, limits: { compute: l } })));
+    if (fu !== ou || fat !== oat) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": full parse charges " + fu + " units, typed-only " + ou + "\nfull at limits below:  " + fat + "\ntyped-only at limits below: " + oat);
     for (const name of names) {
-      const vf = typed(full.parseRuleValue(name, input, unit));
-      const vo = typed(only.parseRuleValue(name, input, unit));
-      if (vf !== vo) failures.push("unit " + unit + " input " + i + ": parseRuleValue " + name + " " + vf + ", typed-only " + vo);
+      const vf = typed(full.parseRuleValueWithOptions(name, input, { unit, missingTokens }));
+      const vo = typed(only.parseRuleValueWithOptions(name, input, { unit, missingTokens }));
+      if (vf !== vo) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": parseRuleValue " + name + " " + vf + ", typed-only " + vo);
       const cf = { units: 0 };
       const co = { units: 0 };
-      full.parseRuleValueWithOptions(name, input, { unit, computeReport: cf });
-      only.parseRuleValueWithOptions(name, input, { unit, computeReport: co });
-      if (cf.units !== co.units) failures.push("unit " + unit + " input " + i + ": parseRuleValueWithOptions " + name + " charges " + cf.units + " units, typed-only " + co.units);
+      full.parseRuleValueWithOptions(name, input, { unit, missingTokens, computeReport: cf });
+      only.parseRuleValueWithOptions(name, input, { unit, missingTokens, computeReport: co });
+      if (cf.units !== co.units) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": parseRuleValueWithOptions " + name + " charges " + cf.units + " units, typed-only " + co.units);
     }
-    const ra = report(full.recognize(input, unit));
-    const rb = report(onlyRec.recognize(input, unit));
-    if (ra !== rb) failures.push("unit " + unit + " input " + i + ": recognize " + ra + ", typed-only with Recognize " + rb);
-    const [ru, rat] = units(l => report(full.recognizeWithOptions(input, { unit, limits: { compute: l } })));
-    const [tu, tat] = units(l => report(onlyRec.recognizeWithOptions(input, { unit, limits: { compute: l } })));
-    if (ru !== tu || rat !== tat) failures.push("unit " + unit + " input " + i + ": full recognize charges " + ru + " units, typed-only with Recognize " + tu + "\nfull at limits below:  " + rat + "\ntyped-only at limits below: " + tat);
+    const ra = report(full.recognizeWithOptions(input, { unit, missingTokens }));
+    const rb = report(onlyRec.recognizeWithOptions(input, { unit, missingTokens }));
+    if (ra !== rb) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": recognize " + ra + ", typed-only with Recognize " + rb);
+    const [ru, rat] = units(l => report(full.recognizeWithOptions(input, { unit, missingTokens, limits: { compute: l } })));
+    const [tu, tat] = units(l => report(onlyRec.recognizeWithOptions(input, { unit, missingTokens, limits: { compute: l } })));
+    if (ru !== tu || rat !== tat) failures.push("limit " + missingTokens + " unit " + unit + " input " + i + ": full recognize charges " + ru + " units, typed-only with Recognize " + tu + "\nfull at limits below:  " + rat + "\ntyped-only at limits below: " + tat);
   });
 }
 if (failures.length !== 0) throw new Error(failures.join("\n"));
@@ -304,10 +314,10 @@ if (failures.length !== 0) throw new Error(failures.join("\n"));
 
 // TestGeneratedTSTypedOnlyRefusals checks that -typed-only is refused at generation, with a message that names the
 // reason and without output, for what it cannot be combined with: no typed output, a Document, a stream and
-// recognize-only output, which all need or are the untyped tree, and #missing, which generated parsers do not support.
+// recognize-only output, which all need or are the untyped tree. A grammar with #missing is no refusal: see
+// TestGeneratedTSTypedOnlyInsertsMissingTokens.
 func TestGeneratedTSTypedOnlyRefusals(t *testing.T) {
 	t.Parallel()
-	const missing = "@start\nrule main = \"a\" \"b\" #missing $$\n"
 	for _, c := range []struct {
 		name string
 		src  string
@@ -320,8 +330,6 @@ func TestGeneratedTSTypedOnlyRefusals(t *testing.T) {
 		{"with a document and a stream", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, TypedOnly: true, Document: true, Stream: true, Recognize: true}, "typed-only output cannot have a Document or a stream"},
 		{"with recognize-only", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, TypedOnly: true, RecognizeOnly: true}, "recognize-only output generates only Recognize"},
 		{"recognize-only alone with types", codegentest.OrdinaryOnlyTyped, common.GenOptions{Types: true, RecognizeOnly: true}, "recognize-only output generates only Recognize"},
-		{"a grammar with #missing", missing, common.GenOptions{Types: true, TypedOnly: true}, "missing-token recovery is not supported for generated TypeScript parsers"},
-		{"a grammar with #missing and Recognize", missing, common.GenOptions{Types: true, TypedOnly: true, Recognize: true}, "missing-token recovery is not supported for generated TypeScript parsers"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			g, err := parseTest(startAllRules(c.src))

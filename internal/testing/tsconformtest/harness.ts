@@ -466,7 +466,8 @@ class CtxM extends ExpM {
     switch (op) {
       case "test.grow": {
         const r = a[0] as p.Rule;
-        P.gamma.push({ rule: r.id, min: a[1], pos: P.pos, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: this.seed(a[2], a[3]), id: a[4] });
+        // The conformance cases run outside the missing-token mode, so no growth is silenced (GrowRec.ms).
+        P.gamma.push({ rule: r.id, min: a[1], ms: false, pos: P.pos, cycle: r.cycle, bit: r.leaderBit, idx: r.leaderIndex, seed: this.seed(a[2], a[3]), id: a[4] });
         break;
       }
       case "test.reseed": {

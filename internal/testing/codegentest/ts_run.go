@@ -106,14 +106,16 @@ func bundleTS(files []common.GeneratedFile) []byte {
 // TSHarness runs the generated TypeScript parsers g<i>.ts on the inputs in inputs.json and writes
 // one JSON line per input, unit and form of the input (bytes, and a string when the input is valid
 // UTF-8) to out.jsonl. Given a third argument "units", each line also has the compute units of the
-// node parse and of the typed parse of the input, "N/M", with "-" for M when g<i>.ts has no typed parse. It parses in a worker thread with a large stack, so that nesting reaches the
-// limit of 100,000 rule calls (Node's default stack holds far fewer).
+// node parse and of the typed parse of the input, "N/M", with "-" for M when g<i>.ts has no typed
+// parse. A fourth argument is the limit of missing tokens (ParseOptions.missingTokens) of every
+// parse and recognition, 0 when absent. It parses in a worker thread with a large stack, so that
+// nesting reaches the limit of 100,000 rule calls (Node's default stack holds far fewer).
 const TSHarness = `import { Worker, isMainThread, workerData } from "node:worker_threads";
 import { closeSync, openSync, readFileSync, writeSync } from "node:fs";
 
 if (isMainThread) {
   const w = new Worker(new URL(import.meta.url), {
-    workerData: { inputs: process.argv[2], out: process.argv[3], units: process.argv[4] === "units" },
+    workerData: { inputs: process.argv[2], out: process.argv[3], units: process.argv[4] === "units", missing: Number(process.argv[5] ?? 0) },
     resourceLimits: { stackSizeMb: 1024 },
   });
   w.on("error", (e) => {
@@ -137,6 +139,8 @@ if (isMainThread) {
     return Buffer.from(out).toString("base64");
   };
   const inputs = JSON.parse(readFileSync(workerData.inputs, "utf8"));
+  // The limit of missing tokens, an option only when there is one: a grammar without #missing takes none.
+  const missing = workerData.missing > 0 ? { missingTokens: workerData.missing } : {};
   const out = openSync(workerData.out, "w");
   for (let i = 0; i < inputs.length; i++) {
     const m = await import("./g" + i + ".ts");
@@ -151,12 +155,13 @@ if (isMainThread) {
           // With units, the parses report their compute units: the node parse and the typed parse,
           // "-" for a parser generated without types.
           const used = { units: 0 }, usedValue = { units: 0 };
-          const r = workerData.units ? m.parseWithOptions(x, { unit, computeReport: used }) : m.parse(x, unit);
+          const r = workerData.units ? m.parseWithOptions(x, { unit, computeReport: used, ...missing })
+            : workerData.missing > 0 ? m.parseWithOptions(x, { unit, ...missing }) : m.parse(x, unit);
           const typed = workerData.units && typeof m.parseValueWithOptions === "function";
           if (typed) {
-            m.parseValueWithOptions(x, { unit, computeReport: usedValue });
+            m.parseValueWithOptions(x, { unit, computeReport: usedValue, ...missing });
           }
-          const rec = m.recognize(x, unit);
+          const rec = workerData.missing > 0 ? m.recognizeWithOptions(x, { unit, ...missing }) : m.recognize(x, unit);
           writeSync(out, JSON.stringify({
             node: m.marshal(r.node),
             err: r.error === null ? null : r.error.message,
@@ -279,7 +284,7 @@ func TSParsersCorpus(t *testing.T, node string, cases []Case, opts common.GenOpt
 // negative control passes a mutation and requires some.
 func TSParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string) []string {
 	t.Helper()
-	return tsParsersMismatches(t, node, cases, opts, mutate, false)
+	return tsParsersMismatches(t, node, cases, opts, mutate, false, 0)
 }
 
 // TSParsersUnitsMismatches is TSParsersMismatches that also compares the compute units of each parse
@@ -293,10 +298,26 @@ func TSParsersUnitsMismatches(t *testing.T, node string, cases []Case, opts comm
 		t.Fatal("the units of generated parsers are compared on parses from scratch with limit controls")
 	}
 	opts.Types = true
-	return tsParsersMismatches(t, node, cases, opts, mutate, true)
+	return tsParsersMismatches(t, node, cases, opts, mutate, true, 0)
 }
 
-func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool) []string {
+// TSParsersInsertionMismatches is TSParsersMismatches for parses and recognitions with the limit of
+// missing tokens missing (ParseOptions.missingTokens), which the generated parsers and the engine
+// both take. With limit controls (not opts.NoLimitControls) it also compares the compute units, as
+// TSParsersUnitsMismatches does; opts.Document is not supported.
+func TSParsersInsertionMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, missing int, mutate func(string) string) []string {
+	t.Helper()
+	if opts.Document {
+		t.Fatal("parses with missing tokens are compared on parses from scratch")
+	}
+	units := !opts.NoLimitControls
+	if units {
+		opts.Types = true
+	}
+	return tsParsersMismatches(t, node, cases, opts, mutate, units, missing)
+}
+
+func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
@@ -368,7 +389,7 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 				if units {
 					report = &used
 				}
-				n, err := prog(s, bytes, false, 0, report)
+				n, err := prog(s, bytes, false, missing, report)
 				w := want{out: DeepResultJSON(t, n, err)}
 				if units {
 					w.units = fmt.Sprintf("%d/%d", used, used)
@@ -379,7 +400,7 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 				if n != nil {
 					w.str = n.String()
 				}
-				_, err = prog(s, bytes, true, 0, nil)
+				_, err = prog(s, bytes, true, missing, nil)
 				w.rec = fmt.Sprint(err)
 				wants = append(wants, w)
 			}
@@ -410,9 +431,11 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 	}
 
 	args := []string{"harness.mjs", "inputs.json", "out.jsonl"}
+	unitsArg := "-"
 	if units {
-		args = append(args, "units")
+		unitsArg = "units"
 	}
+	args = append(args, unitsArg, fmt.Sprint(missing))
 	cmd := exec.Command(node, args...)
 	cmd.Dir = dir
 	if out, err := cmd.CombinedOutput(); err != nil {

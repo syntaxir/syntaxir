@@ -3,6 +3,7 @@ package print
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -20,27 +21,35 @@ import (
 // tsParserFile is the file of the library's requests of the templates: the parser's code.
 const tsParserFile = "parser.ts"
 
-// tsTemplates are the compositions that the parser prints as templates, with the features they are
-// specialized for under limit controls. invokePlain is the function r<id> of a plain rule that a call
-// site calls directly (callsPlain).
+// tsTemplates are the compositions that the parser prints as templates, under their names, with the
+// features they are specialized for under limit controls and those they are specialized for whatever
+// the limits. invokePlain is the function r<id> of a plain rule that a call site calls directly
+// (callsPlain); invokePlainMissing is that function for a rule of a table of the insertion program that
+// can insert a missing token, which a failure also drops (only a parser with the missing-token mode
+// has it).
 var tsTemplates = []struct {
-	fn string
-	on []string
+	fn, name   string
+	on, always []string
 }{
-	{fn: "invokePlain", on: []string{exec.Units}},
+	{fn: "invokePlain", name: "invokePlain", on: []string{exec.Units}},
+	{fn: "invokePlain", name: "invokePlainMissing", on: []string{exec.Missing, exec.Units}, always: []string{exec.Missing}},
 }
 
-// TemplateRequests returns the requests of the templates of a parser, with limit controls if limits:
-// such a parser counts logical compute units (exec.Units), whatever features the plan reports, since
-// the templates print the units of the parser's own calls.
-func TemplateRequests(limits bool) []library.Request {
-	rs := make([]library.Request, len(tsTemplates))
-	for i, t := range tsTemplates {
-		var on []string
+// TemplateRequests returns the requests of the templates of a parser, with limit controls if limits and
+// with the missing-token mode if missing: a parser with limit controls counts logical compute units
+// (exec.Units), whatever features the plan reports, since the templates print the units of the
+// parser's own calls.
+func TemplateRequests(limits, missing bool) []library.Request {
+	var rs []library.Request
+	for _, t := range tsTemplates {
+		if slices.Contains(t.always, exec.Missing) && !missing {
+			continue
+		}
+		on := t.always
 		if limits {
 			on = t.on
 		}
-		rs[i] = library.Request{File: tsParserFile, Fn: t.fn, On: on, Name: t.fn}
+		rs = append(rs, library.Request{File: tsParserFile, Fn: t.fn, On: on, Name: t.name})
 	}
 	return rs
 }

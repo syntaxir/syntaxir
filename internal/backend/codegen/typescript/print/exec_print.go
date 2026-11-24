@@ -325,14 +325,51 @@ func (p *printer) fn() error {
 			p.line("void %s;", l.Name)
 		}
 	}
+	head := p.b.Len()
 	if f.Body.Label == "" {
 		p.stmts(f.Body)
 	} else {
 		p.block(f.Body)
 	}
+	// A part of a parameter that the body does not read, such as a part that only some specializations
+	// read, is marked used, as an unread local is.
+	var unread strings.Builder
+	body := p.b.String()[head:]
+	for _, x := range f.Params {
+		for _, q := range p.parts(x.Type) {
+			if name := x.Name + q.Suffix; !mentions(body, name) {
+				fmt.Fprintf(&unread, "%svoid %s;\n", strings.Repeat("  ", p.depth), name)
+			}
+		}
+	}
+	if unread.Len() > 0 {
+		out := p.b.String()
+		p.b.Reset()
+		p.b.WriteString(out[:head] + unread.String() + out[head:])
+	}
 	p.depth--
 	p.line("}")
 	return p.err
+}
+
+// mentions reports whether the printed code text names the identifier name.
+func mentions(text, name string) bool {
+	for i := 0; ; {
+		j := strings.Index(text[i:], name)
+		if j < 0 {
+			return false
+		}
+		j += i
+		end := j + len(name)
+		if (j == 0 || !isIdentByte(text[j-1])) && (end == len(text) || !isIdentByte(text[end])) {
+			return true
+		}
+		i = end
+	}
+}
+
+func isIdentByte(c byte) bool {
+	return c == '_' || c == '$' || c >= '0' && c <= '9' || c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z'
 }
 
 func reads(ss []code.Stmt, name string) bool {

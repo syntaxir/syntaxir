@@ -56,6 +56,9 @@ var printed = map[string]bool{
 	prim.OpShapeSingle: true, prim.OpShapeCapture: true, prim.OpScopeValue: true, prim.OpAttachFrame: true,
 	prim.OpMarkState: true, prim.OpMarkPos: true, prim.OpNewFrame: true, prim.OpFrameVal: true,
 	prim.OpPred: true, prim.OpBind: true, prim.OpInDocument: true, prim.OpStreamOn: true,
+	// The missing-token mode of the tables of the insertion program.
+	prim.OpInsertMissing: true, prim.OpNewMissingNode: true, prim.OpMissingScope: true,
+	prim.OpMissingScopeEnd: true, prim.OpMissingLen: true, prim.OpResetMissing: true,
 	// The operations of the TypeScript passes.
 	MergeOp: true, FailedOp: true,
 }
@@ -64,7 +67,7 @@ var printed = map[string]bool{
 func Printed(name string) bool { return printed[name] }
 
 // declared holds the types of the variables that the TypeScript printer declares: a mark of the whole
-// parser state is four variables, the others one each. An environment or the context of a typed
+// parser state is five variables, the others one each. An environment or the context of a typed
 // action is never a variable of a TypeScript function.
 var declared = map[prim.Type]bool{
 	prim.TypeInt: true, prim.TypeBool: true, prim.TypeRune: true, prim.TypeValue: true, prim.TypeExpMark: true,

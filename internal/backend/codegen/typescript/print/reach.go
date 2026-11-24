@@ -23,17 +23,19 @@ import (
 // Rule IDs and the numbering of memoized rules (Seen) are those of the compiled program, so the
 // remaining rules keep their values. The printer checks that no printed call reaches a rule left out.
 
-// tsLive holds, for each table ("rules" or "recRules"), the ways in which the rules are entered.
+// tsLive holds, for each table ("rules", "recRules", "insRules" or "insRecRules"), the ways in which
+// the rules are entered.
 type tsLive struct {
 	reach map[string][]core.Entry
 }
 
 // printedReach returns the rules that a parse can enter through the calls that the generated code
-// prints (checkCall), from the entry points of the parser: every start rule of the Node table, which
-// parseRule can name, and the rule start that parse and recognize run. Printing leaves out the calls that Core IR
-// has at points that the lowered code never reaches, such as after a lookahead that always fails.
-func (g *Generator) printedReach(prog, rec *common.Program, start *common.Rule) *tsLive {
-	l, _ := reachFrom(prog, rec, start, g.Document, func(table string, p *common.Program) (*core.Module, error) {
+// prints (checkCall), from the entry points of the parser p: every start rule of the Node table and of
+// the insertion table, which parseRule can name, and the start rule that parse and recognize run, in
+// each table. Printing leaves out the calls that Core IR has at points that the lowered code never
+// reaches, such as after a lookahead that always fails.
+func (g *Generator) printedReach(p *Parser) *tsLive {
+	l, _ := reachFrom(p, g.Document, func(table string, p *common.Program) (*core.Module, error) {
 		m := &core.Module{Calls: make([][]int, len(p.RuleList)+len(p.Twins))}
 		for from, to := range g.printed[table] {
 			m.Calls[from] = to
@@ -46,18 +48,17 @@ func (g *Generator) printedReach(prog, rec *common.Program, start *common.Rule) 
 
 // reachFrom computes the reach of the entry points of printedReach over the call graph of the module that module
 // returns for each table.
-func reachFrom(prog, rec *common.Program, start *common.Rule, document bool, module func(table string, p *common.Program) (*core.Module, error)) (*tsLive, error) {
+func reachFrom(parser *Parser, document bool, module func(table string, p *common.Program) (*core.Module, error)) (*tsLive, error) {
 	l := &tsLive{reach: map[string][]core.Entry{}}
-	for table, p := range map[string]*common.Program{"rules": prog, "recRules": rec} {
-		if p == nil {
-			continue
-		}
+	start := parser.Start
+	for _, t := range parser.tables() {
+		table, p := t.table, t.prog
 		m, err := module(table, p)
 		if err != nil {
 			return nil, err
 		}
 		var roots []core.Root
-		if table == "rules" {
+		if table == "rules" || table == "insRules" {
 			for _, name := range p.StartRules {
 				roots = append(roots, core.Root{Rule: p.ByName[name].ID, Entry: core.EnterSlot})
 			}

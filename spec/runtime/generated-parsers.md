@@ -85,8 +85,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
 - Grammar errors are reported with positions before any file is written, in the
   same form as in other commands. An unknown start rule, an invalid package name,
   a compiled grammar (`gen needs the grammar source`),
-  `-stream` without a `#stream` repetition in the start rule and a grammar that
-  contains `#missing` with `-lang ts` are
+  and `-stream` without a `#stream` repetition in the start rule are
   errors.
 - A Go package may contain only one generated parser, because every generated file
   defines the same names. `api.go` re-exports the names the users of the
@@ -274,10 +273,14 @@ mapping is:
 | `int` | `number \| bigint`, with signed 64-bit arithmetic and safe-number canonicalization |
 | `string`, `bool` | `string`, `boolean`; an absent non-optional scalar field is `""`, `false` or `0` |
 | Declared alias | The complete target type |
-| Join of node types, declared by an alias or written in place | The TypeScript types of the members, `RecoveredError` and null, which narrow by `type`; a value converts to its member as in Go |
+| `error` (from `#recover`) | `RecoveredError \| null`; in a grammar with `#missing`, `ErrorValue \| null` |
+| `missing` (from `#missing`) | `Missing \| null`; `Missing` extends `Span` with `type` `"missing"`, `expected` and `message` |
+| Join of node types, declared by an alias or written in place | The TypeScript types of the members, `RecoveredError` (and `Missing` in a grammar with `#missing`) and null, which narrow by `type`; a value converts to its member as in Go |
 | Join with a member that is no node type, `_` | `TypedValue`, following the conversion of `any` in Go |
 
-Names collide the same way as in Go, with trailing underscores. Typed parsing by
+Names collide the same way as in Go, with trailing underscores. In a grammar with `#missing`,
+`types.ts` also declares `Missing` and `ErrorValue = RecoveredError | Missing`, and generation fails,
+naming the type, if a grammar type has one of these names; other grammars may use them. Typed parsing by
 rule name is not available in TypeScript.
 
 ### Recognition
@@ -430,6 +433,7 @@ export interface ParseOptions {
   signal?: CancellationSignal | null;      // unless generated with -no-limits
   computeReport?: ComputeReport | null;    // unless generated with -no-limits
   limits?: Limits;
+  missingTokens?: number;                 // a positive limit needs a grammar with #missing
 }
 export interface ComputeReport { units: number }  // set by the parse: see parsing.md#reporting-the-units-spent
 export interface Limits {
@@ -452,6 +456,11 @@ export class ParseInterruptionError extends Error {
   readonly hotspot: string; // "" unless a compute-limit with a profile
   readonly cause: unknown;
 }
+// With #missing in the grammar:
+export class MissingTokenLimitError extends Error {
+  readonly limit: number;
+  readonly position: number;
+}
 export type Unit = 0 | 1;
 export const CodePoints: Unit; // the default
 export const Bytes: Unit;
@@ -463,7 +472,7 @@ export function marshal(n: Node | null): string;
   `NodeJSON`, `Node`, `marshal`, `SyntaxError`, `SyntaxErrors`, `ParseResult`, `ParseOptions`, `Limits`,
   `ParseInterruptionKind`, `ParseInterruptionError`, `Unlimited`, `TraceKind`, `TraceEvent`, `TraceFunction`,
   `SkipReason`, `Profile`, `CallSite`, `SkipReasonCount`, `RuleProfile` and `ProfileSnapshot`, and, unless generated with `-no-limits`, also
-  `CancellationSignal` and `ComputeReport`. With `-no-limits` the exported `ParseOptions` and `Limits` are the forms without `signal`, `computeReport` and
+  `CancellationSignal` and `ComputeReport`; for a grammar with `#missing`, also `MissingTokenLimitError`. With `-no-limits` the exported `ParseOptions` and `Limits` are the forms without `signal`, `computeReport` and
   `limits.compute`. `TraceKind` is `"enter"`, `"exit"` or `"skipped"`. The other exports of `lib.ts`, such as
   `ProfileData`, are the contract between the library and the generated code. They are not
   public API and may change between versions.
@@ -491,6 +500,16 @@ export function marshal(n: Node | null): string;
   the generated default. A parse that nests more recursive rule calls returns `node` as
   `null` and `error` as a `ParseInterruptionError` whose `kind` is `"depth-limit"`, with
   `limit` and `used` the depth limit and `requested` 1, in both forms.
+- `missingTokens` MUST be a nonnegative safe integer; zero, the default, inserts nothing. A positive
+  limit inserts missing tokens for [`#missing`](../language/pragmas.md#missing) in `parse`, `parseRule`,
+  `recognize`, the streams and the parses of a Document, and with `-types` in their typed counterparts,
+  with the results, diagnostics and compute units of the engine. A parse that exhausts the limit returns
+  `node` (or `value`) as `null` and `error` as a `MissingTokenLimitError` with `limit` and `position`,
+  whose message is that of the engine's error. A negative or fractional limit, and a positive limit for
+  a grammar without `#missing`, return a configuration error in the result before matching. A Document
+  takes the limit at construction, and a parse option that changes it is an error
+  ([Missing Tokens](documents.md#missing-tokens)); a stream has one limit
+  ([Missing Tokens](streaming.md#missing-tokens)).
 - A parser generated with `-no-limits` emits no code that spends budget and sets no control, so a parse charges nothing, and its
   `ParseOptions` has no `signal` or `computeReport` and its `Limits` has no `compute` or `memory`; it does not
   export `CancellationSignal` or `ComputeReport`. A call that passes a signal, a compute report or a finite nonzero compute or
@@ -575,7 +594,6 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Condition | Result |
 |:--|:--|
 | Invalid package name, unknown start rule, grammar errors | Error before output |
-| `#missing` in the grammar with `-lang ts` | Generation fails |
 | `-stream` with `-lang ts` | Generation fails |
 | `-g`, `-s`, `-pkg` or a generation option with `-lib only` | The command fails |
 | `-lib embed` without `-module`; `-lib import` with neither `-module` nor `-pkg` | The command fails |
@@ -594,7 +612,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Predicates, variables, lookahead, cut | Supported | Supported |
 | Actions, types, built-in functions | Supported | Supported |
 | `@error`, `#recover`, `SyntaxErrors` | Supported | Supported |
-| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`, stream parses and Documents, Node and typed | Not supported |
+| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`, stream parses and Documents, Node and typed | `missingTokens` in the same parses, Node and typed; `MissingTokenLimitError` |
 | Position units | `WithUnit` | `unit` |
 | Another start rule | `ParseRule` | `parseRule` |
 | Recognition | `Recognize` with `-recognize` | `recognize` with `-recognize` |
