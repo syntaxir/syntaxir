@@ -174,13 +174,46 @@ var exampleGoEnv = sync.OnceValues(func() ([]string, error) {
 	}, nil
 })
 
+// privateFuzzCache returns a Go build cache directory that shares every entry of the build cache of the
+// machine except the fuzz corpus: the directory links to the entries of the shared cache, so that
+// builds are cached as before, and has a fuzz directory of its own that starts empty. A page that
+// fuzzes then gathers its baseline from nothing, as it shows, whatever the machine's earlier fuzzing
+// left in the shared cache, which fuzzing never writes to.
+func privateFuzzCache(t *testing.T, shared string) (string, error) {
+	t.Helper()
+	dir := t.TempDir()
+	entries, err := os.ReadDir(shared)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range entries {
+		if e.Name() == "fuzz" {
+			continue
+		}
+		if err := os.Symlink(filepath.Join(shared, e.Name()), filepath.Join(dir, e.Name())); err != nil {
+			return "", err
+		}
+	}
+	return dir, nil
+}
+
 // programEnv returns the environment of the program commands of a page in dir.
-func programEnv(bin, dir string) ([]string, error) {
+func programEnv(t *testing.T, bin, dir string) ([]string, error) {
+	t.Helper()
 	goEnv, err := exampleGoEnv()
 	if err != nil {
 		return nil, err
 	}
 	env := append(os.Environ(), goEnv...)
+	for i, e := range env {
+		if shared, ok := strings.CutPrefix(e, "GOCACHE="); ok && i >= len(env)-len(goEnv) {
+			cache, err := privateFuzzCache(t, shared)
+			if err != nil {
+				return nil, err
+			}
+			env[i] = "GOCACHE=" + cache
+		}
+	}
 	// The built sxir comes first on the path, before the toolchain.
 	for i, e := range env {
 		if p, ok := strings.CutPrefix(e, "PATH="); ok {
@@ -221,7 +254,7 @@ func requireWorktree(env []string, dir string) error {
 // runProgramCommands runs the program commands of a bash block in dir, in order, and returns their
 // output.
 func runProgramCommands(t *testing.T, bin, dir string, lines []string) (string, error) {
-	env, err := programEnv(bin, dir)
+	env, err := programEnv(t, bin, dir)
 	if err != nil {
 		return "", err
 	}
@@ -257,7 +290,7 @@ func runProgramCommands(t *testing.T, bin, dir string, lines []string) (string, 
 func checkProgram(t *testing.T, bin, dir, at string, b exampleBlock, blocks []exampleBlock, i int) {
 	t.Helper()
 	p := parseProgramMarker(b.Marker)
-	env, err := programEnv(bin, dir)
+	env, err := programEnv(t, bin, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -421,7 +454,7 @@ func repositoryModule(t *testing.T, bin, dir string) {
 	if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 		return
 	}
-	env, err := programEnv(bin, dir)
+	env, err := programEnv(t, bin, dir)
 	if err != nil {
 		t.Fatal(err)
 	}
