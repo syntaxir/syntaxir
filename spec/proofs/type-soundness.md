@@ -49,7 +49,8 @@ The proof cites the following rules, and no other rule about types or values.
   alternative has no value and another has one. A repetition produces a list
   node of the values of its iterations, and an iteration without a value is
   the unit `()`. An optional produces the value of its operand or `nil`. A
-  capture produces the value of its operand. A rule call produces the value of
+  capture produces the value of its operand, or the unit `()` with the range
+  that its operand matched when the operand has no value. A rule call produces the value of
   the rule, and a rule whose body has no value produces the unit `()`, the
   empty tuple node, with the range that it matched. Anchors, the cut, a discard, `_`, `_|_`, a lookahead and a
   predicate have no value
@@ -348,10 +349,13 @@ survives holds a well-formed value of the type of its operand.
   type `node[string] | missing`.
 - **Calls.** The value of the rule, of the rule's type by the hypothesis; an
   inline action is a call of its hidden rule (M5).
-- **No value in a value position.** A rule whose body has no value, as
-  `rule e = _` or `rule f = -"x"`, produces the unit `()`, a tuple node of no
-  elements, which has type `node[()]`, the type of an expression without
-  elements (T5); a call of it contributes that node as an element (M2).
+- **No value in a value position.** An expression without a value in a
+  value position, the operand of a capture or the body of a rule, gives the
+  unit `()`, a tuple node of no elements, which has type `node[()]`, the type
+  of an expression without elements (T5). So `rule e = _` and
+  `rule f = -"x"` produce `()`, and a call of either contributes that node as
+  an element (M2); the captures `x:-"a"`, `x:^^`, `x:&"a"` and `x:_` read as
+  `()` and contribute it as an element as well.
 - **Never matching.** An expression of type `_|_` never succeeds: `_|_` fails,
   a sequence fails at such an element, a choice of such alternatives fails at
   each, `a+` fails at its first iteration, a capture or an `#atomic` matches
