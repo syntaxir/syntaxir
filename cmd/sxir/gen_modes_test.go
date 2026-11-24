@@ -488,6 +488,32 @@ func TestGenTypeScriptTypedOnly(t *testing.T) {
 			t.Errorf("typed-only parser has %s", entry)
 		}
 	}
+	// The options that combine with it give the same entry points and none of the tree, Document or stream.
+	for _, args := range [][]string{
+		{"-no-limits"}, {"-max-depth", "64"}, {"-observability"}, {"-expectations"}, {"-source-info"},
+		{"-optimize", "size"}, {"-recognize", "-no-limits"}, {"-lib", "import", "-lib-module", "../shared/lib.ts"},
+	} {
+		out := t.TempDir()
+		if _, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", out, "-g", g, "-types", "-typed-only"}, args...)...); err != nil {
+			t.Errorf("-types -typed-only %v: %v", args, err)
+			continue
+		}
+		data := readTS(t, out, "parser.ts")
+		for _, entry := range []string{"export function parseValue(", "export function parseValueWithOptions(", "export function parseRuleValue(", "export function parseRuleValueWithOptions("} {
+			if !strings.Contains(data, entry) {
+				t.Errorf("-types -typed-only %v: no %s", args, entry)
+			}
+		}
+		for _, entry := range []string{"export function parse(", "export function parseRule(", "export function parseWithOptions(", "export function parseRuleWithOptions(", "export function createDocument(", "export function createStream("} {
+			if strings.Contains(data, entry) {
+				t.Errorf("-types -typed-only %v: has %s", args, entry)
+			}
+		}
+	}
+	missing := writeFile(t, "missing.sxir", "@start\nrule main = \"a\" \"b\" #missing $$\n")
+	if _, err := runCLI(t, "", "gen", "-lang", "ts", "-o", t.TempDir(), "-g", missing, "-types", "-typed-only"); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated TypeScript parsers") {
+		t.Errorf("-types -typed-only with #missing: error %v", err)
+	}
 	for _, c := range []struct {
 		args []string
 		want string
@@ -497,6 +523,7 @@ func TestGenTypeScriptTypedOnly(t *testing.T) {
 		{[]string{"-types", "-typed-only", "-stream"}, "typed-only output cannot have a Document or a stream"},
 		{[]string{"-types", "-typed-only", "-recognize-only"}, "recognize-only output generates only Recognize"},
 		{[]string{"-recognize-only", "-stream"}, "recognize-only output generates only Recognize"},
+		{[]string{"-types", "-typed-only", "-default-value"}, "typed output is not available with default Values"},
 	} {
 		_, err := runCLI(t, "", append([]string{"gen", "-lang", "ts", "-o", t.TempDir(), "-g", g}, c.args...)...)
 		if err == nil || !strings.Contains(err.Error(), c.want) {
