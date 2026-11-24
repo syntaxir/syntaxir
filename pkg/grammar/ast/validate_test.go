@@ -2,6 +2,7 @@ package ast
 
 import (
 	"errors"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -71,6 +72,8 @@ func TestValidateRequiredChildren(t *testing.T) {
 		{"stream body", expressionGrammar(&Stream{}), "$.file.decls[0].expr.expr"},
 		{"negative minimum", expressionGrammar(&Repeat{Expr: &Top{}, Min: -1, Max: -1}), "$.file.decls[0].expr.min"},
 		{"reversed bounds", expressionGrammar(&Repeat{Expr: &Top{}, Min: 2, Max: 1}), "$.file.decls[0].expr.max"},
+		{"maximum below -1", expressionGrammar(&Repeat{Expr: &Top{}, Max: -2}), "$.file.decls[0].expr.max"},
+		{"least maximum", expressionGrammar(&Repeat{Expr: &Top{}, Max: math.MinInt}), "$.file.decls[0].expr.max"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			assertValidationError(t, Validate(tc.g), tc.path)
@@ -183,7 +186,7 @@ func TestValidatePositionAndOrder(t *testing.T) {
 func TestValidateCompatibility(t *testing.T) {
 	for _, g := range []*Grammar{
 		{},
-		expressionGrammar(&Repeat{Expr: &Top{}, Max: -2}),
+		expressionGrammar(&Repeat{Expr: &Top{}, Max: -1}),
 		expressionGrammar(&Repeat{Expr: &Top{}, Min: 0, Max: 0}),
 		expressionGrammar(&Repeat{Expr: &Top{}, Min: 2, Max: 2}),
 		expressionGrammar(&OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Top{}}}, Levels: []*OperatorsRuleLevel{{}}}),

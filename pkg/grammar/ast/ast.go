@@ -495,8 +495,9 @@ type InlineAction struct {
 	DefaultAction bool       `json:"defaultAction,omitempty"`
 }
 
-// Repeat is a repetition a #repeat(Min,Max). A negative Max means no upper
-// bound. a* is #repeat(0,) and a+ is #repeat(1,).
+// Repeat is a repetition a #repeat(Min,Max). Max is -1 for no upper bound;
+// validation rejects any other negative Max. a* is #repeat(0,) and a+ is
+// #repeat(1,).
 //
 // Pos is the position where the repeated expression begins (its opening
 // parenthesis, if it is parenthesized).

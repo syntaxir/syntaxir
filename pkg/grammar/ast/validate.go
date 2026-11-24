@@ -42,7 +42,7 @@ type validationFrame struct {
 //
 // Optional children may be nil, but an interface containing a nil pointer is
 // invalid. Shared subtrees are allowed. A collection may be empty where grammar
-// syntax writes it empty; any negative Repeat.Max means unbounded. Source
+// syntax writes it empty; Repeat.Max is -1 for an unbounded repetition. Source
 // layout is not checked. Name resolution, types, attribute arguments and
 // OperatorsRule semantics are checked by the compiler. Validation does not
 // impose a size or depth limit.
@@ -282,6 +282,9 @@ func validate(g *Grammar, control *validationControl) error {
 		case *Repeat:
 			if n.Min < 0 {
 				return fail("min", "repetition minimum must be nonnegative")
+			}
+			if n.Max < -1 {
+				return fail("max", "repetition maximum must be -1 (unbounded) or nonnegative")
 			}
 			if n.Max >= 0 && n.Max < n.Min {
 				return fail("max", "repetition maximum is less than minimum")

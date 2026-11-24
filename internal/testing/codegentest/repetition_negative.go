@@ -1,6 +1,7 @@
 package codegentest
 
 import (
+	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
@@ -8,7 +9,9 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// GrammarWithNegativeMaximum parses src and sets the maximum of its repetitions to maximum, which the syntax cannot write.
+// GrammarWithNegativeMaximum parses src and sets the maximum of its repetitions to maximum. The
+// syntax writes no negative maximum but -1, and validation rejects the others
+// (WantNegativeMaximumRejected).
 func GrammarWithNegativeMaximum(t testing.TB, src string, maximum int) *ast.Grammar {
 	t.Helper()
 	g, err := compiletest.Parse(src)
@@ -23,4 +26,13 @@ func GrammarWithNegativeMaximum(t testing.TB, src string, maximum int) *ast.Gram
 		})
 	}
 	return g
+}
+
+// WantNegativeMaximumRejected fails t unless err is the validation error of a repetition maximum
+// below -1.
+func WantNegativeMaximumRejected(t testing.TB, err error) {
+	t.Helper()
+	if err == nil || !strings.Contains(err.Error(), "repetition maximum must be -1 (unbounded) or nonnegative") {
+		t.Fatalf("a repetition maximum below -1 was not rejected by validation: %v", err)
+	}
 }

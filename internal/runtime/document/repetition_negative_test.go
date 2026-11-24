@@ -8,6 +8,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/entry"
 	. "syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
@@ -18,6 +19,11 @@ func TestNegativeMaximumDocumentsAndStreams(t *testing.T) {
 	for _, maximum := range negativeMaxima() {
 		g := grammarWithNegativeMaximum(t, `rule main = "é"* #stream $$`, maximum)
 		p, err := entry.Compile(g, entry.Options{})
+		if maximum < -1 {
+			// The syntax writes no other negative maximum than -1.
+			codegentest.WantNegativeMaximumRejected(t, err)
+			continue
+		}
 		if err != nil {
 			t.Fatal(err)
 		}

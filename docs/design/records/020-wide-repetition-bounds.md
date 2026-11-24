@@ -48,6 +48,9 @@ Bytecode lowering canonicalizes all such values to -1 before choosing compact
 or wide operands. This prevents large negative values from narrowing into
 finite maxima and retains the existing module-validation contract. The caller's
 AST is not mutated; an AST-bearing file preserves its original maximum.
+(Amended 2026-11-25: grammar AST validation now rejects a negative maximum
+other than -1, the one the syntax writes, so every unbounded repetition reaches
+lowering as -1.)
 
 Loading verifies that both references point to `EINT`, that each value fits
 the runtime's implementation `int`, and that the minimum and maximum form a

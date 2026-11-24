@@ -43,6 +43,11 @@ func TestNegativeRepetitionMaxima(t *testing.T) {
 				}
 				for _, opts := range []checkpkg.Options{{}, {DisableMemo: true}, {NoProjections: true}} {
 					p, err := Compile(g, opts)
+					if maximum < -1 {
+						// The syntax writes no other negative maximum than -1.
+						codegentest.WantNegativeMaximumRejected(t, err)
+						continue
+					}
 					if err != nil {
 						t.Fatal(err)
 					}
@@ -189,6 +194,10 @@ func TestNegativeMaximumWithWideMinimum(t *testing.T) {
 		for _, maximum := range negativeMaxima() {
 			g := codegentest.GrammarWithNegativeMaximum(t, "rule main = "+body, maximum)
 			p, err := Compile(g, checkpkg.Options{})
+			if maximum < -1 {
+				codegentest.WantNegativeMaximumRejected(t, err)
+				continue
+			}
 			if err != nil {
 				t.Fatal(err)
 			}

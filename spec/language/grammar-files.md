@@ -713,7 +713,7 @@ So `grammar.Format` of a valid AST always parses.
 | A nil grammar; a missing required child; a nil entry in a node collection | Shared subtrees; genuinely nil optional children |
 | An interface that holds a typed nil pointer; an unsupported embedded node type | |
 | A pointer cycle | |
-| A repetition whose minimum is negative, or whose finite maximum is smaller than the minimum | Any negative maximum, which means unbounded |
+| A repetition whose minimum is negative, whose maximum is negative but not -1, or whose finite maximum is smaller than the minimum | The maximum -1, which means unbounded |
 | A character range whose `Lo` or `Hi` is not a Unicode scalar value (0 through 0x10FFFF except 0xD800 to 0xDFFF), or with `Lo > Hi`; a character class without ranges | A range that spans the surrogate interval; overlapping ranges |
 | A `Seq` without items, a `Choice` without alternatives, an `Attributed` without attributes; a `JoinType` or `MeetType` of fewer than two types; a `TypeApp` without type arguments | The other empty collections, which source writes empty: a struct, tuple, call, constructor or list without elements, an Operators Rule or level without lines, a lambda without parameters |
 | A name that is not an identifier, a reserved name that begins with `_`, and a declaration, capture, lambda parameter, variable reference, call or constructor named `true`, `false` or `nil` | A rule named `_x`, which is hidden; a rule reference named `true` |
@@ -730,10 +730,6 @@ validate attribute arguments or enforce the semantics of an Operators Rule;
 compilation does. It does not validate comments or layout. Compilation and the
 generators run structural validation themselves. `grammar.Format` and
 `ast.MarshalJSON` expect a structurally valid AST.
-
-Both bytecode VMs and generated parsers treat any negative maximum as unbounded.
-Compilation preserves the original maximum in the AST and writes the standard
-unbounded representation to the bytecode.
 
 ### Grammar JSON
 

@@ -17,8 +17,9 @@ import (
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
 )
 
-// Generated parsers retain negative maxima directly in their implementation-int
-// loops. Check their accepted hand-built AST contract beside bytecode lowering.
+// Generated parsers retain the unbounded maximum -1 directly in their implementation-int loops.
+// Check their hand-built AST contract beside bytecode lowering: -1 is unbounded, and a maximum
+// below it is rejected before compilation and generation.
 func TestGeneratedNegativeMaximum(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testGeneratedNegativeMaximum)
@@ -33,7 +34,13 @@ func testGeneratedNegativeMaximum(t *testing.T) {
 	if strconv.IntSize < 64 {
 		maximum = -2
 	}
-	g := codegentest.GrammarWithNegativeMaximum(t, `rule main []node[string] = v1:"é"* $$ => $v1.Value`, maximum)
+	const src = `rule main []node[string] = v1:"é"* $$ => $v1.Value`
+	below := codegentest.GrammarWithNegativeMaximum(t, src, maximum)
+	_, err := entry.Compile(below, entry.Options{})
+	codegentest.WantNegativeMaximumRejected(t, err)
+	_, err = codegentest.GenerateCode(t, below, common.GenOptions{Package: "main", Start: "main"})
+	codegentest.WantNegativeMaximumRejected(t, err)
+	g := codegentest.GrammarWithNegativeMaximum(t, src, -1)
 	p, err := entry.Compile(g, entry.Options{})
 	if err != nil {
 		t.Fatal(err)

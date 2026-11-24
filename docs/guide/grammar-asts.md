@@ -86,8 +86,9 @@ Validation rejects a nil grammar, missing required children, nil entries in
 node collections, interfaces holding typed nil pointers, unsupported embedded
 node types, pointer cycles and malformed
 repetition and character-range bounds. A repetition's minimum must be nonnegative; a finite
-maximum must be at least the minimum. Any negative maximum means unbounded,
-as documented by `ast.Repeat`. Shared subtrees and genuinely nil optional
+maximum must be at least the minimum, and an unbounded repetition has the
+maximum -1, as documented by `ast.Repeat`; any other negative maximum is
+rejected. Shared subtrees and genuinely nil optional
 children remain allowed.
 
 Validation also rejects every tree that grammar syntax cannot write, so that
@@ -120,12 +121,6 @@ positions return decoded text. For example, the same raw-invalid-byte literal ca
 valid U+FFFD or an invalid input byte, but byte-mode `text($capture)` distinguishes their spellings.
 Rebuild generated parsers from older invalid-byte ASTs to update their embedded matching data;
 compiled grammars use the corrected comparison when loaded.
-
-Both VMs and generated parsers honor negative unbounded maxima. Compilation
-preserves the original maximum in the AST and uses the standard unbounded
-representation in the bytecode. Recompile older artifacts
-created from noncanonical negative maxima to replace incorrectly narrowed
-or rejected bytecode.
 
 This is structural validation. It does not resolve names, check action types,
 validate attributes or enforce Operators Rule semantics; compile the grammar for those

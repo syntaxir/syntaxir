@@ -50,8 +50,8 @@ A module consists of the following tables.
 | Run key table | The variables that key the records of each run site that is not free of the environment ([Run key table](#run-key-table)) |
 | Flow bodies | The Flow body of each rule but a rule whose body is the expression of its Operators Rule, and the stream body of each rule with a `#stream` repetition ([Flow Bodies](#flow-bodies)) |
 
-The public grammar AST treats every negative repetition maximum as unbounded.
-Compilation canonicalizes it to -1. A repetition bound is an integer immediate
+The public grammar AST writes an unbounded repetition maximum as -1. A
+repetition bound is an integer immediate
 of a Flow body, which holds the full implementation-int range.
 
 ### Rule Table
