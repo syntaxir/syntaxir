@@ -25,7 +25,7 @@ import (
 // short.
 func assertTurnedHot(t *testing.T, name string, turns int64, tune state.Tuning) {
 	t.Helper()
-	if tune.RunHotSpan() <= 2 && state.RunHotTurns.Load() == turns {
+	if tune.RunHotSpan() <= 2 && tune.Stats.RunHotTurns.Load() == turns {
 		t.Errorf("%s: no run site turned hot", name)
 	}
 }
@@ -46,7 +46,7 @@ func runSitesMatchPlainRepetitions(t *testing.T, tune state.Tuning) {
 		}
 		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rng), codegentest.RunValueInputs[g.Name]...)
-		turns := state.RunHotTurns.Load()
+		turns := tune.Stats.RunHotTurns.Load()
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ without records, first:\n%s", g.Name, b, len(diffs), diffs[0])
@@ -77,7 +77,7 @@ func runSitesOfLoadedPrograms(t *testing.T, tune state.Tuning) {
 	for _, g := range codegentest.RunValueGrammars {
 		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
 		inputs := append(codegentest.SkipRunInputs(g.Alphabet, 300, rng), codegentest.RunValueInputs[g.Name]...)
-		turns := state.RunHotTurns.Load()
+		turns := tune.Stats.RunHotTurns.Load()
 		for _, mode := range []engine.CompiledMode{engine.CompiledParse, engine.CompiledDocument} {
 			data, err := enginetest.MustCompile(t, g.Src).Marshal("", mode)
 			if err != nil {
@@ -125,7 +125,7 @@ func runSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 	for _, g := range codegentest.RunSiteGrammars {
 		prog := enginetest.MustCompile(t, g.Src)
 		inputs := codegentest.SkipRunInputs(g.Alphabet, 300, rng)
-		turns := state.RunHotTurns.Load()
+		turns := tune.Stats.RunHotTurns.Load()
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ, first:\n%s", g.Name, b, len(diffs), diffs[0])
@@ -371,18 +371,19 @@ func TestRunSitesTurnHotAtTheEngineThreshold(t *testing.T) {
 	}
 	in := strings.Repeat("x", 300) + "z" + strings.Repeat("x", 200) + "!"
 	for _, g := range append(codegentest.RunSiteGrammars[:2:2], codegentest.RunValueGrammars[0]) {
+		tune := state.Tuning{Stats: new(state.HotStats)}
 		prog := enginetest.MustCompile(t, g.Src)
 		plain := compileWithout(t, g.Src, &corepass.NoRunSites)
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, exp := range []bool{true, false} {
-				o := engine.ParseOptions{Backend: b, Expectations: exp}
-				turns := state.RunHotTurns.Load()
+				o := engine.ParseOptions{Backend: b, Expectations: exp, Tune: tune}
+				turns := tune.Stats.RunHotTurns.Load()
 				n, err := prog.ParseWith("main", in, o)
 				wn, werr := plain.ParseWith("main", in, o)
 				if got, want := skipDump(t, n, err), skipDump(t, wn, werr); got != want {
 					t.Fatalf("%s, %s: results differ\n got  %s\n want %s", g.Name, b, got, want)
 				}
-				if state.RunHotTurns.Load() == turns {
+				if tune.Stats.RunHotTurns.Load() == turns {
 					t.Errorf("%s, %s: no run site turned hot", g.Name, b)
 				}
 			}
@@ -397,10 +398,11 @@ func TestRunSitesDepthLimit(t *testing.T) {
 	in := strings.Repeat("(", 300)
 	prog := enginetest.MustCompile(t, src)
 	plain := compileWithout(t, src, &corepass.NoRunSites)
-	turns := state.RunHotTurns.Load()
+	tune := state.Tuning{Stats: new(state.HotStats)}
+	turns := tune.Stats.RunHotTurns.Load()
 	for _, depth := range []int{2, 5, 50, 299, 300, 301, 1000} {
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			o := engine.ParseOptions{Backend: b, Limits: runtime.Limits{Depth: uint64(depth)}}
+			o := engine.ParseOptions{Backend: b, Limits: runtime.Limits{Depth: uint64(depth)}, Tune: tune}
 			n, err := prog.ParseWith("main", in, o)
 			wn, werr := plain.ParseWith("main", in, o)
 			if got, want := skipDump(t, n, err), skipDump(t, wn, werr); got != want {
@@ -411,7 +413,7 @@ func TestRunSitesDepthLimit(t *testing.T) {
 			}
 		}
 	}
-	if state.RunHotTurns.Load() == turns {
+	if tune.Stats.RunHotTurns.Load() == turns {
 		t.Error("no run site turned hot")
 	}
 }

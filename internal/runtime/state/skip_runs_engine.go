@@ -1,8 +1,6 @@
 package state
 
 import (
-	"sync/atomic"
-
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	valueimpl "syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -33,12 +31,6 @@ const (
 // PruneSkipRecords drops the records of the positions before pos, where a stream that committed at pos
 // never parses again.
 func (p *Parser) PruneSkipRecords(pos int) { p.pruneSkipRecords(pos) }
-
-// RunHotTurns counts the run sites that turned hot. It is a hook for tests in other packages that check
-// a parse reaches the hot path; nothing reads it in a parse. It is atomic because parses run concurrently,
-// and a per-parse counter would need the tests to reach the parser of each parse. A turn happens once for
-// each site and lookahead state of a parse, so counting it costs nothing on the hot path.
-var RunHotTurns atomic.Int64
 
 // recVals are the elements of a record: the nodes of the engine's values.
 type recVals = valSuffix[*value.Node]
@@ -110,7 +102,11 @@ func (p *Parser) noteStored(pos int) {
 func (p *Parser) runHotSpan() int { return p.tune.RunHotSpan() }
 
 // noteHot counts a run site that turned hot.
-func (p *Parser) noteHot() { RunHotTurns.Add(1) }
+func (p *Parser) noteHot() {
+	if st := p.tune.Stats; st != nil {
+		st.RunHotTurns.Add(1)
+	}
+}
 
 // examinedRange returns the input range [from, examined) that the current evaluation examined (lw, Hw).
 func (p *Parser) examinedRange() (from, examined int) { return p.lw, p.Hw }

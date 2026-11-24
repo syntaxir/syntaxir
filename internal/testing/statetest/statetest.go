@@ -306,10 +306,10 @@ var hotSpans = []int{new(state.Tuning).RunHotSpan(), 2, 1}
 func AtHotSpans(t *testing.T, f func(t *testing.T, tune state.Tuning)) {
 	t.Helper()
 	for _, span := range hotSpans {
-		tune := state.Tuning{RunHot: span, ScanHot: span}
-		turns := state.RunHotTurns.Load()
+		// The counters are those of this span alone: they see no parse of another test.
+		tune := state.Tuning{RunHot: span, ScanHot: span, Stats: new(state.HotStats)}
 		t.Run("span"+strconv.Itoa(span), func(t *testing.T) { f(t, tune) })
-		if span <= 2 && state.RunHotTurns.Load() == turns {
+		if span <= 2 && tune.Stats.RunHotTurns.Load() == 0 {
 			t.Errorf("no run site turned hot at span %d", span)
 		}
 	}

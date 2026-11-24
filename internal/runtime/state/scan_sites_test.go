@@ -48,9 +48,9 @@ func scanSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 		}
 		plain := compileWithoutScanSites(t, g.Src)
 		inputs := scanSiteInputs(g.Alphabet, rng)
-		hits := state.ScanHits.Load()
+		hits := tune.Stats.ScanHits.Load()
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			hitsB := state.ScanHits.Load()
+			hitsB := tune.Stats.ScanHits.Load()
 			if diffs := skipRunMismatches(t, prog, inputs, b, tune); len(diffs) > 0 {
 				t.Errorf("%s, %s: %d parses differ without records, first:\n%s", g.Name, b, len(diffs), diffs[0])
 			}
@@ -64,11 +64,11 @@ func scanSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 					}
 				}
 			}
-			if tune.ScanHotSpan() <= 2 && state.ScanHits.Load() == hitsB {
+			if tune.ScanHotSpan() <= 2 && tune.Stats.ScanHits.Load() == hitsB {
 				t.Errorf("%s, %s: no call was answered from a record", g.Name, b)
 			}
 		}
-		if tune.ScanHotSpan() <= 2 && state.ScanHits.Load() == hits {
+		if tune.ScanHotSpan() <= 2 && tune.Stats.ScanHits.Load() == hits {
 			t.Errorf("%s: no call was answered from a record", g.Name)
 		}
 	}
@@ -122,22 +122,23 @@ func TestScanSitesReuseRecords(t *testing.T) {
 // TestScanSitesInDocuments checks that a Document parse after edits inside and next to a run that a
 // record covers gives the tree and errors of a fresh parse of the text.
 func TestScanSitesInDocuments(t *testing.T) {
-	hits := state.ScanHits.Load()
+	t.Parallel()
+	stats := new(state.HotStats)
 	for _, g := range scanSiteGrammars {
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-			if d := scanDocumentMismatch(t, g.Src, g.Alphabet, b); d != "" {
+			if d := scanDocumentMismatch(t, g.Src, g.Alphabet, b, stats); d != "" {
 				t.Errorf("%s, %s: %s", g.Name, b, d)
 			}
 		}
 	}
-	if state.ScanHits.Load() == hits {
+	if stats.ScanHits.Load() == 0 {
 		t.Errorf("no call was answered from a record")
 	}
 }
 
 // scanDocumentMismatch edits Documents of the grammar src, whose scan sites turn hot at two
 // characters, and returns the first difference from a fresh parse of the edited text.
-func scanDocumentMismatch(t *testing.T, src, alphabet string, b engine.Backend) string {
+func scanDocumentMismatch(t *testing.T, src, alphabet string, b engine.Backend, stats *state.HotStats) string {
 	t.Helper()
 	rng := rand.New(rand.NewSource(133))
 	prog := enginetest.MustCompile(t, src)
@@ -148,7 +149,7 @@ func scanDocumentMismatch(t *testing.T, src, alphabet string, b engine.Backend) 
 		}
 	}
 	for i := 0; i < 40; i++ {
-		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
+		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2, Stats: stats}}
 		d, err := prog.NewDocumentWith("main", pool[rng.Intn(len(pool))], o)
 		if err != nil {
 			t.Fatal(err)
@@ -205,6 +206,7 @@ func TestScanSitesNegativeControls(t *testing.T) {
 // TestScanSitesInStreams checks that a stream that delivers a run of a scan site in pieces, so
 // that a call ends where the available input does, emits what a parse of the whole text builds.
 func TestScanSitesInStreams(t *testing.T) {
+	t.Parallel()
 	prog := enginetest.MustCompile(t, `rule main = row* #stream $$
 rule row = ws "x" ws ";" / ws "x" ws "!" / ws "y" ws ";"
 rule ws = [ ]*`)
@@ -220,9 +222,9 @@ rule ws = [ ]*`)
 // record. On the bytecode backends the walks of ws build lists, which the valued ITER serves.
 func scanSitesInStreams(t *testing.T, prog *engine.Program, b engine.Backend) {
 	t.Helper()
-	hits := state.ScanHits.Load()
+	stats := new(state.HotStats)
 	defer func() {
-		if state.ScanHits.Load() == hits {
+		if stats.ScanHits.Load() == 0 {
 			t.Errorf("%s: no stream parse was answered from a record", b)
 		}
 	}()
@@ -237,7 +239,7 @@ func scanSitesInStreams(t *testing.T, prog *engine.Program, b engine.Backend) {
 		}
 		text := sb.String()
 		var want []string
-		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2}}
+		o := engine.ParseOptions{Backend: b, Expectations: true, Tune: state.Tuning{ScanHot: 2, Stats: stats}}
 		off := o
 		off.Tune.SkipOff = true
 		werr := prog.ParseStreamWith("main", strings.NewReader(text), func(n *value.Node) error { want = append(want, skipDump(t, n, nil)); return nil }, off)
@@ -391,10 +393,12 @@ rule ws = [ ]*`
 // shorter than that of run sites are answered from records on every backend: the hot span of scan
 // sites is its own (Tuning.ScanHotSpan), not that of run sites.
 func TestScanSitesHitAtTheirOwnHotSpan(t *testing.T) {
+	t.Parallel()
 	scanSpan, runSpan := new(state.Tuning).ScanHotSpan(), new(state.Tuning).RunHotSpan()
 	if scanSpan >= runSpan {
 		t.Fatalf("the hot span of scan sites (%d) is not below that of run sites (%d)", scanSpan, runSpan)
 	}
+	tune := state.Tuning{Stats: new(state.HotStats)}
 	prog := enginetest.MustCompile(t, scanSpanProbe)
 	rec, err := prog.Recognizer()
 	if err != nil {
@@ -405,11 +409,11 @@ func TestScanSitesHitAtTheirOwnHotSpan(t *testing.T) {
 		for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
 			for _, n := range []int{scanSpan + 4, 40, runSpan - 1} {
 				in := strings.Repeat(" ", n) + "e"
-				before := state.ScanHits.Load()
-				if _, err := p.ParseWith("main", in, engine.ParseOptions{Backend: b}); err != nil {
+				before := tune.Stats.ScanHits.Load()
+				if _, err := p.ParseWith("main", in, engine.ParseOptions{Backend: b, Tune: tune}); err != nil {
 					t.Fatalf("%s, %s: run of %d: %v", name, b, n, err)
 				}
-				if state.ScanHits.Load() == before {
+				if tune.Stats.ScanHits.Load() == before {
 					t.Errorf("%s, %s: a run of %d spaces was not answered from a record", name, b, n)
 				}
 			}
@@ -547,6 +551,7 @@ rule ws = [ ]*`
 // walks lookaheads with a site of its own (the one without values), so they share nothing there;
 // the results are the same either way.
 func TestScanSitesShareRecordsWithLookaheads(t *testing.T) {
+	tune := state.Tuning{Stats: new(state.HotStats)}
 	for _, src := range []string{scanSharedTable, scanSharedTableFromLookahead} {
 		prog, plain := enginetest.MustCompile(t, src), compileWithoutScanSites(t, src)
 		rec, err := prog.Recognizer()
@@ -560,11 +565,11 @@ func TestScanSitesShareRecordsWithLookaheads(t *testing.T) {
 			if skipDump(t, n, err) != skipDump(t, wn, werr) {
 				t.Errorf("%s: the results differ", b)
 			}
-			before := state.ScanHits.Load()
-			if _, err := rec.ParseWith("main", in, engine.ParseOptions{Backend: b}); err != nil {
+			before := tune.Stats.ScanHits.Load()
+			if _, err := rec.ParseWith("main", in, engine.ParseOptions{Backend: b, Tune: tune}); err != nil {
 				t.Fatal(err)
 			}
-			if hits := state.ScanHits.Load() - before; hits != 2 {
+			if hits := tune.Stats.ScanHits.Load() - before; hits != 2 {
 				t.Errorf("%s: %d walks were answered from a record, want 2", b, hits)
 			}
 		}

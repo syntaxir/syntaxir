@@ -1,8 +1,6 @@
 package state
 
 import (
-	"sync/atomic"
-
 	"syntaxir.dev/sxir/internal/runtime/nodes"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 	"syntaxir.dev/sxir/pkg/runtime/value/impl"
@@ -30,10 +28,6 @@ func (r skipRecord) Count() int { return r.far }
 
 // Kids returns the elements of a walk that builds a value. They are shared by the lists of the walks.
 func (r skipRecord) Kids() []*value.Node { return r.vals.slice() }
-
-// ScanHits counts the walks answered from a record. It is a hook for tests that check a parse
-// reaches the records; nothing reads it in a parse.
-var ScanHits atomic.Int64
 
 // scanSlots returns the slots of the site, or nil if it has none. A site has one table for the
 // walks inside and outside lookaheads, unlike a skip-run site: the end, the examined range and the
@@ -70,7 +64,9 @@ func (p *Parser) ScanLookup(site, start int) (skipRecord, bool) {
 func (p *Parser) ScanJump(rec skipRecord) {
 	p.touch(rec.examined)
 	p.Pos = rec.end
-	ScanHits.Add(1)
+	if st := p.tune.Stats; st != nil {
+		st.ScanHits.Add(1)
+	}
 }
 
 // ScanStore records the walk of the hot site that began at start and ended at the current position;

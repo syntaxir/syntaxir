@@ -1,5 +1,7 @@
 package state
 
+import "sync/atomic"
+
 // The thresholds of the charge model ("Run Sites" and "Scan Sites" in spec/runtime/parsing.md). They
 // decide which walks look up and store records and which runs a Document records, so they decide
 // the charged units; every backend uses the same values, and no option changes them.
@@ -50,6 +52,21 @@ type Tuning struct {
 	// MissingMut, when not 0, breaks the missing-token limit of a stream parse
 	// (MissingLimitPerElement).
 	MissingMut int
+	// Stats, when not nil, counts the sites that turn hot and the walks answered from a record in
+	// the parses that carry it, for tests that check a parse reaches the hot paths. Nothing in a
+	// parse reads it.
+	Stats *HotStats
+}
+
+// HotStats counts what the hot paths of the parses that share it did (Tuning.Stats). The counters
+// are atomic because the parses of one test may run concurrently; the tests of a package each
+// make their own, so that parallel tests do not see each other's parses.
+type HotStats struct {
+	// RunHotTurns counts the run sites that turned hot: once for each site and lookahead state of
+	// a parse, so counting it costs nothing on the hot path.
+	RunHotTurns atomic.Int64
+	// ScanHits counts the walks answered from a record.
+	ScanHits atomic.Int64
 }
 
 // MissingLimitPerElement gives each element of a stream the whole missing-token limit, rather

@@ -20,11 +20,12 @@ import (
 // records of run sites taken from the first walk on and with records off, on every backend: a walk
 // that takes a record gives what one that evaluates its iterations gives.
 func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
+	t.Parallel()
 	grammars, _ := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if len(grammars) == 0 {
 		t.Fatal("no corpus grammars")
 	}
-	turns := state.RunHotTurns.Load()
+	stats := new(state.HotStats)
 	for _, g := range grammars {
 		src, err := os.ReadFile(g)
 		if err != nil {
@@ -43,7 +44,7 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 		}
 		for _, in := range inputs {
 			for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-				o := engine.ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes, Tune: state.Tuning{RunHot: 1, ScanHot: 1}}
+				o := engine.ParseOptions{Backend: b, Expectations: true, Unit: input.Bytes, Tune: state.Tuning{RunHot: 1, ScanHot: 1, Stats: stats}}
 				n, err := prog.ParseWith(prog.DefaultStartRule, in, o)
 				with := codegentest.ResultJSON(n, err)
 				o.Tune.SkipOff = true
@@ -56,7 +57,7 @@ func TestRunSitesCorpusMatchWithoutRecords(t *testing.T) {
 			}
 		}
 	}
-	if state.RunHotTurns.Load() == turns {
+	if stats.RunHotTurns.Load() == 0 {
 		t.Error("no run site turned hot: the records were never taken")
 	}
 }

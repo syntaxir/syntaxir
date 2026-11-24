@@ -120,6 +120,7 @@ var alternatingWalks = []struct {
 // (a negative control of (R2) of the linear-cost proof for sites that are not free of the
 // environment).
 func TestAlternatingWalksTurnHot(t *testing.T) {
+	t.Parallel()
 	skipWithoutBudget(t)
 	for _, c := range alternatingWalks {
 		p, err := Compile(c.Source)
@@ -127,12 +128,12 @@ func TestAlternatingWalksTurnHot(t *testing.T) {
 			t.Fatal(err)
 		}
 		for _, b := range Backends {
-			turns := state.RunHotTurns.Load()
-			s, err := Measure(p, c.Input, double(100), b, Cap)
+			stats := new(state.HotStats)
+			s, err := Measure(p.WithTuning(state.Tuning{Stats: stats}), c.Input, double(100), b, Cap)
 			if err != nil {
 				t.Fatalf("%s, %s: %v", c.Name, BackendName(b), err)
 			}
-			if state.RunHotTurns.Load() == turns {
+			if stats.RunHotTurns.Load() == 0 {
 				t.Errorf("%s, %s: no run site turned hot", c.Name, BackendName(b))
 			}
 			if got := Classify(s); got != Linear {
