@@ -157,7 +157,9 @@ func (p *Parser) heldBytes() uint64 {
 // chargeValueBytes charges n bytes of a value that only the controlled path builds, for the input
 // that holds c (BudgetControl.values).
 func (c *BudgetControl) chargeValueBytes(n int) {
-	c.values = limits.SaturatingAdd(c.values, uint64(n))
+	if c.Limits.Memory != 0 {
+		c.values = limits.SaturatingAdd(c.values, uint64(n))
+	}
 }
 
 // memoryLimit returns the memory limit of the parse, 0 for none.

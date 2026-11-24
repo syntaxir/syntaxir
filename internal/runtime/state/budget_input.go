@@ -12,8 +12,10 @@ import (
 func (p *Parser) controlled() bool { return BudgetControlsEnabled && p.Control != nil }
 
 // countsMemory is the member of the shared mechanisms that reports whether the parse counts the memory
-// of the values it builds. The engine counts it whenever the parse has a budget control (controlled).
-func (p *Parser) countsMemory() bool { return p.controlled() }
+// of the values it builds. The engine counts it when the parse has a budget control with a finite
+// memory limit (controlled): nothing reads the counts without a limit, so a parse that leaves Memory
+// unlimited, as the default does even though it has a compute budget, pays for none of them.
+func (p *Parser) countsMemory() bool { return p.controlled() && p.Control.Limits.Memory != 0 }
 
 // valueUnits is the member of the shared mechanisms that counts the n units of a sized event of a
 // value (the bytes that a string comparison or concatenation covers, or the recovered-error entries

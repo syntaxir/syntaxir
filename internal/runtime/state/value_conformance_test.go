@@ -88,7 +88,10 @@ func (e engineValues) Call(o *code.Op, args []any) []any {
 
 func TestEngineValueConformance(t *testing.T) {
 	controlled := &Parser{Input: Input{Control: NewBudgetControl(context.Background(), runtime.Limits{Compute: 1 << 62})}}
-	for name, impl := range map[string]engineValues{"engine": {}, "engine controlled": {controlled}} {
+	// A parse counts the memory of the values it builds, and builds the concatenation in counted chunks,
+	// only under a finite memory limit.
+	limited := &Parser{Input: Input{Control: NewBudgetControl(context.Background(), runtime.Limits{Compute: 1 << 62, Memory: 1 << 62})}}
+	for name, impl := range map[string]engineValues{"engine": {}, "engine controlled": {controlled}, "engine memory limited": {limited}} {
 		s := conform.ValueSuite{Name: name, Impl: impl, Ops: []string{"binary", "unary", "logic"}}
 		if err := conform.RunValues(s); err != nil {
 			t.Error(err)

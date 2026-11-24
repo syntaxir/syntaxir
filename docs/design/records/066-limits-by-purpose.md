@@ -868,6 +868,17 @@ on CSV did not reproduce in the minima of this loaded run, so it is a bound from
 The paired medians of the loaded run exaggerate the gap of the first form (1.09 and 1.10, against at most 1.04 on CSV and
 1.003 on JSON in the quiet run) and agree with the quiet run only in direction.
 
+##### The Engine and Generated Go
+
+A default parse has a control in the engine, because `Compute` defaults to a budget, so the engine counted the bytes of
+the values, errors and memo holders it builds even with `Memory` unlimited, where nothing reads them. Generated Go
+already counted only under a finite limit (its parser keeps `memoryLimited`, set with the control). The engine now does
+the same: the engine counts when the control has a finite `Memory`, and the input charges the text it detaches only then. The compute units are unaffected, since the work that the shared mechanisms step through
+counts none. Interleaved before-and-after runs of the engine's `Parse` benchmarks (JSON, CSV, XML, Arith_OperatorsRule
+and Minilang on the closure, bytecode and iterative backends in CodePoints, ten rounds at 200 ms, on a machine that
+other jobs loaded) gave a geometric mean of 1.000 of the case medians, each between 0.96 and 1.07. The change
+saves a few additions on a path that these benchmarks do not resolve.
+
 #### Charged Memory and Compute
 
 Charged memory against compute spent, for the generated Node parsers on the benchmark inputs, from the counter-form
