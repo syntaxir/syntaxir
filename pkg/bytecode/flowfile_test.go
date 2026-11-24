@@ -154,8 +154,8 @@ func noFieldTypes(string) error { return nil }
 
 // TestFlowBodyEncoding checks that a Flow body survives writing and reading with every operation
 // and kind of immediate, that the loaded module validates, and that reading rejects an unknown
-// operation, a constant of an unknown kind or a value its kind does not have, and a rule with two
-// bodies. The module has no stream body; TestStreamBodyEncoding checks those.
+// operation, a constant of an unknown kind or a value its kind does not have, a rule with two
+// bodies and bodies out of rule order, which Encoder never writes. The module has no stream body; TestStreamBodyEncoding checks those.
 func TestFlowBodyEncoding(t *testing.T) {
 	m := flowModule()
 	if err := bytecode.ValidateModule(m, noFieldTypes); err != nil {
@@ -204,6 +204,10 @@ func TestFlowBodyEncoding(t *testing.T) {
 		t.Fatalf("the body of rule 1 does not follow the count and the body of rule 0")
 	}
 	two[count] = 3
+	// The bodies of rules 1 and 0 in that order, which Encoder never writes, followed by no stream
+	// body.
+	swapped := append(bytes.Clone(data[:count]), 2)
+	swapped = append(append(append(swapped, body...), rule0[1:]...), 0)
 	for _, c := range []struct {
 		name string
 		data []byte
@@ -213,7 +217,8 @@ func TestFlowBodyEncoding(t *testing.T) {
 		{"constant of an unknown kind", one(byte(bytecode.FlowConst), 0, 9, 0), "invalid flow constant"},
 		{"boolean constant 2", one(byte(bytecode.FlowConst), 0, bytecode.ConstBool, 4), "invalid flow constant"},
 		{"nil constant 1", one(byte(bytecode.FlowConst), 0, bytecode.ConstNil, 2), "invalid flow constant"},
-		{"two bodies of a rule", two, "has two Flow bodies"},
+		{"two bodies of a rule", two, "Flow bodies of rule 1 after rule 1, not in increasing rule order"},
+		{"bodies out of rule order", swapped, "Flow bodies of rule 0 after rule 1, not in increasing rule order"},
 	} {
 		r := &bytecode.Decoder{Data: c.data, Strs: m.Strings}
 		r.ReadModule()
@@ -251,7 +256,7 @@ func TestStreamBodyEncoding(t *testing.T) {
 	two = append(two, data[head+1:]...)
 	two = append(two, data[head+1:]...)
 	r = &bytecode.Decoder{Data: two, Strs: m.Strings}
-	if r.ReadModule(); r.Err == nil || !strings.Contains(r.Err.Error(), "has two stream bodies") {
+	if r.ReadModule(); r.Err == nil || !strings.Contains(r.Err.Error(), "stream bodies of rule 1 after rule 1") {
 		t.Errorf("two stream bodies: error %v", r.Err)
 	}
 	if d := m.Disassemble(); !strings.Contains(d, "flow b.stream regs=8:\n") {

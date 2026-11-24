@@ -19,13 +19,20 @@ func withChecksum(body []byte) []byte {
 	return binary.LittleEndian.AppendUint32(append([]byte(nil), body...), crc32.ChecksumIEEE(body))
 }
 
-// encodeTable is encodeCompiled for parse mode with no insertion module, with edit applied to the
-// string table before it is written: what an encoder with another string table would write.
-func encodeTable(m *bytecode.Module, start string, edit func(*bytecode.Encoder)) []byte {
+// encodeTables is encodeCompiled for parse mode, with edit and editIns applied to the string tables
+// of the file and of the insertion part before they are written: what an encoder with other string
+// tables would write.
+func encodeTables(m, ins *bytecode.Module, start string, edit, editIns func(*bytecode.Encoder)) []byte {
 	w := moduleEncoder(m)
 	w.Str(start)
 	w.WriteModule(m)
-	w.Bool(false)
+	w.Bool(ins != nil)
+	if ins != nil {
+		iw := moduleEncoder(ins)
+		iw.WriteModule(ins)
+		editIns(iw)
+		w.Part(iw)
+	}
 	edit(w)
 	var out bytes.Buffer
 	out.WriteString(compiledMagic)
@@ -37,8 +44,9 @@ func encodeTable(m *bytecode.Module, start string, edit func(*bytecode.Encoder))
 }
 
 // TestCompiledCanonicalRejections checks that a compiled grammar that the encoder would not write
-// does not load, though it decodes to a valid program: one with an integer longer than needed, an
-// unused string or a string twice in its string table.
+// does not load, though it decodes to a valid program: one with an integer longer than needed, or
+// with a string that no part refers to or a string twice in the string table of the file or of the
+// insertion part. TestFlowBodyEncoding checks the order of the Flow bodies.
 func TestCompiledCanonicalRejections(t *testing.T) {
 	t.Parallel()
 	prog := mustCompile(t, "@start\nrule r = \"a\"+")
@@ -59,8 +67,24 @@ func TestCompiledCanonicalRejections(t *testing.T) {
 		return withChecksum(slices3(body[:i], []byte{body[i] | 0x80, 0}, body[i+1:]))
 	}
 	m := prog.Module()
-	if again := encodeTable(m, "", func(*bytecode.Encoder) {}); !bytes.Equal(again, data) {
-		t.Fatalf("encodeTable without an edit differs from byte %d", firstDiff(again, data))
+	keep := func(*bytecode.Encoder) {}
+	unused := func(w *bytecode.Encoder) { w.List = append(w.List, "unused") }
+	if again := encodeTables(m, nil, "", keep, nil); !bytes.Equal(again, data) {
+		t.Fatalf("encodeTables without an edit differs from byte %d", firstDiff(again, data))
+	}
+	// A grammar with an insertion module, for the string table of the insertion part.
+	insProg := mustCompile(t, "@start\nrule r = \"a\" #missing")
+	insData, err := insProg.MarshalBinary("")
+	if err != nil {
+		t.Fatal(err)
+	}
+	insProgram, err := insProg.insertionProgram()
+	if err != nil {
+		t.Fatal(err)
+	}
+	im, ins := insProg.Module(), insProgram.Module()
+	if again := encodeTables(im, ins, "", keep, keep); !bytes.Equal(again, insData) {
+		t.Fatalf("encodeTables of the insertion grammar without an edit differs from byte %d", firstDiff(again, insData))
 	}
 	cases := []struct {
 		name string
@@ -69,12 +93,15 @@ func TestCompiledCanonicalRejections(t *testing.T) {
 	}{
 		{"padded instruction set version", padded(isa), "not in its shortest encoding"},
 		{"padded string count", padded(isa + 1), "not in its shortest encoding"},
-		{"unused string", encodeTable(m, "", func(w *bytecode.Encoder) { w.List = append(w.List, "unused") }), "not in canonical form"},
-		{"duplicate string", encodeTable(m, "", func(w *bytecode.Encoder) { w.List = append(w.List, w.List[0]) }), "twice in the string table"},
+		{"unused string", encodeTables(m, nil, "", unused, nil), "strings that the file does not refer to"},
+		{"unused string past the start rule", encodeTables(m, nil, "r", unused, nil), "strings that the file does not refer to"},
+		{"duplicate string", encodeTables(m, nil, "", func(w *bytecode.Encoder) { w.List = append(w.List, w.List[0]) }, nil), "twice in the string table"},
+		{"unused string in the insertion part", encodeTables(im, ins, "", keep, unused), "strings that it does not refer to"},
+		{"duplicate string in the insertion part", encodeTables(im, ins, "", keep, func(w *bytecode.Encoder) { w.List = append(w.List, w.List[0]) }), "twice in the string table"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			if bytes.Equal(c.data, data) {
+			if bytes.Equal(c.data, data) || bytes.Equal(c.data, insData) {
 				t.Fatal("the case encodes the program as compiled")
 			}
 			_, _, err := LoadProgram(c.data)
@@ -83,6 +110,17 @@ func TestCompiledCanonicalRejections(t *testing.T) {
 			}
 		})
 	}
+}
+
+// firstDiff returns the offset of the first byte where a and b differ, or the length of the shorter.
+func firstDiff(a, b []byte) int {
+	n := min(len(a), len(b))
+	for i := range n {
+		if a[i] != b[i] {
+			return i
+		}
+	}
+	return n
 }
 
 // slices3 returns the concatenation of a, b and c in a new slice.

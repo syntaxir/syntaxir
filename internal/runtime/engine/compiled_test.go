@@ -210,7 +210,8 @@ func TestCompiledEarlierInstructionSet(t *testing.T) {
 }
 
 // TestCompiledCorruptionDoesNotPanic checks that loading corrupted data (with a valid checksum)
-// does not panic, and that a parse of what loads ends. It corrupts with many random sources: a Flow
+// does not panic, that what loads saves to the bytes it was loaded from (the format is canonical),
+// and that a parse of what loads ends. It corrupts with many random sources: a Flow
 // body with a cycle that charged no step, which ran forever, came from the seventh source and from
 // none of the corruptions of the first.
 func TestCompiledCorruptionDoesNotPanic(t *testing.T) {
@@ -351,8 +352,9 @@ func corruptActionJumps(t *testing.T) {
 // corrupts the compiled grammars with, 3000 corruptions each.
 const corruptionSources = 64
 
-// corruptSeeds loads 3000 corruptions of the compiled grammars seeds, drawn from rng, and parses
-// with each one that loads when the build has budget controls.
+// corruptSeeds loads 3000 corruptions of the compiled grammars seeds, drawn from rng, saves each one
+// that loads to check that it gives back its bytes, and parses with it when the build has budget
+// controls.
 func corruptSeeds(t *testing.T, seeds [][]byte, rng *rand.Rand) {
 	t.Helper()
 	for i := 0; i < 3000; i++ {
@@ -373,6 +375,12 @@ func corruptSeeds(t *testing.T, seeds [][]byte, rng *rand.Rand) {
 				}
 			}()
 			prog, start, err := LoadProgram(b)
+			// The format is canonical: what loads saves to the bytes it was loaded from.
+			if err == nil {
+				if again, err := prog.Marshal(start, CompiledMode(b[len(compiledMagic)+1])); err != nil || !bytes.Equal(again, b) {
+					t.Fatalf("a corrupted grammar that loads saves to other bytes (%v)", err)
+				}
+			}
 			// Non-terminating recursion, for example from corrupted left-recursion marks, fails at the
 			// nesting depth limit, and a loop of a Flow body at its step, which requires progress.
 			// Action code has no such bound and may loop until the default compute limit; a build
@@ -594,6 +602,12 @@ func FuzzLoadProgram(f *testing.F) {
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
 		prog, start, err := LoadProgram(data)
+		if err == nil {
+			// The format is canonical: what loads saves to the bytes it was loaded from.
+			if again, err := prog.Marshal(start, CompiledMode(data[len(compiledMagic)+1])); err != nil || !bytes.Equal(again, data) {
+				t.Fatalf("a grammar that loads saves to other bytes (%v)", err)
+			}
+		}
 		if err == nil && start != "" {
 			for _, mode := range allModes {
 				prog.ParseWith(start, "a=1\n", servedBy(mode, ParseOptions{Limits: runtime.Limits{Depth: 1000}}))
