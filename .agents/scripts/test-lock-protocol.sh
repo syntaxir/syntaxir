@@ -3,7 +3,8 @@
 #   1. a running slot job delays an exclusive job's command;
 #   2. a queued or running exclusive job keeps a new slot job from starting;
 #   3. a state stamped with a newer protocol stops testslot.sh;
-#   4. a shared benchlock job does not keep slot jobs waiting.
+#   4. a shared benchlock job does not keep slot jobs waiting;
+#   5. an exclusive benchlock job inside a slot job refuses at once, a shared one runs.
 # Usage: .agents/scripts/test-lock-protocol.sh   (takes about 25 seconds, uses no CPU to speak of)
 set -uo pipefail
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
@@ -45,6 +46,13 @@ s=$(now)
 "$here/testslot.sh" bash -c "$(declare -f now); now > $W/c.start" 2>/dev/null
 lt "$(cat "$W/c.start")" "$(perl -e "print $s + 1.5")" && check "a shared benchlock job leaves the slots alone" ok || check "shared" "slot job waited for a shared job"
 wait "${pids[@]}" 2>/dev/null
+
+# 5: an exclusive job inside a slot job would wait for its own slot; it refuses at once.
+t0=$(now)
+"$here/testslot.sh" "$here/benchlock.sh" t-inner true 2> "$W/in.err"; rc=$?
+t1=$(now)
+{ [ "$rc" = 2 ] && grep -q "inside a testslot.sh job" "$W/in.err" && lt "$t1" "$(perl -e "print $t0 + 5")"; } && check "an exclusive benchlock job inside a slot job refuses at once" ok || check "self-wait" "status $rc after $(perl -e "print $t1 - $t0")s: $(cat "$W/in.err")"
+BENCHLOCK_CLASS=shared "$here/testslot.sh" "$here/benchlock.sh" t-inner true 2> "$W/in2.err" && check "a shared benchlock job inside a slot job runs" ok || check "shared inner" "$(cat "$W/in2.err")"
 
 # 3: a newer protocol stamp stops testslot.sh.
 echo 99 > "$SXIR_AGENT_STATE/protocol"

@@ -18,7 +18,9 @@
 # An exclusive job also excludes the test slots of testslot.sh: from the moment its record is queued, new slot
 # jobs wait; once it holds the lock it waits until the slot jobs that run have finished (BENCHLOCK_DRAIN seconds
 # at most, default 1800, then it goes on and says so). A slot job that starts before it is visible to the drain
-# check, because both take the flock of slots/.lock. The protocol and its version stamp are in lib.sh.
+# check, because both take the flock of slots/.lock. An exclusive job refuses to start inside a slot job (it would
+# wait for its own slot; testslot.sh sets SXIR_IN_TESTSLOT=1). Slot jobs can starve under a steady stream of exclusive
+# jobs; that is accepted, since exclusive runs are benchmarks, which are rare and short. The protocol and its version stamp are in lib.sh.
 # State: $SXIR_AGENT_STATE (see lib.sh). The layout is the one of the earlier versions of this script
 # (the zsh one and the bash one without classes), so jobs queued by any of them are ranked together:
 #   benchlock/owner         "<tag> <pid>" of the exclusive holder; the directory is the lock.
@@ -51,6 +53,10 @@ stall=${BENCHLOCK_STALL:-300}
 poll=${BENCHLOCK_POLL:-20}
 class=${BENCHLOCK_CLASS:-exclusive}
 case $class in exclusive | shared) ;; *) echo "benchlock.sh: BENCHLOCK_CLASS must be exclusive or shared, not '$class'" >&2; exit 2 ;; esac
+if [ "$class" = exclusive ] && [ -n "${SXIR_IN_TESTSLOT:-}" ]; then
+  echo "benchlock.sh: an exclusive run cannot start inside a testslot.sh job: it would wait for its own slot to drain. Run it outside the slot (BENCHLOCK_CLASS=shared is allowed here)." >&2
+  exit 2
+fi
 k=$(sxir_shared_slots)
 tag=$1; shift
 sxir_protocol_stamp

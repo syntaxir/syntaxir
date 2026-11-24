@@ -19,7 +19,10 @@
 # An exclusive benchlock.sh job, queued or running, keeps new jobs from starting: they wait, naming the
 # job, while the jobs that run finish (benchlock.sh then waits for those before it starts its command). The
 # check and the claim happen under the same flock, which benchlock.sh takes for its drain check, so no job
-# slips in after it. A job that holds an exclusive lock must not run testslot.sh inside itself. Copies of
+# slips in after it. A job that holds an exclusive lock must not run testslot.sh inside itself, and an exclusive
+# benchlock.sh must not run inside a slot job: the command here has SXIR_IN_TESTSLOT=1, which benchlock.sh refuses at once.
+# Starvation: slot jobs wait while an exclusive job is queued, so a steady stream of exclusive jobs would keep them
+# waiting. That is accepted: exclusive runs are benchmarks, which are rare and short. Copies of
 # this script made before the protocol (see lib.sh) do not wait; the gate's load check catches that.
 # State: $SXIR_AGENT_STATE/slots.
 set -euo pipefail
@@ -125,6 +128,8 @@ until claim_once; do
 done
 # Job control gives the command a process group of its own as it is forked, so a signal sent to
 # the group from here on cannot miss it. A signal that came earlier is replayed below.
+# The command knows it runs in a slot: an exclusive benchlock.sh inside it would wait for its own slot to drain.
+export SXIR_IN_TESTSLOT=1
 set -m
 "$@" < /dev/null &
 child=$!

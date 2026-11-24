@@ -27,7 +27,7 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   verdicts; `docs/performance.md` (Benchmark Gates) describes the rule. An exclusive
   benchlock job also holds back new `testslot.sh` jobs and waits for the running ones, so
   every `go test`, `go vet` and `go build` of more than a few seconds goes through
-  `testslot.sh`; a gate whose load is above `-max-load` at either end is invalid.
+  `testslot.sh` (the gate's own builds do). Exclusive jobs are rare and short, so slot jobs may wait on them and a steady stream of them could starve the slots: accepted. An exclusive benchlock job refuses to start inside a slot job. A gate whose load is above `-max-load` at either end is invalid.
 - New structural or feature work lands reasonably optimized. Profile it before landing and
   fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
   the same unit. File the remaining tuning, with the measured gap, for the performance
