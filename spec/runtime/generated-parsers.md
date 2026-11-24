@@ -170,7 +170,9 @@ const (
   grammar with `#missing` also exports `WithMissingTokens`: a positive limit inserts missing tokens in
   `Parse`, `ParseRule`, `Recognize`, the stream parses and the parses of a Document, and with `-types`
   in their typed counterparts (`ParseValue`, `ParseRuleValue`, `ParseStreamValue`, `IterateValue` and
-  `Document.ParseValue`), with the results, diagnostics and compute units of the engine. A Document takes the limit at
+  `Document.ParseValue`), with the results and diagnostics of the engine, and, apart from `Document.ParseValue`, its
+  compute units: `Document.ParseValue` keeps a typed memo of its own and resumes no runs, so its units follow
+  [Compatibility and Support](documents.md#compatibility-and-support). A Document takes the limit at
   construction ([Missing Tokens](documents.md#missing-tokens)), and a stream has one limit
   ([Missing Tokens](streaming.md#missing-tokens)). A parser is
   generated with limit controls unless it opts out (`-no-limits`, `NoLimitControls`), and one generated

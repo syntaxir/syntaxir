@@ -52,7 +52,9 @@ Compared with the engine's API:
 - **The options are those of package `runtime`.** A function of the generated package takes `runtime.ParseOption`, so
   `runtime.WithLimits` and the `With` functions that `api.go` repeats are the same options. A parser generated from a
   grammar with `#missing` exports `WithMissingTokens` and inserts missing tokens in `Parse`, `ParseRule`,
-  `Recognize`, the stream parses and Documents, and with `-types` in the typed parses, as the engine does. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
+  `Recognize`, the stream parses and Documents, and with `-types` in the typed parses, with the results and diagnostics
+  of the engine, and with its compute units except in `Document.ParseValue`, which keeps a typed memo of its own
+  ([Documents](../../spec/runtime/documents.md#compatibility-and-support)). The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
 - **`Parse` and `ParseRule` replace `Parser.Parse`.** Position units and rule-call limits use
   functional options (`Parse(input, pairsparser.WithUnit(pairsparser.Bytes))`), like the engine. `ParseRule(name, input)` plays the role of
   `Parser.WithStart(name).Parse(input)`, and like it accepts only rules marked `@start`: another rule is an error,
