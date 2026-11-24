@@ -1,6 +1,6 @@
 # Linear Cost
 
-Arata Furukawa · Last revised 2026-11-22
+Arata Furukawa · Last revised 2026-11-24
 
 This proof shows that the [Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)
 bound the [cost](../runtime/parsing.md#cost) of every parse whose records
@@ -14374,7 +14374,11 @@ theorem covers such a parse.
    that window of edits, not by $n$, $K$ and $L$. The step is to bound $V_j$,
    $B_j$, $G_j$, $Q_j$ and $\Lambda_j$, or to change what a Document reuses so
    that they are bounded, and then to restate that section with the tighter
-   bounds. The memory that a Document keeps between parses is not a cost, and
+   bounds. The bound to reach is stated in
+   [Bound of a Document Parse](../runtime/documents.md#bound-of-a-document-parse):
+   the work of a parse at most a constant times the total of a parse of its
+   text from scratch, with a constant that depends only on the grammar and the
+   backend. The memory that a Document keeps between parses is not a cost, and
    this proof does not bound it.
 7. **Values built from reshaped values.** The [Cost View](cost-view.md) proof
    bounds the cost of the written grammar by a constant times that of its view,

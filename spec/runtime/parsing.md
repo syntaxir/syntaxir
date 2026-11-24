@@ -514,7 +514,10 @@ later parse reuses is therefore part of its total, and [Documents](documents.md)
 states it. The work of the Document itself, applying pending edits to the memo
 entries a parse finds, moving or copying the values it reuses and working through what
 the Document retains from earlier parses, is not an event;
-[Work of a Document Parse](documents.md#work-of-a-document-parse) bounds it.
+[Work of a Document Parse](documents.md#work-of-a-document-parse) bounds it,
+and [Bound of a Document Parse](documents.md#bound-of-a-document-parse) states
+the bound that the whole of a Document parse is to meet: a constant times the
+total of a parse of its text from scratch.
 The [memory limit](#memory-limit) caps the storage a parse takes into use in
 bytes.
 

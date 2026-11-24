@@ -437,7 +437,9 @@ implementation makes and that the polls for cancellation and the memory limit
 count, as they count the steps of any parse. Each bound is an upper bound: an
 operation may do less. The bounds are what keeps the time of a Document parse
 proportional to what the parse counts, plus the bound of each operation, even
-though no limit counts the work.
+though no limit counts the work. Several of them still grow with what the
+Document retains; [Bound of a Document Parse](#bound-of-a-document-parse) states
+the bound that the whole work of a parse is to meet.
 
 The work is a function of the logical state, as for every parse: the same
 Document after the same operations does the same work for its next parse.
@@ -563,6 +565,97 @@ changes no work.
 of a Document does, besides the unit of a parse from scratch, one unit of work for
 each further byte that it reads for the decoding: at most three more units for
 each examination of the input.
+
+### Bound of a Document Parse
+
+A parse of a Document after edits costs at most a constant factor more than a
+parse of its text from scratch, however often the Document has been edited and
+whatever it keeps from earlier parses. This section states that bound and the
+conditions under which it holds. The units that a parse counts meet it. The
+work beyond them does not yet (not implemented): several bounds of
+[Work of a Document Parse](#work-of-a-document-parse) still grow with what the
+Document retains, as the end of this section lists.
+
+Let P be a parse of a Document, t the text that it parses and n the length of
+t. Let U₀ be the total ([Compute Units](parsing.md#compute-units)) of a parse of
+t from scratch with the grammar, the start rule, the position unit, the
+expectation mode and the missing-token limit of the Document; it is the same on
+every backend. Let U be the total of P. The **work** of P is its compute units
+together with the units of work of
+[Work of a Document Parse](#work-of-a-document-parse) that it does from the
+start of `Parse` to its outcome, the publication of its diagnostics included.
+Let J be the length of the text that P copies to make constant the texts that
+cross the pieces of its text ([Cost](parsing.md#cost)): at most a constant times
+n, and 0 when P takes no such text. Let the **moved size** M be the sum of one
+plus the number of children and fields of each distinct node that P moves or
+copies to bring a reused value up to date
+([Work of a Document Parse](#work-of-a-document-parse)), an empty node counted
+once however often it is copied. Then, for a constant c:
+
+1. **Units.** U is at most U₀. P counts the events that it performs: a result
+   that it reuses counts its call, and its key if an ordinary parse memoizes
+   the rule, which the parse from scratch counts at that call too, and a
+   result that it evaluates again counts its evaluation ([Reuse](#reuse)).
+2. **Work.** The work of P is at most c · (U₀ + J).
+3. **Work after edits.** The work of P is at most c · (U + M + J), and M is at
+   most c · U₀. So P does work in proportion to what it evaluates again, to
+   the results that it reuses at a call and a key each, and to the values that
+   it moves, and not to the text that the reused results cover. What it
+   evaluates again follows from the edits and the examined ranges
+   ([Reuse Model](#reuse-model)): P evaluates a call again only where no kept
+   entry answers it, and an edit of [a, b) keeps an entry only when its
+   examined range ends at or before a, or starts at or after b and its
+   evaluation is position-free. So after one edit P evaluates again, among
+   others, the calls whose examined ranges overlap the replaced range or, for
+   an insertion, cover the slots on both sides of it, the calls at positions
+   inside the replaced range, the calls after the edit whose results read
+   positions, the calls that no earlier parse made, and those whose entries
+   lag.
+
+The constant c depends only on the grammar and the backend. It does not depend
+on n, on the edits since the previous parse or on the length of the edit log,
+or on anything that the Document retains from earlier parses: its memo entries,
+live, dropped or lagging, and the chains that hold them, its run records, the
+nodes and values that these reach, the slots of its memo table and the texts of
+earlier revisions.
+
+The bound holds on every backend that provides a Document (the three backends
+of the engine, the `Parse` and `ParseValue` of a generated Go parser and the
+`parse` and `parseValue` of a generated TypeScript parser), in either position
+unit, with or without the recording of expectations and with missing-token
+insertion. It holds for a parse that completes, for one that ends in a syntax
+error or a run-time error of an action, and for one that a cancellation or a
+limit interrupts, counting the work up to the interruption and the clearing of
+its state. A parse after a batch, after `ResetHistory` or after the memory limit
+drops what the Document retains is a parse from scratch with the work of the
+Document added, and meets it too.
+
+Two kinds of work lie outside the bound. The capture of a `Snapshot` and the
+comparison of change notifications follow the outcome and are proportional to
+the text and to the graph that they capture, which includes the values that the
+parse reused ([Snapshots](#snapshots)). An edit does its own work outside every
+parse, in proportion to its text, to the entries at the positions that it
+replaces and to its distance from the previous edit ([Reuse](#reuse)); a
+backend meets the bound without moving work of a parse into the edits beyond
+that.
+
+Until the bound is implemented, these bounds of
+[Work of a Document Parse](#work-of-a-document-parse) exceed item 2, since they
+grow with what the Document retains:
+
+- the removal of lagging entries, the indexes of chains and their probes, and
+  the walk of a store to the entry it replaces, which grow with the entries
+  that earlier texts left at a position;
+- the moves, which replay for each group of nodes the edits that it does not
+  account for, up to the length of the log, copy an empty node for each
+  reference to it, and can visit more distinct nodes than the parse from
+  scratch builds, since values that different parses built share fewer nodes;
+- the search in a recorded run of the previous parse, which grows with that
+  record;
+- the growth of the slots of the memo table, which grows with the slots that
+  deletions leave;
+- the generated runtimes, which copy a reused value at each reuse instead of
+  moving it once in a parse.
 
 ## Change Notifications
 
