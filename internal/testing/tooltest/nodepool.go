@@ -11,6 +11,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -22,8 +24,11 @@ import (
 //go:embed nodepool.mjs
 var nodePoolWorker string
 
-// NodeJobTimeout is how long RunNodeScript waits for one script before it kills the worker that runs it
-// and fails the script as hung. It is a variable so that the tests of the pool can shorten it.
+// NodeJobTimeout is how much work RunNodeScript lets one script do before it kills the worker that runs it
+// and fails the script as hung: this much CPU time, or this much wall time in which the script uses none
+// (an await that never settles), and ten times as much wall time at the very most. The limit is on CPU
+// time and not on the wall clock so that a loaded machine, which makes a script slow but not hung, does
+// not fail it (hung). It is a variable so that the tests of the pool can shorten it.
 var NodeJobTimeout = 3 * time.Minute
 
 // NodeDrainTimeout is how long RunNodeScript lets what a script left running (timers, requests) go on after its
@@ -91,8 +96,8 @@ func RunNodeScript(t testing.TB, node, dir, script string, args ...string) (Node
 	return RunNodeScriptWithin(t, NodeJobTimeout, node, dir, script, args...)
 }
 
-// RunNodeScriptWithin is RunNodeScript with the time after which a script that has not finished is killed
-// and reported as hung (instead of NodeJobTimeout), for the test of a script that hangs on purpose. A timeout
+// RunNodeScriptWithin is RunNodeScript with the limit after which a script that has not finished is killed
+// and reported as hung (instead of NodeJobTimeout; see there for what the limit measures), for the test of a script that hangs on purpose. A timeout
 // shorter than NodeDrainTimeout also reports a script whose timers have not run out as hung, since the pool waits
 // for them as node does.
 func RunNodeScriptWithin(t testing.TB, timeout time.Duration, node, dir, script string, args ...string) (NodeResult, error) {
@@ -101,7 +106,7 @@ func RunNodeScriptWithin(t testing.TB, timeout time.Duration, node, dir, script 
 	if err != nil {
 		return NodeResult{}, err
 	}
-	res, err := w.run(timeout, dir, script, args)
+	res, err := w.run(t, timeout, dir, script, args)
 	if err == nil && res.Leak != "" {
 		err = fmt.Errorf("node pool: %s in %s changed the state of the worker, which was replaced:\n%s", script, dir, res.Leak)
 	}
@@ -198,7 +203,7 @@ type nodeWorker struct {
 
 var nodeJobIDs atomic.Uint64
 
-func (w *nodeWorker) run(timeout time.Duration, dir, script string, args []string) (NodeResult, error) {
+func (w *nodeWorker) run(t testing.TB, timeout time.Duration, dir, script string, args []string) (NodeResult, error) {
 	w.jobs++
 	id := nodeJobIDs.Add(1)
 	line, err := json.Marshal(map[string]any{"id": id, "dir": dir, "script": script, "drainMs": NodeDrainTimeout.Milliseconds(), "args": append([]string{}, args...)})
@@ -208,15 +213,13 @@ func (w *nodeWorker) run(timeout time.Duration, dir, script string, args []strin
 	if _, err := w.in.Write(append(line, '\n')); err != nil {
 		return NodeResult{}, fmt.Errorf("node pool: the worker is gone: %w", err)
 	}
-	type reply struct {
-		res NodeResult
-		err error
-	}
-	done := make(chan reply, 1)
+	cpu0, _ := processCPU(w.cmd.Process.Pid)
+	backstop := wallBackstop(t, timeout)
+	done := make(chan nodeReply, 1)
 	go func() {
 		text, err := w.out.ReadBytes('\n')
 		if err != nil {
-			done <- reply{err: fmt.Errorf("node pool: the worker ended without an answer: %w", err)}
+			done <- nodeReply{err: fmt.Errorf("node pool: the worker ended without an answer: %w", err)}
 			return
 		}
 		var r struct {
@@ -226,18 +229,14 @@ func (w *nodeWorker) run(timeout time.Duration, dir, script string, args []strin
 			Leak     string
 		}
 		if err := json.Unmarshal(text, &r); err != nil || r.ID != id {
-			done <- reply{err: fmt.Errorf("node pool: bad answer %q (%v)", text, err)}
+			done <- nodeReply{err: fmt.Errorf("node pool: bad answer %q (%v)", text, err)}
 			return
 		}
-		done <- reply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code, Leak: r.Leak}}
+		done <- nodeReply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code, Leak: r.Leak}}
 	}()
-	select {
-	case r := <-done:
-		return r.res, r.err
-	case <-time.After(timeout):
-		w.cmd.Process.Kill()
-		return NodeResult{}, fmt.Errorf("node pool: %s in %s ran past %v and was killed", script, dir, timeout)
-	}
+	return w.await(done, cpu0, timeout, backstop, func(why string) error {
+		return fmt.Errorf("node pool: %s in %s ran past %v and was killed: %s", script, dir, timeout, why)
+	})
 }
 
 func (w *nodeWorker) stop() {
@@ -293,4 +292,115 @@ func NodeStderr(err error) string {
 		return e.Stderr
 	}
 	return ""
+}
+
+type nodeReply struct {
+	res NodeResult
+	err error
+}
+
+// backstopFactor is how many times the timeout of a job the pool lets it run on the wall clock at most,
+// whatever its CPU time: the backstop of a job that neither computes nor idles by the measures of hung.
+const backstopFactor = 10
+
+// wallBackstop returns the longest wall time a job with the timeout may take: backstopFactor times the
+// timeout, and no later than a few seconds before the deadline of the test binary, so that a script that
+// the load starves is reported as such and not by the timeout of `go test`, which kills every test.
+func wallBackstop(t testing.TB, timeout time.Duration) time.Duration {
+	limit := backstopFactor * timeout
+	if d, ok := t.(interface{ Deadline() (time.Time, bool) }); ok {
+		if at, ok := d.Deadline(); ok {
+			limit = min(limit, max(time.Until(at)-10*time.Second, timeout))
+		}
+	}
+	return limit
+}
+
+// hung decides whether a job that began at start is hung at now, from the CPU time that it has used
+// since then (cpu), the last time its CPU time grew (progress) and the wall clock limit. It is hung when
+//
+//   - it has used timeout of CPU time: a loop that never ends computes all the time, wherever the load
+//     puts it; or
+//   - it has not used any CPU time for timeout of wall time: an await that never settles, or a
+//     script that waits for nothing; or
+//   - it has run backstop of wall time.
+//
+// A job that the load starves is none of these while it keeps getting some CPU time: its wall time says
+// nothing about whether it is hung, but its CPU time does. It returns the reason, or "".
+func hung(timeout, backstop time.Duration, start, now, progress time.Time, cpu time.Duration) string {
+	switch {
+	case cpu >= timeout:
+		return fmt.Sprintf("it used %v of CPU time", cpu.Round(time.Millisecond))
+	case now.Sub(progress) >= timeout:
+		return fmt.Sprintf("it used no CPU time for %v", now.Sub(progress).Round(time.Millisecond))
+	case now.Sub(start) >= backstop:
+		return fmt.Sprintf("it ran for %v of wall time", now.Sub(start).Round(time.Millisecond))
+	}
+	return ""
+}
+
+// await waits for the answer of the job of w, killing the worker and failing the job with fail if it is
+// hung (hung): the limit is the job's own CPU time, which a loaded machine does not stretch, with a
+// wall clock backstop.
+func (w *nodeWorker) await(done <-chan nodeReply, cpu0, timeout, backstop time.Duration, fail func(why string) error) (NodeResult, error) {
+	start := time.Now()
+	progress, last := start, cpu0
+	tick := time.NewTicker(min(max(timeout/10, 100*time.Millisecond), 2*time.Second))
+	defer tick.Stop()
+	for {
+		select {
+		case r := <-done:
+			return r.res, r.err
+		case now := <-tick.C:
+			cpu, err := processCPU(w.cmd.Process.Pid)
+			if err != nil {
+				// The worker is gone: its answer or its end is on the way.
+				continue
+			}
+			if cpu > last {
+				progress, last = now, cpu
+			}
+			if why := hung(timeout, backstop, start, now, progress, cpu-cpu0); why != "" {
+				w.cmd.Process.Kill()
+				return NodeResult{}, fail(why)
+			}
+		}
+	}
+}
+
+// processCPU returns the CPU time that the process pid has used (user and system) as `ps` reports it,
+// which does not depend on the load of the machine.
+func processCPU(pid int) (time.Duration, error) {
+	out, err := exec.Command("ps", "-o", "cputime=", "-p", strconv.Itoa(pid)).Output()
+	if err != nil {
+		return 0, err
+	}
+	return parsePSTime(strings.TrimSpace(string(out)))
+}
+
+// parsePSTime parses the CPU time of ps: [[dd-]hh:]mm:ss[.ff].
+func parsePSTime(s string) (time.Duration, error) {
+	days := 0
+	if d, rest, ok := strings.Cut(s, "-"); ok {
+		n, err := strconv.Atoi(d)
+		if err != nil {
+			return 0, fmt.Errorf("ps time %q", s)
+		}
+		days, s = n, rest
+	}
+	total := time.Duration(days) * 24 * time.Hour
+	parts := strings.Split(s, ":")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, fmt.Errorf("ps time %q", s)
+	}
+	units := []time.Duration{time.Second, time.Minute, time.Hour}
+	for i := range parts {
+		p := parts[len(parts)-1-i]
+		f, err := strconv.ParseFloat(p, 64)
+		if err != nil || f < 0 {
+			return 0, fmt.Errorf("ps time %q", s)
+		}
+		total += time.Duration(f * float64(units[i]))
+	}
+	return total, nil
 }
