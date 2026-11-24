@@ -94,28 +94,34 @@ func cmpFloat(a, b float64) int {
 	return 0
 }
 
-// deterministic compares the allocated bytes and the allocation counts of one benchmark. They are medians over
-// the rounds, since they do not depend on timing, and a metric changed when the candidate's median differs from the
-// base's by more than the base again differs from it: identical code that already moves it (a pool, a map)
-// sets the noise, and when it does not move, any difference counts.
+// deterministic compares the allocated bytes and the allocation counts of one benchmark. They do not depend on
+// timing, so the medians over the rounds are compared as they are, with no interval. A metric changed when the
+// candidate's median lies outside the range that the base and the base again took over the rounds: identical code
+// that already moves it (a pool, a map, the garbage collector) sets that range, and when it does not move, any
+// difference counts.
 func deterministic(name string, rounds []round) []detRow {
-	med := func(v int, pick func(sample) float64) float64 {
-		var xs []float64
-		for _, rd := range rounds {
-			if s, ok := rd[v][name]; ok {
-				xs = append(xs, pick(s))
-			}
-		}
-		return stat.Median(xs)
-	}
 	var rows []detRow
 	for _, m := range []struct {
 		name string
 		pick func(sample) float64
 	}{{"B/op", func(s sample) float64 { return s.B }}, {"allocs/op", func(s sample) float64 { return s.Allocs }}} {
-		b, c, a := med(varBase, m.pick), med(varCand, m.pick), med(varAA, m.pick)
-		if c != b && abs(c-b) > abs(a-b) {
-			rows = append(rows, detRow{name, m.name, b, c, a})
+		series := func(v int) []float64 {
+			var xs []float64
+			for _, rd := range rounds {
+				if s, ok := rd[v][name]; ok {
+					xs = append(xs, m.pick(s))
+				}
+			}
+			return xs
+		}
+		base, cand, aa := series(varBase), series(varCand), series(varAA)
+		if len(base) == 0 || len(cand) == 0 {
+			continue
+		}
+		both := append(slices.Clone(base), aa...)
+		c := stat.Median(cand)
+		if c < slices.Min(both) || c > slices.Max(both) {
+			rows = append(rows, detRow{name, m.name, stat.Median(base), c, stat.Median(aa)})
 		}
 	}
 	return rows

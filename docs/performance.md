@@ -145,6 +145,64 @@ Notes:
   just a binary built from the old code. Generated parsers embed their grammar.
 - The numbers in the optimization catalog are for the closure backend with code-point positions unless stated otherwise.
 
+### Benchmark Gates
+
+A gate is a named benchmark set with one compare rule, so that a change is judged the same way by every author.
+`go run ./bench/gate` runs gates against a base revision (by default the merge base of `HEAD` and `origin/main`) and
+prints a verdict for each; `-list` names them, `-gate NAME` picks one (repeatable), `-base REV` and `-rounds N` change the
+base and the most rounds. With no `-gate` it runs the quick set: `generation`, `runtime-compile`, `parse` and
+`recognize`. The other gates are `incremental`, `stream`, `prepare` and `budget`.
+
+| Gate | Benchmarks |
+|:--|:--|
+| `generation` | `BenchmarkGeneration` (the pass pipeline and generators) |
+| `runtime-compile` | `BenchmarkRuntimeBackendCompile` |
+| `parse` | `BenchmarkParse`, every workload on the closure and generated backends, code points |
+| `recognize` | `BenchmarkRecognize`, the same selection |
+| `incremental` | `BenchmarkIncremental` and `BenchmarkIncrementalLong` |
+| `stream` | `BenchmarkStream` |
+| `prepare` | `BenchmarkPrepare` |
+| `budget` | `BenchmarkControlledParse` and `BenchmarkBudgetControlModes` |
+
+**Method.** The tool builds the test binaries of the base (in a detached worktree) and of the working tree outside the
+benchmark lock, then takes the lock, waiting for it and printing who holds it, and measures only inside it. Each round
+runs three fresh processes in rotated order: the base, the candidate, and the base again. The second base process is
+the A/A pair: it differs from the first only by the noise of the machine. Per round, a gate's ratio is the geometric
+mean over its benchmarks of the candidate time over the base time, and likewise for the A/A pair.
+
+**Verdict.** Over the rounds, the tool takes the median of each ratio series with a 95% percentile-bootstrap interval
+(2000 resamples, a fixed seed). The A/A spread is the larger of the half-width of the A/A interval and its distance
+from 1. The verdict is
+- *invalid* when the spread exceeds 1.5% (`-max-spread`); the gate fails and the run must be repeated on a quieter
+  machine;
+- *regression* when the lower end of the candidate interval is above 1 plus the spread;
+- *improvement* when the upper end is below 1 minus the spread;
+- *within noise* otherwise.
+
+**Stopping.** A gate runs at least 8 rounds and at most `-rounds`. It stops early when the verdict is invalid, or when
+the half-width of the candidate interval is at most 0.5% of its median. That is a precision rule: it depends on the
+width of the interval and never on where the change lies, so it does not look at significance. Optional stopping
+inflates the false-positive rate of a test that stops once the result looks significant; a rule that stops once the
+estimate is precise enough does not, because for any true effect the stopped estimate is as precise as required
+whatever its sign. The tool tests this: the rule gives the same answer for a slowdown, a speedup and no change with the
+same noise.
+
+**Deterministic metrics.** `B/op` and `allocs/op` do not depend on timing noise, so they are not given an interval.
+For each benchmark the median over the rounds of the candidate is compared with the range that the base and the
+base again took over the rounds: a metric counts as changed when the candidate lies outside that range. Allocation
+counts that never move make the range a point, so any difference counts; counts that move in identical code (pools,
+maps, the collector) set their own range. They are printed in their own section, so that a "within noise" time
+verdict never hides an allocation change.
+
+The exit status is non-zero when any gate is a regression or invalid. A run prints `uptime` and the time of the gate set.
+
+**Cost.** The old landing rule fixed 20 rounds of the three variants per gate. On a quiet machine the gate stops after 8 rounds (a 2.5× cut). Measured on a loaded machine (load average about 55, shared slot, so both verdicts were *invalid* as they should be): the `runtime-compile` and `generation` gates took 16m25s together, with `generation` at 14m33s for its 8 rounds (about 1.8 min per round), where the fixed rule would have run 20 rounds, about 36 min, for `generation` alone. The time of the whole quick set on an idle machine is not recorded yet.
+
+**Scoreboard.** [scoreboard.md](scoreboard.md) lists each row of the target table in [strategy](strategy.md#performance-leadership)
+with the standing of the saved results against its Credibility target, and says what is missing for the rows that no
+benchmark measures. `go run ./bench/report -scoreboard` regenerates it from `bench/results*.txt` without running a
+benchmark, and a test fails when it differs from the results or when a row of the strategy table has no entry.
+
 ### Generation and Compile Time
 
 Two benchmarks measure what the pass pipeline costs before any parse. `BenchmarkGeneration` in

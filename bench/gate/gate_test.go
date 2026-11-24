@@ -192,3 +192,19 @@ func TestGateTable(t *testing.T) {
 		t.Error("an unknown gate was found")
 	}
 }
+
+// TestDeterministicNoisyMetric checks that a metric which moves from run to run in identical code is not reported
+// while a shift beyond that movement is.
+func TestDeterministicNoisyMetric(t *testing.T) {
+	mk := func(base, cand, aa float64) round {
+		return round{{"B": {B: base}}, {"B": {B: cand}}, {"B": {B: aa}}}
+	}
+	same := []round{mk(100, 101, 99), mk(102, 98, 100), mk(99, 100, 101), mk(101, 99, 102)}
+	if rows := deterministic("B", same); len(rows) != 0 {
+		t.Errorf("noise reported: %+v", rows)
+	}
+	shifted := []round{mk(100, 110, 99), mk(102, 111, 100), mk(99, 109, 101), mk(101, 112, 102)}
+	if rows := deterministic("B", shifted); len(rows) != 1 || rows[0].Metric != "B/op" {
+		t.Errorf("shift not reported: %+v", rows)
+	}
+}

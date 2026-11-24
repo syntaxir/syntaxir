@@ -22,7 +22,9 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   versioned.
 - Landing rule for a performance-sensitive change: at least 20 interleaved rounds against
   an A/A copy, with the geomean within the A/A spread. Record `uptime` with each run and
-  discard runs whose A/A spread exceeds 1.5%.
+  discard runs whose A/A spread exceeds 1.5%. `go run ./bench/gate` does this: it takes
+  the benchmark lock, runs the base, candidate and base again per round, and prints the
+  verdicts; `docs/performance.md` (Benchmark Gates) describes the rule.
 - New structural or feature work lands reasonably optimized. Profile it before landing and
   fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
   the same unit. File the remaining tuning, with the measured gap, for the performance

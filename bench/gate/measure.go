@@ -116,7 +116,10 @@ func collect(g gate, r runner, lim limits, log io.Writer) ([]round, string, erro
 		change, aa = append(change, c), append(aa, a)
 		fmt.Fprintf(log, "  round %d: candidate/base %.4f, base again/base %.4f\n", i+1, c, a)
 		if stat.Enough(change, aa, lim.MinRounds, lim.MaxSpread) {
-			return rounds, "the interval of the change is narrow enough against the A/A spread", nil
+			if stat.Judge(change, aa, lim.MaxSpread).Verdict == stat.Invalid {
+				return rounds, "the A/A spread is above the limit, which more rounds do not lower", nil
+			}
+			return rounds, "the interval of the change is narrow enough", nil
 		}
 	}
 	return rounds, fmt.Sprintf("the %d rounds of the limit", lim.MaxRounds), nil
