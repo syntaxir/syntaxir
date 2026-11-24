@@ -807,7 +807,13 @@ func (p *printer) itemNode(e ast.Expr, indent string) {
 		p.write("-")
 		p.operand(e.Expr, indent)
 	case *ast.Attributed:
-		p.suffixOperand(e.Expr, indent)
+		if _, nested := e.Expr.(*ast.Attributed); nested {
+			// As in formatExprNode: attributes written after attributes are
+			// one list.
+			p.write("(" + formatExpr(e.Expr, precChoice, p.control) + ")")
+		} else {
+			p.suffixOperand(e.Expr, indent)
+		}
 		for i, a := range e.Attrs {
 			pollFormat(p.control)
 			if b := breakAt(e.Breaks, i); b != nil {
@@ -1136,10 +1142,9 @@ func formatType(t ast.TypeExpr, control *formatControl) string {
 		parts := make([]string, len(t.Types))
 		for i, x := range t.Types {
 			pollFormat(control)
-			parts[i] = formatType(x, control)
-			if _, ok := x.(*ast.JoinType); ok {
-				parts[i] = "(" + parts[i] + ")"
-			}
+			// A join binds looser than &, and a meet inside a meet keeps its
+			// own node.
+			parts[i] = formatTypeTerm(x, control)
 		}
 		return finishFormat(typeOperands(t.Types, parts, "&", control), control)
 	case *ast.TupleType:
@@ -1603,7 +1608,17 @@ func keepsTupleAlone(e ast.Expr) bool {
 		if len(e.Alts) != 1 {
 			return false
 		}
-		_, ok := e.Alts[0].(*ast.Seq)
+		// A group is transparent: the choice of a grouped sequence is one
+		// element as well.
+		alt := e.Alts[0]
+		for {
+			g, ok := alt.(*ast.Group)
+			if !ok {
+				break
+			}
+			alt = g.Expr
+		}
+		_, ok := alt.(*ast.Seq)
 		return ok
 	}
 	return false

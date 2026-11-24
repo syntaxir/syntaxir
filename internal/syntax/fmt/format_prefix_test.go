@@ -76,8 +76,8 @@ func TestFormatMinimumIntegerVariable(t *testing.T) {
 }
 
 // normalActions returns the JSON form of a grammar with each parenthesized
-// action expression replaced by its contents and each negation of an integer
-// literal by the negative literal.
+// expression, action expression or type replaced by its contents and each
+// negation of an integer literal by the negative literal.
 func normalActions(t *testing.T, data string) string {
 	var v any
 	if err := json.Unmarshal([]byte(data), &v); err != nil {
@@ -93,6 +93,10 @@ func normalActions(t *testing.T, data string) string {
 			switch v["@type"] {
 			case "ActionGroup":
 				return v["action"]
+			case "Group":
+				return v["expr"]
+			case "TypeGroup":
+				return v["type"]
 			case "Unary":
 				if x, ok := v["x"].(map[string]any); ok && v["op"] == "-" && x["@type"] == "IntLit" {
 					x["value"] = -x["value"].(float64)
@@ -112,4 +116,63 @@ func normalActions(t *testing.T, data string) string {
 		t.Fatal(err)
 	}
 	return string(out)
+}
+
+// TestFormatKeepsNodes checks that formatting keeps nodes that the syntax
+// could merge: the choice of a grouped sequence, which is one element, an
+// attributed expression with attributes of its own, and a meet inside a meet.
+// The formatted grammar parses back to the same tree apart from parentheses
+// and the `/ _|_` that keeps the choice, and computes the same value.
+func TestFormatKeepsNodes(t *testing.T) {
+	t.Parallel()
+	lit := func(s string) ast.Expr { return &ast.Literal{Value: s} }
+	choice := &ast.Choice{Alts: []ast.Expr{&ast.Group{Expr: &ast.Seq{Items: []ast.Expr{lit("a"), lit("b")}}}}}
+	for _, tc := range []struct {
+		name  string
+		rule  *ast.RuleDef
+		input string
+		want  string
+	}{
+		{"grouped sequence", &ast.RuleDef{Attrs: []*ast.Attribute{{Name: "start"}}, Name: "main", Expr: &ast.Seq{Items: []ast.Expr{choice, lit("c")}}}, "abc",
+			"@start\nrule main = ((\n    \"a\" \"b\"\n) / _|_) \"c\""},
+		{"attributes", &ast.RuleDef{Name: "main", Expr: &ast.Attributed{
+			Expr:  &ast.Attributed{Expr: lit("a"), Attrs: []*ast.Attribute{{Name: "x"}}},
+			Attrs: []*ast.Attribute{{Name: "y"}}}}, "",
+			`rule main = ("a" @x) @y`},
+		{"meet", &ast.RuleDef{Name: "main", Type: &ast.MeetType{Types: []ast.TypeExpr{
+			&ast.TypeRef{Name: "_"}, &ast.MeetType{Types: []ast.TypeExpr{&ast.TypeRef{Name: "_"}, &ast.TypeRef{Name: "_"}}}}},
+			Expr: lit("a")}, "",
+			`rule main _ & (_ & _) = "a"`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{tc.rule}}}
+			source := fmt.Format(g)
+			if source != tc.want+"\n" {
+				t.Fatalf("Format: got %q; want %q", source, tc.want+"\n")
+			}
+			again, err := enginetest.ParseGrammar(source)
+			if err != nil {
+				t.Fatalf("formatted source cannot be parsed: %v\n%s", err, source)
+			}
+			if a, b := normalActions(t, grammarWithoutSources(t, g)), normalActions(t, grammarWithoutSources(t, again)); a != b && tc.name != "grouped sequence" {
+				t.Fatalf("formatting changes the tree:\n%s\n%s", a, b)
+			}
+			if tc.input == "" {
+				return
+			}
+			before, err := enginetest.Compile(g, "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := enginetest.Compile(again, "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			n1, err1 := before.Parse(tc.input)
+			n2, err2 := after.Parse(tc.input)
+			if err1 != nil || err2 != nil || n1.String() != n2.String() {
+				t.Fatalf("formatting changes the value: %v, %v; %v, %v", n1, err1, n2, err2)
+			}
+		})
+	}
 }
