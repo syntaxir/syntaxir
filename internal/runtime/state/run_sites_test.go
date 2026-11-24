@@ -34,6 +34,7 @@ func assertTurnedHot(t *testing.T, name string, turns int64, tune state.Tuning) 
 // give the same trees and errors as plain repetitions (a program compiled without run sites) and
 // as walks without records, on every backend.
 func TestRunSitesMatchPlainRepetitions(t *testing.T) {
+	t.Parallel()
 	statetest.AtHotSpans(t, runSitesMatchPlainRepetitions)
 }
 
@@ -117,6 +118,7 @@ func runSitesOfLoadedPrograms(t *testing.T, tune state.Tuning) {
 // TestRunSitesMatchParsesWithoutRecords checks that the records of run sites change no result:
 // values and syntax errors with their expectations, on every backend.
 func TestRunSitesMatchParsesWithoutRecords(t *testing.T) {
+	t.Parallel()
 	statetest.AtHotSpans(t, runSitesMatchWithoutRecords)
 }
 
@@ -153,6 +155,7 @@ func runSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 // TestRunSitesAreMarked checks that the grammars of TestRunSitesMatchParsesWithoutRecords have run
 // sites, so that the comparison does not pass for want of any.
 func TestRunSitesAreMarked(t *testing.T) {
+	t.Parallel()
 	for _, g := range codegentest.RunSiteGrammars {
 		prog := enginetest.MustCompile(t, g.Src)
 		if n := prog.NumRunSites; n == 0 {
@@ -165,6 +168,7 @@ func TestRunSitesAreMarked(t *testing.T) {
 // reaches is reached once by a derivation and is not a site, and one in the element of another
 // repetition, in a rule that element calls, or in a rule that calls itself is.
 func TestRunSitesAreRestartable(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name, src string
 		sites     int
@@ -187,6 +191,7 @@ func TestRunSitesAreRestartable(t *testing.T) {
 // parse that restarts a scan at each position of the input fits a budget that is linear in the
 // input with records, and exceeds it without them.
 func TestRunSitesReuseRecords(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -213,6 +218,7 @@ func TestRunSitesReuseRecords(t *testing.T) {
 // in a new environment at each position, fit a budget that is linear in the input on every backend,
 // and exceed it with plain repetitions.
 func TestRunSitesBoundValueControls(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -330,6 +336,7 @@ func TestRunSitesNegativeControls(t *testing.T) {
 // A binding in a called rule is undone when it returns and keys nothing, and a skip-run site never
 // reads or binds one.
 func TestRunSitesKeyedByEnvironment(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name, src string
 		keyed     bool
@@ -366,6 +373,7 @@ func TestRunSitesKeyedByEnvironment(t *testing.T) {
 // starts cold and turns hot in the middle of a long parse gives the results of a parse without run
 // sites, with and without values, on every backend.
 func TestRunSitesTurnHotAtTheEngineThreshold(t *testing.T) {
+	t.Parallel()
 	if span := new(state.Tuning).RunHotSpan(); span != 64 {
 		t.Fatalf("threshold %d", span)
 	}
@@ -394,6 +402,7 @@ func TestRunSitesTurnHotAtTheEngineThreshold(t *testing.T) {
 // TestRunSitesDepthLimit checks that a parse with a depth limit fails or succeeds with and without
 // run records on a hot site, on every backend, and gives the same result.
 func TestRunSitesDepthLimit(t *testing.T) {
+	t.Parallel()
 	src := "@start\nrule main = (\"(\" b \")!\" / \"(\")+ \"(\"*\nrule b = (\"(\" c \")!\" / \"(\")* $$\nrule c = \"(\" c / \"x\"\n"
 	in := strings.Repeat("(", 300)
 	prog := enginetest.MustCompile(t, src)
@@ -433,6 +442,7 @@ func TestRunSitesDepthLimit(t *testing.T) {
 //   - a parse that makes a new key at every position looks each up in constant steps; looked up by
 //     stepping through every record of the site (SkipScanKeys), the lookups cost the square.
 func TestRunSitesKeyedByValues(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -500,6 +510,7 @@ rule w = ("x" { k > 0 })*`, strings.Repeat("xy", 1000), 1, []mutant{{state.SkipS
 // key by the variables, and that a key names declared variables, by increasing site, and binds
 // only variables it holds: a module that breaks one is rejected on load, not run.
 func TestRunKeysValidated(t *testing.T) {
+	t.Parallel()
 	var src string
 	for _, g := range codegentest.RunValueGrammars {
 		if g.Name == "bindings that a record restores" {

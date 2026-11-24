@@ -36,6 +36,7 @@ func scanSiteInputs(alphabet string, rng *rand.Rand) []string {
 // values and syntax errors with their expectations, against walks without records and a program
 // compiled without scan sites, and that the calls reach the records.
 func TestScanSitesMatchParsesWithoutRecords(t *testing.T) {
+	t.Parallel()
 	statetest.AtHotSpans(t, scanSitesMatchWithoutRecords)
 }
 
@@ -77,6 +78,7 @@ func scanSitesMatchWithoutRecords(t *testing.T, tune state.Tuning) {
 // TestScanSitesAreMarked checks which repetitions are scan sites: those of one character without a
 // maximum in the rules that call no rule, whatever the rule does with their values.
 func TestScanSitesAreMarked(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name, src string
 		sites     int
@@ -104,6 +106,7 @@ func TestScanSitesAreMarked(t *testing.T) {
 // TestScanSitesReuseRecords checks that a parse that restarts a scan at one position in each level
 // of a recursion fits a budget that is linear in the input with records, and exceeds it without them.
 func TestScanSitesReuseRecords(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -187,6 +190,7 @@ func scanDocumentMismatch(t *testing.T, src, alphabet string, b engine.Backend, 
 // record without its end only costs the walk again, and one without its examined range examines the
 // same input. Neither changes a result, and the budget is where they show.
 func TestScanSitesNegativeControls(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -272,6 +276,7 @@ func scanSteps(t *testing.T, prog *engine.Program, in string, b engine.Backend, 
 // record), which is
 // the number of its steps divided by the span at most. Reuse only lowers the charge.
 func TestScanSitesChargeBounds(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -302,6 +307,7 @@ func TestScanSitesChargeBounds(t *testing.T) {
 // instructions that serve them, are accepted by the module validator and are rejected when they name a
 // scan site that the module cannot hold.
 func TestScanSitesCompileToInstructions(t *testing.T) {
+	t.Parallel()
 	prog := enginetest.MustCompile(t, `rule main = (w / r "?" / [ab ])* $$
 rule w = (r "!" / r ".") #atomic
 rule r = [ab]*`)
@@ -335,6 +341,7 @@ rule r = [ab]*`)
 // instruction operand: they are walked without a scan site and give what the program without
 // scan sites gives.
 func TestScanSitesWithBoundsBeyondInstructions(t *testing.T) {
+	t.Parallel()
 	for _, src := range []string{
 		`rule main = (w / r "?" / [ab ])* $$
 rule w = (r "!" / r ".") #atomic
@@ -412,6 +419,7 @@ func TestScanSitesHitAtTheirOwnHotSpan(t *testing.T) {
 // (it is meaningful under -race): the counters that tests read are atomic and parses share no
 // other state.
 func TestScanSitesInConcurrentParses(t *testing.T) {
+	t.Parallel()
 	prog := enginetest.MustCompile(t, scanSpanProbe)
 	lim := runtime.Limits{Compute: 1 << 40}
 	if !state.BudgetControlsEnabled {
@@ -443,6 +451,7 @@ func TestScanSitesInConcurrentParses(t *testing.T) {
 // Units" in spec/runtime/parsing.md), so the parse with a record counts less than the one without;
 // counting any of them changes these numbers, which are the same on every backend.
 func TestScanSitesChargeIsPinned(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
@@ -495,6 +504,7 @@ rule r = ("xxxxxxxxxxxxxxxxxxxxyzzzzzB" / "x") [x]*`
 // examined (the high-water mark that the memo and the incremental parse rely on) is the same with
 // and without scan sites, for walks that look up a record, find one and store one.
 func TestScanSitesKeepTheExaminedRange(t *testing.T) {
+	t.Parallel()
 	rng := rand.New(rand.NewSource(139))
 	grammars := append([]struct{ Name, Src, Alphabet string }{
 		{"a lookahead that examines further", scanLookahead, " abdz"},
@@ -538,6 +548,7 @@ rule ws = [ ]*`
 // walks lookaheads with a site of its own (the one without values), so they share nothing there;
 // the results are the same either way.
 func TestScanSitesShareRecordsWithLookaheads(t *testing.T) {
+	t.Parallel()
 	tune := state.Tuning{Stats: new(state.HotStats)}
 	for _, src := range []string{scanSharedTable, scanSharedTableFromLookahead} {
 		prog, plain := enginetest.MustCompile(t, src), compileWithoutScanSites(t, src)
@@ -593,6 +604,7 @@ func documentSteps(t *testing.T, prog *engine.Program, b engine.Backend, text st
 // the first), and the second inside the first sixteen characters, where the walk that follows the
 // resumed part goes on past the hot span.
 func TestScanSitesResumeInDocuments(t *testing.T) {
+	t.Parallel()
 	if !state.BudgetControlsEnabled {
 		t.Skip("budget controls are unavailable in the reference build")
 	}
