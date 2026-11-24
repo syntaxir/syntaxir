@@ -744,6 +744,8 @@ and otherwise the call without observation.`
 		pos := L("pos")
 		// The preceding unit is kept for detecting line starts.
 		b.Do("stream.discard", Bin("-", pos, Int(1)))
+		// Text is cut at the commit point, not at the base the discard left, which depends on the chunks.
+		b.Do("stream.cutText", pos)
 		b.Do("stream.release")
 		// Pruning scans the memo, so it runs once the committed prefix has grown by a window.
 		b.If(Bin(">=", Bin("-", pos, C("memo.floor")), Int(streamPruneWindow)), func(b *Builder) {
@@ -753,7 +755,7 @@ and otherwise the call without observation.`
 		b.If(C("stream.tail"), func(b *Builder) { b.Do("stream.settleErrors") })
 	})
 	streamCommit.Doc = `streamCommit makes it final that the parse never backtracks before pos: the input before pos - 1
-is discarded (the preceding unit stays for detecting line starts), the memory the committed elements
+is discarded (the preceding unit stays for detecting line starts), text is cut at pos, the memory the committed elements
 held is released, and the memo and the records before pos are pruned once at least a window of
 input was committed since the last pruning.`
 	streamEmit := m.AddFunc("streamEmit", []Param{P("v", value), P("end", TInt)}, nil, []string{exec.Stream, exec.Units}, func(b *Builder) {

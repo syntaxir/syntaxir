@@ -148,6 +148,10 @@ type Input struct {
 	// first use; nil until then).
 	Lines      []int
 	StreamText StreamTextSnapshot
+	// TextFloor is the last commit point of a stream parse (stream.cutText), zero otherwise: Text cuts
+	// every range at it, whatever input before it is still held, so a text never depends on how the
+	// input arrives.
+	TextFloor int
 	// Only Documents use pieces. Batch and stream inputs retain their slices.
 	Pieces *documentPieces
 	// streamLines indexes the lines of a stream buffer for lineCol; it is made by the first error
@@ -539,9 +543,9 @@ func (in *Input) byteAt(i int) (byte, bool) {
 }
 
 func (in *Input) Text(start, end int) string {
-	// The part discarded by a stream cannot be returned: the text is cut to what is still held
-	// (possibly nothing).
-	start, end = max(start, in.Base), max(end, in.Base)
+	// A stream cuts the text at its last commit point, below which input may be discarded (possibly
+	// leaving nothing).
+	start, end = max(start, in.TextFloor), max(end, in.TextFloor)
 	if DocumentPieceInput && in.Pieces != nil {
 		if BudgetControlsEnabled && in.Control != nil {
 			return in.controlledPieceText(start, end)

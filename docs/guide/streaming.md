@@ -301,8 +301,8 @@ column 5 counted in bytes.
 The parser does not keep text for you. String nodes (literals, character classes, `(...) #atomic`) carry their text, which
 `Node.Text()` returns; tuple and list nodes do not, and by the time your callback runs the input of an element is already
 being discarded. If you need the raw text of an element, make it a string node in the grammar, for example with `#atomic`. For the same reason,
-`text(...)` in an action of the start rule, which runs after the elements have gone, returns only the part of the
-node's input that is still held (possibly `""`).
+`text(...)` in an action of the start rule, which runs after the elements have gone, is cut at the end of the last
+delivered element: it returns only the input after that point (possibly `""`), however the reader split the input.
 
 ## Errors
 

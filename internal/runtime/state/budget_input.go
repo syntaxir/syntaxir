@@ -65,11 +65,11 @@ func (p *Parser) Advance(size int) {
 }
 
 // RangeText is node.rangeText: the input of the range [start, end) of a node. In a stream, the text
-// of a node is an event of one unit for each position unit of its result
-// (spec/runtime/parsing.md#compute-units), which it counts before it makes the text.
+// of a node is an event of one unit for each position unit of its result, the range cut at the last
+// commit point (spec/runtime/parsing.md#compute-units), which it counts before it makes the text.
 func (p *Parser) RangeText(start, end int) string {
 	if p.Stream {
-		p.countUnits(end - start)
+		p.countUnits(max(end, p.TextFloor) - max(start, p.TextFloor))
 	}
 	return p.Text(start, end)
 }

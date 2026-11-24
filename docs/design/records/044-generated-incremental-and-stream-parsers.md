@@ -281,8 +281,8 @@ All four steps are implemented. The rest of the stream follows the Go runtime wh
   The records, states and seeds of left recursion count while a growth holds them. The sizes are the TypeScript
   library's model of a 64-bit JavaScript engine, so the bytes differ from Go's while the window they bound is the
   same.
-- **Text.** With the `Bytes` unit the text of the start rule can begin inside a character, after the stream
-  discarded the bytes before the one it keeps; the text holds the remaining bytes as invalid input bytes are held.
+- **Text.** A text is cut at the last commit point, as in the engine and the Go runtime, whatever input the
+  buffer still holds before it; the text is empty when the range ends at or before the commit point.
 - **Observation.** The tracking of examined input and the observation are layers, class factories over any parser
   class: the batch `ObservedParser` stacks them over `Parser` and the `ObservedStreamParser` over `StreamParser`, so
   one implementation serves both and the library has no copy of the tracked parser. The resumable forms of the

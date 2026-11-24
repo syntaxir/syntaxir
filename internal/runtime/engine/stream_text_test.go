@@ -91,7 +91,14 @@ func TestStreamTextSnapshotBoundaries(t *testing.T) {
 						t.Fatalf("range %v: %q", r, got)
 					}
 				}
+				// A commit at size discards the input before size - 1 and cuts text at size: the unit
+				// the discard keeps for line starts is not part of any text.
 				in.Discard(size - 1)
+				in.TextFloor = size
+				if got := in.Text(0, size); got != "" {
+					t.Fatalf("text before the commit point: %q", got)
+				}
+				in.TextFloor = size - 1
 				if got := in.Text(0, size); got != text[size-1:] {
 					t.Fatalf("clipped text: %q", got)
 				}

@@ -26,6 +26,9 @@ type streamInput struct {
 	in     []rune // CodePoints
 	bs     []byte // Bytes
 	base   int
+	// textFloor is the last commit point (stream.cutText): text cuts every range at it, whatever
+	// input before it the buffer still holds, so a text never depends on how the input arrives.
+	textFloor int
 	// baseLine and baseCol are the line and column (1-based, in the unit) of base.
 	baseLine, baseCol int
 	eof               bool
@@ -833,7 +836,8 @@ func (p *Parser) streamAtEnd() bool {
 // its result (spec/runtime/parsing.md, Compute Units), which it counts before it makes the text.
 func (p *Parser) rangeText(start, end int) string {
 	if p.Stream != nil && p.units.on {
-		p.unitsSized(end - start)
+		f := p.Stream.textFloor
+		p.unitsSized(max(end, f) - max(start, f))
 	}
 	return p.Text(start, end)
 }
@@ -849,11 +853,11 @@ func (p *Parser) heldText(n *sxirvalue.Node) (string, bool) {
 	return d.Text, d.Terminal
 }
 
-// streamText returns owned text between start and end. The part already
-// discarded is cut off.
+// streamText returns owned text between start and end, cut at the last commit
+// point (textFloor) whatever input before it the buffer still holds.
 func (p *Parser) streamText(start, end int) string {
 	s := p.Stream
-	start, end = max(start, s.base), max(end, s.base)
+	start, end = max(start, s.textFloor), max(end, s.textFloor)
 	if start == end {
 		return ""
 	}

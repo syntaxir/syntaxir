@@ -38,12 +38,14 @@ func runStreamTextLib(t *testing.T, node string, mutate func(string) string) (st
 	return string(out), err != nil
 }
 
-// TestStreamTextInsideCharacter checks the text of a range of a TypeScript stream in bytes whose held
-// part begins inside a character, after the stream discarded the input before the one unit it keeps
-// (spec/runtime/streaming.md): it holds the bytes that remain, as the Go runtime's text does, each
-// byte that does not begin a valid sequence being the lone surrogate U+DC00 plus the byte, as for
-// invalid input; the same bytes parsed whole give the same text, and len counts them.
-func TestStreamTextInsideCharacter(t *testing.T) {
+// TestStreamTextAfterCommitInBytes checks the text of a TypeScript stream in bytes after a commit
+// whose discard left the base inside a character (spec/runtime/streaming.md): a range after the
+// commit point holds its bytes, each byte that does not begin a valid sequence being the lone
+// surrogate U+DC00 plus the byte, as for invalid input, and the same bytes parsed whole give the same
+// text, which len counts; a range that ends at or before the commit point has the empty text. The
+// commit point is a character boundary, as every element ends at one: #stream stands only at the top
+// level of a rule body, so a text never reads a range across it.
+func TestStreamTextAfterCommitInBytes(t *testing.T) {
 	node := tooltest.RequireNode(t)
 	if out, failed := runStreamTextLib(t, node, nil); failed {
 		t.Fatalf("node:\n%s", out)
@@ -61,28 +63,35 @@ func TestStreamTextInsideCharacter(t *testing.T) {
 const streamTextLibTest = `
 
 const enc = (s: string): Uint8Array => new TextEncoder().encode(s);
-// "ab€é": € at 2-4, é at 5-6; a discard keeps at least half of the buffer.
-const input = enc("ab\u20ac\u00e9");
+// "ab€", the invalid byte 0xff, "é": € at 2-4, 0xff at 5, é at 6-7. Each commit at pos discards the
+// input before pos - 1 once at least half of the buffer can go and cuts text at pos: a commit at 2
+// discards nothing, one at 5 leaves the base at 4, inside €.
+const input = new Uint8Array([...enc("ab\u20ac"), 0xff, ...enc("\u00e9")]);
 const failures: string[] = [];
-for (const keep of [4, 6]) {
+const shown = (s: string): string => {
+  let bytes = "";
+  for (const ch of s) {
+    const c = ch.codePointAt(0)!;
+    bytes += c >= 0xdc80 && c <= 0xdcff ? "\\x" + (c - 0xdc00).toString(16) : ch;
+  }
+  return JSON.stringify(bytes);
+};
+for (const [keep, base] of [[2, 0], [5, 4]]) {
   const p = new StreamParser(mkGrammar(100, true, false), Bytes, 1, 100, null, 0);
   p.append(input);
-  p.streamDiscard(keep);
-  if (p.base !== keep) {
-    failures.push("discarding before " + keep + " leaves the base at " + p.base);
-    continue;
-  }
-  const got = p.text(0, input.length);
-  // The bytes the stream holds, parsed whole by a parser of their own.
+  p.streamDiscard(keep - 1);
+  p.textFloor = keep;
+  if (p.base !== base) failures.push("from " + keep + ": the base is " + p.base + ", want " + base);
+  const got = p.text(keep, input.length);
+  // The bytes after the commit point, parsed whole by a parser of their own.
   const q = new Parser(mkGrammar(100, true, false), input.subarray(keep), Bytes, 1, 100);
   const want = q.text(0, input.length - keep);
-  let bytes = "";
-  for (const ch of got) {
-    const c = ch.codePointAt(0)!;
-    bytes += c >= 0xdc80 && c <= 0xdcff ? "\\\\x" + (c - 0xdc00).toString(16) : ch;
-  }
-  if (got !== want) failures.push("from " + keep + ": the stream's text is " + JSON.stringify(bytes) + ", the whole parse's " + JSON.stringify(want));
+  if (got !== want) failures.push("from " + keep + ": the stream's text is " + shown(got) + ", the whole parse's " + shown(want));
   if (utf8Len(got) !== input.length - keep) failures.push("from " + keep + ": len of the text is " + utf8Len(got) + ", want " + (input.length - keep));
+  for (const [start, end] of [[0, keep], [0, keep - 1], [keep - 1, keep]]) {
+    const cut = p.text(start, end);
+    if (cut !== "") failures.push("from " + keep + ": the text of [" + start + ", " + end + ") is " + shown(cut) + ", want empty");
+  }
 }
 if (failures.length > 0) {
   console.log(failures.join("\\n"));

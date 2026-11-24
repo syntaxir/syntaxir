@@ -1042,6 +1042,8 @@ var tsStreamTarget = func() *Target {
 			return "this.streamDeliver(" + a[0] + ")"
 		case "stream.discard":
 			return "this.streamDiscard(" + a[0] + ")"
+		case "stream.cutText":
+			return "this.textFloor = " + a[0]
 		case "stream.release":
 			return "this.streamRelease()"
 		case "stream.dropRecords":

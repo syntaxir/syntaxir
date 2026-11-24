@@ -75,8 +75,7 @@ func (t *Tracer) LineCol(pos int) (line, col int) {
 	return t.p.lineCol(pos)
 }
 
-// Text returns the input [start, end). Input that a stream parse has already discarded is not
-// available.
+// Text returns the input [start, end); a stream parse cuts it at the last commit point, as text does.
 func (t *Tracer) Text(start, end int) string {
 	return t.p.Text(start, end)
 }

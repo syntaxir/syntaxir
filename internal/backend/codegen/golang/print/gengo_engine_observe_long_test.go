@@ -221,11 +221,19 @@ func TestEngineObservationMutants(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the engine again for each mutant")
 	}
+	runSourceMutants(t, engineObservationMutants)
+}
+
+// runSourceMutants runs the tests of each mutant with its change: through the overlay of the go command
+// for the module's own packages, through codegentest.GoLibPatchEnv for the copy of pkg/runtime/libgo that
+// generated Go parsers import, and through codegentest.TSLibPatchEnv for the TypeScript library.
+func runSourceMutants(t *testing.T, mutants []engineObservationMutant) {
+	t.Helper()
 	root, err := filepath.Abs(filepath.Join("..", "..", "..", "..", ".."))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, m := range engineObservationMutants {
+	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
 			path := filepath.Join(root, filepath.FromSlash(m.file))

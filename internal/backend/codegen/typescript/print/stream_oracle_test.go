@@ -371,6 +371,7 @@ rule item = k:key o:("=" / ":==") v:val ";" {text($k) != "x" && text($o) != "" &
 rule key = [a-z]+
 rule val = [0-9]+ ("," [0-9]+)*
 `, []string{"", "a=1;", "ab:==12,3;x=1;c=4;", "a=0;", "abc=1,22,333;" + strings.Repeat("key:==12,34,56;", 120)}, limitRuns},
+	{"commit text", codegentest.StreamTextCommitGrammar, codegentest.StreamTextCommitInputs, nil},
 	{"trailing recover", `@start
 rule main = stmt* #stream fin !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;!]* ";")
@@ -413,7 +414,7 @@ var recoverDiagnostics = []streamOptions{
 
 // mutantCases names the one oracle case that a mutant runs on, for a mutant of a method that only the
 // parsers of that case include.
-var mutantCases = map[string]string{"range text": "text", "held text": "text"}
+var mutantCases = map[string]string{"range text": "text", "held text": "text", "cut units": "commit text", "text floor": "commit text"}
 
 func ptr[T any](v T) *T { return &v }
 
@@ -899,7 +900,11 @@ func TestStreamOracleMutants(t *testing.T) {
 		// The input limit fails a stream that demands a unit past it.
 		{"input limit", "d > this.maxInput && this.n > this.maxInput", "d > this.maxInput + 1 && this.n > this.maxInput + 1"},
 		// In a stream the text of a node counts a unit for each position of its range.
-		{"range text", "if (this.control !== null) this.unitsSized(end - start);\n    return this.text(start, end);", "return this.text(start, end);"},
+		{"range text", "if (this.control !== null) this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));\n    return this.text(start, end);", "return this.text(start, end);"},
+		// The text of a range counts the units of its part after the last commit point, not its width.
+		{"cut units", "this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));", "this.unitsSized(end - start);"},
+		// A commit cuts text at the commit point, so a text does not depend on the chunks.
+		{"text floor", "this.textFloor = pos;", ""},
 		// So does the text that a string node holds.
 		{"held text", "if (n.terminal && this.control !== null && nodeShape(n) !== shapeError) this.unitsSized(n.end - n.start);", ""},
 		// The stream ends only when the input does: the end check after the start rule waits for it.

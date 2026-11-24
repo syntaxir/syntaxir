@@ -6236,6 +6236,9 @@ export class StreamParser extends Parser {
   // memoFloor is the floor of the memo (memo.floor): the memo keeps nothing before it. The memo's slot
   // of a position is its distance from the floor (gapLen is -memoFloor, with no gap).
   memoFloor = 0;
+  // textFloor is the last commit point (stream.cutText): text cuts every range at it, whatever input
+  // before it the buffer still holds, so a text never depends on how the input arrives.
+  textFloor = 0;
   // delivered holds the elements delivered since the feed that runs the parse began (stream.deliver),
   // each converted by convert if the stream has one.
   delivered: unknown[] = [];
@@ -6469,11 +6472,11 @@ export class StreamParser extends Parser {
     return this.pos >= this.n;
   }
 
-  // text returns the text of [start, end) that the buffer still holds: the part before base was
-  // discarded.
+  // text returns the text of [start, end) cut at the last commit point (textFloor), before which the
+  // input may be discarded.
   override text(start: number, end: number): string {
-    start = Math.max(start, this.base);
-    end = Math.max(end, this.base);
+    start = Math.max(start, this.textFloor);
+    end = Math.max(end, this.textFloor);
     if (start >= end) return "";
     const s = this.unit === Bytes ? documentText(this.bs.subarray(start - this.base, end - this.base), Bytes) : codePointsString(this.cps.subarray(start - this.base, end - this.base));
     this.allocValue(sliceBytes(s.length));
@@ -6484,7 +6487,7 @@ export class StreamParser extends Parser {
   // node is an event of one unit for each position unit of its result (spec/runtime/parsing.md,
   // Compute Units), which it counts before it makes the text.
   override rangeText(start: number, end: number): string {
-    if (this.control !== null) this.unitsSized(end - start);
+    if (this.control !== null) this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));
     return this.text(start, end);
   }
 

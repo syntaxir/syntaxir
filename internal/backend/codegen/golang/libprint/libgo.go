@@ -640,6 +640,8 @@ func goTarget(s goSpec) *print.Target {
 			return "p.streamDeliver(" + a[0] + ")"
 		case "stream.discard":
 			return "p.streamDiscard(" + a[0] + ")"
+		case "stream.cutText":
+			return "p.Stream.textFloor = " + a[0]
 		case "stream.release":
 			return "p.streamRelease()"
 		case "memo.floor":

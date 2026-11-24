@@ -36,13 +36,14 @@ func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
 }
 
 // Commit makes it final that the parse never backtracks before pos: the input before pos - 1
-// is discarded (the preceding unit stays for detecting line starts), the memory the committed elements
+// is discarded (the preceding unit stays for detecting line starts), text is cut at pos, the memory the committed elements
 // held is released, and the memo and the records before pos are pruned once at least a window of
 // input was committed since the last pruning.
 //
 // Printed from Exec IR function streamCommit of internal/ir/code/exec/compose, specialized for stream.
 func (p *Parser) Commit(pos int) {
 	p.Discard(pos - 1)
+	p.TextFloor = pos
 	p.streamRelease()
 	if pos-p.Memo.Base >= 1024 {
 		p.streamDropRecords(pos)

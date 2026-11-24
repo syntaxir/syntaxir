@@ -305,6 +305,8 @@ func engineTarget() *print.Target {
 			return fmt.Sprintf("if %[1]s != nil {\nnodes.D(%[1]s).Fresh = false\n}\np.EmitCall = true\nerr := p.Emit(%[1]s)\np.EmitCall = false\nif err != nil {\npanic(Fatal{Err: err})\n}", a[0])
 		case "stream.discard":
 			return "p.Discard(" + a[0] + ")"
+		case "stream.cutText":
+			return "p.TextFloor = " + a[0]
 		case "stream.release":
 			return "p.streamRelease()"
 		case "stream.dropRecords":

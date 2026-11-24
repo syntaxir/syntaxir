@@ -1533,6 +1533,18 @@ host op stream.discard(keep int)
     // Discards the input before keep, when at least half of the buffer can go; later reads before keep
     // are not supported. The line and column of the new base are kept.
 
+host op stream.cutText(pos int)
+  component window
+  reads window
+  writes window
+  features stream
+  noreturn
+  cost <= 0
+  contract:
+    // Makes pos the commit point of the text: from then on the text of a range [start, end) is
+    // the input of [max(start, pos), max(end, pos)), whatever input the stream still holds before pos, so
+    // the text and its units never depend on how the input arrives.
+
 host op stream.release()
   component window
   reads window

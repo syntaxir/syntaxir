@@ -97,17 +97,19 @@ has been discarded; the parser keeps a running line and column for the discarded
 part. The position unit option changes all of them to bytes.
 
 The parser keeps no text for the caller. String nodes (literals, classes,
-`(...) #atomic`) carry their text in `Node.Text`; tuple and list nodes do not. `text(...)` in an action of the start rule, which runs after elements have
-been discarded, returns only the part of the node's input that is still held,
-possibly the empty string. With the `Bytes` unit that part can begin inside a
-character, since the stream keeps one unit before an element: its text then
-holds the bytes that remain, as text holds invalid input bytes (a generated
-TypeScript parser represents each byte that does not begin a valid sequence by
-the lone surrogate U+DC00 plus the byte, see
-[Input and Positions in TypeScript](generated-parsers.md#input-and-positions-in-typescript)).
-A text in a stream costs its length, so the cost
-classes of a grammar promise for a stream their bound plus the total length of
-the texts (see [Classification](parsing.md#classification)).
+`(...) #atomic`) carry their text in `Node.Text`; tuple and list nodes do not. `text(...)` of a node
+other than a string node, whose text is the text it holds, is cut at the last
+commit point (the end of the last delivered element): it is the input from the
+commit point to the end of the range, so the text is empty when the range ends
+at or before the commit point. Because `#stream` stands only at the top level of
+a rule body, no range that a text can read begins before the commit point and
+ends after it, so a cut text is either empty or whole. The cut does not depend
+on how much input before the commit point the stream still holds, so the text,
+and the outcome and compute units of the parse, are the same however the input
+is split into chunks. A text in a stream costs the length of its result, the
+text a string node holds or the cut text, and has that many compute units, so
+the cost classes of a grammar promise for a stream their bound
+plus the total length of the texts (see [Classification](parsing.md#classification)).
 
 After an element is delivered, the input before it is discarded except for the one
 unit before it (a byte with the `Bytes` unit), so `^` (beginning of line) still holds
