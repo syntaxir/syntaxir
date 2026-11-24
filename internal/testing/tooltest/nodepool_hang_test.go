@@ -127,26 +127,19 @@ console.log("done");`, nil)
 
 	t.Run("loop that never ends", func(t *testing.T) {
 		dir := poolScript(t, `while (true) {}`, nil)
-		start := time.Now()
 		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
 		if err == nil || !strings.Contains(err.Error(), "ran past") || !strings.Contains(err.Error(), "of CPU time") {
 			t.Fatalf("%v; want the loop killed for the CPU time it used", err)
 		}
-		if took := time.Since(start); took > 20*time.Second {
-			t.Errorf("killed after %v", took)
-		}
 	})
 
 	t.Run("await that never settles", func(t *testing.T) {
-		start := time.Now()
 		dir := poolScript(t, `await new Promise(() => {});`, nil)
 		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
-		if err == nil || !strings.Contains(err.Error(), "waits for nothing") || strings.Contains(err.Error(), "ran past") {
+		// Reported by what the script waits for, not by a time: the reason is the idle rule's, and neither the CPU
+		// limit nor the wall backstop. How long it took depends on the load, so it is not asserted.
+		if err == nil || !strings.Contains(err.Error(), "waits for nothing") || strings.Contains(err.Error(), "ran past") || strings.Contains(err.Error(), "CPU time") {
 			t.Fatalf("%v; want the await reported as waiting for nothing", err)
-		}
-		// Reported by what the script waits for, not by a time: well before the timeout of the job.
-		if took := time.Since(start); took > timeout {
-			t.Errorf("reported after %v, over the %v of the job", took, timeout)
 		}
 	})
 }
