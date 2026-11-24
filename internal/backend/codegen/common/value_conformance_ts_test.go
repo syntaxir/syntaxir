@@ -55,6 +55,7 @@ type Call = { op: string; code: number; args: Enc[] };
 const P = Object.create(p.Parser.prototype);
 const CONTROLLED = false;
 P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions) : null;
+P.memControl = P.control !== null && P.control.memoryLimited() ? P.control : null;
 P.units = 0;
 P.unitsCheck = Infinity;
 const calls: Call[] = JSON.parse(readFileSync("cases.json", "utf8"));

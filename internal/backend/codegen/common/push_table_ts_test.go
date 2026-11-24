@@ -26,6 +26,7 @@ import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
 P.control = null;
+P.memControl = null;
 P.units = 0;
 P.unitsCheck = Infinity;
 P.created = [];

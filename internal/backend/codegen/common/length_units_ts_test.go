@@ -28,6 +28,7 @@ for (const codePoints of [false, true]) {
   for (const s of strs) {
     const P = Object.create(p.Parser.prototype);
     P.control = new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions);
+    P.memControl = P.control.memoryLimited() ? P.control : null;
     P.units = 0;
     P.unitsCheck = Infinity;
     P.unit = codePoints ? p.CodePoints : p.Bytes;

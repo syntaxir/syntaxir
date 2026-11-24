@@ -24,6 +24,7 @@ import * as p from "./parser.ts";
 ` + tsCompose + `const CONTROLLED = false;
 const P = Object.create(p.Parser.prototype);
 P.control = CONTROLLED ? new p.BudgetControl({ signal: null, profiles: [], budget: 0 } as unknown as p.ResolvedParseOptions) : null;
+P.memControl = P.control !== null && P.control.memoryLimited() ? P.control : null;
 P.created = [];
 P.kidStack = [];
 P.src = readFileSync("input.txt", "utf8");
