@@ -1,6 +1,7 @@
 package tooltest
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -129,7 +130,7 @@ console.log("done");`, nil)
 		dir := poolScript(t, `while (true) {}`, nil)
 		start := time.Now()
 		_, err := RunNodeScriptWithin(t, timeout, node, dir, "main.ts")
-		if err == nil || !strings.Contains(err.Error(), "ran past") || !strings.Contains(err.Error(), "CPU time") {
+		if err == nil || !strings.Contains(err.Error(), "ran past") || !strings.Contains(err.Error(), "of CPU time") {
 			t.Fatalf("%v; want the loop killed for the CPU time it used", err)
 		}
 		if took := time.Since(start); took > 20*time.Second {
@@ -144,4 +145,56 @@ console.log("done");`, nil)
 			t.Fatalf("%v; want the await killed for using no CPU time", err)
 		}
 	})
+}
+
+// TestParseProcStat checks the clock ticks of /proc/<pid>/stat, with a command name that has spaces and
+// a parenthesis.
+func TestParseProcStat(t *testing.T) {
+	const tail = " S 1 2 3 4 5 6 7 8 9 10 250 50 0 0 20 0"
+	for _, name := range []string{"node", "a b) c (d"} {
+		got, err := parseProcStat("123 (" + name + ")" + tail)
+		if err != nil || got != 3*time.Second {
+			t.Errorf("%q: %v, %v; want 3s", name, got, err)
+		}
+	}
+	for _, bad := range []string{"", "1 (x", "1 (x) S 1 2", "1 (x)" + strings.Replace(tail, "250", "x", 1)} {
+		if _, err := parseProcStat(bad); err == nil {
+			t.Errorf("%q parsed", bad)
+		}
+	}
+}
+
+// TestAwaitJobBaseline checks that a failed first CPU reading does not charge the CPU time that the
+// worker used for earlier jobs to this one: the job counts from the first reading that succeeds, so a
+// worker with a long history is not killed for it, and a loop is still killed.
+func TestAwaitJobBaseline(t *testing.T) {
+	const timeout = time.Second
+	run := func(first time.Duration, reads int, fn func(n int) time.Duration) (string, error) {
+		done := make(chan nodeReply)
+		var n int
+		read := func() (time.Duration, error) {
+			n++
+			if n <= reads {
+				return 0, errors.New("ps failed")
+			}
+			return fn(n), nil
+		}
+		killed := false
+		var why string
+		go func() { time.Sleep(1500 * time.Millisecond); done <- nodeReply{res: NodeResult{Stdout: "ok"}} }()
+		_, err := awaitJob(done, read, func() error { killed = true; return nil }, timeout, time.Minute, func(w string) error { why = w; return errors.New(w) })
+		if killed != (err != nil) {
+			t.Errorf("killed=%v, err=%v", killed, err)
+		}
+		return why, err
+	}
+	// A worker with an hour of CPU time from earlier jobs whose first reading failed: the later readings
+	// start at that hour and the job adds a little to it.
+	if why, err := run(0, 1, func(n int) time.Duration { return time.Hour + time.Duration(n)*time.Millisecond }); err != nil {
+		t.Errorf("healthy job with a failed first reading was killed: %s", why)
+	}
+	// The same worker that burns CPU: killed, counting from the first good reading.
+	if _, err := run(0, 1, func(n int) time.Duration { return time.Hour + time.Duration(n)*time.Second }); err == nil {
+		t.Errorf("a loop with a failed first reading was not killed")
+	}
 }

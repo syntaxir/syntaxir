@@ -213,7 +213,8 @@ func (w *nodeWorker) run(t testing.TB, timeout time.Duration, dir, script string
 	if _, err := w.in.Write(append(line, '\n')); err != nil {
 		return NodeResult{}, fmt.Errorf("node pool: the worker is gone: %w", err)
 	}
-	cpu0, _ := processCPU(w.cmd.Process.Pid)
+	pid := w.cmd.Process.Pid
+	read := func() (time.Duration, error) { return processCPU(pid) }
 	backstop := wallBackstop(t, timeout)
 	done := make(chan nodeReply, 1)
 	go func() {
@@ -234,7 +235,7 @@ func (w *nodeWorker) run(t testing.TB, timeout time.Duration, dir, script string
 		}
 		done <- nodeReply{res: NodeResult{Stdout: r.Out, Stderr: r.Err, Code: r.Code, Leak: r.Leak}}
 	}()
-	return w.await(done, cpu0, timeout, backstop, func(why string) error {
+	return awaitJob(done, read, w.cmd.Process.Kill, timeout, backstop, func(why string) error {
 		return fmt.Errorf("node pool: %s in %s ran past %v and was killed: %s", script, dir, timeout, why)
 	})
 }
@@ -339,12 +340,19 @@ func hung(timeout, backstop time.Duration, start, now, progress time.Time, cpu t
 	return ""
 }
 
-// await waits for the answer of the job of w, killing the worker and failing the job with fail if it is
-// hung (hung): the limit is the job's own CPU time, which a loaded machine does not stretch, with a
-// wall clock backstop.
-func (w *nodeWorker) await(done <-chan nodeReply, cpu0, timeout, backstop time.Duration, fail func(why string) error) (NodeResult, error) {
+// awaitJob waits for the answer of a job, killing the worker (kill) and failing the job with fail if it
+// is hung (hung): the limit is the job's own CPU time, which a loaded machine does not stretch, with a
+// wall clock backstop. read returns the CPU time the worker has used in all. The job's CPU time is
+// counted from the first reading that succeeds: the worker has served other jobs before, and a reading
+// that fails must not charge their CPU time to this one. A reading that fails never kills.
+func awaitJob(done <-chan nodeReply, read func() (time.Duration, error), kill func() error, timeout, backstop time.Duration, fail func(why string) error) (NodeResult, error) {
 	start := time.Now()
-	progress, last := start, cpu0
+	var cpu0, last time.Duration
+	based := false
+	if c, err := read(); err == nil {
+		cpu0, last, based = c, c, true
+	}
+	progress := start
 	tick := time.NewTicker(min(max(timeout/10, 100*time.Millisecond), 2*time.Second))
 	defer tick.Stop()
 	for {
@@ -352,25 +360,37 @@ func (w *nodeWorker) await(done <-chan nodeReply, cpu0, timeout, backstop time.D
 		case r := <-done:
 			return r.res, r.err
 		case now := <-tick.C:
-			cpu, err := processCPU(w.cmd.Process.Pid)
+			cpu, err := read()
 			if err != nil {
 				// The worker is gone: its answer or its end is on the way.
 				continue
+			}
+			if !based {
+				cpu0, last, based = cpu, cpu, true
 			}
 			if cpu > last {
 				progress, last = now, cpu
 			}
 			if why := hung(timeout, backstop, start, now, progress, cpu-cpu0); why != "" {
-				w.cmd.Process.Kill()
+				kill()
 				return NodeResult{}, fail(why)
 			}
 		}
 	}
 }
 
-// processCPU returns the CPU time that the process pid has used (user and system) as `ps` reports it,
-// which does not depend on the load of the machine.
+// processCPU returns the CPU time that the process pid has used (user and system), which does not
+// depend on the load of the machine. On Linux it reads /proc/<pid>/stat, in clock ticks (10 ms): the
+// cputime of procps is whole seconds there, and a worker that gets some CPU time in each second would
+// look like it got none. Elsewhere it is the cputime of `ps`.
 func processCPU(pid int) (time.Duration, error) {
+	if runtime.GOOS == "linux" {
+		text, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
+		if err != nil {
+			return 0, err
+		}
+		return parseProcStat(string(text))
+	}
 	out, err := exec.Command("ps", "-o", "cputime=", "-p", strconv.Itoa(pid)).Output()
 	if err != nil {
 		return 0, err
@@ -403,4 +423,24 @@ func parsePSTime(s string) (time.Duration, error) {
 		total += time.Duration(f * float64(units[i]))
 	}
 	return total, nil
+}
+
+// parseProcStat returns the user and system CPU time in the text of /proc/<pid>/stat, whose times are
+// in clock ticks of 10 ms. The command name (field 2) may hold spaces and parentheses, so the fields
+// are counted after its last closing parenthesis: state is then field 3, utime 14 and stime 15.
+func parseProcStat(s string) (time.Duration, error) {
+	i := strings.LastIndex(s, ")")
+	if i < 0 {
+		return 0, fmt.Errorf("proc stat %q", s)
+	}
+	f := strings.Fields(s[i+1:])
+	if len(f) < 13 {
+		return 0, fmt.Errorf("proc stat %q", s)
+	}
+	u, err1 := strconv.ParseUint(f[11], 10, 64)
+	k, err2 := strconv.ParseUint(f[12], 10, 64)
+	if err1 != nil || err2 != nil {
+		return 0, fmt.Errorf("proc stat %q", s)
+	}
+	return time.Duration(u+k) * 10 * time.Millisecond, nil
 }
