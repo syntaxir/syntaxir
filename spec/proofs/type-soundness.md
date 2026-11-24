@@ -594,8 +594,3 @@ with a more precise type (T8).
   drop the actions and the declared types, and a compiled grammar that is
   loaded is not checked again; the proof covers a compiled grammar as the
   checker accepted it when it was compiled.
-- **Choices without a value.** The table of
-  [Rule Expression Types](../language/type-checking.md#rule-expression-types)
-  gives a choice the join of its alternatives; (T5) reads it, as
-  [Values and the Concrete Syntax Tree](../language/parser-expressions.md#values-and-the-concrete-syntax-tree)
-  requires, as optional when some alternative has no value.
