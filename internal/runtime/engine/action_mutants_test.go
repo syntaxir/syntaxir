@@ -91,6 +91,7 @@ var engineMutants = []engineMutant{
 // the member reads, the built-in functions, the conversions and the ranges of structs of action expressions in the engine: with a source overlay of each mutant, one
 // of them fails.
 func TestPrintedOperatorMutants(t *testing.T) {
+	t.Parallel()
 	if testing.Short() {
 		t.Skip("runs the tests on mutated sources")
 	}

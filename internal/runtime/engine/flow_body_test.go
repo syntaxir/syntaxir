@@ -343,6 +343,7 @@ func grammarCorpus(t *testing.T, path string) []string {
 // through both VM models, which run every rule from its Flow body: the trees, the errors and the
 // spends must be those of flowReference, and the module must load.
 func TestFlowBodiesTestdataGrammars(t *testing.T) {
+	t.Parallel()
 	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)

@@ -133,6 +133,7 @@ func compose(f *bytecode.Flow, ops map[bytecode.FlowOp]int) {
 // its composition, in both execution models, and the trees, the errors and the units used must be
 // the same. Every fused instruction the test composes must occur in the bodies.
 func TestFusedFlowInstructionsChargeAsComposed(t *testing.T) {
+	t.Parallel()
 	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
 	if err != nil || len(paths) == 0 {
 		t.Fatalf("no grammars: %v", err)
