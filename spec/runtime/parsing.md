@@ -526,13 +526,7 @@ bytes.
 ### Termination
 
 A parse of a finite input terminates, unless a reader or a callback that the
-caller supplies does not return. This holds once the left calls of an
-Operators Rule with a nullable operand line include its infix and postfix
-operator lines, so that such a rule is grown as a left recursion; the
-implementation does not yet compute those left calls, and until it does, an
-Operators Rule whose infix or postfix line can call the rule again at the same
-position can recur there without end, and only the nesting limit or the compute
-limit stops it ([Termination proof](../proofs/termination.md)).
+caller supplies does not return ([Termination proof](../proofs/termination.md)).
 
 - A call of a left-recursive rule at a position where that rule is growing
   reads its current result instead of evaluating its body, whatever the values
