@@ -3,6 +3,7 @@ package engine
 import (
 	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
@@ -190,10 +191,20 @@ func TestLeftRecursionMemberMemoRandom(t *testing.T) {
 	if testing.Short() {
 		seeds = 50
 	}
-	compiled, n := 0, 0
+	type seedCut struct {
+		seed int64
+		cut  bool
+	}
+	var items []seedCut
 	for s := int64(0); s < int64(seeds); s++ {
-		for _, cut := range []bool{false, true} {
-			c := codegentest.RandomCycleGrammar(s, cut)
+		items = append(items, seedCut{s, false}, seedCut{s, true})
+	}
+	// The grammars are independent, so they are checked in shards; the differences keep the order of
+	// the seeds.
+	var compiled atomic.Int64
+	diffs := codegentest.Shards(t, items, func(t *testing.T, part []seedCut) (out []string) {
+		for _, it := range part {
+			c := codegentest.RandomCycleGrammar(it.seed, it.cut)
 			g, err := parseTest(c.Src)
 			if err != nil {
 				continue
@@ -201,16 +212,20 @@ func TestLeftRecursionMemberMemoRandom(t *testing.T) {
 			if _, err := Compile(g, checkpkg.Options{}); err != nil {
 				continue
 			}
-			compiled++
+			compiled.Add(1)
 			for _, d := range memberMemoDiffers(t, c, false) {
-				if n++; n <= 5 {
-					t.Errorf("%s\n%s", c.Src, d)
-				}
+				out = append(out, c.Src+"\n"+d)
 			}
 		}
+		return out
+	})
+	for i, d := range diffs {
+		if i < 5 {
+			t.Error(d)
+		}
 	}
-	if n > 0 || compiled < seeds {
-		t.Errorf("%d differences in %d grammars", n, compiled)
+	if len(diffs) > 0 || int(compiled.Load()) < seeds {
+		t.Errorf("%d differences in %d grammars", len(diffs), compiled.Load())
 	}
 }
 
