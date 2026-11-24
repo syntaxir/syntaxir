@@ -2342,14 +2342,35 @@ func formatAttributeValue(value any, control *formatControl) string {
 	case bool:
 		return strconv.FormatBool(value)
 	case ast.Expr:
-		if leadsWithLiteralName(value, control) {
+		if leadsWithLiteralName(value, control) || readsAsString(value) {
 			// An argument that begins with true, false or nil is that constant,
-			// so a rule reference of that name needs parentheses.
+			// so a rule reference of that name needs parentheses; so does a
+			// case-sensitive literal, which is a string argument without them.
 			return "(" + formatExpr(value, precChoice, control) + ")"
 		}
 		return formatExpr(value, precChoice, control)
 	}
 	return fmt.Sprintf("<%T>", value)
+}
+
+// readsAsString reports whether e, an attribute argument, is written as a
+// case-sensitive literal alone, which reads back as a string argument: the
+// literal or a choice of one alternative that is one. A group writes its own
+// parentheses.
+func readsAsString(e ast.Expr) bool {
+	for {
+		switch x := e.(type) {
+		case *ast.Choice:
+			if len(x.Alts) != 1 {
+				return false
+			}
+			e = x.Alts[0]
+		case *ast.Literal:
+			return !x.IgnoreCase
+		default:
+			return false
+		}
+	}
 }
 
 // leadsWithLiteralName reports whether the text of e may begin with a rule

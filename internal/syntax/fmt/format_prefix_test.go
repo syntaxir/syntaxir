@@ -181,3 +181,31 @@ func TestFormatKeepsNodes(t *testing.T) {
 		})
 	}
 }
+
+// TestFormatLiteralAttributeArgument checks that an attribute argument written as a case-sensitive
+// literal alone, which would read back as a string, is written in parentheses, and that a literal
+// that ignores case and a grouped literal keep their spelling.
+func TestFormatLiteralAttributeArgument(t *testing.T) {
+	t.Parallel()
+	one := &ast.Choice{Alts: []ast.Expr{&ast.Literal{Value: "m"}}}
+	g := &ast.Grammar{File: ast.File{Decls: []ast.Decl{&ast.RuleDef{Name: "main", Expr: &ast.Attributed{
+		Expr: &ast.Literal{Value: "a"},
+		Attrs: []*ast.Attribute{{Name: "x", Args: []any{one, &ast.Literal{Value: "i", IgnoreCase: true}},
+			KwArgs: map[string]any{"k": &ast.Group{Expr: &ast.Literal{Value: "n"}}}}},
+	}}}}}
+	source := fmt.Format(g)
+	back, err := enginetest.ParseGrammar(source)
+	if err != nil {
+		t.Fatalf("formatted source cannot be parsed: %v\n%s", err, source)
+	}
+	a := back.Rules()[0].Expr.(*ast.Attributed).Attrs[0]
+	if group, ok := a.Args[0].(*ast.Group); !ok || group.Expr.(*ast.Literal).Value != "m" {
+		t.Errorf("one-alternative choice of a literal: got %#v\n%s", a.Args[0], source)
+	}
+	if lit, ok := a.Args[1].(*ast.Literal); !ok || !lit.IgnoreCase {
+		t.Errorf("literal that ignores case: got %#v\n%s", a.Args[1], source)
+	}
+	if group, ok := a.KwArgs["k"].(*ast.Group); !ok || group.Expr.(*ast.Literal).Value != "n" {
+		t.Errorf("grouped literal: got %#v\n%s", a.KwArgs["k"], source)
+	}
+}
