@@ -86,7 +86,7 @@ sxir gen -g <grammar> [-lang go|ts|go,ts] [-module <import path>] [-pkg <package
   same form as in other commands. An unknown start rule, an invalid package name,
   a compiled grammar (`gen needs the grammar source`),
   `-stream` without a `#stream` repetition in the start rule and a grammar that
-  contains `#missing` with `-types` or `-lang ts` are
+  contains `#missing` with `-lang ts` are
   errors.
 - A Go package may contain only one generated parser, because every generated file
   defines the same names. `api.go` re-exports the names the users of the
@@ -168,8 +168,9 @@ const (
 - Every generated Go parser exports `WithLimits`, `Limits`, `LimitKind`, `LimitError`,
   `ErrLimit`, `LimitCompute`, `LimitInput`, `LimitDepth`, `LimitMemory` and `Unlimited`. A parser of a
   grammar with `#missing` also exports `WithMissingTokens`: a positive limit inserts missing tokens in
-  `Parse`, `ParseRule`, `Recognize`, the stream parses and the parses of a Document with the results,
-  diagnostics and compute units of the engine. A Document takes the limit at
+  `Parse`, `ParseRule`, `Recognize`, the stream parses and the parses of a Document, and with `-types`
+  in their typed counterparts (`ParseValue`, `ParseRuleValue`, `ParseStreamValue`, `IterateValue` and
+  `Document.ParseValue`), with the results, diagnostics and compute units of the engine. A Document takes the limit at
   construction ([Missing Tokens](documents.md#missing-tokens)), and a stream has one limit
   ([Missing Tokens](streaming.md#missing-tokens)). A parser is
   generated with limit controls unless it opts out (`-no-limits`, `NoLimitControls`), and one generated
@@ -216,8 +217,10 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
 | Struct type `T` | `*T` with the same fields and an embedded `Span`, which is `input.Span{Start, End int}` of package `runtime/input`: the range [Start, End) of the input in the parse's position unit |
 | `node[T]` | `*TNode[T']`, with `Span` and `Value` of the Go type `T'` of `T`: `*TNode[string]` for a string node, whose `Value` is the text, and `*TNode[any]` for `node[_]` |
 | Tuple `(A, B, ...)` | `TupleN[A', B', ...]` with the fields `E0`, `E1`, ...; `Unit` for `()` |
-| `error` (from `#recover`) | `*Error`, a type of the types package with `Span` and `Message` |
-| Join `U ~ A \| B` of node types: struct types, named node types, unnamed node types and `error` | An interface `U` implemented by `*A`, `*B` and `*Error`, and by every `*TNode[T]` if a member is an unnamed node type. A value converts to the member its type names, or, for a node of an unnamed node type or of a named node type that is no member, to the unnamed node member of its kind (string, tuple or list) with that member's Go type; `node[_]` takes every other node as a `*TNode[any]` |
+| `error` (from `#recover`) | `*Error`, a type of the types package with `Span` and `Message`; in a grammar with `#missing`, `ErrorValue` |
+| `missing` (from `#missing`) | `*Missing`, a type of the types package with `Span`, `Expected` and `Message` |
+| `error` in a grammar with `#missing` | `ErrorValue`, a sealed interface of the types package implemented by `*Error` and `*Missing` |
+| Join `U ~ A \| B` of node types: struct types, named node types, unnamed node types, `error` and `missing` | An interface `U` implemented by `*A`, `*B` and `*Error` (and `*Missing` in a grammar with `#missing`), and by every `*TNode[T]` if a member is an unnamed node type. A value converts to the member its type names, or, for a node of an unnamed node type or of a named node type that is no member, to the unnamed node member of its kind (string, tuple or list) with that member's Go type; `node[_]` takes every other node as a `*TNode[any]` |
 | Join of node types written in place (a field, a list element, a rule value) and declared by no alias: `A \| B` (two or more distinct members, with or without `error`), or `A \| error` (one member and `error`) | An interface named after its members in the order of their first spelling in the file (declarations in source order, then the fields of a type), `AOrB`, or `AOrError` for one member and `error`, implemented like the interface of an alias; an unnamed node member is named after its value and `Node`, as `StringNode` for `node[string]`, `ItemListNode` for `node[[]Item]` and `Node` for `node[_]`. The same set of members in any order is one interface, and a set that an alias declares is that alias. A type of the grammar with the generated name, or two different sets with the same name, is a generation error. A join without a struct or named node type member, a join with a member that is no node type (a list, a scalar), or one with two unnamed node members of one kind has no interface and is `any`; an alias gives a join of unnamed node types an interface |
 | `[]T` | A slice; an empty list is an empty slice and not `nil` |
 | `*T` | `*int`, `*string` or `*bool` for basic types; otherwise the Go type of `T`, `nil` when absent |
@@ -229,7 +232,8 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
   and `Unit` is `struct{}`. A missing element of a tuple is `nil`. A list node's `Value` is a slice.
 - A grammar type keeps its name. The types package declares, besides the grammar's
   types, `TNode`, `Error`, `SXIRHooks` and, when used, `Unit`, `TupleN` and
-  `SXIRNodeTypes`, and a constant `SXIRSchema_<digest>`; generation fails, naming the
+  `SXIRNodeTypes`, in a grammar with `#missing` also `Missing` and `ErrorValue`, and a constant
+  `SXIRSchema_<digest>`; generation fails, naming the
   type, if a grammar type has one of these names. The digest covers the package's
   declarations, not its comments or formatting. The parser package refers to the
   constant once, so a `parser.go` and a `types/types.go` generated from different
@@ -241,7 +245,7 @@ func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
   gets a trailing underscore in Go (`Start_`), so `Start` and `End` always read
   the span; the value still reads back under the grammar name. Every declared alias is exported.
 - After `#recover`, an error value in a list of a join type stays in the list as
-  `*Error`; where a struct type is expected it becomes `nil`.
+  `*Error`, and an inserted token as `*Missing`; where a struct type is expected it becomes `nil`.
 - `ParseRuleValue` consumes the whole input, applies options once before it looks up
   the name, and returns the selected start rule's typed value as `any`. Names that
   `ParseRule` rejects, with the same errors, and invalid options return `nil` with an
@@ -569,7 +573,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Condition | Result |
 |:--|:--|
 | Invalid package name, unknown start rule, grammar errors | Error before output |
-| `#missing` in the grammar with `-types` or `-lang ts` | Generation fails |
+| `#missing` in the grammar with `-lang ts` | Generation fails |
 | `-stream` with `-lang ts` | Generation fails |
 | `-g`, `-s`, `-pkg` or a generation option with `-lib only` | The command fails |
 | `-lib embed` without `-module`; `-lib import` with neither `-module` nor `-pkg` | The command fails |
@@ -588,7 +592,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Predicates, variables, lookahead, cut | Supported | Supported |
 | Actions, types, built-in functions | Supported | Supported |
 | `@error`, `#recover`, `SyntaxErrors` | Supported | Supported |
-| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`, stream parses and Documents; not with `-types` | Not supported |
+| `#missing` | `WithMissingTokens` in whole-input `Parse`, `ParseRule` and `Recognize`, stream parses and Documents, Node and typed | Not supported |
 | Position units | `WithUnit` | `unit` |
 | Another start rule | `ParseRule` | `parseRule` |
 | Recognition | `Recognize` with `-recognize` | `recognize` with `-recognize` |

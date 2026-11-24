@@ -387,7 +387,7 @@ These mechanisms change how a parse treats input and results, so they cut across
 ## Invariants That Cut Across Packages
 
 - **One behavior.** Every backend returns the same value, the same error and the same expectations at the same
-  position for the same grammar and input. A backend that cannot meet this says so (the closure backend alone supports
+  position for the same grammar and input. A backend that cannot meet this says so (generated TypeScript parsers reject
   `#missing`) instead of approximating.
 - **Specification first.** The specification states the contract; the runtime and the generators implement it. A
   behavior that only one of them has is a defect or a documented limit.

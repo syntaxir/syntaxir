@@ -33,16 +33,12 @@ const (
 	// engineDoc keeps it always, with the record in the entry, as the engine does in every parse.
 	// A call's examined input starts empty and ends where its matches read to; a call restores the
 	// enclosing call's examined input when it ends; and a reused entry's value is moved after the
-	// entry's expectations are merged: the engine's values are nodes, which it can always move. It
-	// also keeps the missing-token mode, which evaluates again the calls that can insert a missing
-	// token and records the tokens a reused result inserted.
+	// entry's expectations are merged: the engine's values are nodes, which it can always move.
+	//
+	// A call with every bookkeeping keeps the missing-token mode, which evaluates again the calls that
+	// can insert a missing token and records the tokens a reused result inserted.
 	engineDoc
 )
-
-// inserts reports whether a call with the bookkeeping doc can run in the missing-token mode, which
-// evaluates again the calls that can insert and records the tokens a reused result inserted: every
-// call but that of a Document parse (typedDoc): a Document of a grammar with #missing is refused.
-func (doc docMode) inserts() bool { return doc != typedDoc }
 
 // streamPruneWindow is the number of positions that a stream commits between prunings of the memo.
 const streamPruneWindow = 1024
@@ -202,12 +198,8 @@ func Build() *Module {
 		}
 		b.If(Not(C("ctx.ok", s)), func(b *Builder) { exit(b, Null(value), BoolC(false)) })
 		b.SetReg(exec.Pos, C("ctx.end", s))
-		if doc.inserts() {
-			b.IfElse(And(F(exec.Missing), C("missing.active")), func(b *Builder) { b.Do("missing.replayResult", s) },
-				func(b *Builder) { b.Do("rec.add", C("ctx.errs", s)) })
-		} else {
-			b.Do("rec.add", C("ctx.errs", s))
-		}
+		b.IfElse(And(F(exec.Missing), C("missing.active")), func(b *Builder) { b.Do("missing.replayResult", s) },
+			func(b *Builder) { b.Do("rec.add", C("ctx.errs", s)) })
 		exit(b, C("ctx.value", s), BoolC(true))
 	}
 	// reuse returns through exit a result that the call at start may reuse: the seed of the rule if it
@@ -240,10 +232,8 @@ func Build() *Module {
 		case typedDoc:
 			reusable = And(reusable, C("doc.move", e))
 		}
-		if doc.inserts() {
-			// In the missing-token mode, a result of a rule that can insert is evaluated again.
-			reusable = And(reusable, Not(And(F(exec.Missing), C("missing.recompute", r))))
-		}
+		// In the missing-token mode, a result of a rule that can insert is evaluated again.
+		reusable = And(reusable, Not(And(F(exec.Missing), C("missing.recompute", r))))
 		b.If(reusable, func(b *Builder) {
 			b.If(observed, func(b *Builder) { b.Do("obs.memoHit") })
 			// A Document parse tracks the examined end, so its bookkeeping nests in the tracking: a parse
@@ -367,12 +357,7 @@ func Build() *Module {
 
 	// undoing runs body, which evaluates the call, and fail if the call failed; in the missing-token mode
 	// a failure also drops the tokens that body inserted.
-	undoing := func(b *Builder, inserts bool, body, fail func(b *Builder)) {
-		if !inserts {
-			body(b)
-			b.If(Not(L("ok")), fail)
-			return
-		}
+	undoing := func(b *Builder, body, fail func(b *Builder)) {
 		b.IfElse(F(exec.Missing), func(b *Builder) {
 			mm := b.Let("mm", C("missing.mark"))
 			body(b)
@@ -392,7 +377,7 @@ func Build() *Module {
 			ret(b)
 		})
 		b.Let("rec", C("rec.mark"))
-		undoing(b, true, func(b *Builder) { b.SetN(pair, C("rule.invoke", r, L("min"))) }, func(b *Builder) {
+		undoing(b, func(b *Builder) { b.SetN(pair, C("rule.invoke", r, L("min"))) }, func(b *Builder) {
 			b.SetReg(exec.Pos, L("start"))
 			b.Do("rec.truncate", L("rec"))
 		})
@@ -406,7 +391,7 @@ func Build() *Module {
 		b.IfElse(C("rule.leader", r), func(b *Builder) {
 			b.SetN(pair, C("grow", r, level))
 		}, func(b *Builder) {
-			undoing(b, doc.inserts(), run, func(b *Builder) { b.Do("rec.truncate", L("rec")) })
+			undoing(b, run, func(b *Builder) { b.Do("rec.truncate", L("rec")) })
 		})
 	}
 	// direct is the condition of a call that runs unmemoized: the rule is not memoized (rule.memo, which
@@ -610,7 +595,7 @@ start from otherwise.`
 		}, invoke)
 	}
 	typedDocument := m.AddFunc("typedDocument", []Param{P("r", rule), P("min", TInt), P("inv", THandle(exec.Body))}, result,
-		[]string{exec.Document, exec.Observe, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
+		[]string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Budget, exec.Units}, func(b *Builder) {
 			locals(b)
 			b.Var("fm", TU64)
 			enter(b)
@@ -619,8 +604,7 @@ start from otherwise.`
 			b.Protect(func(b *Builder) {
 				b.If(Not(C("rule.docMemo", r)), func(b *Builder) {
 					b.Let("rec", C("rec.mark"))
-					run(b)
-					b.If(Not(L("ok")), func(b *Builder) {
+					undoing(b, run, func(b *Builder) {
 						b.SetReg(exec.Pos, L("start"))
 						b.Do("rec.truncate", L("rec"))
 					})
@@ -635,8 +619,9 @@ start from otherwise.`
 		})
 	typedDocument.Doc = `typedDocument is a typed rule call in a Document parse, for the rule r at binding level min,
 invoked by inv when a generated call passes it: unmemoized for a rule that the Document does not
-memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As
-in document, the enclosing call's examined input is restored however the call ends.`
+memoize, which in the missing-token mode drops the tokens it inserted when it fails, and otherwise
+through the memo, with the Document record of each entry kept beside it. As in document, the
+enclosing call's examined input is restored however the call ends.`
 
 	// The split call protocol of the engine: callBegin and callEnd hold the state of a memoized call
 	// between them in a record that the caller keeps (call.state), so that a target that does not

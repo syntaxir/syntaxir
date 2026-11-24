@@ -200,6 +200,7 @@ const (
 	OpResetMissing    = "flow.resetMissing"
 	OpInputDemand     = "flow.inputDemand"
 	OpErrorValue      = "flow.errorValue"
+	OpMissingValue    = "flow.missingValue"
 	OpNewErrorNode    = "flow.newErrorNode"
 	OpFreshNode       = "flow.freshNode"
 	OpConvertResult   = "flow.convertResult"
@@ -582,6 +583,9 @@ returns false and changes nothing.`}),
 		"the #missing site and its literal (Insertion)", immOf[prim.Insertion]())
 	withImm(op(&code.Op{Name: OpNewMissingNode, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Writes: []string{State}, Cost: plus(value1, QErrorText),
 		Contract: "Returns the missing node of the insertion whose error is x, at start, in the Node runtime: an empty terminal of type missing with the fields expected, the text the literal of the immediate inserts, and message, the text of x. Its fields are values that the parse builds, which count nothing (spec/runtime/parsing.md#compute-units); the cost bound is the work of building them."}),
+		"the #missing site and its literal (Insertion)", immOf[prim.Insertion]())
+	withImm(op(&code.Op{Name: OpMissingValue, NoReturn: true, Params: []code.Param{P("start", i), P("x", errT)}, Results: []code.Type{value}, Writes: []string{State}, Cost: plus(value1, QErrorText),
+		Contract: "Returns the value of the insertion whose error is x, at start, in the typed runtime: an empty missing value with the fields expected, the text the literal of the immediate inserts, and message, the text of x, the value that converting the missing node of flow.newMissingNode gives. Its fields are values that the parse builds, which count nothing (spec/runtime/parsing.md#compute-units); the cost bound is the work of building them."}),
 		"the #missing site and its literal (Insertion)", immOf[prim.Insertion]())
 	withImm(op(&code.Op{Name: OpMissingScope, NoReturn: true, Results: []code.Type{i}, Writes: []string{State},
 		Contract: "Enters an @error label around #missing sites: in a parse that inserts missing tokens and records expectations, where no label is entered, the message of the immediate becomes the expectation of the insertions inside. Returns the label entered before, which flow.missingScopeEnd restores. It counts no event and charges nothing."}),

@@ -46,8 +46,8 @@ func (p *primPrinter) skippedCalls(x prim.SkippedCalls) string {
 	// The typed library makes the memo effects from the rows of the Node table, as the entries of
 	// typed rules do (FirstCall).
 	table := g.tableVar()
-	if g.Table == "trules" {
-		table = "rules"
+	if g.typed() {
+		table = g.nodeRows()
 	}
 	rules := make([]string, len(x.Rules))
 	for i, k := range x.Rules {

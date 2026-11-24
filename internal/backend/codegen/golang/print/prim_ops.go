@@ -257,6 +257,8 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 		return fmt.Sprintf("p.%s(%d, %s)", g.pickLogical("InsertMissing"), c.Imm.(prim.Insertion).Site, args[0])
 	case prim.OpNewMissingNode:
 		return fmt.Sprintf("p.NewMissingNode(%s, %q, %s)", args[0], c.Imm.(prim.Insertion).Lit.Text, args[1])
+	case prim.OpMissingValue:
+		return fmt.Sprintf("NewTMissing(%s, %q, %s.Error())", args[0], c.Imm.(prim.Insertion).Lit.Text, args[1])
 	case prim.OpMissingScope:
 		return fmt.Sprintf("p.MissingScope(MsgBit|%d)", p.desc(c.Imm.(prim.ExpID)))
 	case prim.OpMissingScopeEnd:
@@ -274,9 +276,9 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpConvertResult:
 		x := c.Imm.(prim.Conversion)
 		if x.Owned {
-			return fmt.Sprintf("p.TConvertResultOwned(trules[%d], %s, %s)", x.Rule, args[0], args[1])
+			return fmt.Sprintf("p.TConvertResultOwned(%s[%d], %s, %s)", p.g.Table, x.Rule, args[0], args[1])
 		}
-		return fmt.Sprintf("p.TConvertResult(trules[%d], %s)", x.Rule, args[0])
+		return fmt.Sprintf("p.TConvertResult(%s[%d], %s)", p.g.Table, x.Rule, args[0])
 	case prim.OpUseCtx:
 		return fmt.Sprintf("p.UseCtx(TActCtx{P: p, Start: %s, End: p.Pos, Cbase: len(p.Created)})", args[0])
 	case prim.OpEval:

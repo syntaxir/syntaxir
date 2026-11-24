@@ -1,4 +1,4 @@
-protocol 35
+protocol 36
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -63,6 +63,7 @@ func NewNode(syntaxir.dev/sxir/pkg/runtime/value.NodeKind, int, int, string, []*
 func NewNodeTypeKinds(string) *nodeTypeKinds
 func NewRules[S interface{~struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}}, E interface{~struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}}]([]S, [][]string, []E) []*Rule
 func NewTError(int, int, string) *TError
+func NewTMissing(int, string, string) *TMissing
 func NewTRules([]*Rule) []*TRule
 func RawField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string) any
 func RenamedExpected(*Parser, []ExpID, ExpID) []ExpID
@@ -78,6 +79,7 @@ func SetNodeElems(*syntaxir.dev/sxir/pkg/runtime/value.Node, []*syntaxir.dev/sxi
 func SetNodeField(*syntaxir.dev/sxir/pkg/runtime/value.Node, string, any)
 func SetNodeStart(*syntaxir.dev/sxir/pkg/runtime/value.Node, int)
 func SetNodeText(*syntaxir.dev/sxir/pkg/runtime/value.Node, string)
+func SetTInsertion([]*TRule, []*TRule)
 func TAs[T any](any) T
 func TBack(*TPubHooks, any) any
 func TDeref[T any](*T) any
@@ -92,6 +94,7 @@ func TPub(*TPubHooks, any) any
 func TPubError(any) *TErrorValue
 func TPubIn(*TPubHooks, any, any) any
 func TPubMatch(any) *TNode[string]
+func TPubMissing(any) *TMissingValue
 func TPubNode(*TPubHooks, any) *TNode[any]
 func TPubNodeIn(*TPubHooks, any, any) *TNode[any]
 func TRegisterNodeType(string, func(any, TVal) any) uint16
@@ -286,6 +289,15 @@ method (*TMatch) TName() string
 method (*TMatch) TSetFresh(bool)
 method (*TMatch) TStruct() bool
 method (*TMatch) TText() (string, bool)
+method (*TMissing) TField(string) (any, bool)
+method (*TMissing) TFresh() bool
+method (*TMissing) TKids() []any
+method (*TMissing) TName() string
+method (*TMissing) TSetFresh(bool)
+method (*TMissing) TStruct() bool
+method (*TMissing) TText() (string, bool)
+method (*TMissingValue) TSetSpan(int, int)
+method (*TMissingValue) TSpan() (int, int)
 method (*TNode) TSetSpan(int, int)
 method (*TNode) TSpan() (int, int)
 method (*TParser) ActionBinary(int, any, any) (any, any)
@@ -419,13 +431,15 @@ type TCaptureFrame struct{Vals []any}
 type TError struct{TErrorValue}
 type TErrorValue struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Message string}
 type TMatch struct{TNode[string]; Nt uint16}
+type TMissing struct{TMissingValue}
+type TMissingValue struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Expected string; Message string}
 type TNode[T any] struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Value T}
 type TOperand struct{V any; Str string; IsStr bool}
 type TOperatorsRule struct{Skip tmatcher; Operands []*TOperatorsRuleLine; Prefix []*TOperatorsRuleOp; Led []*TOperatorsRuleOp}
 type TOperatorsRuleLine struct{Scope []string; M tmatcher; Action func(*TActCtx) (any, any); Value Shaper}
 type TOperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *TOperatorsRuleLine}
 type TParser struct{*Parser; Ext any; Where string; Frame *TCaptureFrame; Trail []tundo; Created []TVal; KidStack []any; TypedDocument *typedDocumentState}
-type TPubHooks struct{Match func(*TNode[string]) any; Error func(*TErrorValue) any; Node func(*TNode[any]) any; Back func(any) any}
+type TPubHooks struct{Match func(*TNode[string]) any; Error func(*TErrorValue) any; Missing func(*TMissingValue) any; Node func(*TNode[any]) any; Back func(any) any}
 type TRule struct{*Rule; Body func(*TParser, int) (any, bool); Action func(*TActCtx) (any, any); OperatorsRule *TOperatorsRule; Entry func(*TParser) (any, bool); Nt uint16; OpNt uint16}
 type TSeq struct{syntaxir.dev/sxir/pkg/runtime/input.Span; Typ string; Kids []any}
 type TVal interface{TField(string) (any, bool); TFresh() bool; TKids() []any; TName() string; TSetFresh(bool); TSetSpan(int, int); TSpan() (int, int); TStruct() bool; TText() (string, bool)}

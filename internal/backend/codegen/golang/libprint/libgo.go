@@ -55,9 +55,9 @@ var goSpecs = []goSpec{
 	{fn: "expect", on: []string{exec.Units}, name: "Expect", cold: "expectSlow"},
 	{fn: "mergeExpected", on: []string{exec.Units}, name: "MergeExpected"},
 	{fn: "keep", on: []string{exec.Units}, name: "Keep"},
-	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "callBody"},
-	{fn: "callMemo", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "CallMemo"},
-	{fn: "grow", typed: true, on: []string{exec.Typed, exec.Units}, name: "grow"},
+	{fn: "call", typed: true, on: []string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Units}, name: "callBody"},
+	{fn: "callMemo", typed: true, on: []string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Units}, name: "CallMemo"},
+	{fn: "grow", typed: true, on: []string{exec.Missing, exec.Typed, exec.Units}, name: "grow"},
 	// The observed calls and plain invocations of both libraries, which their callers take in an
 	// observed parse.
 	{fn: "observed", on: []string{exec.Document, exec.Observe}, name: "callObserved"},
@@ -72,7 +72,7 @@ var goSpecs = []goSpec{
 	{fn: "body", on: []string{exec.Document, exec.Missing, exec.Units}, name: "callBody"},
 	{fn: "tracked", on: []string{exec.Document, exec.Observe}, name: "callTracked"},
 	// The rule call of a Document parse in the typed library.
-	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Typed, exec.Units}, name: "DocumentCall"},
+	{fn: "typedDocument", typed: true, on: []string{exec.Document, exec.Observe, exec.Missing, exec.Typed, exec.Units}, name: "DocumentCall"},
 	// The edits of a Document that a lookup applies to the memo entry it finds, in both libraries: the
 	// form a parse runs and the form an edit runs, which has no parse. Applying an edit is no event, so
 	// the two do the same work.
@@ -121,12 +121,12 @@ var goOperatorSpecs = []goSpec{
 	{fn: "longest", on: []string{exec.Missing, exec.Units}, name: "longest"},
 	{fn: "skipTrivia", on: []string{exec.Missing}, name: "skipTrivia"},
 	{fn: "reset", on: []string{exec.Missing}, name: "Reset"},
-	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
-	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
-	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Typed, exec.Units}, name: "operatorsRuleNud"},
-	{fn: "longest", typed: true, on: []string{exec.Units}, name: "longest"},
-	{fn: "skipTrivia", typed: true, name: "skipTrivia"},
-	{fn: "reset", typed: true, name: "Reset"},
+	{fn: "operatorsParseTyped", typed: true, on: []string{exec.Missing, exec.Typed, exec.Units}, name: "OperatorsRuleParse"},
+	{fn: "operatorsExprTyped", typed: true, on: []string{exec.Missing, exec.Typed, exec.Units}, name: "operatorsRuleExpr"},
+	{fn: "operatorsNudTyped", typed: true, on: []string{exec.Missing, exec.Typed, exec.Units}, name: "operatorsRuleNud"},
+	{fn: "longest", typed: true, on: []string{exec.Missing, exec.Units}, name: "longest"},
+	{fn: "skipTrivia", typed: true, on: []string{exec.Missing}, name: "skipTrivia"},
+	{fn: "reset", typed: true, on: []string{exec.Missing}, name: "Reset"},
 }
 
 // printGoOperators returns the Go file of the printed Operators Rule compositions for package libgo.

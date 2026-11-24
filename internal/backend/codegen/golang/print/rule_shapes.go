@@ -95,7 +95,7 @@ type flatRule struct {
 // call the method also counts the unit of the call (callUnit): a call site calls it directly, without
 // the call protocol.
 func (g *Generator) flatMethod(r *common.Rule, d *flatRule, name, comment string, plain, call bool) {
-	observeBody := g.Observability && g.Table == "trules" && (!r.Plain || g.directTypedDocument)
+	observeBody := g.Observability && g.typed() && (!r.Plain || g.directTypedDocument)
 	if g.Observability && !observeBody {
 		name = g.tracePlainWrapper(r, name)
 	}

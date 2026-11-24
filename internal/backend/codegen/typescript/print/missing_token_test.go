@@ -37,7 +37,7 @@ rule item = "a" #missing ";"`)
 		{Start: "main", Stream: true, Document: true},
 		{Start: "main", Stream: true, Types: true, Observability: true},
 	} {
-		if _, err := generateTS(g, opts, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated TypeScript parsers") {
+		if _, err := generateTS(g, opts, driver.Options{}, nil); err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported for generated TypeScript parsers; the engine and generated Go parsers support it") {
 			t.Errorf("%+v: generated a stream parser for the grammar: %v", opts, err)
 		}
 	}

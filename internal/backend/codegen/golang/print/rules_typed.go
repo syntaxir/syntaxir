@@ -35,7 +35,7 @@ import (
 // typedRuleFunc prints the rule r from Exec IR as a flat rule, the flat function of the typed table's
 // plan (flowplan.PlanTyped), or returns nil if the plan has none for r.
 func (g *Generator) typedRuleFunc(r *common.Rule) *flatRule {
-	if g.Table != "trules" {
+	if !g.typed() {
 		return nil
 	}
 	spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
@@ -51,7 +51,7 @@ func (g *Generator) typedRuleFunc(r *common.Rule) *flatRule {
 // framed function of the typed table's plan (flowplan.PlanTyped), or returns "" if the plan has none for
 // r.
 func (g *Generator) frameBody(r *common.Rule, scope *check.Scope) string {
-	if g.Table != "trules" {
+	if !g.typed() {
 		return ""
 	}
 	spec, ok := g.plan.Func(plandata.Key{Use: plandata.RuleBody, Rule: r.ID})
@@ -111,7 +111,7 @@ func (g *Generator) operatorsRuleBody(k plandata.Key, scope *check.Scope, build 
 	}
 	l := g.planned(k)
 	comment := " (typed OperatorsRule body inlined)"
-	if g.Table != "trules" {
+	if !g.typed() {
 		comment = " (OperatorsRule body inlined)"
 		if g.hooks.OperatorsRoute != nil && !g.Traced {
 			g.hooks.OperatorsRoute(g.Table, g.Cur)
@@ -211,7 +211,7 @@ func (p *primPrinter) declare(n *prim.Names) {
 }
 
 // untyped reports whether the printer writes the Node library's code (the Node and recognizer tables).
-func (p *primPrinter) untyped() bool { return p.g.Table != "trules" }
+func (p *primPrinter) untyped() bool { return !p.g.typed() }
 
 // matcher returns the parser whose methods match literals: the embedded Node parser of a typed
 // parser, or the Node parser itself.

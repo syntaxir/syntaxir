@@ -109,7 +109,7 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 			case action.OpActionField:
 				return strconv.Quote(c.Imm.(action.Field).Field)
 			case action.OpActionNodeType:
-				if g.Table == "trules" {
+				if g.typed() {
 					return g.nodeTypeID(c.Imm.(string))
 				}
 				return "c.P." + rtActionNodeType + "(" + strconv.Quote(c.Imm.(string)) + ")"

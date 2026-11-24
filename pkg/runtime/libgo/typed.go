@@ -15,7 +15,8 @@ import (
 // The typed library, appended to generated parsers made with sxir gen -types. It parses like the
 // library in lib.go, but builds the values of the grammar's types directly, as Go values,
 // instead of Node trees: the value of an expression is an any holding a pointer to a struct
-// type, *TMatch (a string node), *TError (an error value), an int, string or bool, nil,
+// type, *TMatch (a string node), *TError (an error value), *TMissing (a missing value), an int, string or
+// bool, nil,
 // or a *TSeq: a tuple node, a list node, or a tuple or list value. Values other than
 // nodes need no carrier, as they do in Node trees. Every step mirrors lib.go, so the result is
 // that of converting the Node tree that Parse returns.
@@ -49,6 +50,21 @@ type TErrorValue struct {
 
 func (e *TErrorValue) TSpan() (int, int)       { return e.Start, e.End }
 func (e *TErrorValue) TSetSpan(start, end int) { e.Start, e.End = start, end }
+
+// TMissingValue is the data of a literal that #missing inserted: its empty range, the text it inserts
+// (expected) and the message of the syntax error of the insertion. The types package of a parser of a
+// grammar with #missing declares the type of the same fields that users see (Missing), so TPub hands
+// out a TMissingValue as that type.
+//
+// TMissingValue is for generated parsers; not a stable API.
+type TMissingValue struct {
+	sxirinput.Span
+	Expected string
+	Message  string
+}
+
+func (m *TMissingValue) TSpan() (int, int)       { return m.Start, m.End }
+func (m *TMissingValue) TSetSpan(start, end int) { m.Start, m.End = start, end }
 
 // TMatch and TError are a string node and an Error while the typed library handles them: whether
 // the value is fresh (see Data.Fresh) is part of the state of the parse, not of the result. The
@@ -107,6 +123,22 @@ type TError struct {
 	fresh bool
 }
 
+// TMissing is a missing value while the typed library handles it, as TError is an error value.
+//
+// TMissing is for generated parsers; not a stable API.
+type TMissing struct {
+	TMissingValue
+	fresh bool
+}
+
+// NewTMissing returns a fresh missing value of the insertion of the literal expected at start, whose syntax
+// error has the message.
+//
+// NewTMissing is for generated parsers; not a stable API.
+func NewTMissing(start int, expected, message string) *TMissing {
+	return &TMissing{TMissingValue{Span: sxirinput.Span{Start: start, End: start}, Expected: expected, Message: message}, true}
+}
+
 // NewTError returns a fresh error value for the input range [start, end) that recovery skipped.
 //
 // NewTError is for generated parsers; not a stable API.
@@ -114,7 +146,8 @@ func NewTError(start, end int, message string) *TError {
 	return &TError{TErrorValue{Span: sxirinput.Span{Start: start, End: end}, Message: message}, true}
 }
 
-// TPub returns the public form of a value: *TNode[string] and the types package's *Error for TMatch and TError, a
+// TPub returns the public form of a value: *TNode[string] and the types package's *Error and *Missing for TMatch,
+// TError and TMissing, a
 // *TNode[any] for a tuple or list node and a []any for a tuple or list value, with the public
 // forms of their elements.
 //
@@ -134,6 +167,8 @@ func TPubIn(h *TPubHooks, a any, v any) any {
 		return h.Match(&x.TNode)
 	case *TError:
 		return h.Error(&x.TErrorValue)
+	case *TMissing:
+		return h.Missing(&x.TMissingValue)
 	case *TSeq:
 		if x.nt != 0 {
 			return tnodeTypeOf(x.nt).pub(a, x)
@@ -144,17 +179,19 @@ func TPubIn(h *TPubHooks, a any, v any) any {
 }
 
 // TPubHooks makes the public forms of the values the typed library builds that the generated
-// package defines types for: a string node, an error value and a node of a statically unknown
-// value are public values of the package's own types, which implement the package's unions.
+// package defines types for: a string node, an error value, a missing value and a node of a statically
+// unknown value are public values of the package's own types, which implement the package's unions.
+// Missing is nil for a grammar without #missing, whose parses build no missing value.
 // Back is the inverse: it returns the library's form of such a public value, and any other value
 // unchanged.
 //
 // TPubHooks is for generated parsers; not a stable API.
 type TPubHooks struct {
-	Match func(*TNode[string]) any
-	Error func(*TErrorValue) any
-	Node  func(*TNode[any]) any
-	Back  func(any) any
+	Match   func(*TNode[string]) any
+	Error   func(*TErrorValue) any
+	Missing func(*TMissingValue) any
+	Node    func(*TNode[any]) any
+	Back    func(any) any
 }
 
 // tpubElems returns the public form of a tuple or list node, or a tuple or list value, x as a
@@ -225,6 +262,14 @@ func TPubError(v any) *TErrorValue {
 	return nil
 }
 
+// TPubMissing is for generated parsers; not a stable API.
+func TPubMissing(v any) *TMissingValue {
+	if x, ok := v.(*TMissing); ok {
+		return &x.TMissingValue
+	}
+	return nil
+}
+
 // budgetControlSetter is implemented by the output values a typed parse hands its budget control to
 // (the generated converters).
 //
@@ -232,14 +277,14 @@ func TPubError(v any) *TErrorValue {
 type budgetControlSetter interface{ SetBudgetControl(*BudgetControl) }
 
 // TVal is a node value of the typed library: a value of a struct type, *TMatch,
-// *TError or *TSeq.
+// *TError, *TMissing or *TSeq.
 //
 // TVal is for generated parsers; not a stable API.
 type TVal interface {
 	TSpan() (int, int)
 	TSetSpan(start, end int)
 	TName() string                  // type name
-	TText() (string, bool)          // text of a string node or an error value
+	TText() (string, bool)          // text of a string node or a recovered value
 	TKids() []any                   // children of a CST node
 	TField(name string) (any, bool) // field value, and whether the type has the field (structs)
 	TStruct() bool                  // a struct type
@@ -268,6 +313,31 @@ func (e *TError) TSetFresh(f bool)          { e.fresh = f }
 func (e *TError) TField(name string) (any, bool) {
 	if name == "message" {
 		return e.Message, true
+	}
+	return nil, true
+}
+
+func (m *TMissing) TName() string { return "missing" }
+
+// isTMissing reports whether the node value n is a missing value (node.isMissing).
+func isTMissing(n TVal) bool {
+	_, ok := n.(*TMissing)
+	return ok
+}
+
+// TText is the text of the empty range of the insertion, which the value holds as an error value
+// holds its message: it is a terminal.
+func (m *TMissing) TText() (string, bool) { return "", true }
+func (m *TMissing) TKids() []any          { return nil }
+func (m *TMissing) TStruct() bool         { return false }
+func (m *TMissing) TFresh() bool          { return m.fresh }
+func (m *TMissing) TSetFresh(f bool)      { m.fresh = f }
+func (m *TMissing) TField(name string) (any, bool) {
+	switch name {
+	case "expected":
+		return m.Expected, true
+	case "message":
+		return m.Message, true
 	}
 	return nil, true
 }
@@ -326,7 +396,7 @@ func (n *TSeq) set(name string, v any) {
 // tshape is Node.shape for the values of the typed library that are TVal.
 func tshape(n TVal) valueimpl.Shape {
 	switch x := n.(type) {
-	case *TError:
+	case *TError, *TMissing:
 		return valueimpl.ShapeError
 	case *TSeq:
 		switch x.Typ {
@@ -525,6 +595,37 @@ type TRule struct {
 	// OpNt is the registered index of the named node type every operator node of an Operators
 	// Rule is converted to (rule.OpNodeType), or 0.
 	OpNt uint16
+	// ins is the typed rule of the same name in the typed table of the insertion program, which a
+	// parse with missing-token insertion enabled runs instead (SetTInsertion, forMissing); nil for a
+	// grammar without #missing and in the typed table of the insertion program itself.
+	ins *TRule
+}
+
+// SetTInsertion makes each typed rule of trules run as the typed rule of the same position of ins, the
+// typed table of the insertion program of their grammar, in the parses with missing-token insertion
+// enabled (forMissing), as SetInsertion does for the rules.
+//
+// SetTInsertion is for generated parsers; not a stable API.
+func SetTInsertion(trules, ins []*TRule) {
+	if len(trules) != len(ins) {
+		panic(fmt.Sprintf("internal error: the typed insertion table has %d rules for %d", len(ins), len(trules)))
+	}
+	for i, r := range trules {
+		if r.Name != ins[i].Name {
+			panic(fmt.Sprintf("internal error: the typed insertion table has the rule %s for %s", ins[i].Name, r.Name))
+		}
+		r.ins = ins[i]
+	}
+}
+
+// forMissing returns the typed rule that a parse with the options o runs for r, as Rule.forMissing
+// does for a rule: that of the typed table of the insertion program when o enables missing-token
+// insertion of a grammar that uses #missing, and r otherwise.
+func (r *TRule) forMissing(o parseOptions) *TRule {
+	if usedFeatures&featureMissing != 0 && o.missingTokens > 0 && r.ins != nil {
+		return r.ins
+	}
+	return r
 }
 
 // TAs returns v as a T, or the zero T (nil) if it is not one.
@@ -546,7 +647,7 @@ func TPtr[T any](p *T) any {
 }
 
 // TBack returns the value of a field of an open type (a string node, a tuple or list node, an
-// error value, a union, node or any) as a value of the typed library: the inverse of
+// error or missing value, a union, node or any) as a value of the typed library: the inverse of
 // TPub, except that a tuple or list node becomes a tuple node and a []any a tuple value.
 //
 // TBack is for generated parsers; not a stable API.
@@ -563,6 +664,11 @@ func TBack(h *TPubHooks, v any) any {
 			return nil
 		}
 		return &TError{TErrorValue: *x}
+	case *TMissingValue:
+		if x == nil {
+			return nil
+		}
+		return &TMissing{TMissingValue: *x}
 	case *TNode[any]:
 		if x == nil {
 			return nil
@@ -698,7 +804,7 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	p.setTracking()
 	p.setDeferMemo()
 	p.startMissing(o)
-	r = r.forParse(p.Parser)
+	r = r.forMissing(o).forParse(p.Parser)
 	p.memo.sparse = p.memo.stride > 64 && p.n > 1024
 	defer func() {
 		if x := recover(); x != nil {

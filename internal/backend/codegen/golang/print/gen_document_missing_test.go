@@ -59,8 +59,14 @@ func TestGeneratedDocumentsInsertMissingTokens(t *testing.T) {
 		return src
 	}
 	cases := codegentest.IncrementalInsertionCorpus()
-	for _, m := range generatedDocumentInsertionMismatches(t, goBin, codegentest.LibCopyWith(t, everyRun, nil), cases, true) {
+	lib := codegentest.LibCopyWith(t, everyRun, nil)
+	for _, m := range generatedDocumentInsertionMismatches(t, goBin, lib, cases, true, false) {
 		t.Error(m)
+	}
+	// The typed Documents insert as the typed parses from scratch do. Their units are not the engine
+	// Document's: ParseValue keeps a typed memo of its own, which reuses fewer results.
+	for _, m := range generatedDocumentInsertionMismatches(t, goBin, lib, append(append([]codegentest.Case(nil), typedInsertionCases...), cases...), false, true) {
+		t.Error("typed: " + m)
 	}
 	// The mutant records a run whatever its elements reached.
 	const clean = "func (p *Parser) runClean(r *RunState) bool {\n"
@@ -70,7 +76,7 @@ func TestGeneratedDocumentsInsertMissingTokens(t *testing.T) {
 		}
 		return everyRun(name, src)
 	}, nil)
-	if len(generatedDocumentInsertionMismatches(t, goBin, ignoring, cases, false)) == 0 {
+	if len(generatedDocumentInsertionMismatches(t, goBin, ignoring, cases, false, false)) == 0 {
 		t.Error("runs that ignore insertions: every generated Document parse matched the parse from scratch")
 	}
 }
@@ -103,8 +109,9 @@ type documentInsertionResult struct {
 // library copy lib, runs the Document comparisons of every case at documentInsertionLimits, and
 // describes each parse that differs from the parse from scratch, and each rejection that does not
 // happen. With units, it also describes each run whose parses count other compute units than those
-// of the engine's Document along the same edits.
-func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases []codegentest.Case, units bool) []string {
+// of the engine's Document along the same edits. With typed, the parsers are generated with types and
+// the parses are those of ParseValue, which return the typed values.
+func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases []codegentest.Case, units, typed bool) []string {
 	t.Helper()
 	dir := t.TempDir()
 	write := func(name, content string) {
@@ -119,16 +126,27 @@ func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases
 	var runs []documentInsertionRun
 	var names []string
 	var want [][]uint64
+	// A rejected parse returns an error, and a node parse also no tree; a typed value may be a scalar.
+	parseFunc, rejected := "Parse", [2]string{"n", "n != nil || err == nil"}
+	if typed {
+		parseFunc, rejected = "ParseValue", [2]string{"_", "err == nil"}
+	}
 	for i, c := range cases {
 		g, err := parseTest(c.Src)
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
-		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: fmt.Sprintf("g%d", i), Start: "main", Document: true, Observability: true, SourceInfo: true})
+		code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: fmt.Sprintf("g%d", i), Start: "main", Document: true, Observability: true, SourceInfo: true, Types: typed})
 		if err != nil {
 			t.Fatalf("%s: %v", c.Name, err)
 		}
 		write(fmt.Sprintf("g%d/parser.go", i), string(code))
+		// A direct typed Document's CloneValue copies the value of each parse, Missing values included.
+		clone := ""
+		if typed && strings.Contains(string(code), "\nfunc CloneValue(") {
+			clone = fmt.Sprintf("\t\t\tif got, want := show(g%d.CloneValue(n), err), show(n, err); got != want {\n"+
+				"\t\t\t\tres.Diffs = append(res.Diffs, fmt.Sprintf(\"%%s, text %%q:\\n clone %%s\\n value %%s\", what, d.Text(), got, want))\n\t\t\t}\n", i)
+		}
 		fmt.Fprintf(&imports, "\tg%d \"docmissing/g%d\"\n", i, i)
 		fmt.Fprintf(&checks, `	%[1]d: func(v run) (res result) {
 		u := g%[1]d.CodePoints
@@ -145,15 +163,15 @@ func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases
 			if countUnits {
 				opts = append(opts, sxirruntime.WithComputeReport(&units))
 			}
-			n, err := d.Parse(opts...)
+			n, err := d.%[2]s(opts...)
 			res.Units = append(res.Units, units)
-			bn, berr := g%[1]d.Parse(d.Text(), append(opts, g%[1]d.WithUnit(u), sxirruntime.WithMissingTokens(v.Limit))...)
+			bn, berr := g%[1]d.%[2]s(d.Text(), append(opts, g%[1]d.WithUnit(u), sxirruntime.WithMissingTokens(v.Limit))...)
 			if got, want := show(n, err), show(bn, berr); got != want {
 				res.Diffs = append(res.Diffs, fmt.Sprintf("%%s, text %%q:\n document     %%s\n from scratch %%s", what, d.Text(), got, want))
 			}
-		}
+%[5]s		}
 		parse("first parse")
-		if n, err := d.Parse(sxirruntime.WithMissingTokens(v.Limit + 1)); n != nil || err == nil {
+		if %[3]s, err := d.%[2]s(sxirruntime.WithMissingTokens(v.Limit + 1)); %[4]s {
 			res.Diffs = append(res.Diffs, fmt.Sprintf("a parse with the limit %%d was not rejected", v.Limit+1))
 		}
 		for _, e := range v.Edits {
@@ -168,7 +186,7 @@ func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases
 		parse("after the observed parse")
 		return res
 	},
-`, i)
+`, i, parseFunc, rejected[0], rejected[1], clone)
 		var prog *engine.Program
 		if units {
 			prog = mustCompile(t, c.Src, check.Options{NoProjections: true})

@@ -180,12 +180,13 @@ func GeneratedParsersMismatchesWithLib(t *testing.T, goBin, lib string, cases []
 
 // GeneratedParsersInsertionMismatches is GeneratedParsersMismatches for parses with the limit of
 // missing tokens missing (WithMissingTokens), which the generated parsers and the engine both take,
-// and with the compute units of the node parse compared too when the fixtures have limit controls
-// (FixtureBudgetControls).
+// and with the compute units of the node parse, and with opts.Types of the typed parse, compared too
+// when the fixtures have limit controls (FixtureBudgetControls). The typed values are compared by
+// GeneratedTypesInsertionMismatches.
 func GeneratedParsersInsertionMismatches(t *testing.T, goBin string, cases []Case, opts common.GenOptions, missing int, mutate func([]byte) []byte) []string {
 	t.Helper()
-	if opts.Document || opts.Types {
-		t.Fatal("parses with missing tokens are compared on node parses from scratch")
+	if opts.Document {
+		t.Fatal("parses with missing tokens are compared on parses from scratch")
 	}
 	got, want := generatedParsersOutputs(t, goBin, LibCopy(), cases, opts, mutate, false, FixtureBudgetControls(t), missing)
 	return outputMismatches(cases, got, want)
@@ -307,8 +308,9 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 			o := opts
 			o.Lib, o.Module, o.KeepComments = common.LibImport, "codegentest/"+o.Package, true
 			o.NoLimitControls = !FixtureBudgetControls(t)
-			// With units, a grammar with a #stream repetition at its start is parsed as a stream too.
-			o.Stream = units && strings.Contains(c.Src, "#stream")
+			// With units, a grammar with a #stream repetition at its start is parsed as a stream too,
+			// which the reference stream parse, without missing tokens, counts.
+			o.Stream = units && missing == 0 && strings.Contains(c.Src, "#stream")
 			files, err := Generate(t, g, o)
 			if err != nil && o.Stream && strings.Contains(err.Error(), "needs a #stream repetition") {
 				o.Stream = false // the #stream repetition is not where a stream parse needs it
@@ -354,7 +356,7 @@ func generatedParsersOutputs(t *testing.T, goBin, lib string, cases []Case, opts
 				anyStream = true
 				stream = fmt.Sprintf("var st uint64; g%d.ParseStream(iotest.OneByteReader(strings.NewReader(s)), nil, g%[1]d.WithUnit(u), sxirruntime.WithComputeReport(&st)); out += fmt.Sprintf(\" stream: %%d\", st); ", i)
 			}
-			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)); out := fmt.Sprintf(\" units: %%d/%%d\", n, v); %[4]sreturn out },\n", i, i, i, stream)
+			fmt.Fprintf(&counters, "\tfunc(s string, b bool) string { u := g%d.CodePoints; if b { u = g%d.Bytes }; var n, v uint64; g%d.Parse(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&n)%[5]s); g%[3]d.ParseValue(s, g%[3]d.WithUnit(u), sxirruntime.WithComputeReport(&v)%[5]s); out := fmt.Sprintf(\" units: %%d/%%d\", n, v); %[4]sreturn out },\n", i, i, i, stream, missingOpt)
 		} else {
 			counters.WriteString("\tfunc(string, bool) string { return \"\" },\n")
 		}
@@ -479,6 +481,21 @@ func GeneratedTypesMismatches(t *testing.T, goBin string, cases []Case, referenc
 // copy of the library in the module directory lib (LibCopyWith, LibRunHotSpan).
 func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, requiredTyped ...int) []string {
 	t.Helper()
+	return generatedTypesMismatches(t, goBin, lib, cases, reference, mutate, 0, requiredTyped...)
+}
+
+// GeneratedTypesInsertionMismatches is GeneratedTypesMismatches for parses with the limit of missing
+// tokens missing (WithMissingTokens), which the typed parsers, those of the reference route and the
+// engine all take.
+func GeneratedTypesInsertionMismatches(t *testing.T, goBin string, cases []Case, reference common.GenOptions, missing int, requiredTyped ...int) []string {
+	t.Helper()
+	return generatedTypesMismatches(t, goBin, LibCopy(), cases, reference, nil, missing, requiredTyped...)
+}
+
+// generatedTypesMismatches is GeneratedTypesMismatchesWithLib with the limit of missing tokens missing
+// in every parse.
+func generatedTypesMismatches(t *testing.T, goBin, lib string, cases []Case, reference common.GenOptions, mutate func([]byte) []byte, missing int, requiredTyped ...int) []string {
+	t.Helper()
 	var mismatches []string
 	fail := func(format string, args ...any) { mismatches = append(mismatches, fmt.Sprintf(format, args...)) }
 	dir := t.TempDir()
@@ -499,6 +516,12 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 	var wantValue []any
 	var accepted []bool
 	typedLib := 0
+	// missingOpt is the option of the limit of missing tokens that every typed parse takes.
+	missingOpt := ""
+	if missing != 0 {
+		missingOpt = fmt.Sprintf(", sxirruntime.WithMissingTokens(%d)", missing)
+		imports.WriteString("\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n")
+	}
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
 		if err != nil {
@@ -521,12 +544,12 @@ func GeneratedTypesMismatchesWithLib(t *testing.T, goBin, lib string, cases []Ca
 		refOpts.SourceInfo = true
 		GeneratePackage(t, dir, fmt.Sprintf("c%d", i), g, refOpts)
 		fmt.Fprintf(&imports, "\tg%d \"codegentest/g%d\"\n\tc%d \"codegentest/c%d\"\n", i, i, i, i)
-		fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.ParseValue(s, g%[3]d.WithUnit(u)) },\n", i, i, i)
-		fmt.Fprintf(&converters, "\tfunc(s string, b bool) (any, error) { u := c%d.CodePoints; if b { u = c%d.Bytes }; return c%d.ParseValue(s, c%[3]d.WithUnit(u)) },\n", i, i, i)
+		fmt.Fprintf(&parsers, "\tfunc(s string, b bool) (any, error) { u := g%d.CodePoints; if b { u = g%d.Bytes }; return g%d.ParseValue(s, g%[3]d.WithUnit(u)%[4]s) },\n", i, i, i, missingOpt)
+		fmt.Fprintf(&converters, "\tfunc(s string, b bool) (any, error) { u := c%d.CodePoints; if b { u = c%d.Bytes }; return c%d.ParseValue(s, c%[3]d.WithUnit(u)%[4]s) },\n", i, i, i, missingOpt)
 		inputs = append(inputs, c.Inputs)
 		prog := refProgram(t, c.Src, check.Options{SourceInfo: true})
 		for _, in := range c.Inputs {
-			n, err := prog(in, false, false, 0, nil)
+			n, err := prog(in, false, false, missing, nil)
 			wantErr = append(wantErr, fmt.Sprint(err))
 			accepted = append(accepted, n != nil)
 			var val any

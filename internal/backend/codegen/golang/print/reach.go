@@ -76,7 +76,7 @@ func (g *Generator) pruned(r *common.Rule) bool {
 // slotReached reports whether the Body of rule r is printed: something enters the rule through its
 // slot, and not only through its wrapper.
 func (g *Generator) slotReached(r *common.Rule) bool {
-	return g.live == nil || g.Table == "trules" || g.live.Reach[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}]
+	return g.live == nil || g.typed() || g.live.Reach[ruleKey{Table: g.Table, ID: r.ID, Wrapper: false}]
 }
 
 // callWrapper reports whether a call of the rule r of the table is printed as a call of its wrapper

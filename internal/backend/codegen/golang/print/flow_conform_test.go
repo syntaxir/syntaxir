@@ -182,6 +182,16 @@ rule w = "<" #missing w ">" / "v"
 `, opts: common.GenOptions{Recognize: true}, inputs: []string{"(a;", "(a", "x;y", "xy", "xz", "1+2", "12", "(", "", "v>", "v>>"},
 		entries: []string{flowConformParse, "_, err = Parse(in, append(opts, sxirruntime.WithMissingTokens(4))...)",
 			"err = Recognize(in, append(opts, sxirruntime.WithMissingTokens(4))...)", "_, err = Parse(in, append(ordinary, sxirruntime.WithMissingTokens(4))...)"}},
+	// Typed values of insertions, which the typed parses with a limit run on the typed table of the
+	// insertion program: a missing value in a field, in a list and in left recursion.
+	{name: "typedmissing", src: `type S = { N string; Semi node[string] | missing; L [](node[string] | missing) }
+@start
+rule main = item* $$
+rule item S = n:sum s:(";" #missing) l:("," #missing)* => S{N: text($n), Semi: $s, L: $l.Value}
+rule sum = sum "+" #missing d / d
+rule d = [0-9]
+`, opts: common.GenOptions{Types: true}, inputs: []string{"1;2,;", "1", "12", "1+2,", ""},
+		entries: []string{flowConformParse, "_, err = ParseValue(in, append(opts, sxirruntime.WithMissingTokens(4))...)"}},
 	// Actions that make structs inside the value they return, or return a struct they made inside
 	// another, so that flow.ctxFinish searches the values the context made.
 	{name: "made", src: `type In = { N int }

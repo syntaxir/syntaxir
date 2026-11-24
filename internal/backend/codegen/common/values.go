@@ -236,7 +236,8 @@ func (r *ValueResolver) AnonJoins() []anonJoin {
 // that has an interface: a node join (NodeJoin) with at least two distinct members, or one with
 // error, and a declared member, a struct type or a named node type. The name of the interface is
 // made of its members, and a join of unnamed node types alone has no name worth reading: an alias
-// names it. Error is no member to compare: it implements every interface of a join.
+// names it. Error is no member to compare: it implements every interface of a join. Nor is missing,
+// a kind of error: its values implement every interface of a join too.
 func joinKey(u types.JoinTy) (types.JoinTy, bool) {
 	var alts []types.Ty
 	seen := map[string]bool{}
@@ -249,8 +250,8 @@ func joinKey(u types.JoinTy) (types.JoinTy, bool) {
 			}
 			return
 		}
-		if x == types.TyErr {
-			hasError = true // every interface of a join has the Error member
+		if n, ok := x.(types.NamedTy); x == types.TyErr || ok && n.Kind == 'c' {
+			hasError = true // every interface of a join has the Error and Missing members
 			return
 		}
 		if !seen[x.String()] {

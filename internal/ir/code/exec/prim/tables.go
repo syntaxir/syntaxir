@@ -57,7 +57,7 @@ type Lit struct {
 	Exp  ExpID
 }
 
-// Insertion is the immediate of insertMissing and newMissingNode: a #missing site, numbered from 1
+// Insertion is the immediate of insertMissing, newMissingNode and missingValue: a #missing site, numbered from 1
 // among those of the module, and the literal that it inserts.
 type Insertion struct {
 	Site int

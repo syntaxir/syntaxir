@@ -83,6 +83,136 @@ func testGeneratedParsersInsertMissingTokens(t *testing.T) {
 	parseRuleInsertsMissingTokens(t, goBin)
 }
 
+// typedInsertionCases are typed grammars with #missing: missing values in struct fields of the types
+// missing, node[string] | missing and error, in optional fields and lists, and in joins, an alias of a
+// node and missing and one of a declared struct and missing, through left recursion and memoized rules.
+var typedInsertionCases = []codegentest.Case{
+	{Name: "missing values in fields", Src: `type Pair = { A node[string]; Semi node[string] | missing; B *(node[string] | missing); E *(node[string] | error); L [](node[string] | missing); M node[string] | missing; R *(node[string] | error); H missing; G error }
+@start
+rule main Pair = a:"x" s:semi b:item e:bad l:list m:only r:rec h:hole g:hole $$ => Pair{A: $a, Semi: $s, B: $b, E: $e, L: $l.Value, M: $m, R: $r, H: $h, G: $g}
+rule semi = ";" #missing
+rule item = m:"z" #missing => $m
+rule bad = "q" #recover(skip=[^!]*) / x:"!" #missing => $x
+rule list = ("," #missing)*
+rule only = k:"k" #missing => $k
+rule rec = "w" #recover(skip=[^v]*)
+rule hole missing = m:"]" #missing => $m.(missing)`,
+		Inputs: []string{"x;z!,,kw", "x", "xz", "x;zq!", "xq", "x;z!,k", "xwv", "x]", "x]]", "y"}},
+	{Name: "missing values in joins", Src: `type Num = { V node[string] }
+type Tok ~ node[string] | missing
+type Val ~ Num | missing
+type Out = { T Tok; V Val; Vs []Val; E Tok }
+@start
+rule main Out = t:tok v:val vs:val* e:expr $$ => Out{T: $t, V: $v, Vs: $vs.Value, E: $e}
+rule tok Tok = x:";" #missing => $x
+rule val Val = num / hole
+rule num Num = n:[0-9] => Num{V: $n}
+rule hole missing = m:"]" #missing => $m.(missing)
+rule expr Tok = sum / atom
+rule sum Tok = l:expr "+" r:atom => $r
+rule atom Tok = x:"(" #missing => $x`,
+		Inputs: []string{";12(", "", "1", ";1+", "(+(+", "+", ";]]", "12+("}},
+	{Name: "the fields of a missing value", Src: `type M = { E string; M string; S int; N int }
+@start
+rule main []M = xs:(x:("," #missing) => M{E: $x.(missing).expected, M: $x.(missing).message, S: $x.Start, N: $x.End})* "a" $$ => $xs.Value`,
+		Inputs: []string{"a", "b"}},
+}
+
+// TestGeneratedTypedParsersInsertMissingTokens checks that the typed generated parsers insert missing
+// tokens as the engine does: on typedInsertionCases, insertionCases and the shared insertion corpus, the
+// typed values, which hold the Missing values of the insertions, equal those of the reference route
+// and the engine's values, and the trees, errors and compute units of the typed parsers equal those of
+// the node parsers, with the limits of missing tokens that insert nothing, some and all.
+func TestGeneratedTypedParsersInsertMissingTokens(t *testing.T) {
+	t.Parallel()
+	codegentest.NeedsBudgetControls(t)
+	if testing.Short() {
+		t.Skip("builds generated code")
+	}
+	goBin := filepath.Join(runtime.GOROOT(), "bin", "go")
+	if _, err := os.Stat(goBin); err != nil {
+		t.Skip("go command not found")
+	}
+	cases := append(append(append([]codegentest.Case(nil), typedInsertionCases...), insertionCases...), codegentest.InsertionCorpus()...)
+	for _, limit := range []int{0, 2, 8} {
+		for _, m := range codegentest.GeneratedTypesInsertionMismatches(t, goBin, cases, common.GenOptions{ConvertTypes: true}, limit, len(cases)) {
+			t.Errorf("limit %d: %s", limit, m)
+		}
+		for _, m := range codegentest.GeneratedParsersInsertionMismatches(t, goBin, cases, common.GenOptions{Types: true}, limit, nil) {
+			t.Errorf("units, limit %d: %s", limit, m)
+		}
+	}
+	parseRuleValueInsertsMissingTokens(t, goBin)
+}
+
+// parseRuleValueInsertsMissingTokens checks that ParseRuleValue inserts missing tokens as ParseValue
+// does: for each start rule, the typed value and error of ParseRuleValue equal those of ParseValue
+// of a parser whose default start rule it is, at the limits of missing tokens that insert nothing,
+// some and all. (ParseValue is compared with the engine by TestGeneratedTypedParsersInsertMissingTokens.)
+func parseRuleValueInsertsMissingTokens(t *testing.T, goBin string) {
+	t.Helper()
+	const rules = "rule a Tok = o:\"(\" #missing b \")\" #missing => $o\nrule b = [a-z]* / \"[\" a \"]\" #missing\ntype Tok ~ node[string] | missing\n"
+	srcs := map[string]string{
+		"pmain": "@start(default)\nrule main = a \"x\" / a \"y\" $$\n@start\n" + rules,
+		"pa":    "@start\nrule main = a \"x\" / a \"y\" $$\n@start(default)\n" + rules,
+	}
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte(codegentest.GoMod("codegentest")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for pkg, start := range map[string]string{"pmain": "main", "pa": "a"} {
+		g, err := parseTest(srcs[pkg])
+		if err != nil {
+			t.Fatal(err)
+		}
+		codegentest.GeneratePackage(t, dir, pkg, g, common.GenOptions{Start: start, Types: true})
+	}
+	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(`package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"codegentest/pa"
+	"codegentest/pmain"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+)
+
+func show(v any, err error) string {
+	b, _ := json.Marshal(v)
+	return fmt.Sprintf("%s %v", b, err)
+}
+
+func main() {
+	for _, in := range []string{"(b)x", "(b", "([(b)]y", "([(b]", "([(b", "(", "", "b)"} {
+		for _, limit := range []int{0, 2, 8} {
+			o := sxirruntime.WithMissingTokens(limit)
+			for _, c := range []struct {
+				name      string
+				got, want string
+			}{
+				{"main", show(pmain.ParseRuleValue("main", in, o)), show(pmain.ParseValue(in, o))},
+				{"a", show(pmain.ParseRuleValue("a", in, o)), show(pa.ParseValue(in, o))},
+			} {
+				if c.got != c.want {
+					fmt.Printf("ParseRuleValue(%q, %q) at limit %d:\n got  %s\n want %s\n", c.name, in, limit, c.got, c.want)
+				}
+			}
+		}
+	}
+}
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(goBin, "run", ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), codegentest.GoFlagsEnv, "GOTOOLCHAIN=local")
+	out, err := cmd.CombinedOutput()
+	if err != nil || len(out) != 0 {
+		t.Errorf("go run: %v\n%s", err, out)
+	}
+}
+
 // parseRuleInsertsMissingTokens checks that ParseRule inserts missing tokens as the engine's parse of the
 // same start rule does: the default start rule, and another start rule that the insertions reach memoized
 // and through recursion, with the limits of missing tokens that insert nothing, some and all.
@@ -207,26 +337,54 @@ rule main = "a"`)
 	}
 }
 
-// TestMissingTokensGenerationRefused checks that the Go generator refuses a grammar with #missing for
-// the parsers that cannot insert: typed values.
-func TestMissingTokensGenerationRefused(t *testing.T) {
+// TestMissingTokensTypedDeclarations checks the types package of a typed parser: a grammar with
+// #missing declares Missing and the sealed ErrorValue, the Go type of error, and reserves the name
+// ErrorValue; a grammar without it keeps *Error for error and leaves the name to the grammar.
+func TestMissingTokensTypedDeclarations(t *testing.T) {
 	t.Parallel()
-	codegentest.EachMode(t, testMissingTokensGenerationRefused)
+	codegentest.EachMode(t, testMissingTokensTypedDeclarations)
 }
 
-func testMissingTokensGenerationRefused(t *testing.T) {
-	prog := mustCompile(t, `rule main = (item ";" #missing)* #stream $$
-rule item = [a-z]+`)
-	for _, c := range []struct {
-		name string
-		opts common.GenOptions
-	}{
-		{"typed values", common.GenOptions{Types: true}},
-	} {
-		c.opts.Package, c.opts.Start = "example", "main"
-		_, err := codegentest.GenerateCode(t, entry.Checked(prog).Grammar, c.opts)
-		if err == nil || !strings.Contains(err.Error(), "missing-token recovery is not supported") {
-			t.Errorf("%s: %v", c.name, err)
+func testMissingTokensTypedDeclarations(t *testing.T) {
+	// recovered declares S, whose field E holds a recovered value, and its rule; inserted adds #missing.
+	const recovered = "type S = { E error }\n@start\nrule main = s:(\"a\" #recover(skip=[^;]*)) \";\" $$ => S{E: $s.(error)}\n"
+	inserted := strings.Replace(recovered, `";"`, `";" #missing`, 1)
+	types := func(src string) (string, error) {
+		files, err := codegentest.Generate(t, entry.Checked(mustCompile(t, src)).Grammar, common.GenOptions{Package: "example", Module: "example.com/example", Start: "main", Types: true})
+		if err != nil {
+			return "", err
 		}
+		for _, f := range files {
+			if f.Path == "types/types.go" {
+				return string(f.Content), nil
+			}
+		}
+		t.Fatalf("no types package in %d files", len(files))
+		return "", nil
+	}
+	code, err := types(inserted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"\ntype Missing struct {", "\ntype ErrorValue interface{ isErrorValue() }", "\tE ErrorValue\n"} {
+		if !strings.Contains(code, want) {
+			t.Errorf("the types of a grammar with #missing lack %q", want)
+		}
+	}
+	code, err = types(recovered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(code, "type Missing") || strings.Contains(code, "type ErrorValue") || strings.Contains(code, "isErrorValue") || !strings.Contains(code, "\tE *Error\n") {
+		t.Errorf("the types of a grammar without #missing:\n%s", code)
+	}
+	// Missing is a reserved type name of the grammar language; ErrorValue is reserved by the types
+	// package of a grammar with #missing only.
+	const decl = "type ErrorValue = { F node[string] }\n"
+	if _, err := types(decl + inserted); err == nil || !strings.Contains(err.Error(), "the type ErrorValue has the name of a type that the generated types package declares") {
+		t.Errorf("ErrorValue in a grammar with #missing: %v", err)
+	}
+	if _, err := types(decl + recovered); err != nil {
+		t.Errorf("ErrorValue in a grammar without #missing: %v", err)
 	}
 }

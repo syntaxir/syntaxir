@@ -102,6 +102,7 @@ const (
 	OpInserting       = "runtime.inserting"
 	OpInsertMissing   = "runtime.insertMissing"
 	OpNewMissingNode  = "runtime.newMissingNode"
+	OpMissingValue    = "runtime.missingValue"
 	OpMissingScope    = "runtime.missingScope"
 	OpMissingScopeEnd = "runtime.missingScopeEnd"
 	OpMissingLen      = "runtime.missingLen"
@@ -209,6 +210,7 @@ var imms = map[string]reflect.Type{
 	OpInserting:       nil,
 	OpInsertMissing:   reflect.TypeFor[Insertion](),
 	OpNewMissingNode:  reflect.TypeFor[Insertion](),
+	OpMissingValue:    reflect.TypeFor[Insertion](),
 	OpMissingScope:    reflect.TypeFor[ExpID](),
 	OpMissingScopeEnd: nil,
 	OpMissingLen:      nil,

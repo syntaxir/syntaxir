@@ -23,7 +23,6 @@ import (
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
-	rprogram "syntaxir.dev/sxir/internal/runtime/program"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
@@ -35,9 +34,9 @@ import (
 var FlowTarget = flowpass.Target{Terminals: true, ClassRuns: true, ClassTables: true, GuardedClasses: true, InlineLiterals: true}
 
 // TableLabels are the names of the tables that a Go parser can have, in the order in which they are
-// built: the Node table, the recognizer, the typed table, the Node table and the recognizer of the
-// insertion program, and their traced copies.
-var TableLabels = []string{"rules", "recRules", "typed", "insRules", "insRecRules", "rulesTraced", "recRulesTraced", "typedTraced", "insRulesTraced", "insRecRulesTraced"}
+// built: the Node table, the recognizer, the typed table, the Node table, the recognizer and the typed
+// table of the insertion program, and their traced copies.
+var TableLabels = []string{"rules", "recRules", "typed", "insRules", "insRecRules", "insTyped", "rulesTraced", "recRulesTraced", "typedTraced", "insRulesTraced", "insRecRulesTraced", "insTypedTraced"}
 
 // Target is the Go target of a compilation (common.Target), which print-go reads: the program, the
 // builds of the programs derived from it, the start rule and the options of the target, which
@@ -74,7 +73,7 @@ func (*Target) Backend() string { return "go" }
 func (t *Target) Decision() (*Decision, error) { return t.decide() }
 
 // tableSpec is one table of a Go parser: its name in the dumps (print.Generator.IRTable), the rule table it
-// fills (rules, recRules, trules, insRules or insRecRules), the program of its rules, the input of the
+// fills (rules, recRules, trules, insRules, insRecRules or insTrules), the program of its rules, the input of the
 // elaboration of the program, and whether it is a traced copy.
 type tableSpec struct {
 	name, table string
@@ -105,10 +104,6 @@ type Decision struct {
 func Decide(prog codegen.Checked, derived codegen.Derived, start *common.Rule, opts common.GenOptions) (*Decision, error) {
 	if opts.Stream && !start.Stream {
 		return nil, fmt.Errorf("stream generation needs a #stream repetition at the top level of the start rule %s", start.Name)
-	}
-	// Generated typed values do not represent the missing type.
-	if prog.View.Run.HasMissing && opts.Types {
-		return nil, rprogram.MissingUnsupported("generated typed Go parsers")
 	}
 	d := &Decision{Parser: print.Parser{Opts: opts, Prog: prog.View, Start: start}}
 	if opts.LogicalVariant != "" && !opts.LogicalUnits() {
@@ -183,6 +178,11 @@ func Decide(prog codegen.Checked, derived codegen.Derived, start *common.Rule, o
 		if d.InsRec != nil {
 			d.specs = append(d.specs, tableSpec{"insRecRules" + suffix, "insRecRules", insRec.View, insRec.Elab, traced})
 		}
+		if typed && d.Ins != nil {
+			// The typed table of the insertion program, which the typed parses with missing-token
+			// insertion enabled run, as the Node parses run insRules.
+			d.specs = append(d.specs, tableSpec{"insTyped" + suffix, "insTrules", ins.View, ins.Elab, traced})
+		}
 	}
 	add(false, "")
 	if opts.Observability {
@@ -190,6 +190,29 @@ func Decide(prog codegen.Checked, derived codegen.Derived, start *common.Rule, o
 		add(true, "Traced")
 	}
 	return d, nil
+}
+
+// insTyped reports whether the parser has the typed table of the insertion program (insTrules).
+func (d *Decision) insTyped() bool {
+	for _, s := range d.specs {
+		if s.table == "insTrules" {
+			return true
+		}
+	}
+	return false
+}
+
+// typedTable reports whether the rule table table is a typed one: the typed table, or that of the
+// insertion program.
+func typedTable(table string) bool { return table == "trules" || table == "insTrules" }
+
+// framesOf returns the label of the unit whose frame layouts the framed bodies of the rule table
+// table have: the typed table has those of the Node table of its program.
+func framesOf(table string) string {
+	if table == "insTrules" {
+		return "insRules"
+	}
+	return "rules"
 }
 
 // Labels returns the names of the tables of the parser in the order in which they are built.
@@ -211,7 +234,7 @@ func (d *Decision) Sources() []common.TableSource {
 		switch t.table {
 		case "recRules":
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "recognizer", Origin: true}
-		case "insRules":
+		case "insRules", "insTrules":
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{Values: true}), Key: "insertion", Origin: true}
 		case "insRecRules":
 			s[i] = common.TableSource{Build: flowplan.TableBuild(t.elab, plandata.TableConfig{}), Key: "insertion-recognizer", Origin: true}
@@ -234,6 +257,14 @@ func (d *Decision) module(mods []*core.Module, table string) *core.Module {
 		// The typed table and the Node table are built from the same module.
 		for i, s := range d.specs {
 			if s.prog == d.Prog && !s.traced {
+				return mods[i]
+			}
+		}
+	}
+	if table == "insTrules" || table == "insRules" {
+		// So are the typed table and the Node table of the insertion program.
+		for i, s := range d.specs {
+			if s.prog == d.Ins && !s.traced {
 				return mods[i]
 			}
 		}
@@ -264,8 +295,15 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 		}
 	}
 	c.Roots = append(c.Roots, d.roots...)
+	if d.insTyped() {
+		// The typed table of the insertion program is entered where the typed table is: the insertion
+		// program has the rules of the program, in the same order (SetInsertion).
+		for _, e := range d.roots {
+			c.Roots = append(c.Roots, plandata.Entry{Table: "insTrules", ID: e.ID, Wrapper: e.Wrapper})
+		}
+	}
 	add := func(table string, pr *common.Program) {
-		t := plandata.CoreTable{Name: table, M: d.module(mods, table), Typed: table == "trules", Slots: (table == "rules" || table == "insRules") && d.Opts.Document}
+		t := plandata.CoreTable{Name: table, M: d.module(mods, table), Typed: typedTable(table), Slots: (table == "rules" || table == "insRules") && d.Opts.Document}
 		for _, r := range append(append([]*common.Rule(nil), pr.RuleList...), pr.Twins...) {
 			_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
 			t.Rules = append(t.Rules, plandata.CallRule{Plain: r.Plain, Leader: r.Leader, Operators: operatorsRule})
@@ -285,14 +323,17 @@ func (d *Decision) Cores(mods []*core.Module) *plandata.Cores {
 	if d.InsRec != nil {
 		add("insRecRules", d.InsRec)
 	}
+	if d.insTyped() {
+		add("insTrules", d.Ins)
+	}
 	nodes := print.NoNodeRules(d.Opts)
 	for i, s := range d.specs {
 		all := append(append([]*common.Rule(nil), s.prog.RuleList...), s.prog.Twins...)
 		u := plandata.Unit{Label: s.name, Table: s.table, IR: d.tableIR(s, mods[i]), Rules: make([]*plandata.Rule, len(all)),
 			Prune:       !d.Opts.KeepUnreachable && !(nodes && s.table == "rules"),
 			NoOperators: nodes && s.table == "rules",
-			Typed:       s.table == "trules", Frames: "rules",
-			Numbered: !s.traced && s.table != "trules"}
+			Typed:       typedTable(s.table), Frames: framesOf(s.table),
+			Numbered: !s.traced && !typedTable(s.table)}
 		for j, r := range all {
 			u.Rules[j] = r.PlanRule()
 		}
@@ -318,6 +359,12 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 	if s.table == "trules" {
 		// Node is false: a function lowered with the options of one runtime is never printed for the other.
 		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: d.guards, Recovers: flowlower.Recovers(m), Observe: s.traced, Document: examined, Traced: s.traced}}
+	}
+	if s.table == "insTrules" {
+		// The typed table of the insertion program lowers the #missing sites with their insertions and
+		// keeps no guard, as the Node table of the program does (insRules).
+		return &plandata.TableIR{M: m, Values: true, Opts: lowerdata.Options{Logical: o.LogicalUnits(), Guards: lowerdata.GuardsNone, Recovers: flowlower.Recovers(m),
+			Inserts: flowlower.Inserts(m), Observe: s.traced, Document: examined, Traced: s.traced}}
 	}
 	if s.table == "insRules" || s.table == "insRecRules" {
 		// The tables of the insertion program, which only parses inserting missing tokens run: they

@@ -20,10 +20,14 @@ import (
 // the Go types of the typed values of a parser: types/types.go.
 const typesPackageName = "types"
 
-// typesPreamble starts the source of the types package: the types of the library that the types of
-// the grammar need to be their own (so that they can implement the join interfaces of the
-// grammar), and the hooks that make the values of these types from those the typed library builds.
-const typesPreamble = `// TNode is a node whose Value has type T: a string node (TNode[string]) holds the text a
+// typesPreamble returns the start of the source of the types package: the types of the library that
+// the types of the grammar need to be their own (so that they can implement the join interfaces of
+// the grammar), and the hooks that make the values of these types from those the typed library
+// builds. A grammar with #missing (missing) also has the missing values, Missing, and ErrorValue,
+// the type of its values of type error, which are an Error or a Missing.
+func typesPreamble(missing bool) string {
+	var b strings.Builder
+	b.WriteString(`// TNode is a node whose Value has type T: a string node (TNode[string]) holds the text a
 // literal, a character class, ., a #atomic or _ matched, and a tuple or list node holds its
 // elements. A node of a statically unknown value is a TNode[any] whose Value is a string, or a
 // []any of the elements of a tuple or list.
@@ -36,26 +40,55 @@ type Error struct {
 	Message string
 }
 
-// SXIRHooks makes the values of the types of this package from those the typed library builds, and
+`)
+	if missing {
+		b.WriteString(`// Missing is a literal that #missing inserted where it did not match: its empty range, the text
+// of the literal (Expected) and the message of the syntax error of the insertion.
+type Missing struct {
+	sxirinput.Span
+	Expected string
+	Message  string
+}
+
+// ErrorValue is a value of type error: input skipped by error recovery (*Error) or a literal that
+// #missing inserted (*Missing).
+type ErrorValue interface{ isErrorValue() }
+
+func (*Error) isErrorValue()   {}
+func (*Missing) isErrorValue() {}
+
+`)
+	}
+	b.WriteString(`// SXIRHooks makes the values of the types of this package from those the typed library builds, and
 // back. It is for generated parsers.
 var SXIRHooks = &rt.TPubHooks{
 	Match: func(m *rt.TNode[string]) any { return (*TNode[string])(m) },
 	Error: func(e *rt.TErrorValue) any { return (*Error)(e) },
-	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
+`)
+	if missing {
+		b.WriteString("\tMissing: func(m *rt.TMissingValue) any { return (*Missing)(m) },\n")
+	}
+	b.WriteString(`	Node:  func(n *rt.TNode[any]) any { return (*TNode[any])(n) },
 	Back: func(v any) any {
 		switch x := v.(type) {
 		case *TNode[string]:
 			return (*rt.TNode[string])(x)
 		case *Error:
 			return (*rt.TErrorValue)(x)
-		case *TNode[any]:
+`)
+	if missing {
+		b.WriteString("\t\tcase *Missing:\n\t\t\treturn (*rt.TMissingValue)(x)\n")
+	}
+	b.WriteString(`		case *TNode[any]:
 			return (*rt.TNode[any])(x)
 		}
 		return v
 	},
 }
 
-`
+`)
+	return b.String()
+}
 
 // typesImport returns the import path of the types package of the parser.
 func typesImport(opts common.GenOptions) string {
@@ -63,8 +96,9 @@ func typesImport(opts common.GenOptions) string {
 }
 
 // typesPackageFile returns types/types.go for the body of the package (its declarations, in which the
-// library is written as rt), and the description of the package for qualifyLib.
-func typesPackageFile(opts common.GenOptions, body string) ([]byte, *typesPackage, error) {
+// library is written as rt), and the description of the package for qualifyLib. missing reports a
+// grammar with #missing, whose package also declares Missing and ErrorValue (typesPreamble).
+func typesPackageFile(opts common.GenOptions, body string, missing bool) ([]byte, *typesPackage, error) {
 	formatted, err := format.Source([]byte("package " + typesPackageName + "\n" + body))
 	if err != nil {
 		return nil, nil, fmt.Errorf("generated types do not compile: %w\n%s", err, body)
@@ -83,7 +117,7 @@ func typesPackageFile(opts common.GenOptions, body string) ([]byte, *typesPackag
 	// the parser package refers to as types.Name).
 	own := map[string]bool{}
 	for _, name := range declared {
-		if name == "Error" || name == "TNode" || name == "Unit" || name == hooksName || name == nodeTypesName || name == schema || tupleName(name) {
+		if name == "Error" || missing && (name == "Missing" || name == "ErrorValue") || name == "TNode" || name == "Unit" || name == hooksName || name == nodeTypesName || name == schema || tupleName(name) {
 			own[name] = true
 		}
 	}

@@ -344,6 +344,20 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			return typedOutput{}, g.PrintErr
 		}
 		g.Exec = nil
+		if g.ins != nil {
+			// The typed table of the insertion program, which the typed parses with missing-token
+			// insertion enabled run.
+			prog := g.Prog
+			g.Prog, g.Table = g.ins, "insTrules"
+			if err := g.useTable(); err != nil {
+				return typedOutput{}, err
+			}
+			g.rules()
+			g.Prog, g.Exec = prog, nil
+			if g.PrintErr != nil {
+				return typedOutput{}, g.PrintErr
+			}
+		}
 		g.Table, g.typedTable = "rules", true
 		t.typedLib(&b)
 	}
@@ -467,12 +481,17 @@ const hooksName = "SXIRHooks"
 const nodeTypesName = "SXIRNodeTypes"
 
 // checkTypesNames rejects a type of the grammar that has the name of a type the types package
-// declares for the typed values: TNode, the tuple types and Unit that the output uses, and the
-// hooks variable. (Error is a reserved type name of the grammar language.)
+// declares for the typed values: TNode, the tuple types and Unit that the output uses, Missing and
+// ErrorValue in a grammar with #missing, and the hooks variable. (Error is a reserved type name of the
+// grammar language.)
 func (t *TypedGen) checkTypesNames() error {
 	declared := map[string]string{"TNode": "string nodes and nodes of other values", hooksName: "the typed library"}
 	if len(t.NodeTypes) > 0 {
 		declared[nodeTypesName] = "the named node types"
+	}
+	if t.missing() {
+		declared["Missing"] = "the missing values"
+		declared["ErrorValue"] = "the values of type error"
 	}
 	if t.unitUsed {
 		declared["Unit"] = "the empty tuple"
@@ -492,6 +511,10 @@ func (t *TypedGen) checkTypesNames() error {
 	}
 	return nil
 }
+
+// missing reports whether the grammar uses #missing, whose values of type error are an Error or a
+// Missing (ErrorValue), and whose missing values are a Missing.
+func (t *TypedGen) missing() bool { return t.G.Prog.Run.HasMissing }
 
 // ref returns the name of the type of the grammar (or the alias, or the struct of a join) with the
 // Go name name, as the code being written refers to it.
@@ -602,6 +625,9 @@ func (t *TypedGen) goType(x types.Ty) string {
 		case types.TyInt, types.TyString, types.TyBool:
 			return string(x)
 		case types.TyErr:
+			if t.missing() {
+				return "ErrorValue"
+			}
 			return "*Error"
 		}
 		return "any"
@@ -618,9 +644,8 @@ func (t *TypedGen) goType(x types.Ty) string {
 		}
 		return "*TNode[" + t.goType(x.Value) + "]"
 	case types.NamedTy:
-		switch {
-		case x.Kind == 'c': // Missing
-			return "*TNode[any]"
+		if x.Kind == 'c' {
+			return "*Missing"
 		}
 		return "*" + t.ref(x.Name)
 	case types.ListTy:
@@ -660,6 +685,9 @@ func (t *TypedGen) conv(x types.Ty, v string) string {
 		case types.TyBool:
 			return "astBool(" + v + ")"
 		case types.TyErr:
+			if t.missing() {
+				return "a.toErrorValue(astNode(" + v + "))"
+			}
 			return "a.toError(astNode(" + v + "))"
 		}
 		return "a.anyValue(" + v + ")"
@@ -682,9 +710,8 @@ func (t *TypedGen) conv(x types.Ty, v string) string {
 		}
 		return "a." + t.vconvHelper(x) + "(" + v + ")"
 	case types.NamedTy:
-		switch {
-		case x.Kind == 'c': // Missing
-			return "a.toNode(astNode(" + v + "))"
+		if x.Kind == 'c' {
+			return "a.toMissing(astNode(" + v + "))"
 		}
 		return "a." + convName(x.Name) + "(astNode(" + v + "))"
 	case types.ListTy:
@@ -738,19 +765,27 @@ func (t *TypedGen) decls(b *strings.Builder) {
 		fmt.Fprintf(b, "// %s is the alias type %s ~ %s.\n", name, name, t.Info.Aliases[name])
 		fmt.Fprintf(b, "type %s = %s\n\n", name, t.goType(t.Info.Aliases[name]))
 	}
-	// Joins: an interface with a marker method that each member (and Error) implements.
+	// Joins: an interface with a marker method that each member (and Error, and in a grammar with
+	// #missing Missing) implements.
 	impl := map[string][]string{} // Go type (without *) -> markers
+	recovered := "Error (left by #recover) also implements it."
+	if t.missing() {
+		recovered = "Error and Missing (left by #recover and #missing) also implement it."
+	}
 	for _, name := range t.aliases {
 		u := t.joinOf(name)
 		goName := name
 		if _, anon := t.Anon[name]; anon {
-			fmt.Fprintf(b, "// %s is the join type %s. Error (left by #recover) also implements it.\n", goName, anonJoinText(u))
+			fmt.Fprintf(b, "// %s is the join type %s. %s\n", goName, anonJoinText(u), recovered)
 		} else {
-			fmt.Fprintf(b, "// %s is the join type %s ~ %s. Error (left by #recover) also implements it.\n", goName, name, u)
+			fmt.Fprintf(b, "// %s is the join type %s ~ %s. %s\n", goName, name, u, recovered)
 		}
 		fmt.Fprintf(b, "type %s interface{ is%s() }\n\n", goName, goName)
 		// Every unnamed node member is a TNode[T], which one generic marker method covers.
 		members := map[string]bool{"Error": true}
+		if t.missing() {
+			members["Missing"] = true
+		}
 		for _, a := range u.Alts {
 			switch a := a.(type) {
 			case types.NodeTy:
@@ -760,7 +795,9 @@ func (t *TypedGen) decls(b *strings.Builder) {
 					members["TNode"] = true
 				}
 			case types.NamedTy:
-				members[a.Name] = true
+				if a.Kind != 'c' {
+					members[a.Name] = true
+				}
 			}
 		}
 		for m := range members {
@@ -826,6 +863,12 @@ func (t *TypedGen) joinKindCases(b *strings.Builder, u types.JoinTy, conv func(t
 // each type, and the elements of lists, in chunks, as the parser does nodes.
 func (t *TypedGen) converters(b *strings.Builder) {
 	span := "Span"
+	// notNode is the condition that a value of type error, in a grammar with #missing also a missing
+	// value, is no node.
+	notNode := ""
+	if t.missing() {
+		notNode = ` || n.Type() == "missing"`
+	}
 	fmt.Fprintf(b, `// toMatch converts a string node, also one of a named node type, which converts as the node it
 // was converted from. The typed value of a named node type's node is remembered by its own
 // converter, so the typed value as a plain node is not remembered.
@@ -850,7 +893,7 @@ func (a *astConv) toMatch(n *Node) *TNode[string] {
 // and a []any of the converted elements of a tuple or list node.
 func (a *astConv) toNode(n *Node) *TNode[any] {
 	a.step()
-	if n == nil || n.Type() == "error" {
+	if n == nil || n.Type() == "error"%[2]s {
 		return nil
 	}
 	if v, ok := a.values[n]; ok {
@@ -891,9 +934,40 @@ func (a *astConv) toError(n *Node) *Error {
 	return v
 }
 
+`, span, notNode)
+	if t.missing() {
+		fmt.Fprintf(b, `func (a *astConv) toMissing(n *Node) *Missing {
+	a.step()
+	if n == nil || n.Type() != "missing" {
+		return nil
+	}
+	if v, ok := a.values[n]; ok { return v.(*Missing) }
+	expected, _ := a.field(n, "expected").(string)
+	msg, _ := a.field(n, "message").(string)
+	v := astNew(&a.missing)
+	*v = Missing{Span: %[1]s{Start: int(D(n).Start), End: int(D(n).End)}, Expected: expected, Message: msg}
+	a.remember(n, v)
+	return v
+}
+
+// toErrorValue converts a value of type error: an error node or a missing node.
+func (a *astConv) toErrorValue(n *Node) ErrorValue {
+	if n != nil && n.Type() == "missing" {
+		return a.toMissing(n)
+	}
+	if v := a.toError(n); v != nil {
+		return v
+	}
+	return nil
+}
+
 `, span)
+	}
 	b.WriteString("// anyValue converts a value of a statically unknown type into the typed value of its type (tuple\n// and list nodes become TNode[any], and tuple and list values []any).\nfunc (a *astConv) anyValue(v any) any {\n\ta.step()\n\tn, ok := v.(*Node)\n\tif !ok {\n\t\treturn v\n\t}\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n")
 	b.WriteString("\tcase \"string\":\n\t\treturn a.toMatch(n)\n\tcase \"error\":\n\t\treturn a.toError(n)\n\tcase \"tuple\", \"list\":\n\t\treturn a.toNode(n)\n\tcase \"(box)\":\n\t\treturn a.anyValue(UnboxNode(n))\n\tcase \"(tuple)\", \"(list)\":\n\t\treturn a.elems(n)\n")
+	if t.missing() {
+		b.WriteString("\tcase \"missing\":\n\t\treturn a.toMissing(n)\n")
+	}
 	for _, name := range append(append([]string(nil), t.structs...), t.NodeTypes...) {
 		fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", name, convName(name))
 	}
@@ -918,6 +992,9 @@ func (a *astConv) toError(n *Node) *Error {
 		// kind (common.JoinNodeMembers); node[_] takes every other node.
 		u := t.joinOf(name)
 		fmt.Fprintf(b, "func (a *astConv) %s(n *Node) %s {\n\ta.step()\n\tif n == nil {\n\t\treturn nil\n\t}\n\tswitch n.Type() {\n\tcase \"error\":\n\t\treturn a.toError(n)\n", convName(name), t.ref(name))
+		if t.missing() {
+			b.WriteString("\tcase \"missing\":\n\t\treturn a.toMissing(n)\n")
+		}
 		for _, m := range u.Alts {
 			switch m := m.(type) {
 			case types.NodeTy:
@@ -925,7 +1002,9 @@ func (a *astConv) toError(n *Node) *Error {
 					fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
 				}
 			case types.NamedTy:
-				fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
+				if m.Kind != 'c' {
+					fmt.Fprintf(b, "\tcase %q:\n\t\treturn a.%s(n)\n", m.Name, convName(m.Name))
+				}
 			}
 		}
 		t.joinKindCases(b, u, func(m types.NodeTy) string { return t.conv(m, "n") })
@@ -953,6 +1032,9 @@ func (a *astConv) toError(n *Node) *Error {
 	// The converter, written last because the list converters are known only now: a chunk of
 	// values per type and of elements per list type.
 	b.WriteString("// astConv converts nodes into typed values.\ntype astConv struct {\n\tcontrol *BudgetControl\n\tsteps uint64 // the steps of the conversion so far (step)\n\tvalues map[*Node]any // preserve aliases when one node appears in multiple fields or lists\n\tmatch astChunk[TNode[string]]\n\terror astChunk[Error]\n")
+	if t.missing() {
+		b.WriteString("\tmissing astChunk[Missing]\n")
+	}
 	for _, name := range t.structs {
 		fmt.Fprintf(b, "\tt%s astChunk[%s]\n", name, t.ref(name))
 	}
@@ -1456,6 +1538,9 @@ func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 		case types.TyBool:
 			return "astBool(" + v + ")"
 		case types.TyErr:
+			if t.missing() {
+				return "TAs[ErrorValue](" + t.tpub(v, a) + ")"
+			}
 			return "(*Error)(TPubError(" + v + "))"
 		}
 		return t.tpub(v, a)
@@ -1480,9 +1565,8 @@ func (t *TypedGen) dconv(x types.Ty, v, a string) string {
 	case types.RecordTy:
 		return t.tpubNode(v, a)
 	case types.NamedTy:
-		switch {
-		case x.Kind == 'c': // Missing
-			return t.tpubNode(v, a)
+		if x.Kind == 'c' {
+			return "(*Missing)(TPubMissing(" + v + "))"
 		}
 		return "TAs[" + t.goType(x) + "](" + v + ")"
 	case types.JoinTy:
@@ -1551,12 +1635,18 @@ func (t *TypedGen) typedLib(b *strings.Builder) {
 		reg.WriteString("\t}\n\treturn nil\n\t}\n")
 		fmt.Fprintf(&reg, "\tfor i, name := range %s {\n\t\t%s[i+1] = TRegisterNodeType(name, tnamedPub)\n\t}\n", goStrings(t.NodeTypes), nodeTypesName)
 	}
+	tables := []string{"trules"}
+	if t.G.ins != nil {
+		tables = append(tables, "insTrules")
+	}
 	for _, r := range append(append([]*common.Rule(nil), t.G.Prog.RuleList...), t.G.Prog.Twins...) {
-		if r.OpNodeType != "" {
-			fmt.Fprintf(&reg, "\ttrules[%d].OpNt = %s\n", r.ID, t.G.nodeTypeID(r.OpNodeType))
-		}
-		if r.NodeType != "" {
-			fmt.Fprintf(&reg, "\ttrules[%d].Nt = %s\n", r.ID, t.G.nodeTypeID(r.NodeType))
+		for _, table := range tables {
+			if r.OpNodeType != "" {
+				fmt.Fprintf(&reg, "\t%s[%d].OpNt = %s\n", table, r.ID, t.G.nodeTypeID(r.OpNodeType))
+			}
+			if r.NodeType != "" {
+				fmt.Fprintf(&reg, "\t%s[%d].Nt = %s\n", table, r.ID, t.G.nodeTypeID(r.NodeType))
+			}
 		}
 	}
 	var cons strings.Builder

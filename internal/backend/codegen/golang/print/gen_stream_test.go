@@ -629,6 +629,9 @@ rule item = [a-z] #atomic`, "", []string{"#ab!", "#", "#a?"}},
 	{"captured", `type I = { C node[string] }
 rule main = "<" xs:(item* #stream) ">"
 rule item I = c:[a-z] ";" => I{C: $c}`, "", []string{"<a;b;>", "<>", "<a;b"}},
+	{"inserted", `type S = { N node[string]; Semi node[string] | missing }
+rule main = item* #stream
+rule item S = n:[a-z]+ #atomic s:(";" #missing) => S{N: $n, Semi: $s}`, "bv.Value", []string{"ab;cd;", "ab cd;e", "a b c d e f g h i j", ""}},
 }
 
 // TestGeneratedTypedStreamMatchesBatch compares the elements that generated
@@ -674,7 +677,7 @@ func testGeneratedTypedStreamMatchesBatch(t *testing.T) {
 		batch := "nil"
 		if c.batch != "" {
 			// The start rule's value is a node of the repetition: bv.Value is its list.
-			batch = "func(input string, b bool) (any, error) {\n\t\tbv, err := g%[1]d.ParseValue(input, g%[1]d.WithUnit(unit%[1]d(b)))\n\t\tif bv == nil {\n\t\t\treturn nil, err\n\t\t}\n\t\treturn " + c.batch + ", err\n\t}"
+			batch = "func(input string, b bool) (any, error) {\n\t\tbv, err := g%[1]d.ParseValue(input, opts%[1]d(b)...)\n\t\tif bv == nil {\n\t\t\treturn nil, err\n\t\t}\n\t\treturn " + c.batch + ", err\n\t}"
 		}
 		fmt.Fprintf(&parsers, `	%[1]d: {
 		typed: func(r io.Reader, emit func(any) error, b bool) error {
@@ -682,19 +685,25 @@ func testGeneratedTypedStreamMatchesBatch(t *testing.T) {
 			if emit != nil {
 				e = func(v g%[1]d.StreamValue) error { return emit(v) }
 			}
-			return g%[1]d.ParseStreamValue(r, e, g%[1]d.WithUnit(unit%[1]d(b)))
+			return g%[1]d.ParseStreamValue(r, e, opts%[1]d(b)...)
 		},
 		nodes: func(r io.Reader, emit func(any) error, b bool) error {
 			var e func(*g%[1]d.Node) error
 			if emit != nil {
 				e = func(n *g%[1]d.Node) error { return emit(n) }
 			}
-			return g%[1]d.ParseStream(r, e, g%[1]d.WithUnit(unit%[1]d(b)))
+			return g%[1]d.ParseStream(r, e, opts%[1]d(b)...)
 		},
 		batch: `+batch+`,
 	},
 `, i)
-		write(fmt.Sprintf("unit%d.go", i), fmt.Sprintf("package main\n\nimport g%[1]d \"typedstream/g%[1]d\"\n\nfunc unit%[1]d(b bool) g%[1]d.PositionUnit {\n\tif b {\n\t\treturn g%[1]d.Bytes\n\t}\n\treturn g%[1]d.CodePoints\n}\n", i))
+		// The parses of a grammar with #missing insert up to 8 missing tokens.
+		missing := ""
+		if strings.Contains(c.src, "#missing") {
+			missing = ", sxirruntime.WithMissingTokens(8)"
+		}
+		write(fmt.Sprintf("unit%d.go", i), fmt.Sprintf("package main\n\nimport (\n\tg%[1]d \"typedstream/g%[1]d\"\n\tsxirruntime \"syntaxir.dev/sxir/pkg/runtime\"\n)\n\n"+
+			"func opts%[1]d(b bool) []sxirruntime.ParseOption {\n\tu := g%[1]d.CodePoints\n\tif b {\n\t\tu = g%[1]d.Bytes\n\t}\n\treturn []sxirruntime.ParseOption{g%[1]d.WithUnit(u)%[2]s}\n}\n", i, missing))
 		for _, in := range c.inputs {
 			for _, bytes := range []bool{false, true} {
 				variants := []streamRun{{Chunk: 0}, {Chunk: 1}, {Chunk: 2, EOFWithData: true}, {Chunk: 3, Fail: true}, {Chunk: 1, StopAt: 2}, {NilEmit: true}}

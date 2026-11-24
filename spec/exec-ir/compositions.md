@@ -31,7 +31,7 @@ Document's own work count nothing. The loops of an Operators Rule check the coun
 | `func unmemoized(r Rule, min int) (Value, bool) [missing]` | Calls rule r at binding level min without memo bookkeeping, as call does while the rule's memoization is deferred: its expectations need no isolation, and a failure restores the position and the recovered errors. |
 | `func memoized(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | Calls rule r at binding level min through the memo, as call does once the rule's memoization is no longer deferred, with the observation of a reuse and, in a Document parse, the bookkeeping of how far each call examined the input. |
 | `func document(r Rule, min int) (Value, bool) [document, budget, units]` | A rule call in a Document parse, which memoizes the rules that the Document reuses and records the input each call examined. The enclosing call's examined input is restored however the call ends, an interruption included, so that a parse after it starts from the state it would start from otherwise. |
-| `func typedDocument(r Rule, min int, inv Body) (Value, bool) [document, observe, typed, budget, units]` | A typed rule call in a Document parse, for the rule r at binding level min, invoked by inv when a generated call passes it: unmemoized for a rule that the Document does not memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As in document, the enclosing call's examined input is restored however the call ends. |
+| `func typedDocument(r Rule, min int, inv Body) (Value, bool) [document, observe, missing, typed, budget, units]` | A typed rule call in a Document parse, for the rule r at binding level min, invoked by inv when a generated call passes it: unmemoized for a rule that the Document does not memoize, which in the missing-token mode drops the tokens it inserted when it fails, and otherwise through the memo, with the Document record of each entry kept beside it. As in document, the enclosing call's examined input is restored however the call ends. |
 | `func callBegin(r Rule, min int, st CallState) (Value, bool, bool) [document, observe, missing, budget, units]` | Begins a memoized call of rule r at binding level min, with the engine's bookkeeping of the input each call examines: it returns hit set with a result that the call reuses, and otherwise saves in st what the end of the call needs. |
 | `func callEnd(r Rule, st CallState, v Value, ok bool) (Value, bool) [document, observe, missing, budget, units]` | Ends the memoized call of rule r whose state its begin saved in st with the value v and success ok of its body, or of the growth of a leader: it records the result where its dependencies send it, and restores the state from before the call. |
 | `func engineCall(r Rule, min int) (Value, bool) [document, observe, missing, budget, units]` | Calls rule r at binding level min in the engine: unmemoized while its memoization is deferred, and otherwise between the begin and the end of the split call protocol, growing the seed of a left-recursion leader. A parse that reads a Document makes the call of `engineCallDoc` instead, which is decided by one test of a field that the parse sets once. |
@@ -163,9 +163,9 @@ row includes what its backends print into packages of their own.
 | Composition | Generated Go, nodes | Generated Go, typed values | The engine | TypeScript |
 |:--|:--|:--|:--|:--|
 | firstCall | `[]` | `[]` | `[]` | `[]` |
-| call | `[document, observe, missing, units]` | `[document, observe, typed, units]` |  | `[units]` |
-| callMemo |  | `[document, observe, typed, units]` |  |  |
-| grow | `[missing, units]` | `[typed, units]` | `[missing, units]` | `[units]` |
+| call | `[document, observe, missing, units]` | `[document, observe, missing, typed, units]` |  | `[units]` |
+| callMemo |  | `[document, observe, missing, typed, units]` |  |  |
+| grow | `[missing, units]` | `[missing, typed, units]` | `[missing, units]` | `[units]` |
 | invoke |  |  |  | `[]` |
 | invokePlain |  |  |  | `[]` |
 | observed | `[document, observe]` | `[document, observe, typed]` |  |  |
@@ -173,7 +173,7 @@ row includes what its backends print into packages of their own.
 | unmemoized | `[missing]` |  |  | `[]` |
 | memoized | `[document, observe, missing, units]` |  |  | `[document, observe, units]` |
 | document | `[document, units]` |  |  | `[document]` |
-| typedDocument |  | `[document, observe, typed, units]` |  |  |
+| typedDocument |  | `[document, observe, missing, typed, units]` |  |  |
 | callBegin |  |  | `[document, missing, units]` |  |
 | callEnd |  |  | `[document, missing, units]` |  |
 | engineCallDoc |  |  | `[document, missing, units]` |  |
@@ -187,15 +187,15 @@ row includes what its backends print into packages of their own.
 | mergeKept |  |  |  | `[]` |
 | mergeExpected | `[units]` |  | `[units]` | `[]` |
 | keep | `[units]` |  | `[units]` | `[]` |
-| reset | `[missing]` | `[]` | `[missing]` | `[]` |
-| skipTrivia | `[missing]` | `[]` | `[missing]` | `[]` |
-| longest | `[missing, units]` | `[units]` | `[missing, units]` | `[units]` |
+| reset | `[missing]` | `[missing]` | `[missing]` | `[]` |
+| skipTrivia | `[missing]` | `[missing]` | `[missing]` | `[]` |
+| longest | `[missing, units]` | `[missing, units]` | `[missing, units]` | `[units]` |
 | operatorsParse | `[missing, units]` |  | `[missing, units]` | `[units]` |
 | operatorsExpr | `[missing, units]` |  | `[missing, units]` | `[units]` |
 | operatorsNud | `[missing, units]` |  | `[missing, units]` | `[units]` |
-| operatorsParseTyped |  | `[typed, units]` |  |  |
-| operatorsExprTyped |  | `[typed, units]` |  |  |
-| operatorsNudTyped |  | `[typed, units]` |  |  |
+| operatorsParseTyped |  | `[missing, typed, units]` |  |  |
+| operatorsExprTyped |  | `[missing, typed, units]` |  |  |
+| operatorsNudTyped |  | `[missing, typed, units]` |  |  |
 | triviaBegin |  |  | `[missing, units]` |  |
 | triviaEnd |  |  | `[missing, units]` |  |
 | longestBegin |  |  | `[missing, units]` |  |

@@ -97,8 +97,10 @@ stars text 42
 | `node[T]`: what a literal, class, `.`, `#atomic` or an action-free rule matches | `*TNode[T']`: `Span` and `Value`, with `T'` the Go type of `T`; `*TNode[string]` for text |
 | tuple `(A, B, ...)` | `TupleN[A', B', ...]`: the fields `E0`, `E1`, ... |
 | unit `()` | `Unit` |
-| `error` (left by `#recover`) | `*Error`: `Span` and `Message` |
-| join `U ~ A \| B` of struct types, node types and `error` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and by every `*TNode` if a member is an unnamed node type); a node converts to the member of its name, or to the unnamed node member of its kind (string, tuple or list) |
+| `error` (left by `#recover`) | `*Error`: `Span` and `Message`; in a grammar with `#missing`, `ErrorValue` |
+| `missing` (a token that `#missing` inserted) | `*Missing`: `Span`, `Expected` and `Message` |
+| `error` in a grammar with `#missing` | `ErrorValue`: an interface that only `*Error` and `*Missing` implement, so a type switch tells a skipped range from an inserted token |
+| join `U ~ A \| B` of struct types, node types, `error` and `missing` | an interface `U`, implemented by `*A`, `*B` and `*Error` (and `*Missing` in a grammar with `#missing`; and by every `*TNode` if a member is an unnamed node type); a node converts to the member of its name, or to the unnamed node member of its kind (string, tuple or list) |
 | join of node types written in place, for example `*(If \| Block)`, `*(Block \| error)` or `*(Item \| node[[]Item])` | an interface named after its members in the order of their first spelling in the file, `IfOrBlock`, `BlockOrError` for one member and `error`, or `ItemOrItemListNode`; it is implemented like the interface of an alias. The same members in any order share it, a join that an alias declares is that alias, and a join with a list or a scalar member, or with no struct or named node type member, stays `any`. Two different sets that get the same name, or a grammar type with that name, are a generation error |
 | `[]T` | a slice; an empty list is an empty slice, not `nil` |
 | `*T` | `*int`, `*string` or `*bool` for basic types; otherwise the Go type of `T`, `nil` when absent |
@@ -109,7 +111,8 @@ stars text 42
 
 - **Names.** Go types have the names of the grammar types. They live in the package `types`, apart from the names
   `parser.go` and `api.go` declare, so a grammar type may be called `Node`, `Parse` or `Walk`. The package also declares
-  `TNode`, `Error`, `SXIRHooks` and, where the grammar uses them, `Unit`, `TupleN` and `SXIRNodeTypes`, and the constant `SXIRSchema_<digest>` that ties the parser to this package: a grammar type
+  `TNode`, `Error`, `SXIRHooks` and, where the grammar uses them, `Unit`, `TupleN`, `SXIRNodeTypes`, `Missing` and
+  `ErrorValue` (with `#missing`), and the constant `SXIRSchema_<digest>` that ties the parser to this package: a grammar type
   with one of these names is an error. A field named like a field or method of `Span` or like a method of the typed
   values (`Start`, `End`, `Range`, `TName`, ...) gets a trailing underscore, so `Start` and `End` always read the
   span.
@@ -119,7 +122,8 @@ stars text 42
   to receive previously omitted alias names.
 - **Errors.** `ParseValue` returns the errors of `Parse`. After `#recover`, an `Error` in a list of a join type stays
   in the list as `*Error`; where a struct type is expected it becomes `nil` (it is among the returned
-  `SyntaxErrors` anyway).
+  `SyntaxErrors` anyway). With `WithMissingTokens`, the typed parses insert the tokens that `Parse` inserts, and
+  each inserted token is a `*Missing` where the grammar's type admits `missing` or `error`.
 - **Speed.** When every value has a Go type of its own and actions read the fields of struct values that have no
   plain form (a node, a named node type, a join, an `any` or a record) only to copy them, the generated parser builds
   the values directly, without the nodes `Parse` makes: on the benchmarks `ParseValue` then takes <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> the time of `Parse` and <!-- fig:typed-vs-parse-memory -->0.27–0.41×<!-- /fig -->

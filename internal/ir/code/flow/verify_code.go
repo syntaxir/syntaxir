@@ -57,7 +57,7 @@ func init() { code.RegisterStageCheck[code.Flow](verifyFuncs) }
 // Names of the operations that the invariants of VerifyModule name.
 var (
 	// opsTyped are the operations of the typed runtime: a Node function has none.
-	opsTyped = map[string]string{OpNewMatch: "match", OpNewNode: "node", OpErrorValue: "error value",
+	opsTyped = map[string]string{OpNewMatch: "match", OpNewNode: "node", OpErrorValue: "error value", OpMissingValue: "missing value",
 		OpFreshNode: "fresh node", OpConvertResult: "result conversion", OpUseCtx: "action context",
 		OpCtxFinish: "action context", OpEval: "action context",
 		// The Node runtime attaches the captures of a frame (attachFrame); the values of local

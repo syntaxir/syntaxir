@@ -37,7 +37,7 @@ pass to the library.
 
 - The library declares a constant `ProtocolN` for each protocol version N it implements.
 - A parser generated with `-lib import` refers to the constant of the protocol it was generated for, so a parser
-  and a library that do not match fail to build (`undefined: rt.Protocol35`), never at run time.
+  and a library that do not match fail to build (`undefined: rt.Protocol36`), never at run time.
 - The package `syntaxir.dev/sxir/pkg/runtime/value/impl` declares exactly one constant `ProtocolN`, where N is the protocol
   version that introduced the node representation it serves, and the library refers to that constant. A copy of the
   library embedded in a generated parser and a `value/impl` package that do not match therefore fail to build

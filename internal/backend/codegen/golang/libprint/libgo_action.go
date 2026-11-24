@@ -408,9 +408,7 @@ func goValueOp(callee string, a []string, typed bool) (string, bool) {
 		return fmt.Sprintf("%s.Type() == %s.Name", a[0], a[1]), true
 	case "node.isMissing":
 		if typed {
-			// The typed runtime has no value of a missing token: typed parsers of grammars with
-			// #missing are not generated.
-			return "false", true
+			return "isTMissing(" + a[0] + ")", true
 		}
 		return a[0] + ".Type() == valueimpl.TypeMissing", true
 	case "node.children":

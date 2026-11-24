@@ -256,10 +256,14 @@ func (g *Generator) Unprintable(what string) {
 }
 
 // IRTable is the name of the table being generated in the dumps of the IR: "typed" for the typed
-// rules, as Core IR names it, and the name of the table otherwise; with TracedSuffix in the traced pass.
+// rules, as Core IR names it, "insTyped" for those of the insertion program, and the name of the table
+// otherwise; with TracedSuffix in the traced pass.
 func (g *Generator) IRTable() string {
-	if g.Table == "trules" {
+	switch g.Table {
+	case "trules":
 		return "typed" + g.TracedSuffix()
+	case "insTrules":
+		return "insTyped" + g.TracedSuffix()
 	}
 	return g.Table + g.TracedSuffix()
 }
@@ -286,7 +290,7 @@ func FrameScope(names []string) *check.Scope {
 }
 
 // NodeJoin reports whether the join u has a Go interface and a TypeScript union of its own: every
-// member is a struct type, a named node type, an unnamed node type or error, and no two unnamed
+// member is a struct type, a named node type, an unnamed node type, error or missing, and no two unnamed
 // node members admit nodes of one kind (types.NodeKinds), which the checker reports for a join
 // written so. A value of such a join converts to the member that its run-time type selects
 // (JoinNodeMembers).
@@ -295,7 +299,7 @@ func NodeJoin(u types.JoinTy) bool {
 	for _, a := range u.Alts {
 		switch a := a.(type) {
 		case types.NamedTy:
-			if a.Kind != 's' {
+			if a.Kind != 's' && a.Kind != 'c' {
 				return false
 			}
 		case types.NodeTy:

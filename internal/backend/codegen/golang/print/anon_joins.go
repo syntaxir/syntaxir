@@ -26,6 +26,9 @@ func anonJoinName(u types.JoinTy) string {
 func valueName(x types.Ty) string {
 	switch x := x.(type) {
 	case types.NamedTy:
+		if x.Kind == 'c' {
+			return "Missing"
+		}
 		return x.Name
 	case types.NodeTy:
 		if x.Name != "" {

@@ -377,7 +377,7 @@ copy:
 // parses first hands a Document parse to its tracked path (typedDocument for typed values), and for
 // nodes an observed parse too (tracked).
 //
-// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
+// Printed from Exec IR function call of internal/ir/code/exec/compose, specialized for document, observe, missing, typed, units.
 func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	var v any
 	var ok bool
@@ -401,10 +401,14 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			return v, ok
 		}
 		rec := len(p.Recovered)
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Pos = start
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Pos = start
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 		return v, ok
 	}
@@ -423,7 +427,11 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 			return nil, false
 		}
 		p.Pos = seed.end
-		p.recAdd(seed.errs)
+		if p.inserting() {
+			p.replayMissing(seed.ins, seed.errs, true)
+		} else {
+			p.recAdd(seed.errs)
+		}
 		return seed.val, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
@@ -431,7 +439,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
 	}
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
 		if p.track {
 			p.documentTouch(e.examined)
@@ -456,7 +464,11 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 				return nil, false
 			}
 			p.Pos = held.end
-			p.recAdd(held.errs)
+			if p.inserting() {
+				p.replayMissing(held.ins, held.errs, true)
+			} else {
+				p.recAdd(held.errs)
+			}
 			return held.val, true
 		}
 	}
@@ -466,9 +478,13 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
-		v, ok = p.invoke(r, min)
-		if !ok {
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = p.invoke(r, min)
+			if !ok {
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 	}
 	far, inner := p.Unisolate(m)
@@ -511,7 +527,7 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 // CallMemo is the memoized part of a rule call, for the rule r at binding level 0 invoked by inv:
 // the rule is called at the position again, or its memoization is no longer deferred.
 //
-// Printed from Exec IR function callMemo of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
+// Printed from Exec IR function callMemo of internal/ir/code/exec/compose, specialized for document, observe, missing, typed, units.
 func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool) {
 	var v any
 	var ok bool
@@ -535,7 +551,11 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 			return nil, false
 		}
 		p.Pos = seed.end
-		p.recAdd(seed.errs)
+		if p.inserting() {
+			p.replayMissing(seed.ins, seed.errs, true)
+		} else {
+			p.recAdd(seed.errs)
+		}
 		return seed.val, true
 	}
 	e := p.memoGet(r.Id, start, 0, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
@@ -543,7 +563,7 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
 	}
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) {
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
 		if p.track {
 			p.documentTouch(e.examined)
@@ -568,7 +588,11 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 				return nil, false
 			}
 			p.Pos = held.end
-			p.recAdd(held.errs)
+			if p.inserting() {
+				p.replayMissing(held.ins, held.errs, true)
+			} else {
+				p.recAdd(held.errs)
+			}
 			return held.val, true
 		}
 	}
@@ -578,9 +602,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	if r.Leader {
 		v, ok = p.grow(r, 0)
 	} else {
-		v, ok = inv(p)
-		if !ok {
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			v, ok = inv(p)
+			if !ok {
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 	}
 	far, inner := p.Unisolate(m)
@@ -627,12 +655,13 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 // recovered, and the entries they made are dropped from the record after it; the growth ends with the errors
 // of its last result in place of the entries recorded since it began.
 //
-// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for typed, units.
+// Printed from Exec IR function grow of internal/ir/code/exec/compose, specialized for missing, typed, units.
 func (p *TParser) grow(r *TRule, min int) (any, bool) {
 	var bv any
 	var bok bool
 	rec := len(p.Recovered)
 	{
+		mm := p.MissingLen()
 		g := p.growBegin(r.Rule, min)
 		if g.ctx {
 			for {
@@ -679,11 +708,17 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 				}
 				p.growAdopt(&g, nil, v, p.recSince(rec))
 				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
 			}
 		}
 		best := p.growEnd(&g)
 		p.Recovered = p.Recovered[:rec]
-		p.recAdd(best.errs)
+		p.ResetMissing(mm)
+		if p.inserting() {
+			p.replayMissing(best.ins, best.errs, true)
+		} else {
+			p.recAdd(best.errs)
+		}
 		bv = best.val
 		bok = best.ok
 	}
@@ -995,10 +1030,11 @@ func (p *Parser) callTracked(r *Rule, min int) (*sxirvalue.Node, bool) {
 
 // DocumentCall is a typed rule call in a Document parse, for the rule r at binding level min,
 // invoked by inv when a generated call passes it: unmemoized for a rule that the Document does not
-// memoize, and otherwise through the memo, with the Document record of each entry kept beside it. As
-// in document, the enclosing call's examined input is restored however the call ends.
+// memoize, which in the missing-token mode drops the tokens it inserted when it fails, and otherwise
+// through the memo, with the Document record of each entry kept beside it. As in document, the
+// enclosing call's examined input is restored however the call ends.
 //
-// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, typed, units.
+// Printed from Exec IR function typedDocument of internal/ir/code/exec/compose, specialized for document, observe, missing, typed, units.
 func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)) (any, bool) {
 	var v any
 	var ok bool
@@ -1024,15 +1060,19 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	}()
 	if !(r.DocMemo && (r.Leader || !p.insertsRule(r.Rule))) {
 		rec := len(p.Recovered)
-		if inv != nil {
-			p.Document.stats.Evaluated++
-			v, ok = inv(p)
-		} else {
-			v, ok = p.invoke(r, min)
-		}
-		if !ok {
-			p.Pos = start
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			if inv != nil {
+				p.Document.stats.Evaluated++
+				v, ok = inv(p)
+			} else {
+				v, ok = p.invoke(r, min)
+			}
+			if !ok {
+				p.Pos = start
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 		return v, ok
 	}
@@ -1053,7 +1093,11 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 			return nil, false
 		}
 		p.Pos = seed.end
-		p.recAdd(seed.errs)
+		if p.inserting() {
+			p.replayMissing(seed.ins, seed.errs, true)
+		} else {
+			p.recAdd(seed.errs)
+		}
 		return seed.val, true
 	}
 	e := p.memoGet(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)))
@@ -1061,7 +1105,7 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	if found && e.vgen != p.gen && !p.advanceEntry(e, p.edits) {
 		found = false
 	}
-	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && typedMove(e) {
+	if found && c.memoAllows(e.present) && (!e.silent || p.Silent > 0) && typedMove(e) && !p.insertsRule(r.Rule) {
 		p.Observation.memoHit()
 		p.documentTouch(e.examined)
 		if e.from < start {
@@ -1090,7 +1134,11 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 				return nil, false
 			}
 			p.Pos = held.end
-			p.recAdd(held.errs)
+			if p.inserting() {
+				p.replayMissing(held.ins, held.errs, true)
+			} else {
+				p.recAdd(held.errs)
+			}
 			return held.val, true
 		}
 	}
@@ -1100,14 +1148,18 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	if r.Leader {
 		v, ok = p.grow(r, min)
 	} else {
-		if inv != nil {
-			p.Document.stats.Evaluated++
-			v, ok = inv(p)
-		} else {
-			v, ok = p.invoke(r, min)
-		}
-		if !ok {
-			p.Recovered = p.Recovered[:rec]
+		{
+			mm := p.MissingLen()
+			if inv != nil {
+				p.Document.stats.Evaluated++
+				v, ok = inv(p)
+			} else {
+				v, ok = p.invoke(r, min)
+			}
+			if !ok {
+				p.Recovered = p.Recovered[:rec]
+				p.ResetMissing(mm)
+			}
 		}
 	}
 	far, inner := p.Unisolate(m)

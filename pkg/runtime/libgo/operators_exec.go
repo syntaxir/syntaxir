@@ -261,7 +261,7 @@ func (p *Parser) Reset(m Mark) {
 // min. Each level of its recursion (the operand of a prefix operator, the right operand of an infix
 // operator) counts against the nesting limit, like the entry of a recursive rule.
 //
-// Printed from Exec IR function operatorsParseTyped of internal/ir/code/exec/compose, specialized for typed, units.
+// Printed from Exec IR function operatorsParseTyped of internal/ir/code/exec/compose, specialized for missing, typed, units.
 func (p *TParser) OperatorsRuleParse(r *TRule, min int) (any, bool) {
 	p.Depth++
 	if p.Depth > p.MaxDepth {
@@ -279,7 +279,7 @@ func (p *TParser) OperatorsRuleParse(r *TRule, min int) (any, bool) {
 // An operator that binds tighter than the last one applied, or than the prefix operator of the start,
 // ends the loop: its right operand refused it, so it cannot apply to the operator as a whole.
 //
-// Printed from Exec IR function operatorsExprTyped of internal/ir/code/exec/compose, specialized for typed, units.
+// Printed from Exec IR function operatorsExprTyped of internal/ir/code/exec/compose, specialized for missing, typed, units.
 func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 	guard := -1
 	if p.afterEmpty {
@@ -324,7 +324,9 @@ func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 		}
 		p.Pos = a.end
 		p.Env = a.env
-		if !a.errs.none() {
+		if p.inserting() {
+			p.replayMissing(a.ins, a.errs, false)
+		} else if !a.errs.none() {
 			p.recAdd(a.errs)
 		}
 		if op.Kind == "postfix" {
@@ -371,7 +373,7 @@ func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 // a cut fails the expression. Besides its value it returns where the value starts: a value that is not a node has no
 // span of its own.
 //
-// Printed from Exec IR function operatorsNudTyped of internal/ir/code/exec/compose, specialized for typed, units.
+// Printed from Exec IR function operatorsNudTyped of internal/ir/code/exec/compose, specialized for missing, typed, units.
 func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 	var i int
 	p.skipTrivia(r)
@@ -381,7 +383,9 @@ func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 	if a.op != nil {
 		p.Pos = a.end
 		p.Env = a.env
-		if !a.errs.none() {
+		if p.inserting() {
+			p.replayMissing(a.ins, a.errs, false)
+		} else if !a.errs.none() {
 			p.recAdd(a.errs)
 		}
 		rhs, rok := p.OperatorsRuleParse(r, a.op.Level)
@@ -428,7 +432,7 @@ func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 // parser's cutFailed field (p.cutFailed in Go, this.cutFailed in TypeScript). The parse is left at the
 // position, with the captures of each candidate in its frame.
 //
-// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for units.
+// Printed from Exec IR function longest of internal/ir/code/exec/compose, specialized for missing, units.
 func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 	var best toperatorsRuleAttempt
 	var cutFailed bool
@@ -457,7 +461,7 @@ func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 					p.PollUnits()
 				}
 			}
-			best = toperatorsRuleAttempt{op: op, frame: f, v: v, start: start, end: p.Pos, env: p.Env, cut: cut, errs: p.recSince(m0.recovered)}
+			best = toperatorsRuleAttempt{op: op, frame: f, v: v, start: start, end: p.Pos, env: p.Env, cut: cut, errs: p.recSince(m0.recovered), ins: p.missingSince(m0.missing)}
 		}
 		if !matched && cut {
 			cutFailed = true
@@ -478,7 +482,7 @@ func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 // leaves the parse as it was, and one that matches discards the errors recovered in it, as a
 // lookahead does.
 //
-// Printed from Exec IR function skipTrivia of internal/ir/code/exec/compose.
+// Printed from Exec IR function skipTrivia of internal/ir/code/exec/compose, specialized for missing.
 func (p *TParser) skipTrivia(r *TRule) {
 	if r.OperatorsRule.Skip == nil {
 		return
@@ -490,6 +494,7 @@ func (p *TParser) skipTrivia(r *TRule) {
 	if !ok {
 		p.Reset(m)
 	} else {
+		p.ResetMissing(m.missing)
 		p.Recovered = p.Recovered[:m.recovered]
 	}
 }
@@ -497,10 +502,11 @@ func (p *TParser) skipTrivia(r *TRule) {
 // Reset returns to the backtracking point m: the position, the variable environment, the recovered
 // errors and the captures (undoing the trail) become what they were when m was taken.
 //
-// Printed from Exec IR function reset of internal/ir/code/exec/compose.
+// Printed from Exec IR function reset of internal/ir/code/exec/compose, specialized for missing.
 func (p *TParser) Reset(m Mark) {
 	p.Pos = m.Pos
 	p.Env = m.env
+	p.ResetMissing(m.missing)
 	p.Recovered = p.Recovered[:m.recovered]
 	p.undoCaptures(m.Trail)
 	p.DropTrail(m.Trail)

@@ -45,9 +45,9 @@ func CheckStartName(starts []string, def string, defined func(string) bool, name
 }
 
 // MissingUnsupported returns the error of an operation that does not support missing-token
-// recovery: prefix parsing and generated parsers.
+// recovery: generated TypeScript parsers.
 func MissingUnsupported(operation string) error {
-	return fmt.Errorf("missing-token recovery is not supported for %s; whole-input, stream and Document parses of the engine support it", operation)
+	return fmt.Errorf("missing-token recovery is not supported for %s; the engine and generated Go parsers support it", operation)
 }
 
 // ErrSchemaUnavailable reports that the checked grammar metadata an output schema is exported

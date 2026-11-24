@@ -163,6 +163,7 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	}
 	genGo = newGenerator(p)
 	genGo.Params, genGo.params, genGo.hooks, genGo.tables = params.Params, params, h, t
+	genGo.ins = p.Ins
 	genGo.Desc(core.FixedDescs[0]) // the fixed expectations come first
 	var entries typedEntries
 	if opts.Types {
@@ -367,7 +368,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		}
 		out.WriteString(typed.parser)
 		out.WriteString("\n")
-		typesBody = typesPreamble + typed.types
+		typesBody = typesPreamble(prog.Run.HasMissing) + typed.types
 	}
 	if rec != nil && opts.TypedOnly {
 		// The recognizer grammar shares sxirGrammar by copying, so Share follows the expectation table,
@@ -402,7 +403,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	var tp *typesPackage
 	var typesFile []byte
 	if opts.Types {
-		if typesFile, tp, err = typesPackageFile(opts, typesBody); err != nil {
+		if typesFile, tp, err = typesPackageFile(opts, typesBody, prog.Run.HasMissing); err != nil {
 			return nil, nil, err
 		}
 		// The one reference to the schema of the types package (see schemaName).
@@ -547,6 +548,9 @@ type Generator struct {
 	reachErr   error
 	// typedTable reports that the typed rule table is generated.
 	typedTable bool
+	// ins is the insertion program of a grammar that uses #missing (Parser.Ins), whose typed table
+	// (insTrules) the typed parses with missing-token insertion enabled run; nil otherwise.
+	ins *common.Program
 	// plan is the plan of the table being printed (flowplan.Plan, flowplan.PlanTyped), with the
 	// decisions of its lowering taken, and table the table that its lowering made, at the Exec stage.
 	plan  *plandata.Plan
@@ -631,7 +635,7 @@ func (g *Generator) recovers() bool { return g.recoveryFacts().recovers || g.ins
 // (flowlower.Inserts). Its backtracking points also go back to the insertions on the path they saw
 // (MissingLen).
 func (g *Generator) inserts() bool {
-	return (g.Table == "insRules" || g.Table == "insRecRules") && g.recoveryFacts().missing
+	return (g.Table == "insRules" || g.Table == "insRecRules" || g.Table == "insTrules") && g.recoveryFacts().missing
 }
 
 func (g *Generator) recoveryFacts() recoveryFacts {
@@ -697,13 +701,13 @@ func (g *Generator) rules() {
 		if g.pruned(r) {
 			// Not printed; a row of the Node or recognizer table keeps the frame layout of the plan,
 			// and a typed row none.
-			if g.Table != "trules" {
+			if !g.typed() {
 				s.Names = append(s.Names, g.plan.Layouts[r.ID]...)
 			}
 			continue
 		}
 		_, operatorsRule := r.Def.Expr.(*ast.OperatorsRule)
-		if g.Table == "trules" {
+		if g.typed() {
 			// Typed flat rules need no separate body; the printer prints every typed rule from Exec IR.
 			if d := g.typedRuleFunc(r); d != nil {
 				flats[r] = d
@@ -745,7 +749,7 @@ func (g *Generator) rules() {
 			g.Unprintable("the body of rule " + r.Name)
 		}
 	}
-	if g.plan != nil && g.Table != "trules" {
+	if g.plan != nil && !g.typed() {
 		// Every row keeps the frame layout of the plan, which the VM's rule scopes derive from too.
 		for _, r := range all {
 			if err := g.plan.CheckLayout(r.ID, r.Name, scopes[r].Names); err != nil && g.PrintErr == nil {
@@ -763,7 +767,7 @@ func (g *Generator) rules() {
 		// The traced copy of the table: the same rows with the traced bodies, which the init function
 		// that follows the one that builds the table sets.
 		copyOf := "TraceRules"
-		if g.Table == "trules" {
+		if g.typed() {
 			copyOf = "TraceTRules"
 		}
 		fmt.Fprintf(init, "\t%s = %s(%s)\n", g.tableVar(), copyOf, g.Table)
@@ -772,6 +776,11 @@ func (g *Generator) rules() {
 		// The typed rules share the analysis results of the rules.
 		init.WriteString("\ttrules = NewTRules(rules)\n\tdefer tinit()\n")
 		g.Methods.WriteString("// trules is the typed rule table.\nvar trules []*TRule\n\n")
+	} else if g.Table == "insTrules" {
+		// Those of the insertion program share the analysis results of its rules, and the typed
+		// parses with missing-token insertion enabled run them (SetTInsertion).
+		init.WriteString("\tinsTrules = NewTRules(insRules)\n\tSetTInsertion(trules, insTrules)\n")
+		g.Methods.WriteString("// insTrules is the typed rule table of the insertion program that the typed parses with missing\n// tokens enabled run.\nvar insTrules []*TRule\n\n")
 	} else {
 		// The table is static data of a compact form (RuleSpec); the init function builds the rules.
 		var tab strings.Builder
@@ -883,14 +892,12 @@ func (g *Generator) rules() {
 			g.operatorsRule(r, pr)
 			if r.Action != nil && !r.Novalue && !g.Traced {
 				// The whole-rule action (a traced copy has it from its row), which the library runs on the folded value after each call.
-				if g.Table == "trules" {
-				}
 				locals := map[string]string{rprogram.OperatorsRuleValue: "c.Value"}
 				fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.RuleSite(r), check.NewScope(), locals))
 			}
 			continue
 		}
-		if d := flats[r]; d != nil && g.Table == "trules" {
+		if d := flats[r]; d != nil && g.typed() {
 			g.typedCall(r, "", scopes[r], d)
 			continue
 		}
@@ -900,14 +907,14 @@ func (g *Generator) rules() {
 		}
 		if g.Traced {
 			// A traced copy has the action of its row.
-		} else if r.Action != nil && g.Table == "trules" {
+		} else if r.Action != nil && g.typed() {
 			// A function of its own, which typedCall calls directly.
-			fmt.Fprintf(&g.Methods, "// The action of %s.\nfunc ta%d(c *TActCtx) (any, any) { %s }\n\n", r.Name, r.ID, g.actionBody(g.RuleSite(r), scopes[r], nil))
-			fmt.Fprintf(init, "\ttrules[%d].Action = ta%d\n", r.ID, r.ID)
+			fmt.Fprintf(&g.Methods, "// The action of %s.\nfunc %s(c *TActCtx) (any, any) { %s }\n\n", r.Name, g.typedAction(r), g.actionBody(g.RuleSite(r), scopes[r], nil))
+			fmt.Fprintf(init, "\t%s[%d].Action = %s\n", g.Table, r.ID, g.typedAction(r))
 		} else if r.Action != nil {
 			fmt.Fprintf(init, "\t%s[%d].Action = func(c *%s) (any, any) { %s }\n", g.Table, r.ID, g.ctxType(), g.actionBody(g.RuleSite(r), scopes[r], nil))
 		}
-		if g.Table == "trules" {
+		if g.typed() {
 			g.typedCall(r, bodies[r], scopes[r], nil)
 		} else if r.Plain {
 			start := g.Methods.Len()
@@ -1020,9 +1027,9 @@ func (g *Generator) typedResultConversion(r *common.Rule, v, body string) string
 		return ""
 	}
 	if body != "" {
-		return fmt.Sprintf("%s = p.TConvertResultOwned(trules[%d], %s, %s)", v, r.ID, v, body)
+		return fmt.Sprintf("%s = p.TConvertResultOwned(%s[%d], %s, %s)", v, g.Table, r.ID, v, body)
 	}
-	return fmt.Sprintf("%s = p.TConvertResult(trules[%d], %s)", v, r.ID, v)
+	return fmt.Sprintf("%s = p.TConvertResult(%s[%d], %s)", v, g.Table, r.ID, v)
 }
 
 // ownsBody reports whether finishing the value of rule r in the typed library converts the fresh
@@ -1067,11 +1074,11 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 			m.WriteString("\t\tv = nil\n")
 		case r.Action != nil:
 			fmt.Fprintf(m, "\t\tc := p.UseCtx(TActCtx{P: p, F: %s, Start: start, End: p.Pos, Cbase: len(p.Created)})\n", frame)
-			fmt.Fprintf(m, "\t\tv = c.Result(ta%d, %q)\n", r.ID, r.WhereName())
+			fmt.Fprintf(m, "\t\tv = c.Result(%s, %q)\n", g.typedAction(r), r.WhereName())
 		default:
-			fmt.Fprintf(m, "\t\tv = p.ScopeValue(trules[%d].Value, v, start)\n", r.ID)
+			fmt.Fprintf(m, "\t\tv = p.ScopeValue(%s[%d].Value, v, start)\n", g.Table, r.ID)
 			if len(s.Names) > 0 {
-				fmt.Fprintf(m, "\t\tv = p.AttachCaptures(v, trules[%d].Scope, %s.Vals, start, p.Pos)\n", r.ID, frame)
+				fmt.Fprintf(m, "\t\tv = p.AttachCaptures(v, %s[%d].Scope, %s.Vals, start, p.Pos)\n", g.Table, r.ID, frame)
 			}
 			m.WriteString("\t\tif n := AsTval(v); n != nil {\n\t\t\tn.TSetFresh(false)\n\t\t}\n")
 		}
@@ -1108,7 +1115,7 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 				name = g.traceCallWrapper(r, name, false)
 			}
 			ds := g.ruleFunc("ds", r.ID)
-			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n return %[3]s(p)\n}\n", name, r.ID, ds)
+			fmt.Fprintf(m, "func %s(p *TParser) (any, bool) {\n if p.TypedDocument != nil { return p.DocumentCall(%s[%d], 0, %s) }\n return %[4]s(p)\n}\n", name, g.Table, r.ID, ds)
 			plain(ds, false)
 			return
 		}
@@ -1130,21 +1137,24 @@ func (g *Generator) typedCall(r *common.Rule, body string, s *check.Scope, d *fl
 	if merged {
 		iname = g.ruleFunc("v", r.ID)
 	}
-	// The calls below name the row of trules, also in the traced pass: they read only its analysis
-	// (Seen, Id, Memo, Scope), which the traced copy shares, and run the body they are passed. Only the
-	// general call runs a row's body, and the early return above keeps Leaders and Operators Rules on it.
+	// The calls below name the row of the typed table (trules or insTrules), also in the traced pass:
+	// they read only its analysis (Seen, Id, Memo, Scope), which the traced copy shares, and run the
+	// body they are passed. Only the general call runs a row's body, and the early return above keeps
+	// Leaders and Operators Rules on it.
 	if g.directTypedDocument {
-		fmt.Fprintf(m, " if p.TypedDocument != nil { return p.DocumentCall(trules[%d], 0, %s) }\n", r.ID, iname)
+		fmt.Fprintf(m, " if p.TypedDocument != nil { return p.DocumentCall(%s[%d], 0, %s) }\n", g.Table, r.ID, iname)
 	}
 	// The call charges its unit and, for a rule that a parse from scratch memoizes, the values of
-	// its key, whether or not its memoization is deferred (budget.chargeKey).
-	memo := r.Memo && !r.Transient
+	// its key, whether or not its memoization is deferred (budget.chargeKey). Only parses in the
+	// missing-token mode run the typed table of the insertion program, and they memoize no rule that
+	// can insert a missing token (rule.memo).
+	memo := r.Memo && !r.Transient && !(g.inserts() && r.Missing)
 	m.WriteString(g.callUnit("\tp", r))
 	if memo && g.Logical && len(r.Vars) > 0 {
-		fmt.Fprintf(m, "\tp.KeyUnits(rules[%d])\n", r.ID)
+		fmt.Fprintf(m, "\tp.KeyUnits(%s[%d])\n", g.nodeRows(), r.ID)
 	}
 	if memo {
-		fmt.Fprintf(m, "\tif !p.FirstCall(rules[%d]) {\n\t\treturn p.CallMemo(trules[%d], %s)\n\t}\n", r.ID, r.ID, iname)
+		fmt.Fprintf(m, "\tif !p.FirstCall(%s[%d]) {\n\t\treturn p.CallMemo(%s[%d], %s)\n\t}\n", g.nodeRows(), r.ID, g.Table, r.ID, iname)
 	}
 	if ncaps == 0 {
 		fmt.Fprintf(m, "\treturn %s(p)\n}\n\n", g.ruleFunc("v", r.ID))
@@ -1214,6 +1224,11 @@ func (g *Generator) tracedTables(prog, rec *common.Program, insertion []insertio
 			return "", err
 		}
 	}
+	if g.typedTable && g.ins != nil {
+		if err := pass(g.ins, "insTrules", g.useTable); err != nil {
+			return "", err
+		}
+	}
 	for _, t := range insertion {
 		if err := pass(t.prog, t.table, g.useTable); err != nil {
 			return "", err
@@ -1260,7 +1275,7 @@ func (g *Generator) plainPrefix() string {
 	switch g.Table {
 	case "rules":
 		return "r"
-	case "trules":
+	case "trules", "insTrules":
 		return "s"
 	case "insRules":
 		return "ir"
@@ -1275,14 +1290,41 @@ func (g *Generator) plainPrefix() string {
 func (g *Generator) tableVar() string { return g.Table + g.TracedSuffix() }
 
 // ruleFunc names the generated function prefix<id> of the rule id, with the suffix of the traced
-// pass (TracedSuffix), which prints a copy of each function for observed parses.
+// pass (TracedSuffix), which prints a copy of each function for observed parses. The functions of the
+// typed table of the insertion program (insTrules) have the prefix m before.
 func (g *Generator) ruleFunc(prefix string, id int) string {
+	if g.Table == "insTrules" {
+		prefix = "m" + prefix
+	}
 	return prefix + strconv.Itoa(id) + g.TracedSuffix()
 }
 
-// pick returns untyped for the Node library and typed for the typed library (trules).
+// typedAction names the function of the action of the typed rule r, which the rows of the typed table
+// being generated and its traced copy share: ta<id>, or mta<id> in the typed table of the insertion
+// program.
+func (g *Generator) typedAction(r *common.Rule) string {
+	if g.Table == "insTrules" {
+		return "mta" + strconv.Itoa(r.ID)
+	}
+	return "ta" + strconv.Itoa(r.ID)
+}
+
+// typed reports whether the table being generated is a table of the typed library: the typed table
+// (trules), or that of the insertion program (insTrules).
+func (g *Generator) typed() bool { return g.Table == "trules" || g.Table == "insTrules" }
+
+// nodeRows names the Node rule table whose rows the typed table being generated shares (NewTRules):
+// the Node table of its program.
+func (g *Generator) nodeRows() string {
+	if g.Table == "insTrules" {
+		return "insRules"
+	}
+	return "rules"
+}
+
+// pick returns untyped for the Node library and typed for the typed library (trules, insTrules).
 func (g *Generator) pick(untyped, typed string) string {
-	if g.Table == "trules" {
+	if g.typed() {
 		return typed
 	}
 	return untyped
@@ -1568,7 +1610,7 @@ func (g *Generator) ruleCall(r *common.Rule, min int) string {
 	case g.Document && g.Table == "rules":
 		// Document parses route every call through call, which memoizes per rule.docMemo,
 		// including otherwise plain rules.
-	case g.directTypedDocument && g.Table == "trules" && operatorsRule:
+	case g.directTypedDocument && g.typed() && operatorsRule:
 	case r.Plain:
 		return fmt.Sprintf("p.InvokePlain(%s[%d], %d)", g.tableVar(), r.ID, min)
 	}
@@ -1616,7 +1658,7 @@ func (g *Generator) tracedRead(name string) bool {
 
 // leanTyped reports whether typed rule bodies are emitted in their ordinary form only.
 func (g *Generator) leanTyped() bool {
-	return g.Ordinary && g.Table == "trules"
+	return g.Ordinary && g.typed()
 }
 
 // classTable returns the name of the package variable that holds the membership table of e,

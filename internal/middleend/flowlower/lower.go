@@ -823,9 +823,6 @@ func (l *lowerer) missing(n *core.Missing, s *scope, build bool, fail string) co
 		// A lowering for parses that never insert matches the literal alone (lowerdata.Options.Inserts).
 		return l.node(n.Body, s, build, fail)
 	}
-	if build && !l.opts.Node {
-		panic("flow: no typed value of an insertion of #missing is defined")
-	}
 	start := l.decl("x", prim.TypeInt)
 	l.set(start, pos())
 	mk, far, exps := l.decl("x", prim.TypeExpMark), l.decl("x", prim.TypeInt), l.decl("x", prim.TypeExpIDs)
@@ -851,7 +848,7 @@ func (l *lowerer) missing(n *core.Missing, s *scope, build bool, fail string) co
 	l.emit(&code.Set{Dst: []code.Place{{Name: err}, {Name: ok}}, Values: []code.Expr{call(flow.OpInsertMissing, insertion(n), use(exps))}})
 	l.failIf(nil, code.Not(use(ok)), fail, do(flow.OpMergeExpected, nil, use(far), use(exps)))
 	if build {
-		l.set(v, call(flow.OpNewMissingNode, insertion(n), use(start), use(err)))
+		l.set(v, l.missingValue(insertion(n), use(start), use(err)))
 	}
 	l.close(bd)
 	if !build {
@@ -1959,6 +1956,15 @@ func (l *lowerer) recover(n *core.Recover, s *scope, build bool, fail string) co
 		return null()
 	}
 	return use(v)
+}
+
+// missingValue returns the value of the insertion ins whose error is err, at start, built for the runtime of the
+// function.
+func (l *lowerer) missingValue(ins prim.Insertion, start, err code.Expr) code.Expr {
+	if l.opts.Node {
+		return call(flow.OpNewMissingNode, ins, start, err)
+	}
+	return call(flow.OpMissingValue, ins, start, err)
 }
 
 // errorValue returns the value of the recovered error err over the input from start, built for the runtime of

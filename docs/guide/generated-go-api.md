@@ -52,7 +52,7 @@ Compared with the engine's API:
 - **The options are those of package `runtime`.** A function of the generated package takes `runtime.ParseOption`, so
   `runtime.WithLimits` and the `With` functions that `api.go` repeats are the same options. A parser generated from a
   grammar with `#missing` exports `WithMissingTokens` and inserts missing tokens in `Parse`, `ParseRule`,
-  `Recognize`, the stream parses and Documents, as the engine does. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
+  `Recognize`, the stream parses and Documents, and with `-types` in the typed parses, as the engine does. The events of `WithTrace` carry no parser state: their `LineCol`, `Text` and `Failure` return zero values.
 - **`Parse` and `ParseRule` replace `Parser.Parse`.** Position units and rule-call limits use
   functional options (`Parse(input, pairsparser.WithUnit(pairsparser.Bytes))`), like the engine. `ParseRule(name, input)` plays the role of
   `Parser.WithStart(name).Parse(input)`, and like it accepts only rules marked `@start`: another rule is an error,
@@ -118,7 +118,7 @@ Compared with the engine's API:
 |:--|:--|
 | Library | The parser state, memoization, left recursion, Operators Rule loop, attribute handling and the built-in functions of actions. It is **the same for every grammar**: the package `syntaxir.dev/sxir/pkg/runtime/libgo`, which the generated package imports (`-lib import`) or carries a copy of in `internal/libgo` (`-lib embed`, the default). Either way it depends only on the packages under `syntaxir.dev/sxir/pkg/runtime`. |
 | `api.go` | The names of the runtime packages and the library that the users of the parser need (`Node`, `SyntaxError`, the options and so on), as aliases and wrappers. It is the same for grammars generated with the same options. |
-| `types/types.go` | With `-types`, the package `<module>/types`: a Go type for each type of the grammar, `TNode`, `Error` and the tuple types. |
+| `types/types.go` | With `-types`, the package `<module>/types`: a Go type for each type of the grammar, `TNode`, `Error` and the tuple types, and with `#missing` `Missing` and `ErrorValue`. |
 | Rule table | For each rule, the results of the engine's static analysis (memoized? left-recursion leader? capture names?). |
 | Parser expressions | One method per expression, with literals, character classes and rule indices embedded as constants, and one per rule that is never memoized and has no captures, which calls the rule's body directly. |
 | Value Actions and Predicate Actions | Go expressions; lambdas become Go function literals. |
@@ -217,7 +217,7 @@ preparation and before publishing a result.
 With `-types`, the types of the grammar are declared in the package `<module>/types`, not in the parser package, so they
 share no namespace with `parser.go` and `api.go`: a grammar type may be called `Node`, `ParseOption`, `Walk` or like any
 other name of the parser package, and is then used as `types.Node`. The types package declares `TNode`, `Error`,
-`SXIRHooks` and, where used, `Unit`, `TupleN`, `SXIRNodeTypes` itself and the constant `SXIRSchema_<digest>` (which ties the parser to this package), and generation fails if a grammar type has one
+`SXIRHooks` and, where used, `Unit`, `TupleN`, `SXIRNodeTypes`, `Missing` and `ErrorValue` itself and the constant `SXIRSchema_<digest>` (which ties the parser to this package), and generation fails if a grammar type has one
 of those names. Declarations that you add by hand to the generated packages must not reuse the names they declare. The
 [generated parser contract](../../spec/runtime/generated-parsers.md) lists the rule.
 

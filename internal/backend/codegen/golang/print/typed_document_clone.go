@@ -21,6 +21,9 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 			if x == types.TyInt || x == types.TyString || x == types.TyBool {
 				return value
 			}
+			if x == types.TyErr && t.missing() {
+				return "c.toErrorValue(" + value + ")"
+			}
 			if x == types.TyErr {
 				return "c.toError(" + value + ")"
 			}
@@ -40,11 +43,10 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 		case types.RecordTy:
 			return "c.toNode(" + value + ")"
 		case types.NamedTy:
-			name := convName(x.Name)
-			if x.Kind == 'c' { // Missing
-				name = "toNode"
+			if x.Kind == 'c' {
+				return "c.toMissing(" + value + ")"
 			}
-			return "c." + name + "(" + value + ")"
+			return "c." + convName(x.Name) + "(" + value + ")"
 		case types.JoinTy:
 			if name, ok := t.Joins[x.String()]; ok {
 				return "c." + convName(name) + "(" + value + ")"
@@ -74,9 +76,20 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 		panic("unrepresentable typed Document clone")
 	}
 	publication := clone(result, "value")
-	// Values that hold text are copied whole: a string node (method Match, type TNode[string]) and
-	// Error.
+	// Values that hold text are copied whole: a string node (method Match, type TNode[string]),
+	// Error and, in a grammar with #missing, Missing.
 	terminals := []struct{ name, goType, chunk string }{{"Match", "TNode[string]", "match"}, {"Error", "Error", "error"}}
+	if t.missing() {
+		terminals = append(terminals, struct{ name, goType, chunk string }{"Missing", "Missing", "missing"})
+		methods.WriteString(`func (c *typedDocumentClone) toErrorValue(v ErrorValue) ErrorValue {
+ switch v := v.(type) {
+ case *Error: return c.toError(v)
+ case *Missing: return c.toMissing(v)
+ }
+ return nil
+}
+`)
+	}
 	for _, terminal := range terminals {
 		fmt.Fprintf(&methods, `func (c *typedDocumentClone) to%[1]s(v *%[3]s) *%[3]s {
  if v == nil { return nil }
@@ -97,7 +110,7 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 			return true
 		case types.NamedTy:
 			_, ok := t.Info.Fields[x.Name]
-			return ok || x.Kind == 'c'
+			return ok
 		case types.OptTy:
 			return containsStruct(x.Elem)
 		case types.ListTy:
@@ -145,6 +158,10 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
 		}
 		fmt.Fprintf(&methods, "func (c *typedDocumentClone) %s(v %s) %s {\n switch v := v.(type) {\n case *Error: return c.toError(v)\n", convName(name), t.ref(name), t.ref(name))
 		seen := map[string]bool{"*Error": true}
+		if t.missing() {
+			methods.WriteString(" case *Missing: return c.toMissing(v)\n")
+			seen["*Missing"] = true
+		}
 		open := false
 		for _, alternative := range u.Alts {
 			goType := t.goType(alternative)
@@ -174,6 +191,9 @@ func (t *TypedGen) documentClone(b *strings.Builder, result types.Ty) string {
  case *Error: return c.toError(v)
  case []any: return c.toElems(v)
 `)
+	if t.missing() {
+		methods.WriteString(" case *Missing: return c.toMissing(v)\n")
+	}
 	for _, name := range t.structs {
 		fmt.Fprintf(&methods, " case *%s: return c.%s(v)\n", t.ref(name), convName(name))
 	}
@@ -250,15 +270,22 @@ type typedDocumentClone struct {
  match astChunk[TNode[string]]
  error astChunk[Error]
 `)
+	seen := []string{"Match", "Error"}
+	if t.missing() {
+		b.WriteString(" missing astChunk[Missing]\n")
+		seen = append(seen, "Missing")
+	}
+	seen = append(seen, t.structs...)
 	for _, name := range t.structs {
 		fmt.Fprintf(b, " t%s astChunk[%s]\n", name, t.ref(name))
 	}
-	for _, name := range append([]string{"Match", "Error"}, t.structs...) {
+	for _, name := range seen {
 		goType := t.ref(name)
-		if name == "Match" {
+		switch name {
+		case "Match":
 			goType = "TNode[string]"
-		} else if name == "Error" {
-			goType = "Error"
+		case "Error", "Missing":
+			goType = name
 		}
 		fmt.Fprintf(b, " seen%s map[*%s]*%s\n", name, goType, goType)
 	}
@@ -284,7 +311,7 @@ func (c *typedDocumentClone) Finish() {
 func (c *typedDocumentClone) Release() {
  c.ReleaseBase()
 `)
-	for _, name := range append([]string{"Match", "Error"}, t.structs...) {
+	for _, name := range seen {
 		fmt.Fprintf(b, " c.seen%s = nil\n", name)
 	}
 	b.WriteString(`
