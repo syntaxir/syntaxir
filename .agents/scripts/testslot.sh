@@ -16,6 +16,11 @@
 # be signalled again: TERM, INT or HUP, even one that arrives while the command starts, signals
 # the group, waits for it, frees the slot and exits 143. The command runs as a background job,
 # so its standard input is /dev/null, not the terminal: a queued command must not read it.
+# An exclusive benchlock.sh job, queued or running, keeps new jobs from starting: they wait, naming the
+# job, while the jobs that run finish (benchlock.sh then waits for those before it starts its command). The
+# check and the claim happen under the same flock, which benchlock.sh takes for its drain check, so no job
+# slips in after it. A job that holds an exclusive lock must not run testslot.sh inside itself. Copies of
+# this script made before the protocol (see lib.sh) do not wait; the gate's load check catches that.
 # State: $SXIR_AGENT_STATE/slots.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -25,7 +30,9 @@ n=${TESTSLOT_N:-4}
 [ $# -gt 0 ] || { echo "usage: testslot.sh <cmd...>" >&2; exit 2; }
 command -v perl >/dev/null 2>&1 || { echo "testslot.sh: perl is required for the claim lock and is not installed" >&2; exit 127; }
 mkdir -p "$D"
+sxir_protocol_check
 mine=
+told=
 child=
 term=
 me="$$ $(sxir_lstart $$)"
@@ -87,6 +94,16 @@ claim_once() {
   exec 9>> "$D/.lock"
   try_flock || { exec 9>&-; return 1; }
   if [ -d "$D/.mutex" ] && mutex_stale; then rm -f "$D/.mutex/owner"; rmdir "$D/.mutex" 2>/dev/null || true; fi
+  local pend
+  pend=$(sxir_exclusive_pending)
+  if [ -n "$pend" ]; then
+    if [ "$told" != "$pend" ]; then
+      echo "testslot.sh: waiting: the benchmark lock is held or queued by ${pend%% *} (seq $(echo "$pend" | cut -d' ' -f2), $(echo "$pend" | cut -d' ' -f3)); new test jobs start after it" >&2
+      told=$pend
+    fi
+    exec 9>&-
+    return 1
+  fi
   if mkdir "$D/.mutex" 2>/dev/null; then
     echo "$me" > "$D/.mutex/owner"
     local i=1 s

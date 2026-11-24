@@ -92,6 +92,11 @@ func parseOutput(out string) (map[string]sample, error) {
 type limits struct {
 	MinRounds, MaxRounds int
 	MaxSpread            float64
+	// MaxLoad is the one-minute load average above which the machine is too busy to judge on: the timing phase
+	// waits up to LoadWait for the load to fall to it before it starts, and judges nothing if the load at the end is
+	// above it. Zero disables the check.
+	MaxLoad  float64
+	LoadWait time.Duration
 }
 
 // collect measures rounds of a gate until stat.Enough says so or MaxRounds is reached. The order of the

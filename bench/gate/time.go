@@ -58,6 +58,10 @@ func timePlanWith(planFile string, out io.Writer, r runner) error {
 		r = br.with(p)
 	}
 	fmt.Fprintf(out, "benchmark gates: base %s, candidate %s\n", p.Revs[0], p.Revs[1])
+	startLoad, err := waitForLoad(out, p.Limits)
+	if err != nil {
+		return err
+	}
 	fmt.Fprintf(out, "started %s, load: %s\n", timestamp(), uptime())
 	var results []result
 	total := time.Duration(0)
@@ -75,6 +79,14 @@ func timePlanWith(planFile string, out io.Writer, r runner) error {
 		results = append(results, res)
 	}
 	fmt.Fprintf(out, "\nfinished %s, load: %s\n", timestamp(), uptime())
+	endLoad, _ := loadAvg()
+	if busy := busyReason(p.Limits, startLoad, endLoad); busy != "" {
+		fmt.Fprintf(out, "\nthe machine was too busy to judge on: %s\n", busy)
+		for i := range results {
+			results[i].Time.Verdict = stat.Invalid
+			results[i].Busy = busy
+		}
+	}
 	fmt.Fprintf(out, "\n==== verdicts ====\n")
 	var bad []string
 	for _, res := range results {
@@ -89,4 +101,40 @@ func timePlanWith(planFile string, out io.Writer, r runner) error {
 		return fmt.Errorf("verdicts that fail the gate set: %s", strings.Join(bad, "; "))
 	}
 	return nil
+}
+
+// loadPoll is how often waitForLoad reads the load; a variable so that tests can shorten it.
+var loadPoll = 10 * time.Second
+
+// waitForLoad waits, for at most lim.LoadWait, until the one-minute load average is at most lim.MaxLoad, and
+// returns the last reading. The lock is held meanwhile, so the slot jobs that were running when it was taken have
+// finished and nothing new starts through testslot.sh: the wait is for the load average, which lags, to follow.
+func waitForLoad(out io.Writer, lim limits) (float64, error) {
+	if lim.MaxLoad <= 0 {
+		return 0, nil
+	}
+	deadline := time.Now().Add(lim.LoadWait)
+	for {
+		l, err := loadAvg()
+		if err != nil {
+			return 0, fmt.Errorf("reading the load average: %w", err)
+		}
+		if l <= lim.MaxLoad || !time.Now().Before(deadline) {
+			fmt.Fprintf(out, "load at the start: %.2f (limit %.2f)\n", l, lim.MaxLoad)
+			return l, nil
+		}
+		fmt.Fprintf(out, "waiting for the load to fall: %.2f, limit %.2f\n", l, lim.MaxLoad)
+		time.Sleep(loadPoll)
+	}
+}
+
+// busyReason is why a run cannot be judged on its load, or "" when it can.
+func busyReason(lim limits, start, end float64) string {
+	if lim.MaxLoad <= 0 {
+		return ""
+	}
+	if start > lim.MaxLoad || end > lim.MaxLoad {
+		return fmt.Sprintf("load %.2f at the start and %.2f at the end, limit %.2f", start, end, lim.MaxLoad)
+	}
+	return ""
 }

@@ -35,6 +35,7 @@ type result struct {
 	Rows   []benchRow // benchmarks whose time stands out from the spread, largest change first
 	Total  int        // benchmarks compared
 	Det    []detRow
+	Busy   string // why the machine was too busy to judge on, or empty
 }
 
 // judge turns the rounds of a gate into its judgment.
@@ -137,6 +138,9 @@ func (r result) write(w io.Writer, lim limits) {
 	fmt.Fprintf(w, "  time, geomean of %d benchmarks: candidate/base %.4f (95%% interval %.4f to %.4f)\n", r.Total, j.Change, j.CI.Lo, j.CI.Hi)
 	fmt.Fprintf(w, "  A/A spread: %.2f%% (limit %.2f%%)\n", 100*j.Spread, 100*lim.MaxSpread)
 	fmt.Fprintf(w, "  time verdict: %s\n", j.Verdict)
+	if r.Busy != "" {
+		fmt.Fprintf(w, "  invalid because the machine was busy: %s\n", r.Busy)
+	}
 	if j.Verdict != stat.Invalid && len(r.Rows) > 0 {
 		fmt.Fprintf(w, "  benchmarks beyond their own A/A spread (%d of %d):\n", len(r.Rows), r.Total)
 		for i, row := range r.Rows {

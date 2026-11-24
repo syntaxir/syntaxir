@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -37,6 +38,8 @@ func main() {
 	base := flag.String("base", "", "the revision to compare with (default: the merge base of HEAD and origin/main)")
 	rounds := flag.Int("rounds", 20, "the most rounds a gate runs")
 	maxSpread := flag.Float64("max-spread", 0.015, "the A/A spread above which a gate is invalid, as a fraction")
+	maxLoad := flag.Float64("max-load", defaultMaxLoad, "the one-minute load average above which the machine is too busy to judge on (0: no check)")
+	loadWait := flag.Duration("load-wait", 5*time.Minute, "how long the timing phase waits for the load to fall to -max-load before it starts")
 	list := flag.Bool("list", false, "list the gates and exit")
 	flag.Parse()
 	if *list {
@@ -55,7 +58,7 @@ func main() {
 	if len(names) == 0 {
 		names = quick
 	}
-	if err := runGates(names, *base, limits{MinRounds: minRounds, MaxRounds: *rounds, MaxSpread: *maxSpread}); err != nil {
+	if err := runGates(names, *base, limits{MinRounds: minRounds, MaxRounds: *rounds, MaxSpread: *maxSpread, MaxLoad: *maxLoad, LoadWait: *loadWait}); err != nil {
 		fmt.Fprintln(os.Stderr, "gate:", err)
 		os.Exit(1)
 	}
@@ -187,3 +190,32 @@ func uptime() string {
 
 // timestamp is the start of the timing phase, for the header.
 func timestamp() string { return time.Now().Format("2006-01-02 15:04:05") }
+
+// defaultMaxLoad is the one-minute load average above which a run is not judged: the background that the team's
+// own idle tools produce (see docs/performance.md) sits below it.
+const defaultMaxLoad = 4.0
+
+// loadAvg is the one-minute load average; a variable so that tests can replace it.
+var loadAvg = func() (float64, error) {
+	out, err := exec.Command("uptime").Output()
+	if err != nil {
+		return 0, err
+	}
+	return parseLoad(string(out))
+}
+
+// parseLoad reads the one-minute load average from the output of uptime ("load averages: 1.20 2.30 3.40" or
+// "load average: 1.20, 2.30, 3.40").
+func parseLoad(uptimeOut string) (float64, error) {
+	i := strings.Index(uptimeOut, "load average")
+	if i < 0 {
+		return 0, fmt.Errorf("no load average in %q", strings.TrimSpace(uptimeOut))
+	}
+	rest := uptimeOut[i:]
+	rest = rest[strings.Index(rest, ":")+1:]
+	f := strings.Fields(strings.ReplaceAll(rest, ",", " "))
+	if len(f) == 0 {
+		return 0, fmt.Errorf("no load average in %q", strings.TrimSpace(uptimeOut))
+	}
+	return strconv.ParseFloat(f[0], 64)
+}

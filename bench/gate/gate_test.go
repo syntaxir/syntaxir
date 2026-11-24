@@ -208,3 +208,64 @@ func TestDeterministicNoisyMetric(t *testing.T) {
 		t.Errorf("shift not reported: %+v", rows)
 	}
 }
+
+func TestParseLoad(t *testing.T) {
+	for in, want := range map[string]float64{
+		" 2:49  up 23 days, 22:07, 2 users, load averages: 54.40 44.30 49.51\n": 54.40,
+		" 10:00:01 up 3 days,  1 user,  load average: 0.52, 0.58, 0.59\n":       0.52,
+	} {
+		if got, err := parseLoad(in); err != nil || got != want {
+			t.Errorf("parseLoad(%q) = %v, %v; want %v", in, got, err, want)
+		}
+	}
+	if _, err := parseLoad("nothing"); err == nil {
+		t.Error("an output without a load average was accepted")
+	}
+}
+
+// TestBusyMachineIsNotJudged checks that the timing phase waits for the load to fall, and that a load above the
+// limit at the start or at the end makes every gate invalid, whatever the timings say.
+func TestBusyMachineIsNotJudged(t *testing.T) {
+	g, _ := findGate("generation")
+	lim := testLimits
+	lim.MaxLoad, lim.LoadWait = 4, time.Minute
+	p := plan{Limits: lim, Revs: [2]string{"base", "cand"}, Gates: []planGate{{Gate: g}}}
+	data, _ := json.Marshal(p)
+	file := filepath.Join(t.TempDir(), "plan.json")
+	if err := os.WriteFile(file, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	oldLoad, oldPoll := loadAvg, loadPoll
+	defer func() { loadAvg, loadPoll = oldLoad, oldPoll }()
+	loadPoll = time.Millisecond
+	run := func(loads ...float64) (string, error) {
+		i := 0
+		loadAvg = func() (float64, error) {
+			l := loads[min(i, len(loads)-1)]
+			i++
+			return l, nil
+		}
+		var out bytes.Buffer
+		err := (directLocker{out: &out, run: &fake{slow: 1, ripple: 0.003}}).hold(file)
+		return out.String(), err
+	}
+	// 9 and 6 then 2 at the start, 2 at the end: it waited, and judged.
+	out, err := run(9, 6, 2, 2)
+	if err != nil || !strings.Contains(out, "waiting for the load to fall") || !strings.Contains(out, "time verdict: within noise") {
+		t.Errorf("a load that fell was not judged: %v\n%s", err, out)
+	}
+	// 2 at the start, 7 at the end: invalid.
+	out, err = run(2, 7)
+	if err == nil || !strings.Contains(out, "too busy to judge on") || !strings.Contains(out, "time verdict: invalid") {
+		t.Errorf("a busy end was judged: %v\n%s", err, out)
+	}
+	// never below the limit within the wait: invalid.
+	lim.LoadWait = 5 * time.Millisecond
+	p.Limits = lim
+	data, _ = json.Marshal(p)
+	os.WriteFile(file, data, 0o644)
+	out, err = run(9)
+	if err == nil || !strings.Contains(out, "load 9.00 at the start") {
+		t.Errorf("a machine that stayed busy was judged: %v\n%s", err, out)
+	}
+}

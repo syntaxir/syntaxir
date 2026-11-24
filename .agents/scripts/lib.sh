@@ -62,3 +62,59 @@ sxir_run_fields() {
     printf "%s %s %012d %s\n", st, t, s, c
   }' "$1" 2>/dev/null || true
 }
+
+# The lock protocol between benchlock.sh and testslot.sh. Version 2: an exclusive benchlock job (queued or
+# running) keeps new test slot jobs from starting, and starts only after the slot jobs that run have finished.
+# Every worktree runs its own copy of these scripts, so a copy made before version 2 neither waits for a
+# queued benchmark nor stamps the version; the gate's load check catches what it lets through. From version 2 on,
+# benchlock.sh stamps the highest version it knows in $SXIR_AGENT_STATE/protocol, and a testslot.sh that
+# knows a lower one refuses to run (status 78), so a later change of the protocol does not depend on a rebase.
+sxir_protocol=2
+
+# sxir_protocol_stamp raises the stamp in the state directory to this copy's version.
+sxir_protocol_stamp() {
+  local cur
+  cur=$(cat "$sxir_state/protocol" 2>/dev/null || echo 0)
+  case $cur in '' | *[!0-9]*) cur=0 ;; esac
+  [ "$cur" -ge "$sxir_protocol" ] || echo "$sxir_protocol" > "$sxir_state/protocol"
+}
+
+# sxir_protocol_check stops this script when the state directory was stamped by a newer protocol.
+sxir_protocol_check() {
+  local cur
+  cur=$(cat "$sxir_state/protocol" 2>/dev/null || echo 0)
+  case $cur in '' | *[!0-9]*) cur=0 ;; esac
+  if [ "$cur" -gt "$sxir_protocol" ]; then
+    echo "${0##*/}: this copy knows lock protocol $sxir_protocol, the machine's state is at $cur: rebase onto main to get the current scripts" >&2
+    exit 78
+  fi
+}
+
+# sxir_exclusive_pending prints "tag seq state" of a live exclusive benchlock job, queued or running, or nothing.
+sxir_exclusive_pending() {
+  local f w ft st t s c
+  for f in "$sxir_state"/runs/*; do
+    [ -f "$f" ] || continue
+    w=${f##*.}; ft=${f##*/}; ft=${ft%.*}
+    sxir_bench_live "$w" "$ft" || continue
+    read -r st t s c <<< "$(sxir_run_fields "$f")"
+    if [ "$c" = exclusive ]; then echo "$ft $s $st"; return 0; fi
+  done
+  return 0
+}
+
+# sxir_slot_holders prints "slot:pid" of every live test slot holder (slots/<i> with a pid file; the holder is
+# judged by pid and, when recorded, start time, as testslot.sh does).
+sxir_slot_holders() {
+  local d p rec st
+  for d in "$sxir_state"/slots/[0-9]*; do
+    [ -d "$d" ] || continue
+    p=$(cat "$d/pid" 2>/dev/null || true)
+    [ -n "$p" ] && kill -0 "$p" 2>/dev/null || continue
+    rec=$(cat "$d.start" 2>/dev/null || true)
+    st=
+    if [ "${rec%% *}" = "$p" ] && [ "$rec" != "$p" ]; then st=${rec#* }; fi
+    [ -z "$st" ] || [ "$(sxir_lstart "$p")" = "$st" ] || continue
+    echo "${d##*/}:$p"
+  done
+}

@@ -15,6 +15,10 @@
 # The command runs in a process group of its own (job control), created as the command is forked,
 # so TERM, INT or HUP to this script, even one that arrives while the command starts, signals
 # the group. The command's standard input is /dev/null, set explicitly: job control does not redirect it.
+# An exclusive job also excludes the test slots of testslot.sh: from the moment its record is queued, new slot
+# jobs wait; once it holds the lock it waits until the slot jobs that run have finished (BENCHLOCK_DRAIN seconds
+# at most, default 1800, then it goes on and says so). A slot job that starts before it is visible to the drain
+# check, because both take the flock of slots/.lock. The protocol and its version stamp are in lib.sh.
 # State: $SXIR_AGENT_STATE (see lib.sh). The layout is the one of the earlier versions of this script
 # (the zsh one and the bash one without classes), so jobs queued by any of them are ranked together:
 #   benchlock/owner         "<tag> <pid>" of the exclusive holder; the directory is the lock.
@@ -49,6 +53,7 @@ class=${BENCHLOCK_CLASS:-exclusive}
 case $class in exclusive | shared) ;; *) echo "benchlock.sh: BENCHLOCK_CLASS must be exclusive or shared, not '$class'" >&2; exit 2 ;; esac
 k=$(sxir_shared_slots)
 tag=$1; shift
+sxir_protocol_stamp
 command -v perl >/dev/null 2>&1 || { echo "benchlock.sh: perl is required for the ticket and is not installed" >&2; exit 127; }
 mkdir -p "$R"
 seq=$(perl -e 'use Fcntl qw(:flock); open(my $f, "+>>", $ARGV[0]) or die "seq: $!\n"; flock($f, LOCK_EX) or die; seek($f, 0, 0); my $n = <$f> // 0; $n = int($n) + 1; truncate($f, 0); print $f "$n\n"; close $f; print $n' "$D/benchlock.seq") || { echo "benchlock: cannot allocate a ticket" >&2; exit 125; }
@@ -164,6 +169,26 @@ if [ "$free" -ge "$stall" ]; then
   printf '%s stall: lock free %ss, %s.%s (seq %s, %s) took it; queue: %s\n' "$(date +%FT%T)" "$free" "$tag" "$$" "$seq" "$class" \
     "$(cat "$R"/* | cut -c1-80 | tr '\n' '|')" >> "$D/benchlock-stalls.log"
 fi
+# drain_slots waits, for an exclusive job, until no test slot job runs. The check holds the flock of
+# slots/.lock, as testslot.sh does for its check and claim, so no slot job starts between the check and here.
+drain_slots() {
+  local waited=0 held
+  mkdir -p "$D/slots"
+  while :; do
+    exec 8>> "$D/slots/.lock"
+    perl -e 'use Fcntl ":flock"; open(my $f, ">&=", 8) or exit 2; flock($f, LOCK_EX) or exit 2' || { exec 8>&-; echo "benchlock.sh: cannot take slots/.lock" >&2; return 0; }
+    held=$(sxir_slot_holders | tr '\n' ' ')
+    exec 8>&-
+    [ -n "$held" ] || return 0
+    if [ "$waited" -ge "${BENCHLOCK_DRAIN:-1800}" ]; then
+      echo "benchlock.sh: test slot jobs still run after ${waited}s ($held); going on" >&2
+      return 0
+    fi
+    if [ $((waited % 30)) = 0 ]; then echo "benchlock.sh: waiting for test slot jobs to finish (slot:pid $held)" >&2; fi
+    sleep "$poll"; waited=$((waited + poll))
+  done
+}
+if [ "$class" = exclusive ]; then drain_slots; fi
 term=
 child=
 # shellcheck disable=SC2329  # runs from the trap
