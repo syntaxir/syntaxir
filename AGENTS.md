@@ -9,7 +9,8 @@ and `team-workflow` when they apply.
 A test (`internal/testing/archtest`) fails when a path in backticks here does not exist.
 
 - `spec/` normative specs; `docs/` guides, `docs/design/` (as implemented),
-  `docs/design/records/` (decisions), `docs/optimizations/`, `docs/development.md`.
+  `docs/design/records/` (decisions), `docs/optimizations/`, `docs/development.md`,
+  `docs/scoreboard.md` (generated: standing against the performance targets).
 - Public packages: `pkg/compiler/`, `pkg/runtime/` and its subpackages (VM, generated-parser
   library, input, values, instrumentation, schema, query), `pkg/bytecode/`, `pkg/grammar/`,
   `pkg/lint/`, `pkg/sample/`, `pkg/editfuzz/` (release layout:

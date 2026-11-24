@@ -270,6 +270,7 @@ left-recursive), an indentation-based outline format and a small programming lan
 | [Playground](docs/guide/playground.md) | Try grammars in the browser, inspect parse results and use the WebAssembly API |
 | [Language specification](spec/README.md) | The SyntaxIR grammar language |
 | [Benchmarks](docs/benchmarks.md) | How fast SyntaxIR's parsers are, measured |
+| [Performance scoreboard](docs/scoreboard.md) | Where the measured performance stands against each Credibility target |
 
 ### Developing SyntaxIR
 

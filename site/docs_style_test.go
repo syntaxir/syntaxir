@@ -130,7 +130,7 @@ func styledDocs(t *testing.T) []string {
 	}
 	for _, p := range top {
 		switch filepath.Base(p) {
-		case "benchmarks.md", "ref-cpython-pegen-packrat-parsing.md":
+		case "benchmarks.md", "scoreboard.md", "ref-cpython-pegen-packrat-parsing.md":
 		default:
 			files = append(files, p)
 		}

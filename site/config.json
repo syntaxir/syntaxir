@@ -560,6 +560,7 @@
         "docs/design/observability.md",
         "docs/design/cost-analysis.md",
         "docs/benchmarks.md",
+        "docs/scoreboard.md",
         "docs/performance.md",
         "docs/optimizations/README.md"
       ],
@@ -657,6 +658,7 @@
     "docs/design/observability.md",
     "docs/design/cost-analysis.md",
     "docs/benchmarks.md",
+    "docs/scoreboard.md",
     "docs/performance.md",
     "docs/optimizations/README.md",
     "docs/commit-messages.md",

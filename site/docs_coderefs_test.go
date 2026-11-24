@@ -421,7 +421,7 @@ func referenceKind(rel string) string {
 	switch {
 	case under(rel, "spec"), under(rel, "docs/tutorial"), under(rel, "docs/guide"), under(rel, "docs/cookbook"), rel == "README.md":
 		return "reader"
-	case under(rel, "docs/design"), under(rel, "docs/optimizations"), rel == "docs/performance.md", rel == "docs/benchmarks.md", under(rel, "bench"):
+	case under(rel, "docs/design"), under(rel, "docs/optimizations"), rel == "docs/performance.md", rel == "docs/benchmarks.md", rel == "docs/scoreboard.md", under(rel, "bench"):
 		return "internal"
 	}
 	return ""

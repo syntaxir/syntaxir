@@ -45,7 +45,19 @@ func main() {
 	capture := flag.String("capture", "go,ts,size", "parts to capture: go, ts and size, comma-separated")
 	count := flag.Int("count", 3, "runs of each benchmark (the median is reported)")
 	node := flag.String("node", "node", "the Node.js executable for the TypeScript measurements (24 or later)")
+	scoreboardOnly := flag.Bool("scoreboard", false, "write docs/scoreboard.md (or -doc) from the saved results of -dir and exit, without running benchmarks")
 	flag.Parse()
+	if *scoreboardOnly {
+		root, err := repoRoot()
+		if err == nil {
+			err = writeScoreboard(root, *dir, *doc)
+		}
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "report:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if err := run(*in, *dir, *doc, *capture, *count, *node); err != nil {
 		fmt.Fprintln(os.Stderr, "report:", err)
 		os.Exit(1)
@@ -136,7 +148,7 @@ func run(in, dir, docPath, capture string, count int, node string) error {
 	for _, path := range stale {
 		fmt.Println("updated the figures in", path)
 	}
-	return nil
+	return writeScoreboard(root, dir, "")
 }
 
 // loadResults reads the Go results file and, next to it, the TypeScript and size results if they

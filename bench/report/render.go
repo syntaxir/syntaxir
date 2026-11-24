@@ -185,30 +185,39 @@ func renderAll(root string, data, tsData, sizeData []byte) ([]byte, error) {
 	return doc, err
 }
 
-// renderDoc renders the document and computes the figures that other documents quote.
-func renderDoc(root string, data, tsData, sizeData []byte) ([]byte, map[string]string, error) {
+// mergedResults parses the Go results and adds the TypeScript results (nil for none) under their TS/ names.
+func mergedResults(data, tsData []byte) (*results, error) {
 	r, err := parseResults(data)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	if tsData != nil {
 		ts, err := parseBenchLines(tsData, false)
 		if err != nil {
-			return nil, nil, fmt.Errorf("TypeScript results: %w", err)
+			return nil, fmt.Errorf("TypeScript results: %w", err)
 		}
 		for k, v := range ts.meta {
 			r.meta["ts."+k] = v
 		}
 		for _, name := range ts.order {
 			if !strings.HasPrefix(name, "TS/") {
-				return nil, nil, fmt.Errorf("TypeScript results: benchmark %q does not start with TS/", name)
+				return nil, fmt.Errorf("TypeScript results: benchmark %q does not start with TS/", name)
 			}
 			if _, dup := r.bench[name]; dup {
-				return nil, nil, fmt.Errorf("TypeScript results: duplicate benchmark %q", name)
+				return nil, fmt.Errorf("TypeScript results: duplicate benchmark %q", name)
 			}
 			r.bench[name] = ts.bench[name]
 			r.order = append(r.order, name)
 		}
+	}
+	return r, nil
+}
+
+// renderDoc renders the document and computes the figures that other documents quote.
+func renderDoc(root string, data, tsData, sizeData []byte) ([]byte, map[string]string, error) {
+	r, err := mergedResults(data, tsData)
+	if err != nil {
+		return nil, nil, err
 	}
 	var sizes map[string]map[string]float64
 	if sizeData != nil {

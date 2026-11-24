@@ -25,7 +25,7 @@ const (
 	kindTutorial = "tutorial"
 	kindDesign   = "design record"
 	kindOptim    = "optimization record"
-	kindPerf     = "performance document" // docs/performance.md and docs/benchmarks.md
+	kindPerf     = "performance document" // docs/performance.md, docs/benchmarks.md and docs/scoreboard.md
 	kindProject  = "project document"     // everything else under docs/, and README.md
 	kindCode     = "code"                 // Go and TypeScript sources and the directories that hold them
 	kindOther    = "other"                // examples, data files, external links
@@ -69,7 +69,7 @@ func docKind(rel string) string {
 		return kindDesign
 	case under(rel, "docs/optimizations"):
 		return kindOptim
-	case rel == "docs/performance.md", rel == "docs/benchmarks.md":
+	case rel == "docs/performance.md", rel == "docs/benchmarks.md", rel == "docs/scoreboard.md":
 		return kindPerf
 	case under(rel, "docs"), path.Dir(rel) == "." && path.Ext(rel) == ".md":
 		return kindProject
@@ -488,6 +488,7 @@ func TestDirectoryAndSiteLinkKinds(t *testing.T) {
 		{"docs/optimizations/001-a.md", kindOptim},
 		{"docs/performance.md", kindPerf},
 		{"docs/benchmarks.md", kindPerf},
+		{"docs/scoreboard.md", kindPerf},
 		{"spec", kindSpec},
 		{"spec/types", kindSpec},
 		{"spec/language/syntax.md", kindSpec},
