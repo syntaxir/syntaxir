@@ -2,6 +2,7 @@ package print
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	goast "go/ast"
 	"go/format"
@@ -12,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 )
@@ -54,7 +56,71 @@ type libUnit struct {
 
 // pruneLib returns the files of the library for a parser with the features fs whose own files are
 // roots, of which api are those that its users call (shakeLib).
+//
+// Everything up to the declarations that the parser's own text names depends on the library files and
+// the features alone: the feature constant, the guarded statements that go, and the declarations of
+// what is left. It is computed once for each library and feature set (libAnalyses) and shared, since a
+// run of the generator prunes the same library for each of many parsers. The shared analysis is
+// read only: a pruning marks declarations in tables of its own and copies the text it keeps.
 func pruneLib(files []libFile, fs common.FeatureSet, roots, api [][]byte) ([]libFile, error) {
+	a, err := analysisOf(files, fs)
+	if err != nil {
+		return nil, err
+	}
+	return a.shake(roots, api)
+}
+
+// analysisKey identifies the library files and the feature set of a libAnalysis.
+type analysisKey struct {
+	files [sha256.Size]byte
+	fs    common.FeatureSet
+}
+
+// libAnalyses holds the analysis of each library and feature set that pruneLib met. It grows by one
+// entry for each distinct pair: a generator meets a few libraries and the feature sets of its parsers.
+var libAnalyses struct {
+	mu sync.Mutex
+	m  map[analysisKey]*libAnalysis
+}
+
+// analysisOf returns the analysis of the library files for the features fs. Concurrent calls for the
+// same key may both build it; the first stored wins, and the two are equal.
+func analysisOf(files []libFile, fs common.FeatureSet) (*libAnalysis, error) {
+	h := sha256.New()
+	for _, f := range files {
+		fmt.Fprintf(h, "%d %s\n", len(f.data), f.name)
+		h.Write(f.data)
+	}
+	key := analysisKey{fs: fs}
+	h.Sum(key.files[:0])
+	libAnalyses.mu.Lock()
+	a, ok := libAnalyses.m[key]
+	libAnalyses.mu.Unlock()
+	if ok {
+		return a, nil
+	}
+	out, err := setFeatures(files, fs)
+	if err != nil {
+		return nil, err
+	}
+	if a, err = analyzeLib(out); err != nil {
+		return nil, err
+	}
+	libAnalyses.mu.Lock()
+	defer libAnalyses.mu.Unlock()
+	if prev, ok := libAnalyses.m[key]; ok {
+		return prev, nil
+	}
+	if libAnalyses.m == nil {
+		libAnalyses.m = map[analysisKey]*libAnalysis{}
+	}
+	libAnalyses.m[key] = a
+	return a, nil
+}
+
+// setFeatures returns the files with the features of the parser: usedFeatures set to fs, and the
+// statements guarded by a feature that fs lacks dropped.
+func setFeatures(files []libFile, fs common.FeatureSet) ([]libFile, error) {
 	out := make([]libFile, len(files))
 	copy(out, files)
 	found := false
@@ -79,7 +145,7 @@ func pruneLib(files []libFile, fs common.FeatureSet, roots, api [][]byte) ([]lib
 		}
 		out[i].data = data
 	}
-	return shakeLib(out, roots, api)
+	return out, nil
 }
 
 // featureBits maps the names of the library's feature constants to their bits.
@@ -238,6 +304,17 @@ func identifiers(src []byte, add func(string)) {
 	}
 }
 
+// libAnalysis is the declarations of library files, which a pruning reads and never changes: the
+// files, their top-level units and the tables of units by name, by receiver and by method name.
+type libAnalysis struct {
+	files        []libFile
+	units        []*libUnit
+	byName       map[string][]*libUnit
+	isType       map[string]bool
+	methods      map[string][]*libUnit // by receiver type
+	methodsNamed map[string][]*libUnit // by method name
+}
+
 // shakeLib drops the top-level declarations of files that nothing kept names, then the imports
 // that the rest no longer uses, and the files left without declarations. roots are the files of the
 // parser, api the parts of them that its users call (api.go, types.go and the userSurface of
@@ -245,6 +322,15 @@ func identifiers(src []byte, add func(string)) {
 // exported methods of such a type name, are kept, since a user can call them without naming them in
 // the parser.
 func shakeLib(files []libFile, roots, api [][]byte) ([]libFile, error) {
+	a, err := analyzeLib(files)
+	if err != nil {
+		return nil, err
+	}
+	return a.shake(roots, api)
+}
+
+// analyzeLib parses the files into the units of their top-level declarations.
+func analyzeLib(files []libFile) (*libAnalysis, error) {
 	fset := token.NewFileSet()
 	var units []*libUnit
 	for i, f := range files {
@@ -312,6 +398,13 @@ func shakeLib(files []libFile, roots, api [][]byte) ([]libFile, error) {
 			isType[n] = isType[n] || u.isType
 		}
 	}
+	return &libAnalysis{files: files, units: units, byName: byName, isType: isType, methods: methods, methodsNamed: methodsNamed}, nil
+}
+
+// shake keeps what the roots name, and what the units that are kept name in turn, and writes the
+// files without the other declarations. It does not change the analysis.
+func (a *libAnalysis) shake(roots, api [][]byte) ([]libFile, error) {
+	files, units, byName, isType, methods, methodsNamed := a.files, a.units, a.byName, a.isType, a.methods, a.methodsNamed
 	kept := map[*libUnit]bool{}
 	keptType := map[string]bool{}
 	user := map[string]bool{}

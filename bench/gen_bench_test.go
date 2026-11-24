@@ -14,6 +14,7 @@ import (
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/pass"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 )
 
@@ -142,6 +143,43 @@ func BenchmarkRuntimeBackendCompile(b *testing.B) {
 			b.ReportAllocs()
 			for b.Loop() {
 				if _, err := checked.Of(p, pass.Settings{}).Core(nil); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+// BenchmarkGenerationEmbeddedLibrary measures the generation of the Go parsers of testdata/grammars
+// with a copy of the runtime library inside the package (the library embed form), which prunes the
+// library to what each parser can run. It is the generation-time gate of that pruning.
+func BenchmarkGenerationEmbeddedLibrary(b *testing.B) {
+	targets := corpusTargets(b)
+	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
+	if err != nil || len(paths) == 0 {
+		b.Fatalf("no grammars: %v", err)
+	}
+	for _, path := range paths {
+		name := filepath.Base(filepath.Dir(path))
+		ts, ok := targets[name]
+		if !ok {
+			b.Fatalf("generate.txt has no options for %s", name)
+		}
+		src, err := os.ReadFile(path)
+		if err != nil {
+			b.Fatal(err)
+		}
+		g, err := compiletest.Parse(string(src))
+		if err != nil {
+			b.Fatal(err)
+		}
+		target := ts[0]
+		target.Gen.Lib = common.LibEmbed
+		target.Gen = codegentest.WithLib(target.Gen)
+		b.Run(name, func(b *testing.B) {
+			b.ReportAllocs()
+			for b.Loop() {
+				if _, err := generate.Targets(g, target); err != nil {
 					b.Fatal(err)
 				}
 			}
