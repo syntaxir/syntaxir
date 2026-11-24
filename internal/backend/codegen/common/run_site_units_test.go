@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -22,6 +23,9 @@ func TestRunSiteUnitsAgree(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds generated Go and TypeScript parsers")
+	}
+	if !state.BudgetControlsEnabled {
+		t.Skip("the reference build counts no compute units")
 	}
 	codegentest.NeedsBudgetControls(t)
 	cases := codegentest.RunSiteCases(4, true)

@@ -20,6 +20,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/desugar"
 	"syntaxir.dev/sxir/internal/frontend/parser"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/compiletest"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -557,13 +558,17 @@ const equivDifference = "the view differs from the grammar"
 func observe(prog *engine.Program, start, in string) (equivObservation, error) {
 	var o equivObservation
 	found := false
-	opts := engine.ParseOptions{Recognize: true, Limits: runtime.Limits{Compute: 50_000_000},
+	opts := engine.ParseOptions{Recognize: true,
 		TraceSelection: &instrument.TraceSelection{MaxDepth: 1},
 		Trace: func(e instrument.TraceEvent) {
 			if e.Kind == instrument.TraceExit && e.Depth == 1 {
 				o, found = equivObservation{e.Matched, e.End}, true
 			}
 		}}
+	// The reference build has no budget controls, so there a parse runs without a compute limit.
+	if state.BudgetControlsEnabled {
+		opts.Limits = runtime.Limits{Compute: 50_000_000}
+	}
 	_, err := prog.ParseWith(start, in, opts)
 	if le := (*runtime.LimitError)(nil); errors.As(err, &le) {
 		return o, errEquivLimit

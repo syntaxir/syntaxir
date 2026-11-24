@@ -10,6 +10,7 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -46,6 +47,9 @@ const documentFreeScript = `
 // (spec/runtime/parsing.md, Compute Units). As a negative control, the library whose move of a memo
 // entry counts a unit must fail.
 func TestTSDocumentWorkCountsNoUnits(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	const src = `rule main = item*
 rule item = "a"`
 	g, err := parseTest(src)
@@ -129,6 +133,9 @@ const documentGuardScript = `
 // evaluates the alternative in a Document parse, which memoizes k and so counts fewer units where a later
 // alternative calls k again. Both counts must be the engine's.
 func TestTSDocumentGuardsSkipOutsideDocuments(t *testing.T) {
+	if !state.BudgetControlsEnabled {
+		t.Skip("budget controls are unavailable in the reference build")
+	}
 	const src = `rule main = (k "x" / k "y" / "z")*
 rule k = "a"`
 	g, err := parseTest(src)

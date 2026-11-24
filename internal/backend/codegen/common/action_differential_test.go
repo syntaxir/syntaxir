@@ -20,6 +20,7 @@ import (
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/ir/code/exec/ref"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/mutanttest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
@@ -105,7 +106,8 @@ func actionCaseList(cs []codegentest.ActionCase) []codegentest.Case {
 // VM give one value or one error for every generated action expression, in both position units, and that the VMs
 // running the program saved to a file and loaded again give it too. Their charges differ
 // by design today (runtime.Limits: counts depend on backend); the test only requires that every backend
-// reports one and logs how far apart the backends are.
+// reports one and logs how far apart the backends are. The reference build has no budget controls, so
+// there the parses run without a compute limit and only their results are compared.
 func TestActionEngineBackends(t *testing.T) {
 	t.Parallel()
 	// Each seed is a parallel subtest: the seeds share nothing, and the cases of one seed run in order as before.
@@ -115,6 +117,16 @@ func TestActionEngineBackends(t *testing.T) {
 			testActionEngineBackendsSeed(t, seed)
 		})
 	}
+}
+
+// actionBackendOptions gives the options of one backend's parse: a compute limit and report where the build
+// has budget controls, none in the reference build, which refuses them.
+func actionBackendOptions(b engine.Backend, unit input.PositionUnit, used *uint64) engine.ParseOptions {
+	o := engine.ParseOptions{Backend: b, Unit: unit}
+	if state.BudgetControlsEnabled {
+		o.Limits, o.ComputeReport = sxirruntime.Limits{Compute: 1 << 50}, used
+	}
+	return o
 }
 
 func testActionEngineBackendsSeed(t *testing.T, seed uint64) {
@@ -140,10 +152,9 @@ func testActionEngineBackendsSeed(t *testing.T, seed uint64) {
 					// The units the parse counted, reported at its end, also when an action fails it: the
 					// call of a rule counts after the trace reports its entry, which may be the last event.
 					var used uint64
-					n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50},
-						ComputeReport: &used})
+					n, err := prog.ParseWith("main", in, actionBackendOptions(b, unit, &used))
 					got := codegentest.ResultJSON(n, err)
-					if used == 0 {
+					if used == 0 && state.BudgetControlsEnabled {
 						t.Errorf("%s: backend %d reports no charges", c.Name, b)
 					}
 					if b == engine.Closure {
@@ -153,7 +164,7 @@ func testActionEngineBackendsSeed(t *testing.T, seed uint64) {
 					}
 				}
 				for _, b := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
-					n, err := loaded.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50}})
+					n, err := loaded.ParseWith("main", in, actionBackendOptions(b, unit, nil))
 					if got := codegentest.ResultJSON(n, err); got != want {
 						t.Errorf("%s: input %q unit %d: loaded backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
 					}

@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 	"syntaxir.dev/sxir/pkg/runtime"
@@ -19,6 +20,9 @@ import (
 // and compute units on every backend.
 func TestDocumentSessionsAcrossTargets(t *testing.T) {
 	t.Parallel()
+	if !state.BudgetControlsEnabled {
+		t.Skip("the reference build counts no compute units")
+	}
 	codegentest.NeedsBudgetControls(t)
 	tooltest.RequireNode(t)
 	if testing.Short() {

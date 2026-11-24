@@ -13,6 +13,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
 	"syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
@@ -70,6 +71,9 @@ func TestStringComparisonUnitsAgree(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("builds generated Go and TypeScript parsers")
+	}
+	if !state.BudgetControlsEnabled {
+		t.Skip("the reference build counts no compute units")
 	}
 	codegentest.NeedsBudgetControls(t)
 	g, err := parseTest(stringCompareGrammar)

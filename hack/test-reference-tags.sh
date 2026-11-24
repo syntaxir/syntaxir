@@ -11,9 +11,13 @@
 #	hack/test-reference-tags.sh [tag...]
 #
 # Without arguments it checks every tag of the tree: each sxir_ tag named in a build constraint except sxir_long, the
-# long test tier, and sxir_feature_witness, which the tests of generated parsers set themselves. It rejects a given tag that no build constraint names, so a misspelt tag cannot pass as the
-# default build. It exits non-zero when a tag fails to build or pass. A test whose feature a tag removes skips
-# under that tag. Tags run 4 at a time (TAG_JOBS), each with its output printed under its own heading once all have ended.
+# long test tier, and sxir_feature_witness, which the tests of generated parsers set themselves. It rejects a given tag
+# that no build constraint names, so a misspelt tag cannot pass as the default build. The budget-controls reference
+# build (sxir_budget_controls_reference) refuses a parse with a budget control (a context, a compute or memory limit, or
+# a compute report), so under that tag the script also checks every package whose tests name one of those controls,
+# which no build constraint marks. It exits non-zero when a tag fails to build or pass. A test whose feature a tag
+# removes skips under that tag. Tags run 4 at a time (TAG_JOBS), each with its output printed under its own heading
+# once all have ended.
 # The run takes tens of minutes.
 set -u
 cd "$(dirname "$0")/.." || exit 1
@@ -34,16 +38,24 @@ for t in $tags; do
 	[ -n "$ok" ] || { echo "test-reference-tags: $t: not a reference tag of the tree" >&2; exit 2; }
 done
 # Each tag runs in its own subshell, at most TAG_JOBS (default 4) at a time, with its output in a log that is
-# printed, with a heading, after all tags ended, so that the lines of two tags do not mix. The Go build cache is safe
+# printed, with a heading, after all tags ended, so that the lines of two tags do not mix. Tests run with the 45-minute
+# timeout of the root suite (docs/development.md), since the tags load the machine together. The Go build cache is safe
 # under concurrent use; set GOFLAGS=-p=N to bound the compile and test processes of each tag.
 jobs=${TAG_JOBS:-4}
 dir=$(mktemp -d "${TMPDIR:-/tmp}/reference-tags.XXXXXX") || exit 1
 trap 'rm -rf "$dir"' EXIT
+budgetUsers() { # budgetUsers: the Go test files that set a budget control or ask whether the build has them
+	grep -rlE --include='*_test.go' '\b(With)?ComputeReport\b|\bBudgetControlsEnabled\b|\b(Compute|Memory): |\bWithContext\(|\bContext: ' . |
+		grep -v -e '^\./\.' -e '/testdata/'
+}
 check() { # check TAG: vet then test one tag; the status is the result
 	t=$1
-	pkgs=$(constrained -w "^//go:build .*$t" | xargs -n1 dirname | sort -u)
+	pkgs=$({
+		constrained -w "^//go:build .*$t"
+		[ "$t" != sxir_budget_controls_reference ] || budgetUsers
+	} | xargs -n1 dirname | sort -u)
 	go vet -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: vet failed"; return 1; }
-	go test -count=1 -short -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: tests failed"; return 1; }
+	go test -count=1 -short -timeout 45m -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: tests failed"; return 1; }
 }
 n=0
 for t in $tags; do
