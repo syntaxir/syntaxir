@@ -108,46 +108,54 @@ func actionCaseList(cs []codegentest.ActionCase) []codegentest.Case {
 // reports one and logs how far apart the backends are.
 func TestActionEngineBackends(t *testing.T) {
 	t.Parallel()
+	// Each seed is a parallel subtest: the seeds share nothing, and the cases of one seed run in order as before.
 	for seed := uint64(1); seed <= 2*actionBackendSeeds; seed++ {
-		cases, _ := actionSeedCases(t, seed, actionBackendSeeds, true)
-		for _, c := range cases {
-			g, _ := parseTest(c.Src)
-			prog, err := entry.Compile(g, entry.Options{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			data, err := prog.MarshalBinary("main")
-			if err != nil {
-				t.Fatal(err)
-			}
-			loaded, _, err := engine.LoadProgram(data)
-			if err != nil {
-				t.Fatalf("%s: %v", c.Name, err)
-			}
-			for _, in := range c.Inputs {
-				for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-					var want string
-					for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
-						// The units the parse counted, reported at its end, also when an action fails it: the
-						// call of a rule counts after the trace reports its entry, which may be the last event.
-						var used uint64
-						n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50},
-							ComputeReport: &used})
-						got := codegentest.ResultJSON(n, err)
-						if used == 0 {
-							t.Errorf("%s: backend %d reports no charges", c.Name, b)
-						}
-						if b == engine.Closure {
-							want = got
-						} else if got != want {
-							t.Errorf("%s: input %q unit %d: backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
-						}
+		t.Run(fmt.Sprintf("seed%d", seed), func(t *testing.T) {
+			t.Parallel()
+			testActionEngineBackendsSeed(t, seed)
+		})
+	}
+}
+
+func testActionEngineBackendsSeed(t *testing.T, seed uint64) {
+	cases, _ := actionSeedCases(t, seed, actionBackendSeeds, true)
+	for _, c := range cases {
+		g, _ := parseTest(c.Src)
+		prog, err := entry.Compile(g, entry.Options{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, err := prog.MarshalBinary("main")
+		if err != nil {
+			t.Fatal(err)
+		}
+		loaded, _, err := engine.LoadProgram(data)
+		if err != nil {
+			t.Fatalf("%s: %v", c.Name, err)
+		}
+		for _, in := range c.Inputs {
+			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
+				var want string
+				for _, b := range []engine.Backend{engine.Closure, engine.Bytecode, engine.BytecodeIterative} {
+					// The units the parse counted, reported at its end, also when an action fails it: the
+					// call of a rule counts after the trace reports its entry, which may be the last event.
+					var used uint64
+					n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50},
+						ComputeReport: &used})
+					got := codegentest.ResultJSON(n, err)
+					if used == 0 {
+						t.Errorf("%s: backend %d reports no charges", c.Name, b)
 					}
-					for _, b := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
-						n, err := loaded.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50}})
-						if got := codegentest.ResultJSON(n, err); got != want {
-							t.Errorf("%s: input %q unit %d: loaded backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
-						}
+					if b == engine.Closure {
+						want = got
+					} else if got != want {
+						t.Errorf("%s: input %q unit %d: backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
+					}
+				}
+				for _, b := range []engine.Backend{engine.Bytecode, engine.BytecodeIterative} {
+					n, err := loaded.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Limits: sxirruntime.Limits{Compute: 1 << 50}})
+					if got := codegentest.ResultJSON(n, err); got != want {
+						t.Errorf("%s: input %q unit %d: loaded backend %d gives\n %s\nclosure gives\n %s", c.Name, in, unit, b, got, want)
 					}
 				}
 			}
