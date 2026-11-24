@@ -1,7 +1,9 @@
 package print_test
 
 import (
+	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -9,8 +11,10 @@ import (
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
+	"syntaxir.dev/sxir/pkg/runtime/input"
 )
 
 // insertionCases are grammars with #missing and inputs on which a parse inserts missing tokens: in
@@ -74,6 +78,95 @@ func testGeneratedParsersInsertMissingTokens(t *testing.T) {
 	for _, limit := range []int{0, 2, 8} {
 		for _, m := range codegentest.GeneratedParsersInsertionMismatches(t, goBin, cases, common.GenOptions{}, limit, nil) {
 			t.Errorf("limit %d: %s", limit, m)
+		}
+	}
+	parseRuleInsertsMissingTokens(t, goBin)
+}
+
+// parseRuleInsertsMissingTokens checks that ParseRule inserts missing tokens as the engine's parse of the
+// same start rule does: the default start rule, and another start rule that the insertions reach memoized
+// and through recursion, with the limits of missing tokens that insert nothing, some and all.
+func parseRuleInsertsMissingTokens(t *testing.T, goBin string) {
+	t.Helper()
+	const src = "@start(default)\nrule main = a \"x\" / a \"y\" $$\n@start\nrule a = \"(\" b \")\" #missing\nrule b = [a-z]* / \"[\" a \"]\" #missing"
+	inputs := []string{"(b)", "(b", "([(b)]", "([(b]", "([(b", "(", "", "b)"}
+	g, err := parseTest(src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// The generated code projects, as the engine's program without projections shows (check.Options).
+	prog := compileBare(t, src, check.Options{NoProjections: true})
+	code, err := codegentest.GenerateCode(t, g, common.GenOptions{Package: "g", Start: "main"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var want, rows strings.Builder
+	for _, name := range []string{"main", "a"} {
+		for _, in := range inputs {
+			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
+				for _, limit := range []int{0, 2, 8} {
+					n, err := prog.ParseWith(name, in, engine.ParseOptions{Expectations: true, Unit: unit, MissingTokens: limit})
+					fmt.Fprintf(&want, "%s %q %d %d %s\n", name, in, unit, limit, codegentest.ResultJSON(n, err))
+					fmt.Fprintf(&rows, "\t{%q, %q, %d, %d},\n", name, in, unit, limit)
+				}
+			}
+		}
+	}
+	dir := t.TempDir()
+	write := func(name, content string) {
+		t.Helper()
+		path := filepath.Join(dir, name)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("go.mod", codegentest.GoMod("parserule"))
+	write("g/parser.go", string(code))
+	write("main.go", `package main
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"parserule/g"
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+)
+
+var rows = []struct {
+	name, input  string
+	unit, limit int
+}{
+`+rows.String()+`}
+
+func main() {
+	for _, r := range rows {
+		n, err := g.ParseRule(r.name, r.input, g.WithUnit(g.PositionUnit(r.unit)), sxirruntime.WithMissingTokens(r.limit))
+		out := map[string]any{"node": n}
+		if err != nil {
+			out["err"] = err.Error()
+		}
+		b, _ := json.Marshal(out)
+		fmt.Printf("%s %q %d %d %s\n", r.name, r.input, r.unit, r.limit, b)
+	}
+}
+`)
+	cmd := exec.Command(goBin, "run", ".")
+	cmd.Dir = dir
+	cmd.Env = append(os.Environ(), codegentest.GoFlagsEnv, "GOTOOLCHAIN=local")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("go run: %v\n%s", err, out)
+	}
+	got, exp := strings.Split(string(out), "\n"), strings.Split(want.String(), "\n")
+	if len(got) != len(exp) {
+		t.Fatalf("ParseRule printed %d lines, want %d:\n%s", len(got), len(exp), out)
+	}
+	for i := range got {
+		if got[i] != exp[i] {
+			t.Errorf("ParseRule differs from the engine:\n generated %s\n engine    %s", got[i], exp[i])
 		}
 	}
 }
