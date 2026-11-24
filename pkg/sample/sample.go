@@ -173,7 +173,8 @@ func New(p runtime.Parser, opts ...Option) (*Generator, error) {
 	if cs == nil {
 		return nil, errors.New("sample: the parser has no grammar AST")
 	}
-	g := cs.Grammar()
+	// The sampler reads the attributes in their normalized form, such as #recover.
+	g := cs.Normalized()
 	// The sampler works on the rules the parser runs, where an inline action is an anonymous rule.
 	g, names, err := desugar.LowerInlineActions(g)
 	if err != nil {

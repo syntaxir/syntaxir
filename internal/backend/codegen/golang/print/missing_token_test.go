@@ -277,7 +277,7 @@ rule main = "a"`)
 	if n, err := loaded.ParseWith("main", "a", engine.ParseOptions{Backend: engine.Bytecode, MissingTokens: 1}); n == nil || err != nil {
 		t.Fatal("loaded", n, err)
 	}
-	if _, err := codegentest.GenerateCode(t, entry.Checked(prog).Grammar, common.GenOptions{Package: "example", Start: "main"}); err != nil {
+	if _, err := codegentest.GenerateCode(t, entry.Grammar(prog), common.GenOptions{Package: "example", Start: "main"}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -295,7 +295,7 @@ func testMissingTokensTypedDeclarations(t *testing.T) {
 	const recovered = "type S = { E error }\n@start\nrule main = s:(\"a\" #recover(skip=[^;]*)) \";\" $$ => S{E: $s.(error)}\n"
 	inserted := strings.Replace(recovered, `";"`, `";" #missing`, 1)
 	types := func(src string) (string, error) {
-		files, err := codegentest.Generate(t, entry.Checked(mustCompile(t, src)).Grammar, common.GenOptions{Package: "example", Module: "example.com/example", Start: "main", Types: true})
+		files, err := codegentest.Generate(t, entry.Grammar(mustCompile(t, src)), common.GenOptions{Package: "example", Module: "example.com/example", Start: "main", Types: true})
 		if err != nil {
 			return "", err
 		}

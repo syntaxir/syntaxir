@@ -94,14 +94,15 @@ func insertionFlags(prog *Model, facts *RuleFacts, opts Options, control *cancel
 // CheckCanonical checks the canonical grammar g (frontend.Canonicalize) into its semantic model:
 // the rules with their flags, scopes and value-free twins, the types and the expectation table,
 // everything a backend lowers and a generator reads, without building any backend's form (the
-// front end's Result holds it). source is the grammar as written, or nil if it is g, and starts
-// and defaultStart are its start rules. The rule flags come from facts, the facts of g's rules.
-// names receives the hidden rules that the lowering of inline actions generates. If flags is not
-// nil, it skips type checking and the checks of the facts and takes the flags of a compiled
-// grammar instead; facts still give the other rule facts. The front end reports the errors of the
-// start declarations of a grammar that checks, and numbers its sites (frontend.NewResult).
-func CheckCanonical(g, source *ast.Grammar, starts []string, defaultStart string, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Model, error) {
-	prog := NewModel(g, source)
+// front end's Result holds it). normalized is the grammar g is the lowering of, or nil if g is not
+// a lowering (Model.Normalized), and starts and defaultStart are its start rules. The rule flags
+// come from facts, the facts of g's rules. names receives the hidden rules that the lowering of
+// inline actions generates. If flags is not nil, it skips type checking and the checks of the
+// facts and takes the flags of a compiled grammar instead; facts still give the other rule facts.
+// The front end reports the errors of the start declarations of a grammar that checks, and
+// numbers its sites (frontend.NewResult).
+func CheckCanonical(g, normalized *ast.Grammar, starts []string, defaultStart string, opts Options, flags []RuleFlags, names desugar.InlineNames, facts *RuleFacts, control *cancel.Control) (*Model, error) {
+	prog := NewModel(g, normalized)
 	prog.DescTable = append([]string(nil), core.FixedDescs...)
 	c := &Compiler{Control: control, Model: prog, opts: opts}
 	if control != nil {

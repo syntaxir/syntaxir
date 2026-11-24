@@ -63,7 +63,7 @@ func TestFormatMinimumIntegerVariable(t *testing.T) {
 	t.Parallel()
 	src := "var v int = " + strconv.Itoa(-int(^uint(0)>>1)-1) + "\n\ntype N = { V int }\n\n@start\nrule main N = \"a\" => N{V: v}\n"
 	before := enginetest.MustCompile(t, src, check.Options{})
-	source := fmt.Format(entry.Checked(before).Grammar)
+	source := fmt.Format(entry.Grammar(before))
 	if source != src {
 		t.Errorf("Format: got\n%s\nwant\n%s", source, src)
 	}

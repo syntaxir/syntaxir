@@ -162,11 +162,17 @@ func (s *Source) Schema() schemaexport.Source {
 	return schemaexport.Source{Model: s.prog.Model, Checker: s.prog.Checker(), SourceInfo: s.prog.RecordsSourceInfo}
 }
 
-// Grammar returns the grammar the program was compiled from: the grammar as written, without the
-// hidden rules that inline actions are lowered to.
-func (s *Source) Grammar() *ast.Grammar {
-	if s.prog.Source != nil {
-		return s.prog.Source
+// Grammar returns the grammar the program was compiled from, as written: it passes grammar
+// validation and compiles again to the same program.
+func (s *Source) Grammar() *ast.Grammar { return s.prog.Input }
+
+// Normalized returns the grammar the program was compiled from with its attributes normalized
+// (frontend.Canonical.Normalized), without the hidden rules that inline actions are lowered to. It
+// holds forms that only the compiler writes, such as #recover with its skip expression, so it is
+// not input to the compiler.
+func (s *Source) Normalized() *ast.Grammar {
+	if s.prog.Normalized != nil {
+		return s.prog.Normalized
 	}
 	return s.prog.Grammar
 }

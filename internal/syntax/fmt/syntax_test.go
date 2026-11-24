@@ -67,7 +67,7 @@ func TestFormatSyntaxNormalizedPragmas(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	normalized := entry.Grammar(p.Program())
+	normalized := entry.Source(p.Program()).Normalized()
 	before, _ := ast.MarshalJSON(normalized)
 	if out := fmt.FormatSyntax(normalized); !strings.Contains(out, "#stream") {
 		t.Fatalf("normalized #stream lost: %s", out)

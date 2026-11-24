@@ -80,7 +80,7 @@ func Derive(prog *Result, opts check.Options, flags []check.RuleFlags, facts Fac
 	if opts.DefaultValue != prog.Opts.DefaultValue || opts.EagerAttributeCopies != prog.Opts.EagerAttributeCopies {
 		return nil, fmt.Errorf("internal error: a derived program changes the options that canonicalize the grammar")
 	}
-	canon := &Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules, DefaultStart: prog.DefaultStartRule}
+	canon := &Canonical{Grammar: prog.Grammar, Normalized: prog.Normalized, Starts: prog.StartRules, DefaultStart: prog.DefaultStartRule}
 	r, _, err := checkCanonical(prog.Input, structuralFrom(canon, control), opts, flags, prog.InlineNames, facts, control)
 	return r, err
 }
@@ -98,7 +98,7 @@ func checkCanonical(g *ast.Grammar, s *Structural, opts check.Options, flags []c
 		ruleFacts = &check.RuleFacts{Rules: make([]check.RuleFact, len(s.Rules))}
 	}
 	c := s.Canonical
-	prog, err := check.CheckCanonical(c.Grammar, c.Source, c.Starts, c.DefaultStart, opts, flags, names, ruleFacts, control)
+	prog, err := check.CheckCanonical(c.Grammar, c.Normalized, c.Starts, c.DefaultStart, opts, flags, names, ruleFacts, control)
 	if err == nil && len(c.StartErrors) > 0 {
 		// The start rules and the other declaration attributes are reported once the grammar is
 		// otherwise valid.
@@ -161,7 +161,7 @@ func CheckDefault(g *ast.Grammar, names desugar.InlineNames, facts FactSource, c
 // structuralOf builds the structural module of the rules of prog, a program that the compiler
 // accepted, from its canonical grammar, which it does not canonicalize again.
 func structuralOf(prog *check.Model, control *cancel.Control) (*Structural, error) {
-	canon := &Canonical{Grammar: prog.Grammar, Source: prog.Source, Starts: prog.StartRules,
+	canon := &Canonical{Grammar: prog.Grammar, Normalized: prog.Normalized, Starts: prog.StartRules,
 		DefaultStart: prog.DefaultStartRule}
 	defs, _ := desugar.UniqueRules(canon.Grammar, control)
 	m, err := elaborate.Structural(elaborate.StructuralInput(canon.Grammar, defs, canon.Starts), true)

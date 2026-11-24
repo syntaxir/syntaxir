@@ -14,8 +14,9 @@ import (
 type Canonical struct {
 	// Grammar is the grammar the program runs.
 	Grammar *ast.Grammar
-	// Source is the grammar as written, normalized, or nil if Grammar is the one as written.
-	Source *ast.Grammar
+	// Normalized is the grammar as written with its attributes normalized, without the hidden
+	// rules that inline actions are lowered to; nil if Grammar is that grammar.
+	Normalized *ast.Grammar
 	// Starts are the start rules in order, and DefaultStart is the one used when none is named.
 	Starts       []string
 	DefaultStart string
@@ -33,7 +34,7 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 		}
 	}
 	// The inline actions are checked as written, then lowered to hidden rules. A program keeps
-	// the grammar as written, whatever its options, for checked.Source.Grammar.
+	// the grammar as written, whatever its options, normalized (Canonical.Normalized).
 	source := g
 	if desugar.HasInlineAction(g, control) {
 		if errs := desugar.UndeclaredRules(g, control); errs != nil {
@@ -126,5 +127,5 @@ func Canonicalize(g *ast.Grammar, opts check.Options, names desugar.InlineNames,
 			return nil, normalizationError
 		}
 	}
-	return &Canonical{Grammar: g, Source: source, Starts: starts, DefaultStart: defaultStart, StartErrors: startErrors}, nil
+	return &Canonical{Grammar: g, Normalized: source, Starts: starts, DefaultStart: defaultStart, StartErrors: startErrors}, nil
 }

@@ -15,9 +15,11 @@ import (
 // model without a grammar.
 type Model struct {
 	Grammar *ast.Grammar
-	// Source is the grammar as written when Grammar is its lowering (inline actions replaced by
-	// hidden rules); nil when Grammar is the grammar itself.
-	Source *ast.Grammar
+	// Normalized is the grammar as written with its attributes normalized (frontend.Canonical) when
+	// Grammar is its lowering (inline actions replaced by hidden rules, or its default-value form);
+	// nil when Grammar is that grammar. Neither is the grammar as written: they hold forms that only
+	// the compiler writes, which grammar validation rejects.
+	Normalized *ast.Grammar
 	// Types holds the type declarations by name.
 	Types map[string]ast.TypeDecl
 	// Vars holds the declared variables (nil if there are none).
@@ -67,10 +69,10 @@ type Model struct {
 	checkerOnce sync.Once
 }
 
-// NewModel returns a model of the grammar g, whose lowering of source it is (nil if g is the
-// grammar as written), with no type declarations or rules yet.
-func NewModel(g, source *ast.Grammar) *Model {
-	return &Model{Grammar: g, Source: source, Types: map[string]ast.TypeDecl{}, ByName: map[string]*Rule{}}
+// NewModel returns a model of the grammar g, which is the lowering of normalized (nil if g is
+// not a lowering, Model.Normalized), with no type declarations or rules yet.
+func NewModel(g, normalized *ast.Grammar) *Model {
+	return &Model{Grammar: g, Normalized: normalized, Types: map[string]ast.TypeDecl{}, ByName: map[string]*Rule{}}
 }
 
 // ResolveStart returns the rule name selects: name, or the default start rule when name is

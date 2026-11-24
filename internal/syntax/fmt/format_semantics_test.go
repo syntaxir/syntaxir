@@ -32,7 +32,7 @@ func TestFormatPreservesMinusSemantics(t *testing.T) {
 		t.Run(src, func(t *testing.T) {
 			for _, options := range []check.Options{{}, {DisableMemo: true}} {
 				before := enginetest.MustCompile(t, src, options)
-				after := enginetest.MustCompile(t, fmt.Format(entry.Checked(before).Grammar), options)
+				after := enginetest.MustCompile(t, fmt.Format(entry.Grammar(before)), options)
 				for _, input := range []string{"", "a", "b", "aa", "ab", "ac"} {
 					enginetest.CheckBackends(t, before, "main", input)
 					enginetest.CheckBackends(t, after, "main", input)
