@@ -1,12 +1,12 @@
-package engine
+package state_test
 
 import (
 	"fmt"
 	"runtime"
 	"strings"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"testing"
 
-	checkpkg "syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
@@ -14,15 +14,8 @@ import (
 // or all rows retained. Input and compiled-program storage precede the
 // baseline GC and are held through the final GC in both variants.
 func BenchmarkStreamTextRetainedHeap(b *testing.B) {
-	g, err := parseTest(`rule main = row* #stream $$
+	prog := enginetest.CompileBare(b, `rule main = row* #stream $$
 rule row = key:[a-z]+ #atomic "=" value:[0-9]+ #atomic "\n"`)
-	if err != nil {
-		b.Fatal(err)
-	}
-	prog, err := Compile(g, checkpkg.Options{})
-	if err != nil {
-		b.Fatal(err)
-	}
 	if err := prog.ParseStream("main", strings.NewReader("warm=1\n"), func(*value.Node) error { return nil }); err != nil {
 		b.Fatal(err)
 	}

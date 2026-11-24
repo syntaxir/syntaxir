@@ -1,8 +1,10 @@
-package engine
+package state_test
 
 import (
 	"fmt"
 	"io"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/testing/codegentest"
@@ -31,7 +33,7 @@ func (r *streamChunkReader) Read(b []byte) (int, error) {
 // reader on every backend, and the predicates of the grammar hold where the cut texts say they do.
 func TestStreamTextCutAtCommit(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, codegentest.StreamTextCommitGrammar)
+	prog := enginetest.MustCompile(t, codegentest.StreamTextCommitGrammar)
 	for k, in := range codegentest.StreamTextCommitInputs {
 		for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 			var first string
@@ -65,12 +67,12 @@ func TestStreamTextCutAtCommit(t *testing.T) {
 // whole head, 3 code points or 4 bytes, compared in 4 bytes; on every backend and chunking.
 func TestStreamTextUnits(t *testing.T) {
 	t.Parallel()
-	texts := mustCompile(t, `@start
+	texts := enginetest.MustCompile(t, `@start
 rule main = h:head item* #stream ("!" {text($h) == ""} / "?" {text($h) == "hé>"})
 rule head = [a-zé]+ ">"
 rule item = [a-zé]+ ";"
 `)
-	none := mustCompile(t, `@start
+	none := enginetest.MustCompile(t, `@start
 rule main = h:head item* #stream ("!" {true} / "?" {true})
 rule head = [a-zé]+ ">"
 rule item = [a-zé]+ ";"

@@ -122,13 +122,17 @@ GOMAXPROCS=4 /tmp/sxir-stream-text-engine-candidate.test -test.run='^$' \
 ```
 
 The retained-heap check uses one iteration of
-`BenchmarkStreamTextRetainedHeap` from the same-source reference and default
-engine binaries in five alternating rounds:
+`BenchmarkStreamTextRetainedHeap`, which lives in the state package, from the
+same-source reference and default state test binaries in five alternating
+rounds:
 
 ```sh
-GOMAXPROCS=4 /tmp/sxir-stream-text-engine-reference.test -test.run='^$' \
+go test -c -o /tmp/sxir-stream-text-state-candidate.test ./internal/runtime/state
+go test -tags=sxir_reference_stream_text -c \
+  -o /tmp/sxir-stream-text-state-reference.test ./internal/runtime/state
+GOMAXPROCS=4 /tmp/sxir-stream-text-state-reference.test -test.run='^$' \
   -test.bench='^BenchmarkStreamTextRetainedHeap$' -test.benchtime=1x
-GOMAXPROCS=4 /tmp/sxir-stream-text-engine-candidate.test -test.run='^$' \
+GOMAXPROCS=4 /tmp/sxir-stream-text-state-candidate.test -test.run='^$' \
   -test.bench='^BenchmarkStreamTextRetainedHeap$' -test.benchtime=1x
 ```
 

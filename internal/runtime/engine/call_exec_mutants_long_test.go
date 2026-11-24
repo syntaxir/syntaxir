@@ -472,7 +472,7 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"two units before the element are kept",
 			[]printedEdit{{"p.Discard(pos - 1)", "p.Discard(pos - 2)"}}, stack, vm},
 		{"text is not cut at the commit point",
-			[]printedEdit{{"\tp.TextFloor = pos\n", ""}}, "^TestStreamTextCutAtCommit$", here},
+			[]printedEdit{{"\tp.TextFloor = pos\n", ""}}, "^TestStreamTextCutAtCommit$", inCore},
 		{"what the elements held is not released",
 			[]printedEdit{{"\tp.streamRelease()\n", ""}}, storage, vm},
 		{"a whole window does not prune", []printedEdit{{window, "pos-p.Memo.Base > 1024"}}, slide, inCore},

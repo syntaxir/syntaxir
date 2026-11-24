@@ -9,9 +9,9 @@ import (
 )
 
 var (
-	engineTextCommitRun    = engineObservationRun{"./internal/runtime/engine", "TestStreamTextCutAtCommit", ""}
+	engineTextCommitRun    = engineObservationRun{"./internal/runtime/state", "TestStreamTextCutAtCommit", ""}
 	generatedTextCommitRun = engineObservationRun{"./internal/backend/codegen/golang/print", "TestGeneratedStreamTextCutAtCommit", ""}
-	engineTextUnitsRun     = engineObservationRun{"./internal/runtime/engine", "TestStreamTextUnits", ""}
+	engineTextUnitsRun     = engineObservationRun{"./internal/runtime/state", "TestStreamTextUnits", ""}
 )
 
 // streamTextCommitMutants cut a text in a stream at the base the discard left instead of the last

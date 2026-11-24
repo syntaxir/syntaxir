@@ -7,12 +7,9 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/frontend/check"
-	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 )
-
-var vmBackends = []engine.Backend{engine.Bytecode, engine.BytecodeIterative}
 
 // TestVMFamilyCharges pins the compute units (the least compute limit) of every kind of parse on
 // both VMs, traced and untraced. A call counts the same units on the plain path and through

@@ -1,10 +1,12 @@
-package engine
+package state_test
 
 import (
 	"bufio"
 	"fmt"
 	"math/rand/v2"
 	"strings"
+	. "syntaxir.dev/sxir/internal/runtime/engine"
+	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/nodes"
@@ -126,7 +128,7 @@ func TestStreamTextSnapshotDoesNotReadAhead(t *testing.T) {
 
 func TestStreamTextSnapshotRetainedMalformedResults(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, `rule main = rows:row* #stream $$
+	prog := enginetest.MustCompile(t, `rule main = rows:row* #stream $$
 rule row = x:(!"\n" .)+ #atomic "\n"`)
 	text := strings.Repeat("é😀a\xff\xc0z\n", 700)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
@@ -157,7 +159,7 @@ rule row = x:(!"\n" .)+ #atomic "\n"`)
 
 func TestStreamTextSnapshotSplitUTF8(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, `rule main = rows:row* #stream $$
+	prog := enginetest.MustCompile(t, `rule main = rows:row* #stream $$
 rule row = x:(!"\n" .)+ #atomic "\n"`)
 	text := strings.Repeat(strings.Repeat("é😀\xff\xc0a", 40)+"\n", 30)
 	for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
