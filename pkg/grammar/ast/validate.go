@@ -34,16 +34,18 @@ type validationFrame struct {
 	exit  bool
 }
 
-// Validate checks required children,
-// repetition and character-range bounds, and pointer cycles without mutating g.
-// It returns the first *ValidationError in deterministic depth-first order,
-// checking a node's bounds before its children, or nil.
+// Validate checks required children, names, repetition and character-range
+// bounds, and pointer cycles without mutating g, and rejects every tree that
+// grammar syntax cannot write, so that Format of a valid AST parses. It returns
+// the first *ValidationError in deterministic depth-first order, checking a
+// node's bounds and placement before its children, or nil.
 //
 // Optional children may be nil, but an interface containing a nil pointer is
-// invalid. Shared subtrees are allowed. Empty collections and any negative
-// Repeat.Max retain their existing meanings. Source layout is not checked.
-// Name resolution, types, attributes and OperatorsRule semantics are checked by the
-// compiler. Validation does not impose a size or depth limit.
+// invalid. Shared subtrees are allowed. A collection may be empty where grammar
+// syntax writes it empty; any negative Repeat.Max means unbounded. Source
+// layout is not checked. Name resolution, types, attribute arguments and
+// OperatorsRule semantics are checked by the compiler. Validation does not
+// impose a size or depth limit.
 func Validate(g *Grammar) error {
 	return validate(g, nil)
 }
@@ -98,10 +100,64 @@ func (c *validationControl) check() {
 	}
 }
 
+// visitKey identifies a checked node: a node shared under lambdas with
+// different parameters is checked once in each parameter scope.
+type visitKey struct {
+	node  any
+	scope *paramScope
+}
+
+// paramScope is the set of lambda parameter names in scope. Scopes are interned
+// by their names, so a pointer cycle through a lambda revisits the same key.
+type paramScope struct {
+	names map[string]bool
+}
+
 func validate(g *Grammar, control *validationControl) error {
 	stack := []validationFrame{{node: g, index: -1}}
 	var path []validationFrame
-	seen := make(map[any]uint8)
+	// active holds the nodes on the current path, which a pointer cycle
+	// reaches again; done holds the nodes checked in a parameter scope.
+	active := make(map[any]bool)
+	done := make(map[visitKey]bool)
+	var scopes []*paramScope
+	interned := map[string]*paramScope{}
+	scope := func() *paramScope {
+		if len(scopes) == 0 {
+			return nil
+		}
+		return scopes[len(scopes)-1]
+	}
+	enterLambda := func(l *Lambda) {
+		names := map[string]bool{}
+		if s := scope(); s != nil {
+			for name := range s.names {
+				control.poll()
+				names[name] = true
+			}
+		}
+		for _, name := range l.Params {
+			control.poll()
+			names[name] = true
+		}
+		keys := make([]string, 0, len(names))
+		for name := range names {
+			control.poll()
+			keys = append(keys, name)
+		}
+		sort.Strings(keys)
+		key := strings.Join(keys, ",")
+		s, ok := interned[key]
+		if !ok {
+			s = &paramScope{names: names}
+			interned[key] = s
+		}
+		scopes = append(scopes, s)
+	}
+	inScope := func(name string) bool {
+		s := scope()
+		return s != nil && s.names[name]
+	}
 	fail := func(field, message string) error {
 		var b strings.Builder
 		b.WriteByte('$')
@@ -143,7 +199,11 @@ func validate(g *Grammar, control *validationControl) error {
 		f := stack[len(stack)-1]
 		stack = stack[:len(stack)-1]
 		if f.exit {
-			seen[f.node] = 2
+			if _, ok := f.node.(*Lambda); ok {
+				scopes = scopes[:len(scopes)-1]
+			}
+			delete(active, f.node)
+			done[visitKey{f.node, scope()}] = true
 			path = path[:len(path)-1]
 			continue
 		}
@@ -171,6 +231,16 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		if field, kind, name := literalName(f.node); field != "" {
 			return fail(field, kind+" name "+name+" is reserved; it is a literal")
+		}
+		var parent, grandparent validationFrame
+		if len(path) >= 2 {
+			parent = path[len(path)-2]
+		}
+		if len(path) >= 3 {
+			grandparent = path[len(path)-3]
+		}
+		if field, message := unwritable(f, parent, grandparent, inScope); message != "" {
+			return fail(field, message)
 		}
 		// Leaf nodes need no cycle tracking. Non-leaf nodes stay active until
 		// their exit frame, distinguishing a pointer cycle from a shared child.
@@ -251,15 +321,18 @@ func validate(g *Grammar, control *validationControl) error {
 				return fail("action", "default action cannot also contain an action expression")
 			}
 		}
-		if seen[f.node] == 1 {
+		if active[f.node] {
 			return fail("", "pointer cycle in grammar AST")
 		}
-		if seen[f.node] == 2 {
+		if done[visitKey{f.node, scope()}] {
 			path = path[:len(path)-1]
 			continue
 		}
-		seen[f.node] = 1
+		active[f.node] = true
 		stack = append(stack, validationFrame{node: f.node, exit: true})
+		if l, ok := f.node.(*Lambda); ok {
+			enterLambda(l)
+		}
 		// Push children in reverse order so diagnostics visit source order.
 		switch n := f.node.(type) {
 		case *Grammar:
@@ -595,4 +668,183 @@ func literalName(node any) (field, kind, name string) {
 		}
 	}
 	return "", "", ""
+}
+
+// unwritable reports a node that grammar syntax cannot write where it stands, so
+// that Format of a valid AST always parses: a node of a kind or with a field
+// value that has no spelling, or one whose spelling would read back as another
+// node. f is the node's frame; parent and grandparent are its ancestors' frames,
+// zero at the root, and inScope reports the parameters of enclosing lambdas.
+func unwritable(f, parent, grandparent validationFrame, inScope func(string) bool) (field, message string) {
+	isLiteral := func(s string) bool { return s == "true" || s == "false" || s == "nil" }
+	switch n := f.node.(type) {
+	case *Seq:
+		if len(n.Items) == 0 {
+			return "items", "a sequence needs at least one item"
+		}
+	case *Choice:
+		if len(n.Alts) == 0 {
+			return "alts", "a choice needs at least one alternative"
+		}
+	case *Attributed:
+		if len(n.Attrs) == 0 {
+			return "attrs", "an attributed expression needs at least one attribute"
+		}
+	case *Attribute:
+		if !n.Pragma {
+			break
+		}
+		if _, ok := parent.node.(*Attributed); !ok {
+			return "pragma", "a pragma follows a parser expression; a declaration takes @ attributes"
+		}
+		if n.Name != "ignorecase" && n.Name != "missing" {
+			return "name", "unknown pragma #" + n.Name + ": the pragmas held as attributes are #ignorecase and #missing"
+		}
+		if len(n.Args) != 0 || len(n.KwArgs) != 0 {
+			return "args", "#" + n.Name + " takes no arguments"
+		}
+	case *OperatorsRule:
+		if _, ok := parent.node.(*RuleDef); ok && f.field == "expr" {
+			break
+		}
+		if a, ok := parent.node.(*Attributed); ok && f.field == "expr" && parent.field == "expr" {
+			if _, ok := grandparent.node.(*RuleDef); ok && ignoreCaseOnly(a.Attrs) {
+				break
+			}
+		}
+		return "", "an Operators Rule is the whole body of a rule, followed by no pragma other than #ignorecase"
+	case *OperatorsRuleOperator:
+		switch n.Kind {
+		case Prefix, Postfix:
+			if n.Assoc != "" {
+				return "assoc", "only an infix operator has an associativity"
+			}
+		case Infix:
+			switch n.Assoc {
+			case AssocLeft, AssocRight, AssocNone:
+			default:
+				return "assoc", "an infix operator has the associativity left, right or none"
+			}
+		default:
+			return "kind", "an operator is prefix, postfix or infix"
+		}
+	case *TypeRef:
+		if replacement, ok := valueTypeNames[n.Name]; ok {
+			return "name", n.Name + " is not a type; write " + replacement
+		}
+		if n.Name == "node" {
+			return "name", "node takes a type argument: write node[T] with the type T of the node's value"
+		}
+	case *TypeApp:
+		if replacement, ok := valueTypeNames[n.Name]; ok {
+			return "name", n.Name + " is not a type; write " + replacement
+		}
+		if len(n.Args) == 0 {
+			return "args", "a type application needs at least one type argument"
+		}
+	case *JoinType:
+		if len(n.Types) < 2 {
+			return "types", "a join type needs at least two types"
+		}
+	case *MeetType:
+		if len(n.Types) < 2 {
+			return "types", "a meet type needs at least two types"
+		}
+	case *Block:
+		if f.field == "action" {
+			switch parent.node.(type) {
+			case *RuleDef, *InlineAction, *Predicate, *OperatorsRuleOperand, *OperatorsRuleOperator:
+				return "", ""
+			}
+		}
+		return "", "a block is the whole action of a rule, an inline action, a predicate, or an operand or operator line"
+	case *Bind:
+		switch parent.node.(type) {
+		case *Block:
+			return "", ""
+		case *Predicate:
+			if f.field == "action" {
+				return "", ""
+			}
+		}
+		return "", "a binding is a statement of a block or a predicate"
+	case *CaptureRef:
+		if n.Param && !inScope(n.Name) {
+			return "param", "no enclosing lambda has the parameter " + n.Name
+		}
+		if !n.Param && inScope(n.Name) {
+			return "param", n.Name + " is a parameter of an enclosing lambda, which is read without $: set param"
+		}
+	case *VarRef:
+		if isLiteral(n.Name) {
+			return "name", "variable name " + n.Name + " is reserved; it is a literal"
+		}
+		if inScope(n.Name) {
+			return "name", n.Name + " is a parameter of an enclosing lambda: read it with a CaptureRef that sets param"
+		}
+	case *Call:
+		if isLiteral(n.Func) {
+			return "func", "function name " + n.Func + " is reserved; it is a literal"
+		}
+	case *Constructor:
+		if isLiteral(n.Type) {
+			return "type", "type name " + n.Type + " is reserved; it is a literal"
+		}
+	case *FieldAccess:
+		if capturesMember(n.Name) {
+			return "name", "a capture is read with .$" + n.Name + "; a field name begins with an uppercase letter"
+		}
+	case *Binary:
+		if _, ok := binaryOperators[n.Op]; !ok {
+			return "op", "unknown binary operator " + strconv.Quote(n.Op)
+		}
+	case *Unary:
+		if n.Op != "-" && n.Op != "!" {
+			return "op", "unknown prefix operator " + strconv.Quote(n.Op) + ": the prefix operators are - and !"
+		}
+	}
+	return "", ""
+}
+
+// ignoreCaseOnly reports whether attrs are all the pragma #ignorecase.
+func ignoreCaseOnly(attrs []*Attribute) bool {
+	for _, a := range attrs {
+		if a == nil || !a.Pragma || a.Name != "ignorecase" {
+			return false
+		}
+	}
+	return true
+}
+
+// capturesMember reports whether the field access x.name would read as the
+// capture name in earlier syntax, which the parser rejects: a field name begins
+// with an uppercase letter, a capture is $name, and startPos, endPos, children,
+// expected and message are members of every node or of Missing.
+func capturesMember(name string) bool {
+	switch name {
+	case "startPos", "endPos", "children", "expected", "message", "":
+		return false
+	}
+	c := name[0]
+	return c != '$' && !(c >= 'A' && c <= 'Z')
+}
+
+// valueTypeNames maps the reserved names of concrete syntax tree types, which
+// grammar syntax rejects as types, to the value types that replace them.
+var valueTypeNames = map[string]string{
+	"terminal": "node[string]",
+	"Match":    "node[string]",
+	"Seq":      "node[_]",
+	"List":     "node[_]",
+	"Operator": "node[_]",
+	"Error":    "error",
+	"Missing":  "missing",
+}
+
+// binaryOperators are the binary operators of actions; [] is the index x[i].
+var binaryOperators = map[string]struct{}{
+	"||": {}, "&&": {},
+	"==": {}, "!=": {}, "<": {}, "<=": {}, ">": {}, ">=": {},
+	"+": {}, "-": {}, "*": {}, "/": {}, "%": {},
+	"[]": {},
 }

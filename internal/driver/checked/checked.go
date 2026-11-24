@@ -326,7 +326,13 @@ func (s *Source) Insertion() (state.Source, error) {
 func (s *Source) again(role driver.Role, derive func(*check.Options), flags []check.RuleFlags) (state.Source, error) {
 	o := s.prog.Opts
 	derive(&o)
-	d, err := Check(s.Grammar(), Options{Compile: o, Settings: s.settings, Debug: s.debug}, flags, nil)
+	// The grammar as given is checked again: the normalized forms that the program holds are
+	// the compiler's own, which structural validation does not accept as input.
+	g := s.prog.Input
+	if g == nil {
+		g = s.Grammar()
+	}
+	d, err := Check(g, Options{Compile: o, Settings: s.settings, Debug: s.debug}, flags, nil)
 	if err != nil {
 		return nil, err
 	}

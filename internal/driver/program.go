@@ -197,10 +197,9 @@ func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, fu
 	if err != nil {
 		return nil, nil, err
 	}
-	source := prog.Grammar
-	if prog.Source != nil {
-		source = prog.Source
-	}
+	// The derived programs check the grammar as given: the normalized grammar of prog holds
+	// attributes that only the checker writes, which grammar validation rejects.
+	source := g
 	recognizer := func(p *frontend.Result) (*frontend.Result, error) {
 		o := p.Opts
 		o.Recognition = check.Recognize

@@ -47,6 +47,10 @@ type Result struct {
 	// took its rule facts, with the manager of its analyses, which holds them, and which carries the
 	// checked types of the program. The complexity classifier reads it. It is nil when Module is.
 	Structural *Structural
+	// Input is the grammar that Check was given, which a program built again from this one, such
+	// as its recognizer, checks again: Grammar and Source are the compiler's normalized forms,
+	// which are not input. It is nil in a Result made otherwise.
+	Input *ast.Grammar
 }
 
 // RunDefault is Run with the default options, for the tools that check a grammar without

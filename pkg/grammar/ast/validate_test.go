@@ -33,7 +33,7 @@ func TestValidateRequiredChildren(t *testing.T) {
 		{"action group", actionGrammar(&ActionGroup{}), "$.file.decls[0].action.action"},
 		{"list", typeGrammar(&ListType{}), "$.file.decls[0].type.elem"},
 		{"optional type", typeGrammar(&OptionalType{}), "$.file.decls[0].type.elem"},
-		{"join", typeGrammar(&JoinType{Types: []TypeExpr{nil}}), "$.file.decls[0].type.types[0]"},
+		{"join", typeGrammar(&JoinType{Types: []TypeExpr{nil, &TypeRef{Name: "int"}}}), "$.file.decls[0].type.types[0]"},
 		{"sequence", expressionGrammar(&Seq{Items: []Expr{nil}}), "$.file.decls[0].expr.items[0]"},
 		{"choice", expressionGrammar(&Choice{Alts: []Expr{nil}}), "$.file.decls[0].expr.alts[0]"},
 		{"repeat", expressionGrammar(&Repeat{}), "$.file.decls[0].expr.expr"},
@@ -44,7 +44,7 @@ func TestValidateRequiredChildren(t *testing.T) {
 		{"discard", expressionGrammar(&Discard{}), "$.file.decls[0].expr.expr"},
 		{"capture", expressionGrammar(&Capture{Name: "value"}), "$.file.decls[0].expr.expr"},
 		{"predicate", expressionGrammar(&Predicate{}), "$.file.decls[0].expr.action"},
-		{"attributed expression", expressionGrammar(&Attributed{}), "$.file.decls[0].expr.expr"},
+		{"attributed expression", expressionGrammar(&Attributed{Attrs: []*Attribute{{Name: "x"}}}), "$.file.decls[0].expr.expr"},
 		{"attribute", expressionGrammar(&Attributed{Expr: &Top{}, Attrs: []*Attribute{nil}}), "$.file.decls[0].expr.attrs[0]"},
 		{"attribute argument", expressionGrammar(&Attributed{Expr: &Top{}, Attrs: []*Attribute{{Name: "error", Args: []any{&Repeat{}}}}}), "$.file.decls[0].expr.attrs[0].args[0].expr"},
 		{"attribute value", expressionGrammar(&Attributed{Expr: &Top{}, Attrs: []*Attribute{{Name: "error", Args: []any{&IntLit{Value: 1}}}}}), "$.file.decls[0].expr.attrs[0].args[0]"},
@@ -65,7 +65,7 @@ func TestValidateRequiredChildren(t *testing.T) {
 		{"bind", expressionGrammar(&Predicate{Action: &Bind{Name: "x"}}), "$.file.decls[0].expr.action.value"},
 		{"conflicting rule default", &Grammar{File: File{Decls: []Decl{&RuleDef{Name: "main", Expr: &Top{}, DefaultAction: true, Action: &NilLit{}}}}}, "$.file.decls[0].action"},
 		{"conflicting operand default", expressionGrammar(&OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Top{}, DefaultAction: true, Action: &NilLit{}}}}), "$.file.decls[0].expr.operands[0].action"},
-		{"conflicting operator default", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Expr: &Top{}, DefaultAction: true, Action: &NilLit{}}}}}}), "$.file.decls[0].expr.levels[0].operators[0].action"},
+		{"conflicting operator default", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Kind: Infix, Assoc: AssocLeft, Expr: &Top{}, DefaultAction: true, Action: &NilLit{}}}}}}), "$.file.decls[0].expr.levels[0].operators[0].action"},
 		{"recovery body", expressionGrammar(&Recovery{Skip: &Top{}}), "$.file.decls[0].expr.expr"},
 		{"recovery skip", expressionGrammar(&Recovery{Expr: &Top{}}), "$.file.decls[0].expr.skip"},
 		{"stream body", expressionGrammar(&Stream{}), "$.file.decls[0].expr.expr"},
@@ -129,7 +129,7 @@ func TestValidateTypedNil(t *testing.T) {
 		{"rule type", &Grammar{File: File{Decls: []Decl{&RuleDef{Name: "p", Type: (*TypeRef)(nil), Expr: &Top{}}}}}, "$.file.decls[0].type"},
 		{"skip", expressionGrammar(&OperatorsRule{Skip: (*Top)(nil)}), "$.file.decls[0].expr.skip"},
 		{"operand action", expressionGrammar(&OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Top{}, Action: (*NilLit)(nil)}}}), "$.file.decls[0].expr.operands[0].action"},
-		{"operator action", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Expr: &Top{}, Action: (*NilLit)(nil)}}}}}), "$.file.decls[0].expr.levels[0].operators[0].action"},
+		{"operator action", expressionGrammar(&OperatorsRule{Levels: []*OperatorsRuleLevel{{Operators: []*OperatorsRuleOperator{{Kind: Prefix, Expr: &Top{}, Action: (*NilLit)(nil)}}}}}), "$.file.decls[0].expr.levels[0].operators[0].action"},
 	} {
 		t.Run(tc.name, func(t *testing.T) { assertValidationError(t, Validate(tc.g), tc.path) })
 	}
@@ -182,8 +182,7 @@ func TestValidatePositionAndOrder(t *testing.T) {
 
 func TestValidateCompatibility(t *testing.T) {
 	for _, g := range []*Grammar{
-		{}, expressionGrammar(&Seq{}), expressionGrammar(&Choice{}),
-		typeGrammar(&JoinType{}), typeGrammar(&JoinType{Types: []TypeExpr{&TypeRef{Name: "int"}}}),
+		{},
 		expressionGrammar(&Repeat{Expr: &Top{}, Max: -2}),
 		expressionGrammar(&Repeat{Expr: &Top{}, Min: 0, Max: 0}),
 		expressionGrammar(&Repeat{Expr: &Top{}, Min: 2, Max: 2}),

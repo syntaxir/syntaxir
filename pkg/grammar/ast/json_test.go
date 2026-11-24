@@ -37,7 +37,7 @@ func sampleGrammar() *Grammar {
 					&CaptureRef{Name: "l"},
 					&IntLit{Value: 2},
 					&Lambda{Params: []string{"acc", "i"}, Body: &Constructor{Type: "Op", Fields: []*FieldInit{
-						{Name: "Left", Value: &FieldAccess{X: &CaptureRef{Name: "acc"}, Name: "Left"}},
+						{Name: "Left", Value: &FieldAccess{X: &CaptureRef{Name: "acc", Param: true}, Name: "Left"}},
 					}}},
 				}},
 			},

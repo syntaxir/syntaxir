@@ -100,7 +100,9 @@ func CheckStructural(g *ast.Grammar, opts check.Options, flags []check.RuleFlags
 	if rec := prog.Checker().ValueRecord(); rec != nil {
 		recordTypes(s.Module, rec, core.SetType)
 	}
-	return NewResult(prog, facts.Sites(s.Module, prog, control)), s, nil
+	r := NewResult(prog, facts.Sites(s.Module, prog, control))
+	r.Input = g
+	return r, s, nil
 }
 
 // recordTypes records on the structural module m of a program whose types check the checked types

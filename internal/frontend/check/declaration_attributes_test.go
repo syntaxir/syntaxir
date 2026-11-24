@@ -16,10 +16,10 @@ func TestUnknownDeclarationAttribute(t *testing.T) {
 			t.Errorf("%q\n got %s\nwant %s", tc.src, got, tc.want)
 		}
 	}
-	// A declaration attribute is never a # pragma.
+	// A declaration attribute is never a # pragma; structural validation rejects one.
 	g := mustParse("rule a = \"x\"\n")
 	g.Rules()[0].Attrs = []*ast.Attribute{{Name: "atomic", Pragma: true}}
-	if _, err := compileStatic(g, Options{}, nil); err == nil || err.Error() != "unknown declaration attribute #atomic" {
+	if _, err := compileStatic(g, Options{}, nil); err == nil || err.Error() != "1:1: $.file.decls[0].attrs[0].pragma: a pragma follows a parser expression; a declaration takes @ attributes" {
 		t.Errorf("pragma: %v", err)
 	}
 }

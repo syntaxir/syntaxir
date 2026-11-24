@@ -87,13 +87,23 @@ node collections, interfaces holding typed nil pointers, unsupported embedded
 node types, pointer cycles and malformed
 repetition and character-range bounds. A repetition's minimum must be nonnegative; a finite
 maximum must be at least the minimum. Any negative maximum means unbounded,
-as documented by `ast.Repeat`. Shared subtrees, empty collections and
-genuinely nil optional children remain allowed.
+as documented by `ast.Repeat`. Shared subtrees and genuinely nil optional
+children remain allowed.
+
+Validation also rejects every tree that grammar syntax cannot write, so that
+`grammar.Format` of a valid AST always parses. A hand-built tree therefore
+follows the shapes the parser produces: a sequence or choice has an element and
+a join or meet type two, a block is the whole action of a rule, an inline
+action, a predicate or an Operators Rule line, a reference to a lambda
+parameter is an `ast.CaptureRef` with `Param` set, and the only pragma
+attributes are `#ignorecase` and `#missing`. The [validation
+table](../../spec/language/grammar-files.md#validation-of-a-grammar-ast) lists
+every rule.
 
 A character range's `Lo` and `Hi` must be Unicode scalar values (0 through
-0x10FFFF except 0xD800–0xDFFF), with `Lo <= Hi`. A valid range can span the
-surrogate interval; overlapping ranges and empty AST classes retain their
-existing meanings. Invalid endpoints are reported at paths such as
+0x10FFFF except 0xD800–0xDFFF), with `Lo <= Hi`, and a class has at least one
+range. A valid range can span the surrogate interval; overlapping ranges retain
+their existing meanings. Invalid endpoints are reported at paths such as
 `$.file.decls[0].expr.ranges[0].lo`. This also applies to JSON intake,
 compilation and generation. Remove unreachable surrogate exclusions from
 older grammars and recompile AST-bearing saved parsers that contain them.

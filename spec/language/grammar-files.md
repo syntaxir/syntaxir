@@ -704,19 +704,32 @@ A `ValidationError` has a `Path` that uses JSON field names and zero-based index
 (`$.file.decls[0].expr.expr`), the closest known diagnostic position `Pos`, and a
 message `Msg`.
 
+Validation rejects every tree that grammar syntax cannot write: a node that has
+no spelling where it stands, or whose spelling there reads back as another node.
+So `grammar.Format` of a valid AST always parses.
+
 | Rejected | Allowed |
 |:--|:--|
-| A nil grammar; a missing required child; a nil entry in a node collection | Shared subtrees; empty collections; genuinely nil optional children |
+| A nil grammar; a missing required child; a nil entry in a node collection | Shared subtrees; genuinely nil optional children |
 | An interface that holds a typed nil pointer; an unsupported embedded node type | |
 | A pointer cycle | |
 | A repetition whose minimum is negative, or whose finite maximum is smaller than the minimum | Any negative maximum, which means unbounded |
-| A character range whose `Lo` or `Hi` is not a Unicode scalar value (0 through 0x10FFFF except 0xD800 to 0xDFFF), or with `Lo > Hi`; a character class without ranges, which no source text can write | A range that spans the surrogate interval; overlapping ranges |
+| A character range whose `Lo` or `Hi` is not a Unicode scalar value (0 through 0x10FFFF except 0xD800 to 0xDFFF), or with `Lo > Hi`; a character class without ranges | A range that spans the surrogate interval; overlapping ranges |
+| A `Seq` without items, a `Choice` without alternatives, an `Attributed` without attributes; a `JoinType` or `MeetType` of fewer than two types; a `TypeApp` without type arguments | The other empty collections, which source writes empty: a struct, tuple, call, constructor or list without elements, an Operators Rule or level without lines, a lambda without parameters |
+| A name that is not an identifier, a reserved name that begins with `_`, and a declaration, capture, lambda parameter, variable reference, call or constructor named `true`, `false` or `nil` | A rule named `_x`, which is hidden; a rule reference named `true` |
+| A type named `node` without type arguments, or with one of the names of concrete syntax tree types (`terminal`, `Match`, `Seq`, `List`, `Operator`, `Error`, `Missing`) | |
+| A pragma attribute (`Pragma` set) other than `#ignorecase` and `#missing` without arguments, or one on a declaration or the package clause | Any `@` attribute name and arguments |
+| An `OperatorsRule` other than the whole body of a rule, alone or under one `Attributed` of `#ignorecase` pragmas; an operator whose kind is not `prefix`, `postfix` or `infix`, an infix operator whose associativity is not `left`, `right` or `none`, or a prefix or postfix operator with one | |
+| A `Block` other than the whole action of a rule, an inline action, a predicate, an operand or an operator line; a `Bind` other than a statement of a block or the action of a predicate | A block without statements |
+| A `CaptureRef` with `Param` set whose name is no parameter of an enclosing lambda; a `CaptureRef` without `Param`, or a `VarRef`, whose name is one | A call whose function is named like a parameter |
+| A field access whose name begins with a lowercase letter, except `startPos`, `endPos`, `children`, `expected` and `message` | A field name that begins with an uppercase letter; `$name`, which reads the capture `name` |
+| A `Binary` operator other than `\|\|`, `&&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, `%` and `[]` (an index); a `Unary` operator other than `-` and `!` | |
 
 Validation is structural. It does not resolve names, check the types of actions,
-validate attributes or enforce the semantics of an Operators Rule; compilation does.
-It does not validate comments or layout. Compilation and the generators run
-structural validation themselves. `grammar.Format` and `ast.MarshalJSON` expect a structurally valid
-AST.
+validate attribute arguments or enforce the semantics of an Operators Rule;
+compilation does. It does not validate comments or layout. Compilation and the
+generators run structural validation themselves. `grammar.Format` and
+`ast.MarshalJSON` expect a structurally valid AST.
 
 Both bytecode VMs and generated parsers treat any negative maximum as unbounded.
 Compilation preserves the original maximum in the AST and writes the standard

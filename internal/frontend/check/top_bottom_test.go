@@ -89,14 +89,14 @@ func TestTopBottomReportedOnce(t *testing.T) {
 	if _, err = compileStatic(g, Options{}, nil); err == nil || strings.Count(err.Error(), "_|_") != 1 {
 		t.Fatalf("got %v, want one _|_ error", err)
 	}
-	// An empty meet (only an AST can hold one) is _.
+	// An empty meet has no spelling, so structural validation rejects it.
 	g, err = parseTest("type T = { A node[string] }\nrule main = x:\"a\" => T{A: $x}")
 	if err != nil {
 		t.Fatal(err)
 	}
 	g.Types()[0].(*ast.TypeDef).Struct().Fields[0].Type = &ast.MeetType{}
-	if _, err := compileStatic(g, Options{}, nil); err != nil {
-		t.Fatal(err)
+	if _, err := compileStatic(g, Options{}, nil); err == nil || !strings.Contains(err.Error(), "a meet type needs at least two types") {
+		t.Fatalf("got %v, want the validation error of an empty meet", err)
 	}
 }
 
