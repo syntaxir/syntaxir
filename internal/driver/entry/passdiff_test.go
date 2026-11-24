@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/driver/checked"
 	"syntaxir.dev/sxir/internal/driver/entry"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/runtime/engine"
@@ -32,6 +34,45 @@ var (
 )
 
 // engineFlags lists the optimizations that the engine runs, and the engine backends that run each.
+// listsFlag reports whether a pipeline text lists the pass or pattern of a flag: as a step, or inside the
+// brackets of the canonicalize pass.
+func listsFlag(text, name string) bool {
+	for _, w := range strings.FieldsFunc(text, func(r rune) bool { return strings.ContainsRune(" \t\n,[]#0123456789", r) }) {
+		if w == name {
+			return true
+		}
+	}
+	return false
+}
+
+// TestDescribeListsWhatRuns checks that the pipeline text of each run-time backend lists exactly the passes
+// and patterns that the backend runs (that its pass statistics list), for every registered optimization.
+func TestDescribeListsWhatRuns(t *testing.T) {
+	ran := ranPasses(t)
+	g, err := enginetest.Parse("rule main = \"a\"\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	prog, err := entry.Compile(g, entry.Options{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		backend result.Backend
+		engine  engine.Backend
+	}{{result.VM, engine.Bytecode}, {result.Closure, engine.Closure}} {
+		text, err := checked.Describe(entry.Source(prog), common.Debug{}, c.backend)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range pass.Names() {
+			if got, want := listsFlag(text, name), ran[c.engine][name]; got != want {
+				t.Errorf("%s pipeline text lists %s = %v, the backend runs it = %v", c.backend, name, got, want)
+			}
+		}
+	}
+}
+
 // TestPassFlagClasses checks the lists against the passes that the backends run.
 var engineFlags = []struct {
 	name     string

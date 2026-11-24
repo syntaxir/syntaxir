@@ -113,6 +113,22 @@ func ParseTarget(s string) (Target, error) {
 	return t, nil
 }
 
+// PassesFor returns the Flow passes that a target runs, in the order they run: the passes of the forms
+// that the target prints, and the passes that no target selects (canonicalize). A pass of a form that the
+// target does not print never applies (its Applies reads the target), so a pipeline that lists it lists a
+// pass that does not run; the pipelines that are built for a target list these passes.
+func PassesFor(t Target) []*pipe.Pass[Unit, Unit] {
+	prints := map[string]bool{PassTerminals: t.Terminals, PassClassRuns: t.ClassRuns, PassClassTables: t.ClassTables,
+		PassGuardedClasses: t.GuardedClasses, PassInlineLiterals: t.InlineLiterals}
+	var out []*pipe.Pass[Unit, Unit]
+	for _, p := range Passes {
+		if on, form := prints[p.Name()]; !form || on {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
 // Pipeline is the pipeline of the Flow passes on a module, each on every function of the module in
 // turn (OnFuncs), in the order they run: each chooses the form of a construct that the lowering wrote
 // in its one form (flow.Forms), where the target prints the form and the function allows it.

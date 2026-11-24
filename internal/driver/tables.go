@@ -103,7 +103,7 @@ func lowering(flowTarget flowpass.Target, target targetPipeline) pipe.Pipeline[p
 func flowStage(flowTarget flowpass.Target) pipe.Pipeline[*plandata.Table[code.Flow], *plandata.Table[code.Flow]] {
 	return pipe.Within(plandata.FlowModule, pipe.Then(
 		pipe.WithConst(flowpass.TargetFeature, flowTarget,
-			pipe.PerFunc(code.FlowFuncs, pipe.Slot(FlowSlot, pipe.Seq(code.FlowStage, flowpass.Passes...)))),
+			pipe.PerFunc(code.FlowFuncs, pipe.Slot(FlowSlot, pipe.Seq(code.FlowStage, flowpass.PassesFor(flowTarget)...)))),
 		pipe.Of(flowpass.Finishing)))
 }
 
