@@ -212,6 +212,8 @@ protocol (`.agents/scripts/lib.sh`):
   load average is at most `-max-load`, prints the load at the start and at the end, and makes every verdict *invalid*
   when either is above the limit. The load average lags by about a minute, which is what the wait is for.
 
+The threshold `-max-load` is 4.0, a quarter of the 16 cores, and provisional: the idle background of the team's own tools could not be measured yet. A 6-minute sampling under the exclusive lock (after the drain gave up at 1800 s, because worktrees on older copies of `testslot.sh` kept starting slot jobs) read a one-minute load of 18–32 and 1000–1450% CPU of 1600%, almost all of it `go test` binaries and the Go compiler started outside `testslot.sh` or by older copies. The threshold is to be revised from a reading taken when the team goes through the protocol.
+
 What this cannot control: a `go test`, build or benchmark that was started without `testslot.sh` or `benchlock.sh`
 (a shell, an editor, a plain `go test ./...`), and every other process on the machine. Every `go test`, `go vet` and
 `go build` of more than a few seconds goes through `testslot.sh`. Each worktree runs its own copy of the scripts, so a copy
