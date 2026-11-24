@@ -341,3 +341,19 @@ func TestSignalIsPassedToTheLockScript(t *testing.T) {
 	default:
 	}
 }
+
+// TestBaseTreeCleanupRace sets the base worktree while a signal goroutine cleans up: run with -race, it fails
+// when the path is read without the lock that guards it.
+func TestBaseTreeCleanupRace(t *testing.T) {
+	work := t.TempDir()
+	tree := &baseTree{root: t.TempDir(), work: work}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		tree.cleanup()
+	}()
+	tree.setBase(filepath.Join(work, "base"))
+	_ = tree.base()
+	<-done
+	tree.cleanup() // a second call does nothing
+}

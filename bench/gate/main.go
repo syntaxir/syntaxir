@@ -117,16 +117,8 @@ func runGates(names []string, baseRev string, lim limits) error {
 	}
 	// cleanup removes the temporary base worktree and the work directory, once, whether the run ends or is
 	// interrupted (see stopOnSignal).
-	var cleanOnce sync.Once
-	baseRoot := root
-	cleanup := func() {
-		cleanOnce.Do(func() {
-			if baseRoot != root {
-				exec.Command("git", "-C", root, "worktree", "remove", "--force", baseRoot).Run()
-			}
-			os.RemoveAll(work)
-		})
-	}
+	tree := &baseTree{root: root, work: work}
+	cleanup := tree.cleanup
 	defer cleanup()
 	defer stopOnSignal(cleanup)()
 	// The candidate is the working tree, untracked files included: it is the base itself only when HEAD is the base
@@ -135,8 +127,10 @@ func runGates(names []string, baseRev string, lim limits) error {
 	baseSHA, _ := git(root, "rev-parse", baseRev)
 	same := head == baseSHA && !dirty(root)
 	if !same {
-		baseRoot = filepath.Join(work, "base")
-		if _, err := git(root, "worktree", "add", "--detach", baseRoot, baseRev); err != nil {
+		dir := filepath.Join(work, "base")
+		// The worktree exists from the add on, so it is set first: an interrupt during the add removes it.
+		tree.setBase(dir)
+		if _, err := git(root, "worktree", "add", "--detach", dir, baseRev); err != nil {
 			return err
 		}
 	}
@@ -153,7 +147,13 @@ func runGates(names []string, baseRev string, lim limits) error {
 			return b, nil
 		}
 		out := filepath.Join(work, strings.ReplaceAll(pkg, "/", "_")+"."+tag+".test")
-		cmd := exec.Command("go", "test", "-c", "-o", out, "./"+pkg)
+		// The build takes a test slot, as every build of more than a few seconds does (testslot.sh), and none of the
+		// benchmark lock: it is the timing phase that is exclusive. Inside a slot job it runs directly.
+		args := []string{"go", "test", "-c", "-o", out, "./" + pkg}
+		if slot := filepath.Join(root, ".agents", "scripts", "testslot.sh"); os.Getenv("SXIR_IN_TESTSLOT") == "" && fileExists(slot) {
+			args = append([]string{slot}, args...)
+		}
+		cmd := exec.Command(args[0], args[1:]...)
 		cmd.Dir = tree
 		if b, err := cmd.CombinedOutput(); err != nil {
 			return "", fmt.Errorf("building %s of %s: %v\n%s", pkg, tag, err, b)
@@ -161,10 +161,11 @@ func runGates(names []string, baseRev string, lim limits) error {
 		built[key] = out
 		return out, nil
 	}
-	fmt.Fprintf(os.Stderr, "building the benchmark binaries (outside the benchmark lock)\n")
+	fmt.Fprintf(os.Stderr, "building the benchmark binaries (in a test slot, outside the benchmark lock)\n")
 	for _, g := range sel {
-		pg := planGate{Gate: g, BaseDir: filepath.Join(baseRoot, g.Pkg), CandDir: filepath.Join(root, g.Pkg)}
-		if pg.BaseBin, err = build(baseRoot, "base", g.Pkg); err != nil {
+		br := tree.base()
+		pg := planGate{Gate: g, BaseDir: filepath.Join(br, g.Pkg), CandDir: filepath.Join(root, g.Pkg)}
+		if pg.BaseBin, err = build(br, "base", g.Pkg); err != nil {
 			return err
 		}
 		if same {
@@ -180,6 +181,43 @@ func runGates(names []string, baseRev string, lim limits) error {
 		return err
 	}
 	return execLocker{root: root}.hold(planFile)
+}
+
+// baseTree is the base worktree of a run and the directory of its work, which cleanup removes once, from the
+// goroutine that ends the run or from the one that handles a signal. The worktree's path is written by the first
+// and read by the second, so a mutex guards it.
+type baseTree struct {
+	root, work string // the tree under test, and the temporary directory
+	once       sync.Once
+	mu         sync.Mutex
+	dir        string // the base worktree; empty while it is the tree under test
+}
+
+func (t *baseTree) setBase(dir string) {
+	t.mu.Lock()
+	t.dir = dir
+	t.mu.Unlock()
+}
+
+// base returns the tree that holds the base revision: the worktree, or the tree under test when it is the base.
+func (t *baseTree) base() string {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.dir == "" {
+		return t.root
+	}
+	return t.dir
+}
+
+func (t *baseTree) cleanup() {
+	t.once.Do(func() {
+		t.mu.Lock()
+		defer t.mu.Unlock()
+		if t.dir != "" {
+			exec.Command("git", "-C", t.root, "worktree", "remove", "--force", t.dir).Run()
+		}
+		os.RemoveAll(t.work)
+	})
 }
 
 // activeChild is the benchmark-lock script while it runs; a signal is passed on to it.
