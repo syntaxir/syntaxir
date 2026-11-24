@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"unicode/utf8"
 
@@ -717,37 +718,43 @@ func referenceAction(t *testing.T, c codegentest.ActionCase) ast.ActionExpr {
 // module against the reference directly.
 func TestActionReferenceEvaluator(t *testing.T) {
 	t.Parallel()
-	checked := 0
-	for seed := uint64(1); seed <= 2*actionProcessSeeds; seed++ {
-		cases, _ := actionSeedCases(t, seed, actionProcessSeeds, true)
-		backends := []engine.Backend{engine.Closure}
-		if half := (seed-1)%actionProcessSeeds + 1; half <= actionBackendSeeds {
-			backends = append(backends, engine.Bytecode, engine.BytecodeIterative)
-		}
-		for _, c := range cases {
-			g, _ := parseTest(c.Src)
-			prog, err := entry.Compile(g, entry.Options{})
-			if err != nil {
-				t.Fatal(err)
-			}
-			actionExpr := referenceAction(t, c)
-			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
-				w := utf8.RuneCountInString(c.Lit)
-				if unit == input.Bytes {
-					w = len(c.Lit)
+	var checked atomic.Int64
+	// Each seed is a parallel subtest: the seeds share nothing, and the cases of one seed run in order as before.
+	t.Run("seeds", func(t *testing.T) {
+		for seed := uint64(1); seed <= 2*actionProcessSeeds; seed++ {
+			t.Run(fmt.Sprintf("seed%d", seed), func(t *testing.T) {
+				t.Parallel()
+				cases, _ := actionSeedCases(t, seed, actionProcessSeeds, true)
+				backends := []engine.Backend{engine.Closure}
+				if half := (seed-1)%actionProcessSeeds + 1; half <= actionBackendSeeds {
+					backends = append(backends, engine.Bytecode, engine.BytecodeIterative)
 				}
-				env := &ref.ActionEnv{Captures: map[string]ref.V{"x": ref.Node(ref.StringNode, c.Lit, 0, w, nil, nil)}, Bytes: unit == input.Bytes,
-					Start: 0, End: w, Line: 1, Col: 1, Zeros: referenceZeros(t, entry.Checked(prog), "R", "Inner", "Leaf")}
-				in := c.Lit
-				if c.Kind == codegentest.PredicateAction {
-					in += "b"
+				for _, c := range cases {
+					g, _ := parseTest(c.Src)
+					prog, err := entry.Compile(g, entry.Options{})
+					if err != nil {
+						t.Fatal(err)
+					}
+					actionExpr := referenceAction(t, c)
+					for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
+						w := utf8.RuneCountInString(c.Lit)
+						if unit == input.Bytes {
+							w = len(c.Lit)
+						}
+						env := &ref.ActionEnv{Captures: map[string]ref.V{"x": ref.Node(ref.StringNode, c.Lit, 0, w, nil, nil)}, Bytes: unit == input.Bytes,
+							Start: 0, End: w, Line: 1, Col: 1, Zeros: referenceZeros(t, entry.Checked(prog), "R", "Inner", "Leaf")}
+						in := c.Lit
+						if c.Kind == codegentest.PredicateAction {
+							in += "b"
+						}
+						checkReference(t, c, prog, actionExpr, env, unit, in, false, backends...)
+						checked.Add(1)
+					}
 				}
-				checkReference(t, c, prog, actionExpr, env, unit, in, false, backends...)
-				checked++
-			}
+			})
 		}
-	}
-	if checked == 0 {
+	})
+	if checked.Load() == 0 {
 		t.Fatal("no case was checked")
 	}
 }
