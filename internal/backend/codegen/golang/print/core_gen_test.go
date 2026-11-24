@@ -197,13 +197,22 @@ func coreGenerations(t *testing.T, mode coreGenMode) []coreGenerated1 {
 // passes with breaks if it is not nil (coreTypedCase).
 func coreGenCases(t *testing.T, mode coreGenMode, breaks func(c *coreGenCase, pass string, m *core.Module)) []*coreGenCase {
 	t.Helper()
-	var out []*coreGenCase
-	for _, gen := range coreGenerations(t, mode) {
-		c, err := coreTypedCase(gen.name, mode.name, gen.gen, breaks)
-		if err != nil {
-			t.Fatalf("%s: %s: %v", mode.name, gen.name, err)
+	gens := coreGenerations(t, mode)
+	// The cases are independent: each reads and changes the generator of its own grammar only.
+	type built struct {
+		c   *coreGenCase
+		err error
+	}
+	cases := codegentest.MapParallel(len(gens), func(i int) built {
+		c, err := coreTypedCase(gens[i].name, mode.name, gens[i].gen, breaks)
+		return built{c, err}
+	})
+	out := make([]*coreGenCase, 0, len(cases))
+	for i, b := range cases {
+		if b.err != nil {
+			t.Fatalf("%s: %s: %v", mode.name, gens[i].name, b.err)
 		}
-		out = append(out, c)
+		out = append(out, b.c)
 	}
 	return out
 }

@@ -97,25 +97,32 @@ func TestFlowDiffDetectsMutations(t *testing.T) {
 			return s[:loc[0]] + "\t_ = zz9\n" + s[loc[1]:], true
 		}, false},
 	}
+	// The two generations of a grammar are the same for every mutation, so they are made once.
+	type generated struct{ name, want, got string }
+	var gens []generated
+	for _, gc := range append(codegentest.CorpusWithParsers(t), codegentest.CoreExtraGrammars...)[:60] {
+		want, _, _, ok := flowGenerate(gc.Src, opts)
+		if !ok {
+			continue
+		}
+		got, n, _, _ := flowGenerate(gc.Src, opts)
+		if n == 0 || flowDiff(want, got) != "" {
+			continue
+		}
+		gens = append(gens, generated{gc.Name, want, got})
+	}
 	for _, m := range mutations {
 		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
 			applied := 0
-			for _, gc := range append(codegentest.CorpusWithParsers(t), codegentest.CoreExtraGrammars...)[:60] {
-				want, _, _, ok := flowGenerate(gc.Src, opts)
-				if !ok {
-					continue
-				}
-				got, n, _, _ := flowGenerate(gc.Src, opts)
-				if n == 0 || flowDiff(want, got) != "" {
-					continue
-				}
-				mutated, ok := m.mutate(got)
+			for _, g := range gens {
+				mutated, ok := m.mutate(g.got)
 				if !ok {
 					continue
 				}
 				applied++
-				if found := flowDiff(want, mutated) != ""; found != m.found {
-					t.Errorf("%s: difference reported %v, want %v", gc.Name, found, m.found)
+				if found := flowDiff(g.want, mutated) != ""; found != m.found {
+					t.Errorf("%s: difference reported %v, want %v", g.name, found, m.found)
 				}
 			}
 			if applied < 10 {

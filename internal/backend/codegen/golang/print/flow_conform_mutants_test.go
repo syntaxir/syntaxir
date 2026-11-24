@@ -180,6 +180,8 @@ func TestFlowConformCatchesBrokenLibraries(t *testing.T) {
 	}
 	for _, m := range flowConformMutants {
 		t.Run(m.name, func(t *testing.T) {
+			// Each mutant builds its own copy of the library and its own programs.
+			t.Parallel()
 			var cases []flowConformCase
 			for _, n := range m.cases {
 				c, ok := byName[n]
