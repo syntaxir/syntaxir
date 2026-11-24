@@ -9,7 +9,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"unicode/utf8"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/frontend/check"
@@ -65,7 +64,7 @@ func TestGeneratedDocumentsInsertMissingTokens(t *testing.T) {
 	}
 	// The typed Documents insert as the typed parses from scratch do. Their units are not the engine
 	// Document's: ParseValue keeps a typed memo of its own, which reuses fewer results.
-	for _, m := range generatedDocumentInsertionMismatches(t, goBin, lib, append(append([]codegentest.Case(nil), typedInsertionCases...), cases...), false, true) {
+	for _, m := range generatedDocumentInsertionMismatches(t, goBin, lib, append(codegentest.TypedInsertionCases(), cases...), false, true) {
 		t.Error("typed: " + m)
 	}
 	// The mutant records a run whatever its elements reached.
@@ -196,7 +195,7 @@ func generatedDocumentInsertionMismatches(t *testing.T, goBin, lib string, cases
 				v := documentInsertionRun{Case: i, First: []byte(c.Inputs[0]), Bytes: bytes, Limit: limit}
 				text := c.Inputs[0]
 				for _, next := range append(c.Inputs[1:], c.Inputs[0]) {
-					start, end, repl := documentMinimalEdit(text, next, bytes)
+					start, end, repl := codegentest.MinimalEdit(text, next, bytes)
 					v.Edits = append(v.Edits, documentEdit{start, end, []byte(repl)})
 					text = next
 				}
@@ -324,34 +323,4 @@ func engineDocumentInsertionUnits(t *testing.T, prog *engine.Program, v document
 	parse(sxirruntime.WithTrace(func(instrument.TraceEvent) {}))
 	parse()
 	return out
-}
-
-// documentMinimalEdit returns the edit, in bytes or code points, that replaces the characters
-// between the common prefix and the common suffix of from and to. Every invalid UTF-8 byte is a
-// character.
-func documentMinimalEdit(from, to string, bytes bool) (start, end int, text string) {
-	chars := func(s string) []string {
-		var out []string
-		for s != "" {
-			_, n := utf8.DecodeRuneInString(s)
-			out, s = append(out, s[:n]), s[n:]
-		}
-		return out
-	}
-	a, b := chars(from), chars(to)
-	p := 0
-	for p < len(a) && p < len(b) && a[p] == b[p] {
-		p++
-	}
-	s := 0
-	for s < len(a)-p && s < len(b)-p && a[len(a)-1-s] == b[len(b)-1-s] {
-		s++
-	}
-	pos := func(chars []string) int {
-		if bytes {
-			return len(strings.Join(chars, ""))
-		}
-		return len(chars)
-	}
-	return pos(a[:p]), pos(a[:len(a)-s]), strings.Join(b[p:len(b)-s], "")
 }
