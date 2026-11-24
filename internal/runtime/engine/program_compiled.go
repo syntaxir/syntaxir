@@ -240,9 +240,18 @@ func LoadProgram(data []byte) (*Program, string, error) {
 	r.Strings()
 	start := r.Str()
 	m := r.ReadModule()
+	// The string table of the file is the module's, followed by the start rule if the module does
+	// not hold it (encodeCompiled), and that of the insertion part is the insertion module's.
+	if n := len(m.Strings); r.Err == nil && len(r.Strs) != n && (len(r.Strs) != n+1 || r.Strs[n] != start) {
+		r.Fail("the string table holds strings that the file does not refer to")
+	}
 	var ins *bytecode.Module
 	if r.Bool() {
-		r.Part(func(p *bytecode.Decoder) { ins = p.ReadModule() })
+		r.Part(func(p *bytecode.Decoder) {
+			if ins = p.ReadModule(); p.Err == nil && len(p.Strs) != len(ins.Strings) {
+				p.Fail("the string table of the insertion part holds strings that it does not refer to")
+			}
+		})
 	}
 	if r.Err == nil && r.Pos != len(r.Data) {
 		r.Fail("%d trailing bytes", len(r.Data)-r.Pos)
@@ -276,23 +285,7 @@ func LoadProgram(data []byte) (*Program, string, error) {
 			return nil, "", fmt.Errorf("invalid compiled grammar: %w", err)
 		}
 	}
-	// The format is canonical: a file loads only if it is the encoding of what it decodes to, so
-	// that saving the loaded program gives back its bytes and no two files encode one program.
-	if again := encodeCompiled(start, mode, m, ins); !bytes.Equal(again, data) {
-		return nil, "", fmt.Errorf("invalid compiled grammar: not in canonical form from byte %d", firstDiff(again, data))
-	}
 	return prog, start, nil
-}
-
-// firstDiff returns the offset of the first byte where a and b differ, or the length of the shorter.
-func firstDiff(a, b []byte) int {
-	n := min(len(a), len(b))
-	for i := range n {
-		if a[i] != b[i] {
-			return i
-		}
-	}
-	return n
 }
 
 // loadModule returns the program of the module m, of a compiled grammar in mode, after validating
