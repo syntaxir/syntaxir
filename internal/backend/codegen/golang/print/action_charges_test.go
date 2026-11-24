@@ -5,6 +5,7 @@ import (
 	"maps"
 	"regexp"
 	"strings"
+	"sync"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -150,46 +151,70 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 	}
 	actionExprs := actionChargeCases(t, all)
 	got := map[string]string{}
+	var mu sync.Mutex
+	put := func(m map[string]string) {
+		mu.Lock()
+		defer mu.Unlock()
+		maps.Copy(got, m)
+	}
 	key := func(i int, input, target string) string {
 		return actionChargeKey(prefix, actionExprs, i, input, target)
 	}
-	// The engine.
-	for i, c := range actionExprs {
-		g, _ := parseTest(c.Src)
-		prog, err := entry.Compile(g, entry.Options{})
-		if err != nil {
-			t.Fatal(err)
+	// The targets and the action expressions are independent, so each runs as a parallel subtest; the group waits for all of
+	// them, and the golden is checked on the entries they put together.
+	t.Run("targets", func(t *testing.T) {
+		// Generated Go: the node parser's Parse and Recognize, and the typed parser's ParseValue.
+		t.Run("go", func(t *testing.T) {
+			t.Parallel()
+			put(goActionCharges(t, prefix, actionExprs, nil))
+		})
+		for i, c := range actionExprs {
+			// The engine.
+			t.Run(fmt.Sprintf("engine %d", i), func(t *testing.T) {
+				t.Parallel()
+				g, _ := parseTest(c.Src)
+				prog, err := entry.Compile(g, entry.Options{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				m := map[string]string{}
+				for _, in := range c.Inputs {
+					for _, b := range []struct {
+						name string
+						be   engine.Backend
+					}{{"engine-closure", engine.Closure}, {"engine-vm", engine.Bytecode}, {"engine-iterative", engine.BytecodeIterative}} {
+						var used uint64
+						_, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b.be, Limits: runtime.Limits{Compute: 1 << 50},
+							Trace: func(e engine.TraceEvent) { used = state.TraceParser(e).Control.Used }})
+						m[key(i, in, b.name)] = fmt.Sprintf("%d %s", used, actionOutcome(fmt.Sprint(err)))
+					}
+				}
+				put(m)
+			})
+			// Generated TypeScript.
+			t.Run(fmt.Sprintf("typescript %d", i), func(t *testing.T) {
+				t.Parallel()
+				g, _ := parseTest(c.Src)
+				var ins []string
+				for _, in := range c.Inputs {
+					ins = append(ins, fmt.Sprintf("%q", in))
+				}
+				out := codegentest.RunTSGrammarScriptWith(t, g, tsChargeScript(ins), common.GenOptions{Start: "main"})
+				lines := strings.Split(strings.TrimSpace(out), "\n")
+				if len(lines) != len(c.Inputs) {
+					t.Fatalf("action %d: %d lines for %d inputs:\n%s", i, len(lines), len(c.Inputs), out)
+				}
+				m := map[string]string{}
+				for j, in := range c.Inputs {
+					n, res, _ := strings.Cut(lines[j], " ")
+					m[key(i, in, "ts-node")] = n + " " + actionOutcome(res)
+				}
+				put(m)
+			})
 		}
-		for _, in := range c.Inputs {
-			for _, b := range []struct {
-				name string
-				be   engine.Backend
-			}{{"engine-closure", engine.Closure}, {"engine-vm", engine.Bytecode}, {"engine-iterative", engine.BytecodeIterative}} {
-				var used uint64
-				_, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b.be, Limits: runtime.Limits{Compute: 1 << 50},
-					Trace: func(e engine.TraceEvent) { used = state.TraceParser(e).Control.Used }})
-				got[key(i, in, b.name)] = fmt.Sprintf("%d %s", used, actionOutcome(fmt.Sprint(err)))
-			}
-		}
-	}
-	// Generated Go: the node parser's Parse and Recognize, and the typed parser's ParseValue.
-	maps.Copy(got, goActionCharges(t, prefix, actionExprs, nil))
-	// Generated TypeScript.
-	for i, c := range actionExprs {
-		g, _ := parseTest(c.Src)
-		var ins []string
-		for _, in := range c.Inputs {
-			ins = append(ins, fmt.Sprintf("%q", in))
-		}
-		out := codegentest.RunTSGrammarScriptWith(t, g, tsChargeScript(ins), common.GenOptions{Start: "main"})
-		lines := strings.Split(strings.TrimSpace(out), "\n")
-		if len(lines) != len(c.Inputs) {
-			t.Fatalf("action %d: %d lines for %d inputs:\n%s", i, len(lines), len(c.Inputs), out)
-		}
-		for j, in := range c.Inputs {
-			n, res, _ := strings.Cut(lines[j], " ")
-			got[key(i, in, "ts-node")] = n + " " + actionOutcome(res)
-		}
+	})
+	if t.Failed() {
+		return // a target that failed leaves its entries out of the comparison
 	}
 	actionChargesGoldenFile(golden, what, unset).Check(t, prefix+"/", got)
 }
