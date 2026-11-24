@@ -210,9 +210,10 @@ type TSConfig struct {
 	// building a tree, like runtime.Parser.Recognize.
 	Recognize bool
 	// TypedOnly generates only the typed entry points: parseValue, parseValueWithOptions, parseRuleValue
-	// and parseRuleValueWithOptions, with no parse, parseRule or parseWithOptions. It needs Types and
-	// cannot be combined with Document. Recognize may be added, and the generated module keeps the
-	// Node rules that the typed entry points run.
+	// and parseRuleValueWithOptions, with no parse, parseRule or parseWithOptions. It is off by
+	// default: a typed parser keeps the tree entry points. It needs Types and cannot be combined
+	// with Document, Stream or RecognizeOnly. Recognize may be added, and the generated module keeps
+	// the Node rules that the typed entry points run, so it is smaller only by the entry points.
 	TypedOnly bool
 	// RecognizeOnly generates only recognize, which checks the input against the start rule: no
 	// parse, parseRule or typed entry point. The generated module is the smallest. It implies

@@ -295,7 +295,7 @@ A Go parser has only the entry points you select. `Parse` and `ParseRule` build 
 `-document` and `-stream` add the incremental and streaming ones. The typed-only and recognize-only forms leave out the
 code that builds untyped trees, which is most of the source of a large grammar. Combinations that cannot work are
 errors: `-typed-only` needs `-types` and has no `-document` or `-stream`, which build untyped trees, and `-recognize-only`
-has nothing else. The sizes below are the kilobytes of the generated `parser.go` (with `-nodoc -lib import`) of
+has nothing else. Both are off by default: a grammar with `-types` keeps `Parse` and `ParseRule` beside the typed entry points until `-typed-only` is given, in Go and in TypeScript. The TypeScript flag leaves out only the entry points, not the code that builds untyped trees (see [TypeScript](typescript.md#the-command)). The sizes below are the kilobytes of the generated `parser.go` (with `-nodoc -lib import`) of
 six language grammars. With `-lib embed`, the parser also carries a copy of the library that keeps only the code the
 parser can run; [Generated Parser Size](../benchmarks.md#generated-parser-size) gives the size of that copy and of the
 whole library for the grammars of the repository.

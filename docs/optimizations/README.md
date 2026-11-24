@@ -281,6 +281,7 @@ Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](05
 - [135. Shared recovered-error lists](135-shared-recovered-error-lists.md)
 - [136. Measured effect of the generation flags](136-measured-effect-of-the-generation-flags.md)
 - [137. Scan records on every target](137-scan-records-on-every-target.md)
+- [138. Typed-only output of generated TypeScript](138-typed-only-output-of-generated-typescript.md)
 
 ## Experiments That Did Not Pay Off
 
