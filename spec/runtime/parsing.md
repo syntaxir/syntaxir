@@ -194,7 +194,8 @@ mode, recognition in recognize mode and a traced parse in document mode (see
 ## Incremental Documents
 
 A `Document` owns mutable text and the reuse state of earlier parses. A parse of
-a document returns what a parse of the current text from scratch returns. The
+a document that completes returns what a parse of the current text from
+scratch with no compute, memory or nesting limit returns. The
 document API, versions, snapshots, interruption and change notifications are
 defined in [Incremental Documents](documents.md).
 

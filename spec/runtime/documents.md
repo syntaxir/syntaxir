@@ -3,7 +3,8 @@
 A `Document` holds a text that changes over time, applies edits to it and parses
 the current text. Reparsing after an edit reuses results of the previous parse
 that the edit did not affect. Reuse never changes the outcome: a parse of a
-document is the same as a parse of the current text from scratch. This chapter
+document that completes is the same as a parse of the current text from
+scratch with no compute, memory or nesting limit ([Reuse](#reuse)). This chapter
 defines the document API, its versions and snapshots, change notifications and
 reuse-history controls.
 
@@ -248,7 +249,12 @@ its evaluation, and a call that a reuse answers does not nest, so a Document
 parse can complete where a parse of its text from scratch is stopped by the
 compute limit or the [nesting limit](parsing.md#limits). Its tree can then nest
 deeper than the nesting limit, so code that recurses over the tree must not rely
-on that limit to bound its own depth. Reuse does change the
+on that limit to bound its own depth. The other way round, a Document parse
+can be stopped by the nesting limit where the parse from scratch is not: a call
+that no kept entry answers, such as one whose entry lags, is evaluated on a
+deeper path than in the parse from scratch, whose own memo answers it. Such a
+parse is stopped by its limit as any parse is, and returns no result to
+compare. Reuse does change the
 [compute units](parsing.md#compute-units) of a parse. A later parse counts
 only the events that it performs: a result that it reuses counts one call, and
 its key if the rule is memoized, and a result that it evaluates again counts
@@ -617,11 +623,20 @@ Then, for a constant c:
    records of its run sites with the walks that make a site keep them
    ([Run Sites](parsing.md#run-sites)), and that state differs between P and
    the parse from scratch.
-2. **Work.** The work of P is at most c · (U₀ + J) (not implemented).
+2. **Work.** The work of P is at most c · (U₀ + J) (not implemented), and
+   at most c · (U₀ + D + J) in a parse with missing-token insertion, whose
+   errors the specification does not bound by the cost
+   ([Cost](parsing.md#cost)) (not implemented).
 3. **Work after edits.** The work of P is at most c · (U + M + R + D + J)
-   (not implemented). R is at most U₀ and D at most c · U₀, since the parse
-   from scratch evaluates every iteration that P reuses and lists the same
-   errors, and M is at most c · U₀ (not implemented). What P evaluates again
+   (not implemented). R is at most U₀ where the parse from scratch evaluates
+   each iteration that P reuses, or copies it as a suffix copy of a run site,
+   which counts one unit for each element ([Cost](parsing.md#cost)); where a
+   record of its own lets the parse from scratch take an iteration in another
+   way, this is argued, not proved. In a parse without missing-token
+   insertion, D is at most c · U₀, since the parse from scratch lists the same
+   errors and an outcome reports at most a constant times the input that its
+   parse matched; with insertion the specification gives no such bound. M is
+   at most c · U₀ (not implemented). What P evaluates again
    follows from the edits and the examined ranges
    ([Reuse Model](#reuse-model)): P evaluates a call again only where no kept
    entry answers it, and an edit of [a, b) keeps an entry only when its

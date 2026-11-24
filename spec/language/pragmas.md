@@ -264,7 +264,8 @@ its mode; generated Go parsers insert in whole-input Node parsing, recognition,
 Documents and stream parses with the same results, diagnostics and compute
 units, in Node and typed parses alike. A Document fixes the limit at construction and gives each parse the
 whole limit; it keeps no result that contains an insertion, so each parse
-returns what a parse of its text from scratch returns
+that completes returns what a parse of its text from scratch with no compute,
+memory or nesting limit returns
 ([Missing Tokens](../runtime/documents.md#missing-tokens)). A stream parse has
 one limit for the whole stream and inserts what the batch parse of its input
 does ([Missing Tokens](../runtime/streaming.md#missing-tokens)). A prefix parse is
