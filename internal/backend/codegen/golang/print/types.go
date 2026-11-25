@@ -1808,9 +1808,17 @@ type astChunk[T any] struct {
 	free []T
 	next int
 	bootstrap uint8
+	allocated int // the values allocated so far
 }
 
-// grow starts small and doubles up to limit. The request is always satisfied.
+// astChunkRatio bounds a chunk by what its allocator has handed out: a chunk is at most the larger of its
+// fixed limit and 1/astChunkRatio of the values allocated before it, so the chunks of a parse grow
+// geometrically and their number is logarithmic in the output. The ratio is the library's chunkRatio:
+// 32 keeps the bytes within about 2% of fixed chunks.
+const astChunkRatio = 32
+
+// grow starts small and doubles up to the limit, or up to 1/astChunkRatio of the values allocated so far
+// where that is more. The request is always satisfied.
 func (s *astChunk[T]) grow(n, initial, limit int) {
 	size := s.next
 	if size == 0 {
@@ -1820,16 +1828,14 @@ func (s *astChunk[T]) grow(n, initial, limit int) {
 		size *= 2
 	}
 	s.free = make([]T, size)
-	s.next = size * 2
-	if s.next > limit {
-		s.next = limit
-	}
+	s.allocated += size
+	s.next = min(size*2, max(limit, s.allocated/astChunkRatio))
 }
 
 `},
 }
 
-const astObjectSlabHelper = `// astNew returns a new zero value from a chunk that grows from 8 to 256 values.
+const astObjectSlabHelper = `// astNew returns a new zero value from a chunk that grows from 8 values to at least 256 (astChunkRatio).
 func astNew[T any](s *astChunk[T]) *T {
 	if len(s.free) == 0 {
 		s.grow(1, 8, 256)
@@ -1843,11 +1849,12 @@ func astNew[T any](s *astChunk[T]) *T {
 
 const astBootstrapObjectHelper = `// astNew allocates the first three values independently so a later
 // published value cannot retain discarded early siblings through a chunk.
-// Later values use the original 8-to-256 chunk growth.
+// Later values use the original chunk growth.
 func astNew[T any](s *astChunk[T]) *T {
 	if len(s.free) == 0 {
 		if s.bootstrap < 3 {
 			s.bootstrap++
+			s.allocated++
 			return new(T)
 		}
 		s.grow(1, 8, 256)
@@ -1860,12 +1867,13 @@ func astNew[T any](s *astChunk[T]) *T {
 `
 
 const astListSlabHelper = `// astSlice returns n zero values with capacity n, so appending cannot overwrite
-// another returned slice. Small-list chunks grow from 64 to 1,024 elements.
+// another returned slice. Small-list chunks grow from 64 to at least 1,024 elements (astChunkRatio).
 func astSlice[T any](s *astChunk[T], n int) []T {
 	if n == 0 {
 		return []T{} // an empty list, not nil
 	}
 	if n > 256 {
+		s.allocated += n
 		return make([]T, n)
 	}
 	if len(s.free) < n {
@@ -1885,11 +1893,13 @@ func astSlice[T any](s *astChunk[T], n int) []T {
 		return []T{} // an empty list, not nil
 	}
 	if n > 256 {
+		s.allocated += n
 		return make([]T, n)
 	}
 	if len(s.free) < n {
 		if s.bootstrap == 0 {
 			s.bootstrap = 1
+			s.allocated += n
 			return make([]T, n)
 		}
 		s.grow(n, 64, 1024)

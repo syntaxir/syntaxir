@@ -7,9 +7,8 @@ that slab footprint.
 ## Mechanism and Invariants
 
 For each owner, the first three objects/terminals allocate independently before
-object slabs grow from 8 to 256 cells. The first nonempty small list also
-allocates independently before list slabs grow from 64 to 1,024 elements. Later
-slab maxima and exact-size large lists remain unchanged. Fresh ownership
+object slabs grow from 8 cells to at least 256 (see A250). The first nonempty small list also
+allocates independently before list slabs grow from 64 to at least 1,024 elements (see A260). Exact-size large lists remain unchanged. Fresh ownership
 preserves append isolation, spans and shared result values; returned chunks are
 not pooled. Full/bounded liveness sweeps keep legacy helpers and are measured
 separately.
