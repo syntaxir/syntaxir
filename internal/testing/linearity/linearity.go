@@ -3,8 +3,9 @@
 // them gives the same verdict on every run, also while other tests run beside it.
 //
 // The measures are counts: the compute units that a parser charges (LeastLimit), the objects and
-// bytes that the work allocates with the collector off (Allocs), and any counter of the work that
-// a test reads. Linear compares two such counts of the same work at two sizes.
+// bytes that the work allocates with the collector off (Allocs, exact under the conditions that it
+// states), and any counter of the work that a test reads. Linear compares two such counts of the
+// same work at two sizes.
 package linearity
 
 import (
@@ -63,14 +64,39 @@ func LeastLimit(t testing.TB, completes func(limit uint64) bool) uint64 {
 
 // Allocs returns the number of objects and of bytes that a run of work allocates. The work runs
 // once first, so that tables built on first use are not counted. Then it runs with the collector
-// off, after two collections that empty the pools, so that no freed buffer or pooled value is
-// allocated again and the counters of the runtime are exact: a run gives the same counts every
-// time, whatever the load.
+// off, after two collections, so that no freed buffer or pooled value is allocated again: every
+// allocation of the run stays counted, and the run frees nothing that a later allocation reuses.
 //
 // A collection only queues finalizers; the goroutine that runs them is scheduled later, and under
 // load it can run in the middle of the measured work and allocate there. So Allocs waits until the
 // finalizers that are queued have run before it measures (drainFinalizers). It does not wait for the
 // cleanups of runtime.AddCleanup, which the measured code must not use.
+//
+// The counts are exact, the same on every run whatever the load, only for work that allocates
+// nothing that depends on the runtime's random choices or its other goroutines. The runtime breaks
+// that in these ways, each of which only adds allocations to a run, and the variation they cause is
+// a few objects, too small to change a verdict of Linear:
+//
+//   - A type assertion or a type switch to an interface type that misses the cache of its call site
+//     rebuilds the cache in about one of 1024 misses, chosen at random (typeAssert and
+//     interfaceSwitch in runtime/iface.go), and the rebuild allocates. One warm run does not fill
+//     the caches: in a parse into typed values the first ten runs rebuilt one in about half the
+//     runs, and later runs still in about one in ten.
+//   - A map that grows past one table of 1024 slots splits its tables at points that depend on the
+//     map's random hash seed, so a run allocates a few more or fewer tables, and their bytes.
+//   - The runtime's background goroutines allocate now and then, such as a timer of the scavenger,
+//     and the scheduler allocates when it starts a thread (newm), which work on more than one
+//     processor can make it do.
+//
+// The collections before the run also empty every sync.Pool, so the first Get of each pool in the
+// run allocates the pool's per-processor array again: one object, with bytes in proportion to
+// GOMAXPROCS, so the bytes differ between machines but not between runs on one.
+//
+// So a measurement that must be exact, such as a metric compared across commits, takes the least of
+// several calls after warm runs of the work, with GOMAXPROCS set to 1: the cache rebuilds and the
+// background allocations only add to a count, so the least count is that of the work alone. Work
+// whose maps split varies in both directions, and no number of calls makes it exact; its comparison
+// needs a tolerance.
 //
 // The counters are those of the process, so the caller must not run in parallel with other tests,
 // and the work must not leave goroutines that allocate after it returns. Allocs does not see work

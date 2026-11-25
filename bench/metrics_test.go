@@ -56,18 +56,13 @@ var (
 // linearity): the least count of allocRounds measurements, with the bytes of that measurement, after
 // warm runs of work.
 //
-// The counters of the runtime are those of the process, and the runtime adds allocations of its own
-// to a run now and then, at random. A type assertion or a type switch to an interface type that
-// misses the cache of its call site rebuilds the cache in about one of 1024 misses, chosen by the
-// runtime's random generator (typeAssert and interfaceSwitch in runtime/iface.go), so the first runs
-// of a parse allocate caches, more and more rarely as the caches come to hold the types that the
-// parse asserts: in 30 parses of the Minilang workload into typed values, the first ten rebuilt a
-// cache in about half the runs and the last ten in about one in ten. The runtime's background
-// goroutines, such as the scavenger, allocate a timer now and then, and the scheduler allocates when
-// it starts a thread (newm). A run never frees what it allocated with the collector off, so each of
-// these only adds to its count: the least count of several runs after the warm ones is the count of
-// the work alone. A single measurement varied by up to 4 objects between processes; this count did
-// not vary in six A/A runs.
+// The runtime adds allocations of its own to a run now and then, at random: type-assertion cache
+// rebuilds, background timers and new threads (Allocs of package linearity lists them). Each only
+// adds to a count, and GOMAXPROCS is 1 while TestMetrics runs, so the least count of several runs
+// after the warm ones is the count of the work alone. The caches fill slowly: in 30 parses of the
+// Minilang workload into typed values, the first ten rebuilt a cache in about half the runs and the
+// last ten in about one in ten, hence the warm runs. A single measurement varied by up to 4 objects
+// between processes; this count did not vary in six A/A runs.
 func leastAllocs(warm int, work func()) (objects, bytes uint64) {
 	for range warm {
 		work()
