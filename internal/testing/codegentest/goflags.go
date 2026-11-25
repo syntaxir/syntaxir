@@ -2,7 +2,9 @@ package codegentest
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 )
 
 // SetGoFlags sets the GOFLAGS of the test process, which the go commands it runs inherit, for
@@ -65,15 +67,71 @@ const CorpusGCFlags = "-gcflags=codegentest/...=-N -l"
 var GoFlagsEnv = "GOFLAGS=" + GoFlags
 
 // SetGoCache points the build cache of the go commands that the test process runs at a fresh
-// temporary directory and returns a function that removes it. Every test builds a different
-// generated program, so the shared build cache would only accumulate entries that are never reused;
-// a cache private to the test process still shares the builds of the standard library and of this
-// module among the tests of a package.
+// directory and returns a function that removes it. Every test builds a different generated
+// program, so the shared build cache would only accumulate entries that are never reused; a cache
+// private to the test process still shares the builds of the standard library and of this module
+// among the tests of a package.
+//
+// A process that is killed (a timeout, a signal, a full disk) cannot run the returned function, and
+// its cache, which is gigabytes, would stay. The caches therefore live under one directory, each
+// with a lock file that its process holds for as long as it runs; the kernel releases the lock when
+// the process ends however it ends, so SetGoCache removes every cache whose lock it can take, which
+// is exactly the cache of a dead process (unlike a recorded process ID, a lock cannot be confused
+// with a reused one).
 func SetGoCache() (remove func()) {
-	dir, err := os.MkdirTemp("", "sxir-gocache-")
+	root := filepath.Join(os.TempDir(), cacheRoot)
+	if err := os.MkdirAll(root, 0o755); err != nil {
+		panic(err)
+	}
+	reapCaches(root)
+	dir, err := os.MkdirTemp(root, "c-")
 	if err != nil {
 		panic(err)
 	}
-	os.Setenv("GOCACHE", dir)
-	return func() { os.RemoveAll(dir) }
+	lock, err := holdLock(filepath.Join(dir, lockName))
+	if err != nil {
+		panic(err)
+	}
+	heldLocks = append(heldLocks, lock) // a collected file would close and so release its lock
+	os.Setenv("GOCACHE", filepath.Join(dir, "cache"))
+	return func() {
+		os.RemoveAll(dir)
+		lock.Close()
+	}
+}
+
+// heldLocks are the lock files of the caches of this process.
+var heldLocks []*os.File
+
+// cacheRoot is the directory, in the temporary directory, that holds the build caches of the test
+// processes, and lockName the file in each of them that its process locks.
+const (
+	cacheRoot = "sxir-gocache"
+	lockName  = "owner.lock"
+)
+
+// graceAge is how old a cache directory without a lock file must be to be taken for a leaked one:
+// a younger one may be between its creation and its lock.
+const graceAge = 10 * time.Minute
+
+// reapCaches removes the caches under root whose process has ended.
+func reapCaches(root string) {
+	if !locksWork {
+		return
+	}
+	entries, _ := os.ReadDir(root)
+	for _, e := range entries {
+		dir := filepath.Join(root, e.Name())
+		lock := filepath.Join(dir, lockName)
+		if _, err := os.Stat(lock); err != nil {
+			if info, ierr := e.Info(); ierr == nil && time.Since(info.ModTime()) > graceAge {
+				os.RemoveAll(dir)
+			}
+			continue
+		}
+		if f, err := holdLock(lock); err == nil {
+			os.RemoveAll(dir)
+			f.Close()
+		}
+	}
 }
