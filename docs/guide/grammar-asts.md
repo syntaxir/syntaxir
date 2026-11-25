@@ -233,9 +233,8 @@ entry points check one complete value and run structural validation, while
 Source `@` attributes use `Attributed` and `Attribute`: `args` is an ordered list
 of integers, strings, booleans, null slots or expression nodes, and `kwArgs`
 maps argument names to the same value forms. A string argument is a Go
-`string`; validation rejects a case-sensitive `*ast.Literal` argument, which
-source would write as that string, so build a `Group` around the literal for an
-expression argument. For example, `@custom(nil, 2)`
+`string`; a case-sensitive `*ast.Literal` argument is an expression, which
+source writes in parentheses and reads back as a `Group` around the literal. For example, `@custom(nil, 2)`
 preserves `[null, 2]`, whereas `@custom(2,)` and `@custom(2)` both preserve `[2]`. Integer argument
 values, including the native minimum, survive source formatting and parsing. Keyword arguments
 follow positional arguments in source. Strict JSON decoding also rejects
