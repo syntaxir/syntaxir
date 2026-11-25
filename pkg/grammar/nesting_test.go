@@ -2,6 +2,7 @@ package grammar_test
 
 import (
 	"context"
+	"math"
 	"math/rand/v2"
 	"strings"
 	"testing"
@@ -275,7 +276,7 @@ func TestValidateNestingAgreesWithParser(t *testing.T) {
 }
 
 // deepASTs make grammar ASTs whose tree is n nodes deep, as ast.MaxNestingDepth counts the
-// depth, with chains whose text opens few levels. The default tier checks the first two; the long
+// depth, with chains whose text opens few levels. The default tier checks the first three; the long
 // tier checks them all, as each reads a text of 50,000 nodes.
 var deepASTs = []struct {
 	name string
@@ -296,6 +297,15 @@ var deepASTs = []struct {
 		// A negative constant is 2 deep: it reads back as a negation of its magnitude.
 		var x ast.ActionExpr = &ast.IntLit{Value: -1}
 		for range n - 3 {
+			x = &ast.Binary{Op: "+", L: x, R: &ast.IntLit{Value: 1}}
+		}
+		return ruleWithAction(x)
+	}},
+	{"sum of the minimum int", func(n int) *ast.Grammar {
+		// The minimum int is 1 deep, unlike the other negative constants: its text reads back as
+		// one constant, as the magnitude alone does not fit in an int.
+		var x ast.ActionExpr = &ast.IntLit{Value: math.MinInt}
+		for range n - 2 {
 			x = &ast.Binary{Op: "+", L: x, R: &ast.IntLit{Value: 1}}
 		}
 		return ruleWithAction(x)
@@ -332,7 +342,7 @@ func ruleWithAction(x ast.ActionExpr) *ast.Grammar {
 func TestValidateBoundsDepth(t *testing.T) {
 	families := deepASTs
 	if !depthAllShapes {
-		families = families[:2]
+		families = families[:3]
 	}
 	for _, c := range families {
 		t.Run(c.name, func(t *testing.T) {
