@@ -3,7 +3,6 @@ package ast
 import (
 	"math"
 	"strconv"
-	"strings"
 )
 
 // MaxNestingLevels is the deepest nesting of grammar syntax that the reference parser reads,
@@ -318,13 +317,13 @@ func commentNesting(text string, control *validationControl) int {
 
 // tooDeepComment returns the field of the first comment string of node that Format writes as a
 // block comment nesting deeper than MaxNestingLevels, or "". Format writes a string as a block
-// comment unless it ends in a line break; a trailing comment over several lines is one block
+// comment unless it ends in a line terminator; a trailing comment over several lines is one block
 // comment, and so is each header comment.
 func tooDeepComment(node any, control *validationControl) string {
 	deep := func(text string, block bool) bool {
 		return block && commentNesting(text, control) > MaxNestingLevels
 	}
-	ends := func(text string) bool { return strings.HasSuffix(text, "\n") }
+	ends := endsLine
 	indexed := func(name string, i int) string { return name + "[" + strconv.Itoa(i) + "]" }
 	source := func(prefix string, s *SourceInfo) string {
 		if deep(s.LeadingComments, !ends(s.LeadingComments)) {
@@ -336,7 +335,7 @@ func tooDeepComment(node any, control *validationControl) string {
 			}
 		}
 		for i, text := range s.TrailingComments {
-			if deep(text, !ends(text) || strings.Count(text, "\n") > 1) {
+			if deep(text, !ends(text) || lineTerminators(text) > 1) {
 				return prefix + "source." + indexed("trailingComments", i)
 			}
 		}

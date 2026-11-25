@@ -14,6 +14,10 @@ import (
 // are aligned. A grammar without such layout information (for example, one decoded from JSON) is
 // printed with a blank line between definitions and one item per line in blocks.
 //
+// Format writes every line terminator outside a block comment as LF, as the language treats LF, CR
+// and CRLF alike: the text of a line comment reads back with LF in place of CR and CRLF. A block
+// comment is written with the line terminators of its text.
+//
 // The syntax cannot write a sequence of one item or a choice of one sequence directly: written as the
 // item or the sequence, it reads back with the value of the item or with the elements spliced into a
 // sequence around it. Format spells the first as `x _` and the second as `s / _|_`, which read back

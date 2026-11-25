@@ -13,24 +13,24 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 // are never written twice.
 
 // ownedComments returns the comment tokens of text, a normalized comment: the
-// lines of a text that ends in a line break are line comments, and any other
-// text is one block comment. A space ends text that does not end with white
+// lines of a text that ends in a line terminator are line comments, and any
+// other text is one block comment. A space ends text that does not end with white
 // space, as the line comment at the end of a file has none.
 func ownedComments(text string) []*ast.Comment {
 	if text == "" {
 		return nil
 	}
-	if !strings.HasSuffix(text, "\n") {
+	if !endsInLineTerminator(text) {
 		body := continuationLines(blockCommentText(text))
 		if !strings.HasSuffix(body, " ") {
 			body += " "
 		}
 		return []*ast.Comment{{Text: "/*" + body + "*/"}}
 	}
-	lines := strings.Split(strings.TrimSuffix(text, "\n"), "\n")
+	lines, _ := splitLines(trimLineEnd(text))
 	cs := make([]*ast.Comment, len(lines))
 	for i, line := range lines {
-		cs[i] = &ast.Comment{Text: "//" + strings.TrimRight(line, " \t\r")}
+		cs[i] = &ast.Comment{Text: "//" + strings.TrimRight(line, " \t")}
 	}
 	return cs
 }
@@ -87,15 +87,19 @@ func blockCommentText(text string) string {
 // continuationLines starts the lines of text after the first with " *", which a
 // block comment drops from its text again, so that the white space at the start
 // of those lines is kept. A line that starts with "/" is written as it is, as
-// " *" would join it into "*/" and it has no white space to keep.
+// " *" would join it into "*/" and it has no white space to keep. The line
+// terminators of text are kept.
 func continuationLines(text string) string {
-	lines := strings.Split(text, "\n")
-	for i := 1; i < len(lines); i++ {
-		if lines[i] != "" && !strings.HasPrefix(lines[i], "/") {
-			lines[i] = " *" + lines[i]
+	lines, ends := splitLines(text)
+	var out strings.Builder
+	for i, line := range lines {
+		if i > 0 && line != "" && !strings.HasPrefix(line, "/") {
+			out.WriteString(" *")
 		}
+		out.WriteString(line)
+		out.WriteString(ends[i])
 	}
-	return strings.Join(lines, "\n")
+	return out.String()
 }
 
 // ownedLead returns b, or when b is nil the line break that writes the leading
@@ -166,7 +170,7 @@ func ownsComments(s *ast.SourceInfo, b *ast.LineBreak) bool {
 // detached block comment without a line break at its end, the comment that
 // the parser detaches from two tokens of one line, or nil.
 func inlineOwnedComment(s *ast.SourceInfo) *ast.Comment {
-	if s.LeadingComments != "" || len(s.LeadingDetachedComments) != 1 || strings.HasSuffix(s.LeadingDetachedComments[0], "\n") {
+	if s.LeadingComments != "" || len(s.LeadingDetachedComments) != 1 || endsInLineTerminator(s.LeadingDetachedComments[0]) {
 		return nil
 	}
 	cs := ownedComments(s.LeadingDetachedComments[0])
@@ -178,17 +182,17 @@ func inlineOwnedComment(s *ast.SourceInfo) *ast.Comment {
 
 // inlineHeaderComments returns the comments of texts, normalized comments, written to stand on
 // the line of a declaration or field with a space after each, or "". A comment that ends in a line
-// break is written as a block comment.
+// terminator is written as a block comment.
 func inlineHeaderComments(texts []string) string {
 	var out strings.Builder
 	for _, text := range texts {
-		out.WriteString(headerComment(strings.TrimSuffix(text, "\n")).Text + " ")
+		out.WriteString(headerComment(trimLineEnd(text)).Text + " ")
 	}
 	return out.String()
 }
 
 // headerComment returns the comment of text, one normalized comment of a header, which holds no
-// line break: a block comment, and /**/ for the empty text, which the parser reads back as it.
+// line terminator: a block comment, and /**/ for the empty text, which the parser reads back as it.
 func headerComment(text string) *ast.Comment {
 	if text == "" {
 		return &ast.Comment{Text: "/**/"}

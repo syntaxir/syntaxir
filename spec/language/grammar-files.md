@@ -111,14 +111,20 @@ after the `=` or `~` are not in the header: the body that follows, the type of a
 expression of a rule or the value of a variable, owns them like any node owns the
 comments before it. A struct field owns the comments between its name and its
 type the same way as `headerComments`. A header stands on one line, so these comments are
-block comments without a line break. They are written after the keyword, or
+block comments without a line terminator (LF, CR or CRLF). They are written after the keyword, or
 after the field name, and the comments that a body owns before its first token
 are written after the `=` or `~`. A string that ends in
-a line break is written as `//` lines, and any other string as a block comment,
-which is also how a trailing comment over several lines is written. Each string
+a line terminator (LF, CR or CRLF) is written as `//` lines, one for each line of the
+string, and any other string as a block comment,
+which is also how a trailing comment over several lines is written. `grammar.Format`
+writes every line terminator outside a block comment as LF, as the lexical
+rules treat LF, CR and CRLF alike: the text of a line comment, set by hand or
+parsed, reads back with LF in place of CR and CRLF. The inside of a block
+comment is written as it is, so a block comment keeps the line terminators of
+its string. Each string
 of `TrailingComments` is one comment, so the boundaries between the comments of a
 line (`/*a*//*b*/ // c`) come back, written with one space between them. A text that
-was a block comment ending in a line break therefore comes back as line
+was a block comment ending in a line terminator therefore comes back as line
 comments, and the spacing inside a block comment is the normalized one. Block
 comments nest, so the `/*` and `*/` of a string that pair up are written as they
 are, which writes the nested comments of parsed source back. A string set by
@@ -253,9 +259,9 @@ leading and detached comments. `grammar.Format`
 keeps every comment of a parsed grammar with the same owner.
 
 Normalized comment text removes only the `//` marker of a line comment and keeps the
-following white space and the final newline. For a block comment it removes the outer
+following white space and the line terminator that ends it, as written. For a block comment it removes the outer
 delimiters and keeps the content of the first line; on later lines it removes the
-indentation and the first `*`. Newlines and nested comment delimiters stay in the
+indentation and the first `*`. Line terminators and nested comment delimiters stay in the
 text. The text is not a copy of every white space detail of the source; exact
 comment tokens and layout belong to `SourceInfo.Layout`.
 
@@ -732,14 +738,14 @@ that the parser reads is valid.
 | A field access whose name begins with a lowercase letter, except `startPos`, `endPos`, `children`, `expected` and `message` | A field name that begins with an uppercase letter; `$name`, which reads the capture `name` |
 | A declaration whose text, as `grammar.Format` writes it, nests deeper than `ast.MaxNestingLevels` (500) levels, counted as [Limits](lexical.md#limits) counts them, with the error `nesting too deep` | |
 | A node deeper than `ast.MaxNestingDepth` (50,000), with the error `nesting too deep`. A declaration, and an attribute of the package clause, is 1 deep, and each node below it one deeper than its parent, except a `Group`, `ActionGroup` or `TypeGroup`, which adds nothing, and a negative `IntLit` other than the minimum `int`, which adds two, as its text reads back as a `Unary` of an `IntLit`. The parser applies the same bound, so the text of a valid AST reads back | Any number of siblings, such as the items of a sequence, which add no depth |
-| A header comment, of `headerComments` of a declaration, the package clause or a struct field, that holds a line break, which its header, standing on one line, cannot hold | A header comment without a line break, the empty one included, which is written `/**/` |
+| A header comment, of `headerComments` of a declaration, the package clause or a struct field, that holds a line terminator (LF, CR or CRLF), which its header, standing on one line, cannot hold | A header comment without a line terminator, the empty one included, which is written `/**/` |
 | A comment string that `grammar.Format` writes as a block comment and that nests more than `ast.MaxNestingLevels` block comments, counting the comment and the pairs of `/*` and `*/` in the string, with the error `nesting too deep` | A comment string written as line comments, and the unpaired `/*` and `*/` that `grammar.Format` breaks apart |
 | A `Binary` operator other than `\|\|`, `&&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, `%` and `[]` (an index); a `Unary` operator other than `-` and `!` | |
 
 Validation is structural. It does not resolve names, check the types of actions,
 validate attribute arguments or enforce the semantics of an Operators Rule;
 compilation does. It does not validate source layout, and checks comments only for
-their nesting and for line breaks in headers. Compilation and the
+their nesting and for line terminators in headers. Compilation and the
 generators run structural validation themselves. `grammar.Format` and
 `ast.MarshalJSON` expect a structurally valid AST.
 

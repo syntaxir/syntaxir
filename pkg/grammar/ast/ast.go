@@ -62,8 +62,9 @@ type Pkg struct {
 
 	// HeaderComments are the normalized contents of the comments inside the
 	// declaration header, between the keyword and the end of the header, in
-	// source order: one string per block comment, without a line break, as the
-	// header stands on one line. Format writes them after the keyword.
+	// source order: one string per block comment, without a line terminator
+	// (LF, CR or CRLF), as the header stands on one line. Format writes them
+	// after the keyword.
 	HeaderComments []string `json:"headerComments,omitempty"`
 
 	// Break holds the comments before the package clause (see LineBreak):
@@ -155,8 +156,9 @@ type TypeDef struct {
 
 	// HeaderComments are the normalized contents of the comments inside the
 	// declaration header, between the keyword and the end of the header, in
-	// source order: one string per block comment, without a line break, as the
-	// header stands on one line. Format writes them after the keyword.
+	// source order: one string per block comment, without a line terminator
+	// (LF, CR or CRLF), as the header stands on one line. Format writes them
+	// after the keyword.
 	HeaderComments []string `json:"headerComments,omitempty"`
 
 	// Break holds the comments before the declaration. When it is nil,
@@ -173,8 +175,9 @@ type TypeAlias struct {
 
 	// HeaderComments are the normalized contents of the comments inside the
 	// declaration header, between the keyword and the end of the header, in
-	// source order: one string per block comment, without a line break, as the
-	// header stands on one line. Format writes them after the keyword.
+	// source order: one string per block comment, without a line terminator
+	// (LF, CR or CRLF), as the header stands on one line. Format writes them
+	// after the keyword.
 	HeaderComments []string `json:"headerComments,omitempty"`
 
 	// Break holds the comments before the declaration, as for TypeDef.
@@ -205,8 +208,9 @@ type RuleDef struct {
 
 	// HeaderComments are the normalized contents of the comments inside the
 	// declaration header, between the keyword and the end of the header, in
-	// source order: one string per block comment, without a line break, as the
-	// header stands on one line. Format writes them after the keyword.
+	// source order: one string per block comment, without a line terminator
+	// (LF, CR or CRLF), as the header stands on one line. Format writes them
+	// after the keyword.
 	HeaderComments []string `json:"headerComments,omitempty"`
 
 	// Break holds the comments before the declaration, as for TypeDef: before
@@ -241,8 +245,9 @@ type VarDef struct {
 
 	// HeaderComments are the normalized contents of the comments inside the
 	// declaration header, between the keyword and the end of the header, in
-	// source order: one string per block comment, without a line break, as the
-	// header stands on one line. Format writes them after the keyword.
+	// source order: one string per block comment, without a line terminator
+	// (LF, CR or CRLF), as the header stands on one line. Format writes them
+	// after the keyword.
 	HeaderComments []string `json:"headerComments,omitempty"`
 
 	// Break holds the comments before the declaration, as for TypeDef.
