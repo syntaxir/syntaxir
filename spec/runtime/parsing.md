@@ -782,7 +782,9 @@ which would fail there, and record only the expectation of the terminal. The
 skip records that expectation too, though it need not where recording it
 could not change the expectations that the parse reports, as inside a
 lookahead or the `skip` of an Operators Rule, whose failures are not reported,
-before the farthest failure, or in a parse that does not record expectations.
+or before the farthest failure. In a parse that does not record expectations
+the skip records no expected item, but it still moves the farthest position
+to the position when the position is past it, as the evaluation would.
 With limit controls, a skip leaves the [compute units](#compute-units) and the
 memo as the evaluation that it skips would leave them, or the parser
 evaluates the alternative. The test of the next character is no event: it

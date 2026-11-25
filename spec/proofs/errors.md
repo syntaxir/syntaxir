@@ -22,7 +22,9 @@ or not. The proof covers the parses that no limit stops, outside the
 missing-token mode: [Interruptions](interruptions.md) shows what a parse that a
 compute limit, a nesting limit or a cancellation stops reports, and the
 [memoization proof](memoization.md#setting), on which this proof rests, is
-stated for the parses without insertion of `#missing` tokens.
+stated for the parses without insertion of `#missing` tokens. A
+[stream parse](../runtime/streaming.md) is not treated: the proof covers the
+parses that return one result for the whole input.
 
 **Outcomes.** The evaluations of expressions and calls have the outcomes
 $\omega = (s, q, v, \varepsilon, o)$ of the [memoization
@@ -139,8 +141,10 @@ recording is the identity (A1). When $p$ is before the farthest failure $f$ of
 the record $c$, $c \cdot (p, [x]) = c$. In a parse that does not record
 expectations, the item would be dropped, and the farthest position is
 tracked either way ([Recording
-Expectations](../runtime/parsing.md#recording-expectations)): the skip moves
-$f$ to $p$ when $p$ is past it, as the evaluation would. So each skip leaves
+Expectations](../runtime/parsing.md#recording-expectations)): the rule that
+allows the skip requires it to move $f$ to $p$ when $p$ is past it, as the
+evaluation would
+([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)). So each skip leaves
 the outcome of its choice, and by induction on the order of completion every
 outcome, as the evaluation of the alternative would. Where the parse also
 answers calls from a memo, the skip leaves the memo as the evaluation would
@@ -152,7 +156,8 @@ storing*). $\square$
 ## Theorem (Errors Do Not Depend on How a Parse Is Run)
 
 Every parse of the grammar from the start rule on the input, in a recording
-mode, that no limit stops and that makes no insertion of `#missing` tokens,
+mode, that no limit stops, that makes no insertion of `#missing` tokens and
+that is not a stream parse,
 reports the errors that $\mathcal{R}$ reports, whichever calls it answers
 from its memo, whichever records it reuses, whichever Document it parses and
 whichever alternatives it skips by the next character. These errors are a
@@ -191,5 +196,4 @@ the parse that runs every action ends with no run-time error, the
 recognition and the parse with default values therefore make the same
 evaluations with the same outcomes apart from the values, and report the same
 syntax error and the same positions, ranges, expected items and messages of
-the recovered errors. A [stream parse](../runtime/streaming.md) is not
-treated here.
+the recovered errors.
