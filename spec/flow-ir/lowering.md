@@ -145,7 +145,7 @@ body, sets no flag: the body of a lookahead starts with none, and a negative loo
 | `Opt` | A backtracking point around its body. When the body fails it restores the saved state, fails if the body cut, and its value is nil |
 | `Repeat` | A loop of at most the maximum of iterations ([Repetitions](#repetitions)) |
 | `Look` | A positive lookahead saves the position, and the number of recovered errors and the length of the path of insertions where its body may change them, enters the silent depth with its site (`flow.silent`), matches its body and returns to the start on both outcomes, failing when its body fails; it keeps the captures and bindings of its body. A negative lookahead is a backtracking point that enters the silent depth with its site (`flow.silent`) too: it fails when its body matches, and restores the saved state on both outcomes. Neither builds a value |
-| `Cut` | Sets the cut flag of the innermost backtracking point, where there is one |
+| `Cut` | Sets the cut flag of the innermost backtracking point that has one ([Backtracking Points](#backtracking-points)) |
 | `Call` | Calls the rule with `flow.callRule`, from the Operators Rule level of the call, and fails when the call fails. Its value is the rule's value |
 | `Nest` | Not lowered: a rule whose body holds an inlined call has no function in the plan |
 | `OperatorsRule` | Not lowered as a node: the runtime runs the Operators Rule with the functions of its skip and its lines |

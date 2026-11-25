@@ -333,8 +333,9 @@ observable consequences, and no others.
   skip without evaluating them ([Evaluations of Rules](#evaluations-of-rules)),
   so the calls in a trace and the evaluations that a profile counts can differ
   between the engine and generated parsers. The value, the positions, the
-  recovered errors, the syntax error, the [compute units](#compute-units) and
-  what the memo holds do not.
+  recovered errors, the syntax error and the [compute units](#compute-units)
+  do not; with limit controls or in a `Document`, neither does what the memo
+  holds.
 
 ## Time and Memory
 
@@ -477,8 +478,8 @@ counts only the call and its key. The total is therefore that of the plain
 evaluation of the grammar together with the store policy of the memo, which
 [Evaluations of Rules](#evaluations-of-rules) states exactly and which every
 backend follows. A parser that skips an alternative or a call without
-evaluating it counts the events that the evaluation would have counted, and
-leaves the memo as the evaluation would have left it (see the end of
+evaluating it counts the events that the evaluation would have counted, and,
+with limit controls, leaves the memo as the evaluation would have left it (see the end of
 [Evaluations of Rules](#evaluations-of-rules)).
 
 In a parse that recovers errors, a memo entry, a result of a growth or an
