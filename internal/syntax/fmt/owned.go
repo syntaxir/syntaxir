@@ -182,7 +182,16 @@ func inlineOwnedComment(s *ast.SourceInfo) *ast.Comment {
 func inlineHeaderComments(texts []string) string {
 	var out strings.Builder
 	for _, text := range texts {
-		out.WriteString(ownedComments(strings.TrimSuffix(text, "\n"))[0].Text + " ")
+		out.WriteString(headerComment(strings.TrimSuffix(text, "\n")).Text + " ")
 	}
 	return out.String()
+}
+
+// headerComment returns the comment of text, one normalized comment of a header, which holds no
+// line break: a block comment, and /**/ for the empty text, which the parser reads back as it.
+func headerComment(text string) *ast.Comment {
+	if text == "" {
+		return &ast.Comment{Text: "/**/"}
+	}
+	return ownedComments(text)[0]
 }

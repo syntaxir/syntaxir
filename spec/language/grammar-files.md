@@ -110,7 +110,8 @@ variable declaration without a value ends after its name and type. The comments
 after the `=` or `~` are not in the header: the body that follows, the type of a type declaration, the
 expression of a rule or the value of a variable, owns them like any node owns the
 comments before it. A struct field owns the comments between its name and its
-type the same way as `headerComments`. They are written after the keyword, or
+type the same way as `headerComments`. A header stands on one line, so these comments are
+block comments without a line break. They are written after the keyword, or
 after the field name, and the comments that a body owns before its first token
 are written after the `=` or `~`. A string that ends in
 a line break is written as `//` lines, and any other string as a block comment,
@@ -731,13 +732,14 @@ that the parser reads is valid.
 | A field access whose name begins with a lowercase letter, except `startPos`, `endPos`, `children`, `expected` and `message` | A field name that begins with an uppercase letter; `$name`, which reads the capture `name` |
 | A declaration whose text, as `grammar.Format` writes it, nests deeper than `ast.MaxNestingLevels` (500) levels, counted as [Limits](lexical.md#limits) counts them, with the error `nesting too deep` | |
 | A node deeper than `ast.MaxNestingDepth` (50,000), with the error `nesting too deep`. A declaration, and an attribute of the package clause, is 1 deep, and each node below it one deeper than its parent, except a `Group`, `ActionGroup` or `TypeGroup`, which adds nothing, and a negative `IntLit` other than the minimum `int`, which adds two, as its text reads back as a `Unary` of an `IntLit`. The parser applies the same bound, so the text of a valid AST reads back | Any number of siblings, such as the items of a sequence, which add no depth |
+| A header comment, of `headerComments` of a declaration, the package clause or a struct field, that holds a line break, which its header, standing on one line, cannot hold | A header comment without a line break, the empty one included, which is written `/**/` |
 | A comment string that `grammar.Format` writes as a block comment and that nests more than `ast.MaxNestingLevels` block comments, counting the comment and the pairs of `/*` and `*/` in the string, with the error `nesting too deep` | A comment string written as line comments, and the unpaired `/*` and `*/` that `grammar.Format` breaks apart |
 | A `Binary` operator other than `\|\|`, `&&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, `%` and `[]` (an index); a `Unary` operator other than `-` and `!` | |
 
 Validation is structural. It does not resolve names, check the types of actions,
 validate attribute arguments or enforce the semantics of an Operators Rule;
 compilation does. It does not validate source layout, and checks comments only for
-their nesting. Compilation and the
+their nesting and for line breaks in headers. Compilation and the
 generators run structural validation themselves. `grammar.Format` and
 `ast.MarshalJSON` expect a structurally valid AST.
 

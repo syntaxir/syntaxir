@@ -2704,7 +2704,11 @@ func (p *printer) header(word string, pos ast.Pos, owned []string) {
 		// A grammar decoded from JSON has no comment tokens; its declaration owns them.
 		for _, text := range owned {
 			pollFormat(p.control)
-			comments = append(comments, ownedComments(text)...)
+			if text == "" {
+				comments = append(comments, headerComment(text))
+			} else {
+				comments = append(comments, ownedComments(text)...)
+			}
 		}
 	}
 	for _, comment := range comments {

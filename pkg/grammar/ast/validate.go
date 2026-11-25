@@ -310,6 +310,8 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		if v.Type().Elem().PkgPath() != astPackage {
 			// A node of another package is unsupported; the switch below reports it.
+		} else if field := headerLineBreak(f.node); field != "" {
+			return fail(field, "a header comment holds no line break: the header of a declaration or field stands on one line")
 		} else if field := tooDeepComment(f.node, control); field != "" {
 			return fail(field, msgNestingTooDeep)
 		}
@@ -894,6 +896,36 @@ func unwritable(node any, place placement, inScope func(string) bool) (field, me
 		}
 	}
 	return "", ""
+}
+
+// headerLineBreak returns the field of the first header comment of node that holds a line break,
+// or "". The header of a declaration, from its keyword to the end of the header, and that of a
+// field, between its name and its type, stand on one line, so the parser reads no comment there
+// that spans a line break or ends one: neither a block comment over several lines nor a line
+// comment.
+func headerLineBreak(node any) string {
+	var prefix string
+	var header []string
+	switch n := node.(type) {
+	case *Grammar:
+		prefix, header = "file.pkg.", n.File.Pkg.HeaderComments
+	case *RuleDef:
+		header = n.HeaderComments
+	case *TypeDef:
+		header = n.HeaderComments
+	case *TypeAlias:
+		header = n.HeaderComments
+	case *VarDef:
+		header = n.HeaderComments
+	case *Field:
+		header = n.HeaderComments
+	}
+	for i, text := range header {
+		if strings.Contains(text, "\n") {
+			return prefix + "headerComments[" + strconv.Itoa(i) + "]"
+		}
+	}
+	return ""
 }
 
 // ignoreCaseOnly reports whether attrs are all the pragma #ignorecase.
