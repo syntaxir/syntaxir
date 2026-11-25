@@ -23,8 +23,9 @@ const typesPackageName = "types"
 // typesPreamble returns the start of the source of the types package: the types of the library that
 // the types of the grammar need to be their own (so that they can implement the join interfaces of
 // the grammar), and the hooks that make the values of these types from those the typed library
-// builds. A grammar with #missing (missing) also has the missing values, Missing, and ErrorValue,
-// the type of its values of type error, which are an Error or a Missing.
+// builds. A grammar whose values may have the type missing (missing, check.Model.MissingType) also
+// has the missing values, Missing, and ErrorValue, the type of its values of type error, which are
+// an Error or a Missing.
 func typesPreamble(missing bool) string {
 	var b strings.Builder
 	b.WriteString(`// TNode is a node whose Value has type T: a string node (TNode[string]) holds the text a
@@ -97,7 +98,8 @@ func typesImport(opts common.GenOptions) string {
 
 // typesPackageFile returns types/types.go for the body of the package (its declarations, in which the
 // library is written as rt), and the description of the package for qualifyLib. missing reports a
-// grammar with #missing, whose package also declares Missing and ErrorValue (typesPreamble).
+// grammar whose values may have the type missing, whose package also declares Missing and
+// ErrorValue (typesPreamble).
 func typesPackageFile(opts common.GenOptions, body string, missing bool) ([]byte, *typesPackage, error) {
 	formatted, err := format.Source([]byte("package " + typesPackageName + "\n" + body))
 	if err != nil {

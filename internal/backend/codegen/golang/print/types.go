@@ -512,9 +512,10 @@ func (t *TypedGen) checkTypesNames() error {
 	return nil
 }
 
-// missing reports whether the grammar uses #missing, whose values of type error are an Error or a
-// Missing (ErrorValue), and whose missing values are a Missing.
-func (t *TypedGen) missing() bool { return t.G.Prog.Run.HasMissing }
+// missing reports whether the type missing is among the types of the grammar's values
+// (check.Model.MissingType): its values of type error are an Error or a Missing (ErrorValue), and
+// its missing values are a Missing.
+func (t *TypedGen) missing() bool { return t.G.Prog.MissingType }
 
 // ref returns the name of the type of the grammar (or the alias, or the struct of a join) with the
 // Go name name, as the code being written refers to it.
