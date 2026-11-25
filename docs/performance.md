@@ -121,6 +121,9 @@ Every timed result follows this method; `go run ./bench/report` applies it.
   which selects the grammars of the matrix part. A narrowed part saves its results, with their own header and
   analysis, as `results-rerun.txt`, `results-ts-rerun.txt` or `results-matrix-rerun.txt` instead of the part's
   file, and leaves the document as it is.
+- **Percentiles.** Benchmarks that report the distribution of their operations (`p50-ns/op`, `p99-ns/op`) get a table
+  per percentile next to the mean's, with the same statistics and verdicts over the rounds. A percentile judges its
+  rows only: the rejection of a part rests on the means, since a tail is noisier than a mean by nature.
 - **GC settings.** The benchmarks run at the user defaults, `GOGC=100` without a memory limit, unless `GOGC` or
   `GOMEMLIMIT` is set in the environment. The tests of package `bench` raise the collection target to 400 with a 4 GiB
   soft limit, because the collector takes about half of their processor time; a run that selects benchmarks does not.
@@ -396,6 +399,7 @@ SyntaxIR backends return the same results.
 | Prepare | JSON, minilang | None | Compiling from source and loading `.sxirc` (in each mode) |
 | Short | Every workload above except Recovery | The workload's generator at a smaller scale: the largest input of at most 64 B, 256 B and 1 KB, for each size the generator can reach with at least a quarter of it | Per-call latency of the generated `Parse`, `ParseValue` and `Recognize` and the standard-library parser, with warm pooled state |
 | Cold | Same as Short | The 1 KB input | The first parse in a fresh process, one process per iteration: first-use work such as empty pools and the standard library's caches, without the start of the runtime and package initialization |
+| Document edit latency | `alpha-parsers/csv`, `examples/minilang` | 100,000 lines; a seeded trace of 4,096 edits at random digits of numbers, either same-length (a digit replaced) or length-changing (a digit inserted, then removed) | One `Edit` and the `Parse` after it, on every backend and the parsers generated with `-document` (and `-document -types` for Minilang): the mean, and the median and 99th percentile over the edits (`p50-ns/op`, `p99-ns/op`) |
 
 The 2026-10-09 run and the current analysis use the ready-made grammars in `alpha-parsers/csv` and `alpha-parsers/xml`.
 Use the paired measurements in each tuning entry to isolate the effect of a runtime change.
