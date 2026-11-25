@@ -1,6 +1,6 @@
 # Left-Recursion Detection and Handling in Pegen
 
-This reference note explains how CPython's pegen parser generator detects and handles left recursion. SyntaxIR's handling of left recursion follows the same approach (see [development.md](development.md#runtime)).
+This reference note explains how CPython's pegen parser generator detects and handles left recursion. SyntaxIR's handling of left recursion follows the same approach (see [Left Recursion](../spec/language/parser-expressions.md#left-recursion)).
 
 ## 1. Introduction
 

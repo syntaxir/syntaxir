@@ -1,8 +1,8 @@
 # Repository Map and Source Authority
 
 Start with [README](../../../../README.md) for the product and documentation index,
-then [development](../../../../docs/development.md) for the current architecture,
-directory layout and implementation status. Search the relevant package and its tests
+then [architecture](../../../../docs/design/architecture.md) for the package layout and
+[development](../../../../docs/development.md) for the checks and test rules. Search the relevant package and its tests
 before choosing an edit location:
 
 | Concern | First stop |
@@ -19,7 +19,7 @@ before choosing an edit location:
 
 Use [specification index](../../../../spec/README.md) for supported language and
 parsing contracts. Use [design records](../../../../docs/design/records/000-template.md) for
-decisions and proposals, and [development status](../../../../docs/development.md#language-feature-status)
+decisions and proposals, and the "(not implemented)" markers of the [language specification](../../../../spec/language/README.md)
 to distinguish them from shipped behavior. Use the [guide index](../../../../docs/guide/README.md)
 for user-facing workflows. For optimization mechanisms and applicability, use the
 [catalog](../../../../docs/optimizations/README.md) and

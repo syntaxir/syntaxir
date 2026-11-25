@@ -5,7 +5,7 @@
 - **Author**: @ornew
 - **Date**: 2025-06-30
 
-> **Note (2026-10)**: The engine has since been rewritten from a bytecode VM into a compiler that turns parser expressions into closures. The SCC-based analysis and the grow-the-seed approach were carried over. For the current implementation, see [docs/development.md](../../development.md#architecture).
+> **Note (2026-10)**: The engine has since been rewritten from a bytecode VM into a compiler that turns parser expressions into closures. The SCC-based analysis and the grow-the-seed approach were carried over. For the current implementation, see [Architecture](../architecture.md).
 
 ## 1. Summary
 

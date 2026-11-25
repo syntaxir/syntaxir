@@ -4,7 +4,7 @@
 - **Author**: @ornew
 - **Date**: 2025-06-30
 
-> **Note (2026-10)**: This document records an investigation of the former bytecode VM. Since the engine rewrite, left recursion is handled as in pegen: only the leader rule is evaluated with grow-the-seed (see [docs/development.md](../../development.md#architecture)).
+> **Note (2026-10)**: This document records an investigation of the former bytecode VM. Since the engine rewrite, left recursion is handled as in pegen: only the leader rule is evaluated with grow-the-seed (see [Growths of Left Recursion](../../../spec/runtime/parsing.md#growths-of-left-recursion)).
 
 ## 1. The Original Problem and Its Analysis
 

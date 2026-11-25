@@ -92,8 +92,8 @@ alternatives and measurement gates below.
 ### Dependencies and Acceptance Gates
 
 Correctness/resource safety and fresh-vs-incremental equivalence gate these capabilities. Keep regression fixes
-separate from new public APIs. The [development guide](../../development.md#language-feature-status) summarizes
-implemented language features.
+separate from new public APIs. The [language specification](../../../spec/language/README.md) marks the
+language features that are not implemented.
 
 | Stage | Work and prerequisite | Acceptance evidence |
 |:--|:--|:--|

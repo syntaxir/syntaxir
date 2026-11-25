@@ -17,7 +17,7 @@ For Document or stream changes, include edit/reparse or commit behavior; a batch
 parse alone does not exercise those paths.
 
 Do not infer implementation from a design-record title. Check the record's status,
-the [development status](../../../../docs/development.md#language-feature-status),
+the "(not implemented)" markers of the [language specification](../../../../spec/language/README.md),
 the relevant spec and code. If the contract is unspecified, resolve the semantic
 choice with the owner before dependent implementation. For an accepted change,
 update the applicable contract and guide with the implementation; the
