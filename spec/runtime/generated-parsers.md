@@ -621,7 +621,7 @@ program, so a TypeScript parser can reject nesting that the engine accepts.
 | Incremental documents | A subset with `-document` | The same subset, `createDocument` with `-document` |
 | Cancellation and compute limits | `WithContext` and a finite `Compute` unless generated with `-no-limits`; `WithLimits` | `signal` and `limits.compute` unless generated with `-no-limits`; `limits.input`; `ParseInterruptionError` |
 | Nested recursive rule-call limit | `Limits.Depth`, `-max-depth` | `limits.depth`, `-max-depth`; the host stack also bounds nesting |
-| Choice of backend, saved grammar, `Parser.Grammar()` | Not applicable | Not applicable |
+| Choice of backend, saved grammar | Not applicable | Not applicable |
 | Tracing and profiling | With `-observability` | With `-observability` |
 
 A generated parser carries the library of the generator that produced it (`embed`) or imports it

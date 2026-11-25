@@ -534,8 +534,8 @@ machinery, which the generated code only has when you ask for it:
   `limits.input` in every form. See
   [Cancellation and Compute Limits](cancellation-and-limits.md) and the
   [specification](../../spec/runtime/generated-parsers.md#compatibility-and-support).
-- There is no choice of backend, because the generated code is a backend of its own, and no `Parser.Grammar()`, saving
-  or loading, because the grammar is gone at run time.
+- There is no choice of backend, because the generated code is a backend of its own, and no saving or loading,
+  because the grammar is gone at run time.
 - `#missing` works for whole-input parsing, recognition, streams and Documents in the runtime parser (the closure
   backend, both bytecode VMs and compiled grammars) and in generated Go and TypeScript parsers, which insert with the
   same results, diagnostics and compute units, with `-types` in the typed values too.

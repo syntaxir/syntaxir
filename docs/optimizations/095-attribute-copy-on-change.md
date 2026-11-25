@@ -7,7 +7,7 @@
 
 `normalizeAttributes` builds the executable grammar before backend compilation. Its eager copying path currently allocates replacement nodes for expression trees even when normalization leaves a node and all of its children unchanged. A copy-on-change path can return the original node in that case and copy only nodes whose child, attribute, or lowering changes.
 
-The source AST must remain unchanged. If a nested node changes, copy each affected ancestor before storing the replacement. Keep attribute order, argument binding and validation, diagnostic positions, source metadata, and existing lowering behavior intact. Reuse unchanged nodes; do not describe the normalized result as a detached deep copy. `Parser.Grammar()` may be identical to, or share unchanged nodes with, the source AST.
+The source AST must remain unchanged. If a nested node changes, copy each affected ancestor before storing the replacement. Keep attribute order, argument binding and validation, diagnostic positions, source metadata, and existing lowering behavior intact. Reuse unchanged nodes; do not describe the normalized result as a detached deep copy. The normalized grammar may be identical to, or share unchanged nodes with, the source AST; a compiled parser normalizes its own copy of the source AST, so the sharing never reaches the caller's AST.
 
 Preserve the legacy normalized nil-versus-empty slice shapes, including containers for statements, expression children, fields, operands, levels and operators. Compare against the eager path rather than deriving normalized shapes from the input. Treat opaque extension values as opaque; only the supported expression arguments undergo recursive normalization.
 

@@ -74,9 +74,9 @@ source:
 |:--|:--|
 | `compiler.NewReferenceParser` | Not available: it is made from the grammar source, which a loaded parser does not have |
 | `Recognize` with `WithTrace` or `WithProfile` | Error in every mode: traced or profiled recognition needs the grammar source |
-| `Parser.Grammar()` | `nil` |
 | `OutputSchema` | An error matching `ErrSchemaUnavailable`: the schema is exported from the grammar source |
-| `lint.Config.Run`, `compiler.GenerateGo`, `compiler.GenerateTypeScript`, `sample.New` | Need `Parser.Grammar()`, so they do not take a loaded parser |
+| `sample.New` | An error: sampling reads the grammar AST that the parser was compiled from, which a loaded parser does not have |
+| `lint.Config.Run`, `compiler.GenerateGo`, `compiler.GenerateTypeScript` | Not available: they take the grammar AST (`lint`) or the grammar source (the generators), not a parser |
 | `sxir convert`, `sxir gen`, `sxir lint`, `sxir sample`, `sxir schema` | Error: the command needs the grammar source (`.sxir` or `.json`) |
 
 ### Re-Saving

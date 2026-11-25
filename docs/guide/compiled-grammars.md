@@ -140,9 +140,9 @@ Some things need the grammar itself, so they work only from source, whatever the
 | Backend | Recursive bytecode by default; `Iterative()` of the `*vm.Parser` returns a parser on the iterative VM |
 | The reference parser (`compiler.NewReferenceParser`) | not available: it is made from the grammar source, and a loaded parser has none |
 | `Recognize` with `WithTrace` or `WithProfile` | error: traced or profiled recognition needs the grammar source |
-| `Parser.Grammar()` | `nil` |
 | `OutputSchema` | an error that matches `ErrSchemaUnavailable` |
-| `lint.Config.Run`, `compiler.GenerateGo`, `compiler.GenerateTypeScript`, `sample.New` | need the grammar, which a loaded parser does not have |
+| `sample.New` | an error: sampling reads the grammar AST that the parser was compiled from, which a loaded parser does not have |
+| `lint.Config.Run`, `compiler.GenerateGo`, `compiler.GenerateTypeScript` | not available: they take the grammar AST (`lint`) or the grammar source (the generators), not a parser |
 | `sxir convert`, `sxir gen`, `sxir lint`, `sxir sample`, `sxir schema` | error: the command needs the grammar source (`.sxir` or `.json`) |
 
 A loaded parser is saved again only in its own mode: `sxir compile -g pairs-check.sxirc -mode recognize -o copy.sxirc`
