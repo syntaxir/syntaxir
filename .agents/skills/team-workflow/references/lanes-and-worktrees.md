@@ -36,10 +36,11 @@
 - Land on main with a linear history: cherry-pick or fast-forward, never merge commits.
   Shared index files (README links, docs indexes) are written once by whoever integrates, not
   by each lane.
-- After a branch lands, delete it from origin together with its `-r<n>` copies. A branch is
-  integrated when its tip is an ancestor of `origin/main`, or when `git cherry` shows every
-  commit on main. Never delete a branch with unlanded work, such as paused or declined
-  research, without a decision.
+- After a branch lands, delete it from origin together with its `-r<n>` copies, then the
+  local branches and their worktrees, in the same step. A branch is integrated when its tip
+  is an ancestor of `origin/main`, or when `git cherry` shows every commit on main. Check this
+  for each branch before deleting it. Never delete a branch with unlanded work, such as
+  paused or declined research, without a decision; bundle it first when a decision clears it.
 
 ## Issues
 

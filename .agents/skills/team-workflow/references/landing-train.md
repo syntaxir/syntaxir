@@ -58,7 +58,8 @@ Format: READY <branch> <sha> base <sha> | <scope, Refs #N> | <checks run, each w
   step).
 - On a pass: `train.sh land <name>` pushes main without force and appends the LANDED line; then regenerate and push alpha-parsers when the
   protocol or generated output changed (generated files only, never force), run the backlog
-  close step, and delete the landed remote branches.
+  close step, and delete the landed branches on origin and locally, with their worktrees,
+  after checking each one is integrated (see [lanes and worktrees](lanes-and-worktrees.md)).
 - On a failure: bisect with targeted checks. Send the failure to the owning lane, or fold
   a small fix into its owning commit with the lane's agreement.
 - Trains run about twice a day and take every READY item with a go. After every train, list
