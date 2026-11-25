@@ -210,7 +210,11 @@ func ParseValue(input string, opts ...ParseOption) (T, error) // T: the Go type 
 func ParseRuleValue(name, input string, opts ...ParseOption) (any, error)
 ```
 
-`ParseValue` returns the errors of `Parse`. The mapping of types is:
+`ParseValue` returns the errors of `Parse`. In the tables of typed values, a grammar with `#missing` also stands for one that only names the type `missing`
+(in a type declaration or a rule's declared type): its values have that type, so its types are those of a grammar
+with `#missing`, though it inserts nothing and its parser has no insertion option.
+
+The mapping of types is:
 
 | Grammar type | Go type |
 |:--|:--|

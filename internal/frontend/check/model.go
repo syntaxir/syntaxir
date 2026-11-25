@@ -29,7 +29,13 @@ type Model struct {
 
 	// The rest is the rule table with the static facts of the rules, which the compilation of the
 	// grammar fills in.
-	HasMissing    bool // immutable syntax metadata; bytecode/generation are unsupported
+	// HasMissing reports that a rule uses #missing, so that a parse with missing-token insertion
+	// enabled can insert: the parses run the insertion program then (InsertionFlags).
+	HasMissing bool
+	// MissingType reports that the type missing is among the types of the grammar's values: a rule
+	// uses #missing, or a type declaration or a rule's declared type names missing. The typed values
+	// of such a grammar tell a Missing from an Error; only the generators of typed values read it.
+	MissingType bool
 	RuleList      []*Rule
 	DescTable     []string  // expectation table (starting with fixedDescs)
 	Twins         []*Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)

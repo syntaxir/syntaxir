@@ -90,6 +90,9 @@ stars text 42
 
 ## Mapping Grammar Types to Go
 
+Where the table says a grammar with `#missing`, it also means a grammar that only names the type `missing`: its values
+have that type, though it inserts nothing.
+
 | Grammar type | Go type |
 |:--|:--|
 | `int`, `string`, `bool` | the same |

@@ -368,7 +368,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 		}
 		out.WriteString(typed.parser)
 		out.WriteString("\n")
-		typesBody = typesPreamble(prog.Run.HasMissing) + typed.types
+		typesBody = typesPreamble(prog.MissingType) + typed.types
 	}
 	if rec != nil && opts.TypedOnly {
 		// The recognizer grammar shares sxirGrammar by copying, so Share follows the expectation table,
@@ -403,7 +403,7 @@ func ParseRule(name, input string, opts ...ParseOption) (*Node, error) {
 	var tp *typesPackage
 	var typesFile []byte
 	if opts.Types {
-		if typesFile, tp, err = typesPackageFile(opts, typesBody, prog.Run.HasMissing); err != nil {
+		if typesFile, tp, err = typesPackageFile(opts, typesBody, prog.MissingType); err != nil {
 			return nil, nil, err
 		}
 		// The one reference to the schema of the types package (see schemaName).

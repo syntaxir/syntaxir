@@ -46,7 +46,7 @@ func (g *Generator) typedTS(start *common.Rule, stream bool) (typesSrc, parser s
 	if g.Prog.Typed == nil {
 		return "", "", fmt.Errorf("typed values need the grammar's types (type checking did not run)")
 	}
-	t := &tsTypedGen{info: g.Prog.Typed, names: map[string]string{}, joins: map[string]bool{}, ids: map[string]int{}, missing: g.Prog.Run.HasMissing}
+	t := &tsTypedGen{info: g.Prog.Typed, names: map[string]string{}, joins: map[string]bool{}, ids: map[string]int{}, missing: g.Prog.MissingType}
 	t.ValueResolver = common.NewValueResolver(g.Prog, func(x types.Ty) bool { return t.joins[x.String()] })
 	reservedNames := TsReservedTypes
 	if t.missing {

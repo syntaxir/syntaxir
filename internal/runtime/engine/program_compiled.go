@@ -263,10 +263,12 @@ func LoadProgram(data []byte) (*Program, string, error) {
 	if err != nil {
 		return nil, "", err
 	}
-	// The insertion module marks a grammar that uses #missing or the type missing; a grammar that
-	// names only the type has nothing to insert, and its insertion module neither.
-	if moduleInserts(m) && ins == nil {
+	// The file holds an insertion module exactly when a rule of the grammar uses #missing
+	// (Program.HasMissing), as Marshal writes it.
+	if inserts := moduleInserts(m); inserts && ins == nil {
 		return nil, "", errors.New("invalid compiled grammar: a grammar with #missing has no insertion module")
+	} else if !inserts && ins != nil {
+		return nil, "", errors.New("invalid compiled grammar: a grammar without #missing has an insertion module")
 	}
 	if ins != nil {
 		p, err := loadModule(ins, mode)

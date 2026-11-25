@@ -328,7 +328,8 @@ are read and validated once; a zero `limits.depth` selects the generated default
 Converted values are plain objects with readonly fields, lowercase `type`
 discriminators and `start`/`end` spans. Grammar field spelling is unchanged.
 Nodes have `value`: a node of one kind has that kind as its `type` (`StringNode`, `TupleNode<T>` and `ListNode<T>`, which extend `TNode<T>` with the `type` `"string"`, `"tuple"` or `"list"`); recovered errors have `text` and `message`.
-`readonly` is a type-checking contract; the objects are not frozen.
+`readonly` is a type-checking contract; the objects are not frozen. Below, a grammar with `#missing` also means one
+that only names the type `missing`, whose values have that type though it inserts nothing.
 
 | Grammar type | Generated value |
 | --- | --- |
