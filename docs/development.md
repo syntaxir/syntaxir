@@ -40,7 +40,7 @@ rerunning it.
 The tests come in two tiers:
 
 - **The default tier**, `go test ./...`, runs on every change. It is meant to finish in about 3 minutes: the wall time of
-  `go test ./...` with a warm build cache on the reference machine of [Performance](performance.md#where-syntaxir-stands).
+  `go test ./...` with a warm build cache on [the reference machine](performance.md#the-reference-machine).
 - **The long tier**, `go test -tags sxir_long ./...`, adds the files named `*_long_test.go` with `//go:build sxir_long`:
   negative controls and mutants that rebuild or rerun generated corpora, full corpora and full-size measurements. It
   includes every test of the default tier at the same or a larger size, so a run that needs it runs it instead of the

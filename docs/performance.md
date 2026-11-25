@@ -145,6 +145,12 @@ Notes:
   just a binary built from the old code. Generated parsers embed their grammar.
 - The numbers in the optimization catalog are for the closure backend with code-point positions unless stated otherwise.
 
+### The Reference Machine
+
+The reference machine is an Apple M3 Max (darwin/arm64, 16 cores, `GOMAXPROCS=16`), the machine of the snapshot above
+and the host of timing runs. The time budget of the default test tier in [Development](development.md#test-tiers) is
+measured there, with a warm build cache.
+
 ### Generation and Compile Time
 
 Two benchmarks measure what the pass pipeline costs before any parse. `BenchmarkGeneration` in
