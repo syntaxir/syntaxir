@@ -5,9 +5,13 @@ chunks to amortize per-object allocation.
 
 ## Mechanism and Invariants
 
-Each typed owner starts slabs at 8 cells and grows to 256. Fresh owner state
-avoids reusing returned cells; one escaped cell can retain unused siblings in
-its chunk. Bootstrap and optional liveness cleanup are separate policies. Direct
+Each typed owner starts slabs at 8 cells and grows them geometrically: a slab
+is at most the larger of 256 cells and 1/32 of the cells that the owner had
+allocated before it (`chunkRatio`), so the number of slabs of a parse is
+logarithmic in its output. Fresh owner state avoids reusing returned cells. One
+escaped cell can retain unused siblings in its chunk, so a retained value pins at
+most one slab of at most 256 cells or 1/32 of the allocations of its owner, and
+the unused tail of the last slab is at most 1/33 of the owner's total. Bootstrap and optional liveness cleanup are separate policies. Direct
 construction and Node conversion use the same object allocator.
 
 ## Scope and State
@@ -28,6 +32,15 @@ independent early allocations. Retained-output controls preserve spans, sharing
 and field pointers. Slab allocation can reduce object counts while increasing
 retained siblings; current broad speedup is not established by the individual
 allocator controls.
+
+Typed `ParseValue` allocations on JSON and XML grew linearly with the input
+(707 and 661 at 512 KiB) because every chunk had a fixed limit; with the ratio
+32 they are 466 and 417 (JSON 72, 99, 139, 213, 318, 466 and XML 62, 85, 123,
+186, 282, 417 over 16 to 512 KiB), with the bytes allocated between -0.4% and
++1.1% (JSON) and -0.5% and +2.0% (XML) of the fixed chunks'. A ratio of 8 gave
+271 and 232 allocations at 512 KiB but about 7% more bytes at 128 to 512 KiB, the
+unused tail of each type's last slab; the ratio is the one that keeps the bytes
+within about 2%. The `Memory` limit counts the real size of each slab.
 
 Evidence records: [048](../048-a-typed-runtime-for-parsevalue.md),
 [074](../074-smaller-first-chunks-for-generated-typed-values.md),

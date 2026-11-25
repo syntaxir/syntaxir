@@ -929,15 +929,16 @@ func (a *tarena[T]) reset() {
 // TParser is for generated parsers; not a stable API.
 type TParser struct {
 	*Parser
-	Ext      any    // the generated code's allocation chunks
-	Where    string // the rule whose action is being evaluated
-	Frame    *TCaptureFrame
-	Trail    []tundo
-	Created  []TVal // struct values made by the action being evaluated
-	KidStack []any
-	ac       TActCtx
-	saved    []any
-	matches  []TMatch // returned in values, so not kept for the next parse
+	Ext        any    // the generated code's allocation chunks
+	Where      string // the rule whose action is being evaluated
+	Frame      *TCaptureFrame
+	Trail      []tundo
+	Created    []TVal // struct values made by the action being evaluated
+	KidStack   []any
+	ac         TActCtx
+	saved      []any
+	matches    []TMatch // returned in values, so not kept for the next parse
+	matchTotal int      // the cells of the match chunks of the parse (chunkRatio)
 	// Scratch memory, kept for the next parse (recycle).
 	nodes     tarena[TSeq]
 	vals      tarena[any]
@@ -1024,11 +1025,19 @@ func (p *TParser) NewNode(typ string, start, end int, kids []any) *TSeq {
 	return n
 }
 
+// newMatchChunk makes the next chunk of match cells: nodeChunk of them, or more once the chunks hold
+// chunkRatio times as many (chunkRatio).
+func (p *TParser) newMatchChunk() []TMatch {
+	n := chunkLimit(nodeChunk, p.matchTotal)
+	p.matchTotal += n
+	return make([]TMatch, n)
+}
+
 // NewMatch returns a match that the parse builds. It charges nothing, as NewNode.
 func (p *TParser) NewMatch(start, end int, text string, fresh bool) *TMatch {
 	if len(p.matches) == 0 {
-		p.matches = make([]TMatch, nodeChunk)
-		p.memUsed += nodeChunk * matchBytes
+		p.matches = p.newMatchChunk()
+		p.memUsed += uint64(len(p.matches)) * matchBytes
 	}
 	m := &p.matches[0]
 	p.matches = p.matches[1:]
@@ -1044,7 +1053,7 @@ func (p *TParser) NewNodeOrdinary(typ string, start, end int, kids []any) *TSeq 
 
 func (p *TParser) NewMatchOrdinary(start, end int, text string, fresh bool) *TMatch {
 	if len(p.matches) == 0 {
-		p.matches = make([]TMatch, nodeChunk)
+		p.matches = p.newMatchChunk()
 	}
 	m := &p.matches[0]
 	p.matches = p.matches[1:]

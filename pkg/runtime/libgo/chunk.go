@@ -13,7 +13,21 @@ type Chunk[T any] struct {
 	allocated int
 }
 
-// grow starts small and doubles up to limit. The request is always satisfied.
+// chunkRatio bounds a chunk by what its allocator has handed out: a chunk is at most the larger of its fixed
+// limit and 1/chunkRatio of the values allocated before it, so the chunks of a parse grow geometrically and
+// their number is logarithmic in the output. A value that escapes pins at most such a chunk, and the unused
+// tail of the last chunk is at most 1/(chunkRatio+1) of the allocator's total.
+//
+// The ratio is 32 because a smaller one leaves a larger tail: with 8, the bytes allocated for 128 to 512 KiB of
+// JSON or XML were about 7% above those of fixed chunks, with 32 they are within about 2% (JSON -0.4% to +1.1%,
+// XML -0.5% to +2.0%) while the allocations of a 512 KiB parse still fall by a third.
+const chunkRatio = 32
+
+// chunkLimit returns the size that a chunk may reach after allocated values: the fixed limit, or more once
+// allocated/chunkRatio exceeds it.
+func chunkLimit(limit, allocated int) int { return max(limit, allocated/chunkRatio) }
+
+// grow starts small and doubles up to the limit of chunkLimit. The request is always satisfied.
 func (s *Chunk[T]) grow(n, initial, limit int) {
 	size := s.next
 	if size == 0 {
@@ -24,13 +38,10 @@ func (s *Chunk[T]) grow(n, initial, limit int) {
 	}
 	s.free = make([]T, size)
 	s.allocated += size
-	s.next = size * 2
-	if s.next > limit {
-		s.next = limit
-	}
+	s.next = min(size*2, chunkLimit(limit, s.allocated))
 }
 
-// Alloc returns a new zero value from the chunk, which grows from 8 to 256 values. It allocates the
+// Alloc returns a new zero value from the chunk, which grows from 8 values to at least 256 (chunkRatio). It allocates the
 // first three values independently, so a later published value cannot retain discarded early
 // siblings through a chunk.
 //
@@ -50,7 +61,7 @@ func Alloc[T any](s *Chunk[T]) *T {
 }
 
 // AllocSlice returns n zero values with capacity n, so appending cannot overwrite another returned
-// slice. Small-list chunks grow from 64 to 1,024 elements; a list of more than 256 elements is
+// slice. Small-list chunks grow from 64 to at least 1,024 elements (chunkRatio); a list of more than 256 elements is
 // allocated on its own, and so is the first nonempty small list, to keep its backing values
 // separate from later published lists of the same type. An empty list is not nil.
 //
