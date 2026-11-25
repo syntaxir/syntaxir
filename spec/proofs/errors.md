@@ -56,14 +56,14 @@ the rules of [Parsing](../runtime/parsing.md) and of the language, in the
 recording mode fixed above. This is the parse $\mathcal{R}$ of the
 [memoization proof](memoization.md#setting).
 
-## Lemma 1 (The Reference Parse)
+## Lemma 1 (Reference Parse)
 
-*The outcome of every evaluation that $\mathcal{R}$ makes is a function of
+The outcome of every evaluation that $\mathcal{R}$ makes is a function of
 the expression, the position, the state in which it is evaluated (the
 variables, the captures, the lookahead state and the open growths with their
 current results), the grammar, the input and the recording mode. So the errors
 that $\mathcal{R}$ reports are a function of the grammar, the start rule, the
-position unit, the input and the recording mode.*
+position unit, the input and the recording mode.
 
 *Proof.* By induction on the order in which the evaluations complete. Each
 rule of evaluation that the specification gives determines the outcome of an
@@ -94,9 +94,9 @@ $\square$
 
 ## Lemma 2 (Reuse)
 
-*A parse that answers calls from its memo, that reuses the records of run
+A parse that answers calls from its memo, that reuses the records of run
 sites or skip runs, or that is a parse of a Document after any sequence of
-edits, reports the errors that $\mathcal{R}$ reports.*
+edits, reports the errors that $\mathcal{R}$ reports.
 
 *Proof.* The [memoization
 theorem](memoization.md#theorem-memoization-never-changes-the-result) shows
@@ -151,13 +151,13 @@ storing*). $\square$
 
 ## Theorem (Errors Do Not Depend on How a Parse Is Run)
 
-*Every parse of the grammar from the start rule on the input, in a recording
+Every parse of the grammar from the start rule on the input, in a recording
 mode, that no limit stops and that makes no insertion of `#missing` tokens,
 reports the errors that $\mathcal{R}$ reports, whichever calls it answers
 from its memo, whichever records it reuses, whichever Document it parses and
 whichever alternatives it skips by the next character. These errors are a
 function of the grammar, the start rule, the position unit, the input and the
-recording mode.*
+recording mode.
 
 *Proof.* Lemmas 2 and 3 compose: the induction of the memoization theorem
 holds with the skips of Lemma 3, which leave every outcome as the evaluation
