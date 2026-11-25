@@ -1,13 +1,13 @@
 package complexity
 
 import (
-	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"fmt"
 	"maps"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"syntaxir.dev/sxir/internal/middleend/corepass"
 	"testing"
 	"unicode/utf8"
 

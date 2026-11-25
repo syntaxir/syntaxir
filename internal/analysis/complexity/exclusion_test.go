@@ -1022,7 +1022,7 @@ func TestCutPrefixes(t *testing.T) {
 // is not memoized by it.
 func TestTriviaMemo(t *testing.T) {
 	defer restoreExclusionDefaults()
- // the records of the scan site of ws would answer the levels
+	// nest scans the whitespace rule ws at each level of the recursion e.
 	const nest = "rule main = e ws $$\nrule e = \"(\" e? (ws \")\")?\n"
 	for _, c := range []struct {
 		name, ws string
