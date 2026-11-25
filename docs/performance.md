@@ -154,27 +154,30 @@ measured there, with a warm build cache.
 
 ### Deterministic Metrics
 
-Times need a quiet machine and repeated rounds; the deterministic metrics need neither. Each is a count that every
-run of a commit reproduces, whatever the machine and its load, so a change of a value is a change of the code. They
-guard every landing: a change may improve them, but it may not make them worse unless the change is meant to and its
-commit says so.
+Times need a quiet machine and repeated rounds; the deterministic metrics need neither. Each is a count that every run
+of a commit reproduces with one Go release and target, whatever the machine's load and processors, so a change of a
+value is a change of the code. They guard every landing: a change may improve them, but it may not make them worse
+unless the change is meant to and its commit says so.
 
 ```bash
-go run ./bench/metrics collect -o head.txt       # this checkout (about 10 minutes)
+go run ./bench/metrics collect -o head.txt       # this checkout (a few minutes)
 go run ./bench/metrics compare base.txt head.txt # judge head.txt against a report of the base
 ```
 
-`collect` writes one metric per line, `<key> <value> <policy>`, sorted by key, after a header of `#` lines (the
-commit, whether the tree was dirty, the Go version and platform) that `compare` ignores. Ratios are in thousandths.
-`compare` lists each changed metric with the base and head values and the delta, absolute and in percent, and exits
-with status 1 on a regression. The CI workflow's `perf` suite collects the report of a ref and of a base ref and
-compares them. Reports are not committed: any commit regenerates its own.
+`collect` writes one metric per line, `<key> <value> <policy>`, sorted by key, after a header of `#` lines: the
+commit, whether the tree was dirty, the parts collected, and the toolchain line `go <release> <os>/<arch>`. `compare`
+refuses two reports whose toolchain lines differ, since allocation counts and sizes depend on the Go release and the
+target: reports of one commit on linux/amd64 and on darwin/arm64 agree in units, evaluations and ratios but not in
+allocation and size figures. It ignores the other header lines. Ratios are in thousandths. `compare` lists each
+changed metric with the base and head values and the delta, absolute and in percent, and exits with status 1 on a
+regression. The CI workflow's `perf` suite collects the report of a ref and of a base ref and compares them. Reports
+are not committed: any commit regenerates its own.
 
 | Metric | Key | What it counts | Policy |
 | --- | --- | --- | --- |
 | Compute units | `units <workload> <route>` | The units that a parse of the workload spends (`WithComputeReport`), on the closure, bytecode and iterative engine backends, the generated Go parser and the generated TypeScript parser under Node.js. Units are the same on every route by contract, so a route that differs from the others is a defect | exact |
 | Units per byte | `units-per-byte-milli <workload> <route>` | The same, per byte of input | info |
-| Allocations | `allocs`, `alloc-bytes <workload> <route>/<api>` | The objects and bytes that one parse allocates with the collector off (as `internal/testing/linearity` counts them): `parse` on each engine backend and on the generated Go parser, `parse-value` and `recognize` on the generated Go parser. Not measured for TypeScript, whose heap is not deterministic | exact, or the tolerance below |
+| Allocations | `allocs`, `alloc-bytes <workload> <route>/<api>` | The objects and bytes that one parse allocates with the collector off and one P (as below): `parse` on each engine backend and on the generated Go parser, `parse-value` and `recognize` on the generated Go parser. Not measured for TypeScript, whose heap is not deterministic | exact |
 | Rule calls, evaluations | `rule-calls`, `evaluations <workload>` | Completed rule calls and rule body evaluations of the parse on the engine (`WithProfile`): evaluations beyond the calls are backtracking and left-recursion growth | exact |
 | Memo hits | `memo-hits`, `memo-hit-permille`, `evaluations-per-byte-milli <workload>` | Calls answered by the memo, their share of the calls, and evaluations per byte | info |
 | Doubling ratio | `doubling-units`, `doubling-allocs <subject>` | The cost at the full input over the cost at half of it, scaled to an exact doubling of the length, for the units on the engine and the allocations of the generated parser; and, for each control of known growth in `internal/testing/complexitytest` (exponential ones left out), the cost ratio between the last two sizes of its series | exact, with a ceiling |
@@ -182,17 +185,22 @@ compares them. Reports are not committed: any commit regenerates its own.
 | Generation determinism | `determinism <grammar> go\|ts` | 1 if two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, are byte-identical | equal |
 | Input size | `input <workload> bytes` | The length of the workload's input; when it changes, every other metric of the workload changes with it | equal |
 
-A ceiling (`,max=N`) fails the metric above N whatever the base. The ceiling of a doubling ratio is the band of
-the growth order by which the complexity tests (`internal/testing/complexitytest`) classify a series: 2^1.15 (2219) for a linear cost, 2^(k+0.2) for a polynomial of
-degree k. A linear workload doubles at about 2000.
+A ceiling (`,max=N`) fails the metric above N whatever the base. The ceiling of a doubling ratio is the band of the
+growth order by which the complexity tests (`internal/testing/complexitytest`) classify a series: 2^1.15 (2219) for a
+linear cost, 2^(k+0.2) for a polynomial of degree k. A linear workload doubles at about 2000.
 
-Allocation counts are exact except on a few routes, where they vary between processes; the likely cause is the
-runtime's maps, whose table splits depend on the hash seed of the process. Ten A/A runs of one commit, each in its own process, varied only on two routes: by at
-most 4 objects and 912 bytes for `generated-go/parse-value`, and 1 object and 16 bytes for `engine-closure/parse`;
-the allocation doubling ratios of the controls, measured on the closure backend, varied by 1. Those metrics carry an
-absolute tolerance of twice the largest spread rounded up to a power of two (8 objects and 2048 bytes, 2 objects and
-32 bytes, and 2), written in the report as `lower~N`. Every other metric was identical across the ten runs and is
-exact. A route that starts to vary is a regression of determinism: find the cause before adding a tolerance.
+The allocation count of a parse is the least of five measurements taken after twenty warm parses. Each measurement
+runs the parse once more, collects the garbage, and counts one parse with the collector off and `GOMAXPROCS=1`. The
+runtime adds allocations of its own to a run now and then, at random: a type assertion or type switch to an interface
+type that misses the cache of its call site rebuilds that cache in about one of 1024 misses, chosen by the runtime's
+random generator, more and more rarely as the cache comes to hold the types the site sees; the scavenger allocates a
+timer now and then; and the scheduler allocates when it starts a thread. Each only adds to a count, so the least of
+several measurements after the warm parses is the count of the parse alone. One P keeps the bytes independent of the
+machine: the per-P arrays of a `sync.Pool`, which a parse allocates again once the collections have emptied its pools,
+are as long as `GOMAXPROCS`.
+
+Every metric was identical across six A/A runs, each in its own process, and is exact. A metric that starts to vary is
+a regression of determinism: find the cause before adding a tolerance.
 
 ### Generation and Compile Time
 

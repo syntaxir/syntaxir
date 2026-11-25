@@ -1,8 +1,11 @@
 // Package metrics is the format of the deterministic metrics report that bench/metrics writes and
-// compares: counts that are the same on every run of a commit, whatever the machine and its load.
+// compares: counts that are the same on every run of a commit with one Go release and target,
+// whatever the machine's load.
 //
-// A report is text. Lines that start with # are a header (provenance) and are not compared. Every
-// other line is one metric:
+// A report is text. Lines that start with # are a header (provenance) and are not compared, except
+// the toolchain line (Toolchain): allocation counts and sizes depend on the Go release and the
+// target, so two reports are comparable only when they have the same one. Every other line is one
+// metric:
 //
 //	<key> <value> <policy>
 //
@@ -25,6 +28,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -149,36 +153,76 @@ func Write(w io.Writer, header []string, ms []Metric) error {
 	return bw.Flush()
 }
 
-// Parse reads the metrics of a report, skipping blank and header lines.
-func Parse(r io.Reader) ([]Metric, error) {
+// Toolchain is the header line that names the Go release and the target of this process, such as
+// "go go1.27.1 linux/amd64". A collector writes it, and Comparable checks it.
+func Toolchain() string {
+	return fmt.Sprintf("go %s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+}
+
+// Report is a parsed report: its header lines, without the "# ", and its metrics.
+type Report struct {
+	Header  []string
+	Metrics []Metric
+}
+
+// Comparable returns an error unless the reports have the same toolchain line. Without one on
+// either side they are not comparable either.
+func Comparable(base, head Report) error {
+	b, h := base.toolchain(), head.toolchain()
+	switch {
+	case b == "" || h == "":
+		return fmt.Errorf("a report has no toolchain line (# go <release> <os>/<arch>)")
+	case b != h:
+		return fmt.Errorf("the reports come from different toolchains (base %q, head %q); allocation counts and sizes differ between them", b, h)
+	}
+	return nil
+}
+
+func (r Report) toolchain() string {
+	for _, h := range r.Header {
+		if strings.HasPrefix(h, "go ") {
+			return h
+		}
+	}
+	return ""
+}
+
+// Parse reads a report, skipping blank lines.
+func Parse(r io.Reader) (Report, error) {
+	var rep Report
 	var ms []Metric
 	seen := map[string]bool{}
 	sc := bufio.NewScanner(r)
 	for n := 1; sc.Scan(); n++ {
 		line := strings.TrimSpace(sc.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
+		if line == "" {
+			continue
+		}
+		if h, ok := strings.CutPrefix(line, "#"); ok {
+			rep.Header = append(rep.Header, strings.TrimSpace(h))
 			continue
 		}
 		f := strings.Fields(line)
 		if len(f) < 3 {
-			return nil, fmt.Errorf("line %d: want <key> <value> <policy>: %q", n, line)
+			return Report{}, fmt.Errorf("line %d: want <key> <value> <policy>: %q", n, line)
 		}
 		v, err := strconv.ParseInt(f[len(f)-2], 10, 64)
 		if err != nil {
-			return nil, fmt.Errorf("line %d: bad value: %v", n, err)
+			return Report{}, fmt.Errorf("line %d: bad value: %v", n, err)
 		}
 		p, err := ParsePolicy(f[len(f)-1])
 		if err != nil {
-			return nil, fmt.Errorf("line %d: %v", n, err)
+			return Report{}, fmt.Errorf("line %d: %v", n, err)
 		}
 		m := Metric{Key: strings.Join(f[:len(f)-2], " "), Value: v, Policy: p}
 		if seen[m.Key] {
-			return nil, fmt.Errorf("line %d: metric %q twice", n, m.Key)
+			return Report{}, fmt.Errorf("line %d: metric %q twice", n, m.Key)
 		}
 		seen[m.Key] = true
 		ms = append(ms, m)
 	}
-	return ms, sc.Err()
+	rep.Metrics = ms
+	return rep, sc.Err()
 }
 
 // Verdict is the outcome of the comparison of one metric.

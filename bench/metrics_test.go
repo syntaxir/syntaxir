@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -28,8 +29,8 @@ import (
 
 // The deterministic metrics of the workloads, which go run ./bench/metrics collects through
 // TestMetrics (docs/performance.md, "Deterministic metrics"). Every metric is a count that is the
-// same on every run of a commit: compute units, allocations with the collector off (Allocs of
-// package linearity), the profile's evaluations and memo hits, and ratios of these counts.
+// same on every run of a commit with one Go release and target: compute units, allocations with the
+// collector off (leastAllocs), the profile's evaluations and memo hits, and ratios of these counts.
 
 var metricsOut = flag.String("metrics.out", "", "write the metrics of TestMetrics to this file (go run ./bench/metrics runs it)")
 
@@ -46,25 +47,39 @@ var (
 	same  = metrics.Policy{Kind: metrics.Equal}
 )
 
-// Allocation counts are exact except on a few routes, where they vary between processes; the likely
-// cause is the runtime's maps, whose table splits depend on the hash seed of the process. Ten A/A runs of one commit, each in its own
-// process, varied only on the routes below, by at most 4 objects and 912 bytes for the typed
-// parse of the generated parsers, 1 object and 16 bytes for the engine's closure backend, and 1
-// thousandth for the allocation doubling ratio of a control on that backend. Their tolerance is
-// twice the largest spread, rounded up to a power of two; every other count is exact
-// (docs/performance.md, "Deterministic metrics").
-var allocSlack = map[string]struct{ objects, bytes int64 }{
-	"generated-go/parse-value": {8, 2048},
-	"engine-closure/parse":     {2, 32},
+// leastAllocs returns the objects and bytes that a run of work allocates (Allocs of package
+// linearity): the least count of allocRounds measurements, with the bytes of that measurement, after
+// warm runs of work.
+//
+// The counters of the runtime are those of the process, and the runtime adds allocations of its own
+// to a run now and then, at random. A type assertion or a type switch to an interface type that
+// misses the cache of its call site rebuilds the cache in about one of 1024 misses, chosen by the
+// runtime's random generator (typeAssert and interfaceSwitch in runtime/iface.go), so the first runs
+// of a parse allocate caches, more and more rarely as the caches come to hold the types that the
+// parse asserts: in 30 parses of the Minilang workload into typed values, the first ten rebuilt a
+// cache in about half the runs and the last ten in about one in ten. The runtime's background
+// goroutines, such as the scavenger, allocate a timer now and then, and the scheduler allocates when
+// it starts a thread (newm). A run never frees what it allocated with the collector off, so each of
+// these only adds to its count: the least count of several runs after the warm ones is the count of
+// the work alone. A single measurement varied by up to 4 objects between processes; this count did
+// not vary in six A/A runs.
+func leastAllocs(warm int, work func()) (objects, bytes uint64) {
+	for range warm {
+		work()
+	}
+	objects = math.MaxUint64
+	for range allocRounds {
+		if o, b := linearity.Allocs(work); o < objects {
+			objects, bytes = o, b
+		}
+	}
+	return objects, bytes
 }
 
-const controlDoublingAllocsSlack = 2
+// parseWarmRuns is the number of warm runs of a parse before leastAllocs measures it.
+const parseWarmRuns = 20
 
-// allocPolicies returns the policies of the objects and the bytes that a route allocates.
-func allocPolicies(route string) (objects, bytes metrics.Policy) {
-	s := allocSlack[route]
-	return metrics.Policy{Kind: metrics.Lower, Slack: s.objects}, metrics.Policy{Kind: metrics.Lower, Slack: s.bytes}
-}
+const allocRounds = 5
 
 func ceiling(limit int64) metrics.Policy {
 	return metrics.Policy{Kind: metrics.Lower, HasMax: true, Max: limit}
@@ -77,6 +92,10 @@ func TestMetrics(t *testing.T) {
 	if !state.BudgetControlsEnabled {
 		t.Fatal("the compute units need the engine's budget controls, which this build leaves out")
 	}
+	// One P: the per-P arrays of a sync.Pool, which a parse allocates again after the collections
+	// of Allocs have emptied its pools, are as long as GOMAXPROCS, so the bytes would depend on the
+	// machine's processors.
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
 	var ms []metrics.Metric
 	for i := range workloads {
 		ms = append(ms, workloadMetrics(t, &workloads[i])...)
@@ -137,7 +156,7 @@ func allocs(t *testing.T, w *workload, name string, run func() (bool, error)) (o
 	t.Helper()
 	var ok bool
 	var err error
-	objects, bytes = linearity.Allocs(func() { ok, err = run() })
+	objects, bytes = leastAllocs(parseWarmRuns, func() { ok, err = run() })
 	parsed(t, w, name, ok, err)
 	return objects, bytes
 }
@@ -181,10 +200,9 @@ func workloadMetrics(t *testing.T, w *workload) []metrics.Metric {
 			r.run = func() (bool, error) { _, err := run(); return true, err }
 		}
 		objects, bytes := allocs(t, w, r.name, r.run)
-		op, bp := allocPolicies(r.name)
 		ms = append(ms,
-			metrics.New(int64(objects), op, "allocs", w.name, r.name),
-			metrics.New(int64(bytes), bp, "alloc-bytes", w.name, r.name))
+			metrics.New(int64(objects), exact, "allocs", w.name, r.name),
+			metrics.New(int64(bytes), exact, "alloc-bytes", w.name, r.name))
 	}
 	// D7: the profile of the parse on the engine (the closure backend; the counts are the same on
 	// every backend).
@@ -316,7 +334,7 @@ func controlMetrics(t *testing.T) []metrics.Metric {
 			return n
 		}
 		allocated := func(input string) uint64 {
-			n, _ := linearity.Allocs(func() { parse(input) })
+			n, _ := leastAllocs(parseWarmRuns, func() { parse(input) })
 			return n
 		}
 		us, ul := spent(small), spent(large)
@@ -324,7 +342,7 @@ func controlMetrics(t *testing.T) []metrics.Metric {
 		ms = append(ms,
 			metrics.New(int64(ul), exact, "units", key, fmt.Sprint(c.Sizes[2])),
 			metrics.New(metrics.Ratio(ul, us), ceiling(limit), "doubling-units", key),
-			metrics.New(metrics.Ratio(al, as), metrics.Policy{Kind: metrics.Lower, Slack: controlDoublingAllocsSlack, HasMax: true, Max: limit}, "doubling-allocs", key, "engine-closure"))
+			metrics.New(metrics.Ratio(al, as), ceiling(limit), "doubling-allocs", key, "engine-closure"))
 	}
 	return ms
 }

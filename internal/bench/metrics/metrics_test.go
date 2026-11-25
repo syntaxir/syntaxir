@@ -41,7 +41,10 @@ func TestWriteParse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got) != 3 || got[2].Key != "units JSON engine-closure" || got[2].Value != 7 {
+	if len(got.Header) != 1 || got.Header[0] != "commit abc" {
+		t.Fatalf("parsed header %q", got.Header)
+	}
+	if got := got.Metrics; len(got) != 3 || got[2].Key != "units JSON engine-closure" || got[2].Value != 7 {
 		t.Fatalf("parsed %v", got)
 	}
 	if err := Write(&b, nil, append(ms, ms[0])); err == nil {
@@ -52,6 +55,25 @@ func TestWriteParse(t *testing.T) {
 	}
 	if _, err := Parse(strings.NewReader("a lower\n")); err == nil {
 		t.Error("line without a value parsed")
+	}
+}
+
+func TestComparable(t *testing.T) {
+	linux := Report{Header: []string{"commit a clean", "go go1.27.1 linux/amd64"}}
+	if err := Comparable(linux, linux); err != nil {
+		t.Errorf("same toolchain: %v", err)
+	}
+	for _, other := range []Report{
+		{Header: []string{"go go1.27.1 darwin/arm64"}},
+		{Header: []string{"go go1.27.2 linux/amd64"}},
+		{Header: []string{"commit a clean"}},
+	} {
+		if err := Comparable(linux, other); err == nil {
+			t.Errorf("%q: comparable", other.Header)
+		}
+	}
+	if !strings.HasPrefix(Toolchain(), "go go") {
+		t.Errorf("Toolchain() = %q", Toolchain())
 	}
 }
 

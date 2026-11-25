@@ -4,11 +4,11 @@
 //	go run ./bench/metrics collect [-o FILE] [-parts LIST]   # write the report of this checkout
 //	go run ./bench/metrics compare [-all] BASE HEAD          # judge HEAD against BASE
 //
-// Every metric is a count that is the same on every run of a commit, whatever the machine and its
-// load, so a change of a value is a change of the code: compute units, allocations with the
-// collector off, rule evaluations and memo hits, the doubling ratios of units and allocations,
-// generated and built sizes, and whether generation is byte-identical across runs. No metric is a
-// time. The report format is that of package internal/bench/metrics.
+// Every metric is a count that is the same on every run of a commit with one Go release and target,
+// whatever the machine's load and processors, so a change of a value is a change of the code:
+// compute units, allocations with the collector off, rule evaluations and memo hits, the doubling
+// ratios of units and allocations, generated and built sizes, and whether generation is
+// byte-identical across runs. No metric is a time. The report format is that of package internal/bench/metrics.
 //
 // collect runs these parts (-parts selects some, comma-separated):
 //
@@ -20,10 +20,12 @@
 //	determinism  whether two generations of each parser, one with GOMAXPROCS=1 and one with more,
 //	             are byte-identical
 //
-// compare prints the changed metrics (all with -all) with their delta and exits with status 1 if
-// any is a regression: an increase of an exact metric, an increase beyond the tolerance of one with
-// a tolerance, a change of an equal metric, a value above a declared ceiling, or a metric of the
-// base that the head lacks. A metric that only the head has is listed as new.
+// compare refuses two reports whose toolchain lines (Go release and target) differ, since
+// allocation counts and sizes depend on both. It prints the changed metrics (all with -all) with
+// their delta and exits with status 1 if any is a regression: an increase of an exact metric, an
+// increase beyond the tolerance of one with a tolerance, a change of an equal metric, a value above
+// a declared ceiling, or a metric of the base that the head lacks. A metric that only the head has
+// is listed as new.
 package main
 
 import (
@@ -89,20 +91,23 @@ func compareCmd(args []string) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	return metrics.WriteRows(os.Stdout, metrics.Compare(base, head), *all)
+	if err := metrics.Comparable(base, head); err != nil {
+		return 0, err
+	}
+	return metrics.WriteRows(os.Stdout, metrics.Compare(base.Metrics, head.Metrics), *all)
 }
 
-func readReport(path string) ([]metrics.Metric, error) {
+func readReport(path string) (metrics.Report, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil, err
+		return metrics.Report{}, err
 	}
 	defer f.Close()
-	ms, err := metrics.Parse(f)
+	r, err := metrics.Parse(f)
 	if err != nil {
-		return nil, fmt.Errorf("%s: %w", path, err)
+		return metrics.Report{}, fmt.Errorf("%s: %w", path, err)
 	}
-	return ms, nil
+	return r, nil
 }
 
 var allParts = []string{"workloads", "sizes", "wasm", "determinism"}
@@ -174,7 +179,7 @@ func collectCmd(args []string) error {
 	return os.WriteFile(*out, b.Bytes(), 0o644)
 }
 
-// header is the provenance of a report; compare ignores it.
+// header is the provenance of a report; compare checks only its toolchain line.
 func header(root, parts string) []string {
 	commit, _ := probe.ExecOut(root, nil, "git", "rev-parse", "HEAD")
 	status, _ := probe.ExecOut(root, nil, "git", "status", "--porcelain")
@@ -185,7 +190,7 @@ func header(root, parts string) []string {
 	return []string{
 		"sxir deterministic metrics (go run ./bench/metrics; docs/performance.md)",
 		fmt.Sprintf("commit %s %s", strings.TrimSpace(commit), dirty),
-		fmt.Sprintf("go %s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH),
+		metrics.Toolchain(),
 		"parts " + parts,
 	}
 }
@@ -199,7 +204,8 @@ func collectWorkloads(root, work string) ([]metrics.Metric, error) {
 	if err := cmd.Run(); err != nil {
 		return nil, fmt.Errorf("go test ./bench -run TestMetrics: %w", err)
 	}
-	return readReport(path)
+	r, err := readReport(path)
+	return r.Metrics, err
 }
 
 // collectSizes turns the lines of probe.WriteSizes into metrics.
