@@ -465,12 +465,12 @@ Expectation strings are those the compiler placed in the string table: literals 
 
 ## File Format
 
-A compiled grammar uses container version 9. It stores one execution-only compile result: the module of one mode and the start rule, and for a grammar with `#missing` the module of the same mode that the parses inserting missing tokens run, with no grammar AST and no output schema (see [Compiled Grammars](../runtime/compiled-grammars.md)). The container version and the module's instruction-set version cover separate layers: the container version covers the outer frame, the header and the order of the parts below, and the instruction-set version covers the encoding of the module's contents, action code included. A change to the module layout therefore bumps only the instruction-set version. A loader accepts only container version 9. Integers are variable-length: unsigned integers use LEB128 and signed integers use zigzag-encoded LEB128, each in its shortest encoding. A boolean is one byte (0 or 1).
+A compiled grammar uses container version 10. It stores one execution-only compile result: the module of one mode and the start rule, and for a grammar with `#missing` the module of the same mode that the parses inserting missing tokens run, with no grammar AST and no output schema (see [Compiled Grammars](../runtime/compiled-grammars.md)). The container version and the module's instruction-set version cover separate layers: the container version covers the outer frame, the header and the order of the parts below, and the instruction-set version covers the encoding of the module's contents, action code included. A change to the module layout therefore bumps only the instruction-set version. A loader accepts only container version 10. Integers are variable-length: unsigned integers use LEB128 and signed integers use zigzag-encoded LEB128, each in its shortest encoding. A boolean is one byte (0 or 1).
 
 | Part | Contents |
 |:--|:--|
 | Magic | `SXC\x00` (4 bytes) |
-| Version | 1 byte: 9. A loader refuses any other value. |
+| Version | 1 byte: 10. A loader refuses any other value. |
 | Mode | 1 byte: 0 parse, 1 recognize, 2 document. The module serves the operations of this mode only. A parse-mode or document-mode module is the module of the grammar; a recognize-mode module is the module of its recognizer. A loader refuses any other value. |
 | Instruction-set version | Unsigned integer for this module: 41. Every module uses this version, whatever instructions it contains; a runtime rejects a module of another version and asks for the grammar to be compiled again. |
 | String table | Count, then each string (byte length and UTF-8 bytes), all unsigned. The module's string table is a prefix of this table. |

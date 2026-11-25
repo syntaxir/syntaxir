@@ -728,3 +728,23 @@ func TestCompiledFormatVersion(t *testing.T) {
 		}
 	}
 }
+
+// TestCompiledPreviousFormat checks that a file of the previous container format, 9, is refused with the
+// message that asks for the grammar to be compiled again, for a grammar that names the type missing without
+// #missing as well as for a plain one: the insertion part of the first is written by the previous format
+// and not by this one, so the file must not reach the insertion checks.
+func TestCompiledPreviousFormat(t *testing.T) {
+	t.Parallel()
+	for _, src := range []string{"@start\nrule main = \"a\"\n", "type Gap ~ missing\n@start\nrule main = \"a\"\n"} {
+		data, err := mustCompile(t, src).MarshalBinary("main")
+		if err != nil {
+			t.Fatal(err)
+		}
+		previous := append([]byte(nil), data...)
+		previous[len(compiledMagic)] = 9
+		_, _, err = LoadProgram(previous)
+		if err == nil || !strings.Contains(err.Error(), "unsupported compiled grammar version 9 (want 10): compile the grammar again") {
+			t.Errorf("%q: got %v, want the recompile message", src, err)
+		}
+	}
+}

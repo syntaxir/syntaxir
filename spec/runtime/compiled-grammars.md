@@ -98,11 +98,11 @@ version.
 
 | Number | Current value | Meaning |
 |:--|--:|:--|
-| Format version | 9 | The outer frame of the file: its header and the order of its sections. A runtime loads only version 9 and refuses any other version |
+| Format version | 10 | The outer frame of the file: its header, the order of its sections, and when the insertion part exists (exactly when a rule uses `#missing`). A runtime loads only version 10 and refuses any other version |
 | Instruction-set version | 41 | The encoding of the module's contents, its action code included. Every module declares it |
 
 - A runtime refuses a file of another format version with
-  `unsupported compiled grammar version N (want 9): compile the grammar again`.
+  `unsupported compiled grammar version N (want 10): compile the grammar again`.
 - A runtime refuses a module of an earlier instruction set, whose contents it does
   not decode. The error asks for the grammar to be compiled again. A file that requires a newer instruction set is refused with
   `unsupported instruction set version N`.
@@ -154,7 +154,7 @@ is up to the program.
 | Message | Cause |
 |:--|:--|
 | `not a compiled SyntaxIR grammar` | The data does not start with the magic number |
-| `unsupported compiled grammar version N (want 9): compile the grammar again` | The format version is not 9 |
+| `unsupported compiled grammar version N (want 10): compile the grammar again` | The format version is not 10 |
 | `unsupported instruction set version N: the file was compiled by an older sxir; compile the grammar again` | The file was compiled for an earlier instruction set |
 | `unsupported instruction set version N` | The file requires a newer instruction set |
 | `invalid compiled grammar: checksum mismatch` | The file is truncated or changed |

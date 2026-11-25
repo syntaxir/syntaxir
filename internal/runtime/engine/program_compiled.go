@@ -32,7 +32,7 @@ import (
 
 const (
 	compiledMagic   = bytecode.FileMagic
-	compiledVersion = 9
+	compiledVersion = 10
 )
 
 // CompiledMode is the mode of a compiled grammar file: the one kind of parse its module serves.
