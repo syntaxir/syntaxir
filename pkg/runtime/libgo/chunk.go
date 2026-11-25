@@ -16,7 +16,7 @@ type Chunk[T any] struct {
 // chunkRatio bounds a chunk by what its allocator has handed out: a chunk is at most the larger of its fixed
 // limit and 1/chunkRatio of the values allocated before it, so the chunks of a parse grow geometrically and
 // their number is logarithmic in the output. A value that escapes pins at most such a chunk, and the unused
-// tail of the last chunk is at most 1/(chunkRatio+1) of the allocator's total.
+// tail of the last chunk is at most the larger of the fixed limit and 1/(chunkRatio+1) of the allocator's total.
 //
 // The ratio is 32 because a smaller one leaves a larger tail: with 8, the bytes allocated for 128 to 512 KiB of
 // JSON or XML were about 7% above those of fixed chunks, with 32 they are within about 2% (JSON -0.4% to +1.1%,
