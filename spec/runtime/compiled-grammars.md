@@ -122,11 +122,12 @@ the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
 rule of the module, the file holds an insertion module exactly when a rule uses
 `#missing`, and that module inserts and has the module's start rules, and no
-bytes trail the module), and that
-the file is in the canonical encoding: an integer longer than its shortest
-encoding, a string table with a string twice, or any other byte the compiler
-would not write for what the file decodes to fails with `invalid compiled
-grammar`. It also rejects a recovery
+bytes trail the module), and that the file is in the canonical encoding: an
+integer longer than its shortest encoding, a string table with a string twice,
+or any other byte the compiler would not write for what the file decodes to
+fails with `invalid compiled grammar`. Canonical is relative to the decoded
+modules: loading does not check that they are what the compiler makes from some
+grammar ([Canonical Encoding](../bytecode/README.md#canonical-encoding)). It also rejects a recovery
 region that encloses a streaming commitment, including files that were made with
 `#recover` on the `#stream` repetition, and a body with a cycle that passes
 through no step that requires progress and reuses no element of a run it leaves

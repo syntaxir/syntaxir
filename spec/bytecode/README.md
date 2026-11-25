@@ -506,13 +506,15 @@ The encoding is canonical. A compiler and a saving runtime encode one compile re
 
 The order of the module's own string table, and any string of it that the module does not refer to, are part of the module: a compiler chooses them, and a runtime saving a loaded module keeps them.
 
+Canonical is relative to the decoded modules: a runtime accepts a file only if it is the one encoding of the module and the insertion module it decodes to. It does not check that those modules are what a compiler makes from some grammar, which it could only tell by compiling the grammar: a module whose string table is in another order or holds a string the module does not use, or an insertion module consistent with the module but not its insertion lowering, encodes canonically too. [Load-Time Validation](#load-time-validation) bounds what any module can do.
+
 ### Load-Time Validation
 
 On load, a runtime checks the following and rejects the file if any check fails:
 
 - The checksum, the version, the mode and the instruction-set version are valid, the start rule is empty or a start rule of the module, and no data remains after the insertion part.
 - The file is in the canonical encoding ([Canonical Encoding](#canonical-encoding)): no integer is longer than its shortest encoding; no string table holds a string twice; the file's string table is the module's string table, followed by the start rule only if the module's table does not hold it, and the insertion part's string table is the insertion module's; and the Flow bodies and the stream bodies are each in strictly increasing rule order. The other parts admit one encoding by their layout (a boolean is 0 or 1, a marked pool is not empty and a marked operand not zero), so a file that passes these checks is the encoding of what it decodes to.
-- There is an insertion module exactly when a rule of the module is marked missing. The insertion module passes every check below on its own, has a rule marked missing, and has the start rules and the default start rule of the module.
+- There is an insertion module exactly when a rule of the module is marked missing. The insertion module passes every check below on its own, has a rule marked missing, and has the start rules and the default start rule of the module. This checks that the insertion module is consistent with the module, not that it is the module's insertion lowering.
 - Each variable is named once, has a valid type, and has an initial value that matches its type.
 - Every reference in the tables and instructions (strings, character classes, scopes, rules, Operators Rule tables, action expressions) is in range.
 - There is at least one start rule. The start rules are in increasing order and have distinct names, and the default start rule is one of them.

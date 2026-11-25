@@ -86,7 +86,10 @@ A few more facts:
 
 - The same parser always produces the same bytes for a mode, and a parser that was loaded and saved again produces the
   bytes it was loaded from. The encoding is canonical: a file loads only if it is exactly what the compiler writes for
-  its contents. This is what makes the [up-to-date test](#embedding-with-goembed) possible.
+  the modules it decodes to. Loading does not check that those modules are what the compiler makes from some grammar
+  (the order of a module's strings, or an insertion module that is consistent with the module rather than its
+  lowering); the checks below bound what any module can do. This is what makes the
+  [up-to-date test](#embedding-with-goembed) possible.
 - `vm.IsCompiled(data)` tells a compiled grammar from other data by its magic number. The commands use it to decide
   whether `-g` names source, JSON or a compiled grammar.
 - A loaded parser is an ordinary `runtime.Parser`: it is safe for concurrent use, `WithStart` of the `*vm.Parser` changes its start rule, and
