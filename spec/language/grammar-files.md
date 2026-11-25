@@ -366,9 +366,8 @@ A trailing comma is not part of the normalized grammar: it is kept in the
 from JSON formats every list on one line.
 
 `grammar.Load` returns this source-preserving AST. Compilation removes
-source-only type and action expression groups from the executable grammar; consequently,
-`Parser.Grammar()` exposes the normalized executable form rather than those
-grouping nodes.
+source-only type and action expression groups from the grammar it runs, without
+changing the AST.
 
 ### Type Declaration Statements
 
@@ -779,10 +778,9 @@ is `Block{Statements}`: a single statement stays in `Predicate.Action`, and a no
 multi-statement block executes its statements in order like adjacent Predicate
 Actions. Empty predicate blocks, braced Value Actions and `InlineAction` nodes can be
 parsed, formatted and serialized, but semantic checking or compilation rejects them
-as unsupported. `Parser.Grammar()` returns the normalized grammar, which MAY share unchanged nodes with the source AST and is not a
-detached copy. Normalization does not mutate the caller's AST; the source and
-normalized ASTs are treated as immutable while a parser uses them, and
-`Grammar.Clone()` returns an independent copy.
+as unsupported. Compilation does not change the caller's AST, and a compiled parser
+keeps a copy of the grammar it was compiled from, so a later change to the caller's
+AST does not change the parser. `Grammar.Clone()` returns an independent copy.
 
 ### Literal Matching Values
 

@@ -276,14 +276,10 @@ Shared AST subtrees remain shared within the clone, and AST pointer cycles are
 preserved for `grammar.Validate` to report. Arbitrary application objects or
 cyclic attribute maps and slices are outside the clone contract.
 
-`grammar.Load` returns the source AST with its source metadata. By
-contrast, `Parser.Grammar()` exposes the normalized grammar retained by the
-compiled parser. Normalization can lower groups and pragmas, so that grammar is
-not a complete record of source documentation ownership. It may be the same AST
-as the source or share unchanged nodes; it is not a detached deep copy.
-Normalization does not mutate the caller AST. Treat the source and normalized
-ASTs as immutable while a parser uses them; use `g.Clone()` for an independent
-editable copy.
+`grammar.Load` returns the source AST with its source metadata. Compilation
+does not change it, and a compiled parser keeps its own copy of the grammar, so a
+tool may edit an AST after compiling it without changing the parser. Use
+`g.Clone()` for an independent editable copy.
 
 JSON stores normalized source ownership, not raw formatter trivia or layout.
 An AST decoded from JSON therefore cannot promise lossless source formatting.
