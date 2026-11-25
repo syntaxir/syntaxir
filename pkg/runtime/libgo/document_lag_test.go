@@ -1,6 +1,7 @@
 package libgo
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -110,6 +111,62 @@ func TestUnlinkLaggedSkipsOnlyWhenNothingLags(t *testing.T) {
 					t.Errorf("gen %d limit %d: chain %v, want %v", gen, limit, g, w)
 					break
 				}
+			}
+		}
+	}
+}
+
+// TestTypedUnlinkLaggedSkipsOnlyWhenNothingLags is the test of the typed memo (TParser.mayLag): the walk
+// that skips the lag test leaves the chain and the returned link as the walk that tests every entry does.
+func TestTypedUnlinkLaggedSkipsOnlyWhenNothingLags(t *testing.T) {
+	chain := func(p *TParser) (out []int32) {
+		for e := p.memoSlots[7]; e != nil; e = e.next {
+			out = append(out, e.rule)
+		}
+		return out
+	}
+	for _, gen := range []uint32{0, pendingEditLimit, pendingEditLimit + 1, 3 * pendingEditLimit} {
+		for _, limit := range []int{0, 3, memoScan, -1} {
+			build := func() *TParser {
+				p := &TParser{Parser: &Parser{gen: gen}, memoSlots: make([]*tmemoEntry, 8)}
+				for i := 9; i >= 0; i-- {
+					e := &tmemoEntry{rule: int32(i), vgen: uint32(i) * gen / 9}
+					e.next, p.memoSlots[7] = p.memoSlots[7], e
+				}
+				return p
+			}
+			got, want := build(), build()
+			gl := got.unlinkLagged(7, &got.memoSlots[7], limit)
+			// The reference: the walk that tests every entry.
+			wl := &want.memoSlots[7]
+			for kept := 0; *wl != nil && kept != limit; {
+				e := *wl
+				if want.gen-e.vgen <= pendingEditLimit {
+					wl, kept = &e.next, kept+1
+					continue
+				}
+				*wl = e.next
+			}
+			g, w := chain(got), chain(want)
+			if fmt.Sprint(g) != fmt.Sprint(w) {
+				t.Errorf("gen %d limit %d: chain %v, want %v", gen, limit, g, w)
+			}
+			// The links agree when they point at the same position of the chain.
+			if (*gl == nil) != (*wl == nil) || (*gl != nil && (*gl).rule != (*wl).rule) {
+				t.Errorf("gen %d limit %d: link before rule %v, want %v", gen, limit, *gl, *wl)
+			}
+			dropped := build()
+			dropped.dropLagged(7, &dropped.memoSlots[7])
+			ref := build()
+			for l := &ref.memoSlots[7]; *l != nil; {
+				if ref.gen-(*l).vgen > pendingEditLimit {
+					*l = (*l).next
+					continue
+				}
+				l = &(*l).next
+			}
+			if fmt.Sprint(chain(dropped)) != fmt.Sprint(chain(ref)) {
+				t.Errorf("gen %d: dropLagged left %v, want %v", gen, chain(dropped), chain(ref))
 			}
 		}
 	}
