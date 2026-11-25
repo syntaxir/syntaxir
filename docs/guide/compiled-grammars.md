@@ -422,7 +422,9 @@ structure (every index is in range, every jump goes forward except the one that 
 start rule is a start rule of the module, no trailing bytes) and that the file is in the canonical encoding the compiler
 writes. It does **not** type-check the grammar again, and it does not
 verify that the bytecode uses the VM's stacks correctly. A file made to contain type errors can make actions fail while
-parsing, and made-up bytecode is not guaranteed to terminate. The nesting limit relies on the recursion marks stored in the compiled grammar, so a forged file can remove it; load only files you trust.
+parsing. Loading does check that every loop of the parsing code is bounded and that every rule on a cycle of calls is marked
+recursive, so the parsing code of a file that loads ends and keeps the nesting limit, but the action code of a made-up
+file is not guaranteed to terminate; load only files you trust.
 
 Only load files that you or your build produced: the output of `sxir compile`, `compiler.Marshal` or `Marshal`. The
 checksum is not a signature: it detects accidents, not tampering. If a file travels over a network, sign it or compare

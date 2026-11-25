@@ -498,7 +498,7 @@ The module is laid out in the following order. A *list* is a count (unsigned) fo
 
 ### Canonical Encoding
 
-The encoding is canonical. A compiler and a saving runtime encode one compile result as exactly one sequence of bytes: equal compile results encode to identical bytes, whatever the run, the process or the iteration order of the compiler's internal tables. Decoding a file and encoding what it decodes to gives back the file, so a program loaded from a file saves to the bytes it was loaded from, and no two files encode the same program. The parts above fix every byte of a file once its module and insertion module are fixed:
+The encoding is canonical. A compiler and a saving runtime encode one compile result as exactly one sequence of bytes: equal compile results encode to identical bytes, whatever the run, the process or the iteration order of the compiler's internal tables. Decoding a file and encoding what it decodes to gives back the file, so a program loaded from a file saves to the bytes it was loaded from, and no two files encode the same modules with the same mode and start rule. The parts above fix every byte of a file once its module, its insertion module, its mode and its start rule are fixed:
 
 - Every integer is in its shortest encoding: the last byte of an integer longer than one byte is not zero.
 - The string table holds no string twice. It is the module's string table, followed by the start rule if the module's table does not hold it, and holds no other string. The insertion part's string table is the insertion module's string table and holds no other string.
@@ -506,7 +506,7 @@ The encoding is canonical. A compiler and a saving runtime encode one compile re
 
 The order of the module's own string table, and any string of it that the module does not refer to, are part of the module: a compiler chooses them, and a runtime saving a loaded module keeps them.
 
-Canonical is relative to the decoded modules: a runtime accepts a file only if it is the one encoding of the module and the insertion module it decodes to. It does not check that those modules are what a compiler makes from some grammar, which it could only tell by compiling the grammar: a module whose string table is in another order or holds a string the module does not use, or an insertion module consistent with the module but not its insertion lowering, encodes canonically too. [Load-Time Validation](#load-time-validation) bounds what any module can do.
+Canonical is relative to the decoded modules: a runtime accepts a file only if it is the one encoding of the module and the insertion module it decodes to. It does not check that those modules are what a compiler makes from some grammar, which it could only tell by compiling the grammar: a module whose string table is in another order or holds a string the module does not use, or an insertion module consistent with the module but not its insertion lowering, encodes canonically too. [Load-Time Validation](#load-time-validation) lists what a runtime checks of any module: among others the structure, the range of every reference, that every cycle of a Flow body is bounded and that every rule on a cycle of calls is marked recursive, so that every run of a Flow body ends and every unbounded nesting counts against the nesting limit. It does not check the types of actions, what registers hold, that the mode matches the module, or that action code terminates.
 
 ### Load-Time Validation
 
