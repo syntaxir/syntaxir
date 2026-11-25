@@ -334,7 +334,8 @@ tier, which includes the default tier), `alpha` (`hack/test-alpha-parsers.sh` ag
 or `all` (every job, with the long tier). Run them on hosted runners when the local machine is busy, for
 instance for a landing batch; they replace no local check that this page requires. Timing benchmarks never run
 there, because shared runners give no stable timings. A newer run of the same suite on the same ref cancels the
-superseded run. CI uses Go 1.27.1, Node.js 22.18.0, CPython 3.14.0 and TypeScript 5.9.3. The default tier has a
+superseded run. CI runs on the pinned `ubuntu-24.04` image with Go 1.27.1, Node.js 22.18.0, CPython 3.14.0 and
+TypeScript 5.9.3. The default tier has a
 45-minute timeout and the long tier 150 minutes, within a 180-minute job budget.
 The TypeScript differential harness uses the upstream
 [`microsoft/TypeScript` v5.9.3 `tests/cases`](https://github.com/microsoft/TypeScript/tree/v5.9.3/tests/cases) corpus.

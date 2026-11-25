@@ -29,7 +29,7 @@ jobs:
     name: Vet and generated files
     if: github.event_name == 'push' || inputs.suite == 'check' || inputs.suite == 'all'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -52,7 +52,7 @@ jobs:
     name: Go root module (${{ inputs.suite == 'root' && 'default' || 'long' }} tier)
     if: inputs.suite == 'root' || inputs.suite == 'long' || inputs.suite == 'all'
     timeout-minutes: 180
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -108,7 +108,7 @@ jobs:
     name: alpha-parsers against this tree
     if: inputs.suite == 'alpha' || inputs.suite == 'all'
     timeout-minutes: 90
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
@@ -138,7 +138,7 @@ jobs:
     name: Site build and JavaScript checks
     if: inputs.suite == 'site' || inputs.suite == 'all'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -168,7 +168,7 @@ jobs:
     name: Node.js WASM and generated TypeScript
     if: inputs.suite == 'typescript' || inputs.suite == 'all'
     timeout-minutes: 30
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
