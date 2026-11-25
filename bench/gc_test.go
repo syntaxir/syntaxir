@@ -14,7 +14,12 @@ import (
 // benchmarks (-test.bench) keeps the user defaults: GOGC=100 and no memory limit. GOGC and GOMEMLIMIT
 // in the environment decide either way when they are set; the headers of the saved results record
 // the values that applied (go run ./bench/report).
+//
+// A process that BenchmarkCold starts runs its one case and exits (runCold).
 func TestMain(m *testing.M) {
+	if runCold() {
+		os.Exit(0)
+	}
 	flag.Parse()
 	if f := flag.Lookup("test.bench"); f == nil || f.Value.String() == "" {
 		if os.Getenv("GOGC") == "" {
