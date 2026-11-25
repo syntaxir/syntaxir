@@ -181,7 +181,8 @@ process.stdout.write("ok\n");
 // TestGeneratedTSMissingTokensTypedDeclarations checks the declarations of types.ts: a grammar with
 // #missing declares Missing and ErrorValue, the type of error, and reserves the name ErrorValue; a
 // grammar without it keeps RecoveredError for error and leaves the name to the grammar. A grammar that
-// only names the type missing has the declarations, and its parser takes a limit.
+// only names the type missing has the declarations, and its parser takes no missing token limit, as it
+// inserts nothing.
 func TestGeneratedTSMissingTokensTypedDeclarations(t *testing.T) {
 	t.Parallel()
 	const recovered = "type S = { E error }\n@start\nrule main S = s:(\"a\" #recover(skip=[^;]*)) \";\" $$ => S{E: $s.(error)}\n"
