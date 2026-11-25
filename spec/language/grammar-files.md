@@ -118,7 +118,12 @@ which is also how a trailing comment over several lines is written. Each string
 of `TrailingComments` is one comment, so the boundaries between the comments of a
 line (`/*a*//*b*/ // c`) come back, written with one space between them. A text that
 was a block comment ending in a line break therefore comes back as line
-comments, and the spacing inside a block comment is the normalized one. Formatting
+comments, and the spacing inside a block comment is the normalized one. Block
+comments nest, so the `/*` and `*/` of a string that pair up are written as they
+are, which writes the nested comments of parsed source back. A string set by
+hand may hold a `*/` that closes no `/*`, which would end the comment, or a `/*`
+that no `*/` closes, which would leave it open: they are written `* /` and
+`/ *`. Formatting
 source keeps each owner when statements share a line separated by `;`: a lone
 block comment between two of them is detached, so it is written on lines of its
 own, set off by blank lines, before the next statement. The

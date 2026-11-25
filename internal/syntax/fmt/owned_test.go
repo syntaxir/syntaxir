@@ -29,6 +29,12 @@ func TestFormatWritesOwnedComments(t *testing.T) {
 		{"trailing block comment over lines", rule("", " a\n  b "), "rule r = \"a\" /* a\n *  b */\n"},
 		{"line comment at the end of a file", rule("", " tail"), "rule r = \"a\" /* tail */\n"},
 		{"block comment end in the text", rule(" a */ b ", ""), "/* a * / b */\nrule r = \"a\"\n"},
+		{"block comment start in the text", rule(" a /* b ", ""), "/* a / * b */\nrule r = \"a\"\n"},
+		{"nested block comment in the text", rule(" a /* b */ c ", ""), "/* a /* b */ c */\nrule r = \"a\"\n"},
+		{"unpaired start before a nested comment", rule(" /* /* b */ ", ""), "/* / * /* b */ */\nrule r = \"a\"\n"},
+		{"unpaired end before a star", rule("*/*", ""), "/** / * */\nrule r = \"a\"\n"},
+		{"unpaired start before a slash", rule("/*/", ""), "/*/ * / */\nrule r = \"a\"\n"},
+		{"line that starts with a slash", rule(" a\n/b ", ""), "/* a\n/b */\nrule r = \"a\"\n"},
 		{"none", rule("", ""), "rule r = \"a\"\n"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

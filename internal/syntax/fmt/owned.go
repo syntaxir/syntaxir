@@ -14,15 +14,14 @@ import "syntaxir.dev/sxir/pkg/grammar/ast"
 
 // ownedComments returns the comment tokens of text, a normalized comment: the
 // lines of a text that ends in a line break are line comments, and any other
-// text is one block comment. A block comment cannot hold "*/", so the text is
-// written with "* /" for it, and a space ends text that does not end with white
+// text is one block comment. A space ends text that does not end with white
 // space, as the line comment at the end of a file has none.
 func ownedComments(text string) []*ast.Comment {
 	if text == "" {
 		return nil
 	}
 	if !strings.HasSuffix(text, "\n") {
-		body := continuationLines(strings.ReplaceAll(text, "*/", "* /"))
+		body := continuationLines(blockCommentText(text))
 		if !strings.HasSuffix(body, " ") {
 			body += " "
 		}
@@ -36,13 +35,63 @@ func ownedComments(text string) []*ast.Comment {
 	return cs
 }
 
+// blockCommentText returns text as the body of one block comment. Block
+// comments nest, so the "/*" and "*/" of text that pair up as the lexer reads
+// them are kept, which writes the nested comments of parsed source as they
+// were. A "*/" that closes no "/*" of text would end the comment, and a "/*"
+// that no "*/" closes would leave it open, so they are written "* /" and "/ *",
+// with a space after them when the next character would join their last one
+// into a delimiter again.
+func blockCommentText(text string) string {
+	// unpaired holds the offsets of the delimiters that pair with none.
+	unpaired := map[int]bool{}
+	var open []int
+	for i := 0; i+1 < len(text); i++ {
+		switch text[i : i+2] {
+		case "/*":
+			open = append(open, i)
+			i++
+		case "*/":
+			if len(open) > 0 {
+				open = open[:len(open)-1]
+			} else {
+				unpaired[i] = true
+			}
+			i++
+		}
+	}
+	for _, i := range open {
+		unpaired[i] = true
+	}
+	if len(unpaired) == 0 {
+		return text
+	}
+	var out strings.Builder
+	for i := 0; i < len(text); i++ {
+		if !unpaired[i] {
+			out.WriteByte(text[i])
+			continue
+		}
+		first, second := text[i], text[i+1]
+		out.WriteByte(first)
+		out.WriteByte(' ')
+		out.WriteByte(second)
+		if i+2 < len(text) && text[i+2] == first {
+			out.WriteByte(' ')
+		}
+		i++
+	}
+	return out.String()
+}
+
 // continuationLines starts the lines of text after the first with " *", which a
 // block comment drops from its text again, so that the white space at the start
-// of those lines is kept.
+// of those lines is kept. A line that starts with "/" is written as it is, as
+// " *" would join it into "*/" and it has no white space to keep.
 func continuationLines(text string) string {
 	lines := strings.Split(text, "\n")
 	for i := 1; i < len(lines); i++ {
-		if lines[i] != "" {
+		if lines[i] != "" && !strings.HasPrefix(lines[i], "/") {
 			lines[i] = " *" + lines[i]
 		}
 	}
@@ -96,7 +145,7 @@ func ownedTrailing(s *ast.SourceInfo, b *ast.LineBreak) *ast.LineBreak {
 		}
 		if len(cs) > 1 {
 			// A group over several lines is one block comment.
-			cs = []*ast.Comment{{Text: "/*" + continuationLines(strings.ReplaceAll(text, "*/", "* /")) + "*/"}}
+			cs = []*ast.Comment{{Text: "/*" + continuationLines(blockCommentText(text)) + "*/"}}
 		}
 		texts = append(texts, cs[0].Text)
 	}
