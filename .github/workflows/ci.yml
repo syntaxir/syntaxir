@@ -8,10 +8,14 @@ on:
   workflow_dispatch:
     inputs:
       suite:
-        description: "check: vet and generated files; root: default test tier; long: long tier (includes root); alpha: alpha-parsers; site: site module; typescript: Node.js WASM and generated TypeScript; all: every suite with the long tier"
+        description: "check: vet and generated files; root: default test tier; long: long tier (includes root); alpha: alpha-parsers; site: site module; typescript: Node.js WASM and generated TypeScript; all: every suite with the long tier; perf: deterministic metrics of this ref compared with base (not part of all)"
         type: choice
         default: check
-        options: [check, root, long, alpha, site, typescript, all]
+        options: [check, root, long, alpha, site, typescript, all, perf]
+      base:
+        description: "perf: the ref whose deterministic metrics this ref is compared with"
+        type: string
+        default: main
 
 permissions:
   contents: read
@@ -197,3 +201,51 @@ jobs:
             ${{ runner.temp }}/sxir-ci-provenance.log
           if-no-files-found: ignore
           retention-days: 14
+
+  perf:
+    name: Deterministic metrics against ${{ inputs.base }}
+    if: inputs.suite == 'perf'
+    timeout-minutes: 120
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.base }}
+          path: base
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.1
+          check-latest: false
+          cache-dependency-path: head/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.18.0
+      - name: Require Node.js used by the TypeScript units
+        run: head/.github/scripts/require-toolchain.sh node
+      # The metrics are counts and sizes, not times, so the runner's speed and load do not change them.
+      - name: Collect the metrics of this ref
+        run: cd head && go run ./bench/metrics collect -o "$RUNNER_TEMP/sxir-metrics-head.txt"
+      - name: Collect the metrics of the base
+        run: |
+          if [ ! -d base/bench/metrics ]; then
+            echo "the base has no bench/metrics; nothing to compare with" >&2
+            exit 0
+          fi
+          cd base && go run ./bench/metrics collect -o "$RUNNER_TEMP/sxir-metrics-base.txt"
+      - name: Compare with the base
+        run: |
+          if [ ! -f "$RUNNER_TEMP/sxir-metrics-base.txt" ]; then
+            echo "no base report; this ref's report is uploaded alone" >&2
+            exit 0
+          fi
+          cd head && go run ./bench/metrics compare "$RUNNER_TEMP/sxir-metrics-base.txt" "$RUNNER_TEMP/sxir-metrics-head.txt" 2>&1 | tee "$RUNNER_TEMP/sxir-metrics-compare.txt"; exit "${PIPESTATUS[0]}"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: deterministic-metrics
+          path: ${{ runner.temp }}/sxir-metrics-*.txt
+          if-no-files-found: ignore
+          retention-days: 30

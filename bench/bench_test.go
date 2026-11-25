@@ -41,6 +41,9 @@ type workload struct {
 	// with it.
 	gen func(input string, bytes bool) error
 	rec func(input string) error
+	// run parses with the generated parser under the options and reports whether it returned a
+	// tree.
+	run func(input string, opts ...sxirruntime.ParseOption) (bool, error)
 	// ast parses into typed values with the generated parser's ParseValue (nil if not generated).
 	ast func(input string) error
 	// std is the standard library parser to compare with (nil if there is none).
@@ -61,6 +64,10 @@ var workloads = []workload{
 			}
 			return genErr(gjson.Parse(s))
 		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gjson.Parse(s, o...)
+			return n != nil, err
+		},
 		rec:     func(s string) error { return gjson.Recognize(s) },
 		ast:     func(s string) error { return genErr(gjson.ParseValue(s)) },
 		stdName: "encoding_json", std: func(s string) error {
@@ -75,6 +82,10 @@ var workloads = []workload{
 				return genErr(gcsv.Parse(s, gcsv.WithUnit(gcsv.Bytes)))
 			}
 			return genErr(gcsv.Parse(s))
+		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gcsv.Parse(s, o...)
+			return n != nil, err
 		},
 		rec:     func(s string) error { return gcsv.Recognize(s) },
 		ast:     func(s string) error { return genErr(gcsv.ParseValue(s)) },
@@ -92,6 +103,10 @@ var workloads = []workload{
 				return genErr(gxml.Parse(s, gxml.WithUnit(gxml.Bytes)))
 			}
 			return genErr(gxml.Parse(s))
+		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gxml.Parse(s, o...)
+			return n != nil, err
 		},
 		rec:     func(s string) error { return gxml.Recognize(s) },
 		ast:     func(s string) error { return genErr(gxml.ParseValue(s)) },
@@ -114,6 +129,10 @@ var workloads = []workload{
 			}
 			return genErr(gcalc.Parse(s))
 		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gcalc.Parse(s, o...)
+			return n != nil, err
+		},
 		rec:     func(s string) error { return gcalc.Recognize(s) },
 		ast:     func(s string) error { return genErr(gcalc.ParseValue(s)) },
 		stdName: "go_parser", std: func(s string) error { return genErr(parser.ParseExpr(s)) },
@@ -126,6 +145,10 @@ var workloads = []workload{
 			}
 			return genErr(gcalclr.Parse(s))
 		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gcalclr.Parse(s, o...)
+			return n != nil, err
+		},
 		rec:     func(s string) error { return gcalclr.Recognize(s) },
 		ast:     func(s string) error { return genErr(gcalclr.ParseValue(s)) },
 		stdName: "go_parser", std: func(s string) error { return genErr(parser.ParseExpr(s)) },
@@ -137,6 +160,10 @@ var workloads = []workload{
 				return genErr(gminilang.Parse(s, gminilang.WithUnit(gminilang.Bytes)))
 			}
 			return genErr(gminilang.Parse(s))
+		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gminilang.Parse(s, o...)
+			return n != nil, err
 		},
 		rec: func(s string) error { return gminilang.Recognize(s) },
 		ast: func(s string) error { return genErr(gminilang.ParseValue(s)) },
@@ -154,6 +181,10 @@ var workloads = []workload{
 			}
 			return nil
 		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := gminilang.Parse(s, o...)
+			return n != nil, err
+		},
 		rec: func(s string) error { return gminilang.Recognize(s) },
 		ast: func(s string) error {
 			if v, _ := gminilang.ParseValue(s); v == nil {
@@ -169,6 +200,10 @@ var workloads = []workload{
 				return genErr(goutline.Parse(s, goutline.WithUnit(goutline.Bytes)))
 			}
 			return genErr(goutline.Parse(s))
+		},
+		run: func(s string, o ...sxirruntime.ParseOption) (bool, error) {
+			n, err := goutline.Parse(s, o...)
+			return n != nil, err
 		},
 		rec: func(s string) error { return goutline.Recognize(s) },
 		ast: func(s string) error { return genErr(goutline.ParseValue(s)) },

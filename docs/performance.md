@@ -21,6 +21,7 @@ document describes the benchmarks, analyzes the results, and records how they ca
 
 - [Where SyntaxIR stands](#where-syntaxir-stands): an analysis of the latest results
 - [How to measure](#how-to-measure): the benchmarks, their workloads and method, and tools for measuring a change
+- [Deterministic metrics](#deterministic-metrics): the counts and sizes that every landing must not make worse
 - [Optimization catalog](optimizations/README.md): mechanisms, applicability,
   numbered evidence records and experiments
 
@@ -150,6 +151,48 @@ Notes:
 The reference machine is an Apple M3 Max (darwin/arm64, 16 cores, `GOMAXPROCS=16`), the machine of the snapshot above
 and the host of timing runs. The time budget of the default test tier in [Development](development.md#test-tiers) is
 measured there, with a warm build cache.
+
+### Deterministic Metrics
+
+Times need a quiet machine and repeated rounds; the deterministic metrics need neither. Each is a count that every
+run of a commit reproduces, whatever the machine and its load, so a change of a value is a change of the code. They
+guard every landing: a change may improve them, but it may not make them worse unless the change is meant to and its
+commit says so.
+
+```bash
+go run ./bench/metrics collect -o head.txt       # this checkout (about 10 minutes)
+go run ./bench/metrics compare base.txt head.txt # judge head.txt against a report of the base
+```
+
+`collect` writes one metric per line, `<key> <value> <policy>`, sorted by key, after a header of `#` lines (the
+commit, whether the tree was dirty, the Go version and platform) that `compare` ignores. Ratios are in thousandths.
+`compare` lists each changed metric with the base and head values and the delta, absolute and in percent, and exits
+with status 1 on a regression. The CI workflow's `perf` suite collects the report of a ref and of a base ref and
+compares them. Reports are not committed: any commit regenerates its own.
+
+| Metric | Key | What it counts | Policy |
+| --- | --- | --- | --- |
+| Compute units | `units <workload> <route>` | The units that a parse of the workload spends (`WithComputeReport`), on the closure, bytecode and iterative engine backends, the generated Go parser and the generated TypeScript parser under Node.js. Units are the same on every route by contract, so a route that differs from the others is a defect | exact |
+| Units per byte | `units-per-byte-milli <workload> <route>` | The same, per byte of input | info |
+| Allocations | `allocs`, `alloc-bytes <workload> <route>/<api>` | The objects and bytes that one parse allocates with the collector off (as `internal/testing/linearity` counts them): `parse` on each engine backend and on the generated Go parser, `parse-value` and `recognize` on the generated Go parser. Not measured for TypeScript, whose heap is not deterministic | exact, or the tolerance below |
+| Rule calls, evaluations | `rule-calls`, `evaluations <workload>` | Completed rule calls and rule body evaluations of the parse on the engine (`WithProfile`): evaluations beyond the calls are backtracking and left-recursion growth | exact |
+| Memo hits | `memo-hits`, `memo-hit-permille`, `evaluations-per-byte-milli <workload>` | Calls answered by the memo, their share of the calls, and evaluations per byte | info |
+| Doubling ratio | `doubling-units`, `doubling-allocs <subject>` | The cost at the full input over the cost at half of it, scaled to an exact doubling of the length, for the units on the engine and the allocations of the generated parser; and, for each control of known growth in `internal/testing/complexitytest` (exponential ones left out), the cost ratio between the last two sizes of its series | exact, with a ceiling |
+| Sizes | `size <parser> <kind>` | The generated Go `parser.go`, a stripped binary that calls `ParseValue`, the library copy of `-lib embed` and its binary, the TypeScript `parser.ts` and `lib.ts`, raw and gzip -9, for the grammars of `testdata/grammars` (the same figures as `bench/results-size.txt`); and the playground's WebAssembly binary (`size playground wasm-raw`, `wasm-gzip`) | exact |
+| Generation determinism | `determinism <grammar> go\|ts` | 1 if two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, are byte-identical | equal |
+| Input size | `input <workload> bytes` | The length of the workload's input; when it changes, every other metric of the workload changes with it | equal |
+
+A ceiling (`,max=N`) fails the metric above N whatever the base. The ceiling of a doubling ratio is the band of
+the growth order by which the complexity tests (`internal/testing/complexitytest`) classify a series: 2^1.15 (2219) for a linear cost, 2^(k+0.2) for a polynomial of
+degree k. A linear workload doubles at about 2000.
+
+Allocation counts are exact except on a few routes, where they vary between processes; the likely cause is the
+runtime's maps, whose table splits depend on the hash seed of the process. Ten A/A runs of one commit, each in its own process, varied only on two routes: by at
+most 4 objects and 912 bytes for `generated-go/parse-value`, and 1 object and 16 bytes for `engine-closure/parse`;
+the allocation doubling ratios of the controls, measured on the closure backend, varied by 1. Those metrics carry an
+absolute tolerance of twice the largest spread rounded up to a power of two (8 objects and 2048 bytes, 2 objects and
+32 bytes, and 2), written in the report as `lower~N`. Every other metric was identical across the ten runs and is
+exact. A route that starts to vary is a regression of determinism: find the cause before adding a tolerance.
 
 ### Generation and Compile Time
 

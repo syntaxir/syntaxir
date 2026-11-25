@@ -1,6 +1,7 @@
 // Package probe generates the parsers of testdata/grammars with the options of the repository and
 // measures what they leave behind: the size of the generated source, of a stripped program that
-// calls ParseValue, and of the generated TypeScript. bench/report and bench/profilematrix share it.
+// calls ParseValue, and of the generated TypeScript. bench/report, bench/metrics and
+// bench/profilematrix share it.
 package probe
 
 import (
@@ -78,24 +79,34 @@ func GenTSArgs(root, name string) ([]string, error) {
 // GenerateGo generates the Go parser of grammar name into dir with the options of
 // testdata/grammars/generate.txt followed by extra (for example -optimize or -no-opt).
 func GenerateGo(root, sxirBin, dir, name string, extra ...string) error {
+	return GenerateGoEnv(nil, root, sxirBin, dir, name, extra...)
+}
+
+// GenerateGoEnv is GenerateGo with extra environment variables for the sxir command.
+func GenerateGoEnv(env []string, root, sxirBin, dir, name string, extra ...string) error {
 	f, err := GenOptions(root, name)
 	if err != nil {
 		return err
 	}
 	args := append([]string{"gen", "-g", filepath.Join(root, "testdata", "grammars", name, name+".sxir"), "-module", "sizeprobe/gen"}, f...)
 	args = append(args, extra...)
-	_, err = ExecOut(root, nil, sxirBin, append(args, "-o", dir)...)
+	_, err = ExecOut(root, env, sxirBin, append(args, "-o", dir)...)
 	return err
 }
 
 // GenerateTS generates the TypeScript parser of grammar name into dir, with extra options after those
 // of GenTSArgs.
 func GenerateTS(root, sxirBin, dir, name string, extra ...string) error {
+	return GenerateTSEnv(nil, root, sxirBin, dir, name, extra...)
+}
+
+// GenerateTSEnv is GenerateTS with extra environment variables for the sxir command.
+func GenerateTSEnv(env []string, root, sxirBin, dir, name string, extra ...string) error {
 	args, err := GenTSArgs(root, name)
 	if err != nil {
 		return err
 	}
-	_, err = ExecOut(root, nil, sxirBin, append(append(append([]string{"gen", "-lang", "ts"}, args...), extra...), "-o", dir)...)
+	_, err = ExecOut(root, env, sxirBin, append(append(append([]string{"gen", "-lang", "ts"}, args...), extra...), "-o", dir)...)
 	return err
 }
 

@@ -103,13 +103,7 @@ func genOptions(root, name string) ([]string, error) { return probe.GenOptions(r
 // adapted to TypeScript.
 func parserGenArgs(root, name string) ([]string, error) { return probe.GenTSArgs(root, name) }
 
-// captureSizes records, for each parser of sizeParsers, the size of the generated Go parser.go,
-// of a binary that calls its ParseValue (built with -trimpath and stripped of symbols and DWARF), of
-// the copy of the library that the parser generated with -lib embed carries and of the binary
-// built from that parser (the whole library, which -no-opt used-features copies, is recorded once
-// as parser "runtime"), of the generated TypeScript parser.ts and of the lib.ts copy of the
-// library generated with it, each raw and compressed with gzip -9 (the whole lib.ts, which
-// -no-opt used-features writes, is recorded once as parser "runtime").
+// captureSizes records the sizes of probe.WriteSizes under the header of the capture.
 func captureSizes(root, commit, work string) ([]byte, error) {
 	sxirBin, err := buildSXIR(root, work)
 	if err != nil {
@@ -118,117 +112,14 @@ func captureSizes(root, commit, work string) ([]byte, error) {
 	var b bytes.Buffer
 	writeHeader(&b, commit)
 	fmt.Fprintln(&b, "# go binary: a main that calls ParseValue; go build -trimpath -ldflags=\"-s -w\"")
-	for _, name := range sizeParsers {
-		genDir, err := generateGo(root, sxirBin, work, name)
-		if err != nil {
-			return nil, err
-		}
-		st, err := os.Stat(filepath.Join(genDir, "parser.go"))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s go-source %d\n", name, st.Size())
-		bin, err := buildBinary(root, work, name, genDir)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s go-binary %d\n", name, bin)
-		// The same parser with its own copy of the library, narrowed to its features.
-		embedDir := filepath.Join(work, "gen-embed-"+name)
-		if err := probe.GenerateGo(root, sxirBin, embedDir, name, "-lib", "embed"); err != nil {
-			return nil, err
-		}
-		lib, err := dirGoSize(filepath.Join(embedDir, "internal", "libgo"))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s go-lib %d\n", name, lib)
-		bin, err = buildBinary(root, work, "embed-"+name, embedDir)
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s go-binary-embed %d\n", name, bin)
-		if name == sizeParsers[0] {
-			// The whole library, which every copy had before it was narrowed.
-			fullDir := filepath.Join(work, "gen-full-"+name)
-			if err := probe.GenerateGo(root, sxirBin, fullDir, name, "-lib", "embed", "-no-opt", "used-features"); err != nil {
-				return nil, err
-			}
-			full, err := dirGoSize(filepath.Join(fullDir, "internal", "libgo"))
-			if err != nil {
-				return nil, err
-			}
-			fmt.Fprintf(&b, "size runtime go-lib %d\n", full)
-		}
-		args, err := parserGenArgs(root, name)
-		if err != nil {
-			return nil, err
-		}
-		out := filepath.Join(work, "size-ts", name)
-		if _, err := execOut(root, nil, sxirBin, append(append([]string{"gen", "-lang", "ts"}, args...), "-o", out)...); err != nil {
-			return nil, err
-		}
-		raw, gz, err := sizeOfFile(filepath.Join(out, "parser.ts"))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s ts-raw %d\nsize %s ts-gzip %d\n", name, raw, name, gz)
-		raw, gz, err = sizeOfFile(filepath.Join(out, "lib.ts"))
-		if err != nil {
-			return nil, err
-		}
-		fmt.Fprintf(&b, "size %s ts-lib-raw %d\nsize %s ts-lib-gzip %d\n", name, raw, name, gz)
-		if name == sizeParsers[0] {
-			// The whole library, which every copy had before it was narrowed.
-			fullOut := filepath.Join(work, "size-ts-full", name)
-			if _, err := execOut(root, nil, sxirBin, append(append([]string{"gen", "-lang", "ts", "-no-opt", "used-features"}, args...), "-o", fullOut)...); err != nil {
-				return nil, err
-			}
-			raw, gz, err := sizeOfFile(filepath.Join(fullOut, "lib.ts"))
-			if err != nil {
-				return nil, err
-			}
-			fmt.Fprintf(&b, "size runtime ts-lib-raw %d\nsize runtime ts-lib-gzip %d\n", raw, gz)
-		}
+	if err := probe.WriteSizes(&b, root, sxirBin, work); err != nil {
+		return nil, err
 	}
 	return b.Bytes(), nil
 }
 
-// dirGoSize returns the total size of the Go files of a directory.
-func dirGoSize(dir string) (int, error) {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return 0, err
-	}
-	n := 0
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".go") {
-			info, err := e.Info()
-			if err != nil {
-				return 0, err
-			}
-			n += int(info.Size())
-		}
-	}
-	return n, nil
-}
-
 // sizeOfFile returns the size of a file and of its gzip -9 compression.
 func sizeOfFile(path string) (raw, gz int, err error) { return probe.SizeOfFile(path) }
-
-// generateGo generates the Go parser of grammar name with the options of testdata/grammars/generate.txt
-// into the work directory and returns the directory.
-func generateGo(root, sxirBin, work, name string) (string, error) {
-	dir := filepath.Join(work, "gen-"+name)
-	return dir, probe.GenerateGo(root, sxirBin, dir, name)
-}
-
-// buildBinary builds a program that calls ParseValue of the parser generated into genDir, in a module of
-// its own in the work directory, and returns the size of the binary.
-func buildBinary(root, work, name, genDir string) (int, error) {
-	_, size, err := probe.BuildProgram(root, filepath.Join(work, "bin-"+name), genDir, probe.SizeMain)
-	return size, err
-}
 
 // buildSXIR builds the sxir command of the repository into the work directory.
 func buildSXIR(root, work string) (string, error) { return probe.BuildSXIR(root, work) }

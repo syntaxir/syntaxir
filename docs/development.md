@@ -88,6 +88,10 @@ failing the suite. After such a change, run every benchmark once:
 go test -run '^$' -bench . -benchtime=1x ./...
 ```
 
+**Deterministic metrics.** A change that can affect performance compares the
+[deterministic metrics](performance.md#deterministic-metrics) of its commit with those of its base: a metric may get
+worse only when the change is meant to make it so and its commit says why.
+
 **Reference builds.** The build tags `sxir_budget_controls_reference`, `sxir_reference_*` and
 `sxir_snapshot_*_reference` select the simpler or former form of an optimized mechanism, and
 `sxir_snapshot_position_overlays` an opt-in representation that the default build has not adopted. Every build must
