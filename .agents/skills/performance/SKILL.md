@@ -20,9 +20,11 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   Serialize benchmark runs and follow `docs/performance.md`; keep claims limited
   to measured paths and retain raw evidence outside Git unless deliberately
   versioned.
-- Landing rule for a performance-sensitive change: at least 20 interleaved rounds against
-  an A/A copy, with the geomean within the A/A spread. Record `uptime` with each run and
-  discard runs whose A/A spread exceeds 1.5%.
+- Measure time only by the timed measurement method of `docs/performance.md` (arms,
+  rotated rounds, rejection, claims, GC settings, provenance, the exclusive window), which
+  `go run ./bench/report` applies; do not restate or vary it here. A performance-sensitive
+  change lands with `-base` and `-rounds 20` or more, citing only rows whose verdict in
+  `results-compare.txt` is faster or slower.
 - New structural or feature work lands reasonably optimized. Profile it before landing and
   fix egregious regressions (tens of percent on any path, size blow-ups) and cheap wins in
   the same unit. File the remaining tuning, with the measured gap, for the performance

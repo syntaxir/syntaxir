@@ -88,15 +88,64 @@ preserves the earlier result, the paired ranges, and the measurement limits.
 
 ## How to Measure
 
-The benchmarks are in `bench/`. `go run ./bench/report` runs all of them, measures the generated TypeScript parsers under Node and the sizes of the
-generated parsers (about 20 minutes), and regenerates [benchmarks.md](benchmarks.md) and the figures that the guides quote from it; see [the benchmark workloads](#benchmark-workloads) for what they measure.
+The benchmarks are in `bench/`. `go run ./bench/report` is the one command for timed results: it runs the Go benchmarks
+(`go`), the generation and run-time compile benchmarks (`gen`), the generated TypeScript parsers under Node (`ts`) and the
+ten language grammars of `bench/profilematrix` with their peak RSS, GC share and compile time (`matrix`), records the sizes
+of the generated parsers (`size`), and regenerates [benchmarks.md](benchmarks.md) and the figures that the guides quote
+from it; see [the benchmark workloads](#benchmark-workloads) for what they measure.
+
+### Timed Measurement Method
+
+Every timed result follows this method; `go run ./bench/report` applies it.
+
+- **Arms.** Each measurement runs in two arms, `head` (the checkout) and `control` (a byte-identical copy of head's
+  binaries or generated parsers), and with `-base REV` in a third, `base`, built from that revision in a temporary
+  worktree. The differences between head and control are the noise of the machine: the A/A spread.
+- **Interleaved, rotated rounds.** A round runs every unit (a top-level benchmark, a TypeScript workload and entry
+  point, a grammar) once in every arm, each run a fresh process, with the order of the arms rotated by round and unit, so
+  that drift of the machine falls on every arm alike. `-rounds` sets the rounds: 10 by default, at least 20 for a
+  landing claim.
+- **Statistics.** A row reports the median of its runs and the distribution-free 95% confidence interval of the median
+  (order statistics, as benchstat computes it). A/B rows report the ratio head/base, the 95% interval of the ratio
+  (the shift of log times that inverts the Mann-Whitney test) and the Mann-Whitney p-value. The results are in the
+  format of `go test -bench`, with `arm:` and `round:` configuration lines, so `benchstat -col arm` reads them as well.
+- **Rejection.** A part whose geomean A/A ratio (control/head over all rows) is more than 1.5% from 1 is rejected: its
+  results are saved as a `.rejected.txt` file, the saved results and the documents stay as they are, and the command
+  fails. A row whose own A/A ratio is more than 1.5% from 1 is noisy and is never cited.
+- **Claims.** An A/B claim on a row needs the row not noisy, an interval of the ratio that does not hold 1, and an
+  effect larger than the row's own A/A spread. `results-compare.txt` prints the verdict of every row: faster or slower
+  by the effect, `no difference`, `within A/A spread`, `too few rounds`, `noisy: no claim` or
+  `not in base: no claim` (a benchmark newer than base, measured in head and control only and judged by its A/A
+  ratio). Rerun noisy rows in a quieter window with `-bench`, which selects the rows of the Go and TypeScript parts
+  as `go test -bench` selects benchmarks (the TypeScript rows are named `TS/MODE/WORKLOAD`), and with `-grammars`,
+  which selects the grammars of the matrix part. A narrowed part saves its results, with their own header and
+  analysis, as `results-rerun.txt`, `results-ts-rerun.txt` or `results-matrix-rerun.txt` instead of the part's
+  file, and leaves the document as it is.
+- **GC settings.** The benchmarks run at the user defaults, `GOGC=100` without a memory limit, unless `GOGC` or
+  `GOMEMLIMIT` is set in the environment. The tests of package `bench` raise the collection target to 400 with a 4 GiB
+  soft limit, because the collector takes about half of their processor time; a run that selects benchmarks does not.
+- **Provenance.** The header of every results file records the commit and whether it had uncommitted changes, the Go
+  version, `GOMAXPROCS`, the effective `GOGC` and `GOMEMLIMIT`, `GOEXPERIMENT`, the operating system, the CPU, the power
+  source and low power mode, the thermal state, the benchtime, the rounds, the arms, the SHA-256 of each arm's binaries
+  and of the generated parsers, the lock and window held, the load before and after, and the A/A judgment.
+- **Exclusive window.** Timed runs are made only on the reference machine (Apple M3 Max) in a declared measurement
+  window with the run queue paused. `.agents/scripts/benchwindow.sh open <reason>` opens it: new test slot claims and
+  shared heavy jobs wait, and the ones running finish. The capture then runs under the exclusive heavy-run lock, which
+  starts once the running test slots have drained. The report refuses to measure time outside the lock and an open
+  window; `-force` measures anyway for a local experiment, and its headers mark the results as unlocked, not to be
+  cited. Close the window with `benchwindow.sh close`; a window past its end stops counting by itself.
 
 ```bash
-# Full benchmark suite (all backends, both position units, stdlib counterparts), and the results document
-go run ./bench/report
+# The full capture in a measurement window, and the results document
+.agents/scripts/benchwindow.sh open -m 180 "full benchmark capture"
+.agents/scripts/benchlock.sh report go run ./bench/report -rounds 20
+.agents/scripts/benchwindow.sh close
 
-# Only the TypeScript timings and the sizes, keeping the saved Go results
-go run ./bench/report -capture ts,size
+# A change against its base, Go benchmarks only; the verdicts are in bench/results-compare.txt
+.agents/scripts/benchlock.sh ab go run ./bench/report -capture go -base origin/main -rounds 20
+
+# Only the sizes, which measure no time and need no window
+go run ./bench/report -capture size
 
 # A single workload, with CPU and allocation profiles
 go test ./bench -run '^$' -bench 'BenchmarkParse/JSON/closure/codepoints' -benchtime 20x \
@@ -115,7 +164,8 @@ go run ./bench/profilematrix -variant speed= -variant noguards='-no-opt guards' 
 
 For each grammar and variant it prints the time of a pass over the inputs (the minimum over the rounds), bytes and allocations per pass, the live
 heap that the results hold, the peak resident set size, the share of CPU time spent in garbage collection, the size of `parser.go`, of a stripped
-program that calls `ParseValue` and (with `-ts`) of `parser.ts`, and the compile time; then the ratios to the first variant. `-control` adds an
+program that calls `ParseValue` and (with `-ts`) of `parser.ts`, and the compile time, then the time of every round (the samples that `go run ./bench/report` analyzes by the
+[timed measurement method](#timed-measurement-method)), then the ratios to the first variant. `-control` adds an
 identical copy of the first variant, which shows the noise of the machine. Two more rows, `csv-incremental` (an edit in the middle of a
 50000-record file followed by a reparse of a generated `Document`) and `csv-stream` (the whole file parsed as a stream of records), measure
 the incremental and the stream use; the other rows parse the inputs of the grammar once. A variant whose generated Go parser is
@@ -132,8 +182,8 @@ separately from the Go results.
 Notes:
 
 - Wall-clock numbers vary by a few percent between runs on an idle machine, and by 10–20% on a busy one. Prefer `B/op`
-  and `allocs/op`, which are nearly deterministic, and confirm time changes with interleaved runs of the binaries
-  before and after the change (`-count 3` or more each).
+  and `allocs/op`, which are nearly deterministic, and confirm time changes by the [timed measurement
+  method](#timed-measurement-method) against the base of the change.
 - Results must not change: every optimization is covered by the equivalence tests (`go test ./...`), which compare
   all backends, both position units, memoization on and off, and recognition against full parses.
 - A change to shared runtime code (input, memo table, calls) should be measured on the incremental and stream

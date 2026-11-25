@@ -354,7 +354,7 @@ condition.
 
 | Track | Next items | Later |
 |:--|:--|:--|
-| Credibility (the gate) | The wedge benchmark; then the full cross-tool harness on Apple silicon and Linux x86-64; recovery quality on two languages | Recovery quality on more languages |
+| Credibility (the gate) | The wedge benchmark; then the full cross-tool harness on the reference Apple M3 Max; recovery quality on two languages | Recovery quality on more languages |
 | Performance | The compute limit overhead first, then the targets below by impact; a `jsontext` baseline | A TypeScript optimization profile |
 | Safety | Default compute limits; the compute limit flag; `SECURITY.md`; optional input-length and memory caps; regression suites with step ratios | The complexity classifier (research, not on the critical path to release) |
 | Editor | A language server for one user grammar; a public position map with UTF-16; tree-producing recovery in a `Document` | Semantic tokens through the server; an action-free concrete tree; text query syntax and standalone highlighting output |
@@ -519,8 +519,9 @@ can rerun and dispute. The wedge benchmark comes first and covers pigeon, partic
   - The ANTLR Go runtime, pigeon and participle.
   - Upstream grammars are used where they exist, and grammar sources and versions are pinned. cgo-based tools live in
     a separate module, so SyntaxIR itself stays cgo-free.
-- **Machines.** Apple M3 Max and a stated Linux x86-64 machine. The report states the CPU, OS, Go version,
-  `GOMAXPROCS`, load and sample count.
+- **Machine.** The reference Apple M3 Max, in a declared measurement window with nothing else running, by the
+  [timed measurement method](performance.md#timed-measurement-method). The report states its provenance: the CPU, OS,
+  Go version, `GOMAXPROCS`, GC settings, power and thermal state, load and rounds.
 - **Harness.** It lives in the repository and runs with one command. Results are generated, never edited by hand, and
   raw rows are committed with each published run. Losses go in the same table as wins. Maintainers of the compared
   tools are invited to review their configurations before publication.
