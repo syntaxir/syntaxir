@@ -428,28 +428,58 @@ run once as a check. The first caps were the largest share of any of the 12
 seeds; seed 13 passed one of them (`near` at 524.44 against 524), which showed
 that the largest of 12 underestimates the spread, so the caps became the mean
 plus three standard deviations. Seeds 13 and 14 were used to choose that
-formula, so 15 to 22 are the check proper. With the caps every class of the ten
-seeds is within its cap (the largest are `near` at 524.64 against 534,
-`shadowed` at 36.92 against 39 and `missed: other` at 19.22 against 22).
+formula, so 15 to 22 are the check proper.
 
-Over the 12 seeds, 908,697 of the 1,200,000 sources are rejected by both
-parsers (the others are accepted by both, with the same grammar). Over the
-rejected sources, with the largest distance in lines between the two first
-errors in any of the 12 seeds:
+The corpus is every `.sxir` file of the repository, so adding grammars changes
+what the caps describe, and the caps are recomputed by this method whenever
+corpus files are added: from seeds 1 to 12, checked on seeds 13 to 22. A cap is
+the value of the method, or the smallest cap that every check seed passes if
+that is larger. The first caps described the corpus of their
+measurement; grammars added since then moved three classes past them. The two
+benchmark grammars of predicate actions (`bench/grammars/actions`, added in
+00eac1460 as `bench/grammars/terms/*.zp`) raised `unclosed` and `hint`: their struct types and action blocks on one line leave a
+brace open when an edit breaks a field, and an edit inside their capture reads
+(`$ws.Start`) meets the reference's check of how a capture is read, which the
+grammar does not make. Ten generated
+left-recursive reproducers of the complexity analysis
+(`internal/analysis/complexity/testdata/classify313`, added in da37b2648)
+raised `shadowed` from 34 to 39 in 10,000 over the 8 long-tier seeds: their
+single-line rules hold many string literals with `{` and `}`, so an edit that
+breaks a quote opens an action block; the reference reports the mistake in the
+block and the unterminated string after it, and the generated parser's recovery
+drops the first when the declaration fails at the string. Mutated alone they
+put 256 in 10,000 of their rejected sources in `shadowed`. Both are the forms
+the classes name, not a change of either parser: bisecting the steps of each
+class over the history finds the commits that added these files, the other
+steps fall in ranges that change no parser, and the commits that changed the
+recovery or the classification after the first caps moved no class.
 
-| First error | Sources | Share | Cap per 10,000 | Lines apart |
-| --- | ---: | ---: | ---: | ---: |
-| same offset | 848,569 | 93.38% | | |
-| near | 46,308 | 5.10% | 534 | 1 |
-| end | 8,423 | 0.927% | 104 | 12 |
-| shadowed | 2,954 | 0.325% | 39 | 9 |
-| head | 976 | 0.107% | 15 | 5 |
-| unclosed | 645 | 0.071% | 11 | 12 |
-| dropped | 643 | 0.071% | 10 | 10 |
-| hint | 142 | 0.016% | 3 | 12 |
-| late | 12 | 0.001% | 1 | 2 |
-| other later | 10 | 0.001% | 1 | not counted |
-| other earlier | 15 | 0.002% | 1 | 3 |
+The current caps come from 12 seeds over the corpus of 320 sources, of which
+902,239 of the 1,200,000 sources are rejected by both parsers (the others are
+accepted by both, with the same grammar), and the ten check seeds 13 to 22 were
+run with them. For `head` the method gives a cap of 13, which seed 16 of the
+check exceeds (103 sources against the 100 that 13 allows, 13.72 in 10,000), so
+the cap of `head` is 14, which allows 108. `dropped` passes the check
+exactly at its limit (seed 13: 63 sources against 63). With the caps every
+other class of the ten seeds is within its cap (the largest are `near` at
+509.86 against 515, `shadowed` at 45.02 against 47 and `missed: other` at
+19.98 against 22). Over the rejected sources of the 12 seeds, with the largest
+distance in lines between the two first errors in any of them, and the caps of
+the first measurement (908,697 rejected sources) beside the current ones:
+
+| First error | Sources | Share | Cap per 10,000 | First cap | Lines apart |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| same offset | 844,000 | 93.55% | | | |
+| near | 44,273 | 4.91% | 515 | 534 | 1 |
+| end | 8,150 | 0.903% | 101 | 104 | 12 |
+| shadowed | 3,557 | 0.394% | 47 | 39 | 8 |
+| head | 865 | 0.096% | 14 | 15 | 6 |
+| unclosed | 742 | 0.082% | 12 | 11 | 11 |
+| dropped | 460 | 0.051% | 8 | 10 | 10 |
+| hint | 166 | 0.018% | 4 | 3 | 8 |
+| late | 21 | 0.002% | 1 | 1 | 2 |
+| other later | 1 | 0.0001% | 1 | 1 | not counted |
+| other earlier | 4 | 0.0004% | 1 | 1 | 2 |
 
 The corpus has many short sources with action blocks, whose errors the
 reference reports at a token and the generated parser at the token next to it
@@ -475,8 +505,8 @@ declaration as the reference does for the pragma alone, so that the error is
 on the declaration after it, which is valid.
 
 The errors of the two parsers are matched by declaration. The generated parser
-reports 90 errors in a declaration where the reference reports none (`extra`;
-cap 3 per 10,000). Most are a real mistake that the reference does not
+reports 83 errors in a declaration where the reference reports none (`extra`;
+cap 2 per 10,000). Most are a real mistake that the reference does not
 report after an earlier one: the window ends in the middle of an attribute
 (`@x(`) after a block that failed, or a mistyped keyword in a later
 declaration. An error on a declaration that no edit touched and where the
@@ -485,10 +515,11 @@ a broken one, unless it is the only error that the generated parser reports
 for the broken one (its report of what the broken one lacks at its end).
 
 The reference reports an error in a declaration where the generated parser
-reports none for 1,563 errors: 20 of a `hint` (made once the first mistake is
-fixed, see above) and 1,543 of another kind (`missed: other`), 0.17% of the
-rejected sources and 20 in 10,000 at most for a seed (cap 22). A sample of the 517
-missed errors in 4 seeds (403 sources) shows where they are:
+reports none for 1,537 errors: 18 of a `hint` (made once the first mistake is
+fixed, see above) and 1,519 of another kind (`missed: other`), 0.17% of the
+rejected sources and 18 in 10,000 at most for a seed (cap 22). A sample of the 517
+missed errors in 4 seeds of the first measurement (403 sources) shows where they
+are:
 
 | Where the missed error is | Errors | Share |
 | --- | ---: | ---: |
@@ -509,8 +540,8 @@ reference makes while it reads tokens), an argument named like a keyword of
 an attribute that follows a mistake, and a mistyped keyword after an
 attribute list.
 
-The full list of error offsets is equal for 70.2% of the rejected sources, and
-the second error is at the same offset for 33.2% of the 319,806 sources in
+The full list of error offsets is equal for 71.9% of the rejected sources, and
+the second error is at the same offset for 36.7% of the 314,367 sources in
 which the reference reports two. These shares are lower than the share of the
 first error because a source with two edits often has two mistakes inside one
 declaration, where a recovery that resumes at a later place cannot match the
