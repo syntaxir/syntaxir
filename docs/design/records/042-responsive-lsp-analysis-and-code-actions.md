@@ -1126,6 +1126,23 @@ Request cancel-to-return does not depend on the stride. For hover, highlights,
 completion, semantic tokens, symbols, formatting, references and rename on the
 four grammars the p99 was at most about 264 μs.
 
+The steps that the stride counts are also the unit of the compiler's work: a step is a visit of
+one element, so the steps of a compilation count the elements that it visits, once per visit,
+fixed-point rounds included, and are the same on every run of the same grammar and options. Code
+generation polls the same controls past the check: the checks of the program and of its derived
+programs, the Core passes, the lowerings to Flow and Exec code (planning, outlining, dispatch,
+resumability, the Flow passes and the table, Exec and action lowerings) and the printers of the
+generated code, once per statement and expression printed, poll a control that each pass makes
+from the context of its step with the cancellation package. A meter in the context of a generation totals the
+steps of all its controls; `-stats` reports the steps that the meter counts while each pass runs, and the deterministic
+metrics count the steps of the generation of synthetic grammars (`compile-steps` in
+[performance.md](../../performance.md)). The same polls let a cancelled context stop a
+generation inside a lowering rather than between steps. Without a context that can end or a
+meter, a step's control is nil and a poll is one nil check. A loop that does not poll takes no
+steps, so the steps count the compiler's work only while every loop over the elements of a grammar
+or of a program polls once per element it visits: a new loop over elements polls as well, or its
+growth stays invisible to the step metrics.
+
 ### Editor Workload Probe
 
 `TestEditorWorkloadProbe` (`SXIR_LSP_EDITOR_PROBE=1`) drives a framed responsive

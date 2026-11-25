@@ -78,7 +78,8 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 		action.Act: "*" + g.ctxType(), action.FType: "*FieldType", action.NodeType: g.pick("*nodeTypeKinds", "uint16"),
 		action.Seq: g.pick("[]*Node", "[]any"), action.Obj: g.pick("*Node", "TVal"), action.Operand: "TOperand"}
 	return &Target{
-		Handle: func(name string) string { return handles[name] },
+		Control: g.params.Control,
+		Handle:  func(name string) string { return handles[name] },
 		FuncName: func(name string) string {
 			n, ok := ActionExports[name]
 			if !ok {

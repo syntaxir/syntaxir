@@ -154,3 +154,42 @@ func TestStatsDoesNotChangeTheRun(t *testing.T) {
 		t.Errorf("the comparison does not see a changed output: %q", off)
 	}
 }
+
+// work is the count of work that worker adds to and Run.Work reads.
+var work uint64
+
+// worker does one unit of work per function of its module.
+var worker = New(Def[*mod, *mod]{Decl: Decl{Name: "t-worker", Test: true}, In: modIR, Out: modIR,
+	Run: func(_ *Ctx[*mod], m *mod) (*mod, pass.PreservedSet, error) {
+		work += uint64(len(m.fns))
+		return m, pass.PreserveAll(), nil
+	}})
+
+// Stats sums the work of each run of a pass (Run.Work), a replay counting the work of the run it
+// replays, so the steps are the same with and without sharing; without Run.Work they are 0.
+func TestStatsSumTheWorkOfTheRuns(t *testing.T) {
+	p := twoBranches(Seq(modIR, worker))
+	in := &prog{tables: []string{"a", "b"}}
+	var got [2]InstanceStats
+	for i, noShare := range []bool{false, true} {
+		st := NewStats()
+		work = 0
+		if _, err := run(t, &Run{Observers: []Observer{st}, NoShare: noShare, Work: func() uint64 { return work }}, p, in); err != nil {
+			t.Fatal(err)
+		}
+		got[i], _ = st.Instance("ts", "t-worker")
+		if g, _ := st.Instance("go", "t-worker"); g.Steps == 0 || g.Steps != got[i].Steps {
+			t.Errorf("NoShare %t: steps go %d, ts %d", noShare, g.Steps, got[i].Steps)
+		}
+	}
+	if !reflect.DeepEqual(got[0], got[1]) {
+		t.Errorf("with sharing %+v, without %+v", got[0], got[1])
+	}
+	st := NewStats()
+	if _, err := run(t, &Run{Observers: []Observer{st}}, p, in); err != nil {
+		t.Fatal(err)
+	}
+	if g, _ := st.Instance("go", "t-worker"); g.Steps != 0 {
+		t.Errorf("steps without Run.Work: %d", g.Steps)
+	}
+}

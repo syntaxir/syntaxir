@@ -2,6 +2,7 @@ package generate_test
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"maps"
 	"os"
@@ -13,6 +14,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver"
 	"syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/driver/result"
@@ -24,12 +26,14 @@ import (
 )
 
 // generationRun is what one generation gives: the files of each target, what the debugging settings
-// wrote (every dump and the statistics) and the events of its steps, each with the counters, the
-// pattern decisions and the dump of its result.
+// wrote (every dump and the statistics), the events of its steps, each with the counters, the
+// pattern decisions and the dump of its result, and the steps of the whole generation, check
+// included, that a meter counted (cancel.Meter).
 type generationRun struct {
 	files  [][]common.GeneratedFile
 	output string
 	events []string
+	steps  uint64
 }
 
 // observedGeneration generates the Go and the TypeScript parser of g in one compilation, with every
@@ -53,12 +57,13 @@ func observedGeneration(t *testing.T, name string, g *ast.Grammar) generationRun
 		events = append(events, fmt.Sprintf("%d %s [%s] replayed=%t changed=%t counters=%v patterns=%v err=%v\n%s",
 			e.Seq, e.Step.Instance, e.Label, e.Replayed, r.Changed, sortedPairs(r.Counters), sortedPairs(patterns), r.Err, dump.String()))
 	}}
-	files, err := generate.TargetsObserved(g, driver.Options{Observers: []pipe.Observer{w}},
+	meter := new(cancel.Meter)
+	files, err := generate.TargetsObserved(cancel.WithMeter(context.Background(), meter), g, driver.Options{Observers: []pipe.Observer{w}},
 		driver.Target{Backend: result.Go, Gen: goT}, driver.Target{Backend: result.TypeScript, Gen: tsT})
 	if err != nil {
 		t.Fatalf("%s: %v", name, err)
 	}
-	return generationRun{files, out.String(), events}
+	return generationRun{files, out.String(), events, meter.Steps()}
 }
 
 // sortedPairs returns the entries of m in key order, as text.
@@ -72,7 +77,8 @@ func sortedPairs[V any](m map[string]V) string {
 
 // A generation of several backends is deterministic: run twice, with GOMAXPROCS 1 and with every
 // processor, it gives the same files, dumps, events (their numbers, labels, replays, counters,
-// pattern decisions and dumps) and statistics. The default tier runs the small grammars of
+// pattern decisions and dumps), statistics (the steps of each pass included) and steps of the whole
+// generation, which the deterministic metrics hold exact (compile-steps). The default tier runs the small grammars of
 // testdata/grammars; the long tier runs all of them.
 func TestGenerationIsDeterministic(t *testing.T) {
 	paths, err := filepath.Glob("../../../testdata/grammars/*/*.sxir")
@@ -107,6 +113,9 @@ func TestGenerationIsDeterministic(t *testing.T) {
 			}
 			if one.output != many.output {
 				t.Errorf("the dumps and statistics differ between GOMAXPROCS 1 and %d", n)
+			}
+			if one.steps == 0 || one.steps != many.steps {
+				t.Errorf("the generation took %d steps with GOMAXPROCS 1 and %d with %d", one.steps, many.steps, n)
 			}
 			if !slices.Equal(one.events, many.events) {
 				t.Errorf("the events differ between GOMAXPROCS 1 and %d", n)

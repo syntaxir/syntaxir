@@ -202,7 +202,8 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if ctx.Done() == nil {
+	control := cancel.New(ctx)
+	if control == nil {
 		return frontend.RunDefault(g, checkfacts.Source{}, nil)
 	}
 	defer func() {
@@ -214,7 +215,7 @@ func checkGrammar(ctx context.Context, g *ast.Grammar) (res *frontend.Result, er
 			}
 		}
 	}()
-	return frontend.RunDefault(g, checkfacts.Source{}, &cancel.Control{Ctx: ctx})
+	return frontend.RunDefault(g, checkfacts.Source{}, control)
 }
 
 // options validates c.Disable and returns the options of the run.

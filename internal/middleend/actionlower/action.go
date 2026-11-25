@@ -26,6 +26,7 @@ import (
 	"strings"
 	"sync"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	"syntaxir.dev/sxir/internal/ir/code/exec"
@@ -58,6 +59,8 @@ type Options struct {
 	// that each stands for (ir.Capture.Project). A call map($x, (e) => e.$f) of a projected capture
 	// x whose elements stand for f takes the elements of x as they are (action.copyList).
 	Proj map[string]string
+	// Control, if not nil, is polled once for each action expression lowered (cancel.Control.Poll).
+	Control *cancel.Control
 }
 
 // Lower lowers the action expression t. It reports an error if t is not an action expression that the front end builds: a
@@ -88,7 +91,7 @@ func lowerFunc(m *code.Module, name string, t ir.ActionExpr, o Options) (*code.F
 		return nil, nil, fmt.Errorf("lower: an action expression that the front end does not build: %s", ir.ActionExprString(t))
 	}
 	datum, failT := code.THandle(exec.Datum), code.THandle(action.Fail)
-	l := &actionLowerer{m: m, visits: o.Visits, proj: o.Proj, params: map[*ir.Lambda][]code.Expr{}}
+	l := &actionLowerer{m: m, visits: o.Visits, proj: o.Proj, control: o.Control, params: map[*ir.Lambda][]code.Expr{}}
 	fn := m.AddFunc(name, []code.Param{code.P(CtxParam, code.THandle(action.Act))}, []code.Type{datum, failT}, nil, func(b *code.Builder) {
 		if x, lits, ok := textMembership(t); ok {
 			l.membership = &action.Membership{Read: readOf(x), Lits: lits}
@@ -252,6 +255,8 @@ type actionLowerer struct {
 	n      int
 	visits bool
 	proj   map[string]string
+	// control is Options.Control.
+	control *cancel.Control
 	// params holds the values of the parameters of each lambda whose body is being lowered.
 	params map[*ir.Lambda][]code.Expr
 	// membership and structs are the facts of the lowering (action.Site.Membership, Structs).
@@ -295,6 +300,7 @@ func opCode(list []string, sym string) code.Expr {
 // value lowers t, appending the statements that compute its operands to b, and returns its value: a
 // local or the call of a leaf.
 func (l *actionLowerer) value(b *code.Builder, t ir.ActionExpr) code.Expr {
+	l.control.Poll()
 	switch t := t.(type) {
 	case *ir.Const:
 		return imm(action.OpActionConst, action.Const{Value: t.Value})

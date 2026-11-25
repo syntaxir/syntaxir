@@ -3,6 +3,7 @@ package flowplan
 import (
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower/lowerdata"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -45,7 +46,7 @@ var Dispatching = pipe.New(pipe.Def[*plandata.Cores, *plandata.Cores]{
 		for i, u := range out.Units {
 			ir, ok := tables[u.IR]
 			if !ok {
-				ir = dispatch(u.IR)
+				ir = dispatch(u.IR, cancel.New(x.Context()))
 				x.Count(CounterGuarded, len(ir.Opts.Guarded))
 				tables[u.IR] = ir
 			}
@@ -56,9 +57,10 @@ var Dispatching = pipe.New(pipe.Def[*plandata.Cores, *plandata.Cores]{
 })
 
 // dispatch returns the table ir with the guarded alternatives that the pass dispatch chooses for it
-// (Guarded), or ir itself when no alternative keeps its guard. ir is unchanged.
-func dispatch(ir *plandata.TableIR) *plandata.TableIR {
-	g := Guarded(ir.M, ir.Opts)
+// (Guarded), or ir itself when no alternative keeps its guard. ir is unchanged. It polls control,
+// which may be nil, for each node of the module.
+func dispatch(ir *plandata.TableIR, control *cancel.Control) *plandata.TableIR {
+	g := guarded(ir.M, ir.Opts, control)
 	if len(g) == 0 {
 		return ir
 	}
@@ -81,12 +83,18 @@ func dispatch(ir *plandata.TableIR) *plandata.TableIR {
 //     (flow.skippedCalls). In a lowering for Documents a Document parse does not take a guard whose
 //     skip passes over a call of a rule that it memoizes (docMemoized), and evaluates the alternative.
 func Guarded(m *core.Module, o lowerdata.Options) map[*core.Alt]lowerdata.Guard {
+	return guarded(m, o, nil)
+}
+
+// guarded is Guarded, polling control, which may be nil, for each node of m.
+func guarded(m *core.Module, o lowerdata.Options, control *cancel.Control) map[*core.Alt]lowerdata.Guard {
 	out := map[*core.Alt]lowerdata.Guard{}
 	for _, r := range m.Rules {
 		if r == nil {
 			continue
 		}
 		core.Walk(r.Body, func(n core.Node) {
+			control.Poll()
 			if c, ok := n.(*core.Choice); ok {
 				for _, a := range c.Alts {
 					if g, keep := guardOf(m, o, a); keep {

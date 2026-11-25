@@ -59,6 +59,7 @@ func (g *Generator) leaf(name string, variable bool, s *check.Scope, locals map[
 // the scope s and the locals resolve.
 func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Target {
 	return &Target{
+		Control: g.control,
 		Stmt: func(c *code.Call, a []string, dst []string, decl string) (string, bool) {
 			if c.Callee != action.OpActionTextIn || len(dst) != 1 || dst[0] == "_" {
 				return "", false

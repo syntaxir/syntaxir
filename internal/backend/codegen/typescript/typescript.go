@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/typescript/print"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
@@ -246,7 +247,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), SparseMemo: c.Value(SparseMemo) != 0}
+		params := print.Params{Params: codegen.ParamsOf(c.Value), SparseMemo: c.Value(SparseMemo) != 0, Control: cancel.New(c.Context())}
 		// A TypeScript parser shares its literal tables only with ts-literal-sharing too.
 		params.LiteralSharing = params.LiteralSharing && c.Value(TSLiteralSharing) != 0
 		out, err := print.Print(p, params, t, pipe.Feature(c, plandata.ReachFeature) != nil, target.hooks)

@@ -5,6 +5,7 @@
 package enginetest
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -159,7 +160,7 @@ var CompileForGenerator driver.Compiler = compileForGenerator
 
 // compileForGenerator compiles g with the engine and returns its checked program and a function that
 // checks the programs derived from it as the engine derives them.
-func compileForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
+func compileForGenerator(_ context.Context, g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
 	prog, err := entry.Compile(g, entry.Options{Compile: opts})
 	if err != nil {
 		return nil, nil, err

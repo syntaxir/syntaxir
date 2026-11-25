@@ -1,6 +1,7 @@
 package language_test
 
 import (
+	"context"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestGeneratedSourceParserMatchesEngine(t *testing.T) {
 		t.Skip("go command not found")
 	}
 	// The generator and the comparison compile with the engine, as the tests of the generator do.
-	codegentest.Compile = driver.Compiler(func(g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
+	codegentest.Compile = driver.Compiler(func(_ context.Context, g *ast.Grammar, opts check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
 		prog, err := entry.Compile(g, entry.Options{Compile: opts})
 		if err != nil {
 			return nil, nil, err

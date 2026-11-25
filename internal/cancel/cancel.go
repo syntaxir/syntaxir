@@ -3,10 +3,16 @@
 // the poll checks the context, and a cancelled context unwinds the work with a Cancellation panic,
 // which the entry point that started the work recovers into the context's error. The unwind avoids
 // threading errors through recursive construction. A nil control never cancels.
+//
+// The steps are also the unit of the work itself: a step is a visit of one element, so the steps
+// of a piece of work count the elements it visits, once per visit, fixed-point rounds included.
+// A Meter in the context of the work totals the steps of every control made from it (New), which
+// is how the deterministic metrics measure the work of the compiler (bench/metrics).
 package cancel
 
 import (
 	"context"
+	"sync/atomic"
 
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
@@ -31,10 +37,35 @@ func (c Cancellation) Unwrap() error { return c.Err }
 const PollStride = 16
 
 // Control is the cancellation control of one piece of work: Steps counts the steps taken, and Ctx
-// is checked every PollStride steps. A nil control never cancels.
+// is checked every PollStride steps. A nil control never cancels. Meter, if not nil, totals the
+// steps of this control with those of the others that share it.
 type Control struct {
 	Ctx   context.Context
 	Steps uint32
+	Meter *Meter
+}
+
+// New returns the control of work under ctx: one that polls ctx and adds its steps to the meter of
+// ctx, if any, or nil if ctx can neither end nor carries a meter, so that work that cannot be
+// cancelled or measured pays one nil check per step.
+func New(ctx context.Context) *Control {
+	m := MeterOf(ctx)
+	if ctx.Done() == nil && m == nil {
+		return nil
+	}
+	return &Control{Ctx: ctx, Meter: m}
+}
+
+// Recover, deferred by an entry point of cancellable work, sets *err to the context's error when
+// the work unwinds with a Cancellation, and panics again with any other value.
+func Recover(err *error) {
+	if failure := recover(); failure != nil {
+		cancelled, ok := failure.(Cancellation)
+		if !ok {
+			panic(failure)
+		}
+		*err = cancelled.Err
+	}
 }
 
 // Check unwinds with a Cancellation if the context has ended.
@@ -52,9 +83,34 @@ func (c *Control) Poll() {
 		return
 	}
 	c.Steps++
+	if c.Meter != nil {
+		c.Meter.steps.Add(1)
+	}
 	if c.Steps%PollStride == 0 {
 		c.Check()
 	}
+}
+
+// Meter totals the steps of the controls of a piece of work, whichever goroutines poll them. The
+// steps of deterministic work are the same on every run, so the total is too, whatever the order
+// in which the controls take them.
+type Meter struct{ steps atomic.Uint64 }
+
+// Steps returns the steps counted so far.
+func (m *Meter) Steps() uint64 { return m.steps.Load() }
+
+type meterKey struct{}
+
+// WithMeter returns a copy of ctx that carries m: every control that New makes from it, or from a
+// context derived from it, adds its steps to m.
+func WithMeter(ctx context.Context, m *Meter) context.Context {
+	return context.WithValue(ctx, meterKey{}, m)
+}
+
+// MeterOf returns the meter that ctx carries, or nil.
+func MeterOf(ctx context.Context) *Meter {
+	m, _ := ctx.Value(meterKey{}).(*Meter)
+	return m
 }
 
 // Rules returns the rule definitions of g, unwinding if the context ends while they are listed.

@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 )
 
@@ -58,6 +59,9 @@ type Target struct {
 	// applies to, given its printed arguments, as a comparison or an operand, or reports false to
 	// print the operator.
 	Negate func(c *code.Call, args []string) (string, bool)
+	// Control, if not nil, is the control of the printing step, polled once for each statement and
+	// expression printed (cancel.Control.Poll).
+	Control *cancel.Control
 	// Parts maps the handle types whose values the target holds in several locals, named after the
 	// local with the suffix of each part, to their parts: a range of a stack of numbers x is xFrom and
 	// xTo. A parameter of such a type prints as its parts, and so does a local of the type passed to a
@@ -644,6 +648,7 @@ func (p *printer) args(c *code.Call) []string {
 }
 
 func (p *printer) stmt(st code.Stmt) {
+	p.t.Control.Poll()
 	switch s := st.(type) {
 	case *code.Block:
 		p.block(s)
@@ -949,6 +954,7 @@ func (p *printer) typeOf(x code.Expr) code.Type {
 // expr returns the TypeScript expression of x where an operator of precedence outer encloses it.
 // An operator or a conversion of constants prints as its value.
 func (p *printer) expr(x code.Expr, outer int) string {
+	p.t.Control.Poll()
 	if c, ok := code.Fold(x); ok {
 		x = c
 	}

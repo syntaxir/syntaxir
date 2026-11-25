@@ -1,6 +1,7 @@
 package execlower
 
 import (
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
@@ -25,8 +26,8 @@ const Name = "execlower"
 var Lowering = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[code.Exec]]{
 	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The functions of the module run the Flow operations they ran, as primitives of the runtime."},
 	In:   plandata.FlowTable, Out: plandata.ExecTable,
-	Run: func(_ *pipe.Ctx[*plandata.Table[code.Flow]], t *plandata.Table[code.Flow]) (*plandata.Table[code.Exec], pass.PreservedSet, error) {
-		out, err := lower(t.Module.Module())
+	Run: func(c *pipe.Ctx[*plandata.Table[code.Flow]], t *plandata.Table[code.Flow]) (*plandata.Table[code.Exec], pass.PreservedSet, error) {
+		out, err := lower(t.Module.Module(), cancel.New(c.Context()))
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}

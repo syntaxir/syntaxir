@@ -187,13 +187,10 @@ var elaborating = pipe.New(pipe.Def[common.TableSource, *core.Module]{
 	Decl: pipe.Decl{Name: Elaborate, Required: true, Obligation: "The module is the elaborated program in Core IR, with its attributes."},
 	In:   tableIR, Out: corepass.IR,
 	Run: func(c *pipe.Ctx[common.TableSource], src common.TableSource) (*core.Module, pass.PreservedSet, error) {
-		// The build and the Core passes poll the control of the context of the compilation, which
-		// the module keeps, and none when the context cannot end.
-		var control *cancel.Control
-		if ctx := c.Context(); ctx.Done() != nil {
-			control = &cancel.Control{Ctx: ctx}
-		}
-		m, err := src.Build(control, src.Origin)
+		// The build, core.Analyze and the Core passes poll the control of the context of the
+		// compilation, which the module keeps, and none when the context can neither end nor
+		// carries a meter (cancel.New).
+		m, err := src.Build(cancel.New(c.Context()), src.Origin)
 		if err != nil {
 			return nil, pass.PreserveNone(), err
 		}
@@ -232,6 +229,17 @@ func (d *debugger) observers() []pipe.Observer {
 // the times that report writes. The failure of a step that found the context ended before it ran
 // is the cancellation of the step (cancelled).
 func execute[I, O any](ctx context.Context, d *debugger, r *pipe.Run, p pipe.Pipeline[I, O], in I) (O, error) {
+	if d.Output != nil && d.Stats && r.Work == nil {
+		// The steps of the passes are counted by the controls that they make from the context
+		// (cancel.New), which a meter in the context totals; the manager records the steps of each
+		// run of a step (pipe.Run.Work).
+		m := cancel.MeterOf(ctx)
+		if m == nil {
+			m = new(cancel.Meter)
+			ctx = cancel.WithMeter(ctx, m)
+		}
+		r.Work = m.Steps
+	}
 	w := &watchedContext{Context: ctx}
 	if d.Output == nil || !d.TimePasses {
 		out, err := pipe.Execute(w, r, p, in)
@@ -430,7 +438,7 @@ func (t *timer) After(e pipe.Event, r *pipe.Result) {
 
 // report writes to Output the reports that the observers collected over the run: with Stats a
 // "-- stats --" block, one line per pass instance that ran, in the order in which each first ran,
-// with its runs, its changes, the counters it declares and the decisions of its patterns in the order
+// with its runs, its changes, its steps (pipe.InstanceStats.Steps), the counters it declares and the decisions of its patterns in the order
 // of their declaration; with TimePasses a "-- time-passes --" block, one line per step instance that
 // ran with its time in milliseconds and its share of the total, a manager line with the time of the
 // runs of the manager outside the steps (verification, copies, dumps and the other observers), and a
@@ -444,7 +452,7 @@ func (d *debugger) report() {
 		fmt.Fprintln(d.Output, "-- stats --")
 		tw := tabwriter.NewWriter(d.Output, 0, 0, 2, ' ', 0)
 		for _, st := range d.watch.stats.Instances() {
-			fmt.Fprintf(tw, "  %s\truns %d\tchanged %d", d.qualified(st.Backend, st.Instance), st.Runs, st.Changed)
+			fmt.Fprintf(tw, "  %s\truns %d\tchanged %d\tsteps %d", d.qualified(st.Backend, st.Instance), st.Runs, st.Changed, st.Steps)
 			for _, c := range st.Counters {
 				fmt.Fprintf(tw, "\t%s %d", c.Name, c.Value)
 			}

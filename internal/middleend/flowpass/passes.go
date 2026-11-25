@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -58,7 +59,9 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Frame && leanTyped(a) })
 		},
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
-			return run(PassTerminals, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { terminals(fn, a, prim.TablesOf(u.Module())) })(c, u)
+			return run(PassTerminals, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) {
+				terminals(fn, a, prim.TablesOf(u.Module()), cancel.New(c.Context()))
+			})(c, u)
 		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
@@ -74,7 +77,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Applies: func(c *pipe.Ctx[Unit]) bool {
 			return pipe.Feature(c, TargetFeature).GuardedClasses && c.Value(guardsFlag) != 0 && funcIs(c, ordinary)
 		},
-		Run: run(PassGuardedClasses, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { guardedClasses(fn, a) }),
+		Run: run(PassGuardedClasses, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { guardedClasses(fn, a, cancel.New(c.Context())) }),
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -87,7 +90,7 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		Applies: func(c *pipe.Ctx[Unit]) bool {
 			return pipe.Feature(c, TargetFeature).ClassRuns && funcIs(c, leanTyped)
 		},
-		Run: run(PassClassRuns, func(fn *code.Func, a *flow.Attrs, _ *pipe.Ctx[Unit]) { classRuns(fn, a) }),
+		Run: run(PassClassRuns, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classRuns(fn, a, cancel.New(c.Context())) }),
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
 		Decl: pipe.Decl{
@@ -103,7 +106,9 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 		},
 		Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
 			t := prim.TablesOf(u.Module())
-			return run(PassClassTables, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) { classTables(fn, a, t, c.Value(PassClassTables)) })(c, u)
+			return run(PassClassTables, func(fn *code.Func, a *flow.Attrs, c *pipe.Ctx[Unit]) {
+				classTables(fn, a, t, c.Value(PassClassTables), cancel.New(c.Context()))
+			})(c, u)
 		},
 	}),
 	pipe.New(pipe.Def[Unit, Unit]{
@@ -118,7 +123,9 @@ var FormPasses = []*pipe.Pass[Unit, Unit]{
 			return pipe.Feature(c, TargetFeature).InlineLiterals && c.Value(PassInlineLiterals) > 0 &&
 				funcIs(c, func(a *flow.Attrs) bool { return !a.Traced })
 		},
-		Run: run(PassInlineLiterals, func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) { inlineLiterals(fn, c.Value(PassInlineLiterals)) }),
+		Run: run(PassInlineLiterals, func(fn *code.Func, _ *flow.Attrs, c *pipe.Ctx[Unit]) {
+			inlineLiterals(fn, c.Value(PassInlineLiterals), cancel.New(c.Context()))
+		}),
 	}),
 }
 
@@ -155,8 +162,9 @@ func failIf(form *flow.Form, cond code.Expr) code.Stmt {
 // terminals matches each terminal region of a local function of typed rules in the ordinary form as
 // one program, the region's expression assembled with the tables t (prim.Assemble). A region whose
 // program does not fit the words of its code keeps its statements.
-func terminals(fn *code.Func, a *flow.Attrs, t *prim.Tables) {
+func terminals(fn *code.Func, a *flow.Attrs, t *prim.Tables, control *cancel.Control) {
 	for _, r := range a.Forms.Regions {
+		control.Poll()
 		if !r.Live() || r.Build {
 			continue
 		}
@@ -171,9 +179,10 @@ func terminals(fn *code.Func, a *flow.Attrs, t *prim.Tables) {
 
 // guardedClasses keeps the size of the character that the guards of a choice peek, and lets the
 // class that begins a guarded alternative consume it.
-func guardedClasses(fn *code.Func, a *flow.Attrs) {
+func guardedClasses(fn *code.Func, a *flow.Attrs, control *cancel.Control) {
 	sizes := map[*flow.ChoiceForm]string{}
 	for _, c := range a.Forms.Choices {
+		control.Poll()
 		if !c.Live() {
 			continue
 		}
@@ -184,6 +193,7 @@ func guardedClasses(fn *code.Func, a *flow.Attrs) {
 		}
 	}
 	for _, cl := range a.Forms.Classes {
+		control.Poll()
 		size, ok := sizes[cl.Guard]
 		if !ok || !cl.Live() {
 			continue
@@ -201,8 +211,9 @@ func guardedClasses(fn *code.Func, a *flow.Attrs) {
 }
 
 // classRuns matches the consecutive classes of a value-free sequence as one.
-func classRuns(fn *code.Func, a *flow.Attrs) {
+func classRuns(fn *code.Func, a *flow.Attrs, control *cancel.Control) {
 	for _, s := range a.Forms.Seqs {
+		control.Poll()
 		if !s.Live() {
 			continue
 		}
@@ -229,8 +240,9 @@ func classRuns(fn *code.Func, a *flow.Attrs) {
 
 // classTables matches each class of at least the pass's number of ranges through its membership
 // table, in a function of typed rules in the ordinary form; t are the tables of its module.
-func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int) {
+func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int, control *cancel.Control) {
 	for _, cl := range a.Forms.Classes {
+		control.Poll()
 		if !cl.Live() || len(t.Class(cl.Class).Ranges) < min {
 			continue
 		}
@@ -248,7 +260,7 @@ func classTables(fn *code.Func, a *flow.Attrs, t *prim.Tables, min int) {
 
 // inlineLiterals compares each exact literal of at most the pass's number of code points in place
 // first, outside the traced copies, which read every literal through the operation that records it.
-func inlineLiterals(fn *code.Func, max int) {
+func inlineLiterals(fn *code.Func, max int, control *cancel.Control) {
 	var stmts func(list []code.Stmt)
 	block := func(b *code.Block) {
 		if b != nil {
@@ -257,6 +269,7 @@ func inlineLiterals(fn *code.Func, max int) {
 	}
 	stmts = func(list []code.Stmt) {
 		for i, st := range list {
+			control.Poll()
 			switch st := st.(type) {
 			case *code.Block:
 				block(st)

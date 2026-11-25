@@ -62,13 +62,14 @@ func sunk(ctx context.Context, classify func(*cancel.Control) (*Complexity, erro
 	return c, err
 }
 
-// underContext runs f with a control that polls ctx, or with none if ctx cannot end, and returns
-// ctx's error, and no result, if ctx ends.
+// underContext runs f with the control of ctx (cancel.New), or with none if ctx can neither end nor
+// carries a meter, and returns ctx's error, and no result, if ctx ends.
 func underContext[T any](ctx context.Context, f func(*cancel.Control) (T, error)) (out T, err error) {
 	if err := ctx.Err(); err != nil {
 		return out, err
 	}
-	if ctx.Done() == nil {
+	control := cancel.New(ctx)
+	if control == nil {
 		return f(nil)
 	}
 	defer func() {
@@ -81,5 +82,5 @@ func underContext[T any](ctx context.Context, f func(*cancel.Control) (T, error)
 			}
 		}
 	}()
-	return f(&cancel.Control{Ctx: ctx})
+	return f(control)
 }

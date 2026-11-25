@@ -103,7 +103,8 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (s *Sourc
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if ctx.Done() == nil {
+	control := cancel.New(ctx)
+	if control == nil {
 		return Compile(g, opts, nil)
 	}
 	defer func() {
@@ -115,7 +116,7 @@ func CompileContext(ctx context.Context, g *ast.Grammar, opts Options) (s *Sourc
 			}
 		}
 	}()
-	return Compile(g, opts, &cancel.Control{Ctx: ctx})
+	return Compile(g, opts, control)
 }
 
 // Check compiles the grammar to a checked program without checking its declarations of linear

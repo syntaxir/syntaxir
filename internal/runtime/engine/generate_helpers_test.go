@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"fmt"
 
 	"syntaxir.dev/sxir/internal/driver"
@@ -17,7 +18,7 @@ import (
 
 // compileForGenerator compiles g for the generators, as the compileForGenerator of package
 // codegen does.
-func compileForGenerator(g *ast.Grammar, opts checkpkg.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
+func compileForGenerator(_ context.Context, g *ast.Grammar, opts checkpkg.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
 	prog, err := Compile(g, opts)
 	if err != nil {
 		return nil, nil, err

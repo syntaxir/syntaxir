@@ -58,14 +58,19 @@ func debugPipeline() pipe.Pipeline[*core.Module, *core.Module] {
 
 // runCore runs, with the observers of d, the Core part of the pipeline of a table, elaborate and then
 // passes, on each of the tables (the table rules if none is given), as a compilation runs it, and
-// returns the module of the first.
+// returns the module of the first. The build of each table takes three steps.
 func runCore(d *debugger, passes pipe.Pipeline[*core.Module, *core.Module], tables ...string) (*core.Module, error) {
 	if len(tables) == 0 {
 		tables = []string{"rules"}
 	}
 	ps := make([]testPart[common.TableSource], len(tables))
 	for i, l := range tables {
-		ps[i] = testPart[common.TableSource]{l, common.TableSource{Build: func(*cancel.Control, bool) (*core.Module, error) { return oneRule() }}}
+		ps[i] = testPart[common.TableSource]{l, common.TableSource{Build: func(control *cancel.Control, _ bool) (*core.Module, error) {
+			for range 3 {
+				control.Poll()
+			}
+			return oneRule()
+		}}}
 	}
 	p := pipe.Each(testCoreTables, pipe.Then(pipe.Of(elaborating), passes))
 	out, err := execute(context.Background(), d, &pipe.Run{Observers: d.observers()}, p, ps)
@@ -208,11 +213,11 @@ func TestDriverReport(t *testing.T) {
 		lines = append(lines, strings.Join(strings.Fields(l), " "))
 	}
 	want := []string{
-		"elaborate runs 2 changed 2",
-		"test-debug-same runs 2 changed 2",
-		"test-debug-rename runs 2 changed 2",
-		"test-debug-count runs 2 changed 0 rules 2",
-		"test-debug-rename#2 runs 2 changed 2",
+		"elaborate runs 2 changed 2 steps 6",
+		"test-debug-same runs 2 changed 2 steps 0",
+		"test-debug-rename runs 2 changed 2 steps 0",
+		"test-debug-count runs 2 changed 0 steps 0 rules 2",
+		"test-debug-rename#2 runs 2 changed 2 steps 0",
 	}
 	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
 		t.Errorf("stats:\n%s\nwant:\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))

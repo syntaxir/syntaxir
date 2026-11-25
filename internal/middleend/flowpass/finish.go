@@ -4,16 +4,18 @@ import (
 	"cmp"
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
 )
 
-// finishModule ends the Flow passes on each function of the module m, whichever of them ran (finish).
-func finishModule(m *code.Module) {
+// finishModule ends the Flow passes on each function of the module m, whichever of them ran (finish),
+// polling control, which may be nil, for each statement it visits.
+func finishModule(m *code.Module, control *cancel.Control) {
 	for _, fn := range m.Funcs {
-		finish(fn)
+		finish(fn, control)
 	}
 }
 
@@ -24,7 +26,7 @@ func finishModule(m *code.Module) {
 // use that is still in the function was written, and a variable a pass made at the event it belongs
 // to. The function then has no forms (Attrs.Forms is nil). finish does nothing to a function without
 // forms.
-func finish(fn *code.Func) {
+func finish(fn *code.Func, control *cancel.Control) {
 	a := flow.AttrsOf(fn)
 	if a == nil || a.Forms == nil {
 		return
@@ -37,7 +39,7 @@ func finish(fn *code.Func) {
 	for _, f := range forms.Regions {
 		blocks[f.Block] = true
 	}
-	splice(fn.Body, blocks)
+	splice(fn.Body, blocks, control)
 	a.Forms = nil
 
 	// Drop the variables that the statements no longer name, of those they named after the lowering.
@@ -119,29 +121,30 @@ func finish(fn *code.Func) {
 }
 
 // splice replaces each block of b's statements, at any depth, that is in blocks with its statements.
-func splice(b *code.Block, blocks map[*code.Block]bool) {
+func splice(b *code.Block, blocks map[*code.Block]bool, control *cancel.Control) {
 	if b == nil {
 		return
 	}
 	var out []code.Stmt
 	changed := false
 	for _, st := range b.Stmts {
+		control.Poll()
 		switch st := st.(type) {
 		case *code.Block:
-			splice(st, blocks)
+			splice(st, blocks, control)
 			if blocks[st] {
 				out = append(out, st.Stmts...)
 				changed = true
 				continue
 			}
 		case *code.Loop:
-			splice(st.Body, blocks)
+			splice(st.Body, blocks, control)
 		case *code.If:
-			splice(st.Then, blocks)
-			splice(st.Else, blocks)
+			splice(st.Then, blocks, control)
+			splice(st.Else, blocks, control)
 		case *code.Protect:
-			splice(st.Body, blocks)
-			splice(st.Finally, blocks)
+			splice(st.Body, blocks, control)
+			splice(st.Finally, blocks, control)
 		}
 		out = append(out, st)
 	}
@@ -159,8 +162,8 @@ const FinishName = "flow-finish"
 var Finishing = pipe.New(pipe.Def[Unit, Unit]{
 	Decl: pipe.Decl{Name: FinishName, Required: true, Obligation: "Every function has no forms: each form is spliced into its statements and its variables are placed."},
 	In:   code.FlowStage, Out: code.FlowStage,
-	Run: func(_ *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
-		finishModule(u.Module())
+	Run: func(c *pipe.Ctx[Unit], u Unit) (Unit, pass.PreservedSet, error) {
+		finishModule(u.Module(), cancel.New(c.Context()))
 		for _, fn := range u.Module().Funcs {
 			if err := flow.VerifyDemands(fn); err != nil {
 				return u, pass.PreserveNone(), err

@@ -1,6 +1,7 @@
 package bench
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -18,15 +19,15 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
 	"syntaxir.dev/sxir/internal/bench/metrics"
 	"syntaxir.dev/sxir/internal/bench/synth"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver"
 	gensrc "syntaxir.dev/sxir/internal/driver/generate"
+	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/parser"
-	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
 	"syntaxir.dev/sxir/internal/testing/linearity"
-	"syntaxir.dev/sxir/internal/testing/tooltest"
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/instrument"
 )
@@ -34,8 +35,8 @@ import (
 // The deterministic metrics of the workloads, which go run ./bench/metrics collects through
 // TestMetrics (docs/performance.md, "Deterministic metrics"). Every metric is a count that is the
 // same on every run of a commit with one Go release and target: compute units, allocations with the
-// collector off (leastAllocs), the profile's evaluations and memo hits, the allocations and pass
-// work of the compiler on synthetic grammars, and ratios of these counts.
+// collector off (leastAllocs), the profile's evaluations and memo hits, the allocations and steps
+// of the compiler on synthetic grammars, and ratios of these counts.
 
 var metricsOut = flag.String("metrics.out", "", "write the metrics of TestMetrics to this file (go run ./bench/metrics runs it)")
 
@@ -229,9 +230,13 @@ func workloadMetrics(t *testing.T, w *workload) []metrics.Metric {
 }
 
 // tsUnits returns the compute units of the generated TypeScript parser of each workload, run with
-// Node.js.
+// Node.js. A report without them would compare as missing metrics, so Node is required even under
+// SKIP_NODE, which skips only tests.
 func tsUnits(t *testing.T) []metrics.Metric {
-	node := tooltest.RequireNode(t)
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Fatalf("the TypeScript units need Node.js 22.18 or later on the PATH: %v", err)
+	}
 	var ms []metrics.Metric
 	for i := range workloads {
 		w := &workloads[i]
@@ -360,46 +365,48 @@ var compilerShapes = []struct {
 	{"depth", 6, func(n int) synth.Shape { return synth.Shape{Rules: 16, Alts: 4, Depth: n, LeftRecursion: 4, Seed: 3} }},
 }
 
-// compilerMetrics returns, for each series of compilerShapes, the allocations and the pass work
-// (the runs of the pass instances, pipe.Stats) of the generation of a Go parser at n, 2n and 4n,
-// and the doubling ratio of each between the increments: (c(4n) - c(2n)) / (c(2n) - c(n)), which a
-// cost that the compiler pays once whatever the grammar does not dilute. A linear compiler has a
-// ratio of 2 and the same ceiling as a linear parse.
+// compilerMetrics returns, for each series of compilerShapes, the allocations and the steps of
+// the generation of a Go parser at n, 2n and 4n, and the doubling ratio of each between the
+// increments (incrementRatio), which a cost that the compiler pays once whatever the grammar does
+// not dilute. A linear compiler has a ratio of 2 and the same ceiling as a linear parse.
+//
+// The steps are the compiler's unit of work (package cancel): every visit of an element by the
+// check, the analyses, the lowerings and the printers, fixed-point rounds included, counted by a
+// meter in the context of the generation. The steps of a compilation are the same on every run
+// whatever the scheduling, since the meter only adds.
 func compilerMetrics(t *testing.T) []metrics.Metric {
 	var ms []metrics.Metric
 	for _, c := range compilerShapes {
 		key := "synthetic-" + c.name
-		var objects, bytes, runs [3]uint64
+		var objects, bytes, steps, sizes [3]uint64
 		for i := range 3 {
 			n := c.n << i
 			src := synth.Grammar(c.shape(n))
+			sizes[i] = uint64(len(src))
 			g, err := parser.Parse(src)
 			if err != nil {
 				t.Fatalf("%s n=%d: %v", key, n, err)
 			}
-			generate := func(x driver.Options) {
-				if _, err := gensrc.GoWith(driver.CheckForGenerator, g, common.GenOptions{Module: "example.com/synth", LibGo: libsrc.FS}, x, nil); err != nil {
+			generate := func(ctx context.Context) {
+				target := driver.Target{Backend: result.Go, Gen: common.GenOptions{Module: "example.com/synth", LibGo: libsrc.FS}}
+				if _, err := gensrc.TargetsContext(ctx, driver.CheckForGenerator, g, driver.Options{}, target); err != nil {
 					t.Fatalf("%s n=%d: %v", key, n, err)
 				}
 			}
-			objects[i], bytes[i] = leastAllocs(0, func() { generate(driver.Options{}) })
-			stats := pipe.NewStats()
-			generate(driver.Options{Observers: []pipe.Observer{stats}})
-			for _, st := range stats.Instances() {
-				runs[i] += uint64(st.Runs)
-			}
+			objects[i], bytes[i] = leastAllocs(0, func() { generate(context.Background()) })
+			meter := new(cancel.Meter)
+			generate(cancel.WithMeter(context.Background(), meter))
+			steps[i] = meter.Steps()
 			size := fmt.Sprintf("n=%d", n)
 			ms = append(ms,
 				metrics.New(int64(len(src)), same, "input", key, size, "bytes"),
 				metrics.New(int64(objects[i]), compileAllocsPolicy, "compile-allocs", key, size),
 				metrics.New(int64(bytes[i]), compileAllocBytesPolicy, "compile-alloc-bytes", key, size),
-				metrics.New(int64(runs[i]), exact, "compile-pass-runs", key, size))
+				metrics.New(int64(steps[i]), exact, "compile-steps", key, size))
 		}
-		ms = append(ms, metrics.New(incrementRatio(objects), ceiling(linearDoublingMax), "compile-doubling-allocs", key))
-		if runs[1] > runs[0] {
-			// The passes run once per rule, so only a series that adds rules adds runs.
-			ms = append(ms, metrics.New(incrementRatio(runs), ceiling(linearDoublingMax), "compile-doubling-pass-runs", key))
-		}
+		ms = append(ms,
+			metrics.New(incrementRatio(objects, sizes), ceiling(linearDoublingMax), "compile-doubling-allocs", key),
+			metrics.New(incrementRatio(steps, sizes), ceiling(linearDoublingMax), "compile-doubling-steps", key))
 	}
 	return ms
 }
@@ -416,10 +423,14 @@ var (
 	compileAllocBytesPolicy = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.3}
 )
 
-// incrementRatio returns (c[2] - c[1]) / (c[1] - c[0]) in thousandths, 0 for counts that do not grow.
-func incrementRatio(c [3]uint64) int64 {
-	if c[2] < c[1] || c[1] <= c[0] {
+// incrementRatio returns the ratio of the increments of the costs c of a series at n, 2n and 4n,
+// (c[2] - c[1]) / (c[1] - c[0]), in thousandths, scaled to an exact doubling of the grammar's text
+// whose sizes are size, as doubling scales a workload's: the rules, alternatives and groups that a
+// series adds are drawn at random, so the text from 2n to 4n is not exactly twice what it is from n
+// to 2n. It is 0 for costs or sizes that do not grow.
+func incrementRatio(c, size [3]uint64) int64 {
+	if c[2] < c[1] || c[1] <= c[0] || size[2] <= size[1] || size[1] <= size[0] {
 		return 0
 	}
-	return metrics.Ratio(c[2]-c[1], c[1]-c[0])
+	return int64(math.Floor(float64(c[2]-c[1]) / float64(c[1]-c[0]) * float64(size[1]-size[0]) * 2 / float64(size[2]-size[1]) * 1000))
 }

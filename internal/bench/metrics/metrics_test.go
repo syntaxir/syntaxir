@@ -67,34 +67,50 @@ func TestComparable(t *testing.T) {
 		{Header: []string{"go go1.27.1 darwin/arm64"}},
 		{Header: []string{"go go1.27.2 linux/amd64"}},
 		{Header: []string{"commit a clean"}},
+		{Header: []string{"go go1.27.1 linux/amd64 GOAMD64=v3 CGO_ENABLED=1"}},
 	} {
 		if err := Comparable(linux, other); err == nil {
 			t.Errorf("%q: comparable", other.Header)
 		}
 	}
-	if !strings.HasPrefix(Toolchain(), "go go") {
-		t.Errorf("Toolchain() = %q", Toolchain())
+	tc := Toolchain()
+	if !strings.HasPrefix(tc, "go go") || !strings.Contains(tc, " CGO_ENABLED=") || strings.Contains(tc, "unknown") {
+		t.Errorf("Toolchain() = %q, want the release, the target and its build settings", tc)
+	}
+	for _, s := range toolchainSettings() {
+		if !strings.Contains(tc, " "+s+"=") {
+			t.Errorf("Toolchain() = %q lacks %s", tc, s)
+		}
 	}
 }
 
 func TestCompare(t *testing.T) {
 	lower := Policy{Kind: Lower}
 	tol := Policy{Kind: Lower, Tolerance: 1}
+	capped := Policy{Kind: Lower, HasMax: true, Max: 2219}
 	slack := Policy{Kind: Lower, Slack: 2}
 	base := []Metric{
 		{"a same", 10, lower}, {"b better", 10, lower}, {"c worse", 10, lower},
 		{"d tolerated", 1000, tol}, {"e beyond", 1000, tol}, {"f equal", 1, Policy{Kind: Equal}},
 		{"g info", 5, Policy{Kind: Info}}, {"h gone", 3, lower}, {"k slack", 100, slack}, {"l beyond slack", 100, slack}, {"m slack down", 100, slack}, {"n beyond slack down", 100, slack}, {"i max", 2000, Policy{Kind: Lower, HasMax: true, Max: 2100}},
+		{"o loosened", 100, lower}, {"p tightened", 100, tol}, {"q loosened and worse", 100, lower}, {"r base max", 2000, capped},
+		{"s head max", 0, lower},
 	}
 	head := []Metric{
 		{"a same", 10, lower}, {"b better", 9, lower}, {"c worse", 11, lower},
 		{"d tolerated", 1010, tol}, {"e beyond", 1011, tol}, {"f equal", 0, Policy{Kind: Equal}},
 		{"g info", 50, Policy{Kind: Info}}, {"i max", 1900, Policy{Kind: Lower, HasMax: true, Max: 1800}}, {"j new", 1, lower},
 		{"k slack", 102, slack}, {"l beyond slack", 103, slack}, {"m slack down", 98, slack}, {"n beyond slack down", 97, slack},
+		// A head that loosens an exact metric to hide its own increase is judged by the base's policy.
+		{"o loosened", 100, Policy{Kind: Lower, Tolerance: 5}}, {"p tightened", 100, lower}, {"q loosened and worse", 104, Policy{Kind: Lower, Tolerance: 5}},
+		// A ceiling holds whatever the base's value: the base's, a head that drops it, or a new metric's.
+		{"r base max", 2300, lower}, {"s head max", 1, Policy{Kind: Lower, HasMax: true}}, {"t new max", 1, Policy{Kind: Lower, HasMax: true}},
 	}
 	want := map[string]Verdict{
 		"a same": Same, "b better": Better, "c worse": Worse, "d tolerated": Tolerated, "e beyond": Worse,
 		"f equal": Worse, "g info": Changed, "h gone": Missing, "i max": OverMax, "j new": Added, "k slack": Tolerated, "l beyond slack": Worse, "m slack down": Tolerated, "n beyond slack down": Better,
+		"o loosened": PolicyChanged, "p tightened": PolicyChanged, "q loosened and worse": Worse, "r base max": OverMax,
+		"s head max": OverMax, "t new max": OverMax,
 	}
 	rows := Compare(base, head)
 	if len(rows) != len(want) {
@@ -110,13 +126,16 @@ func TestCompare(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fails != 6 {
-		t.Errorf("%d regressions, want 6\n%s", fails, b.String())
+	if fails != 12 {
+		t.Errorf("%d regressions, want 12\n%s", fails, b.String())
 	}
 	if strings.Contains(b.String(), "a same") {
 		t.Error("unchanged metric listed without all")
 	}
 	if !strings.Contains(b.String(), "c worse [lower]") || !strings.Contains(b.String(), "+10.00") {
 		t.Errorf("delta not printed:\n%s", b.String())
+	}
+	if !strings.Contains(b.String(), "o loosened [lower -> lower~5%]") {
+		t.Errorf("policy change not printed:\n%s", b.String())
 	}
 }

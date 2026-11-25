@@ -12,6 +12,7 @@ import (
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
 	"syntaxir.dev/sxir/internal/backend/codegen/golang/print"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/frontend/elaborate"
 	"syntaxir.dev/sxir/internal/ir/core"
@@ -401,7 +402,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if target.hooks != nil {
 			h = *target.hooks
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0}
+		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0, Control: cancel.New(c.Context())}
 		files, err := print.Print(&d.Parser, params, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err

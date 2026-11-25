@@ -3,8 +3,8 @@
 // whatever the machine's load.
 //
 // A report is text. Lines that start with # are a header (provenance) and are not compared, except
-// the toolchain line (Toolchain): allocation counts and sizes depend on the Go release and the
-// target, so two reports are comparable only when they have the same one. Every other line is one
+// the toolchain line (Toolchain): allocation counts and sizes depend on the Go release, the target
+// and its build settings, so two reports are comparable only when they have the same one. Every other line is one
 // metric:
 //
 //	<key> <value> <policy>
@@ -29,6 +29,7 @@ import (
 	"io"
 	"math"
 	"runtime"
+	"runtime/debug"
 	"slices"
 	"strconv"
 	"strings"
@@ -153,10 +154,42 @@ func Write(w io.Writer, header []string, ms []Metric) error {
 	return bw.Flush()
 }
 
-// Toolchain is the header line that names the Go release and the target of this process, such as
-// "go go1.27.1 linux/amd64". A collector writes it, and Comparable checks it.
+// Toolchain is the header line that names the Go release, the target and the build settings that
+// change the code the toolchain makes for it, such as
+// "go go1.27.1 linux/amd64 GOAMD64=v1 CGO_ENABLED=1". A collector writes it, and Comparable checks
+// it: the microarchitecture level (GOAMD64, GOARM64 and the like) changes the compiled code and the
+// sizes of the binaries, and cgo the binaries and the runtime's allocations.
 func Toolchain() string {
-	return fmt.Sprintf("go %s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	s := fmt.Sprintf("go %s %s/%s", runtime.Version(), runtime.GOOS, runtime.GOARCH)
+	settings := map[string]string{}
+	if bi, ok := debug.ReadBuildInfo(); ok {
+		for _, kv := range bi.Settings {
+			settings[kv.Key] = kv.Value
+		}
+	}
+	for _, key := range toolchainSettings() {
+		v, ok := settings[key]
+		if !ok {
+			v = "unknown"
+		}
+		s += " " + key + "=" + v
+	}
+	return s
+}
+
+// toolchainSettings are the build settings that Toolchain names: the microarchitecture level of the
+// target, if its architecture has one, and cgo. A build records each that it sets (runtime/debug),
+// and the go command sets them all.
+func toolchainSettings() []string {
+	level := map[string]string{
+		"386": "GO386", "amd64": "GOAMD64", "arm": "GOARM", "arm64": "GOARM64",
+		"mips": "GOMIPS", "mipsle": "GOMIPS", "mips64": "GOMIPS64", "mips64le": "GOMIPS64",
+		"ppc64": "GOPPC64", "ppc64le": "GOPPC64", "riscv64": "GORISCV64", "wasm": "GOWASM",
+	}[runtime.GOARCH]
+	if level == "" {
+		return []string{"CGO_ENABLED"}
+	}
+	return []string{level, "CGO_ENABLED"}
 }
 
 // Report is a parsed report: its header lines, without the "# ", and its metrics.
@@ -171,7 +204,7 @@ func Comparable(base, head Report) error {
 	b, h := base.toolchain(), head.toolchain()
 	switch {
 	case b == "" || h == "":
-		return fmt.Errorf("a report has no toolchain line (# go <release> <os>/<arch>)")
+		return fmt.Errorf("a report has no toolchain line (# go <release> <os>/<arch> <settings>)")
 	case b != h:
 		return fmt.Errorf("the reports come from different toolchains (base %q, head %q); allocation counts and sizes differ between them", b, h)
 	}
@@ -229,26 +262,31 @@ func Parse(r io.Reader) (Report, error) {
 type Verdict string
 
 const (
-	Same      Verdict = "same"
-	Better    Verdict = "better"
-	Changed   Verdict = "changed"    // an info metric changed
-	Tolerated Verdict = "within-tol" // a lower metric with a tolerance moved within it, either way
-	Added     Verdict = "new"        // in the head only
-	Worse     Verdict = "REGRESSED"
-	OverMax   Verdict = "OVER-MAX"
-	Missing   Verdict = "MISSING" // in the base only
+	Same          Verdict = "same"
+	Better        Verdict = "better"
+	Changed       Verdict = "changed"    // an info metric changed
+	Tolerated     Verdict = "within-tol" // a lower metric with a tolerance moved within it, either way
+	Added         Verdict = "new"        // in the head only
+	Worse         Verdict = "REGRESSED"
+	OverMax       Verdict = "OVER-MAX"
+	Missing       Verdict = "MISSING" // in the base only
+	PolicyChanged Verdict = "POLICY"  // the head changed the policy of the metric
 )
 
 // Fails reports whether the verdict is a regression.
-func (v Verdict) Fails() bool { return v == Worse || v == OverMax || v == Missing }
+func (v Verdict) Fails() bool {
+	return v == Worse || v == OverMax || v == Missing || v == PolicyChanged
+}
 
 // Row is the comparison of one metric. For an Added metric Base is zero; for a Missing one Head
 // is.
 type Row struct {
 	Key        string
 	Base, Head int64
-	Policy     Policy // the head's, or the base's for a Missing metric
-	Verdict    Verdict
+	// Policy is the policy that judged the row: the base's, or the head's for an Added metric.
+	// HeadPolicy is the head's, which differs from Policy only in a PolicyChanged row.
+	Policy, HeadPolicy Policy
+	Verdict            Verdict
 }
 
 // Delta is Head - Base.
@@ -262,7 +300,13 @@ func (r Row) Percent() float64 {
 	return float64(r.Delta()) * 100 / float64(r.Base)
 }
 
-// Compare judges each metric of head against base by the head's policy, in key order.
+// Compare judges each metric of head against base, in key order, by the base's policy: a head
+// cannot loosen the policy that judges it, such as an exact metric given a tolerance that hides
+// its own regression. A metric whose policy the head changes is a PolicyChanged regression even
+// when its value is judged no worse, so that a change of a policy is a change of its own, made
+// and reviewed apart from the code it would judge. A ceiling is absolute: a value above the
+// ceiling of either side is OverMax, whatever the base's value, and a metric that only the head
+// has is held to the ceiling of its own policy.
 func Compare(base, head []Metric) []Row {
 	b := map[string]Metric{}
 	for _, m := range base {
@@ -272,24 +316,30 @@ func Compare(base, head []Metric) []Row {
 	for _, h := range head {
 		bm, ok := b[h.Key]
 		delete(b, h.Key)
-		r := Row{Key: h.Key, Base: bm.Value, Head: h.Value, Policy: h.Policy}
+		r := Row{Key: h.Key, Base: bm.Value, Head: h.Value, Policy: bm.Policy, HeadPolicy: h.Policy}
 		switch {
 		case !ok:
-			r.Verdict = Added
+			r.Policy, r.Verdict = h.Policy, Added
 		default:
-			r.Verdict = judge(bm.Value, h.Value, h.Policy)
+			r.Verdict = judge(bm.Value, h.Value, bm.Policy)
+			if r.Verdict != Worse && bm.Policy != h.Policy {
+				r.Verdict = PolicyChanged
+			}
 		}
-		if h.Policy.HasMax && h.Value > h.Policy.Max {
+		if over(h.Value, h.Policy) || ok && over(h.Value, bm.Policy) {
 			r.Verdict = OverMax
 		}
 		rows = append(rows, r)
 	}
 	for _, m := range b {
-		rows = append(rows, Row{Key: m.Key, Base: m.Value, Policy: m.Policy, Verdict: Missing})
+		rows = append(rows, Row{Key: m.Key, Base: m.Value, Policy: m.Policy, HeadPolicy: m.Policy, Verdict: Missing})
 	}
 	slices.SortFunc(rows, func(x, y Row) int { return strings.Compare(x.Key, y.Key) })
 	return rows
 }
+
+// over reports whether v is above the ceiling of p.
+func over(v int64, p Policy) bool { return p.HasMax && v > p.Max }
 
 func judge(base, head int64, p Policy) Verdict {
 	if head == base {
@@ -332,7 +382,11 @@ func WriteRows(w io.Writer, rows []Row, all bool) (int, error) {
 		if r.Verdict != Added && r.Verdict != Missing && r.Base != 0 {
 			pct = fmt.Sprintf("%+.2f", r.Percent())
 		}
-		fmt.Fprintf(bw, "%-10s %14d %14d %+12d %9s  %s [%s]\n", r.Verdict, r.Base, r.Head, r.Delta(), pct, r.Key, r.Policy)
+		policy := r.Policy.String()
+		if r.HeadPolicy != r.Policy {
+			policy += " -> " + r.HeadPolicy.String()
+		}
+		fmt.Fprintf(bw, "%-10s %14d %14d %+12d %9s  %s [%s]\n", r.Verdict, r.Base, r.Head, r.Delta(), pct, r.Key, policy)
 	}
 	return fails, bw.Flush()
 }

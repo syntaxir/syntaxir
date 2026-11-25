@@ -305,6 +305,7 @@ func newScope(slots []core.Slot) *scope {
 }
 
 func (l *lowerer) emit(s code.Stmt) {
+	l.tab.control.Poll()
 	p := l.stack[len(l.stack)-1]
 	*p = append(*p, s)
 }
@@ -552,6 +553,7 @@ func (l *lowerer) cutFail(cut string, fail string, cleanup ...code.Stmt) {
 
 // node lowers n, leaving fail when it fails, and returns its value: nil unless build.
 func (l *lowerer) node(n core.Node, s *scope, build bool, fail string) code.Expr {
+	l.tab.control.Poll()
 	if l.dead {
 		return null()
 	}

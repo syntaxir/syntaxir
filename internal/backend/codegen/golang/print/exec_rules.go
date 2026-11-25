@@ -148,6 +148,7 @@ func (p *primPrinter) execTarget() *Target {
 // target returns the Go implementation of execTarget that Hooks.PrimTarget does not replace.
 func (p *primPrinter) target() *Target {
 	return &Target{
+		Control: p.g.params.Control,
 		Reg: func(name string) string {
 			return map[string]string{prim.Pos: "p.Pos", prim.Cut: "p.Cut"}[name]
 		},

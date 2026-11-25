@@ -1,6 +1,7 @@
 package generate_test
 
 import (
+	"context"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/driver"
@@ -21,7 +22,7 @@ rule name = [a-z]+ #atomic #ignorecase
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, derive, err := driver.CheckForGenerator(g, check.Options{})
+	_, derive, err := driver.CheckForGenerator(context.Background(), g, check.Options{})
 	if err != nil {
 		t.Fatal(err)
 	}

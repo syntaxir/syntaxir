@@ -142,8 +142,9 @@ func (p *tsPrimPrinter) bodyTarget() *BodyTarget {
 		return c, ok && prim.IsOp(c.Callee)
 	}
 	return &BodyTarget{
-		Reg:   p.reg,
-		Label: p.label,
+		Control: p.g.control,
+		Reg:     p.reg,
+		Label:   p.label,
 		Op: func(c *code.Call, args func() []string, dead bool) string {
 			var s string
 			at(dead, func() { s = p.expr(c, args) })

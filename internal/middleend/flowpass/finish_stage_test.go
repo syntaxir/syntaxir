@@ -27,7 +27,7 @@ func TestFinishingStep(t *testing.T) {
 		return f
 	}
 	want := lowered()
-	finishModule(want)
+	finishModule(want, nil)
 	u, err := pipe.Execute(context.Background(), &pipe.Run{}, pipe.Of(Finishing), code.At[code.Flow]{}.With(lowered()))
 	if err != nil {
 		t.Fatal(err)

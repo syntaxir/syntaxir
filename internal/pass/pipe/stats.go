@@ -26,6 +26,7 @@ type InstanceStats struct {
 	Instance string // the instance of the pass (StepInfo.Instance)
 	Runs     int    // the units the pass ran on (CounterRuns)
 	Changed  int    // the runs whose pass reported a change (CounterChanged)
+	Steps    uint64 // the work of the runs (Result.Steps)
 	// Counters holds the counters that the pass declares, in the order of its declaration, each
 	// summed over its runs; a counter that no run counted is 0.
 	Counters []Counter
@@ -79,6 +80,7 @@ func (s *Stats) After(e Event, r *Result) {
 		s.order = append(s.order, st)
 	}
 	st.Runs++
+	st.Steps += r.Steps
 	if r.Changed {
 		st.Changed++
 	}

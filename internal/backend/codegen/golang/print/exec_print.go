@@ -23,6 +23,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
@@ -53,6 +54,9 @@ type Target struct {
 	// Source, if not empty, names the source of printed functions in their first comment line,
 	// such as the package that builds the module.
 	Source string
+	// Control, if not nil, is the control of the printing step, polled once for each statement and
+	// expression printed (cancel.Control.Poll).
+	Control *cancel.Control
 	// Negate, if not nil, returns the Go negation of a call of an operation that the operator !
 	// applies to, given its printed arguments, or reports false to print the operator.
 	Negate func(c *code.Call, args []string) (string, bool)
@@ -462,6 +466,7 @@ func assigns(ss []code.Stmt, name string) bool {
 }
 
 func (p *execPrinter) stmt(st code.Stmt) {
+	p.t.Control.Poll()
 	switch s := st.(type) {
 	case *code.Block:
 		p.block(s)
@@ -676,6 +681,7 @@ var prec = map[string]int{
 // operator or a conversion of constants prints as its value: Go evaluates constant expressions
 // exactly and rejects one that overflows, where Exec IR wraps.
 func (p *execPrinter) expr(x code.Expr, outer int) string {
+	p.t.Control.Poll()
 	if c, ok := code.Fold(x); ok {
 		x = c
 	}

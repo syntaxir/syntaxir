@@ -2,6 +2,7 @@ package print
 
 import (
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/driver/result"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
 )
@@ -40,6 +41,9 @@ type Params struct {
 	common.Params
 	// SparseMemo keeps the first-call table of a large parser sparse (useSparseMemo).
 	SparseMemo bool
+	// Control, if not nil, is the control of the printing step (cancel.New of the context of the step), which the
+	// printers of the grammar's code poll (BodyTarget.Control, Target.Control).
+	Control *cancel.Control
 }
 
 // Print prints the parser p from its tables at the Exec stage with the parameters params and the
@@ -49,7 +53,7 @@ type Params struct {
 func Print(p *Parser, params Params, tables *execdata.Tables, given bool, hooks *Hooks) (result.Output, error) {
 	live := liveOf(tables.Plan)
 	tsg := newGenerator(p.Prog, p.Opts, live)
-	tsg.Params, tsg.sparseMemo, tsg.tables = params.Params, params.SparseMemo, tables
+	tsg.Params, tsg.sparseMemo, tsg.tables, tsg.control = params.Params, params.SparseMemo, tables, params.Control
 	if err := tsg.generate(p); err != nil {
 		return nil, err
 	}

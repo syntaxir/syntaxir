@@ -72,6 +72,13 @@ func Targets(g *ast.Grammar, targets ...driver.Target) ([][]common.GeneratedFile
 // targets' options and the edits and observers of x; the settings and the debugging settings of x
 // come from the options of the first target. On an error it returns no files.
 func TargetsWith(c driver.Compiler, g *ast.Grammar, x driver.Options, targets ...driver.Target) ([][]common.GeneratedFile, error) {
+	return TargetsContext(context.Background(), c, g, x, targets...)
+}
+
+// TargetsContext is TargetsWith under ctx: the check of the grammar and every step of the
+// compilation poll controls of ctx (cancel.New), so that a meter in ctx (cancel.WithMeter) counts
+// the steps of the whole generation, and an end of ctx stops it with the context's error.
+func TargetsContext(ctx context.Context, c driver.Compiler, g *ast.Grammar, x driver.Options, targets ...driver.Target) ([][]common.GeneratedFile, error) {
 	if len(targets) == 0 {
 		return nil, fmt.Errorf("a generation takes at least one target")
 	}
@@ -85,7 +92,7 @@ func TargetsWith(c driver.Compiler, g *ast.Grammar, x driver.Options, targets ..
 		if libOnly < len(targets) {
 			return nil, fmt.Errorf("the library alone (LibOnly) is generated for every target of a generation or for none")
 		}
-		return libraries(x, targets)
+		return libraries(ctx, x, targets)
 	}
 	vs := make([]driver.Target, len(targets))
 	for i, t := range targets {
@@ -112,14 +119,14 @@ func TargetsWith(c driver.Compiler, g *ast.Grammar, x driver.Options, targets ..
 		return nil, err
 	}
 	x.Debug = o.Debug
-	p, err := driver.CheckWith(c, g, common.CompileOptions{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}, o.Start)
+	p, err := driver.CheckWith(ctx, c, g, common.CompileOptions{SourceInfo: o.SourceInfo, DefaultValue: o.DefaultValue, LeftRecursionBindings: o.LeftRecursionBindings}, o.Start)
 	if err != nil {
 		return nil, err
 	}
 	if err := writePipeline(p, x, vs); err != nil {
 		return nil, err
 	}
-	outs, err := driver.Compile(context.Background(), p, x, vs...)
+	outs, err := driver.Compile(ctx, p, x, vs...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,7 +140,7 @@ func TargetsWith(c driver.Compiler, g *ast.Grammar, x driver.Options, targets ..
 // libraries generates the library alone (LibOnly) of each target, in order: the copy of the Go
 // library for a Go target, and the pipeline of the TypeScript library alone, under the edits,
 // observers and text of x and the debugging settings of the target, for a TypeScript target.
-func libraries(x driver.Options, targets []driver.Target) ([][]common.GeneratedFile, error) {
+func libraries(ctx context.Context, x driver.Options, targets []driver.Target) ([][]common.GeneratedFile, error) {
 	var files [][]common.GeneratedFile
 	for _, t := range targets {
 		var fs []common.GeneratedFile
@@ -148,7 +155,7 @@ func libraries(x driver.Options, targets []driver.Target) ([][]common.GeneratedF
 				break
 			}
 			var outs []driver.Output
-			if outs, err = driver.Compile(context.Background(), nil, x, t); err == nil {
+			if outs, err = driver.Compile(ctx, nil, x, t); err == nil {
 				fs = outs[0].(*result.Files).Files
 			}
 		default:

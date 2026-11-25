@@ -15,7 +15,7 @@ import (
 var FactsKey = pass.NewAnalysisKey("rule-facts", func(m *core.Module, am *pass.AnalysisManager[*core.Module]) (*Facts, error) {
 	var control *cancel.Control
 	if ctx := am.Context(); ctx != nil {
-		control = &cancel.Control{Ctx: ctx}
+		control = cancel.New(ctx)
 	}
 	return Compute(m, control), nil
 })

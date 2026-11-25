@@ -14,6 +14,7 @@ import (
 	"unicode"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
 	"syntaxir.dev/sxir/internal/ir/code"
@@ -393,6 +394,8 @@ type Generator struct {
 	optionsType string
 	// sparseMemo is the parameter SparseMemo of the printing (Params).
 	sparseMemo bool
+	// control is the control of the printing (Params.Control).
+	control *cancel.Control
 	// live holds the rules that a parse can enter (reach.go).
 	live *tsLive
 	// recognizeOnly is the option RecognizeOnly: the program printed is the recognizer itself, and

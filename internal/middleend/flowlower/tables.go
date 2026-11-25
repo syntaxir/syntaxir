@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/core"
 )
@@ -23,6 +24,9 @@ type tables struct {
 	// outlines holds the outlined calls by number, and calls their numbers.
 	outlines []outlineCall
 	calls    map[outlineKey]int
+	// control is the control of the lowering of the table (cancel.New of the context of the step), or nil, which the
+	// lowering polls once for each Core node it lowers and each statement it emits.
+	control *cancel.Control
 }
 
 // outlineCall is an outlined call: the node that a function of its own runs, the capture slots of

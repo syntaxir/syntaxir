@@ -1,11 +1,13 @@
 package driver
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
 	"syntaxir.dev/sxir/internal/backend/codegen"
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/desugar"
@@ -111,23 +113,25 @@ func (p *Program) ParserOptions() check.Options { return p.parser }
 // splits of the targets read the target of their branch from its feature (codegen.TargetFeature).
 var programIR = pipe.RegisterIR(&pipe.IR[*Program]{Name: "program"})
 
-// Compiler checks a grammar for a generator with the options opts. It returns the checked program
-// and a function that checks the program of a derived role (Recognizer, Insertion or
-// InsertionRecognizer) from it, as the engine derives it; the caller calls it at most once per role.
-type Compiler func(g *ast.Grammar, opts check.Options) (prog *frontend.Result, derive func(Role) (*frontend.Result, error), err error)
+// Compiler checks a grammar for a generator with the options opts under ctx. It returns the checked
+// program and a function that checks the program of a derived role (Recognizer, Insertion or
+// InsertionRecognizer) from it, as the engine derives it, under the same context; the caller calls
+// it at most once per role. A compiler may ignore ctx; one that polls it (cancel.New) counts its
+// steps on the meter of ctx and returns the context's error when ctx ends.
+type Compiler func(ctx context.Context, g *ast.Grammar, opts check.Options) (prog *frontend.Result, derive func(Role) (*frontend.Result, error), err error)
 
 // Check checks the grammar g for generation with the options o, and start, the start rule of the
 // generated Parse function ("" for the grammar's default start rule). Each derived program
 // (codegen.Derived) is checked when a target first needs it.
 func Check(g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	return CheckWith(CheckForGenerator, g, o, start)
+	return CheckWith(context.Background(), CheckForGenerator, g, o, start)
 }
 
-// CheckWith is Check with the compiler c, for the tests whose checker builds the programs as the
-// engine does. The generators read the views of the checked programs (View), and the steps that build
-// the Core IR of their tables the checked programs themselves.
-func CheckWith(c Compiler, g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
-	prog, derive, err := c(g, CompileOptions(o))
+// CheckWith is Check under ctx with the compiler c, which the tests whose checker builds the
+// programs as the engine does replace. The generators read the views of the checked programs
+// (View), and the steps that build the Core IR of their tables the checked programs themselves.
+func CheckWith(ctx context.Context, c Compiler, g *ast.Grammar, o common.CompileOptions, start string) (*Program, error) {
+	prog, derive, err := c(ctx, g, CompileOptions(o))
 	if err != nil {
 		return nil, err
 	}
@@ -191,23 +195,24 @@ func View(p *frontend.Result) *common.Program {
 // (checked.Source): the recognizer and the insertion program with the rule flags of the program, or
 // those of insertion when insertion forms left-recursion cycles of its own
 // (check.Model.InsertionFlags), and the recognizer of the insertion program with its flags. No
-// backend of the engine is built. It is the Compiler of the generators.
-func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, func(Role) (*frontend.Result, error), error) {
-	prog, err := checkGrammar(g, opts)
+// backend of the engine is built. It is the Compiler of the generators. Each check polls a control
+// of ctx (cancel.New).
+func CheckForGenerator(ctx context.Context, g *ast.Grammar, opts check.Options) (*frontend.Result, func(Role) (*frontend.Result, error), error) {
+	prog, err := checkGrammar(ctx, g, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	recognizer := func(p *frontend.Result) (*frontend.Result, error) {
 		o := p.Opts
 		o.Recognition = check.Recognize
-		return deriveProgram(p, o, p.Flags())
+		return deriveProgram(ctx, p, o, p.Flags())
 	}
 	insertion := sync.OnceValues(func() (*frontend.Result, error) {
 		flags := prog.InsertionFlags
 		if flags == nil {
 			flags = prog.Flags()
 		}
-		return deriveProgram(prog, prog.Opts, flags)
+		return deriveProgram(ctx, prog, prog.Opts, flags)
 	})
 	derive := func(role Role) (*frontend.Result, error) {
 		switch role {
@@ -228,20 +233,21 @@ func CheckForGenerator(g *ast.Grammar, opts check.Options) (*frontend.Result, fu
 }
 
 // deriveProgram checks the program derived from prog with opts and the rule flags flags
-// (frontend.Derive), naming the hidden rules of inline actions in errors as written.
-func deriveProgram(prog *frontend.Result, opts check.Options, flags []check.RuleFlags) (*frontend.Result, error) {
-	d, err := frontend.Derive(prog, opts, flags, checkfacts.Source{}, nil)
-	if err != nil {
+// (frontend.Derive) under ctx, naming the hidden rules of inline actions in errors as written.
+func deriveProgram(ctx context.Context, prog *frontend.Result, opts check.Options, flags []check.RuleFlags) (d *frontend.Result, err error) {
+	defer cancel.Recover(&err)
+	if d, err = frontend.Derive(prog, opts, flags, checkfacts.Source{}, cancel.New(ctx)); err != nil {
 		return nil, prog.InlineNames.Rewrite(err)
 	}
 	return d, nil
 }
 
-// checkGrammar checks g with opts, naming the hidden rules of inline actions in errors as written.
-func checkGrammar(g *ast.Grammar, opts check.Options) (*frontend.Result, error) {
+// checkGrammar checks g with opts under ctx, naming the hidden rules of inline actions in errors as
+// written.
+func checkGrammar(ctx context.Context, g *ast.Grammar, opts check.Options) (prog *frontend.Result, err error) {
+	defer cancel.Recover(&err)
 	names := desugar.InlineNames{}
-	prog, err := frontend.Check(g, opts, nil, names, checkfacts.Source{}, nil)
-	if err != nil {
+	if prog, err = frontend.Check(g, opts, nil, names, checkfacts.Source{}, cancel.New(ctx)); err != nil {
 		return nil, names.Rewrite(err)
 	}
 	return prog, nil

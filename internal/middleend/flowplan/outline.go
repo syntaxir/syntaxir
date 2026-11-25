@@ -3,6 +3,7 @@ package flowplan
 import (
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/core"
 	"syntaxir.dev/sxir/internal/middleend/flowlower"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
@@ -54,7 +55,7 @@ var Outlining = pipe.New(pipe.Def[*plandata.Cores, *plandata.Cores]{
 			ir, ok := tables[u.IR]
 			if !ok {
 				ir = u.IR
-				if chosen := outlineNodes(u.IR.M, u.IR.Values); len(chosen) > 0 {
+				if chosen := outlineNodes(u.IR.M, u.IR.Values, cancel.New(x.Context())); len(chosen) > 0 {
 					outlined := *u.IR
 					outlined.Opts.Outlined = chosen
 					ir = &outlined
@@ -81,8 +82,9 @@ const (
 
 // outlineNodes returns the nodes of the module m that run as functions of their own: a node that is
 // Outlinable is chosen if it has at least outlineLarge Core nodes, or if build is set and
-// its structure occurs at least twice where its function would not already be a shared body.
-func outlineNodes(m *core.Module, build bool) map[core.Node]bool {
+// its structure occurs at least twice where its function would not already be a shared body. It polls
+// control, which may be nil, for each node it visits, in every round.
+func outlineNodes(m *core.Module, build bool, control *cancel.Control) map[core.Node]bool {
 	type info struct {
 		n    core.Node
 		size int
@@ -93,6 +95,7 @@ func outlineNodes(m *core.Module, build bool) map[core.Node]bool {
 	byNode := map[core.Node]*info{}
 	var visit func(n core.Node) *info
 	visit = func(n core.Node) *info {
+		control.Poll()
 		in := &info{n: n, size: 1}
 		byNode[n] = in
 		all = append(all, in)
@@ -124,6 +127,7 @@ func outlineNodes(m *core.Module, build bool) map[core.Node]bool {
 	if build {
 		count := map[string]int{}
 		for _, in := range all {
+			control.Poll()
 			if in.size >= outlineDuplicate && in.size < outlineLarge && candidate(in) {
 				in.key = core.PrintNodeGen(m, in.n)
 				count[in.key]++
@@ -142,6 +146,7 @@ func outlineNodes(m *core.Module, build bool) map[core.Node]bool {
 			seen := map[string]bool{}
 			var walk func(n core.Node)
 			walk = func(n core.Node) {
+				control.Poll()
 				in := byNode[n]
 				if in.key != "" {
 					eff[in.key]++
@@ -184,6 +189,7 @@ func outlineNodes(m *core.Module, build bool) map[core.Node]bool {
 		}
 	}
 	for _, in := range all {
+		control.Poll()
 		if candidate(in) && (in.size >= outlineLarge || in.key != "" && dup[in.key]) {
 			chosen[in.n] = true
 		}

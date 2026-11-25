@@ -419,18 +419,20 @@ that left it as it was. Before the first change of a unit it dumps the unit as t
 stage ends, so that an internal error names the first pass that broke it. It costs generation time.
 
 `-stats` writes a `-- stats --` block after the build: for each pass that ran, in the order it first ran, the units it
-ran on (`runs`), those it reported changing (`changed`), the counters it declares, such as the alternatives that
+ran on (`runs`), those it reported changing (`changed`), its steps (`steps`, the elements of the grammar and of the
+code that it visited, the compiler's unit of work; a run whose result a later use reuses counts the steps of the run
+it reuses, so the steps are those of a build without reuse), the counters it declares, such as the alternatives that
 `guards` gave a guard (`guarded`), and the applications of its patterns. The block is the same in every run.
 `-time-passes` writes a `-- time-passes --` block after the build: the time of each pass and step, summed over its
 units, with its share of the total, the time of the pass manager outside them, and the total.
 
 ```text
 -- stats --
-  elaborate        runs 1  changed 1
-  guards           runs 1  changed 1  guarded 3
-  scans            runs 1  changed 1
-  plan             runs 1  changed 1
-  flowlower        runs 1  changed 1
+  elaborate        runs 1  changed 1  steps 55
+  guards           runs 1  changed 1  steps 6  guarded 0
+  scans            runs 1  changed 1  steps 6
+  actionlower      runs 1  changed 1  steps 6  sites 2
+  text-dispatch    runs 2  changed 0  steps 0
   ...
 ```
 

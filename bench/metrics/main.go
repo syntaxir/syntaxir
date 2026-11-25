@@ -7,7 +7,7 @@
 // Every metric is a count that is the same on every run of a commit with one Go release and target,
 // whatever the machine's load and processors, so a change of a value is a change of the code:
 // compute units, allocations with the collector off, rule evaluations and memo hits, the heap that
-// compiled parsers and Document versions retain, the allocations and pass work of the compiler on
+// compiled parsers and Document versions retain, the allocations and steps of the compiler on
 // synthetic grammars, the doubling ratios of these counts, generated and built sizes, and whether
 // generation is byte-identical across runs. No metric is a time. The report format is that of package internal/bench/metrics.
 //
@@ -21,15 +21,19 @@
 //	retained     the live heap that compiled parsers (bench/retained) and Document versions
 //	             (bench/snapshot-retained) keep after collections, each in a process of its own
 //	             with GOGC=off and GOMAXPROCS=1
-//	determinism  whether two generations of each parser, one with GOMAXPROCS=1 and one with more,
-//	             are byte-identical
+//	determinism  the files that differ between two generations of each parser, one with
+//	             GOMAXPROCS=1 and one with more; any is a regression whatever the base
+//
+// The workloads part runs the generated TypeScript parsers, so it needs Node.js 22.18 or later on the
+// PATH; collect refuses to start it without one.
 //
 // compare refuses two reports whose toolchain lines (Go release and target) differ, since
 // allocation counts and sizes depend on both. It prints the changed metrics (all with -all) with
 // their delta and exits with status 1 if any is a regression: an increase of an exact metric, an
 // increase beyond the tolerance of one with a tolerance, a change of an equal metric, a value above
-// a declared ceiling, or a metric of the base that the head lacks. A metric that only the head has
-// is listed as new.
+// a declared ceiling, a metric of the base that the head lacks, or a change of a metric's policy.
+// Each metric is judged by the base's policy, so a head cannot loosen the policy that judges it,
+// and a ceiling holds whatever the base's value. A metric that only the head has is listed as new.
 package main
 
 import (
@@ -128,6 +132,13 @@ func collectCmd(args []string) error {
 			return fmt.Errorf("-parts: unknown part %q (want %s)", p, strings.Join(allParts, ", "))
 		}
 		parts[p] = true
+	}
+	if parts["workloads"] {
+		// TestMetrics measures the units of the generated TypeScript parsers under Node.js; without
+		// Node it would fail, or skip under SKIP_NODE and leave no report, only after the Go parts.
+		if _, err := exec.LookPath("node"); err != nil {
+			return fmt.Errorf("the workloads part runs the generated TypeScript parsers and needs Node.js 22.18 or later on the PATH (%v); install it, or leave the part out with -parts", err)
+		}
 	}
 	root, err := repoRoot()
 	if err != nil {
@@ -328,10 +339,13 @@ var (
 )
 
 // collectDeterminism generates each parser of probe.Grammars twice in separate processes, once
-// with GOMAXPROCS=1 and once with more, in Go and in TypeScript, and records whether the outputs are
-// byte-identical (1) or not (0).
+// with GOMAXPROCS=1 and once with more, in Go and in TypeScript, and records the number of files
+// that differ between the two outputs, or that only one has. The ceiling of 0 makes the metric
+// absolute: a nondeterministic generation fails the comparison with any base, also one that was
+// nondeterministic itself.
 func collectDeterminism(root, sxirBin, work string) ([]metrics.Metric, error) {
 	procs := []string{"GOMAXPROCS=1", "GOMAXPROCS=" + strconv.Itoa(max(runtime.NumCPU(), 4))}
+	never := metrics.Policy{Kind: metrics.Lower, HasMax: true, Max: 0}
 	var ms []metrics.Metric
 	for _, name := range probe.Grammars {
 		for _, lang := range []string{"go", "ts"} {
@@ -347,39 +361,39 @@ func collectDeterminism(root, sxirBin, work string) ([]metrics.Metric, error) {
 				}
 				dirs = append(dirs, dir)
 			}
-			same, err := sameTree(dirs[0], dirs[1])
+			n, err := differingFiles(dirs[0], dirs[1])
 			if err != nil {
 				return nil, err
 			}
-			v := int64(0)
-			if same {
-				v = 1
-			}
-			ms = append(ms, metrics.New(v, metrics.Policy{Kind: metrics.Equal}, "determinism", name, lang))
+			ms = append(ms, metrics.New(int64(n), never, "nondeterministic-files", name, lang))
 		}
 	}
 	return ms, nil
 }
 
-// sameTree reports whether two directories hold the same files with the same contents.
-func sameTree(a, b string) (bool, error) {
+// differingFiles returns the number of files that two directories do not hold with the same
+// contents: those whose contents differ and those that only one holds.
+func differingFiles(a, b string) (int, error) {
 	ta, err := readTree(a)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	tb, err := readTree(b)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
-	if len(ta) != len(tb) {
-		return false, nil
-	}
+	n := 0
 	for k, v := range ta {
 		if w, ok := tb[k]; !ok || !bytes.Equal(v, w) {
-			return false, nil
+			n++
 		}
 	}
-	return true, nil
+	for k := range tb {
+		if _, ok := ta[k]; !ok {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func readTree(dir string) (map[string][]byte, error) {

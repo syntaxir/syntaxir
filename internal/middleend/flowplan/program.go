@@ -3,6 +3,7 @@ package flowplan
 import (
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/middleend/flowplan/plandata"
 	"syntaxir.dev/sxir/internal/pass"
 	"syntaxir.dev/sxir/internal/pass/pipe"
@@ -25,14 +26,15 @@ var Planning = pipe.New(pipe.Def[*plandata.Cores, *plandata.Program]{
 		if err := plandata.CoresIR.Verify(c); err != nil {
 			return nil, pass.PreserveNone(), err
 		}
-		return planProgram(c, pipe.Feature(x, plandata.ReachFeature)), pass.PreserveNone(), nil
+		return planProgram(c, pipe.Feature(x, plandata.ReachFeature), cancel.New(x.Context())), pass.PreserveNone(), nil
 	},
 })
 
 // planProgram plans the program c: the route of a call of each rule (CallsWrapper), the rules that
 // the entry points of c reach through those routes (Reach), or reach if it is not nil, and the tables
-// of its units (planUnits).
-func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Program {
+// of its units (planUnits). It polls control, which may be nil, for each rule of each table, and the
+// reach of the calls polls it through the modules (core.Module.Control).
+func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool, control *cancel.Control) *plandata.Program {
 	// An entry point that the program enters in several ways (a typed start rule that several entry
 	// points run) is one root of the plan.
 	p := &plandata.Program{Cores: c}
@@ -42,8 +44,10 @@ func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Pro
 		}
 	}
 	for _, t := range c.Tables {
+		t.M.Control = control
 		r := plandata.Routes{Table: t.Name, Names: make([]string, len(t.Rules)), Wrappers: make([]bool, len(t.Rules))}
 		for id, cr := range t.Rules {
+			control.Poll()
 			r.Names[id] = t.M.Rules[id].Name
 			r.Wrappers[id] = CallsWrapper(t, cr)
 		}
@@ -53,7 +57,7 @@ func planProgram(c *plandata.Cores, reach map[plandata.Entry]bool) *plandata.Pro
 	if p.Reach == nil {
 		p.Reach = p.Reached(p.Roots)
 	}
-	planUnits(c, p)
+	planUnits(c, p, control)
 	return p
 }
 
@@ -66,7 +70,7 @@ const UnreachableSuffix = "Unreachable"
 // when the plan prunes the unit, the functions that it leaves out are planned as a part of their own,
 // labeled with UnreachableSuffix and lowered like the unit, so that each function of the table is
 // lowered once, and the printed tables keep the rows and the expectations of every rule.
-func planUnits(c *plandata.Cores, p *plandata.Program) {
+func planUnits(c *plandata.Cores, p *plandata.Program, control *cancel.Control) {
 	layouts := map[string][][]string{}
 	var unreachable []plandata.PlannedUnit
 	for _, u := range c.Units {
@@ -91,6 +95,9 @@ func planUnits(c *plandata.Cores, p *plandata.Program) {
 			return t
 		}
 		t := plan(live)
+		for range t.Funcs {
+			control.Poll() // the planning of each function
+		}
 		if _, seen := layouts[u.Label]; !seen {
 			layouts[u.Label] = t.Layouts
 		}

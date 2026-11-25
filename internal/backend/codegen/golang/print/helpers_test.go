@@ -1,6 +1,7 @@
 package print_test
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -116,8 +117,8 @@ func generateGo(g *ast.Grammar, opts common.GenOptions, x driver.Options, h *pri
 // g to, which the steps of the pipeline elaborated the Core IR of the tables from.
 func generateGoChecked(g *ast.Grammar, opts common.GenOptions, x driver.Options, h *print.Hooks) ([]common.GeneratedFile, *frontend.Result, error) {
 	var prog *frontend.Result
-	compile := func(g *ast.Grammar, o check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
-		p, derive, err := codegentest.Compile(g, o)
+	compile := func(ctx context.Context, g *ast.Grammar, o check.Options) (*frontend.Result, func(driver.Role) (*frontend.Result, error), error) {
+		p, derive, err := codegentest.Compile(ctx, g, o)
 		prog = p
 		return p, derive, err
 	}

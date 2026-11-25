@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -49,7 +50,7 @@ func FlowOp(name string) string {
 // m and the primitive of each Flow operation; m is not used after. The result is verified (Verify),
 // which checks that no call of a Flow operation and no Flow attribute remains.
 func Lower(m *code.Module) (*code.Module, error) {
-	out, err := lower(m)
+	out, err := lower(m, nil)
 	if err == nil {
 		err = execdata.Verify(out)
 	}
@@ -59,8 +60,9 @@ func Lower(m *code.Module) (*code.Module, error) {
 	return out, nil
 }
 
-// lower is Lower without the verification of the result.
-func lower(m *code.Module) (*code.Module, error) {
+// lower is Lower without the verification of the result, polling control, which may be nil, for each
+// expression of the functions.
+func lower(m *code.Module, control *cancel.Control) (*code.Module, error) {
 	if m.Stage != flow.Stage {
 		return nil, fmt.Errorf("lower %s: a module at the %q stage, not the Flow stage", m.Name, m.Stage)
 	}
@@ -91,6 +93,7 @@ func lower(m *code.Module) (*code.Module, error) {
 		}
 		f.Attrs = a
 		code.Walk(f.Body, nil, func(e code.Expr) {
+			control.Poll()
 			if c, ok := e.(*code.Call); ok && c.Fn == nil && strings.HasPrefix(c.Callee, flow.Dialect+".") {
 				c.Callee = Prim(c.Callee)
 			}

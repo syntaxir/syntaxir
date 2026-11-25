@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -36,7 +37,7 @@ var Resumable = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[co
 		if !pipe.Feature(c, SuspendFeature) {
 			return t, pass.PreserveAll(), nil
 		}
-		if err := markResumable(t); err != nil {
+		if err := markResumable(t, cancel.New(c.Context())); err != nil {
 			return nil, pass.PreserveNone(), err
 		}
 		return t, pass.PreserveNone(), nil
@@ -44,8 +45,9 @@ var Resumable = pipe.New(pipe.Def[*plandata.Table[code.Flow], *plandata.Table[co
 })
 
 // markResumable sets flow.Attrs.Resumable on each function of t by the fixpoint of its calls: the functions
-// are marked by their demands, and a function that calls a marked one is marked in turn.
-func markResumable(t *plandata.Table[code.Flow]) error {
+// are marked by their demands, and a function that calls a marked one is marked in turn. It polls
+// control, which may be nil, for each expression it visits and for each function in each round.
+func markResumable(t *plandata.Table[code.Flow], control *cancel.Control) error {
 	fs := t.Module.Module().Funcs
 	seed := make([]bool, len(fs))
 	callees := make([][]int, len(fs))
@@ -65,6 +67,7 @@ func markResumable(t *plandata.Table[code.Flow]) error {
 		}
 		var err error
 		code.Walk(fn.Body, nil, func(e code.Expr) {
+			control.Poll()
 			c, ok := e.(*code.Call)
 			if !ok || err != nil {
 				return
@@ -106,6 +109,7 @@ func markResumable(t *plandata.Table[code.Flow]) error {
 	for changed := true; changed; {
 		changed = false
 		for i := range fs {
+			control.Poll()
 			if resumable[i] {
 				continue
 			}

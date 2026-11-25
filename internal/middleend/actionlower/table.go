@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/action"
 	ir "syntaxir.dev/sxir/internal/ir/core"
@@ -35,7 +36,7 @@ var Lowering = pipe.New(pipe.Def[*plandata.TableIR, code.At[code.Action]]{
 		Obligation: "Each function evaluates the action expression of its site as Core IR defines it."},
 	In: plandata.TableCoreIR, Out: code.ActionStage,
 	Run: func(c *pipe.Ctx[*plandata.TableIR], t *plandata.TableIR) (code.At[code.Action], pass.PreservedSet, error) {
-		u, n, err := lowerTable(t.M, t.Opts.Logical)
+		u, n, err := lowerTable(t.M, t.Opts.Logical, cancel.New(c.Context()))
 		if err != nil {
 			return code.At[code.Action]{}, pass.PreserveNone(), err
 		}
@@ -49,8 +50,8 @@ func SiteFunc(i int) string { return "site" + strconv.Itoa(i) }
 
 // lowerTable lowers the action expressions of the sites of the Core module m into a new Action
 // module, counting the visits of loop elements if visits (Options.Visits), and returns it with the
-// number of sites.
-func lowerTable(m *ir.Module, visits bool) (code.At[code.Action], int, error) {
+// number of sites. It polls control, which may be nil, for each site and each action expression.
+func lowerTable(m *ir.Module, visits bool, control *cancel.Control) (code.At[code.Action], int, error) {
 	mod, err := actionModule()
 	if err != nil {
 		return code.At[code.Action]{}, 0, err
@@ -59,12 +60,13 @@ func lowerTable(m *ir.Module, visits bool) (code.At[code.Action], int, error) {
 	sites := ir.ActionSitesOf(m)
 	proj := map[int]map[string]string{}
 	for i, s := range sites.Sites {
+		control.Poll()
 		p, ok := proj[s.Rule]
 		if !ok {
 			p = projections(m.Rules[s.Rule].Body)
 			proj[s.Rule] = p
 		}
-		f, l, err := lowerFunc(mod, SiteFunc(i), s.Action, Options{Visits: visits, Proj: p})
+		f, l, err := lowerFunc(mod, SiteFunc(i), s.Action, Options{Visits: visits, Proj: p, Control: control})
 		if err != nil {
 			return code.At[code.Action]{}, 0, fmt.Errorf("rule %s: %w", m.Rules[s.Rule].Name, err)
 		}

@@ -155,7 +155,7 @@ func lower(t *testing.T, opts lowerdata.Options, env *testEnv) lowered {
 	if err != nil {
 		t.Fatal(err)
 	}
-	finishModule(f)
+	finishModule(f, nil)
 	if err := flow.VerifyModule(f); err != nil {
 		t.Fatalf("after Finish: %v\n%s", err, code.FuncStringIn(f, flow.FuncOf(f)))
 	}
@@ -331,7 +331,7 @@ func TestFinish(t *testing.T) {
 	}
 	// A second Finish, and one on a function without forms, change nothing.
 	before := code.FuncStringIn(l.m, fn)
-	finishModule(l.m)
+	finishModule(l.m, nil)
 	if after := code.FuncStringIn(l.m, fn); after != before {
 		t.Errorf("a second Finish changed the function:\n%s", after)
 	}

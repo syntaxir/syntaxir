@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/frontend/astinspect"
 	"syntaxir.dev/sxir/internal/frontend/check"
 	"syntaxir.dev/sxir/internal/frontend/types"
@@ -112,6 +113,9 @@ type Params struct {
 	// TypedObjectSlabs and TypedListSlabs allocate typed objects and lists in slabs, and
 	// TypedOutputBootstrap sizes the first slab of the typed output from the input.
 	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap bool
+	// Control, if not nil, is the control of the printing step (cancel.New of the context of the step), which the
+	// printers of the grammar's code poll (Target.Control).
+	Control *cancel.Control
 }
 
 // NoNodeRules reports whether the Node table of a parser with the options o holds no rule bodies: a

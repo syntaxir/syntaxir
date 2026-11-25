@@ -550,7 +550,12 @@ overrides of individual flags.
   kinds for every pass: the units it ran on (`runs`), the runs that reported a change (`changed`), and the applied and
   skipped applications of each pattern, such as those of `canonicalize` and instruction selection. A pass adds the
   counters that it declares, such as what it rewrote, in the order of its declaration; counting an undeclared one is an
-  error of the pass, as asking about an undeclared pattern is. The block is the same in every run of the same build.
+  error of the pass, as asking about an undeclared pattern is. Given a count of work (`Run.Work`), the manager also
+  records the work of each run (`steps`): under `-stats` the driver gives it the steps of a meter in the context of the
+  build, the elements that the passes visit (design record 042, "Compiler Poll Stride"), whose growth over a run is
+  the run's own since the manager runs one step at a time; a pass that does not poll takes none, and a replayed run
+  counts the steps of the run it replays, as it counts its counters. The block is the same in every run of the same
+  build.
   Tests pin the counters of a pass on a fixture through an observer of the driver rather than through the text, so
   that an optimization that stops firing is noticed. Every pass reports a change whenever it runs today, so `changed`
   equals `runs`, and only a declared counter shows that a pass stopped rewriting.

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"slices"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/prim"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
@@ -99,8 +100,8 @@ const Name = "flowlower"
 var Lowering = pipe.New(pipe.Def[plandata.Planned, *plandata.Table[code.Flow]]{
 	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The module holds the functions of the plan, lowered to the Flow dialect."},
 	In:   plandata.PlannedIR, Out: plandata.FlowTable,
-	Run: func(_ *pipe.Ctx[plandata.Planned], p plandata.Planned) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
-		t, err := lowerTable(p)
+	Run: func(c *pipe.Ctx[plandata.Planned], p plandata.Planned) (*plandata.Table[code.Flow], pass.PreservedSet, error) {
+		t, err := lowerTable(p, cancel.New(c.Context()))
 		return t, pass.PreserveNone(), err
 	},
 })
@@ -109,8 +110,9 @@ var Lowering = pipe.New(pipe.Def[plandata.Planned, *plandata.Table[code.Flow]]{
 // the Core IR and the options of the table, and returns the table of the module and of the plan with
 // the decisions of the lowering taken: a flat function that p.Refuse refuses is replaced by its
 // fallback, or left out if its rule has none (plandata.Plan.Refusing). The plan of p is unchanged. It
-// does not verify the module: Verify, the postcondition of the lowering, does.
-func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
+// does not verify the module: Verify, the postcondition of the lowering, does. The lowering polls
+// control, which may be nil, for each Core node it lowers and each statement it emits.
+func lowerTable(p plandata.Planned, control *cancel.Control) (*plandata.Table[code.Flow], error) {
 	specs := p.Plan.Funcs
 	u := lowerdata.Unit{Module: p.IR.M, Opts: p.IR.Opts, Funcs: make([]lowerdata.Func, len(specs))}
 	for i, s := range specs {
@@ -132,6 +134,7 @@ func lowerTable(p plandata.Planned) (*plandata.Table[code.Flow], error) {
 	}
 	sites := core.ActionSitesOf(p.IR.M)
 	tb := newTables(p.IR.M)
+	tb.control = control
 	m, err := lowerUnit(u, sites, tb)
 	if err != nil {
 		return nil, err

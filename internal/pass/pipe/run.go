@@ -27,6 +27,11 @@ type Run struct {
 	// Numbering, if set, numbers the runs of this Execute (Event.Seq) after those of the other
 	// Executes that share it; nil numbers them from 1.
 	Numbering *Numbering
+	// Work, if set, reads a count of the work done so far that only grows, such as the steps of
+	// the meter of the run's context (cancel.Meter): the manager records its growth over each
+	// observed run of a step as the step's work (Result.Steps). The manager runs one step at a
+	// time, so the growth is the step's own if nothing else adds to the count meanwhile.
+	Work func() uint64
 }
 
 // Numbering is the numbering of the decided runs of optional passes (Event.Seq) of the Executes that
@@ -67,7 +72,11 @@ type Result struct {
 	Ran         bool // false: an observer vetoed the run
 	Changed     bool // the pass's report (!PreserveAll), whatever observers watch
 	TextChanged bool // only under Needs.TextChanged: the text form changed (a lowering: Changed)
-	Counters    map[string]int
+	// Steps is the work of the run (Run.Work), 0 without Run.Work. A replayed event carries the
+	// steps of the run it replays, as it carries its counters, so that the statistics are the same
+	// with and without sharing.
+	Steps    uint64
+	Counters map[string]int
 	// Patterns holds the decisions of the pass's patterns in this run, by pattern; nil if it asked
 	// about none.
 	Patterns map[string]Decisions
@@ -695,13 +704,20 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 	}
 	cs.unit = arg
 	var start time.Time
+	var work uint64
 	if observed {
 		start = time.Now()
+		if rs.r.Work != nil {
+			work = rs.r.Work()
+		}
 	}
 	res, pres, err := rs.call(d, cs, arg)
 	var el time.Duration
 	if observed {
 		el = time.Since(start)
+		if rs.r.Work != nil {
+			work = rs.r.Work() - work
+		}
 	}
 	if err == nil && (rs.r.VerifyEach || !transform) && d.check != nil {
 		err = d.check(res)
@@ -716,7 +732,7 @@ func (rs *runner) step(x *passNode, in any, e *env, sc *scope) (out any) {
 	}
 	var r *Result
 	if observed {
-		r = &Result{Ran: true, Counters: cs.counts, Patterns: cs.decisions, Elapsed: el, Err: err}
+		r = &Result{Ran: true, Steps: work, Counters: cs.counts, Patterns: cs.decisions, Elapsed: el, Err: err}
 	}
 	if err != nil {
 		se := &StepError{Step: ev.Step.Instance, Label: e.label, Err: err}

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/flow"
 	"syntaxir.dev/sxir/internal/middleend/execlower/execdata"
@@ -58,7 +59,7 @@ func lowered(t *testing.T) *execdata.Lowered {
 	t.Helper()
 	m := flowModule()
 	m.Funcs[0].Attrs = &flow.Attrs{Vars: []string{"ok"}}
-	x, err := lower(m)
+	x, err := lower(m, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,5 +99,34 @@ func TestLoweredCopies(t *testing.T) {
 	}
 	if err := execdata.LoweredIR.Verify(l); err != nil || len(l.Func.Locals) == 0 {
 		t.Errorf("changing the copies changed the function: %v", err)
+	}
+}
+
+// TestLowerCancelled checks that the lowering polls its control: under a context that has ended it
+// unwinds with the context's error (cancel.Cancellation) within cancel.PollStride expressions,
+// which the pass manager turns into the failure of the step, and without a control it lowers the
+// same module.
+func TestLowerCancelled(t *testing.T) {
+	module := func() *code.Module { // lower takes the module, so each lowering gets its own
+		m := flowModule()
+		m.Funcs[0].Attrs = &flow.Attrs{Vars: []string{"ok"}}
+		for range cancel.PollStride {
+			m.Funcs[0].Body.Stmts = append(m.Funcs[0].Body.Stmts, &code.Do{Call: &code.Call{Callee: flow.OpAdvance, Args: []code.Expr{code.Int(1)}}})
+		}
+		return m
+	}
+	if _, err := lower(module(), nil); err != nil {
+		t.Fatal(err)
+	}
+	ctx, stop := context.WithCancel(context.Background())
+	stop()
+	control := cancel.New(ctx)
+	var err error
+	func() {
+		defer cancel.Recover(&err)
+		_, err = lower(module(), control)
+	}()
+	if !errors.Is(err, context.Canceled) || control.Steps != cancel.PollStride {
+		t.Errorf("a cancelled lowering = %v after %d steps, want %v after %d", err, control.Steps, context.Canceled, cancel.PollStride)
 	}
 }

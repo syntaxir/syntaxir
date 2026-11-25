@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"strings"
 
+	"syntaxir.dev/sxir/internal/cancel"
 	"syntaxir.dev/sxir/internal/ir/code"
 	"syntaxir.dev/sxir/internal/ir/code/exec/stores"
 )
@@ -26,6 +27,9 @@ import (
 // BodyTarget is how Body prints the operations of lowered grammar code. Each hook takes whether the
 // point is unreachable, where the text it returns is not printed.
 type BodyTarget struct {
+	// Control, if not nil, is the control of the printing step, polled once for each statement and
+	// expression printed (cancel.Control.Poll).
+	Control *cancel.Control
 	// Reg returns the TypeScript expression of the register name, which must be assignable.
 	Reg func(name string) string
 	// Label returns the TypeScript label of the Exec IR label name; Body calls it where the label
@@ -132,6 +136,7 @@ func (p *bodyPrinter) stmts(ss []code.Stmt) {
 }
 
 func (p *bodyPrinter) stmt(s code.Stmt) {
+	p.t.Control.Poll()
 	switch s := s.(type) {
 	case *code.Block:
 		enter := p.dead
@@ -336,6 +341,7 @@ func (p *bodyPrinter) args(c *code.Call) []string {
 // expr returns the TypeScript expression of x: a disjunction in parentheses, a comparison without,
 // and a negation of anything but a local with its operand in parentheses.
 func (p *bodyPrinter) expr(x code.Expr) string {
+	p.t.Control.Poll()
 	switch x := x.(type) {
 	case *code.Local:
 		return x.Name

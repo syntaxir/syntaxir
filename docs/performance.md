@@ -164,13 +164,21 @@ go run ./bench/metrics collect -o head.txt       # this checkout (a few minutes)
 go run ./bench/metrics compare base.txt head.txt # judge head.txt against a report of the base
 ```
 
-`collect` writes one metric per line, `<key> <value> <policy>`, sorted by key, after a header of `#` lines: the
-commit, whether the tree was dirty, the parts collected, and the toolchain line `go <release> <os>/<arch>`. `compare`
-refuses two reports whose toolchain lines differ, since allocation counts and sizes depend on the Go release and the
-target: reports of one commit on linux/amd64 and on darwin/arm64 agree in units, evaluations and ratios but not in
-allocation and size figures. It ignores the other header lines. Ratios are in thousandths. `compare` lists each
-changed metric with the base and head values and the delta, absolute and in percent, and exits with status 1 on a
-regression. The CI workflow's `perf` suite collects the report of a ref and of a base ref and compares them. Reports
+`collect` needs Node.js 22.18 or later on the `PATH` for its `workloads` part, which measures the units of the
+generated TypeScript parsers; without Node it refuses to start that part (`-parts` leaves it out). It writes one
+metric per line, `<key> <value> <policy>`, sorted by key, after a header of `#` lines: the commit, whether the tree
+was dirty, the parts collected, and the toolchain line `go <release> <os>/<arch> <level>=<v> CGO_ENABLED=<v>`, where
+the level is the target's microarchitecture setting (`GOAMD64`, `GOARM64` and the like). `compare` refuses two
+reports whose toolchain lines differ, since allocation counts and sizes depend on the Go release, the target and
+these settings: reports of one commit on linux/amd64 and on darwin/arm64 agree in units, evaluations and ratios but
+not in allocation and size figures. It ignores the other header lines. Ratios are in thousandths. `compare` lists
+each changed metric with the base and head values and the delta, absolute and in percent, and exits with status 1
+on a regression.
+
+`compare` judges every metric by the base's policy, so a head cannot loosen the policy that judges it: an exact
+metric that the head gives a 5% tolerance is still exact against its base. A change of a metric's policy is a
+regression of its own (`POLICY`), listed with both policies, so that it is made and reviewed apart from the code
+it would judge. The CI workflow's `perf` suite collects the report of a ref and of a base ref and compares them. Reports
 are not committed: any commit regenerates its own.
 
 | Metric | Key | What it counts | Policy |
@@ -183,11 +191,12 @@ are not committed: any commit regenerates its own.
 | Doubling ratio | `doubling-units`, `doubling-allocs <subject>` | The cost at the full input over the cost at half of it, scaled to an exact doubling of the length, for the units on the engine and the allocations of the generated parser; and, for each control of known growth in `internal/testing/complexitytest` (exponential ones left out), the cost ratio between the last two sizes of its series | exact, with a ceiling |
 | Sizes | `size <parser> <kind>` | The generated Go `parser.go`, a stripped binary that calls `ParseValue`, the library copy of `-lib embed` and its binary, the TypeScript `parser.ts` and `lib.ts`, raw and gzip -9, for the grammars of `testdata/grammars` (the same figures as `bench/results-size.txt`); and the playground's WebAssembly binary (`size playground wasm-raw`, `wasm-gzip`) | exact |
 | Retained heap | `retained-bytes`, `retained-objects compiled-parsers <corpus> x128`, `document-versions snapshot\|clone x64` | The live heap after forced collections that 128 compiled parsers of a corpus keep (`bench/retained`), and that 64 Document versions keep as snapshots or as parsed and cloned trees (`bench/snapshot-retained`), each in a process of its own with `GOGC=off` and `GOMAXPROCS=1` | exact for Document versions; 0.1% for compiled parsers |
-| Compiler scaling | `compile-allocs`, `compile-alloc-bytes`, `compile-pass-runs synthetic-<series> n=<n>`; `compile-doubling-allocs`, `compile-doubling-pass-runs synthetic-<series>` | The allocations of the generation of a Go parser and its pass work (the runs of the pass instances), for seeded synthetic grammars (`internal/bench/synth`) at n, 2n and 4n of one dimension: rules, alternatives per rule, or the nesting depth of groups, with every fourth rule left-recursive; and the doubling ratio of the increments, (c(4n) − c(2n)) / (c(2n) − c(n)), which the compiler's fixed cost does not dilute. Passes run once per rule, so only the rules series has a pass-run ratio | 0.001% of the objects and 0.3% of the bytes; pass runs exact; ratios exact with a ceiling |
-| Generation determinism | `determinism <grammar> go\|ts` | 1 if two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, are byte-identical | equal |
+| Compiler scaling | `compile-allocs`, `compile-alloc-bytes`, `compile-steps synthetic-<series> n=<n>`; `compile-doubling-allocs`, `compile-doubling-steps synthetic-<series>` | The allocations and the steps of the generation of a Go parser, for seeded synthetic grammars (`internal/bench/synth`) at n, 2n and 4n of one dimension: rules, alternatives per rule, or the nesting depth of groups, with every fourth rule left-recursive; and the doubling ratio of the increments, (c(4n) − c(2n)) / (c(2n) − c(n)), which the compiler's fixed cost does not dilute, scaled to an exact doubling of the grammar's text as the doubling ratios of the workloads are. The steps are the compiler's unit of work: the elements that the check, the analyses, the lowerings and the printers visit, once per visit, fixed-point rounds included, counted by a meter in the context of the generation (design record 042, "Compiler Poll Stride"). The meter counts the work that the generation does, so a step whose result a later use reuses counts once; `-stats` instead gives each use the steps of the run it reuses. A quadratic stretch of code that polls once per element it visits shows in them whether it allocates or not; a loop that does not poll takes no steps, so its growth shows only in the allocations | 0.001% of the objects and 0.3% of the bytes; steps exact; ratios exact with a ceiling |
+| Generation determinism | `nondeterministic-files <grammar> go\|ts` | The files that differ between two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, or that only one of them has | 0, a ceiling |
 | Input size | `input <workload> bytes` | The length of the workload's input; when it changes, every other metric of the workload changes with it | equal |
 
-A ceiling (`,max=N`) fails the metric above N whatever the base. The ceiling of a doubling ratio is the band of the
+A ceiling (`,max=N`) fails the metric above N whatever the base, the ceiling of the base's policy or of the
+head's: a nondeterministic generation fails against a base that was nondeterministic too. The ceiling of a doubling ratio is the band of the
 growth order by which the complexity tests (`internal/testing/complexitytest`) classify a series: 2^1.15 (2219) for a
 linear cost, 2^(k+0.2) for a polynomial of degree k. A linear workload doubles at about 2000.
 

@@ -545,8 +545,9 @@ func (a assembled) error(err error) error {
 }
 
 // recoverCancellation is the recovery of a compilation (pipe.Run.Recover): the cancellation panic of
-// a step (cancel.Cancellation), which the Core build and the Core passes raise when the context of
-// the compilation ends, becomes the failure of the step; any other value panics again.
+// a step (cancel.Cancellation), which a step that polls a control of its context (cancel.New) raises when
+// the context of the compilation ends, becomes the failure of the step; any other value panics
+// again.
 func recoverCancellation(x any) error {
 	if c, ok := x.(cancel.Cancellation); ok {
 		return c
