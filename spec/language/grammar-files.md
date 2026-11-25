@@ -716,7 +716,7 @@ that the parser reads is valid.
 
 | Rejected | Allowed |
 |:--|:--|
-| A nil grammar; a missing required child; a nil entry in a node collection | Shared subtrees; genuinely nil optional children |
+| A nil grammar; a missing required child; a nil entry in a node collection | Shared subtrees, each checked where it stands; genuinely nil optional children |
 | An interface that holds a typed nil pointer; an unsupported embedded node type | |
 | A pointer cycle | |
 | A repetition whose minimum is negative, whose maximum is negative but not -1, or whose finite maximum is smaller than the minimum | The maximum -1, which means unbounded |

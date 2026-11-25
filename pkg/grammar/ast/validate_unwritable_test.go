@@ -133,3 +133,52 @@ func TestValidateSharedSubtreeInParameterScopes(t *testing.T) {
 	cycle.Body = &ActionGroup{Action: cycle}
 	assertValidationError(t, Validate(actionGrammar(cycle)), "$.file.decls[0].action.body.action")
 }
+
+// TestValidateSharedSubtreeInPlacements checks that a subtree shared where it
+// can be written and where it cannot is checked in each placement: the check
+// of an Operators Rule reads its grandparent and the attributes of its parent,
+// and those of a block, a binding and a pragma their parent.
+func TestValidateSharedSubtreeInPlacements(t *testing.T) {
+	ops := &OperatorsRule{Operands: []*OperatorsRuleOperand{{Expr: &Ref{Name: "num"}}}}
+	ignoreCase := &Attribute{Name: "ignorecase", Pragma: true}
+	body := &Attributed{Expr: ops, Attrs: []*Attribute{ignoreCase}}
+	block := &Block{Statements: []ActionExpr{&IntLit{Value: 1}}}
+	bind := &Bind{Name: "x", Value: &IntLit{Value: 1}}
+	for _, tc := range []struct {
+		name, path string
+		g          *Grammar
+	}{
+		{"Operators Rule body in a sequence", "$.file.decls[1].expr.items[0].expr", &Grammar{File: File{Decls: []Decl{
+			&RuleDef{Name: "e", Expr: body},
+			&RuleDef{Name: "f", Expr: &Seq{Items: []Expr{body, &Literal{Value: "x"}}}},
+		}}}},
+		{"Operators Rule under other attributes", "$.file.decls[1].expr.expr", &Grammar{File: File{Decls: []Decl{
+			&RuleDef{Name: "e", Expr: body},
+			&RuleDef{Name: "f", Expr: &Attributed{Expr: ops, Attrs: []*Attribute{{Name: "missing", Pragma: true}}}},
+		}}}},
+		{"pragma on a declaration", "$.file.decls[1].attrs[0].pragma", &Grammar{File: File{Decls: []Decl{
+			&RuleDef{Name: "e", Expr: body},
+			&RuleDef{Name: "f", Attrs: []*Attribute{ignoreCase}, Expr: &Top{}},
+		}}}},
+		{"block in a call", "$.file.decls[1].action.args[0]", &Grammar{File: File{Decls: []Decl{
+			&RuleDef{Name: "e", Expr: &Literal{Value: "a"}, Action: block},
+			&RuleDef{Name: "f", Expr: &Literal{Value: "a"}, Action: &Call{Func: "f", Args: []ActionExpr{block}}},
+		}}}},
+		{"binding in a call", "$.file.decls[1].action.args[0]", &Grammar{File: File{Decls: []Decl{
+			&RuleDef{Name: "e", Expr: &Predicate{Action: bind}},
+			&RuleDef{Name: "f", Expr: &Literal{Value: "a"}, Action: &Call{Func: "f", Args: []ActionExpr{bind}}},
+		}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			assertValidationError(t, Validate(tc.g), tc.path)
+		})
+	}
+	// Shared where each placement can write it, the subtree stays valid.
+	g := &Grammar{File: File{Decls: []Decl{
+		&RuleDef{Name: "e", Expr: body, Action: block},
+		&RuleDef{Name: "f", Expr: body, Action: block},
+	}}}
+	if err := Validate(g); err != nil {
+		t.Errorf("shared in writable placements: %v", err)
+	}
+}

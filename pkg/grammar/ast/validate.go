@@ -32,6 +32,8 @@ type validationFrame struct {
 	field string
 	index int
 	exit  bool
+	// place is the placement of the node, set on its exit frame.
+	place placement
 	// depth is the structural depth of the node on the path (see
 	// MaxNestingDepth), and below the height of its deepest child so far.
 	depth, below int
@@ -44,7 +46,7 @@ type validationFrame struct {
 // node's bounds and placement before its children, or nil.
 //
 // Optional children may be nil, but an interface containing a nil pointer is
-// invalid. Shared subtrees are allowed. A collection may be empty where grammar
+// invalid. Shared subtrees are allowed, each checked where it stands. A collection may be empty where grammar
 // syntax writes it empty; Repeat.Max is -1 for an unbounded repetition. Source
 // layout is not checked. Name resolution, types, attribute arguments and
 // OperatorsRule semantics are checked by the compiler. The text of a valid AST,
@@ -107,11 +109,44 @@ func (c *validationControl) check() {
 	}
 }
 
-// visitKey identifies a checked node: a node shared under lambdas with
-// different parameters is checked once in each parameter scope.
+// visitKey identifies a checked node: a shared node is checked once in each
+// placement and parameter scope that the checks of where it stands read, as its
+// validity may differ between them.
 type visitKey struct {
 	node  any
+	place placement
 	scope *paramScope
+}
+
+// placement is what the checks of a node read of where it stands (unwritable):
+// the field that holds it, the kind of its parent and of its grandparent, the
+// field that holds the parent, and, for an Operators Rule, whether the parent is
+// an Attributed whose attributes are all #ignorecase. A node shared under
+// parents that agree on these is checked once.
+type placement struct {
+	field, parentField   string
+	parent, grandparent  reflect.Type
+	parentIgnoreCaseOnly bool
+}
+
+// placementOf returns the placement of the node of frame f, whose parent and
+// grandparent frames are parent and grandparent, zero at the root.
+func placementOf(f, parent, grandparent validationFrame) placement {
+	p := placement{field: f.field, parentField: parent.field}
+	if parent.node != nil {
+		p.parent = reflect.TypeOf(parent.node)
+	}
+	if grandparent.node != nil {
+		p.grandparent = reflect.TypeOf(grandparent.node)
+	}
+	if _, ok := f.node.(*OperatorsRule); ok {
+		// Only the check of an Operators Rule reads the attributes of its parent,
+		// so no other node walks them once for each sibling.
+		if a, ok := parent.node.(*Attributed); ok {
+			p.parentIgnoreCaseOnly = ignoreCaseOnly(a.Attrs)
+		}
+	}
+	return p
 }
 
 // paramScope is the set of lambda parameter names in scope. Scopes are interned
@@ -224,7 +259,7 @@ func validate(g *Grammar, control *validationControl) error {
 				scopes = scopes[:len(scopes)-1]
 			}
 			delete(active, f.node)
-			done[visitKey{f.node, scope()}] = true
+			done[visitKey{f.node, f.place, scope()}] = true
 			top := path[len(path)-1]
 			heights[f.node] = structuralWeight(f.node) + top.below
 			leave(heights[f.node])
@@ -269,7 +304,8 @@ func validate(g *Grammar, control *validationControl) error {
 		if len(path) >= 3 {
 			grandparent = path[len(path)-3]
 		}
-		if field, message := unwritable(f, parent, grandparent, inScope); message != "" {
+		place := placementOf(f, parent, grandparent)
+		if field, message := unwritable(f.node, place, inScope); message != "" {
 			return fail(field, message)
 		}
 		if v.Type().Elem().PkgPath() != astPackage {
@@ -362,7 +398,7 @@ func validate(g *Grammar, control *validationControl) error {
 		if active[f.node] {
 			return fail("", "pointer cycle in grammar AST")
 		}
-		if done[visitKey{f.node, scope()}] {
+		if done[visitKey{f.node, place, scope()}] {
 			// A shared subtree checked before is as high here; its deepest node
 			// lies that far below the parent.
 			h := heights[f.node]
@@ -373,7 +409,7 @@ func validate(g *Grammar, control *validationControl) error {
 			continue
 		}
 		active[f.node] = true
-		stack = append(stack, validationFrame{node: f.node, exit: true})
+		stack = append(stack, validationFrame{node: f.node, exit: true, place: place})
 		if l, ok := f.node.(*Lambda); ok {
 			enterLambda(l)
 		}
@@ -725,11 +761,13 @@ func literalName(node any) (field, kind, name string) {
 // unwritable reports a node that grammar syntax cannot write where it stands, so
 // that Format of a valid AST always parses: a node of a kind or with a field
 // value that has no spelling, or one whose spelling would read back as another
-// node. f is the node's frame; parent and grandparent are its ancestors' frames,
-// zero at the root, and inScope reports the parameters of enclosing lambdas.
-func unwritable(f, parent, grandparent validationFrame, inScope func(string) bool) (field, message string) {
+// node. place is where the node stands, which is all that these checks read of
+// it, as validation checks a shared node once for each placement; inScope
+// reports the parameters of enclosing lambdas.
+func unwritable(node any, place placement, inScope func(string) bool) (field, message string) {
 	isLiteral := func(s string) bool { return s == "true" || s == "false" || s == "nil" }
-	switch n := f.node.(type) {
+	ruleDef := reflect.TypeFor[*RuleDef]()
+	switch n := node.(type) {
 	case *Seq:
 		if len(n.Items) == 0 {
 			return "items", "a sequence needs at least one item"
@@ -746,7 +784,7 @@ func unwritable(f, parent, grandparent validationFrame, inScope func(string) boo
 		if !n.Pragma {
 			break
 		}
-		if _, ok := parent.node.(*Attributed); !ok {
+		if place.parent != reflect.TypeFor[*Attributed]() {
 			return "pragma", "a pragma follows a parser expression; a declaration takes @ attributes"
 		}
 		if n.Name != "ignorecase" && n.Name != "missing" {
@@ -756,13 +794,12 @@ func unwritable(f, parent, grandparent validationFrame, inScope func(string) boo
 			return "args", "#" + n.Name + " takes no arguments"
 		}
 	case *OperatorsRule:
-		if _, ok := parent.node.(*RuleDef); ok && f.field == "expr" {
+		if place.parent == ruleDef && place.field == "expr" {
 			break
 		}
-		if a, ok := parent.node.(*Attributed); ok && f.field == "expr" && parent.field == "expr" {
-			if _, ok := grandparent.node.(*RuleDef); ok && ignoreCaseOnly(a.Attrs) {
-				break
-			}
+		if place.parent == reflect.TypeFor[*Attributed]() && place.field == "expr" && place.parentField == "expr" &&
+			place.grandparent == ruleDef && place.parentIgnoreCaseOnly {
+			break
 		}
 		return "", "an Operators Rule is the whole body of a rule, followed by no pragma other than #ignorecase"
 	case *OperatorsRuleOperator:
@@ -803,19 +840,20 @@ func unwritable(f, parent, grandparent validationFrame, inScope func(string) boo
 			return "types", "a meet type needs at least two types"
 		}
 	case *Block:
-		if f.field == "action" {
-			switch parent.node.(type) {
-			case *RuleDef, *InlineAction, *Predicate, *OperatorsRuleOperand, *OperatorsRuleOperator:
+		if place.field == "action" {
+			switch place.parent {
+			case ruleDef, reflect.TypeFor[*InlineAction](), reflect.TypeFor[*Predicate](),
+				reflect.TypeFor[*OperatorsRuleOperand](), reflect.TypeFor[*OperatorsRuleOperator]():
 				return "", ""
 			}
 		}
 		return "", "a block is the whole action of a rule, an inline action, a predicate, or an operand or operator line"
 	case *Bind:
-		switch parent.node.(type) {
-		case *Block:
+		switch place.parent {
+		case reflect.TypeFor[*Block]():
 			return "", ""
-		case *Predicate:
-			if f.field == "action" {
+		case reflect.TypeFor[*Predicate]():
+			if place.field == "action" {
 				return "", ""
 			}
 		}
