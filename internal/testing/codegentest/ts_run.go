@@ -317,6 +317,26 @@ func TSParsersInsertionMismatches(t *testing.T, node string, cases []Case, opts 
 	return tsParsersMismatches(t, node, cases, opts, mutate, units, missing)
 }
 
+// TSCBatchFiles is the number of files that RunTSC checks in one tsc run. One tsc program over a
+// whole corpus needs more heap than Node's default limit (the run dies with "JavaScript heap out
+// of memory"), while each file is checked the same in a batch: the files are modules, and tsc
+// follows the imports a batch cuts across.
+const TSCBatchFiles = 100
+
+// RunTSC runs tsc with flags over files in dir, TSCBatchFiles at a time, and fails t for each
+// batch whose tsc run fails. Every batch runs, so one failure does not hide the others.
+func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
+	t.Helper()
+	for start := 0; start < len(files); start += TSCBatchFiles {
+		batch := files[start:min(start+TSCBatchFiles, len(files))]
+		cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
+		cmd.Dir = dir
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Errorf("tsc (files %d-%d of %d): %v\n%s", start, start+len(batch)-1, len(files), err, out)
+		}
+	}
+}
+
 func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
 	t.Helper()
 	dir := t.TempDir()
@@ -415,19 +435,15 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 		tsc := tooltest.RequireTSC(t)
 		// The strictest checks there are, so that the code compiles in any project; ES2020 is the
 		// oldest target it supports (bigint).
-		args := append([]string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
+		flags := []string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
 			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
 			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
-			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}, files...)
+			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}
 		if opts.Types {
 			// The generated files import each other by their names (./lib.ts).
-			args = append(args, "--allowImportingTsExtensions")
+			flags = append(flags, "--allowImportingTsExtensions")
 		}
-		cmd := exec.Command(tsc, args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("tsc: %v\n%s", err, out)
-		}
+		RunTSC(t, tsc, dir, flags, files)
 	}
 
 	args := []string{"harness.mjs", "inputs.json", "out.jsonl"}

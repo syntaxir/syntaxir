@@ -3,7 +3,6 @@ package print_test
 import (
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -124,10 +123,5 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 	if len(files) < seeds*2 {
 		t.Fatalf("only %d parsers generate", len(files))
 	}
-	args := append(append([]string{"--noEmit", "--allowImportingTsExtensions"}, tsStrictFlags...), files...)
-	cmd := exec.Command(tsc, args...)
-	cmd.Dir = dir
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Errorf("tsc: %v\n%s", err, out)
-	}
+	codegentest.RunTSC(t, tsc, dir, append([]string{"--noEmit", "--allowImportingTsExtensions"}, tsStrictFlags...), files)
 }
