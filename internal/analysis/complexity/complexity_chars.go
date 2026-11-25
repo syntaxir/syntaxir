@@ -224,11 +224,10 @@ func (k *classifier) operatorsStart(o *core.OperatorsRule) charset {
 	if o.Skip != nil {
 		s = k.firstOf(o.Skip.Body)
 	}
-	emptyOperand := false
 	for _, l := range o.Operands {
 		s = s.union(k.firstOf(l.Body))
-		emptyOperand = emptyOperand || k.nullableOf(l.Body)
 	}
+	emptyOperand := k.emptyOperand(o)
 	for _, op := range o.Ops {
 		if op.Kind == ast.Prefix || emptyOperand {
 			s = s.union(k.firstOf(op.Line.Body))
@@ -237,9 +236,20 @@ func (k *classifier) operatorsStart(o *core.OperatorsRule) charset {
 	return s
 }
 
+// emptyOperand reports whether an operand of the Operators Rule o can match nothing, so that the
+// infix and postfix parts after it can start an expression.
+func (k *classifier) emptyOperand(o *core.OperatorsRule) bool {
+	for _, l := range o.Operands {
+		if k.nullableOf(l.Body) {
+			return true
+		}
+	}
+	return false
+}
+
 func (k *classifier) operandsNullable(rule string) bool {
 	pr := k.operatorsOf(rule)
-	return pr == nil || k.nullableOf(pr)
+	return pr == nil || k.emptyOperand(pr)
 }
 
 // computeFirst computes the first characters of every rule as a fixed point.
