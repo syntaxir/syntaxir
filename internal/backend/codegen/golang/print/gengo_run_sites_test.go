@@ -122,7 +122,7 @@ var runSiteMutations = map[string][][2]string{
 }
 
 // countedSteps counts a compute unit for each step of the bookkeeping of a walk (skipStep).
-var countedSteps = [2]string{"func (p *Parser) skipStep() {}", "func (p *Parser) skipStep() { p.Units++ }"}
+var countedSteps = [2]string{"func (p *Parser) skipStep() {}", "func (p *Parser) skipStep() { p.Fuel-- }"}
 
 // runSiteRuns builds the parsers of the sources with the embedded library changed by mutation (none
 // if "") and its sites turning hot at hotSpan (at its threshold if 0), parses the inputs of each

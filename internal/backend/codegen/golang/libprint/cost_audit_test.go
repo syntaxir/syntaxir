@@ -23,7 +23,7 @@ import (
 
 // checkRoots are the methods of the parser that check the counter of logical compute units
 // (spec/runtime/parsing.md#compute-units) or observe cancellation and the memory limit: each may end
-// the parse. A function that adds to the counter (Parser.Units) counts units, and checks the counter
+// the parse. A function that takes from the counter (Parser.Fuel, the headroom below the check count) counts units, and checks the counter
 // or leaves the check to its caller.
 var checkRoots = []string{"PollUnits", "observeUnits", "unitsExceeded"}
 
@@ -65,16 +65,16 @@ func libCalls(t *testing.T) (pkg *types.Package, callees map[*types.Func][]*type
 				var lhs []ast.Expr
 				switch s := n.(type) {
 				case *ast.AssignStmt:
-					if s.Tok == token.ADD_ASSIGN {
+					if s.Tok == token.SUB_ASSIGN {
 						lhs = s.Lhs
 					}
 				case *ast.IncDecStmt:
-					if s.Tok == token.INC {
+					if s.Tok == token.DEC {
 						lhs = []ast.Expr{s.X}
 					}
 				}
 				for _, l := range lhs {
-					if sel, ok := l.(*ast.SelectorExpr); ok && sel.Sel.Name == "Units" {
+					if sel, ok := l.(*ast.SelectorExpr); ok && sel.Sel.Name == "Fuel" {
 						counts[caller] = true
 					}
 				}

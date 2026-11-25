@@ -40,7 +40,7 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 			return all
 		}
 		for _, opts := range []common.GenOptions{{Types: true, NoLimitControls: true}, {Types: true, TypedOnly: true, NoLimitControls: true}, {Types: true, Document: true, NoLimitControls: true}, {Types: true, Recognize: true, Document: true, NoLimitControls: true}} {
-			if out := generated(opts); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Units") {
+			if out := generated(opts); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Fuel") {
 				t.Errorf("%+v: a parser without limit controls charges steps or counts units", opts)
 			}
 		}
@@ -49,7 +49,7 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 			if strings.Contains(out, ".Spend()") {
 				t.Errorf("document=%v: a parser with compute units charges steps", document)
 			}
-			if !strings.Contains(out, ".Units") {
+			if !strings.Contains(out, ".Fuel") {
 				t.Errorf("document=%v: a controlled parser counts no units: the check is void", document)
 			}
 		}
@@ -74,7 +74,7 @@ func TestGeneratedNoStepChargesInTypedCode(t *testing.T) {
 		return ""
 	}
 	for _, document := range []bool{false, true} {
-		if out := types(document); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Units") {
+		if out := types(document); strings.Contains(out, ".Spend()") || strings.Contains(out, ".Fuel") {
 			t.Errorf("document=%v: the types package of a parser with compute units charges or counts its conversions", document)
 		}
 	}

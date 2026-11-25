@@ -11,14 +11,14 @@ import sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 //
 // Printed from Exec IR function streamEmit of internal/ir/code/exec/compose, specialized for stream, units.
 func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
-	if p.Units > p.UnitsCheck {
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	p.streamCheck()
 	p.streamReport()
 	p.streamDeliver(v)
 	p.streamCheck()
-	if p.Units > p.UnitsCheck {
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	p.streamCommit(end)

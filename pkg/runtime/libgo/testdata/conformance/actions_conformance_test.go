@@ -59,7 +59,7 @@ func newActionStateMachine(cfg ref.Config, typed, controlled bool) conform.Impl 
 		m.binder = conform.Binder{Methods: confActionStateBindings(x.p), Conv: actionStateConv{}}
 	}
 	if controlled {
-		m.used = func() uint64 { return m.p.Units }
+		m.used = func() uint64 { return m.p.UnitsNow() }
 		return meteredActionState{m}
 	}
 	return m

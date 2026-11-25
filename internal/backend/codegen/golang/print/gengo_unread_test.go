@@ -58,7 +58,7 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 			t.Errorf("line %d: blank line inside %s", i+1, fn)
 		}
 	}
-	for _, bad := range []string{"{ ;", ".Spend()", ".SpendRead(", "p.Units", "func() any { return "} {
+	for _, bad := range []string{"{ ;", ".Spend()", ".SpendRead(", "p.Fuel", "func() any { return "} {
 		if strings.Contains(src, bad) {
 			t.Errorf("generated source contains %q", bad)
 		}
@@ -81,7 +81,7 @@ rule leaf Leaf = d:[0-9]+ => Leaf{N: len($d)}
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(files[0].Content), "p.Units") {
+	if !strings.Contains(string(files[0].Content), "p.Fuel") {
 		t.Error("generated source with limit controls counts no compute units")
 	}
 }

@@ -41,7 +41,7 @@ type setHandle struct{ s []ExpID }
 
 type meteredExp struct{ *expMachine }
 
-func (m meteredExp) Used() uint64 { return m.p.Units }
+func (m meteredExp) Used() uint64 { return m.p.UnitsNow() }
 
 func newExpMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var rm *rtMachine
@@ -176,7 +176,7 @@ type texpMachine struct {
 
 type meteredTExp struct{ *texpMachine }
 
-func (m meteredTExp) Used() uint64 { return m.p.Units }
+func (m meteredTExp) Used() uint64 { return m.p.UnitsNow() }
 
 func newTExpMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var tm *typedMachine

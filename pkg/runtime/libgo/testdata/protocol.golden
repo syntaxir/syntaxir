@@ -1,4 +1,4 @@
-protocol 36
+protocol 37
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -258,6 +258,7 @@ method (*Parser) TextEqual(string, string) bool
 method (*Parser) TextEqualLogical(string, string) bool
 method (*Parser) TooDeep()
 method (*Parser) Unisolate(ExpMark) (int, []ExpID)
+method (*Parser) UnitsNow() uint64
 method (*Parser) UnitsOfItems(any, int)
 method (*Parser) UnitsSized(int)
 method (*StreamPull) Close()
@@ -419,7 +420,7 @@ type Mark struct{Pos int; Trail int}
 type OperatorsRule struct{Skip matcher; Operands []*OperatorsRuleLine; Prefix []*OperatorsRuleOp; Led []*OperatorsRuleOp}
 type OperatorsRuleLine struct{Scope []string; M matcher; Action func(*ActCtx) (any, any); Value Shaper}
 type OperatorsRuleOp struct{Id int; Kind string; Assoc string; Level int; Line *OperatorsRuleLine}
-type Parser struct{Control *BudgetControl; Units uint64; UnitsCheck uint64; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
+type Parser struct{Control *BudgetControl; Fuel int64; UnitsCheck uint64; Observation *observation; Document *documentState; In []rune; Pos int; MaxDepth int; Depth int; Env *Env; Frame *CaptureFrame; Trail []undo; Cut bool; Silent int; Expectations bool; Recovered []recEntry; KidStack []*syntaxir.dev/sxir/pkg/runtime/value.Node; Stream *streamInput}
 type Rule struct{Id int; Name string; Scope []string; Body func(*Parser, int) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool); Action func(*ActCtx) (any, any); Value Shaper; NodeType string; OpNodeType string; Memo bool; Leader bool; Missing bool; Rec bool; Cycle int32; DocMemo bool; Positional bool; Seen int; OperatorsRule *OperatorsRule; Novalue bool; Splice bool; Where string; Vars []string}
 type RuleExtra struct{Id int; Where string; NodeType string; OpNodeType string; Cycle int32}
 type RuleSpec struct{Name string; Value *Shaper; Flags uint8; Seen int32; Scope uint16; Vars uint16}

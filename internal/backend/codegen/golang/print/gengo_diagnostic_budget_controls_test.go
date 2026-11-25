@@ -79,7 +79,7 @@ func TestDiagnosticTextParityAndBudget(t *testing.T){
   want:=e.Error()
   p:=diagnosticParser(1)
   var retained string
-  if err:=catchFatal(t,func(){retained=e.Error()});err!=nil || retained!=want || p.Units!=0{t.Fatal("message parity",retained,want,err,p.Units)}
+  if err:=catchFatal(t,func(){retained=e.Error()});err!=nil || retained!=want || p.UnitsNow()!=0{t.Fatal("message parity",retained,want,err,p.UnitsNow())}
   if (&SyntaxError{Line:1,Col:2,Messages:[]string{"other"}}).Error()!="1:2: other" || retained!=want || e.Error()!=want{t.Fatal("retained message overwritten")}
  })}
 }
@@ -97,13 +97,13 @@ func TestDiagnosticSortingAndSnapshots(t *testing.T){
  ids:=make([]sxirrt.ExpID,320);for i:=range ids{ids[i]=sxirrt.ExpID(i)}
  p:=diagnosticParser(1)
  kept:=p.Keep(ids);before:=slices.Clone(kept)
- if err:=catchFatal(t,func(){p.Keep(ids)});err!=nil || p.Units!=0{t.Fatal("snapshot equality counted",err,p.Units)}
+ if err:=catchFatal(t,func(){p.Keep(ids)});err!=nil || p.UnitsNow()!=0{t.Fatal("snapshot equality counted",err,p.UnitsNow())}
  if !slices.Equal(kept,before){t.Fatal("snapshot overwritten")}
  p=diagnosticParser(1)
- if err:=catchFatal(t,func(){p.MergeExpected(0,ids);p.MergeExpected(0,ids)});err!=nil || p.Units!=0{t.Fatal("merged expectations counted",err,p.Units)}
+ if err:=catchFatal(t,func(){p.MergeExpected(0,ids);p.MergeExpected(0,ids)});err!=nil || p.UnitsNow()!=0{t.Fatal("merged expectations counted",err,p.UnitsNow())}
  p=diagnosticParser(1)
  for range 320{p.PushRecovered(&SyntaxError{})}
- if err:=catchFatal(t,func(){p.X_recSince(0)});err!=nil || p.Units!=0{t.Fatal("recovered error lists counted",err,p.Units)}
+ if err:=catchFatal(t,func(){p.X_recSince(0)});err!=nil || p.UnitsNow()!=0{t.Fatal("recovered error lists counted",err,p.UnitsNow())}
 }
 func TestRecoveredPublicDiagnostics(t *testing.T){
  for _,unit:=range []PositionUnit{Bytes,CodePoints}{

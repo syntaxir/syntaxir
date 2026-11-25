@@ -211,7 +211,7 @@ func conformMemory(p *Parser) {
 	p.setControl(newBudgetControl(sxirruntime.Limits{Memory: math.MaxInt64}))
 }
 
-func (m meteredRT) Used() uint64 { return m.p.Units }
+func (m meteredRT) Used() uint64 { return m.p.UnitsNow() }
 
 func (m *rtMachine) Datum(id int64) any { return ref.Value(id) }
 
@@ -323,7 +323,7 @@ func (m *rtMachine) Call(o *code.Op, args []any) (res []any) {
 		p.unitsSized(int(args[0].(uint64)))
 		return nil
 	case "budget.used":
-		return []any{p.Units}
+		return []any{p.UnitsNow()}
 	}
 	panic("library binding: no operation " + o.Name)
 }
@@ -504,7 +504,7 @@ func newTypedMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 type meteredTyped struct{ *typedMachine }
 
-func (m meteredTyped) Used() uint64 { return m.p.Units }
+func (m meteredTyped) Used() uint64 { return m.p.UnitsNow() }
 
 func (m *typedMachine) Datum(id int64) any { return ref.Value(id) }
 
@@ -581,7 +581,7 @@ func (m *typedMachine) Call(o *code.Op, args []any) (res []any) {
 		p.unitsSized(int(args[0].(uint64)))
 		return nil
 	case "budget.used":
-		return []any{p.Units}
+		return []any{p.UnitsNow()}
 	}
 	panic("typed library binding: no operation " + o.Name)
 }
@@ -994,7 +994,7 @@ func (b brokenRT) Call(o *code.Op, args []any) []any {
 
 type meteredBrokenRT struct{ brokenRT }
 
-func (m meteredBrokenRT) Used() uint64 { return m.p.Units }
+func (m meteredBrokenRT) Used() uint64 { return m.p.UnitsNow() }
 
 // TestExecConformanceDetectsBrokenTypedLib is the negative control of the typed library's
 // Document operations: a splice that moves the entries with recovered errors, and one that moves

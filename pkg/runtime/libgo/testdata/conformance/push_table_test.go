@@ -22,7 +22,7 @@ func TestValuePushTable(t *testing.T) {
 			base := len(c.P.KidStack)
 			var before uint64
 			if controlled {
-				before = c.P.Units
+				before = c.P.UnitsNow()
 			}
 			got := memberRead(func() any {
 				if call == conform.CallPush {
@@ -32,7 +32,7 @@ func TestValuePushTable(t *testing.T) {
 				}
 				return nil
 			}, memberCanon)
-			if units := c.P.Units - before; controlled && units != 0 {
+			if units := c.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("node: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			units := 0
@@ -58,7 +58,7 @@ func TestValuePushTable(t *testing.T) {
 			base := len(tc.P.KidStack)
 			var before uint64
 			if controlled {
-				before = tc.P.Units
+				before = tc.P.UnitsNow()
 			}
 			got := memberRead(func() any {
 				if call == conform.CallPush {
@@ -68,7 +68,7 @@ func TestValuePushTable(t *testing.T) {
 				}
 				return nil
 			}, tmemberCanon)
-			if units := tc.P.Units - before; controlled && units != 0 {
+			if units := tc.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("typed: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			units := 0

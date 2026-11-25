@@ -18,15 +18,15 @@ func (g *Generator) callUnit(recv string, r *common.Rule) string {
 	if !g.Logical {
 		return ""
 	}
-	s := recv + ".Units++\n"
+	s := recv + ".Fuel--\n"
 	if r == nil || r.Rec {
-		s += "if " + recv + ".Units > " + recv + ".UnitsCheck {\n" + recv + ".PollUnits()\n}\n"
+		s += "if " + recv + ".Fuel < 0 {\n" + recv + ".PollUnits()\n}\n"
 	}
 	return s
 }
 
 // logicalPoll is the check of the counter at a loop's iteration.
-const logicalPoll = "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
+const logicalPoll = "if p.Fuel < 0 {\np.PollUnits()\n}"
 
 // skippedCalls prints the effects of the calls that the alternative a guard skips would make
 // (flow.skippedCalls). Calls of rules that the parse does not memoize only count their units; the

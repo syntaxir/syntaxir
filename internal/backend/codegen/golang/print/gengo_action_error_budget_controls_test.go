@@ -99,7 +99,7 @@ func TestActionTextFragmentsAndFlatPrefix(t *testing.T){
   where:=strings.Join(parts,"");want:="action in "+where+": "+message
   p:=&sxirrt.Parser{};p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1})
   e:=p.X_wrapEvalError(where,message)
-  if e.Error()!=want || errors.Unwrap(e)!=nil || p.Units!=0{t.Fatal("flat wrapper contract",e,p.Units)}
+  if e.Error()!=want || errors.Unwrap(e)!=nil || p.UnitsNow()!=0{t.Fatal("flat wrapper contract",e,p.UnitsNow())}
  }
 }
 func TestActionCompositionErrorText(t *testing.T){
@@ -119,7 +119,7 @@ func TestActionCompositionErrorText(t *testing.T){
    p.X_startUnits(sxirrt.X_parseOptions{});ordinary,e:=catchActionText(run);if e!=nil || ordinary==""{t.Fatal("ordinary helper error",e)}
    p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1<<50});active,e:=catchActionText(run);if e!=nil || active!=ordinary{t.Fatal("active helper error changed",e)}
    // The text of the error counts nothing: under the least limit the helper fails as it does without one.
-   p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1});limited,e:=catchActionText(run);if e!=nil || limited!=ordinary || p.Units!=0{t.Fatal("limited helper error changed",e,p.Units)}
+   p.X_startUnits(sxirrt.X_parseOptions{X_controls:true,X_unitsLimit:1});limited,e:=catchActionText(run);if e!=nil || limited!=ordinary || p.UnitsNow()!=0{t.Fatal("limited helper error changed",e,p.UnitsNow())}
   }
  }
 }

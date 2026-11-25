@@ -12,7 +12,7 @@ import (
 )
 
 // Logical compute units (design record 076): a parser generated with them (Generator.Logical)
-// counts the logical events of a parse in Parser.Units. The call protocol (Call, InvokePlain and
+// counts the logical events of a parse (Parser.UnitsNow). The call protocol (Call, InvokePlain and
 // the printed compositions they run) adds the calls of rules, their keys, the steps of growths and
 // the entries of recovered errors taken; the generated code adds the calls it makes directly and the
 // input that terminals advance over; the library adds what its matchers advance over and the other
@@ -57,10 +57,10 @@ func SetMemoReport(out *string) { memoReport.Store(out) }
 func (p *Parser) startUnits(o parseOptions) {
 	if !o.controls {
 		p.units = unitsState{}
-		p.UnitsCheck = math.MaxUint64
+		p.setFuel(0, noUnitsCheck)
 		return
 	}
-	p.Units = 0
+	p.setFuel(0, noUnitsCheck)
 	p.units = unitsState{on: true, limit: o.unitsLimit, adaptive: o.unitsAdaptive, ctx: o.unitsCtx, obsAt: budgetCheckInterval, out: o.computeOut, memo: memoReport.Load()}
 	p.units.mem = p.Control.memoryControl()
 	if p.units.ctx != nil {
@@ -83,7 +83,24 @@ func (p *Parser) setUnitsCheck() {
 	if p.units.observes() && p.units.obsAt-1 < c {
 		c = p.units.obsAt - 1
 	}
-	p.UnitsCheck = c
+	p.setFuel(p.UnitsNow(), c)
+}
+
+// noUnitsCheck is the check count of a parse that checks nothing: the largest that Fuel holds.
+const noUnitsCheck = uint64(math.MaxInt64)
+
+// UnitsNow returns the logical compute units counted so far: the fuel is what the count lacks to the
+// check count (UnitsCheck), and charges only take from it.
+//
+// UnitsNow is for generated parsers; not a stable API.
+func (p *Parser) UnitsNow() uint64 { return p.UnitsCheck - uint64(p.Fuel) }
+
+// setFuel sets the count at which the next check looks at the limit, the context and the memory
+// count to check, for a parse that has counted units: a charge takes from Fuel, which is negative once
+// the count passes check, and the count stays units.
+func (p *Parser) setFuel(units, check uint64) {
+	p.UnitsCheck = min(check, noUnitsCheck)
+	p.Fuel = int64(p.UnitsCheck - units)
 }
 
 // observes reports whether the checks of the parse observe anything beside the compute limit: a
@@ -101,13 +118,13 @@ func (p *Parser) observeUnits() {
 	if p.units.mem != nil {
 		p.units.mem.checkMemory()
 	}
-	p.units.obsAt = p.Units + budgetCheckInterval
+	p.units.obsAt = p.UnitsNow() + budgetCheckInterval
 }
 
 // unitsExceeded stops the parse if the count exceeds the compute limit.
 func (p *Parser) unitsExceeded() {
-	if p.units.limit != 0 && p.Units > p.units.limit {
-		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: p.units.limit, Used: p.Units, Hotspot: p.Observation.hotspot()}})
+	if p.units.limit != 0 && p.UnitsNow() > p.units.limit {
+		panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitCompute, Limit: p.units.limit, Used: p.UnitsNow(), Hotspot: p.Observation.hotspot()}})
 	}
 }
 
@@ -120,10 +137,10 @@ func (p *Parser) unitsExceeded() {
 // PollUnits is for generated parsers; not a stable API.
 func (p *Parser) PollUnits() {
 	if !p.units.on {
-		p.UnitsCheck = math.MaxUint64
+		p.setFuel(p.UnitsNow(), noUnitsCheck)
 		return
 	}
-	if p.units.observes() && p.Units >= p.units.obsAt {
+	if p.units.observes() && p.UnitsNow() >= p.units.obsAt {
 		p.observeUnits()
 	}
 	p.unitsExceeded()
@@ -150,7 +167,7 @@ func (p *Parser) poll() {
 // action raises, which leaves the parse without its end check.
 func (p *Parser) reportUnits() {
 	if p.units.out != nil {
-		*p.units.out = p.Units
+		*p.units.out = p.UnitsNow()
 	}
 }
 
@@ -161,7 +178,7 @@ func (p *Parser) endUnits(failed bool) {
 		return
 	}
 	if failed {
-		p.Units++
+		p.Fuel--
 	}
 	p.observeUnits()
 	p.unitsExceeded()
@@ -178,7 +195,7 @@ func (p *Parser) unitsDemand(n int) {
 	if !p.units.adaptive || n <= 0 {
 		return
 	}
-	if p.Units > p.UnitsCheck {
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if b := defaultBudget(uint64(n)); b > p.units.limit {
@@ -200,8 +217,8 @@ func (p *Parser) unitsSized(n int) {
 	if !p.units.on {
 		return
 	}
-	p.Units += uint64(n)
-	if p.Units > p.UnitsCheck {
+	p.Fuel -= int64(n)
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 }
@@ -223,8 +240,8 @@ func (p *Parser) valueUnits(n int) bool {
 //
 // SkipUnits is for generated parsers; not a stable API.
 func (p *Parser) SkipUnits(n uint64) {
-	p.Units += n
-	if p.Units > p.UnitsCheck {
+	p.Fuel -= int64(n)
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 }
@@ -261,8 +278,8 @@ func (p *Parser) skipCalls(rules []*Rule, exp ExpID) {
 		return
 	}
 	r := rules[0]
-	p.Units++
-	if r.Rec && p.Units > p.UnitsCheck {
+	p.Fuel--
+	if r.Rec && p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !r.Memo {
@@ -311,8 +328,8 @@ func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 		return
 	}
 	r := rules[0]
-	p.Units++
-	if r.Rec && p.Units > p.UnitsCheck {
+	p.Fuel--
+	if r.Rec && p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !r.Memo {
@@ -346,8 +363,8 @@ func (p *TParser) skipCalls(rules []*Rule, exp ExpID) {
 // callUnit counts the unit of a call that does not go through Call, and checks the counter if the
 // rule is on a cycle of the call graph (rec), as the call protocol does.
 func (p *Parser) callUnit(rec bool) {
-	p.Units++
-	if rec && p.Units > p.UnitsCheck {
+	p.Fuel--
+	if rec && p.Fuel < 0 {
 		p.PollUnits()
 	}
 }
@@ -378,7 +395,7 @@ func (p *Parser) MatchLiteralLogical(rs []rune, text string, desc ExpID, build b
 		v, ok = p.MatchLiteralOrdinary(rs, text, desc, build)
 	}
 	if ok {
-		p.Units += uint64(p.Pos - start)
+		p.Fuel -= int64(p.Pos - start)
 	}
 	return v, ok
 }
@@ -395,7 +412,7 @@ func (p *Parser) MatchLiteralFoldLogical(rs []rune, desc ExpID, build bool) (v *
 		v, ok = p.MatchLiteralFoldOrdinary(rs, desc, build)
 	}
 	if ok {
-		p.Units += uint64(p.Pos - start)
+		p.Fuel -= int64(p.Pos - start)
 	}
 	return v, ok
 }
@@ -412,7 +429,7 @@ func (p *Parser) MatchAnyLogical(build bool) (v *sxirvalue.Node, ok bool) {
 		v, ok = p.MatchAnyOrdinary(build)
 	}
 	if ok {
-		p.Units += uint64(p.Pos - start)
+		p.Fuel -= int64(p.Pos - start)
 	}
 	return v, ok
 }
@@ -422,7 +439,7 @@ func (p *Parser) MatchAnyLogical(build bool) (v *sxirvalue.Node, ok bool) {
 // ClassFastLogical is for generated parsers; not a stable API.
 func (p *TParser) ClassFastLogical(c *Class) bool {
 	if p.ClassFast(c) {
-		p.Units++
+		p.Fuel--
 		return true
 	}
 	return false
@@ -434,7 +451,7 @@ func (p *TParser) ClassFastLogical(c *Class) bool {
 func (p *TParser) ClassSkipLogical(c *Class, id ExpID) bool {
 	start := p.Pos
 	if p.ClassSkip(c, id) {
-		p.Units += uint64(p.Pos - start)
+		p.Fuel -= int64(p.Pos - start)
 		return true
 	}
 	return false
@@ -447,7 +464,7 @@ func (p *TParser) ClassSkipLogical(c *Class, id ExpID) bool {
 func (p *TParser) ClassesSkipLogical(steps []ClassStep) bool {
 	start := p.Pos
 	ok := p.ClassesSkip(steps)
-	p.Units += uint64(p.Pos - start)
+	p.Fuel -= int64(p.Pos - start)
 	return ok
 }
 
@@ -466,7 +483,7 @@ func (p *TParser) skipTerminalL(t *TerminalProgram, pc int) bool {
 		c := t.Classes[code[pc+2]]
 		start := p.Pos
 		if p.ClassFast(c) || p.classSkip(c, ExpID(code[pc+3])) {
-			p.Units += uint64(p.Pos - start)
+			p.Fuel -= int64(p.Pos - start)
 			return true
 		}
 		return false
@@ -475,7 +492,7 @@ func (p *TParser) skipTerminalL(t *TerminalProgram, pc int) bool {
 		start := p.Pos
 		_, ok := p.Parser.MatchLiteralOrdinary(lit.Runes, lit.Text, ExpID(code[pc+3]), false)
 		if ok {
-			p.Units += uint64(p.Pos - start)
+			p.Fuel -= int64(p.Pos - start)
 		}
 		return ok
 	case TerminalSeq:
@@ -553,7 +570,7 @@ func (p *TParser) skipTerminalAltL(t *TerminalProgram, pc, size int) bool {
 	code := t.Code
 	if code[pc] == TerminalGuardClass {
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		return p.skipTerminalSeqL(t, pc+4, pc+int(code[pc+1]))
 	}
 	return p.skipTerminalL(t, pc+4)
@@ -564,7 +581,7 @@ func (p *TParser) skipTerminalAltL(t *TerminalProgram, pc, size int) bool {
 //
 // MakeErrorLogical is for generated parsers; not a stable API.
 func (p *Parser) MakeErrorLogical(pos int, expected []ExpID) *sxirvalue.SyntaxError {
-	p.Units++
+	p.Fuel--
 	return p.MakeError(pos, expected)
 }
 

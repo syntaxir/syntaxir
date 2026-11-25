@@ -872,11 +872,14 @@ type Parser struct {
 	// memoryLimited is set when Control has a finite memory limit, whose control counts the memory
 	// the parse holds: the gate of that accounting (countsMemory). setControl sets both.
 	memoryLimited bool
-	// Units counts the logical compute units of a parser generated with them, and UnitsCheck is the
-	// count above which a check of the counter must look at the limit and the context (units.go).
-	Units, UnitsCheck uint64
-	units             unitsState
-	g                 *grammar // the grammar of the rules being parsed (setGrammar)
+	// Fuel is what the count of logical compute units of a parser generated with them lacks to
+	// UnitsCheck, the count above which a check of the counter must look at the limit and the context
+	// (units.go). A charge takes from Fuel, and a check is due when Fuel is negative, so one field
+	// holds both the count and the comparison; UnitsNow returns the count.
+	Fuel       int64
+	UnitsCheck uint64
+	units      unitsState
+	g          *grammar // the grammar of the rules being parsed (setGrammar)
 	// Observation observes the parse; it is nil unless the parse options select it.
 	Observation *observation
 	// SourceInfo is g.SourceInfo, read where values are made.
@@ -2842,7 +2845,7 @@ func (p *Parser) RecoverAttr(m, skip matcher, build bool) (*sxirvalue.Node, bool
 		return nil, false
 	}
 	e := p.MakeError(far, expected)
-	p.Units++ // the syntax error built, a compute unit
+	p.Fuel-- // the syntax error built, a compute unit
 	p.PushRecovered(e)
 	if !build {
 		return nil, true

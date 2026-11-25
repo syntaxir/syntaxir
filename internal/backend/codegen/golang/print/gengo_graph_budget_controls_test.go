@@ -94,7 +94,7 @@ func requireGraphLimit(t *testing.T,p *sxirrt.Parser,f func()){
 }
 func requireNoUnits(t *testing.T,p *sxirrt.Parser,what string,f func()){
  t.Helper()
- if err:=graphFatal(f);err!=nil || p.Units!=0{t.Fatal(what,"counted",p.Units,err)}
+ if err:=graphFatal(f);err!=nil || p.UnitsNow()!=0{t.Fatal(what,"counted",p.UnitsNow(),err)}
 }
 func dataNode(d sxirrt.Data)*Node{n:=new(Node);*sxirrt.D(n)=d;return n}
 func graphKids()([]*Node,[]any){
@@ -128,7 +128,7 @@ func TestGraphListsAndOwnership(t *testing.T){
    if result!=nil{t.Fatal("partial list returned")}
    want:=uint64(300);if logical=="map"{want=600}
    p=graphParser(want);tp=&sxirrt.TParser{Parser:p}
-   if err:=graphFatal(func(){if typed{c:=&sxirrt.TActCtx{P:tp};if logical=="hull"{result=tp.ActionHullLogical(c,false,values)}else{result=c.NewListLogical(values)}}else{c:=&sxirrt.ActCtx{P:p};if logical=="hull"{result=p.ActionHullLogical(c,false,nodes)}else{result=c.NewListLogical(nodes)}}});err!=nil || p.Units!=want{t.Fatal("list units",logical,p.Units,want,err)}
+   if err:=graphFatal(func(){if typed{c:=&sxirrt.TActCtx{P:tp};if logical=="hull"{result=tp.ActionHullLogical(c,false,values)}else{result=c.NewListLogical(values)}}else{c:=&sxirrt.ActCtx{P:p};if logical=="hull"{result=p.ActionHullLogical(c,false,nodes)}else{result=c.NewListLogical(nodes)}}});err!=nil || p.UnitsNow()!=want{t.Fatal("list units",logical,p.UnitsNow(),want,err)}
   }
   // The list primitives under them count nothing themselves, and copy their source.
   for _,spanOnly:=range []bool{false,true}{
@@ -139,7 +139,7 @@ func TestGraphListsAndOwnership(t *testing.T){
   // so it runs to the end under a limit of one unit.
   p:=graphParser(1);tp:=&sxirrt.TParser{Parser:p}
   if typed{tp.KidStack=append([]any(nil),values...);got:=tp.Kids(0);if len(got)!=300{t.Fatal("typed kids")};got[0]=nil;if values[0]==nil{t.Fatal("typed children alias")}}else{p.KidStack=append([]*Node(nil),nodes...);got:=p.Kids(0);if len(got)!=300{t.Fatal("Node kids")};got[0]=nil;if nodes[0]==nil{t.Fatal("Node children alias")}}
-  if p.Units!=0{t.Fatal("taking values off counted",p.Units)}
+  if p.UnitsNow()!=0{t.Fatal("taking values off counted",p.UnitsNow())}
  }
 }
 func TestGraphCaptureUndoAndCleanup(t *testing.T){
@@ -149,7 +149,7 @@ func TestGraphCaptureUndoAndCleanup(t *testing.T){
   for i:=0;i<300;i++{f.Vals[i]=changed;tf.Vals[i]=changed;p.Trail=append(p.Trail,sxirrt.X_undo{X_f:f,X_slot:i,X_old:n});tp.Trail=append(tp.Trail,sxirrt.X_tundo{X_f:tf,X_slot:i,X_old:n})}
   // Undoing the capture writes and releasing the storage count nothing (captures and the storage of
   // a parse are no event), so a reset undoes all 300 under a limit of one unit.
-  if typed{tp.Reset(sxirrt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};if p.Units!=0{t.Fatal("typed undo counted",p.Units)};tp.Trail=append(tp.Trail,sxirrt.X_tundo{X_f:tf,X_old:n});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(sxirrt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};if p.Units!=0{t.Fatal("Node undo counted",p.Units)};p.Trail=append(p.Trail,sxirrt.X_undo{X_f:f,X_old:n});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
+  if typed{tp.Reset(sxirrt.Mark{});for _,v:=range tf.Vals{if v!=n{t.Fatal("typed undo retry")}};if len(tp.Trail)!=0{t.Fatal("typed trail retained")};if p.UnitsNow()!=0{t.Fatal("typed undo counted",p.UnitsNow())};tp.Trail=append(tp.Trail,sxirrt.X_tundo{X_f:tf,X_old:n});tp.X_recycle();for _,v:=range tp.Trail[:cap(tp.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("typed cleanup blocked")}}}else{p.Reset(sxirrt.Mark{});for _,v:=range f.Vals{if v!=n{t.Fatal("Node undo retry")}};if len(p.Trail)!=0{t.Fatal("Node trail retained")};if p.UnitsNow()!=0{t.Fatal("Node undo counted",p.UnitsNow())};p.Trail=append(p.Trail,sxirrt.X_undo{X_f:f,X_old:n});p.X_release();for _,v:=range p.Trail[:cap(p.Trail)]{if v.X_f!=nil || v.X_old!=nil{t.Fatal("Node cleanup blocked")}}}
  }
 }
 func TestTypedFieldMaterialization(t *testing.T){
@@ -180,7 +180,7 @@ func TestGraphFoldOrderAndBudget(t *testing.T){
   if visits!=0{t.Fatal("fold visited past the limit",visits)}
   p=graphParser(300);tp=&sxirrt.TParser{Parser:p}
   var got any;if typed{got=typedFold(tp,"foldl",right,nil,&sxirrt.TSeq{Typ:"list",Kids:values},f)}else{got=nodeFold(p,"foldl",right,nil,dataNode(sxirrt.Data{Kind:sxirrt.ListKind,Children:nodes}),f)}
-  index:=299;if right{index=0};want:=any(nodes[index]);if typed{want=values[index]};if visits!=300 || got!=want || p.Units!=300{t.Fatal("fold order or units changed",visits,p.Units)}
+  index:=299;if right{index=0};want:=any(nodes[index]);if typed{want=values[index]};if visits!=300 || got!=want || p.UnitsNow()!=300{t.Fatal("fold order or units changed",visits,p.UnitsNow())}
  }}
 }
 func TestGraphPublicLimitsAndRetainedResults(t *testing.T){
@@ -210,7 +210,7 @@ func TestGraphCaptureAttachment(t *testing.T){
   // the end under a limit of one unit.
   p:=graphParser(1);tp:=&sxirrt.TParser{Parser:p}
   if typed{n:=tp.AttachCaptures(nil,names,values,3,303).(*sxirrt.TSeq);if len(n.X_fields)!=299 || n.X_fields[0].X_val!=values[299] || n.X_fields[1].X_name!=names[1]{t.Fatal("typed capture order/replacement")}}else{n:=p.AttachCaptures(nil,names,&sxirrt.CaptureFrame{Vals:nodes},3,303);if len(sxirrt.D(n).Fields)!=299 || sxirrt.D(n).Fields[0].Value!=nodes[299] || sxirrt.D(n).Fields[1].Name!=names[1]{t.Fatal("Node capture order/replacement")}}
-  if p.Units!=0{t.Fatal("attaching captures counted",p.Units)}
+  if p.UnitsNow()!=0{t.Fatal("attaching captures counted",p.UnitsNow())}
  }
 }
 func TestGraphOperatorsRuleSnapshots(t *testing.T){
@@ -230,7 +230,7 @@ func TestGraphOperatorsRuleSnapshots(t *testing.T){
   }})
   if err!=nil || p.Pos!=0 || p.Frame!=nil || tp.Frame!=nil{t.Fatal("OperatorsRule selection changed state",err)}
   if typed{if bestTyped.X_op==nil || bestTyped.X_end!=1 || !reflect.DeepEqual(bestTyped.X_frame.Vals,values){t.Fatal("typed OperatorsRule snapshot changed")}}else{if bestNode.X_op==nil || bestNode.X_end!=1 || !reflect.DeepEqual(bestNode.X_frame.Vals,nodes){t.Fatal("Node OperatorsRule snapshot changed")}}
-  if p.Units!=0{t.Fatal("OperatorsRule selection counted",p.Units)}
+  if p.UnitsNow()!=0{t.Fatal("OperatorsRule selection counted",p.UnitsNow())}
  }
 }
 

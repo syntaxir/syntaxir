@@ -430,11 +430,11 @@ func goTarget(s goSpec) *print.Target {
 			return "p.afterEmpty"
 		case "units.count":
 			if k, ok := c.Args[0].(*code.Const); ok && k.Value == uint64(1) {
-				return "p.Units++"
+				return "p.Fuel--"
 			}
-			return "p.Units += " + a[0]
+			return "p.Fuel -= int64(" + a[0] + ")"
 		case "units.check":
-			return "if p.Units > p.UnitsCheck {\np.PollUnits()\n}"
+			return "if p.Fuel < 0 {\np.PollUnits()\n}"
 		case "units.key":
 			return "p.KeyUnits(" + rule(a[0]) + ")"
 		case "rule.cyclic":

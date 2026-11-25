@@ -82,7 +82,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	x1, x2 = p.Pos, len(p.KidStack)
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4 = p.Mark()
@@ -107,7 +107,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x13 = p.Pos
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		v14 = p.NewTerminalOrdinary(x13, p.Text(x13, p.Pos))
 		v7 = v14
 		goto L8
@@ -141,7 +141,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit3, "[", 5, false); !ok {
 		goto fail
 	}
@@ -149,7 +149,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x2 = append(x2, v4)
 	x5, x6 = p.Pos, len(p.KidStack)
 	for x8 = 0; x8 < 1000000; x8++ {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x9 = p.Mark()
@@ -163,7 +163,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x18 = p.Pos
 		if p.Pos < len(p.In) && p.In[p.Pos] == 92 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit4, "\\", 6, false); !ok {
 			goto L15
 		}
@@ -176,7 +176,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x20 = p.Pos
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		v21 = p.NewTerminalOrdinary(x20, p.Text(x20, p.Pos))
 		x17 = append(x17, v21)
 		v22 = p.NewBranchOrdinary(rt.SeqKind, x16, x17)
@@ -193,7 +193,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x28 = p.Pos
 		p.Pos += x35
-		p.Units += uint64(x35)
+		p.Fuel -= int64(x35)
 		v29 = p.NewTerminalOrdinary(x28, p.Text(x28, p.Pos))
 		v12 = v29
 		goto L13
@@ -215,7 +215,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x32 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit6, "]", 8, false); !ok {
 		goto fail
 	}
@@ -228,7 +228,7 @@ fail:
 }
 
 func r1(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	start, trail := p.Pos, len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -244,4 +244,4 @@ func r1(p *rt.Parser) (*sxirvalue.Node, bool) {
 	return v, ok
 }
 
-const _ = rt.Protocol36
+const _ = rt.Protocol37

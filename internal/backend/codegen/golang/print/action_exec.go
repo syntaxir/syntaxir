@@ -136,7 +136,7 @@ func (g *Generator) actionTarget(s *check.Scope, locals map[string]string) *Targ
 				return "c.P.UnitsSized(len(c.P.KidStack) - " + a[0] + ")"
 			case "seq.step":
 				// Only the visits of logical units step (ActionOptions.Visits): each is one unit.
-				return "c.P.Units++"
+				return "c.P.Fuel--"
 			case "seq.len":
 				return "len(" + a[0] + ")"
 			case "val.unbox":

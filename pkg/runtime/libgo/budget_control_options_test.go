@@ -65,8 +65,8 @@ func TestUnitsObserveContextWithoutLimits(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancellation not observed without limits: %v after %d polls", err, ctx.polls)
 	}
-	if p.Units > 3*budgetCheckInterval {
-		t.Fatalf("cancellation observed late: %d units counted", p.Units)
+	if p.UnitsNow() > 3*budgetCheckInterval {
+		t.Fatalf("cancellation observed late: %d units counted", p.UnitsNow())
 	}
 }
 

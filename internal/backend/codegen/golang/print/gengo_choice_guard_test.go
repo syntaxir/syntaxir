@@ -106,7 +106,7 @@ func TestGuardedClassEligibility(t *testing.T) {
 			}
 			if !opts.NoLimitControls {
 				for _, m := range guardAdvance.FindAllStringSubmatch(src, -1) {
-					if strings.TrimSpace(m[2]) != "p.Units += uint64("+m[1]+")" {
+					if strings.TrimSpace(m[2]) != "p.Fuel -= int64("+m[1]+")" {
 						t.Errorf("%s (limit controls): the class advances by %s without counting it: %q", c.Name, m[1], m[2])
 					}
 				}

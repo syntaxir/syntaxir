@@ -1875,7 +1875,7 @@ func (p *TParser) RecoverAttr(m, skip tmatcher, build bool) (any, bool) {
 		return nil, false
 	}
 	e := p.MakeError(far, expected)
-	p.Units++ // the syntax error built, a compute unit
+	p.Fuel-- // the syntax error built, a compute unit
 	p.PushRecovered(e)
 	if !build {
 		return nil, true

@@ -28,9 +28,9 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		v, ok = p.callTracked(r, min)
 		return v, ok
 	}
-	p.Units++
+	p.Fuel--
 	if r.Rec {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 	}
@@ -123,8 +123,8 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -137,8 +137,8 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 		}
 	} else if store == storeCtx {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -209,8 +209,8 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 					break
 				}
 				p.growIsolate(&g)
-				p.Units++
-				if p.Units > p.UnitsCheck {
+				p.Fuel--
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 				v, ok := p.invoke(r, min)
@@ -218,8 +218,8 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 					p.Recovered = p.Recovered[:rec]
 				}
 				if (len(p.Recovered) - rec) > 0 {
-					p.Units += uint64(len(p.Recovered) - rec)
-					if p.Units > p.UnitsCheck {
+					p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+					if p.Fuel < 0 {
 						p.PollUnits()
 					}
 				}
@@ -232,8 +232,8 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		} else {
 			for {
-				p.Units++
-				if p.Units > p.UnitsCheck {
+				p.Fuel--
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 				v, ok := p.invoke(r, min)
@@ -241,8 +241,8 @@ func (p *Parser) grow(r *Rule, min int) (*sxirvalue.Node, bool) {
 					break
 				}
 				if (len(p.Recovered) - rec) > 0 {
-					p.Units += uint64(len(p.Recovered) - rec)
-					if p.Units > p.UnitsCheck {
+					p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+					if p.Fuel < 0 {
 						p.PollUnits()
 					}
 				}
@@ -385,9 +385,9 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		v, ok = p.DocumentCall(r, min, nil)
 		return v, ok
 	}
-	p.Units++
+	p.Fuel--
 	if r.Rec {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 	}
@@ -492,8 +492,8 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -509,8 +509,8 @@ func (p *TParser) callBody(r *TRule, min int) (any, bool) {
 		}
 	} else if store == storeCtx {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -616,8 +616,8 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 	store := p.ctxPop(&c)
 	if store == storeMemo {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -633,8 +633,8 @@ func (p *TParser) CallMemo(r *TRule, inv func(*TParser) (any, bool)) (any, bool)
 		}
 	} else if store == storeCtx {
 		if (len(p.Recovered) - rec) > 0 {
-			p.Units += uint64(len(p.Recovered) - rec)
-			if p.Units > p.UnitsCheck {
+			p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 		}
@@ -669,8 +669,8 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 					break
 				}
 				p.growIsolate(&g)
-				p.Units++
-				if p.Units > p.UnitsCheck {
+				p.Fuel--
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 				v, ok := p.invoke(r, min)
@@ -678,8 +678,8 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 					p.Recovered = p.Recovered[:rec]
 				}
 				if (len(p.Recovered) - rec) > 0 {
-					p.Units += uint64(len(p.Recovered) - rec)
-					if p.Units > p.UnitsCheck {
+					p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+					if p.Fuel < 0 {
 						p.PollUnits()
 					}
 				}
@@ -692,8 +692,8 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 			}
 		} else {
 			for {
-				p.Units++
-				if p.Units > p.UnitsCheck {
+				p.Fuel--
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 				v, ok := p.invoke(r, min)
@@ -701,8 +701,8 @@ func (p *TParser) grow(r *TRule, min int) (any, bool) {
 					break
 				}
 				if (len(p.Recovered) - rec) > 0 {
-					p.Units += uint64(len(p.Recovered) - rec)
-					if p.Units > p.UnitsCheck {
+					p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+					if p.Fuel < 0 {
 						p.PollUnits()
 					}
 				}
@@ -946,8 +946,8 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	if store == storeMemo {
 		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r))) {
 			if (len(p.Recovered) - rec) > 0 {
-				p.Units += uint64(len(p.Recovered) - rec)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}
@@ -972,8 +972,8 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 	} else if store == storeCtx {
 		if !((p.Document != nil) && (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r))) {
 			if (len(p.Recovered) - rec) > 0 {
-				p.Units += uint64(len(p.Recovered) - rec)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}
@@ -994,9 +994,9 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 //
 // Printed from Exec IR function body of internal/ir/code/exec/compose, specialized for document, missing, units.
 func (p *Parser) callBody(r *Rule, min int) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	if r.Rec {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 	}
@@ -1040,9 +1040,9 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	var ok bool
 	var fm uint64
 	_ = fm
-	p.Units++
+	p.Fuel--
 	if r.Rec {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 	}
@@ -1168,8 +1168,8 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	if store == storeMemo {
 		if !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 			if (len(p.Recovered) - rec) > 0 {
-				p.Units += uint64(len(p.Recovered) - rec)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}
@@ -1188,8 +1188,8 @@ func (p *TParser) DocumentCall(r *TRule, min int, inv func(*TParser) (any, bool)
 	} else if store == storeCtx {
 		if !(r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r.Rule)) {
 			if (len(p.Recovered) - rec) > 0 {
-				p.Units += uint64(len(p.Recovered) - rec)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - rec))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}

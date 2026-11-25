@@ -73,7 +73,7 @@ func newTypedRuleMachine(cfg ref.Config, controlled bool) conform.Impl {
 
 type meteredTypedRule struct{ *typedRuleMachine }
 
-func (m meteredTypedRule) Used() uint64 { return m.p.Units }
+func (m meteredTypedRule) Used() uint64 { return m.p.UnitsNow() }
 
 func (m *typedRuleMachine) Rule(index int64) any { return m.trules[index] }
 
@@ -357,7 +357,7 @@ func TestExecConformanceTypedRuleDetectsCharges(t *testing.T) {
 
 type meteredBrokenTypedRule struct{ brokenTypedRule }
 
-func (m meteredBrokenTypedRule) Used() uint64 { return m.p.Units }
+func (m meteredBrokenTypedRule) Used() uint64 { return m.p.UnitsNow() }
 
 // brokenTypedRule is the typed library with one operation of the rules replaced.
 type brokenTypedRule struct {

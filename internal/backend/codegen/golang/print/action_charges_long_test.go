@@ -67,10 +67,10 @@ func TestActionChargeGoldensDetectBrokenCharges(t *testing.T) {
 }
 
 // dropElementUnits removes the units that generated Go counts for the elements a lowered action expression makes:
-// the unit of each element (c.P.Units++) and the count of the elements it pushes at once (c.P.UnitsSized),
+// the unit of each element (c.P.Fuel--) and the count of the elements it pushes at once (c.P.UnitsSized),
 // returning the code and the number of counts removed.
 func dropElementUnits(src []byte) ([]byte, int) {
-	const step, sized = "c.P.Units++\n", "c.P.UnitsSized("
+	const step, sized = "c.P.Fuel--\n", "c.P.UnitsSized("
 	n := bytes.Count(src, []byte(step)) + bytes.Count(src, []byte(sized))
 	out := strings.ReplaceAll(string(src), step, "\n")
 	return []byte(strings.ReplaceAll(out, sized, "_ = (")), n

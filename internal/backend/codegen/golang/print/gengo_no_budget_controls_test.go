@@ -37,7 +37,7 @@ rule num = [0-9]+ ("." [0-9]+)?
 	}
 	with, without := gen(true), gen(false)
 	// With limit controls a batch parse counts logical compute units and checks them.
-	for _, want := range []string{"p.Units", "p.PollUnits()", "func WithContext"} {
+	for _, want := range []string{"p.Fuel", "p.PollUnits()", "func WithContext"} {
 		if !strings.Contains(with, want) {
 			t.Errorf("with limit controls: missing %q", want)
 		}
@@ -80,7 +80,7 @@ rule num = [0-9]+ ("." [0-9]+)?
 			t.Errorf("a Document parser with limit controls has %q", bad)
 		}
 	}
-	for _, want := range []string{"p.Units", "p.PollUnits()"} {
+	for _, want := range []string{"p.Fuel", "p.PollUnits()"} {
 		if !strings.Contains(documentWith, want) {
 			t.Errorf("a Document parser with limit controls lacks %q", want)
 		}

@@ -1136,7 +1136,7 @@ func e3(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x1, x2 = p.Pos, len(p.KidStack)
 	x3 = p.NewFrame(len(scope2))
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		clear(x3.Vals)
@@ -1171,7 +1171,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var v2 *sxirvalue.Node
 	if p.Pos < len(p.In) && p.In[p.Pos] == 123 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit4, "{", 5, false); !ok {
 		goto fail
 	}
@@ -1184,7 +1184,7 @@ func e6(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 125 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit5, "}", 6, false); !ok {
 		goto fail
 	}
@@ -1316,7 +1316,7 @@ L6:
 			}
 		}
 		p.SkipVisit()
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x36 = p.Mark()
@@ -1326,7 +1326,7 @@ L6:
 			goto L37
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x35++
 		if p.Pos == x36.Pos {
 			break
@@ -1343,7 +1343,7 @@ L6:
 	x38 = p.Mark()
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto L39
 	}
@@ -1387,7 +1387,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -1400,7 +1400,7 @@ func e10(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -1422,7 +1422,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -1431,7 +1431,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.LookBegin(1)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto L4
 	}
@@ -1452,7 +1452,7 @@ L4:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -1588,7 +1588,7 @@ L5:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -1616,7 +1616,7 @@ func e18(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -1636,7 +1636,7 @@ L7:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -1665,7 +1665,7 @@ func e21(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x3, x4 = p.Pos, len(p.KidStack)
 	x5 = p.NewFrame(len(scope19))
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		clear(x5.Vals)
@@ -1677,7 +1677,7 @@ func e21(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L9
 		}
@@ -1718,7 +1718,7 @@ func e22(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -1764,7 +1764,7 @@ func e25(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x3, x4 = p.Pos, len(p.KidStack)
 	x5 = p.NewFrame(len(scope24))
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		clear(x5.Vals)
@@ -1776,7 +1776,7 @@ func e25(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L9
 		}
@@ -1829,7 +1829,7 @@ L3:
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	x5 = p.Pos
 	x4 = p.RunHot(2)
 	if x4 {
@@ -1842,7 +1842,7 @@ L3:
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x7 = p.Mark()
@@ -1904,7 +1904,7 @@ func e29(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x2 = p.Pos
 	x3 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -1913,7 +1913,7 @@ func e29(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x3++
 		if x3 == 16 {
 			x3 = p.ScanReach(5, x2, x3)
@@ -1928,14 +1928,14 @@ func e29(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x4 = p.Mark()
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto L5
 	}
 	x7 = p.Pos
 	x8 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -1944,7 +1944,7 @@ func e29(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x8++
 		if x8 == 16 {
 			x8 = p.ScanReach(7, x7, x8)
@@ -1971,7 +1971,7 @@ func e31(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var v2 *sxirvalue.Node
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -1981,7 +1981,7 @@ func e31(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.SetCapture(0, v2)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -2009,7 +2009,7 @@ func e33(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5 = p.Mark()
@@ -2020,7 +2020,7 @@ func e33(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			goto L11
 		}
 		p.Pos += x16
-		p.Units += uint64(x16)
+		p.Fuel -= int64(x16)
 		goto L8
 	L11:
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
@@ -2029,7 +2029,7 @@ func e33(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 92 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit32, "\\", 29, false); !ok {
 			goto L14
 		}
@@ -2039,7 +2039,7 @@ func e33(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			goto L14
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		goto L8
 	L14:
 		p.Reset(x7)
@@ -2078,7 +2078,7 @@ func e36(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L5
 	}
@@ -2138,7 +2138,7 @@ func e40(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5 = p.Mark()
@@ -2150,7 +2150,7 @@ func e40(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x14 = p.Pos
 		p.Pos += x35
-		p.Units += uint64(x35)
+		p.Fuel -= int64(x35)
 		v15 = p.NewTerminalOrdinary(x14, p.Text(x14, p.Pos))
 		v8 = v15
 		goto L9
@@ -2164,7 +2164,7 @@ func e40(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x20 = p.Pos
 		if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 47 {
 			p.Pos += 2
-			p.Units += 2
+			p.Fuel -= 2
 		} else if _, ok = p.MatchLiteralLogical(lit37, "//", 31, false); !ok {
 			goto L17
 		}
@@ -2172,7 +2172,7 @@ func e40(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		x19 = append(x19, v21)
 		x22, x24, x23 = p.Pos, len(p.KidStack), 0
 		for {
-			if p.Units > p.UnitsCheck {
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 			x25 = p.Mark()
@@ -2183,7 +2183,7 @@ func e40(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			x27 = p.Pos
 			p.Pos += size
-			p.Units += uint64(size)
+			p.Fuel -= int64(size)
 			v28 = p.NewTerminalOrdinary(x27, p.Text(x27, p.Pos))
 			v29 = p.ScopeValue(sh38, v28, x25.Pos)
 			p.KidStack = append(p.KidStack, v29)
@@ -2291,7 +2291,7 @@ func e60(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var v2 *sxirvalue.Node
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -2304,7 +2304,7 @@ func e60(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -2319,7 +2319,7 @@ func e63(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var v3, v6 *sxirvalue.Node
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -2339,7 +2339,7 @@ L5:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -2358,7 +2358,7 @@ func e66(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 63 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit64, "?", 35, false); !ok {
 		goto fail
 	}
@@ -2376,7 +2376,7 @@ func e66(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x8 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 58 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit65, ":", 36, false); !ok {
 		goto fail
 	}
@@ -2395,7 +2395,7 @@ func e68(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 124 && p.In[p.Pos+1] == 124 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit67, "||", 37, false); !ok {
 		goto fail
 	}
@@ -2412,7 +2412,7 @@ func e70(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 38 && p.In[p.Pos+1] == 38 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit69, "&&", 38, false); !ok {
 		goto fail
 	}
@@ -2435,7 +2435,7 @@ func e77(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x6 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 61 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit71, "==", 39, false); !ok {
 		goto L5
 	}
@@ -2452,7 +2452,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 33 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit72, "!=", 40, false); !ok {
 		goto L9
 	}
@@ -2469,7 +2469,7 @@ L8:
 	x14 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 60 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit73, "<=", 41, false); !ok {
 		goto L13
 	}
@@ -2486,7 +2486,7 @@ L12:
 	x18 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 62 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit74, ">=", 42, false); !ok {
 		goto L17
 	}
@@ -2503,7 +2503,7 @@ L16:
 	x22 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 60 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit75, "<", 43, false); !ok {
 		goto L21
 	}
@@ -2520,7 +2520,7 @@ L20:
 	x26 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 62 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit76, ">", 44, false); !ok {
 		goto L25
 	}
@@ -2550,7 +2550,7 @@ func e80(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 43 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit78, "+", 45, false); !ok {
 		goto L5
 	}
@@ -2567,7 +2567,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L9
 	}
@@ -2597,7 +2597,7 @@ func e84(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 42 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit81, "*", 47, false); !ok {
 		goto L5
 	}
@@ -2614,7 +2614,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 47 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit82, "/", 48, false); !ok {
 		goto L9
 	}
@@ -2631,7 +2631,7 @@ L8:
 	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 37 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit83, "%", 49, false); !ok {
 		goto L13
 	}
@@ -2661,7 +2661,7 @@ func e86(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L5
 	}
@@ -2678,7 +2678,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit85, "!", 50, false); !ok {
 		goto L9
 	}
@@ -2706,7 +2706,7 @@ func e87(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -2731,7 +2731,7 @@ L9:
 	x12 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -2753,7 +2753,7 @@ func e88(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -2771,7 +2771,7 @@ func e88(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x8 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -2793,7 +2793,7 @@ func e89(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto fail
 	}
@@ -2815,7 +2815,7 @@ fail:
 }
 
 func r20(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -2832,7 +2832,7 @@ func r20(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func r22(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -2849,7 +2849,7 @@ func r22(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func r23(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -2866,7 +2866,7 @@ func r23(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func r30(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
 	prevEnv, prevCut := p.Env, p.Cut
 	p.Cut = false
@@ -2883,7 +2883,7 @@ func r30(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var v *sxirvalue.Node
 	var x1, x11, ok bool
 	var x2, x4, x5, x7, x8, x18, size, x16, x17 int
@@ -2900,7 +2900,7 @@ func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4, x5 = p.Pos, len(p.Recovered)
@@ -2911,7 +2911,7 @@ func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
 			goto L12
 		}
 		p.Pos += x18
-		p.Units += uint64(x18)
+		p.Fuel -= int64(x18)
 		goto L9
 	L12:
 		if !p.HasCharOrdinary(47, false) && p.Depth <= p.MaxDepth {
@@ -2920,14 +2920,14 @@ func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 47 {
 			p.Pos += 2
-			p.Units += 2
+			p.Fuel -= 2
 		} else if _, ok = p.MatchLiteralLogical(lit37, "//", 31, false); !ok {
 			goto L15
 		}
 		x16 = p.Pos
 		x17 = 0
 		for {
-			if p.Units > p.UnitsCheck {
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 			ch, size, ok = p.NextOrdinary()
@@ -2936,7 +2936,7 @@ func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
 				break
 			}
 			p.Pos += size
-			p.Units += uint64(size)
+			p.Fuel -= int64(size)
 			x17++
 			if x17 == 16 {
 				x17 = p.ScanReach(9, x16, x17)
@@ -2971,14 +2971,14 @@ func r31(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func r32(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto fail
 	}
@@ -3004,14 +3004,14 @@ fail:
 }
 
 func r33(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto fail
 	}
@@ -3037,14 +3037,14 @@ fail:
 }
 
 func r34(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto fail
 	}
@@ -3070,7 +3070,7 @@ fail:
 }
 
 func r35(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3100,7 +3100,7 @@ fail:
 }
 
 func r36(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3130,14 +3130,14 @@ fail:
 }
 
 func r37(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto fail
 	}
@@ -3163,7 +3163,7 @@ fail:
 }
 
 func r38(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2, x20, x21 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3175,7 +3175,7 @@ func r38(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto L5
 	}
@@ -3189,7 +3189,7 @@ L4:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto L7
 	}
@@ -3203,7 +3203,7 @@ L6:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto L9
 	}
@@ -3217,7 +3217,7 @@ L8:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto L11
 	}
@@ -3253,7 +3253,7 @@ L14:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L17
 	}
@@ -3296,7 +3296,7 @@ fail:
 }
 
 func r39(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, size int
 	var v *sxirvalue.Node
 	var ch rune
@@ -3308,7 +3308,7 @@ func r39(p *rt.Parser) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	v = nil
 	return v, true
 fail:
@@ -3340,7 +3340,7 @@ func e92(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x4 rt.Mark
 	var ok bool
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4 = p.Mark()
@@ -3370,7 +3370,7 @@ func e93(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos < len(p.In) && p.In[p.Pos] == 123 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit4, "{", 5, false); !ok {
 		goto fail
 	}
@@ -3382,7 +3382,7 @@ func e93(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 125 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit5, "}", 6, false); !ok {
 		goto fail
 	}
@@ -3504,7 +3504,7 @@ L5:
 			}
 		}
 		p.SkipVisit()
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x25 = p.Mark()
@@ -3514,7 +3514,7 @@ L5:
 			goto L26
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x24++
 		if p.Pos == x25.Pos {
 			break
@@ -3531,7 +3531,7 @@ L5:
 	x27 = p.Mark()
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto L28
 	}
@@ -3613,7 +3613,7 @@ func e98(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4 = p.Mark()
@@ -3625,7 +3625,7 @@ func e98(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L5
 		}
@@ -3672,7 +3672,7 @@ L2:
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	x4 = p.Pos
 	x3 = p.RunHot(2)
 	if x3 {
@@ -3685,7 +3685,7 @@ L2:
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x6 = p.Mark()
@@ -3735,8 +3735,8 @@ fail:
 }
 
 func q3(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	start, rec, trail := p.Pos, len(p.Recovered), len(p.Trail)
@@ -3757,7 +3757,7 @@ func q3(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func q4(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3776,7 +3776,7 @@ func q4(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -3788,7 +3788,7 @@ func q4(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -3800,7 +3800,7 @@ fail:
 }
 
 func q5(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3813,7 +3813,7 @@ func q5(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -3822,7 +3822,7 @@ func q5(p *rt.Parser) (*sxirvalue.Node, bool) {
 	p.LookBegin(1)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto L3
 	}
@@ -3842,7 +3842,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -3854,8 +3854,8 @@ fail:
 }
 
 func q7(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	var start, rec, x1, x2 int
@@ -3909,8 +3909,8 @@ fail:
 }
 
 func q8(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	var start, rec int
@@ -3940,7 +3940,7 @@ fail:
 }
 
 func q9(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -3961,7 +3961,7 @@ L4:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -3973,8 +3973,8 @@ fail:
 }
 
 func q10(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	var start, rec, x1, x2 int
@@ -3996,7 +3996,7 @@ func q10(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -4013,7 +4013,7 @@ L4:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -4033,7 +4033,7 @@ fail:
 }
 
 func q11(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x2, x3 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -4042,7 +4042,7 @@ func q11(p *rt.Parser) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x2, x3 = p.Pos, len(p.Recovered)
@@ -4051,7 +4051,7 @@ func q11(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L4
 		}
@@ -4077,7 +4077,7 @@ fail:
 }
 
 func q12(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec int
 	var v *sxirvalue.Node
 	var ok bool
@@ -4090,7 +4090,7 @@ func q12(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -4155,7 +4155,7 @@ func e106(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -4167,7 +4167,7 @@ func e106(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -4181,7 +4181,7 @@ func e107(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -4198,7 +4198,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -4211,7 +4211,7 @@ func e108(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos < len(p.In) && p.In[p.Pos] == 63 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit64, "?", 35, false); !ok {
 		goto fail
 	}
@@ -4223,7 +4223,7 @@ func e108(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 58 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit65, ":", 36, false); !ok {
 		goto fail
 	}
@@ -4236,7 +4236,7 @@ func e109(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 124 && p.In[p.Pos+1] == 124 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit67, "||", 37, false); !ok {
 		goto fail
 	}
@@ -4249,7 +4249,7 @@ func e110(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 38 && p.In[p.Pos+1] == 38 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit69, "&&", 38, false); !ok {
 		goto fail
 	}
@@ -4268,7 +4268,7 @@ func e111(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 61 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit71, "==", 39, false); !ok {
 		goto L4
 	}
@@ -4282,7 +4282,7 @@ L3:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 33 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit72, "!=", 40, false); !ok {
 		goto L6
 	}
@@ -4296,7 +4296,7 @@ L5:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 60 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit73, "<=", 41, false); !ok {
 		goto L8
 	}
@@ -4310,7 +4310,7 @@ L7:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 62 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit74, ">=", 42, false); !ok {
 		goto L10
 	}
@@ -4324,7 +4324,7 @@ L9:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 60 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit75, "<", 43, false); !ok {
 		goto L12
 	}
@@ -4338,7 +4338,7 @@ L11:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 62 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit76, ">", 44, false); !ok {
 		goto L14
 	}
@@ -4363,7 +4363,7 @@ func e112(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 43 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit78, "+", 45, false); !ok {
 		goto L4
 	}
@@ -4377,7 +4377,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L6
 	}
@@ -4402,7 +4402,7 @@ func e113(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 42 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit81, "*", 47, false); !ok {
 		goto L4
 	}
@@ -4416,7 +4416,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 47 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit82, "/", 48, false); !ok {
 		goto L6
 	}
@@ -4430,7 +4430,7 @@ L5:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 37 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit83, "%", 49, false); !ok {
 		goto L8
 	}
@@ -4455,7 +4455,7 @@ func e114(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L4
 	}
@@ -4469,7 +4469,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit85, "!", 50, false); !ok {
 		goto L6
 	}
@@ -4489,7 +4489,7 @@ func e115(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var x1 rt.Mark
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -4506,7 +4506,7 @@ L3:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -4519,7 +4519,7 @@ func e116(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -4531,7 +4531,7 @@ func e116(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -4544,7 +4544,7 @@ func e117(p *rt.Parser) (*sxirvalue.Node, bool) {
 	var ok bool
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto fail
 	}
@@ -4560,7 +4560,7 @@ fail:
 }
 
 func q18(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2, x20, x21 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -4572,7 +4572,7 @@ func q18(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto L5
 	}
@@ -4586,7 +4586,7 @@ L4:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto L7
 	}
@@ -4600,7 +4600,7 @@ L6:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto L9
 	}
@@ -4614,7 +4614,7 @@ L8:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto L11
 	}
@@ -4650,7 +4650,7 @@ L14:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L17
 	}
@@ -4693,7 +4693,7 @@ fail:
 }
 
 func q19(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, size int
 	var v *sxirvalue.Node
 	var ch rune
@@ -4705,7 +4705,7 @@ func q19(p *rt.Parser) (*sxirvalue.Node, bool) {
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	v = nil
 	return v, true
 fail:
@@ -4714,7 +4714,7 @@ fail:
 }
 
 func q20(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, size, x1, x2, x3, x4, x7, x8 int
 	var v *sxirvalue.Node
 	var ch rune
@@ -4723,7 +4723,7 @@ func q20(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -4732,7 +4732,7 @@ func q20(p *rt.Parser) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x2++
 		if x2 == 16 {
 			x2 = p.ScanReach(5, x1, x2)
@@ -4747,14 +4747,14 @@ func q20(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x3, x4 = p.Pos, len(p.Recovered)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto L5
 	}
 	x7 = p.Pos
 	x8 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -4763,7 +4763,7 @@ func q20(p *rt.Parser) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x8++
 		if x8 == 16 {
 			x8 = p.ScanReach(7, x7, x8)
@@ -4787,14 +4787,14 @@ fail:
 }
 
 func q21(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -4803,7 +4803,7 @@ func q21(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -4815,7 +4815,7 @@ fail:
 }
 
 func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var v *sxirvalue.Node
 	var x1, x11, ok bool
 	var x2, x4, x5, x7, x8, x16, size int
@@ -4832,7 +4832,7 @@ func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4, x5 = p.Pos, len(p.Recovered)
@@ -4843,7 +4843,7 @@ func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
 			goto L12
 		}
 		p.Pos += x16
-		p.Units += uint64(x16)
+		p.Fuel -= int64(x16)
 		goto L9
 	L12:
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
@@ -4852,7 +4852,7 @@ func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 92 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.MatchLiteralLogical(lit32, "\\", 29, false); !ok {
 			goto L15
 		}
@@ -4862,7 +4862,7 @@ func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
 			goto L15
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		goto L9
 	L15:
 		p.Restore(x7, x8)
@@ -4889,7 +4889,7 @@ func q22(p *rt.Parser) (*sxirvalue.Node, bool) {
 }
 
 func q23(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2, x8, x9 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -4901,7 +4901,7 @@ func q23(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L5
 	}
@@ -4944,14 +4944,14 @@ fail:
 }
 
 func q24(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto fail
 	}
@@ -4977,14 +4977,14 @@ fail:
 }
 
 func q25(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto fail
 	}
@@ -5010,14 +5010,14 @@ fail:
 }
 
 func q26(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto fail
 	}
@@ -5043,14 +5043,14 @@ fail:
 }
 
 func q27(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto fail
 	}
@@ -5076,7 +5076,7 @@ fail:
 }
 
 func q28(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -5106,7 +5106,7 @@ fail:
 }
 
 func q29(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v *sxirvalue.Node
 	var ok bool
@@ -5136,7 +5136,7 @@ fail:
 }
 
 func q30(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var v *sxirvalue.Node
 	var x1, x11, ok bool
 	var x2, x4, x5, x7, x8, x18, size, x16, x17 int
@@ -5153,7 +5153,7 @@ func q30(p *rt.Parser) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4, x5 = p.Pos, len(p.Recovered)
@@ -5164,7 +5164,7 @@ func q30(p *rt.Parser) (*sxirvalue.Node, bool) {
 			goto L12
 		}
 		p.Pos += x18
-		p.Units += uint64(x18)
+		p.Fuel -= int64(x18)
 		goto L9
 	L12:
 		if !p.HasCharOrdinary(47, false) && p.Depth <= p.MaxDepth {
@@ -5173,14 +5173,14 @@ func q30(p *rt.Parser) (*sxirvalue.Node, bool) {
 		}
 		if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 47 {
 			p.Pos += 2
-			p.Units += 2
+			p.Fuel -= 2
 		} else if _, ok = p.MatchLiteralLogical(lit37, "//", 31, false); !ok {
 			goto L15
 		}
 		x16 = p.Pos
 		x17 = 0
 		for {
-			if p.Units > p.UnitsCheck {
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 			ch, size, ok = p.NextOrdinary()
@@ -5189,7 +5189,7 @@ func q30(p *rt.Parser) (*sxirvalue.Node, bool) {
 				break
 			}
 			p.Pos += size
-			p.Units += uint64(size)
+			p.Fuel -= int64(size)
 			x17++
 			if x17 == 16 {
 				x17 = p.ScanReach(9, x16, x17)
@@ -5346,7 +5346,7 @@ L6:
 			}
 		}
 		p.SkipVisit()
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x36 = p.Mark()
@@ -5356,7 +5356,7 @@ L6:
 			goto L37
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x35++
 		if p.Pos == x36.Pos {
 			break
@@ -5373,7 +5373,7 @@ L6:
 	x38 = p.Mark()
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto L39
 	}
@@ -5403,7 +5403,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i0(p)
 	if !ok {
@@ -5446,8 +5446,8 @@ fail:
 
 // rule stmts
 func u1(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !p.FirstCall(rules[1]) {
@@ -5470,7 +5470,7 @@ func i1(p *rt.TParser) (any, bool) {
 	p.Enter()
 	x2, x3, _ = p.Pos, len(p.KidStack), 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5, x6 = p.Pos, len(p.Recovered)
@@ -5514,8 +5514,8 @@ func i1(p *rt.TParser) (any, bool) {
 
 // rule block
 func u2(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !p.FirstCall(rules[2]) {
@@ -5538,7 +5538,7 @@ func i2(p *rt.TParser) (any, bool) {
 	p.Enter()
 	if p.Pos < len(p.In) && p.In[p.Pos] == 123 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit4, "{", 5, false); !ok {
 		goto fail
 	}
@@ -5551,7 +5551,7 @@ func i2(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 125 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit5, "}", 6, false); !ok {
 		goto fail
 	}
@@ -5578,8 +5578,8 @@ func ta3(c *rt.TActCtx) (any, any) {
 
 // rule stmt
 func u3(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	start, rec := p.Pos, len(p.Recovered)
@@ -5612,7 +5612,7 @@ func i3(p *rt.TParser) (any, bool) {
 
 // rule let
 func u4(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i4(p)
 	if !ok {
@@ -5642,7 +5642,7 @@ func i4(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -5655,7 +5655,7 @@ func i4(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -5676,7 +5676,7 @@ fail:
 
 // rule assign
 func u5(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i5(p)
 	if !ok {
@@ -5700,7 +5700,7 @@ func i5(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto fail
 	}
@@ -5709,7 +5709,7 @@ func i5(p *rt.TParser) (any, bool) {
 	p.LookBegin(1)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 61 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit9, "=", 14, false); !ok {
 		goto L6
 	}
@@ -5730,7 +5730,7 @@ L6:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -5751,8 +5751,8 @@ fail:
 
 // rule if
 func u6(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !p.FirstCall(rules[6]) {
@@ -5817,8 +5817,8 @@ fail:
 
 // rule else
 func u7(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	start, rec := p.Pos, len(p.Recovered)
@@ -5894,8 +5894,8 @@ fail:
 
 // rule while
 func u8(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	start, rec := p.Pos, len(p.Recovered)
@@ -5946,7 +5946,7 @@ fail:
 
 // rule return
 func u9(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i9(p)
 	if !ok {
@@ -5980,7 +5980,7 @@ L7:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -6001,8 +6001,8 @@ fail:
 
 // rule func
 func u10(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	start, rec := p.Pos, len(p.Recovered)
@@ -6035,7 +6035,7 @@ func i10(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -6055,7 +6055,7 @@ L10:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -6092,7 +6092,7 @@ fail:
 
 // rule params
 func u11(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i11(p)
 	if !ok {
@@ -6113,7 +6113,7 @@ func i11(p *rt.TParser) (any, bool) {
 	k1 = v3
 	x5, x6, _ = p.Pos, len(p.KidStack), 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x8, x9 = p.Pos, len(p.Recovered)
@@ -6123,7 +6123,7 @@ func i11(p *rt.TParser) (any, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.Parser.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L11
 		}
@@ -6175,7 +6175,7 @@ fail:
 
 // rule exprStmt
 func u12(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i12(p)
 	if !ok {
@@ -6199,7 +6199,7 @@ func i12(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit7, ";", 13, false); !ok {
 		goto fail
 	}
@@ -6220,8 +6220,8 @@ fail:
 
 // rule expr
 func u13(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !p.FirstCall(rules[13]) {
@@ -6333,7 +6333,7 @@ func e124(p *rt.TParser) (any, bool) {
 	var v2 any
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -6346,7 +6346,7 @@ func e124(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -6361,7 +6361,7 @@ func e125(p *rt.TParser) (any, bool) {
 	var v3, v6 any
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -6381,7 +6381,7 @@ L5:
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -6400,7 +6400,7 @@ func e126(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 63 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit64, "?", 35, false); !ok {
 		goto fail
 	}
@@ -6418,7 +6418,7 @@ func e126(p *rt.TParser) (any, bool) {
 	x8 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 58 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit65, ":", 36, false); !ok {
 		goto fail
 	}
@@ -6437,7 +6437,7 @@ func e127(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 124 && p.In[p.Pos+1] == 124 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit67, "||", 37, false); !ok {
 		goto fail
 	}
@@ -6454,7 +6454,7 @@ func e128(p *rt.TParser) (any, bool) {
 	x1 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 38 && p.In[p.Pos+1] == 38 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit69, "&&", 38, false); !ok {
 		goto fail
 	}
@@ -6477,7 +6477,7 @@ func e129(p *rt.TParser) (any, bool) {
 	x6 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 61 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit71, "==", 39, false); !ok {
 		goto L5
 	}
@@ -6494,7 +6494,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 33 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit72, "!=", 40, false); !ok {
 		goto L9
 	}
@@ -6511,7 +6511,7 @@ L8:
 	x14 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 60 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit73, "<=", 41, false); !ok {
 		goto L13
 	}
@@ -6528,7 +6528,7 @@ L12:
 	x18 = p.Pos
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 62 && p.In[p.Pos+1] == 61 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit74, ">=", 42, false); !ok {
 		goto L17
 	}
@@ -6545,7 +6545,7 @@ L16:
 	x22 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 60 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit75, "<", 43, false); !ok {
 		goto L21
 	}
@@ -6562,7 +6562,7 @@ L20:
 	x26 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 62 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit76, ">", 44, false); !ok {
 		goto L25
 	}
@@ -6592,7 +6592,7 @@ func e130(p *rt.TParser) (any, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 43 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit78, "+", 45, false); !ok {
 		goto L5
 	}
@@ -6609,7 +6609,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L9
 	}
@@ -6639,7 +6639,7 @@ func e131(p *rt.TParser) (any, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 42 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit81, "*", 47, false); !ok {
 		goto L5
 	}
@@ -6656,7 +6656,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 47 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit82, "/", 48, false); !ok {
 		goto L9
 	}
@@ -6673,7 +6673,7 @@ L8:
 	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 37 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit83, "%", 49, false); !ok {
 		goto L13
 	}
@@ -6703,7 +6703,7 @@ func e132(p *rt.TParser) (any, bool) {
 	x6 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 45 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit79, "-", 46, false); !ok {
 		goto L5
 	}
@@ -6720,7 +6720,7 @@ L4:
 	x10 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 33 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit85, "!", 50, false); !ok {
 		goto L9
 	}
@@ -6748,7 +6748,7 @@ func e133(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 40 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit16, "(", 15, false); !ok {
 		goto fail
 	}
@@ -6773,7 +6773,7 @@ L9:
 	x12 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 41 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit17, ")", 16, false); !ok {
 		goto fail
 	}
@@ -6795,7 +6795,7 @@ func e134(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 91 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit61, "[", 33, false); !ok {
 		goto fail
 	}
@@ -6813,7 +6813,7 @@ func e134(p *rt.TParser) (any, bool) {
 	x8 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 93 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit62, "]", 34, false); !ok {
 		goto fail
 	}
@@ -6835,7 +6835,7 @@ func e135(p *rt.TParser) (any, bool) {
 	x3 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto fail
 	}
@@ -6858,8 +6858,8 @@ fail:
 
 // rule args
 func u15(p *rt.TParser) (any, bool) {
-	p.Units++
-	if p.Units > p.UnitsCheck {
+	p.Fuel--
+	if p.Fuel < 0 {
 		p.PollUnits()
 	}
 	if !p.FirstCall(rules[15]) {
@@ -6886,7 +6886,7 @@ func i15(p *rt.TParser) (any, bool) {
 	k1 = v3
 	x5, x6, _ = p.Pos, len(p.KidStack), 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x8, x9 = p.Pos, len(p.Recovered)
@@ -6896,7 +6896,7 @@ func i15(p *rt.TParser) (any, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 44 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.Parser.MatchLiteralLogical(lit20, ",", 17, false); !ok {
 			goto L11
 		}
@@ -6947,7 +6947,7 @@ fail:
 
 // rule ident
 func u16(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	if !p.FirstCall(rules[16]) {
 		return p.CallMemo(trules[16], v16)
 	}
@@ -6981,7 +6981,7 @@ L4:
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	x6 = p.Pos
 	x5 = p.RunHot(2)
 	if x5 {
@@ -6994,7 +6994,7 @@ L4:
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x8, x9 = p.Pos, len(p.Recovered)
@@ -7031,7 +7031,7 @@ fail:
 
 // rule name
 func u17(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	if !p.FirstCall(rules[17]) {
 		return p.CallMemo(trules[17], i17)
 	}
@@ -7081,7 +7081,7 @@ fail:
 }
 
 func s20(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, size, x2, x3, x4, x5, x8, x9 int
 	var v, v10, bv any
 	var ch rune
@@ -7091,7 +7091,7 @@ func s20(p *rt.TParser) (any, bool) {
 	x2 = p.Pos
 	x3 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -7100,7 +7100,7 @@ func s20(p *rt.TParser) (any, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x3++
 		if x3 == 16 {
 			x3 = p.ScanReach(5, x2, x3)
@@ -7115,14 +7115,14 @@ func s20(p *rt.TParser) (any, bool) {
 	x4, x5 = p.Pos, len(p.Recovered)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 46 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit28, ".", 26, false); !ok {
 		goto L6
 	}
 	x8 = p.Pos
 	x9 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -7131,7 +7131,7 @@ func s20(p *rt.TParser) (any, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x9++
 		if x9 == 16 {
 			x9 = p.ScanReach(7, x8, x9)
@@ -7162,7 +7162,7 @@ fail:
 
 // rule string
 func u21(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start, rec := p.Pos, len(p.Recovered)
 	v, ok := i21(p)
 	if !ok {
@@ -7179,7 +7179,7 @@ func i21(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -7189,7 +7189,7 @@ func i21(p *rt.TParser) (any, bool) {
 	k1 = v3
 	if p.Pos < len(p.In) && p.In[p.Pos] == 34 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit30, "\"", 27, false); !ok {
 		goto fail
 	}
@@ -7209,7 +7209,7 @@ fail:
 }
 
 func s22(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, x1, x3, x5, x6, x8, x9, x18, size int
 	var v, v17, bv any
 	var x2, x12, ok bool
@@ -7228,7 +7228,7 @@ func s22(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5, x6 = p.Pos, len(p.Recovered)
@@ -7239,7 +7239,7 @@ func s22(p *rt.TParser) (any, bool) {
 			goto L13
 		}
 		p.Pos += x18
-		p.Units += uint64(x18)
+		p.Fuel -= int64(x18)
 		goto L10
 	L13:
 		if !p.HasCharOrdinary(92, false) && p.Depth <= p.MaxDepth {
@@ -7248,7 +7248,7 @@ func s22(p *rt.TParser) (any, bool) {
 		}
 		if p.Pos < len(p.In) && p.In[p.Pos] == 92 {
 			p.Pos++
-			p.Units += 1
+			p.Fuel -= 1
 		} else if _, ok = p.Parser.MatchLiteralLogical(lit32, "\\", 29, false); !ok {
 			goto L16
 		}
@@ -7258,7 +7258,7 @@ func s22(p *rt.TParser) (any, bool) {
 			goto L16
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		goto L10
 	L16:
 		p.Restore(x8, x9)
@@ -7291,7 +7291,7 @@ func s22(p *rt.TParser) (any, bool) {
 }
 
 func s23(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2, x3, x9, x10 int
 	var v, v12, bv any
 	var ok bool
@@ -7304,7 +7304,7 @@ func s23(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L6
 	}
@@ -7353,7 +7353,7 @@ fail:
 }
 
 func s30(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, x1, x2, x5, x6, x8, x9, x38, x16, x20, x22, x24, x25, x26, x27, x28, size, x30 int
 	var v, v10, v17, v23, v31, v32, v33, v34, v35, v36, v37 any
 	var x3, x13, ok bool
@@ -7372,7 +7372,7 @@ func s30(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5, x6 = p.Pos, len(p.Recovered)
@@ -7384,7 +7384,7 @@ func s30(p *rt.TParser) (any, bool) {
 		}
 		x16 = p.Pos
 		p.Pos += x38
-		p.Units += uint64(x38)
+		p.Fuel -= int64(x38)
 		v17 = p.NewMatchOrdinary(x16, p.Pos, p.Text(x16, p.Pos), true)
 		v10 = v17
 		goto L11
@@ -7398,7 +7398,7 @@ func s30(p *rt.TParser) (any, bool) {
 		x22 = p.Pos
 		if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 47 {
 			p.Pos += 2
-			p.Units += 2
+			p.Fuel -= 2
 		} else if _, ok = p.Parser.MatchLiteralLogical(lit37, "//", 31, false); !ok {
 			goto L19
 		}
@@ -7406,7 +7406,7 @@ func s30(p *rt.TParser) (any, bool) {
 		x21 = append(x21, v23)
 		x24, x26, x25 = p.Pos, len(p.KidStack), 0
 		for {
-			if p.Units > p.UnitsCheck {
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 			x27, x28 = p.Pos, len(p.Recovered)
@@ -7417,7 +7417,7 @@ func s30(p *rt.TParser) (any, bool) {
 			}
 			x30 = p.Pos
 			p.Pos += size
-			p.Units += uint64(size)
+			p.Fuel -= int64(size)
 			v31 = p.NewMatchOrdinary(x30, p.Pos, p.Text(x30, p.Pos), true)
 			v32 = p.ScopeValue(sh38, v31, x27)
 			p.PushKid(v32)
@@ -7471,7 +7471,7 @@ func s30(p *rt.TParser) (any, bool) {
 }
 
 func s31(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var v any
 	var x1, x11, ok bool
 	var x2, x4, x5, x7, x8, x18, size, x16, x17 int
@@ -7488,7 +7488,7 @@ func s31(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4, x5 = p.Pos, len(p.Recovered)
@@ -7499,7 +7499,7 @@ func s31(p *rt.TParser) (any, bool) {
 			goto L12
 		}
 		p.Pos += x18
-		p.Units += uint64(x18)
+		p.Fuel -= int64(x18)
 		goto L9
 	L12:
 		if !p.HasCharOrdinary(47, false) && p.Depth <= p.MaxDepth {
@@ -7508,14 +7508,14 @@ func s31(p *rt.TParser) (any, bool) {
 		}
 		if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 47 && p.In[p.Pos+1] == 47 {
 			p.Pos += 2
-			p.Units += 2
+			p.Fuel -= 2
 		} else if _, ok = p.Parser.MatchLiteralLogical(lit37, "//", 31, false); !ok {
 			goto L15
 		}
 		x16 = p.Pos
 		x17 = 0
 		for {
-			if p.Units > p.UnitsCheck {
+			if p.Fuel < 0 {
 				p.PollUnits()
 			}
 			ch, size, ok = p.NextOrdinary()
@@ -7524,7 +7524,7 @@ func s31(p *rt.TParser) (any, bool) {
 				break
 			}
 			p.Pos += size
-			p.Units += uint64(size)
+			p.Fuel -= int64(size)
 			x17++
 			if x17 == 16 {
 				x17 = p.ScanReach(9, x16, x17)
@@ -7559,14 +7559,14 @@ func s31(p *rt.TParser) (any, bool) {
 }
 
 func s32(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto fail
 	}
@@ -7592,14 +7592,14 @@ fail:
 }
 
 func s33(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto fail
 	}
@@ -7625,14 +7625,14 @@ fail:
 }
 
 func s34(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto fail
 	}
@@ -7658,7 +7658,7 @@ fail:
 }
 
 func s35(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
@@ -7688,7 +7688,7 @@ fail:
 }
 
 func s36(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
@@ -7718,14 +7718,14 @@ fail:
 }
 
 func s37(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2 int
 	var v any
 	var ok bool
 	start, rec = p.Pos, len(p.Recovered)
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto fail
 	}
@@ -7751,7 +7751,7 @@ fail:
 }
 
 func s38(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, x1, x2, x20, x21 int
 	var v any
 	var ok bool
@@ -7763,7 +7763,7 @@ func s38(p *rt.TParser) (any, bool) {
 	}
 	if p.Pos+3 <= len(p.In) && p.In[p.Pos] == 108 && p.In[p.Pos+1] == 101 && p.In[p.Pos+2] == 116 {
 		p.Pos += 3
-		p.Units += 3
+		p.Fuel -= 3
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit41, "let", 7, false); !ok {
 		goto L5
 	}
@@ -7777,7 +7777,7 @@ L4:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 102 && p.In[p.Pos+1] == 110 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit46, "fn", 8, false); !ok {
 		goto L7
 	}
@@ -7791,7 +7791,7 @@ L6:
 	}
 	if p.Pos+2 <= len(p.In) && p.In[p.Pos] == 105 && p.In[p.Pos+1] == 102 {
 		p.Pos += 2
-		p.Units += 2
+		p.Fuel -= 2
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit42, "if", 9, false); !ok {
 		goto L9
 	}
@@ -7805,7 +7805,7 @@ L8:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 101 && p.In[p.Pos+1] == 108 && p.In[p.Pos+2] == 115 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit43, "else", 21, false); !ok {
 		goto L11
 	}
@@ -7841,7 +7841,7 @@ L14:
 	}
 	if p.Pos+4 <= len(p.In) && p.In[p.Pos] == 116 && p.In[p.Pos+1] == 114 && p.In[p.Pos+2] == 117 && p.In[p.Pos+3] == 101 {
 		p.Pos += 4
-		p.Units += 4
+		p.Fuel -= 4
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit34, "true", 22, false); !ok {
 		goto L17
 	}
@@ -7884,7 +7884,7 @@ fail:
 }
 
 func s39(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	var start, rec, size int
 	var v any
 	var ch rune
@@ -7896,7 +7896,7 @@ func s39(p *rt.TParser) (any, bool) {
 		goto fail
 	}
 	p.Pos += size
-	p.Units += uint64(size)
+	p.Fuel -= int64(size)
 	v = nil
 	return v, true
 fail:
@@ -7906,4 +7906,4 @@ fail:
 
 const _ = types.SXIRSchema_384796197f10dab5
 
-const _ = rt.Protocol36
+const _ = rt.Protocol37

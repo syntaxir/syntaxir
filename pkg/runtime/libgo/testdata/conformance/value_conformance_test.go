@@ -248,7 +248,7 @@ func TestValueBoxedStringCharges(t *testing.T) {
 		if !p.units.on {
 			return 0
 		}
-		return uint64(p.Units)
+		return uint64(p.UnitsNow())
 	}
 	sides := []struct {
 		name       string
@@ -317,7 +317,7 @@ func TestValueCompareStrings(t *testing.T) {
 		if !tp.units.on {
 			return 0
 		}
-		return uint64(tp.Units)
+		return uint64(tp.UnitsNow())
 	}
 	for _, controlled := range []bool{false, true} {
 		fast, composed := newSide(controlled), newSide(controlled)

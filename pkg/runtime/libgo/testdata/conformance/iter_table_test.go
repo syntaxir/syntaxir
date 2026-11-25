@@ -35,10 +35,10 @@ func TestValueIterTable(t *testing.T) {
 		if err := conform.RunIters("node", false, func(call, value string) (string, int) {
 			var before uint64
 			if controlled {
-				before = c.P.Units
+				before = c.P.UnitsNow()
 			}
 			got := memberRead(func() any { return iterCall(call, vals[value], c.fxFold, c.fxMap, c.fxFilter) }, memberCanon)
-			if units := c.P.Units - before; controlled && units != 0 {
+			if units := c.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("node: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			return got, 0
@@ -49,10 +49,10 @@ func TestValueIterTable(t *testing.T) {
 		if err := conform.RunIters("typed", false, func(call, value string) (string, int) {
 			var before uint64
 			if controlled {
-				before = tc.P.Units
+				before = tc.P.UnitsNow()
 			}
 			got := memberRead(func() any { return iterCall(call, tvals[value], tc.fxFold, tc.fxMap, tc.fxFilter) }, tmemberCanon)
-			if units := tc.P.Units - before; controlled && units != 0 {
+			if units := tc.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("typed: %s(%s): counted %d units, want 0", call, value, units)
 			}
 			return got, 0

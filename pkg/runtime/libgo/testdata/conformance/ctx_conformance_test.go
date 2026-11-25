@@ -37,7 +37,7 @@ type growBox struct{ g growState }
 
 type meteredCtx struct{ *ctxMachine }
 
-func (m meteredCtx) Used() uint64 { return m.p.Units }
+func (m meteredCtx) Used() uint64 { return m.p.UnitsNow() }
 
 func newCtxMachine(cfg ref.Config, controlled bool) conform.Impl {
 	var em *expMachine
@@ -98,8 +98,8 @@ func (m *ctxMachine) Call(o *code.Op, args []any) []any {
 	}
 	if strings.HasPrefix(o.Name, "test.") && o.Name != conform.OprNodeOp && slices.Contains(conform.CtxTestOps, o.Name) {
 		// The conformance operations count no unit.
-		units := p.Units
-		defer func() { p.Units = units }()
+		units := p.UnitsNow()
+		defer func() { p.setFuel(units, p.UnitsCheck) }()
 		m.testOp(o.Name, args)
 		return nil
 	}

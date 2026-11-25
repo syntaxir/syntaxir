@@ -234,7 +234,7 @@ func init() {
 		}
 		tj4 := 0
 		for ; tj4 < len(ti3); tj4++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp6 := c.P.ActionItemAt(ti3, tj4, false)
 			tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp6), "$s", "s")
 			if tf7 != nil {
@@ -263,7 +263,7 @@ func init() {
 		ta15 := any(0)
 		tj16 := 0
 		for ; tj16 < len(ti14); tj16++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp18 := ta15
 			tp19 := c.P.ActionItemAt(ti14, tj16, false)
 			tv20, tf20 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp18), rt.UnboxValue(tp19))
@@ -280,7 +280,7 @@ func init() {
 		}
 		tj24 := 0
 		for ; tj24 < len(ti23); tj24++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp26 := c.P.ActionItemAt(ti23, tj24, false)
 			tv27, tf27 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp26), "$s", "s")
 			if tf27 != nil {
@@ -309,7 +309,7 @@ func init() {
 		}
 		tj36 := 0
 		for ; tj36 < len(ti35); tj36++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp38 := c.P.ActionItemAt(ti35, tj36, false)
 			tv39, tf39 := c.P.ActionBinary(rt.OpGt, rt.UnboxValue(tp38), any(3))
 			if tf39 != nil {
@@ -337,7 +337,7 @@ func init() {
 		}
 		tj47 := 0
 		for ; tj47 < len(ti46); tj47++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp49 := c.P.ActionItemAt(ti46, tj47, false)
 			tv50, tf50 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp49), "$s", "s")
 			if tf50 != nil {
@@ -362,7 +362,7 @@ func init() {
 		ta57 := any("")
 		tj58 := 0
 		for ; tj58 < len(ti56); tj58++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp60 := ta57
 			tp61 := c.P.ActionItemAt(ti56, tj58, false)
 			tv62, tf62 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp60), rt.UnboxValue(tp61))
@@ -379,7 +379,7 @@ func init() {
 		}
 		tj66 := 0
 		for ; tj66 < len(ti65); tj66++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp68 := c.P.ActionItemAt(ti65, tj66, false)
 			tv69, tf69 := c.P.ActionMember(c, rt.MemberCapture, rt.UnboxValue(tp68), "$s", "s")
 			if tf69 != nil {
@@ -408,7 +408,7 @@ func init() {
 		ta77 := any(0)
 		tj78 := 0
 		for ; tj78 < len(ti76); tj78++ {
-			c.P.Units++
+			c.P.Fuel--
 			tp80 := ta77
 			tp81 := c.P.ActionItemAt(ti76, tj78, false)
 			tv82, tf82 := c.P.ActionBinary(rt.OpAdd, rt.UnboxValue(tp80), rt.UnboxValue(tp81))
@@ -460,7 +460,7 @@ func e2(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var v7, v8, v9 *sxirvalue.Node
 	x2, x3 = p.Pos, len(p.KidStack)
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x5 = p.Mark()
@@ -508,7 +508,7 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x6 = p.Mark()
@@ -549,13 +549,13 @@ func e5(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	p.SetCapture(0, v10)
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit3, ";", 5, false); !ok {
 		goto fail
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit4, "\n", 6, false); !ok {
 		goto fail
 	}
@@ -575,7 +575,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x2 = p.Nodes(2)[:0]
 	x4, x6, x5 = p.Pos, len(p.KidStack), 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x7 = p.Mark()
@@ -586,7 +586,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 		}
 		x9 = p.Pos
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		v10 = p.NewTerminalOrdinary(x9, p.Text(x9, p.Pos))
 		v11 = p.ScopeValue(sh1, v10, x7.Pos)
 		p.KidStack = append(p.KidStack, v11)
@@ -609,7 +609,7 @@ func e7(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	x13 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 32 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit6, " ", 8, false); !ok {
 		goto fail
 	}
@@ -626,7 +626,7 @@ func e11(p *rt.Parser, _ int) (*sxirvalue.Node, bool) {
 	var x2 int
 	var ok bool
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x2 = p.Pos
@@ -652,7 +652,7 @@ fail:
 }
 
 func q1(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, x2, x3, x4 int
 	var v *sxirvalue.Node
 	var x1, ok bool
@@ -672,7 +672,7 @@ func q1(p *rt.Parser) (*sxirvalue.Node, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x4 = p.Pos
@@ -703,13 +703,13 @@ func q1(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit3, ";", 5, false); !ok {
 		goto fail
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit4, "\n", 6, false); !ok {
 		goto fail
 	}
@@ -721,7 +721,7 @@ fail:
 }
 
 func q2(p *rt.Parser) (*sxirvalue.Node, bool) {
-	p.Units++
+	p.Fuel--
 	var start, size, x1, x2 int
 	var v *sxirvalue.Node
 	var ch rune
@@ -730,7 +730,7 @@ func q2(p *rt.Parser) (*sxirvalue.Node, bool) {
 	x1 = p.Pos
 	x2 = 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		ch, size, ok = p.NextOrdinary()
@@ -739,7 +739,7 @@ func q2(p *rt.Parser) (*sxirvalue.Node, bool) {
 			break
 		}
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		x2++
 		if x2 == 16 {
 			x2 = p.ScanReach(2, x1, x2)
@@ -753,7 +753,7 @@ func q2(p *rt.Parser) (*sxirvalue.Node, bool) {
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 32 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.MatchLiteralLogical(lit6, " ", 8, false); !ok {
 		goto fail
 	}
@@ -768,7 +768,7 @@ var trules []*rt.TRule
 
 // rule main
 func u0(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start := p.Pos
 	v, ok := i0(p)
 	if !ok {
@@ -785,7 +785,7 @@ func i0(p *rt.TParser) (any, bool) {
 	start = p.Pos
 	x3, x4 = p.Pos, len(p.KidStack)
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x6 = p.Pos
@@ -829,7 +829,7 @@ fail:
 
 // rule line
 func u1(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start := p.Pos
 	v, ok := i1(p)
 	if !ok {
@@ -859,7 +859,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			p.SkipVisit()
 		}
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x7 = p.Pos
@@ -900,13 +900,13 @@ func i1(p *rt.TParser) (any, bool) {
 	k1 = v11
 	if p.Pos < len(p.In) && p.In[p.Pos] == 59 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit3, ";", 5, false); !ok {
 		goto fail
 	}
 	if p.Pos < len(p.In) && p.In[p.Pos] == 10 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit4, "\n", 6, false); !ok {
 		goto fail
 	}
@@ -926,7 +926,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			tj4 := 0
 			for ; tj4 < len(ti3); tj4++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp6 := c.P.ActionItemAt(ti3, tj4, false)
 				tv7, tf7 := c.P.ActionMember(c, rt.MemberCapture, (tp6), "$s", "s")
 				if tf7 != nil {
@@ -955,7 +955,7 @@ func i1(p *rt.TParser) (any, bool) {
 			ta15 := any(0)
 			tj16 := 0
 			for ; tj16 < len(ti14); tj16++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp18 := ta15
 				tp19 := c.P.ActionItemAt(ti14, tj16, false)
 				tv20, tf20 := c.P.ActionBinary(rt.OpAdd, (tp18), (tp19))
@@ -972,7 +972,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			tj24 := 0
 			for ; tj24 < len(ti23); tj24++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp26 := c.P.ActionItemAt(ti23, tj24, false)
 				tv27, tf27 := c.P.ActionMember(c, rt.MemberCapture, (tp26), "$s", "s")
 				if tf27 != nil {
@@ -1001,7 +1001,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			tj36 := 0
 			for ; tj36 < len(ti35); tj36++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp38 := c.P.ActionItemAt(ti35, tj36, false)
 				tv39, tf39 := c.P.ActionBinary(rt.OpGt, (tp38), any(3))
 				if tf39 != nil {
@@ -1029,7 +1029,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			tj47 := 0
 			for ; tj47 < len(ti46); tj47++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp49 := c.P.ActionItemAt(ti46, tj47, false)
 				tv50, tf50 := c.P.ActionMember(c, rt.MemberCapture, (tp49), "$s", "s")
 				if tf50 != nil {
@@ -1054,7 +1054,7 @@ func i1(p *rt.TParser) (any, bool) {
 			ta57 := any("")
 			tj58 := 0
 			for ; tj58 < len(ti56); tj58++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp60 := ta57
 				tp61 := c.P.ActionItemAt(ti56, tj58, false)
 				tv62, tf62 := c.P.ActionBinary(rt.OpAdd, (tp60), (tp61))
@@ -1071,7 +1071,7 @@ func i1(p *rt.TParser) (any, bool) {
 			}
 			tj66 := 0
 			for ; tj66 < len(ti65); tj66++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp68 := c.P.ActionItemAt(ti65, tj66, false)
 				tv69, tf69 := c.P.ActionMember(c, rt.MemberCapture, (tp68), "$s", "s")
 				if tf69 != nil {
@@ -1100,7 +1100,7 @@ func i1(p *rt.TParser) (any, bool) {
 			ta77 := any(0)
 			tj78 := 0
 			for ; tj78 < len(ti76); tj78++ {
-				c.P.Units++
+				c.P.Fuel--
 				tp80 := ta77
 				tp81 := c.P.ActionItemAt(ti76, tj78, false)
 				tv82, tf82 := c.P.ActionBinary(rt.OpAdd, (tp80), (tp81))
@@ -1126,7 +1126,7 @@ fail:
 
 // rule word
 func u2(p *rt.TParser) (any, bool) {
-	p.Units++
+	p.Fuel--
 	start := p.Pos
 	v, ok := i2(p)
 	if !ok {
@@ -1146,7 +1146,7 @@ func i2(p *rt.TParser) (any, bool) {
 	x2 = p.NewVals(2)[:0]
 	x5, x7, x6 = p.Pos, len(p.KidStack), 0
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		x8 = p.Pos
@@ -1157,7 +1157,7 @@ func i2(p *rt.TParser) (any, bool) {
 		}
 		x10 = p.Pos
 		p.Pos += size
-		p.Units += uint64(size)
+		p.Fuel -= int64(size)
 		v11 = p.NewMatchOrdinary(x10, p.Pos, p.Text(x10, p.Pos), true)
 		v12 = p.ScopeValue(sh1, v11, x8)
 		p.PushKid(v12)
@@ -1180,7 +1180,7 @@ func i2(p *rt.TParser) (any, bool) {
 	x14 = p.Pos
 	if p.Pos < len(p.In) && p.In[p.Pos] == 32 {
 		p.Pos++
-		p.Units += 1
+		p.Fuel -= 1
 	} else if _, ok = p.Parser.MatchLiteralLogical(lit6, " ", 8, false); !ok {
 		goto fail
 	}
@@ -1199,4 +1199,4 @@ fail:
 
 const _ = types.SXIRSchema_eccf6ac590fb833e
 
-const _ = rt.Protocol36
+const _ = rt.Protocol37

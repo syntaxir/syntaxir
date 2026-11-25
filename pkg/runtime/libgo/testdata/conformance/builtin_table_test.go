@@ -138,7 +138,7 @@ func TestValueLengthUnits(t *testing.T) {
 			if e != nil {
 				t.Fatalf("%s: len(%q) fails: %v", target, s, e)
 			}
-			return v.(int), uint64(p.Units)
+			return v.(int), uint64(p.UnitsNow())
 		}); err != nil {
 			t.Error(err)
 		}

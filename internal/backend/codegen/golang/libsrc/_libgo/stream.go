@@ -119,7 +119,7 @@ func (r *unitsReader) Read(dst []byte) (int, error) {
 			}
 			panic(fatal{err: cerr})
 		}
-		p.units.obsAt = p.Units + budgetCheckInterval
+		p.units.obsAt = p.UnitsNow() + budgetCheckInterval
 		p.setUnitsCheck()
 	}
 	return n, err

@@ -51,9 +51,9 @@ func TestGeneratedLoopCharge(t *testing.T) {
 		t.Run(form+"/negative control", func(t *testing.T) {
 			// Without the count of the loops, a lambda call is not counted at all. The actions of the cases
 			// count nothing else one unit at a time (a list they build counts its elements at once, in
-			// ActionHullLogical), so every single unit that the code of an action counts (c.P.Units++) is
+			// ActionHullLogical), so every single unit that the code of an action counts (c.P.Fuel--) is
 			// the visit of an element by a loop.
-			visit := regexp.MustCompile(`(?m)^\t+c\.P\.Units\+\+\n`)
+			visit := regexp.MustCompile(`(?m)^\t+c\.P\.Fuel--\n`)
 			problems := loopChargeProblems(t, cases, typed, func(pkg string, code []byte) []byte {
 				if pkg == "base" {
 					return code

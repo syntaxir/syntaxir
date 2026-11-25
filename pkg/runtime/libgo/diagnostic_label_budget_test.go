@@ -17,8 +17,8 @@ func TestDiagnosticRenameOfLargeExpectationSetsCountsNoUnits(t *testing.T) {
 	p := &Parser{}
 	p.startUnits(prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 64}}, 0, false))
 	got := RenamedExpected(p, ids, 999)
-	if p.Units != 0 {
-		t.Fatalf("rename counted %d units, want none", p.Units)
+	if p.UnitsNow() != 0 {
+		t.Fatalf("rename counted %d units, want none", p.UnitsNow())
 	}
 	for i, id := range got {
 		want := ExpID(999)

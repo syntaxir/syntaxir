@@ -42,10 +42,10 @@ func TestValueHullTable(t *testing.T) {
 			rng := fmt.Sprintf("%d-%d", D(n).Start, D(n).End)
 			var before uint64
 			if controlled {
-				before = c.P.Units
+				before = c.P.UnitsNow()
 			}
 			c.P.ActionHull(c, kind == "tuple", D(n).Children)
-			if units := c.P.Units - before; controlled && units != 0 {
+			if units := c.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("node: %s(%v): counted %d units, want 0", kind, elems, units)
 			}
 			return rng, 0
@@ -69,10 +69,10 @@ func TestValueHullTable(t *testing.T) {
 			rng := fmt.Sprintf("%d-%d", n.Start, n.End)
 			var before uint64
 			if controlled {
-				before = tc.P.Units
+				before = tc.P.UnitsNow()
 			}
 			tc.P.ActionHull(tc, kind == "tuple", n.Kids)
-			if units := tc.P.Units - before; controlled && units != 0 {
+			if units := tc.P.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("typed: %s(%v): counted %d units, want 0", kind, elems, units)
 			}
 			return rng, 0

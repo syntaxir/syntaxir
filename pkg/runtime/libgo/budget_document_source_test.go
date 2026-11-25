@@ -19,8 +19,8 @@ func TestSourcePreparationCountsNoUnits(t *testing.T) {
 			}
 			p.startUnits(prepareOptions(parseOptions{controls: true, limits: sxirruntime.Limits{Compute: 1}}, 0, false))
 			p.setSource(s)
-			if p.Units != 0 {
-				t.Fatalf("%q document=%t: preparation counted %d units", s, document, p.Units)
+			if p.UnitsNow() != 0 {
+				t.Fatalf("%q document=%t: preparation counted %d units", s, document, p.UnitsNow())
 			}
 			if want := []rune(s); string(p.In) != string(want) {
 				t.Fatalf("%q document=%t: stored %q", s, document, p.In)

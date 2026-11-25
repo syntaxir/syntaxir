@@ -170,7 +170,7 @@ func TestStringAndMalformedTextBudget(t *testing.T){
   got,f:=p.ActionBinary(op,text,strings.Clone(text))
   if f!=nil || !reflect.DeepEqual(got,want){t.Fatalf("string op %d: %v (failure %v) want %v",op,got,f,want)}
  }
- if want:=uint64(6*len(text)+2*len(text));p.Units!=want{t.Fatalf("string operations counted %d units, not %d",p.Units,want)}
+ if want:=uint64(6*len(text)+2*len(text));p.UnitsNow()!=want{t.Fatalf("string operations counted %d units, not %d",p.UnitsNow(),want)}
  // The check after the sized event stops the parse past a limit.
  for _,invoke:=range []func(*sxirrt.Parser){
   func(p *sxirrt.Parser){p.ActionBinary(sxirrt.OpEq,text,strings.Clone(text))},
@@ -182,14 +182,14 @@ func TestStringAndMalformedTextBudget(t *testing.T){
  }
  // Measuring a text in position units counts its bytes, in either position unit.
  p=counting(&sxirrt.Parser{},0)
- if p.X_unitLen(text)!=301 || p.Units!=uint64(len(text)){t.Fatalf("unit length counted %d units, not %d",p.Units,len(text))}
+ if p.X_unitLen(text)!=301 || p.UnitsNow()!=uint64(len(text)){t.Fatalf("unit length counted %d units, not %d",p.UnitsNow(),len(text))}
  // Preparing a malformed source and slicing its texts count nothing: preparing the input is linear
  // once, and the Input limit bounds it.
  runes:=[]rune(strings.Repeat("�",300))
  p=counting(&sxirrt.Parser{In:runes,X_n:len(runes)},1)
  if got:=p.Text(0,len(runes));got!=string(runes){t.Fatal("normalized text mismatch")}
  if got:=p.Text(1,len(runes)-1);got!=string(runes[1:len(runes)-1]){t.Fatal("normalized substring mismatch")}
- if p.Units!=0{t.Fatalf("the text of a normalized source counted %d units",p.Units)}
+ if p.UnitsNow()!=0{t.Fatalf("the text of a normalized source counted %d units",p.UnitsNow())}
 }
 
 func TestFailureDiagnosticsBounded(t *testing.T){
@@ -212,7 +212,7 @@ func TestLineDiagnosticsCountNothing(t *testing.T){
   counting(p,1)
   e:=p.MakeError(p.X_n-1,nil)
   if e.Line!=300 || e.Col!=map[PositionUnit]int{Bytes:3,CodePoints:2}[unit]{t.Fatal("line coordinate changed",e)}
-  if p.Units!=0{t.Errorf("the line of an error counted %d units",p.Units)}
+  if p.UnitsNow()!=0{t.Errorf("the line of an error counted %d units",p.UnitsNow())}
  }
 }
 

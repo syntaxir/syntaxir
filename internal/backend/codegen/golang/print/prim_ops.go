@@ -43,12 +43,12 @@ func (p *primPrinter) op(c *code.Call, args []string) string {
 	case prim.OpAdvance:
 		if n, ok := c.Args[0].(*code.Const); ok {
 			if g.Logical {
-				return advance(int(n.Value.(int64))) + "\np.Units += " + strconv.Itoa(int(n.Value.(int64)))
+				return advance(int(n.Value.(int64))) + "\np.Fuel -= " + strconv.Itoa(int(n.Value.(int64)))
 			}
 			return advance(int(n.Value.(int64)))
 		}
 		if g.Logical {
-			return "p.Pos += " + args[0] + "\np.Units += uint64(" + args[0] + ")"
+			return "p.Pos += " + args[0] + "\np.Fuel -= int64(" + args[0] + ")"
 		}
 		return "p.Pos += " + args[0]
 	case prim.OpExpect:

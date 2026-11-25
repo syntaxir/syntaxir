@@ -65,7 +65,7 @@ func oneFormProblems(t *testing.T, src []byte, controls, document bool) (problem
 		goast.Inspect(fn.Body, func(n goast.Node) bool {
 			if sel, ok := n.(*goast.SelectorExpr); ok {
 				charges = charges || sel.Sel.Name == "Spend"
-				counts = counts || sel.Sel.Name == "Units"
+				counts = counts || sel.Sel.Name == "Fuel"
 				controlRead = controlRead || sel.Sel.Name == "Control"
 				if strings.HasSuffix(sel.Sel.Name, "Ordinary") {
 					ordinaryCall = sel.Sel.Name

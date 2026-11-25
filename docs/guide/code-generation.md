@@ -282,8 +282,8 @@ Details:
   `sxir`): the generated code imports the packages of `syntaxir.dev/sxir/pkg/runtime` with either `-lib` mode, and with `-lib import` also
   `syntaxir.dev/sxir/pkg/runtime/libgo`. Both refer to the library protocol they were generated for, so a mismatched
   version fails the build on that line instead of misbehaving. With `-lib import`, `parser.go` declares
-  `const _ = rt.Protocol36`, and a library that does not implement the protocol fails with
-  `undefined: rt.Protocol36`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
+  `const _ = rt.Protocol37`, and a library that does not implement the protocol fails with
+  `undefined: rt.Protocol37`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
   not serve the node representation of that protocol fails with `undefined: valueimpl.Protocol15`. Regenerate the
   parser with the `sxir` of the required version, or require a version of `syntaxir.dev/sxir` that implements the
   protocol.

@@ -455,7 +455,7 @@ func budgetTotalsWith(t *testing.T, rt, group string, cases []codegentest.Case, 
 
 // stepStatements are the counts of one unit in generated code: a step charge of a parser that reserves
 // budget and a unit of a parser that counts compute units.
-var stepStatements = []string{"p.Spend()\n", "p.Units++\n"}
+var stepStatements = []string{"p.Spend()\n", "p.Fuel--\n"}
 
 // dropFirstStep removes the first count of one unit of the code, as a printer would if it lost the
 // charge of a Step of the IR or the unit of an event; dropLastStep removes the last.

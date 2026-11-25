@@ -44,7 +44,7 @@ func (p *Parser) operatorsRuleExpr(r *Rule, min int) (*sxirvalue.Node, bool) {
 	lastNone := -1
 	bound := p.nudBound
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		m0 := p.Mark()
@@ -147,7 +147,7 @@ func (p *Parser) operatorsRuleNud(r *Rule) (*sxirvalue.Node, bool) {
 		return nil, false
 	}
 	for i = 0; i < len(r.OperatorsRule.Operands); i++ {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		o := r.OperatorsRule.Operands[i]
@@ -185,7 +185,7 @@ func (p *Parser) longest(l []*OperatorsRuleOp) operatorsRuleAttempt {
 	m0 := p.Mark()
 	start := m0.Pos
 	for i = 0; i < len(l); i++ {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		op := l[i]
@@ -201,8 +201,8 @@ func (p *Parser) longest(l []*OperatorsRuleOp) operatorsRuleAttempt {
 		matched := ok && !(p.Pos == start && (op.Kind != "infix"))
 		if matched && ((best.op == nil) || p.Pos > best.end) {
 			if (len(p.Recovered) - m0.recovered) > 0 {
-				p.Units += uint64(len(p.Recovered) - m0.recovered)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - m0.recovered))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}
@@ -297,7 +297,7 @@ func (p *TParser) operatorsRuleExpr(r *TRule, min int) (any, bool) {
 	lastNone := -1
 	bound := p.nudBound
 	for {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		m0 := p.Mark()
@@ -402,7 +402,7 @@ func (p *TParser) operatorsRuleNud(r *TRule) (any, int, bool) {
 		return nil, 0, false
 	}
 	for i = 0; i < len(r.OperatorsRule.Operands); i++ {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		o := r.OperatorsRule.Operands[i]
@@ -440,7 +440,7 @@ func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 	m0 := p.Mark()
 	start := m0.Pos
 	for i = 0; i < len(l); i++ {
-		if p.Units > p.UnitsCheck {
+		if p.Fuel < 0 {
 			p.PollUnits()
 		}
 		op := l[i]
@@ -456,8 +456,8 @@ func (p *TParser) longest(l []*TOperatorsRuleOp) toperatorsRuleAttempt {
 		matched := ok && !(p.Pos == start && (op.Kind != "infix"))
 		if matched && ((best.op == nil) || p.Pos > best.end) {
 			if (len(p.Recovered) - m0.recovered) > 0 {
-				p.Units += uint64(len(p.Recovered) - m0.recovered)
-				if p.Units > p.UnitsCheck {
+				p.Fuel -= int64(uint64(len(p.Recovered) - m0.recovered))
+				if p.Fuel < 0 {
 					p.PollUnits()
 				}
 			}

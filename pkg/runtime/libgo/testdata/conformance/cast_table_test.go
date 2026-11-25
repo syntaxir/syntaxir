@@ -131,10 +131,10 @@ func TestValueCastTable(t *testing.T) {
 			val := nodeCastValue(c, v)
 			var before uint64
 			if controlled {
-				before = p.Units
+				before = p.UnitsNow()
 			}
 			ok := p.ActionConforms(castFieldType(typ), val)
-			if units := p.Units - before; controlled && units != 0 {
+			if units := p.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("node: %+v is of kind %q: counted %d units, want 0", v, typ.Kind, units)
 			}
 			return ok, 0
@@ -146,10 +146,10 @@ func TestValueCastTable(t *testing.T) {
 			val := typedCastValue(v)
 			var before uint64
 			if controlled {
-				before = tp.Units
+				before = tp.UnitsNow()
 			}
 			ok := tparser.ActionConforms(castFieldType(typ), val)
-			if units := tp.Units - before; controlled && units != 0 {
+			if units := tp.UnitsNow() - before; controlled && units != 0 {
 				t.Errorf("typed: %+v is of kind %q: counted %d units, want 0", v, typ.Kind, units)
 			}
 			return ok, 0

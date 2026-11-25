@@ -91,7 +91,7 @@ func TestEnvironmentWalksAndAtomicBind(t *testing.T){
   // the call counts the variables of its key (KeyUnits), and a binding of a scalar builds no list or
   // string. Each runs whole under a limit of one unit and publishes a new environment only by a bind.
   p:=makeEnvParser(1);head:=p.Env;before:=append([]any(nil),head.X_vals...)
-  if err:=catchMemoFatal(func(){run.f(p)});err!=nil || p.Units!=0{t.Errorf("%s counted %d units: %v",run.name,p.Units,err)}
+  if err:=catchMemoFatal(func(){run.f(p)});err!=nil || p.UnitsNow()!=0{t.Errorf("%s counted %d units: %v",run.name,p.UnitsNow(),err)}
   for i,v:=range before{if head.X_vals[i]!=v{t.Fatal("environment changed in place")}}
   saved:=&sxirrt.Parser{Env:head,X_envDepth:p.X_envDepth}
   if run.name=="bind" {if (&sxirrt.ActCtx{P:p}).Var(0)!=777 || saved.X_variable(0)!=0{t.Fatal("binding changed saved environment")}} else {if p.Env!=head || (&sxirrt.ActCtx{P:p}).Var(0)!=0{t.Fatal("lookup changed the environment")}}
@@ -106,7 +106,7 @@ func TestNodeMemoLookupWalk(t *testing.T){
  var got *Node
  var ok bool
  if err:=catchMemoFatal(func(){got,ok=p.Call(r,0)});err!=nil||!ok||got!=tail.X_node{t.Fatalf("Node memo walk counted: value=%T error=%v",got,err)}
- if p.Units!=1{t.Fatalf("the call counts %d units, want 1",p.Units)}
+ if p.UnitsNow()!=1{t.Fatalf("the call counts %d units, want 1",p.UnitsNow())}
  if p.X_memo.X_slots[0]!=head || tail.X_next!=nil{t.Fatal("lookup changed table")}
 }
 func TestTypedMemoWalksAndAtomicReplacement(t *testing.T){
@@ -118,7 +118,7 @@ func TestTypedMemoWalksAndAtomicReplacement(t *testing.T){
   replacement:=&sxirrt.X_tmemoEntry{X_rule:-1,X_val:"replacement",X_ok:true}
   var got *sxirrt.X_tmemoEntry
   err:=catchMemoFatal(func(){if put{p.X_memoPut(7,0,0,nil,false,replacement)}else{got=p.X_memoGet(7,0,0,nil,false)}})
-  if err!=nil||p.Units!=0{t.Fatalf("typed memo put=%v counted %d units: %v",put,p.Units,err)}
+  if err!=nil||p.UnitsNow()!=0{t.Fatalf("typed memo put=%v counted %d units: %v",put,p.UnitsNow(),err)}
   if put{if p.X_memoGet(7,0,0,nil,false)!=replacement{t.Fatal("typed put lost its entry")}}else{if got!=tail || p.X_memoSlots[0]!=head || tail.X_next!=nil{t.Fatal("typed read changed the table")}}
  }
 }
@@ -136,9 +136,9 @@ func TestMemoKeysAndStorage(t *testing.T){
   // Comparing a long key, and a long string in a key, counts nothing: the call counted its key.
   entry=put(key)
   var got any
-  if err:=catchMemoFatal(func(){got=get(key)});err!=nil||got!=entry||p.Units!=0{t.Fatal("long key comparison counted",err,p.Units)}
+  if err:=catchMemoFatal(func(){got=get(key)});err!=nil||got!=entry||p.UnitsNow()!=0{t.Fatal("long key comparison counted",err,p.UnitsNow())}
   long:=strings.Repeat("prefix",600);put([]any{long+"x"})
-  if err:=catchMemoFatal(func(){got=get([]any{long+"y"})});err!=nil||!reflect.ValueOf(got).IsNil()||p.Units!=0{t.Fatal("string key comparison counted",err,p.Units)}
+  if err:=catchMemoFatal(func(){got=get([]any{long+"y"})});err!=nil||!reflect.ValueOf(got).IsNil()||p.UnitsNow()!=0{t.Fatal("string key comparison counted",err,p.UnitsNow())}
  }
  // A store counts nothing, also where it grows the slot array to a far position (growing the
  // storage of a parse is no event), so a limit of one unit does not stop it.
@@ -151,7 +151,7 @@ func TestMemoKeysAndStorage(t *testing.T){
    tp:=&sxirrt.TParser{Parser:p,X_memoSlots:make([]*sxirrt.X_tmemoEntry,slots)};tp.X_memoSlots[0]=typedOriginal
    put:=func(){if typed{tp.X_memoPut(7,600,0,nil,false,typedReplacement)}else{p.X_memoPut(7,600,0,nil,false,nodeReplacement)}}
    if err:=catchMemoFatal(put);err!=nil{return 0,err}
-   used:=p.Units
+   used:=p.UnitsNow()
    if p.X_memo.X_slots[0]!=nodeOriginal || tp.X_memoSlots[0]!=typedOriginal{t.Fatal("slot growth lost an entry")}
    if typed{if len(tp.X_memoSlots)<601{t.Fatal("typed slots did not grow")};tp.X_memoPut(7,600,0,nil,false,typedReplacement);if tp.X_memoGet(7,600,0,nil,false)!=typedReplacement || typedReplacement.X_next!=nil{t.Fatal("typed self replacement changed")}}else{if len(p.X_memo.X_slots)<601{t.Fatal("Node slots did not grow")};p.X_memoPut(7,600,0,nil,false,nodeReplacement);if p.X_memoGet(7,600,0,nil,false)!=nodeReplacement || nodeReplacement.X_next!=nil{t.Fatal("Node self replacement changed")}}
    return used,nil
@@ -171,7 +171,7 @@ func TestFirstCallStoragePublication(t *testing.T){
   r:=&sxirrt.Rule{Seen:0}
   var first bool
   if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("seen growth stopped",err)}
-  if p.Units!=0{t.Fatalf("a first call that grows the seen words counts %d units, want none",p.Units)}
+  if p.UnitsNow()!=0{t.Fatalf("a first call that grows the seen words counts %d units, want none",p.UnitsNow())}
   if !first || p.X_memo.X_calls[0].X_calls!=18{t.Fatal("first call changed")}
   if p.X_memo.X_seen[0]!=0 || p.X_memo.X_seen[1000]!=1{t.Fatal("reused unseen words were not zeroed before stamping")}
   if p.FirstCall(r){t.Fatal("repeated call deferred again")}
@@ -209,7 +209,7 @@ func TestSparseFirstCallInterruptionAndRetry(t *testing.T){
   r:=&sxirrt.Rule{Seen:0}
   var first bool
   if err:=catchMemoFatal(func(){first=p.FirstCall(r)});err!=nil{t.Fatal("sparse directory growth stopped",err)}
-  if p.Units!=0{t.Fatalf("a first call that grows the sparse directory counts %d units, want none",p.Units)}
+  if p.UnitsNow()!=0{t.Fatalf("a first call that grows the sparse directory counts %d units, want none",p.UnitsNow())}
   if len(p.X_memo.X_seen)!=0{t.Fatal("sparse invocation allocated a dense table")}
   if !first || p.X_memo.X_calls[0].X_calls!=18 || p.FirstCall(r){t.Fatal("sparse first call or repeat detection changed")}
   if p.X_memo.X_pages[0].X_pages[0]!=retained || retained[0]!=7 || len(p.X_memo.X_seen)!=0{t.Fatal("sparse retry corrupted earlier pages or allocated dense storage")}

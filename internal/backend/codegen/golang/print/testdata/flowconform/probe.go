@@ -191,7 +191,7 @@ func confState(p any) (s confSnap) {
 	default:
 		panic(fmt.Sprintf("probe: parser %T", p))
 	}
-	s.counting, s.used = q.units.on, q.Units
+	s.counting, s.used = q.units.on, q.UnitsNow()
 	if q.Stream != nil && q.Stream.Emit != nil {
 		s.streaming = true
 		if confEmitting != q.Stream {
