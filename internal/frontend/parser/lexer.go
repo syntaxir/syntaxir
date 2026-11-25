@@ -536,12 +536,11 @@ func (l *lexer) skipSpace() (space, newline bool) {
 				l.advance()
 				l.advance()
 				depth := 1
-				l.checkLevels(len(l.delimiters)+depth, c.Pos)
 				for l.i < len(l.src) && depth > 0 {
 					switch {
 					case l.hasPrefix("/*"):
 						depth++
-						l.checkLevels(len(l.delimiters)+depth, l.pos())
+						l.checkLevels(depth, l.pos())
 						l.advance()
 						l.advance()
 					case l.hasPrefix("*/"):
@@ -794,10 +793,10 @@ func (l *lexer) minimumInteger() bool {
 // msgNestingTooDeep is the error of a source that nests deeper than maxLevels.
 const msgNestingTooDeep = "nesting too deep"
 
-// maxLevels is the deepest nesting of a source, as the language specification states it. The
-// recursion of both parsers is bounded much further down, so that this check, and not the
-// parsers, decides which sources nest too deep.
-const maxLevels = 500
+// maxLevels is the deepest nesting of a source, as the language specification states it, and
+// of the text of a valid AST. The recursion of both parsers is bounded much further down, so that
+// this check, and not the parsers, decides which sources nest too deep.
+const maxLevels = ast.MaxNestingLevels
 
 // level is a level of nesting that a token opens.
 type level uint8
@@ -813,16 +812,17 @@ const (
 func (k level) delimiter() bool { return k == levelDelimiter || k == levelBrace }
 
 // prefixTokens are the tokens that may be a prefix operator: of rule expressions, of values, of
-// types, and the ":" of a capture. Each opens a level wherever it stands; after an operand, the
-// level ends at the next one.
-var prefixTokens = map[string]bool{"!": true, "&": true, "-": true, "*": true, ":": true, "[]": true}
+// types, and the ":" of a capture, and the postfix "?" and "+", which nest their operand as a
+// prefix nests its own. Each opens a level wherever it stands; after an operand, the level ends at
+// the next one.
+var prefixTokens = map[string]bool{"!": true, "&": true, "-": true, "*": true, "+": true, "?": true, ":": true, "[]": true}
 
 // operandTokens are the punctuation that is an operand by itself.
 var operandTokens = map[string]bool{"$$": true, "$": true, "^^": true, "^": true, "_|_": true, "...": true, ".": true}
 
 // nest follows the levels of nesting that t opens and closes, and reports the first place where
-// more than maxLevels are open as "nesting too deep". A block comment opens a level inside the
-// brackets around it, and each comment nested in it one more. An operand ends
+// more than maxLevels are open as "nesting too deep". A block comment nests on its own count, one
+// level for the comment and one for each comment nested in it. An operand ends
 // the prefix operators before it once the next token shows that it is not the name of a capture.
 // Outside brackets, the end of a line ends every level; a "," or ";" ends the levels opened since
 // the innermost bracket, and so does the end of a line when that bracket is a brace: there a line

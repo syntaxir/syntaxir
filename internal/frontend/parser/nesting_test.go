@@ -35,16 +35,24 @@ var nestingFamilies = []struct {
 		func(n int) int { return 14 + 2*(n-2) + 1 }},
 	{"block comments", func(n int) string { return strings.Repeat("/*", n) + strings.Repeat("*/", n) + "\nrule a = x" },
 		func(n int) int { return 2 * (n - 1) }},
-	{"comment in parentheses", func(n int) string {
-		return "rule a = " + strings.Repeat("(", n-1) + "/* c */ x" + strings.Repeat(")", n-1)
-	}, func(n int) int { return 9 + n - 1 }},
+	{"block comments in parentheses", func(n int) string {
+		return "rule a = " + strings.Repeat("(", maxLevels) + strings.Repeat("/*", n) + strings.Repeat("*/", n) + " x" + strings.Repeat(")", maxLevels)
+	}, func(n int) int { return 9 + maxLevels + 2*(n-1) }},
+	{"options", func(n int) string { return "rule a = x" + strings.Repeat("?", n) },
+		func(n int) int { return 10 + n - 1 }},
+	{"repetitions", func(n int) string { return "rule a = x" + strings.Repeat("+", n) },
+		func(n int) int { return 10 + n - 1 }},
+	{"stars", func(n int) string { return "rule a = x" + strings.Repeat("*", n) },
+		func(n int) int { return 10 + n - 1 }},
 	{"lambdas on lines in a block", func(n int) string {
 		return "rule a = x => {\n f := (" + strings.Repeat("(y) =>\n", n-3) + "y)\n}"
 	}, func(n int) int { return 23 + 7*(n-4) }},
 }
 
-// flatFamilies make valid sources of n statements or items on lines of their own inside braces,
-// each with a "=>" that ends with its line, as a line break inside a brace ends a statement. Their nesting does not grow with n.
+// flatFamilies make valid sources whose nesting does not grow with n: n statements or items on
+// lines of their own inside braces, each with a "=>" that ends with its line, as a line break
+// inside a brace ends a statement, and runs of n operands, where the next operand ends the levels
+// that a postfix or binary operator opens.
 var flatFamilies = []struct {
 	name string
 	src  func(n int) string
@@ -55,10 +63,14 @@ var flatFamilies = []struct {
 	{"actioned items of an operator level", func(n int) string {
 		return "rule a = #operators {\n operand \"x\"\n level l {\n" + strings.Repeat("  infix left \"+\" => 1\n", n) + " }\n}"
 	}},
+	{"postfix operators in a sequence", func(n int) string { return "rule a = " + strings.Repeat("x? x+ x* ", n) }},
+	{"postfix operators in a choice", func(n int) string { return "rule a = x+" + strings.Repeat(" / x?", n) }},
+	{"sums", func(n int) string { return "rule a = x => " + strings.Repeat("1 + ", n) + "1" }},
 }
 
 // TestNestingEndsWithTheLine checks that a "=>" inside braces ends with the statement or item that
-// holds it when a line break ends that, so a flat block of any length is accepted.
+// holds it when a line break ends that, and that the next operand ends the levels of a postfix or
+// binary operator, so a flat source of any length is accepted.
 func TestNestingEndsWithTheLine(t *testing.T) {
 	for _, f := range flatFamilies {
 		for _, n := range []int{maxLevels - 1, maxLevels + 1, 4 * maxLevels} {

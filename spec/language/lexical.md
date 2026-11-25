@@ -241,9 +241,10 @@ strings and character classes:
 
 - An opening parenthesis, bracket or brace opens a level. Its closing
   delimiter ends it and every level opened after it.
-- Each `!`, `&`, `-`, `*`, `:` and `[]` opens a level, wherever it stands,
-  because each may be a prefix operator: of a rule expression, of a value, of
-  a type, or the `:` of a capture. The level ends at the first name, literal,
+- Each `!`, `&`, `-`, `*`, `+`, `?`, `:` and `[]` opens a level, wherever it
+  stands, because each may be a prefix operator: of a rule expression, of a
+  value, of a type, or the `:` of a capture; or a postfix `?`, `*` or `+` of a
+  rule expression, which nests its operand as a prefix operator does. The level ends at the first name, literal,
   character class, capture reference, `$$`, `$`, `^^`, `^`, `_|_`, `...`, `.`
   or closing delimiter after it, unless that is a name followed by `:`, which
   continues a chain of captures.
@@ -251,9 +252,10 @@ strings and character classes:
 - A `,` or `;` ends the levels opened after the innermost open bracket. So
   does a line break when no bracket is open or the innermost open bracket is a
   brace, where a line break ends a statement or item as `;` does.
-- A block comment nests one level deeper than the brackets open around it,
-  and each block comment nested in it one more; the levels of operators and
-  `=>` do not count for comments.
+- A block comment nests on a count of its own, apart from the brackets,
+  operators and `=>` around it: the comment is one level, and each block
+  comment nested in it one more.
 
-So `((x))`, `!!x`, `a:b:x`, `[][]T` and `(y) => (z) => y` each nest two
-levels.
+So `((x))`, `!!x`, `x??`, `x+*`, `a:b:x`, `[][]T`, `(y) => (z) => y` and
+`/* /* */ */` each nest two levels, while `x? y+ z*` and `1 + 2 + 3` nest one,
+as each operand ends the level of the operator before it.

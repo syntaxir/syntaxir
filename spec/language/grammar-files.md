@@ -701,16 +701,18 @@ formatting and returns the first `*ast.ValidationError` in a deterministic
 traversal, without changing the AST. `ast.ValidateContext(ctx, g)` performs the
 same checks in the same order and returns `ctx.Err()`, without a partial
 diagnostic, if it observes cancellation. Cancellation is cooperative and is not a
-bound on latency. Both functions walk iteratively, impose no size or depth limit,
-and MUST NOT run concurrently with a mutation of the AST.
+bound on latency. Both functions walk iteratively, impose no size limit, and MUST
+NOT run concurrently with a mutation of the AST.
 
 A `ValidationError` has a `Path` that uses JSON field names and zero-based indexes
 (`$.file.decls[0].expr.expr`), the closest known diagnostic position `Pos`, and a
 message `Msg`.
 
 Validation rejects every tree that grammar syntax cannot write: a node that has
-no spelling where it stands, or whose spelling there reads back as another node.
-So `grammar.Format` of a valid AST always parses.
+no spelling where it stands, or whose spelling there reads back as another node,
+and every tree whose text the reference parser does not read. So
+`grammar.Format` of a valid AST always parses, and the AST of every grammar
+that the parser reads is valid.
 
 | Rejected | Allowed |
 |:--|:--|
@@ -727,11 +729,14 @@ So `grammar.Format` of a valid AST always parses.
 | A `Block` other than the whole action of a rule, an inline action, a predicate, an operand or an operator line; a `Bind` other than a statement of a block or the action of a predicate | A block without statements |
 | A `CaptureRef` with `Param` set whose name is no parameter of an enclosing lambda; a `CaptureRef` without `Param`, or a `VarRef`, whose name is one | A call whose function is named like a parameter |
 | A field access whose name begins with a lowercase letter, except `startPos`, `endPos`, `children`, `expected` and `message` | A field name that begins with an uppercase letter; `$name`, which reads the capture `name` |
+| A declaration whose text, as `grammar.Format` writes it, nests deeper than `ast.MaxNestingLevels` (500) levels, counted as [Limits](lexical.md#limits) counts them, with the error `nesting too deep` | |
+| A comment string that `grammar.Format` writes as a block comment and that nests more than `ast.MaxNestingLevels` block comments, counting the comment and the pairs of `/*` and `*/` in the string, with the error `nesting too deep` | A comment string written as line comments, and the unpaired `/*` and `*/` that `grammar.Format` breaks apart |
 | A `Binary` operator other than `\|\|`, `&&`, `==`, `!=`, `<`, `<=`, `>`, `>=`, `+`, `-`, `*`, `/`, `%` and `[]` (an index); a `Unary` operator other than `-` and `!` | |
 
 Validation is structural. It does not resolve names, check the types of actions,
 validate attribute arguments or enforce the semantics of an Operators Rule;
-compilation does. It does not validate comments or layout. Compilation and the
+compilation does. It does not validate source layout, and checks comments only for
+their nesting. Compilation and the
 generators run structural validation themselves. `grammar.Format` and
 `ast.MarshalJSON` expect a structurally valid AST.
 

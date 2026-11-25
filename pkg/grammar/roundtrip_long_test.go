@@ -10,3 +10,7 @@ var roundTripRuns = []roundTripRun{
 	{name: "wide shallow", seed: 4, n: 60000, depth: 3, wide: true},
 	{name: "wide deep", seed: 5, n: 60000, depth: 6, wide: true},
 }
+
+// nestingAgreementRules is the number of random rule bodies whose level count
+// TestValidateNestingAgreesWithParser checks against the parser.
+const nestingAgreementRules = 60

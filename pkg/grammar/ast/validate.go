@@ -44,8 +44,11 @@ type validationFrame struct {
 // invalid. Shared subtrees are allowed. A collection may be empty where grammar
 // syntax writes it empty; Repeat.Max is -1 for an unbounded repetition. Source
 // layout is not checked. Name resolution, types, attribute arguments and
-// OperatorsRule semantics are checked by the compiler. Validation does not
-// impose a size or depth limit.
+// OperatorsRule semantics are checked by the compiler. The text of a valid AST,
+// as Format writes it, nests no deeper than MaxNestingLevels, and neither does a
+// comment string that Format writes as a block comment: the error of a deeper
+// one is "nesting too deep", as the reference parser reports for its text.
+// Validation imposes no size limit.
 func Validate(g *Grammar) error {
 	return validate(g, nil)
 }
@@ -113,6 +116,9 @@ type paramScope struct {
 	names map[string]bool
 }
 
+// astPackage is the import path of the package of the AST nodes.
+var astPackage = reflect.TypeFor[Grammar]().PkgPath()
+
 func validate(g *Grammar, control *validationControl) error {
 	stack := []validationFrame{{node: g, index: -1}}
 	var path []validationFrame
@@ -175,7 +181,7 @@ func validate(g *Grammar, control *validationControl) error {
 			// Only error paths inspect positions; successful validation does not
 			// reflect over fields or allocate a string for every visited node.
 			v := reflect.ValueOf(f.node)
-			if v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil() && v.Type().Elem().PkgPath() == reflect.TypeFor[Grammar]().PkgPath() {
+			if v.IsValid() && v.Kind() == reflect.Pointer && !v.IsNil() && v.Type().Elem().PkgPath() == astPackage {
 				if n, ok := f.node.(SourceNode); ok && n.Source().Diagnostic().IsValid() {
 					pos = n.Source().Diagnostic()
 				}
@@ -241,6 +247,11 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		if field, message := unwritable(f, parent, grandparent, inScope); message != "" {
 			return fail(field, message)
+		}
+		if v.Type().Elem().PkgPath() != astPackage {
+			// A node of another package is unsupported; the switch below reports it.
+		} else if field := tooDeepComment(f.node, control); field != "" {
+			return fail(field, msgNestingTooDeep)
 		}
 		// Leaf nodes need no cycle tracking. Non-leaf nodes stay active until
 		// their exit frame, distinguishing a pointer cycle from a shared child.
@@ -522,6 +533,14 @@ func validate(g *Grammar, control *validationControl) error {
 		default:
 			return fail("", fmt.Sprintf("unsupported node %T", n))
 		}
+	}
+	// The text of a valid AST nests no deeper than the reference parser reads.
+	if path, node := tooDeepDecl(g, control); path != "" {
+		var pos Pos
+		if node != nil && node.Source().Diagnostic().IsValid() {
+			pos = node.Source().Diagnostic()
+		}
+		return &ValidationError{Path: path, Pos: pos, Msg: msgNestingTooDeep}
 	}
 	return nil
 }

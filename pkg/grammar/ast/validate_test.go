@@ -196,10 +196,11 @@ func TestValidateCompatibility(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	// Validation is iterative, independent of nesting depth.
+	// Validation is iterative, independent of nesting depth. A chain of pragmas
+	// nests deep in the tree and opens no levels in its text.
 	var expr Expr = &Top{}
-	for i := 0; i < 50000; i++ {
-		expr = &Optional{Expr: expr}
+	for i := 0; i < 49000; i++ {
+		expr = &Atomic{Expr: expr}
 	}
 	if err := Validate(expressionGrammar(expr)); err != nil {
 		t.Fatal(err)
