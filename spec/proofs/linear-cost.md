@@ -38,8 +38,7 @@ parse that walks one of these is covered with that repetition among the
 sources without records, and so with the open parts of the count of Lemma 4
 for it.
 
-Lemmas 1, 3, 7, 8, 9 and 14 are proved, Lemma 11 apart from *Values of
-variables* (step 5 of [Open Steps](#open-steps)), Lemma 16 given the theorems of
+Lemmas 1, 3, 7, 8, 9, 11 and 14 are proved, Lemma 16 given the theorems of
 the [Memoization](memoization.md) and [Documents](documents.md) proofs, and
 Lemmas 2 and 10, which rest for the places inside an Operators Rule on the
 proved claims *Operators Rules* and *Tries at one position* of Lemma 4.
@@ -12904,17 +12903,82 @@ evaluation of the route goes to an evaluation that it is nested in, and the
 evaluation of the route nested in the fewest others, its **top**, has all the
 others nested in it.
 
+*Every route.* The moves above are every way in which a value that one
+evaluation builds reaches another evaluation that reads it. A value is read
+only by an action expression, a predicate or a binding included
+([Variable References](../language/actions.md#variable-references)), through
+a capture `$label`, the capture `x.$label` of a node, a variable, a lambda
+parameter, or `$lhs`, `$rhs`, `$op` and `$value` of an Operators Rule
+([Value Actions](../language/operators-rule.md#value-actions)); the rest of
+the parse reads no value, since matching, backtracking, recovery and the
+recorded expectations do not depend on values other than through predicates
+([Predicate Actions](../language/predicates.md#predicate-actions)), whose
+tests decide success and pass on nothing, and an error in an action ends
+the parse ([Types and Errors](../language/actions.md#types-and-errors)). So it suffices to follow what
+each of these reads.
+
+1. A lambda parameter, a fold accumulator and a component that `x.$label`,
+   a field access or a cast reads stay inside one evaluation of an action
+   expression: they are moves inside it.
+2. A capture reads the value of its expression in its own scope, a rule body
+   or one iteration of a repetition
+   ([Capture](../language/parser-expressions.md#capture)), and that value is
+   built by the parse from the values of the parts of the expression
+   ([Values and the Concrete Syntax
+   Tree](../language/parser-expressions.md#values-and-the-concrete-syntax-tree)):
+   a string node of matched text, a leaf; the tuple of a sequence, the list
+   of a repetition, the value of a choice, an option or a capture, each
+   holding the values of its parts unchanged as elements or as itself; and
+   the value of a rule call, an inline action included, which is a call of
+   its hidden rule ([Inline Value
+   Actions](../language/actions.md#inline-value-actions)). A hidden rule
+   without an action gives its elements to the caller's tuple, which is its
+   value, and its captures end with it
+   ([Hidden Rules](../language/actions.md#hidden-rules)). A capture in a
+   positive lookahead keeps its value beside the tuple of its scope. So what a
+   capture carries from another evaluation comes up through the values of
+   the calls inside its expression, which is the move into the value of a
+   rule; everything else in it is built in the same evaluation of the rule.
+   No capture is visible in a called rule, nor in another iteration of the
+   repetition whose iteration holds it, nor outside the inline action or
+   rule that makes it, so a capture carries nothing down into a call or into
+   a later iteration. The value of a `#recover` or a `#missing` that
+   recovers, and the expressions that suppress construction, `a #atomic`
+   and `-a`, make a node or no value, leaves.
+3. A variable reads the nearest binding in effect, or the initial value, a
+   leaf ([Variables](../language/predicates.md#variables)): the move through
+   a binding and the reads of its variable.
+4. `$lhs`, `$rhs`, `$op` and `$value` read, inside one evaluation of an
+   Operators Rule, the value built so far, the value of a right operand, the
+   value of the operator part of the same application and the folded value.
+   The value of an application without an action is built by the parse from
+   those values unchanged; `$op` and the captures of an operator part are
+   those of its own application, as captures in its scope. These are the
+   moves inside one evaluation of an Operators Rule.
+
+The values that a parse keeps and reuses, in its memo, its growths, its
+records and a Document, are those that evaluations would build, as the proof
+takes them to be. A `#stream` repetition hands its elements to the caller
+and keeps them out of its list
+([`#stream`](../language/pragmas.md#stream)), so they reach no later
+evaluation, and the level of a [level-restricted
+call](../language/operators-rule.md#level-restricted-calls) is a level name
+written in the grammar. So *Feedback* below, which follows the moves above, follows
+every route.
+
 *Reads.* Condition 1 follows a graph with an edge from each variable to the
 **variables of the action expression** of each of its bindings: the variables that the action expression
-of the binding reads, and those that the rules of the captures it reads read,
-directly or through their callees. If the evaluation of an action expression reads a value
+of the binding reads, and those that the rules called in the expressions of
+the captures it reads read, directly or through their callees. If the evaluation of an action expression reads a value
 built from the value of a call $C$, or from a value that a binding of a variable
 $y$ bound, then the variables that the rule of $C$ reads, or $y$, lie in
 the variables of the action expression or are reached from them in the graph, and for a
 action expression that reads `$lhs`, `$rhs` or `$value`, in the variables that the rule of
 the action expression reads or reached from them. By induction on the order of evaluation:
-the value enters the evaluation of the action expression through a capture, whose rule reads
-every variable that the evaluations nested in its call read; through a read of
+the value enters the evaluation of the action expression through a capture,
+whose value comes from other evaluations only through the calls in its
+expression (*Every route*), and the rule of each of those calls reads every
+variable that the evaluations nested in it read; through a read of
 a variable $z$, whose value a binding of $z$ built from what its own action expression read;
 or through `$lhs`, `$rhs` or `$value`, whose value the actions of the parts of
 the same evaluation of the rule built from their captures and the variables
@@ -14098,8 +14162,7 @@ names a definition or condition of the specification and the lemmas that use it.
   calls, in a cycle with more than one leader: Lemma 5, *Plain reads*.
 - Condition 1 (Variables), with the bindings that bind a value that the input
   determines, which give the class Linear given an environment bound: Lemma 3
-  through $K$, and *Values of variables* in Lemma 11, which step 5 of
-  [Open Steps](#open-steps) leaves open. The variables with
+  through $K$, and *Values of variables* in Lemma 11. The variables with
   finite values and the guards of bindings: Lemma 8.
 - Condition 4 (Copies), with the copying operations, string values and nodes
   for `len`, bounded lists, calls on a recursion, `$lhs`, `$rhs` and
@@ -14137,8 +14200,9 @@ A new condition enters the proof in one of two ways.
 
 ## Open Steps
 
-The outlines leave steps 1 and 3 to 6 to be made precise, step 2 lists what
-Lemma 5 proves of the continuations of growing units, step 7 is the part of the
+The outlines leave steps 1, 3, 4 and 6 to be made precise, step 2 lists what
+Lemma 5 proves of the continuations of growing units, step 5 states how
+Lemma 11 bounds the values of variables, step 7 is the part of the
 condition of the cost view that the [Cost View](cost-view.md) proof leaves open,
 and step 8 lists what the records leave.
 
@@ -14683,8 +14747,8 @@ theorem covers such a parse.
    the pair lies in one step of the innermost growth that contains it, and
    the count charges it to the earlier activation as it does the first kind
    of *Repeats inside a family*.
-5. **Values of variables in Lemma 11.** *Values of variables* in Lemma 11
-   argues the bound $L = O(n)$ that
+5. **Values of variables in Lemma 11.** Proved. *Values of variables* in
+   Lemma 11 proves the bound $L = O(n)$ that
    [Classification](../runtime/parsing.md#classification) states, which the
    theorem does not use. It does not bound the number of times that a binding
    occurs in a chain of bindings, which no condition bounds: in
@@ -14694,9 +14758,9 @@ theorem covers such a parse.
    evaluation of the same copy passes a binding that reads its variable's own
    earlier value, which condition 1 confines, or copies the value of a call on
    a recursion, or `$lhs`, `$rhs` or `$value` of an Operators Rule, which
-   condition 4 excludes. The step must confirm that *Moves* lists every route
-   by which a value reaches a later evaluation, so that *Feedback* covers
-   them all.
+   condition 4 excludes. *Every route* there shows that *Moves* lists every
+   route by which a value reaches a later evaluation, so that *Feedback*
+   covers them all.
 6. **What a Document parse moves in Lemma 12.** The bound of Lemma 12 is in
    terms of $W$, $B$, $G$ and $Q$, which depend on the history of the Document.
    *Over a sequence of parses* removes the total retained size $W$: over the
