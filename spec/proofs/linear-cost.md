@@ -2645,7 +2645,7 @@ $\pi_l$ and $\rho_l$ be as in *Leaf links after other shared calls* for a
 link $l$ that leaves frames; $Y_l$ contains $w_l$, so it starts at $\tau$ or
 before. The link is **outer** when $Y_l$ starts before $\tau$.
 
-*No return before $\tau$.* From the end of $w_l$ to the start of $\alpha_l$
+*No return before the start of the units.* From the end of $w_l$ to the start of $\alpha_l$
 the parser starts no evaluation before $\tau$. The proof of *Growths around a
 leaf link* shows this with $\tau$ in place of the start $p$ of the unit there:
 a step on the path from $N_l$ down to $w_l$ of a growth around $w_l$ that
@@ -2667,7 +2667,7 @@ inside it, and from the start of $w_i$ to $e'_k$ the parser is inside a unit
 or between the end of $w_l$ and the start of $e'_l$ for some $l$, since $e'_l$
 lies in $w_{l+1}$. A link that leaves a frame of $C_<$ is outer.
 
-*Outer links end at $\tau$.* Let $l < k$ be outer. If $w_{l+1}$ enclosed
+*Outer links end at the start of the units.* Let $l < k$ be outer. If $w_{l+1}$ enclosed
 $w_l$, it would contain $Y_l$, since both contain $w_l$ and $Y_l$ ends before
 $e'_l$, which $w_{l+1}$ contains, and it would start before $\tau$. So
 $w_{l+1}$ starts after $w_l$ ends and before $\alpha_l$, at $\tau$. Until
