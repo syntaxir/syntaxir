@@ -182,6 +182,7 @@ are not committed: any commit regenerates its own.
 | Memo hits | `memo-hits`, `memo-hit-permille`, `evaluations-per-byte-milli <workload>` | Calls answered by the memo, their share of the calls, and evaluations per byte | info |
 | Doubling ratio | `doubling-units`, `doubling-allocs <subject>` | The cost at the full input over the cost at half of it, scaled to an exact doubling of the length, for the units on the engine and the allocations of the generated parser; and, for each control of known growth in `internal/testing/complexitytest` (exponential ones left out), the cost ratio between the last two sizes of its series | exact, with a ceiling |
 | Sizes | `size <parser> <kind>` | The generated Go `parser.go`, a stripped binary that calls `ParseValue`, the library copy of `-lib embed` and its binary, the TypeScript `parser.ts` and `lib.ts`, raw and gzip -9, for the grammars of `testdata/grammars` (the same figures as `bench/results-size.txt`); and the playground's WebAssembly binary (`size playground wasm-raw`, `wasm-gzip`) | exact |
+| Compiler scaling | `compile-allocs`, `compile-alloc-bytes`, `compile-pass-runs synthetic-<series> n=<n>`; `compile-doubling-allocs`, `compile-doubling-pass-runs synthetic-<series>` | The allocations of the generation of a Go parser and its pass work (the runs of the pass instances), for seeded synthetic grammars (`internal/bench/synth`) at n, 2n and 4n of one dimension: rules, alternatives per rule, or the nesting depth of groups, with every fourth rule left-recursive; and the doubling ratio of the increments, (c(4n) − c(2n)) / (c(2n) − c(n)), which the compiler's fixed cost does not dilute. Passes run once per rule, so only the rules series has a pass-run ratio | 0.001% of the objects and 0.3% of the bytes; pass runs exact; ratios exact with a ceiling |
 | Generation determinism | `determinism <grammar> go\|ts` | 1 if two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, are byte-identical | equal |
 | Input size | `input <workload> bytes` | The length of the workload's input; when it changes, every other metric of the workload changes with it | equal |
 
@@ -199,8 +200,12 @@ several measurements after the warm parses is the count of the parse alone. One 
 machine: the per-P arrays of a `sync.Pool`, which a parse allocates again once the collections have emptied its pools,
 are as long as `GOMAXPROCS`.
 
-Every metric was identical across six A/A runs, each in its own process, and is exact. A metric that starts to vary is
-a regression of determinism: find the cause before adding a tolerance.
+The compiler's allocations vary between processes for another reason, which taking the least does not remove: the
+compiler fills maps large enough that the runtime splits their tables, at points that depend on the random hash seed
+of each map, so a run allocates a few more or fewer tables than another. They carry a relative tolerance, written
+`lower~N%`, of the largest spread of twelve A/A runs (each in its own process) rounded up. Every other metric was
+identical across the six A/A runs of the measurement as it stands, and is exact. A metric that starts to vary is a
+regression of determinism: find the cause before adding a tolerance.
 
 ### Generation and Compile Time
 

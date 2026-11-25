@@ -15,9 +15,13 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
+	"syntaxir.dev/sxir/internal/backend/codegen/golang/libsrc"
 	"syntaxir.dev/sxir/internal/bench/metrics"
+	"syntaxir.dev/sxir/internal/bench/synth"
+	"syntaxir.dev/sxir/internal/driver"
 	gensrc "syntaxir.dev/sxir/internal/driver/generate"
 	"syntaxir.dev/sxir/internal/frontend/parser"
+	"syntaxir.dev/sxir/internal/pass/pipe"
 	"syntaxir.dev/sxir/internal/runtime/engine"
 	"syntaxir.dev/sxir/internal/runtime/state"
 	"syntaxir.dev/sxir/internal/testing/complexitytest"
@@ -30,7 +34,8 @@ import (
 // The deterministic metrics of the workloads, which go run ./bench/metrics collects through
 // TestMetrics (docs/performance.md, "Deterministic metrics"). Every metric is a count that is the
 // same on every run of a commit with one Go release and target: compute units, allocations with the
-// collector off (leastAllocs), the profile's evaluations and memo hits, and ratios of these counts.
+// collector off (leastAllocs), the profile's evaluations and memo hits, the allocations and pass
+// work of the compiler on synthetic grammars, and ratios of these counts.
 
 var metricsOut = flag.String("metrics.out", "", "write the metrics of TestMetrics to this file (go run ./bench/metrics runs it)")
 
@@ -102,6 +107,7 @@ func TestMetrics(t *testing.T) {
 	}
 	ms = append(ms, tsUnits(t)...)
 	ms = append(ms, controlMetrics(t)...)
+	ms = append(ms, compilerMetrics(t)...)
 	f, err := os.Create(*metricsOut)
 	if err != nil {
 		t.Fatal(err)
@@ -345,4 +351,80 @@ func controlMetrics(t *testing.T) []metrics.Metric {
 			metrics.New(metrics.Ratio(al, as), ceiling(limit), "doubling-allocs", key, "engine-closure"))
 	}
 	return ms
+}
+
+// compilerShapes are the series of synthetic grammars whose compilation compilerMetrics measures:
+// each doubles one dimension of a shape (package synth) from n to 2n and to 4n.
+var compilerShapes = []struct {
+	name  string
+	n     int
+	shape func(n int) synth.Shape
+}{
+	{"rules", 40, func(n int) synth.Shape { return synth.Shape{Rules: n, Alts: 4, Depth: 2, LeftRecursion: 4, Seed: 1} }},
+	{"alternatives", 6, func(n int) synth.Shape { return synth.Shape{Rules: 16, Alts: n, Depth: 2, LeftRecursion: 4, Seed: 2} }},
+	{"depth", 6, func(n int) synth.Shape { return synth.Shape{Rules: 16, Alts: 4, Depth: n, LeftRecursion: 4, Seed: 3} }},
+}
+
+// compilerMetrics returns, for each series of compilerShapes, the allocations and the pass work
+// (the runs of the pass instances, pipe.Stats) of the generation of a Go parser at n, 2n and 4n,
+// and the doubling ratio of each between the increments: (c(4n) - c(2n)) / (c(2n) - c(n)), which a
+// cost that the compiler pays once whatever the grammar does not dilute. A linear compiler has a
+// ratio of 2 and the same ceiling as a linear parse.
+func compilerMetrics(t *testing.T) []metrics.Metric {
+	var ms []metrics.Metric
+	for _, c := range compilerShapes {
+		key := "synthetic-" + c.name
+		var objects, bytes, runs [3]uint64
+		for i := range 3 {
+			n := c.n << i
+			src := synth.Grammar(c.shape(n))
+			g, err := parser.Parse(src)
+			if err != nil {
+				t.Fatalf("%s n=%d: %v", key, n, err)
+			}
+			generate := func(x driver.Options) {
+				if _, err := gensrc.GoWith(driver.CheckForGenerator, g, common.GenOptions{Module: "example.com/synth", LibGo: libsrc.FS}, x, nil); err != nil {
+					t.Fatalf("%s n=%d: %v", key, n, err)
+				}
+			}
+			objects[i], bytes[i] = leastAllocs(0, func() { generate(driver.Options{}) })
+			stats := pipe.NewStats()
+			generate(driver.Options{Observers: []pipe.Observer{stats}})
+			for _, st := range stats.Instances() {
+				runs[i] += uint64(st.Runs)
+			}
+			size := fmt.Sprintf("n=%d", n)
+			ms = append(ms,
+				metrics.New(int64(len(src)), same, "input", key, size, "bytes"),
+				metrics.New(int64(objects[i]), compileAllocsPolicy, "compile-allocs", key, size),
+				metrics.New(int64(bytes[i]), compileAllocBytesPolicy, "compile-alloc-bytes", key, size),
+				metrics.New(int64(runs[i]), exact, "compile-pass-runs", key, size))
+		}
+		ms = append(ms, metrics.New(incrementRatio(objects), ceiling(linearDoublingMax), "compile-doubling-allocs", key))
+		if runs[1] > runs[0] {
+			// The passes run once per rule, so only a series that adds rules adds runs.
+			ms = append(ms, metrics.New(incrementRatio(runs), ceiling(linearDoublingMax), "compile-doubling-pass-runs", key))
+		}
+	}
+	return ms
+}
+
+// The allocations of a compilation vary between runs, and leastAllocs does not remove the variation:
+// the compiler fills maps large enough that the runtime splits their tables, at points that depend
+// on the random hash seed of each map, so a run allocates a few more or fewer tables, and their
+// groups, than another. A memory profile of six compilations of one grammar in one process showed
+// no other allocation that varied. Twelve A/A runs, each in its own process, varied by at most
+// 0.0005% of the objects and 0.205% of the bytes; the tolerances are those spreads rounded up. The
+// doubling ratios did not vary and are exact.
+var (
+	compileAllocsPolicy     = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.001}
+	compileAllocBytesPolicy = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.3}
+)
+
+// incrementRatio returns (c[2] - c[1]) / (c[1] - c[0]) in thousandths, 0 for counts that do not grow.
+func incrementRatio(c [3]uint64) int64 {
+	if c[2] < c[1] || c[1] <= c[0] {
+		return 0
+	}
+	return metrics.Ratio(c[2]-c[1], c[1]-c[0])
 }
