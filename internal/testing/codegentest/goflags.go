@@ -1,6 +1,7 @@
 package codegentest
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -84,13 +85,16 @@ func SetGoCache() (remove func()) {
 		panic(err)
 	}
 	reapCaches(root)
-	dir, err := os.MkdirTemp(root, "c-")
-	if err != nil {
-		panic(err)
-	}
-	lock, err := holdLock(filepath.Join(dir, lockName))
-	if err != nil {
-		panic(err)
+	var dir string
+	var lock *os.File
+	for attempt := 0; ; attempt++ {
+		var err error
+		if dir, lock, err = newCache(root); err == nil {
+			break
+		}
+		if attempt == cacheAttempts {
+			panic(err)
+		}
 	}
 	heldLocks = append(heldLocks, lock) // a collected file would close and so release its lock
 	os.Setenv("GOCACHE", filepath.Join(dir, "cache"))
@@ -102,6 +106,45 @@ func SetGoCache() (remove func()) {
 
 // heldLocks are the lock files of the caches of this process.
 var heldLocks []*os.File
+
+// cacheAttempts is how many times SetGoCache retries with a fresh directory when a reaper of another
+// process takes the one it made.
+const cacheAttempts = 5
+
+// betweenCreateAndLock, if not nil, runs in newCache after the lock file exists and before it is locked,
+// which is where a reaper of another process can take the new directory. It is for the test of that race.
+var betweenCreateAndLock func()
+
+// newCache makes a cache directory under root and locks its lock file. A reaper that runs between the
+// creation of the lock file and its lock takes the lock and removes the directory, so the lock is
+// accepted only if it is on the file that the directory still holds; otherwise newCache fails and the
+// caller makes another directory.
+func newCache(root string) (dir string, lock *os.File, err error) {
+	dir, err = os.MkdirTemp(root, "c-")
+	if err != nil {
+		return "", nil, err
+	}
+	path := filepath.Join(dir, lockName)
+	f, err := openLock(path, true)
+	if err != nil {
+		return "", nil, err
+	}
+	if betweenCreateAndLock != nil {
+		betweenCreateAndLock()
+	}
+	if err := tryLock(f); err != nil {
+		f.Close() // the reaper that holds the lock removes the directory
+		return "", nil, err
+	}
+	held, err1 := f.Stat()
+	onDisk, err2 := os.Stat(path)
+	if err1 != nil || err2 != nil || !os.SameFile(held, onDisk) {
+		f.Close()
+		os.RemoveAll(dir)
+		return "", nil, errors.New("the cache directory was removed while it was made")
+	}
+	return dir, f, nil
+}
 
 // cacheRoot is the directory, in the temporary directory, that holds the build caches of the test
 // processes, and lockName the file in each of them that its process locks.
@@ -129,7 +172,11 @@ func reapCaches(root string) {
 			}
 			continue
 		}
-		if f, err := holdLock(lock); err == nil {
+		if f, err := openLock(lock, false); err == nil {
+			if tryLock(f) != nil {
+				f.Close()
+				continue
+			}
 			os.RemoveAll(dir)
 			f.Close()
 		}

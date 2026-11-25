@@ -1,4 +1,4 @@
-//go:build unix
+//go:build darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd
 
 package codegentest
 
@@ -76,5 +76,43 @@ func TestSetGoCacheReapsKilledProcesses(t *testing.T) {
 	}
 	if _, err := os.Stat(liveCache); err != nil {
 		t.Errorf("cache of the running process was removed: %v", err)
+	}
+}
+
+// TestSetGoCacheSurvivesAReaperBetweenCreateAndLock drives the race of a reaper that runs after a new
+// cache's lock file exists and before it is locked: the reaper takes the lock and removes the
+// directory, so SetGoCache must notice and make another one, whose lock file the next reaper respects.
+func TestSetGoCacheSurvivesAReaperBetweenCreateAndLock(t *testing.T) {
+	tmp := t.TempDir()
+	t.Setenv("TMPDIR", tmp)
+	t.Setenv("GOCACHE", "")
+	root := filepath.Join(tmp, cacheRoot)
+	calls := 0
+	betweenCreateAndLock = func() {
+		calls++
+		if calls == 1 {
+			reapCaches(root)
+		}
+	}
+	defer func() { betweenCreateAndLock = nil }()
+	remove := SetGoCache()
+	defer remove()
+	if calls < 2 {
+		t.Fatalf("the cache was made in %d attempt, want a retry after the reaper took the first directory", calls)
+	}
+	cache := os.Getenv("GOCACHE")
+	lock := filepath.Join(filepath.Dir(cache), lockName)
+	if _, err := os.Stat(lock); err != nil {
+		t.Fatalf("the cache directory has no lock file: %v", err)
+	}
+	os.MkdirAll(cache, 0o755) // what the go command does
+	betweenCreateAndLock = nil
+	reapCaches(root)
+	if _, err := os.Stat(cache); err != nil {
+		t.Errorf("a reap removed the cache of the running process: %v", err)
+	}
+	entries, _ := os.ReadDir(root)
+	if len(entries) != 1 {
+		t.Errorf("%d directories under the cache root, want only the cache of this process", len(entries))
 	}
 }

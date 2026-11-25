@@ -1,14 +1,21 @@
-//go:build !unix
+//go:build !(darwin || dragonfly || freebsd || illumos || linux || netbsd || openbsd)
 
 package codegentest
 
 import "os"
 
-// locksWork tells whether holdLock excludes other processes.
+// locksWork tells whether tryLock excludes other processes. Without file locks, caches of ended
+// processes are not told from running ones, so reapCaches removes none.
 const locksWork = false
 
-// holdLock creates the file at path and returns it; without file locks, caches of ended processes
-// are not told from running ones, so reapCaches finds none to remove.
-func holdLock(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_CREATE|os.O_RDWR, 0o644)
+// openLock opens the lock file at path, creating it if create is set.
+func openLock(path string, create bool) (*os.File, error) {
+	flag := os.O_RDWR
+	if create {
+		flag |= os.O_CREATE
+	}
+	return os.OpenFile(path, flag, 0o644)
 }
+
+// tryLock does not lock.
+func tryLock(*os.File) error { return nil }
