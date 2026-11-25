@@ -28,7 +28,11 @@
 # be signalled again: TERM, INT or HUP, even one that arrives while the command starts, signals
 # the group, waits for it, frees the slot and exits 143. The command runs as a background job,
 # so its standard input is /dev/null, not the terminal: a queued command must not read it.
-# State: $SXIR_AGENT_STATE/slots, testslot-stalls.log.
+# A claim waits while a measurement window is open (benchwindow.sh) and while an exclusive
+# benchlock.sh job holds the lock or is the first job of the queue: a timed run has the machine
+# alone, and the claims queued meanwhile go on when it ends. The commands that hold slots when the
+# window opens run to their end; the exclusive job waits for them (benchlock.sh).
+# State: $SXIR_AGENT_STATE/slots, testslot-stalls.log, and window and runs/ beside it.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -66,27 +70,8 @@ on_term() {
 }
 trap on_term TERM INT HUP
 
-# holder_alive PID START: PID is the holder. START is empty for an old holder.
-holder_alive() {
-  kill -0 "$1" 2>/dev/null || return 1
-  [ -z "${2:-}" ] || [ "$(sxir_lstart "$1")" = "$2" ]
-}
-# slot_dead DIR: the holder of the slot is gone. A claimer writes its pid right after it makes
-# the slot, inside the claim, so a slot without a pid that is older than a minute was left by a
-# claimer that was killed between the two.
-slot_dead() {
-  local p st rec
-  p=$(cat "$1/pid" 2>/dev/null || true)
-  if [ -z "$p" ]; then
-    [ -n "$(find "$1" -maxdepth 0 -mmin +1 2>/dev/null)" ]
-    return
-  fi
-  st=
-  rec=$(cat "$1.start" 2>/dev/null || true)
-  # The start file counts only when it was written by that pid.
-  if [ "${rec%% *}" = "$p" ] && [ "$rec" != "$p" ]; then st=${rec#* }; fi
-  ! holder_alive "$p" "$st"
-}
+holder_alive() { sxir_holder_alive "$@"; }
+slot_dead() { sxir_slot_dead "$@"; }
 # mutex_stale: under the flock, the .mutex directory has no live owner.
 mutex_stale() {
   local rec
@@ -134,6 +119,8 @@ try_flock() {
 claim_once() {
   exec 9>> "$D/.lock"
   try_flock || { exec 9>&-; return 1; }
+  # A measurement window or a first exclusive job holds every claim, ranked or not.
+  if sxir_window_live || sxir_exclusive_first; then exec 9>&-; return 1; fi
   # Ranking applies to the waiters of this version: a waiter that is not first leaves a free slot
   # to the first, and counts how long it has seen one free (see the backstop in the header).
   if [ "$free" -lt "$stall" ] && ! first_waiter; then

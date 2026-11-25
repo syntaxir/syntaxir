@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
@@ -521,7 +522,8 @@ func mainScripts(t *testing.T) string {
 // and then runs its 2 seconds: on a loaded machine the copies that a queue admits together can start
 // seconds apart, and a fixed run would end before the next one starts, so that copies the queue let
 // run at once would look serialized. The rendezvous only waits: copies that the queue keeps apart
-// still never run at once, and more copies than N that it lets in still show in the counts.
+// still never run at once, and more copies than N that it lets in still show in the counts. With
+// WORK_HOLD=FILE it then waits until FILE exists, so that a test decides when it ends.
 func overlapWork(t *testing.T) (work, run string) {
 	t.Helper()
 	run = t.TempDir()
@@ -534,6 +536,7 @@ if [ -n "${WORK_RENDEZVOUS:-}" ]; then
 	while [ "$(ls "$1" | grep -c '^live\.')" -lt "$WORK_RENDEZVOUS" ] && [ "$n" -lt 600 ]; do n=$((n + 1)); sleep 0.1; done
 fi
 sleep "${3:-2}"
+while [ -n "${WORK_HOLD:-}" ] && [ ! -e "$WORK_HOLD" ]; do sleep 0.05; done
 ls "$1" | grep -c '^live\.' >> "$1/counts"
 rm -f "$1/live.$$"
 echo "end ${2:-}" >> "$1/events"
@@ -1097,4 +1100,291 @@ func TestQueueStatusListsSlotWaiters(t *testing.T) {
 		}
 	}
 	waitOverlap(t, "status", run, 2, holder, c)
+}
+
+// writeWindow writes a measurement window record into the state directory, ending at until.
+func writeWindow(t *testing.T, state string, until time.Time) {
+	t.Helper()
+	write(t, filepath.Join(state, "window"),
+		fmt.Sprintf("id=w-test owner=test start=%d until=%d reason=a test window until=99999999999\n",
+			time.Now().Unix(), until.Unix()), 0o644)
+}
+
+// noneStarted fails when a work command starts within the time.
+func noneStarted(t *testing.T, what, run string, d time.Duration) {
+	t.Helper()
+	for begin := time.Now(); time.Since(begin) < d; time.Sleep(50 * time.Millisecond) {
+		if m, _ := filepath.Glob(filepath.Join(run, "live.*")); len(m) > 0 {
+			t.Fatalf("%s: the command started", what)
+		}
+	}
+}
+
+// An open measurement window holds back a test slot claim, which goes on once the window closes; a
+// shared benchlock.sh job waits for it alike. The until= inside the reason is free text and not read.
+func TestQueueScriptsWaitForAnOpenWindow(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	for _, name := range []string{"testslot.sh", "benchlock.sh"} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1", "BENCHLOCK_CLASS=shared")
+		writeWindow(t, state, time.Now().Add(time.Hour))
+		work, run := overlapWork(t)
+		args := []string{scriptPath(t, name)}
+		if name == "benchlock.sh" {
+			args = append(args, "shared-job")
+		}
+		cmd := exec.Command("bash", append(args, work, run, "job", "0")...)
+		cmd.Env = env
+		if err := cmd.Start(); err != nil {
+			t.Fatal(err)
+		}
+		noneStarted(t, name+" under an open window", run, 4*time.Second)
+		if err := os.Remove(filepath.Join(state, "window")); err != nil {
+			t.Fatal(err)
+		}
+		waitConcurrency(t, name+" after the window closed", run, 1, 1, cmd)
+	}
+}
+
+// A window past its until= does not hold a claim back: the claimer moves it aside and logs that.
+func TestTestslotIgnoresAnExpiredWindow(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	writeWindow(t, state, time.Now().Add(-time.Minute))
+	work, run := overlapWork(t)
+	h := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "job", "0")
+	waitConcurrency(t, "testslot.sh beside an expired window", run, 1, 1, h)
+	if _, err := os.Stat(filepath.Join(state, "window")); !os.IsNotExist(err) {
+		t.Errorf("the expired window is still in place: %v", err)
+	}
+	if b, _ := os.ReadFile(filepath.Join(state, "window.log")); !strings.Contains(string(b), "expired") {
+		t.Errorf("window.log does not log the expiry: %q", b)
+	}
+}
+
+// An exclusive benchlock.sh job starts only after the live test slot holders have finished, and it
+// runs its command with SXIR_BENCHLOCK naming the lock's owner.
+func TestBenchlockExclusiveWaitsForTestSlots(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	work, run := overlapWork(t)
+	slot := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "slot", "4")
+	owner := filepath.Join(run, "owner")
+	x := exec.Command("bash", scriptPath(t, "benchlock.sh"), "timed", "bash", "-c",
+		`echo "$SXIR_BENCHLOCK" > "$1"; cat "$2/benchlock/owner" >> "$1"; exec "$3" "$4" timed 0`, "_", owner, state, work, run)
+	x.Env = env
+	if err := x.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitOverlap(t, "an exclusive job beside a test slot", run, 2, slot, x)
+	if ev := events(t, run); !before(ev, "end slot", "start timed") {
+		t.Errorf("the exclusive job started before the test slot ended: %q", ev)
+	}
+	b, err := os.ReadFile(owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+	if len(lines) != 2 || !strings.HasPrefix(lines[0], "timed ") || lines[0] != lines[1] {
+		t.Errorf("SXIR_BENCHLOCK and benchlock/owner: %q, want the same \"timed <pid>\"", lines)
+	}
+}
+
+// startScript starts a queue script with its own environment and returns it without waiting.
+func startScript(t *testing.T, env []string, args ...string) *exec.Cmd {
+	t.Helper()
+	cmd := exec.Command("bash", args...)
+	cmd.Env = env
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = cmd.Process.Kill() })
+	return cmd
+}
+
+// waitEvent returns once the work commands have logged the event.
+func waitEvent(t *testing.T, run, event string) {
+	t.Helper()
+	for begin := time.Now(); time.Since(begin) < 30*time.Second; time.Sleep(20 * time.Millisecond) {
+		b, _ := os.ReadFile(filepath.Join(run, "events"))
+		if slices.Contains(strings.Split(strings.TrimSpace(string(b)), "\n"), event) {
+			return
+		}
+	}
+	t.Fatalf("no event %q", event)
+}
+
+// waitRuns returns once benchlock.sh has recorded n jobs in runs/.
+func waitRuns(t *testing.T, state string, n int) {
+	t.Helper()
+	for begin := time.Now(); time.Since(begin) < 20*time.Second; time.Sleep(20 * time.Millisecond) {
+		if m, _ := filepath.Glob(filepath.Join(state, "runs", "*")); len(m) >= n {
+			return
+		}
+	}
+	t.Fatalf("fewer than %d benchlock.sh records", n)
+}
+
+// frontRecord queues a record of this test process, which is live, ahead of every waiter of
+// testslot.sh: a waiter behind it is not first and may claim only through the stall backstop.
+func frontRecord(t *testing.T, state string) {
+	t.Helper()
+	pid := os.Getpid()
+	write(t, filepath.Join(state, "slots", "queue", "000000000000."+strconv.Itoa(pid)), fmt.Sprintf("%d %s\n", pid, procStart(t, pid)), 0o644)
+}
+
+// noStall fails when a stall log of the state directory records a stall.
+func noStall(t *testing.T, what, state string) {
+	t.Helper()
+	for _, log := range []string{"testslot-stalls.log", "benchlock-stalls.log"} {
+		if b, _ := os.ReadFile(filepath.Join(state, log)); strings.Contains(string(b), "stall") {
+			t.Errorf("%s: %s logs a stall: %q", what, log, b)
+		}
+	}
+}
+
+// A test slot claim waits while an exclusive benchlock.sh job holds the lock, and while one is first
+// in the queue waiting for the test slots to drain: in both cases the claim starts only after the
+// exclusive job, which a stream of test runs would otherwise starve.
+func TestTestslotWaitsForAnExclusiveJob(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	t.Run("holding", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+		work, run := overlapWork(t)
+		x := startScript(t, env, scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "3")
+		waitEvent(t, run, "start x")
+		w := startScript(t, env, scriptPath(t, "testslot.sh"), work, run, "w", "0")
+		waitOverlap(t, "a claim beside an exclusive holder", run, 2, x, w)
+		if ev := events(t, run); !before(ev, "end x", "start w") {
+			t.Errorf("the claim started while the exclusive job held the lock: %q", ev)
+		}
+	})
+	t.Run("first", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+		work, run := overlapWork(t)
+		s := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "s", "3")
+		x := startScript(t, env, scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "1")
+		waitRuns(t, state, 1)
+		w := startScript(t, env, scriptPath(t, "testslot.sh"), work, run, "w", "0")
+		waitOverlap(t, "a claim behind a first exclusive job", run, 3, s, x, w)
+		if ev := events(t, run); !before(ev, "start x", "start w") {
+			t.Errorf("the claim started ahead of the first exclusive job: %q", ev)
+		}
+	})
+}
+
+// With small stall bounds, a waiter that an open window or a first exclusive job holds back neither
+// claims nor logs a stall: the backstop counts only time in which nothing legitimate holds it.
+func TestQueueScriptsHeldBackDoNotStall(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	t.Run("testslot window", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1", "TESTSLOT_STALL=1")
+		frontRecord(t, state)
+		writeWindow(t, state, time.Now().Add(time.Hour))
+		work, run := overlapWork(t)
+		startScript(t, env, scriptPath(t, "testslot.sh"), work, run, "w", "0")
+		noneStarted(t, "a waiter under a window", run, 5*time.Second)
+		noStall(t, "a waiter under a window", state)
+	})
+	t.Run("testslot exclusive", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1", "TESTSLOT_STALL=1")
+		work, run := overlapWork(t)
+		// The exclusive job holds the lock until the test releases it, so the check below runs
+		// while it holds however slowly the machine goes.
+		hold := filepath.Join(run, "release")
+		x := startScript(t, append(env, "WORK_HOLD="+hold), scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0")
+		waitEvent(t, run, "start x")
+		frontRecord(t, state)
+		w := startScript(t, env, scriptPath(t, "testslot.sh"), work, run, "w", "0")
+		time.Sleep(4 * time.Second)
+		if ev := events(t, run); slices.Contains(ev, "start w") {
+			t.Errorf("a waiter behind an exclusive holder claimed: %q", ev)
+		}
+		noStall(t, "a waiter behind an exclusive holder", state)
+		// With the record ahead gone and the lock released, the waiter claims as the first.
+		if err := os.Remove(filepath.Join(state, "slots", "queue", "000000000000."+strconv.Itoa(os.Getpid()))); err != nil {
+			t.Fatal(err)
+		}
+		write(t, hold, "", 0o644)
+		waitOverlap(t, "a waiter after the exclusive job", run, 2, x, w)
+		if ev := events(t, run); !before(ev, "end x", "start w") {
+			t.Errorf("the waiter started before the exclusive job ended: %q", ev)
+		}
+		noStall(t, "a waiter after the exclusive job", state)
+	})
+	t.Run("benchlock window", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "BENCHLOCK_CLASS=shared", "BENCHLOCK_STALL=2")
+		writeWindow(t, state, time.Now().Add(time.Hour))
+		work, run := overlapWork(t)
+		y := startScript(t, env, scriptPath(t, "benchlock.sh"), "shared-job", work, run, "y", "0")
+		noneStarted(t, "a shared job under a window", run, 5*time.Second)
+		// The job runs once the window closes, without counting the window as a stall.
+		if err := os.Remove(filepath.Join(state, "window")); err != nil {
+			t.Fatal(err)
+		}
+		waitConcurrency(t, "a shared job after the window", run, 1, 1, y)
+		noStall(t, "a shared job under a window", state)
+	})
+}
+
+// Claims queued while a window is open are admitted in the order they queued once it closes: six
+// waiters queued in sequence run in that order, which admission by whoever polls first would break.
+func TestTestslotAdmitsWindowWaitersInOrder(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	writeWindow(t, state, time.Now().Add(time.Hour))
+	work, run := overlapWork(t)
+	var cmds []*exec.Cmd
+	var names []string
+	for i := 0; i < 6; i++ {
+		name := fmt.Sprintf("w%d", i)
+		names = append(names, name)
+		cmds = append(cmds, startScript(t, env, scriptPath(t, "testslot.sh"), work, run, name, "0.1"))
+		waitRecords(t, state, i+1)
+	}
+	time.Sleep(2 * time.Second)
+	if err := os.Remove(filepath.Join(state, "window")); err != nil {
+		t.Fatal(err)
+	}
+	waitOverlap(t, "claims queued during a window", run, 6, cmds...)
+	ev := events(t, run)
+	for i := 1; i < len(names); i++ {
+		if !before(ev, "start "+names[i-1], "start "+names[i]) {
+			t.Errorf("%s did not start before %s: %q", names[i-1], names[i], ev)
+		}
+	}
+}
+
+// A shared benchlock.sh job queued behind an exclusive job that waits for the test slots to drain
+// does not count that wait toward its stall: it neither takes the lock ahead of the exclusive job
+// nor logs a stall.
+func TestBenchlockSharedBehindDrainingExclusive(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	work, run := overlapWork(t)
+	s := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "s", "5")
+	x := startScript(t, env, scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0.5")
+	waitRuns(t, state, 1)
+	y := startScript(t, append(env, "BENCHLOCK_CLASS=shared", "BENCHLOCK_STALL=1"), scriptPath(t, "benchlock.sh"), "shared-job", work, run, "y", "0")
+	waitConcurrency(t, "a shared job behind a draining exclusive job", run, 3, 1, s, x, y)
+	if ev := events(t, run); !before(ev, "start x", "start y") {
+		t.Errorf("the shared job started ahead of the exclusive job: %q", ev)
+	}
+	noStall(t, "a shared job behind a draining exclusive job", state)
 }

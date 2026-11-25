@@ -9,7 +9,7 @@ quiet machine. So runs fall into four classes.
 | Docs, spec, site and skill checks (`cd site && go test -count=1 ./...`, the site build and check), `go vet`, deterministic count or charge probes that measure no time | Directly, throttled: `nice -n 15 env GOMAXPROCS=4 ...`. Never queue them. |
 | Targeted package tests while developing | Throttled through the test slots: `.agents/scripts/testslot.sh nice -n 15 env GOMAXPROCS=4 go test -p 2 -run '<tests>' -short <pkgs>` |
 | Whole packages of the large test suites (engine, codegen and complexity tests), the root suite, `-tags sxir_long`, `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...`, `hack/test-alpha-parsers.sh`, `hack/test-reference-tags.sh`, the engine and full gates, and any other heavy run that measures no time | Only through the queue, in its shared class: `BENCHLOCK_CLASS=shared .agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` (`run-gate.sh` and `alpha-check.sh` do this) |
-| Benchmarks, A/B runs, profiles and any other timed run | Only through the queue, exclusive (the default): `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
+| Benchmarks, A/B runs, profiles and any other timed run | Only in a measurement window that the leader declares with the owner, through the queue, exclusive (the default): `.agents/scripts/benchlock.sh <tag> zsh -f -c 'cd <worktree> && ...'` |
 
 Heavy test runs, including the root `go test ./...`, go only through the queue. Docs and site
 checks and count probes run directly, throttled.
@@ -25,7 +25,17 @@ checks and count probes run directly, throttled.
   every heavy run that measures no time is shared; only timed runs (benchmarks, A/B runs,
   profiles) are exclusive. A
   line in `benchlock-stalls.log` is a queue bug: report it.
-- `.agents/scripts/queue-status.sh` shows the queue and exits 1 when it is stuck (jobs queued,
+- `.agents/scripts/benchwindow.sh open [-m MINUTES] <reason>` declares a measurement window
+  (default 120 minutes); `close` ends it and `status` shows it. While it is open, new test
+  slot claims and shared jobs wait, and the running ones finish. An exclusive job starts only
+  when no test slot is held, and while it holds the lock or is first in the queue, new test
+  claims wait too. A window past its end stops counting by itself (logged in `window.log`).
+  Never run `testslot.sh` inside a benchlock.sh job or the other way round: the job would
+  wait for itself. While an exclusive job is first or holds the lock, the stall backstop
+  cannot fire either, so an exclusive benchlock.sh run started from inside a test slot
+  deadlocks for good. A `testslot.sh` copy older than the window ignores windows: claim
+  slots only through the current script of main.
+- `.agents/scripts/queue-status.sh` shows the window and the queue and exits 1 when it is stuck (jobs queued,
   none running) or a stall was logged. Inspect at once when it does.
 - `.agents/scripts/run-gate.sh LEVEL...` picks the run class of a `hack/gate.sh` level for you.
 - Use `zsh -f` for queued commands. A login shell profile can reset PATH and drop `node`.

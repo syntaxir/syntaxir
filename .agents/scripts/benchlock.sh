@@ -29,6 +29,13 @@
 # Earlier versions cannot take back the slot of a dead shared holder: until a waiter of this
 # version comes, they wait, and queue-status.sh reports the queue as stuck.
 #
+# A measurement window (benchwindow.sh) and the test slots (testslot.sh): an exclusive job starts only
+# when no test slot has a live holder, and while one is first in the queue or holds the lock, new
+# test claims wait. While a window is open, shared jobs are not admitted (those already running
+# finish), so that the timed runs of the window have the machine alone. An exclusive holder runs
+# its command with SXIR_BENCHLOCK set to "<tag> <pid>", as benchlock/owner records it, so that the
+# command can check that it holds the lock (go run ./bench/report does).
+#
 # Deadlock freedom: every waiter is ranked by the key (start, seq). seq is a counter handed out
 # under flock, so no two waiters share a key and exactly one live waiter is first; all waiters
 # rank with the same function. As a backstop, a waiter that sees the lock free while it waits for
@@ -121,10 +128,12 @@ admit() {
   reclaim
   scan
   if [ "$class" = exclusive ]; then
+    [ "$(sxir_slots_held)" = 0 ] || return 1
     { [ "$ahead" = 0 ] || [ "$stalled" = 1 ]; } && mkdir "$L" 2>/dev/null || return 1
     echo "$tag $$" > "$L/owner"
     return 0
   fi
+  ! sxir_window_live || return 1
   if [ ! -d "$L" ]; then
     { { [ "$ahead_x" = 0 ] && [ "$ahead" -lt "$k" ]; } || [ "$stalled" = 1 ]; } || return 1
     mkdir "$L" 2>/dev/null || return 1
@@ -156,8 +165,16 @@ release() {
   return 1
 }
 free=0
+# The lock counts as free for the stall backstop only when nothing legitimate holds this job back:
+# not the lock, not the test slots an exclusive job waits for (its own, or the first exclusive job's
+# ahead of a shared one), not a window a shared job waits for.
 until with_flock admit; do
-  if [ -d "$L" ]; then free=0; else free=$((free + poll)); fi
+  if [ -d "$L" ] || { [ "$(sxir_slots_held)" != 0 ] && { [ "$class" = exclusive ] || sxir_exclusive_first; }; } \
+    || { [ "$class" = shared ] && sxir_window_live; }; then
+    free=0
+  else
+    free=$((free + poll))
+  fi
   sleep "$poll"
 done
 if [ "$free" -ge "$stall" ]; then
@@ -172,6 +189,7 @@ on_term() {
   if [ -n "$child" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi
 }
 trap on_term TERM INT HUP
+if [ "$class" = exclusive ]; then export SXIR_BENCHLOCK="$tag $$"; else unset SXIR_BENCHLOCK; fi
 set -m
 "$@" < /dev/null &
 child=$!

@@ -295,6 +295,7 @@ func TestScriptsRequireAgentState(t *testing.T) {
 		"benchlock.sh": {"t", "true"}, "testslot.sh": {"true"}, "run-gate.sh": {"code"},
 		"queue-status.sh": nil, "benchstop.sh": {"t"}, "lane-new.sh": {"x", "fix/x"},
 		"ready.sh": {"scope", "checks"}, "train.sh": {"stack", "x"}, "alpha-check.sh": nil,
+		"benchwindow.sh": {"open", "a reason"},
 	}
 	for _, state := range []string{"", "relative/state"} {
 		env := base

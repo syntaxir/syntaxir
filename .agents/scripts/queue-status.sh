@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Usage: queue-status.sh
-# Prints the run queue: the lock (free, its exclusive owner, or its shared holders out of K), every
+# Prints the measurement window (benchwindow.sh), then the run queue: the lock (free, its exclusive owner, or its shared holders out of K), every
 # record of runs/ in rank order (start, seq) with its class, the stall log, a STALE line for each
 # holder or record whose benchlock.sh is gone, and a STUCK line when jobs are queued but none runs.
 # Only records of live wrappers count as queued or running. A record without class= (an earlier
@@ -16,6 +16,11 @@ set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 D=$sxir_state
 echo "state: $D"
+if sxir_window_live; then
+  echo "window: open, $(cat "$D/window") (test slots and shared jobs wait; test slots still held: $(sxir_slots_held))"
+else
+  echo "window: none"
+fi
 L=$D/benchlock
 stale=()
 if [ -f "$L/owner" ]; then
@@ -72,5 +77,11 @@ if [ -s "$D/benchlock-stalls.log" ]; then echo "STALLS (a queue bug, report it):
 for m in ${stale[@]+"${stale[@]}"}; do echo "STALE: $m"; rc=1; done
 if [ "${#stale[@]}" -gt 0 ]; then echo "(any current benchlock.sh run takes back what is stale)"; fi
 echo "queued: $q running: $r"
-if [ "$q" -gt 0 ] && [ "$r" -eq 0 ]; then echo "STUCK: jobs are queued and none runs"; rc=1; fi
+if [ "$q" -gt 0 ] && [ "$r" -eq 0 ]; then
+  if sxir_window_live; then
+    echo "paused: jobs are queued behind the measurement window"
+  else
+    echo "STUCK: jobs are queued and none runs"; rc=1
+  fi
+fi
 exit "$rc"

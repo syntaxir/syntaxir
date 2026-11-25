@@ -10,6 +10,8 @@
 #   landing-train.md   the live queue of candidates
 #   wt/<name>/         worktrees
 #   runs/ slots/ (with queue/ and .seq) testslot-stalls.log benchlock/ benchlock.lock benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
+#   window window.log window-expired/   the measurement window (benchwindow.sh): while it is open, the
+#                      test slots and the shared jobs wait, so that a timed run has the machine alone
 #   gates/<tag>.log    gate logs
 
 die() { echo "${0##*/}: $*" >&2; exit 1; }
@@ -61,4 +63,84 @@ sxir_run_fields() {
     }
     printf "%s %s %012d %s\n", st, t, s, c
   }' "$1" 2>/dev/null || true
+}
+
+# sxir_holder_alive PID START: PID runs and started at START (ps lstart). START is empty for a holder
+# recorded by its pid alone, which is then judged by the pid.
+sxir_holder_alive() {
+  kill -0 "$1" 2>/dev/null || return 1
+  [ -z "${2:-}" ] || [ "$(sxir_lstart "$1")" = "$2" ]
+}
+
+# sxir_slot_dead DIR: the holder of the test slot DIR (slots/<i>, with slots/<i>.start) is gone. A
+# claimer writes its pid right after it makes the slot, inside the claim, so a slot without a pid
+# that is older than a minute was left by a claimer that was killed between the two.
+sxir_slot_dead() {
+  local p st rec
+  p=$(cat "$1/pid" 2>/dev/null || true)
+  if [ -z "$p" ]; then
+    [ -n "$(find "$1" -maxdepth 0 -mmin +1 2>/dev/null)" ]
+    return
+  fi
+  st=
+  rec=$(cat "$1.start" 2>/dev/null || true)
+  # The start file counts only when it was written by that pid.
+  if [ "${rec%% *}" = "$p" ] && [ "$rec" != "$p" ]; then st=${rec#* }; fi
+  ! sxir_holder_alive "$p" "$st"
+}
+
+# sxir_slots_held prints the number of test slots (testslot.sh) whose holder is alive.
+sxir_slots_held() {
+  local s n=0
+  for s in "$sxir_state"/slots/*; do
+    [ -d "$s" ] || continue
+    case ${s##*/} in *[!0-9]*) continue ;; esac
+    sxir_slot_dead "$s" || n=$((n + 1))
+  done
+  echo "$n"
+}
+
+# sxir_window_field KEY FILE prints the value of KEY in a window record: one line of key=value fields,
+# reason= last, whose value is free text and is not searched.
+sxir_window_field() {
+  awk -v k="$1" 'NR == 1 { for (i = 1; i <= NF; i++) { if ($i ~ /^reason=/) exit; if (index($i, k "=") == 1) { print substr($i, length(k) + 2); exit } } }' "$2" 2>/dev/null || true
+}
+
+# sxir_window_live: a measurement window (benchwindow.sh) is open: the record window exists and its
+# until= is in the future. A window past its until= no longer counts, so a window that its owner
+# forgot to close cannot stop the queue for good: the first script that sees it moves it to
+# window-expired/ and logs that to window.log.
+sxir_window_live() {
+  local w=$sxir_state/window lim now
+  [ -f "$w" ] || return 1
+  lim=$(sxir_window_field until "$w")
+  now=$(date +%s)
+  if [ -n "$lim" ] && [ "$now" -lt "$lim" ]; then return 0; fi
+  mkdir -p "$sxir_state/window-expired"
+  if mv "$w" "$sxir_state/window-expired/window.$now.$$" 2>/dev/null; then
+    printf '%s expired (until=%s), ignored by %s: %s\n' "$(date +%FT%T)" "${lim:-none}" "${0##*/}" \
+      "$(cat "$sxir_state/window-expired/window.$now.$$")" >> "$sxir_state/window.log"
+  fi
+  return 1
+}
+
+# sxir_exclusive_first: an exclusive benchlock.sh job holds the lock, or is the first live job of the
+# queue by its rank (start, seq) and waits only for the machine to drain. A new test slot is not
+# claimed then, so that the timed job is not starved by a stream of test runs.
+sxir_exclusive_first() {
+  local o otag opid f ft best='' bestc='' st t s c
+  o=$sxir_state/benchlock/owner
+  if [ -f "$o" ]; then
+    read -r otag opid _ < "$o" 2>/dev/null || true
+    if [ -n "${opid:-}" ] && sxir_bench_live "$opid" "$otag"; then return 0; fi
+  fi
+  for f in "$sxir_state"/runs/*; do
+    [ -f "$f" ] || continue
+    ft=${f##*/}
+    sxir_bench_live "${ft##*.}" "${ft%.*}" || continue
+    read -r st t s c <<< "$(sxir_run_fields "$f")"
+    [ "$st" = queued ] || continue
+    if [ -z "$best" ] || [[ "$t $s" < "$best" ]]; then best="$t $s"; bestc=$c; fi
+  done
+  [ "$bestc" = exclusive ]
 }
