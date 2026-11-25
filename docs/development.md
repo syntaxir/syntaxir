@@ -1,438 +1,159 @@
 # Development
 
-This document describes the repository layout and architecture, how to run tests, and the implementation status of language features.
+This document states the rules a contribution follows: how the repository is built, which checks a change needs and
+what every test must do. [Architecture](design/architecture.md#the-package-layout) describes the packages and
+[Package Layering](design/layering.md) the import rules; each package's documentation (`go doc`) describes its own
+contents.
 
-## Directory Layout
+## Modules and Generated Files
 
-> [!WARNING]
-> The code is being migrated to the target that [Architecture](design/architecture.md#the-package-layout) describes and
-> still differs from it in places. This section and the next name the paths of the tree as it is, which the tests and
-> commands below use.
+The repository holds two modules: `syntaxir.dev/sxir` at the root, and the documentation site `syntaxir.dev/sxir/site`
+in `site/` ([website maintenance](site.md)). The committed `go.work` joins them, but a pattern such as `./...` matches
+the packages of the current directory's module only: the root suite is `go test ./...`, and the site's is
+`cd site && go test ./...`. The root module requires no other module, so a generated Go parser adds only
+`syntaxir.dev/sxir` to its module's requirements. Tests that build generated programs write temporary modules outside
+the checkout, which `replace` `syntaxir.dev/sxir` with a directory.
 
-| Path | Contents |
-|:--|:--|
-| `pkg/compiler/` | Public API that makes parsers from grammars: `Compile` and `CompileGrammar` (parsers on the bytecode VM), `NewReferenceParser` (the closure backend), `Marshal` (compiled grammars), `OutputSchema`, and the generation of Go and TypeScript parsers and their libraries (`Generate`, `GenerateGo`, `GenerateTypeScript`, `GenerateLibGo`, `GenerateTypeScriptLib`) |
-| `pkg/runtime/` | What every parser shares: the `Parser` and `Document` interfaces, the parse options (`WithLimits`, `WithTrace` and others), limits and their errors, the stream iterator and statistics. Its packages `input/` (position units, locations, edits), `value/` (nodes, traversal, cursors, syntax errors) and `instrument/` (traces and profiles) hold the rest of the types that the parsers and generated Go parsers share |
-| `pkg/runtime/vm/` | The parser on the bytecode VM that `compiler.Compile` returns and `LoadParser` loads from a compiled grammar (`.sxirc`), with its Document (versions, edit batches, snapshots, change reports) and prefix parses |
-| `internal/driver/generate/` | Generation of Go and TypeScript parsers from grammar syntax trees, with the sources of the libraries of generated parsers (`pkg/runtime/libgo/`, `internal/backend/codegen/typescript/lib/`) that the generators copy into them; `pkg/compiler` wraps it for grammar sources |
-| `pkg/grammar/ast/` | Grammar AST, structural validation (`Validate`), JSON conversion (`MarshalJSON`, `UnmarshalJSON`, strict `DecodeJSON`) and formatting as SyntaxIR source (`Format`, which preserves comments). Public package. |
-| `internal/frontend/astinspect/` | The walks of grammar expressions and of a rule's calls, action expressions and attributes, and syntactic queries on them, shared by the front end and the analyses |
-| `pkg/lint/` | Public entry of the grammar linter (`lint.Config`) behind `sxir lint`: it re-exports the types of `internal/analysis/lint/`. |
-| `internal/analysis/lint/` | Implementation of the grammar linter, shared by `pkg/lint/` and the language server: shared static analysis (`analysis.go`) and checks (`checks.go`) |
-| `internal/lsp/` | Language Server Protocol server for `.sxir` files (`sxir lsp`): JSON-RPC over standard input and output, document sync, diagnostics, formatting, navigation, hover, rename, completion, semantic tokens |
-| `editors/vscode/` | VS Code extension (Node.js, not part of the Go module): language configuration, TextMate grammar (`syntaxes/sxir.tmLanguage.json`) and a client that starts `sxir lsp` |
-| `pkg/sample/` | Generation of inputs that a grammar accepts, coverage reports, near-miss invalid inputs and a fuzzing helper (`Generate`, `New`, `Seed`). Public package. |
-| `pkg/editfuzz/` | Random edit sequences checked against fresh parses, their minimization, saved sequences and their replay (`Fuzz`, `Minimize`, `Replay`, `Load`, `Save`); the library behind `sxir edit-fuzz`. Public package. |
-| `sxir.sxir` | Typed source grammar and recoverable syntax tree; the parser generated from it parses every grammar source ([record 054](design/records/054-generated-grammar-source-parser.md)). |
-| `internal/frontend/parser/` | Frontend of SyntaxIR source code (source → `ast.Grammar`): `sxirparser/` holds the typed Go parser generated from `sxir.sxir`, checked in and regenerated with `go generate ./internal/frontend/parser`, and the adapter builds the grammar AST from its typed values, with the raw formatter layout replayed from the tokens of the lexer that both parsers share; the hand-written parser is the oracle of the differential tests and the reader of the removed syntax that `sxir fix` rewrites |
-| `internal/frontend/` | The front end: canonicalizes a grammar, takes the rule facts and site numbers of its Core IR module from the analyses of the middle end, and checks it into a result that holds the semantic model, the site numbers and the run-time program |
-| `internal/frontend/check/` | The semantic model of a checked grammar (the grammar, its types, variables and start rules, and the rules with their static facts, capture scopes and value-free twins), the walk of rule bodies that decides those facts, and the checker that resolves names and types |
-| `internal/runtime/engine/` | Parser runtime: `Compile`, compiled grammars, streams and limit controls, built on `internal/runtime/state/`, the closure backend of `internal/backend/closure/`, the bytecode VMs of `internal/runtime/vm/`, the bytecode compiler of `internal/backend/vmlower/` and the Document of `internal/runtime/document/`. It does not import the compiler driver or the generators: `pkg/compiler` joins them to it |
-| `internal/runtime/state/` | The part of the parser runtime that every backend shares: the parser state, input, memo table, expectations, values, built-ins of actions, limit controls, tracing and stream state, and the parse options, results and errors that `internal/runtime/engine` re-exports. Its package documentation states what a backend provides and what it may use |
-| `internal/backend/closure/` | The closure backend: builds a closure graph for each rule body and evaluates actions on the grammar AST |
-| `internal/backend/vmlower/` | The bytecode compiler: lowers the program's Core IR to a bytecode module |
-| `internal/runtime/vm/` | The bytecode backend: the recursive and iterative VMs, which run a compiled module over the same instruction loop |
-| `internal/runtime/document/` | The incremental Document: edits and edit batches, reparsing that reuses what the edits did not touch, snapshots, change reports, diagnostics and the node cursor. It parses through a runner that `internal/runtime/engine` implements, and `internal/runtime/engine` re-exports its types |
-| `pkg/runtime/schema/` | Output schema: the description of the values a grammar can produce (`schema.Output`), its JSON form and validation, and `Compare`, which reports how two schemas differ and whether each change breaks a reader. Public package; it imports only the standard library |
-| `pkg/runtime/query/` | Structural queries: patterns that match values of parse results, checked against an output schema when they compile (`Compile`, `Prepare`, `Query.Matches`). Public package |
-| `internal/frontend/schemaexport/` | The export of a checked program's output schema as a `schema.Output` |
-| `internal/runtime/nodes/` | The engine's access to the representation of `value.Node` (`D`) and the node helpers that only the engine needs |
-| `internal/runtime/limits/` | Defaults of the limits of a parse invocation and overflow-safe budget arithmetic, shared by the parser, the Document and package `query` |
-| `pkg/bytecode/` | The bytecode instruction set and module, its disassembly, the encoding of modules in compiled grammars and the validation of loaded modules |
-| `internal/backend/codegen/common/` | What the Go and TypeScript generators share: generation options, the library mode of generated Go parsers, generated files, and the generator state both print with (the program and rule being printed, the expectation table, shared names, the Flow state of recognizer rules and the action value resolver) |
-| `pkg/runtime/libgo/` | Library of generated Go parsers, imported by them or copied into them (`syntaxir.dev/sxir/pkg/runtime/libgo`); it imports only `pkg/runtime` and its packages |
-| `pkg/runtime/value/impl/` | The representation of `value.Node` that the parsers build and read (package `valueimpl`); not a stable API |
-| `internal/backend/codegen/golang/print/` | Go generator: prints the parser, its types package and the library copy from the compiled program and Code IR at the Exec stage, and leaves out what the entry points cannot reach |
-| `internal/backend/codegen/typescript/print/` | TypeScript generator: prints the parser, its types and its library file from the compiled program and Code IR at the Exec stage |
-| `internal/pass/` | The manager of one pass pipeline per compilation in `pipe/`: declared passes and lowerings composed into typed pipelines, with the analyses they read and preserve, where they apply, their order, their copies, and verification; the analysis manager that caches the analyses of a unit for the passes and tools that share them; and the registry of the optimizations (flags with a kind and a `speed` value), which each part of the pipeline fills with its own |
-| `internal/ir/` | The internal representations between a compiled program and generated code: `core/` (Core IR) and `code/` (Code IR: the base that all dialects share, the Flow dialect in `code/flow/`, the Action dialect in `code/action/`, and the Exec dialect in `code/exec/` with the operations of the abstract machine, the compositions in `code/exec/compose/`, the reference models and conformance suite in `code/exec/ref/` and `code/exec/conform/`, and the specification-table reader of the tests in `code/exec/spectest/`). See [Core IR and Code IR](design/intermediate-representations.md) |
-| `internal/driver/` | The `speed`, `memory` and `size` profiles over the registered optimizations, and the driver that runs the IR pass pipelines under them with their dumps and verification; `tooling/` is what it gives the language server (tokens, partial parses, formatting, compilation, the checked front-end result, lint findings and rewrites), the only way the server reaches the compiler |
-| `internal/middleend/` | The passes and lowerings between the representations: `corepass/` (the Core passes and the rule facts), `flowlower/` (the lowering from Core IR to Code IR at the Flow stage, and which compiled rules it lowers), `execlower/` (the conversion from the Flow stage to the Exec stage) and `codepass/` (the passes of Code IR that do not depend on a dialect) |
-| `internal/backend/codegen/typescript/lib/` | Source of `lib.ts`, the library that generated TypeScript parsers import (joined from `lib.ts`, `budget.ts`, `trace.ts` and `profile.ts`) |
-| `cmd/sxir/` | Command-line tool |
-| `examples/` | Small example grammars that show the features, with golden tests |
-| `internal/testing/` | The test support shared by the tests of several packages, one package per concern; see [Test-Support Packages](#test-support-packages) |
-| `testdata/grammars/` | The grammars of ten languages (`<language>/<language>.sxir`, with sample inputs) that the tests and benchmarks of this module read, and `generate.txt` with the `sxir gen` options of each; the ready-made parsers generated from them live in the separate [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository |
-| `cmd/playground/` | WebAssembly API used by the web playground (package `main`; `GOOS=js GOARCH=wasm`) |
-| `site/` | Web site generator (a separate Go module): landing page, docs, reference and playground; see [website maintenance](site.md) |
-| `wrangler.jsonc` | Cloudflare Worker with static assets that serves the site from `site/dist`; see [website maintenance](site.md) |
-| `bench/` | Benchmarks comparing the backends with each other and with standard-library parsers (the generated parsers they run are in `internal/bench/parsers/`). Results are in [benchmarks.md](benchmarks.md), generated with `go run ./bench/report` (`report/`) from the raw results in `results.txt`, `results-ts.txt` (generated TypeScript under Node) and `results-size.txt` (generated parser sizes). `go run ./bench/profilematrix` compares generation options (`internal/bench/probe` holds the generation and size helpers it shares with `report/`). `node bench/ts-literal.mjs [lib.ts]` measures the embedded TS literal matcher of the generated library (`sxir gen -lang ts -lib only`), excluding input/rule setup, trees and error construction; its optional path names another generated `lib.ts`, to compare checkouts. |
-| `spec/` | The specifications: grammar language, parser and runtime, Core IR, and bytecode and VM ([bytecode](../spec/bytecode/README.md)) |
-| `docs/tutorial/` | The ordered tutorial series ([index](tutorial/README.md)) |
-| `docs/guide/` | Task-oriented guides to each feature ([index](guide/README.md)) |
-| `docs/cookbook/` | Recipes: complete, runnable solutions to concrete tasks ([index](cookbook/README.md)) |
-| `docs/why-syntaxir.md`, `docs/strategy.md` | Project positioning: [who SyntaxIR is for and how it compares](why-syntaxir.md), and the [project strategy](strategy.md) with its tracks and targets |
-| `docs/documentation-style.md` | How the documentation is organized and written: page kinds, link directions, titles, voice and examples |
-| `docs/design/` | How the system is built: [architecture](design/architecture.md), with the target package layout, the [pass pipeline](design/pass-pipeline.md) and [Core IR and Code IR](design/intermediate-representations.md) |
-| `docs/design/records/` | Design records; [template](design/records/000-template.md) for new proposals |
-| `docs/optimizations/` | Numbered optimization history, measured evidence and backend applicability ([catalog](optimizations/README.md)); measurement method and latest analysis remain in [performance.md](performance.md) |
+Generated files come only from their generators. A generator program lives beside the files it renders and runs through
+a `//go:generate` directive of that package; there is no shared tools directory. Regenerate committed files with
+`go run ./cmd/sxir` or `go generate`, never with a built `sxir`: a built binary stamps its version in the header, while
+committed files carry `(devel)`, which a test checks. Edit a template rather than the page rendered from it.
 
-A generator program that renders one set of files lives beside them and is run by a `//go:generate` directive in that package: `spec/language/internal/gensyntax` renders the simplified grammar reference of `spec/language`, `internal/backend/codegen/golang/libprint` runs the Go library's route of the pipeline, which prints the compositions into `pkg/runtime/libgo/`, the engine state and its conformance bindings, `internal/runtime/state/sharedsrc` copies the mechanism files that the engine shares with the Go library from `pkg/runtime/libgo/` into `internal/runtime/state/`, and `internal/backend/codegen/golang/print` writes the index of the declarations of `core` that the Go generator reads. There is no shared tools directory. Files generated by `sxir gen` itself (the benchmark parsers) are declared by the `//go:generate` directives of `bench/`.
-
-## Architecture
-
-The architecture (the execution model, the pipeline from the grammar AST through Core IR and Code IR to the backends,
-the tools, the package layout with its import rules and the pass model) is in
-[Architecture](design/architecture.md). The table below maps its parts to the files of the current tree.
-
-| Component | Main files | Responsibility |
-|:--|:--|:--|
-| Grammar intake | `internal/frontend/parser/`, `grammar/` | Parses source or JSON into the public AST; opt-in strict JSON intake checks unknown and duplicate keys ([design 028](design/records/028-strict-grammar-json-intake.md)); formatting preserves comments and layout. |
-| Compiler and analysis | `internal/frontend/facts.go`, `internal/frontend/check/compile.go`, `internal/frontend/check/compile_walk.go`, `internal/middleend/corepass/facts.go` | Checks types, analyzes calls and dependencies, and walks the rule bodies to check them; the backends build their executable form from Core IR. |
-| Runtime | `program.go`, `state/runtime.go`, `closure/builder.go`, `closure/actions.go`, `state/action_program.go`, `state/action_run.go`, `state/operators_rule.go`, `state/operators_exec.go`, `state/eval.go`, `state/alloc.go`, `state/stream_exec.go`, `state/stream_ops.go`, `state/stream_prefix.go`, `state/stream_undo.go`, `state/stream_stack.go` | Implements ordered choice, backtracking, actions, recovery and Operators Rule selection; whole-input memo bookkeeping uses sparse seen pages above its rule/input cutoffs ([record 087](optimizations/087-sparse-deferred-memo-seen-pages.md)); streaming commits reuse capture frames ([record 085](optimizations/085-reuse-stream-capture-frames.md)) and isolate prefix storage while batching inactive-scratch cleanup ([record 089](optimizations/089-isolate-stream-prefixes-and-batch-scratch-cleanup.md)). |
-| Bytecode | `pkg/bytecode/bytecode.go`, `internal/backend/vmlower/compile.go`, `vm/vm.go`, `vm/ivm.go` | Runs the same grammar semantics with recursive and iterative VMs; see the [bytecode specification](../spec/bytecode/README.md). |
-| Input and documents | `state/input.go`, `state/stream_text.go`, `document/document.go`, `state/resume.go`, `state/document_exec.go`, `state/document_ops.go` | Tracks position units, streaming input, versioned atomic edit batches, edits and resumable repetitions; VM-backed Documents reuse cleared stacks ([record 086](optimizations/086-reuse-document-vm-values.md)), and streaming shares bounded immutable text snapshots ([record 088](optimizations/088-share-bounded-stream-text-snapshots.md)). |
-| Compiled grammars | `program_compiled.go`, `pkg/bytecode/modulefile.go`, `pkg/bytecode/codec.go` | Saves and loads the bytecode module of one mode (parse, recognize or document) and serves only that mode's operations. |
-| Code generation | `internal/backend/codegen/golang/print/`, `pkg/runtime/libgo/`, `internal/backend/codegen/typescript/print/` | Emits standalone Go and TypeScript parsers; exact generated helpers are shared where enabled ([090](optimizations/090-share-identical-generated-helpers.md)), eligible literal-text predicates use switch dispatch ([091](optimizations/091-specialize-pure-literal-text-disjunctions.md)), and generated Node capture scratch is bounded at recycle ([092](optimizations/092-reuse-generated-node-capture-scratch.md)). |
-| Language tools | `lint/`, `internal/analysis/lint/`, `internal/lsp/`, `editors/vscode/` | Provides static checks, editor requests and the VS Code client. |
-| Input generation | `pkg/sample/` | Generates accepted inputs and coverage; generated inputs are checked by the parser. |
-
-Files without a directory are in `internal/runtime/engine/`. There, a file's prefix names the part it belongs to: `program` for the entry points of a program (compilation, compiled grammars, the parse drivers and the runner that a Document parses through). `compile_api.go` and `state_api.go` hold the names that the engine exposes from the compiler and from `internal/runtime/state`, and `profile.go` reads parse results. What every backend shares is in `internal/runtime/state/`: the parser state, the input, memo and stream state (`input_`, `stream_` and `spend_` files and `runtime.go`), the built-ins of actions (`eval.go`, `filter.go`) and the tracer (`trace.go`, whose recording of events, `trace_record.go`, is a copy of the Go library's that `sharedsrc` keeps current). The closure backend is in `internal/backend/closure/`, the recursive and iterative bytecode VMs are in `internal/runtime/vm/`, and the Document with its snapshots, change reports and node cursor is in `internal/runtime/document/`, which `document_api.go` re-exports. Tests of the Go generator that compare its parsers with the engine are in `internal/backend/codegen/golang/print/`, with `internal/codegentest` holding the shared corpus and helpers; those that also run TypeScript parsers, and those that need engine internals, stay here, named after the generator they check: `gengo_` for Go, `gents_` for TypeScript and `gen_` for both. Optimization evidence is in the [catalog](optimizations/README.md); contracts and proposals are in `spec/` and `docs/design/records/`.
-
-### Runtime
-
-The closure compiler is the reference execution path. The recursive and iterative VMs share rule-call, memoization,
-left-recursion and Operators Rule logic with it. Backtracking restores input position, the variable environment, recovered
-errors and capture history; farthest-failure expectations use separate isolation and merge scopes. Recognition
-returns no tree and skips value and action work that predicates do not need; predicate-dependent rules and callees
-can still evaluate actions.
-Adaptive memoization enters eager mode when repeated calls exceed one sixteenth of a rule's calls. Its compact
-counters halve before overflow, and the eager decision remains sticky for that parse.
-The nesting limit applies to recursive rule calls, and tracing to every rule call. `Document` can reuse memo entries across edits and resume long
-repetitions; stream parsing emits elements and discards input already committed by the grammar.
-Core and generated Go/TypeScript parsing also support invocation-local cancellation and
-a compute limit; streams and Documents use the same interruption
-contract. See [design 033](design/records/033-cancellable-parses-and-budgets.md)
-for backend scope, cleanup and measured costs.
-
-### Code Generation
-
-Generated Go and TypeScript parsers embed their library. Generated TypeScript depends on nothing else, and generated
-Go only on the package `core` and the standard library. Generated Go
-and TypeScript rules are built as Core IR, lowered to Code IR at the Flow stage and then converted to the Exec stage, which the printers print ([design 062](design/records/062-backend-independent-optimization-ir.md), [design 065](design/records/065-exec-ir-parser-vm.md)): in Go, lean value-free rules are direct rules and the others framed bodies the runtime calls; typed Go also emits inferred Go types
-and `ParseValue`/`ParseRuleValue` for configured-start and named rules
-([design 029](design/records/029-typed-named-rule-parsing.md)). Generation defaults (`MaxDepth` of `compiler.GoConfig` and `compiler.TSConfig`, `gen -max-depth`) and invocation-local depth
-options are implemented ([design 022](design/records/022-generated-parser-depth-limits.md)); Go entry points accept
-functional `ParseOption`s, and TypeScript adds options-aware entry points. With `Types` or `-types`, TypeScript
-exports grammar declarations and configured-start `parseValue` conversion ([guide](guide/typescript.md#typed-values),
-[design 030](design/records/030-typed-typescript-values.md)). Generated paths preserve the engine's tree, error, depth,
-action and memo semantics.
-
-Generated Go `-document` can be combined with `-types`; `Document.ParseValue` directly matches and reuses typed
-memo entries when the grammar meets the batch typed runtime's eligibility rules. Other result types use Node
-conversion. Returned typed graphs are cloned per invocation, while CST Node members may share the mutable
-Document graph. See the [incremental parsing guide](guide/incremental.md) and
-[design 044](design/records/044-generated-incremental-and-stream-parsers.md).
-
-Generated Go `-stream` adds a Node `ParseStream` that follows the engine's Reader stream contract, and with
-`-types` a `ParseStreamValue` that converts each element. With TypeScript it adds the push stream `createStream`, whose
-tests in `internal/backend/codegen/typescript/print` compare it with the engine's stream (`TestStreamOracle` and the
-tests beside it).
-`TestGeneratedTypedStreamMatchesBatch` compares the typed elements with batch `ParseValue`. Stream packages also have
-`Iterate` and the diagnostic options, which the engine differential test runs as well. `TestGeneratedStreamMatchesEngine` compares emitted elements, errors and reader
-call counts with the engine across chunkings, units, controls, observability and Document generation; changes to
-the stream runtime should keep it and the bounded-memory consumer in `TestGeneratedStreamAPI` passing.
-
-Optimizations are the flags of one registry (`internal/pass`), which each part of the pipeline fills with its own
-when it is initialized, and the Core passes are a pipeline declared in `internal/middleend/corepass/pipeline.go`, run by
-the generic manager in `internal/pass/pipe` under the settings of the driver in `internal/driver`
-([design 063](design/records/063-configurable-optimization-pass-pipeline.md)). To add an optimization:
-
-1. Declare a pass with its `Requires`, `After`, `Applies` and `Obligation`, and a `Run` that returns the unit after
-   the pass and the analyses it preserved (nothing, unless it says otherwise), or add a lowering or storage flag; register its name, kind, description and `speed` value in the registry from the package that reads
-   it (`pass.Register` in an `init` function; the Core passes register theirs in `internal/middleend/corepass/flags.go`).
-2. Add its entry to `optimizationTests` in `internal/backend/codegen/golang/print/optimization_flags_test.go`. The entry names the test of
-   the parser generated without it, or leaves it to `TestOptimizationDisabledParity`, which compares such parsers with the
-   engine and fails for a flag that changes neither the code nor the Core IR.
-3. Add a row to the optimizations table of the [code-generation guide](guide/code-generation.md#optimizations).
-
-`sxir gen -print-after all` shows the Core IR after each pass, and `-no-opt name` isolates a miscompilation to one
-optimization. The test helpers of `internal/testing/codegentest` verify the Core IR after every pass
-(`GenOptions.VerifyEachPass`), so a pass that breaks an invariant is named by the failing test.
-
-Generated Go typed-output cleanup is not implemented; the measured full-sweep and bounded candidates and their limits are in [design 034](design/records/034-typed-output-liveness.md) and [optimization record 094](optimizations/094-generated-typed-output-liveness.md).
-
-## Modules and the Workspace
-
-The repository holds two modules:
-
-| Module | Directory | Holds |
-|:--|:--|:--|
-| `syntaxir.dev/sxir` | the root | The engine, the generators, the library of generated Go parsers, the `sxir` command and the public packages |
-| `syntaxir.dev/sxir/site` | `site/` | The documentation site |
-
-The committed `go.work` joins them. The root module requires no other module, so a generated Go parser, which imports `core` and with `-lib import` the
-library, adds only `syntaxir.dev/sxir` to its module's requirements.
-
-- A pattern such as `./...` matches the packages of the module of the current directory only, so the root suite is
-  `go test ./...`, and the site's is `cd site && go test ./...`.
-- `site/build.sh` builds the site module with `GOWORK=off`, to check the pinned version of its site generator, and gives
-  the go commands that it runs in the root module (the `sxir` command, the playground) `GOWORK` set to the checkout's
-  `go.work`.
-- Tests that build generated programs write temporary modules outside the checkout, which the workspace does not
-  reach. Those modules `replace` `syntaxir.dev/sxir` with a directory: a partial copy of the module that holds only the
-  packages generated code imports (`codegentest.GoModAt`), or the checkout when they import other packages. The library's
-  conformance tests (`pkg/runtime/libgo/conformance_test.go`) add the tests of `pkg/runtime/libgo/testdata/conformance/` and the
-  bindings that the printer prints to the library package with a `go build` overlay, so that they reach its unexported code.
-
-The protocol version of the library (`pkg/runtime/libgo/protocol.go`) names the interface between generated code and the
-library, which [the library protocol](releasing.md#the-library-protocol) describes. `TestProtocol` in `pkg/runtime/libgo/`
-compares the exported declarations of the library, with the exported fields and methods of the types they reach and the
-types that aliases stand for, with `pkg/runtime/libgo/testdata/protocol.golden` and fails when they changed under the same
-protocol version: replace `ProtocolN` with `ProtocolN+1` in the library, then run
-`go test ./pkg/runtime/libgo -run TestProtocol -update-protocol`. A change of what the declarations mean or of how
-generated parsers encode their data needs the same bump, which no test detects. `TestRepresentation` in `pkg/runtime/value/impl`
-compares the node representation (every declaration of the package, exported or not: type layouts, constant values and
-signatures) with `pkg/runtime/value/impl/testdata/representation.golden` and fails when it changed under the same constant: replace
-the constant of `pkg/runtime/value/impl` with `ProtocolN` of the protocol version that makes the change, refer to it in the
-library, then run `go test ./pkg/runtime/value/impl -run TestRepresentation -update-representation`. `TestCoreImplProtocol` checks
-that `pkg/runtime/value/impl` declares exactly one protocol constant, of a version up to the library's, and that the library
-refers to it, and `pkg/compiler/protocol_test.go` checks that a parser generated with `-lib import` fails to build against a
-library of another protocol and that an embedded copy fails to build against a `pkg/runtime/value/impl` of another protocol.
+The interface between generated Go parsers and their library is versioned by the
+[library protocol](releasing.md#the-library-protocol). Its tests fail when the declarations change under the same
+version, and their message says how to record the new one. A change of what the declarations mean, or of how generated
+parsers encode their data, needs the same increase, which no test detects.
 
 ## Go Style
 
-An import block has at most one blank line: between the standard library group and the group of all other imports (the module's own packages included). Each group is sorted by import path, as `goimports` sorts it; named, blank and dot imports and their comments stay with their line. A package whose path has no dot in its first element counts as standard library. `TestImportGroups` in `internal/testing/archtest` checks every tracked Go file and every Go file the generator prints, so a generator must print its imports in this form. `hack/fix-imports.sh [-n] [path ...]` rewrites files to the rule (all tracked Go files without paths, paths relative to the directory it is run from, `-n` to only list them and exit 1 if any would change); run it to resolve an import-block merge conflict, by taking either side and rerunning it. It leaves a block with a comment between imports unchanged and reports it.
+An import block has at most one blank line: between the standard library group and the group of all other imports,
+the module's own included. Each group is sorted by import path, as `goimports` sorts it. A package whose path has no
+dot in its first element counts as standard library. A test in `internal/testing/archtest` checks every tracked Go file
+and every Go file the generators print, so a generator prints its imports in this form. `hack/fix-imports.sh [-n]
+[path ...]` rewrites files to the rule; it also resolves an import-block merge conflict, by taking either side and
+rerunning it.
 
 ## Testing
 
-### Test-Support Packages
+### Test Tiers
 
-The code that the tests of several packages share lives under `internal/testing/`, one package per concern, so that a package under test does not carry the fixtures and drivers of its own tests. `internal/testing/doc.go` holds the rule; this section states it and lists every package outside the product code that serves tests.
+The tests come in two tiers:
 
-- A package named `<subject>test` serves the tests of `<subject>`: it provides the fixtures, corpora or drivers that those tests share. These are `archtest` (the architecture and repository rules), `codegentest`, `compiletest`, `complexitytest`, `enginetest`, `exectest`, `factstest`, `mutanttest`, `starttest` and `tsconformtest`. `complexitytest` also holds the measurement of the cost of a grammar that its tests report.
-- A package of another form is a reference or a measurement that tests and benchmarks drive, and it is named for what it holds: `examinedref` (the independent reference of the examined end of a call), `linearity` (measures of linear growth that do not depend on the time or the load of the machine), `importgroups` (the import-block rule that `archtest` enforces and `hack/fix-imports.sh` applies; its command is `importgroups/fiximports`) and `recoveryquality` (how well `#recover` repairs invalid input).
-- A directory that holds only tests (`recoveryquality`) has only `_test.go` files and a package comment that states its purpose; every other package has a package comment in a non-test file.
-- Non-test code outside `internal/testing/` does not import these packages: the import-graph test in `internal/testing/archtest` (rule 2) fails when it does.
+- **The default tier**, `go test ./...`, runs on every change. It is meant to finish in about 3 minutes: the wall time of
+  `go test ./...` with a warm build cache on the reference machine of [Performance](performance.md#where-syntaxir-stands).
+- **The long tier**, `go test -tags sxir_long ./...`, adds the files named `*_long_test.go` with `//go:build sxir_long`:
+  negative controls and mutants that rebuild or rerun generated corpora, full corpora and full-size measurements. It
+  includes every test of the default tier at the same or a larger size, so a run that needs it runs it instead of the
+  default tier, not after it.
 
-These packages outside `internal/testing/` serve tests or look like they do, and stay where they are:
+A new slow test goes to the long tier. A test whose run approaches the CI timeout moves there too, with a
+representative subset kept in the default tier, together with the parity or invariant test that checks the unmutated
+behavior. The default tier's subsets are fixed: they depend on test and case names only, so they do not change between
+runs. `-timeout 45m` for the default tier and `-timeout 90m` for the long tier are safety bounds, not targets: Go stops
+a package's tests after 10 minutes by default, which some packages still exceed on a loaded machine. CI's timeouts are
+in [its workflow](../.github/workflows/ci.yml).
 
-| Package | Why |
-|:--|:--|
-| `internal/ir/code/exec/conform`, `internal/ir/code/exec/ref`, `internal/ir/code/exec/spectest` | The conformance harness, the reference models and the reader of the specification tables of the Exec IR. They state the contract that the machine, the compositions and every backend meet ([record 065](design/records/065-exec-ir-parser-vm.md)), so they change with `internal/ir/code/exec/` and are read by the tests of the code generators, `internal/runtime/state`, `pkg/runtime/libgo` and `pkg/sample` |
-| `examples` | A test-only package, the golden tests of the example grammars; its package comment is in `examples_test.go` |
-| `internal/fixture` | Not test support: the runner of `sxir test`, which runs JSON-described examples against a grammar for users |
+A runner of mutants, or of another negative control that rebuilds the code under test, runs only when something its
+verdict depends on changed since the base revision that the gate exports. With no base, as in a plain
+`go test -tags sxir_long`, every mutant runs; package `internal/testing/mutanttest` states the rule.
 
-Every other package of `go list ./...` is product code, a command or a benchmark.
+Tests that compare wall-clock times compare ratios measured within one attempt and pass if any of a few attempts does,
+so a loaded machine slows them but does not fail them; a ratio that fails every attempt is a real growth.
 
-### Running the Checks
+### Choosing the Checks
 
-`hack/gate.sh [--base REV] [--keep-going] [--summary FILE] [--dry-run] LEVEL...` runs the checks of a level in a fixed order, so that every contributor validates the same way. It stops at the first failed step, so that the long steps do not run after a failure; `--keep-going` runs every step. The long-tier tests, `hack/test-alpha-parsers.sh` and `hack/test-reference-tags.sh` are independent and leave the tree as they found it, so they run at the same time as one group: the tests in the foreground with their output as it comes, the other two with their output printed under a heading when the group has ended. Every step of the group runs to its end, and a failure in it stops the gate after the group; `GATE_PARALLEL=0` runs each step on its own. It writes one line per step (name, exit code, seconds; the seconds of the steps of a group overlap) to the summary file and prints it at the end. It exits 0 when every step passed, 1 when a step failed and 2 on a usage error, never prompts, and `--dry-run` lists the steps without running them. Choose the level by what the change touches:
+Choose the checks by what a change touches. `hack/gate.sh [--base REV] LEVEL...` runs them in a fixed order, so that
+every contributor validates the same way; its header describes its options. It checks the changes of `REV..HEAD`
+(default `origin/main`), so commit first.
 
-| Level | Steps |
-|---|---|
-| `auto` | the levels below that the change since `REV` needs: `engine` when it touches `internal/runtime/`, `pkg/runtime/`, `internal/backend/` or `internal/testing/codegentest/`, or when `hack/affected-tests.sh` reports `go generate` or alpha-parsers as affected; otherwise `code` when any package is affected; `docs` beside either when `docs/`, `spec/`, `site/` or `README.md` changed, and alone when nothing else applies. The gate prints the levels it chose and why, and chooses `docs` and `engine` when the changes or the affected packages cannot be computed |
-| `docs` | `go vet ./...`, then, only when `docs/`, `spec/`, `site/` or `README.md` changed since `REV`, `cd site && go test ./...` and a site build into a temporary directory with its link check (without the WebAssembly binary; see [website maintenance](site.md)) |
-| `code` | `go build ./...`, `go vet ./...`, and `go test` of the packages that changed since `REV` (default `origin/main`) and of every package that depends on them, which `hack/affected-tests.sh` finds with `go list`; the packages whose tests take longest go first |
-| `engine` | `code`, with the tests of the affected packages run in the long tier (`-tags sxir_long`, which includes the default tier) and, at the same time, only when the generator (`cmd/sxir` and the packages it imports), a grammar of `testdata/grammars` or a runtime library is affected, `hack/test-alpha-parsers.sh`, and, only when the affected packages include `internal/runtime/engine`, `internal/runtime/state` or `internal/runtime/document`, `hack/test-reference-tags.sh` (the gate prints why it left the step out; it plans the step when the affected packages cannot be computed); then, only when a generator, a generator input or a generated file is affected (a non-test file of `cmd/sxir` or of a package it imports, or a file such a package embeds, or a path under `internal/backend`, `bench`, `internal/bench`, `pkg/compiler`, `pkg/runtime`, `internal/frontend/parser`, `spec/language`, `internal/frontend/check`, `internal/runtime/engine`, `internal/ir` or `testdata/grammars`), `go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...` with a check that it left the tree unchanged |
-| `full` | the long tier of the affected packages alone (the `test-long` step of `engine`) |
-| `all` | `go test -tags sxir_long -timeout 90m ./...`, the whole tree with the packages whose tests take longest named first, for a release; it replaces the affected-package test steps |
+| Level | For | Runs |
+|:--|:--|:--|
+| `docs` | Documentation, specifications, the site | `go vet ./...`, and the site tests and a site build with its link check when `docs/`, `spec/`, `site/` or `README.md` changed |
+| `code` | Go changes | Build, vet, and the default tier of the changed packages and every package that depends on them (`hack/affected-tests.sh`) |
+| `engine` | The engine, a generator or the runtime | `code` with the long tier, the ready-made parsers, the reference tags when the engine packages are affected, and `go generate` with a check that the tree did not change |
+| `full` | The long tier alone | The long tier of the affected packages |
+| `all` | A release | The whole tree in the long tier |
+| `auto` | Any change | The levels above that the changed paths need |
 
-`go test` starts the test runs of its packages in the order of its arguments, at most `-p` (by default `GOMAXPROCS`) at a time, so a long package named late would start after the short ones and end the run alone; the gate names the longest packages (`GATE_HEAVY` in `hack/gate.sh`) first and changes nothing else. The changed packages are those of `REV..HEAD`, so commit before running; the gate warns when the tree has uncommitted changes. `GATE_NICE` (default 0) is the `nice` increment of every step, and `GOMAXPROCS` and the other Go variables pass through. `GATE_SELFTEST_FAIL=1` adds a first step that fails, to see the gate stop, and `GATE_AFFECTED_CMD=false` replaces the computation of the affected packages by a failing command, to see that the gate then fails closed: the test steps run every package and every conditional step runs.
+The gate runs only what a change can affect, and every step it leaves out is recorded with its reason, never silently.
+Its conditions fail closed: when the changed files or the affected packages cannot be computed, every conditional step
+runs and the tests cover every package. A mechanical rewrite (a rename, a formatting pass) is checked by its
+invariants instead of a full run: build and vet under every build tag, generation without drift, unchanged test-file
+counts per tag, and the tests of the packages edited by hand.
 
-The tests of `internal/backend/codegen/golang/print`, the longest package, run as two concurrent shards (`GATE_SHARDS`, default 2; 1 turns it off) whenever the package is affected: the gate lists its top-level `Test`, `Fuzz` and `Example` functions with `go test -list`, gives alternate names to each shard through `-run '^(...)$'`, runs the other affected packages in a third invocation, and prints each part under its own heading. It checks that the shards together are exactly the list and falls back to one unsharded run when the list fails, is empty or does not add up, so that a new test cannot be dropped; a failed shard fails the step.
-
-The gate runs what a change can affect and nothing more. `vet` and `build` always run. Every step it leaves out is planned and written to the summary as a line `NAME<TAB>skipped (REASON)`, so that a skip is never silent. The conditions fail closed: when `hack/affected-tests.sh` or `git diff --name-only` fails (an unknown base, for example), the conditional steps run and the test steps cover every package. `hack/affected-tests.sh` selects every package, and reports both generation and alpha-parsers as affected, when `go.mod`, `go.work`, `go.sum` or the script itself changed. Both run the generator, so a change of `cmd/sxir` or of a package it imports (outside its tests) affects both; the script fails when the module has no `cmd/sxir`, instead of reporting neither.
-
-```bash
-go test ./...
-```
-
-`go test` stops a package's tests after 10 minutes by default, which a loaded machine can exceed in the packages that build generated parsers (`internal/runtime/engine`, `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `internal/testing/complexitytest`). Run the root suite with `-timeout 45m` and the long tier with `-timeout 90m`; CI uses the 45-minute value (below). The tests that compare wall-clock times (the Document memo-drop check and the linear-scaling tests of recovery) compare ratios of times measured in one attempt and pass if any of a few attempts does, so a loaded machine slows them but does not fail them; a ratio that fails every attempt is a real growth.
-
-The negative controls and mutants that rebuild or rerun the generated corpora many times are in the long tier: files named `*_long_test.go` with `//go:build sxir_long`, run once per batch of changes with `go test -tags sxir_long ./...`. The long tier includes every test of the default tier at the same or a larger size, so a batch that needs it runs it instead of the default run, not after it. `hack/affected-tests.sh [base [head]]` prints the packages whose tests a change between two commits can affect, to choose what to run while developing; the `code` and `engine` levels of `hack/gate.sh` test exactly those packages, and a batch that needs the whole tree before a release runs the `all` level. Each keeps its parity or invariant test, which checks the unmutated behavior, in the default tier. In `internal/backend/codegen/golang/print` and `internal/backend/codegen/typescript/print` the long tier holds the dependency-memo controls (`TestGeneratedLeftRecursionDependencyMemoControls`, `TestGeneratedTSLeftRecursionDependencyMemoControls`), the mutants of the Node budget, observation, stream observation and Document tests, the negative control of the Flow recognizer and the rule table limit test.
-
-A runner of mutants, or of another negative control that rebuilds the code under test for each mutant, runs only when something its verdict depends on has changed. `hack/gate.sh` exports `SXIR_MUTANTS_BASE` set to its base revision, and such a test calls `mutanttest.SkipUnlessChanged` (`internal/testing/mutanttest`) first with the repository paths it depends on: `mutanttest.Pipeline` (the module packages that the tests of the code generators and the engine import, with `testdata`) for the runners of `internal/runtime/engine`, `internal/backend/codegen/common`, `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `pkg/runtime/libgo` and `pkg/sample`, and `internal/ir`, `internal/syntax` and `pkg/grammar` for those of `internal/ir/code/exec/ref`. When no file under those paths, `go.mod`, `go.sum`, `go.work` or the helper differs between the base and the working tree (untracked files count), the test skips with a message that names the base and the paths; otherwise it runs. The rule fails closed: with `SXIR_MUTANTS_BASE` unset, as in a plain `go test -tags sxir_long`, every mutant runs, and when git fails or the base is not a revision they run and say so. `TestPipelineCoversImports` fails when a package that the runners' tests import is outside `Pipeline`. A new runner that rebuilds code for each mutant calls the helper with the paths it depends on; the in-process mutants of `internal/ir/code/exec/conform` and the `DetectsBroken*` conformance tests of `internal/runtime/state`, which are cheap, always run. The long tests of the queue scripts in `internal/testing/archtest` use the same rule with `.agents/scripts` and the package itself as their paths.
-
-The mutant runners of `internal/runtime/engine` build their mutants together with `mutanttest.Batch`: instead of one `go test -overlay` build per mutant, each package is built once with mutant schemata, in which every function that a mutant changes is compiled both as it is and as the mutant has it, and an environment variable selects the mutant when the test binary runs. Every mutant still runs its tests and must still make them fail. A mutant that the schema cannot express (a change outside a function body or in a signature), and every mutant of a package whose schema does not build, is built on its own as before.
-
-In `internal/testing/complexitytest` the default tier measures every control, corpus entry and family of random grammars at the reduced sizes and counts that `-short` selects, and the long tier measures them at full size. `TestSlopeGate` holds the classes that the classifier assigns to random grammars to their measured slopes on every backend, and leaves out of the cost the copies of recovered errors that Compute counts: it runs a few seeds, and the seeds in `slopeCaught` that found a false class under a negative control, in the default tier, and many more in the long tier. A seed that catches a new false class belongs in `slopeCaught`, and its grammar in `TestSlopeGateGrowth`. The gate holds the class Linear and the degree of a polynomial class, and fails on a polynomial class that has reasons for the class unknown. Its grammars reach some checks of the classifier too rarely to hold them: breaking the cut check of a choice in what an expression surely consumes, the condition that a counted rule is off every cycle, or the repetition depth of the nesting check passes the gate, and only the class tests of `internal/complexity` and the controls of `TestControlClasses` catch it.
-
-The tests that run a generator over the whole corpus run a fixed subset of it in the default tier and all of it in the long tier. `codegentest.Representative` keeps the first case of every family of the corpus (the part of a case name before its first `:` or `_`) and the cases whose name hashes to a multiple of eight, `codegentest.RepresentativeGrammars` and `RepresentativeNames` keep the json, csv, cel and cue grammars of the checked-in ones, `codegentest.Sampled` keeps a third of a list of fixtures by name, and `codegentest.EachMode` runs the controls form or the ordinary form of a test, picked by the hash of its name in the default tier and both forms in the long tier. The negative controls of the action tests (`TestActionDifferentialDetectsBrokenTargets`, `TestActionConstructorsDetectBrokenTargets`, `TestActionIterationsDetectBrokenTargets` and `TestActionPassesDetectBrokenTargets`) run under it too: the code that a mutant anchors on can differ between the forms, as the library calls that a parser counting logical compute units makes under names with the suffix `Logical` do, so the long tier proves each mutant against both forms. The selection depends on names only, so it does not change between runs, and the count floors of the tests are scaled with `codegentest.ScaleFloor`.
-
-`go test ./...` does not run benchmarks, so a change to the language rules can leave a benchmark's grammar invalid without failing the suite. After such a change, run every benchmark once (about 80 s):
+`go test` does not run benchmarks, so a change of the language rules can leave a benchmark's grammar invalid without
+failing the suite. After such a change, run every benchmark once:
 
 ```bash
 go test -run '^$' -bench . -benchtime=1x ./...
 ```
 
-The tests that build generated parsers (in `internal/backend/codegen/golang/print`, `internal/backend/codegen/typescript/print`, `internal/backend/codegen/common` and `internal/runtime/engine`) build them in two forms. A parser generated with limit controls spends budget and accepts the options `WithContext` and `WithLimits`. A parser generated without them is the form that most parsers have, and a different part of the generator prints it. Every test runs the form that it exists to check:
+**Reference builds.** The build tags `sxir_budget_controls_reference`, `sxir_reference_*` and
+`sxir_snapshot_*_reference` select the simpler or former form of an optimized mechanism, and
+`sxir_snapshot_position_overlays` an opt-in representation that the default build has not adopted. Every build must
+compile: test files that use helpers of untagged files keep each tagged build compiling, and a test whose feature a tag
+removes skips under that tag. `hack/test-reference-tags.sh [tag...]` vets the engine packages and every package with a
+tagged file, and tests them with `-short`, under every tag of the tree or the tags it is given; it takes tens of minutes, and a change of budget-control code, a reference variant or the tests of the engine
+packages runs it.
 
-| Kind of test | Runs | How |
-|:--|:--|:--|
-| Tests that build fixtures and check their behavior, output or equivalence with the engine | Both forms, as the subtests `controls` and `ordinary` | The test body runs under `codegentest.EachMode`, as the test's last statement; the two subtests run in parallel |
-| A test of that kind whose other form other tests run in both tiers, and whose size makes a second form most of its cost (`TestActionGeneratedTargets`) | One form, picked by the hash of its name, in both tiers | `codegentest.OneMode` |
-| Tests that pass a control option (`WithContext`, `WithLimits`) | With controls only | `codegentest.NeedsBudgetControls` |
-| Tests of output that exists only without limit controls (terminal programs, the Flow recognizer and Node rules, choice guards) | Without controls only | `codegentest.PinOrdinary` |
-| Tests that do not build fixtures | Not form-specific | |
-
-Each test records its form by name and its subtests inherit it, so tests of either form can run in parallel. A test that builds a fixture without any of these fails the run when it finishes, because it would check one form only. `go test ./...` therefore covers both forms and needs no setting.
-
-`SXIR_TEST_ORDINARY` restricts a run to one form: `0` runs everything that builds fixtures with limit controls, and `1` runs it without, skipping the tests that pass a control. Use it to reproduce a failure of one form; it does not widen coverage.
-
-The top-level tests of `internal/runtime/engine` call `t.Parallel()`. A test stays sequential when it measures heap or time in the test process, changes a process-wide setting such as `debug.SetMaxStack`, or shares mutable fixtures with other tests (the generators cached by `coreGenerations`); Go runs every sequential test before it releases the parallel ones, so these run alone. The thresholds of the charge model (the hot spans of run and scan sites, the shortest run a Document records) are constants that no option changes. A test that needs the hot paths on short inputs, or a negative control that turns records off or breaks one check, sets the test-only settings of its own parse (the tuning of the internal state package, passed in the parse options or set on the engine's parser), so such tests stay parallel. Generated Go parsers lower the run-site hot span only when built against a patched copy of the library from the codegentest package. A test that observes or changes the Go generator passes `Hooks` of `internal/backend/codegen/golang/print` to the generation, directly or for itself and its subtests with `codegentest.SetGenHooks`, instead of setting package state.
-
-Engine tests write grammars in SyntaxIR source and compare results using the S-expression form of nodes (`Node.String`).
-The `check` helper also verifies that the result is the same with memoization disabled, with every backend (closure, recursive bytecode, iterative bytecode), with both position units, in recognition-only mode, and with tracing on.
-
-The behavior of package `engine` is tested from outside it, by the tests of package `engine_test` in `internal/runtime/engine/`: they call its exported API, with internal packages only to build values, to mark start rules and to count how often options apply. Tests of an engine mechanism that package `engine` exposes through traces and profiles (the memo, evaluation counts, twins) are there too. The module root holds no Go package; `TestModuleRootHoldsNoPackage` in `internal/testing/archtest` fails when a Go file appears there.
-
-`internal/backend/codegen/golang/print/gengo_pool_lifecycle_test.go` checks generated Node and typed parser cleanup after oversized
-inputs, retained results, and error/retry reuse in both position units.
-
-The TypeScript generator's test needs Node.js 22.18 or later (`node`) and, for its type check, `tsc`; a test that needs one of them fails when it is missing, naming it, so that a comparison with the generated TypeScript cannot pass by not running. `SKIP_NODE=1` skips those tests instead, for a machine without Node.js or `tsc`.
-The generated TypeScript has the same two forms, chosen by `-no-limits`. A TypeScript test that needs the form without limit controls (the plain output, no charge, no control option) generates with `NoLimitControls`; a test that passes a control option (`signal`, `limits.compute`) takes the default, the controlled form. `TestGeneratedTSParsersMatchEngine` compares both forms with the engine, and `gents_budget_forms_test.go` checks that the plain form has no charge, no control option and no cancellation export, and that the controlled form accepts the options.
-TypeScript is printed from the same Exec stage as Go (`internal/backend/codegen/typescript/print/rules.go`, `internal/backend/codegen/typescript/print/outline.go`); `TestGeneratedTSPrintsLeanRulesFromFlow` and the frozen decision goldens cover what is chosen, and a rule that the printer does not print fails generation.
-
-`lint` tests every check with positive and negative cases, lints every example grammar against a hand-checked list of findings, and `TestSoundness` checks the certain findings against the engine on random grammars, exhaustively over short inputs (`-soundness=N` for a longer run).
-
-`internal/lsp/sxirls` tests talk to the server in process over pipes (lifecycle, malformed messages, incremental edits with non-ASCII and astral characters and `\r\n`, every request) and analyze every example grammar. In `editors/vscode`, `npm install && npm run check` compiles the TextMate grammar's regular expressions with Oniguruma and checks the scopes of a sample, and tokenizes the example and ready-made parser grammars; `npm run check-server -- <path to sxir>` talks to the server with the VS Code client's JSON-RPC library.
-
-`sample` tests generate inputs for every example grammar and every grammar of the shared test corpus (`sample/sample_engine_test.go`, with the corpus of `internal/testing/codegentest`) and parse them on every backend.
-
-`go generate ./spec/language` renders the simple grammar view from `sxir.sxir` and `spec/language/syntax.md.tmpl`; edit the template rather than the generated page. `spec/language/source_grammar_test.go` verifies the simplified display against the canonical source grammar, checks concrete trees and recovery across backends, and builds a generated typed Go consumer. `spec/language/syntax_test.go` runs the grammar of [Grammar Syntax](../spec/language/syntax.md) on every `.sxir` file and every `sxir` code block of the repository and requires it to agree with the parser of `internal/syntax`.
-
-`cd site && go test ./...` builds the site and checks its pages and links; `go test ./cmd/playground` runs the WebAssembly smoke test when Node is installed.
-The site publishes the playground's binary from a pinned GitHub pre-release instead of compiling it;
-[the site maintenance page](site.md#the-playground-release) explains how to publish a new release and pin it.
-Production site builds retain the published current WASM/runtime pair alongside the new pair, using a bounded
-asset manifest and immutable deploy source. Workers select the matching hashed Go runtime; previews/local builds
-do not automatically read production assets. Hash/HTTP failures stop retention before local output is cleared.
-[Design 023](design/records/023-playground-asset-retention.md) describes one-generation retention, bootstrap and sequential
-publication limits; `site/assets_test.go` and `worker_assets_test.mjs` cover its build and worker contracts.
-Playground shared-link navigation applies every normalized option and tab even when grammar/input are unchanged;
-only parse-affecting changes schedule parsing, preserving editor scroll on tab-only navigation. Actual-app
-controlled DOM/client/timer tests cover each field, default restoration, missing start rules and named examples.
-URL encoding/decoding is guarded by the latest user action and adopted fragment, including navigation before event
-delivery, startup and example fetching. Superseded Share requests do not copy, older parse completions cannot save
-during incoming link loading, and landing links keep the latest input. Deferred-promise tests exercise these orderings
-and error paths; browser checks complement them with the real WebAssembly worker.
-The tree renderer (`site/static/playground/tree.js`) pages direct children in groups of 100, counts node/control rows
-within a 400-row initial budget and 5,000-row live cap, and keeps deferred nodes reachable by caret or page controls.
-Explicit expansion at the cap compacts materialized branches; paths that cannot fit use a subtree window with a return
-control. Controlled row-count, reference/focus and boundary tests cover these resource limits. The tree benchmark
-distinguishes equivalent small-tree work from wide-tree display reduction; real browser checks cover DOM/WASM wiring.
-
-The same-source budget-control reference build compiles and tests the engine packages without core budget-control
-instrumentation. After changing test files of `internal/runtime/engine`, check that both builds compile
-with `go vet ./internal/runtime/engine/...` and
-`go vet -tags sxir_budget_controls_reference ./internal/runtime/engine/...`; test files that use helpers
-defined in untagged files keep both builds compiling.
-The other reference tags (`sxir_reference_*` and `sxir_snapshot_*_reference`) likewise select the simpler or the
-former form of an optimized mechanism. The candidate tag `sxir_snapshot_position_overlays` instead selects an opt-in
-representation that the default build has not adopted. `hack/test-reference-tags.sh [tag...]` vets and tests
-with `-short` the engine packages and every package with a file constrained by a tag, under
-every tag of the tree or the tags it is given; it rejects a tag that no build constraint names. A test whose
-feature a tag removes skips under that tag. Its tags run four at a time (`TAG_JOBS`), each with its output under its own heading, and any failed tag fails the run. The run takes tens of minutes: run it after changing budget-control
-code, a reference variant or the tests of the engine packages; a landing batch runs it when it touches such code.
-
-GitHub Actions runs a light check on every push to main: `go vet ./...` and the `go generate` step of the gate,
-which fails when the tree changes. The test suites run only on demand: start the CI workflow by hand
-(`gh workflow run ci.yml --ref <branch> -f suite=<suite>`) and choose `root` (the default tier), `long` (the long
-tier, which includes the default tier), `alpha` (`hack/test-alpha-parsers.sh` against a checkout of
-`syntaxir/alpha-parsers`), `site`, `typescript` (the Node.js/WebAssembly and generated-TypeScript checks), `check`
-or `all` (every job, with the long tier). Run them on hosted runners when the local machine is busy, for
-instance for a landing batch; they replace no local check that this page requires. Timing benchmarks never run
-there, because shared runners give no stable timings. A newer run of the same suite on the same ref cancels the
-superseded run. CI runs on the pinned `ubuntu-24.04` image with Go 1.27.1, Node.js 22.18.0, CPython 3.14.0 and
-TypeScript 5.9.3. The default tier has a
-45-minute timeout and the long tier 150 minutes, within a 180-minute job budget.
-The TypeScript differential harness uses the upstream
-[`microsoft/TypeScript` v5.9.3 `tests/cases`](https://github.com/microsoft/TypeScript/tree/v5.9.3/tests/cases) corpus.
-Required-tool checks fail before tests if a required runtime or the TypeScript corpus is absent. Go tests run with
-`-v` so optional skips are visible in the retained 14-day logs. Python uses its installed standard library and recorded
-reference data; the live comparisons on a CPython checkout (`SXIR_CPYTHON_SRC`) and the DuckDB `REFERENCE_FILE` corpus
-are not supplied. DuckDB checks use recorded reference results, not a live DuckDB oracle. These jobs do not claim
-browser-engine or deployed-site validation.
-
-### Developer Scripts
-
-`hack/` holds the scripts a contributor runs by hand: `gate.sh` (the levels above), `affected-tests.sh` (the packages a change can affect), `test-reference-tags.sh`, `sync-alpha-parsers.sh` and `test-alpha-parsers.sh` (the ready-made parsers), and `check-commits.sh`, and `fix-imports.sh` (the import grouping rule in [Go Style](#go-style)). `hack/check-commits.sh [base [head]]` checks the commits of a range before a push against `docs/commit-messages.md` and the repository rules: no AI or agent attribution, no merge commit, a summary of at most 72 characters without a final period, a body, no closing trailer, no files under `.scratch/`, and a branch prefix of `feat/`, `fix/`, `perf/` or `docs/`. It reads history only and exits 1 on any violation.
-
-## Repository Grammar Test Coverage
-
-The guides show how to test a grammar in an application. The repository uses the same layers across its examples and parser corpus:
-
-| Coverage | Location |
-|:--|:--|
-| Example grammar golden files | [`examples/examples_test.go`](../examples/examples_test.go) |
-| Ready-made parser goldens across engine backends and generated parsers | `parsers_test.go` in [alpha-parsers](https://github.com/syntaxir/alpha-parsers) |
-| Reference-implementation and conformance tests with fuzz targets | Each parser module's tests, for example [`alpha-parsers/json/json_test.go`](https://github.com/syntaxir/alpha-parsers/blob/main/json/json_test.go) |
-| Generated inputs and backend comparisons | [`pkg/sample/example_test.go`](../pkg/sample/example_test.go) |
-| Compiled grammars, Documents and backend equivalence | `internal/runtime/engine/` tests such as `compiled_test.go` and `document_test.go`, and the tests of `internal/runtime/document/` |
-| Generated Go against the engine and regression freezes of what the engine cannot say (observation, Documents, budget, streams, lowering decisions) | `internal/backend/codegen/golang/print/` tests such as `gengo_flow_*_test.go` and `core_*_test.go` with `internal/backend/codegen/golang/print/testdata/*.golden` and `testdata/decisions/`; a change of what a golden freezes is rewritten with `go test <package> -run <test> -update` and its diff reviewed |
-
-Root `go test ./...` covers the main module. Run `hack/test-alpha-parsers.sh` to vet and test the parsers of the alpha-parsers checkout against this tree (see [Ready-Made Parsers and Their Corpora](#ready-made-parsers-and-their-corpora)); `cd site && go test ./...` covers the site module.
-
-### Ready-Made Parsers and Their Corpora
-
-The ready-made parsers are in the separate [alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository
-(module `syntaxir.dev/alpha-parsers`), generated from `testdata/grammars/`. Its conformance suites use text from
-other projects, which it fetches and checks against pinned digests (see its README). To check a change of the generator
-or the engine against it, keep a checkout next to this one (`../alpha-parsers`; in the layout `~/src/github.com/syntaxir/`
-that is `~/src/github.com/syntaxir/alpha-parsers`), or name another directory with `SXIR_ALPHA_PARSERS`:
+**Ready-made parsers.** The ready-made parsers are in the separate
+[alpha-parsers](https://github.com/syntaxir/alpha-parsers) repository, generated from `testdata/grammars/` with the
+options of `testdata/grammars/generate.txt`. To check a change of the generator, the library or the grammars against
+them, keep a checkout at `../alpha-parsers`, or name another directory with `SXIR_ALPHA_PARSERS`:
 
 ```bash
 git clone https://github.com/syntaxir/alpha-parsers ../alpha-parsers
-hack/sync-alpha-parsers.sh     # copy the grammars, inputs and duckdb/inspect.go; regenerate every parser
+hack/sync-alpha-parsers.sh     # copy the grammars and inputs, and regenerate every parser
 hack/test-alpha-parsers.sh     # check the checkout is in sync, then vet and test it
 ```
 
-Both scripts join this tree and the checkout with a temporary `go.work` file, so they use the
-working tree they are run from, not a pushed commit: run them from the tree that holds the change. They print the
-checkout they use. `hack/test-alpha-parsers.sh` fails when there is no checkout, when a grammar, a sample input or
-`duckdb/inspect.go` differs from `testdata/grammars/`, and when the options of the checkout's `generate.go` differ from
-`testdata/grammars/generate.txt`; `SXIR_ALPHA_PARSERS=skip` skips it on purpose. `hack/sync-alpha-parsers.sh` leaves the
-regenerated files uncommitted in the checkout and does not rewrite `generate.go`, whose options are edited by hand.
-Commit the result in the alpha-parsers repository whenever a change of the generator, the library or the grammars
-changes the generated files.
+Both scripts use the working tree they are run from, not a pushed commit. `hack/test-alpha-parsers.sh` fails when there
+is no checkout or when the checkout is out of sync; `SXIR_ALPHA_PARSERS=skip` skips it on purpose. The checkout's
+`generate.go` is edited by hand. Commit the regenerated files in the alpha-parsers repository whenever a change alters
+them.
 
-Regenerate committed generated files with `go run ./cmd/sxir` or `go generate`, never with a built `sxir`: a built binary stamps a version in the header, and committed files carry `(devel)`, which a test checks.
+### Writing Tests
 
-## Language Feature Status
+- **Both forms of generated parsers.** A parser generated with limit controls and one generated without them are printed
+  by different parts of the generator. Every test that builds generated fixtures declares which form it checks, through
+  the helpers of package `internal/testing/codegentest`; a test that builds a fixture without declaring a form fails the
+  run. `go test ./...` therefore covers both forms, and `SXIR_TEST_ORDINARY` (`0` or `1`) restricts a run to one form to
+  reproduce a failure.
+- **Engine tests** test package `engine` from outside it, through its exported API, and write grammars in SyntaxIR
+  source. Their differential helper checks that the result is the same on every backend, with memoization off, in both
+  position units, in recognition and with tracing.
+- **Parallel tests.** A test calls `t.Parallel()` unless it measures heap or time in the test process, changes a
+  process-wide setting, or shares mutable fixtures with other tests. A test that needs other tuning sets the test-only
+  settings of its own parse, and a test that observes a generator passes hooks to its generation, rather than changing
+  package state.
+- **Goldens.** A change of what a golden file freezes is rewritten with `go test <package> -run <test> -update`, and
+  its diff is reviewed.
+- **Required tools.** The TypeScript and playground tests need Node.js 22.18 or later and `tsc`. A test that needs a
+  missing tool fails and names it, so that a comparison cannot pass by not running; `SKIP_NODE=1` skips those tests on a
+  machine without them.
+- **Test support.** Code that the tests of several packages share lives under `internal/testing/`, one package per
+  concern, named `<subject>test` when it serves the tests of `<subject>` ([its rule](../internal/testing/doc.go)).
+  Non-test code does not import it; the import-graph test fails when it does.
 
-| Status | Category | Feature |
-|:--|:--|:--|
-| Done | Type system | Type definitions (`type`) |
-| Done | | Structs (`T = { ... }`) |
-| Done | | Join types (`T \| U`) |
-| Done | | Type checking |
-| Done | | Type inference |
-| Done | Rule Expressions | Literals (`"..."`) |
-| Done | | Character matching (`[...]`) |
-| Done | | Sequences (`a b`) |
-| Done | | Choices (`a / b`) |
-| Done | | Repetition (`#repeat(...)`, `*`, `+`, `?`) |
-| Done | | Lookahead (`&`, `!`) |
-| Done | | Atomic (`#atomic`) |
-| Done | | Discard (`-`) |
-| Done | | Cut (`#cut`) |
-| Done | | Anchors (`^^`, `$$`, `^`, `$`) |
-| Done | | Top and bottom (`_`, `_\|_`) |
-| Done | | Captures (`label:a`) |
-| Done | | Groups (`(...)`) |
-| Done | | Any character (`.`) and negated character matching (`[^...]`) |
-| Done | | Predicate Actions (`{ ... }`) |
-| Done | | Attributes (`@...`) and behavioral pragmas (`#...`) |
-| Done | | Consuming skip recovery (`#recover`) and error messages (`@error`) |
-| Partial | | Opt-in nonempty-literal insertion ([`#missing`](../spec/language/pragmas.md#missing)): whole-input parsing, recognition, prefix parsing, streams and Documents on every engine backend and in compiled grammars; whole-input parsing, recognition, streams and Documents in generated Go and TypeScript parsers, Node and typed |
-| Done | Actions | Predicate Actions (`{expr}`, `{name := expr}` and multi-statement blocks `{a; b}`) and Value Actions (`=> expr`) on ordinary rules and on whole Operators Rules, where the action runs once per call on the folded value `$value` |
-| Not implemented | | Braced Value Actions (`=> { ... }`) parse/format/AST only; compilation rejects them |
-| Done | | Inline Value Actions (`(expression => expr)`, a hidden rule at its position; braced inline blocks are rejected) |
-| Done | | Typed variables (`var x int = 0` declarations; `{x}`, `{x := 1}`) |
-| Done | | Capture references (`$label`) |
-| Done | | Built-in functions (`foldl`, `len`, `text`, and others) |
-| Done | | Struct constructors (`Type{Field: value}`), and typed node-list constructors (`[]Type{...}`) |
-| Done | Advanced | Left recursion |
-| Done | | Parsing SyntaxIR source (`.sxir`) |
-| Done | | Operators Rule declarations |
-| Done | | Stream parsing (`#stream`) |
-| Done | | Mutable incremental parsing (`Document`); snapshots and change notifications |
-| Done | | Code generation (Go, `sxir gen`) |
-| Done | | Typed values in generated parsers (`sxir gen -types`) |
-| Done | | Saving and loading compiled grammars (`.sxirc`) |
-| Done | | Code generation (TypeScript, `sxir gen -lang ts`) |
-| Done | | Input generation and fuzzing (`sxir sample`, package `sample`) |
-| Done | | Grammar linting (`sxir lint`, package `lint`) |
-| Done | | Editor support (`sxir lsp`, VS Code extension with a TextMate grammar) |
-| Done | | Tracing, profiling and error explanation (`WithTrace`, `WithProfile`, `sxir trace/profile/explain`) |
+The site has its own tests, described in [website maintenance](site.md#tests).
+
+### Continuous Integration
+
+GitHub Actions run a light check on every push to main: `go vet ./...` and the `go generate` step of the gate. The test
+suites run only on demand: start [the CI workflow](../.github/workflows/ci.yml) by hand
+(`gh workflow run ci.yml --ref <branch> -f suite=<suite>`) and choose a suite, such as `root`, `long` or `all`. They
+complement the local checks and replace none of them. Timing benchmarks never run there, because shared runners give no
+stable timings.
+
+## Adding an Optimization
+
+An optimization is a flag of the [pass registry](design/pass-pipeline.md#the-registry). To add one:
+
+1. Declare the pass, lowering or library control, and register its flag from the package that reads it.
+2. Add its entry to the optimization flag tests of the Go generator, which compare a parser generated without it with
+   the engine and fail for a flag that changes neither the code nor the Core IR.
+3. Add a row to the optimizations table of the [code-generation guide](guide/code-generation.md#optimizations).
+
+`sxir gen -print-after all` shows the Core IR after each pass, and `-no-opt name` isolates a miscompilation to one
+optimization ([Bisecting Passes](design/pass-pipeline.md#bisecting-passes)). Commits follow
+[the commit message rules](commit-messages.md), which `hack/check-commits.sh` checks before a push.

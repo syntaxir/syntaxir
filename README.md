@@ -275,7 +275,7 @@ left-recursive), an indentation-based outline format and a small programming lan
 
 | | |
 |:--|:--|
-| [Development guide](docs/development.md) | Repository layout, architecture, language support and tests |
+| [Development guide](docs/development.md) | Modules, test tiers, the checks a change needs and the rules of tests |
 | [Design](docs/design/README.md) · [Design records](docs/design/records/) | How it is built, and the decisions and their rationale |
 | [Bytecode specification](spec/bytecode/README.md) | Instruction set and VM semantics, for porting the runtime |
 | [Performance](docs/performance.md) · [Optimization catalog](docs/optimizations/README.md) | How performance is measured, and how it got where it is |
