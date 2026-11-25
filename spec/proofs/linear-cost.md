@@ -3242,7 +3242,14 @@ the two evaluations both fail or both succeed and end at one position.
 
 *Proof.* A shared literal, and equal literals, character classes or `.`
 passed alike, examine the same input at $q$, with the same case sensitivity,
-so they match it in both or in neither. A call is of one rule in both, with
+so they match it in both or in neither. Two repetitions passed alike are
+written alike, and their expressions call only rules on no left-recursion
+cycle, with the same values of the variables that those rules read, and hold
+no predicate, binding, cut, `#recover`, `#missing`, `@error`, `@diagnostic`
+or Operators Rule: each iteration evaluates the same expression from the
+same position with the same values in both, and by induction on the
+iterations, with the calls in them treated as below, the two take the same
+iterations, so both fail, or both succeed and end at one position. A call is of one rule in both, with
 the same level restriction or with none, and has the same values of the
 variables that it reads: a shared call reads none, and a call passed alike
 that reads variables is called with the same ones on both sides. When its

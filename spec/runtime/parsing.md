@@ -1892,7 +1892,12 @@ The conditions below use these action expressions.
   symbols are alike when they are calls of one rule that is not on a
   left-recursion cycle and reads no variable, or reads variables and is called
   with the same variables on both sides, equal literals, equal character
-  classes or `.`, or calls of one trivia rule (below). A literal that is a
+  classes or `.`, calls of one trivia rule (below), or two repetitions
+  written alike whose expressions call only rules that are on no
+  left-recursion cycle and read no variable, or read variables and are
+  called with the same variables on both sides, and contain no predicate,
+  binding, cut, `#recover`, `#missing`, `@error`, `@diagnostic` or Operators
+  Rule, so that each has one result at a position. A literal that is a
   prefix of the other, literals that are equal up to case, overlapping
   character classes, and a literal and a class that contains its first
   character are passed by the characters that they have in common, each step
