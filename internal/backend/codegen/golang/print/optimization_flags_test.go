@@ -56,36 +56,19 @@ rule lit = "a" / "ab" / "abc" / "abcd" / "abcde" / "abcdef" / "日本" / "日本
 
 // optimizationTests says for each registered optimization the test that shows a parser generated
 // without it returns what the engine does, or "" where this file's TestOptimizationDisabledParity does.
-// A flag that is missing here fails TestOptimizationsHaveTests, so a new optimization comes with a test.
-var optimizationTests = map[string]string{
-	"terminals":              "TestTerminalProgramDisabledParity",
-	"text-dispatch":          "TestLiteralTextPredicateDispatchDisabledParity",
-	"field-compare":          "TestGeneratedTextFieldComparisons",
-	"dispatch":               "",
-	"guards":                 "",
-	"guarded-classes":        "TestGuardedClassDisabledParity",
-	"scans":                  "",
-	"outline":                "TestOptimizationDisabledTSParity (typescript/print)",
-	"class-runs":             "",
-	"class-tables":           "",
-	"inline-literals":        "",
-	"method-sharing":         "TestGeneratedUnsharedParsersMatchEngine",
-	"used-features":          "",
-	"literal-sharing":        "TestGeneratedUnsharedParsersMatchEngine",
-	"ts-literal-sharing":     "TestGeneratedSharingIdentity (internal/backend/codegen/common)",
-	"typed-object-slabs":     "TestGeneratedTypedOutputRetentionFixture",
-	"typed-list-slabs":       "TestGeneratedTypedOutputRetentionFixture",
-	"typed-output-bootstrap": "TestGeneratedTypedOutputRetentionFixture",
-	"sparse-memo":            "TestGeneratedTSSparseMemoControls (print)",
-	"ts-merged-records":      "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
-	"ts-tested-inits":        "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
-	"canonicalize":           "TestCanonicalizePassOff (internal/middleend/codepass)",
-	"drop-after-exit":        "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"drop-unused-labels":     "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"fold-branches":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"fold-constants":         "TestCanonicalizePatternOff (internal/middleend/codepass)",
-	"splice-blocks":          "TestCanonicalizePatternOff (internal/middleend/codepass)",
-}
+// It is derived from codegentest.DisabledFormTests, which TestPassFlagClasses of internal/driver/entry reads too.
+// A flag that is missing there fails TestOptimizationsHaveTests, so a new optimization comes with a test.
+var optimizationTests = func() map[string]string {
+	out := map[string]string{}
+	for name, t := range codegentest.DisabledFormTests {
+		if t.Test != codegentest.DisabledParity {
+			out[name] = t.Test + " (" + t.Dir + ")"
+		} else {
+			out[name] = ""
+		}
+	}
+	return out
+}()
 
 // outputFlagTests says for each registered optimization that changes the output (ChangesOutput) the
 // test of the contract it changes. Such an optimization is not in optimizationTests: a parser

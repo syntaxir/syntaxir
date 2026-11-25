@@ -19,6 +19,7 @@ import (
 	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/internal/testing/enginetest"
 	"syntaxir.dev/sxir/pkg/runtime/input"
+	"syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // The engine runs a subset of the registered optimizations: the passes that its backends run (their
@@ -34,7 +35,6 @@ var (
 	bytecodeBackends  = []engine.Backend{engine.Bytecode, engine.BytecodeIterative}
 )
 
-// engineFlags lists the optimizations that the engine runs, and the engine backends that run each.
 // listsFlag reports whether a pipeline text lists the pass or pattern of a flag: as a step, or inside the
 // brackets of the canonicalize pass.
 func listsFlag(text, name string) bool {
@@ -74,11 +74,13 @@ func TestDescribeListsWhatRuns(t *testing.T) {
 	}
 }
 
-// TestPassFlagClasses checks the lists against the passes that the backends run.
-var engineFlags = []struct {
+type engineFlag struct {
 	name     string
 	backends []engine.Backend
-}{
+}
+
+// engineFlags lists the optimizations that the engine runs, and the engine backends that run each.
+var engineFlags = []engineFlag{
 	{"guards", allEngineBackends},
 	{"scans", allEngineBackends},
 	{"dispatch", bytecodeBackends},
@@ -88,36 +90,22 @@ var engineFlags = []struct {
 
 // generatedOnlyFlags says for each optimization that no engine backend runs the test that checks a
 // parser generated without it against one generated with it (or against the engine), as a test
-// function and the directory of the package that holds it. The Flow passes terminals, guarded-classes,
-// class-runs, class-tables and inline-literals are among them, since the VM's flow target
+// function and the directory of the package that holds it. It is codegentest.DisabledFormTests, the one
+// registry of these tests, without the optimizations of engineFlags. The Flow passes terminals,
+// guarded-classes, class-runs, class-tables and inline-literals are among them, since the VM's flow target
 // (flowpass.Bytecode) prints none of their forms, and so are the canonicalize patterns of the Exec stage
 // (fold-constants, fold-branches, drop-unused-labels, splice-blocks), which the VM never reaches: its Flow
 // stage has only drop-after-exit. The pipeline text lists exactly the passes that a backend runs
 // (TestDescribeListsWhatRuns).
-var generatedOnlyFlags = map[string]struct{ test, dir string }{
-	"fold-constants":         {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
-	"fold-branches":          {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
-	"drop-unused-labels":     {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
-	"splice-blocks":          {"TestCanonicalizePatternOff", "internal/middleend/codepass"},
-	"terminals":              {"TestTerminalProgramDisabledParity", "internal/backend/codegen/golang/print"},
-	"guarded-classes":        {"TestGuardedClassDisabledParity", "internal/backend/codegen/golang/print"},
-	"class-runs":             {"TestOptimizationDisabledParity", "internal/backend/codegen/golang/print"},
-	"class-tables":           {"TestOptimizationDisabledParity", "internal/backend/codegen/golang/print"},
-	"inline-literals":        {"TestOptimizationDisabledParity", "internal/backend/codegen/golang/print"},
-	"text-dispatch":          {"TestLiteralTextPredicateDispatchDisabledParity", "internal/backend/codegen/golang/print"},
-	"field-compare":          {"TestGeneratedTextFieldComparisons", "internal/backend/codegen/golang/print"},
-	"outline":                {"TestOptimizationDisabledTSParity", "internal/backend/codegen/typescript/print"},
-	"method-sharing":         {"TestGeneratedUnsharedParsersMatchEngine", "internal/backend/codegen/golang/print"},
-	"literal-sharing":        {"TestGeneratedUnsharedParsersMatchEngine", "internal/backend/codegen/golang/print"},
-	"ts-literal-sharing":     {"TestGeneratedSharingIdentity", "internal/backend/codegen/common"},
-	"typed-object-slabs":     {"TestGeneratedTypedOutputRetentionFixture", "internal/backend/codegen/golang/print"},
-	"typed-list-slabs":       {"TestGeneratedTypedOutputRetentionFixture", "internal/backend/codegen/golang/print"},
-	"typed-output-bootstrap": {"TestGeneratedTypedOutputRetentionFixture", "internal/backend/codegen/golang/print"},
-	"sparse-memo":            {"TestGeneratedTSSparseMemoControls", "internal/backend/codegen/typescript/print"},
-	"ts-merged-records":      {"TestTSExecPassesKeepResultsAndSpends", "internal/backend/codegen/typescript/print"},
-	"ts-tested-inits":        {"TestTSExecPassesKeepResultsAndSpends", "internal/backend/codegen/typescript/print"},
-	"used-features":          {"TestOptimizationDisabledParity", "internal/backend/codegen/golang/print"},
-}
+var generatedOnlyFlags = func() map[string]codegentest.DisabledFormTest {
+	out := map[string]codegentest.DisabledFormTest{}
+	for name, t := range codegentest.DisabledFormTests {
+		if !slices.ContainsFunc(engineFlags, func(f engineFlag) bool { return f.name == name }) {
+			out[name] = t
+		}
+	}
+	return out
+}()
 
 // ranPasses compiles a grammar with the default settings, parses with each engine backend, and returns
 // for each the names that its pass statistics list: the passes that ran, and the patterns that the
@@ -197,8 +185,8 @@ func TestPassFlagClasses(t *testing.T) {
 					t.Errorf("flag %s is classed as run by no engine backend, but %v runs it", name, b)
 				}
 			}
-			if !hasTestFunc(t, g.dir, g.test) {
-				t.Errorf("flag %s names %s in %s, which does not exist", name, g.test, g.dir)
+			if !hasTestFunc(t, g.Dir, g.Test) {
+				t.Errorf("flag %s names %s in %s, which does not exist", name, g.Test, g.Dir)
 			}
 		}
 	}
@@ -239,6 +227,41 @@ func (o parseOutcome) String() string {
 	return fmt.Sprintf("tree %q err %q units %d", o.tree, o.err, o.units)
 }
 
+// positions renders the type and the span of every node of the tree n, with the values of its fields in
+// order, so that two trees that differ only in where their nodes lie differ. A shared node is rendered
+// again at each place that holds it.
+func positions(n *value.Node) string {
+	var b strings.Builder
+	var walk func(n *value.Node, depth int)
+	walk = func(n *value.Node, depth int) {
+		if n == nil {
+			b.WriteString("nil")
+			return
+		}
+		fmt.Fprintf(&b, "%s/%s[%d,%d]", n.Type(), n.Rule(), n.Start(), n.End())
+		if depth > 1000 {
+			return
+		}
+		b.WriteByte('(')
+		for _, e := range n.Elems() {
+			walk(e, depth+1)
+			b.WriteByte(',')
+		}
+		for name, v := range n.Fields() {
+			b.WriteString(name + "=")
+			if f, ok := v.(*value.Node); ok {
+				walk(f, depth+1)
+			} else {
+				fmt.Fprintf(&b, "%v", v)
+			}
+			b.WriteByte(',')
+		}
+		b.WriteByte(')')
+	}
+	walk(n, 0)
+	return b.String()
+}
+
 var units2 = []input.PositionUnit{input.CodePoints, input.Bytes}
 
 // outcomes parses every input of c in both position units on each backend and returns the results in
@@ -251,7 +274,7 @@ func outcomes(prog *engine.Program, c codegentest.Case, backends []engine.Backen
 				var o parseOutcome
 				n, err := prog.ParseWith("main", in, engine.ParseOptions{Backend: b, Unit: unit, Expectations: true, ComputeReport: &o.units})
 				if n != nil {
-					o.tree = n.String()
+					o.tree = n.String() + " " + positions(n)
 				}
 				if err != nil {
 					o.err = err.Error()
@@ -325,18 +348,17 @@ func TestPassesOffAgree(t *testing.T) {
 }
 
 var appliedRe = regexp.MustCompile(`([a-z-]+) applied (\d+)`)
-var scanRe = regexp.MustCompile(`(scanReachAt|scanEndAt|scanClass) (\d+)`)
 var guardedRe = regexp.MustCompile(`(?m)^\s*vm/(guards|dispatch)\s.*guarded (\d+)`)
+var scannedRe = regexp.MustCompile(`(?m)^\s*vm/scans\s.*scanned (\d+)`)
 
 // TestEnginePassesApply checks that each optimization that the engine runs does something on the corpus of the
-// tier: the guards and the dispatch guard some alternative, the scans make the VM lower a scan instruction,
+// tier: the guards and the dispatch guard some alternative, the scans replace a repetition by a scan,
 // and each canonicalize pattern of the VM applies at least once. Without it a pass could be switched off in TestPassesOffAgree and differ from nothing.
 func TestEnginePassesApply(t *testing.T) {
 	t.Parallel()
 	if testing.Short() {
 		t.Skip("compiles the corpus")
 	}
-	codegentest.NeedsBudgetControls(t)
 	applied := map[string]int{}
 	for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {
 		g, err := enginetest.Parse(c.Src)
@@ -361,14 +383,14 @@ func TestEnginePassesApply(t *testing.T) {
 			fmt.Sscan(m[2], &n)
 			applied[m[1]+" guarded"] += n
 		}
-		// The scans pass shows in what the VM lowers: a scan instruction.
-		for _, m := range scanRe.FindAllStringSubmatch(buf.String(), -1) {
+		// What only the scans pass produces: the repetitions it replaced by a scan.
+		for _, m := range scannedRe.FindAllStringSubmatch(buf.String(), -1) {
 			var n int
-			fmt.Sscan(m[2], &n)
-			applied["scans lowered"] += n
+			fmt.Sscan(m[1], &n)
+			applied["scans scanned"] += n
 		}
 	}
-	for _, name := range []string{"guards guarded", "dispatch guarded", "scans lowered"} {
+	for _, name := range []string{"guards guarded", "dispatch guarded", "scans scanned"} {
 		if applied[name] == 0 {
 			t.Errorf("%s is 0 over the corpus: the pass does nothing there, so switching it off proves nothing", name)
 		}
