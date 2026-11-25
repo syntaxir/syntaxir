@@ -657,7 +657,8 @@ func BenchmarkStream(b *testing.B) {
 
 // BenchmarkPrepare compares compiling a grammar from source, alone and with the first parse on the
 // default backend, with loading a compiled grammar of each mode, including backend setup on the
-// first parse after loading.
+// first parse after loading. The source and load rows report the size of the file they start from
+// as file-bytes.
 func BenchmarkPrepare(b *testing.B) {
 	for _, path := range []string{"../testdata/grammars/json/json.sxir", "../examples/minilang/minilang.sxir"} {
 		name := strings.TrimSuffix(path[strings.LastIndex(path, "/")+1:], ".sxir")
@@ -673,6 +674,7 @@ func BenchmarkPrepare(b *testing.B) {
 					b.Fatal(err)
 				}
 			}
+			b.ReportMetric(float64(len(src)), "file-bytes") // after the loop, which resets metrics
 		})
 		// The first parse after compiling from source builds the backend of the parse, which a
 		// compiled grammar of the matching mode builds when it is loaded.
