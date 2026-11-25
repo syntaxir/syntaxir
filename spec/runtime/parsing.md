@@ -1884,7 +1884,11 @@ The conditions below use these action expressions.
   every path of the unit, compared with every path of the continuation from
   their common start, passes symbols that both evaluate alike and then
   **parts** at a decisive symbol that at most one of them can pass, within
-  three symbols: the symbols passed alike and the decisive one together. Two
+  three symbols: the symbols passed alike and the decisive one together, or,
+  under the strict conditions (below), when the path of the unit has no
+  symbol left after those that it passes alike or passes over. A path that
+  ends at an expression that is not looked into, or at a symbol that the
+  strict conditions make end it, decides nothing unless it parted before. Two
   symbols are alike when they are calls of one rule that is not on a
   left-recursion cycle and reads no variable, or reads variables and is called
   with the same variables on both sides, equal literals, equal character
@@ -1968,15 +1972,17 @@ The conditions below use these action expressions.
     Operators Rule that nests, unless it calls a scan-only rule (which reads no variable);
   - an option, choice or repetition that a path passes is looked into only
     when it has no scanning source of its own and all its parts are cheap;
-    otherwise it ends the path. One whose parts are cheap only with the same
+    otherwise it ends the path, as an expression that is not looked into
+    does. One whose parts are cheap only with the same
     variables is looked into only where both sides still have them. A
     lookahead is not looked into: one that the unit passes before it parts
     contains no scanning source, and one that only the continuation
     evaluates costs a constant (below);
   - a lookahead that only the continuation evaluates, or an alternative of it
     before the one that the unit's match implies, costs a constant: it has no
-    scanning source of its own, and each call in it is answered by the memo or
-    reaches no scanning source;
+    scanning source of its own, and each call in it reaches no scanning
+    source or is of a rule that the parse memoizes at the call, so that the
+    memo answers every evaluation of the call after the first at a position;
   - a predicate or a binding whose copying operation is a scanning source
     ends the path, as an unbounded repetition does, instead of being passed
     over, and so does an inline action with such a copy, after its

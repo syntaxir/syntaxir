@@ -78,7 +78,9 @@ growth step, which condition 2 checks as a unit at the end of its seed, at most 
 direct in one body evaluation, and every other follows a call that a
 committing unit shares with its continuation, which, in the reference parse of
 the memoization proof, is evaluated again and repeats the first activation at
-the position in it; the memo bounds these for a
+the position in it, or, when the unit decides the continuation, a call that
+the two pass alike or a memoized call in a lookahead that only the
+continuation evaluates, for which it gives no such repetition; the memo bounds these for a
 memoized rule and the cycles of calls that nest at one end bound for a rule that
 calls no rule when the call is the first that the two share, and it shows,
 apart from two nestings that it leaves open, through a
@@ -1703,6 +1705,15 @@ a unit is committing give the following cases.
    examines nothing that the alternative examined before its call of a
    leader, and makes only local cost after it; Lemma 5 counts the steps that
    the call starts.
+6. *Decided continuations.* A unit that is not a lookahead and decides the
+   continuation passes with it symbols alike, which end at the same positions
+   in both and which the continuation evaluates again at most at what the
+   unit paid for them or a constant, since they are cheap, and then the two
+   part where at most one of them can go on (*Decisive symbols* below), so
+   nothing evaluated after the failure passes the place where they part, and
+   a scanning source that the unit evaluates beyond that place is not
+   evaluated again by the continuation outside the calls that it passes
+   alike.
 
 A unit that fails only before its sources examined input gives back no more
 input than its parts before the sources examined, which Lemma 1 bounds. A unit
@@ -1735,6 +1746,95 @@ keeps records or resumes runs* shows the claims after it, with the
 hypotheses and cases that it states (step 8 of [Open
 Steps](#open-steps)). For the iterations of recorded
 walks Lemma 17 makes the claims unnecessary.
+
+**Decisive symbols.** Let a unit $w$ that is not a lookahead decide a
+continuation $\kappa$ ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)), and let the parser
+evaluate both from one position $s$, $\kappa$ after $w$ is abandoned, with
+the same values of the variables at their starts. Let the
+evaluation of $w$ pass the symbols of a path $P$ of $w$ in order from $s$,
+and the evaluation of $\kappa$ those of a path $Q$ of $\kappa$, and let the
+comparison of $P$ with $Q$ pass symbols alike and part them. Call the
+symbols that the parting **reads** on each side: the two symbols of a
+disjoint pair; a positive lookahead `&K` and, on the other side, the next
+symbol after the lookaheads that that side passes over, or the positive
+lookahead there that is disjoint from `K`; a negative lookahead `!K` and,
+on the other side, the symbols that pass the alternative $A$ of `K` that
+the form of a decisive `!K` names, the parts of a call or a repetition that
+stand for its paths included; a dead symbol, with nothing on the other side;
+or the end of the parse in $Q$, with nothing on the side of $P$. An
+evaluation **gets past** the parting when it passes every symbol of its
+path before those that the parting reads on its side and then passes those
+too, or consumes the character at the position $u$ where they start inside
+the evaluation of a call that the parting reads as a disjoint symbol or of
+the expression of a positive lookahead that it reads. Then the two
+evaluations do not both get past the parting, unless the parting is at the
+end of the parse, which the evaluation of $\kappa$ passes only as the last
+thing that it evaluates.
+
+*Proof.* Let both get past the parting. By
+induction over the symbols passed alike, both stand at one position after
+each of them. A call passed alike, and equal literals, character classes or
+`.`, end at the same position in both (*Alike calls end alike*): the
+comparison passes alike a call of a rule that reads variables only while
+neither side has passed a binding, so with the values that both had at $s$.
+Two calls of one trivia rule at one position with the same variables end
+alike, and a call of a trivia rule that the comparison drops after a call of
+the same rule matches nothing where it is evaluated
+([Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)).
+Symbols passed by the characters that they have in common consume those
+characters, one at a time, in both. A predicate, a binding, a cut, an anchor
+or a lookahead that one side passes over before the parting consumes
+nothing. So both stand at one position $u$ when the parting starts, and the
+symbols that it reads are evaluated at $u$, except those that pass $A$,
+which follow one another from $u$.
+
+A disjoint symbol, or the expression `K` of a positive lookahead `&K` that
+the parting reads as disjoint from the symbol of the other side, cannot
+match nothing, so a side that passes it consumes the character at $u$ in
+it; a side that gets past it otherwise consumes that character inside its
+evaluation by definition. Either way the character at $u$ is a first
+character of that symbol or expression, since its evaluation from $u$
+consumes it. So for a disjoint pair, and for `&K` with the symbol of the
+other side or the expression of its positive lookahead, the character at
+$u$ is a first character of both, which disjointness excludes. Two
+literals of which neither is a prefix of the other do not both match the
+input at $u$, and two character classes with no character in common do not
+both match its character. A dead symbol passes nowhere. When one side passes
+`!K`, `K` failed at $u$ in the values of the variables of that side. A call
+of $A$ that reads variables is passed by an alike call only while neither
+side has passed a binding, so both evaluate it with the values at $s$. The
+other side passes, from
+$u$, symbols that pass those of $A$ in order: a literal of $A$ by literals of
+the same case sensitivity that begin with it or that it begins with, a class
+by a class that it contains or a literal whose first character it contains,
+`.` by `.` or a literal, a call by an alike call, which has the same outcome
+and end inside the lookahead as outside it, by
+[Lemma 1 of the memoization proof](memoization.md#lemma-1-context) as in
+the proof of *Alike calls end alike*, and a call or a repetition that does
+not pass the symbol of $A$ at hand by the path of its body or its
+iterations that its evaluation passes, which passes the rest of $A$; the
+lookaheads that it passes over consume nothing. So $A$ matches at $u$. No
+alternative of `K` before $A$ has a cut that commits the choice, so `K`
+tries $A$ unless an earlier alternative matches, and `K` matches at $u$
+either way, which contradicts the failure of `K`. Last, the end of the
+parse in $Q$ ends the parse when $\kappa$ passes it: whole-input parsing
+checks the end of the input there and prefix parsing stops. $\square$
+
+The claim does not use that the symbols passed alike are cheap; that bounds
+what $\kappa$ pays for them, as case 6 states. Its hypothesis on the
+variables holds of a unit $w$ of the restarts and the continuation that the
+parser evaluates after it, since the bindings that $w$ made are undone when
+it is abandoned ([Variables](../language/predicates.md#variables)). It holds
+of a step tail that *Dropped steps* gives as a unit at the end $e$ of its
+seed and the continuation that goes on from $e$ after the growth ends for
+the variables that the calls of the tail read: those are variables that the
+rules of the cycle read, which no binding in the body of a rule of the cycle
+before a left call of the cycle binds (check (B) of the
+[Termination](termination.md) proof), so the tail reads the values with
+which the call that started the growth was made, and a binding in a called
+rule is not visible to its caller, so the continuation has those values
+too.
 
 **Direct activations.** An activation of a scanning source $\sigma$ of the
 body of a rule $R$ is **direct** in the body evaluation of $R$ that contains it
@@ -1772,7 +1872,32 @@ contains $\alpha$, which is a path of $w$ whether $w$ then succeeds or fails
 matched its word $W$ from $t$, and $\sigma$ follows the word,
 so $q \ge t + |W|$; on that input every path of $\kappa$ fails, examines
 nothing more or meets a known negative lookahead before $t + |W|$, so the
-parser does not reach $q$. Only case 5 remains. $\square$
+parser does not reach $q$.
+
+In case 6, let $P$ be the path of $w$ that its evaluation passes and $Q$ the
+path of $\kappa$ that the evaluation of $\kappa$ passes. Under the strict
+conditions an option, a choice or a repetition with a scanning source of its
+own, a `#recover`, an Operators Rule, and a predicate, a binding or an
+action with a copying operation that is a scanning source end a path, and a
+path that ends there before it parts decides nothing
+([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). $\sigma$ is one of
+these or lies inside one in the body of $E$, and $\alpha$ lies in no call of
+$w$. A lookahead that $P$ passes before it parts contains no scanning source,
+nor does a negative lookahead `!K` on the side of $w$ that the parting
+reads, and the symbols of $w$ that pass the alternative $A$ of a decisive
+`!K` of $\kappa$ pass all of $A$ before such an expression ends them. So
+$\alpha$ lies after the parting on $P$, where the expression of $E$ that
+holds $\sigma$ ends $P$ after the symbols that the parting reads, or inside
+the expression of a positive lookahead `&K` that the parting reads on the
+side of $w$, which starts at $u$ and consumes the character at $u$ before
+$\alpha$ ends, since $\alpha$ starts at $q \ge u$ and consumes input.
+Either way the evaluation of $w$ gets past the parting. A lookahead that only
+$\kappa$ evaluates has no scanning source of its own, and $\alpha'$ lies in
+no call of $\kappa$, so in the same way $\alpha'$ lies after the parting on
+$Q$, and the evaluation of $\kappa$ gets past it, and after the end of the
+parse it would evaluate nothing. This contradicts *Decisive symbols*. Only
+case 5 remains. $\square$
 
 The claim covers the iterations and skip evaluations of a body and the
 operators that an Operators Rule applies, which are direct in its body
@@ -1785,16 +1910,54 @@ at $q$, $\alpha$ first, direct in different body evaluations of $R$, and let
 no path that enters the growth again lead from the abandoned unit to
 $\alpha'$, and $\alpha$ not lie in the third case of *Dropped steps*. With $w$
 and $\kappa$ as above, where $w$ is the unit that *Dropped steps* gives when
-the abandoned evaluation of the restarts is a dropped step, $\alpha$ lies
-in the evaluation inside $w$ of a call that $w$ and $\kappa$ share, which
-starts at or before $q$.
+the abandoned evaluation of the restarts is a dropped step, call a call
+**joint** when $w$ and $\kappa$ share it or, in case 6, when the comparison
+of the path of $w$ that its evaluation passes with the path of $\kappa$ that
+the evaluation of $\kappa$ passes passes it alike. Then $\alpha$ lies in the
+evaluation inside $w$ of a joint call, or $\alpha'$ lies in the evaluation
+that $\kappa$ makes of a joint call, or, in case 6, $\alpha'$ lies in the
+evaluation of a call that the parse memoizes at the call, inside a
+lookahead that only $\kappa$ evaluates; the call starts at or before $q$.
 
-*Proof.* If $\alpha$ is in none of the shared calls, the proof above applies:
-$\alpha$ is in $w$ after the shared calls, inside a call of $w$ or not, so the
-character at $t$ is a first character of both, and a call of $w$ after the
-shared calls that contains $\alpha$ contains a scanning source, so case 3 does
-not hold either. So $\alpha$ is in a shared call, which starts at or before
-$q$. $\square$
+*Proof.* Let $\alpha$ lie in no evaluation inside $w$ of a joint call, and
+$\alpha'$ in no evaluation that $\kappa$ makes of one. Outside case 6 the
+proof above applies: $\alpha$ is in $w$ after the shared calls, inside a
+call of $w$ or not, so the character at $t$ is a first character of $w$
+after them; $\kappa$ reaches $\alpha'$ after its shared calls, which end at
+$t$, so it consumes the character at $t$ after them, in $\alpha'$ or before
+it, and that character is a first character of $\kappa$ after them too; and
+a call of $w$ after the shared calls that contains $\alpha$ contains a
+scanning source, so case 3 does not hold either. In case 6, let also
+$\alpha'$ lie in no evaluation of a call inside a lookahead that only
+$\kappa$ evaluates. Such a lookahead has no scanning source of its own, and
+each call in it reaches no scanning source or is one that the memo is to
+answer, a call of a rule that the parse memoizes at the call ([Conditions
+for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)), so
+$\alpha'$, which lies in no call inside it, lies outside every such
+lookahead. A call of $w$ that contains $\alpha$, or of
+$\kappa$ that contains $\alpha'$, and that the parting does not read as a
+disjoint symbol is not passed alike, so the comparison stands it for the
+paths of the body of its rule, and the paths that the two evaluations pass
+go on through such calls to the expression that holds $\sigma$ in the body
+of $R$, which ends them. A path that ends there, or at a call that the
+expansion meets again, before it parts decides nothing, and $w$ decides
+$\kappa$, so the two paths part before. As in case 6 of the proof above,
+$\alpha$ then lies after the parting, or inside a call that the parting
+reads as a disjoint symbol on the side of $w$ or the expression of a
+positive lookahead that it reads there, each of which starts at $u$ and
+consumes the character at $u$ before $\alpha$ ends; the same holds of
+$\alpha'$ on the side of $\kappa$. So both evaluations get past the
+parting, which contradicts *Decisive symbols*. The call of each case starts
+at or before $q$, since it holds an activation at $q$. $\square$
+
+The second case of the claim arises: in `main = R &(R "x") "!" / R "d"`
+with `R = ("a" [ ]* "b")*`, on `a` followed by spaces and `d`, the first
+alternative shares the call of `R` with the second and commits by first
+characters, the activation $\alpha$ of the repetition of spaces at $1$
+lies in the call of `R` inside the lookahead, which is no shared call, and
+$\alpha'$ lies in the evaluation of the shared call that the second
+alternative makes, which ends at $0$ but examines the spaces in an
+iteration that fails. The conditions accept the grammar.
 
 The claim does not place $\alpha'$ in an evaluation of the same call. The part
 of the shared call that holds $\alpha$ can be an abandoned unit that examined
@@ -1824,18 +1987,26 @@ So the successful activations of $\sigma$ at $q$, $\alpha_1, \alpha_2, \ldots$
 in the order in which they start, outside case 5, the third case of *Dropped
 steps* and the repeats at the position of a growth that *Repeats inside a growth* of Lemma 5
 leaves out, are direct
-in distinct body evaluations of $R$, and for $i \ge 2$, $\alpha_{i-1}$ lies in
-the evaluation $e_i$ of a call shared by a committing unit $w_i$ and its
-continuation $\kappa_i$, inside $w_i$, where $w_i$ can be a step of a growth
+in distinct body evaluations of $R$, and for $i \ge 2$, with a committing
+unit $w_i$ and its continuation $\kappa_i$, $\alpha_{i-1}$ lies in
+the evaluation inside $w_i$ of a joint call of the two, or $\alpha_i$ lies
+in the evaluation that $\kappa_i$ makes of one, or, when $w_i$ decides
+$\kappa_i$, of a call that the parse memoizes at the call inside a lookahead
+that only $\kappa_i$ evaluates, where $w_i$ can be a step of a growth
 after the first, a unit that starts at the end of its seed, whose shared calls
 are those of the step tail that holds $\alpha_{i-1}$ (*Dropped steps*), where $\kappa_i$ is the continuation
 that the parser evaluates from the start of $w_i$ the last time before
-$\alpha_i$, as in *Direct activations*. When $\alpha_i$ lies in the evaluation
+$\alpha_i$, as in *Direct activations*. When $\alpha_{i-1}$ lies in the
+evaluation $e_i$ inside $w_i$ of a call that $w_i$ and $\kappa_i$ share,
+and $\alpha_i$ lies in the evaluation
 $e'_i$ of that call that $\kappa_i$ makes, at the same position (case 2), and
 so after $w_i$ is abandoned, $i$ is
 **linked**, and the pair $(e_i, e'_i)$ is the $i$-th **link**; otherwise $i$ is
 **free**, as is $i = 1$. *Reference links* below gives each activation of the
-reference parse such a pair, which the free ones lack in the parse.
+reference parse such a pair, which the free ones lack in the parse, apart
+from those that a unit which decides its continuation leaves in the last
+case or in a joint call that it passes alike and does not share, which
+step 1 of [Open Steps](#open-steps) leaves.
 
 **Memoized links.** If the rule of the $i$-th link is memoized at both calls
 and neither $e_i$ nor $e'_i$ is in a context of growths, then either the rule is
@@ -4429,7 +4600,8 @@ before it, and $w$ and $\kappa$ as in the restarts, where $w$ is the unit that
 *Dropped steps* gives when the abandoned evaluation is a dropped step, with no
 dropped step at the position of its growth and no
 path that enters the growth again of $\mathcal{R}$ leading from $w$ to
-$\beta'$. Let $e^k$ be the first of the calls that $w$ and $\kappa$ share whose
+$\beta'$, and let *Repeats* place $\beta$ or $\beta'$ in an evaluation of
+a call that $w$ and $\kappa$ share. Let $e^k$ be the first of the calls that $w$ and $\kappa$ share whose
 evaluation inside $w$ holds a successful activation of $\sigma$ at $q$, let
 $\beta_f$ be the first such activation in it. Then $\kappa$ evaluates the call of $e^k$ again at its position,
 as $e^{k\prime}$, which takes the steps of $e^k$ up to the variants of its
@@ -4437,11 +4609,10 @@ calls, and $\beta'$ is the activation of $e^{k\prime}$ that corresponds to
 $\beta_f$. The pair $(e^k, e^{k\prime})$ is the **reference link** of $\beta'$;
 it joins $\beta'$ to $\beta_f$, which need not be $\beta$.
 
-*Proof.* By *Repeats*, $\beta$ lies in a shared call, so $e^k$ exists.
-$\mathcal{R}$ evaluates every call, and $\kappa$, every path of which that
+*Proof.* $\mathcal{R}$ evaluates every call, and $\kappa$, every path of which that
 examines the input begins with the shared calls, evaluates them in order, each
 at the position where it ends in $w$ (case 2). The evaluation in $\kappa$ of a
-shared call up to $e^k$ and the one inside $w$ take the same steps up to the
+shared call and the one inside $w$ take the same steps up to the
 variants of their calls. Where neither reads a growth open at its start, this
 is *Counterparts*. A call that reads a growth open at its start is at the
 position of that growth and of a rule of its cycle ([Lemma 2 of the
@@ -4451,7 +4622,10 @@ the cycle, which have the same growing results at both (case 2), so the two
 evaluations read the same results and take the same steps. When $w$ is a step
 whose seed is empty, the growth of the step is open at the start of the
 evaluation inside $w$ only, and neither reads it (*Steps with an empty
-seed*). So a shared call before $e^k$ holds no successful activation of
+seed*). By *Repeats*, $\beta$ lies in the evaluation inside $w$ of a
+shared call, or $\beta'$ in the evaluation that $\kappa$ makes of one,
+whose evaluation inside $w$ then holds the activation that corresponds to
+$\beta'$; either way $e^k$ exists. So a shared call before $e^k$ holds no successful activation of
 $\sigma$ at $q$ in $\kappa$ either, and nor does $e^{k\prime}$ before the
 activation that corresponds to $\beta_f$. Nothing that the parser evaluates between the end of $w$ and that
 activation holds one either, since $\beta'$ is the first after $\beta$, which
@@ -13755,6 +13929,19 @@ names a definition or condition of the specification and the lemmas that use it.
   prefix operator parts admit nothing more than the right operands of the
   others and whose `skip` and operator parts scan only in memoized calls and
   scan-only rules: Lemma 4, *Levels that end at one position*.
+- Condition 2 for a unit that decides its continuations, with the paths of
+  a unit, the symbols passed alike, the decisive symbols, dead symbols, the
+  form of a decisive `!K`, the symbols at which neither side can go on, the
+  trivia rules and the strict conditions: Lemma 4, case 6, *Decisive
+  symbols*, *Direct activations* and *Repeats*, with *Nesting at one end*
+  and *Negative lookaheads at one end*; Lemma 5, *Sources at fixed offsets*
+  and *Decided units at the position of the growth*; and *Later steps that
+  abandon their reads of the seed*. The links through the calls that such a
+  unit passes alike are left to step 1 of [Open Steps](#open-steps).
+- A call of a leader in the body of another rule as a scanning source, at
+  which a unit can throw away what the growth consumed: Lemma 5, *Calls in
+  a context of growths* and *Growths at many positions*, with the cases of
+  Lemma 4 for the unit around the call.
 - Condition 2 for the steps of a growth after the first, checked as units at
   the end of the seed and compared one step tail at a time: *Dropped steps*
   in Lemma 4, with *Restarts of growth activations* and the count after
@@ -13850,7 +14037,21 @@ theorem covers such a parse.
    (*Activations that do not succeed*), so what is open concerns the successful
    activations alone. An activation need not follow a link of the parse: the
    memo can answer the shared call in the continuation (*Repeats*), and the
-   claims follow it through its reference link instead. The activations of the
+   claims follow it through its reference link instead. Nor need it follow a
+   shared call: when the unit decides its continuation (case 6), *Repeats*
+   places one of the two activations in a joint call that the comparison
+   passes alike and the two need not share, or the later one in a call
+   memoized at the call inside a lookahead that only the continuation
+   evaluates. No link or reference link is given in either case. For the
+   second, the claims on heads would have to place that evaluation of the
+   call among the evaluations of its key. A joint call that is not shared
+   can read variables, with the same values
+   on both sides, be of a rule that is not memoized at the call and whose
+   body is cheap in all its parts, and come after other symbols, while the
+   claims on links and reference links read of the call that it reads no
+   variable, is memoized at both calls or calls no rule, and is evaluated
+   first; so the activations that such a call holds are not counted, and
+   *Direct growth activations* in Lemma 5 does not treat case 6 at all. The activations of the
    reference parse that a dropped step at the position of its growth or a
    path that enters a growth again of the reference parse leads to, which have no reference link, are more than
    those of the parse, and Lemma 5 must count those that are counterparts of
