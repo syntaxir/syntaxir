@@ -58,7 +58,9 @@ The proof cites the following rules, and no other rule about types or values.
   [Hidden Rules](../language/actions.md#hidden-rules)).
 - **(M3) Recovery and insertion.** A `#recover` whose expression fails and
   whose skip consumes input produces an error value in place of the value of
-  the expression; an expression without a value stays without one. A `#missing`
+  the expression; an expression without a value stays without one, apart
+  from an expression of type `_|_`, which never matches: its recovery
+  produces an error value, as in `("a" _|_) #recover(skip="z")`. A `#missing`
   literal that inserts produces a `missing` value
   ([`#recover`](../language/pragmas.md#recover),
   [`#missing`](../language/pragmas.md#missing)).
@@ -159,7 +161,8 @@ The proof cites the following rules, and no other rule about types or values.
   the rules of [Field Access](../language/actions.md#field-access): a field
   access is rejected on a receiver whose static type may be `nil`, a member of
   a join without the field is rejected unless it is a recovered value, which
-  makes the result optional.
+  makes the result optional, and the result is otherwise the join of the types
+  of the field in the members.
 - **(T8) Checks.** A grammar compiles only if the checker reports none of the
   [Checked Errors](../language/type-checking.md#checked-errors): in
   particular, each rule value, constructor field, typed-list element and
@@ -177,9 +180,12 @@ The proof cites the following rules, and no other rule about types or values.
   action, the values of all lines are assignable to `T` and `$lhs` and `$rhs`
   have type `T`; without a declared type, the rule has the join of the types
   of its lines; with a whole-rule action, `$lhs`, `$rhs` and `$value` have the
-  folded type, the least fixed point of that join, widened to `node[_]` or `_`
-  when it keeps growing, and the result of the action is assignable to the
-  declared type ([Types](../language/operators-rule.md#types)).
+  folded type, the least fixed point of that join with `$lhs` and `$rhs` of
+  that type. When it keeps growing, `$lhs` and `$rhs` are widened to
+  `node[_]` when the type of every line, with `$lhs` and `$rhs` of type
+  `node[_]`, is assignable to `node[_]`, and to `_` otherwise, and `$value`
+  has the join of the lines so typed. The result of the action is assignable
+  to the declared type ([Types](../language/operators-rule.md#types)).
 - **(T11) Conversion.** A conversion to `N`, by `N{x}`, by a rule declared
   `N` or by an Operators Rule declared `N`, is accepted only when every
   alternative of the static type of the value is a node, named or not, whose
@@ -304,6 +310,10 @@ The proof is by induction on the order in which evaluations complete, across
 all parses of a Document: an evaluation completes after the evaluations of its
 parts, and a reused result after the evaluation that it is the outcome of. The hypothesis for an evaluation is the theorem for every evaluation
 that completed before it, which includes every result that it reuses (M9).
+A left call that a growth answers reads the growing result, the outcome of an
+earlier step of that growth, which completed before the step that reads it
+([Growths of Left Recursion](../runtime/parsing.md#growths-of-left-recursion)),
+so the hypothesis covers it as it covers a reused result.
 The theorem is about a grammar that the checker accepts (T8), with the types
 that the checker gives: the declared type of each rule and capture, the
 inferred type of a rule without one (T9), and the type of each Action
@@ -344,7 +354,9 @@ survives holds a well-formed value of the type of its operand.
   (M4).
 - **Recovery.** The value of the expression, of its type, or an error value,
   of type `error`; the join has both (M3, T5). An expression without a value
-  has none either way.
+  has none either way. An expression of type `_|_` never succeeds (below), so
+  a recovery of it that succeeds gives an error value, of type `error`, which
+  is the join of `_|_` and `error`.
 - **Insertion.** The string node of the literal or a `missing` value, both of
   type `node[string] | missing`.
 - **Calls.** The value of the rule, of the rule's type by the hypothesis; an
@@ -512,11 +524,23 @@ operands and operator part, is assignable to $T$. If $T$ is exactly `N`, each
 operator value is converted to `N`, which Lemma 4 makes of type `N`, and each
 operand line is assignable to `N` (M6). Without a declared type, the same
 argument holds with the join of the lines, which every line is assignable to.
-With a whole-rule action, the same argument holds with the folded type, a
-fixed point of that join or its widening to `node[_]` or `_`, which admit
-every value of the lines that they replace; `$value` is the folded value, and
-the result of the action is assignable to the declared type, or is the rule's
-type when there is none. ∎
+With a whole-rule action, let $W$ be the type of `$lhs` and `$rhs` (T10). The
+type of every line, computed with `$lhs` and `$rhs` of type $W$, is assignable
+to $W$: when $W$ is the folded type, a fixed point of the join of those
+types, each is assignable to the join (T3); when $W$ is `node[_]`, the
+widening requires it (T10); and every value has type `_` (T2). So, by
+induction on the operators that the call applies, `$lhs` and `$rhs` hold
+values of type $W$: they are values of earlier operand lines, whose types
+do not depend on `$lhs` and `$rhs`, or of earlier operators, whose
+environments matched by induction, so each such value has the type of its
+line by Lemma 5 and Lemma 8, and so type $W$ by Lemma 2. An error value is a
+node but not a value of `node[_]` (T2), so a widening to `node[_]` under the
+weaker condition that every line produces a node would not keep this: a
+line that recovers has a type with `error`, which is not assignable to
+`node[_]`, and widens $W$ to `_`. `$value` is the folded value, the value of
+a line, of the type of that line and so of the join of the lines (Lemma 2).
+The result of the action is assignable to the declared type, or is the
+rule's type when there is none. ∎
 
 ## Theorem (Type Soundness)
 

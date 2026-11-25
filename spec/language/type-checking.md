@@ -56,7 +56,7 @@ have the following types.
 | `$label` | The type of the capture (see above) |
 | `T{Field: value, ...}` | Struct Type `T` |
 | `[]T{a, b, ...}` | `[]T`; every element must have a known Type assignable to `T` |
-| `x.Name` | The type of the field `Name`; optional (`*T`) if `x` has a join type and only some members declare the field |
+| `x.Name` | The type of the field `Name`; for a join type, every member MUST declare the field, and the type is the join of the field types; a recovered value (`error` or `missing`) among the members need not, and makes the type optional (`*T`) ([Field Access](actions.md#field-access)) |
 | `x.$y` | The join of the types of capture `y` of the node types `x` may have |
 | `x[i]` | The element type of `x`, which MUST be a list, a tuple, or a node whose value is a list or a tuple; `i` MUST be an `int`, and a constant index into a tuple selects that element's type |
 | `x.(T)` | `T`; the type of `x` or one of its alternatives MUST be assignable to `T` or one of its alternatives, or the other way around |
