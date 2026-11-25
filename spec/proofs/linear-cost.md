@@ -1,6 +1,6 @@
 # Linear Cost
 
-Arata Furukawa · Last revised 2026-11-24
+Arata Furukawa · Last revised 2026-11-25
 
 This proof shows that the [Conditions for Linear Cost](../runtime/parsing.md#conditions-for-linear-cost)
 bound the [cost](../runtime/parsing.md#cost) of every parse whose records
@@ -120,7 +120,11 @@ twin, at a position outside every context of growths except possibly the
 first of the rule and the first of its twin, as [Conditions for Linear
 Cost](../runtime/parsing.md#conditions-for-linear-cost) requires.
 "A constant" below means a number that depends only on the grammar and the
-backend.
+backend. A generated parser and the bytecode machine run the functions that
+one plan of each table lowers from Core IR, which give the outcome that the
+specification defines and run at most a constant times one plus the cost of
+the parse ([Lowering From Core IR](../flow-ir/lowering.md#requirements)), so a
+bound on the cost bounds the work of those functions too.
 
 The classifier decides the conditions on the [cost
 view](../runtime/parsing.md#cost-view) of the rule bodies, with the memoized rules,

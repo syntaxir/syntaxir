@@ -446,6 +446,7 @@
         "spec/flow-ir/operations.md",
         "spec/flow-ir/invariants.md",
         "spec/flow-ir/text-form.md",
+        "spec/flow-ir/lowering.md",
         "spec/flow-ir/passes.md"
       ]
     },

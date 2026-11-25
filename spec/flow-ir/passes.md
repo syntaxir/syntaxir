@@ -8,7 +8,7 @@ units or a Document), never on how a target prints it.
 
 ## Passes in the Pipeline
 
-The compiler is one pipeline of passes. Every function that lowering from Core IR produces, and that a backend prints
+The compiler is one pipeline of passes. Every function that [lowering from Core IR](lowering.md) produces, and that a backend prints
 from the Flow stage, goes through the passes of that pipeline that run at the Flow stage, in their declared order, before the
 function is converted to the Exec stage or printed.
 

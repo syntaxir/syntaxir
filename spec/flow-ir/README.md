@@ -10,20 +10,23 @@ the site is in the Action module of the table, made of the operations of the Act
 [Action Expressions](../exec-ir/lowering.md#action-expressions)), so no operation of the dialect holds an action
 expression. A function holds no text of a target language, so a backend has little to decide.
 
-A module at the Flow stage is lowered from [Core IR](../core-ir/README.md); that lowering is not specified here, so this
-specification does not say which functions a grammar produces. The module is converted in turn to the Exec stage (see
-[Lowering From the Flow Stage](../exec-ir/lowering.md)), where each operation of the Flow dialect becomes a primitive,
-and the backends print the rules of generated parsers from there. This specification defines the functions, the
-operations of the dialect, the invariants that the verifier enforces, the text form and the passes of the compiler
-pipeline that run at the Flow stage. The Flow dialect is internal to the SyntaxIR engine and written for engine
-maintainers and backend authors: it is not a public API, and nothing here changes how a grammar behaves, which the
+A module at the Flow stage is lowered from [Core IR](../core-ir/README.md), one module for each rule table, from the
+plan of the table, which says which functions the table is made of ([Lowering From Core IR](lowering.md)). The module is
+converted in turn to the Exec stage (see [Lowering From the Flow Stage](../exec-ir/lowering.md)), where each operation
+of the Flow dialect becomes a primitive, and the backends print the rules of generated parsers from there. This
+specification defines the functions, the operations of the dialect, the invariants that the verifier enforces, the text
+form and the passes of the compiler pipeline that run at the Flow stage, and the lowering from Core IR with what its
+functions guarantee. The Flow dialect is internal to the SyntaxIR engine and written for engine maintainers and backend
+authors: it is not a public API, and nothing here changes how a grammar behaves, which the
 [Grammar Language Specification](../language/README.md) and the [Parser and Runtime Specification](../runtime/README.md)
 define.
 
 This specification is authoritative for the operations, their immediate operands, the types and registers, and the
 invariants. A change to the Flow dialect changes this specification in the same change: a test of the implementation
 fails when an operation, its operands or immediate, a type or a register has no entry here, or when an entry names one
-that the Flow dialect does not have.
+that the Flow dialect does not have. Likewise a test fails when a node of Core IR, a use of a planned function or an
+option of the lowering has no entry in [Lowering From Core IR](lowering.md), or when an entry there names one that the
+implementation does not have.
 
 ## Contents
 
@@ -33,7 +36,8 @@ that the Flow dialect does not have.
 | 2 | [Operations](operations.md) | Every operation of the Flow dialect and its contract |
 | 3 | [Invariants](invariants.md) | What a well-formed function guarantees and what verification checks |
 | 4 | [Text Form](text-form.md) | The printed form of a function |
-| 5 | [Passes](passes.md) | The passes of the compiler pipeline that every lowered function goes through at the Flow stage |
+| 5 | [Lowering From Core IR](lowering.md) | The plan of a table, the lowering of each node of Core IR, and the outcome, size, work and compute units that the lowered functions guarantee |
+| 6 | [Passes](passes.md) | The passes of the compiler pipeline that every lowered function goes through at the Flow stage |
 
 The [Glossary](../glossary.md) lists the terms of the specifications.
 
