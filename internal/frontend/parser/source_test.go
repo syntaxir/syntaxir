@@ -249,3 +249,25 @@ func TestPartialSourceCommentOwners(t *testing.T) {
 		t.Fatalf("partial ownership: %+v, %+v", g.Rules()[0].SourceInfo, g.Rules()[1].SourceInfo)
 	}
 }
+
+// TestAllCommentsHeaders checks that AllComments returns each comment of a declaration header
+// once on both frontends: those that stay with the token after them, and those that the header of
+// a variable declaration takes from the token of its type or its "=".
+func TestAllCommentsHeaders(t *testing.T) {
+	const src = "var /* a */ v /* b */ int /* c */ = 1\nvar w /* d */ bool\nrule /* e */ r /* f */ = \"x\"\ntype /* g */ T /* h */ ~ string\n"
+	for name, parse := range map[string]func(string) (*ast.Grammar, error){"generated": Parse, "reference": ParseReference} {
+		g, err := parse(src)
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var got []string
+		for _, c := range g.AllComments() {
+			got = append(got, c.Text)
+		}
+		slices.Sort(got)
+		want := []string{"/* a */", "/* b */", "/* c */", "/* d */", "/* e */", "/* f */", "/* g */", "/* h */"}
+		if !slices.Equal(got, want) {
+			t.Errorf("%s: AllComments gives %q, want %q", name, got, want)
+		}
+	}
+}

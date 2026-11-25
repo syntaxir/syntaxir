@@ -380,7 +380,25 @@ func (g *Grammar) allComments(control *metadataControl) []*Comment {
 		}
 	}
 	add(g.File.EndBreak)
-	return expandRuns(cs)
+	cs = expandRuns(cs)
+	// The comments of the declaration headers are in File.HeaderComments. Most of them stay with
+	// the token after them, where the walk above finds them; a header that takes them from that
+	// token, as the header of a variable declaration does with the comments before its type or
+	// its "=", keeps them only there.
+	if len(g.File.HeaderComments) > 0 {
+		seen := make(map[*Comment]bool, len(cs))
+		for _, c := range cs {
+			control.poll()
+			seen[c] = true
+		}
+		for _, c := range g.File.HeaderComments {
+			control.poll()
+			if !seen[c] {
+				cs = append(cs, c)
+			}
+		}
+	}
+	return cs
 }
 
 // expandRuns replaces each comment that stands for a run of comments by them.
