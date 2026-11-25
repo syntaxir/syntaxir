@@ -1,9 +1,11 @@
 package grammar_test
 
 import (
+	"context"
 	"math/rand/v2"
 	"strings"
 	"testing"
+	"time"
 
 	"syntaxir.dev/sxir/pkg/grammar"
 	"syntaxir.dev/sxir/pkg/grammar/ast"
@@ -377,5 +379,23 @@ func TestValidateBoundsSharedDepth(t *testing.T) {
 		if err := grammar.Validate(g); (err == nil) != c.valid {
 			t.Errorf("%d pragmas above the shared chain: validation gives %v, want valid %v", c.above, err, c.valid)
 		}
+	}
+}
+
+// TestValidateSharedBodyOnce checks that validation walks a rule body that shares its sequences
+// and choices once for each of them: the body below has 2^60 paths from its root to its literal.
+func TestValidateSharedBodyOnce(t *testing.T) {
+	var e ast.Expr = &ast.Literal{Value: "a"}
+	for i := range 60 {
+		if i%2 == 0 {
+			e = &ast.Seq{Items: []ast.Expr{e, e}}
+		} else {
+			e = &ast.Choice{Alts: []ast.Expr{e, e}}
+		}
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+	defer cancel()
+	if err := ast.ValidateContext(ctx, ruleOf(e)); err != nil {
+		t.Fatal(err)
 	}
 }

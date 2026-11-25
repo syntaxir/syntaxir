@@ -222,7 +222,10 @@ type nestKey struct {
 
 // nester counts the levels of the text of a grammar AST.
 type nester struct {
-	memo    map[nestKey]*nestSummary
+	memo map[nestKey]*nestSummary
+	// layout holds bodyLayoutControlled of the sequences and choices asked, so that a body that
+	// shares them is walked once.
+	layout  map[Expr]bool
 	control *validationControl
 }
 
@@ -245,7 +248,7 @@ func (n *nester) child(f *nestFrame, key nestKey, write func(*nestFrame)) {
 // nests deeper than MaxNestingLevels, with its node, or "". A line break outside brackets ends
 // every level, and Format starts each declaration on a line of its own.
 func tooDeepDecl(g *Grammar, control *validationControl) (string, SourceNode) {
-	n := &nester{memo: map[nestKey]*nestSummary{}, control: control}
+	n := &nester{memo: map[nestKey]*nestSummary{}, layout: map[Expr]bool{}, control: control}
 	declaration := func(write func(*nestFrame)) bool {
 		f := newNestFrame(false)
 		write(f)
@@ -427,7 +430,7 @@ func (n *nester) decl(f *nestFrame, d Decl) {
 			if attributed != nil {
 				n.attributes(f, attributed.Attrs)
 			}
-		} else if d.BodyBreak != nil || d.ActionBreak != nil || bodyLayoutControlled(d.Expr) {
+		} else if d.BodyBreak != nil || d.ActionBreak != nil || n.bodyLayoutControlled(d.Expr) {
 			// Format writes a body over several lines in parentheses, as the end of a line
 			// outside brackets would end the declaration.
 			f.token(tokOpen)
@@ -447,30 +450,31 @@ func (n *nester) decl(f *nestFrame, d Decl) {
 }
 
 // bodyLayoutControlled reports whether Format writes line breaks in the rule body e, as the
-// printer's expressionLayoutControlled does.
-func bodyLayoutControlled(e Expr) bool {
+// printer's expressionLayoutControlled does. It walks each sequence and choice once.
+func (n *nester) bodyLayoutControlled(e Expr) bool {
+	// some reports whether an expression of es writes line breaks, remembering it for the
+	// sequence or choice e.
+	some := func(e Expr, es []Expr) bool {
+		if v, ok := n.layout[e]; ok {
+			return v
+		}
+		v := false
+		for _, it := range es {
+			if n.bodyLayoutControlled(it) {
+				v = true
+				break
+			}
+		}
+		n.layout[e] = v
+		return v
+	}
 	for {
+		n.control.poll()
 		switch x := e.(type) {
 		case *Seq:
-			if anyBreak(x.Breaks) {
-				return true
-			}
-			for _, it := range x.Items {
-				if bodyLayoutControlled(it) {
-					return true
-				}
-			}
-			return false
+			return anyBreak(x.Breaks) || some(x, x.Items)
 		case *Choice:
-			if anyBreak(x.Breaks) {
-				return true
-			}
-			for _, a := range x.Alts {
-				if bodyLayoutControlled(a) {
-					return true
-				}
-			}
-			return false
+			return anyBreak(x.Breaks) || some(x, x.Alts)
 		case *Attributed:
 			return anyBreak(x.Breaks)
 		case *Atomic:
