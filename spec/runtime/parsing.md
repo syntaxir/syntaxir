@@ -247,7 +247,9 @@ and anchors (`beginning of input`, `end of input`, `beginning of line`,
   expectations, the message is just `syntax error`.
 - A [`@error`](../language/attributes.md#error) attribute replaces the expected items inside
   an expression with a message. If a message applies at the farthest position,
-  the message is reported instead of the expected items. Messages are reported only
+  the message is reported instead of the expected items. When several apply, they
+  are listed in the order in which the parse first records them at the farthest
+  position, without duplicates. Messages are reported only
   when expectations are recorded.
 
 ### Recording Expectations
@@ -279,7 +281,8 @@ Recording is requested as follows.
 
 In the Go API, a failed parse returns a `*value.SyntaxError` with the fields `Pos`
 (the position in the position unit), `Line`, `Col`, `Expected` (every expected
-item, in the order above) and `Messages` (the messages of `@error` attributes), both empty unless
+item, in the order above) and `Messages` (the messages of `@error` attributes, in the
+order of [Syntax Errors](#syntax-errors)), both empty unless
 expectations are recorded, and the methods
 `Error()`, which returns the text above with its position, and `Message()`, which
 returns it without the position. A parse that recovered errors returns the node and

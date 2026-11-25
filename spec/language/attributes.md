@@ -37,7 +37,8 @@ does not record them reports `syntax error` without it. It does not alter matchi
 recovery, captures, values, or spans. A named form such as
 `@error(message="...")` is equivalent. The message is a string literal without
 the suffix `i`: `"..."i` is a literal expression, and an error. When several messages apply at one
-position, they are joined with `; `. If the expression succeeds, expectations
+position, they are joined with `; ` in the order in which the parse first records them
+there ([Syntax Errors](../runtime/parsing.md#syntax-errors)). If the expression succeeds, expectations
 recorded inside it are kept as usual. An opt-in `#missing` insertion has its own
 recovered diagnostic and inherits the outermost enclosing explicit `@error` label.
 This does not change labels on successful consuming `#recover`.
