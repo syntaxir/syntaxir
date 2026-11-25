@@ -22,9 +22,8 @@ Lemma 4, with its links between the activations at one position, is then
 needed only for the scanning sources without records, which Lemma 17 lists,
 among them every repetition that is no recorded site of the parse,
 and what this introduction says below of that count and of its open parts
-concerns those sources alone. Lemma 17 is proved from (R2) and (R3)
-and, for the places inside an Operators Rule, step 3 of
-[Open Steps](#open-steps); its bound is in terms of the body evaluations of
+concerns those sources alone. Lemma 17 is proved from (R2) and (R3);
+its bound is in terms of the body evaluations of
 the memoized rules, which it reads from Lemmas 3 and 5, and of the
 successful activations of the sources without records.
 
@@ -42,8 +41,7 @@ for it.
 Lemmas 1, 3, 7, 8, 9 and 14 are proved, Lemma 11 apart from *Values of
 variables* (step 5 of [Open Steps](#open-steps)), Lemma 16 given the theorems of
 the [Memoization](memoization.md) and [Documents](documents.md) proofs, and
-Lemmas 2 and 10 apart from the tries of an Operators Rule outside its activations (step 3 of
-[Open Steps](#open-steps)). Lemmas 13 and 15 are proved
+Lemmas 2 and 10. Lemmas 13 and 15 are proved
 for the [cost view](#setting) that the classifier reads, and the
 [Cost View](cost-view.md) proof transfers every bound on the view to the grammar
 as written, except for the values that actions build from values that the view
@@ -52,7 +50,7 @@ reshapes and the run-time errors of those actions, step 7 of
 of activations of Lemma 4 (step 1 of [Open Steps](#open-steps)). The theorem is
 proved from the others, so the promise of the class Linear rests on Lemmas 4 and
 5, which are outlines, on Lemma 6, which is proved given step 1, on step 3, for
-the tries of an Operators Rule that Lemmas 2 and 10 leave out, and, for the
+the restarts of the activations of the operators of an Operators Rule, and, for the
 values that actions build from reshaped values, on step 7. Lemma 12
 and its corollary add what a [Document](../runtime/documents.md) parse charges
 beyond the cost: they are proved given the same counts, step 3 and the bounds of
@@ -102,10 +100,11 @@ activations that a path that enters the growth again, or a dropped step in a
 part at the position of its growth, repeats, which Lemma 5 counts before it, and with no count of the
 evaluations in a context of growths. It leaves the sum open for the sources of rules that call no rule and are not
 memoized, and, in a Document parse or through results kept in a context of
-growths, for the links that the comparison leaves out. Lemmas 2 and 10 and the
-bound of Lemma 4 on the activations that do not succeed leave out the operands
-and the operator parts that an Operators Rule tries outside its activations,
-step 3 of [Open Steps](#open-steps). Lemma 5 proves the
+growths, for the links that the comparison leaves out. For the operators of
+an Operators Rule, it counts every operator tried, in activations that group
+the tries at one position, and bounds those that do not succeed and the levels
+by those that succeed; that the restarts hold of these activations is step 3
+of [Open Steps](#open-steps). Lemma 5 proves the
 bound on the sources that a growth step evaluates at fixed offsets after the
 position where it grows.
 
@@ -229,7 +228,9 @@ number of lookaheads that enclose a terminal, which rule calls do not bound.
 **Activations.** A growth step is a body evaluation of the leader. An
 **activation** of a scanning source is one unit of its work that evaluates a
 fixed part of the grammar once: an iteration of a repetition without an upper
-bound, an operator that an Operators Rule applies, or an evaluation of the skip
+bound, an operator that an Operators Rule tries, applied or not, together with
+the operators that it tries at the same position inside that try (*Operators
+Rules* in Lemma 4 defines these **tries**), or an evaluation of the skip
 expression of a `#recover` that is not a [reused
 skip](../runtime/parsing.md#skip-runs). The growth of a cycle and the copying
 operations, the other scanning sources, make no calls of their own beyond the
@@ -469,13 +470,11 @@ within an activation of one of them, outside the activations of the scanning
 sources nested in it. By the argument of Lemma 1 the first kind makes a
 constant number of calls per body evaluation. An activation evaluates a fixed
 part of the grammar once, and outside its nested scanning sources that part
-makes a constant number of calls, again by the argument of Lemma 1. $\square$
-
-The proof places every step outside the scanning sources or inside one of their
-activations. Inside an Operators Rule this does not hold: the operands and the operator parts that an Operators Rule tries, and that fail, lie inside its scanning source but in no activation of it, and the
-proof does not bound how often they are tried. The claim is proved for the calls
-outside them; the tries of an Operators Rule are step 3 of [Open
-Steps](#open-steps).
+makes a constant number of calls, again by the argument of Lemma 1. Inside
+the operators of an Operators Rule, a step outside their activations lies in
+the head or the last round of a top level, which the body evaluation makes
+once and which evaluate each part of the rule at most once (*Operators Rules*
+in Lemma 4). $\square$
 
 ## Lemma 3 (Body Evaluations)
 
@@ -668,14 +667,13 @@ Let the recorded sites of the parse and their recorded walks be those of the
 [Setting](#setting). Let
 $A_r$ be the number of activations that are iterations of recorded walks,
 $A_u$ the number of the other iterations of repetitions without an upper
-bound, of the operators that Operators Rules apply and of the evaluations of
-the skip expressions of `#recover` that are not reused, that succeed, that
-is, that consume input (*Restarts* in Lemma 4), $B$ the number of body evaluations
+bound, of the activations of the operators of Operators Rules and of the
+evaluations of the skip expressions of `#recover` that are not reused, that
+succeed, that is, that consume input (*Restarts* and *Operators Rules* in
+Lemma 4), and $B$ the number of body evaluations
 of the rules that the parse memoizes, growth steps and evaluations in a
-context of growths included, and $O$ the number of evaluations of their parts
-that Operators Rules make outside their activations, the tries of step 3 of
-[Open Steps](#open-steps). Write
-$\Phi = K_R \hat{n} + B + A_u + O + 1$. Then, for a constant $c_{17}$:
+context of growths included. Write
+$\Phi = K_R \hat{n} + B + A_u + 1$. Then, for a constant $c_{17}$:
 
 1. $A_r \le c_{17} \Phi$, and the recorded walks number at most
    $c_{17} \Phi$;
@@ -704,21 +702,20 @@ an upper bound, in $\tau$ when $\tau$ is an Operators Rule, in the skip
 expression when $\tau$ is a `#recover` whose skip is not reused. Let
 $\tau(x)$ be the innermost scanning source that encloses $x$, when there is
 one. For a scanning source $\tau$, let $A(\tau)$ be the number of its
-activations in both variants, and $O(\tau)$ the number of evaluations of its
-parts that it makes outside its activations when $\tau$ is an Operators
-Rule, and 0 otherwise.
+activations in both variants.
 
 *One place.* There is a constant $c_1 \ge 1$ such that
 $N(x) \le c_1 E(Q)$ when no scanning source encloses $x$, and
-$N(x) \le c_1 (A(\tau(x)) + O(\tau(x)))$ otherwise. This is the step *One
+$N(x) \le c_1 (A(\tau(x)) + N(\tau(x)))$ otherwise, where $N(\tau)$ is the
+number of evaluations of $\tau$ as a place. This is the step *One
 place* of Lemma 10, whose argument holds of every place: outside the scanning
 sources of the body, $x$ is evaluated at most as many times in one body
 evaluation as the product of the upper bounds of the bounded repetitions that
 enclose it; inside them, at most that many times in one activation of
-$\tau(x)$ outside the activations of $\tau(x)$ nested in it, or in one
-evaluation of a part of an Operators Rule outside its activations. As in
-Lemmas 2 and 10, for a place inside an Operators Rule the bound rests on
-step 3 of [Open Steps](#open-steps). An iteration that a Document reuses from a run is
+$\tau(x)$ outside the activations of $\tau(x)$ nested in it, or, when
+$\tau(x)$ is the operators of an Operators Rule, in the head or the last
+round of the top level of one evaluation of $\tau(x)$ (*Operators Rules* in
+Lemma 4). An iteration that a Document reuses from a run is
 an activation that evaluates nothing, and an iteration that a record answers
 is neither evaluated nor an activation, so neither adds an evaluation of
 $x$.
@@ -769,17 +766,19 @@ Otherwise let $\tau = \tau(x)$. Every scanning source that encloses $\tau$
 encloses $x$, and $\tau$ encloses $x$ and not itself, so fewer scanning
 sources enclose $\tau$ than enclose $x$, and the hypothesis gives
 $N(\tau) \le c' \Phi$ for the place $\tau$, with a constant $c'$.
-$O(\tau) \le O$. Each evaluation of a scanning source has at most one
-activation that does not succeed, its last (*Activations that do not
-succeed* in Lemma 4), so the activations of $\tau$ that do not succeed
-number at most $N(\tau)$. If $\tau$ is no recorded site, its activations
+Each evaluation of a scanning source has at most one
+activation that does not succeed, its last, or, for the operators of an
+Operators Rule, at most one plus three for each of its activations that
+succeeds (*Activations that do not succeed* in Lemma 4), so the activations
+of $\tau$ that do not succeed number at most $N(\tau)$ plus three times those
+that succeed. If $\tau$ is no recorded site, its activations
 that succeed are counted in $A_u$, so
-$N(x) \le c_1 (A_u + N(\tau) + O) \le c_1 (1 + c') \Phi$. If $\tau$ is a
+$N(x) \le c_1 (4 A_u + 2 N(\tau)) \le c_1 (4 + 2 c') \Phi$. If $\tau$ is a
 recorded site, its activations are the iterations of its recorded walks, at
 most $c_\tau \Phi$ by the hypothesis for the site $\tau$, and the
 iterations of the walks at which a Document resumes a run, of which those
 that succeed are counted in $A_u$ and the others number at most $N(\tau)$;
-so $N(x) \le c_1 (c_\tau \Phi + A_u + N(\tau)) \le c_1 (c_\tau + 1 + c') \Phi$.
+so $N(x) \le c_1 (c_\tau \Phi + A_u + 2 N(\tau)) \le c_1 (c_\tau + 1 + 2 c') \Phi$.
 This gives $c_x$. Now let $x$ be a recorded site $\sigma$. Its recorded walks are
 evaluations of the place $\sigma$, so $W_\sigma \le N(\sigma) \le c_x \Phi$
 by the bound just shown, and by (R2) they evaluate at most
@@ -803,13 +802,13 @@ it bounds their iterations by counting walks, with no use of condition 2, of
 the units and their continuations, or of the links between activations at
 one position.
 
-**Order.** The lemma bounds $A_r$ by $B$, $A_u$ and $O$. It gives a bound in
-terms of the input only when those three are bounded with no use of $A_r$
+**Order.** The lemma bounds $A_r$ by $B$ and $A_u$. It gives a bound in
+terms of the input only when those two are bounded with no use of $A_r$
 or of what follows from $A_r$: the activations that do not succeed and the
 body evaluations of the rules that are not memoized, which *Activations that
 do not succeed* in Lemma 4 derives from $B$ and from all the successful
 activations, $A_u + A_r$ here. $A_u$ counts only activations that succeed so
-that this order is possible: first $B$, $A_u$ and $O$, then $A_r$, then the
+that this order is possible: first $B$ and $A_u$, then $A_r$, then the
 activations that do not succeed and the evaluations of the rules that are
 not memoized. The theorem takes the order as a hypothesis, of which this
 much is shown:
@@ -824,9 +823,12 @@ much is shown:
   context of growths or of the rules that are not memoized (the remark after
   *Replayed activations*). The parts of the count that step 1 of
   [Open Steps](#open-steps) leaves open have no proof, so nothing is shown
-  of what their proof uses: step 8 requires that it keep this order.
-- $O$ is step 3 of [Open Steps](#open-steps), which is open, with the same
-  requirement.
+  of what their proof uses: step 8 requires that it keep this order. The
+  activations of the operators of an Operators Rule that do not succeed,
+  and the evaluations of their parts outside the activations, are bounded
+  by *Operators Rules* and *Activations that do not succeed* in Lemma 4 from
+  the successful activations and the evaluations of the expression, as
+  those of the other sources are, so they come after $A_u$ and $A_r$.
 
 **The bound on the memoized evaluations counts no iterations.** The bounds that Lemmas 3 and 5
 state on the body evaluations of the memoized rules take as their inputs the
@@ -1016,8 +1018,8 @@ rule whose body is an Operators Rule, called without a level and in no
 left-recursion cycle, is one that the element of a run site or of a
 skip-run site can call, directly or indirectly. Its operators are then
 applied inside the iterations of the walks of that site, and so are the
-tries of its parts that step 3 of [Open Steps](#open-steps) leaves to
-count, the $O$ of this lemma. The copying operations that are scanning
+tries of its parts, the activations of its operators that $A_u$ counts when
+they succeed. The copying operations that are scanning
 sources, which are not in $A_u$, can stand there as well: the element of a
 run site may hold actions and predicates, and so may a rule that it calls;
 Lemma 6 counts their units through the count of Lemma 4 for the
@@ -1040,8 +1042,8 @@ nothing in contexts; it leaves the parts that step 8 states. The units
 of the copying operations there are counted by the same claims, the
 iterations of the evaluations that a copy reads, which a record can
 answer, by *Copies in every parse* in Lemma 5 against the same parse, and
-the tries of an Operators Rule there add nothing open beyond step 3 (the
-sixth part of step 8). What is said above of the activations of such a
+the activations of the operators of an Operators Rule there add nothing open
+beyond step 3 and the count of Lemma 4 (the sixth part of step 8). What is said above of the activations of such a
 source holds of the iterations themselves of a candidate site
 that keeps records and is no recorded site of the parse, which are
 activations of a source of this list: the count of Lemma 4 is not shown for
@@ -1153,9 +1155,12 @@ activations, is at most a constant $c_3$ times
 the number of activations. A step of a scanning source outside the calls that
 it makes lies in one activation of the innermost scanning source of the body
 that encloses it. An activation evaluates a fixed part of the grammar once:
-an iteration evaluates the expression of its repetition, an operator its
-operator part with its right operand, and an evaluation of a skip expression
-that expression. Outside the calls that it makes and the scanning sources
+an iteration evaluates the expression of its repetition, an activation of
+the operators of an Operators Rule its tries with the heads and last rounds of
+their right operands (*Operators Rules* below), and an evaluation of a skip
+expression that expression. The head and the last round of a top level of an
+Operators Rule lie in no activation and are evaluated once in a body
+evaluation. Outside the calls that it makes and the scanning sources
 nested in it, that part is a finite expression, each part of which is
 evaluated at most as many times as the product of the upper bounds of the
 bounded repetitions that enclose it, and each evaluation of a terminal, a
@@ -1188,13 +1193,15 @@ over-approximates where it cannot be exact
 it cannot show to be unable to fail after a source.
 
 **Restarts.** An activation **succeeds** when it consumes input: its iteration,
-its operator part with its right operand, or its skip expression consumes input.
-An operator applied without consuming input does not succeed in this sense. An
+the outer try of an activation of the operators of an Operators Rule
+(*Operators Rules* below), or its skip expression consumes input. An
 evaluation is **abandoned** when it fails, when it is the expression of a
 lookahead, or when it is the step of a growth whose result the growth drops. Let
 $\alpha$ and $\alpha'$ be successful activations of one scanning source that
 start at one position $q$, with $\alpha$ evaluated first, and let the innermost
-evaluation $N$ that contains both not be a growth. Then $\alpha'$ is not inside
+evaluation $N$ that contains both not be a growth, and let the source be no
+operators of an Operators Rule, for which step 3 of
+[Open Steps](#open-steps) leaves this claim open. Then $\alpha'$ is not inside
 $\alpha$, and on the path from $N$ down to $\alpha$ there is a first abandoned
 evaluation $w$ below $N$. Either $w$ is a dropped step of a growth whose seed
 ends at a position $e \le q$, which *Dropped steps* below treats, or $w$ is an
@@ -1379,20 +1386,122 @@ which this claim applies again, deeper on the path. $\square$
 The activations of the third case are counted by Lemma 5 with those that the
 second case of *Repeats inside a growth* gives, as stated there.
 
-**Operators Rules.** The operators that an Operators Rule applies are a scanning
-source, and each operator applied is an activation. An operator applied without
-consuming input ends the expression that applies it ([Parsing
-Rules](../language/operators-rule.md#parsing-rules)), so each evaluation of an
-Operators Rule expression has at most one such activation, its last, which the
-count of activations that do not succeed below covers. Two evaluations of
-Operators Rules in sequence can each end with such an operator at one position,
-and the restarts above, which need consumed input, do not apply to those
-activations. The parser selects an operator at a position by trying the operator
-parts there, and can try them again at the same position when an inner level
-returns there because the operator it selected binds less tightly or its right
-operand fails. Each such return ends an evaluation of a unit of the Operators
-Rule, an operator part with its right operand, or of the right operand that a
-unit contains, so the claims above treat these evaluations as those of any other
+**Operators Rules.** Call an evaluation of an Operators Rule expression, and
+each evaluation of a right operand inside it, a **level**; a level that is no
+right operand is a **top level**, one for each evaluation of the expression.
+The levels of an evaluation of the expression are those inside it outside the
+calls that it makes: a call that parses the rule again starts another
+evaluation of the expression. A level first parses its operand, its **head**:
+it evaluates the `skip` once, then each prefix operator part once, selects the
+longest match, which a part that matches nothing cannot be, evaluates the
+right operand of the selected part and applies the part when the right
+operand succeeds; otherwise it evaluates the `operand` items in order, each at
+most once, up to the first that succeeds. It then makes **rounds** from the
+position where it stands. A round evaluates the `skip` once, then each infix
+and postfix operator part once, and selects the longest match. It ends the
+level without applying the part when no part matches, when the level
+**refuses** the part, by its binding level or by the associativity of the
+operator that the level applied last, and when neither the `skip` nor the part
+has consumed input, the level is the right operand of an infix part whose
+round consumed no input, and the level stands where it started. Otherwise it
+applies a postfix part, or evaluates the right operand of an infix part and
+applies the part when the right operand succeeds. A round whose right operand
+fails, and a round that applies an operator without consuming input, end the
+level, and a failure after a cut can fail the whole expression
+([Parsing Rules](../language/operators-rule.md#parsing-rules)); the counts
+below hold whichever such failures the cuts cause, since each ends levels and
+starts nothing.
+
+A **try** is a part that a level selects and does not refuse, with what the
+level evaluates for it: for a prefix part, its evaluation, from where it starts
+after the `skip` of the head, and the evaluation of its right operand; for an
+infix or a postfix part, its whole round, the `skip` and every operator part
+included, and the evaluation of its right operand, if it has one. Its
+**position** is where the evaluation of the prefix part, or the round, starts.
+A try of a postfix part applies its operator, and a try of a prefix or an infix
+part applies its operator when its right operand succeeds, so every operator
+applied is applied by one try. A try **consumes input** when an evaluation in
+it, outside every lookahead, succeeds and consumes input, whether or not it is
+later abandoned and whether or not the try applies its operator. A prefix or
+postfix part that matches nothing is not selected, so their tries consume
+input. Every level other than a top level is the right operand of one try.
+Each round of a level other than its last is a try, and the head holds at most
+one try, so every evaluation of a part of the rule, its `skip` included, that
+an evaluation of the expression makes outside the calls of its parts lies in a
+try, or in the head or the last round of a level outside its tries, where each
+part of the rule is evaluated at most once.
+
+**Tries at one position.** Let a try $\tau'$ lie inside a try $\tau$ of the
+same evaluation of an Operators Rule expression, both at a position $p$. Then
+$\tau$ is the try of an infix part whose round consumed no input, $\tau'$ lies
+in the right operand $L$ of $\tau$, and $\tau'$ is either the try of the head
+of $L$ or the try of a round of $L$ at $p$ that consumes input. So at most two
+tries at $p$ lie inside $\tau$, and no try at $p$ lies inside them.
+
+*Proof.* Every evaluation between $\tau$ and $\tau'$ lies inside $\tau$ and
+contains $\tau'$, so it starts at $p$. A prefix try consumes its part from $p$
+before its right operand starts, and so does a postfix try, which has none;
+the right operand of an infix try whose round consumed input starts after
+$p$. So $\tau$ is an infix try whose round consumed no input, and $\tau'$ lies
+in its right operand $L$, which starts at $p$, at a level of $L$ or of the
+right operand of a try in $L$ at $p$. The head of $L$ holds at most one try.
+$L$ stands at $p$ after its head only if its head ends at $p$; it is then
+the right operand of an infix part whose round consumed no input and stands
+where it started, so its round at $p$ ends it without a try unless the
+`skip` or the part consumes input. A round of $L$ at $p$ that consumes input
+either ends $L$, when its right operand fails, or moves $L$ past $p$, so $L$
+makes at most one try at $p$ in its rounds, and that round consumes input.
+The try of the head of $L$ and that try both consume input from $p$ before
+their right operands start, so their right operands start after $p$ and hold
+no try at $p$. $\square$
+
+An **activation** of the operators of an Operators Rule is a try that lies in
+no other try at its position in the same evaluation of the expression,
+its **outer try**, together with the at most two tries at that position inside
+it; its position is the position of its outer try. Every try lies in exactly
+one activation. The activation evaluates a fixed part of the grammar once:
+outside the activations at later positions inside it and the calls that its
+parts make, it evaluates its at most three tries, without their right
+operands, and the head and the last round of each right operand of its tries,
+which evaluate each part of the rule at most once. An evaluation of the
+expression evaluates outside its activations only the head and the last
+round of its top level. The activation **succeeds** when its outer try
+consumes input. These are the activations of the Operators Rules in the claims of
+this lemma. An activation that does not succeed holds no other try, and the
+right operand of its outer try holds none: nothing in the outer try consumes
+input, so a try in that right operand would be at its position, and the tries
+at that position inside it consume input.
+
+**Activations of the operators that do not succeed.** Let an evaluation of an
+Operators Rule expression hold $s$ activations of the operators of the rule
+that succeed. Then at most $1 + 3s$ of its activations do not succeed, and it
+makes at most $1 + 6s$ tries and has at most $2 + 6s$ levels.
+
+*Proof.* Let $\alpha$ be an activation that does not succeed, with outer try
+$\tau$ in a level $L$. $\tau$ consumes no input, so it is the try of an infix
+part whose round consumed nothing; either its right operand fails, which ends
+$L$ or fails the expression, or it applies its operator without consuming
+input, which ends $L$. So each level holds at most one outer try of an
+activation that does not succeed. $L$ is a top level, of which there is one,
+or the right operand of a try $\rho$. The right operand of the outer try of an
+activation that does not succeed holds no try, so $\rho$ is a try of an
+activation that succeeds, which holds at most three tries. So the
+activations that do not succeed number at most $1 + 3s$, the tries at most
+$3s + 1 + 3s$, and the levels, one more than the tries with a right operand,
+at most $2 + 6s$. $\square$
+
+So the levels that fail, which *Levels that end at one position* below does
+not bound by the operators applied, are bounded by the activations that
+succeed and the evaluations of the expression: with `operand "x"` and
+`prefix "-"`, each prefix try of the input `-`$^n$ `!` consumes its `-`,
+and its activation succeeds though no operator is applied.
+
+The parser selects an operator at a position by trying the operator parts
+there, and can try them again at the same position when an inner level returns
+there because the operator it selected binds less tightly or its right operand
+fails. Each such return ends an evaluation of a unit of the Operators Rule, an
+operator part with its right operand, or of the right operand that a unit
+contains, so the claims above treat these evaluations as those of any other
 unit: an Operators Rule is a choice of its operator parts and `operand` items
 when one fails and a sequence of its operands and operators when they succeed,
 and its units are checked by condition 2 whether or not they can fail after a
@@ -1407,25 +1516,23 @@ operator contains that source at a new position, as a call of a rule of a cycle
 after input is. The `skip` of an Operators Rule is a scanning source unless it
 is a reused skip, and its first call is shared with that of a body that is the
 Operators Rule, as [Conditions for Linear
-Cost](../runtime/parsing.md#conditions-for-linear-cost) states.
+Cost](../runtime/parsing.md#conditions-for-linear-cost) states. That the
+restarts above and the claims on direct activations and links that rest on
+them hold of the activations of the operators is step 3 of
+[Open Steps](#open-steps).
 
-**Levels that end at one position.** Call an evaluation of an Operators Rule
-expression, and each evaluation of a right operand inside it, a **level**; a
-level that is no right operand is a **top level**, one for each evaluation of
-the expression. After its operand, a level makes a **round** at the position
-where it stands: it evaluates the `skip` once, tries each operator part after an
-operand at most once, selects the longest match, and evaluates the right operand
-of at most one part, the one selected
-([Parsing Rules](../language/operators-rule.md#parsing-rules)). A round either
-applies an operator, an activation, or is the last of its level. Let $A$ be the
+**Levels that end at one position.** Take the levels, heads and rounds of
+*Operators Rules* above. A round evaluates the right operand of at most one
+part, the one selected, and either applies an operator or is the last of its
+level. Let $A$ be the
 number of operators that the levels of the expression apply in the parse and
 $E$ the number of evaluations of the expression. Then:
 
 1. The levels that succeed number at most $A + E$, and their rounds at most
    $2A + E$. Every evaluation of a part of the rule that a level that succeeds
-   makes outside its activations, other than inside a level that it contains,
-   lies in its operand, where it tries each prefix operator part and each
-   `operand` item at most once, or in its last round.
+   makes outside the rounds that apply an operator, other than inside a level
+   that it contains, lies in its head, where it tries each prefix operator
+   part and each `operand` item at most once, or in its last round.
 2. Let every infix operator part that the right operand of a prefix operator
    part admits be admitted by the right operand of every infix and prefix
    operator part. Then among the levels that succeed and end at one position
@@ -1449,7 +1556,7 @@ operand, so these levels are at most $A$. Each round of a level that succeeds
 applies an operator or is its last, which gives $2A + E$. Its operand is parsed
 once: the prefix operator parts are tried at its start, and the `operand` items
 once each, after a prefix operator whose right operand fails or when no prefix
-part matches. What it evaluates outside its activations is that and its last
+part matches. What it evaluates outside the rounds that apply an operator is that and its last
 round.
 
 2. Write the levels that end at $q$, from the innermost, as
@@ -1506,15 +1613,18 @@ and the right operands that a last round evaluates, are not bounded by $A$ and
 $E$: with `operand "x"` and `prefix "-"`, the input `-`$^n$ `!` makes $n$
 levels that fail, each the right operand of a prefix operator part that
 matched, in one evaluation of the expression that applies no operator. Each
-level that fails lies in a unit of the Operators Rule that fails after its
-operator part, so condition 2 and the claims of step 1 count them, as the cost
-of the units up to their failure (step 3 of [Open Steps](#open-steps)).
+level that fails is the right operand of a try, and *Activations of the
+operators that do not succeed* bounds the tries by the activations of the
+operators that succeed, which consume input, and the evaluations of the
+expression.
 
 What remains is to count the activations. Each evaluation of a scanning source
-has at most one activation that does not succeed, its last: an iteration that
-consumes no input ends its repetition, an operator applied without consuming
-input ends the expression that applies it, and an evaluation of a skip
-expression is one activation. The evaluations of a source are made by the body
+other than the operators of an Operators Rule has at most one activation that
+does not succeed, its last: an iteration that consumes no input ends its
+repetition, and an evaluation of a skip expression is one activation. An
+evaluation of an Operators Rule expression with $s$ activations of its
+operators that succeed has at most $1 + 3s$ that do not, by *Activations of the
+operators that do not succeed*. The evaluations of a source are made by the body
 evaluations and the activations of the sources that enclose it, a constant
 number of times by each, so the activations that do not succeed are bounded by
 the body evaluations and the successful activations, as the following claim
@@ -1523,38 +1633,45 @@ memoized. It is left to bound the successful activations that start at one
 position.
 
 **Activations that do not succeed.** In this claim an activation is an
-iteration, an operator applied or an evaluation of a skip expression; the
+iteration, an activation of the operators of an Operators Rule or an
+evaluation of a skip expression; the
 copying operations, whose activations Lemma 6 counts, and the growths, which
 have none, are left out. Let $A_s$ and $A_f$ be the numbers of these
 activations that succeed and that do not, and $B$ the number of body
 evaluations of memoized rules, growth steps included. Then
 $A_f \le c_4 (B + A_s + 1)$ for a constant $c_4$, and the body evaluations of
 the rules that are not memoized number at most a constant times
-$B + A_s + 1$, when no rule that the start rule reaches is an Operators Rule.
-Inside an Operators Rule, the operands and the operator parts that an Operators Rule tries, and that fail, lie inside its scanning source but in no activation of it, so the dichotomy of the proof below does
-not hold of a source or a call inside them, and the claim rests there on step 3
-of [Open Steps](#open-steps), as Lemmas 2 and 10 do.
+$B + A_s + 1$.
 
 *Proof.* Write $E(Q)$ for the number of body evaluations of a rule $Q$, growth
 steps included, and $s(\sigma)$ and $f(\sigma)$ for the activations of a
 scanning source $\sigma$ that succeed and that do not, in all the body
 evaluations of the rule whose body holds $\sigma$; an activation inside a call
 belongs to the body of the callee. Each evaluation of $\sigma$ has at most one
-activation that does not succeed, its last, as above, so $f(\sigma)$ is at most
-the number of evaluations of $\sigma$. An evaluation of $\sigma$ lies either
+activation that does not succeed, its last, or, for the operators of an
+Operators Rule, at most one plus three for each activation in it that
+succeeds, as above, so $f(\sigma)$ is at most the number of evaluations of
+$\sigma$ plus $3 s(\sigma)$. An evaluation of $\sigma$ lies either
 outside every other source of the body, where it is made at most a constant
 number of times in one body evaluation, by the argument of Lemma 1, or inside
 an activation of the innermost source $\sigma'$ of the body that encloses it,
 where it is made at most a constant number of times in that activation, by the
-same argument, since an activation evaluates a fixed part of the grammar once.
-A copying operation and a growth evaluate no part of a body inside their
-activations, so $\sigma'$ is a repetition, an Operators Rule or a skip
-expression. So for a constant $c$,
-$f(\sigma) \le c\,(E(Q) + s(\sigma') + f(\sigma'))$, or
-$f(\sigma) \le c\,E(Q)$ when no source encloses $\sigma$. The sources of a body
-nest to a depth that is a constant of the grammar, so unfolding the inequality
-along the sources that enclose $\sigma$ gives
-$f(\sigma) \le c' (E(Q) + \sum_{\sigma'} s(\sigma'))$ over those sources, and
+same argument, since an activation evaluates a fixed part of the grammar once,
+or, when $\sigma'$ is the operators of an Operators Rule, inside $\sigma'$ and
+outside its activations, in the head or the last round of a top level, where
+it is made at most a constant number of times in one evaluation of the
+expression (*Operators Rules*), which the rule evaluates once in a body
+evaluation, since an Operators Rule is the whole body of its rule
+([Operators Rule](../language/operators-rule.md)). A copying operation and a
+growth evaluate no part of a body inside their activations, so $\sigma'$ is a
+repetition, the operators of an Operators Rule or a skip expression. So for a
+constant $c$,
+$f(\sigma) \le c\,(E(Q) + s(\sigma') + f(\sigma')) + 3 s(\sigma)$, or
+$f(\sigma) \le c\,E(Q) + 3 s(\sigma)$ when no source encloses $\sigma$. The
+sources of a body nest to a depth that is a constant of the grammar, so
+unfolding the inequality along the sources that enclose $\sigma$ gives
+$f(\sigma) \le c' (E(Q) + \sum_{\sigma'} s(\sigma'))$ over $\sigma$ and those
+sources, and
 summing over the constant number of sources of the body,
 $A_f(Q) \le c'' (E(Q) + A_s(Q))$, where $A_s(Q)$ and $A_f(Q)$ sum $s$ and $f$
 over the sources of the body of $Q$.
@@ -1584,8 +1701,13 @@ Lemma 10, on which its proof rests.
 use three things of it.
 
 1. That each evaluation of a scanning source has at most one activation
-   that does not succeed, its last. This is 7 of *Restarts in a parse
-   that keeps records*, which shows it of a walk that takes a record.
+   that does not succeed, its last, or, for the operators of an Operators
+   Rule, at most one plus three for each activation in it that succeeds.
+   This is 7 of *Restarts in a parse that keeps records*, which shows it of
+   a walk that takes a record; a record answers whole iterations of a
+   walk, and an evaluation of an Operators Rule expression that the parse
+   makes makes all of its tries, so the count of *Activations of the
+   operators that do not succeed* holds of it as stated.
 2. That a place is evaluated at most a constant number of times in one
    body evaluation outside the scanning sources that enclose it, and at
    most that many times in one activation of the innermost such source:
@@ -1612,9 +1734,7 @@ The proofs use nothing else of the parse. $\square$
 The claim bounds $A_f$ and the evaluations of the rules that are not
 memoized by $B$ and by all the successful activations that the parse
 evaluates, those of the recorded walks included, which is why Lemma 17
-bounds $A_r$ before it is applied (*Order* in Lemma 17). The exception
-for the Operators Rules, which step 3 of [Open Steps](#open-steps)
-keeps, is the same with records.
+bounds $A_r$ before it is applied (*Order* in Lemma 17).
 
 **Order of the bounds.** The bounds follow one another in this order, and none
 rests on a later one. First, the claims of this lemma from *Failure after a
@@ -12473,10 +12593,9 @@ is the argument of Lemma 2 for one place: outside the scanning sources of the
 body, $s$ is evaluated at most as many times in one body evaluation as the
 product of the upper bounds of the repetitions that enclose it; inside them,
 at most that many times in one activation of the innermost scanning source
-that encloses it. A place inside the operands or the operator parts of an
-Operators Rule is evaluated also in the tries of those parts that fail, which
-are in no activation, so for such a place the claim rests on step 3 of [Open
-Steps](#open-steps), as in Lemma 2.
+that encloses it, or, inside the operators of an Operators Rule and outside
+their activations, at most that many times in the head and the last round of
+the top level of one body evaluation, as in Lemma 2.
 
 *Evaluations by call.* A rule $r$ that is not memoized is no leader, so it
 does not grow, and the memo of an ordinary parse answers no call of it. Each
@@ -13237,9 +13356,9 @@ leaves open, and on the seventh part of step 8 where the repetition keeps
 records.
 
 The theorem rests on Lemmas 4 and 5, which are outlines, on Lemma 6,
-which is proved given step 1 of [Open Steps](#open-steps), on step 3, since
-Lemmas 2, 10 and 17, which its proof uses, leave out the tries of an Operators Rule
-outside its activations, and, for the values that actions build from reshaped
+which is proved given step 1 of [Open Steps](#open-steps), on step 3, for the
+restarts of the activations of the operators of an Operators Rule on which the
+count of Lemma 4 rests, and, for the values that actions build from reshaped
 values, on step 7. It takes as a hypothesis the order of the bounds that
 *Order* after Lemma 17 states, and it leaves the parts that step 8 lists. So
 the promises of the classes Linear and Linear Given an Environment Bound
@@ -13251,8 +13370,7 @@ evaluations of memoized rules are at most a constant times $K \hat{n}$: by
 Lemma 3 outside the growth steps and the contexts of growths, and by Lemma 5
 for the growth steps and the evaluations in a context of growths. By Lemmas 4
 and 13 the successful activations other than the iterations of recorded
-walks are at most a constant times $K \hat{n}$, and by Lemma 17, with step 3
-for the tries of the Operators Rules, so are the iterations of the recorded
+walks are at most a constant times $K \hat{n}$, and by Lemma 17 so are the iterations of the recorded
 walks and the recorded walks, and the steps that they make outside their
 iterations other than their suffix copies are at most a constant times
 $K (L + 1) \hat{n}$. The suffix copies are at most a
@@ -13909,6 +14027,10 @@ names a definition or condition of the specification and the lemmas that use it.
   without consuming input, which the definitions of scanning source, bounded list and
   growing unit read: Lemmas 1, 2, 4, 6 and 11. The first characters: Lemma 4.
 - Scanning sources, units and what contains a source: Lemmas 1, 2 and 4.
+  The operators that an Operators Rule applies, a scanning source: Lemma 4,
+  *Operators Rules*, whose activations hold every operator that the rule
+  tries, applied or not, so that the operands and operator parts tried and
+  the levels that fail are counted with them.
 - [Run sites](../runtime/parsing.md#run-sites), their conditions, the sites
   free of the environment and the repetitions of a single character: the
   candidate sites and the recorded sites of the [Setting](#setting) and
@@ -14399,34 +14521,38 @@ theorem covers such a parse.
    growing result has fewer than $c_w$ characters, or, outside the bodies of leaders,
    through a shared call that reads the growing result or at which the
    removal stops.
-3. **Operators Rules.** Lemma 4 places the operators that an Operators Rule
-   applies and its units among the activations and units of its claims, with the
-   operator parts that an enclosing level tries again as a continuation of an
-   operator part after an operand when the rule nests, through its right
-   operands or through a call that parses the rule again at the end of an
-   operand or an operator part; its claims on direct activations and links cover
-   the operators applied at a position. *Levels that end at one position* in
-   Lemma 4 bounds the tries of the levels that succeed by the operators applied
-   and the evaluations of the expression, and shows when the levels that end at
-   one position parse the right operand of a part once there and repeat a
-   constant cost at each level, which is why the definition does not list the
-   tries again of such a rule as a continuation. The levels that fail are not
-   bounded by the operators applied and the evaluations of the expression:
-   each lies in a unit that fails after its operator part, and the step must
-   count them, with the operands and operator parts that they try and the
-   right operands that last rounds evaluate, as the cost of the units up to
-   their failure, which the claims of step 1 bound with its open parts. Lemma
-   2, *One place* of Lemma 10 and *Activations that do not succeed* of Lemma 4
-   rest on that count for the places inside an Operators Rule.
-   *Nesting at one end* takes the continuation $\kappa$ of an abandoned unit
+3. **Operators Rules.** *Operators Rules* in Lemma 4 makes every operator
+   tried a part of an activation, groups the tries at one position, bounds
+   the activations that do not succeed, the tries and the levels of an
+   evaluation of the expression by those that succeed, and so places every
+   evaluation of a part of the rule in an activation or in the head or the
+   last round of a top level; Lemmas 2, 10 and 17 and *Activations that do
+   not succeed* rest on that. What is open is *Restarts* and what rests on it
+   for these activations. First, $\alpha'$ can lie inside $\alpha$: an infix
+   or postfix part that begins with a call that parses the rule again
+   evaluates, inside the try at $q$, a head whose prefix try is at $q$, and
+   that call is no left call when no operand of the rule can match nothing.
+   The step must bound such activations at $q$ inside one activation, or
+   exclude them. Second, the activation that succeeds need not leave a
+   committing unit on the path to it: its outer try can consume input only in
+   a part that it abandons and then apply its operator without consuming
+   input, and a try whose right operand cannot apply an operator is a unit
+   with no scanning source, which condition 2 does not check. The step must
+   show that the restarts at $q$ of those activations are bounded otherwise,
+   or narrow the activations that the restarts count, keeping the count of
+   those that do not succeed. Third, *Nesting at one end* takes the
+   continuation $\kappa$ of an abandoned unit
    to be what the parser evaluates after it, and for a unit of an Operators
    Rule it applies the continuations that the definition lists: the later
    operands, the operator parts that the rule tries after them and what
    follows the rule. The step must show, for every unit of an Operators Rule,
    that the parse of the rule evaluates, after an operand or an operator part
    that it abandons, nothing beyond those continuations, as *Restarts* does
-   for the other constructs; the restarts through a later operand are then
-   those that the definition counts. In an Operators Rule `e` with the
+   for the other constructs, with the failures after a cut that fail the
+   whole expression ([Parsing
+   Rules](../language/operators-rule.md#parsing-rules)); the restarts
+   through a later operand are then those that the definition counts. In an
+   Operators Rule `e` with the
    operands `"(" e R "x"`, `"(" e` and `"."`, called as `e R` with
    `R = [ ]*`, the first operand fails at each level after scanning the
    spaces and the second ends where the inner operand ended; the two share
@@ -14817,18 +14943,17 @@ theorem covers such a parse.
    contexts, in which those iterations are activations, so that this term
    adds no open part beyond those of that parse; a reused iteration holds
    no copy. The tries of an
-   Operators Rule called there step 3 is to bound by the operators that
-   the rule applies and by its body evaluations. A bound of that form,
-   shown evaluation by evaluation of the rule, holds inside the iterations
-   as outside, since a record or a resumed walk only takes whole
-   iterations out of the parse, and both of its terms are counted there:
-   the operators applied as activations by the same three claims, and the
-   body evaluations by Lemma 3 and, for a rule that the parse does not
-   memoize, by Lemma 10 (*Activations that do not succeed in a parse that
-   keeps records*), which rests on step 3 for an Operators Rule inside the
-   iterations as outside them. So neither adds an open part of its own to
-   the iterations: what stays open of them is the reading of Lemma 6 and
-   step 3.
+   Operators Rule called there are bounded, evaluation by evaluation of the
+   rule, by its activations that succeed and its body evaluations
+   (*Activations of the operators that do not succeed* in Lemma 4). That
+   bound holds inside the iterations as outside, since a record or a
+   resumed walk only takes whole iterations out of the parse, and both of
+   its terms are counted there: the activations that succeed by the same
+   three claims, with step 3 for their restarts, and the body evaluations
+   by Lemma 3 and, for a rule that the parse does not memoize, by Lemma 10
+   (*Activations that do not succeed in a parse that keeps records*). So
+   neither adds an open part of its own to the iterations: what stays open
+   of them is the reading of Lemma 6 and step 3.
    The list is that of the conditions of
    [Run Sites](../runtime/parsing.md#run-sites) as they stand. Were they to
    ask, of the element and of every rule that it calls, that each repetition
