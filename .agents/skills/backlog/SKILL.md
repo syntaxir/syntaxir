@@ -18,8 +18,10 @@ description: Keep SyntaxIR backlog issues and the Issue #1 work-status page curr
   dependencies. The project's Roadmap view relies on correct Start and Target dates, so
   dates are part of the work, not decoration. Features normally require a design record.
 - Issue #1 is the work-status page, not a backlog list: release estimate, milestones,
-  lane order, in progress, waiting, and the ten most recent completions. It has no
-  status comment. The commit log is the full record of completed work.
+  in progress, waiting, the ten most recent completions, and one line of links to the
+  milestone pages and the project board. It lists no open items by lane or milestone,
+  since those views already show them and a copy drifts. It has no status comment. The
+  commit log is the full record of completed work.
 - An issue states the problem, decisions with links, remaining work and its acceptance
   criterion; trim landed history from it. Decisions and measurements live in comments.
 - Check current state with `gh issue view <n>`, `gh project field-list 2 --owner syntaxir`
@@ -87,5 +89,3 @@ writer owns it, plus the Landed/close step if the integrator has not done it.
 - Fetch before every edit and read back the affected surface afterwards. Keep local
   checks, remote CI, integration and deployment evidence distinct. Dispatch GitHub
   Actions suites only when needed (`docs/development.md`).
-- Each issue appears once in the Issue #1 lane lists; compare issue-number sets before
-  uploading a body.
