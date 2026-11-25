@@ -376,7 +376,14 @@ func compileWithoutScanSites(t *testing.T, src string) *engine.Program {
 // backend, and no other test sees the switch.
 func compileWithout(t *testing.T, src string, opts check.Options) *engine.Program {
 	t.Helper()
-	return enginetest.MustCompile(t, src, opts)
+	prog := enginetest.MustCompile(t, src, opts)
+	if opts.NoRunSites && prog.NumRunSites != 0 {
+		t.Fatalf("the plain program numbers %d run sites, want none", prog.NumRunSites)
+	}
+	if (opts.NoRunSites || opts.NoScanSites) && prog.NumScanSites != 0 {
+		t.Fatalf("the plain program numbers %d scan sites, want none", prog.NumScanSites)
+	}
+	return prog
 }
 
 // scanSpanProbe restarts the walk of ws at the start of each run of spaces in five alternatives.
