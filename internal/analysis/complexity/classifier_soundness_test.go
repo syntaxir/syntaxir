@@ -392,6 +392,77 @@ rule main = (E ";" / X)* $$
 rule X = [ab]
 rule E = #operators { operand "("?; level { postfix [ab] } }
 `, ClassPoly, 2, -1},
+	// Random search cases (the Operators Rule grammars that were classified Linear and grow as n^2).
+	// Measured compute on the input "b" repeated n times and then "b": 3464, 50696 and 792584 for
+	// n = 64, 256 and 1024.
+	{"operators", "random search: infix after an optional operand, cut", `@start
+rule main = (X E ";" / X)* $$
+rule D = [ab]
+rule X = [ab]
+rule E = #operators {
+    operand "-"?
+    level {
+        infix left [ab] ("-" / "a") #cut
+        postfix [ab] ("b" / "-")
+    }
+}
+`, ClassPoly, 2, -1},
+	// Measured compute on "a" repeated n times and then "!" for n = 64, 256 and 1024: 4293, 66309
+	// and 1049601.
+	{"operators", "random search: infix after a repeated operand, two levels", `@start
+rule main = (X E ";" / X)* $$
+rule D = "+"
+rule X = [ab]
+rule E = #operators {
+    operand ")"
+    operand ")"*
+    level {
+        infix none ")"
+    }
+    level {
+        infix left [ab]
+    }
+}
+`, ClassPoly, 2, -1},
+	// Measured compute on "a" repeated n times with no tail, for n = 64, 256 and 1024: 1219,
+	// 17155 and 265219.
+	{"operators", "random search: right-associative infix after a repeated dash operand", `@start
+rule main = (D E ";" / D)* $$
+rule D = [ab] ("-" / "a")
+rule X = "+" "("*
+rule E = #operators {
+    operand "-"*
+    operand "("? ("+" / "(") "+"
+    level {
+        infix right [ab]
+        infix right "-"
+    }
+}
+`, ClassPoly, 2, -1},
+	// Measured compute on "aa" repeated n times and then "?" for n = 64, 256 and 1024: 1220, 17156
+	// and 265220.
+	{"operators", "random search: postfix after a repeated operand, nested", `@start
+rule main = (D E ";" / D)* $$
+rule D = [ab] [ab]
+rule X = "b"*
+rule E = #operators {
+    operand "("*
+    level {
+        postfix [ab]
+    }
+}
+`, ClassPoly, 2, -1},
+	// Operator parts that do not overlap what follows the empty operand keep the grammar Linear.
+	{"operators", "postfix after an empty operand, disjoint from the continuation", `@start
+rule main = (E ";" / X)* $$
+rule X = [ab]
+rule E = #operators { operand ""; level { postfix [cd] } }
+`, ClassLinear, -1, -1},
+	{"operators", "infix after an empty operand, disjoint from the continuation", `@start
+rule main = (E ";" / X)* $$
+rule X = [ab]
+rule E = #operators { operand ""; level { infix left [cd] } }
+`, ClassLinear, -1, -1},
 }
 
 // TestClassifierSoundness checks the class of each grammar in classifierSoundnessCases.
