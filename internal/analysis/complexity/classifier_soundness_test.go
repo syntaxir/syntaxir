@@ -371,6 +371,27 @@ rule e string = #operators { operand a:"a" => text($a); level additive { infix l
 rule main = v:e $$ => $v
 rule e string = #operators { operand a:"a" => text($a); operand "(" x:e ")" => "b"; level additive { infix left "+" => $lhs } } => $value + $value
 `, ClassLinear, -1, -1},
+	// An operand that can match nothing lets the operator parts after an operand consume the first
+	// character of the expression: `E ";"` fails after its postfix operators scanned the rest of
+	// the input, and X starts again inside it. On n times "b" the minimum compute is 5353, 20703
+	// and 81403 for n = 100, 200 and 400.
+	{"operators", "postfix after an empty operand", `@start
+rule main = (E ";" / X)* $$
+rule X = [ab]
+rule E = #operators { operand ""; level { postfix [ab] } }
+`, ClassPoly, 2, -1},
+	// The same with an infix operator part: 10303, 40603 and 161203.
+	{"operators", "infix after an empty operand", `@start
+rule main = (E ";" / X)* $$
+rule X = [ab]
+rule E = #operators { operand ""; level { infix left [ab] } }
+`, ClassPoly, 2, -1},
+	// And with an operand that can match nothing but does not here: 5353, 20703 and 81403.
+	{"operators", "postfix after an optional operand", `@start
+rule main = (E ";" / X)* $$
+rule X = [ab]
+rule E = #operators { operand "("?; level { postfix [ab] } }
+`, ClassPoly, 2, -1},
 }
 
 // TestClassifierSoundness checks the class of each grammar in classifierSoundnessCases.

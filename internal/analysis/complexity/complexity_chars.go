@@ -216,17 +216,21 @@ func (k *classifier) firstOf(n core.Node) charset {
 }
 
 // operatorsStart is the first characters of an Operators Rule and of each right operand: its
-// skip, its operands and its prefix operator parts.
+// skip, its operands and its prefix operator parts. When an operand can match nothing, the infix
+// and postfix operator parts after it examine characters from the start too, so they count as
+// well.
 func (k *classifier) operatorsStart(o *core.OperatorsRule) charset {
 	var s charset
 	if o.Skip != nil {
 		s = k.firstOf(o.Skip.Body)
 	}
+	emptyOperand := false
 	for _, l := range o.Operands {
 		s = s.union(k.firstOf(l.Body))
+		emptyOperand = emptyOperand || k.nullableOf(l.Body)
 	}
 	for _, op := range o.Ops {
-		if op.Kind == ast.Prefix {
+		if op.Kind == ast.Prefix || emptyOperand {
 			s = s.union(k.firstOf(op.Line.Body))
 		}
 	}
