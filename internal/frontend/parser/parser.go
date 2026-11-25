@@ -36,9 +36,10 @@ func (l ErrorList) Error() string {
 const maxErrors = 100
 
 // maxNesting bounds the nesting of the parser's recursive calls (see enter), at most two for each
-// level of nesting that the lexer counts. The lexer rejects a source deeper than maxLevels, so the
-// bound only keeps the recursion of such a source from growing with it.
-const maxNesting = 100 * maxLevels
+// level of nesting that the lexer counts, with the bound of the structural depth of the tree. The
+// lexer rejects a source deeper than maxLevels, so the bound only keeps the recursion of such a
+// source from growing with it.
+const maxNesting = ast.MaxNestingDepth
 
 type errorList struct{ list ErrorList }
 
@@ -65,6 +66,9 @@ func ParseReference(src string) (*ast.Grammar, error) {
 	errs := &errorList{}
 	p := &parser{layoutCursor: layoutCursor{toks: lex(src, errs)}, errs: errs}
 	g := p.file()
+	for _, e := range boundDepth(g) {
+		errs.add(e.Pos, e.Msg)
+	}
 	if len(errs.list) > 0 {
 		return nil, errs.list
 	}
@@ -77,7 +81,11 @@ func ParseReference(src string) (*ast.Grammar, error) {
 func ParsePartialReference(src string) (*ast.Grammar, ErrorList) {
 	errs := &errorList{}
 	p := &parser{layoutCursor: layoutCursor{toks: lex(src, errs)}, errs: errs}
-	return p.file(), errs.list
+	g := p.file()
+	for _, e := range boundDepth(g) {
+		errs.add(e.Pos, e.Msg)
+	}
+	return g, errs.list
 }
 
 // parser is the hand-written recursive-descent parser. Its layoutCursor reads

@@ -47,6 +47,7 @@ func (lx *lexed) fromSourceTree(root *types.File) (g *ast.Grammar, err error) {
 		c.fail("the source tree is not a File")
 	}
 	g = c.file(root)
+	c.errs.list = append(c.errs.list, boundDepth(g)...)
 	// The lexer checks the nesting of the source, which the grammar does not.
 	for _, e := range lx.errs {
 		if e.Msg == msgNestingTooDeep {
@@ -104,6 +105,8 @@ func (lx *lexed) fromPartialSourceTree(root *types.File) (*ast.Grammar, ErrorLis
 			}
 		}
 	}
+	// A declaration nested too deep is left out like one with an error.
+	c.errs.list = append(c.errs.list, boundDepth(g)...)
 	if len(g.File.Decls) > 0 || g.File.Pkg.Name != "" {
 		g.File.Pos = c.pos.At(c.nextToken(0))
 		g.File.End = c.pos.At(c.tokensEnd(root))

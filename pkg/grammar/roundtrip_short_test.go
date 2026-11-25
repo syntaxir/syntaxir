@@ -13,3 +13,7 @@ var roundTripRuns = []roundTripRun{
 // TestValidateNestingAgreesWithParser checks against the parser; each parses a
 // text of about 500 levels twice.
 const nestingAgreementRules = 6
+
+// depthAllShapes selects every family of TestValidateBoundsDepth, rather than
+// the chain in groups and the negative constant.
+const depthAllShapes = false

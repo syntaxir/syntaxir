@@ -32,6 +32,9 @@ type validationFrame struct {
 	field string
 	index int
 	exit  bool
+	// depth is the structural depth of the node on the path (see
+	// MaxNestingDepth), and below the height of its deepest child so far.
+	depth, below int
 }
 
 // Validate checks required children, names, repetition and character-range
@@ -47,8 +50,9 @@ type validationFrame struct {
 // OperatorsRule semantics are checked by the compiler. The text of a valid AST,
 // as Format writes it, nests no deeper than MaxNestingLevels, and neither does a
 // comment string that Format writes as a block comment: the error of a deeper
-// one is "nesting too deep", as the reference parser reports for its text.
-// Validation imposes no size limit.
+// one is "nesting too deep", as the reference parser reports for its text. So
+// is the error of a tree with a node deeper than MaxNestingDepth, which the
+// parser rejects too. Validation imposes no size limit.
 func Validate(g *Grammar) error {
 	return validate(g, nil)
 }
@@ -193,6 +197,17 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		return &ValidationError{Path: b.String(), Pos: pos, Msg: message}
 	}
+	// heights holds the structural height of each checked node: its weight and
+	// that of its deepest descendant chain.
+	heights := map[any]int{}
+	// leave ends the node on top of the path, whose height is h.
+	leave := func(h int) {
+		path = path[:len(path)-1]
+		if len(path) > 0 {
+			top := &path[len(path)-1]
+			top.below = max(top.below, h)
+		}
+	}
 	push := func(node any, field string, index int, optional bool) {
 		control.poll()
 		if optional && node == nil {
@@ -210,7 +225,9 @@ func validate(g *Grammar, control *validationControl) error {
 			}
 			delete(active, f.node)
 			done[visitKey{f.node, scope()}] = true
-			path = path[:len(path)-1]
+			top := path[len(path)-1]
+			heights[f.node] = structuralWeight(f.node) + top.below
+			leave(heights[f.node])
 			continue
 		}
 		path = append(path, f)
@@ -219,7 +236,7 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		switch f.node.(type) {
 		case int, string, bool:
-			path = path[:len(path)-1]
+			leave(0)
 			continue
 		}
 		v := reflect.ValueOf(f.node)
@@ -228,6 +245,13 @@ func validate(g *Grammar, control *validationControl) error {
 		}
 		if v.IsNil() {
 			return fail("", "required node is nil")
+		}
+		weight := structuralWeight(f.node)
+		if len(path) >= 2 {
+			path[len(path)-1].depth = path[len(path)-2].depth + weight
+		}
+		if path[len(path)-1].depth > MaxNestingDepth {
+			return fail("", msgNestingTooDeep)
 		}
 		if field, name := invalidIdentifier(f.node, control); field != "" {
 			if name != "" && name[0] == '_' {
@@ -259,7 +283,7 @@ func validate(g *Grammar, control *validationControl) error {
 		case *TypeRef, *Ref, *Literal, *Any,
 			*Cut, *Top, *Bottom, *BeginInput, *EndInput, *BeginLine, *EndLine,
 			*IntLit, *StringLit, *BoolLit, *NilLit, *CaptureRef, *VarRef:
-			path = path[:len(path)-1]
+			leave(weight)
 			continue
 		case *CharClass:
 			if len(n.Ranges) == 0 {
@@ -288,7 +312,7 @@ func validate(g *Grammar, control *validationControl) error {
 				}
 				start = end
 			}
-			path = path[:len(path)-1]
+			leave(weight)
 			continue
 		case *Repeat:
 			if n.Min < 0 {
@@ -339,7 +363,13 @@ func validate(g *Grammar, control *validationControl) error {
 			return fail("", "pointer cycle in grammar AST")
 		}
 		if done[visitKey{f.node, scope()}] {
-			path = path[:len(path)-1]
+			// A shared subtree checked before is as high here; its deepest node
+			// lies that far below the parent.
+			h := heights[f.node]
+			if path[len(path)-1].depth-weight+h > MaxNestingDepth {
+				return fail("", msgNestingTooDeep)
+			}
+			leave(h)
 			continue
 		}
 		active[f.node] = true

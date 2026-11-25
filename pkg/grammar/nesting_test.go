@@ -271,3 +271,111 @@ func TestValidateNestingAgreesWithParser(t *testing.T) {
 		t.Errorf("only %d rules checked", checked)
 	}
 }
+
+// deepASTs make grammar ASTs whose tree is n nodes deep, as ast.MaxNestingDepth counts the
+// depth, with chains whose text opens few levels. The default tier checks the first two; the long
+// tier checks them all, as each reads a text of 50,000 nodes.
+var deepASTs = []struct {
+	name string
+	ast  func(n int) *ast.Grammar
+}{
+	{"pragmas in groups", func(n int) *ast.Grammar {
+		// A group adds no depth: every 200th pragma is in one, about 250 in all.
+		var e ast.Expr = &ast.Literal{Value: "a"}
+		for i := range n - 2 {
+			e = &ast.Atomic{Expr: e}
+			if i%200 == 199 {
+				e = &ast.Group{Expr: e}
+			}
+		}
+		return ruleOf(e)
+	}},
+	{"sum of a negative constant", func(n int) *ast.Grammar {
+		// A negative constant is 2 deep: it reads back as a negation of its magnitude.
+		var x ast.ActionExpr = &ast.IntLit{Value: -1}
+		for range n - 3 {
+			x = &ast.Binary{Op: "+", L: x, R: &ast.IntLit{Value: 1}}
+		}
+		return ruleWithAction(x)
+	}},
+	{"pragmas", func(n int) *ast.Grammar {
+		return ruleOf(wrapExpr(n-2, func(e ast.Expr) ast.Expr { return &ast.Atomic{Expr: e} }))
+	}},
+	{"sums", func(n int) *ast.Grammar {
+		var x ast.ActionExpr = &ast.IntLit{Value: 1}
+		for range n - 2 {
+			x = &ast.Binary{Op: "+", L: x, R: &ast.IntLit{Value: 1}}
+		}
+		return ruleWithAction(x)
+	}},
+	{"field accesses", func(n int) *ast.Grammar {
+		var x ast.ActionExpr = &ast.CaptureRef{Name: "x"}
+		for range n - 2 {
+			x = &ast.FieldAccess{X: x, Name: "B"}
+		}
+		return ruleWithAction(x)
+	}},
+}
+
+// ruleWithAction returns a grammar of one rule that captures x and has the action x.
+func ruleWithAction(x ast.ActionExpr) *ast.Grammar {
+	g := ruleOf(&ast.Capture{Name: "x", Expr: &ast.Literal{Value: "a"}})
+	g.File.Decls[0].(*ast.RuleDef).Action = x
+	return g
+}
+
+// TestValidateBoundsDepth checks the structural depth bound of validation against the parser's:
+// an AST of ast.MaxNestingDepth nodes is valid and its text reads back as the same grammar, and
+// one node deeper is invalid, as is its text.
+func TestValidateBoundsDepth(t *testing.T) {
+	families := deepASTs
+	if !depthAllShapes {
+		families = families[:2]
+	}
+	for _, c := range families {
+		t.Run(c.name, func(t *testing.T) {
+			at := c.ast(ast.MaxNestingDepth)
+			if err := grammar.Validate(at); err != nil {
+				t.Fatalf("depth %d: %v", ast.MaxNestingDepth, err)
+			}
+			text := grammar.Format(at)
+			back, err := grammar.Load(grammar.FromString("g.sxir", text))
+			if err != nil {
+				t.Fatalf("reading the text of depth %d: %.200v", ast.MaxNestingDepth, err)
+			}
+			if grammar.Format(back) != text {
+				t.Errorf("the text of depth %d reads back as another grammar", ast.MaxNestingDepth)
+			}
+			over := c.ast(ast.MaxNestingDepth + 1)
+			if err := grammar.Validate(over); err == nil || !strings.Contains(err.Error(), tooDeep) {
+				t.Errorf("depth %d: validation gives %v, want %q", ast.MaxNestingDepth+1, err, tooDeep)
+			}
+			if _, err := grammar.Load(grammar.FromString("g.sxir", grammar.Format(over))); err == nil || !strings.Contains(err.Error(), tooDeep) {
+				t.Errorf("reading the text of depth %d: %.200v, want %q", ast.MaxNestingDepth+1, err, tooDeep)
+			}
+		})
+	}
+}
+
+// TestValidateBoundsSharedDepth checks that a subtree shared at two depths counts at the
+// deeper one, though validation checks it once.
+func TestValidateBoundsSharedDepth(t *testing.T) {
+	shared := wrapExpr(ast.MaxNestingDepth-10, func(e ast.Expr) ast.Expr { return &ast.Atomic{Expr: e} })
+	shallow := &ast.Seq{Items: []ast.Expr{shared, &ast.Literal{Value: "b"}}}
+	for _, c := range []struct {
+		above int
+		valid bool
+	}{{6, true}, {7, true}, {8, false}} {
+		deep := wrapExpr(c.above, func(e ast.Expr) ast.Expr { return &ast.Atomic{Expr: e} })
+		// Replace the innermost operand of deep, a literal, with the shared chain.
+		inner := deep
+		for range c.above - 1 {
+			inner = inner.(*ast.Atomic).Expr
+		}
+		inner.(*ast.Atomic).Expr = shared
+		g := ruleOf(&ast.Choice{Alts: []ast.Expr{shallow, deep}})
+		if err := grammar.Validate(g); (err == nil) != c.valid {
+			t.Errorf("%d pragmas above the shared chain: validation gives %v, want valid %v", c.above, err, c.valid)
+		}
+	}
+}

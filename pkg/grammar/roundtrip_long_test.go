@@ -14,3 +14,7 @@ var roundTripRuns = []roundTripRun{
 // nestingAgreementRules is the number of random rule bodies whose level count
 // TestValidateNestingAgreesWithParser checks against the parser.
 const nestingAgreementRules = 60
+
+// depthAllShapes selects every family of TestValidateBoundsDepth, rather than
+// the chain in groups and the negative constant.
+const depthAllShapes = true

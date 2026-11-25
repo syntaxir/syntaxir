@@ -14,6 +14,31 @@ import (
 // nesting deeper, so that the reference parser reads back the text of every valid AST.
 const MaxNestingLevels = 500
 
+// MaxNestingDepth is the deepest structural nesting of a grammar AST, which the reference
+// parser and validation both bound, so that the walks over a tree read from a source or
+// validated stay bounded where the level count of the text is not, as in a chain of pragmas,
+// of a left-associative operator or of field accesses. The depth of a declaration, and of an
+// attribute of the package clause, is 1; each node below is one deeper than its parent, except
+// a Group, ActionGroup or TypeGroup, which are syntax and add nothing, and a negative IntLit
+// other than math.MinInt, which adds two: Format writes it as "-" and its magnitude, which read
+// back as a Unary and an IntLit. A tree with a node deeper than MaxNestingDepth is "nesting too
+// deep". The text that Format writes for a valid AST reads back no deeper, so the parser reads
+// it.
+const MaxNestingDepth = 50000
+
+// structuralWeight is the depth that node adds below its parent (see MaxNestingDepth).
+func structuralWeight(node any) int {
+	switch n := node.(type) {
+	case *Grammar, *Group, *ActionGroup, *TypeGroup:
+		return 0
+	case *IntLit:
+		if n.Value < 0 && n.Value != math.MinInt {
+			return 2
+		}
+	}
+	return 1
+}
+
 // msgNestingTooDeep is the error of an AST whose text nests deeper than MaxNestingLevels, the
 // message of the reference parser for the text.
 const msgNestingTooDeep = "nesting too deep"

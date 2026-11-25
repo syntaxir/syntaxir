@@ -259,3 +259,11 @@ strings and character classes:
 So `((x))`, `!!x`, `x??`, `x+*`, `a:b:x`, `[][]T`, `(y) => (z) => y` and
 `/* /* */ */` each nest two levels, while `x? y+ z*` and `1 + 2 + 3` nest one,
 as each operand ends the level of the operator before it.
+
+The reference implementation also bounds the structural depth of the grammar
+AST that it reads: a source whose tree holds a node deeper than 50,000 fails
+with `nesting too deep` at that node. A declaration is 1 deep, and each node of
+the tree below it one deeper than its parent, except a group in parentheses,
+which adds nothing. Chains that open no levels reach this bound, such as
+`x #atomic #atomic …`, `1 + 2 + …` and `$x.a.b…`. [Validation of a Grammar
+AST](grammar-files.md#validation-of-a-grammar-ast) applies the same bound.
