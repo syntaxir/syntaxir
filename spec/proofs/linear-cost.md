@@ -1774,8 +1774,9 @@ thing that it evaluates.
 
 *Proof.* Let both get past the parting. By
 induction over the symbols passed alike, both stand at one position after
-each of them. A call passed alike, and equal literals, character classes or
-`.`, end at the same position in both (*Alike calls end alike*): the
+each of them. A call passed alike, a repetition passed by an alike
+repetition, and equal literals, character classes or
+`.`, end at the same position in both (*Alike calls and repetitions end alike*): the
 comparison passes alike a call of a rule that reads variables only while
 neither side has passed a binding, so with the values that both had at $s$.
 Two calls of one trivia rule at one position with the same variables end
@@ -1811,7 +1812,9 @@ by a class that it contains or a literal whose first character it contains,
 `.` by `.` or a literal, a call by an alike call, which has the same outcome
 and end inside the lookahead as outside it, by
 [Lemma 1 of the memoization proof](memoization.md#lemma-1-context) as in
-the proof of *Alike calls end alike*, and a call or a repetition that does
+the proof of *Alike calls and repetitions end alike*, a repetition by an alike repetition,
+which takes the same iterations inside the lookahead as outside it
+(*Alike calls and repetitions end alike*), and a call or a repetition that does
 not pass the symbol of $A$ at hand by the path of its body or its
 iterations that its evaluation passes, which passes the rest of $A$; the
 lookaheads that it passes over consume nothing. So $A$ matches at $u$. No
@@ -3234,7 +3237,7 @@ row, and through calls each followed in its caller by what matched without
 consuming input, which repeat no rule, since a repeated rule closes a cycle of
 such calls, which nests at one end and makes the rule nest.
 
-**Alike calls end alike.** Let a unit that condition 2 checks and the
+**Alike calls and repetitions end alike.** Let a unit that condition 2 checks and the
 continuation that the parser evaluates after it, or one joined from two
 such continuations as in case (d) of *Nesting at one end*, each evaluate, at one position $q$, a call that the two
 share, or a symbol that the comparison of a decided unit passes alike. Then
@@ -3409,7 +3412,7 @@ the seed that the next kept step reads. For the unit that a dropped step of $G$ 
 goes on from $e$ after $G$ ends. $\kappa$ consumes the input from $s$ to $p_0$, so it
 begins with the calls that $w$ and $\kappa$ share or that the comparison passes
 alike, the **alike calls**, each starting at the end of the one before, which
-end at the same positions in $w$ and in $\kappa$ (*Alike calls end alike*). Those of them that start
+end at the same positions in $w$ and in $\kappa$ (*Alike calls and repetitions end alike*). Those of them that start
 before $p_0$ lie in the match of $X$ in $\kappa$, so they end at or before
 $p_0$.
 
@@ -3601,7 +3604,7 @@ symbols passing it consumed, with the same case sensitivity, a class of
 $A_K$ contains the class or the first character of the literal that passes
 it, and a call of $A_K$, of a rule on no left-recursion cycle, and the
 alike call that passes it start at one position with the same variables, so
-they have one key and, as in the proof of *Alike calls end alike*, the same
+they have one key and, as in the proof of *Alike calls and repetitions end alike*, the same
 success and end in either lookahead state. If $\lambda$ passed all of $A_K$,
 $A_K$ would match at $u$. So it passes a proper part of $A_K$, possibly part
 of a literal, and every path of $\mu$ passes the rest of $A_K$ from $p_0$ in
@@ -3850,7 +3853,7 @@ rule of the cycle, on all its paths (shown below), then outside case (1) conditi
 none of its ways:
 
 - First characters. The calls that $U$ and $Q$ share at their starts end
-  at the same positions in both (*Alike calls end alike*), at $u < e_s$, and
+  at the same positions in both (*Alike calls and repetitions end alike*), at $u < e_s$, and
   $\rho$ is not among them. The read $\rho$ consumes the seed from $q$ to
   $e_s$, so the path of $U$ through it consumes the character at $u$, which
   is therefore a first character of $U$ after the shared calls, as the
@@ -3984,7 +3987,7 @@ are evaluated at $q$ before $\rho$ or hold it. A shared call that neither is
 $\rho$ nor holds it ends no later than where $\rho$ starts, at $q$, and so
 consumes nothing. A shared call that is $\rho$ or holds it begins every path
 of $Q$ as well, at $q$, where it reads no variable and lies in the same
-growths (*Alike calls end alike*): a call of $R$ there reads the seed, and a
+growths (*Alike calls and repetitions end alike*): a call of $R$ there reads the seed, and a
 call that holds $\rho$ is evaluated alike, so its result includes the read
 there too. The match of $Q$, which lies in that of $\sigma'$ outside every
 lookahead, then holds a read of the seed that succeeds or a call whose result
@@ -6327,7 +6330,7 @@ the kind as in *Heads in a parse that keeps records*:
    with one reading: where an alike call, the call $S$ or a call through
    which $\kappa$ reaches $S$ lies in an iteration that a record answers,
    its end is the end of the evaluation that $\mathcal{R}$ makes of it
-   there, and *Alike calls end alike* is applied to that evaluation.
+   there, and *Alike calls and repetitions end alike* is applied to that evaluation.
 2. *Frames around the frame of an outer link*, *Shared caller frames*,
    the statements on $E_2$ and on $F_2$ in the text after *The frame of an
    outer link as the later evaluation of a shared call*, and the statement
@@ -6463,7 +6466,7 @@ inside an iteration that the record answers. That end is read in
 $\mathcal{R}$: the walk of $\mathcal{R}$ in the state of that walk
 evaluates the iteration, with the same end of the walk (*Counterparts*),
 and the end of the call is the end of the evaluation that this walk of
-$\mathcal{R}$ makes of it. *Alike calls end alike* is then applied to
+$\mathcal{R}$ makes of it. *Alike calls and repetitions end alike* is then applied to
 that evaluation and to the other evaluation of the call, or to its
 counterpart in $\mathcal{R}$, which has the same end (2 of *Restarts in a
 parse that keeps records*): its proof reads the ends in $\mathcal{R}$, for
@@ -14701,7 +14704,7 @@ theorem covers such a parse.
    heads that hold the activations of leaf links, some of them with case
    (d), one with one more exception, some for an activation outside the
    iterations of the walks of the sites that keep records, and *Nesting
-   at one end* with *Alike calls end alike* read in the
+   at one end* with *Alike calls and repetitions end alike* read in the
    reference parse for a call that a record covers, as it states; *Calls of scan-only rules*,
    which rests on the Run Sites proof, and *Seed reads*, which proves
    nothing, are not among them. *Repeats inside a growth in a parse that
