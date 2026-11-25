@@ -273,18 +273,18 @@ the cause before adding a tolerance.
 
 ### Generation and Compile Time
 
-Two benchmarks measure what the pass pipeline costs before any parse. `BenchmarkGeneration` in
-`internal/driver/generate` generates the parsers of `testdata/grammars` from the parsed grammar, with the options of
-`testdata/grammars/generate.txt`: the Go parser alone (`go`), the TypeScript parser alone (`ts`) and both from one
-compilation (`go+ts`), which checks the grammar once and shares the steps whose inputs are equal. It is the
-generation-time gate of a change to the driver, the pass manager or a pass. `BenchmarkRuntimeBackendCompile` in
-`internal/driver/checked` measures what a program compiled at run time costs its backends on first use: the bytecode
-module and the Core module of the closures, each built by the driver through the pipeline of its target. Compare either with interleaved runs of the binaries before and after the
-change, with an identical copy of the base for the A/A spread:
+Two benchmarks of package `bench` measure what the pass pipeline costs before any parse. `BenchmarkGeneration` generates
+the parsers of `testdata/grammars` from the parsed grammar, with the options of `testdata/grammars/generate.txt`: the Go
+parser alone (`go`), the TypeScript parser alone (`ts`) and both from one compilation (`go+ts`), which checks the
+grammar once and shares the steps whose inputs are equal. It is the generation-time gate of a change to the driver, the
+pass manager or a pass. `BenchmarkRuntimeBackendCompile` measures what a program compiled at run time costs its backends
+on first use: the bytecode module and the Core module of the closures, each built by the driver through the pipeline of
+its target. Compare either with interleaved runs of the binaries before and after the change, with an identical copy of
+the base for the A/A spread:
 
 ```bash
-go test ./internal/driver/generate -run '^$' -bench 'BenchmarkGeneration' -count 10
-go test ./internal/driver/checked -run '^$' -bench 'BenchmarkRuntimeBackendCompile' -count 10
+go test ./bench -run '^$' -bench '^BenchmarkGeneration$' -count 10
+go test ./bench -run '^$' -bench '^BenchmarkRuntimeBackendCompile$' -count 10
 ```
 
 ### Generated Typed-Output Retention
