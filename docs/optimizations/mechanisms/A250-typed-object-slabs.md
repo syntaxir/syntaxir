@@ -11,7 +11,7 @@ allocated before it (`chunkRatio`), so the number of slabs of a parse is
 logarithmic in its output. Fresh owner state avoids reusing returned cells. One
 escaped cell can retain unused siblings in its chunk, so a retained value pins at
 most one slab of at most 256 cells or 1/32 of the allocations of its owner, and
-the unused tail of the last slab is at most 1/33 of the owner's total. Bootstrap and optional liveness cleanup are separate policies. Direct
+the unused tail of the last slab is at most the larger of the fixed limit and 1/33 of the owner's total. Bootstrap and optional liveness cleanup are separate policies. Direct
 construction and Node conversion use the same object allocator.
 
 ## Scope and State

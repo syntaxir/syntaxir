@@ -52,3 +52,34 @@ func TestMatchChunksGrow(t *testing.T) {
 		t.Errorf("matchTotal %d, memUsed %d bytes: the memory charged is not the size of the chunks", p.matchTotal, p.memUsed)
 	}
 }
+
+// The growth of a chunk depends on what its allocator has handed out (Chunk.allocated), so every way to
+// hand out values counts them: the first values of Alloc and the first nonempty list, which are allocated
+// on their own, and the lists above the small-list limit.
+func TestChunkAllocatedCountsEveryAllocation(t *testing.T) {
+	t.Run("the first values of Alloc", func(t *testing.T) {
+		var c Chunk[[4]uint64]
+		for i := 1; i <= 3; i++ {
+			Alloc(&c)
+			if c.allocated != i {
+				t.Fatalf("after %d independent values the chunk counts %d", i, c.allocated)
+			}
+		}
+	})
+	t.Run("the first nonempty list", func(t *testing.T) {
+		var c Chunk[[4]uint64]
+		AllocSlice(&c, 5)
+		if c.allocated != 5 {
+			t.Fatalf("after a first list of 5 the chunk counts %d, want 5", c.allocated)
+		}
+	})
+	t.Run("a list above the small-list limit", func(t *testing.T) {
+		var c Chunk[[4]uint64]
+		AllocSlice(&c, 5) // the first list is separate
+		before := c.allocated
+		AllocSlice(&c, 300)
+		if c.allocated != before+300 {
+			t.Fatalf("after a list of 300 the chunk counts %d, want %d", c.allocated, before+300)
+		}
+	})
+}
