@@ -5925,13 +5925,27 @@ export class Parser {
     throw new Fatal(new ParseInterruptionError("depth-limit", this.maxDepth, this.maxDepth, 1));
   }
 
-  // finish makes the rule's value from the value of its body.
+  // finish makes the rule's value from the value of its body. A rule of a named node type builds its
+  // node from the node its body made (finishValue), so only the value of an action, of a splice or of
+  // another rule is converted, as a copy.
   finish(r: Rule, f: Frame, v: Node | null, start: number): Node | null {
     v = this.finishValue(r, f, v, start);
-    if (r.nodeType !== "") {
+    if (r.nodeType !== "" && (v === null || v.type !== r.nodeType)) {
       v = this.convertResult(r, v);
     }
     return v;
+  }
+
+  // ownedTyped returns v, a string, tuple or list node that the rule body made and that nothing
+  // else holds, as a node of the named node type typ. The node takes over v's children and fields
+  // instead of copying them, as retypeNode must for a node that others hold; v is dropped.
+  ownedTyped(typ: string, v: Node): Node {
+    const n = new TypedNode(typ, v.start, v.end, v.text, v.children, v.fields, v.terminal, nodeShape(v));
+    n.labeled = v.labeled;
+    if (this.memControl !== null) {
+      this.allocValue(nodeBytes + 8);
+    }
+    return n;
   }
 
   // convertResult converts v, the value of rule r, to the rule's named node type.
@@ -5970,10 +5984,13 @@ export class Parser {
       return null;
     }
     if (v.fresh) {
+      v.fresh = false;
+      if (r.nodeType !== "" && nodeShape(v) <= shapeList) {
+        return this.ownedTyped(r.nodeType, v);
+      }
       if (this.sourceInfo && v.rule === "") {
         v.rule = r.name;
       }
-      v.fresh = false;
     }
     return v;
   }
