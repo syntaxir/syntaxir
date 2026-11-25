@@ -41,7 +41,9 @@ for it.
 Lemmas 1, 3, 7, 8, 9 and 14 are proved, Lemma 11 apart from *Values of
 variables* (step 5 of [Open Steps](#open-steps)), Lemma 16 given the theorems of
 the [Memoization](memoization.md) and [Documents](documents.md) proofs, and
-Lemmas 2 and 10. Lemmas 13 and 15 are proved
+Lemmas 2 and 10, which rest for the places inside an Operators Rule on the
+proved claims *Operators Rules* and *Tries at one position* of Lemma 4.
+Lemmas 13 and 15 are proved
 for the [cost view](#setting) that the classifier reads, and the
 [Cost View](cost-view.md) proof transfers every bound on the view to the grammar
 as written, except for the values that actions build from values that the view
@@ -50,7 +52,8 @@ reshapes and the run-time errors of those actions, step 7 of
 of activations of Lemma 4 (step 1 of [Open Steps](#open-steps)). The theorem is
 proved from the others, so the promise of the class Linear rests on Lemmas 4 and
 5, which are outlines, on Lemma 6, which is proved given step 1, on step 3, for
-the restarts of the activations of the operators of an Operators Rule, and, for the
+the restarts of the activations of the operators of an Operators Rule and the
+continuations of its units, and, for the
 values that actions build from reshaped values, on step 7. Lemma 12
 and its corollary add what a [Document](../runtime/documents.md) parse charges
 beyond the cost: they are proved given the same counts, step 3 and the bounds of
@@ -103,8 +106,10 @@ memoized, and, in a Document parse or through results kept in a context of
 growths, for the links that the comparison leaves out. For the operators of
 an Operators Rule, it counts every operator tried, in activations that group
 the tries at one position, and bounds those that do not succeed and the levels
-by those that succeed; that the restarts hold of these activations is step 3
-of [Open Steps](#open-steps). Lemma 5 proves the
+by those that succeed; that the restarts hold of these activations, and that
+the parse evaluates after an abandoned unit of the rule only the
+continuations that the definition lists, is step 3 of
+[Open Steps](#open-steps). Lemma 5 proves the
 bound on the sources that a growth step evaluates at fixed offsets after the
 position where it grows.
 
@@ -1401,9 +1406,10 @@ position where it stands. A round evaluates the `skip` once, then each infix
 and postfix operator part once, and selects the longest match. It ends the
 level without applying the part when no part matches, when the level
 **refuses** the part, by its binding level or by the associativity of the
-operator that the level applied last, and when neither the `skip` nor the part
-has consumed input, the level is the right operand of an infix part whose
-round consumed no input, and the level stands where it started. Otherwise it
+operator that the level applied last, and when the `skip` and the part end
+where the round started, the level is the right operand of an infix part whose
+round consumed no input in this sense, and the level stands where it
+started. Otherwise it
 applies a postfix part, or evaluates the right operand of an infix part and
 applies the part when the right operand succeeds. A round whose right operand
 fails, and a round that applies an operator without consuming input, end the
@@ -1421,8 +1427,11 @@ included, and the evaluation of its right operand, if it has one. Its
 A try of a postfix part applies its operator, and a try of a prefix or an infix
 part applies its operator when its right operand succeeds, so every operator
 applied is applied by one try. A try **consumes input** when an evaluation in
-it, outside every lookahead, succeeds and consumes input, whether or not it is
-later abandoned and whether or not the try applies its operator. A prefix or
+it, outside every lookahead, succeeds and consumes input, whether or not that
+evaluation is later abandoned and whether or not the try applies its
+operator. A round **consumes input** in a narrower sense: when the `skip` and
+the selected part together end after the position where the round starts, so
+that the level would stand past that position if it applied the part. A prefix or
 postfix part that matches nothing is not selected, so their tries consume
 input. Every level other than a top level is the right operand of one try.
 Each round of a level other than its last is a try, and the head holds at most
@@ -13357,7 +13366,8 @@ records.
 
 The theorem rests on Lemmas 4 and 5, which are outlines, on Lemma 6,
 which is proved given step 1 of [Open Steps](#open-steps), on step 3, for the
-restarts of the activations of the operators of an Operators Rule on which the
+restarts of the activations of the operators of an Operators Rule and the
+continuations of its units, on which the
 count of Lemma 4 rests, and, for the values that actions build from reshaped
 values, on step 7. It takes as a hypothesis the order of the bounds that
 *Order* after Lemma 17 states, and it leaves the parts that step 8 lists. So
