@@ -6,9 +6,10 @@
 //
 // Every metric is a count that is the same on every run of a commit with one Go release and target,
 // whatever the machine's load and processors, so a change of a value is a change of the code:
-// compute units, allocations with the collector off, rule evaluations and memo hits, the doubling
-// ratios of units and allocations, generated and built sizes, and whether generation is
-// byte-identical across runs. No metric is a time. The report format is that of package internal/bench/metrics.
+// compute units, allocations with the collector off, rule evaluations and memo hits, the heap that
+// compiled parsers and Document versions retain, the allocations and pass work of the compiler on
+// synthetic grammars, the doubling ratios of these counts, generated and built sizes, and whether
+// generation is byte-identical across runs. No metric is a time. The report format is that of package internal/bench/metrics.
 //
 // collect runs these parts (-parts selects some, comma-separated):
 //
@@ -17,6 +18,9 @@
 //	sizes        the sizes of the generated Go and TypeScript parsers and their builds (as in
 //	             bench/results-size.txt)
 //	wasm         the size of the playground's WebAssembly binary, raw and gzip -9
+//	retained     the live heap that compiled parsers (bench/retained) and Document versions
+//	             (bench/snapshot-retained) keep after collections, each in a process of its own
+//	             with GOGC=off and GOMAXPROCS=1
 //	determinism  whether two generations of each parser, one with GOMAXPROCS=1 and one with more,
 //	             are byte-identical
 //
@@ -30,6 +34,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -47,7 +52,7 @@ import (
 )
 
 const usage = `usage:
-  go run ./bench/metrics collect [-o FILE] [-parts workloads,sizes,wasm,determinism]
+  go run ./bench/metrics collect [-o FILE] [-parts workloads,sizes,wasm,retained,determinism]
   go run ./bench/metrics compare [-all] BASE HEAD`
 
 func main() {
@@ -110,7 +115,7 @@ func readReport(path string) (metrics.Report, error) {
 	return r, nil
 }
 
-var allParts = []string{"workloads", "sizes", "wasm", "determinism"}
+var allParts = []string{"workloads", "sizes", "wasm", "retained", "determinism"}
 
 func collectCmd(args []string) error {
 	fl := flag.NewFlagSet("collect", flag.ExitOnError)
@@ -156,6 +161,13 @@ func collectCmd(args []string) error {
 	}
 	if parts["wasm"] {
 		m, err := collectWasm(root, work)
+		if err != nil {
+			return err
+		}
+		ms = append(ms, m...)
+	}
+	if parts["retained"] {
+		m, err := collectRetained(root, work)
 		if err != nil {
 			return err
 		}
@@ -245,6 +257,75 @@ func collectWasm(root, work string) ([]metrics.Metric, error) {
 		metrics.New(int64(gz), lower, "size", "playground", "wasm-gzip"),
 	}, nil
 }
+
+// retainedCorpora are the corpora of bench/retained.
+var retainedCorpora = []string{"json", "xml", "arithmetic", "minilang"}
+
+// collectRetained runs bench/retained for each corpus and bench/snapshot-retained in each mode, every
+// run in a process of its own. GOGC=off keeps the collector to the collections that the commands
+// force, and GOMAXPROCS=1 keeps the goroutine on one P, so that no per-P cache holds a value in one
+// run and not in another.
+func collectRetained(root, work string) ([]metrics.Metric, error) {
+	env := []string{"GOGC=off", "GOMAXPROCS=1"}
+	bins := map[string]string{}
+	for _, cmd := range []string{"retained", "snapshot-retained"} {
+		bins[cmd] = filepath.Join(work, cmd)
+		if _, err := probe.ExecOut(root, nil, "go", "build", "-o", bins[cmd], "./bench/"+cmd); err != nil {
+			return nil, err
+		}
+	}
+	var ms []metrics.Metric
+	add := func(what []string, out string, bytesPolicy, objectsPolicy metrics.Policy) error {
+		var r struct {
+			Bytes   *int64 `json:"retained_bytes"`
+			Objects *int64 `json:"retained_objects"`
+		}
+		if err := json.Unmarshal([]byte(out), &r); err != nil || r.Bytes == nil || r.Objects == nil {
+			return fmt.Errorf("%s: unexpected output %q (%v)", strings.Join(what, " "), out, err)
+		}
+		ms = append(ms,
+			metrics.New(*r.Bytes, bytesPolicy, append([]string{"retained-bytes"}, what...)...),
+			metrics.New(*r.Objects, objectsPolicy, append([]string{"retained-objects"}, what...)...))
+		return nil
+	}
+	for _, corpus := range retainedCorpora {
+		out, err := probe.ExecOut(root, env, bins["retained"], "-repo", root, "-corpus", corpus, "-count", strconv.Itoa(retainedParsers))
+		if err != nil {
+			return nil, err
+		}
+		if err := add([]string{"compiled-parsers", corpus, "x" + strconv.Itoa(retainedParsers)}, out, parserBytesPolicy, parserObjectsPolicy); err != nil {
+			return nil, err
+		}
+	}
+	for _, mode := range []string{"snapshot", "clone"} {
+		out, err := probe.ExecOut(root, env, bins["snapshot-retained"], "-mode", mode, "-versions", strconv.Itoa(retainedVersions))
+		if err != nil {
+			return nil, err
+		}
+		lower := metrics.Policy{Kind: metrics.Lower}
+		if err := add([]string{"document-versions", mode, "x" + strconv.Itoa(retainedVersions)}, out, lower, lower); err != nil {
+			return nil, err
+		}
+	}
+	return ms, nil
+}
+
+const (
+	retainedParsers  = 128 // compiled parsers that bench/retained keeps per corpus
+	retainedVersions = 64  // Document versions that bench/snapshot-retained keeps per mode
+)
+
+// The heap that compiled parsers retain varies between processes, as the allocations of the
+// compiler do (compileAllocsPolicy in bench/metrics_test.go): the only allocations of a compilation
+// that vary between runs are the tables of large maps, which the runtime splits at points that
+// depend on the random hash seed of each map, and the parsers keep some of those maps. Twelve A/A
+// runs, each in its own process, varied by at most 0.080% of the bytes and 0.052% of the objects;
+// the tolerances are those spreads rounded up. The heap of the Document versions did not vary and is
+// exact.
+var (
+	parserBytesPolicy   = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.1}
+	parserObjectsPolicy = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.1}
+)
 
 // collectDeterminism generates each parser of probe.Grammars twice in separate processes, once
 // with GOMAXPROCS=1 and once with more, in Go and in TypeScript, and records whether the outputs are
