@@ -173,14 +173,15 @@ func leadingClassNode(n core.Node) *core.ClassNode {
 	return c
 }
 
-// introduceScans replaces every value-free repetition of a class or of any character by a Scan,
+// replaceScans replaces every value-free repetition of a class or of any character by a Scan,
 // except a skip-run site, which records its walks as any repetition does. A Stream that delivers no
 // elements (no EffCommit: its rule is not a start rule) is only its repetition, so it is replaced
 // as that repetition is; a Stream that may deliver elements keeps its repetition. A Scan of a scan
 // site keeps its number. Precondition: the attributes are current. A Scan takes the attributes of
 // the repetition it replaces, which are those that core.Analyze computes for the Scan, so they stay
-// current.
-func introduceScans(m *core.Module) {
+// current. It returns the number of scans it introduced.
+func replaceScans(m *core.Module) int {
+	scans := 0
 	for _, r := range m.Rules {
 		m.Control.Poll()
 		if r == nil {
@@ -190,11 +191,13 @@ func introduceScans(m *core.Module) {
 			switch x := n.(type) {
 			case *core.Repeat:
 				if s := scanOf(x); s != nil {
+					scans++
 					return s
 				}
 			case *core.Stream:
 				if x.Attrs().Eff.Set&core.EffCommit == 0 {
 					if s := scanOf(x.Repeat); s != nil {
+						scans++
 						return s
 					}
 				}
@@ -202,7 +205,11 @@ func introduceScans(m *core.Module) {
 			return n
 		})
 	}
+	return scans
 }
+
+// introduceScans is replaceScans without the count.
+func introduceScans(m *core.Module) { replaceScans(m) }
 
 // scanOf returns the Scan that replaces rep, or nil if rep is not a value-free repetition of a class
 // or of any character, or is a skip-run site.

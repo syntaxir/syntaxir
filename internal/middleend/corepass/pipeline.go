@@ -32,6 +32,9 @@ const (
 // CounterGuarded is the counter of guards: the alternatives that it gave a guard.
 const CounterGuarded = "guarded"
 
+// CounterScanned is the counter of scans: the repetitions that it replaced by a scan.
+const CounterScanned = "scanned"
+
 // GuardsPass marks each alternative of a choice with the first terminal it cannot match without.
 var GuardsPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 	Decl: pipe.Decl{
@@ -55,13 +58,14 @@ var ScansPass = pipe.New(pipe.Def[*core.Module, *core.Module]{
 	Decl: pipe.Decl{
 		Name:       PassScans,
 		Obligation: "Consumes the same input and records the same expectations as the repetition it replaces.",
+		Counters:   []string{CounterScanned},
 	},
 	In: IR, Out: IR,
-	Run: func(_ *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
+	Run: func(c *pipe.Ctx[*core.Module], m *core.Module) (*core.Module, pass.PreservedSet, error) {
 		// A Stream is replaced as its repetition only where it delivers no elements (Eff). A Scan
 		// takes the attributes of the repetition it replaces, which are those that core.Analyze
 		// computes for it, so the attributes stay current.
-		introduceScans(m)
+		c.Count(CounterScanned, replaceScans(m))
 		return m, pass.PreserveNone(), nil
 	},
 })
