@@ -33,6 +33,16 @@ var tsExportDecl = regexp.MustCompile(`(?m)^export (?:abstract )?(function|class
 type tsLib struct {
 	text    string
 	exports map[string]bool
+
+	parseOnce sync.Once
+	parse     *libParse
+}
+
+// libParsed returns the parse of the text of the library, made once. The bundles that shake a
+// library all read the same text, and the parse is read-only, so they share it.
+func (l *tsLib) libParsed() *libParse {
+	l.parseOnce.Do(func() { l.parse = parseLib(l.text) })
+	return l.parse
 }
 
 // libKey identifies an assembled library: its source, the features of the parsers it serves and the

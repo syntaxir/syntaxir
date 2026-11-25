@@ -101,7 +101,7 @@ void [helper];
 `
 
 func TestShakeLib(t *testing.T) {
-	out, err := shakeLib(shakeSrc, []string{"import {Parser} from './lib.ts';\nnew Parser(g).run();\n"})
+	out, err := shakeParsed(parseLib(shakeSrc), []string{"import {Parser} from './lib.ts';\nnew Parser(g).run();\n"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -115,7 +115,7 @@ func TestShakeLib(t *testing.T) {
 			t.Errorf("the shaken library keeps %q:\n%s", gone, out)
 		}
 	}
-	if _, err := shakeLib("export const a = 1, b = 2;\n", nil); err == nil {
+	if _, err := shakeParsed(parseLib("export const a = 1, b = 2;\n"), nil); err == nil {
 		t.Error("a declaration of two names: no error")
 	}
 }

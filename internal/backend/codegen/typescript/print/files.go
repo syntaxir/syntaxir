@@ -197,7 +197,7 @@ func tsFiles(opts common.GenOptions, fs common.FeatureSet, missing, shake bool, 
 			for i, f := range files {
 				roots[i] = string(f.Content)
 			}
-			if text, err = shakeLib(text, roots); err != nil {
+			if text, err = shakeParsed(lib.libParsed(), roots); err != nil {
 				return nil, err
 			}
 		}

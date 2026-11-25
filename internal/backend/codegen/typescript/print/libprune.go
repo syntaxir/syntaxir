@@ -312,17 +312,35 @@ func declaresMore(toks []tsTok, k int) bool {
 	return false
 }
 
-// shakeLib returns src without the declarations and the methods of shakenClasses that neither the
-// roots (the text of the parser's files) nor kept text name.
-func shakeLib(src string, roots []string) (string, error) {
+// libParse is the lexed and segmented text of a library. shakeParsed reads it and never changes it,
+// so one parse serves every bundle that shakes the same library text (tsLib.libParsed).
+type libParse struct {
+	src  string
+	segs []libSeg
+	err  error
+}
+
+// parseLib lexes and segments the library text src.
+func parseLib(src string) *libParse {
+	p := &libParse{src: src}
 	toks, err := lexTS(src)
 	if err != nil {
-		return "", fmt.Errorf("the TypeScript library: %v", err)
+		p.err = fmt.Errorf("the TypeScript library: %v", err)
+		return p
 	}
-	segs, err := libSegs(src, toks)
-	if err != nil {
-		return "", fmt.Errorf("the TypeScript library: %v", err)
+	if p.segs, err = libSegs(src, toks); err != nil {
+		p.err = fmt.Errorf("the TypeScript library: %v", err)
 	}
+	return p
+}
+
+// shakeParsed returns the library of p without the declarations and the methods of shakenClasses
+// that neither the roots (the text of the parser's files) nor kept text name. It reads p only.
+func shakeParsed(p *libParse, roots []string) (string, error) {
+	if p.err != nil {
+		return "", p.err
+	}
+	src, segs := p.src, p.segs
 	named := map[string]bool{}
 	name := func(id string) { named[id] = true }
 	for _, r := range roots {
