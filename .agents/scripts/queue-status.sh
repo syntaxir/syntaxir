@@ -6,6 +6,9 @@
 # Only records of live wrappers count as queued or running. A record without class= (an earlier
 # benchlock.sh) is exclusive. Earlier versions cannot take back the slot of a dead shared holder,
 # so with only their waiters queued the queue stays stuck until a current benchlock.sh runs.
+# The test slots follow: the slots held, and the testslot.sh waiters in rank order (slots/queue,
+# first served first; a record whose waiter is gone is shown as gone and is not a failure, the next
+# claim removes it), and testslot-stalls.log, which counts as stalls do.
 # Exit status 1 when stuck, when anything is stale or when the stall log is not empty, so that a
 # poll can act on it.
 set -euo pipefail
@@ -54,7 +57,17 @@ for f in "$D"/runs/*; do
   fi
   case $st in queued) q=$((q + 1)) ;; running) r=$((r + 1)) ;; esac
 done
+held=0
+for e in "$D"/slots/[0-9]*; do [ -d "$e" ] && held=$((held + 1)); done
+echo "test slots: $held held"
+for f in "$D"/slots/queue/[0-9]*; do
+  [ -f "$f" ] || continue
+  read -r wpid wstart < "$f" || true
+  if [ -n "${wpid:-}" ] && kill -0 "$wpid" 2>/dev/null && [ "$(sxir_lstart "$wpid")" = "${wstart:-}" ]; then w=waiting; else w=gone; fi
+  echo "  slot waiter ${f##*/} pid ${wpid:-}: $w"
+done
 rc=0
+if [ -s "$D/testslot-stalls.log" ]; then echo "TESTSLOT STALLS (a queue bug, report it):"; cat "$D/testslot-stalls.log"; rc=1; fi
 if [ -s "$D/benchlock-stalls.log" ]; then echo "STALLS (a queue bug, report it):"; cat "$D/benchlock-stalls.log"; rc=1; fi
 for m in ${stale[@]+"${stale[@]}"}; do echo "STALE: $m"; rc=1; done
 if [ "${#stale[@]}" -gt 0 ]; then echo "(any current benchlock.sh run takes back what is stale)"; fi

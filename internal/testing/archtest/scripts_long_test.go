@@ -968,3 +968,133 @@ func TestBenchlockStallBackstop(t *testing.T) {
 		}
 	}
 }
+
+// waitRecords returns once the queue of testslot.sh holds n records of waiters.
+func waitRecords(t *testing.T, state string, n int) {
+	t.Helper()
+	for begin := time.Now(); time.Since(begin) < 20*time.Second; time.Sleep(20 * time.Millisecond) {
+		if m, _ := filepath.Glob(filepath.Join(state, "slots", "queue", "0*")); len(m) >= n {
+			return
+		}
+	}
+	t.Fatalf("fewer than %d waiter records", n)
+}
+
+// waitWithin waits for the command and fails when it does not end in time.
+func waitWithin(t *testing.T, what string, cmd *exec.Cmd, d time.Duration) {
+	t.Helper()
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("%s: %v", what, err)
+		}
+	case <-time.After(d):
+		_ = cmd.Process.Kill()
+		t.Fatalf("%s: did not run within %v", what, d)
+	}
+}
+
+// Waiters of testslot.sh are admitted in the order they started: with one slot held, six waiters
+// started in sequence run in that order. Admission by whoever polls first would reorder them.
+func TestTestslotAdmitsInArrivalOrder(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	work, run := overlapWork(t)
+	holder := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "h", "3")
+	var cmds []*exec.Cmd
+	var names []string
+	for i := 0; i < 6; i++ {
+		name := fmt.Sprintf("w%d", i)
+		names = append(names, name)
+		c := exec.Command("bash", scriptPath(t, "testslot.sh"), work, run, name, "0.1")
+		c.Env = env
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		cmds = append(cmds, c)
+		waitRecords(t, state, i+1)
+	}
+	waitOverlap(t, "arrival order", run, 7, append([]*exec.Cmd{holder}, cmds...)...)
+	ev := events(t, run)
+	for i := 1; i < len(names); i++ {
+		if !before(ev, "start "+names[i-1], "start "+names[i]) {
+			t.Errorf("%s did not start before %s: %q", names[i-1], names[i], ev)
+		}
+	}
+}
+
+// A waiter that died while queued does not block the waiters behind it: neither a record whose pid
+// is gone nor one whose pid now belongs to another process (a reused pid).
+func TestTestslotDeadWaiterAheadDoesNotBlock(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	for name, rec := range map[string]string{
+		"gone":   "99998 Thu Jan  1 00:00:00 2015\n",
+		"reused": strconv.Itoa(os.Getpid()) + " Thu Jan  1 00:00:00 2015\n",
+	} {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+		queue := filepath.Join(state, "slots", "queue")
+		write(t, filepath.Join(queue, "000000000000."+strings.Fields(rec)[0]), rec, 0o644)
+		work, run := overlapWork(t)
+		c := exec.Command("bash", scriptPath(t, "testslot.sh"), work, run, "w", "0.1")
+		c.Env = env
+		if err := c.Start(); err != nil {
+			t.Fatal(err)
+		}
+		waitWithin(t, "dead waiter "+name, c, 30*time.Second)
+		if m, _ := filepath.Glob(filepath.Join(queue, "0*")); len(m) != 0 {
+			t.Errorf("dead waiter %s: records left: %v", name, m)
+		}
+	}
+}
+
+// With the queue wedged by a live waiter that never claims (a record of this very test, which is
+// live and first), the stall backstop lets the waiter behind it take a free slot and logs it.
+func TestTestslotStallBackstop(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1", "TESTSLOT_STALL=3")
+	queue := filepath.Join(state, "slots", "queue")
+	pid := os.Getpid()
+	write(t, filepath.Join(queue, "000000000000."+strconv.Itoa(pid)), fmt.Sprintf("%d %s\n", pid, procStart(t, pid)), 0o644)
+	work, run := overlapWork(t)
+	c := exec.Command("bash", scriptPath(t, "testslot.sh"), work, run, "w", "0.1")
+	c.Env = env
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitWithin(t, "stalled queue", c, 30*time.Second)
+	log, _ := os.ReadFile(filepath.Join(state, "testslot-stalls.log"))
+	if !strings.Contains(string(log), "stall: slot free") {
+		t.Errorf("stall not logged: %q", log)
+	}
+}
+
+// queue-status.sh lists the testslot.sh waiters in rank order.
+func TestQueueStatusListsSlotWaiters(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	state := t.TempDir()
+	env := append(scriptEnv(t, state), "TESTSLOT_N=1")
+	work, run := overlapWork(t)
+	holder := startQueued(t, env, run, scriptPath(t, "testslot.sh"), work, run, "h", "3")
+	c := exec.Command("bash", scriptPath(t, "testslot.sh"), work, run, "w", "0.1")
+	c.Env = env
+	if err := c.Start(); err != nil {
+		t.Fatal(err)
+	}
+	waitRecords(t, state, 1)
+	out, _ := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh"))
+	for _, want := range []string{"test slots: 1 held", "slot waiter 0", ": waiting"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("queue-status.sh output lacks %q:\n%s", want, out)
+		}
+	}
+	waitOverlap(t, "status", run, 2, holder, c)
+}

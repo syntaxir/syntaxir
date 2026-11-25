@@ -9,7 +9,7 @@
 # before sourcing this file. Layout:
 #   landing-train.md   the live queue of candidates
 #   wt/<name>/         worktrees
-#   runs/ slots/ benchlock/ benchlock.lock benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
+#   runs/ slots/ (with queue/ and .seq) testslot-stalls.log benchlock/ benchlock.lock benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
 #   gates/<tag>.log    gate logs
 
 die() { echo "${0##*/}: $*" >&2; exit 1; }
