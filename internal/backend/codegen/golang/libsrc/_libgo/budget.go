@@ -397,7 +397,7 @@ func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *m
 	if *link == nil || ident {
 		return nil
 	}
-	p.unlinkLagged(i, link, -1)
+	p.dropLagged(i, link)
 	if *link == nil {
 		return nil
 	}
@@ -406,6 +406,19 @@ func (p *Parser) memoGetControlled(rule, pos, min int, key []any, ident bool) *m
 		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
 	})
 	return x
+}
+
+// mayLag reports whether an entry can lag behind more than pendingEditLimit edits: only after more than
+// that many edits of a Document (gen), so that no parse of a text, and no Document parse before its
+// pendingEditLimit-th edit, has an entry to unlink.
+func (p *Parser) mayLag() bool { return p.gen > pendingEditLimit }
+
+// dropLagged removes the entries that lag from the rest of the chain at the slot i, from the link on, where
+// the caller needs nothing of the walk but the removal.
+func (p *Parser) dropLagged(i int, link **memoEntry) {
+	if p.mayLag() {
+		p.unlinkLagged(i, link, -1)
+	}
 }
 
 // lagged reports whether a lookup treats e as a miss because it lags behind more than pendingEditLimit
@@ -422,6 +435,13 @@ func (p *Parser) lagged(e *memoEntry) bool {
 // Document drops such entries where a walk meets them, so the entries of earlier texts that it retains,
 // and the work of a walk that compares them, stay bounded by that many edits.
 func (p *Parser) unlinkLagged(i int, link **memoEntry, limit int) **memoEntry {
+	if !p.mayLag() {
+		// No entry lags, so the walk only steps over the kept ones.
+		for kept := 0; *link != nil && kept != limit; kept++ {
+			link = &(*link).next
+		}
+		return link
+	}
 	t := &p.memo
 	for kept := 0; *link != nil && kept != limit; {
 		e := *link
@@ -546,7 +566,7 @@ func (p *Parser) memoPutControlled(rule, pos, min int, key []any, ident bool, e 
 	var ixSlot uint64
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
-		p.unlinkLagged(i, link, -1)
+		p.dropLagged(i, link)
 	}
 	if replaced == nil && *link != nil && !ident {
 		ix = indexAt(&t.index, &t.indexBytes, i, slots[i], func(e *memoEntry) *memoEntry { return e.next }, entryHash)

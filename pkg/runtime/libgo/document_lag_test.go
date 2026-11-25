@@ -56,3 +56,61 @@ func TestEntriesBeyondTheEditLimitAreMisses(t *testing.T) {
 		t.Errorf("%d typed entries left in the chain, want 2", n)
 	}
 }
+
+// The walk that skips the lag test while no entry can lag (mayLag) leaves the chain and the returned link as
+// the walk that tests every entry does, at the edge of the edit limit and on both sides of it.
+func TestUnlinkLaggedSkipsOnlyWhenNothingLags(t *testing.T) {
+	for _, gen := range []uint32{0, pendingEditLimit, pendingEditLimit + 1, 3 * pendingEditLimit} {
+		for _, limit := range []int{0, 3, memoScan, -1} {
+			build := func() *Parser {
+				p := &Parser{gen: gen}
+				for i := 0; i < 10; i++ {
+					e := p.memo.alloc()
+					e.rule, e.vgen = int32(i), uint32(i)*gen/9
+					p.memo.put(i, 7, 0, nil, e, nil)
+				}
+				return p
+			}
+			rules := func(p *Parser, link **memoEntry) (out []int32, at int) {
+				for e := p.memo.slots[p.memo.slot(7)]; e != nil; e = e.next {
+					out = append(out, e.rule)
+				}
+				for e, n := p.memo.slots[p.memo.slot(7)], 0; ; e, n = e.next, n+1 {
+					if &p.memo.slots[p.memo.slot(7)] == link {
+						return out, 0
+					}
+					if e == nil {
+						return out, -1
+					}
+					if link == &e.next {
+						return out, n + 1
+					}
+				}
+			}
+			got, want := build(), build()
+			i := got.memo.slot(7)
+			gl := got.unlinkLagged(i, &got.memo.slots[i], limit)
+			// The reference: the walk that tests every entry.
+			wl := &want.memo.slots[i]
+			for kept := 0; *wl != nil && kept != limit; {
+				e := *wl
+				if want.gen-e.vgen <= pendingEditLimit {
+					wl, kept = &e.next, kept+1
+					continue
+				}
+				*wl = e.next
+			}
+			g, ga := rules(got, gl)
+			w, wa := rules(want, wl)
+			if len(g) != len(w) || ga != wa {
+				t.Errorf("gen %d limit %d: chain %v link at %d, want %v at %d", gen, limit, g, ga, w, wa)
+			}
+			for k := range g {
+				if k < len(w) && g[k] != w[k] {
+					t.Errorf("gen %d limit %d: chain %v, want %v", gen, limit, g, w)
+					break
+				}
+			}
+		}
+	}
+}

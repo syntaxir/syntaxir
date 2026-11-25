@@ -1175,7 +1175,7 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 	if *link == nil || ident {
 		return nil
 	}
-	p.unlinkLagged(i, link, -1)
+	p.dropLagged(i, link)
 	if *link == nil {
 		return nil
 	}
@@ -1183,6 +1183,16 @@ func (p *TParser) memoGetControlled(rule, pos, min int, key []any, ident bool) *
 		return x.rule == int32(rule) && x.min == int32(min) && keysEqual(x.env, key)
 	})
 	return x
+}
+
+// mayLag is Parser.mayLag for the typed memo.
+func (p *TParser) mayLag() bool { return p.gen > pendingEditLimit }
+
+// dropLagged is Parser.dropLagged for the typed memo.
+func (p *TParser) dropLagged(i int, link **tmemoEntry) {
+	if p.mayLag() {
+		p.unlinkLagged(i, link, -1)
+	}
 }
 
 // lagged is Parser.lagged for a typed entry.
@@ -1193,6 +1203,13 @@ func (p *TParser) lagged(e *tmemoEntry) bool {
 // unlinkLagged is Parser.unlinkLagged for the typed memo. An entry it removes is not reused: the slab
 // that holds it belongs to the parse that stored it.
 func (p *TParser) unlinkLagged(i int, link **tmemoEntry, limit int) **tmemoEntry {
+	if !p.mayLag() {
+		// No entry lags, so the walk only steps over the kept ones.
+		for kept := 0; *link != nil && kept != limit; kept++ {
+			link = &(*link).next
+		}
+		return link
+	}
 	for kept := 0; *link != nil && kept != limit; {
 		e := *link
 		if !p.lagged(e) {
@@ -1323,7 +1340,7 @@ func (p *TParser) memoPutControlled(rule, pos, min int, key []any, ident bool, e
 	var ixSlot uint64
 	if replaced == nil && *link != nil && !ident {
 		// A long chain: the index finds the entry to replace.
-		p.unlinkLagged(i, link, -1)
+		p.dropLagged(i, link)
 	}
 	if replaced == nil && *link != nil && !ident {
 		ix = indexAt(&p.memoIndexes, &p.memoIndexBytes, i, slots[i], func(e *tmemoEntry) *tmemoEntry { return e.next }, tentryHash)
