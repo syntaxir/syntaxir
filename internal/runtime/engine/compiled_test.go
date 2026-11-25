@@ -601,6 +601,11 @@ func FuzzLoadProgram(f *testing.F) {
 		f.Add(data)
 	}
 	f.Fuzz(func(t *testing.T, data []byte) {
+		// The checksum is made right for the mutated bytes: otherwise almost every mutation fails
+		// the checksum and never reaches the decoder, the validation or the canonical round trip.
+		if len(data) >= 4 {
+			data = withChecksum(data[:len(data)-4])
+		}
 		prog, start, err := LoadProgram(data)
 		if err == nil {
 			// The format is canonical: what loads saves to the bytes it was loaded from.
