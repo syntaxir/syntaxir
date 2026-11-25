@@ -3897,11 +3897,11 @@ so the grammar fails condition 2 outside cases (1) and (2).
 Cases (1) to (3) leave few steps. In case (1), $\sigma'$ is the second step
 of $G$; case (2) does not arise; and in case (3), the result of $\sigma'$ has
 at most $c_w$ characters, where $c_w$ is the length of the longest
-literal of the grammar. So, outside the units that the claim leaves aside,
-at most $c_w + 1$ kept steps of $G$ after the first have a
-result that does not include the seed: the second step and steps whose
-results have at most $c_w$ characters, which the hypothesis of *Steps that
-begin anew* on kept steps leaves out.
+literal of the grammar, and so has its seed, which is shorter. So, outside
+the units that the claim leaves aside, at most $c_w + 2$ kept steps of $G$
+after the first have a result that does not include the seed: the second
+step and steps whose seeds have at most $c_w$ characters, which the
+hypothesis of *Steps that begin anew* on kept steps leaves out.
 
 The units that the claim leaves aside reduce to fewer cases. Let $H$ be the
 innermost growth at $q$ other than $G$ that $\sigma'$ nests and that holds
@@ -3911,20 +3911,20 @@ of the cycle that is not a leader, and condition 2 checks it. In a rule
 that is not a leader, or when it examines the input before $\rho$, the
 grammar fails condition 2 outside cases (1) and (2), whose steps are
 bounded as above. In the body of $T$, when $U$ reaches $\rho$ before it
-examines the input, it succeeds in the first step of $G$ along a path
-$P_1$ that goes on after the failed calls of $R$; when $P_1$ then evaluates
-something other than a left call of a leader first, or reaches the end of
-$U$ without consuming input, the grammar fails condition 2 outside case
-(3), whose steps are bounded as above. Not shown are a $U$ that is a step of
-$H$, dropped or kept, a path $P_1$ that goes on through a left call of $T$
-at the binding level of $H$ in a step of $H$ after its first, through a left
-call of a third leader at any step, or through a left call of $R$ or $T$ at
-another binding level, which starts a growth of its own at $q$, and a growth
-$H$ of $R$ at another binding level. A left call of $R$ at the binding level
-of $G$ can stand on $P_1$, but it fails, as every call of $R$ at $q$ at that
-level does in the first step of $G$, so $P_1$ goes on from no such call; and
-a left call of $T$ at the binding level of $H$ reads a seed of $H$, which
-exists only after its first step.
+examines the input, let $\kappa$ be the first left call of a leader on the
+path of $U$ down to $\rho$: $\rho$ itself or a call at $q$ that holds it. A
+left call of $T$ at the binding level of $H$ reads a seed of $H$ and holds
+no other call, so $\kappa$ is a left call of $R$ or of a third leader, at any
+binding level, or of $T$ at another binding level. In the first two cases
+condition 2 follows the path of $U$ from $\kappa$ at the start of $U$, and
+the grammar fails condition 2 outside a fourth case:
+
+- (4) the seed has at most $c_w$ characters,
+
+whose steps are bounded as above. Not shown are a $U$ that is a step of
+$H$, dropped or kept, a $\kappa$ that is a left call of $T$ at another
+binding level, which starts a growth of its own at $q$, and a growth $H$ of
+$R$ at another binding level.
 
 *Proof.* Every read of the seed in $\sigma'$ is a call of $R$ at $q$ that
 returns the seed, a success. Only those reads answer otherwise in
@@ -4108,7 +4108,7 @@ outside cases (1) and (2). In
 of `(E [x]* / T) "x"` through `T` goes on at its start in this way, and that
 alternative is not committing against `"x" H`.
 
-It remains to bound the steps of cases (1) to (3). In case (1), let the seed
+It remains to bound the steps of cases (1) to (4). In case (1), let the seed
 end at or before $u$. The calls that $U$ and $Q$ share at their starts begin
 every path of $U$, the path through $\rho$ among them, so on that path they
 are evaluated at $q$ before $\rho$ or hold it. A shared call that neither is
@@ -4145,7 +4145,9 @@ arise.
 
 In case (3), $e' \le q + |w| \le q + c_w$. The results of the kept
 steps after the first are each longer than the one before and not empty, so
-at most $c_w$ of them end at or before $q + c_w$.
+at most $c_w$ of them end at or before $q + c_w$. In case (4), the seeds of
+the kept steps are each longer than the one before, so at most $c_w + 1$ of
+them have at most $c_w$ characters.
 
 For the units left aside, let $c$ be the call of $T$ that starts $H$. The
 evaluations above $U$ on the path are not abandoned, so each lies, outside
@@ -4177,27 +4179,41 @@ whose match lies in that of $\sigma'$; so they apply. A $U$ in a rule
 that is not a leader is checked on all its paths: its path through $\rho$,
 a left call of the leader $R$, goes on at its start, since the cycle has
 more than one leader. A $U$ in the body of $T$ that examines the input
-before $\rho$ is checked as an alternative that is not growing. A $U$ in
-the body of $T$ that reaches $\rho$ before it examines the input is a
-growing unit of $T$, which contains a scanning source; $U$ is made in
-$\sigma_1$ at $q$ and answers otherwise there, so it succeeds along a path
-$P_1$, on which the call that stands where $\rho$ stands, a call of $R$ at
-the binding level of $G$ as $\rho$ is, fails, as every call of $R$ at $q$ at
-that level does in $\sigma_1$. When $P_1$ goes on from there with
-something other than a left call of a leader, calls of rules of the cycle
-that are not leaders standing for the paths of their bodies, or reaches the
-end of $U$ without consuming input, it is a path on which $U$ goes on at
-its start after a path through its left call fails and that examines the
-input before a left call of $T$, so condition 2 requires it to be committing
-against the later alternatives at its own start, and the argument above
-for a growing unit of $R$, with $T$ in place of $R$ and $Q$ as here, makes
-the grammar fail condition 2 outside case (3). Where $P_1$ goes on through
-a left call of $T$ at the binding level of $H$, which reads a seed of $H$ in
-a step of $H$ after its first, through a left call of a third leader at any
-step, or through a left call of $R$ or $T$ at another binding level, which
-starts a growth of its own at $q$ ([Growths of Left
-Recursion](../runtime/parsing.md#growths-of-left-recursion)), the check
-is not shown to follow it. $\square$
+before $\rho$ is checked as an alternative that is not growing. A $U$ in the
+body of $T$ that reaches $\rho$ before it examines the input is a
+growing unit of $T$, which contains a scanning source. The evaluations on
+the path from $U$ down to $\rho$ start at $q$, and the calls among them are
+left calls of rules of the cycle, so the path has a first left call
+$\kappa$ of a leader, which is $\rho$, a call of $R$, or holds it. A left
+call of $T$ at $q$ at the binding level of $H$, made inside a step of $H$,
+reads the seed of that step and evaluates no body ([Growths of Left
+Recursion](../runtime/parsing.md#growths-of-left-recursion)), so it holds
+no $\rho$ and is not $\kappa$. Let $\kappa$ be a left call of a leader
+other than $T$: of $R$ or of a third leader. Condition 2 counts it as examining
+the input and requires the path of $U$ through it to be committing against
+the later alternatives at its own start, from $\kappa$ or from an
+expression before $\kappa$ that the check counts as examining the input,
+with no shared call removed ([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). $U$ fails after
+$\rho$ succeeded and is an alternative of a choice, as shown above for a
+$U$ that reaches $\rho$ before it examines the input, and its choice, which
+is not abandoned, goes on with a later alternative: the one with which $Q$
+begins, which can begin with the character $c$ at $q$, as above. When the
+seed is not empty, $\rho$ consumes it from $q$, inside the evaluation of
+$\kappa$, which starts at $q$, and nothing on the path before $\kappa$
+consumes input, so the path from where the check follows it can begin with
+$c$ too, and it is committing against $Q$ only if its word excludes $Q$.
+Let it have a word $w$. The path that goes on, at $\rho$,
+along the paths of the steps of $G$ whose results the seed holds, down to
+that of the first step, consumes the seed; so when the seed has more than
+$|w|$ characters, the input at $q$ begins with the literal of $w$ and the
+seed passes the negative lookahead of $w$ if it has one, and $Q$ consumes
+the input from $q$ past the end of $w$, up to $e' > e_s$. As in the words
+of the case of an alternative that is not growing, $w$ then does not
+exclude $Q$, and the grammar fails condition 2. So the seed is empty or has
+at most $|w| \le c_w$ characters: case (4). The claim leaves aside a
+$\kappa$ that is a left call of $T$ at another binding level, which starts a
+growth of its own at $q$, and a $U$ that is a step of $H$. $\square$
 
 The claim needs the finite reading for every decision, not only for the
 form of `!K`: without it the comparison would follow the path $P$ through
@@ -4279,15 +4295,14 @@ through a read of its seed that succeeds outside every lookahead, or a call
 whose result includes one. The leader of such a growth contains a scanning
 source, since a step of it holds $T$, so *Later steps that abandon their
 reads of the seed* shows this for each such step apart from the second step
-of the growth, the steps whose results have at most $c_w$ characters, where
+of the growth, the steps whose seeds have at most $c_w$ characters, where
 $c_w$ is the length of the longest literal of the grammar, and the units
 that it leaves aside and does not reduce (part 1 of *Open parts of the kept
 steps*): a step, dropped or kept, of another growth at the position, a unit
-in the body of another leader $T$ whose path in the first step goes on
-through a left call of $T$ at the binding level of its growth in a step of
-that growth after the first, through a left call of a third leader at any
-step, or through a left call of either leader at another binding level, and
-a unit in a growth of the same leader at another binding level. Those steps and units are not shown to be excluded.
+in the body of another leader $T$ whose path down to the read of the seed
+makes its first left call of a leader to $T$ at another binding level than
+that of its growth, and a unit in a growth of the same leader at another
+binding level. Those steps and units are not shown to be excluded.
 The claims above leave out the links between which the parser leaves or
 starts a growth step at the position, and so do not use this case.
 
@@ -9580,15 +9595,15 @@ evaluated at $p$ in its steps, or in the steps of the growths that they nest
 at $p$, reads the growing result of the leader of the step that it is in, and
 no cut in a body evaluated at $p$ is passed after such a read or after a call
 whose result includes one. Let every step after the second that is kept,
-of the growth and of each growth that its steps nest at $p$, with a result
-longer than its seed and than $c_w$ characters, have a result that includes
-the growing result, where $c_w$ is the length of the longest literal of the
-grammar: *Later steps that abandon their reads
+of the growth and of each growth that its steps nest at $p$, with a seed of
+more than $c_w$ characters, have a result that includes the growing result,
+where $c_w$ is the length of the longest literal of the grammar: *Later
+steps that abandon their reads
 of the seed* derives this from condition 2 for a leader that contains a
 scanning source, outside the units that it leaves aside (*Open parts of the
 kept steps*). The kept steps that this leaves out, the second and those
-whose results have at most $c_w$ characters, are among the first $c_w + 2$
-steps, since the results of the kept steps are each longer than the one
+whose seeds have at most $c_w$ characters, are among the first $c_w + 2$
+steps, since the seeds of the kept steps are each longer than the one
 before. For a leader without a scanning source the hypothesis can fail, and
 no claim of this lemma takes it there (*Leaders without a scanning
 source*). Let $\bar{r}$ be the result of the first step after the second
@@ -9607,9 +9622,9 @@ with a result that is not empty and does not include the growing result of
 $R$ before a result that does, a later step of $T$ fails after a left call
 that read its seed in a unit that matched in the first step without it, and
 goes on with a continuation of that unit that holds the read; condition 2
-excludes this when that unit lies in the body of $T$ or of a rule of the
-cycle that is not a leader, apart from the cases that *Open parts of the
-kept steps* lists. In the second, a growth of $T$ with a result that
+excludes this when that unit lies in the body of $T$, of a rule of the
+cycle that is not a leader or of a third leader, apart from the cases that
+*Open parts of the kept steps* lists. In the second, a growth of $T$ with a result that
 includes the growing result of $R$ before a result that does not, a kept
 step of $T$ that the hypothesis leaves out drops its seed, and this case
 is not shown.
@@ -9634,9 +9649,8 @@ result, or fails, or behaves as where the read fails. If the step ends with a
 result that does not begin with the growing result, that result does not
 include the growing result, since a read that it passes through starts at $p$
 and would begin the match with the growing result. The step comes after the
-second, and if it were kept its result would be longer than $\bar{r}$, so
-more than $c_w$ characters long; so by the hypothesis on kept steps the step
-is not kept, and the growth ends with the result before it. The step need
+second, and its seed is $\bar{r}$ or a later result, of more than $c_w$
+characters; so by the hypothesis on kept steps the step is not kept, and the growth ends with the result before it. The step need
 not take
 the choices of the first step at $p$: a path through a read that succeeds can
 fail after the choice that the read's alternative belongs to has taken that
@@ -9730,20 +9744,46 @@ consumes the whole of $w$ without failing when that result has $|w|$
 characters or more. So the growing result of $R$ has fewer than
 $|w| \le c_w$ characters, and since the seeds of the kept
 steps of a growth grow longer, this happens in at most $c_w$ steps of each
-growth of $R$. In a cycle with a third leader, $A$ can also lie in the body of
-that leader, whose growth a step of $T$ nests at $p$ and whose steps read the
+growth of $R$. In a cycle with a third leader $V$, $A$ can also lie in the
+body of $V$, whose growth a step of $T$ nests at $p$ and whose steps read the
 growing result of $T$, as in `R = R "z" / T "r" / "q"`,
-`T = T "w" / U "u" / "t"` and `U = U "v" / (T "x"? / "") "s" / R "k"`; the
-argument above is not carried into such a body. A shared call that reads
-the growing result of $T$ can return another result in $\tau$ than in the
-first step, where that read fails, so $P$ and $Q$ can go on after it at
-different positions, and the comparison after the shared calls does not
-apply. The case is not shown when
-$A$ lies in the body of such a third leader, or when $A$ is committing against
-$Q$ only through its words, in the steps of $R$ whose growing result has
-fewer than $c_w$ characters, or, in a rule that is not a leader, through a
-shared call that reads the growing result of $T$ or at which the removal
-stops (*Open parts of the kept steps*). $\square$
+`T = T "w" / U "u" / "t"` and `U = U "v" / (T "x"? / "") "s" / R "k"`. Let
+$A$ reach its read of the seed of $T$ before it examines the input. Then
+condition 2 rejects $A$ unless it is an alternative of a choice (*Later
+steps that abandon their reads of the seed*), and checks it as a growing
+unit of $V$, which contains a scanning source, a call of the leader $T$ in
+its body. Let
+$\kappa$ be the first left call of a leader on the path of $A$ down to that
+read: a left call of $V$ at the binding level of its growth reads its seed
+and holds no other call, so, outside a left call of $V$ at another binding
+level, $\kappa$ is a left call of another leader than $V$, which condition 2
+counts as examining the input, and the path of $A$ through it must be
+committing against $Q$ at its own start, with no shared call removed
+([Conditions for Linear
+Cost](../runtime/parsing.md#conditions-for-linear-cost)). The read
+consumes the seed of $T$, which is not empty, from $p$ inside the
+evaluation of $\kappa$, and nothing on the path before $\kappa$ consumes
+input, so that path can begin with the character at $p$, which $Q$
+consumes; so its word $w$ must exclude $Q$. The path, going on at the read
+along the paths of the steps of $T$ whose results the seed holds, consumes
+the seed, so when the seed has more than $|w|$ characters, the input at $p$
+begins with $w$ and passes its negative lookahead, and $Q$ consumes, as
+above, the whole of $w$ without failing when the growing result of $R$ has
+$|w|$ characters or more. So the seed of $\tau$ has at most $c_w$
+characters, which holds in at most $c_w + 1$ steps of each growth of $T$,
+or the growing result of $R$ has fewer than $c_w$ characters. A shared call
+that reads the growing result of $T$ can return another result in $\tau$
+than in the first step, where that read fails, so $P$ and $Q$ can go on
+after it at different positions, and the comparison after the shared calls
+does not apply. The case is not shown when $A$ is committing against $Q$
+only through its words, in the steps of $R$ whose growing result has fewer
+than $c_w$ characters or, in the body of a third leader, in the steps of
+$T$ whose seed has at most $c_w$ characters; when $A$ lies in the body of a
+third leader and examines the input before its read, or its path down to
+the read makes its first left call of a leader to that leader at another
+binding level; or, in a rule that is not a leader, when $A$ is committing
+through a shared call that reads the growing result of $T$ or at which the
+removal stops (*Open parts of the kept steps*). $\square$
 
 **Plain reads.** Under condition 5, the reads of every growth of a leader $R$
 at $p$ whose steps nest, or are nested in, a growth of another leader at $p$
@@ -9883,14 +9923,11 @@ claims of this lemma that rest on them hold apart from them:
    that abandon their reads of the seed* leaves aside that it does not
    reduce: an abandoned unit that is a step, dropped or kept, of another
    growth at the position, a unit in the body of another leader $T$ whose
-   path in the first step goes on, after the failed reads, through a left
-   call of $T$ at the binding level of its growth in a step of that growth
-   after the first, through a left call of a third leader at any step, or
-   through a left call of either leader at another binding level, and a unit
-   in a growth of the leader at another binding level. The kept steps that
-   its cases
-   (1) and (3) leave, the second step and steps whose results have at most
-   $c_w$ characters, the hypothesis leaves out, and the claims that take it
+   path down to the read of the seed makes its first left call of a leader
+   to $T$ at another binding level than that of its growth, and a unit in a
+   growth of the leader at another binding level. The kept steps that its
+   cases (1), (3) and (4) leave, the second step and steps whose seeds have
+   at most $c_w$ characters, the hypothesis leaves out, and the claims that take it
    allow them, apart from the second remaining case of *Steps that begin
    anew*: a growth of another leader $T$ that a step nests, in which such a
    step of $T$ drops a seed that includes the growing result of the leader
@@ -9898,12 +9935,16 @@ claims of this lemma that rest on them hold apart from them:
 2. the claim of *Steps that begin anew* for a growth of another leader $T$
    that a step nests, in its first remaining case, a result of $T$ that is
    not empty and does not include the growing result before one that does,
-   when the unit that fails after its left call of $T$ read the seed lies in
-   the body of a third leader whose growth a step of $T$ nests, or is committing
-   against the continuation that holds the read only through its words, in
-   the steps of the outer growth whose growing result has fewer than $c_w$
-   characters (a constant number of each growth), or, in a rule of the
-   cycle that is not a leader, through a shared call that
+   when the unit that fails after its left call of $T$ read the seed is
+   committing against the continuation that holds the read only through its
+   words, in the steps of the outer growth whose growing result has fewer
+   than $c_w$ characters or, in the body of a third leader whose growth a
+   step of $T$ nests, in the steps of $T$ whose seed has at most $c_w$
+   characters (a constant number of each growth); when that unit lies in
+   the body of such a third leader and examines the input before its read,
+   or its path down to the read makes its first left call of a leader to
+   that leader at another binding level; or when it lies in a rule of the
+   cycle that is not a leader and is committing through a shared call that
    reads the growing result of $T$ or at which the removal of shared calls
    stops;
 3. in *Failures at the position of the growth*, an evaluation in a later
@@ -14483,13 +14524,11 @@ theorem covers such a parse.
    reading it only inside a lookahead or only in an alternative that it
    abandons, which *Later steps that abandon their reads of the seed*
    excludes apart from a step of another growth at the position in its
-   place, a unit of another leader $T$ whose path in the first step goes on
-   through a left call of $T$ at the binding level of its growth in a step
-   of that growth after the first, through a left call of a third leader at
-   any step, or through a left call of either leader at another binding
-   level, a unit in a growth of the leader at
+   place, a unit of another leader $T$ whose path down to the read of the
+   seed makes its first left call of a leader to $T$ at another binding
+   level than that of its growth, a unit in a growth of the leader at
    another binding level, and the second step of a growth and its
-   kept steps whose results have at most as many characters as the longest
+   kept steps whose seeds have at most as many characters as the longest
    literal of the grammar; and apart from a pair of nested evaluations
    with a unit on the path between
    them that decides its continuation only through a negative lookahead on
@@ -14573,28 +14612,29 @@ theorem covers such a parse.
    begin anew* on kept steps, which is not shown, for a leader with a
    scanning source, in the units that *Later steps that abandon their reads
    of the seed* leaves aside and does not reduce (step 1): a step of another
-   growth at the position, a unit of another leader $T$ whose path in the
-   first step goes on through a left call of $T$ at the binding level of its
-   growth in a step of that growth after the first, through a left call of a
-   third leader at any step, or through a left call of either leader at
-   another binding level, and a unit in a growth of
+   growth at the position, a unit of another leader $T$ whose path down to
+   the read of the seed makes its first left call of a leader to $T$ at
+   another binding level than that of its growth, and a unit in a growth of
    the leader at another binding level; the second step and steps whose
-   results have at
-   most $c_w$ characters, which its cases (1) and (3) leave, the hypothesis
-   leaves out. No claim takes the hypothesis for a leader without one,
+   seeds have at most $c_w$ characters, which its cases (1), (3) and (4)
+   leave, the hypothesis leaves out. No claim takes the hypothesis for a leader without one,
    whose growths nest with no other (*Leaders without a scanning source*).
    It also rests on the claim of *Steps that begin anew* for a nested growth
    of another leader, which is not shown for a growth in which a step that
    the hypothesis leaves out drops a seed that includes the growing result,
    and for a growth with a result that is not empty and does not include
    the growing result before one that does, when the unit that fails after
-   its left call read the seed lies in the body of a third leader whose
-   growth the
-   nested one nests, or is committing against the continuation that holds
-   the read only through its words, in the steps of the outer growth whose
-   growing result has fewer than $c_w$ characters, or, outside the bodies of leaders,
-   through a shared call that reads the growing result or at which the
-   removal stops.
+   its left call read the seed is committing against the continuation
+   that holds the read only through its words, in the steps of the outer
+   growth whose growing result has fewer than $c_w$ characters or, in the
+   body of a third leader whose growth the nested one nests, in the steps
+   of the nested growth whose seed has at most $c_w$ characters; when that
+   unit lies in the body of such a third leader and examines the input
+   before its read, or its path down to the read makes its first left call
+   of a leader to that leader at another binding level; or when it lies
+   in a rule of the cycle that is not a leader and is committing through a
+   shared call that reads the growing result or at which the removal
+   stops.
 3. **Operators Rules.** *Operators Rules* in Lemma 4 makes every operator
    tried a part of an activation, groups the tries at one position, bounds
    the activations that do not succeed, the tries and the levels of an
@@ -14645,11 +14685,11 @@ theorem covers such a parse.
    context (*Reuse in a context*). These bounds hold apart from the parts
    that *Open parts of the kept steps* lists, which remain open: they take
    as a hypothesis that every kept step of a growth after the second, with
-   a result of more than $c_w$ characters, has a result that includes the
+   a seed of more than $c_w$ characters, has a result that includes the
    growing result, which *Later steps that abandon their reads of the seed*
    gives only for a leader that contains a scanning source, outside the
-   units that it leaves aside and does not reduce (step 1); its cases (1) and
-   (3) leave only the second step and steps whose results have at most
+   units that it leaves aside and does not reduce (step 1); its cases (1),
+   (3) and (4) leave only the second step and steps whose seeds have at most
    $c_w$ characters, which the hypothesis leaves out; for a
    leader without one the hypothesis can fail,
    but its growths nest with no other, its steps that drop the seed number
@@ -14660,12 +14700,16 @@ theorem covers such a parse.
    leader in which a step that the hypothesis leaves out drops a seed that
    includes the growing result, nor for one with a result that is not empty
    and does not include the growing result before one that does, when the
-   unit that fails after its left
-   call read the seed lies in the body of a third leader whose growth the
-   nested one nests, or is committing against the continuation that holds
-   the read only through its words, in the steps of the outer growth whose
-   growing result has fewer than $c_w$ characters, or, outside the bodies
-   of leaders, through a shared call that reads the growing result or at
+   unit that fails after its left call read the seed is committing
+   against the continuation that holds the read only through its words, in
+   the steps of the outer growth whose growing result has fewer than $c_w$
+   characters or, in the body of a third leader whose growth the nested one
+   nests, in the steps of the nested growth whose seed has at most $c_w$
+   characters; when that unit lies in the body of such a third leader and
+   examines the input before its read, or its path down to the read makes
+   its first left call of a leader to that leader at another binding level;
+   or when it lies in a rule of the cycle that is not a leader and is
+   committing through a shared call that reads the growing result or at
    which the removal stops;
    condition 2 excludes the other such growths, and a nested growth with no
    result that includes it is fixed by the outcomes at the position of its

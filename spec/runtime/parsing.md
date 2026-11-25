@@ -1556,6 +1556,11 @@ The conditions below use these action expressions.
   steps of its growth, and in the first step its own left calls read the
   failed seed, so for a unit of a leader this check follows only the paths
   that examine the input before a left call of that leader, from there.
+  A left call of another leader of the cycle counts here as examining the
+  input, and the check follows the path from that call: the call starts a
+  growth of that leader or reads the result of one, and can match in the
+  first step, where only the left calls of the leader itself read the failed
+  seed.
   For a unit of a leader that contains a scanning source, those paths must
   also be committing against the later alternatives at their own start: no
   later alternative can begin with a character with which one of the paths
