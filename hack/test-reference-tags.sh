@@ -14,10 +14,11 @@
 # long test tier, and sxir_feature_witness, which the tests of generated parsers set themselves. It rejects a given tag
 # that no build constraint names, so a misspelt tag cannot pass as the default build. The budget-controls reference
 # build (sxir_budget_controls_reference) refuses a parse with a budget control (a context, a compute or memory limit, or
-# a compute report), so under that tag the script also checks every package whose tests name one of those controls,
-# which no build constraint marks. It exits non-zero when a tag fails to build or pass. A test whose feature a tag
-# removes skips under that tag. Tags run 4 at a time (TAG_JOBS), each with its output printed under its own heading
-# once all have ended.
+# a compute report), so under that tag the script also checks every package whose tests set one of those controls,
+# which no build constraint marks: the packages whose test files name one, and those whose tests depend on a
+# test-support package under internal/testing that names one. It exits non-zero when a tag fails to build or pass. A
+# test whose feature a tag removes skips under that tag. Tags run 4 at a time (TAG_JOBS), each with its output printed
+# under its own heading once all have ended.
 # The run takes tens of minutes.
 set -u
 cd "$(dirname "$0")/.." || exit 1
@@ -44,16 +45,31 @@ done
 jobs=${TAG_JOBS:-4}
 dir=$(mktemp -d "${TMPDIR:-/tmp}/reference-tags.XXXXXX") || exit 1
 trap 'rm -rf "$dir"' EXIT
-budgetUsers() { # budgetUsers: the Go test files that set a budget control or ask whether the build has them
-	grep -rlE --include='*_test.go' '\b(With)?ComputeReport\b|\bBudgetControlsEnabled\b|\b(Compute|Memory): |\bWithContext\(|\bContext: ' . |
-		grep -v -e '^\./\.' -e '/testdata/'
+budget='\b(With)?ComputeReport\b|\bBudgetControlsEnabled\b|\b(Compute|Memory): |\bWithContext\(|\bContext: '
+budgetUsers() { # budgetUsers: the directories of the packages whose tests use the budget controls
+	# (set one, or ask whether the build has them). Their own test files name one, or the test-support packages
+	# (internal/testing, which only tests import) do it for them: every package whose test binary depends on one of
+	# those is a user too, however indirectly.
+	helpers=$(grep -rlE --include='*.go' --exclude='*_test.go' "$budget" ./internal/testing | xargs -n1 dirname | sort -u) &&
+		[ -n "$helpers" ] && helpers=$(go list $helpers) && users=$(go list -test -f '{{if .ForTest}}{{.Dir}} {{join .Deps " "}}{{end}}' ./...) ||
+		{ echo "test-reference-tags: cannot list the users of budget controls" >&2; return 1; }
+	{
+		grep -rlE --include='*_test.go' "$budget" . | grep -v -e '^\./\.' -e '/testdata/' | xargs -n1 dirname
+		echo "$users" | awk -v h="$(echo $helpers)" 'BEGIN { n = split(h, a, " "); for (i = 1; i <= n; i++) set[a[i]] = 1 }
+			{ for (i = 2; i <= NF; i++) if ($i in set) { print $1; next } }' | sed "s|^$PWD|.|"
+	} | sort -u
 }
 check() { # check TAG: vet then test one tag; the status is the result
 	t=$1
+	if [ "$t" = sxir_budget_controls_reference ]; then
+		users=$(budgetUsers) || return 1
+	else
+		users=
+	fi
 	pkgs=$({
-		constrained -w "^//go:build .*$t"
-		[ "$t" != sxir_budget_controls_reference ] || budgetUsers
-	} | xargs -n1 dirname | sort -u)
+		constrained -w "^//go:build .*$t" | xargs -n1 dirname
+		[ -z "$users" ] || echo "$users"
+	} | sort -u)
 	go vet -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: vet failed"; return 1; }
 	go test -count=1 -short -timeout 45m -tags "$t" ./internal/runtime/engine/... $pkgs || { echo "test-reference-tags: $t: tests failed"; return 1; }
 }
