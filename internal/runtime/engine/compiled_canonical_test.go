@@ -98,6 +98,10 @@ func TestCompiledCanonicalRejections(t *testing.T) {
 		{"duplicate string", encodeTables(m, nil, "", func(w *bytecode.Encoder) { w.List = append(w.List, w.List[0]) }, nil), "twice in the string table"},
 		{"unused string in the insertion part", encodeTables(im, ins, "", keep, unused), "strings that it does not refer to"},
 		{"duplicate string in the insertion part", encodeTables(im, ins, "", keep, func(w *bytecode.Encoder) { w.List = append(w.List, w.List[0]) }), "twice in the string table"},
+		// A grammar without #missing saved with an insertion part, the module itself, which is all a
+		// grammar that names the type missing without #missing would have to insert.
+		{"insertion part without #missing", encodeTables(m, m, "", keep, keep), "a grammar without #missing has an insertion module"},
+		{"no insertion part with #missing", encodeTables(im, nil, "", keep, nil), "a grammar with #missing has no insertion module"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -152,6 +156,36 @@ func compiledCorpus(t *testing.T) [][]byte {
 		}
 	}
 	return out
+}
+
+// TestCompiledMissingTypeOnly checks that a grammar that names the type missing but uses no #missing
+// compiles to the file of the same grammar without the type, in every mode: it has nothing to insert,
+// so its file has no insertion part and its parses run no insertion program.
+func TestCompiledMissingTypeOnly(t *testing.T) {
+	const rules = "@start\nrule main = \"a\" (\"b\" / \"c\")*\n"
+	plain := mustCompile(t, rules)
+	for _, src := range []string{
+		"type T ~ missing\n" + rules,
+		"type L ~ []missing\n" + rules,
+	} {
+		prog := mustCompile(t, src)
+		if prog.HasMissing {
+			t.Errorf("%q: HasMissing without #missing", src)
+		}
+		for _, mode := range allModes {
+			want, err := plain.Marshal("", mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := prog.Marshal("", mode)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !bytes.Equal(got, want) {
+				t.Errorf("%q in %s mode: the file differs from that of the grammar without the type from byte %d", src, mode, firstDiff(got, want))
+			}
+		}
+	}
 }
 
 // TestCompiledCanonicalRoundTrip checks over the corpus that decoding and encoding again is the

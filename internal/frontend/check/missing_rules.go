@@ -60,19 +60,19 @@ func (m *Model) markMissingRules(control *cancel.Control) {
 		case *ast.TypeDef:
 			for _, f := range DefFields(t) {
 				if usesMissingType(f.Type) {
-					m.HasMissing = true
+					m.MissingType = true
 				}
 			}
 		case *ast.TypeAlias:
 			if usesMissingType(t.Type) {
-				m.HasMissing = true
+				m.MissingType = true
 			}
 		}
 	}
 	refs := make(map[*Rule][]string)
 	for _, r := range m.RuleList {
 		if usesMissingType(r.Def.Type) {
-			m.HasMissing = true
+			m.MissingType = true
 		}
 		astinspect.WalkExprControlled(r.Def.Expr, func(e ast.Expr) {
 			control.Poll()
@@ -81,7 +81,7 @@ func (m *Model) markMissingRules(control *cancel.Control) {
 				for _, a := range e.Attrs {
 					if a.Name == "missing" {
 						r.Missing = true
-						m.HasMissing = true
+						m.HasMissing, m.MissingType = true, true
 					}
 				}
 			case *ast.Ref:

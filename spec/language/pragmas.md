@@ -282,7 +282,7 @@ when its grammar has none. Grammar AST JSON and formatting
 preserve the annotation. `missing` is a built-in type, a kind of `error`: the
 annotated literal infers `node[string] | missing`, and `missing` is assignable to
 `error`. Generated typed values keep the missing-token identity: a `missing` is a
-`*Missing` in Go and a `Missing` in TypeScript, and in a grammar with `#missing` the type of
-`error` is the Go interface implemented by `*Error` and `*Missing`, or the TypeScript union
+`*Missing` in Go and a `Missing` in TypeScript, and in a grammar with `#missing`, or one that
+names the type `missing` without inserting, the type of `error` is the Go interface implemented by `*Error` and `*Missing`, or the TypeScript union
 `ErrorValue` of `RecoveredError` and `Missing`
 ([Generated Parsers](../runtime/generated-parsers.md)).

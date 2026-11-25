@@ -235,16 +235,19 @@ func TestGeneratedTSMissingTokensTypedDeclarations(t *testing.T) {
 	}
 }
 
-// TestGeneratedTSMissingTokensLimitNeedsMissing checks that only a parser of a grammar with #missing,
-// or one that names the type missing, takes a positive limit of missing tokens; every parser takes 0.
+// TestGeneratedTSMissingTokensLimitNeedsMissing checks that only a parser of a grammar with #missing
+// takes a positive limit of missing tokens, not one that only names the type missing and has nothing
+// to insert; every parser takes 0.
 func TestGeneratedTSMissingTokensLimitNeedsMissing(t *testing.T) {
 	t.Parallel()
+	const refused = "the grammar of this parser has no #missing: a positive missing token limit needs a grammar that uses #missing"
 	for _, c := range []struct {
 		src  string
 		want string
 	}{
-		{"@start\nrule main = \"a\"\n", "the grammar of this parser has no #missing: a positive missing token limit needs a grammar that uses #missing"},
-		{"type Item ~ node[string] | missing\n@start\nrule main Item = x:\"a\" => $x\n", "null"},
+		{"@start\nrule main = \"a\"\n", refused},
+		{"type Item ~ node[string] | missing\n@start\nrule main Item = x:\"a\" => $x\n", refused},
+		{"@start\nrule main = \"a\" #missing\n", "null"},
 	} {
 		g, err := parseTest(c.src)
 		if err != nil {

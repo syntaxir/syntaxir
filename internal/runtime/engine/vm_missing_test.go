@@ -128,8 +128,8 @@ func TestCompiledInsertion(t *testing.T) {
 			t.Errorf("%s: loaded (%v)", bad.name, err)
 		}
 	}
-	// A grammar that names only the type missing has nothing to insert; its compiled grammar keeps
-	// the reference, which the entry points that refuse missing read.
+	// A grammar that names only the type missing has nothing to insert: its compiled grammar has no
+	// insertion part (TestCompiledMissingTypeOnly).
 	typeOnly := mustCompile(t, "type Item ~ missing\nrule main = \"a\"")
 	data, err := typeOnly.Marshal("main", CompiledParse)
 	if err != nil {
@@ -139,8 +139,8 @@ func TestCompiledInsertion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !loaded.HasMissing {
-		t.Error("a grammar that names the type missing lost the reference")
+	if loaded.HasMissing {
+		t.Error("the loaded program of a grammar that names only the type missing runs the insertion program")
 	}
 	if again, err := loaded.Marshal("main", CompiledParse); err != nil || !bytes.Equal(again, data) {
 		t.Errorf("type only: saved again, the data differs (%v)", err)

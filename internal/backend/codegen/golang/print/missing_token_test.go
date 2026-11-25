@@ -247,7 +247,8 @@ func main() {
 }
 
 // TestMissingTokensTypeOnlyGrammar checks a grammar that names the missing type without a #missing
-// site: the engine parses it, a compiled grammar keeps it, and the Go generator generates its parser.
+// site: the engine parses it, its compiled grammar has no insertion part, as it inserts nothing, and the
+// Go generator generates its parser.
 func TestMissingTokensTypeOnlyGrammar(t *testing.T) {
 	t.Parallel()
 	codegentest.EachMode(t, testMissingTokensTypeOnlyGrammar)
@@ -259,10 +260,10 @@ rule main = "a"`)
 	if n, err := prog.Parse("main", "a"); n == nil || err != nil {
 		t.Fatal(n, err)
 	}
-	if !prog.HasMissing {
-		t.Fatal("reserved Missing reference was not recorded")
+	if prog.HasMissing {
+		t.Fatal("a grammar without #missing runs the insertion program")
 	}
-	// A compiled grammar keeps the reference: the loaded program parses as the source does.
+	// The compiled grammar has no insertion part: the loaded program parses as the source does.
 	data, err := prog.MarshalBinary("main")
 	if err != nil {
 		t.Fatal(err)
@@ -271,8 +272,8 @@ rule main = "a"`)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !loaded.HasMissing {
-		t.Fatal("the loaded program lost the reference to missing")
+	if loaded.HasMissing {
+		t.Fatal("the loaded program of a grammar without #missing runs the insertion program")
 	}
 	if n, err := loaded.ParseWith("main", "a", engine.ParseOptions{Backend: engine.Bytecode, MissingTokens: 1}); n == nil || err != nil {
 		t.Fatal("loaded", n, err)
@@ -322,6 +323,17 @@ func testMissingTokensTypedDeclarations(t *testing.T) {
 	}
 	if strings.Contains(code, "type Missing") || strings.Contains(code, "type ErrorValue") || strings.Contains(code, "isErrorValue") || !strings.Contains(code, "\tE *Error\n") {
 		t.Errorf("the types of a grammar without #missing:\n%s", code)
+	}
+	// A grammar that names the type missing without #missing inserts nothing, but its values have
+	// the type: its types package declares Missing and ErrorValue as with #missing.
+	code, err = types("type Gap ~ missing\n" + recovered)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"\ntype Missing struct {", "\ntype ErrorValue interface{ isErrorValue() }", "\tE ErrorValue\n"} {
+		if !strings.Contains(code, want) {
+			t.Errorf("the types of a grammar that names missing lack %q", want)
+		}
 	}
 	// Missing is a reserved type name of the grammar language; ErrorValue is reserved by the types
 	// package of a grammar with #missing only.

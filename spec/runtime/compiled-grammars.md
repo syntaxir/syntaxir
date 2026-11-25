@@ -120,8 +120,9 @@ version.
 Loading checks the magic number, the format version, a CRC-32 checksum, the mode,
 the instruction-set version and the structure of the module (every index is in
 range, every jump targets an instruction of its body, the start rule is a start
-rule of the module, a grammar with `#missing` has its insertion module, which
-inserts exactly where the module does, and no bytes trail the module), and that
+rule of the module, the file holds an insertion module exactly when a rule uses
+`#missing`, and that module inserts and has the module's start rules, and no
+bytes trail the module), and that
 the file is in the canonical encoding: an integer longer than its shortest
 encoding, a string table with a string twice, or any other byte the compiler
 would not write for what the file decodes to fails with `invalid compiled
