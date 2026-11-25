@@ -640,7 +640,7 @@ func undecorate(e ast.Expr, attrs []*ast.Attribute, control *formatControl) (ast
 func (p *printer) body(e ast.Expr, indent string) {
 	pollFormat(p.control)
 	c, ok := e.(*ast.Choice)
-	if !ok || keepsTupleAlone(c) {
+	if !ok || spelledWithPlaceholder(c) {
 		p.sequence(e, indent, precChoice)
 		return
 	}
@@ -696,7 +696,7 @@ func endsWithGap(e ast.Expr) bool {
 
 func (p *printer) sequence(e ast.Expr, indent string, outer int) {
 	pollFormat(p.control)
-	if keepsTupleAlone(e) {
+	if spelledWithPlaceholder(e) {
 		p.write(formatExpr(e, outer, p.control))
 		return
 	}
@@ -1593,33 +1593,21 @@ func groupInlineComments(b *ast.LineBreak, trailing bool, control *formatControl
 	return s.String(), !b.Blank
 }
 
-// keepsTupleAlone reports whether e is a sequence of one item or a choice of one sequence, which
-// the grammar syntax cannot write directly: a sequence of one item is written as the item, and
-// a choice of one alternative as the alternative, which a sequence around it splices. The
-// printer spells the tuple with `_`, which always succeeds, consumes nothing and has no value
-// (a sequence of one item is a tuple of one element), and `_|_`, an alternative that never
-// matches (a choice of a sequence is one element that holds the tuple). Neither adds to the
-// cost, which counts rule bodies, input, iterations and values built.
-func keepsTupleAlone(e ast.Expr) bool {
+// spelledWithPlaceholder reports whether e is a sequence of one item or a choice of one
+// alternative, which the grammar syntax cannot write directly: the parser reads a sequence of
+// one item as the item and a choice of one alternative as the alternative. The printer adds a
+// placeholder that keeps the node: `_`, which always succeeds, consumes nothing and has no
+// value, after the item (a sequence of one item is a tuple of one element), and `_|_`, an
+// alternative that never matches and records nothing, after the alternative. The choice keeps
+// the scope of the cuts of its alternative, and keeps it one element where a sequence around
+// it would splice a sequence or the call of a hidden rule without an action. Neither
+// placeholder adds to the cost, which counts rule bodies, input, iterations and values built.
+func spelledWithPlaceholder(e ast.Expr) bool {
 	switch e := e.(type) {
 	case *ast.Seq:
 		return len(e.Items) == 1
 	case *ast.Choice:
-		if len(e.Alts) != 1 {
-			return false
-		}
-		// A group is transparent: the choice of a grouped sequence is one
-		// element as well.
-		alt := e.Alts[0]
-		for {
-			g, ok := alt.(*ast.Group)
-			if !ok {
-				break
-			}
-			alt = g.Expr
-		}
-		_, ok := alt.(*ast.Seq)
-		return ok
+		return len(e.Alts) == 1
 	}
 	return false
 }
@@ -1711,7 +1699,7 @@ func formatExprNode(e ast.Expr, outer int, control *formatControl) string {
 				}
 			}
 		}
-		if keepsTupleAlone(e) {
+		if spelledWithPlaceholder(e) {
 			parts = append(parts, " / _|_")
 		}
 		return finishFormat(paren(joinFormatParts(parts, "", control), precChoice, outer), control)
@@ -2353,24 +2341,12 @@ func formatAttributeValue(value any, control *formatControl) string {
 	return fmt.Sprintf("<%T>", value)
 }
 
-// readsAsString reports whether e, an attribute argument, is written as a
-// case-sensitive literal alone, which reads back as a string argument: the
-// literal or a choice of one alternative that is one. A group writes its own
-// parentheses.
+// readsAsString reports whether e, an attribute argument, is written as a case-sensitive
+// literal alone, which reads back as a string argument. A group writes its own parentheses,
+// and a choice of one alternative is written with ` / _|_`.
 func readsAsString(e ast.Expr) bool {
-	for {
-		switch x := e.(type) {
-		case *ast.Choice:
-			if len(x.Alts) != 1 {
-				return false
-			}
-			e = x.Alts[0]
-		case *ast.Literal:
-			return !x.IgnoreCase
-		default:
-			return false
-		}
-	}
+	lit, ok := e.(*ast.Literal)
+	return ok && !lit.IgnoreCase
 }
 
 // leadsWithLiteralName reports whether the text of e may begin with a rule

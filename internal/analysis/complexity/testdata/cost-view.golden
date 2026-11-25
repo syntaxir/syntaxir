@@ -574,7 +574,7 @@ rule hsemi = [\n;] / blockComment
   660:14 [\n;] = "\";\" / \"\\n\""
 == testdata/grammars/golang/golang.sxir matching=true
 applied: N1=4 N13=24 N4=2 N7=2 N8=5
-sha256 f1cbdee66eb0cc7ff2cb454867c388be9e21e81c6d82e871e7800b888f911488
+sha256 63103dacd1ce6b496549c273b3d48654a8b08e950888d4a586d433f47547fe15
 == testdata/grammars/json/json.sxir matching=false
 applied:
 == testdata/grammars/json/json.sxir matching=true

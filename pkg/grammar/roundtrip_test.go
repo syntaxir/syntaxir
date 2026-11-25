@@ -29,11 +29,11 @@ type roundTripRun struct {
 
 // TestFormatRoundTripRandom formats random valid grammar ASTs and parses the text back. The
 // parsed grammar must be the formatted one up to the differences that the syntax does not
-// spell: groups, a one-item sequence (read back as the item and an empty sequence), a
-// one-alternative choice, a negative integer constant (read back as a negation) and a block of
-// one statement as the action of a predicate. Formatting the parsed grammar again must give the same grammar. The runs of the
-// default tier take a few seconds; the long tier (roundTripRuns in its own file) runs more and
-// deeper grammars.
+// spell: groups, a one-item sequence (read back as the item and `_`), a one-alternative choice
+// (read back as the alternative and `_|_`), a negative integer constant (read back as a
+// negation) and a block of one statement as the action of a predicate. Formatting the parsed
+// grammar again must give the same grammar. The runs of the default tier take a few seconds;
+// the long tier (roundTripRuns in its own file) runs more and deeper grammars.
 func TestFormatRoundTripRandom(t *testing.T) {
 	t.Parallel()
 	for _, run := range roundTripRuns {
@@ -544,11 +544,7 @@ func normalize(v any, formatted bool) any {
 			}
 		case "Choice":
 			if alts := out["alts"].([]any); formatted && len(alts) == 1 {
-				if a, ok := alts[0].(map[string]any); ok && a["@type"] == "Seq" {
-					out["alts"] = append(alts, map[string]any{"@type": "Bottom"})
-				} else {
-					return alts[0]
-				}
+				out["alts"] = append(alts, map[string]any{"@type": "Bottom"})
 			}
 		}
 		return out

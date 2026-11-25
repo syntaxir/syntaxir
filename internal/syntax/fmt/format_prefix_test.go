@@ -184,7 +184,7 @@ func TestFormatKeepsNodes(t *testing.T) {
 
 // TestFormatLiteralAttributeArgument checks that an attribute argument written as a case-sensitive
 // literal alone, which would read back as a string, is written in parentheses and read back as a
-// group around the literal, and that a literal
+// group around the literal, that a choice of one literal reads back as a choice, and that a literal
 // that ignores case and a grouped literal keep their spelling.
 func TestFormatLiteralAttributeArgument(t *testing.T) {
 	t.Parallel()
@@ -200,7 +200,7 @@ func TestFormatLiteralAttributeArgument(t *testing.T) {
 		t.Fatalf("formatted source cannot be parsed: %v\n%s", err, source)
 	}
 	a := back.Rules()[0].Expr.(*ast.Attributed).Attrs[0]
-	if group, ok := a.Args[0].(*ast.Group); !ok || group.Expr.(*ast.Literal).Value != "m" {
+	if choice, ok := a.Args[0].(*ast.Choice); !ok || len(choice.Alts) != 2 || choice.Alts[0].(*ast.Literal).Value != "m" {
 		t.Errorf("one-alternative choice of a literal: got %#v\n%s", a.Args[0], source)
 	}
 	if lit, ok := a.Args[1].(*ast.Literal); !ok || !lit.IgnoreCase {
@@ -211,5 +211,56 @@ func TestFormatLiteralAttributeArgument(t *testing.T) {
 	}
 	if group, ok := a.KwArgs["k"].(*ast.Group); !ok || group.Expr.(*ast.Literal).Value != "n" {
 		t.Errorf("grouped literal: got %#v\n%s", a.KwArgs["k"], source)
+	}
+}
+
+// TestFormatKeepsOneAlternativeChoice checks that a choice of one alternative that is not a
+// sequence keeps its meaning when it is formatted: the choice is the scope of a cut in its
+// alternative, which without it would commit the repetition around it, and it is one element
+// where a sequence around the call of a hidden rule without an action splices the rule's tuple.
+func TestFormatKeepsOneAlternativeChoice(t *testing.T) {
+	t.Parallel()
+	lit := func(s string) ast.Expr { return &ast.Literal{Value: s} }
+	start := []*ast.Attribute{{Name: "start"}}
+	for _, tc := range []struct {
+		name   string
+		decls  []ast.Decl
+		inputs []string
+	}{
+		{"cut", []ast.Decl{&ast.RuleDef{Attrs: start, Name: "main", Expr: &ast.Seq{Items: []ast.Expr{
+			&ast.Repeat{Expr: &ast.Choice{Alts: []ast.Expr{&ast.Discard{Expr: &ast.Seq{Items: []ast.Expr{lit("a"), &ast.Cut{}, lit("b")}}}}}, Max: -1},
+			lit("a"), lit("c"),
+		}}}}, []string{"ac", "abac"}},
+		{"splice", []ast.Decl{
+			&ast.RuleDef{Attrs: start, Name: "main", Expr: &ast.Seq{Items: []ast.Expr{lit("x"), &ast.Choice{Alts: []ast.Expr{&ast.Ref{Name: "_r"}}}}}},
+			&ast.RuleDef{Name: "_r", Expr: &ast.Seq{Items: []ast.Expr{lit("a"), lit("b")}}},
+		}, []string{"xab"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			g := &ast.Grammar{File: ast.File{Decls: tc.decls}}
+			source := fmt.Format(g)
+			again, err := enginetest.ParseGrammar(source)
+			if err != nil {
+				t.Fatalf("formatted source cannot be parsed: %v\n%s", err, source)
+			}
+			before, err := enginetest.Compile(g, "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			after, err := enginetest.Compile(again, "main")
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, input := range tc.inputs {
+				n1, err1 := before.Parse(input)
+				n2, err2 := after.Parse(input)
+				if err1 != nil {
+					t.Fatalf("%q: the grammar rejects its own input: %v", input, err1)
+				}
+				if err2 != nil || n1.String() != n2.String() {
+					t.Errorf("%q: formatting changes the result: %v; %v, %v\n%s", input, n1, n2, err2, source)
+				}
+			}
+		})
 	}
 }

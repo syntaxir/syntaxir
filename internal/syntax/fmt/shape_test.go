@@ -6,10 +6,10 @@ import (
 	"syntaxir.dev/sxir/pkg/grammar/ast"
 )
 
-// A sequence of one item is a tuple of one element and a choice of one sequence is one element
-// that holds a tuple, where the bare item and a group splice or have the item's own value. The
-// printed text spells the difference with `_` and `_|_`, which have no cost, so that it reads
-// back as the same value.
+// A sequence of one item is a tuple of one element and a choice of one alternative is one element
+// that keeps the scope of the alternative's cuts, where the bare item and a group splice or have
+// the item's own value. The printed text spells the difference with `_` and `_|_`, which have no
+// cost, so that it reads back as the same value.
 func TestFormatKeepsShapeOfOneItemSequencesAndChoices(t *testing.T) {
 	lit := func(s string) ast.Expr { return &ast.Literal{Value: s} }
 	one := func(e ast.Expr) ast.Expr { return &ast.Seq{Items: []ast.Expr{e}} }
@@ -25,7 +25,8 @@ func TestFormatKeepsShapeOfOneItemSequencesAndChoices(t *testing.T) {
 		{"choice of one sequence", &ast.Choice{Alts: []ast.Expr{two}}, `"b" "c" / _|_`},
 		{"choice of one sequence in a sequence", &ast.Seq{Items: []ast.Expr{lit("a"), &ast.Choice{Alts: []ast.Expr{two}}}}, `"a" ("b" "c" / _|_)`},
 		{"choice of one one-item sequence in a sequence", &ast.Seq{Items: []ast.Expr{lit("a"), &ast.Choice{Alts: []ast.Expr{one(lit("x"))}}}}, `"a" ("x" _ / _|_)`},
-		{"choice of one item", &ast.Choice{Alts: []ast.Expr{lit("x")}}, `"x"`},
+		{"choice of one item", &ast.Choice{Alts: []ast.Expr{lit("x")}}, `"x" / _|_`},
+		{"choice of one item in a sequence", &ast.Seq{Items: []ast.Expr{lit("a"), &ast.Choice{Alts: []ast.Expr{lit("x")}}}}, `"a" ("x" / _|_)`},
 	} {
 		if got := FormatExpr(tc.e); got != tc.want {
 			t.Errorf("%s: FormatExpr = %s, want %s", tc.name, got, tc.want)
