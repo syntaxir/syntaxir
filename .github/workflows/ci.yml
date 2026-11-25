@@ -1,14 +1,23 @@
 name: CI
 
+# A push to main runs only the light check job. The test suites run on demand: start the workflow by hand
+# (Actions tab or `gh workflow run ci.yml --ref <branch> -f suite=<suite>`) and choose the suite.
 on:
   push:
-  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "check: vet and generated files; root: default test tier; long: long tier (includes root); alpha: alpha-parsers; site: site module; typescript: Node.js WASM and generated TypeScript; all: every suite with the long tier"
+        type: choice
+        default: check
+        options: [check, root, long, alpha, site, typescript, all]
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}-${{ inputs.suite }}
   cancel-in-progress: true
 
 defaults:
@@ -16,9 +25,33 @@ defaults:
     shell: bash
 
 jobs:
+  check:
+    name: Vet and generated files
+    if: github.event_name == 'push' || inputs.suite == 'check' || inputs.suite == 'all'
+    timeout-minutes: 30
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.1
+          check-latest: false
+      - name: Vet root module
+        run: go vet ./...
+      - name: Regenerate generated files
+        run: go generate ./internal/backend/... ./internal/runtime/state/sharedsrc ./bench ./internal/frontend/parser ./spec/language/...
+      - name: Require an unchanged tree
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "go generate changed the tree; commit the regenerated files" >&2
+            git status --short >&2
+            exit 1
+          fi
+
   go-native:
-    name: Go root and all parser modules
-    timeout-minutes: 90
+    name: Go root module (${{ inputs.suite == 'root' && 'default' || 'long' }} tier)
+    if: inputs.suite == 'root' || inputs.suite == 'long' || inputs.suite == 'all'
+    timeout-minutes: 180
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +90,10 @@ jobs:
           SXIR_TYPESCRIPT_TESTS: ${{ github.workspace }}/typescript-reference/tests/cases
         run: .github/scripts/write-provenance.sh "$RUNNER_TEMP/sxir-ci-provenance.log"
       - name: Test root module
-        run: go test -v -timeout=45m ./... 2>&1 | tee "$RUNNER_TEMP/sxir-root-test.log"
+        env:
+          SXIR_TAGS: ${{ inputs.suite == 'root' && '' || 'sxir_long' }}
+          SXIR_TIMEOUT: ${{ inputs.suite == 'root' && '45m' || '150m' }}
+        run: go test -v -tags="$SXIR_TAGS" -timeout="$SXIR_TIMEOUT" ./... 2>&1 | tee "$RUNNER_TEMP/sxir-root-test.log"
       - name: Vet root module
         run: go vet ./... 2>&1 | tee "$RUNNER_TEMP/sxir-root-vet.log"
       - uses: actions/upload-artifact@v4
@@ -68,8 +104,39 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  alpha:
+    name: alpha-parsers against this tree
+    if: inputs.suite == 'alpha' || inputs.suite == 'all'
+    timeout-minutes: 90
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: syntaxir
+      - uses: actions/checkout@v4
+        with:
+          repository: syntaxir/alpha-parsers
+          path: alpha-parsers
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.27.1
+          check-latest: false
+          cache-dependency-path: syntaxir/go.sum
+      - name: Test alpha-parsers
+        env:
+          SXIR_ALPHA_PARSERS: ${{ github.workspace }}/alpha-parsers
+        run: cd syntaxir && hack/test-alpha-parsers.sh 2>&1 | tee "$RUNNER_TEMP/sxir-alpha-test.log"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: alpha-parsers-test-logs
+          path: ${{ runner.temp }}/sxir-alpha-test.log
+          if-no-files-found: ignore
+          retention-days: 14
+
   site:
     name: Site build and JavaScript checks
+    if: inputs.suite == 'site' || inputs.suite == 'all'
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:
@@ -99,6 +166,7 @@ jobs:
 
   node-wasm-typescript:
     name: Node.js WASM and generated TypeScript
+    if: inputs.suite == 'typescript' || inputs.suite == 'all'
     timeout-minutes: 30
     runs-on: ubuntu-latest
     steps:

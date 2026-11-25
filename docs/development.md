@@ -326,10 +326,16 @@ every tag of the tree or the tags it is given; it rejects a tag that no build co
 feature a tag removes skips under that tag. Its tags run four at a time (`TAG_JOBS`), each with its output under its own heading, and any failed tag fails the run. The run takes tens of minutes: run it after changing budget-control
 code, a reference variant or the tests of the engine packages; a landing batch runs it when it touches such code.
 
-GitHub Actions runs the root module, site tests, and
-Node.js/WebAssembly/generated-TypeScript checks as separate jobs. A newer run on the same branch or pull-request
-ref cancels the superseded run. CI uses Go 1.27.1, Node.js 22.18.0, CPython 3.14.0
-and TypeScript 5.9.3. Native tests have a 45-minute root timeout within a 90-minute job budget, allowing generated-consumer builds on CI hosts.
+GitHub Actions runs a light check on every push to main: `go vet ./...` and the `go generate` step of the gate,
+which fails when the tree changes. The test suites run only on demand: start the CI workflow by hand
+(`gh workflow run ci.yml --ref <branch> -f suite=<suite>`) and choose `root` (the default tier), `long` (the long
+tier, which includes the default tier), `alpha` (`hack/test-alpha-parsers.sh` against a checkout of
+`syntaxir/alpha-parsers`), `site`, `typescript` (the Node.js/WebAssembly and generated-TypeScript checks), `check`
+or `all` (every job, with the long tier). Run them on hosted runners when the local machine is busy, for
+instance for a landing batch; they replace no local check that this page requires. Timing benchmarks never run
+there, because shared runners give no stable timings. A newer run of the same suite on the same ref cancels the
+superseded run. CI uses Go 1.27.1, Node.js 22.18.0, CPython 3.14.0 and TypeScript 5.9.3. The default tier has a
+45-minute timeout and the long tier 150 minutes, within a 180-minute job budget.
 The TypeScript differential harness uses the upstream
 [`microsoft/TypeScript` v5.9.3 `tests/cases`](https://github.com/microsoft/TypeScript/tree/v5.9.3/tests/cases) corpus.
 Required-tool checks fail before tests if a required runtime or the TypeScript corpus is absent. Go tests run with

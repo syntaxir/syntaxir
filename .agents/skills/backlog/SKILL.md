@@ -85,7 +85,7 @@ writer owns it, plus the Landed/close step if the integrator has not done it.
   reader docs (spec, guides, cookbook, tutorial), design or optimization records, or
   commits other than `Refs #N`; link those documents descriptively instead.
 - Fetch before every edit and read back the affected surface afterwards. Keep local
-  checks, remote CI, integration and deployment evidence distinct. Do not trigger or
-  poll GitHub Actions while the standing workflow pause applies.
+  checks, remote CI, integration and deployment evidence distinct. Dispatch GitHub
+  Actions suites only when needed (`docs/development.md`).
 - Each issue appears once in the Issue #1 lane lists; compare issue-number sets before
   uploading a body.

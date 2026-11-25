@@ -72,5 +72,5 @@ share one queue and one set of worktrees. `-h` prints usage. Heavy runs go throu
 - [#1](https://github.com/syntaxir/syntaxir/issues/1) is the live backlog status page (use the
   `backlog` skill); close an issue by hand after verified integration.
 
-GitHub Actions are paused: do not trigger, rerun, cancel, poll or enable workflows. 32-bit and
-ready-made parser work are deferred.
+GitHub Actions run only a light check on pushes to main; dispatch a test suite by hand only when it is
+needed (`docs/development.md`), and never run timing benchmarks there. 32-bit and ready-made parser work are deferred.
