@@ -47,6 +47,11 @@ type ValueInference struct {
 	// bottoms, while not nil, are the rules of type _|_ as far as Checker.bottomRules has found
 	// them.
 	bottoms map[string]bool
+	// nevers holds the answers of bottom for the expressions met while bottoms is nil, when the
+	// rules of type _|_ are those of Checker.bottomRules, which do not change: elems asks bottom of
+	// the operand of each choice, optional, repetition and recovery it visits, and each answer
+	// would otherwise walk the operand again, a walk per enclosing operator.
+	nevers map[ast.Expr]bool
 	// nodeMembers, if not nil, receives the member accesses that read only node members.
 	nodeMembers map[*ast.FieldAccess]bool
 	// rec, if not nil, receives the types of action expressions, scopes and rules.
@@ -129,7 +134,18 @@ func ValueTypes(p *Checker, control *cancel.Control) (map[string]Ty, diagnostic.
 // valueTypesChecked is valueTypes recording the node member accesses in nodeMembers and the
 // types of the program's parts in rec, each if not nil.
 func valueTypesChecked(p *Checker, control *cancel.Control, nodeMembers map[*ast.FieldAccess]bool, rec *ValueRecord) (map[string]Ty, diagnostic.ErrorList) {
-	v := &ValueInference{Checker: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
+	return newValueInference(p, control, nodeMembers, rec).ruleValues()
+}
+
+// newValueInference returns the inference of the rules of p for valueTypesChecked.
+func newValueInference(p *Checker, control *cancel.Control, nodeMembers map[*ast.FieldAccess]bool, rec *ValueRecord) *ValueInference {
+	return &ValueInference{Checker: p, control: control, Rules: map[string]*ast.RuleDef{}, Out: map[string]Ty{}, Approx: map[string]Ty{}, Computing: map[string]bool{}, nodeMembers: nodeMembers, rec: rec}
+}
+
+// ruleValues infers the value type of every rule of the program, as valueTypesChecked returns
+// them.
+func (v *ValueInference) ruleValues() (map[string]Ty, diagnostic.ErrorList) {
+	p, control, rec := v.Checker, v.control, v.rec
 	rules := p.Grammar.Rules()
 	for _, rd := range rules {
 		v.Rules[rd.Name] = rd
@@ -705,6 +721,24 @@ func (v *ValueInference) exprElems(e ast.Expr) []ValueElem {
 // operand is: no value (a lookahead, a discard, a predicate), *_|_ (an optional, which matches the
 // empty input), []_|_ (a repetition that may match no element), a match.
 func (v *ValueInference) bottom(e ast.Expr) bool {
+	if v.bottoms != nil {
+		// Checker.bottomRules is still deciding the rules of type _|_: the answer may change
+		// with the set.
+		return v.exprBottom(e)
+	}
+	if b, ok := v.nevers[e]; ok {
+		return b
+	}
+	b := v.exprBottom(e)
+	if v.nevers == nil {
+		v.nevers = map[ast.Expr]bool{}
+	}
+	v.nevers[e] = b
+	return b
+}
+
+// exprBottom computes bottom(e).
+func (v *ValueInference) exprBottom(e ast.Expr) bool {
 	v.control.Poll()
 	switch e := e.(type) {
 	case *ast.Bottom:
