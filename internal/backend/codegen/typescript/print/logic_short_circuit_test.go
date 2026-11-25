@@ -2,6 +2,7 @@ package print_test
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -42,14 +43,14 @@ func TestShortCircuitGeneratedTypeScriptDetectsEagerOperands(t *testing.T) {
 	} {
 		t.Run(m.name, func(t *testing.T) {
 			t.Parallel()
-			var replaced bool
+			var replaced atomic.Bool
 			mismatches := codegentest.TSParsersMismatches(t, node, shortCircuitCases(), common.GenOptions{}, func(src string) string {
 				if strings.Contains(src, m.from) {
-					replaced = true
+					replaced.Store(true)
 				}
 				return strings.ReplaceAll(src, m.from, m.to)
 			})
-			if !replaced {
+			if !replaced.Load() {
 				t.Fatalf("the generated parser has no %q", m.from)
 			}
 			if len(mismatches) == 0 {

@@ -2,6 +2,7 @@ package print_test
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -30,12 +31,14 @@ func TestGeneratedTSRecoveredValuesDetectsMutation(t *testing.T) {
 		t.Skip("runs generated code")
 	}
 	const from = `c.actionSetField(tn3, "A", tv1);`
-	var replaced bool
+	var replaced atomic.Bool
 	mismatches := codegentest.TSParsersMismatches(t, tooltest.RequireNode(t), codegentest.RecoveredValueCases[1:2], common.GenOptions{}, func(src string) string {
-		replaced = replaced || strings.Contains(src, from)
+		if strings.Contains(src, from) {
+			replaced.Store(true)
+		}
 		return strings.ReplaceAll(src, from, `c.actionSetField(tn3, "A", (tv1 as number) + 1);`)
 	})
-	if !replaced {
+	if !replaced.Load() {
 		t.Fatalf("the generated parser has no %q", from)
 	}
 	if len(mismatches) == 0 {

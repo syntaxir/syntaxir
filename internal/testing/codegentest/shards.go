@@ -17,6 +17,11 @@ const (
 // the items are independent, the order of what run returns is that of the items, and
 // what a part reports (a failure of a tool, a mismatch) is what a run over all the items would
 // report for its items. Few items run as one part, in t.
+//
+// With two or more parts the runs execute concurrently, up to shardMax at a time: run, and any
+// callback that it passes on (a mutate function, a mismatch check), must be safe for concurrent
+// use. A shared counter or flag is an atomic value, and a *testing.T is the part's own t, never
+// the parent's: a call to the parent's Fatal or Error from a shard is a misuse.
 func Shards[T any](t *testing.T, items []T, run func(t *testing.T, part []T) []string) []string {
 	t.Helper()
 	n := min(shardMax, len(items)/shardMin)

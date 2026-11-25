@@ -295,16 +295,16 @@ func testActionDifferentialDetectsBrokenTargets(t *testing.T) {
 		{"lowered: a logical operator always evaluates its right operand", `if (!tb`, `if (true || !tb`},
 		{"lowered: a logical operator always evaluates its right operand (||)", `if (tb`, `if (true || tb`},
 	} {
-		hits := 0
+		var hits atomic.Int64
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
 			code, hit := mutateEitherForm(code, m.from, m.to)
 			if hit {
-				hits++
+				hits.Add(1)
 			}
 			return code
 		})
-		t.Logf("TypeScript: %s: parsers changed %d of %d cases, mismatches %d", m.name, hits, len(list), len(got))
-		if hits == 0 {
+		t.Logf("TypeScript: %s: parsers changed %d of %d cases, mismatches %d", m.name, hits.Load(), len(list), len(got))
+		if hits.Load() == 0 {
 			t.Errorf("TypeScript: %s: the generated code has no %q", m.name, m.from)
 		} else if len(got) == 0 {
 			t.Errorf("TypeScript: %s: no generated action expression notices", m.name)
@@ -410,15 +410,15 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 		{"a field is set to nil", `c.actionSetField(`, `((n: Node, f: string, _v: Value) => c.actionSetField(n, f, null))(`},
 		{"a struct ignores the ranges of its fields", `c.p.actionCover(`, `((n: Node, v: Value, _f: boolean) => c.p.actionCover(n, v, true))(`},
 	} {
-		hits := 0
+		var hits atomic.Int64
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
 			code, hit := mutateEitherForm(code, m.from, m.to)
 			if hit {
-				hits++
+				hits.Add(1)
 			}
 			return code
 		})
-		check("TypeScript", m, hits, got)
+		check("TypeScript", m, hits.Load(), got)
 	}
 }
 
@@ -554,15 +554,15 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 		{"foldl takes no elements", `c.p.actionItems("foldl", `, `c.p.actionItems("foldl", null); void (`},
 		{"the map of a projected repetition makes no elements", `c.newListLogical(`, `c.newListLogical([]); void (`},
 	} {
-		hits := 0
+		var hits atomic.Int64
 		got := codegentest.TSParsersMismatches(t, node, list, common.GenOptions{}, func(code string) string {
 			code, hit := mutateEitherForm(code, m.from, m.to)
 			if hit {
-				hits++
+				hits.Add(1)
 			}
 			return code
 		})
-		check("TypeScript", m, hits, got)
+		check("TypeScript", m, hits.Load(), got)
 	}
 }
 
@@ -600,20 +600,20 @@ func testActionPassesDetectBrokenTargets(t *testing.T) {
 	// A mutant replaces force, if any, by forced, and from by to.
 	type mutant struct{ name, force, forced, from, to string }
 	run := func(target string, cases []codegentest.Case, m mutant, mismatches func(mutate func(string) string) []string) {
-		hits := 0
+		var hits atomic.Int64
 		got := mismatches(func(s string) string {
 			if !strings.Contains(s, m.from) || m.force != "" && !strings.Contains(s, m.force) {
 				return s
 			}
-			hits++
+			hits.Add(1)
 			if m.force != "" {
 				s = strings.ReplaceAll(s, m.force, m.forced)
 			}
 			return strings.ReplaceAll(s, m.from, m.to)
 		})
-		t.Logf("%s: %s: parsers changed %d of %d cases, mismatches %d", target, m.name, hits, len(cases), len(got))
+		t.Logf("%s: %s: parsers changed %d of %d cases, mismatches %d", target, m.name, hits.Load(), len(cases), len(got))
 		switch {
-		case hits == 0:
+		case hits.Load() == 0:
 			t.Errorf("%s: %s: the generated code has no %q", target, m.name, m.from)
 		case m.from == m.to && len(got) != 0:
 			t.Errorf("%s: %s: %d mismatches without a change: %v", target, m.name, len(got), got)
