@@ -129,14 +129,15 @@ func slices3(a, b, c []byte) []byte {
 }
 
 // compiledCorpus returns the compiled grammars of the generator corpus and of the grammars with
-// insertion modules, in every mode, in a fixed order.
+// insertion modules, in every mode, in a fixed order: all of them in the long tier and their
+// representative cases (codegentest.Representative) in the default tier.
 func compiledCorpus(t *testing.T) [][]byte {
 	t.Helper()
 	var srcs []string
-	for _, c := range codegentest.GenCorpus(t) {
+	for _, c := range codegentest.Representative(codegentest.GenCorpus(t)) {
 		srcs = append(srcs, c.Src)
 	}
-	for _, c := range codegentest.InsertionCorpus() {
+	for _, c := range codegentest.Representative(codegentest.InsertionCorpus()) {
 		srcs = append(srcs, c.Src)
 	}
 	var out [][]byte
