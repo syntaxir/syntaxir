@@ -223,13 +223,14 @@ func exampleCommandPaths(dir, command string) error {
 	return nil
 }
 
-// runExampleCommand runs a command line in dir with the built sxir first on the path and returns
-// its standard output and standard error together, in the order written, or with withStderr
-// false its standard output alone.
+// runExampleCommand runs a command line with bash, the language its block is tagged with, in
+// dir with the built sxir first on the path and returns its standard output and standard error
+// together, in the order written, or with withStderr false its standard output alone. It names
+// bash because /bin/sh differs by system: dash, for one, has no $'...' quoting.
 func runExampleCommand(bin, dir, command string, withStderr bool) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", command)
+	cmd := exec.CommandContext(ctx, "bash", "-c", command)
 	cmd.Dir = dir
 	cmd.Env = append(os.Environ(), "PATH="+filepath.Dir(bin)+string(os.PathListSeparator)+os.Getenv("PATH"), "HOME="+dir)
 	var buf bytes.Buffer

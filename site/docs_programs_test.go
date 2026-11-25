@@ -190,12 +190,12 @@ func programEnv(bin, dir string) ([]string, error) {
 	return append(env, "HOME="+dir), nil
 }
 
-// runProgramLine runs one shell line in dir and returns its standard output and standard error
-// together. A nonzero exit status is part of what a page shows, so it is not an error.
+// runProgramLine runs one line with bash, the language command blocks are tagged with, in dir
+// and returns its standard output and standard error together. A nonzero exit status is part of what a page shows, so it is not an error.
 func runProgramLine(env []string, dir, line string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "sh", "-c", line)
+	cmd := exec.CommandContext(ctx, "bash", "-c", line)
 	cmd.Dir, cmd.Env = dir, env
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
