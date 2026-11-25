@@ -193,8 +193,8 @@ var engineObservationMutants = []engineObservationMutant{
 	// A TypeScript package with a Document and a stream marks the rules that a Document memoizes
 	// (Rule.docMemo); a stream that memoized them too would differ from the engine only in such a package.
 	{name: "typescript stream memoizes what a Document memoizes", file: "internal/backend/codegen/typescript/lib/lib.ts",
-		old:  "    const v = !r.memo && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min)",
-		new:  "    const v = !r.memo && !r.docMemo && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min)",
+		old:  "    const v = !(r.memo && !this.insertsRule(r)) && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min)",
+		new:  "    const v = !(r.memo && !this.insertsRule(r)) && !r.docMemo && !r.leader || this.firstCall(r) ? yield* this.callUnmemoizedGen(r, min)",
 		runs: []engineObservationRun{expecting(tsAgreementRun, `left recursive elements "1+2;3;" bytes=false stream closure: exit of t@0`)}},
 	{name: "typescript library control", file: "internal/backend/codegen/typescript/lib/trace.ts",
 		old: "  release(): void {\n", new: "  release(): void {\n    void 0;\n",
