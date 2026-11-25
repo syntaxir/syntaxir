@@ -34,7 +34,7 @@ func TestActionChargeGoldensDetectBrokenCharges(t *testing.T) {
 			t.Parallel()
 			cases := actionChargeCases(t, m.cases())
 			hits := map[string]*atomic.Int64{"go-node": {}, "go-typed": {}}
-			got := goActionCharges(t, m.prefix, cases, func(target string, src []byte) []byte {
+			got := goActionCharges(t, m.prefix, cases, allActionIndices(len(cases)), func(target string, src []byte) []byte {
 				out, n := m.mutate(src)
 				hits[target].Add(int64(n))
 				return out

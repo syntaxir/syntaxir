@@ -21,17 +21,32 @@ import (
 //
 // Cases named in alwaysRepresentative are kept as well.
 func Representative(cases []Case) []Case {
+	var out []Case
+	for _, i := range RepresentativeIndex(cases) {
+		out = append(out, cases[i])
+	}
+	return out
+}
+
+// RepresentativeIndex returns the positions in cases of the cases that Representative keeps, in
+// order. A test whose golden keys name a case by its position in the full corpus uses it to run the
+// kept cases under their own positions.
+func RepresentativeIndex(cases []Case) []int {
 	if allCases {
-		return cases
+		idx := make([]int, len(cases))
+		for i := range idx {
+			idx[i] = i
+		}
+		return idx
 	}
 	seen := map[string]bool{}
-	var out []Case
-	for _, c := range cases {
+	var out []int
+	for i, c := range cases {
 		fam := caseFamily(c.Name)
 		first := fam != "" && !seen[fam]
 		seen[fam] = true
 		if first || hashOf(c.Name)%8 == 0 || alwaysRepresentative[c.Name] {
-			out = append(out, c)
+			out = append(out, i)
 		}
 	}
 	return out

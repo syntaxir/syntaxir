@@ -150,6 +150,9 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 		t.Skip("builds generated consumers")
 	}
 	actionExprs := actionChargeCases(t, all)
+	// The default tier runs the representative action expressions (codegentest.RepresentativeIndex), each
+	// under its position in the full list, which is the position its golden keys name.
+	sel := codegentest.RepresentativeIndex(actionCaseList(actionExprs))
 	got := map[string]string{}
 	var mu sync.Mutex
 	put := func(m map[string]string) {
@@ -166,9 +169,10 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 		// Generated Go: the node parser's Parse and Recognize, and the typed parser's ParseValue.
 		t.Run("go", func(t *testing.T) {
 			t.Parallel()
-			put(goActionCharges(t, prefix, actionExprs, nil))
+			put(goActionCharges(t, prefix, actionExprs, sel, nil))
 		})
-		for i, c := range actionExprs {
+		for _, i := range sel {
+			c := actionExprs[i]
 			// The engine.
 			t.Run(fmt.Sprintf("engine %d", i), func(t *testing.T) {
 				t.Parallel()
@@ -216,7 +220,25 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 	if t.Failed() {
 		return // a target that failed leaves its entries out of the comparison
 	}
-	actionChargesGoldenFile(golden, what, unset).Check(t, prefix+"/", got)
+	actionChargesGoldenFile(golden, what, unset).CheckSampled(t, prefix+"/", got)
+}
+
+// actionCaseList returns the cases of the action expressions, in order.
+func actionCaseList(actionExprs []codegentest.ActionCase) []codegentest.Case {
+	cases := make([]codegentest.Case, len(actionExprs))
+	for i, c := range actionExprs {
+		cases[i] = c.Case
+	}
+	return cases
+}
+
+// allActionIndices returns the positions of all action expressions.
+func allActionIndices(n int) []int {
+	sel := make([]int, n)
+	for i := range sel {
+		sel[i] = i
+	}
+	return sel
 }
 
 // actionChargeKey is the key of the golden entry of action expression i of action expressions for the input on the target.
@@ -227,12 +249,13 @@ func actionChargeKey(prefix string, actionExprs []codegentest.ActionCase, i int,
 // goActionCharges returns the golden entries of the generated Go targets for action expressions: the charges of the node
 // parser's Parse and Recognize and of the typed parser's ParseValue, in compute units. mutate, if not nil, edits each generated parser before it
 // is built; it is given the target the parser is built for, "go-node" or "go-typed".
-func goActionCharges(t *testing.T, prefix string, actionExprs []codegentest.ActionCase, mutate func(target string, src []byte) []byte) map[string]string {
+func goActionCharges(t *testing.T, prefix string, actionExprs []codegentest.ActionCase, sel []int, mutate func(target string, src []byte) []byte) map[string]string {
 	t.Helper()
-	cases := make([]codegentest.Case, len(actionExprs))
-	for i, c := range actionExprs {
-		cases[i] = c.Case
-		cases[i].Name = fmt.Sprintf("action %d", i)
+	// Each selected action expression keeps its position in actionExprs as its name, so the keys name it as the golden does.
+	cases := make([]codegentest.Case, len(sel))
+	for j, i := range sel {
+		cases[j] = actionExprs[i].Case
+		cases[j].Name = fmt.Sprintf("action %d", i)
 	}
 	got := map[string]string{}
 	rt := codegentest.LibCopy()
