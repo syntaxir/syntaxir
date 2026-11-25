@@ -6,11 +6,12 @@ table after the Core passes, the options of the table and the plan of the table,
 module holds. This chapter specifies what the plan holds, how each node of Core IR is lowered and what a lowered
 function guarantees, so that the proofs and the backends can rely on it.
 
-The chapter separates two kinds of statement. The [requirements](#requirements) and every sentence with MUST or MUST NOT
-are normative: an implementation that breaks one is wrong. The paragraphs marked **Current choice** describe how the
-implementation decides what the requirements leave open, such as whether a rule runs flat or framed and which nodes run
-as functions of their own; a change to them is an implementation change, which keeps the requirements and updates the
-paragraph, not a change to this specification.
+The chapter separates two kinds of statement. The [requirements](#requirements), every sentence with MUST or MUST NOT,
+and the sections [The Plan](#the-plan), with its table of uses, [Functions](#functions) and [Nodes](#nodes) are
+normative, except the paragraphs marked **Current choice**: an implementation that breaks a normative statement is
+wrong. The paragraphs marked **Current choice** describe how the implementation decides what the requirements leave
+open, such as whether a rule runs flat or framed and which nodes run as functions of their own; a change to them is an
+implementation change, which keeps the requirements and updates the paragraph, not a change to this specification.
 
 ## The Table
 
@@ -82,8 +83,8 @@ refused when a reachable statement reads its entry position or its context, whic
 a variable holds a value, which a value-free flat rule does not keep; reachability is that of the dead-store analysis of
 Code IR. In a typed table, every rule whose captures can be variables, which excludes left-recursion leaders, Operators
 Rules and rules with a recovery or an inlined call, runs flat and returns its typed value; a left-recursion leader or a
-rule that recovers is a framed function that builds its value, when its frame has the slots of the frame that the typed
-runtime shares with the Node table. The lines of an Operators Rule are planned as framed functions when they have no
+rule that recovers is a framed function, which builds its value when the rule's value is wanted, when its frame has
+the slots of the frame that the typed runtime shares with the Node table. The lines of an Operators Rule are planned as framed functions when they have no
 inlined call and no Operators Rule. The rules that no entry point reaches are left out, and those of the Node and
 recognizer tables are lowered as a part of their own, so that the expectation table keeps a row for every rule.
 
@@ -123,9 +124,11 @@ restore it when the body fails.
   may change: the environment, the recovered errors, the insertions and the capture trail. A failure returns to it
   with `flow.reset`.
 
-When the body of a function cuts, each backtracking point inside it has a cut flag of its own, false before its body
-runs; a `Cut` sets the flag of the innermost one. When a body fails with its flag set, the backtracking point fails
-instead of trying what follows. At the top level of a local function and inside a lookahead a cut sets no flag.
+When the body of a function cuts, each backtracking point inside it other than a negative lookahead has a cut flag of
+its own, false before its body runs; a `Cut` sets the flag of the innermost one inside the innermost lookahead around
+the cut, if any. When a body fails with its flag set, the backtracking point fails instead of trying what follows. So a
+cut at the top level of a local function, or in the body of a lookahead outside every backtracking point inside that
+body, sets no flag: the body of a lookahead starts with none, and a negative lookahead has none of its own.
 
 ### Nodes
 
@@ -141,7 +144,7 @@ instead of trying what follows. At the top level of a local function and inside 
 | `Choice` | A backtracking point. The alternatives are tried in order, each in a block of its own: one that matches gives the choice its value, shaped as one element, and ends the choice; one that fails restores the saved state and, unless its cut flag is set, lets the next one run; after the last, the choice fails. The alternatives after one that cannot fail are not lowered. An alternative that keeps its guard is skipped first when the guard rules it out ([Guards](#guards)) |
 | `Opt` | A backtracking point around its body. When the body fails it restores the saved state, fails if the body cut, and its value is nil |
 | `Repeat` | A loop of at most the maximum of iterations ([Repetitions](#repetitions)) |
-| `Look` | A positive lookahead saves the position, and the number of recovered errors and the length of the path of insertions where its body may change them, enters the silent depth with its site (`flow.silent`), matches its body and returns to the start on both outcomes, failing when its body fails; it keeps the captures and bindings of its body. A negative lookahead is a backtracking point: it fails when its body matches, and restores the saved state on both outcomes. Neither builds a value |
+| `Look` | A positive lookahead saves the position, and the number of recovered errors and the length of the path of insertions where its body may change them, enters the silent depth with its site (`flow.silent`), matches its body and returns to the start on both outcomes, failing when its body fails; it keeps the captures and bindings of its body. A negative lookahead is a backtracking point that enters the silent depth with its site (`flow.silent`) too: it fails when its body matches, and restores the saved state on both outcomes. Neither builds a value |
 | `Cut` | Sets the cut flag of the innermost backtracking point, where there is one |
 | `Call` | Calls the rule with `flow.callRule`, from the Operators Rule level of the call, and fails when the call fails. Its value is the rule's value |
 | `Nest` | Not lowered: a rule whose body holds an inlined call has no function in the plan |
@@ -196,8 +199,14 @@ class reads the character once for all the class guards of the choice (`flow.gua
 expectation of the guard, under Logical makes the effects of the calls that evaluating the alternative would make
 before it fails (`flow.skippedCalls`), and under Observe reports the skip.
 
-- A table MUST keep a guard only where skipping the alternative leaves the state that evaluating it leaves and records
-  the same expectations, with the exception of the setting of Guards that serves only measurements.
+- A table MUST keep a guard only where skipping the alternative records the same expectations as evaluating it and
+  leaves the state that evaluating it leaves where that state is observable: always the position, the captures, the
+  bindings, the recovered errors and the insertions, and the memo entries and records that the calls of the
+  alternative would store only when the table counts units (Logical) or the parse is a Document
+  ([Evaluations of Rules](../runtime/parsing.md#evaluations-of-rules)). The setting of Guards that serves only
+  measurements is the exception.
+- A table MAY keep fewer guards than the current choice below, down to none: a kept guard only spares the evaluation
+  of an alternative that would fail, so keeping one is an optimization.
 - A guard whose skip passes over a call of a rule that a Document memoizes is taken only outside Documents
   (`flow.inDocument`): a Document parse evaluates the alternative, so that its memo records what the parse examined.
 - In a table that inserts, a guard is taken only in a parse that does not insert missing tokens (`flow.inserting`).
@@ -216,8 +225,10 @@ rule, so it counts only what its node counts.
 
 - An outlined node MUST be a node that a framed function can lower, with no `Cut` and no `Stream` inside it; in a
   local function it MUST also set and read no capture, and hold no predicate, binding or recovery.
-- The root of a function, the nodes of a function lowered with Observe and the nodes of a stream body are never
-  outlined.
+- The root of a function and the nodes of a function lowered with Observe are never outlined, and neither are the
+  nodes of a stream body from its `#stream` repetition on: the repetition, its element and the nodes after it. A node
+  before the repetition may be outlined; its function is lowered as for any framed function of the table, and under
+  Suspend it demands its input as the stream body does.
 - Each distinct node is lowered once for each frame layout and building of its calls, and its function follows the
   functions of the plan, in the order in which the functions of the table first call it.
 
@@ -228,15 +239,19 @@ shared.
 ## Requirements
 
 The requirements below hold of every function that the lowering makes, before and after the passes of the Flow stage,
-which preserve them ([Passes](passes.md)). The specification states them here; the proofs show them.
+which preserve them ([Passes](passes.md)). The specification states them here; the proofs that the lowering meets the
+requirements of Outcome, Size, Work and Compute Units are pending, and the proofs of the bounds on a parse use them as
+stated.
 
 ### Outcome
 
 The functions of a table, run under the contracts of the operations of the Flow dialect and of the runtime that owns
 their frames, MUST give the outcome that the [Parser and Runtime Specification](../runtime/README.md) defines for the
 rules they lower: whether a rule, line or node matches, the position after it, its value, the expectations it records,
-the recovered errors and insertions it leaves, and the memo entries and records it stores. A framed function and the
-flat function it is the fallback of give the same outcome.
+the recovered errors and insertions it leaves, and, when the table counts units (Logical) or the parse is a Document,
+the memo entries and records it stores. Otherwise the memo is not observable: a memo entry answers a call as its
+evaluation would, so a skip of a guard that stores none of the failure entries of the calls it passes over gives the
+same outcome. A framed function and the flat function it is the fallback of give the same outcome.
 
 ### Size
 

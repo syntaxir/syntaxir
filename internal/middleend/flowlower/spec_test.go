@@ -30,7 +30,32 @@ const (
 	// declares the uses of planned functions, relative to this package.
 	coreNodes    = "../../ir/core/node.go"
 	plandataFile = "../flowplan/plandata/plandata.go"
+	// lowerdataFile declares the forms of a lowered function and the settings of Guards.
+	lowerdataFile = "lowerdata/lowerdata.go"
 )
+
+// The forms of a lowered function that the section Functions of the chapter describes (local,
+// framed and outlined), and the settings of Guards that its row in the table of options describes.
+var (
+	chapterForms  = []string{"Flat", "Frame", "Outline"}
+	chapterGuards = []string{"GuardsExact", "GuardsEvent", "GuardsKeep", "GuardsNone"}
+)
+
+// TestLoweringChapterSettings checks that the lowering has the forms and the settings of Guards that
+// the chapter describes, so that a new one fails until the chapter, and the lists above, describe it.
+func TestLoweringChapterSettings(t *testing.T) {
+	for _, c := range []struct {
+		typ  string
+		want []string
+	}{
+		{"Form", chapterForms},
+		{"LogicalGuards", chapterGuards},
+	} {
+		if got := constsOf(t, lowerdataFile, c.typ); !slices.Equal(got, c.want) {
+			t.Errorf("lowerdata declares the %s constants %v, and the chapter describes %v", c.typ, got, c.want)
+		}
+	}
+}
 
 // TestLoweringChapterEntries checks that the tables of nodes, uses and options of the chapter list
 // exactly the nodes of Core IR, the uses of the plan and the options of the lowering.

@@ -796,8 +796,13 @@ and its lookahead consumes input inside it. The pragmas `#ignorecase` and
 `#missing` annotate a literal, which stays a terminal: a case-insensitive
 literal and a literal that may insert its text. Parsers need not skip the same
 alternatives, so they can differ in the calls that they make
-([Observability](observability.md)) but not in the outcome of any evaluation,
-the compute units of a parse or what its memo holds.
+([Observability](observability.md)) but not in the outcome of any evaluation
+or the compute units of a parse. The memo is observable only through the
+compute units and through a [Document](documents.md), which keeps it for later
+parses: a memo entry answers a call as its evaluation would. So with limit
+controls, and in a Document parse, parsers do not differ in what the memo holds
+either; otherwise a skip need not store the failures of the calls it passes
+over.
 
 ### Growths of Left Recursion
 

@@ -324,7 +324,7 @@ func streamOracleMismatches(t *testing.T, src string, inputs []string, d streamO
 // a line feed and begin at a line start (^), which reads the unit before the commit point; memoized
 // rules that backtrack within an element; an element that tries a rule past its end, whose memo
 // entries the next element reuses; recovered errors; and inputs long enough to discard the input, prune the memo
-// and count lines across discards, with syntax errors after them.
+// and count lines across discards, with syntax errors after them; and a header before the stream.
 var streamOracleCases = []struct {
 	name, src string
 	inputs    []string
@@ -368,6 +368,13 @@ rule item = [a-z]+ ";"
 rule main = item* #stream
 rule item = [a-z]+ ";"
 `, []string{"", "a;b;", "a;b", "a;;", strings.Repeat("ab;", 200)}, nil},
+	// The header before the stream repeats the trailer, so the TypeScript table runs the header as a
+	// function of its own, which suspends for input like the stream body; the trailer, after the
+	// stream, stays in place.
+	{"outlined header", `@start
+rule main = ("<" ([a-z] / [0-9])+ ">") item* #stream ("<" ([a-z] / [0-9])+ ">") !.
+rule item = [a-z]+ ";"
+`, []string{"", "<a>", "<ab>a;b;<c1>", "<a>x;<b>", "<1>a;<", "<a1", "<abc>" + strings.Repeat("ab;", 200) + "<z9>"}, limitRuns},
 	{"text", `@start
 rule main = item* #stream !.
 rule item = k:key o:("=" / ":==") v:val ";" {text($k) != "x" && text($o) != "" && text($v) != "0"}
