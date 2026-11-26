@@ -33,7 +33,8 @@ establish lower retained memory for every result or universal throughput gains.
 
 Evidence records: [048](../048-a-typed-runtime-for-parsevalue.md),
 [074](../074-smaller-first-chunks-for-generated-typed-values.md),
-[098](../098-bootstrap-generated-typed-output-allocations.md).
+[098](../098-bootstrap-generated-typed-output-allocations.md),
+[139](../139-geometric-typed-value-chunks.md).
 
 Source owners: [`astSlice generation`](../../../internal/backend/codegen/golang/print/types.go),
 [`disableTypedListSlabs`](../../../internal/backend/codegen/golang/print/generator.go), [`slices/individual

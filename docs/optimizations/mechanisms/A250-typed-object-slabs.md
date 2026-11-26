@@ -44,7 +44,8 @@ within about 2%. The `Memory` limit counts the real size of each slab.
 
 Evidence records: [048](../048-a-typed-runtime-for-parsevalue.md),
 [074](../074-smaller-first-chunks-for-generated-typed-values.md),
-[098](../098-bootstrap-generated-typed-output-allocations.md).
+[098](../098-bootstrap-generated-typed-output-allocations.md),
+[139](../139-geometric-typed-value-chunks.md).
 
 Source owners: [`astNew generation`](../../../internal/backend/codegen/golang/print/types.go),
 [`disableTypedObjectSlabs`](../../../internal/backend/codegen/golang/print/generator.go),

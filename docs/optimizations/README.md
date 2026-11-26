@@ -282,6 +282,7 @@ Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](05
 - [136. Measured effect of the generation flags](136-measured-effect-of-the-generation-flags.md)
 - [137. Scan records on every target](137-scan-records-on-every-target.md)
 - [138. Typed-only output of generated TypeScript](138-typed-only-output-of-generated-typescript.md)
+- [139. Geometric typed value chunks](139-geometric-typed-value-chunks.md)
 - [140. Compute units counted down as fuel](140-compute-units-counted-down-as-fuel.md)
 
 ## Experiments That Did Not Pay Off
