@@ -114,3 +114,24 @@ func TestDrainFinalizersWaitsForEveryFinalizer(t *testing.T) {
 		}
 	}
 }
+
+var moreKeep *[64]byte
+
+// TestAllocsSeesMoreWork checks that work which allocates one object more on every run adds to the counts:
+// the counts are those of the work, so more work gives more counts.
+func TestAllocsSeesMoreWork(t *testing.T) {
+	base := func() {
+		sink = make([]*[64]byte, 0, 100)
+		for range 100 {
+			sink = append(sink, new([64]byte))
+		}
+	}
+	wantO, wantB := Allocs(base)
+	o, b := Allocs(func() {
+		base()
+		moreKeep = new([64]byte)
+	})
+	if o <= wantO || b <= wantB {
+		t.Errorf("work that allocates more: %d objects, %d bytes; want more than %d and %d", o, b, wantO, wantB)
+	}
+}
