@@ -128,7 +128,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [R060](mechanisms/R060-chunked-document-input.md) | Chunked Document text storage | C/RVM/IVM Document pieces; GN/TG Document token text, with code points kept decoded | ✓ | ✓ | ✓ | Partial | Partial | — | Default | sxir_reference_document_pieces (engine only) |
 | [R070](mechanisms/R070-document-memo-edits.md) | Gap-buffer memo splice and lazy advancement | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R080](mechanisms/R080-lazy-code-point-offsets.md) | On-demand code-point offsets | Core recognition and Document offset tables | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
-| [R090](mechanisms/R090-moving-document-trees.md) | Move reused Document results | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
+| [R090](mechanisms/R090-moving-document-trees.md) | Move reused Document results | C/RVM/IVM/GN Document; TG basic values only | ✓ | ✓ | ✓ | ✓ | Partial | — | Default | None maintained |
 | [R100](mechanisms/R100-document-repetition-resumption.md) | Resume saved long repetition runs | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R110](mechanisms/R110-document-run-record-retention.md) | Retain unchanged-generation repetition records | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R120](mechanisms/R120-transient-rule-memo-policy.md) | Avoid ordinary memoization for transient rules | All six; Document remains eager | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
@@ -347,6 +347,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 - [145. TypeScript spend runs removed](145-typescript-spend-runs-removed.md)
 - [146. Outlined TypeScript nodes](146-outlined-typescript-nodes.md)
 - [147. Decoded text of generated Go Documents](147-decoded-text-of-generated-go-documents.md)
+- [148. Moving reused trees of generated Go Documents](148-moving-reused-trees-of-generated-go-documents.md)
 
 ## Experiments That Did Not Pay Off
 

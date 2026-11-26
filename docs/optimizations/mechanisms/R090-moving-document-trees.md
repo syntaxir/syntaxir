@@ -16,8 +16,11 @@ versions.
 
 ## Scope and State
 
-Default engine Document result reuse in closure and both VMs. Generated
-alpha-parsers/typescript have no Document move path.
+Default engine Document result reuse in closure and both VMs, and generated Go
+Node Documents (`-document`), which move with the same generations and edit
+replay. Generated typed Go Documents move basic values and copy typed values
+that hold nodes. Generated TypeScript Documents copy a reused value at each
+reuse.
 
 ## Reference Control
 
@@ -34,12 +37,14 @@ can change as positions move.
 
 Evidence records:
 [029](../029-shifting-reused-subtrees-into-the-parsers-chunks.md),
-[045](../045-moving-reused-trees-in-place-after-document-edits.md).
+[045](../045-moving-reused-trees-in-place-after-document-edits.md),
+[148](../148-moving-reused-trees-of-generated-go-documents.md).
 
 Source owners: [`moveResult and moved Node
 handling`](../../../internal/runtime/state/runtime.go), the `value` package (node
 clone), [`edit log and result
-shift`](../../../internal/runtime/document/document.go).
+shift`](../../../internal/runtime/document/document.go), and the libgo package for
+generated Go Documents.
 
 The [comparison policy](../../design/records/024-optimization-mechanism-controls.md)
 distinguishes same-source controls, historical changes and full checkpoints.

@@ -1022,9 +1022,13 @@ type Parser struct {
 	// docLow is the start of the input that the active rule call examined, [docLow, docExamined). The
 	// fields that only Documents use come last, away from those of every parse.
 	docLow int
-	// moved maps the nodes of a value that holds a node more than once to their copies
-	// (documentMove).
-	moved map[*sxirvalue.Node]*sxirvalue.Node
+	// moved maps the empty nodes that the move of a value copied to their copies, and shifts the
+	// generations of the nodes it visited to how far they move (documentMove); moveBase and baseShift
+	// are the generation and the shift of the value being moved.
+	moved     map[*sxirvalue.Node]*sxirvalue.Node
+	shifts    map[uint32]int
+	moveBase  uint32
+	baseShift int
 	// runs and lastRuns are the repetition runs recorded in this Document parse and the previous one
 	// (document_runs.go); runs is nil outside a Document parse, where no repetition resumes. freeRuns
 	// are the finished runs kept for the next runs that start.
@@ -1064,10 +1068,6 @@ type documentState struct {
 	// whose bindings the memo's keys hold share a stamp.
 	assignments uint64
 	stats       documentStats
-	// moves numbers the moves of values after edits (documentMove) over the life of the memo, not of
-	// a parse: the nodes that the memo keeps carry the number of the last move that visited them from
-	// one parse to the next, so a number is not used twice while the memo holds entries (parse).
-	moves uint32
 	// typedMemo is the memo of typed parses (typedDocumentState), if the Document has one; the
 	// interface keeps the typed library out of parsers without it.
 	typedMemo interface{ splice(log []documentEdit) }
@@ -1204,6 +1204,12 @@ type memoEntry struct {
 	// made valid at its position (documentMove).
 	vgen  uint32
 	shift int32
+	// ngen is the number of edits that the positions of the nodes of the value accounted for when the
+	// entry was stored or last moved them (documentMove); shifted reports that some edit since shifted
+	// the entry (the shifts may cancel out, and nodes may have been moved through another value that
+	// shares them, so shift alone does not tell whether to move the value).
+	ngen    uint32
+	shifted bool
 }
 
 // get returns the entry for the rule, position, level and variable values.
@@ -1436,6 +1442,8 @@ func (p *Parser) NewNode(v Data) *sxirvalue.Node {
 // buildNode is NewNode for a node that the parse builds, which charges nothing: the values that the
 // parse builds are not an item of the cost (spec/runtime/parsing.md#cost).
 func (p *Parser) buildNode(v Data) *sxirvalue.Node {
+	// A node holds the positions of the text of the generation that built it (documentMove).
+	v.Mark = p.gen
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]sxirvalue.Node, nodeChunk)
 		p.memUsed += nodeChunk * nodeBytes
@@ -1451,6 +1459,7 @@ func (p *Parser) buildNode(v Data) *sxirvalue.Node {
 
 // NewNodeOrdinary is NewNode in an ordinary parse.
 func (p *Parser) NewNodeOrdinary(v Data) *sxirvalue.Node {
+	v.Mark = p.gen
 	if len(p.nodeSlab) == 0 {
 		p.nodeSlab = make([]sxirvalue.Node, nodeChunk)
 		if p.Stream != nil {
@@ -1480,7 +1489,7 @@ func (p *Parser) NewTerminalOrdinary(start int, text string) *sxirvalue.Node {
 	}
 	n := &p.nodeSlab[0]
 	p.nodeSlab = p.nodeSlab[1:]
-	*D(n) = Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true}
+	*D(n) = Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true, Fresh: true, Mark: p.gen}
 	return n
 }
 
@@ -1501,7 +1510,7 @@ func (p *Parser) NewBranchOrdinary(kind *valueimpl.Kind, start int, children []*
 	}
 	n := &p.nodeSlab[0]
 	p.nodeSlab = p.nodeSlab[1:]
-	*D(n) = Data{Kind: kind, Start: int32(start), End: int32(p.Pos), Children: children, Fresh: true}
+	*D(n) = Data{Kind: kind, Start: int32(start), End: int32(p.Pos), Children: children, Fresh: true, Mark: p.gen}
 	return n
 }
 

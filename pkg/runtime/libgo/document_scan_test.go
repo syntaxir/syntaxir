@@ -38,7 +38,7 @@ func scanDocumentRules(hit *bool) (main, last *Rule) {
 		if count >= scanHotSpan {
 			p.ScanEnd(site, start, count)
 		}
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos)}), true
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos)}), true
 	}
 	plain := &Rule{Id: 1, Name: "plain", Seen: -1}
 	plain.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) { return walk(p) }

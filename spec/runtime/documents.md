@@ -702,8 +702,8 @@ grow with what the Document retains:
   recorded iterations of that parse;
 - the growth of the slots of the memo table, which grows with the slots that
   deletions leave;
-- the generated runtimes, which copy a reused value at each reuse instead of
-  moving it once in a parse.
+- the generated TypeScript runtime, which copies a reused value at each reuse
+  instead of moving it once in a parse.
 
 The engine also clears, at the end of each Document parse, the whole capacity
 of its stack of repetition values, which grows with the longest stack of an

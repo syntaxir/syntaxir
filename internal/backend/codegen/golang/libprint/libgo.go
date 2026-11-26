@@ -581,15 +581,22 @@ func goTarget(s goSpec) *print.Target {
 		case "memo.pinned":
 			return a[0] + ".pinned"
 		case "memo.shifted":
-			// The library moves a copy of the value by the entry's shift (documentMove), so the value has
-			// to move exactly when the shift is not zero.
-			return "(" + a[0] + ".shift != 0)"
+			if typed {
+				// The typed library moves only basic values (typedMove), so a value has to move exactly
+				// when the shift is not zero.
+				return "(" + a[0] + ".shift != 0)"
+			}
+			return a[0] + ".shifted"
 		case "memo.applied":
 			return "int(" + a[0] + ".vgen)"
 		case "memo.advance":
-			// The shifted flag is the shift's (memo.shifted): the library does not record it.
-			return fmt.Sprintf("%[1]s.end += %[4]s\n%[1]s.from, %[1]s.examined = %[2]s, %[3]s\n%[1]s.far += %[4]s\n%[1]s.shift += int32(%[4]s)\n%[1]s.vgen = uint32(%[5]s)",
+			s := fmt.Sprintf("%[1]s.end += %[4]s\n%[1]s.from, %[1]s.examined = %[2]s, %[3]s\n%[1]s.far += %[4]s\n%[1]s.shift += int32(%[4]s)\n%[1]s.vgen = uint32(%[5]s)",
 				a[0], a[1], a[2], a[3], a[5])
+			if typed {
+				// The shifted flag of the typed library is the shift's (memo.shifted): it does not record it.
+				return s
+			}
+			return s + fmt.Sprintf("\n%s.shifted = %s", a[0], a[4])
 		case "edit.count":
 			return "len(" + a[0] + ")"
 		case "edit.start":
@@ -758,6 +765,10 @@ p.lastKept = p.arena[off:len(p.arena):len(p.arena)]
 			e := dst[0]
 			fields := fmt.Sprintf("%s: %s, ok: %s, end: %s, silent: %s, errs: %s", valueField, a[7], a[4], a[5], a[6], a[8])
 			fields += ", vgen: p.gen"
+			if !typed {
+				// The nodes of the value hold positions of the current text (documentMove).
+				fields += ", ngen: p.gen"
+			}
 			return fmt.Sprintf("%s%s%s\n*%s = %s{%s}\n%[4]s = p.memoPut(%[7]s, %[8]s, %[4]s)", e, op, alloc, e, entryType, fields, key(), a[9]), true
 		}
 		return "", false
@@ -805,8 +816,7 @@ func goRunOp(callee string, a []string) (string, bool) {
 	case "oldCount":
 		return "len(" + a[0] + ".old)", true
 	case "take":
-		// The library moves a copy of the value (runTake), which needs no generation.
-		return "p.runTake(" + strings.Join(a[:3], ", ") + ")", true
+		return "p.runTake(" + strings.Join(a, ", ") + ")", true
 	case "resumed":
 		return "p.Document.stats.Reused++\np.Document.stats.Resumed++", true
 	case "add":

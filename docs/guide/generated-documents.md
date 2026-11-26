@@ -42,8 +42,9 @@ engine's `Document` counts them. `ParseValue` keeps a typed memo of its own and 
 Both kinds of Document keep the memo results that examined only text before an edit where they are, and move those
 that examined only text after it by the edit's change in length; the others are evaluated again. A result of a rule
 whose actions or predicates read positions (`.Start`, `.End`), or that recovered errors, is not moved. The Node
-Document moves the nodes of a moved result when a parse reuses it, in copies, so a tree returned earlier keeps its
-positions; a result that holds an action value other than nodes and basic values is evaluated again instead. `Edit`
+Document moves the nodes of a moved result in place when a parse reuses it, as the engine's Document does, so a tree
+returned earlier carries the new positions in the nodes that the parse reused: take `Node.Clone` before the next parse
+to keep a tree as it was. `Edit`
 applies itself at once only to the results at the text it replaced; a later parse moves any other result when it
 looks the result up, so an edit costs time in proportion to those results and to its distance from the previous
 edit, not to the size of the memo. A typed Document keeps its results

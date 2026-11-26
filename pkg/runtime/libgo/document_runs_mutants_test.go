@@ -16,7 +16,7 @@ var runMutants = []goMutant{
 	{"the reused prefix ignores the edit", "call_exec.go", "runPrefix", "if r.old[r.K].examined > r.EditStart {", "if false {"},
 	{"the reused tail does not move", "call_exec.go", "runTail", "p.runReuse(r, i, r.EditDelta,", "p.runReuse(r, i, 0,"},
 	{"a run resyncs at an old element that starts elsewhere", "call_exec.go", "runResync", "r.Seek == n || r.old[r.Seek].start != at", "r.Seek == n"},
-	{"a moved element keeps the positions of its value", "document_runs.go", "runTake", "el.v = p.moveRunValue(el.v, int32(shift))\n", ""},
+	{"a moved element keeps the positions of its value", "document_runs.go", "runTake", "el.v = p.moveValue(el.v, shift, uint32(gen))\n", ""},
 	{"the elements after the edit are recorded before the old ones", "document_runs.go", "runAdd", "if after {", "if false {"},
 }
 

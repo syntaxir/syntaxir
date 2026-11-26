@@ -32,8 +32,8 @@ facts, rather than current performance estimates:
 - [`Document`](../../../pkg/runtime/vm/) is single-owner mutable state. Several edits may
   precede one parse; construction does not parse the input.
 - [`Document.Parse`](../../../internal/runtime/document/document.go) reuses memo results and
-  repetition records. [`moveResult` and `moveTree`](../../../internal/runtime/state/runtime.go)
-  move reused nonempty Nodes in place, so earlier returned trees can change.
+  repetition records. [`moveResult`](../../../internal/runtime/state/runtime.go)
+  moves reused nonempty Nodes in place, so earlier returned trees can change.
   Empty nodes can require copies because their placement is contextual.
 - `Node.Clone` in the `core` package copies children and node-valued
   fields with an identity map. Shared descendants stay shared in the clone;

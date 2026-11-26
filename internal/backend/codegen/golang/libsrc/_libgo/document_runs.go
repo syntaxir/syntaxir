@@ -1,7 +1,6 @@
 package libgo
 
 import (
-	"fmt"
 	"slices"
 	"unsafe"
 
@@ -129,12 +128,12 @@ func (p *Parser) runTakeLast(r *RunState, at, gen int) bool {
 	return true
 }
 
-// runTake is run.take: it moves the old element i of r by shift. The value moves in a copy, as a
-// memo entry's does (documentMove), since it may be part of a result already returned.
-func (p *Parser) runTake(r *RunState, i, shift int) *sxirvalue.Node {
+// runTake is run.take: it moves the old element i of r, its value made in the generation gen, by
+// shift, as documentMove moves the value of a memo entry.
+func (p *Parser) runTake(r *RunState, i, shift, gen int) *sxirvalue.Node {
 	el := &r.old[i]
 	if shift != 0 {
-		el.v = p.moveRunValue(el.v, int32(shift))
+		el.v = p.moveValue(el.v, shift, uint32(gen))
 		el.start += shift
 		el.end += shift
 		el.from += shift
@@ -142,20 +141,6 @@ func (p *Parser) runTake(r *RunState, i, shift int) *sxirvalue.Node {
 		el.far += shift
 	}
 	return el.v
-}
-
-// moveRunValue returns a copy of the value v of a recorded element moved by shift. Moving it is work
-// of the Document that a parse from scratch does not do.
-func (p *Parser) moveRunValue(v *sxirvalue.Node, shift int32) *sxirvalue.Node {
-	if v == nil {
-		return nil
-	}
-	n, ok := p.moveCopy(v, shift)
-	if !ok {
-		// The values of the node runtime are nodes and basic values, which always move.
-		panic(fmt.Errorf("internal error: the value of an element of a run holds a host value that cannot move"))
-	}
-	return n
 }
 
 // runAdd is run.add.

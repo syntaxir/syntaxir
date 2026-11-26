@@ -149,7 +149,7 @@ func (d *Document) ResetHistory() { d.State.resetHistory() }
 
 // resetHistory is ResetHistory.
 func (d *documentState) resetHistory() {
-	d.memo, d.typedMemo, d.runs, d.edits, d.moves = memoTable{}, nil, nil, nil, 0
+	d.memo, d.typedMemo, d.runs, d.edits = memoTable{}, nil, nil, nil
 }
 
 // retainedBytes returns the bytes that a parse of either form under a memory limit starts its count
@@ -372,125 +372,153 @@ func (t *memoTable) retire(e *memoEntry) {
 	t.free = e
 }
 
-// moveMarkLimit is the number of moves after which a parse starts without the memo of the Document,
-// and numbers the moves from 1 again. A parse moves each entry of the memo at most once, so it makes
-// far fewer moves than the numbers that remain.
-const moveMarkLimit = 1 << 31
-
-// documentMove moves the nodes of the value of e by the shift that edits gave e (advanceEntry), in
-// copies, since the value may be part of a result already returned, and reports whether it could:
-// a value that holds a host value other than a node or a basic value is not moved. The check and the
-// copy each cost, for every distinct node of the value, a unit and one more for each of its children
-// and fields.
+// documentMove brings the positions of the value of the memo entry e, which edits have shifted
+// (advanceEntry), up to date, as the engine does (internal/runtime/state/document_ops.go): a node
+// that does not start where it ends is moved in place, once in a parse, and an empty one is copied
+// (moveEmpty). It always reports true: the values of Parse are nodes and basic values, which every
+// backend moves (spec/runtime/documents.md#reuse-model). Moving values is work of the Document that a
+// parse from scratch does not do, and counts no unit.
+//
+// No edit falls inside the input a reused result examined, so all the nodes of its tree move
+// together, and for a non-empty node each edit either lies before it (the node moves by the edit's
+// delta) or not (it stays), which its positions tell wherever the node is shared. A node's positions
+// account for the first Mark edits: those of the parse that built it or last moved it, and the later
+// ones are replayed (shiftOf). An empty node at the point of an insertion is ambiguous: it may belong
+// to a result before the insertion and to one after it at the same time. Empty nodes are therefore
+// never modified; they are copied, moving with the node that contains them (or, at the root, with
+// the memo entry).
 func (p *Parser) documentMove(e *memoEntry) bool {
-	if e.shift == 0 {
+	if !e.shifted {
 		return true
 	}
-	if e.node == nil {
-		// A result without a node holds no positions.
-		e.shift = 0
+	n := e.node
+	p.moveBase, p.baseShift = e.ngen, int(e.shift)
+	e.ngen, e.shift, e.shifted = p.gen, 0, false
+	if n == nil {
 		return true
 	}
-	// Moving the value is work of the Document that a parse from scratch does not do.
-	n, ok := p.moveCopy(e.node, e.shift)
-	if !ok {
-		return false
+	if D(n).Start == D(n).End {
+		e.node = p.moveEmpty(n, p.baseShift)
+	} else if D(n).Mark < p.gen {
+		p.moveTree(n, p.shiftOf(n))
 	}
-	e.node, e.shift = n, 0
+	p.endMove()
 	return true
 }
 
-// moveCopy returns a copy of the value n with its positions moved by shift, and reports whether it
-// could: a value that holds a host value other than a node or a basic value is not moved. The check
-// and the copy each cost, for every distinct node of the value, a unit and one more for each of its
-// children and fields.
-func (p *Parser) moveCopy(n *sxirvalue.Node, shift int32) (*sxirvalue.Node, bool) {
-	// The check marks the nodes it visits with the number of the move, which no earlier move of the
-	// Document had, so that a mark that an earlier move left, in this parse or an earlier one, whether
-	// that move went on or refused, never reads as a visit of this one. A node that the check finds
-	// marked occurs in the value more than once; such a value is moved through a map from the nodes to
-	// their copies, so that each is copied once and the copies are shared as the nodes were.
-	d := p.Document
-	d.moves++
-	movable, shared := p.movable(n, d.moves)
-	if !movable {
-		return nil, false
-	}
-	if shared {
-		if p.moved == nil {
-			p.moved = map[*sxirvalue.Node]*sxirvalue.Node{}
-		}
-		n = p.moveShared(n, shift)
-		clear(p.moved)
-		return n, true
-	}
-	return p.moveNode(n, shift), true
-}
-
-// movable reports whether moveNode can move n: its fields and box hold only nodes and basic values;
-// and whether a node occurs in n more than once. It marks the nodes it visits with mark.
-func (p *Parser) movable(n *sxirvalue.Node, mark uint32) (movable, shared bool) {
-	if n == nil {
-		return true, false
-	}
-	if D(n).Mark == mark {
-		return true, true
-	}
-	D(n).Mark = mark
-	if !basicValue(D(n).Box) {
-		return false, false
-	}
-	for _, c := range D(n).Children {
-		ok, sh := p.movable(c, mark)
-		if !ok {
-			return false, false
-		}
-		shared = shared || sh
-	}
-	for _, f := range D(n).Fields {
-		if c, ok := f.Value.(*sxirvalue.Node); ok {
-			ok, sh := p.movable(c, mark)
-			if !ok {
-				return false, false
-			}
-			shared = shared || sh
-		} else if !basicValue(f.Value) {
-			return false, false
-		}
-	}
-	return true, shared
-}
-
-// basicValue reports whether v holds no positions: nil, a boolean, a number or a string.
-func basicValue(v any) bool {
-	switch v.(type) {
-	case nil, bool, string, int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64, uintptr,
-		float32, float64, complex64, complex128:
-		return true
-	}
-	return false
-}
-
-// moveNode returns a copy of the movable node n, in which no node occurs twice, with its positions
-// and those of its descendants moved by shift.
-func (p *Parser) moveNode(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
-	if n == nil {
+// moveValue moves the nodes of the value v of an element of a run, recorded in the generation base,
+// by shift, as documentMove moves the value of a memo entry, and returns it or its copy.
+func (p *Parser) moveValue(v *sxirvalue.Node, shift int, base uint32) *sxirvalue.Node {
+	if v == nil {
 		return nil
 	}
+	p.moveBase, p.baseShift = base, shift
+	if D(v).Start == D(v).End {
+		v = p.moveEmpty(v, shift)
+	} else if D(v).Mark < p.gen {
+		p.moveTree(v, p.shiftOf(v))
+	}
+	p.endMove()
+	return v
+}
+
+// endMove forgets the copies and the shifts of the move that ends.
+func (p *Parser) endMove() {
+	if len(p.moved) > 1024 {
+		p.moved = nil
+	} else {
+		clear(p.moved)
+	}
+	clear(p.shifts)
+}
+
+// shiftOf returns how far the non-empty node n of the value being moved moves with the edits since
+// the generation of n (Data.Mark). The nodes of a value move together. Those that were current when
+// the value was last current (generation at most moveBase) move by the value's shift; others were
+// moved through another value since, and the edits after that are replayed once per generation.
+func (p *Parser) shiftOf(n *sxirvalue.Node) int {
+	if D(n).Mark <= p.moveBase {
+		return p.baseShift
+	}
+	if d, ok := p.shifts[D(n).Mark]; ok {
+		return d
+	}
+	s := int(D(n).Start)
+	for _, ed := range p.edits[D(n).Mark:p.gen] {
+		if s >= ed.end {
+			s += ed.delta
+		}
+	}
+	if p.shifts == nil {
+		p.shifts = map[uint32]int{}
+	}
+	p.shifts[D(n).Mark] = s - int(D(n).Start)
+	return s - int(D(n).Start)
+}
+
+// moveTree moves the non-empty node n by shift (shiftOf(n)), and its descendants, in place.
+func (p *Parser) moveTree(n *sxirvalue.Node, shift int) {
+	gen := D(n).Mark
+	D(n).Start += int32(shift)
+	D(n).End += int32(shift)
+	D(n).Mark = p.gen
+	for i, c := range D(n).Children {
+		if c != nil && D(c).Mark < p.gen {
+			D(n).Children[i] = p.moveChild(c, gen, shift)
+		}
+	}
+	for i := range D(n).Fields {
+		if c, ok := D(n).Fields[i].Value.(*sxirvalue.Node); ok && c != nil && D(c).Mark < p.gen {
+			D(n).Fields[i].Value = p.moveChild(c, gen, shift)
+		}
+	}
+}
+
+// moveChild moves the descendant c of a node of generation gen that moved by shift, and returns it
+// or its copy.
+func (p *Parser) moveChild(c *sxirvalue.Node, gen uint32, shift int) *sxirvalue.Node {
+	if D(c).Start != D(c).End {
+		if D(c).Mark != gen {
+			shift = p.shiftOf(c)
+		}
+		p.moveTree(c, shift)
+		return c
+	}
+	// An empty node is not modified after it is made, so its positions are valid where its parent's
+	// were, and it moves with its parent.
+	if shift == 0 {
+		return c
+	}
+	return p.moveEmpty(c, shift)
+}
+
+// moveEmpty returns a copy of the empty node n moved by shift. Its descendants move with it: empty
+// ones are copied the same way, and non-empty ones (captured in a lookahead) are moved in place.
+// Copies made in the same move are shared.
+func (p *Parser) moveEmpty(n *sxirvalue.Node, shift int) *sxirvalue.Node {
+	if c, ok := p.moved[n]; ok {
+		return c
+	}
+	// The copy holds positions of the current text; its non-empty descendants are moved from the
+	// generation of n.
 	c := p.NewNode(*D(n))
-	D(c).Start += shift
-	D(c).End += shift
+	D(c).Start += int32(shift)
+	D(c).End += int32(shift)
+	if p.moved == nil {
+		p.moved = map[*sxirvalue.Node]*sxirvalue.Node{}
+	}
+	p.moved[n] = c
 	if D(n).Children != nil {
 		D(c).Children = p.Nodes(len(D(n).Children))
 		for i, k := range D(n).Children {
-			D(c).Children[i] = p.moveNode(k, shift)
+			D(c).Children[i] = p.moveDescendant(k, D(n).Mark, shift)
 		}
 	}
 	if D(n).Fields != nil {
 		D(c).Fields = p.fields(len(D(n).Fields))
 		for _, f := range D(n).Fields {
 			if k, ok := f.Value.(*sxirvalue.Node); ok {
-				f.Value = p.moveNode(k, shift)
+				f.Value = p.moveDescendant(k, D(n).Mark, shift)
 			}
 			D(c).Fields = append(D(c).Fields, f)
 		}
@@ -498,33 +526,15 @@ func (p *Parser) moveNode(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
 	return c
 }
 
-// moveShared is moveNode for a value that holds a node more than once: moved holds the copies made
-// so far, which it shares.
-func (p *Parser) moveShared(n *sxirvalue.Node, shift int32) *sxirvalue.Node {
-	if n == nil {
+// moveDescendant moves the descendant c of an empty node of generation gen that moved by shift.
+func (p *Parser) moveDescendant(c *sxirvalue.Node, gen uint32, shift int) *sxirvalue.Node {
+	switch {
+	case c == nil:
 		return nil
-	}
-	if c := p.moved[n]; c != nil {
-		return c
-	}
-	c := p.NewNode(*D(n))
-	p.moved[n] = c
-	D(c).Start += shift
-	D(c).End += shift
-	if D(n).Children != nil {
-		D(c).Children = p.Nodes(len(D(n).Children))
-		for i, k := range D(n).Children {
-			D(c).Children[i] = p.moveShared(k, shift)
-		}
-	}
-	if D(n).Fields != nil {
-		D(c).Fields = p.fields(len(D(n).Fields))
-		for _, f := range D(n).Fields {
-			if k, ok := f.Value.(*sxirvalue.Node); ok {
-				f.Value = p.moveShared(k, shift)
-			}
-			D(c).Fields = append(D(c).Fields, f)
-		}
+	case D(c).Start == D(c).End:
+		return p.moveEmpty(c, shift)
+	case D(c).Mark < p.gen:
+		return p.moveChild(c, gen, shift)
 	}
 	return c
 }
@@ -594,11 +604,6 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p.Observation = newObservation(&o.observe, &p.Silent, &d.stats.Resumed)
 	defer p.releaseObservation()
 	p.useDocumentInput(d)
-	if d.moves > moveMarkLimit {
-		// The marks that the nodes of the memo carry would soon repeat: start without it.
-		d.dropMemo()
-		d.moves = 0
-	}
 	p.Document, p.memo = d, d.memo
 	p.edits, p.gen = d.edits, uint32(len(d.edits))
 	// The runs of the last parse: the records of the same text, which this parse takes over, or those

@@ -129,7 +129,7 @@ func (p *Parser) Call(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen, ngen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
@@ -953,7 +953,7 @@ func (p *Parser) callMemo(r *Rule, min int) (*sxirvalue.Node, bool) {
 			}
 		}
 		entry := p.memo.alloc()
-		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen}
+		*entry = memoEntry{node: v, ok: ok, end: p.Pos, silent: p.Silent > 0, errs: p.recSince(rec), vgen: p.gen, ngen: p.gen}
 		entry = p.memoPut(r.Id, start, min, env, (r.DocMemo && !r.Memo && !r.Leader && !p.insertsRule(r)), entry)
 		entry.present |= c.present
 		if !(p.Silent > 0) || entry.silent {
@@ -1228,7 +1228,7 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	from := e.from
 	examined := e.examined
 	shift := 0
-	shifted := (e.shift != 0)
+	shifted := e.shifted
 	for i = int(e.vgen); i < len(log); i++ {
 		if examined <= log[i].start {
 			continue
@@ -1247,6 +1247,7 @@ func (p *Parser) advanceEntry(e *memoEntry, log []documentEdit) bool {
 	e.far += shift
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
+	e.shifted = shifted
 	return true
 }
 
@@ -1274,7 +1275,7 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 	from := e.from
 	examined := e.examined
 	shift := 0
-	shifted := (e.shift != 0)
+	shifted := e.shifted
 	for i = int(e.vgen); i < len(log); i++ {
 		if examined <= log[i].start {
 			continue
@@ -1293,6 +1294,7 @@ func advanceEntry(e *memoEntry, log []documentEdit) bool {
 	e.far += shift
 	e.shift += int32(shift)
 	e.vgen = uint32(len(log))
+	e.shifted = shifted
 	return true
 }
 
@@ -1439,7 +1441,7 @@ func (p *Parser) runReuse(r *RunState, i int, shift int, gen int) *sxirvalue.Nod
 	var fm uint64
 	_ = fm
 	p.poll()
-	v := p.runTake(r, i, shift)
+	v := p.runTake(r, i, shift, gen)
 	p.documentTouch(r.old[i].examined)
 	p.documentTouchFrom(r.old[i].from)
 	k := r.old[i].exp

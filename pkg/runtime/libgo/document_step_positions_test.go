@@ -34,7 +34,7 @@ func stepPositionRules(check func(p *Parser, n *sxirvalue.Node), numEvals *int) 
 			return nil, false
 		}
 		text := string(p.In[start:p.Pos])
-		return nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true}), true
+		return p.buildNode(Data{Kind: valueimpl.MatchKind, Start: int32(start), End: int32(p.Pos), Text: text, Terminal: true}), true
 	}
 	a := &Rule{Id: 1, Name: "a", Memo: true, Leader: true, Rec: true, Cycle: 1, DocMemo: true, Seen: -1}
 	b := &Rule{Id: 2, Name: "b", Memo: true, Leader: true, Rec: true, Cycle: 1, DocMemo: true, Seen: -1}
@@ -45,7 +45,7 @@ func stepPositionRules(check func(p *Parser, n *sxirvalue.Node), numEvals *int) 
 			if l, ok := p.Call(other, 0); ok {
 				if _, ok := p.MatchLiteral([]rune(op), op, IdAny, true); ok {
 					if r, ok := p.Call(num, 0); ok {
-						n := nodeOfData(&Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{l, r}})
+						n := p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{l, r}})
 						check(p, n)
 						return n, true
 					}
@@ -56,7 +56,7 @@ func stepPositionRules(check func(p *Parser, n *sxirvalue.Node), numEvals *int) 
 			if !ok {
 				return nil, false
 			}
-			n := nodeOfData(&Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{r}})
+			n := p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{r}})
 			check(p, n)
 			return n, true
 		}

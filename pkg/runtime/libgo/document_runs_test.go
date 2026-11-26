@@ -28,7 +28,7 @@ func runTestRulesOf(started func(), alts []string, max int) *Rule {
 		start := p.Pos
 		for _, alt := range alts {
 			if _, ok := p.MatchLiteral([]rune(alt), alt, IdAny, true); ok {
-				return nodeOfData(&Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos)}), true
+				return p.buildNode(Data{Kind: valueimpl.SeqKind, Start: int32(start), End: int32(p.Pos)}), true
 			}
 		}
 		return nil, false
@@ -84,7 +84,7 @@ func runTestRulesOf(started func(), alts []string, max int) *Rule {
 		if !p.AtEnd() {
 			return nil, false
 		}
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: children}), true
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: children}), true
 	}
 	return main
 }

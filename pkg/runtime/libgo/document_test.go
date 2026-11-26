@@ -32,7 +32,7 @@ func documentTestRules() (*Rule, *Rule) {
 		if !p.AtEnd() {
 			return nil, false
 		}
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: children}), true
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: children}), true
 	}
 	return main, item
 }
@@ -160,7 +160,7 @@ func TestDocumentReturnedRecoveryErrorOwnership(t *testing.T) {
 	r.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Pos = 1
 		p.PushRecovered(&sxirvalue.SyntaxError{Line: 1, Col: 1, Expected: []string{"original"}, Messages: []string{"original"}})
-		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, End: 1}), true
+		return p.buildNode(Data{Kind: valueimpl.ErrorKind, End: 1}), true
 	}
 	d := testDocumentState(r, "x", sxirinput.CodePoints)
 	o := parseOptions{maxDepth: defaultMaxDepth}
@@ -195,7 +195,7 @@ func TestDocumentDiagnosticPublicationBudget(t *testing.T) {
 			expected[i] = "original"
 		}
 		p.PushRecovered(&sxirvalue.SyntaxError{Line: 1, Col: 1, Expected: expected, Messages: []string{"original"}})
-		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, End: 1}), true
+		return p.buildNode(Data{Kind: valueimpl.ErrorKind, End: 1}), true
 	}
 	d := testDocumentState(r, "x", sxirinput.CodePoints)
 	normal := parseOptions{maxDepth: defaultMaxDepth, controls: true}
@@ -241,7 +241,7 @@ func TestDocumentDiagnosticPublicationCancellation(t *testing.T) {
 	r.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
 		p.Pos = 1
 		p.PushRecovered(&sxirvalue.SyntaxError{Expected: make([]string, 2048)})
-		return nodeOfData(&Data{Kind: valueimpl.ErrorKind, End: 1}), true
+		return p.buildNode(Data{Kind: valueimpl.ErrorKind, End: 1}), true
 	}
 	d := testDocumentState(r, "x", sxirinput.CodePoints)
 	normal := parseOptions{maxDepth: defaultMaxDepth, controls: true}
@@ -378,87 +378,102 @@ func TestCallDocumentRestoresOnPanic(t *testing.T) {
 	}
 }
 
-// TestDocumentMoveMarksDoNotCarryAcrossParses checks that a move after an edit does not take the
-// mark that a refused move of an earlier parse left on a node for a visit of its own: the refused
-// value held a host value that cannot be moved, and a second entry shares that node. The numbers of
-// the moves belong to the Document, so each parse numbers its moves after those of the parses before.
-func TestDocumentMoveMarksDoNotCarryAcrossParses(t *testing.T) {
-	shared := nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 1, End: 2, Box: []int{1}})
-	first := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 1, End: 2, Children: []*sxirvalue.Node{shared}})
-	second := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 1, End: 2, Children: []*sxirvalue.Node{shared}})
-	d := &documentState{}
-	for i, n := range []*sxirvalue.Node{first, second} {
-		// Each parse starts its moves anew in a Parser of its own.
-		p := &Parser{Document: d}
-		e := &memoEntry{node: n, shift: 1}
-		if p.documentMove(e) {
-			t.Fatalf("parse %d: moved a value that holds a host value", i)
-		}
-		if e.node != n || D(n).Children[0] != shared || D(shared).Start != 1 {
-			t.Fatalf("parse %d: a refused move changed the value", i)
-		}
+// TestDocumentMoveReplaysEditsOfSharedNodes checks that a move after edits whose shifts cancel out
+// still moves a value whose nodes another value moved in between: the entry records that edits shifted
+// it, and the shared node, which the other move left at the positions of a later text, replays the
+// edits since.
+func TestDocumentMoveReplaysEditsOfSharedNodes(t *testing.T) {
+	shared := nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 5, End: 6})
+	first := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 5, End: 6, Children: []*sxirvalue.Node{shared}})
+	second := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 5, End: 6, Children: []*sxirvalue.Node{shared}})
+	// Two insertions before the values: the first adds two positions, the second removes them.
+	log := []documentEdit{{start: 0, end: 0, delta: 2}, {start: 0, end: 2, delta: -2}}
+	a := &memoEntry{node: first, shift: 2, shifted: true}
+	p := &Parser{Document: &documentState{}, edits: log[:1], gen: 1}
+	p.documentMove(a)
+	if D(first).Start != 7 || D(shared).Start != 7 || D(shared).Mark != 1 || a.shifted || a.ngen != 1 {
+		t.Fatalf("after the first edit: value at %d, shared node at %d of generation %d", D(first).Start, D(shared).Start, D(shared).Mark)
+	}
+	b := &memoEntry{node: second, shift: 0, shifted: true}
+	p = &Parser{Document: &documentState{}, edits: log, gen: 2}
+	p.documentMove(b)
+	if D(second).Start != 5 || D(shared).Start != 5 || D(shared).End != 6 || D(second).Mark != 2 || D(shared).Mark != 2 {
+		t.Fatalf("after the second edit: value at %d, shared node at [%d,%d)", D(second).Start, D(shared).Start, D(shared).End)
 	}
 }
 
-// TestDocumentMoveMarksRestartWithAnEmptyMemo checks that a Document whose move numbers near the end
-// of their range parses without its memo, and numbers its moves from 1 again.
-func TestDocumentMoveMarksRestartWithAnEmptyMemo(t *testing.T) {
+// TestDocumentMoveGenerationsRestartWithTheLog checks that a Document whose edit log is full parses
+// without its memo and numbers the generations of its nodes from 0 again, and that the parses after
+// that reuse and move values to the positions of a parse from scratch.
+func TestDocumentMoveGenerationsRestartWithTheLog(t *testing.T) {
+	defer func(n int) { maxDocumentEdits = n }(maxDocumentEdits)
+	maxDocumentEdits = 2
 	main, _ := documentTestRules()
 	d := testDocumentState(main, "aa", sxirinput.CodePoints)
 	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}
-	if _, err := d.parse(o); err != nil {
-		t.Fatal(err)
-	}
-	d.moves = moveMarkLimit + 1
-	if err := d.edit(2, 2, "a"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := d.parse(o); err != nil || d.stats.Reused != 0 || d.moves != 0 {
-		t.Fatalf("parse after the limit: err %v, %d reused, move number %d", err, d.stats.Reused, d.moves)
-	}
-	if err := d.edit(3, 3, "a"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := d.parse(o); err != nil || d.stats.Reused == 0 {
-		t.Fatalf("the memo of the restarted Document is not reused: err %v, stats %+v", err, d.stats)
+	for i := range 6 {
+		if i > 0 {
+			if err := d.edit(0, 0, "a"); err != nil {
+				t.Fatal(err)
+			}
+		}
+		root, err := d.parse(o)
+		if err != nil {
+			t.Fatalf("parse %d: %v", i, err)
+		}
+		// The edit at i == 3 finds the log full: that parse starts from scratch.
+		if reused := d.stats.Reused != 0; reused != (i > 0 && i != 3) {
+			t.Fatalf("parse %d: %d reused, edit log of %d", i, d.stats.Reused, len(d.edits))
+		}
+		for j, c := range D(root).Children {
+			if D(c).Start != int32(j) || D(c).End != int32(j+1) {
+				t.Fatalf("parse %d: child %d at [%d,%d)", i, j, D(c).Start, D(c).End)
+			}
+		}
 	}
 }
 
-// TestDocumentMoveMovesOrRefuses checks that a move copies a value of nodes and basic values, and
-// refuses one that holds a host value, leaving the entry unmoved.
-func TestDocumentMoveMovesOrRefuses(t *testing.T) {
+// TestDocumentMoveMovesEveryValue checks that a move moves a value of nodes and basic values, and one
+// whose node holds a host value alike, a node that the value holds twice once, and the entry's
+// generation with it.
+func TestDocumentMoveMovesEveryValue(t *testing.T) {
 	leaf := func(box any) *sxirvalue.Node {
 		return nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 1, End: 2, Box: box})
 	}
 	// A root of three children, two distinct leaves of which one is held twice, and a field.
-	build := func(box any) *sxirvalue.Node {
+	build := func(box any) (root, a *sxirvalue.Node) {
 		a, b := leaf(nil), leaf(box)
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 1, End: 2, Children: []*sxirvalue.Node{a, b, a}, Fields: valueimpl.Fields{{Name: "x", Value: "v"}}})
+		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 1, End: 2, Children: []*sxirvalue.Node{a, b, a}, Fields: valueimpl.Fields{{Name: "x", Value: "v"}}}), a
 	}
 	for _, c := range []struct {
 		name string
 		box  any
 	}{
-		{"moved", nil},
-		{"refused", []int{1}},
+		{"basic", nil},
+		{"host value", []int{1}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
-			p := &Parser{Document: &documentState{}}
-			e := &memoEntry{node: build(c.box), shift: 1}
-			moved := p.documentMove(e)
-			if moved != (c.box == nil) {
-				t.Fatalf("moved = %v", moved)
+			p := &Parser{Document: &documentState{}, edits: []documentEdit{{start: 0, end: 0, delta: 1}}, gen: 1}
+			root, a := build(c.box)
+			e := &memoEntry{node: root, shift: 1, shifted: true}
+			if !p.documentMove(e) {
+				t.Fatal("the move refused the value")
 			}
-			if moved != (e.shift == 0) {
-				t.Fatalf("moved = %v, shift %d", moved, e.shift)
+			if e.shift != 0 || e.shifted || e.ngen != 1 || e.node != root {
+				t.Fatalf("entry shift %d, shifted %v, generation %d", e.shift, e.shifted, e.ngen)
+			}
+			for i, n := range []*sxirvalue.Node{root, a, D(root).Children[1]} {
+				if D(n).Start != 2 || D(n).End != 3 || D(n).Mark != 1 {
+					t.Fatalf("node %d at [%d,%d) of generation %d, want [2,3) of 1", i, D(n).Start, D(n).End, D(n).Mark)
+				}
 			}
 		})
 	}
 }
 
 // TestDocumentMoveKeepsSharedNodesShared checks that a reused result that holds a node twice, as a
-// child and as a field, holds one moved copy of it, not two, and that the result of the parse before
-// the edit keeps the positions it had.
+// child and as a field, holds it once moved, not two copies, and that the move is in place: the
+// result of the parse before the edit holds the same nodes.
 func TestDocumentMoveKeepsSharedNodesShared(t *testing.T) {
 	item := &Rule{Id: 1, Name: "item", Memo: true, DocMemo: true, Seen: -1}
 	item.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
@@ -471,7 +486,7 @@ func TestDocumentMoveKeepsSharedNodesShared(t *testing.T) {
 		if !ok {
 			return nil, false
 		}
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{v}, Fields: valueimpl.Fields{{Name: "x", Value: v}}}), true
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{v}, Fields: valueimpl.Fields{{Name: "x", Value: v}}}), true
 	}
 	main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
 	main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
@@ -485,7 +500,7 @@ func TestDocumentMoveKeepsSharedNodesShared(t *testing.T) {
 		if !ok || !p.AtEnd() {
 			return nil, false
 		}
-		return nodeOfData(&Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{v}}), true
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: []*sxirvalue.Node{v}}), true
 	}
 	d := testDocumentState(main, "ba", sxirinput.CodePoints)
 	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}
@@ -511,7 +526,139 @@ func TestDocumentMoveKeepsSharedNodesShared(t *testing.T) {
 	if D(pr).Start != 2 || D(child).Start != 2 || D(child).End != 3 {
 		t.Fatalf("moved pair [%d,%d), node [%d,%d); want [2,3), [2,3)", D(pr).Start, D(pr).End, D(child).Start, D(child).End)
 	}
-	if pr0, child0, field0 := pairOf(first); child0 != field0 || D(pr0).Start != 1 || D(child0).Start != 1 {
-		t.Fatal("the result of the parse before the edit changed")
+	// The pair was moved in place: the result of the parse before the edit holds it, at the positions
+	// of the current text (spec/runtime/documents.md allows that; Clone keeps a tree as it was).
+	if pr0, child0, field0 := pairOf(first); pr0 != pr || child0 != field0 || child0 != child {
+		t.Fatal("the reused pair is not the pair of the parse before the edit")
+	}
+}
+
+// TestDocumentLimitAfterMovesThenEditsEqualsFresh interrupts by its compute limit, at every event, a
+// Document parse after an edit before the whole text, which moves the reused results in place
+// (documentMove) as it reaches them, and checks that the parse after the interruption and the parses
+// after two more edits give what parses of fresh Documents of the same texts give: the moves that the
+// interrupted parse made leave the kept trees at positions that the next parses account for.
+func TestDocumentLimitAfterMovesThenEditsEqualsFresh(t *testing.T) {
+	o := parseOptions{maxDepth: defaultMaxDepth, controls: true}
+	rules := func() *Rule {
+		main, item := documentTestRules()
+		for _, r := range []*Rule{main, item} {
+			body := r.Body
+			r.Body = func(p *Parser, min int) (*sxirvalue.Node, bool) {
+				p.unitsSized(1)
+				return body(p, min)
+			}
+		}
+		return main
+	}
+	fresh := func(text string) string {
+		n, err := testDocumentState(rules(), text, sxirinput.CodePoints).parse(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return documentNodeString(n)
+	}
+	type edit struct {
+		start, end int
+		text       string
+	}
+	// The first edit moves every reused item; the later ones delete before and insert after items
+	// that the interrupted parse moved.
+	edits := []edit{{0, 0, "a"}, {2, 4, ""}, {5, 5, "aa"}}
+	text := "aaaaaaaa"
+	var want []string
+	for _, e := range edits {
+		text = text[:e.start] + e.text + text[e.end:]
+		want = append(want, fresh(text))
+	}
+	interrupted, movedBefore := 0, 0
+	for budget := uint64(1); ; budget++ {
+		d := testDocumentState(rules(), "aaaaaaaa", sxirinput.CodePoints)
+		first, err := d.parse(o)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := d.edit(edits[0].start, edits[0].end, edits[0].text); err != nil {
+			t.Fatal(err)
+		}
+		limited := o
+		limited.limits = sxirruntime.Limits{Compute: budget}
+		if _, err := d.parse(limited); err == nil {
+			break
+		} else if !errors.Is(err, sxirruntime.ErrLimit) {
+			t.Fatalf("budget %d: %v", budget, err)
+		}
+		interrupted++
+		// The items of the first parse are the reused results; one at a new position was moved before
+		// the limit stopped the parse.
+		for j, c := range D(first).Children {
+			if D(c).Start != int32(j) {
+				movedBefore++
+				break
+			}
+		}
+		for i, e := range edits {
+			if i > 0 {
+				if err := d.edit(e.start, e.end, e.text); err != nil {
+					t.Fatal(err)
+				}
+			}
+			got, err := d.parse(o)
+			if err != nil {
+				t.Fatalf("budget %d, edit %d: %v", budget, i, err)
+			}
+			if s := documentNodeString(got); s != want[i] {
+				t.Fatalf("budget %d, edit %d: the Document gives\n%s\na fresh Document\n%s", budget, i, s, want[i])
+			}
+		}
+	}
+	if interrupted == 0 || movedBefore == 0 {
+		t.Fatalf("%d budgets interrupted the parse, %d of them after a move; want both", interrupted, movedBefore)
+	}
+}
+
+// TestDocumentMoveCopiesEmptyNodesPerMove checks that the copies of empty nodes that a move makes
+// belong to that move: an empty node that two values hold, moved by different shifts, is copied for
+// each at its own positions, and the node itself stays as it was.
+func TestDocumentMoveCopiesEmptyNodesPerMove(t *testing.T) {
+	empty := nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 3, End: 3})
+	a := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 3, End: 3, Children: []*sxirvalue.Node{empty}})
+	b := nodeOfData(&Data{Kind: valueimpl.ListKind, Start: 3, End: 3, Children: []*sxirvalue.Node{empty}})
+	p := &Parser{Document: &documentState{}, edits: []documentEdit{{start: 0, end: 0, delta: 2}}, gen: 1}
+	ea := &memoEntry{node: a, shift: 1, shifted: true}
+	eb := &memoEntry{node: b, shift: 2, shifted: true}
+	p.documentMove(ea)
+	p.documentMove(eb)
+	for _, c := range []struct {
+		e     *memoEntry
+		shift int32
+	}{{ea, 1}, {eb, 2}} {
+		k := D(c.e.node).Children[0]
+		if D(c.e.node).Start != 3+c.shift || k == empty || D(k).Start != 3+c.shift || D(k).End != 3+c.shift {
+			t.Fatalf("shift %d: value at %d, its empty child at [%d,%d)", c.shift, D(c.e.node).Start, D(k).Start, D(k).End)
+		}
+	}
+	if D(empty).Start != 3 || D(a).Start != 3 || D(b).Start != 3 {
+		t.Fatal("a move modified an empty node")
+	}
+}
+
+// TestDocumentMoveReplaysShiftsPerMove checks that the shifts that a move replays for the nodes of a
+// generation belong to that move: nodes of one generation, moved since through other values, lie on
+// either side of a later edit, and the values that hold them, moved one after the other, move each
+// by its own replayed shift.
+func TestDocumentMoveReplaysShiftsPerMove(t *testing.T) {
+	before := nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 10, End: 11, Mark: 1})
+	after := nodeOfData(&Data{Kind: valueimpl.MatchKind, Start: 100, End: 101, Mark: 1})
+	// The nodes hold the positions of generation 1; the entries were last current at generation 0,
+	// so the moves replay the edits since 1: one at 50 that adds 5 positions.
+	log := []documentEdit{{start: 0, end: 0, delta: 0}, {start: 50, end: 50, delta: 5}}
+	p := &Parser{Document: &documentState{}, edits: log, gen: 2}
+	ea := &memoEntry{node: before, shifted: true}
+	eb := &memoEntry{node: after, shifted: true}
+	p.documentMove(ea)
+	p.documentMove(eb)
+	if D(before).Start != 10 || D(after).Start != 105 || D(after).End != 106 {
+		t.Fatalf("the nodes before and after the edit are at %d and [%d,%d), want 10 and [105,106)", D(before).Start, D(after).Start, D(after).End)
 	}
 }
