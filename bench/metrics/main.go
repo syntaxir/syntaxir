@@ -18,8 +18,9 @@
 //	sizes        the sizes of the generated Go and TypeScript parsers and their builds (the
 //	             sizes that the published benchmark results show)
 //	wasm         the size of the playground's WebAssembly binary, raw and gzip -9
-//	retained     the live heap that compiled parsers (bench/retained) and Document versions
-//	             (bench/snapshot-retained) keep after collections, each in a process of its own
+//	retained     the live heap that compiled parsers (bench/retained), Document versions
+//	             (bench/snapshot-retained) and a parsed Document against its tree
+//	             (bench/document-retained) keep after collections, each in a process of its own
 //	             with GOGC=off and GOMAXPROCS=1
 //	determinism  the files that differ between two generations of each parser, one with
 //	             GOMAXPROCS=1 and one with more; any is a regression whatever the base
@@ -279,7 +280,7 @@ var retainedCorpora = []string{"json", "xml", "arithmetic", "minilang"}
 func collectRetained(root, work string) ([]metrics.Metric, error) {
 	env := []string{"GOGC=off", "GOMAXPROCS=1"}
 	bins := map[string]string{}
-	for _, cmd := range []string{"retained", "snapshot-retained"} {
+	for _, cmd := range []string{"retained", "snapshot-retained", "document-retained"} {
 		bins[cmd] = filepath.Join(work, cmd)
 		if _, err := probe.ExecOut(root, nil, "go", "build", "-o", bins[cmd], "./bench/"+cmd); err != nil {
 			return nil, err
@@ -318,13 +319,38 @@ func collectRetained(root, work string) ([]metrics.Metric, error) {
 			return nil, err
 		}
 	}
+	// The Document memory against the tree: the heap that a parsed Document keeps over the heap of the
+	// tree that Parse returns for the same text.
+	lines := strconv.Itoa(documentLines)
+	for _, subject := range documentSubjects {
+		policy := documentPolicies[subject]
+		kept := map[string]int64{}
+		for _, what := range []string{"tree", "document"} {
+			out, err := probe.ExecOut(root, env, bins["document-retained"], "-subject", subject, "-what", what, "-lines", lines)
+			if err != nil {
+				return nil, err
+			}
+			n := len(ms)
+			if err := add([]string{"document-memory", subject, what, lines + "-lines"}, out, policy[0], policy[1]); err != nil {
+				return nil, err
+			}
+			kept[what] = ms[n].Value
+		}
+		ms = append(ms, metrics.New(metrics.Ratio(uint64(kept["document"]), uint64(kept["tree"])), policy[2],
+			"document-memory-permille", subject, lines+"-lines"))
+	}
 	return ms, nil
 }
 
 const (
-	retainedParsers  = 128 // compiled parsers that bench/retained keeps per corpus
-	retainedVersions = 64  // Document versions that bench/snapshot-retained keeps per mode
+	retainedParsers  = 128     // compiled parsers that bench/retained keeps per corpus
+	retainedVersions = 64      // Document versions that bench/snapshot-retained keeps per mode
+	documentLines    = 100_000 // lines of the texts of bench/document-retained
 )
+
+// documentSubjects are the subjects of bench/document-retained: the engine's Document on the grammar
+// of the incremental parsing guide, and the generated Documents of the edit-latency benchmarks.
+var documentSubjects = []string{"settings", "csv", "minilang"}
 
 // The heap that compiled parsers retain varies between processes, as the allocations of the
 // compiler do (compileAllocsPolicy in bench/metrics_test.go): the only allocations of a compilation
@@ -337,6 +363,18 @@ var (
 	parserBytesPolicy   = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.1}
 	parserObjectsPolicy = metrics.Policy{Kind: metrics.Lower, Tolerance: 0.1}
 )
+
+// documentPolicies judge the heap of a Document and of its tree (bytes and objects), and their ratio,
+// per subject. The generated Documents did not vary in five runs, each in its own process, and are
+// exact. The engine's varies as compiled parsers do, since the parser that it compiles in the process
+// keeps maps whose tables depend on the hash seed: five runs varied by at most 0.002% of the bytes and
+// 0.18% of the objects; the tolerances are those spreads rounded up, and the ratio, in thousandths,
+// gets a tolerance that a change of the bytes within theirs cannot exceed.
+var documentPolicies = map[string][3]metrics.Policy{
+	"settings": {{Kind: metrics.Lower, Tolerance: 0.01}, {Kind: metrics.Lower, Tolerance: 0.3}, {Kind: metrics.Lower, Tolerance: 0.1}},
+	"csv":      {{Kind: metrics.Lower}, {Kind: metrics.Lower}, {Kind: metrics.Lower}},
+	"minilang": {{Kind: metrics.Lower}, {Kind: metrics.Lower}, {Kind: metrics.Lower}},
+}
 
 // collectDeterminism generates each parser of probe.Grammars twice in separate processes, once
 // with GOMAXPROCS=1 and once with more, in Go and in TypeScript, and records the number of files
