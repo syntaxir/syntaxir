@@ -228,6 +228,9 @@ func exampleCommandPaths(dir, command string) error {
 // together, in the order written, or with withStderr false its standard output alone. It names
 // bash because /bin/sh differs by system: dash, for one, has no $'...' quoting.
 func runExampleCommand(bin, dir, command string, withStderr bool) (string, error) {
+	if err := telemetryOff(dir); err != nil {
+		return "", err
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)

@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"slices"
 	"strings"
 	"sync"
@@ -220,7 +221,27 @@ func programEnv(t *testing.T, bin, dir string) ([]string, error) {
 			env[i] = "PATH=" + filepath.Dir(bin) + string(os.PathListSeparator) + p
 		}
 	}
+	if err := telemetryOff(dir); err != nil {
+		return nil, err
+	}
 	return append(env, "HOME="+dir), nil
+}
+
+// telemetryOff sets the go telemetry mode of home to off. The go command reads the mode from its
+// mode file under the user configuration directory of HOME; the GOTELEMETRY environment variable did
+// not change the outcome. With telemetry on, the go command leaves telemetry state under the HOME of the
+// program, and that state appeared while the test removed the HOME, so the removal failed with
+// "directory not empty" (the lint-in-ci cleanup failure). With the mode off, the race did not occur in 40
+// of 40 runs. The writer's exact process is not identified; the fix is the mode, not the process.
+func telemetryOff(home string) error {
+	dir := filepath.Join(home, ".config", "go", "telemetry")
+	if runtime.GOOS == "darwin" {
+		dir = filepath.Join(home, "Library", "Application Support", "go", "telemetry")
+	}
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(dir, "mode"), []byte("off\n"), 0o644)
 }
 
 // runProgramLine runs one line with bash, the language command blocks are tagged with, in dir
@@ -463,5 +484,19 @@ func repositoryModule(t *testing.T, bin, dir string) {
 	}
 	if err := requireWorktree(env, dir); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestProgramHomeTelemetryIsOff pins the telemetry mode of a program HOME: the go command in a program
+// must not start the telemetry child that outlives it (see telemetryOff).
+func TestProgramHomeTelemetryIsOff(t *testing.T) {
+	dir := t.TempDir()
+	env, err := programEnv(t, filepath.Join(t.TempDir(), "sxir"), dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := runProgramLine(env, dir, "go telemetry")
+	if err != nil || strings.TrimSpace(out) != "off" {
+		t.Fatalf("go telemetry in a program HOME = %q, %v; want off", out, err)
 	}
 }
