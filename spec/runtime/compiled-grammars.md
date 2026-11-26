@@ -137,8 +137,13 @@ bytecode was made up: a step whose loop made no progress ends the parse with an
 error of invalid bytecode. Made-up action code has no such bound and MAY run
 without end.
 
-Loading does not type-check the grammar again and does not verify that the
-bytecode uses the VM stacks correctly. It trusts the mode recorded in the file as
+Loading checks what a run needs to end and to keep the stream's
+commitments, and trusts the rest to the compiler that made the file: it does
+not type-check the grammar again, does not check the rule on [reads after a
+stream's repetition](streaming.md#grammar), and does not verify that the
+bytecode uses the VM stacks correctly. A stream of a file that breaks the rule
+on reads and takes a text of a range before the last commit point ends with an
+error of invalid bytecode there ([Positions and Text](streaming.md#positions-and-text)). It trusts the mode recorded in the file as
 it trusts the module's types: it checks that the mode is known, not that the
 module is the one compiled for that mode, so a file that labels a recognize-mode
 module as parse mode MAY return no value and no error. Load compiled grammars

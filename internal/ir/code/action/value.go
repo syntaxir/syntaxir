@@ -487,7 +487,8 @@ for each position unit of the range of a string node.`})
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Const: 1, Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
 		Contract: `Returns the input of the range of n. In a stream, a parse that counts compute units counts one unit for
 each position unit of the result; a target that otherwise bounds the work may charge for the read of the input, and
-for the bytes it copies out of a stream.`})
+for the bytes it copies out of a stream. In a stream, a range that begins before the commit point (stream.cutText)
+ends the parse with an error of invalid code: the checker rejects every grammar that takes such a text.`})
 	pure(&code.Op{Name: "str.len", Params: []code.Param{x}, Results: []code.Type{datum},
 		Kind: code.OpHost, NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 1, Quantity: QValueBytes}}},
 		Contract: `Returns the length of the string x in the position unit as an int. A parse that counts compute units

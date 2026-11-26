@@ -3,6 +3,7 @@ package libgo
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"iter"
 	"math"
@@ -26,8 +27,9 @@ type streamInput struct {
 	in     []rune // CodePoints
 	bs     []byte // Bytes
 	base   int
-	// textFloor is the last commit point (stream.cutText): text cuts every range at it, whatever
-	// input before it the buffer still holds, so a text never depends on how the input arrives.
+	// textFloor is the last commit point (stream.cutText): no text of a node begins before it
+	// (rangeText), and text cuts every range at it, whatever input before it the buffer still holds,
+	// so a text never depends on how the input arrives.
 	textFloor int
 	// baseLine and baseCol are the line and column (1-based, in the unit) of base.
 	baseLine, baseCol int
@@ -837,11 +839,16 @@ func (p *Parser) streamAtEnd() bool {
 
 // rangeText is node.rangeText: the input of the range [start, end) of a node. In a stream whose parse
 // counts logical compute units, the text of a node is an event of one unit for each position unit of
-// its result (spec/runtime/parsing.md, Compute Units), which it counts before it makes the text.
+// its result (spec/runtime/parsing.md, Compute Units), which it counts before it makes the text. In a
+// stream, a range that begins before the last commit point, whose input the stream need not hold,
+// ends the parse with an internal error: the checker rejects every grammar that takes such a text
+// (spec/runtime/streaming.md, Positions and Text).
 func (p *Parser) rangeText(start, end int) string {
-	if p.Stream != nil && p.units.on {
-		f := p.Stream.textFloor
-		p.unitsSized(max(end, f) - max(start, f))
+	if s := p.Stream; s != nil {
+		if start < s.textFloor {
+			panic(fatal{fmt.Errorf("internal error: the text of [%d, %d) begins before the commit point %d", start, end, s.textFloor)})
+		}
+		p.unitsSized(end - start)
 	}
 	return p.Text(start, end)
 }

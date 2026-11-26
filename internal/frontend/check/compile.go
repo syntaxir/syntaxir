@@ -497,9 +497,10 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 // checkStreamReads checks that the predicates of a rule that run after its #stream repetition read
 // nothing that a stream parse does not keep, so that a stream parse decides its outcome as the batch
 // parse does: a stream hands the elements to the caller instead of putting them in the repetition's
-// list, and cuts the text of a node other than a string node at the end of the last element it
-// delivered. So the captures that hold the repetition cannot be read after it, and text cannot be
-// taken of a capture made before it, unless the capture holds a string node, which holds its text.
+// list, and does not hold the input before the end of the last element it delivered, which the
+// text of a node other than a string node reads. So the captures that hold the repetition cannot be
+// read after it, and text cannot be taken of a capture made before it, unless the capture holds a
+// string node, which holds its text.
 // A text of a lambda parameter counts as a text of every capture that its statement reads. A
 // variable bound before the repetition carries a text across it. The rule's value action may read
 // all of these: a stream parse builds no value and does not evaluate it. Inline actions have
@@ -604,7 +605,7 @@ func (c *Compiler) checkStreamReads(body, stream ast.Expr) {
 					}
 					if ref != nil {
 						reported = true
-						c.errorf(y.Diagnostic(), "text of capture %s, made before a #stream repetition, cannot be taken after it: a stream parse cuts the text at the end of the last element it delivered; bind a variable to the text before the repetition", ref.Name)
+						c.errorf(y.Diagnostic(), "text of capture %s, made before a #stream repetition, cannot be taken after it: a stream parse does not hold the input before the end of the last element it delivered; bind a variable to the text before the repetition", ref.Name)
 					}
 				}
 			})

@@ -1541,9 +1541,10 @@ host op stream.cutText(pos int)
   noreturn
   cost <= 0
   contract:
-    // Makes pos the commit point of the text: from then on the text of a range [start, end) is
-    // the input of [max(start, pos), max(end, pos)), whatever input the stream still holds before pos, so
-    // the text and its units never depend on how the input arrives.
+    // Makes pos the commit point of the text: from then on no text of a node begins before pos
+    // (node.rangeText), and a host read of the text of a range [start, end), as a trace makes, is the input
+    // of [max(start, pos), max(end, pos)), whatever input the stream still holds before pos, so it never
+    // depends on how the input arrives.
 
 host op stream.release()
   component window
@@ -3409,7 +3410,8 @@ host op node.rangeText(n Obj) Str
   contract:
     // Returns the input of the range of n. In a stream, a parse that counts compute units counts one unit for
     // each position unit of the result; a target that otherwise bounds the work may charge for the read of the input, and
-    // for the bytes it copies out of a stream.
+    // for the bytes it copies out of a stream. In a stream, a range that begins before the commit point (stream.cutText)
+    // ends the parse with an error of invalid code: the checker rejects every grammar that takes such a text.
 
 host op str.len(x Datum) Datum
   component value

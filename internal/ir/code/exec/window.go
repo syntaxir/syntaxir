@@ -42,9 +42,10 @@ An error of the callback ends the parse unchanged.`,
 are not supported. The line and column of the new base are kept.`})
 	host(&code.Op{Name: "stream.cutText", Component: Win, Params: []code.Param{code.P("pos", code.TInt)},
 		Reads: []string{Win}, Writes: []string{Win}, Features: stream, NoReturn: true,
-		Contract: `Makes pos the commit point of the text: from then on the text of a range [start, end) is
-the input of [max(start, pos), max(end, pos)), whatever input the stream still holds before pos, so
-the text and its units never depend on how the input arrives.`})
+		Contract: `Makes pos the commit point of the text: from then on no text of a node begins before pos
+(node.rangeText), and a host read of the text of a range [start, end), as a trace makes, is the input
+of [max(start, pos), max(end, pos)), whatever input the stream still holds before pos, so it never
+depends on how the input arrives.`})
 	host(&code.Op{Name: "stream.release", Component: Win, Reads: []string{Win}, Writes: []string{Win}, Features: stream,
 		NoReturn: true, Cost: code.Cost{Terms: []code.CostTerm{{Coef: 2, Quantity: QStreamFrames}}},
 		Contract: `Releases what the elements committed so far held: the trail, the capture frames and the node

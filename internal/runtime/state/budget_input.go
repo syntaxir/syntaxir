@@ -67,11 +67,17 @@ func (p *Parser) Advance(size int) {
 }
 
 // RangeText is node.rangeText: the input of the range [start, end) of a node. In a stream, the text
-// of a node is an event of one unit for each position unit of its result, the range cut at the last
-// commit point (spec/runtime/parsing.md#compute-units), which it counts before it makes the text.
+// of a node is an event of one unit for each position unit of its result
+// (spec/runtime/parsing.md#compute-units), which it counts before it makes the text. A range that
+// begins before the last commit point, whose input the stream need not hold, ends the parse with an
+// error of invalid bytecode: the checker rejects every grammar that takes such a text, so only a
+// module that no compiler made can (spec/runtime/streaming.md#positions-and-text).
 func (p *Parser) RangeText(start, end int) string {
 	if p.Stream {
-		p.countUnits(max(end, p.TextFloor) - max(start, p.TextFloor))
+		if start < p.TextFloor {
+			p.Fail("invalid bytecode: the text of [%d, %d) begins before the commit point %d", start, end, p.TextFloor)
+		}
+		p.countUnits(end - start)
 	}
 	return p.Text(start, end)
 }

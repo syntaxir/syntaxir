@@ -25,8 +25,8 @@ func (p *Parser) EmitStream(v *sxirvalue.Node, end int) {
 }
 
 // streamCommit makes it final that the parse never backtracks before pos: the input before pos - 1
-// is discarded (the preceding unit stays for detecting line starts), text is cut at pos, the memory the committed elements
-// held is released, and the memo and the records before pos are pruned once at least a window of
+// is discarded (the preceding unit stays for detecting line starts), no text of a node can begin before pos any
+// more, the memory the committed elements held is released, and the memo and the records before pos are pruned once at least a window of
 // input was committed since the last pruning.
 //
 // Printed from Exec IR function streamCommit of internal/ir/code/exec/compose, specialized for stream.

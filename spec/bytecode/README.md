@@ -215,7 +215,7 @@ of the body until the index reaches the count. Every other jump goes forward, so
 | 19 | `UNARY` | a[D] = `unary`(B, a[A]); B indexes the [unary operators](../exec-ir/values.md#operators). |
 | 20 | `BINARY` | a[D] = `binary`(C, a[A], a[B]); C indexes the binary operators. |
 | 21 | `LOGIC` | n[D] = `logic`(B, a[A]); B indexes the logical operators. |
-| 22 | `TEXT` | t[D] = `text`(a[A]). |
+| 22 | `TEXT` | t[D] = `text`(a[A]); in a stream, the text of a node other than a string node whose range begins before the last commit point ends the parse with an error of invalid bytecode ([Positions and Text](../runtime/streaming.md#positions-and-text)). |
 | 23 | `TEXTEQ` | n[D] = whether t[A] and t[B] are equal (`action.textEqual`). |
 | 24 | `LENGTH` | a[D] = `length`(a[A]). |
 | 25 | `CONVERT` | a[D] = `convert`(node type B, a[A]). |

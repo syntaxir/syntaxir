@@ -9,9 +9,9 @@ import (
 	"syntaxir.dev/sxir/internal/testing/tooltest"
 )
 
-// runStreamTextLib runs the checks of the text of a stream on the TypeScript library, with its source
-// changed by mutate if not nil, and returns the output of node and whether it failed.
-func runStreamTextLib(t *testing.T, node string, mutate func(string) string) (string, bool) {
+// runStreamTextLib runs the checks script of the text of a stream on the TypeScript library, with its
+// source changed by mutate if not nil, and returns the output of node and whether it failed.
+func runStreamTextLib(t *testing.T, node, script string, mutate func(string) string) (string, bool) {
 	t.Helper()
 	source, err := os.ReadFile(filepath.Join(libDir, tsLibFileName))
 	if err != nil {
@@ -30,7 +30,7 @@ func runStreamTextLib(t *testing.T, node string, mutate func(string) string) (st
 		lib = changed
 	}
 	path := filepath.Join(t.TempDir(), "stream_text.ts")
-	if err := os.WriteFile(path, []byte(lib+streamTextLibTest), 0o600); err != nil {
+	if err := os.WriteFile(path, []byte(lib+script), 0o600); err != nil {
 		t.Fatal(err)
 	}
 	out, err := tooltest.NodeCombinedOutput(t, node, filepath.Dir(path), filepath.Base(path))
@@ -46,18 +46,68 @@ func runStreamTextLib(t *testing.T, node string, mutate func(string) string) (st
 // level of a rule body, so a text never reads a range across it.
 func TestStreamTextAfterCommitInBytes(t *testing.T) {
 	node := tooltest.RequireNode(t)
-	if out, failed := runStreamTextLib(t, node, nil); failed {
+	if out, failed := runStreamTextLib(t, node, streamTextLibTest, nil); failed {
 		t.Fatalf("node:\n%s", out)
 	}
 	// A stream that decodes the bytes it holds as characters loses the bytes before the first whole
 	// character.
-	out, failed := runStreamTextLib(t, node, func(s string) string {
+	out, failed := runStreamTextLib(t, node, streamTextLibTest, func(s string) string {
 		return strings.Replace(s, "documentText(this.bs.subarray(start - this.base, end - this.base), Bytes)", "documentText(this.bs.subarray(start - this.base, end - this.base), CodePoints)", 1)
 	})
 	if !failed {
 		t.Fatalf("the mutant passes:\n%s", out)
 	}
 }
+
+// TestStreamRangeTextBeforeCommitFails checks the text of a node in a TypeScript stream around the
+// last commit point: a range that begins at or after it is the input of the range, and one that begins
+// before it, which the checker keeps every grammar from taking, ends the parse with an internal error,
+// whether or not the buffer still holds its input. Cutting the range at the commit point instead fails
+// the check.
+func TestStreamRangeTextBeforeCommitFails(t *testing.T) {
+	node := tooltest.RequireNode(t)
+	if out, failed := runStreamTextLib(t, node, streamRangeTextLibTest, nil); failed {
+		t.Fatalf("node:\n%s", out)
+	}
+	out, failed := runStreamTextLib(t, node, streamRangeTextLibTest, func(s string) string {
+		return strings.Replace(s, "if (start < this.textFloor) {\n      throw new Fatal(", "if (false) {\n      throw new Fatal(", 1)
+	})
+	if !failed || !strings.Contains(out, "begins before the commit point") {
+		t.Fatalf("the mutant passes:\n%s", out)
+	}
+}
+
+const streamRangeTextLibTest = `
+
+const failures: string[] = [];
+const text = "abcdefgh";
+for (const unit of [CodePoints, Bytes]) {
+  for (const discard of [false, true]) {
+    const p = new StreamParser(mkGrammar(100, true, false), unit, 1, 100, null, 0);
+    p.append(new TextEncoder().encode(text));
+    if (discard) p.streamDiscard(3);
+    p.textFloor = 4;
+    const at = unit + ", discard " + discard;
+    for (const [start, end] of [[4, 4], [4, 6], [5, 8]]) {
+      const got = p.rangeText(start, end);
+      if (got !== text.slice(start, end)) failures.push(at + ": the text of [" + start + ", " + end + ") is " + JSON.stringify(got));
+    }
+    for (const [start, end] of [[0, 2], [3, 4], [3, 3], [2, 6]]) {
+      const want = "internal error: the text of [" + start + ", " + end + ") begins before the commit point 4";
+      try {
+        const got = p.rangeText(start, end);
+        failures.push(at + ": the text of [" + start + ", " + end + ") is " + JSON.stringify(got) + ", want " + want);
+      } catch (e) {
+        if (!(e instanceof Fatal) || e.err.message !== want) failures.push(at + ": the text of [" + start + ", " + end + ") throws " + String(e instanceof Fatal ? e.err.message : e) + ", want " + want);
+      }
+    }
+  }
+}
+if (failures.length > 0) {
+  console.log(failures.join("\\n"));
+  process.exit(1);
+}
+`
 
 const streamTextLibTest = `
 

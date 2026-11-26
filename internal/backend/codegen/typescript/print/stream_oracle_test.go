@@ -427,13 +427,13 @@ var recoverDiagnostics = []streamOptions{
 
 // mutantCases names the one oracle case that a mutant runs on, for a mutant of a method that only the
 // parsers of that case include.
-var mutantCases = map[string]string{"range text": "text", "held text": "text", "cut units": "commit text", "text floor": "commit text"}
+var mutantCases = map[string]string{"range text": "text", "held text": "text", "text floor": "commit text"}
 
-// equivalentMutants are the mutants that the oracle must not tell from the engine: they break the cut
-// of a text at the last commit point, which no grammar can show, since the checker rejects every read
-// after the #stream repetition of a text that the cut would shorten. They pin that the cut stays
-// unobservable.
-var equivalentMutants = map[string]bool{"cut units": true, "text floor": true}
+// equivalentMutants are the mutants that the oracle must not tell from the engine: they drop the last
+// commit point, below which no text of a node may begin and at which a host read is cut, which no
+// grammar can show, since the checker rejects every read after the #stream repetition of a text that
+// begins before it. They pin that the commit point stays unobservable.
+var equivalentMutants = map[string]bool{"text floor": true}
 
 func ptr[T any](v T) *T { return &v }
 
@@ -920,10 +920,7 @@ func TestStreamOracleMutants(t *testing.T) {
 		// The input limit fails a stream that demands a unit past it.
 		{"input limit", "d > this.maxInput && this.n > this.maxInput", "d > this.maxInput + 1 && this.n > this.maxInput + 1"},
 		// In a stream the text of a node counts a unit for each position of its range.
-		{"range text", "if (this.control !== null) this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));\n    return this.text(start, end);", "return this.text(start, end);"},
-		// The text of a range counts the units of its part after the last commit point, not its width;
-		// no text the parse takes reaches before that point.
-		{"cut units", "this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));", "this.unitsSized(end - start);"},
+		{"range text", "if (this.control !== null) this.unitsSized(end - start);\n    return this.text(start, end);", "return this.text(start, end);"},
 		// A commit cuts text at the commit point, so a text does not depend on the chunks; no text the
 		// parse takes reaches before that point.
 		{"text floor", "this.textFloor = pos;", ""},

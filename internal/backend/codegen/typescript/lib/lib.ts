@@ -6640,8 +6640,9 @@ export class StreamParser extends Parser {
   // memoFloor is the floor of the memo (memo.floor): the memo keeps nothing before it. The memo's slot
   // of a position is its distance from the floor (gapLen is -memoFloor, with no gap).
   memoFloor = 0;
-  // textFloor is the last commit point (stream.cutText): text cuts every range at it, whatever input
-  // before it the buffer still holds, so a text never depends on how the input arrives.
+  // textFloor is the last commit point (stream.cutText): no text of a node begins before it
+  // (rangeText), and text cuts every range at it, whatever input before it the buffer still holds,
+  // so a text never depends on how the input arrives.
   textFloor = 0;
   // delivered holds the elements delivered since the feed that runs the parse began (stream.deliver),
   // each converted by convert if the stream has one.
@@ -6892,9 +6893,15 @@ export class StreamParser extends Parser {
 
   // rangeText is node.rangeText. In a stream whose parse counts logical compute units, the text of a
   // node is an event of one unit for each position unit of its result (spec/runtime/parsing.md,
-  // Compute Units), which it counts before it makes the text.
+  // Compute Units), which it counts before it makes the text. A range that begins before the last
+  // commit point, whose input the stream need not hold, ends the parse with an internal error: the
+  // checker rejects every grammar that takes such a text (spec/runtime/streaming.md, Positions and
+  // Text).
   override rangeText(start: number, end: number): string {
-    if (this.control !== null) this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));
+    if (start < this.textFloor) {
+      throw new Fatal(new Error(`internal error: the text of [${start}, ${end}) begins before the commit point ${this.textFloor}`));
+    }
+    if (this.control !== null) this.unitsSized(end - start);
     return this.text(start, end);
   }
 

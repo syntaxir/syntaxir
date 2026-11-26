@@ -99,9 +99,11 @@ it uses them.
   counts none of their compute units
   ([Entry Points](../runtime/streaming.md#entry-points),
   [Compute Units](../runtime/parsing.md#compute-units)).
-- **(X) Texts.** In a stream, `text` of a node other than a string node is the
-  input from the commit point to the end of the node's range, and is empty if
-  the range ends at or before the commit point. A string node holds its text.
+- **(X) Texts.** In a stream, `text` of a node other than a string node whose
+  range begins at or after the commit point is the input of the range; one
+  whose range begins before the commit point ends the parse with an error,
+  which only a compiled grammar that no compiler made can take. A string node
+  holds its text.
   Positions count from the start of the whole input
   ([Positions and Text](../runtime/streaming.md#positions-and-text)).
 - **(L) Looking back.** An evaluation at $p$ examines no slot before $p - 1$.
@@ -180,11 +182,10 @@ parse makes no later call, as (P) requires.
 *Proof.* An evaluation reads input at the slots it examines, and by Lemma 1
 every slot examined after the commit is at least $c - 1$. The only other
 step that reads input is `text` of a node other than a string node, which in
-a stream reads the input from the commit point to the end of the node's range
-(X), so it reads nothing before $c$; a string node holds its text and reads
-no input. The cut that (X) defines does not depend on the discards; whether
-a cut text differs from the text of the batch parse is the subject of Lemmas 3
-and 4.
+a stream reads the input of a range that begins at or after $c$, or ends the
+parse without reading any (X), so it reads nothing before $c$; a string node
+holds its text and reads no input. Lemma 4 shows that no step of a grammar
+that compiles ends the parse that way.
 
 A call looks up the memo at its own position, and a walk of a skip run, a run
 site or a scan site looks up its slots and records at the starts of its
@@ -237,17 +238,17 @@ or before $c$ in the first case and begin at or after $c = 0$ in the second.
 Ranges that begin at or after $e$ begin at or after $c$ in both cases.
 $\square$
 
-So a cut text is either empty or whole, as
-[Positions and Text](../runtime/streaming.md#positions-and-text) states.
-After at least one element, a text of a node made before or by $\rho$ is
-empty in $\mathcal{S}$, though not in $\mathcal{B}_s$ unless its range is;
-(R) keeps every valid grammar from taking it (Lemma 4).
+So after at least one element, a text of a node made before or by $\rho$
+whose range is not empty at $c$ begins before $c$ and, by (X), would end
+$\mathcal{S}$ with an error where $\mathcal{B}_s$ goes on; (R) keeps every
+valid grammar from taking it (Lemma 4).
 
-## Lemma 4 (No Cut Text Is Read)
+## Lemma 4 (No Text Begins Before the Commit Point)
 
 No step of $\mathcal{S}$ reads the list of $\rho$. Every `text` that
-$\mathcal{S}$ takes at a step is the text that $\mathcal{B}_s$ takes at the
-same step, provided the two parses have taken the same steps before it.
+$\mathcal{S}$ takes at a step is of a range that begins at or after the
+commit point, and is the text that $\mathcal{B}_s$ takes at the same step,
+provided the two parses have taken the same steps before it.
 
 *Proof.* The list of $\rho$ is visible only through a capture that holds
 $\rho$, which is made when $\rho$ ends (V). Inside an iteration the capture
@@ -271,11 +272,14 @@ captures made after $\rho$, which begin at or after $e$; captures made before
 $\rho$ that hold a string node, whose text they hold (X); variables, which
 hold scalars; and lambda parameters, which count as the captures that the
 statement reads, so they range over values of the same captures. Every such
-text is whole, and so equal to the text of $\mathcal{B}_s$. $\square$
+text begins at or after $c$, so by (X) it is the input of its whole range,
+the text of $\mathcal{B}_s$, and no step ends the parse with the error of
+(X). $\square$
 
 For example, (R) rejects `h:("h" "h") (("a" ";")* #stream)
-{ len(text($h)) == 2 } $$`: after an element, a stream would cut the text of
-`$h` to the empty text and fail where the batch parse succeeds. A variable
+{ len(text($h)) == 2 } $$`: after an element, the range of `$h` begins before
+the commit point, so a stream would end with an error where the batch parse
+succeeds. A variable
 bound before the repetition carries such a text across it.
 
 ## Lemma 5 (Stream Steps Follow the Parse With Its Policy)
