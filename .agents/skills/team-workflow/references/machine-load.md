@@ -33,7 +33,8 @@ checks and count probes run directly, throttled.
   Never run `testslot.sh` inside a benchlock.sh job or the other way round: the job would
   wait for itself. While an exclusive job is first or holds the lock, the stall backstop
   cannot fire either, so an exclusive benchlock.sh run started from inside a test slot
-  deadlocks for good. A `testslot.sh` copy older than the window ignores windows: claim
+  would deadlock for good: it refuses at once with exit 2 instead (testslot.sh marks its
+  command with `SXIR_IN_TESTSLOT`). A `testslot.sh` copy older than the window ignores windows: claim
   slots only through the current script of main.
 - Timed runs need mains power. An exclusive job refuses to start, with exit 75 and the
   reason, when the machine is on battery or its charge is under `BENCHLOCK_MIN_CHARGE`

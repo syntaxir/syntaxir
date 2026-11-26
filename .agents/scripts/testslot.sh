@@ -31,7 +31,9 @@
 # A claim waits while a measurement window is open (benchwindow.sh) and while an exclusive
 # benchlock.sh job holds the lock or is the first job of the queue: a timed run has the machine
 # alone, and the claims queued meanwhile go on when it ends. The commands that hold slots when the
-# window opens run to their end; the exclusive job waits for them (benchlock.sh).
+# window opens run to their end; the exclusive job waits for them (benchlock.sh). The command runs
+# with SXIR_IN_TESTSLOT=1, so that an exclusive benchlock.sh inside it, which would wait for its own
+# slot to drain, refuses at once.
 # State: $SXIR_AGENT_STATE/slots, testslot-stalls.log, and window and runs/ beside it.
 set -euo pipefail
 # shellcheck source=lib.sh
@@ -160,7 +162,7 @@ done
 # Job control gives the command a process group of its own as it is forked, so a signal sent to
 # the group from here on cannot miss it. A signal that came earlier is replayed below.
 set -m
-"$@" < /dev/null &
+SXIR_IN_TESTSLOT=1 "$@" < /dev/null &
 child=$!
 set +m
 if [ -n "$term" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi

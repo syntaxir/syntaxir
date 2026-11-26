@@ -6,7 +6,9 @@
 #                            default one per six cores, between 1 and 3 (see lib.sh).
 # The rule: every heavy run that measures no time is shared (gates, test suites, generation, the
 # alpha-parsers check); only timed runs (benchmarks, A/B runs, profiles) are exclusive.
-# An exclusive job starts only when no holder of either class runs. The queue is first come, first
+# An exclusive job starts only when no holder of either class runs, and no test slot (testslot.sh) has
+# a live holder; inside a test slot job (SXIR_IN_TESTSLOT) it would wait for its own slot, so it
+# refuses at once with status 2. The queue is first come, first
 # served across both classes: a queued exclusive job blocks the shared jobs queued after it, so a
 # stream of shared jobs cannot starve it. A holder whose PID is dead is taken over.
 # The command runs in a process group of its own, recorded in runs/<tag>.<pid> while it runs, so
@@ -67,6 +69,10 @@ stall=${BENCHLOCK_STALL:-300}
 poll=${BENCHLOCK_POLL:-20}
 class=${BENCHLOCK_CLASS:-exclusive}
 case $class in exclusive | shared) ;; *) echo "benchlock.sh: BENCHLOCK_CLASS must be exclusive or shared, not '$class'" >&2; exit 2 ;; esac
+if [ "$class" = exclusive ] && [ -n "${SXIR_IN_TESTSLOT:-}" ]; then
+  echo "benchlock.sh: an exclusive run cannot start inside a testslot.sh job: it would wait for its own test slot to drain. Run it outside the slot; a shared run (BENCHLOCK_CLASS=shared) may run here." >&2
+  exit 2
+fi
 k=$(sxir_shared_slots)
 tag=$1; shift
 P=$D/power

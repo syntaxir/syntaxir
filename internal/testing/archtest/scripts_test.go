@@ -1,6 +1,8 @@
 package archtest
 
 import (
+	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -8,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 )
 
 // The tests below run the repository scripts (hack/check-commits.sh, .agents/scripts) against a
@@ -42,9 +45,13 @@ func repoEnv() []string {
 	return append(inheritedEnv(), gitIsolated...)
 }
 
+// scriptEnv returns the environment of the queue scripts under test, with their state in state. It drops
+// SXIR_IN_TESTSLOT, which the tests inherit when they run in a test slot job: the scripts under test run
+// against their own state, not inside the caller's slot.
 func scriptEnv(t *testing.T, state string) []string {
 	t.Helper()
-	env := append(inheritedEnv(),
+	env := slices.DeleteFunc(inheritedEnv(), func(kv string) bool { return strings.HasPrefix(kv, "SXIR_IN_TESTSLOT=") })
+	env = append(env,
 		"SXIR_AGENT_STATE="+state, "BENCHLOCK_POLL=1",
 		// The power guard of benchlock.sh reads a machine on AC power with a full battery, whatever
 		// the power of the machine that runs the tests; the tests of the guard replace the probe.
@@ -544,5 +551,41 @@ func TestRepoEnvDropsInheritedGitVariables(t *testing.T) {
 		if slices.ContainsFunc(gitRepoVars, func(k string) bool { return strings.HasPrefix(kv, k+"=") }) {
 			t.Errorf("%s is inherited", kv)
 		}
+	}
+}
+
+// An exclusive benchlock.sh job waits until no test slot is held, so one started inside a testslot.sh job
+// would wait for its own slot for good: it refuses at once with status 2 and says why. A shared job,
+// which does not wait for the test slots, runs there.
+func TestBenchlockExclusiveRefusesInsideATestSlot(t *testing.T) {
+	needTools(t)
+	scripts, err := filepath.Abs(filepath.Join("..", "..", "..", ".agents", "scripts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	env := append(scriptEnv(t, t.TempDir()), "TESTSLOT_N=1")
+	inSlot := func(class string) (string, int) {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(ctx, "bash", filepath.Join(scripts, "testslot.sh"),
+			"env", "BENCHLOCK_CLASS="+class, "bash", filepath.Join(scripts, "benchlock.sh"), "inner", "true")
+		cmd.Env = env
+		out, err := cmd.CombinedOutput()
+		if ctx.Err() != nil {
+			t.Fatalf("a %s benchlock.sh job inside a test slot job still waits after 30 seconds:\n%s", class, out)
+		}
+		code := 0
+		if e := (*exec.ExitError)(nil); errors.As(err, &e) {
+			code = e.ExitCode()
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		return string(out), code
+	}
+	if out, code := inSlot("exclusive"); code != 2 || !strings.Contains(out, "inside a testslot.sh job") {
+		t.Errorf("an exclusive job inside a test slot job: status %d, output %q; want status 2 and the reason", code, out)
+	}
+	if out, code := inSlot("shared"); code != 0 {
+		t.Errorf("a shared job inside a test slot job: status %d, output %q; want it to run", code, out)
 	}
 }
