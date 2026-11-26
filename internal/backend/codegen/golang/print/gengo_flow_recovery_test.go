@@ -32,9 +32,10 @@ func hasRecovery(e ast.Expr) (found bool) {
 // grammars, in the ordinary and the budget-controlled forms, every rule, Operators Rule line and stream start rule of the
 // Node and recognizer tables is printed from Flow IR (otherwise the generation fails), and the rules with a recovery (alone, with a cut and
 // with a leader) take the Flow route.
-// recoveryBothForms are the cases that run in both forms in the default tier: the recovery of a leader
-// takes the Flow route only in the case typed/LR_recovery, and the form without the budget controls is
-// the only one where it does, so a split that gave that case to the other form would fail the check.
+// recoveryBothForms are the cases that run in both forms in the default tier. In both forms, the recovery
+// of a leader takes the Flow route only in the case typed/LR_recovery (no other case of the corpus does
+// in either form), so that case runs in both forms: a split that gave it to one form would fail the
+// check in the other.
 var recoveryBothForms = []string{"typed/LR_recovery"}
 
 func TestFlowRecoveryPrintsFromFlow(t *testing.T) {
