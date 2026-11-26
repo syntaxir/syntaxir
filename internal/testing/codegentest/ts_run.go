@@ -317,17 +317,51 @@ func TSParsersInsertionMismatches(t *testing.T, node string, cases []Case, opts 
 	return tsParsersMismatches(t, node, cases, opts, mutate, units, missing)
 }
 
-// tsParsersMismatches runs the cases in shards (Shards), each in a directory of its own.
+// tsParsersMismatches runs the cases in shards (Shards), each in a directory of its own, and then
+// type-checks the generated files of all shards together: RunTSC batches them, so the check starts
+// one tsc run per batch of TSCBatchFiles files, not one per shard. A mutated parser is compared, not
+// type-checked.
 func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
 	t.Helper()
-	return Shards(t, cases, func(t *testing.T, part []Case) []string {
-		return tsParsersShard(t, node, part, opts, mutate, units, missing)
+	// The shard directories live under root, which outlasts the shards: the one tsc run after
+	// them reads the generated files of every shard.
+	root := t.TempDir()
+	var mu sync.Mutex
+	var files []string
+	mismatches := Shards(t, cases, func(t *testing.T, part []Case) []string {
+		shardFiles, mism := tsParsersShard(t, root, node, part, opts, mutate, units, missing)
+		mu.Lock()
+		files = append(files, shardFiles...)
+		mu.Unlock()
+		return mism
 	})
+	if mutate == nil {
+		tsc := tooltest.RequireTSC(t)
+		// The strictest checks there are, so that the code compiles in any project; ES2020 is the
+		// oldest target it supports (bigint).
+		flags := []string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
+			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
+			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
+			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}
+		if opts.Types {
+			// The generated files import each other by their names (./lib.ts).
+			flags = append(flags, "--allowImportingTsExtensions")
+		}
+		// The files are absolute paths under root, so any directory runs the check.
+		RunTSC(t, tsc, root, flags, files)
+	}
+	return mismatches
 }
 
-func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) []string {
+// tsParsersShard generates the parsers of cases in a directory of its own, runs them with node
+// against the engine, and returns the absolute paths of the generated files with the mismatches.
+// The directory is made under root, not t.TempDir, so that it outlives this shard.
+func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) ([]string, []string) {
 	t.Helper()
-	dir := t.TempDir()
+	dir, err := os.MkdirTemp(root, "shard")
+	if err != nil {
+		t.Fatal(err)
+	}
 	write := func(name, content string) {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {
 			t.Fatal(err)
@@ -418,26 +452,6 @@ func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOpti
 	data, _ := json.Marshal(inputs)
 	write("inputs.json", string(data))
 
-	// A mutated parser is compared, not type-checked.
-	if mutate == nil {
-		tsc := tooltest.RequireTSC(t)
-		// The strictest checks there are, so that the code compiles in any project; ES2020 is the
-		// oldest target it supports (bigint).
-		args := append([]string{"--noEmit", "--target", "es2020", "--lib", "es2020", "--strict",
-			"--noUnusedLocals", "--noUnusedParameters", "--noImplicitReturns", "--noFallthroughCasesInSwitch",
-			"--noImplicitOverride", "--exactOptionalPropertyTypes", "--noUncheckedIndexedAccess",
-			"--noPropertyAccessFromIndexSignature", "--erasableSyntaxOnly", "--verbatimModuleSyntax"}, files...)
-		if opts.Types {
-			// The generated files import each other by their names (./lib.ts).
-			args = append(args, "--allowImportingTsExtensions")
-		}
-		cmd := exec.Command(tsc, args...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("tsc: %v\n%s", err, out)
-		}
-	}
-
 	args := []string{"harness.mjs", "inputs.json", "out.jsonl"}
 	unitsArg := "-"
 	if units {
@@ -517,7 +531,11 @@ func tsParsersShard(t *testing.T, node string, cases []Case, opts common.GenOpti
 	if rest, _ := results.ReadString('\n'); rest != "" {
 		mismatches = append(mismatches, fmt.Sprintf("got more than %d results", k))
 	}
-	return mismatches
+	absFiles := make([]string, len(files))
+	for i, f := range files {
+		absFiles[i] = filepath.Join(dir, f)
+	}
+	return absFiles, mismatches
 }
 
 // TSBundles generates a TypeScript parser for each case with opts, concurrently, for TSOutputs.
