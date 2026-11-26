@@ -87,8 +87,6 @@ type skipSlots struct {
 	// more holds the records whose key shares the hash of the one in recs but not its values.
 	more  map[skipKey][]skipRecord
 	floor int
-	// kept is the number of records after dropped ones were last removed.
-	kept int
 	// expBytes counts the expectations of the records stored, the values of their keys and bindings,
 	// and the records in more, for the memory limit.
 	expBytes uint64
@@ -204,10 +202,10 @@ func (p *Parser) putMore(s *skipSlots, sk skipKey, r skipRecord) {
 	s.expBytes += r.countedBytes() + uint64(unsafe.Sizeof(skipRecord{}))
 }
 
-// drop drops the slots of the positions before pos: the words of bits wholly before it at once, and
-// the records once they can make up half of them, so its cost is proportional to the records stored
-// and after a drop the records held number fewer than twice those the last removal kept, plus 64,
-// all of which were at or after its floor. expBytes forgets what the removed records held.
+// drop drops the slots of the positions before pos: the words of bits wholly before it and every
+// record of a position before it, so after a drop all records held are at or after its floor. Its
+// cost is that of the records held, which a stream pays once a window, when it prunes its memo.
+// expBytes forgets what the removed records held.
 func (s *skipSlots) drop(pos int) {
 	if pos <= s.floor {
 		return
@@ -215,9 +213,6 @@ func (s *skipSlots) drop(pos int) {
 	s.floor = pos
 	if k := min((pos-s.base)>>6, len(s.marks)); k > 0 {
 		s.marks, s.base = s.marks[k:], s.base+64*k
-	}
-	if len(s.recs) < 2*s.kept+64 {
-		return
 	}
 	for k, r := range s.recs {
 		if k.pos < pos {
@@ -234,5 +229,4 @@ func (s *skipSlots) drop(pos int) {
 			delete(s.more, k)
 		}
 	}
-	s.kept = len(s.recs)
 }

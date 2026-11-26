@@ -65,6 +65,28 @@ func TestStreamCommitDropsRecordsBeforeItsPosition(t *testing.T) {
 	}
 }
 
+// TestStreamCommitRemovesEveryRecordBeforeItsPosition pins that a pruning commit removes the
+// records of the positions before it, however few they are, and forgets what they held: a stream
+// holds no record a window or more behind its commit point.
+func TestStreamCommitRemovesEveryRecordBeforeItsPosition(t *testing.T) {
+	p := NewControlledStreamParser(&SharedProgram{}, strings.NewReader(strings.Repeat("a", 2048)), input.CodePoints, nil)
+	p.Fill(2048)
+	s := &skipSlots{}
+	p.skipTables = []*skipSlots{s}
+	for pos := 1000; pos < 1024; pos++ {
+		s.put(pos, nil, skipRecord{state: skipRecorded, exp: []ExpID{1, 2}})
+	}
+	s.put(1024, nil, skipRecord{state: skipRecorded, exp: []ExpID{3}})
+	after := s.expBytes
+	p.Commit(1024)
+	if len(s.recs) != 1 || len(s.more) != 0 {
+		t.Errorf("after the commit the slots hold %d records and %d lists of more, not one record", len(s.recs), len(s.more))
+	}
+	if r := s.recs[skipKey{pos: 1024}]; s.expBytes != r.countedBytes() || after <= s.expBytes {
+		t.Errorf("after the commit the records count %d bytes, from %d; the one left holds %d", s.expBytes, after, r.countedBytes())
+	}
+}
+
 // TestSkipRecordOverwriteCountsTheNewRecord pins the count of a record stored over another of the
 // same key: the slots count what the new record holds and forget what the old one held.
 func TestSkipRecordOverwriteCountsTheNewRecord(t *testing.T) {

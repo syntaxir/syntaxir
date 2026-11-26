@@ -62,9 +62,9 @@ rule g = ";" / "x" #recover(skip=[b]+)`
 	want := map[run]usage{
 		{engine.Closure, false, 10, false}:           {43, 80532},
 		{engine.Closure, true, 10, false}:            {43, 45676},
-		{engine.Closure, false, 0, true}:             {43, 82084},
-		{engine.Bytecode, false, 0, true}:            {43, 106660},
-		{engine.BytecodeIterative, false, 0, true}:   {43, 108308},
+		{engine.Closure, false, 0, true}:             {43, 82076},
+		{engine.Bytecode, false, 0, true}:            {43, 106652},
+		{engine.BytecodeIterative, false, 0, true}:   {43, 108300},
 		{engine.Bytecode, false, 10, false}:          {43, 105108},
 		{engine.BytecodeIterative, false, 10, false}: {43, 106156},
 		{engine.Bytecode, true, 10, false}:           {43, 70252},
