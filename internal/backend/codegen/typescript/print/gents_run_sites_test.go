@@ -5,6 +5,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/backend/codegen/common"
@@ -16,16 +17,25 @@ import (
 const tsRunSpan = "const RUN_HOT_SPAN = 64;\n"
 
 // tsRunAt returns a mutation of a generated parser bundle that makes its run sites turn hot at
-// span, after the replacements of mutation.
-func tsRunAt(t *testing.T, span int, mutation [][2]string) func(string) string {
-	return func(code string) string {
+// span, after the replacements of mutation, and a check that the test runs after the call that uses
+// the mutation. The mutation runs in the shards of TSParsersMismatches, on goroutines of their own, so it
+// records a replacement that is not in the library and does not fail the test itself: the check does.
+func tsRunAt(t *testing.T, span int, mutation [][2]string) (func(string) string, func()) {
+	var missed atomic.Bool
+	mutate := func(code string) string {
 		for _, r := range append(mutation[:len(mutation):len(mutation)], [2]string{tsRunSpan, strings.Replace(tsRunSpan, "64", strconv.Itoa(span), 1)}) {
 			if !strings.Contains(code, r[0]) {
-				t.Fatalf("mutation: %q not in the library", r[0])
+				missed.Store(true)
+				return code
 			}
 			code = strings.Replace(code, r[0], r[1], 1)
 		}
 		return code
+	}
+	return mutate, func() {
+		if missed.Load() {
+			t.Fatal("a mutation of the run sites is not in the library")
+		}
 	}
 }
 
@@ -39,9 +49,11 @@ func TestRunSitesTSMatchEngine(t *testing.T) {
 	if testing.Short() {
 		t.Skip("runs generated TypeScript")
 	}
-	for _, m := range codegentest.TSParsersMismatches(t, node, codegentest.RunSiteCases(40, false), common.GenOptions{}, tsRunAt(t, 1, nil)) {
+	mutate, checkMutation := tsRunAt(t, 1, nil)
+	for _, m := range codegentest.TSParsersMismatches(t, node, codegentest.RunSiteCases(40, false), common.GenOptions{}, mutate) {
 		t.Error(m)
 	}
+	checkMutation()
 	codegentest.TSParsersCorpus(t, node, codegentest.RunSiteCases(4, true), common.GenOptions{})
 }
 
@@ -167,8 +179,12 @@ func TestRunSitesTSNegativeControls(t *testing.T) {
 			}
 			cases := []codegentest.Case{{Name: g.Name, Src: g.Src, Inputs: inputs}}
 			bundles := codegentest.TSBundles(t, cases, common.GenOptions{})
-			want := codegentest.TSOutputs(t, node, cases, bundles, tsRunAt(t, 1, nil))
-			got := codegentest.TSOutputs(t, node, cases, bundles, tsRunAt(t, 1, tsRunSiteMutations[tc.mutation]))
+			wantMutate, wantCheck := tsRunAt(t, 1, nil)
+			want := codegentest.TSOutputs(t, node, cases, bundles, wantMutate)
+			wantCheck()
+			gotMutate, gotCheck := tsRunAt(t, 1, tsRunSiteMutations[tc.mutation])
+			got := codegentest.TSOutputs(t, node, cases, bundles, gotMutate)
+			gotCheck()
 			if got == want {
 				t.Errorf("mutation %s: no difference on the inputs of %s", tc.mutation, g.Name)
 			}
