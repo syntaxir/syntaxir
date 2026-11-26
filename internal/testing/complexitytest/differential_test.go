@@ -231,8 +231,9 @@ func randomNestedScanGrammar(rng *rand.Rand) string {
 // SharedContinuationGrammars, keeps those that compile, and checks every one that claimsLinear
 // classifies as linear against the measured cost on the input families on the closure and bytecode
 // backends (those of SharedContinuationInputs for the last family). It returns the number of
-// grammars checked, the number of them from SharedContinuationGrammars, and the failures; it stops
-// at the first failure if firstOnly is set.
+// grammars checked, the number of them from SharedContinuationGrammars, and the failures. With firstOnly
+// set, each shard stops at its first failure, so up to one failure per shard is reported (the shards
+// run concurrently; see codegentest.Shards).
 func linearClaims(t *testing.T, count int, claimsLinear func(t *testing.T, g *ast.Grammar) bool, firstOnly bool) (checked, checkedShared int, failures []string) {
 	t.Helper()
 	rng := rand.New(rand.NewPCG(3, 5))
