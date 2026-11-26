@@ -110,6 +110,12 @@ rule item = x / .
 rule x = ("b" #recover(skip=(word / [a-z ])*)) "c"
 rule word = [a-z]+ !"="
 `, "bab abc cxbaa a!c", 512, 16, 2, false, true},
+		// list is a run site, which the second alternative walks again from the second word on.
+		{"run sites", `rule main = item* #stream !.
+rule item = list "x" ";" / word "," list "y" ";"
+rule list = (word ",")*
+rule word = [a-z]+
+`, "ab,cd,ef,gh,ij,kl,mn,op,qr,st,uv,wx,ab,cd,ef,gh,ij,kl,mn,op,qr,st,uv,wx,y;", 512, 1, 0, false, true},
 		// ws is a scan site: the second alternative walks the spaces again.
 		{"scan sites", `rule main = item* #stream !.
 rule item = ws "a" ws ";" / ws "b" ws ";"

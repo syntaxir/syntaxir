@@ -26,6 +26,19 @@ func (s valSuffix[T]) slice() []T {
 	return s.buf.a[s.i:len(s.buf.a):len(s.buf.a)]
 }
 
+// bufBytes returns the bytes that skipBytes counts for the buffer of s, unless seen has it, and adds
+// it to seen; none for no buffer.
+func (s valSuffix[T]) bufBytes(seen map[any]struct{}) uint64 {
+	if s.buf == nil {
+		return 0
+	}
+	if _, met := seen[s.buf]; met {
+		return 0
+	}
+	seen[s.buf] = struct{}{}
+	return uint64(len(s.buf.a)) * ptrBytes
+}
+
 // walkVals are the elements that a walk collected (vals), whose list the end of the walk makes. placed
 // reports that the list is placed in buf from lo on, so that the records share it.
 type walkVals[T any] struct {

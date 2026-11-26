@@ -35,6 +35,10 @@ func (p *Parser) PruneSkipRecords(pos int) { p.pruneSkipRecords(pos) }
 // recVals are the elements of a record: the nodes of the engine's values.
 type recVals = valSuffix[*value.Node]
 
+// valBytes returns the bytes of the buffer of the elements of r unless seen has it, and adds it to
+// seen (recountSkipBytes).
+func (r *skipRecord) valBytes(seen map[any]struct{}) uint64 { return r.vals.bufBytes(seen) }
+
 // skipVals are the elements of a walk: the nodes of the engine's values.
 type skipVals = walkVals[*value.Node]
 

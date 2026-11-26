@@ -52,6 +52,9 @@ type skipRecord struct {
 	from, examined int
 	state          uint8
 	list           bool
+	// errBytes is what skipBytes counts for the error entries that the record made (skipLink), none
+	// for those it shares with the record of the rest of its walk.
+	errBytes uint32
 	// key holds the values of the variables of the key that the walk from the position started with.
 	key, bind []any
 	vals      recVals

@@ -20,6 +20,12 @@ type recVals struct {
 	tvals valSuffix[any]
 }
 
+// valBytes returns the bytes of the buffers of the elements of r that seen does not have, and adds
+// them to seen (recountSkipBytes).
+func (r *skipRecord) valBytes(seen map[any]struct{}) uint64 {
+	return r.vals.nodes.bufBytes(seen) + r.vals.tvals.bufBytes(seen)
+}
+
 // skipVals are the elements of a walk: nodes in a Node parse, tvals in a typed one (typed).
 type skipVals struct {
 	nodes walkVals[*sxirvalue.Node]

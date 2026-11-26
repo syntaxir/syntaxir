@@ -375,6 +375,7 @@ func (p *Parser) skipLink(w *skipWalk, r *skipRecord, v skipVisit, rest *recEntr
 	case rest == nil:
 		e := v.errs
 		r.errs = &e
+		r.errBytes = uint32(recEntryBytes)
 		p.skipBytes += recEntryBytes
 	default:
 		// The list of an iteration's errors and the rest's: a hit records the rest of the walk as one
@@ -382,6 +383,7 @@ func (p *Parser) skipLink(w *skipWalk, r *skipRecord, v skipVisit, rest *recEntr
 		// at most 2k lists.
 		l := &errList{entries: []recEntry{v.errs, *rest}, n: v.errs.len() + rest.len()}
 		r.errs = &recEntry{list: l}
+		r.errBytes = uint32(errListBytes + 3*recEntryBytes)
 		p.skipBytes += errListBytes + 3*recEntryBytes
 	}
 }
@@ -428,11 +430,42 @@ func (p *Parser) walkBind() []any {
 }
 
 // pruneSkipRecords drops the records of the positions before pos, where a stream that committed at
-// pos never parses again.
+// pos never parses again, and recounts what the records that remain hold (recountSkipBytes).
 func (p *Parser) pruneSkipRecords(pos int) {
 	for _, s := range p.skipTables {
 		if s != nil {
 			s.drop(pos)
 		}
 	}
+	p.recountSkipBytes()
+}
+
+// recountSkipBytes replaces skipBytes, under a memory limit, with what the records of the skip tables
+// hold: the buffers of elements that they share, each once, and the error entries that each made.
+// skipBytes counts each buffer and entry where a walk makes it, and nothing takes them off when the
+// records that hold them are dropped or stored over; a stream prunes its records with no walk in
+// progress, so the records hold all that skipBytes counts that is still held.
+func (p *Parser) recountSkipBytes() {
+	if !p.countsMemory() {
+		return
+	}
+	var n uint64
+	bufs := make(map[any]struct{})
+	count := func(r *skipRecord) {
+		n += uint64(r.errBytes) + r.valBytes(bufs)
+	}
+	for _, s := range p.skipTables {
+		if s == nil {
+			continue
+		}
+		for _, r := range s.recs {
+			count(&r)
+		}
+		for _, rs := range s.more {
+			for i := range rs {
+				count(&rs[i])
+			}
+		}
+	}
+	p.skipBytes = n
 }
