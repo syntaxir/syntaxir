@@ -189,6 +189,17 @@ func ControlsCases(t testing.TB, cases []Case, controls bool, bothForms ...strin
 	for _, n := range bothForms {
 		both[n] = true
 	}
+	named := map[string]bool{}
+	for _, c := range cases {
+		if both[c.Name] {
+			named[c.Name] = true
+		}
+	}
+	for _, n := range bothForms {
+		if !named[n] {
+			t.Fatalf("the both-forms case %q is not in the corpus", n)
+		}
+	}
 	families := map[string][]int{}
 	for i, c := range cases {
 		f := caseFamily(c.Name)
