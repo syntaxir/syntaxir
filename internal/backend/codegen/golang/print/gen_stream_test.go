@@ -203,6 +203,7 @@ rule item Pair = k:[a-z]+ #atomic "=" v:[0-9]+ #atomic "\n" => Pair{Key: $k, Val
 	{Name: "discarded text", Src: `type T = { H string; N int }
 rule main = h:("a" "b") rs:r* #stream "!" => T{H: text($h), N: len($rs)}
 rule r = "x" "y"`, Inputs: []string{"abxyxy!", "ab!", "abxyx!", "ab" + strings.Repeat("xy", 3000) + "!"}},
+	{Name: "start action", Src: codegentest.StreamStartActionGrammar, Inputs: codegentest.StreamStartActionInputs},
 	{Name: "zero width", Src: `rule main = ("a" / "") * #stream $$`, Inputs: []string{"", "a", "aa", "ab"}},
 	{Name: "bounded", Src: `rule main = ("é" / "x") #repeat(1, 2) #stream rest
 rule rest = "!" $$`, Inputs: []string{"!", "é!", "éx!", "éxé!", "xé"}},

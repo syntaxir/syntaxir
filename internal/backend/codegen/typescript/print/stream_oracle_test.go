@@ -382,6 +382,9 @@ rule key = [a-z]+
 rule val = [0-9]+ ("," [0-9]+)*
 `, []string{"", "a=1;", "ab:==12,3;x=1;c=4;", "a=0;", "abc=1,22,333;" + strings.Repeat("key:==12,34,56;", 120)}, limitRuns},
 	{"commit text", codegentest.StreamTextCommitGrammar, codegentest.StreamTextCommitInputs, nil},
+	// The stream does not evaluate the action of its start rule, which fails at the top call of
+	// "a;a;", and builds the value of a nested call, which fails for "(a;a;)a;".
+	{"start action", "@start\n" + codegentest.StreamStartActionGrammar, codegentest.StreamStartActionInputs, nil},
 	{"trailing recover", `@start
 rule main = stmt* #stream fin !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;!]* ";")
@@ -425,6 +428,12 @@ var recoverDiagnostics = []streamOptions{
 // mutantCases names the one oracle case that a mutant runs on, for a mutant of a method that only the
 // parsers of that case include.
 var mutantCases = map[string]string{"range text": "text", "held text": "text", "cut units": "commit text", "text floor": "commit text"}
+
+// equivalentMutants are the mutants that the oracle must not tell from the engine: they break the cut
+// of a text at the last commit point, which no grammar can show, since the checker rejects every read
+// after the #stream repetition of a text that the cut would shorten. They pin that the cut stays
+// unobservable.
+var equivalentMutants = map[string]bool{"cut units": true, "text floor": true}
 
 func ptr[T any](v T) *T { return &v }
 
@@ -875,7 +884,8 @@ func TestStreamOracleReach(t *testing.T) {
 }
 
 // TestStreamOracleMutants checks that the oracle tells each mechanism of the stream: a stream whose
-// mechanism is broken differs from the engine on the oracle grammars.
+// mechanism is broken differs from the engine on the oracle grammars, except for the mutants of the
+// text cut (equivalentMutants), which no grammar can tell.
 func TestStreamOracleMutants(t *testing.T) {
 	t.Parallel()
 	for _, m := range []struct{ name, old, new string }{
@@ -911,9 +921,11 @@ func TestStreamOracleMutants(t *testing.T) {
 		{"input limit", "d > this.maxInput && this.n > this.maxInput", "d > this.maxInput + 1 && this.n > this.maxInput + 1"},
 		// In a stream the text of a node counts a unit for each position of its range.
 		{"range text", "if (this.control !== null) this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));\n    return this.text(start, end);", "return this.text(start, end);"},
-		// The text of a range counts the units of its part after the last commit point, not its width.
+		// The text of a range counts the units of its part after the last commit point, not its width;
+		// no text the parse takes reaches before that point.
 		{"cut units", "this.unitsSized(Math.max(end, this.textFloor) - Math.max(start, this.textFloor));", "this.unitsSized(end - start);"},
-		// A commit cuts text at the commit point, so a text does not depend on the chunks.
+		// A commit cuts text at the commit point, so a text does not depend on the chunks; no text the
+		// parse takes reaches before that point.
 		{"text floor", "this.textFloor = pos;", ""},
 		// So does the text that a string node holds.
 		{"held text", "if (n.terminal && this.control !== null && nodeShape(n) !== shapeError) this.unitsSized(n.end - n.start);", ""},
@@ -939,7 +951,11 @@ func TestStreamOracleMutants(t *testing.T) {
 					found += len(streamOracleMismatches(t, c.src, c.inputs, d, mutate))
 				}
 			}
-			if found == 0 {
+			if equivalentMutants[m.name] {
+				if found != 0 {
+					t.Errorf("the oracle finds %d differences of a mutant that no grammar can show", found)
+				}
+			} else if found == 0 {
 				t.Error("the oracle finds no difference")
 			}
 		})

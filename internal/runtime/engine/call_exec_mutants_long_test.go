@@ -390,7 +390,7 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 // so these mutants are what binds them. Each must fail the test named for it; the two backends'
 // calls of the commit are held to their position too.
 //
-// Seven edits change nothing that a parse can show, and are left out:
+// Eight edits change nothing that a parse can show, and are left out:
 //   - Moving the first checkpoint of EmitStream after the report, or dropping the checkpoint before
 //     each diagnostic in reportError: nothing changes state between the two, and the checkpoint
 //     after each diagnostic covers the next one, so each stands in for the other at the same state,
@@ -410,6 +410,10 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 //     each changes state that the other does not read.
 //   - Clearing the scratch of the errors with clear rather than clearSpend: clearing counts no compute
 //     unit, so the two do the same.
+//   - Dropping the cut of texts at the commit point: the checker rejects every read after the #stream
+//     repetition of a text that the cut would shorten, so no text that a parse takes reaches before
+//     the commit point. TestStreamTextCommitMutants of the Go generator runs this edit and checks
+//     that the tests of the texts of a stream pass with it.
 func TestStreamCommitMutantsFail(t *testing.T) {
 	const (
 		check   = "\tif BudgetControlsEnabled {\n\t\tp.Control.Check()\n\t}\n"
@@ -471,8 +475,6 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 			[]printedEdit{{"p.Discard(pos - 1)", "p.Discard(pos)"}}, stack, vm},
 		{"two units before the element are kept",
 			[]printedEdit{{"p.Discard(pos - 1)", "p.Discard(pos - 2)"}}, stack, vm},
-		{"text is not cut at the commit point",
-			[]printedEdit{{"\tp.TextFloor = pos\n", ""}}, "^TestStreamTextCutAtCommit$", inCore},
 		{"what the elements held is not released",
 			[]printedEdit{{"\tp.streamRelease()\n", ""}}, storage, vm},
 		{"a whole window does not prune", []printedEdit{{window, "pos-p.Memo.Base > 1024"}}, slide, inCore},

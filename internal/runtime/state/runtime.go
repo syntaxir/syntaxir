@@ -830,9 +830,9 @@ func (p *Parser) InvokeEnd(r *Rule, st *InvokeState, v *value.Node, ok bool) (*v
 }
 
 // Finish builds the rule's value from the value of the rule body, and converts it to the rule's named node type, if any. A value-free
-// rule is never checked.
+// rule is never checked, and neither is the top call of the start rule of a stream (StreamTop).
 func (p *Parser) Finish(r *Rule, f *Frame, v *value.Node, start int) *value.Node {
-	if r.Novalue {
+	if r.Novalue || p.StreamTop(r) {
 		return nil
 	}
 	if r.Act != nil {
@@ -873,6 +873,14 @@ func (p *Parser) Finish(r *Rule, f *Frame, v *value.Node, start int) *value.Node
 		v = p.convertResult(r, v)
 	}
 	return v
+}
+
+// StreamTop reports whether the call of r that ends is the top call of the start rule of a stream
+// parse, whose value the parse does not build: a stream returns no tree, so it neither runs the
+// rule's action nor converts its value. A recursive rule has left its nesting level when its call
+// ends, so its top call ends at depth 0; any other rule is entered once.
+func (p *Parser) StreamTop(r *Rule) bool {
+	return p.Input.Stream && r.ID == p.StreamID && (!r.Rec || p.Depth == 0)
 }
 
 // convertResult converts v, the value of rule r, to the rule's named node type.

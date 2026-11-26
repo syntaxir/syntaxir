@@ -25,12 +25,13 @@ the `#stream` repetition of the start rule.
 
 | Property | Definition |
 |:--|:--|
-| Placement | `#stream` MUST annotate a repetition (`*`, `+` or `#repeat(n,m)`) that is the body of a rule, an item of the body's top-level sequence, or the expression that such a body or item captures, through any number of nested captures (`items:record* #stream`, `x:(items:record* #stream)`); groups and attributes other than `#recover` and `#missing` around the body, an item or a capture do not change what is top level |
+| Placement | `#stream` MUST annotate a repetition (`*`, `+` or `#repeat(n,m)`) that is the body of a rule, an item of the body's top-level sequence, or the expression that such a body or item captures, through any number of nested captures (`items:record* #stream`, `x:(items:record* #stream)`); groups and the attributes `@error`, `@diagnostic` and `#ignorecase` around the body, an item or a capture do not change what is top level, and any other construct around them, such as `#atomic`, `#missing` or a lookahead, does: `(item* #stream) #atomic` is rejected, because its string node would need the input that a stream discards |
 | Arguments | `#stream` takes none |
 | Multiplicity | A rule body has at most one `#stream` |
 | Left recursion | A rule with `#stream` MUST NOT be on a left-recursion cycle. Growing a cycle evaluates the bodies of its rules again from the position where the growth started, which would deliver elements again after `emit` has seen them. Left recursion that the stream rule calls, such as inside an element, or that calls the stream rule after consuming input, is allowed: `rule main = item* #stream; rule item = "a" / main` is rejected, while `rule main = item* #stream; rule item = e ";"; rule e = e "+" "n" / "n"` is accepted |
 | Streaming rule | Only the start rule of the parse, at call depth 1, streams. In every other call of a rule that contains `#stream`, the repetition is an ordinary repetition |
 | Suffix | After the repetition ends, the rest of the start rule MUST match as in an ordinary parse |
+| Reads after the repetition | The predicates of the rule that run after the repetition MUST NOT read a capture that holds the repetition, and MUST NOT take `text` of a capture made before the repetition unless the capture holds a string node (a literal, a character class, `.`, an `#atomic` expression, or a call of a rule without an action or a declared type whose body is one), which holds its text. A `text` of a lambda parameter counts as a text of each capture that its predicate statement reads. A stream leaves the elements it hands over out of the repetition's list and cuts texts at the last commit point ([Positions and Text](#positions-and-text)), so such reads could decide the parse otherwise than an ordinary parse does. A variable bound before the repetition carries a text across it: `var v string` with `rule main = h:header { v := text($h) } items:record* #stream { v != "" } $$`. The inline actions after the repetition see only their own captures, and are not restricted. The rule's action is not restricted either: a stream parse does not evaluate it ([Entry Points](#entry-points)). With this rule a stream parse ends as an ordinary parse of its input ends without the start rule's value at its top call: its action and its conversion to the rule's node type |
 | Finite bounds | `#repeat(n,m)` delivers at most `m` elements and fails if fewer than `n` match. `#repeat(0)` executes no elements. Input beyond the maximum is left for the suffix: `"a" #repeat(1,2) #stream "a" $$` accepts `aaa` and delivers two elements. A later suffix or minimum failure does not retract elements already delivered |
 | Empty elements | If the maximum permits an element, the first element that matches the empty string is delivered once and ends the repetition. It counts toward the minimum; if the total is still below the minimum, the parse fails without retracting delivered elements. For example, `_ #repeat(2) #stream` on empty input delivers once and fails, as batch parsing fails after one empty iteration |
 | Recovery | `#recover` MUST NOT wrap the `#stream` repetition, in either pragma order, because rewinding could reach discarded input. `#recover` inside each repeated element or its rule is allowed. `@error` MAY label the streaming repetition. A compiled grammar that contains the unsafe wrapper is rejected when it is loaded |
@@ -47,7 +48,13 @@ func (p *Parser) Iterate(r io.Reader, opts ...ParseOption) (*StreamIterator, err
 `ParseStream` calls `emit` once per element, in input order, and returns only an
 error: it returns no tree. The values of whatever precedes or follows the
 streaming repetition (a header, a footer) are matched and checked and then
-discarded. The start rule MUST contain a streaming repetition; otherwise
+discarded. A stream parse builds no value of its start rule at its top call: it
+neither evaluates the start rule's action nor converts the value to the rule's
+node type, so an action that would fail or read the list of the streaming
+repetition does not change the outcome, and the parse counts none of the
+action's [compute units](parsing.md#compute-units). A call of the start rule
+inside the stream, which does not stream, builds its value as in an ordinary
+parse. The start rule MUST contain a streaming repetition; otherwise
 `ParseStream` returns the error `rule main has no #stream repetition` (with the
 start rule's name), even if a rule that the start rule calls has one. Another
 rule streams when it is made the start rule with `Parser.WithStart`.
@@ -103,11 +110,17 @@ commit point (the end of the last delivered element): it is the input from the
 commit point to the end of the range, so the text is empty when the range ends
 at or before the commit point. Because `#stream` stands only at the top level of
 a rule body, no range that a text can read begins before the commit point and
-ends after it, so a cut text is either empty or whole. The cut does not depend
+ends after it, so a cut text is either empty or whole. The rule on [reads after
+the repetition](#grammar) keeps every predicate from taking a text that the cut
+shortens, and a stream parse does not evaluate the start rule's action, which
+could take one ([Entry Points](#entry-points)). The checker therefore guarantees
+that no valid grammar takes a text of a range below the commit point: every text
+that a stream parse takes is the text that an ordinary parse takes, and the
+compute units of a stream never include a cut. The cut does not depend
 on how much input before the commit point the stream still holds, so the text,
 and the outcome and compute units of the parse, are the same however the input
 is split into chunks. A text in a stream costs the length of its result, the
-text a string node holds or the cut text, and has that many compute units, so
+text a string node holds or the input of its range, and has that many compute units, so
 the cost classes of a grammar promise for a stream their bound
 plus the total length of the texts (see [Classification](parsing.md#classification)).
 
@@ -120,7 +133,7 @@ at the start of the next element. No construct of the language looks further bac
 | Option | Effect in a stream parse |
 |:--|:--|
 | `WithUnit`, `Limits.Depth` | Apply |
-| `WithContext`, `WithLimits` | Apply to the whole stream invocation, including diagnostic callbacks and the budget spent copying a bounded tail. A zero `Compute` selects the [default budget of a stream](parsing.md#default-limits): `max(2^20, 1024 * d)` for the furthest demanded position `d`, which does not depend on how the reader chunks the input; `Unlimited` disables it. A finite `Input` fails the stream with `LimitInput` when the parser asks for a unit beyond it and the stream has one. A finite `Memory` bounds the window of the stream, as [Memory](#memory) describes |
+| `WithContext`, `WithLimits` | Apply to the whole stream invocation, including diagnostic callbacks and the retained tail of a [diagnostic limit](#recovered-errors), which the memory count holds ([Memory](#memory)) and which spends no compute units. A zero `Compute` selects the [default budget of a stream](parsing.md#default-limits): `max(2^20, 1024 * d)` for the furthest demanded position `d`, which does not depend on how the reader chunks the input; `Unlimited` disables it. A finite `Input` fails the stream with `LimitInput` when the parser asks for a unit beyond it and the stream has one. A finite `Memory` bounds the window of the stream, as [Memory](#memory) describes |
 | `Recognize` | An error |
 | `WithDiagnosticCallback`, `WithDiagnosticLimit` | Stream-only; see [Recovered errors](#recovered-errors) |
 
@@ -146,6 +159,8 @@ than one, and the order in which they are reported is not specified.
 - `a rule body can have only one #stream`
 - `#stream cannot be used in rule NAME, which is on a left-recursion cycle; growing the recursion would re-evaluate elements already delivered`
 - `#recover cannot wrap a #stream repetition; recover inside each element instead`
+- `capture NAME holds a #stream repetition and cannot be read after it: a stream parse hands the elements to the caller instead of keeping them in its list`
+- `text of capture NAME, made before a #stream repetition, cannot be taken after it: a stream parse cuts the text at the end of the last element it delivered; bind a variable to the text before the repetition`
 - `#stream must be attached to a repetition (*, +, or #repeat(...))`
 - `#stream takes no arguments`. Source text cannot express this case, because
   `#stream(1)` is a syntax error; it arises only in a grammar AST or JSON.

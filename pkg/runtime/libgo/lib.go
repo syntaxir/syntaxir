@@ -2313,8 +2313,12 @@ func (p *Parser) Restore(pos, rec int) {
 	p.Recovered = p.Recovered[:rec]
 }
 
-// Finish makes the rule's value from the value of its body.
+// Finish makes the rule's value from the value of its body, except at the top call of the start rule
+// of a stream (streamTop).
 func (p *Parser) Finish(r *Rule, f *CaptureFrame, v *sxirvalue.Node, start int) *sxirvalue.Node {
+	if p.streamTop(r) {
+		return nil
+	}
 	v, owned := p.finishValue(r, f, v, start)
 	if r.nodeKinds != nil {
 		if owned && r.nodeKinds.convertOwned(v) {
@@ -2323,6 +2327,14 @@ func (p *Parser) Finish(r *Rule, f *CaptureFrame, v *sxirvalue.Node, start int) 
 		v = p.convertResult(r, v)
 	}
 	return v
+}
+
+// streamTop reports whether the call of r that ends is the top call of the start rule of a stream
+// parse, whose value the parse does not build: a stream returns no tree, so it neither runs the
+// rule's action nor converts its value. A recursive rule has left its nesting level when its call
+// ends, so its top call ends at depth 0; any other rule is entered once.
+func (p *Parser) streamTop(r *Rule) bool {
+	return p.Stream != nil && r.Id == p.Stream.start && (!r.Rec || p.Depth == 0)
 }
 
 // convertResult converts v, the value of rule r, to the rule's named node type.

@@ -265,14 +265,24 @@ next chunk shows it is not followed by another letter, and `ef` until the end of
 The rules that matter when you write a grammar, in short:
 
 - `#stream` goes on a repetition (`*`, `+` or `#repeat(n,m)`) that is the body of a rule or an item of its top-level
-  sequence, such as `items:record* #stream`, and a rule has at most one. Groups and attributes other than
-  `#recover` and `#missing` around them, such as `@diagnostic`, do not change the top level.
+  sequence, such as `items:record* #stream`, and a rule has at most one. Groups and the attributes `@error`,
+  `@diagnostic` and `#ignorecase` around them do not change the top level; `#atomic`, `#recover`, `#missing` and any
+  other construct around them do.
 - Only the **start rule** streams. `ParseStream` fails with `rule main has no #stream repetition` if the start rule has
   none, even when a rule it calls does; use `Parser.WithStart` to stream from another rule. Everywhere else the
   repetition is an ordinary one.
 - After the repetition ends, the rest of the start rule must match as usual, normally `$$`. With finite bounds,
   `"a" #repeat(1,2) #stream "a" $$` accepts `aaa` and delivers two elements, and a later failure does not retract the
   elements already delivered.
+- The predicates of the start rule after the repetition cannot read what a stream does not keep. They cannot read a
+  capture that holds the repetition, whose list is empty in a stream because the elements went to you, and cannot
+  take `text` of a capture made before it, because that text is gone, unless the capture holds a string node (a
+  literal, a class or `#atomic`), which keeps its text. Bind a variable before the repetition instead:
+  `{ v := text($h) }`. Both are compile errors.
+- A stream returns no tree, so it builds no value of the start rule: it neither runs the rule's action nor converts
+  the value to the rule's node type. `rule main File = rs:record* #stream $$ => File{Records: $rs.Value}` streams the
+  records and never builds the `File`. `Parse` builds it. With the rule above, a stream ends as `Parse` of the same
+  input ends without the start rule's value: its action and its node-type conversion.
 - `#recover` cannot wrap the `#stream` repetition, because rewinding could reach input that is already discarded. Put
   recovery inside each repeated element or its rule.
 - A rule with `#stream` cannot be on a left-recursion cycle, such as `rule main = main? item* #stream` or
@@ -301,8 +311,9 @@ column 5 counted in bytes.
 The parser does not keep text for you. String nodes (literals, character classes, `(...) #atomic`) carry their text, which
 `Node.Text()` returns; tuple and list nodes do not, and by the time your callback runs the input of an element is already
 being discarded. If you need the raw text of an element, make it a string node in the grammar, for example with `#atomic`. For the same reason,
-`text(...)` in an action of the start rule, which runs after the elements have gone, is cut at the end of the last
-delivered element: it returns only the input after that point (possibly `""`), however the reader split the input.
+a predicate of the start rule cannot take `text(...)` of a capture made before the repetition, other than a string node,
+once the repetition has ended (see [Rules and Limits](#rules-and-limits)); a variable bound before the repetition keeps
+the text.
 
 ## Errors
 

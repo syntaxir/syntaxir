@@ -51,12 +51,14 @@ type observedParse struct {
 
 // route is a way to run an observed parse. refusal is the start of the error with which the route
 // refuses a grammar, given what the grammar uses, before any call, or "" when it runs the grammar;
-// actions tells which Value Actions it runs.
+// actions tells which Value Actions it runs, and stream that it is a stream parse, which builds no
+// value of the start rule at its top call.
 type route struct {
 	name    string
 	run     func(p *engine.Parser, in string, u input.PositionUnit) []observedParse
 	refusal func(uses grammarUses) string
 	actions examinedref.Actions
+	stream  bool
 }
 
 func traced(rec *examinedref.Recorder, u input.PositionUnit) []engine.ParseOption {
@@ -87,39 +89,39 @@ func routes() []route {
 				var rec examinedref.Recorder
 				_, err := p.OnBackend(b).Parse(in, append(traced(&rec, u), engine.WithExpectations())...)
 				return once(in, &rec, err, false)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 			route{name + "/recognize", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).Recognize(in, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}, every, examinedref.ReadActions},
+			}, every, examinedref.ReadActions, false},
 			route{name + "/stream", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, traced(&rec, u)...)
 				return once(in, &rec, err, false)
-			}, streams, examinedref.EveryAction},
+			}, streams, examinedref.EveryAction, true},
 			route{name + "/document", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return documentParses(p.OnBackend(b), in, u, false)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 			route{name + "/insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				_, err := p.OnBackend(b).Parse(in, append(traced(&rec, u), insertion...)...)
 				return once(in, &rec, err, true)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 			route{name + "/stream-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				var rec examinedref.Recorder
 				err := p.OnBackend(b).ParseStream(&oneByte{in}, func(*value.Node) error { return nil }, append(traced(&rec, u), insertion...)...)
 				return once(in, &rec, err, true)
-			}, streams, examinedref.EveryAction},
+			}, streams, examinedref.EveryAction, true},
 			route{name + "/document-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return documentParses(p.OnBackend(b), in, u, true)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 			route{name + "/prefix", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return prefixParse(p.OnBackend(b), in, u, false)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 			route{name + "/prefix-insertion", func(p *engine.Parser, in string, u input.PositionUnit) []observedParse {
 				return prefixParse(p.OnBackend(b), in, u, true)
-			}, every, examinedref.EveryAction},
+			}, every, examinedref.EveryAction, false},
 		)
 	}
 	return out
@@ -293,7 +295,7 @@ func TestExaminedOracle(t *testing.T) {
 									}
 									continue
 								}
-								ref := refs.get(op.text, examinedref.Options{Unit: u, MissingTokens: op.missing})
+								ref := refs.get(op.text, examinedref.Options{Unit: u, MissingTokens: op.missing, NoStartValue: r.stream})
 								if ref.err != nil {
 									t.Fatalf("%q: reference: %v", op.text, ref.err)
 								}

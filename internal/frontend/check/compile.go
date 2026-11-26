@@ -464,6 +464,7 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 	control := c.Control
 	top := StreamTops(body)
 	n := 0
+	var stream ast.Expr
 	astinspect.WalkExprControlled(body, func(e ast.Expr) {
 		if !IsStream(e) {
 			return
@@ -483,9 +484,193 @@ func (c *Compiler) checkStream(body ast.Expr) bool {
 			// Growing a left-recursion cycle evaluates the bodies of its rules again from the same
 			// position, which would deliver the elements a stream has already handed over.
 			c.errorf(a.Attrs[0].Diagnostic(), "#stream cannot be used in rule %s, which is on a left-recursion cycle; growing the recursion would re-evaluate elements already delivered", c.rule.Name)
+		} else {
+			stream = e
 		}
 	}, control)
+	if stream != nil && n == 1 {
+		c.checkStreamReads(body, stream)
+	}
 	return n > 0
+}
+
+// checkStreamReads checks that the predicates of a rule that run after its #stream repetition read
+// nothing that a stream parse does not keep, so that a stream parse decides its outcome as the batch
+// parse does: a stream hands the elements to the caller instead of putting them in the repetition's
+// list, and cuts the text of a node other than a string node at the end of the last element it
+// delivered. So the captures that hold the repetition cannot be read after it, and text cannot be
+// taken of a capture made before it, unless the capture holds a string node, which holds its text.
+// A text of a lambda parameter counts as a text of every capture that its statement reads. A
+// variable bound before the repetition carries a text across it. The rule's value action may read
+// all of these: a stream parse builds no value and does not evaluate it. Inline actions have
+// scopes of their own; predicates are the only other expressions after the repetition that read
+// captures.
+func (c *Compiler) checkStreamReads(body, stream ast.Expr) {
+	control := c.Control
+	held := map[string]bool{} // the captures that hold the repetition
+	before := map[string]bool{}
+	var after []ast.Expr
+	// path walks e, the expression on the way from the body to the repetition, and reports
+	// whether it holds the repetition.
+	var path func(e ast.Expr) bool
+	path = func(e ast.Expr) bool {
+		control.Poll()
+		if e == stream {
+			for x := e; x != nil; {
+				switch y := x.(type) {
+				case *ast.Group:
+					x = y.Expr
+				case *ast.Attributed:
+					x = y.Expr
+				case *ast.Capture:
+					held[y.Name] = true
+					x = y.Expr
+				default:
+					x = nil
+				}
+			}
+			return true
+		}
+		switch x := e.(type) {
+		case *ast.Group:
+			return path(x.Expr)
+		case *ast.Attributed:
+			return path(x.Expr)
+		case *ast.Capture:
+			if path(x.Expr) {
+				held[x.Name] = true
+				return true
+			}
+		case *ast.Seq:
+			for i, it := range x.Items {
+				if path(it) {
+					for _, b := range x.Items[:i] {
+						c.streamCutCaptures(b, before)
+					}
+					after = append(after, x.Items[i+1:]...)
+					return true
+				}
+			}
+		}
+		return false
+	}
+	if !path(body) {
+		return
+	}
+	// cut returns the first capture made before the repetition, not of a string node, that t
+	// refers to, and whether t refers to a lambda parameter.
+	cut := func(t ast.ActionExpr) (*ast.CaptureRef, bool) {
+		var first *ast.CaptureRef
+		param := false
+		astinspect.WalkAction(t, func(x ast.ActionExpr) {
+			if y, ok := x.(*ast.CaptureRef); ok {
+				if y.Param {
+					param = true
+				} else if before[y.Name] && first == nil {
+					first = y
+				}
+			}
+		})
+		return first, param
+	}
+	check := func(a ast.ActionExpr) {
+		if a == nil {
+			return
+		}
+		stmts := []ast.ActionExpr{a}
+		if b, ok := a.(*ast.Block); ok {
+			stmts = b.Statements
+		}
+		for _, st := range stmts {
+			stmtCut, _ := cut(st)
+			reported := false
+			astinspect.WalkAction(st, func(x ast.ActionExpr) {
+				switch y := x.(type) {
+				case *ast.CaptureRef:
+					if !y.Param && held[y.Name] {
+						c.errorf(y.Diagnostic(), "capture %s holds a #stream repetition and cannot be read after it: a stream parse hands the elements to the caller instead of keeping them in its list", y.Name)
+					}
+				case *ast.Call:
+					if y.Func != "text" || reported {
+						return
+					}
+					var arg ast.ActionExpr
+					if len(y.Args) > 0 {
+						arg = y.Args[0]
+					}
+					ref, param := cut(arg)
+					if ref == nil && param {
+						ref = stmtCut
+					}
+					if ref != nil {
+						reported = true
+						c.errorf(y.Diagnostic(), "text of capture %s, made before a #stream repetition, cannot be taken after it: a stream parse cuts the text at the end of the last element it delivered; bind a variable to the text before the repetition", ref.Name)
+					}
+				}
+			})
+		}
+	}
+	for _, e := range after {
+		walkOwnPredicates(e, check, control)
+	}
+}
+
+// streamCutCaptures adds to names the captures that e makes and the expressions after it in the
+// same rule can see, those outside inline actions, which have scopes of their own, unless the
+// capture holds a string node, whose text a stream keeps.
+func (c *Compiler) streamCutCaptures(e ast.Expr, names map[string]bool) {
+	control := c.Control
+	inline := map[ast.Expr]bool{}
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
+		if a, ok := x.(*ast.InlineAction); ok {
+			astinspect.WalkExprControlled(a.Expr, func(y ast.Expr) { inline[y] = true }, control)
+		}
+	}, control)
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
+		if cp, ok := x.(*ast.Capture); ok && !inline[x] && !c.stringNode(cp.Expr, map[string]bool{}) {
+			names[cp.Name] = true
+		}
+	}, control)
+}
+
+// stringNode reports whether the value of e is always a string node: a literal, a character class,
+// any character, an #atomic expression, or a call of a rule without an action or a declared type
+// whose body is one, through groups and attributes other than #recover and #missing, whose recovered
+// values are not string nodes.
+func (c *Compiler) stringNode(e ast.Expr, seen map[string]bool) bool {
+	c.Control.Poll()
+	switch x := e.(type) {
+	case *ast.Literal, *ast.CharClass, *ast.Any, *ast.Atomic:
+		return true
+	case *ast.Group:
+		return c.stringNode(x.Expr, seen)
+	case *ast.Attributed:
+		return !Recovers(x) && c.stringNode(x.Expr, seen)
+	case *ast.Ref:
+		r := c.Model.ByName[x.Name]
+		if r == nil || seen[x.Name] || r.Action != nil || r.Def.Type != nil || x.Level != "" {
+			return false
+		}
+		seen[x.Name] = true
+		return c.stringNode(r.BodyExpr(), seen)
+	}
+	return false
+}
+
+// walkOwnPredicates calls f with the action of each predicate of e outside its inline actions,
+// whose actions and predicates see only their own captures.
+func walkOwnPredicates(e ast.Expr, f func(ast.ActionExpr), control *cancel.Control) {
+	inline := map[ast.Expr]bool{}
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
+		if a, ok := x.(*ast.InlineAction); ok {
+			astinspect.WalkExprControlled(a.Expr, func(y ast.Expr) { inline[y] = true }, control)
+		}
+	}, control)
+	astinspect.WalkExprControlled(e, func(x ast.Expr) {
+		if p, ok := x.(*ast.Predicate); ok && !inline[x] {
+			f(p.Action)
+		}
+	}, control)
 }
 
 // TypeKind returns the kind of nodes of the grammar's type typ without a rule.

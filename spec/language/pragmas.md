@@ -156,7 +156,12 @@ matches.
 rule main = ^^ header records:record* #stream $$
 ```
 
-Handed elements are not included in the repetition's returned list. Once
+Handed elements are not included in the repetition's returned list, so the
+predicates after the repetition cannot read a capture that holds it, nor take
+the text of a capture made before it, which a stream cuts unless the capture
+holds a string node; bind a variable before the repetition to carry a text
+across it. A stream parse builds no value of its start rule and does not
+evaluate the rule's action, which may read them. Once
 handed over, an element is final and the parser does not backtrack before it.
 If a stream diagnostic callback is selected, committed recovery errors within
 an element are reported immediately before that element is handed over. A

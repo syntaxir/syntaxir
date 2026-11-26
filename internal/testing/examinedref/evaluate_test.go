@@ -388,6 +388,46 @@ func TestReferenceActionValues(t *testing.T) {
 	}
 }
 
+// TestReferenceNoStartValue checks that a parse that builds no value of the start rule at its top
+// call, as a stream parse does, meets no error of the start rule's action there, while a nested call
+// of the start rule still runs it; and that the reference refuses the option for a leader.
+func TestReferenceNoStartValue(t *testing.T) {
+	g, err := enginetest.ParseGrammar("rule main = (\"(\" main \")\")? xs:(([a-z] \";\")*) => 10 / (len($xs) - 2)")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	for _, tc := range []struct {
+		input       string
+		every, none []int
+	}{
+		{"a;a;", []int{0}, nil},
+		{"(a;)a;a;", []int{1}, nil},
+		{"(a;a;)a;", []int{0}, []int{0}},
+		{"a;", nil, nil},
+	} {
+		for _, noStart := range []bool{false, true} {
+			want := tc.every
+			if noStart {
+				want = tc.none
+			}
+			got, _, err := examinedref.EvaluateWith(g, "main", tc.input, examinedref.Options{NoStartValue: noStart})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !got.Matched || got.End != len(tc.input) || !slices.Equal(got.ActionErrors, want) {
+				t.Errorf("%q NoStartValue=%v: got %+v, want a match of the input with action errors %v", tc.input, noStart, got, want)
+			}
+		}
+	}
+	lr, err := enginetest.ParseGrammar("rule main = main \"a\" / \"a\"")
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if _, _, err := examinedref.EvaluateWith(lr, "main", "aa", examinedref.Options{NoStartValue: true}); err == nil {
+		t.Error("a leader that builds no value at its top call: got no error")
+	}
+}
+
 // TestReferenceMarksGrowthReads checks that the exits of calls that read a growth in progress are
 // marked, so that a skipped call is not justified by the failing seed of a leader.
 func TestReferenceMarksGrowthReads(t *testing.T) {

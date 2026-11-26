@@ -3167,6 +3167,9 @@ export class Parser {
 
   readonly maxDepth: number; // invocation-local maximum nesting
   depth = 0; // nesting of recursive rule calls
+  // streamStartRule is the ID of the start rule of a stream parse, whose #stream repetition streams
+  // (stream.start), and -1 in a batch parse (StreamParser sets it).
+  streamStartRule = -1;
   created: Node[] = []; // struct nodes made by the action being evaluated (from Actx.cbase)
   env: Env | null = null;
   envDepth = 0; // the depth of env (Grammar.envDepth)
@@ -5925,8 +5928,14 @@ export class Parser {
     throw new Fatal(new ParseInterruptionError("depth-limit", this.maxDepth, this.maxDepth, 1));
   }
 
-  // finish makes the rule's value from the value of its body.
+  // finish makes the rule's value from the value of its body, except at the top call of the start
+  // rule of a stream, whose value the parse does not build: a stream returns no tree, so it neither
+  // runs the rule's action nor converts its value. A recursive rule has left its nesting level when
+  // its call ends, so its top call ends at depth 0; any other rule is entered once.
   finish(r: Rule, f: Frame, v: Node | null, start: number): Node | null {
+    if (r.id === this.streamStartRule && (!r.rec || this.depth === 0)) {
+      return null;
+    }
     v = this.finishValue(r, f, v, start);
     if (r.nodeType !== "") {
       v = this.convertResult(r, v);
@@ -6619,8 +6628,6 @@ export class StreamParser extends Parser {
   // bodyGens are the resumable bodies of the rules of the Node table by ID, null for a rule whose
   // body never suspends (its body is Rule.body); the start rule's is its stream body.
   bodyGens: readonly (BodyGen | null)[] = [];
-  // streamStartRule is the ID of the start rule, whose #stream repetition streams (stream.start).
-  readonly streamStartRule: number;
   // baseLine and baseCol are the line and column of base; nlStarts holds the positions after each line
   // feed in [base, nlScanned), which errorLine has scanned.
   baseLine = 1;

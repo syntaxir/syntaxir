@@ -421,7 +421,13 @@ without limit controls counts no units.
 | An entry of recovered errors taken where a result is stored (below) | 1 |
 | An insertion of a missing token copied where a result is stored (a seed of left recursion or an attempt of an Operators Rule), and one recorded again where a result is reused, whether or not it is already on the path | 1 for each |
 | The recovered errors of a reused result whose insertions include one already on the path, which a parse with missing-token insertion therefore records one by one, leaving out the errors of those insertions (below) | 1 for each error of the result, those left out included |
-| A text value in a [stream](streaming.md) (`text` of a node) | 1 for each position unit of its result: the text that a string node holds, or for another node the input of its range, which a range before the last commit point leaves out ([Positions and Text](streaming.md#positions-and-text)) |
+| A text value in a [stream](streaming.md) (`text` of a node) | 1 for each position unit of its result: the text that a string node holds, or for another node the input of its range, which lies after the last commit point in every valid grammar ([Positions and Text](streaming.md#positions-and-text)) |
+
+A [stream](streaming.md) does not evaluate the action of its start rule at
+the rule's top call, nor convert the value to the rule's node type
+([Entry Points](streaming.md#entry-points)), so it counts none of the events
+of that evaluation; the events of a call of the start rule inside the stream
+count as in an ordinary parse.
 
 A terminal that fails advances over nothing and counts nothing, and examining
 input without advancing counts nothing. Input that the parse advances over
@@ -502,7 +508,8 @@ error or a list of entries, and a list never changes once made:
   place of the entries recorded since it began in the same way; neither
   counts a unit for the list;
 - backtracking drops the entries recorded after the point that it returns to,
-  a [stream](streaming.md) forgets the entries whose errors it has delivered,
+  a [stream](streaming.md) with a diagnostic limit forgets the entries whose
+  errors it has delivered,
   and listing the errors of the outcome counts no unit.
 
 The entries taken add up to at most a constant times the cost

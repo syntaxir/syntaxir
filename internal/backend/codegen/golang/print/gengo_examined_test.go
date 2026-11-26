@@ -234,8 +234,9 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 	t.Helper()
 	compared, diffs = map[string]int{}, map[string][]string{}
 	type key struct {
-		c, j  int
-		bytes bool
+		c, j   int
+		bytes  bool
+		stream bool
 	}
 	type refRun struct {
 		res   examinedref.Result
@@ -247,7 +248,9 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 	for _, r := range reports {
 		c := cases[r.Case]
 		in := c.Inputs[r.Input]
-		k := key{r.Case, r.Input, r.Bytes}
+		// A stream parse builds no value of the start rule at its top call.
+		stream := r.Entry == "stream"
+		k := key{r.Case, r.Input, r.Bytes, stream}
 		ref, ok := refs[k]
 		if !ok {
 			g := grammars[r.Case]
@@ -258,7 +261,7 @@ func examinedMismatches(t *testing.T, cases []codegentest.Case, reports []examin
 				}
 				grammars[r.Case] = g
 			}
-			o := examinedref.Options{Unit: input.CodePoints}
+			o := examinedref.Options{Unit: input.CodePoints, NoStartValue: stream}
 			if r.Bytes {
 				o.Unit = input.Bytes
 			}

@@ -18,29 +18,40 @@ rule header = "#records\n"
 rule record = ^ (k:[a-z]+ #atomic "=" v:[0-9]+ #atomic "\n") #recover(skip=[^\n]* "\n")`
 
 // StreamTextCommitGrammar reads, in the start rule after its #stream repetition, the text of a head
-// before the first element: text cuts a range at the last commit point, so the head has no text once
-// an element was delivered and its whole text when none was, whatever input the stream still holds.
-// The tail says which: "!" after elements, "?" after none; a predicate that does not hold fails the
+// before the first element and the text of a tail after the last one. The head is a string node,
+// which holds its text, so its text is whole after any number of commits, whatever input the stream
+// still holds; the text of a head that is not a string node cannot be taken there (the checker
+// rejects it, as TestStreamDivergentReadsRejected of the engine checks). The tail says which head the
+// input claims: "!" the head the input has, "?" another one; a predicate that does not hold fails the
 // parse. The texts of the head and of the tail count their units.
 const StreamTextCommitGrammar = `@start
-rule main = h:head item* #stream ("!" {text($h) == ""} / "?" {text($h) == "hé>"}) t:tail {text($t) == text($t)}
-rule head = [a-zé]+ ">"
+rule main = h:head item* #stream ("!" {text($h) == "hé>"} / "?" {text($h) == "x>"}) t:tail {text($t) == text($t)}
+rule head = ([a-zé]+ ">") #atomic
 rule item = [a-zé]+ ";"
 rule tail = [!€]*
 `
 
 // StreamTextCommitInputs are the inputs of the grammar: no element, one element before a long tail,
 // which a stream holding the whole input does not discard, many elements, and two inputs whose
-// tails contradict the texts the commit leaves, which fail.
+// tails contradict the text of the head, which fail.
 var StreamTextCommitInputs = []string{
-	"hé>?",
+	"hé>!",
 	"hé>a;!",
 	"hé>a;!" + strings.Repeat("!€", 300),
 	"hé>" + strings.Repeat("é;", 400) + "!",
 	"hé>" + strings.Repeat("ab;", 300) + "!" + strings.Repeat("€", 600),
 	"hé>a;?",
-	"hé>!",
+	"hé>?",
 }
+
+// StreamStartActionGrammar has a start rule whose action fails where the rule's list has two
+// elements: at the top call for "a;a;", which a stream does not evaluate, and at the nested call for
+// "(a;a;)a;", which does not stream and builds its value.
+const StreamStartActionGrammar = `rule main = ("(" main ")")? xs:(([a-z] ";")* #stream) => 10 / (len($xs) - 2)
+`
+
+// StreamStartActionInputs are the inputs of StreamStartActionGrammar.
+var StreamStartActionInputs = []string{"", "a;a;", "(a;)a;a;", "(a;a;)a;", "a;a;a;"}
 
 // StreamTextCommitFails is the number of inputs at the end of StreamTextCommitInputs that fail.
 const StreamTextCommitFails = 2

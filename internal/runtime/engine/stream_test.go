@@ -197,18 +197,60 @@ rule val = [0-9]+ #atomic`,
 	}
 }
 
-// TestParseStreamTextOfDiscardedInput checks that text(...) of a node whose input has been
-// discarded by the stream returns what is still held instead of failing.
-func TestParseStreamTextOfDiscardedInput(t *testing.T) {
+// TestParseStreamStartActionNotEvaluated checks that a stream parse builds no value of its start
+// rule: it does not evaluate the rule's action, which here takes the text of input the stream has
+// discarded, reads the list that the stream leaves without the elements it delivered, or fails, and
+// it counts none of the action's units. The value of a call of the start rule inside the stream is
+// built as in an ordinary parse.
+func TestParseStreamStartActionNotEvaluated(t *testing.T) {
 	t.Parallel()
-	prog := mustCompile(t, `type T = { H string; N int }
+	backends := []Backend{Closure, Bytecode, BytecodeIterative}
+	units := func(prog *Program, in string, emit func(*value.Node) error, b Backend) (uint64, error) {
+		var u uint64
+		err := prog.ParseStreamWith("main", strings.NewReader(in), emit, ParseOptions{Backend: b, ComputeReport: &u})
+		return u, err
+	}
+	count := func(n *int) func(*value.Node) error { return func(*value.Node) error { *n++; return nil } }
+	// The action takes a text and a length, whose units an evaluation would count.
+	acted := mustCompile(t, `type T = { H string; N int }
 rule main = h:("a" "b") rs:r* #stream "!" => T{H: text($h), N: len($rs)}
 rule r = "x" "y"`)
-	for _, b := range []Backend{Closure, Bytecode, BytecodeIterative} {
-		input := "ab" + strings.Repeat("xy", 5000) + "!"
-		err := prog.ParseStreamWith("main", strings.NewReader(input), func(*value.Node) error { return nil }, ParseOptions{Backend: b})
-		if err != nil {
-			t.Errorf("%v: %v", b, err)
+	plain := mustCompile(t, `rule main = h:("a" "b") rs:r* #stream "!"
+rule r = "x" "y"`)
+	for _, in := range []string{"ab" + strings.Repeat("xy", 5000) + "!", "abxy!", "ab!"} {
+		for _, b := range backends {
+			for _, emit := range []func(*value.Node) error{nil, func(*value.Node) error { return nil }} {
+				got, err := units(acted, in, emit, b)
+				want, werr := units(plain, in, emit, b)
+				if err != nil || werr != nil || got != want {
+					t.Errorf("%v, %d units with a nil callback %v: %d units, %v; without the action %d units, %v", b, len(in), emit == nil, got, err, want, werr)
+				}
+			}
+		}
+	}
+	// The action fails at the top call: the ordinary parse fails, the stream does not. The nested
+	// call, whose list holds its one element, builds its value.
+	failing := mustCompile(t, `rule main = ("(" main ")")? xs:(("a" ";")* #stream) => 10 / (len($xs) - 2)`)
+	for _, in := range []string{"a;a;", "(a;)a;a;"} {
+		if _, err := failing.Parse("main", in); err == nil || !strings.Contains(err.Error(), "division by zero") {
+			t.Errorf("%q: ordinary parse: %v, want division by zero", in, err)
+		}
+		for _, b := range backends {
+			n := 0
+			if _, err := units(failing, in, count(&n), b); err != nil || n != 2 {
+				t.Errorf("%q on %v: %d elements, %v; want 2", in, b, n, err)
+			}
+			if _, err := units(failing, in, nil, b); err != nil {
+				t.Errorf("%q on %v with a nil callback: %v", in, b, err)
+			}
+		}
+	}
+	if _, err := failing.Parse("main", "(a;a;)a;"); err == nil || !strings.Contains(err.Error(), "division by zero") {
+		t.Errorf("nested call: ordinary parse: %v, want division by zero", err)
+	}
+	for _, b := range backends {
+		if _, err := units(failing, "(a;a;)a;", count(new(int)), b); err == nil || !strings.Contains(err.Error(), "division by zero") {
+			t.Errorf("nested call on %v: %v, want division by zero", b, err)
 		}
 	}
 }
@@ -255,6 +297,73 @@ func TestStreamCompileErrors(t *testing.T) {
 	}
 }
 
+// TestStreamDivergentReadsRejected checks that the predicates that run after a #stream repetition
+// can read neither a capture that holds the repetition, whose list a stream leaves without the
+// elements it hands over, nor the text of a capture made before it, which a stream cuts at the last
+// element it delivered; and that the near misses, which read the same in a stream and in an
+// ordinary parse or which a stream does not evaluate, compile and give an ordinary parse's outcome.
+func TestStreamDivergentReadsRejected(t *testing.T) {
+	t.Parallel()
+	const held = "holds a #stream repetition and cannot be read after it"
+	const cut = "made before a #stream repetition, cannot be taken after it"
+	for _, tc := range []struct{ src, want string }{
+		{`rule main = h:("h" "h") ("a" ";")* #stream { len(text($h)) == 2 } $$`, "text of capture h, " + cut},
+		{`rule main = h:("h" "h") ("a" ";")* #stream { true; text($h) != "" } $$`, "text of capture h, " + cut},
+		{`rule main = h:("h" "h") ("a" ";")* #stream { len(map(list($h), (x) => text(x))) == 1 } $$`, "text of capture h, " + cut},
+		{`rule main = (h:("h" "h") (("a" ";")* #stream) { text($h) == "hh" }) $$`, "text of capture h, " + cut},
+		{"rule main = h:k (\"a\" \";\")* #stream { text($h) != \"\" } $$\nrule k = x:(\"k\" \"k\") => $x", "text of capture h, " + cut},
+		{`rule main = h:"h"? ("a" ";")* #stream { text($h) != "" } $$`, "text of capture h, " + cut},
+		{`rule main = "h" xs:(("a" ";")* #stream) { len($xs) == 2 } $$`, "capture xs " + held},
+		{`rule main = "h" xs:(("a" ";")* #stream) "t" { $xs != nil }`, "capture xs " + held},
+	} {
+		if got := compileError(t, tc.src); !strings.Contains(got, tc.want) || strings.Contains(got, "\n") {
+			t.Errorf("%s:\ngot  %s\nwant %s", tc.src, got, tc.want)
+		}
+	}
+	// #atomic on the way to the repetition needs the input that a stream discards.
+	if got := compileError(t, `rule main = (("a" ";")* #stream) #atomic $$`); !strings.Contains(got, "#stream is only allowed at the top level of a rule body") {
+		t.Errorf("#atomic around the repetition: got %s", got)
+	}
+	for _, tc := range []struct {
+		src, in string
+		want    int
+	}{
+		// A variable bound before the repetition holds the text.
+		{"var v string\nrule main = h:(\"h\" \"h\") { v := text($h) } (\"a\" \";\")* #stream { v == \"hh\" } $$", "hha;a;", 2},
+		// Captures made after the repetition, and other reads of captures made before it.
+		{`rule main = h:("h" "h") ("a" ";")* #stream t:("t" "t") { text($t) == "tt" } { $h != nil } { len($h) == 2 } { $h.Start == 0 } $$`, "hha;a;tt", 2},
+		// An inline action after the repetition sees only its own captures.
+		{`rule main = h:("h" "h") ("a" ";")* #stream (x:"z" => text($x)) $$`, "hha;z", 1},
+		// The text of a string node made before the repetition, which holds its text, directly or
+		// through a rule without an action.
+		{"rule main = h:\"#head\\n\" #atomic g:k (\"a\" \";\")* #stream $$ {text($h) == \"#head\\n\"} {text($g) == \"kk\"}\nrule k = (\"k\" \"k\") #atomic", "#head\nkka;a;", 2},
+		// An #atomic expression is a string node whatever its body, a sequence, a choice, a call or a
+		// predicate: it builds no value of the body and holds the text it matched.
+		{"rule main = h:(\"h\" (\"a\" / k) \"h\" { true }) #atomic (\"a\" \";\")* #stream { text($h) == \"hah\" } $$\nrule k = x:\"b\" => $x", "haha;a;", 2},
+		// The text of a capture made before the repetition, taken before it.
+		{`rule main = h:("h" "h") { text($h) == "hh" } ("a" ";")* #stream $$`, "hha;", 1},
+		// The rule's value action, which a stream does not evaluate, reads them all.
+		{`rule main = h:("h" "h") ("a" ";")* #stream => text($h)`, "hha;a;", 2},
+		{`rule main = all:(xs:("a" ";")* #stream) => len($all)`, "a;a;a;", 3},
+		{`rule main = all:(xs:("a" ";")* #stream) => $xs`, "a;", 1},
+		// @error, @diagnostic and #ignorecase on the way to the repetition.
+		{`rule main = "h" (((("a" ";")* #stream) @error("items")) #ignorecase) @diagnostic(name="list") $$`, "hA;a;", 2},
+	} {
+		prog := mustCompile(t, tc.src)
+		batch, err := prog.Parse("main", tc.in)
+		if err != nil || batch == nil {
+			t.Errorf("%s: ordinary parse: %v", tc.src, err)
+		}
+		for _, backend := range []Backend{Closure, Bytecode, BytecodeIterative} {
+			got := 0
+			err := prog.ParseStreamWith("main", strings.NewReader(tc.in), func(*value.Node) error { got++; return nil }, ParseOptions{Backend: backend})
+			if err != nil || got != tc.want {
+				t.Errorf("%s on %v: %d elements, %v; want %d", tc.src, backend, got, err, tc.want)
+			}
+		}
+	}
+}
+
 // TestStreamLeftRecursionRejected checks that a rule with #stream cannot be on a left-recursion
 // cycle: growing the cycle evaluates the rule body again from the same position, which would
 // deliver elements again or retract them.
@@ -272,7 +381,7 @@ func TestStreamLeftRecursionRejected(t *testing.T) {
 		// A capture of the repetition.
 		"rule main = items:item* #stream\nrule item = \"a\" / main \"b\"",
 		// A left-recursive head that a predicate after the repetition reads.
-		`rule main = h:(main "a" / "a" #atomic) "x"* #stream {text($h) != ""}`,
+		`rule main = h:(main "a" / "a" #atomic) "x"* #stream {$h != nil}`,
 	} {
 		if got := compileError(t, src); !strings.HasSuffix(got, want) || strings.Contains(got, "\n") {
 			t.Errorf("%s:\ngot  %s\nwant %s", src, got, want)

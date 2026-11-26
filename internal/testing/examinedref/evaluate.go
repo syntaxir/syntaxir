@@ -63,6 +63,12 @@ type Options struct {
 	// reference does not limit the insertions, so the limit of the parse must not be reached. The
 	// parse is one that records no expectations, which fixes the message of an insertion.
 	MissingTokens bool
+	// NoStartValue is a parse that builds no value of the start rule at its top call, as a stream
+	// parse does (spec/runtime/streaming.md, Entry Points): it neither evaluates the rule's action
+	// nor converts the value to the rule's node type there, so an error of that action is not one
+	// of the parse. Other calls of the start rule build their values. A stream's start rule is on no
+	// left-recursion cycle, so the reference refuses the option for a leader.
+	NoStartValue bool
 }
 
 // UnsupportedError reports a construct that the reference does not evaluate. The oracle fails on it:
@@ -138,6 +144,10 @@ func EvaluateWith(g *ast.Grammar, start, in string, o Options) (Result, []Exit, 
 	if _, ok := ev.rules[start]; !ok {
 		return Result{}, nil, fmt.Errorf("examinedref: no rule %q", start)
 	}
+	if o.NoStartValue && ev.leaders[start] {
+		return Result{}, nil, fmt.Errorf("examinedref: rule %s builds no value at its top call but is a leader of left recursion", start)
+	}
+	ev.top = true
 	r := ev.call(start, 0, state{})
 	if ev.err != nil {
 		return Result{}, nil, ev.err
@@ -247,6 +257,8 @@ type evaluator struct {
 	bottomRules  map[string]bool
 	steps        int
 	err          error
+	// top is set until the top call of the start rule begins.
+	top bool
 }
 
 func maxInt(a, b int) int {
@@ -276,8 +288,13 @@ func (ev *evaluator) call(name string, level int, caller state) outcome {
 	}
 	pos := caller.pos
 	st := state{pos: pos, vars: caller.vars, look: caller.look, path: caller.path}
+	top := ev.top
+	ev.top = false
 	if !ev.leaders[name] {
 		body := ev.body(r, level, st)
+		if top && ev.opts.NoStartValue {
+			return ev.exit(name, level, caller, valueless(st, body))
+		}
 		return ev.exit(name, level, caller, ev.ruleOutcome(r, st, body))
 	}
 	key := growthKey{name, pos, level}
@@ -364,6 +381,16 @@ func (ev *evaluator) ruleOutcome(r *rule, st state, body outcome) outcome {
 		o.vals, o.seq = body.vals, body.seq
 	default:
 		o.vals = []value{ev.ruleValue(r, st, body)}
+	}
+	return o
+}
+
+// valueless is the outcome of a call at st whose body has the outcome body and that builds no value:
+// the outcome of ruleOutcome without the value.
+func valueless(st state, body outcome) outcome {
+	o := outcome{matched: body.matched, end: st.pos, h: body.h, path: st.path}
+	if body.matched {
+		o.end, o.path = body.end, body.path
 	}
 	return o
 }
