@@ -282,6 +282,7 @@ Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](05
 - [136. Measured effect of the generation flags](136-measured-effect-of-the-generation-flags.md)
 - [137. Scan records on every target](137-scan-records-on-every-target.md)
 - [138. Typed-only output of generated TypeScript](138-typed-only-output-of-generated-typescript.md)
+- [140. Compute units counted down as fuel](140-compute-units-counted-down-as-fuel.md)
 
 ## Experiments That Did Not Pay Off
 
@@ -298,6 +299,7 @@ Records [025](025-discarding-separators-in-the-example-grammars.md) and [055](05
 | Inlining small plain rules into direct typed rules (after change 62; a body without calls of up to 16 expressions, also tried transitively) | `ParseValue` JSON −1% to −7% depending on the run, the other benchmarks within ±3% | Not adopted: no consistent gain for more generated code |
 | Setting the fields of the reused action context in place in direct typed rules, instead of copying a whole `tctx` | `ParseValue` JSON −5%, Outline +5%, the others within ±2% | Not adopted (noise) |
 | Memoizing every rule (classic packrat) | 2–3× slower than the transient policy on all workloads; memo entries were never reused for leaf and single-reference rules | Replaced by the transient policy (change 1) |
+| Counting compute units down as fuel to the next check, so that a count site loads one field and tests its sign ([record 140](140-compute-units-counted-down-as-fuel.md)) | `Parse` and `ParseValue` time within ±1% of the base (`4ad68de00` against its parent `361b3fbe5`, 10 rounds, A/A accepted) on JSON, XML and both arithmetic grammars; allocations and bytes unchanged; generated parsers 0.5–0.9% smaller | Rejected: no gain for a library protocol change and two removed `Parser` fields |
 
 ## Grammar Authoring Guidelines for Performance
 
