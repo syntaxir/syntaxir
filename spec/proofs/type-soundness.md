@@ -1,6 +1,6 @@
 # Type Soundness
 
-Arata Furukawa · Last revised 2026-11-24
+Arata Furukawa · Last revised 2026-11-26
 
 This proof shows that the types of the [Type System](../language/types.md) and
 the rules of [Type Checking](../language/type-checking.md) are sound: in a
@@ -68,8 +68,12 @@ The proof cites the following rules, and no other rule about types or values.
   in its scope, a rule body or one iteration of a repetition. A capture that
   did not match is `nil`, and a capture made in a match that backtracking
   undid does not survive. A capture inside a positive lookahead is kept beside
-  the tuple of its scope. Captures are not allowed inside `#atomic`, `-`, `!`
-  and the skip of a recovery
+  the tuple of its scope. A capture inside an expression that `#recover`
+  annotates is not made when the expression fails and is recovered, whether
+  or not the expression has a value, while a capture of the recovery itself,
+  as `x:("a" "b") #recover(skip="z")`, is made either way
+  ([`#recover`](../language/pragmas.md#recover)). Captures are not allowed
+  inside `#atomic`, `-`, `!` and the skip of a recovery
   ([Capture](../language/parser-expressions.md#capture)).
 - **(M5) Rule values.** A rule without an action produces the value of its
   body; one with a Value Action produces the result of the action, which runs
@@ -392,7 +396,7 @@ a sequence that succeeded matched, a capture matched where its operand did, a
 positive lookahead that succeeded matched its body, and the scope of a
 repetition iteration is the iteration. So a capture that is not made is in some
 alternative of a choice, in an optional expression or in an expression whose
-recovery skipped, and its type is `*T` (T6). A name captured more than once
+recovery skipped (M4), and its type is `*T` (T6). A name captured more than once
 holds the value of the last capture that matched; its type is the join of
 theirs, and `nil` is in it unless one of the captures is always made. ∎
 
@@ -612,11 +616,6 @@ with a more precise type (T8).
 
 ## What the Proof Does Not Show
 
-- **Captures in recovered expressions.** The checker does not yet type a
-  capture inside a recovered expression as optional, which (T6) requires, so
-  the grammar `(x:"a" "b") #recover(skip="z") => $x.Start` compiles and raises
-  a run-time error on the input `z`. The theorem holds of the checker that
-  follows (T6).
 - **The checker as implemented.** The proof shows that the rules of the
   specification are sound. It does not show that the checker computes the
   types those rules give; the inference of recursive types relies on
