@@ -1,6 +1,9 @@
 package check
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // TestOperatorsFoldWideningTypesLinesWithNode checks the type of $lhs and $rhs of an Operators Rule
 // with a whole-rule action whose folded type keeps growing, which the lines decide with $lhs and
@@ -43,5 +46,29 @@ rule c = #operators {
 		if got, _ := inferredType(p, rule); got != want {
 			t.Errorf("%s type = %s; want %s", rule, got, want)
 		}
+	}
+}
+
+// TestOperatorsFoldWideningTypesLinesAtNode checks that the lines that decide the widening are typed
+// with $lhs and $rhs of type node[_] itself, not of a type that holds no value. The operand t12 is a
+// sequence nested thirteen deep, so the rounds of e end before its type is stable. The postfix ?
+// indexes $lhs, which a node[_] does not allow, so typed with $lhs of type node[_] the line gives no
+// value of that type, and $lhs and $rhs of e are of the type that is not known. Typed with $lhs of
+// no type, the line would fit node[_], e would widen to it, and the last typing would reject the
+// index.
+func TestOperatorsFoldWideningTypesLinesAtNode(t *testing.T) {
+	t.Parallel()
+	src := "rule t0 = \"a\" \"a\"\n"
+	for i := 1; i <= 12; i++ {
+		src += fmt.Sprintf("rule t%d = t%d \"a\"\n", i, i-1)
+	}
+	p := mustCompile(t, src+`rule e = #operators {
+    operand t12
+    level { postfix "!" }
+    level { postfix "?" => $lhs[0] }
+} => $value
+`)
+	if got, _ := inferredType(p, "e"); got != "unknown" {
+		t.Errorf("e type = %s; want unknown", got)
 	}
 }
