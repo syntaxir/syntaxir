@@ -219,6 +219,11 @@ func TestValueActionTypes(t *testing.T) {
 		{"type Foo = { Items []node[string] }\nrule a = x:\"x\"* => Foo{Items: $x.Value}", "a", `Foo`},
 		// Operators Rule actions see $lhs, $op and $rhs.
 		{"rule e = #operators {\n    operand n:[0-9]+ => $n.Value\n    level { infix left \"+\" => $op }\n}", "e", `[]node[string] | node[string]`},
+		// An operand that recovers has an error value, and one that holds missing tokens has a missing
+		// value, both alongside the node values; a fold with them keeps the union, which node[_] would not admit.
+		{"rule e = #operators {\n    operand (\"x\" #recover(skip=\"y\"))\n    level { infix left \"+\" }\n}", "e", `node[string] | error | node[(e, node[string], e), {"lhs": 0, "op": 1, "rhs": 2}]`},
+		{"rule e = #operators {\n    operand (\"x\" #missing)\n    level { infix left \"+\" }\n}", "e", `node[string] | missing | node[(e, node[string], e), {"lhs": 0, "op": 1, "rhs": 2}]`},
+		{"rule e = #operators {\n    operand (\"x\" #recover(skip=\"y\"))\n    level { infix left \"+\" }\n    level { postfix \"!\" => $lhs }\n}", "e", `node[string] | error | node[(e, node[string], e), {"lhs": 0, "op": 1, "rhs": 2}] | e`},
 		// A declared type is the rule's type, node[_] included.
 		{"type Foo = {}\nrule a Foo = _ => Foo{}", "a", `Foo`},
 		{`rule a node[_] = x:"x" => $x`, "a", `node[_]`},
