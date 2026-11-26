@@ -31,8 +31,6 @@ import (
 // formerNameExempt are the tracked files (path.Match patterns) whose contents are not checked; their
 // paths still are.
 var formerNameExempt = []string{
-	// Saved raw benchmark results, which are never edited by hand.
-	"bench/results*.txt",
 	// Recovery corpora: random inputs in which the letters occur by chance.
 	"testdata/recovery/*.txt",
 	// This test spells the former names.

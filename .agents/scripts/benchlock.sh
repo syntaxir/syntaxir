@@ -34,7 +34,7 @@
 # test claims wait. While a window is open, shared jobs are not admitted (those already running
 # finish), so that the timed runs of the window have the machine alone. An exclusive holder runs
 # its command with SXIR_BENCHLOCK set to "<tag> <pid>", as benchlock/owner records it, so that the
-# command can check that it holds the lock (go run ./bench/report does).
+# command can check that it holds the lock (the timed harness of syntaxir/bench does).
 #
 # Deadlock freedom: every waiter is ranked by the key (start, seq). seq is a counter handed out
 # under flock, so no two waiters share a key and exactly one live waiter is first; all waiters

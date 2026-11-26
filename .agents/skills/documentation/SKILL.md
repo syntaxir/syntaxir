@@ -18,7 +18,8 @@ description: Maintain SyntaxIR user documentation, contracts, design records and
   validation; distinguish proposed, accepted and implemented work.
 - Development: `docs/development.md` and `docs/site.md` cover contribution and
   site workflows. `docs/performance.md` and `docs/optimizations/` hold method,
-  applicability and evidence. `docs/benchmarks.md` is generated.
+  applicability and evidence. The site renders `docs/benchmarks.md` from the
+  syntaxir/bench release that `site/benchmarks.json` pins; quoted figures come from `site/figures.json`.
 - Design pages (`docs/design/`) describe only the target architecture; migration plans live in the issue tracker.
   They contain no code: no code listings, signatures or code blocks. Public API names are allowed, as the style guide's
   Code References rule states; internal code is named only at the level of packages (no internal functions, types,

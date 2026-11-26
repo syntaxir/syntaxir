@@ -648,7 +648,7 @@ Thresholds count from the launch date and are revisited once measured.
 | Time from install to first generated parser | Timed tutorial walkthrough | ≤ 10 minutes | Funnel: trial |
 | Stars and inbound links, as visibility proxies | GitHub | Tracked, no threshold | Funnel: awareness |
 | Wedge benchmark rows won and lost | Wedge benchmark | Published; losses fall over time | Credibility |
-| Performance ratios of [Performance Leadership](#performance-leadership) | `go run ./bench/report` and the cross-tool harness | The targets | Performance track |
+| Performance ratios of [Performance Leadership](#performance-leadership) | The timed harness and the cross-tool harness of syntaxir/bench | The targets | Performance track |
 | Equality failures found by `sxir edit-fuzz` and differential tests | Test runs | Zero open at each release | Correctness |
 | Recovery repair rate and time | Recovery evaluation | Published for two languages | Credibility, Editor |
 | Root test-suite time | Local runs, then automated checks | Measured; no growth between releases | Bus factor |

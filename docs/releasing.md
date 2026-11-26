@@ -135,7 +135,8 @@ In the commands below, `vX.Y.Z` is the version being released and the module pat
 5. Run the checks of step 4 on linux/amd64 as well, on a Linux machine or by a run of the continuous-integration
    workflow. While workflows are paused, this run is a precondition of the release.
 6. Check the figures in the README and in [Why SyntaxIR](why-syntaxir.md) against the current
-   [benchmark report](benchmarks.md); rerun the benchmarks only if the report is older than the changes it describes.
+   [benchmark report](benchmarks.md), which the site renders from the results release that `site/benchmarks.json`
+   pins; rerun the benchmarks and pin a new release only if the report is older than the changes it describes.
    `sxir gen` generates parsers with limit controls by default (`-no-limits` opts out), and published
    performance figures are measured with the limits on; a figure measured on the form without them says so.
 7. Update the resource policy of [SECURITY.md](../SECURITY.md) to the defaults that this release ships.

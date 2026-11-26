@@ -1,7 +1,7 @@
 // Package probe generates the parsers of testdata/grammars with the options of the repository and
 // measures what they leave behind: the size of the generated source, of a stripped program that
-// calls ParseValue, and of the generated TypeScript. bench/report, bench/metrics and
-// bench/profilematrix share it.
+// calls ParseValue, and of the generated TypeScript. bench/metrics and the workload manifest of
+// package bench share it.
 package probe
 
 import (

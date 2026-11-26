@@ -13,7 +13,7 @@ import (
 // cost for the tests. The benchmarks measure what a user of the parsers gets, so a run that selects
 // benchmarks (-test.bench) keeps the user defaults: GOGC=100 and no memory limit. GOGC and GOMEMLIMIT
 // in the environment decide either way when they are set; the headers of the saved results record
-// the values that applied (go run ./bench/report).
+// the values that applied (the timed harness of github.com/syntaxir/bench).
 //
 // A process that BenchmarkCold starts runs its one case and exits (runCold).
 func TestMain(m *testing.M) {

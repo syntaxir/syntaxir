@@ -170,7 +170,7 @@ func TestNegativeControls(t *testing.T) {
 	addEdge(mod("internal/ir/code/exec/compose"), mod("internal/ir/core"))      // the packages under code/exec
 	addEdge(mod("internal/ir/code/exec/prim"), mod("internal/ir/code/exec"))    // code/exec/prim
 	addEdge(mod("internal/ir/code"), mod("internal/ir/core"))                   // internal/ir/code
-	addEdge(mod("bench/report"), mod("internal/lsp/sxirls"))                    // internal/lsp
+	addEdge(mod("bench/metrics"), mod("internal/lsp/sxirls"))                   // internal/lsp
 	addEdge(mod("internal/analysis/lint"), mod("internal/testing/starttest"))   // internal/testing
 	addEdge(mod("pkg/grammar/ast"), mod("internal/diagnostic"))                 // the utilities are above the grammar AST
 	// Rule 2: the grammar AST imports a runtime-side package and a third-party package.
@@ -244,7 +244,7 @@ func TestNegativeControls(t *testing.T) {
 		{"rule 2: internal/ir/code -> internal/ir/core", []string{"within internal/ir, code imports no ir/core (internal/ir/code -> internal/ir/core)"}},
 		{"rule 2: internal/ir/code/exec -> internal/ir/code/exec/compose", []string{"within internal/ir, code/exec imports only code (internal/ir/code/exec -> internal/ir/code/exec/compose)"}},
 		{"rule 2: internal/ir/code/exec/compose -> internal/ir/core", []string{"within internal/ir, the packages under code/exec import only code, code/exec and code/action (internal/ir/code/exec/compose -> internal/ir/core)"}},
-		{"rule 2: bench/report -> internal/lsp/sxirls", []string{"only cmd/** and internal/testing/** import internal/lsp/** (bench/report -> internal/lsp/sxirls)"}},
+		{"rule 2: bench/metrics -> internal/lsp/sxirls", []string{"only cmd/** and internal/testing/** import internal/lsp/** (bench/metrics -> internal/lsp/sxirls)"}},
 		{"rule 2: internal/analysis/lint -> internal/testing/starttest", []string{"only internal/testing/** imports internal/testing/** outside tests (internal/analysis/lint -> internal/testing/starttest)"}},
 		{"rule 2: pkg/grammar/ast -> internal/diagnostic", []string{"the grammar AST layer does not import the utility layer (pkg/grammar/ast -> internal/diagnostic)"}},
 		{"rule 2: pkg/grammar/ast -> pkg/runtime/value", []string{"the grammar AST imports only the standard library (pkg/grammar/ast -> "}},
@@ -304,7 +304,7 @@ func TestLayerGraph(t *testing.T) {
 		layerMiddle: "internal/middleend/flowlower",
 		layerFront:  "internal/frontend/desugar", layerIR: "internal/ir/core", layerPass: "internal/pass",
 		layerGrammar: "pkg/grammar/ast", layerUtil: "internal/diagnostic", layerTesting: "internal/testing/starttest",
-		layerOutside: "bench/report", layerRuntime: "pkg/runtime/query",
+		layerOutside: "bench/metrics", layerRuntime: "pkg/runtime/query",
 	}
 	below := []layer{layerDriver, layerAnalysis, layerBackend, layerResult, layerMiddle, layerFront, layerIR, layerPass, layerGrammar}
 	allowed := map[layer][]layer{
@@ -324,6 +324,9 @@ func TestLayerGraph(t *testing.T) {
 	}
 	var layers []layer
 	for l, p := range rep {
+		if g.pkgs[modulePath+"/"+p] == nil {
+			t.Fatalf("the representative %s of layer %s is not a package of the default build", p, l)
+		}
 		pl, err := placeOf(p)
 		if err != nil || layerOf(pl.target) != l {
 			t.Fatalf("the representative %s of layer %s is in layer %s (%v)", p, l, layerOf(pl.target), err)

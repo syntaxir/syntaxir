@@ -189,8 +189,9 @@ Every example is run, and its output is pasted from that run. An example that a 
   between machines.
 - A number that a guide takes from the benchmark results (a range of ratios, a time) is not typed in. Mark it
   `<!-- fig:NAME -->0.44–0.61×<!-- /fig -->` with a figure `NAME` of [benchmarks.md](benchmarks.md#figures-quoted-elsewhere):
-  `go run ./bench/report` rewrites the marked text from the results, and a test of `bench/report` fails when it
-  differs. A figure that the catalog lacks is added to `bench/report/figures.go`. A number from a measurement that
+  `go run ./cmd/timed pin` of [syntaxir/bench](https://github.com/syntaxir/bench) rewrites the marked text with the
+  figures of the pinned results (`site/figures.json`), and a test of the site fails when it differs. A figure that the
+  catalog lacks is added to `cmd/timed/figures.go` of syntaxir/bench. A number from a measurement that
   the page itself describes (the output of a program that the page shows) stays in the page.
 
 ## Before Committing a Page
@@ -199,5 +200,5 @@ Every example is run, and its output is pasted from that run. An example that a 
 2. Run `cd site && go test -count=1 ./...` and `go test ./spec/...`. They check link directions, headings and the
    anchors of links. The build check of [website maintenance](site.md) checks the links of the rendered site.
 3. Update the index of the directory, `site/config.json` and the pages that link to a page that you moved or split.
-4. Regenerate generated pages (`docs/benchmarks.md`, `spec/language/syntax.md`) instead of editing them.
+4. Regenerate generated pages (`spec/language/syntax.md`) instead of editing them.
 5. Read the page once as the reader it is for, without the context of the change.

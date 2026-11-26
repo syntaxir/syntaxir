@@ -1,5 +1,6 @@
 # Options with which the ready-made parsers of the alpha-parsers repository are generated from the grammars in this
-# directory: <name> <sxir gen options>. The size report of bench/report generates the parsers with them.
+# directory: <name> <sxir gen options>. The parser sizes of the deterministic metrics (bench/metrics) generate the
+# parsers with them.
 cel -types -typed-only -no-limits -nodoc -lib import
 csv -types -recognize -nodoc -lib import
 cue -types -typed-only -no-limits -nodoc -lib import

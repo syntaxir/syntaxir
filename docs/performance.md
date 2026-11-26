@@ -12,12 +12,14 @@ Update the catalog in the same commit as an optimization. Correctness-only fixes
 Keep a summary with the baseline commit, candidate change, workload, environment, sample method,
 results, tradeoffs and reproduction command. Focused raw output is local working data and is not
 committed by default; source commits and benchmark code allow reruns. Keep raw output in Git only
-when it has exceptional long-term value that a summary and rerun cannot preserve. The existing
-full-suite `bench/results.txt`, with `bench/results-ts.txt` and `bench/results-size.txt`, is the input to the generated
-results document.
+when it has exceptional long-term value that a summary and rerun cannot preserve. The full-suite results are kept
+with their raw files in the repository [syntaxir/bench](https://github.com/syntaxir/bench), which publishes them as
+releases.
 
-The measured results of every benchmark are in [benchmarks.md](benchmarks.md), which is generated from a run; this
-document describes the benchmarks, analyzes the results, and records how they came about.
+The measured results of the benchmarks are in [benchmarks.md](benchmarks.md), the results of the release that this
+version pins; this document describes the benchmarks, analyzes the results, and records how they came about. The
+benchmarks added since that run, of short inputs, of the first parse of a process and of Document edit latency at
+100,000 lines, have no results there yet: the next timed run adds them.
 
 - [Where SyntaxIR stands](#where-syntaxir-stands): an analysis of the latest results
 - [How to measure](#how-to-measure): the benchmarks, their workloads and method, and tools for measuring a change
@@ -27,7 +29,7 @@ document describes the benchmarks, analyzes the results, and records how they ca
 
 ## Where SyntaxIR Stands
 
-This analysis describes the generated full-suite snapshot in [benchmarks.md](benchmarks.md), measured on <!-- fig:run-date -->2026-10-29<!-- /fig --> at commit `<!-- fig:run-commit -->13b3d186<!-- /fig -->` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings and the parser sizes were captured in the same run. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
+This analysis describes the full-suite snapshot in [benchmarks.md](benchmarks.md), measured on <!-- fig:run-date -->2026-10-29<!-- /fig --> at commit `<!-- fig:run-commit -->13b3d186<!-- /fig -->` (Go 1.27.1, Apple M3 Max, darwin/arm64, 16 cores, `GOMAXPROCS=16`). It contains 253 benchmark cases, three samples per case, and the Go benchmarks took 892.334 seconds; the generated TypeScript timings were captured in the same run. The parser sizes come from commit `14d8dbee7`: they do not depend on the machine or the run, and were collected when the deterministic metrics first could. This is one revision's snapshot, not a before-and-after comparison; ratios below compare operations within this run and do not attribute changes to a particular mechanism.
 Budget-control behavior and its generated-Go cost are described in
 [design 033](design/records/033-cancellable-parses-and-budgets.md) and
 [optimization record 096](optimizations/096-specialize-generated-go-method-helpers.md).
@@ -88,15 +90,22 @@ preserves the earlier result, the paired ranges, and the measurement limits.
 
 ## How to Measure
 
-The benchmarks are in `bench/`. `go run ./bench/report` is the one command for timed results: it runs the Go benchmarks
-(`go`), the generation and run-time compile benchmarks (`gen`), the generated TypeScript parsers under Node (`ts`) and the
-ten language grammars of `bench/profilematrix` with their peak RSS, GC share and compile time (`matrix`), records the sizes
-of the generated parsers (`size`), and regenerates [benchmarks.md](benchmarks.md) and the figures that the guides quote
-from it; see [the benchmark workloads](#benchmark-workloads) for what they measure.
+The benchmarks are in `bench/`; see [the benchmark workloads](#benchmark-workloads) for what they measure. Timed results
+come from one command, `go run ./cmd/timed` of [syntaxir/bench](https://github.com/syntaxir/bench), which measures a
+SyntaxIR checkout through its public surface (the `sxir` command, `go test` of `bench` and the public packages): it
+runs the Go benchmarks (`go`), the generation and run-time compile benchmarks (`gen`), the generated TypeScript parsers
+under Node (`ts`), the ten language grammars of its `cmd/profilematrix` with their peak RSS, GC share and compile time
+(`matrix`) and the cross-tool wedge (`wedge`), records the sizes of the generated parsers (`size`), saves the raw
+results in that repository and renders its `RESULTS.md` and the figures that the guides quote. A release of those
+results, pinned by `site/benchmarks.json`, is [benchmarks.md](benchmarks.md); `go run ./cmd/timed pin` moves the pin,
+the copy of the figures in `site/figures.json` and the quoted figures in one change.
 
 ### Timed Measurement Method
 
-Every timed result follows this method; `go run ./bench/report` applies it.
+Every timed result follows this method; `go run ./cmd/timed` of syntaxir/bench applies it. The timing figures of
+the pinned results, and the figures quoted from them, predate it: they are the median of three runs of 2026-10-29, as
+the run section of [the results](benchmarks.md) states, and stand until a timed run in a declared measurement window
+on the reference machine replaces them.
 
 - **Arms.** Each measurement runs in two arms, `head` (the checkout) and `control` (a byte-identical copy of head's
   binaries or generated parsers), and with `-base REV` in a third, `base`, built from that revision in a temporary
@@ -139,35 +148,36 @@ Every timed result follows this method; `go run ./bench/report` applies it.
   cited. Close the window with `benchwindow.sh close`; a window past its end stops counting by itself.
 
 ```bash
-# The full capture in a measurement window, and the results document
-.agents/scripts/benchwindow.sh open -m 180 "full benchmark capture"
-.agents/scripts/benchlock.sh report go run ./bench/report -rounds 20
-.agents/scripts/benchwindow.sh close
+# In a checkout of syntaxir/bench, with this repository at ../syntaxir:
+# the full capture in a measurement window, and the results document
+../syntaxir/.agents/scripts/benchwindow.sh open -m 180 "full benchmark capture"
+../syntaxir/.agents/scripts/benchlock.sh report go run ./cmd/timed -main ../syntaxir -rounds 20
+../syntaxir/.agents/scripts/benchwindow.sh close
 
-# A change against its base, Go benchmarks only; the verdicts are in bench/results-compare.txt
-.agents/scripts/benchlock.sh ab go run ./bench/report -capture go -base origin/main -rounds 20
+# A change against its base, Go benchmarks only; the verdicts are in results/results-compare.txt
+../syntaxir/.agents/scripts/benchlock.sh ab go run ./cmd/timed -main ../syntaxir -parts go -base origin/main -rounds 20
 
 # Only the sizes, which measure no time and need no window
-go run ./bench/report -capture size
+go run ./cmd/timed -main ../syntaxir -parts size
 
-# A single workload, with CPU and allocation profiles
+# In this repository: a single workload, with CPU and allocation profiles
 go test ./bench -run '^$' -bench 'BenchmarkParse/JSON/closure/codepoints' -benchtime 20x \
     -cpuprofile cpu.out -memprofile mem.out -o bench.test
 go tool pprof -top -nodecount 30 bench.test cpu.out
 go tool pprof -sample_index=alloc_space -top -nodecount 30 bench.test mem.out
 ```
 
-To compare optimization settings on the generated parsers of the ten language grammars and of two CSV use cases, `bench/profilematrix` generates each grammar once per
+To compare optimization settings on the generated parsers of the ten language grammars and of two CSV use cases, `cmd/profilematrix` of syntaxir/bench generates each grammar once per
 variant (`NAME=ARGS`, the options of `sxir gen` added to those of `testdata/grammars/generate.txt`), builds the parsers and measures them in fresh
 processes in rotated order:
 
 ```bash
-go run ./bench/profilematrix -variant speed= -variant noguards='-no-opt guards' -control -rounds 8 -ts
+go run ./cmd/profilematrix -root ../syntaxir -variant speed= -variant noguards='-no-opt guards' -control -rounds 8 -ts
 ```
 
 For each grammar and variant it prints the time of a pass over the inputs (the minimum over the rounds), bytes and allocations per pass, the live
 heap that the results hold, the peak resident set size, the share of CPU time spent in garbage collection, the size of `parser.go`, of a stripped
-program that calls `ParseValue` and (with `-ts`) of `parser.ts`, and the compile time, then the time of every round (the samples that `go run ./bench/report` analyzes by the
+program that calls `ParseValue` and (with `-ts`) of `parser.ts`, and the compile time, then the time of every round (the samples that `go run ./cmd/timed` analyzes by the
 [timed measurement method](#timed-measurement-method)), then the ratios to the first variant. `-control` adds an
 identical copy of the first variant, which shows the noise of the machine. Two more rows, `csv-incremental` (an edit in the middle of a
 50000-record file followed by a reparse of a generated `Document`) and `csv-stream` (the whole file parsed as a stream of records), measure
@@ -179,7 +189,7 @@ Saved benchmark rows used by the report must contain a positive iteration count 
 `ns/op` value plus finite, nonnegative `B/op` and `allocs/op` values. Zero allocation values are valid; a missing metric
 is not treated as zero. Repeated rows for one benchmark must use the same metric set, and all benchmarks used by one
 report must have the same number of samples. The sample count may be one for a complete single-run report. The
-TypeScript results (`bench/results-ts.txt`) carry only the time and throughput of each run; their samples are counted
+TypeScript results (`results/results-ts.txt` of syntaxir/bench) carry only the time and throughput of each run; their samples are counted
 separately from the Go results.
 
 Notes:
@@ -242,7 +252,7 @@ are not committed: any commit regenerates its own.
 | Rule calls, evaluations | `rule-calls`, `evaluations <workload>` | Completed rule calls and rule body evaluations of the parse on the engine (`WithProfile`): evaluations beyond the calls are backtracking and left-recursion growth | exact |
 | Memo hits | `memo-hits`, `memo-hit-permille`, `evaluations-per-byte-milli <workload>` | Calls answered by the memo, their share of the calls, and evaluations per byte | info |
 | Doubling ratio | `doubling-units`, `doubling-allocs <subject>` | The cost at the full input over the cost at half of it, scaled to an exact doubling of the length, for the units on the engine and the allocations of the generated parser; and, for each control of known growth in `internal/testing/complexitytest` (exponential ones left out), the cost ratio between the last two sizes of its series | exact, with a ceiling |
-| Sizes | `size <parser> <kind>` | The generated Go `parser.go`, a stripped binary that calls `ParseValue`, the library copy of `-lib embed` and its binary, the TypeScript `parser.ts` and `lib.ts`, raw and gzip -9, for the grammars of `testdata/grammars` (the same figures as `bench/results-size.txt`); and the playground's WebAssembly binary (`size playground wasm-raw`, `wasm-gzip`) | exact |
+| Sizes | `size <parser> <kind>` | The generated Go `parser.go`, a stripped binary that calls `ParseValue`, the library copy of `-lib embed` and its binary, the TypeScript `parser.ts` and `lib.ts`, raw and gzip -9, for the grammars of `testdata/grammars` (the figures of the size table of [the benchmark results](benchmarks.md)); and the playground's WebAssembly binary (`size playground wasm-raw`, `wasm-gzip`) | exact |
 | Retained heap | `retained-bytes`, `retained-objects compiled-parsers <corpus> x128`, `document-versions snapshot\|clone x64` | The live heap after forced collections that 128 compiled parsers of a corpus keep (`bench/retained`), and that 64 Document versions keep as snapshots or as parsed and cloned trees (`bench/snapshot-retained`), each in a process of its own with `GOGC=off` and `GOMAXPROCS=1` | exact for Document versions; 0.1% for compiled parsers |
 | Compiler scaling | `compile-allocs`, `compile-alloc-bytes`, `compile-steps synthetic-<series> n=<n>`; `compile-doubling-allocs`, `compile-doubling-steps synthetic-<series>` | The allocations and the steps of the generation of a Go parser, for seeded synthetic grammars (`internal/bench/synth`) at n, 2n and 4n of one dimension: rules, alternatives per rule, or the nesting depth of groups, with every fourth rule left-recursive; and the doubling ratio of the increments, (c(4n) − c(2n)) / (c(2n) − c(n)), which the compiler's fixed cost does not dilute, scaled to an exact doubling of the grammar's text as the doubling ratios of the workloads are. The steps are the compiler's unit of work: the elements that the check, the analyses, the lowerings and the printers visit, once per visit, fixed-point rounds included, counted by a meter in the context of the generation (design record 042, "Compiler Poll Stride"). The meter counts the work that the generation does, so a step whose result a later use reuses counts once; `-stats` instead gives each use the steps of the run it reuses. A quadratic stretch of code that polls once per element it visits shows in them whether it allocates or not; a loop that does not poll takes no steps, so its growth shows only in the allocations | 0.001% of the objects and 0.3% of the bytes; steps exact; ratios exact with a ceiling |
 | Generation determinism | `nondeterministic-files <grammar> go\|ts` | The files that differ between two generations of the parser, in separate processes with `GOMAXPROCS=1` and with more, or that only one of them has | 0, a ceiling |
@@ -413,8 +423,8 @@ allocations.
 ### Generated TypeScript
 
 Generated TypeScript parsers are measured with Node (24 or later) by running a generated `parser.ts` under
-`node --experimental-strip-types`: `bench/ts-parse.mjs` for parsing a file with `parse`, `parseValue` or `recognize` (the
-entry points that [benchmarks.md](benchmarks.md) reports, captured by `go run ./bench/report`), `bench/ts-typed.mjs` for the typed
+`node --experimental-strip-types`: `scripts/ts-parse.mjs` of syntaxir/bench for parsing a file with `parse`, `parseValue` or
+`recognize` (the entry points that [benchmarks.md](benchmarks.md) reports, captured by `go run ./cmd/timed`), `bench/ts-typed.mjs` for the typed
 workloads that `TestGeneratedTSTypedWorkloads` and `TestGeneratedTSTypedSharedDAG` write when
 `SXIR_TS_TYPED_DIR` is set, and `bench/ts-literal.mjs` for literal matching. Compare two generators by
 alternating them in each round, run at least six rounds, and compare medians and ranges. The form without

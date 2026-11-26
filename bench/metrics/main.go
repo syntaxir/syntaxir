@@ -15,8 +15,8 @@
 //
 //	workloads    TestMetrics of package bench: units, allocations, profile counts and doubling
 //	             ratios of the benchmark workloads and of the complexity controls
-//	sizes        the sizes of the generated Go and TypeScript parsers and their builds (as in
-//	             bench/results-size.txt)
+//	sizes        the sizes of the generated Go and TypeScript parsers and their builds (the
+//	             sizes that the published benchmark results show)
 //	wasm         the size of the playground's WebAssembly binary, raw and gzip -9
 //	retained     the live heap that compiled parsers (bench/retained) and Document versions
 //	             (bench/snapshot-retained) keep after collections, each in a process of its own

@@ -22,7 +22,7 @@ description: Maintain SyntaxIR's optimization method and reproducible performanc
   versioned.
 - Measure time only by the timed measurement method of `docs/performance.md` (arms,
   rotated rounds, rejection, claims, GC settings, provenance, the exclusive window), which
-  `go run ./bench/report` applies; do not restate or vary it here. A performance-sensitive
+  `go run ./cmd/timed` of syntaxir/bench applies; do not restate or vary it here. A performance-sensitive
   change lands with `-base` and `-rounds 20` or more, citing only rows whose verdict in
   `results-compare.txt` is faster or slower.
 - New structural or feature work lands reasonably optimized. Profile it before landing and

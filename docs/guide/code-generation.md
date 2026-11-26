@@ -631,8 +631,8 @@ and inputs that exercise each feature of your grammar.
 - **Speed.** In the current [benchmark results](../benchmarks.md), generated Go takes <!-- fig:generated-vs-closure-codepoints -->0.44–0.61×<!-- /fig --> closure time in
   CodePoints and <!-- fig:generated-vs-closure-bytes -->0.50–0.66×<!-- /fig --> in Bytes across eight workloads. Direct `ParseValue` values take <!-- fig:typed-vs-parse-time -->0.69–0.98×<!-- /fig --> generated
   `Parse` time; conversion workloads that include generic nodes can take longer. Standard-library comparisons produce
-  different outputs and remain faster where they apply. These measurements are from one machine and commit; run
-  `go run ./bench/report` to measure yours.
+  different outputs and remain faster where they apply. These measurements are from one machine and commit; the
+  harness of [syntaxir/bench](https://github.com/syntaxir/bench) measures yours.
 - **Binary and repository size.** Each generated parser adds source that you commit and that compiles into your
   binary: `parser.go` and `api.go`, with `-types` `types/types.go`, and with `-lib embed` a copy of the library in `internal/libgo` (the same for
   every grammar; `-lib import` shares one copy through `syntaxir.dev/sxir/pkg/runtime/libgo` instead). It does not pull in

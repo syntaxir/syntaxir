@@ -2,8 +2,8 @@
 //
 //	go test ./bench -bench . -benchmem
 //
-// docs/benchmarks.md is generated from a run of these benchmarks: go run ./bench/report measures them
-// and rewrites it (see package report).
+// The timed results of these benchmarks, which docs/benchmarks.md shows, are measured by the harness of
+// https://github.com/syntaxir/bench, which runs them through go test.
 //
 // The generated parsers that the benchmarks run are in internal/bench/parsers, written by sxir gen;
 // regenerate them with go generate ./bench. Document (minilangdoc, minilangtdoc, csvdoc) and stream (csvstream)
