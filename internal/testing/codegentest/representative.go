@@ -2,6 +2,7 @@ package codegentest
 
 import (
 	"hash/fnv"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -169,4 +170,48 @@ func OneForm(t testing.TB, controls bool) bool {
 		return true
 	}
 	return (hashOf(t.Name())%2 == 0) == controls
+}
+
+// ControlsCases returns the cases that a test runs with the budget controls (controls true) or
+// without them. The long tier (go test -tags sxir_long) runs every case in both forms.
+//
+// The default tier splits each family (caseFamily) between the two forms: its cases, sorted by name,
+// alternate, so each form has a case of every family that has two or more cases, and a family with a
+// single case, or a case without a family, runs in both forms, and so does a case named in bothForms,
+// for a route that only that case takes in one form. The split is deterministic and does not depend on a
+// random seed. A default-tier test that names no case of a form fails.
+func ControlsCases(t testing.TB, cases []Case, controls bool, bothForms ...string) []Case {
+	t.Helper()
+	if allCases {
+		return cases
+	}
+	both := map[string]bool{}
+	for _, n := range bothForms {
+		both[n] = true
+	}
+	families := map[string][]int{}
+	for i, c := range cases {
+		f := caseFamily(c.Name)
+		if f == "" {
+			f = "\x00" + c.Name
+		}
+		families[f] = append(families[f], i)
+	}
+	selected := make([]bool, len(cases))
+	for _, idx := range families {
+		slices.SortFunc(idx, func(a, b int) int { return strings.Compare(cases[a].Name, cases[b].Name) })
+		for k, i := range idx {
+			selected[i] = both[cases[i].Name] || len(idx) == 1 || (k%2 == 1) == controls
+		}
+	}
+	var out []Case
+	for i, c := range cases {
+		if selected[i] {
+			out = append(out, c)
+		}
+	}
+	if len(out) == 0 {
+		t.Errorf("no case runs the controls=%v form in the default tier", controls)
+	}
+	return out
 }

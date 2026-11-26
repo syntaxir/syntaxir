@@ -57,7 +57,7 @@ func TestFlowTypedOnlyNodeRulesPrintFromFlow(t *testing.T) {
 				defer mu.Unlock()
 				operators++
 			}
-			codegentest.EachParallel(t, cases, func(t *testing.T, c codegentest.Case) {
+			codegentest.EachParallel(t, codegentest.ControlsCases(t, cases, form.controls), func(t *testing.T, c codegentest.Case) {
 				g, err := parseTest(c.Src)
 				if err != nil {
 					return

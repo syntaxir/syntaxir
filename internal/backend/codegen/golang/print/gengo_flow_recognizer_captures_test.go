@@ -59,7 +59,7 @@ func TestFlowRecognizerPrintsCapturesFromFlow(t *testing.T) {
 					taken[table+" framed with a captured repetition"]++
 				}
 			}
-			codegentest.EachParallel(t, cases, func(t *testing.T, c codegentest.Case) {
+			codegentest.EachParallel(t, codegentest.ControlsCases(t, cases, controls), func(t *testing.T, c codegentest.Case) {
 				g, err := parseTest(c.Src)
 				if err != nil {
 					return
