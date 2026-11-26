@@ -2571,6 +2571,10 @@ interface WalkKey {
 
 const noKey: WalkKey = { vals: null, h: 0 };
 
+// skipRecordBytes returns the storage of a record with its map entry, for the memory limit. (A
+// function: the bundle may define mapEntryBytes after this module's constants.)
+function skipRecordBytes(): number { return objectBytes(10) + mapEntryBytes; }
+
 // SkipSlots holds the slots of a site: a bit for each position from base on in the 32-bit words
 // marks, set when the slot is not fresh, and the records of the recorded slots by the hash of the
 // values of the key their walks started with (0 for a site not keyed by the variables) and
@@ -2615,10 +2619,11 @@ class SkipSlots {
   }
 
   // put marks the slot of pos and stores its record r, if any, for walks that start with the key k,
-  // and reports whether it made the records of a new hash. Room made for bits before base is as
-  // large as the bits, so walks that start farther and farther back copy them a logarithmic number
-  // of times.
-  put(pos: number, k: WalkKey, r: SkipRecord | null): boolean {
+  // and returns the bytes of the storage it added besides the marks: the map of the records of a new
+  // hash, and a record with its map entry unless r takes the place of a record or one with values
+  // stays in place of it. Room made for bits before base is as large as the bits, so walks that
+  // start farther and farther back copy them a logarithmic number of times.
+  put(pos: number, k: WalkKey, r: SkipRecord | null): number {
     if (this.marks.length === 0) {
       this.base = pos - (pos & 31);
     } else if (pos < this.base) {
@@ -2634,11 +2639,11 @@ class SkipSlots {
     }
     this.marks[w] = this.marks[w]! | (1 << ((pos - this.base) & 31));
     if (r === null) {
-      return false;
+      return 0;
     }
     r.key = k.vals;
     let m = this.recs.get(k.h);
-    const made = m === undefined;
+    const made = m === undefined ? mapBytes : 0;
     if (m === undefined) {
       m = new Map();
       this.recs.set(k.h, m);
@@ -2646,8 +2651,7 @@ class SkipSlots {
     const old = m.get(pos);
     if (old !== undefined && k.vals !== null && !sameValues(old.key, k.vals)) {
       // Another key with the same hash holds the slot: the record goes with the others.
-      this.putMore(pos, k.h, r);
-      return made;
+      return made + this.putMore(pos, k.h, r);
     }
     if (old !== undefined && old.list && !r.list) {
       // A record with values serves the walks without values too, and holds what this one holds
@@ -2656,12 +2660,13 @@ class SkipSlots {
       return made;
     }
     m.set(pos, r);
-    return made;
+    return made + (old === undefined ? skipRecordBytes() : 0);
   }
 
   // putMore stores r in the records of the hash h at pos whose key shares the hash of the one in
-  // recs, keeping a record with values over one without, as put does.
-  putMore(pos: number, h: number, r: SkipRecord): void {
+  // recs, keeping a record with values over one without, as put does, and returns the bytes of the
+  // record it added, none if r takes the place of a record or one with values stays.
+  putMore(pos: number, h: number, r: SkipRecord): number {
     this.more ??= new Map();
     let m = this.more.get(h);
     if (m === undefined) {
@@ -2674,11 +2679,12 @@ class SkipSlots {
         if (!rs[i]!.list || r.list) {
           rs[i] = r;
         }
-        return;
+        return 0;
       }
     }
     rs.push(r);
     m.set(pos, rs);
+    return skipRecordBytes();
   }
 }
 
@@ -4522,9 +4528,9 @@ export class Parser {
       this.alloc(objectBytes(3) + arrayBytes(0) + mapBytes);
     }
     const words = s.marks.length;
-    const made = s.put(pos, k, r);
-    // The words the marks grew by, and the record with its map entry.
-    this.alloc(8 * (s.marks.length - words) + (r === null ? 0 : objectBytes(10) + mapEntryBytes) + (made ? mapBytes : 0));
+    const added = s.put(pos, k, r);
+    // The words the marks grew by, and what put added.
+    this.alloc(8 * (s.marks.length - words) + added);
   }
 
   // text returns the text of [start, end): a range of the input, which costs a constant whatever
@@ -6983,8 +6989,10 @@ export class StreamParser extends Parser {
     }
     this.memoEntries -= entries;
     // The count returns the entries and the slots the prune releases (spec/runtime/streaming.md, Memory).
+    // Slots that it empties are counted as none, as before the first store, since that store makes
+    // the slots anew and counts them whole (Parser.memoPut).
     const c = this.memControl;
-    if (c !== null && drop > 0) c.mem -= entries * entryBytes + arrayBytes(slots.length) - arrayBytes(slots.length - drop);
+    if (c !== null && drop > 0) c.mem -= entries * entryBytes + arrayBytes(slots.length) - (drop === slots.length ? 0 : arrayBytes(slots.length - drop));
     slots.copyWithin(0, drop);
     slots.length -= drop;
     if (this.memoIndex !== null) {
@@ -7207,12 +7215,16 @@ export class StreamParser extends Parser {
     for (const s of this.skipTables) {
       if (s === undefined) continue;
       freed += 8 * s.drop(pos);
-      for (const recs of s.recs.values()) {
+      for (const [h, recs] of s.recs) {
         for (const at of recs.keys()) {
           if (at < pos) {
             recs.delete(at);
-            freed += objectBytes(10) + mapEntryBytes;
+            freed += skipRecordBytes();
           }
+        }
+        if (recs.size === 0) {
+          s.recs.delete(h);
+          freed += mapBytes;
         }
       }
       if (s.more !== null) {
@@ -7220,7 +7232,7 @@ export class StreamParser extends Parser {
           for (const [at, rs] of more) {
             if (at < pos) {
               more.delete(at);
-              freed += rs.length * (objectBytes(10) + mapEntryBytes);
+              freed += rs.length * skipRecordBytes();
             }
           }
         }

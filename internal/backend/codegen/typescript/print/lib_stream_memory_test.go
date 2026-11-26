@@ -64,6 +64,10 @@ func TestStreamMemoryHeldMutants(t *testing.T) {
 		{"recount memo", "        add(e.errs);\n", "", "held:"},
 		{"tail", "if (c !== null) c.mem += syntaxErrorBytes(e) - (dropped === null ? 0 : syntaxErrorBytes(dropped));",
 			"if (c !== null && dropped !== null) c.mem -= syntaxErrorBytes(dropped);", "tail:"},
+		{"record over a record", "return made + (old === undefined ? skipRecordBytes() : 0);", "return made + skipRecordBytes();", "skip:"},
+		{"record beside one with values", "values records it, and never after.\n      return made;", "values records it, and never after.\n      return made + skipRecordBytes();", "skip:"},
+		{"map of a hash", "        if (recs.size === 0) {\n          s.recs.delete(h);\n          freed += mapBytes;\n        }\n", "", "skip:"},
+		{"emptied slots", "(drop === slots.length ? 0 : arrayBytes(slots.length - drop))", "arrayBytes(slots.length - drop)", "slots:"},
 	}
 	for _, m := range mutants {
 		t.Run(m.name, func(t *testing.T) {
@@ -104,7 +108,7 @@ function put(p: StreamParser, pos: number, errs: Errs, n: number): void {
 function slotsFreed(p: StreamParser, pos: number): number {
   const len = p.slots.length;
   const drop = Math.min(pos - p.memoFloor, len);
-  return arrayBytes(len) - arrayBytes(len - drop);
+  return drop <= 0 ? 0 : arrayBytes(len) - (drop === len ? 0 : arrayBytes(len - drop));
 }
 // commit runs what a commit at pos does with the memory count, as streamCommit composes it.
 function commit(p: StreamParser, pos: number, prune: boolean): void {
@@ -234,6 +238,39 @@ for (const limit of [0, 4]) {
   commit(p, 1100, true);
   // The prune keeps e1, which the entry at 1500 holds, and returns e2, which only the tail holds now.
   if (c.mem !== mid - freed - syntaxErrorBytes(e2)) fail("tail", "the prune moves the count by " + (c.mem - mid + freed) + ", want -" + syntaxErrorBytes(e2));
+}
+
+// skip: a record stored over the record of its key, or beside one with values, adds no storage, and
+// dropping the records returns them with the map of their hash, leaving the table as it was made.
+{
+  const p = stream(0);
+  const c = p.control!;
+  p.streamStart();
+  const rec = (list: boolean): SkipRecord => ({ end: 1600, far: 0, exp: [], from: 0, examined: 0, list, key: null, bind: null, kids: null, ki: 0, errs: null });
+  p.skips[p.skipN++] = { table: 0, slots: undefined } as any;
+  const before = c.mem;
+  p.skipSlot(1500, noKey, rec(false));
+  const made = c.mem;
+  for (const list of [false, true, false, true]) p.skipSlot(1500, noKey, rec(list));
+  p.skipN--;
+  if (c.mem !== made) fail("skip", "storing over a record moves the count by " + (c.mem - made));
+  p.streamDropRecords(2000);
+  const table = objectBytes(3) + arrayBytes(0) + mapBytes;
+  if (c.mem !== before + table) fail("skip", "dropping the records leaves " + (c.mem - before) + " bytes counted, want the " + table + " of the table");
+}
+
+// slots: a prune that empties the memo slots returns them whole, as the store after it makes them anew.
+{
+  const p = stream(0);
+  const c = p.control!;
+  p.streamStart();
+  const before = c.mem;
+  for (const pos of [4001, 8002, 12003]) {
+    p.n = pos - 1; // the slots reach pos - 1, so the prune at pos empties them
+    put(p, pos - 1000, null, 0);
+    commit(p, pos, true);
+    if (c.mem !== before) fail("slots", "after the prune at " + pos + " that empties the slots, " + (c.mem - before) + " bytes stay counted");
+  }
 }
 
 if (failures.length > 0) {
