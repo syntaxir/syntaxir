@@ -164,9 +164,18 @@ func (p *Parser) putSkip(s *skipSlots, pos int, k walkKey, r skipRecord) {
 			// record without values only until a walk with values records it, and never after.
 			return
 		}
+		if ok {
+			s.expBytes -= old.countedBytes()
+		}
 		s.recs[sk] = r
-		s.expBytes += uint64(len(r.exp))*expIDBytes + uint64(len(r.key)+len(r.bind))*anyBytes
+		s.expBytes += r.countedBytes()
 	}
+}
+
+// countedBytes is what expBytes counts for r besides the record itself: its expectations and the values
+// of its key and bindings.
+func (r *skipRecord) countedBytes() uint64 {
+	return uint64(len(r.exp))*expIDBytes + uint64(len(r.key)+len(r.bind))*anyBytes
 }
 
 // putMore stores r in the records of sk whose key shares the hash of the one in recs, keeping a
@@ -179,6 +188,7 @@ func (p *Parser) putMore(s *skipSlots, sk skipKey, r skipRecord) {
 	for i, old := range rs {
 		if p.memoKeyEqual(old.key, r.key) {
 			if !old.list || r.list {
+				s.expBytes += r.countedBytes() - old.countedBytes()
 				rs[i] = r
 			}
 			return
@@ -188,11 +198,13 @@ func (p *Parser) putMore(s *skipSlots, sk skipKey, r skipRecord) {
 		s.expBytes += uint64(unsafe.Sizeof(sk) + unsafe.Sizeof(rs))
 	}
 	s.more[sk] = append(rs, r)
-	s.expBytes += uint64(len(r.exp))*expIDBytes + uint64(len(r.key)+len(r.bind))*anyBytes + uint64(unsafe.Sizeof(skipRecord{}))
+	s.expBytes += r.countedBytes() + uint64(unsafe.Sizeof(skipRecord{}))
 }
 
 // drop drops the slots of the positions before pos: the words of bits wholly before it at once, and
-// the records once they can make up half of them, so its cost is proportional to the records stored.
+// the records once they can make up half of them, so its cost is proportional to the records stored
+// and after a drop the records held number fewer than twice those the last removal kept, plus 64,
+// all of which were at or after its floor. expBytes forgets what the removed records held.
 func (s *skipSlots) drop(pos int) {
 	if pos <= s.floor {
 		return
@@ -204,13 +216,18 @@ func (s *skipSlots) drop(pos int) {
 	if len(s.recs) < 2*s.kept+64 {
 		return
 	}
-	for k := range s.recs {
+	for k, r := range s.recs {
 		if k.pos < pos {
+			s.expBytes -= r.countedBytes()
 			delete(s.recs, k)
 		}
 	}
-	for k := range s.more {
+	for k, rs := range s.more {
 		if k.pos < pos {
+			s.expBytes -= uint64(unsafe.Sizeof(k) + unsafe.Sizeof(rs))
+			for i := range rs {
+				s.expBytes -= rs[i].countedBytes() + uint64(unsafe.Sizeof(skipRecord{}))
+			}
 			delete(s.more, k)
 		}
 	}

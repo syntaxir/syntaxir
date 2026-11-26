@@ -104,6 +104,12 @@ rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
 		{"recover", `rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
 `, "a=1;b;", 8192, 2, 0, true, true},
+		// The skip expression of the recovery is a skip-run site whose records keep expectations.
+		{"skip records limited", `rule main = item* #stream !.
+rule item = x / .
+rule x = ("b" #recover(skip=(word / [a-z ])*)) "c"
+rule word = [a-z]+ !"="
+`, "bab abc cxbaa a!c", 512, 16, 2, false, true},
 		// ws is a scan site: the second alternative walks the spaces again.
 		{"scan sites", `rule main = item* #stream !.
 rule item = ws "a" ws ";" / ws "b" ws ";"

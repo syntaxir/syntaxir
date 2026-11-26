@@ -65,6 +65,17 @@ func TestStreamCommitDropsRecordsBeforeItsPosition(t *testing.T) {
 	}
 }
 
+// TestSkipRecordOverwriteCountsTheNewRecord pins the count of a record stored over another of the
+// same key: the slots count what the new record holds and forget what the old one held.
+func TestSkipRecordOverwriteCountsTheNewRecord(t *testing.T) {
+	s := &skipSlots{}
+	s.put(5, nil, skipRecord{state: skipRecorded, exp: []ExpID{1, 2, 3}})
+	s.put(5, nil, skipRecord{state: skipRecorded, exp: []ExpID{4}})
+	if r := s.recs[skipKey{pos: 5}]; len(s.recs) != 1 || s.expBytes != r.countedBytes() || len(r.exp) != 1 {
+		t.Errorf("the slots hold %d records counting %d bytes; the record stored last holds %d", len(s.recs), s.expBytes, r.countedBytes())
+	}
+}
+
 // TestStreamCommitCountsWhatMemoHolds pins the error count of the memory limit across a commit:
 // a commit that does not prune leaves the lists of recovered errors counted, since the memo entries
 // and the record still hold them, and a commit that prunes replaces the count with the bytes
