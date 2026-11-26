@@ -211,7 +211,11 @@ the tree of an element depends on the size of that element. Once the callback ha
 returned, the parser keeps no reference to the element, and the input and memo
 entries before it are released as parsing continues, so the memory held does not
 grow with the number of elements delivered. Recovered errors are retained until the
-end of the input unless a [diagnostic limit](#recovered-errors) is set. An action
+end of the input unless a [diagnostic limit](#recovered-errors) is set. A stream
+drops its memo entries, skip slots and run and scan records before the commit point
+at the first commit at least 1,024 position units past the commit at which it last
+dropped them, or past the start of the input, so after each commit it holds none at a
+position 1,024 or more units before the commit point. An action
 that returns `nil` delivers `nil` to the caller. Variable values, active rollback
 points and memoization keys keep their own data alive.
 

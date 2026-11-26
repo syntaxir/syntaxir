@@ -13,7 +13,8 @@ node-type conversion, with the same recovered errors: the checker keeps every
 valid grammar from reading after the repetition what a stream does not keep.
 Its compute units are those of that parse with the stream's store policy plus
 the length of its texts. Finally, the proof states what the stream holds in
-memory after each commit.
+memory after each commit, and bounds it by what the attempts at the elements
+of a window of 1,024 units before the commit point built.
 
 ## Setting
 
@@ -116,7 +117,10 @@ it uses them.
   It drops the slots of skip runs and the records of run sites and scan sites
   at positions before $c$ ([Skip Runs](../runtime/parsing.md#skip-runs),
   [Run Sites](../runtime/parsing.md#run-sites),
-  [Scan Sites](../runtime/parsing.md#scan-sites)). Only a stream with a
+  [Scan Sites](../runtime/parsing.md#scan-sites)). It drops the memo entries,
+  slots and records at the first commit at least $W = 1024$ units past the
+  commit at which it last dropped them, or past position $0$, and at no other
+  commit ([Memory](../runtime/streaming.md#memory)). Only a stream with a
   diagnostic limit forgets the entries whose recovered errors it has
   delivered ([Compute Units](../runtime/parsing.md#compute-units)); without
   one it keeps them to the end
@@ -391,9 +395,10 @@ can stop one of the two parses and not the other.
 
 ## Lemma 6 (What a Stream Holds)
 
-After a commit at $c$, let $b \le c$ be the position before which the stream
-last dropped memo entries and records. The stream then holds the following,
-and what they reach:
+After a commit at $c$, let $b$ be the position of the commit at which the
+stream last dropped memo entries, slots and records, or $0$ if it has not
+dropped any. Then $c - W < b \le c$, and the stream holds the following, and
+what they reach:
 
 - the input from $c - 1$ to the furthest position demanded;
 - the memo entries, slots and records at positions at or after $b$;
@@ -404,28 +409,89 @@ and what they reach:
 
 The list of $\rho$ holds no element. Apart from what the memo entries and
 records at or after $b$ reach, the stream holds nothing that an element it
-delivered holds.
+delivered holds. A memo entry, slot or record at a position $p$, and what it
+reaches apart from recovered errors and the keys of the memo, was built by
+evaluations that began at or after $p$.
 
-*Proof.* (P) discards the input before $c - 1$ and the memo entries, slots and
-records before $b$. By Lemma 1, the open evaluations are the call of $S$, the
-path and $\rho$. Their values are the captures that the start rule made
-before $\rho$, and the list of $\rho$, which holds no element (H). An
-evaluation that begins later begins at or after $c$ (Lemma 1). An element was
-delivered and then dropped from every structure of the parse but the memo
-entries and records that hold it. Variables hold scalars (V), and the keys
-hold the values of variables. $\square$
+*Proof.* The bound on $b$ is by induction on the commits. Before the first
+commit, $b = 0$. At a commit at $c$, either $c - b \ge W$ for the $b$ of the
+commit before, and the stream drops at $c$, so that $b = c$, or $c - b < W$
+and $b$ stays (P). Commits do not go back, so in both cases $c - W < b \le c$.
 
-So the storage that a stream holds, apart from what the start rule built
-before $\rho$, the variables, the keys and the recovered errors, is the
-storage of the input and of the entries and records of the window from $b$
-on. Each entry and record at a position $p \ge b$ was built by an evaluation
-that began at $p$. The memory of a parse is at most proportional to its cost
-plus its input ([Cost](../runtime/parsing.md#cost)). So the storage of the
-window is at most a constant times the cost of the evaluations that begin at
-or after $b$, plus the input after $c - 1$. This does not grow with the number
-of elements delivered before $b$, which is the bound that
-[Memory](../runtime/streaming.md#memory) states. The recovered errors are the
-stated exception.
+(P) discards the input before $c - 1$ and the memo entries, slots and records
+before $b$. By Lemma 1, the open evaluations are the call of $S$, the path and
+$\rho$. Their values are the captures that the start rule made before $\rho$,
+and the list of $\rho$, which holds no element (H). An evaluation that begins
+later begins at or after $c$ (Lemma 1). An element was delivered and then
+dropped from every structure of the parse but the memo entries and records
+that hold it. Variables hold scalars (V), and the keys hold the values of
+variables.
+
+A memo entry at $p$ holds the outcome of an evaluation that began at $p$, and
+a slot or a record at $p$ holds what a walk that began at $p$ found. The value
+of the outcome was built by that evaluation, by the evaluations inside it, and
+by the evaluations whose outcomes these took from the memo or a record, which
+began where the call or the walk that took them began. Each of these begins at
+a position that its parent has reached, which is at or after $p$. None sees a
+capture of the rules that called it (V), so what the entry reaches, apart from
+the recovered errors and the values of variables, these evaluations built.
+$\square$
+
+## Theorem (Memory of a Stream)
+
+Call the part of $\mathcal{S}$ that evaluates the body of $S$ up to $\rho$
+an **attempt** that starts at $0$, and the trial of each iteration of $\rho$,
+whether it matches or not, an attempt that starts at the position where the
+iteration begins. Let the **reach** $\lambda$ be the largest distance from
+the start of an attempt so far to a slot that it examines or a position at
+which an evaluation inside it begins.
+
+After each commit at $c$, every memo entry, slot and record that $\mathcal{S}$
+holds, with what it reaches apart from recovered errors and the keys of the
+memo, was built by an attempt that starts after $c - W - \lambda$, and the
+input it holds is at most $\lambda + 2$ units. At most $W + \lambda + 1$
+attempts start after $c - W - \lambda$ and at or before $c$. So the storage
+that $\mathcal{S}$ holds after the commit is at most a constant times
+
+$$
+I_0 + E + (\lambda + 2) + (W + \lambda + 1) \cdot C,
+$$
+
+where $I_0$ is the storage of what the start rule built before $\rho$, of the
+values of variables and of the keys of the memo, $E$ that of the recovered
+errors, and $C$ the largest cost of an attempt. Apart from $E$, the bound does
+not grow with the number of elements delivered: it depends on the largest
+attempt and the reach.
+
+*Proof.* By Lemma 6, a memo entry, slot or record that the stream holds is at
+a position $p \ge b > c - W$, and what it reaches was built by evaluations
+that began at or after $p$. Each of these began inside an attempt, which
+started at a position $s$ with $p - s \le \lambda$, so
+$s \ge p - \lambda > c - W - \lambda$. The attempt has begun before the
+commit, so $s \le c$. The input held runs from $c - 1$ to the furthest slot
+demanded, which an attempt that starts at or before $c$ examines, so it is at
+most $c + \lambda$.
+
+An iteration of $\rho$ begins where the one before ended, and an iteration
+that matches the empty string is delivered once and ends the repetition
+(H), so no iteration follows it. So the iterations begin at distinct
+positions, and at most $W + \lambda$ of them start in the interval, which
+holds $W + \lambda$ positions, besides the attempt that starts at $0$.
+
+The memory a parse allocates is at most proportional to its cost
+([Time and Memory](../runtime/parsing.md#time-and-memory)): each memo entry,
+node and value is built by cost that is counted. So what the attempts in the
+interval built, and with it what the stream holds of them, is at most a
+constant times $(W + \lambda + 1) \cdot C$. The open evaluations hold what
+the start rule built before $\rho$ and the empty list of $\rho$ (Lemma 6).
+$\square$
+
+The window of $W$ units is the one that
+[Memory](../runtime/streaming.md#memory) states: the stream holds no memo
+entry, slot or record of a position $W$ or more units before the commit
+point. The bound is that of the specification: the memory held depends on the
+size of the elements, through $C$ and $\lambda$, and not on the number of
+elements delivered, with the recovered errors as the stated exception.
 
 ## What the Proof Does Not Show
 
@@ -449,5 +515,7 @@ stated exception.
 - **Backends.** That each backend and each generated parser, including the
   push stream of a generated TypeScript parser, follows the rules cited is
   its conformance.
-- **Exact memory counts.** Lemma 6 states what a stream holds, not the counts
-  of the [memory limit](../runtime/parsing.md#memory-limit).
+- **Exact memory counts.** Lemma 6 and the memory theorem state what a stream holds,
+  not the counts of the [memory limit](../runtime/parsing.md#memory-limit),
+  which depend on the backend. That the count follows the same window is the
+  conformance of each backend.
