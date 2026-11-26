@@ -240,6 +240,7 @@ if want docs; then
 	fi
 fi
 if want code || want engine; then
+	step fmt 'gofmt -l over every tracked Go file (none may be listed)' 'files=$(git ls-files -z "*.go" | xargs -0 -r gofmt -l); [ -z "$files" ] || { printf "%s\n" "$files"; false; }'
 	step build 'go build ./...' 'go build ./...'
 	step vet 'go vet ./...' 'go vet ./...'
 	if ! want engine && ! want full && ! want all; then

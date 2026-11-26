@@ -110,7 +110,7 @@ func TestGateGroupRunsStepsTogether(t *testing.T) {
 	}
 
 	r := gate(false, "GATE_TEST_WAIT=1")
-	want(r, false, "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 0", "reference-tags exit 0", "generate exit 0")
+	want(r, false, "fmt exit 0", "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 0", "reference-tags exit 0", "generate exit 0")
 	for _, s := range []string{"gate: == test-long (beside: alpha-parsers reference-tags)", "gate: == alpha-parsers (output; it ran beside test-long)\noutput of alpha", "gate: == reference-tags (output; it ran beside test-long)\noutput of ref"} {
 		if !strings.Contains(r.out, s) {
 			t.Errorf("the output has no %q:\n%s", s, r.out)
@@ -118,13 +118,13 @@ func TestGateGroupRunsStepsTogether(t *testing.T) {
 	}
 
 	r = gate(false, "GATE_TEST_WAIT=1", "GATE_TEST_ALPHA_RC=4")
-	want(r, true, "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4", "reference-tags exit 0")
+	want(r, true, "fmt exit 0", "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4", "reference-tags exit 0")
 
 	r = gate(true, "GATE_TEST_WAIT=1", "GATE_TEST_ALPHA_RC=4", "GATE_TEST_REF_RC=5")
-	want(r, true, "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4", "reference-tags exit 5", "generate exit 0")
+	want(r, true, "fmt exit 0", "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4", "reference-tags exit 5", "generate exit 0")
 
 	r = gate(false, "GATE_PARALLEL=0", "GATE_TEST_ALPHA_RC=4")
-	want(r, true, "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4")
+	want(r, true, "fmt exit 0", "build exit 0", "vet exit 0", "test-long exit 0", "alpha-parsers exit 4")
 	if !strings.Contains(r.log, "end test-long\nstart alpha\nend alpha\n") || strings.Contains(r.log, "start ref") {
 		t.Errorf("GATE_PARALLEL=0 does not run the steps one after the other:\n%s", r.log)
 	}
