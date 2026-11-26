@@ -31,7 +31,8 @@ import "syntaxir.dev/sxir/pkg/runtime/value/impl"
 // that version, and the library refers to the new constant.
 
 // Protocol36 is declared because the library implements protocol version 36: version 37 only added
-// a field that a parser of version 36 does not set (grammar.FixedMatchChunks), whose zero value is the behavior of version 36.
+// a field (grammar.FixedMatchChunks) that a parser of version 36 does not set, so its match chunks
+// grow; its results and the accounting of its memory are unchanged.
 const Protocol36 = 36
 
 // Protocol37 is declared because the library implements protocol version 37.
