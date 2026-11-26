@@ -7,7 +7,7 @@ chunks to amortize per-object allocation.
 
 Each typed owner starts slabs at 8 cells and grows them geometrically: a slab
 is at most the larger of 256 cells and 1/32 of the cells that the owner had
-allocated before it (`chunkRatio`), so the number of slabs of a parse is
+allocated before it, so the number of slabs of a parse is
 logarithmic in its output. Fresh owner state avoids reusing returned cells. One
 escaped cell can retain unused siblings in its chunk, so a retained value pins at
 most one slab of at most 256 cells or 1/32 of the allocations of its owner, and

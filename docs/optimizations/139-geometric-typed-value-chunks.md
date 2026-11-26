@@ -12,7 +12,7 @@ values, so the allocations of a typed `ParseValue` grew linearly with the input,
 that they grow no faster than its logarithm.
 
 A chunk may now reach the larger of its fixed limit and 1/32 of the values its allocator had handed out before it
-(`chunkRatio` in the library, `astChunkRatio` in the generator's local copy), so the chunks of one owner grow
+(the chunk ratio, a constant of the library and of the generator's local copy of it), so the chunks of one owner grow
 geometrically once it has handed out 32 times the fixed limit. A retained value pins at most one chunk, of at most the
 larger of the fixed limit and 1/32 of the owner's earlier allocations, and the unused tail of the last chunk is at
 most 1/33 of the owner's total. The `Memory` limit counts the real size of each chunk.
