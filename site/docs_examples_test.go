@@ -235,7 +235,8 @@ func runExampleCommand(bin, dir, command string, withStderr bool) (string, error
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "bash", "-c", command)
 	cmd.Dir = dir
-	cmd.Env = append(os.Environ(), "PATH="+filepath.Dir(bin)+string(os.PathListSeparator)+os.Getenv("PATH"), "HOME="+dir)
+	cmd.Env = append(os.Environ(), "PATH="+filepath.Dir(bin)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	cmd.Env = append(cmd.Env, homeEnv(dir)...)
 	var buf bytes.Buffer
 	cmd.Stdout = &buf
 	if withStderr {

@@ -179,13 +179,16 @@ var exampleGoEnv = sync.OnceValues(func() ([]string, error) {
 // machine except the fuzz corpus: the directory links to the entries of the shared cache, so that
 // builds are cached as before, and has a fuzz directory of its own that starts empty. A page that
 // fuzzes then gathers its baseline from nothing, as it shows, whatever the machine's earlier fuzzing
-// left in the shared cache, which fuzzing never writes to.
+// left in the shared cache, which fuzzing never writes to. When the shared cache cannot be listed,
+// there is nothing to link, so the page uses the shared cache itself: its fuzz corpus then is not
+// private, and the test logs it.
 func privateFuzzCache(t *testing.T, shared string) (string, error) {
 	t.Helper()
 	dir := t.TempDir()
 	entries, err := os.ReadDir(shared)
 	if err != nil {
-		return "", err
+		t.Logf("the build cache %s cannot be listed (%v): the page fuzzes in the shared cache", shared, err)
+		return shared, nil
 	}
 	for _, e := range entries {
 		if e.Name() == "fuzz" {
@@ -224,7 +227,15 @@ func programEnv(t *testing.T, bin, dir string) ([]string, error) {
 	if err := telemetryOff(dir); err != nil {
 		return nil, err
 	}
-	return append(env, "HOME="+dir), nil
+	return append(env, homeEnv(dir)...), nil
+}
+
+// homeEnv returns the variables that make home the HOME of a program. The go command reads its
+// configuration directory from XDG_CONFIG_HOME on Unix systems ahead of HOME, so the variable is set
+// to the directory telemetryOff writes to; a value inherited from the environment is overridden,
+// because the last of two entries for one variable is the one a child process gets.
+func homeEnv(home string) []string {
+	return []string{"HOME=" + home, "XDG_CONFIG_HOME=" + filepath.Join(home, ".config")}
 }
 
 // telemetryOff sets the go telemetry mode of home to off. The go command reads the mode from its
@@ -488,12 +499,25 @@ func repositoryModule(t *testing.T, bin, dir string) {
 }
 
 // TestProgramHomeTelemetryIsOff pins the telemetry mode of a program HOME: the go command in a program
-// must not start the telemetry child that outlives it (see telemetryOff).
+// must not start the telemetry child that outlives it (see telemetryOff). The test runs with an
+// XDG_CONFIG_HOME of its own, which the program HOME must override.
 func TestProgramHomeTelemetryIsOff(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	dir := t.TempDir()
 	env, err := programEnv(t, filepath.Join(t.TempDir(), "sxir"), dir)
 	if err != nil {
 		t.Fatal(err)
+	}
+	// The child gets the last entry of a variable. On darwin the go command ignores XDG_CONFIG_HOME,
+	// so the behaviour below does not show a missing override there; this entry does, on every system.
+	xdg := ""
+	for _, e := range env {
+		if v, ok := strings.CutPrefix(e, "XDG_CONFIG_HOME="); ok {
+			xdg = v
+		}
+	}
+	if want := filepath.Join(dir, ".config"); xdg != want {
+		t.Fatalf("XDG_CONFIG_HOME of a program HOME = %q, want %q", xdg, want)
 	}
 	out, err := runProgramLine(env, dir, "go telemetry")
 	if err != nil || strings.TrimSpace(out) != "off" {
