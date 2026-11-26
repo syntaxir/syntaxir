@@ -52,8 +52,9 @@ still implements 36.
 
 Base: main `6fcaf8348`; candidate: `54be31a17`, the two commits of the change on that base. The setting was added
 afterwards: the default parser it generates differs from the candidate's only in the protocol constant, and the
-library only in the mask that the size of a new match chunk applies; the deterministic metrics of the setting's
-final form equal the candidate's on the default path. Go 1.27.1, Node 24.13, Apple M3 Max on mains power, `GOMAXPROCS=16`,
+library only in the mask that the size of a new match chunk applies. Against the change without the setting, on
+the same base, the deterministic metrics of the default path are equal in allocations and bytes on every workload;
+the Go library source is 541 bytes larger, the binaries 16 bytes, and the generated parsers are unchanged. Go 1.27.1, Node 24.13, Apple M3 Max on mains power, `GOMAXPROCS=16`,
 `GOGC=100`.
 
 - Allocations, bytes, sizes and compilation: `go run ./bench/metrics collect` on each revision (workloads and sizes
