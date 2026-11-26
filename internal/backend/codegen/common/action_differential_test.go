@@ -418,7 +418,7 @@ func testActionConstructorsDetectBrokenTargets(t *testing.T) {
 			}
 			return code
 		})
-		check("TypeScript", m, hits.Load(), got)
+		check("TypeScript", m, int(hits.Load()), got)
 	}
 }
 
@@ -562,7 +562,7 @@ func testActionIterationsDetectBrokenTargets(t *testing.T) {
 			}
 			return code
 		})
-		check("TypeScript", m, hits.Load(), got)
+		check("TypeScript", m, int(hits.Load()), got)
 	}
 }
 
