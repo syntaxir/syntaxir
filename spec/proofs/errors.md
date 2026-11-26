@@ -1,6 +1,6 @@
 # Errors
 
-Arata Furukawa · Last revised 2026-11-25
+Arata Furukawa · Last revised 2026-11-26
 
 This proof shows that the errors of a parse are a function of the grammar, the
 start rule, the position unit, the input and whether the parse records
@@ -24,7 +24,8 @@ compute limit, a nesting limit or a cancellation stops reports, and the
 [memoization proof](memoization.md#setting), on which this proof rests, is
 stated for the parses without insertion of `#missing` tokens. A
 [stream parse](../runtime/streaming.md) is not treated: the proof covers the
-parses that return one result for the whole input.
+parses that return one result for the whole input, and the
+[streaming proof](streaming.md) relates the errors of a stream to them.
 
 **Outcomes.** The evaluations of expressions and calls have the outcomes
 $\omega = (s, q, v, \varepsilon, o)$ of the [memoization
