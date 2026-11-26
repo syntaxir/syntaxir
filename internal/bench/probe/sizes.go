@@ -9,14 +9,14 @@ import (
 )
 
 // WriteSizes writes, for each parser of Grammars, one line "size <parser> <kind> <bytes>" for the
-// generated Go parser.go (go-source), a binary that calls its ParseValue, built with -trimpath and
-// stripped of symbols and DWARF (go-binary), the copy of the library that the parser generated
-// with -lib embed carries (go-lib) and the binary built from that parser (go-binary-embed), the
-// generated TypeScript parser.ts (ts-raw, ts-gzip) and the lib.ts copy of the library generated
-// with it (ts-lib-raw, ts-lib-gzip), compressed with gzip -9. The whole library, which -no-opt
-// used-features copies, is recorded once as parser "runtime" (go-lib, ts-lib-raw, ts-lib-gzip).
-// The files are generated into the work directory with sxirBin, the sxir command of the
-// repository at root.
+// generated Go parser.go (go-source) and the one that -optimize size generates
+// (go-source-size-profile), a binary that calls its ParseValue, built with -trimpath and stripped of
+// symbols and DWARF (go-binary), the copy of the library that the parser generated with -lib embed
+// carries (go-lib) and the binary built from that parser (go-binary-embed), the generated TypeScript
+// parser.ts (ts-raw, ts-gzip) and the lib.ts copy of the library generated with it (ts-lib-raw,
+// ts-lib-gzip), compressed with gzip -9. The whole library, which -no-opt used-features copies, is
+// recorded once as parser "runtime" (go-lib, ts-lib-raw, ts-lib-gzip). The files are generated into
+// the work directory with sxirBin, the sxir command of the repository at root.
 func WriteSizes(w io.Writer, root, sxirBin, work string) error {
 	for _, name := range Grammars {
 		genDir := filepath.Join(work, "gen-"+name)
@@ -28,6 +28,15 @@ func WriteSizes(w io.Writer, root, sxirBin, work string) error {
 			return err
 		}
 		fmt.Fprintf(w, "size %s go-source %d\n", name, st.Size())
+		// The same parser in the size profile, which go-source (the default speed profile) is judged against.
+		sizeDir := filepath.Join(work, "gen-size-"+name)
+		if err := GenerateGo(root, sxirBin, sizeDir, name, "-optimize", "size"); err != nil {
+			return err
+		}
+		if st, err = os.Stat(filepath.Join(sizeDir, "parser.go")); err != nil {
+			return err
+		}
+		fmt.Fprintf(w, "size %s go-source-size-profile %d\n", name, st.Size())
 		_, bin, err := BuildProgram(root, filepath.Join(work, "bin-"+name), genDir, SizeMain)
 		if err != nil {
 			return err
