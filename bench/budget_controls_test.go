@@ -15,7 +15,9 @@ import (
 
 // BenchmarkControlledParse uses finite but effectively inexhaustible counters
 // to measure the active instrumentation path without cancellation callbacks.
-// Ordinary BenchmarkParse remains the inactive-control measurement.
+// BenchmarkParse runs with the default compute limit, which is finite too; the
+// parsers without limit controls are the plain configuration of
+// BenchmarkLogicalUnits.
 func BenchmarkControlledParse(b *testing.B) {
 	for i := range workloads {
 		w := &workloads[i]

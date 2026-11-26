@@ -33,8 +33,10 @@ This analysis describes the full-suite snapshot in [benchmarks.md](benchmarks.md
 Budget-control behavior and its generated-Go cost are described in
 [design 033](design/records/033-cancellable-parses-and-budgets.md) and
 [optimization record 096](optimizations/096-specialize-generated-go-method-helpers.md).
-The snapshot measures active controls on JSON and XML (`BudgetControlModes`, `ControlledParse`); the ordinary parsing
-benchmarks run with the controls inactive. Relative to the inactive mode on the three interpreters in both position
+The snapshot measures active controls on JSON and XML (`BudgetControlModes`, `ControlledParse`); its ordinary parsing
+benchmarks ran with the controls inactive, because parses had no default compute limit until after that commit. Today
+`BenchmarkParse` runs with the default finite compute limit, and the inactive control is the `plain` configuration of
+`BenchmarkLogicalUnits`, whose parsers are generated with `-no-limits`. Relative to the inactive mode on the three interpreters in both position
 units, a cancelable context takes 1.45–1.68× the time, finite compute limits 1.54–1.79× and both together 1.54–1.79×, with
 the same allocation counts. Generated Go with finite compute limits takes 1.30–1.47× its ordinary `Parse` time and
 1.47–1.61× its ordinary (CodePoints) `ParseValue` time. Neither this snapshot nor these records imply deployed behavior.
