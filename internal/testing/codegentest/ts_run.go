@@ -673,23 +673,40 @@ func PatchTSLib(t testing.TB, src []byte) []byte {
 const TSCBatchFiles = 100
 
 // RunTSC runs tsc with flags over files in dir and fails t for each tsc run that fails. The files
-// are independent modules, so Shards checks them in parallel parts, each part with its own tsc runs,
-// and a part checks TSCBatchFiles files at a time. Every batch runs, so one failure does not hide the
-// others, and the failures are reported in the order of the files.
+// are cut into ceil(len(files)/TSCBatchFiles) batches, the same tsc runs as one batch after another
+// would make, and the batches run tscParallel at a time. A batch is the unit of parallelism, so the
+// number of tsc processes is the number of batches, however many cores there are. Every batch runs,
+// so one failure does not hide the others, and the failures are reported in the order of the files.
 func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
 	t.Helper()
-	for _, msg := range Shards(t, files, func(t *testing.T, part []string) []string {
-		var msgs []string
-		for start := 0; start < len(part); start += TSCBatchFiles {
-			batch := part[start:min(start+TSCBatchFiles, len(part))]
+	var batches [][]string
+	for start := 0; start < len(files); start += TSCBatchFiles {
+		batches = append(batches, files[start:min(start+TSCBatchFiles, len(files))])
+	}
+	msgs := make([]string, len(batches))
+	sem := make(chan struct{}, tscParallel)
+	var wg sync.WaitGroup
+	for i, batch := range batches {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
 			cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
 			cmd.Dir = dir
 			if out, err := cmd.CombinedOutput(); err != nil {
-				msgs = append(msgs, fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, out))
+				msgs[i] = fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, out)
 			}
+		}()
+	}
+	wg.Wait()
+	for _, msg := range msgs {
+		if msg != "" {
+			t.Error(msg)
 		}
-		return msgs
-	}) {
-		t.Error(msg)
 	}
 }
+
+// tscParallel is the number of tsc runs that RunTSC runs at a time, the same bound as the parallel
+// parts of Shards.
+const tscParallel = shardMax
