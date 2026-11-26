@@ -9,8 +9,11 @@
 # The test slots follow: the slots held, and the testslot.sh waiters in rank order (slots/queue,
 # first served first; a record whose waiter is gone is shown as gone and is not a failure, the next
 # claim removes it), and testslot-stalls.log, which counts as stalls do.
-# Exit status 1 when stuck, when anything is stale or when the stall log is not empty, so that a
-# poll can act on it.
+# Then the power of the machine (sxir_power in lib.sh) and the last lines of benchlock-power.log, the
+# refusals and invalid runs of the power guard of the exclusive jobs.
+# Exit status 1 when stuck, when anything is stale, when the stall log is not empty, or when an
+# exclusive job is queued or running on power that does not allow timing (see benchlock.sh), so
+# that a poll can act on it.
 set -euo pipefail
 # shellcheck source=lib.sh
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -51,16 +54,17 @@ for f in "$D"/runs/*; do
   read -r _ start seq class <<< "$(sxir_run_fields "$f")" || continue
   printf '%s %s %s\t%s\n' "$start" "$seq" "$class" "$(cut -c1-200 "$f" 2>/dev/null || true)"
 done | sort
-q=0; r=0
+q=0; r=0; x=0
 for f in "$D"/runs/*; do
   [ -f "$f" ] || continue
-  read -r st _ <<< "$(sxir_run_fields "$f")" || continue
+  read -r st _ _ class <<< "$(sxir_run_fields "$f")" || continue
   ft=${f##*/}
   if ! sxir_bench_live "${ft##*.}" "${ft%.*}"; then
     stale+=("$st record $ft: its benchlock.sh is gone")
     continue
   fi
   case $st in queued) q=$((q + 1)) ;; running) r=$((r + 1)) ;; esac
+  [ "$class" != exclusive ] || x=$((x + 1))
 done
 held=0
 for e in "$D"/slots/[0-9]*; do [ -d "$e" ] && held=$((held + 1)); done
@@ -74,6 +78,11 @@ done
 rc=0
 if [ -s "$D/testslot-stalls.log" ]; then echo "TESTSLOT STALLS (a queue bug, report it):"; cat "$D/testslot-stalls.log"; rc=1; fi
 if [ -s "$D/benchlock-stalls.log" ]; then echo "STALLS (a queue bug, report it):"; cat "$D/benchlock-stalls.log"; rc=1; fi
+power=$(sxir_power)
+why=$(sxir_power_refusal "$power" "$(sxir_power_floor)")
+echo "power: $power${why:+ ($why: timed jobs do not start)}"
+if [ -s "$D/benchlock-power.log" ]; then echo "power guard log (last 5):"; tail -n 5 "$D/benchlock-power.log"; fi
+if [ -n "$why" ] && [ "$x" -gt 0 ]; then echo "POWER: $x exclusive job(s) queued or running while the machine is $why"; rc=1; fi
 for m in ${stale[@]+"${stale[@]}"}; do echo "STALE: $m"; rc=1; done
 if [ "${#stale[@]}" -gt 0 ]; then echo "(any current benchlock.sh run takes back what is stale)"; fi
 echo "queued: $q running: $r"

@@ -36,6 +36,19 @@
 # its command with SXIR_BENCHLOCK set to "<tag> <pid>", as benchlock/owner records it, so that the
 # command can check that it holds the lock (the timed harness of syntaxir/bench does).
 #
+# The power guard: a timed (exclusive) job runs on AC power with at least BENCHLOCK_MIN_CHARGE percent
+# of charge (default 50, on AC too; see sxir_power in lib.sh), for the whole run. It checks the power
+# before it queues and again once admitted, and refuses to start on battery or under the floor: it
+# says why on stderr, logs it to benchlock-power.log and exits 75. While the command runs it reads
+# the power every BENCHLOCK_POWER_POLL seconds (default 30) into power/<tag>.<pid>.log, whose path
+# and first reading it passes to the command in SXIR_POWER_LOG and SXIR_POWER_START. After the
+# command it reads the power once more: when any reading was on battery or under the floor, the run
+# is invalid: it says so on stderr and in benchlock-power.log, keeps the readings, and exits 75
+# whatever the command's own status, which the message gives. On a Mac, a reading whose probe
+# failed or named neither AC nor battery is refused like battery. A machine with no probe (not a
+# Mac, probe=none) runs unchecked: benchlock-power.log notes it, and its readings are kept. Shared
+# jobs measure no time and are not checked.
+#
 # Deadlock freedom: every waiter is ranked by the key (start, seq). seq is a counter handed out
 # under flock, so no two waiters share a key and exactly one live waiter is first; all waiters
 # rank with the same function. As a backstop, a waiter that sees the lock free while it waits for
@@ -56,7 +69,31 @@ class=${BENCHLOCK_CLASS:-exclusive}
 case $class in exclusive | shared) ;; *) echo "benchlock.sh: BENCHLOCK_CLASS must be exclusive or shared, not '$class'" >&2; exit 2 ;; esac
 k=$(sxir_shared_slots)
 tag=$1; shift
+P=$D/power
+plog=$D/benchlock-power.log
+ppoll=${BENCHLOCK_POWER_POLL:-30}
+power_now=
+# power_ok WHEN reads the power for an exclusive job and sets power_now; when the reading does not
+# allow a timed run it says why, logs it and returns 1. A machine with no probe is logged and allowed.
+power_ok() {
+  local why
+  power_now=$(sxir_power)
+  why=$(sxir_power_refusal "$power_now" "$floor")
+  if [ -n "$why" ]; then
+    echo "benchlock.sh: $tag not started: a timed job needs AC power and at least $floor% charge (BENCHLOCK_MIN_CHARGE), and the machine is $why ($power_now)" >&2
+    printf '%s refused (%s): %s.%s is %s: %s\n' "$(date +%FT%T)" "$1" "$tag" "$$" "$why" "$power_now" >> "$plog"
+    return 1
+  fi
+  case $power_now in
+    source=unknown*) printf '%s unknown (%s): %s.%s runs without a power check: %s\n' "$(date +%FT%T)" "$1" "$tag" "$$" "$power_now" >> "$plog" ;;
+  esac
+}
 command -v perl >/dev/null 2>&1 || { echo "benchlock.sh: perl is required for the ticket and is not installed" >&2; exit 127; }
+if [ "$class" = exclusive ]; then
+  floor=$(sxir_power_floor)
+  case $ppoll in '' | *[!0-9]* | 0) echo "benchlock.sh: BENCHLOCK_POWER_POLL must be a positive number of seconds, not '$ppoll'" >&2; exit 2 ;; esac
+  power_ok queued || exit 75
+fi
 mkdir -p "$R"
 seq=$(perl -e 'use Fcntl qw(:flock); open(my $f, "+>>", $ARGV[0]) or die "seq: $!\n"; flock($f, LOCK_EX) or die; seek($f, 0, 0); my $n = <$f> // 0; $n = int($n) + 1; truncate($f, 0); print $f "$n\n"; close $f; print $n' "$D/benchlock.seq") || { echo "benchlock: cannot allocate a ticket" >&2; exit 125; }
 rec=$R/$tag.$$
@@ -181,15 +218,43 @@ if [ "$free" -ge "$stall" ]; then
   printf '%s stall: lock free %ss, %s.%s (seq %s, %s) took it; queue: %s\n' "$(date +%FT%T)" "$free" "$tag" "$$" "$seq" "$class" \
     "$(cat "$R"/* | cut -c1-80 | tr '\n' '|')" >> "$D/benchlock-stalls.log"
 fi
+# The power can change while the job waits: check it again before the command starts.
+if [ "$class" = exclusive ] && ! power_ok admitted; then
+  rm -f "$rec"
+  with_flock release || true
+  exit 75
+fi
 term=
 child=
+sampler=
+# stop_sampler ends the power sampler and the sleep it waits in.
+stop_sampler() {
+  [ -n "$sampler" ] || return 0
+  pkill -TERM -P "$sampler" 2>/dev/null || true
+  kill -TERM "$sampler" 2>/dev/null || true
+  wait "$sampler" 2>/dev/null || true
+  sampler=
+}
+trap stop_sampler EXIT
 # shellcheck disable=SC2329  # runs from the trap
 on_term() {
   term=1
   if [ -n "$child" ]; then kill -TERM -- "-$child" 2>/dev/null || true; fi
 }
 trap on_term TERM INT HUP
-if [ "$class" = exclusive ]; then export SXIR_BENCHLOCK="$tag $$"; else unset SXIR_BENCHLOCK; fi
+if [ "$class" = exclusive ]; then
+  export SXIR_BENCHLOCK="$tag $$"
+  mkdir -p "$P"
+  powerlog=$P/$tag.$$.log
+  printf '%s %s\n' "$(date +%FT%T)" "$power_now" > "$powerlog"
+  export SXIR_POWER_LOG=$powerlog SXIR_POWER_START=$power_now
+  # The sampler writes nothing to this script's output, so that a caller reading it is not held open.
+  # kill -0 $$ ends the sampler when the wrapper dies without running its EXIT trap (SIGKILL).
+  ( while kill -0 $$ 2>/dev/null && sleep "$ppoll"; do printf '%s %s\n' "$(date +%FT%T)" "$(sxir_power)" >> "$powerlog"; done ) < /dev/null > /dev/null 2>&1 &
+  sampler=$!
+else
+  unset SXIR_BENCHLOCK SXIR_POWER_LOG SXIR_POWER_START
+fi
 set -m
 "$@" < /dev/null &
 child=$!
@@ -221,4 +286,25 @@ done
 if [ "$reaped" = 0 ]; then wait "$child" && rc=0 || rc=$?; fi
 rm -f "$rec"
 with_flock release || true
+if [ "$class" = exclusive ]; then
+  stop_sampler
+  printf '%s %s\n' "$(date +%FT%T)" "$(sxir_power)" >> "$powerlog"
+  bad='' unchecked=''
+  while read -r when reading; do
+    why=$(sxir_power_refusal "$reading" "$floor")
+    if [ -n "$why" ]; then bad="$why at $when"; break; fi
+    case $reading in source=unknown*) unchecked=${unchecked:-$when} ;; esac
+  done < "$powerlog"
+  if [ -n "$bad" ]; then
+    echo "benchlock.sh: $tag ran on power that does not allow timing ($bad): its timings are invalid; the command exited $rc; readings in $powerlog" >&2
+    printf '%s invalid: %s.%s ran %s; the command exited %s; readings in %s\n' "$(date +%FT%T)" "$tag" "$$" "$bad" "$rc" "$powerlog" >> "$plog"
+    exit 75
+  fi
+  if [ -n "$unchecked" ]; then
+    # No probe on this machine: the run stays allowed, and its readings stay as the trace.
+    printf '%s unchecked: %s.%s ran without a power check from %s; readings in %s\n' "$(date +%FT%T)" "$tag" "$$" "$unchecked" "$powerlog" >> "$plog"
+  else
+    rm -f "$powerlog"
+  fi
+fi
 exit "$rc"

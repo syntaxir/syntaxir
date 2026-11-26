@@ -139,13 +139,19 @@ on the reference machine replaces them.
 - **Provenance.** The header of every results file records the commit and whether it had uncommitted changes, the Go
   version, `GOMAXPROCS`, the effective `GOGC` and `GOMEMLIMIT`, `GOEXPERIMENT`, the operating system, the CPU, the power
   source and low power mode, the thermal state, the benchtime, the rounds, the arms, the SHA-256 of each arm's binaries
-  and of the generated parsers, the lock and window held, the load before and after, and the A/A judgment.
+  and of the generated parsers, the lock and window held, the load before and after, the power readings before and
+  after with the power check, and the A/A judgment.
 - **Exclusive window.** Timed runs are made only on the reference machine (Apple M3 Max) in a declared measurement
   window with the run queue paused. `.agents/scripts/benchwindow.sh open <reason>` opens it: new test slot claims and
   shared heavy jobs wait, and the ones running finish. The capture then runs under the exclusive heavy-run lock, which
   starts once the running test slots have drained. The report refuses to measure time outside the lock and an open
   window; `-force` measures anyway for a local experiment, and its headers mark the results as unlocked, not to be
   cited. Close the window with `benchwindow.sh close`; a window past its end stops counting by itself.
+- **Mains power.** A timed run is valid only on AC power with at least 50% charge for the whole run: on battery the
+  system may lower performance, and charging a low battery adds heat. The exclusive lock refuses to start a job
+  otherwise and reads the power every 30 seconds while it runs, and the harness checks it again before and after each
+  part. A part with a failed reading, or measured with `-force`, is marked invalid in its header, and the bench
+  repository does not release it.
 
 ```bash
 # In a checkout of syntaxir/bench, with this repository at ../syntaxir:

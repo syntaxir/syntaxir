@@ -12,6 +12,8 @@
 #   runs/ slots/ (with queue/ and .seq) testslot-stalls.log benchlock/ benchlock.lock benchlock.seq benchlock-stalls.log   run queue (written by the scripts only)
 #   window window.log window-expired/   the measurement window (benchwindow.sh): while it is open, the
 #                      test slots and the shared jobs wait, so that a timed run has the machine alone
+#   power/<tag>.<pid>.log benchlock-power.log   the power readings of the running exclusive jobs and the
+#                      refusals and invalid runs of the power guard (benchlock.sh)
 #   gates/<tag>.log    gate logs
 
 die() { echo "${0##*/}: $*" >&2; exit 1; }
@@ -143,4 +145,62 @@ sxir_exclusive_first() {
     if [ -z "$best" ] || [[ "$t $s" < "$best" ]]; then best="$t $s"; bestc=$c; fi
   done
   [ "$bestc" = exclusive ]
+}
+
+# sxir_power prints the power state of the machine as one line "source=ac|battery|unknown charge=N|-
+# probe=P". On macOS (the timing host) it reads pmset -g batt (probe=pmset): a machine without a battery
+# reports charge=-, and an output that names neither AC nor battery is source=unknown; when pmset fails
+# the probe is probe=failed. On any other system there is no probe: source=unknown probe=none.
+# The tests replace the probe: SXIR_POWER_CMD is a command whose output is read as that of pmset
+# (probe=test), or "none" for a system without a probe; it counts only with SXIR_POWER_TEST=1 beside
+# it, so that a stray SXIR_POWER_CMD in an environment cannot replace the real probe.
+sxir_power() {
+  local out src=unknown charge probe
+  if [ -n "${SXIR_POWER_CMD:-}" ] && [ "${SXIR_POWER_TEST:-}" = 1 ]; then
+    if [ "$SXIR_POWER_CMD" = none ]; then echo "source=unknown charge=- probe=none"; return 0; fi
+    probe='test'
+    out=$(bash -c "$SXIR_POWER_CMD" 2>/dev/null) || probe=failed
+  elif [ "$(uname -s)" = Darwin ]; then
+    probe=pmset
+    out=$(pmset -g batt 2>/dev/null) || probe=failed
+  else
+    echo "source=unknown charge=- probe=none"
+    return 0
+  fi
+  if [ "$probe" = failed ]; then echo "source=unknown charge=- probe=failed"; return 0; fi
+  case $out in
+    *"drawing from 'AC Power'"*) src=ac ;;
+    *"drawing from 'Battery Power'"*) src=battery ;;
+  esac
+  charge=$(printf '%s\n' "$out" | sed -n 's/.*[[:space:]]\([0-9][0-9]*\)%;.*/\1/p' | head -n 1)
+  echo "source=$src charge=${charge:--} probe=$probe"
+}
+
+# sxir_power_floor prints the least charge in percent at which a timed job runs: BENCHLOCK_MIN_CHARGE,
+# default 50. It applies on AC power too: a machine that charges a low battery under load runs hot.
+sxir_power_floor() {
+  local f=${BENCHLOCK_MIN_CHARGE:-50}
+  case $f in '' | *[!0-9]*) die "BENCHLOCK_MIN_CHARGE must be a percentage from 0 to 100, not '$f'" ;; esac
+  [ "$f" -le 100 ] || die "BENCHLOCK_MIN_CHARGE must be a percentage from 0 to 100, not '$f'"
+  echo "$f"
+}
+
+# sxir_power_refusal READING FLOOR prints why a reading of sxir_power does not allow a timed run (on
+# battery, a charge under FLOOR, or a power that a probe could not tell), or nothing when it does. Only a
+# system without a probe (probe=none, not a Mac) runs with an unknown source.
+sxir_power_refusal() {
+  local src charge probe
+  src=$(printf '%s\n' "$1" | sed -n 's/.*source=\([a-z]*\).*/\1/p')
+  charge=$(printf '%s\n' "$1" | sed -n 's/.*charge=\([0-9-]*\).*/\1/p')
+  probe=$(printf '%s\n' "$1" | sed -n 's/.*probe=\([a-z]*\).*/\1/p')
+  if [ "$src" != ac ] && [ "$src" != battery ] && [ "$probe" != none ]; then
+    if [ "$probe" = failed ]; then echo "on unknown power: the power probe failed"; else echo "on unknown power: the probe named neither AC nor battery"; fi
+    return 0
+  fi
+  if [ "$src" = battery ]; then
+    if [ -n "$charge" ] && [ "$charge" != - ]; then echo "on battery ($charge%)"; else echo "on battery"; fi
+    return 0
+  fi
+  case $charge in '' | - | *[!0-9]*) return 0 ;; esac
+  if [ "$charge" -lt "$2" ]; then echo "at $charge% charge, under the floor of $2%"; fi
 }

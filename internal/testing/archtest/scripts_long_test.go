@@ -1388,3 +1388,295 @@ func TestBenchlockSharedBehindDrainingExclusive(t *testing.T) {
 	}
 	noStall(t, "a shared job behind a draining exclusive job", state)
 }
+
+// powerProbe makes the power probe of benchlock.sh (SXIR_POWER_CMD) read a file in the format of
+// pmset -g batt, and returns the environment and a function that sets what the file reports; an
+// empty source removes the file, so that the probe fails. The file is replaced by a rename, so
+// that the probe never reads it half written.
+func powerProbe(t *testing.T, env []string) ([]string, func(source string, charge int)) {
+	t.Helper()
+	dir := t.TempDir()
+	file := filepath.Join(dir, "batt")
+	set := func(source string, charge int) {
+		t.Helper()
+		if source == "" {
+			if err := os.Remove(file); err != nil {
+				t.Fatal(err)
+			}
+			return
+		}
+		tmp := filepath.Join(dir, "batt.tmp")
+		write(t, tmp, fmt.Sprintf("Now drawing from '%s'\n -InternalBattery-0 (id=1)\t%d%%; charging; 1:00 remaining present: true\n", source, charge), 0o644)
+		if err := os.Rename(tmp, file); err != nil {
+			t.Fatal(err)
+		}
+	}
+	set("AC Power", 100)
+	return append(env, "SXIR_POWER_CMD=cat "+file), set
+}
+
+// runBenchlock runs benchlock.sh to its end and returns its exit status and its standard error.
+func runBenchlock(t *testing.T, env []string, args ...string) (int, string) {
+	t.Helper()
+	cmd := exec.Command("bash", append([]string{scriptPath(t, "benchlock.sh")}, args...)...)
+	cmd.Env = env
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	code := 0
+	if ee, ok := err.(*exec.ExitError); ok {
+		code = ee.ExitCode()
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	return code, stderr.String()
+}
+
+// waitExit waits for a started command and returns its exit status.
+func waitExit(t *testing.T, cmd *exec.Cmd) int {
+	t.Helper()
+	err := cmd.Wait()
+	if ee, ok := err.(*exec.ExitError); ok {
+		return ee.ExitCode()
+	} else if err != nil {
+		t.Fatal(err)
+	}
+	return 0
+}
+
+// powerLog returns benchlock-power.log of a state directory.
+func powerLog(state string) string {
+	b, _ := os.ReadFile(filepath.Join(state, "benchlock-power.log"))
+	return string(b)
+}
+
+// queueEmpty fails when a benchlock.sh job left its record or the lock behind.
+func queueEmpty(t *testing.T, what, state string) {
+	t.Helper()
+	if m, _ := filepath.Glob(filepath.Join(state, "runs", "*")); len(m) > 0 {
+		t.Errorf("%s: records left in runs/: %v", what, m)
+	}
+	if _, err := os.Stat(filepath.Join(state, "benchlock")); !os.IsNotExist(err) {
+		t.Errorf("%s: the lock is still held (%v)", what, err)
+	}
+}
+
+// The power guard of a timed (exclusive) benchlock.sh job: it refuses to start on battery or under the
+// charge floor, on AC too, both when it queues and once admitted; it reads the power while the command
+// runs and fails the run with exit 75 when any reading was bad, even one between two good ones; a
+// failed probe or a reading that names neither AC nor battery is refused like battery, at the start
+// and during the run; a machine with no probe runs, with a trace in the log; the test probe counts
+// only with SXIR_POWER_TEST=1; the sampler dies with a killed wrapper; and shared jobs are not checked.
+func TestBenchlockPowerGuard(t *testing.T) {
+	mutanttest.SkipUnlessChanged(t, scriptsDeps...)
+	needTools(t)
+	refused := func(t *testing.T, source string, charge int, why string) {
+		state := t.TempDir()
+		env, set := powerProbe(t, scriptEnv(t, state))
+		set(source, charge)
+		work, run := overlapWork(t)
+		code, stderr := runBenchlock(t, env, "timed", work, run, "x", "0")
+		if code != 75 || !strings.Contains(stderr, why) {
+			t.Errorf("exit %d, stderr %q: want 75 and %q", code, stderr, why)
+		}
+		if b, _ := os.ReadFile(filepath.Join(run, "events")); len(b) > 0 {
+			t.Errorf("the command ran: %q", b)
+		}
+		if log := powerLog(state); !strings.Contains(log, "refused (queued): timed.") || !strings.Contains(log, why) {
+			t.Errorf("benchlock-power.log: %q", log)
+		}
+		queueEmpty(t, "a refused job", state)
+	}
+	t.Run("battery", func(t *testing.T) { refused(t, "Battery Power", 80, "on battery (80%)") })
+	t.Run("under the floor on AC", func(t *testing.T) { refused(t, "AC Power", 30, "at 30% charge, under the floor of 50%") })
+	t.Run("unrecognised source", func(t *testing.T) {
+		refused(t, "UPS Power", 80, "on unknown power: the probe named neither AC nor battery")
+	})
+	t.Run("probe failure", func(t *testing.T) { refused(t, "", 0, "on unknown power: the power probe failed") })
+	t.Run("AC above the floor", func(t *testing.T) {
+		state := t.TempDir()
+		env, set := powerProbe(t, scriptEnv(t, state))
+		set("AC Power", 50)
+		out := filepath.Join(t.TempDir(), "env")
+		code, stderr := runBenchlock(t, env, "timed", "bash", "-c", `printf '%s\n%s\n' "$SXIR_POWER_LOG" "$SXIR_POWER_START" > "$1"; cat "$SXIR_POWER_LOG" >> "$1"; exit 3`, "_", out)
+		if code != 3 {
+			t.Errorf("exit %d (stderr %q), want the command's 3", code, stderr)
+		}
+		b, _ := os.ReadFile(out)
+		lines := strings.Split(strings.TrimSpace(string(b)), "\n")
+		if len(lines) != 3 || !strings.HasPrefix(lines[0], filepath.Join(state, "power", "timed.")) ||
+			lines[1] != "source=ac charge=50 probe=test" || !strings.HasSuffix(lines[2], " "+lines[1]) {
+			t.Errorf("SXIR_POWER_LOG, SXIR_POWER_START and the log: %q", lines)
+		}
+		if _, err := os.Stat(lines[0]); !os.IsNotExist(err) {
+			t.Errorf("the readings of a valid run are kept: %v", err)
+		}
+		if log := powerLog(state); log != "" {
+			t.Errorf("benchlock-power.log after a valid run: %q", log)
+		}
+		queueEmpty(t, "a valid run", state)
+	})
+	t.Run("admitted", func(t *testing.T) {
+		state := t.TempDir()
+		env, set := powerProbe(t, scriptEnv(t, state))
+		work, run := overlapWork(t)
+		hold := filepath.Join(run, "release")
+		x := startScript(t, append(env, "WORK_HOLD="+hold), scriptPath(t, "benchlock.sh"), "first", work, run, "x", "0")
+		waitEvent(t, run, "start x")
+		y := startScript(t, env, scriptPath(t, "benchlock.sh"), "second", work, run, "y", "0")
+		waitQueued(t, state, "second")
+		set("Battery Power", 70)
+		write(t, hold, "", 0o644)
+		if code := waitExit(t, y); code != 75 {
+			t.Errorf("the job admitted on battery exited %d, want 75", code)
+		}
+		if code := waitExit(t, x); code != 75 {
+			t.Errorf("the job that ended on battery exited %d, want 75", code)
+		}
+		if ev := events(t, run); slices.Contains(ev, "start y") {
+			t.Errorf("the job admitted on battery ran: %q", ev)
+		}
+		if log := powerLog(state); !strings.Contains(log, "refused (admitted): second.") {
+			t.Errorf("benchlock-power.log: %q", log)
+		}
+		queueEmpty(t, "a job refused once admitted", state)
+	})
+	// midRun makes the probe report source/charge while a timed job runs, then AC again before the
+	// end: the reading between is enough to fail the run. flagged is what queue-status.sh says then.
+	midRun := func(t *testing.T, source string, charge int, seen, why, flagged string) {
+		state := t.TempDir()
+		env, set := powerProbe(t, append(scriptEnv(t, state), "BENCHLOCK_POWER_POLL=1"))
+		work, run := overlapWork(t)
+		hold := filepath.Join(run, "release")
+		var stderr strings.Builder
+		x := exec.Command("bash", scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0")
+		x.Env = append(env, "WORK_HOLD="+hold)
+		x.Stderr = &stderr
+		if err := x.Start(); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = x.Process.Kill() })
+		waitEvent(t, run, "start x")
+		set(source, charge)
+		logs, _ := filepath.Glob(filepath.Join(state, "power", "timed.*.log"))
+		if len(logs) != 1 {
+			t.Fatalf("power logs: %v", logs)
+		}
+		for begin := time.Now(); ; time.Sleep(50 * time.Millisecond) {
+			if b, _ := os.ReadFile(logs[0]); strings.Contains(string(b), seen) {
+				break
+			}
+			if time.Since(begin) > 30*time.Second {
+				t.Fatalf("the sampler recorded no %q reading", seen)
+			}
+		}
+		// queue-status.sh flags a timed job that runs on such power.
+		if out, err := runIn(t, ".", env, "bash", scriptPath(t, "queue-status.sh")); err == nil || !strings.Contains(out, flagged) {
+			t.Errorf("queue-status.sh during the run: %v\n%s", err, out)
+		}
+		set("AC Power", 100)
+		write(t, hold, "", 0o644)
+		if code := waitExit(t, x); code != 75 || !strings.Contains(stderr.String(), "its timings are invalid; the command exited 0") {
+			t.Errorf("exit %d, stderr %q", code, stderr.String())
+		}
+		if log := powerLog(state); !strings.Contains(log, "invalid: timed.") || !strings.Contains(log, why) {
+			t.Errorf("benchlock-power.log: %q", log)
+		}
+		if _, err := os.Stat(logs[0]); err != nil {
+			t.Errorf("the readings of an invalid run are gone: %v", err)
+		}
+		queueEmpty(t, "an invalid run", state)
+	}
+	t.Run("battery during the run", func(t *testing.T) {
+		midRun(t, "Battery Power", 70, "source=battery", "on battery (70%)",
+			"POWER: 1 exclusive job(s) queued or running while the machine is on battery (70%)")
+	})
+	t.Run("probe failure during the run", func(t *testing.T) {
+		midRun(t, "", 0, "probe=failed", "on unknown power: the power probe failed",
+			"POWER: 1 exclusive job(s) queued or running while the machine is on unknown power: the power probe failed")
+	})
+	t.Run("unknown", func(t *testing.T) {
+		state := t.TempDir()
+		env := append(scriptEnv(t, state), "SXIR_POWER_CMD=none")
+		work, run := overlapWork(t)
+		if code, stderr := runBenchlock(t, env, "timed", work, run, "x", "0"); code != 0 {
+			t.Errorf("exit %d (stderr %q) with no power probe", code, stderr)
+		}
+		log := powerLog(state)
+		if !strings.Contains(log, "unknown (queued): timed.") || !strings.Contains(log, "runs without a power check") ||
+			!strings.Contains(log, "unchecked: timed.") {
+			t.Errorf("benchlock-power.log: %q", log)
+		}
+		logs, _ := filepath.Glob(filepath.Join(state, "power", "timed.*.log"))
+		if len(logs) != 1 {
+			t.Fatalf("the readings of an unchecked run are not kept: %v", logs)
+		}
+		if b, _ := os.ReadFile(logs[0]); !strings.Contains(string(b), "source=unknown charge=- probe=none") {
+			t.Errorf("the readings of an unchecked run: %q", b)
+		}
+	})
+	t.Run("test probe needs SXIR_POWER_TEST", func(t *testing.T) {
+		state := t.TempDir()
+		lib := scriptPath(t, "lib.sh")
+		probe := func(env []string) string {
+			t.Helper()
+			out, err := runIn(t, ".", env, "bash", "-c", `. "$1"; sxir_power`, "_", lib)
+			if err != nil {
+				t.Fatalf("sxir_power: %v\n%s", err, out)
+			}
+			return strings.TrimSpace(out)
+		}
+		env := scriptEnv(t, state)
+		if out := probe(env); out != "source=ac charge=100 probe=test" {
+			t.Errorf("sxir_power with the test probe: %q", out)
+		}
+		var without []string
+		for _, kv := range env {
+			if !strings.HasPrefix(kv, "SXIR_POWER_TEST=") {
+				without = append(without, kv)
+			}
+		}
+		if out := probe(without); strings.Contains(out, "probe=test") {
+			t.Errorf("sxir_power used SXIR_POWER_CMD without SXIR_POWER_TEST: %q", out)
+		}
+	})
+	t.Run("sampler dies with a killed wrapper", func(t *testing.T) {
+		state := t.TempDir()
+		env, _ := powerProbe(t, append(scriptEnv(t, state), "BENCHLOCK_POWER_POLL=1"))
+		work, run := overlapWork(t)
+		hold := filepath.Join(run, "release")
+		t.Cleanup(func() { write(t, hold, "", 0o644) })
+		x := startScript(t, append(env, "WORK_HOLD="+hold), scriptPath(t, "benchlock.sh"), "timed", work, run, "x", "0")
+		waitEvent(t, run, "start x")
+		logs, _ := filepath.Glob(filepath.Join(state, "power", "timed.*.log"))
+		if len(logs) != 1 {
+			t.Fatalf("power logs: %v", logs)
+		}
+		if err := x.Process.Kill(); err != nil {
+			t.Fatal(err)
+		}
+		_ = x.Wait()
+		// A sampler already asleep may write one more reading; after that the log must stay still.
+		time.Sleep(2500 * time.Millisecond)
+		before, _ := os.ReadFile(logs[0])
+		time.Sleep(2500 * time.Millisecond)
+		if after, _ := os.ReadFile(logs[0]); len(after) != len(before) {
+			t.Errorf("the sampler outlived the killed wrapper: %q, then %q", before, after)
+		}
+	})
+	t.Run("shared", func(t *testing.T) {
+		state := t.TempDir()
+		env, set := powerProbe(t, append(scriptEnv(t, state), "BENCHLOCK_CLASS=shared"))
+		set("Battery Power", 10)
+		work, run := overlapWork(t)
+		if code, stderr := runBenchlock(t, env, "gate", work, run, "s", "0"); code != 0 {
+			t.Errorf("a shared job on battery exited %d (stderr %q)", code, stderr)
+		}
+		if log := powerLog(state); log != "" {
+			t.Errorf("benchlock-power.log of a shared job: %q", log)
+		}
+		if _, err := os.Stat(filepath.Join(state, "power")); !os.IsNotExist(err) {
+			t.Errorf("a shared job wrote power readings: %v", err)
+		}
+	})
+}

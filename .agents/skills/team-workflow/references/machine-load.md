@@ -35,8 +35,21 @@ checks and count probes run directly, throttled.
   cannot fire either, so an exclusive benchlock.sh run started from inside a test slot
   deadlocks for good. A `testslot.sh` copy older than the window ignores windows: claim
   slots only through the current script of main.
-- `.agents/scripts/queue-status.sh` shows the window and the queue and exits 1 when it is stuck (jobs queued,
-  none running) or a stall was logged. Inspect at once when it does.
+- Timed runs need mains power. An exclusive job refuses to start, with exit 75 and the
+  reason, when the machine is on battery or its charge is under `BENCHLOCK_MIN_CHARGE`
+  (default 50, on AC too: charging a low battery under load heats the machine). It checks
+  when it queues and again when admitted, reads the power every 30 seconds while it runs
+  (`power/<tag>.<pid>.log`, passed to the command as `SXIR_POWER_LOG`), and exits 75 after
+  the command when any reading failed: its timings are invalid, whatever the command
+  returned. Refusals and invalid runs go to `benchlock-power.log`. Shared jobs are not
+  checked. On a Mac, a failed `pmset` or a reading naming neither AC nor battery is refused
+  like battery. A machine with no probe (not a Mac) runs unchecked: the log notes it and
+  keeps the readings. Plug the machine in before a window; never lower the floor to get a
+  run through. `SXIR_POWER_CMD` replaces the probe only together with `SXIR_POWER_TEST=1`;
+  both are for the script tests, never for real runs.
+- `.agents/scripts/queue-status.sh` shows the window, the queue and the power, and exits 1
+  when it is stuck (jobs queued, none running), a stall was logged, or an exclusive job is
+  queued or running on power that does not allow timing. Inspect at once when it does.
 - `.agents/scripts/run-gate.sh LEVEL...` picks the run class of a `hack/gate.sh` level for you.
 - Use `zsh -f` for queued commands. A login shell profile can reset PATH and drop `node`.
   The TypeScript parity tests then fail with "Node is required", which is the environment,
