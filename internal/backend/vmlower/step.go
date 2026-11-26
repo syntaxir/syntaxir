@@ -17,7 +17,7 @@ const Name = "vmlower"
 var Lowering = pipe.New(pipe.Def[Input, result.Output]{
 	Decl: pipe.Decl{Name: Name, Required: true, Obligation: "The bytecode is the module of the program, with the Flow body of each function of its table.",
 		Counters: superinstructions()},
-	In:   InputIR, Out: result.IR,
+	In: InputIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[Input], in Input) (result.Output, pass.PreservedSet, error) {
 		m, counts, err := compile(in)
 		if err != nil {

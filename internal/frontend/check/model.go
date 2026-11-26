@@ -37,7 +37,7 @@ type Model struct {
 	// MissingType reports that the type missing is among the types of the grammar's values: a rule
 	// uses #missing, or a type declaration or a rule's declared type names missing. The typed values
 	// of such a grammar tell a Missing from an Error; only the generators of typed values read it.
-	MissingType bool
+	MissingType   bool
 	RuleList      []*Rule
 	DescTable     []string  // expectation table (starting with fixedDescs)
 	Twins         []*Rule   // value-free twins (Rule.Twin); ids start at len(RuleList)
