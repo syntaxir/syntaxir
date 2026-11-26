@@ -152,7 +152,7 @@ func checkActionCharges(t *testing.T, golden, what, unset, prefix string, all []
 	actionExprs := actionChargeCases(t, all)
 	// The default tier runs the representative action expressions (codegentest.RepresentativeIndex), each
 	// under its position in the full list, which is the position its golden keys name.
-	sel := codegentest.RepresentativeIndex(actionCaseList(actionExprs))
+	sel := codegentest.RepresentativeIndex(actionKindCases(actionExprs))
 	got := map[string]string{}
 	var mu sync.Mutex
 	put := func(m map[string]string) {
@@ -307,4 +307,22 @@ for (const s of inputs) {
   console.log(lo + " " + JSON.stringify(e === null ? "<nil>" : String(e.message).split("\n")[0]));
 }
 `
+}
+
+// actionKindCases returns the cases of the action expressions for choosing the default tier's
+// representatives, with each name led by its construct kind ("action", "predicate", "member",
+// "convert"): the generated expressions are named "action N: ..." and "predicate N: ...", and the
+// number would make each one a family of its own, so that the default tier ran them all.
+func actionKindCases(actionExprs []codegentest.ActionCase) []codegentest.Case {
+	cases := make([]codegentest.Case, len(actionExprs))
+	for i, c := range actionExprs {
+		kind := c.Name
+		if j := strings.IndexByte(kind, ':'); j >= 0 {
+			kind = kind[:j]
+		}
+		kind = strings.TrimSuffix(strings.TrimRight(kind, "0123456789"), " ")
+		cases[i] = c.Case
+		cases[i].Name = kind + ": " + c.Name
+	}
+	return cases
 }
