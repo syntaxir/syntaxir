@@ -12,7 +12,13 @@ fail() {
 
 command -v curl >/dev/null 2>&1 || fail 'curl is required to install the Playground toolchains.'
 command -v tar >/dev/null 2>&1 || fail 'tar is required to install the Playground toolchains.'
-command -v sha256sum >/dev/null 2>&1 || fail 'sha256sum is required to verify the Playground toolchains.'
+if command -v sha256sum >/dev/null 2>&1; then
+  sha256() { sha256sum "$1"; }
+elif command -v shasum >/dev/null 2>&1; then
+  sha256() { shasum -a 256 "$1"; }
+else
+  fail 'sha256sum or shasum is required to verify the Playground toolchains.'
+fi
 
 tinygo_archive=tinygo0.43.0.linux-amd64.tar.gz
 tinygo_sha256=ca9fc6d055e3889462dea4450a2e42a92242d88b5c362a7ec39bdb563413d78a
@@ -41,14 +47,14 @@ fetch_verified() {
   actual=
 
   if [ -f "$cached" ]; then
-    actual=$(sha256sum "$cached")
+    actual=$(sha256 "$cached")
     actual=${actual%% *}
   fi
   if [ "$actual" != "$expected" ]; then
     rm -f "$cached"
     download=$work/$archive
     curl --fail --location --silent --show-error --retry 3 --output "$download" "$url" || fail "Download failed: $url"
-    actual=$(sha256sum "$download")
+    actual=$(sha256 "$download")
     actual=${actual%% *}
     [ "$actual" = "$expected" ] || fail "SHA-256 mismatch for $archive"
     mv "$download" "$cached"
