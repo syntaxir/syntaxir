@@ -348,6 +348,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 - [146. Outlined TypeScript nodes](146-outlined-typescript-nodes.md)
 - [147. Decoded text of generated Go Documents](147-decoded-text-of-generated-go-documents.md)
 - [148. Moving reused trees of generated Go Documents](148-moving-reused-trees-of-generated-go-documents.md)
+- [149. Kept child stack of generated Go Documents](149-kept-child-stack-of-generated-go-documents.md)
 
 ## Experiments That Did Not Pay Off
 

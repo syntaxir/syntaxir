@@ -149,14 +149,20 @@ func (d *Document) ResetHistory() { d.State.resetHistory() }
 
 // resetHistory is ResetHistory.
 func (d *documentState) resetHistory() {
-	d.memo, d.typedMemo, d.runs, d.edits = memoTable{}, nil, nil, nil
+	d.memo, d.typedMemo, d.runs, d.edits, d.kids = memoTable{}, nil, nil, nil, nil
 }
 
 // retainedBytes returns the bytes that a parse of either form under a memory limit starts its count
 // at: everything the Document keeps from earlier parses, each once. If they alone pass the limit,
 // the parse resets the whole history first (resetHistory).
 func (d *documentState) retainedBytes() uint64 {
-	return saturatingAdd(d.memo.chargedBytes(), d.historyBytes())
+	return saturatingAdd(d.memo.chargedBytes(), saturatingAdd(d.historyBytes(), d.kidsBytes()))
+}
+
+// kidsBytes returns the bytes of the kept stack of repetition values. A Node parse holds the stack
+// and counts it itself (heldBytes), so its control starts at historyBytes without it.
+func (d *documentState) kidsBytes() uint64 {
+	return uint64(cap(d.kids)) * uint64(unsafe.Sizeof((*sxirvalue.Node)(nil)))
 }
 
 // historyBytes returns what the Document keeps beside the memo table of Node parses: the run
@@ -202,6 +208,7 @@ func (d *Document) CacheStats() sxirruntime.CacheStats {
 		s.RepetitionElements += len(run.elems)
 	}
 	s.EstimatedBytes += runBytes(d.State.runs)
+	s.EstimatedBytes += d.State.kidsBytes()
 	return s
 }
 
@@ -622,6 +629,10 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	// reaches the limit panics, which drops the memo and the runs.
 	p.startMissing(o)
 	o.control.attachMemory(p)
+	// The parse takes the kept stack, after attachMemory, which gives a pooled parser no stack: this
+	// one is the Document's, and the parse counts it as it holds it (heldBytes). A parse that stops
+	// on a panic does not give it back.
+	p.KidStack, d.kids = d.kids, nil
 	if o.control != nil && o.control.limits.Memory != 0 {
 		o.control.retained = d.historyBytes()
 	}
@@ -633,6 +644,9 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 			panic(x)
 		}
 		d.memo, d.runs, d.runGen = p.memo, p.runs, p.gen
+		// Every pop clears what it takes off, so only what the parse left on the stack holds values.
+		clear(p.KidStack)
+		d.kids = p.KidStack[:0]
 	}()
 	p.Control.Check()
 	p.startUnits(o)

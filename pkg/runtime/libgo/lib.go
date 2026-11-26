@@ -1079,6 +1079,9 @@ type documentState struct {
 	// resumes them (document_runs.go). They are dropped with the memo (dropMemo).
 	runs   map[runKey]*runRecord
 	runGen uint32
+	// kids is the stack of repetition values of the last Node parse, empty, kept for the next one, as
+	// a parse from scratch would grow it again.
+	kids []*sxirvalue.Node
 }
 
 // documentStats counts the rule evaluations of a Document parse and its reuses: memo hits and the

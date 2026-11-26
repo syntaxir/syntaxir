@@ -230,8 +230,9 @@ interval of a cancelable context, but without calling the context.
 
 The memory counter of a `Document` parse starts at the bytes the Document retains, counted as the parse counts
 storage: in the engine, the memo table, the repetition records and edits, and the child and backend stacks it keeps;
-in a generated Document, its memo table; in a typed generated Document, an estimate of its memo slots and retained
-entries. [`CacheStats.EstimatedBytes`](035-incremental-cache-controls.md) is a different estimate and is not used. A
+in a generated Document, its memo table, repetition records and edits, and the child stack it keeps; in a typed
+generated Document, an estimate of its memo slots and retained entries besides.
+[`CacheStats.EstimatedBytes`](035-incremental-cache-controls.md) is a different estimate and is not used. A
 finite `Memory` is therefore a bound on the Document's footprint after the parse, not only on what the parse adds.
 If the retained bytes alone exceed the cap when `Parse` begins, the Document drops its history, as `ResetHistory`
 does, and parses from scratch under the cap. Caches are an optimization, and dropping them before failing keeps the

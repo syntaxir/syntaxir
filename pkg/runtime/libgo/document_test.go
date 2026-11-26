@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"unsafe"
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
@@ -533,6 +534,56 @@ func TestDocumentMoveKeepsSharedNodesShared(t *testing.T) {
 	}
 }
 
+// TestDocumentKeepsTheChildStack checks that a Node parse of a Document leaves its stack of repetition
+// values to the next parse, empty and holding no value, and that ResetHistory drops it.
+func TestDocumentKeepsTheChildStack(t *testing.T) {
+	item := &Rule{Id: 1, Name: "item", Memo: true, DocMemo: true, Seen: -1}
+	item.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		return p.MatchLiteral([]rune("a"), "a", IdAny, true)
+	}
+	main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
+	main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		start, base := p.Pos, len(p.KidStack)
+		for {
+			v, ok := p.Call(item, 0)
+			if !ok {
+				break
+			}
+			p.KidStack = append(p.KidStack, v)
+		}
+		if !p.AtEnd() {
+			p.DropKids(base)
+			return nil, false
+		}
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: p.Kids(base)}), true
+	}
+	d := testDocumentState(main, strings.Repeat("a", 100), sxirinput.CodePoints)
+	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}
+	for i := range 2 {
+		if n, err := d.parse(o); err != nil || len(D(n).Children) != 100+i {
+			t.Fatalf("parse %d: %v, %v", i, n, err)
+		}
+		if len(d.kids) != 0 || cap(d.kids) < 100 {
+			t.Fatalf("parse %d keeps a stack of %d values and capacity %d, want 0 and at least 100", i, len(d.kids), cap(d.kids))
+		}
+		for j, v := range d.kids[:cap(d.kids)] {
+			if v != nil {
+				t.Fatalf("parse %d: the kept stack holds a value at %d", i, j)
+			}
+		}
+		if want := uint64(cap(d.kids)) * 8; d.kidsBytes() != want {
+			t.Fatalf("parse %d: the kept stack counts %d bytes, want %d", i, d.kidsBytes(), want)
+		}
+		if err := d.edit(0, 0, "a"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	d.resetHistory()
+	if d.kids != nil {
+		t.Fatalf("ResetHistory keeps the child stack")
+	}
+}
+
 // TestDocumentLimitAfterMovesThenEditsEqualsFresh interrupts by its compute limit, at every event, a
 // Document parse after an edit before the whole text, which moves the reused results in place
 // (documentMove) as it reaches them, and checks that the parse after the interruption and the parses
@@ -660,5 +711,68 @@ func TestDocumentMoveReplaysShiftsPerMove(t *testing.T) {
 	p.documentMove(eb)
 	if D(before).Start != 10 || D(after).Start != 105 || D(after).End != 106 {
 		t.Fatalf("the nodes before and after the edit are at %d and [%d,%d), want 10 and [105,106)", D(before).Start, D(after).Start, D(after).End)
+	}
+}
+
+// TestDocumentCountsTheTrueSizes checks that the memory count of a Document holds the true sizes of
+// the memo entries and of the kept child stack: the entry chunks in use at the size of an entry,
+// 144 bytes where pointers have 8, and the stack once, by its capacity, held by the Document between
+// parses and by the parse during one.
+func TestDocumentCountsTheTrueSizes(t *testing.T) {
+	if unsafe.Sizeof(uintptr(0)) == 8 && unsafe.Sizeof(memoEntry{}) != 144 {
+		t.Fatalf("a memo entry has %d bytes; the records of the Document memo give 144", unsafe.Sizeof(memoEntry{}))
+	}
+	var during []string
+	parses := 0
+	item := &Rule{Id: 1, Name: "item", Memo: true, DocMemo: true, Seen: -1}
+	item.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		return p.MatchLiteral([]rune("a"), "a", IdAny, true)
+	}
+	main := &Rule{Id: 0, Name: "main", Memo: true, DocMemo: true, Seen: -1}
+	main.Body = func(p *Parser, _ int) (*sxirvalue.Node, bool) {
+		if d := p.Document; d.kids != nil || d.retainedBytes() != d.memo.chargedBytes()+d.historyBytes() {
+			during = append(during, fmt.Sprintf("parse %d: the Document counts a stack of capacity %d", parses, cap(d.kids)))
+		}
+		if parses > 0 && cap(p.KidStack) < 300 {
+			during = append(during, fmt.Sprintf("parse %d: the parse holds a stack of capacity %d, not the kept one", parses, cap(p.KidStack)))
+		}
+		start, base := p.Pos, len(p.KidStack)
+		for {
+			v, ok := p.Call(item, 0)
+			if !ok {
+				break
+			}
+			p.KidStack = append(p.KidStack, v)
+		}
+		if !p.AtEnd() {
+			p.DropKids(base)
+			return nil, false
+		}
+		return p.buildNode(Data{Kind: valueimpl.ListKind, Start: int32(start), End: int32(p.Pos), Children: p.Kids(base)}), true
+	}
+	d := testDocumentState(main, strings.Repeat("a", 300), sxirinput.CodePoints)
+	o := parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}
+	for i := range 3 {
+		if _, err := d.parse(o); err != nil {
+			t.Fatal(err)
+		}
+		parses++
+		m := d.memo
+		var entries uint64
+		for _, c := range m.chunks[:m.used] {
+			entries += uint64(cap(c)) * uint64(unsafe.Sizeof(memoEntry{}))
+		}
+		if counted := uint64(m.used) * 256 * memoEntryBytes; m.used == 0 || counted != entries {
+			t.Fatalf("parse %d: %d entry chunks count %d bytes, their size is %d", i, m.used, counted, entries)
+		}
+		if want := uint64(cap(d.kids)) * uint64(unsafe.Sizeof((*sxirvalue.Node)(nil))); d.kidsBytes() != want || want == 0 {
+			t.Fatalf("parse %d: the kept stack counts %d bytes, its size is %d", i, d.kidsBytes(), want)
+		}
+		if err := d.edit(0, 0, "a"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if during != nil {
+		t.Fatal(strings.Join(during, "\n"))
 	}
 }

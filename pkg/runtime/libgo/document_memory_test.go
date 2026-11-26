@@ -7,6 +7,7 @@ import (
 
 	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
 	sxirinput "syntaxir.dev/sxir/pkg/runtime/input"
+	sxirvalue "syntaxir.dev/sxir/pkg/runtime/value"
 )
 
 // splicedMemo stands for the typed memo of a Document, which keeps the edit log while it holds one.
@@ -239,11 +240,12 @@ func TestDocumentMemoryLimitCountsBothMemos(t *testing.T) {
 			c.slots = append(c.slots, make([]*tmemoEntry, 1000)...)
 		}},
 		{"the edit log", 1000 * 3 * 8, func(d *Document) { d.State.edits = make([]documentEdit, 0, 1000) }},
+		{"the kept child stack", 1000 * 8, func(d *Document) { d.State.kids = make([]*sxirvalue.Node, 0, 1000) }},
 	}
 	d := both(func(*Document) {})
-	want := d.State.memo.chargedBytes() + runBytes(d.State.runs) + d.State.typedMemo.(*typedDocumentState).retainedBytes()
+	want := d.State.memo.chargedBytes() + runBytes(d.State.runs) + d.State.typedMemo.(*typedDocumentState).retainedBytes() + d.State.kidsBytes()
 	if got := d.State.retainedBytes(); got != want {
-		t.Fatalf("a Document with both memos retains %d bytes, want the Node memo's, the runs' and the typed memo's %d", got, want)
+		t.Fatalf("a Document with both memos retains %d bytes, want the Node memo's, the runs', the typed memo's and the child stack's %d", got, want)
 	}
 	for _, form := range []string{"Node", "typed"} {
 		reuse := func(grow func(d *Document)) uint64 {
