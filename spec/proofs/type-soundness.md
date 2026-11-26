@@ -179,9 +179,13 @@ The proof cites the following rules, and no other rule about types or values.
   named node type, and a value of type `_` or `unknown` meets there only the
   type `_`.
 - **(T9) Inference.** A rule without a declared type has the type of its body,
-  or of its action. Rules are inferred after the rules they call; a recursive
-  group is iterated until no type changes, and a type that keeps growing is
-  widened to `unknown` for the rest of inference. The
+  or of its action. Rules are inferred after the rules they call outside
+  their recursive group. A recursive group is inferred in rounds from `_|_`:
+  each round gives every rule of the group the join of its type in the
+  previous round and the type of its body or action under the types of the
+  previous round; from the ninth round on, a rule whose type changes is widened
+  to `unknown` for the rest of inference, and the rounds end with the first
+  round in which no type changes. The
   accumulator of `foldl` and `foldr` is widened to the join of the initial
   value and the result of the function until the result is assignable to it,
   or the call is an error; a result whose type has `unknown` where the
@@ -193,7 +197,8 @@ The proof cites the following rules, and no other rule about types or values.
   have type `T`; without a declared type, the rule has the join of the types
   of its lines; with a whole-rule action, `$lhs`, `$rhs` and `$value` have the
   folded type, the least fixed point of that join with `$lhs` and `$rhs` of
-  that type. When it keeps growing, `$lhs` and `$rhs` are widened to
+  that type, computed in rounds from `_|_`. When it still changes in the
+  ninth round, `$lhs` and `$rhs` are widened to
   `node[_]` when the type of every line, with `$lhs` and `$rhs` of type
   `node[_]`, is assignable to `node[_]`, and to `unknown` otherwise, and `$value`
   has the join of the lines so typed. The result of the action is assignable
@@ -535,11 +540,12 @@ then the value of $r$ has the type $T_r$ of $r$.
 or its value is converted to $T_r$ (T8, T11), and Lemma 2 or Lemma 4 gives
 the claim. If $r$ declares none, $T_r$ is the result of inference (T9). An
 acyclic rule is inferred after its callees, from their final types, so $T_r$
-is the type of its body or action. For a recursive group, the iteration stops
-only when no type changes, so each $T_r$ is the type that the body or action
-of $r$ has under the final types of the group; a rule widened to `unknown` keeps `unknown`,
-which every value has, and the others are computed again from it before the
-iteration stops. A change in the order of the members of a join is not a change
+is the type of its body or action. For a recursive group, the rounds end
+(Lemma 11), and only with a round in which no type changes (T9). In that round
+each rule of the group gets the join of its type and the type of its body or
+action under the final types of the group, and keeps its type, so the type of
+the body or action is assignable to $T_r$ (T3), whether $T_r$ was widened to
+`unknown`, which every value has, or not. A change in the order of the members of a join is not a change
 of meaning (Lemma 2). ∎
 
 ## Lemma 10 (Operators Rules)
@@ -574,6 +580,31 @@ line that recovers has a type with `error`, which is not assignable to
 a line, of the type of that line and so of the join of the lines (Lemma 2).
 The result of the action is assignable to the declared type, or is the
 rule's type when there is none. ∎
+
+## Lemma 11 (Termination of Inference)
+
+The inference of the types of the rules without a declared type ends.
+
+**Proof.** A grammar has finitely many rules, and its recursive groups, ordered
+by the calls between them, form a finite acyclic order, which T9 follows. An
+acyclic rule is typed once. A recursive group of $n$ rules is typed in rounds;
+each round types each body and action of the group once, from the types of
+the previous round and the final types of the rules called outside the group.
+The typing of an Operators Rule with a whole-rule action ends: its folded type
+takes at most nine rounds, after which it is widened (T10). The accumulator
+of `foldl` and `foldr` is widened at most three times
+([Type Inference](../language/type-checking.md#type-inference)).
+
+It remains to bound the rounds of a group. A rule of type `unknown` does not
+change in a later round, since its new type is the join of `unknown` and
+another type, which is `unknown` (T1). From the ninth round on, every rule
+whose type changes in a round becomes `unknown` (T9), and it was not `unknown`
+before, since then it would not have changed. So each round from the ninth on
+either changes no type, and is the last round, or makes at least one more rule
+of the group `unknown`. As the group has $n$ rules, there are at most $n$ such
+rounds, and the rounds end by the round $n + 9$. The argument uses no bound on
+the size of the types, so it holds also for a group whose types would grow
+without bound. ∎
 
 ## Theorem (Type Soundness)
 
@@ -645,13 +676,14 @@ other than `_` (T8).
 | A variable always holds a value of its declared type | Lemma 7 |
 | An Action Expression gives a value of its type or one of the listed run-time errors | Lemma 8 |
 | Inferred types, including the widenings, are sound | Lemma 9 |
+| The inference of types ends | Lemma 11 |
 | Operators Rules produce values of their types | Lemma 10 |
 
 ## What the Proof Does Not Show
 
 - **The checker as implemented.** The proof shows that the rules of the
-  specification are sound. It does not show that the checker computes the
-  types those rules give, nor that the iteration of a recursive group ends.
+  specification are sound, and that the inference they define ends. It does
+  not show that the checker computes the types those rules give.
 - **Typed APIs.** The corollary shows that the values of a parse have the
   types of their rules. That the types of the generated Go and TypeScript
   typed APIs represent those types, so that building the typed form never

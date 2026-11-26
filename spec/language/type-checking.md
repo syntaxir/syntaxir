@@ -139,7 +139,12 @@ round computes every rule of the group from the types of the previous round,
 joined with them, so that neither the types nor the errors depend on the order
 of the rules. A type that keeps growing ends the rounds: from the ninth round on,
 a rule whose type changes is widened to the [type that is not
-known](#types-that-are-not-known) for the rest of inference. Rules whose types
+known](#types-that-are-not-known) for the rest of inference. The rounds end with
+the first round in which no type changes, so every rule of the group has the
+type of its body or action under the final types of the group. They do end: a
+widened rule absorbs every join and does not change again, so each round from
+the ninth on that changes a type widens one more rule, and a group of `n` rules
+takes at most `n + 9` rounds. Rules whose types
 do not change, acyclic rules and large types that are stable keep their types.
 This is a resource limit, not a proof of infinite growth: a finite type that is
 still growing in the ninth round is widened too. Declare recursive result types
