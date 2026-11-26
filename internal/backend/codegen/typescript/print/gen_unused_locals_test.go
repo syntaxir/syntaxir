@@ -123,5 +123,5 @@ func TestGeneratedTSNoUnusedLocals(t *testing.T) {
 	if len(files) < seeds*2 {
 		t.Fatalf("only %d parsers generate", len(files))
 	}
-	codegentest.RunTSC(t, tsc, dir, append([]string{"--noEmit", "--allowImportingTsExtensions"}, tsStrictFlags...), files)
+	codegentest.RunTSC(t, tsc, dir, append([]string{"--noEmit", "--allowImportingTsExtensions"}, tsStrictFlags...), files, nil)
 }

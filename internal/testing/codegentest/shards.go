@@ -2,16 +2,29 @@ package codegentest
 
 import (
 	"fmt"
+	"os"
+	"runtime"
+	"strconv"
 	"testing"
 )
 
-// shardMin is the number of items that a shard of Shards holds at least, and shardMax the number of
-// shards at most: a shard may pay for processes of its own (tsc, node), and the shards run together
-// on the cores of the machine.
-const (
-	shardMin = 12
-	shardMax = 4
-)
+// shardMin is the number of items that a shard of Shards holds at least: a shard may pay for
+// processes of its own (tsc, node), so a shard holds enough items to pay for them.
+const shardMin = 12
+
+// shardMax is the number of shards at most, and the number that run at a time: they run together on
+// the cores of the machine, so it follows them (see shardLimit).
+var shardMax = shardLimit()
+
+// shardLimit returns the number of shards that run at a time: one per core, at least one and at most
+// eight, so that a small runner is not oversubscribed. The environment variable SXIR_TEST_SHARDS
+// sets it to a positive number instead; any other value is ignored.
+func shardLimit() int {
+	if n, err := strconv.Atoi(os.Getenv("SXIR_TEST_SHARDS")); err == nil && n > 0 {
+		return n
+	}
+	return min(max(runtime.GOMAXPROCS(0), 1), 8)
+}
 
 // Shards runs run over contiguous parts of items as parallel subtests, each part of its own:
 // the items are independent, the order of what run returns is that of the items, and

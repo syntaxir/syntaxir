@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -327,11 +328,11 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 	// them reads the generated files of every shard.
 	root := t.TempDir()
 	var mu sync.Mutex
-	var files []string
+	labels := map[string]string{}
 	mismatches := Shards(t, cases, func(t *testing.T, part []Case) []string {
-		shardFiles, mism := tsParsersShard(t, root, node, part, opts, mutate, units, missing)
+		shardLabels, mism := tsParsersShard(t, root, node, part, opts, mutate, units, missing)
 		mu.Lock()
-		files = append(files, shardFiles...)
+		maps.Copy(labels, shardLabels)
 		mu.Unlock()
 		return mism
 	})
@@ -347,16 +348,18 @@ func tsParsersMismatches(t *testing.T, node string, cases []Case, opts common.Ge
 			// The generated files import each other by their names (./lib.ts).
 			flags = append(flags, "--allowImportingTsExtensions")
 		}
-		// The files are absolute paths under root, so any directory runs the check.
-		RunTSC(t, tsc, root, flags, files)
+		// The files are absolute paths under root, so any directory runs the check. They are sorted, so
+		// that the batches, and the order of the failures, do not depend on the shards' finish order.
+		RunTSC(t, tsc, root, flags, slices.Sorted(maps.Keys(labels)), labels)
 	}
 	return mismatches
 }
 
 // tsParsersShard generates the parsers of cases in a directory of its own, runs them with node
-// against the engine, and returns the absolute paths of the generated files with the mismatches.
-// The directory is made under root, not t.TempDir, so that it outlives this shard.
-func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) ([]string, []string) {
+// against the engine, and returns the absolute paths of the generated files, each with the name of
+// its case, and the mismatches. The directory is made under root, not t.TempDir, so that it outlives
+// this shard.
+func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.GenOptions, mutate func(string) string, units bool, missing int) (map[string]string, []string) {
 	t.Helper()
 	dir, err := os.MkdirTemp(root, "shard")
 	if err != nil {
@@ -376,7 +379,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 	type want struct{ out, str, rec, units string }
 	var inputs [][]input
 	var wants []want
-	var files []string
+	labels := map[string]string{}
 	for i, c := range cases {
 		g, err := compiletest.Parse(c.Src)
 		if err != nil {
@@ -404,7 +407,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 					code = mutate(code)
 				}
 				write(pkg+"/"+f.Path, code)
-				files = append(files, pkg+"/"+f.Path)
+				labels[filepath.Join(dir, pkg, f.Path)] = c.Name
 			}
 			write(name, "export * from \"./"+pkg+"/parser.ts\";\n")
 		} else {
@@ -418,7 +421,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 				code = []byte(mutate(string(code)))
 			}
 			write(name, string(code))
-			files = append(files, name)
+			labels[filepath.Join(dir, name)] = c.Name
 		}
 		var in []input
 		// The generated code projects (internal/frontend/check/project.go), and records source information as asked.
@@ -531,11 +534,7 @@ func tsParsersShard(t *testing.T, root, node string, cases []Case, opts common.G
 	if rest, _ := results.ReadString('\n'); rest != "" {
 		mismatches = append(mismatches, fmt.Sprintf("got more than %d results", k))
 	}
-	absFiles := make([]string, len(files))
-	for i, f := range files {
-		absFiles[i] = filepath.Join(dir, f)
-	}
-	return absFiles, mismatches
+	return labels, mismatches
 }
 
 // TSBundles generates a TypeScript parser for each case with opts, concurrently, for TSOutputs.
@@ -695,7 +694,8 @@ const TSCBatchFiles = 100
 // would make, and the batches run tscParallel at a time. A batch is the unit of parallelism, so the
 // number of tsc processes is the number of batches, however many cores there are. Every batch runs,
 // so one failure does not hide the others, and the failures are reported in the order of the files.
-func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
+// labels names the case of each file, which the failure then names beside the file (nil names none).
+func RunTSC(t *testing.T, tsc, dir string, flags, files []string, labels map[string]string) {
 	t.Helper()
 	var batches [][]string
 	for start := 0; start < len(files); start += TSCBatchFiles {
@@ -713,7 +713,7 @@ func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
 			cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
 			cmd.Dir = dir
 			if out, err := cmd.CombinedOutput(); err != nil {
-				msgs[i] = fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, out)
+				msgs[i] = fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, withCases(out, batch, labels))
 			}
 		}()
 	}
@@ -725,6 +725,18 @@ func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
 	}
 }
 
+// withCases returns the output of tsc over batch with the case of each file of the batch after its
+// path, so that a failure names the case it comes from.
+func withCases(out []byte, batch []string, labels map[string]string) string {
+	pairs := make([]string, 0, 2*len(batch))
+	for _, f := range batch {
+		if name, ok := labels[f]; ok {
+			pairs = append(pairs, f, f+" ("+name+")")
+		}
+	}
+	return strings.NewReplacer(pairs...).Replace(string(out))
+}
+
 // tscParallel is the number of tsc runs that RunTSC runs at a time, the same bound as the parallel
 // parts of Shards.
-const tscParallel = shardMax
+var tscParallel = shardMax
