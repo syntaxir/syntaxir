@@ -90,11 +90,15 @@ func TestChunkMemoryIsChargedAndLimited(t *testing.T) {
 	}
 }
 
-// Match chunks grow the same way unless the grammar keeps them fixed (FixedTypedChunks), and the memory
+// Match chunks grow the same way unless the grammar keeps them fixed (FixedMatchChunks), and the memory
 // they charge is their real size.
 func TestMatchChunksGrow(t *testing.T) {
 	for _, fixed := range []bool{false, true} {
-		p := &TParser{Parser: &Parser{g: &grammar{FixedTypedChunks: fixed}}}
+		mask := 0
+		if fixed {
+			mask = -1
+		}
+		p := &TParser{Parser: &Parser{g: &grammar{FixedMatchChunks: mask}}}
 		const n = 100000
 		chunks := 0
 		for range n {

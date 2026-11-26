@@ -93,11 +93,11 @@ rule item = t:"a" => Item{Text: text($t)}`)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if s := string(on); strings.Contains(s, "sxirGrammar.FixedTypedChunks = true") || strings.Contains(s, "astChunk") {
+		if s := string(on); strings.Contains(s, "sxirGrammar.FixedMatchChunks = -1") || strings.Contains(s, "astChunk") {
 			t.Errorf("conversion %v: the default parser keeps its chunks fixed or prints local chunk helpers", conv)
 		}
 		s := string(off)
-		if !strings.Contains(s, "sxirGrammar.FixedTypedChunks = true") {
+		if !strings.Contains(s, "sxirGrammar.FixedMatchChunks = -1") {
 			t.Errorf("conversion %v: the parser without typed-chunk-growth lets the match chunks grow", conv)
 		}
 		if !strings.Contains(s, "s.next = min(size*2, limit)") || strings.Contains(s, "astChunkRatio") {

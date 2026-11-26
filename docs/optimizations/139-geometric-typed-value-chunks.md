@@ -41,16 +41,19 @@ parameter of the slab design: a ratio without bound is the fixed chunk of [A250]
 and [A260](mechanisms/A260-typed-list-slabs.md), the plain form of the same allocator, which keeps the same contract
 and relies on no other optimization. It is therefore the setting `typed-chunk-growth` of mechanism
 [A280](mechanisms/A280-typed-chunk-growth.md), on in every profile. Off, the generator prints the local chunk
-helpers with the fixed limit, as it does for the other storage controls, and marks the grammar so that the library
-keeps the match chunks of a typed parse fixed; the default parser takes the library's chunks and pays one test per
-new match chunk. The mark is a field of the library protocol, which moved from version 36 to 37; the library still
-implements 36, whose parsers never set it.
+helpers with the fixed limit, as it does for the other storage controls, and sets a mask in the grammar that clears
+the growth of the match chunks of a typed parse, which the library makes. The library applies the mask arithmetically,
+so the setting adds no test to the default parser, which takes the library's chunks and prints nothing for the
+setting. The mask is a field of the library protocol, which moved from version 36 to 37 because its exported
+declarations changed; a parser of version 36 never sets the field, and its zero value is the growth, so the library
+still implements 36.
 
 ## Reproduction
 
 Base: main `6fcaf8348`; candidate: `54be31a17`, the two commits of the change on that base. The setting was added
 afterwards: the default parser it generates differs from the candidate's only in the protocol constant, and the
-library only in the test per new match chunk. Go 1.27.1, Node 24.13, Apple M3 Max on mains power, `GOMAXPROCS=16`,
+library only in the mask that the size of a new match chunk applies; the deterministic metrics of the setting's
+final form equal the candidate's on the default path. Go 1.27.1, Node 24.13, Apple M3 Max on mains power, `GOMAXPROCS=16`,
 `GOGC=100`.
 
 - Allocations, bytes, sizes and compilation: `go run ./bench/metrics collect` on each revision (workloads and sizes

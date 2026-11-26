@@ -29,7 +29,8 @@ Node parses, the engine backends and TypeScript are unchanged.
 ## Reference Control
 
 The optimization setting `-no-opt typed-chunk-growth` keeps every slab and match chunk at its fixed limit: the
-parser prints the local chunk helpers with the fixed limit and tells the library to keep its match chunks fixed.
+parser prints the local chunk helpers with the fixed limit and sets a mask in the grammar that clears the growth of
+the library's match chunks without a test.
 Every profile leaves it on.
 
 ## Evidence and Implementation

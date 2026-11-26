@@ -277,7 +277,7 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 		genGo.Init.WriteString("\tsxirGrammar.HasMissing = true\n")
 	}
 	if opts.Types && !params.TypedChunkGrowth {
-		genGo.Init.WriteString("\tsxirGrammar.FixedTypedChunks = true\n")
+		genGo.Init.WriteString("\tsxirGrammar.FixedMatchChunks = -1\n")
 	}
 	if t := prog.Vars; t != nil {
 		var names, vals []string
