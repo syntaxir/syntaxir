@@ -8,7 +8,7 @@ backing array for every list.
 After the first nonempty small-list bootstrap, list slabs start at 64 elements
 and grow geometrically, satisfying requested lengths: a slab is at most the
 larger of 1,024 elements and 1/32 of the elements that the owner had allocated
-before it (`chunkRatio`; see [A250](A250-typed-object-slabs.md)). Lists above the
+before it (as in [A250](A250-typed-object-slabs.md)). Lists above the
 small-list policy use exact-size allocations. Published slices constrain
 capacity for append isolation; an escaped slice retains its backing slab, at
 most 1,024 elements or 1/32 of its owner's allocations. Empty-list
