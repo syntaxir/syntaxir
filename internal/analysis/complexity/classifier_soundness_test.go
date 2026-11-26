@@ -452,6 +452,62 @@ rule E = #operators {
     }
 }
 `, ClassPoly, 2, -1},
+	// Measured super-linear Operators Rule grammars (found by the random search) that the
+	// classifier keeps unknown: no linear cause applies, so the class makes no claim.
+	{"operators", "random search: right-associative infix of optional parts, then left infix", `@start
+rule main = (E "!" / E "?" / ";")* $$
+rule D = "-"?
+rule X = "-"?
+rule E = #operators {
+    operand "-"?
+    level {
+        infix right ")"? ")"?
+    }
+    level {
+        infix left [ab] "b"
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: left infix before a right infix with a cut and optional parts", `@start
+rule main = (X E ";" / X)* $$
+rule D = "a" "-"
+rule X = ")"
+rule E = #operators {
+    operand "b" "-"?
+    operand "a"*
+    level {
+        infix left "("
+        infix right "+"? #cut
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: none infix with optional parts and a cut, two levels", `@start
+rule main = E $$
+rule D = "b"
+rule X = "b"
+rule E = #operators {
+    operand ")"
+    operand "a"*
+    level {
+        infix none ")"? "-"* #cut
+    }
+    level {
+        infix none "(" "b"
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: none infix with a repeated operator after an optional operand", `@start
+rule main = E $$
+rule D = "a"?
+rule X = "(" "b"
+rule E = #operators {
+    operand "("*
+    level {
+        infix none "-"* "("?
+        infix left ("a" / ")")
+    }
+}
+`, ClassUnknown, -1, -1},
 	// Operator parts that do not overlap what follows the empty operand keep the grammar Linear.
 	{"operators", "postfix after an empty operand, disjoint from the continuation", `@start
 rule main = (E ";" / X)* $$
