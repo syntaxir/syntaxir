@@ -795,10 +795,13 @@ func (p *TParser) run(r *TRule, input string, o parseOptions, ext any) (v any, e
 	p.Ext = ext
 	p.setGrammar(r.g)
 	p.Expectations = o.expectations
-	if o.unit == sxirinput.Bytes {
+	switch {
+	case p.Document != nil:
+		p.useDocumentInput(p.Document)
+	case o.unit == sxirinput.Bytes:
 		// p.In stays empty: direct rules read code points from it while p.Pos < len(p.In).
 		p.unit, p.bs, p.n, p.In = sxirinput.Bytes, input, len(input), p.In[:0]
-	} else {
+	default:
 		p.setSource(input)
 	}
 	p.setTracking()

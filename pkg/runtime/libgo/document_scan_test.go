@@ -108,7 +108,7 @@ func TestPrivateDocumentScanRecordHitExaminedEnd(t *testing.T) {
 		got, gotErr := d.parse(o)
 		var h2 bool
 		fresh, _ := scanDocumentRules(&h2)
-		wantNode, wantErr := testDocumentState(fresh, d.text, unit).parse(o)
+		wantNode, wantErr := testDocumentState(fresh, d.currentText(), unit).parse(o)
 		if (gotErr == nil) != (wantErr == nil) || documentNodeString(got) != documentNodeString(wantNode) {
 			t.Fatalf("unit %d: edited parse = %s, %v; fresh = %s, %v", unit, documentNodeString(got), gotErr, documentNodeString(wantNode), wantErr)
 		}

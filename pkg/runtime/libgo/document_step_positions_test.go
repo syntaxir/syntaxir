@@ -148,14 +148,14 @@ func TestDocumentStepResultsHaveCurrentPositions(t *testing.T) {
 		t.Fatalf("edited parse: %d reuses, %d evaluations of num; want the nums after the edit reused",
 			d.stats.Reused-reused, numEvals)
 	}
-	fresh, err := testDocumentState(main, d.text, sxirinput.CodePoints).parse(o)
+	fresh, err := testDocumentState(main, d.currentText(), sxirinput.CodePoints).parse(o)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if a, b := documentNodeString(got), documentNodeString(fresh); a != b {
 		t.Fatalf("Document %s, parse from scratch %s", a, b)
 	}
-	if D(got).End != int32(len(d.text)) {
-		t.Fatalf("edited parse ends at %d, want %d", D(got).End, len(d.text))
+	if D(got).End != int32(len(d.currentText())) {
+		t.Fatalf("edited parse ends at %d, want %d", D(got).End, len(d.currentText()))
 	}
 }

@@ -730,6 +730,18 @@ func prepareText(o parseOptions, text string) parseOptions {
 	return prepareOptions(o, inputUnits(text, o.unit), false)
 }
 
+// prepareUnits is prepareText for an input whose length n in its position unit is known, such as
+// the text of a Document, which keeps it (documentState.units): it decides as prepareText does
+// without reading the text.
+func prepareUnits(o parseOptions, n uint64) parseOptions {
+	if !o.prepared {
+		if max := o.limits.Input; max != 0 && max != sxirruntime.Unlimited && n > max {
+			panic(fatal{err: &sxirruntime.LimitError{Kind: sxirruntime.LimitInput, Limit: max, Requested: n}})
+		}
+	}
+	return prepareOptions(o, n, false)
+}
+
 // recoverParse returns engine interruptions and preserves caller panic identity.
 func recoverParse[T any](v *T, err *error) {
 	if x := recover(); x != nil {
@@ -1033,6 +1045,17 @@ type documentState struct {
 	root *Rule
 	text string
 	unit sxirinput.PositionUnit
+	// The text in CodePoints (document_text.go): in holds its code points, which a parse reads
+	// (Parser.In), and chunks its pieces, which give token text; an edit splices both, so that neither
+	// an edit nor a parse decodes or copies the whole text. text then caches the whole text, as
+	// Document.Text returns it, while textOK. All are empty in Bytes, where text is the text.
+	in        []rune
+	chunks    []docChunk
+	lastChunk int
+	// offsLen counts the offsets of the chunks, which a parse counts with the code points as its
+	// decoded input (heldBytes).
+	offsLen int
+	textOK  bool
 	// expectations is the recording mode of the Document, fixed at its construction.
 	expectations bool
 	memo         memoTable
@@ -1852,6 +1875,18 @@ func (p *Parser) setSource(s string) {
 	}
 }
 
+// useDocumentInput sets the input of p, a parser of the Document d, to the text of d as d keeps it
+// (document_text.go): a parse of a Document decodes nothing, as setSource would the whole text. The
+// parse only reads it; the next edit splices it.
+func (p *Parser) useDocumentInput(d *documentState) {
+	if d.unit == sxirinput.Bytes {
+		p.unit, p.bs, p.n, p.In = sxirinput.Bytes, d.text, len(d.text), p.In[:0]
+		return
+	}
+	// Text takes token text from the chunks of d (documentState.textOf).
+	p.In, p.n, p.src, p.offs, p.wide, p.decoded = d.in, len(d.in), "", nil, nil, true
+}
+
 // decodeSource replaces the source of a code-point input containing invalid UTF-8 by its decoded
 // text and builds its offset table, so that text slices it like a valid source. It runs once, on
 // the first text, and costs the length of the input; a recognition that takes no text never pays
@@ -2133,6 +2168,14 @@ func (p *Parser) Text(start, end int) string {
 	}
 	if p.wide != nil {
 		return p.src[p.wide[start]:p.wide[end]]
+	}
+	if d := p.Document; d != nil && d.chunks != nil {
+		s, copied := d.textOf(start, end)
+		if copied {
+			// Text across chunks is copied, as detachedText copies it.
+			p.chargeValueBytes(len(s))
+		}
+		return s
 	}
 	return p.detachedText(start, end)
 }

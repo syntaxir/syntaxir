@@ -97,7 +97,7 @@ func parseAsFromScratch(t *testing.T, d *documentState, main *Rule, o parseOptio
 	if err != nil {
 		t.Fatal(err)
 	}
-	fresh, err := testDocumentState(main, d.text, sxirinput.CodePoints).parse(o)
+	fresh, err := testDocumentState(main, d.currentText(), sxirinput.CodePoints).parse(o)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -130,7 +130,7 @@ func TestDocumentResumesRuns(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fresh, err := testDocumentState(main, d.text, sxirinput.CodePoints).parse(o)
+		fresh, err := testDocumentState(main, d.currentText(), sxirinput.CodePoints).parse(o)
 		if err != nil {
 			t.Fatal(err)
 		}

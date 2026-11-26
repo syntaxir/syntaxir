@@ -125,7 +125,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [R030](mechanisms/R030-sparse-seen-position-storage.md) | Sparse deferred-memo seen positions with dense small-input path | C/RVM/IVM/GN/TG/TS; core build-tag and generation controls differ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | sxir_reference_sparse_memo; `-no-opt sparse-memo` (TypeScript) |
 | [R040](mechanisms/R040-memo-entry-retirement.md) | Retire obsolete memo entries | C/RVM/IVM only; active seed ownership preserved | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R050](mechanisms/R050-bounded-variable-bindings.md) | Bound variable binding histories | All six default; slot-indexed persistent vector | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | Default | None maintained |
-| [R060](mechanisms/R060-chunked-document-input.md) | Chunked Document text storage | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | sxir_reference_document_pieces |
+| [R060](mechanisms/R060-chunked-document-input.md) | Chunked Document text storage | C/RVM/IVM Document pieces; GN/TG Document token text, with code points kept decoded | ✓ | ✓ | ✓ | Partial | Partial | — | Default | sxir_reference_document_pieces (engine only) |
 | [R070](mechanisms/R070-document-memo-edits.md) | Gap-buffer memo splice and lazy advancement | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R080](mechanisms/R080-lazy-code-point-offsets.md) | On-demand code-point offsets | Core recognition and Document offset tables | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
 | [R090](mechanisms/R090-moving-document-trees.md) | Move reused Document results | C/RVM/IVM Document only | ✓ | ✓ | ✓ | — | — | — | Default | None maintained |
@@ -346,6 +346,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 - [144. Library of the used features](144-library-of-the-used-features.md)
 - [145. TypeScript spend runs removed](145-typescript-spend-runs-removed.md)
 - [146. Outlined TypeScript nodes](146-outlined-typescript-nodes.md)
+- [147. Decoded text of generated Go Documents](147-decoded-text-of-generated-go-documents.md)
 
 ## Experiments That Did Not Pay Off
 

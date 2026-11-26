@@ -134,6 +134,11 @@ func (a *frameScratch) bytes() uint64 {
 // capacity, and the context tables and skip-run records by the counts they keep.
 func (p *Parser) heldBytes() uint64 {
 	n := uint64(len(p.In))*4 + uint64(len(p.offs))*4 + uint64(len(p.wide))*8 + uint64(cap(p.lines))*intBytes
+	if d := p.Document; d != nil {
+		// The chunks of a Document's text and their offsets, which its parse reads as the offsets of its
+		// decoded input.
+		n += uint64(len(d.chunks))*uint64(unsafe.Sizeof(docChunk{})) + uint64(d.offsLen)*4
+	}
 	if s := p.Stream; s != nil {
 		n += uint64(len(s.in))*4 + uint64(len(s.bs)) + uint64(s.reader.Size()) + uint64(cap(s.lines))*8
 		n += uint64(cap(s.nlStarts))*intBytes + uint64(cap(s.tail.errors))*ptrBytes + s.tail.bytes

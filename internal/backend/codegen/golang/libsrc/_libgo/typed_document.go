@@ -54,7 +54,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	if o.expectations != d.State.expectations {
 		return res, fmt.Errorf("document parse cannot change expectations")
 	}
-	o = prepareText(o, d.State.text)
+	o = prepareUnits(o, uint64(d.State.units()))
 	cache, ok := d.State.typedMemo.(*typedDocumentState)
 	if o.control != nil && o.control.limits.Memory != 0 && d.State.retainedBytes() > o.control.limits.Memory {
 		// What the Document retains alone exceeds the limit: the parse starts without it, as after
@@ -89,7 +89,7 @@ func TypedDocumentParse[T any](d *Document, root *TRule, o parseOptions, a budge
 	a.SetBudgetControl(o.control.memoryControl())
 	defer a.SetBudgetControl(nil)
 	d.State.stats = documentStats{}
-	v, parseErr := p.run(root, d.State.text, o, a)
+	v, parseErr := p.run(root, "", o, a) // the input is the Document's text (useDocumentInput)
 	// Context implementations may return any public error type. A fatal stop (a limit, the context
 	// or the memory count) must not be mistaken for a completed syntax failure.
 	if p.stopped || o.control != nil && o.control.interrupted {

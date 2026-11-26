@@ -114,11 +114,11 @@ func liveEntry(d *documentState, rule, pos int) *memoEntry {
 func TestPrivateDocumentEditBoundariesAndUnit(t *testing.T) {
 	main, _ := documentTestRules()
 	d := testDocumentState(main, "é", sxirinput.Bytes)
-	if err := d.edit(1, 1, "x"); err == nil || d.text != "é" {
-		t.Fatalf("interior UTF-8 edit = %v, text = %q", err, d.text)
+	if err := d.edit(1, 1, "x"); err == nil || d.currentText() != "é" {
+		t.Fatalf("interior UTF-8 edit = %v, text = %q", err, d.currentText())
 	}
-	if err := d.edit(0, 0, "\xff"); err != nil || !strings.HasPrefix(d.text, "\xff") {
-		t.Fatalf("invalid byte insertion = %v, text = %q", err, d.text)
+	if err := d.edit(0, 0, "\xff"); err != nil || !strings.HasPrefix(d.currentText(), "\xff") {
+		t.Fatalf("invalid byte insertion = %v, text = %q", err, d.currentText())
 	}
 	if _, err := d.parse(parseOptions{unit: sxirinput.CodePoints, maxDepth: defaultMaxDepth}); err == nil || !strings.Contains(err.Error(), "unit") {
 		t.Fatalf("unit change = %v", err)
@@ -361,7 +361,7 @@ func TestCallDocumentRestoresOnPanic(t *testing.T) {
 		d := testDocumentState(r, "abc", sxirinput.CodePoints)
 		p := &Parser{unit: d.unit, MaxDepth: defaultMaxDepth}
 		p.setGrammar(d.root.g)
-		p.setSource(d.text)
+		p.setSource(d.currentText())
 		p.Document, p.memo = d, d.memo
 		p.Pos, p.docExamined = 1, 3
 		func() {

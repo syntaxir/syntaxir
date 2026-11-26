@@ -69,14 +69,22 @@ func MakeDocument(root *Rule, text string, opts []sxirruntime.ParseOption) (d *D
 	if o.unit == sxirinput.CodePoints {
 		text = normalizeCodePoints(text)
 	}
-	state := newDocumentState(root, text, o.unit)
+	state := &documentState{root: root, text: text, unit: o.unit}
+	if o.unit == sxirinput.CodePoints {
+		in := p.In
+		if p.src != text {
+			// The text held invalid UTF-8: decode the normalized text.
+			in = []rune(text)
+		}
+		state.setText(text, in)
+	}
 	state.expectations = o.expectations
 	return &Document{State: state, defaults: o}, nil
 }
 
 // Text returns the current text. In Bytes it holds the exact bytes, including invalid UTF-8; in
 // CodePoints each invalid UTF-8 byte has been replaced by U+FFFD (normalizeCodePoints).
-func (d *Document) Text() string { return d.State.text }
+func (d *Document) Text() string { return d.State.currentText() }
 
 // Edit replaces [start,end) in the Document's position unit.
 func (d *Document) Edit(start, end int, text string) error {
@@ -216,9 +224,17 @@ type DocumentSliceKey struct {
 	Capacity int
 }
 
-// newDocumentState parses only the configured start rule.
+// newDocumentState parses only the configured start rule. In CodePoints the text is normalized
+// (normalizeCodePoints), as MakeDocument normalizes it.
 func newDocumentState(root *Rule, text string, unit sxirinput.PositionUnit) *documentState {
-	return &documentState{root: root, text: text, unit: unit}
+	if unit == sxirinput.CodePoints {
+		text = normalizeCodePoints(text)
+	}
+	d := &documentState{root: root, text: text, unit: unit}
+	if unit == sxirinput.CodePoints {
+		d.setText(text, []rune(text))
+	}
+	return d
 }
 
 func (d *documentState) edit(start, end int, replacement string) error {
@@ -234,10 +250,7 @@ type documentEdit struct{ start, end, delta int }
 // it: from before start when, in Bytes, the replacement can complete an incomplete UTF-8 sequence
 // before start. In CodePoints the replacement is normalized (normalizeCodePoints) first.
 func (d *documentState) editReuse(start, end int, replacement string) (ed documentEdit, err error) {
-	length := len(d.text)
-	if d.unit != sxirinput.Bytes {
-		length = utf8.RuneCountInString(d.text)
-	}
+	length := d.units()
 	if start < 0 || end < start || end > length {
 		return documentEdit{}, fmt.Errorf("invalid range [%d,%d) for text of length %d", start, end, length)
 	}
@@ -267,7 +280,7 @@ func (d *documentState) editReuse(start, end int, replacement string) (ed docume
 		// decode as before.
 		replacement = normalizeCodePoints(replacement)
 		ed = documentEdit{start: start, end: end, delta: utf8.RuneCountInString(replacement) - (end - start)}
-		d.text = d.text[:documentByteOffset(d.text, start)] + replacement + d.text[documentByteOffset(d.text, end):]
+		d.editText(start, end, replacement)
 	}
 	if len(d.edits) == maxDocumentEdits {
 		// The log is full: the next parse starts without the memos and the runs, as a parse from scratch
@@ -531,20 +544,6 @@ func normalizeCodePoints(s string) string {
 	return b.String()
 }
 
-func documentByteOffset(text string, index int) int {
-	if index == 0 {
-		return 0
-	}
-	count := 0
-	for off := range text {
-		if count == index {
-			return off
-		}
-		count++
-	}
-	return len(text)
-}
-
 func documentByteBoundary(text string, pos int) error {
 	if pos < len(text) && !utf8.RuneStart(text[pos]) {
 		for start := pos - 1; start >= max(0, pos-utf8.UTFMax+1); start-- {
@@ -582,7 +581,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	if d.root == nil {
 		return res, fmt.Errorf("document start rule is missing")
 	}
-	o = prepareText(o, d.text)
+	o = prepareUnits(o, uint64(d.units()))
 	if o.control != nil && o.control.limits.Memory != 0 && d.retainedBytes() > o.control.limits.Memory {
 		// What the Document retains alone exceeds the limit: the parse starts without it, as after
 		// ResetHistory.
@@ -594,11 +593,7 @@ func DocumentParseConverted[T any](d *documentState, o parseOptions, convert fun
 	p.Expectations = o.expectations
 	p.Observation = newObservation(&o.observe, &p.Silent, &d.stats.Resumed)
 	defer p.releaseObservation()
-	if d.unit == sxirinput.Bytes {
-		p.bs, p.n = d.text, len(d.text)
-	} else {
-		p.setSource(d.text)
-	}
+	p.useDocumentInput(d)
 	if d.moves > moveMarkLimit {
 		// The marks that the nodes of the memo carry would soon repeat: start without it.
 		d.dropMemo()
