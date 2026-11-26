@@ -939,7 +939,8 @@ func (v *ValueInference) operatorsRule(rd *ast.RuleDef, pr *ast.OperatorsRule) T
 // and no name to refer to itself by; its type is the least fixed point of the lines, computed from
 // _|_ round by round. A fold that is still growing after maxCycleRounds (the tuple nodes of
 // operators without actions nest without bound) gives $lhs and $rhs the widest type its values can
-// have: node[_] when every line makes a node, and any otherwise.
+// have: node[_] when every line, with $lhs and $rhs of type node[_], makes a node, and the type that
+// is not known otherwise.
 func (v *ValueInference) operatorsFold(rd *ast.RuleDef, pr *ast.OperatorsRule) Ty {
 	quiet := v.Quiet
 	v.Quiet = true
@@ -955,10 +956,13 @@ func (v *ValueInference) operatorsFold(rd *ast.RuleDef, pr *ast.OperatorsRule) T
 		self = next
 	}
 	if !stable {
-		ts, _, _ := v.operatorsLines(rd, pr, TyBottom, false)
+		// $lhs and $rhs widen to node[_] only if every line, typed with them of that type, gives a
+		// value of it, so that they hold only values of their type; a line that fits only because a
+		// part of its type is not known does not.
 		self = NodeTy{Value: TyTop}
+		ts, _, _ := v.operatorsLines(rd, pr, self, false)
 		for _, t := range ts {
-			if !v.assignable(t, self) {
+			if !v.assignable(t, self) || v.needsCast(t, self) {
 				self = TyAny
 				break
 			}
