@@ -232,7 +232,8 @@ instead.
 
 A mismatch is a compile-time error such as
 `cannot use node[string] as Ident in field Name of Decl`. A value whose Type the checker
-does not know, such as a rule value of Type `_`, is rejected too, with a hint to
+does not know, a value of Type `_` or of the [type that is not
+known](type-checking.md#types-that-are-not-known), is rejected too, with a hint to
 convert it explicitly: `cannot use _ as Ident in field Name of Decl: the type of the value is
 not known; convert it with a cast, as in value.(Ident)`. A [cast](#casts) is the check that runs:
 when it fails, that is an evaluation error. A constructor itself checks nothing when it runs, so
@@ -286,16 +287,14 @@ has no range members: `.Start` on a struct is a compile-time error.
 `map($items, (i) => i.$name)`. Every node type that `x` may have must capture
 `y`, and the result type is the join of their capture types; an unmatched
 capture reads as `nil`. A struct value has no captures, so `x.$y` on one is a
-compile-time error, or a runtime action error for a dynamically typed
-receiver. A captured sequence carries the captures inside it, so `$x.$y` for
+compile-time error, or a runtime action error for a receiver of the [type
+that is not known](type-checking.md#types-that-are-not-known). A captured sequence carries the captures inside it, so `$x.$y` for
 `x:(y:a b)` reads the same node as `$y`.
 
 Field names begin with an uppercase letter, so `x.y` with any other name, except
 the `expected` and `message` fields of `missing`, is an
-error in SyntaxIR source that asks for `x.$y`. A grammar in JSON or a compiled
-grammar may read a capture with `x.y`, which reads the same capture as `x.$y` at
-run time. Its type check is looser: `x.y` on a join some of whose node types
-lack `y` has an optional type.
+error that asks for `x.$y`, in SyntaxIR source and in every other form of a
+grammar ([Validation of a Grammar AST](grammar-files.md#validation-of-a-grammar-ast)).
 
 ## Casts
 
@@ -549,8 +548,9 @@ A Value Action result statically known to be a function is a compile-time
 error.
 
 A rule value whose Type the checker does not know, such as an action result or
-a called rule's value of type `_`, is a compile-time error when the rule declares
-a Type it does not fit: `rule action expression produces _, which is not assignable to Expr: the type of the
+a called rule's value of type `_` or of the [type that is not
+known](type-checking.md#types-that-are-not-known), is a compile-time error when the rule declares
+a Type it does not fit: `rule term produces _, which is not assignable to Expr: the type of the
 value is not known; convert it with a cast, as in value.(Expr)`. This applies to the value
 of a rule with or without an action, of each Operators Rule operand line and of each operator
 line with an action. The cast is the check that runs (see [Casts](#casts)); it

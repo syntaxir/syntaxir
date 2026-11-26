@@ -335,8 +335,8 @@ values of the lines are not checked against `T`. The folded type has no name,
 so it is inferred as a least fixed point from `_|_`. When it keeps growing,
 as the nested tuple nodes of operators without actions do, `$lhs` and `$rhs`
 are widened to `node[_]` when the type of every line, with `$lhs` and `$rhs`
-of type `node[_]`, is assignable to `node[_]`, and to a type that is not known
-otherwise, and `$value` has the join of the types of the lines so computed. A
+of type `node[_]`, is assignable to `node[_]`, and to the [type that is not
+known](type-checking.md#types-that-are-not-known) otherwise, and `$value` has the join of the types of the lines so computed. A
 line that can produce an error value, such as one with
 [`#recover`](pragmas.md#recover), is not assignable to `node[_]`, which admits
 no error value, so it widens them to the type that is not known.

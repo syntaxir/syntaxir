@@ -121,9 +121,13 @@ The proof cites the following rules, and no other rule about types or values.
 - **(T1) Types.** The types are `bool`, `int`, `string`, `node[T]`, `error`,
   `missing`, `_`, `_|_`, tuple types `(T1, ..., Tn)`, list types `[]T`,
   optional types `*T`, joins `T | U`, meets `T & U`, struct types and named node
-  types `type N = node[U]`. An alias stands for its right-hand side and never
+  types `type N = node[U]`, and the type that is not known, which no Type
+  Expression denotes and which this proof writes `unknown`, as diagnostics
+  print it ([Types That Are Not
+  Known](../language/type-checking.md#types-that-are-not-known)). An alias stands for its right-hand side and never
   refers to itself. A join is normalized: nested joins are flattened, duplicate
-  members removed, and a join with an optional member is optional. A node type
+  members removed, and a join with an optional member is optional; a join with
+  a member `unknown`, and `*unknown`, are `unknown`. A node type
   that the checker infers also records the types of the captures of the node
   ([Type System](../language/types.md),
   [Rule Expression Types](../language/type-checking.md#rule-expression-types)).
@@ -172,14 +176,17 @@ The proof cites the following rules, and no other rule about types or values.
   [Checked Errors](../language/type-checking.md#checked-errors): in
   particular, each rule value, constructor field, typed-list element and
   binding has a static type assignable to its target, or is converted to a
-  named node type, and a value of unknown type `_` is assignable only to `_`.
+  named node type, and a value of type `_` or `unknown` meets there only the
+  type `_`.
 - **(T9) Inference.** A rule without a declared type has the type of its body,
   or of its action. Rules are inferred after the rules they call; a recursive
   group is iterated until no type changes, and a type that keeps growing is
-  widened to `_`, the type that is not known, for the rest of inference. The
+  widened to `unknown` for the rest of inference. The
   accumulator of `foldl` and `foldr` is widened to the join of the initial
   value and the result of the function until the result is assignable to it,
-  or the call is an error
+  or the call is an error; a result whose type has `unknown` where the
+  accumulator's type is more specific is not assignable to it (T13), and
+  widens it to `unknown`
   ([Type Inference](../language/type-checking.md#type-inference)).
 - **(T10) Operators Rule types.** With a declared type `T` and no whole-rule
   action, the values of all lines are assignable to `T` and `$lhs` and `$rhs`
@@ -188,7 +195,7 @@ The proof cites the following rules, and no other rule about types or values.
   folded type, the least fixed point of that join with `$lhs` and `$rhs` of
   that type. When it keeps growing, `$lhs` and `$rhs` are widened to
   `node[_]` when the type of every line, with `$lhs` and `$rhs` of type
-  `node[_]`, is assignable to `node[_]`, and to `_` otherwise, and `$value`
+  `node[_]`, is assignable to `node[_]`, and to `unknown` otherwise, and `$value`
   has the join of the lines so typed. The result of the action is assignable
   to the declared type ([Types](../language/operators-rule.md#types)).
 - **(T11) Conversion.** A conversion to `N`, by `N{x}`, by a rule declared
@@ -201,6 +208,19 @@ The proof cites the following rules, and no other rule about types or values.
   declaration, its initial value has that type, and a binding is accepted only
   if the static type of its value is assignable to it; a read has that type
   ([Variables](../language/predicates.md#variables)).
+- **(T13) The type that is not known.** A value of type `unknown` is accepted
+  as the operand of every operator, the argument of every built-in function,
+  the receiver of every member access and a list or an index. The result has
+  the type that the operation gives an operand of the kind it takes, or
+  `unknown` for `+`, `x.Name`, `x.$y`, `x.Value`, `x.Start`, `x.End`, `x[i]`
+  and the elements that list functions read; when the operation runs, an
+  operand of another kind raises a run-time action error. For assignability
+  (T3), `unknown` is assignable only to `_` and `unknown`, as `_` is, and a type
+  with a part `unknown` only where the target has `_` or `unknown`; a type
+  nested deeper than the checker follows is taken to have such a part. A value
+  of type `_`
+  is accepted only by `==`, `!=` and a cast
+  ([Types That Are Not Known](../language/type-checking.md#types-that-are-not-known)).
 
 ## Typing of Values
 
@@ -210,7 +230,7 @@ $T$ with aliases unfolded. A named node type or a struct type unfolds only
 inside a node or a struct, whose values are smaller, so the definition is well
 founded also for recursive types such as `type Tree = node[[]Tree]`.
 
-- $v$ : `_` for every $v$; no $v$ has type `_|_`.
+- $v$ : `_` and $v$ : `unknown` for every $v$; no $v$ has type `_|_`.
 - $v$ : `int`, `string` or `bool` if $v$ is a value of that kind; `nil` : `nil`.
 - $v$ : `*T` if $v$ is `nil` or $v$ : $T$.
 - $v$ : $T \mid U$ if $v$ : $T$ or $v$ : $U$; $v$ : $T$ `&` $U$ if both hold.
@@ -238,7 +258,8 @@ asks of them.
 For every type $T$ other than a meet and every well-formed value $v$, the
 check of a cast to $T$ (T2) succeeds on $v$ if and only if $v$ : $T$.
 
-**Proof.** By induction on $v$ and $T$ as in the definition. For `_`, `_|_`,
+**Proof.** By induction on $v$ and $T$ as in the definition. A cast is never to
+`unknown`, which no Type Expression denotes. For `_`, `_|_`,
 the scalars, `nil`, optional types, joins, tuple types, list types, `error` and
 `missing`, the clauses of (T2) and of the relation are the same, with the
 induction hypothesis for the parts. For `node[T]`, (T2) asks that the value of
@@ -256,7 +277,7 @@ value that the check of the resolved type admits has both types by Lemma 2. ∎
 If $V$ is assignable to $T$ (T3) and $v$ : $V$, then $v$ : $T$.
 
 **Proof.** By induction on the derivation of assignability, and inside it on
-$v$. Same type: immediate. $T$ = `_`: every value has type `_`. $V$ = `_|_`: no
+$v$. Same type: immediate. $T$ = `_` or `unknown`: every value has those types. $V$ = `_|_`: no
 value has type `_|_`. $V$ a join: $v$ has the type of one member, which is
 assignable to $T$. $T$ a join: $v$ : $V$ and $V$ is assignable to a member, so
 $v$ has the type of that member and so of the join. $T$ = `*U`: $v$ is `nil`,
@@ -436,11 +457,19 @@ whenever they did not raise an error.
   `$rhs`, `$op` and `$value` the types of the environment.
 - **Operators.** (T7) accepts `||`, `&&` and `!` on `bool`, arithmetic on two
   `int`, `+` on two `string` and ordering on two `int` or two `string`
-  operands, and rejects `_` and other operands. So the operands have those
-  kinds, and the result is the `int`, `string` or `bool` of the table. `/` and
+  operands, and rejects `_` and other operands; it also accepts an operand of
+  type `unknown` (T13), which the operator checks when it runs, raising an
+  error if the operand is of another kind. So the operands that it computes
+  with have those kinds, and the result is the `int`, `string` or `bool` of the
+  table, or a value of type `unknown` for `+`. `/` and
   `%` raise an error on a zero divisor. An equality has a `bool` result; it
   raises an error only for operands whose static types leave the comparison
   open, a type that is not known or one that may be `nil`.
+- **Operands of type `unknown`.** In each case below, an operand, argument,
+  receiver, list or index of type `unknown` is accepted (T13). The operation
+  checks it when it runs and raises an error unless it is of a kind that the
+  case treats; the case then applies to it, and a result typed `unknown` has
+  that type, which every value has.
 - **Members of nodes.** `x.Start`, `x.End`, `len(x)` give an `int` and
   `text(x)` a `string`; (T7) accepts them on string, tuple and list nodes,
   named node types and error values, `len` and `text` also on strings and
@@ -458,11 +487,8 @@ whenever they did not raise an error.
   recovered member reads `nil`, which the optional result admits. The fields
   `expected` and `message` are read on a receiver of type `missing`, which is
   a `missing` value by the relation, and both hold strings (M1), of their type
-  `string`. A receiver
-  whose type is not known statically is not accepted by the checker for a
-  field access; a capture read `x.y` of a grammar in JSON or a compiled
-  grammar has the looser check of [Field Access](../language/actions.md#field-access)
-  and may raise an error at run time.
+  `string`. A receiver of type `_` is rejected, and one of type `unknown` is
+  checked when the access runs, as the case before says.
 - **Capture access.** `x.$y` on a node: every node type that $x$ may have
   records the capture $y$, and $x$ has one of them, so the capture holds `nil`
   or a value of its recorded type; the result is the join, optional when a
@@ -488,9 +514,11 @@ whenever they did not raise an error.
   input and has its element type; a result of the function that is not a
   `bool` raises an error. `foldl` and `foldr`: the accumulator type $A$ of
   (T9) admits the initial value, and the result of the function, called with
-  an accumulator of type $A$ and an element, is assignable to $A$; by
-  induction over the list, every accumulator has type $A$, and so does the
-  result.
+  an accumulator of type $A$ and an element, is assignable to $A$ (T3, T13):
+  a result with a part of type `unknown` is so only where $A$ has `_` or
+  `unknown`, and otherwise $A$ is `unknown`, which every value has. By
+  Lemma 2 and induction over the list, every accumulator has type $A$, and so
+  does the result.
 - **Lambdas.** A function is not a value and appears only as an argument of
   `foldl`, `foldr`, `map` and `filter` (T7), whose cases above treat it.
 
@@ -509,7 +537,7 @@ the claim. If $r$ declares none, $T_r$ is the result of inference (T9). An
 acyclic rule is inferred after its callees, from their final types, so $T_r$
 is the type of its body or action. For a recursive group, the iteration stops
 only when no type changes, so each $T_r$ is the type that the body or action
-of $r$ has under the final types of the group; a rule widened to `_` keeps `_`,
+of $r$ has under the final types of the group; a rule widened to `unknown` keeps `unknown`,
 which every value has, and the others are computed again from it before the
 iteration stops. A change in the order of the members of a join is not a change
 of meaning (Lemma 2). ∎
@@ -533,7 +561,7 @@ With a whole-rule action, let $W$ be the type of `$lhs` and `$rhs` (T10). The
 type of every line, computed with `$lhs` and `$rhs` of type $W$, is assignable
 to $W$: when $W$ is the folded type, a fixed point of the join of those
 types, each is assignable to the join (T3); when $W$ is `node[_]`, the
-widening requires it (T10); and every value has type `_` (T2). So, by
+widening requires it (T10); and when $W$ is `unknown`, every value has it. So, by
 induction on the operators that the call applies, `$lhs` and `$rhs` hold
 values of type $W$: they are values of earlier operand lines, whose types
 do not depend on `$lhs` and `$rhs`, or of earlier operators, whose
@@ -542,7 +570,7 @@ line by Lemma 5 and Lemma 8, and so type $W$ by Lemma 2. An error value is a
 node but not a value of `node[_]` (T2), so a widening to `node[_]` under the
 weaker condition that every line produces a node would not keep this: a
 line that recovers has a type with `error`, which is not assignable to
-`node[_]`, and widens $W$ to `_`. `$value` is the folded value, the value of
+`node[_]`, and widens $W$ to `unknown`. `$value` is the folded value, the value of
 a line, of the type of that line and so of the join of the lines (Lemma 2).
 The result of the action is assignable to the declared type, or is the
 rule's type when there is none. ∎
@@ -577,9 +605,12 @@ and a predicate that raises an error fails (M7). Part 3 is Lemma 8. ∎
 **Corollary (typed results).** The value that a parse returns for its start
 rule $s$ has type $T_s$, and a typed parse that builds the typed form of that
 value meets only values of the types that $T_s$ describes. A cast
-`x.(T)` and a value of type `_` are the only places where a value of an
-unknown type meets a type, and both are checked by Lemma 1 where the value is
-used.
+`x.(T)` and an operation on a value of type `unknown` are the only places
+where a value meets a type that the checker has not proved it has, and both
+are checked where the value is used: the cast by Lemma 1, the operation by
+(T13). A value of type `unknown` reaches no declared type, no accumulator of
+`foldl` or `foldr` of a more specific type and no typed list without such a
+check (T8, T9, T13).
 
 ## Run-Time Errors
 
@@ -593,12 +624,13 @@ leaves a check to run time, and Lemma 8 shows that no other case can arise.
 | `/` and `%` | Division by zero | Any divisor |
 | `xs[i]` | The index is outside the list or tuple, or a dynamically typed index is not an `int` | Any index |
 | `==` and `!=` | Two values that cannot be compared, such as two nodes or a node and a string | An operand whose type is not known, or may be `nil` |
-| `filter(xs, f)` | The function's result is not a `bool` | A result whose type is not known; the checker of the reference implementation is stricter and rejects a result of any type other than `bool`, so the error does not arise there |
-| `x.Name`, `x.$y` | A struct that lacks the field, a struct read for a capture, or `nil` | A receiver whose type is not known, as in a capture read `x.y` of a grammar in JSON or a compiled grammar |
+| `filter(xs, f)` | The function's result is not a `bool` | A result of type `unknown` |
+| `x.Name`, `x.$y` | A struct that lacks the field, a struct read for a capture, or `nil` | A receiver of type `unknown` |
+| An operator, `len`, `text`, a list function, `x.Value`, `x.Start`, `x.End` and `x[i]` | An operand, argument, receiver or list of a kind that the operation does not take, as `invalid operand int for &&` | An operand of type `unknown` (T13) |
 
-The value of a rule of unknown type `_` is itself not an error: it is a value
-of every type that `_` stands for, and a cast is required where it is used
-with a more precise type (T8).
+The value of a rule of type `unknown` is itself not an error: it is a value
+of every type, and a cast is required where it is used with a declared type
+other than `_` (T8).
 
 ## Correspondence
 
@@ -619,8 +651,7 @@ with a more precise type (T8).
 
 - **The checker as implemented.** The proof shows that the rules of the
   specification are sound. It does not show that the checker computes the
-  types those rules give; the inference of recursive types relies on
-  iteration until no type changes, whose termination the widenings ensure.
+  types those rules give, nor that the iteration of a recursive group ends.
 - **Typed APIs.** The corollary shows that the values of a parse have the
   types of their rules. That the types of the generated Go and TypeScript
   typed APIs represent those types, so that building the typed form never

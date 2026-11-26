@@ -32,7 +32,8 @@ and its type is `*T` instead. A name captured more than once in a match
 has the join of the types of its captures, since the last capture that matches
 gives its value; when at least one of those captures is always made, the join is
 taken without nil, and otherwise each capture that may not be made contributes nil,
-so the type is optional, `*T`.
+so the type is optional, `*T`. When `T` is the [type that is not
+known](#types-that-are-not-known), `*T` is that type itself.
 
 ```sxir
 rule r = x:"a"? y:("b" / z:"c") // $x: *node[string], $y: node[string], $z: *node[string]
@@ -74,19 +75,20 @@ Type `T`. It reports non-assignable elements and elements whose Type is unknown,
 including unknown values nested in a typed list. An empty literal still has
 the declared `[]T` Type. Nil is allowed only if `T` permits nil.
 
-A struct field value whose Type is unknown (`_`, or a list with elements of
-such a Type) is reported when the field's Type is more specific:
-`cannot use _ as Ident in field Name of Decl: the type of the value is not
-known; convert it with a cast, as in value.(Ident)`. The same holds for a value
-of Type `_`, which fits only `_`. A cast (see [Casts](actions.md#casts)) is the check
+A struct field value whose Type is `_` or [not known](#types-that-are-not-known),
+or a list with elements of such a Type, is reported when the field's Type is
+more specific: `cannot use _ as Ident in field Name of Decl: the type of the
+value is not known; convert it with a cast, as in value.(Ident)`, which names a
+value of the type that is not known `unknown`. A cast (see [Casts](actions.md#casts)) is the check
 that runs; see [Values and Constructors](actions.md#values-and-constructors). A value
 whose Type is known and assignable needs no check, and a constructor checks nothing when
 it runs.
 
-Likewise, a rule value whose Type is unknown, from an action, a called rule or
+Likewise, a rule value whose Type is `_` or not known, from an action, a called rule or
 an Operators Rule line, is reported when the rule declares a Type it does not fit:
-`rule action expression produces _, which is not assignable to Expr: the type of the value is not
-known; convert it with a cast, as in value.(Expr)` (see [Types and
+`rule term produces _, which is not assignable to Expr: the type of the value is not
+known; convert it with a cast, as in value.(Expr)`, and for a value of the type that is
+not known `cannot use unknown as Expr in result of rule term` with the same hint (see [Types and
 Errors](actions.md#types-and-errors)). In an Operators Rule with a declared Type and no
 whole-rule action, the captures `lhs` and `rhs` have that Type; with a
 whole-rule action, they have the folded type (see [Operators Rule
@@ -129,14 +131,19 @@ join-member ordering does not count as a type change. Operators Rule operator ac
 also depend on their rule's type through the `lhs` and `rhs` values, or on the
 folded type when the rule has a whole-rule action.
 
-The implementation bounds changing recursive types conservatively. After an
-initial inferred result, further growth beyond 2,048 bytes in the written type
-or 50 increases in structural nesting depth widens that rule to a type that is not known for the
-rest of inference. Repeating non-stable type states widen only the rules that
-vary in the cycle. Stable peers, acyclic rules and stable oversized recursive
-types retain their types. These are resource limits, not proofs of infinite
-growth: a finite recursive type can also reach them. Declare recursive result
-types when precise checking is required.
+A call of a rule has the called rule's type as a reference, as in `[]*expr`, so
+recursion changes no type until an action reads into the value of a rule of the
+group, with `x.Value`, a field, a capture, an index or a list function. Such a group
+is solved as a least fixed point: its rules start with no value, `_|_`, and each
+round computes every rule of the group from the types of the previous round,
+joined with them, so that neither the types nor the errors depend on the order
+of the rules. A type that keeps growing ends the rounds: from the ninth round on,
+a rule whose type changes is widened to the [type that is not
+known](#types-that-are-not-known) for the rest of inference. Rules whose types
+do not change, acyclic rules and large types that are stable keep their types.
+This is a resource limit, not a proof of infinite growth: a finite type that is
+still growing in the ninth round is widened too. Declare recursive result types
+when precise checking is required.
 
 ```sxir
 rule num = [0-9]+ #atomic // node[string]
@@ -147,7 +154,69 @@ The type of the accumulator of `foldl` and `foldr` is widened to the join of
 the type of the initial value and the type of the result of the function. The checker widens
 three times; if the result of the function still does not fit the accumulator, the call is a
 compile-time error (`the accumulator type does not converge`), and the result of the function
-must be cast.
+must be cast. A result that has the [type that is not known](#types-that-are-not-known) where
+the accumulator's type is more specific does not fit it, and widens the accumulator to the type
+that is not known: `foldl(0, $x, (a, e) => e)` over a list `$x` of the type that is not known
+has that type, so a rule declared `int` must cast it.
+
+## Types That Are Not Known
+
+The **type that is not known** is the type of a value about which the checker
+knows nothing. No Type Expression denotes it, and diagnostics print it as
+`unknown`. Like `_`, it admits every value, and its join with any type is
+itself: a join with a member of the type that is not known, and an optional
+type of it, are the type that is not known, which admits `nil` as well. Unlike
+`_`, it is accepted by every operation that reads into it, so the check moves to
+run time.
+
+In a grammar that compiles, a value has the type that is not known only in these
+cases:
+
+| Case | Where it is defined |
+|:--|:--|
+| The value of a rule of a recursive group whose type kept changing, and so the value of a call of the rule | [Type Inference](#type-inference) |
+| `$lhs` and `$rhs` of an Operators Rule with a whole-rule action whose folded type keeps growing when some line produces a value other than a node, such as the error value of a line with `#recover` | [Operators Rule Types](operators-rule.md#types) |
+| A capture or lambda parameter that holds such a value, and an element of a list of such elements | [Types of Captures](#types-of-captures) |
+| A join with such a member, and an optional type of it: the type of `g?`, of a choice with an alternative of the type that is not known, and of a capture that may not be made of such a value, as `x` in `x:g?` | [Types of Captures](#types-of-captures) |
+| The accumulator of `foldl` and `foldr` when the result of the function has the type that is not known where the accumulator's type is more specific | [Type Inference](#type-inference) |
+| The result of `x.Name`, `x.$y`, `x.Value`, `x.Start`, `x.End` or `x[i]`, and of `+`, when `x` or an operand of `+` has the type that is not known | [Action Expression Types](#action-expression-types) |
+| The elements that `map`, `filter`, `foldl`, `foldr` and `concat` read from a list argument of the type that is not known, which `filter` and `concat` return in a list | [Built-In Functions](actions.md#built-in-functions) |
+
+A value of the type that is not known is accepted by every operation that reads
+into it: as the operand of every operator, as the argument of every built-in
+function, as the receiver of every member access and as a list or an index. The result has the type the operation gives for an
+operand of the right kind: `int` for `-`, `*`, `/`, `%`, `len` and the unary
+`-`, `bool` for a comparison, `&&`, `||` and `!`, `string` for `text`, and the
+type that is not known in the cases of the table. When the operation runs, an
+operand of another kind raises a run-time action error, as `$x && true` does
+with `invalid operand int for &&` when `$x` holds an `int`; the error follows
+the surrounding action ([Types and Errors](actions.md#types-and-errors)).
+
+Where a value meets a declared Type, a value of the type that is not known is
+treated as a value of type `_`, which is assignable only to `_`: as the value of
+a rule with a declared Type, a field of a struct, the value of a variable
+binding or a value converted to a named node type, it is a compile-time error
+unless that Type is `_`, and a cast, which is checked when it runs, makes it
+fit. An element of a typed list `[]T{...}` of the type that is not known is a
+compile-time error even when `T` is `_`. A part of a type counts as well: a list
+of elements of the type that is not known is not assignable to `[]int`.
+
+The checker follows a type into its lists, optional types, nodes, joins and
+tuples to 32 levels. A type nested deeper is taken to have a part of the type
+that is not known where it meets a declared Type, so the value must be cast,
+and an operand of `==` or `!=` whose type is nested deeper is checked when the
+comparison runs.
+
+A value of type `_`, written in a Type Expression or taken from a `node[_]`
+value, admits every value as well, but the checker accepts it only where `_` is
+accepted: as the operand of `==` and `!=`, which are checked when they run, and of a cast.
+Every other operation on it is a compile-time error, as `cannot index _`.
+
+```sxir
+rule g = ("(" x:g ")" => list(list($x[0]))) / ("a" => list(1)) // g: unknown
+rule h = x:g => $x[0] + 1                                       // h: unknown
+rule n int = x:g => len($x[0])                                  // checked when it runs
+```
 
 ## Checked Errors
 
