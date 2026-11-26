@@ -672,16 +672,24 @@ func PatchTSLib(t testing.TB, src []byte) []byte {
 // follows the imports a batch cuts across.
 const TSCBatchFiles = 100
 
-// RunTSC runs tsc with flags over files in dir, TSCBatchFiles at a time, and fails t for each
-// batch whose tsc run fails. Every batch runs, so one failure does not hide the others.
+// RunTSC runs tsc with flags over files in dir and fails t for each tsc run that fails. The files
+// are independent modules, so Shards checks them in parallel parts, each part with its own tsc runs,
+// and a part checks TSCBatchFiles files at a time. Every batch runs, so one failure does not hide the
+// others, and the failures are reported in the order of the files.
 func RunTSC(t *testing.T, tsc, dir string, flags, files []string) {
 	t.Helper()
-	for start := 0; start < len(files); start += TSCBatchFiles {
-		batch := files[start:min(start+TSCBatchFiles, len(files))]
-		cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
-		cmd.Dir = dir
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Errorf("tsc (files %d-%d of %d): %v\n%s", start, start+len(batch)-1, len(files), err, out)
+	for _, msg := range Shards(t, files, func(t *testing.T, part []string) []string {
+		var msgs []string
+		for start := 0; start < len(part); start += TSCBatchFiles {
+			batch := part[start:min(start+TSCBatchFiles, len(part))]
+			cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
+			cmd.Dir = dir
+			if out, err := cmd.CombinedOutput(); err != nil {
+				msgs = append(msgs, fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, out))
+			}
 		}
+		return msgs
+	}) {
+		t.Error(msg)
 	}
 }
