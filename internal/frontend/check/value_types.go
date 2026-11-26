@@ -262,8 +262,10 @@ func RuleCycles(rules []*ast.RuleDef, byName map[string]*ast.RuleDef, control *c
 	return out
 }
 
-// maxCycleRounds bounds the rounds of a cycle; the values that still change after it are not
-// known.
+// maxCycleRounds is the number of rounds of a cycle after which a rule whose value still changes is
+// widened to the type that is not known (TyAny). TyAny absorbs every join, so a widened rule never
+// changes again, and each later round either changes nothing or widens one more rule of the cycle:
+// the rounds end by round maxCycleRounds plus the number of rules of the cycle.
 const maxCycleRounds = 8
 
 // ruleValue returns the value type of the rule name.
@@ -293,7 +295,9 @@ func (v *ValueInference) ruleValue(name string) Ty {
 	}
 	// The rules of the cycle start with no value, _|_, and each round computes every rule from
 	// the values of the previous round, so that the result does not depend on the order of the
-	// rules. The errors are those of the last round, which sees the final values.
+	// rules. The rounds end only when no value changes, so that every final value is that of its
+	// rule under the final values of the cycle; the errors are those of the last round, which sees
+	// them.
 	for _, m := range cycle {
 		v.Approx[m] = TyBottom
 	}
@@ -315,7 +319,7 @@ func (v *ValueInference) ruleValue(name string) Ty {
 				}
 			}
 		}
-		if !changed || round > maxCycleRounds {
+		if !changed {
 			break
 		}
 		for _, m := range cycle {

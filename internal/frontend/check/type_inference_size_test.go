@@ -106,3 +106,24 @@ func TestInferenceFiniteJoinCycle(t *testing.T) {
 		}
 	}
 }
+
+// TestInferenceWidensAPeerThatChangesLate checks that the rounds of a recursive group end only when
+// no type changes. g keeps growing and is widened to the type that is not known in the ninth round;
+// the type of its peer k, whose list joins an element of g with _, does not change while g grows, but
+// does in the next round, when the join meets the type that is not known. k is then widened too, and its
+// final type is that of its body under the final type of g, in either order of the rules.
+func TestInferenceWidensAPeerThatChangesLate(t *testing.T) {
+	t.Parallel()
+	for _, reverse := range []bool{false, true} {
+		rules := []string{`rule g = ("(" x:g ")" => list(list($x[0]))) / ("a" => list(1)) / ("k" z:k => list(1))`, `rule k = "b" y:g => list($y[0], $y.(_))`}
+		if reverse {
+			rules[0], rules[1] = rules[1], rules[0]
+		}
+		p := mustCompile(t, "rule main = g\n"+strings.Join(rules, "\n")+"\nrule n = x:k => $x[0] + 1")
+		for _, name := range []string{"g", "k"} {
+			if got, _ := inferredType(p, name); got != "unknown" {
+				t.Errorf("reverse %v: %s type = %s; want unknown", reverse, name, got)
+			}
+		}
+	}
+}
