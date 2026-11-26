@@ -1120,20 +1120,37 @@ func (v *ValueInference) call(t *ast.Call, env *valueEnv) Ty {
 			return TyAny
 		}
 		// If the body's type does not fit the initial value's type, take the join and check again.
-		converged := false
-		for range 3 {
+		// A body that fits only because a part of its type is not known, which assignable accepts
+		// so that a typed location checks it at run time, may hold any value there: the accumulator
+		// is then not known either.
+		quietBody := func() Ty {
 			saved := v.Quiet
 			v.Quiet = true
-			body := v.actionExpr(l.Body, env.with(l.Params, []Ty{acc, elem}))
-			v.Quiet = saved
-			widened := Vjoin(acc, body)
+			defer func() { v.Quiet = saved }()
+			return v.actionExpr(l.Body, env.with(l.Params, []Ty{acc, elem}))
+		}
+		converged := false
+		for range 3 {
+			body := quietBody()
+			fits := v.assignable(body, acc)
+			if fits && v.needsCast(body, acc) {
+				acc = TyAny
+				continue
+			}
 			// The accumulator is stable when the body fits it, or when widening it adds nothing
 			// (a rule type that assignable compares by name does not always fit its own value).
-			if v.assignable(body, acc) || widened.String() == acc.String() {
+			widened := Vjoin(acc, body)
+			if fits || widened.String() == acc.String() {
 				converged = true
 				break
 			}
 			acc = widened
+		}
+		if !converged {
+			// The last widening is checked as well, so that the parameters have the final type.
+			if body := quietBody(); v.assignable(body, acc) && v.needsCast(body, acc) {
+				acc = TyAny
+			}
 		}
 		body := v.actionExpr(l.Body, env.with(l.Params, []Ty{acc, elem}))
 		if !converged && !v.assignable(body, acc) && Vjoin(acc, body).String() != acc.String() {
