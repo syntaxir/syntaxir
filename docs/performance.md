@@ -211,11 +211,31 @@ Notes:
   benchmarks too (`BenchmarkIncremental`, `BenchmarkStream`), not only on batch parsing: they reach code paths the
   batch benchmarks do not (see the pitfall in change 30).
 - `go test -bench` splits the pattern at `/` and matches each part against one level of the benchmark name, so an
-  alternation that spans levels (`(Parse/JSON|Recognize/CSV)`) matches nothing; run such sets separately.
+  alternation that spans levels (`(Parse/JSON|Recognize/CSV)`) matches nothing, and a pattern with more levels than
+  a benchmark's name runs that benchmark only to look for sub-benchmarks and reports none of its own; run such sets
+  separately.
 - The engine benchmarks read the grammars from `examples/` and `testdata/grammars/` when they run, so when comparing a change to a grammar, run
   the benchmark binary while the old grammar is checked out (for example between `git stash` and `git stash pop`), not
   just a binary built from the old code. Generated parsers embed their grammar.
 - The numbers in the optimization catalog are for the closure backend with code-point positions unless stated otherwise.
+
+### Scoreboard Captures
+
+The [Credibility targets](strategy.md#performance-leadership) are measured by these captures of `go run ./cmd/timed`
+in one measurement window, at `-rounds 10` or more, and by the [deterministic metrics](#deterministic-metrics):
+
+- Typed `ParseValue`, `Parse` and `Recognize` against the standard library:
+  `-parts go -bench 'Benchmark(Parse|Recognize)/./(generated|generated_ast|encoding_json|encoding_csv|encoding_xml|go_parser|json_Valid)'`.
+- Compute limit overhead, limits on ÷ off:
+  `-parts go -bench 'BenchmarkLogicalUnits/(JSON|XML)/(Parse|ParseValue)/(Bytes|CodePoints)/^(plain|today-finite)$'`.
+- `Document` edit and reparse, p50 and p99: `-parts go -bench 'BenchmarkDocumentEdit'`.
+- Generated TypeScript ÷ generated Go: `-parts ts`, against the `generated` CodePoints rows of the first capture.
+- Typed allocations and their growth, `Document` memory and the size profile: `go run ./bench/metrics collect`, which
+  needs no window.
+
+The limit overhead compares the default parsers (`today-finite`), whose compute limit is finite unless set otherwise,
+with the same grammars generated with `-no-limits` (`plain`). `BenchmarkControlledParse` is not a measure of it: its
+large finite limit runs the same controlled path as the default `Parse`.
 
 ### The Reference Machine
 
