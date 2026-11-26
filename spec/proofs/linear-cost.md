@@ -2429,8 +2429,11 @@ activation, as their exception states.
 rule, read no variable and not be memoized at its calls, let the shared
 call of each link be the first call that its unit and continuation share, and
 let no body evaluation that the parser leaves or starts at the position of the
-links, from the end of $w_i$ to $e'_k$, be a growth step or in a context of
-growths. Then $k - i$ is at most a constant.
+links, from the end of $w_i$ to $e'_k$, be a growth step or in a context of growths. Then, under the
+hypotheses of *Nesting at one end* on the dropped and the later kept steps
+of the growths on the paths that it meets, and outside its case of a unit
+decided by a negative lookahead on its own side, which *Negative lookaheads
+at one end* treats instead, $k - i$ is at most a constant.
 
 *Proof.* Since $r$ calls no rule, the evaluation of a call of $r$ that
 contains an activation is the innermost call evaluation that contains it, so
@@ -2645,16 +2648,19 @@ $\pi_l$ and $\rho_l$ be as in *Leaf links after other shared calls* for a
 link $l$ that leaves frames; $Y_l$ contains $w_l$, so it starts at $\tau$ or
 before. The link is **outer** when $Y_l$ starts before $\tau$.
 
-*No return before the start of the units.* From the end of $w_l$ to the start of $\alpha_l$
-the parser starts no evaluation before $\tau$. The proof of *Growths around a
+*No return before the start of the units.* A dropped step that holds $w_l$
+and is not $w_l$ would contain $w_l$ and be left after the end of $w_l$ and
+before $e'_l$ starts: a frame that the link leaves and a growth step, which
+the hypothesis excludes. So $w_l$ is the first abandoned evaluation below
+$N_l$ on the path to $\alpha_{l-1}$ (*Dropped steps*). From the end of $w_l$
+to the start of $\alpha_l$ the parser starts no evaluation before $\tau$. The proof of *Growths around a
 leaf link* shows this with $\tau$ in place of the start $p$ of the unit there:
 a step on the path from $N_l$ down to $w_l$ of a growth around $w_l$ that
 ends before $\alpha_l$ starts contains $w_l$ and is left after the end of
 $w_l$ and before $e'_l$ starts, so it is a frame that the link leaves, which
 the hypothesis keeps from being a growth step; so there is none, $N_l$ is no
-growth and no later step of a growth around $w_l$ starts before $\alpha_l$, and
-the dropping of a step that holds $w_l$ returns the parser to the end of its
-seed, no earlier than $\tau$. From the start of $\alpha_l$ to the end of
+growth and no later step of a growth around $w_l$ starts before $\alpha_l$, and the dropping of $w_l$, when it is a step, as only $w_i$ can be,
+returns the parser to the end of its seed, $\tau$. From the start of $\alpha_l$ to the end of
 $w_{l+1}$ the parser is inside $w_{l+1}$, which contains $e'_l$ and starts at
 $\tau$. So from the end of $w_i$ to $e'_k$ the parser starts no evaluation
 before $\tau$, and every frame started before $\tau$ that is in progress at
@@ -2709,10 +2715,18 @@ A frame $F_l$ that starts before $\tau$ is in $C_<$, since it contains $w_l$,
 which encloses $w_i$ or starts after it, and it is the innermost frame of
 $C_<$ in progress at the later of the starts of $w_l$ and $w_i$: no frame of
 $C_<$ lies inside $w_l$, which starts at $\tau$, so every frame of $C_<$ in
-progress then contains $w_l$. From the start of $w_i$ to $e'_k$ that
-innermost frame changes only when the parser leaves a frame of $C_<$, which
-an outer link does; so these frames number at most the outer links plus
-one. The frames started at $\tau$ that are
+progress then contains $w_l$. From the start of $w_i$ to $e'_k$ that innermost frame changes only when
+the parser leaves a frame of $C_<$, which an outer link does, and only its
+values at the starts of units count. An outer link $l$ leaves its frames
+from the end of $w_l$ until $Y_l$ ends, and no unit starts in that time: a
+unit $w_m$ with $m \le l$ contains $e_m$, which starts no later than $e_l$,
+inside $w_l$, so it starts before $w_l$ ends; and a unit $w_m$ with $m > l$
+contains $e_m = e'_{m-1}$, which starts no earlier than $e'_l$, while an
+evaluation started inside $Y_l$ after $w_l$ ended ends inside $Y_l$, before
+$e'_l$ starts. So between two starts of units the parser leaves frames of
+$C_<$ for at most one outer link, and at the starts of units the innermost
+frame of $C_<$ takes at most one new value per outer link: these frames
+number at most the outer links plus one. The frames started at $\tau$ that are
 in progress when $w_i$ starts form a chain $C_\tau$ around $w_i$, inside the
 innermost frame of $C_<$. Those of them that end before $e'_k$ end after the
 end of $w_i$ and form the inner part of the chain, in which no rule recurs: a
@@ -2734,19 +2748,28 @@ starts. The outermost of them is called from a frame of $C_\tau$ or from the
 innermost frame $G$ of $C_<$ in progress, the parser being in $G$; $G$ is then
 the innermost frame of $C_<$ in progress when $w_l$ starts, since the frames
 of $C_<$ inside $G$ ended before the call, after the start of $w_i$, and $G$
-contains the frame and so $w_l$. So the outermost frames hang from at most $|\text{rules}| + 1$ frames of
-$C_\tau$ and at most the outer links plus one frames of $C_<$, and each frame
+contains the frame and so $w_l$. A frame of $C_\tau$ makes a call only while it is the innermost frame in
+progress, the parser being in its body; the innermost frame of $C_\tau$ that
+is in progress at $e'_k$ stays in progress from the start of $w_i$ on, so
+the frames of $C_\tau$ outside it make no call in that time, and the callers
+in $C_\tau$ are that frame and the at most $|\text{rules}|$ that end before
+$e'_k$. So the outermost frames hang from at most $|\text{rules}| + 1$
+frames of $C_\tau$ and at most the outer links plus one frames of $C_<$, and each frame
 makes at most $c'$ calls at $\tau$, so these frames number at most a constant.
 So the frames $F_l$ and the units, and with them $k - i$, are at most a
 constant. $\square$
 
 What this leaves open of a run of leaf links whose shared call is not the
-first is the number of positions at which its units start. The unit of a
-link starts at the start of the unit before it or at the end of one of its
-shared calls, when it starts after that unit ends, since the continuation
-consumes input only through those calls before the later evaluation of the
-link; or it encloses the unit before it and starts at or before its start.
-Neither change is shown to occur only a constant number of times in a run.
+first is the number of times the start of its units changes along the run,
+that is, the number of its maximal parts whose units start at one position.
+The unit of a link that starts after the unit before it ends starts at the
+start of that unit or at the end of one of its shared calls, since the
+continuation consumes input only through those calls before the later
+evaluation of the link, or, in the exception of the restarts, in a later
+step of a growth around that unit, at the position of the growth; a unit
+that does not start after it encloses it and starts at or before its start.
+So the start can move forward and back, and the changes are not shown to be
+a constant number in a run.
 
 **Outer links across runs.** Let $l < l'$ be leaf links of $\sigma$ at $q$
 whose shared call is the first, both at one position $p$, so that $w_l$ and
@@ -14635,9 +14658,11 @@ theorem covers such a parse.
    run whose units start at one position, under hypotheses on growths at
    that position like those of *Calls that call no rule*: their outer links
    leave their last frames at that position, and the frames that hold their
-   units are bounded. What remains open is the number of positions at which
-   the units of a run start: a unit starts at the end of a shared call of
-   the unit before it, or encloses that unit and starts before it.
+   units are bounded. What remains open is the number of times the start of the units
+   changes along a run: a unit can start at the end of a shared call of the
+   unit before it, at the position of a growth around that unit in the
+   exception of the restarts, or enclose that unit and start before it, so
+   the start can move forward and back.
    *Nesting at one end* shows that evaluations of a call that nest without a
    bound and end at one position, through restarts as well, make the call
    nest at one end, which keeps the call of `R` in that grammar from being
