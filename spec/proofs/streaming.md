@@ -58,7 +58,8 @@ neither the callback nor the reader returns an error or panics.
 shows that an interrupted stream delivers a prefix of the elements of the
 stream that is not interrupted. Like the memoization proof, it covers parses
 without insertion of [`#missing`](../language/pragmas.md#missing) tokens; *What
-the Proof Does Not Show* says what holds with insertion. It takes no
+the Proof Does Not Show* says what holds with insertion. Apart from the
+corollary on memory, it takes no
 [diagnostic limit](../runtime/streaming.md#recovered-errors), so the stream
 keeps all of its recovered errors to the end of the parse and returns them.
 
@@ -121,9 +122,10 @@ it uses them.
   slots and records at the first commit at least $W = 1024$ units past the
   commit at which it last dropped them, or past position $0$, and at no other
   commit ([Memory](../runtime/streaming.md#memory)). Only a stream with a
-  diagnostic limit forgets the entries whose recovered errors it has
-  delivered ([Compute Units](../runtime/parsing.md#compute-units)); without
-  one it keeps them to the end
+  diagnostic limit forgets the entries of its record of recovered errors
+  whose errors it has delivered
+  ([Compute Units](../runtime/parsing.md#compute-units)); without one it
+  keeps them to the end
   ([Recovered errors](../runtime/streaming.md#recovered-errors)). With the
   release of the delivered element (H), this lists everything a commit drops:
   the farthest failure, its expected items, the open evaluations and the
@@ -400,18 +402,22 @@ stream last dropped memo entries, slots and records, or $0$ if it has not
 dropped any. Then $c - W < b \le c$, and the stream holds the following, and
 what they reach:
 
-- the input from $c - 1$ to the furthest position demanded;
-- the memo entries, slots and records at positions at or after $b$;
+- the input from $c - 1$ to the furthest position demanded, and the input
+  that it has read past that position;
+- the memo entries, slots and records at positions at or after $b$, each with
+  its key: the rule or site, the position and the values of variables;
 - the open evaluations of Lemma 1;
 - what the start rule built before $\rho$;
-- the values of variables and the keys of the memo;
-- the recovered errors.
+- the values of variables;
+- the farthest failure and its expected items and messages;
+- the recovered errors of the parse.
 
 The list of $\rho$ holds no element. Apart from what the memo entries and
 records at or after $b$ reach, the stream holds nothing that an element it
 delivered holds. A memo entry, slot or record at a position $p$, and what it
-reaches apart from recovered errors and the keys of the memo, was built by
-evaluations that began at or after $p$.
+reaches apart from the values of variables in its key, including the errors
+that `#recover` recovered in it, was built by evaluations that began at or
+after $p$.
 
 *Proof.* The bound on $b$ is by induction on the commits. Before the first
 commit, $b = 0$. At a commit at $c$, either $c - b \ge W$ for the $b$ of the
@@ -419,23 +425,28 @@ commit before, and the stream drops at $c$, so that $b = c$, or $c - b < W$
 and $b$ stays (P). Commits do not go back, so in both cases $c - W < b \le c$.
 
 (P) discards the input before $c - 1$ and the memo entries, slots and records
-before $b$. By Lemma 1, the open evaluations are the call of $S$, the path and
-$\rho$. Their values are the captures that the start rule made before $\rho$,
-and the list of $\rho$, which holds no element (H). An evaluation that begins
+before $b$, and keeps the farthest failure; the stream may have read input past
+the furthest position demanded
+([Delivery and Finality](../runtime/streaming.md#delivery-and-finality)). By
+Lemma 1, the open evaluations are the call of $S$, the path and $\rho$. Their
+values are the captures that the start rule made before $\rho$, and the list of
+$\rho$, which holds no element (H). An evaluation that begins
 later begins at or after $c$ (Lemma 1). An element was delivered and then
 dropped from every structure of the parse but the memo entries and records
 that hold it. Variables hold scalars (V), and the keys hold the values of
 variables.
 
 A memo entry at $p$ holds the outcome of an evaluation that began at $p$, and
-a slot or a record at $p$ holds what a walk that began at $p$ found. The value
+a slot or a record at $p$ holds what a walk that began at $p$ found. The
+recovered errors of an outcome are those that `#recover` recovered in the
+evaluation ([memoization proof](memoization.md#setting)), so in it or in an
+evaluation inside it; those of a walk are those recovered in the walk. The value
 of the outcome was built by that evaluation, by the evaluations inside it, and
 by the evaluations whose outcomes these took from the memo or a record, which
 began where the call or the walk that took them began. Each of these begins at
 a position that its parent has reached, which is at or after $p$. None sees a
 capture of the rules that called it (V), so what the entry reaches, apart from
-the recovered errors and the values of variables, these evaluations built.
-$\square$
+the values of variables, these evaluations built. $\square$
 
 ## Theorem (Memory of a Stream)
 
@@ -447,21 +458,27 @@ the start of an attempt so far to a slot that it examines or a position at
 which an evaluation inside it begins.
 
 After each commit at $c$, every memo entry, slot and record that $\mathcal{S}$
-holds, with what it reaches apart from recovered errors and the keys of the
-memo, was built by an attempt that starts after $c - W - \lambda$, and the
-input it holds is at most $\lambda + 2$ units. At most $W + \lambda + 1$
-attempts start after $c - W - \lambda$ and at or before $c$. So the storage
-that $\mathcal{S}$ holds after the commit is at most a constant times
+holds, with what it reaches apart from the values of variables in its key, was
+built by an attempt that starts after $c - W - \lambda$, and the input it holds
+is at most $\lambda + 2 + B$ units, where $B$ bounds the input that a stream
+reads past the furthest position demanded: the buffer of a stream that reads
+from a reader, whose size the backend fixes, or the chunk last fed to a stream
+that the caller feeds. At most $W + \lambda + 1$ attempts start after
+$c - W - \lambda$ and at or before $c$. So the storage that $\mathcal{S}$
+holds after the commit is at most a constant times
 
 $$
-I_0 + E + (\lambda + 2) + (W + \lambda + 1) \cdot C,
+I_0 + E + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
 $$
 
 where $I_0$ is the storage of what the start rule built before $\rho$, of the
-values of variables and of the keys of the memo, $E$ that of the recovered
-errors, and $C$ the largest cost of an attempt. Apart from $E$, the bound does
-not grow with the number of elements delivered: it depends on the largest
-attempt and the reach.
+values of variables and of the farthest failure, $E$ that of the recovered
+errors of the parse, $C$ the largest cost of an attempt, and $V$ the largest
+storage of the values of variables so far. The expected items and messages of
+the farthest failure are those of the grammar, each at most once
+([Syntax Errors](../runtime/parsing.md#syntax-errors)). Apart from $E$ and $V$,
+the bound does not grow with the number of elements delivered: it depends on
+the largest attempt and the reach.
 
 *Proof.* By Lemma 6, a memo entry, slot or record that the stream holds is at
 a position $p \ge b > c - W$, and what it reaches was built by evaluations
@@ -482,7 +499,10 @@ The memory a parse allocates is at most proportional to its cost
 ([Time and Memory](../runtime/parsing.md#time-and-memory)): each memo entry,
 node and value is built by cost that is counted. So what the attempts in the
 interval built, and with it what the stream holds of them, is at most a
-constant times $(W + \lambda + 1) \cdot C$. The open evaluations hold what
+constant times $(W + \lambda + 1) \cdot C$, and so is the number of memo
+entries, slots and records the stream holds. The key of each holds the values
+of variables when it was stored, so the keys take at most a constant times
+$(W + \lambda + 1) \cdot C \cdot (1 + V)$. The open evaluations hold what
 the start rule built before $\rho$ and the empty list of $\rho$ (Lemma 6).
 $\square$
 
@@ -491,7 +511,36 @@ The window of $W$ units is the one that
 entry, slot or record of a position $W$ or more units before the commit
 point. The bound is that of the specification: the memory held depends on the
 size of the elements, through $C$ and $\lambda$, and not on the number of
-elements delivered, with the recovered errors as the stated exception.
+elements delivered, with the recovered errors as the stated exception, which a
+diagnostic limit removes (Corollary).
+
+## Corollary (Memory Under a Diagnostic Limit)
+
+With a [diagnostic limit](../runtime/streaming.md#recovered-errors) of
+$n > 0$, the storage that $\mathcal{S}$ holds after each commit is at most a
+constant times
+
+$$
+I_0 + n \cdot C + (\lambda + 2 + B) + (W + \lambda + 1) \cdot C \cdot (1 + V),
+$$
+
+so apart from $V$ it grows neither with the number of elements delivered nor
+with the number of errors recovered.
+
+*Proof.* A diagnostic limit changes a stream only at its commits: it hands the
+recoveries committed since the commit before to the diagnostic callback and the
+retained tail, which keeps the latest $n$
+([Recovered Errors](../runtime/streaming.md#recovered-errors)), and the record
+of the parse then forgets them (P). No later step reads what it forgot. The
+record before a commit is restored only when an evaluation open at the commit
+fails, and by Lemma 1 these are the call of $S$ and the path, whose failure
+ends the parse (T), and $\rho$, whose next iteration begins at $c$ with the
+record as the commit leaves it. So Lemma 6 and the theorem hold as without a
+limit, with $E$ the storage of the tail, since the record holds no error after
+the commit. Each error of the tail was recovered inside one attempt, so it
+takes at most a constant times $C$. The errors that the memo entries and
+records hold are among what they reach, which the theorem bounds apart from
+$E$ (Lemma 6). What the callback keeps is the caller's. $\square$
 
 ## What the Proof Does Not Show
 
@@ -501,8 +550,9 @@ elements delivered, with the recovered errors as the stated exception.
   $\mathcal{B}_s$ inserts what $\mathcal{B}$ does rests on memoization with
   insertion, which the [memoization proof](memoization.md#setting) leaves out.
 - **Diagnostics.** The order in which the diagnostic callback receives the
-  recovered errors among the elements, and the tail that a diagnostic limit
-  keeps, are not shown.
+  recovered errors among the elements, and which errors the tail of a
+  diagnostic limit keeps, are not shown; the corollary uses only that it keeps
+  at most $n$.
 - **Lines and columns.** That the line and column of a syntax error, which a
   stream computes from a running count over the discarded input
   ([Positions and Text](../runtime/streaming.md#positions-and-text)), are those
