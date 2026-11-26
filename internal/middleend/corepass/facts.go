@@ -403,6 +403,8 @@ func (c *computer) leftCalls(n core.Node, acc []int, ins bool) []int {
 				break
 			}
 		}
+		// The same nullability is read from the stored attributes in leftBindings (errors.go); the
+		// corpus test TestOperatorLineAttributesAgreeWithFacts pins that they agree on every line.
 		nullOperand := slices.ContainsFunc(n.Operands, func(l *core.OpLine) bool { return c.nullable(l.Body, ins) })
 		for _, op := range n.Ops {
 			if op.Kind == "prefix" || nullOperand {

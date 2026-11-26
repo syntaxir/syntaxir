@@ -100,6 +100,9 @@ func (f *Facts) bindings(m *core.Module, ins bool, seen map[core.Node]bool) []Er
 // option counts even when input is consumed or the binding is undone before the call runs.
 func (f *Facts) leftBindings(n core.Node, in []*core.BindNode, ins bool, visit func(int, []*core.BindNode)) []*core.BindNode {
 	f.c.control.Poll()
+	// This reads the stored attributes of a line body. For every line of an Operators Rule they equal
+	// the facts that leftCalls computes (c.nullable), which TestOperatorLineAttributesAgreeWithFacts
+	// pins on the corpus, so the two checks cannot drift apart.
 	nullable := func(x core.Node) bool {
 		at := x.Attrs()
 		return at.Nullable || ins && at.NullableIns
