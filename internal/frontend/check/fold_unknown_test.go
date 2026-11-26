@@ -30,5 +30,17 @@ func TestFoldAccumulatorOfUnknownBody(t *testing.T) {
 			t.Errorf("%s: got %s, want %s", fold, got, want)
 		}
 		mustCompile(t, unknownList+"rule n int = x:g => "+fold+"(0, $x, (a, e) => e).(int)")
+		// An initial value of unknown type or nil, and a fold nested in the callback, end with an
+		// accumulator of the type that is not known as well.
+		for name, call := range map[string]string{
+			"unknown initial": fold + "($x[0], $x, (a, e) => a)",
+			"nil initial":     fold + "(nil, $x, (a, e) => e)",
+			"nested":          fold + "(0, $x, (a, e) => " + fold + "(a, $x, (b, f) => f))",
+		} {
+			p := mustCompile(t, unknownList+"rule m = x:g => "+call)
+			if got, _ := inferredType(p, "m"); got != "unknown" {
+				t.Errorf("%s, %s: m type = %s; want unknown", fold, name, got)
+			}
+		}
 	}
 }
