@@ -71,7 +71,8 @@ The proof cites the following rules, and no other rule about types or values.
   the tuple of its scope. A capture inside an expression that `#recover`
   annotates is not made when the expression fails and is recovered, whether
   or not the expression has a value, while a capture of the recovery itself,
-  as `x:("a" "b") #recover(skip="z")`, is made either way
+  as `x:("a" "b") #recover(skip="z")`, is made whether the expression
+  matches or is recovered
   ([`#recover`](../language/pragmas.md#recover)). Captures are not allowed
   inside `#atomic`, `-`, `!` and the skip of a recovery
   ([Capture](../language/parser-expressions.md#capture)).
