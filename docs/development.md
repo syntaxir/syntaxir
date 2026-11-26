@@ -132,6 +132,12 @@ them.
   package state.
 - **Goldens.** A change of what a golden file freezes is rewritten with `go test <package> -run <test> -update`, and
   its diff is reviewed.
+- **Shards.** `internal/testing/codegentest` runs the cases of the TypeScript and claim checks in shards, one
+  subtest each. The shards that run at a time follow the cores (`GOMAXPROCS`), at least 1 and at most 8, so a small
+  runner is not oversubscribed. `SXIR_TEST_SHARDS=<n>` sets them to `n` instead. The override has no upper clamp, so
+  `n` above the cores oversubscribes the machine on purpose; a value that is not a positive integer is ignored. The
+  `tsc` runs that batch the generated files run at most 4 at a time, whatever the shard setting; that cap is not
+  configurable, because each `tsc` run holds its whole program in memory.
 - **Required tools.** The TypeScript and playground tests need Node.js 22.18 or later and `tsc`. A test that needs a
   missing tool fails and names it, so that a comparison cannot pass by not running; `SKIP_NODE=1` skips those tests on a
   machine without them.

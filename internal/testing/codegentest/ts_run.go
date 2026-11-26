@@ -713,7 +713,7 @@ func RunTSC(t *testing.T, tsc, dir string, flags, files []string, labels map[str
 			cmd := exec.Command(tsc, append(append([]string{}, flags...), batch...)...)
 			cmd.Dir = dir
 			if out, err := cmd.CombinedOutput(); err != nil {
-				msgs[i] = fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, withCases(out, batch, labels))
+				msgs[i] = fmt.Sprintf("tsc (%s to %s): %v\n%s", batch[0], batch[len(batch)-1], err, withCases(out, dir, batch, labels))
 			}
 		}()
 	}
@@ -726,17 +726,28 @@ func RunTSC(t *testing.T, tsc, dir string, flags, files []string, labels map[str
 }
 
 // withCases returns the output of tsc over batch with the case of each file of the batch after its
-// path, so that a failure names the case it comes from.
-func withCases(out []byte, batch []string, labels map[string]string) string {
-	pairs := make([]string, 0, 2*len(batch))
+// path, so that a failure names the case it comes from. tsc runs in dir and prints the paths of the
+// files relative to it, so both the absolute and the relative path of a file are replaced.
+func withCases(out []byte, dir string, batch []string, labels map[string]string) string {
+	var pairs []string
 	for _, f := range batch {
-		if name, ok := labels[f]; ok {
-			pairs = append(pairs, f, f+" ("+name+")")
+		name, ok := labels[f]
+		if !ok {
+			continue
+		}
+		label := " (" + name + ")"
+		pairs = append(pairs, f, f+label)
+		if rel, err := filepath.Rel(dir, f); err == nil {
+			pairs = append(pairs, rel, rel+label)
 		}
 	}
 	return strings.NewReplacer(pairs...).Replace(string(out))
 }
 
-// tscParallel is the number of tsc runs that RunTSC runs at a time, the same bound as the parallel
-// parts of Shards.
-var tscParallel = shardMax
+// tscParallel is the number of tsc runs that RunTSC runs at a time: at most tscMaxParallel, and at
+// most the shards that run at a time. A tsc run holds its whole program in memory, so the bound is
+// separate from the shard limit: several packages can run their tsc batches at once under go test -p.
+var tscParallel = min(shardMax, tscMaxParallel)
+
+// tscMaxParallel is the cap on tsc runs at a time, whatever the number of cores (see tscParallel).
+const tscMaxParallel = 4
