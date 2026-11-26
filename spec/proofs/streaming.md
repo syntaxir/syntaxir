@@ -38,7 +38,10 @@ ends whenever that action and conversion succeed, apart from the value and
 their compute units. $\mathcal{B}$ and $\mathcal{B}_s$ are both instances of
 the memoized parse $\mathcal{M}$ of the
 [memoization proof](memoization.md#setting), whose storing is free under its
-conditions, with the outermost call built as above. Outcomes, keys and the
+conditions, with the outermost call built as above: no evaluation reads the
+value or the memo entry of that call, since building its value is the last
+step of the parse, and $S$ is on no left-recursion cycle (T), so no call of
+$S$ at position $0$ occurs inside it. Outcomes, keys and the
 reference parse $\mathcal{R}$, with the same outermost call, are as defined
 there.
 
@@ -62,7 +65,8 @@ keeps all of its recovered errors to the end of the parse and returns them.
 it uses them.
 
 - **(T) Placement.** `#stream` annotates a repetition that is the body of a
-  rule, an item of the body's top-level sequence, or the expression that such
+  rule, an item of the body's top-level sequence, also of a sequence grouped
+  in such an item, as in `("h" (a* #stream)) $$`, or the expression that such
   a body or item captures. Only groups, captures and the attributes
   `@error`, `@diagnostic` and `#ignorecase` may stand on the way. Only the
   start rule streams, at call depth 1. A rule with `#stream` is on no
@@ -352,11 +356,14 @@ and conversion of the top call of $S$. When the start rule has neither, or
 they succeed, the stream ends as `Parse` ends, without its value. When they
 fail, `Parse` ends with their run-time error while the stream does not. Only
 the action can fail in a valid grammar. Without an action, the value of the
-body is the list node of $\rho$ or the
-[tuple node](../language/types.md#built-in-types) of the body's sequence, by
-(T), and the checker rejects a declared node type to which such a value
-cannot be converted ([Types and Errors](../language/actions.md#types-and-errors)).
-In the grammar
+body is the list node of $\rho$ or the tuple node of the body's sequence, by
+(T): groups and the attributes allowed on the way create no value, a capture
+has the value of its operand, and a sequence is a tuple node even of one
+element, with the elements of a sequence grouped in it
+([Values and the Concrete Syntax Tree](../language/parser-expressions.md#values-and-the-concrete-syntax-tree)).
+The checker rejects a declared node type to which such a value cannot be
+converted ([Types and Errors](../language/actions.md#types-and-errors)). In
+the grammar
 
 ```sxir
 @start
