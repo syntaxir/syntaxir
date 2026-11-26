@@ -3,7 +3,7 @@
 //
 // Usage (from the site directory):
 //
-//	go run . [-repo ..] [-out dist] [-wasm=true] [-wasm-source=release] [-wasm-mode=go] [-check=true] [-serve localhost:8080]
+//	go run . [-repo ..] [-out dist] [-wasm=true] [-wasm-source=release] [-wasm-mode=go] [-benchmarks=true] [-check=true] [-serve localhost:8080]
 //	go run . playground-release -out DIR -tag playground-wasm-vX.Y.Z [-repo DIR]
 //
 // The first form builds the site. The second builds the files of a playground release (see
@@ -41,6 +41,7 @@ func main() {
 	flag.BoolVar(&cfg.Wasm, "wasm", true, "include the playground's WebAssembly binary")
 	flag.StringVar(&cfg.WasmSource, "wasm-source", "release", "where the playground's binary comes from: release (the release pinned by site/playground-wasm.json) or build (from source)")
 	flag.StringVar(&cfg.WasmMode, "wasm-mode", "go", "playground WASM binaries: go or dual (Go and TinyGo; needs -wasm-source=build)")
+	flag.BoolVar(&cfg.Benchmarks, "benchmarks", true, "render the benchmark results of the release pinned by site/benchmarks.json (false: link to the release)")
 	flag.BoolVar(&cfg.Check, "check", true, "fail if a generated page links to a missing page or anchor")
 	flag.StringVar(&cfg.GitHub, "github", "https://github.com/syntaxir/syntaxir", "repository URL for links to source files")
 	flag.StringVar(&cfg.Ref, "ref", "main", "branch or tag for links to source files")

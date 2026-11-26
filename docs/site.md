@@ -28,6 +28,7 @@ and validation are handled by ZeroSite. The project-specific flags are:
 | `-wasm` | `true` | Include the playground's WebAssembly binary. Without it, the pages are built but the playground cannot run |
 | `-wasm-source` | `release` | Where the binary comes from. `release` downloads the release that `site/playground-wasm.json` pins and verifies it (see [the playground release](#the-playground-release)); `build` compiles it from the working tree, to try playground changes before a release |
 | `-wasm-mode` | `go` | `go` builds the standard Playground binary; `dual` builds both Go and TinyGo binaries and requires `-wasm-source=build`. Dual mode requires TinyGo and Binaryen's `wasm-opt` on `PATH`; the TinyGo distribution does not include `wasm-opt`, so install Binaryen separately. The build fails if either tool is missing or compilation fails; there is no automatic fallback |
+| `-benchmarks` | `true` | Render the benchmark results page from the `RESULTS.md` of the [syntaxir/bench](https://github.com/syntaxir/bench) release that `site/benchmarks.json` pins, after checking its SHA-256 digest. Without it, the page of `docs/benchmarks.md` only points to the release, for builds without network access |
 | `-check` | `true` | Fail if a page links to a missing page, file or anchor |
 | `-previous-site` | Empty locally; `https://syntaxir.dev` in Workers Builds of `main` | Import the published current WASM/runtime pair to retain it for one deploy; requires `-wasm` |
 | `-deploy-url` | Empty | Record this immutable deploy root for the next build's asset downloads |

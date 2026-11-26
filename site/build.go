@@ -34,8 +34,10 @@ type Config struct {
 	Ref          string // branch or tag for those links
 	PreviousSite string // published site whose current WASM/runtime pair should be retained
 	DeployURL    string // immutable URL of this deploy, recorded in the asset manifest
+	Benchmarks   bool   // render the benchmark results of the release site/benchmarks.json pins (else link to it)
 
 	releaseURL string // replaces the download URL of the pinned release, for tests
+	benchURL   string // replaces the download URL of the pinned results release, for tests
 }
 
 // Stats summarizes a build.

@@ -126,6 +126,9 @@ func Build(cfg Config) (Stats, error) {
 		if q != nil {
 			mapped[q] = pg
 		}
+		if err := s.addBenchmarks(ctx, mapped); err != nil {
+			return err
+		}
 		ref := s.referencePages()
 		if err := s.renderReference(); err != nil {
 			return err
@@ -297,7 +300,11 @@ func Build(cfg Config) (Stats, error) {
 	}
 	if cfg.Check {
 		ext.Validate = func(stage string) error {
-			if problems := checkLinks(stage); len(problems) > 0 {
+			problems := checkLinks(stage)
+			if !cfg.Benchmarks {
+				problems = withoutResultsSections(problems, s.bySrc[benchmarksSource])
+			}
+			if len(problems) > 0 {
 				return fmt.Errorf("site has %d problems:\n  %s", len(problems), strings.Join(problems, "\n  "))
 			}
 			return nil
