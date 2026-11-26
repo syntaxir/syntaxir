@@ -226,6 +226,19 @@ func workloadMetrics(t *testing.T, w *workload) []metrics.Metric {
 	ms = append(ms,
 		metrics.New(doubling(uf, uh, len(full), len(half)), ceiling(linearDoublingMax), "doubling-units", w.name),
 		metrics.New(doubling(af, ah, len(full), len(half)), ceiling(linearDoublingMax), "doubling-allocs", w.name, "generated-go"))
+	// D5: the growth curve of the allocations of a typed ParseValue at a quarter, half and all of the
+	// input. A count that grows with the logarithm of the input adds about the same allocations at each
+	// doubling, so the ratio of its increments is about 1000; a linear one doubles them, about 2000.
+	quarter := w.input(4)
+	var pv, sizes [3]uint64
+	for i, in := range []string{quarter, half, full} {
+		pv[i], _ = allocs(t, w, "generated-go/parse-value", func() (bool, error) { err := w.ast(in); return err == nil, err })
+		sizes[i] = uint64(len(in))
+	}
+	ms = append(ms,
+		metrics.New(int64(pv[0]), exact, "parse-value-allocs", w.name, "1/4"),
+		metrics.New(int64(pv[1]), exact, "parse-value-allocs", w.name, "1/2"),
+		metrics.New(incrementRatio(pv, sizes), ceiling(linearDoublingMax), "parse-value-doubling-allocs", w.name))
 	return ms
 }
 
@@ -424,10 +437,11 @@ var (
 )
 
 // incrementRatio returns the ratio of the increments of the costs c of a series at n, 2n and 4n,
-// (c[2] - c[1]) / (c[1] - c[0]), in thousandths, scaled to an exact doubling of the grammar's text
-// whose sizes are size, as doubling scales a workload's: the rules, alternatives and groups that a
-// series adds are drawn at random, so the text from 2n to 4n is not exactly twice what it is from n
-// to 2n. It is 0 for costs or sizes that do not grow.
+// (c[2] - c[1]) / (c[1] - c[0]), in thousandths, scaled to an exact doubling of the text (a grammar
+// or an input) whose sizes are size, as doubling scales a workload's: the rules, alternatives and
+// groups that a series adds are drawn at random, and a workload's inputs are built to a size, so the
+// text from 2n to 4n is not exactly twice what it is from n to 2n. It is 0 for costs or sizes that do
+// not grow.
 func incrementRatio(c, size [3]uint64) int64 {
 	if c[2] < c[1] || c[1] <= c[0] || size[2] <= size[1] || size[1] <= size[0] {
 		return 0
