@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
+	"syntaxir.dev/sxir/internal/testing/codegentest"
 	"syntaxir.dev/sxir/pkg/runtime"
 	"syntaxir.dev/sxir/pkg/runtime/input"
 	"syntaxir.dev/sxir/pkg/runtime/value"
@@ -15,12 +16,6 @@ import (
 // streamPruneWindow is the number of units that a stream commits between two drops of its memo
 // entries, slots and records (Streaming, Memory).
 const streamPruneWindow = 1024
-
-// streamCountSlack is how far the largest memory count of a stream may rise when the stream is four
-// times as long: the counts at the deliveries are sampled where the chunks of nodes are split, which
-// falls at more places in an element on a longer stream. Anything a stream kept for each element
-// would add a byte or more for each of the three quarters of the elements of the longer stream.
-const streamCountSlack = 256
 
 // streamCommitState is what a stream holds after a commit: the commit point, the floor of its memo
 // (the commit point at which it last dropped its memo entries, slots and records, or 0), and the
@@ -76,10 +71,11 @@ func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions
 // floor of the memo is a commit point fewer than streamPruneWindow units before the commit point, and
 // it moved there from at least that many units back (streamWindowProblem). The count follows the
 // window: the largest count at the commits of a stream of a repeated line rises by at most
-// streamCountSlack for a stream four times as long, apart from the recovered errors, which a stream
+// StreamCountSlack for a stream four times as long, apart from the recovered errors, which a stream
 // without a diagnostic limit retains. Each case whose sites keep records (skip-run, run or scan
 // sites) counts otherwise without them (Tuning.SkipOff), so the records it checks are held: more with
-// a record than without, or less where a scan record stands for memo entries of its rule.
+// a record than without, or less where a scan record stands for memo entries of its rule. The
+// generators' tests check the window on generated streams (StreamWindowCases).
 func TestStreamMemoryWindow(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -144,7 +140,7 @@ rule ws = [ ]*
 						return m
 					}
 					short, long := most(c.lines, state.Tuning{}), most(4*c.lines, state.Tuning{})
-					if c.grows != (long > short+streamCountSlack) || long < short {
+					if c.grows != (long > short+codegentest.StreamCountSlack) || long < short {
 						t.Errorf("the largest count is %d bytes for %d lines and %d for %d", short, c.lines, long, 4*c.lines)
 					}
 					if off := most(c.lines, state.Tuning{SkipOff: true}); c.records != (off != short) {
