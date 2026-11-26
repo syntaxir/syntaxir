@@ -452,8 +452,10 @@ rule E = #operators {
     }
 }
 `, ClassPoly, 2, -1},
-	// Measured super-linear Operators Rule grammars (found by the random search) that the
-	// classifier keeps unknown: no linear cause applies, so the class makes no claim.
+	// Operators Rule grammars from the random search that the classifier keeps ClassUnknown: it
+	// answers Unknown conservatively. On the probe families (a unit of one or two characters
+	// repeated n times, then a tail, for n = 64, 256 and 1024) their units grow linearly, about 4.0
+	// per 4x input, so no super-linear growth was found. The probe is not a proof of linearity.
 	{"operators", "random search: right-associative infix of optional parts, then left infix", `@start
 rule main = (E "!" / E "?" / ";")* $$
 rule D = "-"?
@@ -505,6 +507,61 @@ rule E = #operators {
     level {
         infix none "-"* "("?
         infix left ("a" / ")")
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: right infix, then left infix with a cut and an optional operand", `@start
+rule main = (E / ";")* $$
+rule D = "+"? [ab]
+rule X = ")"
+rule E = #operators {
+    operand "+"
+    operand "-"?
+    level {
+        infix right "("
+        infix left ")" "-"? #cut
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: right infix, then none infix and postfix after repeated operands", `@start
+rule main = (E / ";")* $$
+rule D = ("b" / "+")
+rule X = ("a" / "a") "-"
+rule E = #operators {
+    operand "+"
+    operand "+"
+    operand "-"*
+    level {
+        infix right "("
+    }
+    level {
+        infix none [ab]
+        postfix [ab]
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: right infix, then postfix with a cut after an optional operand", `@start
+rule main = (E / ";")* $$
+rule D = (")" / "-") "("
+rule X = ("a" / "-") "b"
+rule E = #operators {
+    operand [ab] [ab] "-"
+    operand ")"*
+    level {
+        infix right "-"
+        postfix [ab] #cut
+    }
+}
+`, ClassUnknown, -1, -1},
+	{"operators", "random search: right infix, then postfix with an optional part", `@start
+rule main = (E / ";")* $$
+rule D = "+"
+rule X = "+"
+rule E = #operators {
+    operand "("*
+    level {
+        infix right "-"
+        postfix ")"? "+"
     }
 }
 `, ClassUnknown, -1, -1},
