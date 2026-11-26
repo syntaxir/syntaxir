@@ -25,7 +25,6 @@ import (
 
 	"syntaxir.dev/sxir/pkg/compiler"
 	"syntaxir.dev/sxir/pkg/grammar"
-	"syntaxir.dev/sxir/pkg/runtime"
 )
 
 // Three grammars for a file of "key = value" lines.
