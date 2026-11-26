@@ -437,7 +437,7 @@ the value of the method, or the smallest cap that every check seed passes if
 that is larger. The first caps described the corpus of their
 measurement; grammars added since then moved three classes past them. The two
 benchmark grammars of predicate actions (`bench/grammars/actions`, added in
-00eac1460 as `bench/grammars/terms/*.zp`) raised `unclosed` and `hint`: their struct types and action blocks on one line leave a
+00eac1460 under `bench/grammars/terms`) raised `unclosed` and `hint`: their struct types and action blocks on one line leave a
 brace open when an edit breaks a field, and an edit inside their capture reads
 (`$ws.Start`) meets the reference's check of how a capture is read, which the
 grammar does not make. Ten generated
