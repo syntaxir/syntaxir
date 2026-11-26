@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"strings"
 	"testing"
 
 	"syntaxir.dev/sxir/internal/runtime/state"
@@ -17,8 +16,14 @@ import (
 // entries, slots and records (Streaming, Memory).
 const streamPruneWindow = 1024
 
-// streamCommitState is what a stream holds when it delivers an element: the commit point before the
-// element, the commit point at which it last dropped its memo entries, slots and records, and the
+// streamCountSlack is how far the largest memory count of a stream may rise when the stream is four
+// times as long: the counts at the deliveries are sampled where the chunks of nodes are split, which
+// falls at more places in an element on a longer stream. Anything a stream kept for each element
+// would add a byte or more for each of the three quarters of the elements of the longer stream.
+const streamCountSlack = 256
+
+// streamCommitState is what a stream holds after a commit: the commit point, the floor of its memo
+// (the commit point at which it last dropped its memo entries, slots and records, or 0), and the
 // memory count.
 type streamCommitState struct {
 	commit, floor int
@@ -26,7 +31,8 @@ type streamCommitState struct {
 }
 
 // streamCommitStates runs the stream parse of ParseStreamWith with the options o under a memory
-// limit that it does not reach, and returns the state at each delivery.
+// limit that it does not reach, and returns the state at each delivery, after the commit before
+// the element, and the state after the parse, after the commit of the last element.
 func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions) (states []streamCommitState, err error) {
 	t.Helper()
 	o.Limits.Memory = runtime.Unlimited - 1
@@ -35,12 +41,16 @@ func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions
 		t.Fatal(err)
 	}
 	p := state.NewControlledStreamParser(&active.sharedProgram, r, o.Unit, control)
+	p.SetTuning(o.Tune)
 	control.AttachMemory(p)
 	p.MaxDepth, _ = state.DepthLimit(o, o.Backend)
 	p.StreamID = rule.ID
 	p.DiagnosticTail.Limit = o.DiagnosticLimit
-	p.Emit = func(*value.Node) error {
+	observe := func() {
 		states = append(states, streamCommitState{p.TextFloor, p.Memo.Base, control.MemoryUsed()})
+	}
+	p.Emit = func(*value.Node) error {
+		observe()
 		return nil
 	}
 	p.Descs = active.descs(o.Backend, optionsFamily(o))
@@ -50,7 +60,9 @@ func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions
 		}
 	}()
 	p.SeedVars()
-	if _, ok := p.Call(rule, 0); !ok || !p.AtEOF() {
+	_, ok := p.Call(rule, 0)
+	observe()
+	if !ok || !p.AtEOF() {
 		return states, p.SyntaxError()
 	}
 	if len(p.Recovered) > 0 {
@@ -60,34 +72,43 @@ func streamCommitStates(t *testing.T, prog *Program, r io.Reader, o ParseOptions
 }
 
 // TestStreamMemoryWindow checks the window of the memory theorem of the streaming proof on the
-// memory count of the engine's streams, on every backend and position unit. At each delivery, the
-// stream last dropped its memo entries, slots and records at the first commit at least
-// streamPruneWindow units past the drop before, so that fewer than that many units lie between that
-// drop and the commit point. The count follows the window: the largest count at a delivery of a
-// stream of a repeated line is the same for a stream four times as long, to the byte, apart from
-// the recovered errors, which a stream without a diagnostic limit retains.
+// memory count of the engine's streams, on every backend and position unit. After each commit, the
+// floor of the memo is a commit point fewer than streamPruneWindow units before the commit point, and
+// it moved there from at least that many units back (streamWindowProblem). The count follows the
+// window: the largest count at the commits of a stream of a repeated line rises by at most
+// streamCountSlack for a stream four times as long, apart from the recovered errors, which a stream
+// without a diagnostic limit retains. Each case whose sites keep records (skip-run, run or scan
+// sites) counts otherwise without them (Tuning.SkipOff), so the records it checks are held: more with
+// a record than without, or less where a scan record stands for memo entries of its rule.
 func TestStreamMemoryWindow(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
 		name, src, line string
-		// per is the number of elements of a line, and limit the diagnostic limit, 0 for none.
-		per, limit int
-		// grows says that the count grows with the length of the stream.
-		grows bool
+		// lines is the number of lines of the shorter stream, per the number of elements of a line,
+		// and limit the diagnostic limit, 0 for none.
+		lines, per, limit int
+		// grows says that the count grows with the length of the stream, and records that sites of
+		// the grammar keep records (the skip expressions of the recoveries are skip-run sites).
+		grows, records bool
 	}{
-		{"memo", memoizedStream, "abc,abc\n", 1, 0, false},
-		{"left recursion", leftRecursiveStream, "abc,abc\n", 1, 0, false},
+		{"memo", memoizedStream, "abc,abc\n", 8192, 1, 0, false, false},
+		{"left recursion", leftRecursiveStream, "abc,abc\n", 8192, 1, 0, false, false},
 		// The lookahead of an element calls num at the start of the next one, past the commit point.
 		{"past end", `rule main = item* #stream !.
 rule item = n:num ";" &(num ";")?
 rule num = d:[0-9]+ {text($d) != ""}
-`, "12;", 1, 0, false},
+`, "12;", 8192, 1, 0, false, false},
 		{"recover limited", `rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
-`, "a=1;b;", 2, 2, false},
+`, "a=1;b;", 8192, 2, 2, false, true},
 		{"recover", `rule main = stmt* #stream !.
 rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
-`, "a=1;b;", 2, 0, true},
+`, "a=1;b;", 8192, 2, 0, true, true},
+		// ws is a scan site: the second alternative walks the spaces again.
+		{"scan sites", `rule main = item* #stream !.
+rule item = ws "a" ws ";" / ws "b" ws ";"
+rule ws = [ ]*
+`, "                                        b;", 2048, 1, 0, false, true},
 	}
 	for _, c := range cases {
 		prog := mustCompile(t, c.src)
@@ -95,22 +116,27 @@ rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
 			for _, unit := range []input.PositionUnit{input.CodePoints, input.Bytes} {
 				t.Run(fmt.Sprintf("%s/%s/%s", c.name, b, unit), func(t *testing.T) {
 					t.Parallel()
-					var most [2]uint64
-					for i, n := range []int{8192, 32768} {
-						o := ParseOptions{Backend: b, Unit: unit, DiagnosticLimit: c.limit, DiagnosticLimitSet: c.limit > 0}
-						states, err := streamCommitStates(t, prog, strings.NewReader(strings.Repeat(c.line, n)), o)
-						if _, ok := err.(value.SyntaxErrors); err != nil && !ok || len(states) != n*c.per {
-							t.Fatalf("%d lines: %d elements, error %v", n, len(states), err)
+					most := func(n int, tune state.Tuning) uint64 {
+						o := ParseOptions{Backend: b, Unit: unit, DiagnosticLimit: c.limit, DiagnosticLimitSet: c.limit > 0, Tune: tune}
+						states, err := streamCommitStates(t, prog, &lineReader{line: c.line, n: n}, o)
+						if _, ok := err.(value.SyntaxErrors); err != nil && !ok || len(states) != n*c.per+1 {
+							t.Fatalf("%d lines: %d commits, error %v", n, len(states), err)
 						}
 						if problem := streamWindowProblem(states); problem != "" {
 							t.Fatalf("%d lines: %s", n, problem)
 						}
+						var m uint64
 						for _, s := range states {
-							most[i] = max(most[i], s.mem)
+							m = max(m, s.mem)
 						}
+						return m
 					}
-					if c.grows != (most[1] != most[0]) {
-						t.Errorf("the largest count is %d bytes for 8,192 lines and %d for 32,768", most[0], most[1])
+					short, long := most(c.lines, state.Tuning{}), most(4*c.lines, state.Tuning{})
+					if c.grows != (long > short+streamCountSlack) || long < short {
+						t.Errorf("the largest count is %d bytes for %d lines and %d for %d", short, c.lines, long, 4*c.lines)
+					}
+					if off := most(c.lines, state.Tuning{SkipOff: true}); c.records != (off != short) {
+						t.Errorf("the largest count is %d bytes with records and %d without", short, off)
 					}
 				})
 			}
@@ -118,25 +144,22 @@ rule stmt = ([a-z]+ "=" [0-9]+ ";") #recover(skip=[^;]* ";")
 	}
 }
 
-// streamWindowProblem returns how the states at the deliveries of a stream break the drops of its
-// window, or "".
+// streamWindowProblem returns how the states after the commits of a stream break the window of its
+// memo, or "": the floor is a commit point at most the commit point and fewer than streamPruneWindow
+// units before it, and it moves only to a commit point at least that many units past it.
 func streamWindowProblem(states []streamCommitState) string {
 	floor, commits := 0, []int{0}
-	for i, s := range states {
+	for _, s := range states {
 		commits = append(commits, s.commit)
-		if i > 0 {
-			// The commit after the previous element is that at s.commit, where the stream drops iff the
-			// drop before is at least a window back.
-			if prev := states[i-1]; s.commit-prev.floor >= streamPruneWindow {
-				floor = s.commit
-			}
+		switch {
+		case !slices.Contains(commits, s.floor) || s.floor > s.commit:
+			return fmt.Sprintf("after the commit at %d, the floor %d is not a commit point so far", s.commit, s.floor)
+		case s.commit-s.floor >= streamPruneWindow:
+			return fmt.Sprintf("after the commit at %d, the floor %d is a window or more back", s.commit, s.floor)
+		case s.floor < floor || s.floor > floor && s.floor-floor < streamPruneWindow:
+			return fmt.Sprintf("after the commit at %d, the floor moved from %d to %d", s.commit, floor, s.floor)
 		}
-		if s.floor != floor {
-			return fmt.Sprintf("at the delivery after the commit at %d, the stream last dropped at %d, want %d", s.commit, s.floor, floor)
-		}
-		if !slices.Contains(commits, s.floor) || s.commit-s.floor >= streamPruneWindow {
-			return fmt.Sprintf("at the delivery after the commit at %d, the stream last dropped at %d", s.commit, s.floor)
-		}
+		floor = s.floor
 	}
 	return ""
 }
