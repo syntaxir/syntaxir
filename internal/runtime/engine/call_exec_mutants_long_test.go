@@ -388,7 +388,8 @@ func TestOperatorsLoopMutantsFail(t *testing.T) {
 // which is printed from Exec IR (internal/runtime/state/stream_exec.go), and of its implementations of the operations
 // (internal/runtime/state/stream_ops.go). The operations of the window are host operations without reference models,
 // so these mutants are what binds them. Each must fail the test named for it; the two backends'
-// calls of the commit are held to their position too.
+// calls of the commit are held to their position too, and the memory count of the records that a
+// commit drops (internal/runtime/state/skip_records.go and skip_walks.go) to what they held.
 //
 // Eight edits change nothing that a parse can show, and are left out:
 //   - Moving the first checkpoint of EmitStream after the report, or dropping the checkpoint before
@@ -432,6 +433,8 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		stack    = "^TestBudgetStreamDiscardAndStackClearCountNothing$"
 		slide    = "^TestStreamCommitWindow$"
 		records  = "^TestStreamCommitDropsRecordsBeforeItsPosition$"
+		every    = "^TestStreamCommitRemovesEveryRecordBeforeItsPosition$"
+		held     = "^TestStreamMemoryWindow$"
 		lefts    = "^TestStreamOutsideLeftRecursion$"
 		start    = "^TestStreamStartRuleNeedsNoCount$"
 		scratch  = "^TestStreamDiagnosticTailCommitScratchOwnership$"
@@ -486,6 +489,10 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"the memo is not pruned", []printedEdit{{"\t\tp.PruneStreamMemo(pos)\n", ""}}, slide, inCore},
 		{"the memo loses the commit position", []printedEdit{{"p.PruneStreamMemo(pos)", "p.PruneStreamMemo(pos + 1)"}}, slide, inCore},
 		{"the memo keeps the position before the commit", []printedEdit{{"p.PruneStreamMemo(pos)", "p.PruneStreamMemo(pos - 1)"}}, slide, inCore},
+		{"a stream prunes after two windows", []printedEdit{{window, "pos-p.Memo.Base >= 2048"}}, held, here},
+		{"a stream holds its whole memo", []printedEdit{{"\t\tp.PruneStreamMemo(pos)\n", ""}}, held, here},
+		{"a stream holds every record", []printedEdit{{"\t\tp.streamDropRecords(pos)\n", ""}}, held, here},
+		{"a stream holds what its elements held", []printedEdit{{"\tp.streamRelease()\n", ""}}, held, here},
 		{"the commit settles errors without a tail",
 			[]printedEdit{{"if p.DiagnosticTail.Limit > 0 {", "if true {"}}, "^TestStreamElementRecovery$", here},
 		{"the commit never settles errors",
@@ -497,6 +504,14 @@ func TestStreamCommitMutantsFail(t *testing.T) {
 		{"a recursive rule never streams", []printedEdit{{depth, "!rec"}}, start, here},
 		{"a rule that is entered once counts its depth", []printedEdit{{depth, "p.Depth == 1"}}, after, here},
 		{"a recursive rule streams outside its first entry", []printedEdit{{"p.Depth == 1)", "p.Depth == 0)"}}, start, here},
+	})
+	runPrintedMutants(t, "internal/runtime/state/skip_records.go", []printedMutant{
+		{"dropped records stay counted", []printedEdit{{"\t\t\ts.expBytes -= r.countedBytes()\n", "\t\t\t_ = r\n"}}, held, here},
+		{"an overwritten record stays counted", []printedEdit{{"\t\tif ok {\n\t\t\ts.expBytes -= old.countedBytes()\n\t\t}\n", ""}}, "^TestSkipRecordOverwriteCountsTheNewRecord$", inCore},
+		{"a few records before the commit stay", []printedEdit{{"\ts.floor = pos\n", "\ts.floor = pos\n\tif len(s.recs) < 64 {\n\t\treturn\n\t}\n"}}, every, inCore},
+	})
+	runPrintedMutants(t, "internal/runtime/state/skip_walks.go", []printedMutant{
+		{"what run-site records held stays counted", []printedEdit{{"\tp.recountSkipBytes()\n", ""}}, held, here},
 	})
 	runPrintedMutants(t, "internal/runtime/state/stream_ops.go", []printedMutant{
 		{"an error of the diagnostic callback is ignored",
