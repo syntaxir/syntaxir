@@ -97,20 +97,56 @@ func (v *ValueInference) needsCast(t, target Ty) bool {
 	return v.uncertain(t) && v.needsCastAt(t, target, 0)
 }
 
+// needsCastAt follows t and target down to the parts of t that are not known: a part needs the cast
+// where target is more specific than _ (or unknown) at its place. A join needs it where one of its
+// types does, and a value fits a join, or an optional type, without it where it fits one of its
+// types without it. A node fits node[_] whatever its value, an unnamed node fits a node type without
+// a name where its value fits the type's value, and lists, optional values and tuples fit where
+// their elements do.
 func (v *ValueInference) needsCastAt(t, target Ty, depth int) bool {
 	if depth > 32 || !v.uncertain(t) {
 		return depth > 32
 	}
+	if b, ok := target.(BasicTy); ok {
+		return b != TyAny && b != TyTop
+	}
+	s := v.Expand(t)
+	if j, ok := s.(JoinTy); ok {
+		for _, a := range j.Alts {
+			if v.needsCastAt(a, target, depth+1) {
+				return true
+			}
+		}
+		return false
+	}
 	switch target := target.(type) {
-	case BasicTy:
-		return target != TyAny && target != TyTop
-	case ListTy:
-		if l, ok := v.Expand(t).(ListTy); ok {
-			return v.needsCastAt(l.Elem, target.Elem, depth+1)
+	case JoinTy:
+		for _, a := range target.Alts {
+			if v.assignable(s, a) && !v.needsCastAt(s, a, depth+1) {
+				return false
+			}
 		}
 	case OptTy:
-		if o, ok := v.Expand(t).(OptTy); ok {
+		if o, ok := s.(OptTy); ok {
 			return v.needsCastAt(o.Elem, target.Elem, depth+1)
+		}
+		return v.needsCastAt(s, target.Elem, depth+1)
+	case ListTy:
+		if l, ok := s.(ListTy); ok {
+			return v.needsCastAt(l.Elem, target.Elem, depth+1)
+		}
+	case TupleTy:
+		if u, ok := s.(TupleTy); ok && len(u.Elems) == len(target.Elems) {
+			for i := range u.Elems {
+				if v.needsCastAt(u.Elems[i], target.Elems[i], depth+1) {
+					return true
+				}
+			}
+			return false
+		}
+	case NodeTy:
+		if n, ok := s.(NodeTy); ok && n.Name == "" && target.Name == "" {
+			return !anyNode(target) && v.needsCastAt(v.nodeValue(n), v.nodeValue(target), depth+1)
 		}
 	}
 	return true

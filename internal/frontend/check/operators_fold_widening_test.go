@@ -5,7 +5,9 @@ import "testing"
 // TestOperatorsFoldWideningTypesLinesWithNode checks the type of $lhs and $rhs of an Operators Rule
 // with a whole-rule action whose folded type keeps growing, which the lines decide with $lhs and
 // $rhs of type node[_]. The lines of n make nodes, so $lhs and $rhs widen to node[_] and the folded
-// value is the join of the lines so typed. The postfix ? of u gives a value that fits node[_] only because its type is not known, so $lhs
+// value is the join of the lines so typed. The postfix ! of c makes a node with a capture of the
+// type that is not known, which needs no cast to node[_], so $lhs of c widens to node[_] as well.
+// The postfix ? of u gives a value that fits node[_] only because its type is not known, so $lhs
 // and $rhs of u are of the type that is not known, and its postfix %, which indexes $lhs, compiles;
 // with $lhs of type node[_] it would not. The postfix ? of e reads the value of its operand, which
 // is no node, so the rounds of e already end at the type that is not known.
@@ -27,11 +29,16 @@ rule u = #operators {
     level { postfix "?" x:g => $x }
     level { postfix "%" => ($lhs[0], $lhs)[1] }
 } => $value
+rule c = #operators {
+    operand "a"
+    level { postfix "!" x:g }
+} => $value
 `)
 	for rule, want := range map[string]string{
 		"e": "unknown",
 		"n": `node[string] | node[(node[_], node[string]), {"lhs": 0, "op": 1}] | node[_]`,
 		"u": "unknown",
+		"c": `node[string] | node[(node[_], node[(node[string], g), {"x": 1}]), {"lhs": 0, "op": 1}]`,
 	} {
 		if got, _ := inferredType(p, rule); got != want {
 			t.Errorf("%s type = %s; want %s", rule, got, want)

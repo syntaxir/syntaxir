@@ -204,7 +204,10 @@ binding or a value converted to a named node type, it is a compile-time error
 unless that Type is `_`, and a cast, which is checked when it runs, makes it
 fit. An element of a typed list `[]T{...}` of the type that is not known is a
 compile-time error even when `T` is `_`. A part of a type counts as well: a list
-of elements of the type that is not known is not assignable to `[]int`.
+of elements of the type that is not known is not assignable to `[]int`, while
+a part where the declared Type has `_` needs no cast: a node whose value has
+such a part is assignable to `node[_]`, and a tuple `(x, 1)` whose `x` is of the
+type that is not known to `(_, int)`.
 
 The checker follows a type into its lists, optional types, nodes, joins and
 tuples to 32 levels. A type nested deeper is taken to have a part of the type
