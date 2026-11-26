@@ -143,7 +143,10 @@ not type-check the grammar again, does not check the rule on [reads after a
 stream's repetition](streaming.md#grammar), and does not verify that the
 bytecode uses the VM stacks correctly. A stream of a file that breaks the rule
 on reads and takes a text of a range before the last commit point ends with an
-error of invalid bytecode there ([Positions and Text](streaming.md#positions-and-text)). It trusts the mode recorded in the file as
+error of invalid bytecode there ([Positions and Text](streaming.md#positions-and-text)). One that breaks
+the rule otherwise is trusted as its types are: a read after the repetition of
+a capture that holds it sees the list without the elements already delivered,
+so the stream MAY decide differently from a batch parse of the same input. It trusts the mode recorded in the file as
 it trusts the module's types: it checks that the mode is known, not that the
 module is the one compiled for that mode, so a file that labels a recognize-mode
 module as parse mode MAY return no value and no error. Load compiled grammars

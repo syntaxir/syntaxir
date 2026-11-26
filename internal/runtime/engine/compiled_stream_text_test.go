@@ -67,6 +67,11 @@ rule item = "a" ";"
 		}
 		return strings.Repeat("element ", n) + "ok"
 	}
+	// A loaded module has no source for the closure backend to run, so the bytecode backends are all
+	// that can take the text.
+	if got := stream(crafted, "hhga;", Closure, readers["whole"]); got != errClosureNeedsSource.Error() {
+		t.Errorf("the closure backend gives %s on the crafted module, want %v", got, errClosureNeedsSource)
+	}
 	for _, b := range vmBackends {
 		for name, r := range readers {
 			for _, c := range []struct{ in, compiled, crafted string }{
