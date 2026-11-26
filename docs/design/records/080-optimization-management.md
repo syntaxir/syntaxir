@@ -1,6 +1,6 @@
 # 080. Optimization Management
 
-- **Status**: Proposed
+- **Status**: Accepted
 - **Author**: @ornew
 - **Date**: 2026-11-26
 
@@ -16,7 +16,8 @@ the catalog is classified either as an optimization, which gets a setting (or, w
 registered reference control) and parity tests on every backend it acts on, or as an implementation design, which
 leaves the catalog for the design pages. Every attempt to optimize ends in a record. `bench/metrics` measures the
 effect of every setting on the deterministic axes, and timed measurement windows measure it in time, so the value of
-each optimization is known as the code around it changes. The bisection limit reaches every setting. The first release
+each optimization is known as the code around it changes. The bisection limit reaches every setting; reference
+controls, which are build tags, are compared by builds instead. The first release
 requires every mechanism to be classified and every optimization to have a control with parity tests.
 
 ## Motivation
@@ -54,7 +55,8 @@ deleted branch.
 - Every optimization has a lifecycle state and a record that decided it. Every attempt ends in a record.
 - The effect of every setting is re-measured on the deterministic axes at each collection and in time in each
   measurement window, and a stale measurement is visible.
-- The bisection limit reaches every setting: a limit of 0 builds the same parser as every optimization off.
+- The bisection limit reaches every setting: a limit of 0 builds the same parser as every setting off. Reference
+  controls are outside it.
 - **Release criterion**: no mechanism is unclassified, and every optimization mechanism has at least one control with
   its parity tests. A check enforces it (see "Checks").
 
@@ -122,8 +124,11 @@ it costs and gains, and the guide's row shows both.
 | Record | The optimization record that decided the flag's state (for an experiment, the record that opened it) | test: the record exists and its status agrees with the derived state |
 | Trade-off | What it costs and what it gains | generation |
 | Backends | The backends whose parser the flag changes: closure, recursive VM, iterative VM, Go Node, Go recognizer, typed Go, TypeScript | the backend-claims test |
-| Witness | The corpus case on which the flag changes the parser of every listed backend | the backend-claims test |
-| Measured | The run of the timed measurement that last covered the flag | the staleness listing |
+| Witnesses | Per listed backend, the corpus cases on which the flag changes that backend's parser (one case may serve several backends) | the backend-claims test |
+
+The run of the timed measurement that last covered each flag is not in the code: a data file beside the records,
+`docs/optimizations/measured.json`, maps each flag name to its run, and the generator joins it into the index. A
+measurement window updates that file only, with no code change; a test checks that its keys are registered flags.
 
 The state of a flag that is not an experiment is derived, not stored: **adopted** if `speed` or a profile turns it on,
 **opt-in** otherwise. The generated tables show all three states.
@@ -135,7 +140,7 @@ The registry also holds:
   **Control** field: `flag` (it has at least one setting), `reference` (it has a reference control only) or `none`
   (a transitional state until its setting lands; the release criterion forbids it). A mechanism acts on a backend if
   and only if one of its controls lists that backend.
-- **Reference controls**: the mechanism, the build tag, the backends, the witness and the record that says why no
+- **Reference controls**: the mechanism, the build tag, the backends, the witnesses and the record that says why no
   zero-cost setting exists.
 - **Removed names**: each removed optimization's name with the record that removed it (see "Public Behavior and
   Contracts").
@@ -224,14 +229,14 @@ The effect of an optimization is measured where its axis is reproducible.
   over every flag and profile, with its A/A control, taken in an exclusive window by the timed measurement method of
   [docs/performance.md](../../performance.md). It runs at each performance milestone, before a release, and for any
   change that proposes a state change. Its results are published from `syntaxir/bench` with the other timed results,
-  and the flag's Measured field names the run. A state change justified by time follows the A/A rules of the timed
+  and `measured.json` names the run for each flag it covered. A state change justified by time follows the A/A rules of the timed
   method; where the timing does not separate from the control, the decision rests on the deterministic axes.
 - **Ownership.** A landing whose `compare` shows that it changes a setting's effect updates that flag's record (or
   adds one) in the same landing. The milestone review belongs to the project's maintainer: the standing table is read
   against the states, an adopted flag that no longer moves any axis or an opt-in whose users' axis no longer improves
   gets a record that keeps it with the new numbers or removes it, and each reference control is reviewed for whether a
   zero-cost setting has become possible.
-- **Staleness.** The generated index shows each flag's Measured run. A listing, run at the milestone review and not a
+- **Staleness.** The generated index shows each flag's last run from `measured.json`. A listing, run at the milestone review and not a
   failing test, names the adopted and opt-in flags whose run is older than the current milestone.
 
 ### Bisection
@@ -242,10 +247,13 @@ them and reads them as values), which the bisection neither numbers nor skips, s
 miscompilation in them. They become decision points of the same manager:
 
 - A printer asks the manager before each decision a flag controls: each body it shares, each literal table it shares,
-  each library part it leaves out. A storage choice is one decision per compilation and backend.
+  each library part it leaves out. A storage choice, and a runtime setting of the engine chosen when the parser is
+  built, is one decision per compilation and backend.
 - A flag with a count is decided per site where its count applies: for `inline-literals`, each literal that the count
   admits for comparison in place is one decision, and a skipped decision compares that literal as the count 0 would.
-  The count itself is not bisected; a limit narrows which sites get it.
+  For `class-tables`, each class with at least the count of ranges is one decision, and a skipped decision matches
+  that class by its ranges as the count 0 would. The count itself is not bisected; a limit narrows which sites get it.
+- Reference controls are build tags, fixed for the whole program, and are not bisected.
 - Decisions are numbered in the order of the pipeline and, within a step, in the order the step visits its input,
   which is deterministic because generation is (the determinism metric of `bench/metrics` checks it).
 
@@ -259,10 +267,12 @@ A mechanism of the engine, of the Go library or of the TypeScript library (memo,
 structures, such as chunked Document text or the reuse of stream frames) is a setting when its implementation can be
 chosen when the parser is built (the engine) or generated (the embedded library leaves out the other form), at zero cost
 on the default path: the deterministic metrics show equal allocations and sizes, and a timed window shows no slowdown.
-A choice at construction or generation is preferred to a test at run time. Where no such switch exists, the mechanism
+A setting never adds a test at run time; the zero-cost check applies to the selection at build or generation time.
+Where no such switch exists, the mechanism
 keeps its build tag as a reference control, registered with its record. The generated catalog lists every reference
 control with its record and reason, and the milestone review revisits it. A reference control has the parity tests of
-a setting, run under its tag; it is not bisected and is not part of the command line. A mechanism that gains a setting
+a setting, run as two invocations, one with the default tags and one with its tag, whose printed configurations and
+parse results are compared across them; it is not bisected and is not part of the command line. A mechanism that gains a setting
 may keep its build tag as an additional control for tests.
 
 ### Compiler and Tool Techniques
@@ -299,12 +309,12 @@ The checks extend the existing tests instead of adding parallel ones.
   VMs; for a runtime setting of the engine, the printed form of the built parser's configuration, which names the
   implementation it chose. A parity test turns the control off on a backend, checks that the observable differs, and compares the parser
   with the engine's default parser: trees, typed values, syntax and recovered errors, exact units and events. The
-  default tier runs each flag's witness on each backend the flag lists, within its time budget; the long tier runs the
+  default tier runs each flag's witnesses on the backends they are listed for, within its time budget; the long tier runs the
   full matrix of flags, backends and corpus cases. The flag-specific tests stay for the corpora that reach their edges.
-- **Backend claims**: with a flag off, the observable differs from the default on every listed backend for the flag's
-  witness, and is identical on every unlisted backend over the corpus (the second half in the long tier).
+- **Backend claims**: with a flag off, the observable differs from the default on every listed backend for that
+  backend's witnesses, and is identical on every unlisted backend over the corpus (the second half in the long tier).
 - **Bisection**: the three invariants above.
-- **Release**: a test behind the release marker fails while any mechanism is unclassified or has Control `none`; the
+- **Release**: a test behind the build tag `sxir_release`, named like the other test tags (`sxir_long`), fails while any mechanism is unclassified or has Control `none`; the
   release checklist runs it.
 
 ### Public Behavior and Contracts
@@ -324,9 +334,9 @@ The checks extend the existing tests instead of adding parallel ones.
 
 The default parser of every backend is unchanged: the metadata, the generation and the checks change no generated
 file except the docs they generate. New settings for mechanisms that are on today are on in `speed`, so the default
-parser stays byte-identical; the tests that pin generated output show it. A setting that needs a test at run time must
-show zero cost on the default path by the deterministic metrics (equal allocations and sizes) and by a timed window
-before it lands.
+parser stays byte-identical; the tests that pin generated output show it. A setting selects its form at build or
+generation time and adds no test at run time; before it lands, the deterministic metrics (equal allocations and sizes)
+and a timed window show that the default path costs nothing more.
 
 ### Implementation Sequence
 
