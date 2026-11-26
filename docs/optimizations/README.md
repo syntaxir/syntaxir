@@ -105,6 +105,7 @@ Each linked mechanism page describes its source, eligibility, interactions, cont
 | [A250](mechanisms/A250-typed-object-slabs.md) | Typed object/terminal slab growth | TG; `typed-object-slabs` | — | — | — | — | ✓ | — | Default | `-no-opt typed-object-slabs` |
 | [A260](mechanisms/A260-typed-list-slabs.md) | Typed list slab growth | TG; `typed-list-slabs` | — | — | — | — | ✓ | — | Default | `-no-opt typed-list-slabs` |
 | [A270](mechanisms/A270-shared-empty-capture-frame.md) | Share immutable capture-free frame | All six; capture-free scopes only | Partial | Partial | Partial | Partial | Partial | Partial | Default | None maintained |
+| [A280](mechanisms/A280-typed-chunk-growth.md) | Typed slab and match chunk growth past the fixed limit | TG; `typed-chunk-growth` | — | — | — | — | ✓ | — | Default | `-no-opt typed-chunk-growth` |
 
 ### G — Generation and Compilation
 

@@ -1,55 +1,117 @@
 package libgo
 
-import "testing"
+import (
+	"errors"
+	"testing"
 
-// The chunks of an allocator grow with what it has handed out (chunkRatio): the number of chunks is
-// logarithmic in the values, no chunk is larger than the larger of its fixed limit and 1/chunkRatio of the
-// values before it, and the count of allocated values (the memory the parse is charged) is the sum of the
-// real chunk sizes.
+	sxirruntime "syntaxir.dev/sxir/pkg/runtime"
+)
+
+// The bounds of these tests are written with the ratio 32 itself, not with chunkRatio, so that another
+// ratio fails them: 1 or 8 make fewer and larger chunks and a larger unused tail, 64 or fixed chunks make
+// more chunks.
+
+// The chunks of an allocator grow with what it has handed out: 200,000 values take between 100 and 200
+// chunks (the ratio 32 takes 140; 8 takes 51, 64 takes 230, fixed chunks of 256 take 786), no chunk is
+// larger than the larger of 256 and 1/32 of the values before it, and the values allocated exceed those
+// handed out by at most 1/32 of them and one fixed chunk.
 func TestChunkGrowthIsGeometric(t *testing.T) {
 	var c Chunk[[4]uint64]
 	const n = 200000
-	chunks, largest, last := 0, 0, 0
+	chunks, largest, before, sum := 0, 0, 0, 0
 	for i := 0; i < n; i++ {
-		before := len(c.free)
+		free := len(c.free)
 		Alloc(&c)
-		if len(c.free) > before { // a new chunk was made
-			chunks++
+		switch {
+		case len(c.free) > free: // a new chunk was made
 			size := len(c.free) + 1
-			if limit := chunkLimit(256, last); size > limit && size > 8 {
-				t.Fatalf("chunk of %d after %d values, limit %d", size, last, limit)
+			if size > max(256, before/32) && size > 8 {
+				t.Fatalf("chunk of %d after %d values, want at most %d", size, before, max(256, before/32))
 			}
+			chunks++
 			largest = max(largest, size)
-			last = c.allocated
+			sum += size
+		case free == 0: // one of the first values, allocated on its own
+			sum++
 		}
+		before = c.allocated
 	}
-	if chunks > 200 {
-		t.Errorf("%d chunks for %d values, want a logarithmic count (the fixed 256 would make %d)", chunks, n, n/256)
+	if chunks < 100 || chunks > 200 {
+		t.Errorf("%d chunks for %d values, want 100 to 200", chunks, n)
 	}
-	if largest <= 256 {
-		t.Errorf("the largest chunk is %d, want growth past the fixed limit", largest)
+	if largest > max(256, c.allocated/32) {
+		t.Errorf("the largest chunk is %d, want at most %d", largest, max(256, c.allocated/32))
 	}
-	if c.allocated < n || c.allocated > n+n/chunkRatio+256 {
-		t.Errorf("allocated %d values for %d requests, want at most the tail of one chunk more", c.allocated, n)
+	if c.allocated != sum {
+		t.Errorf("the chunk counts %d values allocated, its chunks hold %d", c.allocated, sum)
+	}
+	if c.allocated < n || c.allocated > n+n/32+256 {
+		t.Errorf("allocated %d values for %d requests, want at most %d", c.allocated, n, n+n/32+256)
 	}
 }
 
-// A match chunk grows the same way, and the memory it charges is its real size.
+// chunkMemory is the memory counter of one chunk, as the generated tslabs is of all of them.
+type chunkMemory struct{ c Chunk[[4]uint64] }
+
+func (m *chunkMemory) MemoryBytes() uint64 { return m.c.MemoryBytes() }
+
+// The memory a chunk charges is the size of the values it allocated, grown chunks included, and the
+// memory limit fails a parse on it.
+func TestChunkMemoryIsChargedAndLimited(t *testing.T) {
+	var m chunkMemory
+	for range 100000 {
+		Alloc(&m.c)
+	}
+	used := m.c.MemoryBytes()
+	if want := uint64(m.c.allocated) * 32; used != want || m.c.allocated < 100000 {
+		t.Fatalf("MemoryBytes %d for %d values of 32 bytes, want %d", used, m.c.allocated, want)
+	}
+	check := func(limit uint64) (err error) {
+		c := newBudgetControl(sxirruntime.Limits{Memory: limit})
+		c.memExt = &m
+		defer func() {
+			if r := recover(); r != nil {
+				f, ok := r.(fatal)
+				if !ok {
+					panic(r)
+				}
+				err = f.err
+			}
+		}()
+		c.checkMemory()
+		return nil
+	}
+	if err := check(used); err != nil {
+		t.Errorf("a limit of the bytes charged failed: %v", err)
+	}
+	var le *sxirruntime.LimitError
+	if err := check(used - 1); !errors.As(err, &le) || le.Kind != sxirruntime.LimitMemory || le.Used != used {
+		t.Errorf("a limit one byte below the bytes charged: %v, want a memory limit error with %d used", err, used)
+	}
+}
+
+// Match chunks grow the same way unless the grammar keeps them fixed (FixedTypedChunks), and the memory
+// they charge is their real size.
 func TestMatchChunksGrow(t *testing.T) {
-	p := &TParser{Parser: &Parser{}}
-	const n = 100000
-	chunks := 0
-	for i := 0; i < n; i++ {
-		if len(p.matches) == 0 {
-			chunks++
+	for _, fixed := range []bool{false, true} {
+		p := &TParser{Parser: &Parser{g: &grammar{FixedTypedChunks: fixed}}}
+		const n = 100000
+		chunks := 0
+		for range n {
+			if len(p.matches) == 0 {
+				chunks++
+			}
+			p.NewMatch(0, 0, "", false)
 		}
-		p.NewMatch(0, 0, "", false)
-	}
-	if chunks > 150 {
-		t.Errorf("%d match chunks for %d matches, want a logarithmic count", chunks, n)
-	}
-	if p.matchTotal < n || uint64(p.matchTotal)*matchBytes != p.memUsed {
-		t.Errorf("matchTotal %d, memUsed %d bytes: the memory charged is not the size of the chunks", p.matchTotal, p.memUsed)
+		switch {
+		case fixed && chunks != (n+nodeChunk-1)/nodeChunk:
+			t.Errorf("fixed: %d match chunks for %d matches, want %d of %d", chunks, n, (n+nodeChunk-1)/nodeChunk, nodeChunk)
+		case !fixed && (chunks < 50 || chunks > 150):
+			t.Errorf("%d match chunks for %d matches, want 50 to 150", chunks, n)
+		}
+		if p.matchTotal < n || uint64(p.matchTotal)*matchBytes != p.memUsed {
+			t.Errorf("fixed %v: matchTotal %d, memUsed %d bytes: the memory charged is not the size of the chunks", fixed, p.matchTotal, p.memUsed)
+		}
 	}
 }
 

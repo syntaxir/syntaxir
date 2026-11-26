@@ -349,6 +349,10 @@ type grammar struct {
 	// HasMissing reports that the grammar has #missing sites, which insert missing tokens in a parse with
 	// a positive limit of them (WithMissingTokens).
 	HasMissing bool
+	// FixedTypedChunks reports that the parser was generated with the optimization typed-chunk-growth
+	// off: the chunks of the match cells of a typed parse stay at their fixed size instead of growing
+	// with the cells allocated before them (chunkRatio).
+	FixedTypedChunks bool
 	// MaxDepth is the default maximum nesting of recursive rule calls.
 	maxDepth int
 	// features are the features the generator found for the parser, with featureWitnessed, when the

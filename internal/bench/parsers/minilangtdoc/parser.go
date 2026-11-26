@@ -7082,4 +7082,4 @@ fail:
 
 const _ = types.SXIRSchema_384796197f10dab5
 
-const _ = rt.Protocol36
+const _ = rt.Protocol37

@@ -282,8 +282,8 @@ Details:
   `sxir`): the generated code imports the packages of `syntaxir.dev/sxir/pkg/runtime` with either `-lib` mode, and with `-lib import` also
   `syntaxir.dev/sxir/pkg/runtime/libgo`. Both refer to the library protocol they were generated for, so a mismatched
   version fails the build on that line instead of misbehaving. With `-lib import`, `parser.go` declares
-  `const _ = rt.Protocol36`, and a library that does not implement the protocol fails with
-  `undefined: rt.Protocol36`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
+  `const _ = rt.Protocol37`, and a library that does not implement the protocol fails with
+  `undefined: rt.Protocol37`. The embedded copy declares `const _ = valueimpl.Protocol15`, and a `pkg/runtime/value/impl` package that does
   not serve the node representation of that protocol fails with `undefined: valueimpl.Protocol15`. Regenerate the
   parser with the `sxir` of the required version, or require a version of `syntaxir.dev/sxir` that implements the
   protocol.
@@ -355,6 +355,7 @@ table changes output yet:
 | `ts-literal-sharing` | printer | off | Share literal tables in TypeScript parsers. Smaller code against speed: a small cold parse measured about 1.5 times slower. It is an opt-in: turn it on with `-opt ts-literal-sharing` |
 | `used-features` | printer | on | Leave out the library code of the features that the grammar and the options rule out, such as left recursion, recovery, Operators Rules, streams or Documents, and the declarations of the embedded library that the parser does not name (Go and TypeScript, with `-lib embed`; `-lib only` writes the whole library). Off, the parser carries every feature; what a parse returns and charges is the same either way. Smaller source and binary, at no cost on average; single TypeScript workloads move by about 3% either way, as the JavaScript engine inlines the smaller library differently |
 | `sparse-memo` | storage | on | Keep the first-call table of large TypeScript parsers sparse. Memory in proportion to the positions visited against a page lookup per check |
+| `typed-chunk-growth` | storage | on | Let the slabs of typed values and the chunks of typed match cells grow past their fixed size with the values allocated before them, to 1/32 of those (typed Go). Allocations that grow with the logarithm of the output against an unused tail of at most 1/33 of the values |
 | `typed-list-slabs` | storage | on | Allocate typed lists in slabs (typed Go). Fewer allocations against memory, as for objects |
 | `typed-object-slabs` | storage | on | Allocate typed objects in slabs (typed Go). Fewer allocations against memory: an object that escapes keeps the unused objects of its chunk |
 | `typed-output-bootstrap` | storage | on | Size the first slab of the typed output from the input (typed Go). A small parse keeps little memory, against a few allocations before the slabs start |

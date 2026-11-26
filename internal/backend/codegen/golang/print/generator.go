@@ -110,9 +110,10 @@ type Parser struct {
 // both printers and the Go printer's own.
 type Params struct {
 	common.Params
-	// TypedObjectSlabs and TypedListSlabs allocate typed objects and lists in slabs, and
-	// TypedOutputBootstrap sizes the first slab of the typed output from the input.
-	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap bool
+	// TypedObjectSlabs and TypedListSlabs allocate typed objects and lists in slabs,
+	// TypedOutputBootstrap sizes the first slab of the typed output from the input, and
+	// TypedChunkGrowth lets the slabs and the match chunks grow with the values allocated before them.
+	TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth bool
 	// Control, if not nil, is the control of the printing step (cancel.New of the context of the step), which the
 	// printers of the grammar's code poll (Target.Control).
 	Control *cancel.Control
@@ -274,6 +275,9 @@ func printTables(p *Parser, params Params, t *execdata.Tables, h Hooks) (files [
 	}
 	if prog.Run.HasMissing {
 		genGo.Init.WriteString("\tsxirGrammar.HasMissing = true\n")
+	}
+	if opts.Types && !params.TypedChunkGrowth {
+		genGo.Init.WriteString("\tsxirGrammar.FixedTypedChunks = true\n")
 	}
 	if t := prog.Vars; t != nil {
 		var names, vals []string

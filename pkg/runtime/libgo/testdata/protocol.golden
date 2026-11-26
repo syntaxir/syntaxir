@@ -1,4 +1,4 @@
-protocol 36
+protocol 37
 const BaseString untyped int = 0
 const ExpFar ExpID = 536870912
 const IdAny ExpID = 0
@@ -449,7 +449,7 @@ type TypedDocumentCloneBase struct{Control *BudgetControl; Values map[any]any; S
 type TypedDocumentCloneTask struct{Source any; Target any}
 type budgetControlSetter interface{SetBudgetControl(*BudgetControl)}
 type documentState struct{}
-type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool; HasMissing bool}
+type grammar struct{Starts []string; DefaultStart string; Descs []string; Expectations bool; StructFields map[string]*structFields; TypeKinds map[string]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind; NodeTypes map[string]*nodeTypeKinds; SourceInfo bool; Observable bool; NoBudgetControls bool; HasMissing bool; FixedTypedChunks bool}
 type matcher = func(*Parser) (*syntaxir.dev/sxir/pkg/runtime/value.Node, bool)
 type nodeTypeKinds [3]*syntaxir.dev/sxir/pkg/runtime/value/impl.Kind
 type observation struct{}

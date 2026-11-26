@@ -387,7 +387,7 @@ func (d *Decision) tableIR(s tableSpec, m *core.Module) *plandata.TableIR {
 // values of the step's parameters (print.Params).
 var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 	Decl: pipe.Decl{Name: "print-go", Required: true, Obligation: "The files are the Go parser of the tables.", Features: []pipe.FeatureID{codegen.TargetFeature.ID()},
-		Params: append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap)},
+		Params: append(slices.Clone(codegen.Params), TypedObjectSlabs, TypedListSlabs, TypedOutputBootstrap, TypedChunkGrowth)},
 	In: execdata.TablesIR, Out: result.IR,
 	Run: func(c *pipe.Ctx[*execdata.Tables], t *execdata.Tables) (result.Output, pass.PreservedSet, error) {
 		target, ok := pipe.Feature(c, codegen.TargetFeature).(*Target)
@@ -402,7 +402,7 @@ var Printing = pipe.New(pipe.Def[*execdata.Tables, result.Output]{
 		if target.hooks != nil {
 			h = *target.hooks
 		}
-		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0, Control: cancel.New(c.Context())}
+		params := print.Params{Params: codegen.ParamsOf(c.Value), TypedObjectSlabs: c.Value(TypedObjectSlabs) != 0, TypedListSlabs: c.Value(TypedListSlabs) != 0, TypedOutputBootstrap: c.Value(TypedOutputBootstrap) != 0, TypedChunkGrowth: c.Value(TypedChunkGrowth) != 0, Control: cancel.New(c.Context())}
 		files, err := print.Print(&d.Parser, params, t, h)
 		if err != nil {
 			return nil, pass.PreserveNone(), err

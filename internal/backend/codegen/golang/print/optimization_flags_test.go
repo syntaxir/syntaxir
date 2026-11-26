@@ -76,6 +76,7 @@ var optimizationTests = map[string]string{
 	"typed-object-slabs":     "TestGeneratedTypedOutputRetentionFixture",
 	"typed-list-slabs":       "TestGeneratedTypedOutputRetentionFixture",
 	"typed-output-bootstrap": "TestGeneratedTypedOutputRetentionFixture",
+	"typed-chunk-growth":     "",
 	"sparse-memo":            "TestGeneratedTSSparseMemoControls (print)",
 	"ts-merged-records":      "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
 	"ts-tested-inits":        "TestTSExecPassesKeepResultsAndSpends (typescript/print)",
@@ -183,7 +184,7 @@ func TestRegistryOfTheGenerators(t *testing.T) {
 		"canonicalize",
 		"drop-after-exit", "drop-unused-labels", "fold-branches", "fold-constants", "splice-blocks",
 		"literal-sharing", "method-sharing", "ts-literal-sharing", "used-features",
-		"sparse-memo", "typed-list-slabs", "typed-object-slabs", "typed-output-bootstrap",
+		"sparse-memo", "typed-chunk-growth", "typed-list-slabs", "typed-object-slabs", "typed-output-bootstrap",
 	}
 	if got := pass.Names(); !slices.Equal(got, want) {
 		t.Errorf("the registry lists\n%v\nwant\n%v", got, want)

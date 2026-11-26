@@ -303,8 +303,9 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 	units := append([]shakeUnit(nil), astHelperUnits...)
 	bootstrap := g.params.TypedOutputBootstrap
 	// The default form of the chunk helpers is the library's (Chunk, Alloc, AllocSlice); only the
-	// measurement references (separate allocation, no bootstrap, plain slabs) print local helpers.
-	if bootstrap && g.params.TypedObjectSlabs && g.params.TypedListSlabs {
+	// measurement references (separate allocation, no bootstrap, plain slabs, fixed slabs) print local
+	// helpers.
+	if bootstrap && g.params.TypedObjectSlabs && g.params.TypedListSlabs && g.params.TypedChunkGrowth {
 		g.chunksInLib = true
 		units = units[:0:0]
 		for _, u := range astHelperUnits {
@@ -313,6 +314,13 @@ func (it *StreamValueIterator) Close() { it.pull.Close() }
 			}
 		}
 	} else {
+		if !g.params.TypedChunkGrowth {
+			for i, u := range units {
+				if u.Name == "astChunk" {
+					units[i].Text = astFixedChunkHelper
+				}
+			}
+		}
 		switch {
 		case !g.params.TypedObjectSlabs:
 			units = append(units, shakeUnit{"astNew", astIndividualObjectHelper})
@@ -1813,8 +1821,7 @@ type astChunk[T any] struct {
 
 // astChunkRatio bounds a chunk by what its allocator has handed out: a chunk is at most the larger of its
 // fixed limit and 1/astChunkRatio of the values allocated before it, so the chunks of a parse grow
-// geometrically and their number is logarithmic in the output. The ratio is the library's chunkRatio:
-// 32 keeps the bytes within about 2% of fixed chunks.
+// geometrically and their number is logarithmic in the output. The ratio is the library's chunkRatio.
 const astChunkRatio = 32
 
 // grow starts small and doubles up to the limit, or up to 1/astChunkRatio of the values allocated so far
@@ -1834,6 +1841,33 @@ func (s *astChunk[T]) grow(n, initial, limit int) {
 
 `},
 }
+
+// astFixedChunkHelper is astChunk without growth past the fixed limit, the form of the optimization
+// typed-chunk-growth turned off.
+const astFixedChunkHelper = `// astChunk owns unused values and the next allocation size for one type.
+// Handed-out values are never reused, even when a parse discards them.
+type astChunk[T any] struct {
+	free []T
+	next int
+	bootstrap uint8
+	allocated int // the values allocated so far
+}
+
+// grow starts small and doubles up to limit. The request is always satisfied.
+func (s *astChunk[T]) grow(n, initial, limit int) {
+	size := s.next
+	if size == 0 {
+		size = initial
+	}
+	for size < n {
+		size *= 2
+	}
+	s.free = make([]T, size)
+	s.allocated += size
+	s.next = min(size*2, limit)
+}
+
+`
 
 const astObjectSlabHelper = `// astNew returns a new zero value from a chunk that grows from 8 values to at least 256 (astChunkRatio).
 func astNew[T any](s *astChunk[T]) *T {

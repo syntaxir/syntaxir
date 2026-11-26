@@ -1026,9 +1026,12 @@ func (p *TParser) NewNode(typ string, start, end int, kids []any) *TSeq {
 }
 
 // newMatchChunk makes the next chunk of match cells: nodeChunk of them, or more once the chunks hold
-// chunkRatio times as many (chunkRatio).
+// chunkRatio times as many (chunkRatio), unless the grammar keeps its chunks fixed (FixedTypedChunks).
 func (p *TParser) newMatchChunk() []TMatch {
-	n := chunkLimit(nodeChunk, p.matchTotal)
+	n := nodeChunk
+	if !p.g.FixedTypedChunks {
+		n = chunkLimit(nodeChunk, p.matchTotal)
+	}
 	p.matchTotal += n
 	return make([]TMatch, n)
 }
