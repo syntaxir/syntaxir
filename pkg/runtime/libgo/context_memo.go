@@ -530,9 +530,3 @@ func (p *Parser) valuesEqual(a, b reflect.Value, budget *int) bool {
 	}
 	return false
 }
-
-// samePositionBasis reports whether the positions of the nodes a and b account for the same edits
-// of a Document (Data.Mark), so that equal positions are the same positions: a Document moves the
-// nodes of a reused value lazily (documentMove), and a node holds the positions of the text of its
-// Mark.
-func (*Parser) samePositionBasis(a, b *sxirvalue.Node) bool { return D(a).Mark == D(b).Mark }
